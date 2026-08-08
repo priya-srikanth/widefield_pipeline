@@ -1,0 +1,17 @@
+numpy>=2.2
+scipy>=1.15
+matplotlib>=3.10
+scikit-learn>=1.7
+scikit-image>=0.25
+h5py>=3.16
+pandas>=2.3
+python-pptx>=1.0
+opencv-python>=4.9
+Pillow>=11
+joblib>=1.5
+tqdm>=4.67
+PyYAML>=6
+
+[dev]
+pytest>=8
+ruff>=0.6

@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: widefield_pipeline
+Version: 0.1.0
+Summary: Widefield calcium-imaging preprocessing + LocaNMF spout-position decode/encode pipeline (Sabatini lab).
+Requires-Python: >=3.10
+Requires-Dist: numpy>=2.2
+Requires-Dist: scipy>=1.15
+Requires-Dist: matplotlib>=3.10
+Requires-Dist: scikit-learn>=1.7
+Requires-Dist: scikit-image>=0.25
+Requires-Dist: h5py>=3.16
+Requires-Dist: pandas>=2.3
+Requires-Dist: python-pptx>=1.0
+Requires-Dist: opencv-python>=4.9
+Requires-Dist: Pillow>=11
+Requires-Dist: joblib>=1.5
+Requires-Dist: tqdm>=4.67
+Requires-Dist: PyYAML>=6
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
