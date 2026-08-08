@@ -39,7 +39,16 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
   `configs/animals.yaml reference_landmarks`)→push to `N:`, then runs photobleach QC. `--dry-run` prints the
   plan; `--only PS94 PS95` subsets animals. Params (SVD k/fs/highpass/lowpass, relabel mode) live in
   `defaults.yaml preprocess`. Still separate one-offs (not yet folded): `_crossday_intensity.py`,
-  `_xall_refresh.py`, deck update, standby transfer.
+  `_xall_refresh.py`, deck update, standby transfer. (`preprocess.py` now also folds in the per-animal
+  all-days cross-day QC overlay `xall` via `refresh_xall()` — so both the per-date cross-day QC AND the
+  `<animal>_xall` all-days overlay are still emitted.)
+- **Preprocessing deck (replaces `PS92_94_95_affine8v1.pptx` + the retired `_update_ppt_affine8v1.py`):**
+  the FINAL nightly step, run AFTER the activity maps are generated + pushed, is
+  `python -m wfield_local.preprocess_deck` — it rebuilds the single canonical deck
+  `labcams/PS92-95_cross_sessions_aligned.pptx` IN PLACE (one file, refreshed nightly; NOT a per-date
+  copy). Grouped by animal → nested by output type → then date; images fit-to-slide; cue/lick maps
+  full-height; cross-day raw ROI-intensity summary at the end; hemodynamic-correction QC dropped. A full
+  rebuild is ~30 s (pure figure-assembly, no recompute), negligible vs the night's compute.
 - **Never delete from E:** until byte-verified; never delete from N: / non-Priya folders.
 
 ## Review — applied 2026-08-08
