@@ -56,14 +56,14 @@ the **head-on behavior camera (cam1)** by reading the spout's x-position per tri
    existing `--behavior-trials` path (the recovered codes satisfy `DAQ_code==(true & ~bit1)` by
    construction, so the order+bitmask aligner accepts them at 100%, offset=0, dead-bit=2).
 
-Scripts (repo): `_ps93_autodetect.py` (sync map + detect + classify + validation scatter),
-`_ps93_verify.py` (reference/closest-call montage), `_ps93_apply.py` (synthetic trials.csv +
-regen maps). Validation artifacts archived to N: at
+Scripts (repo, `recovery_gui/`): `_ps93_autodetect.py` (sync map + detect + classify +
+validation scatter), `_ps93_verify.py` (reference/closest-call montage), `_ps93_apply.py`
+(synthetic trials.csv + regen maps). Validation artifacts archived to N: at
 `...\20260805\PS93_20260805_201110\motion_corrected\spout_position_recovery_cam1\`
 (`ps93_autolabels.png/.npz`, `ps93_verify_montage.png`, `ps93_recovered_trials.csv`).
-Reference position frames (calibration) from PS92 8/5: `_ps93_gui_refs.py`.
+Reference position frames (calibration) from PS92 8/5: `recovery_gui/_ps93_gui_refs.py`.
 
-**Human-verified.** All 279 ambiguous trials were reviewed trial-by-trial in `_ps93_gui.py`
+**Human-verified.** All 279 ambiguous trials were reviewed trial-by-trial in `recovery_gui/_ps93_gui.py`
 (closest-to-threshold first) against per-position reference frames: **0 corrections** — the
 auto-recovery was confirmed exactly. Final confirmed labels: `ps93_reviewed_trials.csv`
 (identical to the auto version). Both are on N: under the session's `spout_position_recovery_cam1\`
