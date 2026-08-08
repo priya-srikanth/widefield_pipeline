@@ -66,6 +66,29 @@ def test_discover_empty_when_date_absent(tmp_path):
     assert preprocess._discover("20991231", str(tmp_path), str(tmp_path)) == []
 
 
+def test_discover_processed_from_microscope(tmp_path, monkeypatch):
+    """Processed-session discovery (for --skip-preprocess when raw is archived off E:)."""
+    lab = tmp_path / "labcams"
+    daq = tmp_path / "DAQ_recorder_output"
+    d = "20260807"
+    # a processed session = motion_corrected/ holding a *cleanpairs_frame_map.npz
+    _touch(lab / d / "PS92_20260807_150924" / "motion_corrected"
+           / "pco_edge_run000_00000000_2_460_480_uint16_daq_led_cleanpairs_frame_map.npz")
+    # an un-processed session dir (no frame_map) must be skipped
+    (lab / d / "PS93_20260807_174403" / "motion_corrected").mkdir(parents=True)
+    _touch(daq / d / "PS92_20260807_151146.h5")
+    rv = PathResolver(machine="imaging")
+    monkeypatch.setattr(rv, "root", lambda name: {
+        "labcams": str(lab), "daq_recorder_output": str(daq)}.get(name, PathResolver.root(rv, name)))
+    found = preprocess.discover_processed_sessions(d, rv)
+    assert [s["animal"] for s in found] == ["PS92"]          # PS93 skipped (no frame_map)
+    (s,) = found
+    assert s["sess"] == "PS92_20260807_150924"
+    assert s["dims"] == "2_460_480"                          # parsed from the frame_map name
+    assert s["raw_dat"] is None                              # raw archived -> photobleach skips it
+    assert s["daq_h5"].endswith("PS92_20260807_151146.h5")   # matched from the N: DAQ root
+
+
 def test_reference_for_derived_from_config():
     rv = PathResolver(machine="imaging")
     params = config.defaults()["preprocess"]

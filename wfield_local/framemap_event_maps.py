@@ -81,10 +81,19 @@ def _load_common(args):
 def _behavior_cue_codes(trials_csv, daq_cue_codes):
     """Recover true spout positions from the behavior trials.csv when a DAQ strobe bit is
     dead. Aligns the behavior pos_idx sequence to the DAQ cues by order and verifies the
-    DAQ code equals the true code with the missing bit masked (>=98%)."""
+    DAQ code equals the true code with the missing bit masked (>=98%).
+
+    If the DAQ strobe is HEALTHY (all 6 positions present), it is trusted and returned
+    unchanged -- so appending ``--behavior-trials`` on a good session is a safe no-op (mirrors
+    behavior_position.classify_cues_with_backup, which the LocaNMF/decoder path uses). Only a
+    dead-strobe session (missing positions) whose log cannot be aligned is a hard error."""
     import csv as _csv
-    pos = [int(r["pos_idx"]) for r in _csv.DictReader(open(trials_csv))]
     n = len(daq_cue_codes); daq = np.asarray(daq_cue_codes)
+    if len({int(x) for x in daq if x >= 0}) >= 6:
+        print("[behavior] DAQ strobe healthy (>=6 positions); using DAQ cue codes "
+              "(trials.csv ignored)", flush=True)
+        return daq
+    pos = [int(r["pos_idx"]) for r in _csv.DictReader(open(trials_csv))]
     for off in range(0, max(1, len(pos) - n) + 1):
         cand = np.asarray(pos[off:off + n], dtype=np.int64)
         if len(cand) != n:

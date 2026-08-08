@@ -23,6 +23,10 @@ for every sub-step, so no hard-coded python path)::
     python -m wfield_local.preprocess all                        # every date-dir on the raw drive
     python -m wfield_local.preprocess 20260808 --dry-run         # print the plan only
     python -m wfield_local.preprocess 20260808 --only PS94 PS95  # subset of animals (or --only all)
+    python -m wfield_local.preprocess 20260807 --skip-preprocess --only PS92
+                                                                 # re-run only downstream steps
+                                                                 # (maps/xall) on already-processed
+                                                                 # sessions (raw archived off E:)
 
 The date grammar (list / range / ``all`` / either width) and ``--only`` are shared verbatim with the
 analysis CLI (:mod:`wfield_local.nightly_figs`); see :func:`wfield_local.config.expand_dates`.
@@ -112,6 +116,37 @@ def list_raw_dates(rv: PathResolver) -> list[str]:
     if not root.exists():
         return []
     return sorted(p.name for p in root.iterdir() if p.is_dir() and re.fullmatch(r"\d{8}", p.name))
+
+
+def discover_processed_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
+    """Discover ALREADY-PROCESSED sessions from the MICROSCOPE tree (``labcams`` = N:).
+
+    For re-running downstream steps (maps/xall/deck) on a date whose raw ``.dat`` has been
+    archived off the imaging box's E:. A session counts as processed if its ``motion_corrected``
+    holds a ``*cleanpairs_frame_map.npz`` (the maps step's key input). DAQ ``.h5`` is matched
+    from the MICROSCOPE DAQ root (``daq_recorder_output`` = N:), so this works after E: is cleaned.
+    ``raw_dat`` is ``None`` (photobleach needs raw and is skipped for such sessions).
+    """
+    datedir = Path(rv.root("labcams")) / yyyymmdd
+    if not datedir.exists():
+        return []
+    h5s = [Path(p) for p in glob.glob(str(Path(rv.root("daq_recorder_output")) / "**" / "*.h5"),
+                                      recursive=True)]
+    out = []
+    for sd in sorted(datedir.glob(f"*{yyyymmdd}*")):
+        if not (sd.is_dir() and ANIMAL_RE.search(sd.name)):
+            continue
+        fms = sorted((sd / "motion_corrected").glob("*cleanpairs_frame_map.npz"))
+        if not fms:
+            continue                                   # not processed -> skip
+        m = re.search(r"_(2_\d+_\d+)_uint16", fms[0].name)
+        animal = ANIMAL_RE.search(sd.name).group(1)
+        daq = _match_daq(h5s, animal, yyyymmdd)
+        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], sess=sd.name, sess_dir=str(sd),
+                        raw_dat=None, daq_h5=(str(daq) if daq else None),
+                        dims=(m.group(1) if m else "?"), n_dats=0))
+    out.sort(key=lambda s: (s["animal"] or "", s["sess"]))
+    return out
 
 
 # --------------------------------------------------------------------------- reference
@@ -340,10 +375,16 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
 def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
     sessions = discover_raw_sessions(date, rv)
+    if not sessions and args.skip_preprocess:
+        sessions = discover_processed_sessions(date, rv)
+        if sessions:
+            print(f"[preprocess] {date}: raw not on {rv.root('raw_labcams')} (archived); "
+                  f"discovered {len(sessions)} PROCESSED session(s) from MICROSCOPE for downstream steps")
     if args.only:
         sessions = [s for s in sessions if s["animal"] in set(args.only)]
     if not sessions:
-        print(f"[preprocess] no raw sessions discovered for {date} under {rv.root('raw_labcams')}")
+        where = "raw or processed" if args.skip_preprocess else "raw"
+        print(f"[preprocess] no {where} sessions discovered for {date} under {rv.root('raw_labcams')}")
         return set()
 
     print(f"\n[preprocess] {date}: {len(sessions)} session(s) on machine={rv.machine}")
@@ -351,8 +392,11 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
         flag = "" if s["daq_h5"] else "  <<< NO DAQ MATCH"
         print(f"  {s['animal']}  {s['sess']}  dims={s['dims']}  daq={os.path.basename(s['daq_h5'] or '?')}{flag}")
 
-    for s in sessions:
-        preprocess_session(s, params, rv, args.dry_run)
+    if args.skip_preprocess:
+        print("[preprocess] --skip-preprocess: skipping motion/SVD/cross-register/push", flush=True)
+    else:
+        for s in sessions:
+            preprocess_session(s, params, rv, args.dry_run)
 
     # cue/lick/quiet activity maps (AFTER the push loop so the GPU-box LocaNMF push stays first)
     if not args.skip_maps:
@@ -363,7 +407,8 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     if not args.skip_photobleach:
         print("\n################ photobleach QC ################", flush=True)
         out_dir = rv.resolve("labcams", f"{date}/photobleach")
-        triples = [(f"{s['animal']}_{s['mmdd']}", s["raw_dat"], s["daq_h5"]) for s in sessions if s["daq_h5"]]
+        triples = [(f"{s['animal']}_{s['mmdd']}", s["raw_dat"], s["daq_h5"])
+                   for s in sessions if s["daq_h5"] and s["raw_dat"]]
         if args.dry_run:
             print(f"[dry-run] photobleach.run({len(triples)} sessions) -> {out_dir}")
         else:
@@ -380,6 +425,10 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", metavar="ANIMAL",
                     help="restrict to these animals (e.g. PS94 PS95), or 'all' (default: all)")
     ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
+    ap.add_argument("--skip-preprocess", action="store_true",
+                    help="skip motion/SVD/cross-register/push; re-run only downstream steps "
+                         "(maps/xall) on already-processed sessions. Falls back to discovering "
+                         "processed sessions from MICROSCOPE when the raw .dat is archived off E:.")
     ap.add_argument("--skip-photobleach", action="store_true")
     ap.add_argument("--skip-maps", action="store_true", help="skip the cue/lick/quiet activity-maps pass")
     ap.add_argument("--skip-xall", action="store_true", help="skip the all-days cross-day QC refresh")
