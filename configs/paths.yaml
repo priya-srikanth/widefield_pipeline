@@ -1,0 +1,47 @@
+# Path configuration. A resolver maps logical roots to platform mounts (first existing wins).
+# (Mirrors stroke_orofacial_pipeline/configs/paths.yaml.)
+# NB the analysis (this/behavior GPU) computer reaches MICROSCOPE via the mapped drive M:;
+# the UNC path is the canonical form. git-bash /m is unreliable this session -> use PowerShell
+# or the mapped M: drive from Python.
+
+logical_roots:
+  microscope:
+    description: "Shared MICROSCOPE server (Priya root)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya"
+      windows_unc: "\\\\research.files.med.harvard.edu\\Neurobio\\MICROSCOPE\\Priya"
+
+  labcams:
+    description: "Widefield imaging sessions (motion_corrected/, wfield_local_results/, LocaNMF outputs)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\labcams"
+
+  daq_recorder_output:
+    description: "DAQ recorder .h5 output (per YYYYMMDD)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\DAQ_recorder_output"
+
+  behavior_logs:
+    description: "Behavior task-controller logs (trials.csv etc.) — Widefield SUBDIR (as of 2026-08-06)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya\\Behavior_logs\\Widefield"
+
+  behavior_cameras:
+    description: "Behavior camera recordings — Widefield SUBDIR (as of 2026-08-06)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya\\Behavior_Cameras\\Widefield"
+
+  cue_analysis_out:
+    description: "Deck + figure destination (spout_position_decoder_summary.pptx + PNGs)"
+    mounts:
+      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\labcams\\locanmf_lick_pooled\\cue_analysis"
+
+  figures_working:
+    description: "Local working figure dir (deck built here, then copied to cue_analysis_out)"
+    mounts:
+      windows: "C:\\Users\\sabatini\\source\\cue_lick"
+
+# Local acquisition/upload source on the IMAGING computer (before MICROSCOPE upload):
+staging:
+  camera_local: "D:\\camera"            # -> behavior_cameras/<YYYYMMDD>
+  behavior_logs_local: "D:\\behavior_logs"  # -> behavior_logs/<session>

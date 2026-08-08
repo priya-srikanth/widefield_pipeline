@@ -1,0 +1,15 @@
+# Conda environment for the widefield pipeline (both machines).
+# Setup on a new machine:
+#   conda env create -f environment.yml      # creates env "locanmf"
+#   conda activate locanmf
+#   pip install -e .                          # installs wfield_local + deps from pyproject.toml
+# Then install the GPU/custom pieces manually (see README "Setup"):
+#   torch (CUDA), wfield, LocaNMF/localnmf + cuhals.
+name: locanmf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - -e .

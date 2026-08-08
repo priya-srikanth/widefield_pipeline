@@ -1,0 +1,160 @@
+# Widefield imaging sessions — single source of truth (formalizes the legacy SESSIONS list
+# in wfield_local/locanmf_cue_lick_analysis.py). Keyed animal -> date(MMDD).
+# regime B = cleanpairs frame_map present (fmdir=None); A = legacy frame map.
+# behavior_trials = recovered/override positions CSV (e.g. PS93 8/5 cam1 recovery).
+# L / D path roots are the labcams / DAQ_recorder_output mounts (see configs/paths.yaml).
+sessions:
+  PS92:
+    "0602":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260602/PS92_20260602_151820/illuminated_rescue/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250602/PS92_20260602_152607.h5"
+      regime: "B"
+      fmdir: "M:/MICROSCOPE/Priya/Widefield/labcams/20260602/PS92_20260602_151820/illuminated_rescue"
+    "0603":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260603/PS92_20260603_104008/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250603/PS92_20260603_104607.h5"
+      regime: "B"
+    "0604":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260604/PS92_20260604_132934/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250604/PS92_20260604_concat.h5"
+      regime: "A"
+    "0605":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260605/PS92_20260605_125023/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260605/PS92_20260605_125301.h5"
+      regime: "B"
+    "0606":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260606/PS92_20260606_122451/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260606/PS92_20260606_122508.h5"
+      regime: "B"
+    "0607":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260607/PS92_20260607_121538/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260607/PS92_20260607_121551.h5"
+      regime: "B"
+    "0608":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260608/PS92_20260608_133759/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260608/PS92_20260608_133847.h5"
+      regime: "B"
+    "0805":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS92_20260805_181150/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260805/PS92_20260805_182111.h5"
+      regime: "B"
+    "0806":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260806/PS92_20260806_124426/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260806/PS92_20260806_124733.h5"
+      regime: "B"
+    "0807":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260807/PS92_20260807_150924/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260807/PS92_20260807_151146.h5"
+      regime: "B"
+  PS93:
+    "0605":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260605/PS93_20260605_174659/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260605/PS93_20260605_175452.h5"
+      regime: "B"
+    "0606":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260606/PS93_20260606_180117/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260606/PS93_20260606_180219.h5"
+      regime: "B"
+    "0607":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260607/PS93_20260607_174844/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260607/PS93_20260607_174854.h5"
+      regime: "B"
+    "0608":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260608/PS93_20260608_195203/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260608/PS93_20260608_195350.h5"
+      regime: "B"
+    "0805":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS93_20260805_201110/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260805/PS93_20260805_202005.h5"
+      regime: "B"
+      behavior_trials: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS93_20260805_201110/motion_corrected/spout_position_recovery_cam1/ps93_reviewed_trials.csv"
+    "0806":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260806/PS93_20260806_172253/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260806/PS93_20260806_172316.h5"
+      regime: "B"
+    "0807":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260807/PS93_20260807_174403/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260807/PS93_20260807_174416.h5"
+      regime: "B"
+  PS94:
+    "0601":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260601/PS94_20260601_141614/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/PS94_baseline_20260601_141642.h5"
+      regime: "A"
+    "0603":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260603/PS94_20260603/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250603/PS94_20260603_175946.h5"
+      regime: "B"
+    "0604":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260604/PS94_20260604_151516/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250604/PS94_20260604_152103.h5"
+      regime: "A"
+    "0605":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260605/PS94_20260605_142009/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260605/PS94_20260605_142249.h5"
+      regime: "B"
+    "0606":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260606/PS94_20260606_140854/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260606/PS94_20260606_140912.h5"
+      regime: "B"
+    "0607":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260607/PS94_20260607_140731/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260607/PS94_20260607_140813.h5"
+      regime: "B"
+    "0608":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260608/PS94_20260608_153651/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260608/PS94_20260608_153702.h5"
+      regime: "B"
+    "0805":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS94_20260805_124758/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260805/PS94_20260805_131025.h5"
+      regime: "B"
+    "0806":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260806/PS94_20260806_074320/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260806/PS94_20260806_074558.h5"
+      regime: "B"
+    "0807":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260807/PS94_20260807_104125/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260807/PS94_20260807_105410.h5"
+      regime: "B"
+  PS95:
+    "0601":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260601/PS95_20260601_153653/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/PS95_baseline_20260601_153627.h5"
+      regime: "A"
+    "0603":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260603/PS95_20260603_194442/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250603/PS95_20260603_194902.h5"
+      regime: "B"
+    "0604":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260604/PS95_20260604_165712/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20250604/PS95_20260604_170729.h5"
+      regime: "A"
+    "0605":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260605/PS95_20260605_163102/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260605/PS95_20260605_163405.h5"
+      regime: "B"
+    "0606":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260606/PS95_20260606_160806/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260606/PS95_20260606_160825.h5"
+      regime: "B"
+    "0607":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260607/PS95_20260607_155000/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260607/PS95_20260607_155400.h5"
+      regime: "B"
+    "0608":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260608/PS95_20260608_180943/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260608/PS95_20260608_180950.h5"
+      regime: "B"
+    "0805":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS95_20260805_155615/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260805/PS95_20260805_160437.h5"
+      regime: "B"
+    "0806":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260806/PS95_20260806_105300/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260806/PS95_20260806_105651.h5"
+      regime: "B"
+    "0807":
+      mc: "M:/MICROSCOPE/Priya/Widefield/labcams/20260807/PS95_20260807_124637/motion_corrected"
+      h5: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output/20260807/PS95_20260807_125106.h5"
+      regime: "B"

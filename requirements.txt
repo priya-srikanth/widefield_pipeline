@@ -1,4 +1,20 @@
-nidaqmx>=1.0
-h5py>=3.0
-numpy>=1.23
+# Pinned reference versions (locanmf env, 2026-08-08). Prefer `pip install -e .`
+# (pulls these from pyproject.toml); this file is a reproducibility lock.
+numpy==2.2.6
+scipy==1.15.3
+matplotlib==3.10.9
+scikit-learn==1.7.2
+scikit-image==0.25.2
+h5py==3.16.0
+pandas==2.3.3
+python-pptx==1.0.2
+opencv-python
+Pillow==12.2.0
+joblib==1.5.3
+tqdm==4.67.3
+PyYAML>=6
 
+# --- GPU / custom — install SEPARATELY, not via this file (see README "Setup") ---
+# torch==2.6.0+cu124   # pip install torch --index-url https://download.pytorch.org/whl/cu124
+# wfield==0.6.0
+# LocaNMF (localnmf) + cuhals   # custom Windows build; see GPU_LOCANMF_KICKOFF.md + wfield_local/*.patch

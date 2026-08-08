@@ -1,0 +1,43 @@
+# Per-animal metadata — single source of truth. No module or notebook may redefine these.
+# (Mirrors stroke_orofacial_pipeline/configs/animals.yaml conventions.)
+#
+# stroke_date convention: the date of the LAST PRE-STROKE session. The VLS
+# (ventrolateral-striatal) stroke is induced after that day's session; sessions on
+# stroke_date are baseline, only sessions AFTER are post-stroke. The cohort is currently
+# PRE-STROKE, so stroke_date is null (to be filled when the lesion is done).
+#
+# characteristics: free-form per-animal traits the analysis conditions on.
+# exclude: dates (MMDD) to drop, optionally scoped to an analysis tag (see docs).
+
+animals:
+  PS92:
+    genotype: null            # TODO: fill from cohort records
+    characteristics: {}
+    stroke_date: null
+    exclude: []
+
+  PS93:
+    genotype: null
+    characteristics:
+      orofacial_deficit: right   # tongue deviates right, minimal right whisking
+      cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
+    stroke_date: null
+    exclude: []
+
+  PS94:
+    genotype: null
+    characteristics: {}
+    stroke_date: null
+    exclude: []
+
+  PS95:
+    genotype: null
+    characteristics: {}
+    stroke_date: null
+    exclude: []
+
+# Cohort-level date policy (baseline days). Early June was noisy/low-engagement.
+date_policy:
+  baseline_all: [0601, 0602, 0603, 0604, 0605, 0606, 0607, 0608, 0805, 0806, 0807]
+  engagement_matched: [0605, 0606, 0607, 0608, 0805, 0806, 0807]   # drop noisy early June (6/1-6/4)
+  exclude_low_engagement: [0601, 0602, 0604]                        # noisy / low-engagement (6/3 kept)

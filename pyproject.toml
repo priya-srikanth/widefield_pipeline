@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "widefield_pipeline"
+version = "0.1.0"
+description = "Widefield calcium-imaging preprocessing + LocaNMF spout-position decode/encode pipeline (Sabatini lab)."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=2.2",
+  "scipy>=1.15",
+  "matplotlib>=3.10",
+  "scikit-learn>=1.7",
+  "scikit-image>=0.25",
+  "h5py>=3.16",
+  "pandas>=2.3",
+  "python-pptx>=1.0",
+  "opencv-python>=4.9",
+  "Pillow>=11",
+  "joblib>=1.5",
+  "tqdm>=4.67",
+  "PyYAML>=6",
+]
+# GPU / custom builds are installed SEPARATELY (not resolvable by pip here), see README "Setup":
+#   torch (CUDA build, e.g. 2.6.0+cu124), wfield==0.6.0, LocaNMF/localnmf + cuhals
+#   (custom Windows build — patches in wfield_local/*.patch).
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+include = ["wfield_local*"]
+
+[tool.ruff]
+line-length = 120

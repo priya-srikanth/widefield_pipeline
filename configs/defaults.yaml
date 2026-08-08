@@ -1,0 +1,45 @@
+# Default analysis parameters (cohort-wide). Per-session overrides -> configs/sessions.yaml.
+# (Mirrors stroke_orofacial_pipeline/configs/defaults.yaml.)
+
+locanmf:
+  r2_thresh: 0.95
+  loc_thresh: 80
+  maxrank: 20
+  allen_dir_name: allen_aligned_affine8v1     # wfield_local_results/<this>/U_atlas.npy (+ ../../SVTcorr.npy)
+  output_dir_name: locanmf_affine8v1_final
+
+decode:
+  aligns: [lick, cue, precue]
+  lick_post_s: 2.0        # first-lick window (empirical optimum; spans the lick bout)
+  cue_post_s: 2.0
+  precue_post_s: 1.0      # pre-cue (ENL) window, motor-independent readout
+  max_rt_s: 2.0           # engaged = first lick within this of the cue; else -> no-lick
+  cv: block               # GroupKFold by ~6-trial position blocks (no per-trial baseline)
+  baseline: none
+  chance: 0.167           # 6 positions
+
+encode:
+  model: ridge            # position -> component activity; FEVE = captured / explainable (ceiling)
+
+cross_session:
+  from_dates: all         # cross-mouse / within-animal / RSA / pooled-FEVE span ALL registered sessions
+  tag: "0601-<latest>"    # computed from sessions.yaml (first..latest MMDD)
+
+rsa:
+  metric: crossnobis      # noise-unbiased distances (the honest cross-day / pre-post metric)
+  also_correlation: true  # 1 - Pearson RDM shown alongside, clearly labeled
+
+lick_detection:            # DAQ lick_analog (ai0)
+  thresh_upper: 2.5
+  thresh_lower: 0.5
+  lockout_falling_edge_s: [0.001, 0.020]
+
+# Spout-position source + sync (see STROBE_BIT1_RECOVERY.md, wfield_local/frame_sync.py):
+#  - positions from DAQ spout-strobe bits (code = bit0 + 2*bit1 + 4*bit2)
+#  - when a strobe bit is dead (Aug-2026), recover from the behavior-log pos_idx
+#    (order + bitmask, >=98% match) or, if the log is empty, from cam1 video (sync-pulse aligned)
+sync:
+  daq_sample_rate_hz: 5000
+  daq_sync_line: 0            # DAQ digital line0 rising edges == camera CSV col3 LSB rising edges
+  behavior_starts_after_daq: true   # align by sync pulses / trial-offset, NOT wall-clock (drift-free)
+  strobe_bits: {bit0: 4, bit1: 5, bit2: 6}   # DAQ digital lines encoding spout position
