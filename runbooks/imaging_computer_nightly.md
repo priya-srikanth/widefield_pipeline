@@ -8,10 +8,12 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
 ## Canonical prompt
 
 > Today's sessions are done. Please copy the widefield DAQ recorder outputs to MICROSCOPE/Priya/Widefield.
-> Please do motion correction, SVD, cross-session registration to 20260606 and use that session's Allen CCF
-> alignment, and then copy non-movie (ie not the motion-corrected .bin movie) outputs, camlogs, and snapshots
-> to MICROSCOPE. Prioritize, as they become available, transferring the outputs that will be needed for the
-> GPU machine to run locaNMF. While that is running, please analyze photobleaching and motion-correction QC
+> Please do sign-fixed motion correction (motion_correct_fixed.py), SVD, cross-session registration to that
+> animal's 20260606 session and use that session's Allen CCF alignment, and then copy non-movie (ie not the
+> motion-corrected .bin movie) outputs, camlogs, and snapshots to MICROSCOPE. Prioritize, as they become
+> available, transferring the outputs the GPU machine needs to run locaNMF (SVTcorr.npy, the
+> allen_aligned_affine8v1 dir, AND the motion_corrected/*cleanpairs_frame_map.npz + summary — the frame_map
+> lives in motion_corrected/, not wfield_local_results/, and is easy to miss). While that is running, please analyze photobleaching and motion-correction QC
 > and add to our powerpoint "\\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Widefield\labcams\PS92_94_95_affine8v1.pptx".
 > I'd also like to evaluate for cross-day photobleaching - compare the raw fluorescence intensity across days
 > and see if there's a trend. Please add that analysis to the powerpoint. Once done with session processing,
@@ -35,17 +37,10 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
   `_xall_refresh.py`, deck update, standby transfer.
 - **Never delete from E:** until byte-verified; never delete from N: / non-Priya folders.
 
-## Review — clarity / omissions / flags (2026-08-08)
-Suggested edits to the canonical prompt so nothing is left implicit or wrong:
-1. **Standby path** corrected to `M:\collaborations\Priya\Widefield\labcams` (confirmed 2026-08-08;
-   `M:` = `\\standby...\sabatini`, under `collaborations\Priya\`, NOT `M:\Widefield`).
-2. **Say "sign-fixed" motion correction** — it's a hard rule (`motion_correct_fixed.py`); the prompt
-   just says "motion correction," which is ambiguous given the historical sign bug.
-3. **"that animal's 6/6"** — registration reference is per-ANIMAL (each mouse to ITS own 20260606), not a
-   single shared session. Minor wording.
-4. **Name the frame_map in the GPU push** — the LocaNMF inputs the GPU needs include the
-   `motion_corrected/*cleanpairs_frame_map.npz`+summary, which live in `motion_corrected/` (NOT
-   `wfield_local_results/`) and are easy to miss. Worth stating explicitly.
-5. Deck filename `PS92_94_95_affine8v1.pptx` omits **PS93** — cosmetic (legacy name), but confirm the
-   deck actually includes PS93.
+## Review — applied 2026-08-08
+Fixes folded INTO the canonical prompt above: standby path `M:\collaborations\Priya\Widefield\labcams`;
+"sign-fixed" motion correction (`motion_correct_fixed.py`); "that animal's 20260606" (per-animal reference);
+the frame_map named in the GPU push (`motion_corrected/*cleanpairs_frame_map.npz`, easy to miss).
+Not changed (cosmetic): deck filename `PS92_94_95_affine8v1.pptx` omits PS93 — legacy name; the deck does
+include PS93.
 

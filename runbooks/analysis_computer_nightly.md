@@ -13,18 +13,18 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
 > first-lick-aligned spout position decoding analysis and pre-cue decoding analysis on all sessions. Please
 > also perform encoding analysis including plotting fraction of explained variance (both raw number and
 > normalized to 1, as we have done before). Compare encoding and decoding performance across sessions for all
-> animals, starting from 6/6. Include all outputs in the powerpoint
+> animals, using the curated good sessions (6/6-6/8 and 8/6 onward; the code enforces this). Include all outputs in the powerpoint
 > "\\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Widefield\labcams\locanmf_lick_pooled\cue_analysis\spout_position_decoder_summary.pptx".
 > Compare the neural encoding and decoding between mice and across sessions as possible to evaluate for
 > systematic differences between how cortical representation of movement and motor planning differs across mice.
-> Use all sessions available.
+> Use all available curated good sessions (see above).
 >
 > While waiting for the locaNMF to be able to run - Today's camera sessions are at D:\camera. Please check the
 > csv's and report the number of dropped frames per camera (first column is frame number and second column is
 > timestamp) - ideally all rows are 1 frame and 4 ms apart. You previously wrote a script to do this. If there
 > are dropped frames please summarize this in a document or spreadsheet that is saved in the same folder as
 > these files. Please then copy all folders & files in the camera folder to
-> \\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Behavior_Cameras\widefield. Today's behavior
+> \\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Behavior_Cameras\Widefield. Today's behavior
 > sessions are at D:\behavior_logs - please copy all sessions to
 > \\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Behavior_logs\Widefield. Don't delete anything on
 > the D drive until we check in and make sure everything was copied appropriately. Once I confirm with you that
@@ -34,7 +34,7 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
 - Poll → LocaNMF (r2=0.95 loc=80 maxrank=20; manifest written in Python, not PowerShell — BOM breaks json).
 - Analyses + deck in one command: `python -m wfield_local.nightly_figs <MMDD>` (per-day decode lick/cue 2 s +
   pre-cue 1 s, rolling, encoder + FEVE raw & normalized, cross-mouse / within-animal / RSA incl. crossnobis
-  over ALL registered sessions, tag `0601-<MMDD>`). Then update `locanmf_decoder_ppt.py` refs, `build_ppt`,
+  over the CURATED sessions 6/6-6/8 + 8/6 onward, tag `0606-<MMDD>`). Then update `locanmf_decoder_ppt.py` refs, `build_ppt`,
   copy to `cue_analysis/`, commit + push (rig procedure: export CONDA_PREFIX; add/commit; fetch; rebase; push).
 - Dropped-frame QC: `dropframe_check_all.py "D:\camera"` (col0 frame id, col1 ns timestamp, nominal 4 ms).
   Camera → `Behavior_Cameras\Widefield\<DATE>`, behavior → `Behavior_logs\Widefield\` (the `Widefield\` SUBDIR).
@@ -45,21 +45,10 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
 - Engagement: the DAQ cue/strobe stream = the REWARDED subset (reward held after ~6 misses) → an engagement
   filter. Keep it; unrewarded trials belong to the future post-stroke failed-attempt analysis (movement-gated).
 
-## Review — clarity / omissions / flags (2026-08-08)
-1. **Cross-session set = CURATED "good" sessions** (decided 2026-08-08): 6/6-6/8 + 8/6 onward. Excludes
-   noisy/low-engagement early June (6/1-6/5) and the wonky 8/5. This is enforced in code
-   (`nightly_figs.CROSS_SESSION_EXCLUDE`; see configs/animals.yaml date_policy). Reconcile the prompt: the
-   "starting from 6/6" / "use all sessions available" wording should read "the curated good sessions
-   (6/6-6/8 + 8/6 onward)".
-2. **⚠️ Cross-day analyses must be INCREMENTAL — do not re-analyze old data each night.** Right now the
-   cross-mouse / within-animal / RSA (+ crossnobis) steps recompute `per_session` recall/EV and the 6×6 RDMs
-   for EVERY session from scratch on every run (the slow pole — the hemisphere-RSA/crossnobis recompute took
-   ~20+ min). **Cache each session's per-session outputs** (recall/EV vectors, RDM, crossnobis dissimilarities,
-   features) keyed by session + a hash of (LocaNMF output mtime, params); on each nightly run compute only the
-   NEW session(s) and load cached results for the rest. Invalidate a session's cache only when its LocaNMF
-   output or params change (e.g. the PS93 8/5 recovered-positions rerun). See README "Roadmap".
-3. Add the **git commit + push of code + deck** explicitly (the deck lives on MICROSCOPE, but the ppt-builder
-   ref updates + config/session additions must be committed via the rig procedure).
-4. Camera destination should be `Behavior_Cameras\Widefield` (capital W); Windows is case-insensitive so the
-   lowercase `widefield` in the prompt still works, but match the canonical casing.
+## Review — applied 2026-08-08
+Folded INTO the canonical prompt: cross-session wording → the CURATED good sessions (6/6-6/8 + 8/6 onward,
+enforced by `nightly_figs` reading `configs/animals.yaml date_policy.cross_session_exclude`); camera dest
+cased `Behavior_Cameras\Widefield`. DONE separately: incremental cross-day caching (`session_cache.py` — see
+the Notes). Still implicit (covered in the Notes, not the pasted prompt): the git commit + push of the deck
+ref updates + any `configs/sessions.yaml` additions via the rig procedure.
 
