@@ -27,6 +27,12 @@ preprocess:
     - "*cleanpairs_frame_map.npz"
     - "*cleanpairs_summary.json"
     - "motion_correction_*"
+  maps:                         # cue/lick/quiet activity-MAPS pass (wfield_local/preprocess.py
+                                # generate_maps); reproduces the retired _maps_behavior_run.py chain.
+    tag: affine8v1              # allen_aligned_<tag> + spout_trial_averages_<tag>/lick_aligned_<tag>/quiet_<tag>
+    cue_pre_s: 2.0              # cue map pre/post window (framemap_event_maps --what cue)
+    cue_post_s: 2.0
+    lick_post_s: 0.15           # lick map post window (framemap_event_maps --what lick, 150ms)
 
 locanmf:
   r2_thresh: 0.95

@@ -152,6 +152,103 @@ def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bo
         _run(["wfield_local.cross_day_align", cfg_path], dry_run)
 
 
+# --------------------------------------------------------------------------- activity maps
+def _behavior_trials_args(session: dict, animal: str, yyyymmdd: str, rv: PathResolver) -> list[str]:
+    """``["--behavior-trials", trials.csv]`` when a recovered CSV is discoverable, else ``[]``.
+
+    Preference order (no per-date special-casing — ``classify_cues_with_backup`` guards this, so
+    passing trials.csv on a good session is safe; it only overrides when the DAQ is broken):
+      1. an explicit ``session["behavior_trials"]`` (a config-recovered CSV, e.g. PS93 8/5 cam1),
+      2. glob the behavior_logs root for ``<animal>_<yyyymmdd>_*/trials.csv``.
+    """
+    bt = session.get("behavior_trials")
+    if bt:
+        return ["--behavior-trials", str(bt)]
+    hits = sorted(glob.glob(f"{rv.root('behavior_logs')}/{animal}_{yyyymmdd}_*/trials.csv"))
+    if hits:
+        return ["--behavior-trials", hits[0]]
+    return []
+
+
+def _maps_commands(session: dict, params: dict, rv: PathResolver,
+                   allow_missing: bool = False) -> list[list[str]]:
+    """The 8-command cue/lick/quiet MAPS chain for one session (pure; glob/os only).
+
+    Reproduces the retired ``_maps_behavior_run.py`` per-session chain, config-driven. All I/O
+    paths are on MICROSCOPE (``labcams`` root = N: on the imaging box) because the deck reads
+    figures from there. The ``*cleanpairs_frame_map.npz`` is globbed from the session's
+    ``motion_corrected`` dir; if absent and ``allow_missing`` (dry-run off the imaging box), a
+    ``<cleanpairs_frame_map.npz>`` placeholder stands in so a representative chain still prints —
+    otherwise a :class:`SystemExit` is raised (regime B / no frame_map is unexpected on a real run).
+    """
+    mp = params["maps"]
+    tag = mp["tag"]
+    animal, mmdd, sess = session["animal"], session["mmdd"], session["sess"]
+    yyyymmdd = f"2026{mmdd}"
+    lab = f"{animal}_{mmdd}_{tag}"
+
+    mc = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
+    res = f"{mc}/wfield_local_results"
+    allen = f"{res}/allen_aligned_{tag}"
+    cue = f"{mc}/spout_trial_averages_{tag}"
+    lick = f"{mc}/lick_aligned_{tag}"
+    quiet = f"{mc}/quiet_{tag}"
+
+    matches = sorted(glob.glob(f"{mc}/*cleanpairs_frame_map.npz"))
+    if matches:
+        fm = matches[0]
+    elif allow_missing:
+        fm = f"{mc}/<cleanpairs_frame_map.npz>"     # dry-run placeholder (no N: access on this box)
+    else:
+        raise SystemExit(f"[preprocess] {lab}: no *cleanpairs_frame_map.npz under {mc}")
+    summ = fm.replace("_frame_map.npz", "_summary.json")
+
+    cnpz = f"{cue}/{lab}_spout_positions_1s_pre_post_delta_maps.npz"
+    csum = cnpz.replace("_maps.npz", "_summary.json")
+    lnpz = f"{lick}/{lab}_lick_aligned_150ms_post_by_spout_maps.npz"
+    lsum = lnpz.replace("_maps.npz", "_summary.json")
+    qf = f"{quiet}/{lab}_quiet_frame.npy"
+    daq = session["daq_h5"]
+
+    bt = _behavior_trials_args(session, animal, yyyymmdd, rv)
+    cue_pre_s, cue_post_s = str(mp["cue_pre_s"]), str(mp["cue_post_s"])
+    lick_post_s = str(mp["lick_post_s"])
+
+    return [
+        ["wfield_local.framemap_event_maps", "--what", "cue", "--daq-h5", daq,
+         "--wfield-results", res, "--allen-dir", allen, "--frame-map", fm,
+         "--cleanpairs-summary", summ, "--output", cue, "--label", lab,
+         "--pre-s", cue_pre_s, "--post-s", cue_post_s] + bt,
+        ["wfield_local.plot_spout_trial_averages_shared_scale", "--label", lab,
+         "--trial-maps", cnpz, "--allen-dir", allen, "--output", cue, "--summary", csum],
+        ["wfield_local.plot_spout_position_contrasts", "--label", lab,
+         "--trial-maps", cnpz, "--allen-dir", allen, "--output", cue],
+        ["wfield_local.framemap_event_maps", "--what", "lick", "--daq-h5", daq,
+         "--wfield-results", res, "--allen-dir", allen, "--frame-map", fm,
+         "--cleanpairs-summary", summ, "--output", lick, "--label", lab,
+         "--post-s", lick_post_s] + bt,
+        ["wfield_local.plot_lick_position_contrasts", "--label", lab,
+         "--lick-maps", lnpz, "--allen-dir", allen, "--output", lick],
+        ["wfield_local.plot_lick_vs_cue_spout_maps", "--label", lab,
+         "--cue-maps", cnpz, "--lick-maps", lnpz, "--allen-dir", allen, "--output", lick,
+         "--cue-summary", csum, "--lick-summary", lsum],
+        ["wfield_local.quiet_periods", "--daq-h5", daq, "--label", lab,
+         "--output", quiet, "--frame-map", fm, "--cleanpairs-summary", summ],
+        ["wfield_local.framemap_event_maps", "--what", "lick", "--daq-h5", daq,
+         "--wfield-results", res, "--allen-dir", allen, "--frame-map", fm,
+         "--cleanpairs-summary", summ, "--output", lick, "--label", lab,
+         "--post-s", lick_post_s, "--quiet-frame", qf] + bt,
+    ]
+
+
+def generate_maps(session: dict, params: dict, rv: PathResolver, dry_run: bool) -> None:
+    """Run the 8-command cue/lick/quiet MAPS chain for one session (frame_map globbed at run time)."""
+    animal, sess = session["animal"], session["sess"]
+    print(f"\n################ {animal} {sess} maps ################", flush=True)
+    for cmd in _maps_commands(session, params, rv, allow_missing=dry_run):
+        _run(cmd, dry_run)
+
+
 # --------------------------------------------------------------------------- run steps
 def _run(args: list, dry_run: bool) -> None:
     cmd = [sys.executable, "-m"] + [str(a) for a in args]
@@ -228,6 +325,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals")
     ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
     ap.add_argument("--skip-photobleach", action="store_true")
+    ap.add_argument("--skip-maps", action="store_true", help="skip the cue/lick/quiet activity-maps pass")
     ap.add_argument("--skip-xall", action="store_true", help="skip the all-days cross-day QC refresh")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
@@ -251,6 +349,13 @@ def main(argv=None) -> int:
 
     for s in sessions:
         preprocess_session(s, params, rv, args.dry_run)
+
+    # cue/lick/quiet activity maps (runs AFTER the motion/SVD/xreg/push loop so the GPU-box push
+    # of LocaNMF inputs stays first; frame_map globbed per session from MICROSCOPE at run time)
+    if not args.skip_maps:
+        print("\n################ activity maps ################", flush=True)
+        for s in sessions:
+            generate_maps(s, params, rv, args.dry_run)
 
     # all-days cross-day QC overlay (xall) for each animal processed this run (per-date QC is
     # emitted per session in preprocess_session step 3; this is the multi-day rollup)

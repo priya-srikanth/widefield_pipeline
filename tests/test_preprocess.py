@@ -83,3 +83,94 @@ def test_photobleach_importable_and_parameterized():
     assert callable(pb.analyze) and callable(pb.summary) and callable(pb.run)
     # no module-level OUT/SESSIONS constants leaked back in
     assert not hasattr(pb, "OUT") and not hasattr(pb, "SESSIONS")
+
+
+# --------------------------------------------------------------------------- activity maps
+def _maps_session():
+    return dict(animal="PS92", mmdd="0808", sess="PS92_20260808_120000",
+                sess_dir="ignored", raw_dat="ignored", daq_h5="E:/DAQ/PS92_20260808_121000.h5",
+                dims="2_460_480")
+
+
+def test_maps_commands_order_and_windows():
+    rv = PathResolver(machine="imaging")
+    params = config.defaults()["preprocess"]
+    cmds = preprocess._maps_commands(_maps_session(), params, rv, allow_missing=True)
+    # exactly the 8-command chain, in order, with the right module names
+    assert [c[0] for c in cmds] == [
+        "wfield_local.framemap_event_maps",
+        "wfield_local.plot_spout_trial_averages_shared_scale",
+        "wfield_local.plot_spout_position_contrasts",
+        "wfield_local.framemap_event_maps",
+        "wfield_local.plot_lick_position_contrasts",
+        "wfield_local.plot_lick_vs_cue_spout_maps",
+        "wfield_local.quiet_periods",
+        "wfield_local.framemap_event_maps",
+    ]
+    # cue map (cmd 1) vs lick maps (cmds 4 & 8) selected via --what
+    assert cmds[0][cmds[0].index("--what") + 1] == "cue"
+    assert cmds[3][cmds[3].index("--what") + 1] == "lick"
+    assert cmds[7][cmds[7].index("--what") + 1] == "lick"
+    # windows come from defaults.yaml preprocess.maps
+    assert cmds[0][cmds[0].index("--pre-s") + 1] == "2.0"
+    assert cmds[0][cmds[0].index("--post-s") + 1] == "2.0"
+    assert cmds[3][cmds[3].index("--post-s") + 1] == "0.15"
+    assert cmds[7][cmds[7].index("--post-s") + 1] == "0.15"
+    # cmd 8 is the quiet-gated lick pass
+    assert "--quiet-frame" in cmds[7]
+    # labels + N: figure I/O
+    for c in cmds:
+        assert "PS92_0808_affine8v1" in c
+    assert any(a.startswith("N:/") and a.endswith("motion_corrected/wfield_local_results")
+               for a in cmds[0])
+    # dry-run placeholder frame_map appears (no N: access on this box)
+    fm = cmds[0][cmds[0].index("--frame-map") + 1]
+    assert fm.endswith("<cleanpairs_frame_map.npz>")
+
+
+def test_maps_commands_bt_discovered_by_glob(tmp_path, monkeypatch):
+    rv = PathResolver(machine="imaging")
+    params = config.defaults()["preprocess"]
+    blogs = tmp_path / "Behavior_logs"
+    _touch(blogs / "PS92_20260808_121500" / "trials.csv")
+    monkeypatch.setattr(rv, "root", lambda name: str(blogs) if name == "behavior_logs"
+                        else PathResolver.root(rv, name))
+    cmds = preprocess._maps_commands(_maps_session(), params, rv, allow_missing=True)
+    for i in (0, 3, 7):                      # cmds 1/4/8 carry the discovered trials.csv
+        assert "--behavior-trials" in cmds[i]
+        assert cmds[i][cmds[i].index("--behavior-trials") + 1].endswith("trials.csv")
+
+
+def test_maps_commands_bt_absent_when_not_discoverable(tmp_path, monkeypatch):
+    rv = PathResolver(machine="imaging")
+    params = config.defaults()["preprocess"]
+    blogs = tmp_path / "Behavior_logs"      # empty tree -> no trials.csv
+    blogs.mkdir()
+    monkeypatch.setattr(rv, "root", lambda name: str(blogs) if name == "behavior_logs"
+                        else PathResolver.root(rv, name))
+    cmds = preprocess._maps_commands(_maps_session(), params, rv, allow_missing=True)
+    for i in (0, 3, 7):
+        assert "--behavior-trials" not in cmds[i]
+
+
+def test_maps_commands_bt_prefers_explicit_session_key(tmp_path, monkeypatch):
+    rv = PathResolver(machine="imaging")
+    params = config.defaults()["preprocess"]
+    blogs = tmp_path / "Behavior_logs"      # a glob-discoverable CSV also exists...
+    _touch(blogs / "PS92_20260808_121500" / "trials.csv")
+    monkeypatch.setattr(rv, "root", lambda name: str(blogs) if name == "behavior_logs"
+                        else PathResolver.root(rv, name))
+    sess = _maps_session()
+    sess["behavior_trials"] = "M:/recovered/PS92_20260808/trials.csv"   # ...but explicit wins
+    cmds = preprocess._maps_commands(sess, params, rv, allow_missing=True)
+    for i in (0, 3, 7):
+        assert cmds[i][cmds[i].index("--behavior-trials") + 1] == \
+            "M:/recovered/PS92_20260808/trials.csv"
+
+
+def test_maps_commands_raises_without_frame_map_when_not_dry_run():
+    import pytest
+    rv = PathResolver(machine="imaging")
+    params = config.defaults()["preprocess"]
+    with pytest.raises(SystemExit):        # no N: frame_map + allow_missing=False -> hard stop
+        preprocess._maps_commands(_maps_session(), params, rv, allow_missing=False)
