@@ -21,18 +21,25 @@ conda activate wfield          # imaging box (preprocessing); the analysis box u
 The §1–16 commands are the underlying steps; day-to-day they are orchestrated by:
 
 - **Preprocessing (imaging box):**
-  `python -m wfield_local.preprocess <YYYYMMDD> [<YYYYMMDD> ...] [--only PS9x ...] [--dry-run]`
-  — auto-discovers the date's raw sessions on `E:` (no per-date hard-coding), then per session runs
+  `python -m wfield_local.preprocess <DATE> ... [--only PS9x ...] [--dry-run]`
+  — auto-discovers each date's raw sessions on `E:` (no per-date hard-coding), then per session runs
   motion(fixed) → SVD → cross-register to the animal's 6/6 reference → push LocaNMF inputs to
   MICROSCOPE, then the cue/lick/quiet **activity maps** (§4/5/8/9/12), the all-days cross-day QC
   overlay (`xall`, §14), and photobleach QC. Replaces the retired per-date `_nightly_*`/`_mc_svd_*`/
-  `_maps_*`/`_photobleach_*` drivers. `--only` subsets animals; multiple dates run in one invocation.
+  `_maps_*`/`_photobleach_*` drivers.
 - **Cross-session preprocessing deck:** `python -m wfield_local.preprocess_deck` — rebuilds the single
   `labcams/PS92-95_cross_sessions_aligned.pptx` in place (grouped animal → figure type → date; split
   into per-animal files to bound size). Replaces the retired `PS92_94_95_affine8v1.pptx` builder.
 - **Analysis (behavior-GPU box):**
-  `python -m wfield_local.nightly_figs <MMDD> [--only PS9x ...] [--from <MMDD,...>]` — orchestrates the
-  LocaNMF decode/encode/RSA (see **Analysis pipeline** below) and builds the decoder summary deck.
+  `python -m wfield_local.nightly_figs <DATE> ... [--only PS9x ...] [--from <DATE spec>]` — orchestrates
+  the LocaNMF decode/encode/RSA (see **Analysis pipeline** below) and builds the decoder summary deck.
+
+Both CLIs share ONE date/animal knob grammar (`config.expand_dates` / `config.normalize_animals`):
+a `<DATE>` token is `MMDD` or `YYYYMMDD`; give a space/comma list (`0806 0807`), an inclusive range
+(`0806-0808`), or `all` (preprocess → every date-dir on `E:`; analysis → every registered session).
+`--only` takes animals (`--only PS94 PS95`) or `all`; omitting it means all. Preprocess processes
+each date; analysis builds per-day figures for each `<DATE>` (default: the latest registered session)
+and the cross-session comparison spans `--from` (default: the curated set).
 
 Register each new session in `configs/sessions.yaml`; per-animal metadata + date policy in
 `configs/animals.yaml`; params in `configs/defaults.yaml`. Per-machine nightly runbooks: `runbooks/`.

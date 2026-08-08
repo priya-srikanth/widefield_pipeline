@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import functools
 import os
+import re
 from pathlib import Path
 
 import yaml
@@ -15,6 +16,9 @@ import yaml
 from wfield_local.paths import PathResolver
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
+
+# The cohort is a single 2026 season, so MMDD <-> YYYYMMDD conversion just (un)prepends the year.
+COHORT_YEAR = "2026"
 
 # Per-field implicit root for a session entry's relative paths (see configs/sessions.yaml).
 _SESSION_FIELD_ROOT = {"mc": "labcams", "fmdir": "labcams",
@@ -52,6 +56,78 @@ def defaults() -> dict:
 
 def paths() -> dict:
     return _load("paths.yaml")
+
+
+def _split_tokens(spec) -> list[str]:
+    """Flatten a date/animal spec (str or list, comma- or space-separated) to a token list."""
+    if spec is None:
+        return []
+    if isinstance(spec, str):
+        spec = [spec]
+    out = []
+    for s in spec:
+        out.extend(str(s).replace(",", " ").split())
+    return out
+
+
+def _to8(d, year: str = COHORT_YEAR) -> str:
+    """Normalize a date token to YYYYMMDD (accepts MMDD by prepending the cohort year).
+
+    Rejects tokens of the wrong length or with an out-of-range month/day, so typos like `2026`
+    (meant as a year) fail loudly instead of silently becoming `20262026`."""
+    s = str(d)
+    if s.isdigit() and len(s) in (4, 8):
+        eight = s if len(s) == 8 else f"{year}{s}"
+        mm, dd = int(eight[4:6]), int(eight[6:8])
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return eight
+    raise ValueError(f"bad date token {d!r} (want MMDD or YYYYMMDD)")
+
+
+_RANGE_RE = re.compile(r"^(\d{4}|\d{8})(?:\.\.|[-:])(\d{4}|\d{8})$")
+
+
+def expand_dates(spec, *, width: int = 4, available=None) -> list[str]:
+    """Expand a date spec into a sorted, de-duplicated list of dates (the shared knob grammar).
+
+    One knob used by BOTH the preprocessing and analysis CLIs. `spec` is a str or list; tokens are
+    comma- or space-separated and each is one of:
+      - a single date: `MMDD` (`0806`) or `YYYYMMDD` (`20260806`),
+      - an inclusive range: `START-END` (also `START..END` / `START:END`), e.g. `0806-0808`,
+      - `all`: every date in `available`.
+    `width` selects the output form (4 = MMDD, 8 = YYYYMMDD). `available` (any width) is the set a
+    range or `all` is resolved against — ranges are intersected with it (so they respect month
+    boundaries and never invent nonexistent dates), and `all` requires it. Explicit single tokens
+    pass through verbatim (so a freshly-acquired date not yet in `available` still processes)."""
+    avail8 = sorted({_to8(d) for d in available}) if available is not None else None
+    out8 = []
+    for tok in _split_tokens(spec):
+        if tok.lower() == "all":
+            if avail8 is None:
+                raise ValueError("date 'all' requires a set of available dates")
+            out8.extend(avail8)
+            continue
+        m = _RANGE_RE.match(tok)
+        if m:
+            lo, hi = _to8(m.group(1)), _to8(m.group(2))
+            if lo > hi:
+                lo, hi = hi, lo
+            if avail8 is not None:
+                out8.extend(d for d in avail8 if lo <= d <= hi)
+            else:   # no available set: contiguous integer expand (single-month ranges only)
+                out8.extend(f"{lo[:4]}{n:04d}" for n in range(int(lo[4:]), int(hi[4:]) + 1))
+            continue
+        out8.append(_to8(tok))
+    uniq = sorted(set(out8))
+    return uniq if width == 8 else [d[4:] for d in uniq]
+
+
+def normalize_animals(spec) -> list[str] | None:
+    """Animal subset from a `--only` spec: a list, or None for 'all'/empty (i.e. no filter)."""
+    toks = _split_tokens(spec)
+    if not toks or any(t.lower() == "all" for t in toks):
+        return None
+    return toks
 
 
 def _filter_set(explicit, env_name):

@@ -17,9 +17,15 @@ Run in the ``wfield`` env on the imaging box (the interpreter running this modul
 for every sub-step, so no hard-coded python path)::
 
     python -m wfield_local.preprocess 20260808
-    python -m wfield_local.preprocess 20260806 20260807         # multiple dates in one run
-    python -m wfield_local.preprocess 20260808 --dry-run        # print the plan only
-    python -m wfield_local.preprocess 20260808 --only PS94 PS95 # subset of animals
+    python -m wfield_local.preprocess 0808                       # MMDD also accepted (cohort year assumed)
+    python -m wfield_local.preprocess 0806 0807                  # a list (comma or space)
+    python -m wfield_local.preprocess 0806-0808                  # an inclusive range
+    python -m wfield_local.preprocess all                        # every date-dir on the raw drive
+    python -m wfield_local.preprocess 20260808 --dry-run         # print the plan only
+    python -m wfield_local.preprocess 20260808 --only PS94 PS95  # subset of animals (or --only all)
+
+The date grammar (list / range / ``all`` / either width) and ``--only`` are shared verbatim with the
+analysis CLI (:mod:`wfield_local.nightly_figs`); see :func:`wfield_local.config.expand_dates`.
 
 All heavy steps run as ``python -m wfield_local.<engine>`` subprocesses (run_wfield_motion,
 run_wfield_local, cross_day_align), exactly as the retired drivers did — this module imports
@@ -95,6 +101,17 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
 
 def discover_raw_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
     return _discover(yyyymmdd, rv.root("raw_labcams"), rv.root("raw_daq"))
+
+
+def list_raw_dates(rv: PathResolver) -> list[str]:
+    """All YYYYMMDD acquisition date-dirs present on this machine's raw_labcams root (for `all`/ranges).
+
+    Empty when the raw drive isn't mounted (e.g. a dry-run off the imaging box) — explicit date
+    tokens still work in that case; only `all` / ranges need the disk to enumerate against."""
+    root = Path(rv.root("raw_labcams"))
+    if not root.exists():
+        return []
+    return sorted(p.name for p in root.iterdir() if p.is_dir() and re.fullmatch(r"\d{8}", p.name))
 
 
 # --------------------------------------------------------------------------- reference
@@ -357,8 +374,11 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Config-driven nightly widefield preprocessing (imaging box).")
-    ap.add_argument("dates", nargs="+", metavar="YYYYMMDD", help="one or more session dates")
-    ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals")
+    ap.add_argument("dates", nargs="+", metavar="DATE",
+                    help="session dates — same grammar as the analysis CLI: MMDD or YYYYMMDD, a range "
+                         "(0806-0808), 'all' (every date-dir on the raw drive), or a comma/space list")
+    ap.add_argument("--only", nargs="+", metavar="ANIMAL",
+                    help="restrict to these animals (e.g. PS94 PS95), or 'all' (default: all)")
     ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
     ap.add_argument("--skip-photobleach", action="store_true")
     ap.add_argument("--skip-maps", action="store_true", help="skip the cue/lick/quiet activity-maps pass")
@@ -366,17 +386,22 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
 
-    for d in args.dates:
-        if not re.fullmatch(r"\d{8}", d):
-            ap.error(f"date must be YYYYMMDD, got {d!r}")
     rv = PathResolver(machine=args.machine)
     params = config.defaults()["preprocess"]
+    try:
+        dates = config.expand_dates(args.dates, width=8, available=list_raw_dates(rv))
+    except ValueError as e:
+        ap.error(str(e))
+    if not dates:
+        print(f"[preprocess] no dates resolved from {args.dates} (under {rv.root('raw_labcams')})")
+        return 1
+    args.only = config.normalize_animals(args.only)   # None => all animals
 
     all_animals = set()
-    for date in args.dates:
+    for date in dates:
         all_animals |= _process_date(date, args, rv, params)
     if not all_animals:
-        print(f"[preprocess] no raw sessions discovered for any of {args.dates}")
+        print(f"[preprocess] no raw sessions discovered for any of {dates}")
         return 1
 
     # all-days cross-day QC overlay (xall): ONCE after all dates, for every animal processed (the
@@ -385,7 +410,7 @@ def main(argv=None) -> int:
         print("\n################ cross-day all-days QC (xall) ################", flush=True)
         refresh_xall(sorted(all_animals), params, rv, args.dry_run)
 
-    print(f"\nPREPROCESS {' '.join(args.dates)} motion->SVD->xreg->push ALL DONE", flush=True)
+    print(f"\nPREPROCESS {' '.join(dates)} motion->SVD->xreg->push ALL DONE", flush=True)
     return 0
 
 

@@ -53,6 +53,43 @@ def test_load_sessions_animal_and_date_subset():
     assert [s["label"] for s in ad] == ["PS93_0807"]
 
 
+def test_expand_dates_shared_grammar():
+    avail = ["0605", "0606", "0607", "0608", "0806", "0807"]
+    # single, either width, comma/space list
+    assert config.expand_dates("0807", available=avail) == ["0807"]
+    assert config.expand_dates("20260807", available=avail) == ["0807"]
+    assert config.expand_dates("0806 0807", available=avail) == ["0806", "0807"]
+    assert config.expand_dates("0806,0807", available=avail) == ["0806", "0807"]
+    assert config.expand_dates(["0806", "0807"], available=avail) == ["0806", "0807"]
+    # width=8 output (preprocessing form)
+    assert config.expand_dates("0807", width=8, available=avail) == ["20260807"]
+    # range intersects the available set (so it respects month boundaries / gaps)
+    assert config.expand_dates("0605-0608", available=avail) == ["0605", "0606", "0607", "0608"]
+    assert config.expand_dates("0606-0806", available=avail) == ["0606", "0607", "0608", "0806"]
+    # 'all' expands to the available set; sorted + de-duplicated
+    assert config.expand_dates("all", available=avail) == sorted(set(avail))
+    assert config.expand_dates("0807 0807 0806", available=avail) == ["0806", "0807"]
+    # explicit single passes through even if not in available (a freshly-acquired date)
+    assert config.expand_dates("0810", available=avail) == ["0810"]
+
+
+def test_expand_dates_all_needs_available():
+    import pytest
+    with pytest.raises(ValueError):
+        config.expand_dates("all")
+    with pytest.raises(ValueError):
+        config.expand_dates("junk", available=["0807"])
+
+
+def test_normalize_animals():
+    assert config.normalize_animals(None) is None
+    assert config.normalize_animals([]) is None
+    assert config.normalize_animals("all") is None
+    assert config.normalize_animals(["PS93", "all"]) is None   # 'all' anywhere => no filter
+    assert config.normalize_animals("PS93 PS94") == ["PS93", "PS94"]
+    assert config.normalize_animals(["PS93", "PS94"]) == ["PS93", "PS94"]
+
+
 def test_load_sessions_env_filter_and_explicit_override(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_ONLY_ANIMALS", "PS92, PS95")   # comma/space tolerant
     assert {s["label"][:4] for s in config.load_sessions()} == {"PS92", "PS95"}
