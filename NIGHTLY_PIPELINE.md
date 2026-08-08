@@ -21,17 +21,18 @@ python -m wfield_local.archive_day archive --date <DATE>   # raw+.bin -> M: stan
   (6/6) emitting `allen_aligned_affine8v1` → **push the LocaNMF inputs to `N:` first** (so the
   GPU box can start LocaNMF on early sessions while later ones are still correcting). Then it
   runs the cue/lick/quiet **activity maps**, the per-animal **all-days cross-day QC overlay**
-  (`xall`), and **photobleach** QC. Flags: `--dry-run` prints the plan; `--only PS94 PS95`
-  subsets animals; multiple dates / ranges / `all` accepted (`preprocess 0806-0808`).
+  (`xall`), the **cross-day raw ROI intensity** trend, and **photobleach** QC. Flags: `--dry-run`
+  prints the plan; `--only PS94 PS95` subsets animals; `--skip-*` skip individual downstream steps;
+  multiple dates / ranges / `all` accepted (`preprocess 0806-0808`).
 - `preprocess_deck` rebuilds the one canonical deck `labcams/PS92-95_cross_sessions_aligned.pptx`
   in place (grouped animal → figure type → date; per-animal split to bound size). ~30 s, pure
   figure assembly.
 - `archive_day archive` copies raw + motion-corrected `.bin` → **M: standby** and all other
   outputs → **N: MICROSCOPE** (LocaNMF inputs first), re-verifying sizes. See E: cleanup below.
 
-Still a **separate one-off** (not yet folded into `preprocess`): `_crossday_intensity.py`
-(brain-ROI median raw counts per animal across days from each session's `frames_average`;
-`preprocess_deck` embeds its `crossday_raw_intensity*.png` output if present). CAVEAT: LED is
+The **cross-day raw ROI intensity** step (`wfield_local.crossday_intensity`, folded into `preprocess`,
+run once after `xall`) plots each animal's brain-ROI median 415/470 counts across days from every
+session's `frames_average`; `preprocess_deck` embeds its `crossday_raw_intensity.png`. CAVEAT: LED is
 manually titrated day-to-day, so an intensity trend may reflect LED, not bleaching.
 
 ## Hard rules

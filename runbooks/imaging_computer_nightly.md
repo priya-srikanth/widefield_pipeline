@@ -27,10 +27,9 @@ python -m wfield_local.archive_day clean --date <YYYYMMDD> --execute    # actual
 - `preprocess` auto-discovers the date's raw sessions on `E:` and, per session in animal order,
   runs sign-fixed 2D motion → SVD → cross-register to that animal's 6/6 (emitting
   `allen_aligned_affine8v1`) → **prioritized push of the LocaNMF inputs to `N:` first**, then the
-  cue/lick/quiet maps, the all-days cross-day QC overlay (`xall`), and photobleach QC. `--dry-run`
-  to preview; `--only PS94 PS95` to subset; ranges / `all` accepted (`preprocess 0806-0808`).
-- Still manual (not folded): `_crossday_intensity.py` (cross-day raw ROI intensity; `preprocess_deck`
-  embeds its PNG if present).
+  cue/lick/quiet maps, the all-days cross-day QC overlay (`xall`), the cross-day raw ROI intensity
+  trend, and photobleach QC. `--dry-run` to preview; `--only PS94 PS95` to subset; `--skip-*` to skip
+  a downstream step; ranges / `all` accepted (`preprocess 0806-0808`).
 - **Hard rules:** sign-fixed motion; allen dir named exactly `allen_aligned_affine8v1`; the GPU push
   must include `motion_corrected/*cleanpairs_frame_map.npz`+summary (not just `wfield_local_results/`);
   never delete from E: until byte-verified, never from N:/non-Priya folders. Params live in

@@ -432,6 +432,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-photobleach", action="store_true")
     ap.add_argument("--skip-maps", action="store_true", help="skip the cue/lick/quiet activity-maps pass")
     ap.add_argument("--skip-xall", action="store_true", help="skip the all-days cross-day QC refresh")
+    ap.add_argument("--skip-crossday-intensity", action="store_true",
+                    help="skip the cross-day raw ROI fluorescence-intensity trend")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
 
@@ -458,6 +460,16 @@ def main(argv=None) -> int:
     if not args.skip_xall:
         print("\n################ cross-day all-days QC (xall) ################", flush=True)
         refresh_xall(sorted(all_animals), params, rv, args.dry_run)
+
+    # cross-day raw ROI fluorescence intensity trend: ONCE after all dates (reads every session's
+    # frames_average on N:, so it picks up the days just pushed). Folds in the retired _crossday_intensity.py.
+    if not args.skip_crossday_intensity:
+        print("\n################ cross-day raw ROI intensity ################", flush=True)
+        if args.dry_run:
+            print(f"[dry-run] crossday_intensity.run(labcams={rv.root('labcams')}) -> {rv.root('xday_qc')}")
+        else:
+            from wfield_local import crossday_intensity   # lazy (pulls scipy/matplotlib)
+            crossday_intensity.run(rv.root("labcams"), rv.root("xday_qc"))
 
     print(f"\nPREPROCESS {' '.join(dates)} motion->SVD->xreg->push ALL DONE", flush=True)
     return 0
