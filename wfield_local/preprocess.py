@@ -17,6 +17,7 @@ Run in the ``wfield`` env on the imaging box (the interpreter running this modul
 for every sub-step, so no hard-coded python path)::
 
     python -m wfield_local.preprocess 20260808
+    python -m wfield_local.preprocess 20260806 20260807         # multiple dates in one run
     python -m wfield_local.preprocess 20260808 --dry-run        # print the plan only
     python -m wfield_local.preprocess 20260808 --only PS94 PS95 # subset of animals
 
@@ -319,9 +320,44 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
 
 
 # --------------------------------------------------------------------------- main
+def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
+    """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
+    sessions = discover_raw_sessions(date, rv)
+    if args.only:
+        sessions = [s for s in sessions if s["animal"] in set(args.only)]
+    if not sessions:
+        print(f"[preprocess] no raw sessions discovered for {date} under {rv.root('raw_labcams')}")
+        return set()
+
+    print(f"\n[preprocess] {date}: {len(sessions)} session(s) on machine={rv.machine}")
+    for s in sessions:
+        flag = "" if s["daq_h5"] else "  <<< NO DAQ MATCH"
+        print(f"  {s['animal']}  {s['sess']}  dims={s['dims']}  daq={os.path.basename(s['daq_h5'] or '?')}{flag}")
+
+    for s in sessions:
+        preprocess_session(s, params, rv, args.dry_run)
+
+    # cue/lick/quiet activity maps (AFTER the push loop so the GPU-box LocaNMF push stays first)
+    if not args.skip_maps:
+        print("\n################ activity maps ################", flush=True)
+        for s in sessions:
+            generate_maps(s, params, rv, args.dry_run)
+
+    if not args.skip_photobleach:
+        print("\n################ photobleach QC ################", flush=True)
+        out_dir = rv.resolve("labcams", f"{date}/photobleach")
+        triples = [(f"{s['animal']}_{s['mmdd']}", s["raw_dat"], s["daq_h5"]) for s in sessions if s["daq_h5"]]
+        if args.dry_run:
+            print(f"[dry-run] photobleach.run({len(triples)} sessions) -> {out_dir}")
+        else:
+            photobleach.run(triples, out_dir)
+
+    return {s["animal"] for s in sessions if s["animal"]}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Config-driven nightly widefield preprocessing (imaging box).")
-    ap.add_argument("date", help="session date, YYYYMMDD")
+    ap.add_argument("dates", nargs="+", metavar="YYYYMMDD", help="one or more session dates")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals")
     ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
     ap.add_argument("--skip-photobleach", action="store_true")
@@ -330,50 +366,26 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
 
-    if not re.fullmatch(r"\d{8}", args.date):
-        ap.error("date must be YYYYMMDD")
+    for d in args.dates:
+        if not re.fullmatch(r"\d{8}", d):
+            ap.error(f"date must be YYYYMMDD, got {d!r}")
     rv = PathResolver(machine=args.machine)
     params = config.defaults()["preprocess"]
 
-    sessions = discover_raw_sessions(args.date, rv)
-    if args.only:
-        sessions = [s for s in sessions if s["animal"] in set(args.only)]
-    if not sessions:
-        print(f"[preprocess] no raw sessions discovered for {args.date} under {rv.root('raw_labcams')}")
+    all_animals = set()
+    for date in args.dates:
+        all_animals |= _process_date(date, args, rv, params)
+    if not all_animals:
+        print(f"[preprocess] no raw sessions discovered for any of {args.dates}")
         return 1
 
-    print(f"[preprocess] {args.date}: {len(sessions)} session(s) on machine={rv.machine}")
-    for s in sessions:
-        flag = "" if s["daq_h5"] else "  <<< NO DAQ MATCH"
-        print(f"  {s['animal']}  {s['sess']}  dims={s['dims']}  daq={os.path.basename(s['daq_h5'] or '?')}{flag}")
-
-    for s in sessions:
-        preprocess_session(s, params, rv, args.dry_run)
-
-    # cue/lick/quiet activity maps (runs AFTER the motion/SVD/xreg/push loop so the GPU-box push
-    # of LocaNMF inputs stays first; frame_map globbed per session from MICROSCOPE at run time)
-    if not args.skip_maps:
-        print("\n################ activity maps ################", flush=True)
-        for s in sessions:
-            generate_maps(s, params, rv, args.dry_run)
-
-    # all-days cross-day QC overlay (xall) for each animal processed this run (per-date QC is
-    # emitted per session in preprocess_session step 3; this is the multi-day rollup)
+    # all-days cross-day QC overlay (xall): ONCE after all dates, for every animal processed (the
+    # per-date cross-day QC is emitted per session in preprocess_session step 3; this is the rollup)
     if not args.skip_xall:
         print("\n################ cross-day all-days QC (xall) ################", flush=True)
-        animals_done = sorted({s["animal"] for s in sessions if s["animal"]})
-        refresh_xall(animals_done, params, rv, args.dry_run)
+        refresh_xall(sorted(all_animals), params, rv, args.dry_run)
 
-    if not args.skip_photobleach:
-        print("\n################ photobleach QC ################", flush=True)
-        out_dir = rv.resolve("labcams", f"{args.date}/photobleach")
-        triples = [(f"{s['animal']}_{s['mmdd']}", s["raw_dat"], s["daq_h5"]) for s in sessions if s["daq_h5"]]
-        if args.dry_run:
-            print(f"[dry-run] photobleach.run({len(triples)} sessions) -> {out_dir}")
-        else:
-            photobleach.run(triples, out_dir)
-
-    print(f"\nPREPROCESS {args.date} motion->SVD->xreg->push ALL DONE", flush=True)
+    print(f"\nPREPROCESS {' '.join(args.dates)} motion->SVD->xreg->push ALL DONE", flush=True)
     return 0
 
 
