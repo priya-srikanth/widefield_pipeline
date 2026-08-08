@@ -35,7 +35,9 @@ session; `output=.../motion_corrected/locanmf_affine8v1_final`). Run:
 `python -u -m wfield_local.batch_locanmf --manifest <m> --r2 0.95 --loc 80 --maxrank 20`. Confirm
 component counts (typically ~90–180/session).
 
-**2b. Register sessions.** Append to `SESSIONS` in `wfield_local/locanmf_cue_lick_analysis.py`. **Regime:**
+**2b. Register sessions.** Add the sessions to **`configs/sessions.yaml`** (keyed `animal -> "MMDD"`, dates
+QUOTED); `config.load_sessions()` supplies the runtime `SESSIONS` — the old hardcoded list is retired, do NOT
+re-add it. **Regime:**
 `*cleanpairs_frame_map.npz` present in `motion_corrected/` → regime `"B"` (`fmdir=None`); absent → `"A"`.
 (6/2–8/7 have all been B.) **Frame-mapping is validated by SENSIBLE DECODING, not by RT** (RT is in DAQ
 samples). If decoding collapses / SSp → chance, the regime is wrong → try the other regime. (6/5 bug:
