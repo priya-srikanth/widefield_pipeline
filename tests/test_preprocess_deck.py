@@ -152,3 +152,68 @@ def test_build_deck_date_ascending_and_animal_divider(tmp_path):
     # allen slides appear grouped, 0607 before 0608 (date ascending)
     allen = [t for t in titles if "Allen alignment" in t]
     assert len(allen) == 2 and "2026-06-07" in allen[0] and "2026-06-08" in allen[1]
+
+
+# ---------------------------------------------------------------------------
+# size split: partition_animals + build_decks
+# ---------------------------------------------------------------------------
+def _sessions_with_counts(counts):
+    out = []
+    for a, n in counts.items():
+        for i in range(n):
+            out.append(dict(label=f"{a}_{i:02d}", mc=f"/x/2026{i:02d}01/{a}/motion_corrected"))
+    return out
+
+
+def test_partition_animals_packs_whole_animals():
+    order = ["PS92", "PS93", "PS94", "PS95"]
+    S = _sessions_with_counts({"PS92": 10, "PS93": 7, "PS94": 10, "PS95": 10})
+    # cap 10 -> one deck per animal (PS92 fills exactly; PS93 can't join PS94, etc.)
+    assert [a for a, _ in pd.partition_animals(S, order, 10)] == [["PS92"], ["PS93"], ["PS94"], ["PS95"]]
+    # cap 20 -> two decks, whole animals, never exceeding the cap
+    b20 = pd.partition_animals(S, order, 20)
+    assert [a for a, _ in b20] == [["PS92", "PS93"], ["PS94", "PS95"]]
+    assert [n for _, n in b20] == [17, 20]
+    # cap 0/None -> single bucket with all animals
+    assert pd.partition_animals(S, order, 0) == [(order, 37)]
+
+
+def test_partition_animal_over_cap_gets_own_bucket():
+    order = ["PS92", "PS93"]
+    S = _sessions_with_counts({"PS92": 15, "PS93": 3})   # PS92 alone exceeds cap 10
+    assert pd.partition_animals(S, order, 10) == [(["PS92"], 15), (["PS93"], 3)]
+
+
+def _two_animal_tree(tmp_path):
+    labcams, xday, sessions = tmp_path / "labcams", tmp_path / "xday", []
+    for animal in ("PS92", "PS93"):
+        for mmdd in ("0607", "0608"):
+            ymd = f"2026{mmdd}"
+            mc = labcams / ymd / f"{animal}_{ymd}_x" / "motion_corrected"
+            lab = f"{animal}_{mmdd}_affine8v1"
+            _make_png(mc / "spout_trial_averages_affine8v1"
+                      / f"{lab}_mean_415_470_with_allen_overlay.png", (6, 3))
+            sessions.append(dict(label=f"{animal}_{mmdd}", mc=str(mc).replace("\\", "/"),
+                                 h5="", regime=None, fmdir=None))
+    return sessions, str(labcams), str(xday)
+
+
+def test_build_decks_splits_by_animal_and_prunes_stale(tmp_path):
+    sessions, labcams, xday = _two_animal_tree(tmp_path)
+    base = tmp_path / "deck.pptx"
+    (tmp_path / "deck_PS94.pptx").write_bytes(b"stale")   # leftover from an earlier split
+    summ = pd.build_decks(str(base), sessions=sessions, max_sessions=2,
+                          labcams_root=labcams, xday_root=xday, verbose=False)
+    assert len(summ) == 2
+    assert (tmp_path / "deck_PS92.pptx").exists() and (tmp_path / "deck_PS93.pptx").exists()
+    assert not base.exists()                              # split -> no plain base file
+    assert not (tmp_path / "deck_PS94.pptx").exists()     # stale sibling pruned
+
+
+def test_build_decks_single_file_when_cap_zero(tmp_path):
+    sessions, labcams, xday = _two_animal_tree(tmp_path)
+    base = tmp_path / "deck.pptx"
+    summ = pd.build_decks(str(base), sessions=sessions, max_sessions=0,
+                          labcams_root=labcams, xday_root=xday, verbose=False)
+    assert len(summ) == 1 and base.exists()
+    assert not (tmp_path / "deck_PS92.pptx").exists()     # not split

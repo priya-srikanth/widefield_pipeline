@@ -242,7 +242,7 @@ def _crossday_intensity(xday_root, labcams_root):
 # Build.
 # ---------------------------------------------------------------------------
 def build_deck(out_path, sessions=None, resolver=None, machine=None,
-               labcams_root=None, xday_root=None, verbose=True):
+               labcams_root=None, xday_root=None, verbose=True, include_global_summary=True):
     """Build a fresh preprocessing deck at ``out_path`` and return a summary dict.
 
     ``sessions`` / ``resolver`` default to the live config; ``labcams_root`` /
@@ -294,8 +294,8 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
 
         per_animal[animal] = len(prs.slides) - before
 
-    # ---- Global cross-day summary section ----
-    xint = _crossday_intensity(xday_root, labcams_root)
+    # ---- Global cross-day summary section (only on the last deck when split) ----
+    xint = _crossday_intensity(xday_root, labcams_root) if include_global_summary else None
     crossday_section = False
     if xint:
         _add_divider(prs, blank, "Cross-day summary",
@@ -331,15 +331,96 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     return summary
 
 
+def partition_animals(sessions, animals_order, max_sessions):
+    """Group animals (in order) into deck-buckets packing WHOLE animals until a bucket would
+    exceed ``max_sessions`` sessions. An animal is never split across buckets; an animal that
+    alone exceeds the cap gets its own (over-cap) bucket. ``max_sessions`` falsy -> one bucket.
+
+    Returns a list of (animals_list, n_sessions) tuples, skipping animals with no sessions.
+    """
+    counts = [(a, sum(1 for s in sessions if _animal_of(s) == a)) for a in animals_order]
+    counts = [(a, n) for a, n in counts if n > 0]
+    if not max_sessions:
+        return [([a for a, _ in counts], sum(n for _, n in counts))] if counts else []
+    buckets, cur, cur_n = [], [], 0
+    for a, n in counts:
+        if cur and cur_n + n > max_sessions:
+            buckets.append((cur, cur_n))
+            cur, cur_n = [], 0
+        cur.append(a)
+        cur_n += n
+    if cur:
+        buckets.append((cur, cur_n))
+    return buckets
+
+
+def _deck_path(base, animals, single):
+    """Output path for a bucket: the plain base for a single deck, else base stem + animal span."""
+    if single:
+        return base
+    root, ext = os.path.splitext(base)
+    span = animals[0] if len(animals) == 1 else f"{animals[0]}-{animals[-1]}"
+    return f"{root}_{span}{ext}"
+
+
+def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessions=None,
+                labcams_root=None, xday_root=None, verbose=True):
+    """Build one or more decks under ``out_base``, packing whole animals per file (size cap).
+
+    ``max_sessions`` defaults to ``defaults.yaml deck.max_sessions_per_file``. Removes stale
+    sibling decks from a previous run (different split) so the nightly stays idempotent.
+    Returns the list of per-deck summary dicts.
+    """
+    if sessions is None:
+        sessions = config.load_sessions(machine)
+    if resolver is None:
+        resolver = config.resolver(machine)
+    if max_sessions is None:
+        max_sessions = (config.defaults().get("deck") or {}).get("max_sessions_per_file", 0)
+
+    buckets = partition_animals(sessions, list(config.animals()), max_sessions)
+    single = len(buckets) <= 1
+    written, summaries = [], []
+    for i, (animals, _n) in enumerate(buckets):
+        subset = [s for s in sessions if _animal_of(s) in set(animals)]
+        out = _deck_path(out_base, animals, single)
+        written.append(os.path.abspath(out))
+        summaries.append(build_deck(
+            out, sessions=subset, resolver=resolver, machine=machine,
+            labcams_root=labcams_root, xday_root=xday_root, verbose=verbose,
+            include_global_summary=(i == len(buckets) - 1)))
+
+    # prune stale sibling decks from an earlier (different) split
+    root, ext = os.path.splitext(out_base)
+    for stale in glob.glob(f"{root}*{ext}"):
+        if os.path.abspath(stale) not in written:
+            try:
+                os.remove(stale)
+                if verbose:
+                    print(f"[cleanup] removed stale deck {stale}")
+            except OSError as e:
+                if verbose:
+                    print(f"[cleanup] could not remove {stale}: {e}")
+    if verbose:
+        print(f"\nBuilt {len(summaries)} deck(s): "
+              + ", ".join(f"{os.path.basename(w)} ({b[1]} sessions)"
+                          for w, b in zip(written, buckets)))
+    return summaries
+
+
 def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", default=None,
-                    help="Output .pptx path (default: labcams/PS92-95_cross_sessions_aligned.pptx).")
+                    help="Base .pptx path (default: labcams/PS92-95_cross_sessions_aligned.pptx). "
+                         "When split, files get an animal-span suffix.")
     ap.add_argument("--machine", default=None, help="Override machine (analysis|imaging).")
+    ap.add_argument("--max-sessions", type=int, default=None,
+                    help="Max sessions per deck file (default: defaults.yaml deck.max_sessions_per_file; "
+                         "0 = single unified deck).")
     args = ap.parse_args(argv)
     rv = config.resolver(args.machine)
     out = args.output or rv.resolve("labcams", "PS92-95_cross_sessions_aligned.pptx")
-    build_deck(out, resolver=rv, machine=args.machine)
+    build_decks(out, resolver=rv, machine=args.machine, max_sessions=args.max_sessions)
 
 
 if __name__ == "__main__":

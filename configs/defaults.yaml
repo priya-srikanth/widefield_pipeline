@@ -1,6 +1,12 @@
 # Default analysis parameters (cohort-wide). Per-session overrides -> configs/sessions.yaml.
 # (Mirrors stroke_orofacial_pipeline/configs/defaults.yaml.)
 
+# Preprocessing cross-session deck (wfield_local/preprocess_deck.py). To bound file size, the deck
+# is split into multiple .pptx files packing WHOLE animals (never splitting an animal's dates across
+# files) until a file would exceed max_sessions_per_file. cap 10 -> ~one deck per animal now.
+deck:
+  max_sessions_per_file: 10     # 0/null = single unified deck regardless of size
+
 # Preprocessing (IMAGING box): motion(fixed) -> SVD -> cross-register -> push. Consumed by
 # wfield_local/preprocess.py (replaces the retired per-date _nightly_<DATE>.py drivers).
 preprocess:
