@@ -53,30 +53,48 @@ camera acquisition). See `README.md` for setup, `docs/MIGRATION.md` for the spli
 
 ## Restructure roadmap — mirror `../stroke_orofacial_pipeline`
 
-Target = that repo's mature config-driven layout. **DONE:** `configs/{animals,sessions,paths,defaults}.yaml`;
-config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/`; installable
-packaging (`pyproject`/`environment.yml`/`requirements`, layers onto a prebuilt env); `README`; `runbooks/`;
-incremental per-session caching; `docs/MIGRATION.md`; this `CLAUDE.md`.
+Target = that repo's mature config-driven layout. **DONE:** `configs/{animals,sessions,paths,defaults}.yaml`
+(animals now carries full cohort metadata: sex/DOB/genotype/stroke_laterality/reference_landmarks);
+config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (22);
+**PathResolver** (`wfield_local/paths.py`, machine-aware analysis=M: / imaging=N:/E:) + `sessions.yaml`
+migrated to root-relative resolving on both boxes (was roadmap #2); **config-driven preprocessing
+orchestrator** `wfield_local/preprocess.py` (was roadmap #4 — retires the per-date `_nightly_*`/`_mc_svd_*`/
+`_maps_*`/`_photobleach_*` drivers; photobleach moved to `wfield_local/photobleach.py`); installable
+packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATION.md`; this `CLAUDE.md`.
 
 **NEXT (priority order):**
 1. **Consume `defaults.yaml` in code.** LocaNMF params (r2/loc/maxrank), decode windows/CV/max_rt, sync
    params are still hardcoded in module `_args()`/constants — wire them to `config.defaults()` so params live
-   in ONE place. Add `session_overrides.yaml` (per-session param overrides layered on defaults), mirroring
-   their defaults+overrides pattern.
-2. **PathResolver** (mirror their `paths.py`): logical roots → platform mounts; store `sessions.yaml` as
-   root+relative paths instead of full `M:` paths, so the imaging box (`N:`/`E:`) and this box (`M:`) resolve
-   the SAME config. Currently `sessions.yaml` holds full `M:` paths (this-box-only).
-3. **`.githooks/`** (pre-commit/pre-push running `ruff` + `pytest`), mirroring theirs; wire via
+   in ONE place (preprocess params already consumed by `preprocess.py`). Add `session_overrides.yaml`
+   (per-session param overrides layered on defaults), mirroring their defaults+overrides pattern.
+2. **`.githooks/`** (pre-commit/pre-push running `ruff` + `pytest`), mirroring theirs; wire via
    `git config core.hooksPath`.
-4. **Fold the ~84 legacy `_*_run.py` drivers + `_*.json` state into `scripts/`** and a config-driven
-   orchestrator; retire the per-date one-offs (the imaging computer's `_mc_svd_*`/`_maps_*`/`_nightly_*`).
-   NB some `_*.json` are read by relative path by the imaging computer's active pipeline — coordinate.
-5. **Optional `src/` layout** — move `wfield_local/` under `src/` and/or split into submodules like their
+3. **Fold remaining legacy `_*_run.py` drivers into `scripts/`** (preprocess `_nightly_*` DONE; still open:
+   `_crossday_intensity.py`, `_xall_refresh.py`, deck update, standby transfer). NB some `_*.json` are read
+   by relative path by the imaging pipeline — coordinate.
+4. **Optional `src/` layout** — move `wfield_local/` under `src/` and/or split into submodules like their
    `src/pkg/{alignment,figures,stats,…}`. KEEP the `wfield_local` import name (both machines + docs depend
    on `python -m wfield_local.*`).
-6. **`_writeguard.py`-style guard** against overwriting MICROSCOPE source data; **exclusions with dotted-tag
+5. **`_writeguard.py`-style guard** against overwriting MICROSCOPE source data; **exclusions with dotted-tag
    scoping** (their `Exclusion.applies`) for per-analysis-context date/animal exclusions.
-7. **More tests + CI** (session enumeration, animals, param loading).
+
+**Nightly-pipeline extensions (planned — mirror stroke_orofacial where noted):**
+- **Temporal alignment templates, generated nightly, ONE per camera per date (the 4 Blackfly behavior cams).**
+  Each Blackfly is recorded by Bonsai → csv with (timestamp, frame#, GPIO sync-pin driven by the behavior
+  Arduino). The Arduino sync pulse is the common heartbeat: it lands on DAQ digital line0 AND every Blackfly's
+  GPIO. So each cam aligns to the DAQ (session-time hub) by matching its GPIO sync train to the DAQ line0 train
+  — the free-running-clock case where `wfield_local/frame_sync.py`'s ITI-fingerprint aligner is the right tool
+  (revive it; it's currently dormant/PCO-inapplicable). Build + cache templates nightly so post-stroke
+  multi-angle 3D DLC triangulation has them ready. Mirrors stroke_orofacial `alignment/` (frame_sync +
+  timebase + templates), adapted DAQ-hub instead of wavesurfer-hub. The PCO imaging cam needs no template
+  (it's on the DAQ clock via `pco_exposure`); its robustness gap is dropped-frame count-reconciliation in
+  `trim_illuminated_labcams.py` (LED-parity, not ITI).
+- **Sync-train drop QC (cheap, do early):** cross-check the DAQ sync-pulse train against the behavior-log
+  event/ITI train (and each Blackfly GPIO train) to flag dropped DAQ samples / camera frames. All derive from
+  the one Arduino source, so ITI-pattern divergence localizes a drop. NB the DAQ cue stream is the REWARDED
+  subset (align on the raw sync line, or offset-match the subset — see the June count-mismatch resolution).
+- **Nightly behavior-session figures from spout data (a la stroke_orofacial spout_behavior), one cue + 6
+  spout positions here** (orofacial had 2 cues + L/R only). Config-driven per-session + cohort figures.
 
 **Then the science:** post-stroke prerequisites — per-trial behavioral-state table (spout-contact + DAQ lick
 → hit/miss/failed, latency, executed position), and packaging the frozen pre-stroke model + baseline
