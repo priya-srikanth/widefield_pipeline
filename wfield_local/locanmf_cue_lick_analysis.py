@@ -36,109 +36,15 @@ from wfield_local.plot_lick_aligned_averages import (
 from wfield_local.plot_spout_trial_averages import (
     _load_daq_events as _load_cue_events, _classify_cues,
 )
+from wfield_local import config
 from wfield_local.framemap_event_maps import _behavior_cue_codes  # recovered-position override
 from wfield_local.locanmf_lick_aligned import (
     _corrected_frame_samples, _nearest_corrected_frame, _quiet_zscore,
 )
 
 OROFACIAL = {3: "MOp", 4: "MOs", 5: "SSp-n", 6: "SSp-m"}
-ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green", "PS93": "tab:red"}
-L = "M:/MICROSCOPE/Priya/Widefield/labcams"
-D = "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
-SESSIONS = [
-    dict(label="PS94_0601", mc=f"{L}/20260601/PS94_20260601_141614/motion_corrected",
-         h5=f"{D}/PS94_baseline_20260601_141642.h5", regime="A", fmdir=None),
-    dict(label="PS95_0601", mc=f"{L}/20260601/PS95_20260601_153653/motion_corrected",
-         h5=f"{D}/PS95_baseline_20260601_153627.h5", regime="A", fmdir=None),
-    dict(label="PS92_0602", mc=f"{L}/20260602/PS92_20260602_151820/illuminated_rescue/motion_corrected",
-         h5=f"{D}/20250602/PS92_20260602_152607.h5", regime="B",
-         fmdir=f"{L}/20260602/PS92_20260602_151820/illuminated_rescue"),
-    dict(label="PS92_0603", mc=f"{L}/20260603/PS92_20260603_104008/motion_corrected",
-         h5=f"{D}/20250603/PS92_20260603_104607.h5", regime="B", fmdir=None),
-    dict(label="PS94_0603", mc=f"{L}/20260603/PS94_20260603/motion_corrected",
-         h5=f"{D}/20250603/PS94_20260603_175946.h5", regime="B", fmdir=None),
-    dict(label="PS95_0603", mc=f"{L}/20260603/PS95_20260603_194442/motion_corrected",
-         h5=f"{D}/20250603/PS95_20260603_194902.h5", regime="B", fmdir=None),
-    # 6/4 (full-FOV, regime A). PS92 DAQ was split into two recordings -> use the _concat h5
-    # (QC: pco/2T = 1.000 for all three, channels + cue/lick classification OK).
-    dict(label="PS92_0604", mc=f"{L}/20260604/PS92_20260604_132934/motion_corrected",
-         h5=f"{D}/20250604/PS92_20260604_concat.h5", regime="A", fmdir=None),
-    dict(label="PS94_0604", mc=f"{L}/20260604/PS94_20260604_151516/motion_corrected",
-         h5=f"{D}/20250604/PS94_20260604_152103.h5", regime="A", fmdir=None),
-    dict(label="PS95_0604", mc=f"{L}/20260604/PS95_20260604_165712/motion_corrected",
-         h5=f"{D}/20250604/PS95_20260604_170729.h5", regime="A", fmdir=None),
-    # 6/5. PS92 trial-triggered; PS93 (NEW animal), PS94, PS95 CONTINUOUS imaging (longer 2-3s ENL).
-    # Same DAQ-recorder h5 format as prior days. All have a cleanpairs frame_map in motion_corrected/
-    # -> regime B (frame_map), NOT pco//2. (Production SVD maps used the frame_map; regime A mis-indexed
-    # frames -> degraded decoding, worst on the longest/continuous sessions. fmdir=None: found in mc.)
-    dict(label="PS92_0605", mc=f"{L}/20260605/PS92_20260605_125023/motion_corrected",
-         h5=f"{D}/20260605/PS92_20260605_125301.h5", regime="B", fmdir=None),
-    dict(label="PS93_0605", mc=f"{L}/20260605/PS93_20260605_174659/motion_corrected",
-         h5=f"{D}/20260605/PS93_20260605_175452.h5", regime="B", fmdir=None),
-    dict(label="PS94_0605", mc=f"{L}/20260605/PS94_20260605_142009/motion_corrected",
-         h5=f"{D}/20260605/PS94_20260605_142249.h5", regime="B", fmdir=None),
-    dict(label="PS95_0605", mc=f"{L}/20260605/PS95_20260605_163102/motion_corrected",
-         h5=f"{D}/20260605/PS95_20260605_163405.h5", regime="B", fmdir=None),
-    # 6/6. All four sessions have *cleanpairs_frame_map.npz in mc -> regime B (fmdir=None), same as 6/5.
-    dict(label="PS92_0606", mc=f"{L}/20260606/PS92_20260606_122451/motion_corrected",
-         h5=f"{D}/20260606/PS92_20260606_122508.h5", regime="B", fmdir=None),
-    dict(label="PS93_0606", mc=f"{L}/20260606/PS93_20260606_180117/motion_corrected",
-         h5=f"{D}/20260606/PS93_20260606_180219.h5", regime="B", fmdir=None),
-    dict(label="PS94_0606", mc=f"{L}/20260606/PS94_20260606_140854/motion_corrected",
-         h5=f"{D}/20260606/PS94_20260606_140912.h5", regime="B", fmdir=None),
-    dict(label="PS95_0606", mc=f"{L}/20260606/PS95_20260606_160806/motion_corrected",
-         h5=f"{D}/20260606/PS95_20260606_160825.h5", regime="B", fmdir=None),
-    # 6/7. All four have *cleanpairs_frame_map.npz in mc -> regime B (fmdir=None), same as 6/5, 6/6.
-    dict(label="PS92_0607", mc=f"{L}/20260607/PS92_20260607_121538/motion_corrected",
-         h5=f"{D}/20260607/PS92_20260607_121551.h5", regime="B", fmdir=None),
-    dict(label="PS93_0607", mc=f"{L}/20260607/PS93_20260607_174844/motion_corrected",
-         h5=f"{D}/20260607/PS93_20260607_174854.h5", regime="B", fmdir=None),
-    dict(label="PS94_0607", mc=f"{L}/20260607/PS94_20260607_140731/motion_corrected",
-         h5=f"{D}/20260607/PS94_20260607_140813.h5", regime="B", fmdir=None),
-    dict(label="PS95_0607", mc=f"{L}/20260607/PS95_20260607_155000/motion_corrected",
-         h5=f"{D}/20260607/PS95_20260607_155400.h5", regime="B", fmdir=None),
-    # 6/8. cleanpairs_frame_map.npz present -> regime B (fmdir=None). PS95 uploaded later.
-    dict(label="PS92_0608", mc=f"{L}/20260608/PS92_20260608_133759/motion_corrected",
-         h5=f"{D}/20260608/PS92_20260608_133847.h5", regime="B", fmdir=None),
-    dict(label="PS93_0608", mc=f"{L}/20260608/PS93_20260608_195203/motion_corrected",
-         h5=f"{D}/20260608/PS93_20260608_195350.h5", regime="B", fmdir=None),
-    dict(label="PS94_0608", mc=f"{L}/20260608/PS94_20260608_153651/motion_corrected",
-         h5=f"{D}/20260608/PS94_20260608_153702.h5", regime="B", fmdir=None),
-    dict(label="PS95_0608", mc=f"{L}/20260608/PS95_20260608_180943/motion_corrected",
-         h5=f"{D}/20260608/PS95_20260608_180950.h5", regime="B", fmdir=None),
-    # 8/5. All four have *cleanpairs_frame_map.npz in mc -> regime B (fmdir=None).
-    dict(label="PS92_0805", mc=f"{L}/20260805/PS92_20260805_181150/motion_corrected",
-         h5=f"{D}/20260805/PS92_20260805_182111.h5", regime="B", fmdir=None),
-    # PS93 8/5: dead strobe bit1 AND empty behavior log -> positions recovered from cam1 video,
-    # human-verified (0 corrections). Use the recovered CSV for ALL position-dependent analysis.
-    dict(label="PS93_0805", mc=f"{L}/20260805/PS93_20260805_201110/motion_corrected",
-         h5=f"{D}/20260805/PS93_20260805_202005.h5", regime="B", fmdir=None,
-         behavior_trials=f"{L}/20260805/PS93_20260805_201110/motion_corrected/spout_position_recovery_cam1/ps93_reviewed_trials.csv"),
-    dict(label="PS94_0805", mc=f"{L}/20260805/PS94_20260805_124758/motion_corrected",
-         h5=f"{D}/20260805/PS94_20260805_131025.h5", regime="B", fmdir=None),
-    dict(label="PS95_0805", mc=f"{L}/20260805/PS95_20260805_155615/motion_corrected",
-         h5=f"{D}/20260805/PS95_20260805_160437.h5", regime="B", fmdir=None),
-    # 8/6. cleanpairs frame_map present -> regime B. spout_bit1 fault (dropped close_R/far_center) is
-    # auto-repaired from the behavior log by behavior_position.classify_cues_with_backup.
-    dict(label="PS92_0806", mc=f"{L}/20260806/PS92_20260806_124426/motion_corrected",
-         h5=f"{D}/20260806/PS92_20260806_124733.h5", regime="B", fmdir=None),
-    dict(label="PS93_0806", mc=f"{L}/20260806/PS93_20260806_172253/motion_corrected",
-         h5=f"{D}/20260806/PS93_20260806_172316.h5", regime="B", fmdir=None),
-    dict(label="PS94_0806", mc=f"{L}/20260806/PS94_20260806_074320/motion_corrected",
-         h5=f"{D}/20260806/PS94_20260806_074558.h5", regime="B", fmdir=None),
-    dict(label="PS95_0806", mc=f"{L}/20260806/PS95_20260806_105300/motion_corrected",
-         h5=f"{D}/20260806/PS95_20260806_105651.h5", regime="B", fmdir=None),
-    # 8/7. cleanpairs present -> regime B. (spout_bit1 appears fixed on 8/7 — PS94/PS95 DAQ gave all 6
-    # positions directly; behavior-backup still auto-applies if any mouse is short.)
-    dict(label="PS92_0807", mc=f"{L}/20260807/PS92_20260807_150924/motion_corrected",
-         h5=f"{D}/20260807/PS92_20260807_151146.h5", regime="B", fmdir=None),
-    dict(label="PS94_0807", mc=f"{L}/20260807/PS94_20260807_104125/motion_corrected",
-         h5=f"{D}/20260807/PS94_20260807_105410.h5", regime="B", fmdir=None),
-    dict(label="PS95_0807", mc=f"{L}/20260807/PS95_20260807_124637/motion_corrected",
-         h5=f"{D}/20260807/PS95_20260807_125106.h5", regime="B", fmdir=None),
-    dict(label="PS93_0807", mc=f"{L}/20260807/PS93_20260807_174403/motion_corrected",
-         h5=f"{D}/20260807/PS93_20260807_174416.h5", regime="B", fmdir=None),
-]
+ANIMAL_COLOR = config.animal_color()  # per-animal figure color (configs/animals.yaml)
+SESSIONS = config.load_sessions()      # session registry (configs/sessions.yaml)
 
 
 def _process(s, args):
@@ -303,3 +209,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

@@ -23,15 +23,11 @@ import time
 from pathlib import Path
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+from wfield_local import config
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
 DEFAULT_OUT = "C:/Users/sabatini/source/cue_lick"
-
-# Cross-session comparisons (cross-mouse / within-animal / RSA / pooled FEVE) use the CURATED
-# "good" session set: 6/6-6/8 + 8/6 onward. Excludes noisy/low-engagement early June (6/1-6/5)
-# and the wonky 8/5. (See configs/animals.yaml date_policy; --from overrides.)
-CROSS_SESSION_EXCLUDE = {"0601", "0602", "0603", "0604", "0605", "0805"}
 
 
 def log(m):
@@ -54,7 +50,10 @@ def main():
 
     date = args.date
     out = args.output
-    curated = ",".join(d for d in sorted({s["label"][-4:] for s in SESSIONS}) if d not in CROSS_SESSION_EXCLUDE)
+    # Cross-session comparisons use the CURATED "good" set: 6/6-6/8 + 8/6 onward (auto-includes future
+    # dates), excluding noisy early June (6/1-6/5) and the wonky 8/5. Policy in configs/animals.yaml.
+    exclude = set(config.date_policy().get("cross_session_exclude", []))
+    curated = ",".join(d for d in sorted({s["label"][-4:] for s in SESSIONS}) if d not in exclude)
     from_dates = args.from_dates or curated
     tag = f"{from_dates.split(',')[0]}-{from_dates.split(',')[-1]}"
 
