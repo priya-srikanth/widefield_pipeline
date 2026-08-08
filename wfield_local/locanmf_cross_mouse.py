@@ -33,6 +33,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
+from wfield_local import session_cache
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
@@ -64,6 +65,10 @@ def _acc(X, y, g):
 
 def per_session(label):
     s = next(x for x in SESSIONS if x["label"] == label)
+    return session_cache.cached(s, "per_session", lambda: _per_session_compute(s), params=_args())
+
+
+def _per_session_compute(s):
     X, y, g, _, _, reg = _trial_features(s, _args())
     names = {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}

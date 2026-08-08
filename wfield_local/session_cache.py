@@ -1,0 +1,95 @@
+"""Disk cache for expensive PER-SESSION analysis results (decode recall/EV, RDMs, crossnobis, hemisphere).
+
+The cross-day figures (cross-mouse, within-animal, RSA) recompute per-session results for EVERY session on
+every nightly run, and each per-session compute (LocaNMF load + block-CV decode/encode) is the slow pole.
+This memoizes each per-session result to disk so only NEW or CHANGED sessions recompute; the rest load
+instantly.
+
+Cache key (per session, per `kind`): the mtime+size of the session's LocaNMF component file
+(`{label}_locanmf_C.npy` — rewritten whenever LocaNMF is re-run, e.g. the PS93 8/5 recovered-positions
+rerun), the DAQ h5, the optional `behavior_trials` override CSV, plus a repr of the analysis params and
+CACHE_VERSION. Any of those changing → automatic invalidation.
+
+IMPORTANT: mtimes do NOT capture changes to the COMPUTE CODE. **Bump CACHE_VERSION whenever you change the
+logic of a cached function** (per_session / rdm / crossnobis / hemisphere), so stale results are discarded.
+
+Bypass with env `WIDEFIELD_NO_CACHE=1` (always recompute, don't read/write). Relocate with
+`WIDEFIELD_SESSION_CACHE=<dir>`. Clearing = delete the cache dir (safe; it just forces a recompute).
+"""
+from __future__ import annotations
+
+import hashlib
+import os
+import pickle
+from pathlib import Path
+
+CACHE_VERSION = 1  # bump when any cached function's computation changes
+
+CACHE_DIR = Path(os.environ.get(
+    "WIDEFIELD_SESSION_CACHE", "C:/Users/sabatini/source/.widefield_session_cache"))
+
+
+def _disabled() -> bool:
+    return bool(os.environ.get("WIDEFIELD_NO_CACHE"))
+
+
+def _stat_sig(path) -> str:
+    if not path:
+        return "-"
+    try:
+        st = os.stat(path)
+        return f"{st.st_mtime_ns}:{st.st_size}"
+    except OSError:
+        return "MISSING"
+
+
+def _params_str(params) -> str:
+    if params is None:
+        return ""
+    if hasattr(params, "__dict__"):            # argparse.Namespace / SimpleNamespace
+        return repr(sorted(vars(params).items()))
+    return str(params)
+
+
+def session_signature(session, params=None) -> str:
+    """Hash of the inputs that determine a per-session result: LocaNMF C.npy + h5 + behavior_trials
+    mtimes/sizes, the params, and CACHE_VERSION."""
+    mc, lab = session["mc"], session["label"]
+    parts = [
+        f"v{CACHE_VERSION}", lab, _params_str(params),
+        _stat_sig(f"{mc}/locanmf_affine8v1_final/{lab}_locanmf_C.npy"),
+        _stat_sig(session.get("h5", "")),
+        _stat_sig(session.get("behavior_trials", "")),
+    ]
+    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
+
+
+def cached(session, kind, compute, params=None, verbose=True):
+    """Return `compute()` for (session, kind), memoized to disk under a signature of the session's inputs.
+    `compute` is a zero-arg callable producing a picklable result."""
+    if _disabled():
+        return compute()
+    lab = session["label"]
+    sig = session_signature(session, params)
+    fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
+    if fp.exists():
+        try:
+            with open(fp, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:
+            pass  # corrupt/partial -> recompute below
+    res = compute()
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = fp.with_suffix(f".{os.getpid()}.tmp")
+    with open(tmp, "wb") as fh:
+        pickle.dump(res, fh)
+    os.replace(tmp, fp)  # atomic publish
+    for old in CACHE_DIR.glob(f"{lab}__{kind}__*.pkl"):  # prune superseded signatures
+        if old != fp:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+    if verbose:
+        print(f"  [cache] computed {lab}/{kind}", flush=True)
+    return res

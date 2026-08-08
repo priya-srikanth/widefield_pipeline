@@ -38,6 +38,8 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
   copy to `cue_analysis/`, commit + push (rig procedure: export CONDA_PREFIX; add/commit; fetch; rebase; push).
 - Dropped-frame QC: `dropframe_check_all.py "D:\camera"` (col0 frame id, col1 ns timestamp, nominal 4 ms).
   Camera → `Behavior_Cameras\Widefield\<DATE>`, behavior → `Behavior_logs\Widefield\` (the `Widefield\` SUBDIR).
+- Cross-day analyses are CACHED (`session_cache.py`) — only new/changed sessions recompute; a LocaNMF re-run
+  auto-invalidates that session. Force a full recompute with `WIDEFIELD_NO_CACHE=1` if you suspect staleness.
 - Positions: DAQ strobe bits; dead-bit (Aug-2026) auto-repairs from behavior log (`classify_cues_with_backup`);
   empty-log sessions (PS93 8/5) use a `behavior_trials` recovered CSV. Validate by SSp >> chance 0.167.
 - Engagement: the DAQ cue/strobe stream = the REWARDED subset (reward held after ~6 misses) → an engagement

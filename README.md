@@ -73,6 +73,16 @@ If an `import` breaks after an install, check for **user-site shadows** (`AppDat
 overriding the conda versions and remove them. Keep each machine's env separate; there is no single lockfile
 that fits both (the `requirements.txt` pin set is the *analysis-box* reference, not a cross-machine contract).
 
+## Caching (cross-day analyses)
+
+Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoized to disk by
+`wfield_local/session_cache.py`, so the cross-day figures only compute new/changed sessions (a cache hit is
+~340x faster) and don't recompute the same session across cross-mouse/within-animal/RSA within one run.
+- Cache dir: `WIDEFIELD_SESSION_CACHE` (default `C:\Users\sabatini\source\.widefield_session_cache`), outside the repo.
+- Auto-invalidates when a session's LocaNMF `C.npy` / h5 / `behavior_trials` changes (e.g. a LocaNMF re-run).
+- Force a full recompute with `WIDEFIELD_NO_CACHE=1`; clearing = delete the cache dir. **Bump `CACHE_VERSION`
+  in `session_cache.py` whenever you change a cached function's logic** (mtimes don't see code changes).
+
 ## Running the nightly
 
 - **Imaging computer:** follow `runbooks/imaging_computer_nightly.md` (acquire → preprocess → upload).
@@ -92,10 +102,10 @@ that fits both (the `requirements.txt` pin set is the *analysis-box* reference, 
 1. **Config consumption** — refactor `wfield_local` to read `configs/*.yaml` (replace the hardcoded
    `SESSIONS` in `locanmf_cue_lick_analysis.py` with a loader), add `tests/` for the config loader +
    animals, mirroring `stroke_orofacial_pipeline`.
-2. **Incremental cross-day analysis (efficiency).** The cross-mouse / within-animal / RSA (+ crossnobis)
-   steps currently recompute every session from scratch each night (the slow pole). Cache each session's
-   per-session outputs (recall/EV, RDM, crossnobis) keyed by session + a hash of (LocaNMF-output mtime,
-   params); each night compute only the NEW session(s) and load the rest. Invalidate on LocaNMF/param change.
+2. ~~Incremental cross-day analysis (efficiency)~~ — **DONE** (`wfield_local/session_cache.py`): the
+   per-session compute in cross-mouse / within-animal / RSA / crossnobis / hemisphere is memoized to disk,
+   keyed by the LocaNMF `C.npy` + h5 + `behavior_trials` mtimes + params + `CACHE_VERSION`. Only new/changed
+   sessions recompute (~340x on a cache hit); also dedupes within a single run. See "Caching" above.
 3. **Post-stroke analysis** — intention readout (frozen decoder) + representational similarity
    (crossnobis / encoder residuals); prerequisites in [`LOCANMF_LICK_CUE_ANALYSIS.md`].
 4. Fold the legacy `_*_run.py` drivers into the config-driven orchestrator; then `scripts/` cleanup.

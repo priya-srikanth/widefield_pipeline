@@ -26,3 +26,4 @@ _photobleach_out*/
 *.egg-info/
 __pycache__/
 *.pyc
+.pytest_cache/

@@ -32,6 +32,7 @@ import numpy as np
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
 from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local import session_cache
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
 FS = 31.23
@@ -62,6 +63,10 @@ def _rdm_and_reliability(label):
     Spearman-correlate them. That reliability is the per-session NOISE CEILING -- the maximum 2nd-order RSA
     any other RDM (another session of the same animal) could reach given this session's estimation noise."""
     s = next(x for x in SESSIONS if x["label"] == label)
+    return session_cache.cached(s, "rdm_rel", lambda: _rdm_and_reliability_compute(s), params=_args())
+
+
+def _rdm_and_reliability_compute(s):
     X, y, g, _, _, _ = _trial_features(s, _args())
     full = _rdm_from(X, y)
     ub = np.unique(g); half = set(ub[::2].tolist())
@@ -106,6 +111,10 @@ def _crossnobis_rdm(X, y, g):
 
 def _crossnobis_and_reliability(label):
     s = next(x for x in SESSIONS if x["label"] == label)
+    return session_cache.cached(s, "crossnobis", lambda: _crossnobis_and_reliability_compute(s), params=_args())
+
+
+def _crossnobis_and_reliability_compute(s):
     X, y, g, _, _, _ = _trial_features(s, _args())
     full = _crossnobis_rdm(X, y, g)
     ub = np.unique(g); A = set(ub[::2].tolist()); mA = np.array([gi in A for gi in g])
@@ -241,6 +250,10 @@ def _session_hemi(label):
     """RDM_L, RDM_R (from left- vs right-hemisphere LocaNMF components), per-hemisphere split-half
     reliability, and component counts. Hemisphere from the Allen region name suffix (_left/_right)."""
     s = next(x for x in SESSIONS if x["label"] == label)
+    return session_cache.cached(s, "hemi", lambda: _session_hemi_compute(s), params=_args())
+
+
+def _session_hemi_compute(s):
     X, y, g, _, _, reg = _trial_features(s, _args())
     names = {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
