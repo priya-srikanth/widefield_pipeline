@@ -68,6 +68,61 @@ Subset knobs: `nightly_figs --only PS93` (scopes every decode/encode/RSA subproc
 prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
 `LOCANMF_LICK_CUE_ANALYSIS.md`, `LOCANMF_NIGHTLY_PIPELINE.md`, `DECISIONS.md`.
 
+### Analysis steps (what `nightly_figs` orchestrates)
+
+The numbered steps below are the underlying analysis commands (the preprocessing analogue is §1–16).
+`nightly_figs` runs A1–A6 for the per-day date(s) + the cross-session span; run any one standalone with
+the same `configs/` source of truth (env `locanmf`, behavior-GPU box). `<OUT>` is the figure/deck dir
+(default `C:/Users/sabatini/source/cue_lick`); `<DATE>` is `MMDD`; `<SPAN>` is a comma `MMDD` list; the
+cross-session `<TAG>` is `<first>-<last>` of the span.
+
+**A0. LocaNMF decomposition** — atlas-anchored components (r²=0.95, loc=80, maxrank=20) from `SVTcorr`
+    + the Allen-aligned `U`. One session, or a manifest of many:
+
+```powershell
+python -m wfield_local.run_locanmf --allen-dir <...>/allen_aligned_affine8v1 --output <...>/locanmf --label PS95_0807
+python -m wfield_local.batch_locanmf --manifest <manifest.json>   # JSON list of {allen_dir,label,output[,svt]}
+```
+
+**A1. Position decoder** — multinomial logistic regression of spout position from individual components
+    (first-lick / cue / pre-cue windows, block-CV, no per-trial baseline; chance 0.167):
+
+```powershell
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align lick   --post-s 2.0 --output <OUT>
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align cue    --post-s 2.0 --output <OUT>
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align precue --post-s 1.0 --output <OUT>
+```
+
+**A2. Decoder-weight & dynamics figures** — rolling cue, first-lick temporal dynamics, laterality, and
+    top-component maps (`nightly_figs` inlines these as function calls; standalone entry point):
+
+```powershell
+python -m wfield_local.locanmf_decoder_weights --output <OUT> --weights-day <DATE>
+```
+
+**A3. Position encoder** — ridge position→activity + fraction-explainable-variance (FEVE) vs a noise
+    ceiling, pooled over the cross-session span:
+
+```powershell
+python -m wfield_local.locanmf_position_encoder --date <DATE> --pool-dates <SPAN> --output <OUT>
+```
+
+**A4. Cross-mouse consistency** and **A5. RSA** — within-/across-animal per-position consistency and
+    RDM / **crossnobis** (noise-unbiased) representational similarity, over the whole span (run once):
+
+```powershell
+python -m wfield_local.locanmf_cross_mouse --output <OUT> --dates <SPAN> --tag <TAG>
+python -m wfield_local.locanmf_rsa         --output <OUT> --dates <SPAN> --tag <TAG>
+```
+
+**A6. Frozen decoder** (post-stroke plan) — fit + persist the pre-stroke decoders, or the cross-day
+    transfer demo:
+
+```powershell
+python -m wfield_local.locanmf_frozen_decoder --save --output <OUT>       # persist baseline decoders
+python -m wfield_local.locanmf_frozen_decoder --transfer --output <OUT>   # cross-day transfer figure
+```
+
 ## Processing Overview
 
 1. Motion-correct the labcams `.dat` file (optionally QC it, §13).
@@ -86,11 +141,6 @@ Large outputs should stay in the recording folder, usually under:
 ```text
 E:\labcams_data\YYYYMMDD\SESSION\motion_corrected
 ```
-
-## Notebooks
-
-- `notebooks/widefield_local_analysis_walkthrough.ipynb` - annotated end-to-end workflow for generating motion/SVD outputs, Allen alignment, cue maps, lick maps, cue-vs-lick maps, alignment diagnostics, ROI label maps, and comparison PowerPoints.
-- `notebooks/local_wfield_processing_template.ipynb` - shorter command template for starting a new session.
 
 ## 1. Motion Correction
 
