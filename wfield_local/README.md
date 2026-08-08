@@ -3,7 +3,7 @@
 This folder is the `wfield_local` package of the **`widefield_pipeline`** repo (carved out of
 `Widefield_DAQ_recorder` — the recorder GUI — in 2026-08). It holds BOTH the imaging-box
 **preprocessing** helpers (motion / SVD / hemo / Allen / cue-lick maps, §1–16 below) AND the
-behavior-GPU **analysis** pipeline (LocaNMF spout-position decode / encode / RSA). Large imaging
+behavior-GPU **analysis** pipeline (LocaNMF spout-position decode / encode / RSA, §17–23). Large imaging
 outputs stay outside git.
 
 Day-to-day the individual steps below are driven by **config-driven entry points** (single source
@@ -18,7 +18,7 @@ conda activate wfield          # imaging box (preprocessing); the analysis box u
 
 ## Running the pipeline (config-driven — current)
 
-The §1–16 commands are the underlying steps; day-to-day they are orchestrated by:
+The §1–23 commands are the underlying steps; day-to-day they are orchestrated by:
 
 - **Preprocessing (imaging box):**
   `python -m wfield_local.preprocess <DATE> ... [--only PS9x ...] [--dry-run]`
@@ -32,7 +32,7 @@ The §1–16 commands are the underlying steps; day-to-day they are orchestrated
   into per-animal files to bound size). Replaces the retired `PS92_94_95_affine8v1.pptx` builder.
 - **Analysis (behavior-GPU box):**
   `python -m wfield_local.nightly_figs <DATE> ... [--only PS9x ...] [--from <DATE spec>]` — orchestrates
-  the LocaNMF decode/encode/RSA (see **Analysis pipeline** below) and builds the decoder summary deck.
+  the LocaNMF decode/encode/RSA (see **Analysis** §17–23 below) and builds the decoder summary deck.
 
 Both CLIs share ONE date/animal knob grammar (`config.expand_dates` / `config.normalize_animals`):
 a `<DATE>` token is `MMDD` or `YYYYMMDD`; give a space/comma list (`0806 0807`), an inclusive range
@@ -45,104 +45,29 @@ Register each new session in `configs/sessions.yaml`; per-animal metadata + date
 `configs/animals.yaml`; params in `configs/defaults.yaml`. Per-machine nightly runbooks: `runbooks/`.
 Repo setup + architecture: root `README.md`; project rules + roadmap: `CLAUDE.md`.
 
-## Analysis pipeline (LocaNMF decode / encode / RSA)
+## Preprocessing (imaging box)
 
-The preprocessing above stops at SVD + atlas. The **analysis** half runs GPU LocaNMF and the
-spout-position models on the behavior-GPU box (env `locanmf`):
+The imaging-box preprocessing (env `wfield`) turns each raw labcams `.dat` into SVD + Allen-aligned
+outputs and cue/lick activity maps. Conceptually:
 
-- `batch_locanmf` / `run_locanmf` — atlas-anchored LocaNMF components (r²=0.95, loc=80, maxrank=20)
-  from `SVTcorr` + the Allen-aligned `U`.
-- `locanmf_position_decoder` — multinomial logistic regression of spout position from individual
-  LocaNMF components (first-lick / cue / pre-cue windows, block-CV by ~6-trial position blocks, no
-  per-trial baseline; chance = 0.167). SSp dominates, MO secondary.
-- `locanmf_position_encoder` — ridge position→activity + fraction-explainable-variance (FEVE) vs a
-  noise ceiling.
-- `locanmf_cross_mouse` / `locanmf_rsa` — cross-session & cross-animal comparison: within-/across-
-  animal per-position consistency and RDM / **crossnobis** (noise-unbiased) representational similarity.
-- `locanmf_frozen_decoder` — frozen pre-stroke decoder applied across sessions (the post-stroke plan).
-- `nightly_figs` runs all of the above for a date + the curated cross-session set and builds
-  `locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`.
+- Motion-correct the labcams `.dat` (optionally QC it, §13).
+- Run local SVD + dual-color hemodynamic correction.
+- Apply Allen/wfield landmark alignment.
+- Generate cue-aligned spout-position maps (relabeled sessions: §12) and lick-aligned post-event maps.
+- Optional alignment diagnostics + comparison decks; align the same animal across days (§14).
 
-Subset knobs: `nightly_figs --only PS93` (scopes every decode/encode/RSA subprocess via the
-`WIDEFIELD_ONLY_ANIMALS` env var + the in-process figs); any single module can be scoped directly by
-prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
-`LOCANMF_LICK_CUE_ANALYSIS.md`, `LOCANMF_NIGHTLY_PIPELINE.md`, `DECISIONS.md`.
+> Decomposition stops at SVD + hemo + atlas here; PMD/LocaNMF are not run locally — those are the
+> analysis half (§17–23). See the "Decomposition note" below and `DECISIONS.md`.
 
-### Analysis steps (what `nightly_figs` orchestrates)
-
-The numbered steps below are the underlying analysis commands (the preprocessing analogue is §1–16).
-`nightly_figs` runs A1–A6 for the per-day date(s) + the cross-session span; run any one standalone with
-the same `configs/` source of truth (env `locanmf`, behavior-GPU box). `<OUT>` is the figure/deck dir
-(default `C:/Users/sabatini/source/cue_lick`); `<DATE>` is `MMDD`; `<SPAN>` is a comma `MMDD` list; the
-cross-session `<TAG>` is `<first>-<last>` of the span.
-
-**A0. LocaNMF decomposition** — atlas-anchored components (r²=0.95, loc=80, maxrank=20) from `SVTcorr`
-    + the Allen-aligned `U`. One session, or a manifest of many:
-
-```powershell
-python -m wfield_local.run_locanmf --allen-dir <...>/allen_aligned_affine8v1 --output <...>/locanmf --label PS95_0807
-python -m wfield_local.batch_locanmf --manifest <manifest.json>   # JSON list of {allen_dir,label,output[,svt]}
-```
-
-**A1. Position decoder** — multinomial logistic regression of spout position from individual components
-    (first-lick / cue / pre-cue windows, block-CV, no per-trial baseline; chance 0.167):
-
-```powershell
-python -m wfield_local.locanmf_position_decoder --date <DATE> --align lick   --post-s 2.0 --output <OUT>
-python -m wfield_local.locanmf_position_decoder --date <DATE> --align cue    --post-s 2.0 --output <OUT>
-python -m wfield_local.locanmf_position_decoder --date <DATE> --align precue --post-s 1.0 --output <OUT>
-```
-
-**A2. Decoder-weight & dynamics figures** — rolling cue, first-lick temporal dynamics, laterality, and
-    top-component maps (`nightly_figs` inlines these as function calls; standalone entry point):
-
-```powershell
-python -m wfield_local.locanmf_decoder_weights --output <OUT> --weights-day <DATE>
-```
-
-**A3. Position encoder** — ridge position→activity + fraction-explainable-variance (FEVE) vs a noise
-    ceiling, pooled over the cross-session span:
-
-```powershell
-python -m wfield_local.locanmf_position_encoder --date <DATE> --pool-dates <SPAN> --output <OUT>
-```
-
-**A4. Cross-mouse consistency** and **A5. RSA** — within-/across-animal per-position consistency and
-    RDM / **crossnobis** (noise-unbiased) representational similarity, over the whole span (run once):
-
-```powershell
-python -m wfield_local.locanmf_cross_mouse --output <OUT> --dates <SPAN> --tag <TAG>
-python -m wfield_local.locanmf_rsa         --output <OUT> --dates <SPAN> --tag <TAG>
-```
-
-**A6. Frozen decoder** (post-stroke plan) — fit + persist the pre-stroke decoders, or the cross-day
-    transfer demo:
-
-```powershell
-python -m wfield_local.locanmf_frozen_decoder --save --output <OUT>       # persist baseline decoders
-python -m wfield_local.locanmf_frozen_decoder --transfer --output <OUT>   # cross-day transfer figure
-```
-
-## Processing Overview
-
-1. Motion-correct the labcams `.dat` file (optionally QC it, §13).
-2. Run local SVD and dual-color hemodynamic correction.
-3. Apply Allen/wfield landmark alignment.
-4. Generate cue-aligned spout-position maps (relabeled sessions: §12).
-5. Generate optional alignment diagnostics and comparison PowerPoints.
-6. Generate optional lick-aligned post-event maps.
-7. Optionally align the same animal across days on the mean 470 nm vasculature (§14).
-
-> Decomposition stops at SVD + hemo + atlas here; PMD/LocaNMF are not run locally
-> (see the "Decomposition note" at the bottom and `DECISIONS.md`).
-
-Large outputs should stay in the recording folder, usually under:
+Large outputs stay in the recording folder, usually under:
 
 ```text
 E:\labcams_data\YYYYMMDD\SESSION\motion_corrected
 ```
 
-## 1. Motion Correction
+Steps 1–16 are the individual preprocessing commands.
+
+### 1. Motion Correction
 
 Example:
 
@@ -161,7 +86,7 @@ Important adjustable parameters:
 
 The raw `.dat` file is not overwritten. (The script's flag is `--output`.)
 
-### TTL-based LED relabeling (trial-gated recordings)
+#### TTL-based LED relabeling (trial-gated recordings)
 
 For trial-gated recordings, run motion correction with `--daq-h5` so the DAT is
 relabeled to DAQ-confirmed 415/470 pairs BEFORE motion correction and SVD. The
@@ -184,7 +109,7 @@ continuously-saved (LED-gated) sessions that contain dark inter-trial frames.
 The relabel can also be run standalone via
 `python -m wfield_local.trim_illuminated_labcams <dat> <daq.h5> --output-dir <dir> --mode acquire-enable`.
 
-## 2. SVD And Hemodynamic Correction
+### 2. SVD And Hemodynamic Correction
 
 Example:
 
@@ -215,7 +140,7 @@ Outputs include:
 - `rcoeffs.npy`
 - `T.npy`
 
-## 3. Allen Alignment
+### 3. Allen Alignment
 
 After making or revising `dorsal_cortex_landmarks.json` in the wfield/NeuroCAAS GUI, apply it locally:
 
@@ -234,7 +159,7 @@ Important note:
 - Image warping uses that transform through `skimage.warp`, which treats the transform as an output-to-input inverse map.
 - The helper diagnostic scripts account for this when plotting where clicked points land after warping.
 
-## 4. Cue-Aligned Spout-Position Averages
+### 4. Cue-Aligned Spout-Position Averages
 
 By default, DAQ events are aligned to imaging frames using the DAQ-recorded
 `pco_exposure` rising edges. This is more robust than wall-clock timestamps:
@@ -273,7 +198,7 @@ Spout position is assigned using the most recent `spout_strobe` before each cue:
 code = spout_bit0 + 2*spout_bit1 + 4*spout_bit2
 ```
 
-## 5. Shared-Scale Spout Figures
+### 5. Shared-Scale Spout Figures
 
 The original cue-aligned plot uses one scale for pre/post and a separate scale for post-minus-pre. To make pre, post, and delta visually comparable, regenerate a shared-scale figure:
 
@@ -286,7 +211,7 @@ python .\wfield_local\plot_spout_trial_averages_shared_scale.py `
   --output "E:\labcams_data\20260601\PS95_20260601_153653\motion_corrected\spout_trial_averages_allen_v6"
 ```
 
-## 6. Alignment Diagnostics
+### 6. Alignment Diagnostics
 
 Plot clicked landmark points before and after the transform:
 
@@ -327,7 +252,7 @@ python .\wfield_local\plot_allen_roi_labels.py `
   --title "Allen/wfield ROI labels from PS95 v6 atlas"
 ```
 
-## 7. Alignment Comparison PowerPoint
+### 7. Alignment Comparison PowerPoint
 
 Build a comparison deck from the generated PNGs:
 
@@ -339,7 +264,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File `
 
 This uses local PowerPoint COM automation. PowerPoint must be installed on the machine.
 
-## 8. Post-Lick Averages
+### 8. Post-Lick Averages
 
 Post-lick averages use analog `lick_analog` falling threshold crossings. No pre-lick baseline is used by default, because lick bouts can make pre-lick windows hard to interpret.
 
@@ -388,7 +313,7 @@ hysteresis + lockout logic from the stroke/orofacial pipeline:
 - cleanup: drop onset events inside a post-offset lockout window
 - optional refractory: collapse dense lick bouts for imaging-triggered averages
 
-## 9. Cue vs Lick Spout-Position Comparisons
+### 9. Cue vs Lick Spout-Position Comparisons
 
 Compare cue-aligned and lick-aligned maps for the same aligned session:
 
@@ -411,7 +336,7 @@ The figure columns are:
 
 By default the labels are `1 s post-cue` and `150 ms post-lick`; these are not identical windows, so interpret the third column as a descriptive contrast rather than a pure event-type subtraction.
 
-## 10. Sync-Pulse Timebase Alignment
+### 10. Sync-Pulse Timebase Alignment
 
 `frame_sync.py` ports the sync-pulse alignment algorithm from the
 stroke/orofacial pipeline. Use it when you need to align DAQ/WaveSurfer-like
@@ -455,7 +380,7 @@ import numpy as np
 np.savez_compressed("alignment_template.npz", **template)
 ```
 
-## 11. Treadmill Velocity And Running Bout QC
+### 11. Treadmill Velocity And Running Bout QC
 
 `treadmill.py` ports the treadmill pieces from the stroke/orofacial pipeline:
 
@@ -533,7 +458,7 @@ This maps corrected imaging frames to DAQ samples through the DAQ-recorded
 running versus not running. Treat `--offset-v auto` as a QC convenience; for
 final analysis, prefer the legacy default or a known rig/session override.
 
-## 12. Relabeled (cleanpairs) cue/lick maps
+### 12. Relabeled (cleanpairs) cue/lick maps
 
 For trial-gated recordings relabeled with `--relabel-mode rescue`, the corrected
 movie is a non-contiguous subset of kept 415/470 pairs, so the stock plotters'
@@ -555,7 +480,7 @@ python -m wfield_local.framemap_event_maps --what cue `
 Full-FOV (non-relabeled) sessions still use the stock `plot_spout_trial_averages` /
 `plot_lick_aligned_averages` with `--frame-align pco`.
 
-## 13. Motion-Correction QC
+### 13. Motion-Correction QC
 
 `qc_motion_correction.py` reads the saved per-frame shifts and the pre/post movies
 and emits one QC figure (shift traces + magnitude histogram, mean-image sharpness
@@ -570,7 +495,7 @@ python -m wfield_local.qc_motion_correction `
   --output "E:\labcams_data\...\motion_corrected\motion_qc"
 ```
 
-## 14. Cross-Day Alignment (within animal)
+### 14. Cross-Day Alignment (within animal)
 
 Register each day's motion-corrected **mean 470 nm vasculature** to one reference
 session so all days share the reference/CCF frame (`cross_day_align.py`). The
@@ -590,7 +515,7 @@ Config (one per animal): `{"animal","func_channel","reference","output","warp_u"
 (full-FOV↔ROI pairs register poorly). Across **animals**, vasculature is not shared —
 use CCF/landmarks + Allen-area (ROI) or LocaNMF-component comparison instead.
 
-## 15. ROI-based (Allen-area) activity extraction
+### 15. ROI-based (Allen-area) activity extraction
 
 `roi_activity.py` is a lightweight CPU baseline alongside LocaNMF: it averages the
 Allen-aligned `U` over each atlas region to get a region x time trace
@@ -619,7 +544,7 @@ the simple "one signal per area" baseline; `run_locanmf.py` gives the denoised,
 region-anchored, multi-component version. Use ROI traces as a fast cross-check and
 for quick per-area trial stats; use LocaNMF components for cross-animal claims.
 
-## 16. Quiet-period detection (baseline selection)
+### 16. Quiet-period detection (baseline selection)
 
 `quiet_periods.py` builds a per-sample and per-corrected-frame "quiet" mask (animal
 not running and not licking, not in a peri-reward window) for behavior-controlled
@@ -654,19 +579,7 @@ quiet frames).
   for short ENL windows). Revisit per rig/task, ideally validated against
   DLC/FaceRhythm movement once available (the future movement regressor).
 
-## Decomposition note: SVD vs LocaNMF
-
-This local pipeline stops at **SVD + hemodynamic correction + Allen alignment**. It
-does **not** run **PMD** denoising or **LocaNMF** (localized semi-NMF), which the
-wfield/NeuroCAAS protocol adds after SVD to produce anatomically-localized,
-cross-session/animal-reproducible components. For evoked maps and within-animal work,
-SVD + atlas is adequate; for cross-animal / functional-subnetwork analysis, add
-LocaNMF (runs on the existing low-rank `U`/`SVTcorr` + the `allen_area_atlas`). It is
-GPU-oriented and not installed in the `wfield` (imaging-box) env. In `widefield_pipeline`,
-LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locanmf` env) — see the
-**Analysis pipeline** section above, `LOCANMF_NIGHTLY_PIPELINE.md`, and `DECISIONS.md`.
-
-## NeuroCAAS Compatibility Launcher
+### NeuroCAAS Compatibility Launcher
 
 If `wfield ncaas` crashes during upload with `QProgressBar.setValue` receiving a `numpy.float64`, launch through:
 
@@ -676,7 +589,7 @@ python .\wfield_local\wfield_ncaas_fixed.py "E:\labcams_data\20260601\PS94_20260
 
 This launcher also supports AWS session tokens in the local credentials file.
 
-## End-of-day archival + cleanup (`archive_day.py`)
+### End-of-day archival + cleanup (`archive_day.py`)
 
 Reusable daily off-load of a recording day from the local E: drive:
 
@@ -704,3 +617,95 @@ and removes a reproducible intermediate only once its regeneration sources (the
 session's raw on M:, a DAQ h5 for the date on N:) are confirmed archived. Drive
 roots default to this rig's mounts; override with `--m-raw`/`--n-lab`/etc.
 (One-off per-date archive/cleanup drivers were superseded by this and removed.)
+
+## Decomposition note: SVD vs LocaNMF
+
+This local pipeline stops at **SVD + hemodynamic correction + Allen alignment**. It
+does **not** run **PMD** denoising or **LocaNMF** (localized semi-NMF), which the
+wfield/NeuroCAAS protocol adds after SVD to produce anatomically-localized,
+cross-session/animal-reproducible components. For evoked maps and within-animal work,
+SVD + atlas is adequate; for cross-animal / functional-subnetwork analysis, add
+LocaNMF (runs on the existing low-rank `U`/`SVTcorr` + the `allen_area_atlas`). It is
+GPU-oriented and not installed in the `wfield` (imaging-box) env. In `widefield_pipeline`,
+LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locanmf` env) — see the
+**Analysis** section (§17–23) below, `LOCANMF_NIGHTLY_PIPELINE.md`, and `DECISIONS.md`.
+
+## Analysis (behavior-GPU box)
+
+The preprocessing above stops at SVD + atlas. The **analysis** half runs GPU LocaNMF and the
+spout-position models on the behavior-GPU box (env `locanmf`). `nightly_figs` runs steps 17–22 for
+the per-day date(s) + the cross-session span and builds the decoder summary deck
+(`locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`); run any step standalone with
+the same `configs/` source of truth. In the commands below `<OUT>` is the figure/deck dir (default
+`C:/Users/sabatini/source/cue_lick`), `<DATE>` is `MMDD`, `<SPAN>` is a comma `MMDD` list, and the
+cross-session `<TAG>` is `<first>-<last>` of the span.
+
+### 17. LocaNMF decomposition
+
+Atlas-anchored components (r²=0.95, loc=80, maxrank=20) from `SVTcorr` + the Allen-aligned `U`. One
+session, or a manifest of many:
+
+```powershell
+python -m wfield_local.run_locanmf --allen-dir <...>/allen_aligned_affine8v1 --output <...>/locanmf --label PS95_0807
+python -m wfield_local.batch_locanmf --manifest <manifest.json>   # JSON list of {allen_dir,label,output[,svt]}
+```
+
+### 18. Position decoder
+
+Multinomial logistic regression of spout position from individual components (first-lick / cue /
+pre-cue windows, block-CV by ~6-trial position blocks, no per-trial baseline; chance 0.167). SSp
+dominates, MO secondary:
+
+```powershell
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align lick   --post-s 2.0 --output <OUT>
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align cue    --post-s 2.0 --output <OUT>
+python -m wfield_local.locanmf_position_decoder --date <DATE> --align precue --post-s 1.0 --output <OUT>
+```
+
+### 19. Decoder-weight & dynamics figures
+
+Rolling cue, first-lick temporal dynamics, laterality, and top-component maps (`nightly_figs` inlines
+these as function calls; standalone entry point):
+
+```powershell
+python -m wfield_local.locanmf_decoder_weights --output <OUT> --weights-day <DATE>
+```
+
+### 20. Position encoder
+
+Ridge position→activity + fraction-explainable-variance (FEVE) vs a noise ceiling, pooled over the
+cross-session span:
+
+```powershell
+python -m wfield_local.locanmf_position_encoder --date <DATE> --pool-dates <SPAN> --output <OUT>
+```
+
+### 21. Cross-mouse consistency
+
+Within-/across-animal per-position consistency over the whole span (run once):
+
+```powershell
+python -m wfield_local.locanmf_cross_mouse --output <OUT> --dates <SPAN> --tag <TAG>
+```
+
+### 22. RSA
+
+RDM / **crossnobis** (noise-unbiased) representational similarity over the whole span (run once):
+
+```powershell
+python -m wfield_local.locanmf_rsa --output <OUT> --dates <SPAN> --tag <TAG>
+```
+
+### 23. Frozen decoder (post-stroke plan)
+
+Fit + persist the pre-stroke decoders, or the cross-day transfer demo:
+
+```powershell
+python -m wfield_local.locanmf_frozen_decoder --save --output <OUT>       # persist baseline decoders
+python -m wfield_local.locanmf_frozen_decoder --transfer --output <OUT>   # cross-day transfer figure
+```
+
+Subset knobs: `nightly_figs --only PS93` scopes every decode/encode/RSA subprocess via the
+`WIDEFIELD_ONLY_ANIMALS` env var + the in-process figs; any single module can be scoped directly by
+prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
+`LOCANMF_LICK_CUE_ANALYSIS.md`, `LOCANMF_NIGHTLY_PIPELINE.md`, `DECISIONS.md`.
