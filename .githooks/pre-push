@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# widefield_pipeline pre-push — run the test suite before a push reaches main.
+#
+# Both machines push main directly and rebase (CLAUDE.md rule 4), so a broken push blocks the
+# OTHER machine's rebase — the test suite is fast (~2 s), so gate on it here.
+#
+# Enable once per clone:  bash scripts/setup-hooks.sh
+# Bypass once (emergency): git push --no-verify
+set -euo pipefail
+
+# Interpreter: prefer the active conda env. A bare `python` in Git Bash can resolve to the Windows
+# App Store shim (no pytest) — the known failure mode is a silently-refused push. If we cannot find
+# a python with pytest, BLOCK with a clear hint rather than skip the tests (export CONDA_PREFIX).
+PY="python"
+if [ -n "${CONDA_PREFIX:-}" ] && [ -x "$CONDA_PREFIX/python.exe" ]; then
+  PY="$CONDA_PREFIX/python.exe"
+fi
+
+if ! "$PY" -c "import pytest" >/dev/null 2>&1; then
+  cat >&2 <<EOF
+pre-push: no usable python with pytest ('$PY').
+  Activate the env or export CONDA_PREFIX first, e.g.:
+    export CONDA_PREFIX=C:/Users/sabatini/.conda/envs/locanmf   # analysis box
+  (a bare 'python' in Git Bash may be the App Store shim). Emergency bypass: git push --no-verify
+EOF
+  exit 1
+fi
+
+echo "pre-push: pytest -q…" >&2
+cd "$(git rev-parse --show-toplevel)"
+"$PY" -m pytest -q

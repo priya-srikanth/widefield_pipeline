@@ -67,8 +67,9 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
    params are still hardcoded in module `_args()`/constants — wire them to `config.defaults()` so params live
    in ONE place (preprocess params already consumed by `preprocess.py`). Add `session_overrides.yaml`
    (per-session param overrides layered on defaults), mirroring their defaults+overrides pattern.
-2. **`.githooks/`** (pre-commit/pre-push running `ruff` + `pytest`), mirroring theirs; wire via
-   `git config core.hooksPath`.
+2. **`.githooks/` DONE** — `pre-commit` (ruff on staged `.py`) + `pre-push` (pytest); enable per clone
+   with `bash scripts/setup-hooks.sh`. Quality gates ONLY (no branch protection — both machines commit
+   direct-to-main per rule 4); interpreter resolved from `CONDA_PREFIX` to dodge the App Store shim.
 3. **Fold the last legacy one-off into `preprocess`** — `_crossday_intensity.py` (cross-day raw ROI
    intensity) is the only producer not yet folded; `preprocess_deck` consumes its PNG. (DONE:
    `_nightly_*`/`_mc_svd_*`/`_maps_*`/`_photobleach_*`→`preprocess`; `_xall_refresh`→`preprocess.refresh_xall`;
