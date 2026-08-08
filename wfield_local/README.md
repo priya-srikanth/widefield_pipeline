@@ -593,4 +593,4 @@ python -m wfield_local.archive_day clean   --date 20260604 --execute   # actuall
 and removes a reproducible intermediate only once its regeneration sources (the
 session's raw on M:, a DAQ h5 for the date on N:) are confirmed archived. Drive
 roots default to this rig's mounts; override with `--m-raw`/`--n-lab`/etc.
-The one-off `_archive_0604.py` / `_delete_e_0604.py` drivers are superseded by this.
+(One-off per-date archive/cleanup drivers were superseded by this and removed.)

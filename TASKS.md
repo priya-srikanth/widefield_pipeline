@@ -30,7 +30,7 @@ wfield 0.4.2 doubled drift (sign error); fixed in `wfield_local/motion_correct_f
 (see `MOTION_CORRECTION_SIGN_BUG.md`). Re-processing ALL prior sessions with the fix,
 newest -> oldest (`_redo_motion_all.py`, resumable; status in `MOTION_REDO_STATUS.md`).
 - DONE: PS93 2026-06-06.
-- PENDING: PS94 2026-06-05 (`_redo_ps94_0605.py`); then the bulk batch for the rest.
+- PENDING: PS94 2026-06-05; then the bulk batch for the rest.
 **After all sessions are re-corrected**, run cross-session registration of every session
 to its 2026-06-06 reference and Allen-align using the 6/6 reference (per the policy above),
 then refresh the deck + cross-day QC.
