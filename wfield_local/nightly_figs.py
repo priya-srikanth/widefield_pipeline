@@ -28,6 +28,11 @@ REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
 DEFAULT_OUT = "C:/Users/sabatini/source/cue_lick"
 
+# Cross-session comparisons (cross-mouse / within-animal / RSA / pooled FEVE) use the CURATED
+# "good" session set: 6/6-6/8 + 8/6 onward. Excludes noisy/low-engagement early June (6/1-6/5)
+# and the wonky 8/5. (See configs/animals.yaml date_policy; --from overrides.)
+CROSS_SESSION_EXCLUDE = {"0601", "0602", "0603", "0604", "0605", "0805"}
+
 
 def log(m):
     print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
@@ -49,8 +54,8 @@ def main():
 
     date = args.date
     out = args.output
-    all_dates = ",".join(sorted({s["label"][-4:] for s in SESSIONS}))
-    from_dates = args.from_dates or all_dates
+    curated = ",".join(d for d in sorted({s["label"][-4:] for s in SESSIONS}) if d not in CROSS_SESSION_EXCLUDE)
+    from_dates = args.from_dates or curated
     tag = f"{from_dates.split(',')[0]}-{from_dates.split(',')[-1]}"
 
     log(f"date={date} cross-session dates={from_dates} tag={tag} out={out}")

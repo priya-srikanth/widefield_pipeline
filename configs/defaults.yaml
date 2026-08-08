@@ -22,8 +22,9 @@ encode:
   model: ridge            # position -> component activity; FEVE = captured / explainable (ceiling)
 
 cross_session:
-  from_dates: all         # cross-mouse / within-animal / RSA / pooled-FEVE span ALL registered sessions
-  tag: "0601-<latest>"    # computed from sessions.yaml (first..latest MMDD)
+  from_dates: curated     # 6/6-6/8 + 8/6 onward (see animals.yaml date_policy.cross_session);
+                          # excludes noisy early June (6/1-6/5) and the wonky 8/5
+  tag: "0606-<latest>"    # first..latest of the curated set
 
 rsa:
   metric: crossnobis      # noise-unbiased distances (the honest cross-day / pre-post metric)

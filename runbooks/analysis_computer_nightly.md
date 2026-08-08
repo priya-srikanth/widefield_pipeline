@@ -44,9 +44,11 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
   filter. Keep it; unrewarded trials belong to the future post-stroke failed-attempt analysis (movement-gated).
 
 ## Review — clarity / omissions / flags (2026-08-08)
-1. **"starting from 6/6" is now stale.** The pipeline was changed to use ALL available sessions (6/1 onward;
-   the prompt's own last line already says "Use all sessions available"). Replace "starting from 6/6" with
-   "across all available sessions" so the two lines don't contradict.
+1. **Cross-session set = CURATED "good" sessions** (decided 2026-08-08): 6/6-6/8 + 8/6 onward. Excludes
+   noisy/low-engagement early June (6/1-6/5) and the wonky 8/5. This is enforced in code
+   (`nightly_figs.CROSS_SESSION_EXCLUDE`; see configs/animals.yaml date_policy). Reconcile the prompt: the
+   "starting from 6/6" / "use all sessions available" wording should read "the curated good sessions
+   (6/6-6/8 + 8/6 onward)".
 2. **⚠️ Cross-day analyses must be INCREMENTAL — do not re-analyze old data each night.** Right now the
    cross-mouse / within-animal / RSA (+ crossnobis) steps recompute `per_session` recall/EV and the 6×6 RDMs
    for EVERY session from scratch on every run (the slow pole — the hemisphere-RSA/crossnobis recompute took

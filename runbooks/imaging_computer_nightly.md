@@ -19,7 +19,7 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
 > 150 ms lick-aligned activity +- quiet period subtraction) maps to the powerpoint
 > "...\labcams\PS92_94_95_affine8v1.pptx" and cross-session aligned powerpoint as well as xday folders.
 > Copy the raw imaging .dat files and the motion corrected .bin files to the standby Priya drive
-> 'M:\Widefield\labcams'. Don't delete anything on the E drive until we check in and make sure everything was
+> 'M:\collaborations\Priya\Widefield\labcams'. Don't delete anything on the E drive until we check in and make sure everything was
 > copied appropriately. Once I confirm with you that the imaging files are copied to standby, please delete
 > the raw and motion-corrected movies from the local computer.
 
@@ -37,9 +37,8 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
 
 ## Review — clarity / omissions / flags (2026-08-08)
 Suggested edits to the canonical prompt so nothing is left implicit or wrong:
-1. **⚠️ Standby path likely wrong.** The prompt says `M:\Widefield\labcams`, but `NIGHTLY_PIPELINE.md`
-   states the standby is `M:\collaborations\Priya\Widefield\labcams` (`M:` = `\\standby...\sabatini`) and
-   explicitly "NOT `M:\Widefield`". **Verify the correct standby path** and fix whichever is stale.
+1. **Standby path** corrected to `M:\collaborations\Priya\Widefield\labcams` (confirmed 2026-08-08;
+   `M:` = `\\standby...\sabatini`, under `collaborations\Priya\`, NOT `M:\Widefield`).
 2. **Say "sign-fixed" motion correction** — it's a hard rule (`motion_correct_fixed.py`); the prompt
    just says "motion correction," which is ambiguous given the historical sign bug.
 3. **"that animal's 6/6"** — registration reference is per-ANIMAL (each mouse to ITS own 20260606), not a

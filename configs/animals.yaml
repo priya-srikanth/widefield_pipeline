@@ -36,8 +36,11 @@ animals:
     stroke_date: null
     exclude: []
 
-# Cohort-level date policy (baseline days). Early June was noisy/low-engagement.
+# Cohort-level date policy (baseline days).
 date_policy:
-  baseline_all: [0601, 0602, 0603, 0604, 0605, 0606, 0607, 0608, 0805, 0806, 0807]
-  engagement_matched: [0605, 0606, 0607, 0608, 0805, 0806, 0807]   # drop noisy early June (6/1-6/4)
-  exclude_low_engagement: [0601, 0602, 0604]                        # noisy / low-engagement (6/3 kept)
+  all_registered: [0601, 0602, 0603, 0604, 0605, 0606, 0607, 0608, 0805, 0806, 0807]
+  # CURATED "good" set used for all cross-session comparisons (decode/encode across sessions,
+  # cross-mouse, within-animal, RSA/crossnobis). Decided 2026-08-08: 6/6-6/8 + 8/6 onward.
+  cross_session: [0606, 0607, 0608, 0806, 0807]     # + future dates 8/8, 8/9, ...
+  # Excluded from cross-session: noisy/low-engagement early June (6/1-6/5) and the wonky 8/5.
+  cross_session_exclude: [0601, 0602, 0603, 0604, 0605, 0805]
