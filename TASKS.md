@@ -1,13 +1,13 @@
 # Ongoing tasks & decisions (widefield pipeline)
 
 ## Standing nightly pipeline
-The full per-night runbook (steps, scripts, params, conventions) lives in
-**`NIGHTLY_PIPELINE.md`** -- that is the source of truth. Summary: DAQ->N; fixed motion +
-SVD; cross-register each session to that animal's 2026-06-06 session and apply 6/6's Allen
-CCF (emit `allen_aligned_affine8v1`, no new landmarks); LocaNMF inputs->N first; cue/lick
-maps; photobleaching + cross-day intensity; deck; raw+bin->M. Don't delete E: until checked in.
+The per-night runbook lives in **`NIGHTLY_PIPELINE.md`** (source of truth); it is now driven by the
+config-driven orchestrator — `python -m wfield_local.preprocess <DATE>` (discover → fixed motion + SVD
+→ cross-register each session to that animal's 6/6 + 6/6 Allen CCF, emit `allen_aligned_affine8v1`, no
+new landmarks → LocaNMF inputs → N: first → cue/lick maps → xall → photobleach), then
+`preprocess_deck`, then `archive_day` (raw+bin → M:). Don't delete E: until checked in.
 
-Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\PS92_94_95_affine8v1.pptx`.
+Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\PS92-95_cross_sessions_aligned.pptx`.
 
 ## 6/6 reference landmarks for cross-register-all (use v2 where present)
 When doing the final cross-register-all-to-6/6, the per-animal 6/6 reference Allen CCF uses
@@ -21,19 +21,15 @@ so the reference session itself is consistent with what the other days are align
 
 ## Redo scope: 6/5 onward only (6/4 and earlier NOT redone)
 Decision (2026-06-09): the sign-bug drift on 6/4 and earlier was negligible (<1.1 px), so
-those sessions are **not** re-motion-corrected. `_redo_motion_all.py` has a date floor
-(`date <= "20260604"` -> skip). Redo covers 6/5-6/8 (6/7-6/8 done via nightly fixed motion;
-6/6 + 6/5 via the redo batch). The cross-session_aligned deck likewise starts at 6/5.
+those sessions are **not** re-motion-corrected. Redo covers 6/5-6/8. The cross-sessions_aligned
+deck likewise starts at 6/5.
 
-## Motion-correction sign-bug remediation (in progress)
+## Motion-correction sign-bug remediation (DONE)
 wfield 0.4.2 doubled drift (sign error); fixed in `wfield_local/motion_correct_fixed.py`
-(see `MOTION_CORRECTION_SIGN_BUG.md`). Re-processing ALL prior sessions with the fix,
-newest -> oldest (`_redo_motion_all.py`, resumable; status in `MOTION_REDO_STATUS.md`).
-- DONE: PS93 2026-06-06.
-- PENDING: PS94 2026-06-05; then the bulk batch for the rest.
-**After all sessions are re-corrected**, run cross-session registration of every session
-to its 2026-06-06 reference and Allen-align using the 6/6 reference (per the policy above),
-then refresh the deck + cross-day QC.
+(see `MOTION_CORRECTION_SIGN_BUG.md`, now the standard motion path via `run_wfield_motion`).
+All 6/5-6/8 sessions were re-corrected with the fix and cross-registered to their 2026-06-06
+reference (Allen-aligned via 6/6), and the deck + cross-day QC refreshed. (The resumable redo
+driver + its status file were one-offs, retired once the batch completed.)
 
 ## Servers
 - M: standby = raw `.dat` + corrected `.bin` (huge files), `M:\Widefield\labcams\<date>\<session>\`.
@@ -43,8 +39,7 @@ then refresh the deck + cross-day QC.
 Any session whose motion correction is re-done with the sign-fixed code gets a NEW
 `SVTcorr.npy` + `allen_aligned_affine8v1/` (its SVD and CCF-aligned U change). **Any
 LocaNMF result computed on the pre-fix inputs is stale and must be re-run** against the
-corrected inputs now on N:. This applies to every session in the bulk redo batch
-(`_redo_motion_all.py`) once it lands, plus PS93 6/6 (already corrected) and PS94 6/5.
+corrected inputs now on N:. This applied to every re-corrected 6/5-6/8 session.
 GPU: re-run LocaNMF for a session after its `wfield_local_results` mtime updates on N:.
 
 ## Allen-dir naming (GPU/LocaNMF)

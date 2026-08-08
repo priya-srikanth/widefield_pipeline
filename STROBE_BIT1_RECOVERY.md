@@ -27,10 +27,11 @@ matching the DAQ cue count.
 - uses the true positions for cue maps, and assigns each lick to its most-recent cue's true
   position for lick maps.
 
-Batch re-run: **`_maps_behavior_run.py <date>`** re-generates the full cue/lick/quiet map
-suite for 8/5 + 8/6 with recovered positions (session -> DAQ + behavior-log mapping inside),
-reading/writing N:. Verified: PS92 8/5 aligned offset=0, dead-bit=2, 100% match; all 6
-positions restored (close_R=58, far_center=63).
+Batch: the nightly `preprocess` maps step **auto-passes `--behavior-trials`** whenever a recovered
+CSV is discoverable (explicit `behavior_trials` in `sessions.yaml`, or a globbed
+`Behavior_logs\Widefield\<sess>\trials.csv`), regenerating the full cue/lick/quiet map suite with
+recovered positions — no separate driver needed. Verified for 8/5 + 8/6: PS92 8/5 aligned offset=0,
+dead-bit=2, 100% match; all 6 positions restored (close_R=58, far_center=63).
 
 Going forward: once bit1 is fixed the DAQ strobe suffices; `--behavior-trials` is only needed
 for 8/5-8/6 (or any future session with a dead strobe bit).

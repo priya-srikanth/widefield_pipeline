@@ -1,60 +1,43 @@
 # Nightly runbook — IMAGING (PCO microscope) computer
 
-The **canonical prompt Priya pastes each night** is below verbatim. Detailed step-by-step reference (params,
-paths, hard rules): [`../NIGHTLY_PIPELINE.md`](../NIGHTLY_PIPELINE.md). Mounts on this machine: **`N:` =
-MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/DAQ**, **`M:` = standby**
-(`\\standby...\sabatini`, under `Widefield\labcams`). wfield env: `C:\ProgramData\anaconda3\envs\wfield`.
+Mounts here: **`N:` = MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local
+raw/DAQ**, **`M:` = standby** (`\\standby...\sabatini`, under `collaborations\Priya\Widefield\labcams`).
+Env: `C:\ProgramData\anaconda3\envs\wfield`. Full detail (params, paths, hard rules, cleanup):
+[`../NIGHTLY_PIPELINE.md`](../NIGHTLY_PIPELINE.md); underlying per-step commands: `../wfield_local/README.md`.
 
-## Canonical prompt
+## The whole night
 
-> Today's sessions are done. Please copy the widefield DAQ recorder outputs to MICROSCOPE/Priya/Widefield.
-> Please do sign-fixed motion correction (motion_correct_fixed.py), SVD, cross-session registration to that
-> animal's 20260606 session and use that session's Allen CCF alignment, and then copy non-movie (ie not the
-> motion-corrected .bin movie) outputs, camlogs, and snapshots to MICROSCOPE. Prioritize, as they become
-> available, transferring the outputs the GPU machine needs to run locaNMF (SVTcorr.npy, the
-> allen_aligned_affine8v1 dir, AND the motion_corrected/*cleanpairs_frame_map.npz + summary — the frame_map
-> lives in motion_corrected/, not wfield_local_results/, and is easy to miss). While that is running, please analyze photobleaching and motion-correction QC
-> and add to our powerpoint "\\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya\Widefield\labcams\PS92_94_95_affine8v1.pptx".
-> I'd also like to evaluate for cross-day photobleaching - compare the raw fluorescence intensity across days
-> and see if there's a trend. Please add that analysis to the powerpoint. Once done with session processing,
-> analyze and produce cue- and lick- aligned activity (2s cue-evoked activity +- 2s pre-cue subtraction and
-> 150 ms lick-aligned activity +- quiet period subtraction) maps to the powerpoint
-> "...\labcams\PS92_94_95_affine8v1.pptx" and cross-session aligned powerpoint as well as xday folders.
-> Copy the raw imaging .dat files and the motion corrected .bin files to the standby Priya drive
-> 'M:\collaborations\Priya\Widefield\labcams'. Don't delete anything on the E drive until we check in and make sure everything was
-> copied appropriately. Once I confirm with you that the imaging files are copied to standby, please delete
-> the raw and motion-corrected movies from the local computer.
+```powershell
+conda activate wfield
+git -C C:\Github\widefield_pipeline pull
+python -m wfield_local.preprocess <YYYYMMDD>      # discover -> motion/SVD/xreg/push -> maps -> xall -> photobleach
+python -m wfield_local.preprocess_deck            # rebuild PS92-95_cross_sessions_aligned.pptx in place
+python -m wfield_local.archive_day archive --date <YYYYMMDD>   # raw + .bin -> M:, everything else -> N:
+```
 
-## Notes / hard rules
-- **Sign-fixed** motion correction (`run_wfield_motion` → `motion_correct_fixed.py`), `--mode 2d`.
-- Cross-register each session to that animal's **6/6** session; emit the allen dir named exactly
-  **`allen_aligned_affine8v1`** (the GPU/LocaNMF expects that name). Target NCC ~0.99.
-- **Prioritized GPU push**: `SVTcorr.npy` + `allen_aligned_affine8v1/` + the
-  `motion_corrected/*cleanpairs_frame_map.npz`+summary (the GPU needs the frame_map, not just
-  `wfield_local_results/`) + the DAQ h5 — pushed FIRST so LocaNMF can start on early sessions.
-- **Config-driven orchestrator (replaces the retired per-date `_nightly_<DATE>.py`/`_mc_svd_*`/`_maps_*`/
-  `_photobleach_*` drivers):** `python -m wfield_local.preprocess <YYYYMMDD>` auto-discovers that date's raw
-  sessions on `E:` (no session-dir/DAQ/dims hard-coding), then per session chains motion→SVD→cross-register
-  (reference = `configs/defaults.yaml preprocess.reference_date`, per-animal landmark version from
-  `configs/animals.yaml reference_landmarks`)→push to `N:`, then runs photobleach QC. `--dry-run` prints the
-  plan; `--only PS94 PS95` subsets animals. Params (SVD k/fs/highpass/lowpass, relabel mode) live in
-  `defaults.yaml preprocess`. Still separate one-offs (not yet folded): `_crossday_intensity.py`,
-  `_xall_refresh.py`, deck update, standby transfer. (`preprocess.py` now also folds in the per-animal
-  all-days cross-day QC overlay `xall` via `refresh_xall()` — so both the per-date cross-day QC AND the
-  `<animal>_xall` all-days overlay are still emitted.)
-- **Preprocessing deck (replaces `PS92_94_95_affine8v1.pptx` + the retired `_update_ppt_affine8v1.py`):**
-  the FINAL nightly step, run AFTER the activity maps are generated + pushed, is
-  `python -m wfield_local.preprocess_deck` — it rebuilds the single canonical deck
-  `labcams/PS92-95_cross_sessions_aligned.pptx` IN PLACE (one file, refreshed nightly; NOT a per-date
-  copy). Grouped by animal → nested by output type → then date; images fit-to-slide; cue/lick maps
-  full-height; cross-day raw ROI-intensity summary at the end; hemodynamic-correction QC dropped. A full
-  rebuild is ~30 s (pure figure-assembly, no recompute), negligible vs the night's compute.
-- **Never delete from E:** until byte-verified; never delete from N: / non-Priya folders.
+Then, **after checking in that N:/M: copies are byte-verified**, reclaim E: space:
 
-## Review — applied 2026-08-08
-Fixes folded INTO the canonical prompt above: standby path `M:\collaborations\Priya\Widefield\labcams`;
-"sign-fixed" motion correction (`motion_correct_fixed.py`); "that animal's 20260606" (per-animal reference);
-the frame_map named in the GPU push (`motion_corrected/*cleanpairs_frame_map.npz`, easy to miss).
-Not changed (cosmetic): deck filename `PS92_94_95_affine8v1.pptx` omits PS93 — legacy name; the deck does
-include PS93.
+```powershell
+python -m wfield_local.archive_day clean --date <YYYYMMDD>              # DRY-RUN
+python -m wfield_local.archive_day clean --date <YYYYMMDD> --execute    # actually delete from E:
+```
 
+## Notes
+
+- `preprocess` auto-discovers the date's raw sessions on `E:` and, per session in animal order,
+  runs sign-fixed 2D motion → SVD → cross-register to that animal's 6/6 (emitting
+  `allen_aligned_affine8v1`) → **prioritized push of the LocaNMF inputs to `N:` first**, then the
+  cue/lick/quiet maps, the all-days cross-day QC overlay (`xall`), and photobleach QC. `--dry-run`
+  to preview; `--only PS94 PS95` to subset; ranges / `all` accepted (`preprocess 0806-0808`).
+- Still manual (not folded): `_crossday_intensity.py` (cross-day raw ROI intensity; `preprocess_deck`
+  embeds its PNG if present).
+- **Hard rules:** sign-fixed motion; allen dir named exactly `allen_aligned_affine8v1`; the GPU push
+  must include `motion_corrected/*cleanpairs_frame_map.npz`+summary (not just `wfield_local_results/`);
+  never delete from E: until byte-verified, never from N:/non-Priya folders. Params live in
+  `configs/defaults.yaml preprocess`; the 6/6 reference + per-animal landmark version in
+  `configs/animals.yaml`.
+- **M: flaky?** The drive letter often fails to resolve (`net use` error 67). Copy+verify via the UNC
+  path in the Bash tool (`cp -f` then `cmp -s`); that is the fallback when `archive_day`'s drive-letter
+  path breaks.
+- After committing any `configs/sessions.yaml` additions or code changes, push via the rig procedure
+  (`export CONDA_PREFIX=...wfield`; add/commit; fetch; rebase; push — never force-push).

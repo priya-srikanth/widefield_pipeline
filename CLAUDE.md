@@ -69,9 +69,11 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
    (per-session param overrides layered on defaults), mirroring their defaults+overrides pattern.
 2. **`.githooks/`** (pre-commit/pre-push running `ruff` + `pytest`), mirroring theirs; wire via
    `git config core.hooksPath`.
-3. **Fold remaining legacy `_*_run.py` drivers into `scripts/`** (preprocess `_nightly_*` DONE; still open:
-   `_crossday_intensity.py`, `_xall_refresh.py`, deck update, standby transfer). NB some `_*.json` are read
-   by relative path by the imaging pipeline — coordinate.
+3. **Fold the last legacy one-off into `preprocess`** — `_crossday_intensity.py` (cross-day raw ROI
+   intensity) is the only producer not yet folded; `preprocess_deck` consumes its PNG. (DONE:
+   `_nightly_*`/`_mc_svd_*`/`_maps_*`/`_photobleach_*`→`preprocess`; `_xall_refresh`→`preprocess.refresh_xall`;
+   deck→`preprocess_deck`; standby transfer→`archive_day`. `_build_xsession_deck`/`_redo_motion_all` retired;
+   `_qc_from_standby` moved to `scripts/`.) NB some `_*.json` are read by relative path — coordinate.
 4. **Optional `src/` layout** — move `wfield_local/` under `src/` and/or split into submodules like their
    `src/pkg/{alignment,figures,stats,…}`. KEEP the `wfield_local` import name (both machines + docs depend
    on `python -m wfield_local.*`).
