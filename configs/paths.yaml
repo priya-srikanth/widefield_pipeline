@@ -1,47 +1,77 @@
-# Path configuration. A resolver maps logical roots to platform mounts (first existing wins).
-# (Mirrors stroke_orofacial_pipeline/configs/paths.yaml.)
-# NB the analysis (this/behavior GPU) computer reaches MICROSCOPE via the mapped drive M:;
-# the UNC path is the canonical form. git-bash /m is unreliable this session -> use PowerShell
-# or the mapped M: drive from Python.
+# Path configuration — logical roots -> per-machine mounts (mirrors stroke_orofacial_pipeline).
+#
+# Two machines share this repo (see wfield_local/paths.py PathResolver):
+#   analysis = this / behavior-GPU box   -> MICROSCOPE mapped to  M:
+#   imaging  = PCO microscope box        -> MICROSCOPE mapped to  N:,  local raw on  E:
+# The resolver picks the mount for the current machine (WIDEFIELD_MACHINE env var, else
+# auto-detect by signature mount, else 'analysis'). A mount may be a string, a list
+# (first existing wins), or null (root unavailable on that machine).
+#
+# Canonical UNC form of MICROSCOPE is \\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya;
+# the mapped-drive strings below are what both boxes actually use.
 
 logical_roots:
   microscope:
     description: "Shared MICROSCOPE server (Priya root)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya"
-      windows_unc: "\\\\research.files.med.harvard.edu\\Neurobio\\MICROSCOPE\\Priya"
+      analysis: "M:/MICROSCOPE/Priya"
+      imaging:  "N:/MICROSCOPE/Priya"
 
   labcams:
     description: "Widefield imaging sessions (motion_corrected/, wfield_local_results/, LocaNMF outputs)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\labcams"
+      analysis: "M:/MICROSCOPE/Priya/Widefield/labcams"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams"
 
   daq_recorder_output:
     description: "DAQ recorder .h5 output (per YYYYMMDD)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\DAQ_recorder_output"
+      analysis: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
 
   behavior_logs:
     description: "Behavior task-controller logs (trials.csv etc.) — Widefield SUBDIR (as of 2026-08-06)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya\\Behavior_logs\\Widefield"
+      analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield"
+      imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"
 
   behavior_cameras:
-    description: "Behavior camera recordings — Widefield SUBDIR (as of 2026-08-06)"
+    description: "Behavior camera recordings (Blackfly/Bonsai) — Widefield SUBDIR (as of 2026-08-06)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya\\Behavior_Cameras\\Widefield"
+      analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
+      imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
 
   cue_analysis_out:
     description: "Deck + figure destination (spout_position_decoder_summary.pptx + PNGs)"
     mounts:
-      windows_mapped: "M:\\MICROSCOPE\\Priya\\Widefield\\labcams\\locanmf_lick_pooled\\cue_analysis"
+      analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
+
+  xday_qc:
+    description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/xday"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/xday"
+
+  raw_labcams:
+    description: "IMAGING-box local raw widefield acquisition (pco .dat), before MICROSCOPE upload"
+    mounts:
+      analysis: null
+      imaging:  "E:/labcams_data"
+
+  raw_daq:
+    description: "IMAGING-box local DAQ recorder .h5, before MICROSCOPE upload"
+    mounts:
+      analysis: null
+      imaging:  "E:/DAQ_recorder_output"
 
   figures_working:
     description: "Local working figure dir (deck built here, then copied to cue_analysis_out)"
     mounts:
-      windows: "C:\\Users\\sabatini\\source\\cue_lick"
+      analysis: "C:/Users/sabatini/source/cue_lick"
+      imaging:  null
 
-# Local acquisition/upload source on the IMAGING computer (before MICROSCOPE upload):
+# Local acquisition/upload staging on the IMAGING computer (before MICROSCOPE upload):
 staging:
-  camera_local: "D:\\camera"            # -> behavior_cameras/<YYYYMMDD>
-  behavior_logs_local: "D:\\behavior_logs"  # -> behavior_logs/<session>
+  camera_local: "D:/camera"             # -> behavior_cameras/<YYYYMMDD>
+  behavior_logs_local: "D:/behavior_logs"  # -> behavior_logs/<session>
