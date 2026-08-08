@@ -1,0 +1,346 @@
+"""Config-driven PowerPoint builder for the widefield preprocessing outputs.
+
+Builds a FRESH widescreen deck each run (never edits in place), grouped by ANIMAL,
+nested by figure TYPE, then DATE. For each animal (in ``config.animals()`` order) an
+animal divider is followed by, for each per-date figure type, one content slide per
+date that actually has that figure (discovered by GLOBBING the session's
+``motion_corrected`` subdirs — historical label names are inconsistent, so we never
+reconstruct filenames). After the per-date types comes the per-animal cross-day
+vasculature QC slide. A final global "Cross-day summary" section carries the cross-day
+raw ROI intensity summary (skipped if absent).
+
+Images are scaled to FIT inside their layout box preserving aspect ratio (the previous
+deck overflowed the slide). PNG pixel dims are read straight from the IHDR header, so
+there is no Pillow/OpenCV dependency here.
+
+Run: ``python -m wfield_local.preprocess_deck --output <path.pptx>``.
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import os
+import re
+import struct
+
+from lxml import etree
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.util import Inches, Pt
+
+from wfield_local import config
+
+SLIDE_W_IN = 13.333
+SLIDE_H_IN = 7.5
+
+# Ordered per-date figure TYPES: (key, title, subdir, glob_suffix, layout).
+# subdir "__PHOTOBLEACH__" is special-cased (path is under <labcams>/<YYYYMMDD>/photobleach/,
+# not under the session's motion_corrected dir). Hemodynamic-correction slides are EXCLUDED.
+PER_DATE_TYPES = [
+    ("allen", "Allen alignment — mean 415/470 + CCF outlines",
+     "spout_trial_averages_affine8v1", "_mean_415_470_with_allen_overlay.png", "FIT"),
+    ("cue_maps", "Cue-aligned spout maps (pre / post / Δ, shared scale)",
+     "spout_trial_averages_affine8v1", "_spout_positions_1s_pre_post_delta_shared_scale.png", "FULL_HEIGHT"),
+    ("cue_overlay", "Cue-aligned Δ with Allen overlay",
+     "spout_trial_averages_affine8v1", "_spout_positions_1s_pre_post_delta_allen_overlay.png", "FIT"),
+    ("cue_pairwise", "Cue pairwise spout-position contrasts",
+     "spout_trial_averages_affine8v1", "_pairwise_spout_position_delta_contrasts_allen_overlay.png", "FIT"),
+    ("lick_maps", "Lick-aligned maps by spout position (150 ms)",
+     "lick_aligned_affine8v1", "_lick_aligned_150ms_post_by_spout.png", "FULL_HEIGHT"),
+    ("lick_quietnorm", "Lick-evoked vs quiet baseline (150 ms)",
+     "lick_aligned_affine8v1", "_lick_aligned_150ms_post_by_spout_quietnorm.png", "FIT"),
+    ("lick_pairwise", "Lick pairwise spout-position contrasts",
+     "lick_aligned_affine8v1", "_lick_aligned_pairwise_spout_position_contrasts.png", "FIT"),
+    ("cue_vs_lick", "Cue-aligned vs lick-aligned maps",
+     "lick_aligned_affine8v1", "_cue_vs_lick_spout_position_maps.png", "FIT"),
+    ("motion_qc", "Motion-correction QC",
+     "motion_qc", "_motion_qc.png", "FIT"),
+    ("photobleach", "Photobleaching — 415/470 ROI-median trend",
+     "__PHOTOBLEACH__", "photobleach", "FIT"),
+]
+
+# Layout boxes (inches) on the 13.333 x 7.5 slide.
+_FIT = dict(title=(0.3, 0.22, 12.7, 0.5, 19), box=(0.22, 0.82, 12.9, 6.4),
+            caption_top=7.15)
+_FULL = dict(title=(0.2, 0.02, 12.9, 0.34, 13), box=(0.15, 0.42, 13.0, 6.95))
+
+
+# ---------------------------------------------------------------------------
+# Pure geometry / PNG helpers (unit-tested).
+# ---------------------------------------------------------------------------
+def fit_dims(px_w, px_h, box_w_in, box_h_in):
+    """Scale (px_w x px_h) to fit inside (box_w_in x box_h_in) preserving aspect ratio.
+
+    Returns (w_in, h_in) with both <= the box and the source aspect ratio preserved.
+    """
+    aspect = px_w / px_h
+    w = box_w_in
+    h = box_w_in / aspect
+    if h > box_h_in:
+        h = box_h_in
+        w = box_h_in * aspect
+    return (w, h)
+
+
+def _png_size(path):
+    """Return (width, height) in pixels by reading the PNG IHDR header — no PIL.
+
+    PNG layout: 8-byte signature, then a chunk (4-byte length, 4-byte "IHDR",
+    then the data whose first two big-endian uint32s are width and height).
+    So width is at byte offset 16 and height at offset 20.
+    """
+    with open(path, "rb") as fh:
+        head = fh.read(24)
+    if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        raise ValueError(f"Not a PNG (bad signature/IHDR): {path}")
+    width, height = struct.unpack(">II", head[16:24])
+    return (width, height)
+
+
+def place_fit(slide, img_path, box_left, box_top, box_w, box_h):
+    """Add ``img_path`` to ``slide``, scaled to fit and CENTERED inside the box.
+
+    Returns the created picture shape.
+    """
+    px_w, px_h = _png_size(img_path)
+    w, h = fit_dims(px_w, px_h, box_w, box_h)
+    left = box_left + (box_w - w) / 2.0
+    top = box_top + (box_h - h) / 2.0
+    return slide.shapes.add_picture(img_path, Inches(left), Inches(top),
+                                    width=Inches(w), height=Inches(h))
+
+
+# ---------------------------------------------------------------------------
+# Slide-building primitives.
+# ---------------------------------------------------------------------------
+def _txt(slide, left, top, width, height, text, size, color, bold=False, center=False):
+    tb = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    if center:
+        from pptx.enum.text import PP_ALIGN
+        p.alignment = PP_ALIGN.CENTER
+    p.text = text
+    r = p.runs[0]
+    r.font.size = Pt(size)
+    r.font.bold = bold
+    r.font.color.rgb = RGBColor.from_string(color)
+    return tb
+
+
+def _set_dark_bg(slide, hexcolor="222222"):
+    """Paint a solid dark slide background (copied from _update_ppt_affine8v1.py)."""
+    ns = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+    a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    cSld = slide._element.find(f"{ns}cSld")
+    bg = etree.SubElement(cSld, f"{ns}bg")
+    bgPr = etree.SubElement(bg, f"{ns}bgPr")
+    sf = etree.SubElement(bgPr, f"{{{a}}}solidFill")
+    etree.SubElement(sf, f"{{{a}}}srgbClr").set("val", hexcolor)
+    etree.SubElement(bgPr, f"{{{a}}}effectLst")
+    cSld.insert(0, bg)
+
+
+def _blank_layout(prs):
+    for layout in prs.slide_layouts:
+        if layout.name == "Blank":
+            return layout
+    return prs.slide_layouts[6]  # conventional index of the Blank layout
+
+
+def _add_divider(prs, layout, title, subtitle=""):
+    s = prs.slides.add_slide(layout)
+    _set_dark_bg(s)
+    _txt(s, 0.64, 2.85, 12.03, 1.2, title, 44, "FFFFFF", bold=True, center=True)
+    if subtitle:
+        _txt(s, 0.69, 4.2, 11.95, 1.0, subtitle, 13, "D8D8D8", center=True)
+    return s
+
+
+def _add_content(prs, layout, title, img_path, layout_kind):
+    """Add one content slide with a fitted, centered image. Returns the slide."""
+    s = prs.slides.add_slide(layout)
+    spec = _FIT if layout_kind == "FIT" else _FULL
+    tl, tt, tw, th, tsize = spec["title"]
+    _txt(s, tl, tt, tw, th, title, tsize, "222222", bold=True)
+    bl, bt, bw, bh = spec["box"]
+    place_fit(s, img_path, bl, bt, bw, bh)
+    if layout_kind == "FIT":
+        _txt(s, 0.3, spec["caption_top"], 12.7, 0.28,
+             os.path.basename(img_path), 6.5, "999999")
+    return s
+
+
+# ---------------------------------------------------------------------------
+# Figure discovery.
+# ---------------------------------------------------------------------------
+def _yyyymmdd(mc):
+    """Extract the 8-digit date folder from a motion_corrected path (or None)."""
+    m = re.search(r"/(\d{8})/", str(mc).replace("\\", "/"))
+    return m.group(1) if m else None
+
+
+def _animal_of(session):
+    return session["label"].split("_")[0]
+
+
+def _mmdd_of(session):
+    return session["label"].split("_")[1]
+
+
+def _sessions_for_animal(sessions, animal):
+    """This animal's sessions, sorted by date ascending (YYYYMMDD, then label)."""
+    rows = [s for s in sessions if _animal_of(s) == animal]
+    rows.sort(key=lambda s: (_yyyymmdd(s["mc"]) or "", s["label"]))
+    return rows
+
+
+def _discover_figure(session, type_key, subdir, glob_suffix, labcams_root):
+    """Return the figure path for one session+type, or None if absent.
+
+    Normal types glob ``mc/<subdir>/*<glob_suffix>``. The photobleach type is special:
+    its file lives at ``<labcams>/<YYYYMMDD>/photobleach/photobleach_<ANIMAL>_<MMDD>.png``.
+    """
+    if subdir == "__PHOTOBLEACH__":
+        ymd = _yyyymmdd(session["mc"])
+        if not ymd:
+            return None
+        animal, mmdd = _animal_of(session), _mmdd_of(session)
+        pb = f"{labcams_root.rstrip('/')}/{ymd}/photobleach/photobleach_{animal}_{mmdd}.png"
+        return pb if os.path.exists(pb) else None
+    hits = sorted(glob.glob(os.path.join(session["mc"], subdir, f"*{glob_suffix}")))
+    return hits[0].replace("\\", "/") if hits else None
+
+
+def _crossday_qc_for_animal(animal, xday_root):
+    """Per-animal cross-day vasculature QC PNG, or None.
+
+    Prefers ``<xday>/<ANIMAL>/<ANIMAL>_cross_day_alignment_qc.png`` (the spec path);
+    falls back to the ``<ANIMAL>_xall`` per-animal summary dir used on this machine.
+    Per-date dirs (``<ANIMAL>_0608`` etc.) are intentionally NOT matched — they are
+    reference-anchored, not the per-animal all-days summary.
+    """
+    fname = f"{animal}_cross_day_alignment_qc.png"
+    for sub in (animal, f"{animal}_xall"):
+        cand = os.path.join(xday_root, sub, fname)
+        if os.path.exists(cand):
+            return cand.replace("\\", "/")
+    return None
+
+
+def _crossday_intensity(xday_root, labcams_root):
+    """Global cross-day raw ROI intensity summary PNG (xday first, then labcams), or None."""
+    for root in (xday_root, labcams_root):
+        hits = sorted(glob.glob(os.path.join(root, "crossday_raw_intensity*.png")))
+        if hits:
+            return hits[0].replace("\\", "/")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Build.
+# ---------------------------------------------------------------------------
+def build_deck(out_path, sessions=None, resolver=None, machine=None,
+               labcams_root=None, xday_root=None, verbose=True):
+    """Build a fresh preprocessing deck at ``out_path`` and return a summary dict.
+
+    ``sessions`` / ``resolver`` default to the live config; ``labcams_root`` /
+    ``xday_root`` default to the resolver's roots (override for testing against a
+    synthetic tree). Returns ``dict(out, total_slides, per_animal, zero_types, ...)``.
+    """
+    if sessions is None:
+        sessions = config.load_sessions(machine)
+    if resolver is None:
+        resolver = config.resolver(machine)
+    if labcams_root is None:
+        labcams_root = resolver.root("labcams")
+    if xday_root is None:
+        xday_root = resolver.root("xday_qc")
+
+    prs = Presentation()
+    prs.slide_width = Inches(SLIDE_W_IN)
+    prs.slide_height = Inches(SLIDE_H_IN)
+    blank = _blank_layout(prs)
+
+    per_animal = {}
+    type_counts = {t[0]: 0 for t in PER_DATE_TYPES}
+    crossday_qc_count = 0
+
+    for animal in config.animals():
+        a_sessions = _sessions_for_animal(sessions, animal)
+        if not a_sessions:
+            continue
+        before = len(prs.slides)
+        _add_divider(prs, blank, animal,
+                     f"{len(a_sessions)} session(s) — preprocessing outputs")
+
+        for key, title, subdir, suffix, layout_kind in PER_DATE_TYPES:
+            for s in a_sessions:
+                img = _discover_figure(s, key, subdir, suffix, labcams_root)
+                if not img:
+                    continue
+                ymd = _yyyymmdd(s["mc"]) or ""
+                date_disp = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}" if len(ymd) == 8 else _mmdd_of(s)
+                slide_title = f"{animal}  {date_disp}  |  {title}"
+                _add_content(prs, blank, slide_title, img, layout_kind)
+                type_counts[key] += 1
+
+        qc = _crossday_qc_for_animal(animal, xday_root)
+        if qc:
+            _add_content(prs, blank, f"{animal}  |  Cross-day vasculature alignment QC",
+                         qc, "FIT")
+            crossday_qc_count += 1
+
+        per_animal[animal] = len(prs.slides) - before
+
+    # ---- Global cross-day summary section ----
+    xint = _crossday_intensity(xday_root, labcams_root)
+    crossday_section = False
+    if xint:
+        _add_divider(prs, blank, "Cross-day summary",
+                     "Cross-day raw ROI fluorescence intensity across sessions.")
+        _add_content(prs, blank, "Cross-day raw ROI fluorescence intensity (per animal)",
+                     xint, "FIT")
+        crossday_section = True
+    elif verbose:
+        print("[note] no cross-day raw ROI intensity summary found "
+              f"(globbed 'crossday_raw_intensity*.png' under {xday_root} and {labcams_root}) "
+              "— skipping the global Cross-day summary section.")
+
+    out_dir = os.path.dirname(os.path.abspath(out_path))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    prs.save(out_path)
+
+    zero_types = [k for k, n in type_counts.items() if n == 0]
+    summary = dict(out=out_path, total_slides=len(prs.slides), per_animal=per_animal,
+                   type_counts=type_counts, zero_types=zero_types,
+                   crossday_qc_count=crossday_qc_count, crossday_section=crossday_section)
+
+    if verbose:
+        print(f"Saved deck: {out_path}")
+        print(f"  total slides: {summary['total_slides']}")
+        print("  per-animal slide counts: "
+              + ", ".join(f"{a}={n}" for a, n in per_animal.items()))
+        print(f"  per-animal cross-day QC slides: {crossday_qc_count}")
+        print("  per-type slide counts: "
+              + ", ".join(f"{k}={type_counts[k]}" for k, _, _, _, _ in PER_DATE_TYPES))
+        if zero_types:
+            print(f"  TYPES with zero figures found: {zero_types}")
+    return summary
+
+
+def _main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--output", default=None,
+                    help="Output .pptx path (default: labcams/PS92-95_cross_sessions_aligned.pptx).")
+    ap.add_argument("--machine", default=None, help="Override machine (analysis|imaging).")
+    args = ap.parse_args(argv)
+    rv = config.resolver(args.machine)
+    out = args.output or rv.resolve("labcams", "PS92-95_cross_sessions_aligned.pptx")
+    build_deck(out, resolver=rv, machine=args.machine)
+
+
+if __name__ == "__main__":
+    _main()

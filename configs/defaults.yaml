@@ -7,6 +7,8 @@ preprocess:
   reference_date: "0606"        # cross-register each session to this date's per-animal reference
                                 # (reference session dir derived from sessions.yaml 0606 entry;
                                 #  per-animal landmark version = animals.yaml reference_landmarks)
+  xall_min_date: "0605"         # task-era cutoff (MMDD): the all-days 'xall' cross-day QC overlay
+                                # spans registered sessions >= this date (excludes 6/1-6/4 baseline)
   relabel_mode: rescue          # motion correct: drop dark inter-trial frames (continuous saving)
   motion_mode: "2d"             # run_wfield_motion --mode
   svd:

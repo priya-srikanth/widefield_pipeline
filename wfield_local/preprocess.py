@@ -117,6 +117,41 @@ def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str
     return ref_date, results, landmarks
 
 
+# --------------------------------------------------------------------------- xall (all-days QC)
+def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bool) -> None:
+    """Refresh each animal's all-days cross-day vasculature QC overlay (``xday/<animal>_xall``).
+
+    QC-ONLY (``warp_u=False``): registers every registered task-era session (>= ``xall_min_date``)
+    to the animal's reference and writes the multi-day `<animal>_cross_day_alignment_qc.png` +
+    `<animal>_<date>_mean470_in_ref/ccf.npy`. Does NOT touch any session's allen_aligned dir
+    (GPU LocaNMF inputs untouched). Folds in the retired `_xall_refresh.py`.
+    """
+    min_mmdd = str(params.get("xall_min_date", "0605"))
+    all_sessions = config.load_sessions(machine=rv.machine)
+    for animal in animals:
+        ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
+        sess = {}
+        for s in all_sessions:
+            a, mmdd = s["label"].split("_")
+            if a != animal or mmdd < min_mmdd:
+                continue
+            sess[f"{animal}_{mmdd}"] = {"results": f"{s['mc']}/wfield_local_results"}
+        if f"{animal}_{ref_date}" not in sess:
+            print(f"[xall] {animal}: no reference {ref_date} in task-era set -> skip", flush=True)
+            continue
+        sess[f"{animal}_{ref_date}"]["landmarks"] = ref_landmarks   # reference carries landmarks
+        cfg = {"animal": animal, "mode": "reference-native", "func_channel": 1,
+               "reference": f"{animal}_{ref_date}", "warp_u": False,
+               "output": rv.resolve("xday_qc", f"{animal}_xall"), "sessions": sess}
+        cfg_path = f"{rv.root('xday_qc')}/_xall_config_{animal}.json"
+        print(f"[xall] {animal}: {len(sess)} days {sorted(sess)} -> {cfg['output']}", flush=True)
+        if not dry_run:
+            Path(rv.root("xday_qc")).mkdir(parents=True, exist_ok=True)
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(cfg, fh, indent=2)
+        _run(["wfield_local.cross_day_align", cfg_path], dry_run)
+
+
 # --------------------------------------------------------------------------- run steps
 def _run(args: list, dry_run: bool) -> None:
     cmd = [sys.executable, "-m"] + [str(a) for a in args]
@@ -193,6 +228,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals")
     ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
     ap.add_argument("--skip-photobleach", action="store_true")
+    ap.add_argument("--skip-xall", action="store_true", help="skip the all-days cross-day QC refresh")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
 
@@ -215,6 +251,13 @@ def main(argv=None) -> int:
 
     for s in sessions:
         preprocess_session(s, params, rv, args.dry_run)
+
+    # all-days cross-day QC overlay (xall) for each animal processed this run (per-date QC is
+    # emitted per session in preprocess_session step 3; this is the multi-day rollup)
+    if not args.skip_xall:
+        print("\n################ cross-day all-days QC (xall) ################", flush=True)
+        animals_done = sorted({s["animal"] for s in sessions if s["animal"]})
+        refresh_xall(animals_done, params, rv, args.dry_run)
 
     if not args.skip_photobleach:
         print("\n################ photobleach QC ################", flush=True)
