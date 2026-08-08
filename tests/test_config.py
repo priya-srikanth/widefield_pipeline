@@ -42,3 +42,19 @@ def test_module_sessions_are_config_driven():
     assert len(SESSIONS) == 37
     assert ANIMAL_COLOR["PS93"] == "tab:red"
     assert not hasattr(__import__("wfield_local.locanmf_cue_lick_analysis", fromlist=["x"]), "L")
+
+
+def test_load_sessions_animal_and_date_subset():
+    a = config.load_sessions(animals=["PS93"])
+    assert a and all(s["label"].startswith("PS93") for s in a) and len(a) < 37
+    d = config.load_sessions(dates=["0807"])
+    assert d and all(s["label"].endswith("0807") for s in d)
+    ad = config.load_sessions(animals=["PS93"], dates=["0807"])
+    assert [s["label"] for s in ad] == ["PS93_0807"]
+
+
+def test_load_sessions_env_filter_and_explicit_override(monkeypatch):
+    monkeypatch.setenv("WIDEFIELD_ONLY_ANIMALS", "PS92, PS95")   # comma/space tolerant
+    assert {s["label"][:4] for s in config.load_sessions()} == {"PS92", "PS95"}
+    # explicit arg wins over the env var
+    assert all(s["label"].startswith("PS93") for s in config.load_sessions(animals=["PS93"]))

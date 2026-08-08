@@ -17,6 +17,7 @@ location, so it is portable across checkouts.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -46,10 +47,16 @@ def main():
     ap.add_argument("--from", dest="from_dates", default=None,
                     help="comma MMDD list for the cross-session comparisons (default: ALL registered sessions)")
     ap.add_argument("--output", default=DEFAULT_OUT, help="figure output dir (also where the deck is built)")
+    ap.add_argument("--only", nargs="+", metavar="ANIMAL",
+                    help="restrict analysis to these animals (e.g. PS93); scopes the decode/encode/"
+                         "cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
     args = ap.parse_args()
 
     date = args.date
     out = args.output
+    if args.only:
+        os.environ["WIDEFIELD_ONLY_ANIMALS"] = ",".join(args.only)  # inherited by the subprocesses below
+        log(f"animal subset: {args.only}")
     # Cross-session comparisons use the CURATED "good" set: 6/6-6/8 + 8/6 onward (auto-includes future
     # dates), excluding noisy early June (6/1-6/5) and the wonky 8/5. Policy in configs/animals.yaml.
     exclude = set(config.date_policy().get("cross_session_exclude", []))
@@ -63,7 +70,10 @@ def main():
 
     from wfield_local.locanmf_decoder_weights import (_avail, fig_rolling_cue, fig_temporal_dynamics,
                                                       fig_rolling_laterality, fig_top_components)
-    labs = _avail(date); log(f"{date} sessions: {labs}")
+    labs = _avail(date)
+    if args.only:   # _avail reads the import-time SESSIONS, so filter the in-process figs explicitly
+        labs = [l for l in labs if l[:4] in set(args.only)]
+    log(f"{date} sessions: {labs}")
     for desc, fn in (("rolling_cue", lambda: fig_rolling_cue(labs, Path(out), date)),
                      ("temporal_dynamics", lambda: fig_temporal_dynamics(labs, Path(out))),
                      ("rolling_laterality", lambda: fig_rolling_laterality(labs, Path(out), date))):
