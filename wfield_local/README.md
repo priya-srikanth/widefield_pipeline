@@ -1,13 +1,65 @@
 # Local wfield Processing Helpers
 
-This folder contains local processing scripts used with `jcouto/wfield` for the widefield behavior rig. They are designed to run in the `wfield` conda environment and to keep large imaging outputs outside git.
+This folder is the `wfield_local` package of the **`widefield_pipeline`** repo (carved out of
+`Widefield_DAQ_recorder` — the recorder GUI — in 2026-08). It holds BOTH the imaging-box
+**preprocessing** helpers (motion / SVD / hemo / Allen / cue-lick maps, §1–16 below) AND the
+behavior-GPU **analysis** pipeline (LocaNMF spout-position decode / encode / RSA). Large imaging
+outputs stay outside git.
 
-Typical environment:
+Day-to-day the individual steps below are driven by **config-driven entry points** (single source
+of truth = `configs/*.yaml`, resolved by `config.py` + `paths.py`) — see **Running the pipeline**
+next. The repo is `pip install -e .`, so `python -m wfield_local.*` works with no PYTHONPATH.
+Preprocessing runs in the `wfield` conda env (imaging box); analysis runs in the `locanmf` env
+(behavior-GPU box).
 
 ```powershell
-conda activate wfield
-cd "C:\Github\Widefield_DAQ_recorder"
+conda activate wfield          # imaging box (preprocessing); the analysis box uses `locanmf`
 ```
+
+## Running the pipeline (config-driven — current)
+
+The §1–16 commands are the underlying steps; day-to-day they are orchestrated by:
+
+- **Preprocessing (imaging box):**
+  `python -m wfield_local.preprocess <YYYYMMDD> [<YYYYMMDD> ...] [--only PS9x ...] [--dry-run]`
+  — auto-discovers the date's raw sessions on `E:` (no per-date hard-coding), then per session runs
+  motion(fixed) → SVD → cross-register to the animal's 6/6 reference → push LocaNMF inputs to
+  MICROSCOPE, then the cue/lick/quiet **activity maps** (§4/5/8/9/12), the all-days cross-day QC
+  overlay (`xall`, §14), and photobleach QC. Replaces the retired per-date `_nightly_*`/`_mc_svd_*`/
+  `_maps_*`/`_photobleach_*` drivers. `--only` subsets animals; multiple dates run in one invocation.
+- **Cross-session preprocessing deck:** `python -m wfield_local.preprocess_deck` — rebuilds the single
+  `labcams/PS92-95_cross_sessions_aligned.pptx` in place (grouped animal → figure type → date; split
+  into per-animal files to bound size). Replaces the retired `PS92_94_95_affine8v1.pptx` builder.
+- **Analysis (behavior-GPU box):**
+  `python -m wfield_local.nightly_figs <MMDD> [--only PS9x ...] [--from <MMDD,...>]` — orchestrates the
+  LocaNMF decode/encode/RSA (see **Analysis pipeline** below) and builds the decoder summary deck.
+
+Register each new session in `configs/sessions.yaml`; per-animal metadata + date policy in
+`configs/animals.yaml`; params in `configs/defaults.yaml`. Per-machine nightly runbooks: `runbooks/`.
+Repo setup + architecture: root `README.md`; project rules + roadmap: `CLAUDE.md`.
+
+## Analysis pipeline (LocaNMF decode / encode / RSA)
+
+The preprocessing above stops at SVD + atlas. The **analysis** half runs GPU LocaNMF and the
+spout-position models on the behavior-GPU box (env `locanmf`):
+
+- `batch_locanmf` / `run_locanmf` — atlas-anchored LocaNMF components (r²=0.95, loc=80, maxrank=20)
+  from `SVTcorr` + the Allen-aligned `U`.
+- `locanmf_position_decoder` — multinomial logistic regression of spout position from individual
+  LocaNMF components (first-lick / cue / pre-cue windows, block-CV by ~6-trial position blocks, no
+  per-trial baseline; chance = 0.167). SSp dominates, MO secondary.
+- `locanmf_position_encoder` — ridge position→activity + fraction-explainable-variance (FEVE) vs a
+  noise ceiling.
+- `locanmf_cross_mouse` / `locanmf_rsa` — cross-session & cross-animal comparison: within-/across-
+  animal per-position consistency and RDM / **crossnobis** (noise-unbiased) representational similarity.
+- `locanmf_frozen_decoder` — frozen pre-stroke decoder applied across sessions (the post-stroke plan).
+- `nightly_figs` runs all of the above for a date + the curated cross-session set and builds
+  `locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`.
+
+Subset knobs: `nightly_figs --only PS93` (scopes every decode/encode/RSA subprocess via the
+`WIDEFIELD_ONLY_ANIMALS` env var + the in-process figs); any single module can be scoped directly by
+prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
+`LOCANMF_LICK_CUE_ANALYSIS.md`, `LOCANMF_NIGHTLY_PIPELINE.md`, `DECISIONS.md`.
 
 ## Processing Overview
 
@@ -553,8 +605,9 @@ wfield/NeuroCAAS protocol adds after SVD to produce anatomically-localized,
 cross-session/animal-reproducible components. For evoked maps and within-animal work,
 SVD + atlas is adequate; for cross-animal / functional-subnetwork analysis, add
 LocaNMF (runs on the existing low-rank `U`/`SVTcorr` + the `allen_area_atlas`). It is
-GPU-oriented and not installed here — use NeuroCAAS (`wfield_ncaas_fixed.py`) or a GPU
-machine. See `DECISIONS.md`.
+GPU-oriented and not installed in the `wfield` (imaging-box) env. In `widefield_pipeline`,
+LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locanmf` env) — see the
+**Analysis pipeline** section above, `LOCANMF_NIGHTLY_PIPELINE.md`, and `DECISIONS.md`.
 
 ## NeuroCAAS Compatibility Launcher
 
