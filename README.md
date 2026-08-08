@@ -53,6 +53,26 @@ pip install wfield==0.6.0
 Mount MICROSCOPE as `M:` (`net use M: \\research.files.med.harvard.edu\Neurobio`). `pip install -e .`
 means **no `PYTHONPATH=` hack** is needed — `python -m wfield_local.<module>` works from anywhere.
 
+### Per-machine environments (they differ — this is expected)
+
+This package deliberately declares **lower-bound-only** dependencies (see `pyproject.toml`) and does **not**
+pin the heavy/GPU/custom pieces, because it **layers onto a machine's prebuilt env** rather than defining
+one. Different machines / use-cases legitimately run **different package combinations**, and
+`pip install -e .` must not force-upgrade a working stack. The two production envs today:
+
+| | **Imaging computer** (`wfield` env) | **Analysis / behavior GPU box** (`locanmf` env) |
+|---|---|---|
+| Runs | acquisition + preprocessing (motion/SVD/Allen, cue/lick maps) | LocaNMF + decode/encode/RSA + decks |
+| numpy | **< 2.1** (e.g. 1.26.4) — pinned indirectly by numba | **2.2.6** |
+| numba | **required** (motion correction); numba 0.60 caps numpy `< 2.1` | **not installed / not needed** (nothing on the analysis path uses it) |
+| GPU/custom | wfield | torch (CUDA, cu124) + wfield + LocaNMF/localnmf + cuhals |
+
+Key rule: **`numba` self-pins the numpy upper bound**, so do not raise the numpy floor here. If a machine
+needs numba on a newer numpy, install a numba build that supports it (≥ 0.61) rather than downgrading numpy.
+If an `import` breaks after an install, check for **user-site shadows** (`AppData\Roaming\Python\...\site-packages`)
+overriding the conda versions and remove them. Keep each machine's env separate; there is no single lockfile
+that fits both (the `requirements.txt` pin set is the *analysis-box* reference, not a cross-machine contract).
+
 ## Running the nightly
 
 - **Imaging computer:** follow `runbooks/imaging_computer_nightly.md` (acquire → preprocess → upload).
