@@ -50,8 +50,10 @@ def cli(*a):
 
 def _per_day_figs(date, out, from_dates, only):
     """Per-day decode (lick/cue/pre-cue), in-process dynamics/laterality/components, and the encoder."""
-    for al, ps in (("lick", "2.0"), ("cue", "2.0"), ("precue", "1.0")):
-        cli("wfield_local.locanmf_position_decoder", "--date", date, "--align", al, "--post-s", ps, "--output", out)
+    dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
+    for al in dp["aligns"]:
+        cli("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
+            "--post-s", str(dp[f"{al}_post_s"]), "--output", out)
 
     from wfield_local.locanmf_decoder_weights import (_avail, fig_rolling_cue, fig_temporal_dynamics,
                                                       fig_rolling_laterality, fig_top_components)

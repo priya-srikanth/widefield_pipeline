@@ -37,6 +37,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, accuracy_score
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, POSITION_NAMES, DISPLAY_ORDER
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
@@ -142,18 +143,20 @@ def _save_session_fig(label, cmn, sm, labs, args, tag):
 
 
 def main() -> int:
+    dp = config.defaults()["decode"]      # windows/CV/baseline/max_rt/chance (configs/defaults.yaml)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--date", default="0603")
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--source", choices=("locanmf", "roi"), default="locanmf")
     ap.add_argument("--align", choices=("cue", "lick", "precue"), default="cue")
-    ap.add_argument("--baseline", choices=("none", "precue"), default="none")
-    ap.add_argument("--cv", choices=("block", "random"), default="block")
+    ap.add_argument("--baseline", choices=("none", "precue"), default=dp["baseline"])
+    ap.add_argument("--cv", choices=("block", "random"), default=dp["cv"])
     ap.add_argument("--fs", type=float, default=31.23)
     ap.add_argument("--pre-s", type=float, default=1.0)
-    ap.add_argument("--post-s", type=float, default=2.0, help="feature window after the alignment event "
-                    "(2.0 = empirical optimum; spans the lick bout. >~2.5s dilutes the transient, see window sweep)")
-    ap.add_argument("--max-rt", type=float, default=2.0)
+    ap.add_argument("--post-s", type=float, default=dp["cue_post_s"], help="feature window after the alignment "
+                    "event (2.0 = empirical optimum; spans the lick bout. >~2.5s dilutes the transient). Per-align "
+                    "windows (lick/cue/precue) live in configs/defaults.yaml decode.*_post_s; nightly_figs passes them.")
+    ap.add_argument("--max-rt", type=float, default=dp["max_rt_s"])
     ap.add_argument("--per-session", action="store_true",
                     help="also write one compact confusion+recall figure per session "
                          "(locanmf_position_session_{label}_{tag}.png) for the animal-first deck")
@@ -161,7 +164,7 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     sess = sorted([s for s in SESSIONS if s["label"].endswith(args.date)], key=lambda s: s["label"][:4])
     print(f"source={args.source} align={args.align} baseline={args.baseline} cv={args.cv}  "
-          f"sessions={[s['label'] for s in sess]}  chance=0.167", flush=True)
+          f"sessions={[s['label'] for s in sess]}  chance={dp['chance']}", flush=True)
 
     def _cv_predict(clf, Xc, yv, gv):
         if args.cv == "block":

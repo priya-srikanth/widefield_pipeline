@@ -1,0 +1,15 @@
+# Per-session parameter overrides, layered on configs/defaults.yaml by
+# config.defaults(session="<label>"). Mirrors stroke_orofacial_pipeline's defaults+overrides
+# pattern. Keys under a session are deep-merged onto the cohort defaults (only the leaves you
+# name change; everything else falls through). Session label = "<animal>_<MMDD>", e.g. PS93_0807.
+#
+# Example (commented — no active overrides yet):
+# overrides:
+#   PS92_0605:
+#     decode:
+#       precue_post_s: 2.5        # PS92 6/5 had a longer 1.5-2.5 s ENL window (see decisions doc)
+#   PS95_0608:
+#     locanmf:
+#       maxrank: 25
+
+overrides: {}

@@ -23,17 +23,20 @@ import sys
 import time
 from pathlib import Path
 
+from wfield_local import config
+
 
 def _stamp(msg):
     return f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
 
 
 def main() -> int:
+    lp = config.defaults()["locanmf"]     # r2/loc/maxrank single source of truth (configs/defaults.yaml)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--manifest", required=True, type=Path, help="JSON list of {allen_dir,label,output[,svt]}")
-    ap.add_argument("--r2", type=float, default=0.95)
-    ap.add_argument("--loc", type=float, default=80.0)
-    ap.add_argument("--maxrank", type=int, default=20)
+    ap.add_argument("--r2", type=float, default=lp["r2_thresh"])
+    ap.add_argument("--loc", type=float, default=lp["loc_thresh"])
+    ap.add_argument("--maxrank", type=int, default=lp["maxrank"])
     ap.add_argument("--mode", default="locanmf", choices=("locanmf", "snmf", "both"))
     ap.add_argument("--log", type=Path, default=None, help="master log (default: alongside manifest)")
     args = ap.parse_args()

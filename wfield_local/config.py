@@ -50,8 +50,30 @@ def animal_color() -> dict:
     return {a: v.get("color", "k") for a, v in animals().items()}
 
 
-def defaults() -> dict:
-    return _load("defaults.yaml")
+def _deep_merge(base: dict, over: dict) -> dict:
+    """Return a new dict = base with `over` merged in recursively (over wins; base untouched)."""
+    out = dict(base)
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def defaults(session: str | None = None) -> dict:
+    """Cohort-wide analysis parameters from `configs/defaults.yaml` (single source of truth).
+
+    When `session` (a label like ``PS93_0807``) is given, that session's block from
+    `configs/session_overrides.yaml` (under top-level ``overrides:``) is deep-merged on top —
+    the defaults+per-session-overrides pattern from stroke_orofacial_pipeline. Returns the raw
+    cohort defaults (the cached dict) when no session or no matching override exists.
+    """
+    base = _load("defaults.yaml")
+    if not session:
+        return base
+    ov = (_load("session_overrides.yaml") or {}).get("overrides") or {}
+    return _deep_merge(base, ov[session]) if ov.get(session) else base
 
 
 def paths() -> dict:

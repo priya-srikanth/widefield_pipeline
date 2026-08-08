@@ -81,6 +81,29 @@ def test_expand_dates_all_needs_available():
         config.expand_dates("junk", available=["0807"])
 
 
+def test_deep_merge_pure():
+    base = {"a": {"x": 1, "y": 2}, "b": 3}
+    over = {"a": {"y": 9}, "c": 4}
+    out = config._deep_merge(base, over)
+    assert out == {"a": {"x": 1, "y": 9}, "b": 3, "c": 4}
+    assert base == {"a": {"x": 1, "y": 2}, "b": 3}   # base untouched
+
+
+def test_defaults_session_override_noop():
+    # no active overrides in session_overrides.yaml -> defaults(session) == defaults()
+    assert config.defaults("PS93_0807") == config.defaults()
+    assert config.defaults() is config.defaults()    # cached same object when no session
+
+
+def test_defaults_blocks_are_the_single_source():
+    d = config.defaults()
+    assert d["locanmf"]["r2_thresh"] == 0.95 and d["locanmf"]["loc_thresh"] == 80 and d["locanmf"]["maxrank"] == 20
+    dec = d["decode"]
+    assert dec["aligns"] == ["lick", "cue", "precue"]
+    assert (dec["lick_post_s"], dec["cue_post_s"], dec["precue_post_s"]) == (2.0, 2.0, 1.0)
+    assert dec["max_rt_s"] == 2.0 and dec["cv"] == "block" and dec["baseline"] == "none" and dec["chance"] == 0.167
+
+
 def test_normalize_animals():
     assert config.normalize_animals(None) is None
     assert config.normalize_animals([]) is None
