@@ -1,6 +1,25 @@
 # Default analysis parameters (cohort-wide). Per-session overrides -> configs/sessions.yaml.
 # (Mirrors stroke_orofacial_pipeline/configs/defaults.yaml.)
 
+# Preprocessing (IMAGING box): motion(fixed) -> SVD -> cross-register -> push. Consumed by
+# wfield_local/preprocess.py (replaces the retired per-date _nightly_<DATE>.py drivers).
+preprocess:
+  reference_date: "0606"        # cross-register each session to this date's per-animal reference
+                                # (reference session dir derived from sessions.yaml 0606 entry;
+                                #  per-animal landmark version = animals.yaml reference_landmarks)
+  relabel_mode: rescue          # motion correct: drop dark inter-trial frames (continuous saving)
+  motion_mode: "2d"             # run_wfield_motion --mode
+  svd:
+    k: 100
+    functional_channel: 1       # 470 functional half of each 415/470 pair
+    fs: 31.23
+    freq_highpass: 0.1
+    freq_lowpass: 14.0
+  push_frame_map_globs:         # copied to MICROSCOPE alongside wfield_local_results (NOT the .bin)
+    - "*cleanpairs_frame_map.npz"
+    - "*cleanpairs_summary.json"
+    - "motion_correction_*"
+
 locanmf:
   r2_thresh: 0.95
   loc_thresh: 80

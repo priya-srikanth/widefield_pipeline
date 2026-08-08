@@ -19,6 +19,7 @@ animals:
     stroke_date: null
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
+    reference_landmarks: v2         # dorsal_cortex_landmarks_<v> version for the 6/6 cross-reg reference
     exclude: []
 
   PS93:
@@ -32,6 +33,7 @@ animals:
     stroke_date: null
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
+    reference_landmarks: v2
     exclude: []
 
   PS94:
@@ -43,6 +45,7 @@ animals:
     stroke_date: null
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
+    reference_landmarks: v1
     exclude: []
 
   PS95:
@@ -54,6 +57,7 @@ animals:
     stroke_date: null
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
+    reference_landmarks: v1
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero

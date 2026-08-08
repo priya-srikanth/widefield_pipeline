@@ -32,8 +32,13 @@ MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local raw/D
 - **Prioritized GPU push**: `SVTcorr.npy` + `allen_aligned_affine8v1/` + the
   `motion_corrected/*cleanpairs_frame_map.npz`+summary (the GPU needs the frame_map, not just
   `wfield_local_results/`) + the DAQ h5 — pushed FIRST so LocaNMF can start on early sessions.
-- Fast path since 8/7: `_nightly_<DATE>.py` (template `_nightly_0807.py`) chains motion→SVD→register→push
-  one session at a time; then `_maps_<DATE>_run.py`, `_photobleach_<DATE>.py`, `_crossday_intensity.py`,
+- **Config-driven orchestrator (replaces the retired per-date `_nightly_<DATE>.py`/`_mc_svd_*`/`_maps_*`/
+  `_photobleach_*` drivers):** `python -m wfield_local.preprocess <YYYYMMDD>` auto-discovers that date's raw
+  sessions on `E:` (no session-dir/DAQ/dims hard-coding), then per session chains motion→SVD→cross-register
+  (reference = `configs/defaults.yaml preprocess.reference_date`, per-animal landmark version from
+  `configs/animals.yaml reference_landmarks`)→push to `N:`, then runs photobleach QC. `--dry-run` prints the
+  plan; `--only PS94 PS95` subsets animals. Params (SVD k/fs/highpass/lowpass, relabel mode) live in
+  `defaults.yaml preprocess`. Still separate one-offs (not yet folded): `_crossday_intensity.py`,
   `_xall_refresh.py`, deck update, standby transfer.
 - **Never delete from E:** until byte-verified; never delete from N: / non-Priya folders.
 

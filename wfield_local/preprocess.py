@@ -1,0 +1,233 @@
+"""Config-driven nightly widefield preprocessing (IMAGING box).
+
+Replaces the retired per-date ``_nightly_<DATE>.py`` / ``_mc_svd_*`` / ``_maps_*`` /
+``_photobleach_*`` one-off drivers. For a given ``YYYYMMDD`` it:
+
+  1. discovers that date's raw sessions on the imaging box's local drive (``raw_labcams`` =
+     ``E:/labcams_data/<date>``, ``raw_daq`` = ``E:/DAQ_recorder_output``) — no per-date
+     hard-coding of session dir names, DAQ filenames, or frame dims,
+  2. per session, in animal order: sign-fixed motion correction -> SVD -> cross-register to
+     that animal's reference (``preprocess.reference_date``, default 6/6; reference session
+     derived from ``sessions.yaml`` + per-animal ``reference_landmarks``) -> push the LocaNMF
+     inputs to MICROSCOPE (``labcams`` = ``N:`` on the imaging box) FIRST so the GPU box can
+     start LocaNMF on early sessions,
+  3. runs photobleaching QC (:mod:`wfield_local.photobleach`) over the same sessions.
+
+Run in the ``wfield`` env on the imaging box (the interpreter running this module is reused
+for every sub-step, so no hard-coded python path)::
+
+    python -m wfield_local.preprocess 20260808
+    python -m wfield_local.preprocess 20260808 --dry-run        # print the plan only
+    python -m wfield_local.preprocess 20260808 --only PS94 PS95 # subset of animals
+
+All heavy steps run as ``python -m wfield_local.<engine>`` subprocesses (run_wfield_motion,
+run_wfield_local, cross_day_align), exactly as the retired drivers did — this module imports
+no wfield code, so it loads in any env.
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from wfield_local import config
+from wfield_local import photobleach
+from wfield_local.paths import PathResolver
+
+REPO = Path(__file__).resolve().parents[1]
+DAT_RE = re.compile(r"pco_edge_run\d+_\d+_(2_\d+_\d+)_uint16\.dat$", re.I)
+ANIMAL_RE = re.compile(r"(PS9\d)")
+
+
+# --------------------------------------------------------------------------- discovery
+def _session_dir_of(dat: Path, yyyymmdd: str) -> Path:
+    """Nearest ancestor of a raw .dat that names the session (``<ANIMAL>_<YYYYMMDD>_*``)."""
+    for p in dat.parents:
+        if yyyymmdd in p.name and ANIMAL_RE.search(p.name):
+            return p
+    for p in dat.parents:                      # fallback: parent of raw_widefield_data/
+        if p.name.lower() == "raw_widefield_data":
+            return p.parent
+    return dat.parent
+
+
+def _match_daq(h5s: list[Path], animal: str | None, yyyymmdd: str) -> Path | None:
+    """DAQ .h5 whose NAME contains the animal + the 8-digit date (robust to date-dir typos)."""
+    if not animal:
+        return None
+    cands = sorted(h for h in h5s if animal in h.name and yyyymmdd in h.name)
+    return cands[0] if cands else None
+
+
+def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
+    """Core discovery (roots passed explicitly so it is unit-testable off the imaging box)."""
+    datedir = Path(raw_root) / yyyymmdd
+    if not datedir.exists():
+        return []
+    dats = [Path(p) for p in glob.glob(str(datedir / "**" / "*_uint16.dat"), recursive=True)
+            if DAT_RE.search(Path(p).name)]
+    h5s = [Path(p) for p in glob.glob(str(Path(daq_root) / "**" / "*.h5"), recursive=True)]
+
+    by_sess: dict[Path, list[Path]] = {}
+    for dat in dats:
+        by_sess.setdefault(_session_dir_of(dat, yyyymmdd), []).append(dat)
+
+    out = []
+    for sd, group in by_sess.items():
+        dat = max(group, key=lambda p: p.stat().st_size)     # largest run = the main movie
+        dims = DAT_RE.search(dat.name).group(1)
+        am = ANIMAL_RE.search(sd.name) or ANIMAL_RE.search(str(dat))
+        animal = am.group(1) if am else None
+        daq = _match_daq(h5s, animal, yyyymmdd)
+        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], sess=sd.name, sess_dir=str(sd),
+                        raw_dat=str(dat), daq_h5=(str(daq) if daq else None),
+                        dims=dims, n_dats=len(group)))
+    out.sort(key=lambda s: (s["animal"] or "", s["sess"]))
+    return out
+
+
+def discover_raw_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
+    return _discover(yyyymmdd, rv.root("raw_labcams"), rv.root("raw_daq"))
+
+
+# --------------------------------------------------------------------------- reference
+def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str, str]:
+    """(ref_date, ref_results_dir, ref_landmarks_json) for an animal's cross-reg reference.
+
+    The reference session directory is derived from ``sessions.yaml``'s ``reference_date``
+    (6/6) entry; the landmark version comes from ``animals.yaml reference_landmarks``.
+    """
+    ref_date = str(params["reference_date"])
+    raw = config._load("sessions.yaml")["sessions"]
+    entry = (raw.get(animal) or {}).get(ref_date)
+    if not entry:
+        raise SystemExit(f"[preprocess] no reference {ref_date} session for {animal} in sessions.yaml")
+    ref_reldir = str(entry["mc"]).rsplit("/motion_corrected", 1)[0]      # "20260606/PS92_..."
+    lm = (config.animals().get(animal) or {}).get("reference_landmarks")
+    if not lm:
+        raise SystemExit(f"[preprocess] no reference_landmarks for {animal} in animals.yaml")
+    results = rv.resolve("labcams", f"{ref_reldir}/motion_corrected/wfield_local_results")
+    landmarks = rv.resolve("labcams", f"{ref_reldir}/raw_widefield_data/dorsal_cortex_landmarks_{lm}.json")
+    return ref_date, results, landmarks
+
+
+# --------------------------------------------------------------------------- run steps
+def _run(args: list, dry_run: bool) -> None:
+    cmd = [sys.executable, "-m"] + [str(a) for a in args]
+    print("\n$ " + " ".join(cmd), flush=True)
+    if dry_run:
+        return
+    if subprocess.run(cmd, cwd=str(REPO)).returncode:
+        raise SystemExit(f"[preprocess] FAILED: {args[0]}")
+
+
+def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -> None:
+    """motion(fixed) -> SVD -> cross-register to reference -> push LocaNMF inputs to MICROSCOPE."""
+    animal, mmdd, sess, dims = s["animal"], s["mmdd"], s["sess"], s["dims"]
+    yyyymmdd = f"2026{mmdd}"  # imaging cohort is 2026; keep in sync with the date arg
+    mc = f"{s['sess_dir']}/motion_corrected"
+    binp = f"{mc}/motioncorrect_{dims}_uint16.bin"
+    results = f"{mc}/wfield_local_results"
+    svd = params["svd"]
+    print(f"\n################ {animal} {sess} (dims {dims}) ################", flush=True)
+    if s["daq_h5"] is None:
+        raise SystemExit(f"[preprocess] {animal} {sess}: no matching DAQ .h5 found")
+
+    # 1 motion correction (sign-fixed, 2d)
+    if Path(binp).exists() and not dry_run:
+        print("[skip] motion-corrected bin exists", flush=True)
+    else:
+        _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
+              "--daq-h5", s["daq_h5"], "--relabel-mode", params["relabel_mode"],
+              "--mode", params["motion_mode"]], dry_run)
+
+    # 2 SVD (functional channel = 470)
+    if Path(f"{results}/SVTcorr.npy").exists() and not dry_run:
+        print("[skip] SVTcorr exists", flush=True)
+    else:
+        _run(["wfield_local.run_wfield_local", binp, "--output", results,
+              "-k", svd["k"], "--functional-channel", svd["functional_channel"],
+              "--fs", svd["fs"], "--freq-highpass", svd["freq_highpass"],
+              "--freq-lowpass", svd["freq_lowpass"]], dry_run)
+
+    # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
+    ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
+    cfg = {"animal": animal, "mode": "reference-native", "func_channel": svd["functional_channel"],
+           "reference": f"{animal}_{ref_date}", "warp_u": True,
+           "output": rv.resolve("xday_qc", f"{animal}_{mmdd}"),
+           "sessions": {f"{animal}_{ref_date}": {"results": ref_results, "landmarks": ref_landmarks},
+                        f"{animal}_{mmdd}": {"results": results}}}
+    cfg_path = f"{mc}/xday_config_{animal}_{mmdd}.json"
+    print(f"[xreg] config -> {cfg_path}", flush=True)
+    if not dry_run:
+        Path(mc).mkdir(parents=True, exist_ok=True)
+        with open(cfg_path, "w", encoding="utf-8") as fh:
+            json.dump(cfg, fh, indent=2)
+    _run(["wfield_local.cross_day_align", cfg_path], dry_run)
+
+    # 4 push LocaNMF inputs to MICROSCOPE FIRST (results dir + frame_map + summary; NOT the .bin)
+    ndst = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
+    nres = f"{ndst}/wfield_local_results"
+    print(f"[push] {results} -> {nres}", flush=True)
+    if not dry_run:
+        Path(ndst).mkdir(parents=True, exist_ok=True)
+        if Path(nres).exists():
+            shutil.rmtree(nres)
+        shutil.copytree(results, nres)   # SVT/SVTcorr/U/T/rcoeffs/frames_average/summary + allen dir
+        for pat in params["push_frame_map_globs"]:
+            for f in glob.glob(f"{mc}/{pat}"):
+                shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
+    print(f"################ {animal} {sess} DONE ################", flush=True)
+
+
+# --------------------------------------------------------------------------- main
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Config-driven nightly widefield preprocessing (imaging box).")
+    ap.add_argument("date", help="session date, YYYYMMDD")
+    ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals")
+    ap.add_argument("--dry-run", action="store_true", help="print the discovery + planned commands only")
+    ap.add_argument("--skip-photobleach", action="store_true")
+    ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
+    args = ap.parse_args(argv)
+
+    if not re.fullmatch(r"\d{8}", args.date):
+        ap.error("date must be YYYYMMDD")
+    rv = PathResolver(machine=args.machine)
+    params = config.defaults()["preprocess"]
+
+    sessions = discover_raw_sessions(args.date, rv)
+    if args.only:
+        sessions = [s for s in sessions if s["animal"] in set(args.only)]
+    if not sessions:
+        print(f"[preprocess] no raw sessions discovered for {args.date} under {rv.root('raw_labcams')}")
+        return 1
+
+    print(f"[preprocess] {args.date}: {len(sessions)} session(s) on machine={rv.machine}")
+    for s in sessions:
+        flag = "" if s["daq_h5"] else "  <<< NO DAQ MATCH"
+        print(f"  {s['animal']}  {s['sess']}  dims={s['dims']}  daq={os.path.basename(s['daq_h5'] or '?')}{flag}")
+
+    for s in sessions:
+        preprocess_session(s, params, rv, args.dry_run)
+
+    if not args.skip_photobleach:
+        print("\n################ photobleach QC ################", flush=True)
+        out_dir = rv.resolve("labcams", f"{args.date}/photobleach")
+        triples = [(f"{s['animal']}_{s['mmdd']}", s["raw_dat"], s["daq_h5"]) for s in sessions if s["daq_h5"]]
+        if args.dry_run:
+            print(f"[dry-run] photobleach.run({len(triples)} sessions) -> {out_dir}")
+        else:
+            photobleach.run(triples, out_dir)
+
+    print(f"\nPREPROCESS {args.date} motion->SVD->xreg->push ALL DONE", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

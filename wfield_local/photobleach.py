@@ -8,39 +8,22 @@ Saves a per-session PNG and finally a combined summary (normalized trends +
 missing LED channels) are skipped with a printed warning.
 
 Run with an env that has h5py+scipy+matplotlib but WITHOUT importing wfield
-(avoids the wfield/h5py DLL clash):
-    C:\\ProgramData\\anaconda3\\envs\\wfield\\python.exe _photobleach_batch.py
+(avoids the wfield/h5py DLL clash). `analyze()`/`summary()` are the reusable engine,
+driven per session by `wfield_local.preprocess` (which discovers the date's sessions from
+config); import stays wfield-free because `wfield_local/__init__.py` is empty.
 """
 import os, re, json, numpy as np
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 from scipy.ndimage import binary_erosion
 
-OUT = r"C:\Github\Widefield_DAQ_recorder\_photobleach_out"
-os.makedirs(OUT, exist_ok=True)
 NSAMP, NB = 3000, 40
 MIN_DUR_MIN = 15.0  # skip short baseline blips (unreliable trend)
-
-SESSIONS = [
-    ("PS92_0603", r"E:\labcams_data\20260603\PS92\PS92_20260603_104008\raw_widefield_data\pco_edge_run000_00000000_2_477_464_uint16.dat",
-                  r"E:\DAQ_recorder_output\20250603\PS92_20260603_104607.h5"),
-    ("PS94_0603", r"E:\labcams_data\20260603\PS94\raw_widefield_data\pco_edge_run000_00000000_2_462_464_uint16.dat",
-                  r"E:\DAQ_recorder_output\20250603\PS94_20260603_175946.h5"),
-    ("PS95_0603", r"E:\labcams_data\20260603\PS95\PS95\PS95_20260603_194442\raw_widefield_data\pco_edge_run000_00000000_2_462_464_uint16.dat",
-                  r"E:\DAQ_recorder_output\20250603\PS95_20260603_194902.h5"),
-    ("PS92_0602", r"E:\labcams_data\20260602\PS92\PS92_20260602_151820\raw_widefield_data\pco_edge_run001_00000000_2_487_480_uint16.dat",
-                  r"E:\DAQ_recorder_output\20250602\PS92_20260602_152607.h5"),
-    ("PS94_0601", r"E:\labcams_data\20260601\PS94_20260601_141614\pco_edge_run004_00000000_2_540_640_uint16.dat",
-                  r"E:\DAQ_recorder_output\PS94_baseline_20260601_141642.h5"),
-    ("PS95_0601", r"E:\labcams_data\20260601\PS95_20260601_153653\pco_edge_run000_00000000_2_540_640_uint16.dat",
-                  r"E:\DAQ_recorder_output\PS95_baseline_20260601_153627.h5"),
-    ("PS92_0601", r"E:\labcams_data\20260601\PS92_20260601\pco_edge_run000_00000000_2_540_640_uint16.dat",
-                  r"E:\DAQ_recorder_output\PS92_baseline_20260601_122510.h5"),
-]
 
 COL = {"415": "violet", "470": "royalblue"}
 
 
-def analyze(label, dat, daq):
+def analyze(label, dat, daq, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
     if not (os.path.exists(dat) and os.path.exists(daq)):
         print(f"[{label}] SKIP missing file"); return None
     m = re.search(r"_(\d+)_(\d+)_(\d+)_uint16", os.path.basename(dat))
@@ -117,13 +100,14 @@ def analyze(label, dat, daq):
     ax[1].set_xlabel("time since start (s)"); ax[1].set_ylabel("normalized (median / first bin)")
     ax[1].legend(); ax[1].set_title(f"{label}  normalized trend  ({dur_min:.1f} min)")
     plt.tight_layout()
-    fp = os.path.join(OUT, f"photobleach_{label}.png"); plt.savefig(fp, dpi=120); plt.close(fig)
+    fp = os.path.join(out_dir, f"photobleach_{label}.png"); plt.savefig(fp, dpi=120); plt.close(fig)
     print(f"[{label}] saved {fp}")
     res["_norm"] = {k: (x.tolist(), y.tolist()) for k, (x, y) in norm.items()}
     return res
 
 
-def summary(results):
+def summary(results, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
     results = [r for r in results if r]
     if not results:
         print("no sessions analyzed"); return
@@ -155,7 +139,7 @@ def summary(results):
     ax[2].set_title("Per-channel drift by session"); ax[2].legend()
     plt.suptitle("Photobleaching summary across sessions  (415 isosbestic vs 470 functional)", fontsize=13)
     plt.tight_layout()
-    fp = os.path.join(OUT, "photobleach_SUMMARY.png"); plt.savefig(fp, dpi=130); plt.close(fig)
+    fp = os.path.join(out_dir, "photobleach_SUMMARY.png"); plt.savefig(fp, dpi=130); plt.close(fig)
     print("saved", fp)
     print("\n=== drift table (% over session) ===")
     print(f"{'session':12s} {'min':>5s} {'415%':>8s} {'470%':>8s}")
@@ -165,9 +149,17 @@ def summary(results):
               f"{c.get('415',{}).get('pct',float('nan')):8.1f} {c.get('470',{}).get('pct',float('nan')):8.1f}")
 
 
-if __name__ == "__main__":
-    out = [analyze(*s) for s in SESSIONS]
-    summary(out)
-    with open(os.path.join(OUT, "photobleach_results.json"), "w") as fh:
+def run(sessions, out_dir):
+    """`sessions` = iterable of (label, dat, daq); analyze each + write the summary + json."""
+    out = [analyze(lbl, dat, daq, out_dir) for (lbl, dat, daq) in sessions]
+    summary(out, out_dir)
+    with open(os.path.join(out_dir, "photobleach_results.json"), "w") as fh:
         json.dump([{k: v for k, v in r.items() if k != "_norm"} for r in out if r], fh, indent=2)
-    print("done ->", OUT)
+    print("done ->", out_dir)
+    return out
+
+
+if __name__ == "__main__":
+    raise SystemExit("Photobleach is driven per-date by `python -m wfield_local.preprocess "
+                     "<YYYYMMDD>` (session discovery lives there); call run()/analyze() directly "
+                     "for ad-hoc use.")
