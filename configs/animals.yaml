@@ -12,32 +12,48 @@
 animals:
   PS92:
     color: "tab:blue"
-    genotype: null            # TODO: fill from cohort records
+    sex: F
+    date_of_birth: 2026-01-14
+    genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
     stroke_date: null
+    stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
+    stroke_laser_power_mW: null     # fill at lesion time
     exclude: []
 
   PS93:
     color: "tab:red"
-    genotype: null
+    sex: F
+    date_of_birth: 2026-01-14
+    genotype: "Thy1-GCaMP6s GP4.3"
     characteristics:
       orofacial_deficit: right   # tongue deviates right, minimal right whisking
       cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
     stroke_date: null
+    stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
+    stroke_laser_power_mW: null     # fill at lesion time
     exclude: []
 
   PS94:
     color: "tab:orange"
-    genotype: null
+    sex: F
+    date_of_birth: 2025-12-24
+    genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
     stroke_date: null
+    stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
+    stroke_laser_power_mW: null     # fill at lesion time
     exclude: []
 
   PS95:
     color: "tab:green"
-    genotype: null
+    sex: M
+    date_of_birth: 2025-12-24
+    genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
     stroke_date: null
+    stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
+    stroke_laser_power_mW: null     # fill at lesion time
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero
