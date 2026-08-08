@@ -21,3 +21,8 @@ wfield_local_results/
 _ps93dis/
 _ps104/
 _photobleach_out*/
+
+# build artifacts
+*.egg-info/
+__pycache__/
+*.pyc
