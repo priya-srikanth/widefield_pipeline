@@ -7,19 +7,27 @@ name = "widefield_pipeline"
 version = "0.1.0"
 description = "Widefield calcium-imaging preprocessing + LocaNMF spout-position decode/encode pipeline (Sabatini lab)."
 requires-python = ">=3.10"
+# Lower bounds only: this package LAYERS onto a prebuilt env (wfield/torch/numba/LocaNMF are
+# installed separately, per the note below). Keep minimums at/below what a working wfield env
+# already ships so `pip install -e` does NOT force-upgrade a functioning scientific stack, and
+# do NOT cap numpy here -- numba pins the upper bound itself (numba 0.60 -> numpy<2.1 on the
+# imaging computer; a newer numba on the GPU box may allow numpy>=2.1). High minimums here were
+# pulling numpy 2.4 into the imaging env, which broke numba. (imaging wfield env, 2026-08:
+# numpy 1.26.4, scipy 1.15.1, matplotlib 3.10, scikit-learn 1.5.2, scikit-image 0.25,
+# pandas 2.2.3, joblib 1.4.2, tqdm 4.66.)
 dependencies = [
-  "numpy>=2.2",
-  "scipy>=1.15",
-  "matplotlib>=3.10",
-  "scikit-learn>=1.7",
-  "scikit-image>=0.25",
-  "h5py>=3.16",
-  "pandas>=2.3",
-  "python-pptx>=1.0",
-  "opencv-python>=4.9",
-  "Pillow>=11",
-  "joblib>=1.5",
-  "tqdm>=4.67",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "matplotlib>=3.7",
+  "scikit-learn>=1.3",
+  "scikit-image>=0.22",
+  "h5py>=3.8",
+  "pandas>=2.0",
+  "python-pptx>=0.6",
+  "opencv-python>=4.8",
+  "Pillow>=9",
+  "joblib>=1.3",
+  "tqdm>=4.64",
   "PyYAML>=6",
 ]
 # GPU / custom builds are installed SEPARATELY (not resolvable by pip here), see README "Setup":
