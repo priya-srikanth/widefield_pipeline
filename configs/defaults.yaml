@@ -110,8 +110,10 @@ segmentation:
     volt_sec_per_rot: 0.382
     mm_per_rot: 29.25
     smoothing_sigma_s: 0.15
-  running:                        # find_running_bouts (treadmill): clearly moving
-    thresh_speed_mm_s: 5.0
+  running:                        # find_running_bouts (treadmill): sustained locomotion
+    thresh_speed_mm_s: 3.0        # sits above the rest floor (p90~0.2) and below the movement tail
+                                  #   (p99~4.5-11); 3 (vs orofacial's 5) ~doubles running frames for these
+                                  #   sedentary mice -> better activity-map SNR. Quiet stays <1 -> 1-3 gap.
     max_gap_s: 0.3
     min_duration_s: 2.0
   quiet:                          # slow + not-near-lick/reward, buffered (F0 baseline candidate)
