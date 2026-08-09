@@ -732,4 +732,4 @@ python -m wfield_local.locanmf_frozen_decoder --transfer --output <OUT>   # cros
 Subset knobs: `nightly_figs --only PS93` scopes every decode/encode/RSA subprocess via the
 `WIDEFIELD_ONLY_ANIMALS` env var + the in-process figs; any single module can be scoped directly by
 prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
-`LOCANMF_LICK_CUE_ANALYSIS.md`, `runbooks/analysis_computer_nightly.md`, `DECISIONS.md`.
+`runbooks/analysis_computer_nightly.md`, `DECISIONS.md`.

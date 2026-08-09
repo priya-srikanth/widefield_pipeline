@@ -49,3 +49,18 @@ alignment. Do not use a custom name (e.g. xday6) on N: or the GPU won't find it.
 
 ## Dead strobe bit1 (2026-08-05/06)
 Widefield DAQ strobe bit1 dead 8/5-8/6 -> close_R+far_center lost from DAQ; recovered from behavior trials.csv via `--behavior-trials` (see STROBE_BIT1_RECOVERY.md). Hardware fix pending for 8/7+.
+
+## Post-stroke science prerequisites (plan in DECISIONS.md Part V)
+The forward work the baseline pipeline is building toward:
+- **Per-trial behavioral-state table** — spout-contact + DAQ lick → hit/miss/**failed-attempt**, latency,
+  executed position. Keep failed-attempt trials (the deficit); state is **movement-gated, not lick-gated**.
+- **Frozen pre-stroke decoder + baseline noise floor** — package the fixed pre-stroke `A` (refit `C`) or
+  Allen-ROI model + each animal's multi-baseline-day distribution, so a post-stroke session is diffable.
+- **Movement regressors** — DLC / FaceRhythm, **time-synced** to widefield+DAQ (the camera↔DAQ alignment
+  templates exist), to separate "cortex codes position differently" from "the movement just changed".
+- **Cross-day vasculature registration** (`cross_day_align.py`) across the baseline set.
+
+## Quiet-period thresholds (tune per rig)
+Running/quiet speed, min durations, and lick/reward/treadmill buffers are stroke-pipeline defaults; tune per
+rig/task and validate against DLC/FaceRhythm movement once available (see `DECISIONS.md` "Quiet-period
+baseline"). Grooming detection stays OFF (single-spout long-touch is unreliable).

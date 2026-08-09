@@ -4,7 +4,7 @@ MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu
 staging on **`D:`** (`D:\camera`, `D:\behavior_logs`). Env:
 `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
 Underlying analysis steps + standalone commands: [`../wfield_local/README.md`](../wfield_local/README.md)
-§17–23. Design/findings: `../DECISIONS.md`, `../LOCANMF_LICK_CUE_ANALYSIS.md`.
+§17–23. Design/findings: `../DECISIONS.md`.
 
 ## The whole night
 

@@ -29,7 +29,7 @@ configs/               single source of truth (mirrors stroke_orofacial_pipeline
   paths.yaml           MICROSCOPE + labcams + DAQ + behavior mounts (logical roots -> platform paths)
   defaults.yaml        analysis params (LocaNMF r2/loc/maxrank, decode windows/CV, sync, lick detection)
 runbooks/              the per-machine nightly runbooks (source of truth: imaging_computer_nightly / analysis_computer_nightly)
-docs (*.md at root)    LOCANMF_LICK_CUE_ANALYSIS, DECISIONS, STROBE_BIT1_RECOVERY, TASKS; docs/archive/ = retired one-offs
+docs (*.md at root)    DECISIONS (analysis decisions + findings), STROBE_BIT1_RECOVERY, TASKS, CLAUDE; docs/archive/ = retired one-offs
 _*.py / _*.json        legacy per-session drivers + state (to be folded into the config-driven flow — see "Roadmap")
 ```
 
@@ -93,9 +93,9 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 
 - [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md) — analysis-box nightly runbook (source of truth)
 - [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) — imaging-computer preprocessing runbook (source of truth)
-- [`LOCANMF_LICK_CUE_ANALYSIS.md`](LOCANMF_LICK_CUE_ANALYSIS.md) — decisions + findings (decode/encode/RSA)
+- [`DECISIONS.md`](DECISIONS.md) — analysis decisions + findings F1–F17 (decode/encode/RSA) + stroke plan + server layout/regimes
 - [`STROBE_BIT1_RECOVERY.md`](STROBE_BIT1_RECOVERY.md) — dead-strobe-bit position recovery (behavior-log + cam1)
-- [`DECISIONS.md`](DECISIONS.md) — server layout, regimes, load-bearing decisions
+- [`TASKS.md`](TASKS.md) — open/actionable items + post-stroke prerequisites
 
 ## Roadmap
 
@@ -107,5 +107,5 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
    keyed by the LocaNMF `C.npy` + h5 + `behavior_trials` mtimes + params + `CACHE_VERSION`. Only new/changed
    sessions recompute (~340x on a cache hit); also dedupes within a single run. See "Caching" above.
 3. **Post-stroke analysis** — intention readout (frozen decoder) + representational similarity
-   (crossnobis / encoder residuals); prerequisites in [`LOCANMF_LICK_CUE_ANALYSIS.md`].
+   (crossnobis / encoder residuals); prerequisites in [`DECISIONS.md`](DECISIONS.md).
 4. Fold the legacy `_*_run.py` drivers into the config-driven orchestrator; then `scripts/` cleanup.

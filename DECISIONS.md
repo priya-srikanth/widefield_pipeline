@@ -1,330 +1,278 @@
-# Analysis decisions: global vs session-specific
+# Analysis decisions & findings (widefield LocaNMF spout-position study)
 
-This records the choices behind the widefield analysis pipeline so future runs are
-reproducible and the per-session quirks are explicit. "Global" = applies to every
-session; "Session-specific" = decided per recording because the data differ.
+The durable choices and results behind the widefield analysis pipeline, so future runs are reproducible
+and the per-decision rationale is explicit. Merged 2026-08-09 from the former `DECISIONS.md`
+(pipeline/preprocessing) and `LOCANMF_LICK_CUE_ANALYSIS.md` (behavioral analysis + findings F1–F17).
 
-Last updated: 2026-06-03.
+**Companions:** open/actionable items → `TASKS.md`; how to run the nightly → `runbooks/`; step-level
+commands → `wfield_local/README.md`; dated incident/status records pruned from here →
+`docs/archive/ANALYSIS_HISTORY.md`; dead-strobe-bit recovery → `STROBE_BIT1_RECOVERY.md`.
+
+## The endpoint this is building toward
+Compare **cortex-wide activity when the animal tries to lick to each spout position, pre vs post stroke**.
+Stroke = **ventrolateral striatum (subcortical)** → the imaged cortex is structurally intact, so this is a
+*functional* reorganization question, not lesioned-cortex. Mice PS92/PS93/PS94/PS95; **PS93 has a RIGHT
+orofacial deficit** (tongue deviates right, minimal right whisking) — the lateralization angle.
+
+---
+
+# Part I — Preprocessing & pipeline decisions
 
 ## Global decisions
-
-- **Dual-wavelength**: 470 nm = functional (GCaMP), 415 nm = isosbestic reference.
-  Hemodynamic correction = 470 − β·415, fit in SVD space by `wfield`
-  (`hemodynamic_correction`), which highpass-filters both channels at 0.1 Hz
-  (this already removes slow LED drift — see photobleaching note below).
-- **Channel identity comes from the DAQ LED TTLs**, not frame parity. The
-  relabel step (`trim_illuminated_labcams`) assigns 415/470 from
-  `led415_ttl`/`led470_ttl`, so channel identity is correct regardless of the
-  per-session parity ambiguity.
-- **Allen alignment grid**: all spatial maps are warped to the **540×640 Allen
-  atlas grid** (`apply_allen_transform --dims 540 640`), not the native ROI size,
-  with the atlas built in **reference space** (`do_transform=False`). This keeps
-  ROI-cropped recordings aligned with the atlas.
-- **Alignment transform (this batch)**: **8-point affine** with the lateral
-  anchors (OB_center/L/R, RSP_base, MOp_L/R, SS_L/R), from the hand-placed
-  `dorsal_cortex_landmarks_v1.json` per session. The lateral MOp/SS points break
-  the medial collinearity so an affine (independent AP/ML scale + shear) is
-  well-constrained, vs the earlier 4-point similarity used in the original deck.
-  Output dirs/labels use the tag **`affine8v1`** so nothing prior is overwritten.
-- **Cue-aligned maps**: per spout position, mean over 1 s pre-cue and 1 s
-  post-cue, plus the post−pre **delta**. Spout position from
-  `spout_strobe` + `spout_bit0/1/2` (code = bit0 + 2·bit1 + 4·bit2 at the most
+- **Dual-wavelength**: 470 nm = functional (GCaMP), 415 nm = isosbestic reference. Hemodynamic correction =
+  470 − β·415, fit in SVD space by `wfield` (`hemodynamic_correction`), which highpass-filters both channels
+  at 0.1 Hz (this already removes slow LED drift — see photobleaching note).
+- **Channel identity comes from the DAQ LED TTLs**, not frame parity. The relabel step
+  (`trim_illuminated_labcams`) assigns 415/470 from `led415_ttl`/`led470_ttl`, so channel identity is correct
+  regardless of the per-session parity ambiguity.
+- **Allen alignment grid**: all spatial maps are warped to the **540×640 Allen atlas grid**
+  (`apply_allen_transform --dims 540 640`), not native ROI size, with the atlas built in **reference space**
+  (`do_transform=False`). Keeps ROI-cropped recordings aligned with the atlas.
+- **Alignment transform**: **8-point affine** with the lateral anchors (OB_center/L/R, RSP_base, MOp_L/R,
+  SS_L/R), from the hand-placed `dorsal_cortex_landmarks_v1.json` per session. The lateral MOp/SS points break
+  medial collinearity so an affine (independent AP/ML scale + shear) is well-constrained, vs the earlier
+  4-point similarity. Output dirs/labels use the tag **`affine8v1`**.
+- **Cue-aligned maps**: per spout position, mean over 1 s pre-cue and 1 s post-cue, plus the post−pre
+  **delta**. Spout position from `spout_strobe` + `spout_bit0/1/2` (code = bit0 + 2·bit1 + 4·bit2 at the most
   recent strobe before the cue).
-- **Lick-aligned maps**: per spout position, mean over 150 ms post-lick. Licks
-  from `lick_analog` (upper/lower thresholds 2.5/1.0 V, 1–20 ms lockout, 100 ms
-  refractory). **Delta-position lick maps** = pairwise position contrasts
-  (position A post-lick − position B post-lick).
-- **Mean image + Allen overlay**: 415/470 mean motion-corrected frames warped to
-  the atlas grid, with Allen region outlines (from `frames_average_atlas.npy`).
+- **Lick-aligned maps**: per spout position, mean over 150 ms post-lick. Licks from `lick_analog`
+  (upper/lower thresholds 2.5/1.0 V, 1–20 ms lockout, refractory) + a **40 ms physiological min-ILI floor**
+  (`configs/defaults.yaml lick_detection.min_ili_ms`, applied pipeline-wide). **Delta-position lick maps** =
+  pairwise position contrasts.
+- **Mean image + Allen overlay**: 415/470 mean motion-corrected frames warped to the atlas grid, with Allen
+  region outlines (from `frames_average_atlas.npy`), drawn by the shared `atlas_overlay.region_edges`.
 - **Frame rate**: 31.23 Hz per channel.
-- **Versioning of figure dirs/labels** has historically tracked **code
-  iteration** (e.g. `_v2`, `_v6`), NOT the landmark-JSON version. This batch uses
-  `affine8v1` to denote the 8-pt-affine landmarks-v1 alignment.
+- **Sign-fixed motion correction** (`run_wfield_motion` → `motion_correct_fixed.py`, `--mode 2d`) is the
+  standard path; the wfield 0.4.2 sign bug is remediated (history: `docs/archive/MOTION_CORRECTION_SIGN_BUG.md`).
+- **Figure-dir/label versioning** tracks **code iteration**, not the landmark-JSON version; `affine8v1`
+  denotes the 8-pt-affine landmarks-v1 alignment.
 
 ## Event→frame mapping: two regimes (session-specific)
+The corrected movie (SVTcorr) is indexed by paired 415/470 timepoints. Mapping a DAQ event to a
+corrected-frame index depends on whether the movie was relabeled:
+- **Regime A — raw recording (no relabel)**: corrected frame = (nearest `pco_exposure` pulse to the event)
+  // 2. Used when the movie is the full contiguous recording (`frame_align=pco`).
+- **Regime B — relabeled "cleanpairs" movie**: the movie is a non-contiguous subset of kept pairs, so raw//2
+  is wrong. Each corrected frame `t` maps to DAQ sample
+  `pco_samples[frame_map["original_frame_index_ch0"][t] + chosen_exposure_offset]`; events map to the nearest
+  such sample. `chosen_exposure_offset` is read from the per-session `*_cleanpairs_summary.json` (**differs
+  per session**). A contiguity guard rejects windows crossing a trial/kept-frame boundary. **Regime is
+  validated by SENSIBLE DECODING (SSp ≫ chance), not by RT.** (6/2–8/7 have all been B.)
 
-The corrected movie (SVTcorr) is indexed by paired 415/470 timepoints. Mapping a
-DAQ event (cue/lick) to a corrected-frame index depends on whether the movie was
-relabeled:
+## Photobleaching / LED drift
+The **isosbestic 415 declines ~9–16%** over a session while the **functional 470 is stable (±2–3%)**. True
+GCaMP photobleaching would hit 470 hardest, so the 415-specific decline is **violet-LED drift**, not
+bleaching. The 0.1 Hz highpass in hemo-correction already removes it, so ΔF/F is uncontaminated.
+`run_wfield_local` also exposes `--detrend-order` + `--freq-highpass` for a gentler highpass when wanted.
 
-- **Regime A — raw recording (no relabel)**: corrected frame = (nearest
-  `pco_exposure` pulse to the event) // 2. Used when the movie is the full,
-  contiguous recording. (`frame_align=pco` in the stock plotters.)
-- **Regime B — relabeled "cleanpairs" movie (`--relabel-mode rescue`)**: the
-  movie is a non-contiguous subset of kept 415/470 pairs, so raw//2 is wrong.
-  Each corrected frame `t` maps to DAQ sample
-  `pco_samples[frame_map["original_frame_index_ch0"][t] + chosen_exposure_offset]`;
-  events map to the nearest such sample. `chosen_exposure_offset` is read from the
-  per-session `*_cleanpairs_summary.json` (**differs per session**). A contiguity
-  guard rejects windows that cross a trial/kept-frame boundary.
+## Cross-day & cross-animal alignment policy
+- **Within animal, across days**: register the motion-corrected **mean 470 nm vasculature** to a chosen
+  reference session (`cross_day_align.py`): landmark-init → intensity-based ECC affine refine (SIFT+RANSAC
+  fallback), composed into the reference/CCF frame. Vasculature is a denser, more repeatable fiducial than
+  the ~8 landmarks. Keep the **same ROI/zoom** across days (full-FOV↔ROI pairs register poorly). QC = masked
+  NCC + red/green vessel overlay.
+- **Across animals**: vasculature is not shared, so the **only** common frame is the Allen atlas. Compare at
+  the **ROI / Allen-area level** (or via LocaNMF components), not pixelwise; group pixel maps are for
+  visualization only.
 
-## Per-session table
+## Relabel step for future recordings
+Recommended even with the trial-gated acquire-enable firmware: it drops stray illuminated/dark frames and
+guarantees deterministic 415/470 pairing + the `frame_map` that regime-B alignment needs. Use
+`--relabel-mode acquire-enable` for trial-gated recordings; `rescue` for older continuously-saved sessions.
+The cleanpairs **movie** is a deletable/regenerable intermediate, but the relabel **step** + its small
+`frame_map` stay in the pipeline.
 
-| Session | FOV (native) | Relabel | Mapping | DAQ h5 | Notes |
-|---|---|---|---|---|---|
-| 6/1 PS94 (`20260601/PS94_20260601_141614`) | 540×640 full | no | A (raw//2) | `PS94_baseline_20260601_141642.h5` | "baseline"-named file but contains task cue/strobe/lick |
-| 6/1 PS95 (`20260601/PS95_20260601_153653`) | 540×640 full | no | A (raw//2) | `PS95_baseline_20260601_153627.h5` | same |
-| 6/2 PS92 (`20260602/PS92/PS92_20260602_151820/illuminated_rescue`) | 487×480 ROI | yes (offset 1) | B (frame_map) | `PS92_20260602_152607.h5` | **functional-channel swap fixed**: use `SVTcorr.npy` (the `*_functional1_WRONG.npy` are bad) |
-| 6/3 PS92 (`20260603/PS92/PS92_20260603_104008`) | 477×464 ROI | yes (offset 0) | B (frame_map) | `PS92_20260603_104607.h5` | functional channel assumed correct via DAQ relabel (verify) |
-| 6/3 PS94 (`20260603/PS94`) | 462×464 ROI | yes | B (frame_map) | `PS94_20260603_175946.h5` | SVD pending at time of writing |
-| 6/3 PS95 (`20260603/PS95/.../PS95_20260603_194442`) | 462×464 ROI | yes | B (frame_map) | `PS95_20260603_194902.h5` | motion+SVD pending at time of writing |
-
-## Photobleaching / LED drift (context)
-
-Across sessions the **isosbestic 415 declines ~9–16%** over a session while the
-**functional 470 is stable (±2–3%, two longest sessions −6 to −7%)**. Because true
-GCaMP photobleaching would hit 470 hardest, the 415-specific decline is attributed
-to **violet-LED drift**, not fluorophore bleaching. The hemo-correction's 0.1 Hz
-highpass already removes this slow drift, so it does not contaminate ΔF/F.
-`run_wfield_local` also exposes `--detrend-order` + `--freq-highpass` for cases
-where a gentler highpass is wanted (keep slow signal, still remove LED drift).
-
-## Decomposition: SVD + atlas now; PMD/LocaNMF not yet
-
-Our local pipeline (`run_wfield_local`) does **SVD** (wfield `approximate_svd`,
-mean-centered ΔF/F, `divide_by_average=True`, k≈100) → **hemodynamic correction in
-SVD space** → **Allen landmark alignment**. Activity maps are `U @ SVTcorr` averaged
-over event windows. We do **NOT** currently run **PMD** (penalized matrix
-decomposition denoising) or **LocaNMF** (localized semi-NMF), which the wfield /
-NeuroCAAS protocol (Couto et al., *Nat Protoc* — PMC8788140) recommends as the next
-steps after SVD: PMD denoises/compresses, then LocaNMF re-factorizes the low-rank
-data into **non-negative, anatomically-localized components anchored to Allen
-regions** (Saxena et al., *PLoS Comput Biol* 2020, pcbi.1007791). Versus raw SVD
-components (delocalized, not reproducible across sessions), LocaNMF components are
-interpretable and **reproducible across sessions and animals** — the natural unit
-for cross-animal and functional-subnetwork analyses (e.g. Nat Neurosci
-s41593-022-01245-9).
-
-Decision: stay on SVD + atlas for evoked maps and within-animal work (adequate).
-Add LocaNMF when we move to cross-animal / subnetwork analysis. Constraint: this
-machine has **no CUDA GPU and no torch/locanmf installed**; LocaNMF is GPU-oriented,
-so the practical paths are (a) **NeuroCAAS cloud** (the intended wfield route; we
-have `wfield_local/wfield_ncaas_fixed.py`), or (b) a GPU box with `locanmf`+`torch`.
-LocaNMF consumes exactly what we already produce (low-rank `U`/`SVTcorr` + the
-`allen_area_atlas_native_grid` atlas), so it is a clean bolt-on.
-
-## Cross-day and cross-animal alignment policy
-
-- **Within animal, across days**: register the motion-corrected **mean 470 nm
-  vasculature** to a single chosen reference session (`cross_day_align.py`):
-  landmark-init → intensity-based ECC affine refine (SIFT+RANSAC fallback),
-  composed into the reference/CCF frame. Vasculature is a far denser, more
-  repeatable fiducial than the ~8 landmarks, whose independent per-session errors
-  otherwise compound day-to-day. Keep the **same ROI/zoom** across days (full-FOV↔ROI
-  pairs register poorly). QC = masked NCC + red/green vessel overlay.
-- **Across animals**: vasculature is not shared, so the **only** common frame is the
-  Allen atlas (landmarks). Compare at the **ROI / Allen-area level** (or via LocaNMF
-  components), not pixelwise; group pixel maps are for visualization only.
-
-## Outline rendering fix (atlas overlay)
-
-Region outlines are now drawn by the shared `wfield_local/atlas_overlay.region_edges`
-(used by all plot modules). The earlier per-module version marked only the upper/left
-pixel of each label transition then masked to labeled pixels, dropping the brain's
-**left and anterior (top) outer borders** (the open left-anterior / olfactory-bulb
-edge). The shared version marks both pixels of each transition before masking, so the
-outline closes all around (verified left border 96/524 → 524/524).
+## Quiet-period baseline (behavior-controlled F0)
+Trial-triggered acquisition records no true inter-trial rest, so a behavior-controlled baseline detects
+"quiet" frames (not running, not near a lick, not peri-reward), intersected with the pre-cue ENL window or
+pooled as F0 (`quiet_periods.py` → `*_quiet_frame.npy`; ported from stroke_orofacial `find_quiet_bouts`).
+Two rig-specific decisions: (1) **grooming OFF by default** — the stroke detector needs two spouts;
+single-spout long-touch is unreliable (a true long close-spout lick also looks long). (2) **thresholds are
+provisional** — running/quiet speed, min durations, lick/reward/treadmill buffers are stroke defaults; tune
+per rig, ideally validated against DLC/FaceRhythm movement (see `TASKS.md`).
+- **Quiet-normalized lick activity**: pass `--quiet-frame` to the lick plotter to emit both the raw
+  post-lick map and a `*_quietnorm*` map (post-lick − mean quiet baseline = lick-evoked relative to the
+  not-running/not-licking state).
 
 ## Server layout, archiving & safety
+Two institutional file servers (copy-only; **never delete from a server without explicit per-action
+permission**, and **only ever write inside the `Priya\` folder**):
+- **M: (standby)** = `\\standby.files.med.harvard.edu\hms\neurobio\sabatini\collaborations\Priya`. The
+  **huge files**: raw `.dat` in `raw_widefield_data\` AND the motion-corrected `.bin` in `motion_corrected\`
+  (the bin lives here, NOT on MICROSCOPE, to save N: space).
+- **N: (MICROSCOPE)** = `\\research.files.med.harvard.edu\Neurobio`, folder `N:\MICROSCOPE\Priya\`.
+  **Analyzed data except the corrected video**: SVD (U/SVT/SVTcorr), Allen alignment, maps/QC, DAQ, decks →
+  `…\Widefield\labcams\`. LocaNMF only needs SVTcorr + the atlas, so the GPU is unaffected. Copy excludes the
+  regenerable raw + cleanpairs `*_uint16.dat`.
+- `wfield_local/archive_day.py` implements this (raw + bin → M:, rest → N:); `writeguard.assert_writable`
+  refuses writes/deletes outside the Priya subtree.
 
-Two institutional file servers (copy-only; **never delete from a server without
-explicit per-action permission**, and **only ever write inside the `Priya\` folder**):
+---
 
-- **M: (standby)** = `\\standby.files.med.harvard.edu\hms\neurobio\sabatini\collaborations\Priya`.
-  Holds the **huge files**, mirroring the session tree at
-  `M:\Widefield\labcams\<date>\<session>\` (folder renamed from `labcams_raw_data`):
-  the **raw** `.dat` in `raw_widefield_data\` AND the **motion-corrected** `.bin` in
-  `motion_corrected\` (the bin lives here, NOT on MICROSCOPE, to save N: space — it
-  was previously on N:). Not camlogs/cleanpairs/analysis on M:. Copy → verify sizes →
-  confirm → then delete E: originals.
-- **N: (MICROSCOPE)** = `\\research.files.med.harvard.edu\Neurobio`, folder
-  `N:\MICROSCOPE\Priya\`. **Analyzed data EXCEPT the corrected video**: SVD
-  (U/SVT/SVTcorr), Allen alignment, maps/QC, DAQ, PPTs →
-  `N:\MICROSCOPE\Priya\Widefield\labcams\<rel path>\`. The motion-corrected `.bin`
-  is NOT kept here (moved to M: standby); LocaNMF only needs SVTcorr + the atlas, so
-  the GPU is unaffected. Copy excludes the regenerable raw + cleanpairs `*_uint16.dat`.
-  `wfield_local/archive_day.py` implements this policy (raw + bin → M:, rest → N:).
+# Part II — LocaNMF decomposition
 
-## Motion-correction sign bug (wfield 0.4.2)
+Runs on the GPU box (`wfield_local/run_locanmf.py` → `wfield.local_nmf.compute_locaNMF` on an
+`allen_aligned_*` folder; needs PyTorch + `locanmf` + a CUDA GPU). Kickoff + env recipe:
+`docs/archive/GPU_LOCANMF_KICKOFF.md` / `GPU_LOCANMF_RUNLOG.md`. LocaNMF consumes exactly what preprocessing
+already produces (low-rank `U`/`SVTcorr` + the native-grid atlas), so it is a clean bolt-on; vs raw SVD
+components (delocalized, not reproducible) its components are interpretable and **reproducible across sessions
+and animals** — the natural unit for cross-animal / functional-subnetwork analyses.
 
-wfield's 2D motion correction (`registration_upsample`) applied the phase-correlation
-offset with the WRONG sign (`+` instead of `-`), **doubling** drift instead of
-removing it. Invisible on sub-pixel sessions; catastrophic on large drift (PS93
-2026-06-06, ~8.5 px → ~17 px residual, blurry corrected mean). Fixed in
-`wfield_local/motion_correct_fixed.py` (sign-corrected drop-in; vendored because
-`runpar` uses multiprocessing); `run_wfield_motion` now imports `motion_correct`
-from there. **PS93 6/6 and PS94 6/5 were re-processed with the fix; all other
-sessions used the buggy-but-negligible (<1.1 px median) correction.** Full record +
-per-session triage in `docs/archive/MOTION_CORRECTION_SIGN_BUG.md`.
+## Parameters (decided 2026-06-04): `r2_thresh=0.95, loc_thresh=80, maxrank=20`
+Chosen from a 2×2 sweep (`r2_thresh` ∈ {0.95, 0.99} × `loc_thresh` ∈ {70, 80}) on PS94 6/3 and PS95 6/3
+(`sweep_locanmf.py`), driven by a per-component **localization metric** = fraction of a component's spatial
+energy inside its seed Allen region (artifacts are delocalized → score low).
+- **`loc_thresh=80` is the artifact knob and a near-free cleanup.** Raising 70→80 removed the
+  low-localization artifact tail while barely changing component count (PS94 6/3 → median loc 83 %, **0**
+  components <50 %; PS95 6/3 → median 89 %, **0** <30 %). Only bleed/vessel components are affected.
+- **`r2_thresh=0.95` over 0.99.** 0.99 over-splits (near-duplicate pairs + noise-fitting); 0.95 captures the
+  same structure with far less junk, and over-splitting is separable post-hoc by the localization metric.
+- **Bilateral patterns are preserved**, not lost. The atlas seeds each hemisphere separately, so bilateral
+  activity = a homotopic L/R pair of unilateral components with correlated traces (recover via trace
+  correlation or map summing), never a single bilateral map — true at any `loc_thresh`. Cleaner
+  per-hemisphere traces make bilateral synchrony measured *better* (PS94 6/3 SSp-m L/R trace r 0.35→0.85) and
+  reveal lateralization (SSp bilateral ~0.8; MOp/MOs lateralized ~0.4) a forced-bilateral component masks.
 
-See the [[microscope-server-safety]] memory for the hard rules.
-
-## LocaNMF (run on the GPU machine)
-
-`wfield_local/run_locanmf.py` runs `wfield.local_nmf.compute_locaNMF` on an
-`allen_aligned_*` folder (`U_atlas` + `allen_area_atlas_native_grid` +
-`allen_brain_mask_native_grid` + `SVTcorr`) → localized components `A`/`C`/`regions` +
-montage. Needs PyTorch (the `torch` package) + the `locanmf` package + a CUDA GPU; this
-rig PC has none, so it runs on the NVIDIA box. `docs/archive/GPU_LOCANMF_KICKOFF.md` is the paste-ready
-kickoff (clone repo → set up torch+locanmf env matching the GPU's CUDA → read data from
-`N:\MICROSCOPE\Priya\...` → run). There is no maintained newer-Python *prebuilt* locanmf;
-newer Python compiles the extension from source (see the script header).
-
-**Run log (2026-06-04, RTX 4060 box):** see `docs/archive/GPU_LOCANMF_RUNLOG.md` for the env recipe
-that worked (py3.10 + torch 2.6.0+cu124 + wfield 0.6.0 + locanmf-from-source), the 3
-torch-compatibility patches modern torch needs (`wfield_local/locanmf_torch_compat.patch`),
-the `M:` (not `N:`) drive mapping on that machine, and the `cuhals` CUDA-kernel build
-(MSVC v143 + CUDA 12.4; `wfield_local/locanmf_cuhals_win_build.patch`) which gives ~5×
-faster runs with equivalent results.
-
-### LocaNMF parameters (decided 2026-06-04): `r2_thresh=0.95, loc_thresh=80, maxrank=20`
-
-Chosen from a 2×2 sweep (`r2_thresh` ∈ {0.95, 0.99} × `loc_thresh` ∈ {70, 80}) on **PS94 6/3
-and PS95 6/3** (`wfield_local/sweep_locanmf.py`; kill-safe/resumable). Decision driven by a
-per-component **localization metric** = fraction of a component's spatial energy inside its
-seed Allen region (artifacts — vessels/midline-sinus/FOV-edge/OB — are *delocalized*, so they
-score low; real region-anchored components score high).
-
-- **`loc_thresh=80` is the artifact knob and a near-free cleanup.** It is LocaNMF's target on
-  the in-region energy fraction (ramps the per-component spatial-locality penalty λ until met).
-  Raising 70→80 removed the low-localization artifact tail while barely changing component
-  count: PS94 6/3 → median loc 83 %, **0** components <50 % (vs 5 at loc70); PS95 6/3 → median
-  89 %, **0** components <30 % (vs 13×<50 % at loc70). Well-localized components already clear
-  the bar, so only the bleed/vessel components are affected.
-- **`r2_thresh=0.95` over 0.99.** 0.99 over-splits (near-duplicate pairs + noise-fitting in
-  large regions): PS95 6/3 r2=0.99/loc70 gave 223 components with 63 delocalized (<50 %)
-  artifacts. 0.95 captures the same structure with far less junk; over-splitting is also
-  separable post-hoc by the localization metric, so 0.95 is the safe default.
-- **Bilateral patterns are preserved**, not lost. The atlas seeds each hemisphere separately,
-  so bilateral activity = a homotopic L/R **pair of unilateral components with correlated
-  temporal traces** (recover via trace correlation or summing the two maps), never a single
-  bilateral spatial map — true at any `loc_thresh`. `loc_thresh=80` does **not** decorrelate
-  the hemispheres; cleaner per-hemisphere traces make bilateral synchrony measured *better*
-  (PS94 6/3 SSp-m L/R trace r: 0.35 at loc70 → 0.85 at loc80). The split representation also
-  reveals lateralization (PS94 6/3: SSp orofacial-sensory bilateral ~0.8; MOp/MOs motor
-  lateralized ~0.4) that a forced-bilateral component would mask.
-
-QC per run: two montages (`*_components.png` region-ordered + `*_components_byenergy.png`
-energy-ranked, auto-emitted by `run_locanmf.py` via `wfield_local/montage_by_energy.py`) plus
+QC per run: two montages (`*_components.png` region-ordered + `*_components_byenergy.png` energy-ranked) +
 the localization metric. Outputs go to a new `locanmf_*` subfolder; nothing prior overwritten.
 
-**Behavioral analysis + position decoder:** see **`LOCANMF_LICK_CUE_ANALYSIS.md`** for the
-lick/cue-evoked analysis decisions and findings (normalization journey → use ΔF/F for
-cross-animal; region-pooled LocaNMF ≡ Allen-ROI r≈0.99 → reserve LocaNMF for per-component /
-model basis; contralateral SSp tuning; orofacial responses are lick(motor)-driven) and the
-**stroke-study plan** (cue-anchored per-position logistic-regression decoder, per-session vs
-frozen-pre-stroke comparison, engagement = movement-gated not lick-gated, DLC/facerhythm +
-cross-day registration prerequisites).
+## When is LocaNMF actually helpful (the synthesis)
+- **Not** for region-level evoked responses / ROI summaries → that equals an Allen-ROI average (F5) with
+  extra scale-ambiguity; use ROIs/pixel maps there.
+- **Yes** for: (a) demixing overlapping/contaminated sources, (b) sub-region structure (multiple
+  components/region), and especially (c) a **compact, denoised, interpretable, atlas-anchored basis for
+  models** — decoding/encoding/connectivity/single-trial — where it beats SVD (interpretability) and ROIs
+  (single-trial SNR, multi-area joint model). The position decoder (F10) is the canonical good use.
 
-## Significant local-analysis modules (added during this work)
+---
 
-- `wfield_local/atlas_overlay.py` — shared region-outline helper (the fix above).
-- `wfield_local/framemap_event_maps.py` — cue/lick maps for **relabeled cleanpairs**
-  movies (regime B), generalizing the one-off `_ps92_spout/_ps92_lick`; emits the
-  same filenames as the stock plotters so downstream contrast/mean/cue-vs-lick steps
-  are reused. `chosen_exposure_offset` is read per session.
-- `wfield_local/qc_motion_correction.py` — per-session motion-correction QC (shift
-  traces + magnitude histogram, raw-vs-corrected sharpness, residual-motion std,
-  pass/warn verdict).
-- `wfield_local/cross_day_align.py` — within-animal cross-day vasculature registration
-  (above).
-- `wfield_local/run_locanmf.py` + `docs/archive/GPU_LOCANMF_KICKOFF.md` — LocaNMF (and sNMF via
-  `--mode`) on the GPU box.
-- `wfield_local/roi_activity.py` — CPU Allen-area ROI traces (region-averaged ΔF/F)
-  + optional cue/lick per-region responses; lightweight baseline alongside LocaNMF.
-- `wfield_local/quiet_periods.py` — quiet-period (not running/licking/peri-reward)
-  per-frame mask for behavior-controlled baseline F0; ported from the
-  stroke_orofacial_pipeline `find_quiet_bouts`, adapted for one spout.
+# Part III — Behavioral analysis decisions
 
-## Quiet-period baseline (and params to tune later)
+- **Lick events split by the 6 spout positions** (close/far × L/center/R) via `_classify_events` /
+  `_classify_cues` (spout strobe + bits). Cue = the *intended* position. **The cue is a 1 kHz, 75 ms tone.**
+- **Components kept INDIVIDUAL, labeled by Allen region — NOT pooled.** Pooling within a region ≈ an Allen-ROI
+  average (F5), throwing away LocaNMF's only value-add. Region label is for cross-animal *identity*, not
+  averaging.
+- **Normalization → use ΔF/F for cross-animal magnitude** (the journey, F3/F4): quiet-period z is unusable
+  cross-animal (PS92's quiet mask is contaminated → deflated z); a data-driven "quietest-frames SD"
+  over-corrects; pre-cue-1 s z is a comparable baseline; but **physical ΔF/F** via the scale-invariant
+  footprint weight `s_i = Σ Aᵢ²/Σ Aᵢ` (`dff_i = s_i·C_i`, Churchland convention) is best — no SD, removes
+  LocaNMF's scale ambiguity. **Within-component contrasts** (e.g. contralateral index) are
+  normalization-robust regardless.
+- **Stats: animal is the unit of replication** (mean ± SEM across mice), not across components/trials.
+- **Engagement (critical for the stroke comparison):** exclude *disengaged blocks* (extended no-lick **and**
+  no-movement), but define engagement by **movement/arousal, NOT per-trial lick success** — post-stroke a
+  no-lick trial is a *failed attempt* (the deficit to keep). Lick-density gating is a first pass; upgrade to
+  movement-gated once DLC is up. The DAQ cue/strobe stream tracks the **rewarded subset** (reward held after
+  ~6 misses), which conveniently doubles as an engagement filter dropping the disengaged tail — keep this
+  scoping; unrewarded trials belong to the future failed-attempt analysis.
 
-Trial-triggered acquisition records no true inter-trial rest, so for a behavior-
-controlled baseline we detect "quiet" frames within the recording (not running, not
-near a lick, not peri-reward) and intersect with the pre-cue ENL window (or pool as
-F0). Logic is ported from the stroke pipeline (`find_quiet_bouts`). Two rig-specific
-decisions: (1) **grooming OFF by default** — the stroke detector needs two spouts
-(bilateral conjunction); single-spout long-touch is unreliable because a true long
-lick at our close spouts also looks long. (2) **thresholds are provisional** —
-running/quiet speed, min durations, and lick/reward/treadmill buffers are stroke
-defaults (the 8 s reward buffer is generous for short ENL); **tune per rig/task**,
-ideally validated against DLC/FaceRhythm movement (the future movement regressor) —
-not yet available. Done on the `quiet-period-baseline` branch to avoid colliding with
-the GPU machine's LocaNMF work on `main`.
-- `run_wfield_local` — added `--detrend-order` and exposed `--freq-highpass` /
-  `--freq-lowpass` (the default 0.1 Hz highpass already removes the slow 415 LED
-  drift; detrend is for when a gentler highpass is wanted).
+---
 
-## Data lifecycle, archival & deletions (2026-06-04)
+# Part IV — Findings (F1–F17)
 
-Storage now has three tiers; **new analysis outputs go to N: (`...\Priya\...`)** going forward:
-- **Raw** `.dat` -> **M:** standby, verified, then deleted from E: (~648 GB freed).
-- **Analyzed** (motion-corrected `.bin`, SVD/alignment, maps, QC, decks) -> **N:**
-  `MICROSCOPE\Priya\Widefield\labcams`, verified (0 missing).
-- **DAQ** `.h5` -> **N:** `MICROSCOPE\Priya\Widefield\DAQ_recorder_output`, verified,
-  then deleted from E: (4.5 GB).
-- Deleted from E: after verification: the motion-corrected `.bin` (~621 GB, on N:) and
-  the **cleanpairs movies** `*_cleanpairs_*_uint16.dat` (~340 GB, regenerable from the
-  M: raw via relabel; intentionally NOT archived).
-- **Kept on E:** SVD/alignment/maps/QC outputs (for fast local re-analysis) and the
-  small `*_cleanpairs_frame_map.npz/.csv` + `*_cleanpairs_summary.json` (needed for
-  regime-B event alignment; these ARE also on N:). All server ops are copy-only and
-  only inside `Priya\` (see [[microscope-server-safety]]).
+- **F1. Orofacial responses are predominantly lick(motor)-driven**, not cue(sensory): on cue-no-lick trials
+  the orofacial cortex is ~flat while cue+lick is large.
+- **F2. Cue→first-lick RT ≈ 0.16 s** (very fast) → cue and lick are tightly collinear; hard to separate
+  sensory from motor.
+- **F3. The "PS95 > PS94 > PS92" cross-animal amplitude order was mostly a normalization artifact.** PS92's
+  quiet mask has quiet-SD/total-SD ≈ 0.97 so its quiet-z denominator is inflated (z deflated ~45× vs ~10×).
+  In **ΔF/F + animal-level stats the three mice are tightly consistent.**
+- **F4. NOT a 470/415 frame-parity artifact** (lag-1 autocorr +0.99, ~0 % Nyquist power; a parity artifact
+  would be ≈ −1 / ~80 %). Frames are indexed correctly.
+- **F5. Region-pooled LocaNMF ≡ Allen-ROI ΔF/F** (`mean_pixels(U_region)·SVTcorr`): trace correlation median
+  **r ≈ 0.99** (SS) / 0.985 (MO). So **for region-level work use ROIs**; reserve LocaNMF for per-component
+  analyses.
+- **F6. Contralateral somatosensory tuning is real and reproduced by LocaNMF.** Within-component
+  post-lick-150 ms position×hemisphere contrast: contralateral-spout licks larger in **100 % of SSp
+  components**. Motor contralateral *modulation* (scale-free index) is **comparable to SSp**, just more
+  variable — the earlier "motor less lateralized" claim was an absolute-amplitude artifact and is retracted.
+- **F7. far_center outlier = PS95-specific** (both its sessions ~1.8–2.2× others), not sampling.
+- **F8. Cue+lick FIR encoding model**: R² ~3–6 % only, cue/lick collinear → the sensory/motor *split is
+  unstable*. Consistent with Musall (cortex movement-dominated); a real separation needs **video-derived
+  movement regressors**.
+- **F9. Auditory positive-control inconclusive due to coverage.** Cue is auditory (tone), but AUD ROI signal
+  is **~3–4× weaker than SSp** every session (auditory cortex under-sampled at the lateral window edge). Not
+  evidence against an auditory response.
+- **F10. Spout position decodes strongly from cortex.** 6-way logistic regression on individual LocaNMF
+  components, engaged trials. **Canonical method (F12): no per-trial baseline, block-aware CV, first-lick
+  aligned, 2 s window** → **0.67 / 0.83 / 0.85** (PS92/PS94/PS95 6/3; chance 0.17). **SSp carries it
+  (SSp-only 0.62–0.77) >> MO (MO-only 0.33–0.52).** Top features are **orofacial SSp subfields (SSp-m/n/un/bfd),
+  CONTRALATERAL to the spout**; MOp/MOs ~9–16 % of weight, most for *far* positions. Confusions are between
+  adjacent spouts. First-lick > cue alignment. **Window ~2 s is optimal** (integrates the lick bout; ITI ~7 s
+  so no cross-trial bleed).
+- **F11. No-lick trials decode at ≈ chance** (train engaged, apply to no-lick, cue-aligned: 6/3
+  0.29/0.11/0.20; chance 0.17). (a) A clean **negative control** (no confound exploited); (b) confirms the
+  position code is **lick/engagement-driven** (F1); (c) baseline no-lick = **disengagement**, but post-stroke
+  no-lick = **failed attempts** — the real test (if they decode *above* this chance baseline, intent is
+  preserved despite motor failure). **Must separate failed-attempt from disengaged via movement/video.**
+- **F12. Decoder methodology (load-bearing for the stroke pre/post).** (i) Positions are presented in
+  ~6-trial **BLOCKS** (P(stay)≈0.84); with random k-fold, same-block trials land in train *and* test → the
+  decoder reads each block's slow-drift fingerprint (inflation; symptom: pre-cue "decoded" 0.47–0.65). **Use
+  block-aware CV (leave-whole-blocks-out).** (ii) **No per-trial baseline** — a session-constant baseline is
+  removed by feature standardization (identical decoding); a per-trial pre-cue baseline **over-subtracts**
+  real anticipatory signal. (iii) The pre-cue window decodes position **above chance even under block-CV**
+  (6/3 0.40–0.56) = genuine anticipatory coding. `locanmf_position_decoder.py` defaults `--baseline none
+  --cv block`; toggles `--baseline precue`, `--cv random`.
+- **F13. Pre-cue (anticipatory) decoding — the motor-independent post-stroke readout.** Train on engaged
+  trials' pre-cue window, block-CV (6/3 0.40/0.55/0.56). Applied to **no-lick** trials it decodes **above
+  chance** (6/3 0.26/0.34/0.22) — unlike the post-cue no-lick decode (F11). So the **maintained position code
+  is readable without a lick** — the ideal readout for post-stroke failed attempts. **Validated by a
+  time-only control** (position not decodable from cue-time alone, 0.02–0.11). *Caveat:* pre-cue may carry
+  ongoing inter-trial movement → needs video.
+- **F14. Baseline (pre-stroke) variability is LARGE — 3 days/animal.** Post-lick 2 s decoding: PS92 range
+  0.21; PS94 range **0.55**; PS95 range 0.41. 6/4 is the low day for PS94 & PS95, tracking engagement.
+  **Design implication:** a single pre-vs-post contrast is uninterpretable — need multiple baseline days,
+  engagement/movement matching, and per-position/per-region contrasts (more stable) + the F13 pre-cue readout.
+- **F15/F15a. PS93 hemisphere asymmetry (holds at n=3, 6/5–6/7; `locanmf_cross_mouse.py`).** Motivated by
+  PS93's RIGHT orofacial deficit. Per-mouse SSp-hemisphere-only decoding (first-lick 2 s, block-CV): **PS93
+  SSp-LEFT 0.43 << SSp-RIGHT 0.55 (L−R = −0.12)** vs near-symmetric others (PS92 +0.02, PS94 +0.06, PS95
+  +0.01) — PS93 is the only mouse with a large SSp L-vs-R asymmetry, its LEFT (contralateral to the deficit)
+  weakest. Behavioral R-spout recall intact (0.82) → **cortical-hemisphere, not spout-side**. Encoding EV
+  reinforces it (PS93 close_R negative, close_L well-encoded). Bar panels show mean ± SEM with session points;
+  the encoder reports raw EV and **normalized-to-1.0 FEVE**.
+- **F16. RSA — representational geometry (within vs across animals; `locanmf_rsa.py`).** Per session a 6×6
+  RDM = 1 − corr between the 6 position patterns; 2nd-order RSA = Spearman between RDMs (basis-free). **Within-
+  animal RDM similarity > across-animal for ALL four** (within 0.45–0.62 vs across 0.25–0.32) → a stable
+  individual geometry. Calibrated by a **split-half noise ceiling**: PS92/PS94 essentially at ceiling
+  (geometry as stable across days as within a session); **PS95 shows genuine cross-day drift**; PS93
+  intermediate. **PS93 is NOT the geometric outlier** — its RDM is most like PS92's (0.77); PS94 is most
+  distinct. So PS93's deficit is the *lateralized* SSp-L≪R asymmetry, **dissociated** from a (preserved)
+  global geometry.
+- **F17. Hemisphere-resolved RDM exposes PS93's lateralization the pooled RDM misses
+  (`locanmf_rsa.fig_rsa_hemisphere`).** Building the RDM separately from L- vs R-hemisphere components: the
+  disattenuated within-session **L-vs-R RDM agreement is PS93 0.44 — the lowest** (PS92 0.69, PS94 0.80, PS95
+  0.91). PS93's LEFT hemisphere is **not** unreliable (split-half 0.78) — so the deficit **reshapes** the
+  contralateral (left) position geometry rather than abolishing it. Agrees with F15. Caveats: n=3 PS93;
+  disattenuation unstable when a hemisphere's reliability is low; next probe = per-cell RDM_L−RDM_R.
 
-## Relabel step for future recordings (latest firmware)
+---
 
-The relabel/cleanpairs step is still recommended even with the current trial-gated
-acquire-enable firmware: the 6/3 acquire-enable recordings still had ~100-180 stray
-illuminated/dark frames that relabel dropped, and relabel guarantees deterministic
-415/470 pairing + the `frame_map` that regime-B event alignment needs. Use
-`--relabel-mode acquire-enable` for trial-gated recordings (the lighter mode);
-`rescue` is for the older continuously-saved sessions. Note: the cleanpairs **movie**
-is a deletable, regenerable intermediate, but the relabel **step** and its small
-`frame_map` stay in the pipeline. (If a future session's saved `.dat` is provably
-clean — DAQ pco count == saved frame count, consistent parity, no stray frames — the
-standard raw//2 regime-A mapping like the 6/1 sessions can be used instead.)
+# Part V — Stroke-study analysis plan (decided)
+- **Model = the per-position decoder** (multinomial logistic regression, L2, standardized, block-CV). Linear
+  + interpretable, correct for the n/p regime (~300–450 trials, 66–152 features).
+- **Anchor on the cue** (intended position) so it applies to post-stroke **no-lick failed attempts**; train
+  on baseline **engaged (cue+lick)** trials.
+- **Two complementary comparisons:** (1) **Per-session decoders (primary)** — train per session, compare
+  per-position recall + confusion + SSp/MO breakdown pre vs post; no common feature space needed (sidesteps
+  cross-day component correspondence); also apply each session's decoder to its own no-lick trials.
+  (2) **Frozen pre-stroke decoder (confirmatory)** — needs a common basis: fixed pre-stroke `A`, refit `C`
+  (`C_new = pinv(A_ref)·U_new·SVTcorr_new`; valid because the stroke is subcortical) or Allen-ROI features.
+- **Prerequisites** (open — see `TASKS.md`): cross-day vasculature registration (`cross_day_align.py`);
+  DLC/facerhythm movement regressors time-synced to widefield+DAQ (to separate "cortex codes position
+  differently" from "the movement just changed"); the packaged frozen pre-stroke model + baseline noise floor.
 
-## Quiet-normalized lick activity (workflow)
+---
 
-`quiet_periods.py` -> `*_quiet_frame.npy`; pass it as `--quiet-frame` to the lick
-plotter (`plot_lick_aligned_averages` regime A / `framemap_event_maps --what lick`
-regime B) to emit both the raw post-lick map and a `*_quietnorm*` map (post-lick minus
-the mean quiet-period baseline = lick-evoked relative to the not-running/not-licking
-state). Quiet-period thresholds are provisional (see the quiet-period section).
-
-## 2026-06-04 session issues (PS92 split, PS94 freeze, VS Code auto-update)
-
-**Root cause (both):** VS Code Stable **auto-update** (`CodeSetup-stable-<hash>.exe`,
-an Inno Setup installer) — its dialog is exactly "Setup has detected that Setup is
-currently running…". If labcams + the DAQ recorder are launched from VS Code's
-integrated terminal, a VS Code update restart kills those child processes (force-
-closing both at once). Mitigation: launch labcams/DAQ from a **standalone terminal /
-the `.bat` launchers** (not VS Code's terminal), and set VS Code `"update.mode":"none"`.
-
-**PS94 6/4:** the DAQ "freeze" was display-only — `sample_index_is_contiguous=True`,
-`recording_complete=True`, `closed_at` matches the 77.5-min sample count. NO dropped
-samples (the hardware-clocked NI buffer held through the GUI stall).
-
-**PS92 6/4 (split — needs concatenation):**
-- part1: DAQ `PS92_20260604_133714.h5` + camera `…\PS92_20260604_132934\raw_widefield_data\…`
-  = **30.0 min**, then force-closed (`recording_complete=False`, no `closed_at`; data
-  intact up to crash minus <2 s since last flush).
-- part2 (resumed): DAQ `PS92_20260604_140742.h5` + camera `…\raw_widefield_data_2\…`
-  = **41.3 min** (clean). Camera dims match (2_460_480).
-- **~27 s unrecorded gap** between parts (camera+DAQ both off); the behavior box ran
-  **continuously** (1 uninterrupted behavior session) across the gap.
-
-**Concatenation plan (DEFERRED — camera .dat ~84 GB, heavy I/O; run when rig free):**
-1. Camera: byte-append part1 + part2 `.dat` (same dims) -> combined movie.
-2. DAQ: concatenate analog `samples_int16` + digital `packed_samples` (part1 then
-   part2), record the part boundary sample index + the ~27 s gap in attrs.
-3. Relabel the COMBINED movie (DAQ-based) -> fixes 415/470 parity across the join and
-   drops boundary stray frames; within-part pco<->frame mapping is preserved.
-4. Behavior alignment (later): the ~27 s gap is unrecorded, so align each part to the
-   continuous behavior session via shared DAQ-recorded events (cue / spout_strobe /
-   sync) + `created_at` timestamps, accounting for the gap offset on part2. Doable via
-   timestamps + sync pulses as hoped.
-
-## Things still to verify
-
-- 6/3 PS92 / PS95 functional-channel identity (PS94 6/3 was verified correct).
-  (6/3 PS94 & PS95 SVD + maps + QC are now complete and in the deck.)
+# Module & output reference
+Key analysis modules (`wfield_local/`): `run_locanmf.py` (LocaNMF/sNMF on the GPU box) ·
+`locanmf_position_decoder.py` (**the decoder**; `--source locanmf|roi`, `--align cue|lick|precue`, per-area
+accuracy + per-position recall + confusion) · `locanmf_position_encoder.py` (per-position EV / FEVE /
+predicted maps) · `locanmf_cross_mouse.py` (cross-mouse + within-animal consistency) · `locanmf_rsa.py` (RSA
++ noise ceiling + hemisphere-resolved + crossnobis) · `locanmf_decoder_weights.py` (rolling/temporal figs) ·
+`roi_activity.py` (CPU Allen-area ROI traces) · `quiet_periods.py` (quiet-frame mask) · `atlas_overlay.py`
+(shared region outlines) · `framemap_event_maps.py` (regime-B cue/lick maps) · `qc_motion_correction.py` ·
+`cross_day_align.py`. The nightly orchestrators are `preprocess.py` (imaging) and `nightly_figs.py`
+(analysis). Figures/tables on MICROSCOPE under `labcams/locanmf_lick_pooled/…/cue_analysis/`; per-session
+LocaNMF outputs in each session's `motion_corrected/locanmf_affine8v1_final/`. The full historical module list
+(early lick/cue exploratory modules) is in `docs/archive/ANALYSIS_HISTORY.md`.

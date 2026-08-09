@@ -2,7 +2,7 @@
 window-length sweep, and pre-stroke baseline variability — plus the summary PPT. Everything is
 computed from data (no hardcoded accuracies), reusing the canonical decoder feature extraction
 (no per-trial baseline, block-aware CV; see locanmf_position_decoder.py and F10-F14 in
-LOCANMF_LICK_CUE_ANALYSIS.md).
+DECISIONS.md).
 
     python -m wfield_local.locanmf_decoder_weights --output "<dir>" --ppt
 

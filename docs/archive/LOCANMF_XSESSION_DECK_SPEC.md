@@ -9,7 +9,7 @@
 Plan-of-record for the NEW PowerPoint deck Priya requested on 2026-06-10, built on the **freshly
 re-registered** LocaNMF outputs (each session re-aligned to that animal's 6/6 image; 12-session
 re-run, of which 10 actually re-LocaNMF'd — see below). Source-of-truth analysis docs unchanged:
-`LOCANMF_LICK_CUE_ANALYSIS.md` (F1–F17), `runbooks/analysis_computer_nightly.md`. This file = how the deck is
+`DECISIONS.md` (F1–F17), `runbooks/analysis_computer_nightly.md`. This file = how the deck is
 organized and which figure each slide pulls.
 
 ## Data scope

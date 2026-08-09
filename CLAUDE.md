@@ -44,7 +44,7 @@ One nightly command, dispatched by machine: **`python -m wfield_local.nightly <Y
   camera↔DAQ alignment templates) FIRST, THEN `nightly_figs` (LocaNMF; waits on the imaging push). Runbook:
   `runbooks/analysis_computer_nightly.md`. Never auto-deletes local staging (E:/D:) — cleanup is manual.
 
-## Key decisions (see LOCANMF_LICK_CUE_ANALYSIS.md / DECISIONS.md for the full set)
+## Key decisions (see DECISIONS.md for the full set)
 
 - Decode = multinomial logistic regression on individual LocaNMF components, first-lick 2 s, NO per-trial
   baseline, block-CV (GroupKFold by ~6-trial position blocks), chance 0.167. SSp dominates, MO secondary.
@@ -150,7 +150,7 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
 **Then the science:** post-stroke prerequisites — per-trial behavioral-state table (spout-contact + DAQ lick
 → hit/miss/failed, latency, executed position), and packaging the frozen pre-stroke model + baseline
 noise-floor — followed by the post-stroke intention-readout (frozen decoder) and representational-similarity
-(crossnobis / encoder-residual) analyses. Design in `LOCANMF_LICK_CUE_ANALYSIS.md`.
+(crossnobis / encoder-residual) analyses. Design in `DECISIONS.md`.
 
 ## Reference
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
