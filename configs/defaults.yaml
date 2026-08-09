@@ -92,7 +92,11 @@ behavior:
     min_engaged_trials: 5         # positions with fewer engaged trials are reported but greyed out
   licking:                        # lick microstructure (from events.csv lick_on, device clock)
     peri_cue_window_s: [-2.0, 3.0]  # raster/PSTH window around cue (negative = anticipatory/pre-cue)
-    response_window_s: 2.0        # post-cue window for per-trial lick count + rate (matches decode lick_post_s)
+    # FALLBACK ONLY for trial scoring: the real window is read PER SESSION from that session's
+    # gui_config.json (timing.response_window, ms) -- the task has run 3500 ms, never 2.0 s. This
+    # value is still the window for the per-trial lick COUNT/RATE metrics (matches decode lick_post_s)
+    # and is used for hit/miss only when a session has no gui_config.json. See docs/GUI_TRIALS_LOGGING.md.
+    response_window_s: 2.0
     max_ili_ms: 300               # inter-lick interval that splits lick bouts (stroke_orofacial default)
     min_bout_licks: 2             # drop bouts with fewer licks than this
     psth_bin_ms: 100              # peri-cue PSTH bin width

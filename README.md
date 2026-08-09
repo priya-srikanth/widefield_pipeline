@@ -95,6 +95,8 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 - [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) — imaging-computer preprocessing runbook (source of truth)
 - [`DECISIONS.md`](DECISIONS.md) — analysis decisions + findings F1–F17 (decode/encode/RSA) + stroke plan + server layout/regimes
 - [`STROBE_BIT1_RECOVERY.md`](STROBE_BIT1_RECOVERY.md) — dead-strobe-bit position recovery (behavior-log + cam1)
+- [`docs/GUI_TRIALS_LOGGING.md`](docs/GUI_TRIALS_LOGGING.md) — the GUI `trials.csv` `pos_idx` bug and why
+  behavior trials are sourced from the DAQ recorder `.h5` (DAQ primary, behavior log fallback)
 - [`TASKS.md`](TASKS.md) — open/actionable items + post-stroke prerequisites
 
 ## Roadmap

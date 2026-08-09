@@ -169,9 +169,15 @@ the localization metric. Outputs go to a new `locanmf_*` subfolder; nothing prio
 - **Engagement (critical for the stroke comparison):** exclude *disengaged blocks* (extended no-lick **and**
   no-movement), but define engagement by **movement/arousal, NOT per-trial lick success** — post-stroke a
   no-lick trial is a *failed attempt* (the deficit to keep). Lick-density gating is a first pass; upgrade to
-  movement-gated once DLC is up. The DAQ cue/strobe stream tracks the **rewarded subset** (reward held after
-  ~6 misses), which conveniently doubles as an engagement filter dropping the disengaged tail — keep this
-  scoping; unrewarded trials belong to the future failed-attempt analysis.
+  movement-gated once DLC is up. Engagement gating is applied as a **reporting** choice on the full trial
+  table, never as a parsing filter, so the unrewarded/failed-attempt trials stay available for the future
+  post-stroke analysis.
+  - **CORRECTED 2026-08-09 — the DAQ cue/strobe stream is NOT a "rewarded subset".** This was previously
+    recorded as "the DAQ tracks the rewarded subset (reward held after ~6 misses), which doubles as an
+    engagement filter". Measured across every June/August session: the DAQ cue count **equals the behavior
+    log's scored-trial count exactly** (304/304, 536/536, 627/627, 430/430 …), and DAQ cues include
+    unrewarded trials (PS92 6/6: 302 of 304 rewarded). There is no reward-based subsetting to rely on, so
+    the disengaged tail must be — and is — removed by `flag_engagement`, not by the DAQ stream.
 
 ---
 

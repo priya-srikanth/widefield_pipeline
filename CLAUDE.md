@@ -51,8 +51,13 @@ One nightly command, dispatched by machine: **`python -m wfield_local.nightly <Y
 - Pre-cue no-lick decode above chance = motor-independent maintained code (the key pre-stroke readout).
 - Positions from DAQ strobe bits; dead bit1 (Aug-2026) auto-repairs from the behavior log
   (`classify_cues_with_backup`), or a `behavior_trials` recovered CSV when the log is empty (PS93 8/5, cam1).
-- The DAQ cue/strobe stream tracks the REWARDED subset (reward held after ~6 misses) → an engagement filter.
-  Keep it; unrewarded trials are for the FUTURE post-stroke failed-attempt analysis (movement-gated).
+- **BEHAVIOR trials also come from the DAQ** (`daq_trials.py`), not the GUI log — the GUI mislabels
+  `pos_idx` on ~15% of trials (docs/GUI_TRIALS_LOGGING.md). Both halves of the pipeline now resolve
+  positions from the same strobe codes with the same time-pairing rule.
+- ~~The DAQ cue/strobe stream tracks the REWARDED subset~~ **CORRECTED 2026-08-09:** it does not — DAQ cue
+  count equals the log's scored-trial count exactly in every session, and includes unrewarded trials. There
+  is no reward-based subsetting; the disengaged tail is removed by `flag_engagement` (a REPORTING gate on
+  the full trial table), and unrewarded trials stay available for the post-stroke failed-attempt analysis.
 - Cross-session comparisons use the CURATED set: 6/6-6/8 + 8/6 onward (exclude noisy early June 6/1-6/5 and
   the wonky 8/5), from `configs/animals.yaml date_policy`. Crossnobis is the noise-unbiased RDM metric.
 
@@ -111,13 +116,24 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   That is the same DAQ↔GPIO alignment as the Blackfly templates above (raw sync line, not the REWARDED cue
   subset — see the June count-mismatch resolution).
 - **Nightly behavior-session figures from spout data — DONE** (`wfield_local/spout_behavior.py`, a la
-  stroke_orofacial `spout_behavior`; 1 cue + 6 spout positions here vs their 2 cues + L/R). Reads the
-  task-controller's already-scored `trials.csv` (hit/miss/lick_in_response_window per trial) rather than
-  re-detecting licks. Per-session figure — row 1 = task performance (2x3 spatial hit-rate grid,
+  stroke_orofacial `spout_behavior`; 1 cue + 6 spout positions here vs their 2 cues + L/R).
+  **Trials come from the DAQ recorder `.h5`** (`wfield_local/daq_trials.py`), NOT the task-controller
+  log: the GUI's `trials.csv` mislabels `pos_idx` on ~15% of trials (every position-change trial — its
+  row stays open and later events overwrite the field with the live device position, leaving the row one
+  trial ahead; still present in GUI v46, so all sessions to date are affected). Position comes from the
+  `spout_strobe`+`spout_bit0/1/2` code the firmware emits after the move and before the cue; hit/miss/
+  latency are scored from DAQ licks over the session's REAL response window (**3500 ms**, read per
+  session from `gui_config.json timing.response_window` — `defaults.yaml`'s 2.0 s was never the task's
+  window and is now only a fallback). The log stays the FALLBACK (gated by `daq_trials.quality`: the
+  8/5–8/6 dead-`spout_bit1` sessions collapse to 4 positions and fall back) and still supplies the
+  free-reward designation. **Never DAQ-only.** Full write-up:
+  [`docs/GUI_TRIALS_LOGGING.md`](docs/GUI_TRIALS_LOGGING.md).
+  Per-session figure — row 1 = task performance (2x3 spatial hit-rate grid,
   per-position accuracy bars w/ Wilson CI + raw overlay, engagement-over-session timeline, first-lick
-  latency by position from `events.csv`); row 2 = the by-position lick metrics (licks/trial, within-trial
+  latency by position); row 2 = the by-position lick metrics (licks/trial, within-trial
   lick rate, anticipatory licks) — **the same metric families the across-session per-animal figure
-  tracks**, so one session reads directly against the cross-day trend — plus per-position metrics CSV, and a curated cross-session cohort figure (per-animal per-position accuracy,
+  tracks**, so one session reads directly against the cross-day trend — plus per-position metrics CSV,
+  and a curated cross-session cohort figure (per-animal per-position accuracy,
   learning curve, close-vs-far distance effect). **Engagement gate** (`flag_engagement`): reward is
   auto-held after a miss run, so a sated animal's late misses are DISENGAGEMENT, not spatial inaccuracy —
   a terminal sated-tail detector (>= `tail_min_misses` trailing non-responses) UNION a rolling

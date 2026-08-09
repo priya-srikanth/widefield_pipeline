@@ -36,8 +36,10 @@ figs stage then waits for the imaging box's LocaNMF push.
    <date>.npz`: shared licks / reward / running-bouts / quiet-periods on the DAQ clock, so behavior AND
    imaging load the SAME event identity instead of re-detecting. (The imaging box regenerates the same file
    during its maps step; whichever runs first wins, the other reuses it.)
-4. **Spout behavior figures** (`wfield_local.spout_behavior`) — reads the task-controller's already-scored
-   `trials.csv` and writes, under `Behavior_logs\Widefield\behavior_summary\sessions\<animal>\<date>\`, a
+4. **Spout behavior figures** (`wfield_local.spout_behavior`) — trials come from the **DAQ recorder `.h5`**
+   (`daq_trials.py`; the GUI `trials.csv` mislabels `pos_idx` on ~15% of trials — see
+   [`../docs/GUI_TRIALS_LOGGING.md`](../docs/GUI_TRIALS_LOGGING.md)), with the log as fallback when the
+   strobe stream is degraded. Writes, under `Behavior_logs\Widefield\behavior_summary\sessions\<animal>\<date>\`, a
    per-session accuracy PNG + per-position CSV **and** a lick-microstructure PNG (peri-cue raster/PSTH, ILI
    distribution, lick bouts, per-position lick rate / licks-per-trial / anticipatory licks, and a
    GUI-vs-DAQ-pipeline lick-count comparison), plus a refreshed cross-session cohort figure and a
@@ -45,7 +47,8 @@ figs stage then waits for the imaging box's LocaNMF push.
    lick metrics (licks/trial, lick rate, anticipatory) so a session reads against the cross-day trend.
    Accuracy **and the per-position lick metrics** are **engaged-gated** (terminal sated-tail +
    rolling-collapse gate; raw all-trial rate shown alongside). One cue + 6 spout positions (close/far ×
-   L/center/R; latency + licks from `events.csv`; DAQ licks use the 40 ms physiological floor). Aborted runs
+   L/center/R; latency + licks from the DAQ, or `events.csv` on the log fallback; DAQ licks use
+   the 40 ms physiological floor; hit/miss uses the session's real response window, 3500 ms). Aborted runs
    (< `min_session_trials`) are auto-skipped.
 
 ### Stage 2 — `nightly_figs <date>` (waits for the imaging box's LocaNMF push). Steps, in order:

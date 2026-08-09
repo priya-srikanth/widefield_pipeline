@@ -1,10 +1,20 @@
 """Spout behavior-session figures (1 cue + 6 spout positions).
 
-The behavior task-controller already emits a scored per-trial table (``trials.csv``:
-``pos_idx``/``pos_name``, ``hit``, ``miss``, ``lick_in_response_window``, ``reward_type`` …),
-so this module *reads* that table rather than re-detecting licks from the DAQ. It is the
-widefield analogue of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
+The widefield analogue of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
 L/R; this rig has 1 cue and a 2x3 grid of spout positions: close/far x L/center/R).
+
+**Trials come from the DAQ recorder ``.h5``, not the task-controller log** (:func:`load_trials`
+-> :mod:`wfield_local.daq_trials`): position from the ``spout_strobe`` + ``spout_bit0/1/2`` code
+the firmware emits after the move and before the cue, hit/miss/latency scored from DAQ licks over
+the session's real response window (read per session from its ``gui_config.json``). The GUI's
+``trials.csv`` mislabels ``pos_idx`` on every position-change trial — its row stays open and later
+events overwrite the field with the live device position, leaving the row one trial ahead
+(``docs/GUI_TRIALS_LOGGING.md``). The log remains the FALLBACK for sessions whose strobe stream is
+degraded, and still supplies the free-reward designation, which the DAQ cannot know.
+
+Sourcing trials from the DAQ also means behavior and imaging share one trial identity (the imaging
+maps/decoder read the same strobe codes), and that a session whose ``trials.csv``/``events.csv``
+were never written still analyses.
 
 Two things it adds on top of the raw scores:
 
@@ -13,8 +23,9 @@ Two things it adds on top of the raw scores:
   spatial *inaccuracy*. :func:`flag_engagement` separates a terminal sated tail (and any
   mid-session response collapse) from genuine misses; per-position accuracy is reported on the
   ENGAGED trials by default, with the raw all-trial rate shown alongside for transparency.
-* **First-lick latency.** Derived from ``events.csv`` (first ``lick_on`` after each trial's
-  ``cue``), if that file is present.
+  Gating stays a REPORTING choice applied to the full trial table, not a parsing filter.
+* **First-lick latency.** First DAQ lick after each trial's cue (or, on the log fallback, the
+  first ``lick_on`` in ``events.csv``).
 
 CLI::
 
@@ -85,11 +96,83 @@ def _disp(name: str) -> str:
 
 # --------------------------------------------------------------------------- loading
 
-def load_trials(session_dir: Path) -> pd.DataFrame:
+def load_trials(session_dir: Path, rv=None, params: dict | None = None) -> pd.DataFrame:
+    """The session's scored trials — **DAQ-primary**, behavior log as fallback.
+
+    The DAQ recorder ``.h5`` is the trial source whenever it is available and passes
+    ``daq_trials.quality`` (one strobe per cue, in-range codes, enough distinct positions):
+    the GUI's ``trials.csv`` mislabels ``pos_idx`` on every trial where the position changed
+    (its row stays open and later events overwrite the field with the live device position, so
+    the row ends up one trial ahead) — see ``daq_trials`` and ``docs/GUI_TRIALS_LOGGING.md``.
+    Hit/miss/latency are then scored from DAQ licks over the session's real response window
+    (from its ``gui_config.json``), so behavior and imaging share one trial identity.
+
+    Falls back to ``trials.csv`` when there is no resolver/h5 or the strobe stream is degraded
+    (the Aug-2026 dead ``spout_bit1`` case) — never DAQ-only.
+
+    Either way the frame has ``responded`` (licked in the response window), ``is_free``
+    (free water actually delivered) and ``source`` ("DAQ"/"GUI").
+    """
+    if rv is not None:
+        daq = _daq_trials_for(session_dir, rv, params)
+        if daq is not None:
+            return daq
+    return load_gui_trials(session_dir)
+
+
+def _daq_trials_for(session_dir: Path, rv, params: dict | None) -> pd.DataFrame | None:
+    """DAQ-sourced trials for this session, or ``None`` to fall back to the behavior log."""
+    from wfield_local import daq_trials
+
+    animal, date = _animal_date(session_dir.name)
+    h5 = _daq_h5_for(rv, animal, date)
+    if h5 is None:
+        return None
+    params = params or config.defaults()["behavior"]
+    try:
+        df, info = daq_trials.trials_from_h5(
+            h5, session_dir, config.defaults()["lick_detection"],
+            params["licking"]["response_window_s"])
+    except Exception as e:
+        print(f"[spout_behavior] {session_dir.name}: DAQ trials unavailable "
+              f"({type(e).__name__}: {e}) -> behavior log", flush=True)
+        return None
+    if df is None:
+        print(f"[spout_behavior] {session_dir.name}: DAQ strobe unusable ({info['reason']}) "
+              f"-> behavior log", flush=True)
+        return None
+    print(f"[spout_behavior] {session_dir.name}: DAQ trials ({info['reason']}), "
+          f"response window {info['response_window_s']:.2f}s from {info['window_source']}", flush=True)
+    return _merge_free_reward_flags(df, session_dir)
+
+
+def _merge_free_reward_flags(df: pd.DataFrame, session_dir: Path) -> pd.DataFrame:
+    """Carry the task's free-reward designation over from the behavior log (the DAQ can't know it).
+
+    Matched by trial_id, and only when the log's scored-trial count matches the DAQ's — the
+    free-reward columns are not affected by the pos_idx overwrite bug, but a log that disagrees
+    on trial count can't be aligned, so we leave the flags off rather than guess.
+    """
+    try:
+        gui = load_gui_trials(session_dir)
+    except Exception:
+        return df
+    if len(gui) != len(df):
+        return df
+    df = df.copy()
+    df["is_free"] = gui["is_free"].to_numpy()
+    df["free_designated"] = gui["free_designated"].to_numpy()
+    return df
+
+
+def load_gui_trials(session_dir: Path) -> pd.DataFrame:
     """Read ``trials.csv`` and keep the real, scored trials (hit XOR miss).
 
     Drops the phantom setup row (trial_id 0, start==end, neither hit nor miss). Adds a boolean
     ``responded`` (licked in the response window) and ``is_free`` (free-reward) column.
+
+    NOTE: ``pos_idx`` here is unreliable on position-change trials (see ``load_trials``); this is
+    the FALLBACK source, used when the DAQ record is missing or degraded.
     """
     df = pd.read_csv(session_dir / "trials.csv")
     for c in ("pos_idx", "hit", "miss", "lick_in_response_window", "free_reward_trial",
@@ -104,6 +187,7 @@ def load_trials(session_dir: Path) -> pd.DataFrame:
     # free_reward_delivered==0 still required the animal to respond and is scored normally — keep it.
     df["is_free"] = df.get("free_reward_delivered", 0).astype(int) == 1
     df["free_designated"] = df.get("free_reward_trial", 0).astype(int) == 1
+    df["source"] = "GUI"
     return df
 
 
@@ -169,12 +253,25 @@ def _daq_licks_device_s(session_dir: Path, rv, gui_sync_s: np.ndarray) -> np.nda
     return np.sort(a * (np.asarray(ev["lick_onsets"], float) / fs) + b)
 
 
-def load_licks(session_dir: Path, rv=None) -> dict | None:
-    """Session lick events for the behavior figures, DAQ-PRIMARY: the canonical ``behavior_events`` licks
-    (config lick_detection incl. the min_ili floor) mapped onto the GUI device clock via the sync pulses,
-    so lick identity matches the imaging pipeline. Falls back to the GUI's own ``lick_on`` if the DAQ /
-    events / sync aren't available. Returns ``{all_s, cue_by_trial, cue_next_by_trial,
-    precue_reset_by_trial, source}`` or ``None``."""
+def load_licks(session_dir: Path, rv=None, trials: pd.DataFrame | None = None) -> dict | None:
+    """Session lick events for the behavior figures, DAQ-PRIMARY.
+
+    When ``trials`` came from the DAQ (``load_trials``), everything is already on the DAQ clock:
+    the lick train rides on ``trials.attrs['lick_s']`` and the cue / pre-cue windows come from the
+    trial table, so no ``events.csv`` and no sync fit are needed (a session whose ``events.csv``
+    was never written still analyses).
+
+    Otherwise: the canonical ``behavior_events`` licks mapped onto the GUI device clock via the
+    sync pulses, falling back to the GUI's own ``lick_on``. Returns ``{all_s, cue_by_trial,
+    cue_next_by_trial, precue_reset_by_trial, source}`` or ``None``."""
+    if trials is not None and "lick_s" in getattr(trials, "attrs", {}) and len(trials):
+        cue = pd.Series(trials["cue_s"].to_numpy(), index=trials["trial_id"].to_numpy())
+        nxt = pd.Series(np.append(cue.to_numpy()[1:], np.inf), index=cue.index)
+        return {"all_s": np.asarray(trials.attrs["lick_s"], float),
+                "cue_by_trial": cue, "cue_next_by_trial": nxt,
+                "precue_reset_by_trial": pd.Series(trials["n_licks_pre"].to_numpy(),
+                                                   index=trials["trial_id"].to_numpy()),
+                "source": "DAQ"}
     gui = load_gui_licks(session_dir)
     if gui is None:
         return None
@@ -692,13 +789,13 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     """Write the per-session behavior figure + per-position CSV, plus the lick-microstructure figure.
 
     Returns (behavior_png, position_csv). Near-empty (aborted) sessions are skipped."""
-    trials = load_trials(session_dir)
+    trials = load_trials(session_dir, rv=rv, params=params)
     min_trials = params.get("min_session_trials", 20)
     if len(trials) < min_trials:
         print(f"[spout_behavior] skip {session_dir.name}: {len(trials)} scored trials "
               f"(< {min_trials}; aborted run?)", flush=True)
         return None, None
-    licks = load_licks(session_dir, rv)
+    licks = load_licks(session_dir, rv, trials=trials)
     latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), licks=licks)
     m = session_metrics(trials, latency, params)
     # one microstructure pass feeds BOTH figures (the by-position lick row is shared)
@@ -794,13 +891,13 @@ def session_row(session_dir: Path, params: dict, rv=None) -> dict | None:
     every per-position metric (hit rate, latency, licks/trial, lick rate, anticipatory), keyed
     ``<prefix>__<pos_name>``. Hit rate is ALSO stored unprefixed by pos name (cohort back-compat)."""
     try:
-        trials = load_trials(session_dir)
+        trials = load_trials(session_dir, rv=rv, params=params)
     except Exception as e:
         print(f"[spout_behavior] skip {session_dir.name}: {e}", flush=True)
         return None
     if len(trials) < params.get("min_session_trials", 20):
         return None
-    licks = load_licks(session_dir, rv)
+    licks = load_licks(session_dir, rv, trials=trials)
     latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), licks=licks)
     m = session_metrics(trials, latency, params)
     micro = (lick_microstructure(session_dir, trials, params, licks=licks,

@@ -654,8 +654,12 @@ output, so it runs first, while the imaging box is still preprocessing): upload 
 GPIO sync train ↔ DAQ `sync` line) → **spout behavior figures** (`spout_behavior`). `--skip-copy` /
 `--skip-dropframe` / `--skip-align` / `--skip-behavior` subset it; `nightly` calls it before `nightly_figs`.
 
-`python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — from the task-controller's
-scored `trials.csv` + `events.csv` (1 cue + 6 spout positions: close/far × L/center/R), per session it writes
+`python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — trials decoded from the
+**DAQ recorder `.h5`** (`daq_trials.py`: position from `spout_strobe`+`spout_bit0/1/2`, hit/miss/latency
+scored from DAQ licks over the session's real response window from its `gui_config.json`), falling back to
+the task-controller's `trials.csv` when the strobe stream is degraded — the GUI log mislabels `pos_idx` on
+~15% of trials, see [`../docs/GUI_TRIALS_LOGGING.md`](../docs/GUI_TRIALS_LOGGING.md).
+(1 cue + 6 spout positions: close/far × L/center/R.) Per session it writes
 (1) an **accuracy** figure — row 1 task performance (2×3 spatial hit-rate grid, per-position bars,
 engagement timeline, latency), row 2 the by-position lick metrics (licks/trial, within-trial lick rate,
 anticipatory licks) mirroring the across-session per-animal panels — and
