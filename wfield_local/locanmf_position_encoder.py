@@ -445,6 +445,57 @@ def fig_quiet_drift(labels, out, tag):
     return p
 
 
+def fig_ev_by_position_animal(animal, labels, out):
+    """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
+    colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
+    for i, lab in enumerate(labels):
+        X, y, g, _, _, _ = _trial_features(_sess(lab), _args(2.0))
+        P = np.stack([(y == p).astype(float) for p in pos], 1)
+        pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
+        for tr, te in GroupKFold(ng).split(X, y, g):
+            pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
+        xbar = X.mean(0); sstot = ((X - xbar) ** 2).sum(1); ssres = ((X - pred) ** 2).sum(1)
+        ev = [1 - ssres[y == p].sum() / max(sstot[y == p].sum(), 1e-12) for p in pos]
+        ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab[5:9])
+    ax.axhline(0, color="k", lw=0.6); ax.set_xticks(x); ax.set_xticklabels(posn, rotation=45, ha="right")
+    ax.set_ylabel("explained variance (held-out R^2, per position)"); ax.legend(fontsize=9, title="session")
+    ax.set_title(f"{animal} — encoder explained variance per spout position, across sessions")
+    fig.tight_layout(); p = out / f"locanmf_encoder_ev_by_position_animal_{animal}.png"
+    fig.savefig(p, dpi=130); plt.close(fig); return p
+
+
+def fig_ev_ceiling_by_position_animal(animal, labels, out):
+    """Per-position EV RELATIVE TO CEILING for ONE animal across sessions (one graph, sessions by colour).
+    Left: noise ceiling (explainable var) per position; right: captured/ceiling. Per-animal fig_ev_ceiling."""
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)
+    for i, lab in enumerate(labels):
+        X, y, g, _, _, _ = _trial_features(_sess(lab), _args(2.0))
+        P = np.stack([(y == p).astype(float) for p in pos], 1)
+        pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
+        for tr, te in GroupKFold(ng).split(X, y, g):
+            pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
+        xbar = X.mean(0); ceil = []; cap = []
+        for p in pos:
+            m = y == p; mu = X[m].mean(0)
+            betw = m.sum() * ((mu - xbar) ** 2).sum(); tot = betw + ((X[m] - mu) ** 2).sum()
+            ceil.append(betw / max(tot, 1e-12)); cap.append(1 - ((X[m] - pred[m]) ** 2).sum() / max(tot, 1e-12))
+        ceil = np.array(ceil); ratio = np.where(ceil > 0.05, np.array(cap) / ceil, np.nan)
+        x = np.arange(6) + (i - (len(labels) - 1) / 2) * w
+        axes[0].bar(x, ceil, w, label=lab[5:9]); axes[1].bar(x, ratio, w, label=lab[5:9])
+    for ax, t in [(axes[0], "noise ceiling (explainable var) per position"),
+                  (axes[1], "captured / ceiling per position (1 = all explainable captured)")]:
+        ax.set_xticks(range(6)); ax.set_xticklabels(posn, rotation=45, ha="right", fontsize=8)
+        ax.set_title(t, fontsize=10); ax.legend(fontsize=8, title="session"); ax.axhline(0, color="k", lw=0.5)
+    axes[1].axhline(1, color="grey", ls="--", lw=0.8)
+    fig.suptitle(f"{animal} — encoder EV per position across sessions: ceiling vs ceiling-normalized "
+                 f"(ratio shown where ceiling>0.05)", fontsize=12)
+    fig.tight_layout(); p = out / f"locanmf_encoder_ev_ceiling_by_position_animal_{animal}.png"
+    fig.savefig(p, dpi=130); plt.close(fig); return p
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", required=True, type=Path)
@@ -483,6 +534,16 @@ def main() -> int:
             print("wrote", f(res, args.output).name, flush=True)
         except Exception as ex:
             print(f"{f.__name__}: FAILED {type(ex).__name__}: {str(ex)[:80]}", flush=True)
+    # per-animal EV-per-position across the pooled sessions (one graph/animal, sessions by colour)
+    by_animal = {}
+    for lab in all_labs:
+        by_animal.setdefault(lab[:4], []).append(lab)
+    for a, labs_a in sorted(by_animal.items()):
+        for f in (fig_ev_by_position_animal, fig_ev_ceiling_by_position_animal):
+            try:
+                print("wrote", f(a, sorted(labs_a), args.output).name, flush=True)
+            except Exception as ex:
+                print(f"{f.__name__} {a}: FAILED {type(ex).__name__}: {str(ex)[:70]}", flush=True)
     return 0
 
 
