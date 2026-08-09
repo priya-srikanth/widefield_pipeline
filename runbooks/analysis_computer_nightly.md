@@ -31,13 +31,24 @@ python -m wfield_local.dropframe_qc 20260807 --root D:/camera   # pre-upload sta
 ```
 
 Writes `dropped_frames_summary_<DATE>.csv` (one row per cam: rows/id_span/dropped/gaps + timestamp-delta
-stats) + a `.txt` table next to the data. CSV cols 0/1 = frame_id / timestamp_ns (~4.003 ms apart, ~250
-fps); a drop is a gap in the monotonic frame_id. (Still local, not yet in-repo: the DAQ↔GPIO **sync-train**
-cross-check — that's the Blackfly alignment-template work, see `CLAUDE.md`.)
+stats) + a `.txt` table next to the data. CSV cols 0/1/2 = frame_id / timestamp_ns (~4.003 ms apart, ~250
+fps) / GPIO (bit0 = Arduino sync); a drop is a gap in the monotonic frame_id.
 
 Then copy (don't delete D: until byte-verified + checked in): `D:\camera\*` →
 `M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\<DATE>\`, `D:\behavior_logs\*` →
 `M:\MICROSCOPE\Priya\Behavior_logs\Widefield\` (note the `Widefield\` SUBDIR in both).
+
+Once the camera CSVs + DAQ `.h5` are on MICROSCOPE, build the **camera↔DAQ alignment templates** (one
+per cam per date, for post-stroke multi-angle DLC / behavior↔imaging alignment):
+
+```powershell
+python -m wfield_local.camera_sync <DATE>            # all animals; --only PS94 to subset
+```
+
+Each cam's GPIO sync train (bit0) is matched to the DAQ `sync` line (bit0, 5000 Hz) via the bounded-window
+ITI matcher; a compact `<cam>_<recording>_daq_alignment.npz` is written next to the CSV, mapping camera
+TIME→DAQ time (affine, drop-proof). It logs `matched/edges`, `resid_ms_rms` (~1-2 ms good), and
+`frame_drops`; a `QUALITY CHECK FAILED` flag means the residual is off (investigate before trusting it).
 
 ## Notes
 

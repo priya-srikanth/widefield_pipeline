@@ -84,17 +84,18 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
    MICROSCOPE write/delete site (`archive_day` adoption is a reasonable follow-up). STILL OPEN: **exclusions
    with dotted-tag scoping** (their `Exclusion.applies`) for per-analysis-context date/animal exclusions.
 
-**Nightly-pipeline extensions (planned — mirror stroke_orofacial where noted):**
-- **Temporal alignment templates, generated nightly, ONE per camera per date (the 4 Blackfly behavior cams).**
-  Each Blackfly is recorded by Bonsai → csv with (timestamp, frame#, GPIO sync-pin driven by the behavior
-  Arduino). The Arduino sync pulse is the common heartbeat: it lands on DAQ digital line0 AND every Blackfly's
-  GPIO. So each cam aligns to the DAQ (session-time hub) by matching its GPIO sync train to the DAQ line0 train
-  — the free-running-clock case where `wfield_local/frame_sync.py`'s ITI-fingerprint aligner is the right tool
-  (revive it; it's currently dormant/PCO-inapplicable). Build + cache templates nightly so post-stroke
-  multi-angle 3D DLC triangulation has them ready. Mirrors stroke_orofacial `alignment/` (frame_sync +
-  timebase + templates), adapted DAQ-hub instead of wavesurfer-hub. The PCO imaging cam needs no template
-  (it's on the DAQ clock via `pco_exposure`); its robustness gap is dropped-frame count-reconciliation in
-  `trim_illuminated_labcams.py` (LED-parity, not ITI).
+**Nightly-pipeline extensions (mirror stroke_orofacial where noted):**
+- **Temporal alignment templates — DONE** (`wfield_local/camera_sync.py`, one per cam per date). Each
+  Blackfly's Bonsai CSV is (frame_id, timestamp_ns, GPIO); GPIO bit0 = the Arduino sync heartbeat, which also
+  lands on DAQ digital `sync` (bit0 of `packed_samples`, 5000 Hz). `camera_sync` matches the two rising-edge
+  trains with the **bounded-window** ITI matcher in `frame_sync.align_edge_sequences` (faithful port of
+  stroke_orofacial; NB the prior widefield copy was a degraded O(N²) all-pairs form — fixed to O(N·window),
+  ~4 s vs ~9 min at 12875 edges) and writes a COMPACT `.npz` mapping camera TIME→DAQ time (affine, drop-proof:
+  built on absolute timestamps, so an ITI-dropped frame just removes an anchor). Improvements over orofacial:
+  a residual `quality_ok` gate + reported edge-count delta + B6 `frame_drops`, and a dropped-frame test suite.
+  The PCO imaging cam needs no template (on the DAQ clock via `pco_exposure`); its gap is dropped-frame
+  count-reconciliation in `trim_illuminated_labcams.py` (LED-parity, not ITI). NOT yet wired into a nightly
+  orchestrator (run `python -m wfield_local.camera_sync <DATE>` after the camera upload).
 - **Camera dropped-frame QC — DONE** (`wfield_local/dropframe_qc.py`, folds in the local
   `dropframe_check_all.py`): per Blackfly cam CSV, flags gaps in the monotonic frame_id + long timestamp
   deltas; writes `dropped_frames_summary_<DATE>.{csv,txt}`. Byte-verified against the existing 20260807 CSV.

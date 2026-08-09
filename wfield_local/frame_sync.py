@@ -58,59 +58,69 @@ def align_edge_sequences(
     window: int = 20,
     p: float = 0.1,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Match two edge-time sequences by sliding-window interval similarity.
+    """Match two monotonic edge-time sequences by BOUNDED sliding-window interval similarity.
+
+    Faithful port of ``stroke_orofacial_pipeline``'s ``_align_edge_sequences``: for each edge in
+    ``s1`` it searches only ``±window`` neighboring edges of ``s2`` (not all pairs), so the cost is
+    O(N·window) — linear in the number of edges. This assumes the two sequences are roughly
+    index-aligned (edge ``i`` of ``s1`` ≈ edge ``i`` of ``s2`` within ±window); callers normalize
+    each sequence to [0, 1] by its own first/last edge first, so a shared pulse span lines them up.
 
     Parameters
     ----------
     s1, s2:
-        Normalized edge-time sequences.
+        Normalized edge-time sequences (both spanning ~the same physical pulses).
     window:
-        Number of consecutive inter-edge intervals used for local matching.
+        Half-width (in edges) of the local search + the interval-window length.
     p:
-        L-p exponent used by the legacy matcher. Values below 1 emphasize
-        relative pattern shape and are intentionally preserved.
+        L-p exponent on the inter-edge-interval differences (``<1`` emphasizes pattern shape).
 
     Returns
     -------
     idx1, idx2, distance:
-        Strictly monotonic matched edge indices into ``s1`` and ``s2`` plus the
-        local matching distance for each retained pair.
+        Strictly monotonic matched edge indices into ``s1`` and ``s2`` plus the local matching
+        distance for each retained pair. (Tuple form kept for callers; the orofacial original
+        returns the equivalent ``{idx1: idx2}`` dict.)
     """
     s1 = np.asarray(s1, dtype=np.float64)
     s2 = np.asarray(s2, dtype=np.float64)
-    if s1.size < window + 1 or s2.size < window + 1:
-        raise ValueError("Not enough sync edges for requested alignment window.")
+    if s1.size < window * 4 + 5 or s2.size < window * 4 + 5:
+        raise ValueError(
+            f"Not enough edges for alignment with window={window}: s1={s1.size}, s2={s2.size}")
 
-    d1 = np.diff(s1)
-    d2 = np.diff(s2)
-    candidates = []
-    for i in range(0, d1.size - window + 1):
-        ref = d1[i : i + window]
-        best_j = None
-        best_dist = np.inf
-        for j in range(0, d2.size - window + 1):
-            cmp = d2[j : j + window]
-            dist = float(np.sum(np.abs(ref - cmp) ** p) ** (1.0 / p))
-            if dist < best_dist:
-                best_dist = dist
-                best_j = j
-        candidates.append((i, int(best_j), best_dist))
+    ds1 = np.diff(s1)
+    ds2 = np.diff(s2)
+    shift_vals = np.arange(-window, window + 1, dtype=np.int64)
+    start = window * 2
+    stop = min(len(ds1), len(ds2)) - window * 2 - 1
 
-    # Greedy monotonic prune. Keep only increasing matches in both sequences.
-    kept = []
-    last_i = -1
-    last_j = -1
-    for i, j, dist in sorted(candidates, key=lambda row: row[2]):
-        if i > last_i and j > last_j:
-            kept.append((i, j, dist))
-            last_i = i
-            last_j = j
-    kept.sort(key=lambda row: row[0])
+    matches: dict[int, tuple[int, float]] = {}
+    for ii in range(start, stop):
+        v1_f = ds1[ii : ii + window]                                     # forward interval window
+        v2s_f = np.stack([ds2[ii + jj : ii + jj + window] for jj in shift_vals], axis=0)
+        dr = np.nanmean(np.abs(v1_f[None, :] - v2s_f) ** p, axis=1) ** (1 / p)
+        v1_b = ds1[ii - window : ii]                                     # backward interval window
+        v2s_b = np.stack([ds2[ii + jj - window : ii + jj] for jj in shift_vals], axis=0)
+        dl = np.nanmean(np.abs(v1_b[None, :] - v2s_b) ** p, axis=1) ** (1 / p)
+        use_forward = np.nanmin(dr) <= np.nanmin(dl)
+        d_arr = dr if use_forward else dl
+        j_best = int(np.nanargmin(d_arr))
+        jj = ii + int(shift_vals[j_best])
+        if 0 <= jj < len(s2):
+            matches[int(ii)] = (int(jj), float(d_arr[j_best]))
 
-    idx1 = np.asarray([row[0] for row in kept], dtype=np.int64)
-    idx2 = np.asarray([row[1] for row in kept], dtype=np.int64)
-    dist = np.asarray([row[2] for row in kept], dtype=np.float64)
-    return idx1, idx2, dist
+    # Greedy prune to a strictly-monotonic mapping (in s1-key order, keep only increasing s2 targets).
+    keep_i, keep_j, keep_d, last_v = [], [], [], -1
+    for k in sorted(matches):
+        j, dist = matches[k]
+        if j > last_v:
+            keep_i.append(k)
+            keep_j.append(j)
+            keep_d.append(dist)
+            last_v = j
+    return (np.asarray(keep_i, dtype=np.int64),
+            np.asarray(keep_j, dtype=np.int64),
+            np.asarray(keep_d, dtype=np.float64))
 
 
 def safe_interp1d(x: np.ndarray, y: np.ndarray, xq: np.ndarray) -> np.ndarray:
