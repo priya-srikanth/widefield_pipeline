@@ -19,12 +19,52 @@ from wfield.io import mmap_dat
 from wfield_local.motion_correct_fixed import motion_correct
 
 
-def _run_relabel_subprocess(dat: Path, daq_h5: Path, output: Path, mode: str, led_threshold) -> Path:
-    """Run the TTL relabel in a SEPARATE process and return the relabeled .dat.
+class RelabeledDat:
+    """Lazy view of the DAQ-relabeled cleanpairs movie, gathered from the RAW .dat on the fly.
+
+    The TTL relabel is a pure frame GATHER: cleanpairs pair ``i`` = ``(raw[pairs[i,0]],
+    raw[pairs[i,1]])`` (415, 470). Instead of materializing that raw-sized ``*_cleanpairs_*.dat``
+    to disk just to feed motion correction, this presents the same ``(n_pairs, 2, H, W)`` array
+    lazily: :meth:`__getitem__` gathers the requested frames from the raw memmap. ``motion_correct``
+    only ever touches ``dat.shape`` and slice reads ``np.array(dat[a:b])`` (see
+    ``motion_correct_fixed``), so this is a drop-in substitute — identical bytes into MC, no 148 GB
+    intermediate written or read back.
+    """
+
+    def __init__(self, raw_flat, pairs):
+        self._raw = raw_flat                      # memmap (Ntotal_frames, H, W), arrival order
+        self._pairs = np.asarray(pairs)           # (n_pairs, 2) int indices into raw_flat
+        self.dtype = raw_flat.dtype
+        self.shape = (len(self._pairs), 2, raw_flat.shape[1], raw_flat.shape[2])
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __getitem__(self, sl):
+        # slice -> (k, 2, H, W); int -> (2, H, W). Fancy-indexing the raw memmap materializes
+        # only the requested (chunk-sized) frames.
+        return self._raw[self._pairs[sl]]
+
+
+def _relabeled_from_summary(raw_dat: Path, summary: dict) -> RelabeledDat:
+    """Build a :class:`RelabeledDat` from the raw .dat + a map-only relabel summary/frame_map."""
+    fm = np.load(summary["frame_map_npz"])
+    pairs = np.stack([fm["original_frame_index_ch0"], fm["original_frame_index_ch1"]], axis=1)
+    h, w = int(summary["output_shape"][2]), int(summary["output_shape"][3])
+    dt = np.dtype(summary["output_dtype"])
+    ntotal = Path(raw_dat).stat().st_size // (h * w * dt.itemsize)
+    raw_flat = np.memmap(raw_dat, mode="r", dtype=dt, shape=(int(ntotal), h, w))
+    return RelabeledDat(raw_flat, pairs)
+
+
+def _run_relabel_subprocess(dat: Path, daq_h5: Path, output: Path, mode: str, led_threshold,
+                            map_only: bool = False) -> dict:
+    """Run the TTL relabel in a SEPARATE process and return its summary dict.
 
     h5py and wfield cannot be imported in the same process on this rig (their
     HDF5 DLLs conflict), so the relabel (h5py) must run in its own interpreter,
-    separate from motion correction (wfield).
+    separate from motion correction (wfield). With ``map_only`` the subprocess writes only the
+    frame_map + summary (no raw-sized cleanpairs .dat); the caller applies the map on the fly.
     """
     import json as _json
     import subprocess
@@ -36,11 +76,12 @@ def _run_relabel_subprocess(dat: Path, daq_h5: Path, output: Path, mode: str, le
            "--label", "daq_led", "--mode", mode]
     if led_threshold is not None:
         cmd += ["--led-threshold", str(led_threshold)]
+    if map_only:
+        cmd += ["--map-only"]
     print("[pipeline] TTL relabel (separate process): " + " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True, cwd=repo_root)
     summary_path = output / f"{Path(dat).stem}_daq_led_cleanpairs_summary.json"
-    summary = _json.loads(summary_path.read_text(encoding="utf-8"))
-    return Path(summary["output_dat"])
+    return _json.loads(summary_path.read_text(encoding="utf-8"))
 
 
 def main() -> int:
@@ -79,6 +120,13 @@ def main() -> int:
         help="Relabel mode when --daq-h5 is given (default acquire-enable).",
     )
     parser.add_argument("--relabel-led-threshold", type=float, default=None)
+    parser.add_argument(
+        "--relabel-on-the-fly",
+        action="store_true",
+        help="Apply the DAQ relabel as a lazy gather from the raw .dat during motion correction "
+        "instead of materializing the raw-sized cleanpairs .dat (identical bytes into MC; saves a "
+        "~raw-sized write+readback). Only affects the --daq-h5 relabel path.",
+    )
     args = parser.parse_args()
 
     args.output.mkdir(parents=True, exist_ok=True)
@@ -86,13 +134,24 @@ def main() -> int:
     dat_path = args.dat
     relabeled = False
     if args.daq_h5 is not None:
-        print(f"[pipeline] TTL relabel before motion correction (mode={args.relabel_mode})", flush=True)
-        dat_path = _run_relabel_subprocess(
-            args.dat, args.daq_h5, args.output, args.relabel_mode, args.relabel_led_threshold)
         relabeled = True
-        print(f"[pipeline] relabeled DAT -> {dat_path}", flush=True)
+        on_the_fly = args.relabel_on_the_fly
+        print(f"[pipeline] TTL relabel before motion correction (mode={args.relabel_mode}, "
+              f"{'on-the-fly' if on_the_fly else 'materialized'})", flush=True)
+        summary = _run_relabel_subprocess(
+            args.dat, args.daq_h5, args.output, args.relabel_mode, args.relabel_led_threshold,
+            map_only=on_the_fly)
+        if on_the_fly:
+            dat = _relabeled_from_summary(args.dat, summary)
+            print(f"[pipeline] relabel applied on the fly from raw {args.dat} "
+                  f"(no cleanpairs .dat written)", flush=True)
+        else:
+            dat_path = Path(summary["output_dat"])
+            print(f"[pipeline] relabeled DAT -> {dat_path}", flush=True)
+            dat = mmap_dat(str(dat_path), mode="r")
+    else:
+        dat = mmap_dat(str(dat_path), mode="r")
 
-    dat = mmap_dat(str(dat_path), mode="r")
     if args.limit_frames is not None:
         dat = dat[: args.limit_frames]
 

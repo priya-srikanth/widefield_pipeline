@@ -338,7 +338,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     else:
         _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
               "--daq-h5", s["daq_h5"], "--relabel-mode", params["relabel_mode"],
-              "--mode", params["motion_mode"]], dry_run)
+              "--mode", params["motion_mode"], "--relabel-on-the-fly"], dry_run)
 
     # 2 SVD (functional channel = 470)
     if Path(f"{results}/SVTcorr.npy").exists() and not dry_run:

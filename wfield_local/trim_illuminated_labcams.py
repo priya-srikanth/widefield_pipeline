@@ -210,11 +210,16 @@ def relabel_dat_from_daq(
     order: str = "415-470",
     chunk_pairs: int = 256,
     mode: str = "rescue",
+    map_only: bool = False,
 ) -> dict:
     """Relabel a labcams DAT to DAQ-confirmed 415/470 pairs and write a new DAT.
 
     Returns a summary dict; ``summary['output_dat']`` is the relabeled .dat path,
     suitable as input to motion correction. Importable for pipeline use.
+
+    ``map_only=True`` computes the pairs + writes the frame_map (.npz/.csv) and summary but
+    SKIPS materializing the (raw-sized) cleanpairs .dat — the caller applies the mapping on the
+    fly during motion correction (see run_wfield_motion.RelabeledDat). ``output_dat`` is then None.
     """
     dat = Path(dat)
     daq_h5 = Path(daq_h5)
@@ -245,8 +250,12 @@ def relabel_dat_from_daq(
     print(f"[relabel:{mode}] source physical frames: {physical_frames:,}", flush=True)
     print(f"[relabel:{mode}] clean pairs: {len(pairs):,}; skipped singleton/problem frames: {len(skipped):,}; "
           f"dark dropped: {meta['labels_dark']:,}", flush=True)
-    print(f"[relabel:{mode}] output: {out_dat}", flush=True)
-    write_trimmed_dat(dat, out_dat, pairs, height, width, dtype, chunk_pairs)
+    if map_only:
+        print(f"[relabel:{mode}] map-only: skipping cleanpairs .dat write "
+              f"(applied on the fly during motion correction)", flush=True)
+    else:
+        print(f"[relabel:{mode}] output: {out_dat}", flush=True)
+        write_trimmed_dat(dat, out_dat, pairs, height, width, dtype, chunk_pairs)
 
     np.savez_compressed(
         map_npz,
@@ -269,7 +278,7 @@ def relabel_dat_from_daq(
         "mode": mode,
         "source_dat": str(dat),
         "daq_h5": str(daq_h5),
-        "output_dat": str(out_dat),
+        "output_dat": (None if map_only else str(out_dat)),
         "frame_map_npz": str(map_npz),
         "frame_map_csv": str(map_csv),
         "output_shape": [int(len(pairs)), 2, int(height), int(width)],
@@ -296,11 +305,14 @@ def main() -> int:
     parser.add_argument("--led-threshold", type=float, default=None)
     parser.add_argument("--order", choices=("415-470", "470-415", "as-acquired"), default="415-470")
     parser.add_argument("--chunk-pairs", type=int, default=256)
+    parser.add_argument("--map-only", action="store_true",
+                        help="compute pairs + write frame_map/summary but SKIP the raw-sized "
+                             "cleanpairs .dat (applied on the fly during motion correction).")
     args = parser.parse_args()
     relabel_dat_from_daq(
         args.dat, args.daq_h5, args.output_dir,
         label=args.label, offset=args.offset, led_threshold=args.led_threshold,
-        order=args.order, chunk_pairs=args.chunk_pairs, mode=args.mode,
+        order=args.order, chunk_pairs=args.chunk_pairs, mode=args.mode, map_only=args.map_only,
     )
     return 0
 
