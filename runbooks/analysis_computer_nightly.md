@@ -26,11 +26,14 @@ then builds `locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.ppt
 ## Camera + behavior-log offload (while LocaNMF is unavailable)
 
 ```powershell
-python dropframe_check_all.py "D:\camera"        # col0 frame id, col1 ns timestamp; nominal 4 ms apart
+python -m wfield_local.dropframe_qc 20260807               # MICROSCOPE behavior_cameras/<date>
+python -m wfield_local.dropframe_qc 20260807 --root D:/camera   # pre-upload staging (flat <PSxx>/ dirs)
 ```
 
-(`dropframe_check_all.py` is a local script on this box, not yet in the repo — folding a proper
-sync-train / dropped-frame QC into `wfield_local` is a planned nightly extension; see `CLAUDE.md`.)
+Writes `dropped_frames_summary_<DATE>.csv` (one row per cam: rows/id_span/dropped/gaps + timestamp-delta
+stats) + a `.txt` table next to the data. CSV cols 0/1 = frame_id / timestamp_ns (~4.003 ms apart, ~250
+fps); a drop is a gap in the monotonic frame_id. (Still local, not yet in-repo: the DAQ↔GPIO **sync-train**
+cross-check — that's the Blackfly alignment-template work, see `CLAUDE.md`.)
 
 Then copy (don't delete D: until byte-verified + checked in): `D:\camera\*` →
 `M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\<DATE>\`, `D:\behavior_logs\*` →

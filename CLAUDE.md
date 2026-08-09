@@ -95,10 +95,13 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
   timebase + templates), adapted DAQ-hub instead of wavesurfer-hub. The PCO imaging cam needs no template
   (it's on the DAQ clock via `pco_exposure`); its robustness gap is dropped-frame count-reconciliation in
   `trim_illuminated_labcams.py` (LED-parity, not ITI).
-- **Sync-train drop QC (cheap, do early):** cross-check the DAQ sync-pulse train against the behavior-log
-  event/ITI train (and each Blackfly GPIO train) to flag dropped DAQ samples / camera frames. All derive from
-  the one Arduino source, so ITI-pattern divergence localizes a drop. NB the DAQ cue stream is the REWARDED
-  subset (align on the raw sync line, or offset-match the subset — see the June count-mismatch resolution).
+- **Camera dropped-frame QC — DONE** (`wfield_local/dropframe_qc.py`, folds in the local
+  `dropframe_check_all.py`): per Blackfly cam CSV, flags gaps in the monotonic frame_id + long timestamp
+  deltas; writes `dropped_frames_summary_<DATE>.{csv,txt}`. Byte-verified against the existing 20260807 CSV.
+  STILL OPEN — the **sync-train** cross-check: match each cam's GPIO train + the behavior-log event/ITI train
+  against the DAQ sync line to localize dropped DAQ samples / frames (all derive from the one Arduino source).
+  That is the same DAQ↔GPIO alignment as the Blackfly templates above (raw sync line, not the REWARDED cue
+  subset — see the June count-mismatch resolution).
 - **Nightly behavior-session figures from spout data (a la stroke_orofacial spout_behavior), one cue + 6
   spout positions here** (orofacial had 2 cues + L/R only). Config-driven per-session + cohort figures.
 
