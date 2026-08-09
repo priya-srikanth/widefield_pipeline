@@ -130,10 +130,11 @@ def save_template(template: dict, path) -> Path:
     return path
 
 
-def template_path(csv_path) -> Path:
-    """Default location: next to the cam CSV, ``<cam>_<recording>_daq_alignment.npz``."""
-    p = Path(csv_path)
-    return p.with_name(p.stem + "_daq_alignment.npz")
+def template_path(rv, date: str, animal: str, cam: str) -> Path:
+    """Dedicated tree (keeps the raw camera dirs clean; mirrors stroke_orofacial's convention):
+    ``<alignment_templates>/<cam>/<PSxx>/<YYYYMMDD>.npz``. The recording timestamp is kept inside
+    the template (``recording`` key), so one file per cam per animal per date is unambiguous."""
+    return Path(rv.root("alignment_templates")) / cam / animal / f"{date}.npz"
 
 
 # --------------------------------------------------------------------------- CLI / batch
@@ -158,7 +159,7 @@ def run(date, rv, animals=None, verbose=True) -> list[dict]:
         for csv in sorted(animal_dir.glob("cam*.csv")):
             try:
                 t = build_template(daq, csv)
-                out = save_template(t, template_path(csv))
+                out = save_template(t, template_path(rv, date, animal_dir.name, t["cam"]))
                 made.append(t)
                 flag = "" if t["quality_ok"] else "  <<< QUALITY CHECK FAILED"
                 if verbose:

@@ -111,6 +111,12 @@ def test_matcher_is_bounded_window_and_monotonic():
         align_edge_sequences(s[:50], s[:50])
 
 
+def test_template_path_dedicated_tree():
+    from wfield_local.paths import PathResolver
+    p = cs.template_path(PathResolver(machine="analysis"), "20260807", "PS94", "cam1")
+    assert p.as_posix().endswith("Behavior_Cameras/Widefield/alignment_templates/cam1/PS94/20260807.npz")
+
+
 def test_save_template_is_guarded():
     with pytest.raises(WriteGuardError):
         cs.save_template({"x": np.array([1])}, "N:/MICROSCOPE/Rich/data/x_daq_alignment.npz")

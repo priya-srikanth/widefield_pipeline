@@ -46,9 +46,10 @@ python -m wfield_local.camera_sync <DATE>            # all animals; --only PS94 
 ```
 
 Each cam's GPIO sync train (bit0) is matched to the DAQ `sync` line (bit0, 5000 Hz) via the bounded-window
-ITI matcher; a compact `<cam>_<recording>_daq_alignment.npz` is written next to the CSV, mapping camera
-TIME→DAQ time (affine, drop-proof). It logs `matched/edges`, `resid_ms_rms` (~1-2 ms good), and
-`frame_drops`; a `QUALITY CHECK FAILED` flag means the residual is off (investigate before trusting it).
+ITI matcher; a compact template is written to the dedicated tree
+`...\Behavior_Cameras\Widefield\alignment_templates\<cam>\<PSxx>\<YYYYMMDD>.npz`, mapping camera TIME→DAQ
+time (affine, drop-proof). It logs `matched/edges`, `resid_ms_rms` (~1-2 ms good), and `frame_drops`; a
+`QUALITY CHECK FAILED` flag means the residual is off (investigate before trusting it).
 
 ## Notes
 
