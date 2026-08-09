@@ -1,8 +1,9 @@
 # GUI `trials.csv` mislabels `pos_idx` — why behavior trials now come from the DAQ
 
-**Status:** diagnosed and worked around here (2026-08-09). **The GUI bug itself is NOT fixed** —
-it is present in the current `BehaviorGUI_MobileSpouts_Arduino_vs_Teensy_v46.py`, so every session
-recorded to date is affected and new ones will be until the GUI is patched.
+**Status:** diagnosed 2026-08-09, worked around here (DAQ-primary trials) **and fixed upstream** in
+`mobile_spout_behavior` (`bb16533`, GUI v46). Sessions recorded BEFORE that GUI fix is deployed keep
+the corrupted column — which is every session to date — so the DAQ-primary path stays necessary
+regardless of the upstream fix.
 
 ## Symptom
 
@@ -11,31 +12,35 @@ trials in nearly every session**, across all four animals and both June and Augu
 
 ## Root cause — the GUI, not the DAQ
 
-The GUI builds each trial row incrementally and lets **every later event row overwrite** the
-position field while the row is still open
-(`_update_trial_from_event_row`, [v46:507-508](../../Behavior_setup/BehaviorGUI_MobileSpouts_Arduino_vs_Teensy_v46.py)):
+A **trial-id collision**, not a stale position readout. The firmware emits `trial_start` BEFORE
+`totalTrials++`, so it reports the PREVIOUS trial's id, while that same trial's cue/hit/reward
+events (emitted after the increment) report id+1. Straight from a real `events.csv`:
 
-```python
-if row.get("pos_idx", "") != "":
-    t["pos_idx"] = row.get("pos_idx", t.get("pos_idx", ""))
+```
+trial_start    trial_id=0     <- trial 1 begins
+cue/reward/hit trial_id=1     <- trial 1's body
+trial_start    trial_id=1     <- trial 2 begins, SAME id as the open row
 ```
 
-and an event carrying no explicit `pos`/`idx` falls back to the **live device status** ([v46:548](../../Behavior_setup/BehaviorGUI_MobileSpouts_Arduino_vs_Teensy_v46.py)):
+`_update_trial_from_event_row` finalized the open row only when the ids **differed**, so trial 2's
+`trial_start` merged into trial 1's still-open row — and the position lines below it then overwrote
+`pos_idx` / `pos_name` / `pos_dist_mm_after_trial` with trial 2's position (the device sets
+`currentTrialPos` immediately before emitting `trial_start`).
 
-```python
-pos_idx = kv.get("pos", kv.get("idx", latest_status.get("current_pos", "")))
-```
+So the corruption is a **uniform one-trial shift**: `gui[N] == true[N+1]` for every N. It only looks
+sporadic because it is invisible when consecutive trials share a position — which is exactly why the
+measured mismatch rate (~15%) equals the position-change rate, and why `gui[k-1] == daq[k]` on 100%
+of mismatches. Two consequences worth keeping in mind:
 
-A trial row is only finalized when the **next** `trial_start` arrives, so any event landing after
-the firmware has already moved to the next position stamps that next position onto the previous,
-still-open row. The row ends up **one trial ahead**.
+* **The existing logs are invertible**: `true[N] = gui[N-1]`. Only the first trial is unrecoverable,
+  and the last row is uncorrupted (no trial follows it) as a free consistency check.
+* **An integer trial-offset aligner absorbs it.** That is why the imaging side was never affected —
+  see "What this did NOT affect" below.
 
-Measured on sessions with complete logs: the disagreement hits **exactly** the trials where the
-position changed (rate 1.000, vs 0.008 on unchanged trials) and `gui[k-1] == daq[k]` on **100%** of
-mismatches. It is invisible when consecutive trials share a position, which is why it went unnoticed.
-
-`pos_dist_mm_after_trial` is corrupted by the same overwrite ([v46:512-515](../../Behavior_setup/BehaviorGUI_MobileSpouts_Arduino_vs_Teensy_v46.py)) — an apparent
-"spout moved mid-trial" in the log is a logging artifact, not a real move.
+Fixed upstream in `mobile_spout_behavior` (commit `bb16533`): a `trial_start` now always finalizes
+the open row and starts a new one, whatever id the device reports. Note that stamping/locking the
+position fields — the fix this document previously recommended — would **not** have worked: the
+offending `trial_start` carries an explicit `pos=` too. Closing the row is what makes it correct.
 
 **The DAQ is correct by construction.** Firmware `startTrial` moves the spout, *then* calls
 `emitPositionCode(currentTrialPos)`, which sets `spout_bit0/1/2` and only then pulses a 10 ms
@@ -100,14 +105,41 @@ holds the previous trial's position, i.e. the signature of this bug):
 
 ## Consequences
 
-- **Every per-session figure and the cohort CSV must be REGENERATED, not appended to** — positions
-  move on ~15% of trials and hit/miss is re-scored under the real 3.5 s window.
-- **The imaging analysis is unaffected** — it already read positions from the DAQ strobe. This
-  change removes a disagreement between the two halves of the pipeline, it does not introduce one.
+- **Every per-session figure and the cohort CSV had to be REGENERATED, not appended to** — positions
+  move on ~15% of trials and hit/miss is re-scored under the real 3.5 s window. DONE 2026-08-09 for
+  the curated set (0606-0608, 0806, 0807): 20 sessions x 2 figures + cohort.
 - Sessions whose `trials.csv`/`events.csv` were never written now analyse from the DAQ alone:
-  **PS93 6/6** (488 trials logged in `summary_end.json`, 0 rows written), PS94 6/3, PS93 8/5.
+  **PS93 6/6** (488 trials in `summary_end.json`, 0 rows written) — recovered, 493 trials, all 6
+  positions; also PS94 6/3. PS93 8/5 has manually-labelled positions (`behavior_trials` in
+  `sessions.yaml`), which take priority over both the DAQ and the log.
 
-## Recommended GUI fix (upstream, not done here)
+## What this did NOT affect: the imaging / LocaNMF analysis
 
-Stamp `pos_idx`/`pos_name`/`pos_dist_mm_before_trial` **once** from the `trial_start` event and do
-not let later event rows overwrite them; only `pos_dist_mm_after_trial` should track later updates.
+**No re-run of preprocessing, LocaNMF decode/encode/RSA, or either deck was needed.** Two reasons:
+
+1. **Healthy-DAQ sessions never read the log.** Both consumers bail out early when the strobe gives
+   all 6 positions — `framemap_event_maps._behavior_cue_codes` ("DAQ strobe healthy (>=6 positions);
+   using DAQ cue codes (trials.csv ignored)") and `behavior_position.classify_cues_with_backup`
+   (`if len(good) >= 6: return daq`). That covers all of June and 8/7 onward.
+2. **On the dead-bit sessions the offset aligner absorbs the shift.** 8/5-8/6 DO consult the log,
+   but both aligners search an integer trial offset, and this corruption is a uniform one-trial
+   shift — so the search lands on the true assignment instead of being defeated by it.
+   `classify_cues_with_backup` validated at **agreement 1.000 at offset +1** on all seven dead-bit
+   sessions that have a log (that `+1` IS the shift being absorbed), and the maps path produced all
+   6 positions with per-position counts summing to the cue count (e.g. PS93 8/6:
+   93+92+87+82+87+89 = 530).
+
+The behavior report was the only consumer that read the corrupted column **without** an
+offset-search safety net — which is why it, and only it, needed the fix and the regeneration.
+
+## The upstream GUI fix (`mobile_spout_behavior` bb16533)
+
+A `trial_start` now always finalizes the open trial row and starts a new one, whatever trial id the
+device reports. Ships with `tests/test_trial_logging.py`, which replays the real device event
+ordering through `SessionLogger`; its two bug-targeting tests fail on unpatched v46.
+
+Not fixed there (pre-existing, cosmetic): `trial_id` in `trials.csv` still lags the device's own
+trial number by one, and each trial still yields an unscored `trial_start` row alongside its scored
+row. Both follow from `totalTrials++` happening after the trial_start emit, so fixing them means a
+firmware change. Neither affects analysis (we key on the DAQ, and scored rows are filtered by
+hit XOR miss).

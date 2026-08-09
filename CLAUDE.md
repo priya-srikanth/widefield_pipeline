@@ -119,8 +119,10 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   stroke_orofacial `spout_behavior`; 1 cue + 6 spout positions here vs their 2 cues + L/R).
   **Trials come from the DAQ recorder `.h5`** (`wfield_local/daq_trials.py`), NOT the task-controller
   log: the GUI's `trials.csv` mislabels `pos_idx` on ~15% of trials (every position-change trial — its
-  row stays open and later events overwrite the field with the live device position, leaving the row one
-  trial ahead; still present in GUI v46, so all sessions to date are affected). Position comes from the
+  a trial_start collides with the id already on the open row, so it never closes and gets overwritten
+  with the NEXT trial's position; fixed upstream in mobile_spout_behavior bb16533, but every session
+  recorded before that deploys is affected). The IMAGING analysis was NOT affected (its offset aligner
+  absorbs the shift; see the doc). Position comes from the
   `spout_strobe`+`spout_bit0/1/2` code the firmware emits after the move and before the cue; hit/miss/
   latency are scored from DAQ licks over the session's REAL response window (**3500 ms**, read per
   session from `gui_config.json timing.response_window` — `defaults.yaml`'s 2.0 s was never the task's
