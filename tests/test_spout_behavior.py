@@ -225,17 +225,45 @@ def test_segment_bouts():
     assert sb.segment_bouts(np.array([]), 0.3, 2) == []
 
 
-def test_load_gui_licks_and_latency(tmp_path):
+def test_load_licks_gui_fallback_and_latency(tmp_path):
     ev = _events({1: {"cue_ms": 1000, "licks_ms": [1300, 1450], "resets": 3},
                   2: {"cue_ms": 2000, "licks_ms": [2100], "resets": 0}})
     d = _write_session(tmp_path, "PS92_20260806_120000",
                        [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=2, hit=True)], ev)
     gui = sb.load_gui_licks(d)
-    assert gui["all_s"].size == 3
+    assert gui["gui_lick_s"].size == 3 and gui["sync_s"].size == 0
     assert gui["cue_by_trial"].loc[1] == pytest.approx(1.0)
     assert int(gui["precue_reset_by_trial"].loc[1]) == 3
-    lat = sb.first_lick_latency_s(d, sb.load_trials(d), 5.0, gui=gui)
+    licks = sb.load_licks(d, rv=None)      # no rv -> GUI fallback (no DAQ events)
+    assert licks["source"] == "GUI" and licks["all_s"].size == 3
+    assert licks["cue_next_by_trial"].loc[1] == pytest.approx(2.0)   # next cue
+    lat = sb.first_lick_latency_s(d, sb.load_trials(d), 5.0, licks=licks)
     assert lat.iloc[0] == pytest.approx(0.3)
+
+
+def test_load_licks_daq_primary_via_sync(tmp_path):
+    from wfield_local import behavior_events as be
+    # events.csv: 25 sync pulses (device ms), cues, and a GUI lick that DIFFERS from the DAQ lick
+    sync_ms = list(range(500, 500 + 400 * 25, 400))
+    rows = [{"device_t_ms": t, "event_name": "sync", "trial_id": -1} for t in sync_ms]
+    rows += [{"device_t_ms": 1000, "event_name": "cue", "trial_id": 1},
+             {"device_t_ms": 5000, "event_name": "cue", "trial_id": 2},
+             {"device_t_ms": 1310, "event_name": "lick_on", "trial_id": 1}]   # GUI lick @1.31 s
+    d = _write_session(tmp_path, "PS92_20260806_120000",
+                       [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=1, hit=True)], rows)
+
+    class _RV:
+        def root(self, name):
+            return str(tmp_path / "server")
+    rv = _RV()
+    # canonical DAQ events (5000 Hz): sync samples == device_ms*5 (identity map), DAQ lick @1.30 s
+    be.save_events({"schema_version": 2, "fs": 5000.0, "n_samples": 30000,
+                    "lick_onsets": np.array([6500], np.int64),          # 1.30 s
+                    "sync_samples": (np.array(sync_ms) * 5).astype(np.int64),
+                    "daq_h5": "x"}, be.events_path(rv, "PS92", "20260806"))
+    licks = sb.load_licks(d, rv=rv)
+    assert licks["source"] == "DAQ"                     # DAQ licks used, mapped onto the device clock
+    assert licks["all_s"].tolist() == pytest.approx([1.30])   # the DAQ lick, NOT the GUI 1.31
 
 
 def test_lick_microstructure_metrics(tmp_path):
@@ -272,7 +300,7 @@ def test_plot_licking_smoke(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000", trials, ev)
     out = tmp_path / "out"
     png, csv = sb.plot_licking(d, d.name, out, config.defaults()["behavior"],
-                               sb.load_trials(d), sb.load_gui_licks(d), rv=None)
+                               sb.load_trials(d), sb.load_licks(d, rv=None), rv=None)
     assert png.exists() and csv.exists()
     assert (out / "sessions" / "PS92" / "20260806").is_dir()   # nested by animal/date
 

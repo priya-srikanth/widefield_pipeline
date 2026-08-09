@@ -44,7 +44,7 @@ from wfield_local.quiet_periods import (
 )
 from wfield_local.treadmill import bout_edges, calibrate_treadmill, find_running_bouts, smooth_treadmill
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2   # v2 adds sync_samples (DAQ<->GUI-device clock reference)
 
 
 def _read_analog(f, name: str) -> np.ndarray:
@@ -68,7 +68,14 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
         lick_v = _read_analog(f, lick.get("channel", "lick_analog"))
         tread_v = _read_analog(f, seg["treadmill"]["channel"])
         reward_v = _read_analog(f, seg["reward"]["channel"])
+        # Arduino sync heartbeat (digital bit) — the shared clock reference. Same pulses land in the
+        # behavior GUI log (events.csv sync), so it maps the DAQ clock <-> the GUI device clock.
+        dnames = [s.decode() for s in f["digital/channel_names"][:]]
+        packed = f["digital/packed_samples"][:, 0]
+        sbit = dnames.index("sync") if "sync" in dnames else 0
+        sync_col = (packed >> sbit) & 1
     n = int(lick_v.size)
+    sync_samples = np.flatnonzero(np.diff(sync_col.astype(np.int8), prepend=0) == 1).astype(np.int64)
 
     # licks (config criteria incl. the min_ili physiological floor) — identical to imaging's call
     det = detect_licks(lick_v, fs, thresh_upper=lick["thresh_upper"], thresh_lower=lick["thresh_lower"],
@@ -110,7 +117,7 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
 
     return {
         "schema_version": SCHEMA_VERSION, "daq_h5": h5_path.name, "fs": fs, "n_samples": n,
-        "lick_onsets": lick_onsets, "reward_samples": reward_samples,
+        "lick_onsets": lick_onsets, "reward_samples": reward_samples, "sync_samples": sync_samples,
         "running_starts": run_starts, "running_stops": run_stops,
         "quiet_starts": quiet_starts, "quiet_stops": quiet_stops,
         "grooming_starts": groom_starts, "grooming_stops": groom_stops,
@@ -151,8 +158,8 @@ def get_or_compute(rv, animal: str, date: str, force: bool = False) -> dict | No
     p = events_path(rv, animal, date)
     if not force:
         cached = load_events(p)
-        if cached is not None:
-            return cached
+        if cached is not None and int(cached.get("schema_version", 0)) >= SCHEMA_VERSION:
+            return cached      # stale-schema caches (missing newer arrays) fall through to recompute
     h5 = _daq_h5_for(rv, animal, date)
     if h5 is None:
         return None

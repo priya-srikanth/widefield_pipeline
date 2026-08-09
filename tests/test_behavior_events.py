@@ -19,11 +19,19 @@ def _write_daq(path, *, fs=5000.0, dur_s=6.0, lick_times=(1.0, 1.2, 2.0, 3.0), r
     for t in reward_times:
         s = int(t * fs)
         reward[s:s + int(0.01 * fs)] = 5.0
+    # digital sync line (bit0): a pulse every ~0.4 s
+    sync_col = np.zeros(n, np.uint8)
+    for s in range(int(0.5 * fs), n, int(0.4 * fs)):
+        sync_col[s:s + int(0.01 * fs)] = 1
+    packed = sync_col.astype(np.uint8)      # sync on bit0
     with h5py.File(path, "w") as f:
         f.attrs["sample_rate_hz"] = fs
         g = f.create_group("analog")
         g.create_dataset("channel_names", data=[b"lick_analog", b"treadmill", b"reward_ttl"])
         g.create_dataset("samples", data=np.stack([lick, tread, reward], axis=1))
+        d = f.create_group("digital")
+        d.create_dataset("channel_names", data=[b"sync", b"cue"])
+        d.create_dataset("packed_samples", data=packed[:, None])
     return path
 
 
@@ -37,6 +45,8 @@ def test_compute_events_counts(tmp_path):
     assert ev["running_starts"].size == 0           # flat treadmill -> no running
     assert ev["grooming_starts"].size == 0          # grooming off by default
     assert ev["quiet_starts"].size >= 1             # the quiet tail after the buffers
+    assert ev["sync_samples"].size >= 60            # ~0.4 s sync heartbeat over 30 s
+    assert ev["schema_version"] == 2
 
 
 def test_min_ili_floor_applied_in_events(tmp_path):
