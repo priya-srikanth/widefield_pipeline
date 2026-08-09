@@ -63,10 +63,18 @@ rsa:
   metric: crossnobis      # noise-unbiased distances (the honest cross-day / pre-post metric)
   also_correlation: true  # 1 - Pearson RDM shown alongside, clearly labeled
 
-lick_detection:            # DAQ lick_analog (ai0)
+lick_detection:            # DAQ lick_analog (ai0) — shared by behavior + imaging (single source)
   thresh_upper: 2.5
   thresh_lower: 0.5
   lockout_falling_edge_s: [0.001, 0.020]
+  min_ili_ms: 40           # physiological lick floor: ILI < this = double-detection artifact, dropped.
+                           #   Empirically these mice lick 5-7 Hz (median ILI 145-194 ms), peaking ~9-11 Hz
+                           #   (PS95 fastest, ILI down to ~90 ms); a 40 ms floor (25 Hz) removes only 0-3
+                           #   impossible sub-40 ms doubles per session and keeps ALL real fast licks, while
+                           #   a 100 ms cut would clip the fastest real licking. The offset-locked lockout
+                           #   alone leaves a ~13 ms floor; this enforces the real one. Applied as
+                           #   max(min_ili, refractory) so imaging's 0.1 s bout-collapse already subsumes
+                           #   it (no change to lick-aligned maps); behavior/microstructure gets the floor.
 
 # Spout behavior-session figures (wfield_local.spout_behavior; 1 cue + 6 spout positions).
 # The task-controller trials.csv already scores hit/miss/lick_in_response_window per trial;
@@ -74,12 +82,21 @@ lick_detection:            # DAQ lick_analog (ai0)
 behavior:
   free_reward_excluded: true      # drop free-reward (non-scored) trials from accuracy
   latency_max_s: 5.0              # first-lick latency past this (from cue) -> treat as no response
+  min_session_trials: 20          # skip near-empty aborted runs (fewer scored trials than this)
   engagement:                     # separate a sated/disengaged tail from genuine spatial inaccuracy
     window_trials: 15             # trailing window for the rolling response (lick-in-window) rate
     min_response_rate: 0.5        # rolling rate below this = disengaged (misses here are NOT "inaccurate")
     tail_min_misses: 6            # >= this many trailing consecutive non-responses = satiation tail
                                   #   (matches the task's auto_hold_after_miss_threshold)
     min_engaged_trials: 5         # positions with fewer engaged trials are reported but greyed out
+  licking:                        # lick microstructure (from events.csv lick_on, device clock)
+    peri_cue_window_s: [-2.0, 3.0]  # raster/PSTH window around cue (negative = anticipatory/pre-cue)
+    response_window_s: 2.0        # post-cue window for per-trial lick count + rate (matches decode lick_post_s)
+    max_ili_ms: 300               # inter-lick interval that splits lick bouts (stroke_orofacial default)
+    min_bout_licks: 2             # drop bouts with fewer licks than this
+    psth_bin_ms: 100              # peri-cue PSTH bin width
+    compare_daq: true             # overlay our DAQ lick_detection pipeline (lick_detection.min_ili_ms
+                                  #   floor applied) when the session .h5 is found
 
 # Spout-position source + sync (see STROBE_BIT1_RECOVERY.md, wfield_local/frame_sync.py):
 #  - positions from DAQ spout-strobe bits (code = bit0 + 2*bit1 + 4*bit2)

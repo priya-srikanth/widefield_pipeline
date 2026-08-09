@@ -51,12 +51,15 @@ It runs, in order:
    `matched/edges`, `resid_ms_rms` (~1-2 ms good), `frame_drops`, and a `QUALITY CHECK FAILED` flag if the
    residual is off.
 3. **Spout behavior figures** (`wfield_local.spout_behavior`) — reads the task-controller's already-scored
-   `trials.csv` and writes, under `Behavior_logs\Widefield\behavior_summary\`, a per-session PNG + a
-   per-position metrics CSV, plus a refreshed curated cross-session cohort figure. Each session's accuracy
-   is **engaged-gated**: reward is auto-held after a miss run, so a sated animal's late misses are
-   disengagement, not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate excludes them (the
-   raw all-trial rate is shown alongside for transparency). One cue + the 6 spout positions
-   (close/far × L/center/R); latency by position comes from `events.csv`.
+   `trials.csv` and writes, under `Behavior_logs\Widefield\behavior_summary\sessions\<animal>\<date>\`, a
+   per-session accuracy PNG + per-position CSV **and** a lick-microstructure PNG (peri-cue raster/PSTH, ILI
+   distribution, lick bouts, per-position lick rate / licks-per-trial / anticipatory licks, and a
+   GUI-vs-DAQ-pipeline lick-count comparison), plus a refreshed cross-session cohort figure and a
+   `cohort\by_animal\` across-session figure per animal. Accuracy is **engaged-gated**: reward auto-holds
+   after a miss run, so a sated animal's late misses are disengagement, not spatial inaccuracy — a terminal
+   sated-tail + rolling-collapse gate excludes them (raw all-trial rate shown alongside). One cue + 6 spout
+   positions (close/far × L/center/R; latency + licks from `events.csv`; DAQ lick_analog compared with the
+   40 ms physiological floor). Aborted runs are auto-skipped.
 
 `--skip-copy` (data already on MICROSCOPE) / `--skip-dropframe` / `--skip-align` / `--skip-behavior` run a
 subset. Underlying tools: `wfield_local.dropframe_qc`, `wfield_local.camera_sync`, `wfield_local.spout_behavior`

@@ -52,6 +52,7 @@ def detect_licks(
     thresh_lower: float = 1.0,
     lockout_s: tuple[float, float] = (0.001, 0.020),
     refractory_s: float | None = None,
+    min_ili_s: float = 0.0,
 ) -> dict[str, np.ndarray | float | tuple[float, float]]:
     """Detect analog lick onsets using hysteresis and optional refractory pruning.
 
@@ -71,6 +72,12 @@ def detect_licks(
     refractory_s:
         Optional minimum spacing between retained onsets. Useful for collapsing
         sustained bouts into coarser events for imaging averages.
+    min_ili_s:
+        Physiological minimum inter-lick interval (artifact floor). An onset closer
+        than this to the previous kept onset is a double-detection, not a real lick
+        (mice lick ~7-9 Hz), and is dropped. The effective refractory applied is
+        ``max(min_ili_s, refractory_s)``, so a coarser bout-collapse ``refractory_s``
+        (e.g. imaging's 0.1 s) already subsumes the floor and is unaffected.
     """
     if thresh_upper <= thresh_lower:
         raise ValueError("thresh_upper should be greater than thresh_lower for a high-rest lick signal.")
@@ -78,8 +85,9 @@ def detect_licks(
     offset = find_downward_lick_indices(signal, thresh_lower)
     lockout_samples = (int(round(lockout_s[0] * fs)), int(round(lockout_s[1] * fs)))
     cleaned = clean_lick_indices(onset, offset, lockout_samples)
-    if refractory_s is not None and refractory_s > 0 and cleaned.size:
-        min_gap = int(round(refractory_s * fs))
+    eff_refractory_s = max(min_ili_s or 0.0, refractory_s or 0.0)
+    if eff_refractory_s > 0 and cleaned.size:
+        min_gap = int(round(eff_refractory_s * fs))
         kept = [int(cleaned[0])]
         last = int(cleaned[0])
         for sample in cleaned[1:]:
@@ -97,4 +105,6 @@ def detect_licks(
         "thresh_lower": float(thresh_lower),
         "lockout_s": tuple(float(v) for v in lockout_s),
         "refractory_s": np.nan if refractory_s is None else float(refractory_s),
+        "min_ili_s": float(min_ili_s or 0.0),
+        "eff_refractory_s": float(eff_refractory_s),
     }

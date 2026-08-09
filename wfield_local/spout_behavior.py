@@ -53,6 +53,10 @@ POSITIONS = [
 ]
 IDX_ORDER = [p["idx"] for p in POSITIONS]           # bar/plot order: close L,C,R then far L,C,R
 POS_BY_IDX = {p["idx"]: p for p in POSITIONS}
+# color encodes ring (close/far); marker + linestyle encode side (L/center/R) so all 6 positions are
+# distinguishable in line graphs (and in greyscale).
+SIDE_MARKER = {"L": "o", "C": "D", "R": "^"}
+SIDE_LS = {"L": "-", "C": "--", "R": ":"}
 
 
 # --------------------------------------------------------------------------- loading
@@ -79,22 +83,43 @@ def load_trials(session_dir: Path) -> pd.DataFrame:
     return df
 
 
-def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, max_s: float) -> pd.Series:
-    """Per-trial first-lick latency (s) from ``events.csv``: first ``lick_on`` at/after the trial's
-    ``cue``. Returns NaN where no ``events.csv``, no cue, or latency exceeds ``max_s``."""
-    idx = pd.Series(np.nan, index=trials.index)
+def load_gui_licks(session_dir: Path) -> dict | None:
+    """Parse ``events.csv`` once into the GUI's own discrete lick events (device clock, seconds).
+
+    Returns ``{"all_s", "cue_by_trial", "lick_by_trial", "precue_reset_by_trial"}`` or ``None`` if the
+    file is missing/unreadable. ``all_s`` = every ``lick_on`` time sorted; ``cue_by_trial`` = per-trial
+    cue time (Series); ``lick_by_trial`` = per-trial sorted ``lick_on`` times; ``precue_reset_by_trial`` =
+    per-trial count of ``pre_cue_reset_by_lick`` events (anticipatory ENL-reset licks).
+    """
     ev_path = session_dir / "events.csv"
     if not ev_path.exists():
-        return idx
+        return None
     try:
         ev = pd.read_csv(ev_path, usecols=lambda c: c in ("device_t_ms", "event_name", "trial_id"))
     except Exception:
-        return idx
+        return None
     ev["device_t_ms"] = pd.to_numeric(ev["device_t_ms"], errors="coerce")
     ev["trial_id"] = pd.to_numeric(ev["trial_id"], errors="coerce")
-    cue_t = (ev[ev["event_name"] == "cue"].groupby("trial_id")["device_t_ms"].min())
     licks = ev[ev["event_name"] == "lick_on"]
-    lick_by_trial = {tid: np.sort(g["device_t_ms"].to_numpy()) for tid, g in licks.groupby("trial_id")}
+    resets = ev[ev["event_name"] == "pre_cue_reset_by_lick"]
+    return {
+        "all_s": np.sort(licks["device_t_ms"].to_numpy()) / 1000.0,
+        "cue_by_trial": ev[ev["event_name"] == "cue"].groupby("trial_id")["device_t_ms"].min() / 1000.0,
+        "lick_by_trial": {tid: np.sort(g["device_t_ms"].to_numpy()) / 1000.0
+                          for tid, g in licks.groupby("trial_id")},
+        "precue_reset_by_trial": resets.groupby("trial_id")["device_t_ms"].count(),
+    }
+
+
+def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, max_s: float,
+                         gui: dict | None = None) -> pd.Series:
+    """Per-trial first-lick latency (s): first ``lick_on`` at/after the trial's ``cue``. NaN where no
+    events, no cue, or latency exceeds ``max_s``. Pass a pre-loaded ``gui`` dict to avoid re-parsing."""
+    idx = pd.Series(np.nan, index=trials.index)
+    gui = gui if gui is not None else load_gui_licks(session_dir)
+    if gui is None:
+        return idx
+    cue_t, lick_by_trial = gui["cue_by_trial"], gui["lick_by_trial"]
     for i, row in trials.iterrows():
         tid = row["trial_id"]
         if tid not in cue_t.index:
@@ -105,10 +130,137 @@ def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, max_s: float) 
             continue
         after = arr[arr >= c]
         if after.size:
-            lat = (after[0] - c) / 1000.0
+            lat = after[0] - c
             if 0 <= lat <= max_s:
                 idx.loc[i] = lat
     return idx
+
+
+# --------------------------------------------------------------------------- lick microstructure
+
+def segment_bouts(onsets_s, max_ili_s: float, min_bout_licks: int) -> list[tuple[float, float, int]]:
+    """Split a sorted lick-onset train (seconds) into bouts at ILI gaps > ``max_ili_s``.
+
+    Returns ``[(start_s, end_s, n_licks), ...]`` for bouts with >= ``min_bout_licks`` licks
+    (stroke_orofacial `find_lick_bouts`: strict-> split, equality stays in-bout)."""
+    onsets_s = np.asarray(onsets_s, dtype=float)
+    if onsets_s.size == 0:
+        return []
+    splits = np.flatnonzero(np.diff(onsets_s) > max_ili_s) + 1
+    bouts = []
+    for run in np.split(onsets_s, splits):
+        if run.size >= min_bout_licks:
+            bouts.append((float(run[0]), float(run[-1]), int(run.size)))
+    return bouts
+
+
+def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
+                        gui: dict | None = None) -> dict | None:
+    """Lick-rate / ILI / bout / peri-cue microstructure from the GUI lick events. ``None`` if no events.
+
+    Per-position (engaged trials): mean post-cue licks/trial, mean anticipatory (pre-cue) licks/trial,
+    median within-trial lick rate (Hz, from median post-cue ILI). Session-level: overall lick rate,
+    ILI median, bout count/size/duration/within-bout-ILI. Plus peri-cue delays for the raster/PSTH.
+    """
+    gui = gui if gui is not None else load_gui_licks(session_dir)
+    if gui is None or gui["all_s"].size == 0:
+        return None
+    lk = params["licking"]
+    w0, w1 = lk["peri_cue_window_s"]
+    resp = lk["response_window_s"]
+    cue_t, lick_by_trial = gui["cue_by_trial"], gui["lick_by_trial"]
+
+    reset_by_trial = gui["precue_reset_by_trial"]     # ENL-reset licks = impulsive/anticipatory pre-cue
+    per_trial = []          # (pos_idx, n_post, n_pre, rate_hz)
+    raster = []             # (delays_within_window, pos_idx, trial_order)
+    for order, (i, row) in enumerate(trials.iterrows()):
+        tid, pos = row["trial_id"], int(row["pos_idx"])
+        if tid not in cue_t.index or not np.isfinite(cue_t.loc[tid]):
+            continue
+        c = cue_t.loc[tid]
+        arr = lick_by_trial.get(tid, np.empty(0))
+        d = arr - c
+        win = d[(d >= w0) & (d <= w1)]
+        raster.append((win, pos, order))
+        post = d[(d >= 0) & (d <= resp)]
+        # anticipatory = licks during the enforced no-lick period that reset the cue timer (pre_cue_reset)
+        n_pre = int(reset_by_trial.get(tid, 0))
+        rate = (1.0 / np.median(np.diff(post))) if post.size >= 2 else np.nan
+        per_trial.append((pos, int(post.size), n_pre, rate))
+    pt = pd.DataFrame(per_trial, columns=["pos_idx", "n_post", "n_pre", "rate_hz"])
+
+    rows = []
+    for idx in IDX_ORDER:
+        sub = pt[pt["pos_idx"] == idx]
+        rows.append({
+            "pos_idx": idx, "pos_name": POS_BY_IDX[idx]["name"],
+            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,
+            "anticipatory_licks": float(sub["n_pre"].mean()) if len(sub) else np.nan,
+            "lick_rate_hz": float(np.nanmedian(sub["rate_hz"])) if len(sub) else np.nan,
+        })
+    per_pos = pd.DataFrame(rows)
+
+    all_s = gui["all_s"]
+    ili = np.diff(all_s)
+    bouts = segment_bouts(all_s, lk["max_ili_ms"] / 1000.0, lk["min_bout_licks"])
+    sizes = np.array([b[2] for b in bouts]) if bouts else np.array([])
+    durs = np.array([b[1] - b[0] for b in bouts]) if bouts else np.array([])
+    within = [np.median(np.diff(all_s[(all_s >= b[0]) & (all_s <= b[1])])) for b in bouts if b[2] >= 2]
+    session = {
+        "n_licks": int(all_s.size),
+        "session_lick_rate_hz": float(all_s.size / (all_s[-1] - all_s[0])) if all_s.size > 1 else np.nan,
+        "ili_median_s": float(np.median(ili)) if ili.size else np.nan,
+        "n_bouts": len(bouts),
+        "mean_bout_size": float(sizes.mean()) if sizes.size else np.nan,
+        "mean_bout_dur_s": float(durs.mean()) if durs.size else np.nan,
+        "within_bout_ili_s": float(np.nanmean(within)) if within else np.nan,
+    }
+    return {"per_position": per_pos, "session": session, "raster": raster, "ili": ili, "all_s": all_s}
+
+
+def _daq_h5_for(rv, animal: str, date: str) -> Path | None:
+    """Locate the session's DAQ ``.h5`` (``DAQ_recorder_output/<date>/<animal>_<date>_*.h5``)."""
+    try:
+        root = Path(rv.root("daq_recorder_output"))
+    except Exception:
+        return None
+    for base in (root / date, root):
+        if base.is_dir():
+            hits = sorted(base.glob(f"{animal}_{date}_*.h5"))
+            if hits:
+                return hits[0]
+    return None
+
+
+def compare_daq_licks(h5_path: Path, params: dict) -> dict | None:
+    """Run our DAQ ``lick_detection`` pipeline on ``lick_analog`` and return counts + ILIs for the
+    GUI-vs-pipeline comparison. ``None`` if h5py/channel unavailable.
+
+    A ``min_ili_ms`` refractory (behavior.licking) is applied so the pipeline rejects the sub-40 ms
+    double-detections that the offset-locked lockout alone leaves behind — an ILI that short is not a
+    real lick (mice lick ~7-9 Hz), and it matches the GUI's own ~40 ms debounce for a fair comparison."""
+    try:
+        import h5py
+
+        from wfield_local.lick_detection import detect_licks
+        from wfield_local.plot_lick_aligned_averages import _decode_analog_channel
+    except Exception:
+        return None
+    ld = config.defaults()["lick_detection"]
+    min_ili_s = ld.get("min_ili_ms", 40) / 1000.0
+    try:
+        with h5py.File(h5_path, "r") as f:
+            fs = float(f.attrs["sample_rate_hz"])
+            sig = _decode_analog_channel(f, "lick_analog")
+    except Exception as e:
+        print(f"[spout_behavior] DAQ compare skipped ({h5_path.name}): {e}", flush=True)
+        return None
+    det = detect_licks(sig, fs, thresh_upper=ld["thresh_upper"], thresh_lower=ld["thresh_lower"],
+                       lockout_s=tuple(ld["lockout_falling_edge_s"]), min_ili_s=min_ili_s)
+    clean = np.asarray(det["lick_onsets"], dtype=float) / fs      # lockout + >=min_ili floor
+    raw = np.asarray(det["raw_onsets"], dtype=float) / fs
+    return {"n_raw": raw.size, "n_clean": clean.size, "n_removed": raw.size - clean.size,
+            "ili_clean": np.diff(clean), "ili_raw": np.diff(raw), "fs": fs, "min_ili_ms": min_ili_s * 1000}
 
 
 # --------------------------------------------------------------------------- engagement
@@ -311,22 +463,150 @@ def _latency_by_position(ax, scored: pd.DataFrame, latency: pd.Series):
     ax.set_title("response latency (engaged)")
 
 
-def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False):
-    """Write one per-session behavior figure + a per-position metrics CSV. Returns (png, csv) paths."""
+def _ring_color(pos_idx: int) -> str:
+    return "tab:blue" if POS_BY_IDX[pos_idx]["ring"] == "close" else "tab:purple"
+
+
+def _peri_cue_raster(ax, raster, resp_window_s, window_s):
+    """One row per trial; a dot per lick at its time from cue. Cue at 0, response window shaded."""
+    for y, (delays, pos, _order) in enumerate(raster):
+        if delays.size:
+            ax.plot(delays, np.full(delays.size, y), ".", ms=1.6, color=_ring_color(pos))
+    ax.axvline(0, color="k", lw=1)
+    ax.axvspan(0, resp_window_s, color="gold", alpha=0.15)
+    ax.set_xlim(*window_s)
+    ax.set_ylim(-1, len(raster))
+    ax.set_xlabel("time from cue (s)")
+    ax.set_ylabel("trial")
+    ax.set_title("peri-cue lick raster (blue=close, purple=far)")
+
+
+def _peri_cue_psth(ax, raster, bin_ms, window_s):
+    """Lick PSTH (licks/trial/s) aligned to cue, split close vs far."""
+    edges = np.arange(window_s[0], window_s[1] + 1e-9, bin_ms / 1000.0)
+    for ring, col in (("close", "tab:blue"), ("far", "tab:purple")):
+        delays = [d for d, pos, _ in raster if POS_BY_IDX[pos]["ring"] == ring for d in d]
+        n_tr = sum(1 for _, pos, _ in raster if POS_BY_IDX[pos]["ring"] == ring)
+        if n_tr and delays:
+            h, _ = np.histogram(delays, bins=edges)
+            ax.step(edges[:-1], h / n_tr / (bin_ms / 1000.0), where="post", color=col, label=ring)
+    ax.axvline(0, color="k", lw=1)
+    ax.set_xlim(*window_s)
+    ax.set_xlabel("time from cue (s)")
+    ax.set_ylabel("lick rate (Hz/trial)")
+    ax.set_title("peri-cue lick PSTH")
+    ax.legend(fontsize=8)
+
+
+def _ili_hist(ax, ili, daq_cmp, max_ili_ms, min_ili_ms):
+    """Log-x ILI histogram (GUI), with DAQ-pipeline overlay, bout-split + physiological-floor lines."""
+    bins = np.logspace(np.log10(0.01), np.log10(10), 60)
+    if ili.size:
+        ax.hist(ili, bins=bins, density=True, color="tab:gray", alpha=0.6, label="GUI licks")
+    if daq_cmp is not None and daq_cmp["ili_clean"].size:
+        ax.hist(daq_cmp["ili_clean"], bins=bins, density=True, histtype="step",
+                color="tab:red", lw=1.5, label="DAQ pipeline")
+    ax.axvline(min_ili_ms / 1000.0, color="k", ls=":", lw=1, label=f"{min_ili_ms:.0f} ms floor")
+    ax.axvline(max_ili_ms / 1000.0, color="green", ls="--", lw=1, label=f"{max_ili_ms:.0f} ms bout split")
+    ax.set_xscale("log")
+    ax.set_xlabel("inter-lick interval (s)")
+    ax.set_ylabel("density")
+    ax.set_title("ILI distribution")
+    ax.legend(fontsize=7)
+
+
+def _daq_compare_panel(ax, n_gui, daq_cmp):
+    """Bar of lick counts: GUI vs DAQ raw crossings vs DAQ after lockout+floor."""
+    if daq_cmp is None:
+        ax.text(0.5, 0.5, "no DAQ .h5 for comparison", ha="center", va="center")
+        ax.set_axis_off()
+        return
+    labels = ["GUI", "DAQ raw", f"DAQ clean\n(+{daq_cmp['min_ili_ms']:.0f}ms)"]
+    vals = [n_gui, daq_cmp["n_raw"], daq_cmp["n_clean"]]
+    ax.bar(labels, vals, color=["tab:gray", "salmon", "tab:red"])
+    for i, v in enumerate(vals):
+        ax.text(i, v, str(v), ha="center", va="bottom", fontsize=9)
+    ax.set_ylabel("lick count")
+    ax.set_title(f"GUI vs DAQ pipeline ({daq_cmp['n_removed']} sub-floor removed)")
+
+
+def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
+    x = np.arange(len(micro_pos))
+    colors = [_ring_color(i) for i in micro_pos["pos_idx"]] if color == "ring" else color
+    ax.bar(x, micro_pos[col].to_numpy(), color=colors)
+    ax.set_xticks(x, micro_pos["pos_name"], rotation=45, ha="right", fontsize=8)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+
+
+def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trials: pd.DataFrame,
+                 gui: dict, rv=None):
+    """Write the lick-microstructure figure + lick-metrics CSV. Returns (png, csv) or (None, None)."""
+    micro = lick_microstructure(session_dir, trials, params, gui=gui)
+    if micro is None:
+        return None, None
+    lk = params["licking"]
+    animal, date = _animal_date(sid)
+    daq_cmp = None
+    if lk.get("compare_daq", True) and rv is not None:
+        h5 = _daq_h5_for(rv, animal, date)
+        if h5 is not None:
+            daq_cmp = compare_daq_licks(h5, params)
+
+    out_sess = out_dir / "sessions" / animal / date
+    png = out_sess / f"{sid}_licking.png"
+    csv = out_sess / f"{sid}_lick_metrics.csv"
+    out_sess.mkdir(parents=True, exist_ok=True)
+    micro["per_position"].to_csv(csv, index=False)
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 9))
+    _peri_cue_raster(axes[0, 0], micro["raster"], lk["response_window_s"], lk["peri_cue_window_s"])
+    _peri_cue_psth(axes[0, 1], micro["raster"], lk["psth_bin_ms"], lk["peri_cue_window_s"])
+    _ili_hist(axes[0, 2], micro["ili"], daq_cmp, lk["max_ili_ms"],
+              config.defaults()["lick_detection"]["min_ili_ms"])
+    _micro_pos_bars(axes[1, 0], micro["per_position"], "lick_rate_hz",
+                    "within-trial lick rate", "Hz", "ring")
+    _micro_pos_bars(axes[1, 1], micro["per_position"], "licks_per_trial",
+                    "licks / trial (post-cue)", "licks", "ring")
+    _daq_compare_panel(axes[1, 2], micro["session"]["n_licks"], daq_cmp)
+    s = micro["session"]
+    fig.suptitle(f"{sid} — licking microstructure   n_licks={s['n_licks']}  "
+                 f"rate={s['session_lick_rate_hz']:.2f}Hz  ILI_med={s['ili_median_s']*1000:.0f}ms  "
+                 f"bouts={s['n_bouts']} (mean {s['mean_bout_size']:.1f} licks/"
+                 f"{s['mean_bout_dur_s']:.2f}s)", fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(png, dpi=130)
+    plt.close(fig)
+    print(f"[spout_behavior] wrote {png.name}", flush=True)
+    return png, csv
+
+
+def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False, rv=None):
+    """Write the per-session behavior figure + per-position CSV, plus the lick-microstructure figure.
+
+    Returns (behavior_png, position_csv). Near-empty (aborted) sessions are skipped."""
     trials = load_trials(session_dir)
-    latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0))
+    min_trials = params.get("min_session_trials", 20)
+    if len(trials) < min_trials:
+        print(f"[spout_behavior] skip {session_dir.name}: {len(trials)} scored trials "
+              f"(< {min_trials}; aborted run?)", flush=True)
+        return None, None
+    gui = load_gui_licks(session_dir)
+    latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), gui=gui)
     m = session_metrics(trials, latency, params)
     sid = session_dir.name
-    png = out_dir / "sessions" / f"{sid}_behavior.png"
-    csv = out_dir / "sessions" / f"{sid}_position_metrics.csv"
+    animal, date = _animal_date(sid)
+    sess_dir = out_dir / "sessions" / animal / date       # structured by animal/date
+    png = sess_dir / f"{sid}_behavior.png"
+    csv = sess_dir / f"{sid}_position_metrics.csv"
     if dry:
         print(f"[spout_behavior] {sid}: {m['n_scored']} scored, {m['n_engaged']} engaged, "
-              f"hit_rate(engaged)={m['hit_rate_engaged']:.3f} -> {png.name}", flush=True)
+              f"hit_rate(engaged)={m['hit_rate_engaged']:.3f} -> {png.relative_to(out_dir)}", flush=True)
         return png, csv
 
     from wfield_local import writeguard
     writeguard.assert_writable(out_dir)
-    (out_dir / "sessions").mkdir(parents=True, exist_ok=True)
+    sess_dir.mkdir(parents=True, exist_ok=True)
     m["per_position"].to_csv(csv, index=False)
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
@@ -343,6 +623,8 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}  ({m['n_disengaged']} disengaged trials excluded)",
           flush=True)
+    if gui is not None:
+        plot_licking(session_dir, sid, out_dir, params, trials, gui, rv=rv)
     return png, csv
 
 
@@ -351,6 +633,12 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
 def _animal_of(session_name: str) -> str | None:
     mo = ANIMAL_RE.match(session_name)
     return mo.group(0) if mo else None
+
+
+def _animal_date(session_name: str) -> tuple[str, str]:
+    """('PS92', '20260806') from 'PS92_20260806_124753'; falls back to ('unknown', 'unknown')."""
+    mo = re.match(r"(PS\d+)_(\d{8})", session_name)
+    return (mo.group(1), mo.group(2)) if mo else (_animal_of(session_name) or "unknown", "unknown")
 
 
 def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[Path]:
@@ -371,24 +659,50 @@ def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[
     return out
 
 
+# per-position metric families carried in each session record (for the per-animal figures).
+# key prefix -> (source table, column, human label). hit rate is stored UNPREFIXED (by pos name) too,
+# for backward compatibility with the cross-animal cohort figure.
+POS_METRICS = [
+    ("hit", "acc", "hit_rate", "hit rate (engaged)"),
+    ("lat", "acc", "median_latency_s", "first-lick latency (s)"),
+    ("lpt", "lick", "licks_per_trial", "licks / trial"),
+    ("rate", "lick", "lick_rate_hz", "within-trial lick rate (Hz)"),
+    ("ant", "lick", "anticipatory_licks", "anticipatory licks / trial"),
+]
+
+
 def session_row(session_dir: Path, params: dict) -> dict | None:
-    """One pooled record per session (for cohort figures): animal, date, engaged hit rates."""
+    """One pooled record per session (for cohort + per-animal figures): session-level scalars plus
+    every per-position metric (hit rate, latency, licks/trial, lick rate, anticipatory), keyed
+    ``<prefix>__<pos_name>``. Hit rate is ALSO stored unprefixed by pos name (cohort back-compat)."""
     try:
         trials = load_trials(session_dir)
     except Exception as e:
         print(f"[spout_behavior] skip {session_dir.name}: {e}", flush=True)
         return None
-    if trials.empty:
+    if len(trials) < params.get("min_session_trials", 20):
         return None
-    m = session_metrics(trials, None, params)
-    mo = re.match(r"(PS\d+)_(\d{8})", session_dir.name)
-    per = m["per_position"].set_index("pos_idx")
-    rec = {"session": session_dir.name,
-           "animal": mo.group(1) if mo else _animal_of(session_dir.name),
-           "date": mo.group(2) if mo else "",
-           "n_engaged": m["n_engaged"], "hit_rate": m["hit_rate_engaged"]}
+    gui = load_gui_licks(session_dir)
+    latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), gui=gui)
+    m = session_metrics(trials, latency, params)
+    micro = lick_microstructure(session_dir, trials, params, gui=gui) if gui is not None else None
+    animal, date = _animal_date(session_dir.name)
+    acc = m["per_position"].set_index("pos_idx")
+    lick = micro["per_position"].set_index("pos_idx") if micro is not None else None
+    src = {"acc": acc, "lick": lick}
+    rec = {"session": session_dir.name, "animal": animal, "date": date,
+           "n_engaged": m["n_engaged"], "n_disengaged": m["n_disengaged"],
+           "hit_rate": m["hit_rate_engaged"]}
+    if micro is not None:
+        rec.update({"session_lick_rate_hz": micro["session"]["session_lick_rate_hz"],
+                    "ili_median_s": micro["session"]["ili_median_s"],
+                    "n_bouts": micro["session"]["n_bouts"]})
     for idx in IDX_ORDER:
-        rec[POS_BY_IDX[idx]["name"]] = per.loc[idx, "hit_rate"] if idx in per.index else np.nan
+        nm = POS_BY_IDX[idx]["name"]
+        rec[nm] = acc.loc[idx, "hit_rate"] if idx in acc.index else np.nan   # back-compat (hit rate)
+        for prefix, table, col, _label in POS_METRICS:
+            t = src[table]
+            rec[f"{prefix}__{nm}"] = (t.loc[idx, col] if (t is not None and idx in t.index) else np.nan)
     rec["close"] = np.nanmean([rec[p["name"]] for p in POSITIONS if p["ring"] == "close"])
     rec["far"] = np.nanmean([rec[p["name"]] for p in POSITIONS if p["ring"] == "far"])
     return rec
@@ -464,7 +778,57 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     fig.savefig(png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name} ({len(df)} sessions)", flush=True)
+
+    for a in anims:                                   # per-animal across-session summaries
+        plot_animal_summary(a, df[df["animal"] == a], out_dir)
     return df
+
+
+def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
+    """One across-session figure per animal: each per-position metric (hit rate, latency, licks/trial,
+    lick rate, anticipatory) over that animal's sessions + a session-level panel. Same metrics as the
+    per-session figures, tracked across days."""
+    adf = adf.sort_values("date").reset_index(drop=True)
+    if adf.empty:
+        return None
+    png = out_dir / "cohort" / "by_animal" / f"{animal}_across_sessions.png"
+    png.parent.mkdir(parents=True, exist_ok=True)
+    dates = adf["date"].tolist()
+    x = np.arange(len(dates))
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 9))
+    panels = [(p, lab) for p, _t, _c, lab in POS_METRICS]      # 5 per-position metric families
+    for ax, (prefix, label) in zip(axes.flat[:5], panels):
+        for idx in IDX_ORDER:                                 # color=ring, marker+linestyle=side
+            p = POS_BY_IDX[idx]
+            key = f"{prefix}__{p['name']}"
+            if key in adf:
+                ax.plot(x, adf[key].to_numpy(), color=_ring_color(idx), marker=SIDE_MARKER[p["side"]],
+                        ls=SIDE_LS[p["side"]], ms=5, alpha=0.85, label=p["name"])
+        ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+        ax.set_title(label)
+        if prefix == "hit":
+            ax.set_ylim(0, 1.05)
+            ax.legend(fontsize=7, ncol=2)
+    # session-level panel: hit rate, close/far, engagement fraction over sessions
+    ax = axes.flat[5]
+    ax.plot(x, adf["hit_rate"], "-o", color="k", label="hit rate (engaged)")
+    ax.plot(x, adf["close"], "-o", color="tab:blue", alpha=0.7, label="close")
+    ax.plot(x, adf["far"], "-o", color="tab:purple", alpha=0.7, label="far")
+    if "n_disengaged" in adf and "n_engaged" in adf:
+        frac = adf["n_engaged"] / (adf["n_engaged"] + adf["n_disengaged"]).replace(0, np.nan)
+        ax.plot(x, frac, "--s", color="grey", alpha=0.7, label="engaged frac")
+    ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+    ax.set_ylim(0, 1.05)
+    ax.set_title("session-level")
+    ax.legend(fontsize=7)
+    fig.suptitle(f"{animal} — behavior across {len(adf)} sessions "
+                 f"(blue=close, purple=far positions)", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.savefig(png, dpi=130)
+    plt.close(fig)
+    print(f"[spout_behavior] wrote {png.relative_to(out_dir)}", flush=True)
+    return png
 
 
 # --------------------------------------------------------------------------- orchestration
@@ -478,7 +842,7 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
         print(f"[spout_behavior] {date}: {len(sessions)} session(s)", flush=True)
         for s in sessions:
             try:
-                plot_session(s, out_dir, params, dry=dry)
+                plot_session(s, out_dir, params, dry=dry, rv=rv)
             except Exception as e:
                 print(f"[spout_behavior] FAILED {s.name}: {e}", flush=True)
     if cohort:

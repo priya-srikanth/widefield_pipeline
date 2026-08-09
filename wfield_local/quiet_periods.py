@@ -177,7 +177,8 @@ def main() -> int:
 
     # licks (onsets) + reward
     lick = detect_licks(lick_v, fs, args.lick_thresh_upper_v, args.lick_thresh_lower_v,
-                        tuple(args.lockout_s), args.refractory_s)
+                        tuple(args.lockout_s), args.refractory_s,
+                        min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0)
     lick_onsets = np.asarray(lick["lick_onsets"], dtype=np.int64)
     lick_bool = idx2bool(lick_onsets, n)
     reward_bool = idx2bool(_rising(reward_v, args.reward_thresh_v), n)

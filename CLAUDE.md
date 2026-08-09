@@ -120,8 +120,22 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
   a terminal sated-tail detector (>= `tail_min_misses` trailing non-responses) UNION a rolling
   response-rate collapse gate separates them; per-position accuracy is engaged-gated by default with the
   raw all-trial rate shown alongside. Params in `configs/defaults.yaml behavior.*`; figures ->
-  `behavior_out` root. Wired as camera-nightly step 3 (`--skip-behavior`); standalone
-  `python -m wfield_local.spout_behavior <DATE> [--cohort] [--from curated]`.
+  `behavior_out` root (`Behavior_logs/Widefield/behavior_summary/`), per-session under
+  `sessions/<animal>/<date>/`. Wired as camera-nightly step 3 (`--skip-behavior`); standalone
+  `python -m wfield_local.spout_behavior <DATE> [--cohort] [--from curated]`. Also emits: a
+  **lick-microstructure** figure per session (peri-cue raster + PSTH, ILI distribution, lick bouts,
+  within-trial lick rate + licks/trial + anticipatory (pre-cue ENL-reset) licks per position) with a
+  **GUI-vs-DAQ-pipeline** lick comparison panel; and **per-animal across-session** figures
+  (`cohort/by_animal/<animal>_across_sessions.png`) tracking every per-position metric over days
+  (color=ring, marker/linestyle=side so all 6 positions are distinguishable). Aborted runs
+  (< `min_session_trials`) are auto-skipped.
+- **Lick-detection physiological floor (pipeline-wide).** `configs/defaults.yaml lick_detection.min_ili_ms`
+  (40 ms) is a mandatory min-inter-lick-interval applied in `detect_licks` as `max(min_ili, refractory)`.
+  These mice lick 5-7 Hz (peak ~9-11 Hz); 40 ms (25 Hz) removes only 0-3 physiologically-impossible
+  sub-40 ms doubles/session (a single contact split by a 1-sample voltage glitch — the true onset is kept;
+  QC: `behavior_summary/qc/`), and is a **no-op for imaging** (its 0.1 s bout-collapse refractory subsumes
+  the floor, so lick-aligned maps are unchanged). Wired into every lick consumer (behavior + imaging) via
+  config, so lick identification stays consistent across the pipeline.
 
 **Then the science:** post-stroke prerequisites — per-trial behavioral-state table (spout-contact + DAQ lick
 → hit/miss/failed, latency, executed position), and packaging the frozen pre-stroke model + baseline

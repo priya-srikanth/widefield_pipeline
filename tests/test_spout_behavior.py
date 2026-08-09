@@ -198,3 +198,87 @@ def test_wilson_ci_bounds():
     assert (lo, hi) == (0.0, 0.0)
     lo, hi = sb._wilson(10, 10)
     assert 0 <= lo <= 1 and 0 <= hi <= 1 and lo < hi
+
+
+# --------------------------------------------------------------------------- lick microstructure
+
+def _events(per_trial):
+    """Build events rows. per_trial: {tid: {"cue_ms":, "licks_ms":[...], "resets": n}}."""
+    rows = []
+    for tid, d in per_trial.items():
+        rows.append({"device_t_ms": d["cue_ms"], "event_name": "cue", "trial_id": tid})
+        for lm in d.get("licks_ms", []):
+            rows.append({"device_t_ms": lm, "event_name": "lick_on", "trial_id": tid})
+        for _ in range(d.get("resets", 0)):
+            rows.append({"device_t_ms": d["cue_ms"] - 500, "event_name": "pre_cue_reset_by_lick",
+                         "trial_id": tid})
+    return rows
+
+
+def test_segment_bouts():
+    # licks at 0,0.1,0.2 (one bout of 3), gap, 1.0,1.15 (bout of 2), gap, 3.0 (singleton dropped)
+    onsets = np.array([0.0, 0.1, 0.2, 1.0, 1.15, 3.0])
+    bouts = sb.segment_bouts(onsets, max_ili_s=0.3, min_bout_licks=2)
+    assert len(bouts) == 2
+    assert bouts[0] == (0.0, 0.2, 3)
+    assert bouts[1] == (1.0, 1.15, 2)
+    assert sb.segment_bouts(np.array([]), 0.3, 2) == []
+
+
+def test_load_gui_licks_and_latency(tmp_path):
+    ev = _events({1: {"cue_ms": 1000, "licks_ms": [1300, 1450], "resets": 3},
+                  2: {"cue_ms": 2000, "licks_ms": [2100], "resets": 0}})
+    d = _write_session(tmp_path, "PS92_20260806_120000",
+                       [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=2, hit=True)], ev)
+    gui = sb.load_gui_licks(d)
+    assert gui["all_s"].size == 3
+    assert gui["cue_by_trial"].loc[1] == pytest.approx(1.0)
+    assert int(gui["precue_reset_by_trial"].loc[1]) == 3
+    lat = sb.first_lick_latency_s(d, sb.load_trials(d), 5.0, gui=gui)
+    assert lat.iloc[0] == pytest.approx(0.3)
+
+
+def test_lick_microstructure_metrics(tmp_path):
+    # trial 1 (close_L): licks at cue+0,+0.1,+0.2,+0.3 -> 4 post licks, rate ~10 Hz; 2 anticipatory resets
+    ev = _events({1: {"cue_ms": 1000, "licks_ms": [1000, 1100, 1200, 1300], "resets": 2},
+                  2: {"cue_ms": 5000, "licks_ms": [5000, 5100], "resets": 0}})
+    d = _write_session(tmp_path, "PS92_20260806_120000",
+                       [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=1, hit=True)], ev)
+    m = sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"])
+    per = m["per_position"].set_index("pos_name")
+    assert per.loc["close_L", "licks_per_trial"] == pytest.approx(3.0)   # (4 + 2) / 2 trials
+    assert per.loc["close_L", "anticipatory_licks"] == pytest.approx(1.0)  # (2 + 0) / 2
+    assert per.loc["close_L", "lick_rate_hz"] == pytest.approx(10.0)     # median ILI 0.1 s
+    assert m["session"]["n_licks"] == 6
+    assert len(m["raster"]) == 2
+
+
+def test_lick_microstructure_none_without_events(tmp_path):
+    d = _write_session(tmp_path, "PS92_20260806_120000", [dict(tid=1, pos_idx=1, hit=True)])
+    assert sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"]) is None
+
+
+def test_min_session_trials_skips_aborted(tmp_path):
+    d = _write_session(tmp_path, "PS93_20260806_203549", [dict(tid=1, pos_idx=2, hit=False)])
+    png, csv = sb.plot_session(d, tmp_path / "out", config.defaults()["behavior"])
+    assert png is None and csv is None                     # too few trials -> skipped, nothing written
+    assert not (tmp_path / "out").exists()
+
+
+def test_plot_licking_smoke(tmp_path):
+    ev = _events({i + 1: {"cue_ms": 10000 * (i + 1), "licks_ms": [10000 * (i + 1) + 100 * k
+                          for k in range(4)], "resets": 1} for i in range(30)})
+    trials = [dict(tid=i + 1, pos_idx=i % 6, hit=True) for i in range(30)]
+    d = _write_session(tmp_path, "PS92_20260806_120000", trials, ev)
+    out = tmp_path / "out"
+    png, csv = sb.plot_licking(d, d.name, out, config.defaults()["behavior"],
+                               sb.load_trials(d), sb.load_gui_licks(d), rv=None)
+    assert png.exists() and csv.exists()
+    assert (out / "sessions" / "PS92" / "20260806").is_dir()   # nested by animal/date
+
+
+def test_daq_h5_for_missing(tmp_path):
+    class _RV:
+        def root(self, name):
+            return str(tmp_path / "daq")
+    assert sb._daq_h5_for(_RV(), "PS92", "20260806") is None   # no dir -> graceful None

@@ -86,6 +86,7 @@ def _load_daq_events(
                 thresh_lower=lick_thresh_lower_v,
                 lockout_s=lockout_s,
                 refractory_s=refractory_s,
+                min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0,   # physiological floor
             )
             events["lick"] = np.asarray(lick_detection["lick_onsets"], dtype=np.int64)
 

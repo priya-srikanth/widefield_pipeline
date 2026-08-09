@@ -649,13 +649,17 @@ output, so it runs first, while the imaging box is still preprocessing): upload 
 GPIO sync train ↔ DAQ `sync` line) → **spout behavior figures** (`spout_behavior`). `--skip-copy` /
 `--skip-dropframe` / `--skip-align` / `--skip-behavior` subset it; `nightly` calls it before `nightly_figs`.
 
-`python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — per-session behavior
-figure + per-position metrics CSV from the task-controller's scored `trials.csv` (1 cue + 6 spout
-positions: close/far × L/center/R), and a curated cross-session cohort figure. Accuracy is
-**engaged-gated**: reward auto-holds after a miss run, so a sated animal's late misses are disengagement,
-not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate (`configs/defaults.yaml behavior.*`)
-excludes them, with the raw all-trial rate shown alongside. First-lick latency by position from `events.csv`.
-Figures → `Behavior_logs/Widefield/behavior_summary/`.
+`python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — from the task-controller's
+scored `trials.csv` + `events.csv` (1 cue + 6 spout positions: close/far × L/center/R), per session it writes
+(1) an **accuracy** figure (2×3 spatial hit-rate grid, engagement timeline, per-position bars, latency) and
+(2) a **lick-microstructure** figure (peri-cue raster + PSTH, ILI distribution, lick bouts, per-position lick
+rate / licks-per-trial / anticipatory pre-cue licks, and a GUI-vs-DAQ-pipeline lick-count comparison), under
+`behavior_summary/sessions/<animal>/<date>/`. `--cohort` adds a cross-animal cohort figure and a per-animal
+`cohort/by_animal/<animal>_across_sessions.png` tracking every per-position metric over days (color=ring,
+marker=side). Accuracy is **engaged-gated**: reward auto-holds after a miss run, so a sated animal's late
+misses are disengagement, not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate
+(`configs/defaults.yaml behavior.*`) excludes them, raw shown alongside. The DAQ comparison applies the
+`lick_detection.min_ili_ms` 40 ms physiological floor (see below).
 
 ### 17. LocaNMF decomposition
 
