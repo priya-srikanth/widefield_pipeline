@@ -56,18 +56,21 @@ POS_BY_IDX = {p["idx"]: p for p in POSITIONS}
 # Palette (after stroke_orofacial): SIDE sets the hue (L=dodger blue, center=purple, R=medium violet
 # red); RING sets the lightness (close = deeper/darker, far = faded/lighter). Marker/linestyle also
 # encode side, so all 6 positions stay distinguishable in greyscale (lightness=ring, marker=side).
-SIDE_HUE = {"L": "dodgerblue", "C": "purple", "R": "crimson"}   # blue L, purple center, red R
+SIDE_HUE = {"L": "dodgerblue", "C": "darkviolet", "R": "crimson"}   # blue L, purple center, red R
 SIDE_MARKER = {"L": "o", "C": "D", "R": "^"}
 SIDE_LS = {"L": "-", "C": "--", "R": ":"}
 
 
 def pos_color(pos_idx: int):
-    """Per-position colour: side hue darkened (close) or lightened toward white (far)."""
+    """Per-position colour: side hue, made darker (close) or lighter (far) in HLS while KEEPING
+    saturation — so far positions stay a lighter version of the same hue (red stays red, not pink)."""
+    import colorsys
+
     import matplotlib.colors as mcolors
     p = POS_BY_IDX[pos_idx]
-    base = np.array(mcolors.to_rgb(SIDE_HUE[p["side"]]))
-    rgb = base * 0.60 if p["ring"] == "close" else base + (1.0 - base) * 0.55
-    return tuple(np.clip(rgb, 0, 1))
+    h, lum, s = colorsys.rgb_to_hls(*mcolors.to_rgb(SIDE_HUE[p["side"]]))
+    lum = lum * 0.62 if p["ring"] == "close" else lum + (1.0 - lum) * 0.42
+    return colorsys.hls_to_rgb(h, min(max(lum, 0.0), 1.0), s)
 
 
 def _ring_agg_color(ring: str) -> str:
@@ -753,22 +756,21 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     colors = config.animal_color()
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
-    # (A) per-animal per-position hit rate (pooled over sessions = mean of session rates)
+    # (A) per-position hit rate: cohort-mean bars in the POSITION palette, per-animal points overlaid
     ax = axes[0]
     names = [POS_BY_IDX[i]["name"] for i in IDX_ORDER]          # df column keys
     anims = sorted(df["animal"].unique())
     x = np.arange(len(names))
-    wd = 0.8 / max(1, len(anims))
-    for k, a in enumerate(anims):
+    ax.bar(x, [np.nanmean(df[n]) for n in names], color=[pos_color(i) for i in IDX_ORDER], alpha=0.85)
+    for a in anims:
         sub = df[df["animal"] == a]
-        means = [np.nanmean(sub[n]) for n in names]
-        ax.bar(x + k * wd, means, wd, label=a, color=colors.get(a, None), alpha=0.85)
-    ax.set_xticks(x + wd * (len(anims) - 1) / 2, [_disp(n) for n in names],
-                  rotation=45, ha="right", fontsize=8)
+        ax.scatter(x, [np.nanmean(sub[n]) for n in names], color=colors.get(a, None),
+                   s=26, edgecolor="k", lw=0.4, zorder=3, label=a)
+    ax.set_xticks(x, [_disp(n) for n in names], rotation=45, ha="right", fontsize=8)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("hit rate (engaged, session-mean)")
-    ax.set_title("per-position accuracy by animal")
-    ax.legend(fontsize=8)
+    ax.set_title("per-position accuracy (bar=cohort, dots=animals)")
+    ax.legend(fontsize=7, title="animal")
     # (B) learning curve: engaged hit rate vs date
     ax = axes[1]
     for a in anims:
