@@ -8,14 +8,18 @@ steps + standalone commands: `../wfield_local/README.md` §17–23.
 
 ## The whole night
 
-Once the imaging box has pushed a session's LocaNMF inputs to MICROSCOPE (`SVTcorr.npy`, the
-`allen_aligned_affine8v1/` dir, the `*cleanpairs_frame_map.npz`+summary, DAQ h5), run LocaNMF, then:
-
 ```powershell
 conda activate locanmf
 git -C C:\Users\sabatini\GitHub\widefield_pipeline pull
-python -m wfield_local.nightly_figs <MMDD>       # per-day decode/encode + cross-session RSA + deck
+python -m wfield_local.nightly <YYYYMMDD>        # camera archive + alignment FIRST, then LocaNMF figs
 ```
+
+`nightly` dispatches by machine — this is the analysis branch. It runs the **camera work first** (it
+needs no imaging output, so do it while the imaging box is still preprocessing): `camera_nightly` =
+upload `D:` → MICROSCOPE (**camera videos/CSVs + behavior logs**, size-verified, never deletes `D:`) +
+dropped-frame QC + camera↔DAQ alignment templates. **Then** `nightly_figs` (which waits for the imaging
+box's LocaNMF push). `--dry-run`; `--only PS94`; `--from <span>` (figs cross-session); `--skip-camera` /
+`--skip-figs`. LocaNMF itself (below) still has to have run on the pushed inputs before the figs step.
 
 `nightly_figs <MMDD>` runs the per-day decode (lick/cue 2 s, pre-cue 1 s), decoder-weight & dynamics
 figures, encoder (+ FEVE raw & normalized), and the cross-mouse / RSA (incl. crossnobis) comparison

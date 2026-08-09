@@ -10,12 +10,16 @@ Env: `C:\ProgramData\anaconda3\envs\wfield`. Full detail (params, paths, hard ru
 ```powershell
 conda activate wfield
 git -C C:\Github\widefield_pipeline pull
-python -m wfield_local.preprocess <YYYYMMDD>      # discover -> motion/SVD/xreg/push -> maps -> xall -> photobleach
-python -m wfield_local.preprocess_deck            # rebuild PS92-95_cross_sessions_aligned.pptx in place
-python -m wfield_local.archive_day archive --date <YYYYMMDD>   # raw + .bin -> M:, everything else -> N:
+python -m wfield_local.nightly <YYYYMMDD>         # preprocess -> preprocess_deck -> archive COPY (+verify)
 ```
 
-Then, **after checking in that N:/M: copies are byte-verified**, reclaim E: space:
+`nightly` chains the whole night (it dispatches by machine — this is the imaging branch): `preprocess`
+(discover → motion/SVD/xreg/push → maps → xall → intensity → photobleach) → `preprocess_deck` (rebuild
+`PS92-95_cross_sessions_aligned.pptx` in place) → `archive_day archive`+`verify` (raw + `.bin` → M: standby,
+outputs → N:, size-verified). It **never deletes** E:. `--dry-run` to preview; `--only PS94` to subset;
+`--skip-deck`/`--skip-archive`; ranges/`all` accepted. (The steps still run standalone if you need one.)
+
+Then, **after checking in that N:/M: copies are byte-verified**, reclaim E: space (MANUAL — never automatic):
 
 ```powershell
 python -m wfield_local.archive_day clean --date <YYYYMMDD>              # DRY-RUN

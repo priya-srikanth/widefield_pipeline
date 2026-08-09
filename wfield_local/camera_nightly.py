@@ -63,30 +63,38 @@ def _copy_tree(src_dir: Path, dst_dir: Path, dry: bool, res: dict, fails: list) 
 
 
 def upload(date, rv, animals=None, dry=False) -> tuple[dict, list]:
-    """Copy the date's camera + behavior-log staging from ``D:`` to MICROSCOPE. Never deletes ``D:``."""
+    """Copy the date's camera videos/CSVs AND behavior logs from ``D:`` to MICROSCOPE. Never deletes ``D:``."""
     res, fails = {"ok": 0, "skip": 0, "FAIL": 0, "dry": 0}, []
     aset = set(animals) if animals else None
 
-    cam_stg = Path(rv.staging("camera_local"))            # D:/camera; real data under <date>/<PSxx>/
+    def _group(label, jobs):
+        sub = {"ok": 0, "skip": 0, "FAIL": 0, "dry": 0}
+        for src, dst in jobs:
+            _copy_tree(src, dst, dry, sub, fails)
+        for k, v in sub.items():
+            res[k] += v
+        print(f"[camera_nightly] {label}: {sub}", flush=True)
+
+    # cameras: D:/camera/<date>/<PSxx>/*  ->  Behavior_Cameras/Widefield/<date>/<PSxx>/
+    cam_stg = Path(rv.staging("camera_local"))
     cam_src = cam_stg / date if (cam_stg / date).is_dir() else cam_stg
     cam_dst = Path(rv.resolve("behavior_cameras", date))
-    if cam_src.is_dir():
-        for a in sorted(p for p in cam_src.iterdir() if p.is_dir() and ANIMAL_RE.fullmatch(p.name)):
-            if aset and a.name not in aset:
-                continue
-            _copy_tree(a, cam_dst / a.name, dry, res, fails)
-    else:
-        print(f"[camera_nightly] no camera staging at {cam_src} — skipping camera upload", flush=True)
+    cam_jobs = [(a, cam_dst / a.name) for a in
+                (sorted(p for p in cam_src.iterdir() if p.is_dir() and ANIMAL_RE.fullmatch(p.name))
+                 if cam_src.is_dir() else [])
+                if not aset or a.name in aset]
+    _group("cameras", cam_jobs)
 
-    log_stg = Path(rv.staging("behavior_logs_local"))     # D:/behavior_logs; <PSxx>_<date>_<hhmmss>/
+    # behavior logs: D:/behavior_logs/<PSxx>_<date>_<hhmmss>/*  ->  Behavior_logs/Widefield/<session>/
+    log_stg = Path(rv.staging("behavior_logs_local"))
     log_dst = Path(rv.root("behavior_logs"))
-    if log_stg.is_dir():
-        for s in sorted(p for p in log_stg.iterdir() if p.is_dir() and date in p.name):
-            if aset and not any(s.name.startswith(x) for x in aset):
-                continue
-            _copy_tree(s, log_dst / s.name, dry, res, fails)
+    log_jobs = [(s, log_dst / s.name) for s in
+                (sorted(p for p in log_stg.iterdir() if p.is_dir() and date in p.name)
+                 if log_stg.is_dir() else [])
+                if not aset or any(s.name.startswith(x) for x in aset)]
+    _group("behavior logs", log_jobs)
 
-    print(f"[camera_nightly] upload D:->MICROSCOPE (D: untouched): {res}", flush=True)
+    print(f"[camera_nightly] upload D:->MICROSCOPE total (D: untouched): {res}", flush=True)
     for f in fails[:10]:
         print(f"   FAIL {f}", flush=True)
     return res, fails

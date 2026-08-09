@@ -33,11 +33,15 @@ camera acquisition). See `README.md` for setup, `docs/MIGRATION.md` for the spli
 
 ## Architecture (two machines)
 
+One nightly command, dispatched by machine: **`python -m wfield_local.nightly <YYYYMMDD>`**.
 - **Imaging (PCO) computer** — acquisition (recorder GUI, separate repo) + preprocessing (motion/SVD/Allen,
   cue/lick maps) from THIS repo → uploads to MICROSCOPE. Mounts: `N:`=MICROSCOPE, `E:`=local, `M:`=standby
-  (`M:\collaborations\Priya\Widefield\labcams`). Runbook: `runbooks/imaging_computer_nightly.md`.
-- **Analysis / behavior GPU box (this)** — LocaNMF + decode/encode/RSA + decks. `M:`=MICROSCOPE. Orchestrator
-  `python -m wfield_local.nightly_figs <MMDD>`. Runbook: `runbooks/analysis_computer_nightly.md`.
+  (`M:\collaborations\Priya\Widefield\labcams`). `nightly` = `preprocess` → `preprocess_deck` → `archive_day
+  archive` (COPY; never deletes E:). Runbook: `runbooks/imaging_computer_nightly.md`.
+- **Analysis / behavior GPU box (this)** — LocaNMF + decode/encode/RSA + decks. `M:`=MICROSCOPE. `nightly` =
+  `camera_nightly` (upload D: cameras+behavior-logs → MICROSCOPE, never deletes D:; dropped-frame QC;
+  camera↔DAQ alignment templates) FIRST, THEN `nightly_figs` (LocaNMF; waits on the imaging push). Runbook:
+  `runbooks/analysis_computer_nightly.md`. Never auto-deletes local staging (E:/D:) — cleanup is manual.
 
 ## Key decisions (see LOCANMF_LICK_CUE_ANALYSIS.md / DECISIONS.md for the full set)
 
