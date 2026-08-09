@@ -17,7 +17,7 @@ The date grammar (MMDD or YYYYMMDD; list, range `0806-0808`, or `all`; comma/spa
 `--only` (animals, or `all`) are shared verbatim with the preprocessing CLI
 (:mod:`wfield_local.preprocess`); see :func:`wfield_local.config.expand_dates`.
 
-Canonical orchestrator for the nightly pipeline (see LOCANMF_NIGHTLY_PIPELINE.md). Runs the individual
+Canonical orchestrator for the nightly pipeline (see runbooks/analysis_computer_nightly.md). Runs the individual
 locanmf_* modules as subprocesses so each gets a clean process; the repo root is derived from this file's
 location, so it is portable across checkouts.
 """

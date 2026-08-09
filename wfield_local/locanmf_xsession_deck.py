@@ -1,11 +1,11 @@
 """[LEGACY — RETIRED 2026-08-09. Superseded by ``locanmf_analysis_deck.py`` (built automatically by
 ``nightly_figs`` into ``<labcams>/spout_position_analysis_summary.pptx``, curated animal->type->date).
-This builder + its spec (``LOCANMF_XSESSION_DECK_SPEC.md``) are kept for reference only and are NO LONGER
+This builder + its spec (``docs/archive/LOCANMF_XSESSION_DECK_SPEC.md``) are kept for reference only and are NO LONGER
 UPDATED. Its deployed output is ``LEGACY_spout_position_decoder_xsession_6on.pptx``.]
 
 Assemble the 6/5-onward CROSS-SESSION deck (Priya 2026-06-10), on freshly re-registered LocaNMF.
 
-Grouped ANIMAL-first, date-second, per LOCANMF_XSESSION_DECK_SPEC.md (sections A-F):
+Grouped ANIMAL-first, date-second, per docs/archive/LOCANMF_XSESSION_DECK_SPEC.md (sections A-F):
   A  per animal -> date : per-session decode (cue-2s, first-lick-2s, pre-cue-2s) + per-animal rolling
   B  per date -> all animals : cue-aligned rolling dynamics + 2s-vs-rolling
   C  per animal : per-position decoder weights + region ablation (leave-1/leave-2) across sessions

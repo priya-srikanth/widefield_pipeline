@@ -28,8 +28,8 @@ configs/               single source of truth (mirrors stroke_orofacial_pipeline
   sessions.yaml        per (animal, date) imaging session: mc / h5 / regime / behavior_trials overrides
   paths.yaml           MICROSCOPE + labcams + DAQ + behavior mounts (logical roots -> platform paths)
   defaults.yaml        analysis params (LocaNMF r2/loc/maxrank, decode windows/CV, sync, lick detection)
-runbooks/              the per-machine nightly prompts (codified from LOCANMF_NIGHTLY_PIPELINE.md / NIGHTLY_PIPELINE.md)
-docs (*.md at root)    LOCANMF_NIGHTLY_PIPELINE, LOCANMF_LICK_CUE_ANALYSIS, STROBE_BIT1_RECOVERY, GPU_LOCANMF_*, DECISIONS, ...
+runbooks/              the per-machine nightly runbooks (source of truth: imaging_computer_nightly / analysis_computer_nightly)
+docs (*.md at root)    LOCANMF_LICK_CUE_ANALYSIS, DECISIONS, STROBE_BIT1_RECOVERY, TASKS; docs/archive/ = retired one-offs
 _*.py / _*.json        legacy per-session drivers + state (to be folded into the config-driven flow — see "Roadmap")
 ```
 
@@ -42,7 +42,7 @@ conda env create -f environment.yml      # env "locanmf" (python 3.10); runs `pi
 conda activate locanmf
 ```
 
-Then install the **GPU / custom pieces** (not pip-resolvable — see [`GPU_LOCANMF_KICKOFF.md`](GPU_LOCANMF_KICKOFF.md)):
+Then install the **GPU / custom pieces** (not pip-resolvable — see [`docs/archive/GPU_LOCANMF_KICKOFF.md`](docs/archive/GPU_LOCANMF_KICKOFF.md)):
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cu124   # CUDA build (RTX 4060: 2.6.0+cu124)
@@ -86,13 +86,13 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 ## Running the nightly
 
 - **Imaging computer:** follow `runbooks/imaging_computer_nightly.md` (acquire → preprocess → upload).
-- **Analysis box:** follow `runbooks/analysis_computer_nightly.md`, i.e. `python -m wfield_local.nightly_figs <MMDD>`
-  then rebuild + push the deck. The detailed source of truth is [`LOCANMF_NIGHTLY_PIPELINE.md`](LOCANMF_NIGHTLY_PIPELINE.md).
+- **Analysis box:** follow [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md)
+  (camera + behavior, then LocaNMF + `nightly_figs`, then push the deck) — the source of truth for this box.
 
 ## Key docs
 
-- [`LOCANMF_NIGHTLY_PIPELINE.md`](LOCANMF_NIGHTLY_PIPELINE.md) — analysis-box nightly runbook (source of truth)
-- [`NIGHTLY_PIPELINE.md`](NIGHTLY_PIPELINE.md) — imaging-computer preprocessing runbook
+- [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md) — analysis-box nightly runbook (source of truth)
+- [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) — imaging-computer preprocessing runbook (source of truth)
 - [`LOCANMF_LICK_CUE_ANALYSIS.md`](LOCANMF_LICK_CUE_ANALYSIS.md) — decisions + findings (decode/encode/RSA)
 - [`STROBE_BIT1_RECOVERY.md`](STROBE_BIT1_RECOVERY.md) — dead-strobe-bit position recovery (behavior-log + cam1)
 - [`DECISIONS.md`](DECISIONS.md) — server layout, regimes, load-bearing decisions

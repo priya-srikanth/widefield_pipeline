@@ -2,8 +2,8 @@
 
 Mounts here: **`N:` = MICROSCOPE** (`\\research.files.med.harvard.edu\Neurobio`), **`E:` = local
 raw/DAQ**, **`M:` = standby** (`\\standby...\sabatini`, under `collaborations\Priya\Widefield\labcams`).
-Env: `C:\ProgramData\anaconda3\envs\wfield`. Full detail (params, paths, hard rules, cleanup):
-[`../NIGHTLY_PIPELINE.md`](../NIGHTLY_PIPELINE.md); underlying per-step commands: `../wfield_local/README.md`.
+Env: `C:\ProgramData\anaconda3\envs\wfield`. Underlying per-step commands + params:
+[`../wfield_local/README.md`](../wfield_local/README.md) §1–16.
 
 ## The whole night
 
@@ -93,11 +93,22 @@ python -m wfield_local.nightly 20260808 --dry-run             # print every plan
   `allen_aligned_affine8v1`) → **prioritized push of the LocaNMF inputs to `N:` first**, then the
   cue/lick/quiet maps, the all-days cross-day QC overlay (`xall`), the cross-day raw ROI intensity
   trend, and photobleach QC.
-- **Hard rules:** sign-fixed motion; allen dir named exactly `allen_aligned_affine8v1`; the GPU push
-  must include `motion_corrected/*cleanpairs_frame_map.npz`+summary (not just `wfield_local_results/`);
-  never delete from E: until byte-verified, never from N:/non-Priya folders. Params live in
-  `configs/defaults.yaml preprocess`; the 6/6 reference + per-animal landmark version in
-  `configs/animals.yaml`.
+- **Hard rules:** sign-fixed motion (`--mode 2d`); allen dir named exactly `allen_aligned_affine8v1`
+  (GPU/LocaNMF, maps, and deck all expect that name; target cross-register NCC ~0.99, no new per-session
+  landmark placement); the GPU push must include `motion_corrected/*cleanpairs_frame_map.npz`+summary (not
+  just `wfield_local_results/`); never delete from E: until byte-verified, never from N:/non-Priya folders.
+  After any motion redo, the GPU must **re-run LocaNMF** on the corrected inputs.
+- **Paths & params:** raw + DAQ on `E:` — `E:\labcams_data\<DATE>\<session>\raw_widefield_data\…` and
+  `E:\DAQ_recorder_output\PSxx_<DATE>_*.h5` (DAQ files sit loose, not per-session); outputs → `N:` and
+  standby raw/`.bin` → `M:` (both under `…\Priya\…`); deck → `N:\…\labcams\cross-session_preprocessing_
+  <animal>.pptx`. Preprocess params live in `configs/defaults.yaml preprocess` (SVD k=100, functional ch 470,
+  fs 31.23, hp 0.1, lp 14); the 6/6 reference + per-animal landmark version in `configs/animals.yaml`
+  (PS92/PS93 v2, PS94/PS95 v1).
+- **Dead strobe bit / position recovery:** if cue/lick maps show <6 positions a DAQ strobe bit may be dead
+  (8/5–8/6). The maps step auto-recovers TRUE positions by passing `--behavior-trials <trials.csv>` whenever a
+  recovered CSV is discoverable (an explicit `behavior_trials` in `sessions.yaml`, or the session's
+  `N:\…\Behavior_logs\Widefield\<sess>\trials.csv`). Incident detail + the cam1 video-recovery fallback
+  (PS93 8/5): [`../STROBE_BIT1_RECOVERY.md`](../STROBE_BIT1_RECOVERY.md).
 - **M: flaky?** The drive letter often fails to resolve (`net use` error 67). Copy+verify via the UNC
   path in the Bash tool (`cp -f` then `cmp -s`); that is the fallback when `archive_day`'s drive-letter
   path breaks.

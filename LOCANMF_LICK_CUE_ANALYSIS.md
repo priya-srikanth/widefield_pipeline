@@ -2,7 +2,7 @@
 
 Working notes for the widefield LocaNMF behavioral analysis (lick/cue-evoked activity, spout
 position, and the per-position decoder for the planned stroke study). Written 2026-06-04 so a
-future session can resume without re-deriving. Companion to `GPU_LOCANMF_RUNLOG.md` (the run/
+future session can resume without re-deriving. Companion to `docs/archive/GPU_LOCANMF_RUNLOG.md` (the run/
 env/params) and `DECISIONS.md`.
 
 ## 0. The endpoint this is building toward

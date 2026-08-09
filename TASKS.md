@@ -1,7 +1,7 @@
 # Ongoing tasks & decisions (widefield pipeline)
 
 ## Standing nightly pipeline
-The per-night runbook lives in **`NIGHTLY_PIPELINE.md`** (source of truth); it is now driven by the
+The per-night runbook lives in **`runbooks/imaging_computer_nightly.md`** (source of truth); it is now driven by the
 config-driven orchestrator — `python -m wfield_local.preprocess <DATE>` (discover → fixed motion + SVD
 → cross-register each session to that animal's 6/6 + 6/6 Allen CCF, emit `allen_aligned_affine8v1`, no
 new landmarks → LocaNMF inputs → N: first → cue/lick maps → xall → photobleach), then
@@ -26,7 +26,7 @@ deck likewise starts at 6/5.
 
 ## Motion-correction sign-bug remediation (DONE)
 wfield 0.4.2 doubled drift (sign error); fixed in `wfield_local/motion_correct_fixed.py`
-(see `MOTION_CORRECTION_SIGN_BUG.md`, now the standard motion path via `run_wfield_motion`).
+(see `docs/archive/MOTION_CORRECTION_SIGN_BUG.md`, now the standard motion path via `run_wfield_motion`).
 All 6/5-6/8 sessions were re-corrected with the fix and cross-registered to their 2026-06-06
 reference (Allen-aligned via 6/6), and the deck + cross-day QC refreshed. (The resumable redo
 driver + its status file were one-offs, retired once the batch completed.)

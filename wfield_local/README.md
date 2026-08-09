@@ -629,7 +629,7 @@ SVD + atlas is adequate; for cross-animal / functional-subnetwork analysis, add
 LocaNMF (runs on the existing low-rank `U`/`SVTcorr` + the `allen_area_atlas`). It is
 GPU-oriented and not installed in the `wfield` (imaging-box) env. In `widefield_pipeline`,
 LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locanmf` env) — see the
-**Analysis** section (§17–23) below, `LOCANMF_NIGHTLY_PIPELINE.md`, and `DECISIONS.md`.
+**Analysis** section (§17–23) below, `runbooks/analysis_computer_nightly.md`, and `DECISIONS.md`.
 
 ## Analysis (behavior-GPU box)
 
@@ -732,4 +732,4 @@ python -m wfield_local.locanmf_frozen_decoder --transfer --output <OUT>   # cros
 Subset knobs: `nightly_figs --only PS93` scopes every decode/encode/RSA subprocess via the
 `WIDEFIELD_ONLY_ANIMALS` env var + the in-process figs; any single module can be scoped directly by
 prefixing `WIDEFIELD_ONLY_ANIMALS=PS93` / `WIDEFIELD_ONLY_DATES=0807`. Full decisions/findings:
-`LOCANMF_LICK_CUE_ANALYSIS.md`, `LOCANMF_NIGHTLY_PIPELINE.md`, `DECISIONS.md`.
+`LOCANMF_LICK_CUE_ANALYSIS.md`, `runbooks/analysis_computer_nightly.md`, `DECISIONS.md`.

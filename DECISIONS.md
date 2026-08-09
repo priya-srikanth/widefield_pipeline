@@ -155,7 +155,7 @@ removing it. Invisible on sub-pixel sessions; catastrophic on large drift (PS93
 `runpar` uses multiprocessing); `run_wfield_motion` now imports `motion_correct`
 from there. **PS93 6/6 and PS94 6/5 were re-processed with the fix; all other
 sessions used the buggy-but-negligible (<1.1 px median) correction.** Full record +
-per-session triage in `MOTION_CORRECTION_SIGN_BUG.md`.
+per-session triage in `docs/archive/MOTION_CORRECTION_SIGN_BUG.md`.
 
 See the [[microscope-server-safety]] memory for the hard rules.
 
@@ -165,12 +165,12 @@ See the [[microscope-server-safety]] memory for the hard rules.
 `allen_aligned_*` folder (`U_atlas` + `allen_area_atlas_native_grid` +
 `allen_brain_mask_native_grid` + `SVTcorr`) → localized components `A`/`C`/`regions` +
 montage. Needs PyTorch (the `torch` package) + the `locanmf` package + a CUDA GPU; this
-rig PC has none, so it runs on the NVIDIA box. `GPU_LOCANMF_KICKOFF.md` is the paste-ready
+rig PC has none, so it runs on the NVIDIA box. `docs/archive/GPU_LOCANMF_KICKOFF.md` is the paste-ready
 kickoff (clone repo → set up torch+locanmf env matching the GPU's CUDA → read data from
 `N:\MICROSCOPE\Priya\...` → run). There is no maintained newer-Python *prebuilt* locanmf;
 newer Python compiles the extension from source (see the script header).
 
-**Run log (2026-06-04, RTX 4060 box):** see `GPU_LOCANMF_RUNLOG.md` for the env recipe
+**Run log (2026-06-04, RTX 4060 box):** see `docs/archive/GPU_LOCANMF_RUNLOG.md` for the env recipe
 that worked (py3.10 + torch 2.6.0+cu124 + wfield 0.6.0 + locanmf-from-source), the 3
 torch-compatibility patches modern torch needs (`wfield_local/locanmf_torch_compat.patch`),
 the `M:` (not `N:`) drive mapping on that machine, and the `cuhals` CUDA-kernel build
@@ -228,7 +228,7 @@ cross-day registration prerequisites).
   pass/warn verdict).
 - `wfield_local/cross_day_align.py` — within-animal cross-day vasculature registration
   (above).
-- `wfield_local/run_locanmf.py` + `GPU_LOCANMF_KICKOFF.md` — LocaNMF (and sNMF via
+- `wfield_local/run_locanmf.py` + `docs/archive/GPU_LOCANMF_KICKOFF.md` — LocaNMF (and sNMF via
   `--mode`) on the GPU box.
 - `wfield_local/roi_activity.py` — CPU Allen-area ROI traces (region-averaged ΔF/F)
   + optional cue/lick per-region responses; lightweight baseline alongside LocaNMF.

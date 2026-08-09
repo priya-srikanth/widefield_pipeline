@@ -5,7 +5,7 @@ Project-level instructions for Claude Code. Read in full at the start of every s
 `widefield_pipeline` = widefield calcium-imaging **preprocessing + LocaNMF spout-position decode/encode
 analysis** for the Sabatini-lab VLS-stroke study (mice PS92/PS93/PS94/PS95; PS93 has a right orofacial
 deficit). Carved out of `Widefield_DAQ_recorder` on 2026-08-08 (that repo keeps only the DAQ recorder GUI +
-camera acquisition). See `README.md` for setup, `docs/MIGRATION.md` for the split record.
+camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for the split record.
 
 ---
 
@@ -65,7 +65,7 @@ config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py
 migrated to root-relative resolving on both boxes (was roadmap #2); **config-driven preprocessing
 orchestrator** `wfield_local/preprocess.py` (was roadmap #4 — retires the per-date `_nightly_*`/`_mc_svd_*`/
 `_maps_*`/`_photobleach_*` drivers; photobleach moved to `wfield_local/photobleach.py`); installable
-packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATION.md`; this `CLAUDE.md`.
+packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive/MIGRATION.md`; this `CLAUDE.md`.
 
 **NEXT (priority order):**
 1. **Consume `defaults.yaml` in code.** LocaNMF params (r2/loc/maxrank), decode windows/CV/max_rt, sync

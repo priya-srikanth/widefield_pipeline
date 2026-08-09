@@ -3,8 +3,8 @@
 MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu\Neurobio`); local
 staging on **`D:`** (`D:\camera`, `D:\behavior_logs`). Env:
 `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
-Date-parametrized detail: [`../LOCANMF_NIGHTLY_PIPELINE.md`](../LOCANMF_NIGHTLY_PIPELINE.md); analysis
-steps + standalone commands: `../wfield_local/README.md` §17–23.
+Underlying analysis steps + standalone commands: [`../wfield_local/README.md`](../wfield_local/README.md)
+§17–23. Design/findings: `../DECISIONS.md`, `../LOCANMF_LICK_CUE_ANALYSIS.md`.
 
 ## The whole night
 
@@ -59,6 +59,36 @@ figs stage then waits for the imaging box's LocaNMF push.
 6. **Build the analysis deck** `spout_position_analysis_summary.pptx` at the `labcams` top level
    (`locanmf_analysis_deck.py`, curated animal→type→date). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20)
    must already have run on the pushed inputs before this stage.
+
+## Before the figs: LocaNMF + session registration (still manual)
+
+Stage 2 assumes LocaNMF has run and the sessions are registered. That is a **manual step** on this box once
+the imaging box's push lands on MICROSCOPE — do it before (or the cron loop waits and retries):
+
+1. **Detect inputs.** For each mouse, check for
+   `…/labcams/<YYYYMMDD>/PS9*_<YYYYMMDD>*/motion_corrected/wfield_local_results/allen_aligned_affine8v1/
+   U_atlas.npy` + sibling `../../SVTcorr.npy`. If none ready, wait (the cron re-fires in ~30 min). Inputs
+   sometimes land under a temp `allen_aligned_*` name first; use `allen_aligned_affine8v1` for consistency.
+2. **Run LocaNMF.** Write `~/source/locanmf_batch_<MMDD>.json` (one `{label, allen_dir, output}` per ready
+   session; `output=…/motion_corrected/locanmf_affine8v1_final`) **in Python, not PowerShell** (a UTF-8 BOM
+   breaks the JSON), then:
+   `python -u -m wfield_local.batch_locanmf --manifest <m> --r2 0.95 --loc 80 --maxrank 20`.
+   Sanity: ~90–180 components/session.
+3. **Register the sessions** in `configs/sessions.yaml` (keyed `animal → "MMDD"`, **dates QUOTED**);
+   `config.load_sessions()` supplies the runtime `SESSIONS` — the old hardcoded list is retired, do NOT re-add
+   it. **Regime:** `*cleanpairs_frame_map.npz` present in `motion_corrected/` → regime `"B"` (`fmdir=None`);
+   absent → `"A"`. Validate the regime by **sensible decoding** (SSp ≫ chance 0.167), NOT by RT — if decoding
+   collapses to chance, the regime is wrong, try the other (the 6/5 bug: A gave chance, B fixed it).
+4. **Spout-position source + backup.** Positions come from the DAQ spout-strobe bits; a dead bit (Aug-2026
+   `spout_bit1`) is auto-repaired by `classify_cues_with_backup` (wired into `_trial_features`, so
+   decoder/encoder/cross-mouse/RSA all inherit it): if the DAQ shows <6 positions AND the task controller's
+   `trials.csv` (`pos_idx`) aligns to the DAQ's good positions at ≥0.9 by an integer trial-offset, it
+   substitutes the behavior-log positions; otherwise DAQ is left untouched (good sessions never altered). An
+   empty-log session (PS93 8/5) uses a `behavior_trials` recovered CSV set in `sessions.yaml`. Full incident
+   detail: [`../STROBE_BIT1_RECOVERY.md`](../STROBE_BIT1_RECOVERY.md).
+
+Then run Stage 2 (`nightly_figs`, above). It commits nothing — after the run, push deck/config changes via
+the rig procedure (see Notes).
 
 ## Running only part of the pipeline
 
