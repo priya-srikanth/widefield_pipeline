@@ -45,7 +45,8 @@ decode:
   aligns: [lick, cue, precue]
   lick_post_s: 2.0        # first-lick window (empirical optimum; spans the lick bout)
   cue_post_s: 2.0
-  precue_post_s: 1.0      # pre-cue (ENL) window, motor-independent readout
+  precue_post_s: 2.0      # pre-cue (ENL) window, motor-independent readout (2 s = the maintained-code
+                          # window; a few sessions with a shorter ENL may clip — override per session)
   max_rt_s: 2.0           # engaged = first lick within this of the cue; else -> no-lick
   cv: block               # GroupKFold by ~6-trial position blocks (no per-trial baseline)
   baseline: none

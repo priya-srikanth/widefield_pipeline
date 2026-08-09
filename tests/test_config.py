@@ -100,7 +100,7 @@ def test_defaults_blocks_are_the_single_source():
     assert d["locanmf"]["r2_thresh"] == 0.95 and d["locanmf"]["loc_thresh"] == 80 and d["locanmf"]["maxrank"] == 20
     dec = d["decode"]
     assert dec["aligns"] == ["lick", "cue", "precue"]
-    assert (dec["lick_post_s"], dec["cue_post_s"], dec["precue_post_s"]) == (2.0, 2.0, 1.0)
+    assert (dec["lick_post_s"], dec["cue_post_s"], dec["precue_post_s"]) == (2.0, 2.0, 2.0)
     assert dec["max_rt_s"] == 2.0 and dec["cv"] == "block" and dec["baseline"] == "none" and dec["chance"] == 0.167
 
 

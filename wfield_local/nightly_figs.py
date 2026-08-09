@@ -53,7 +53,7 @@ def _per_day_figs(date, out, from_dates, only):
     dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
     for al in dp["aligns"]:
         cli("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--output", out)
+            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", out)
 
     from wfield_local.locanmf_decoder_weights import (_avail, fig_rolling_cue, fig_temporal_dynamics,
                                                       fig_rolling_laterality, fig_top_components)
@@ -120,6 +120,29 @@ def main():
     # cross-session comparisons: once, spanning the whole --from set (not per per-day date)
     cli("wfield_local.locanmf_cross_mouse", "--output", out, "--dates", from_dates, "--tag", tag)
     cli("wfield_local.locanmf_rsa", "--output", out, "--dates", from_dates, "--tag", tag)
+
+    # per-animal rolling decoder across the curated sessions (Section A of the analysis deck) — NOT emitted
+    # by the per-day pass, so wire it here over the whole --from set (this is the figure that went stale).
+    try:
+        from wfield_local.locanmf_decoder_weights import _avail, fig_rolling_cue_by_animal
+        by_animal = {}
+        for d in from_list:
+            for lab in _avail(d):
+                by_animal.setdefault(lab[:4], []).append(lab)
+        for a, labs in sorted(by_animal.items()):
+            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
+    except Exception as ex:
+        log(f"  !! rolling_by_animal: {type(ex).__name__} {str(ex)[:70]}")
+
+    # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
+    try:
+        from wfield_local.locanmf_analysis_deck import build_analysis_deck
+        deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
+        d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag)
+        log(f"== analysis deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
+            f"{d['figures_missing']} missing) ==")
+    except Exception as ex:
+        log(f"  !! analysis deck: {type(ex).__name__} {str(ex)[:80]}")
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
 
 
