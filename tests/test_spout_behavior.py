@@ -281,6 +281,64 @@ def test_lick_microstructure_metrics(tmp_path):
     assert len(m["raster"]) == 2
 
 
+def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
+    """The per-position lick aggregates use engaged trials only (same gate as per-position hit rate).
+
+    A sated terminal tail licks nothing; ungated it drags close_L's licks/trial down, gated it doesn't.
+    Session-level scalars stay over the whole session either way.
+    """
+    params = config.defaults()["behavior"]
+    tail = params["engagement"]["tail_min_misses"]
+    n_good = 40
+    ev, trials = {}, []
+    for i in range(n_good):                                  # engaged: 4 licks/trial at close_L
+        tid, cue = i + 1, 10000 * (i + 1)
+        ev[tid] = {"cue_ms": cue, "licks_ms": [cue + 100 * k for k in range(4)], "resets": 2}
+        trials.append(dict(tid=tid, pos_idx=1, hit=True))
+    for j in range(tail):                                    # sated tail: no licks, no resets
+        tid = n_good + j + 1
+        ev[tid] = {"cue_ms": 10000 * tid, "licks_ms": [], "resets": 0}
+        trials.append(dict(tid=tid, pos_idx=1, hit=False))
+    d = _write_session(tmp_path, "PS92_20260806_120000", trials, _events(ev))
+    tr = sb.load_trials(d)
+    m = sb.session_metrics(tr, None, params)
+    assert m["n_disengaged"] == tail                          # the tail is what we expect to be gated
+
+    ungated = sb.lick_microstructure(d, tr, params)
+    gated = sb.lick_microstructure(d, tr, params, engaged_ids=sb._engaged_ids(m))
+    u = ungated["per_position"].set_index("pos_name")
+    g = gated["per_position"].set_index("pos_name")
+    assert u.loc["close_L", "licks_per_trial"] == pytest.approx(4 * n_good / (n_good + tail))
+    assert g.loc["close_L", "licks_per_trial"] == pytest.approx(4.0)        # tail excluded
+    assert g.loc["close_L", "anticipatory_licks"] == pytest.approx(2.0)
+    assert g.loc["close_L", "trials_engaged"] == n_good
+    assert gated["session"]["n_pos_gated"] == tail and gated["session"]["pos_engagement_gated"]
+    assert not ungated["session"]["pos_engagement_gated"]
+    # session-level + raster span the WHOLE session in both cases (they describe the recording)
+    assert ungated["session"]["n_licks"] == gated["session"]["n_licks"] == 4 * n_good
+    assert len(gated["raster"]) == n_good + tail
+
+
+def test_engaged_ids_matches_session_metrics(tmp_path):
+    params = config.defaults()["behavior"]
+    tail = params["engagement"]["tail_min_misses"]
+    trials = ([dict(tid=i + 1, pos_idx=i % 6, hit=True) for i in range(30)]
+              + [dict(tid=31 + j, pos_idx=0, hit=False) for j in range(tail)])
+    d = _write_session(tmp_path, "PS92_20260806_120000", trials)
+    m = sb.session_metrics(sb.load_trials(d), None, params)
+    ids = sb._engaged_ids(m)
+    assert len(ids) == m["n_engaged"] == 30
+    assert ids == set(range(1, 31))                       # the tail trial_ids are excluded
+
+
+def test_lick_pos_panels_match_across_session_metric_families():
+    """The per-session by-position lick panels are the same three families the per-animal
+    across-session figure tracks — so a session reads directly against the cross-day trend."""
+    across = [col for _p, table, col, _lab in sb.POS_METRICS if table == "lick"]
+    assert [col for col, _t, _y in sb.LICK_POS_PANELS] == across == [
+        "licks_per_trial", "lick_rate_hz", "anticipatory_licks"]
+
+
 def test_lick_microstructure_none_without_events(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000", [dict(tid=1, pos_idx=1, hit=True)])
     assert sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"]) is None

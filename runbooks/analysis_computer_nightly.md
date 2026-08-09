@@ -41,7 +41,9 @@ figs stage then waits for the imaging box's LocaNMF push.
    per-session accuracy PNG + per-position CSV **and** a lick-microstructure PNG (peri-cue raster/PSTH, ILI
    distribution, lick bouts, per-position lick rate / licks-per-trial / anticipatory licks, and a
    GUI-vs-DAQ-pipeline lick-count comparison), plus a refreshed cross-session cohort figure and a
-   `cohort\by_animal\` across-session figure per animal. Accuracy is **engaged-gated** (terminal sated-tail +
+   `cohort\by_animal\` across-session figure per animal. The accuracy PNG also carries the by-position
+   lick metrics (licks/trial, lick rate, anticipatory) so a session reads against the cross-day trend.
+   Accuracy **and the per-position lick metrics** are **engaged-gated** (terminal sated-tail +
    rolling-collapse gate; raw all-trial rate shown alongside). One cue + 6 spout positions (close/far ×
    L/center/R; latency + licks from `events.csv`; DAQ licks use the 40 ms physiological floor). Aborted runs
    (< `min_session_trials`) are auto-skipped.

@@ -656,7 +656,9 @@ GPIO sync train ↔ DAQ `sync` line) → **spout behavior figures** (`spout_beha
 
 `python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — from the task-controller's
 scored `trials.csv` + `events.csv` (1 cue + 6 spout positions: close/far × L/center/R), per session it writes
-(1) an **accuracy** figure (2×3 spatial hit-rate grid, engagement timeline, per-position bars, latency) and
+(1) an **accuracy** figure — row 1 task performance (2×3 spatial hit-rate grid, per-position bars,
+engagement timeline, latency), row 2 the by-position lick metrics (licks/trial, within-trial lick rate,
+anticipatory licks) mirroring the across-session per-animal panels — and
 (2) a **lick-microstructure** figure (peri-cue raster + PSTH, ILI distribution, lick bouts, per-position lick
 rate / licks-per-trial / anticipatory pre-cue licks, and a GUI-vs-DAQ-pipeline lick-count comparison), under
 `behavior_summary/sessions/<animal>/<date>/`. `--cohort` adds a cross-animal cohort figure and a per-animal

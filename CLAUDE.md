@@ -113,9 +113,11 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
 - **Nightly behavior-session figures from spout data — DONE** (`wfield_local/spout_behavior.py`, a la
   stroke_orofacial `spout_behavior`; 1 cue + 6 spout positions here vs their 2 cues + L/R). Reads the
   task-controller's already-scored `trials.csv` (hit/miss/lick_in_response_window per trial) rather than
-  re-detecting licks. Per-session figure (2x3 spatial hit-rate grid, engagement-over-session timeline,
-  per-position accuracy bars w/ Wilson CI + raw overlay, first-lick latency by position from `events.csv`)
-  + per-position metrics CSV, and a curated cross-session cohort figure (per-animal per-position accuracy,
+  re-detecting licks. Per-session figure — row 1 = task performance (2x3 spatial hit-rate grid,
+  per-position accuracy bars w/ Wilson CI + raw overlay, engagement-over-session timeline, first-lick
+  latency by position from `events.csv`); row 2 = the by-position lick metrics (licks/trial, within-trial
+  lick rate, anticipatory licks) — **the same metric families the across-session per-animal figure
+  tracks**, so one session reads directly against the cross-day trend — plus per-position metrics CSV, and a curated cross-session cohort figure (per-animal per-position accuracy,
   learning curve, close-vs-far distance effect). **Engagement gate** (`flag_engagement`): reward is
   auto-held after a miss run, so a sated animal's late misses are DISENGAGEMENT, not spatial inaccuracy —
   a terminal sated-tail detector (>= `tail_min_misses` trailing non-responses) UNION a rolling
@@ -126,7 +128,9 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   `python -m wfield_local.spout_behavior <DATE> [--cohort] [--from curated]`. Also emits: a
   **lick-microstructure** figure per session (peri-cue raster + PSTH, ILI distribution, lick bouts,
   within-trial lick rate + licks/trial + anticipatory (pre-cue ENL-reset) licks per position) with a
-  **GUI-vs-DAQ-pipeline** lick comparison panel; and **per-animal across-session** figures
+  **GUI-vs-DAQ-pipeline** lick comparison panel. The **per-position** lick aggregates are
+  engagement-gated exactly like per-position hit rate (a sated tail would otherwise read as a spatial
+  effect); session-level scalars and the raster/PSTH stay over the whole recording; and **per-animal across-session** figures
   (`cohort/by_animal/<animal>_across_sessions.png`) tracking every per-position metric over days
   (color=ring, marker/linestyle=side so all 6 positions are distinguishable). Aborted runs
   (< `min_session_trials`) are auto-skipped.
