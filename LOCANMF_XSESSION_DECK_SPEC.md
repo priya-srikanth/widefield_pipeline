@@ -1,4 +1,10 @@
-# Cross-session deck (6/5 onward) — spec
+# Cross-session deck (6/5 onward) — spec  ⚠️ LEGACY (RETIRED 2026-08-09)
+
+> **LEGACY / RETIRED.** This spec and its builder (`locanmf_xsession_deck.py`,
+> `spout_position_decoder_xsession_6on.pptx`) are superseded by the refined analysis deck
+> (`locanmf_analysis_deck.py` → `<labcams>/spout_position_analysis_summary.pptx`, built automatically by
+> `nightly_figs`, curated animal→type→date). Kept for reference only — no longer updated. The deployed
+> output is `LEGACY_spout_position_decoder_xsession_6on.pptx`.
 
 Plan-of-record for the NEW PowerPoint deck Priya requested on 2026-06-10, built on the **freshly
 re-registered** LocaNMF outputs (each session re-aligned to that animal's 6/6 image; 12-session

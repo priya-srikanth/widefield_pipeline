@@ -156,5 +156,7 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
 - Env: `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
-- Deck: built into `C:/Users/sabatini/source/cue_lick`, copied to
-  `M:\MICROSCOPE\Priya\Widefield\labcams\locanmf_lick_pooled\cue_analysis\spout_position_decoder_summary.pptx`.
+- Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
+  `M:\MICROSCOPE\Priya\Widefield\labcams\spout_position_analysis_summary.pptx` (curated animal→type→date);
+  analysis PNGs land in `…\labcams\locanmf_lick_pooled\cue_analysis\`. The old `locanmf_decoder_ppt.py` /
+  `locanmf_xsession_deck.py` builders are RETIRED (kept for reference, not updated; outputs prefixed `LEGACY_`).

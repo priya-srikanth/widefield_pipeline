@@ -94,11 +94,11 @@ temporal; encoder-vs-SVD validation.
   the RDM framing only earns its keep with the **crossnobis** distance, which is noise-unbiased and on a
   ratio scale (0 = identical), unlike the positively-biased 1−corr.
 
-**2f. Deck + commit.** In `wfield_local/locanmf_decoder_ppt.py`: add `("<MMDD>","M/D")` to `DAYS`; bump the
-newest-day rolling/encoder (`rc`/`lr`/`encs`/`vs`/`evp`/`evc`) refs and their title text to `<MMDD>`; set
-the cross-mouse/within-animal/RSA (`cm`/`wac`/`rsa`/`rsr`/`hsum`/`hrdm`) refs to `_0601-<MMDD>`.
-Rebuild via `locanmf_decoder_ppt.build_ppt(Path(OUT))`. Copy `.pptx` + new PNGs (robocopy `/MAXAGE:<today>`)
-to the cue_analysis dir.
+**2f. Deck + commit.** The deck is built AUTOMATICALLY by `nightly_figs` — `locanmf_analysis_deck.py`
+(`build_analysis_deck`) emits the curated animal→type→date `<labcams>/spout_position_analysis_summary.pptx`
+with no manual date-bumping. (The old per-day `locanmf_decoder_ppt.py` `DAYS`/`build_ppt` workflow and the
+`locanmf_xsession_deck.py` cross-session builder are RETIRED — kept for reference, no longer updated; their
+deployed outputs are prefixed `LEGACY_`.)
 Commit to `main` via the **rig procedure**: `git add -A && commit` → `git fetch origin` → `git rebase
 origin/main` → `git push` (NEVER force-push; if rejected, re-fetch/rebase/push). Stay in the `locanmf_*`
 lane — do NOT edit rig-owned files (`archive_day.py`, `framemap_event_maps.py`,

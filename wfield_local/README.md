@@ -635,8 +635,10 @@ LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locan
 
 The preprocessing above stops at SVD + atlas. The **analysis** half runs GPU LocaNMF and the
 spout-position models on the behavior-GPU box (env `locanmf`). `nightly_figs` runs steps 17–22 for
-the per-day date(s) + the cross-session span and builds the decoder summary deck
-(`locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`); run any step standalone with
+the per-day date(s) + the cross-session span and builds the refined analysis deck at the `labcams` top
+level (`spout_position_analysis_summary.pptx`, curated animal→type→date via `locanmf_analysis_deck.py`;
+the old `spout_position_decoder_summary.pptx` / `spout_position_decoder_xsession_6on.pptx` builders are
+retired, kept as `LEGACY_*` and no longer updated); run any step standalone with
 the same `configs/` source of truth. In the commands below `<OUT>` is the figure/deck dir (default
 `C:/Users/sabatini/source/cue_lick`), `<DATE>` is `MMDD`, `<SPAN>` is a comma `MMDD` list, and the
 cross-session `<TAG>` is `<first>-<last>` of the span.

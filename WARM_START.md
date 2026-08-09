@@ -58,11 +58,11 @@ chance-decoding bug on 6/5). Steps: LocaNMF (`batch_locanmf`, r2 0.95 / loc 80 /
 `SESSIONS` with regime (cleanpairs present → B/`fmdir=None`, else A) → VALIDATE regime by sensible decoding
 (SSp ≫ chance), not RT → rolling cue/first-lick/laterality + pre-cue + single-window decoding → encoder
 (raw + normalized-to-1.0 FEVE) → cross-mouse + within-animal consistency (all + the 6/5→ matched-engagement
-window) + RSA (incl hemisphere-resolved) → bump deck refs in `locanmf_decoder_ppt.py` (add day to `DAYS`;
-newest-day rolling/encoder refs; the consistency-subset slide ref **and** title — note dash-separated dates
-like `_0605-06xx` are NOT caught by a `"_06xx"` search-replace, fix by hand) → `build_ppt` → copy pptx+PNGs
-to `cue_analysis/` → commit via rig procedure → tag if substantial → `CronDelete` when all of the day's mice
-are done.
+window) + RSA (incl crossnobis) → the refined analysis deck (`locanmf_analysis_deck.py`, built
+AUTOMATICALLY by `nightly_figs` into `<labcams>/spout_position_analysis_summary.pptx`, curated
+animal→type→date — no manual date-bumping) → commit via rig procedure → tag if substantial → `CronDelete`
+when all of the day's mice are done. (The old per-day `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py`
+builders are RETIRED — kept for reference, no longer updated.)
 
 ## Canonical decoder/encoder choices
 Individual LocaNMF components (not region-pooled), NO per-trial baseline, block-aware CV (GroupKFold by
@@ -104,7 +104,8 @@ the cleanpairs frame_map + `chosen_exposure_offset`.
 · `locanmf_position_encoder.py` (FEVE, heatmaps) · `locanmf_decoder_weights.py` (rolling/temporal figs,
 adaptive y-axis) · `locanmf_decoder_ablation.py` · `locanmf_cross_mouse.py` (cross-mouse + within-animal
 consistency, dates/tag subset) · `locanmf_rsa.py` (RSA + noise ceiling + hemisphere-resolved) ·
-`locanmf_decoder_ppt.py` (`build_ppt`).
+`locanmf_analysis_deck.py` (`build_analysis_deck` — the current deck; auto-built by `nightly_figs`).
+LEGACY (retired, kept for reference, not updated): `locanmf_decoder_ppt.py`, `locanmf_xsession_deck.py`.
 
 ## Start by
 Read the two docs above; `git -C <repo> fetch && git log --oneline -8`; check `labcams/<today>` for new

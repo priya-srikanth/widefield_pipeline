@@ -1,4 +1,9 @@
-"""Assemble the spout-position decoder summary deck from figures in a directory. Expects the
+"""[LEGACY — RETIRED 2026-08-09. Superseded by ``locanmf_analysis_deck.py`` (built automatically by
+``nightly_figs`` into ``<labcams>/spout_position_analysis_summary.pptx``, curated animal->type->date).
+This builder is kept for reference only and is NO LONGER UPDATED — do not add new dates to ``DAYS`` or
+wire it into the nightly flow. Its deployed output is ``LEGACY_spout_position_decoder_summary.pptx``.]
+
+Assemble the spout-position decoder summary deck from figures in a directory. Expects the
 per-day decoder figures (from locanmf_position_decoder.py, --align lick/cue/precue) and the
 analysis figures (from locanmf_decoder_weights.py) to be present; missing images are skipped.
 

@@ -54,7 +54,8 @@ logical_roots:
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
 
   cue_analysis_out:
-    description: "Deck + figure destination (spout_position_decoder_summary.pptx + PNGs)"
+    description: "Analysis figure (PNG) destination + legacy decks. The CURRENT deck is
+      spout_position_analysis_summary.pptx at the labcams top level; the LEGACY_*.pptx here are retired."
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"

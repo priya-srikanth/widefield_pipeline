@@ -21,10 +21,11 @@ dropped-frame QC + camera↔DAQ alignment templates. **Then** `nightly_figs` (wh
 box's LocaNMF push). `--dry-run`; `--only PS94`; `--from <span>` (figs cross-session); `--skip-camera` /
 `--skip-figs`. LocaNMF itself (below) still has to have run on the pushed inputs before the figs step.
 
-`nightly_figs <MMDD>` runs the per-day decode (lick/cue 2 s, pre-cue 1 s), decoder-weight & dynamics
+`nightly_figs <MMDD>` runs the per-day decode (lick/cue/pre-cue 2 s), decoder-weight & dynamics
 figures, encoder (+ FEVE raw & normalized), and the cross-mouse / RSA (incl. crossnobis) comparison
 over the CURATED sessions (6/6–6/8 + 8/6 onward, enforced from `configs/animals.yaml date_policy`),
-then builds `locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`. Subset with
+then builds the refined analysis deck `spout_position_analysis_summary.pptx` at the `labcams` top level
+(`locanmf_analysis_deck.py`, curated animal→type→date). Subset with
 `--only PS93`; ranges / `all` / `--from <span>` accepted (grammar shared with `preprocess`).
 
 ## Camera nightly
