@@ -53,10 +53,31 @@ POSITIONS = [
 ]
 IDX_ORDER = [p["idx"] for p in POSITIONS]           # bar/plot order: close L,C,R then far L,C,R
 POS_BY_IDX = {p["idx"]: p for p in POSITIONS}
-# color encodes ring (close/far); marker + linestyle encode side (L/center/R) so all 6 positions are
-# distinguishable in line graphs (and in greyscale).
+# Palette (after stroke_orofacial): SIDE sets the hue (L=dodger blue, center=purple, R=medium violet
+# red); RING sets the lightness (close = deeper/darker, far = faded/lighter). Marker/linestyle also
+# encode side, so all 6 positions stay distinguishable in greyscale (lightness=ring, marker=side).
+SIDE_HUE = {"L": "dodgerblue", "C": "purple", "R": "crimson"}   # blue L, purple center, red R
 SIDE_MARKER = {"L": "o", "C": "D", "R": "^"}
 SIDE_LS = {"L": "-", "C": "--", "R": ":"}
+
+
+def pos_color(pos_idx: int):
+    """Per-position colour: side hue darkened (close) or lightened toward white (far)."""
+    import matplotlib.colors as mcolors
+    p = POS_BY_IDX[pos_idx]
+    base = np.array(mcolors.to_rgb(SIDE_HUE[p["side"]]))
+    rgb = base * 0.60 if p["ring"] == "close" else base + (1.0 - base) * 0.55
+    return tuple(np.clip(rgb, 0, 1))
+
+
+def _ring_agg_color(ring: str) -> str:
+    """Neutral close/far tone for aggregate (non-per-position) panels: deeper close, faded far."""
+    return "#333333" if ring == "close" else "#9aa0a6"
+
+
+def _disp(name: str) -> str:
+    """Display label for a position: 'far_L' -> 'far L'."""
+    return str(name).replace("_", " ")
 
 
 # --------------------------------------------------------------------------- loading
@@ -430,7 +451,7 @@ def _hit_rate_bars(ax, per_pos: pd.DataFrame, min_eng: int):
     # bar-relative error bars at 0 to avoid negative yerr.
     lo = np.clip(hr - per_pos["ci_lo"].to_numpy(), 0, None)
     hi = np.clip(per_pos["ci_hi"].to_numpy() - hr, 0, None)
-    colors = ["tab:blue" if r == "close" else "tab:purple" for r in per_pos["ring"]]
+    colors = [pos_color(i) for i in per_pos["pos_idx"]]
     faded = per_pos["trials_engaged"].to_numpy() < min_eng
     bars = ax.bar(x, np.nan_to_num(hr), yerr=[np.nan_to_num(lo), np.nan_to_num(hi)],
                   color=colors, alpha=0.85, capsize=3)
@@ -438,10 +459,10 @@ def _hit_rate_bars(ax, per_pos: pd.DataFrame, min_eng: int):
         if f:
             b.set_alpha(0.25)
     ax.plot(x, per_pos["hit_rate_all"].to_numpy(), "kD", ms=5, label="raw (all trials)")
-    ax.set_xticks(x, per_pos["pos_name"], rotation=45, ha="right", fontsize=8)
+    ax.set_xticks(x, [_disp(n) for n in per_pos["pos_name"]], rotation=45, ha="right", fontsize=8)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("hit rate")
-    ax.set_title("per-position accuracy (blue=close, purple=far)")
+    ax.set_title("per-position accuracy (hue=side, dark=close/light=far)")
     ax.legend(loc="lower left", fontsize=7)
 
 
@@ -452,7 +473,7 @@ def _latency_by_position(ax, scored: pd.DataFrame, latency: pd.Series):
         m = (scored["pos_idx"] == idx) & scored["engaged"]
         vals = latency.loc[scored.index[m]].dropna().to_numpy()
         data.append(vals)
-        labels.append(POS_BY_IDX[idx]["name"])
+        labels.append(_disp(POS_BY_IDX[idx]["name"]))
     if not any(len(d) for d in data):
         ax.text(0.5, 0.5, "no latency (events.csv absent)", ha="center", va="center")
         ax.set_axis_off()
@@ -463,28 +484,24 @@ def _latency_by_position(ax, scored: pd.DataFrame, latency: pd.Series):
     ax.set_title("response latency (engaged)")
 
 
-def _ring_color(pos_idx: int) -> str:
-    return "tab:blue" if POS_BY_IDX[pos_idx]["ring"] == "close" else "tab:purple"
-
-
 def _peri_cue_raster(ax, raster, resp_window_s, window_s):
-    """One row per trial; a dot per lick at its time from cue. Cue at 0, response window shaded."""
+    """One row per trial; a dot per lick at its time from cue, coloured by position. Cue at 0."""
     for y, (delays, pos, _order) in enumerate(raster):
         if delays.size:
-            ax.plot(delays, np.full(delays.size, y), ".", ms=1.6, color=_ring_color(pos))
+            ax.plot(delays, np.full(delays.size, y), ".", ms=1.6, color=pos_color(pos))
     ax.axvline(0, color="k", lw=1)
     ax.axvspan(0, resp_window_s, color="gold", alpha=0.15)
     ax.set_xlim(*window_s)
     ax.set_ylim(-1, len(raster))
     ax.set_xlabel("time from cue (s)")
     ax.set_ylabel("trial")
-    ax.set_title("peri-cue lick raster (blue=close, purple=far)")
+    ax.set_title("peri-cue lick raster (colour = position)")
 
 
 def _peri_cue_psth(ax, raster, bin_ms, window_s):
     """Lick PSTH (licks/trial/s) aligned to cue, split close vs far."""
     edges = np.arange(window_s[0], window_s[1] + 1e-9, bin_ms / 1000.0)
-    for ring, col in (("close", "tab:blue"), ("far", "tab:purple")):
+    for ring, col in (("close", _ring_agg_color("close")), ("far", _ring_agg_color("far"))):
         delays = [d for d, pos, _ in raster if POS_BY_IDX[pos]["ring"] == ring for d in d]
         n_tr = sum(1 for _, pos, _ in raster if POS_BY_IDX[pos]["ring"] == ring)
         if n_tr and delays:
@@ -532,9 +549,9 @@ def _daq_compare_panel(ax, n_gui, daq_cmp):
 
 def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
     x = np.arange(len(micro_pos))
-    colors = [_ring_color(i) for i in micro_pos["pos_idx"]] if color == "ring" else color
+    colors = [pos_color(i) for i in micro_pos["pos_idx"]] if color == "ring" else color
     ax.bar(x, micro_pos[col].to_numpy(), color=colors)
-    ax.set_xticks(x, micro_pos["pos_name"], rotation=45, ha="right", fontsize=8)
+    ax.set_xticks(x, [_disp(n) for n in micro_pos["pos_name"]], rotation=45, ha="right", fontsize=8)
     ax.set_ylabel(ylabel)
     ax.set_title(title)
 
@@ -738,7 +755,7 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
     # (A) per-animal per-position hit rate (pooled over sessions = mean of session rates)
     ax = axes[0]
-    names = [POS_BY_IDX[i]["name"] for i in IDX_ORDER]
+    names = [POS_BY_IDX[i]["name"] for i in IDX_ORDER]          # df column keys
     anims = sorted(df["animal"].unique())
     x = np.arange(len(names))
     wd = 0.8 / max(1, len(anims))
@@ -746,7 +763,8 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
         sub = df[df["animal"] == a]
         means = [np.nanmean(sub[n]) for n in names]
         ax.bar(x + k * wd, means, wd, label=a, color=colors.get(a, None), alpha=0.85)
-    ax.set_xticks(x + wd * (len(anims) - 1) / 2, names, rotation=45, ha="right", fontsize=8)
+    ax.set_xticks(x + wd * (len(anims) - 1) / 2, [_disp(n) for n in names],
+                  rotation=45, ha="right", fontsize=8)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("hit rate (engaged, session-mean)")
     ax.set_title("per-position accuracy by animal")
@@ -799,12 +817,12 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig, axes = plt.subplots(2, 3, figsize=(18, 9))
     panels = [(p, lab) for p, _t, _c, lab in POS_METRICS]      # 5 per-position metric families
     for ax, (prefix, label) in zip(axes.flat[:5], panels):
-        for idx in IDX_ORDER:                                 # color=ring, marker+linestyle=side
+        for idx in IDX_ORDER:                    # colour=side hue x ring lightness; marker/ls=side
             p = POS_BY_IDX[idx]
             key = f"{prefix}__{p['name']}"
             if key in adf:
-                ax.plot(x, adf[key].to_numpy(), color=_ring_color(idx), marker=SIDE_MARKER[p["side"]],
-                        ls=SIDE_LS[p["side"]], ms=5, alpha=0.85, label=p["name"])
+                ax.plot(x, adf[key].to_numpy(), color=pos_color(idx), marker=SIDE_MARKER[p["side"]],
+                        ls=SIDE_LS[p["side"]], ms=5, alpha=0.9, label=_disp(p["name"]))
         ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
         ax.set_title(label)
         if prefix == "hit":
@@ -813,8 +831,8 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     # session-level panel: hit rate, close/far, engagement fraction over sessions
     ax = axes.flat[5]
     ax.plot(x, adf["hit_rate"], "-o", color="k", label="hit rate (engaged)")
-    ax.plot(x, adf["close"], "-o", color="tab:blue", alpha=0.7, label="close")
-    ax.plot(x, adf["far"], "-o", color="tab:purple", alpha=0.7, label="far")
+    ax.plot(x, adf["close"], "-o", color=_ring_agg_color("close"), alpha=0.8, label="close")
+    ax.plot(x, adf["far"], "-o", color=_ring_agg_color("far"), alpha=0.8, label="far")
     if "n_disengaged" in adf and "n_engaged" in adf:
         frac = adf["n_engaged"] / (adf["n_engaged"] + adf["n_disengaged"]).replace(0, np.nan)
         ax.plot(x, frac, "--s", color="grey", alpha=0.7, label="engaged frac")
@@ -823,7 +841,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     ax.set_title("session-level")
     ax.legend(fontsize=7)
     fig.suptitle(f"{animal} — behavior across {len(adf)} sessions "
-                 f"(blue=close, purple=far positions)", fontsize=13)
+                 f"(hue=side: blue=L, purple=center, red=R;  dark=close, light=far)", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(png, dpi=130)
     plt.close(fig)
