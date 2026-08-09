@@ -60,6 +60,35 @@ PER_DATE_TYPES = [
      "__PHOTOBLEACH__", "photobleach", "FIT"),
 ]
 
+# Methodology for the speaker NOTES (how each figure is made). Common preprocessing prefix + per-type.
+_M_PRE = ("Widefield GCaMP: alternating 470 nm (GCaMP) + 415 nm (isosbestic) frames. Pipeline: sign-fixed "
+          "2D rigid MOTION correction -> SVD -> hemodynamic correction (415 regressed out) -> Allen-CCF "
+          "alignment (allen_aligned_affine8v1). Activity maps = U @ SVTcorr reconstructed and averaged over "
+          "event windows; events from the DAQ (5000 Hz). Spout position per trial from the DAQ spout-strobe "
+          "bits (dead bit1 in Aug-2026 repaired from the behavior-log pos_idx).")
+METHOD_NOTES = {
+    "allen": "Mean 470/415 image with Allen CCF area outlines overlaid — the atlas-alignment QC. " + _M_PRE,
+    "cue_maps": "Cue-aligned maps: mean dF/F in the pre (1 s before cue) and post (2 s after cue) windows "
+                "and their difference, per spout position, shared colour scale. " + _M_PRE,
+    "cue_pairwise": "Pairwise contrasts between spout positions (post-cue delta maps) — which cortex "
+                    "distinguishes each position pair. " + _M_PRE,
+    "lick_maps": "First-lick-aligned maps: mean dF/F in the 150 ms post-lick window per spout position. "
+                 "Licks = DAQ lick_analog double-threshold + lockout + 40 ms physiological ILI floor. " + _M_PRE,
+    "lick_quietnorm": "Post-lick maps normalized to the QUIET-period baseline (subtract mean SVT over "
+                      "not-running/not-licking frames) — activity relative to rest. " + _M_PRE,
+    "lick_pairwise": "Pairwise post-lick spout-position contrasts. " + _M_PRE,
+    "cue_vs_lick": "Cue-aligned vs first-lick-aligned position maps side by side — separating cue/sensory "
+                   "from lick/motor contributions. " + _M_PRE,
+    "quiet_running": "SVD activity averaged over QUIET periods vs RUNNING bouts (canonical behavior_events: "
+                     "treadmill >3 mm/s sustained >=2 s = running; slow + not-near-lick/reward = quiet), plus "
+                     "the running-minus-quiet contrast. Corrected frames mapped to DAQ samples via the "
+                     "cleanpairs frame_map + pco_exposure pulses. " + _M_PRE,
+    "motion_qc": "Motion-correction QC: frame-to-frame displacement and residual after the sign-fixed 2D "
+                 "rigid registration. " + _M_PRE,
+    "photobleach": "415/470 ROI-median fluorescence trend across the session — the photobleaching check "
+                   "(GCaMP 470 vs isosbestic 415). " + _M_PRE,
+}
+
 # Layout boxes (inches) on the 13.333 x 7.5 slide.
 _FIT = dict(title=(0.3, 0.22, 12.7, 0.5, 19), box=(0.22, 0.82, 12.9, 6.4),
             caption_top=7.15)
@@ -159,8 +188,8 @@ def _add_divider(prs, layout, title, subtitle=""):
     return s
 
 
-def _add_content(prs, layout, title, img_path, layout_kind):
-    """Add one content slide with a fitted, centered image. Returns the slide."""
+def _add_content(prs, layout, title, img_path, layout_kind, note=None):
+    """Add one content slide with a fitted, centered image (+ optional methodology note). Returns slide."""
     s = prs.slides.add_slide(layout)
     spec = _FIT if layout_kind == "FIT" else _FULL
     tl, tt, tw, th, tsize = spec["title"]
@@ -170,6 +199,8 @@ def _add_content(prs, layout, title, img_path, layout_kind):
     if layout_kind == "FIT":
         _txt(s, 0.3, spec["caption_top"], 12.7, 0.28,
              os.path.basename(img_path), 6.5, "999999")
+    if note:
+        s.notes_slide.notes_text_frame.text = note
     return s
 
 
@@ -284,7 +315,7 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
                 ymd = _yyyymmdd(s["mc"]) or ""
                 date_disp = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}" if len(ymd) == 8 else _mmdd_of(s)
                 slide_title = f"{animal}  {date_disp}  |  {title}"
-                _add_content(prs, blank, slide_title, img, layout_kind)
+                _add_content(prs, blank, slide_title, img, layout_kind, note=METHOD_NOTES.get(key))
                 type_counts[key] += 1
 
         qc = _crossday_qc_for_animal(animal, xday_root)
@@ -413,15 +444,15 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
 def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", default=None,
-                    help="Base .pptx path (default: labcams/PS92-95_cross_sessions_aligned.pptx). "
-                         "When split, files get an animal-span suffix.")
+                    help="Base .pptx path (default: labcams/cross-session_preprocessing.pptx). "
+                         "When split, files get an animal suffix (cross-session_preprocessing_<animal>.pptx).")
     ap.add_argument("--machine", default=None, help="Override machine (analysis|imaging).")
     ap.add_argument("--max-sessions", type=int, default=None,
                     help="Max sessions per deck file (default: defaults.yaml deck.max_sessions_per_file; "
                          "0 = single unified deck).")
     args = ap.parse_args(argv)
     rv = config.resolver(args.machine)
-    out = args.output or rv.resolve("labcams", "PS92-95_cross_sessions_aligned.pptx")
+    out = args.output or rv.resolve("labcams", "cross-session_preprocessing.pptx")
     build_decks(out, resolver=rv, machine=args.machine, max_sessions=args.max_sessions)
 
 

@@ -7,7 +7,7 @@ config-driven orchestrator — `python -m wfield_local.preprocess <DATE>` (disco
 new landmarks → LocaNMF inputs → N: first → cue/lick maps → xall → photobleach), then
 `preprocess_deck`, then `archive_day` (raw+bin → M:). Don't delete E: until checked in.
 
-Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\PS92-95_cross_sessions_aligned.pptx`.
+Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\cross-session_preprocessing_<animal>.pptx`.
 
 ## 6/6 reference landmarks for cross-register-all (use v2 where present)
 When doing the final cross-register-all-to-6/6, the per-animal 6/6 reference Allen CCF uses

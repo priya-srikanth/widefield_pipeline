@@ -24,7 +24,7 @@ python -m wfield_local.archive_day archive --date <DATE>   # raw+.bin -> M: stan
   (`xall`), the **cross-day raw ROI intensity** trend, and **photobleach** QC. Flags: `--dry-run`
   prints the plan; `--only PS94 PS95` subsets animals; `--skip-*` skip individual downstream steps;
   multiple dates / ranges / `all` accepted (`preprocess 0806-0808`).
-- `preprocess_deck` rebuilds the one canonical deck `labcams/PS92-95_cross_sessions_aligned.pptx`
+- `preprocess_deck` rebuilds the one canonical deck `labcams/cross-session_preprocessing_<animal>.pptx`
   in place (grouped animal → figure type → date; per-animal split to bound size). ~30 s, pure
   figure assembly.
 - `archive_day archive` copies raw + motion-corrected `.bin` → **M: standby** and all other
@@ -62,7 +62,7 @@ manually titrated day-to-day, so an intensity trend may reflect LED, not bleachi
   (per-session mapping / `net use` error 67) — copy+verify via the UNC path in the Bash tool
   (`cp -f` then `cmp -s`), which works through the MSYS layer. `archive_day.py`'s drive-letter
   path can break when M: is flaky; the manual UNC `cp`/`cmp` loop is the fallback.
-- Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\PS92-95_cross_sessions_aligned.pptx`.
+- Deck: `N:\MICROSCOPE\Priya\Widefield\labcams\cross-session_preprocessing_<animal>.pptx`.
 - Snapshots / camlogs are mirrored to N: by `archive_day`.
 - wfield python: `C:\ProgramData\anaconda3\envs\wfield\python.exe`. The repo is `pip install -e .`,
   so `python -m wfield_local.*` needs no PYTHONPATH.

@@ -28,7 +28,7 @@ The §1–23 commands are the underlying steps; day-to-day they are orchestrated
   overlay (`xall`, §14), and photobleach QC. Replaces the retired per-date `_nightly_*`/`_mc_svd_*`/
   `_maps_*`/`_photobleach_*` drivers.
 - **Cross-session preprocessing deck:** `python -m wfield_local.preprocess_deck` — rebuilds the single
-  `labcams/PS92-95_cross_sessions_aligned.pptx` in place (grouped animal → figure type → date; split
+  `labcams/cross-session_preprocessing_<animal>.pptx` in place (grouped animal → figure type → date; split
   into per-animal files to bound size). Replaces the retired `PS92_94_95_affine8v1.pptx` builder.
 - **Analysis (behavior-GPU box):**
   `python -m wfield_local.nightly_figs <DATE> ... [--only PS9x ...] [--from <DATE spec>]` — orchestrates
