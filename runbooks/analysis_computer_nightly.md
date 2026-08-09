@@ -23,26 +23,32 @@ over the CURATED sessions (6/6–6/8 + 8/6 onward, enforced from `configs/animal
 then builds `locanmf_lick_pooled/cue_analysis/spout_position_decoder_summary.pptx`. Subset with
 `--only PS93`; ranges / `all` / `--from <span>` accepted (grammar shared with `preprocess`).
 
-## Camera nightly (once the camera CSVs/videos + DAQ `.h5` are on MICROSCOPE)
+## Camera nightly
 
-Upload the camera + behavior-log data first (`D:\camera\<DATE>\*` → `Behavior_Cameras\Widefield\<DATE>\`,
-`D:\behavior_logs\*` → `Behavior_logs\Widefield\`; note the `Widefield\` SUBDIR; don't delete `D:` until
-byte-verified + checked in). Then one command does the camera processing:
+One command does the whole camera side for a date:
 
 ```powershell
 python -m wfield_local.camera_nightly <DATE>         # all animals; --only PS94 to subset one
+python -m wfield_local.camera_nightly <DATE> --dry-run    # plan only, no writes
 ```
 
-It runs, in order: (1) **dropped-frame QC** → `dropped_frames_summary_<DATE>.{csv,txt}` next to the data
-(per cam: rows/id_span/dropped/gaps + timestamp-delta stats; CSV cols 0/1/2 = frame_id / timestamp_ns,
-~4.003 ms apart @ ~250 fps / GPIO, bit0 = Arduino sync; a drop = a gap in the monotonic frame_id); and
-(2) **camera↔DAQ alignment templates** — each cam's GPIO sync train (bit0) matched to the DAQ `sync` line
-(bit0, 5000 Hz) via the bounded-window ITI matcher, written to the dedicated tree
-`...\Behavior_Cameras\Widefield\alignment_templates\<cam>\<PSxx>\<YYYYMMDD>.npz` (maps camera TIME→DAQ time,
-affine, drop-proof; for post-stroke multi-angle DLC / behavior↔imaging alignment). It logs `matched/edges`,
-`resid_ms_rms` (~1-2 ms good), `frame_drops`, and a `QUALITY CHECK FAILED` flag if the residual is off.
-`--skip-dropframe` / `--skip-align` run just one step. The underlying tools are `wfield_local.dropframe_qc`
-and `wfield_local.camera_sync`.
+It runs, in order:
+0. **Upload `D:` → MICROSCOPE** (size-verified, idempotent): `D:\camera\<DATE>\<PSxx>\*` →
+   `Behavior_Cameras\Widefield\<DATE>\<PSxx>\`, `D:\behavior_logs\<PSxx>_<DATE>_*` →
+   `Behavior_logs\Widefield\<session>\` (note the `Widefield\` SUBDIR). **`D:` is never deleted** — a copy
+   failure stops the run before QC/align; delete `D:` manually only after byte-verify + check-in.
+1. **Dropped-frame QC** → `dropped_frames_summary_<DATE>.{csv,txt}` next to the data (per cam:
+   rows/id_span/dropped/gaps + timestamp-delta stats; CSV cols 0/1/2 = frame_id / timestamp_ns, ~4.003 ms
+   apart @ ~250 fps / GPIO, bit0 = Arduino sync; a drop = a gap in the monotonic frame_id).
+2. **Camera↔DAQ alignment templates** — each cam's GPIO sync train (bit0) matched to the DAQ `sync` line
+   (bit0, 5000 Hz) via the bounded-window ITI matcher, written to the dedicated tree
+   `...\Behavior_Cameras\Widefield\alignment_templates\<cam>\<PSxx>\<YYYYMMDD>.npz` (maps camera TIME→DAQ
+   time, affine, drop-proof; for post-stroke multi-angle DLC / behavior↔imaging alignment). Logs
+   `matched/edges`, `resid_ms_rms` (~1-2 ms good), `frame_drops`, and a `QUALITY CHECK FAILED` flag if the
+   residual is off.
+
+`--skip-copy` (data already on MICROSCOPE) / `--skip-dropframe` / `--skip-align` run a subset. Underlying
+tools: `wfield_local.dropframe_qc`, `wfield_local.camera_sync`.
 
 ## Notes
 
