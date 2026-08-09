@@ -99,7 +99,9 @@ python -m wfield_local.nightly 20260808 --dry-run             # print every plan
   just `wfield_local_results/`); never delete from E: until byte-verified, never from N:/non-Priya folders.
   After any motion redo, the GPU must **re-run LocaNMF** on the corrected inputs.
 - **Paths & params:** raw + DAQ on `E:` — `E:\labcams_data\<DATE>\<session>\raw_widefield_data\…` and
-  `E:\DAQ_recorder_output\PSxx_<DATE>_*.h5` (DAQ files sit loose, not per-session); outputs → `N:` and
+  `E:\DAQ_recorder_output\PSxx_<DATE>_*.h5` (DAQ files sit loose, not per-session) — `upload-daq`/`archive`
+  put them on `N:` under `…\Widefield\DAQ_recorder_output\<DATE>\` (canonical; one date level, never a
+  nested `DAQ_recorder_output\`); other outputs → `N:` and
   standby raw/`.bin` → `M:` (both under `…\Priya\…`); deck → `N:\…\labcams\cross-session_preprocessing_
   <animal>.pptx`. Preprocess params live in `configs/defaults.yaml preprocess` (SVD k=100, functional ch 470,
   fs 31.23, hp 0.1, lp 14); the 6/6 reference + per-animal landmark version in `configs/animals.yaml`

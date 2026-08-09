@@ -104,6 +104,12 @@ permission**, and **only ever write inside the `Priya\` folder**):
   **Analyzed data except the corrected video**: SVD (U/SVT/SVTcorr), Allen alignment, maps/QC, DAQ, decks →
   `…\Widefield\labcams\`. LocaNMF only needs SVTcorr + the atlas, so the GPU is unaffected. Copy excludes the
   regenerable raw + cleanpairs `*_uint16.dat`.
+- **DAQ `.h5` on N: is organized by date, one level only**:
+  `…\Widefield\DAQ_recorder_output\<YYYYMMDD>\<animal>_<date>_<time>.h5`. The E: layout is *not*
+  canonical (files sit loose under `E:\DAQ_recorder_output`), so `archive_day` derives the destination
+  from `--date`, never from the E: parent dir. Before 2026-08-09 it mirrored the parent dir name, which
+  put loose E: files into a nested `DAQ_recorder_output\DAQ_recorder_output\` on N: (fixed; the stray
+  nested copies were duplicates of the per-date ones).
 - `wfield_local/archive_day.py` implements this (raw + bin → M:, rest → N:); `writeguard.assert_writable`
   refuses writes/deletes outside the Priya subtree.
 

@@ -21,7 +21,8 @@ Classification of every file under E:\\labcams_data\\<date>:
   - any other ``*_uint16.dat``                                     -> RAW  -> M: (mirrors tree)
   - everything else (npy/npz/png/json/csv/camlog/tif/bin/...)      -> OUTPUT -> N: (mirrors tree)
 DAQ h5 files containing <date> anywhere under E:\\DAQ_recorder_output -> N: DAQ
-(mirroring their parent folder name).
+under a ``<date>\\`` folder (canonical server layout: ``DAQ_recorder_output\\<date>\\
+<animal>_<date>_<time>.h5``), regardless of how they are foldered on E:.
 
 Subcommands
   archive   copy E: -> M:/N: (idempotent, size-verified; LocaNMF inputs first so a
@@ -103,14 +104,20 @@ def discover(cfg, date):
 
 
 def discover_daq(cfg, date):
-    """DAQ ``.h5`` files containing ``date`` under E: -> N: (independent of labcams; safe to run early)."""
+    """DAQ ``.h5`` files containing ``date`` under E: -> N: (independent of labcams; safe to run early).
+
+    The destination is always ``<n_daq>/<date>/<file>.h5`` — the canonical server layout — no matter
+    how the file is foldered on E:. Deriving it from ``date`` (not from the E: parent dir) is what
+    keeps a loose ``E:\\DAQ_recorder_output\\PSxx_<date>_*.h5`` from landing in a nested
+    ``DAQ_recorder_output\\DAQ_recorder_output\\`` on N:, and normalizes typo'd E: date dirs too.
+    """
     daq = []
     if os.path.isdir(cfg["e_daq"]):
         for root, _dirs, files in os.walk(cfg["e_daq"]):
             for f in files:
                 if f.endswith(".h5") and date in f:
                     daq.append(dict(src=os.path.join(root, f),
-                                    dst=os.path.join(cfg["n_daq"], os.path.basename(root), f),
+                                    dst=os.path.join(cfg["n_daq"], date, f),
                                     kind="daq", session=None))
     return daq
 

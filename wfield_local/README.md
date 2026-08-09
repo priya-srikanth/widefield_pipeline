@@ -597,7 +597,9 @@ Reusable daily off-load of a recording day from the local E: drive:
 - **Raw camera movies → M: standby** (cold, immutable originals)
 - **Motion-corrected `.bin` → M: standby** under `<date>\<animal>\motion_corrected\`
   (huge; kept OFF MICROSCOPE to save space — LocaNMF doesn't need it)
-- **SVD + Allen transform + maps + QC + DAQ → N: MICROSCOPE**
+- **SVD + Allen transform + maps + QC + DAQ → N: MICROSCOPE**. The DAQ `.h5` always lands in
+  `…\Widefield\DAQ_recorder_output\<date>\` (the canonical layout), whatever folder it sat in on E:
+  — loose at the DAQ root, under a date dir, or a typo'd date dir.
 - Once copies are **size-verified**, the copied E: files plus the reproducible
   E:-only intermediates (cleanpairs `*.dat`, any `*_concat` raw) can be deleted
   from E: to reclaim space.
