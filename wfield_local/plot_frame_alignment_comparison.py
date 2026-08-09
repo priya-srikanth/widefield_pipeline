@@ -21,6 +21,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
+
 try:
     from .lick_detection import detect_licks
 except ImportError:  # Allow direct script execution.
@@ -198,9 +200,10 @@ def main() -> int:
     parser.add_argument("--events", nargs="+", default=list(DEFAULT_DIGITAL_EVENTS))
     parser.add_argument("--include-licks", action="store_true")
     parser.add_argument("--lick-channel", default="lick_analog")
-    parser.add_argument("--lick-thresh-upper-v", type=float, default=2.5)
-    parser.add_argument("--lick-thresh-lower-v", type=float, default=1.0)
-    parser.add_argument("--lockout-s", type=float, nargs=2, default=(0.001, 0.020))
+    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    parser.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
+    parser.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
+    parser.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     parser.add_argument("--refractory-s", type=float, default=0.10)
     parser.add_argument(
         "--raw-frame-rate",

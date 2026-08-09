@@ -29,6 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
 from wfield_local.plot_spout_trial_averages import (
     _load_daq_events as _load_cue_events,
     _classify_cues,
@@ -311,9 +312,10 @@ def main() -> int:
                    help="(lick only) *_quiet_frame.npy from quiet_periods.py -> also emit a "
                         "quiet-normalized figure/npz (post-lick minus quiet baseline)")
     p.add_argument("--lick-channel", default="lick_analog")
-    p.add_argument("--lick-thresh-upper-v", type=float, default=2.5)
-    p.add_argument("--lick-thresh-lower-v", type=float, default=1.0)
-    p.add_argument("--lockout-s", type=float, nargs=2, default=(0.001, 0.020))
+    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    p.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
+    p.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
+    p.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     p.add_argument("--refractory-s", type=float, default=0.10)
     args = p.parse_args()
     if args.offset is None and args.cleanpairs_summary is None:

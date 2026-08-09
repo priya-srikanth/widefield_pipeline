@@ -44,6 +44,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
 from wfield_local.treadmill import calibrate_treadmill, smooth_treadmill
 from wfield_local.lick_detection import detect_licks
 
@@ -126,9 +127,10 @@ def main() -> int:
     ap.add_argument("--treadmill-buffer", type=float, nargs=2, default=(3.0, 3.0))
     # licking
     ap.add_argument("--lick-channel", default="lick_analog")
-    ap.add_argument("--lick-thresh-upper-v", type=float, default=2.5)
-    ap.add_argument("--lick-thresh-lower-v", type=float, default=1.0)
-    ap.add_argument("--lockout-s", type=float, nargs=2, default=(0.001, 0.020))
+    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
+    ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
+    ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     ap.add_argument("--refractory-s", type=float, default=0.10)
     ap.add_argument("--lick-buffer", type=float, nargs=2, default=(1.0, 3.0))
     # reward

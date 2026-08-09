@@ -40,6 +40,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
 # h5py/numpy-only helpers (these modules do NOT import wfield)
 from wfield_local.plot_lick_aligned_averages import (
     _load_daq_events,
@@ -238,9 +239,10 @@ def main() -> int:
     p.add_argument("--save-trials", action="store_true", default=True)
     p.add_argument("--no-save-trials", dest="save_trials", action="store_false")
     p.add_argument("--lick-channel", default="lick_analog")
-    p.add_argument("--lick-thresh-upper-v", type=float, default=2.5)
-    p.add_argument("--lick-thresh-lower-v", type=float, default=1.0)
-    p.add_argument("--lockout-s", type=float, nargs=2, default=(0.001, 0.020))
+    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    p.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
+    p.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
+    p.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     p.add_argument("--refractory-s", type=float, default=0.10)
     args = p.parse_args()
     if args.frame_map is not None and args.offset is None and args.cleanpairs_summary is None:

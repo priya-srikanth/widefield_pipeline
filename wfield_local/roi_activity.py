@@ -40,6 +40,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
+
 POSITION_NAMES = {0: "close_center", 1: "close_L", 2: "close_R", 3: "far_center", 4: "far_L", 5: "far_R"}
 DISPLAY_ORDER = [1, 0, 2, 4, 3, 5]
 
@@ -108,9 +110,10 @@ def main() -> int:
     ap.add_argument("--cleanpairs-summary", type=Path, default=None)
     ap.add_argument("--offset", type=int, default=None)
     ap.add_argument("--lick-channel", default="lick_analog")
-    ap.add_argument("--lick-thresh-upper-v", type=float, default=2.5)
-    ap.add_argument("--lick-thresh-lower-v", type=float, default=1.0)
-    ap.add_argument("--lockout-s", type=float, nargs=2, default=(0.001, 0.020))
+    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
+    ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
+    ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     ap.add_argument("--refractory-s", type=float, default=0.10)
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
