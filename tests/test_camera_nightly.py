@@ -1,7 +1,7 @@
 """Tests for the camera nightly orchestrator (wfield_local.camera_nightly)."""
 from pathlib import Path
 
-from wfield_local import camera_nightly as cn
+from wfield_local import behavior_events, camera_nightly as cn
 from wfield_local import camera_sync, dropframe_qc, spout_behavior
 
 
@@ -27,6 +27,7 @@ def _patch_steps(monkeypatch):
     calls = []
     monkeypatch.setattr(dropframe_qc, "run", lambda *a, **k: calls.append(("drop", a, k)))
     monkeypatch.setattr(camera_sync, "run", lambda *a, **k: calls.append(("align", a, k)))
+    monkeypatch.setattr(behavior_events, "run", lambda *a, **k: calls.append(("events", a, k)))
     monkeypatch.setattr(spout_behavior, "run", lambda *a, **k: calls.append(("behavior", a, k)))
     return calls
 
@@ -34,7 +35,7 @@ def _patch_steps(monkeypatch):
 def test_dispatch_order_and_animals_threading(tmp_path, monkeypatch):
     calls = _patch_steps(monkeypatch)
     cn.run("20260807", _RV(tmp_path), animals=["PS94"], do_copy=False)     # no staging -> skip copy
-    assert [c[0] for c in calls] == ["drop", "align", "behavior"]          # QC -> align -> behavior
+    assert [c[0] for c in calls] == ["drop", "align", "events", "behavior"]   # QC->align->events->figs
     assert all(c[2].get("animals") == ["PS94"] for c in calls)            # animals threaded through
     assert calls[0][1][0] == str(tmp_path / "server" / "behavior_cameras" / "20260807")
 
@@ -42,12 +43,12 @@ def test_dispatch_order_and_animals_threading(tmp_path, monkeypatch):
 def test_skip_flags(tmp_path, monkeypatch):
     calls = _patch_steps(monkeypatch)
     cn.run("20260807", _RV(tmp_path), do_copy=False, do_dropframe=False)
-    assert [c[0] for c in calls] == ["align", "behavior"]
+    assert [c[0] for c in calls] == ["align", "events", "behavior"]
     calls.clear()
     cn.run("20260807", _RV(tmp_path), do_copy=False, do_align=False)
-    assert [c[0] for c in calls] == ["drop", "behavior"]
+    assert [c[0] for c in calls] == ["drop", "events", "behavior"]
     calls.clear()
-    cn.run("20260807", _RV(tmp_path), do_copy=False, do_behavior=False)
+    cn.run("20260807", _RV(tmp_path), do_copy=False, do_behavior=False, do_events=False)
     assert [c[0] for c in calls] == ["drop", "align"]
 
 

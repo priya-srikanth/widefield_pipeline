@@ -98,6 +98,37 @@ behavior:
     compare_daq: true             # overlay our DAQ lick_detection pipeline (lick_detection.min_ili_ms
                                   #   floor applied) when the session .h5 is found
 
+# Canonical DAQ behavior-event segmentation (wfield_local.behavior_events): identify licks / rewards /
+# running bouts / quiet periods / grooming ONCE per session from the DAQ, so every consumer (behavior +
+# imaging) loads the same events instead of re-detecting. Licks use lick_detection.* (thresholds + floor).
+# !! params below (treadmill calibration, running/quiet/grooming) are stroke-pipeline starting points --
+# TUNE for this rig once DLC/FaceRhythm movement gives ground truth (mirrors quiet_periods.py caveat).
+segmentation:
+  treadmill:
+    channel: treadmill
+    offset_v: 1.2587643276652853
+    volt_sec_per_rot: 0.382
+    mm_per_rot: 29.25
+    smoothing_sigma_s: 0.15
+  running:                        # find_running_bouts (treadmill): clearly moving
+    thresh_speed_mm_s: 5.0
+    max_gap_s: 0.3
+    min_duration_s: 2.0
+  quiet:                          # slow + not-near-lick/reward, buffered (F0 baseline candidate)
+    speed_mm_s: 1.0
+    min_quiet_s: 0.5
+    treadmill_buffer_s: [3.0, 3.0]
+    lick_buffer_s: [1.0, 3.0]
+    reward_buffer_s: [0.1, 8.0]
+  reward:
+    channel: reward_ttl
+    thresh_v: 2.5
+  grooming:                       # single-spout long-contact proxy (EXPERIMENTAL; ~0 events pre-stroke,
+    enabled: false                #   no bilateral spout to confirm -- keep OFF until validated post-stroke)
+    contact_thresh_v: 2.5
+    max_contact_s: 0.4            # spout contact longer than a lick (~65-95 ms) -> candidate paw/groom
+    buffer_s: [6.0, 6.0]
+
 # Spout-position source + sync (see STROBE_BIT1_RECOVERY.md, wfield_local/frame_sync.py):
 #  - positions from DAQ spout-strobe bits (code = bit0 + 2*bit1 + 4*bit2)
 #  - when a strobe bit is dead (Aug-2026), recover from the behavior-log pos_idx
