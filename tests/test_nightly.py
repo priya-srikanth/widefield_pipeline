@@ -13,7 +13,10 @@ def test_imaging_sequence_never_cleans(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20260807", "20260808", "--machine", "imaging"])
     steps = [c[0] for c in cmds]
-    assert steps[0] == "wfield_local.preprocess"
+    # DAQ .h5 pushed to MICROSCOPE FIRST (both dates), before preprocess
+    assert cmds[0] == ["wfield_local.archive_day", "upload-daq", "--date", "20260807", "--machine", "imaging"]
+    assert ["wfield_local.archive_day", "upload-daq", "--date", "20260808", "--machine", "imaging"] in cmds
+    assert steps.index("wfield_local.preprocess") > steps.index("wfield_local.archive_day")
     assert "wfield_local.preprocess_deck" in steps
     # archive + verify per date, in order after preprocess
     assert ["wfield_local.archive_day", "archive", "--date", "20260807", "--machine", "imaging"] in cmds
@@ -39,4 +42,7 @@ def test_skip_flags(monkeypatch):
     assert [c[0] for c in cmds] == ["wfield_local.nightly_figs"]
     cmds.clear()
     nightly.main(["20260807", "--machine", "imaging", "--skip-deck", "--skip-archive"])
+    assert [c[0] for c in cmds] == ["wfield_local.archive_day", "wfield_local.preprocess"]  # upload-daq, then preprocess
+    cmds.clear()
+    nightly.main(["20260807", "--machine", "imaging", "--skip-deck", "--skip-archive", "--skip-daq-upload"])
     assert [c[0] for c in cmds] == ["wfield_local.preprocess"]

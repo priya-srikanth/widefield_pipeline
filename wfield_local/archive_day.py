@@ -99,6 +99,11 @@ def discover(cfg, date):
             else:
                 jobs.append(dict(src=src, dst=os.path.join(cfg["n_lab"], date, rel),
                                  kind="output", session=session))
+    return jobs, inter, discover_daq(cfg, date)
+
+
+def discover_daq(cfg, date):
+    """DAQ ``.h5`` files containing ``date`` under E: -> N: (independent of labcams; safe to run early)."""
     daq = []
     if os.path.isdir(cfg["e_daq"]):
         for root, _dirs, files in os.walk(cfg["e_daq"]):
@@ -107,7 +112,7 @@ def discover(cfg, date):
                     daq.append(dict(src=os.path.join(root, f),
                                     dst=os.path.join(cfg["n_daq"], os.path.basename(root), f),
                                     kind="daq", session=None))
-    return jobs, inter, daq
+    return daq
 
 
 def _priority(job):
@@ -195,6 +200,30 @@ def _verify(cfg, date):
     return allj, ok, missing, mismatch, inter, daq
 
 
+def cmd_upload_daq(cfg, date):
+    """Copy ONLY the day's DAQ ``.h5`` to N: (size-verified). Run FIRST in the imaging nightly so the
+    analysis box can start the behavior pipeline (behavior_events) while imaging is still doing SVD."""
+    daq = discover_daq(cfg, date)
+    if not daq:
+        print(f"[upload-daq {date}] no DAQ .h5 found under {cfg['e_daq']} (nothing to do)", flush=True)
+        return 0
+    res = {"ok": 0, "skip": 0, "FAIL": 0}
+    fails = []
+    for j in daq:
+        try:
+            st = _copy_one(j["src"], j["dst"])
+        except Exception as ex:
+            st = "FAIL"
+            print(f"   EXCEPTION {j['src']}: {ex}", flush=True)
+        res[st] = res.get(st, 0) + 1
+        if st == "FAIL":
+            fails.append(j)
+        print(f"[upload-daq {date}] {_size(j['src'])/1e9:.2f} GB {st:4}  {j['dst']}", flush=True)
+    print(f"[upload-daq {date}] ok={res['ok']} skip={res['skip']} FAIL={res['FAIL']} "
+          f"(E: untouched)", flush=True)
+    return 1 if fails else 0
+
+
 def cmd_verify(cfg, date):
     allj, ok, missing, mismatch, inter, _ = _verify(cfg, date)
     print(f"[verify {date}] {len(ok)}/{len(allj)} confirmed copied (size-matched) on M:/N:")
@@ -271,9 +300,10 @@ def cmd_clean(cfg, date, execute):
 def main():
     ap = argparse.ArgumentParser(description="End-of-day widefield archival + cleanup.",
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=("archive", "verify", "clean"))
+    ap.add_argument("command", choices=("archive", "verify", "clean", "upload-daq"))
     ap.add_argument("--date", required=True, help="recording day, YYYYMMDD (labcams folder name)")
     ap.add_argument("--execute", action="store_true", help="(clean) actually delete; default dry-run")
+    ap.add_argument("--machine", default=None, help="accepted + ignored (drive roots come from --e-*/--n-*)")
     for k, v in DEFAULTS.items():
         ap.add_argument("--" + k.replace("_", "-"), default=v)
     args = ap.parse_args()
@@ -282,6 +312,8 @@ def main():
         return cmd_archive(cfg, args.date)
     if args.command == "verify":
         return cmd_verify(cfg, args.date)
+    if args.command == "upload-daq":
+        return cmd_upload_daq(cfg, args.date)
     return cmd_clean(cfg, args.date, args.execute)
 
 

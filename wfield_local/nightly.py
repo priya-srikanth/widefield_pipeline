@@ -1,8 +1,9 @@
 """One-command nightly, dispatched by machine (PathResolver auto-detect, or ``--machine``).
 
-**Imaging box** (``preprocess`` -> ``preprocess_deck`` -> archive COPY):
-  motion/SVD/xreg/push + maps + xall + intensity + photobleach, then rebuild the deck, then
-  ``archive_day archive`` (+ ``verify``) — a size-verified COPY of raw ``.dat`` + motion-corrected
+**Imaging box** (``upload-daq`` -> ``preprocess`` -> ``preprocess_deck`` -> archive COPY):
+  push the DAQ ``.h5`` to MICROSCOPE FIRST (so the analysis box's behavior pipeline can start while
+  imaging runs), then motion/SVD/xreg/push + maps + xall + intensity + photobleach, rebuild the deck,
+  then ``archive_day archive`` (+ ``verify``) — a size-verified COPY of raw ``.dat`` + motion-corrected
   ``.bin`` to M: standby and outputs to N:.
 
 **Analysis / behavior-GPU box** (camera work FIRST, then LocaNMF analysis):
@@ -59,6 +60,11 @@ def _available_dates(rv: PathResolver) -> list[str]:
 
 
 def _imaging_nightly(dates, args, mach, only) -> int:
+    # FIRST: push the DAQ .h5 to MICROSCOPE so the analysis box can run its behavior pipeline
+    # (behavior_events / spout figures) immediately, in parallel with imaging's SVD+LocaNMF work.
+    if not args.skip_daq_upload:
+        for d in dates:
+            _run(["wfield_local.archive_day", "upload-daq", "--date", d, *mach], dry=args.dry_run)
     _run(["wfield_local.preprocess", *dates, *only, *(["--dry-run"] if args.dry_run else []), *mach], dry=False)
     if not args.skip_deck:
         _run(["wfield_local.preprocess_deck", *mach], dry=args.dry_run)
@@ -95,6 +101,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-camera", action="store_true", help="analysis: skip the camera upload/QC/alignment")
     ap.add_argument("--skip-figs", action="store_true", help="analysis: skip the LocaNMF figs")
     ap.add_argument("--skip-deck", action="store_true", help="imaging: skip the preprocess_deck rebuild")
+    ap.add_argument("--skip-daq-upload", action="store_true",
+                    help="imaging: skip the up-front DAQ .h5 push to MICROSCOPE")
     ap.add_argument("--skip-archive", action="store_true", help="imaging: skip the archive COPY")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
