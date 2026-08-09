@@ -30,7 +30,7 @@ Usage:
     --segment "E:\\...\\PS92_20260604_140742.h5::E:\\...\\raw_widefield_data_2\\pco_edge_run000_00000000_2_460_480_uint16.dat" \
     --label PS92_20260604_concat \
     --out-cam-dir "E:\\labcams_data\\20260604\\PS92_20260604_132934\\raw_widefield_data_concat" \
-    --out-daq    "E:\\DAQ_recorder_output\\20250604\\PS92_20260604_concat.h5"
+    --out-daq    "E:\\DAQ_recorder_output\\20260604\\PS92_20260604_concat.h5"
 """
 
 from __future__ import annotations

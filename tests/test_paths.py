@@ -51,7 +51,7 @@ def test_sessions_resolve_absolute_on_both_machines():
     # identical relative tail on both boxes
     tail = "20260602/PS92_20260602_151820/illuminated_rescue/motion_corrected"
     assert a["mc"].endswith(tail) and i["mc"].endswith(tail)
-    assert a["h5"].endswith("20250602/PS92_20260602_152607.h5")
+    assert a["h5"].endswith("20260602/PS92_20260602_152607.h5")
 
 
 def test_sessions_yaml_is_root_relative_not_absolute():

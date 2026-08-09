@@ -17,7 +17,9 @@ early-June state and one-off incidents, preserved for provenance. For current de
 
 Early-June scope note (from the analysis working notes): 6 sessions PS92/PS94/PS95 × {6/1 full-FOV A, 6/2 &
 6/3 cleanpairs B}; **6/1 and 6/2 were noisy — early analysis was built on the 6/3 sessions**. DAQ h5 for
-6/2,6/3 lived in `<YYYYMMDD>` subfolders with a **2025 year-typo** (`20250602`, `20250603`).
+6/2,6/3 lived in `<YYYYMMDD>` subfolders with a **2025 year-typo** (`20250602`, `20250603`; also `20250604`).
+*(Since fixed: those three dirs were renamed to `2026*` on MICROSCOPE on 2026-08-09 and `sessions.yaml`
+updated to match — the paths named here are historical.)*
 
 **Still-to-verify at the time:** 6/3 PS92 / PS95 functional-channel identity (6/3 PS94 was verified correct).
 
