@@ -90,7 +90,6 @@ def _synthetic_sessions(tmp_path):
         st = mc / "spout_trial_averages_affine8v1"
         _make_png(st / f"{lab}_mean_415_470_with_allen_overlay.png", (6, 3))
         _make_png(st / f"{lab}_spout_positions_1s_pre_post_delta_shared_scale.png", (3, 6))
-        _make_png(st / f"{lab}_spout_positions_1s_pre_post_delta_allen_overlay.png", (5, 2))
         # lick_aligned
         la = mc / "lick_aligned_affine8v1"
         _make_png(la / f"{lab}_lick_aligned_150ms_post_by_spout.png", (8, 2))

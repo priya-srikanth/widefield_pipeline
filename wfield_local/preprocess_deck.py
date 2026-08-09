@@ -42,8 +42,6 @@ PER_DATE_TYPES = [
      "spout_trial_averages_affine8v1", "_mean_415_470_with_allen_overlay.png", "FIT"),
     ("cue_maps", "Cue-aligned spout maps (pre / post / Δ, shared scale)",
      "spout_trial_averages_affine8v1", "_spout_positions_1s_pre_post_delta_shared_scale.png", "FULL_HEIGHT"),
-    ("cue_overlay", "Cue-aligned Δ with Allen overlay",
-     "spout_trial_averages_affine8v1", "_spout_positions_1s_pre_post_delta_allen_overlay.png", "FIT"),
     ("cue_pairwise", "Cue pairwise spout-position contrasts",
      "spout_trial_averages_affine8v1", "_pairwise_spout_position_delta_contrasts_allen_overlay.png", "FIT"),
     ("lick_maps", "Lick-aligned maps by spout position (150 ms)",
