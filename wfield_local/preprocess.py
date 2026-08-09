@@ -49,6 +49,7 @@ from pathlib import Path
 
 from wfield_local import config
 from wfield_local import photobleach
+from wfield_local import writeguard
 from wfield_local.paths import PathResolver
 
 REPO = Path(__file__).resolve().parents[1]
@@ -361,6 +362,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     nres = f"{ndst}/wfield_local_results"
     print(f"[push] {results} -> {nres}", flush=True)
     if not dry_run:
+        writeguard.assert_writable(ndst)   # never rmtree/copy outside MICROSCOPE/Priya (rule 1)
         Path(ndst).mkdir(parents=True, exist_ok=True)
         if Path(nres).exists():
             shutil.rmtree(nres)

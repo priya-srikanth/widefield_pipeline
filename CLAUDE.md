@@ -78,8 +78,11 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
 4. **Optional `src/` layout** — move `wfield_local/` under `src/` and/or split into submodules like their
    `src/pkg/{alignment,figures,stats,…}`. KEEP the `wfield_local` import name (both machines + docs depend
    on `python -m wfield_local.*`).
-5. **`_writeguard.py`-style guard** against overwriting MICROSCOPE source data; **exclusions with dotted-tag
-   scoping** (their `Exclusion.applies`) for per-analysis-context date/animal exclusions.
+5. **Write-guard DONE** — `wfield_local/writeguard.py` `assert_writable(path)` refuses writes/deletes that
+   land on the MICROSCOPE/standby shares outside the Priya subtree (location-based, zero false-positive;
+   wired at `preprocess` push-rmtree + `preprocess_deck` stale-delete). Call it before any new
+   MICROSCOPE write/delete site (`archive_day` adoption is a reasonable follow-up). STILL OPEN: **exclusions
+   with dotted-tag scoping** (their `Exclusion.applies`) for per-analysis-context date/animal exclusions.
 
 **Nightly-pipeline extensions (planned — mirror stroke_orofacial where noted):**
 - **Temporal alignment templates, generated nightly, ONE per camera per date (the 4 Blackfly behavior cams).**

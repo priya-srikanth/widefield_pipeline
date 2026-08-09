@@ -29,6 +29,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 from wfield_local import config
+from wfield_local import writeguard
 
 SLIDE_W_IN = 13.333
 SLIDE_H_IN = 7.5
@@ -395,6 +396,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
     for stale in glob.glob(f"{root}*{ext}"):
         if os.path.abspath(stale) not in written:
             try:
+                writeguard.assert_writable(stale)   # never delete outside MICROSCOPE/Priya (rule 1)
                 os.remove(stale)
                 if verbose:
                     print(f"[cleanup] removed stale deck {stale}")
