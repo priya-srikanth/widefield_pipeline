@@ -1,11 +1,14 @@
 """Path resolution: logical roots -> per-machine mounts.
 
-Two machines share this repo and the same `configs/*.yaml`:
+Machines share this repo and the same `configs/*.yaml`:
 
-  - the ANALYSIS box (this / behavior-GPU): MICROSCOPE is mapped to ``M:``; it reads
+  - the ANALYSIS box (behavior-GPU): MICROSCOPE is mapped to ``M:``; it reads
     LocaNMF inputs/outputs and runs decode/encode/RSA. It has no local raw imaging.
   - the IMAGING box (PCO microscope): MICROSCOPE is mapped to ``N:``; local raw
     acquisition lives on ``E:``. It runs preprocessing (motion -> SVD -> register -> push).
+  - a MAC/Linux client with MICROSCOPE mounted over SMB at ``/Volumes/Priya`` — same shared
+    tree, no local raw imaging. The SMB share is rooted at ``...\\MICROSCOPE\\Priya``, so its
+    paths carry no ``MICROSCOPE`` segment (note for anything matching on that, e.g. writeguard).
 
 The SAME logical root (e.g. ``labcams``) therefore resolves to a different drive on each
 box. :class:`PathResolver` picks the mount for the current machine, chosen by (in order):
@@ -13,7 +16,7 @@ box. :class:`PathResolver` picks the mount for the current machine, chosen by (i
   1. an explicit ``machine=`` argument (used by tests),
   2. the ``WIDEFIELD_MACHINE`` env var (``"analysis"`` | ``"imaging"``),
   3. auto-detection from a signature mount on disk (E:\\labcams_data -> imaging;
-     M:\\MICROSCOPE -> analysis), defaulting to ``"analysis"``.
+     M:\\MICROSCOPE -> analysis; /Volumes/Priya -> mac), defaulting to ``"analysis"``.
 
 Mount values in ``paths.yaml`` may be a string, a list of strings (first existing wins),
 or ``null`` (root unavailable on this machine -> :meth:`root` raises).
@@ -30,10 +33,11 @@ from pathlib import Path
 import yaml
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
-MACHINES = ("analysis", "imaging")
+MACHINES = ("analysis", "imaging", "mac")
 
 # Signature mounts used to auto-detect the machine when WIDEFIELD_MACHINE is unset.
-_SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis", "M:/MICROSCOPE/Priya"))
+_SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis", "M:/MICROSCOPE/Priya"),
+              ("mac", "/Volumes/Priya"))
 
 
 def detect_machine() -> str:

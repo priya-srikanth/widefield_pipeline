@@ -3,6 +3,9 @@
 # Two machines share this repo (see wfield_local/paths.py PathResolver):
 #   analysis = this / behavior-GPU box   -> MICROSCOPE mapped to  M:
 #   imaging  = PCO microscope box        -> MICROSCOPE mapped to  N:,  local raw on  E:
+#   mac      = a mac/Linux client with MICROSCOPE mounted over SMB at /Volumes/Priya. Read/write
+#              access to the same shared tree, no local raw imaging (raw_* are null). The share is
+#              rooted at ...\MICROSCOPE\Priya, so those paths carry no MICROSCOPE segment.
 # The resolver picks the mount for the current machine (WIDEFIELD_MACHINE env var, else
 # auto-detect by signature mount, else 'analysis'). A mount may be a string, a list
 # (first existing wins), or null (root unavailable on that machine).
@@ -15,42 +18,49 @@ logical_roots:
     description: "Shared MICROSCOPE server (Priya root)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya"
+      mac:      "/Volumes/Priya"
       imaging:  "N:/MICROSCOPE/Priya"
 
   labcams:
     description: "Widefield imaging sessions (motion_corrected/, wfield_local_results/, LocaNMF outputs)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams"
+      mac:      "/Volumes/Priya/Widefield/labcams"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams"
 
   daq_recorder_output:
     description: "DAQ recorder .h5 output (per YYYYMMDD)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
+      mac:      "/Volumes/Priya/Widefield/DAQ_recorder_output"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
 
   behavior_logs:
     description: "Behavior task-controller logs (trials.csv etc.) — Widefield SUBDIR (as of 2026-08-06)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield"
+      mac:      "/Volumes/Priya/Behavior_logs/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"
 
   behavior_cameras:
     description: "Behavior camera recordings (Blackfly/Bonsai) — Widefield SUBDIR (as of 2026-08-06)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
+      mac:      "/Volumes/Priya/Behavior_Cameras/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
 
   alignment_templates:
     description: "Camera<->DAQ sync alignment templates (.npz): <cam>/<PSxx>/<YYYYMMDD>.npz"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
+      mac:      "/Volumes/Priya/Behavior_Cameras/Widefield/alignment_templates"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
 
   behavior_out:
     description: "Spout-behavior session/cohort figures + metrics (wfield_local.spout_behavior)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
+      mac:      "/Volumes/Priya/Behavior_logs/Widefield/behavior_summary"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
 
   cue_analysis_out:
@@ -58,30 +68,35 @@ logical_roots:
       spout_position_analysis_summary.pptx at the labcams top level; the LEGACY_*.pptx here are retired."
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
+      mac:      "/Volumes/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
 
   xday_qc:
     description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/xday"
+      mac:      "/Volumes/Priya/Widefield/labcams/xday"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/xday"
 
   raw_labcams:
     description: "IMAGING-box local raw widefield acquisition (pco .dat), before MICROSCOPE upload"
     mounts:
       analysis: null
+      mac:      null
       imaging:  "E:/labcams_data"
 
   raw_daq:
     description: "IMAGING-box local DAQ recorder .h5, before MICROSCOPE upload"
     mounts:
       analysis: null
+      mac:      null
       imaging:  "E:/DAQ_recorder_output"
 
   figures_working:
     description: "Local working figure dir (deck built here, then copied to cue_analysis_out)"
     mounts:
       analysis: "C:/Users/sabatini/source/cue_lick"
+      mac:      null
       imaging:  null
 
 # Local acquisition/upload staging on the IMAGING computer (before MICROSCOPE upload):

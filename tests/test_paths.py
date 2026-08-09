@@ -63,3 +63,32 @@ def test_sessions_yaml_is_root_relative_not_absolute():
                 v = e.get(field)
                 if v is not None:
                     assert not is_absolute(v), (animal, date, field, v)
+
+
+# --------------------------------------------------------------------------- mac/SMB client
+def test_mac_machine_resolves_the_smb_mount():
+    """A mac/Linux client with MICROSCOPE at /Volumes/Priya reads/writes the same shared tree."""
+    m = PathResolver(machine="mac")
+    assert m.root("microscope") == "/Volumes/Priya"
+    assert m.root("behavior_logs") == "/Volumes/Priya/Behavior_logs/Widefield"
+    assert m.root("daq_recorder_output") == "/Volumes/Priya/Widefield/DAQ_recorder_output"
+    # same root-relative tail as the other machines -> sessions.yaml resolves identically
+    tail = "20260602/PS92_20260602_151820/illuminated_rescue/motion_corrected"
+    assert m.resolve("labcams", tail) == f"/Volumes/Priya/Widefield/labcams/{tail}"
+
+
+def test_mac_has_no_local_raw_roots():
+    m = PathResolver(machine="mac")
+    for name in ("raw_labcams", "raw_daq", "figures_working"):
+        with pytest.raises(RuntimeError):        # null mount -> unavailable on this machine
+            m.root(name)
+
+
+def test_every_logical_root_declares_every_machine():
+    """A new logical root must not silently omit a machine (it would fail only at runtime)."""
+    import yaml
+
+    from wfield_local.paths import CONFIG_DIR, MACHINES
+    cfg = yaml.safe_load((CONFIG_DIR / "paths.yaml").read_text(encoding="utf-8"))
+    for name, spec in cfg["logical_roots"].items():
+        assert set(spec["mounts"]) == set(MACHINES), name

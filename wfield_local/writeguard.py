@@ -14,6 +14,12 @@ false-positive on normal operation. The robust, false-positive-free rule is pure
     under a ``/priya/`` segment;
   - everything else (local ``C:``/``D:``/``E:``, non-share paths) is always allowed.
 
+Note for the ``mac`` machine profile: its SMB mount is rooted AT ``…\\MICROSCOPE\\Priya`` and appears
+as ``/Volumes/Priya/…``, so the path carries no ``/microscope/`` segment and the share rule above does
+not fire. That is safe as far as rule 1 goes — the mount root is already inside Priya, so every path
+under it is too — but it does mean the guard cannot catch a resolver bug that pointed at a DIFFERENT
+``/Volumes`` share on that client. Keep the mac mounts in ``paths.yaml`` pointed at ``/Volumes/Priya``.
+
 The pipeline only ever writes under Priya, so ``assert_writable`` never raises in normal operation;
 it exists to catch a path-construction bug that would drop the ``Priya`` segment or resolve into
 another person's folder / a share root. Cheap (a few substring checks) and idempotent — safe to call
