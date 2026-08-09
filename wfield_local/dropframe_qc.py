@@ -71,11 +71,16 @@ def analyze_csv(path) -> dict:
     )
 
 
-def scan(session_root, date) -> list[dict]:
-    """Analyze every ``<PSxx>/cam*.csv`` under ``session_root``; rows ordered by (animal, cam)."""
+def scan(session_root, date, animals=None) -> list[dict]:
+    """Analyze every ``<PSxx>/cam*.csv`` under ``session_root``; rows ordered by (animal, cam).
+
+    ``animals`` (e.g. ``["PS94"]``) restricts to those animal dirs; None = all."""
     root = Path(session_root)
     out = []
+    aset = set(animals) if animals else None
     for animal_dir in sorted(p for p in root.iterdir() if p.is_dir() and ANIMAL_RE.match(p.name)):
+        if aset and animal_dir.name not in aset:
+            continue
         for csv in sorted(animal_dir.glob("cam*.csv")):
             out.append(dict(date=date, session=animal_dir.name, **analyze_csv(csv)))
     return out
@@ -117,9 +122,9 @@ def write_summary(rows, out_dir, date) -> tuple[Path, Path]:
     return csv_path, txt_path
 
 
-def run(session_root, date, out_dir=None) -> list[dict]:
+def run(session_root, date, out_dir=None, animals=None) -> list[dict]:
     """Scan + write the summary; returns the per-cam rows. ``out_dir`` defaults to ``session_root``."""
-    rows = scan(session_root, date)
+    rows = scan(session_root, date, animals)
     if not rows:
         print(f"[dropframe_qc] no <PSxx>/cam*.csv found under {session_root}", flush=True)
         return rows

@@ -94,8 +94,9 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
   built on absolute timestamps, so an ITI-dropped frame just removes an anchor). Improvements over orofacial:
   a residual `quality_ok` gate + reported edge-count delta + B6 `frame_drops`, and a dropped-frame test suite.
   The PCO imaging cam needs no template (on the DAQ clock via `pco_exposure`); its gap is dropped-frame
-  count-reconciliation in `trim_illuminated_labcams.py` (LED-parity, not ITI). NOT yet wired into a nightly
-  orchestrator (run `python -m wfield_local.camera_sync <DATE>` after the camera upload).
+  count-reconciliation in `trim_illuminated_labcams.py` (LED-parity, not ITI). Wired into the camera nightly
+  orchestrator `wfield_local/camera_nightly.py` (`python -m wfield_local.camera_nightly <DATE>` = dropped-frame
+  QC + alignment templates over a date, once the camera content is on MICROSCOPE; the upload stays separate).
 - **Camera dropped-frame QC — DONE** (`wfield_local/dropframe_qc.py`, folds in the local
   `dropframe_check_all.py`): per Blackfly cam CSV, flags gaps in the monotonic frame_id + long timestamp
   deltas; writes `dropped_frames_summary_<DATE>.{csv,txt}`. Byte-verified against the existing 20260807 CSV.

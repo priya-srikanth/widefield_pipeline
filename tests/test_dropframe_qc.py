@@ -54,6 +54,14 @@ def test_scan_and_summary_roundtrip(tmp_path):
     assert "No dropped frames" in txt_path.read_text()
 
 
+def test_scan_animals_filter(tmp_path):
+    for a in ("PS92", "PS94"):
+        _write_csv(tmp_path / a / "cam1_2026-01-01T00_00_00.csv",
+                   range(100), [i * 4_000_000 for i in range(100)])
+    rows = dq.scan(tmp_path, "20260101", animals=["PS94"])
+    assert [r["session"] for r in rows] == ["PS94"]
+
+
 def test_write_summary_is_guarded():
     # writing the summary into another person's MICROSCOPE folder must be refused (ground rule 1)
     with pytest.raises(WriteGuardError):
