@@ -1,9 +1,20 @@
 # GUI `trials.csv` mislabels `pos_idx` — why behavior trials now come from the DAQ
 
 **Status:** diagnosed 2026-08-09, worked around here (DAQ-primary trials) **and fixed upstream** in
-`mobile_spout_behavior` (`bb16533`, GUI v46). Sessions recorded BEFORE that GUI fix is deployed keep
-the corrupted column — which is every session to date — so the DAQ-primary path stays necessary
-regardless of the upstream fix.
+`mobile_spout_behavior` as **GUI `v47`** (`bb16533` + `bce483d`; `v46` is kept exactly as it shipped).
+The rigs move to `v47` from 2026-08-09 onward — **record the first session date here once it is
+running**, because sessions recorded before it keep the corrupted column, which is every session to
+date. The DAQ-primary path stays necessary regardless: it covers the old sessions, and it is what
+makes behavior and imaging agree on trial identity.
+
+Once `v47` is running, `trials.csv pos_idx` should agree with the DAQ strobe codes trial-for-trial.
+That is worth confirming on the first session (the same comparison used to find this: decode the
+strobe codes, pair each cue with the last strobe at or before it, and check agreement is 1.000).
+
+The same firmware trial-id lag exists on the 2pRAM and GB219 Teensy rigs, so **their `trials.csv`
+carries the identical corruption** and `v47` fixes them too. Anything analysing those datasets from
+`pos_idx` needs the same treatment — and unlike the widefield rig they may have no DAQ strobe record
+to fall back on, in which case invert the shift (below) instead.
 
 ## Symptom
 
