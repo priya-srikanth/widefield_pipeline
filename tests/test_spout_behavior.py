@@ -368,3 +368,49 @@ def test_daq_h5_for_missing(tmp_path):
         def root(self, name):
             return str(tmp_path / "daq")
     assert sb._daq_h5_for(_RV(), "PS92", "20260806") is None   # no dir -> graceful None
+
+
+def test_run_expands_a_date_range_into_each_session(tmp_path, monkeypatch):
+    """A range/list must select sessions on every date in it — `discover_sessions` matches ONE
+    literal date, so an unexpanded spec silently selected nothing (and the run looked successful)."""
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    for name in ("PS92_20260606_120000", "PS92_20260607_120000", "PS92_20260608_120000",
+                 "PS92_20260805_120000"):
+        _write_session(logs, name, [dict(tid=i + 1, pos_idx=i % 6, hit=True) for i in range(30)])
+    rv = sb.PathResolver(machine="analysis")
+    monkeypatch.setattr(rv, "root", lambda n: str(logs if n == "behavior_logs" else tmp_path / "out"))
+    seen = []
+    monkeypatch.setattr(sb, "plot_session",
+                        lambda s, *a, **k: (seen.append(s.name), (None, None))[1])
+    sb.run("0606-0608", rv, dry=True)
+    assert sorted(seen) == ["PS92_20260606_120000", "PS92_20260607_120000", "PS92_20260608_120000"]
+    seen.clear()
+    sb.run("20260606,20260805", rv, dry=True)          # comma list, YYYYMMDD form
+    assert sorted(seen) == ["PS92_20260606_120000", "PS92_20260805_120000"]
+
+
+def test_run_warns_when_a_date_spec_matches_nothing(tmp_path, monkeypatch, capsys):
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    _write_session(logs, "PS92_20260606_120000", [dict(tid=1, pos_idx=1, hit=True)])
+    rv = sb.PathResolver(machine="analysis")
+    monkeypatch.setattr(rv, "root", lambda n: str(logs if n == "behavior_logs" else tmp_path / "out"))
+    sb.run("20991231", rv, dry=True)
+    assert "matched no sessions" in capsys.readouterr().out
+
+
+def test_run_ignores_non_animal_dirs_when_resolving_a_range(tmp_path, monkeypatch):
+    """The behavior-log root also holds non-animal dirs (`test_<date>_*`); they must not reach
+    expand_dates, which rejects an 'unknown' date token and would abort the whole run."""
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    _write_session(logs, "PS92_20260606_120000", [dict(tid=1, pos_idx=1, hit=True)])
+    _write_session(logs, "test_20260602_173841", [dict(tid=1, pos_idx=1, hit=True)])
+    rv = sb.PathResolver(machine="analysis")
+    monkeypatch.setattr(rv, "root", lambda n: str(logs if n == "behavior_logs" else tmp_path / "out"))
+    seen = []
+    monkeypatch.setattr(sb, "plot_session",
+                        lambda s, *a, **k: (seen.append(s.name), (None, None))[1])
+    sb.run("0606-0608", rv, dry=True)                 # must not raise
+    assert seen == ["PS92_20260606_120000"]

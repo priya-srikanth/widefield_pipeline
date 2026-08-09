@@ -1054,13 +1054,30 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
     params = config.defaults()["behavior"]
     out_dir = Path(rv.root("behavior_out"))
     if date:
-        sessions = discover_sessions(rv, date, animals)
-        print(f"[spout_behavior] {date}: {len(sessions)} session(s)", flush=True)
-        for s in sessions:
-            try:
-                plot_session(s, out_dir, params, dry=dry, rv=rv)
-            except Exception as e:
-                print(f"[spout_behavior] FAILED {s.name}: {e}", flush=True)
+        # the shared date grammar (MMDD / YYYYMMDD / range / comma-list / all), same as the other
+        # CLIs — `discover_sessions` matches ONE literal date, so a spec must be expanded first or
+        # a range silently selects nothing
+        # only well-formed dates: the log root also holds non-animal dirs (e.g. `test_<date>_*`),
+        # which `_animal_date` reports as 'unknown' and `expand_dates` would reject
+        available = sorted({d for d in (_animal_date(p.name)[1]
+                                        for p in discover_sessions(rv, None, None))
+                            if d.isdigit() and len(d) == 8})
+        dates = config.expand_dates(date, width=8, available=available)
+        n_total = 0
+        for d in dates:
+            sessions = discover_sessions(rv, d, animals)
+            n_total += len(sessions)
+            if not sessions:
+                print(f"[spout_behavior] {d}: no sessions found", flush=True)
+            for s in sessions:
+                try:
+                    plot_session(s, out_dir, params, dry=dry, rv=rv)
+                except Exception as e:
+                    print(f"[spout_behavior] FAILED {s.name}: {e}", flush=True)
+        print(f"[spout_behavior] {date}: {n_total} session(s) over {len(dates)} date(s)", flush=True)
+        if not n_total:
+            print(f"[spout_behavior] WARNING: date spec {date!r} matched no sessions "
+                  f"(available: {', '.join(available) or 'none'})", flush=True)
     if cohort:
         dates = None
         if from_spec:
