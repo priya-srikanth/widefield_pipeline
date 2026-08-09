@@ -247,6 +247,8 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
     cue = f"{mc}/spout_trial_averages_{tag}"
     lick = f"{mc}/lick_aligned_{tag}"
     quiet = f"{mc}/quiet_{tag}"
+    running_act = f"{mc}/running_activity_{tag}"
+    events_npz = f"{rv.root('behavior_out')}/events/{animal}/{yyyymmdd}.npz"
 
     matches = sorted(glob.glob(f"{mc}/*cleanpairs_frame_map.npz"))
     if matches:
@@ -292,6 +294,11 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
          "--wfield-results", res, "--allen-dir", allen, "--frame-map", fm,
          "--cleanpairs-summary", summ, "--output", lick, "--label", lab,
          "--post-s", lick_post_s, "--quiet-frame", qf] + bt,
+        # canonical behavior events (shared licks/reward/running/quiet), then quiet-vs-running SVD maps
+        ["wfield_local.behavior_events", yyyymmdd, "--only", animal],
+        ["wfield_local.plot_running_activity_maps", "--label", lab, "--events", events_npz,
+         "--wfield-results", res, "--allen-dir", allen, "--daq-h5", daq, "--frame-map", fm,
+         "--cleanpairs-summary", summ, "--output", running_act],
     ]
 
 

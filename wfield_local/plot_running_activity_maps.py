@@ -1,5 +1,20 @@
-"""Plot hemodynamic-corrected widefield activity during running vs not running."""
+"""Widefield SVD activity maps for QUIET vs RUNNING behavioral states.
 
+Reconstructs hemodynamic-corrected activity (SVTcorr @ U) averaged over the animal's quiet periods
+and running bouts, and their contrast. The quiet/running periods come from the CANONICAL behavior
+events (:mod:`wfield_local.behavior_events`) — the same licks/reward/running/quiet identity the whole
+pipeline shares — so this map is consistent with the behavior figures rather than re-detecting movement.
+
+Corrected imaging frames are mapped to DAQ samples via the cleanpairs ``frame_map`` (same mapping the
+cue/lick maps use); a frame is "quiet"/"running" if its DAQ sample falls in a quiet/running bout. Emits
+a 3-panel figure (quiet, running, running−quiet) + maps ``.npz`` + summary, for the preprocessing deck.
+
+    python -m wfield_local.plot_running_activity_maps --label PS92_0806_affine8v1 \
+        --wfield-results <mc>/wfield_local_results --allen-dir <...>/allen_aligned_affine8v1 \
+        --events <behavior_summary>/events/PS92/20260806.npz --daq-h5 <...>.h5 \
+        --frame-map <...>_cleanpairs_frame_map.npz --cleanpairs-summary <...>_summary.json \
+        --output <mc>/running_activity_affine8v1
+"""
 from __future__ import annotations
 
 import argparse
@@ -12,61 +27,28 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import ndimage
 
-try:
-    from .treadmill import bout_edges, calibrate_treadmill, find_running_bouts, smooth_treadmill
-except ImportError:  # Allow direct script execution.
-    from treadmill import bout_edges, calibrate_treadmill, find_running_bouts, smooth_treadmill
+from wfield_local.atlas_overlay import region_edges as _region_edges
+from wfield_local.behavior_events import load_events
+from wfield_local.framemap_event_maps import _corrected_frame_samples, _offset_from_summary
 
 
-DEFAULT_OFFSET_V = 1.2587643276652853
-DEFAULT_VOLT_SEC_PER_ROT = 0.382
-DEFAULT_MM_PER_ROT = 29.25
-DEFAULT_SMOOTHING_SIGMA_S = 0.15
-DEFAULT_THRESH_SPEED_MM_S = 5.0
-DEFAULT_MAX_GAP_DURATION_S = 0.3
-DEFAULT_MIN_DURATION_S = 2.0
-
-
-def _rising_edges(x: np.ndarray) -> np.ndarray:
-    return np.flatnonzero(np.diff(x.astype(np.int8), prepend=0) == 1).astype(np.int64)
-
-
-def _decode_analog_channel(f: h5py.File, channel_name: str) -> np.ndarray:
+def _decode_analog_channel(f, channel_name: str) -> np.ndarray:
     names = [name.decode() for name in f["analog/channel_names"][:]]
-    if channel_name not in names:
-        raise ValueError(f"Analog channel {channel_name!r} not found. Available: {names}")
     idx = names.index(channel_name)
     if "samples_int16" in f["analog"]:
         raw = f["analog/samples_int16"][:, idx]
-        scale = float(f["analog/int16_scale_volts_per_count"][idx])
-        offset = float(f["analog/int16_offset_volts"][idx])
-        return raw.astype(np.float32) * scale + offset
+        return raw.astype(np.float32) * float(f["analog/int16_scale_volts_per_count"][idx]) \
+            + float(f["analog/int16_offset_volts"][idx])
     return np.asarray(f["analog/samples"][:, idx], dtype=np.float32)
 
 
-def _load_daq(h5_path: Path, treadmill_channel: str) -> dict:
+def _pco_samples(h5_path: Path) -> np.ndarray:
     with h5py.File(h5_path, "r") as f:
-        sample_rate_hz = float(f.attrs["sample_rate_hz"])
-        created_at = str(f.attrs.get("created_at", "")) or None
-        treadmill_v = _decode_analog_channel(f, treadmill_channel)
-        names = [name.decode() for name in f["digital/channel_names"][:]]
+        names = [n.decode() for n in f["digital/channel_names"][:]]
         packed = f["digital/packed_samples"][:, 0]
         bits = np.unpackbits(packed[:, None], axis=1, bitorder="little")[:, : len(names)]
-    idx = {name: i for i, name in enumerate(names)}
-    if "pco_exposure" not in idx:
-        raise ValueError("Digital channel 'pco_exposure' is required.")
-    return {
-        "sample_rate_hz": sample_rate_hz,
-        "created_at": created_at,
-        "treadmill_v": treadmill_v,
-        "pco_samples": _rising_edges(bits[:, idx["pco_exposure"]]),
-    }
-
-
-# region_edges is centralized in wfield_local.atlas_overlay (symmetric edge fix)
-from wfield_local.atlas_overlay import region_edges as _region_edges
+    return np.flatnonzero(np.diff(bits[:, names.index("pco_exposure")].astype(np.int8), prepend=0) == 1)
 
 
 def _overlay_regions(ax, edges: np.ndarray) -> None:
@@ -79,174 +61,110 @@ def _weighted_map(U: np.ndarray, svt_mean: np.ndarray) -> np.ndarray:
     return np.tensordot(U, svt_mean, axes=([2], [0])).astype(np.float32)
 
 
-def _display_limit(arrays: list[np.ndarray], percentile: float) -> float:
-    vals = np.concatenate([arr.ravel() for arr in arrays])
+def _mask_from_edges(starts, stops, n: int) -> np.ndarray:
+    m = np.zeros(n, dtype=bool)
+    for s, e in zip(np.asarray(starts, np.int64), np.asarray(stops, np.int64)):
+        m[s:e] = True
+    return m
+
+
+def _display_limit(arrays, percentile: float) -> float:
+    vals = np.concatenate([a.ravel() for a in arrays])
     vals = vals[np.isfinite(vals)]
-    if vals.size == 0:
-        return 1e-6
-    return max(float(np.nanpercentile(np.abs(vals), percentile)), 1e-6)
+    return max(float(np.nanpercentile(np.abs(vals), percentile)), 1e-6) if vals.size else 1e-6
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Plot running vs not-running widefield maps.")
-    parser.add_argument("--label", required=True)
-    parser.add_argument("--daq-h5", type=Path, required=True)
-    parser.add_argument("--wfield-results", type=Path, required=True)
-    parser.add_argument("--allen-dir", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--channel", default="treadmill")
-    parser.add_argument("--offset-v", default=str(DEFAULT_OFFSET_V))
-    parser.add_argument("--volt-sec-per-rot", type=float, default=DEFAULT_VOLT_SEC_PER_ROT)
-    parser.add_argument("--mm-per-rot", type=float, default=DEFAULT_MM_PER_ROT)
-    parser.add_argument("--smoothing-sigma-s", type=float, default=DEFAULT_SMOOTHING_SIGMA_S)
-    parser.add_argument("--thresh-speed", type=float, default=DEFAULT_THRESH_SPEED_MM_S)
-    parser.add_argument("--max-gap-duration", type=float, default=DEFAULT_MAX_GAP_DURATION_S)
-    parser.add_argument("--min-duration", type=float, default=DEFAULT_MIN_DURATION_S)
-    parser.add_argument("--frame-margin-s", type=float, default=0.0)
-    parser.add_argument("--percentile", type=float, default=99.0)
-    args = parser.parse_args()
-
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="Quiet vs running widefield SVD activity maps.")
+    p.add_argument("--label", required=True)
+    p.add_argument("--events", type=Path, required=True, help="behavior_events <animal>/<date>.npz")
+    p.add_argument("--wfield-results", type=Path, required=True)
+    p.add_argument("--allen-dir", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--daq-h5", type=Path, required=True, help="for pco_exposure -> corrected-frame samples")
+    p.add_argument("--frame-map", type=Path, default=None, help="cleanpairs frame_map (regime B); "
+                   "without it, raw//2 pairing is used (regime A)")
+    p.add_argument("--cleanpairs-summary", type=Path, default=None, help="for the exposure offset")
+    p.add_argument("--offset", type=int, default=None)
+    p.add_argument("--percentile", type=float, default=99.0)
+    args = p.parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=True)
-    daq = _load_daq(args.daq_h5, args.channel)
-    treadmill_v = daq["treadmill_v"]
-    sample_rate_hz = daq["sample_rate_hz"]
-    if str(args.offset_v).lower() == "auto":
-        offset_v = float(np.median(treadmill_v))
-        offset_source = "median voltage from this recording"
-    else:
-        offset_v = float(args.offset_v)
-        offset_source = "command line"
 
-    speed = calibrate_treadmill(treadmill_v, offset_v, args.volt_sec_per_rot, args.mm_per_rot)
-    smooth_speed = smooth_treadmill(speed, sample_rate_hz, args.smoothing_sigma_s)
-    running = find_running_bouts(
-        smooth_speed,
-        sample_rate_hz,
-        args.thresh_speed,
-        args.max_gap_duration,
-        args.min_duration,
-    )
-    if args.frame_margin_s > 0:
-        margin = int(round(args.frame_margin_s * sample_rate_hz))
-        if margin > 0:
-            running = ndimage.binary_erosion(running, iterations=margin, border_value=0)
+    ev = load_events(args.events)
+    if ev is None:
+        raise SystemExit(f"[running_activity] no behavior events at {args.events} "
+                         f"(run behavior_events first)")
+    n = int(ev["n_samples"])
+    fs = float(ev["fs"])
+    running = _mask_from_edges(ev["running_starts"], ev["running_stops"], n)
+    quiet = _mask_from_edges(ev["quiet_starts"], ev["quiet_stops"], n)
 
     U = np.load(args.allen_dir / "U_atlas.npy", mmap_mode="r")
     SVTcorr = np.load(args.wfield_results / "SVTcorr.npy", mmap_mode="r")
-    atlas = np.load(args.allen_dir / "allen_area_atlas_native_grid.npy")
-    edges = _region_edges(atlas)
+    edges = _region_edges(np.load(args.allen_dir / "allen_area_atlas_native_grid.npy"))
+    T = SVTcorr.shape[1]
 
-    pco_samples = daq["pco_samples"]
-    raw_frame_for_corrected = 2 * np.arange(SVTcorr.shape[1], dtype=np.int64)
-    valid = raw_frame_for_corrected < pco_samples.size
-    corrected_sample = pco_samples[raw_frame_for_corrected[valid]]
-    frame_running = np.zeros(SVTcorr.shape[1], dtype=bool)
-    frame_running[np.flatnonzero(valid)] = running[np.clip(corrected_sample, 0, running.size - 1)]
-    frame_not_running = valid & ~frame_running
+    pco = _pco_samples(args.daq_h5)
+    if args.frame_map is not None:
+        offset = args.offset if args.offset is not None else _offset_from_summary(args.cleanpairs_summary)
+        csample = _corrected_frame_samples(args.frame_map, pco, offset)   # DAQ sample per corrected frame
+        regime = "B(frame-map)"
+    else:
+        csample = pco[np.clip(2 * np.arange(T), 0, pco.size - 1)]
+        offset, regime = 0, "A(raw//2)"
+    csample = csample[:T] if csample.size >= T else np.pad(csample, (0, T - csample.size))
+    cs = np.clip(csample, 0, n - 1)
+    frame_running = running[cs]
+    frame_quiet = quiet[cs]
 
-    if frame_running.sum() == 0 or frame_not_running.sum() == 0:
-        starts, stops = bout_edges(running)
-        durations_s = (stops - starts) / sample_rate_hz
-        summary = {
-            "label": args.label,
-            "daq_h5": str(args.daq_h5),
-            "wfield_results": str(args.wfield_results),
-            "allen_dir": str(args.allen_dir),
-            "channel": args.channel,
-            "offset_v": offset_v,
-            "offset_source": offset_source,
-            "volt_sec_per_rot": args.volt_sec_per_rot,
-            "mm_per_rot": args.mm_per_rot,
-            "smoothing_sigma_s": args.smoothing_sigma_s,
-            "thresh_speed": args.thresh_speed,
-            "max_gap_duration": args.max_gap_duration,
-            "min_duration": args.min_duration,
-            "frame_margin_s": args.frame_margin_s,
-            "daq_pco_exposure_count": int(pco_samples.size),
-            "svt_corrected_frame_count": int(SVTcorr.shape[1]),
-            "valid_corrected_frame_count": int(valid.sum()),
-            "running_corrected_frame_count": int(frame_running.sum()),
-            "not_running_corrected_frame_count": int(frame_not_running.sum()),
-            "n_running_bouts": int(starts.size),
-            "running_bout_duration_s_median": float(np.median(durations_s)) if durations_s.size else None,
-            "running_bout_duration_s_max": float(np.max(durations_s)) if durations_s.size else None,
-            "skipped": True,
-            "skip_reason": (
-                "Need both running and not-running imaging frames; "
-                f"got running={int(frame_running.sum())}, not_running={int(frame_not_running.sum())}."
-            ),
-        }
-        summary_path = args.output / f"{args.label}_running_vs_not_running_activity_summary.json"
-        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-        print(json.dumps(summary, indent=2), flush=True)
+    def _state_map(mask):
+        return _weighted_map(U, np.asarray(SVTcorr[:, mask]).mean(axis=1)) if mask.sum() else None
+
+    quiet_map = _state_map(frame_quiet)
+    running_map = _state_map(frame_running)
+    contrast = (running_map - quiet_map) if (quiet_map is not None and running_map is not None) else None
+
+    summary = {
+        "label": args.label, "events": str(args.events), "wfield_results": str(args.wfield_results),
+        "allen_dir": str(args.allen_dir), "frame_map": str(args.frame_map), "regime": regime,
+        "offset": int(offset), "fs": fs, "svt_frames": int(T),
+        "quiet_frames": int(frame_quiet.sum()), "running_frames": int(frame_running.sum()),
+        "n_running_bouts": int(np.asarray(ev["running_starts"]).size),
+        "n_quiet_periods": int(np.asarray(ev["quiet_starts"]).size),
+    }
+    if quiet_map is None or running_map is None:
+        summary["skipped"] = True
+        summary["skip_reason"] = f"need quiet AND running frames; got quiet={int(frame_quiet.sum())}, " \
+                                 f"running={int(frame_running.sum())}"
+        (args.output / f"{args.label}_quiet_running_activity_summary.json").write_text(
+            json.dumps(summary, indent=2))
+        print(f"[running_activity] {args.label} SKIPPED: {summary['skip_reason']}", flush=True)
         return 0
 
-    running_svt = np.asarray(SVTcorr[:, frame_running]).mean(axis=1)
-    not_running_svt = np.asarray(SVTcorr[:, frame_not_running]).mean(axis=1)
-    running_map = _weighted_map(U, running_svt)
-    not_running_map = _weighted_map(U, not_running_svt)
-    delta_map = running_map - not_running_map
-
-    lim = _display_limit([running_map, not_running_map, delta_map], args.percentile)
+    lim = _display_limit([quiet_map, running_map, contrast], args.percentile)
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.4), constrained_layout=True)
-    panels = [
-        ("running", running_map, int(frame_running.sum())),
-        ("not running", not_running_map, int(frame_not_running.sum())),
-        ("running - not running", delta_map, int(frame_running.sum())),
-    ]
+    panels = [("quiet", quiet_map, int(frame_quiet.sum()), lim, "RdBu_r"),
+              ("running", running_map, int(frame_running.sum()), lim, "RdBu_r"),
+              ("running − quiet", contrast, int(frame_running.sum()), lim, "RdBu_r")]
     im = None
-    for ax, (title, arr, n) in zip(axes, panels):
-        im = ax.imshow(arr, cmap="RdBu_r", vmin=-lim, vmax=lim)
+    for ax, (title, arr, ncnt, vlim, cmap) in zip(axes, panels):
+        im = ax.imshow(arr, cmap=cmap, vmin=-vlim, vmax=vlim)
         _overlay_regions(ax, edges)
         ax.set_axis_off()
-        ax.set_title(f"{title}\nn={n} corrected frames")
-    fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.82, pad=0.01, label=f"shared scale (+/-{lim:.4g})")
-    fig.suptitle(f"{args.label}: hemodynamic-corrected activity by treadmill state", fontsize=14)
-    png = args.output / f"{args.label}_running_vs_not_running_activity_maps.png"
+        ax.set_title(f"{title}\nn={ncnt} frames")
+    fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.82, pad=0.01, label=f"ΔF/F (±{lim:.4g})")
+    fig.suptitle(f"{args.label}: SVD activity by behavioral state (quiet vs running)", fontsize=14)
+    png = args.output / f"{args.label}_quiet_running_activity_maps.png"
     fig.savefig(png, dpi=180)
     plt.close(fig)
-
-    starts, stops = bout_edges(running)
-    durations_s = (stops - starts) / sample_rate_hz
-    npz_path = args.output / f"{args.label}_running_vs_not_running_activity_maps.npz"
-    np.savez_compressed(
-        npz_path,
-        running_map=running_map,
-        not_running_map=not_running_map,
-        running_minus_not_running=delta_map,
-        frame_running=frame_running,
-        smooth_speed_mm_s=smooth_speed.astype(np.float32),
-        sample_rate_hz=np.asarray(sample_rate_hz, dtype=np.float64),
-    )
-    summary = {
-        "label": args.label,
-        "daq_h5": str(args.daq_h5),
-        "wfield_results": str(args.wfield_results),
-        "allen_dir": str(args.allen_dir),
-        "channel": args.channel,
-        "offset_v": offset_v,
-        "offset_source": offset_source,
-        "volt_sec_per_rot": args.volt_sec_per_rot,
-        "mm_per_rot": args.mm_per_rot,
-        "smoothing_sigma_s": args.smoothing_sigma_s,
-        "thresh_speed": args.thresh_speed,
-        "max_gap_duration": args.max_gap_duration,
-        "min_duration": args.min_duration,
-        "frame_margin_s": args.frame_margin_s,
-        "daq_pco_exposure_count": int(pco_samples.size),
-        "svt_corrected_frame_count": int(SVTcorr.shape[1]),
-        "valid_corrected_frame_count": int(valid.sum()),
-        "running_corrected_frame_count": int(frame_running.sum()),
-        "not_running_corrected_frame_count": int(frame_not_running.sum()),
-        "n_running_bouts": int(starts.size),
-        "running_bout_duration_s_median": float(np.median(durations_s)) if durations_s.size else None,
-        "running_bout_duration_s_max": float(np.max(durations_s)) if durations_s.size else None,
-        "display_limit": lim,
-        "outputs": {"png": str(png), "npz": str(npz_path)},
-    }
-    summary_path = args.output / f"{args.label}_running_vs_not_running_activity_summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print(json.dumps(summary, indent=2), flush=True)
+    np.savez_compressed(args.output / f"{args.label}_quiet_running_activity_maps.npz",
+                        quiet_map=quiet_map, running_map=running_map, running_minus_quiet=contrast,
+                        frame_quiet=frame_quiet, frame_running=frame_running)
+    summary["display_limit"] = lim
+    summary["outputs"] = {"png": str(png)}
+    (args.output / f"{args.label}_quiet_running_activity_summary.json").write_text(json.dumps(summary, indent=2))
+    print(f"[running_activity] wrote {png.name} "
+          f"(quiet={int(frame_quiet.sum())}, running={int(frame_running.sum())} frames)", flush=True)
     return 0
 
 

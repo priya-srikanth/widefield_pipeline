@@ -13,11 +13,14 @@ git -C C:\Github\widefield_pipeline pull
 python -m wfield_local.nightly <YYYYMMDD>         # preprocess -> preprocess_deck -> archive COPY (+verify)
 ```
 
-`nightly` chains the whole night (it dispatches by machine — this is the imaging branch): `preprocess`
-(discover → motion/SVD/xreg/push → maps → xall → intensity → photobleach) → `preprocess_deck` (rebuild
-`PS92-95_cross_sessions_aligned.pptx` in place) → `archive_day archive`+`verify` (raw + `.bin` → M: standby,
-outputs → N:, size-verified). It **never deletes** E:. `--dry-run` to preview; `--only PS94` to subset;
-`--skip-deck`/`--skip-archive`; ranges/`all` accepted. (The steps still run standalone if you need one.)
+`nightly` chains the whole night (it dispatches by machine — this is the imaging branch): **`archive_day
+upload-daq`** (push the day's DAQ `.h5` to N: FIRST, so the GPU box can run its behavior pipeline while this
+box preprocesses) → `preprocess` (discover → motion/SVD/xreg/push → cue/lick maps → **canonical behavior
+events + quiet-vs-running SVD activity maps** → xall → intensity → photobleach) → `preprocess_deck` (rebuild
+`PS92-95_cross_sessions_aligned.pptx` in place; now includes a quiet-vs-running slide before QC) →
+`archive_day archive`+`verify` (raw + `.bin` → M: standby, outputs → N:, size-verified). It **never deletes**
+E:. `--dry-run` to preview; `--only PS94` to subset; `--skip-daq-upload`/`--skip-deck`/`--skip-archive`;
+ranges/`all` accepted. (The steps still run standalone if you need one.)
 
 Then, **after checking in that N:/M: copies are byte-verified**, reclaim E: space (MANUAL — never automatic):
 

@@ -119,7 +119,7 @@ def test_maps_commands_order_and_windows():
     rv = PathResolver(machine="imaging")
     params = config.defaults()["preprocess"]
     cmds = preprocess._maps_commands(_maps_session(), params, rv, allow_missing=True)
-    # exactly the 8-command chain, in order, with the right module names
+    # the cue/lick/quiet chain, then canonical events -> quiet/running SVD maps
     assert [c[0] for c in cmds] == [
         "wfield_local.framemap_event_maps",
         "wfield_local.plot_spout_trial_averages_shared_scale",
@@ -129,7 +129,12 @@ def test_maps_commands_order_and_windows():
         "wfield_local.plot_lick_vs_cue_spout_maps",
         "wfield_local.quiet_periods",
         "wfield_local.framemap_event_maps",
+        "wfield_local.behavior_events",
+        "wfield_local.plot_running_activity_maps",
     ]
+    # behavior_events (per animal+date) precedes the running/quiet maps that consume it
+    assert cmds[8][1:] == ["20260808", "--only", "PS92"]
+    assert "--events" in cmds[9] and cmds[9][cmds[9].index("--events") + 1].endswith("PS92/20260808.npz")
     # cue map (cmd 1) vs lick maps (cmds 4 & 8) selected via --what
     assert cmds[0][cmds[0].index("--what") + 1] == "cue"
     assert cmds[3][cmds[3].index("--what") + 1] == "lick"
@@ -141,9 +146,10 @@ def test_maps_commands_order_and_windows():
     assert cmds[7][cmds[7].index("--post-s") + 1] == "0.15"
     # cmd 8 is the quiet-gated lick pass
     assert "--quiet-frame" in cmds[7]
-    # labels + N: figure I/O
+    # labels + N: figure I/O (every command except behavior_events, which is keyed by animal+date)
     for c in cmds:
-        assert "PS92_0808_affine8v1" in c
+        if c[0] != "wfield_local.behavior_events":
+            assert "PS92_0808_affine8v1" in c
     assert any(a.startswith("N:/") and a.endswith("motion_corrected/wfield_local_results")
                for a in cmds[0])
     # dry-run placeholder frame_map appears (no N: access on this box)

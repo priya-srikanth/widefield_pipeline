@@ -437,26 +437,27 @@ Outputs:
 - `*_treadmill_running_bouts.npz`
 - `*_treadmill_running_bout_summary.json`
 
-After QC looks sensible, generate running-vs-not-running widefield maps:
+After QC looks sensible, generate **quiet-vs-running** SVD activity maps. These consume the CANONICAL
+behavior events (`wfield_local.behavior_events`, the shared licks/reward/running/quiet identity) rather
+than re-detecting movement, so the map is consistent with the behavior figures. The preprocessing
+orchestrator (`preprocess`) runs this automatically after the lick maps (it first emits the events, then
+the maps), and the deck shows it before the QC/photobleach slides. Standalone:
 
 ```powershell
-python .\wfield_local\plot_running_activity_maps.py `
-  --label PS95_v6 `
-  --daq-h5 "E:\DAQ_recorder_output\PS95_baseline_20260601_153627.h5" `
-  --wfield-results "E:\labcams_data\20260601\PS95_20260601_153653\motion_corrected\wfield_local_results" `
-  --allen-dir "E:\labcams_data\20260601\PS95_20260601_153653\motion_corrected\wfield_local_results\allen_aligned_v6" `
-  --output "E:\labcams_data\20260601\PS95_20260601_153653\motion_corrected\treadmill_qc" `
-  --channel treadmill `
-  --smoothing-sigma-s 0.15 `
-  --thresh-speed 5.0 `
-  --max-gap-duration 0.3 `
-  --min-duration 2.0
+python -m wfield_local.plot_running_activity_maps `
+  --label PS92_0806_affine8v1 `
+  --events "M:\...\Behavior_logs\Widefield\behavior_summary\events\PS92\20260806.npz" `
+  --wfield-results "...\motion_corrected\wfield_local_results" `
+  --allen-dir "...\motion_corrected\wfield_local_results\allen_aligned_affine8v1" `
+  --daq-h5 "M:\...\DAQ_recorder_output\20260806\PS92_20260806_124733.h5" `
+  --frame-map "...\motion_corrected\*_cleanpairs_frame_map.npz" `
+  --cleanpairs-summary "...\motion_corrected\*_cleanpairs_summary.json" `
+  --output "...\motion_corrected\running_activity_affine8v1"
 ```
 
-This maps corrected imaging frames to DAQ samples through the DAQ-recorded
-`pco_exposure` pulse train, then averages `SVTcorr` frames classified as
-running versus not running. Treat `--offset-v auto` as a QC convenience; for
-final analysis, prefer the legacy default or a known rig/session override.
+It maps corrected imaging frames to DAQ samples through the cleanpairs `frame_map` + `pco_exposure` pulse
+train (same mapping the cue/lick maps use), classifies each frame as quiet/running from the event bouts,
+and averages `SVTcorr` frames per state → quiet, running, and running−quiet maps (RdBu, Allen overlay).
 
 ### 12. Relabeled (cleanpairs) cue/lick maps
 

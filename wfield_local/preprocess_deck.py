@@ -52,6 +52,8 @@ PER_DATE_TYPES = [
      "lick_aligned_affine8v1", "_lick_aligned_pairwise_spout_position_contrasts.png", "FIT"),
     ("cue_vs_lick", "Cue-aligned vs lick-aligned maps",
      "lick_aligned_affine8v1", "_cue_vs_lick_spout_position_maps.png", "FIT"),
+    ("quiet_running", "Quiet vs running activity (SVD)",
+     "running_activity_affine8v1", "_quiet_running_activity_maps.png", "FIT"),
     ("motion_qc", "Motion-correction QC",
      "motion_qc", "_motion_qc.png", "FIT"),
     ("photobleach", "Photobleaching — 415/470 ROI-median trend",

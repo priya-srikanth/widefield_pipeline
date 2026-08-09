@@ -36,8 +36,9 @@ camera acquisition). See `README.md` for setup, `docs/MIGRATION.md` for the spli
 One nightly command, dispatched by machine: **`python -m wfield_local.nightly <YYYYMMDD>`**.
 - **Imaging (PCO) computer** — acquisition (recorder GUI, separate repo) + preprocessing (motion/SVD/Allen,
   cue/lick maps) from THIS repo → uploads to MICROSCOPE. Mounts: `N:`=MICROSCOPE, `E:`=local, `M:`=standby
-  (`M:\collaborations\Priya\Widefield\labcams`). `nightly` = `preprocess` → `preprocess_deck` → `archive_day
-  archive` (COPY; never deletes E:). Runbook: `runbooks/imaging_computer_nightly.md`.
+  (`M:\collaborations\Priya\Widefield\labcams`). `nightly` = **`archive_day upload-daq`** (push the DAQ `.h5`
+  to N: FIRST so the analysis box's behavior pipeline can start in parallel) → `preprocess` →
+  `preprocess_deck` → `archive_day archive` (COPY; never deletes E:). Runbook: `runbooks/imaging_computer_nightly.md`.
 - **Analysis / behavior GPU box (this)** — LocaNMF + decode/encode/RSA + decks. `M:`=MICROSCOPE. `nightly` =
   `camera_nightly` (upload D: cameras+behavior-logs → MICROSCOPE, never deletes D:; dropped-frame QC;
   camera↔DAQ alignment templates) FIRST, THEN `nightly_figs` (LocaNMF; waits on the imaging push). Runbook:
@@ -136,6 +137,15 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
   QC: `behavior_summary/qc/`), and is a **no-op for imaging** (its 0.1 s bout-collapse refractory subsumes
   the floor, so lick-aligned maps are unchanged). Wired into every lick consumer (behavior + imaging) via
   config, so lick identification stays consistent across the pipeline.
+
+- **Canonical DAQ behavior events — DONE** (`wfield_local/behavior_events.py`): one `.npz` per session
+  (`behavior_summary/events/<animal>/<date>.npz`) of licks/reward/running-bouts/quiet-periods on the DAQ
+  clock, so behavior AND imaging load the SAME identity instead of re-detecting. `get_or_compute()` is the
+  consumer entry; params in `configs/defaults.yaml segmentation` (+ `lick_detection`). Wired: analysis
+  nightly (camera_nightly step 3) produces them; imaging `preprocess` maps step consumes them for the
+  **quiet-vs-running SVD activity maps** (`plot_running_activity_maps.py` → quiet / running / running−quiet,
+  in the deck before QC/photobleach). Running threshold 3 mm/s (sedentary mice; see memory). To unblock the
+  analysis box, the imaging nightly pushes the DAQ `.h5` to N: up front (`archive_day upload-daq`).
 
 **Then the science:** post-stroke prerequisites — per-trial behavioral-state table (spout-contact + DAQ lick
 → hit/miss/failed, latency, executed position), and packaging the frozen pre-stroke model + baseline
