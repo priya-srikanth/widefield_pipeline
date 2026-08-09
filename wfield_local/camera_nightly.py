@@ -8,6 +8,8 @@ One command per date runs the camera nightly, in order:
   1. **Dropped-frame QC** (:mod:`wfield_local.dropframe_qc`) -> ``dropped_frames_summary_<date>.{csv,txt}``.
   2. **Camera<->DAQ alignment templates** (:mod:`wfield_local.camera_sync`) ->
      ``alignment_templates/<cam>/<PSxx>/<date>.npz``.
+  3. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
+     per-position metrics, and a refresh of the curated cross-session cohort summary.
 
 Copies are idempotent + size-verified; a copy FAILURE stops the run before QC/align (never process a
 partial upload). ``D:`` deletion is a separate manual step after byte-verification + check-in. Writes only
@@ -25,7 +27,7 @@ import os
 import re
 from pathlib import Path
 
-from wfield_local import camera_sync, config, dropframe_qc, writeguard
+from wfield_local import camera_sync, config, dropframe_qc, spout_behavior, writeguard
 from wfield_local.paths import PathResolver
 
 BUF = 1 << 20
@@ -100,8 +102,11 @@ def upload(date, rv, animals=None, dry=False) -> tuple[dict, list]:
     return res, fails
 
 
-def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, dry=False) -> int:
-    """Upload -> dropped-frame QC -> alignment templates for ``date``. Returns 0 on success, 1 on copy fail."""
+def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, do_behavior=True,
+        dry=False) -> int:
+    """Upload -> dropped-frame QC -> alignment templates -> behavior figs for ``date``.
+
+    Returns 0 on success, 1 on copy fail (stops before any downstream step)."""
     if do_copy:
         print("\n################ upload D: -> MICROSCOPE (D: NOT deleted) ################", flush=True)
         _res, fails = upload(date, rv, animals, dry)
@@ -121,6 +126,9 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
             print(f"[dry-run] camera_sync.run({date})", flush=True)
         else:
             camera_sync.run(date, rv, animals=animals)
+    if do_behavior:
+        print("\n################ spout behavior figures (+ curated cohort) ################", flush=True)
+        spout_behavior.run(date, rv, animals=animals, cohort=True, from_spec="curated", dry=dry)
     print(f"\nCAMERA NIGHTLY {date} DONE", flush=True)
     return 0
 
@@ -133,11 +141,12 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-copy", action="store_true", help="data already on MICROSCOPE; skip the upload")
     ap.add_argument("--skip-dropframe", action="store_true", help="skip the dropped-frame QC pass")
     ap.add_argument("--skip-align", action="store_true", help="skip the alignment-template pass")
+    ap.add_argument("--skip-behavior", action="store_true", help="skip the spout behavior figures")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
-               do_align=not args.skip_align, dry=args.dry_run)
+               do_align=not args.skip_align, do_behavior=not args.skip_behavior, dry=args.dry_run)
 
 
 if __name__ == "__main__":

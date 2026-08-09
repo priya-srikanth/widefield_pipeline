@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from wfield_local import camera_nightly as cn
-from wfield_local import camera_sync, dropframe_qc
+from wfield_local import camera_sync, dropframe_qc, spout_behavior
 
 
 class _RV:
@@ -27,24 +27,28 @@ def _patch_steps(monkeypatch):
     calls = []
     monkeypatch.setattr(dropframe_qc, "run", lambda *a, **k: calls.append(("drop", a, k)))
     monkeypatch.setattr(camera_sync, "run", lambda *a, **k: calls.append(("align", a, k)))
+    monkeypatch.setattr(spout_behavior, "run", lambda *a, **k: calls.append(("behavior", a, k)))
     return calls
 
 
 def test_dispatch_order_and_animals_threading(tmp_path, monkeypatch):
     calls = _patch_steps(monkeypatch)
     cn.run("20260807", _RV(tmp_path), animals=["PS94"], do_copy=False)     # no staging -> skip copy
-    assert [c[0] for c in calls] == ["drop", "align"]                      # QC before alignment
-    assert calls[0][2].get("animals") == ["PS94"] and calls[1][2].get("animals") == ["PS94"]
+    assert [c[0] for c in calls] == ["drop", "align", "behavior"]          # QC -> align -> behavior
+    assert all(c[2].get("animals") == ["PS94"] for c in calls)            # animals threaded through
     assert calls[0][1][0] == str(tmp_path / "server" / "behavior_cameras" / "20260807")
 
 
 def test_skip_flags(tmp_path, monkeypatch):
     calls = _patch_steps(monkeypatch)
     cn.run("20260807", _RV(tmp_path), do_copy=False, do_dropframe=False)
-    assert [c[0] for c in calls] == ["align"]
+    assert [c[0] for c in calls] == ["align", "behavior"]
     calls.clear()
     cn.run("20260807", _RV(tmp_path), do_copy=False, do_align=False)
-    assert [c[0] for c in calls] == ["drop"]
+    assert [c[0] for c in calls] == ["drop", "behavior"]
+    calls.clear()
+    cn.run("20260807", _RV(tmp_path), do_copy=False, do_behavior=False)
+    assert [c[0] for c in calls] == ["drop", "align"]
 
 
 def test_upload_copies_size_verified_and_never_deletes_source(tmp_path, monkeypatch):

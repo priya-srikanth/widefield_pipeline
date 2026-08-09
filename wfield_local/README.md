@@ -640,6 +640,23 @@ the same `configs/` source of truth. In the commands below `<OUT>` is the figure
 `C:/Users/sabatini/source/cue_lick`), `<DATE>` is `MMDD`, `<SPAN>` is a comma `MMDD` list, and the
 cross-session `<TAG>` is `<first>-<last>` of the span.
 
+### Camera & behavior nightly (analysis box, no imaging needed)
+
+`python -m wfield_local.camera_nightly <YYYYMMDD>` runs the camera/behavior side (it needs no imaging
+output, so it runs first, while the imaging box is still preprocessing): upload `D:` → MICROSCOPE
+(camera videos/CSVs + behavior logs, size-verified, never deletes `D:`) → **dropped-frame QC**
+(`dropframe_qc`, gaps in the monotonic frame_id) → **camera↔DAQ alignment templates** (`camera_sync`,
+GPIO sync train ↔ DAQ `sync` line) → **spout behavior figures** (`spout_behavior`). `--skip-copy` /
+`--skip-dropframe` / `--skip-align` / `--skip-behavior` subset it; `nightly` calls it before `nightly_figs`.
+
+`python -m wfield_local.spout_behavior <YYYYMMDD> [--cohort] [--from curated]` — per-session behavior
+figure + per-position metrics CSV from the task-controller's scored `trials.csv` (1 cue + 6 spout
+positions: close/far × L/center/R), and a curated cross-session cohort figure. Accuracy is
+**engaged-gated**: reward auto-holds after a miss run, so a sated animal's late misses are disengagement,
+not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate (`configs/defaults.yaml behavior.*`)
+excludes them, with the raw all-trial rate shown alongside. First-lick latency by position from `events.csv`.
+Figures → `Behavior_logs/Widefield/behavior_summary/`.
+
 ### 17. LocaNMF decomposition
 
 Atlas-anchored components (r²=0.95, loc=80, maxrank=20) from `SVTcorr` + the Allen-aligned `U`. One

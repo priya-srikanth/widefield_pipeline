@@ -68,6 +68,19 @@ lick_detection:            # DAQ lick_analog (ai0)
   thresh_lower: 0.5
   lockout_falling_edge_s: [0.001, 0.020]
 
+# Spout behavior-session figures (wfield_local.spout_behavior; 1 cue + 6 spout positions).
+# The task-controller trials.csv already scores hit/miss/lick_in_response_window per trial;
+# these params only govern the engagement gate + latency, NOT lick re-detection.
+behavior:
+  free_reward_excluded: true      # drop free-reward (non-scored) trials from accuracy
+  latency_max_s: 5.0              # first-lick latency past this (from cue) -> treat as no response
+  engagement:                     # separate a sated/disengaged tail from genuine spatial inaccuracy
+    window_trials: 15             # trailing window for the rolling response (lick-in-window) rate
+    min_response_rate: 0.5        # rolling rate below this = disengaged (misses here are NOT "inaccurate")
+    tail_min_misses: 6            # >= this many trailing consecutive non-responses = satiation tail
+                                  #   (matches the task's auto_hold_after_miss_threshold)
+    min_engaged_trials: 5         # positions with fewer engaged trials are reported but greyed out
+
 # Spout-position source + sync (see STROBE_BIT1_RECOVERY.md, wfield_local/frame_sync.py):
 #  - positions from DAQ spout-strobe bits (code = bit0 + 2*bit1 + 4*bit2)
 #  - when a strobe bit is dead (Aug-2026), recover from the behavior-log pos_idx

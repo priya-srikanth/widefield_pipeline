@@ -47,6 +47,12 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
 
+  behavior_out:
+    description: "Spout-behavior session/cohort figures + metrics (wfield_local.spout_behavior)"
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
+      imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
+
   cue_analysis_out:
     description: "Deck + figure destination (spout_position_decoder_summary.pptx + PNGs)"
     mounts:

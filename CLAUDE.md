@@ -109,8 +109,19 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/MIGRATI
   against the DAQ sync line to localize dropped DAQ samples / frames (all derive from the one Arduino source).
   That is the same DAQ↔GPIO alignment as the Blackfly templates above (raw sync line, not the REWARDED cue
   subset — see the June count-mismatch resolution).
-- **Nightly behavior-session figures from spout data (a la stroke_orofacial spout_behavior), one cue + 6
-  spout positions here** (orofacial had 2 cues + L/R only). Config-driven per-session + cohort figures.
+- **Nightly behavior-session figures from spout data — DONE** (`wfield_local/spout_behavior.py`, a la
+  stroke_orofacial `spout_behavior`; 1 cue + 6 spout positions here vs their 2 cues + L/R). Reads the
+  task-controller's already-scored `trials.csv` (hit/miss/lick_in_response_window per trial) rather than
+  re-detecting licks. Per-session figure (2x3 spatial hit-rate grid, engagement-over-session timeline,
+  per-position accuracy bars w/ Wilson CI + raw overlay, first-lick latency by position from `events.csv`)
+  + per-position metrics CSV, and a curated cross-session cohort figure (per-animal per-position accuracy,
+  learning curve, close-vs-far distance effect). **Engagement gate** (`flag_engagement`): reward is
+  auto-held after a miss run, so a sated animal's late misses are DISENGAGEMENT, not spatial inaccuracy —
+  a terminal sated-tail detector (>= `tail_min_misses` trailing non-responses) UNION a rolling
+  response-rate collapse gate separates them; per-position accuracy is engaged-gated by default with the
+  raw all-trial rate shown alongside. Params in `configs/defaults.yaml behavior.*`; figures ->
+  `behavior_out` root. Wired as camera-nightly step 3 (`--skip-behavior`); standalone
+  `python -m wfield_local.spout_behavior <DATE> [--cohort] [--from curated]`.
 
 **Then the science:** post-stroke prerequisites — per-trial behavioral-state table (spout-contact + DAQ lick
 → hit/miss/failed, latency, executed position), and packaging the frozen pre-stroke model + baseline

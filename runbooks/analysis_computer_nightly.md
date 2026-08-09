@@ -50,9 +50,17 @@ It runs, in order:
    time, affine, drop-proof; for post-stroke multi-angle DLC / behavior↔imaging alignment). Logs
    `matched/edges`, `resid_ms_rms` (~1-2 ms good), `frame_drops`, and a `QUALITY CHECK FAILED` flag if the
    residual is off.
+3. **Spout behavior figures** (`wfield_local.spout_behavior`) — reads the task-controller's already-scored
+   `trials.csv` and writes, under `Behavior_logs\Widefield\behavior_summary\`, a per-session PNG + a
+   per-position metrics CSV, plus a refreshed curated cross-session cohort figure. Each session's accuracy
+   is **engaged-gated**: reward is auto-held after a miss run, so a sated animal's late misses are
+   disengagement, not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate excludes them (the
+   raw all-trial rate is shown alongside for transparency). One cue + the 6 spout positions
+   (close/far × L/center/R); latency by position comes from `events.csv`.
 
-`--skip-copy` (data already on MICROSCOPE) / `--skip-dropframe` / `--skip-align` run a subset. Underlying
-tools: `wfield_local.dropframe_qc`, `wfield_local.camera_sync`.
+`--skip-copy` (data already on MICROSCOPE) / `--skip-dropframe` / `--skip-align` / `--skip-behavior` run a
+subset. Underlying tools: `wfield_local.dropframe_qc`, `wfield_local.camera_sync`, `wfield_local.spout_behavior`
+(standalone: `python -m wfield_local.spout_behavior <DATE> [--cohort] [--from curated]`).
 
 ## Notes
 
