@@ -377,6 +377,19 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
         for pat in params["push_frame_map_globs"]:
             for f in glob.glob(f"{mc}/{pat}"):
                 shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
+
+    # 5 drop the local relabel/cleanpairs intermediate: a transient hand-off from the TTL relabel
+    # (separate h5py process) to motion correction — regenerable from raw, NOT archived (standby
+    # keeps raw + motioncorrect.bin) and read by nothing downstream (SVD used the .bin; maps use the
+    # pushed frame_map). Frees ~raw-sized local scratch. Guarded on the .bin so it only fires once
+    # motion correction has actually produced its output.
+    if not dry_run and Path(binp).exists():
+        for f in glob.glob(f"{mc}/*cleanpairs*_uint16.dat"):
+            try:
+                os.remove(f)
+                print(f"[cleanup] removed relabel intermediate {os.path.basename(f)}", flush=True)
+            except OSError as e:
+                print(f"[cleanup] could not remove {f}: {e}", flush=True)
     print(f"################ {animal} {sess} DONE ################", flush=True)
 
 
