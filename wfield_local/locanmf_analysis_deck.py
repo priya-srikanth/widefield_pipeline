@@ -37,6 +37,36 @@ NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
 
 
+# ---- methodology blurbs for the speaker NOTES (how each figure is made) ----
+M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored NMF, r2=0.95, "
+            "loc_thresh=80, maxrank=20). Spout position per trial from the DAQ spout-strobe bits; when the "
+            "DAQ is short a bit (Aug-2026 dead bit1) it is repaired from the behavior-log pos_idx via "
+            "classify_cues_with_backup (only when it validates >=0.9 on the DAQ's good positions). Engaged = "
+            "movement/lick trials; the DAQ cue stream is the rewarded subset, which also trims the "
+            "disengaged session tail. Curated pre-stroke sessions only (6/6-6/8 + 8/6 onward).")
+M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardized component activities, 6 "
+            "positions, chance=0.167. Activity = mean over the aligned window, NO per-trial baseline. "
+            "Cross-validation is BLOCK-AWARE (GroupKFold, groups = ~6-trial position blocks) so block drift "
+            "cannot leak train->test. Post-cue align = window after cue onset (predicts held-out no-lick "
+            "trials too = 'no lick generalization'); pre-cue align = the 2 s window ENDING at the cue (the "
+            "motor-independent maintained code). Rolling = sliding 0.5 s window across pre-cue ENL -> "
+            "post-cue. Per-position recall = diagonal of the row-normalized confusion matrix. " + M_COMMON)
+M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position "
+            "design to each LocaNMF component's activity, GroupKFold by position block. Per-position "
+            "explained variance = held-out R^2 on that position's trials (whole-cortex, summed over "
+            "components). Noise ceiling = between-position SS / total single-trial SS (explainable var); "
+            "FEVE = captured/ceiling (1 = all explainable captured; center positions often have ~0 ceiling "
+            "so low raw EV there is no signal, not failure). Predicted maps = footprint-reconstructed "
+            "expected activity per intended position. r2-per-region restricts to each Allen area's "
+            "components. Per-animal EV: one graph/animal, sessions distinguished by colour. " + M_COMMON)
+M_RSA = ("Per session build a 6x6 representational matrix from the 6 position mean-activity patterns. RDM = "
+         "1 - Pearson correlation (diag 0). Second-order RSA = Spearman correlation between two sessions' "
+         "RDMs (15 unique off-diagonal entries), basis-free and valid across sessions/animals; within-animal "
+         "> across-animal = stable individual geometry; % = within / split-half noise ceiling. Crossnobis = "
+         "noise-unbiased (cross-validated Mahalanobis) RDM, removing the positive noise bias. Sessions are "
+         "animal-blocked then date-ordered. " + M_COMMON)
+
+
 def _mmdd_label(mmdd: str) -> str:
     return f"{int(mmdd[:2])}/{int(mmdd[2:])}"
 
@@ -72,6 +102,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             r2.text = sub
             r2.font.size = Pt(12.5)
             r2.font.color.rgb = GREY
+
+    def note(s, text):
+        """Write the figure's methodology into the slide's speaker notes."""
+        s.notes_slide.notes_text_frame.text = text
 
     def _exists(p):
         ok = Path(p).exists()
@@ -135,6 +169,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         rr.text = t
         rr.font.size = Pt(15)
         rr.font.color.rgb = GREY
+    note(s, "Refined analysis deck: spout-position decode/encode/RSA, grouped animal -> analysis type -> "
+            "date, curated pre-stroke sessions only. Each slide's speaker notes give how that figure is "
+            "made. " + M_COMMON)
 
     # ---------------- A. per-animal decoding ----------------
     divider("A. Per-animal decoding across sessions",
@@ -144,15 +181,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
               "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).")
+        note(s, M_DECODE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — pre-cue 2 s decoder (maintained position code)",
               "Position decodable in the pre-cue ENL window, before movement — a motor-independent code.")
+        note(s, M_DECODE)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = maintained code. "
               "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
+        note(s, M_DECODE)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
 
     # ---------------- B. per-animal encoder ----------------
@@ -163,28 +203,34 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, f"{a} — expected SSp / MO activity by position (encoder, across sessions)",
               "Predicted per-position time-course of pooled SSp and MO activity. One panel per session.")
+        note(s, M_ENCODE)
         grid(s, [src / f"locanmf_encoder_temporal_{a}_{d}.png" for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — encoder predicted maps by intended position (across sessions)",
               "Footprint-reconstructed expected cortical map per intended spout position. One panel per session.")
+        note(s, M_ENCODE)
         grid(s, [src / f"locanmf_encoder_predicted_maps_{a}_{d}.png" for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
               "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
               "right: relative to the per-position noise ceiling.")
+        note(s, M_ENCODE)
         grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
                  src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
         s = slide()
         title(s, f"{a} — encoder r² per Allen region across sessions (MOp, MOs, SS areas, …)",
               "Explained variance per region; one panel per session. Absolute (explainable vs captured) + FEVE.")
+        note(s, M_ENCODE)
         grid(s, [src / f"locanmf_encoder_r2_by_region_{a}_{d}.png" for d, _ in date_labels], cols=3)
     s = slide()
     title(s, "Encoder — explained-variance fraction (FEVE) by region, pooled per animal",
           "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.")
+    note(s, M_ENCODE)
     big(s, src / "locanmf_encoder_feve_by_region_pooled.png", top=1.5, width=12.9)
     s = slide()
     title(s, "Encoder — FEVE by region, individual sessions per animal",
           "Same metric, one row per session → session-to-session stability.")
+    note(s, M_ENCODE)
     big(s, src / "locanmf_encoder_feve_by_region_sessions.png", top=1.5, width=12.9)
 
     # ---------------- C. cross-session summary ----------------
@@ -193,10 +239,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     title(s, f"Cross-mouse decoding & encoding across sessions ({_mmdd_label(dates[0])}–{_mmdd_label(dates[-1])})",
           "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's sessions "
           "(points = sessions).")
+    note(s, M_DECODE + " " + M_ENCODE)
     big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
     s = slide()
     title(s, "Within-animal consistency of per-position decode / encode",
           "Per-position profile per session + mean ± SD (the session-to-session noise floor).")
+    note(s, M_DECODE + " " + M_ENCODE)
     big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
 
     # ---------------- D. RSA ----------------
@@ -205,14 +253,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     s = slide()
     title(s, "RSA — within- vs across-animal representational geometry",
           "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.")
+    note(s, M_RSA)
     big(s, src / f"locanmf_rsa_sessions_{tag}.png", top=1.6, width=13.0)
     s = slide()
     title(s, "RSA — mean representational dissimilarity matrix per animal",
           "How the 6 positions relate (dark = similar patterns, bright = distinct).")
+    note(s, M_RSA)
     big(s, src / f"locanmf_rsa_rdms_{tag}.png", top=1.9, width=12.7)
     s = slide()
     title(s, "RSA — crossnobis (noise-unbiased) RDM",
           "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.")
+    note(s, M_RSA)
     big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
 
     out_path = Path(out_path)
