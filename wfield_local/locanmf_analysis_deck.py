@@ -151,9 +151,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
-              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = maintained code.")
+              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = maintained code. "
+              "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
-        big(s, src / f"locanmf_decode_accuracy_by_animal_{a}.png", top=1.5, width=11.2)  # if a summary fig exists
 
     # ---------------- B. per-animal encoder ----------------
     divider("B. Per-animal encoder — expected activity, predicted maps & explained variance",
