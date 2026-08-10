@@ -51,7 +51,13 @@ figs stage then waits for the imaging box's LocaNMF push.
    the 40 ms physiological floor; hit/miss uses the session's real response window, 3500 ms). Aborted runs
    (< `min_session_trials`) are auto-skipped.
 
-### Stage 2 — `nightly_figs <date>` (waits for the imaging box's LocaNMF push). Steps, in order:
+### Stage 2 — `nightly_figs <date>` — **auto-gated on LocaNMF being done.** Steps, in order:
+
+> **Gate:** `nightly` runs Stage 2 only if the date's sessions are **registered in `configs/sessions.yaml`**
+> — which happens in the manual "Before the figs" step *after* the GPU LocaNMF run. A freshly-recorded night
+> is not registered yet, so Stage 2 **auto-defers** (does the camera/behavior work now, holds the figs) and
+> prints the command to run once LocaNMF lands. Force it with `--figs`; hard-skip with `--skip-figs`.
+
 
 1. **Per-day position decode** — one run per alignment (lick / cue / pre-cue, each 2 s from
    `configs/defaults.yaml decode.*_post_s`), `--per-session`.
@@ -102,8 +108,13 @@ the rig procedure (see Notes).
 | flag | effect |
 |------|--------|
 | `--skip-camera` | skip Stage 1 entirely (upload + QC + align + events + behavior) |
-| `--skip-figs`   | skip Stage 2 entirely (LocaNMF decode/encode/RSA + deck) |
+| `--skip-figs`   | hard-skip Stage 2 (LocaNMF decode/encode/RSA + deck) |
+| `--figs`        | force Stage 2 even if the date isn't registered (overrides the LocaNMF-ready gate; e.g. refresh the curated deck) |
 | `--dry-run`     | print the plan for both stages; write nothing |
+
+By default Stage 2 **defers automatically** until the date is registered in `configs/sessions.yaml` (see the
+gate note above), so on a fresh night you normally just run `nightly <DATE>` and it does the camera/behavior
+work, then run `nightly_figs <MMDD>` (or `nightly <DATE> --figs`) after LocaNMF + registration.
 
 `nightly` forwards only `--only` / `--dry-run` to the sub-stages — **not** per-step skips. For finer control,
 run the sub-command standalone:

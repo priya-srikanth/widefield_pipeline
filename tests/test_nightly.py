@@ -36,6 +36,22 @@ def test_analysis_sequence_camera_before_figs(monkeypatch):
     assert "--from" in cmds[1] and "0606,0807" in cmds[1]
 
 
+def test_analysis_figs_gated_on_locanmf_registration(monkeypatch):
+    # Stage 2 (figs) defers unless the date's sessions are registered in configs/sessions.yaml
+    # (the proxy for "LocaNMF done"). The gate calls the REAL config.load_sessions (not mocked).
+    cmds = _capture(monkeypatch)
+    nightly.main(["20261225", "--machine", "analysis"])   # 12/25 is never a recording date
+    assert [c[0] for c in cmds] == ["wfield_local.camera_nightly"]  # camera ran; figs DEFERRED
+    # --figs overrides the gate (curated-refresh on demand)
+    cmds.clear()
+    nightly.main(["20261225", "--machine", "analysis", "--figs"])
+    assert [c[0] for c in cmds] == ["wfield_local.camera_nightly", "wfield_local.nightly_figs"]
+    # a REGISTERED date still runs figs by default
+    cmds.clear()
+    nightly.main(["20260807", "--machine", "analysis"])
+    assert "wfield_local.nightly_figs" in [c[0] for c in cmds]
+
+
 def test_skip_flags(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20260807", "--machine", "analysis", "--skip-camera"])
