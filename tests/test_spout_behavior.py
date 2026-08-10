@@ -14,6 +14,17 @@ TRIAL_COLS = [
 NAME = {0: "close_center", 1: "close_L", 2: "close_R", 3: "far_center", 4: "far_L", 5: "far_R"}
 
 
+def test_curated_mmdds_includes_future_onward_dates():
+    # available spans May/June training + the analysis window + freshly-added 8/8, 8/9
+    avail = {"0505", "0529", "0601", "0605", "0606", "0607", "0608", "0611", "0805",
+             "0806", "0807", "0808", "0809"}
+    got = sb._curated_mmdds(avail)
+    # keep 6/6-6/8 anchors + everything 8/6 onward (incl. new 8/8/8/9); drop training + 8/5
+    assert got == ["0606", "0607", "0608", "0806", "0807", "0808", "0809"]
+    # a date not yet recorded is simply absent (only 'available' dates appear)
+    assert sb._curated_mmdds({"0606", "0807"}) == ["0606", "0807"]
+
+
 def _trial(tid, pos_idx, *, hit, free_trial=0, free_delivered=0):
     resp = 1 if hit else 0
     return {

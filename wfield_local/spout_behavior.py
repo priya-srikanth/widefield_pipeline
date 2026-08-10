@@ -924,6 +924,25 @@ def session_row(session_dir: Path, params: dict, rv=None) -> dict | None:
     return rec
 
 
+def _curated_mmdds(available) -> list[str]:
+    """Curated behavior dates (MMDD) from the set of ``available`` MMDDs: the policy anchors
+    (``cross_session``: 6/6-6/8 + 8/6-8/7) PLUS any available date in the 'onward' window (>= the first
+    August anchor), minus the excluded noisy days. So a freshly-uploaded 8/8 / 8/9 is included
+    automatically without editing ``configs/animals.yaml``; May / early-June / mid-June training days and
+    8/5 stay out."""
+    cs = set(config.cross_session_dates())
+    exclude = set(config.date_policy().get("cross_session_exclude", []))
+    aug_start = min((d for d in cs if d >= "0800"), default="9999")
+    return sorted(d for d in available if (d in cs or d >= aug_start) and d not in exclude)
+
+
+def _curated_dates(rv: PathResolver) -> list[str]:
+    """``_curated_mmdds`` over the dates actually present in the behavior-log root on MICROSCOPE."""
+    avail = {mo.group(1)[4:] for p in discover_sessions(rv, None, None)
+             if (mo := re.match(r"PS\d+_(\d{8})", p.name))}
+    return _curated_mmdds(avail)
+
+
 def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = False):
     """Pool sessions across ``dates`` into per-animal per-position accuracy + learning curves."""
     sessions = []
@@ -1080,9 +1099,10 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
                   f"(available: {', '.join(available) or 'none'})", flush=True)
     if cohort:
         dates = None
-        if from_spec:
-            dates = (config.cross_session_dates() if from_spec == "curated"
-                     else config.expand_dates(from_spec))
+        if from_spec == "curated":
+            dates = _curated_dates(rv)          # anchors + 'onward' window -> auto-includes 8/8, 8/9, ...
+        elif from_spec:
+            dates = config.expand_dates(from_spec)
         cohort_summary(rv, dates, animals, out_dir, dry=dry)
     return 0
 

@@ -12,7 +12,9 @@
   ``nightly_figs`` (LocaNMF decode/encode/RSA + deck). Stage 2 is **GATED on LocaNMF being done**: it runs
   only if the requested date's sessions are registered in ``configs/sessions.yaml`` (the manual step that
   follows the GPU LocaNMF run), else it DEFERS with instructions. A freshly-recorded night thus does the
-  camera/behavior work now and holds the figs until LocaNMF lands. ``--figs`` forces it; ``--skip-figs`` hard-skips.
+  camera/behavior work now and holds the figs until LocaNMF lands. ``--figs`` forces it; ``--skip-figs``
+  hard-skips; ``--await-locanmf`` instead hands off to the ``await_locanmf`` poller (blocks ~30-min loop
+  until the inputs land, then auto-runs LocaNMF + registration + figs) for one-command overnight operation.
 
 **Never deletes anything.** E: cleanup (``archive_day clean --execute``) and D: cleanup stay MANUAL,
 run only after byte-verify + check-in (ground rule 1). A failed step stops the chain, so a bad night
@@ -23,6 +25,7 @@ never loses local data.
     python -m wfield_local.nightly 20260808 --dry-run
     python -m wfield_local.nightly 20260808 --skip-camera        # analysis box: just the figs
     python -m wfield_local.nightly 20260808 --figs               # analysis box: force figs (skip the LocaNMF-ready gate)
+    python -m wfield_local.nightly 20260809 --await-locanmf      # analysis box: camera now, then poll+auto-run figs when LocaNMF lands
     python -m wfield_local.nightly 0806-0808 --skip-archive      # imaging box: no archive copy
 
 Each step runs as a ``python -m wfield_local.<step>`` subprocess (isolation; same pattern as the steps
@@ -96,6 +99,13 @@ def _analysis_nightly(dates, args, mach, only) -> int:
     # Override with --figs (e.g. to refresh the curated cross-session deck on demand); --skip-figs hard-skips.
     if args.skip_figs:
         print("\n[nightly] Stage 2 (LocaNMF figs) skipped (--skip-figs)", flush=True)
+    elif args.await_locanmf:
+        # hand off to the poller: it blocks (~30-min loop) until the imaging box's LocaNMF inputs land,
+        # then auto-runs LocaNMF -> register -> nightly_figs. One-command overnight operation.
+        an = ["--animals", *args.only] if args.only else []
+        extra = ["--dry-run", "--once"] if args.dry_run else []   # dry-run: single pass, no loop
+        for d in dates:
+            _run(["wfield_local.await_locanmf", d, *an, *extra], dry=False)
     else:
         mmdds = [d[4:8] for d in dates]
         registered = config.load_sessions(dates=mmdds, animals=config.normalize_animals(args.only))
@@ -124,6 +134,9 @@ def main(argv=None) -> int:
     ap.add_argument("--figs", dest="force_figs", action="store_true",
                     help="analysis: run the LocaNMF figs even if the date isn't registered yet (overrides the "
                          "LocaNMF-ready gate; e.g. to refresh the curated cross-session deck)")
+    ap.add_argument("--await-locanmf", dest="await_locanmf", action="store_true",
+                    help="analysis: after the camera stage, launch await_locanmf to poll (~30 min) for the "
+                         "LocaNMF inputs and auto-run LocaNMF+register+figs when they land (BLOCKS until done)")
     ap.add_argument("--skip-deck", action="store_true", help="imaging: skip the preprocess_deck rebuild")
     ap.add_argument("--skip-daq-upload", action="store_true",
                     help="imaging: skip the up-front DAQ .h5 push to MICROSCOPE")

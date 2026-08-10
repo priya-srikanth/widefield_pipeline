@@ -52,6 +52,16 @@ def test_analysis_figs_gated_on_locanmf_registration(monkeypatch):
     assert "wfield_local.nightly_figs" in [c[0] for c in cmds]
 
 
+def test_analysis_await_locanmf_hands_off_to_poller(monkeypatch):
+    cmds = _capture(monkeypatch)
+    nightly.main(["20261225", "--machine", "analysis", "--await-locanmf", "--dry-run"])
+    steps = [c[0] for c in cmds]
+    assert steps == ["wfield_local.camera_nightly", "wfield_local.await_locanmf"]
+    # dry-run hands the poller a single, no-write pass
+    await_cmd = cmds[1]
+    assert "20261225" in await_cmd and "--once" in await_cmd and "--dry-run" in await_cmd
+
+
 def test_skip_flags(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20260807", "--machine", "analysis", "--skip-camera"])

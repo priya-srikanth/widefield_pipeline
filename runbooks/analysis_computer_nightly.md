@@ -125,6 +125,7 @@ the rig procedure (see Notes).
 | `--skip-camera` | skip Stage 1 entirely (upload + QC + align + events + behavior) |
 | `--skip-figs`   | hard-skip Stage 2 (LocaNMF decode/encode/RSA + deck) |
 | `--figs`        | force Stage 2 even if the date isn't registered (overrides the LocaNMF-ready gate; e.g. refresh the curated deck) |
+| `--await-locanmf` | after Stage 1, hand off to the `await_locanmf` poller — blocks ~30-min loop until the LocaNMF inputs land, then auto-runs LocaNMF + register + figs (one-command overnight) |
 | `--dry-run`     | print the plan for both stages; write nothing |
 
 By default Stage 2 **defers automatically** until the date is registered in `configs/sessions.yaml` (see the
