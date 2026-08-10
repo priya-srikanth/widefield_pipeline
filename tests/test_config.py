@@ -4,7 +4,7 @@ from wfield_local import config
 
 def test_sessions_structure():
     ss = config.load_sessions()
-    assert len(ss) == 37
+    assert len(ss) >= 37   # baseline registered set; grows as new recording days are registered
     for s in ss:
         assert set(s) >= {"label", "mc", "h5", "regime", "fmdir"}
         assert s["label"][:4].startswith("PS") and s["label"][4] == "_"
@@ -39,7 +39,7 @@ def test_behavior_trials_override_survives_roundtrip():
 
 def test_module_sessions_are_config_driven():
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
-    assert len(SESSIONS) == 37
+    assert len(SESSIONS) >= 37
     assert ANIMAL_COLOR["PS93"] == "tab:red"
     assert not hasattr(__import__("wfield_local.locanmf_cue_lick_analysis", fromlist=["x"]), "L")
 

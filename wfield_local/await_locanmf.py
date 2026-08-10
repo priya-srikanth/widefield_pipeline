@@ -59,6 +59,8 @@ def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
     LocaNMF already ran (locanmf_<tag>_final present), whether it is already in sessions.yaml, and the
     root-relative mc/h5 fields needed to register it.
     """
+    config._load.cache_clear()   # re-read sessions.yaml fresh: this long-running process may have just
+                                 # registered a mouse (config caches YAML loads for the process lifetime)
     date_dir = Path(rv.resolve("labcams", yyyymmdd))
     registered = {s["label"] for s in config.load_sessions()}
     out: list[dict] = []

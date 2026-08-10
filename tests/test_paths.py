@@ -45,7 +45,7 @@ def test_absolute_passthrough():
 def test_sessions_resolve_absolute_on_both_machines():
     sa = {s["label"]: s for s in config.load_sessions(machine="analysis")}
     si = {s["label"]: s for s in config.load_sessions(machine="imaging")}
-    assert len(sa) == 37 == len(si)
+    assert len(sa) == len(si) and len(sa) >= 37   # both machines resolve the same set (grows as days register)
     a, i = sa["PS92_0602"], si["PS92_0602"]
     assert a["mc"].startswith("M:/") and i["mc"].startswith("N:/")
     # identical relative tail on both boxes
