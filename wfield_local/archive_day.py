@@ -55,7 +55,7 @@ BUF = 64 * 1024 * 1024
 DEFAULTS = dict(
     e_lab=r"E:\labcams_data",
     e_daq=r"E:\DAQ_recorder_output",
-    m_raw=r"M:\Widefield\labcams",
+    m_raw=r"M:\collaborations\Priya\Widefield\labcams",
     n_lab=r"N:\MICROSCOPE\Priya\Widefield\labcams",
     n_daq=r"N:\MICROSCOPE\Priya\Widefield\DAQ_recorder_output",
 )
