@@ -31,3 +31,6 @@ __pycache__/
 # runtime-generated cross-day configs (written by the nightly/xall drivers)
 _xday_*.json
 _xall_*.json
+
+# await_locanmf transient manifests
+.await_locanmf_*.json

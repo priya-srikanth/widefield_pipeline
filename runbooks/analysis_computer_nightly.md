@@ -71,10 +71,25 @@ figs stage then waits for the imaging box's LocaNMF push.
    (`locanmf_analysis_deck.py`, curated animal→type→date). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20)
    must already have run on the pushed inputs before this stage.
 
-## Before the figs: LocaNMF + session registration (still manual)
+## Before the figs: LocaNMF + session registration
 
-Stage 2 assumes LocaNMF has run and the sessions are registered. That is a **manual step** on this box once
-the imaging box's push lands on MICROSCOPE — do it before (or the cron loop waits and retries):
+Stage 2 assumes LocaNMF has run and the sessions are registered. Once the imaging box's push lands on
+MICROSCOPE, either **automate the whole wait** or do it by hand.
+
+**Automated (recommended) — poll + run, standalone from PowerShell:**
+
+```powershell
+python -m wfield_local.await_locanmf 20260809          # every 30 min: detect inputs -> LocaNMF -> register -> push -> figs
+python -m wfield_local.await_locanmf 20260809 --once --dry-run   # one detection pass, no writes
+#   --animals PS93 PS94   --interval-min 15   --no-push   --no-figs   --no-locanmf
+```
+
+It checks MICROSCOPE for each mouse's `SVTcorr.npy` + `allen_aligned_affine8v1/U_atlas.npy`; when a mouse is
+ready it runs `batch_locanmf`, registers it in `configs/sessions.yaml` (regime B if a `*cleanpairs_frame_map.npz`
+is present, else A), commits + pushes, and refreshes `nightly_figs`. It exits once all four mice are registered.
+It needs the GPU (for LocaNMF) and it auto-commits `sessions.yaml` — use `--no-push`/`--dry-run` to hold back.
+
+**By hand** — the same four steps the poller automates:
 
 1. **Detect inputs.** For each mouse, check for
    `…/labcams/<YYYYMMDD>/PS9*_<YYYYMMDD>*/motion_corrected/wfield_local_results/allen_aligned_affine8v1/
