@@ -178,6 +178,21 @@ the localization metric. Outputs go to a new `locanmf_*` subfolder; nothing prio
     log's scored-trial count exactly** (304/304, 536/536, 627/627, 430/430 …), and DAQ cues include
     unrewarded trials (PS92 6/6: 302 of 304 rewarded). There is no reward-based subsetting to rely on, so
     the disengaged tail must be — and is — removed by `flag_engagement`, not by the DAQ stream.
+- **DAQ detects real licks inside the ENL that the GUI misses (2026-08-10).** The task enforces a 2–3 s
+  enforced-no-lick (ENL) before each cue (`gui_config` timing `precue_min/max` 2000/3000). Yet the DAQ-primary
+  lick train shows licks in the 2 s pre-cue window on **~16 % of trials** (PS92 8/7: 70 / 430 cues), while the
+  **GUI lick stream shows zero** there — the GUI's ENL is perfectly self-consistent. Inspecting the raw
+  `lick_analog` at those events (QC `behavior_summary/qc/*_precue_daq_gui_mismatch.png`): they are
+  **full-amplitude licks** — the active-low sensor drops from its ~5.5 V idle to **0 V** for ~50–80 ms,
+  identical in shape/depth to GUI-confirmed licks. So this is **not a threshold effect** (the GUI threshold
+  ≈2000 counts ≈1.6–2.4 V; these licks bottom out at 0 V, below any threshold, and below the DAQ's own 2.5 V);
+  the GUI misses them because its Teensy main loop **polls the lick line intermittently / with debounce**,
+  whereas the DAQ samples continuously at 5 kHz. Consequences: (1) our analysis is unaffected — we use
+  **DAQ-primary** licks everywhere, so these are captured; the ENL "violations" are GUI blind spots only.
+  (2) It quantifies the **F13 caveat**: genuine pre-cue tongue movement exists on ~1 in 6 trials, so a
+  post-stroke pre-cue-decode change could partly be movement, not representation. (3) If the *task* should
+  truly enforce the ENL on these, the fix is GUI-firmware-side (faster/interrupt-driven lick polling), not a
+  threshold change — that lives in the separate behavior-rig GUI/firmware, not this repo.
 
 ---
 

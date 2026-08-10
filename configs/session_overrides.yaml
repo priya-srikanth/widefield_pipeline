@@ -3,11 +3,12 @@
 # pattern. Keys under a session are deep-merged onto the cohort defaults (only the leaves you
 # name change; everything else falls through). Session label = "<animal>_<MMDD>", e.g. PS93_0807.
 #
-# Example (commented — no active overrides yet):
+# Example (commented — no active overrides yet). Current cohort ENL (enforced-no-lick) is 2-3 s
+# (gui_config timing precue_min/max 2000/3000); the default decode.precue_post_s of 2.0 s fits inside it.
 # overrides:
-#   PS92_0605:
+#   PS9x_MMDD:
 #     decode:
-#       precue_post_s: 2.5        # PS92 6/5 had a longer 1.5-2.5 s ENL window (see decisions doc)
+#       precue_post_s: 1.5        # shorten the pre-cue window for a session with a shorter ENL (avoid clipping)
 #   PS95_0608:
 #     locanmf:
 #       maxrank: 25
