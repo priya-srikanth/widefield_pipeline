@@ -13,14 +13,14 @@ def test_imaging_sequence_never_cleans(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20260807", "20260808", "--machine", "imaging"])
     steps = [c[0] for c in cmds]
-    # DAQ .h5 pushed to MICROSCOPE FIRST (both dates), before preprocess
-    assert cmds[0] == ["wfield_local.archive_day", "upload-daq", "--date", "20260807", "--machine", "imaging"]
-    assert ["wfield_local.archive_day", "upload-daq", "--date", "20260808", "--machine", "imaging"] in cmds
+    # DAQ .h5 pushed to MICROSCOPE FIRST (both dates), before preprocess (byte-verified: --hash)
+    assert cmds[0] == ["wfield_local.archive_day", "upload-daq", "--date", "20260807", "--hash", "--machine", "imaging"]
+    assert ["wfield_local.archive_day", "upload-daq", "--date", "20260808", "--hash", "--machine", "imaging"] in cmds
     assert steps.index("wfield_local.preprocess") > steps.index("wfield_local.archive_day")
     assert "wfield_local.preprocess_deck" in steps
-    # archive + verify per date, in order after preprocess
-    assert ["wfield_local.archive_day", "archive", "--date", "20260807", "--machine", "imaging"] in cmds
-    assert ["wfield_local.archive_day", "verify", "--date", "20260808", "--machine", "imaging"] in cmds
+    # archive + verify per date, in order after preprocess (byte-verified: --hash)
+    assert ["wfield_local.archive_day", "archive", "--date", "20260807", "--hash", "--machine", "imaging"] in cmds
+    assert ["wfield_local.archive_day", "verify", "--date", "20260808", "--hash", "--machine", "imaging"] in cmds
     # NEVER auto-delete
     assert not any("clean" in c or "--execute" in c for c in cmds)
 
