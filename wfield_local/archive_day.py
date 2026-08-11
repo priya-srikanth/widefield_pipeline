@@ -24,21 +24,32 @@ DAQ h5 files containing <date> anywhere under E:\\DAQ_recorder_output -> N: DAQ
 under a ``<date>\\`` folder (canonical server layout: ``DAQ_recorder_output\\<date>\\
 <animal>_<date>_<time>.h5``), regardless of how they are foldered on E:.
 
+Verification is size-based by default. ``--hash`` upgrades it to byte-level
+(SHA-256): the source hash is computed *during* the copy (free) and stored in the
+N: manifest, and the small N: outputs (+ DAQ) are read back and byte-compared. The
+huge raw/.bin on M: stay size-matched + fingerprinted-on-copy, because a full M:
+read-back is prohibitively slow (~15-150 MB/s); ``--hash-raw`` opts into that deep
+read-back for an on-demand check (e.g. weekly, or when M: is idle).
+
 Subcommands
-  archive   copy E: -> M:/N: (idempotent, size-verified; LocaNMF inputs first so a
-            GPU can start immediately; M: raw copied last). Writes a manifest on N:.
-  verify    report whether every E: file has a confirmed (size-matched) copy on M:/N:.
+  archive   copy E: -> M:/N: (idempotent; LocaNMF inputs first so a GPU can start
+            immediately; M: raw copied last). Writes a manifest (with per-file
+            sha256) on N:. --hash byte-verifies outputs as they land.
+  verify    report whether every E: file has a confirmed copy on M:/N: (size, or
+            SHA-256 for outputs with --hash / everything with --hash-raw).
   clean     delete confirmed-copied E: files + the reproducible intermediates.
             DRY-RUN by default; pass --execute to delete. Each delete re-verifies
-            the destination size at delete time; an intermediate is removed only
-            once its regeneration sources are confirmed archived (the session's
-            raw on M: and a DAQ h5 for the date on N:). Empty dirs are pruned.
+            the destination at delete time (size, or bytes with --hash); an
+            intermediate is removed only once its regeneration sources are confirmed
+            archived (the session's raw on M: and a DAQ h5 for the date on N:).
+            Empty dirs are pruned.
 
 Examples
-  python -m wfield_local.archive_day archive --date 20260604
-  python -m wfield_local.archive_day verify  --date 20260604
-  python -m wfield_local.archive_day clean   --date 20260604            # dry-run
-  python -m wfield_local.archive_day clean   --date 20260604 --execute
+  python -m wfield_local.archive_day archive --date 20260604 --hash
+  python -m wfield_local.archive_day verify  --date 20260604 --hash
+  python -m wfield_local.archive_day clean   --date 20260604 --hash            # dry-run
+  python -m wfield_local.archive_day clean   --date 20260604 --hash --execute
+  python -m wfield_local.archive_day verify  --date 20260604 --hash-raw        # deep M: read-back
 
 Drive roots default to this rig's mounts; override with --e-lab/--e-daq/--m-raw/
 --n-lab/--n-daq if they differ.
@@ -46,6 +57,7 @@ Drive roots default to this rig's mounts; override with --e-lab/--e-daq/--m-raw/
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -66,6 +78,30 @@ def _size(p):
         return os.path.getsize(p)
     except OSError:
         return -1
+
+
+def _sha256(p):
+    """Full SHA-256 of a file (streamed). Returns None if unreadable."""
+    h = hashlib.sha256()
+    try:
+        with open(p, "rb", buffering=0) as f:
+            while True:
+                b = f.read(BUF)
+                if not b:
+                    break
+                h.update(b)
+    except OSError:
+        return None
+    return h.hexdigest()
+
+
+def _is_big(job):
+    """Huge cold files that go to M: standby (raw movie + motion-corrected .bin).
+
+    Byte-verifying these means reading them back over the (slow) M: link, so by
+    default they are size-matched + fingerprinted-on-copy rather than fully
+    read-back-hashed. ``--hash-raw`` opts into the full read-back."""
+    return job.get("kind") in ("raw", "mcbin")
 
 
 def discover(cfg, date):
@@ -134,37 +170,59 @@ def _priority(job):
     return 3       # other N: outputs (maps, QC, shifts, summaries, frame_map, ...)
 
 
-def _copy_one(src, dst):
+def _copy_one(src, dst, verify=False, big=False):
+    """Copy src->dst (size-checked). Returns (status, src_sha256|None).
+
+    The source SHA-256 is computed *during* the copy (piggybacks on the read we
+    already do, so it is free) and returned for the manifest. When ``verify`` and
+    the file is not ``big``, the destination is read back and hashed to confirm a
+    bit-for-bit copy; ``big`` files (raw/.bin -> slow M:) are size-checked only."""
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     ssz = _size(src)
     if os.path.exists(dst) and _size(dst) == ssz:
-        return "skip"
+        if verify and not big:                       # already there: byte-check anyway
+            sh = _sha256(src)
+            if sh is None or sh != _sha256(dst):
+                return "FAIL", sh
+            return "skip", sh
+        return "skip", None
     tmp = dst + ".part"
+    h = hashlib.sha256()
     with open(src, "rb", buffering=0) as fi, open(tmp, "wb", buffering=0) as fo:
         while True:
             b = fi.read(BUF)
             if not b:
                 break
             fo.write(b)
+            h.update(b)
     os.replace(tmp, dst)
-    return "ok" if _size(dst) == ssz else "FAIL"
+    src_hash = h.hexdigest()
+    if _size(dst) != ssz:
+        return "FAIL", src_hash
+    if verify and not big and _sha256(dst) != src_hash:   # read-back byte verify (cheap files)
+        return "FAIL", src_hash
+    return "ok", src_hash
 
 
-def cmd_archive(cfg, date):
+def cmd_archive(cfg, date, verify=False, hash_raw=False):
     jobs, inter, daq = discover(cfg, date)
     allj = sorted(jobs + daq, key=lambda j: (_priority(j), -_size(j["src"])))
     total = sum(_size(j["src"]) for j in allj)
+    vmsg = ("byte-verify outputs" + (" + raw/bin" if hash_raw else "; raw/bin fingerprint-on-copy")
+            if verify else "size-verify only")
     print(f"[archive {date}] {len(allj)} files, {total/1e9:.1f} GB "
-          f"(LocaNMF inputs first, raw->M last)\n", flush=True)
+          f"(LocaNMF inputs first, raw->M last; {vmsg})\n", flush=True)
     res = {"ok": 0, "skip": 0, "FAIL": 0}
     fails, done = [], 0
     for i, j in enumerate(allj, 1):
         sz = _size(j["src"])
+        big = _is_big(j) and not hash_raw
         try:
-            st = _copy_one(j["src"], j["dst"])
+            st, sh = _copy_one(j["src"], j["dst"], verify=verify, big=big)
         except Exception as ex:
-            st = "FAIL"
+            st, sh = "FAIL", None
             print(f"   EXCEPTION {j['src']}: {ex}", flush=True)
+        j["sha256"] = sh                             # recorded in manifest (None if not computed)
         res[st] = res.get(st, 0) + 1
         if st == "FAIL":
             fails.append(j)
@@ -181,7 +239,8 @@ def cmd_archive(cfg, date):
     # manifest on N
     man = dict(date=date, n_files=len(allj), total_gb=round(total / 1e9, 2),
                result=res, intermediates=[j["src"] for j in inter],
-               jobs=[{"src": j["src"], "dst": j["dst"], "kind": j["kind"]} for j in allj])
+               jobs=[{"src": j["src"], "dst": j["dst"], "kind": j["kind"],
+                      "sha256": j.get("sha256")} for j in allj])
     mandir = os.path.join(cfg["n_lab"], date)
     try:
         os.makedirs(mandir, exist_ok=True)
@@ -192,7 +251,12 @@ def cmd_archive(cfg, date):
     return 1 if fails else 0
 
 
-def _verify(cfg, date):
+def _verify(cfg, date, use_hash=False, hash_raw=False):
+    """Classify each job as ok / missing / mismatch.
+
+    ``use_hash``  -> also SHA-256-compare the small (N:) output files, not just size.
+    ``hash_raw``  -> extend the byte compare to the huge raw/.bin on M: (slow read-back).
+    A size match with a failed hash lands in ``mismatch`` with dest size ``-2``."""
     jobs, inter, daq = discover(cfg, date)
     allj = jobs + daq
     ok, missing, mismatch = [], [], []
@@ -202,14 +266,20 @@ def _verify(cfg, date):
             missing.append(j)
         elif d != s:
             mismatch.append((j, s, d))
+        elif use_hash and not (_is_big(j) and not hash_raw):
+            if _sha256(j["src"]) != _sha256(j["dst"]):
+                mismatch.append((j, s, -2))          # size ok but bytes differ
+            else:
+                ok.append(j)
         else:
             ok.append(j)
     return allj, ok, missing, mismatch, inter, daq
 
 
-def cmd_upload_daq(cfg, date):
-    """Copy ONLY the day's DAQ ``.h5`` to N: (size-verified). Run FIRST in the imaging nightly so the
-    analysis box can start the behavior pipeline (behavior_events) while imaging is still doing SVD."""
+def cmd_upload_daq(cfg, date, verify=False):
+    """Copy ONLY the day's DAQ ``.h5`` to N: (size-verified, or byte-verified with --hash). Run FIRST in
+    the imaging nightly so the analysis box can start the behavior pipeline (behavior_events) while imaging
+    is still doing SVD."""
     daq = discover_daq(cfg, date)
     if not daq:
         print(f"[upload-daq {date}] no DAQ .h5 found under {cfg['e_daq']} (nothing to do)", flush=True)
@@ -218,7 +288,7 @@ def cmd_upload_daq(cfg, date):
     fails = []
     for j in daq:
         try:
-            st = _copy_one(j["src"], j["dst"])
+            st, _sh = _copy_one(j["src"], j["dst"], verify=verify, big=False)
         except Exception as ex:
             st = "FAIL"
             print(f"   EXCEPTION {j['src']}: {ex}", flush=True)
@@ -231,21 +301,24 @@ def cmd_upload_daq(cfg, date):
     return 1 if fails else 0
 
 
-def cmd_verify(cfg, date):
-    allj, ok, missing, mismatch, inter, _ = _verify(cfg, date)
-    print(f"[verify {date}] {len(ok)}/{len(allj)} confirmed copied (size-matched) on M:/N:")
+def cmd_verify(cfg, date, use_hash=False, hash_raw=False):
+    allj, ok, missing, mismatch, inter, _ = _verify(cfg, date, use_hash, hash_raw)
+    how = ("byte-verified (outputs" + (" + raw/bin" if hash_raw else "; raw/bin size-only") + ")"
+           if use_hash else "size-matched")
+    print(f"[verify {date}] {len(ok)}/{len(allj)} confirmed copied ({how}) on M:/N:")
     for j in missing:
         print(f"  MISSING on dest: {j['src']} -> {j['dst']}")
     for j, s, d in mismatch:
-        print(f"  SIZE MISMATCH: {j['src']} E={s} dest={d}")
+        print(f"  {'BYTE MISMATCH' if d == -2 else 'SIZE MISMATCH'}: {j['src']} E={s}"
+              f"{'' if d == -2 else f' dest={d}'}")
     print(f"[verify {date}] reproducible E-only intermediates (removed by clean): {len(inter)}")
     for j in inter:
         print(f"  {j['kind']}: {j['src']} ({_size(j['src'])/1e9:.1f} GB)")
     return 0 if not missing and not mismatch else 1
 
 
-def cmd_clean(cfg, date, execute):
-    allj, ok_jobs, missing, mismatch, inter, daq = _verify(cfg, date)
+def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
+    allj, ok_jobs, missing, mismatch, inter, daq = _verify(cfg, date, use_hash, hash_raw)
     # confirmed regeneration sources per session
     raw_ok = set()
     for j in ok_jobs:
@@ -279,11 +352,15 @@ def cmd_clean(cfg, date, execute):
 
     deleted = 0
     for j in to_delete:
-        if _size(j["dst"]) == _size(j["src"]):          # re-verify at delete time
-            os.remove(j["src"])
-            deleted += 1
-        else:
-            print(f"  SKIP at-delete (dest changed): {j['src']}")
+        if _size(j["dst"]) != _size(j["src"]):          # re-verify size at delete time
+            print(f"  SKIP at-delete (dest size changed): {j['src']}")
+            continue
+        if use_hash and not (_is_big(j) and not hash_raw):   # re-verify bytes at delete time
+            if _sha256(j["src"]) != _sha256(j["dst"]):
+                print(f"  SKIP at-delete (dest bytes differ): {j['src']}")
+                continue
+        os.remove(j["src"])
+        deleted += 1
     for j in inter_del:
         os.remove(j["src"])
         deleted += 1
@@ -310,18 +387,24 @@ def main():
     ap.add_argument("command", choices=("archive", "verify", "clean", "upload-daq"))
     ap.add_argument("--date", required=True, help="recording day, YYYYMMDD (labcams folder name)")
     ap.add_argument("--execute", action="store_true", help="(clean) actually delete; default dry-run")
+    ap.add_argument("--hash", action="store_true",
+                    help="byte-verify (SHA-256) the small N: outputs, not just size; "
+                         "raw/.bin on M: stay size-matched + fingerprinted-on-copy")
+    ap.add_argument("--hash-raw", action="store_true",
+                    help="extend --hash to full read-back of the huge raw/.bin on M: (slow)")
     ap.add_argument("--machine", default=None, help="accepted + ignored (drive roots come from --e-*/--n-*)")
     for k, v in DEFAULTS.items():
         ap.add_argument("--" + k.replace("_", "-"), default=v)
     args = ap.parse_args()
     cfg = {k: getattr(args, k) for k in DEFAULTS}
+    use_hash = args.hash or args.hash_raw
     if args.command == "archive":
-        return cmd_archive(cfg, args.date)
+        return cmd_archive(cfg, args.date, verify=use_hash, hash_raw=args.hash_raw)
     if args.command == "verify":
-        return cmd_verify(cfg, args.date)
+        return cmd_verify(cfg, args.date, use_hash=use_hash, hash_raw=args.hash_raw)
     if args.command == "upload-daq":
-        return cmd_upload_daq(cfg, args.date)
-    return cmd_clean(cfg, args.date, args.execute)
+        return cmd_upload_daq(cfg, args.date, verify=use_hash)
+    return cmd_clean(cfg, args.date, args.execute, use_hash=use_hash, hash_raw=args.hash_raw)
 
 
 if __name__ == "__main__":

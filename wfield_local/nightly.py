@@ -70,17 +70,20 @@ def _imaging_nightly(dates, args, mach, only) -> int:
     # (behavior_events / spout figures) immediately, in parallel with imaging's SVD+LocaNMF work.
     if not args.skip_daq_upload:
         for d in dates:
-            _run(["wfield_local.archive_day", "upload-daq", "--date", d, *mach], dry=args.dry_run)
+            _run(["wfield_local.archive_day", "upload-daq", "--date", d, "--hash", *mach], dry=args.dry_run)
     _run(["wfield_local.preprocess", *dates, *only, *(["--dry-run"] if args.dry_run else []), *mach], dry=False)
     if not args.skip_deck:
         _run(["wfield_local.preprocess_deck", *mach], dry=args.dry_run)
     if not args.skip_archive:
+        # --hash: byte-verify (SHA-256) the small N: outputs + DAQ; the huge raw/.bin on M: are
+        # size-matched + fingerprinted-on-copy (a full M: read-back is prohibitively slow -- use
+        # `clean --hash-raw` for an on-demand deep check when M: is idle).
         for d in dates:
-            _run(["wfield_local.archive_day", "archive", "--date", d, *mach], dry=args.dry_run)
-            _run(["wfield_local.archive_day", "verify", "--date", d, *mach], dry=args.dry_run)
+            _run(["wfield_local.archive_day", "archive", "--date", d, "--hash", *mach], dry=args.dry_run)
+            _run(["wfield_local.archive_day", "verify", "--date", d, "--hash", *mach], dry=args.dry_run)
         print("\n[nightly] E: cleanup is MANUAL (never automatic) — after you verify the copies + check in:")
         for d in dates:
-            print(f"    python -m wfield_local.archive_day clean --date {d} --execute  # delete from E:")
+            print(f"    python -m wfield_local.archive_day clean --date {d} --hash --execute  # byte-verified delete from E:")
     print(f"\nNIGHTLY {' '.join(dates)} (imaging: preprocess -> deck -> archive) DONE", flush=True)
     return 0
 
