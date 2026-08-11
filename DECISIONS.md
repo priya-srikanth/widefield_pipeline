@@ -32,9 +32,14 @@ orofacial deficit** (tongue deviates right, minimal right whisking) — the late
   SS_L/R), from the hand-placed `dorsal_cortex_landmarks_v1.json` per session. The lateral MOp/SS points break
   medial collinearity so an affine (independent AP/ML scale + shear) is well-constrained, vs the earlier
   4-point similarity. Output dirs/labels use the tag **`affine8v1`**.
-- **Cue-aligned maps**: per spout position, mean over 1 s pre-cue and 1 s post-cue, plus the post−pre
-  **delta**. Spout position from `spout_strobe` + `spout_bit0/1/2` (code = bit0 + 2·bit1 + 4·bit2 at the most
-  recent strobe before the cue).
+- **Cue-aligned maps**: per spout position, mean over the pre-cue and post-cue windows (**both 2 s**, from
+  `configs/defaults.yaml preprocess.maps.cue_pre_s` / `cue_post_s`), plus the post−pre **delta**. Spout
+  position from `spout_strobe` + `spout_bit0/1/2` (code = bit0 + 2·bit1 + 4·bit2 at the most recent strobe
+  before the cue). **NB the `1s` in the figure/npz filename
+  (`*_spout_positions_1s_pre_post_delta_*`) is a stale label** from when the pre-window was 1 s: it is kept
+  deliberately because `preprocess_deck.PER_DATE_TYPES` globs on it, so renaming would orphan every
+  historical session's figure in the deck. The true window is in each figure's `*_summary.json`
+  (`pre_s`/`post_s`). Corrected 2026-08-11.
 - **Lick-aligned maps**: per spout position, mean over 150 ms post-lick. Licks from `lick_analog`
   (upper/lower thresholds 2.5/1.0 V, 1–20 ms lockout, refractory) + a **40 ms physiological min-ILI floor**
   (`configs/defaults.yaml lick_detection.min_ili_ms`, applied pipeline-wide). **Delta-position lick maps** =
@@ -46,6 +51,22 @@ orofacial deficit** (tongue deviates right, minimal right whisking) — the late
   standard path; the wfield 0.4.2 sign bug is remediated (history: `docs/archive/MOTION_CORRECTION_SIGN_BUG.md`).
 - **Figure-dir/label versioning** tracks **code iteration**, not the landmark-JSON version; `affine8v1`
   denotes the 8-pt-affine landmarks-v1 alignment.
+
+## Map units — what "dF/F" means here (verified 2026-08-11)
+The event-aligned maps **are** dF/F, because the normalization happens *inside* the SVD, not after it:
+`wfield.decomposition.approximate_svd` is called with its default `divide_by_average=True`, so every block is
+reduced to `(F − F0)/F0` **before** the decomposition (`run_wfield_local.py` never overrides it). Hence
+`U @ SVT` is already fractional. Two consequences that decide how the maps may be read:
+- **F0 is the per-channel SESSION-MEAN image** (`frames_average.npy`, shape `(2, H, W)`, raw counts) — *not* a
+  pre-trial or pre-cue baseline. So values are relative to the whole-session average.
+- **The DC level is gone.** `hemodynamic_correction` high-passes both channels at 0.1 Hz and subtracts each
+  component's temporal mean, so the maps are zero-centred deviations. **Read them as CONTRASTS** (post−pre, the
+  pairwise position contrasts, or the quiet-normalized lick map — the one map with a genuine behavioural
+  baseline, via `quiet_periods.quiet_baseline_svt`) — **never as absolute dF/F magnitudes.**
+
+Empirical check (PS95 8/10): reconstructed pixel values have std 0.021 and 1st/99th percentiles −4.8 %/+7.9 %
+— fractional, versus ~14 000 raw counts in `frames_average`. NB `approximate_svd`'s own docstring says it "does
+not compute df/f"; that describes its `divide_by_average=False` branch and is misleading for this pipeline.
 
 ## Event→frame mapping: two regimes (session-specific)
 The corrected movie (SVTcorr) is indexed by paired 415/470 timepoints. Mapping a DAQ event to a
@@ -113,12 +134,47 @@ permission**, and **only ever write inside the `Priya\` folder**):
 - `wfield_local/archive_day.py` implements this (raw + bin → M:, rest → N:); `writeguard.assert_writable`
   refuses writes/deletes outside the Priya subtree.
 
+### Running preprocessing on a THIRD (helper) box — no local raw (added 2026-08-11)
+A spare workstation can absorb one animal's preprocessing when the imaging box is busy (done for PS95 8/10
+on the Priya lab desktop). It mounts MICROSCOPE at `N:` like the imaging box but has **no `E:`**, so
+`paths.detect_machine()` finds no signature mount and defaults to `analysis` → every root resolves to a
+non-existent `M:`. Set up without editing `configs/`:
+```powershell
+subst E: C:\wf_local                 # E:\labcams_data\<DATE>\<session>\raw_widefield_data\, E:\DAQ_recorder_output\
+$env:WIDEFIELD_MACHINE = "imaging"   # forces the N: mounts
+```
+Then copy that session's raw `.dat` + DAQ `.h5` under `E:` and run `preprocess <DATE> --only <ANIMAL>`
+normally; the ~190 GB `.bin` stays on local scratch and only the results are pushed to `N:`. **Neither
+setting survives a reboot.** Hard-won cautions:
+- **Verify the raw `.sha256` sidecar**, and expect the `N:` mount to drop mid-transfer (`ERROR 53`). Plain
+  `robocopy` discards a partial 190 GB file on a drop; use a resumable copier that hashes in the same pass.
+- **Do NOT run `preprocess_deck` (`build_decks`)** — it globs `cross-session_preprocessing*.pptx` and
+  **deletes every sibling deck it did not write this run**, destroying the other animals' decks. Call
+  `build_deck` (singular) with `sessions` filtered to the one animal.
+- **Do NOT run the photobleach step via `preprocess`** (omit it with `--skip-photobleach`): `photobleach.run`
+  calls `summary()`, which rewrites the date's **shared** `photobleach_SUMMARY.png` + `photobleach_results.json`
+  with only the animals in *this* run. Call `photobleach.analyze()` alone — the deck only reads the
+  per-session `photobleach_<ANIMAL>_<MMDD>.png`.
+- `refresh_xall` and `crossday_intensity` are safe: the first is per-animal, the second is a whole-tree
+  rollup that is *improved* by re-running after the push (it then includes the new session).
+
 ---
 
 # Part II — LocaNMF decomposition
 
 Runs on the GPU box (`wfield_local/run_locanmf.py` → `wfield.local_nmf.compute_locaNMF` on an
-`allen_aligned_*` folder; needs PyTorch + `locanmf` + a CUDA GPU). Kickoff + env recipe:
+`allen_aligned_*` folder; needs PyTorch + `locanmf` + a CUDA GPU). **`cuhals` (the compiled CUDA/C++ HALS
+kernel) is OPTIONAL** — `locanmf/demix.py` wraps `import cuhals` in `try/except ImportError` and falls back
+to `native_update`, a pure-PyTorch HALS that still runs on the GPU. So a box with **no CUDA toolkit and no
+MSVC** (and no admin rights to install them) can run LocaNMF: install torch + `pip install .` on the
+locaNMF clone **without** `--with-extension`, applying only `locanmf_torch_compat.patch` (the
+`locanmf_cuhals_win_build.patch` is needed only when building the extension). Validated 2026-08-11 by
+re-running PS95 8/9 on the fallback: **164 components vs the cuhals build's 160, same 64 regions, 54/64
+regions with identical component counts** (the rest ±1 — the rank line-search is greedy, so exact equality
+is not expected). Cost is speed only (~48 min/session on an RTX 5060). NB the patch may not apply cleanly
+with `git apply` (EOF/whitespace drift in `factor.py`); the three edits are small enough to apply by hand.
+Also: **Blackwell GPUs (RTX 50-series, `sm_120`) need cu128** — the `cu124` build in the README/kickoff doc
+does not support them. Kickoff + env recipe:
 `docs/archive/GPU_LOCANMF_KICKOFF.md` / `GPU_LOCANMF_RUNLOG.md`. LocaNMF consumes exactly what preprocessing
 already produces (low-rank `U`/`SVTcorr` + the native-grid atlas), so it is a clean bolt-on; vs raw SVD
 components (delocalized, not reproducible) its components are interpretable and **reproducible across sessions
@@ -141,6 +197,23 @@ energy inside its seed Allen region (artifacts are delocalized → score low).
 
 QC per run: two montages (`*_components.png` region-ordered + `*_components_byenergy.png` energy-ranked) +
 the localization metric. Outputs go to a new `locanmf_*` subfolder; nothing prior overwritten.
+
+## Component units: why `C` is footprint-scaled before any analysis
+Every downstream analysis (decoder, encoder, cross-mouse, RSA) uses
+`sig = _footprint_scale(A)[:, None] * C`, **not** raw `C` (`locanmf_position_decoder._build_signal`,
+`_footprint_scale` in `locanmf_crossanimal_dff.py`). This is required, not cosmetic:
+- **NMF has a per-component scale indeterminacy.** The factorization only constrains the *product*
+  `Aᵢ Cᵢᵀ`; rescaling `Aᵢ → Aᵢ/k`, `Cᵢ → k·Cᵢ` reconstructs the identical movie. So a raw `C` amplitude is
+  meaningless on its own, and is **not comparable across components, sessions, or animals** — pooling raw
+  `C` would weight components by an arbitrary constant.
+- **The fix pins the scale to a physical quantity.** With `Y ≈ A Cᵀ` (pixels × time), component *i*
+  contributes `Aᵢ(x)·Cᵢ(t)` at pixel `x`. Its `Aᵢ`-weighted spatial mean is
+  `Σₓ Aᵢ(x)·[Aᵢ(x)Cᵢ(t)] / Σₓ Aᵢ(x) = Cᵢ(t)·ΣAᵢ²/ΣAᵢ` — exactly `_footprint_scale(A)[i] = ΣAᵢ²/ΣAᵢ`
+  (`nansum` over the map; 0 when `ΣAᵢ ≈ 0`). The scale factor is **invariant to the indeterminacy**: under
+  `Aᵢ → Aᵢ/k`, `ΣAᵢ²/ΣAᵢ → (1/k)·ΣAᵢ²/ΣAᵢ`, which cancels the `k·Cᵢ`.
+- **So `sig[i]` is the footprint-weighted mean dF/F inside component i's own footprint**, in the same
+  units as the pixel maps (subject to the DC caveat in Part I "Map units"). That is what makes summing
+  components within an Allen region, and pooling across animals with different LocaNMF bases, legitimate.
 
 ## When is LocaNMF actually helpful (the synthesis)
 - **Not** for region-level evoked responses / ROI summaries → that equals an Allen-ROI average (F5) with

@@ -64,12 +64,18 @@ PER_DATE_TYPES = [
 _M_PRE = ("Widefield GCaMP: alternating 470 nm (GCaMP) + 415 nm (isosbestic) frames. Pipeline: sign-fixed "
           "2D rigid MOTION correction -> SVD -> hemodynamic correction (415 regressed out) -> Allen-CCF "
           "alignment (allen_aligned_affine8v1). Activity maps = U @ SVTcorr reconstructed and averaged over "
-          "event windows; events from the DAQ (5000 Hz). Spout position per trial from the DAQ spout-strobe "
+          "event windows; events from the DAQ (5000 Hz). UNITS: the SVD is computed on (F-F0)/F0 "
+          "(wfield approximate_svd divide_by_average=True) with F0 = the per-channel SESSION-MEAN image, so "
+          "maps are dF/F -- but hemodynamic_correction high-passes at 0.1 Hz and removes each component's "
+          "temporal mean, so the DC level is gone: read these as CONTRASTS (post-pre, or vs the quiet "
+          "baseline), not absolute dF/F magnitudes. Spout position per trial from the DAQ spout-strobe "
           "bits (dead bit1 in Aug-2026 repaired from the behavior-log pos_idx).")
 METHOD_NOTES = {
     "allen": "Mean 470/415 image with Allen CCF area outlines overlaid — the atlas-alignment QC. " + _M_PRE,
-    "cue_maps": "Cue-aligned maps: mean dF/F in the pre (1 s before cue) and post (2 s after cue) windows "
-                "and their difference, per spout position, shared colour scale. " + _M_PRE,
+    "cue_maps": "Cue-aligned maps: mean dF/F in the pre and post windows (both 2 s, from configs/defaults.yaml "
+                "preprocess.maps.cue_pre_s / cue_post_s) and their difference, per spout position, shared colour "
+                "scale. NB the '1s' in the filename is a legacy label kept only so the deck's glob still matches "
+                "historical sessions -- the pre window is 2 s, as recorded in the figure's *_summary.json. " + _M_PRE,
     "cue_pairwise": "Pairwise contrasts between spout positions (post-cue delta maps) — which cortex "
                     "distinguishes each position pair. " + _M_PRE,
     "lick_maps": "First-lick-aligned maps: mean dF/F in the 150 ms post-lick window per spout position. "
