@@ -172,6 +172,26 @@ def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str
 
 
 # --------------------------------------------------------------------------- xall (all-days QC)
+def _sessions_registered_and_on_disk(rv: PathResolver) -> list[dict]:
+    """Registered sessions (sessions.yaml) UNION every ``<YYYYMMDD>/<ANIMAL>_<date>_*/motion_corrected``
+    on the labcams tree (N:), as ``{label, mc}``. Lets the all-days xall overlay include the just-
+    processed night before the analysis box has registered it (registration lags a night behind)."""
+    reg = config.load_sessions(machine=rv.machine)
+    seen = {s["label"] for s in reg}
+    root = rv.root("labcams")
+    for dd in sorted(glob.glob(f"{root}/20*")):
+        d = os.path.basename(dd)
+        if not re.fullmatch(r"\d{8}", d):
+            continue
+        for sd in sorted(glob.glob(f"{dd}/*")):
+            m = re.match(r"(PS\d+)_" + d, os.path.basename(sd))
+            label = f"{m.group(1)}_{d[4:]}" if m else None
+            if label and label not in seen and Path(f"{sd}/motion_corrected").is_dir():
+                reg.append({"label": label, "mc": f"{sd}/motion_corrected".replace("\\", "/")})
+                seen.add(label)
+    return reg
+
+
 def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bool) -> None:
     """Refresh each animal's all-days cross-day vasculature QC overlay (``xday/<animal>_xall``).
 
@@ -181,7 +201,7 @@ def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bo
     (GPU LocaNMF inputs untouched). Folds in the retired `_xall_refresh.py`.
     """
     min_mmdd = str(params.get("xall_min_date", "0605"))
-    all_sessions = config.load_sessions(machine=rv.machine)
+    all_sessions = _sessions_registered_and_on_disk(rv)
     for animal in animals:
         ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
         sess = {}
@@ -349,6 +369,17 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
               "--fs", svd["fs"], "--freq-highpass", svd["freq_highpass"],
               "--freq-lowpass", svd["freq_lowpass"]], dry_run)
 
+    # 2b motion-correction QC figure (shift stats + raw/corrected mean + residual std) -> mc/motion_qc.
+    #    Pushed to N: in step 4 so the deck's per-date motion-QC slide shows this night. On-the-fly runs
+    #    have no cleanpairs .dat, so pass the raw + corrected .bin explicitly.
+    mqc = f"{mc}/motion_qc"
+    qc_cmd = ["wfield_local.qc_motion_correction", "--motion-dir", mc,
+              "--label", f"{animal}_{mmdd}_{params['maps']['tag']}", "--output", mqc,
+              "--cor-bin", binp, "--fs", svd["fs"]]
+    if s.get("raw_dat"):
+        qc_cmd += ["--raw-dat", s["raw_dat"]]
+    _run(qc_cmd, dry_run)
+
     # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
     ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
     cfg = {"animal": animal, "mode": "reference-native", "func_channel": svd["functional_channel"],
@@ -377,6 +408,12 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
         for pat in params["push_frame_map_globs"]:
             for f in glob.glob(f"{mc}/{pat}"):
                 shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
+        # motion-correction QC dir (deck reads motion_corrected/motion_qc/*_motion_qc.png from N:)
+        if Path(mqc).exists():
+            nmqc = f"{ndst}/motion_qc"
+            if Path(nmqc).exists():
+                shutil.rmtree(nmqc)
+            shutil.copytree(mqc, nmqc)
 
     # 5 drop the local relabel/cleanpairs intermediate: a transient hand-off from the TTL relabel
     # (separate h5py process) to motion correction — regenerable from raw, NOT archived (standby
