@@ -170,7 +170,11 @@ def _run(cmd: list[str], dry: bool, cwd: Path = REPO) -> int:
 def run_locanmf(entry: dict, dry: bool) -> bool:
     """Run batch_locanmf for one session. Returns True on success (or dry-run)."""
     manifest = REPO / f".await_locanmf_{entry['animal']}_{entry['mmdd']}.json"
-    spec = [{"allen_dir": entry["allen_dir"], "label": f"{entry['animal']}_{entry['mmdd']}_locanmf",
+    # label MUST be "<animal>_<mmdd>" (e.g. PS92_0809): run_locanmf appends "_locanmf_{A,C,regions}.npy",
+    # and the decoder/encoder/RSA load "<label>_locanmf_C.npy". A trailing "_locanmf" here doubled it
+    # (PS92_0809_locanmf_locanmf_C.npy) so every downstream fig failed to find the LocaNMF output.
+    label = f"{entry['animal']}_{entry['mmdd']}"
+    spec = [{"allen_dir": entry["allen_dir"], "label": label,
              "output": str(Path(entry["mc_dir"]) / f"locanmf_{TAG}_final"), "svt": entry["svt"]}]
     log(f"  LocaNMF {entry['animal']} {entry['mmdd']} -> {spec[0]['output']}")
     if dry:
