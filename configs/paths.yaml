@@ -64,8 +64,10 @@ logical_roots:
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
 
   cue_analysis_out:
-    description: "Analysis figure (PNG) destination + legacy decks. The CURRENT deck is
-      spout_position_analysis_summary.pptx at the labcams top level; the LEGACY_*.pptx here are retired."
+    description: "Analysis component-figure (PNG) store on MICROSCOPE: nightly_figs._publish_figs mirrors the
+      local cue_lick PNGs here each run (durable + accessible, matching how preprocessing figs persist under
+      labcams/<date>/). The CURRENT deck is spout_position_analysis_summary.pptx at the labcams top level;
+      the LEGACY_*.pptx (+ legacy SVG/JSON) here are retired."
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
       mac:      "/Volumes/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"

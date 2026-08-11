@@ -88,6 +88,26 @@ def _perday_figs_incomplete(out, d) -> bool:
         for lab in labs)
 
 
+def _publish_figs(out, rv) -> int:
+    """Copy the analysis component PNGs to MICROSCOPE (``cue_analysis_out``) so the individual figures
+    persist on the server next to the deck -- durable + accessible, not just embedded in the .pptx and
+    living only on this box (matches how the preprocessing figures persist under labcams/<date>/).
+    Incremental: copies a PNG only when the destination is missing, a different size, or newer. Never
+    deletes (mirror cleanup stays a manual step, per the MICROSCOPE no-auto-delete rule)."""
+    import shutil
+    from wfield_local import writeguard
+    dst = Path(rv.root("cue_analysis_out"))
+    writeguard.assert_writable(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for p in sorted(Path(out).glob("*.png")):
+        d = dst / p.name
+        if (not d.exists()) or p.stat().st_size != d.stat().st_size or p.stat().st_mtime > d.stat().st_mtime + 2:
+            shutil.copy2(p, d)
+            n += 1
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dates", nargs="*", metavar="DATE",
@@ -162,6 +182,15 @@ def main():
             f"{d['figures_missing']} missing) ==")
     except Exception as ex:
         log(f"  !! analysis deck: {type(ex).__name__} {str(ex)[:80]}")
+
+    # Publish the component PNGs to MICROSCOPE so the individual analysis figures persist on the server
+    # next to the deck (durable + accessible), not only embedded in the .pptx / on this box.
+    try:
+        n = _publish_figs(out, config.resolver())
+        log(f"published {n} analysis PNG(s) to MICROSCOPE cue_analysis")
+    except Exception as ex:
+        log(f"  !! publish figs: {type(ex).__name__} {str(ex)[:80]}")
+
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
 
 

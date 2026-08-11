@@ -64,6 +64,24 @@ def test_perday_figs_incomplete_backfill_detection(tmp_path, monkeypatch):
     assert nf._perday_figs_incomplete(str(tmp_path), "0810") is False
 
 
+def test_publish_figs_incremental_pngs_only(tmp_path):
+    from wfield_local import nightly_figs as nf
+    src = tmp_path / "out"; src.mkdir()
+    (src / "a.png").write_bytes(b"aaaa")
+    (src / "b.png").write_bytes(b"bbbb")
+    (src / "notes.txt").write_bytes(b"x")            # non-PNG must be ignored
+    dst = tmp_path / "dst"
+
+    class _RV:
+        def root(self, k): return str(dst)
+
+    assert nf._publish_figs(str(src), _RV()) == 2     # both PNGs copied
+    assert (dst / "a.png").exists() and (dst / "b.png").exists() and not (dst / "notes.txt").exists()
+    assert nf._publish_figs(str(src), _RV()) == 0     # unchanged -> nothing re-copied
+    (src / "a.png").write_bytes(b"aaaaAAAA")          # size change -> only that one re-copies
+    assert nf._publish_figs(str(src), _RV()) == 1
+
+
 def test_analysis_await_locanmf_hands_off_to_poller(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20261225", "--machine", "analysis", "--await-locanmf", "--dry-run"])
