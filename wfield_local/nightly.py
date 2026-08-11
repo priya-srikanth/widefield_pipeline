@@ -92,7 +92,8 @@ def _analysis_nightly(dates, args, mach, only) -> int:
     # camera work first — it needs no imaging output, so it runs while the imaging box is still preprocessing
     if not args.skip_camera:
         for d in dates:
-            _run(["wfield_local.camera_nightly", d, *only, *(["--dry-run"] if args.dry_run else []), *mach], dry=False)
+            _run(["wfield_local.camera_nightly", d, *only, "--hash",
+                  *(["--dry-run"] if args.dry_run else []), *mach], dry=False)
 
     # Stage 2 (LocaNMF figs) is GATED on LocaNMF being done for the requested date. LocaNMF is a manual
     # GPU step (it also waits on the imaging box's push), and registering the session in

@@ -26,6 +26,7 @@ under MICROSCOPE/Priya (writeguard-checked). Mirrors the imaging box's ``preproc
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -34,40 +35,70 @@ from wfield_local import behavior_events, camera_sync, config, dropframe_qc, spo
 from wfield_local.paths import PathResolver
 
 BUF = 1 << 20
+# Files at/above this size skip the byte read-back (size + hash-on-copy only), so a slow
+# MICROSCOPE link can't stall the nightly on one giant file; smaller files are fully verified.
+HASH_READBACK_MAX = 20 * (1 << 30)      # 20 GB
 ANIMAL_RE = re.compile(r"PS\d+")
 
 
-def _copy_one(src: str, dst: str, dry: bool) -> str:
-    """Idempotent size-verified copy (skip if same-size dst exists; .part temp then atomic replace)."""
+def _sha256(p: str) -> str | None:
+    h = hashlib.sha256()
+    try:
+        with open(p, "rb", buffering=0) as f:
+            while True:
+                b = f.read(1 << 24)
+                if not b:
+                    break
+                h.update(b)
+    except OSError:
+        return None
+    return h.hexdigest()
+
+
+def _copy_one(src: str, dst: str, dry: bool, verify: bool = False) -> str:
+    """Idempotent copy (skip if same-size dst exists; .part temp then atomic replace).
+
+    Size-verified by default. ``verify`` upgrades to byte-level (SHA-256): the source hash is
+    computed during the copy (free) and the destination is read back and compared, for files
+    below ``HASH_READBACK_MAX`` (larger files stay size-only so the slow link can't stall)."""
     if dry:
         return "dry"
     ssz = os.path.getsize(src)
+    small = ssz < HASH_READBACK_MAX
     if os.path.exists(dst) and os.path.getsize(dst) == ssz:
+        if verify and small and _sha256(src) != _sha256(dst):
+            return "FAIL"
         return "skip"
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".part"
+    h = hashlib.sha256()
     with open(src, "rb", buffering=0) as fi, open(tmp, "wb", buffering=0) as fo:
         while True:
             b = fi.read(BUF)
             if not b:
                 break
             fo.write(b)
+            h.update(b)
     os.replace(tmp, dst)
-    return "ok" if os.path.getsize(dst) == ssz else "FAIL"
+    if os.path.getsize(dst) != ssz:
+        return "FAIL"
+    if verify and small and _sha256(dst) != h.hexdigest():   # read-back byte verify
+        return "FAIL"
+    return "ok"
 
 
-def _copy_tree(src_dir: Path, dst_dir: Path, dry: bool, res: dict, fails: list) -> None:
-    """Copy every file under src_dir to dst_dir at the same relative path (guarded, size-verified)."""
+def _copy_tree(src_dir: Path, dst_dir: Path, dry: bool, res: dict, fails: list, verify: bool = False) -> None:
+    """Copy every file under src_dir to dst_dir at the same relative path (guarded, size/byte-verified)."""
     writeguard.assert_writable(dst_dir)                    # never write outside MICROSCOPE/Priya
     for f in sorted(x for x in src_dir.rglob("*") if x.is_file()):
         dst = str(dst_dir / f.relative_to(src_dir))
-        st = _copy_one(str(f), dst, dry)
+        st = _copy_one(str(f), dst, dry, verify)
         res[st] = res.get(st, 0) + 1
         if st == "FAIL":
             fails.append(dst)
 
 
-def upload(date, rv, animals=None, dry=False) -> tuple[dict, list]:
+def upload(date, rv, animals=None, dry=False, verify=False) -> tuple[dict, list]:
     """Copy the date's camera videos/CSVs AND behavior logs from ``D:`` to MICROSCOPE. Never deletes ``D:``."""
     res, fails = {"ok": 0, "skip": 0, "FAIL": 0, "dry": 0}, []
     aset = set(animals) if animals else None
@@ -75,7 +106,7 @@ def upload(date, rv, animals=None, dry=False) -> tuple[dict, list]:
     def _group(label, jobs):
         sub = {"ok": 0, "skip": 0, "FAIL": 0, "dry": 0}
         for src, dst in jobs:
-            _copy_tree(src, dst, dry, sub, fails)
+            _copy_tree(src, dst, dry, sub, fails, verify)
         for k, v in sub.items():
             res[k] += v
         print(f"[camera_nightly] {label}: {sub}", flush=True)
@@ -106,13 +137,13 @@ def upload(date, rv, animals=None, dry=False) -> tuple[dict, list]:
 
 
 def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, do_events=True,
-        do_behavior=True, dry=False) -> int:
+        do_behavior=True, dry=False, verify=False) -> int:
     """Upload -> dropped-frame QC -> alignment templates -> behavior events -> behavior figs for ``date``.
 
     Returns 0 on success, 1 on copy fail (stops before any downstream step)."""
     if do_copy:
         print("\n################ upload D: -> MICROSCOPE (D: NOT deleted) ################", flush=True)
-        _res, fails = upload(date, rv, animals, dry)
+        _res, fails = upload(date, rv, animals, dry, verify)
         if fails:
             print(f"[camera_nightly] {len(fails)} copy FAILURE(s) -> stopping before QC/align "
                   f"(nothing deleted).", flush=True)
@@ -153,12 +184,15 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-align", action="store_true", help="skip the alignment-template pass")
     ap.add_argument("--skip-events", action="store_true", help="skip the canonical behavior-events pass")
     ap.add_argument("--skip-behavior", action="store_true", help="skip the spout behavior figures")
+    ap.add_argument("--hash", action="store_true",
+                    help="byte-verify (SHA-256) uploads by read-back, not just size "
+                         f"(files >= {HASH_READBACK_MAX >> 30} GB stay size-only)")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,
-               do_behavior=not args.skip_behavior, dry=args.dry_run)
+               do_behavior=not args.skip_behavior, dry=args.dry_run, verify=args.hash)
 
 
 if __name__ == "__main__":
