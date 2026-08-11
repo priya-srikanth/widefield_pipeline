@@ -270,6 +270,40 @@ def _crossday_intensity(xday_root, labcams_root):
     return None
 
 
+def _sessions_on_disk(labcams_root):
+    """Sessions discovered from the MICROSCOPE labcams tree: every ``<YYYYMMDD>/<ANIMAL>_<date>_*``
+    folder that has a ``motion_corrected`` dir. Lets the deck include a freshly-pushed night even
+    before it is registered in ``sessions.yaml`` — registration is an analysis-box step that FOLLOWS
+    LocaNMF, so the imaging box's own deck run is otherwise always one night behind its own figures.
+    """
+    out = []
+    for datedir in sorted(glob.glob(os.path.join(labcams_root, "20*"))):
+        d = os.path.basename(datedir)
+        if not re.fullmatch(r"\d{8}", d):
+            continue
+        for sd in sorted(glob.glob(os.path.join(datedir, "*"))):
+            m = re.match(r"(PS\d+)_" + d, os.path.basename(sd))
+            mc = os.path.join(sd, "motion_corrected")
+            if m and os.path.isdir(mc):
+                out.append({"label": f"{m.group(1)}_{d[4:]}", "mc": mc.replace("\\", "/")})
+    return out
+
+
+def all_sessions(machine=None, resolver=None, labcams_root=None):
+    """Registered sessions (``configs/sessions.yaml``) UNION sessions found on the labcams tree, so
+    the deck shows the just-processed night's figures without waiting for registration. Dedup by
+    label; registered entries win (they carry config metadata / ordering)."""
+    if labcams_root is None:
+        labcams_root = (resolver or config.resolver(machine)).root("labcams")
+    merged = list(config.load_sessions(machine))
+    seen = {s["label"] for s in merged}
+    for s in _sessions_on_disk(labcams_root):
+        if s["label"] not in seen:
+            merged.append(s)
+            seen.add(s["label"])
+    return merged
+
+
 # ---------------------------------------------------------------------------
 # Build.
 # ---------------------------------------------------------------------------
@@ -281,14 +315,14 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     ``xday_root`` default to the resolver's roots (override for testing against a
     synthetic tree). Returns ``dict(out, total_slides, per_animal, zero_types, ...)``.
     """
-    if sessions is None:
-        sessions = config.load_sessions(machine)
     if resolver is None:
         resolver = config.resolver(machine)
     if labcams_root is None:
         labcams_root = resolver.root("labcams")
     if xday_root is None:
         xday_root = resolver.root("xday_qc")
+    if sessions is None:
+        sessions = all_sessions(machine, resolver, labcams_root)
 
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W_IN)
@@ -403,10 +437,12 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
     sibling decks from a previous run (different split) so the nightly stays idempotent.
     Returns the list of per-deck summary dicts.
     """
-    if sessions is None:
-        sessions = config.load_sessions(machine)
     if resolver is None:
         resolver = config.resolver(machine)
+    if labcams_root is None:
+        labcams_root = resolver.root("labcams")
+    if sessions is None:
+        sessions = all_sessions(machine, resolver, labcams_root)
     if max_sessions is None:
         max_sessions = (config.defaults().get("deck") or {}).get("max_sessions_per_file", 0)
 
