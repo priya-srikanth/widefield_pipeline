@@ -1,7 +1,28 @@
 """Tests for wfield_local.await_locanmf: sessions.yaml text-insertion (must preserve format) + detection."""
+import os
+import sys
+from pathlib import Path
+
 import yaml
 
 from wfield_local import await_locanmf as aw
+
+
+def test_ensure_conda_prefix_derives_from_interpreter(monkeypatch):
+    # unset -> derived from sys.executable's env dir (so the git pre-push hook can find pytest)
+    monkeypatch.delenv("CONDA_PREFIX", raising=False)
+    monkeypatch.setattr(sys, "executable", r"C:/Users/x/.conda/envs/locanmf/python.exe")
+    aw._ensure_conda_prefix()
+    assert Path(os.environ["CONDA_PREFIX"]) == Path(r"C:/Users/x/.conda/envs/locanmf")
+    # posix-style bin/ layout resolves up one level
+    monkeypatch.delenv("CONDA_PREFIX", raising=False)
+    monkeypatch.setattr(sys, "executable", "/home/x/miniconda3/envs/locanmf/bin/python")
+    aw._ensure_conda_prefix()
+    assert Path(os.environ["CONDA_PREFIX"]) == Path("/home/x/miniconda3/envs/locanmf")
+    # already set -> left untouched
+    monkeypatch.setenv("CONDA_PREFIX", "/preset/env")
+    aw._ensure_conda_prefix()
+    assert os.environ["CONDA_PREFIX"] == "/preset/env"
 
 
 SAMPLE = (

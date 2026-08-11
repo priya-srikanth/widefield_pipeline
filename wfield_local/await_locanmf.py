@@ -49,6 +49,23 @@ def log(m: str) -> None:
     print(f"[await {_stamp()}] {m}", flush=True)
 
 
+def _ensure_conda_prefix() -> None:
+    """Self-heal ``CONDA_PREFIX`` from the running interpreter when it is unset.
+
+    The poller is meant to run detached (Start-Process / a bare PowerShell), and such a launch often
+    carries no ``CONDA_PREFIX`` in its environment. The git ``pre-push`` hook resolves its Python from
+    ``CONDA_PREFIX`` (to dodge the App Store shim), so without it every auto-register push dies with
+    ``pre-push: no usable python with pytest`` and the sessions.yaml commit never reaches origin. The
+    poller always runs in its own conda env, so ``sys.executable`` is that env's python -- derive the
+    prefix from it and export it so the hook (and the git children that inherit os.environ) can find pytest."""
+    if os.environ.get("CONDA_PREFIX"):
+        return
+    exe = Path(sys.executable)
+    prefix = exe.parent.parent if exe.parent.name in ("bin", "Scripts") else exe.parent
+    os.environ["CONDA_PREFIX"] = str(prefix)
+    log(f"CONDA_PREFIX was unset -> derived {prefix} from the interpreter (for the git pre-push hook)")
+
+
 # --------------------------------------------------------------------------- detection
 
 def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
@@ -245,6 +262,7 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
 
+    _ensure_conda_prefix()   # so the git pre-push hook can find pytest even when launched detached
     rv = PathResolver(machine=args.machine)
     d = args.date if len(args.date) == 8 else None
     if d is None:                               # accept MMDD -> assume the imaging cohort year 2026
