@@ -52,6 +52,18 @@ def test_analysis_figs_gated_on_locanmf_registration(monkeypatch):
     assert "wfield_local.nightly_figs" in [c[0] for c in cmds]
 
 
+def test_perday_figs_incomplete_backfill_detection(tmp_path, monkeypatch):
+    from wfield_local import nightly_figs as nf
+    # a registered date whose per-day cue-decode fig is absent -> incomplete (would be backfilled)
+    monkeypatch.setattr(nf.config, "load_sessions", lambda dates=None, **k: [{"label": "PS92_0809"}])
+    assert nf._perday_figs_incomplete(str(tmp_path), "0809") is True
+    (tmp_path / "locanmf_position_session_PS92_0809_locanmf_cue_base-none_cv-block.png").write_bytes(b"x")
+    assert nf._perday_figs_incomplete(str(tmp_path), "0809") is False   # fig now present -> complete
+    # a date with no registered sessions is never flagged (nothing to generate)
+    monkeypatch.setattr(nf.config, "load_sessions", lambda dates=None, **k: [])
+    assert nf._perday_figs_incomplete(str(tmp_path), "0810") is False
+
+
 def test_analysis_await_locanmf_hands_off_to_poller(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20261225", "--machine", "analysis", "--await-locanmf", "--dry-run"])

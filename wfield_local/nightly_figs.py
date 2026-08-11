@@ -77,6 +77,17 @@ def _per_day_figs(date, out, from_dates, only):
     cli("wfield_local.locanmf_position_encoder", "--date", date, "--pool-dates", from_dates, "--output", out)
 
 
+def _perday_figs_incomplete(out, d) -> bool:
+    """True if date ``d`` has registered sessions but is MISSING the per-day cue-decode figure for any of
+    them in ``out`` (Section A's anchor, ``locanmf_position_session_<label>_locanmf_cue_base-none_cv-block.png``).
+    The deck spans the whole curated set, so a date whose figs failed on its own night stays blank forever;
+    nightly_figs backfills any such date so the deck self-heals."""
+    labs = [s["label"] for s in config.load_sessions(dates=[d])]
+    return bool(labs) and not all(
+        (Path(out) / f"locanmf_position_session_{lab}_locanmf_cue_base-none_cv-block.png").exists()
+        for lab in labs)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dates", nargs="*", metavar="DATE",
@@ -112,6 +123,14 @@ def main():
         ap.error(str(e))
     from_dates = ",".join(from_list)
     tag = f"{from_list[0]}-{from_list[-1]}"
+
+    # Backfill: also (re)generate per-day figures for any CURATED date whose figs are MISSING on disk, so
+    # the deck (which spans the whole curated set) never keeps blank date columns from a past night whose
+    # figs failed (e.g. a transient missing-input during incremental LocaNMF processing). Self-healing.
+    backfill = [d for d in from_list if d not in per_day and _perday_figs_incomplete(out, d)]
+    if backfill:
+        log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
+    per_day = sorted(set(per_day) | set(backfill))
 
     log(f"per-day dates={per_day} cross-session dates={from_dates} tag={tag} out={out}")
     for date in per_day:
