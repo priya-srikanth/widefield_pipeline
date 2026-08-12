@@ -59,8 +59,38 @@ def _behavior_dir(session):
     return hits[0] if hits else None
 
 
+def _is_true(v):
+    return str(v).strip().lower() in ("1", "true", "yes", "t", "y")
+
+
+def _scored_rows(rows):
+    """Real, SCORED trials — one row per DAQ cue.
+
+    Two filters, in order:
+      1. ``device_trial_start_ms != device_trial_end_ms`` — drops never-closed rows.
+      2. ``hit`` or ``miss`` must be set — drops the UNSCORED STUB rows that the task controller
+         began emitting with **v47** (deployed 2026-08-10).
+
+    On (2): v47 fixed the old ``pos_idx`` overwriting (docs/GUI_TRIALS_LOGGING.md) by closing the
+    colliding row and opening a fresh one instead of overwriting it — but it KEEPS that stub in the
+    CSV. The stub carries a duplicate ``trial_id``, a sub-second duration, and neither hit nor miss.
+    Measured 2026-08-12: PS94 8/10 had 289 such rows (1009 -> 720) and 8/11 had 118 (554 -> 436),
+    in both cases restoring the log EXACTLY to the DAQ cue count; pre-v47 PS94 8/6 has zero, so the
+    filter is a no-op on older sessions.
+
+    This matters because ``classify_cues_with_backup`` aligns the log to the DAQ by an integer
+    trial-offset and only substitutes when agreement is >= 0.9. With the stubs left in, the two
+    sequences differ in LENGTH and no offset can align them, so the repair silently fails to
+    validate and a dead-strobe v47 session would be left with degraded positions and no fallback.
+    """
+    real = [r for r in rows if r.get("device_trial_start_ms") != r.get("device_trial_end_ms")]
+    if not real or ("hit" not in real[0] and "miss" not in real[0]):
+        return real                      # older schema without hit/miss -> nothing to filter on
+    return [r for r in real if _is_true(r.get("hit")) or _is_true(r.get("miss"))]
+
+
 def _behavior_positions(session):
-    """True per-trial pos_idx (0-5) from the task controller's trials.csv, real trials only."""
+    """True per-trial pos_idx (0-5) from the task controller's trials.csv, scored trials only."""
     d = _behavior_dir(session)
     if not d:
         return None
@@ -68,9 +98,9 @@ def _behavior_positions(session):
     if not os.path.exists(f):
         return None
     try:
-        rows = list(csv.DictReader(open(f)))
-        real = [r for r in rows if r.get("device_trial_start_ms") != r.get("device_trial_end_ms")]
-        b = np.array([int(r["pos_idx"]) for r in real], dtype=np.int16)
+        with open(f, newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        b = np.array([int(r["pos_idx"]) for r in _scored_rows(rows)], dtype=np.int16)
         return b if b.size >= 10 else None
     except Exception:
         return None
