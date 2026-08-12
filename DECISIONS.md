@@ -135,6 +135,8 @@ permission**, and **only ever write inside the `Priya\` folder**):
   refuses writes/deletes outside the Priya subtree.
 
 ### Running preprocessing on a THIRD (helper) box — no local raw (added 2026-08-11)
+Operational runbook (incl. the Windows-Update suspension on the Priya lab desktop and how to undo it):
+[`runbooks/helper_box_setup.md`](runbooks/helper_box_setup.md).
 A spare workstation can absorb one animal's preprocessing when the imaging box is busy (done for PS95 8/10
 on the Priya lab desktop). It mounts MICROSCOPE at `N:` like the imaging box but has **no `E:`**, so
 `paths.detect_machine()` finds no signature mount and defaults to `analysis` → every root resolves to a
@@ -218,6 +220,25 @@ Every downstream analysis (decoder, encoder, cross-mouse, RSA) uses
 - **So `sig[i]` is the footprint-weighted mean dF/F inside component i's own footprint**, in the same
   units as the pixel maps (subject to the DC caveat in Part I "Map units"). That is what makes summing
   components within an Allen region, and pooling across animals with different LocaNMF bases, legitimate.
+
+## Decoder regularization: `C=0.5` MEASURED, not assumed (2026-08-11)
+`LogisticRegression(C=0.5)` had been a bare literal with no recorded sweep. Measured over **10 sessions
+(all four animals, cue-aligned 2 s, block CV)** with `wfield_local/decoder_c_sweep.py`:
+
+| C | 0.01 | 0.05 | 0.1 | 0.25 | **0.5** | 1 | 2 | 5 | 10 |
+|---|---|---|---|---|---|---|---|---|---|
+| mean acc | .690 | .721 | .731 | .732 | **.734** | .730 | .725 | .722 | .718 |
+
+- **C=0.5 is the argmax** — the existing default is optimal on this data.
+- **The optimum is FLAT**: C ∈ [0.1, 1.0] all within 0.004 of the peak. The exact value barely matters
+  over an order of magnitude, so regularization is not a lever worth tuning further.
+- **Per-session tuning buys nothing.** Honest nested CV (C chosen inside each outer TRAIN fold, applied
+  to the untouched TEST fold) = 0.7381 vs 0.7342 fixed → **+0.004, well inside the ±0.039 SEM**. The
+  inner CV's picks scatter across the whole grid (0.05 ×11, 0.25 ×12, 0.5 ×7, 10.0 ×4) — the signature
+  of an argmax that is noise on a flat surface.
+
+**Decision: keep the fixed `C=0.5`; do not tune per session.** Re-run the sweep if the feature space
+changes materially (e.g. a switch to pooled ROI features or a different window).
 
 ## When is LocaNMF actually helpful (the synthesis)
 - **Not** for region-level evoked responses / ROI summaries → that equals an Allen-ROI average (F5) with
@@ -365,6 +386,46 @@ Every downstream analysis (decoder, encoder, cross-mouse, RSA) uses
 - **Prerequisites** (open — see `TASKS.md`): cross-day vasculature registration (`cross_day_align.py`);
   DLC/facerhythm movement regressors time-synced to widefield+DAQ (to separate "cortex codes position
   differently" from "the movement just changed"); the packaged frozen pre-stroke model + baseline noise floor.
+
+## The frozen ROI decoder transfers across days at NO cost (measured 2026-08-11)
+The main risk to the confirmatory arm was that a frozen decoder would decay across days on its own, so a
+post-stroke drop could not be attributed to the lesion. **It does not.** `locanmf_frozen_decoder --loso`
+pools each animal's curated sessions in Allen-ROI space (z-scored per session, groups = SESSION, so each
+held-out fold is an entire unseen day) and compares against the honest same-day ceiling (per-session
+block CV):
+
+| animal | pooled trials | LOSO (unseen day) | within-session | transfer cost |
+|---|---|---|---|---|
+| PS92 | 2593 | 0.701 | 0.600 | **+0.102** |
+| PS93 | — | 0.597 | 0.585 | **+0.012** |
+| PS94 | 3535 | 0.753 | 0.709 | **+0.044** |
+| PS95 | 3660 | 0.863 | 0.816 | **+0.047** |
+
+**Every animal is POSITIVE** — the frozen model *beats* the same-day model, and only 1 of 28 sessions
+showed any drop. LOSO trains on ~3000 trials vs ~500 within-session, and ROI features are stable enough
+across days that the extra data more than pays for the day gap. So post-stroke degradation can be read as
+lesion effect. (LocaNMF components cannot do this — session-specific count AND identity; ROI features are
+atlas-anchored, so column j is the same area every day. This is the "Allen-ROI features" branch above.)
+
+## Confidence is NOT evidence: the OOD control is mandatory (`ood_control`)
+A softmax decoder never abstains — on input with no position information it still emits a normalized
+distribution, and it does so **confidently**. Measured on quiet/running windows (no position is even
+defined there): normalized entropy 0.24–0.54 and mean max-probability up to **0.997**, with predictions
+collapsing onto a single attractor position (PS92 8/10 quiet: 100% of windows → `far_center`). That is
+*lower* entropy — i.e. more confident — than the shuffled-label floor (0.97–0.99).
+
+So a frozen decoder's post-stroke confidence must never be read as preserved coding on its own. Always
+report it against the two references `ood_control` emits: the **shuffled-label entropy floor** (empirical
+no-information) and the **no-lick trials**.
+
+**No-lick trials carry no position code** (the nearest pre-stroke analogue of a failed attempt). Pooled
+across curated sessions, well powered at last (per-session n is only 6–153): PS95 n=396 acc 0.179 CI
+[0.142, 0.217]; PS94 n=351 acc 0.205 CI [0.163, 0.247]; PS92 n=189 acc 0.132 CI [0.084, 0.181] — **all
+CIs include chance 0.167**, against 0.71–0.86 for engaged trials in the same sessions. The encoder agrees:
+EV on no-lick trials is ≈0 once the engaged-vs-unengaged baseline offset is removed (raw −0.28 to −1.04
+is mostly a mean shift, not an inverted mapping; re-centred: −0.06, −0.03, −0.02).
+Combined with pre-cue decoding at 0.62 on engaged trials, the readout is a maintained position code that is
+**gated by engagement** — present before movement, absent on trials the animal will not act on.
 
 ---
 

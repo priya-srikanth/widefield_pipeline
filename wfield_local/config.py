@@ -45,6 +45,25 @@ def date_policy() -> dict:
     return _load("animals.yaml")["date_policy"]
 
 
+def curated_dates(machine: str | None = None) -> list[str]:
+    """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
+
+    "6/6-6/8 + 8/6 onward" is an emergent property, not a list: this is really "everything registered
+    in sessions.yaml that animals.yaml does not exclude", so a newly registered night joins
+    automatically. Sorted MMDD strings.
+
+    NB this is deliberately NOT :func:`cross_session_dates`, which returns the STATIC
+    ``date_policy.cross_session`` list in animals.yaml. That list is hand-maintained and lags behind
+    (it does not carry 0809/0810), which is exactly why ``nightly_figs`` derives its default
+    ``--from`` set the way this function does rather than reading it. Use this one for anything that
+    must include the latest nights; use :func:`cross_session_dates` only when you specifically want
+    the frozen policy list.
+    """
+    exclude = set(date_policy().get("cross_session_exclude", []))
+    registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
+    return [d for d in registered if d not in exclude]
+
+
 def animal_color() -> dict:
     """Per-animal matplotlib color (single source of truth for figure coloring)."""
     return {a: v.get("color", "k") for a, v in animals().items()}

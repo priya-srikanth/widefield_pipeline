@@ -31,6 +31,20 @@ def test_curated_cross_session_policy():
         "0601", "0602", "0603", "0604", "0605", "0805"}
 
 
+def test_curated_dates_is_live_and_excludes_the_policy_set():
+    """curated_dates() = REGISTERED minus cross_session_exclude (auto-includes new nights).
+
+    Distinct from cross_session_dates(), which is the hand-maintained static list and lags.
+    """
+    live = config.curated_dates()
+    registered = {s["label"].split("_")[1] for s in config.load_sessions()}
+    exclude = set(config.date_policy()["cross_session_exclude"])
+    assert live == sorted(registered - exclude)
+    assert not (set(live) & exclude), "an excluded date leaked into the curated set"
+    # it must track registration, not the frozen policy list
+    assert set(live) >= set(config.cross_session_dates()) - exclude
+
+
 def test_behavior_trials_override_survives_roundtrip():
     ss = {s["label"]: s for s in config.load_sessions()}
     ps93 = ss["PS93_0805"]  # the cam1-recovered session
