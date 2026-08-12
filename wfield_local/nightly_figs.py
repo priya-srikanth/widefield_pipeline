@@ -116,6 +116,9 @@ def main():
     ap.add_argument("--from", dest="from_dates", default=None,
                     help="cross-session comparison dates — same grammar (default: the curated set)")
     ap.add_argument("--output", default=DEFAULT_OUT, help="figure output dir (also where the deck is built)")
+    ap.add_argument("--skip-frozen", action="store_true",
+                    help="skip the frozen cross-day decoder/encoder step (Allen-ROI, leave-one-session-out). "
+                         "It adds ~30-40 min; skipping leaves those deck slides blank.")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL",
                     help="restrict analysis to these animals (e.g. PS93), or 'all'; scopes the decode/"
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
@@ -172,6 +175,43 @@ def main():
             log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
     except Exception as ex:
         log(f"  !! rolling_by_animal: {type(ex).__name__} {str(ex)[:70]}")
+
+    # FROZEN cross-day decoder + encoder (Allen-ROI, leave-one-session-out), over the same curated set.
+    # MUST be written into `out` (the deck's source dir), not straight to MICROSCOPE: the deck is built
+    # from `out`, so a figure that exists only on the server is invisible to it and its slides come out
+    # blank. That is how 40 slides silently emptied on 2026-08-12.
+    if not args.skip_frozen:
+        try:
+            from wfield_local.locanmf_frozen_decoder import (
+                _encoder_fig,
+                _loso_fig,
+                pooled_frozen_encoder,
+                pooled_frozen_loso,
+                write_session_confusions,
+            )
+            dec, enc = {}, {}
+            for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+                if only and a not in set(only):
+                    continue
+                labs = [s["label"] for s in SESSIONS
+                        if s["label"].startswith(a) and s["label"][-4:] in set(from_list)]
+                if len(labs) < 2:
+                    continue
+                r = pooled_frozen_loso(labs, source="roi", align="cue", verbose=False)
+                if r:
+                    dec[a] = r
+                e = pooled_frozen_encoder(labs, source="roi", align="cue", verbose=False)
+                if e:
+                    enc[a] = e
+            if dec:
+                n = len(write_session_confusions(dec, Path(out)))
+                _loso_fig(dec, Path(out))
+                log(f"frozen decoder: {len(dec)} animal(s), {n} per-held-out-day confusion figure(s)")
+            if enc:
+                _encoder_fig(enc, Path(out))
+                log(f"frozen encoder: {len(enc)} animal(s)")
+        except Exception as ex:
+            log(f"  !! frozen decoder/encoder: {type(ex).__name__} {str(ex)[:80]}")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
