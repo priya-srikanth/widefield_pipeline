@@ -441,6 +441,32 @@ Head-to-head on the same 10 sessions, same alignment (cue 2 s), same block CV, s
 So for the cross-day / post-stroke arm, Allen-ROI is **not a compromise** — it buys transferability
 for free. Use LocaNMF per-session (primary) and frozen ROI across days (confirmatory), as planned.
 
+## The frozen ENCODER does NOT transfer like the decoder (measured 2026-08-11/12)
+`pooled_frozen_encoder` mirrors the frozen decoder (ridge one-hot position -> Allen-ROI activity,
+fit on an animal's OTHER curated days, evaluated on the held-out day). Over 8 curated sessions/animal:
+
+| animal | decoder transfer cost | **encoder** transfer cost | encoder FEVE |
+|---|---|---|---|
+| PS92 | +0.103 | +0.001 | 0.51 |
+| PS93 | +0.009 | **−0.063** | **0.09** |
+| PS94 | +0.042 | +0.006 | 0.70 |
+| PS95 | +0.053 | **−0.032** | 0.60 |
+
+**The two disagree in sign, and that is the point.** The DECISION BOUNDARY transfers across days —
+every animal's decoder *gains* from pooling ~3000 trials instead of ~500. The ACTIVITY MAGNITUDES do
+not: the encoder estimates only 6 position means per feature, so it has little to gain from extra
+trials and is actively hurt by day-to-day differences in the mapping that per-session z-scoring does
+not remove.
+
+Two consequences for the stroke arm:
+1. Read the intention with the **frozen decoder**, not the encoder.
+2. Judge post-stroke encoder residuals against this **non-zero pre-stroke cross-day cost**, not
+   against zero — otherwise normal day-to-day drift will read as a lesion effect.
+
+PS93 is the outlier on both (FEVE 0.09, several NEGATIVE frozen EVs), consistent with its being the
+animal with the lowest noise ceiling: least position signal available, not a model failure. Always
+report PS93's ceiling beside its accuracy.
+
 ## Confidence is NOT evidence: the OOD control is mandatory (`ood_control`)
 A softmax decoder never abstains — on input with no position information it still emits a normalized
 distribution, and it does so **confidently**. Measured on quiet/running windows (no position is even
