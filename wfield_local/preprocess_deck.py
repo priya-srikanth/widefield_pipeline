@@ -464,18 +464,31 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
             labcams_root=labcams_root, xday_root=xday_root, verbose=verbose,
             include_global_summary=(i == len(buckets) - 1)))
 
-    # prune stale sibling decks from an earlier (different) split
-    root, ext = os.path.splitext(out_base)
-    for stale in glob.glob(f"{root}*{ext}"):
-        if os.path.abspath(stale) not in written:
-            try:
-                writeguard.assert_writable(stale)   # never delete outside MICROSCOPE/Priya (rule 1)
-                os.remove(stale)
-                if verbose:
-                    print(f"[cleanup] removed stale deck {stale}")
-            except OSError as e:
-                if verbose:
-                    print(f"[cleanup] could not remove {stale}: {e}")
+    # Prune stale sibling decks from an earlier (different) split -- but ONLY when this run actually
+    # covered every configured animal. When a date is split across machines (imaging box: PS92/PS93;
+    # helper box: PS94/PS95) each run sees only its own sessions, and an unconditional prune deletes
+    # the OTHER machine's decks: 200 MB artifacts, silently, with no way back short of a rebuild.
+    # A partial run has no business deciding a sibling is stale, so it declines and says so.
+    covered = sorted({_animal_of(s) for s in sessions})
+    all_animals = list(config.animals())
+    if not writeguard.covers_all(covered, all_animals):
+        if verbose:
+            missing = sorted(set(all_animals) - set(covered))
+            print(f"[cleanup] SKIPPING stale-deck prune: this run covered {covered} but "
+                  f"{missing} are absent. A partial run must not delete another run's decks "
+                  f"(pass sessions for every animal to re-enable pruning).")
+    else:
+        root, ext = os.path.splitext(out_base)
+        for stale in glob.glob(f"{root}*{ext}"):
+            if os.path.abspath(stale) not in written:
+                try:
+                    writeguard.assert_writable(stale)   # never delete outside MICROSCOPE/Priya (rule 1)
+                    os.remove(stale)
+                    if verbose:
+                        print(f"[cleanup] removed stale deck {stale}")
+                except OSError as e:
+                    if verbose:
+                        print(f"[cleanup] could not remove {stale}: {e}")
     if verbose:
         print(f"\nBuilt {len(summaries)} deck(s): "
               + ", ".join(f"{os.path.basename(w)} ({b[1]} sessions)"

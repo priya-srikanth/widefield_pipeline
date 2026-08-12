@@ -197,8 +197,12 @@ def _two_animal_tree(tmp_path):
     return sessions, str(labcams), str(xday)
 
 
-def test_build_decks_splits_by_animal_and_prunes_stale(tmp_path):
+def test_build_decks_splits_by_animal_and_prunes_stale(tmp_path, monkeypatch):
     sessions, labcams, xday = _two_animal_tree(tmp_path)
+    # Pruning is only permitted when the run covers EVERY configured animal (a partial run must not
+    # delete another machine's decks -- see tests/test_shared_output_safety.py). This tree holds the
+    # whole cohort, so declare it as such and the stale-sibling prune stays enabled.
+    monkeypatch.setattr(pd.config, "animals", lambda: {"PS92": {}, "PS93": {}})
     base = tmp_path / "deck.pptx"
     (tmp_path / "deck_PS94.pptx").write_bytes(b"stale")   # leftover from an earlier split
     summ = pd.build_decks(str(base), sessions=sessions, max_sessions=2,

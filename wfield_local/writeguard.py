@@ -33,7 +33,8 @@ from __future__ import annotations
 
 import os
 
-__all__ = ["WriteGuardError", "assert_writable", "is_writable"]
+__all__ = ["WriteGuardError", "assert_writable", "is_writable",
+           "warn_if_partial_aggregate", "covers_all"]
 
 # The one owner segment this pipeline may write under, on every shared filesystem (CLAUDE.md rule 1).
 _OWNER = "priya"
@@ -87,4 +88,42 @@ def is_writable(path: str | os.PathLike[str]) -> bool:
         assert_writable(path)
     except WriteGuardError:
         return False
+    return True
+
+
+# --------------------------------------------------------------------------- partial-aggregate guard
+#
+# A SECOND failure mode, unrelated to path location: a SHARED, cross-animal output written by a run
+# that only covered SOME animals. Two machines split a date (imaging box: PS92/PS93; helper box:
+# PS94/PS95), each rebuilds the shared file from its own in-memory list, and the last writer wins --
+# silently discarding the other's contribution. Observed 2026-08-11 on the 8/11 photobleach summary,
+# which ended up describing a single animal.
+#
+# The structural cure is to derive shared aggregates from the per-item artifacts ON DISK (see
+# photobleach.load_records). These helpers are the backstop for sites that cannot do that: they make
+# a partial write LOUD instead of silent, and let a caller decline a destructive prune.
+
+def covers_all(covered, expected) -> bool:
+    """True iff ``covered`` includes every member of ``expected`` (order/duplicates irrelevant)."""
+    return set(expected) <= set(covered)
+
+
+def warn_if_partial_aggregate(path, covered, expected, what="aggregate") -> bool:
+    """Print a loud warning when a SHARED output is about to cover only part of ``expected``.
+
+    Returns True when the write is partial (caller may downgrade to a merge, or skip a prune).
+    Deliberately warns rather than raises: a partial aggregate is legitimate mid-night, when the
+    other machine simply has not finished yet. What must never happen is it going UNNOTICED.
+
+        if writeguard.warn_if_partial_aggregate(out, done, config.animals(), "photobleach summary"):
+            ...  # merge with what is already on disk instead of replacing it
+    """
+    missing = sorted(set(expected) - set(covered))
+    if not missing:
+        return False
+    print(f"[writeguard] *** PARTIAL {what}: {path}\n"
+          f"             covers {sorted(set(covered))} but {missing} are missing.\n"
+          f"             If another machine also writes this file, the last writer WINS and the\n"
+          f"             other's results are lost. Prefer merging from the per-item artifacts on\n"
+          f"             disk, or re-run once every contributor has finished.", flush=True)
     return True

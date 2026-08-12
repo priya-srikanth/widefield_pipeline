@@ -12,7 +12,7 @@ Run with an env that has h5py+scipy+matplotlib but WITHOUT importing wfield
 driven per session by `wfield_local.preprocess` (which discovers the date's sessions from
 config); import stays wfield-free because `wfield_local/__init__.py` is empty.
 """
-import os, re, json, numpy as np
+import glob, os, re, json, numpy as np
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 from scipy.ndimage import binary_erosion
 
@@ -20,6 +20,51 @@ NSAMP, NB = 3000, 40
 MIN_DUR_MIN = 15.0  # skip short baseline blips (unreliable trend)
 
 COL = {"415": "violet", "470": "royalblue"}
+
+AGG_JSON = "photobleach_results.json"      # the date-level aggregate (all sessions)
+
+
+def record_path(out_dir, label):
+    """Per-session record: a SELF-CONTAINED json next to the session's PNG.
+
+    Why this exists: ``summary()`` needs each session's ``_norm`` traces, which used to live only
+    in the analysing process's memory (they were stripped from the aggregate json). A machine that
+    had not analysed a session therefore could not include it, so whichever box ran ``run()`` LAST
+    overwrote the shared summary with only ITS OWN animals. With two boxes splitting a date the
+    aggregate could never be complete. Persisting the full record makes the aggregate a pure
+    function of what is on disk: order-independent, and rebuildable without re-reading the raw .dat.
+    """
+    return os.path.join(out_dir, f"photobleach_{label}.json")
+
+
+def load_records(out_dir):
+    """Every session record discoverable in ``out_dir``, keyed by label.
+
+    Sources, later winning: (1) the legacy aggregate ``photobleach_results.json`` (pre-dates
+    per-session records, so it carries no ``_norm`` -- such sessions still contribute their drift
+    bars, just not their trend lines), then (2) per-session ``photobleach_<label>.json``.
+    """
+    recs = {}
+    agg = os.path.join(out_dir, AGG_JSON)
+    if os.path.exists(agg):
+        try:
+            with open(agg, encoding="utf-8") as fh:
+                for r in json.load(fh):
+                    if isinstance(r, dict) and r.get("label"):
+                        recs[r["label"]] = r
+        except (OSError, ValueError) as e:
+            print(f"[photobleach] could not read {AGG_JSON} ({e}); ignoring it")
+    for p in sorted(glob.glob(os.path.join(out_dir, "photobleach_*.json"))):
+        if os.path.basename(p) == AGG_JSON:
+            continue
+        try:
+            with open(p, encoding="utf-8") as fh:
+                r = json.load(fh)
+            if isinstance(r, dict) and r.get("label"):
+                recs[r["label"]] = r
+        except (OSError, ValueError) as e:
+            print(f"[photobleach] could not read {os.path.basename(p)} ({e}); skipping")
+    return recs
 
 
 def analyze(label, dat, daq, out_dir):
@@ -103,6 +148,10 @@ def analyze(label, dat, daq, out_dir):
     fp = os.path.join(out_dir, f"photobleach_{label}.png"); plt.savefig(fp, dpi=120); plt.close(fig)
     print(f"[{label}] saved {fp}")
     res["_norm"] = {k: (x.tolist(), y.tolist()) for k, (x, y) in norm.items()}
+    # Persist the FULL record (incl. _norm) so any later run -- on any machine -- can rebuild a
+    # complete summary from disk without re-reading the raw .dat. See record_path().
+    with open(record_path(out_dir, label), "w", encoding="utf-8") as fh:
+        json.dump(res, fh, indent=2)
     return res
 
 
@@ -126,7 +175,11 @@ def summary(results, out_dir):
                 ax[ci].plot(np.array(x) / 60.0, y, "-", lw=1.8, color=col, label=r["label"])
         ax[ci].axhline(1.0, color="k", lw=0.6); ax[ci].set_ylim(ylo, yhi)
         ax[ci].set_xlabel("time since start (min)"); ax[ci].set_ylabel("normalized intensity")
-        ax[ci].set_title(f"{name} nm  normalized trend (all sessions)"); ax[ci].legend(fontsize=8)
+        ax[ci].set_title(f"{name} nm  normalized trend (all sessions)")
+        # legend only when something was plotted: legacy records recovered from the aggregate carry
+        # no _norm (drift bars only), so these panels can legitimately be empty.
+        if ax[ci].get_legend_handles_labels()[0]:
+            ax[ci].legend(fontsize=8)
     labels = [r["label"] for r in results]
     x = np.arange(len(labels)); w = 0.38
     p415 = [r["channels"].get("415", {}).get("pct", np.nan) for r in results]
@@ -149,14 +202,52 @@ def summary(results, out_dir):
               f"{c.get('415',{}).get('pct',float('nan')):8.1f} {c.get('470',{}).get('pct',float('nan')):8.1f}")
 
 
-def run(sessions, out_dir):
-    """`sessions` = iterable of (label, dat, daq); analyze each + write the summary + json."""
+def run(sessions, out_dir, merge=True):
+    """`sessions` = iterable of (label, dat, daq); analyze each, then rebuild the date's summary.
+
+    MERGE BY DEFAULT. The summary and the aggregate json are rebuilt from the UNION of every
+    session record on disk and the ones just analysed -- not from this run's list alone. That makes
+    the shared outputs order-independent when two machines split a date: previously whichever box
+    called ``run()`` last replaced ``photobleach_SUMMARY.png`` / ``photobleach_results.json`` with
+    only its own animals, silently dropping the other box's (observed 2026-08-11: the 8/11 summary
+    ended up containing a single animal). Pass ``merge=False`` for the old replace-everything
+    behaviour, e.g. to rebuild a date from scratch after deliberately clearing it.
+    """
     out = [analyze(lbl, dat, daq, out_dir) for (lbl, dat, daq) in sessions]
-    summary(out, out_dir)
-    with open(os.path.join(out_dir, "photobleach_results.json"), "w") as fh:
-        json.dump([{k: v for k, v in r.items() if k != "_norm"} for r in out if r], fh, indent=2)
-    print("done ->", out_dir)
+    fresh = {r["label"]: r for r in out if r}
+    if merge:
+        recs = load_records(out_dir)      # whatever any other run/machine already produced
+        pre_existing = [k for k in recs if k not in fresh]
+        recs.update(fresh)                # this run is authoritative for the labels it just did
+        if pre_existing:
+            print(f"[photobleach] merging {len(pre_existing)} session(s) from disk: "
+                  f"{sorted(pre_existing)}")
+    else:
+        recs = fresh
+    merged = [recs[k] for k in sorted(recs)]
+    summary(merged, out_dir)
+    with open(os.path.join(out_dir, AGG_JSON), "w", encoding="utf-8") as fh:
+        json.dump([{k: v for k, v in r.items() if k != "_norm"} for r in merged], fh, indent=2)
+    print(f"done -> {out_dir}  ({len(merged)} session(s) in the summary)")
     return out
+
+
+def rebuild_summary(out_dir):
+    """Rebuild the summary + aggregate json from the per-session records already on disk.
+
+    Repairs a date whose shared outputs were clobbered by a partial ``run()``, with no raw .dat
+    access and no recomputation. Returns the number of sessions covered.
+    """
+    recs = load_records(out_dir)
+    if not recs:
+        print(f"[photobleach] no session records under {out_dir}")
+        return 0
+    merged = [recs[k] for k in sorted(recs)]
+    summary(merged, out_dir)
+    with open(os.path.join(out_dir, AGG_JSON), "w", encoding="utf-8") as fh:
+        json.dump([{k: v for k, v in r.items() if k != "_norm"} for r in merged], fh, indent=2)
+    print(f"[photobleach] rebuilt summary from disk: {len(merged)} session(s) {sorted(recs)}")
+    return len(merged)
 
 
 if __name__ == "__main__":
