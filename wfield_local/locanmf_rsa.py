@@ -211,6 +211,25 @@ def fig_rsa_sessions(out, dates=None, tag=""):
     ttl = f"RSA of spout-position representational geometry{(' [' + tag + ']') if tag else ''} (n_sessions={n})"
     fig.suptitle(ttl, fontsize=13); fig.tight_layout()
     p = out / f"locanmf_rsa_sessions{('_' + tag) if tag else ''}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    # Persist the NUMBERS, not just the picture: re-plotting or interrogating this figure otherwise
+    # means recomputing every RDM from SVTcorr. `basis` is recorded because the per-session RDM is
+    # built in that basis and 1-corr between position patterns is NOT invariant to it (a LocaNMF
+    # basis is session-specific, so session x session entries partly reflect basis similarity --
+    # see DECISIONS.md "RSA basis").
+    try:
+        from wfield_local import results_store as _rs
+        _rs.save(out, "rsa_sessions", tag,
+                 {"labels": list(labs), "animals": list(animals),
+                  "session_rsa": np.asarray(S), "animal_rsa": np.asarray(A),
+                  "rdm": {l: np.asarray(rdms[l]) for l in labs if l in rdms},
+                  "reliability": {l: float(rels[l]) for l in labs if l in rels},
+                  "within_animal": {a: float(wa[a]) for a in animals},
+                  "across_animal": {a: float(ac[a]) for a in animals},
+                  "noise_ceiling": {a: float(nc[a]) for a in animals}},
+                 meta={"basis": _args().source, "align": _args().align,
+                       "post_s": _args().post_s, "metric": "1-pearson RDM; Spearman 2nd-order"})
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! results_store(rsa_sessions): {type(ex).__name__} {str(ex)[:60]}", flush=True)
     print(f"RSA within vs across animal (Spearman of RDMs){(' [' + tag + ']') if tag else ''}:", flush=True)
     for a in animals:
         frac = wa[a] / nc[a] if nc[a] else np.nan

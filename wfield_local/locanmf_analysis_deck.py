@@ -233,7 +233,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "days only (leave-one-session-out). ROI features, not LocaNMF components — components are "
               "session-specific and cannot be pooled across days.")
         note(s, M_FROZEN)
-        grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in date_labels], cols=3)
+        # 2 per row (not 3) so each confusion matrix renders at a readable size, matching the
+        # per-session decoder slides. 8 curated dates -> 4 rows, which still fits one slide.
+        grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in date_labels], cols=2)
         s = slide()
         title(s, f"{a} — FROZEN decoder: transfer cost & out-of-distribution control",
               "Held-out day vs same-day ceiling per session; the cost of freezing across days; and the OOD "

@@ -360,7 +360,9 @@ def write_session_confusions(results, out):
             recall = np.diag(cmn)
             acc = r["per_session"][lab]
             within = r["within_session"].get(lab, np.nan)
-            fig, ax = plt.subplots(1, 2, figsize=(9.2, 3.7),
+            # Squarer than wide: these are shown 2-per-row in the deck (like the per-session
+            # decoders), so a short/wide figure would waste the cell height and render small.
+            fig, ax = plt.subplots(1, 2, figsize=(10.0, 4.6),
                                    gridspec_kw={"width_ratios": [1.25, 1]})
             im = ax[0].imshow(cmn, vmin=0, vmax=1, cmap="magma")
             for i in range(len(posn)):
