@@ -182,6 +182,11 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
            "mean_within": float(np.mean(list(within.values()))) if within else float("nan"),
            "chance": 1 / 6}
     res["transfer_cost"] = res["loso_accuracy"] - res["mean_within"]
+    # per-held-out-DAY confusion, so the deck can show the frozen decoder date by date exactly as it
+    # shows the per-session (within-day) decoders. Rows = true position, in DISPLAY_ORDER.
+    res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],
+                                              labels=DISPLAY_ORDER).tolist()
+                        for i, lab in enumerate(kept)}
     res["ood"] = ood_control(XE, YE, GE, XU, YU)
     if verbose:
         print(f"\n  pooled: {len(YE)} engaged trials, {len(YU)} no-lick, {XE.shape[1]} ROI features, "
@@ -235,6 +240,53 @@ def ood_control(XE, YE, GE, XU, YU):
         out.update(n_nolick=int(len(YU)), nolick_acc=float("nan"), nolick_H=float("nan"),
                    nolick_maxp=float("nan"), nolick_ci=[float("nan")] * 2, nolick_above_chance=False)
     return out
+
+
+def write_session_confusions(results, out):
+    """One PNG per held-out DAY: the frozen decoder's confusion + per-position recall on that day.
+
+    Deliberately mirrors the per-session within-day decoder figures the deck already shows
+    (``locanmf_position_session_<label>_...``) so the two read side by side; the only difference is
+    that NO trial from this day was used to fit -- the model was trained on the animal's OTHER days.
+    Filename: ``locanmf_frozen_session_<label>_roi_<align>.png``.
+    """
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
+    written = []
+    for an, r in results.items():
+        for lab, cm in r.get("confusion", {}).items():
+            cm = np.asarray(cm, dtype=float)
+            n = cm.sum()
+            row = cm.sum(1, keepdims=True)
+            cmn = np.divide(cm, row, out=np.zeros_like(cm), where=row > 0)   # row-normalized
+            recall = np.diag(cmn)
+            acc = r["per_session"][lab]
+            within = r["within_session"].get(lab, np.nan)
+            fig, ax = plt.subplots(1, 2, figsize=(9.2, 3.7),
+                                   gridspec_kw={"width_ratios": [1.25, 1]})
+            im = ax[0].imshow(cmn, vmin=0, vmax=1, cmap="magma")
+            for i in range(len(posn)):
+                for j in range(len(posn)):
+                    ax[0].text(j, i, f"{cmn[i, j]:.2f}", ha="center", va="center", fontsize=7,
+                               color="w" if cmn[i, j] < 0.55 else "k")
+            ax[0].set_xticks(range(len(posn))); ax[0].set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
+            ax[0].set_yticks(range(len(posn))); ax[0].set_yticklabels(posn, fontsize=7)
+            ax[0].set_xlabel("predicted"); ax[0].set_ylabel("true")
+            ax[0].set_title("row-normalized confusion", fontsize=9)
+            fig.colorbar(im, ax=ax[0], shrink=0.8)
+            ax[1].bar(range(len(posn)), recall, color="tab:orange")
+            ax[1].axhline(1 / 6, color="grey", ls=":", lw=1)
+            ax[1].text(len(posn) - 0.5, 1 / 6, " chance", va="bottom", ha="right", fontsize=7, color="grey")
+            ax[1].set_xticks(range(len(posn))); ax[1].set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
+            ax[1].set_ylim(0, 1); ax[1].set_ylabel("recall")
+            ax[1].set_title("per-position recall", fontsize=9)
+            fig.suptitle(f"{lab} — FROZEN ROI decoder (trained on this animal's OTHER days)\n"
+                         f"held-out-day acc {acc:.3f}   |   same-day ceiling {within:.3f}   |   "
+                         f"n={int(n)} trials   |   chance 0.167", fontsize=10, y=0.99)
+            fig.tight_layout(rect=(0, 0, 1, 0.87))
+            p = Path(out) / f"locanmf_frozen_session_{lab}_roi_{r['align']}.png"
+            fig.savefig(p, dpi=130); plt.close(fig)
+            written.append(p)
+    return written
 
 
 def _loso_fig(results, out):
@@ -385,7 +437,9 @@ def main() -> int:
         if results:
             (args.output / f"locanmf_frozen_decoder_loso_roi_{args.align}.json").write_text(
                 json.dumps(results, indent=2, default=float))
-            print("\nwrote", _loso_fig(results, args.output), flush=True)
+            n = len(write_session_confusions(results, args.output))
+            print(f"\nwrote {n} per-held-out-day confusion figure(s)", flush=True)
+            print("wrote", _loso_fig(results, args.output), flush=True)
     if not (args.save or args.transfer or args.loso):
         ap.print_help()
     return 0

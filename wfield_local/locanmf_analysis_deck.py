@@ -51,6 +51,23 @@ M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardize
             "trials too = 'no lick generalization'); pre-cue align = the 2 s window ENDING at the cue (the "
             "motor-independent maintained code). Rolling = sliding 0.5 s window across pre-cue ENL -> "
             "post-cue. Per-position recall = diagonal of the row-normalized confusion matrix. " + M_COMMON)
+M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --loso). Same multinomial "
+            "logistic regression (L2, C=0.5, standardized, chance=0.167), but NO trial from the plotted day "
+            "was used to fit it: the model is trained on that animal's OTHER curated days and applied to "
+            "this one (leave-one-SESSION-out). This is the pre-stroke dress rehearsal for the post-stroke "
+            "confirmatory arm (train pre-stroke, apply post-stroke). "
+            "FEATURES ARE ALLEN-ROI, NOT LocaNMF components: LocaNMF components are session-specific in "
+            "both count and identity, so they cannot be pooled across days; Allen-ROI features are "
+            "atlas-anchored, so column j is the same cortical area every day. Per session the features are "
+            "z-scored using that session's own engaged trials, so session-level F0/SNR offsets cannot drive "
+            "the result; CV groups are SESSIONS, so each held-out fold is an entire unseen day. The "
+            "same-day ceiling quoted on each panel is that session's own within-day block-CV accuracy, so "
+            "held-out-day minus ceiling is the true cost of freezing. Measured 2026-08-11: the cost is "
+            "POSITIVE for every animal (PS92 +0.102, PS93 +0.012, PS94 +0.044, PS95 +0.047) - the frozen "
+            "model beats the same-day model, because it trains on ~3000 trials instead of ~500 and ROI "
+            "features are stable across days. Caveat for interpretation: a softmax decoder never abstains, "
+            "so confidence alone is NOT evidence of preserved coding - see the OOD control (shuffled-label "
+            "entropy floor + no-lick trials, which decode at chance yet stay confident). " + M_COMMON)
 M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position "
             "design to each LocaNMF component's activity, GroupKFold by position block. Per-position "
             "explained variance = held-out R^2 on that position's trials (whole-cortex, summed over "
@@ -194,6 +211,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
         note(s, M_DECODE)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
+        # Frozen cross-day decoder: same per-date confusion layout as the within-day slides above, but
+        # each day is predicted by a model trained ONLY on this animal's other days (ROI features).
+        s = slide()
+        title(s, f"{a} — FROZEN cross-day decoder, held-out day (Allen-ROI features)",
+              "Per date: confusion + per-position recall from a decoder trained on this animal's OTHER "
+              "days only (leave-one-session-out). ROI features, not LocaNMF components — components are "
+              "session-specific and cannot be pooled across days.")
+        note(s, M_FROZEN)
+        grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in date_labels], cols=3)
+        s = slide()
+        title(s, f"{a} — FROZEN decoder: transfer cost & out-of-distribution control",
+              "Held-out day vs same-day ceiling per session; the cost of freezing across days; and the OOD "
+              "control — a softmax decoder never abstains, so confidence alone is not evidence.")
+        note(s, M_FROZEN)
+        big(s, src / "locanmf_frozen_decoder_loso_roi.png", top=1.9, width=12.7)
 
     # ---------------- B. per-animal encoder ----------------
     divider("B. Per-animal encoder — expected activity, predicted maps & explained variance",

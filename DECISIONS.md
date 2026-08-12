@@ -96,6 +96,22 @@ bleaching. The 0.1 Hz highpass in hemo-correction already removes it, so ΔF/F i
   the **ROI / Allen-area level** (or via LocaNMF components), not pixelwise; group pixel maps are for
   visualization only.
 
+## Session curation: 8/6 is KEPT despite a degraded DAQ (decided 2026-08-11)
+All four animals' **8/6** sessions hit the dead `spout_bit1` and recorded only **4 of 6 positions** in the
+DAQ, so their per-trial positions come ENTIRELY from the behavior-log repair
+(`behavior_position.classify_cues_with_backup`), not from the strobe. 8/6 is nevertheless in the CURATED
+cross-session set, so every cross-session result leans on that repair.
+
+**Kept**, because the repair validates at **1.00 agreement on the DAQ's good positions, trial-offset +1,
+for all four animals** — the log and the DAQ agree perfectly everywhere the DAQ was intact, so there is no
+evidence the substituted labels are wrong (and `classify_cues_with_backup` only substitutes when it
+validates >=0.9 AND the DAQ is actually short a position, so healthy sessions are never touched).
+
+Two caveats to keep in view: 8/5 has the **identical** hardware defect and is excluded for *separate*
+quality reasons (the exclusion is not about the strobe, so it is not precedent for dropping 8/6); and if
+the repair is ever called into question, **8/6 is the first date to drop** — it is the one curated date
+whose labels have no independent DAQ confirmation. See `STROBE_BIT1_RECOVERY.md`.
+
 ## Relabel step for future recordings
 Recommended even with the trial-gated acquire-enable firmware: it drops stray illuminated/dark frames and
 guarantees deterministic 415/470 pairing + the `frame_map` that regime-B alignment needs. Use
@@ -406,6 +422,24 @@ showed any drop. LOSO trains on ~3000 trials vs ~500 within-session, and ROI fea
 across days that the extra data more than pays for the day gap. So post-stroke degradation can be read as
 lesion effect. (LocaNMF components cannot do this — session-specific count AND identity; ROI features are
 atlas-anchored, so column j is the same area every day. This is the "Allen-ROI features" branch above.)
+
+## ROI vs LocaNMF features: LocaNMF wins per-session, POOLING erases the gap
+Head-to-head on the same 10 sessions, same alignment (cue 2 s), same block CV, same `C=0.5`:
+
+| | mean accuracy | vs LocaNMF within-day | paired t |
+|---|---|---|---|
+| **LocaNMF, within-day** | **0.734** | — | — |
+| Allen-ROI, within-day | 0.697 | **−0.037** (LocaNMF wins 8/10) | t=3.03, **p=0.014** |
+| Allen-ROI, **FROZEN** (held-out day) | 0.731 | −0.003 (LocaNMF wins 7/10) | t=0.18, **p=0.86** |
+
+- **LocaNMF is genuinely the better feature space per session** (+0.037, significant) — it is not
+  merely a prettier basis. That justifies keeping it as the per-session primary.
+- **But a frozen ROI decoder that has NEVER SEEN the test day matches a LocaNMF decoder trained on
+  that very day** (p=0.86). Pooling ~3000 trials across days exactly offsets the feature-quality
+  loss.
+
+So for the cross-day / post-stroke arm, Allen-ROI is **not a compromise** — it buys transferability
+for free. Use LocaNMF per-session (primary) and frozen ROI across days (confirmatory), as planned.
 
 ## Confidence is NOT evidence: the OOD control is mandatory (`ood_control`)
 A softmax decoder never abstains — on input with no position information it still emits a normalized
