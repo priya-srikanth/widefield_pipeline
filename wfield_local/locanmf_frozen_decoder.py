@@ -508,12 +508,15 @@ def project_C_fixed_A(a_ref_label, new_label):
     frozen LocaNMF decoder (trained on A_ref's components) can be applied to the new session.
     Requires both sessions on the same affine8v1 pixel grid; not exercised until post-stroke data."""
     ref = _sess(a_ref_label); new = _sess(new_label)
-    A = np.load(f"{ref['mc']}/locanmf_affine8v1_final/{a_ref_label}_locanmf_A.npy")  # (npix, ncomp)
+    A = np.load(f"{ref['mc']}/locanmf_affine8v1_final/{a_ref_label}_locanmf_A.npy")  # (H, W, ncomp)
     ad = glob.glob(f"{new['mc']}/wfield_local_results/allen_aligned_affine8v1")[0]
     U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{new['mc']}/wfield_local_results/SVTcorr.npy")
-    dff = U.reshape(-1, U.shape[2]) @ SVT                    # (npix, T) on the shared grid
-    A2 = A.reshape(dff.shape[0], -1)
-    return np.linalg.pinv(A2) @ dff                          # (ncomp, T) = refit C on the frozen basis
+    A2 = np.nan_to_num(A.reshape(-1, A.shape[2]))            # (npix, ncomp); A is NaN outside the brain
+    Uf = np.nan_to_num(U.reshape(-1, U.shape[2]))            # (npix, K)
+    # REASSOCIATE: pinv(A) @ (U @ SVT) == (pinv(A) @ U) @ SVT. The bracketed form never materializes
+    # the (npix x T) movie -- 345600 x ~200k float32 is ~276 GB and would OOM instantly. The
+    # reassociated form contracts to (ncomp x K) first, which is ~150 x 100.
+    return (np.linalg.pinv(A2) @ Uf) @ SVT                   # (ncomp, T) = refit C on the frozen basis
 
 
 def _transfer_matrix_fig(out):

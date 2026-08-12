@@ -114,6 +114,37 @@ compares raw amplitudes across animals without the highpass.
   the **ROI / Allen-area level** (or via LocaNMF components), not pixelwise; group pixel maps are for
   visualization only.
 
+## Task-controller v47 stub rows (2026-08-10 onward) — the DAQ-cue-count invariant needs a caveat
+**v47 fixed the `pos_idx` overwriting** described in [`docs/GUI_TRIALS_LOGGING.md`](docs/GUI_TRIALS_LOGGING.md):
+the colliding row is now CLOSED and a fresh one opened, instead of being overwritten with the next
+trial's position. But v47 **keeps that stub row in `trials.csv`** — duplicate `trial_id`, sub-second
+duration, neither `hit` nor `miss` set.
+
+This **amends the 2026-08-09 correction above** ("DAQ cue count equals the log's scored-trial count
+exactly in every session"). That held for every pre-v47 session and still does — but from 8/10 the raw
+log is LONGER than the DAQ cue stream, and the invariant only holds after the stubs are filtered:
+
+| session | DAQ cues | log rows (raw) | log rows (stubs dropped) | best-offset agreement |
+|---|---|---|---|---|
+| PS94_0806 (pre-v47) | 462 | 462 | 462 | — (dead-strobe session) |
+| PS94_0810 | 720 | 1009 | **720** | 21.2% → **99.4%** |
+| PS94_0811 | 436 | 554 | **436** | 23.0% → **98.4%** |
+| PS95_0811 | 670 | 679 | **670** | 72.1% → **99.0%** |
+| PS92_0811 / PS93_0811 | 386 / 492 | — | **386 / 492** | **100.0%** |
+
+**Latent bug this hid (fixed 2026-08-12).** `classify_cues_with_backup` substitutes log positions only
+when agreement is >= 0.9. With the stubs left in, the two sequences differ in LENGTH, no integer
+trial-offset can align them, and agreement sat at ~21% — so **the dead-strobe fallback was silently
+disabled on every v47 session**. It fails safe (DAQ codes are kept, never corrupted) and changed no
+published result — positions come from the DAQ and every affected session had all 6 strobe positions —
+but a dead strobe bit on a v47 session would have left degraded positions with NO recovery path, which
+is precisely the 8/5–8/6 scenario that path exists for. `behavior_position._scored_rows` now requires
+a row to be real (`start != end`) AND scored (`hit` or `miss` set); it degrades to the old filter on
+pre-v47 schemas with no `hit`/`miss` columns. Tests: `tests/test_behavior_position_stubs.py`.
+
+**Bonus:** the post-fix 98–100% agreement is now independent CONFIRMATION of the DAQ position codes —
+two unrelated sources agree where they previously appeared to disagree.
+
 ## Session curation: 8/6 is KEPT despite a degraded DAQ (decided 2026-08-11)
 All four animals' **8/6** sessions hit the dead `spout_bit1` and recorded only **4 of 6 positions** in the
 DAQ, so their per-trial positions come ENTIRELY from the behavior-log repair
