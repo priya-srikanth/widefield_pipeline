@@ -23,7 +23,13 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 1  # bump when any cached function's computation changes
+CACHE_VERSION = 2  # bump when any cached function's computation changes
+# v2 (2026-08-11): behavior_position.BEH_ROOT was a hardcoded "M:/MICROSCOPE/..." (the analysis box's
+# mount), so on any other machine the dead-spout_bit1 repair silently did not fire and the 8/5-8/6
+# sessions kept 4-of-6 position labels (~1/3 of cues mislabelled). Now resolved via PathResolver.
+# Position labels feed every cached quantity (decode, encode, RDM, crossnobis, hemisphere), and the
+# cache key cannot see it (no input mtime changed), so any cache written on an affected machine holds
+# wrong values -> forced invalidation.
 
 CACHE_DIR = Path(os.environ.get(
     "WIDEFIELD_SESSION_CACHE", "C:/Users/sabatini/source/.widefield_session_cache"))

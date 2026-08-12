@@ -26,10 +26,28 @@ import re
 
 import numpy as np
 
+from wfield_local import config
 from wfield_local.plot_spout_trial_averages import _classify_cues
 from wfield_local.framemap_event_maps import _behavior_cue_codes  # recovered-position override
 
-BEH_ROOT = "M:/MICROSCOPE/Priya/Behavior_logs/Widefield"
+# Behavior-logs root. NOT a hardcoded mount: this used to be "M:/MICROSCOPE/Priya/Behavior_logs/Widefield"
+# (the ANALYSIS box's mount), which silently broke the repair on every other machine -- the imaging box
+# (MICROSCOPE = N:) and any helper box where M: is the STANDBY share. `_behavior_positions` then returned
+# None and `classify_cues_with_backup` fell through to the unrepaired DAQ codes WITHOUT WARNING, leaving
+# the dead-`spout_bit1` sessions (8/5-8/6) at 4 of 6 positions with ~1/3 of cues mislabelled. Resolved
+# per-machine via configs/paths.yaml instead. Set BEH_ROOT_OVERRIDE to force a path (tests/ad-hoc).
+BEH_ROOT_OVERRIDE = None
+_BEH_ROOT = None
+
+
+def beh_root():
+    """This machine's behavior-logs root (configs/paths.yaml `behavior_logs`), resolved once."""
+    global _BEH_ROOT
+    if BEH_ROOT_OVERRIDE:
+        return BEH_ROOT_OVERRIDE
+    if _BEH_ROOT is None:
+        _BEH_ROOT = config.resolver().root("behavior_logs")
+    return _BEH_ROOT
 
 
 def _behavior_dir(session):
@@ -37,7 +55,7 @@ def _behavior_dir(session):
     m = re.search(r"/labcams/(\d{8})/", session["mc"].replace("\\", "/"))
     if not m:
         return None
-    hits = sorted(glob.glob(f"{BEH_ROOT}/{mouse}_{m.group(1)}_*"))
+    hits = sorted(glob.glob(f"{beh_root()}/{mouse}_{m.group(1)}_*"))
     return hits[0] if hits else None
 
 
@@ -79,6 +97,14 @@ def classify_cues_with_backup(session, cue, verbose=True):
         return daq                                    # DAQ has all 6 positions -> trust it
     b = _behavior_positions(session)
     if b is None:
+        # LOUD: the DAQ is short a position AND we found no log to repair it from. This used to be a
+        # silent `return daq`, which is how a mis-mounted BEH_ROOT produced 4-position sessions with no
+        # trace in the logs. Never fail silently here -- a wrong position label is unrecoverable downstream.
+        if verbose:
+            print(f"  [behavior-backup] *** {session['label']}: DAQ has only {good} ({len(good)}<6 positions) "
+                  f"and NO usable trials.csv was found under {beh_root()} -> KEEPING DEGRADED DAQ CODES. "
+                  f"Position labels for this session are WRONG for the missing positions; check the mount "
+                  f"and configs/paths.yaml behavior_logs.", flush=True)
         return daq
     N = len(daq); rng = max(20, abs(len(b) - N) + 10)
     best = (-1.0, 0, None)

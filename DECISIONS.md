@@ -171,8 +171,12 @@ locaNMF clone **without** `--with-extension`, applying only `locanmf_torch_compa
 `locanmf_cuhals_win_build.patch` is needed only when building the extension). Validated 2026-08-11 by
 re-running PS95 8/9 on the fallback: **164 components vs the cuhals build's 160, same 64 regions, 54/64
 regions with identical component counts** (the rest ±1 — the rank line-search is greedy, so exact equality
-is not expected). Cost is speed only (~48 min/session on an RTX 5060). NB the patch may not apply cleanly
-with `git apply` (EOF/whitespace drift in `factor.py`); the three edits are small enough to apply by hand.
+is not expected). Building the extension is worth it on a box that runs LocaNMF regularly: measured on the
+same session, **9.3 min with `cuhals` vs ~55 min on the fallback (~6x)**, 167 vs 164 components. Full
+install/build walkthrough (VS Build Tools -> CUDA Toolkit -> MKL -> patch -> build, and the three traps:
+`DISTUTILS_USE_SDK=1`, PATH-before-vcvars, and `pip install .` silently dropping `--with-extension`):
+[`docs/GPU_SETUP.md`](docs/GPU_SETUP.md). NB the torch-compat patch may not apply cleanly with `git apply`
+(EOF/whitespace drift in `factor.py`); the three edits are small enough to apply by hand.
 Also: **Blackwell GPUs (RTX 50-series, `sm_120`) need cu128** — the `cu124` build in the README/kickoff doc
 does not support them. Kickoff + env recipe:
 `docs/archive/GPU_LOCANMF_KICKOFF.md` / `GPU_LOCANMF_RUNLOG.md`. LocaNMF consumes exactly what preprocessing
