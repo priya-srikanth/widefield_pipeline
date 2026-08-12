@@ -86,6 +86,24 @@ GCaMP photobleaching would hit 470 hardest, so the 415-specific decline is **vio
 bleaching. The 0.1 Hz highpass in hemo-correction already removes it, so ΔF/F is uncontaminated.
 `run_wfield_local` also exposes `--detrend-order` + `--freq-highpass` for a gentler highpass when wanted.
 
+**EXCEPTION observed 2026-08-11 — the 470 stability claim no longer holds for every animal.** On 8/11
+two of four animals showed a large *functional-channel* decline, well outside the ±2–3% norm:
+
+| session | duration | 415 % | **470 %** |
+|---|---|---|---|
+| PS92_0811 | 153.7 min | −18.6 | **−13.4** |
+| PS93_0811 | 151.3 min | −8.2 | −1.8 |
+| PS94_0811 | 74.3 min | −7.4 | −2.3 |
+| PS95_0811 | 107.3 min | −14.6 | **−7.3** |
+
+**It is not session length** — PS93 ran 151 min (essentially the same as PS92) with a normal −1.8% on 470.
+So this is animal-specific, and a 470-dominant decline is the signature of REAL GCaMP photobleaching
+rather than violet-LED drift. The 0.1 Hz highpass should still absorb it (the decline is far below
+0.1 Hz), so ΔF/F is probably fine, but two things follow: (1) do not treat "470 is stable" as an
+invariant when QC-ing a session; (2) if PS92/PS95 keep declining across nights it is an
+illumination-power / expression issue worth acting on at the rig, and it would bias any analysis that
+compares raw amplitudes across animals without the highpass.
+
 ## Cross-day & cross-animal alignment policy
 - **Within animal, across days**: register the motion-corrected **mean 470 nm vasculature** to a chosen
   reference session (`cross_day_align.py`): landmark-init → intensity-based ECC affine refine (SIFT+RANSAC
