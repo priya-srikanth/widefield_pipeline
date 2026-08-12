@@ -25,7 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import joblib
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_predict
@@ -118,23 +118,21 @@ def _entropy_norm(proba):
     return float((-(p * np.log(p)).sum(1)).mean() / np.log(proba.shape[1]))
 
 
-def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True):
-    """Leave-one-SESSION-out frozen decoder over an animal's pooled sessions (ROI features).
+def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True):
+    """Pool several sessions into ONE feature matrix that is comparable across days.
 
-    LocaNMF components are session-specific (different count AND identity per session), so they
-    cannot be pooled. Allen-ROI features are atlas-anchored -- column j is the same area in every
-    session -- which makes a single across-day model well posed. This is the pre-stroke dress
-    rehearsal for train-pre / apply-post.
+    Shared by the frozen decoder and the frozen encoder. Returns
+    ``(XE, YE, GE, BE, XU, YU, kept_labels, common_regions)`` or ``None`` if <2 sessions load,
+    where ``GE`` is the SESSION index (the CV group for leave-one-day-out) and ``BE[i]`` is
+    session *i*'s within-session position-block ids (the CV group for the same-day ceiling).
 
-    Per session the features are z-scored using that session's own ENGAGED trials (removing
-    session-level offsets in F0/SNR that would otherwise dominate pooling); the same transform is
-    applied to that session's no-lick trials so both stay on one scale. Groups = SESSION, so the
-    held-out fold is an entire unseen day.
-
-    Reported alongside:
-      * ``within_session``  -- per-session block-CV (GroupKFold by position block), the honest
-        same-day ceiling. LOSO minus this is the true cost of freezing across days.
-      * ``ood`` -- the out-of-distribution control (see :func:`ood_control`).
+    Two things make pooling valid, and both matter:
+      * ROI features are ATLAS-ANCHORED, so column j is the same cortical area in every session.
+        LocaNMF components are not (session-specific count AND identity), which is why the
+        cross-day work uses ``source="roi"``.
+      * each session is z-scored using its OWN engaged trials, so session-level differences in F0
+        / SNR cannot drive the result; the same transform is applied to that session's no-lick
+        trials so both stay on one scale.
     """
     per, regs, kept = [], [], []
     for lab in labels:
@@ -156,14 +154,115 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         mats, nl, common = [p[0] for p in per], [p[3] for p in per], regs[0]
 
     XE, YE, GE, BE, XU, YU = [], [], [], [], [], []
-    for i, ((X, y, g, _Xnl, ynl), Xa, Na) in enumerate(zip(per, mats, nl)):
+    for i, ((_X, y, g, _Xnl, ynl), Xa, Na) in enumerate(zip(per, mats, nl)):
         mu, sd = (Xa.mean(0), Xa.std(0)) if zscore else (0.0, 1.0)
         sd = np.where(np.asarray(sd) > 0, sd, 1.0) if zscore else 1.0
         XE.append((Xa - mu) / sd); YE.append(y); GE.append(np.full(len(y), i)); BE.append(g)
         if len(Na):
             XU.append((Na - mu) / sd); YU.append(ynl)
     XE = np.vstack(XE); YE = np.concatenate(YE); GE = np.concatenate(GE)
-    XU = np.vstack(XU) if XU else np.zeros((0, XE.shape[1])); YU = np.concatenate(YU) if YU else np.array([])
+    XU = np.vstack(XU) if XU else np.zeros((0, XE.shape[1]))
+    YU = np.concatenate(YU) if YU else np.array([])
+    return XE, YE, GE, BE, XU, YU, kept, common
+
+
+def _ev(X, pred):
+    """Fraction of variance explained, pooled over features (1 - SS_res/SS_tot)."""
+    ss_tot = ((X - X.mean(0)) ** 2).sum()
+    return float(1 - ((X - pred) ** 2).sum() / max(ss_tot, 1e-12))
+
+
+def _ceiling(X, y):
+    """Encoder noise ceiling: between-position SS / total SS (the max a position-only model can reach)."""
+    gm = X.mean(0); betw = np.zeros(X.shape[1]); wit = np.zeros(X.shape[1])
+    for p in np.unique(y):
+        m = y == p
+        mu = X[m].mean(0)
+        betw += m.sum() * (mu - gm) ** 2
+        wit += ((X[m] - mu) ** 2).sum(0)
+    return float(betw.sum() / max(betw.sum() + wit.sum(), 1e-12)), betw, wit
+
+
+def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1.0, verbose=True):
+    """FROZEN cross-day ENCODER: position -> expected cortical activity, applied to an unseen day.
+
+    The mirror of :func:`pooled_frozen_loso`. Ridge from a one-hot position design to ROI activity,
+    fit on an animal's OTHER curated days and evaluated on the held-out day, so it answers "does the
+    position->activity mapping itself transfer across days" -- the forward-model half of the
+    post-stroke confirmatory arm (a frozen encoder's RESIDUAL on post-stroke trials is the
+    representational-change readout).
+
+    Reported per held-out day:
+      * ``ev``       held-out explained variance of the frozen model,
+      * ``ceiling``  that day's own noise ceiling (between-position SS / total SS) -- the most any
+        position-only model could achieve there, so a low EV on a low-ceiling day is not a failure,
+      * ``feve``     ev / ceiling, the ceiling-normalised score that is comparable across days,
+      * ``within``   the same-day encoder (block CV) for reference.
+    """
+    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s)
+    if pooled is None:
+        return None
+    XE, YE, GE, BE, _XU, _YU, kept, common = pooled
+    pos = np.array(DISPLAY_ORDER)
+    P = np.stack([(YE == p).astype(float) for p in pos], 1)
+
+    per_sess, ceil, feve, within = {}, {}, {}, {}
+    for i, lab in enumerate(kept):
+        te = GE == i
+        tr = ~te
+        pred = Ridge(alpha=alpha).fit(P[tr], XE[tr]).predict(P[te])
+        per_sess[lab] = _ev(XE[te], pred)
+        c, _, _ = _ceiling(XE[te], YE[te])
+        ceil[lab] = c
+        feve[lab] = per_sess[lab] / c if c > 1e-6 else float("nan")
+        gb = BE[i]
+        ng = min(5, int(np.unique(gb).size))
+        if ng >= 2:
+            pw = np.zeros_like(XE[te])
+            Xi, Yi, Pi = XE[te], YE[te], P[te]
+            for a, b in GroupKFold(ng).split(Xi, Yi, gb):
+                pw[b] = Ridge(alpha=alpha).fit(Pi[a], Xi[a]).predict(Pi[b])
+            within[lab] = _ev(Xi, pw)
+    res = {"labels": kept, "source": source, "align": align, "n_trials": int(len(YE)),
+           "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(common),
+           "per_session_ev": per_sess, "ceiling": ceil, "feve": feve, "within_session_ev": within,
+           "mean_ev": float(np.mean(list(per_sess.values()))),
+           "mean_feve": float(np.nanmean(list(feve.values()))),
+           "mean_within_ev": float(np.mean(list(within.values()))) if within else float("nan")}
+    res["transfer_cost_ev"] = res["mean_ev"] - res["mean_within_ev"]
+    if verbose:
+        print(f"\n  pooled: {len(YE)} trials, {XE.shape[1]} ROI features, {len(kept)} sessions")
+        print(f"  {'session':12s} {'EV(frozen)':>11s} {'ceiling':>8s} {'FEVE':>7s} {'EV(within)':>11s}")
+        for lab in kept:
+            print(f"    {lab:12s} {per_sess[lab]:>11.4f} {ceil[lab]:>8.4f} {feve[lab]:>7.3f} "
+                  f"{within.get(lab, float('nan')):>11.4f}")
+        print(f"  mean EV frozen {res['mean_ev']:+.4f}   within-day {res['mean_within_ev']:+.4f}   "
+              f"transfer cost {res['transfer_cost_ev']:+.4f}   mean FEVE {res['mean_feve']:.3f}")
+    return res
+
+
+def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True):
+    """Leave-one-SESSION-out frozen decoder over an animal's pooled sessions (ROI features).
+
+    LocaNMF components are session-specific (different count AND identity per session), so they
+    cannot be pooled. Allen-ROI features are atlas-anchored -- column j is the same area in every
+    session -- which makes a single across-day model well posed. This is the pre-stroke dress
+    rehearsal for train-pre / apply-post.
+
+    Per session the features are z-scored using that session's own ENGAGED trials (removing
+    session-level offsets in F0/SNR that would otherwise dominate pooling); the same transform is
+    applied to that session's no-lick trials so both stay on one scale. Groups = SESSION, so the
+    held-out fold is an entire unseen day.
+
+    Reported alongside:
+      * ``within_session``  -- per-session block-CV (GroupKFold by position block), the honest
+        same-day ceiling. LOSO minus this is the true cost of freezing across days.
+      * ``ood`` -- the out-of-distribution control (see :func:`ood_control`).
+    """
+    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore)
+    if pooled is None:
+        return None
+    XE, YE, GE, BE, XU, YU, kept, common = pooled
 
     pred = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=GE)
     loso = float(accuracy_score(YE, pred))
@@ -287,6 +386,58 @@ def write_session_confusions(results, out):
             fig.savefig(p, dpi=130); plt.close(fig)
             written.append(p)
     return written
+
+
+def _encoder_fig(results, out):
+    """Frozen ENCODER: per-day EV vs same-day ceiling, ceiling-normalised FEVE, and transfer cost."""
+    animals = list(results)
+    fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
+    off = 0; ticks, tlabs = [], []
+    for an in animals:
+        r = results[an]
+        start = off
+        for lab in r["labels"]:
+            w = r["within_session_ev"].get(lab, np.nan)
+            ax[0].plot([off - 0.16, off + 0.16], [w, r["per_session_ev"][lab]], "-", color="0.75", lw=1)
+            ax[0].scatter(off - 0.16, w, s=34, color="tab:blue", zorder=3)
+            ax[0].scatter(off + 0.16, r["per_session_ev"][lab], s=34, color="tab:orange", zorder=3)
+            ax[0].scatter(off, r["ceiling"][lab], s=26, marker="_", color="k", zorder=4)
+            ticks.append(off); tlabs.append(f"{lab[-4:-2]}/{lab[-2:]}"); off += 1
+        ax[0].annotate(an, xy=((start + off - 1) / 2, 1.02), xycoords=("data", "axes fraction"),
+                       ha="center", fontsize=10, fontweight="bold")
+        if an != animals[-1]:
+            ax[0].axvline(off + 0.3, color="0.85", lw=1)
+        off += 1.2
+    ax[0].axhline(0, color="k", lw=1)
+    ax[0].scatter([], [], s=34, color="tab:blue", label="within-day encoder (block CV)")
+    ax[0].scatter([], [], s=34, color="tab:orange", label="FROZEN (unseen day)")
+    ax[0].scatter([], [], s=26, marker="_", color="k", label="that day's noise ceiling")
+    ax[0].set_xticks(ticks); ax[0].set_xticklabels(tlabs, fontsize=7, rotation=90)
+    ax[0].set_ylabel("explained variance"); ax[0].legend(fontsize=7, loc="upper right")
+    ax[0].set_xlim(-1, off - 0.8)
+    ax[0].set_title("Frozen ROI encoder: held-out DAY vs same-day encoder", fontsize=10.5, pad=22)
+    x = np.arange(len(animals)); w = 0.38
+    ax[1].bar(x - w / 2, [results[a]["mean_ev"] for a in animals], w, label="frozen (unseen day)",
+              color="tab:orange")
+    ax[1].bar(x + w / 2, [results[a]["mean_within_ev"] for a in animals], w, label="within-day",
+              color="tab:blue")
+    ax[1].axhline(0, color="k", lw=1)
+    ax[1].set_xticks(x); ax[1].set_xticklabels(animals); ax[1].set_ylabel("mean explained variance")
+    ax[1].legend(fontsize=8); ax[1].set_title("Encoder EV: does position->activity transfer?", fontsize=10.5)
+    ax[2].bar(x, [results[a]["mean_feve"] for a in animals], color="tab:green")
+    ax[2].axhline(1.0, color="k", ls="--", lw=1)
+    ax[2].text(0.02, 1.01, "= all explainable variance captured", fontsize=8,
+               transform=ax[2].get_yaxis_transform())
+    ax[2].set_xticks(x); ax[2].set_xticklabels(animals)
+    ax[2].set_ylabel("FEVE  (EV / that day's ceiling)")
+    ax[2].set_title("Ceiling-normalised: comparable across days & animals", fontsize=10.5)
+    for xi, a in zip(x, animals):
+        ax[2].text(xi, results[a]["mean_feve"], f"{results[a]['mean_feve']:.2f}",
+                   ha="center", va="bottom", fontsize=9)
+    fig.tight_layout()
+    p = out / "locanmf_frozen_encoder_loso_roi.png"
+    fig.savefig(p, dpi=140); plt.close(fig)
+    return p
 
 
 def _loso_fig(results, out):
@@ -440,6 +591,21 @@ def main() -> int:
             n = len(write_session_confusions(results, args.output))
             print(f"\nwrote {n} per-held-out-day confusion figure(s)", flush=True)
             print("wrote", _loso_fig(results, args.output), flush=True)
+        # frozen ENCODER over the same pooled sessions (position -> activity, applied to an unseen day)
+        enc = {}
+        for an in animals:
+            labs = [s["label"] for s in SESSIONS
+                    if s["label"].startswith(an) and s["label"][-4:] in dates]
+            if len(labs) < 2:
+                continue
+            print(f"\n=== {an}: frozen ENCODER ===", flush=True)
+            r = pooled_frozen_encoder(labs, source="roi", align=args.align)
+            if r:
+                enc[an] = r
+        if enc:
+            (args.output / f"locanmf_frozen_encoder_loso_roi_{args.align}.json").write_text(
+                json.dumps(enc, indent=2, default=float))
+            print("wrote", _encoder_fig(enc, args.output), flush=True)
     if not (args.save or args.transfer or args.loso):
         ap.print_help()
     return 0

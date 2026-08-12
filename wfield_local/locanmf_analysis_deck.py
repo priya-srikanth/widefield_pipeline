@@ -68,6 +68,20 @@ M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --los
             "features are stable across days. Caveat for interpretation: a softmax decoder never abstains, "
             "so confidence alone is NOT evidence of preserved coding - see the OOD control (shuffled-label "
             "entropy floor + no-lick trials, which decode at chance yet stay confident). " + M_COMMON)
+M_FROZEN_ENC = ("FROZEN cross-day ENCODER (wfield_local.locanmf_frozen_decoder --loso). Ridge (alpha=1) "
+                "from a one-hot position design to Allen-ROI activity, fit on that animal's OTHER curated "
+                "days and evaluated on the held-out day (leave-one-SESSION-out) -- the forward-model half "
+                "of the post-stroke confirmatory arm, since a frozen encoder's RESIDUAL on post-stroke "
+                "trials is the representational-change readout. Same pooling as the frozen decoder: "
+                "Allen-ROI features (atlas-anchored, so column j is the same area every day; LocaNMF "
+                "components cannot be pooled), z-scored per session using that session's own engaged "
+                "trials, CV grouped by SESSION. Each day is shown against its OWN noise ceiling "
+                "(between-position SS / total SS) because that is the most any position-only model could "
+                "achieve there -- a low EV on a low-ceiling day is a property of the day, not a failure; "
+                "FEVE = EV / ceiling is the comparable number. NB the frozen encoder's transfer cost is "
+                "NEGATIVE where the frozen DECODER's is positive: the decision boundary transfers across "
+                "days, but the exact activity magnitudes do not. Interpret post-stroke encoder residuals "
+                "against this pre-stroke cross-day cost, not against zero. " + M_COMMON)
 M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position "
             "design to each LocaNMF component's activity, GroupKFold by position block. Per-position "
             "explained variance = held-out R^2 on that position's trials (whole-cortex, summed over "
@@ -226,6 +240,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "control — a softmax decoder never abstains, so confidence alone is not evidence.")
         note(s, M_FROZEN)
         big(s, src / "locanmf_frozen_decoder_loso_roi.png", top=1.9, width=12.7)
+        s = slide()
+        title(s, f"{a} — FROZEN cross-day ENCODER (Allen-ROI): position → activity on an unseen day",
+              "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised FEVE. "
+              "The forward model for post-stroke residuals — note its transfer cost is NEGATIVE where "
+              "the decoder's is positive.")
+        note(s, M_FROZEN_ENC)
+        big(s, src / "locanmf_frozen_encoder_loso_roi.png", top=1.9, width=12.7)
 
     # ---------------- B. per-animal encoder ----------------
     divider("B. Per-animal encoder — expected activity, predicted maps & explained variance",
