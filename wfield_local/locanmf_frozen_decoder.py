@@ -360,30 +360,36 @@ def write_session_confusions(results, out):
             recall = np.diag(cmn)
             acc = r["per_session"][lab]
             within = r["within_session"].get(lab, np.nan)
-            # Squarer than wide: these are shown 2-per-row in the deck (like the per-session
-            # decoders), so a short/wide figure would waste the cell height and render small.
-            fig, ax = plt.subplots(1, 2, figsize=(10.0, 4.6),
-                                   gridspec_kw={"width_ratios": [1.25, 1]})
+            # Shown 4-per-slide (2x2) in the deck, so each panel gets roughly half the slide width
+            # AND half its height. Match that ~1.6:1 cell aspect so the figure fills the cell instead
+            # of being letterboxed, and bump the font sizes since it renders at ~6.5 in wide there.
+            fig, ax = plt.subplots(1, 2, figsize=(10.0, 6.0),
+                                   gridspec_kw={"width_ratios": [1.18, 1]})
             im = ax[0].imshow(cmn, vmin=0, vmax=1, cmap="magma")
             for i in range(len(posn)):
                 for j in range(len(posn)):
-                    ax[0].text(j, i, f"{cmn[i, j]:.2f}", ha="center", va="center", fontsize=7,
+                    ax[0].text(j, i, f"{cmn[i, j]:.2f}", ha="center", va="center", fontsize=11,
                                color="w" if cmn[i, j] < 0.55 else "k")
-            ax[0].set_xticks(range(len(posn))); ax[0].set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
-            ax[0].set_yticks(range(len(posn))); ax[0].set_yticklabels(posn, fontsize=7)
-            ax[0].set_xlabel("predicted"); ax[0].set_ylabel("true")
-            ax[0].set_title("row-normalized confusion", fontsize=9)
-            fig.colorbar(im, ax=ax[0], shrink=0.8)
+            ax[0].set_xticks(range(len(posn)))
+            ax[0].set_xticklabels(posn, rotation=45, ha="right", fontsize=11)
+            ax[0].set_yticks(range(len(posn))); ax[0].set_yticklabels(posn, fontsize=11)
+            ax[0].set_xlabel("predicted", fontsize=12); ax[0].set_ylabel("true", fontsize=12)
+            ax[0].set_title("row-normalized confusion", fontsize=13)
+            cb = fig.colorbar(im, ax=ax[0], shrink=0.8); cb.ax.tick_params(labelsize=10)
             ax[1].bar(range(len(posn)), recall, color="tab:orange")
-            ax[1].axhline(1 / 6, color="grey", ls=":", lw=1)
-            ax[1].text(len(posn) - 0.5, 1 / 6, " chance", va="bottom", ha="right", fontsize=7, color="grey")
-            ax[1].set_xticks(range(len(posn))); ax[1].set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
-            ax[1].set_ylim(0, 1); ax[1].set_ylabel("recall")
-            ax[1].set_title("per-position recall", fontsize=9)
+            ax[1].axhline(1 / 6, color="grey", ls=":", lw=1.2)
+            ax[1].text(len(posn) - 0.5, 1 / 6, " chance", va="bottom", ha="right", fontsize=10, color="grey")
+            ax[1].set_xticks(range(len(posn)))
+            ax[1].set_xticklabels(posn, rotation=45, ha="right", fontsize=11)
+            ax[1].set_ylim(0, 1); ax[1].set_ylabel("recall", fontsize=12)
+            ax[1].tick_params(axis="y", labelsize=10)
+            ax[1].set_title("per-position recall", fontsize=13)
             fig.suptitle(f"{lab} — FROZEN ROI decoder (trained on this animal's OTHER days)\n"
                          f"held-out-day acc {acc:.3f}   |   same-day ceiling {within:.3f}   |   "
-                         f"n={int(n)} trials   |   chance 0.167", fontsize=10, y=0.99)
-            fig.tight_layout(rect=(0, 0, 1, 0.87))
+                         f"n={int(n)} trials   |   chance 0.167", fontsize=13, y=0.985)
+            # reserve room at the BOTTOM too: the rotated position labels plus the "predicted"
+            # xlabel need it, and a rect of (0,0,...) clips the xlabel entirely.
+            fig.tight_layout(rect=(0, 0.02, 1, 0.93))
             p = Path(out) / f"locanmf_frozen_session_{lab}_roi_{r['align']}.png"
             fig.savefig(p, dpi=130); plt.close(fig)
             written.append(p)

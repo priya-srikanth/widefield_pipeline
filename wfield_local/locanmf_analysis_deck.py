@@ -227,15 +227,22 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
         # Frozen cross-day decoder: same per-date confusion layout as the within-day slides above, but
         # each day is predicted by a model trained ONLY on this animal's other days (ROI features).
-        s = slide()
-        title(s, f"{a} — FROZEN cross-day decoder, held-out day (Allen-ROI features)",
-              "Per date: confusion + per-position recall from a decoder trained on this animal's OTHER "
-              "days only (leave-one-session-out). ROI features, not LocaNMF components — components are "
-              "session-specific and cannot be pooled across days.")
-        note(s, M_FROZEN)
-        # 2 per row (not 3) so each confusion matrix renders at a readable size, matching the
-        # per-session decoder slides. 8 curated dates -> 4 rows, which still fits one slide.
-        grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in date_labels], cols=2)
+        #
+        # PAGINATED 4-per-slide (2x2). Putting all 8 curated dates on one slide at cols=2 gives 4 rows,
+        # so each panel gets ~1/4 of the slide height and the 6x6 confusion cells become unreadable.
+        # 2x2 doubles the height per panel; the cost is one extra slide per animal.
+        pages = [date_labels[i:i + 4] for i in range(0, len(date_labels), 4)]
+        for pi, page in enumerate(pages):
+            s = slide()
+            span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
+            suffix = f"  ({span})" if len(pages) > 1 else ""
+            title(s, f"{a} — FROZEN cross-day decoder, held-out day (Allen-ROI features){suffix}",
+                  "Per date: confusion + per-position recall from a decoder trained on this animal's "
+                  "OTHER days only (leave-one-session-out). ROI features, not LocaNMF components — "
+                  "components are session-specific and cannot be pooled across days.")
+            note(s, M_FROZEN)
+            grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in page],
+                 cols=2, top=1.35)
         s = slide()
         title(s, f"{a} — FROZEN decoder: transfer cost & out-of-distribution control",
               "Held-out day vs same-day ceiling per session; the cost of freezing across days; and the OOD "
