@@ -35,7 +35,12 @@ from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local import session_cache
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
-FS = 31.23
+FS = 31.23
+
+# Noise-whitening for the crossnobis RDM. 'ledoit' = Ledoit-Wolf shrunk inverse COVARIANCE (discounts
+# noise shared between features); 'diag' = the old per-feature variance only. Measured 2026-08-12:
+# mean sibling RSA ROI +0.258 -> +0.817, LocaNMF +0.528 -> +0.767. See _crossnobis_rdm.
+CROSSNOBIS_WHITEN = "ledoit"
 POSN = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
 
 
@@ -75,12 +80,39 @@ def _rdm_and_reliability_compute(s):
     return full, rel
 
 
-def _crossnobis_rdm(X, y, g):
-    """Cross-validated (crossnobis) RDM: noise-UNBIASED dissimilarities. Diagonal noise-whitening, then
-    for every ordered pair of block-folds (a,b): D[p,q] += <(mu_p^a - mu_q^a), (mu_p^b - mu_q^b)>_prec.
+def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN):
+    """Cross-validated (crossnobis) RDM: noise-UNBIASED dissimilarities. Noise-whiten, then for every
+    ordered pair of block-folds (a,b): D[p,q] += <(mu_p^a - mu_q^a), (mu_p^b - mu_q^b)>_prec.
     Independent-fold noise cross-multiplies to ~0 -> identical positions give ~0 (can go negative), unlike
-    the positively-biased 1-corr RDM. 6x6, symmetric, diag 0."""
+    the positively-biased 1-corr RDM. 6x6, symmetric, diag 0.
+
+    ``whiten='ledoit'`` (DEFAULT since 2026-08-12) uses the Ledoit-Wolf shrunk INVERSE COVARIANCE, so
+    noise shared BETWEEN features is discounted instead of counted once per feature. ``'diag'`` is the
+    old per-feature-variance behaviour, kept for comparison.
+
+    Why this matters, measured on all four animals (mean sibling RSA, lick-aligned):
+
+        basis      diag     Ledoit-Wolf
+        Allen-ROI  +0.258 -> +0.817      (+0.560)
+        LocaNMF    +0.528 -> +0.767      (+0.239)
+
+    Diagonal whitening treats features as independent. Allen ROIs are regional averages of a spatially
+    smooth signal and are heavily inter-correlated, so 66 ROI features carry far fewer than 66
+    independent dimensions and the cross-fold inner product had high variance -- which is why ROI
+    scored WORST under 'diag' despite being fine on the (positively biased, and therefore stabilized)
+    1-Pearson metric. It was an estimator artifact, not a property of ROIs. Both bases improve; ROI
+    goes from worst to best. The fitted shrinkage is small (lambda ~0.01-0.03), i.e. it is the full
+    covariance doing the work, with shrinkage only guarding conditioning."""
     pos = np.array(DISPLAY_ORDER); P = len(pos)
+    resid = [X[y == p] - X[y == p].mean(0) for p in pos if (y == p).sum() >= 2]
+    resid = np.concatenate(resid, 0) if resid else np.zeros((0, X.shape[1]))
+    prec_m = None
+    if whiten == "ledoit" and len(resid) >= 3:
+        try:
+            from sklearn.covariance import LedoitWolf
+            prec_m = LedoitWolf(assume_centered=True).fit(resid).precision_
+        except Exception:                       # noqa: BLE001 - fall back rather than lose the figure
+            prec_m = None
     num = np.zeros(X.shape[1]); den = 0
     for p in pos:
         m = y == p
@@ -103,7 +135,8 @@ def _crossnobis_rdm(X, y, g):
                     a, b, c, d = mean[(fa, ip)], mean[(fa, iq)], mean[(fb, ip)], mean[(fb, iq)]
                     if a is None or b is None or c is None or d is None:
                         continue
-                    v = float(np.sum((a - b) * prec * (c - d)))
+                    v = (float((a - b) @ prec_m @ (c - d)) if prec_m is not None
+                         else float(np.sum((a - b) * prec * (c - d))))
                     D[ip, iq] += v; D[iq, ip] += v; C[ip, iq] += 1; C[iq, ip] += 1
     out = np.full((P, P), np.nan); nz = C > 0; out[nz] = D[nz] / C[nz]; np.fill_diagonal(out, 0.0)
     return out
@@ -445,7 +478,7 @@ def fig_rsa_crossnobis(out, dates=None, tag=""):
         for j in range(len(animals)):
             ax.text(j, i, f"{A[i,j]:.2f}", ha="center", va="center", fontsize=8, color="white" if A[i, j] < 0.6 else "black")
     ax.set_title("animal x animal crossnobis-RDM similarity", fontsize=10)
-    fig.suptitle(f"Crossnobis (noise-unbiased) RDM RSA [{tag or 'all'}] (n={n}) — vs 1-corr RDM, tests if drift is real", fontsize=12)
+    fig.suptitle(f"Crossnobis (noise-unbiased) RDM RSA [{tag or 'all'}] (n={n}) â€” vs 1-corr RDM, tests if drift is real", fontsize=12)
     fig.tight_layout(); p = out / f"locanmf_rsa_crossnobis{('_' + tag) if tag else ''}.png"; fig.savefig(p, dpi=130); plt.close(fig)
     for a in animals:
         frac = wa[a] / nc[a] if nc[a] else np.nan

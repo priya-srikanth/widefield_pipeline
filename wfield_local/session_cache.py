@@ -23,7 +23,11 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 2  # bump when any cached function's computation changes
+CACHE_VERSION = 3  # bump when any cached function's computation changes
+# v3 (2026-08-12): _crossnobis_rdm now noise-whitens with the Ledoit-Wolf shrunk INVERSE COVARIANCE
+# instead of per-feature variance alone. Every cached "crossnobis" entry was computed with the old
+# diagonal whitening and is not comparable (mean sibling RSA: ROI +0.258 -> +0.817, LocaNMF +0.528 ->
+# +0.767). No input mtime changed, so the key cannot see it -> forced invalidation.
 # v2 (2026-08-11): behavior_position.BEH_ROOT was a hardcoded "M:/MICROSCOPE/..." (the analysis box's
 # mount), so on any other machine the dead-spout_bit1 repair silently did not fire and the 8/5-8/6
 # sessions kept 4-of-6 position labels (~1/3 of cues mislabelled). Now resolved via PathResolver.
