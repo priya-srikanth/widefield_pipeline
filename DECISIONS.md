@@ -472,6 +472,51 @@ across days that the extra data more than pays for the day gap. So post-stroke d
 lesion effect. (LocaNMF components cannot do this — session-specific count AND identity; ROI features are
 atlas-anchored, so column j is the same area every day. This is the "Allen-ROI features" branch above.)
 
+## Cross-session RDM basis: what we tested and what we rejected (2026-08-12)
+The per-session LocaNMF RDM is **not comparable across sessions** (see "RSA basis" below). Four
+shared-basis candidates were measured on all four animals, 8 curated sessions each, lick-aligned,
+scoring mean 2nd-order RSA of each session to its siblings in BOTH metrics:
+
+| basis | 1−Pearson | **crossnobis** | worst animal (crossnobis) |
+|---|---|---|---|
+| per-session LocaNMF (status quo) | +0.503 | +0.528 | +0.410 |
+| Allen-ROI | +0.571 | **+0.258** (worst) | +0.206 |
+| frozen fixed-A, ref 6/6 | +0.572 | **+0.586** (best) | +0.453 |
+| frozen fixed-A, ref 8/6 | +0.677 | +0.559 | +0.384 |
+| frozen fixed-A, ref 8/9 | **+0.729** (best) | +0.552 | +0.477 |
+| joint concatenated, rank 100 | +0.604 | +0.441 | +0.287 |
+| joint concatenated, rank 200 | +0.606 | +0.506 | +0.405 |
+
+**REJECTED — frozen fixed-A / refit-C, despite the best mean scores.** Its result depends on which
+session you nominate as the reference, and **no reference wins for every animal**: best is 8/9 for
+PS92/PS93, 8/6 for PS94, but 6/6 for PS95 (+0.845 there vs +0.436 for PS92). The swing within one
+animal reaches **0.36** — larger than the gap between most methods — and the two metrics disagree
+about which reference is best overall (8/9 on Pearson, 6/6 on crossnobis). Choosing per animal would
+be tuning a free parameter on the outcome. Kept in code (`project_C_fixed_A`) for the post-stroke
+fixed-basis path, but **not used for RSA and not in the deck**.
+
+**ADOPTED — joint concatenated basis** (`wfield_local/joint_basis.py`): reference-free, so it has no
+such knob. Mid-pack on score; the trade is a modest crossnobis cost for the removal of a researcher
+degree of freedom.
+
+**CAUTION — Allen-ROI is worst on crossnobis (+0.258) while looking fine on 1−Pearson (+0.571).**
+This is an ESTIMATOR-VARIANCE effect, not evidence that ROIs describe cortex worse. `_crossnobis_rdm`
+whitens with per-feature variance only (`prec = 1/var`, DIAGONAL); Allen ROIs are regional averages of
+a spatially smooth signal and are therefore heavily inter-correlated, so 66 ROI features carry far
+fewer than 66 independent dimensions and the cross-fold inner product has high variance. LocaNMF
+components are sparse and localized (`loc_thresh=80`) and far less redundant. The 1−Pearson metric
+hides this because its positive bias is *stabilizing*. **A shrinkage / full-covariance whitening would
+likely rescue ROI and is untested** — do not write ROI off on this number alone.
+
+## Pre-cue and post-cue geometry are largely the SAME (2026-08-12)
+Per session, the 6×6 RDM built from the 2 s window ENDING at the cue vs the 2 s after it, then
+correlated: **LocaNMF +0.694 (sd 0.233); crossnobis +0.572**. (Allen-ROI lower, +0.500 / +0.218,
+consistent with the redundancy caveat above.) So the positional geometry is largely established
+BEFORE movement rather than built by it — consistent with the pre-cue decode being above chance.
+NB the "% of reliability ceiling" column in that analysis is INVALID as computed (split-half
+reliability uses half the data and was not Spearman-Brown corrected, and several sessions have
+near-zero or negative pre-cue reliability, giving impossible >100% values). Use the raw agreement.
+
 ## ROI vs LocaNMF features: LocaNMF wins per-session, POOLING erases the gap
 Head-to-head on the same 10 sessions, same alignment (cue 2 s), same block CV, same `C=0.5`:
 

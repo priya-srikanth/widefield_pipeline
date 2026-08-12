@@ -52,7 +52,8 @@ def _whiten_factor(V):
     return (Q * np.sqrt(w)) @ Q.T
 
 
-def build_joint_basis(mcs, rank=None, labels=None, normalize=True, verbose=True):
+def build_joint_basis(mcs, rank=None, labels=None, normalize=True, weight_by_length=True,
+                      verbose=True):
     """Shared basis over several sessions.
 
     ``mcs`` = motion_corrected dirs (one per session). Returns
@@ -82,7 +83,15 @@ def build_joint_basis(mcs, rank=None, labels=None, normalize=True, verbose=True)
     for u, v in zip(Us, Vs):
         blk = u @ _whiten_factor(v).astype(np.float32)
         if normalize:
+            # Unit Frobenius norm removes the session's AMPLITUDE (dF/F scale), then sqrt(T) puts its
+            # DURATION back. These are two different things and the unnormalized form conflated them:
+            # a block's natural norm is amplitude x length, so a merely LOUD session dominated as much
+            # as a long one. Weighting by sqrt(T) is the statistically motivated part (a session with
+            # more frames is a better-determined estimate and should count for more); weighting by
+            # amplitude is not (it is gain, not evidence).
             blk = blk / max(float(np.linalg.norm(blk)), 1e-12)
+            if weight_by_length:
+                blk = blk * np.sqrt(v.shape[1])
         blocks.append(blk)
     B = np.concatenate(blocks, axis=1)
     if verbose:
