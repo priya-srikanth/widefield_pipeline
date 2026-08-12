@@ -189,27 +189,34 @@ def main():
                 pooled_frozen_loso,
                 write_session_confusions,
             )
-            dec, enc = {}, {}
-            for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
-                if only and a not in set(only):
-                    continue
-                labs = [s["label"] for s in SESSIONS
-                        if s["label"].startswith(a) and s["label"][-4:] in set(from_list)]
-                if len(labs) < 2:
-                    continue
-                r = pooled_frozen_loso(labs, source="roi", align="cue", verbose=False)
-                if r:
-                    dec[a] = r
-                e = pooled_frozen_encoder(labs, source="roi", align="cue", verbose=False)
-                if e:
-                    enc[a] = e
-            if dec:
-                n = len(write_session_confusions(dec, Path(out)))
-                _loso_fig(dec, Path(out))
-                log(f"frozen decoder: {len(dec)} animal(s), {n} per-held-out-day confusion figure(s)")
-            if enc:
-                _encoder_fig(enc, Path(out))
-                log(f"frozen encoder: {len(enc)} animal(s)")
+            # BOTH alignments. post-cue is the readout during/after the movement; PRE-CUE is the
+            # maintained, motor-independent code (the 2 s window ENDING at the cue), which is the
+            # one the stroke arm actually leans on -- so whether IT survives being frozen across
+            # days matters more than whether the post-cue one does.
+            for al in ("cue", "precue"):
+                dec, enc = {}, {}
+                for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+                    if only and a not in set(only):
+                        continue
+                    labs = [s["label"] for s in SESSIONS
+                            if s["label"].startswith(a) and s["label"][-4:] in set(from_list)]
+                    if len(labs) < 2:
+                        continue
+                    r = pooled_frozen_loso(labs, source="roi", align=al, verbose=False)
+                    if r:
+                        dec[a] = r
+                    e = pooled_frozen_encoder(labs, source="roi", align=al, verbose=False)
+                    if e:
+                        enc[a] = e
+                if dec:
+                    n = len(write_session_confusions(dec, Path(out)))
+                    _loso_fig(dec, Path(out), al)
+                    log(f"frozen decoder [{al}]: {len(dec)} animal(s), {n} confusion figure(s)  "
+                        + "  ".join(f"{k}={v['loso_accuracy']:.3f}" for k, v in sorted(dec.items())))
+                if enc:
+                    _encoder_fig(enc, Path(out), al)
+                    log(f"frozen encoder [{al}]: {len(enc)} animal(s)  "
+                        + "  ".join(f"{k}={v['mean_ev']:+.3f}" for k, v in sorted(enc.items())))
         except Exception as ex:
             log(f"  !! frozen decoder/encoder: {type(ex).__name__} {str(ex)[:80]}")
 

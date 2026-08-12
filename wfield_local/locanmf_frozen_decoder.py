@@ -396,7 +396,7 @@ def write_session_confusions(results, out):
     return written
 
 
-def _encoder_fig(results, out):
+def _encoder_fig(results, out, align="cue"):
     """Frozen ENCODER: per-day EV vs same-day ceiling, ceiling-normalised FEVE, and transfer cost."""
     animals = list(results)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
@@ -443,12 +443,15 @@ def _encoder_fig(results, out):
         ax[2].text(xi, results[a]["mean_feve"], f"{results[a]['mean_feve']:.2f}",
                    ha="center", va="bottom", fontsize=9)
     fig.tight_layout()
-    p = out / "locanmf_frozen_encoder_loso_roi.png"
+    # align MUST be in the filename: the JSONs were already tagged but the PNGs were not, so a
+    # precue run silently overwrote the cue figures (and the deck then showed precue under a
+    # cue-labelled slide).
+    p = out / f"locanmf_frozen_encoder_loso_roi_{align}.png"
     fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
 
-def _loso_fig(results, out):
+def _loso_fig(results, out, align="cue"):
     """Three panels: per-session LOSO vs within-day ceiling, the transfer cost, and the OOD control."""
     animals = list(results)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
@@ -503,7 +506,7 @@ def _loso_fig(results, out):
     ax[2].set_title("OOD control: the decoder never abstains\n"
                     "no-lick decodes at CHANCE yet stays confident", fontsize=10.5)
     fig.tight_layout()
-    p = out / "locanmf_frozen_decoder_loso_roi.png"
+    p = out / f"locanmf_frozen_decoder_loso_roi_{align}.png"
     fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -601,7 +604,7 @@ def main() -> int:
                 json.dumps(results, indent=2, default=float))
             n = len(write_session_confusions(results, args.output))
             print(f"\nwrote {n} per-held-out-day confusion figure(s)", flush=True)
-            print("wrote", _loso_fig(results, args.output), flush=True)
+            print("wrote", _loso_fig(results, args.output, args.align), flush=True)
         # frozen ENCODER over the same pooled sessions (position -> activity, applied to an unseen day)
         enc = {}
         for an in animals:
@@ -616,7 +619,7 @@ def main() -> int:
         if enc:
             (args.output / f"locanmf_frozen_encoder_loso_roi_{args.align}.json").write_text(
                 json.dumps(enc, indent=2, default=float))
-            print("wrote", _encoder_fig(enc, args.output), flush=True)
+            print("wrote", _encoder_fig(enc, args.output, args.align), flush=True)
     if not (args.save or args.transfer or args.loso):
         ap.print_help()
     return 0

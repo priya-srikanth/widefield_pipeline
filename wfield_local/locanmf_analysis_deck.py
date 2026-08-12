@@ -232,30 +232,38 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # so each panel gets ~1/4 of the slide height and the 6x6 confusion cells become unreadable.
         # 2x2 doubles the height per panel; the cost is one extra slide per animal.
         pages = [date_labels[i:i + 4] for i in range(0, len(date_labels), 4)]
-        for pi, page in enumerate(pages):
+        # BOTH alignments: post-cue (readout during/after the movement) and PRE-CUE (the maintained,
+        # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether
+        # IT survives freezing across days is the more consequential question.
+        for al, al_name, al_desc in (
+                ("cue", "post-cue 2 s", "the readout during/after the movement"),
+                ("precue", "PRE-CUE 2 s", "the maintained, motor-independent code — the window "
+                                          "ENDING at the cue, before any movement")):
+            for page in pages:
+                s = slide()
+                span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
+                suffix = f"  ({span})" if len(pages) > 1 else ""
+                title(s, f"{a} — FROZEN cross-day decoder, {al_name}, held-out day (Allen-ROI){suffix}",
+                      f"Per date: confusion + per-position recall from a decoder trained on this "
+                      f"animal's OTHER days only (leave-one-session-out). {al_desc}. ROI features, not "
+                      f"LocaNMF components — components are session-specific and cannot be pooled.")
+                note(s, M_FROZEN)
+                grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_{al}.png" for d, _ in page],
+                     cols=2, top=1.35)
             s = slide()
-            span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
-            suffix = f"  ({span})" if len(pages) > 1 else ""
-            title(s, f"{a} — FROZEN cross-day decoder, held-out day (Allen-ROI features){suffix}",
-                  "Per date: confusion + per-position recall from a decoder trained on this animal's "
-                  "OTHER days only (leave-one-session-out). ROI features, not LocaNMF components — "
-                  "components are session-specific and cannot be pooled across days.")
+            title(s, f"{a} — FROZEN decoder ({al_name}): transfer cost & out-of-distribution control",
+                  "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
+                  "the OOD control — a softmax decoder never abstains, so confidence alone is not "
+                  "evidence.")
             note(s, M_FROZEN)
-            grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_cue.png" for d, _ in page],
-                 cols=2, top=1.35)
-        s = slide()
-        title(s, f"{a} — FROZEN decoder: transfer cost & out-of-distribution control",
-              "Held-out day vs same-day ceiling per session; the cost of freezing across days; and the OOD "
-              "control — a softmax decoder never abstains, so confidence alone is not evidence.")
-        note(s, M_FROZEN)
-        big(s, src / "locanmf_frozen_decoder_loso_roi.png", top=1.9, width=12.7)
-        s = slide()
-        title(s, f"{a} — FROZEN cross-day ENCODER (Allen-ROI): position → activity on an unseen day",
-              "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised FEVE. "
-              "The forward model for post-stroke residuals — note its transfer cost is NEGATIVE where "
-              "the decoder's is positive.")
-        note(s, M_FROZEN_ENC)
-        big(s, src / "locanmf_frozen_encoder_loso_roi.png", top=1.9, width=12.7)
+            big(s, src / f"locanmf_frozen_decoder_loso_roi_{al}.png", top=1.9, width=12.7)
+            s = slide()
+            title(s, f"{a} — FROZEN cross-day ENCODER ({al_name}, Allen-ROI): position → activity",
+                  "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
+                  "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
+                  "NEGATIVE where the decoder's is positive.")
+            note(s, M_FROZEN_ENC)
+            big(s, src / f"locanmf_frozen_encoder_loso_roi_{al}.png", top=1.9, width=12.7)
 
     # ---------------- B. per-animal encoder ----------------
     divider("B. Per-animal encoder — expected activity, predicted maps & explained variance",
