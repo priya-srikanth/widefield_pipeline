@@ -617,6 +617,49 @@ immediately adjacent to the event and decays away — the same profile. The swee
 tuned the analysis toward the artifact. Sub-binning the window (2/4/8 bins) never beat the plain mean
 (−0.014 to −0.034, better in only 5–6/16), so a time-series decoder is not the answer either.
 
+**PROVENANCE — this comes from the upstream method, not from our code (checked 2026-08-13).**
+Priya asked whether the Churchland lab (whose pipeline this descends from) does the same. They do.
+`churchlandlab/WidefieldImager/Analysis/SvdHemoCorrect.m` builds `[b,a] = butter(2, 0.2/sRate,'high')`
+— MATLAB normalises Wn to Nyquist, so `0.2/sRate` is **exactly 0.1 Hz at any frame rate** — then
+overwrites BOTH channels IN PLACE with the zero-phase result:
+
+    blueV(~isnan(blueV(:,1)),:) = single(filtfilt(b,a,double(blueV(~isnan(blueV(:,1)),:))));
+    hemoV(~isnan(hemoV(:,1)),:) = single(filtfilt(b,a,double(hemoV(~isnan(hemoV(:,1)),:))));
+    ...
+    Vout = blueV - hemoV*T';
+
+No unfiltered copy of `blueV` is kept, so the FILTERED blue channel is what becomes the corrected
+output. `jcouto/wfield` (`wfield/utils.py`, still current on master) is a faithful Python port —
+`butter(2, w/(fs/2.), btype='highpass')` + `filtfilt(..., padlen=50)`, default `freq_highpass=0.1`.
+Musall et al. 2019's methods state it outright: "SVT was high-pass filtered above 0.1Hz using a
+zero-phase, second-order Butterworth filter." So this is the field-standard widefield pipeline, and we
+inherited it unchanged. (NB an automated read of the MATLAB initially reported that the output used the
+UNFILTERED blueV; verbatim inspection showed the in-place overwrite. Do not trust a summary on a point
+this load-bearing.)
+
+**The artifact class is published, just not flagged in widefield pipelines.** van Driel, Olivers &
+Fahrenfort (2021, *J Neurosci Methods* 371:109080; bioRxiv 530220), "High-pass filtering artifacts in
+multivariate classification of neural time series data": high-pass filtering temporally DISPLACES
+information and produces spurious decoding in windows that should be empty, including the pre-stimulus
+window, at cutoffs as low as **0.05 Hz** — and they report the spurious decoding as NEGATIVE, matching
+the sign-flipped shadow. Their recommended fix is trial-masked robust detrending (mask the evoked
+events out of each trial before estimating the drift), which is a better long-term answer than either
+`causal` or `fitonly`.
+
+**Why the Churchland analyses are less exposed than ours.** The artifact bites hardest when you
+(a) DECODE (b) a condition-specific label (c) from a window PRECEDING the condition-specific response —
+which is precisely our pre-cue analysis. Musall et al.'s headline analyses are encoding models (ridge
+from task + video-derived movement regressors to activity) and variance-explained comparisons; their
+model spans the pre-stimulus baseline but the central claim (uninstructed movements dominate) does not
+rest on above-chance pre-stimulus condition decoding. Caveat: that characterisation is from the methods
+section and abstract, not a full read of the paper.
+
+**This does NOT contradict the prior that motor plans are decodable before action** (Priya's point, and
+it is well founded). That literature is largely spiking data, which carries no such filter. Our own
+corrected numbers agree with the prior: PS94 still decodes position at 0.434 pre-cue (chance 0.167),
+PS93 0.268, PS95 0.247. The expectation was right; what was wrong was the effect SIZE, inflated ~2x by
+preprocessing.
+
 **PROPOSED FIX (not yet applied): `fitonly`.** Keep the high-pass for estimating `rcoeffs` — that is
 what it is for, keeping slow drift from biasing the 470-vs-415 regression — and apply the correction to
 UNFILTERED data, so no filter fingerprint reaches the analysed signal. `wfield`'s function does not
