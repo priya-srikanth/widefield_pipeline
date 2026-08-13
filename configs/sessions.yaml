@@ -72,6 +72,19 @@ sessions:
       h5: "20260811/PS92_20260811_102428.h5"
       regime: B
       fmdir: null
+    # 8/12 is a CONCATENATION of two acquisitions: the imaging computer crashed mid-session
+    # (PS92_20260812_151741, recording_complete=false) and a second was started
+    # (PS92_20260812_161728). The imaging box joined them with concat_split_session, keeping the
+    # 19742 clean frame-pairs of part 1 (of 29112 recorded) plus all 163594 of part 2 = 183336, and
+    # zero-padding the 40.7 min gap so the sample timeline stays wall-clock accurate. The concat
+    # folder deliberately carries NO camlog: part 1's is truncated by hundreds of frames, so the
+    # .dat + DAQ pco pulses are the authoritative frame record (see the concat manifest beside the
+    # .dat). Use the _concat h5, never either segment's own.
+    "0812":
+      mc: "20260812/PS92_20260812_concat/motion_corrected"
+      h5: "20260812/PS92_20260812_concat.h5"
+      regime: B
+      fmdir: null
   PS93:
     "0605":
       mc: "20260605/PS93_20260605_174659/motion_corrected"
@@ -122,6 +135,11 @@ sessions:
     "0811":
       mc: "20260811/PS93_20260811_132050/motion_corrected"
       h5: "20260811/PS93_20260811_132118.h5"
+      regime: B
+      fmdir: null
+    "0812":
+      mc: "20260812/PS93_20260812_181555/motion_corrected"
+      h5: "20260812/PS93_20260812_181632.h5"
       regime: B
       fmdir: null
   PS94:

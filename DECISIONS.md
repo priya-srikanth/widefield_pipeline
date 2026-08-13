@@ -590,11 +590,28 @@ finite for ANY component — because LocaNMF never fit the rest.
 
 **Coefficient agreement is NOT the acceptance test, and would have failed.** Against the in-fit
 components, per-component correlation is excellent at the median (0.996–0.999) but has a tail
-(10th percentile 0.36–0.61, min ≈ 0): footprints overlap heavily (Gram condition ≈ 6e7), so
-near-collinear components trade amplitude with almost no effect on the fit and their individual
-coefficients are under-determined. **Ridge does not fix this — measured, it makes the tail
-monotonically worse** (λ/mean-eig 1e-4 → 10th pct 0.24, 1e-2 → 0.03), because it shrinks weak
-components toward zero rather than stabilising them. λ=0 retained.
+(10th percentile 0.36–0.61, min ≈ 0). **Ridge does not fix this — measured, it makes the tail
+monotonically worse** (λ/mean-eig 1e-4 → 10th pct 0.24, 1e-2 → 0.03). λ=0 retained.
+
+**Diagnosed, not inferred (2026-08-12).** The tail is a LABELLING AMBIGUITY between overlapping
+components, not lost signal. LocaNMF puts several components in one Allen region and `loc_thresh=80`
+confines each to that region, so their footprints are near-parallel: median pairwise cosine overlap
+**0.977**, with 71–79% of components overlapping another by >0.5. Where `A₁ ≈ A₂`, the reconstruction
+depends on `c₁ + c₂` and the data cannot fix the split, so LocaNMF's regularised solution and a
+fixed-A least-squares refit land at different points on the same ridge. Three predictions were tested:
+
+| prediction | result |
+|---|---|
+| agreement falls as a component's max overlap rises | **confirmed**, Spearman ρ = −0.819 / −0.834; the 29 and 38 low-overlap components recover at median r = **1.0000** |
+| the GROUP SUM over overlapping components recovers where members do not | **confirmed**: 10th-pct r rises **+0.340 → +0.910** (PS92) and **+0.496 → +0.988** (PS95) |
+| the failures are the WEAK components | **refuted**, ρ = −0.02 / −0.32; the weaker half agrees slightly *better* |
+
+This is why the answers are unaffected. Splitting amplitude between collinear components is an
+invertible linear reparameterisation of the feature vector, and both downstream readouts are (near)
+invariant to one: Mahalanobis/crossnobis distance is exactly invariant under an invertible linear map,
+and regularised logistic regression nearly so. Hence RDM agreement +0.950–0.993 and decode within
+±0.02. The caveat that follows: **do not interpret an INDIVIDUAL projected component's amplitude** as
+that patch's activity — interpret the overlapping group, or use a low-overlap component.
 
 What settles it is that the components are only ever a FEATURE SET, so the test is whether the answers
 move. On in-fit sessions, features from `project()` vs LocaNMF's own C give **decode accuracy within
@@ -605,6 +622,38 @@ health check for applying a pre-stroke basis to post-stroke data (in-fit session
 **not** a guard against using the wrong animal's basis: a PS92 basis spans a PS95 session at 97%,
 because both are cortex on the same Allen grid. Only the label can catch that, so `project()` refuses a
 cross-animal session unless `allow_cross_animal=True`.
+
+## "Pre-cue" is AFTER the spout arrives — the maintained-code claim needs rewording (2026-08-13)
+**Measured: the spout reaches its position a median 3.0 s before the cue** (p10 2.3 s; 100% of trials
+lead by more than the 0.5 s analysis window). The pipeline's pre-cue window is the 2 s ENDING at the
+cue, so it lies ENTIRELY AFTER spout arrival. Above-chance decoding there therefore cannot, on its own,
+demonstrate a motor-independent MAINTAINED PLAN: it is equally consistent with an ongoing sensory or
+postural consequence of the spout already being in place. The claim as recorded ("pre-cue no-lick
+decode above chance = motor-independent maintained code") overstates what the window can support.
+
+Two candidate confounds were tested, with opposite outcomes:
+
+**VISION — REJECTED.** Removing every visual ROI costs nothing: 0.397→0.397, 0.371→0.400, 0.436→0.425,
+0.257→0.266 (PS92/PS95, spout-arrival aligned). VIS alone stays above chance, but that is redundancy,
+not sourcing — the same sufficiency/necessity trap `precue_attribution` exists to avoid. Note VIS
+carries 71 of 151 LocaNMF components and decodes at 0.590 alone, which looks damning and is not.
+
+**SOMATOSENSATION — OPEN, and the leading account.** `precue_attribution` (4 animals x 8 sessions, both
+bases) finds **SSp is the ONLY family whose removal costs anything** — ROI necessity +0.061..+0.106,
+LocaNMF +0.011..+0.056 — while MOp/MOs removal costs ~0 everywhere. That is what whisker/proprioceptive
+contact with the positioned spout would look like. BUT **MOs carries comparable encoding EV**
+(LocaNMF: PS93 +0.049 = SSp's, PS92 +0.032, PS95 +0.026) with zero necessity, i.e. premotor cortex
+REPRESENTS position without being required to decode it — which somatosensory contact does not
+explain. So the maintained-plan account is not refuted, merely unsupported by pre-cue accuracy alone.
+
+**A pre-spout-arrival test is NOT available from this design.** Restricting to first-in-block trials
+(position just changed) was tried; its negative control FAILED — decoding ran 0.29-0.49 BEFORE the
+spout moved, against 0.167 chance. Cause diagnosed: **the task avoids recent repeats.** When the last
+5 blocks were all distinct, the next block was the missing position 45-53% of the time (vs ~17%
+uniform), so lingering representation of recent positions carries real information about the upcoming
+one. That is task statistics plus history, not prediction. The analysis was discarded rather than
+interpreted. Any future "does the code precede the stimulus" test needs either randomisation with
+replacement or an explicit history regressor.
 
 ## Reliability ≠ information: the RSA ranking does not say ROI carries more (2026-08-12)
 Mean sibling RSA is a RELIABILITY measure and must not be read as "which basis carries more positional
