@@ -738,6 +738,53 @@ Per animal, pre-cue (chance 0.167):
 pipeline), i.e. it is better preprocessing rather than merely different, and it is simultaneously the
 one that most reduces pre-cue. That is the strongest form this comparison could take.
 
+**FOUR VARIANTS, ALL 36 CURATED SESSIONS — `strobedetrend` WINS.** (`--modes
+zerophase,fitonly,taskdetrend,strobedetrend`.) `strobedetrend` masks the WHOLE trial
+(strobe−0.25 s → cue+4 s) so the drift fit never sees the measured window:
+
+| variant | PRE-CUE | post-cue | corr(pre,post) | sign test | vs zerophase |
+|---|---|---|---|---|---|
+| `zerophase` (current) | 0.486 | 0.684 | −0.483 | neg in **30/36** | — |
+| `fitonly` | 0.273 | 0.686 | +0.672 | neg in 1/36 | −0.213, 35/36, p=1.5e-10 |
+| `taskdetrend` | 0.247 | 0.737 | +0.429 | neg in 4/36 | −0.239, 36/36, p=2.9e-11 |
+| **`strobedetrend`** | **0.306** | **0.731** | **+0.525** | **neg in 0/36** | −0.181, 35/36, p=4.1e-10 |
+
+Per animal (chance 0.167): PS92 0.231, PS93 0.269, PS94 **0.424**, PS95 0.299 — **all four above
+chance**. The earlier "PS92 is at chance" was a `taskdetrend` MASK artifact (0.151), not a property of
+the animal; `taskdetrend` left 1.5 s of the pre-cue window inside its drift fit and shaved real signal.
+Corrected, the cohort spread is 0.23–0.42 rather than the artifactual 0.47–0.52 uniformity.
+
+### What drift actually needs removing — MEASURED, not assumed (2026-08-13)
+Priya challenged the premise that the drift is slow ("is slow drift over hours really the kinetics we
+want?"). Two things settle it.
+
+**The hard constraint: position is BLOCKED at 57–121 s** (median 6 trials × 9.5–18.7 s inter-cue). Any
+temporal filter with a cutoff at or below the block timescale removes position SIGNAL along with drift
+— they are temporally inseparable by construction of the task. This, not "bleaching is smooth", is the
+real reason temporal drift removal must stay well slower than a block, and it is exactly what the
+hand-rolled 60 s windowed median violated.
+
+**The measurement.** Fraction of variance of the global brain-mean trace by timescale:
+
+| chan | >5 min | 5–2 min | 2–1 min (BLOCK) | 60–10 s | 10 s–0.1 Hz | >0.1 Hz |
+|---|---|---|---|---|---|---|
+| 415 (isosbestic = drift) | **27–64%** | 5–14% | **2.0–3.5%** | 6–10% | 11–22% | 8–23% |
+| 470 (functional) | 5–14% | 7–11% | 5–10% | 18–33% | 25–42% | 11–17% |
+
+415 carries no calcium, so it indexes drift: it is **dominated by >5 min** and has almost nothing at the
+block timescale. 470 is the opposite shape — most power at 60–10 s and faster, i.e. signal. So a low-order
+polynomial over the session is well matched to the real drift, and a filter reaching the block timescale
+would remove mostly signal. LIMITATIONS: the global mean only sees SPATIALLY UNIFORM drift (uneven
+bleaching or a focus shift with structure would not appear), and 415 is not pure drift — it carries
+blood volume too.
+
+**A cleaner axis, untested: `globalregress`.** Drift is largely GLOBAL; position information is
+spatially PATTERNED. Regressing out the global mean (or the first few global components) removes drift
+at EVERY timescale — including the block timescale no temporal filter can touch — while leaving
+position-differential structure, since a decoder reads across-position differences and the common mode
+cancels. Same logic as global signal regression in fMRI, and it makes no claim about drift KINETICS at
+all. Worth adding to the variant set and testing against `meegkit`.
+
 **HONEST CAVEAT AGAINST THE PREFERRED OPTION.** `taskdetrend` masks [cue−0.5 s, cue+4 s], so 1.5 s of
 the 2 s pre-cue window is still inside the drift fit. A 60 s median cannot track a trial-locked
 response, but it may shave a little genuine pre-cue signal, making 0.247 a slight UNDER-estimate.
