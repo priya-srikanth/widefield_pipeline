@@ -32,7 +32,6 @@ Anything in between is a mixture, and the causal number is then the honest size 
 from __future__ import annotations
 
 import glob
-import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -194,67 +193,190 @@ def decode(s, sig, regs, align):
     return float(accuracy_score(y, cross_val_predict(clf, X, y, cv=GroupKFold(ng), groups=g)))
 
 
-def main():
-    labs = sys.argv[1].split(",") if len(sys.argv) > 1 else ["PS95_0810"]
-    modes = sys.argv[2].split(",") if len(sys.argv) > 2 else ["zerophase", "causal", "fitonly"]
-    out = {}
-    for lab in labs:
-        s = next((x for x in SESSIONS if x["label"] == lab), None)
-        if s is None:
-            print(f"  !! {lab}: not registered", flush=True)
-            continue
-        res = f"{s['mc']}/wfield_local_results"
-        ad = glob.glob(f"{res}/allen_aligned_affine8v1")
-        if not ad:
-            print(f"  !! {lab}: no allen dir", flush=True)
-            continue
-        try:
-            svt = np.load(f"{res}/SVT.npy")
-            T = np.load(f"{res}/T.npy").astype(np.float64)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
-            continue
-        print(f"\n=== {lab}  SVT{svt.shape}  T{T.shape}", flush=True)
-        mask = None
-        if "quietdetrend" in modes or "taskdetrend" in modes:
-            from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
-            from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
-            from wfield_local.locanmf_crossanimal_dff import _frames as _fr
-            cue = _lc(s["h5"])
-            lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
-            _cf, _lf, csmp = _fr(s, cue, lk)
-            if csmp is None:
-                print("  !! regime A (no corrected-frame map) -> skipping quietdetrend", flush=True)
-                modes = [m for m in modes if m != "quietdetrend"]
-            else:
-                nfr = svt[:, FUNC::2].shape[1]
-                quiet_req = "quietdetrend" in modes
-                mask, diag = fit_mask(s, nfr, csmp, cue, pre_s=(1.0 if quiet_req else 0.5),
-                                      from_strobe=quiet_req, require_quiet=quiet_req)
-                print(f"  fit mask: {100*diag['frac_after_trial_mask']:.1f}% task-free -> "
-                      f"{100*diag['frac_final']:.1f}% also quiet"
-                      f"{'' if diag['quiet_available'] else '  (NO quiet events file -- task-mask only)'}",
-                      flush=True)
-        out[lab] = {}
-        for mode in modes:
-            sig, regs = roi_signal(ad[0], svtcorr(svt, T, mode, mask=mask))
-            pre = decode(s, sig, regs, "precue")
-            post = decode(s, sig, regs, "cue")
-            out[lab][mode] = (pre, post)
-            print(f"  {mode:12s}  PRE-CUE {pre:.3f}    post-cue {post:.3f}", flush=True)
-            del sig
+def patterns(s, sig):
+    """Position patterns + level vs a far-from-cue baseline, for the SIGN test.
 
-    if len(out) > 1:
-        print("\n=== mean over sessions (chance 0.167) ===")
-        for mode in modes:
-            pre = np.nanmean([out[l][mode][0] for l in out])
-            post = np.nanmean([out[l][mode][1] for l in out])
-            print(f"  {mode:10s}  PRE-CUE {pre:.3f}    post-cue {post:.3f}")
-        base = np.nanmean([out[l]["zerophase"][0] for l in out])
-        for mode in [m for m in modes if m != "zerophase"]:
-            v = np.nanmean([out[l][mode][0] for l in out])
-            print(f"  pre-cue {mode} - zerophase: {v - base:+.3f}")
+    The shadow prediction is sharper than "pre-cue decodes above chance": the pre-cue position pattern
+    should be the NEGATIVE of the post-cue one, and pre-cue activity should sit BELOW the surrounding
+    baseline. A maintained plan has no reason to be an inverted copy of the movement response.
+    """
+    from wfield_local.behavior_position import classify_cues_with_backup
+    from wfield_local.locanmf_crossanimal_dff import _frames as _fr
+    from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
+    from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
+
+    cue = _lc(s["h5"])
+    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue_f, _l, _c = _fr(s, cue, lk)
+    codes = classify_cues_with_backup(s, cue, verbose=False)
+    n, T = int(round(2.0 * FS)), sig.shape[1]
+    far = np.ones(T, bool)
+    w = int(round(5.0 * FS))
+    for c in cue_f.astype(int):
+        far[max(0, c - w):min(T, c + w)] = False
+    base = sig[:, far].mean(1) if far.any() else sig.mean(1)
+    pre, post, y = [], [], []
+    for k in range(cue_f.size):
+        if codes[k] < 0:
+            continue
+        c = int(cue_f[k])
+        if c - n < 0 or c + n > T:
+            continue
+        pre.append(sig[:, c - n:c].mean(1) - base)
+        post.append(sig[:, c:c + n].mean(1) - base)
+        y.append(int(codes[k]))
+    pre, post, y = np.asarray(pre), np.asarray(post), np.asarray(y)
+    if not len(y) or len(np.unique(y)) < len(DISPLAY_ORDER):
+        return float("nan"), float("nan")
+    P = np.stack([pre[y == p].mean(0) for p in DISPLAY_ORDER], 1)
+    Q = np.stack([post[y == p].mean(0) for p in DISPLAY_ORDER], 1)
+    P = P - P.mean(1, keepdims=True)
+    Q = Q - Q.mean(1, keepdims=True)
+    return float(np.corrcoef(P.ravel(), Q.ravel())[0, 1]), float(pre.mean())
+
+
+def analyse_session(lab, modes, win_s=DETREND_WIN_S):
+    """Every metric for one session, in ONE pass so SVT is loaded once."""
+    from wfield_local.locanmf_crossanimal_dff import _frames as _fr
+    from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
+    from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
+
+    s = next((x for x in SESSIONS if x["label"] == lab), None)
+    if s is None:
+        return None
+    res = s["mc"] + "/wfield_local_results"
+    ad = glob.glob(res + "/allen_aligned_affine8v1")
+    if not ad:
+        return None
+    try:
+        svt = np.load(res + "/SVT.npy")
+        T = np.load(res + "/T.npy").astype(np.float64)
+    except Exception as ex:                                          # noqa: BLE001
+        print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:60], flush=True)
+        return None
+
+    mask, diag = None, {}
+    if {"quietdetrend", "taskdetrend"} & set(modes):
+        cue = _lc(s["h5"])
+        lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        _cf, _lf, csmp = _fr(s, cue, lk)
+        if csmp is None:      # regime A has no corrected-frame map -> cannot build the mask
+            modes = [m for m in modes if m not in ("quietdetrend", "taskdetrend")]
+        else:
+            quiet_req = "quietdetrend" in modes
+            mask, diag = fit_mask(s, svt[:, FUNC::2].shape[1], csmp, cue,
+                                  pre_s=(1.0 if quiet_req else 0.5),
+                                  from_strobe=quiet_req, require_quiet=quiet_req)
+
+    out = {"label": lab, "mask_frac": diag.get("frac_final")}
+    for mode in modes:
+        sig, regs = roi_signal(ad[0], svtcorr(svt, T, mode, mask=mask, win_s=win_s))
+        r, lvl = patterns(s, sig)
+        out[mode] = {"precue": decode(s, sig, regs, "precue"),
+                     "postcue": decode(s, sig, regs, "cue"),
+                     "corr_pre_post": r, "pre_level": lvl}
+        del sig
+        d = out[mode]
+        print("  {:12s} {:12s} PRE {:.3f}  post {:.3f}  corr(pre,post) {:+.3f}".format(
+            lab, mode, d["precue"], d["postcue"], d["corr_pre_post"]), flush=True)
+    return out
+
+
+def _summary(rows, modes):
+    """Paired comparison against the zerophase baseline, with a Wilcoxon signed-rank test.
+
+    PAIRED because every mode saw the identical session, trials and folds -- the only thing that
+    differs is the drift removal, so the per-session difference is the estimate and the spread across
+    animals is not noise to be averaged away but the thing being tested.
+    """
+    from scipy.stats import wilcoxon
+    print("\n=== {} sessions (chance {:.3f}) ===".format(len(rows), 1 / 6))
+    print("{:13s} {:>9s} {:>9s} {:>8s}   vs zerophase (pre-cue)".format(
+        "mode", "PRE-CUE", "post-cue", "corr"))
+    base = np.array([r["zerophase"]["precue"] for r in rows], float) if "zerophase" in modes else None
+    for m in modes:
+        pre = np.array([r[m]["precue"] for r in rows], float)
+        post = np.array([r[m]["postcue"] for r in rows], float)
+        cor = np.array([r[m]["corr_pre_post"] for r in rows], float)
+        extra = ""
+        if base is not None and m != "zerophase":
+            d = pre - base
+            ok = np.isfinite(d)
+            try:
+                pv = wilcoxon(d[ok]).pvalue
+            except Exception:                                        # noqa: BLE001
+                pv = float("nan")
+            extra = "   {:+.3f}   lower in {}/{}   p={:.2g}".format(
+                np.nanmean(d), int((d[ok] < 0).sum()), int(ok.sum()), pv)
+        print("{:13s} {:9.3f} {:9.3f} {:+8.3f}{}".format(
+            m, np.nanmean(pre), np.nanmean(post), np.nanmean(cor), extra))
+
+    if "zerophase" in modes:
+        neg = np.array([r["zerophase"]["corr_pre_post"] for r in rows], float)
+        print("\nSIGN TEST: corr(pre,post) NEGATIVE under zerophase in {}/{} sessions".format(
+            int((neg < 0).sum()), int(np.isfinite(neg).sum())))
+        for m in modes:
+            if m == "zerophase":
+                continue
+            c = np.array([r[m]["corr_pre_post"] for r in rows], float)
+            print("           under {:12s} negative in {}/{}   mean {:+.3f}".format(
+                m, int((c < 0).sum()), int(np.isfinite(c).sum()), np.nanmean(c)))
+
+    # per animal, because the cohort is NOT uniform and an average would hide that
+    print("\n=== per animal, pre-cue (chance 0.167) ===")
+    animals = sorted({r["label"][:4] for r in rows})
+    print("{:6s} {:>4s}".format("", "n") + "".join("{:>13s}".format(m) for m in modes))
+    for a in animals:
+        rr = [r for r in rows if r["label"].startswith(a)]
+        print("{:6s} {:4d}".format(a, len(rr))
+              + "".join("{:13.3f}".format(np.nanmean([x[m]["precue"] for x in rr])) for m in modes))
+
+
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--sessions", nargs="+", default=None,
+                    help="explicit labels (default: --from crossed with --animals)")
+    ap.add_argument("--from", dest="from_dates", default=None, help="date spec (default: curated set)")
+    ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--modes", default="zerophase,fitonly,taskdetrend")
+    ap.add_argument("--win-s", type=float, default=DETREND_WIN_S)
+    ap.add_argument("--output", default=None, help="write the per-session results JSON here")
+    args = ap.parse_args(argv)
+
+    from wfield_local import config
+    modes = args.modes.split(",")
+    if args.sessions:
+        labs = list(args.sessions)
+    else:
+        dates = (set(config.expand_dates(args.from_dates, width=4)) if args.from_dates
+                 else set(config.curated_dates()))
+        only = config.normalize_animals(args.animals) or sorted({x["label"][:4] for x in SESSIONS})
+        labs = [x["label"] for x in SESSIONS
+                if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+    print("[filter_test] {} sessions x {} modes: {}".format(len(labs), len(modes), modes), flush=True)
+
+    rows = []
+    for lab in labs:
+        try:
+            r = analyse_session(lab, list(modes), win_s=args.win_s)
+        except Exception as ex:                                      # noqa: BLE001
+            print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:80], flush=True)
+            continue
+        if r and all(m in r for m in modes):
+            rows.append(r)
+    if not rows:
+        print("no sessions analysed")
+        return 1
+    _summary(rows, modes)
+    if args.output:
+        import json
+        from pathlib import Path
+        Path(args.output).write_text(json.dumps(rows, indent=2, default=float))
+        print("\nwrote " + args.output)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

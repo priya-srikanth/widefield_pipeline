@@ -680,21 +680,45 @@ track a 2 s trial-locked response — which is what van Driel's trial-masking is
 being a median over a mask rather than a convolution, it has no impulse response and cannot displace
 signal in time at all.
 
-| variant | PRE-CUE | post-cue (control) |
-|---|---|---|
-| `zerophase` (current) | 0.488 | 0.684 |
-| `fitonly` | 0.306 | 0.702 |
-| **`taskdetrend`** | **0.256** | **0.740** |
+**SYSTEMATIC RESULT — ALL 36 CURATED SESSIONS** (4 animals x 9 dates, one pass per session so `SVT.npy`
+is loaded once; every variant sees the identical trials and folds, so the comparison is PAIRED and the
+per-session difference is the estimate). `python -m wfield_local.filter_acausality_test --modes
+zerophase,fitonly,taskdetrend`:
 
-**`taskdetrend` gives the BEST post-cue decoding of the three** while pushing pre-cue the lowest: the
-variant that most improves the readout we trust is the one that most reduces the readout we suspect.
-It also shows `fitonly`'s 0.306 was itself partly inflated by the residual drift `fitonly` leaves in.
-Per animal, `taskdetrend` pre-cue (chance 0.167): PS92 **0.141** (at/below chance), PS93 0.244,
-PS94 0.347, PS95 0.291.
+| variant | PRE-CUE | post-cue (control) | corr(pre,post) | vs zerophase |
+|---|---|---|---|---|
+| `zerophase` (current) | 0.486 | 0.684 | **−0.483** | — |
+| `fitonly` | 0.273 | 0.686 | +0.672 | −0.213, lower in **35/36**, p=1.5e-10 |
+| **`taskdetrend`** | 0.247 | **0.737** | +0.429 | −0.239, lower in **36/36**, p=2.9e-11 |
 
-**RECOMMENDATION: `taskdetrend`, not `fitonly`.** Still to do before adopting: repeat over more
-sessions, run the pre-vs-post sign test under it (the zerophase/fitonly sign test is done; the
-taskdetrend arm is not), and sanity-check the 60 s window and the cue−0.5/+4 s mask bounds.
+**The sign test replicates cohort-wide**: `corr(pre,post)` is NEGATIVE in **30 of 36** sessions under the
+current pipeline, and in only 1/36 (`fitonly`) or 4/36 (`taskdetrend`) after correction. The pre-cue
+pattern really is an inverted copy of the post-cue pattern.
+
+Per animal, pre-cue (chance 0.167):
+
+| animal | zerophase | fitonly | taskdetrend |
+|---|---|---|---|
+| PS92 | 0.470 | 0.176 | **0.151 — AT CHANCE** |
+| PS93 | 0.477 | 0.252 | 0.227 |
+| PS94 | 0.475 | **0.416** | 0.358 |
+| PS95 | 0.523 | 0.249 | 0.252 |
+
+**`taskdetrend` is the only variant that IMPROVES post-cue decoding** (+0.053 over the current
+pipeline), i.e. it is better preprocessing rather than merely different, and it is simultaneously the
+one that most reduces pre-cue. That is the strongest form this comparison could take.
+
+**HONEST CAVEAT AGAINST THE PREFERRED OPTION.** `taskdetrend` masks [cue−0.5 s, cue+4 s], so 1.5 s of
+the 2 s pre-cue window is still inside the drift fit. A 60 s median cannot track a trial-locked
+response, but it may shave a little genuine pre-cue signal, making 0.247 a slight UNDER-estimate.
+`fitonly` never touches that window but leaves drift in, which adds nuisance variance. The two bracket
+the truth from opposite directions: **the real pre-cue effect is most likely between 0.247 and 0.273.**
+
+**RECOMMENDATION: `taskdetrend`.** Remaining before adoption: a sensitivity check over the detrend
+window length and the mask bounds (extending the mask to cue−2 s would keep the fit out of the measured
+window entirely) — chosen by reasoning so far, not by measurement, and they must not be tuned on the
+outcome they are judged by. Also still to do: re-run the comparison using `precue_lickfree`'s SEARCHED
+window as the pre-cue definition, since Section C's numbers use that and are not covered by this test.
 
 **EARLIER PROPOSAL, now second choice: `fitonly`.** Keep the high-pass for estimating `rcoeffs` — that is
 what it is for, keeping slow drift from biasing the 470-vs-415 regression — and apply the correction to

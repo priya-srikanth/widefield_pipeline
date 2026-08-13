@@ -140,18 +140,24 @@ M_PRECUE_CAVEAT = (
     "filter: -0.496 before an impulse, -0.496 after, -0.209 of it in the single preceding second), so a "
     "position-specific POST-cue response casts a scaled, SIGN-FLIPPED shadow backwards over the pre-cue "
     "window, and a linear decoder does not care about sign. "
-    "MEASURED (12 sessions, 4 animals x 6/7, 8/10, 8/11; SVTcorr rebuilt from the retained SVT.npy with "
-    "the hemodynamic transform T held FIXED so only the filter varies): pre-cue 0.498 -> 0.288 when the "
-    "filter is kept for the coefficient fit but not applied to the output, falling in 12 of 12 sessions, "
-    "while POST-CUE is unchanged at 0.718 -> 0.717. Per animal after correction (chance 0.167): PS92 "
-    "0.202 (NOT convincingly above chance), PS93 0.268, PS94 0.434, PS95 0.247. "
+    "MEASURED OVER ALL 36 CURATED SESSIONS (4 animals x 9 dates; SVTcorr rebuilt from the retained "
+    "SVT.npy with the hemodynamic transform T held FIXED so ONLY the drift removal varies): pre-cue "
+    "0.486 -> 0.273 when the high-pass is kept for the coefficient fit but not applied to the output "
+    "(lower in 35/36 sessions, p=1.5e-10), or -> 0.247 under task-masked detrending (lower in 36 of 36, "
+    "p=2.9e-11). POST-CUE over the same sessions is unchanged-to-BETTER: 0.684 -> 0.686 and 0.737. The "
+    "variant that most IMPROVES the readout we trust is the one that most REDUCES the readout we "
+    "suspect, which is the strongest form this comparison could take. Per animal, pre-cue after "
+    "correction (chance 0.167): PS92 0.176/0.151 -- AT CHANCE; PS93 0.252/0.227; PS94 0.416/0.358 -- a "
+    "solid code; PS95 0.249/0.252. "
     "The sign test confirms the mechanism: the pre-cue position pattern is ANTI-correlated with the "
-    "post-cue pattern (r = -0.67, negative in 4/4 animals) and sits BELOW the far-from-cue quiet "
-    "baseline in 4/4 -- a maintained plan has no reason to be the negative of the movement response. "
-    "Remove the filter fingerprint and that correlation flips to +0.73, i.e. what survives looks like a "
-    "plan rather than an echo. "
-    "A REAL pre-cue code therefore survives in PS93/PS94/PS95 (PS94's is barely affected), but it is "
-    "about half the size shown here and the cohort is NOT uniform. "
+    "post-cue pattern (mean r = -0.48, NEGATIVE IN 30 OF 36 SESSIONS) and sits BELOW the far-from-cue "
+    "quiet baseline -- a maintained plan has no reason to be the negative of the movement response, "
+    "whereas a subtracted lowpass bump is exactly that. Remove the filter fingerprint and the "
+    "correlation flips positive (+0.67 / +0.43; negative in only 1/36 and 4/36), i.e. what survives "
+    "looks like a plan rather than an echo. "
+    "A REAL pre-cue code therefore survives in PS93/PS94/PS95 -- clearly in PS94 -- but it is about "
+    "HALF the size shown here, and PS92 IS AT CHANCE. The cohort is NOT uniform, which is a result in "
+    "its own right rather than only a downgrade. "
     "This is the UPSTREAM method, not a local bug: churchlandlab/WidefieldImager SvdHemoCorrect.m does "
     "the same in-place filtfilt, and Musall et al. 2019 state it in their methods. The artifact class is "
     "published -- van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods -- including the negative "
@@ -340,18 +346,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         "impulse response is symmetric in time (−0.496 before an impulse, −0.496 after), so a "
         "position-specific POST-cue response casts a sign-flipped shadow backwards into the pre-cue "
         "window. A linear decoder does not care about sign.",
-        "MEASURED: rebuilding SVTcorr from the retained SVT.npy with the hemodynamic transform T held "
-        "fixed, so ONLY the filter varies — 12 sessions, 4 animals, three dates:",
-        "        pre-cue   0.498 → 0.288   (falls in 12 of 12 sessions)",
-        "        post-cue  0.718 → 0.717   (unchanged — the control)",
-        "PER ANIMAL after correction (chance 0.167):  PS92 0.202 — not convincingly above chance;  "
-        "PS93 0.268;  PS94 0.434 — barely affected;  PS95 0.247.",
-        "SIGN TEST: the pre-cue position pattern is ANTI-correlated with the post-cue pattern "
-        "(r = −0.67, negative in 4/4) and sits below the far-from-cue quiet baseline in 4/4. A "
-        "maintained plan has no reason to be the negative of the movement response. Removing the "
-        "filter fingerprint flips it to +0.73 — what survives looks like a plan, not an echo.",
-        "SO: a REAL pre-cue code survives in PS93/PS94/PS95, but it is about half the size shown in "
-        "this deck, and the cohort is no longer uniform. PS92 is the animal to watch.",
+        "MEASURED over ALL 36 CURATED SESSIONS (4 animals × 9 dates), rebuilding SVTcorr from the "
+        "retained SVT.npy with the hemodynamic transform T held fixed so ONLY the drift removal varies:",
+        "                        pre-cue        post-cue (control)",
+        "        zerophase (current)   0.486          0.684",
+        "        fit-only              0.273          0.686      lower in 35/36,  p=1.5e-10",
+        "        task-masked detrend   0.247          0.737      lower in 36/36,  p=2.9e-11",
+        "The variant that most IMPROVES the readout we trust (post-cue +0.053) is the one that most "
+        "REDUCES the readout we suspect. That is the strongest form this comparison could take.",
+        "PER ANIMAL, pre-cue after correction (chance 0.167):  PS92 0.176 / 0.151 — AT CHANCE;  "
+        "PS93 0.252 / 0.227;  PS94 0.416 / 0.358 — a solid code;  PS95 0.249 / 0.252.",
+        "SIGN TEST: the pre-cue position pattern is ANTI-correlated with the post-cue pattern — mean "
+        "r = −0.48, negative in 30 of 36 sessions — and sits below the far-from-cue quiet baseline. A "
+        "maintained plan has no reason to be the negative of the movement response; a subtracted "
+        "lowpass bump is exactly that. After correction the correlation flips positive and is negative "
+        "in only 1/36 (fit-only) or 4/36 (detrend) — what survives looks like a plan, not an echo.",
+        "SO: a REAL pre-cue code survives in PS93/PS94/PS95 — clearly in PS94 — but it is about half "
+        "the size shown in this deck, and PS92 is AT CHANCE. The cohort is not uniform.",
         "NOT A LOCAL BUG: churchlandlab/WidefieldImager SvdHemoCorrect.m does the same in-place "
         "filtfilt; Musall et al. 2019 state it in their methods. The artifact class is published — "
         "van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods — including the negative sign, with "
