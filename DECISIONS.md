@@ -682,6 +682,41 @@ measurement (PS95, pre-cue, 9 curated sessions): **joint LOSO 0.636 vs ROI 0.586
 vs 0.528. Both bases now appear side by side in deck Section D; a cross-day effect present in only one
 of them is a fact about the parcellation, not about cortex.
 
+**⚠ CORRECTION (2026-08-13, same day): `variance_captured` is NOT a sufficient health check.** The
+claim below — that it "keeps the post-stroke readout falsifiable" — is too strong and was refuted by the
+first measurement that could test it. 8/12 was the only PROJECTED day for each animal, and the open
+question was whether its joint-basis drop was the projection or the day. ROI adjudicates it, because ROI
+has no in-fit/projected distinction. Post-cue, 9 curated sessions, delta = 8/12 minus the mean of the
+other eight:
+
+| animal | ROI | joint | projection cost (joint−ROI) | variance_captured |
+|---|---|---|---|---|
+| PS92 | +0.059 | −0.113 | **−0.172** | 99.2% |
+| PS93 | +0.051 | +0.014 | −0.037 | 98.9% |
+| PS94 | −0.038 | −0.005 | +0.033 | 99.0% |
+| PS95 | +0.005 | −0.136 | **−0.141** | 99.4% |
+
+**It is the PROJECTION, not the day**: in ROI, 8/12 is an ordinary session and in fact BETTER than its
+siblings in 3 of 4 animals (mean +0.019), while the joint basis costs it a mean −0.079. And
+`variance_captured` sits at 98.9–99.4% throughout — it shows green while PS92 loses 0.172. It measures
+whether a session's total ENERGY lies in the frozen subspace, not whether the position-DISCRIMINATIVE
+directions survive, and those are different questions: the discriminative signal is a tiny fraction of
+the variance, so it can be mangled while 99% of the energy is reproduced.
+
+**Consequence for the post-stroke design, which is the reason this matters.** Every post-stroke session
+will be a projected day, so a projection cost of ~0.08 (up to 0.17 per animal) is baked in BEFORE any
+lesion effect, and the shipped diagnostic will not reveal it. Options, in order of preference:
+  1. **Measure the projection cost on held-out PRE-stroke days** — refit the basis without day *k*,
+     project day *k*, record the drop, for every *k*. That gives a per-animal projection-cost baseline
+     against which post-stroke changes are read (like the frozen decoder's transfer cost, which is
+     already reported this way). Costs N basis refits per animal in GPU time, and is the honest answer.
+  2. Keep **Allen-ROI as the PRIMARY** cross-day/post-stroke readout — it involves no projection at all
+     — and use the joint basis as the sensitivity analysis rather than the headline.
+  3. Do NOT simply refit the basis to include every pre-stroke day and call it solved: that removes this
+     instance of the problem while leaving post-stroke days projected and uncalibrated.
+A per-animal projection cost is also worth reporting on the basis-health slide ALONGSIDE
+`variance_captured`, since the two disagree.
+
 **Two honesty requirements, both shipped.** (1) `variance_captured` is plotted per session
 (`joint_basis_health_*.png`): in-fit days are 1.0 by construction, projected days are not, so a
 projected day that decodes poorly *and* spans poorly is under-described by the basis rather than

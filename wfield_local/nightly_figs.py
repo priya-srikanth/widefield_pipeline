@@ -24,6 +24,7 @@ location, so it is portable across checkouts.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -241,10 +242,20 @@ def main():
                 if dec:
                     n = len(write_session_confusions(dec, Path(out)))
                     _loso_fig(dec, Path(out), al)
+                    # PERSIST the numbers, not just the pictures. Only the standalone
+                    # `locanmf_frozen_decoder --loso` CLI used to write these, so the nightly left
+                    # whatever JSON an old manual run had produced sitting on disk -- on 2026-08-13
+                    # that was an 8-session file next to 9-session figures, and reading it as current
+                    # gave a per-session comparison that silently omitted 8/12. joint_xsession always
+                    # wrote its JSON; ROI now does too, so the two bases are equally auditable.
+                    (Path(out) / f"locanmf_frozen_decoder_loso_roi_{al}.json").write_text(
+                        json.dumps(dec, indent=2, default=float))
                     log(f"frozen decoder [{al}]: {len(dec)} animal(s), {n} confusion figure(s)  "
                         + "  ".join(f"{k}={v['loso_accuracy']:.3f}" for k, v in sorted(dec.items())))
                 if enc:
                     _encoder_fig(enc, Path(out), al)
+                    (Path(out) / f"locanmf_frozen_encoder_loso_roi_{al}.json").write_text(
+                        json.dumps(enc, indent=2, default=float))
                     log(f"frozen encoder [{al}]: {len(enc)} animal(s)  "
                         + "  ".join(f"{k}={v['mean_ev']:+.3f}" for k, v in sorted(enc.items())))
         except Exception as ex:
