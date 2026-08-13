@@ -13,10 +13,17 @@ def test_sessions_structure():
 
 
 def test_dates_are_strings_not_octal():
+    """Unquoted MMDD in YAML parses as octal (0606 -> 390). Checks EVERY list in date_policy, not a
+    fixed key list, so a newly added policy key is covered without editing this test."""
     dp = config.date_policy()
-    for key in ("all_registered", "cross_session", "cross_session_exclude"):
-        for d in dp[key]:
+    checked = 0
+    for key, val in dp.items():
+        if not isinstance(val, list):
+            continue
+        for d in val:
             assert isinstance(d, str) and d.isdigit() and len(d) == 4, (key, d)
+            checked += 1
+    assert checked, "date_policy has no date lists left to check — did a key get renamed?"
 
 
 def test_animal_color_all_four_incl_ps93():
@@ -26,23 +33,27 @@ def test_animal_color_all_four_incl_ps93():
 
 
 def test_curated_cross_session_policy():
-    assert config.cross_session_dates() == ["0606", "0607", "0608", "0806", "0807"]
     assert set(config.date_policy()["cross_session_exclude"]) == {
         "0601", "0602", "0603", "0604", "0605", "0805"}
 
 
 def test_curated_dates_is_live_and_excludes_the_policy_set():
-    """curated_dates() = REGISTERED minus cross_session_exclude (auto-includes new nights).
-
-    Distinct from cross_session_dates(), which is the hand-maintained static list and lags.
-    """
+    """curated_dates() = REGISTERED minus cross_session_exclude (auto-includes new nights)."""
     live = config.curated_dates()
     registered = {s["label"].split("_")[1] for s in config.load_sessions()}
     exclude = set(config.date_policy()["cross_session_exclude"])
     assert live == sorted(registered - exclude)
     assert not (set(live) & exclude), "an excluded date leaked into the curated set"
-    # it must track registration, not the frozen policy list
-    assert set(live) >= set(config.cross_session_dates()) - exclude
+    assert {"0606", "0607", "0608", "0806", "0807"} <= set(live), "the policy anchors must survive"
+
+
+def test_no_static_curated_date_list_remains():
+    """The hand-maintained `cross_session` / `all_registered` lists lagged five nights behind and the
+    deck builder read one of them, so a hand-run deck silently covered fewer dates than the nightly.
+    They were deleted; keep them deleted, and keep the derived accessor the only one."""
+    assert "cross_session" not in config.date_policy()
+    assert "all_registered" not in config.date_policy()
+    assert not hasattr(config, "cross_session_dates")
 
 
 def test_behavior_trials_override_survives_roundtrip():

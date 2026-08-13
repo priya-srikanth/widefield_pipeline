@@ -112,6 +112,37 @@ class Basis:
             self._A = np.load(self.root / "A.npy", mmap_mode="r")
         return self._A
 
+    @property
+    def regions(self):
+        """Allen region label per component (ncomp,) — DERIVED from the footprints, not stored.
+
+        ``compute_locaNMF`` returns a region assignment that ``build`` did not keep, and refitting a
+        basis just to recover it would cost hours AND produce a different basis (LocaNMF is
+        stochastic). It does not need to be stored: LocaNMF CONSTRAINS each component to one atlas
+        region, so a component's support already identifies its region. Take the atlas label carrying
+        the most footprint weight; ties cannot occur in practice because the support is contained in a
+        single region by construction.
+
+        Cached to ``regions.npy`` on first use so the atlas load happens once per basis.
+        """
+        cache = self.root / "regions.npy"
+        if cache.exists():
+            return np.load(cache)
+        from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+        s = next(x for x in SESSIONS if x["label"] == self.labels[0])
+        ad = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1")[0]
+        atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy").reshape(-1)
+        A = np.nan_to_num(np.asarray(self.A, dtype=np.float32).reshape(-1, self.ncomp))
+        labs = np.unique(atlas[atlas != 0])
+        # weight per (region, component), then argmax over regions
+        W = np.stack([np.abs(A[atlas == l]).sum(0) for l in labs])       # (nregions, ncomp)
+        reg = labs[np.argmax(W, axis=0)].astype(int)
+        try:
+            np.save(cache, reg)
+        except OSError:                                # read-only store -> recompute next time
+            pass
+        return reg
+
     def signal(self, label):
         """(ncomp, T) footprint-scaled components for one session — the same scaling
         ``locanmf_position_decoder._build_signal`` applies to per-session LocaNMF, so features from a

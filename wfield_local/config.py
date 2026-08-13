@@ -52,12 +52,10 @@ def curated_dates(machine: str | None = None) -> list[str]:
     in sessions.yaml that animals.yaml does not exclude", so a newly registered night joins
     automatically. Sorted MMDD strings.
 
-    NB this is deliberately NOT :func:`cross_session_dates`, which returns the STATIC
-    ``date_policy.cross_session`` list in animals.yaml. That list is hand-maintained and lags behind
-    (it does not carry 0809/0810), which is exactly why ``nightly_figs`` derives its default
-    ``--from`` set the way this function does rather than reading it. Use this one for anything that
-    must include the latest nights; use :func:`cross_session_dates` only when you specifically want
-    the frozen policy list.
+    This is the ONLY curated-set accessor. A static ``date_policy.cross_session`` list used to sit
+    beside it in animals.yaml; it lagged five nights behind the registered sessions and the deck
+    builder read it, so a hand-run deck quietly covered 5 dates where the nightly covered 9. Both the
+    list and its accessor were deleted on 2026-08-13.
     """
     exclude = set(date_policy().get("cross_session_exclude", []))
     registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
@@ -223,6 +221,6 @@ def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[
     return [entry for _, _, entry in rows]
 
 
-def cross_session_dates() -> list[str]:
-    """Curated cross-session MMDD set from animals.yaml date_policy (6/6-6/8 + 8/6 onward)."""
-    return [str(d) for d in date_policy().get("cross_session", [])]
+# NB there is deliberately NO `cross_session_dates()` any more. It returned the hand-maintained
+# `date_policy.cross_session` list, which lagged the registered sessions by five nights and silently
+# shrank any deck built outside the nightly. Use :func:`curated_dates`, which derives the set.

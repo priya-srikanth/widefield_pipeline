@@ -938,12 +938,14 @@ def session_row(session_dir: Path, params: dict, rv=None) -> dict | None:
 
 
 def _curated_mmdds(available) -> list[str]:
-    """Curated behavior dates (MMDD) from the set of ``available`` MMDDs: the policy anchors
-    (``cross_session``: 6/6-6/8 + 8/6-8/7) PLUS any available date in the 'onward' window (>= the first
-    August anchor), minus the excluded noisy days. So a freshly-uploaded 8/8 / 8/9 is included
-    automatically without editing ``configs/animals.yaml``; May / early-June / mid-June training days and
-    8/5 stay out."""
-    cs = set(config.cross_session_dates())
+    """Curated behavior dates (MMDD) from the set of ``available`` MMDDs: the curated imaging anchors
+    (6/6-6/8 + 8/6 onward) PLUS any available date in the 'onward' window (>= the first August anchor),
+    minus the excluded noisy days. So a freshly-uploaded 8/8 / 8/9 is included automatically; May /
+    early-June / mid-June training days and 8/5 stay out.
+
+    The 'onward' clause is why this cannot simply BE ``curated_dates()``: behavior sessions exist for
+    dates with no registered imaging session, and those should still be plotted."""
+    cs = set(config.curated_dates())
     exclude = set(config.date_policy().get("cross_session_exclude", []))
     aug_start = min((d for d in cs if d >= "0800"), default="9999")
     return sorted(d for d in available if (d in cs or d >= aug_start) and d not in exclude)

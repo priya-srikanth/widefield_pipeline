@@ -63,9 +63,16 @@ animals:
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero
 # values like 0606 are parsed as octal by YAML (0606 -> 390), and 0808 would be invalid octal.
 date_policy:
-  all_registered: ["0601", "0602", "0603", "0604", "0605", "0606", "0607", "0608", "0805", "0806", "0807"]
-  # CURATED "good" set used for all cross-session comparisons (decode/encode across sessions,
-  # cross-mouse, within-animal, RSA/crossnobis). Decided 2026-08-08: 6/6-6/8 + 8/6 onward.
-  cross_session: ["0606", "0607", "0608", "0806", "0807"]     # + future dates 8/8, 8/9, ...
+  # The CURATED "good" set used for every cross-session comparison (decode/encode across sessions,
+  # cross-mouse, within-animal, RSA/crossnobis) is DERIVED, not listed: it is every date registered in
+  # sessions.yaml minus the exclusions below (config.curated_dates()). Decided 2026-08-08: 6/6-6/8 +
+  # 8/6 onward -- which is an emergent property of that rule, so each new night joins automatically.
+  #
+  # There used to be literal `all_registered` and `cross_session` lists here as well. They were
+  # hand-maintained, both stopped at 8/7, and nothing kept them honest: the deck builder read
+  # `cross_session` for its standalone default, so running it by hand silently produced a 5-date deck
+  # while the nightly (which derives the set) produced a 9-date one. Removed 2026-08-13 -- the rule is
+  # the single source of truth, and there is now no stale list to read by accident.
+  #
   # Excluded from cross-session: noisy/low-engagement early June (6/1-6/5) and the wonky 8/5.
   cross_session_exclude: ["0601", "0602", "0603", "0604", "0605", "0805"]

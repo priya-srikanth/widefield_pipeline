@@ -118,7 +118,7 @@ def _entropy_norm(proba):
     return float((-(p * np.log(p)).sum(1)).mean() / np.log(proba.shape[1]))
 
 
-def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True):
+def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, features=None):
     """Pool several sessions into ONE feature matrix that is comparable across days.
 
     Shared by the frozen decoder and the frozen encoder. Returns
@@ -128,19 +128,26 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True):
 
     Two things make pooling valid, and both matter:
       * ROI features are ATLAS-ANCHORED, so column j is the same cortical area in every session.
-        LocaNMF components are not (session-specific count AND identity), which is why the
-        cross-day work uses ``source="roi"``.
+        A session's OWN LocaNMF components are not (session-specific count AND identity), which is
+        why the original cross-day work used ``source="roi"``. The ``features`` hook lifts that
+        restriction for one specific case: a SHARED joint-LocaNMF basis, where the footprints are
+        identical across sessions by construction, so column j is again the same thing every day
+        (see :mod:`wfield_local.joint_xsession`).
       * each session is z-scored using its OWN engaged trials, so session-level differences in F0
         / SNR cannot drive the result; the same transform is applied to that session's no-lick
         trials so both stay on one scale.
+
+    ``features(session, args) -> (X, y, g, Xnl, ynl, reg)`` overrides how one session's trial matrix
+    is built. Default: :func:`locanmf_position_decoder._trial_features` on ``source``.
     """
+    feat = features or _trial_features
     per, regs, kept = [], [], []
     for lab in labels:
         s = next((x for x in SESSIONS if x["label"] == lab), None)
         if s is None:
             continue
         try:
-            X, y, g, Xnl, ynl, reg = _trial_features(s, _args(source, align, post_s))
+            X, y, g, Xnl, ynl, reg = feat(s, _args(source, align, post_s))
         except Exception as e:                                  # noqa: BLE001 - report and continue
             print(f"  !! {lab}: {type(e).__name__} {str(e)[:60]}", flush=True)
             continue
@@ -183,7 +190,8 @@ def _ceiling(X, y):
     return float(betw.sum() / max(betw.sum() + wit.sum(), 1e-12)), betw, wit
 
 
-def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1.0, verbose=True):
+def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1.0, verbose=True,
+                          features=None):
     """FROZEN cross-day ENCODER: position -> expected cortical activity, applied to an unseen day.
 
     The mirror of :func:`pooled_frozen_loso`. Ridge from a one-hot position design to ROI activity,
@@ -199,7 +207,7 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
       * ``feve``     ev / ceiling, the ceiling-normalised score that is comparable across days,
       * ``within``   the same-day encoder (block CV) for reference.
     """
-    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s)
+    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, features=features)
     if pooled is None:
         return None
     XE, YE, GE, BE, _XU, _YU, kept, common = pooled
@@ -224,14 +232,14 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
                 pw[b] = Ridge(alpha=alpha).fit(Pi[a], Xi[a]).predict(Pi[b])
             within[lab] = _ev(Xi, pw)
     res = {"labels": kept, "source": source, "align": align, "n_trials": int(len(YE)),
-           "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(common),
+           "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "per_session_ev": per_sess, "ceiling": ceil, "feve": feve, "within_session_ev": within,
            "mean_ev": float(np.mean(list(per_sess.values()))),
            "mean_feve": float(np.nanmean(list(feve.values()))),
            "mean_within_ev": float(np.mean(list(within.values()))) if within else float("nan")}
     res["transfer_cost_ev"] = res["mean_ev"] - res["mean_within_ev"]
     if verbose:
-        print(f"\n  pooled: {len(YE)} trials, {XE.shape[1]} ROI features, {len(kept)} sessions")
+        print(f"\n  pooled: {len(YE)} trials, {XE.shape[1]} {source} features, {len(kept)} sessions")
         print(f"  {'session':12s} {'EV(frozen)':>11s} {'ceiling':>8s} {'FEVE':>7s} {'EV(within)':>11s}")
         for lab in kept:
             print(f"    {lab:12s} {per_sess[lab]:>11.4f} {ceil[lab]:>8.4f} {feve[lab]:>7.3f} "
@@ -241,7 +249,8 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
-def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True):
+def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
+                       features=None):
     """Leave-one-SESSION-out frozen decoder over an animal's pooled sessions (ROI features).
 
     LocaNMF components are session-specific (different count AND identity per session), so they
@@ -259,7 +268,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         same-day ceiling. LOSO minus this is the true cost of freezing across days.
       * ``ood`` -- the out-of-distribution control (see :func:`ood_control`).
     """
-    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore)
+    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
+                           features=features)
     if pooled is None:
         return None
     XE, YE, GE, BE, XU, YU, kept, common = pooled
@@ -276,7 +286,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
             within[lab] = float(accuracy_score(YE[m], cross_val_predict(
                 _pipe(), XE[m], YE[m], cv=GroupKFold(ng), groups=gb)))
     res = {"labels": kept, "source": source, "align": align, "n_engaged": int(len(YE)),
-           "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(common),
+           "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "loso_accuracy": loso, "per_session": per_sess, "within_session": within,
            "mean_within": float(np.mean(list(within.values()))) if within else float("nan"),
            "chance": 1 / 6}
@@ -288,8 +298,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
                         for i, lab in enumerate(kept)}
     res["ood"] = ood_control(XE, YE, GE, XU, YU)
     if verbose:
-        print(f"\n  pooled: {len(YE)} engaged trials, {len(YU)} no-lick, {XE.shape[1]} ROI features, "
-              f"{len(kept)} sessions")
+        print(f"\n  pooled: {len(YE)} engaged trials, {len(YU)} no-lick, {XE.shape[1]} {source} "
+              f"features, {len(kept)} sessions")
         print(f"  LOSO accuracy {loso:.3f}   mean within-session {res['mean_within']:.3f}   "
               f"transfer cost {res['transfer_cost']:+.3f}   (chance {1/6:.3f})")
         for lab in kept:
@@ -341,14 +351,21 @@ def ood_control(XE, YE, GE, XU, YU):
     return out
 
 
-def write_session_confusions(results, out):
+# Display name per feature basis. The cross-session analyses run in TWO bases (see joint_xsession):
+# Allen-ROI, and the shared joint-LocaNMF basis. Everything else about the analysis is identical, so
+# the figure code is shared and only the tag differs.
+BASIS_NAME = {"roi": "ROI", "joint": "joint-LocaNMF"}
+
+
+def write_session_confusions(results, out, basis="roi"):
     """One PNG per held-out DAY: the frozen decoder's confusion + per-position recall on that day.
 
     Deliberately mirrors the per-session within-day decoder figures the deck already shows
     (``locanmf_position_session_<label>_...``) so the two read side by side; the only difference is
     that NO trial from this day was used to fit -- the model was trained on the animal's OTHER days.
-    Filename: ``locanmf_frozen_session_<label>_roi_<align>.png``.
+    Filename: ``locanmf_frozen_session_<label>_<basis>_<align>.png``.
     """
+    bname = BASIS_NAME.get(basis, basis)
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     written = []
     for an, r in results.items():
@@ -384,21 +401,22 @@ def write_session_confusions(results, out):
             ax[1].set_ylim(0, 1); ax[1].set_ylabel("recall", fontsize=12)
             ax[1].tick_params(axis="y", labelsize=10)
             ax[1].set_title("per-position recall", fontsize=13)
-            fig.suptitle(f"{lab} — FROZEN ROI decoder (trained on this animal's OTHER days)\n"
+            fig.suptitle(f"{lab} — FROZEN {bname} decoder (trained on this animal's OTHER days)\n"
                          f"held-out-day acc {acc:.3f}   |   same-day ceiling {within:.3f}   |   "
                          f"n={int(n)} trials   |   chance 0.167", fontsize=13, y=0.985)
             # reserve room at the BOTTOM too: the rotated position labels plus the "predicted"
             # xlabel need it, and a rect of (0,0,...) clips the xlabel entirely.
             fig.tight_layout(rect=(0, 0.02, 1, 0.93))
-            p = Path(out) / f"locanmf_frozen_session_{lab}_roi_{r['align']}.png"
+            p = Path(out) / f"locanmf_frozen_session_{lab}_{basis}_{r['align']}.png"
             fig.savefig(p, dpi=130); plt.close(fig)
             written.append(p)
     return written
 
 
-def _encoder_fig(results, out, align="cue"):
+def _encoder_fig(results, out, align="cue", basis="roi"):
     """Frozen ENCODER: per-day EV vs same-day ceiling, ceiling-normalised FEVE, and transfer cost."""
     animals = list(results)
+    bname = BASIS_NAME.get(basis, basis)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
     off = 0; ticks, tlabs = [], []
     for an in animals:
@@ -423,7 +441,7 @@ def _encoder_fig(results, out, align="cue"):
     ax[0].set_xticks(ticks); ax[0].set_xticklabels(tlabs, fontsize=7, rotation=90)
     ax[0].set_ylabel("explained variance"); ax[0].legend(fontsize=7, loc="upper right")
     ax[0].set_xlim(-1, off - 0.8)
-    ax[0].set_title("Frozen ROI encoder: held-out DAY vs same-day encoder", fontsize=10.5, pad=22)
+    ax[0].set_title(f"Frozen {bname} encoder: held-out DAY vs same-day encoder", fontsize=10.5, pad=22)
     x = np.arange(len(animals)); w = 0.38
     ax[1].bar(x - w / 2, [results[a]["mean_ev"] for a in animals], w, label="frozen (unseen day)",
               color="tab:orange")
@@ -446,14 +464,15 @@ def _encoder_fig(results, out, align="cue"):
     # align MUST be in the filename: the JSONs were already tagged but the PNGs were not, so a
     # precue run silently overwrote the cue figures (and the deck then showed precue under a
     # cue-labelled slide).
-    p = out / f"locanmf_frozen_encoder_loso_roi_{align}.png"
+    p = out / f"locanmf_frozen_encoder_loso_{basis}_{align}.png"
     fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
 
-def _loso_fig(results, out, align="cue"):
+def _loso_fig(results, out, align="cue", basis="roi"):
     """Three panels: per-session LOSO vs within-day ceiling, the transfer cost, and the OOD control."""
     animals = list(results)
+    bname = BASIS_NAME.get(basis, basis)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
     # (1) per-session LOSO vs within
     off = 0; ticks, tlabs = [], []
@@ -478,7 +497,7 @@ def _loso_fig(results, out, align="cue"):
     ax[0].set_xticks(ticks); ax[0].set_xticklabels(tlabs, fontsize=7, rotation=90)
     ax[0].set_ylabel("accuracy"); ax[0].legend(fontsize=8, loc="lower right"); ax[0].set_ylim(0, 1.0)
     ax[0].set_xlim(-1, off - 0.8)
-    ax[0].set_title("Frozen ROI decoder: held-out DAY vs same-day ceiling", fontsize=10.5, pad=22)
+    ax[0].set_title(f"Frozen {bname} decoder: held-out DAY vs same-day ceiling", fontsize=10.5, pad=22)
     # (2) transfer cost
     x = np.arange(len(animals))
     tc = [results[a]["transfer_cost"] for a in animals]
@@ -506,7 +525,7 @@ def _loso_fig(results, out, align="cue"):
     ax[2].set_title("OOD control: the decoder never abstains\n"
                     "no-lick decodes at CHANCE yet stays confident", fontsize=10.5)
     fig.tight_layout()
-    p = out / f"locanmf_frozen_decoder_loso_roi_{align}.png"
+    p = out / f"locanmf_frozen_decoder_loso_{basis}_{align}.png"
     fig.savefig(p, dpi=140); plt.close(fig)
     return p
 

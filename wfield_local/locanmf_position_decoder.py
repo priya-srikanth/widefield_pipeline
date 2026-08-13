@@ -69,8 +69,20 @@ def _build_signal(s, source):
     return np.array(rois), np.array(regs)
 
 
-def _trial_features(s, args):
-    sig, feat_reg = _build_signal(s, args.source)
+def _trial_features(s, args, signal=None, feat_region=None):
+    """Trial-averaged features for one session.
+
+    ``signal``/``feat_region`` let a caller INJECT an already-built (nfeat, T) signal instead of
+    loading ``args.source`` from disk -- used by the joint-basis cross-session analyses, where the
+    components come from one shared basis rather than that session's own LocaNMF fit. Everything
+    downstream (engagement, position blocks, alignment, the no-lick arm) is then identical to the
+    per-session path by construction, which is the point: the basis is the only thing that differs.
+    """
+    if signal is None:
+        sig, feat_reg = _build_signal(s, args.source)
+    else:
+        sig = np.asarray(signal)
+        feat_reg = np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region)
     nfeat, T = sig.shape
     cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
     cue_f, lick_f, csmp = _frames(s, cue, lk)

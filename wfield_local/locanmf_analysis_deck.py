@@ -6,15 +6,28 @@ Priya wants, and it is written to the ``labcams`` TOP LEVEL (not two dirs deep) 
 ``spout_position_analysis_summary.pptx``.
 
 Sections (per animal, then type, then date):
-  A  Per-animal decoding across sessions — post-cue 2 s (no-lick generalization) + pre-cue 2 s
-     confusion + recall per date, then the rolling decoder (pre-cue ENL -> post-cue) across sessions.
-  B  Per-animal encoder — expected SSp/MO activity by position, encoder predicted maps, explained
+  A  WITHIN-DAY decoding — post-cue 2 s (no-lick generalization) + pre-cue 2 s confusion + recall per
+     date, then the rolling decoder (pre-cue ENL -> post-cue) across sessions.
+  B  WITHIN-DAY encoder — expected SSp/MO activity by position, encoder predicted maps, explained
      variance per position (raw + ceiling-relative) across sessions, and r2 per Allen region.
-  C  Cross-session summary — decoder recall + encoder accuracy across sessions; within-animal consistency.
-  D  RSA — within- vs across-animal geometry, per-animal RDM, crossnobis RDM.
+  C  Pre-cue code without licking — the motor-confound control on the study's key readout.
+  D  CROSS-SESSION (frozen) decoders and encoders, in TWO INDEPENDENT BASES — Allen-ROI and the shared
+     joint-LocaNMF basis. Each day is predicted by a model trained only on that animal's OTHER days.
+     Two bases because a cross-day claim that holds in only one parcellation is a claim about the
+     parcellation; one that holds in both is a claim about the cortex.
+  E  Cross-session summary — decoder recall + encoder accuracy across sessions; within-animal consistency.
+  F  RSA — within- vs across-animal geometry, per-animal RDM, crossnobis RDM.
+
+RESTRUCTURED 2026-08-13: the frozen cross-day slides used to be buried inside each animal's Section A,
+which mixed two different questions (does the code exist today? does it transfer across days?) under one
+heading and put ~6 cross-day slides between an animal's within-day decode and its encoder. They are now
+Section D, in both bases side by side.
 
 Dropped vs the old decks: laterality decoder, top-10 component maps, hemisphere-resolved RDMs, and the
-per-session (rather than per-animal) encoder variance panels. Missing PNGs are skipped, so the deck builds
+per-session (rather than per-animal) encoder variance panels. Also NOT here: the frozen fixed-A /
+refit-C basis, REJECTED because its score depends on which session is nominated as the reference and no
+reference wins for every animal (within-animal swing up to 0.36) — the joint basis in Section D is the
+reference-free version of that same idea. See DECISIONS.md. Missing PNGs are skipped, so the deck builds
 from whatever figures are present.
 
     python -m wfield_local.locanmf_analysis_deck                 # src = figures_working, out = labcams
@@ -42,8 +55,12 @@ M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored 
             "loc_thresh=80, maxrank=20). Spout position per trial from the DAQ spout-strobe bits; when the "
             "DAQ is short a bit (Aug-2026 dead bit1) it is repaired from the behavior-log pos_idx via "
             "classify_cues_with_backup (only when it validates >=0.9 on the DAQ's good positions). Engaged = "
-            "movement/lick trials; the DAQ cue stream is the rewarded subset, which also trims the "
-            "disengaged session tail. Curated pre-stroke sessions only (6/6-6/8 + 8/6 onward).")
+            "cue trials with a lick inside the response window; unengaged (no-lick) trials are kept "
+            "separately as the generalization / OOD arm rather than discarded. NB the DAQ cue stream is "
+            "NOT a rewarded subset -- an earlier note here said it was, corrected 2026-08-09: DAQ cue "
+            "count equals the behavior log's scored-trial count exactly in every session and includes "
+            "unrewarded trials, so unrewarded trials remain available for the post-stroke failed-attempt "
+            "analysis. Curated pre-stroke sessions only (6/6-6/8 + 8/6 onward).")
 M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardized component activities, 6 "
             "positions, chance=0.167. Activity = mean over the aligned window, NO per-trial baseline. "
             "Cross-validation is BLOCK-AWARE (GroupKFold, groups = ~6-trial position blocks) so block drift "
@@ -85,27 +102,64 @@ M_FROZEN_ENC = ("FROZEN cross-day ENCODER (wfield_local.locanmf_frozen_decoder -
 M_LICKFREE = (
     "MOTOR CONTROL for the pre-cue readout (wfield_local.precue_lickfree). Licking is an orofacial "
     "movement that may itself be spout-directed, so pre-cue 'position information' could be ongoing "
-    "motor activity rather than a held intention. Trials are split by whether ANY lick falls in the 2 s "
-    "window ending at the cue; decode = the pipeline's own block-CV multinomial logistic regression, "
-    "encode = per-region cross-validated position EV with a Spearman-Brown-corrected split-half "
-    "ceiling. "
+    "motor activity rather than a held intention. "
+    "THE WINDOW IS SEARCHED, NOT FIXED. Each trial's window is 2 CONSECUTIVE SECONDS lying between the "
+    "spout-position strobe and the cue and containing NO licks: the window slides back through the "
+    "strobe->cue interval until it finds such a stretch, taking the LATEST one that fits (closest to "
+    "the cue = most informative about the upcoming action). Trials whose 2 s ending exactly at the cue "
+    "is already clean keep it, so the common case stays cue-aligned. This is what recovers a trial that "
+    "has one lick 200 ms before the cue but 2 s of clean data just earlier -- a fixed window would "
+    "discard the whole trial. Features are the MEAN over that 2 s (the window integrates the whole 2 s; "
+    "it is not an instantaneous sample). Bounded at the strobe on purpose: before the spout arrives "
+    "this trial's position does not exist yet, and because the task avoids recent repeats, prior-trial "
+    "activity predicts the upcoming position (last-5-distinct -> next is the missing one 45-53% vs ~17% "
+    "uniform), so a window straying earlier would manufacture a pre-cue code. window_offset_s reports "
+    "how far recovered windows sit from the cue. Decode = the pipeline's own block-CV multinomial "
+    "logistic regression; encode = per-region cross-validated position EV with a Spearman-Brown "
+    "split-half ceiling. "
     "WHAT THE TASK ALREADY DOES: the strobe->cue interval is an ENFORCED NO-LICK period that licking "
     "RESTARTS, which is why the lead is a median 3.0 s but reaches a p90 of 18.1 s (PS92). The final "
-    "2 s is therefore quiet BY CONSTRUCTION, and 90.8-99.5% of windows contain no licks. "
-    "RESULT (9 curated sessions/animal, per-session then averaged, chance 0.167): lick-free vs "
-    "all-trials accuracy is PS92 0.451/0.465, PS93 0.438/0.438, PS94 0.427/0.433, PS95 0.472/0.462 -- "
-    "a maximum difference of 0.014. Dropping EVERY licking trial changes nothing, including in PS93's "
-    "8/6-8/9 sessions where exposure falls to 76-87% lick-free. The pre-cue code is NOT lick-driven. "
-    "HOW TO READ IT: the lick-free arm is the evidence. The with-licks arm is contrast only and proves "
-    "nothing either way -- it is a small self-selected subset (n=49 for PS94, n=0 for PS95), so a low "
-    "value there reflects sample size, not the absence of a code. "
+    "2 s is therefore quiet BY CONSTRUCTION, and 90.8-99.5% of fixed windows already contain no licks; "
+    "the search recovers most of the rest. "
+    "HOW TO READ IT: the lick-free arm is the evidence -- information present with NO licking in the "
+    "window cannot be lick-driven. The with-licks arm is contrast only and proves nothing either way: "
+    "it is now only those trials where no clean 2 s exists ANYWHERE in the interval, a small "
+    "self-selected subset, so a low value there reflects sample size, not the absence of a code. "
     "WHAT THIS DOES NOT ADDRESS: the pre-cue window sits ~3 s AFTER the spout reaches its position, so "
     "it cannot separate a maintained plan from somatosensory contact with the already-positioned "
     "spout. Vision was tested and rejected (removing every visual ROI costs nothing); somatosensation "
     "remains open, and SSp is where the signal concentrates. See DECISIONS.md '\"Pre-cue\" is AFTER the "
     "spout arrives'.")
 
-M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position"
+M_JOINT = (
+    "CROSS-SESSION decoder/encoder in the SHARED JOINT-LocaNMF basis (wfield_local.joint_xsession). "
+    "Same leave-one-SESSION-out design as the frozen ROI slides -- no trial from the plotted day was "
+    "used to fit -- but the features are ~95-137 functionally-defined LocaNMF components instead of 66 "
+    "anatomical Allen ROIs. "
+    "WHY THIS IS POSSIBLE AT ALL: a session's OWN LocaNMF components are session-specific in count AND "
+    "identity, so they cannot be pooled across days, which is why the frozen work started with ROI "
+    "features. The joint basis (wfield_local.joint_locanmf) fits the footprints A ONCE over the "
+    "animal's curated sessions and then holds them FIXED; a day not in that fit is PROJECTED onto the "
+    "same footprints (C = pinv(A) U, contracted on the small Gram matrix), never refitted. Component j "
+    "is therefore the same footprint on every day. The basis is SEEDED and PERSISTED with an id hashing "
+    "its session set, inputs, rank and params, so a refit lands in a new directory and results can "
+    "never silently mix two bases -- necessary because LocaNMF is stochastic (repeat runs differed by "
+    "up to 5 components and moved RSA by 0.054). "
+    "WHY TWO BASES: ROI and joint are not distinguishable on the RSA criterion (+0.817 vs +0.806) but "
+    "they are different parcellations, so a cross-day effect that appears in only one is a fact about "
+    "the parcellation. LocaNMF decodes better WITHIN a session in 4/4 animals (0.824 vs 0.763), so it "
+    "is the more sensitive of the two, and the ROI version is the more conservative. "
+    "NOT the rejected frozen fixed-A path: that nominated ONE session as the reference and the choice "
+    "mattered (no reference won for every animal; within-animal swing up to 0.36). The joint basis is "
+    "reference-free. "
+    "READ THE BASIS-HEALTH SLIDE ALONGSIDE: variance_captured is the fraction of a session's own energy "
+    "the frozen footprints span. Sessions in the fit are 1.0 by construction; a PROJECTED day is not, "
+    "and a projected day that decodes poorly while spanning poorly is under-described by the basis "
+    "rather than representationally changed. Note also that the basis was fitted using the in-fit days' "
+    "data (unsupervised -- no labels), so their LOSO scores carry a mild transductive advantage that "
+    "projected days do not; compare like with like. " + M_COMMON)
+
+M_ENCODE = ("Encoder (forward model): cross-validated ridge regression (alpha=1) from a one-hot position "
             "design to each LocaNMF component's activity, GroupKFold by position block. Per-position "
             "explained variance = held-out R^2 on that position's trials (whole-cortex, summed over "
             "components). Noise ceiling = between-position SS / total single-trial SS (explainable var); "
@@ -128,7 +182,9 @@ def _mmdd_label(mmdd: str) -> str:
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
     src = Path(src)
-    dates = dates or config.cross_session_dates()
+    # curated_dates() is DERIVED (registered minus excluded), so a hand-run deck covers the same
+    # dates as the nightly. The static policy list this used to read stopped at 8/7.
+    dates = dates or config.curated_dates()
     animals = animals or [a for a in config.animals()]
     tag = tag or f"{dates[0]}-{dates[-1]}"
     date_labels = [(d, _mmdd_label(d)) for d in dates]
@@ -218,7 +274,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     for t in [f"Curated pre-stroke sessions ({', '.join(_mmdd_label(d) for d in dates)}) — "
               f"{', '.join(animals)} (PS93 = right orofacial deficit)",
               "Individual LocaNMF components, block-aware CV, no per-trial baseline, chance = 0.17.",
-              "Grouped by animal, then analysis type, then date."]:
+              "A–C within-day, grouped animal → analysis type → date.  D cross-session (frozen), "
+              "grouped basis → alignment → animal.  E–F cohort summaries."]:
         rr = tf.add_paragraph().add_run()
         rr.text = t
         rr.font.size = Pt(15)
@@ -227,10 +284,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "date, curated pre-stroke sessions only. Each slide's speaker notes give how that figure is "
             "made. " + M_COMMON)
 
-    # ---------------- A. per-animal decoding ----------------
-    divider("A. Per-animal decoding across sessions",
+    # ---------------- A. per-animal WITHIN-DAY decoding ----------------
+    divider("A. Per-animal WITHIN-DAY decoding across sessions",
             "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
-            "(maintained position code) confusion + recall; then the rolling decoder across sessions.")
+            "(maintained position code) confusion + recall; then the rolling decoder across sessions. "
+            "Cross-day (frozen) decoding is Section D.")
     for a in animals:
         s = slide()
         title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
@@ -248,48 +306,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
         note(s, M_DECODE)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
-        # Frozen cross-day decoder: same per-date confusion layout as the within-day slides above, but
-        # each day is predicted by a model trained ONLY on this animal's other days (ROI features).
-        #
-        # PAGINATED 4-per-slide (2x2). Putting all 8 curated dates on one slide at cols=2 gives 4 rows,
-        # so each panel gets ~1/4 of the slide height and the 6x6 confusion cells become unreadable.
-        # 2x2 doubles the height per panel; the cost is one extra slide per animal.
-        pages = [date_labels[i:i + 4] for i in range(0, len(date_labels), 4)]
-        # BOTH alignments: post-cue (readout during/after the movement) and PRE-CUE (the maintained,
-        # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether
-        # IT survives freezing across days is the more consequential question.
-        for al, al_name, al_desc in (
-                ("cue", "post-cue 2 s", "the readout during/after the movement"),
-                ("precue", "PRE-CUE 2 s", "the maintained, motor-independent code — the window "
-                                          "ENDING at the cue, before any movement")):
-            for page in pages:
-                s = slide()
-                span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
-                suffix = f"  ({span})" if len(pages) > 1 else ""
-                title(s, f"{a} — FROZEN cross-day decoder, {al_name}, held-out day (Allen-ROI){suffix}",
-                      f"Per date: confusion + per-position recall from a decoder trained on this "
-                      f"animal's OTHER days only (leave-one-session-out). {al_desc}. ROI features, not "
-                      f"LocaNMF components — components are session-specific and cannot be pooled.")
-                note(s, M_FROZEN)
-                grid(s, [src / f"locanmf_frozen_session_{a}_{d}_roi_{al}.png" for d, _ in page],
-                     cols=2, top=1.35)
-            s = slide()
-            title(s, f"{a} — FROZEN decoder ({al_name}): transfer cost & out-of-distribution control",
-                  "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
-                  "the OOD control — a softmax decoder never abstains, so confidence alone is not "
-                  "evidence.")
-            note(s, M_FROZEN)
-            big(s, src / f"locanmf_frozen_decoder_loso_roi_{al}.png", top=1.9, width=12.7)
-            s = slide()
-            title(s, f"{a} — FROZEN cross-day ENCODER ({al_name}, Allen-ROI): position → activity",
-                  "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
-                  "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
-                  "NEGATIVE where the decoder's is positive.")
-            note(s, M_FROZEN_ENC)
-            big(s, src / f"locanmf_frozen_encoder_loso_roi_{al}.png", top=1.9, width=12.7)
 
     # ---------------- B. per-animal encoder ----------------
-    divider("B. Per-animal encoder — expected activity, predicted maps & explained variance",
+    divider("B. Per-animal WITHIN-DAY encoder — expected activity, predicted maps & explained variance",
             "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
             "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
     for a in animals:
@@ -326,9 +345,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     note(s, M_ENCODE)
     big(s, src / "locanmf_encoder_feve_by_region_sessions.png", top=1.5, width=12.9)
 
-    # ---------------- B2. pre-cue without licking ----------------
-    divider("B2. Pre-cue code without licking — the motor-confound control",
-            "Decoding AND encoding restricted to trials with no licks in the 2 s pre-cue window.")
+    # ---------------- C. pre-cue without licking ----------------
+    divider("C. Pre-cue code without licking — the motor-confound control",
+            "Decode AND encode on a SEARCHED 2 s window: 2 consecutive lick-free seconds between the "
+            "spout-position strobe and the cue, taken as late as possible.")
     for src_name in ("roi", "locanmf"):
         for a in animals:
             p = src / f"precue_lickfree_{a}_{src_name}.png"
@@ -341,8 +361,73 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_LICKFREE)
             big(s, p, top=1.5, width=12.9)
 
-    # ---------------- C. cross-session summary ----------------
-    divider("C. Cross-session summary — decoder recall & encoder accuracy across sessions")
+    # ---------------- D. cross-session (frozen) decoders & encoders, BOTH bases ----------------
+    # Was interleaved into each animal's Section A, which mixed "does the code exist today" with "does
+    # it transfer across days". Now its own section, and now in TWO bases: Allen-ROI (conservative,
+    # atlas-anchored) and the shared joint-LocaNMF basis (finer, more sensitive). A cross-day claim
+    # that survives both is about the cortex; one that appears in only one is about the parcellation.
+    divider("D. CROSS-SESSION (frozen) decoders & encoders — two independent bases",
+            "Every day predicted by a model trained ONLY on that animal's other days "
+            "(leave-one-session-out). Allen-ROI (66 anatomical areas) and the shared joint-LocaNMF "
+            "basis (~95–137 functional components, footprints frozen and shared across days).")
+    # PAGINATED 4-per-slide (2x2). All curated dates on one slide at cols=2 gives 4+ rows, so each
+    # panel gets ~1/4 of the slide height and the 6x6 confusion cells become unreadable. 2x2 doubles
+    # the height per panel; the cost is one extra slide per animal.
+    pages = [date_labels[i:i + 4] for i in range(0, len(date_labels), 4)]
+    # BOTH alignments: post-cue (readout during/after the movement) and PRE-CUE (the maintained,
+    # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether IT
+    # survives freezing across days is the more consequential question.
+    ALIGNS = (("cue", "post-cue 2 s", "the readout during/after the movement"),
+              ("precue", "PRE-CUE 2 s", "the maintained, motor-independent code — the window ENDING "
+                                        "at the cue, before any movement"))
+    BASES = (("roi", "Allen-ROI", M_FROZEN, M_FROZEN_ENC,
+              "66 atlas-anchored anatomical areas — column j is the same cortical region every day"),
+             ("joint", "joint-LocaNMF", M_JOINT, M_JOINT,
+              "shared joint-basis components — footprints fitted once and FROZEN, new days projected "
+              "onto them rather than refitted"))
+    for bkey, bname, m_dec, m_enc, bdesc in BASES:
+        if not any((src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png").exists()
+                   for al, _, _ in ALIGNS):
+            continue                      # basis not computed (e.g. no joint basis built yet)
+        divider(f"D — {bname} basis", bdesc)
+        if bkey == "joint":
+            s = slide()
+            title(s, "Joint-basis health — how much of each session the frozen footprints span",
+                  "Sessions IN the fit are 1.0 by construction (hollow); a PROJECTED day (filled) is "
+                  "not. Read a projected day's decode accuracy against its bar: low-and-low means the "
+                  "basis under-describes that day, not that its representation changed.")
+            note(s, M_JOINT)
+            big(s, src / "joint_basis_health_precue.png", top=1.7, width=12.2)
+        for al, al_name, al_desc in ALIGNS:
+            for a in animals:
+                for page in pages:
+                    span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
+                    suffix = f"  ({span})" if len(pages) > 1 else ""
+                    s = slide()
+                    title(s, f"{a} — FROZEN cross-day decoder, {al_name}, held-out day "
+                             f"({bname}){suffix}",
+                          f"Per date: confusion + per-position recall from a decoder trained on this "
+                          f"animal's OTHER days only. {al_desc}.")
+                    note(s, m_dec)
+                    grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png" for d, _ in page],
+                         cols=2, top=1.35)
+            s = slide()
+            title(s, f"FROZEN decoder ({al_name}, {bname}): transfer cost & OOD control — all animals",
+                  "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
+                  "the OOD control — a softmax decoder never abstains, so confidence alone is not "
+                  "evidence.")
+            note(s, m_dec)
+            big(s, src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
+            s = slide()
+            title(s, f"FROZEN cross-day ENCODER ({al_name}, {bname}): position → activity — all animals",
+                  "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
+                  "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
+                  "NEGATIVE where the decoder's is positive.")
+            note(s, m_enc)
+            big(s, src / f"locanmf_frozen_encoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
+
+    # ---------------- E. cross-session summary ----------------
+    divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")
     s = slide()
     title(s, f"Cross-mouse decoding & encoding across sessions ({_mmdd_label(dates[0])}–{_mmdd_label(dates[-1])})",
           "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's sessions "
@@ -355,8 +440,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     note(s, M_DECODE + " " + M_ENCODE)
     big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
 
-    # ---------------- D. RSA ----------------
-    divider("D. RSA — representational geometry of spout position",
+    # ---------------- F. RSA ----------------
+    divider("F. RSA — representational geometry of spout position",
             "Within- vs across-animal second-order RSA, per-animal RDM, and the noise-unbiased crossnobis RDM.")
     s = slide()
     title(s, "RSA — within- vs across-animal representational geometry",

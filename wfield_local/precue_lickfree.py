@@ -374,7 +374,9 @@ def main(argv=None) -> int:
                        "decode_all": float(np.nanmean([r["decode_all"]["accuracy"]
                                                        for r in rows if r["decode_all"]]))}
     rs.save(args.output, "precue_lickfree", None, summary,
-            meta={"window": f"{PRE_S} s ending at cue", "source": args.source, "chance": CHANCE})
+            meta={"window": f"{PRE_S} s, SEARCHED: the latest lick-free {PRE_S} s in [strobe, cue] "
+                            f"(the window ending at the cue when that is already clean)",
+                  "source": args.source, "chance": CHANCE})
     return 0
 
 

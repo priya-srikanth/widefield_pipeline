@@ -250,6 +250,14 @@ def main():
         except Exception as ex:
             log(f"  !! frozen decoder/encoder: {type(ex).__name__} {str(ex)[:80]}")
 
+    # CROSS-SESSION decode/encode in the shared JOINT-LocaNMF basis -- the second, independent basis
+    # for the same cross-day question the frozen ROI step above answers. Runs only if a joint basis
+    # has been built for the animal (wfield_local.joint_locanmf); a missing basis is reported, never
+    # silently refitted, because a refit over a grown session set is a DIFFERENT reference frame.
+    if not args.skip_frozen:
+        cli("wfield_local.joint_xsession", "--output", out, "--from", from_dates,
+            "--align", "cue", "precue")
+
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
         from wfield_local.locanmf_analysis_deck import build_analysis_deck
