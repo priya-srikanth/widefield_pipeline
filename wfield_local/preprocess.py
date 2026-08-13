@@ -70,11 +70,19 @@ def _session_dir_of(dat: Path, yyyymmdd: str) -> Path:
 
 
 def _match_daq(h5s: list[Path], animal: str | None, yyyymmdd: str) -> Path | None:
-    """DAQ .h5 whose NAME contains the animal + the 8-digit date (robust to date-dir typos)."""
+    """DAQ .h5 whose NAME contains the animal + the 8-digit date (robust to date-dir typos).
+
+    A ``*_concat.h5`` WINS when one exists. When an acquisition crashes mid-session the day is
+    recorded as two segments plus a joined one, so three .h5 match the animal and date, and plain
+    sorting returns the FIRST SEGMENT -- for PS92 8/12 that is 24 trials of a 225-trial day. The joined
+    file is the authoritative record of such a day (see the sessions.yaml note on PS92 "0812"), and
+    picking it here keeps the discovery path consistent with what sessions.yaml already declares.
+    """
     if not animal:
         return None
     cands = sorted(h for h in h5s if animal in h.name and yyyymmdd in h.name)
-    return cands[0] if cands else None
+    concat = [h for h in cands if h.stem.endswith("_concat")]
+    return (concat or cands)[0] if cands else None
 
 
 def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
@@ -434,11 +442,19 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
 def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
     sessions = discover_raw_sessions(date, rv)
-    if not sessions and args.skip_preprocess:
-        sessions = discover_processed_sessions(date, rv)
-        if sessions:
-            print(f"[preprocess] {date}: raw not on {rv.root('raw_labcams')} (archived); "
-                  f"discovered {len(sessions)} PROCESSED session(s) from MICROSCOPE for downstream steps")
+    if args.skip_preprocess:
+        # MERGE, do not fall back only when raw discovery is empty. Ownership of a night can be SPLIT
+        # across the two boxes (8/12: this box preprocessed PS92+PS93, the imaging box PS94+PS95), so
+        # exactly one animal's raw sat on E: here -- and a fallback gated on "found nothing" then
+        # refreshed xall/maps for that ONE animal and silently skipped the other three. Downstream
+        # steps should run on everything PROCESSED for the date, wherever the raw happens to live.
+        have = {s["animal"] for s in sessions}
+        extra = [s for s in discover_processed_sessions(date, rv) if s["animal"] not in have]
+        if extra:
+            print(f"[preprocess] {date}: +{len(extra)} PROCESSED session(s) from MICROSCOPE whose raw "
+                  f"is not on {rv.root('raw_labcams')} ({', '.join(sorted(s['animal'] for s in extra))})"
+                  f" -> included in the downstream steps")
+            sessions = sorted(sessions + extra, key=lambda s: (s["animal"] or "", s["sess"]))
     if args.only:
         sessions = [s for s in sessions if s["animal"] in set(args.only)]
     if not sessions:
