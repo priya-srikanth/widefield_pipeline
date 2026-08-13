@@ -65,6 +65,29 @@ def _dat_pairs(path: Path, dims) -> int:
     return sz // bytes_per
 
 
+def _dat_pairs_floor(path: Path, dims) -> int:
+    """Whole frame-pairs on disk, flooring a crash-truncated partial last frame (no raise)."""
+    ch, h, w = dims
+    return path.stat().st_size // (ch * h * w * 2)
+
+
+def _usable_counts(dat_pairs: int, pco_rises: int, rise_samples, nsamp: int):
+    """Overlap of imaging frames and DAQ pco pulses for one segment so #frames == #pco pairs.
+
+    Uses the pco pulses as ground truth (start alignment: .dat frame 0 == the first pco pulse).
+      - .dat longer than sync (DAQ stopped / froze before labcams) -> keep the FIRST usable_pairs
+        frames; drop the sync-less tail.
+      - DAQ longer than .dat (labcams froze first) -> cut the DAQ just after the (2*usable_pairs)th
+        pco rising edge; drop the imaging-less DAQ tail.
+    Returns (usable_pairs, nsamp_used). ``rise_samples`` are the sorted sample indices of the pco
+    rising edges (len == pco_rises)."""
+    pco_pairs = pco_rises // 2
+    usable_pairs = min(dat_pairs, pco_pairs)
+    if usable_pairs >= pco_pairs:
+        return usable_pairs, nsamp                                   # every pco pulse has a frame
+    return usable_pairs, int(rise_samples[2 * usable_pairs - 1]) + 1  # trim DAQ to last synced edge
+
+
 def _parse_ts(s):
     if isinstance(s, bytes):
         s = s.decode()
@@ -78,7 +101,7 @@ def _attr(h, key, default=None):
     return v
 
 
-def main() -> int:
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Concatenate a force-split widefield session.")
     ap.add_argument("--segment", action="append", required=True,
                     help='"<daq_h5>::<camera_dat>", repeat in chronological order (>=2)')
@@ -87,7 +110,12 @@ def main() -> int:
     ap.add_argument("--out-daq", type=Path, required=True)
     ap.add_argument("--fs", type=float, default=None, help="sample rate override (else read from seg0)")
     ap.add_argument("--dry-run", action="store_true", help="validate + report plan, write nothing")
-    args = ap.parse_args()
+    ap.add_argument("--trim-to-sync", action="store_true",
+                    help="crash recovery: when a segment's .dat frame count != DAQ pco-pulse pairs "
+                         "(staggered start/stop/freeze), trim to the overlap using the pco pulses as "
+                         "truth instead of hard-failing (drops sync-less .dat frames / imaging-less DAQ "
+                         "tail so #frames == #pco pairs per segment; floors a truncated last frame).")
+    args = ap.parse_args(argv)
 
     segs = []
     for s in args.segment:
@@ -110,7 +138,7 @@ def main() -> int:
         dims = _dat_dims(datp)
         if dims != dims0:
             raise ValueError(f"segment {i} dims {dims} != segment0 {dims0}; cannot concatenate")
-        pairs = _dat_pairs(datp, dims)
+        pairs = _dat_pairs_floor(datp, dims) if args.trim_to_sync else _dat_pairs(datp, dims)
         with h5py.File(h5p, "r") as h:
             nsamp = int(h["analog/samples_int16"].shape[0])
             seg_fs = float(_attr(h, "sample_rate_hz", 5000.0))
@@ -120,24 +148,36 @@ def main() -> int:
             rec_complete = bool(_attr(h, "recording_complete", False))
             dpk = h["digital/packed_samples"][:, 0]
             pco = ((dpk >> PCO_BIT) & 1).astype(np.int8)
-            rises = int(np.sum((pco[1:] == 1) & (pco[:-1] == 0)))
+            rise_samples = np.flatnonzero((pco[1:] == 1) & (pco[:-1] == 0)) + 1
+            rises = int(rise_samples.size)
         if fs is None:
             fs = seg_fs
         ok = (rises == 2 * pairs)
-        meta.append(dict(h5=str(h5p), dat=str(datp), dims=dims, pairs=pairs, nsamp=nsamp,
-                         fs=seg_fs, created=created, closed=closed, rec_complete=rec_complete,
+        if ok:
+            pairs_used, nsamp_used = pairs, nsamp
+        elif args.trim_to_sync:
+            pairs_used, nsamp_used = _usable_counts(pairs, rises, rise_samples, nsamp)
+        else:
+            print(f"[seg{i}] pairs={pairs} pco_rises={rises} (=2x{pairs}? !! MISMATCH)", flush=True)
+            raise ValueError(f"segment {i}: pco rises {rises} != 2*pairs {2*pairs}; refusing to "
+                             f"concatenate (pass --trim-to-sync to trim to the sync overlap)")
+        dat_bytes = pairs_used * dims[0] * dims[1] * dims[2] * 2
+        meta.append(dict(h5=str(h5p), dat=str(datp), dims=dims, pairs=pairs, pairs_used=pairs_used,
+                         dat_bytes=dat_bytes, nsamp=nsamp, nsamp_used=nsamp_used, fs=seg_fs,
+                         created=created, closed=closed, rec_complete=rec_complete,
                          pco_rises=rises, pulses_match=ok))
-        flag = "OK" if ok else "!! MISMATCH"
-        print(f"[seg{i}] pairs={pairs} samples={nsamp} ({nsamp/seg_fs:.1f}s) "
-              f"pco_rises={rises} (=2x{pairs}? {flag}) created={created} complete={rec_complete}", flush=True)
-        if not ok:
-            raise ValueError(f"segment {i}: pco rises {rises} != 2*pairs {2*pairs}; refusing to concatenate")
+        trim = "" if (pairs_used == pairs and nsamp_used == nsamp) else (
+            f" -> TRIM to {pairs_used} pairs / {nsamp_used} samp "
+            f"(drop {pairs - pairs_used} frames, {nsamp - nsamp_used} DAQ samp)")
+        print(f"[seg{i}] pairs={pairs} samples={nsamp} ({nsamp/seg_fs:.1f}s) pco_rises={rises} "
+              f"(=2x? {'OK' if ok else 'mismatch'}){trim} created={created} complete={rec_complete}",
+              flush=True)
 
     # ---- gaps (wall-clock) between consecutive segments ----
     gap_samps = [0]
     for i in range(1, len(meta)):
         prev = meta[i - 1]
-        prev_end = prev["created"] + dt.timedelta(seconds=prev["nsamp"] / prev["fs"])
+        prev_end = prev["created"] + dt.timedelta(seconds=prev["nsamp_used"] / prev["fs"])
         gap_s = (meta[i]["created"] - prev_end).total_seconds()
         if gap_s < 0:
             print(f"[gap{i}] WARNING negative gap {gap_s:.3f}s -> clamping to 0", flush=True)
@@ -146,8 +186,8 @@ def main() -> int:
         gap_samps.append(gsamp)
         print(f"[gap{i}] {gap_s:.3f}s -> {gsamp} zero-padded samples", flush=True)
 
-    total_pairs = sum(m["pairs"] for m in meta)
-    total_samps = sum(m["nsamp"] for m in meta) + sum(gap_samps)
+    total_pairs = sum(m["pairs_used"] for m in meta)
+    total_samps = sum(m["nsamp_used"] for m in meta) + sum(gap_samps)
     print(f"\n[plan] camera: {total_pairs} frame-pairs ({total_pairs*dims0[0]} single frames)")
     print(f"[plan] DAQ: {total_samps} samples ({total_samps/fs:.1f}s incl. {sum(gap_samps)} gap samples)")
     print(f"[plan] out .dat: {args.out_cam_dir}")
@@ -161,10 +201,10 @@ def main() -> int:
         s_off += gap_samps[i]
         boundaries.append(dict(segment=i, sample_start=s_off, frame_pair_start=f_off,
                                single_frame_start=f_off * dims0[0],
-                               created_at=m["created"].isoformat(), n_samples=m["nsamp"],
-                               n_frame_pairs=m["pairs"], gap_samples_before=gap_samps[i]))
-        s_off += m["nsamp"]
-        f_off += m["pairs"]
+                               created_at=m["created"].isoformat(), n_samples=m["nsamp_used"],
+                               n_frame_pairs=m["pairs_used"], gap_samples_before=gap_samps[i]))
+        s_off += m["nsamp_used"]
+        f_off += m["pairs_used"]
 
     if args.dry_run:
         print("\n[dry-run] no files written.")
@@ -181,13 +221,15 @@ def main() -> int:
     written = 0
     with open(out_dat, "wb") as fout:
         for i, m in enumerate(meta):
+            remaining = m["dat_bytes"]                 # trim-to-sync: only the synced frames
             with open(m["dat"], "rb") as fin:
-                while True:
-                    buf = fin.read(COPY_BUF)
+                while remaining > 0:
+                    buf = fin.read(min(COPY_BUF, remaining))
                     if not buf:
                         break
                     fout.write(buf)
                     written += len(buf)
+                    remaining -= len(buf)
             print(f"   seg{i} appended ({written/1e9:.1f} GB total)", flush=True)
     got_pairs = _dat_pairs(out_dat, dims0)
     assert got_pairs == total_pairs, f"output .dat has {got_pairs} pairs, expected {total_pairs}"
@@ -218,12 +260,13 @@ def main() -> int:
         off = 0
         for i, m in enumerate(meta):
             off += gap_samps[i]  # leave gap as zero (fillvalue)
+            n = m["nsamp_used"]                        # trim-to-sync: only the synced DAQ span
             with h5py.File(m["h5"], "r") as hi:
                 with h5py.File(args.out_daq, "a") as out:
-                    out["analog/samples_int16"][off:off + m["nsamp"], :] = hi["analog/samples_int16"][...]
-                    out["digital/packed_samples"][off:off + m["nsamp"], :] = hi["digital/packed_samples"][...]
-            off += m["nsamp"]
-            print(f"   seg{i} written at sample {off - m['nsamp']}..{off}", flush=True)
+                    out["analog/samples_int16"][off:off + n, :] = hi["analog/samples_int16"][:n, :]
+                    out["digital/packed_samples"][off:off + n, :] = hi["digital/packed_samples"][:n, :]
+            off += n
+            print(f"   seg{i} written at sample {off - n}..{off}", flush=True)
 
     with h5py.File(args.out_daq, "a") as out:
         out.attrs["sample_count"] = total_samps
