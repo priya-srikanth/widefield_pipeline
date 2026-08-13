@@ -551,6 +551,34 @@ estimator, not because it changed an answer. The circularity was WITHIN a sessio
 agreement BETWEEN sessions, which is why it could bias distance magnitudes without manufacturing
 cross-session agreement.
 
+## Projecting NEW sessions into a frozen joint basis (2026-08-12)
+`joint_locanmf.Basis.project()` refits C with the footprints A held FIXED, so a session outside the fit
+— a new pre-stroke day, and every post-stroke day — is expressed in the SAME components. Without it the
+basis would only describe the sessions it was built from, which is not a reference frame.
+
+`pinv(A)` is computed as `pinv(A'A) A'` (exact at any rank) rather than on the tall (345600, ncomp)
+matrix, whose SVD **does not converge**; A is ~40% NaN (LocaNMF writes NaN outside each footprint's
+region) and must be zero-filled first. The least-squares is restricted to in-brain pixels — a pixel
+finite for ANY component — because LocaNMF never fit the rest.
+
+**Coefficient agreement is NOT the acceptance test, and would have failed.** Against the in-fit
+components, per-component correlation is excellent at the median (0.996–0.999) but has a tail
+(10th percentile 0.36–0.61, min ≈ 0): footprints overlap heavily (Gram condition ≈ 6e7), so
+near-collinear components trade amplitude with almost no effect on the fit and their individual
+coefficients are under-determined. **Ridge does not fix this — measured, it makes the tail
+monotonically worse** (λ/mean-eig 1e-4 → 10th pct 0.24, 1e-2 → 0.03), because it shrinks weak
+components toward zero rather than stabilising them. λ=0 retained.
+
+What settles it is that the components are only ever a FEATURE SET, so the test is whether the answers
+move. On in-fit sessions, features from `project()` vs LocaNMF's own C give **decode accuracy within
+−0.022 to +0.014 (mean −0.007) and crossnobis RDM agreement +0.950 to +0.993**. The tail is cosmetic.
+
+`variance_captured` is returned alongside and must be reported with any projected result — it is the
+health check for applying a pre-stroke basis to post-stroke data (in-fit sessions: 99.4–99.7%). It is
+**not** a guard against using the wrong animal's basis: a PS92 basis spans a PS95 session at 97%,
+because both are cortex on the same Allen grid. Only the label can catch that, so `project()` refuses a
+cross-animal session unless `allow_cross_animal=True`.
+
 ## Reliability ≠ information: the RSA ranking does not say ROI carries more (2026-08-12)
 Mean sibling RSA is a RELIABILITY measure and must not be read as "which basis carries more positional
 information". Measured on the same sessions, ROI vs per-session LocaNMF:

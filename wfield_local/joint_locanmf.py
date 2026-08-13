@@ -106,6 +106,76 @@ class Basis:
         C = np.load(self.root / f"C_{label}.npy")
         return _footprint_scale(np.asarray(self.A), C.shape[0])[:, None] * C
 
+    @property
+    def _operator(self):
+        """``pinv(A) @ U_joint`` (ncomp, R) — projects joint-basis temporal weights onto the frozen
+        footprints. Contracted in THIS order deliberately: ``pinv(A) @ (U_joint @ V)`` would
+        materialize an (npix, T) movie (~276 GB for a long session), the same OOM that had to be fixed
+        in ``locanmf_frozen_decoder.project_C_fixed_A``."""
+        if getattr(self, "_op", None) is None:
+            Uj = np.nan_to_num(np.load(self.root / "U_joint.npy")).astype(np.float32)
+            Araw = np.asarray(self.A, dtype=np.float32).reshape(-1, self.ncomp)
+            # LocaNMF writes NaN OUTSIDE each footprint's region, so a pixel finite for ANY component
+            # is inside the brain. Restrict the least-squares to those rows: LocaNMF never fit the
+            # out-of-mask pixels, and including them (where every footprint is 0 but the movie is not)
+            # drags the solution toward explaining signal no component can carry.
+            inside = np.isfinite(Araw).any(axis=1)
+            # Within the mask, NaN means "this component has no weight here" -> 0, not missing.
+            A = np.nan_to_num(Araw[inside])
+            # pinv(A) = pinv(A'A) A' -- exact at any rank, but takes the pseudo-inverse of the
+            # (ncomp, ncomp) Gram matrix rather than a (345600, ncomp) one: far cheaper, and
+            # numerically far better behaved (the tall-matrix SVD failed to converge outright).
+            G = np.asarray(A.T @ A, dtype=np.float64)
+            self._op = np.linalg.pinv(G) @ np.asarray(A.T @ Uj[inside], dtype=np.float64)
+            self._inside = inside
+        return self._op
+
+    def project(self, session, with_diagnostics=False, allow_cross_animal=False):
+        """Components for a session that was NOT in the fit, with the footprints A held FIXED.
+
+        This is what makes the basis a usable reference frame rather than a description of the
+        sessions it was built from: a new pre-stroke day, and every post-stroke day, is expressed in
+        the SAME components so its geometry is comparable to the reference set.
+
+        ``variance_captured`` is the fraction of the session's own energy that survives projection onto
+        the joint subspace. It is the honest health check on applying a frozen basis to new data —
+        a post-stroke session whose activity has moved outside the pre-stroke subspace will show it
+        here, and a low value means the resulting components under-describe that session rather than
+        that its representation changed. Always report it alongside any projected result.
+        """
+        an = session["label"].split("_")[0]
+        if an != self.manifest["animal"] and not allow_cross_animal:
+            # NOT caught by variance_captured: a PS92 basis spans a PS95 session at 97%, because both
+            # are cortex on the same Allen grid. The diagnostic detects a session leaving the basis's
+            # subspace, not a session belonging to a different mouse. Only the label can catch that.
+            raise ValueError(f"{session['label']} is {an} but this basis is for "
+                             f"{self.manifest['animal']}; pass allow_cross_animal=True to override")
+        u, v = joint_basis._load_session(session["mc"])
+        Uj = np.load(self.root / "U_joint.npy")
+        if u.shape[0] != Uj.shape[0]:
+            raise ValueError(f"{session['label']} is not on the basis pixel grid "
+                             f"({u.shape[0]} px vs {Uj.shape[0]}) — needs allen_aligned_affine8v1")
+        P = Uj.T @ u                                  # (R, K) — never touches pixel-space time series
+        C = self._operator @ (P @ v)                  # (ncomp, R)(R, K)(K, T)
+        C = _footprint_scale(np.asarray(self.A), self.ncomp)[:, None] * C
+        if not with_diagnostics:
+            return C
+        W = np.asarray(v @ v.T, dtype=np.float64)     # (K, K)
+        den = float(np.sum(np.asarray(u.T @ u, dtype=np.float64) * W))
+        num = float(np.sum(np.asarray(P.T @ P, dtype=np.float64) * W))
+        return C, {"basis_id": self.basis_id, "label": session["label"],
+                   "variance_captured": num / max(den, 1e-30), "in_fit": session["label"] in self.labels}
+
+    def signal_or_project(self, session):
+        """``signal`` when the session is in the fit, ``project`` when it is not — so callers do not
+        have to branch, and cannot accidentally refit."""
+        lab = session["label"] if isinstance(session, dict) else session
+        if lab in self.manifest["labels"]:
+            return self.signal(lab)
+        if not isinstance(session, dict):
+            raise KeyError(f"{lab} is not in basis {self.basis_id}; pass the session dict to project it")
+        return self.project(session)
+
     def __repr__(self):
         return (f"<Basis {self.basis_id} {self.manifest['animal']} "
                 f"{self.ncomp} comps, {len(self.labels)} sessions, rank {self.manifest['rank']}>")
