@@ -131,6 +131,35 @@ M_LICKFREE = (
     "remains open, and SSp is where the signal concentrates. See DECISIONS.md '\"Pre-cue\" is AFTER the "
     "spout arrives'.")
 
+M_PRECUE_CAVEAT = (
+    "\n\n!!! READ THIS BEFORE QUOTING ANY PRE-CUE NUMBER ON THIS SLIDE (added 2026-08-13). "
+    "The pre-cue accuracies in this deck are INFLATED roughly TWOFOLD by a preprocessing artifact and "
+    "have not yet been recomputed. wfield.hemodynamic_correction high-passes both channels at 0.1 Hz "
+    "with scipy filtfilt -- zero-phase, therefore ACAUSAL -- and the high-passed 470 channel is what "
+    "becomes SVTcorr. A zero-phase filter's impulse response is symmetric in time (measured on this "
+    "filter: -0.496 before an impulse, -0.496 after, -0.209 of it in the single preceding second), so a "
+    "position-specific POST-cue response casts a scaled, SIGN-FLIPPED shadow backwards over the pre-cue "
+    "window, and a linear decoder does not care about sign. "
+    "MEASURED (12 sessions, 4 animals x 6/7, 8/10, 8/11; SVTcorr rebuilt from the retained SVT.npy with "
+    "the hemodynamic transform T held FIXED so only the filter varies): pre-cue 0.498 -> 0.288 when the "
+    "filter is kept for the coefficient fit but not applied to the output, falling in 12 of 12 sessions, "
+    "while POST-CUE is unchanged at 0.718 -> 0.717. Per animal after correction (chance 0.167): PS92 "
+    "0.202 (NOT convincingly above chance), PS93 0.268, PS94 0.434, PS95 0.247. "
+    "The sign test confirms the mechanism: the pre-cue position pattern is ANTI-correlated with the "
+    "post-cue pattern (r = -0.67, negative in 4/4 animals) and sits BELOW the far-from-cue quiet "
+    "baseline in 4/4 -- a maintained plan has no reason to be the negative of the movement response. "
+    "Remove the filter fingerprint and that correlation flips to +0.73, i.e. what survives looks like a "
+    "plan rather than an echo. "
+    "A REAL pre-cue code therefore survives in PS93/PS94/PS95 (PS94's is barely affected), but it is "
+    "about half the size shown here and the cohort is NOT uniform. "
+    "This is the UPSTREAM method, not a local bug: churchlandlab/WidefieldImager SvdHemoCorrect.m does "
+    "the same in-place filtfilt, and Musall et al. 2019 state it in their methods. The artifact class is "
+    "published -- van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods -- including the negative "
+    "sign, with trial-masked robust detrending as the recommended fix. "
+    "POST-CUE and LICK-ALIGNED results on other slides are NOT affected (the real response is inside "
+    "those windows; locanmf_rsa uses align='lick'), and the lick-free and vision controls remain valid. "
+    "See DECISIONS.md and wfield_local/filter_acausality_test.py.")
+
 M_JOINT = (
     "CROSS-SESSION decoder/encoder in the SHARED JOINT-LocaNMF basis (wfield_local.joint_xsession). "
     "Same leave-one-SESSION-out design as the frozen ROI slides -- no trial from the plotted day was "
@@ -284,6 +313,47 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "date, curated pre-stroke sessions only. Each slide's speaker notes give how that figure is "
             "made. " + M_COMMON)
 
+    # ---------------- KNOWN ARTIFACT: right after the title, before any result ----------------
+    # The pre-cue slides in this deck are built on zero-phase-high-passed data and overstate the
+    # effect ~2x. Until the preprocessing is changed and everything downstream re-run, the deck must
+    # say so BEFORE anyone reads a pre-cue number, not in a footnote afterwards.
+    s = slide()
+    title(s, "⚠ Known preprocessing artifact — PRE-CUE numbers in this deck are inflated ~2×",
+          "Post-cue, lick-aligned, encoder and RSA results are NOT affected. Read this before "
+          "quoting any pre-cue accuracy.")
+    tf = s.shapes.add_textbox(Inches(0.6), Inches(1.7), Inches(12.1), Inches(5.3)).text_frame
+    tf.word_wrap = True
+    for i, line in enumerate([
+        "WHAT: wfield.hemodynamic_correction high-passes both channels at 0.1 Hz with scipy filtfilt "
+        "— zero-phase, therefore ACAUSAL — and that high-passed 470 channel becomes SVTcorr. Its "
+        "impulse response is symmetric in time (−0.496 before an impulse, −0.496 after), so a "
+        "position-specific POST-cue response casts a sign-flipped shadow backwards into the pre-cue "
+        "window. A linear decoder does not care about sign.",
+        "MEASURED: rebuilding SVTcorr from the retained SVT.npy with the hemodynamic transform T held "
+        "fixed, so ONLY the filter varies — 12 sessions, 4 animals, three dates:",
+        "        pre-cue   0.498 → 0.288   (falls in 12 of 12 sessions)",
+        "        post-cue  0.718 → 0.717   (unchanged — the control)",
+        "PER ANIMAL after correction (chance 0.167):  PS92 0.202 — not convincingly above chance;  "
+        "PS93 0.268;  PS94 0.434 — barely affected;  PS95 0.247.",
+        "SIGN TEST: the pre-cue position pattern is ANTI-correlated with the post-cue pattern "
+        "(r = −0.67, negative in 4/4) and sits below the far-from-cue quiet baseline in 4/4. A "
+        "maintained plan has no reason to be the negative of the movement response. Removing the "
+        "filter fingerprint flips it to +0.73 — what survives looks like a plan, not an echo.",
+        "SO: a REAL pre-cue code survives in PS93/PS94/PS95, but it is about half the size shown in "
+        "this deck, and the cohort is no longer uniform. PS92 is the animal to watch.",
+        "NOT A LOCAL BUG: churchlandlab/WidefieldImager SvdHemoCorrect.m does the same in-place "
+        "filtfilt; Musall et al. 2019 state it in their methods. The artifact class is published — "
+        "van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods — including the negative sign, with "
+        "trial-masked robust detrending as the recommended fix.",
+        "REPRODUCE: python -m wfield_local.filter_acausality_test <LABEL,...>   •   see DECISIONS.md",
+    ]):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        r = p.add_run()
+        r.text = line
+        r.font.size = Pt(12.5)
+        r.font.color.rgb = NAVY if line.startswith(("WHAT", "MEASURED", "SIGN", "SO", "NOT", "PER")) else GREY
+    note(s, M_PRECUE_CAVEAT)
+
     # ---------------- A. per-animal WITHIN-DAY decoding ----------------
     divider("A. Per-animal WITHIN-DAY decoding across sessions",
             "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
@@ -296,9 +366,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         note(s, M_DECODE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels], cols=3)
         s = slide()
-        title(s, f"{a} — pre-cue 2 s decoder (maintained position code)",
-              "Position decodable in the pre-cue ENL window, before movement — a motor-independent code.")
-        note(s, M_DECODE)
+        title(s, f"{a} — pre-cue 2 s decoder (maintained position code)  ⚠ inflated ~2× — see slide 2",
+              "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
+              "are inflated by the zero-phase-filter artifact; the corrected effect is ~half this.")
+        note(s, M_DECODE + M_PRECUE_CAVEAT)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
@@ -355,10 +426,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             if not p.exists():
                 continue
             s = slide()
-            title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})",
+            title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
+                     "  ⚠ inflated ~2×",
                   "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
-                  "per-region encoding EV.")
-            note(s, M_LICKFREE)
+                  "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
+                  "filter-inflated pre-cue values; see slide 2.")
+            note(s, M_LICKFREE + M_PRECUE_CAVEAT)
             big(s, p, top=1.5, width=12.9)
 
     # ---------------- D. cross-session (frozen) decoders & encoders, BOTH bases ----------------
@@ -399,31 +472,36 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_JOINT)
             big(s, src / "joint_basis_health_precue.png", top=1.7, width=12.2)
         for al, al_name, al_desc in ALIGNS:
+            # the pre-cue arm inherits the zero-phase-filter inflation; the post-cue arm does not
+            cav = M_PRECUE_CAVEAT if al == "precue" else ""
+            warn = "  ⚠ inflated ~2×" if al == "precue" else ""
             for a in animals:
                 for page in pages:
                     span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
                     suffix = f"  ({span})" if len(pages) > 1 else ""
                     s = slide()
                     title(s, f"{a} — FROZEN cross-day decoder, {al_name}, held-out day "
-                             f"({bname}){suffix}",
+                             f"({bname}){suffix}{warn}",
                           f"Per date: confusion + per-position recall from a decoder trained on this "
                           f"animal's OTHER days only. {al_desc}.")
-                    note(s, m_dec)
+                    note(s, m_dec + cav)
                     grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png" for d, _ in page],
                          cols=2, top=1.35)
             s = slide()
-            title(s, f"FROZEN decoder ({al_name}, {bname}): transfer cost & OOD control — all animals",
+            title(s, f"FROZEN decoder ({al_name}, {bname}): transfer cost & OOD control — all "
+                     f"animals{warn}",
                   "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
                   "the OOD control — a softmax decoder never abstains, so confidence alone is not "
                   "evidence.")
-            note(s, m_dec)
+            note(s, m_dec + cav)
             big(s, src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
             s = slide()
-            title(s, f"FROZEN cross-day ENCODER ({al_name}, {bname}): position → activity — all animals",
+            title(s, f"FROZEN cross-day ENCODER ({al_name}, {bname}): position → activity — all "
+                     f"animals{warn}",
                   "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
                   "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
                   "NEGATIVE where the decoder's is positive.")
-            note(s, m_enc)
+            note(s, m_enc + cav)
             big(s, src / f"locanmf_frozen_encoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
 
     # ---------------- E. cross-session summary ----------------
