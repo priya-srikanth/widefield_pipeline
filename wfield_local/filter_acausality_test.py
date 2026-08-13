@@ -50,7 +50,7 @@ FS, HP, LP, FUNC = 31.23, 0.1, 14.0, 1        # configs/defaults.yaml svd.*
 
 
 def _hp(X, mode):
-    if mode in ("fitonly", "quietdetrend", "taskdetrend"):
+    if mode in ("fitonly", "quietdetrend", "taskdetrend", "strobedetrend"):
         return X
     b, a = butter(2, HP / (FS / 2), btype="highpass")
     return filtfilt(b, a, X, padlen=50) if mode == "zerophase" else lfilter(b, a, X)
@@ -112,6 +112,24 @@ def fit_mask(s, n_frames, csmp, cue, pre_s=TRIAL_PRE_S, post_s=TRIAL_POST_S,
                   "quiet_available": quiet_available}
 
 
+# What each detrending variant masks OUT before estimating the drift. Declared here rather than
+# buried in a call so the bounds are auditable -- they are a CHOICE, and an earlier version of this
+# module hardcoded one of them while claiming the drift fit stayed clear of the measured window.
+#
+#   taskdetrend    cue-0.5s -> cue+4s     evoked response only. Leaves 1.5 s of the 2 s pre-cue window
+#                                         INSIDE the drift fit, so it may shave real pre-cue signal.
+#   strobedetrend  strobe-0.25s -> cue+4s the WHOLE trial including the ENL, so the fit never sees the
+#                                         measured window. Costs eligible data: the strobe->cue lead is
+#                                         a median 3 s but reaches a p90 of 18 s, so this masks a lot.
+#   quietdetrend   as strobedetrend, AND only behaviourally quiet frames. NOT ESTIMABLE in this task --
+#                                         quiet is 0.3-10.5% of a session (PS92: 30 s in 156 min).
+MASK_SPEC = {
+    "taskdetrend":   dict(pre_s=0.5,  from_strobe=False, require_quiet=False),
+    "strobedetrend": dict(pre_s=0.25, from_strobe=True,  require_quiet=False),
+    "quietdetrend":  dict(pre_s=1.0,  from_strobe=True,  require_quiet=True),
+}
+
+
 def detrend_masked(X, mask, win_s=DETREND_WIN_S, min_frac=0.05):
     """Subtract a slow trend estimated ONLY from ``mask`` samples. X is (K, T).
 
@@ -148,7 +166,7 @@ def svtcorr(svt, T, mode, mask=None, win_s=DETREND_WIN_S):
     """Rebuild SVTcorr with the chosen drift removal, reusing the saved transform T."""
     a = _hp(svt[:, FUNC::2].astype(np.float64), mode)
     b = _hp(svt[:, (FUNC + 1) % 2::2].astype(np.float64), mode)
-    if mode in ("quietdetrend", "taskdetrend"):
+    if mode in ("quietdetrend", "taskdetrend", "strobedetrend"):
         if mask is None:
             raise ValueError("quietdetrend needs a fit mask (see fit_mask)")
         ma = mask[:a.shape[1]] if mask.size >= a.shape[1] else np.pad(mask, (0, a.shape[1] - mask.size))
@@ -255,22 +273,24 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S):
         print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:60], flush=True)
         return None
 
-    mask, diag = None, {}
-    if {"quietdetrend", "taskdetrend"} & set(modes):
+    masks, fracs = {}, {}
+    need = [m for m in modes if m in MASK_SPEC]
+    if need:
         cue = _lc(s["h5"])
         lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
         _cf, _lf, csmp = _fr(s, cue, lk)
-        if csmp is None:      # regime A has no corrected-frame map -> cannot build the mask
-            modes = [m for m in modes if m not in ("quietdetrend", "taskdetrend")]
+        if csmp is None:      # regime A has no corrected-frame map -> cannot build a mask
+            modes = [m for m in modes if m not in MASK_SPEC]
         else:
-            quiet_req = "quietdetrend" in modes
-            mask, diag = fit_mask(s, svt[:, FUNC::2].shape[1], csmp, cue,
-                                  pre_s=(1.0 if quiet_req else 0.5),
-                                  from_strobe=quiet_req, require_quiet=quiet_req)
+            for m in need:
+                masks[m], d = fit_mask(s, svt[:, FUNC::2].shape[1], csmp, cue, **MASK_SPEC[m])
+                fracs[m] = d["frac_final"]
+            print("  {:12s} mask eligible: ".format(lab)
+                  + "  ".join("{} {:.1f}%".format(m, 100 * fracs[m]) for m in need), flush=True)
 
-    out = {"label": lab, "mask_frac": diag.get("frac_final")}
+    out = {"label": lab, "mask_frac": fracs}
     for mode in modes:
-        sig, regs = roi_signal(ad[0], svtcorr(svt, T, mode, mask=mask, win_s=win_s))
+        sig, regs = roi_signal(ad[0], svtcorr(svt, T, mode, mask=masks.get(mode), win_s=win_s))
         r, lvl = patterns(s, sig)
         out[mode] = {"precue": decode(s, sig, regs, "precue"),
                      "postcue": decode(s, sig, regs, "cue"),

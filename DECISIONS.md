@@ -609,6 +609,36 @@ three.
 had never been checked for acausality. Controls downstream of a broken transform all inherit the break.
 Check the signal chain before stress-testing the inference.
 
+### ⚠ WINDOW SWEEP RE-RUN ON CORRECTED DATA — BOTH ANSWERS REVERSE (2026-08-13)
+The original sweep ran on `zerophase` data and was withdrawn as "measuring the shadow's shape". Repeated
+on rebuilt `SVTcorr` with the drift fit held OUT of the measured window (`strobedetrend`), Allen-ROI
+features in BOTH arms so the comparison is matched, 16 sessions (4 animals x 6/7, 8/6, 8/10, 8/11), C by
+nested CV:
+
+| arm | zerophase | vs mean2.0 | strobedetrend | vs mean2.0 |
+|---|---|---|---|---|
+| **rolling** (4 x 0.5 s) | 0.495 | −0.020 (better 4/16) | **0.354** | **+0.045 (better 12/16)** |
+| mean 2.0 s | 0.515 | — | 0.309 | — |
+| mean 1.5 s | 0.549 | +0.034 (12/16) | 0.295 | −0.013 (4/16) |
+| mean 1.0 s | 0.546 | +0.031 (11/16) | 0.286 | −0.023 (3/16) |
+| first 1.0 s | 0.300 | −0.214 | 0.330 | +0.021 (10/16) |
+| **asymmetry** last1.0−first1.0 | **+0.245** | | **−0.044** | |
+
+1. **The asymmetry WAS the artifact.** +0.245 -> −0.044. "The code builds toward the cue" is gone; if
+   anything the FIRST second is marginally better. Position information is spread evenly across the
+   pre-cue window — what a maintained code looks like, not what a decaying backward shadow looks like.
+2. **Shortening the window no longer helps.** mean1.5 went +0.034 (12/16) -> −0.013 (4/16). **2.0 s is
+   now the best mean**, so `precue_post_s: 2.0` STAYS. The 1.2/1.5 s idea was chasing the shadow, and
+   adopting it would have tuned the analysis onto the artifact — the reason it was not adopted.
+3. **Rolling now WINS**, having lost before: −0.020 (4/16) -> **+0.045 (12/16)**. A 4 x 0.5 s sub-binned
+   time course beats the 2 s mean once the artifact is gone. Priya's original instinct was right; it was
+   unmeasurable through the shadow, which is large, smooth and temporally structured, so sub-binning
+   split it and added noise. Remove it and real temporal structure becomes the signal.
+
+CAVEATS: ROI features (LocaNMF would need a GPU refit per variant); 16 sessions not 36; and
+`strobedetrend` has NOT yet been tested with its own refitted `T` (see below). Confirm all three before
+changing any default.
+
 **The `last1.0` >> `first1.0` asymmetry is the shadow's shape, not the plan's.** A window sweep
 (16 sessions) had found the last 1.0–1.5 s of the pre-cue window carrying ~2x the position information
 of the first 1.0 s, which reads naturally as "the plan builds toward the cue". The shadow is largest
