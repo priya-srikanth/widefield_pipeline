@@ -46,13 +46,17 @@ def _discover(root):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default="M:/MICROSCOPE/Priya/Widefield/labcams")
+    ap.add_argument("--root", default=None,
+                    help="labcams root (default: this machine's, from configs/paths.yaml)")
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--areas", type=int, nargs="+", default=None,
                     help="Allen seed labels (default: orofacial MOp/MOs/SSp-n/SSp-m both hemispheres)")
     ap.add_argument("--smooth-sigma", type=float, default=1.0, help="Gaussian frames for display smoothing")
     ap.add_argument("--max-per-area", type=int, default=14)
     args = ap.parse_args()
+    if args.root is None:                      # resolve per machine rather than assume a mount
+        from wfield_local import config
+        args.root = config.resolver().root("labcams")
     args.output.mkdir(parents=True, exist_ok=True)
 
     if args.areas is None:

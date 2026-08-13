@@ -180,5 +180,7 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 - Env: `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
   `M:\MICROSCOPE\Priya\Widefield\labcams\spout_position_analysis_summary.pptx` (curated animal→type→date);
-  analysis PNGs land in `…\labcams\locanmf_lick_pooled\cue_analysis\`. The old `locanmf_decoder_ppt.py` /
-  `locanmf_xsession_deck.py` builders are RETIRED (kept for reference, not updated; outputs prefixed `LEGACY_`).
+  analysis PNGs land in `…\labcams\locanmf_lick_pooled\cue_analysis\`. The superseded
+  `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py` builders were DELETED on 2026-08-13 (707 lines,
+  reachable only via a `--ppt` flag the nightly never passed; recover from git history if ever needed).
+  Their spec lives on in `docs/archive/LOCANMF_XSESSION_DECK_SPEC.md`, marked retired.

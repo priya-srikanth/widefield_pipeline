@@ -80,6 +80,24 @@ logical_roots:
       mac:      "/Volumes/Priya/Widefield/labcams/xday"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/xday"
 
+  standby_labcams:
+    description: "STANDBY server, labcams tree — the cold archive for raw .dat and motion-corrected
+      .bin (archive_day's M: destination). NB the two machines map standby at DIFFERENT DEPTHS: the
+      imaging box mounts the share root (so the path carries collaborations/Priya), the helper box
+      mounts it already at Priya. archive_day used to hardcode the imaging box's form, which does not
+      exist on the helper box — a destructive tool aimed at a nonexistent directory."
+    mounts:
+      analysis: "M:/collaborations/Priya/Widefield/labcams"
+      mac:      null
+      imaging:  ["M:/Widefield/labcams", "M:/collaborations/Priya/Widefield/labcams"]
+
+  standby_daq:
+    description: "STANDBY server, DAQ recorder tree (same depth caveat as standby_labcams)."
+    mounts:
+      analysis: "M:/collaborations/Priya/Widefield/DAQ_recorder_output"
+      mac:      null
+      imaging:  ["M:/Widefield/DAQ_recorder_output", "M:/collaborations/Priya/Widefield/DAQ_recorder_output"]
+
   raw_labcams:
     description: "IMAGING-box local raw widefield acquisition (pco .dat), before MICROSCOPE upload"
     mounts:

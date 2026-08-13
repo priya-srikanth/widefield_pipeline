@@ -4,10 +4,10 @@ computed from data (no hardcoded accuracies), reusing the canonical decoder feat
 (no per-trial baseline, block-aware CV; see locanmf_position_decoder.py and F10-F14 in
 DECISIONS.md).
 
-    python -m wfield_local.locanmf_decoder_weights --output "<dir>" --ppt
+    python -m wfield_local.locanmf_decoder_weights --output "<dir>"
 
 Consolidates the former ~/source one-off scripts (decoder_weights_fig, decoder_region_groups_fig,
-window_sweep_fig, baseline_variability_fig, build_decoder_ppt).
+window_sweep_fig, baseline_variability_fig).
 """
 from __future__ import annotations
 
@@ -485,7 +485,6 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--weights-day", default="0603", help="date for the per-region weight/group figures")
-    ap.add_argument("--ppt", action="store_true", help="also assemble the summary PPT from decoder + analysis figures")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     wl = _avail(args.weights_day)
@@ -514,9 +513,6 @@ def main() -> int:
             print("wrote", fig_first40(args.output, "0604", "0603").name, flush=True)
         except Exception as ex:
             print(f"fig_first40 skip: {str(ex)[:60]}", flush=True)
-    if args.ppt:
-        from wfield_local.locanmf_decoder_ppt import build_ppt
-        print("wrote", build_ppt(args.output), flush=True)
     return 0
 
 

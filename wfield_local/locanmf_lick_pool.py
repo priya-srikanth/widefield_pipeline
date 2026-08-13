@@ -61,7 +61,8 @@ def _load_session(npz_path: str, names: dict) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default="M:/MICROSCOPE/Priya/Widefield/labcams")
+    ap.add_argument("--root", default=None,
+                    help="labcams root (default: this machine's, from configs/paths.yaml)")
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--names-json", default=None,
                     help="allen_area_names.json for region labels (any session's; default: first found)")
@@ -69,6 +70,9 @@ def main() -> int:
                     help="post-lick window (s) for the responsiveness peak")
     ap.add_argument("--smooth-sigma", type=float, default=1.0, help="Gaussian frames for display smoothing")
     args = ap.parse_args()
+    if args.root is None:                      # resolve per machine rather than assume a mount
+        from wfield_local import config
+        args.root = config.resolver().root("labcams")
     args.output.mkdir(parents=True, exist_ok=True)
 
     npzs = sorted(glob.glob(f"{args.root}/**/locanmf_lick_aligned_affine8v1/*_locanmf_lick_aligned.npz",

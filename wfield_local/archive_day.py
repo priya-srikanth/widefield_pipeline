@@ -64,13 +64,29 @@ import sys
 
 BUF = 64 * 1024 * 1024
 
-DEFAULTS = dict(
-    e_lab=r"E:\labcams_data",
-    e_daq=r"E:\DAQ_recorder_output",
-    m_raw=r"M:\collaborations\Priya\Widefield\labcams",
-    n_lab=r"N:\MICROSCOPE\Priya\Widefield\labcams",
-    n_daq=r"N:\MICROSCOPE\Priya\Widefield\DAQ_recorder_output",
-)
+def _defaults() -> dict:
+    """Drive roots for THIS machine, from configs/paths.yaml.
+
+    These were hardcoded to the imaging box's mounts. The helper box added 2026-08-11 maps STANDBY AT A
+    DIFFERENT DEPTH (``M:\\Widefield\\labcams``, the share already rooted at Priya), so the old
+    ``M:\\collaborations\\Priya\\...`` default pointed at a directory that does not exist there — a
+    tool that copies and then deletes, aimed at nothing. Resolved per machine now; a root that is
+    unavailable stays None and the CLI reports it rather than silently writing to a wrong place.
+    """
+    from wfield_local import config
+    rv = config.resolver()
+
+    def _r(name):
+        try:
+            return rv.root(name)
+        except Exception:                      # noqa: BLE001 - root not mounted on this machine
+            return None
+
+    return dict(e_lab=_r("raw_labcams"), e_daq=_r("raw_daq"), m_raw=_r("standby_labcams"),
+                n_lab=_r("labcams"), n_daq=_r("daq_recorder_output"))
+
+
+DEFAULTS = _defaults()
 
 
 def _size(p):

@@ -59,11 +59,15 @@ def _load_event(root, event):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default="M:/MICROSCOPE/Priya/Widefield/labcams")
+    ap.add_argument("--root", default=None,
+                    help="labcams root (default: this machine's, from configs/paths.yaml)")
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--events", nargs="+", default=["lick", "cue"])
     ap.add_argument("--smooth-sigma", type=float, default=1.0)
     args = ap.parse_args()
+    if args.root is None:                      # resolve per machine rather than assume a mount
+        from wfield_local import config
+        args.root = config.resolver().root("labcams")
     args.output.mkdir(parents=True, exist_ok=True)
 
     data = {ev: _load_event(args.root, ev) for ev in args.events}

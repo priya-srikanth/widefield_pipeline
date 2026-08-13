@@ -118,7 +118,8 @@ def _gather_cue(args, name2lab):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default="M:/MICROSCOPE/Priya/Widefield/labcams")
+    ap.add_argument("--root", default=None,
+                    help="labcams root (default: this machine's, from configs/paths.yaml)")
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--event", choices=("lick", "cue"), default="lick",
                     help="lick: post-lick window from lick npz; cue: 0..cue_window_s post-cue, fresh from C")
@@ -127,6 +128,9 @@ def main() -> int:
     ap.add_argument("--cue-post-s", type=float, default=2.2, help="(cue) extracted window length post-cue")
     ap.add_argument("--areas", nargs="+", default=["SSp-n", "SSp-m", "MOp", "MOs"])
     args = ap.parse_args()
+    if args.root is None:                      # resolve per machine rather than assume a mount
+        from wfield_local import config
+        args.root = config.resolver().root("labcams")
     args.output.mkdir(parents=True, exist_ok=True)
     name2lab = {v: k for k, v in AREAS.items()}
 

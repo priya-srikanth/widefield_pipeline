@@ -41,7 +41,23 @@ import numpy as np
 from wfield_local import config, joint_basis
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale
 
-BASIS_DIR = Path(os.environ.get("WIDEFIELD_JOINT_BASIS_DIR", "C:/wf_local/joint_bases"))
+def _basis_dir() -> Path:
+    """Where fitted joint bases live on THIS machine (override: WIDEFIELD_JOINT_BASIS_DIR).
+
+    Derived from the machine's own working-figure root rather than a literal, for the same reason
+    nightly_figs and session_cache were fixed: a drive-letter default is only correct on the machine
+    it was written on."""
+    env = os.environ.get("WIDEFIELD_JOINT_BASIS_DIR")
+    if env:
+        return Path(env)
+    try:
+        from wfield_local import config
+        return Path(config.resolver().root("figures_working")).parent / "joint_bases"
+    except Exception:                              # noqa: BLE001
+        return Path("C:/wf_local/joint_bases")
+
+
+BASIS_DIR = _basis_dir()
 SEED = 0
 FORMAT_VERSION = 1          # bump if the on-disk layout or the fitting logic changes
 
