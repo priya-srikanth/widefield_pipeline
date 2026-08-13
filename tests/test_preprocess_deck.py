@@ -220,3 +220,50 @@ def test_build_decks_single_file_when_cap_zero(tmp_path):
                           labcams_root=labcams, xday_root=xday, verbose=False)
     assert len(summ) == 1 and base.exists()
     assert not (tmp_path / "deck_PS92.pptx").exists()     # not split
+
+
+def test_intensity_staleness_names_sessions_the_rollup_missed(tmp_path):
+    """The cross-day intensity figure is a ROLLUP that `preprocess` builds once per invocation. A
+    night processed in several invocations fires it several times, and the LAST firing can still
+    precede the last animal finishing -- on 2026-08-12 it ran at 01:42 and PS93's 8/12
+    frames_average landed at 02:21, so PS93 had no 8/12 point in any of the four decks and it went
+    unnoticed for days. A missing point is indistinguishable from a session that never happened, so
+    the deck must say so rather than draw it silently."""
+    import os
+
+    from wfield_local.preprocess_deck import _intensity_stale
+
+    labcams = tmp_path / "labcams"
+    fig = tmp_path / "crossday_raw_intensity.png"
+    fig.write_bytes(b"x")
+    t = os.path.getmtime(fig)
+
+    def make(date, sess, mtime):
+        d = labcams / date / sess / "motion_corrected" / "wfield_local_results"
+        d.mkdir(parents=True)
+        p = d / "frames_average.npy"
+        p.write_bytes(b"y")
+        os.utime(p, (mtime, mtime))
+
+    make("20260812", "PS92_20260812_concat", t - 3600)     # finished BEFORE the rollup -> in it
+    make("20260812", "PS93_20260812_181555", t + 3600)     # finished AFTER  -> silently missing
+    make("20260811", "PS93_20260811_132050", t - 7200)
+    make("notadate", "PS94_x", t + 3600)                   # non-date dir must be ignored
+
+    assert _intensity_stale(str(fig), str(labcams)) == [("PS93", "20260812")]
+
+
+def test_intensity_staleness_is_empty_when_the_figure_is_current(tmp_path):
+    import os
+
+    from wfield_local.preprocess_deck import _intensity_stale
+
+    labcams = tmp_path / "labcams"
+    d = labcams / "20260812" / "PS95_20260812_124400" / "motion_corrected" / "wfield_local_results"
+    d.mkdir(parents=True)
+    p = d / "frames_average.npy"
+    p.write_bytes(b"y")
+    fig = tmp_path / "crossday_raw_intensity.png"
+    fig.write_bytes(b"x")
+    os.utime(p, (os.path.getmtime(fig) - 60,) * 2)
+    assert _intensity_stale(str(fig), str(labcams)) == []

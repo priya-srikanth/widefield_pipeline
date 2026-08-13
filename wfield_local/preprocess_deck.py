@@ -276,6 +276,43 @@ def _crossday_intensity(xday_root, labcams_root):
     return None
 
 
+def _intensity_stale(xint, labcams_root):
+    """Sessions whose ``frames_average.npy`` is NEWER than the cross-day intensity figure.
+
+    That figure is a ROLLUP: ``preprocess`` builds it once at the end of an invocation, over every
+    session then present. A night processed in SEVERAL invocations -- ownership split across the two
+    boxes, or one animal simply finishing last -- fires the rollup at the end of each, and the last
+    firing can still precede the last animal's preprocessing. Nothing re-runs it afterwards, so the
+    figure silently omits that animal for good.
+
+    That is not hypothetical: on 2026-08-12 the rollup ran at 01:42 and PS93's 8/12 frames_average
+    landed at 02:21, so PS93 had no 8/12 point in ANY of the four decks and it was caught by eye days
+    later. A missing point looks exactly like a missing session, which is the dangerous part. Report
+    it on the slide instead of drawing it silently.
+
+    Returns ``[(animal, date), ...]`` sorted, empty when the figure is current.
+    """
+    try:
+        fig_mtime = os.path.getmtime(xint)
+    except OSError:
+        return []
+    stale = []
+    pat = os.path.join(labcams_root, "*", "*", "motion_corrected", "wfield_local_results",
+                       "frames_average.npy")
+    for p in glob.glob(pat):
+        parts = p.replace("\\", "/").split("/")
+        date, sess = parts[-5], parts[-4]
+        if not re.fullmatch(r"\d{8}", date):
+            continue
+        m = re.match(r"(PS\d+)", sess)
+        try:
+            if m and os.path.getmtime(p) > fig_mtime + 1:
+                stale.append((m.group(1), date))
+        except OSError:
+            continue
+    return sorted(set(stale))
+
+
 def _sessions_on_disk(labcams_root):
     """Sessions discovered from the MICROSCOPE labcams tree: every ``<YYYYMMDD>/<ANIMAL>_<date>_*``
     folder that has a ``motion_corrected`` dir. Lets the deck include a freshly-pushed night even
@@ -370,10 +407,23 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     xint = _crossday_intensity(xday_root, labcams_root) if include_global_summary else None
     crossday_section = False
     if xint:
-        _add_divider(prs, blank, "Cross-day summary",
-                     "Cross-day raw ROI fluorescence intensity across sessions.")
-        _add_content(prs, blank, "Cross-day raw ROI fluorescence intensity (per animal)",
-                     xint, "FIT")
+        stale = _intensity_stale(xint, labcams_root)
+        sub = "Cross-day raw ROI fluorescence intensity across sessions."
+        cap = "Cross-day raw ROI fluorescence intensity (per animal)"
+        if stale:
+            # Name the missing sessions ON the slide. A silently absent point is indistinguishable
+            # from a session that was never recorded -- see _intensity_stale.
+            miss = ", ".join(f"{a} {d[4:6]}/{d[6:]}" for a, d in stale)
+            sub += (f"  ⚠ STALE: figure predates {len(stale)} session(s) — {miss} — so they are "
+                    f"MISSING from it. Re-run: python -m wfield_local.crossday_intensity")
+            cap += f"   [STALE — missing: {miss}]"
+            if verbose:
+                print(f"[WARN] cross-day intensity figure is older than {len(stale)} session(s) "
+                      f"({miss}); they are absent from the plot. Re-run "
+                      f"`python -m wfield_local.crossday_intensity` and rebuild the decks.",
+                      flush=True)
+        _add_divider(prs, blank, "Cross-day summary", sub)
+        _add_content(prs, blank, cap, xint, "FIT")
         crossday_section = True
     elif verbose:
         print("[note] no cross-day raw ROI intensity summary found "
