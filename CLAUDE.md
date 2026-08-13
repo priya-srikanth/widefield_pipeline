@@ -174,6 +174,36 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
 noise-floor — followed by the post-stroke intention-readout (frozen decoder) and representational-similarity
 (crossnobis / encoder-residual) analyses. Design in `DECISIONS.md`.
 
+## Hemodynamic-correction VARIANTS — naming rule (2026-08-13)
+
+The pipeline's `SVTcorr.npy` removes slow drift with a **zero-phase (acausal) 0.1 Hz Butterworth**, and
+the filtered blue channel is what becomes the output. Measured over all 36 curated sessions this
+**inflates PRE-CUE decoding by ~0.21** while leaving post-cue unchanged or better, because the filter
+smears each post-cue response backwards in time (DECISIONS.md; `wfield_local/filter_acausality_test.py`
+reproduces it). `wfield_local/hemo_variants.py` builds alternatives.
+
+**Nothing overwrites the originals.** `SVTcorr.npy` / `T.npy` / `rcoeffs.npy` stay put — they ARE the
+`zerophase` variant. Every alternative goes in its own subdirectory beside them:
+
+```
+<session>/motion_corrected/wfield_local_results/
+    SVTcorr.npy  T.npy  rcoeffs.npy      <- ORIGINAL pipeline output, never touched
+    hemo_<variant>[_refitT]/             <- one DIRECTORY per variant, never a bare file
+        SVTcorr.npy  T.npy  rcoeffs.npy  manifest.json
+```
+
+- `hemo_<variant>` — the drift-removal variant (`fitonly`, `causal`, `taskdetrend`, `strobedetrend`,
+  `meegkit`; `python -m wfield_local.hemo_variants --list`).
+- `_refitT` suffix — the hemodynamic coefficients were **refitted on the drift-removed traces**.
+  Without it, the saved `T` was reused. That distinction matters: reusing `T` is correct for a
+  controlled COMPARISON (it isolates the filter as the only changed variable) and wrong for a PRODUCT
+  (it applies a high-pass-derived transform to detrended data). `refit_T` is validated against the
+  saved coefficients — fed the same high-passed traces it reproduces them to 1.5e-6.
+- `manifest.json` records variant, drift method, mask spec + surviving fraction, refit flag, params.
+
+**Consequence for readers:** a bare `SVTcorr.npy` is the original by construction, and any result built
+on a variant must carry the variant string so two of them can never be silently mixed.
+
 ## Reference
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).

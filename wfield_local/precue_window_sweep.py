@@ -8,7 +8,9 @@ was withdrawn rather than acted on.
 
 This repeats it on rebuilt SVTcorr so the question can actually be answered:
 
-    rolling      4 x 0.5 s sub-bins concatenated -- a TIME COURSE over the window, not one number
+    roll4x0.5    4 x 0.5 s sub-bins concatenated -- a TIME COURSE over the window, not one number
+    roll8x0.25   8 x 0.25 s sub-bins -- finer still, and 8x the features, so the nested-CV choice of C
+                 is doing real work here
     mean2.0      the pipeline's current feature: one mean over 2.0 s ending at the cue
     mean1.5      one mean over the last 1.5 s
     mean1.0      one mean over the last 1.0 s
@@ -39,9 +41,8 @@ from sklearn.preprocessing import StandardScaler
 
 from wfield_local import config
 from wfield_local.behavior_position import classify_cues_with_backup
-from wfield_local.filter_acausality_test import (
-    FS, FUNC, MASK_SPEC, fit_mask, roi_signal, svtcorr,
-)
+from wfield_local import hemo_variants as hv
+from wfield_local.filter_acausality_test import FS, roi_signal
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, _load_daq_events
@@ -49,8 +50,9 @@ from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 
 CS = [0.02, 0.1, 0.5, 2.0]
 WIN_S = 2.0
-ARMS = [("rolling", ("bins", 4)), ("mean2.0", ("last", 2.0)), ("mean1.5", ("last", 1.5)),
-        ("mean1.0", ("last", 1.0)), ("first1.0", ("first", 1.0))]
+ARMS = [("roll4x0.5", ("bins", 4)), ("roll8x0.25", ("bins", 8)),
+        ("mean2.0", ("last", 2.0)), ("mean1.5", ("last", 1.5)), ("mean1.0", ("last", 1.0)),
+        ("first1.0", ("first", 1.0))]
 
 
 def featurize(W, spec):
@@ -118,6 +120,8 @@ def main():
     ap.add_argument("--modes", default="zerophase,strobedetrend")
     ap.add_argument("--from", dest="from_dates", default=None)
     ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--refit-t", action="store_true",
+                    help="refit hemodynamic coefficients on the drift-removed traces (product path)")
     a = ap.parse_args()
 
     modes = a.modes.split(",")
@@ -143,12 +147,12 @@ def main():
         lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
         _c, _l, csmp = _frames(s, cue, lk)
         for m in modes:
-            msk = None
-            if m in MASK_SPEC:
-                if csmp is None:
-                    continue
-                msk, _d = fit_mask(s, svt[:, FUNC::2].shape[1], csmp, cue, **MASK_SPEC[m])
-            sig, _regs = roi_signal(ad[0], svtcorr(svt, T, m, mask=msk))
+            try:
+                svtc, _T, _rc, _meta = hv.compute(s, m, refit_t=a.refit_t, verbose=False)
+            except Exception as ex:                                  # noqa: BLE001
+                print(f"  !! {lab} {m}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
+                continue
+            sig, _regs = roi_signal(ad[0], svtc)
             W, y, g = windows(s, sig)
             del sig
             if not len(y):

@@ -253,7 +253,7 @@ def patterns(s, sig):
     return float(np.corrcoef(P.ravel(), Q.ravel())[0, 1]), float(pre.mean())
 
 
-def analyse_session(lab, modes, win_s=DETREND_WIN_S):
+def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
     """Every metric for one session, in ONE pass so SVT is loaded once."""
     from wfield_local.locanmf_crossanimal_dff import _frames as _fr
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
@@ -262,6 +262,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S):
     s = next((x for x in SESSIONS if x["label"] == lab), None)
     if s is None:
         return None
+    s_sess = s
     res = s["mc"] + "/wfield_local_results"
     ad = glob.glob(res + "/allen_aligned_affine8v1")
     if not ad:
@@ -272,6 +273,8 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S):
     except Exception as ex:                                          # noqa: BLE001
         print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:60], flush=True)
         return None
+
+    from wfield_local import hemo_variants as hv
 
     masks, fracs = {}, {}
     need = [m for m in modes if m in MASK_SPEC]
@@ -288,9 +291,15 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S):
             print("  {:12s} mask eligible: ".format(lab)
                   + "  ".join("{} {:.1f}%".format(m, 100 * fracs[m]) for m in need), flush=True)
 
-    out = {"label": lab, "mask_frac": fracs}
+    out = {"label": lab, "mask_frac": fracs, "refit_t": bool(refit_t)}
     for mode in modes:
-        sig, regs = roi_signal(ad[0], svtcorr(svt, T, mode, mask=masks.get(mode), win_s=win_s))
+        if refit_t:
+            # PRODUCT path: coefficients refitted on the drift-removed traces. Reusing the saved T
+            # (below) is right for isolating the filter and wrong for anything we would adopt.
+            svtc, _T, _rc, _meta = hv.compute(s_sess, mode, refit_t=True, win_s=win_s, verbose=False)
+        else:
+            svtc = svtcorr(svt, T, mode, mask=masks.get(mode), win_s=win_s)
+        sig, regs = roi_signal(ad[0], svtc)
         r, lvl = patterns(s, sig)
         out[mode] = {"precue": decode(s, sig, regs, "precue"),
                      "postcue": decode(s, sig, regs, "cue"),
@@ -362,6 +371,10 @@ def main(argv=None) -> int:
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--modes", default="zerophase,fitonly,taskdetrend")
     ap.add_argument("--win-s", type=float, default=DETREND_WIN_S)
+    ap.add_argument("--refit-t", action="store_true",
+                    help="refit the hemodynamic coefficients on the drift-removed traces "
+                         "(the PRODUCT path). Default reuses the saved T, which isolates the filter "
+                         "and is the correct choice for a controlled comparison.")
     ap.add_argument("--output", default=None, help="write the per-session results JSON here")
     args = ap.parse_args(argv)
 
@@ -380,7 +393,7 @@ def main(argv=None) -> int:
     rows = []
     for lab in labs:
         try:
-            r = analyse_session(lab, list(modes), win_s=args.win_s)
+            r = analyse_session(lab, list(modes), win_s=args.win_s, refit_t=args.refit_t)
         except Exception as ex:                                      # noqa: BLE001
             print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:80], flush=True)
             continue
