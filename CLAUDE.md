@@ -48,7 +48,7 @@ One nightly command, dispatched by machine: **`python -m wfield_local.nightly <Y
 
 - Decode = multinomial logistic regression on individual LocaNMF components, first-lick 2 s, NO per-trial
   baseline, block-CV (GroupKFold by ~6-trial position blocks), chance 0.167. SSp dominates, MO secondary.
-- Pre-cue no-lick decode above chance = motor-independent maintained code (the key pre-stroke readout).
+- Pre-cue no-lick decode above chance = PRE-CUE POSITION INFORMATION, present before the cue and not lick-driven (the key pre-stroke readout). Deliberately NOT called a "maintained motor plan": the spout arrives ~3 s before the cue, so a sustained sensory response and a held intention are temporally coextensive and this design cannot separate them. It does not need to -- a pre-cue position signal that changes post-stroke is the readout either way (Priya, 2026-08-13).
 - Positions from DAQ strobe bits; dead bit1 (Aug-2026) auto-repairs from the behavior log
   (`classify_cues_with_backup`), or a `behavior_trials` recovered CSV when the log is empty (PS93 8/5, cam1).
 - **BEHAVIOR trials also come from the DAQ** (`daq_trials.py`), not the GUI log — the GUI mislabels

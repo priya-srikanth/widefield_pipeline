@@ -66,7 +66,7 @@ M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardize
             "Cross-validation is BLOCK-AWARE (GroupKFold, groups = ~6-trial position blocks) so block drift "
             "cannot leak train->test. Post-cue align = window after cue onset (predicts held-out no-lick "
             "trials too = 'no lick generalization'); pre-cue align = the 2 s window ENDING at the cue (the "
-            "motor-independent maintained code). Rolling = sliding 0.5 s window across pre-cue ENL -> "
+            "pre-cue POSITION INFORMATION, not lick-driven). Rolling = sliding 0.5 s window across ENL -> "
             "post-cue. Per-position recall = diagonal of the row-normalized confusion matrix. " + M_COMMON)
 M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --loso). Same multinomial "
             "logistic regression (L2, C=0.5, standardized, chance=0.167), but NO trial from the plotted day "
@@ -126,10 +126,11 @@ M_LICKFREE = (
     "it is now only those trials where no clean 2 s exists ANYWHERE in the interval, a small "
     "self-selected subset, so a low value there reflects sample size, not the absence of a code. "
     "WHAT THIS DOES NOT ADDRESS: the pre-cue window sits ~3 s AFTER the spout reaches its position, so "
-    "it cannot separate a maintained plan from somatosensory contact with the already-positioned "
-    "spout. Vision was tested and rejected (removing every visual ROI costs nothing); somatosensation "
-    "remains open, and SSp is where the signal concentrates. See DECISIONS.md '\"Pre-cue\" is AFTER the "
-    "spout arrives'.")
+    "it cannot separate a held intention from somatosensory contact with the already-positioned "
+    "spout. THAT IS ACCEPTED, NOT A DEFECT (Priya, 2026-08-13): the readout is pre-cue POSITION "
+    "INFORMATION, which is informative if it changes post-stroke whichever of the two it is. Vision "
+    "was tested and rejected (removing every visual ROI costs nothing); SSp is where the signal "
+    "concentrates, which is consistent with a substantial somatosensory contribution. See DECISIONS.md.")
 
 M_PRECUE_CAVEAT = (
     "\n\n!!! READ THIS BEFORE QUOTING ANY PRE-CUE NUMBER ON THIS SLIDE (added 2026-08-13). "
@@ -379,7 +380,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # ---------------- A. per-animal WITHIN-DAY decoding ----------------
     divider("A. Per-animal WITHIN-DAY decoding across sessions",
             "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
-            "(maintained position code) confusion + recall; then the rolling decoder across sessions. "
+            "(pre-cue position information) confusion + recall; then the rolling decoder across sessions. "
             "Cross-day (frozen) decoding is Section D.")
     for a in animals:
         s = slide()
@@ -388,14 +389,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         note(s, M_DECODE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels], cols=3)
         s = slide()
-        title(s, f"{a} — pre-cue 2 s decoder (maintained position code)  ⚠ inflated ~2× — see slide 2",
+        title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)  ⚠ inflated ~2× — see slide 2",
               "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
               "are inflated by the zero-phase-filter artifact; the corrected effect is ~half this.")
         note(s, M_DECODE + M_PRECUE_CAVEAT)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
-              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = maintained code. "
+              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
               "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
         note(s, M_DECODE)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
@@ -473,7 +474,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether IT
     # survives freezing across days is the more consequential question.
     ALIGNS = (("cue", "post-cue 2 s", "the readout during/after the movement"),
-              ("precue", "PRE-CUE 2 s", "the maintained, motor-independent code — the window ENDING "
+              ("precue", "PRE-CUE 2 s", "pre-cue position information — the window ENDING "
                                         "at the cue, before any movement"))
     BASES = (("roi", "Allen-ROI", M_FROZEN, M_FROZEN_ENC,
               "66 atlas-anchored anatomical areas — column j is the same cortical region every day"),

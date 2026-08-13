@@ -221,7 +221,7 @@ def main():
                 write_session_confusions,
             )
             # BOTH alignments. post-cue is the readout during/after the movement; PRE-CUE is the
-            # maintained, motor-independent code (the 2 s window ENDING at the cue), which is the
+            # pre-cue POSITION INFORMATION (the 2 s window ENDING at the cue), which is the
             # one the stroke arm actually leans on -- so whether IT survives being frozen across
             # days matters more than whether the post-cue one does.
             for al in ("cue", "precue"):
