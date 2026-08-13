@@ -39,8 +39,24 @@ CACHE_VERSION = 4  # bump when any cached function's computation changes
 # cache key cannot see it (no input mtime changed), so any cache written on an affected machine holds
 # wrong values -> forced invalidation.
 
-CACHE_DIR = Path(os.environ.get(
-    "WIDEFIELD_SESSION_CACHE", "C:/Users/sabatini/source/.widefield_session_cache"))
+def _default_cache_dir() -> Path:
+    """Cache location for THIS machine.
+
+    The old default was the analysis box's "C:/Users/sabatini/source/..." path, which on any other
+    machine silently created a cache under a nonexistent user instead of reusing the real one -- the
+    same hardcoded-other-box-path bug that broke behavior_position's BEH_ROOT and nightly_figs'
+    DEFAULT_OUT. Derive it from the machine's own working figure root when one exists."""
+    env = os.environ.get("WIDEFIELD_SESSION_CACHE")
+    if env:
+        return Path(env)
+    try:
+        from wfield_local import config
+        return Path(config.resolver().root("figures_working")).parent / ".widefield_session_cache"
+    except Exception:                              # noqa: BLE001 - config may be unavailable in tests
+        return Path("C:/Users/sabatini/source/.widefield_session_cache")
+
+
+CACHE_DIR = _default_cache_dir()
 
 
 def _disabled() -> bool:

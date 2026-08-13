@@ -132,3 +132,24 @@ def test_load_sessions_env_filter_and_explicit_override(monkeypatch):
     assert {s["label"][:4] for s in config.load_sessions()} == {"PS92", "PS95"}
     # explicit arg wins over the env var
     assert all(s["label"].startswith("PS93") for s in config.load_sessions(animals=["PS93"]))
+
+
+def test_figures_working_resolves_on_every_machine_that_runs_nightly_figs():
+    """A null figures_working sent every figure to the OTHER box's C:/Users/sabatini path and produced a
+    deck with 0 figures / 287 missing, while the run still exited 0. Any machine that runs the analysis
+    must resolve a real local working dir."""
+    import os
+    from wfield_local import config
+    for machine in ("analysis", "imaging"):
+        prev = os.environ.get("WIDEFIELD_MACHINE")
+        os.environ["WIDEFIELD_MACHINE"] = machine
+        try:
+            config.resolver.cache_clear() if hasattr(config.resolver, "cache_clear") else None
+            root = config.resolver().root("figures_working")
+            assert root, f"{machine}: figures_working must not be empty"
+        finally:
+            if prev is None:
+                os.environ.pop("WIDEFIELD_MACHINE", None)
+            else:
+                os.environ["WIDEFIELD_MACHINE"] = prev
+            config.resolver.cache_clear() if hasattr(config.resolver, "cache_clear") else None

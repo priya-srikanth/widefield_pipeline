@@ -35,17 +35,37 @@ from wfield_local import config
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
-DEFAULT_OUT = "C:/Users/sabatini/source/cue_lick"
+def _default_out() -> str:
+    """Local working figure dir for THIS machine.
+
+    Was a hardcoded "C:/Users/sabatini/source/cue_lick" -- the analysis box's path. On the helper box
+    (imaging mounts, analysis work) every figure step then failed with FileNotFoundError and the deck
+    built with 0 figures and 287 missing, while the run still exited 0. Resolve it per machine, and
+    fail loudly if the machine has no such root rather than writing somewhere that does not exist.
+    """
+    env = os.environ.get("WIDEFIELD_FIGURES_WORKING")
+    if env:
+        return env
+    try:
+        return config.resolver().root("figures_working")
+    except Exception as exc:                      # noqa: BLE001
+        raise SystemExit(
+            f"no 'figures_working' root for this machine ({exc}). Set WIDEFIELD_FIGURES_WORKING or add "
+            f"a mount for this machine in configs/paths.yaml.") from exc
 
 
 def log(m):
     print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
 
 
+FAILURES: list[str] = []
+
+
 def cli(*a):
     log("CLI " + " ".join(a))
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
         log("  !! nonzero exit: " + a[0])
+        FAILURES.append(a[0])
 
 
 def _per_day_figs(date, out, from_dates, only):
@@ -115,7 +135,7 @@ def main():
                          "comma/space list (default: the latest registered session)")
     ap.add_argument("--from", dest="from_dates", default=None,
                     help="cross-session comparison dates — same grammar (default: the curated set)")
-    ap.add_argument("--output", default=DEFAULT_OUT, help="figure output dir (also where the deck is built)")
+    ap.add_argument("--output", default=None, help="figure output dir (also where the deck is built)")
     ap.add_argument("--skip-frozen", action="store_true",
                     help="skip the frozen cross-day decoder/encoder step (Allen-ROI, leave-one-session-out). "
                          "It adds ~30-40 min; skipping leaves those deck slides blank.")
@@ -124,7 +144,9 @@ def main():
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
     args = ap.parse_args()
 
-    out = args.output
+    out = args.output or _default_out()
+    Path(out).mkdir(parents=True, exist_ok=True)
+    log(f"figure working dir: {out}")
     registered = sorted({s["label"][-4:] for s in SESSIONS})
     only = config.normalize_animals(args.only)   # None => all animals
     if only:
@@ -239,7 +261,13 @@ def main():
         log(f"  !! publish figs: {type(ex).__name__} {str(ex)[:80]}")
 
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
+    # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
+    # missing -- indistinguishable from success to any caller or cron job. Report the truth.
+    if FAILURES:
+        log(f"== {len(FAILURES)} STEP(S) FAILED: {sorted(set(FAILURES))} ==")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

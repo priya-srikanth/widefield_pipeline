@@ -95,11 +95,16 @@ logical_roots:
       imaging:  "E:/DAQ_recorder_output"
 
   figures_working:
-    description: "Local working figure dir (deck built here, then copied to cue_analysis_out)"
+    description: "Local working figure dir (deck built here, then copied to cue_analysis_out).
+      Must be non-null on ANY machine that runs nightly_figs. The helper box added 2026-08-11 has the
+      IMAGING profile's mounts (N:=MICROSCOPE, M:=standby) but does ANALYSIS work, so leaving this null
+      for 'imaging' silently sent every figure to the analysis box's C:/Users/sabatini/... path and
+      produced a deck with 80 slides and 287 missing figures. Override per machine with
+      WIDEFIELD_FIGURES_WORKING."
     mounts:
       analysis: "C:/Users/sabatini/source/cue_lick"
       mac:      null
-      imaging:  null
+      imaging:  "E:/cue_lick"
 
 # Local acquisition/upload staging on the IMAGING computer (before MICROSCOPE upload):
 staging:
