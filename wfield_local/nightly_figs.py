@@ -185,6 +185,14 @@ def main():
     cli("wfield_local.locanmf_cross_mouse", "--output", out, "--dates", from_dates, "--tag", tag)
     cli("wfield_local.locanmf_rsa", "--output", out, "--dates", from_dates, "--tag", tag)
 
+    # Pre-cue MOTOR control: decode/encode on trials with no licks in the window. Runs over the whole
+    # --from set (exposure varies BY SESSION, not just by animal -- PS93 drops to 76% lick-free on
+    # 8/9 while sitting at 98% in June), and in BOTH bases because the regional story should not
+    # depend on the basis. Deck section B2.
+    for src_name in ("roi", "locanmf"):
+        cli("wfield_local.precue_lickfree", "--output", out, "--from", from_dates,
+            "--source", src_name)
+
     # per-animal rolling decoder across the curated sessions (Section A of the analysis deck) — NOT emitted
     # by the per-day pass, so wire it here over the whole --from set (this is the figure that went stale).
     try:

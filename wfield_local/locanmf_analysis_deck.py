@@ -82,7 +82,30 @@ M_FROZEN_ENC = ("FROZEN cross-day ENCODER (wfield_local.locanmf_frozen_decoder -
                 "NEGATIVE where the frozen DECODER's is positive: the decision boundary transfers across "
                 "days, but the exact activity magnitudes do not. Interpret post-stroke encoder residuals "
                 "against this pre-stroke cross-day cost, not against zero. " + M_COMMON)
-M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position "
+M_LICKFREE = (
+    "MOTOR CONTROL for the pre-cue readout (wfield_local.precue_lickfree). Licking is an orofacial "
+    "movement that may itself be spout-directed, so pre-cue 'position information' could be ongoing "
+    "motor activity rather than a held intention. Trials are split by whether ANY lick falls in the 2 s "
+    "window ending at the cue; decode = the pipeline's own block-CV multinomial logistic regression, "
+    "encode = per-region cross-validated position EV with a Spearman-Brown-corrected split-half "
+    "ceiling. "
+    "WHAT THE TASK ALREADY DOES: the strobe->cue interval is an ENFORCED NO-LICK period that licking "
+    "RESTARTS, which is why the lead is a median 3.0 s but reaches a p90 of 18.1 s (PS92). The final "
+    "2 s is therefore quiet BY CONSTRUCTION, and 90.8-99.5% of windows contain no licks. "
+    "RESULT (9 curated sessions/animal, per-session then averaged, chance 0.167): lick-free vs "
+    "all-trials accuracy is PS92 0.451/0.465, PS93 0.438/0.438, PS94 0.427/0.433, PS95 0.472/0.462 -- "
+    "a maximum difference of 0.014. Dropping EVERY licking trial changes nothing, including in PS93's "
+    "8/6-8/9 sessions where exposure falls to 76-87% lick-free. The pre-cue code is NOT lick-driven. "
+    "HOW TO READ IT: the lick-free arm is the evidence. The with-licks arm is contrast only and proves "
+    "nothing either way -- it is a small self-selected subset (n=49 for PS94, n=0 for PS95), so a low "
+    "value there reflects sample size, not the absence of a code. "
+    "WHAT THIS DOES NOT ADDRESS: the pre-cue window sits ~3 s AFTER the spout reaches its position, so "
+    "it cannot separate a maintained plan from somatosensory contact with the already-positioned "
+    "spout. Vision was tested and rejected (removing every visual ROI costs nothing); somatosensation "
+    "remains open, and SSp is where the signal concentrates. See DECISIONS.md '\"Pre-cue\" is AFTER the "
+    "spout arrives'.")
+
+M_ENCODE = ("Encoder (reverse model): cross-validated ridge regression (alpha=1) from a one-hot position"
             "design to each LocaNMF component's activity, GroupKFold by position block. Per-position "
             "explained variance = held-out R^2 on that position's trials (whole-cortex, summed over "
             "components). Noise ceiling = between-position SS / total single-trial SS (explainable var); "
@@ -302,6 +325,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
           "Same metric, one row per session → session-to-session stability.")
     note(s, M_ENCODE)
     big(s, src / "locanmf_encoder_feve_by_region_sessions.png", top=1.5, width=12.9)
+
+    # ---------------- B2. pre-cue without licking ----------------
+    divider("B2. Pre-cue code without licking — the motor-confound control",
+            "Decoding AND encoding restricted to trials with no licks in the 2 s pre-cue window.")
+    for src_name in ("roi", "locanmf"):
+        for a in animals:
+            p = src / f"precue_lickfree_{a}_{src_name}.png"
+            if not p.exists():
+                continue
+            s = slide()
+            title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})",
+                  "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
+                  "per-region encoding EV.")
+            note(s, M_LICKFREE)
+            big(s, p, top=1.5, width=12.9)
 
     # ---------------- C. cross-session summary ----------------
     divider("C. Cross-session summary — decoder recall & encoder accuracy across sessions")
