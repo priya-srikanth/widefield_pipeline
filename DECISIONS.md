@@ -660,7 +660,43 @@ corrected numbers agree with the prior: PS94 still decodes position at 0.434 pre
 PS93 0.268, PS95 0.247. The expectation was right; what was wrong was the effect SIZE, inflated ~2x by
 preprocessing.
 
-**PROPOSED FIX (not yet applied): `fitonly`.** Keep the high-pass for estimating `rcoeffs` — that is
+**QUIET-ONLY DETRENDING IS NOT ESTIMABLE IN THIS TASK (measured 2026-08-13).** Priya asked whether the
+drift could be fitted on behaviourally quiet periods only, so that running/licking activity (which
+Musall et al. show dominates cortex) cannot contaminate the trend. Correct in principle, but there is
+almost no such data: quiet bouts from `behavior_events` (not running AND not licking AND not
+peri-reward) occupy **0.3% of PS92's 8/10 session — 30 seconds out of 156 minutes** — 2.4% for PS93 and
+PS94, and 10.5% for PS95, against 5,000–10,800 licks per session. Intersected with "outside every
+trial" the mask collapses to 0.0 / 0.4 / 0.7 / 5.3%, and the detrender silently returned the data
+untouched (PS92 and PS94 reproduced `fitonly` to the digit). The only reliably quiet epoch in this task
+IS the enforced-no-lick ENL, which is the window under measurement, so it cannot serve as the drift
+reference. NB this also bears on the quiet-vs-running activity maps in the preprocessing deck: PS92's
+"quiet" map rests on ~30 s of data, and the 0.3%-vs-10.5% spread makes cross-animal quiet/running
+contrasts badly unbalanced.
+
+**TASK-MASKED DETRENDING IS THE BEST VARIANT MEASURED (`taskdetrend`).** Drop the quiet requirement,
+mask only the evoked window (cue−0.5 s → cue+4 s), and estimate the trend as a 60 s windowed MEDIAN over
+the remaining 56–73% of frames, interpolated across gaps. A 60 s median spans ~5 trials, so it cannot
+track a 2 s trial-locked response — which is what van Driel's trial-masking is guarding against — and
+being a median over a mask rather than a convolution, it has no impulse response and cannot displace
+signal in time at all.
+
+| variant | PRE-CUE | post-cue (control) |
+|---|---|---|
+| `zerophase` (current) | 0.488 | 0.684 |
+| `fitonly` | 0.306 | 0.702 |
+| **`taskdetrend`** | **0.256** | **0.740** |
+
+**`taskdetrend` gives the BEST post-cue decoding of the three** while pushing pre-cue the lowest: the
+variant that most improves the readout we trust is the one that most reduces the readout we suspect.
+It also shows `fitonly`'s 0.306 was itself partly inflated by the residual drift `fitonly` leaves in.
+Per animal, `taskdetrend` pre-cue (chance 0.167): PS92 **0.141** (at/below chance), PS93 0.244,
+PS94 0.347, PS95 0.291.
+
+**RECOMMENDATION: `taskdetrend`, not `fitonly`.** Still to do before adopting: repeat over more
+sessions, run the pre-vs-post sign test under it (the zerophase/fitonly sign test is done; the
+taskdetrend arm is not), and sanity-check the 60 s window and the cue−0.5/+4 s mask bounds.
+
+**EARLIER PROPOSAL, now second choice: `fitonly`.** Keep the high-pass for estimating `rcoeffs` — that is
 what it is for, keeping slow drift from biasing the 470-vs-415 regression — and apply the correction to
 UNFILTERED data, so no filter fingerprint reaches the analysed signal. `wfield`'s function does not
 support this, so it needs a local reimplementation in `run_wfield_local`. Re-running the correction is
