@@ -176,6 +176,8 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Hemodynamic-correction VARIANTS — naming rule (2026-08-13)
 
+**Full evidence and the decision record: [`docs/PREPROCESSING_DECISION.md`](docs/PREPROCESSING_DECISION.md).** Read that before changing anything here.
+
 The pipeline's `SVTcorr.npy` removes slow drift with a **zero-phase (acausal) 0.1 Hz Butterworth**, and
 the filtered blue channel is what becomes the output. Measured over all 36 curated sessions this
 **inflates PRE-CUE decoding by ~0.21** while leaving post-cue unchanged or better, because the filter
