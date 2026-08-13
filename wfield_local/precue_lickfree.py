@@ -12,16 +12,27 @@ PS92. So by the time the cue fires the animal has necessarily just completed a q
 90.8-99.5% of 2 s pre-cue windows contain no licks at all. The confound is largely excluded by
 construction, not merely absent by luck.
 
-WHAT THE CHECK ADDS ANYWAY. "Largely" is per-animal: PS92 and PS93 sit at ~91-92% lick-free while
-PS94/PS95 are at 98-99.5%, so the residual exposure is exactly where the licking behaviour is most
-atypical -- and PS93's licking (often not reaching the spout) is already known to be unusual. Measured
-on the full curated set, position decoding on LICK-FREE trials alone: PS92 0.579, PS93 0.477, PS94
-0.511, PS95 0.567 (chance 0.167). Information survives with no licking, so it is not lick-driven.
+WHAT THE CHECK ADDS ANYWAY. "Largely" is per-SESSION, not per-animal: PS93 sits at 98% lick-free in
+June but falls to 76% on 8/9. A per-animal average would hide exactly the sessions where the licking
+behaviour is most atypical -- and PS93's licking (often not reaching the spout) is already unusual.
 
-HOW TO READ THE OUTPUT. The lick-free arm is the evidence. The with-licks arm is shown for contrast
-only and proves nothing either way -- it is a small, self-selected subset (n=49 for PS94, n=0 for
-PS95), and a low number there reflects sample size, not the absence of a code. Where the with-licks
-arm has too few trials the figure says so rather than plotting a meaningless bar.
+THE WINDOW IS SEARCHED, NOT FIXED (Priya, 2026-08-13). Requiring the fixed 2 s ending at the cue to be
+clean discards a whole trial for one lick anywhere in it -- including a lick 200 ms before the cue,
+when 2 s of clean data sits just earlier in the same no-lick period. Instead ``lickfree_window`` takes
+the lick-free GAPS in [strobe, cue] and uses the last 2 s of the LATEST gap wide enough to hold the
+window: still 2 s, still pre-cue, still lick-free, but recovered rather than thrown away. Trials whose
+fixed window is already clean keep it, so the common case stays exactly cue-aligned.
+
+The search is BOUNDED AT THE SPOUT STROBE. Earlier than that the position for this trial does not yet
+exist, and because the task avoids recent repeats, prior-trial activity carries real information about
+the upcoming position -- a window straying before the strobe would smuggle that in and look like a
+pre-cue code. ``window_offset_s_*`` reports how far each recovered window sits from the cue, because
+recovered trials are no longer perfectly cue-aligned and that trade-off should be visible, not hidden.
+
+HOW TO READ THE OUTPUT. The lick-free arm is the evidence. The with-licks arm -- now only trials where
+NO clean 2 s window exists anywhere in the interval -- is contrast only and proves nothing either way:
+it is a small, self-selected subset, so a low value there reflects sample size, not the absence of a
+code.
 
     python -m wfield_local.precue_lickfree --output <dir> [--from 0606-0812] [--only PS93]
 """
@@ -56,6 +67,36 @@ PRE_S = 2.0            # the pipeline's pre-cue window: 2 s ENDING at the cue
 MIN_TRIALS = 40        # below this a decode result is not reported at all
 
 
+def lickfree_window(cue_f, strobe_f, licks, win_n):
+    """Latest ``win_n``-frame window before the cue that contains NO licks, or None.
+
+    A FIXED window ending at the cue throws away a trial for a single lick anywhere in it -- including
+    one 200 ms before the cue, even when 2 s of clean data sits just earlier in the same enforced
+    no-lick period. Instead: take the lick-free GAPS between consecutive licks in [strobe, cue], and
+    use the last ``win_n`` frames of the LATEST gap long enough to hold the window. Closest to the cue
+    is preferred because that is the most informative about the upcoming action.
+
+    BOUNDED AT THE STROBE, deliberately. Before the spout arrives the position for THIS trial does not
+    yet exist, and because the task avoids recent repeats, activity from the previous trial carries
+    real information about the upcoming position (measured: last-5-distinct -> next is the missing one
+    45-53% of the time vs ~17% uniform). A window straying before the strobe would smuggle that in and
+    look like a pre-cue code. See DECISIONS.md '"Pre-cue" is AFTER the spout arrives'.
+    """
+    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
+    hi = int(cue_f)
+    if lo is None or hi - lo < win_n:
+        return None
+    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
+    # gap boundaries: strobe -> first lick -> ... -> last lick -> cue
+    edges = np.concatenate(([lo], inside, [hi]))
+    for i in range(len(edges) - 2, -1, -1):          # latest gap first
+        gap_start = int(edges[i]) + (1 if i > 0 else 0)   # a lick occupies its own frame
+        gap_end = int(edges[i + 1])
+        if gap_end - gap_start >= win_n:
+            return gap_end - win_n                   # last win_n frames of this gap
+    return None
+
+
 def trial_table(session, source="roi", pre_s=PRE_S):
     """(X, y, blocks, n_licks) for the pre-cue window. ``n_licks`` counts licks INSIDE that window."""
     sig, feat_reg = _build_signal(session, source)
@@ -75,18 +116,36 @@ def trial_table(session, source="roi", pre_s=PRE_S):
         blk[k] = b
         prev = int(codes[k])
 
-    X, y, g, nl = [], [], [], []
+    # spout arrival, to bound the search (see lickfree_window)
+    cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
+    sr = float(cue["sample_rate_hz"])
+    j = np.searchsorted(ss, cs, side="right") - 1
+    lead_s = np.where(j >= 0, (cs - ss[np.clip(j, 0, len(ss) - 1)]) / sr, np.nan)
+    strobe_f = cue_f - lead_s * FS
+
+    X, y, g, nl, off = [], [], [], [], []
     for k in range(cue_f.size):
         if codes[k] < 0:
             continue
-        w0 = int(cue_f[k]) - wn
-        if w0 < 0 or w0 + wn > sig.shape[1]:
+        fixed = int(cue_f[k]) - wn                       # the fixed window ending at the cue
+        if fixed < 0 or fixed + wn > sig.shape[1]:
             continue
+        n_fixed = int(np.sum((ls >= fixed) & (ls < fixed + wn)))
+        if n_fixed == 0:
+            w0, nlicks = fixed, 0                        # already clean; keep it cue-aligned
+        else:
+            w0 = lickfree_window(cue_f[k], strobe_f[k], ls, wn)
+            if w0 is None or w0 < 0 or w0 + wn > sig.shape[1]:
+                w0, nlicks = fixed, n_fixed              # no clean window exists -> keep, flagged dirty
+            else:
+                nlicks = 0
         X.append(sig[:, w0:w0 + wn].mean(1))
         y.append(int(codes[k]))
         g.append(int(blk[k]))
-        nl.append(int(np.sum((ls >= w0) & (ls < w0 + wn))))
-    return (np.asarray(X), np.asarray(y), np.asarray(g), np.asarray(nl), feat_reg)
+        nl.append(nlicks)
+        off.append((int(cue_f[k]) - (w0 + wn)) / FS)     # seconds between window end and the cue
+    return (np.asarray(X), np.asarray(y), np.asarray(g), np.asarray(nl), feat_reg,
+            np.asarray(off, dtype=float))
 
 
 def _decode(X, y, g):
@@ -102,12 +161,15 @@ def _decode(X, y, g):
 
 def analyse(session, source="roi"):
     """Lick-free vs with-licks decode + encode for one session."""
-    X, y, g, nl, feat_reg = trial_table(session, source)
+    X, y, g, nl, feat_reg, off = trial_table(session, source)
     if not len(y):
         return None
     free = nl == 0
     out = {"label": session["label"], "source": source, "n_trials": int(len(y)),
            "n_lickfree": int(free.sum()), "frac_lickfree": float(free.mean()),
+           "window_offset_s_median": float(np.nanmedian(off[nl == 0])) if (nl == 0).any() else np.nan,
+           "window_offset_s_p90": float(np.nanpercentile(off[nl == 0], 90)) if (nl == 0).any() else np.nan,
+           "n_window_moved": int(np.sum((nl == 0) & (off > 1e-6))),
            "licks_by_position": {POSITION_NAMES[c]: float(np.mean(nl[y == c])) if (y == c).any() else np.nan
                                  for c in DISPLAY_ORDER}}
     out["decode_lickfree"] = _decode(X[free], y[free], g[free])
