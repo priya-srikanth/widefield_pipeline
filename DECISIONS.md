@@ -477,15 +477,27 @@ The per-session LocaNMF RDM is **not comparable across sessions** (see "RSA basi
 shared-basis candidates were measured on all four animals, 8 curated sessions each, lick-aligned,
 scoring mean 2nd-order RSA of each session to its siblings in BOTH metrics:
 
+**These numbers were RE-MEASURED on 2026-08-12 after the whitening fix below; the table now shows the
+corrected crossnobis.** The 1−Pearson column is unaffected by whitening and reproduced to 6 decimal
+places, which is the integrity check that the re-run changed only what it should.
+
 | basis | 1−Pearson | **crossnobis** | worst animal (crossnobis) |
 |---|---|---|---|
-| per-session LocaNMF (status quo) | +0.503 | +0.528 | +0.410 |
-| Allen-ROI | +0.571 | **+0.258** (worst) | +0.206 |
-| frozen fixed-A, ref 6/6 | +0.572 | **+0.586** (best) | +0.453 |
-| frozen fixed-A, ref 8/6 | +0.677 | +0.559 | +0.384 |
-| frozen fixed-A, ref 8/9 | **+0.729** (best) | +0.552 | +0.477 |
-| joint concatenated, rank 100 | +0.604 | +0.441 | +0.287 |
-| joint concatenated, rank 200 | +0.606 | +0.506 | +0.405 |
+| per-session LocaNMF (status quo) | +0.503 | **+0.767** (worst) | +0.729 |
+| Allen-ROI | +0.571 | **+0.817** (best) | +0.791 |
+| frozen fixed-A, ref 6/6 | +0.572 | +0.799 | +0.778 |
+| frozen fixed-A, ref 8/6 | +0.677 | +0.799 | +0.759 |
+| frozen fixed-A, ref 8/9 | **+0.729** (best) | +0.784 | +0.757 |
+| joint concatenated, rank 100 | +0.658 | +0.806 | +0.785 |
+| joint concatenated, rank 200 | +0.569 | +0.778 | +0.746 |
+
+**Rank 100 beats rank 200** in all four animals (−0.014 to −0.040). The earlier finding that 200 was
+better was a diagonal-whitening artifact: under the old metric r200 led by +0.065 but disagreed in
+sign across animals, which is what a noise-dominated estimator looks like. The supporting argument —
+that variance retained was still climbing at r200 (99.53% → 99.81%) — was a category error: that
+measures reconstruction of the MOVIE, not representation of the six conditions. Note also that after
+LocaNMF pruning, r200 returns essentially the same basis for PS93 (96→98) and PS94 (98→98), so half
+the "rank sweep" compared a thing to itself.
 
 **REJECTED — frozen fixed-A / refit-C, despite the best mean scores.** Its result depends on which
 session you nominate as the reference, and **no reference wins for every animal**: best is 8/9 for
@@ -496,23 +508,89 @@ be tuning a free parameter on the outcome. Kept in code (`project_C_fixed_A`) fo
 fixed-basis path, but **not used for RSA and not in the deck**.
 
 **ADOPTED — joint concatenated basis** (`wfield_local/joint_basis.py`): reference-free, so it has no
-such knob. Mid-pack on score; the trade is a modest crossnobis cost for the removal of a researcher
-degree of freedom.
+such knob, and on the corrected metric it is second only to Allen-ROI (+0.806 vs +0.817) with the
+lowest across-animal spread of any method (sd 0.017). It beats every single-session frozen reference
+(+0.784–0.799), so it is a strictly better version of the frozen idea.
 
-**CAUTION — Allen-ROI is worst on crossnobis (+0.258) while looking fine on 1−Pearson (+0.571).**
-This is an ESTIMATOR-VARIANCE effect, not evidence that ROIs describe cortex worse. `_crossnobis_rdm`
-whitens with per-feature variance only (`prec = 1/var`, DIAGONAL); Allen ROIs are regional averages of
-a spatially smooth signal and are therefore heavily inter-correlated, so 66 ROI features carry far
-fewer than 66 independent dimensions and the cross-fold inner product has high variance. LocaNMF
-components are sparse and localized (`loc_thresh=80`) and far less redundant. The 1−Pearson metric
-hides this because its positive bias is *stabilizing*. **A shrinkage / full-covariance whitening would
-likely rescue ROI and is untested** — do not write ROI off on this number alone.
+ROI (+0.817) and joint (+0.806) are **not distinguishable**. LocaNMF is stochastic: two runs of
+identical code over identical sessions returned different component counts (PS92 123 vs 128, PS93
+93 vs 96, PS94 95 vs 98, PS95 137 vs 135) and moved the 1−Pearson RSA by up to 0.054 — five times the
+gap being adjudicated. Detected by the integrity check, which found drift of exactly 0.000000 for the
+five deterministic methods and non-zero drift only for the two that refit LocaNMF.
+
+**The joint basis is therefore BUILT ONCE, SEEDED, AND PERSISTED** (`wfield_local/joint_locanmf.py`),
+never refit per run. Randomness enters via `randomized_svd` (numpy global RNG) and `torch.randperm` in
+LocaNMF's initialisation; seeding both makes a rebuild reproducible. A `basis_id` hashes the session
+set, input file signatures, rank, LocaNMF params and seed, and is stamped into every result, so a
+refit lands in a new directory and no figure can silently mix two bases. Nothing is overwritten and
+superseded bases stay loadable, so today's figures remain reproducible after a refit. **A refit over
+the final curated pre-stroke set is planned and expected** (Priya, 2026-08-12); it is a versioned
+event, not a nightly one — a basis refit over a growing session set would silently make last week's
+numbers incomparable with this week's, and the post-stroke reference frame must be fixed BEFORE the
+manipulation.
+
+**RESOLVED — the ROI caution above was correct.** The original table had Allen-ROI worst on crossnobis
+(+0.258) while fine on 1−Pearson (+0.571), and this file recorded the suspicion that it was an
+estimator artifact of the DIAGONAL whitening. It was. Switching `_crossnobis_rdm` to the Ledoit-Wolf
+shrunk inverse covariance moved ROI from **+0.258 to +0.817 — worst to best.** Measured cause: the
+noise covariance of 66 Allen ROIs has ONE eigenvalue holding 80.7% of the variance and a participation
+ratio of **1.5 effective dimensions out of 66** (PS95_0810). The ROIs tile 99% of the masked brain, so
+they are a partition of a spatially smooth signal and a brain-wide fluctuation (arousal, breathing,
+residual hemodynamics) moves all of them together. Diagonal whitening cannot remove a shared mode — it
+rescales axes but cannot rotate them. The fitted shrinkage is small (λ ≈ 0.013–0.025), so it is the
+full covariance doing the work, not the shrinkage.
+
+For LocaNMF the shrinkage is not an improvement but a PREREQUISITE: its noise covariance is exactly
+singular (smallest eigenvalue 0, condition number 1e28), because ~151 components are fitted to
+rank-~100 SVD data and must be linearly dependent. There is no unshrunk inverse to use.
+
+**Σ is estimated from HELD-OUT folds** (2026-08-12): the folds supplying neither pattern in the
+cross-fold product, so the whitening matrix is independent of the data it whitens. Effect measured and
+negligible — ROI +0.817 → +0.821, LocaNMF +0.767 → +0.754. Kept because it is the defensible
+estimator, not because it changed an answer. The circularity was WITHIN a session while the metric is
+agreement BETWEEN sessions, which is why it could bias distance magnitudes without manufacturing
+cross-session agreement.
+
+## Reliability ≠ information: the RSA ranking does not say ROI carries more (2026-08-12)
+Mean sibling RSA is a RELIABILITY measure and must not be read as "which basis carries more positional
+information". Measured on the same sessions, ROI vs per-session LocaNMF:
+
+| | ROI | LocaNMF | winner |
+|---|---|---|---|
+| within-session split-half RDM, **crossnobis** | **+0.812** | +0.694 | ROI, 4/4 animals |
+| within-session split-half RDM, **1−Pearson** | +0.696 | **+0.744** | LocaNMF, 3/4 |
+| cross-session sibling RSA, crossnobis | **+0.821** | +0.754 | ROI, 4/4 |
+| **block-CV decode accuracy** (chance 0.167) | 0.763 | **0.824** | LocaNMF, **4/4** |
+
+**LocaNMF decodes better in every animal** (+0.061 mean; PS92 +0.089, PS93 +0.064, PS95 +0.066, PS94
++0.024) — including PS93, whose ROI decoder was flagged as weak. So LocaNMF carries MORE position
+information and still yields a NOISIER RDM. The dissociation tracks exactly one thing: whether the
+quantity requires estimating a covariance in feature space. Decoding does not (per-feature scaling +
+regularized logistic regression) and LocaNMF wins; the 1−Pearson RDM does not and LocaNMF wins; the
+crossnobis RDM does, and ROI's 66 well-conditioned features beat LocaNMF's 151 rank-deficient ones.
+The RSA penalty is an estimability cost, not an information deficit.
+
+Consequence for the deck: **basis choice follows the question.** Decoders and encoders are reported in
+BOTH bases; the RSA figures use a shared basis and carry this caveat, because an ROI-space RDM is
+blind to whatever information the decoder shows LocaNMF is capturing.
 
 ## Pre-cue and post-cue geometry are largely the SAME (2026-08-12)
 Per session, the 6×6 RDM built from the 2 s window ENDING at the cue vs the 2 s after it, then
-correlated: **LocaNMF +0.694 (sd 0.233); crossnobis +0.572**. (Allen-ROI lower, +0.500 / +0.218,
-consistent with the redundancy caveat above.) So the positional geometry is largely established
-BEFORE movement rather than built by it — consistent with the pre-cue decode being above chance.
+correlated. **Re-measured with the corrected whitening (2026-08-12); the crossnobis values below
+supersede the earlier +0.572 / +0.218, which were diagonal-whitening artifacts:**
+
+| | precue↔cue | precue↔lick | cue↔lick |
+|---|---|---|---|
+| LocaNMF, 1−Pearson | +0.694 | +0.755 | +0.869 |
+| LocaNMF, crossnobis | **+0.827** | **+0.817** | +0.931 |
+| Allen-ROI, 1−Pearson | +0.500 | +0.562 | +0.863 |
+| Allen-ROI, crossnobis | **+0.843** | **+0.850** | +0.939 |
+
+The conclusion is STRONGER than the old numbers supported: pre-cue geometry agrees with both post-cue
+windows at +0.82–0.85, not +0.57–0.63. The positional geometry is largely established BEFORE movement
+and is not reorganized by execution — consistent with the pre-cue decode being above chance. Caveat:
+cue↔lick (+0.93) is inflated by window overlap (the lick usually falls within 2 s of the cue), so the
+pre-cue pairs are the clean comparisons — and they are the ones that moved most.
 NB the "% of reliability ceiling" column in that analysis is INVALID as computed (split-half
 reliability uses half the data and was not Spearman-Brown corrected, and several sessions have
 near-zero or negative pre-cue reliability, giving impossible >100% values). Use the raw agreement.

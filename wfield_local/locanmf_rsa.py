@@ -35,12 +35,16 @@ from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local import session_cache
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
-FS = 31.23
+FS = 31.23
 
 # Noise-whitening for the crossnobis RDM. 'ledoit' = Ledoit-Wolf shrunk inverse COVARIANCE (discounts
 # noise shared between features); 'diag' = the old per-feature variance only. Measured 2026-08-12:
 # mean sibling RSA ROI +0.258 -> +0.817, LocaNMF +0.528 -> +0.767. See _crossnobis_rdm.
 CROSSNOBIS_WHITEN = "ledoit"
+# Which trials estimate that covariance. 'heldout' = the folds NOT supplying either pattern being
+# multiplied, so the whitening matrix is independent of the data it whitens (crossnobis is then exactly,
+# not approximately, noise-unbiased). 'all' = every trial, the pre-2026-08-12 behaviour.
+CROSSNOBIS_SIGMA = "heldout"
 POSN = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
 
 
@@ -80,7 +84,39 @@ def _rdm_and_reliability_compute(s):
     return full, rel
 
 
-def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN):
+def _cell_residuals(X, y, foldid, pos, folds=None):
+    """Within-(fold, position) deviations = the trial-level noise, with fold-level offsets removed.
+
+    Matches what crossnobis actually whitens (a difference of two condition means WITHIN one fold), so the
+    covariance is estimated on the same noise the distance is exposed to. Restrict to `folds` to build a
+    Sigma that is independent of the folds supplying the means."""
+    out = []
+    for f in np.unique(foldid):
+        if folds is not None and f not in folds:
+            continue
+        for p in pos:
+            m = (foldid == f) & (y == p)
+            if m.sum() >= 2:
+                out.append(X[m] - X[m].mean(0))
+    return np.concatenate(out, 0) if out else np.zeros((0, X.shape[1]))
+
+
+def _whitened_dot(resid, nfeat, whiten):
+    """Build the inner product <u, v>_prec from residuals. Falls back to diagonal if Ledoit-Wolf is
+    unavailable or the fit fails -- degrade the estimator rather than lose the figure."""
+    if whiten == "ledoit" and len(resid) >= 3:
+        try:
+            from sklearn.covariance import LedoitWolf
+            prec = LedoitWolf(assume_centered=True).fit(resid).precision_
+            return lambda u, v: float(u @ prec @ v)
+        except Exception:                       # noqa: BLE001
+            pass
+    var = ((resid ** 2).sum(0) / max(len(resid) - 1, 1)) if len(resid) else np.ones(nfeat)
+    pv = 1.0 / np.maximum(var, np.nanmedian(var) * 1e-3)
+    return lambda u, v: float(np.sum(u * pv * v))
+
+
+def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN, sigma=CROSSNOBIS_SIGMA):
     """Cross-validated (crossnobis) RDM: noise-UNBIASED dissimilarities. Noise-whiten, then for every
     ordered pair of block-folds (a,b): D[p,q] += <(mu_p^a - mu_q^a), (mu_p^b - mu_q^b)>_prec.
     Independent-fold noise cross-multiplies to ~0 -> identical positions give ~0 (can go negative), unlike
@@ -102,27 +138,34 @@ def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN):
     scored WORST under 'diag' despite being fine on the (positively biased, and therefore stabilized)
     1-Pearson metric. It was an estimator artifact, not a property of ROIs. Both bases improve; ROI
     goes from worst to best. The fitted shrinkage is small (lambda ~0.01-0.03), i.e. it is the full
-    covariance doing the work, with shrinkage only guarding conditioning."""
+    covariance doing the work, with shrinkage only guarding conditioning.
+
+    ``sigma='heldout'`` (DEFAULT since 2026-08-12) estimates that covariance from the folds NOT supplying
+    either pattern being multiplied, so the whitening matrix is statistically independent of the data it
+    whitens. ``'all'`` is the previous behaviour (Sigma from every trial, including the folds being
+    compared), which makes crossnobis only APPROXIMATELY unbiased. The cost of independence is that Sigma
+    is fitted on ~half the trials; the shrinkage absorbs it (lambda roughly doubles, 0.013 -> 0.022 for ROI
+    and 0.025 -> 0.047 for LocaNMF, both still small). Needs k>=4 folds; falls back to 'all' below that."""
     pos = np.array(DISPLAY_ORDER); P = len(pos)
-    resid = [X[y == p] - X[y == p].mean(0) for p in pos if (y == p).sum() >= 2]
-    resid = np.concatenate(resid, 0) if resid else np.zeros((0, X.shape[1]))
-    prec_m = None
-    if whiten == "ledoit" and len(resid) >= 3:
-        try:
-            from sklearn.covariance import LedoitWolf
-            prec_m = LedoitWolf(assume_centered=True).fit(resid).precision_
-        except Exception:                       # noqa: BLE001 - fall back rather than lose the figure
-            prec_m = None
-    num = np.zeros(X.shape[1]); den = 0
-    for p in pos:
-        m = y == p
-        if m.sum() >= 2:
-            num += ((X[m] - X[m].mean(0)) ** 2).sum(0); den += int(m.sum()) - 1
-    var = num / max(den, 1); prec = 1.0 / np.maximum(var, np.nanmedian(var) * 1e-3)
     ub = np.unique(g); k = min(4, len(ub))
     if k < 2:
         return np.full((P, P), np.nan)
     foldid = np.array([int(np.where(ub == gi)[0][0]) % k for gi in g])
+    nfeat = X.shape[1]
+    dot_all = _whitened_dot(_cell_residuals(X, y, foldid, pos), nfeat, whiten)
+    heldout = (sigma == "heldout") and k >= 4
+    cache = {}
+
+    def _dot_for(fa, fb):
+        """Inner product for the fold pair (fa, fb), whitened by Sigma from the OTHER folds."""
+        if not heldout:
+            return dot_all
+        key = (min(fa, fb), max(fa, fb))
+        if key not in cache:
+            r = _cell_residuals(X, y, foldid, pos, folds={f for f in range(k) if f not in key})
+            cache[key] = _whitened_dot(r, nfeat, whiten) if len(r) >= nfeat // 2 + 3 else dot_all
+        return cache[key]
+
     mean = {(f, ip): (X[(foldid == f) & (y == p)].mean(0) if ((foldid == f) & (y == p)).sum() >= 1 else None)
             for f in range(k) for ip, p in enumerate(pos)}
     D = np.zeros((P, P)); C = np.zeros((P, P))
@@ -130,13 +173,13 @@ def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN):
         for fb in range(k):
             if fa == fb:
                 continue
+            dot = _dot_for(fa, fb)
             for ip in range(P):
                 for iq in range(ip + 1, P):
                     a, b, c, d = mean[(fa, ip)], mean[(fa, iq)], mean[(fb, ip)], mean[(fb, iq)]
                     if a is None or b is None or c is None or d is None:
                         continue
-                    v = (float((a - b) @ prec_m @ (c - d)) if prec_m is not None
-                         else float(np.sum((a - b) * prec * (c - d))))
+                    v = dot(a - b, c - d)
                     D[ip, iq] += v; D[iq, ip] += v; C[ip, iq] += 1; C[iq, ip] += 1
     out = np.full((P, P), np.nan); nz = C > 0; out[nz] = D[nz] / C[nz]; np.fill_diagonal(out, 0.0)
     return out

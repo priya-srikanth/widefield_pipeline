@@ -23,7 +23,11 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 3  # bump when any cached function's computation changes
+CACHE_VERSION = 4  # bump when any cached function's computation changes
+# v4 (2026-08-12): _crossnobis_rdm now estimates the noise covariance from the HELD-OUT folds (those not
+# supplying either pattern in the cross-fold product) instead of from every trial, so the whitening matrix
+# is independent of the data it whitens. Residuals are also taken within (fold, position) cells rather than
+# within position, matching the quantity actually whitened. Cached "crossnobis" entries predate both.
 # v3 (2026-08-12): _crossnobis_rdm now noise-whitens with the Ledoit-Wolf shrunk INVERSE COVARIANCE
 # instead of per-feature variance alone. Every cached "crossnobis" entry was computed with the old
 # diagonal whitening and is not comparable (mean sibling RSA: ROI +0.258 -> +0.817, LocaNMF +0.528 ->
