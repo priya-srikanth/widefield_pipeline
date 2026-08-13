@@ -72,6 +72,15 @@ sessions:
       h5: "20260811/PS92_20260811_102428.h5"
       regime: B
       fmdir: null
+    # FEWER TRIALS THAN USUAL AND THAT IS CORRECT: 225 cues vs 304-472 for other PS92 sessions.
+    # The crash hit after only 24 trials (9.6 min), ~41 min of session went UNRECORDED during the
+    # restart, and the second segment then ran 87 min for 201 trials. Verified at both levels --
+    # frames: 183276 clean pairs vs 183336 declared in the concat manifest (normal attrition);
+    # events: 24 + 201 = 225 exactly. Nothing was lost in the join, the day was simply short.
+    # Consequence for analysis: this session has ~half the usual trials, so its per-session decode /
+    # encode / RDM estimates are noisier than its siblings' -- weight it accordingly in cross-day
+    # comparisons rather than reading a low value as a change in the animal.
+    #
     # 8/12 is a CONCATENATION of two acquisitions: the imaging computer crashed mid-session
     # (PS92_20260812_151741, recording_complete=false) and a second was started
     # (PS92_20260812_161728). The imaging box joined them with concat_split_session, keeping the
