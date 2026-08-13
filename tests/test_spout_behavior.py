@@ -191,6 +191,18 @@ def test_discover_sessions_filters(tmp_path):
     assert len(sb.discover_sessions(rv, None)) == 3
 
 
+def test_daq_h5_for_prefers_concat(tmp_path):
+    d = tmp_path / "20260812"
+    d.mkdir()
+    for n in ("PS92_20260812_152628.h5", "PS92_20260812_161746.h5", "PS92_20260812_concat.h5"):
+        (d / n).write_bytes(b"x")
+    rv = _StubRV(tmp_path)
+    # a rejoined crash day -> the _concat session wins over the raw segments (which sort first)
+    assert sb._daq_h5_for(rv, "PS92", "20260812").name == "PS92_20260812_concat.h5"
+    (d / "PS92_20260812_concat.h5").unlink()                        # no concat -> first sorted
+    assert sb._daq_h5_for(rv, "PS92", "20260812").name == "PS92_20260812_152628.h5"
+
+
 def test_plot_session_writes_and_dry(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000",
                        [dict(tid=i + 1, pos_idx=i % 6, hit=(i % 5 != 0)) for i in range(60)])

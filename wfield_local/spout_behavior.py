@@ -400,7 +400,11 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
 
 
 def _daq_h5_for(rv, animal: str, date: str) -> Path | None:
-    """Locate the session's DAQ ``.h5`` (``DAQ_recorder_output/<date>/<animal>_<date>_*.h5``)."""
+    """Locate the session's DAQ ``.h5`` (``DAQ_recorder_output/<date>/<animal>_<date>_*.h5``).
+
+    Prefers a ``*_concat.h5`` when one exists: a force-split/crashed day is rejoined by
+    ``concat_split_session`` into ``<animal>_<date>_concat.h5``, which is the canonical session for that
+    day (the raw crash segments must not be analyzed on their own). Otherwise the first sorted match."""
     try:
         root = Path(rv.root("daq_recorder_output"))
     except Exception:
@@ -409,7 +413,8 @@ def _daq_h5_for(rv, animal: str, date: str) -> Path | None:
         if base.is_dir():
             hits = sorted(base.glob(f"{animal}_{date}_*.h5"))
             if hits:
-                return hits[0]
+                concat = [h for h in hits if h.stem.endswith("_concat")]
+                return concat[0] if concat else hits[0]
     return None
 
 
