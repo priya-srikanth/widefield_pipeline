@@ -63,6 +63,19 @@ VARIANTS = {
     "meegkit":       dict(drift="meegkit", mask="strobedetrend",
                           note="same mask, but de Cheveigne robust polynomial detrending via "
                                "meegkit.detrend (published implementation) instead of our median"),
+    # HYBRIDS. The 415-residual check (hemo_residual_check) showed the 0.1 Hz high-pass is not only
+    # doing harm: because rcoeffs is ONE scalar per pixel it can only be optimal for whichever band
+    # dominates the fit, and the high-pass makes that the 0.1-14 Hz hemodynamic band. Detrending
+    # leaves large slow variance in, so the coefficient gets tuned for the wrong band and vasomotion /
+    # breathing are corrected WORSE (0.30/0.46 vs zerophase's 0.15/0.22). The fix is to separate the
+    # two jobs the high-pass was doing: keep it for the FIT, where it belongs, and detrend the OUTPUT,
+    # which is the only part that must not be smeared acausally.
+    "detrend_hpfit": dict(drift="median", mask="strobedetrend", fit_drift="filtfilt",
+                          note="HYBRID: rcoeffs fitted on 0.1 Hz high-passed traces (hemodynamic-band "
+                               "optimal), correction applied to masked-median-detrended traces"),
+    "meegkit_hpfit": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt",
+                          note="HYBRID: rcoeffs fitted on 0.1 Hz high-passed traces, correction "
+                               "applied to meegkit robust-polynomial-detrended traces"),
 }
 
 DETREND_WIN_S = 60.0
@@ -73,8 +86,14 @@ def _butter(mode):
     return butter(2, HP / (FS / 2), btype="highpass")
 
 
-def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=MEEGKIT_ORDER):
-    """Apply the variant's drift removal to (K, T) traces. Returns the cleaned array."""
+def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
+    """Apply the variant's drift removal to (K, T) traces. Returns the cleaned array.
+
+    ``order`` defaults to MEEGKIT_ORDER read AT CALL TIME, not bound as a default argument -- a sweep
+    that set the module attribute between calls would otherwise silently keep using the value captured
+    when this function was defined, and every "order" in the sweep would secretly be the same fit.
+    """
+    order = MEEGKIT_ORDER if order is None else int(order)
     d = VARIANTS[variant]["drift"]
     if d == "none":
         return X
@@ -130,7 +149,7 @@ def refit_T(U, a, b, chunk=20000):
     return np.linalg.pinv(UtU) @ UtUrc, rc
 
 
-def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True):
+def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None):
     """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing."""
     from wfield_local.filter_acausality_test import MASK_SPEC, fit_mask
     from wfield_local.locanmf_crossanimal_dff import _frames as _fr
@@ -154,27 +173,44 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True):
         mask, d = fit_mask(session, a.shape[1], csmp, cue, **MASK_SPEC[spec["mask"]])
         mask_frac = d["frac_final"]
 
-    a = remove_drift(a, variant, mask, win_s)
-    b = remove_drift(b, variant, mask, win_s)
-    if LP < FS / 2:
-        bb, aa = butter(2, LP / (FS / 2), btype="lowpass")
-        b = filtfilt(bb, aa, b, padlen=50)
-    a = (a.T - np.nanmean(a, 1)).T
-    b = (b.T - np.nanmean(b, 1)).T
+    def _finish(x, y):
+        """violet lowpass + zero-mean, exactly as wfield.hemodynamic_correction does."""
+        if LP < FS / 2:
+            bb, aa = butter(2, LP / (FS / 2), btype="lowpass")
+            y = filtfilt(bb, aa, y, padlen=50)
+        return (x.T - np.nanmean(x, 1)).T, (y.T - np.nanmean(y, 1)).T
+
+    fit_drift = spec.get("fit_drift")
+    a_fit = b_fit = None
+    if fit_drift:
+        # Separate traces for the COEFFICIENT FIT. `remove_drift` keys off the variant, so build these
+        # with the high-pass directly rather than inventing a pseudo-variant.
+        bh, ah = butter(2, HP / (FS / 2), btype="highpass")
+        a_fit, b_fit = _finish(filtfilt(bh, ah, a, padlen=50), filtfilt(bh, ah, b, padlen=50))
+
+    a = remove_drift(a, variant, mask, win_s, order)
+    b = remove_drift(b, variant, mask, win_s, order)
+    a, b = _finish(a, b)
 
     if refit_t:
         U = np.load(res / "U.npy")
-        T, rc = refit_T(U, a, b)
+        # fit on the high-passed traces when the variant asks for it, else on the output traces
+        T, rc = refit_T(U, a_fit if a_fit is not None else a, b_fit if b_fit is not None else b)
         del U
+    elif fit_drift:
+        raise ValueError(f"variant {variant!r} defines fit_drift, so it REQUIRES refit_t=True -- "
+                         f"reusing the saved T would silently ignore the whole point of the hybrid")
     else:
         T, rc = np.load(res / "T.npy").astype(np.float64), np.load(res / "rcoeffs.npy")
 
     c = a - T @ b
     c = (c.T - np.nanmean(c, 1)).T.astype(np.float32)
     meta = {"variant": variant, "refit_t": bool(refit_t), "label": session["label"],
-            "drift": spec["drift"], "mask": spec["mask"], "mask_frac": mask_frac,
+            "drift": spec["drift"], "fit_drift": spec.get("fit_drift"),
+            "mask": spec["mask"], "mask_frac": mask_frac,
             "win_s": win_s if spec["drift"] == "median" else None,
-            "meegkit_order": MEEGKIT_ORDER if spec["drift"] == "meegkit" else None,
+            "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
+                             if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": FUNC,
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
