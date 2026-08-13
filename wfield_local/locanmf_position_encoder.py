@@ -27,6 +27,7 @@ from sklearn.model_selection import GroupKFold
 
 from collections import defaultdict
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
 from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
@@ -111,12 +112,12 @@ def fig_predicted_maps(label, out):
     colormap so ΔF/F can go negative (blue=below rest). A@C is the cross-session-comparable frame for the
     pre/post-stroke residual; footprint scaling is a within-session per-component normalization, not used here."""
     s = _sess(label); e = encode_spatial(label)
-    C = np.load(f"{s['mc']}/locanmf_affine8v1_final/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
+    C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
     base = _quiet_baseline_local(s, C)                                            # time-local rest baseline on raw C
     fr, y, post_n = _engaged_frames(s)
     feats = np.array([C[:, f:f + post_n].mean(1) - base[:, f:f + post_n].mean(1) for f in fr])
     B = np.stack([feats[y == p].mean(0) for p in DISPLAY_ORDER])                  # 6 x ncomp raw-C activity above rest
-    Ar = np.load(f"{s['mc']}/locanmf_affine8v1_final/{label}_locanmf_A.npy"); H, Wd = Ar.shape[:2]
+    Ar = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_A.npy"); H, Wd = Ar.shape[:2]
     Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
     mask = np.load(glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_brain_mask_native_grid.npy")[0]).astype(bool)
     ys, xs = np.where(mask); y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
@@ -272,8 +273,8 @@ def fig_encoder_vs_svd(label, out):
     U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
-    Ar = np.load(f"{mc}/locanmf_affine8v1_final/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
-    C = np.load(f"{mc}/locanmf_affine8v1_final/{label}_locanmf_C.npy"); T = SVT.shape[1]
+    Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
+    C = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_C.npy"); T = SVT.shape[1]
     cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     keep = [k for k in range(cf.size) if codes[k] >= 0 and int(cf[k]) - W >= 0 and int(cf[k]) + W <= T]

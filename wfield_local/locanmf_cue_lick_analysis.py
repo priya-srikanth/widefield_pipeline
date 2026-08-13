@@ -50,8 +50,8 @@ SESSIONS = config.load_sessions()      # session registry (configs/sessions.yaml
 def _process(s, args):
     mc = s["mc"]
     quiet = glob.glob(f"{mc}/quiet_affine8v1/*quiet_frame.npy")[0]
-    C = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_C.npy")
-    regions = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_regions.npy")
+    C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy")
+    regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     Cn, _ = _quiet_zscore(C, np.load(quiet))
 

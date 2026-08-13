@@ -78,8 +78,26 @@ VARIANTS = {
                                "applied to meegkit robust-polynomial-detrended traces"),
 }
 
-DETREND_WIN_S = 60.0
-MEEGKIT_ORDER = 5
+# The masked-median window. 60 s was the ORIGINAL default and is the single worst value available:
+# measured, its 50% cutoff is ~110 s, sitting inside the 57-121 s position-block range, so it removed
+# roughly half the amplitude of exactly the structure the blocks create. Only used by the median-based
+# variants; kept at 600 s (50% cutoff ~19 min) for anything that still calls them.
+DETREND_WIN_S = 600.0
+
+# ADOPTED 2026-08-13 (Priya): order 10 for the shipped variant. Measured frequency response on a
+# 150 min session -- amplitude RETAINED after detrending a pure sinusoid:
+#
+#   period       30s   60s  120s  300s  600s 1200s 3000s 9000s
+#   order  5    1.00  1.00  1.00  1.00  0.99  0.98  0.91  0.01     50% cutoff ~90 min
+#   order 10    1.00  1.00  1.00  0.99  0.98  0.94  0.18  0.00     50% cutoff ~43 min
+#   order 40    1.00  1.00  1.00  0.99  0.96  0.87  0.22  0.00
+#
+# Order 10 removes more drift than order 5 at no measurable cost (pre-cue 0.378 vs 0.377, post-cue
+# 0.777 vs 0.761 over 4 sessions) and still leaves the 1-2 min block band untouched (0.98-1.00). NB
+# polynomials are GLOBAL basis functions, so raising the order adds oscillations across the whole
+# record rather than local flexibility -- which is why order 40 is barely more aggressive than order 10,
+# and why order is a much safer knob than a window length.
+MEEGKIT_ORDER = 10
 
 
 def _butter(mode):

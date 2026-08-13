@@ -83,11 +83,19 @@ def _params_str(params) -> str:
 
 def session_signature(session, params=None) -> str:
     """Hash of the inputs that determine a per-session result: LocaNMF C.npy + h5 + behavior_trials
-    mtimes/sizes, the params, and CACHE_VERSION."""
+    mtimes/sizes, the params, and CACHE_VERSION.
+
+    The LocaNMF directory NAMES the hemodynamic variant it was fitted to, so switching variants
+    changes this path and therefore the signature -- cached results from one drift-removal cannot be
+    served for another. That is the intended behaviour, not a coincidence.
+    """
+    # imported lazily, like _default_cache_dir above: config may be unavailable in unit tests
+    from wfield_local import config
+
     mc, lab = session["mc"], session["label"]
     parts = [
         f"v{CACHE_VERSION}", lab, _params_str(params),
-        _stat_sig(f"{mc}/locanmf_affine8v1_final/{lab}_locanmf_C.npy"),
+        _stat_sig(f"{config.locanmf_dir(mc)}/{lab}_locanmf_C.npy"),
         _stat_sig(session.get("h5", "")),
         _stat_sig(session.get("behavior_trials", "")),
     ]

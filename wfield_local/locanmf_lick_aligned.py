@@ -21,7 +21,7 @@ Frame mapping (reuses the lick-map plotters' helpers):
 Run (regime B, e.g. PS94 6/3):
   python -m wfield_local.locanmf_lick_aligned \
     --daq-h5 ".../DAQ_recorder_output/20260603/PS94_20260603_175946.h5" \
-    --locanmf-dir ".../locanmf_affine8v1_final" --label PS94_0603 \
+    --locanmf-dir ".../<config.locanmf_dir_name()>" --label PS94_0603 \
     --quiet-frame ".../quiet_affine8v1/PS94_0603_affine8v1_quiet_frame.npy" \
     --frame-map ".../pco_..._cleanpairs_frame_map.npz" --offset 0 \
     --output ".../locanmf_lick_aligned_affine8v1"

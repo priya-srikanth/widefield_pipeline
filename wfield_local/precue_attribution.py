@@ -46,6 +46,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from wfield_local import config
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
 # Allen acronym prefixes -> the families claims are made about. Deliberately coarse: a family must be
@@ -199,7 +200,7 @@ def pattern_to_pixels(pattern, session, source, basis=None):
             out[(atlas == l) & mask] = pattern[i]
         return out
     A = np.nan_to_num(np.asarray(basis.A if basis is not None else
-                                 np.load(f"{session['mc']}/locanmf_affine8v1_final/"
+                                 np.load(f"{config.locanmf_dir(session['mc'])}/"
                                          f"{session['label']}_locanmf_A.npy"), dtype=np.float32))
     A = A.reshape(-1, A.shape[-1])
     img = (A @ pattern).reshape(H, W, -1)               # footprint-weighted sum = the pixel functional

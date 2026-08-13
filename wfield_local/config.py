@@ -45,6 +45,33 @@ def date_policy() -> dict:
     return _load("animals.yaml")["date_policy"]
 
 
+def locanmf_dir_name(variant: str | None = None) -> str:
+    """Directory name for a session's LocaNMF outputs, from ``defaults.yaml locanmf.output_dir_name``.
+
+    LocaNMF is fitted to ``SVTcorr``, so a DIFFERENT hemodynamic/drift-removal variant gives a
+    DIFFERENT decomposition -- different component count, different footprints. The directory
+    therefore has to name the variant it came from, or two incompatible decompositions end up
+    indistinguishable on disk. See ``docs/PREPROCESSING_DECISION.md``.
+
+    Override per call with ``variant``, or globally with ``WIDEFIELD_LOCANMF_VARIANT``, which is how
+    an analysis can be pointed at a non-default decomposition without editing config.
+    """
+    v = variant or os.environ.get("WIDEFIELD_LOCANMF_VARIANT")
+    if v:
+        return f"locanmf_affine8v1_hemo_{v}"
+    return str(defaults()["locanmf"]["output_dir_name"])
+
+
+def locanmf_dir(mc, variant: str | None = None) -> str:
+    """Absolute path to a session's LocaNMF outputs (``<mc>/<locanmf_dir_name()>``).
+
+    Used instead of a hardcoded literal in every consumer: the name was written out 39 times across 22
+    modules, so renaming it -- which adopting a new drift-removal variant REQUIRES -- meant editing all
+    of them. Now it is one config key.
+    """
+    return f"{str(mc).rstrip('/')}/{locanmf_dir_name(variant)}"
+
+
 def curated_dates(machine: str | None = None) -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 

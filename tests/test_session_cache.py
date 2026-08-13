@@ -1,11 +1,14 @@
 """Unit tests for wfield_local.session_cache (no real data needed)."""
 from pathlib import Path
 
+from wfield_local import config
 from wfield_local import session_cache as sc
 
 
 def _mk_session(tmp_path, label="PSXX_9999", cbytes=b"0" * 10):
-    final = tmp_path / "mc" / "locanmf_affine8v1_final"
+    # read the SAME config key session_signature reads, so renaming the directory (which
+    # adopting a new hemodynamic variant requires) does not silently break this fixture
+    final = tmp_path / "mc" / config.locanmf_dir_name()
     final.mkdir(parents=True, exist_ok=True)
     (final / f"{label}_locanmf_C.npy").write_bytes(cbytes)
     h5 = tmp_path / f"{label}.h5"
@@ -14,7 +17,7 @@ def _mk_session(tmp_path, label="PSXX_9999", cbytes=b"0" * 10):
 
 
 def _cfile(session):
-    return Path(session["mc"], "locanmf_affine8v1_final", f"{session['label']}_locanmf_C.npy")
+    return Path(session["mc"], config.locanmf_dir_name(), f"{session['label']}_locanmf_C.npy")
 
 
 def test_roundtrip_and_hit(tmp_path, monkeypatch):

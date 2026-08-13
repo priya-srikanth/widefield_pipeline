@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
+from wfield_local import config
 from wfield_local.atlas_overlay import region_edges
 
 POSNAMES = ["close_center", "close_L", "close_R", "far_center", "far_L", "far_R"]
@@ -37,7 +38,7 @@ def _discover(root):
         p = Path(npz)
         label = p.name.replace("_locanmf_lick_aligned.npz", "")
         mc = p.parent.parent
-        A = mc / "locanmf_affine8v1_final" / f"{label}_locanmf_A.npy"
+        A = mc / config.locanmf_dir_name() / f"{label}_locanmf_A.npy"
         atlas = mc / "wfield_local_results" / "allen_aligned_affine8v1" / "allen_area_atlas_native_grid.npy"
         if A.exists() and atlas.exists():
             out.append(dict(label=label, animal=label.split("_")[0], npz=npz, A=A, atlas=atlas))

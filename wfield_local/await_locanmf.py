@@ -5,7 +5,7 @@ runs standalone from PowerShell (no Claude Code session needed).
 Each tick (default every 30 min) it:
   1. DETECTS ready sessions on MICROSCOPE: for each mouse, ``labcams/<YYYYMMDD>/PSxx_<YYYYMMDD>_*/
      motion_corrected/wfield_local_results/{SVTcorr.npy, allen_aligned_affine8v1/U_atlas.npy}`` present.
-  2. For each ready mouse whose LocaNMF has NOT run yet (no ``locanmf_affine8v1_final/``): runs
+  2. For each ready mouse whose LocaNMF has NOT run yet (no LocaNMF output dir -- ``config.locanmf_dir_name()``): runs
      ``batch_locanmf`` (r2 0.95 / loc 80 / maxrank 20 from configs/defaults.yaml).
   3. REGISTERS any ready+unregistered mouse in ``configs/sessions.yaml`` (regime B if a
      ``*cleanpairs_frame_map.npz`` is present, else A; fmdir null), preserving the file's comments/format.

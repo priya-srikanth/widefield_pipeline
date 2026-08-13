@@ -536,7 +536,7 @@ def project_C_fixed_A(a_ref_label, new_label):
     frozen LocaNMF decoder (trained on A_ref's components) can be applied to the new session.
     Requires both sessions on the same affine8v1 pixel grid; not exercised until post-stroke data."""
     ref = _sess(a_ref_label); new = _sess(new_label)
-    A = np.load(f"{ref['mc']}/locanmf_affine8v1_final/{a_ref_label}_locanmf_A.npy")  # (H, W, ncomp)
+    A = np.load(f"{config.locanmf_dir(ref['mc'])}/{a_ref_label}_locanmf_A.npy")  # (H, W, ncomp)
     ad = glob.glob(f"{new['mc']}/wfield_local_results/allen_aligned_affine8v1")[0]
     U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{new['mc']}/wfield_local_results/SVTcorr.npy")
     A2 = np.nan_to_num(A.reshape(-1, A.shape[2]))            # (npix, ncomp); A is NaN outside the brain

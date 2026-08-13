@@ -30,6 +30,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import accuracy_score
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 
@@ -69,7 +70,7 @@ def qc_flags(A, mask, edge_frac=0.08, tiny_frac=0.3):
 
 def _load(label):
     s = next(x for x in SESSIONS if x["label"] == label); mc = s["mc"]
-    A = np.load(f"{mc}/locanmf_affine8v1_final/{label}_locanmf_A.npy")
+    A = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy")
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool)
     names = {int(k): v for k, v in json.load(open(f"{ad}/allen_area_names.json"))}

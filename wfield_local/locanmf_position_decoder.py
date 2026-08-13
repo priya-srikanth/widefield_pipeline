@@ -49,9 +49,9 @@ def _build_signal(s, source):
     """Return (signal [nfeat,T], feat_region_labels [nfeat])."""
     mc = s["mc"]
     if source == "locanmf":
-        C = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_C.npy").astype(np.float64)
-        reg = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_regions.npy")
-        A = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_A.npy", mmap_mode="r")
+        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
+        A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
     U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")

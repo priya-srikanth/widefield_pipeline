@@ -164,3 +164,29 @@ def test_figures_working_resolves_on_every_machine_that_runs_nightly_figs():
             else:
                 os.environ["WIDEFIELD_MACHINE"] = prev
             config.resolver.cache_clear() if hasattr(config.resolver, "cache_clear") else None
+
+
+def test_locanmf_dir_is_config_driven_and_variant_aware(monkeypatch):
+    """The LocaNMF directory NAMES the hemodynamic variant it was fitted to, because LocaNMF is fitted
+    to SVTcorr and a different drift removal gives a different decomposition. The literal used to be
+    written out 39 times across 22 modules, so renaming it -- which adopting a variant requires --
+    meant editing all of them. Keep it in one place."""
+    from wfield_local import config
+
+    assert config.locanmf_dir("X:/mc") == "X:/mc/" + config.locanmf_dir_name()
+    assert config.locanmf_dir("X:/mc/") == "X:/mc/" + config.locanmf_dir_name()
+    # explicit variant overrides config
+    assert config.locanmf_dir_name("meegkit_hpfit") == "locanmf_affine8v1_hemo_meegkit_hpfit"
+    # and the env var does too, so an analysis can be pointed elsewhere without editing config
+    monkeypatch.setenv("WIDEFIELD_LOCANMF_VARIANT", "zerophase")
+    assert config.locanmf_dir_name() == "locanmf_affine8v1_hemo_zerophase"
+
+
+def test_no_hardcoded_locanmf_dir_left_in_wfield_local():
+    """A literal that reappears defeats the whole point -- the rename would half-apply."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+    offenders = [p.name for p in root.glob("*.py")
+                 if "locanmf_affine8v1_final" in p.read_text(encoding="utf-8")]
+    assert not offenders, f"hardcoded LocaNMF dir name in: {offenders}"

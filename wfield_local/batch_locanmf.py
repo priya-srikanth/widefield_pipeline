@@ -7,7 +7,8 @@ session whose ``<label>_locanmf_summary.json`` already exists -- so the batch ca
 terminated anytime (e.g. to free the machine) and resumes where it stopped.
 
 To avoid overwriting/deleting any existing MICROSCOPE outputs, point ``output`` at a
-NEW per-session folder (e.g. ``locanmf_affine8v1_final``); the runner only creates/writes.
+NEW per-session folder (``config.locanmf_dir_name()``, which NAMES the hemodynamic variant the
+decomposition was fitted to -- see docs/PREPROCESSING_DECISION.md); the runner only creates/writes.
 
 Manifest JSON = list of {"allen_dir","label","output"[, "svt"]}:
     python -m wfield_local.batch_locanmf --manifest sessions.json \

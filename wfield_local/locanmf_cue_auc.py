@@ -24,6 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
@@ -36,8 +37,8 @@ ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green"}
 
 def _process(s, args):
     mc = s["mc"]
-    C = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_C.npy").astype(np.float64)
-    regions = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_regions.npy")
+    C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+    regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     cue = _load_cue_events(s["h5"])
     fsd = cue["sample_rate_hz"]

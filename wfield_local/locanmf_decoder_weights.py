@@ -28,6 +28,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.metrics import accuracy_score
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
@@ -208,7 +209,7 @@ def fig_baseline_variability(out):
 def fig_top_components(label, out, topn=10):
     """Spatial footprints (Allen-overlaid) of the top-N LocaNMF components by decoder weight."""
     s = _sess(label); mc = s["mc"]
-    A = np.load(f"{mc}/locanmf_affine8v1_final/{label}_locanmf_A.npy")          # (H,W,ncomp)
+    A = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy")          # (H,W,ncomp)
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
     atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy"); mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool)
     names = _names(s)

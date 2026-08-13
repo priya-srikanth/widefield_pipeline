@@ -75,8 +75,8 @@ def _gather_cue(args, name2lab):
     comps = []
     for s in SESSIONS:
         mc = s["mc"]
-        C = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_C.npy").astype(np.float64)
-        reg = np.load(f"{mc}/locanmf_affine8v1_final/{s['label']}_locanmf_regions.npy")
+        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         T = C.shape[1]; cue = _load_cue(s["h5"]); fsd = cue["sample_rate_hz"]
         if s["regime"] == "B":
             fmdir = s["fmdir"] or mc; fm = glob.glob(f"{fmdir}/*cleanpairs_frame_map.npz")[0]
