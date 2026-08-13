@@ -7,7 +7,7 @@
          python -m wfield_local.nightly_figs all                  # every registered date
          python -m wfield_local.nightly_figs 0807 --from 0605-0608 --only PS93
 
-Generates (into OUT): per-day decode (lick/cue 2 s, pre-cue 1 s), rolling cue + first-lick temporal
+Generates (into OUT): per-day decode (lick/cue/pre-cue 2 s, from configs/defaults.yaml decode.*_post_s), rolling cue + first-lick temporal
 dynamics + laterality, top components, encoder (+ FEVE raw & normalized), and the cross-mouse /
 within-animal consistency / RSA (incl. crossnobis) comparison. The per-day figures are built for each
 DATE (default: the latest registered session); the cross-SESSION comparisons span the CURATED set by

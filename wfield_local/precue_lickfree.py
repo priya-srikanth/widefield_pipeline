@@ -148,6 +148,71 @@ def trial_table(session, source="roi", pre_s=PRE_S):
             np.asarray(off, dtype=float))
 
 
+ROLL_WIN_S, ROLL_STEP_S = 0.5, 0.25
+ROLL_FROM_S, ROLL_TO_S = -3.5, 2.5      # deep ENL through post-cue; matches fig_rolling_cue
+
+
+def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S):
+    """Cue-aligned sliding-window decoding, with licking excluded PER TIME BIN.
+
+    Why this supersedes the single-window version (Priya, 2026-08-13). A 2 s mean forces one window
+    choice and makes trial inclusion binary: a lick anywhere in the window costs the whole trial, and
+    shortening the window to rescue those trials costs noise-averaging on every OTHER trial. Measured
+    recovery for a clean window of length L in the worst sessions (PS93 8/9, PS92 8/9): 2.0 s -> ~90%,
+    1.8 s -> ~95%, 1.5 s -> ~99%, 1.2 s -> 100%.
+
+    A 0.5 s rolling window dissolves that trade rather than managing it. Clean 0.5 s gaps are
+    abundant, so per-bin exclusion drops almost nothing at any timepoint, and the output is a TIME
+    COURSE spanning ENL -> post-cue instead of a single scalar. Exclusion is per (trial, bin), so a
+    trial contributes wherever it is quiet and is dropped only from the bins it contaminates.
+
+    Returns offsets (s, window CENTRE relative to cue), accuracy with and without lick filtering, and
+    the surviving trial count per bin -- the count is reported because it is the honest denominator: a
+    bin decoded from few trials is not comparable to one decoded from all of them.
+    """
+    sig, _ = _build_signal(session, source)
+    cue = _load_cue(session["h5"])
+    lk = _load_daq_events(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue_f, lick_f, _ = _frames(session, cue, lk)
+    codes = classify_cues_with_backup(session, cue, verbose=False)
+    ls = np.sort(np.asarray(lick_f))
+    wn = int(round(win_s * FS))
+
+    blk, b, prev = np.full(cue_f.size, -1, int), -1, None
+    for k in range(cue_f.size):
+        if codes[k] < 0:
+            continue
+        if prev is None or codes[k] != prev:
+            b += 1
+        blk[k] = b
+        prev = int(codes[k])
+
+    offs = np.arange(ROLL_FROM_S, ROLL_TO_S + 1e-9, step_s)
+    out = {"offsets_s": (offs + win_s / 2).tolist(), "win_s": win_s,
+           "acc_all": [], "acc_lickfree": [], "n_lickfree": [], "n_all": []}
+    for off in offs:
+        Xa, ya, ga, clean = [], [], [], []
+        for k in range(cue_f.size):
+            if codes[k] < 0:
+                continue
+            w0 = int(round(cue_f[k] + off * FS))
+            if w0 < 0 or w0 + wn > sig.shape[1]:
+                continue
+            Xa.append(sig[:, w0:w0 + wn].mean(1))
+            ya.append(int(codes[k]))
+            ga.append(int(blk[k]))
+            clean.append(not ((ls >= w0) & (ls < w0 + wn)).any())
+        Xa, ya, ga = np.asarray(Xa), np.asarray(ya), np.asarray(ga)
+        clean = np.asarray(clean, bool)
+        ra = _decode(Xa, ya, ga) if len(ya) else None
+        rf = _decode(Xa[clean], ya[clean], ga[clean]) if clean.sum() else None
+        out["acc_all"].append(ra["accuracy"] if ra else np.nan)
+        out["acc_lickfree"].append(rf["accuracy"] if rf else np.nan)
+        out["n_all"].append(int(len(ya)))
+        out["n_lickfree"].append(int(clean.sum()))
+    return out
+
+
 def _decode(X, y, g):
     ng = min(5, int(np.unique(g).size))
     if ng < 2 or len(y) < MIN_TRIALS or len(np.unique(y)) < len(DISPLAY_ORDER):
