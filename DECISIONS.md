@@ -556,6 +556,74 @@ event, not a nightly one — a basis refit over a growing session set would sile
 numbers incomparable with this week's, and the post-stroke reference frame must be fixed BEFORE the
 manipulation.
 
+### ⚠ THE ZERO-PHASE HIGH-PASS INFLATES THE PRE-CUE CODE BY ~2x (2026-08-13)
+**The single most consequential finding so far, and it invalidates the published pre-cue numbers.**
+
+`wfield.hemodynamic_correction` high-passes BOTH channels at 0.1 Hz using scipy `filtfilt` — forward
+AND backward — and the high-passed 470 channel is what becomes `SVTcorr`. `filtfilt` is zero-phase,
+which is another way of saying ACAUSAL: its impulse response is symmetric in time. Measured on the
+pipeline's own filter (2nd-order Butterworth, 0.1 Hz, fs 31.23): an impulse deposits **−0.496 BEFORE
+itself and −0.496 after**, with −0.209 landing in the single second preceding it. `lfilter` (causal)
+deposits exactly 0.000 before.
+
+A high-pass is `identity − lowpass`; at 0.1 Hz the lowpass kernel is ~10 s wide, and zero-phase centres
+it on each event, so half of it falls before the event and is SUBTRACTED. A position-specific post-cue
+response therefore casts a scaled, SIGN-FLIPPED shadow across the preceding seconds. A linear decoder
+is indifferent to sign, so that shadow is decodable position information in a window that, biologically,
+cannot contain it. Simulation with position-tuned post-cue responses and NO pre-cue signal at all
+reproduced it: the pre-cue window came out 42–67% of post-cue amplitude and correlated **−1.00** with
+the position tuning.
+
+**Measured on real data**, rebuilding `SVTcorr` from the retained `SVT.npy` with the saved transform
+`T` held fixed so ONLY the filter varies (12 sessions: 4 animals x 6/7, 8/10, 8/11):
+
+| variant | PRE-CUE | post-cue (control) |
+|---|---|---|
+| `zerophase` (current pipeline) | **0.498** | 0.718 |
+| `causal` (lfilter) | 0.265 | 0.616 |
+| `fitonly` (HP for the coefficient fit only) | **0.288** | **0.717** |
+
+Pre-cue falls in **12 of 12 sessions**. The control is decisive: under `fitonly` the post-cue decode is
+0.717 vs 0.718 — unchanged to a thousandth — so removing the backward smear costs the post-cue readout
+NOTHING and costs pre-cue 42% of its accuracy. (`causal` also lowers post-cue, to 0.616, because a
+causal filter distorts phase inside the post-cue window too; that is why `fitonly` is the preferred fix
+rather than merely switching to `lfilter`.) The `zerophase` arm reproduces the live pipeline's numbers,
+which is the check that the rebuild is faithful.
+
+Per animal (`fitonly`, chance 0.167): PS92 **0.202** (−0.277), PS93 0.268 (−0.216), PS94 **0.434**
+(−0.058), PS95 0.247 (−0.288). PS94's pre-cue code is essentially intact and unambiguously real; PS93
+and PS95 retain a real but much smaller one; **PS92 is not convincingly above chance** (naive z=3.2,
+and block-CV correlation makes that optimistic). So the cohort is no longer uniform — which is itself a
+result, not just a downgrade.
+
+**SCOPE.** Only PRE-CUE analyses are materially affected: the pre-cue decode slides, the frozen and
+joint-basis pre-cue arms, `precue_lickfree`, `precue_attribution`, and the "motor-independent
+maintained code" claim below. Post-cue and lick-aligned analyses are NOT — the real response sits
+inside those windows (`locanmf_rsa` uses `align="lick"`), and the control above shows them unmoved.
+The lick and vision controls remain VALID: they asked whether pre-cue information could be explained by
+licking or vision, and the answers (no, and no) stand. Neither was ever a question about where the
+information came from in TIME, which is why none of them caught this — the filter is upstream of all
+three.
+
+**Lesson.** Three independent confound controls were stacked on top of a readout whose PREPROCESSING
+had never been checked for acausality. Controls downstream of a broken transform all inherit the break.
+Check the signal chain before stress-testing the inference.
+
+**The `last1.0` >> `first1.0` asymmetry is the shadow's shape, not the plan's.** A window sweep
+(16 sessions) had found the last 1.0–1.5 s of the pre-cue window carrying ~2x the position information
+of the first 1.0 s, which reads naturally as "the plan builds toward the cue". The shadow is largest
+immediately adjacent to the event and decays away — the same profile. The sweep must be repeated on
+`fitonly` data before any window default is changed; setting it to 1.2 s on the current data would have
+tuned the analysis toward the artifact. Sub-binning the window (2/4/8 bins) never beat the plain mean
+(−0.014 to −0.034, better in only 5–6/16), so a time-series decoder is not the answer either.
+
+**PROPOSED FIX (not yet applied): `fitonly`.** Keep the high-pass for estimating `rcoeffs` — that is
+what it is for, keeping slow drift from biasing the 470-vs-415 regression — and apply the correction to
+UNFILTERED data, so no filter fingerprint reaches the analysed signal. `wfield`'s function does not
+support this, so it needs a local reimplementation in `run_wfield_local`. Re-running the correction is
+cheap (`SVT.npy` and `U.npy` are retained; seconds per session), but everything downstream of
+`SVTcorr` must be redone: LocaNMF (GPU hours), the joint bases, every decoder/encoder, the decks.
+
 ### The joint basis is now used for DECODING/ENCODING across days, not only RSA (2026-08-13)
 `wfield_local/joint_xsession.py`. The cross-day decoder/encoder (`pooled_frozen_loso`) had to use
 Allen-ROI features because a session's own LocaNMF components are session-specific in count AND
