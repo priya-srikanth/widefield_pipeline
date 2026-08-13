@@ -203,6 +203,17 @@ def test_daq_h5_for_prefers_concat(tmp_path):
     assert sb._daq_h5_for(rv, "PS92", "20260812").name == "PS92_20260812_152628.h5"
 
 
+def test_discover_sessions_collapses_crash_to_concat(tmp_path):
+    for n in ("PS92_20260812_152647", "PS92_20260812_161800", "PS92_20260812_concat",
+              "PS93_20260812_100000"):
+        _write_session(tmp_path, n, [dict(tid=1, pos_idx=1, hit=True)])
+    rv = _StubRV(tmp_path)
+    # PS92's two raw crash dirs are dropped in favor of the concat; PS93 (no concat) untouched
+    assert {p.name for p in sb.discover_sessions(rv, "20260812")} == {
+        "PS92_20260812_concat", "PS93_20260812_100000"}
+    assert [p.name for p in sb.discover_sessions(rv, "20260812", {"PS92"})] == ["PS92_20260812_concat"]
+
+
 def test_plot_session_writes_and_dry(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000",
                        [dict(tid=i + 1, pos_idx=i % 6, hit=(i % 5 != 0)) for i in range(60)])

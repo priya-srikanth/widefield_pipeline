@@ -876,6 +876,14 @@ def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[
         if aset and _animal_of(p.name) not in aset:
             continue
         out.append(p)
+    # A crashed / force-split day is rejoined into ``<animal>_<date>_concat`` (see
+    # ``concat_split_session``); that is the canonical session for the day. Drop the raw crash
+    # segments so BOTH the per-session figure and the cohort/cross-session figures use the concat,
+    # not the individual (incomplete) crash sessions.
+    concat_ad = {"_".join(p.name.split("_")[:2]) for p in out if p.name.endswith("_concat")}
+    if concat_ad:
+        out = [p for p in out if p.name.endswith("_concat")
+               or "_".join(p.name.split("_")[:2]) not in concat_ad]
     return out
 
 
