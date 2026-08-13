@@ -225,6 +225,33 @@ setting survives a reboot.** Hard-won cautions:
 - `refresh_xall` and `crossday_intensity` are safe: the first is per-animal, the second is a whole-tree
   rollup that is *improved* by re-running after the push (it then includes the new session).
 
+### Recovering a crashed / force-split session — `concat_split_session` (added 2026-08-12)
+When labcams + the DAQ recorder are force-closed mid-session (updater kill) and restarted, you get N
+camera `.dat` + N DAQ `.h5` segments covering one recording. `wfield_local/concat_split_session.py` rejoins
+them: byte-concatenate the `.dat` (camera was off during each gap → no gap frames), concatenate the DAQ
+per-sample streams with each **inter-segment gap zero-padded** (keeps the sample timeline wall-clock
+accurate so the uninterrupted behavior program + behavior camera still align via the shared sync pulse),
+and write a manifest of per-segment sample/frame boundaries. It verifies the invariant **`pco_exposure`
+rising edges == 2 × `.dat` frame-pairs** per segment (camera and DAQ agree on frame count).
+
+**Staggered crash (`--trim-to-sync`).** A real *crash* (vs a clean force-close) stops labcams, the DAQ, and
+the behavior box at **different** times, so a segment's `.dat` frame count and its DAQ `pco` pairs no longer
+match and the strict invariant fails. `--trim-to-sync` uses the **`pco` pulses as ground truth** (start
+alignment: `.dat` frame 0 == the first `pco` pulse) and trims each segment to the imaging↔sync **overlap**
+(`min(dat_pairs, pco_rises//2)`): `.dat` longer than sync → keep the first that-many frames (drop the
+sync-less tail); DAQ longer than `.dat` → cut the DAQ just after the last synced edge; a crash-truncated
+partial last frame is floored. The default stays strict (no silent trimming). Tests in
+`tests/test_concat_split.py`.
+
+**PS92 20260812 (imaging-computer crash).** Session 1 (DAQ `152628`, imaging `151741`) recorded **29,112**
+`.dat` frame-pairs but only **19,742** `pco` pairs — labcams kept writing ~9,370 frames after the DAQ had
+stopped, so those tail frames have no sync and were dropped. Session 2 (`161746`/`161728`) was whole
+(163,594). Concatenated with the 40.7-min inter-session gap zero-padded →
+`labcams/20260812/PS92_20260812_concat/` (`.dat` = 183,336 pairs) + `DAQ_recorder_output/…/PS92_20260812_concat.h5`
+on MICROSCOPE; preprocessing + LocaNMF + behavior run on that concat'd session, not either raw one. The
+folder-name timestamps are misleading here (labcams `151741` was *open* ~9 min before it started
+acquiring) — **use the sync pulse, not the folder stamp**, to reason about alignment.
+
 ---
 
 # Part II — LocaNMF decomposition
