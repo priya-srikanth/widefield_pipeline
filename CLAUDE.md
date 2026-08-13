@@ -179,7 +179,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
 - Env: `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
-  `M:\MICROSCOPE\Priya\Widefield\labcams\spout_position_analysis_summary.pptx` (curated animal→type→date);
+  `<labcams>/spout_position_analysis_summary.pptx`. Sections: **A–C within-day** (decode, encode,
+  pre-cue lick-free control), grouped animal→type→date; **D cross-session/frozen**, grouped
+  basis→alignment→animal and run in TWO bases (Allen-ROI and the shared joint-LocaNMF basis, see
+  `joint_xsession.py`); **E–F** cohort summary + RSA. The curated date set is DERIVED
+  (`config.curated_dates()` = registered minus `cross_session_exclude`) — the static
+  `date_policy.cross_session` list was deleted 2026-08-13 because it lagged five nights and silently
+  shrank hand-run decks;
   analysis PNGs land in `…\labcams\locanmf_lick_pooled\cue_analysis\`. The superseded
   `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py` builders were DELETED on 2026-08-13 (707 lines,
   reachable only via a `--ppt` flag the nightly never passed; recover from git history if ever needed).

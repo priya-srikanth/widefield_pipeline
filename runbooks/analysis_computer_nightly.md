@@ -60,16 +60,33 @@ figs stage then waits for the imaging box's LocaNMF push.
 
 
 1. **Per-day position decode** — one run per alignment (lick / cue / pre-cue, each 2 s from
-   `configs/defaults.yaml decode.*_post_s`), `--per-session`.
+   `configs/defaults.yaml decode.*_post_s`), `--per-session`. Also **backfills** any curated date whose
+   per-day figures are missing on disk, so a night that failed does not leave a blank column forever.
 2. **Decoder-weight & dynamics figures** (in-process): rolling-cue, temporal-dynamics, rolling-laterality,
    and per-session top-components.
 3. **Encoder** (`locanmf_position_encoder`) — per-position EV + FEVE (raw & normalized-to-1.0), pooled over
    the cross-session set.
 4. **Cross-mouse + RSA** (incl. crossnobis) — once, over the whole `--from` set.
-5. **Per-animal rolling decoder** across the curated sessions (Section A of the deck).
-6. **Build the analysis deck** `spout_position_analysis_summary.pptx` at the `labcams` top level
-   (`locanmf_analysis_deck.py`, curated animal→type→date). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20)
-   must already have run on the pushed inputs before this stage.
+5. **Pre-cue lick-free control** (`precue_lickfree`), in BOTH bases (roi, locanmf) — decode/encode on a
+   searched 2 s window containing no licks, between the position strobe and the cue. Deck Section C.
+6. **Per-animal rolling decoder** across the curated sessions (Section A of the deck).
+7. **Frozen cross-day decoder + encoder** (`locanmf_frozen_decoder`, Allen-ROI, leave-one-session-out),
+   for BOTH the post-cue and pre-cue alignments. ~30–40 min; `--skip-frozen` skips it and leaves those
+   deck slides blank.
+8. **Cross-session decode/encode in the joint-LocaNMF basis** (`joint_xsession`) — the same LOSO design
+   in the second, independent basis, plus the basis-health (variance-captured) diagnostic. Deck Section
+   D alongside the ROI version. Requires a joint basis built for the animal
+   (`wfield_local.joint_locanmf`); a missing one is reported and skipped, **never silently refitted** —
+   a refit over a grown session set is a different reference frame. Also gated by `--skip-frozen`.
+9. **Build the analysis deck** `spout_position_analysis_summary.pptx` at the `labcams` top level
+   (`locanmf_analysis_deck.py`; A–C within-day per animal→type→date, D cross-session per basis→
+   alignment→animal, E–F cohort summaries). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20) must already
+   have run on the pushed inputs before this stage.
+10. **Publish the component PNGs** to MICROSCOPE (`cue_analysis_out`) so the individual figures persist
+    on the server beside the deck. Incremental; never deletes.
+
+A step that fails is logged and the run continues, but `nightly_figs` **exits non-zero** if any did — an
+all-steps-failed run used to exit 0 with an empty deck, which is indistinguishable from success.
 
 ## Before the figs: LocaNMF + session registration
 

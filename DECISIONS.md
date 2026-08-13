@@ -556,6 +556,32 @@ event, not a nightly one — a basis refit over a growing session set would sile
 numbers incomparable with this week's, and the post-stroke reference frame must be fixed BEFORE the
 manipulation.
 
+### The joint basis is now used for DECODING/ENCODING across days, not only RSA (2026-08-13)
+`wfield_local/joint_xsession.py`. The cross-day decoder/encoder (`pooled_frozen_loso`) had to use
+Allen-ROI features because a session's own LocaNMF components are session-specific in count AND
+identity — it raises `ValueError` if you try. That left the entire cross-day arm, including the
+pre-stroke dress rehearsal for train-pre/apply-post, resting on ONE parcellation, and on the coarser
+of the two: 66 anatomical ROIs, where LocaNMF's ~95–137 functional components decode better within a
+session in 4/4 animals (0.824 vs 0.763).
+
+The persisted joint basis removes the blocker — its footprints A are shared across the animal's
+sessions by construction, and a day not in the fit is PROJECTED onto them (`Basis.project`) rather
+than refitted — so component *j* is the same footprint every day and pooling is well posed. First
+measurement (PS95, pre-cue, 9 curated sessions): **joint LOSO 0.636 vs ROI 0.586**, within-day 0.583
+vs 0.528. Both bases now appear side by side in deck Section D; a cross-day effect present in only one
+of them is a fact about the parcellation, not about cortex.
+
+**Two honesty requirements, both shipped.** (1) `variance_captured` is plotted per session
+(`joint_basis_health_*.png`): in-fit days are 1.0 by construction, projected days are not, so a
+projected day that decodes poorly *and* spans poorly is under-described by the basis rather than
+representationally changed. Every post-stroke session will be a projected day, so this panel is the
+one that keeps the post-stroke readout falsifiable. (2) The basis was fitted using the in-fit days'
+data — unsupervised, no labels, but still transductive — so those days carry a small advantage that
+projected days do not. **Open check:** 8/12 is the only projected day per animal and, in PS95, the only
+session with a negative transfer cost (−0.027, LOSO 0.506 vs +0.025…+0.095 for the eight in-fit days).
+That is either the transductive gap or a property of 8/12. It is decidable: the ROI basis has no
+in-fit/projected distinction, so if 8/12 also drops there it is the day, not the basis.
+
 **RESOLVED — the ROI caution above was correct.** The original table had Allen-ROI worst on crossnobis
 (+0.258) while fine on 1−Pearson (+0.571), and this file recorded the suspicion that it was an
 estimator artifact of the DIAGONAL whitening. It was. Switching `_crossnobis_rdm` to the Ledoit-Wolf
