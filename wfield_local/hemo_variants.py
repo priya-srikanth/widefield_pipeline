@@ -99,6 +99,11 @@ DETREND_WIN_S = 600.0
 # and why order is a much safer knob than a window length.
 MEEGKIT_ORDER = 10
 
+#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md). This is what gets BUILT for
+#: every session. Which variant analyses READ is a separate switch — `config.hemo_variant()` — because
+#: the two must be able to differ while a rebuild is partway through the session set.
+ADOPTED = "meegkit_hpfit"
+
 
 def _butter(mode):
     return butter(2, HP / (FS / 2), btype="highpass")
@@ -279,7 +284,13 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--list", action="store_true", help="show the variants and exit")
     ap.add_argument("--sessions", nargs="+", default=None)
-    ap.add_argument("--variant", default="strobedetrend", choices=sorted(VARIANTS))
+    ap.add_argument("--variant", default=ADOPTED, choices=sorted(VARIANTS))
+    # An UNREGISTERED session (a night not yet in sessions.yaml) still has to get its variant built,
+    # or the nightly would depend on someone editing config before the pipeline could finish.
+    ap.add_argument("--mc", help="ad-hoc session: motion_corrected dir (instead of a --sessions lookup)")
+    ap.add_argument("--h5", help="ad-hoc session: DAQ .h5")
+    ap.add_argument("--label", help="ad-hoc session label, e.g. PS94_0813")
+    ap.add_argument("--regime", default="B")
     ap.add_argument("--no-refit-t", action="store_true",
                     help="reuse the saved T instead of refitting on the drift-removed traces "
                          "(correct for a controlled COMPARISON, wrong for a product)")
@@ -291,17 +302,26 @@ def main(argv=None) -> int:
             print(f"  {k:15s} drift={v['drift']:9s} mask={str(v['mask']):14s} {v['note']}")
         return 0
 
-    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    labs = args.sessions or []
-    if not labs:
-        ap.error("--sessions is required (or use --list)")
     rc = 0
-    for lab in labs:
-        s = next((x for x in SESSIONS if x["label"] == lab), None)
-        if s is None:
-            print(f"  !! {lab}: not registered", flush=True)
-            rc = 1
-            continue
+    if args.mc:
+        if not (args.h5 and args.label):
+            ap.error("--mc requires --h5 and --label")
+        targets = [dict(label=args.label, mc=args.mc, h5=args.h5, regime=args.regime, fmdir=None)]
+    else:
+        from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+        if not args.sessions:
+            ap.error("--sessions is required (or --mc/--h5/--label for an unregistered session, "
+                     "or --list)")
+        targets = []
+        for lab in args.sessions:
+            s = next((x for x in SESSIONS if x["label"] == lab), None)
+            if s is None:
+                print(f"  !! {lab}: not registered", flush=True)
+                rc = 1
+                continue
+            targets.append(s)
+    for s in targets:
+        lab = s["label"]
         try:
             if args.write:
                 write(s, args.variant, not args.no_refit_t)

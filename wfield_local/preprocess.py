@@ -422,6 +422,24 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
             json.dump(cfg, fh, indent=2)
     _run(["wfield_local.cross_day_align", cfg_path], dry_run)
 
+    # 3b build the ADOPTED hemodynamic/drift-removal variant beside the originals.
+    #
+    # The SVD writes only the zerophase SVTcorr (that IS what `wfield.hemodynamic_correction`
+    # produces). The adopted variant is a separate product, and until now it had to be built by hand
+    # per session afterwards -- a step that would eventually be forgotten, and whose absence is SILENT:
+    # the session simply has no variant directory and drops out of the variant-based analyses.
+    # Built BEFORE the push so it ships to MICROSCOPE with the rest of the results dir.
+    hv = (params.get("hemo") or {})
+    build_variant = hv.get("build_variant", "meegkit_hpfit")
+    if build_variant and build_variant not in ("none", "zerophase"):
+        vdir = f"{results}/hemo_{build_variant}"
+        if Path(vdir).exists() and not dry_run:
+            print(f"[skip] {Path(vdir).name} exists", flush=True)
+        else:
+            _run(["wfield_local.hemo_variants", "--variant", build_variant, "--write",
+                  "--no-refit-t",            # hybrid: the saved T IS the high-pass-fitted T (3.5e-5)
+                  "--label", f"{animal}_{mmdd}", "--mc", mc, "--h5", s["daq_h5"]], dry_run)
+
     # 4 push LocaNMF inputs to MICROSCOPE FIRST (results dir + frame_map + summary; NOT the .bin)
     ndst = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
     nres = f"{ndst}/wfield_local_results"
