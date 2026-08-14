@@ -32,6 +32,89 @@ from wfield_local.locanmf_position_decoder import _build_signal, _trial_features
 ALPHA = 1.0
 
 
+def ceiling_eta2(X, y):
+    """The pipeline's existing ceiling: between-position SS / total SS (eta-squared).
+
+    BIASED UPWARD. With finite trials the position means differ somewhat by chance even with no real
+    effect, so SS_between is inflated -- and the inflation is largest exactly where the true effect is
+    smallest. FEVE built on it is therefore conservative, and unstable on weak sessions.
+    """
+    from wfield_local.locanmf_frozen_decoder import _ceiling
+    return _ceiling(X, y)[0]
+
+
+def ceiling_omega2(X, y):
+    """Bias-corrected explainable fraction (omega-squared) -- the exact analytic correction here.
+
+    omega^2 = (SS_between - (k-1) * MS_within) / (SS_total + MS_within)
+
+    Subtracts the between-group variance a null effect would produce by chance. Can go <= 0, and that
+    is INFORMATIVE rather than a failure: it means this session has no position signal distinguishable
+    from noise, so a fraction-of-explainable-variance score is undefined and should not be computed.
+    """
+    import numpy as _np
+
+    y = _np.asarray(y)
+    groups = _np.unique(y)
+    k, n = groups.size, X.shape[0]
+    if n <= k:
+        return _np.nan
+    gm = X.mean(0)
+    betw = _np.zeros(X.shape[1])
+    wit = _np.zeros(X.shape[1])
+    for g in groups:
+        m = y == g
+        mu = X[m].mean(0)
+        betw += m.sum() * (mu - gm) ** 2
+        wit += ((X[m] - mu) ** 2).sum(0)
+    ss_b, ss_w = float(betw.sum()), float(wit.sum())
+    ms_w = ss_w / (n - k)
+    denom = ss_b + ss_w + ms_w
+    return (ss_b - (k - 1) * ms_w) / denom if denom > 1e-12 else _np.nan
+
+
+def ceiling_splithalf(X, y, n_splits=50, seed=0):
+    """Repeat-based ceiling: how reproducible is the position-mean pattern across independent halves?
+
+    Splits each position's trials in two, builds the 6-condition mean pattern from each half, and
+    correlates them across all features. Spearman-Brown steps that half-data reliability up to the
+    full dataset, and squaring gives the fraction of variance a perfect position-only model could
+    explain. Averaged over random splits because any single split is noisy.
+
+    More general than omega^2 (it needs no ANOVA assumptions) but Monte-Carlo noisy, so it is a
+    cross-check here rather than the primary number.
+    """
+    import numpy as _np
+
+    rng = _np.random.default_rng(seed)
+    y = _np.asarray(y)
+    groups = _np.unique(y)
+    rs = []
+    for _ in range(n_splits):
+        a, b = [], []
+        ok = True
+        for g in groups:
+            idx = _np.flatnonzero(y == g)
+            if idx.size < 4:
+                ok = False
+                break
+            rng.shuffle(idx)
+            h = idx.size // 2
+            a.append(X[idx[:h]].mean(0))
+            b.append(X[idx[h:2 * h]].mean(0))
+        if not ok:
+            return _np.nan
+        A, B = _np.concatenate(a), _np.concatenate(b)
+        if A.std() < 1e-12 or B.std() < 1e-12:
+            continue
+        rs.append(float(_np.corrcoef(A, B)[0, 1]))
+    if not rs:
+        return _np.nan
+    r = float(_np.mean(rs))
+    sb = 2 * r / (1 + r) if (1 + r) > 1e-12 else _np.nan     # Spearman-Brown to full data
+    return sb ** 2 if _np.isfinite(sb) and sb > 0 else _np.nan
+
+
 def _args(align, post_s, bins):
     from types import SimpleNamespace
     return SimpleNamespace(source="roi", align=align, baseline="none", pre_s=1.0,
@@ -56,8 +139,16 @@ def encoder_scores(X, y, g, alpha=ALPHA):
     ss_res = float(((X - pred) ** 2).sum())
     ss_tot = float(((X - X.mean(0)) ** 2).sum())
     ev = 1.0 - ss_res / max(ss_tot, 1e-12)
-    ceil, _, _ = _ceiling(X, y)
-    return ev, ceil, (ev / ceil if ceil > 1e-6 else np.nan)
+    eta = ceiling_eta2(X, y)
+    om = ceiling_omega2(X, y)
+    sh = ceiling_splithalf(X, y)
+    def _f(c):
+        # A ceiling at or below zero means there is no position signal to explain, so the RATIO is
+        # undefined -- reporting a number there is what produced FEVE = -0.586 on a session with no
+        # measurable effect. NaN is the honest value.
+        return ev / c if (c is not None and np.isfinite(c) and c > 0.01) else np.nan
+    return dict(ev=ev, ceil_eta=eta, ceil_omega=om, ceil_split=sh,
+                feve_eta=_f(eta), feve_omega=_f(om), feve_split=_f(sh))
 
 
 def run(labels, bins_list, align="lick", post_s=2.0, verbose=True):
@@ -79,12 +170,16 @@ def run(labels, bins_list, align="lick", post_s=2.0, verbose=True):
             try:
                 X, y, g, _Xn, _yn, _r = _trial_features(s, _args(align, post_s, b),
                                                         signal=sig, feat_region=reg)
-                ev, ceil, feve = encoder_scores(X, y, g)
-                rec[f"ev{b}"], rec[f"ceil{b}"], rec[f"feve{b}"] = ev, ceil, feve
+                sc = encoder_scores(X, y, g)
+                for k, v in sc.items():
+                    rec[f"{k}{b}"] = v
+                rec[f"ev{b}"], rec[f"ceil{b}"], rec[f"feve{b}"] = sc["ev"], sc["ceil_eta"], sc["feve_eta"]
                 rec[f"nfeat{b}"] = X.shape[1]
             except Exception as ex:                      # noqa: BLE001
                 print(f"  !! {lab} bins={b}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
-                rec[f"ev{b}"] = rec[f"ceil{b}"] = rec[f"feve{b}"] = np.nan
+                for k in ("ev", "ceil_eta", "ceil_omega", "ceil_split",
+                          "feve_eta", "feve_omega", "feve_split", "ceil", "feve"):
+                    rec[f"{k}{b}"] = np.nan
         rows.append(rec)
         if verbose:
             print("  " + f"{lab:12s} " + "  ".join(
