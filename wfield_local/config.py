@@ -104,6 +104,18 @@ def svtcorr_path(mc, variant: str | None = None) -> str:
     return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
 
 
+def svtcorr_in(results_dir, variant: str | None = None) -> str:
+    """Like :func:`svtcorr_path` but from a ``wfield_local_results`` dir rather than an ``mc`` dir.
+
+    The activity-map steps are handed the results dir directly, so they cannot use ``svtcorr_path``.
+    They read the SAME variant as the decoders -- maps and decoders describing different data would be
+    a quiet inconsistency in every deck that shows them side by side.
+    """
+    v = hemo_variant(variant)
+    base = str(results_dir).rstrip("/\\")
+    return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
+
+
 def curated_dates(machine: str | None = None) -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 

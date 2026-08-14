@@ -40,7 +40,7 @@ preprocess:
 # curated set has that directory built -- a half-built flip would silently mix two variants across
 # sessions, which is the exact failure the naming rule exists to prevent.
 hemo:
-  variant: zerophase
+  variant: meegkit_hpfit    # ADOPTED 2026-08-14; flipped once all 37 curated sessions had the dir
   # The variant PREPROCESS BUILDS for every new session (step 3b). Deliberately separate from
   # `variant` above: the build must run on every night from now on, while reads stay on zerophase
   # until every curated session has the directory. Set to none/zerophase to disable the build.

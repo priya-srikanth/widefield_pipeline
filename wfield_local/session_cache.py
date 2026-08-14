@@ -23,7 +23,12 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 4  # bump when any cached function's computation changes
+CACHE_VERSION = 5  # bump when any cached function's computation changes
+# v5 (2026-08-14): analyses now read the ADOPTED meegkit_hpfit SVTcorr instead of the zerophase one
+# (configs/defaults.yaml hemo.variant, resolved by config.svtcorr_path). Every cached decode/encode/RDM
+# was computed on zerophase data. The cache keys on input mtimes, which do NOT see a config change, so
+# without this bump the old zerophase-derived results would keep being served under the new methodology
+# -- silently, and indistinguishably from a real re-run.
 # v4 (2026-08-12): _crossnobis_rdm now estimates the noise covariance from the HELD-OUT folds (those not
 # supplying either pattern in the cross-fold product) instead of from every trial, so the whitening matrix
 # is independent of the data it whitens. Residuals are also taken within (fold, position) cells rather than

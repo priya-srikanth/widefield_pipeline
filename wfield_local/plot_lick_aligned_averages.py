@@ -276,7 +276,7 @@ def main() -> int:
         args.refractory_s,
     )
     U = np.load(args.allen_dir / "U_atlas.npy", mmap_mode="r")
-    SVTcorr = np.load(args.wfield_results / "SVTcorr.npy", mmap_mode="r")
+    SVTcorr = np.load(config.svtcorr_in(args.wfield_results), mmap_mode="r")
     atlas = np.load(args.allen_dir / "allen_area_atlas_native_grid.npy")
     edges = _region_edges(atlas)
 

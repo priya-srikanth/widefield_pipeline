@@ -18,6 +18,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+from wfield_local import config
 from scipy import ndimage
 
 
@@ -223,7 +225,7 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     events = _load_daq_events(args.daq_h5)
     U = np.load(args.allen_dir / "U_atlas.npy", mmap_mode="r")
-    SVTcorr = np.load(args.wfield_results / "SVTcorr.npy", mmap_mode="r")
+    SVTcorr = np.load(config.svtcorr_in(args.wfield_results), mmap_mode="r")
     atlas = np.load(args.allen_dir / "allen_area_atlas_native_grid.npy")
     edges = _region_edges(atlas)
 

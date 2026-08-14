@@ -220,12 +220,14 @@ def test_no_analysis_module_still_hardcodes_the_bare_svtcorr():
     import re
 
     root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
-    allowed = {"config.py", "framemap_event_maps.py"}   # config documents it; framemap takes a path arg
+    allowed = {"config.py"}                              # config.py only documents the literal
     bad = []
     for p in sorted(root.glob("*.py")):
         if p.name in allowed:
             continue
         for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"wfield_local_results/SVTcorr\.npy", line) and "svtcorr_path" not in line:
+            hardcoded = (re.search(r"wfield_local_results/SVTcorr\.npy", line)
+                         or re.search(r'wfield_results / "SVTcorr\.npy"', line))
+            if hardcoded and "svtcorr_path" not in line and "svtcorr_in" not in line:
                 bad.append(f"{p.name}:{i}")
     assert not bad, "use config.svtcorr_path() instead of a literal: " + ", ".join(bad)

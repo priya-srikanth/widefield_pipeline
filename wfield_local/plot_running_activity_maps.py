@@ -28,6 +28,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
+
 from wfield_local.atlas_overlay import region_edges as _region_edges
 from wfield_local.behavior_events import load_events
 from wfield_local.framemap_event_maps import _corrected_frame_samples, _offset_from_summary
@@ -100,7 +102,7 @@ def main(argv=None) -> int:
     quiet = _mask_from_edges(ev["quiet_starts"], ev["quiet_stops"], n)
 
     U = np.load(args.allen_dir / "U_atlas.npy", mmap_mode="r")
-    SVTcorr = np.load(args.wfield_results / "SVTcorr.npy", mmap_mode="r")
+    SVTcorr = np.load(config.svtcorr_in(args.wfield_results), mmap_mode="r")
     edges = _region_edges(np.load(args.allen_dir / "allen_area_atlas_native_grid.npy"))
     T = SVTcorr.shape[1]
 
@@ -126,6 +128,7 @@ def main(argv=None) -> int:
 
     summary = {
         "label": args.label, "events": str(args.events), "wfield_results": str(args.wfield_results),
+        "svtcorr": str(config.svtcorr_in(args.wfield_results)),
         "allen_dir": str(args.allen_dir), "frame_map": str(args.frame_map), "regime": regime,
         "offset": int(offset), "fs": fs, "svt_frames": int(T),
         "quiet_frames": int(frame_quiet.sum()), "running_frames": int(frame_running.sum()),

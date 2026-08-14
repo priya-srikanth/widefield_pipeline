@@ -7,10 +7,12 @@ and a saved basis must never be silently replaced by a refit.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from wfield_local import config
 from wfield_local import joint_locanmf as jl
 
 
@@ -23,7 +25,12 @@ def fake_sessions(tmp_path):
         (mc / "wfield_local_results" / "allen_aligned_affine8v1").mkdir(parents=True)
         np.save(mc / "wfield_local_results" / "allen_aligned_affine8v1" / "U_atlas.npy",
                 np.zeros((4, 4, 3), np.float32))
-        np.save(mc / "wfield_local_results" / "SVTcorr.npy", np.zeros((3, 10), np.float32))
+        # write the SVTcorr the CONFIGURED hemo variant resolves to, not the bare literal: the
+        # signature follows config.svtcorr_path, so a fixture pinned to the bare file would make
+        # both signatures read MISSING and the id compare equal for the wrong reason.
+        svt = Path(config.svtcorr_path(mc))
+        svt.parent.mkdir(parents=True, exist_ok=True)
+        np.save(svt, np.zeros((3, 10), np.float32))
         out.append({"label": lab, "mc": str(mc)})
     return out
 
@@ -48,7 +55,7 @@ def test_basis_id_changes_when_an_input_file_changes(fake_sessions):
     """THE case that motivates signatures: a re-preprocess upstream must invalidate the basis, and no
     mtime of the basis's own files would reveal it."""
     before = jl.basis_id(fake_sessions, 100)
-    svt = f"{fake_sessions[0]['mc']}/wfield_local_results/SVTcorr.npy"
+    svt = config.svtcorr_path(fake_sessions[0]["mc"])
     np.save(svt, np.zeros((3, 11), np.float32))          # different size -> different signature
     assert jl.basis_id(fake_sessions, 100) != before
 

@@ -72,7 +72,7 @@ def _offset_from_summary(summary_path: Path) -> int:
 
 def _load_common(args):
     U = np.load(args.allen_dir / "U_atlas.npy", mmap_mode="r")
-    SVTcorr = np.load(args.wfield_results / "SVTcorr.npy", mmap_mode="r")
+    SVTcorr = np.load(config.svtcorr_in(args.wfield_results), mmap_mode="r")
     atlas = np.load(args.allen_dir / "allen_area_atlas_native_grid.npy")
     edges = _region_edges(atlas)
     offset = args.offset if args.offset is not None else _offset_from_summary(args.cleanpairs_summary)
@@ -174,6 +174,7 @@ def run_cue(args) -> int:
     )
     summary = {
         "label": args.label, "daq_h5": str(args.daq_h5), "wfield_results": str(args.wfield_results),
+        "svtcorr": str(config.svtcorr_in(args.wfield_results)),
         "allen_dir": str(args.allen_dir), "frame_map": str(args.frame_map), "offset": offset,
         "pre_s": args.pre_s, "post_s": args.post_s, "fs": args.fs,
         "cue_count": int(len(ev["cue_samples"])), "valid_cues_with_windows": int(valid.sum()),
@@ -277,6 +278,7 @@ def run_lick(args) -> int:
 
     summary = {
         "label": args.label, "daq_h5": str(args.daq_h5), "wfield_results": str(args.wfield_results),
+        "svtcorr": str(config.svtcorr_in(args.wfield_results)),
         "allen_dir": str(args.allen_dir), "frame_map": str(args.frame_map), "offset": offset,
         "post_s": args.post_s, "fs": args.fs, "lick_channel": args.lick_channel,
         "detected_lick_count": int(ev["lick_samples"].size), "valid_licks_with_windows": int(valid.sum()),
