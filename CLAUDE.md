@@ -11,6 +11,17 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
 
 ## Ground rules (non-negotiable)
 
+0. **NEVER DELETE ORIGINAL DATA without a verified server copy AND/OR Priya's explicit permission.**
+   (Priya, 2026-08-14 — hard rule, no exceptions.) "Original" = anything ACQUIRED rather than computed:
+   raw imaging `.dat`, DAQ `.h5`, camera `.avi`, `.camlog`, and the behavior logs
+   (`trials.csv`/`events.csv`/`gui_config.json`). Losing one loses an experiment; nothing in the
+   pipeline can regenerate it. Enforced in code by `writeguard.assert_deletable(path,
+   verified_copies=[...] | derived=True | approved=True)` — wired into `archive_day`'s delete sites;
+   call it at any new one. "Verified" means a copy whose existence AND size/bytes you have actually
+   checked, not one you assume is there: a `.sha256` sidecar is a CLAIM about a file, not a
+   measurement of it. `derived=True` is only for files reproducible from inputs that are themselves
+   archived (a `cleanpairs` or repaired `.dat`).
+
 1. **Never modify/delete source data.** Raw imaging, DAQ `.h5`, the imaging computer's preprocessing outputs
    on MICROSCOPE (`motion_corrected/`, `wfield_local_results/`, `SVTcorr.npy`, `U_atlas.npy`,
    `*cleanpairs_frame_map.npz`), behavior logs, and the cam1 recovered-position CSVs are READ-ONLY inputs.
