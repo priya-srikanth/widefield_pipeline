@@ -174,6 +174,11 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
 noise-floor — followed by the post-stroke intention-readout (frozen decoder) and representational-similarity
 (crossnobis / encoder-residual) analyses. Design in `DECISIONS.md`.
 
+## Current status / handoff
+
+**[`docs/STATUS_2026-08-14.md`](docs/STATUS_2026-08-14.md)** — what changed 13-14 Aug, what is
+running, and the ordered to-do list with its cautions. START HERE after a break.
+
 ## Acquisition incidents
 
 **[`docs/EXPERIMENT_ERRORS.md`](docs/EXPERIMENT_ERRORS.md)** — running log of rig/acquisition
