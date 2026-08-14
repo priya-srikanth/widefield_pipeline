@@ -69,6 +69,36 @@ def _build_signal(s, source):
     return np.array(rois), np.array(regs)
 
 
+def _bins_for(args) -> int:
+    """Sub-bins for this alignment: explicit on ``args``, else ``defaults.yaml decode.bins``.
+
+    Falls back through config rather than to a literal 1 so the joint-basis analyses -- which build
+    their own args namespace -- get the same windowing as the per-session path. Two analyses
+    disagreeing about the feature definition is precisely what makes cross-session numbers
+    incomparable.
+    """
+    b = getattr(args, "bins", None)
+    if b:
+        return int(b)
+    return int((config.defaults()["decode"].get("bins") or {}).get(getattr(args, "align", "cue"), 1))
+
+
+def _window_feature(sig, w0, post_n, bins, base):
+    """One trial's feature vector: the window MEAN, or a concatenated time course over sub-bins.
+
+    ``bins <= 1`` reproduces the historical single mean. ``bins = n`` splits the window into n equal
+    slices and concatenates their means, so the decoder sees the window's temporal PROFILE instead of
+    one number -- worth +0.032 pre-cue, +0.020 post-cue and +0.023 post-lick on corrected data
+    (DECISIONS.md). ``base`` is tiled to match, so a pre-cue baseline subtracts from every bin.
+    """
+    w = sig[:, w0:w0 + post_n]
+    if bins <= 1:
+        return w.mean(1) - base
+    edges = np.linspace(0, post_n, bins + 1).astype(int)
+    f = np.concatenate([w[:, a:b].mean(1) for a, b in zip(edges[:-1], edges[1:])])
+    return f - (np.tile(base, bins) if np.ndim(base) else base)
+
+
 def _trial_features(s, args, signal=None, feat_region=None):
     """Trial-averaged features for one session.
 
@@ -95,6 +125,7 @@ def _trial_features(s, args, signal=None, feat_region=None):
         if prev is None or codes[k] != prev:
             b += 1
         blk_id[k] = b; prev = int(codes[k])
+    bins = _bins_for(args)
     pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs))
     maxrt_n = int(round(args.max_rt * args.fs))
     ls = np.sort(lick_f); j = np.searchsorted(ls, cue_f, side="right")
@@ -119,9 +150,14 @@ def _trial_features(s, args, signal=None, feat_region=None):
             w0 = int(first[k]) if args.align == "lick" else ref0
             if w0 < 0 or w0 + post_n > T:
                 continue
-            X.append(sig[:, w0:w0 + post_n].mean(1) - base); y.append(int(codes[k])); g.append(int(blk_id[k]))
+            X.append(_window_feature(sig, w0, post_n, bins, base))
+            y.append(int(codes[k])); g.append(int(blk_id[k]))
         else:                                               # NO-LICK: cue/precue-referenced (no lick to align)
-            Xn.append(sig[:, ref0:ref0 + post_n].mean(1) - base); yn.append(int(codes[k]))
+            Xn.append(_window_feature(sig, ref0, post_n, bins, base)); yn.append(int(codes[k]))
+    # component->region labels must be tiled with the features, or the encoder would group a
+    # sub-binned feature vector by the wrong regions
+    if bins > 1:
+        feat_reg = np.tile(feat_reg, bins)
     return np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg
 
 
@@ -169,6 +205,10 @@ def main() -> int:
                     "event (2.0 = empirical optimum; spans the lick bout. >~2.5s dilutes the transient). Per-align "
                     "windows (lick/cue/precue) live in configs/defaults.yaml decode.*_post_s; nightly_figs passes them.")
     ap.add_argument("--max-rt", type=float, default=dp["max_rt_s"])
+    ap.add_argument("--bins", type=int, default=None,
+                    help="sub-bins across the feature window (time course instead of one mean). "
+                         "Default per alignment from configs/defaults.yaml decode.bins; pass 1 for "
+                         "the historical single-mean feature.")
     ap.add_argument("--per-session", action="store_true",
                     help="also write one compact confusion+recall figure per session "
                          "(locanmf_position_session_{label}_{tag}.png) for the animal-first deck")

@@ -240,3 +240,54 @@ def test_pixel_parity_guard_catches_an_off_by_one_that_would_swap_the_channels()
     agree, _, _ = rsc.verify_offset(frames, shifted, first=1_000)
     assert agree < 0.05, f"a one-frame shift must be caught, got {agree:.3f}"
     assert agree < rsc.MIN_PARITY_AGREEMENT
+
+
+def test_sub_binned_features_are_a_time_course_not_a_mean():
+    """4 x 0.5 s sub-bins beat the plain 2 s mean on corrected data, so the production decoder has to
+    build them -- the arms previously existed only in the sweep harness, meaning no deck used them."""
+    import numpy as np
+
+    from wfield_local.locanmf_position_decoder import _window_feature
+
+    nfeat, post_n = 3, 8
+    sig = np.zeros((nfeat, 20))
+    sig[:, 10:14] = 1.0          # first half of the window high, second half zero
+    sig[:, 14:18] = 0.0
+    mean = _window_feature(sig, 10, post_n, 1, 0.0)
+    binned = _window_feature(sig, 10, post_n, 2, 0.0)
+    assert mean.shape == (nfeat,)
+    assert binned.shape == (nfeat * 2,), "n bins -> n*nfeat features"
+    assert np.allclose(mean, 0.5), "the mean washes out the profile"
+    assert np.allclose(binned[:nfeat], 1.0) and np.allclose(binned[nfeat:], 0.0), \
+        "sub-bins must RESOLVE the profile the mean destroys"
+
+
+def test_sub_binning_tiles_the_baseline_and_the_region_labels():
+    """Both are per-COMPONENT and must be repeated per bin.
+
+    A non-tiled baseline would subtract from only the first bin; non-tiled region labels would make the
+    encoder group a sub-binned vector by the wrong regions. Neither raises -- they just give wrong
+    numbers.
+    """
+    import numpy as np
+
+    from wfield_local.locanmf_position_decoder import _window_feature
+
+    sig = np.ones((3, 20)) * 5.0
+    base = np.array([1.0, 2.0, 3.0])
+    out = _window_feature(sig, 10, 8, 2, base)
+    assert np.allclose(out, np.tile(np.array([4.0, 3.0, 2.0]), 2)), "baseline must apply to EVERY bin"
+
+
+def test_decode_bins_config_is_per_alignment_and_matches_the_adopted_decision():
+    """Pre-cue/post-cue take 0.5 s bins and post-lick 0.25 s; post-lick is the one where width won."""
+    from types import SimpleNamespace
+
+    from wfield_local import config
+    from wfield_local.locanmf_position_decoder import _bins_for
+
+    b = config.defaults()["decode"]["bins"]
+    assert (b["precue"], b["cue"], b["lick"]) == (4, 4, 8)
+    assert _bins_for(SimpleNamespace(align="lick")) == 8
+    assert _bins_for(SimpleNamespace(align="precue")) == 4
+    assert _bins_for(SimpleNamespace(align="cue", bins=1)) == 1, "explicit args must win"

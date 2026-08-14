@@ -665,6 +665,15 @@ would help MORE post-event than pre-cue, because the response has real dynamics 
    it is **−0.030** (6/16) — information is already maximal at lick onset and decays. That is what
    movement-locked information should look like, and it is the opposite of an accumulating cue response.
 
+**NOW THE PRODUCTION DEFAULT (2026-08-14).** These arms previously existed ONLY in
+`precue_window_sweep.ARMS`, a research harness, so every deck and cross-session number was
+still built from a single window mean -- the adopted sub-binning changed nothing until
+`locanmf_position_decoder` learned to build it. It now does (`_window_feature`), with the bin
+count per alignment in `configs/defaults.yaml decode.bins` (precue 4, cue 4, lick 8) and
+`--bins 1` restoring the historical single mean. Feature count goes 66 -> 264 (4 bins) or 528
+(8 bins) for ROI; component->region labels are tiled with the features so the encoder still
+groups correctly.
+
 ADOPTED: `roll4x0.5` for post-cue (the three rolling arms are within 0.003, so take the convention
 already used pre-cue), `roll8x0.25` for post-lick (it wins on both effect size and sign test). The
 robust claim is the weaker one: ANY sub-binning beats the 2 s mean in both alignments; among rolling
