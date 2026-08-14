@@ -20,6 +20,26 @@ converts a 415 *timecourse* into 470 units, and with no 415 samples there is no 
 So: **exclude the blue-only period from all GCaMP imaging analysis.** Behavior (DAQ + task log) and the
 behavior cameras cover the full session and stay fully usable.
 
+**MEASURED SPLIT POINT (`wfield_local.led_alternation_qc`, run 2026-08-13).** The DAQ carries
+`led415_ttl` / `led470_ttl` (analog) and `pco_exposure` (digital), so each camera exposure can be
+labelled with the LED that fired — no reliance on image content, no assumption of alternation, and
+frame *i* of the `.dat` is exposure pulse *i*:
+
+```
+532220 exposures over 142.2 min   415=206724  470=325496  neither=0  both=0
+first 415 exposure: frame 119104 at 32.00 min
+-> SPLIT AT FRAME 119104 (starts on 415: True), keeping 413116 frames
+after the split: 415=206724  470=206392   332 phase slips (0.08%)
+```
+
+**Split at frame 119104.** It lands on a 415 frame, so pairing stays (415, 470) as
+`functional_channel: 1` expects — starting on the wrong parity would swap the channels for the whole
+session and look like a plausible dataset rather than an error. The 332 phase slips in 413,116 frames
+are ordinary dropped-frame attrition that `cleanpairs` already handles. (An earlier version of the QC
+reported "205,222 violations" by comparing against an ideal 0,1,0,1 phase — a single dropped frame
+flips the phase for everything after it, so that metric is useless for telling a healthy recording from
+a broken one. It now counts adjacent repeats.)
+
 **Is there a workaround?** Not an honest one for anything at these timescales. Hemodynamic power sits at
 0.1–13 Hz (vasomotion, breathing, heartbeat) and is 0.58–0.84 correlated with the raw 470 before
 correction (measured, `hemo_residual_check`), so uncorrected blue is dominated by it. A model
@@ -40,15 +60,13 @@ reason its samples cannot simply be concatenated with the alternating remainder.
 
 **What happened.** The behavior cameras did not record. The behavior log and the DAQ stream are intact.
 
-**What it costs.** No camera-based analysis for this session — no video-derived movement regressors, no
-DLC/pose, and nothing for the movement-potent/movement-null subspace work. Behavior events (licks,
-trials, positions, latencies) come from the DAQ and are unaffected, so the session remains fully usable
-for behavior and for imaging analyses that do not need video.
+**Clarified (Priya):** the four behavior-camera `.avi` files are missing; the **neural imaging `.dat`
+is present and fine.**
 
-**Still open — needs Priya's clarification.** The note says "we should still analyse camera data with
-behavior events". If the cameras produced nothing for PS93, there is no camera data to analyse for it;
-this may mean (a) analyse the *other* animals' camera data as usual, or (b) some partial camera data
-does exist. Not assumed either way — ask before acting.
+**What it costs.** Nothing for imaging — this session is fully usable for preprocessing, LocaNMF,
+decoding and encoding. What is lost is video-derived movement regressors, DLC/pose, and this session's
+contribution to the movement-potent / movement-null subspace analysis. Behavior events (licks, trials,
+positions, latencies) come from the DAQ and are unaffected.
 
 ---
 
@@ -78,15 +96,21 @@ frames — so the `.dat` plus the DAQ `pco` pulses are the authoritative frame r
 and cameras cover the 41 min the imaging missed, so there is more behavior than imaging for this day. A
 separate behavior figure over the complete concatenated behavior record would recover that.
 
-*Blocking question before building it:* the imaging-side DAQ almost certainly does not cover the gap
-(same machine that crashed), so a full-session behavior figure has to come from the **task-controller
-log** rather than from `daq_trials`. But the GUI log **mislabels `pos_idx` on ~15% of trials** — every
-position-change trial — which is precisely why the pipeline switched to DAQ-derived positions
-(`docs/GUI_TRIALS_LOGGING.md`). It was fixed upstream in `mobile_spout_behavior` bb16533, but only for
-sessions recorded after that deployed. **Was bb16533 deployed before 8/12?** If yes, the log's
-positions are trustworthy and the figure is straightforward. If no, the gap's trials can be plotted for
-*timing, licking and hit rate* but their *position labels* are unreliable and any per-position panel
-over the gap would be wrong.
+*RESOLVED — the log's positions are trustworthy (Priya: fixed as of v47; verified 2026-08-13).* The
+concern was that the GUI log historically mislabelled `pos_idx` on ~15% of trials, shifting each label
+by ONE trial (`docs/GUI_TRIALS_LOGGING.md`), which is why the pipeline moved to DAQ-derived positions.
+Tested directly against `daq_trials.positions_for_cues` on three recent sessions with full DAQ coverage:
+
+| session | aligned agreement | agreement if GUI shifted +1 trial |
+|---|---|---|
+| PS93 8/12 | **0.996** | 0.827 |
+| PS95 8/11 | **0.990** | 0.827 |
+| PS94 8/11 | **0.984** | 0.818 |
+
+If the bug were still present the SHIFTED column would be the high one. It is not, decisively. So the
+full-session figure can use the log's positions including per-position panels. The concatenated log
+already exists (`Behavior_logs/Widefield/PS92_20260812_concat/trials.csv`, **563 trials vs 225 DAQ
+cues**), so the gap's behavior is available to plot.
 
 *Video in the gap:* deferred. Priya's read is that behavior video is most valuable where there is
 concomitant neural recording, which by definition excludes the gap.
