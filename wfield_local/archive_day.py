@@ -162,6 +162,13 @@ def discover(cfg, date):
             else:
                 jobs.append(dict(src=src, dst=os.path.join(cfg["n_lab"], date, rel),
                                  kind="output", session=session))
+                if f.endswith(".camlog"):
+                    # The camlog is an ACQUISITION RECORD, not an output: per-frame write log plus the
+                    # LED controller's own state, which is what independently verified PS95 8/13's
+                    # frame alignment when the DAQ alone could not settle it. It was landing only on
+                    # MICROSCOPE -- a single copy of irreplaceable data. ~30 MB, so mirror it.
+                    jobs.append(dict(src=src, dst=os.path.join(cfg["m_raw"], date, rel),
+                                     kind="camlog_standby", session=session))
     return jobs, inter, discover_daq(cfg, date)
 
 
@@ -446,7 +453,11 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
         return 0
 
     deleted = 0
+    seen_src = set()
     for j in to_delete:
+        if j["src"] in seen_src:                     # camlog has TWO destinations; delete once
+            continue
+        seen_src.add(j["src"])
         if _size(j["dst"]) != _size(j["src"]):          # re-verify size at delete time
             print(f"  SKIP at-delete (dest size changed): {j['src']}")
             continue

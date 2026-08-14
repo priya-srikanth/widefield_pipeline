@@ -168,3 +168,21 @@ def test_deleting_original_data_requires_a_verified_copy_or_permission(tmp_path)
     wg.assert_deletable(raw, derived=True)                         # reproducible from archived inputs
     wg.assert_deletable(raw, approved=True)                        # explicit human permission
     wg.assert_deletable(tmp_path / "SVTcorr.npy")                  # derived by nature
+
+
+def test_camlog_is_mirrored_to_standby_and_deleted_only_once(tmp_path):
+    """The camlog is an acquisition record that was landing only on MICROSCOPE -- one copy of
+    irreplaceable data. It now has two destinations, so the delete loop must not try twice."""
+    from wfield_local import archive_day as ad
+
+    e = tmp_path / "E" / "20260813" / "PS94_x" / "raw_widefield_data"
+    e.mkdir(parents=True)
+    (e / "pco_edge_run000_00000000.camlog").write_text("x")
+    cfg = dict(e_lab=str(tmp_path / "E"), m_raw=str(tmp_path / "M"), n_lab=str(tmp_path / "N"),
+               e_daq=str(tmp_path / "Ed"), n_daq=str(tmp_path / "Nd"))
+    jobs, _inter, _daq = ad.discover(cfg, "20260813")
+    cam = [j for j in jobs if j["src"].endswith(".camlog")]
+    assert len(cam) == 2, "camlog must go to BOTH MICROSCOPE and standby"
+    assert {j["kind"] for j in cam} == {"output", "camlog_standby"}
+    assert any(str(tmp_path / "M") in j["dst"] for j in cam), "one destination must be standby"
+    assert any(str(tmp_path / "N") in j["dst"] for j in cam), "and one MICROSCOPE"

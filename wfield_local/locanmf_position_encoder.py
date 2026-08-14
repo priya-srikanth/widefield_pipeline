@@ -42,8 +42,19 @@ def _sess(label):
     return next(s for s in SESSIONS if s["label"] == label)
 
 
-def _args(post_s=2.0, baseline="none"):
-    return SimpleNamespace(source="locanmf", align="lick", baseline=baseline, pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0)
+def _args(post_s=2.0, baseline="none", bins=1):
+    """Feature spec for the ENCODER.
+
+    ``bins=1`` (a single window mean) is DELIBERATE and explicit, not inherited. The decoder adopted
+    sub-binned features on 2026-08-14 because they measurably help CLASSIFICATION, and `_bins_for`
+    falls back to `defaults.yaml decode.bins` when args carry no `bins` -- which would silently have
+    turned this encoder into a model of each component's 8-bin TIME COURSE rather than its mean
+    activity, changing what R^2, EV and the FEVE ceiling mean without anyone choosing it. The
+    sub-binning gain was measured for decoding only; whether a time-course target improves the
+    forward model is untested, so the encoder stays on the mean until it is.
+    """
+    return SimpleNamespace(source="locanmf", align="lick", baseline=baseline, pre_s=1.0,
+                           post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 
 
 def _names(s):
