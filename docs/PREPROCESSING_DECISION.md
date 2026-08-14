@@ -1,9 +1,27 @@
 # Drift removal and hemodynamic correction — the decision record
 
-**Status: PENDING the 36-session comparison (running 2026-08-13).** This document holds the evidence
-and the reasoning; the final row of the decision table is filled in when that comparison lands. Nothing
-downstream has been re-run yet, and `SVTcorr.npy` on MICROSCOPE is still the original `zerophase`
-product.
+**Status: ADOPTED 2026-08-13 — `meegkit_hpfit`, polynomial order 10.** Nothing downstream has been
+re-run yet, and `SVTcorr.npy` on MICROSCOPE is still the original `zerophase` product; the re-run is
+the next step.
+
+## THE DECISION (36 curated sessions, refit-T, adopted settings)
+
+| variant | PRE-CUE | post-cue | corr(pre,post) | sign test | vs zerophase |
+|---|---|---|---|---|---|
+| `zerophase` (current) | 0.486 | 0.684 | −0.483 | neg in **30/36** | — |
+| `strobedetrend` | 0.302 | 0.736 | +0.483 | 2/36 | −0.184, 34/36, p=4.1e-10 |
+| `detrend_hpfit` (600 s median) | 0.306 | 0.731 | +0.525 | 0/36 | −0.180, 35/36, p=4.1e-10 |
+| **`meegkit_hpfit` (ADOPTED)** | **0.352** | **0.759** | **+0.570** | 2/36 | −0.134, 29/36, p=9.1e-07 |
+
+`meegkit_hpfit` preserves the most pre-cue signal AND gives the best post-cue decoding of anything
+tested — **+0.075 over the current pipeline** — while the shadow signature is gone. Per animal,
+corrected pre-cue (chance 0.167): **PS92 0.225, PS93 0.349, PS94 0.500, PS95 0.334.**
+
+The corrected effect is **72% of the published value** (0.352 / 0.486), not the ~half reported in
+earlier drafts of this document. Those earlier figures came from `strobedetrend` at its then-default
+60 s window — the value later shown to sit exactly on the position-block timescale and to remove the
+most signal of any setting tested. PS94 in particular is barely reduced (0.475 → 0.500); only PS92 is
+substantially diminished (0.470 → 0.225).
 
 ---
 
@@ -71,15 +89,21 @@ from the hemodynamic band. Residual |r| with the 415 channel:
 | **`detrend_hpfit`** (hybrid) | 0.443 | **0.132** | **0.216** | 0.327 |
 | **`meegkit_hpfit`** (hybrid) | 0.444 | **0.132** | **0.216** | 0.327 |
 
-## The candidate: `meegkit_hpfit`
+## What `meegkit_hpfit` is
 
 Separate the two jobs the high-pass was silently doing:
 
 * **band-select for the FIT** — keep the 0.1 Hz high-pass, which is what it is actually for;
 * **remove drift from the OUTPUT** — replace it with de Cheveigné robust polynomial detrending
-  (`meegkit.detrend`, order 5, iteratively reweighted) on a mask that excludes the whole trial
+  (`meegkit.detrend`, **order 10**, iteratively reweighted) on a mask that excludes the whole trial
   (strobe−0.25 s → cue+4 s), so the drift fit never sees the measured window and nothing is smeared in
   time.
+
+Order 10 chosen (Priya) over order 5: measured, it removes more drift at no cost (50% cutoff
+~43 min vs ~90 min) while still leaving the 1-2 min position-block band untouched (0.98-1.00
+retained). Polynomials are GLOBAL basis functions, so raising the order adds oscillations across
+the whole record rather than local flexibility -- which is why order 40 is barely more aggressive
+than order 10, and why order is a far safer knob than a window length.
 
 Nothing overwrites the originals: variants are written to `hemo_<variant>[_refitT]/` subdirectories
 with their own `SVTcorr`/`T`/`rcoeffs` and a `manifest.json` (see `CLAUDE.md`).
@@ -95,17 +119,19 @@ which was never a question about *when* the information arrived.
 
 Pre-cue position information is **real and significant** — 36 sessions × 200 block-label permutations,
 significant in **34/36**, bootstrap CI above chance in 32/36, against an **empirical null of
-0.136–0.147** (reliably below the nominal 1/6, so testing against 0.167 is conservative):
+0.136–0.147** (reliably below the nominal 1/6, so testing against 0.167 is conservative). NB those
+tests were run on `strobedetrend` at the 60 s window, i.e. against a HANDICAPPED estimate; under the
+adopted variant the effect is larger, so significance can only improve. Re-run pending:
 
-| animal | corrected pre-cue | perm p<0.05 |
-|---|---|---|
-| PS92 | 0.234 | 7/9 |
-| PS93 | 0.258 | 9/9 |
-| PS94 | **0.418** | 9/9 |
-| PS95 | 0.298 | 9/9 |
+| animal | uncorrected | `strobedetrend`@60s (tested) | **`meegkit_hpfit` (ADOPTED)** | perm p<0.05 |
+|---|---|---|---|---|
+| PS92 | 0.470 | 0.234 | **0.225** | 7/9 |
+| PS93 | 0.477 | 0.258 | **0.349** | 9/9 |
+| PS94 | 0.475 | 0.418 | **0.500** | 9/9 |
+| PS95 | 0.523 | 0.298 | **0.334** | 9/9 |
 
-About **half** the published size, and the cohort is genuinely non-uniform rather than the artifactual
-0.47–0.52 flatness. Terminology follows: **"pre-cue position information"**, not "maintained motor
+The cohort is genuinely non-uniform rather than the artifactual 0.47–0.52 flatness, and PS92 is the
+animal whose pre-cue signal was most inflated. Terminology follows: **"pre-cue position information"**, not "maintained motor
 plan" — the spout arrives ~3 s before the cue, so a sustained sensory response and a held intention are
 temporally coextensive and this design cannot separate them. It does not need to: a pre-cue position
 signal that changes post-stroke is the readout either way.
@@ -140,6 +166,10 @@ Recorded because each was found by a challenge rather than by the check that sho
    Caught only because the numbers were impossibly identical.
 5. Predicted post-cue would stay flat across the timescale sweep; it rose 0.769 → 0.869, so aggressive
    detrending was removing signal broadly, not only in the pre-cue window.
+6. Quoted corrected effect sizes for several messages from `strobedetrend` at its then-default 60 s
+   window, before establishing that this window sat on the position-block timescale. The corrected
+   effect is 72% of the published value, not ~half. Every number in this document now comes from the
+   adopted configuration.
 
 ## Reproduce
 
