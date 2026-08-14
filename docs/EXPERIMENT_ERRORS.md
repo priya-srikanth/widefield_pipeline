@@ -22,8 +22,9 @@ behavior cameras cover the full session and stay fully usable.
 
 **MEASURED SPLIT POINT (`wfield_local.led_alternation_qc`, run 2026-08-13).** The DAQ carries
 `led415_ttl` / `led470_ttl` (analog) and `pco_exposure` (digital), so each camera exposure can be
-labelled with the LED that fired — no reliance on image content, no assumption of alternation, and
-frame *i* of the `.dat` is exposure pulse *i*:
+labelled with the LED that fired — no reliance on image content and no assumption of alternation.
+(That frame *i* of the `.dat` is exposure pulse *i* was assumed here and is now **verified** — see
+"Alignment verified" below; it does not follow from the counts agreeing.):
 
 ```
 532220 exposures over 142.2 min   415=206724  470=325496  neither=0  both=0
@@ -58,6 +59,39 @@ one shift every pair after it. ~206,391 pairs survive, and the output order is (
 `functional_channel: 1`. It writes `frame_index_map.npy` (repaired-pair index → original exposure index)
 because the DAQ `.h5` still describes the ORIGINAL sequence, and a `repair_manifest.json` so a repaired
 session's provenance is never in doubt.
+
+**ALIGNMENT VERIFIED, not assumed (2026-08-14).** The repair indexes the `.dat` by DAQ exposure number,
+which is only valid if exposure *i* is file frame *i*. The counts agreeing (delta +1) does **not**
+establish that: a dropped write mid-session plus a trailing unflushed exposure produces the same delta
+while shifting every index after the drop — swapping 415 and 470 for the remainder and still yielding a
+plausible dataset. Two independent checks, neither of which is a count:
+
+*Camlog (the camera's own file).* labcams writes one `frame_id,timestamp` line per saved frame and the
+LED controller interleaves `#LED:<state>,<counter>,<ms>` lines:
+
+| quantity | camlog | DAQ |
+|---|---|---|
+| frames written | 532,219, **zero `frame_id` gaps** | — |
+| exposures / LED commands | 532,220 LED lines | 532,220 `pco_exposure` pulses |
+| first 415 | LED state 5 first at line **119,104** | `first_415_frame` = **119,104** |
+| phase slips | 332-frame state-5/state-6 imbalance | **332** adjacent repeats |
+
+*Pixels (decisive for the offset).* The camlog alone cannot settle the offset — its interleave is
+`LL F L F L…`, so frame *k* follows LED line *k+1*, and that leading double-LED is equally explicable as
+a logging race or a real extra exposure; the write-timestamp lag is ambiguous too (5.3 ms vs 21.3 ms
+straddles the 16 ms frame period). So `verify_offset` reads the actual frames: 415 and 470 differ
+grossly in mean intensity, and because the sequence alternates, a misaligned comparison is
+ANTI-correlated rather than merely noisy.
+
+```
+offset -1: 0.001    offset 0: 1.000    offset +1: 0.001      (n=1600 frames)
+pixel alternation onset 119,104 = DAQ split frame exactly (delta +0)
+mean intensity  415 = 12,417   470 = 15,417   (violet is the dimmer channel, as expected)
+```
+
+Parity has period 2 and so cannot separate offset 0 from ±2; the onset check pins that, and **both must
+pass**. This now runs automatically inside `repair()` and refuses to write on failure — the off-by-one
+it guards against is silent by construction, so it must not depend on someone remembering to check.
 
 **Is there a workaround?** Not an honest one for anything at these timescales. Hemodynamic power sits at
 0.1–13 Hz (vasomotion, breathing, heartbeat) and is 0.58–0.84 correlated with the raw 470 before

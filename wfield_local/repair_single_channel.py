@@ -24,6 +24,18 @@ The output frame order is (415, 470) per pair, matching `functional_channel: 1` 
 convention. Getting that backwards would swap the isosbestic and functional channels for the entire
 session and still look like a plausible dataset, which is why the order is asserted rather than assumed.
 
+ALIGNMENT IS VERIFIED, NOT ASSUMED. Steps 1–3 index the .dat by DAQ exposure number, which is only
+valid if exposure i IS file frame i. The frame counts agreeing (532,220 DAQ vs 532,219 file, delta +1)
+is NOT sufficient evidence: a dropped write mid-session plus a trailing unflushed exposure gives the
+same delta while shifting every later index. So `repair` runs `verify_offset` before writing anything,
+reading ~700 MB of actual pixels: 415 and 470 frames differ grossly in mean intensity, and because the
+sequence alternates, a misaligned comparison is ANTI-correlated rather than merely noisy. Measured on
+PS95 2026-08-13: **1.000 agreement at offset 0, 0.001 at ±1**, and the pixel alternation onset lands on
+119,104 — the DAQ's split frame exactly. (Parity has period 2 and so cannot separate offset 0 from ±2;
+the onset check pins that, and both must pass.) The camlog corroborates all of it independently:
+532,219 frame lines with zero `frame_id` gaps, 532,220 LED lines, LED state 5 first appearing at line
+119,104, and a 332-frame state imbalance matching the 332 DAQ phase slips.
+
 A `repair_manifest.json` records the source, the split frame, every slip index, and the pair count, so
 the provenance of a repaired session is never in doubt.
 
@@ -43,7 +55,10 @@ from pathlib import Path
 import numpy as np
 
 H, W, DTYPE = 460, 480, np.uint16
-CHUNK_PAIRS = 4096
+# 256 pairs = 512 frames = 226 MB per read block. Do not raise this much: the block is materialized
+# as a (CHUNK, 2, H, W) array, so 4096 pairs would allocate 3.6 GB per iteration.
+CHUNK_PAIRS = 256
+MIN_PARITY_AGREEMENT = 0.95
 
 
 def plan(h5_path):
@@ -61,7 +76,58 @@ def plan(h5_path):
     return lab, first, idx[ok], out
 
 
-def repair(dat_path, h5_path, out_dir, dry_run=False, verbose=True):
+def verify_offset(src, lab, first, n_spans=4, span=400):
+    """Confirm from the PIXELS that DAQ exposure index == file frame index.
+
+    The frame COUNT agreeing (delta +1) is weak evidence: a mid-session dropped write plus a trailing
+    unflushed exposure also gives delta +1, while shifting every index after the drop -- which would
+    swap 415 and 470 for the rest of the session and still produce a plausible dataset.
+
+    415 nm and 470 nm frames differ grossly in mean intensity, so the .dat records its own channel
+    identity. Alternation makes a misaligned comparison ANTI-correlated, so the correct offset scores
+    ~1.0 and a wrong one ~0.0 -- a fingerprint rather than a weak coincidence test. Measured on PS95
+    2026-08-13: 1.000 at offset 0, 0.001 at +/-1.
+
+    Returns (agreement, mean_415, mean_470). Parity alone cannot separate offset 0 from +/-2 (the
+    alternation has period 2); the caller pins that with the alternation ONSET, which must fall on
+    ``first``.
+    """
+    n_file = src.shape[0]
+    starts = np.linspace(first + 5_000, n_file - span - 10, n_spans).astype(int)
+    ok = tot = 0
+    dim_sum = np.zeros(2)
+    dim_n = np.zeros(2)
+    for s0 in starts:
+        s0 = int(max(s0, 0))
+        m = src[s0:s0 + span].reshape(span, -1).mean(axis=1)
+        lo, hi = np.percentile(m, [25, 75])
+        pix_is_415 = m < (lo + hi) / 2            # violet is the dimmer channel
+        d = lab[s0:s0 + span]
+        sel = d >= 0
+        ok += int((pix_is_415 == (d == 0))[sel].sum())
+        tot += int(sel.sum())
+        for v in (0, 1):
+            dim_sum[v] += m[d == v].sum()
+            dim_n[v] += int((d == v).sum())
+    agree = ok / max(tot, 1)
+    means = tuple(dim_sum / np.maximum(dim_n, 1))
+    return agree, means[0], means[1]
+
+
+def alternation_onset(src, first, half=120):
+    """Frame at which the pixels start alternating, found without reference to the DAQ."""
+    a = max(first - half, 0)
+    b = min(first + half, src.shape[0])
+    m = src[a:b].reshape(b - a, -1).mean(axis=1)
+    sw = np.abs(np.diff(m))
+    k = max(first - a, 1)
+    base = np.median(sw[:k]) if k > 1 else 0.0
+    thr = max(5 * base, 0.2 * np.median(sw[k:])) if b - first > 2 else 5 * base
+    hit = np.flatnonzero(sw > thr)
+    return int(a + hit[0] + 1) if hit.size else None
+
+
+def repair(dat_path, h5_path, out_dir, dry_run=False, verbose=True, verify=True):
     dat_path, out_dir = Path(dat_path), Path(out_dir)
     lab, first, pair_starts, qc = plan(h5_path)
 
@@ -84,6 +150,28 @@ def repair(dat_path, h5_path, out_dir, dry_run=False, verbose=True):
     if n_pairs < 1000:
         raise ValueError(f"only {n_pairs} pairs recoverable — refusing to write")
 
+    src = np.memmap(dat_path, dtype=DTYPE, mode="r", shape=(int(n_file), H, W))
+    agree = onset = m415 = m470 = None
+    if verify:
+        agree, m415, m470 = verify_offset(src, lab, first)
+        onset = alternation_onset(src, first)
+        if verbose:
+            print(f"  PIXEL parity     {agree:.3f} agreement with DAQ labels "
+                  f"(415 {m415:.0f} vs 470 {m470:.0f})", flush=True)
+            print(f"  PIXEL onset      {onset:,}  (DAQ {first:,}, delta "
+                  f"{onset - first:+d})" if onset is not None else "  PIXEL onset      not found",
+                  flush=True)
+        # parity alone cannot separate offset 0 from +/-2, so the onset must agree as well
+        if agree < MIN_PARITY_AGREEMENT:
+            raise ValueError(
+                f"pixel/DAQ label agreement {agree:.3f} < {MIN_PARITY_AGREEMENT}: exposure index is "
+                f"NOT the frame index (agreement near 0 means an off-by-one, which would swap 415 and "
+                f"470 for the whole session). Refusing to write.")
+        if onset is None or abs(onset - first) > 1:
+            raise ValueError(
+                f"pixel alternation starts at {onset} but the DAQ says {first}: the two disagree on "
+                f"where the single-channel prefix ends. Refusing to write.")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = dat_path.name.replace("_1_", "_2_")
     out_dat = out_dir / stem
@@ -95,20 +183,26 @@ def repair(dat_path, h5_path, out_dir, dry_run=False, verbose=True):
         "n_phase_slips": qc["n_phase_slips_after"], "n_pairs_out": n_pairs,
         "pair_order": "(415, 470) — matches functional_channel: 1",
         "note": "rebuilt from DAQ LED labels, not from frame parity; slips skipped, not shifted",
+        "pixel_parity_agreement": agree, "pixel_alternation_onset": onset,
+        "mean_intensity_415": m415, "mean_intensity_470": m470,
     }
     if dry_run:
         print("  [dry-run] would write " + str(out_dat), flush=True)
         return meta
 
-    src = np.memmap(dat_path, dtype=DTYPE, mode="r", shape=(int(n_file), H, W))
     t0 = time.time()
     with open(out_dat, "wb", buffering=0) as fo:
         for a in range(0, n_pairs, CHUNK_PAIRS):
             b = min(n_pairs, a + CHUNK_PAIRS)
             s = keep[a:b]
+            # read the whole contiguous span ONCE and gather within it. Fancy-indexing the memmap
+            # directly issues one read per frame, which is fine locally and terrible over SMB.
+            lo, hi = int(s[0]), int(s[-1]) + 2
+            span = np.asarray(src[lo:hi])
+            r = s - lo
             block = np.empty((b - a, 2, H, W), dtype=DTYPE)
-            block[:, 0] = src[s]                       # 415
-            block[:, 1] = src[s + 1]                   # 470
+            block[:, 0] = span[r]                      # 415
+            block[:, 1] = span[r + 1]                  # 470
             fo.write(block.tobytes())
             if a and a % (CHUNK_PAIRS * 16) == 0:
                 el = time.time() - t0
@@ -129,8 +223,10 @@ def main(argv=None) -> int:
     ap.add_argument("h5")
     ap.add_argument("--output", required=True)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--no-verify", action="store_true",
+                    help="skip the pixel/DAQ parity guard (reads ~700 MB); NOT recommended")
     a = ap.parse_args(argv)
-    repair(a.dat, a.h5, a.output, dry_run=a.dry_run)
+    repair(a.dat, a.h5, a.output, dry_run=a.dry_run, verify=not a.no_verify)
     return 0
 
 

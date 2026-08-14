@@ -162,10 +162,49 @@ def test_single_channel_repair_pairs_from_led_labels_not_parity(monkeypatch):
     monkeypatch.setattr(rsc, "plan", rsc.plan)
     monkeypatch.setattr("wfield_local.led_alternation_qc.analyse", lambda *a, **k: fake)
 
-    _lab, first, starts, _qc = rsc.plan("dummy.h5")
+    _lab2, first, starts, _qc = rsc.plan("dummy.h5")
     assert first == 4, "must drop the single-channel prefix"
     # every emitted pair is (415, 470); the repeated 415 at index 9 is skipped, not shifted
     for i in starts:
         assert lab[i] == 0 and lab[i + 1] == 1
     assert 8 not in starts, "a 415 followed by another 415 is a slip and must not start a pair"
     assert list(starts) == [4, 6, 9, 11]
+
+
+def _fake_single_channel_movie(n=20_000, first=1_000):
+    """(frames, labels) for a file that is 470-only up to ``first`` then alternates 415/470."""
+    import numpy as np
+
+    lab = np.full(n, 1, dtype=int)
+    lab[first:] = np.tile([0, 1], (n - first + 1) // 2)[: n - first]
+    frames = np.empty((n, 2, 2), dtype=np.uint16)
+    frames[:] = np.where(lab == 0, 12_000, 15_000)[:, None, None]   # 415 is the dimmer channel
+    return frames, lab
+
+
+def test_pixel_parity_guard_confirms_a_correctly_aligned_file():
+    """The guard must PASS the aligned case, or it would just block every repair."""
+    from wfield_local import repair_single_channel as rsc
+
+    frames, lab = _fake_single_channel_movie()
+    agree, m415, m470 = rsc.verify_offset(frames, lab, first=1_000)
+    assert agree > 0.99, agree
+    assert m415 < m470, "415 must come out as the dimmer channel"
+    assert rsc.alternation_onset(frames, 1_000) == 1_000
+
+
+def test_pixel_parity_guard_catches_an_off_by_one_that_would_swap_the_channels():
+    """The failure this exists to stop: DAQ index shifted by one relative to the file.
+
+    Counts still agree in that scenario, so only the pixels catch it. Alternation makes a shifted
+    comparison ANTI-correlated, so the guard should see ~0, not a merely-degraded number.
+    """
+    import numpy as np
+
+    from wfield_local import repair_single_channel as rsc
+
+    frames, lab = _fake_single_channel_movie()
+    shifted = np.roll(lab, 1)
+    agree, _, _ = rsc.verify_offset(frames, shifted, first=1_000)
+    assert agree < 0.05, f"a one-frame shift must be caught, got {agree:.3f}"
+    assert agree < rsc.MIN_PARITY_AGREEMENT
