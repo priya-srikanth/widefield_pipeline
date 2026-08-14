@@ -23,7 +23,11 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 5  # bump when any cached function's computation changes
+CACHE_VERSION = 6  # bump when any cached function's computation changes
+# v6 (2026-08-14): locanmf.output_dir_name flipped to the meegkit_hpfit decomposition after the
+# 52/52 refit. LocaNMF-SOURCE cached results were computed against the zerophase components --
+# a different decomposition entirely (~15 fewer components per session), not just different
+# numbers. mtimes do not see a config change, so without this they would be served unchanged.
 # v5 (2026-08-14): analyses now read the ADOPTED meegkit_hpfit SVTcorr instead of the zerophase one
 # (configs/defaults.yaml hemo.variant, resolved by config.svtcorr_path). Every cached decode/encode/RDM
 # was computed on zerophase data. The cache keys on input mtimes, which do NOT see a config change, so
