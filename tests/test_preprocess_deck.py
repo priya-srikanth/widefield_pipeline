@@ -267,3 +267,23 @@ def test_intensity_staleness_is_empty_when_the_figure_is_current(tmp_path):
     fig.write_bytes(b"x")
     os.utime(p, (os.path.getmtime(fig) - 60,) * 2)
     assert _intensity_stale(str(fig), str(labcams)) == []
+
+
+def test_build_decks_DECLINES_to_prune_on_a_partial_run(tmp_path, monkeypatch):
+    """The dangerous half of pruning, and the reason CLAUDE.md once banned this entry point outright.
+
+    When a date is split across machines (imaging box: PS92/PS93; helper: PS94/PS95) each run sees
+    only its own sessions. An unconditional prune would delete the other machine's decks -- large
+    artifacts, silently. A run that does not cover every configured animal must leave siblings alone.
+    """
+    sessions, labcams, xday = _two_animal_tree(tmp_path)
+    # config declares FOUR animals; this run supplies only two -> partial -> must not prune
+    monkeypatch.setattr(pd.config, "animals",
+                        lambda: {"PS92": {}, "PS93": {}, "PS94": {}, "PS95": {}})
+    base = tmp_path / "deck.pptx"
+    other = tmp_path / "deck_PS95.pptx"
+    other.write_bytes(b"another machine's deck")
+    pd.build_decks(str(base), sessions=sessions, max_sessions=2,
+                   labcams_root=labcams, xday_root=xday, verbose=False)
+    assert other.exists(), "a partial run must NOT delete a sibling deck it knows nothing about"
+    assert other.read_bytes() == b"another machine's deck"
