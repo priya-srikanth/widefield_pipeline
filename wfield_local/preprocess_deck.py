@@ -383,10 +383,28 @@ def _sessions_on_disk(labcams_root):
     return out
 
 
-def all_sessions(machine=None, resolver=None, labcams_root=None):
+def is_regime_a(session) -> bool:
+    """Legacy frame-map session: no corrected-frame map, so no hemodynamic VARIANT can be built.
+
+    `hemo_variants` needs the corrected-frame map to build its trial mask, so these sessions cannot
+    have an adopted-variant `SVTcorr` and their maps can never be re-rendered off zerophase. Verified
+    2026-08-14: the regime-A set and the no-variant set are IDENTICAL (PS94/PS95 6/1, PS92/PS94/PS95
+    6/4), so keying on the recorded regime is exact, not a heuristic.
+    """
+    return str(session.get("regime", "")).upper() == "A"
+
+
+def all_sessions(machine=None, resolver=None, labcams_root=None, include_regime_a=False):
     """Registered sessions (``configs/sessions.yaml``) UNION sessions found on the labcams tree, so
     the deck shows the just-processed night's figures without waiting for registration. Dedup by
-    label; registered entries win (they carry config metadata / ordering)."""
+    label; registered entries win (they carry config metadata / ordering).
+
+    Regime-A sessions are EXCLUDED by default (Priya, 2026-08-14): their maps are permanently stuck on
+    the superseded zero-phase variant, and a deck that mixes corrected and uncorrected maps invites
+    exactly the misreading that prompted this — pre-cue maps that look anti-correlated with the cue
+    maps because they are the filter's shadow, not the animal's. Pass ``include_regime_a=True`` to see
+    them anyway.
+    """
     if labcams_root is None:
         labcams_root = (resolver or config.resolver(machine)).root("labcams")
     merged = list(config.load_sessions(machine))
@@ -395,6 +413,12 @@ def all_sessions(machine=None, resolver=None, labcams_root=None):
         if s["label"] not in seen:
             merged.append(s)
             seen.add(s["label"])
+    if not include_regime_a:
+        dropped = [s["label"] for s in merged if is_regime_a(s)]
+        merged = [s for s in merged if not is_regime_a(s)]
+        if dropped:
+            print(f"[deck] excluding {len(dropped)} regime-A session(s) with no adopted-variant "
+                  f"maps: {sorted(dropped)}")
     return merged
 
 

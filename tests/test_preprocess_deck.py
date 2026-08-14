@@ -360,3 +360,20 @@ def test_disagreeing_summaries_read_as_stale(tmp_path):
     assert got.startswith("mixed:"), got
     assert pd.stale_map_sessions([{"label": "PS94_0812", "mc": str(mc)}],
                                  want="meegkit_hpfit"), "a mixed dir must count as stale"
+
+
+def test_regime_a_sessions_are_excluded_from_the_deck_by_default(monkeypatch, tmp_path):
+    """Their maps are permanently stuck on the superseded zero-phase variant -- no corrected-frame map
+    means no mask, so no variant SVTcorr can ever be built. A deck mixing corrected and uncorrected
+    maps invites the exact misreading that started this: pre-cue maps looking anti-correlated with the
+    cue maps because they are the filter's shadow."""
+    reg = [{"label": "PS94_0601", "mc": "x", "regime": "A"},
+           {"label": "PS94_0606", "mc": "y", "regime": "B"},
+           {"label": "PS92_0604", "mc": "z", "regime": "A"}]
+    monkeypatch.setattr(pd.config, "load_sessions", lambda machine=None: reg)
+    monkeypatch.setattr(pd, "_sessions_on_disk", lambda root: [])
+    kept = [s["label"] for s in pd.all_sessions(labcams_root=str(tmp_path))]
+    assert kept == ["PS94_0606"]
+    both = [s["label"] for s in pd.all_sessions(labcams_root=str(tmp_path), include_regime_a=True)]
+    assert sorted(both) == ["PS92_0604", "PS94_0601", "PS94_0606"]
+    assert pd.is_regime_a({"regime": "a"}) and not pd.is_regime_a({"regime": "B"})
