@@ -639,6 +639,37 @@ CAVEATS: ROI features (LocaNMF would need a GPU refit per variant); 16 sessions 
 `strobedetrend` has NOT yet been tested with its own refitted `T` (see below). Confirm all three before
 changing any default.
 
+### Sub-binning POST-cue and POST-lick — both my predictions were wrong (2026-08-14)
+Same 16 sessions, adopted `meegkit_hpfit`, `--align cue` and `--align lick`. I predicted (a) sub-binning
+would help MORE post-event than pre-cue, because the response has real dynamics to resolve, and (b)
+`roll4x0.5` would again beat `roll8x0.25`. **Neither held.**
+
+| arm | POST-CUE | vs mean2.0 | POST-LICK | vs mean2.0 |
+|---|---|---|---|---|
+| roll 4 x 0.5 s | 0.791 | +0.020 (10/16) | 0.831 | +0.014 (8/16) |
+| roll 8 x 0.25 s | **0.793** | +0.022 (8/16) | **0.840** | **+0.023 (12/16)** |
+| roll 2 x 1.0 s | 0.790 | +0.019 (8/16) | 0.827 | +0.010 (7/16) |
+| mean 2.0 s | 0.771 | — | 0.817 | — |
+| first 1.0 s | 0.688 | −0.084 (1/16) | 0.800 | −0.017 (5/16) |
+| last 1.0 s | 0.777 | +0.006 (7/16) | 0.770 | −0.047 (2/16) |
+
+1. **Sub-binning helps LESS post-event than pre-cue**, not more: +0.020/+0.023 here vs **+0.032**
+   pre-cue. The post-event response is large and sustained, so a plain mean already captures most of
+   it; the weaker pre-cue signal is where temporal structure adds proportionally more.
+2. **Bin width matters post-event but the direction FLIPS vs pre-cue.** Pre-cue, 0.25 s over-sliced and
+   lost to 0.5 s. Post-lick, 0.25 s WINS (+0.009, 12/16); post-cue the two tie (+0.002, 8/16). Read
+   together: fine bins pay off only where there are fast dynamics to resolve, and post-lick is the
+   fastest-moving window we have. This is consistent with the 150 ms lick MAP resolution.
+3. **The temporal asymmetry REVERSES between alignments**, which is the most interpretable result here.
+   Post-cue `last1.0 − first1.0` = **+0.089** (12/16) — information accumulates after the cue. Post-lick
+   it is **−0.030** (6/16) — information is already maximal at lick onset and decays. That is what
+   movement-locked information should look like, and it is the opposite of an accumulating cue response.
+
+ADOPTED: `roll4x0.5` for post-cue (the three rolling arms are within 0.003, so take the convention
+already used pre-cue), `roll8x0.25` for post-lick (it wins on both effect size and sign test). The
+robust claim is the weaker one: ANY sub-binning beats the 2 s mean in both alignments; among rolling
+arms the differences are small.
+
 **The `last1.0` >> `first1.0` asymmetry is the shadow's shape, not the plan's.** A window sweep
 (16 sessions) had found the last 1.0–1.5 s of the pre-cue window carrying ~2x the position information
 of the first 1.0 s, which reads naturally as "the plan builds toward the cue". The shadow is largest

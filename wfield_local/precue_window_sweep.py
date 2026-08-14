@@ -185,7 +185,7 @@ def main():
             ok = np.isfinite(d)
             print(f"  {nm:9s} {np.nanmean(v):.3f}   vs mean2.0 {np.nanmean(d):+.3f}  "
                   f"(better in {int((d[ok] > 0).sum())}/{int(ok.sum())})")
-        l1 = np.array([x["mean1.0"] for x in rr], float)
+        l1 = np.array([x["last1.0"] for x in rr], float)
         f1 = np.array([x["first1.0"] for x in rr], float)
         print(f"  ASYMMETRY last1.0 - first1.0 = {np.nanmean(l1 - f1):+.3f}   "
               f"(the filter-shadow signature; matched duration, so noise-averaging is equal)")
