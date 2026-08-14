@@ -62,6 +62,8 @@ import json
 import os
 import sys
 
+from wfield_local import writeguard
+
 BUF = 64 * 1024 * 1024
 
 def _defaults() -> dict:
@@ -452,9 +454,15 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             if _sha256(j["src"]) != _sha256(j["dst"]):
                 print(f"  SKIP at-delete (dest bytes differ): {j['src']}")
                 continue
+        # HARD RULE: acquired data only goes when a server copy is confirmed. The size/byte
+        # re-verification just above IS that confirmation, so pass the destination as the verified
+        # copy rather than asserting the rule is satisfied somewhere upstream.
+        writeguard.assert_deletable(j["src"], verified_copies=[j["dst"]])
         os.remove(j["src"])
         deleted += 1
     for j in inter_del:
+        # intermediates are reproducible from inputs whose archival was confirmed above
+        writeguard.assert_deletable(j["src"], derived=True)
         os.remove(j["src"])
         deleted += 1
     # prune empty dirs under the day's E tree + any emptied DAQ parent dirs

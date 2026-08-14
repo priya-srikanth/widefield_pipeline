@@ -126,3 +126,45 @@ def test_clean_refuses_to_delete_raw_that_is_STAGED_but_not_yet_preprocessed(tmp
     res.mkdir(parents=True)
     (res / "SVTcorr.npy").write_bytes(b"\0" * 16)
     assert ad._session_processed(cfg, "20260813", "PS92_x"), "SVD output present -> spent"
+
+
+# ------------------------------------------------------------------ irreplaceable-data deletion
+
+def test_original_data_is_recognised_including_behavior_logs():
+    """The guard must FIRE on acquired files. An earlier version normalised with a trailing slash, so
+    every endswith('.dat') failed and every basename came out empty -- the guard was inert while its
+    permissive tests still passed."""
+    from wfield_local import writeguard as wg
+
+    for p in ("E:/x/pco_2_460_480_uint16.dat", r"E:\x\PS92_20260813.h5",
+              "E:/x/pco.camlog", "N:/b/cam1.avi", "N:/b/PS92_run/trials.csv",
+              "N:/b/PS92_run/events.csv", "N:/b/PS92_run/gui_config.json"):
+        assert wg.is_original_data(p), p
+    for p in ("E:/x/SVTcorr.npy", "E:/x/motioncorrect_2_460_480_uint16.bin",
+              "E:/x/summary.json", "E:/x/fig.png"):
+        assert not wg.is_original_data(p), p
+
+
+def test_deleting_original_data_requires_a_verified_copy_or_permission(tmp_path):
+    """HARD RULE: never delete acquired data without a confirmed server copy or explicit approval."""
+    import pytest
+
+    from wfield_local import writeguard as wg
+
+    raw = tmp_path / "pco_2_460_480_uint16.dat"
+    raw.write_bytes(b"\0" * 32)
+    with pytest.raises(wg.WriteGuardError):
+        wg.assert_deletable(raw)
+    with pytest.raises(wg.WriteGuardError):
+        wg.assert_deletable(raw, verified_copies=[str(tmp_path / "nope.dat")])
+    empty = tmp_path / "empty.dat"
+    empty.write_bytes(b"")
+    with pytest.raises(wg.WriteGuardError):
+        wg.assert_deletable(raw, verified_copies=[str(empty)]), "a 0-byte copy is not a copy"
+
+    copy = tmp_path / "archived.dat"
+    copy.write_bytes(b"\0" * 32)
+    wg.assert_deletable(raw, verified_copies=[str(copy)])          # verified server copy
+    wg.assert_deletable(raw, derived=True)                         # reproducible from archived inputs
+    wg.assert_deletable(raw, approved=True)                        # explicit human permission
+    wg.assert_deletable(tmp_path / "SVTcorr.npy")                  # derived by nature

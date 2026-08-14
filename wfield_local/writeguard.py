@@ -34,7 +34,8 @@ from __future__ import annotations
 import os
 
 __all__ = ["WriteGuardError", "assert_writable", "is_writable",
-           "warn_if_partial_aggregate", "covers_all"]
+           "warn_if_partial_aggregate", "covers_all",
+           "assert_deletable", "is_original_data"]
 
 # The one owner segment this pipeline may write under, on every shared filesystem (CLAUDE.md rule 1).
 _OWNER = "priya"
@@ -127,3 +128,56 @@ def warn_if_partial_aggregate(path, covered, expected, what="aggregate") -> bool
           f"             other's results are lost. Prefer merging from the per-item artifacts on\n"
           f"             disk, or re-run once every contributor has finished.", flush=True)
     return True
+
+
+# --------------------------------------------------------------------- irreplaceable-data deletion
+
+#: File kinds that are ACQUIRED, not computed. Losing one loses an experiment: it cannot be
+#: regenerated from anything else in the pipeline. (Priya, 2026-08-14.)
+ORIGINAL_SUFFIXES = (".dat", ".h5", ".camlog", ".avi")
+ORIGINAL_NAMES = ("trials.csv", "events.csv", "gui_config.json", "session_manifest.json")
+
+
+def is_original_data(path) -> bool:
+    """Is this an ACQUIRED file (raw imaging, DAQ, camera, behavior log) rather than a derived one?
+
+    Deliberately errs toward YES. A false positive costs one extra verification; a false negative
+    deletes an experiment. Derived ``.dat``/``.h5`` do exist (a cleanpairs rebuild, a repaired file),
+    and callers state that explicitly via ``derived=True`` rather than the guard trying to infer it
+    from a filename -- inferring it is how a real original gets classified as scratch.
+    """
+    # NOT _normalize(): it appends a trailing "/" for directory substring matching, which would make
+    # every endswith(".dat") fail and every basename come out empty -- an inert guard that still passes
+    # its permissive tests.
+    p = str(path).replace("\\", "/").lower().rstrip("/")
+    name = p.rsplit("/", 1)[-1]
+    return name in ORIGINAL_NAMES or p.endswith(ORIGINAL_SUFFIXES)
+
+
+def assert_deletable(path, verified_copies=(), derived: bool = False,
+                     approved: bool = False) -> None:
+    """Refuse to delete ACQUIRED data without a verified server copy or explicit human approval.
+
+    HARD RULE (Priya, 2026-08-14): never delete original data -- ``.dat``, ``.h5``, behavior logs,
+    camera files -- without either a copy confirmed to exist on a server, or explicit permission.
+
+    ``verified_copies`` must be paths the CALLER has already confirmed (existence AND size/hash); this
+    guard re-checks that each exists and is non-empty, but it cannot re-do the caller's byte
+    comparison, so passing an unverified path defeats the purpose. ``derived=True`` declares the file
+    reproducible from inputs that are themselves archived (a repaired or cleanpairs ``.dat``).
+    ``approved=True`` records explicit human permission for THIS deletion.
+
+    Raises :class:`WriteGuardError` unless one of those three is satisfied. Derived files and
+    anything not matching :func:`is_original_data` pass straight through.
+    """
+    if derived or approved or not is_original_data(path):
+        return
+    good = [c for c in verified_copies if c and os.path.exists(c) and os.path.getsize(c) > 0]
+    if good:
+        return
+    raise WriteGuardError(
+        f"refusing to delete ORIGINAL data with no verified copy: {path}\n"
+        f"  Acquired files (.dat/.h5/camlog/avi/behavior logs) may only be deleted when a copy is "
+        f"confirmed on a server, or with explicit permission.\n"
+        f"  Pass verified_copies=[<confirmed server path>], or derived=True if it is reproducible "
+        f"from archived inputs, or approved=True for an explicitly authorised deletion.")

@@ -128,10 +128,31 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
     if rv is not None:
         daq = _daq_trials_for(session_dir, rv, params)
         if daq is not None:
+            _warn_if_daq_covers_less_than_log(session_dir, daq)
             return daq
     if source == "daq":
         raise ValueError(f"{session_dir.name}: --trial-source daq requested but no usable DAQ trials")
     return load_gui_trials(session_dir)
+
+
+def _warn_if_daq_covers_less_than_log(session_dir: Path, daq: pd.DataFrame, tol: float = 0.9) -> None:
+    """Warn when the DAQ holds materially FEWER trials than the behavior log.
+
+    DAQ-primary is right, and stays the default. But it assumes the DAQ covers the session, and a
+    crashed/restarted RECORDER breaks that silently: PS92 2026-08-12 has 225 DAQ cues against 280
+    scored log trials, so the figure named "_concat" showed 80% of the session with nothing to say so.
+    The log cannot be trusted for pos_idx on older versions, which is why this warns instead of
+    switching source -- the operator decides whether to also build a `--trial-source log` figure.
+    """
+    try:
+        gui = load_gui_trials(session_dir)
+    except (OSError, KeyError, ValueError):
+        return
+    if len(gui) and len(daq) < tol * len(gui):
+        print(f"[spout_behavior] WARNING {session_dir.name}: DAQ has {len(daq)} trials vs "
+              f"{len(gui)} scored in the behavior log - the DAQ recorder likely missed part of the "
+              f"session. This figure covers the DAQ trials only; build the full-session view with "
+              f"source='log' (writes a separate _logsrc figure).", flush=True)
 
 
 def _daq_trials_for(session_dir: Path, rv, params: dict | None) -> pd.DataFrame | None:
