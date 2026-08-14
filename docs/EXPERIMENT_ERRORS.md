@@ -40,6 +40,25 @@ reported "205,222 violations" by comparing against an ideal 0,1,0,1 phase — a 
 flips the phase for everything after it, so that metric is useless for telling a healthy recording from
 a broken one. It now counts adjacent repeats.)
 
+**⚠ SECOND, WORSE PROBLEM — the file is SINGLE-CHANNEL (found 2026-08-14).** Because one LED was
+armed at start, labcams was configured for ONE channel and stayed that way for the whole recording,
+even after 415 came on. The file is `..._1_460_480_uint16.dat` — 532,219 flat unpaired frames, the only
+`_1_` file in the dataset against nine `_2_` ones.
+
+This is more dangerous than the missing 415 alone: `run_wfield_local` decides whether to
+hemodynamically correct by testing `dat.shape[1] == 2`, so a 1-channel file passes straight through and
+yields an **UNCORRECTED `SVTcorr` with no error raised** — a silently wrong session rather than a
+failed one.
+
+**Recoverable.** 532,219 file frames match the DAQ's 532,220 exposures to within one, and the DAQ says
+which LED fired on every exposure, so the alternating portion can be re-paired EXPLICITLY rather than
+by assuming parity. `wfield_local/repair_single_channel.py` does this: drop the prefix, then emit a
+pair only where a 415 is immediately followed by a 470, skipping the 332 phase slips instead of letting
+one shift every pair after it. ~206,391 pairs survive, and the output order is (415, 470) to match
+`functional_channel: 1`. It writes `frame_index_map.npy` (repaired-pair index → original exposure index)
+because the DAQ `.h5` still describes the ORIGINAL sequence, and a `repair_manifest.json` so a repaired
+session's provenance is never in doubt.
+
 **Is there a workaround?** Not an honest one for anything at these timescales. Hemodynamic power sits at
 0.1–13 Hz (vasomotion, breathing, heartbeat) and is 0.58–0.84 correlated with the raw 470 before
 correction (measured, `hemo_residual_check`), so uncorrected blue is dominated by it. A model

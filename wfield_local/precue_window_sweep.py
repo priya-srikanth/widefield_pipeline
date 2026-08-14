@@ -50,9 +50,8 @@ from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 
 CS = [0.02, 0.1, 0.5, 2.0]
 WIN_S = 2.0
-ARMS = [("roll4x0.5", ("bins", 4)), ("roll8x0.25", ("bins", 8)),
-        ("mean2.0", ("last", 2.0)), ("mean1.5", ("last", 1.5)), ("mean1.0", ("last", 1.0)),
-        ("first1.0", ("first", 1.0))]
+ARMS = [("roll4x0.5", ("bins", 4)), ("roll8x0.25", ("bins", 8)), ("roll2x1.0", ("bins", 2)),
+        ("mean2.0", ("last", 2.0)), ("first1.0", ("first", 1.0)), ("last1.0", ("last", 1.0))]
 
 
 def featurize(W, spec):
@@ -66,8 +65,17 @@ def featurize(W, spec):
     return np.concatenate([W[:, :, a:b].mean(2) for a, b in zip(e[:-1], e[1:])], axis=1)
 
 
-def windows(s, sig):
-    """(n_trials, nROI, win_n) raw pre-cue traces, engaged trials, window ENDING at the cue."""
+def windows(s, sig, align="precue"):
+    """(n_trials, nROI, win_n) raw traces for engaged trials.
+
+    Window placement by alignment -- the same three the pipeline uses:
+      precue  [cue - W, cue)      ends at the cue
+      cue     [cue, cue + W)      starts at the cue
+      lick    [lick, lick + W)    starts at the FIRST LICK, so it follows the response wherever it
+                                  lands and is immune to reaction-time jitter (measured: RT spans
+                                  0.128-0.384 s across animals x positions, and lick alignment beats
+                                  cue alignment in 4/4 animals for exactly that reason)
+    """
     cue = _load_cue(s["h5"])
     lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
     cue_f, lick_f, _ = _frames(s, cue, lk)
@@ -93,9 +101,10 @@ def windows(s, sig):
         if codes[k] < 0 or not (first[k] > 0 and 0 < rt[k] <= maxrt):
             continue                                   # engaged trials only, as the pipeline does
         c = int(cue_f[k])
-        if c - n < 0 or c > T:
+        w0 = c - n if align == "precue" else (c if align == "cue" else int(first[k]))
+        if w0 < 0 or w0 + n > T:
             continue
-        X.append(sig[:, c - n:c])
+        X.append(sig[:, w0:w0 + n])
         y.append(int(codes[k]))
         g.append(int(blk[k]))
     return np.asarray(X), np.asarray(y), np.asarray(g)
@@ -120,6 +129,7 @@ def main():
     ap.add_argument("--modes", default="zerophase,strobedetrend")
     ap.add_argument("--from", dest="from_dates", default=None)
     ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--align", default="precue", choices=("precue", "cue", "lick"))
     ap.add_argument("--refit-t", action="store_true",
                     help="refit hemodynamic coefficients on the drift-removed traces (product path)")
     a = ap.parse_args()
@@ -153,7 +163,7 @@ def main():
                 print(f"  !! {lab} {m}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
                 continue
             sig, _regs = roi_signal(ad[0], svtc)
-            W, y, g = windows(s, sig)
+            W, y, g = windows(s, sig, a.align)
             del sig
             if not len(y):
                 continue

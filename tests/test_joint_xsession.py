@@ -141,3 +141,31 @@ def test_regions_are_derived_from_the_footprints_not_guessed():
     W = np.stack([np.abs(A[atlas == l]).sum(0) for l in labs])
     assert list(labs[np.argmax(W, axis=0)]) == [5, 9]
     assert hasattr(Basis, "regions")
+
+
+def test_single_channel_repair_pairs_from_led_labels_not_parity(monkeypatch):
+    """PS95 8/13 was recorded as a 1-channel file, so pairing must come from the DAQ's LED labels.
+
+    Parity would be wrong twice over: the file starts single-channel, and after alternation begins a
+    dropped frame shifts every subsequent pair. Pairs must be emitted only where a 415 is immediately
+    followed by a 470, and slips SKIPPED rather than propagated.
+    """
+    import numpy as np
+
+    from wfield_local import repair_single_channel as rsc
+
+    # 4 blue-only frames, then 415/470 alternation with one dropped 470 at position 9
+    lab = np.array([1, 1, 1, 1,  0, 1, 0, 1, 0, 0, 1, 0, 1])
+    on415, on470 = (lab == 0), (lab == 1)
+    fake = ({"first_415_frame": 4, "blue_only_prefix_min": 0.1, "n_phase_slips_after": 1},
+            on415, on470, np.arange(lab.size))
+    monkeypatch.setattr(rsc, "plan", rsc.plan)
+    monkeypatch.setattr("wfield_local.led_alternation_qc.analyse", lambda *a, **k: fake)
+
+    _lab, first, starts, _qc = rsc.plan("dummy.h5")
+    assert first == 4, "must drop the single-channel prefix"
+    # every emitted pair is (415, 470); the repeated 415 at index 9 is skipped, not shifted
+    for i in starts:
+        assert lab[i] == 0 and lab[i + 1] == 1
+    assert 8 not in starts, "a 415 followed by another 415 is a slip and must not start a pair"
+    assert list(starts) == [4, 6, 9, 11]
