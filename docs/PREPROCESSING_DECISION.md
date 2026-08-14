@@ -171,6 +171,33 @@ Recorded because each was found by a challenge rather than by the check that sho
    effect is 72% of the published value, not ~half. Every number in this document now comes from the
    adopted configuration.
 
+## Re-run status (2026-08-13)
+
+**Step 1 DONE — `SVTcorr` rebuilt for 48 of 53 registered sessions** (3.4 GiB, 39 min), written to
+`hemo_meegkit_hpfit/` beside the originals, which are untouched.
+
+The saved `T` is REUSED rather than refitted: the pipeline fitted `rcoeffs` on 0.1 Hz high-passed
+traces, which is exactly what the hybrid's `fit_drift` asks for, so the saved coefficients are the
+right ones. Verified — refitting reproduces them to 1.5e-6 and the resulting `SVTcorr` to 3.8e-5, and
+`local_wfield_summary.json` confirms `detrend_order: 0`, so there is no extra step unaccounted for.
+This drops an 88 MB `U.npy` load and the Gram computation from every session.
+
+**The 5 that failed are all regime A and all NON-CURATED** (PS94/PS95 6/1, PS92/PS94/PS95 6/4). Regime
+A has no `cleanpairs_frame_map`, so the trial mask cannot be built and the variant REFUSES rather than
+guessing. They are excluded from every cross-session analysis anyway. Safety property: because
+`config.locanmf_dir()` points at the variant directory, a session without one raises FileNotFoundError
+rather than silently falling back to `zerophase` — mixed-preprocessing results fail loudly.
+
+**Mask health, 36 curated sessions: median 25.3% of frames eligible, min 11.4%, max 32.3%** — ample for
+an 11-parameter polynomial (11.4% of ~200k samples is ~22,000 points). The minimum is PS92 8/12, the
+crash-concat with a 40.7 min zero-padded gap, which is expected. Fractions of 3–5% occur only in
+excluded early-June sessions.
+
+**Still to do:** significance + window sweep on the adopted variant; rename LocaNMF dirs to
+`locanmf_affine8v1_hemo_zerophase`; refit LocaNMF on the new `SVTcorr` (GPU); rebuild joint bases,
+decoders/encoders/RSA and decks. The joint bases necessarily get a NEW `basis_id` — that is by design
+(it hashes its inputs), and it means results spanning old and new bases cannot be silently mixed.
+
 ## Reproduce
 
 ```

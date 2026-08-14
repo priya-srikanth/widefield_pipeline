@@ -215,9 +215,18 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
         # fit on the high-passed traces when the variant asks for it, else on the output traces
         T, rc = refit_T(U, a_fit if a_fit is not None else a, b_fit if b_fit is not None else b)
         del U
+    elif fit_drift == "filtfilt":
+        # The saved T IS the high-pass-fitted T: the original pipeline fitted rcoeffs on 0.1 Hz
+        # high-passed traces, which is exactly what fit_drift="filtfilt" asks for. Verified -- refitting
+        # on high-passed traces reproduces the saved rcoeffs and T to max abs diff 1.5e-6 -- and
+        # local_wfield_summary.json confirms detrend_order=0, so there is no extra step to account for.
+        # So reusing it is EQUIVALENT, not a shortcut, and it saves an 88 MB U.npy load plus the Gram
+        # computation on every session. Production uses this path.
+        T, rc = np.load(res / "T.npy").astype(np.float64), np.load(res / "rcoeffs.npy")
     elif fit_drift:
-        raise ValueError(f"variant {variant!r} defines fit_drift, so it REQUIRES refit_t=True -- "
-                         f"reusing the saved T would silently ignore the whole point of the hybrid")
+        raise ValueError(f"variant {variant!r} defines fit_drift={fit_drift!r}, which is NOT the "
+                         f"pipeline's own high-pass, so the saved T does not correspond to it -- "
+                         f"refit_t=True is required")
     else:
         T, rc = np.load(res / "T.npy").astype(np.float64), np.load(res / "rcoeffs.npy")
 
