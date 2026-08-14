@@ -287,3 +287,42 @@ def test_build_decks_DECLINES_to_prune_on_a_partial_run(tmp_path, monkeypatch):
                    labcams_root=labcams, xday_root=xday, verbose=False)
     assert other.exists(), "a partial run must NOT delete a sibling deck it knows nothing about"
     assert other.read_bytes() == b"another machine's deck"
+
+
+# ------------------------------------------------- map provenance: decks must not present stale maps
+
+def _session_with_map_summary(tmp_path, label, svtcorr):
+    import json
+    mc = tmp_path / label / "motion_corrected"
+    d = mc / "spout_trial_averages_affine8v1"
+    d.mkdir(parents=True)
+    payload = {"label": label}
+    if svtcorr is not None:
+        payload["svtcorr"] = svtcorr
+    (d / f"{label}_delta_summary.json").write_text(json.dumps(payload))
+    return {"label": label, "mc": str(mc)}
+
+
+def test_map_variant_is_read_from_the_summary_provenance(tmp_path):
+    """A map PNG is a file on disk: flipping hemo.variant does NOT re-render it. Between 8/13 and 8/14
+    every pre-8/13 date still showed the zero-phase shadow while the decoders had already moved."""
+    import json
+
+    a = _session_with_map_summary(tmp_path, "PS94_0813",
+                                  "N:/x/wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy")
+    b = _session_with_map_summary(tmp_path, "PS94_0812", "N:/x/wfield_local_results/SVTcorr.npy")
+    c = _session_with_map_summary(tmp_path, "PS94_0811", None)     # summary predates the field
+    assert pd.map_variant_of(a) == "meegkit_hpfit"
+    assert pd.map_variant_of(b) == "zerophase"
+    assert pd.map_variant_of(c) is None
+
+
+def test_stale_map_sessions_flags_everything_not_on_the_configured_variant(tmp_path):
+    a = _session_with_map_summary(tmp_path, "PS94_0813",
+                                  "N:/x/wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy")
+    b = _session_with_map_summary(tmp_path, "PS94_0812", "N:/x/wfield_local_results/SVTcorr.npy")
+    c = _session_with_map_summary(tmp_path, "PS94_0811", None)
+    stale = pd.stale_map_sessions([a, b, c], want="meegkit_hpfit")
+    assert [lab for lab, _ in stale] == ["PS94_0812", "PS94_0811"]
+    assert dict(stale)["PS94_0811"] is None, "absent provenance must be flagged, not assumed fine"
+    assert pd.stale_map_sessions([a], want="meegkit_hpfit") == []

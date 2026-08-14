@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import json
 import os
 import re
 import struct
@@ -251,6 +252,48 @@ def _discover_figure(session, type_key, subdir, glob_suffix, labcams_root):
     return hits[0].replace("\\", "/") if hits else None
 
 
+def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
+    """Which hemodynamic variant a session's ACTIVITY MAPS were rendered from, or None if unknown.
+
+    Map PNGs are files on disk. Changing `hemo.variant` changes what new analyses COMPUTE but does
+    nothing to renders already written, so a deck will happily place a map built from superseded data
+    -- which is exactly what happened between 2026-08-13 and 08-14: every date before 8/13 still
+    showed the zero-phase filter shadow (pre-cue map = the NEGATIVE of the post-cue map, r = -0.93 on
+    PS93_0810 and PS92_0811) while the decoders had already moved to meegkit_hpfit.
+
+    Reads the `svtcorr` field the map steps now record in their summary json. Returns "zerophase" for
+    a bare SVTcorr.npy, the variant name for a `hemo_<variant>/` path, and None when the summary
+    predates the field entirely (i.e. built before 2026-08-14, therefore zerophase in practice).
+    """
+    hits = sorted(glob.glob(os.path.join(session["mc"], subdir, "*_summary.json")))
+    if not hits:
+        return None
+    try:
+        with open(hits[0], "r", encoding="utf-8") as fh:
+            sv = json.load(fh).get("svtcorr")
+    except (OSError, ValueError):
+        return None
+    if not sv:
+        return None
+    sv = str(sv).replace("\\", "/")
+    return sv.split("hemo_")[-1].split("/")[0] if "hemo_" in sv else "zerophase"
+
+
+def stale_map_sessions(sessions, want=None):
+    """Sessions whose maps were NOT rendered from the currently configured variant.
+
+    `(label, found)` pairs, `found=None` meaning the summary carries no provenance at all. Used by
+    `build_deck` to refuse to present stale maps silently.
+    """
+    want = want or (config.hemo_variant() or "zerophase")
+    out = []
+    for s in sessions:
+        got = map_variant_of(s)
+        if got != want:
+            out.append((s.get("label", "?"), got))
+    return out
+
+
 def _crossday_qc_for_animal(animal, xday_root):
     """Per-animal cross-day vasculature QC PNG, or None.
 
@@ -436,7 +479,20 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     prs.save(out_path)
 
     zero_types = [k for k, n in type_counts.items() if n == 0]
+    stale = stale_map_sessions(sessions)
+    if stale and verbose:
+        want = config.hemo_variant() or "zerophase"
+        print(f"[deck] WARNING: {len(stale)} session(s) have maps NOT rendered from the configured "
+              f"hemo variant ({want}). A map PNG is a file on disk -- flipping the variant does not "
+              f"re-render it, and the deck will show superseded data without saying so. "
+              f"Re-run: preprocess <DATE> --skip-preprocess --skip-photobleach --skip-xall "
+              f"--skip-crossday-intensity")
+        for lab, got in stale[:12]:
+            print(f"[deck]   {lab}: maps built from {got or '<no provenance -> pre-2026-08-14>'}")
+        if len(stale) > 12:
+            print(f"[deck]   ... and {len(stale) - 12} more")
     summary = dict(out=out_path, total_slides=len(prs.slides), per_animal=per_animal,
+                   stale_map_sessions=[lab for lab, _ in stale],
                    type_counts=type_counts, zero_types=zero_types,
                    crossday_qc_count=crossday_qc_count, crossday_section=crossday_section)
 
