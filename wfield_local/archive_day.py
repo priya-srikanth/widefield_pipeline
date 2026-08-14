@@ -378,6 +378,12 @@ def _original_raw_archived(cfg, date, j) -> bool:
     return _size(os.path.join(cfg["m_raw"], date, j["session"], "raw_widefield_data", name)) == expect
 
 
+def _label_for(date, session) -> str:
+    """`PS94_0813` from a session folder name like `PS94_20260813_102522` + its date."""
+    animal = session.split("_")[0]
+    return f"{animal}_{date[4:8]}" if len(date) == 8 else animal
+
+
 def _session_processed(cfg, date, session) -> bool:
     """Has this session actually been preprocessed, or is its raw merely STAGED?
 
@@ -441,6 +447,20 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
           f"intermediates kept (regen unconfirmed): {len(inter_skip)}", flush=True)
     for j in staged:
         print(f"  KEEP (STAGED, session not preprocessed yet): {j['src']}")
+    # Photobleach QC memmaps the RAW .dat and cannot be rebuilt from archived outputs -- only its
+    # SUMMARY is rebuildable, and only from per-session records that must already exist. Deleting the
+    # raw before that record is written means the session can never join its date's photobleach slide
+    # without re-staging hundreds of GB from standby. This happened on 8/13: three animals were cleaned
+    # before the QC ran, and the date's summary covers one session.
+    for j in to_delete:
+        if j["kind"] != "raw":
+            continue
+        rec = os.path.join(cfg["n_lab"], date, "photobleach",
+                           f"photobleach_{_label_for(date, j['session'])}.json")
+        if not os.path.exists(rec):
+            print(f"  WARNING: no photobleach record for {j['session']} -- deleting its raw means "
+                  f"that session cannot join the date's photobleach QC without re-staging from "
+                  f"standby. Run preprocess WITHOUT --skip-photobleach before cleaning.")
     for j in missing:
         print(f"  KEEP (dest missing): {j['src']}")
     for j, s, d in mismatch:

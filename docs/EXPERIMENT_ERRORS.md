@@ -236,6 +236,26 @@ currently affects no headline result. It matters if 8/5 is ever readmitted.
 
 ---
 
+## 2026-08-13 — photobleach QC covers only PS93 (analysis-side sequencing error, not a rig fault)
+
+**What happened.** The date's photobleach summary contains **1 of 4 sessions**. Photobleach memmaps the
+RAW `.dat`, and on 14 Aug the 8/13 sessions were preprocessed one at a time with `--skip-photobleach`
+(to avoid redoing per-date work four times) and each animal's local raw was cleaned immediately after
+its `.bin` reached standby. By the time the date-level pass ran, only PS93's raw was still local.
+
+**What it costs.** Nothing for the science — photobleach is a QC trend, and the raw is safe on standby.
+The 8/13 photobleach slide simply shows PS93 alone (drift 415 −19.0%, 470 −14.2% over 166.9 min).
+
+**Recovering it** would mean re-staging ~700 GB from standby for a QC figure. Not worth it now; the raw
+is not lost, only expensive to reach.
+
+**What we do.** The summary is a pure function of the per-session records on disk, so the fix is
+ordering: run photobleach BEFORE cleaning a session's raw. `archive_day clean` now WARNS by name when
+it is about to delete a raw whose photobleach record does not exist. Not a refusal — the raw is going
+to standby, not disappearing — but it can no longer happen silently.
+
+---
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that
