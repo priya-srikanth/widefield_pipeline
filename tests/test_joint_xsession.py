@@ -199,6 +199,11 @@ def test_repair_frame_map_indexes_ORIGINAL_exposures_not_repaired_positions(tmp_
     npz = rsc.write_frame_map(tmp_path / "motion_corrected", "pco_2_460_480_uint16.dat",
                               lab, keep, "d.h5", "s.dat")
     assert npz.name.endswith("cleanpairs_frame_map.npz"), "preprocess globs for this suffix"
+    # eight modules read chosen_exposure_offset off the summary; without it a repaired session raises
+    # KeyError in every one of them (it did, for PS95 8/13, until this was added)
+    import json
+    summary = json.loads(next(npz.parent.glob("*cleanpairs_summary.json")).read_text())
+    assert summary["chosen_exposure_offset"] == 0, "verified by verify_offset, not assumed"
     fm = np.load(npz)
     assert list(fm["original_frame_index_ch0"]) == [4, 6, 9, 11], "must be ORIGINAL exposure indices"
     assert list(fm["original_frame_index_ch1"]) == [5, 7, 10, 12]

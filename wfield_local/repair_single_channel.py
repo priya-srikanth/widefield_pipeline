@@ -262,6 +262,15 @@ def write_frame_map(mc_dir, dat_name, lab, keep, h5_path, dat_path):
         "frame_map_npz": str(npz), "output_shape": [int(keep.size), 2, H, W],
         "output_dtype": "uint16", "channel_order": "415-470", "clean_pairs": int(keep.size),
         "skipped_illuminated_frames": int(skipped.size),
+        # Eight modules read this key off the cleanpairs summary to place frames on the DAQ clock, so a
+        # repaired session MUST carry it or it silently drops out of every one of them. It is 0 here,
+        # and that is not an assumption: `verify_offset` measured exposure i == frame i at 1.000
+        # agreement (0.001 at +/-1) before the repair was allowed to write.
+        "chosen_exposure_offset": 0,
+        "daq_pco_exposure_count": int(lab.size),
+        "dat_physical_frame_count": int(lab.size),
+        "labels_415": int((per_frame == 415).sum()), "labels_470": int((per_frame == 470).sum()),
+        "labels_both": 0, "labels_dark": int((per_frame == 0).sum()),
         "note": "indices refer to the ORIGINAL exposure sequence; the repaired .dat is already paired",
     }, indent=2), encoding="utf-8")
     return npz
