@@ -270,7 +270,7 @@ def fig_encoder_vs_svd(label, out):
     pre-cue delta -> the only difference is the LocaNMF basis. Per-position spatial r quantifies fidelity."""
     s = _sess(label); mc = s["mc"]; W = int(round(FS))
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
-    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")
+    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(config.svtcorr_path(mc))
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
     Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))

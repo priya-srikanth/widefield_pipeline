@@ -54,7 +54,7 @@ def _build_signal(s, source):
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
-    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")
+    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(config.svtcorr_path(mc))
     atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy")
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool)
     Uf = U.reshape(-1, U.shape[2]); at = atlas.reshape(-1); mk = mask.reshape(-1)

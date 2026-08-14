@@ -369,17 +369,17 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     # silently producing a wrong movie. So the relabel is skipped and the frame map written by the
     # repair (which indexes ORIGINAL exposures, as downstream timing expects) is used instead.
     repaired = Path(s["raw_dat"]).parent / "repair_manifest.json"
-    if repaired.exists() and not dry_run:
+    if repaired.exists():
         fms = sorted(Path(mc).glob("*cleanpairs_frame_map.npz"))
-        if not fms:
+        if not fms and not dry_run:
             raise SystemExit(
                 f"[preprocess] {animal} {sess}: repaired session has no *cleanpairs_frame_map.npz "
                 f"under {mc} — run repair_single_channel.write_frame_map first")
-        print(f"[repaired] {repaired.name} present: skipping TTL relabel, using {fms[0].name}",
-              flush=True)
+        print(f"[repaired] {repaired.name} present: skipping TTL relabel, using "
+              f"{fms[0].name if fms else '<frame map MISSING>'}", flush=True)
     if Path(binp).exists() and not dry_run:
         print("[skip] motion-corrected bin exists", flush=True)
-    elif repaired.exists() and not dry_run:
+    elif repaired.exists():
         _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
               "--mode", params["motion_mode"]], dry_run)
     else:

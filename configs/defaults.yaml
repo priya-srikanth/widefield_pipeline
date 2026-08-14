@@ -34,6 +34,14 @@ preprocess:
     cue_post_s: 2.0
     lick_post_s: 0.15           # lick map post window (framemap_event_maps --what lick, 150ms)
 
+# Which hemodynamic/drift-removal variant every ANALYSIS reads (docs/PREPROCESSING_DECISION.md).
+# `zerophase` (or null) = the original bare wfield_local_results/SVTcorr.npy; anything else resolves to
+# wfield_local_results/hemo_<variant>/SVTcorr.npy. Flip to meegkit_hpfit only once EVERY session in the
+# curated set has that directory built -- a half-built flip would silently mix two variants across
+# sessions, which is the exact failure the naming rule exists to prevent.
+hemo:
+  variant: zerophase
+
 locanmf:
   r2_thresh: 0.95
   loc_thresh: 80

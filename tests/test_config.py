@@ -190,3 +190,42 @@ def test_no_hardcoded_locanmf_dir_left_in_wfield_local():
     offenders = [p.name for p in root.glob("*.py")
                  if "locanmf_affine8v1_final" in p.read_text(encoding="utf-8")]
     assert not offenders, f"hardcoded LocaNMF dir name in: {offenders}"
+
+
+def test_svtcorr_path_follows_the_configured_hemo_variant(monkeypatch):
+    """Analyses must read the SVTcorr of the ADOPTED variant, not the bare zerophase file.
+
+    ``wfield_local_results/SVTcorr.npy`` was hardcoded in six analysis modules. That file is the
+    zerophase product, so after adopting meegkit_hpfit every one of them would have kept reading the
+    superseded data with no error and no missing file -- the methodology change would have been
+    silently discarded. This pins the resolution instead.
+    """
+    from wfield_local import config
+
+    mc = "N:/x/motion_corrected"
+    monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", "meegkit_hpfit")
+    assert config.svtcorr_path(mc).endswith("wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy")
+    # zerophase IS the bare file -- it is what the pipeline wrote, not a subdirectory
+    for name in ("zerophase", "none", ""):
+        monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", name)
+        assert config.svtcorr_path(mc).endswith("wfield_local_results/SVTcorr.npy"), name
+        assert config.hemo_variant() is None, name
+    monkeypatch.delenv("WIDEFIELD_HEMO_VARIANT", raising=False)
+    assert config.svtcorr_path(mc, "strobedetrend").endswith("hemo_strobedetrend/SVTcorr.npy")
+
+
+def test_no_analysis_module_still_hardcodes_the_bare_svtcorr():
+    """A new hardcoded path would re-open exactly the hole svtcorr_path was added to close."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+    allowed = {"config.py", "framemap_event_maps.py"}   # config documents it; framemap takes a path arg
+    bad = []
+    for p in sorted(root.glob("*.py")):
+        if p.name in allowed:
+            continue
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"wfield_local_results/SVTcorr\.npy", line) and "svtcorr_path" not in line:
+                bad.append(f"{p.name}:{i}")
+    assert not bad, "use config.svtcorr_path() instead of a literal: " + ", ".join(bad)

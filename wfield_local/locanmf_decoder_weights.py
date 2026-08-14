@@ -446,7 +446,7 @@ def fig_first40(out, date="0604", control="0603", minutes=40):
 
 def _roi_sig_v(s, V):
     mc = s["mc"]; ad = f"{mc}/wfield_local_results/allen_aligned_affine8v{V}"
-    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")
+    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(config.svtcorr_path(mc))
     atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy"); mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool)
     Uf = U.reshape(-1, U.shape[2]); at = atlas.reshape(-1); mk = mask.reshape(-1)
     rois = [np.nanmean(Uf[(at == l) & mk], 0) @ SVT for l in np.unique(at) if l != 0 and ((at == l) & mk).sum() >= 20]

@@ -538,7 +538,7 @@ def project_C_fixed_A(a_ref_label, new_label):
     ref = _sess(a_ref_label); new = _sess(new_label)
     A = np.load(f"{config.locanmf_dir(ref['mc'])}/{a_ref_label}_locanmf_A.npy")  # (H, W, ncomp)
     ad = glob.glob(f"{new['mc']}/wfield_local_results/allen_aligned_affine8v1")[0]
-    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(f"{new['mc']}/wfield_local_results/SVTcorr.npy")
+    U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(config.svtcorr_path(new['mc']))
     A2 = np.nan_to_num(A.reshape(-1, A.shape[2]))            # (npix, ncomp); A is NaN outside the brain
     Uf = np.nan_to_num(U.reshape(-1, U.shape[2]))            # (npix, K)
     # REASSOCIATE: pinv(A) @ (U @ SVT) == (pinv(A) @ U) @ SVT. The bracketed form never materializes

@@ -74,7 +74,7 @@ def _session_sig(s) -> str:
     """Signature of the INPUTS the basis is built from, so an upstream re-preprocess invalidates it."""
     ad = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1")
     u_atlas = f"{ad[0]}/U_atlas.npy" if ad else ""
-    svt = f"{s['mc']}/wfield_local_results/SVTcorr.npy"
+    svt = config.svtcorr_path(s['mc'])
     return f"{_stat_sig(u_atlas)}|{_stat_sig(svt)}"
 
 

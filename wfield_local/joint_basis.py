@@ -32,6 +32,8 @@ import glob
 
 import numpy as np
 
+from wfield_local import config
+
 
 def _load_session(mc):
     """(U_flat (npix,K), SVT (K,T)) for one session, on the shared Allen grid, NaNs zeroed."""
@@ -39,7 +41,7 @@ def _load_session(mc):
     if not ad:
         raise FileNotFoundError(f"no allen_aligned_affine8v1 under {mc}")
     U = np.load(f"{ad[0]}/U_atlas.npy")
-    SVT = np.load(f"{mc}/wfield_local_results/SVTcorr.npy")
+    SVT = np.load(config.svtcorr_path(mc))
     return np.nan_to_num(U.reshape(-1, U.shape[2])).astype(np.float32), SVT.astype(np.float32)
 
 

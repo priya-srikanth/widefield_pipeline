@@ -72,6 +72,38 @@ def locanmf_dir(mc, variant: str | None = None) -> str:
     return f"{str(mc).rstrip('/')}/{locanmf_dir_name(variant)}"
 
 
+def hemo_variant(variant: str | None = None) -> str | None:
+    """The drift-removal variant whose ``SVTcorr`` analyses read, or None for the original.
+
+    ``zerophase``/``none``/null all mean "the bare ``SVTcorr.npy``", because that file IS the
+    zerophase product -- it is what the pipeline wrote. Override per call, or globally with
+    ``WIDEFIELD_HEMO_VARIANT``.
+    """
+    v = variant if variant is not None else os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    if v is None:
+        v = (defaults().get("hemo") or {}).get("variant")
+    return None if v in (None, "", "none", "zerophase") else str(v)
+
+
+def svtcorr_path(mc, variant: str | None = None) -> str:
+    """Absolute path to the ``SVTcorr`` an analysis should read, for one session's ``mc`` dir.
+
+    WHY THIS EXISTS. ``wfield_local_results/SVTcorr.npy`` was hardcoded in at least five analysis
+    modules (joint_basis, joint_locanmf, locanmf_position_decoder, locanmf_decoder_weights,
+    locanmf_frozen_decoder). That file is the ZEROPHASE product, so after adopting ``meegkit_hpfit``
+    every one of them would have gone on silently reading the superseded data -- no error, no missing
+    file, just the old result. The variant now comes from one config key.
+
+    NOTE ON ``_refitT``. For the HYBRID variants (``fit_drift: filtfilt``) the saved ``T`` already IS
+    the high-pass-fitted ``T``, so reusing it and refitting are equivalent -- measured on PS94_0812 at
+    3.5e-5 max relative difference. The canonical directory is therefore the unsuffixed
+    ``hemo_<variant>``; ``_refitT`` remains meaningful only for non-hybrid variants.
+    """
+    base = f"{str(mc).rstrip('/')}/wfield_local_results"
+    v = hemo_variant(variant)
+    return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
+
+
 def curated_dates(machine: str | None = None) -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 
