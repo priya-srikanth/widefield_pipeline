@@ -246,8 +246,18 @@ its `.bin` reached standby. By the time the date-level pass ran, only PS93's raw
 **What it costs.** Nothing for the science — photobleach is a QC trend, and the raw is safe on standby.
 The 8/13 photobleach slide simply shows PS93 alone (drift 415 −19.0%, 470 −14.2% over 166.9 min).
 
-**Recovering it** would mean re-staging ~700 GB from standby for a QC figure. Not worth it now; the raw
-is not lost, only expensive to reach.
+**RESOLVED 2026-08-14 — all four sessions are in the summary.** Re-staging was never necessary: the
+raw was read STRAIGHT FROM STANDBY. Photobleach samples `NSAMP = 3000` frames (~1.3 GB), not the whole
+164–257 GiB file, so the cost is 3,000 latency-bound scatter reads over SMB — about a minute per
+session. `photobleach.run(..., merge=True)` then unioned the three with PS93's existing record, so the
+date's summary rebuilt COMPLETE rather than replacing it. Backfilled values: PS92 415 −17.8% / 470
+−14.5%; PS95 415 −16.8% / 470 −26.6% over 142 min. PS95 deliberately read its ORIGINAL single-channel
+`_1_` file — channel labels come from the DAQ indexed by frame, and that indexing is verified offset-0,
+so the figure honestly shows 415 BEGINNING 32 min in; the repaired `_2_` file would have been wrong
+there, since its frame *k* is no longer exposure *k*.
+
+The earlier judgement in this entry ("not worth recovering") was wrong because it assumed photobleach
+reads the whole file. It reads 3,000 frames.
 
 **What we do.** The summary is a pure function of the per-session records on disk, so the fix is
 ordering: run photobleach BEFORE cleaning a session's raw. `archive_day clean` now WARNS by name when

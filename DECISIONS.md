@@ -674,6 +674,38 @@ count per alignment in `configs/defaults.yaml decode.bins` (precue 4, cue 4, lic
 (8 bins) for ROI; component->region labels are tiled with the features so the encoder still
 groups correctly.
 
+### Activity MAPS carried the filter shadow on disk for a day (2026-08-14)
+Flipping `hemo.variant` changed what analyses COMPUTE. It did nothing to map PNGs already rendered, so
+every curated date from 6/6 to 8/12 kept showing the zero-phase shadow while the decoders had already
+moved to `meegkit_hpfit`. Found by Priya noticing that pre-cue maps still looked anti-correlated with
+the cue maps. They were.
+
+Mean correlation between each position's PRE-cue and POST-cue map:
+
+| session | variant | mean r(pre, post) |
+|---|---|---|
+| PS93_0810 | zerophase | **−0.927** (per-position −0.79 … −0.99) |
+| PS92_0811 | zerophase | **−0.929** (per-position −0.88 … −0.99) |
+| PS94_0811 | zerophase | −0.277 |
+| PS94_0812 | zerophase | −0.146 |
+| PS94_0813 | meegkit_hpfit | +0.394 |
+| PS93_0813 | meegkit_hpfit | +0.020 |
+| PS92_0813 | meegkit_hpfit | −0.070 |
+| PS95_0813 | meegkit_hpfit | −0.153 |
+
+On the worst sessions **the pre-cue map is literally the negative of the post-cue map** — the cleanest
+picture of the artifact we have, and worth a before/after panel in the deck: far more convincing than
+the decode numbers alone. Corrected, the signature is gone (mean ≈ +0.05, scattered both ways).
+
+All ten curated dates were re-rendered. The DURABLE fix is provenance: the map steps record `svtcorr`
+in their summary json, `preprocess_deck.map_variant_of()` reads it, and `build_deck` warns by name for
+any session whose maps were not rendered from the configured variant — including a summary with NO
+provenance, which means it predates 14 Aug and is zerophase in practice. The stale list is returned in
+the build summary so a caller can gate on it.
+
+GENERAL LESSON: a config flip propagates to computation instantly and to RENDERED ARTIFACTS not at all.
+Anything already on disk needs re-rendering, and needs to carry provenance so nobody has to remember.
+
 ### ENCODER sub-binning: NO — keep the window mean (2026-08-14)
 The decoder builds features through `_trial_features`, and so does the encoder, so adopting sub-binned
 features would have silently turned the ENCODER into a model of each component's 8-bin time course
