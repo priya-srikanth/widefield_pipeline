@@ -162,8 +162,26 @@ Tested directly against `daq_trials.positions_for_cues` on three recent sessions
 
 If the bug were still present the SHIFTED column would be the high one. It is not, decisively. So the
 full-session figure can use the log's positions including per-position panels. The concatenated log
-already exists (`Behavior_logs/Widefield/PS92_20260812_concat/trials.csv`, **563 trials vs 225 DAQ
-cues**), so the gap's behavior is available to plot.
+already exists (`Behavior_logs/Widefield/PS92_20260812_concat/trials.csv`).
+
+**CORRECTED 2026-08-14 — it is not "563 trials".** The concat log has 563 ROWS, but `trial_id` runs
+0-282 with no resets: roughly two rows per trial (an open row and the scored row, the same
+open-row behaviour that causes the `pos_idx` bug). The real accounting is **283 trials, 280 scored,
+vs 225 DAQ cues** — so the DAQ recorder's crash cost ~55 trials, not the ~338 that "563 vs 225"
+implied.
+
+**Full-session figure: BUILT** (`PS92_20260812_concat_logsrc_behavior.png`). The existing
+`PS92_20260812_concat_behavior.png` was misleading: DAQ-primary means it shows the 225 DAQ-covered
+trials under a filename that says "concat". `spout_behavior` now takes an explicit trial source
+(`load_trials(..., source="auto"|"daq"|"log")`) and a forced source gets its own `_logsrc` filename,
+because the two figures show DIFFERENT trial sets and silently overwriting one with the other would
+be undetectable.
+
+**Limitation of the log-sourced figure: NO first-lick latencies** (all NaN). Latency is measured from
+DAQ licks, and the log's timestamps are GUI milliseconds, not DAQ samples, so trials outside the DAQ
+record cannot be given one. Accuracy and per-position hit rate cover the full session; latency and
+the lick-microstructure metrics do not. Per-position accuracy from the log is trustworthy because v47
+positions were verified against DAQ codes (0.984-0.996 aligned vs 0.818-0.827 shifted).
 
 *Video in the gap:* deferred. Priya's read is that behavior video is most valuable where there is
 concomitant neural recording, which by definition excludes the gap.

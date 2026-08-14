@@ -96,7 +96,8 @@ def _disp(name: str) -> str:
 
 # --------------------------------------------------------------------------- loading
 
-def load_trials(session_dir: Path, rv=None, params: dict | None = None) -> pd.DataFrame:
+def load_trials(session_dir: Path, rv=None, params: dict | None = None,
+                source: str = "auto") -> pd.DataFrame:
     """The session's scored trials — **DAQ-primary**, behavior log as fallback.
 
     The DAQ recorder ``.h5`` is the trial source whenever it is available and passes
@@ -112,11 +113,24 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None) -> pd.Da
 
     Either way the frame has ``responded`` (licked in the response window), ``is_free``
     (free water actually delivered) and ``source`` ("DAQ"/"GUI").
+
+    ``source`` forces the choice. "log" exists for a session where the DAQ RECORDER died partway:
+    PS92 2026-08-12 crashed and was restarted, so the concatenated DAQ covers 225 of the session's 563
+    trials. DAQ-primary then silently produces a figure named "_concat" that shows 40% of the session.
+    The GUI log is the only full record there, and its positions were verified correct as of v47
+    (0.984-0.996 agreement with DAQ codes vs 0.818-0.827 if shifted), so it can carry the full-session
+    figure -- see docs/EXPERIMENT_ERRORS.md.
     """
+    if source not in ("auto", "daq", "log"):
+        raise ValueError(f"source must be auto/daq/log, got {source!r}")
+    if source == "log":
+        return load_gui_trials(session_dir)
     if rv is not None:
         daq = _daq_trials_for(session_dir, rv, params)
         if daq is not None:
             return daq
+    if source == "daq":
+        raise ValueError(f"{session_dir.name}: --trial-source daq requested but no usable DAQ trials")
     return load_gui_trials(session_dir)
 
 
@@ -790,11 +804,12 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     return png, csv
 
 
-def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False, rv=None):
+def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False, rv=None,
+                 source: str = "auto"):
     """Write the per-session behavior figure + per-position CSV, plus the lick-microstructure figure.
 
     Returns (behavior_png, position_csv). Near-empty (aborted) sessions are skipped."""
-    trials = load_trials(session_dir, rv=rv, params=params)
+    trials = load_trials(session_dir, rv=rv, params=params, source=source)
     min_trials = params.get("min_session_trials", 20)
     if len(trials) < min_trials:
         print(f"[spout_behavior] skip {session_dir.name}: {len(trials)} scored trials "
@@ -806,8 +821,10 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     # one microstructure pass feeds BOTH figures (the by-position lick row is shared)
     micro = (lick_microstructure(session_dir, trials, params, licks=licks,
                                  engaged_ids=_engaged_ids(m)) if licks is not None else None)
-    sid = session_dir.name
-    animal, date = _animal_date(sid)
+    # A forced source gets its own filename: the DAQ-sourced and log-sourced figures for the same
+    # session show DIFFERENT trial sets, and overwriting one with the other would be undetectable.
+    sid = session_dir.name + ("_logsrc" if source == "log" else "")
+    animal, date = _animal_date(session_dir.name)
     sess_dir = out_dir / "sessions" / animal / date       # structured by animal/date
     png = sess_dir / f"{sid}_behavior.png"
     csv = sess_dir / f"{sid}_position_metrics.csv"
