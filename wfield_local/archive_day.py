@@ -138,10 +138,18 @@ def discover(cfg, date):
             rel = os.path.relpath(src, e_date)
             session = rel.split(os.sep)[0]
             if f.endswith("_uint16.dat"):
+                manifest = os.path.join(root, "repair_manifest.json")
                 if "cleanpairs" in f:
                     inter.append(dict(src=src, session=session, kind="cleanpairs"))
                 elif "concat" in parent.lower():
                     inter.append(dict(src=src, session=session, kind="concat_raw"))
+                elif os.path.isfile(manifest):
+                    # A REPAIRED .dat (repair_single_channel) is not an acquisition -- it is a
+                    # re-paired rebuild of one, sitting between the raw and the .bin exactly like a
+                    # cleanpairs file. Archiving it would put a derivative in the raw archive under a
+                    # name that looks like an original. It is deterministic, so it is an intermediate.
+                    inter.append(dict(src=src, session=session, kind="repaired_raw",
+                                      manifest=manifest))
                 else:
                     jobs.append(dict(src=src, dst=os.path.join(cfg["m_raw"], date, rel),
                                      kind="raw", session=session))
@@ -333,6 +341,50 @@ def cmd_verify(cfg, date, use_hash=False, hash_raw=False):
     return 0 if not missing and not mismatch else 1
 
 
+def _original_raw_archived(cfg, date, j) -> bool:
+    """Is the ORIGINAL acquisition a repaired .dat was rebuilt from safely on standby?
+
+    The normal regeneration test ("a raw for this session was confirmed copied from E:") cannot work
+    here: the original single-channel file was never staged locally -- the repair read it straight off
+    MICROSCOPE. So confirm the original itself, by the name recorded in ``repair_manifest.json``, at
+    the expected byte size derived from the manifest's own frame count. Size rather than a hash because
+    this only decides whether a REGENERABLE intermediate may go; the original is not being deleted.
+    """
+    import re
+
+    try:
+        with open(j["manifest"], "r", encoding="utf-8") as fh:
+            meta = json.load(fh)
+        name = os.path.basename(meta["source_dat"])
+        n_frames = int(meta["n_frames_in"])
+    except (OSError, KeyError, ValueError, TypeError):
+        return False
+    # Geometry comes from the labcams filename (`_<nchan>_<h>_<w>_<dtype>.dat`), which is the
+    # convention the whole pipeline already parses -- the repair manifest does not record it.
+    m = re.search(r"_(\d+)_(\d+)_(\d+)_uint16\.dat$", name)
+    if not m:
+        return False
+    h, w = int(m.group(2)), int(m.group(3))
+    expect = n_frames * h * w * 2                            # uint16, single-channel flat frames
+    return _size(os.path.join(cfg["m_raw"], date, j["session"], "raw_widefield_data", name)) == expect
+
+
+def _session_processed(cfg, date, session) -> bool:
+    """Has this session actually been preprocessed, or is its raw merely STAGED?
+
+    ``clean`` was written for acquire -> preprocess -> archive -> clean, where raw on E: is always
+    already processed. Re-staging raw FROM the archive to reprocess it (as the 8/13 re-run does)
+    breaks that assumption: the staged copy is archived by definition, so it looks deletable, and
+    deleting it silently throws away a 40-minute network copy of data that has not been used yet.
+    A session counts as processed only once its SVD output exists.
+    """
+    for root in (os.path.join(cfg["e_lab"], date, session, "motion_corrected"),
+                 os.path.join(cfg["n_lab"], date, session, "motion_corrected")):
+        if _size(os.path.join(root, "wfield_local_results", "SVTcorr.npy")) > 0:
+            return True
+    return False
+
+
 def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
     allj, ok_jobs, missing, mismatch, inter, daq = _verify(cfg, date, use_hash, hash_raw)
     # confirmed regeneration sources per session
@@ -342,10 +394,33 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             raw_ok.add(j["session"])
     daq_ok = any(_size(j["dst"]) == _size(j["src"]) for j in daq)
 
-    to_delete = [j for j in ok_jobs]                         # confirmed-copied E: files
+    # Never delete the raw of a session that has not been preprocessed: it is STAGED, not spent.
+    staged = [j for j in ok_jobs
+              if j["kind"] == "raw" and not _session_processed(cfg, date, j["session"])]
+    staged_sessions = {j["session"] for j in staged}
+    # ...and not that session's DAQ .h5 either: preprocessing reads it from E:, so removing it fails
+    # the very run the raw was staged for. DAQ files are named <animal>_<date>_<time>.h5, which shares
+    # only the animal+date prefix with the labcams session folder.
+    staged_prefix = tuple("_".join(s.split("_")[:2]) for s in staged_sessions)
+
+    def _keep(j):
+        if j in staged:
+            return False
+        if j["session"] in staged_sessions and j["kind"] in ("output", "raw"):
+            return False
+        if j["kind"] == "daq" and staged_prefix and \
+                os.path.basename(j["src"]).startswith(staged_prefix):
+            return False
+        return True
+
+    to_delete = [j for j in ok_jobs if _keep(j)]
     inter_del, inter_skip = [], []
     for j in inter:
-        if j["session"] in raw_ok and daq_ok:
+        if j["kind"] == "repaired_raw":
+            ok = _original_raw_archived(cfg, date, j) and daq_ok
+        else:
+            ok = j["session"] in raw_ok and daq_ok
+        if ok:
             inter_del.append(j)
         else:
             inter_skip.append(j)
@@ -355,6 +430,8 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
           f"delete {len(to_delete)} copied + {len(inter_del)} intermediates "
           f"= {freed/1e9:.1f} GB | not-yet-copied (kept): {len(missing)+len(mismatch)} | "
           f"intermediates kept (regen unconfirmed): {len(inter_skip)}", flush=True)
+    for j in staged:
+        print(f"  KEEP (STAGED, session not preprocessed yet): {j['src']}")
     for j in missing:
         print(f"  KEEP (dest missing): {j['src']}")
     for j, s, d in mismatch:
