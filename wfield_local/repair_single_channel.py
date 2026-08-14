@@ -210,10 +210,61 @@ def repair(dat_path, h5_path, out_dir, dry_run=False, verbose=True, verify=True)
     del src
     np.save(out_dir / "frame_index_map.npy", keep.astype(np.int64))
     (out_dir / "repair_manifest.json").write_text(json.dumps(meta, indent=2, default=float))
+    # the pipeline's frame map, so the maps step can place these frames on the DAQ clock
+    fm = write_frame_map(out_dir.parent / "motion_corrected", stem, lab, keep, h5_path, dat_path)
+    if verbose:
+        print(f"  frame map -> {fm}", flush=True)
     if verbose:
         print(f"  wrote {out_dat} ({out_dat.stat().st_size/2**30:.1f} GiB) in "
               f"{(time.time()-t0)/60:.1f} min", flush=True)
     return meta
+
+
+def write_frame_map(mc_dir, dat_name, lab, keep, h5_path, dat_path):
+    """Emit the `*cleanpairs_frame_map.npz` + summary the rest of the pipeline consumes.
+
+    A repaired session skips the TTL relabel (it is already paired), but the relabel is also what
+    normally produces the frame map — and downstream timing depends on it. `framemap_event_maps`
+    reads `pco_samples[original_frame_index_ch0[t] + offset]` to place corrected frame *t* on the DAQ
+    clock, so those indices must refer to the ORIGINAL exposure sequence, not to positions in the
+    repaired file. `keep` is exactly that: pair *t* of the repaired movie came from original
+    exposures `(keep[t], keep[t]+1)`. Without this the session would be silently mistimed by the
+    length of the dropped prefix — 32 minutes for PS95 8/13.
+
+    Written in the relabel's own format and naming so every consumer works unchanged.
+    """
+    mc_dir = Path(mc_dir)
+    mc_dir.mkdir(parents=True, exist_ok=True)
+    stem = Path(dat_name).stem
+    npz = mc_dir / f"{stem}_daq_led_cleanpairs_frame_map.npz"
+    js = mc_dir / f"{stem}_daq_led_cleanpairs_summary.json"
+
+    keep = np.asarray(keep, dtype=np.int64)
+    per_frame = np.where(lab == 0, 415, np.where(lab == 1, 470, 0)).astype(np.int16)
+    used = np.zeros(lab.size, dtype=bool)
+    used[keep] = True
+    used[keep + 1] = True
+    skipped = np.flatnonzero((per_frame != 0) & ~used).astype(np.int64)
+
+    np.savez_compressed(
+        npz,
+        pair_index=np.arange(keep.size, dtype=np.int64),
+        original_frame_index_ch0=keep,
+        original_frame_index_ch1=keep + 1,
+        channel_label_ch0=np.full(keep.size, 415, dtype=np.int16),
+        channel_label_ch1=np.full(keep.size, 470, dtype=np.int16),
+        labels_per_original_frame=per_frame,
+        skipped_original_frame_index=skipped,
+    )
+    js.write_text(json.dumps({
+        "mode": "repair_single_channel", "source_dat": str(dat_path), "daq_h5": str(h5_path),
+        "output_dat": str(mc_dir.parent / "raw_widefield_data" / dat_name),
+        "frame_map_npz": str(npz), "output_shape": [int(keep.size), 2, H, W],
+        "output_dtype": "uint16", "channel_order": "415-470", "clean_pairs": int(keep.size),
+        "skipped_illuminated_frames": int(skipped.size),
+        "note": "indices refer to the ORIGINAL exposure sequence; the repaired .dat is already paired",
+    }, indent=2), encoding="utf-8")
+    return npz
 
 
 def main(argv=None) -> int:

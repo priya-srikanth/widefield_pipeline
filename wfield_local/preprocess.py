@@ -361,8 +361,27 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
         raise SystemExit(f"[preprocess] {animal} {sess}: no matching DAQ .h5 found")
 
     # 1 motion correction (sign-fixed, 2d)
+    #
+    # A REPAIRED session (wfield_local.repair_single_channel, e.g. PS95 2026-08-13) is ALREADY clean
+    # 415/470 pairs, and its frame k is no longer DAQ exposure k. Re-running the TTL relabel on it
+    # would not error -- `load_daq_labels` only checks that the frame count FITS inside the exposure
+    # list, so offset 0 passes and it would pair frames from the dropped single-channel prefix,
+    # silently producing a wrong movie. So the relabel is skipped and the frame map written by the
+    # repair (which indexes ORIGINAL exposures, as downstream timing expects) is used instead.
+    repaired = Path(s["raw_dat"]).parent / "repair_manifest.json"
+    if repaired.exists() and not dry_run:
+        fms = sorted(Path(mc).glob("*cleanpairs_frame_map.npz"))
+        if not fms:
+            raise SystemExit(
+                f"[preprocess] {animal} {sess}: repaired session has no *cleanpairs_frame_map.npz "
+                f"under {mc} — run repair_single_channel.write_frame_map first")
+        print(f"[repaired] {repaired.name} present: skipping TTL relabel, using {fms[0].name}",
+              flush=True)
     if Path(binp).exists() and not dry_run:
         print("[skip] motion-corrected bin exists", flush=True)
+    elif repaired.exists() and not dry_run:
+        _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
+              "--mode", params["motion_mode"]], dry_run)
     else:
         _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
               "--daq-h5", s["daq_h5"], "--relabel-mode", params["relabel_mode"],

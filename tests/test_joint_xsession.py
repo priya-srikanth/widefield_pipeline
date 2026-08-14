@@ -182,6 +182,33 @@ def _fake_single_channel_movie(n=20_000, first=1_000):
     return frames, lab
 
 
+def test_repair_frame_map_indexes_ORIGINAL_exposures_not_repaired_positions(tmp_path):
+    """The repaired movie is renumbered; the frame map must not be.
+
+    ``framemap_event_maps`` places corrected frame t on the DAQ clock via
+    ``pco_samples[original_frame_index_ch0[t] + offset]``. If those indices were positions in the
+    REPAIRED file instead of original exposures, every event would be mistimed by the length of the
+    dropped prefix -- 32 minutes for PS95 8/13 -- with nothing downstream to notice.
+    """
+    import numpy as np
+
+    from wfield_local import repair_single_channel as rsc
+
+    lab = np.array([1, 1, 1, 1,  0, 1, 0, 1, 0, 0, 1, 0, 1])
+    keep = np.array([4, 6, 9, 11])
+    npz = rsc.write_frame_map(tmp_path / "motion_corrected", "pco_2_460_480_uint16.dat",
+                              lab, keep, "d.h5", "s.dat")
+    assert npz.name.endswith("cleanpairs_frame_map.npz"), "preprocess globs for this suffix"
+    fm = np.load(npz)
+    assert list(fm["original_frame_index_ch0"]) == [4, 6, 9, 11], "must be ORIGINAL exposure indices"
+    assert list(fm["original_frame_index_ch1"]) == [5, 7, 10, 12]
+    assert set(fm["channel_label_ch0"].tolist()) == {415}
+    assert set(fm["channel_label_ch1"].tolist()) == {470}
+    # frame 8 is the slipped 415 (415 followed by 415) and is used by no pair
+    assert 8 in fm["skipped_original_frame_index"].tolist()
+    assert fm["labels_per_original_frame"][4] == 415 and fm["labels_per_original_frame"][5] == 470
+
+
 def test_pixel_parity_guard_confirms_a_correctly_aligned_file():
     """The guard must PASS the aligned case, or it would just block every repair."""
     from wfield_local import repair_single_channel as rsc
