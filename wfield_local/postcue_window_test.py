@@ -35,8 +35,8 @@ from wfield_local.precue_significance import FS, _cv_predict
 WINDOWS = [2.0, 2.5, 3.0, 3.5]
 
 
-def one(s, sig, regs, post_s):
-    args = SimpleNamespace(source="roi", align="cue", baseline="none",
+def one(s, sig, regs, post_s, align="cue"):
+    args = SimpleNamespace(source="roi", align=align, baseline="none",
                            pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0)
     X, y, g, _, _, _ = _trial_features(s, args, signal=sig, feat_region=regs)
     if len(y) < 60 or len(np.unique(y)) < len(DISPLAY_ORDER):
@@ -54,6 +54,11 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", type=float, default=WINDOWS)
     ap.add_argument("--variant", default="meegkit_hpfit")
+    ap.add_argument("--align", default="cue", choices=("cue", "lick", "precue"),
+                    help="LICK alignment follows the response wherever it lands, so it handles "
+                         "variable latency by construction -- the right instrument if the concern is "
+                         "late responses. A longer CUE-aligned window is the wrong one: it adds "
+                         "mostly-noise to every trial to catch a few late ones.")
     ap.add_argument("--from", dest="from_dates", default=None)
     ap.add_argument("--animals", nargs="+", default=None)
     a = ap.parse_args(argv)
@@ -63,7 +68,8 @@ def main(argv=None) -> int:
     only = config.normalize_animals(a.animals) or sorted({x["label"][:4] for x in SESSIONS})
     labs = [x["label"] for x in SESSIONS if x["label"][:4] in set(only) and x["label"][-4:] in dates]
     names = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
-    print(f"[postcue] {len(labs)} sessions x {len(a.windows)} windows, variant={a.variant}", flush=True)
+    print(f"[window-test] {len(labs)} sessions x {len(a.windows)} windows, align={a.align}, "
+          f"variant={a.variant}", flush=True)
 
     rows = {}
     for lab in labs:
@@ -80,7 +86,7 @@ def main(argv=None) -> int:
         del svtc
         got = {}
         for w in a.windows:
-            r = one(s, sig, regs, w)
+            r = one(s, sig, regs, w, a.align)
             if r:
                 got[w] = r
         del sig

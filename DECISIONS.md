@@ -804,6 +804,69 @@ support this, so it needs a local reimplementation in `run_wfield_local`. Re-run
 cheap (`SVT.npy` and `U.npy` are retained; seconds per session), but everything downstream of
 `SVTcorr` must be redone: LocaNMF (GPU hours), the joint bases, every decoder/encoder, the decks.
 
+### Window and alignment for the POST-CUE / response decoder (2026-08-13)
+Priya asked whether to extend the post-cue window to 3 s, because PS93's far-L responses are often
+late. Measured on the adopted preprocessing (`postcue_window_test`, 36 curated sessions, per animal AND
+per position, because a late-far-L story predicts a per-POSITION effect while "more averaging helps"
+predicts a uniform one):
+
+**CUE-aligned, overall accuracy:**
+
+| animal | 2.0 s | 2.5 s | 3.0 s | 3.5 s |
+|---|---|---|---|---|
+| PS92 | 0.697 | **0.724** | 0.718 | 0.700 |
+| PS93 | 0.673 | **0.685** | 0.681 | 0.673 |
+| PS94 | **0.839** | 0.826 | 0.814 | 0.796 |
+| PS95 | **0.827** | 0.812 | 0.787 | 0.761 |
+
+**DO NOT extend the cue-aligned window.** PS92/PS93 peak at 2.5 s, PS94/PS95 decline monotonically
+(−0.043, −0.066 by 3.5 s); averaged across animals 2.5 s beats 2.0 s by +0.003, a wash that changes
+sign per animal. And the motivating position does NOT improve: PS93 far_L goes 0.436 → 0.454 → 0.431 →
+0.429. `cue_post_s` stays 2.0.
+
+**RT by position (engaged trials, curated sessions) — the lateness is real:**
+
+| animal | close_L | close_ctr | close_R | far_L | far_ctr | far_R |
+|---|---|---|---|---|---|---|
+| PS92 | 0.128 | 0.160 | 0.160 | 0.224 | 0.256 | 0.288 |
+| PS93 | 0.160 | 0.192 | 0.160 | **0.384** | 0.352 | 0.224 |
+| PS94 | 0.128 | 0.128 | 0.128 | 0.160 | 0.192 | 0.192 |
+| PS95 | 0.128 | 0.128 | 0.128 | 0.160 | 0.160 | 0.224 |
+
+PS93 far_L has the longest RT of any animal×position — but 0.384 s sits comfortably inside a 2 s
+window, which is why lengthening it changed nothing. **The window was never the binding constraint.**
+
+**LICK-ALIGNED IS BETTER FOR EVERY ANIMAL**, and it is the correct instrument for the problem:
+
+| animal | cue-aligned 2.0 s | lick-aligned (best) | gain |
+|---|---|---|---|
+| PS92 | 0.697 | **0.772** (2.0 s) | +0.075 |
+| PS93 | 0.673 | **0.744** (1.5 s) | +0.071 |
+| PS94 | 0.839 | 0.855 (1.5 s) | +0.016 |
+| PS95 | 0.827 | **0.859** (1.0 s) | +0.032 |
+
+The two animals gaining most are the two with the longest and most variable RTs. **PS93 far_L: 0.436 →
+0.556 (+0.120).** The limiting factor is RT VARIABILITY, not RT magnitude: cue-aligned, a jittered
+response smears across the averaging window and a longer window adds noise without fixing the smear;
+lick-aligned, the response is locked and stays sharp. Optimal windows are correspondingly SHORTER when
+lick-aligned (1.0–1.5 s vs 2.0 s), since the window no longer needs slack for RT spread.
+
+**Consequence for PS93's asymmetry.** far_L remains its worst position lick-aligned (0.556 vs 0.891 for
+close_L), so a real asymmetry survives — but roughly half the apparent deficit at 0.436 was
+cue-alignment jitter rather than biology. Relevant to the stroke arm, where PS93's pre-stroke asymmetry
+is a reference point.
+
+**PRE-LICK instead of pre-cue: NO. In addition: yes, with an RT control.** With RT at 0.128–0.384 s a
+2 s pre-lick window is ~90% the same data as the pre-cue window, shifted by RT — but the shift DIFFERS
+BY POSITION (0.256 s spread), so a pre-lick window admits a position-dependent amount of the large,
+position-specific post-cue response. A decoder can exploit "how much post-cue response leaked in",
+which is a proxy for RT, which correlates with position: **pre-lick position decoding would partly be
+decoding reaction time.** The cue is experimenter-controlled and fixed; the lick is behaviour-determined
+and position-dependent, which is the property you do not want in a reference event. As an ADDITIONAL
+analysis it is the standard framing for movement preparation (Kaufman/Churchland output-null) and worth
+having — but it needs RT matched or regressed out, and PS93 is exactly where an uncontrolled version
+would look most striking, having both the longest RT and the largest across-position spread.
+
 ### The joint basis is now used for DECODING/ENCODING across days, not only RSA (2026-08-13)
 `wfield_local/joint_xsession.py`. The cross-day decoder/encoder (`pooled_frozen_loso`) had to use
 Allen-ROI features because a session's own LocaNMF components are session-specific in count AND
