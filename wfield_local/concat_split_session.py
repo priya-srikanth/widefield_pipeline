@@ -311,3 +311,50 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# --------------------------------------------------------------------- behavior log concatenation
+
+def concat_behavior_events(segment_dirs, out_dir, verbose: bool = True):
+    """Merge the GUI ``events.csv`` of a split session into its concat directory.
+
+    WHY. When the GUI is restarted mid-session, the concat directory produced for the trial table did
+    not carry ``events.csv``. That file is where LICK TIMES live (``lick_on`` with ``device_t_ms``), so
+    without it `first_lick_latency_s` has nothing to search and the full-session figure comes out with
+    every latency NaN -- which is exactly what PS92 2026-08-12 did.
+
+    Two facts make this a safe merge rather than a resynchronisation:
+
+    * the DEVICE clock is continuous across the restart (PS92 8/12: segment 1 ends at 23,273,529 ms,
+      segment 2 begins at 24,047,681 ms, preserving the 774 s gap), because only the GUI restarted --
+      the Teensy kept counting. So ``device_t_ms`` needs no offset and stays monotonic;
+    * ``trial_id`` DOES restart, so each later segment is offset by the running trial count, matching
+      how the concatenated ``trials.csv`` was renumbered.
+
+    Originals are never touched: this only writes a new ``events.csv`` into ``out_dir``.
+    """
+    import pandas as pd
+
+    segment_dirs = [Path(d) for d in segment_dirs]
+    out_dir = Path(out_dir)
+    frames, offset = [], 0
+    for d in segment_dirs:
+        ev = pd.read_csv(d / "events.csv")
+        ev["concat_segment"] = d.name
+        ev["trial_id_in_segment"] = ev["trial_id"]
+        ev["trial_id"] = ev["trial_id"] + offset
+        frames.append(ev)
+        offset += int(ev["trial_id_in_segment"].max()) + 1
+        if verbose:
+            print(f"  {d.name}: {len(ev):,} events, trials -> {ev['trial_id'].min()}"
+                  f"..{ev['trial_id'].max()}", flush=True)
+    out = pd.concat(frames, ignore_index=True)
+    if not out["device_t_ms"].is_monotonic_increasing:
+        raise ValueError("device_t_ms is not monotonic across segments — the device clock RESTARTED, "
+                         "so a first-lick search could cross segments; resynchronise before merging")
+    dst = out_dir / "events.csv"
+    out.to_csv(dst, index=False)
+    if verbose:
+        print(f"  wrote {dst} ({len(out):,} events, "
+              f"{int((out['event_name'] == 'lick_on').sum()):,} licks)", flush=True)
+    return dst
