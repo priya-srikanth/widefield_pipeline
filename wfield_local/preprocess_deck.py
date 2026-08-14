@@ -265,18 +265,26 @@ def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
     a bare SVTcorr.npy, the variant name for a `hemo_<variant>/` path, and None when the summary
     predates the field entirely (i.e. built before 2026-08-14, therefore zerophase in practice).
     """
-    hits = sorted(glob.glob(os.path.join(session["mc"], subdir, "*_summary.json")))
-    if not hits:
+    # Scan EVERY summary, not just the alphabetically-first one. This directory holds several
+    # (`..._extra_spout_position_overlay_summary.json`, `..._shared_scale_summary.json`, ...) and only
+    # the ones written by the map STEPS record `svtcorr`. Reading hits[0] blindly picked an overlay
+    # summary with no provenance and reported all 57 sessions stale -- a guard that flags everything
+    # is a guard nobody reads.
+    found = set()
+    for h in sorted(glob.glob(os.path.join(session["mc"], subdir, "*_summary.json"))):
+        try:
+            with open(h, "r", encoding="utf-8") as fh:
+                sv = json.load(fh).get("svtcorr")
+        except (OSError, ValueError):
+            continue
+        if sv:
+            sv = str(sv).replace("\\", "/")
+            found.add(sv.split("hemo_")[-1].split("/")[0] if "hemo_" in sv else "zerophase")
+    if not found:
         return None
-    try:
-        with open(hits[0], "r", encoding="utf-8") as fh:
-            sv = json.load(fh).get("svtcorr")
-    except (OSError, ValueError):
-        return None
-    if not sv:
-        return None
-    sv = str(sv).replace("\\", "/")
-    return sv.split("hemo_")[-1].split("/")[0] if "hemo_" in sv else "zerophase"
+    # Disagreement between two renders in one directory is itself a fault: report it rather than
+    # picking a winner, so it reads as stale and gets re-rendered.
+    return found.pop() if len(found) == 1 else "mixed:" + ",".join(sorted(found))
 
 
 def stale_map_sessions(sessions, want=None):

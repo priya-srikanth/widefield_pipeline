@@ -326,3 +326,37 @@ def test_stale_map_sessions_flags_everything_not_on_the_configured_variant(tmp_p
     assert [lab for lab, _ in stale] == ["PS94_0812", "PS94_0811"]
     assert dict(stale)["PS94_0811"] is None, "absent provenance must be flagged, not assumed fine"
     assert pd.stale_map_sessions([a], want="meegkit_hpfit") == []
+
+
+def test_map_variant_scans_every_summary_not_just_the_first(tmp_path):
+    """The directory holds several summaries and only the map STEPS record `svtcorr`. Reading the
+    alphabetically-first one picked an overlay summary with no provenance and reported all 57 sessions
+    stale -- a guard that flags everything is a guard nobody reads."""
+    import json
+
+    mc = tmp_path / "PS94_0813" / "motion_corrected"
+    d = mc / "spout_trial_averages_affine8v1"
+    d.mkdir(parents=True)
+    # sorts FIRST and carries no provenance, exactly like the real overlay summary
+    (d / "a_extra_spout_position_overlay_summary.json").write_text(json.dumps({"label": "x"}))
+    (d / "z_delta_summary.json").write_text(json.dumps(
+        {"svtcorr": "N:/x/wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy"}))
+    assert pd.map_variant_of({"label": "PS94_0813", "mc": str(mc)}) == "meegkit_hpfit"
+
+
+def test_disagreeing_summaries_read_as_stale(tmp_path):
+    """Two renders from different variants in one directory is a fault in itself: report the
+    disagreement rather than picking a winner, so it re-renders."""
+    import json
+
+    mc = tmp_path / "PS94_0812" / "motion_corrected"
+    d = mc / "spout_trial_averages_affine8v1"
+    d.mkdir(parents=True)
+    (d / "a_delta_summary.json").write_text(json.dumps(
+        {"svtcorr": "N:/x/wfield_local_results/SVTcorr.npy"}))
+    (d / "b_lick_summary.json").write_text(json.dumps(
+        {"svtcorr": "N:/x/wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy"}))
+    got = pd.map_variant_of({"label": "PS94_0812", "mc": str(mc)})
+    assert got.startswith("mixed:"), got
+    assert pd.stale_map_sessions([{"label": "PS94_0812", "mc": str(mc)}],
+                                 want="meegkit_hpfit"), "a mixed dir must count as stale"
