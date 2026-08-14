@@ -39,7 +39,7 @@ locanmf:
   loc_thresh: 80
   maxrank: 20
   allen_dir_name: allen_aligned_affine8v1     # wfield_local_results/<this>/U_atlas.npy (+ ../../SVTcorr.npy)
-  output_dir_name: locanmf_affine8v1_final
+  output_dir_name: locanmf_affine8v1_hemo_zerophase   # NAMES the hemodynamic variant the decomposition was fitted to (docs/PREPROCESSING_DECISION.md); flipped to the meegkit_hpfit dir only AFTER LocaNMF is refit
 
 decode:
   aligns: [lick, cue, precue]

@@ -174,6 +174,13 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
 noise-floor — followed by the post-stroke intention-readout (frozen decoder) and representational-similarity
 (crossnobis / encoder-residual) analyses. Design in `DECISIONS.md`.
 
+## Acquisition incidents
+
+**[`docs/EXPERIMENT_ERRORS.md`](docs/EXPERIMENT_ERRORS.md)** — running log of rig/acquisition
+problems that constrain what can be analysed (PS92 8/12 crash+concat; PS95 8/13 blue-LED-only
+first ~32 min; PS93 8/13 no behavior video). Read it before trusting a session's figures, and
+add to it when something goes wrong at the rig. Analysis/method errors go in DECISIONS.md.
+
 ## Hemodynamic-correction VARIANTS — naming rule (2026-08-13)
 
 **Full evidence and the decision record: [`docs/PREPROCESSING_DECISION.md`](docs/PREPROCESSING_DECISION.md).** Read that before changing anything here.
