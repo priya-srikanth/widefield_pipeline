@@ -674,6 +674,34 @@ count per alignment in `configs/defaults.yaml decode.bins` (precue 4, cue 4, lic
 (8 bins) for ROI; component->region labels are tiled with the features so the encoder still
 groups correctly.
 
+### ENCODER sub-binning: NO — keep the window mean (2026-08-14)
+The decoder builds features through `_trial_features`, and so does the encoder, so adopting sub-binned
+features would have silently turned the ENCODER into a model of each component's 8-bin time course
+instead of its mean activity — changing what R², EV and the FEVE ceiling mean. Pinned to `bins=1`
+explicitly and then TESTED (`wfield_local/encoder_bins_test.py`, 16 sessions, ROI features on the
+adopted variant, ridge position→activity under block CV).
+
+The comparison must use **FEVE, not EV**: more bins = more targets, each intrinsically noisier, so EV
+falls with bin count almost by construction. The noise ceiling (between-position SS / total SS)
+absorbs exactly that.
+
+| | bins=4 vs 1 | bins=8 vs 1 |
+|---|---|---|
+| all 16 sessions | +0.024 mean, **+0.004 median**, 9/16 | +0.022 mean, −0.001 median, 8/16 |
+| **where the encoder works** (FEVE₁ > 0.5, n=10) | **−0.007**, 4/10 | **−0.012**, 3/10 |
+| where it fails (n=6) | +0.075 | +0.079 |
+
+**The headline mean is an artifact and must not be quoted alone.** It is positive only because of the
+six sessions where the forward model FAILS — PS92_0607 has FEVE −0.586, i.e. worse than predicting the
+grand mean, and sub-binning "improves" it to −0.461, which is one failure replaced by a smaller
+failure. Where the model actually works, sub-binning is slightly WORSE, and the median across all
+sessions is +0.004 with a 9/16 sign test: a coin flip. `summarise()` now prints the median and the
+works/fails split so the mean can never be read alone.
+
+**DECISION: encoder stays on the window mean.** This is a real asymmetry worth stating in the deck —
+temporal detail helps you READ position OUT (decoder +0.020 to +0.032) but does not help you PREDICT
+activity FROM position.
+
 ADOPTED: `roll4x0.5` for post-cue (the three rolling arms are within 0.003, so take the convention
 already used pre-cue), `roll8x0.25` for post-lick (it wins on both effect size and sign test). The
 robust claim is the weaker one: ANY sub-binning beats the 2 s mean in both alignments; among rolling
