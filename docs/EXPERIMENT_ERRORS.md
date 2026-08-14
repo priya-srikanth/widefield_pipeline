@@ -188,6 +188,54 @@ concomitant neural recording, which by definition excludes the gap.
 
 ---
 
+## 2026-08-13 — extreme quiet/running imbalance in three of four sessions
+
+**What happened.** Not a fault, but a session property that changes what some panels mean. Quiet-frame
+counts for 8/13: **PS92 255**, **PS94 2,488**, **PS95 14,326** (running frames 2,189 / 13,245 / 571).
+PS92 was quiet on 0.1% of samples and PS95 on 7.4%, so the two sit at opposite extremes.
+
+**What it costs.** The quiet-vs-running activity maps and any quiet-period BASELINE are estimated from
+those frames. PS92 8/13's quiet map rests on 255 frames (~8 s of data) and should not be read
+quantitatively; PS95 8/13's *running* map has the mirror-image problem at 571 frames. Cross-animal
+comparison of quiet baselines on this date is not like-for-like.
+
+**What we do.** Use them qualitatively, and prefer trial-referenced measures on this date. No pipeline
+change: the counts are printed by `plot_running_activity_maps` on every run, which is how this was
+noticed.
+
+---
+
+## 2026-08-05 / 2026-08-06 — DAQ `spout_bit1` dead: only 4 of 6 positions in the strobe
+
+**What happened.** The DAQ strobe lost bit 1 for these two days, across **all four animals**. The
+3-bit position code therefore collapses to 4 distinguishable positions instead of 6.
+
+**What it costs.** Position identity cannot be read from the DAQ alone on these sessions, which is the
+pipeline's primary source for BOTH behavior and imaging.
+
+**What we do.** `classify_cues_with_backup` repairs the code from the behavior log's `pos_idx`, and
+only when the repair validates at >=0.9 against the DAQ's still-good positions. `daq_trials.quality`
+detects the collapse and falls back to the log for behavior scoring — never DAQ-only. **8/6 is kept**
+in the curated set on that basis; **8/5 is excluded** for separate reasons (see below), so the two
+should not be lumped together as "the bad LED days".
+
+---
+
+## 2026-08-05 — PS93: behavior log empty; positions recovered from the camera CSV
+
+**What happened.** The task-controller log for PS93 8/5 came out empty, so the usual fallback for the
+dead-`spout_bit1` repair was not available for that session.
+
+**What it costs.** Without a second source there is no way to disambiguate the collapsed strobe code.
+
+**What we do.** Positions come from a `behavior_trials` recovered CSV derived from cam1, treated as
+READ-ONLY input (CLAUDE.md rule 1). This is the ONLY session using that path.
+
+**Still open — 8/5 is excluded from the curated set anyway** ("the wonky 8/5"), so this recovery
+currently affects no headline result. It matters if 8/5 is ever readmitted.
+
+---
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that
