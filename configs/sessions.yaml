@@ -125,7 +125,11 @@ sessions:
       h5: "20260805/PS93_20260805_202005.h5"
       regime: B
       fmdir: null
-      behavior_trials: "M:/MICROSCOPE/Priya/Widefield/labcams/20260805/PS93_20260805_201110/motion_corrected/spout_position_recovery_cam1/ps93_reviewed_trials.csv"
+      # ROOT-RELATIVE with an explicit root (CLAUDE.md rule 3). This file lives under LABCAMS,
+      # not behavior_logs, and was stored as an absolute "M:/MICROSCOPE/..." path -- which
+      # resolves ONLY on the analysis box, where M: is MICROSCOPE. On the imaging box M: is
+      # standby, so the file did not exist and this session's maps step failed.
+      behavior_trials: "labcams:20260805/PS93_20260805_201110/motion_corrected/spout_position_recovery_cam1/ps93_reviewed_trials.csv"
     "0806":
       mc: "20260806/PS93_20260806_172253/motion_corrected"
       h5: "20260806/PS93_20260806_172316.h5"

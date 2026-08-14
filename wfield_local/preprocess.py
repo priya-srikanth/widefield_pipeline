@@ -235,6 +235,24 @@ def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bo
 
 
 # --------------------------------------------------------------------------- activity maps
+def _registered_behavior_trials(animal, mmdd):
+    """`behavior_trials` registered for this session in sessions.yaml, or None.
+
+    Discovery builds its session dicts from the FILESYSTEM, so they never carried the config override
+    and `_behavior_trials_args` always fell through to globbing the behavior_logs root. That is wrong
+    for exactly the session the override exists for: PS93 8/5's GUI log is EMPTY (its positions were
+    recovered from cam1), so the glob handed the maps step an unusable trials.csv and it died with
+    "could not align trials.csv to DAQ cues".
+    """
+    try:
+        for s in config.load_sessions():
+            if s["label"] == f"{animal}_{mmdd}" and s.get("behavior_trials"):
+                return str(s["behavior_trials"])
+    except Exception:                                    # noqa: BLE001 - config must never break discovery
+        return None
+    return None
+
+
 def _behavior_trials_args(session: dict, animal: str, yyyymmdd: str, rv: PathResolver) -> list[str]:
     """``["--behavior-trials", trials.csv]`` when a recovered CSV is discoverable, else ``[]``.
 
@@ -243,7 +261,7 @@ def _behavior_trials_args(session: dict, animal: str, yyyymmdd: str, rv: PathRes
       1. an explicit ``session["behavior_trials"]`` (a config-recovered CSV, e.g. PS93 8/5 cam1),
       2. glob the behavior_logs root for ``<animal>_<yyyymmdd>_*/trials.csv``.
     """
-    bt = session.get("behavior_trials")
+    bt = session.get("behavior_trials") or _registered_behavior_trials(animal, yyyymmdd[4:])
     if bt:
         return ["--behavior-trials", str(bt)]
     hits = sorted(glob.glob(f"{rv.root('behavior_logs')}/{animal}_{yyyymmdd}_*/trials.csv"))

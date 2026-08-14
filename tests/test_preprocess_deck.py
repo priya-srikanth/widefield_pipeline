@@ -377,3 +377,21 @@ def test_regime_a_sessions_are_excluded_from_the_deck_by_default(monkeypatch, tm
     both = [s["label"] for s in pd.all_sessions(labcams_root=str(tmp_path), include_regime_a=True)]
     assert sorted(both) == ["PS92_0604", "PS94_0601", "PS94_0606"]
     assert pd.is_regime_a({"regime": "a"}) and not pd.is_regime_a({"regime": "B"})
+
+
+def test_build_deck_EXCLUDES_stale_map_sessions_not_just_warns(tmp_path, monkeypatch):
+    """"No stale figures in the deck" has to be enforced, not advised. Generalises past regime A: it
+    also catches PS92 6/2, whose legacy illuminated_rescue layout the standard re-render cannot see."""
+    calls = {}
+
+    def fake_stale(sessions, want=None):
+        calls["n_in"] = len(sessions)
+        return [("PS92_0602", None)]
+
+    monkeypatch.setattr(pd, "stale_map_sessions", fake_stale)
+    sessions, labcams, xday = _two_animal_tree(tmp_path)
+    sessions = list(sessions) + [{"label": "PS92_0602", "mc": "nowhere", "regime": "B"}]
+    summ = pd.build_deck(str(tmp_path / "d.pptx"), sessions=sessions,
+                         labcams_root=labcams, xday_root=xday, verbose=False)
+    assert "PS92_0602" in summ["stale_map_sessions"]
+    assert calls["n_in"] == len(sessions)

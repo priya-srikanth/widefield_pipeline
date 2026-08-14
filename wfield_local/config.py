@@ -24,6 +24,15 @@ COHORT_YEAR = "2026"
 _SESSION_FIELD_ROOT = {"mc": "labcams", "fmdir": "labcams",
                        "h5": "daq_recorder_output", "behavior_trials": "behavior_logs"}
 
+#: A session path may override its implicit root with an explicit ``<root>:<relpath>`` prefix, e.g.
+#: ``labcams:20260805/PS93_.../ps93_reviewed_trials.csv``. Needed because a field's natural root is not
+#: always its actual location: PS93 8/5's recovered-position CSV sits under LABCAMS, not behavior_logs,
+#: and was stored as a machine-pinned absolute ``M:/MICROSCOPE/...`` path. That resolved only on the
+#: analysis box (where M: IS MICROSCOPE); on the imaging box M: is standby, so the file did not exist
+#: and the maps step failed for that session -- CLAUDE.md rule 3 exists for exactly this.
+#: ``{3,}`` lowercase deliberately: a Windows drive letter (``M:/…``, ``C:/…``) must NOT match.
+_ROOT_PREFIX = re.compile(r"^(?P<root>[a-z_]{3,}):(?P<rel>.+)$")
+
 
 @functools.lru_cache(maxsize=None)
 def _load(name):
@@ -272,7 +281,13 @@ def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[
     dset = _filter_set(dates, "WIDEFIELD_ONLY_DATES")
 
     def rp(field, val):
-        return None if val is None else rv.resolve(_SESSION_FIELD_ROOT[field], val)
+        """Resolve a session path against its implicit root, or an explicit ``<root>:<rel>`` one."""
+        if val is None:
+            return None
+        m = _ROOT_PREFIX.match(str(val))
+        if m:
+            return rv.resolve(m.group("root"), m.group("rel"))
+        return rv.resolve(_SESSION_FIELD_ROOT[field], val)
 
     rows = []
     for animal in raw:

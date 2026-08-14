@@ -231,3 +231,34 @@ def test_no_analysis_module_still_hardcodes_the_bare_svtcorr():
             if hardcoded and "svtcorr_path" not in line and "svtcorr_in" not in line:
                 bad.append(f"{p.name}:{i}")
     assert not bad, "use config.svtcorr_path() instead of a literal: " + ", ".join(bad)
+
+
+def test_session_path_can_name_an_EXPLICIT_root(monkeypatch):
+    """A field's natural root is not always where the file lives.
+
+    PS93 8/5's recovered-position CSV sits under LABCAMS, not behavior_logs, and was stored as an
+    absolute ``M:/MICROSCOPE/...`` path. That resolves only on the analysis box, where M: IS
+    MICROSCOPE; on the imaging box M: is standby, so the file did not exist and that session's maps
+    step failed. An explicit ``<root>:<rel>`` prefix keeps it root-relative per CLAUDE.md rule 3.
+    """
+    from wfield_local.config import _ROOT_PREFIX
+
+    m = _ROOT_PREFIX.match("labcams:20260805/PS93/x.csv")
+    assert m and m.group("root") == "labcams" and m.group("rel") == "20260805/PS93/x.csv"
+    # a Windows drive letter must NEVER be read as a root name, or every absolute path breaks
+    for drive in ("M:/MICROSCOPE/x", "C:/y", "E:/labcams_data/z", "N:/a"):
+        assert _ROOT_PREFIX.match(drive) is None, drive
+
+
+def test_ps93_0805_behavior_trials_resolves_on_this_machine():
+    """The regression itself: this session's recovered-position CSV must exist wherever we run."""
+    from pathlib import Path
+
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+
+    s = next((x for x in SESSIONS if x["label"] == "PS93_0805"), None)
+    if s is None or "behavior_trials" not in s:
+        import pytest
+        pytest.skip("PS93_0805 not registered on this machine")
+    assert not str(s["behavior_trials"]).startswith("M:/MICROSCOPE"), "machine-pinned path is back"
+    assert Path(s["behavior_trials"]).exists()

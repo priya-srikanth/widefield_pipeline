@@ -426,7 +426,8 @@ def all_sessions(machine=None, resolver=None, labcams_root=None, include_regime_
 # Build.
 # ---------------------------------------------------------------------------
 def build_deck(out_path, sessions=None, resolver=None, machine=None,
-               labcams_root=None, xday_root=None, verbose=True, include_global_summary=True):
+               labcams_root=None, xday_root=None, verbose=True, include_global_summary=True,
+               exclude_stale_maps=True):
     """Build a fresh preprocessing deck at ``out_path`` and return a summary dict.
 
     ``sessions`` / ``resolver`` default to the live config; ``labcams_root`` /
@@ -512,7 +513,19 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
 
     zero_types = [k for k, n in type_counts.items() if n == 0]
     stale = stale_map_sessions(sessions)
-    if stale and verbose:
+    if stale and exclude_stale_maps:
+        # EXCLUDE rather than merely warn (Priya, 2026-08-14). A deck that mixes corrected and
+        # uncorrected maps invites the misreading that started this: pre-cue maps looking
+        # anti-correlated with the cue maps because they are the filter's shadow. Generalises past
+        # regime A -- it also catches PS92 6/2, whose legacy `illuminated_rescue` layout puts its frame
+        # map beside `motion_corrected` rather than inside it, so the standard re-render cannot see it.
+        drop = {lab for lab, _ in stale}
+        sessions = [s for s in sessions if s.get("label") not in drop]
+        if verbose:
+            print(f"[deck] EXCLUDING {len(drop)} session(s) whose maps are not on the configured "
+                  f"variant ({config.hemo_variant() or 'zerophase'}): "
+                  + ", ".join(f"{lab}({got or 'no provenance'})" for lab, got in sorted(stale)))
+    elif stale and verbose:
         want = config.hemo_variant() or "zerophase"
         print(f"[deck] WARNING: {len(stale)} session(s) have maps NOT rendered from the configured "
               f"hemo variant ({want}). A map PNG is a file on disk -- flipping the variant does not "
