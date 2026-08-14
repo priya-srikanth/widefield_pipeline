@@ -119,16 +119,19 @@ which was never a question about *when* the information arrived.
 
 Pre-cue position information is **real and significant** — 36 sessions × 200 block-label permutations,
 significant in **34/36**, bootstrap CI above chance in 32/36, against an **empirical null of
-0.136–0.147** (reliably below the nominal 1/6, so testing against 0.167 is conservative). NB those
-tests were run on `strobedetrend` at the 60 s window, i.e. against a HANDICAPPED estimate; under the
-adopted variant the effect is larger, so significance can only improve. Re-run pending:
+0.137–0.147** (reliably below the nominal 1/6, so testing against 0.167 is conservative).
 
-| animal | uncorrected | `strobedetrend`@60s (tested) | **`meegkit_hpfit` (ADOPTED)** | perm p<0.05 |
-|---|---|---|---|---|
-| PS92 | 0.470 | 0.234 | **0.225** | 7/9 |
-| PS93 | 0.477 | 0.258 | **0.349** | 9/9 |
-| PS94 | 0.475 | 0.418 | **0.500** | 9/9 |
-| PS95 | 0.523 | 0.298 | **0.334** | 9/9 |
+**Re-run on the ADOPTED variant (2026-08-13): significant in 35/36 sessions**, bootstrap CI above
+chance in 32/36 — up from the 34/36 measured on the handicapped `strobedetrend`@60s estimate, as
+expected once the estimator stopped removing signal:
+
+| animal | uncorrected | `strobedetrend`@60s | **`meegkit_hpfit` (ADOPTED)** | perm p<0.05 | CI > chance | null |
+|---|---|---|---|---|---|---|
+| PS92 | 0.470 | 0.234 | **0.225** | 8/9 | 5/9 | 0.137 |
+| PS93 | 0.477 | 0.258 | **0.349** | 9/9 | 9/9 | 0.147 |
+| PS94 | 0.475 | 0.418 | **0.500** | 9/9 | 9/9 | 0.145 |
+| PS95 | 0.523 | 0.298 | **0.334** | 9/9 | 9/9 | 0.147 |
+| **all** | | | | **35/36** | 32/36 | |
 
 The cohort is genuinely non-uniform rather than the artifactual 0.47–0.52 flatness, and PS92 is the
 animal whose pre-cue signal was most inflated. Terminology follows: **"pre-cue position information"**, not "maintained motor
