@@ -128,3 +128,22 @@ def test_basis_with_unknown_labels_is_not_current(fake_sessions):
 
     ok, exp = jl.basis_is_current(_B(), fake_sessions)
     assert not ok and exp is None
+
+
+def test_a_freshly_built_basis_reads_as_CURRENT(fake_sessions, tmp_path, monkeypatch):
+    """basis_id hashes the rank ARGUMENT (build is called with rank=None) while the manifest stores
+    the RESOLVED rank. Recomputing with the resolved value marked all four freshly-built bases stale --
+    a guard that flags everything is worthless."""
+    class _B:
+        labels = [s["label"] for s in fake_sessions]
+        ncomp = 90
+        manifest = {"rank": 100}
+        basis_id = jl.basis_id(fake_sessions, None)      # as build() actually computes it
+
+    ok, _ = jl.basis_is_current(_B(), fake_sessions)
+    assert ok, "a basis built with rank=None must not read as stale"
+
+    class _Old(_B):
+        basis_id = "0000deadbeef"
+    ok2, exp = jl.basis_is_current(_Old(), fake_sessions)
+    assert not ok2 and exp, "a genuinely stale basis must still be caught"

@@ -321,8 +321,17 @@ def basis_is_current(basis, sessions, rank=None, seed=SEED):
     want = [s for s in sessions if s["label"] in set(basis.labels)]
     if len(want) != len(basis.labels):
         return False, None
-    exp = basis_id(want, rank if rank is not None else basis.manifest.get("rank", basis.ncomp), seed)
-    return exp == basis.basis_id, exp
+    # `basis_id` hashes the rank ARGUMENT verbatim, and `build` is normally called with rank=None
+    # (resolve-to-default), while the manifest records the RESOLVED rank. Recomputing with the
+    # resolved value therefore mismatches a basis that is perfectly current -- it flagged all four
+    # freshly-built bases as stale, which is the cry-wolf failure that makes a guard worthless.
+    # Accept either form; the id is what identifies the basis, not the spelling of its rank.
+    cands = [rank] if rank is not None else [None, basis.manifest.get("rank", basis.ncomp)]
+    for r in cands:
+        exp = basis_id(want, r, seed)
+        if exp == basis.basis_id:
+            return True, exp
+    return False, basis_id(want, cands[0], seed)
 
 
 def load(animal, bid=None, sessions=None, warn_stale=True):
