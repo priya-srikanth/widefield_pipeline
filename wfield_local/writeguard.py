@@ -161,6 +161,11 @@ def assert_deletable(path, verified_copies=(), derived: bool = False,
     HARD RULE (Priya, 2026-08-14): never delete original data -- ``.dat``, ``.h5``, behavior logs,
     camera files -- without either a copy confirmed to exist on a server, or explicit permission.
 
+    A copy on EITHER server counts -- MICROSCOPE or standby (Priya, 2026-08-14). Which one a given
+    file belongs on is the PREPROCESSING PIPELINE's policy, not this guard's: raw movies and the
+    motion-corrected ``.bin`` go to standby, camlogs and every other output go to MICROSCOPE. This only
+    asks whether a confirmed copy exists somewhere off this machine.
+
     ``verified_copies`` must be paths the CALLER has already confirmed (existence AND size/hash); this
     guard re-checks that each exists and is non-empty, but it cannot re-do the caller's byte
     comparison, so passing an unverified path defeats the purpose. ``derived=True`` declares the file

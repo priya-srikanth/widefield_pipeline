@@ -170,19 +170,26 @@ def test_deleting_original_data_requires_a_verified_copy_or_permission(tmp_path)
     wg.assert_deletable(tmp_path / "SVTcorr.npy")                  # derived by nature
 
 
-def test_camlog_is_mirrored_to_standby_and_deleted_only_once(tmp_path):
-    """The camlog is an acquisition record that was landing only on MICROSCOPE -- one copy of
-    irreplaceable data. It now has two destinations, so the delete loop must not try twice."""
+def test_camlog_follows_pipeline_policy_and_goes_to_MICROSCOPE(tmp_path):
+    """Destination is the PREPROCESSING PIPELINE's policy, not this tool's opinion: raw movies and the
+    motion-corrected .bin go to standby; the camlog and every other output go to MICROSCOPE.
+
+    A previous version mirrored the camlog to BOTH, reasoning it was an irreplaceable acquisition
+    record with a single copy. Priya's call is that a verified copy on either server is sufficient and
+    the pipeline convention governs, so it is an OUTPUT. The dual destination also made `clean` report
+    "KEEP (dest missing)" for a file it then deleted via its other, verified destination.
+    """
     from wfield_local import archive_day as ad
 
     e = tmp_path / "E" / "20260813" / "PS94_x" / "raw_widefield_data"
     e.mkdir(parents=True)
     (e / "pco_edge_run000_00000000.camlog").write_text("x")
+    (e / "pco_edge_run000_00000000_2_4_5_uint16.dat").write_bytes(bytes(8))
     cfg = dict(e_lab=str(tmp_path / "E"), m_raw=str(tmp_path / "M"), n_lab=str(tmp_path / "N"),
                e_daq=str(tmp_path / "Ed"), n_daq=str(tmp_path / "Nd"))
     jobs, _inter, _daq = ad.discover(cfg, "20260813")
     cam = [j for j in jobs if j["src"].endswith(".camlog")]
-    assert len(cam) == 2, "camlog must go to BOTH MICROSCOPE and standby"
-    assert {j["kind"] for j in cam} == {"output", "camlog_standby"}
-    assert any(str(tmp_path / "M") in j["dst"] for j in cam), "one destination must be standby"
-    assert any(str(tmp_path / "N") in j["dst"] for j in cam), "and one MICROSCOPE"
+    raw = [j for j in jobs if j["src"].endswith("_uint16.dat")]
+    assert len(cam) == 1 and cam[0]["kind"] == "output"
+    assert str(tmp_path / "N") in cam[0]["dst"], "camlog is an OUTPUT -> MICROSCOPE"
+    assert len(raw) == 1 and str(tmp_path / "M") in raw[0]["dst"], "raw -> standby"
