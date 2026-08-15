@@ -95,3 +95,36 @@ def test_signal_rejects_a_session_not_in_the_basis(tmp_path, monkeypatch):
          "rank": 100, "seed": 0, "built_utc": "2026-08-01T00:00:00Z"}))
     with pytest.raises(KeyError):
         jl.load("PS99").signal("PS99_9999")
+
+
+def test_stale_basis_is_detected_not_silently_reused(fake_sessions, tmp_path, monkeypatch):
+    """basis_id makes two bases distinguishable on disk; it does NOT stop a stale one being LOADED.
+
+    On 2026-08-14 the SVTcorr variant flipped and LocaNMF was refit, and every joint figure kept being
+    built on bases fitted to superseded data while the ROI figures had already moved -- visible only by
+    recomputing the id. `load()` returns the newest basis regardless, so the check has to be explicit.
+    """
+    class _B:
+        labels = [s["label"] for s in fake_sessions]
+        basis_id = "deadbeef0000"
+        ncomp = 100
+        manifest = {"rank": 100}
+
+    ok, exp = jl.basis_is_current(_B(), fake_sessions)
+    assert not ok and exp and exp != "deadbeef0000"
+
+    _B.basis_id = exp                      # a basis built from exactly these inputs is current
+    ok2, _ = jl.basis_is_current(_B(), fake_sessions)
+    assert ok2
+
+
+def test_basis_with_unknown_labels_is_not_current(fake_sessions):
+    """A basis naming sessions we cannot resolve cannot be verified, so it must not pass as current."""
+    class _B:
+        labels = ["PS99_9999"]
+        basis_id = "whatever0000"
+        ncomp = 100
+        manifest = {"rank": 100}
+
+    ok, exp = jl.basis_is_current(_B(), fake_sessions)
+    assert not ok and exp is None

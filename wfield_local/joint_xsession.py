@@ -93,7 +93,8 @@ def joint_features(basis):
 def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True):
     """Joint-basis LOSO decoder + encoder for one animal. ``None`` if it has no basis / <2 sessions."""
     try:
-        basis = joint_locanmf.load(animal)
+        from wfield_local.locanmf_cue_lick_analysis import SESSIONS as _ALL
+        basis = joint_locanmf.load(animal, sessions=_ALL)   # warns if it predates the inputs
     except FileNotFoundError as ex:
         print(f"[joint_xsession] {animal}: {ex}", flush=True)
         return None

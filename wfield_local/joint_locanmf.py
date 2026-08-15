@@ -306,9 +306,34 @@ def build(animal, sessions, rank=None, seed=SEED, out_dir=None, verbose=True):
     return Basis(root)
 
 
-def load(animal, bid=None):
+def basis_is_current(basis, sessions, rank=None, seed=SEED):
+    """Does this saved basis match what its OWN session set would produce from today's inputs?
+
+    ``basis_id`` makes two bases distinguishable on disk; it does NOT stop a stale one being loaded.
+    ``load`` returns the newest saved basis regardless, so when the inputs changed underneath -- the
+    2026-08-14 flip to the meegkit_hpfit SVTcorr, plus the LocaNMF refit -- every joint figure kept
+    being built on a basis fitted to superseded data while the ROI figures had already moved. Silent,
+    and only visible by recomputing the id.
+
+    Returns (ok, expected_id). ``sessions`` should be the full registered list; the basis's own labels
+    select from it, so this asks "same inputs?", never "same session set?".
+    """
+    want = [s for s in sessions if s["label"] in set(basis.labels)]
+    if len(want) != len(basis.labels):
+        return False, None
+    exp = basis_id(want, rank if rank is not None else basis.manifest.get("rank", basis.ncomp), seed)
+    return exp == basis.basis_id, exp
+
+
+def load(animal, bid=None, sessions=None, warn_stale=True):
     """Newest saved basis for ``animal``, or a specific ``basis_id``. Raises if none exists —
-    a missing basis should be an explicit build, never a silent refit."""
+    a missing basis should be an explicit build, never a silent refit.
+
+    Pass ``sessions`` to have the loaded basis checked against today's inputs; a mismatch is WARNED
+    about loudly rather than raised, because a fixed reference frame is the point (the post-stroke
+    comparison needs the reference fixed BEFORE the manipulation) and a legitimately frozen basis will
+    mismatch as soon as anything upstream is reprocessed. What must not happen is not noticing.
+    """
     d = BASIS_DIR / animal
     if bid:
         root = d / bid
@@ -319,7 +344,17 @@ def load(animal, bid=None):
     if not cands:
         raise FileNotFoundError(f"no joint basis for {animal} under {d} — build one first")
     cands.sort(key=lambda p: json.loads((p / "manifest.json").read_text())["built_utc"])
-    return Basis(cands[-1])
+    b = Basis(cands[-1])
+    if warn_stale and sessions is not None:
+        ok, exp = basis_is_current(b, sessions)
+        if not ok:
+            print(f"[joint_locanmf] *** STALE BASIS for {animal}: loaded {b.basis_id} "
+                  f"(built {b.manifest.get('built_utc', '?')[:16]}) but today's inputs give "
+                  f"{exp}.\n"
+                  f"    Its figures describe SUPERSEDED data. Rebuild with build() -- which mints a "
+                  f"NEW basis_id and leaves this one in place -- or pass the old bid deliberately.",
+                  flush=True)
+    return b
 
 
 def listing():
