@@ -53,6 +53,11 @@ pip install wfield==0.6.0
 Mount MICROSCOPE as `M:` (`net use M: \\research.files.med.harvard.edu\Neurobio`). `pip install -e .`
 means **no `PYTHONPATH=` hack** is needed — `python -m wfield_local.<module>` works from anywhere.
 
+**`meegkit`** is required for the hemodynamic-correction variants (`hemo_variants`, built per session during
+preprocessing). It is a declared dependency (`pyproject.toml`), so `pip install -e .` installs it; on a
+prebuilt env you don't re-resolve, add it explicitly: `pip install meegkit` (pulls statsmodels/patsy/
+pyriemann/array-api-compat — **does not touch numpy/numba**, safe on the imaging box's `numpy<2.1` pin).
+
 ### Per-machine environments (they differ — this is expected)
 
 This package deliberately declares **lower-bound-only** dependencies (see `pyproject.toml`) and does **not**
