@@ -112,7 +112,8 @@ def reference_band(per_session_ci, key="accuracy"):
 
 # --------------------------------------------------------------- frozen cross-day (LOSO) inference
 
-def frozen_ci(y_true, y_pred, sessions, blocks=None, n_boot=2000, n_perm=2000, alpha=ALPHA, seed=0):
+def frozen_ci(y_true, y_pred, sessions, blocks=None, n_boot=2000, n_perm=2000, alpha=ALPHA,
+              seed=0, by="session"):
     """CI on a frozen LOSO decoder's accuracy, plus the EMPIRICAL chance level.
 
     Two things the frozen slides previously lacked. They reported accuracy against the analytic 1/6,
@@ -141,13 +142,43 @@ def frozen_ci(y_true, y_pred, sessions, blocks=None, n_boot=2000, n_perm=2000, a
     rng = np.random.default_rng(seed)
     acc = float((y_true == y_pred).mean())
 
-    # --- CI: cluster bootstrap over SESSIONS -------------------------------------------------
+    # --- CI: choose the resampling unit deliberately ------------------------------------------
+    #
+    # WHICH UNIT depends on the claim, and they are not interchangeable:
+    #   "session"  variability across DAYS -- "on a different set of days, accuracy would be X+/-".
+    #              The generalisation LOSO exists to measure, and the operative claim post-stroke,
+    #              since a post-stroke session IS a new day. Conservative, but with ~11 sessions the
+    #              percentile CI is coarse.
+    #   "block"    precision GIVEN these days. Blocks are NESTED in sessions, so this ignores
+    #              day-to-day clustering: the interval is narrower, and falsely so to the extent that
+    #              real between-day variability exists.
+    #   "nested"   resample sessions, then blocks WITHIN each drawn session. Carries both levels; the
+    #              statistically standard choice for nested data, and the one to prefer when the
+    #              session-level interval is too coarse to be useful.
     units = np.unique(sessions)
     idx_of = {u: np.flatnonzero(sessions == u) for u in units}
+    blocks_arr = None if blocks is None else np.asarray(blocks)
+    if by in ("block", "nested") and blocks_arr is None:
+        raise ValueError(f"by={by!r} needs per-trial block ids")
+    blk_of = ({u: {b: np.flatnonzero((sessions == u) & (blocks_arr == b))
+                   for b in np.unique(blocks_arr[sessions == u])} for u in units}
+              if blocks_arr is not None else None)
+
+    def _draw():
+        if by == "session":
+            return np.concatenate([idx_of[u] for u in rng.choice(units, len(units), replace=True)])
+        if by == "block":
+            allb = [i for u in units for i in blk_of[u].values()]
+            return np.concatenate([allb[j] for j in rng.integers(0, len(allb), len(allb))])
+        picks = []
+        for u in rng.choice(units, len(units), replace=True):      # nested
+            bl = list(blk_of[u].values())
+            picks += [bl[j] for j in rng.integers(0, len(bl), len(bl))]
+        return np.concatenate(picks)
+
     boot = np.empty(n_boot)
     for b in range(n_boot):
-        pick = rng.choice(units, size=len(units), replace=True)
-        idx = np.concatenate([idx_of[u] for u in pick])
+        idx = _draw()
         boot[b] = (y_true[idx] == y_pred[idx]).mean()
     lo, hi = np.percentile(boot, [100 * alpha / 2, 100 * (1 - alpha / 2)])
 
@@ -175,6 +206,7 @@ def frozen_ci(y_true, y_pred, sessions, blocks=None, n_boot=2000, n_perm=2000, a
         p = float((null >= acc).mean())
 
     return {"accuracy": acc, "ci_lo": float(lo), "ci_hi": float(hi), "n_sessions": int(len(units)),
+            "ci_unit": by,
             "chance_empirical": float(np.nanmean(null)),
             "chance_ci": [float(np.nanpercentile(null, 2.5)), float(np.nanpercentile(null, 97.5))]
             if blocks is not None else [float("nan")] * 2,

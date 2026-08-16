@@ -133,3 +133,48 @@ def test_frozen_ci_without_blocks_reports_nan_chance_rather_than_guessing():
     y = np.tile(np.arange(5), 16)
     r = frozen_ci(y, y.copy(), sess, blocks=None, n_boot=100, n_perm=10)
     assert np.isnan(r["chance_empirical"]) and np.isnan(r["p_perm"])
+
+
+def test_block_bootstrap_understates_the_interval_when_days_differ():
+    """Blocks are NESTED in sessions. Resampling them holds the set of days effectively fixed, so the
+    CI sees only within-day noise and cannot see that a different set of days would land elsewhere.
+
+    With real between-day variability the block interval comes out ~3x too narrow, while the nested
+    bootstrap (sessions, then blocks within each drawn session) recovers the session-level width. This
+    is why the default unit is the SESSION: for a frozen decoder the held-out DAY is the replicate, and
+    post-stroke application is by definition a new day.
+    """
+    import numpy as np
+
+    from wfield_local.decode_ci import frozen_ci
+
+    rng = np.random.default_rng(0)
+    sess = np.repeat(np.arange(11), 300)
+    blk = np.tile(np.repeat(np.arange(50), 6), 11)
+    y = np.tile(np.repeat(rng.integers(0, 6, 50), 6), 11)
+    day_acc = rng.uniform(0.30, 0.62, 11)                 # days genuinely differ
+    pred = np.empty_like(y)
+    for s in range(11):
+        m = sess == s
+        pred[m] = np.where(rng.random(m.sum()) < day_acc[s], y[m], rng.integers(0, 6, m.sum()))
+
+    w = {}
+    for by in ("session", "block", "nested"):
+        r = frozen_ci(y, pred, sess, blk, n_boot=800, n_perm=1, by=by)
+        w[by] = r["ci_hi"] - r["ci_lo"]
+        assert r["ci_unit"] == by
+    assert w["block"] < 0.5 * w["session"], f"block CI should be far narrower: {w}"
+    assert w["nested"] > 0.8 * w["session"], f"nested must recover the between-day width: {w}"
+
+
+def test_block_and_nested_require_block_ids():
+    import numpy as np
+    import pytest
+
+    from wfield_local.decode_ci import frozen_ci
+
+    sess = np.repeat(np.arange(4), 30)
+    y = np.tile(np.arange(6), 20)
+    for by in ("block", "nested"):
+        with pytest.raises(ValueError):
+            frozen_ci(y, y.copy(), sess, blocks=None, n_boot=50, n_perm=1, by=by)
