@@ -503,12 +503,31 @@ def _loso_fig(results, out, align="cue", basis="roi"):
             ax[0].axvline(off + 0.3, color="0.85", lw=1)
         off += 1.2
     ax[0].axhline(1 / 6, color="grey", ls=":", lw=1)
+    # EMPIRICAL chance, and the CI on the pooled LOSO accuracy. The analytic 1/6 ignores that
+    # positions come in ~6-trial BLOCKS, so trials are not independent and the no-information level
+    # sits BELOW it. Drawn per animal because each has its own block structure and trial counts.
+    emp = [results[a].get("ci", {}).get("chance_empirical") for a in animals if results[a].get("ci")]
+    emp = [e for e in emp if e is not None and np.isfinite(e)]
+    if emp:
+        ax[0].axhline(float(np.mean(emp)), color="crimson", ls="--", lw=1.1)
+        ax[0].annotate(f"empirical chance {np.mean(emp):.3f}  (analytic {1/6:.3f})",
+                       xy=(0.01, float(np.mean(emp))), xycoords=("axes fraction", "data"),
+                       fontsize=7.5, color="crimson", va="bottom")
     ax[0].scatter([], [], s=34, color="tab:blue", label="within-session (block CV)")
     ax[0].scatter([], [], s=34, color="tab:orange", label="LOSO (frozen, unseen day)")
     ax[0].set_xticks(ticks); ax[0].set_xticklabels(tlabs, fontsize=7, rotation=90)
     ax[0].set_ylabel("accuracy"); ax[0].legend(fontsize=8, loc="lower right"); ax[0].set_ylim(0, 1.0)
     ax[0].set_xlim(-1, off - 0.8)
-    ax[0].set_title(f"Frozen {bname} decoder: held-out DAY vs same-day ceiling", fontsize=10.5, pad=22)
+    # pooled LOSO accuracy with its CI, per animal -- the headline number, with the honest interval
+    bits = []
+    for a in animals:
+        c = results[a].get("ci")
+        if c:
+            bits.append(f"{a} {c['accuracy']:.2f} [{c['ci_lo']:.2f}-{c['ci_hi']:.2f}]")
+    sub = ("   " + "   ".join(bits)) if bits else ""
+    ax[0].set_title(f"Frozen {bname} decoder: held-out DAY vs same-day ceiling\n"
+                    f"LOSO accuracy, 95% CI by cluster bootstrap over SESSIONS{sub}",
+                    fontsize=10.5, pad=22)
     # (2) transfer cost
     x = np.arange(len(animals))
     tc = [results[a]["transfer_cost"] for a in animals]

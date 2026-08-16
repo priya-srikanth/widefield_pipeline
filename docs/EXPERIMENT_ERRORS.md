@@ -266,6 +266,35 @@ to standby, not disappearing — but it can no longer happen silently.
 
 ---
 
+## 2026-08-12 — PS95: disengagement session (low decode is BEHAVIOUR, not a data fault)
+
+**What happened.** PS95 8/12 decodes far below its neighbours — post-cue 0.61 and post-lick 0.65
+against ~0.90 on that animal's other ten sessions, pre-cue 0.29 against ~0.37. Investigated 2026-08-16
+after Priya spotted the outlier.
+
+**It is not labeling, and not imaging.** 720 cues / 720 strobes, `daq_trials.quality` OK, six
+positions, zero unlabelled, block structure normal (mean 6.1 trials, variable lengths). Clean pairs
+221,376; photobleach drift −15.8% / −6.9%, in line with 8/11's −14.6% / −7.3%.
+
+**It is engagement.** Only **515 of 720 trials engaged (72%)**, against 610/670 (91%) on 8/11. Raw hit
+rate 71.4% vs 90.3%. But the ENGAGED hit rate is normal (0.90–1.00 per position, vs 0.95–1.00 on
+8/11), and first-lick latencies are unchanged (0.128–0.169 s vs 0.129–0.156 s). The animal performed
+normally when it participated; it simply participated less, and the loss fell hardest on the FAR
+positions (raw 0.63–0.67 vs 0.73–0.79 close) — a sated animal abandoning the harder reaches.
+
+**The maps agree.** Structurally correct (pre/post correlation −0.104, inside the normal
+post-correction range, so no filter-shadow signature), but ~21% weaker: mean |Δ| p99 0.0210 vs
+0.0265–0.0289 on neighbouring days, and far_center is 0.010 against 0.018–0.025 — the same position
+with the worst engagement.
+
+**What we do: KEEP IT, and do not read its low decode as a coding change.** Excluding sessions for
+poor performance would bias the pre-stroke baseline toward good days, which is precisely the reference
+the post-stroke comparison must not be flattered against. The engagement gate already reports
+per-position accuracy on engaged trials, so the behaviour figures are unaffected; it is the decode
+that is trained on fewer trials.
+
+---
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that
