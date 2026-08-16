@@ -31,7 +31,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_predict
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-from wfield_local import config
+from wfield_local import config, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
@@ -291,6 +291,17 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
            "mean_within": float(np.mean(list(within.values()))) if within else float("nan"),
            "chance": 1 / 6}
     res["transfer_cost"] = res["loso_accuracy"] - res["mean_within"]
+    # CI + EMPIRICAL chance. The frozen slides quoted accuracy against the analytic 1/6, which is the
+    # wrong reference for this design: positions come in ~6-trial BLOCKS, so trials are not independent
+    # and the no-information level sits below 1/6 (0.137-0.147 measured per session). The CI resamples
+    # SESSIONS, since a held-out DAY is the independent replicate here -- bootstrapping trials would
+    # treat ~500 correlated trials from one day as 500 observations.
+    try:
+        blk = np.concatenate([BE[i] + 1000 * i for i in range(len(kept))])   # block ids unique per session
+        res["ci"] = decode_ci.frozen_ci(YE, pred, GE, blk)
+    except Exception as ex:                                                  # noqa: BLE001
+        print(f"  !! frozen_ci: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+        res["ci"] = None
     # per-held-out-DAY confusion, so the deck can show the frozen decoder date by date exactly as it
     # shows the per-session (within-day) decoders. Rows = true position, in DISPLAY_ORDER.
     res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],

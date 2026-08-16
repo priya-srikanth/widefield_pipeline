@@ -108,3 +108,74 @@ def reference_band(per_session_ci, key="accuracy"):
             "min": float(pts.min()), "max": float(pts.max()),
             "p10": float(np.percentile(pts, 10)), "p90": float(np.percentile(pts, 90)),
             "widest_ci": [float(los.min()), float(his.max())]}
+
+
+# --------------------------------------------------------------- frozen cross-day (LOSO) inference
+
+def frozen_ci(y_true, y_pred, sessions, blocks=None, n_boot=2000, n_perm=2000, alpha=ALPHA, seed=0):
+    """CI on a frozen LOSO decoder's accuracy, plus the EMPIRICAL chance level.
+
+    Two things the frozen slides previously lacked. They reported accuracy against the analytic 1/6,
+    and we already know that is the wrong reference for this design: positions come in ~6-trial BLOCKS,
+    so trials are not independent and the true no-information level sits below 1/6 (measured 0.137-0.147
+    per session, `precue_significance`).
+
+    ``sessions``  per-trial session id -- the LOSO group, and the resampling unit for the CI. A
+                  held-out DAY is the independent replicate here; bootstrapping trials would treat
+                  ~500 correlated trials from one day as 500 independent observations and give a
+                  spuriously tight interval.
+    ``blocks``    per-trial position-block id. Used for the permutation null: each block carries one
+                  position by construction, so permuting the block->position map within each session
+                  is the honest "activity in a block is unrelated to which position that block was".
+                  Trial-level shuffling would additionally destroy within-block correlation and
+                  UNDERSTATE the null, which is the error that makes 1/6 look defensible.
+
+    The permutation permutes LABELS against FIXED predictions: it asks whether the observed
+    accuracy exceeds what this prediction distribution achieves against unrelated labels. That is the
+    question "is this above chance", and unlike a refit-per-permutation null it costs nothing.
+
+    Returns dict(accuracy, ci_lo, ci_hi, n_sessions, chance_empirical, chance_ci, p_perm,
+    chance_analytic).
+    """
+    y_true = np.asarray(y_true); y_pred = np.asarray(y_pred); sessions = np.asarray(sessions)
+    rng = np.random.default_rng(seed)
+    acc = float((y_true == y_pred).mean())
+
+    # --- CI: cluster bootstrap over SESSIONS -------------------------------------------------
+    units = np.unique(sessions)
+    idx_of = {u: np.flatnonzero(sessions == u) for u in units}
+    boot = np.empty(n_boot)
+    for b in range(n_boot):
+        pick = rng.choice(units, size=len(units), replace=True)
+        idx = np.concatenate([idx_of[u] for u in pick])
+        boot[b] = (y_true[idx] == y_pred[idx]).mean()
+    lo, hi = np.percentile(boot, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+
+    # --- empirical chance: permute block->position within each session -----------------------
+    null = np.empty(n_perm)
+    if blocks is None:
+        null[:] = np.nan
+        p = float("nan")
+    else:
+        blocks = np.asarray(blocks)
+        for k in range(n_perm):
+            yp = y_true.copy()
+            for u in units:                                   # permute WITHIN a session
+                m = sessions == u
+                bl = blocks[m]
+                ys = y_true[m]
+                ub = np.unique(bl)
+                lab = np.array([ys[bl == x][0] for x in ub])
+                perm = rng.permutation(lab)
+                out = np.empty_like(ys)
+                for x, v in zip(ub, perm):
+                    out[bl == x] = v
+                yp[m] = out
+            null[k] = (yp == y_pred).mean()
+        p = float((null >= acc).mean())
+
+    return {"accuracy": acc, "ci_lo": float(lo), "ci_hi": float(hi), "n_sessions": int(len(units)),
+            "chance_empirical": float(np.nanmean(null)),
+            "chance_ci": [float(np.nanpercentile(null, 2.5)), float(np.nanpercentile(null, 97.5))]
+            if blocks is not None else [float("nan")] * 2,
+            "p_perm": p, "chance_analytic": 1 / 6}

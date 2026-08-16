@@ -85,3 +85,51 @@ def test_reference_band_spans_the_sessions():
     assert band["min"] <= band["median"] <= band["max"]
     assert abs(band["min"] - min(pts)) < 1e-12 and abs(band["max"] - max(pts)) < 1e-12
     assert band["widest_ci"][0] <= band["min"] and band["widest_ci"][1] >= band["max"]
+
+
+def test_frozen_ci_resamples_SESSIONS_not_trials():
+    """A held-out DAY is the independent replicate for a LOSO decoder. Bootstrapping trials would
+    treat ~500 correlated trials from one session as 500 observations and give a spuriously tight
+    interval, which is how a cross-day claim gets overstated."""
+    import numpy as np
+
+    from wfield_local.decode_ci import frozen_ci
+
+    rng = np.random.default_rng(0)
+    sess = np.repeat(np.arange(8), 60)
+    blk = np.tile(np.repeat(np.arange(10), 6), 8)
+    y = np.tile(np.repeat(rng.integers(0, 6, 10), 6), 8)
+    pred = np.where(rng.random(len(y)) < 0.5, y, rng.integers(0, 6, len(y)))
+    r = frozen_ci(y, pred, sess, blk, n_boot=300, n_perm=300)
+    assert r["n_sessions"] == 8, "the resampling unit must be the session"
+    assert r["ci_lo"] < r["accuracy"] < r["ci_hi"]
+
+
+def test_frozen_ci_empirical_chance_is_not_assumed_to_be_one_sixth():
+    """The analytic 1/6 ignores block structure and the prediction distribution. The permutation null
+    is the honest reference, and it does NOT come out at 1/6."""
+    import numpy as np
+
+    from wfield_local.decode_ci import frozen_ci
+
+    rng = np.random.default_rng(1)
+    sess = np.repeat(np.arange(6), 60)
+    blk = np.tile(np.repeat(np.arange(10), 6), 6)
+    y = np.tile(np.repeat(rng.integers(0, 6, 10), 6), 6)
+    pred = np.full_like(y, 3)                      # a degenerate decoder that always says "3"
+    r = frozen_ci(y, pred, sess, blk, n_boot=200, n_perm=400)
+    assert r["chance_analytic"] == 1 / 6
+    assert np.isfinite(r["chance_empirical"])
+    # a constant predictor cannot beat its own permutation null
+    assert r["p_perm"] > 0.01, "a degenerate predictor must not read as above chance"
+
+
+def test_frozen_ci_without_blocks_reports_nan_chance_rather_than_guessing():
+    import numpy as np
+
+    from wfield_local.decode_ci import frozen_ci
+
+    sess = np.repeat(np.arange(4), 20)
+    y = np.tile(np.arange(5), 16)
+    r = frozen_ci(y, y.copy(), sess, blocks=None, n_boot=100, n_perm=10)
+    assert np.isnan(r["chance_empirical"]) and np.isnan(r["p_perm"])
