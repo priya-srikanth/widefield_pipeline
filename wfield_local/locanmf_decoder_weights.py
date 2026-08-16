@@ -48,9 +48,19 @@ def _avail(date):
     return sorted([s["label"] for s in SESSIONS if s["label"].endswith(date)], key=lambda l: l[:4])
 
 
-def _args(align="lick", post_s=2.0, baseline="none"):
+def _args(align="lick", post_s=2.0, baseline="none", bins=1):
+    """Feature spec for the WEIGHT/FOOTPRINT figures.
+
+    ``bins=1`` is explicit and deliberate. These figures map a decoder column back onto a SPATIAL
+    footprint, and ``A`` is indexed by COMPONENT. Sub-binned features are laid out
+    ``[bin0_comp0..bin0_compN, bin1_comp0..]``, so a feature index runs to ``ncomp*bins`` and indexing
+    ``A`` with it overflows -- which is exactly what happened on 2026-08-15, breaking
+    ``fig_top_components`` for all 44 curated sessions with errors like "index 1057 is out of bounds
+    for axis 2 with size 143". Ranking components by their window MEAN also keeps these figures
+    answering "which components carry position information", which is what they are for.
+    """
     return SimpleNamespace(source="locanmf", align=align, baseline=baseline,
-                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0)
+                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 
 
 def _names(s):

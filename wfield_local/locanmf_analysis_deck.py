@@ -325,50 +325,50 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "date, curated pre-stroke sessions only. Each slide's speaker notes give how that figure is "
             "made. " + M_COMMON)
 
-    # ---------------- KNOWN ARTIFACT: right after the title, before any result ----------------
-    # The pre-cue slides in this deck are built on zero-phase-high-passed data and overstate the
-    # effect ~2x. Until the preprocessing is changed and everything downstream re-run, the deck must
-    # say so BEFORE anyone reads a pre-cue number, not in a footnote afterwards.
+    # ---------------- METHODOLOGY: right after the title, before any result ----------------
+    # This slide used to warn that the pre-cue numbers were inflated ~2x. They are not any more: the
+    # deck is built on the corrected variant. A stale warning is worse than none -- it tells a reader
+    # to discount numbers that are now right.
     s = slide()
-    title(s, "⚠ Known preprocessing artifact — PRE-CUE numbers in this deck are inflated ~2×",
-          "Post-cue, lick-aligned, encoder and RSA results are NOT affected. Read this before "
-          "quoting any pre-cue accuracy.")
+    title(s, "Drift removal — the pre-cue numbers in this deck are CORRECTED",
+          "Built on meegkit_hpfit, not the pipeline default. Read this before comparing with anything "
+          "produced before 14 Aug 2026.")
     tf = s.shapes.add_textbox(Inches(0.6), Inches(1.7), Inches(12.1), Inches(5.3)).text_frame
     tf.word_wrap = True
     for i, line in enumerate([
-        "WHAT: wfield.hemodynamic_correction high-passes both channels at 0.1 Hz with scipy filtfilt "
-        "— zero-phase, therefore ACAUSAL — and that high-passed 470 channel becomes SVTcorr. Its "
-        "impulse response is symmetric in time (−0.496 before an impulse, −0.496 after), so a "
-        "position-specific POST-cue response casts a sign-flipped shadow backwards into the pre-cue "
-        "window. A linear decoder does not care about sign.",
-        "MEASURED over ALL 36 CURATED SESSIONS (4 animals × 9 dates), rebuilding SVTcorr from the "
-        "retained SVT.npy with the hemodynamic transform T held fixed so ONLY the drift removal varies:",
+        "WHAT WAS WRONG: wfield.hemodynamic_correction high-passes both channels at 0.1 Hz with scipy "
+        "filtfilt — zero-phase, therefore ACAUSAL — and that high-passed 470 channel becomes SVTcorr. "
+        "Its impulse response is symmetric in time (−0.496 before an impulse, −0.496 after), so a "
+        "position-specific POST-cue response cast a sign-flipped shadow BACKWARDS into the pre-cue "
+        "window. A linear decoder does not care about sign, so the shadow read as pre-cue information.",
+        "THE FIX (adopted 2026-08-14): keep the 0.1 Hz high-pass for the hemodynamic COEFFICIENT fit — "
+        "that is what it is for — and replace it for the OUTPUT with de Cheveigné robust polynomial "
+        "detrending (order 10, 600 s) on a mask that excludes whole trials.",
+        "MEASURED over ALL 36 CURATED SESSIONS:",
         "                        pre-cue        post-cue (control)",
-        "        zerophase (current)   0.486          0.684",
-        "        fit-only              0.273          0.686      lower in 35/36,  p=1.5e-10",
-        "        task-masked detrend   0.247          0.737      lower in 36/36,  p=2.9e-11",
-        "The variant that most IMPROVES the readout we trust (post-cue +0.053) is the one that most "
-        "REDUCES the readout we suspect. That is the strongest form this comparison could take.",
-        "PER ANIMAL, pre-cue after correction (chance 0.167):  PS92 0.176 / 0.151 — AT CHANCE;  "
-        "PS93 0.252 / 0.227;  PS94 0.416 / 0.358 — a solid code;  PS95 0.249 / 0.252.",
-        "SIGN TEST: the pre-cue position pattern is ANTI-correlated with the post-cue pattern — mean "
-        "r = −0.48, negative in 30 of 36 sessions — and sits below the far-from-cue quiet baseline. A "
-        "maintained plan has no reason to be the negative of the movement response; a subtracted "
-        "lowpass bump is exactly that. After correction the correlation flips positive and is negative "
-        "in only 1/36 (fit-only) or 4/36 (detrend) — what survives looks like a plan, not an echo.",
-        "SO: a REAL pre-cue code survives in PS93/PS94/PS95 — clearly in PS94 — but it is about half "
-        "the size shown in this deck, and PS92 is AT CHANCE. The cohort is not uniform.",
+        "        zerophase (old)       0.486          0.684",
+        "        meegkit_hpfit (now)   0.352          0.759      post-cue IMPROVED",
+        "The variant that most IMPROVES the readout we trust also most REDUCES the one we suspected — "
+        "the strongest form this comparison could take.",
+        "WHAT SURVIVES: pre-cue position information is REAL and significant in 35/36 sessions, at "
+        "~72% of the previously reported size. PS92 0.225, PS93 0.349, PS94 0.500, PS95 0.334 "
+        "(chance 0.167; empirical null 0.137–0.147 by block-label permutation). PS94 was essentially "
+        "untouched; PS92 was the one substantially inflated and is now well above chance, not at it.",
+        "SIGN TEST: the pre-cue pattern used to be ANTI-correlated with the post-cue pattern (negative "
+        "in 30 of 36 sessions; on the worst days the pre-cue MAP was literally the negative of the "
+        "post-cue map, r = −0.93). After correction that signature is gone — negative in 2 of 36.",
         "NOT A LOCAL BUG: churchlandlab/WidefieldImager SvdHemoCorrect.m does the same in-place "
         "filtfilt; Musall et al. 2019 state it in their methods. The artifact class is published — "
         "van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods — including the negative sign, with "
-        "trial-masked robust detrending as the recommended fix.",
-        "REPRODUCE: python -m wfield_local.filter_acausality_test <LABEL,...>   •   see DECISIONS.md",
+        "trial-masked robust detrending as the recommended fix, which is what was adopted.",
+        "REPRODUCE: python -m wfield_local.filter_acausality_test <LABEL,...>   •   see "
+        "docs/PREPROCESSING_DECISION.md and DECISIONS.md",
     ]):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         r = p.add_run()
         r.text = line
         r.font.size = Pt(12.5)
-        r.font.color.rgb = NAVY if line.startswith(("WHAT", "MEASURED", "SIGN", "SO", "NOT", "PER")) else GREY
+        r.font.color.rgb = NAVY if line.startswith(("WHAT", "THE FIX", "MEASURED", "SIGN", "NOT")) else GREY
     note(s, M_PRECUE_CAVEAT)
 
     # ---------------- A. per-animal WITHIN-DAY decoding ----------------
@@ -383,9 +383,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         note(s, M_DECODE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels], cols=3)
         s = slide()
-        title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)  ⚠ inflated ~2× — see slide 2",
+        title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
               "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
-              "are inflated by the zero-phase-filter artifact; the corrected effect is ~half this.")
+              "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.")
         note(s, M_DECODE + M_PRECUE_CAVEAT)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
         s = slide()
@@ -444,10 +444,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 continue
             s = slide()
             title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
-                     "  ⚠ inflated ~2×",
+                     "",
                   "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
                   "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
-                  "filter-inflated pre-cue values; see slide 2.")
+                  "corrected pre-cue values (meegkit_hpfit); see slide 2.")
             note(s, M_LICKFREE + M_PRECUE_CAVEAT)
             big(s, p, top=1.5, width=12.9)
 
@@ -491,7 +491,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         for al, al_name, al_desc in ALIGNS:
             # the pre-cue arm inherits the zero-phase-filter inflation; the post-cue arm does not
             cav = M_PRECUE_CAVEAT if al == "precue" else ""
-            warn = "  ⚠ inflated ~2×" if al == "precue" else ""
+            warn = ""
             for a in animals:
                 for page in pages:
                     span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
