@@ -30,7 +30,7 @@ from sklearn.metrics import accuracy_score
 
 from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
+from wfield_local.locanmf_position_decoder import _trial_features, _build_signal, is_engaged
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
 from wfield_local.behavior_position import classify_cues_with_backup
@@ -276,7 +276,12 @@ def _lick_trials(label):
         blk[i] = b
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
-    keep = [k for k in range(cf.size) if codes[k] >= 0 and first[k] > 0 and 0 < rt[k] <= 2 * FS]
+    # cf[k] >= 0 IS LOAD-BEARING. `_frames` marks cues outside the imaging coverage as -1, and this
+    # filter used to check only the LICK frame -- so PS95 8/13's 197 uncovered cues were all kept,
+    # because rt = first - cf becomes first + 1 when cf is -1, and a lick at frame 13 gives rt = 14,
+    # comfortably inside the reaction-time test. They then indexed the movie at frame ~-1.
+    keep = [k for k in range(cf.size)
+            if codes[k] >= 0 and cf[k] >= 0 and is_engaged(first[k], rt[k], 2 * FS)]
     return sig, T, np.array([int(first[k]) for k in keep]), np.array([int(codes[k]) for k in keep]), np.array([int(blk[k]) for k in keep])
 
 
@@ -329,7 +334,12 @@ def _engaged(s):
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     blk = _blocks(codes); ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
-    keep = [k for k in range(cf.size) if codes[k] >= 0 and first[k] > 0 and 0 < rt[k] <= 2 * FS]
+    # cf[k] >= 0 IS LOAD-BEARING. `_frames` marks cues outside the imaging coverage as -1, and this
+    # filter used to check only the LICK frame -- so PS95 8/13's 197 uncovered cues were all kept,
+    # because rt = first - cf becomes first + 1 when cf is -1, and a lick at frame 13 gives rt = 14,
+    # comfortably inside the reaction-time test. They then indexed the movie at frame ~-1.
+    keep = [k for k in range(cf.size)
+            if codes[k] >= 0 and cf[k] >= 0 and is_engaged(first[k], rt[k], 2 * FS)]
     return (sig, T, cf, np.array([int(first[k]) for k in keep]), np.array([int(codes[k]) for k in keep]),
             np.array([int(blk[k]) for k in keep]), np.array([int(cf[k]) for k in keep]))
 
