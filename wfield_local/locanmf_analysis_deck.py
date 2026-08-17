@@ -566,15 +566,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # Rendered in BOTH poolable bases (Allen-ROI and joint-LocaNMF), like Section D, plus an
     # agreement panel -- a result that appears in only one parcellation is a result about the
     # parcellation, and quoting whichever basis was run is exactly the failure two bases prevent.
-    _nl = [(b, src / f"nolick_reference_{b}.png") for b in ("roi", "joint")
+    # Both bases AND both engaged cuts. The cut is not a detail: moving it to the task's response
+    # window reclassifies the late-but-successful trials as engaged, which removes exactly the trials
+    # carrying the pre-cue signal -- so the dissociation looks very different at the two cuts, and a
+    # deck showing only one of them would be showing a choice rather than a result.
+    _NL_BASES = (("roi", "Allen-ROI, 2.0 s cut"), ("joint", "joint-LocaNMF, 2.0 s cut"),
+                 ("roi_respwin", "Allen-ROI, response-window cut"),
+                 ("joint_respwin", "joint-LocaNMF, response-window cut"))
+    _nl = [(nice, src / f"nolick_reference_{b}.png") for b, nice in _NL_BASES
            if (src / f"nolick_reference_{b}.png").exists()]
     if _nl:
         divider("D2 - Trials with NO DETECTED LICK",
                 "The pre-stroke reference for post-stroke failures. A failed trial can mean the plan "
                 "was never formed or that it was formed and the movement failed; those are different "
                 "injuries and identical in the behaviour log.")
-        for bname, fig_ref in _nl:
-            nice = "Allen-ROI" if bname == "roi" else "joint-LocaNMF"
+        for nice, fig_ref in _nl:
             s_ = slide()
             title(s_, f"No-detected-lick ({nice}): does the position code survive without a movement?",
                   "Balanced accuracy (macro-recall) per arm, pre-cue beside post-cue. The BLACK RULE "
