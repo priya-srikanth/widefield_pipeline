@@ -57,7 +57,14 @@ from wfield_local import config, results_store as rs
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-from wfield_local.locanmf_position_decoder import _build_signal
+from wfield_local.locanmf_position_decoder import _bins_for, _build_signal, _window_feature
+
+#: Sub-bins for the pre-cue window. MUST match the production decoder: this module is the
+#: CONTROL for the pre-cue readout, and a control built on different features cannot be
+#: compared with the thing it controls -- a lower lick-free number would be ambiguous between
+#: 'licking mattered' and '66 features instead of 264'. It previously used a single 2 s mean
+#: while Section A used 4 x 0.5 s.
+_BINS = _bins_for(SimpleNamespace(align='precue', bins=None))
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES, _load_daq_events
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 from wfield_local.precue_attribution import CHANCE, C_REG, encoding_ev, family_columns, region_names
@@ -140,11 +147,13 @@ def trial_table(session, source="roi", pre_s=PRE_S):
                 w0, nlicks = fixed, n_fixed              # no clean window exists -> keep, flagged dirty
             else:
                 nlicks = 0
-        X.append(sig[:, w0:w0 + wn].mean(1))
+        X.append(_window_feature(sig, int(w0), wn, _BINS, 0.0))
         y.append(int(codes[k]))
         g.append(int(blk[k]))
         nl.append(nlicks)
         off.append((int(cue_f[k]) - (w0 + wn)) / FS)     # seconds between window end and the cue
+    if _BINS > 1:
+        feat_reg = np.tile(feat_reg, _BINS)
     return (np.asarray(X), np.asarray(y), np.asarray(g), np.asarray(nl), feat_reg,
             np.asarray(off, dtype=float))
 
