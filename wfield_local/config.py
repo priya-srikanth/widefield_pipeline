@@ -125,12 +125,19 @@ def svtcorr_in(results_dir, variant: str | None = None) -> str:
     return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
 
 
-def curated_dates(machine: str | None = None) -> list[str]:
+def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 
     "6/6-6/8 + 8/6 onward" is an emergent property, not a list: this is really "everything registered
     in sessions.yaml that animals.yaml does not exclude", so a newly registered night joins
     automatically. Sorted MMDD strings.
+
+    STROKE-AWARE since 2026-08-17. "A newly registered night joins automatically" was right while
+    every night was pre-stroke; the moment a lesion exists it becomes a live hazard, because this
+    list feeds the joint bases, the frozen decoder's training pool and the no-lick reference. With
+    any `stroke_date` set, ``phase="pre"`` (the DEFAULT) returns only dates up to and including the
+    cutoff, ``phase="post"`` only dates after it, and ``phase="all"`` the old behaviour. While the
+    whole cohort is pre-stroke nothing changes.
 
     This is the ONLY curated-set accessor. A static ``date_policy.cross_session`` list used to sit
     beside it in animals.yaml; it lagged five nights behind the registered sessions and the deck
@@ -139,7 +146,42 @@ def curated_dates(machine: str | None = None) -> list[str]:
     """
     exclude = set(date_policy().get("cross_session_exclude", []))
     registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
-    return [d for d in registered if d not in exclude]
+    dates = [d for d in registered if d not in exclude]
+    cut = stroke_cutoff()
+    if cut is None:                       # whole cohort still pre-stroke: unchanged behaviour
+        return dates
+    if phase == "all":
+        return dates
+    if phase == "post":
+        return [d for d in dates if d > cut]
+    return [d for d in dates if d <= cut]
+
+
+def stroke_date(animal: str) -> str | None:
+    """MMDD of this animal's LAST PRE-STROKE session, or None if it has no lesion yet.
+
+    Convention is animals.yaml's: the lesion is induced AFTER that day's session, so sessions ON
+    stroke_date are baseline and only sessions AFTER are post-stroke.
+    """
+    v = (animals().get(animal) or {}).get("stroke_date")
+    if v in (None, "", "null"):
+        return None
+    v = str(v)
+    return v[4:] if len(v) == 8 else v          # accept YYYYMMDD or MMDD
+
+
+def stroke_cutoff() -> str | None:
+    """The EARLIEST stroke date across the cohort, or None if nobody is lesioned yet.
+
+    Deliberately the earliest, not per-animal: `curated_dates()` feeds POOLED pre-stroke references
+    (joint bases, the frozen decoder's training set, the no-lick reference), and a single post-stroke
+    session leaking into any of them silently destroys the comparison those references exist to
+    support. The conservative cutoff means a staggered cohort loses a little late pre-stroke data
+    from the pooled set rather than risking contamination; per-animal work should call
+    `stroke_date(animal)` directly.
+    """
+    ds = [d for d in (stroke_date(a) for a in animals()) if d]
+    return min(ds) if ds else None
 
 
 def animal_color() -> dict:
