@@ -319,7 +319,15 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         o = res["ood"]
         print(f"  OOD control: engaged H={o['engaged_H']:.3f}  no-lick H={o['nolick_H']:.3f}  "
               f"shuffled H={o['shuffle_H']:.3f}  (1.0 = uniform)")
-        print(f"               no-lick acc={o['nolick_acc']:.3f} CI{np.round(o['nolick_ci'],3).tolist()} "
+        # Raw accuracy is printed for continuity but is NOT the verdict: on this arm its null is not
+        # 1/6 (skewed trials meeting skewed predictions). Balanced accuracy and the permutation null
+        # computed on these trials are, so they are what the ABOVE/NOT-above line reads from.
+        print(f"               no-lick raw acc={o['nolick_acc']:.3f} "
+              f"(null {o.get('nolick_null_raw', float('nan')):.3f}, uniform 1/6={1/6:.3f}, "
+              f"majority floor {o.get('nolick_majority_floor', float('nan')):.3f})")
+        print(f"               no-lick BALANCED acc={o.get('nolick_balanced_acc', float('nan')):.3f} "
+              f"(null {o.get('nolick_null_balanced', float('nan')):.3f}, "
+              f"p={o.get('nolick_p_balanced', float('nan')):.4f}) "
               f"-> {'ABOVE' if o['nolick_above_chance'] else 'NOT above'} chance")
     return res
 
@@ -335,10 +343,25 @@ def ood_control(XE, YE, GE, XU, YU):
 
       * ``shuffle_H`` -- entropy with labels permuted: the empirical NO-INFORMATION floor. A real
         signal must sit well below it.
-      * ``nolick_*``  -- the no-lick (unengaged) trials, which pre-stroke carry no decodable
-        position (pooled across curated sessions: accuracy is at chance) yet still draw confident
-        predictions. The nearest available analogue of a failed post-stroke attempt.
+      * ``nolick_*``  -- trials with no DETECTED lick. The nearest available pre-stroke analogue of
+        a failed post-stroke attempt.
+
+    CORRECTED 2026-08-17. This docstring previously asserted that no-lick trials "carry no decodable
+    position (accuracy is at chance)". The stored results said the opposite for all four animals,
+    and both statements were wrong for the same reason: accuracy here was being compared against a
+    uniform 1/6, which is not this arm's null. No-lick trials are heavily skewed across positions
+    (PS93: 49% far_center) and the decoder's predictions on them are skewed too, so an
+    information-free decoder scores well above 1/6 -- 0.211 for PS93, not 0.167. The flag therefore
+    said "above chance" whether or not anything was there.
+
+    Now reported: balanced accuracy, whose null expectation is exactly 1/6 however skewed either
+    side is, and a permutation null computed ON these trials with the predictions held fixed. Both
+    come from `nolick_analysis`; see that module for why. Against the corrected null all four
+    animals do remain above chance pre-cue, which is biologically expected (Priya, 2026-08-17): an
+    animal can know where the spout is and not lick. The discriminating contrast is pre-cue versus
+    POST-cue within the same trials, not either against chance.
     """
+    from wfield_local import nolick_analysis as na
     clf = _pipe().fit(XE, YE)
     classes = clf.named_steps["logisticregression"].classes_
     pe = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=GE, method="predict_proba")
@@ -349,16 +372,32 @@ def ood_control(XE, YE, GE, XU, YU):
            "shuffle_acc": float(accuracy_score(ysh, np.unique(ysh)[psh.argmax(1)]))}
     if len(YU) >= 30:
         pu = clf.predict_proba(XU)
-        acc = float(accuracy_score(YU, classes[pu.argmax(1)]))
+        pred = classes[pu.argmax(1)]
+        acc = float(accuracy_score(YU, pred))
         se = float(np.sqrt(acc * (1 - acc) / len(YU)))
+        # engaged position profile is the matching target: it is near-uniform in every animal, so
+        # matching to it makes the no-lick arm directly comparable to the engaged arm above.
+        eng_frac = {POSITION_NAMES[c]: float((YE == c).mean()) for c in DISPLAY_ORDER}
+        arm = na.evaluate_arm(YU, pred, target_frac=eng_frac)
         out.update(n_nolick=int(len(YU)), nolick_acc=acc, nolick_H=_entropy_norm(pu),
                    nolick_maxp=float(pu.max(1).mean()),
                    nolick_ci=[acc - 1.96 * se, acc + 1.96 * se],
-                   nolick_above_chance=bool(acc - 1.96 * se > 1 / 6),
+                   # the corrected verdict, and the one that should be quoted
+                   nolick_balanced_acc=arm["balanced_accuracy"],
+                   nolick_null_raw=arm["raw_null_mean"], nolick_null_balanced=arm["bal_null_mean"],
+                   nolick_p_raw=arm["raw_p"], nolick_p_balanced=arm["bal_p"],
+                   nolick_majority_floor=arm["majority_class_floor"],
+                   nolick_above_chance=arm["above_null_balanced"],
+                   nolick_matched=arm.get("matched"),
+                   nolick_true_dist=[arm["position_frac"][POSITION_NAMES[c]] for c in DISPLAY_ORDER],
                    nolick_pred_dist=(np.bincount(pu.argmax(1), minlength=len(classes)) / len(pu)).tolist())
     else:
         out.update(n_nolick=int(len(YU)), nolick_acc=float("nan"), nolick_H=float("nan"),
-                   nolick_maxp=float("nan"), nolick_ci=[float("nan")] * 2, nolick_above_chance=False)
+                   nolick_maxp=float("nan"), nolick_ci=[float("nan")] * 2, nolick_above_chance=False,
+                   nolick_balanced_acc=float("nan"), nolick_null_raw=float("nan"),
+                   nolick_null_balanced=float("nan"), nolick_p_raw=float("nan"),
+                   nolick_p_balanced=float("nan"), nolick_majority_floor=float("nan"),
+                   nolick_matched=None, nolick_true_dist=None)
     return out
 
 

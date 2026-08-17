@@ -292,9 +292,30 @@ was not.
 which every caller already skips. The exclusion PRINTS the count, so a session losing trials this way
 announces itself. Tested with an explicit gap.
 
-**Still open:** the maps path (`framemap_event_maps`) uses the same clipping helper directly. Its
-figures are trial AVERAGES, so 23% of trials landing on frame 0 dilutes rather than corrupts — but it
-should get the same guard.
+**Maps path.** `framemap_event_maps` used the same clipping helper directly. Its figures are trial
+AVERAGES, so 23% of trials landing on frame 0 diluted rather than corrupted them — it now takes the
+same guard, and 8/13's maps were regenerated (197/871 cues and 1,144/4,582 licks excluded).
+
+**Verified 2026-08-17.** Cue-aligned went **0.61 → 0.78**, lick-aligned **0.65 → 0.85**, engaged
+n 786 → 589. That is a large recovery but short of the ~0.90 predicted, so the obvious worry was a
+SECOND fault in the repair. It is not:
+
+* Positions stay balanced (82–116 per class) and no class is dead — recall 0.63–0.91 — so trial
+  labelling is intact. A mislabelled position collapses one class, and none has.
+* Lick-aligned recovers to within 0.04 of the animal's floor, so the retained movie is fine. A bad
+  decomposition or a residual frame offset would hurt both alignments alike.
+* Accuracy by trial-order third is **0.822 / 0.796 / 0.602** — the trials immediately after the
+  repair seam are the BEST, not the worst. There is no boundary contamination, which is what a
+  settling artifact or an edge effect in motion correction would have produced.
+* PS95 declines across EVERY session (T3−T1 tilt −0.09 to −0.22 on 8/10–8/14). The LED fault
+  destroyed 8/13's first 23% — precisely the portion that decodes best — so its session mean was
+  being compared against controls that still had their good third. Matched on the same last-77%
+  slice (ROI features): 8/10 0.843, 8/12 0.799, 8/11 0.778, 8/14 0.749, **8/13 0.740**. Within the
+  normal spread, not an outlier.
+
+So the residual is a real and correctly-handled consequence of the fault, not a further bug. **The
+cost of the LED fault is that 8/13 contributes only its declining tail** — that is the caveat to
+carry, rather than treating 0.78 as a defect to chase. Nothing about the repair needs revisiting.
 
 ---
 
