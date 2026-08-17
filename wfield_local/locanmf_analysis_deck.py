@@ -556,30 +556,42 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # The pre-stroke reference for reading POST-stroke failed trials. Placed immediately after the
     # frozen decoder because it uses the same frozen model and answers the question that motivates
     # freezing one at all.
-    # the reference is built in whichever basis can be POOLED across sessions (ROI today); look
-    # for the figure by basis rather than pinning a name that a basis change would silently break
-    _nolick_fig = next((src / f"nolick_reference_{b}.png" for b in ("roi", "locanmf")
-                        if (src / f"nolick_reference_{b}.png").exists()), None)
-    if _nolick_fig is not None:
-        divider("D2 — Trials with NO DETECTED LICK",
+    # Rendered in BOTH poolable bases (Allen-ROI and joint-LocaNMF), like Section D, plus an
+    # agreement panel -- a result that appears in only one parcellation is a result about the
+    # parcellation, and quoting whichever basis was run is exactly the failure two bases prevent.
+    _nl = [(b, src / f"nolick_reference_{b}.png") for b in ("roi", "joint")
+           if (src / f"nolick_reference_{b}.png").exists()]
+    if _nl:
+        divider("D2 - Trials with NO DETECTED LICK",
                 "The pre-stroke reference for post-stroke failures. A failed trial can mean the plan "
                 "was never formed or that it was formed and the movement failed; those are different "
                 "injuries and identical in the behaviour log.")
-        s = slide()
-        title(s, "No-detected-lick: does the position code survive without a movement?",
-              "Balanced accuracy (macro-recall) per arm, pre-cue beside post-cue. The BLACK RULE on "
-              "each bar is that arm's OWN permutation null, not a shared 1/6 — the nulls differ per "
-              "arm and a single chance line would misrepresent every bar but the engaged one.")
-        note(s, M_NOLICK)
-        big(s, _nolick_fig, top=1.9, width=12.7)
-        s = slide()
-        title(s, "No-detected-lick: PRE-cue surviving while POST-cue collapses = plan formed, "
-                 "movement failed",
-              "The discriminating quantity. Post-cue decoding is largely driven by the lick itself, "
-              "so it should collapse without one; pre-cue reflects a maintained code that need not.")
-        note(s, M_NOLICK)
-        big(s, _nolick_fig.with_name(_nolick_fig.name.replace("reference", "survival")),
-            top=1.9, width=10.5)
+        for bname, fig_ref in _nl:
+            nice = "Allen-ROI" if bname == "roi" else "joint-LocaNMF"
+            s_ = slide()
+            title(s_, f"No-detected-lick ({nice}): does the position code survive without a movement?",
+                  "Balanced accuracy (macro-recall) per arm, pre-cue beside post-cue. The BLACK RULE "
+                  "on each bar is that arm's OWN permutation null, not a shared 1/6 - the nulls "
+                  "differ per arm and a single chance line would misrepresent every bar but the "
+                  "engaged one.")
+            note(s_, M_NOLICK)
+            big(s_, fig_ref, top=1.9, width=12.7)
+            s_ = slide()
+            title(s_, f"No-detected-lick ({nice}): PRE-cue surviving while POST-cue collapses = "
+                      f"plan formed, movement failed",
+                  "The discriminating quantity. Post-cue decoding is largely driven by the lick "
+                  "itself, so it should collapse without one; pre-cue reflects a maintained code "
+                  "that need not.")
+            note(s_, M_NOLICK)
+            big(s_, fig_ref.with_name(fig_ref.name.replace("reference", "survival")),
+                top=1.9, width=10.5)
+        if (src / "nolick_basis_agreement.png").exists():
+            s_ = slide()
+            title(s_, "No-detected-lick: do the two bases agree?",
+                  "Same trials, same statistics, two independent feature sets. Disagreement is "
+                  "reported in red rather than resolved by preference.")
+            note(s_, M_NOLICK)
+            big(s_, src / "nolick_basis_agreement.png", top=1.9, width=11.5)
 
     # ---------------- E. cross-session summary ----------------
     divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")

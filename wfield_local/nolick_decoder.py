@@ -114,14 +114,23 @@ def categorize(s, args):
     return codes, cat, blk, rt_s, cue_f
 
 
-def session_features(s, args):
+def session_features(s, args, signal=None, feat_region=None):
     """Feature matrix per category, using the decoder's own window builder.
 
     Every category is windowed CUE-referenced (or pre-cue referenced), never lick-referenced --
     trials without a detected lick have no lick to align to, so a lick-aligned comparison between
     the arms cannot exist. That is a property of the question, not a limitation of the code.
+
+    ``signal``/``feat_region`` inject an already-built (nfeat, T) signal instead of loading
+    ``args.source`` from disk -- the joint-LocaNMF path, exactly as `locanmf_position_decoder`'s
+    own `_trial_features` does it. Everything downstream is then identical by construction, which is
+    the point: the basis is the only thing that differs.
     """
-    sig, feat_reg = _build_signal(s, args.source)
+    if signal is not None:
+        sig = np.asarray(signal)
+        feat_reg = (np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region))
+    else:
+        sig, feat_reg = _build_signal(s, args.source)
     nfeat, T = sig.shape
     codes, cat, blk, rt_s, cue_f = categorize(s, args)
     bins = _bins_for(args)
@@ -202,8 +211,21 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
     return res
 
 
+def _joint_signal(basis, s):
+    """(signal, regions, variance_captured) for one session in a FIXED joint basis.
+
+    A session in the fit keeps its fitted time courses; a new one is PROJECTED onto the same frozen
+    footprints. Never refitted -- a refit over a grown session set is a different reference frame,
+    and post-stroke that would make the comparison meaningless.
+    """
+    if s["label"] in basis.labels:
+        return basis.signal(s["label"]), basis.regions, 1.0
+    sig, diag = basis.project(s, with_diagnostics=True)
+    return sig, basis.regions, float(diag["variance_captured"])
+
+
 def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
-                   n_perm=na.N_PERM, verbose=True):
+                   n_perm=na.N_PERM, verbose=True, basis=None):
     """Pool an animal's curated sessions, then train ONE model and apply it to the other arms.
 
     Pooling before fitting (rather than averaging per-session results) is deliberate: the undetected
@@ -221,19 +243,26 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     engaged trials to define the scaling (not all trials) keeps the transform independent of the
     arm being tested.
     """
-    if source != "roi":
+    if basis is None and source != "roi":
         raise ValueError(
-            f"analyse_animal pools across sessions and needs atlas-anchored features; "
-            f"source={source!r} is session-specific. Use source='roi' (see docstring).")
+            f"analyse_animal pools across sessions and needs a basis that is the SAME on every day; "
+            f"source={source!r} is fitted per session. Use source='roi', or pass a joint basis "
+            f"(joint_locanmf.load) whose footprints are frozen and days projected onto them.")
     dates = set(dates or config.curated_dates())
     labs = [s for s in SESSIONS if s["label"][:4] == animal and s["label"][-4:] in dates]
     args = _args(source=source, align=align, post_s=post_s)
     # per session: the z-scored features of each category, kept beside that session's region labels
     # so the columns can be reconciled afterwards
-    per_sess = []
+    per_sess, var_cap = [], {}
     for s in labs:
         try:
-            F, feat_reg = session_features(s, args)
+            if basis is not None:
+                sig, regs_j, vc = _joint_signal(basis, s)
+                var_cap[s["label"]] = vc
+                F, feat_reg = session_features(s, args, signal=sig, feat_region=regs_j)
+                del sig
+            else:
+                F, feat_reg = session_features(s, args)
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
             continue
@@ -274,8 +303,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         return np.concatenate(acc[k][f]) if acc[k][f] else np.array([])
 
     XE, YE, SE = _cat("engaged", "X"), _cat("engaged", "y").astype(int), _cat("engaged", "sess")
-    res = {"animal": animal, "align": align, "source": source, "n_sessions": len(labs),
+    res = {"animal": animal, "align": align, "n_sessions": len(labs),
+           "source": "joint" if basis is not None else source,
            "n_by_category": {c: int(_cat(c, "y").size) for c in CATEGORIES}}
+    if basis is not None:
+        # a projected day that decodes poorly AND captures little variance is a basis problem, not a
+        # coding one; without this the two are indistinguishable on the figure
+        res["basis_id"] = basis.basis_id
+        res["variance_captured"] = var_cap
     if YE.size < 100:
         res["skipped"] = "too few pooled engaged trials"
         return res
@@ -305,35 +340,64 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     return res
 
 
-def build_reference(animals=None, dates=None, source="roi", out=None, n_perm=na.N_PERM):
-    """The frozen PRE-STROKE reference: both alignments, all animals, written once.
+BASES = ("roi", "joint")
+
+
+def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N_PERM):
+    """The frozen PRE-STROKE reference: both bases, both alignments, all animals, written once.
 
     Both alignments are always computed even if a caller only wants one, because the discriminating
     quantity is the pre-cue/post-cue CONTRAST and a reference containing only half of it would
     invite exactly the comparison it cannot support.
+
+    TWO BASES, for the reason the frozen decoder uses two: a cross-day claim that holds in only one
+    parcellation is a claim about the parcellation. Allen-ROI is atlas-anchored and assumption-light;
+    the joint LocaNMF basis is data-driven, higher-dimensional, and fitted to these animals -- if the
+    pre-cue code survives without a lick in ROI features but not in joint components (or the other
+    way round), that is about the features, and it needs to be visible rather than a coin-flip of
+    which basis someone happened to run. A missing joint basis is REPORTED and skipped, never
+    refitted on the fly: a refit over a grown session set is a different reference frame.
     """
+    from wfield_local import joint_locanmf
+
     animals = config.normalize_animals(animals) or ["PS92", "PS93", "PS94", "PS95"]
     dates = sorted(dates or config.curated_dates())
-    ref = {"kind": "pre-stroke no-detected-lick reference", "dates": dates, "source": source,
+    ref = {"kind": "pre-stroke no-detected-lick reference", "dates": dates, "bases": list(bases),
            "max_rt_s": 2.0, "late_s": LATE_S, "n_perm": n_perm,
            "categories": {"engaged": "first detected lick within max_rt_s",
                           "late": f"first detected lick between max_rt_s and {LATE_S}s",
                           "undetected": f"no detected lick within {LATE_S}s "
                                         "(NOT the same as no attempt -- see ATTEMPT_CONFOUNDED)"},
-           "attempt_confounded": ATTEMPT_CONFOUNDED, "animals": {}}
+           "attempt_confounded": ATTEMPT_CONFOUNDED, "by_basis": {}}
+    for bkey in bases:
+        ref["by_basis"][bkey] = {"animals": {}}
+        for an in animals:
+            basis = None
+            if bkey == "joint":
+                try:
+                    basis = joint_locanmf.load(an)
+                except Exception as ex:                                # noqa: BLE001
+                    print(f"[{an}] no joint basis ({type(ex).__name__}: {str(ex)[:60]}) -- skipped",
+                          flush=True)
+                    continue
+            slot = ref["by_basis"][bkey]["animals"].setdefault(an, {})
+            for al in ("precue", "cue"):
+                print(f"[{bkey} {an} {al}]", flush=True)
+                slot[al] = analyse_animal(an, dates=dates, align=al, n_perm=n_perm, basis=basis)
+            pc, cc = slot["precue"].get("compare"), slot["cue"].get("compare")
+            if pc and cc:
+                slot["interpretation"] = na.interpret(pc, cc)
+            na.summarize({"precue": slot["precue"], "cue": slot["cue"],
+                          "interpretation": slot.get("interpretation", "")})
+    # a single agreed verdict per animal, or an explicit note that the bases disagree -- so nobody
+    # has to reconcile two sections by eye and nobody can quote the convenient one
+    ref["consensus"] = {}
     for an in animals:
-        ref["animals"][an] = {}
-        for al in ("precue", "cue"):
-            print(f"[{an} {al}]", flush=True)
-            r = analyse_animal(an, dates=dates, align=al, source=source, n_perm=n_perm)
-            ref["animals"][an][al] = r
-        pc, cc = (ref["animals"][an]["precue"].get("compare"),
-                  ref["animals"][an]["cue"].get("compare"))
-        if pc and cc:
-            ref["animals"][an]["interpretation"] = na.interpret(pc, cc)
-        na.summarize({"precue": ref["animals"][an]["precue"], "cue": ref["animals"][an]["cue"],
-                      "interpretation": ref["animals"][an].get("interpretation", "")}
-                     if pc and cc else {})
+        got = {b: ref["by_basis"][b]["animals"].get(an, {}).get("interpretation")
+               for b in bases if an in ref["by_basis"].get(b, {}).get("animals", {})}
+        vals = {v for v in got.values() if v}
+        ref["consensus"][an] = (vals.pop() if len(vals) == 1 else
+                                {"DISAGREEMENT": got} if vals else None)
     if out:
         na.write_reference(ref, Path(out))
         print(f"wrote {out}", flush=True)
@@ -344,13 +408,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--dates", default=None, help="comma/range spec; default = curated dates")
-    ap.add_argument("--source", default="roi", choices=("roi",),
-                    help="Allen-ROI only: pooling across sessions needs atlas-anchored features")
+    ap.add_argument("--bases", nargs="+", default=list(BASES), choices=list(BASES),
+                    help="feature bases to run. Both by default: a cross-day claim that holds in "
+                         "only one parcellation is a claim about the parcellation.")
     ap.add_argument("--n-perm", type=int, default=na.N_PERM)
     ap.add_argument("--out", default=None, help="write the frozen reference JSON here")
     a = ap.parse_args()
     dates = config.expand_dates(a.dates, width=4) if a.dates else None
-    build_reference(animals=a.animals, dates=dates, source=a.source, out=a.out, n_perm=a.n_perm)
+    build_reference(animals=a.animals, dates=dates, bases=a.bases, out=a.out, n_perm=a.n_perm)
 
 
 if __name__ == "__main__":

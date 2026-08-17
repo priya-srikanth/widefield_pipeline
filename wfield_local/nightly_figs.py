@@ -282,13 +282,13 @@ def main():
             from wfield_local import nolick_decoder, plot_nolick_reference
             ref_path = Path(out) / "nolick_reference.json"
             ref = nolick_decoder.build_reference(dates=from_list, out=ref_path)
-            plot_nolick_reference.figure(ref, out, source=ref.get("source", "locanmf"))
+            plot_nolick_reference.figures(ref, out)
             frozen = Path(out) / "nolick_reference_prestroke.json"
             if not frozen.exists():
                 frozen.write_text(ref_path.read_text())
                 log(f"froze the PRE-STROKE no-lick reference -> {frozen.name}")
-            for an, r in ref["animals"].items():
-                log(f"  no-lick {an}: {r.get('interpretation', 'n/a')}")
+            for an, v in (ref.get("consensus") or {}).items():
+                log(f"  no-lick {an}: {v if isinstance(v, str) else 'BASES DISAGREE -- see deck section D2'}")
         except Exception as ex:
             log(f"  !! no-lick reference: {type(ex).__name__} {str(ex)[:80]}")
 

@@ -60,6 +60,46 @@ def _bars(ax, animal_res, title):
     ax.set_ylabel("balanced accuracy (macro-recall)")
 
 
+def figures(ref, out):
+    """One pair of figures per BASIS, plus the agreement panel.
+
+    The reference is computed in two independent bases on purpose, so the figures must not quietly
+    show one of them: a reader who sees a single panel cannot tell whether the result is about the
+    cortex or about the parcellation.
+    """
+    paths = []
+    for bkey, block in ref.get("by_basis", {}).items():
+        if block.get("animals"):
+            paths += figure({"animals": block["animals"]}, out, source=bkey)
+    paths += [figure_agreement(ref, out)]
+    return [p for p in paths if p is not None]
+
+
+def figure_agreement(ref, out):
+    """Do the two bases reach the same verdict per animal? Rendered as text, because the honest
+    answer is a sentence and a bar chart of agreement would be theatre."""
+    cons = ref.get("consensus") or {}
+    if not cons:
+        return None
+    animals = sorted(cons)
+    fig, ax = plt.subplots(figsize=(11.5, 0.9 + 0.85 * len(animals)))
+    ax.axis("off")
+    ax.set_title("Two-basis agreement — Allen-ROI vs joint-LocaNMF", fontsize=11, loc="left")
+    for i, an in enumerate(animals):
+        v = cons[an]
+        agree = isinstance(v, str)
+        txt = v if agree else ("bases DISAGREE: " + "; ".join(
+            f"{k}={str(x)[:60]}" for k, x in (v or {}).get("DISAGREEMENT", {}).items())
+            if isinstance(v, dict) else "not computed")
+        ax.text(0.01, 1 - (i + 0.6) / (len(animals) + 0.5), f"{an}   {txt}",
+                transform=ax.transAxes, fontsize=8.5, va="center",
+                color=("black" if agree else "firebrick"), wrap=True)
+    fig.tight_layout()
+    p = Path(out) / "nolick_basis_agreement.png"
+    fig.savefig(p, dpi=150); plt.close(fig)
+    return p
+
+
 def figure(ref, out, source="locanmf"):
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     animals = sorted(ref["animals"])
@@ -102,7 +142,10 @@ def main():
     ap.add_argument("--output", required=True)
     a = ap.parse_args()
     ref = json.loads(Path(a.reference).read_text())
-    figure(ref, a.output, source=ref.get("source", "locanmf"))
+    if "by_basis" in ref:
+        figures(ref, a.output)
+    else:                                   # older single-basis reference
+        figure(ref, a.output, source=ref.get("source", "locanmf"))
 
 
 if __name__ == "__main__":
