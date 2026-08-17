@@ -481,6 +481,30 @@ def reinterpret(ref):
                for v in got.values() if v}
         ref["consensus"][an] = (got[list(got)[0]] if len(cls) == 1 else
                                 {"DISAGREEMENT": got} if cls else None)
+
+    # THE THRESHOLD-FREE SUMMARY, and the one to quote. A per-animal verdict is a binary label on a
+    # continuous ratio, so an animal near the cut flips basis to basis and the consensus reports
+    # "DISAGREEMENT" for what is really 1.4x versus 1.6x. Counting how many animal x basis
+    # comparisons put pre-cue survival ABOVE post-cue asks the underlying question directly and
+    # depends on no threshold at all -- so a reader can see whether a split verdict means the bases
+    # contradict each other or merely straddle a line someone drew.
+    ratios, above = {}, 0
+    for bkey, blk in ref.get("by_basis", {}).items():
+        for an, slot in blk.get("animals", {}).items():
+            p = ((slot.get("precue") or {}).get("compare") or {}).get("survival_ratio")
+            c = ((slot.get("cue") or {}).get("compare") or {}).get("survival_ratio")
+            if p is None or c is None or not (np.isfinite(p) and np.isfinite(c)):
+                continue
+            ratios[f"{an}/{bkey}"] = round(float(p / c), 2) if c else None
+            above += int(p > c)
+    ref["direction_consistency"] = {
+        "n_comparisons": len(ratios), "n_precue_above_postcue": above,
+        "dissociation_ratio": ratios,
+        "statement": (f"pre-cue survival exceeds post-cue in {above}/{len(ratios)} animal x basis "
+                      f"comparisons" + (f"; ratios {min(ratios.values()):.1f}-{max(ratios.values()):.1f}x"
+                                        if ratios else "")),
+        "note": "threshold-free. Per-animal verdicts binarize this and can split at the margin.",
+    }
     return ref
 
 
