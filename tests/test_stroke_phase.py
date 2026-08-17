@@ -87,7 +87,7 @@ def test_stroke_date_accepts_both_date_spellings(monkeypatch):
 def test_the_real_cohort_state_2026_08_17():
     """PS92/PS93 8/17 is EXCLUDED (lesion 8/16 gave no deficit, redone after that session);
     PS94/PS95 8/17 is POST. Pinned because a two-state model would force them into a pool."""
-    assert config.stroke_cutoff() == "0814"
+    assert config.stroke_cutoff() == "0816", "stroke_date is the LESION date, not the last session"
     for a in ("PS92", "PS93"):
         assert config.session_phase(a, "0817") == "excluded"
     for a in ("PS94", "PS95"):
@@ -111,6 +111,12 @@ def test_phase_labels_resolves_per_animal_not_per_date():
 
 
 def test_pre_stroke_pool_is_unchanged_by_the_lesion_metadata():
-    """The reference must be built from exactly the 11 curated pre-stroke dates."""
+    """The reference must be built from exactly the 11 curated pre-stroke dates.
+
+    The last of them is 8/14 while the lesion is 8/16: no sessions fell in between, so the pool is
+    the same whichever date is stored. That coincidence is WHY the distinction needs a test -- it
+    would hide a wrong stroke_date here and only surface if a same-day session were ever recorded.
+    """
     pre = config.curated_dates()
     assert pre[-1] == "0814" and len(pre) == 11
+    assert config.stroke_cutoff() == "0816"

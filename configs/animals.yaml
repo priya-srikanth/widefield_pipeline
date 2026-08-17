@@ -1,12 +1,16 @@
 # Per-animal metadata — single source of truth. No module or notebook may redefine these.
 # (Mirrors stroke_orofacial_pipeline/configs/animals.yaml conventions.)
 #
-# stroke_date convention: the date of the LAST PRE-STROKE session. The VLS
-# (ventrolateral-striatal) stroke is induced after that day's session; sessions on
-# stroke_date are baseline, only sessions AFTER are post-stroke.
+# stroke_date convention: the date the VLS (ventrolateral-striatal) lesion was INDUCED.
+# Sessions on or before it are baseline; only sessions AFTER it are post-stroke. (The
+# lesion follows that day's session, so a same-day recording is still pre-stroke.)
+# Corrected 2026-08-17: this previously read "the date of the LAST PRE-STROKE session",
+# which conflates the lesion with the recording schedule -- they differ here (last session
+# 8/14, lesion 8/16) and only the lesion date is a fact about the experiment.
 #
-# COHORT LESIONED 2026-08-16 PM. Last pre-stroke session 8/14 (no recordings 8/15-8/16), so
-# stroke_date = 20260814 for all four. PS94 and PS95 took at 3 mW and show overt deficits ->
+# COHORT LESIONED 2026-08-16 PM -> stroke_date = 20260816 for all four. Last pre-stroke
+# session was 8/14 (no recordings 8/15-8/16), so the phase split is the same either way
+# here -- but the lesion date is the one that stays true if a same-day session is ever run. PS94 and PS95 took at 3 mW and show overt deficits ->
 # 8/17 onward is post-stroke for them. PS92 and PS93 showed NO overt deficit and are being
 # re-lesioned after the 8/17 session, so their 8/17 is neither baseline nor post-stroke and is
 # listed in `exclude` (config.session_phase -> "excluded"). Per-session figures still show it;
@@ -27,7 +31,7 @@ animals:
     date_of_birth: 2026-01-14
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
+    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
                              #   is not recorded here because I was not told it -- do not
@@ -48,7 +52,7 @@ animals:
     characteristics:
       orofacial_deficit: right   # tongue deviates right, minimal right whisking
       cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
-    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
+    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
                              #   is not recorded here because I was not told it -- do not
@@ -67,7 +71,7 @@ animals:
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
+    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
                              #   from 8/17 (Priya, 2026-08-17)
@@ -80,7 +84,7 @@ animals:
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
+    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
                              #   from 8/17 (Priya, 2026-08-17)
