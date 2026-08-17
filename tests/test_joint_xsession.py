@@ -291,3 +291,32 @@ def test_decode_bins_config_is_per_alignment_and_matches_the_adopted_decision():
     assert _bins_for(SimpleNamespace(align="lick")) == 8
     assert _bins_for(SimpleNamespace(align="precue")) == 4
     assert _bins_for(SimpleNamespace(align="cue", bins=1)) == 1, "explicit args must win"
+
+
+def test_events_outside_imaging_coverage_are_excluded_not_clipped():
+    """`_nearest_corrected_frame` CLIPS, so an event before the first frame becomes frame 0.
+
+    Harmless when imaging spans the whole session. Severe when it does not: PS95 2026-08-13 was
+    recorded single-channel for 32 min, the repair correctly dropped those frames, and 197 of its 871
+    cues (23%) then decoded from frame ~0 as if they were real trials -- taking that session to 0.61
+    cue-aligned against ~0.90 for the animal. Coverage has to be checked, not assumed.
+    """
+    import numpy as np
+
+    from wfield_local.locanmf_lick_aligned import coverage_mask
+
+    csample = np.arange(1000, 2000, 10)          # imaging covers samples 1000-1990 only
+    events = np.array([50, 500, 999, 1005, 1500, 1985, 2500, 9000])
+    m = coverage_mask(events, csample)
+    assert list(m) == [False, False, True, True, True, True, False, False], list(m)
+    # one inter-frame interval of slack, so an event between two real frames still counts
+    assert coverage_mask(np.array([1004]), csample)[0]
+    assert not coverage_mask(np.array([5000]), csample)[0]
+
+
+def test_coverage_mask_handles_a_degenerate_frame_list():
+    import numpy as np
+
+    from wfield_local.locanmf_lick_aligned import coverage_mask
+
+    assert not coverage_mask(np.array([1, 2]), np.array([5]))[0]

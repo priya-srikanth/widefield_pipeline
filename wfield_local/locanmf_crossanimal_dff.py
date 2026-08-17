@@ -32,7 +32,8 @@ from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, _event_frame_indices_from_pco
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
-from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest_corrected_frame
+from wfield_local.locanmf_lick_aligned import (_corrected_frame_samples, _nearest_corrected_frame,
+                                              coverage_mask)
 
 AREAS = {3: "MOp", 4: "MOs", 5: "SSp-n", 6: "SSp-m"}
 ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green"}
@@ -54,7 +55,19 @@ def _frames(s, cue, lk):
         fm = glob.glob(f"{fmdir}/*cleanpairs_frame_map.npz")[0]
         off = json.loads(Path(glob.glob(f"{fmdir}/*cleanpairs_summary.json")[0]).read_text())["chosen_exposure_offset"]
         csmp = _corrected_frame_samples(fm, cue["pco_samples"], int(off))
-        return _nearest_corrected_frame(cue["cue_samples"], csmp), _nearest_corrected_frame(lk["lick_samples"], csmp), csmp
+        cf = _nearest_corrected_frame(cue["cue_samples"], csmp)
+        lf = _nearest_corrected_frame(lk["lick_samples"], csmp)
+        # Mark events OUTSIDE the imaging coverage as -1 rather than letting the clip put them on
+        # frame 0. Callers already skip negative frames; a silently clipped trial is decoded from an
+        # arbitrary frame (see coverage_mask -- PS95 8/13 lost 23% of its trials to this).
+        cf = np.where(coverage_mask(cue["cue_samples"], csmp), cf, -1)
+        lf = np.where(coverage_mask(lk["lick_samples"], csmp), lf, -1)
+        n_drop = int((cf < 0).sum())
+        if n_drop:
+            print(f"  [coverage] {s['label']}: {n_drop}/{cf.size} cues fall outside the imaging "
+                  f"coverage and are EXCLUDED (session has a gap; e.g. a repaired single-channel "
+                  f"prefix)", flush=True)
+        return cf, lf, csmp
     return (_event_frame_indices_from_pco(cue["cue_samples"], cue["pco_samples"]) // 2,
             _event_frame_indices_from_pco(lk["lick_samples"], lk["pco_samples"]) // 2, None)
 

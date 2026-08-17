@@ -266,32 +266,35 @@ to standby, not disappearing — but it can no longer happen silently.
 
 ---
 
-## 2026-08-12 — PS95: disengagement session (low decode is BEHAVIOUR, not a data fault)
+## 2026-08-13 — PS95 repaired session: 23% of trials had NO imaging and were decoded anyway
 
-**What happened.** PS95 8/12 decodes far below its neighbours — post-cue 0.61 and post-lick 0.65
-against ~0.90 on that animal's other ten sessions, pre-cue 0.29 against ~0.37. Investigated 2026-08-16
-after Priya spotted the outlier.
+**Found 2026-08-16** after Priya asked why one PS95 session decoded poorly. **This entry replaces an
+earlier one that blamed PS95 8/12: that was my misreading — 8/12 decodes normally (0.88 cue, 510
+engaged trials). The outlier is 8/13 (0.61 cue) — the REPAIRED single-channel session — and it has the
+HIGHEST engaged count of the eleven (786), so it was never a trial-count effect.**
 
-**It is not labeling, and not imaging.** 720 cues / 720 strobes, `daq_trials.quality` OK, six
-positions, zero unlabelled, block structure normal (mean 6.1 trials, variable lengths). Clean pairs
-221,376; photobleach drift −15.8% / −6.9%, in line with 8/11's −14.6% / −7.3%.
+**What happened.** PS95 8/13 was recorded single-channel for its first 32 min; the repair correctly
+dropped those 119,104 exposures and kept 206,391 pairs from the alternating remainder. But the DAQ
+covers the whole 142 min, so **197 of 871 cues (23%) occur before any surviving imaging frame**.
+`_nearest_corrected_frame` CLIPS rather than rejecting, so every one of those trials was assigned
+frame ~0 and decoded as if it were real.
 
-**It is engagement.** Only **515 of 720 trials engaged (72%)**, against 610/670 (91%) on 8/11. Raw hit
-rate 71.4% vs 90.3%. But the ENGAGED hit rate is normal (0.90–1.00 per position, vs 0.95–1.00 on
-8/11), and first-lick latencies are unchanged (0.128–0.169 s vs 0.129–0.156 s). The animal performed
-normally when it participated; it simply participated less, and the loss fell hardest on the FAR
-positions (raw 0.63–0.67 vs 0.73–0.79 close) — a sated animal abandoning the harder reaches.
+**What it cost.** Cue-aligned 0.61 vs ~0.90 for that animal; pre-cue 0.29 vs ~0.37. Roughly a quarter
+of the session's trials were noise labelled with real positions.
 
-**The maps agree.** Structurally correct (pre/post correlation −0.104, inside the normal
-post-correction range, so no filter-shadow signature), but ~21% weaker: mean |Δ| p99 0.0210 vs
-0.0265–0.0289 on neighbouring days, and far_center is 0.010 against 0.018–0.025 — the same position
-with the worst engagement.
+**Why it was invisible.** For every normal session imaging spans the whole recording, so the clip never
+bites and the code had been correct for 60 sessions. Only a session with a HOLE exposes it — and the
+repair, which is what creates the hole, was written two days earlier. Its docstring warned that
+"downstream frame-mapping must be told about the offset"; the frame MAP was fixed, the coverage check
+was not.
 
-**What we do: KEEP IT, and do not read its low decode as a coding change.** Excluding sessions for
-poor performance would bias the pre-stroke baseline toward good days, which is precisely the reference
-the post-stroke comparison must not be flattered against. The engagement gate already reports
-per-position accuracy on engaged trials, so the behaviour figures are unaffected; it is the decode
-that is trained on fewer trials.
+**Fix.** `coverage_mask` marks events outside the imaging span, and `_frames` now returns -1 for them,
+which every caller already skips. The exclusion PRINTS the count, so a session losing trials this way
+announces itself. Tested with an explicit gap.
+
+**Still open:** the maps path (`framemap_event_maps`) uses the same clipping helper directly. Its
+figures are trial AVERAGES, so 23% of trials landing on frame 0 dilutes rather than corrupts — but it
+should get the same guard.
 
 ---
 
