@@ -486,12 +486,38 @@ pools each animal's curated sessions in Allen-ROI space (z-scored per session, g
 held-out fold is an entire unseen day) and compares against the honest same-day ceiling (per-session
 block CV):
 
+**NUMBERS REPLACED 2026-08-17 (bug 17).** The 8/11 table below the line is superseded: from
+2026-08-14 to 2026-08-17 `_align_many` resolved tiled sub-bin labels with `list.index()`, so every
+ROI frozen number ran on four copies of bin 0. The CONCLUSION survives intact -- transfer cost is
+positive for every animal in both alignments -- but the magnitudes were wrong. Recomputed on all 11
+curated sessions per animal:
+
+| animal | align | LOSO (unseen day) | within-session | transfer cost |
+|---|---|---|---|---|
+| PS92 | post-cue | 0.890 | 0.750 | **+0.140** |
+| PS93 | post-cue | 0.803 | 0.734 | **+0.068** |
+| PS94 | post-cue | 0.935 | 0.864 | **+0.071** |
+| PS95 | post-cue | 0.922 | 0.850 | **+0.072** |
+| PS92 | PRE-cue | 0.471 | 0.312 | **+0.159** |
+| PS93 | PRE-cue | 0.464 | 0.386 | **+0.078** |
+| PS94 | PRE-cue | 0.658 | 0.540 | **+0.117** |
+| PS95 | PRE-cue | 0.448 | 0.324 | **+0.124** |
+
+Post-cue moved by +0.23 to +0.41 and pre-cue barely moved, which is the mechanism confirming itself:
+collapsing to bin 0 destroys a window with real temporal structure and costs almost nothing on a
+near-stationary one. Corrected ROI post-cue now agrees with the joint-LocaNMF basis (0.80-0.94 vs
+0.935), as two bases should.
+
+<details><summary>superseded 8/11 numbers (single-mean features, pre-sub-binning)</summary>
+
 | animal | pooled trials | LOSO (unseen day) | within-session | transfer cost |
 |---|---|---|---|---|
 | PS92 | 2593 | 0.701 | 0.600 | **+0.102** |
 | PS93 | — | 0.597 | 0.585 | **+0.012** |
 | PS94 | 3535 | 0.753 | 0.709 | **+0.044** |
 | PS95 | 3660 | 0.863 | 0.816 | **+0.047** |
+
+</details>
 
 **Every animal is POSITIVE** — the frozen model *beats* the same-day model, and only 1 of 28 sessions
 showed any drop. LOSO trains on ~3000 trials vs ~500 within-session, and ROI features are stable enough

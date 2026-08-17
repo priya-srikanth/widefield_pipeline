@@ -80,7 +80,7 @@ M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --los
             "the result; CV groups are SESSIONS, so each held-out fold is an entire unseen day. The "
             "same-day ceiling quoted on each panel is that session's own within-day block-CV accuracy, so "
             "held-out-day minus ceiling is the true cost of freezing. Measured 2026-08-11: the cost is "
-            "POSITIVE for every animal (PS92 +0.102, PS93 +0.012, PS94 +0.044, PS95 +0.047) - the frozen "
+            "POSITIVE for every animal and BOTH alignments -- post-cue PS92 +0.140, PS93 +0.068, PS94 +0.071, PS95 +0.072; pre-cue +0.159, +0.078, +0.117, +0.124 (recomputed 2026-08-17 after bug 17, which had every ROI frozen number running on four copies of bin 0 since 8/14; the conclusion held, the magnitudes did not) - the frozen "
             "model beats the same-day model, because it trains on ~3000 trials instead of ~500 and ROI "
             "features are stable across days. Caveat for interpretation: a softmax decoder never abstains, "
             "so confidence alone is NOT evidence of preserved coding - see the OOD control (shuffled-label "
