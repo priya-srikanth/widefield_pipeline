@@ -84,7 +84,13 @@ M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --los
             "model beats the same-day model, because it trains on ~3000 trials instead of ~500 and ROI "
             "features are stable across days. Caveat for interpretation: a softmax decoder never abstains, "
             "so confidence alone is NOT evidence of preserved coding - see the OOD control (shuffled-label "
-            "entropy floor + no-lick trials, which decode at chance yet stay confident). " + M_COMMON)
+            "entropy floor + trials with no detected lick, which stay confident regardless). "
+            "CORRECTED 2026-08-17: this note previously said those trials 'decode at chance'. They do not, "
+            "and the flag that said they were ABOVE chance was equally wrong -- both compared against a "
+            "uniform 1/6, which is not this arm's null, because the trials are skewed across positions "
+            "(PS93: 49% far_center) and the decoder's predictions on them are skewed too. Against a "
+            "permutation null computed on these trials the PRE-cue code does survive while the POST-cue "
+            "code collapses, which is the intended readout, not a defect. See section D2. " + M_COMMON)
 M_FROZEN_ENC = ("FROZEN cross-day ENCODER (wfield_local.locanmf_frozen_decoder --loso). Ridge (alpha=1) "
                 "from a one-hot position design to Allen-ROI activity, fit on that animal's OTHER curated "
                 "days and evaluated on the held-out day (leave-one-SESSION-out) -- the forward-model half "
@@ -550,7 +556,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # The pre-stroke reference for reading POST-stroke failed trials. Placed immediately after the
     # frozen decoder because it uses the same frozen model and answers the question that motivates
     # freezing one at all.
-    if (src / "nolick_reference_locanmf.png").exists():
+    # the reference is built in whichever basis can be POOLED across sessions (ROI today); look
+    # for the figure by basis rather than pinning a name that a basis change would silently break
+    _nolick_fig = next((src / f"nolick_reference_{b}.png" for b in ("roi", "locanmf")
+                        if (src / f"nolick_reference_{b}.png").exists()), None)
+    if _nolick_fig is not None:
         divider("D2 — Trials with NO DETECTED LICK",
                 "The pre-stroke reference for post-stroke failures. A failed trial can mean the plan "
                 "was never formed or that it was formed and the movement failed; those are different "
@@ -561,14 +571,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "each bar is that arm's OWN permutation null, not a shared 1/6 — the nulls differ per "
               "arm and a single chance line would misrepresent every bar but the engaged one.")
         note(s, M_NOLICK)
-        big(s, src / "nolick_reference_locanmf.png", top=1.9, width=12.7)
+        big(s, _nolick_fig, top=1.9, width=12.7)
         s = slide()
         title(s, "No-detected-lick: PRE-cue surviving while POST-cue collapses = plan formed, "
                  "movement failed",
               "The discriminating quantity. Post-cue decoding is largely driven by the lick itself, "
               "so it should collapse without one; pre-cue reflects a maintained code that need not.")
         note(s, M_NOLICK)
-        big(s, src / "nolick_survival_locanmf.png", top=1.9, width=10.5)
+        big(s, _nolick_fig.with_name(_nolick_fig.name.replace("reference", "survival")),
+            top=1.9, width=10.5)
 
     # ---------------- E. cross-session summary ----------------
     divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")
