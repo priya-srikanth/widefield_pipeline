@@ -184,6 +184,56 @@ def stroke_cutoff() -> str | None:
     return min(ds) if ds else None
 
 
+def animal_excluded_dates(animal: str) -> set[str]:
+    """Dates dropped for this animal entirely — neither pre-stroke nor post-stroke.
+
+    animals.yaml has carried an `exclude` list since the config was written and nothing read it.
+    It earns its keep on 2026-08-17: PS92 and PS93 were lesioned on 8/16 PM but showed no overt
+    deficit, so their stroke is being REDONE after the 8/17 session. That session is therefore
+    neither baseline (a lesion was attempted) nor post-stroke (it did not take), and Priya's
+    instruction is to exclude it from both while still showing the individual session data.
+
+    A date here is invisible to every POOLED phase set. Per-session figures are built from the
+    session registry, not from these lists, so they are unaffected — which is the intent.
+    """
+    v = (animals().get(animal) or {}).get("exclude") or []
+    return {str(d)[4:] if len(str(d)) == 8 else str(d) for d in v}
+
+
+def session_phase(animal: str, date: str) -> str:
+    """'pre' | 'post' | 'excluded' for one animal on one date (MMDD).
+
+    Three states, not two, because a lesion that did not take leaves sessions that belong to
+    neither. Collapsing that into a binary would force such a session into a pool where it is
+    misleading in one direction or the other.
+    """
+    date = str(date)[4:] if len(str(date)) == 8 else str(date)
+    if date in animal_excluded_dates(animal):
+        return "excluded"
+    sd = stroke_date(animal)
+    if sd is None:
+        return "pre"
+    return "pre" if date <= sd else "post"
+
+
+def phase_labels(phase: str = "pre", machine: str | None = None) -> list[str]:
+    """``animal_MMDD`` labels for one phase, resolved PER ANIMAL.
+
+    Use this, not ``curated_dates()``, to build a pooled label list once any animal is lesioned.
+    `curated_dates()` is a cohort-wide date list and cannot express "8/17 is post-stroke for PS94
+    and PS95 but excluded for PS92 and PS93" — which is the actual state of this cohort.
+    """
+    exclude = set(date_policy().get("cross_session_exclude", []))
+    out = []
+    for s in load_sessions(machine):
+        an, d = s["label"].split("_")[0], s["label"].split("_")[1]
+        if d in exclude:
+            continue
+        if session_phase(an, d) == phase:
+            out.append(s["label"])
+    return sorted(out)
+
+
 def animal_color() -> dict:
     """Per-animal matplotlib color (single source of truth for figure coloring)."""
     return {a: v.get("color", "k") for a, v in animals().items()}

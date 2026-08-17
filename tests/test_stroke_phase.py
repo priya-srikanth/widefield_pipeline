@@ -79,3 +79,38 @@ def test_stroke_date_accepts_both_date_spellings(monkeypatch):
     assert config.stroke_date(first) == "0814"
     base[first]["stroke_date"] = None
     assert config.stroke_date(first) is None
+
+
+# ---------------------------------------------------------------------------------------------
+# THREE states, not two: a lesion that did not take leaves sessions belonging to neither phase
+# ---------------------------------------------------------------------------------------------
+def test_the_real_cohort_state_2026_08_17():
+    """PS92/PS93 8/17 is EXCLUDED (lesion 8/16 gave no deficit, redone after that session);
+    PS94/PS95 8/17 is POST. Pinned because a two-state model would force them into a pool."""
+    assert config.stroke_cutoff() == "0814"
+    for a in ("PS92", "PS93"):
+        assert config.session_phase(a, "0817") == "excluded"
+    for a in ("PS94", "PS95"):
+        assert config.session_phase(a, "0817") == "post"
+    for a in ("PS92", "PS93", "PS94", "PS95"):
+        assert config.session_phase(a, "0814") == "pre", "the stroke_date session is BASELINE"
+
+
+def test_excluded_sessions_are_in_no_pooled_phase():
+    """The property that matters: excluded means absent from BOTH pools, not silently pre."""
+    pre, post = config.phase_labels("pre"), config.phase_labels("post")
+    for lab in ("PS92_0817", "PS93_0817"):
+        assert lab not in pre and lab not in post, f"{lab} leaked into a pooled phase"
+
+
+def test_phase_labels_resolves_per_animal_not_per_date():
+    """8/17 is post for two animals and excluded for two -- a cohort date list cannot say that."""
+    post = config.phase_labels("post")
+    if post:                                    # once 8/17 is registered
+        assert all(l.startswith(("PS94", "PS95")) for l in post if l.endswith("0817"))
+
+
+def test_pre_stroke_pool_is_unchanged_by_the_lesion_metadata():
+    """The reference must be built from exactly the 11 curated pre-stroke dates."""
+    pre = config.curated_dates()
+    assert pre[-1] == "0814" and len(pre) == 11

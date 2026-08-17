@@ -16,11 +16,14 @@ animals:
     date_of_birth: 2026-01-14
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: null
+    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
     reference_landmarks: v2         # dorsal_cortex_landmarks_<v> version for the 6/6 cross-reg reference
-    exclude: []
+    exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
+                             #   REDONE after the 8/17 session, so 8/17 is
+                             #   neither baseline nor post-stroke (Priya,
+                             #   2026-08-17). Per-session figures still show it.
 
   PS93:
     color: "tab:red"
@@ -30,11 +33,14 @@ animals:
     characteristics:
       orofacial_deficit: right   # tongue deviates right, minimal right whisking
       cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
-    stroke_date: null
+    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
     reference_landmarks: v2
-    exclude: []
+    exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
+                             #   REDONE after the 8/17 session, so 8/17 is
+                             #   neither baseline nor post-stroke (Priya,
+                             #   2026-08-17). Per-session figures still show it.
 
   PS94:
     color: "tab:orange"
@@ -42,7 +48,7 @@ animals:
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: null
+    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
     reference_landmarks: v1
@@ -54,7 +60,7 @@ animals:
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: null
+    stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
     stroke_laser_power_mW: null     # fill at lesion time
     reference_landmarks: v1
