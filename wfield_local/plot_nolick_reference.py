@@ -71,8 +71,54 @@ def figures(ref, out):
     for bkey, block in ref.get("by_basis", {}).items():
         if block.get("animals"):
             paths += figure({"animals": block["animals"]}, out, source=bkey)
+            paths += [figure_per_session({"animals": block["animals"]}, out, source=bkey)]
     paths += [figure_agreement(ref, out)]
     return [p for p in paths if p is not None]
+
+
+def figure_per_session(ref, out, source="roi"):
+    """Survival ratio per SESSION, pre-cue vs post-cue, one row per animal.
+
+    The pooled number can only say what an animal does on average, and the post-stroke comparison is
+    made one session at a time. This is the same quantity resolved to the unit it will be used at.
+    Sessions whose undetected arm is tiny are drawn faint, because a survival ratio computed on nine
+    trials should not look as solid as one computed on ninety.
+    """
+    animals = sorted(ref["animals"])
+    rows = [(an, sorted((ref["animals"][an].get("cue") or {}).get("per_session", {})))
+            for an in animals]
+    rows = [(an, labs) for an, labs in rows if labs]
+    if not rows:
+        return None
+    fig, axes = plt.subplots(len(rows), 1, figsize=(11.0, 2.5 * len(rows)), squeeze=False)
+    for ax, (an, labs) in zip(axes[:, 0], rows):
+        x = np.arange(len(labs)); w = 0.38
+        for k, al in enumerate(("precue", "cue")):
+            ps = (ref["animals"][an].get(al) or {}).get("per_session", {})
+            v, ns = [], []
+            for lab in labs:
+                d = ps.get(lab, {})
+                v.append((d.get("compare") or {}).get("survival_ratio", np.nan))
+                ns.append((d.get("nolick_pooled") or {}).get("n", 0))
+            alphas = [min(1.0, 0.25 + n / 40.0) for n in ns]
+            for xi, vi, a in zip(x + (k - 0.5) * w, v, alphas):
+                ax.bar(xi, vi, w, color="tab:green" if al == "precue" else "tab:purple",
+                       alpha=a, edgecolor="k", linewidth=0.4)
+            if al == "cue":
+                for xi, n in zip(x + (k - 0.5) * w, ns):
+                    ax.text(xi, 0.02, str(n), ha="center", va="bottom", fontsize=6, rotation=90)
+        ax.axhline(0.5, color="k", ls="--", lw=0.8)
+        ax.set_xticks(x); ax.set_xticklabels([l[-4:] for l in labs], fontsize=7)
+        ax.set_ylabel("survival ratio"); ax.set_title(an, fontsize=9, loc="left")
+    axes[0, 0].set_title(f"{rows[0][0]}   (green = pre-cue, purple = post-cue; opacity ~ n of the "
+                         f"no-detected-lick arm, printed at the base)", fontsize=8, loc="left")
+    fig.suptitle(f"Per-session survival of the position code without a detected lick "
+                 f"[{source} basis]", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    p = Path(out) / f"nolick_per_session_{source}.png"
+    fig.savefig(p, dpi=150); plt.close(fig)
+    print(f"wrote {p.name}", flush=True)
+    return p
 
 
 def figure_agreement(ref, out):

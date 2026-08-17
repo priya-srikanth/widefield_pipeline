@@ -335,6 +335,47 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
                                                n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
+
+    # PER SESSION, from the SAME frozen model rather than 61 separate refits. Two reasons, and the
+    # cost saving is the lesser one: a per-session refit answers "could a model fitted here decode
+    # here", while a post-stroke session will be scored by a model it had no part in fitting, so
+    # this is the quantity that will actually be compared. The engaged arm uses the leave-one-
+    # SESSION-out predictions, so it stays out-of-sample too.
+    #
+    # A session's undetected arm is often a dozen trials, which is not a measurement. Each one
+    # therefore carries its own permutation null and n; anything read off a single session should be
+    # read against those, not against the pooled number.
+    sess_labels = sorted(set(SE.tolist()))
+    per = {}
+    idx_e = {lab: np.flatnonzero(SE == lab) for lab in sess_labels}
+    cat_sess = {c: _cat(c, "sess") for c in CATEGORIES}
+    cat_y = {c: _cat(c, "y") for c in CATEGORIES}
+    cat_X = {c: _cat(c, "X") for c in CATEGORIES}
+    for lab in sess_labels:
+        d = {}
+        ie = idx_e[lab]
+        if ie.size >= 20:
+            d["engaged"] = na.evaluate_arm(YE[ie], pred_e[ie], n_perm=max(200, n_perm // 4))
+        for c in ("late", "undetected"):
+            if not cat_y[c].size:
+                continue
+            m = np.flatnonzero(cat_sess[c] == lab)
+            if m.size == 0:
+                d[c] = {"n": 0}
+                continue
+            d[c] = na.evaluate_arm(cat_y[c][m].astype(int), clf.predict(cat_X[c][m]),
+                                   n_perm=max(200, n_perm // 4))
+        nl = [c for c in ("late", "undetected") if isinstance(d.get(c), dict) and d[c].get("n")]
+        if nl and "engaged" in d:
+            ym = np.concatenate([cat_y[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl]).astype(int)
+            xm = np.concatenate([cat_X[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl])
+            d["nolick_pooled"] = na.evaluate_arm(ym, clf.predict(xm),
+                                                 n_perm=max(200, n_perm // 4))
+            d["compare"] = na.compare_arms(d["engaged"], d["nolick_pooled"])
+        if basis is not None and lab in var_cap:
+            d["variance_captured"] = var_cap[lab]
+        per[lab] = d
+    res["per_session"] = per
     if animal in ATTEMPT_CONFOUNDED:
         res["attempt_confounded"] = ATTEMPT_CONFOUNDED[animal]
     return res
