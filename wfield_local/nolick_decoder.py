@@ -611,6 +611,18 @@ def reinterpret(ref):
     """
     for _bkey, block in ref.get("by_basis", {}).items():
         for _an, slot in block.get("animals", {}).items():
+            # normalise an older CI block to the current schema. dissociation_ci itself cannot be
+            # recomputed here (it needs the per-trial arrays, which are deliberately not stored), but
+            # the VERDICT field can be derived from the stored one-sided p -- so a reference written
+            # before the convention was pinned does not sit next to a newer one with a different key
+            # and no way to tell which was the test.
+            ci = slot.get("dissociation_ci")
+            if isinstance(ci, dict) and ci.get("n_boot") and "significant" not in ci:
+                ci["significant"] = bool(ci.get("p_one_sided", 1.0) < na.ALPHA)
+                ci["test"] = "one-sided (directional); derived on re-read from the stored p"
+                ci["difference_ci_is"] = "two-sided 95%, DESCRIPTIVE -- not the test"
+                if "excludes_zero" in ci:
+                    ci["ci95_two_sided_excludes_zero"] = ci.pop("excludes_zero")
             pc = (slot.get("precue") or {}).get("compare")
             cc = (slot.get("cue") or {}).get("compare")
             if pc and cc:

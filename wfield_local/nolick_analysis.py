@@ -313,16 +313,25 @@ def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0,
                 "note": "too many bootstrap replicates were undefined to report an interval"}
     d = np.asarray(diffs)
     lo, hi = np.percentile(d, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    p_one = float((np.sum(d <= 0) + 1) / (len(d) + 1))
+    lb_one = float(np.percentile(d, 100 * alpha))       # one-sided lower bound, matches p_one
+    # ONE CONVENTION, STATED. The hypothesis is directional -- pre-cue OUTLIVES post-cue -- so the
+    # test is one-sided and `significant` keys off it. The two-sided interval is kept because it is
+    # what a reader expects to see, but it is DESCRIPTIVE: at the margin the two disagree (joint PS94
+    # measured p=0.037 with a 95% two-sided CI containing zero), and reporting both without saying
+    # which is the test is an invitation to quote whichever looks better.
     return {"n_boot": int(len(d)), "n_sessions": len(sess), "resampling_unit": by,
             "precue_survival_mean": float(np.mean(pres)),
             "cue_survival_mean": float(np.mean(cues)),
             "difference_mean": float(d.mean()),
             "difference_ci": [float(lo), float(hi)],
-            "excludes_zero": bool(lo > 0 or hi < 0),
-            "direction": "precue > postcue" if d.mean() > 0 else "postcue >= precue",
-            # one-sided: the hypothesis is directional (pre-cue OUTLIVES post-cue), so a two-sided
-            # p would be answering a question nobody asked
-            "p_one_sided": float((np.sum(d <= 0) + 1) / (len(d) + 1))}
+            "difference_ci_is": "two-sided 95%, DESCRIPTIVE -- not the test",
+            "difference_lower_bound_one_sided": lb_one,
+            "p_one_sided": p_one,
+            "test": "one-sided (directional hypothesis: precue survival > postcue survival)",
+            "significant": bool(p_one < alpha),
+            "ci95_two_sided_excludes_zero": bool(lo > 0 or hi < 0),
+            "direction": "precue > postcue" if d.mean() > 0 else "postcue >= precue"}
 
 
 def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):

@@ -189,7 +189,7 @@ def test_dissociation_ci_detects_a_real_precue_advantage():
     pre = _raw_with(0.45, seed=1)
     cue = _raw_with(0.02, seed=2)
     r = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
-    assert r["excludes_zero"] is True
+    assert r["significant"] is True
     assert r["direction"] == "precue > postcue"
     assert r["p_one_sided"] < 0.05
 
@@ -199,7 +199,7 @@ def test_dissociation_ci_reports_no_effect_when_both_arms_match():
     pre = _raw_with(0.30, seed=3)
     cue = _raw_with(0.30, seed=4)
     r = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
-    assert r["excludes_zero"] is False
+    assert r["significant"] is False
 
 
 def test_dissociation_ci_resamples_SESSIONS_not_trials():
@@ -298,3 +298,14 @@ def test_reference_position_engagement_handles_absent_positions():
     r = na.reference_position_engagement(np.array([DISPLAY_ORDER[0]]), np.array(["engaged"]),
                                          [DISPLAY_ORDER[5]])
     assert r["n"] == 0
+
+
+def test_one_sided_test_and_two_sided_interval_are_labelled_distinctly():
+    """They disagree at the margin, so the output must say which one is the test."""
+    pre, cue = _raw_with(0.45, seed=11), _raw_with(0.05, seed=12)
+    r = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
+    assert "one-sided" in r["test"]
+    assert "DESCRIPTIVE" in r["difference_ci_is"]
+    assert r["significant"] == (r["p_one_sided"] < na.ALPHA)
+    # the one-sided lower bound must be at least as high as the two-sided one
+    assert r["difference_lower_bound_one_sided"] >= r["difference_ci"][0] - 1e-9
