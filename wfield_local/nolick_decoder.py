@@ -202,31 +202,73 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
     return res
 
 
-def analyse_animal(animal, dates=None, align="cue", source="locanmf", post_s=2.0,
+def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
                    n_perm=na.N_PERM, verbose=True):
     """Pool an animal's curated sessions, then train ONE model and apply it to the other arms.
 
     Pooling before fitting (rather than averaging per-session results) is deliberate: the undetected
     arm is small in some sessions and a per-session accuracy on 8 trials is not a measurement. The
     engaged score stays leave-one-SESSION-out so it remains an out-of-sample number.
+
+    SOURCE MUST BE ROI, for the same reason the frozen decoder's is: LocaNMF components are fitted
+    per session and differ in both count and identity, so column j is a different thing on different
+    days and stacking them is meaningless (it fails loudly here rather than silently mixing).
+    Allen-ROI features are atlas-anchored, so column j is the same cortical area every day.
+
+    Features are z-scored PER SESSION using that session's ENGAGED trials only, exactly as the
+    frozen decoder does. Without it a day with a larger F0 or better SNR would shift every arm
+    together and the pooled model would partly be learning which day a trial came from. Using the
+    engaged trials to define the scaling (not all trials) keeps the transform independent of the
+    arm being tested.
     """
+    if source != "roi":
+        raise ValueError(
+            f"analyse_animal pools across sessions and needs atlas-anchored features; "
+            f"source={source!r} is session-specific. Use source='roi' (see docstring).")
     dates = set(dates or config.curated_dates())
     labs = [s for s in SESSIONS if s["label"][:4] == animal and s["label"][-4:] in dates]
     args = _args(source=source, align=align, post_s=post_s)
-    acc = {c: {"X": [], "y": [], "sess": []} for c in CATEGORIES}
+    # per session: the z-scored features of each category, kept beside that session's region labels
+    # so the columns can be reconciled afterwards
+    per_sess = []
     for s in labs:
         try:
-            F, _ = session_features(s, args)
+            F, feat_reg = session_features(s, args)
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
             continue
-        for c in CATEGORIES:
-            if F[c]["y"].size:
-                acc[c]["X"].append(F[c]["X"]); acc[c]["y"].append(F[c]["y"])
-                acc[c]["sess"].append(np.full(F[c]["y"].size, s["label"], dtype=object))
+        E = F["engaged"]["X"]
+        if E.size == 0:
+            continue
+        mu, sd = E.mean(0), E.std(0)
+        sd[sd == 0] = 1.0
+        per_sess.append({"label": s["label"], "reg": list(np.asarray(feat_reg)),
+                         "cats": {c: ((F[c]["X"] - mu) / sd if F[c]["y"].size else None,
+                                      F[c]["y"]) for c in CATEGORIES}})
         if verbose:
             print(f"  {s['label']}: " + " ".join(f"{c}={F[c]['y'].size}" for c in CATEGORIES),
                   flush=True)
+
+    # Sessions can differ in which atlas areas survive registration, so restrict every session to
+    # the areas ALL of them have, in one shared order -- otherwise column j is still not the same
+    # area everywhere and the per-session z-scoring above would not save it.
+    acc = {c: {"X": [], "y": [], "sess": []} for c in CATEGORIES}
+    if per_sess:
+        first = per_sess[0]["reg"]
+        others = [set(p["reg"]) for p in per_sess[1:]]
+        common = [r for r in first if all(r in o for o in others)]
+        if len(common) < len(first):
+            print(f"  [{animal} {align}] restricting to {len(common)}/{len(first)} features "
+                  f"present in all {len(per_sess)} sessions", flush=True)
+        for p in per_sess:
+            idx = [p["reg"].index(k) for k in common]
+            for c in CATEGORIES:
+                X, y = p["cats"][c]
+                if X is None or not y.size:
+                    continue
+                acc[c]["X"].append(X[:, idx])
+                acc[c]["y"].append(y)
+                acc[c]["sess"].append(np.full(y.size, p["label"], dtype=object))
 
     def _cat(k, f):
         return np.concatenate(acc[k][f]) if acc[k][f] else np.array([])
@@ -263,7 +305,7 @@ def analyse_animal(animal, dates=None, align="cue", source="locanmf", post_s=2.0
     return res
 
 
-def build_reference(animals=None, dates=None, source="locanmf", out=None, n_perm=na.N_PERM):
+def build_reference(animals=None, dates=None, source="roi", out=None, n_perm=na.N_PERM):
     """The frozen PRE-STROKE reference: both alignments, all animals, written once.
 
     Both alignments are always computed even if a caller only wants one, because the discriminating
@@ -302,7 +344,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--dates", default=None, help="comma/range spec; default = curated dates")
-    ap.add_argument("--source", default="locanmf", choices=("locanmf", "roi"))
+    ap.add_argument("--source", default="roi", choices=("roi",),
+                    help="Allen-ROI only: pooling across sessions needs atlas-anchored features")
     ap.add_argument("--n-perm", type=int, default=na.N_PERM)
     ap.add_argument("--out", default=None, help="write the frozen reference JSON here")
     a = ap.parse_args()

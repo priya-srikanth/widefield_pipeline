@@ -132,6 +132,31 @@ M_LICKFREE = (
     "was tested and rejected (removing every visual ROI costs nothing); SSp is where the signal "
     "concentrates, which is consistent with a substantial somatosensory contribution. See DECISIONS.md.")
 
+M_NOLICK = (
+    "NO-DETECTED-LICK REFERENCE (wfield_local.nolick_decoder / nolick_analysis). Trained on ENGAGED "
+    "trials (first detected lick within 2 s of the cue) and applied, frozen, to trials without one. "
+    "Purpose: post-stroke a failed trial can mean the plan was never formed OR that it was formed "
+    "and the movement failed, and the behaviour log cannot tell those apart. They make opposite "
+    "predictions here -- plan-intact keeps the PRE-cue code while the POST-cue code collapses, "
+    "because post-cue decoding is largely driven by the lick itself. "
+    "\n\nTHREE ARMS, NOT TWO. 'late' = a detected lick 2-5 s after the cue; 'undetected' = none "
+    "within 5 s. The pipeline's older arm pooled them, which is misleading: on PS93 8/12 the pre-cue "
+    "survival is carried entirely by LATE trials (balanced 0.532, p=0.003) while undetected trials "
+    "show nothing (0.153, p=0.76). "
+    "\n\nTHE NULL IS NOT 1/6. These trials are heavily skewed across positions (PS93: 49% far_center) "
+    "and the decoder's predictions on them are skewed too, so an information-free decoder scores "
+    "above 1/6 -- 0.211 for PS93. Headline is BALANCED accuracy (macro-recall), whose null "
+    "expectation is exactly 1/6 however skewed either side is; raw accuracy is judged against a "
+    "permutation null computed on these trials with predictions held fixed; a position-matched "
+    "subsample is stored as an independent check. An earlier 'above chance' flag here compared "
+    "against uniform 1/6 and was meaningless; it is retired. "
+    "\n\n'NO DETECTED LICK' IS NOT 'NO ATTEMPT'. The sensor needs contact, so an executed but short "
+    "lick registers as nothing. PS93 has a pre-existing rightward tongue bias and reaches far_L "
+    "poorly (Priya, 2026-08-17), so its far-position undetected trials are substantially "
+    "attempted-and-short -- which makes PS93 far_L a PRE-stroke, within-subject instance of the very "
+    "phenotype this analysis looks for post-stroke. DLC/facial tracking is needed to split attempted "
+    "from unattempted; until then read the per-position breakdown, not the pooled number.")
+
 M_PRECUE_CAVEAT = (
     "\n\nPRE-CUE NUMBERS ON THIS SLIDE ARE CORRECTED (as of 2026-08-14). They are built on the "
     "meegkit_hpfit SVTcorr, not the pipeline default. Read this before comparing them to anything "
@@ -520,6 +545,30 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "NEGATIVE where the decoder's is positive.")
             note(s, m_enc + cav)
             big(s, src / f"locanmf_frozen_encoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
+
+    # ---------------- D2. no-detected-lick reference ----------------
+    # The pre-stroke reference for reading POST-stroke failed trials. Placed immediately after the
+    # frozen decoder because it uses the same frozen model and answers the question that motivates
+    # freezing one at all.
+    if (src / "nolick_reference_locanmf.png").exists():
+        divider("D2 — Trials with NO DETECTED LICK",
+                "The pre-stroke reference for post-stroke failures. A failed trial can mean the plan "
+                "was never formed or that it was formed and the movement failed; those are different "
+                "injuries and identical in the behaviour log.")
+        s = slide()
+        title(s, "No-detected-lick: does the position code survive without a movement?",
+              "Balanced accuracy (macro-recall) per arm, pre-cue beside post-cue. The BLACK RULE on "
+              "each bar is that arm's OWN permutation null, not a shared 1/6 — the nulls differ per "
+              "arm and a single chance line would misrepresent every bar but the engaged one.")
+        note(s, M_NOLICK)
+        big(s, src / "nolick_reference_locanmf.png", top=1.9, width=12.7)
+        s = slide()
+        title(s, "No-detected-lick: PRE-cue surviving while POST-cue collapses = plan formed, "
+                 "movement failed",
+              "The discriminating quantity. Post-cue decoding is largely driven by the lick itself, "
+              "so it should collapse without one; pre-cue reflects a maintained code that need not.")
+        note(s, M_NOLICK)
+        big(s, src / "nolick_survival_locanmf.png", top=1.9, width=10.5)
 
     # ---------------- E. cross-session summary ----------------
     divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")

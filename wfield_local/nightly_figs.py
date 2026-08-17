@@ -137,6 +137,9 @@ def main():
     ap.add_argument("--from", dest="from_dates", default=None,
                     help="cross-session comparison dates — same grammar (default: the curated set)")
     ap.add_argument("--output", default=None, help="figure output dir (also where the deck is built)")
+    ap.add_argument("--skip-nolick", action="store_true",
+                    help="skip the no-detected-lick reference (engaged vs late vs undetected, "
+                         "pre-cue vs post-cue). Adds ~1-2 h; see wfield_local.nolick_analysis.")
     ap.add_argument("--skip-frozen", action="store_true",
                     help="skip the frozen cross-day decoder/encoder step (Allen-ROI, leave-one-session-out). "
                          "It adds ~30-40 min; skipping leaves those deck slides blank.")
@@ -268,6 +271,26 @@ def main():
     if not args.skip_frozen:
         cli("wfield_local.joint_xsession", "--output", out, "--from", from_dates,
             "--align", "cue", "precue")
+
+    # NO-DETECTED-LICK arm. The pre-stroke reference for reading post-stroke failed trials: does the
+    # PRE-cue position code survive on trials the animal did not lick, when the POST-cue one does
+    # not? Rebuilt each night so post-stroke sessions join it, but the PRE-stroke reference itself is
+    # written once to `nolick_reference_prestroke.json` and never overwritten -- a reference that
+    # moves after the comparison data arrive is not a reference.
+    if not args.skip_nolick:
+        try:
+            from wfield_local import nolick_decoder, plot_nolick_reference
+            ref_path = Path(out) / "nolick_reference.json"
+            ref = nolick_decoder.build_reference(dates=from_list, out=ref_path)
+            plot_nolick_reference.figure(ref, out, source=ref.get("source", "locanmf"))
+            frozen = Path(out) / "nolick_reference_prestroke.json"
+            if not frozen.exists():
+                frozen.write_text(ref_path.read_text())
+                log(f"froze the PRE-STROKE no-lick reference -> {frozen.name}")
+            for an, r in ref["animals"].items():
+                log(f"  no-lick {an}: {r.get('interpretation', 'n/a')}")
+        except Exception as ex:
+            log(f"  !! no-lick reference: {type(ex).__name__} {str(ex)[:80]}")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
