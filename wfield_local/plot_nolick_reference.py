@@ -122,27 +122,47 @@ def figure_per_session(ref, out, source="roi"):
 
 
 def figure_agreement(ref, out):
-    """Do the two bases reach the same verdict per animal? Rendered as text, because the honest
-    answer is a sentence and a bar chart of agreement would be theatre."""
+    """Do the two bases reach the same verdict, per animal and per engaged cut?
+
+    Rendered as text, because the honest answer is a sentence and a bar chart of agreement would be
+    theatre. `consensus` is nested {cut: {animal: verdict}} -- an earlier version of this function
+    iterated it as {animal: verdict}, which did not crash: it drew two rows labelled "2.0s" and
+    "respwin" as if they were animals, with an empty disagreement string. Wrong figures that render
+    are worse than ones that fail, and this one is in the deck.
+    """
     cons = ref.get("consensus") or {}
     if not cons:
         return None
-    animals = sorted(cons)
-    fig, ax = plt.subplots(figsize=(11.5, 0.9 + 0.85 * len(animals)))
+    # tolerate the older flat shape so an archived reference still plots
+    if all(not isinstance(v, dict) or "DISAGREEMENT" in (v or {}) for v in cons.values()):
+        cons = {"(unspecified cut)": cons}
+
+    rows = [(cut, an, v) for cut, per in cons.items() for an, v in (per or {}).items()]
+    fig, ax = plt.subplots(figsize=(12.5, 0.9 + 0.55 * max(len(rows), 1)))
     ax.axis("off")
-    ax.set_title("Two-basis agreement — Allen-ROI vs joint-LocaNMF", fontsize=11, loc="left")
-    for i, an in enumerate(animals):
-        v = cons[an]
+    ax.set_title("Two-basis agreement -- Allen-ROI vs joint-LocaNMF, per engaged cut", fontsize=11,
+                 loc="left")
+    d = ref.get("direction_consistency") or {}
+    if d.get("statement"):
+        ax.text(0.01, 1.0, f"threshold-free: {d['statement']}", transform=ax.transAxes,
+                fontsize=8.5, va="top", style="italic")
+    for i, (cut, an, v) in enumerate(rows):
         agree = isinstance(v, str)
-        txt = v if agree else ("bases DISAGREE: " + "; ".join(
-            f"{k}={str(x)[:60]}" for k, x in (v or {}).get("DISAGREEMENT", {}).items())
-            if isinstance(v, dict) else "not computed")
-        ax.text(0.01, 1 - (i + 0.6) / (len(animals) + 0.5), f"{an}   {txt}",
-                transform=ax.transAxes, fontsize=8.5, va="center",
-                color=("black" if agree else "firebrick"), wrap=True)
+        if agree:
+            txt = v
+        elif isinstance(v, dict):
+            got = (v or {}).get("DISAGREEMENT", {})
+            txt = "bases DISAGREE: " + "; ".join(
+                f"{k}={str(x).split(':')[0]}" for k, x in got.items()) if got else "not computed"
+        else:
+            txt = "not computed"
+        ax.text(0.01, 0.92 - (i + 0.6) / (len(rows) + 1.2), f"[{cut:>8s}] {an}   {txt[:150]}",
+                transform=ax.transAxes, fontsize=8, va="center",
+                color=("black" if agree else "firebrick"))
     fig.tight_layout()
     p = Path(out) / "nolick_basis_agreement.png"
     fig.savefig(p, dpi=150); plt.close(fig)
+    print(f"wrote {p.name}", flush=True)
     return p
 
 
