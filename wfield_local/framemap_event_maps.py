@@ -58,6 +58,23 @@ def _corrected_frame_samples(frame_map: Path, pco_samples: np.ndarray, offset: i
     return pco_samples[idx]
 
 
+def coverage_mask(event_samples, csample, tol_samples=None):
+    """True where an event falls INSIDE the imaging coverage (see locanmf_lick_aligned.coverage_mask).
+
+    These maps are trial AVERAGES, so an out-of-coverage trial dilutes rather than corrupts -- but
+    PS95 2026-08-13 had 197 of 871 cues (23%) before any surviving frame after its single-channel
+    prefix was repaired away, and averaging a quarter junk trials into every position map is not
+    something to leave in place.
+    """
+    csample = np.asarray(csample)
+    ev = np.asarray(event_samples)
+    if csample.size < 2:
+        return np.zeros(ev.shape, bool)
+    if tol_samples is None:
+        tol_samples = float(np.median(np.diff(csample)))
+    return (ev >= csample[0] - tol_samples) & (ev <= csample[-1] + tol_samples)
+
+
 def _nearest_corrected_frame(event_samples: np.ndarray, csample: np.ndarray) -> np.ndarray:
     ins = np.clip(np.searchsorted(csample, event_samples), 1, len(csample) - 1)
     prev = np.abs(event_samples - csample[ins - 1])
@@ -115,6 +132,11 @@ def run_cue(args) -> int:
     csample = _corrected_frame_samples(args.frame_map, ev["pco_samples"], offset)
     fsd = ev["sample_rate_hz"]
     cue_frames = _nearest_corrected_frame(ev["cue_samples"], csample)
+    _cov = coverage_mask(ev["cue_samples"], csample)
+    if not _cov.all():
+        print(f"[coverage] EXCLUDING {int((~_cov).sum())}/{_cov.size} cues outside the imaging span "
+              f"(session has a gap, e.g. a repaired single-channel prefix)", flush=True)
+        cue_frames = np.where(_cov, cue_frames, -1)
     cue_codes = _classify_cues(ev["cue_samples"], ev["strobe_samples"], ev["strobe_codes"])
     if getattr(args, "behavior_trials", None):
         cue_codes = _behavior_cue_codes(args.behavior_trials, cue_codes)
@@ -198,6 +220,11 @@ def run_lick(args) -> int:
     csample = _corrected_frame_samples(args.frame_map, ev["pco_samples"], offset)
     fsd = ev["sample_rate_hz"]
     lick_frames = _nearest_corrected_frame(ev["lick_samples"], csample)
+    _cov = coverage_mask(ev["lick_samples"], csample)
+    if not _cov.all():
+        print(f"[coverage] EXCLUDING {int((~_cov).sum())}/{_cov.size} licks outside the imaging span",
+              flush=True)
+        lick_frames = np.where(_cov, lick_frames, -1)
     codes = _classify_events(ev["lick_samples"], ev["strobe_samples"], ev["strobe_codes"])
     if getattr(args, "behavior_trials", None):
         # map each lick to the most-recent cue's TRUE (behavior-log) position

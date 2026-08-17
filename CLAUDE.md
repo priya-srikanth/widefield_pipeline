@@ -187,8 +187,9 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
-**[`docs/STATUS_2026-08-14.md`](docs/STATUS_2026-08-14.md)** — what changed 13-14 Aug, what is
-running, and the ordered to-do list with its cautions. START HERE after a break.
+**[`docs/STATUS_2026-08-17.md`](docs/STATUS_2026-08-17.md)** — current state, the eight silent bugs
+found 15-17 Aug and their guards, what is running, and the ordered to-do list. START HERE after a
+break. (`STATUS_2026-08-14.md` is kept as the record of the drift-removal decision week.)
 
 ## Acquisition incidents
 
