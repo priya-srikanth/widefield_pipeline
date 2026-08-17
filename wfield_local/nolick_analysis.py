@@ -224,28 +224,47 @@ def compare_arms(engaged, nolick):
             "survival_ratio": float(u / e) if e and np.isfinite(e) and e > 0 else float("nan")}
 
 
-def interpret(precue_cmp, cue_cmp):
+DISSOCIATION_MIN = 1.5     # pre-cue must survive this many times better than post-cue
+ALPHA = 0.05
+
+
+def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):
     """Turn the two survival ratios into the hypothesis they support -- explicitly, not by eye.
 
-    plan intact / execution fails -> pre-cue survives, post-cue does not
-    plan never formed             -> neither survives
-    Anything else (post-cue surviving as well as pre-cue) would undercut the claim that the post-cue
-    code is movement-driven, and is called out rather than smoothed over.
+    THE QUANTITY IS THE CONTRAST, NOT TWO ABSOLUTE LEVELS. The first version of this function
+    thresholded each survival ratio at 0.5 independently, and it mislabelled the very data it was
+    written for: PS92 survives 0.401 pre-cue against 0.143 post-cue -- a 2.8x dissociation, LARGER
+    than PS93's 1.8x -- yet scored "no plan formed" purely because 0.401 < 0.5, while PS93's 0.627
+    passed. How strong an animal's pre-cue code is and whether it OUTLIVES the movement are
+    different questions, and only the second distinguishes the two injuries.
+
+    Evidence that the pre-cue code is present at all comes from that arm's own permutation p-value
+    when the arm dicts are supplied, not from the ratio -- a ratio can look healthy because its
+    denominator is small. Without them the verdict still computes but says it is unverified, rather
+    than quietly implying a significance test that never ran.
     """
     p, c = precue_cmp["survival_ratio"], cue_cmp["survival_ratio"]
     if not (np.isfinite(p) and np.isfinite(c)):
         return "indeterminate: a survival ratio is undefined (engaged decoding at or below chance)"
-    if p >= 0.5 and c < 0.5:
-        return ("consistent with PLAN INTACT, EXECUTION FAILED: the pre-cue position code survives "
-                "without a detected lick while the post-cue code does not")
-    if p < 0.5 and c < 0.5:
-        return ("consistent with NO PLAN FORMED: neither the pre-cue nor the post-cue code survives "
-                "on trials without a detected lick")
+
+    pre_sig = None if precue_arm is None else bool(precue_arm.get("bal_p", 1.0) < ALPHA)
+    ratio = (p / c) if c > 0 else float("inf")
+    qual = "" if pre_sig is not None else "  [level unverified: no permutation p supplied]"
+
+    if pre_sig is False:
+        return ("consistent with NO PLAN FORMED: the pre-cue position code is not above its own "
+                f"permutation null on trials without a detected lick (p>={ALPHA}), so there is no "
+                f"preserved code for the movement to have failed to execute")
+    if ratio >= DISSOCIATION_MIN:
+        return (f"consistent with PLAN INTACT, EXECUTION FAILED: the pre-cue code survives "
+                f"{ratio:.1f}x better than the post-cue code without a detected lick "
+                f"({p:.2f} vs {c:.2f}){qual}")
     if c >= 0.5:
-        return ("UNEXPECTED: the post-cue code survives without a detected lick. Either the post-cue "
-                "decode is not movement-driven, or these trials contain undetected licks -- check "
-                "the per-position breakdown before interpreting")
-    return "indeterminate"
+        return ("UNEXPECTED: the post-cue code survives about as well as the pre-cue code without a "
+                "detected lick. Either the post-cue decode is not movement-driven, or these trials "
+                "contain undetected licks -- check the per-position breakdown before interpreting")
+    return (f"NO CLEAR DISSOCIATION: pre-cue {p:.2f} vs post-cue {c:.2f} ({ratio:.1f}x, below the "
+            f"{DISSOCIATION_MIN}x threshold) -- both arms degrade together{qual}")
 
 
 ARMS = ("engaged", "engaged_fast", "engaged_slow", "late", "undetected", "nolick_pooled")

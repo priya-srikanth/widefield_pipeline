@@ -427,7 +427,10 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
                 slot[al] = analyse_animal(an, dates=dates, align=al, n_perm=n_perm, basis=basis)
             pc, cc = slot["precue"].get("compare"), slot["cue"].get("compare")
             if pc and cc:
-                slot["interpretation"] = na.interpret(pc, cc)
+                # pass the ARMS too, so the verdict rests on each arm's own permutation p rather
+                # than on a ratio whose denominator might simply be small
+                slot["interpretation"] = na.interpret(
+                    pc, cc, slot["precue"].get("nolick_pooled"), slot["cue"].get("nolick_pooled"))
             na.summarize({"precue": slot["precue"], "cue": slot["cue"],
                           "interpretation": slot.get("interpretation", "")})
     # a single agreed verdict per animal, or an explicit note that the bases disagree -- so nobody
@@ -445,6 +448,42 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
     return ref
 
 
+def reinterpret(ref):
+    """Recompute every verdict from the STORED arms, in place.
+
+    The reference holds all the numbers a verdict is derived from, so changing how they are read
+    does not require recomputing them -- which matters, since the compute is hours and the reading
+    rule is the part most likely to be revised. It also means an old reference can be re-read under
+    a new rule and the two compared, instead of one silently replacing the other.
+    """
+    for _bkey, block in ref.get("by_basis", {}).items():
+        for _an, slot in block.get("animals", {}).items():
+            pc = (slot.get("precue") or {}).get("compare")
+            cc = (slot.get("cue") or {}).get("compare")
+            if pc and cc:
+                slot["interpretation"] = na.interpret(
+                    pc, cc, (slot["precue"] or {}).get("nolick_pooled"),
+                    (slot["cue"] or {}).get("nolick_pooled"))
+            for lab, d in (slot.get("cue") or {}).get("per_session", {}).items():
+                pd_ = ((slot.get("precue") or {}).get("per_session", {}) or {}).get(lab, {})
+                if d.get("compare") and pd_.get("compare"):
+                    d["interpretation"] = na.interpret(
+                        pd_["compare"], d["compare"], pd_.get("nolick_pooled"),
+                        d.get("nolick_pooled"))
+    animals = sorted({a for b in ref.get("by_basis", {}).values() for a in b.get("animals", {})})
+    ref["consensus"] = {}
+    for an in animals:
+        got = {b: blk["animals"][an].get("interpretation")
+               for b, blk in ref["by_basis"].items() if an in blk.get("animals", {})}
+        # compare the VERDICT CLASS, not the sentence -- the sentences carry per-basis numbers and
+        # would never be equal, which would report disagreement on every animal
+        cls = {v.split(":")[0].replace("consistent with ", "").strip()
+               for v in got.values() if v}
+        ref["consensus"][an] = (got[list(got)[0]] if len(cls) == 1 else
+                                {"DISAGREEMENT": got} if cls else None)
+    return ref
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--animals", nargs="+", default=None)
@@ -454,7 +493,19 @@ def main():
                          "only one parcellation is a claim about the parcellation.")
     ap.add_argument("--n-perm", type=int, default=na.N_PERM)
     ap.add_argument("--out", default=None, help="write the frozen reference JSON here")
+    ap.add_argument("--reinterpret", default=None, metavar="JSON",
+                    help="re-derive verdicts from an EXISTING reference's stored arms and rewrite "
+                         "it, without recomputing. Use when the reading rule changes, not the data.")
     a = ap.parse_args()
+    if a.reinterpret:
+        import json as _json
+        pth = Path(a.reinterpret)
+        ref = reinterpret(_json.loads(pth.read_text()))
+        pth.write_text(_json.dumps(ref, indent=2))
+        for an, v in (ref.get("consensus") or {}).items():
+            print(f"  {an}: {v if isinstance(v, str) else 'BASES DISAGREE: ' + str(v)}", flush=True)
+        print(f"rewrote {pth}", flush=True)
+        return
     dates = config.expand_dates(a.dates, width=4) if a.dates else None
     build_reference(animals=a.animals, dates=dates, bases=a.bases, out=a.out, n_perm=a.n_perm)
 

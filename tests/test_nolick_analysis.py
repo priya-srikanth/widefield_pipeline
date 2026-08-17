@@ -107,13 +107,38 @@ def test_balanced_accuracy_skips_absent_classes_rather_than_scoring_them_zero():
     assert na.balanced_accuracy(y, p) == pytest.approx(1.0)
 
 
-def test_interpretation_maps_ratios_to_the_right_hypothesis():
-    hi = {"survival_ratio": 0.8}
-    lo = {"survival_ratio": 0.2}
-    assert "PLAN INTACT" in na.interpret(hi, lo)
-    assert "NO PLAN FORMED" in na.interpret(lo, lo)
-    assert "UNEXPECTED" in na.interpret(hi, hi)
-    assert "indeterminate" in na.interpret({"survival_ratio": float("nan")}, lo)
+SIG = {"bal_p": 0.001}
+NS = {"bal_p": 0.9}
+
+
+def test_interpretation_maps_the_CONTRAST_to_the_right_hypothesis():
+    hi, lo = {"survival_ratio": 0.8}, {"survival_ratio": 0.2}
+    assert "PLAN INTACT" in na.interpret(hi, lo, SIG, SIG)
+    assert "NO PLAN FORMED" in na.interpret(hi, lo, NS, NS)          # ratio good, level absent
+    assert "UNEXPECTED" in na.interpret({"survival_ratio": 0.6}, {"survival_ratio": 0.55}, SIG, SIG)
+    assert "indeterminate" in na.interpret({"survival_ratio": float("nan")}, lo, SIG, SIG)
+
+
+def test_absolute_thresholds_would_mislabel_PS92_but_the_contrast_does_not():
+    """The real case that broke the first version.
+
+    PS92 survives 0.401 pre-cue vs 0.143 post-cue -- a LARGER dissociation (2.8x) than PS93's
+    0.627/0.357 (1.8x) -- but an independent 0.5 cut on each ratio called PS92 "no plan formed" and
+    PS93 "plan intact". Both are the same phenomenon at different strengths.
+    """
+    ps92 = na.interpret({"survival_ratio": 0.401}, {"survival_ratio": 0.143}, SIG, SIG)
+    ps93 = na.interpret({"survival_ratio": 0.627}, {"survival_ratio": 0.357}, SIG, SIG)
+    assert "PLAN INTACT" in ps92 and "PLAN INTACT" in ps93
+
+
+def test_no_dissociation_is_named_rather_than_forced_into_a_hypothesis():
+    r = na.interpret({"survival_ratio": 0.30}, {"survival_ratio": 0.28}, SIG, SIG)
+    assert "NO CLEAR DISSOCIATION" in r
+
+
+def test_missing_permutation_p_is_declared_not_assumed():
+    r = na.interpret({"survival_ratio": 0.8}, {"survival_ratio": 0.2})
+    assert "PLAN INTACT" in r and "unverified" in r
 
 
 def test_survival_ratio_uses_above_chance_part_not_raw_ratio():
