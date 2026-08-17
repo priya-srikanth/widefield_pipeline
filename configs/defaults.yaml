@@ -75,6 +75,13 @@ decode:
     precue: 4
     cue: 4
     lick: 8
+  # THE HEADLINE PRE-CUE NUMBER IS LICK-FREE (Priya, 2026-08-17). The 2 s window ending at the
+  # cue slides earlier to the latest lick-free gap when a lick falls in it (bounded at the
+  # spout strobe), and a trial with no clean window anywhere is DROPPED. Previously only the
+  # Section C control restricted; the headline relied on the ENL keeping the window quiet,
+  # which it does 90.8-99.5% of the time -- but PS93 8/9 falls to 76%, in the animal whose
+  # licking is already atypical. Set false to recover the pre-2026-08-17 behaviour.
+  precue_lickfree: true
   max_rt_s: 2.0           # engaged = first lick within this of the cue; else -> no-lick
   cv: block               # GroupKFold by ~6-trial position blocks (no per-trial baseline)
   baseline: none

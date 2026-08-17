@@ -23,7 +23,14 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 7  # bump when any cached function's computation changes
+CACHE_VERSION = 8  # bump when any cached function's computation changes
+# v8 (2026-08-17): the HEADLINE pre-cue window is now LICK-FREE (decode.precue_lickfree).
+# _trial_features slides the 2 s window earlier to the latest lick-free gap when a lick falls
+# in it, and DROPS a trial with no clean window -- so both the features and the trial set
+# change for every pre-cue quantity. Every cached per_session / rdm_rel / crossnobis / hemi
+# entry was computed on all-trials windows. Fourth instance of a config change that reaches
+# computation instantly and the cache not at all; the regeneration script now refuses to run
+# until this is bumped, so the check is no longer my memory.
 # v7 (2026-08-17): locanmf_crossanimal_dff._frames now REJECTS events outside the imaging coverage
 # (returns -1) instead of clipping them to the nearest surviving frame. Every cached kind ultimately
 # gets its trials through that helper, so the logic of all four changed. For the 43 sessions whose

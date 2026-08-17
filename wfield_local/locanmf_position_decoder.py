@@ -110,6 +110,61 @@ def is_engaged(first_lick, rt, max_rt):
     return bool(first_lick > 0 and 0 < rt <= max_rt)
 
 
+def lickfree_window(cue_f, strobe_f, licks, win_n):
+    """Latest ``win_n``-frame window before the cue containing NO licks, or None.
+
+    Moved here from `precue_lickfree` on 2026-08-17 when Priya decided the HEADLINE pre-cue number
+    should be lick-free: the rule now governs the production decoder, so it belongs beside it rather
+    than in the module that used to be its only consumer.
+
+    A FIXED window ending at the cue throws a trial away for a single lick anywhere in it -- including
+    one 200 ms before the cue, when 2 s of clean data sits just earlier in the same enforced no-lick
+    period. Instead: take the lick-free GAPS in [strobe, cue] and use the last ``win_n`` frames of the
+    LATEST gap long enough to hold the window. Closest to the cue is preferred, being most informative
+    about the upcoming action.
+
+    BOUNDED AT THE STROBE, deliberately. Before the spout arrives this trial's position does not exist,
+    and because the task avoids recent repeats, prior-trial activity carries real information about the
+    upcoming position -- a window straying earlier would smuggle that in and look like a pre-cue code.
+    """
+    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
+    hi = int(cue_f)
+    if lo is None or hi - lo < win_n:
+        return None
+    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
+    edges = np.concatenate(([lo], inside, [hi]))
+    for i in range(len(edges) - 2, -1, -1):
+        gap_start = int(edges[i]) + (1 if i > 0 else 0)      # a lick occupies its own frame
+        gap_end = int(edges[i + 1])
+        if gap_end - gap_start >= win_n:
+            return gap_end - win_n
+    return None
+
+
+def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
+    """Start frame of this trial's PRE-CUE window, or None meaning DROP the trial.
+
+    THE HEADLINE PRE-CUE NUMBER IS LICK-FREE (Priya, 2026-08-17). Previously only the Section C
+    control restricted; the headline used every engaged trial and relied on the ENL to keep the
+    window quiet, which it does 90.8-99.5% of the time -- but "almost always" is per SESSION, and
+    PS93 8/9 falls to 76%, in the animal whose licking is already atypical. A readout whose whole
+    claim is motor-independence should not rest on a task contingency holding on average.
+
+    Trials with a clean fixed window keep it, so the common case stays exactly cue-aligned. Trials
+    with a lick in it slide to the latest clean gap. Trials with no clean window ANYWHERE are
+    DROPPED rather than kept-and-flagged -- for a headline number, "mostly clean" is the thing being
+    retired.
+    """
+    fixed = int(c0) - win_n
+    if not lickfree:
+        return fixed if fixed >= 0 else None
+    if fixed < 0:
+        return None
+    if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
+        return fixed                                          # already clean; keep it cue-aligned
+    return lickfree_window(c0, strobe_f, licks_sorted, win_n)
+
+
 def _trial_features(s, args, signal=None, feat_region=None):
     """Trial-averaged features for one session.
 
@@ -137,6 +192,20 @@ def _trial_features(s, args, signal=None, feat_region=None):
             b += 1
         blk_id[k] = b; prev = int(codes[k])
     bins = _bins_for(args)
+    # PRE-CUE WINDOWS ARE LICK-FREE (Priya, 2026-08-17). Bounded at the spout strobe, so compute the
+    # per-trial strobe frame; `precue_window_start` needs it and returns None for a trial with no
+    # clean window anywhere, which is then dropped.
+    lickfree = bool(config.defaults()["decode"].get("precue_lickfree", True)) and args.align == "precue"
+    ls_sorted = np.sort(np.asarray(lick_f))
+    if lickfree:
+        cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
+        sr = float(cue["sample_rate_hz"])
+        jj = np.searchsorted(ss, cs, side="right") - 1
+        lead_s = np.where(jj >= 0, (cs - ss[np.clip(jj, 0, len(ss) - 1)]) / sr, np.nan)
+        strobe_f = cue_f - lead_s * args.fs
+    else:
+        strobe_f = np.full(cue_f.shape, np.nan)
+    n_dropped_dirty = 0
     pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs))
     maxrt_n = int(round(args.max_rt * args.fs))
     ls = np.sort(lick_f); j = np.searchsorted(ls, cue_f, side="right")
@@ -147,8 +216,15 @@ def _trial_features(s, args, signal=None, feat_region=None):
         if codes[k] < 0:
             continue
         c0 = int(cue_f[k])
-        # cue/precue-referenced window start (precue = the post_n window ending at the cue)
-        ref0 = c0 - post_n if args.align == "precue" else c0
+        # cue/precue-referenced window start (precue = the post_n window ENDING at the cue, slid
+        # earlier if a lick falls in it; None -> no clean window exists, drop the trial)
+        if args.align == "precue":
+            ref0 = precue_window_start(c0, strobe_f[k], ls_sorted, post_n, lickfree=lickfree)
+            if ref0 is None:
+                n_dropped_dirty += 1
+                continue
+        else:
+            ref0 = c0
         if ref0 < 0 or ref0 + post_n > T:
             continue
         if subtract:
@@ -169,6 +245,9 @@ def _trial_features(s, args, signal=None, feat_region=None):
     # sub-binned feature vector by the wrong regions
     if bins > 1:
         feat_reg = np.tile(feat_reg, bins)
+    if n_dropped_dirty:
+        print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
+              f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
     return np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg
 
 
