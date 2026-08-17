@@ -63,9 +63,13 @@ decode:
   precue_post_s: 2.0      # pre-cue (ENL) window, motor-independent readout (2 s = the maintained-code
                           # window; a few sessions with a shorter ENL may clip — override per session)
   # Sub-bins per feature window: the decoder sees a TIME COURSE over the window, not one mean.
-  # Measured on corrected (meegkit_hpfit) data, 16 sessions: pre-cue +0.032, post-cue +0.020,
-  # post-lick +0.023 over the plain mean. Width matters only post-lick, where 0.25 s wins (+0.009,
-  # 12/16); pre-cue 0.25 s OVER-slices and loses to 0.5 s. 1 = the pre-2026-08-14 single mean.
+  # PRE-CUE, RE-MEASURED ON ALL 44 CURATED SESSIONS (2026-08-17): the gain is +0.009, better in
+  # 23/44 -- a coin flip, NOT the +0.032 the 16-session pilot reported. roll2x1.0 is nominally best
+  # (+0.016, 28/44) but that is the max of six arms scored on the same sessions, so the margin is
+  # partly selection. Treat pre-cue sub-binning as UNESTABLISHED; precue: 4 is kept only because
+  # changing it would move every pre-cue number again for no demonstrated gain.
+  # Post-cue (+0.020) and post-lick (+0.023) are still the 16-session pilot values -- NOT re-run.
+  # Width matters only post-lick, where 0.25 s wins (+0.009, 12/16). 1 = the pre-2026-08-14 mean.
   # 2.0 s window: precue/cue 4 -> 0.5 s bins, lick 8 -> 0.25 s bins. See DECISIONS.md.
   bins:
     precue: 4

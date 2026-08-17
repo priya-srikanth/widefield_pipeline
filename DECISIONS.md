@@ -653,9 +653,16 @@ would help MORE post-event than pre-cue, because the response has real dynamics 
 | first 1.0 s | 0.688 | −0.084 (1/16) | 0.800 | −0.017 (5/16) |
 | last 1.0 s | 0.777 | +0.006 (7/16) | 0.770 | −0.047 (2/16) |
 
-1. **Sub-binning helps LESS post-event than pre-cue**, not more: +0.020/+0.023 here vs **+0.032**
-   pre-cue. The post-event response is large and sustained, so a plain mean already captures most of
-   it; the weaker pre-cue signal is where temporal structure adds proportionally more.
+1. ~~**Sub-binning helps LESS post-event than pre-cue**, not more: +0.020/+0.023 here vs +0.032
+   pre-cue.~~ **WITHDRAWN 2026-08-17.** The +0.032 came from a 16-session pilot and does not
+   replicate: re-measured on all **44 curated sessions**, pre-cue sub-binning gains **+0.009, better
+   in 23/44** — a coin flip. `roll2x1.0` is nominally best (0.395, +0.016, 28/44) and `roll8x0.25`
+   is actually *worse* than the mean (−0.002, 18/44), but with six arms scored on the same sessions
+   the winner is partly selection, and the whole spread is ~0.02. The honest statement is that
+   **pre-cue sub-binning is unestablished**, so the comparison this point rested on cannot be made.
+   `decode.bins.precue` stays at 4 because moving it would shift every pre-cue number again for no
+   demonstrated gain — not because it is better. Post-cue and post-lick were NOT re-run and remain
+   16-session values.
 2. **Bin width matters post-event but the direction FLIPS vs pre-cue.** Pre-cue, 0.25 s over-sliced and
    lost to 0.5 s. Post-lick, 0.25 s WINS (+0.009, 12/16); post-cue the two tie (+0.002, 8/16). Read
    together: fine bins pay off only where there are fast dynamics to resolve, and post-lick is the
@@ -664,6 +671,24 @@ would help MORE post-event than pre-cue, because the response has real dynamics 
    Post-cue `last1.0 − first1.0` = **+0.089** (12/16) — information accumulates after the cue. Post-lick
    it is **−0.030** (6/16) — information is already maximal at lick onset and decays. That is what
    movement-locked information should look like, and it is the opposite of an accumulating cue response.
+4. **PRE-CUE, the asymmetry points AWAY from the cue (44 sessions, 2026-08-17).**
+   `last1.0 − first1.0` = **−0.054**: the FIRST second of the pre-cue window (−2.0 to −1.0 s) carries
+   MORE position information than the second adjacent to the cue (−1.0 to 0 s), which is also why
+   `first1.0` (0.387) beats `last1.0` (0.333) outright and ties the adopted sub-binned arm.
+
+   This matters more than the bin-count question it came from. The ORIGINAL, pre-correction sweep
+   found the opposite — the last 1.0–1.5 s carrying ~2× the information — and that was withdrawn as
+   the zero-phase filter's backward shadow (largest adjacent to the event, decaying away). With the
+   shadow gone the gradient does not merely shrink, it **flips**: information is highest FURTHEST
+   from the cue, i.e. closest to spout arrival, and decays as the animal sits quiet through the ENL.
+
+   That is evidence on the question `DECISIONS.md` already flags as unresolvable by this design
+   ("Pre-cue is AFTER the spout arrives"): a held intention should not decay while the animal waits,
+   whereas a somatosensory/contact response to a spout that arrived seconds ago should. It does not
+   settle it — the animal's last licks also sit at the early end of the window, and lick-free trials
+   are the control for that (`precue_lickfree`) — but it is the first result that discriminates at
+   all, and it leans somatosensory. Worth re-running restricted to lick-free trials before it is
+   quoted.
 
 **NOW THE PRODUCTION DEFAULT (2026-08-14).** These arms previously existed ONLY in
 `precue_window_sweep.ARMS`, a research harness, so every deck and cross-session number was
