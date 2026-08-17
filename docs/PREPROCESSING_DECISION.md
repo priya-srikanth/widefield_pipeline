@@ -146,13 +146,22 @@ confound points the same way as the hypothesis and does not cancel in a pre/post
 
 ## Decoder settings that follow (measured, 16 sessions, corrected data)
 
-* **pre-cue: 4 × 0.5 s sub-bins over the 2 s window** — beats the 2 s mean by +0.032 in 14/16 sessions.
-  8 × 0.25 s is worse (+0.023, 10/16): 250 ms resolution adds features, not information.
+* **pre-cue: 4 × 0.5 s sub-bins over the 2 s window.** ~~beats the 2 s mean by +0.032 in 14/16
+  sessions~~ **DID NOT REPLICATE (re-measured on all 44 curated sessions, 2026-08-17): +0.009,
+  better in 23/44 — a coin flip.** `roll2x1.0` is nominally best (+0.016, 28/44) and `roll8x0.25`
+  is worse than the mean (−0.002, 18/44), but six arms scored on the same sessions makes the
+  winner partly selection. Pre-cue sub-binning is UNESTABLISHED; `decode.bins.precue` stays at 4
+  only because moving it would shift every pre-cue number again for no demonstrated gain.
 * **do NOT shorten the window.** On corrected data 2.0 s is best; `mean1.5` −0.020 (1/16) and
   `mean1.0` −0.028 (1/16). The apparent advantage of a shorter window on the old data was the shadow
   being strongest nearest the cue.
 * the `last1.0 − first1.0` asymmetry, which read as "the code builds toward the cue", was **+0.246 on
   filtered data and −0.040 corrected** — it was the shadow's decay profile, not the plan's.
+  **CONFIRMED AND STRENGTHENED on 44 sessions (2026-08-17): −0.054.** The gradient does not merely
+  vanish with the shadow, it REVERSES: position information is highest FURTHEST from the cue, i.e.
+  nearest spout arrival, and decays through the ENL. A held intention should not decay while the
+  animal waits; a somatosensory response to an already-arrived spout should. Needs re-running on
+  lick-free trials before being quoted — the animal's last licks also sit at the early end.
 
 ## Errors made and corrected along the way
 

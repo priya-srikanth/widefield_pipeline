@@ -383,7 +383,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         sd[sd == 0] = 1.0
         per_sess.append({"label": s["label"], "reg": list(np.asarray(feat_reg)),
                          "cats": {c: ((F[c]["X"] - mu) / sd if F[c]["y"].size else None,
-                                      F[c]["y"], F[c]["sess_eng"]) for c in CATEGORIES}})
+                                      F[c]["y"], F[c]["sess_eng"], F[c]["g"])
+                                  for c in CATEGORIES}})
         if verbose:
             print(f"  {s['label']}: " + " ".join(f"{c}={F[c]['y'].size}" for c in CATEGORIES),
                   flush=True)
@@ -391,7 +392,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # Sessions can differ in which atlas areas survive registration, so restrict every session to
     # the areas ALL of them have, in one shared order -- otherwise column j is still not the same
     # area everywhere and the per-session z-scoring above would not save it.
-    acc = {c: {"X": [], "y": [], "sess": [], "eng": []} for c in CATEGORIES}
+    acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": []} for c in CATEGORIES}
     if per_sess:
         first = per_sess[0]["reg"]
         others = [set(p["reg"]) for p in per_sess[1:]]
@@ -402,12 +403,13 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         for p in per_sess:
             idx = [p["reg"].index(k) for k in common]
             for c in CATEGORIES:
-                X, y, eg = p["cats"][c]
+                X, y, eg, bk = p["cats"][c]
                 if X is None or not y.size:
                     continue
                 acc[c]["X"].append(X[:, idx])
                 acc[c]["y"].append(y)
                 acc[c]["eng"].append(eg)
+                acc[c]["blk"].append(bk)
                 acc[c]["sess"].append(np.full(y.size, p["label"], dtype=object))
 
     def _cat(k, f):
@@ -506,10 +508,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["per_session"] = per
     res["max_rt_s"] = None if max_rt is None else float(max_rt)
     if return_raw and Yp.size:
-        res["_raw"] = {"engaged": (YE.tolist(), pred_e.tolist(), SE.tolist()),
-                       "nolick": (Yp.tolist(), clf.predict(Xp).tolist(),
-                                  np.concatenate([_cat("late_rewarded", "sess"),
-                                                  _cat("undetected", "sess")]).tolist())}
+        res["_raw"] = {
+            "engaged": (YE.tolist(), pred_e.tolist(), SE.tolist(),
+                        _cat("engaged", "blk").tolist()),
+            "nolick": (Yp.tolist(), clf.predict(Xp).tolist(),
+                       np.concatenate([_cat("late_rewarded", "sess"),
+                                       _cat("undetected", "sess")]).tolist(),
+                       np.concatenate([_cat("late_rewarded", "blk"),
+                                       _cat("undetected", "blk")]).tolist())}
     if animal in ATTEMPT_CONFOUNDED:
         res["attempt_confounded"] = ATTEMPT_CONFOUNDED[animal]
     return res
@@ -579,9 +585,13 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
                     pc, cc, slot["precue"].get("nolick_pooled"), slot["cue"].get("nolick_pooled"))
             # the threshold-free test: does the pre-cue MINUS post-cue survival difference exclude
             # zero under a paired bootstrap over sessions?
-            slot["dissociation_ci"] = na.dissociation_ci(slot["precue"].pop("_raw", None),
-                                                         slot["cue"].pop("_raw", None))
-            slot["precue"].pop("_raw", None); slot["cue"].pop("_raw", None)
+            _rp, _rc = slot["precue"].pop("_raw", None), slot["cue"].pop("_raw", None)
+            slot["dissociation_ci"] = na.dissociation_ci(_rp, _rc, by="session")
+            # measured, not assumed: for the ENGAGED arm nested barely differed from session
+            # (0.109 vs 0.106), but the no-lick arm can contribute 4-6 trials from a session, where
+            # treating a drawn session's trials as known exactly is not obviously harmless
+            slot["dissociation_ci_nested"] = na.dissociation_ci(_rp, _rc, by="nested")
+            del _rp, _rc
             na.summarize({"precue": slot["precue"], "cue": slot["cue"],
                           "interpretation": slot.get("interpretation", "")})
     # a single agreed verdict per animal, or an explicit note that the bases disagree -- so nobody

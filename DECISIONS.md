@@ -1301,13 +1301,81 @@ respond, and an arm defined that way is exactly where the post-stroke question l
 
 ---
 
+## Trials with NO DETECTED LICK — the post-stroke readout (decided 2026-08-17)
+
+Post-stroke a failed trial can mean the plan was never formed or that it was formed and the movement
+failed. Identical in the behaviour log; opposite predictions in imaging — plan-intact keeps the
+PRE-cue code while the POST-cue code collapses, because post-cue decoding is largely lick-driven.
+`nolick_analysis` / `nolick_decoder`; reference frozen to `nolick_reference_prestroke.json`.
+
+**Chance is NOT 1/6 on this arm.** These trials are skewed across positions (PS93: 49% far_center)
+AND the decoder's predictions on them are skewed, so an information-free decoder scores 0.211 on
+PS93 and a constant "always guess far_center" scores 0.490 — above the 0.293 measured. Headline is
+BALANCED accuracy (null expectation exactly 1/6 however skewed either side is); raw accuracy is
+judged against a permutation null computed on these trials with predictions held fixed; a
+position-matched subsample is the independent check. Test is ONE-SIDED (directional hypothesis); the
+two-sided interval is reported but labelled descriptive, because at the margin they disagree.
+
+**NOTHING IS ANALYSED AFTER THE RESPONSE WINDOW (Priya, 2026-08-17).** The spout begins MOVING when
+the window closes, so any window extending past it samples the next trial's setup. The response
+window — read PER SESSION from `gui_config.json` (3500 ms; NOT the decoder's 2.0 s `max_rt_s`) — is a
+hard ceiling on every category boundary and every feature window. Categories: `engaged` (lick within
+the cut), `late_rewarded` (after the cut, within the window — a HIT the decoder's 2 s convention
+discards), `undetected` (no detected lick within the window, INCLUDING later licks, which is what the
+task scores them as).
+
+**Two splits, both of which changed the conclusion.** `late_rewarded` vs `undetected`: on PS93 8/12
+the pre-cue survival is carried ENTIRELY by late trials (0.532, p=0.003) while undetected show
+nothing (0.153, p=0.76). `undetected_working` vs `undetected_sated` (reusing `flag_engagement`): a
+run of misses at the END of a session is satiation, not motor failure (Priya) — PS95 8/14 has 39 of
+57 undetected trials in a terminal run, PS93 8/12 has 36 of 39 inside working stretches.
+
+**Result.** Direction is robust: pre-cue survival exceeds post-cue in 16/16 animal × basis × cut
+comparisons (1.1–3.5×). Significance is not: at the 2.0 s cut PS93 and PS95 in both bases, PS94 in
+joint only (p=0.037); at the response-window cut PS95 alone. Mechanism is legible — the wider cut
+reclassifies the late-but-successful trials as engaged, removing the trials carrying the signal.
+
+**"No detected lick" is not "no attempt."** The sensor needs contact. PS93's rightward tongue bias
+makes far_L a PRE-stroke, within-subject instance of the post-stroke phenotype, with ground truth
+owing nothing to the stroke. `ATTEMPT_CONFOUNDED` is the DLC/facial-tracking target list.
+
+**PRE- vs POST-STROKE TRIAL CRITERIA.** Pre-stroke uses lick-restricted trials; post-stroke will need
+ALL trials, because a missing detection may be a protrusion that fell short (Priya). Both directions
+are traps and `assert_comparable` RAISES rather than warns: engaged-only-pre vs all-trials-post
+scores lower with NO stroke required, and post-stroke "engaged" is SURVIVORSHIP-selected toward
+preserved function. Compute every criterion; compare like with like.
+`reference_position_engagement` measures motivation only at positions the deficit is expected to
+spare (Priya's close_L/close_center), parameterised because which are spared is a phenotype question.
+
+## Lick BOUT ONSETS as the motor event set (decided 2026-08-17)
+
+The lick-aligned decoder uses ONE lick per trial and discards 80–93% of lick events. `lick_bout_events`
+/ `lick_bout_decoder` use bout ONSETS instead — 1.16–4.24 per trial. Bouts, not individual licks
+(Priya): licks within a bout are 5–7 Hz and correlated, so counting each would multiply n 5–15× while
+adding almost nothing and making CV anticonservative.
+
+* **Labelled by the SPOUT STROBE, not the preceding cue.** The spout moves and strobes BEFORE the
+  cue, so the cue rule gives arrival-window licks the PREVIOUS trial's position. ~6-trial blocks hide
+  it; measured, the genuinely mislabelled fraction is PS93 7.3%, PS94 5.0%, PS95 0.8%, concentrated
+  at block transitions.
+* **CV groups are TRIALS.** Bouts share a trial; grouping by bout leaks and inflates accuracy in
+  proportion to the apparent gain — where it is least visible and most flattering.
+* **Phases scored separately** (`approach` pre-cue vs `response`): PS92 is 74% approach, PS95 6%, so
+  a pooled number is a different quantity per animal.
+
+**Read the approach result correctly.** PS92 8/12 approach bouts decode at 0.761 balanced (n=704,
+p=0.003) — but the animal is LICKING THE SPOUT, so position is available somatosensorily. That is a
+motor/sensory readout, NOT a pre-cue plan. Its value is a 4× larger movement-locked reference.
+
+---
+
 # Module & output reference
 Key analysis modules (`wfield_local/`): `run_locanmf.py` (LocaNMF/sNMF on the GPU box) ·
 `locanmf_position_decoder.py` (**the decoder**; `--source locanmf|roi`, `--align cue|lick|precue`, per-area
 accuracy + per-position recall + confusion) · `locanmf_position_encoder.py` (per-position EV / FEVE /
 predicted maps) · `locanmf_cross_mouse.py` (cross-mouse + within-animal consistency) · `locanmf_rsa.py` (RSA
 + noise ceiling + hemisphere-resolved + crossnobis) · `locanmf_decoder_weights.py` (rolling/temporal figs) ·
-`roi_activity.py` (CPU Allen-area ROI traces) · `quiet_periods.py` (quiet-frame mask) · `atlas_overlay.py`
+`nolick_analysis.py` + `nolick_decoder.py` + `plot_nolick_reference.py` (the no-detected-lick arm and its frozen pre-stroke reference) · `lick_bout_events.py` + `lick_bout_decoder.py` (bout-onset motor event set) · `roi_activity.py` (CPU Allen-area ROI traces) · `quiet_periods.py` (quiet-frame mask) · `atlas_overlay.py`
 (shared region outlines) · `framemap_event_maps.py` (regime-B cue/lick maps) · `qc_motion_correction.py` ·
 `cross_day_align.py`. The nightly orchestrators are `preprocess.py` (imaging) and `nightly_figs.py`
 (analysis). Figures/tables on MICROSCOPE under `labcams/locanmf_lick_pooled/…/cue_analysis/`; per-session

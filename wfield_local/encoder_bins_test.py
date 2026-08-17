@@ -1,7 +1,9 @@
 """Does the ENCODER benefit from sub-binned targets, the way the decoder does?
 
-The decoder adopted sub-binned features on 2026-08-14 (+0.032 pre-cue, +0.020 post-cue, +0.023
-post-lick). The encoder runs the same feature builder, so it would have inherited them silently --
+The decoder adopted sub-binned features on 2026-08-14. (Those pilot gains were +0.032 pre-cue,
++0.020 post-cue, +0.023 post-lick on 16 sessions; the PRE-CUE figure did not replicate -- +0.009,
+23/44, on all 44 curated sessions, 2026-08-17. It does not change this test's premise, which is
+that the encoder would inherit whatever the decoder adopted.) The encoder runs the same feature builder, so it would have inherited them silently --
 turning "predict each component's mean activity" into "predict its 8-bin time course" and changing
 what R^2, EV and the ceiling mean. It was pinned to `bins=1` pending this test rather than left to
 change by accident.
