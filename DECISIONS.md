@@ -1226,14 +1226,53 @@ So a frozen decoder's post-stroke confidence must never be read as preserved cod
 report it against the two references `ood_control` emits: the **shuffled-label entropy floor** (empirical
 no-information) and the **no-lick trials**.
 
-**No-lick trials carry no position code** (the nearest pre-stroke analogue of a failed attempt). Pooled
-across curated sessions, well powered at last (per-session n is only 6–153): PS95 n=396 acc 0.179 CI
-[0.142, 0.217]; PS94 n=351 acc 0.205 CI [0.163, 0.247]; PS92 n=189 acc 0.132 CI [0.084, 0.181] — **all
-CIs include chance 0.167**, against 0.71–0.86 for engaged trials in the same sessions. The encoder agrees:
-EV on no-lick trials is ≈0 once the engaged-vs-unengaged baseline offset is removed (raw −0.28 to −1.04
-is mostly a mean shift, not an inverted mapping; re-centred: −0.06, −0.03, −0.02).
-Combined with pre-cue decoding at 0.62 on engaged trials, the readout is a maintained position code that is
-**gated by engagement** — present before movement, absent on trials the animal will not act on.
+### ~~No-lick trials carry no position code~~ — SUPERSEDED 2026-08-17
+
+The original claim: pooled across curated sessions, PS95 n=396 acc 0.179 CI [0.142, 0.217]; PS94
+n=351 acc 0.205 CI [0.163, 0.247]; PS92 n=189 acc 0.132 CI [0.084, 0.181] — all CIs including chance
+0.167, against 0.71–0.86 engaged. Conclusion drawn: a maintained position code **gated by
+engagement**, absent on trials the animal will not act on.
+
+**That conclusion does not survive, and the reason is instructive.**
+
+1. **The null was wrong.** Accuracy was compared against a uniform 1/6. These trials are heavily
+   skewed across positions (PS93's are 49% `far_center`, 25% `far_L` — animals decline the far
+   spouts) and the decoder's predictions on them are skewed too (PS94 puts 33% on one position). Two
+   overlapping biases score above 1/6 with no information at all: PS93's independence null is
+   **0.211**, and a constant "always guess far_center" scores **0.490**, beating the decoder's own
+   0.293 outright. The same flawed comparison later flipped to reporting "above chance" for all four
+   animals — the flag was uninformative in both directions.
+2. **The sample has roughly doubled** (PS95 396 → 816 no-detected-lick trials), so the wide CIs that
+   contained chance no longer do.
+3. **The category was a mixture.** "No lick" pooled *licked late* (2–5 s) with *never detected*.
+   Split, on PS93 8/12 the pre-cue survival is carried entirely by LATE trials (balanced 0.532,
+   p=0.003) while genuinely undetected trials show nothing (0.153, p=0.76).
+
+**Corrected finding** (`nolick_analysis` / `nolick_decoder`, headline = balanced accuracy, whose null
+expectation is exactly 1/6 however skewed either side is; raw accuracy against a permutation null
+computed on these trials with predictions held fixed; position-matched subsample as a check; run in
+BOTH poolable bases). PS93 pooled over 11 sessions, ROI / joint agreeing: engaged 0.508 / 0.525
+balanced, post-cue survival ratio **0.357 / 0.422**; pre-cue survives far better than post-cue.
+
+So the readout is **not** "engagement gates the code". It is that the **POST-cue** code is largely
+movement-driven and collapses without a lick, while the **PRE-cue** code substantially survives —
+which is exactly the discrimination the post-stroke arm needs, and biologically expected (Priya,
+2026-08-17): an animal can know where the spout is and still not lick.
+
+**"No detected lick" is not "no attempt."** The sensor requires contact, so an executed but short
+lick registers as nothing. PS93 has a pre-existing rightward tongue bias and reaches `far_L` poorly
+(Priya, 2026-08-17) — making PS93 `far_L` a pre-stroke, within-subject instance of the post-stroke
+phenotype, with ground truth owing nothing to the stroke. Recorded in
+`nolick_decoder.ATTEMPT_CONFOUNDED` as the DLC/facial-tracking target list.
+
+The ENCODER half of the original entry stands and is untouched: EV on these trials is ≈0 once the
+baseline offset is removed (raw −0.28 to −1.04 is mostly a mean shift, not an inverted mapping;
+re-centred −0.06, −0.03, −0.02).
+
+**Method lesson.** Both the original claim and its later inversion came from one unexamined
+assumption — that chance is 1/6 because there are six positions. It is 1/6 only when the trials are
+balanced *and* the predictions unbiased. Neither holds on an arm defined by the animal declining to
+respond, and an arm defined that way is exactly where the post-stroke question lives.
 
 ---
 

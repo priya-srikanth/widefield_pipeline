@@ -591,8 +591,11 @@ def _loso_fig(results, out, align="cue", basis="roi"):
     ax[2].set_xticks(range(3)); ax[2].set_xticklabels(keys)
     ax[2].set_ylabel("normalized entropy  H / log(n_classes)"); ax[2].set_ylim(0, 1.1)
     ax[2].legend(fontsize=8)
+    # The old title asserted "no-lick decodes at CHANCE". It does not (see nolick_analysis and
+    # DECISIONS.md); the entropy panel is about CONFIDENCE, which is the claim it can actually
+    # support, so it now says only that. Whether these trials decode is section D2's question.
     ax[2].set_title("OOD control: the decoder never abstains\n"
-                    "no-lick decodes at CHANCE yet stays confident", fontsize=10.5)
+                    "confidence alone is not evidence — see the no-lick arm (D2)", fontsize=10.5)
     fig.tight_layout()
     p = out / f"locanmf_frozen_decoder_loso_{basis}_{align}.png"
     fig.savefig(p, dpi=140); plt.close(fig)
