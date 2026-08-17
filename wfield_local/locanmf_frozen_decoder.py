@@ -104,8 +104,26 @@ def _align_many(mats, regs):
     :func:`_aligned` handles a pair; pooling needs the N-way intersection so that column j is the
     same Allen area in every session.
     """
-    common = [r for r in regs[0] if all(r in set(rr) for rr in regs[1:])]
-    return [m[:, [list(rr).index(r) for r in common]] for m, rr in zip(mats, regs)], common
+    # MATCH ON (label, occurrence), NOT ON LABEL. SUB-BINNING TILES the region vector once per bin
+    # (66 areas x 4 bins = 264 columns, still only 66 distinct labels), so resolving a label with
+    # list.index() sends every bin back to the FIRST column carrying it -- the 4 x 0.5 s time course
+    # silently became four copies of bin 0. That has been true of every ROI frozen number since
+    # sub-binning was adopted on 2026-08-14. Keying by occurrence keeps bin k matched to bin k while
+    # still intersecting on the areas a session actually has.
+    def _keyed(rr):
+        seen, out = {}, []
+        for r in rr:
+            seen[r] = seen.get(r, -1) + 1
+            out.append((r, seen[r]))
+        return out
+
+    keyed = [_keyed(rr) for rr in regs]
+    common_k = [k for k in keyed[0] if all(k in set(kk) for kk in keyed[1:])]
+    out = []
+    for m, kk in zip(mats, keyed):
+        pos = {k: i for i, k in enumerate(kk)}
+        out.append(m[:, [pos[k] for k in common_k]])
+    return out, [r for r, _ in common_k]
 
 
 def _entropy_norm(proba):

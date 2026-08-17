@@ -394,14 +394,28 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # area everywhere and the per-session z-scoring above would not save it.
     acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": []} for c in CATEGORIES}
     if per_sess:
-        first = per_sess[0]["reg"]
-        others = [set(p["reg"]) for p in per_sess[1:]]
-        common = [r for r in first if all(r in o for o in others)]
-        if len(common) < len(first):
-            print(f"  [{animal} {align}] restricting to {len(common)}/{len(first)} features "
+        # MATCH ON (label, occurrence), NOT ON LABEL. Region labels REPEAT -- the joint basis maps
+        # several components to one Allen area (PS93: 87 components, 64 distinct labels), and
+        # sub-binning tiles the whole label vector once per bin. Matching by label alone and
+        # resolving with list.index() sends every repeat to the FIRST column carrying that label,
+        # so 4 x 0.5 s bins collapse into four copies of bin 0 and duplicated components collapse
+        # onto one. It silently DESTROYS the sub-binning it is meant to preserve.
+        def _keyed(reg):
+            seen, out = {}, []
+            for r in reg:
+                seen[r] = seen.get(r, -1) + 1
+                out.append((r, seen[r]))
+            return out
+
+        keyed = [_keyed(p["reg"]) for p in per_sess]
+        others = [set(k) for k in keyed[1:]]
+        common = [k for k in keyed[0] if all(k in o for o in others)]
+        if len(common) < len(keyed[0]):
+            print(f"  [{animal} {align}] restricting to {len(common)}/{len(keyed[0])} features "
                   f"present in all {len(per_sess)} sessions", flush=True)
-        for p in per_sess:
-            idx = [p["reg"].index(k) for k in common]
+        for p, kk in zip(per_sess, keyed):
+            pos = {k: i for i, k in enumerate(kk)}
+            idx = [pos[k] for k in common]
             for c in CATEGORIES:
                 X, y, eg, bk = p["cats"][c]
                 if X is None or not y.size:

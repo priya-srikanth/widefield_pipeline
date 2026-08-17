@@ -429,7 +429,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
-              "(Per-animal accuracy across sessions is in the cross-mouse summary, Section C.)")
+              "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)")
         note(s, M_DECODE)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
 
