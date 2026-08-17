@@ -1373,6 +1373,50 @@ preserved function. Compute every criterion; compare like with like.
 `reference_position_engagement` measures motivation only at positions the deficit is expected to
 spare (Priya's close_L/close_center), parameterised because which are spared is a phenotype question.
 
+## PLANNED vs EXECUTED direction — pending DLC/FR (Priya, 2026-08-17)
+
+Priya: once DLC/facial tracking lands, pre-cue trials could be binned by the direction the TONGUE
+actually went rather than by spout position — on the first trial after a position change the animal
+sometimes licks toward the OLD position and corrects on the next lick. Her question was whether it
+is fair to do this PRE-stroke, given the post-stroke arm is specifically looking for a
+planned/executed disconnect.
+
+**Yes, and it is closer to necessary than optional.** Without a pre-stroke rate of plan/execution
+mismatch, a post-stroke dissociation cannot be attributed to the lesion — it could be what the
+analysis does to any data. The pre-stroke error trials are that control.
+
+**BUT: two labels, never a relabelling.** Binning pre-cue by executed direction makes "does the plan
+match execution" tautological — the label IS the execution. Keep both per trial:
+
+    target label     spout position (what the animal should do)
+    executed label   DLC tongue direction (what it did)
+
+They agree on most trials; the MIS-DIRECTED trials are the whole measurement. Train on target labels
+over all trials, then score the held-out error trials BOTH ways. No refit, and the contrast is the
+result: predicts target -> the pre-cue code is about the stimulus; predicts execution -> it is a plan.
+
+**This also breaks a tie the design was thought unable to break.** See '"Pre-cue" is AFTER the spout
+arrives' above: the spout has been in position ~3 s by cue time, so a held intention and a sustained
+somatosensory response are temporally coextensive and this design cannot separate them. On a
+mis-directed trial it can — the spout (somatosensory input) says A while the tongue goes to B, so
+pre-cue activity predicting B is a plan by construction. The 44-session asymmetry result (2026-08-17:
+information highest FURTHEST from the cue, decaying through the ENL) only leans somatosensory; this
+would settle it.
+
+**Feasibility.** First-trial-after-position-change is 16.1-16.3% of trials — 651 (PS92), 967 (PS93),
+997 (PS94), 1120 (PS95) across the curated set. What fraction are actually mis-directed is unknown
+until DLC exists, but even 10% leaves 65-110 per animal: adequate POOLED, thin per session.
+
+**Build in from the start:**
+* Error trials are SELECTED, not random — they follow position changes and will cluster on far
+  positions and on PS93's biased direction. Compare within condition (erred vs not-erred among
+  first-after-change trials), never against the general trial pool.
+* State the rule for correct-on-second-lick trials. Recommend labelling by the FIRST lick: that is
+  the executed plan, and the correction is a separate event.
+* Record the labelling scheme per result and extend `nolick_analysis.assert_comparable` to cover it.
+  A target-labelled result compared with an execution-labelled one is the same trap as the
+  pre/post trial-criterion mismatch, and would manufacture exactly the effect being looked for.
+
 ## Lick BOUT ONSETS as the motor event set (decided 2026-08-17)
 
 The lick-aligned decoder uses ONE lick per trial and discards 80–93% of lick events. `lick_bout_events`
