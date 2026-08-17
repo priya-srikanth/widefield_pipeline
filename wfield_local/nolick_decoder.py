@@ -591,6 +591,10 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
         vals = {v for v in got.values() if v}
         ref["consensus"][an] = (vals.pop() if len(vals) == 1 else
                                 {"DISAGREEMENT": got} if vals else None)
+    # derive verdicts/consensus/direction_consistency through the SAME path a reinterpret uses, so a
+    # fresh build and a re-read can never disagree about them (they did: a fresh build had no
+    # direction_consistency at all, because that block lived only in reinterpret)
+    reinterpret(ref)
     if out:
         na.write_reference(ref, Path(out))
         print(f"wrote {out}", flush=True)
@@ -620,16 +624,25 @@ def reinterpret(ref):
                         pd_["compare"], d["compare"], pd_.get("nolick_pooled"),
                         d.get("nolick_pooled"))
     animals = sorted({a for b in ref.get("by_basis", {}).values() for a in b.get("animals", {})})
+    # Consensus is across BASES WITHIN ONE CUT. Comparing across cuts would report "disagreement"
+    # for the thing both cuts exist to show -- they are different questions (the decoder's 2.0 s
+    # convention vs the task's own response window), not two measurements of one.
+    cuts = sorted({blk.get("engaged_cut", "2.0s") for blk in ref["by_basis"].values()})
     ref["consensus"] = {}
+    for cut in cuts:
+        keys = [k for k, blk in ref["by_basis"].items() if blk.get("engaged_cut", "2.0s") == cut]
+        slot = ref["consensus"].setdefault(cut, {})
+        for an in animals:
+            got = {k: ref["by_basis"][k]["animals"][an].get("interpretation")
+                   for k in keys if an in ref["by_basis"][k].get("animals", {})}
+            cls = {v.split(":")[0].replace("consistent with ", "").strip()
+                   for v in got.values() if v}
+            slot[an] = (got[list(got)[0]] if len(cls) == 1 else
+                        {"DISAGREEMENT": got} if cls else None)
     for an in animals:
         got = {b: blk["animals"][an].get("interpretation")
                for b, blk in ref["by_basis"].items() if an in blk.get("animals", {})}
-        # compare the VERDICT CLASS, not the sentence -- the sentences carry per-basis numbers and
-        # would never be equal, which would report disagreement on every animal
-        cls = {v.split(":")[0].replace("consistent with ", "").strip()
-               for v in got.values() if v}
-        ref["consensus"][an] = (got[list(got)[0]] if len(cls) == 1 else
-                                {"DISAGREEMENT": got} if cls else None)
+        del got
 
     # THE THRESHOLD-FREE SUMMARY, and the one to quote. A per-animal verdict is a binary label on a
     # continuous ratio, so an animal near the cut flips basis to basis and the consensus reports
@@ -675,8 +688,18 @@ def main():
         pth = Path(a.reinterpret)
         ref = reinterpret(_json.loads(pth.read_text()))
         pth.write_text(_json.dumps(ref, indent=2))
-        for an, v in (ref.get("consensus") or {}).items():
-            print(f"  {an}: {v if isinstance(v, str) else 'BASES DISAGREE: ' + str(v)}", flush=True)
+        d = ref.get("direction_consistency") or {}
+        if d.get("statement"):
+            print(f"  DIRECTION (threshold-free): {d['statement']}", flush=True)
+        for cut, per in (ref.get("consensus") or {}).items():
+            print(f"  [engaged cut = {cut}]", flush=True)
+            for an, v in (per or {}).items():
+                if isinstance(v, str):
+                    print(f"    {an}: {v}", flush=True)
+                else:
+                    got = (v or {}).get("DISAGREEMENT", {})
+                    print(f"    {an}: BASES DISAGREE -- " + "; ".join(
+                        f"{k}={x.split(':')[0]}" for k, x in got.items()), flush=True)
         print(f"rewrote {pth}", flush=True)
         return
     dates = config.expand_dates(a.dates, width=4) if a.dates else None
