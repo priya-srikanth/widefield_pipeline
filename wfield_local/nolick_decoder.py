@@ -46,6 +46,7 @@ from wfield_local.locanmf_position_decoder import (
     _build_signal,
     _load_cue_events,
     _window_feature,
+    is_engaged,
 )
 from wfield_local.locanmf_frozen_decoder import _pipe
 from wfield_local.plot_lick_aligned_averages import (
@@ -139,7 +140,8 @@ def category_for_rt(rt_s, max_rt_s, response_window_s):
     cut = min(max_rt_s, response_window_s)      # the engaged cut can never exceed the window
     if rt_s is None or not np.isfinite(rt_s) or rt_s <= 0:
         return "undetected"
-    if rt_s <= cut:
+    # the SAME predicate the production decoder uses, imported rather than restated
+    if is_engaged(1.0, rt_s, cut):
         return "engaged"
     if rt_s <= response_window_s:
         return "late_rewarded"

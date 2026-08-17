@@ -99,6 +99,17 @@ def _window_feature(sig, w0, post_n, bins, base):
     return f - (np.tile(base, bins) if np.ndim(base) else base)
 
 
+def is_engaged(first_lick, rt, max_rt):
+    """THE canonical engaged rule: a detected lick after the cue, within ``max_rt``.
+
+    Extracted from the loop below so that `nolick_decoder`, which subdivides the same trials, uses
+    this predicate rather than a second copy of the condition. Two copies of a trial-selection rule
+    is how an analysis and the deck it is compared against silently come to mean different things by
+    "engaged". Units are whatever the caller uses consistently (the decoder passes frames).
+    """
+    return bool(first_lick > 0 and 0 < rt <= max_rt)
+
+
 def _trial_features(s, args, signal=None, feat_region=None):
     """Trial-averaged features for one session.
 
@@ -146,7 +157,7 @@ def _trial_features(s, args, signal=None, feat_region=None):
             base = sig[:, c0 - pre_n:c0].mean(1)
         else:
             base = 0.0
-        if first[k] > 0 and 0 < rt[k] <= maxrt_n:           # ENGAGED: cue + lick
+        if is_engaged(first[k], rt[k], maxrt_n):            # ENGAGED: cue + lick
             w0 = int(first[k]) if args.align == "lick" else ref0
             if w0 < 0 or w0 + post_n > T:
                 continue

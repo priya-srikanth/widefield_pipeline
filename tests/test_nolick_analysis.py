@@ -309,3 +309,23 @@ def test_one_sided_test_and_two_sided_interval_are_labelled_distinctly():
     assert r["significant"] == (r["p_one_sided"] < na.ALPHA)
     # the one-sided lower bound must be at least as high as the two-sided one
     assert r["difference_lower_bound_one_sided"] >= r["difference_ci"][0] - 1e-9
+
+
+def test_the_engaged_rule_has_exactly_one_implementation():
+    """nolick_decoder must not carry a second copy of the decoder's engaged condition.
+
+    Two copies of a trial-selection rule is how an analysis and the deck it is compared against come
+    to mean different things by "engaged" without anyone changing their mind about it.
+    """
+    from wfield_local import nolick_decoder as nd
+    from wfield_local.locanmf_position_decoder import is_engaged
+
+    assert nd.is_engaged is is_engaged, "nolick_decoder must import the canonical predicate"
+    # and the category rule must agree with it wherever both are defined
+    for rt in (0.1, 1.0, 1.99, 2.0, 2.01, 3.0):
+        expected = "engaged" if is_engaged(1.0, rt, 2.0) else None
+        got = nd.category_for_rt(rt, 2.0, 3.5)
+        if expected:
+            assert got == "engaged", f"rt={rt}: decoder says engaged, categoriser says {got}"
+        else:
+            assert got != "engaged", f"rt={rt}: decoder says not engaged, categoriser says engaged"
