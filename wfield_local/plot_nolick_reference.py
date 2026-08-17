@@ -121,6 +121,36 @@ def figure_per_session(ref, out, source="roi"):
     return p
 
 
+def normalize_consensus(cons):
+    """Return consensus as {cut: {animal: verdict}}, or RAISE if it is neither known shape.
+
+    THE POINT IS THE RAISE. A figure accepts whatever dict it is handed, so when `consensus` was
+    restructured from {animal: verdict} to {cut: {animal: verdict}} the plot did not fail -- it drew
+    the two CUTS as though they were animals, with empty disagreement strings, and the deck reported
+    441 figures and 0 missing. The deck checks that figures EXIST and the tests check that code RUNS;
+    neither asserts what a figure SAYS, and every wrong-figure bug in this project has gone through
+    that gap. Validating the shape at the boundary converts the whole class from "renders nonsense"
+    into "stops".
+
+    A verdict is a string, or a {"DISAGREEMENT": {...}} dict, or None.
+    """
+    def _is_verdict(v):
+        return v is None or isinstance(v, str) or (isinstance(v, dict) and "DISAGREEMENT" in v)
+
+    if not cons:
+        return {}
+    vals = list(cons.values())
+    if all(_is_verdict(v) for v in vals):                 # legacy flat {animal: verdict}
+        return {"(unspecified cut)": cons}
+    if all(isinstance(v, dict) and v and all(_is_verdict(x) for x in v.values()) for v in vals):
+        return cons                                       # {cut: {animal: verdict}}
+    raise ValueError(
+        "consensus is neither {animal: verdict} nor {cut: {animal: verdict}}; refusing to draw a "
+        f"figure from an unrecognised shape (top-level keys: {list(cons)[:6]}). If the schema "
+        "changed deliberately, update normalize_consensus so the change is declared rather than "
+        "silently mis-plotted.")
+
+
 def figure_agreement(ref, out):
     """Do the two bases reach the same verdict, per animal and per engaged cut?
 
@@ -130,12 +160,9 @@ def figure_agreement(ref, out):
     "respwin" as if they were animals, with an empty disagreement string. Wrong figures that render
     are worse than ones that fail, and this one is in the deck.
     """
-    cons = ref.get("consensus") or {}
+    cons = normalize_consensus(ref.get("consensus") or {})
     if not cons:
         return None
-    # tolerate the older flat shape so an archived reference still plots
-    if all(not isinstance(v, dict) or "DISAGREEMENT" in (v or {}) for v in cons.values()):
-        cons = {"(unspecified cut)": cons}
 
     rows = [(cut, an, v) for cut, per in cons.items() for an, v in (per or {}).items()]
     fig, ax = plt.subplots(figsize=(12.5, 0.9 + 0.55 * max(len(rows), 1)))

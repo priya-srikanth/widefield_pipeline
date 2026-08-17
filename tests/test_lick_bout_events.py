@@ -118,3 +118,31 @@ def test_summarize_reports_what_the_extra_events_buy():
 def test_empty_input_does_not_raise():
     s = _session(strobe_t=[0.0], cue_t=[3.0], lick_t=[], codes=[1])
     assert lb.summarize(_run(**s))["n_bouts"] == 0
+
+
+# ---------------------------------------------------------------------------------------------
+# figure-input validation: the class of bug where a plot renders the WRONG thing rather than fail
+# ---------------------------------------------------------------------------------------------
+from wfield_local.plot_nolick_reference import normalize_consensus  # noqa: E402
+
+
+def test_nested_consensus_passes_through():
+    cons = {"2.0s": {"PS92": "verdict a"}, "respwin": {"PS92": {"DISAGREEMENT": {"roi": "x"}}}}
+    assert normalize_consensus(cons) == cons
+
+
+def test_legacy_flat_consensus_is_wrapped_not_rejected():
+    out = normalize_consensus({"PS92": "verdict a", "PS93": None})
+    assert list(out) == ["(unspecified cut)"] and out["(unspecified cut)"]["PS92"] == "verdict a"
+
+
+def test_unrecognised_shape_raises_instead_of_plotting_nonsense():
+    """The actual regression: cuts drawn as animals, empty strings, deck reporting 0 missing."""
+    with pytest.raises(ValueError, match="unrecognised shape"):
+        normalize_consensus({"2.0s": {"PS92": ["not", "a", "verdict"]}})
+    with pytest.raises(ValueError, match="unrecognised shape"):
+        normalize_consensus({"PS92": 42})
+
+
+def test_empty_consensus_is_not_an_error():
+    assert normalize_consensus({}) == {}
