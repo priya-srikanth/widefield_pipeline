@@ -78,6 +78,10 @@ ATTEMPT_CONFOUNDED = {
 }
 
 
+def s_label(s):
+    return s.get("label", "?") if isinstance(s, dict) else "?"
+
+
 def _args(source="locanmf", align="cue", post_s=2.0, bins=None):
     return SimpleNamespace(source=source, align=align, baseline="none", pre_s=1.0,
                            post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
@@ -189,7 +193,28 @@ def categorize(s, args):
             continue
         cat[k] = category_for_rt(rt_s[k] if first[k] > 0 else float("nan"),
                                  args.max_rt, rw_s)
-    return codes, cat, blk, rt_s, cue_f
+    # ENGAGEMENT STATE, per trial. Pre-stroke, a run of misses at the END of a session is satiation,
+    # not motor failure (Priya, 2026-08-17) -- so the undetected arm is a MIXTURE of "no plan formed"
+    # (sated) and "plan formed, movement fell short" (e.g. PS93 far_L). Pooling them dilutes exactly
+    # the contrast this module measures, and post-stroke the mixture will be different again, so the
+    # comparison would be between two different blends.
+    #
+    # flag_engagement is the pipeline's existing gate and is reused rather than reimplemented; it
+    # already has the property this needs -- a patch of hard-POSITION misses does not trip it while
+    # the animal keeps hitting easy positions, so PS93's far_L attempts stay in the engaged period
+    # instead of being written off as disengagement.
+    from wfield_local.spout_behavior import flag_engagement
+    eng = config.defaults()["behavior"]["engagement"]
+    responded = np.array([c == "engaged" or c == "late_rewarded" for c in cat], bool)
+    try:
+        sess_eng, _info = flag_engagement(responded, window=eng["window_trials"],
+                                          min_rate=eng["min_response_rate"],
+                                          tail_min_misses=eng["tail_min_misses"])
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
+              flush=True)
+        sess_eng = np.ones(cue_f.size, bool)
+    return codes, cat, blk, rt_s, cue_f, np.asarray(sess_eng, bool)
 
 
 def session_features(s, args, signal=None, feat_region=None):
@@ -210,11 +235,11 @@ def session_features(s, args, signal=None, feat_region=None):
     else:
         sig, feat_reg = _build_signal(s, args.source)
     nfeat, T = sig.shape
-    codes, cat, blk, rt_s, cue_f = categorize(s, args)
+    codes, cat, blk, rt_s, cue_f, sess_eng = categorize(s, args)
     bins = _bins_for(args)
     post_n = int(round(args.post_s * args.fs))
 
-    out = {c: {"X": [], "y": [], "g": [], "rt": []} for c in CATEGORIES}
+    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": []} for c in CATEGORIES}
     for k in range(cue_f.size):
         if not cat[k]:
             continue
@@ -227,6 +252,7 @@ def session_features(s, args, signal=None, feat_region=None):
         d["y"].append(int(codes[k]))
         d["g"].append(int(blk[k]))
         d["rt"].append(float(rt_s[k]))
+        d["sess_eng"].append(bool(sess_eng[k]))
     del sig
     if bins > 1:
         feat_reg = np.tile(feat_reg, bins)
@@ -234,6 +260,7 @@ def session_features(s, args, signal=None, feat_region=None):
         d = out[c]
         d["X"] = np.array(d["X"]); d["y"] = np.array(d["y"], int)
         d["g"] = np.array(d["g"], int); d["rt"] = np.array(d["rt"], float)
+        d["sess_eng"] = np.array(d["sess_eng"], bool)
     return out, feat_reg
 
 
@@ -354,7 +381,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         sd[sd == 0] = 1.0
         per_sess.append({"label": s["label"], "reg": list(np.asarray(feat_reg)),
                          "cats": {c: ((F[c]["X"] - mu) / sd if F[c]["y"].size else None,
-                                      F[c]["y"]) for c in CATEGORIES}})
+                                      F[c]["y"], F[c]["sess_eng"]) for c in CATEGORIES}})
         if verbose:
             print(f"  {s['label']}: " + " ".join(f"{c}={F[c]['y'].size}" for c in CATEGORIES),
                   flush=True)
@@ -362,7 +389,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # Sessions can differ in which atlas areas survive registration, so restrict every session to
     # the areas ALL of them have, in one shared order -- otherwise column j is still not the same
     # area everywhere and the per-session z-scoring above would not save it.
-    acc = {c: {"X": [], "y": [], "sess": []} for c in CATEGORIES}
+    acc = {c: {"X": [], "y": [], "sess": [], "eng": []} for c in CATEGORIES}
     if per_sess:
         first = per_sess[0]["reg"]
         others = [set(p["reg"]) for p in per_sess[1:]]
@@ -373,11 +400,12 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         for p in per_sess:
             idx = [p["reg"].index(k) for k in common]
             for c in CATEGORIES:
-                X, y = p["cats"][c]
+                X, y, eg = p["cats"][c]
                 if X is None or not y.size:
                     continue
                 acc[c]["X"].append(X[:, idx])
                 acc[c]["y"].append(y)
+                acc[c]["eng"].append(eg)
                 acc[c]["sess"].append(np.full(y.size, p["label"], dtype=object))
 
     def _cat(k, f):
@@ -409,6 +437,23 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             res[c] = {"n": 0}
             continue
         res[c] = na.evaluate_arm(Y, clf.predict(_cat(c, "X")), target_frac=eng_frac, n_perm=n_perm)
+
+    # SPLIT THE UNDETECTED ARM BY ENGAGEMENT STATE. A miss inside a working stretch is a candidate
+    # "tried and fell short"; a miss in the satiation tail is "stopped working". Pre-stroke they are
+    # pooled in every previous version of this analysis, which blends the two mechanisms the module
+    # exists to separate -- and post-stroke the blend will differ again, so the comparison would be
+    # between two different mixtures rather than between two conditions.
+    Yu_all, Xu_all = _cat("undetected", "y"), _cat("undetected", "X")
+    Eu = _cat("undetected", "eng")
+    if Yu_all.size and Eu.size == Yu_all.size:
+        for nm, m in (("undetected_working", Eu.astype(bool)),
+                      ("undetected_sated", ~Eu.astype(bool))):
+            if m.sum() >= 30:
+                res[nm] = na.evaluate_arm(Yu_all[m].astype(int), clf.predict(Xu_all[m]),
+                                          target_frac=eng_frac, n_perm=n_perm)
+            else:
+                res[nm] = {"n": int(m.sum()),
+                           "note": "too few trials to evaluate (need >=30)"}
 
     Yp = np.concatenate([_cat("late_rewarded", "y"), _cat("undetected", "y")]).astype(int)
     if Yp.size:
