@@ -132,6 +132,12 @@ def main():
     ap.add_argument("--align", default="precue", choices=("precue", "cue", "lick"))
     ap.add_argument("--refit-t", action="store_true",
                     help="refit hemodynamic coefficients on the drift-removed traces (product path)")
+    ap.add_argument("--from-disk", action="store_true",
+                    help="load each mode's SAVED SVTcorr instead of recomputing it. Faster, but the "
+                         "real reason is fidelity: recomputing runs a SECOND implementation of the "
+                         "drift removal alongside the pipeline's, and a sweep meant to settle a "
+                         "pipeline default should measure the bytes the pipeline actually reads. "
+                         "Only works for a variant already written to disk (the adopted one is).")
     a = ap.parse_args()
 
     modes = a.modes.split(",")
@@ -158,7 +164,10 @@ def main():
         _c, _l, csmp = _frames(s, cue, lk)
         for m in modes:
             try:
-                svtc, _T, _rc, _meta = hv.compute(s, m, refit_t=a.refit_t, verbose=False)
+                if a.from_disk:
+                    svtc = np.load(config.svtcorr_path(s["mc"], m))
+                else:
+                    svtc, _T, _rc, _meta = hv.compute(s, m, refit_t=a.refit_t, verbose=False)
             except Exception as ex:                                  # noqa: BLE001
                 print(f"  !! {lab} {m}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
                 continue
