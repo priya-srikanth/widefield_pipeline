@@ -65,6 +65,7 @@ from wfield_local.precue_attribution import CHANCE, C_REG, encoding_ev, family_c
 FS = 31.23
 PRE_S = 2.0            # the pipeline's pre-cue window: 2 s ENDING at the cue
 MIN_TRIALS = 40        # below this a decode result is not reported at all
+ENL_LICKFREE_WARN = 0.85   # below this, say so: the ENL assumption is the pre-cue readout's floor
 
 
 def lickfree_window(cue_f, strobe_f, licks, win_n):
@@ -230,8 +231,22 @@ def analyse(session, source="roi"):
     if not len(y):
         return None
     free = nl == 0
+    frac = float(free.mean())
+    # THE ENL LIVES IN FIRMWARE, NOT IN gui_config.json, so if it were shortened at the rig no config
+    # this pipeline reads would change -- the pre-cue window would quietly start sampling licking and
+    # every pre-cue number would keep being reported as motor-independent. Measured 2026-08-17 the
+    # boundary is razor-sharp (licks within 2.0 s of a cue: 0.00-0.19% of all licks; within 3.0 s:
+    # 1.7-10.7%), so the 2 s window is the MAXIMAL safe one and a real drop here means the task
+    # changed or the animal's licking did. Warn, do not fail: PS93 legitimately reaches 76% on 8/9
+    # through unusual licking alone, and a guard that fires on real behaviour gets ignored.
+    if frac < ENL_LICKFREE_WARN:
+        print(f"  !! {session['label']}: only {100*frac:.1f}% of {PRE_S}s pre-cue windows are "
+              f"lick-free (expected >{100*ENL_LICKFREE_WARN:.0f}% under a {PRE_S}s ENL). Either this "
+              f"animal's licking is atypical or the ENL changed -- the pre-cue readout's "
+              f"motor-independence rests on this.", flush=True)
     out = {"label": session["label"], "source": source, "n_trials": int(len(y)),
-           "n_lickfree": int(free.sum()), "frac_lickfree": float(free.mean()),
+           "n_lickfree": int(free.sum()), "frac_lickfree": frac,
+           "enl_assumption_ok": bool(frac >= ENL_LICKFREE_WARN),
            "window_offset_s_median": float(np.nanmedian(off[nl == 0])) if (nl == 0).any() else np.nan,
            "window_offset_s_p90": float(np.nanpercentile(off[nl == 0], 90)) if (nl == 0).any() else np.nan,
            "n_window_moved": int(np.sum((nl == 0) & (off > 1e-6))),
