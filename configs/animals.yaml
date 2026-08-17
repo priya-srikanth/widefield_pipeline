@@ -3,8 +3,19 @@
 #
 # stroke_date convention: the date of the LAST PRE-STROKE session. The VLS
 # (ventrolateral-striatal) stroke is induced after that day's session; sessions on
-# stroke_date are baseline, only sessions AFTER are post-stroke. The cohort is currently
-# PRE-STROKE, so stroke_date is null (to be filled when the lesion is done).
+# stroke_date are baseline, only sessions AFTER are post-stroke.
+#
+# COHORT LESIONED 2026-08-16 PM. Last pre-stroke session 8/14 (no recordings 8/15-8/16), so
+# stroke_date = 20260814 for all four. PS94 and PS95 took at 3 mW and show overt deficits ->
+# 8/17 onward is post-stroke for them. PS92 and PS93 showed NO overt deficit and are being
+# re-lesioned after the 8/17 session, so their 8/17 is neither baseline nor post-stroke and is
+# listed in `exclude` (config.session_phase -> "excluded"). Per-session figures still show it;
+# it is invisible to every POOLED phase set.
+#
+# READ BY config.stroke_date / stroke_cutoff / session_phase / phase_labels since 2026-08-17.
+# Before that this field, and `exclude`, were documented here and consumed by NOTHING -- so
+# curated_dates() would have swept a post-stroke night into the pre-stroke pool that fits the
+# joint bases, trains the frozen decoder and builds the no-lick reference.
 #
 # characteristics: free-form per-animal traits the analysis conditions on.
 # exclude: dates (MMDD) to drop, optionally scoped to an analysis tag (see docs).
@@ -18,7 +29,11 @@ animals:
     characteristics: {}
     stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # fill at lesion time
+    stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
+                             #   is not recorded here because I was not told it -- do not
+                             #   assume it matched PS94/PS95 (3 mW). Stroke is being REDONE
+                             #   after the 8/17 session; fill in the effective attempt's
+                             #   power and update stroke_date then.
     reference_landmarks: v2         # dorsal_cortex_landmarks_<v> version for the 6/6 cross-reg reference
     exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
                              #   REDONE after the 8/17 session, so 8/17 is
@@ -35,7 +50,11 @@ animals:
       cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
     stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # fill at lesion time
+    stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
+                             #   is not recorded here because I was not told it -- do not
+                             #   assume it matched PS94/PS95 (3 mW). Stroke is being REDONE
+                             #   after the 8/17 session; fill in the effective attempt's
+                             #   power and update stroke_date then.
     reference_landmarks: v2
     exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
                              #   REDONE after the 8/17 session, so 8/17 is
@@ -50,7 +69,8 @@ animals:
     characteristics: {}
     stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # fill at lesion time
+    stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
+                             #   from 8/17 (Priya, 2026-08-17)
     reference_landmarks: v1
     exclude: []
 
@@ -62,7 +82,8 @@ animals:
     characteristics: {}
     stroke_date: 20260814   # last PRE-stroke session; VLS lesion induced 8/16 PM
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # fill at lesion time
+    stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
+                             #   from 8/17 (Priya, 2026-08-17)
     reference_landmarks: v1
     exclude: []
 
