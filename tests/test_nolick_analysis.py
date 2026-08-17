@@ -264,3 +264,37 @@ def test_absent_lick_is_undetected():
     assert _cat_rt(float("nan"), 2.0, 3.5) == "undetected"
     assert _cat_rt(-1.0, 2.0, 3.5) == "undetected"
     assert _cat_rt(None, 2.0, 3.5) == "undetected"
+
+
+# ---------------------------------------------------------------------------------------------
+# the pre/post-stroke criterion guard
+# ---------------------------------------------------------------------------------------------
+def test_comparing_different_criteria_raises():
+    """engaged-only pre vs all-trials post is the confound that mimics a stroke effect."""
+    with pytest.raises(ValueError, match="criteria differ"):
+        na.assert_comparable({"criterion": "engaged_2s"}, {"criterion": "all_trials"})
+
+
+def test_missing_criterion_raises_rather_than_assuming():
+    with pytest.raises(ValueError, match="without a recorded"):
+        na.assert_comparable({"criterion": "engaged_2s"}, {})
+
+
+def test_same_criterion_is_comparable():
+    assert na.assert_comparable({"criterion": "all_trials"}, {"criterion": "all_trials"})
+
+
+def test_reference_position_engagement_restricts_to_spared_positions():
+    codes = np.array([DISPLAY_ORDER[0]] * 10 + [DISPLAY_ORDER[3]] * 10)
+    cat = np.array(["engaged"] * 8 + ["undetected"] * 2 + ["undetected"] * 10, dtype=object)
+    r = na.reference_position_engagement(codes, cat, [DISPLAY_ORDER[0]])
+    assert r["n"] == 10 and r["engaged_rate"] == pytest.approx(0.8)
+    # the impaired position's total failure must not drag the motivation estimate down
+    allpos = na.reference_position_engagement(codes, cat, DISPLAY_ORDER)
+    assert allpos["engaged_rate"] == pytest.approx(0.4)
+
+
+def test_reference_position_engagement_handles_absent_positions():
+    r = na.reference_position_engagement(np.array([DISPLAY_ORDER[0]]), np.array(["engaged"]),
+                                         [DISPLAY_ORDER[5]])
+    assert r["n"] == 0

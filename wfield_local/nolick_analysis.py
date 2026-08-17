@@ -235,7 +235,8 @@ def _survival(y_e, p_e, y_u, p_u, labels=DISPLAY_ORDER):
     return (u / e) if (np.isfinite(e) and e > 0) else np.nan
 
 
-def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0, labels=DISPLAY_ORDER):
+def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0,
+                    labels=DISPLAY_ORDER, by="session"):
     """Is the pre-cue/post-cue dissociation real for this animal? Cluster bootstrap over SESSIONS.
 
     THIS REPLACES THE THRESHOLD. `interpret`'s 1.5x cut turns a continuous quantity into a label,
@@ -267,21 +268,41 @@ def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0, lab
         return {"n_boot": 0, "n_sessions": len(sess),
                 "note": "fewer than 3 sessions: a session bootstrap would be meaningless"}
 
-    def _idx(arr_sess, chosen):
+    rng = np.random.RandomState(seed)
+
+    def _idx(arr_sess, chosen, arr_blk=None):
         # sessions are drawn WITH replacement, so a session picked twice must contribute its trials
         # twice -- concatenating per-session index blocks does that; a boolean mask would not.
-        by = {s: np.flatnonzero(np.asarray(arr_sess) == s) for s in set(chosen)}
-        return np.concatenate([by[s] for s in chosen if by[s].size]) if chosen else np.array([], int)
+        per = {s: np.flatnonzero(np.asarray(arr_sess) == s) for s in set(chosen)}
+        if by == "session" or arr_blk is None:
+            return (np.concatenate([per[s] for s in chosen if per[s].size])
+                    if chosen else np.array([], int))
+        # NESTED: having drawn a session, also resample the BLOCKS within it. A pure session
+        # bootstrap treats a drawn session's trials as known exactly, which is fine at ~500 trials
+        # and not fine at the 4-6 an undetected arm can contribute. The outer level still dominates;
+        # this adds the inner one rather than replacing it.
+        out = []
+        blk = np.asarray(arr_blk)
+        for s_ in chosen:
+            ix = per[s_]
+            if not ix.size:
+                continue
+            bs = np.unique(blk[ix])
+            drawn = rng.choice(bs, size=len(bs), replace=True)
+            for b_ in drawn:
+                out.append(ix[blk[ix] == b_])
+        return np.concatenate(out) if out else np.array([], int)
 
-    rng = np.random.RandomState(seed)
     diffs, pres, cues = [], [], []
     for _ in range(n_boot):
         pick = list(rng.choice(sess, size=len(sess), replace=True))
         vals = {}
         for nm, raw in (("pre", precue_raw), ("cue", cue_raw)):
-            ye, pe, se = (np.asarray(x) for x in raw["engaged"])
-            yu, pu, su = (np.asarray(x) for x in raw["nolick"])
-            ie, iu = _idx(se, pick), _idx(su, pick)
+            ye, pe, se = (np.asarray(x) for x in raw["engaged"][:3])
+            yu, pu, su = (np.asarray(x) for x in raw["nolick"][:3])
+            be = raw["engaged"][3] if len(raw["engaged"]) > 3 else None
+            bu = raw["nolick"][3] if len(raw["nolick"]) > 3 else None
+            ie, iu = _idx(se, pick, be), _idx(su, pick, bu)
             vals[nm] = (np.nan if (ie.size == 0 or iu.size == 0)
                         else _survival(ye[ie], pe[ie], yu[iu], pu[iu], labels))
         if np.isfinite(vals["pre"]) and np.isfinite(vals["cue"]):
@@ -292,7 +313,7 @@ def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0, lab
                 "note": "too many bootstrap replicates were undefined to report an interval"}
     d = np.asarray(diffs)
     lo, hi = np.percentile(d, [100 * alpha / 2, 100 * (1 - alpha / 2)])
-    return {"n_boot": int(len(d)), "n_sessions": len(sess),
+    return {"n_boot": int(len(d)), "n_sessions": len(sess), "resampling_unit": by,
             "precue_survival_mean": float(np.mean(pres)),
             "cue_survival_mean": float(np.mean(cues)),
             "difference_mean": float(d.mean()),
@@ -388,3 +409,70 @@ def write_reference(res, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(res, indent=2))
     return path
+
+
+# --------------------------------------------------------------------------------------------------
+# trial-selection criteria, and the guard that stops them being mixed
+# --------------------------------------------------------------------------------------------------
+#: A pre/post-stroke comparison is only meaningful if BOTH sides selected trials the same way.
+#: Priya (2026-08-17) wants pre-stroke on lick-restricted trials but post-stroke on ALL trials,
+#: because after the stroke a missing detection may be a tongue protrusion that fell short rather
+#: than an absent attempt -- undecidable until DLC/FR lands. That is the right scientific instinct
+#: and it is also the setup for a confound that mimics the very effect being measured:
+#:
+#:   engaged-only pre  vs  all-trials post   -> post scores lower partly because its trial set now
+#:                                              includes trials the pre-stroke set excluded. No
+#:                                              stroke required to produce the difference.
+#:   engaged-only both                       -> post-stroke "engaged" is SURVIVORSHIP-SELECTED: it
+#:                                              keeps exactly the trials where the movement still
+#:                                              worked, biasing toward preserved function.
+#:
+#: Neither criterion is safe alone, so compute both and compare like with like. The guard below makes
+#: that structural rather than remembered.
+CRITERIA = {
+    "engaged_2s": "first detected lick within decode.max_rt_s (2.0 s) of the cue",
+    "engaged_respwin": "first detected lick within that session's response window",
+    "all_trials": "every cue with a usable position label, licked or not",
+    "engaged_reference_positions": "engaged as judged ONLY at reference positions the deficit is "
+                                   "expected to spare (post-stroke motivation control; which "
+                                   "positions is a phenotype question, hence parameterised)",
+}
+
+
+def reference_position_engagement(codes, cat, reference_positions):
+    """Engagement judged only at positions the deficit is expected to spare.
+
+    Post-stroke, "did not lick" at an impaired position confounds motivation with motor failure. At a
+    position the animal can still reach, a miss is much more likely to be genuine disengagement. This
+    returns the detected-lick rate restricted to `reference_positions`, so engagement can be measured
+    where the deficit is not acting -- Priya's close_L / close_center proposal, left parameterised
+    because which positions are spared is an empirical question about the phenotype, not a constant.
+    """
+    codes, cat = np.asarray(codes), np.asarray(cat)
+    ref = np.isin(codes, list(reference_positions))
+    if not ref.any():
+        return {"n": 0, "engaged_rate": float("nan"),
+                "note": "no trials at the reference positions"}
+    eng = (cat[ref] == "engaged")
+    return {"n": int(ref.sum()), "engaged_rate": float(eng.mean()),
+            "reference_positions": sorted(reference_positions)}
+
+
+def assert_comparable(a, b, what="comparison"):
+    """Refuse to compare two results whose trial-selection criteria differ.
+
+    Raises rather than warns. A warning would be read past, and the failure it guards against --
+    a selection change that looks exactly like a stroke effect -- is not recoverable after the fact
+    because the two numbers are individually correct.
+    """
+    ca, cb = (a or {}).get("criterion"), (b or {}).get("criterion")
+    if ca is None or cb is None:
+        raise ValueError(
+            f"{what}: refusing to compare results without a recorded trial-selection criterion "
+            f"(got {ca!r} and {cb!r}). Every result must carry `criterion`; see CRITERIA.")
+    if ca != cb:
+        raise ValueError(
+            f"{what}: trial-selection criteria differ ({ca!r} vs {cb!r}). Comparing these would "
+            f"confound the selection change with the effect. Recompute both sides under ONE "
+            f"criterion -- compute all of them and compare like with like.")
+    return True
