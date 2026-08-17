@@ -8,9 +8,9 @@ WHAT IS SHARED AND WHAT IS NOT. Features come from `locanmf_position_decoder`'s 
 (`_build_signal`, `_window_feature`, `_bins_for`), so an engaged trial here is byte-identical to an
 engaged trial in the deck. Only the CATEGORISATION is new, which is the whole point of the module:
 
-    engaged      first detected lick within decode.max_rt_s of the cue      (the decoder's set)
-    late         first detected lick AFTER max_rt but within LATE_S         (NEW -- see below)
-    undetected   no detected lick at all within LATE_S                      (NEW)
+    engaged        first detected lick within decode.max_rt_s of the cue    (the decoder's set)
+    late_rewarded  lick after max_rt but within the RESPONSE WINDOW          (a hit the decoder drops)
+    undetected     no detected lick within the response window
 
 The pipeline's existing "no-lick" arm is `late + undetected` lumped together. Splitting them matters
 post-stroke: a slowed-but-completed movement and an absent one are different injuries, and lumping
@@ -55,8 +55,19 @@ from wfield_local.plot_lick_aligned_averages import (
 )
 
 FS = 31.23
-LATE_S = 5.0          # a lick this long after the cue is a late response, not a different trial
-CATEGORIES = ("engaged", "late", "undetected")
+CATEGORIES = ("engaged", "late_rewarded", "undetected")
+
+# NOTHING IS ANALYSED AFTER THE RESPONSE WINDOW (Priya, 2026-08-17). The spout begins MOVING once
+# the window closes, so any window extending past it samples the next trial's setup rather than this
+# trial's behaviour. The response window is therefore a hard ceiling on every category boundary and
+# every feature window here, not a parameter to be widened for statistical convenience.
+#
+# It also is NOT the decoder's engaged cut. decode.max_rt_s is 2.0 s while the task has run 3500 ms
+# throughout (configs/defaults.yaml:120, read per session from that session's gui_config.json), so a
+# lick at 2.5 s is a REWARDED HIT that the decoder calls "no lick". Both cuts are reported (Priya's
+# choice, 2026-08-17): 2.0 s keeps every existing deck number comparable, the response window is
+# what the task means by a response.
+DEFAULT_RESPONSE_WINDOW_S = 3.5
 
 # Known non-stroke reasons a position's "undetected" trials over-represent failed EXECUTION rather
 # than absent intent. Recorded so the DLC/facial-tracking pass has a target list.
@@ -72,11 +83,81 @@ def _args(source="locanmf", align="cue", post_s=2.0, bins=None):
                            post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 
 
+def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
+    """This session's response window in seconds, from its own gui_config.json.
+
+    Read per session rather than taken from defaults because it is a TASK setting that has been
+    changed at the rig; `daq_trials.response_window_s` is the pipeline's one resolver for it, so the
+    behaviour scoring and this analysis cannot disagree about what a response is.
+
+    THE DATE MUST COME FROM THIS SESSION. An earlier version globbed `{animal}_*` when it could not
+    resolve the date and took the first match, so every session silently read its animal's EARLIEST
+    config -- all 44 curated sessions reported 3.0 s when the file says 3500 ms. It failed the same
+    way for every session, which is exactly why it looked like a consistent finding rather than a
+    bug. The date is taken from the session's own DAQ path, and an unresolvable one raises rather
+    than falling back to a wrong-but-plausible neighbour.
+    """
+    import glob as _glob
+    import re as _re
+
+    from wfield_local import daq_trials
+
+    animal = s["label"][:4]
+    try:
+        for cand in config.load_sessions():
+            if cand["label"] == s["label"] and cand.get("behavior_trials"):
+                win, _src = daq_trials.response_window_s(Path(cand["behavior_trials"]).parent, default)
+                return float(win)
+        m = _re.search(rf"{animal}_(\d{{8}})_", str(s.get("h5") or "")) or \
+            _re.search(r"[/\\](\d{8})[/\\]", str(s.get("h5") or s.get("mc") or ""))
+        if not m:
+            raise ValueError(f"cannot resolve a date for {s['label']} from its DAQ path")
+        yyyymmdd = m.group(1)
+        root = config.resolver().root("behavior_logs")
+        hits = sorted(_glob.glob(f"{root}/{animal}_{yyyymmdd}_*/gui_config.json"))
+        if hits:
+            win, _src = daq_trials.response_window_s(Path(hits[0]).parent, default)
+            return float(win)
+        print(f"  [{s['label']}] no gui_config.json for {yyyymmdd} -> default {default}s", flush=True)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [{s['label']}] response window lookup failed ({type(ex).__name__}: "
+              f"{str(ex)[:60]}) -> {default}s", flush=True)
+    return float(default)
+
+
+def category_for_rt(rt_s, max_rt_s, response_window_s):
+    """The category boundary rule, pure so it can be tested without a session.
+
+    `rt_s` is NaN (or non-positive) when no lick was detected at all. The response window is a hard
+    ceiling: a lick after it arrives while the spout is already moving, so it is `undetected` --
+    there is deliberately no arm past the window (Priya, 2026-08-17).
+    """
+    cut = min(max_rt_s, response_window_s)      # the engaged cut can never exceed the window
+    if rt_s is None or not np.isfinite(rt_s) or rt_s <= 0:
+        return "undetected"
+    if rt_s <= cut:
+        return "engaged"
+    if rt_s <= response_window_s:
+        return "late_rewarded"
+    return "undetected"
+
+
 def categorize(s, args):
     """Per-cue category, position code and block id -- no imaging touched.
 
     Returns (codes, cat, blk, rt_s, cue_f) with `cat` one of CATEGORIES or "" for cues with no
     usable position label.
+
+    Boundaries, all bounded by the response window (see the module constants):
+
+        engaged        first detected lick within args.max_rt of the cue
+        late_rewarded  first detected lick between args.max_rt and the response window -- SLOW but
+                       still a hit by the task's own definition, which the decoder discards
+        undetected     no detected lick within the response window
+
+    There is deliberately NO arm past the response window. A lick at 4 s arrives while the spout is
+    already moving, so it belongs to no trial cleanly; such cues count as `undetected`, which is what
+    the task scores them as.
     """
     cue = _load_cue_events(s["h5"])
     lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
@@ -99,18 +180,15 @@ def categorize(s, args):
     rt_n = first - cue_f
     rt_s = np.where(first > 0, rt_n / args.fs, np.nan)
 
-    maxrt_n = int(round(args.max_rt * args.fs))
-    late_n = int(round(LATE_S * args.fs))
+    rw_s = getattr(args, "response_window_s", None) or response_window_for(s)
+    maxrt_n = int(round(min(args.max_rt, rw_s) * args.fs))   # the cut can never exceed the window
+    rw_n = int(round(rw_s * args.fs))
     cat = np.full(cue_f.size, "", dtype=object)
     for k in range(cue_f.size):
         if codes[k] < 0 or cue_f[k] < 0:
             continue
-        if first[k] > 0 and 0 < rt_n[k] <= maxrt_n:
-            cat[k] = "engaged"
-        elif first[k] > 0 and maxrt_n < rt_n[k] <= late_n:
-            cat[k] = "late"
-        else:
-            cat[k] = "undetected"
+        cat[k] = category_for_rt(rt_s[k] if first[k] > 0 else float("nan"),
+                                 args.max_rt, rw_s)
     return codes, cat, blk, rt_s, cue_f
 
 
@@ -177,7 +255,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
     res["engaged"] = na.evaluate_arm(E["y"], pred_e, n_perm=n_perm)
 
     clf = _pipe().fit(E["X"], E["y"])
-    for c in ("late", "undetected"):
+    for c in ("late_rewarded", "undetected"):
         d = F[c]
         if d["y"].size == 0:
             res[c] = {"n": 0}
@@ -186,10 +264,10 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
 
     # the pipeline's historical arm = late + undetected pooled, kept so the new split can be
     # reconciled against every number already in the decks
-    pooled_y = np.concatenate([F["late"]["y"], F["undetected"]["y"]]) if (
-        F["late"]["y"].size + F["undetected"]["y"].size) else np.array([], int)
+    pooled_y = np.concatenate([F["late_rewarded"]["y"], F["undetected"]["y"]]) if (
+        F["late_rewarded"]["y"].size + F["undetected"]["y"].size) else np.array([], int)
     if pooled_y.size:
-        pooled_X = np.concatenate([x for x in (F["late"]["X"], F["undetected"]["X"]) if x.size])
+        pooled_X = np.concatenate([x for x in (F["late_rewarded"]["X"], F["undetected"]["X"]) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(pooled_y, clf.predict(pooled_X),
                                                target_frac=eng_frac, n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
@@ -225,7 +303,7 @@ def _joint_signal(basis, s):
 
 
 def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
-                   n_perm=na.N_PERM, verbose=True, basis=None):
+                   n_perm=na.N_PERM, verbose=True, basis=None, max_rt=2.0, return_raw=False):
     """Pool an animal's curated sessions, then train ONE model and apply it to the other arms.
 
     Pooling before fitting (rather than averaging per-session results) is deliberate: the undetected
@@ -251,6 +329,9 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     dates = set(dates or config.curated_dates())
     labs = [s for s in SESSIONS if s["label"][:4] == animal and s["label"][-4:] in dates]
     args = _args(source=source, align=align, post_s=post_s)
+    # max_rt is the ENGAGED cut and is deliberately variable: 2.0 s is the decoder's convention,
+    # `None` means "use this session's own response window", which is what the task calls a response.
+    args.max_rt = float("inf") if max_rt is None else float(max_rt)
     # per session: the z-scored features of each category, kept beside that session's region labels
     # so the columns can be reconciled afterwards
     per_sess, var_cap = [], {}
@@ -322,16 +403,16 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     eng_frac = {POSITION_NAMES[c]: float((YE == c).mean()) for c in DISPLAY_ORDER}
 
     clf = _pipe().fit(XE, YE)
-    for c in ("late", "undetected"):
+    for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:
             res[c] = {"n": 0}
             continue
         res[c] = na.evaluate_arm(Y, clf.predict(_cat(c, "X")), target_frac=eng_frac, n_perm=n_perm)
 
-    Yp = np.concatenate([_cat("late", "y"), _cat("undetected", "y")]).astype(int)
+    Yp = np.concatenate([_cat("late_rewarded", "y"), _cat("undetected", "y")]).astype(int)
     if Yp.size:
-        Xp = np.concatenate([x for x in (_cat("late", "X"), _cat("undetected", "X")) if x.size])
+        Xp = np.concatenate([x for x in (_cat("late_rewarded", "X"), _cat("undetected", "X")) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
                                                n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
@@ -356,7 +437,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         ie = idx_e[lab]
         if ie.size >= 20:
             d["engaged"] = na.evaluate_arm(YE[ie], pred_e[ie], n_perm=max(200, n_perm // 4))
-        for c in ("late", "undetected"):
+        for c in ("late_rewarded", "undetected"):
             if not cat_y[c].size:
                 continue
             m = np.flatnonzero(cat_sess[c] == lab)
@@ -365,7 +446,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
                 continue
             d[c] = na.evaluate_arm(cat_y[c][m].astype(int), clf.predict(cat_X[c][m]),
                                    n_perm=max(200, n_perm // 4))
-        nl = [c for c in ("late", "undetected") if isinstance(d.get(c), dict) and d[c].get("n")]
+        nl = [c for c in ("late_rewarded", "undetected") if isinstance(d.get(c), dict) and d[c].get("n")]
         if nl and "engaged" in d:
             ym = np.concatenate([cat_y[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl]).astype(int)
             xm = np.concatenate([cat_X[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl])
@@ -376,6 +457,12 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             d["variance_captured"] = var_cap[lab]
         per[lab] = d
     res["per_session"] = per
+    res["max_rt_s"] = None if max_rt is None else float(max_rt)
+    if return_raw and Yp.size:
+        res["_raw"] = {"engaged": (YE.tolist(), pred_e.tolist(), SE.tolist()),
+                       "nolick": (Yp.tolist(), clf.predict(Xp).tolist(),
+                                  np.concatenate([_cat("late_rewarded", "sess"),
+                                                  _cat("undetected", "sess")]).tolist())}
     if animal in ATTEMPT_CONFOUNDED:
         res["attempt_confounded"] = ATTEMPT_CONFOUNDED[animal]
     return res
@@ -404,14 +491,25 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
     animals = config.normalize_animals(animals) or ["PS92", "PS93", "PS94", "PS95"]
     dates = sorted(dates or config.curated_dates())
     ref = {"kind": "pre-stroke no-detected-lick reference", "dates": dates, "bases": list(bases),
-           "max_rt_s": 2.0, "late_s": LATE_S, "n_perm": n_perm,
+           "max_rt_s": 2.0, "response_window_s": "per session (gui_config.json)",
+           "no_analysis_past_response_window": True, "n_perm": n_perm,
            "categories": {"engaged": "first detected lick within max_rt_s",
-                          "late": f"first detected lick between max_rt_s and {LATE_S}s",
-                          "undetected": f"no detected lick within {LATE_S}s "
-                                        "(NOT the same as no attempt -- see ATTEMPT_CONFOUNDED)"},
+                          "late_rewarded": "lick after max_rt_s but within the response "
+                                           "window -- a HIT by the task's definition that the "
+                                           "decoder's 2.0s cut discards",
+                          "undetected": "no detected lick within the response window (NOT the same "
+                                        "as no attempt -- see ATTEMPT_CONFOUNDED). Licks after the "
+                                        "window are counted here: the spout is already moving, so "
+                                        "they belong to no trial cleanly and are never analysed"},
            "attempt_confounded": ATTEMPT_CONFOUNDED, "by_basis": {}}
-    for bkey in bases:
-        ref["by_basis"][bkey] = {"animals": {}}
+    # Both ENGAGED CUTS x both BASES. The cut is folded into the key rather than nesting another
+    # level, so every downstream consumer (figures, consensus, direction_consistency) keeps working
+    # and each panel is self-labelling. `None` means "this session's own response window".
+    combos = [(bk, cut, nm) for bk in bases
+              for cut, nm in ((2.0, "2.0s"), (None, "respwin"))]
+    for bkey, max_rt, cutname in combos:
+        key = bkey if cutname == "2.0s" else f"{bkey}_{cutname}"
+        ref["by_basis"][key] = {"animals": {}, "basis": bkey, "engaged_cut": cutname}
         for an in animals:
             basis = None
             if bkey == "joint":
@@ -421,16 +519,22 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
                     print(f"[{an}] no joint basis ({type(ex).__name__}: {str(ex)[:60]}) -- skipped",
                           flush=True)
                     continue
-            slot = ref["by_basis"][bkey]["animals"].setdefault(an, {})
+            slot = ref["by_basis"][key]["animals"].setdefault(an, {})
             for al in ("precue", "cue"):
-                print(f"[{bkey} {an} {al}]", flush=True)
-                slot[al] = analyse_animal(an, dates=dates, align=al, n_perm=n_perm, basis=basis)
+                print(f"[{bkey} {an} {al} cut={cutname}]", flush=True)
+                slot[al] = analyse_animal(an, dates=dates, align=al, n_perm=n_perm, basis=basis,
+                                          max_rt=max_rt, return_raw=True)
             pc, cc = slot["precue"].get("compare"), slot["cue"].get("compare")
             if pc and cc:
                 # pass the ARMS too, so the verdict rests on each arm's own permutation p rather
                 # than on a ratio whose denominator might simply be small
                 slot["interpretation"] = na.interpret(
                     pc, cc, slot["precue"].get("nolick_pooled"), slot["cue"].get("nolick_pooled"))
+            # the threshold-free test: does the pre-cue MINUS post-cue survival difference exclude
+            # zero under a paired bootstrap over sessions?
+            slot["dissociation_ci"] = na.dissociation_ci(slot["precue"].pop("_raw", None),
+                                                         slot["cue"].pop("_raw", None))
+            slot["precue"].pop("_raw", None); slot["cue"].pop("_raw", None)
             na.summarize({"precue": slot["precue"], "cue": slot["cue"],
                           "interpretation": slot.get("interpretation", "")})
     # a single agreed verdict per animal, or an explicit note that the bases disagree -- so nobody

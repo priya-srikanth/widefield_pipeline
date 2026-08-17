@@ -151,3 +151,116 @@ def test_survival_ratio_uses_above_chance_part_not_raw_ratio():
 def test_empty_arm_does_not_raise():
     r = na.evaluate_arm(np.array([], int), np.array([], int), n_perm=10)
     assert r["n"] == 0 and np.isnan(r["accuracy"])
+
+
+# ---------------------------------------------------------------------------------------------
+# the session bootstrap that REPLACES the 1.5x threshold
+# ---------------------------------------------------------------------------------------------
+def _raw(n_sess, n_per, precue_strength, cue_strength, seed=0):
+    """Synthetic (y, pred, session) triples with a controllable amount of real signal."""
+    rng = np.random.RandomState(seed)
+    out = {}
+    for arm, strength in (("engaged", 0.75), ("nolick", None)):
+        ys, ps, ss = [], [], []
+        for s in range(n_sess):
+            y = rng.choice(DISPLAY_ORDER, size=n_per)
+            k = strength if strength is not None else 0.0
+            p = np.where(rng.rand(n_per) < k, y, rng.choice(DISPLAY_ORDER, size=n_per))
+            ys.append(y); ps.append(p); ss.append(np.full(n_per, f"S{s}", dtype=object))
+        out[arm] = (np.concatenate(ys), np.concatenate(ps), np.concatenate(ss))
+    return out
+
+
+def _raw_with(nolick_strength, n_sess=11, n_per=60, seed=0):
+    rng = np.random.RandomState(seed)
+    out = {}
+    for arm, k in (("engaged", 0.75), ("nolick", nolick_strength)):
+        ys, ps, ss = [], [], []
+        for s in range(n_sess):
+            y = rng.choice(DISPLAY_ORDER, size=n_per)
+            p = np.where(rng.rand(n_per) < k, y, rng.choice(DISPLAY_ORDER, size=n_per))
+            ys.append(y); ps.append(p); ss.append(np.full(n_per, f"S{s}", dtype=object))
+        out[arm] = (np.concatenate(ys), np.concatenate(ps), np.concatenate(ss))
+    return out
+
+
+def test_dissociation_ci_detects_a_real_precue_advantage():
+    """pre-cue no-lick carries signal, post-cue does not -> difference CI excludes zero."""
+    pre = _raw_with(0.45, seed=1)
+    cue = _raw_with(0.02, seed=2)
+    r = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
+    assert r["excludes_zero"] is True
+    assert r["direction"] == "precue > postcue"
+    assert r["p_one_sided"] < 0.05
+
+
+def test_dissociation_ci_reports_no_effect_when_both_arms_match():
+    """KNOWN-GOOD case: identical strength in both windows must NOT be called a dissociation."""
+    pre = _raw_with(0.30, seed=3)
+    cue = _raw_with(0.30, seed=4)
+    r = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
+    assert r["excludes_zero"] is False
+
+
+def test_dissociation_ci_resamples_SESSIONS_not_trials():
+    """A trial bootstrap would give a far narrower interval; pin that sessions are the unit.
+
+    Same data, but relabelled so every trial is its own 'session'. If the function were secretly
+    resampling trials the two intervals would agree; because it clusters, the real (11-session)
+    interval must be the WIDER one.
+    """
+    pre, cue = _raw_with(0.45, seed=5), _raw_with(0.05, seed=6)
+    wide = na.dissociation_ci(pre, cue, n_boot=300, seed=0)
+    per_trial = {}
+    for k, (y, p, _s) in pre.items():
+        per_trial[k] = (y, p, np.array([f"T{i}" for i in range(y.size)], dtype=object))
+    per_trial_cue = {}
+    for k, (y, p, _s) in cue.items():
+        per_trial_cue[k] = (y, p, np.array([f"T{i}" for i in range(y.size)], dtype=object))
+    narrow = na.dissociation_ci(per_trial, per_trial_cue, n_boot=300, seed=0)
+    w = wide["difference_ci"][1] - wide["difference_ci"][0]
+    n = narrow["difference_ci"][1] - narrow["difference_ci"][0]
+    assert w > n, f"session-clustered interval ({w:.3f}) must exceed the trial-level one ({n:.3f})"
+
+
+def test_dissociation_ci_refuses_when_there_are_too_few_sessions():
+    pre, cue = _raw_with(0.4, n_sess=2, seed=7), _raw_with(0.1, n_sess=2, seed=8)
+    r = na.dissociation_ci(pre, cue, n_boot=100)
+    assert r["n_boot"] == 0 and "fewer than 3 sessions" in r["note"]
+
+
+def test_dissociation_ci_handles_missing_raw_arrays():
+    assert na.dissociation_ci(None, None)["n_boot"] == 0
+
+
+# ---------------------------------------------------------------------------------------------
+# the response window is a HARD CEILING: nothing is analysed after it (spout is moving)
+# ---------------------------------------------------------------------------------------------
+from wfield_local.nolick_decoder import category_for_rt as _cat_rt  # noqa: E402
+
+
+def test_nothing_is_categorised_past_the_response_window():
+    """A lick at 4 s lands while the spout is already moving -> undetected, never its own arm."""
+    assert _cat_rt(4.0, 2.0, 3.5) == "undetected"
+    assert _cat_rt(3.6, 2.0, 3.5) == "undetected"
+    assert _cat_rt(10.0, 2.0, 3.5) == "undetected"
+
+
+def test_late_rewarded_is_exactly_the_gap_between_the_cut_and_the_window():
+    assert _cat_rt(2.5, 2.0, 3.5) == "late_rewarded"
+    assert _cat_rt(3.5, 2.0, 3.5) == "late_rewarded"
+    assert _cat_rt(1.9, 2.0, 3.5) == "engaged"
+
+
+def test_engaged_cut_cannot_exceed_the_response_window():
+    """With the cut at the window there is no late arm at all, and nothing spills past it."""
+    assert _cat_rt(3.4, 3.5, 3.5) == "engaged"
+    assert _cat_rt(3.6, 3.5, 3.5) == "undetected"
+    # a cut wider than the window must be clamped, not honoured
+    assert _cat_rt(4.0, 10.0, 3.5) == "undetected"
+
+
+def test_absent_lick_is_undetected():
+    assert _cat_rt(float("nan"), 2.0, 3.5) == "undetected"
+    assert _cat_rt(-1.0, 2.0, 3.5) == "undetected"
+    assert _cat_rt(None, 2.0, 3.5) == "undetected"

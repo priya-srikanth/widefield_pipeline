@@ -24,8 +24,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt                                        # noqa: E402
 import numpy as np                                                     # noqa: E402
 
-ARMS = ("engaged", "late", "undetected")
-COLORS = {"engaged": "tab:blue", "late": "tab:orange", "undetected": "tab:red"}
+ARMS = ("engaged", "late_rewarded", "undetected")
+COLORS = {"engaged": "tab:blue", "late_rewarded": "tab:orange", "undetected": "tab:red"}
 CH = 1 / 6
 
 

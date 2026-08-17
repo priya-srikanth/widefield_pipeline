@@ -224,8 +224,84 @@ def compare_arms(engaged, nolick):
             "survival_ratio": float(u / e) if e and np.isfinite(e) and e > 0 else float("nan")}
 
 
-DISSOCIATION_MIN = 1.5     # pre-cue must survive this many times better than post-cue
+DISSOCIATION_MIN = 1.5     # legacy label threshold; see dissociation_ci for the real test
 ALPHA = 0.05
+N_BOOT = 2000
+
+
+def _survival(y_e, p_e, y_u, p_u, labels=DISPLAY_ORDER):
+    e = balanced_accuracy(y_e, p_e, labels) - CHANCE
+    u = balanced_accuracy(y_u, p_u, labels) - CHANCE
+    return (u / e) if (np.isfinite(e) and e > 0) else np.nan
+
+
+def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0, labels=DISPLAY_ORDER):
+    """Is the pre-cue/post-cue dissociation real for this animal? Cluster bootstrap over SESSIONS.
+
+    THIS REPLACES THE THRESHOLD. `interpret`'s 1.5x cut turns a continuous quantity into a label,
+    and the cut is where PS92 (1.23x) and PS94 (1.57x) land on opposite sides of a line nobody
+    measured -- so the consensus reported "bases disagree" for a marginal difference. Asking instead
+    whether the pre-cue MINUS post-cue survival difference excludes zero needs no threshold, and
+    gives each animal an uncertainty rather than a verdict.
+
+    SESSIONS are the resampling unit, not trials: the claim generalises to an unseen DAY, and trials
+    within a session are not independent (~6-trial position blocks, shared F0, shared engagement
+    state). Resampling trials would produce intervals far too narrow -- the same reasoning as
+    decode_ci.frozen_ci, which resamples sessions for the same reason.
+
+    The draw is PAIRED: each bootstrap replicate uses the SAME session sample for both alignments,
+    because pre-cue and post-cue are measured on the same trials and an unpaired interval would
+    inflate the variance of their difference with between-session variation common to both.
+
+    `precue_raw` / `cue_raw` are dicts with ``engaged`` and ``nolick`` entries, each a
+    ``(y_true, y_pred, session_label)`` triple.
+    """
+    def _ok(d):
+        return d and all(k in d for k in ("engaged", "nolick"))
+
+    if not (_ok(precue_raw) and _ok(cue_raw)):
+        return {"n_boot": 0, "note": "raw per-trial arrays unavailable"}
+
+    sess = sorted(set(np.asarray(precue_raw["engaged"][2]).tolist()))
+    if len(sess) < 3:
+        return {"n_boot": 0, "n_sessions": len(sess),
+                "note": "fewer than 3 sessions: a session bootstrap would be meaningless"}
+
+    def _idx(arr_sess, chosen):
+        # sessions are drawn WITH replacement, so a session picked twice must contribute its trials
+        # twice -- concatenating per-session index blocks does that; a boolean mask would not.
+        by = {s: np.flatnonzero(np.asarray(arr_sess) == s) for s in set(chosen)}
+        return np.concatenate([by[s] for s in chosen if by[s].size]) if chosen else np.array([], int)
+
+    rng = np.random.RandomState(seed)
+    diffs, pres, cues = [], [], []
+    for _ in range(n_boot):
+        pick = list(rng.choice(sess, size=len(sess), replace=True))
+        vals = {}
+        for nm, raw in (("pre", precue_raw), ("cue", cue_raw)):
+            ye, pe, se = (np.asarray(x) for x in raw["engaged"])
+            yu, pu, su = (np.asarray(x) for x in raw["nolick"])
+            ie, iu = _idx(se, pick), _idx(su, pick)
+            vals[nm] = (np.nan if (ie.size == 0 or iu.size == 0)
+                        else _survival(ye[ie], pe[ie], yu[iu], pu[iu], labels))
+        if np.isfinite(vals["pre"]) and np.isfinite(vals["cue"]):
+            pres.append(vals["pre"]); cues.append(vals["cue"])
+            diffs.append(vals["pre"] - vals["cue"])
+    if len(diffs) < max(50, n_boot // 10):
+        return {"n_boot": len(diffs), "n_sessions": len(sess),
+                "note": "too many bootstrap replicates were undefined to report an interval"}
+    d = np.asarray(diffs)
+    lo, hi = np.percentile(d, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return {"n_boot": int(len(d)), "n_sessions": len(sess),
+            "precue_survival_mean": float(np.mean(pres)),
+            "cue_survival_mean": float(np.mean(cues)),
+            "difference_mean": float(d.mean()),
+            "difference_ci": [float(lo), float(hi)],
+            "excludes_zero": bool(lo > 0 or hi < 0),
+            "direction": "precue > postcue" if d.mean() > 0 else "postcue >= precue",
+            # one-sided: the hypothesis is directional (pre-cue OUTLIVES post-cue), so a two-sided
+            # p would be answering a question nobody asked
+            "p_one_sided": float((np.sum(d <= 0) + 1) / (len(d) + 1))}
 
 
 def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):
@@ -267,7 +343,8 @@ def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):
             f"{DISSOCIATION_MIN}x threshold) -- both arms degrade together{qual}")
 
 
-ARMS = ("engaged", "engaged_fast", "engaged_slow", "late", "undetected", "nolick_pooled")
+ARMS = ("engaged", "engaged_fast", "engaged_slow", "late_rewarded", "undetected",
+        "nolick_pooled")
 
 
 def summarize(res, fh=None):
