@@ -23,7 +23,14 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 6  # bump when any cached function's computation changes
+CACHE_VERSION = 7  # bump when any cached function's computation changes
+# v7 (2026-08-17): locanmf_crossanimal_dff._frames now REJECTS events outside the imaging coverage
+# (returns -1) instead of clipping them to the nearest surviving frame. Every cached kind ultimately
+# gets its trials through that helper, so the logic of all four changed. For the 43 sessions whose
+# imaging spans the whole recording the new code is a provable no-op -- but "provable no-op" is a
+# claim about code I just wrote, and the whole point of the bump is not to have to trust it. The one
+# session it does change (PS95 8/13, 197/871 cues out of coverage) would otherwise have been served
+# its pre-fix numbers by a key that cannot see a code change, i.e. the exact failure v5 and v6 record.
 # v6 (2026-08-14): locanmf.output_dir_name flipped to the meegkit_hpfit decomposition after the
 # 52/52 refit. LocaNMF-SOURCE cached results were computed against the zerophase components --
 # a different decomposition entirely (~15 fewer components per session), not just different
