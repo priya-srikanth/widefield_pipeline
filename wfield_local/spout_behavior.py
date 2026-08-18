@@ -1072,6 +1072,40 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     return df
 
 
+def _stroke_boundary(animal, dates):
+    """x-position of the pre/post-stroke boundary for `plot_animal_summary`, or None.
+
+    Returned as a half-integer BETWEEN the last pre-stroke session and the first non-pre one, since
+    the lesion happened between two nights rather than on a session. Also returns the indices whose
+    phase is `excluded` (PS92/PS93 8/17: lesioned 8/16, no deficit, re-lesioned after that session)
+    so they can be marked instead of being read as post-stroke.
+    """
+    phases = [config.session_phase(animal, d) for d in dates]
+    first_non_pre = next((i for i, ph in enumerate(phases) if ph != "pre"), None)
+    if first_non_pre in (None, 0):
+        return None, [i for i, ph in enumerate(phases) if ph == "excluded"]
+    return first_non_pre - 0.5, [i for i, ph in enumerate(phases) if ph == "excluded"]
+
+
+def _mark_stroke(ax, bx, excluded_idx, annotate=False):
+    """Draw the lesion boundary and shade excluded sessions.
+
+    Without this line a reader compares a post-stroke point against the pre-stroke trend by counting
+    tick labels, and these figures are the behavioural ground truth every decoding claim in Section G
+    rests on -- the boundary is the single most important thing on them.
+    """
+    if bx is not None:
+        ax.axvline(bx, color="firebrick", lw=1.8, ls="--", zorder=0)
+        if annotate:
+            ax.text(bx, ax.get_ylim()[1], " LESION", color="firebrick", fontsize=7.5,
+                    fontweight="bold", va="top", ha="left")
+    for i in excluded_idx:
+        ax.axvspan(i - 0.4, i + 0.4, color="grey", alpha=0.22, zorder=0)
+        if annotate:
+            ax.text(i, ax.get_ylim()[0], "excl", color="dimgrey", fontsize=6.5, ha="center",
+                    va="bottom", rotation=90)
+
+
 def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     """One across-session figure per animal: each per-position metric (hit rate, latency, licks/trial,
     lick rate, anticipatory) over that animal's sessions + a session-level panel. Same metrics as the
@@ -1084,6 +1118,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     dates = adf["date"].tolist()
     x = np.arange(len(dates))
 
+    bx, excl = _stroke_boundary(animal, dates)
     fig, axes = plt.subplots(2, 3, figsize=(18, 9))
     panels = [(p, lab) for p, _t, _c, lab in POS_METRICS]      # 5 per-position metric families
     for ax, (prefix, label) in zip(axes.flat[:5], panels):
@@ -1094,6 +1129,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
                 ax.plot(x, adf[key].to_numpy(), color=pos_color(idx), marker=SIDE_MARKER[p["side"]],
                         ls=SIDE_LS[p["side"]], ms=5, alpha=0.9, label=_disp(p["name"]))
         ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+        _mark_stroke(ax, bx, excl, annotate=(prefix == "hit"))
         ax.set_title(label)
         if prefix == "hit":
             ax.set_ylim(0, 1.05)
@@ -1107,6 +1143,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
         frac = adf["n_engaged"] / (adf["n_engaged"] + adf["n_disengaged"]).replace(0, np.nan)
         ax.plot(x, frac, "--s", color="grey", alpha=0.7, label="engaged frac")
     ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+    _mark_stroke(ax, bx, excl, annotate=True)
     ax.set_ylim(0, 1.05)
     ax.set_title("session-level")
     ax.legend(fontsize=7)

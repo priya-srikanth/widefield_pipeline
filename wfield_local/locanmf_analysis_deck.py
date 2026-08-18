@@ -180,6 +180,53 @@ M_NOLICK = (
     "phenotype this analysis looks for post-stroke. DLC/facial tracking is needed to split attempted "
     "from unattempted; until then read the per-position breakdown, not the pooled number.")
 
+M_POSTSTROKE = (
+    "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). Lesion date "
+    "20260816 (configs/animals.yaml stroke_date); PS94/PS95 at 3 mW. The pre-stroke reference is "
+    "FROZEN: 11 curated dates ending 8/14, 44 sessions, all resolving to phase=='pre'. "
+    "\n\nBEHAVIOUR IS SLIDE ONE, AND THAT IS NOT PRESENTATIONAL. On 8/17 both animals stopped "
+    "attempting the far positions -- PS94 has ZERO engaged trials at far_center and far_R, PS95 has "
+    "10 and 1. A 6-way accuracy computed across that is mostly a statement about which trials exist. "
+    "The first version of this analysis reported a PS94 'neural deficit' whose larger part was trial "
+    "composition; every decoding slide here is therefore position-MATCHED to what the animal still "
+    "attempts, and matched numbers are 4-way (chance 0.25) and NOT comparable to the 6-way numbers "
+    "in sections A-F. "
+    "\n\nPRE-ENGAGED vs POST-ALL IS DELIBERATE. Post-stroke trials are NOT filtered to those with "
+    "a detected lick, because the missing licks ARE the phenotype -- filtering them out would remove "
+    "the effect being measured. Pre-stroke keeps the engaged cut (decode.max_rt_s). The mismatch is "
+    "declared in nolick_analysis.SANCTIONED_MISMATCHES rather than left implicit, so "
+    "assert_comparable passes it by NAME while any other mismatched pair still raises. "
+    "\n\nTHERE IS NO POST-STROKE 'DISENGAGED' LABEL (Priya, 2026-08-18). Engagement filtering "
+    "post-stroke is RETIRED (poststroke_compare.POSTSTROKE_ENGAGEMENT_FILTERING = False). The "
+    "pre-stroke gate read motor failure as lost motivation -- it called 59% of PS94 8/17 disengaged "
+    "against 6.8% for a spared-position gate. The spared-position gate that replaced it was better "
+    "but also unvalidated: its 29 'disengaged' PS94 trials were no-lick trials in a local dip of the "
+    "response rate at close_L/close_center, and a short run of MOTOR failures produces that dip just "
+    "as readily as a motivational lapse. Nor has it a general form -- in a severe stroke every "
+    "position may be impaired, leaving no spared reference to anchor engagement on. CONSEQUENCE: the "
+    "earlier working-vs-disengaged result (PS94 -0.060) is UNINTERPRETABLE, not negative, and is not "
+    "shown anywhere in this deck. The response rate at spared positions is still reported as a "
+    "DESCRIPTIVE statistic (PS94 0.89, PS95 0.97); it is never used to split trials. "
+    "\n\nWHAT REPLACES IT: the same question asked WITHIN the post-stroke session, splitting "
+    "no-lick trials on the TRUE spout position -- impaired versus preserved -- which is measured "
+    "rather than inferred and needs no engagement label. Above-null decoding at IMPAIRED positions "
+    "means the position was represented and the movement did not happen. "
+    "\n\nPS92 AND PS93 ARE EXCLUDED FROM EVERY POOLED SLIDE HERE. Their 8/16 lesion produced no "
+    "deficit and was redone after the 8/17 session, so 8/17 belongs to neither phase "
+    "(config.session_phase -> 'excluded'). They may be projected onto the joint bases and shown "
+    "per-session. Pools are built ONLY from config.phase_labels('post'); selecting by DATE would "
+    "sweep them in silently, which is why the guard is a test and not a convention. "
+    "\n\n'NO LICK DETECTED' IS NOT 'NO TONGUE PROTRUSION'. The spout needs contact, so a short or "
+    "misdirected lick registers as nothing -- PS93's pre-existing rightward bias already produces "
+    "exactly this pre-stroke at far_L. Every no-lick conclusion here is provisional on DLC/facial "
+    "tracking, which replaces the inference with a measurement. In a severe stroke, spout contact may "
+    "not be a usable behavioural readout at all. "
+    "\n\nTHE NO-LICK ARM IS NOT PURELY 'NO LICK'. Two definitions coexist: _trial_features splits on decode.max_rt_s (2.0 s), while nolick_decoder.categorize separates late_rewarded (a lick after 2.0 s but inside the 3.5 s response window, a HIT by the task's definition) from undetected. The per-position and G6 slides use the 2.0 s split, so their no-lick arm CONTAINS the late-rewarded trials. Measured on the pre-stroke reference (ROI basis), that contamination is 9.7% for PS94 and 4.7% for PS95 -- small enough that it does not drive their numbers -- but 39.3% for PS92 and 33.9% for PS93. It is not a detail for those two: on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced 0.532, p=0.003) while undetected trials showed nothing (0.153, p=0.76). When PS92/PS93 re-enter as post-stroke animals these slides must be rebuilt on the three-arm split, or they will report a late-lick effect as a no-lick effect. "
+    "\n\nONE SESSION. n=1 post-stroke night per animal: PS94 and PS95 differ (PS94 below every "
+    "pre-stroke session in all three readouts, PS95 inside the band), and with one session each that "
+    "is a description of two animals, not an established dissociation. Joint-basis replication and "
+    "the decoder-similarity analysis are deferred to the second post-stroke session.")
+
 M_PRECUE_CAVEAT = (
     "\n\nPRE-CUE NUMBERS ON THIS SLIDE ARE CORRECTED (as of 2026-08-14). They are built on the "
     "meegkit_hpfit SVTcorr, not the pipeline default. Read this before comparing them to anything "
@@ -332,6 +379,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             left = Inches(side) + c * (cell_w + Inches(gap)) + (cell_w - w) / 2
             t = Inches(top) + r * (cell_h + Inches(gap)) + (cell_h - h) / 2
             s.shapes.add_picture(str(p), left, t, width=w, height=h)
+
+    def bullets(s, items, top=1.5, size=13.5, width=12.4):
+        """A text-only slide body. Sections A-F are all figures, but the post-stroke section has to
+        state what is comparable to what BEFORE showing a number -- that argument has no figure, and
+        burying it in the speaker notes is how the first version of this analysis shipped a headline
+        that was mostly trial composition."""
+        tf = s.shapes.add_textbox(Inches(0.45), Inches(top), Inches(width),
+                                  SH - Inches(top) - Inches(0.3)).text_frame
+        tf.word_wrap = True
+        for i, it in enumerate(items):
+            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            r = para.add_run()
+            r.text = "\u2022  " + it
+            r.font.size = Pt(size)
+            para.space_after = Pt(9)
 
     def divider(text, sub=None):
         s = slide()
@@ -648,6 +710,151 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
           "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.")
     note(s, M_RSA)
     big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
+
+    # ---------------- G. POST-STROKE ----------------
+    # ORDER IS THE ARGUMENT, and it was chosen after getting it wrong once. Behaviour comes FIRST
+    # because on 8/17 both animals stopped attempting the far positions, so any decoding number that
+    # precedes that fact is uninterpretable -- the first pass reported a PS94 "neural deficit" whose
+    # larger part was trial composition. Everything after G1 is position-matched.
+    #
+    # POOLS COME FROM config.phase_labels("post"), NEVER FROM A DATE. PS92/PS93 8/17 exists and is
+    # projectable but belongs to neither phase (8/16 lesion, no deficit, redone after that session);
+    # selecting by date would pool them silently. tests/test_stroke_phase.py pins this, and
+    # tests/test_deck_section_g.py pins that this section obeys it.
+    _post_labels = list(config.phase_labels("post"))
+    _excluded = [f"{a}_0817" for a in animals if config.session_phase(a, "0817") == "excluded"]
+    if _post_labels and (src / "poststroke_G2_matched.png").exists():
+        divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
+                f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
+                f"Behaviour first: what the animal still attempts bounds what any decoding number "
+                f"can mean.")
+
+        # --- G0. the design, before any number
+        s = slide()
+        title(s, "G0. What is compared to what \u2014 and what cannot be compared",
+              "Read this before the numbers. Four of these constraints changed a conclusion already.")
+        note(s, M_POSTSTROKE)
+        bullets(s, [
+            "PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
+            "resolving to phase=='pre'.",
+            "PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
+            "licks ARE the phenotype, so filtering them out would delete the effect being measured. "
+            "Declared by name in nolick_analysis.SANCTIONED_MISMATCHES.",
+            "Position-MATCHED slides are 4-way (chance 0.25) and NOT comparable to the 6-way numbers "
+            "in sections A\u2013F.",
+            "There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
+            "a local dip in response rate cannot be distinguished from a run of motor failures, and "
+            "in a severe stroke no spared reference position exists to anchor one.",
+            "'No lick detected' is NOT 'no tongue protrusion' \u2014 the spout needs contact. PS93 "
+            "already shows this pre-stroke at far_L. Every no-lick conclusion is provisional on DLC.",
+            f"n = 1 post-stroke session per animal ({', '.join(_post_labels)}). PS94 and PS95 "
+            "differ; with one night each that is a description of two animals, not a dissociation.",
+        ])
+
+        # --- G1. behaviour, from the nightly pipeline's own longitudinal figures
+        for a in animals:
+            beh = src / f"poststroke_G1a_behaviour_{a}.png"
+            if not _exists(beh):
+                continue
+            s = slide()
+            title(s, f"G1. {a} \u2014 behaviour across sessions, lesion marked",
+                  "Every per-position behavioural metric over that animal's sessions. DASHED RED = "
+                  "the lesion; grey shading = a session excluded from both phases. This is the "
+                  "figure the nightly behaviour pipeline already produces, not a bespoke plot.")
+            note(s, M_POSTSTROKE)
+            big(s, beh, top=1.5, width=12.9)
+        if (src / "poststroke_G1_behaviour.png").exists():
+            s = slide()
+            title(s, "G1b. Which positions still have trials at all",
+                  "Per-position engaged and no-lick counts: pre-stroke per-session mean against the "
+                  "post-stroke session. A position with ZERO engaged trials cannot have a decoding "
+                  "number, and PS94 has two of them.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G1_behaviour.png", top=1.6, width=12.5)
+
+        # --- G2. position-matched decoding
+        s = slide()
+        title(s, "G2. Position-matched decoding: the frozen pre-stroke model after the lesion",
+              "Restricted to the positions the animal still attempts. BAND = the pre-stroke "
+              "leave-one-session-out range under the SAME restriction, which is the only fair "
+              "reference. 4-way, chance 0.25.")
+        note(s, M_POSTSTROKE)
+        big(s, src / "poststroke_G2_matched.png", top=1.7, width=12.3)
+        if (src / "poststroke_G2b_per_position.png").exists():
+            s = slide()
+            title(s, "G2b. Per-position recall in all four conditions",
+                  "post-cue, post-lick, pre-cue WITH lick, pre-cue NO lick \u2014 pre against post "
+                  "at every position. 'With/without lick' is the RESPONSE lick, i.e. engaged vs "
+                  "no-lick trials. 'n/a' means the position was never attempted, which is not zero "
+                  "recall.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G2b_per_position.png", top=1.6, width=12.0)
+
+        # --- G3. crossed confusion: WHERE the errors go
+        if (src / "poststroke_G3_confusion.png").exists():
+            s = slide()
+            title(s, "G3. Crossed confusion \u2014 where the errors go, not just how many",
+                  "Full 6x6, rows = true position, row-normalised. A lateralised lesion that shifts "
+                  "far_R onto far_L and one that scatters far_R are IDENTICAL in accuracy and "
+                  "different here. Rows with no trials are blank, not zero.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G3_confusion.png", top=1.6, width=9.2)
+
+        # --- G4. identity, with its control read first
+        if (src / "poststroke_G4_identity.png").exists():
+            s = slide()
+            title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",
+                  "Discriminator trained on pre-stroke engaged-vs-no-lick, POSITION-BALANCED so it "
+                  "cannot simply answer 'far'. READ THE CONTROL FIRST: post-stroke ENGAGED trials "
+                  "must sit above post-stroke no-lick, or the boundary is tracking 'post-stroke' "
+                  "rather than licking and the answer means nothing.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G4_identity.png", top=1.7, width=11.5)
+
+        # --- G5. same code weaker, or a different code?
+        if (src / "poststroke_G5_similarity.png").exists():
+            s = slide()
+            title(s, "G5. Same code at reduced strength, or a different code?",
+                  "Per-position correlation between the pre- and post-stroke mean activity patterns. "
+                  "Decoding accuracy alone cannot separate a weakened code from a reorganised one; "
+                  "this can.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G5_similarity.png", top=1.7, width=11.8)
+
+        # --- G6. was a plan formed on the no-lick trials?
+        if (src / "poststroke_G6_nolick_readout.png").exists():
+            s = slide()
+            title(s, "G6. Was a plan formed on the trials with no lick? Impaired vs preserved "
+                     "positions",
+                  "REPLACES the working-vs-disengaged split, retired 2026-08-18 because 'disengaged' "
+                  "has no valid post-stroke construction. This splits on the TRUE spout position, "
+                  "which is measured rather than inferred. Above the black null at IMPAIRED "
+                  "positions = position represented, movement did not happen.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
+
+        # --- G7. what is NOT here, and why
+        s = slide()
+        title(s, "G7. Excluded sessions and deferred analyses",
+              "A section that does not say what it left out reads as though it covered everything.")
+        note(s, M_POSTSTROKE)
+        bullets(s, [
+            (f"EXCLUDED from every pooled slide above: {', '.join(_excluded)}. Their 8/16 lesion "
+             "produced no deficit and was redone AFTER the 8/17 session, so those sessions belong to "
+             "neither phase. They remain registered, are projected onto the joint bases, and appear "
+             "per-session in sections A\u2013D.")
+            if _excluded else
+            "No sessions are currently in the 'excluded' phase.",
+            "RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
+            "class was never validated, so its result (PS94 \u22120.060) is uninterpretable rather "
+            "than negative. G6 asks the same question without an engagement label.",
+            "DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2\u2013G6, "
+            "and the independently-trained-decoder similarity analysis. Both need n > 1.",
+            "BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
+            "vs never-attempted. Until then every no-lick claim above carries that ambiguity.",
+            "PS92/PS93 re-enter as post-stroke once re-lesioned; stroke_date and laser power must be "
+            "updated in configs/animals.yaml, and 0817 kept in their exclude list.",
+        ])
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

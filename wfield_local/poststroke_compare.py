@@ -233,6 +233,32 @@ def crossed_confusion(d, labels=DISPLAY_ORDER):
     return out
 
 
+#: POST-STROKE ENGAGEMENT FILTERING IS RETIRED (Priya, 2026-08-18).
+#:
+#: There is no valid post-stroke construction of "disengaged", so no analysis may split on one.
+#:
+#: The pre-stroke gate was invalid for the obvious reason (it reads motor failure as lost motivation
+#: -- it called 59% of PS94 8/17 disengaged against 6.8% for a reference-position gate). The
+#: reference-position gate that replaced it is better but ALSO not validated: its 29 "disengaged"
+#: PS94 trials are undetected trials falling where the trailing response rate at close_L/close_center
+#: dipped below 0.5 over 15 reference trials, and a short run of MOTOR failures produces that dip
+#: just as readily as a motivational lapse. Nothing in the spout data distinguishes them.
+#:
+#: And the construction has no general form: in a severe stroke EVERY position may be impaired, so
+#: there is no spared reference to anchor engagement on and spout contact cannot define it at all.
+#:
+#: Consequence for results already computed: `undetected_state_split`'s comparison class was never
+#: established, so its output (PS94 working-minus-disengaged -0.060) is UNINTERPRETABLE, not
+#: negative. It must not be quoted as evidence for a global post-stroke shift -- which is how I first
+#: read it. PS95 returned UNDECIDABLE (0 disengaged) and that reading was right for the wrong reason.
+#:
+#: Post-stroke analyses therefore use ALL trials (nolick_analysis.SANCTIONED_MISMATCHES). The
+#: question the split was meant to answer -- execution failure vs disengagement -- is better asked
+#: WITHIN the post-stroke session by contrasting undetected trials at IMPAIRED vs PRESERVED
+#: positions, which needs no engagement label. DLC tongue-protrusion data settles it directly.
+POSTSTROKE_ENGAGEMENT_FILTERING = False
+
+
 def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     """Engagement judged ONLY at positions the animal can still reach (Priya, 2026-08-18).
 
@@ -246,6 +272,11 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     far_L). A miss there is genuine disengagement; a miss at an impaired position says nothing about
     motivation. Which positions count is empirical per animal and per session, so it is passed in
     rather than hardcoded.
+
+    RETAINED AS A DESCRIPTIVE STATISTIC ONLY -- see POSTSTROKE_ENGAGEMENT_FILTERING above. Reporting
+    "the animal responded on 89% (PS94) / 97% (PS95) of trials at spared positions" is sound and worth
+    showing. SPLITTING trials on it is not, because a local dip in that rate is indistinguishable from
+    a run of motor failures. Callers that filter on the returned mask are the error this guards.
 
     Returns (engaged_bool per trial, info). Trials at non-reference positions inherit the state of
     the reference-position trials around them, since that is what the estimate is FOR.
@@ -372,4 +403,62 @@ def undetected_state_split(d, keep, args, seed=0):
         res["verdict"] = ("UNDECIDABLE: too few disengaged trials under the reference-position gate. "
                           "That is itself informative -- the animal was working almost throughout.")
     out["split"] = res
+    return out
+
+
+def impaired_nolick_readout(d, keep, n_perm=2000):
+    """Was a PLAN formed on post-stroke trials where no lick was detected? (Priya, 2026-08-18.)
+
+    This replaces `undetected_state_split`, which needed a "disengaged" label that has no valid
+    post-stroke construction (see POSTSTROKE_ENGAGEMENT_FILTERING). The question it was asking is
+    answerable WITHIN the post-stroke session and without any engagement label, by splitting the
+    no-lick trials on something measured rather than inferred: whether the TRUE position was one the
+    animal still reaches (preserved) or one it has stopped reaching (impaired).
+
+    Apply the frozen pre-stroke decoder to post-stroke NO-LICK trials and ask whether it still reads
+    out the correct position:
+
+      * above chance at IMPAIRED positions -> the position was represented and the lick did not
+        happen: EXECUTION failure with the plan intact. This is the strong result, because those are
+        exactly the trials a motor-output account predicts and a "no plan" account does not.
+      * at chance everywhere -> no readable plan on no-lick trials; execution failure is not
+        supported (though absence of decodable signal is weaker evidence than presence).
+
+    The preserved-position arm is the internal control: no-lick trials there are the animal's own
+    baseline lapses at positions it can still reach, so it calibrates the impaired arm within the
+    same session, the same recording, and the same decoder.
+
+    CAVEAT that cannot be removed from spout data alone: "no lick detected" is not "no tongue
+    protrusion". PS93's rightward bias already produces licks that occur without reaching far_L. DLC
+    tongue tracking replaces this inference with a measurement; until then a null here is ambiguous
+    between "no plan" and "plan plus a protrusion the spout never saw".
+    """
+    impaired = [c for c in DISPLAY_ORDER if c not in keep]
+    tr = np.isin(d["GE"], list(d["pre_i"]))
+    clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
+    post_u = np.isin(d["GU"], list(d["post_i"]))
+    out = {"preserved_positions": [POSITION_NAMES[c] for c in keep],
+           "impaired_positions": [POSITION_NAMES[c] for c in impaired]}
+    for name, labs in (("preserved", keep), ("impaired", impaired)):
+        m = post_u & np.isin(d["YU"], labs)
+        if m.sum() < MIN_POST:
+            out[name] = {"n": int(m.sum()), "note": f"fewer than {MIN_POST} no-lick trials"}
+            continue
+        y, pred = d["YU"][m], clf.predict(d["XU"][m])
+        # Scored over ALL six labels: the frozen decoder may predict any position, and restricting
+        # the label set would hand it a chance level it was not operating under.
+        r = na.evaluate_arm(y, pred, n_perm=n_perm, labels=list(DISPLAY_ORDER))
+        r["n"] = int(m.sum())
+        r["per_position"] = na.per_position_recall(y, pred, labels=list(labs))
+        out[name] = r
+    a, b = out.get("impaired", {}), out.get("preserved", {})
+    if "balanced_accuracy" in a:
+        out["verdict"] = ("plan READ OUT on no-lick trials at impaired positions -> execution failure"
+                          if a.get("bal_p", 1.0) < 0.05 else
+                          "no decodable plan on impaired no-lick trials -> execution failure NOT "
+                          "supported by this test (see the DLC caveat)")
+        if "balanced_accuracy" in b:
+            out["impaired_minus_preserved"] = float(a["balanced_accuracy"] - b["balanced_accuracy"])
+    else:
+        out["verdict"] = "UNDECIDABLE -- too few no-lick trials at impaired positions"
     return out

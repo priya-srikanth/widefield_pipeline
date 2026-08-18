@@ -1476,3 +1476,87 @@ predicted maps) · `locanmf_cross_mouse.py` (cross-mouse + within-animal consist
 (analysis). Figures/tables on MICROSCOPE under `labcams/locanmf_lick_pooled/…/cue_analysis/`; per-session
 LocaNMF outputs in each session's `motion_corrected/locanmf_affine8v1_final/`. The full historical module list
 (early lick/cue exploratory modules) is in `docs/archive/ANALYSIS_HISTORY.md`.
+
+## POST-STROKE ENGAGEMENT FILTERING IS RETIRED (Priya, 2026-08-18)
+
+**There is no valid post-stroke construction of "disengaged", so no post-stroke analysis may split on
+one.** `poststroke_compare.POSTSTROKE_ENGAGEMENT_FILTERING = False`; guarded by
+`tests/test_deck_section_g.py`.
+
+### Two gates, both wrong, for different reasons
+
+**The pre-stroke gate (`flag_engagement`) was wrong for the obvious reason.** It calls an animal
+disengaged when its trailing response rate collapses — and after a lesion that rate collapses BECAUSE
+the animal cannot reach the far positions. It labels the effect being measured as the confound. On
+PS94 8/17 it called **59%** of trials disengaged, against **6.8%** for a spared-position gate. Any
+"no plan was formed" conclusion drawn through it is circular.
+
+**The spared-position gate that replaced it is better and still not valid.** It judges engagement only
+at positions the animal can still reach (close_L, close_center — far_L and close_R deliberately
+excluded in case they are affected). That removes the circularity but not the ambiguity: it marked 29
+PS94 trials "disengaged" because they were no-lick trials falling where the trailing response rate at
+the reference positions dipped below 0.5 over 15 reference trials. **A short run of MOTOR failures
+produces that dip exactly as readily as a motivational lapse.** Nothing in the spout data
+distinguishes them. Priya raised this directly: those 29 may simply be one-off misses.
+
+**And it has no general form.** In a severe stroke *every* spout position may be impaired, leaving no
+spared reference to anchor engagement on — so spout contact may not be usable as an engagement readout
+at all. A gate that only works for mild lesions is not a gate.
+
+### What this invalidates
+
+`undetected_state_split`'s comparison class was never established, so its output is
+**UNINTERPRETABLE, not negative**:
+
+| animal | n working | n disengaged | working − disengaged | what I first said | what it means |
+|---|---|---|---|---|---|
+| PS94 | 116 | 29 | −0.060 | "no separation → global post-stroke shift" | nothing; the second class is unvalidated |
+| PS95 | 44 | 0 | — | "UNDECIDABLE" | right, for the wrong reason |
+
+I reported the PS94 number as evidence for a global shift. It is not evidence for anything. It must
+not be quoted, and it is not shown in the deck.
+
+The rolling response rate at spared positions survives as a **DESCRIPTIVE statistic** — PS94 0.89,
+PS95 0.97 — which is a sound thing to report and an unsound thing to split trials on.
+`poststroke_engagement` is kept for that purpose with the restriction in its docstring.
+
+### What replaces it: `impaired_nolick_readout`
+
+Ask the same question WITHIN the post-stroke session, splitting no-lick trials on the **true spout
+position** — impaired vs preserved — which is *measured* rather than inferred and needs no engagement
+label. Apply the frozen pre-stroke decoder and ask whether it still reads out position:
+
+- above that arm's own permutation null at IMPAIRED positions → the position was represented and the
+  movement did not happen: **execution failure, plan intact**;
+- at null everywhere → no readable plan, and execution failure is not supported.
+
+**Measured on PS94 8/17 (ROI, 6-way, per-arm permutation nulls):**
+
+| alignment | arm | n | balanced | null | p |
+|---|---|---|---|---|---|
+| pre-cue | preserved | 145 | 0.214 | 0.178 | 0.167 |
+| pre-cue | impaired | 209 | 0.167 | 0.151 | 0.206 |
+| post-cue | preserved | 145 | 0.044 | 0.090 | 0.958 |
+| post-cue | impaired | 209 | 0.372 | 0.333 | 0.068 |
+
+**Nothing reaches significance.** The execution-failure hypothesis is NOT supported by this test for
+PS94. Note how high the nulls run (0.333 for the post-cue impaired arm): these trials are heavily
+skewed across positions, so a uniform 1/6 chance line would have manufactured a result here — which is
+why every arm carries its own permutation null.
+
+A null result here is weaker evidence than a positive one would have been, and it stays ambiguous
+between "no plan" and "plan formed, plus a tongue protrusion the spout never registered".
+
+### The limit that no amount of statistics fixes
+
+**"No lick detected" is not "no tongue protrusion."** The spout requires contact, so a short or
+misdirected lick registers as nothing. PS93 already shows this PRE-stroke at far_L (a pre-existing
+rightward bias), which makes it a within-subject instance of the phenotype being looked for. DLC /
+facial tracking replaces this inference with a measurement, and until it lands every no-lick
+conclusion in section G carries the ambiguity. See "PLANNED vs EXECUTED direction — pending DLC/FR".
+
+### Consequence for trial selection
+
+Post-stroke analyses use **ALL trials** (`nolick_analysis.SANCTIONED_MISMATCHES` declares the
+pre-engaged vs post-all pair by name). Post-lick-bout analyses are the sole exception, since they need
+a lick to align to.

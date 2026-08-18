@@ -189,3 +189,109 @@ def fig_confusion(conf, out):
     fig.savefig(p, dpi=150)
     plt.close(fig)
     return p
+
+
+
+CONDS = ["post-cue", "post-lick", "pre-cue WITH lick", "pre-cue NO lick"]
+
+
+def fig_per_position(pp, out):
+    """G2b: per-position recall pre vs post in all four decoder conditions (Priya, 2026-08-17).
+
+    One row per condition, one column per animal; pre-stroke and post-stroke bars side by side at
+    every position. A position the animal stopped attempting gets an explicit "n/a" mark rather than
+    a zero bar -- the distinction the scalar summaries kept losing, and the one that turned a "PS94
+    neural deficit" headline into a statement about trial composition.
+    """
+    ans = sorted(pp)
+    fig, axes = plt.subplots(len(CONDS), len(ans), figsize=(6.0 * len(ans), 3.1 * len(CONDS)),
+                             squeeze=False, sharey=True)
+    x = np.arange(len(POS))
+    w = 0.38
+    for r, cond in enumerate(CONDS):
+        for k, an in enumerate(ans):
+            ax = axes[r][k]
+            d = pp[an].get(cond)
+            if not d:
+                ax.text(0.5, 0.5, cond + ": insufficient trials", transform=ax.transAxes,
+                        ha="center", va="center", fontsize=9, color="firebrick")
+                ax.set_xticks([])
+                continue
+            for j, (ph, col) in enumerate((("pre", "tab:blue"), ("post", "tab:red"))):
+                vals = [d[ph].get(q, {}).get("recall", np.nan) for q in POS]
+                ns = [d[ph].get(q, {}).get("n", 0) for q in POS]
+                ax.bar(x + (j - 0.5) * w, [v if v == v else 0 for v in vals], w, color=col,
+                       edgecolor="k", linewidth=0.4,
+                       label=("pre-stroke (LOSO)" if ph == "pre" else "post-stroke (frozen)"))
+                for xi, n in zip(x + (j - 0.5) * w, ns):
+                    if n == 0:
+                        ax.text(xi, 0.02, "n/a", ha="center", va="bottom", fontsize=6.5,
+                                rotation=90, color="firebrick", fontweight="bold")
+            ax.axhline(1 / 6, color="k", ls=":", lw=1)
+            ax.set_xticks(x)
+            ax.set_xticklabels(POS if r == len(CONDS) - 1 else [], rotation=45, ha="right",
+                               fontsize=7)
+            ax.set_ylim(0, 1.05)
+            if k == 0:
+                ax.set_ylabel(cond + "\nrecall", fontsize=8)
+            ax.set_title(f"{an} — {cond}  (balanced {d['pre_balanced']:.2f} -> "
+                         f"{d['post_balanced']:.2f})", fontsize=8.5)
+            if r == 0 and k == 0:
+                ax.legend(fontsize=7)
+    fig.suptitle("Per-position recall in FOUR conditions. Training is ALWAYS on pre-stroke ENGAGED "
+                 "trials; 'with/without lick' is the RESPONSE lick, i.e. engaged vs undetected "
+                 "trials. Dotted line = 1/6. 'n/a' = position not attempted, NOT zero recall.",
+                 fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
+    q = Path(out) / "poststroke_G2b_per_position.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def fig_nolick_readout(rd, out):
+    """G6: was a PLAN formed on post-stroke no-lick trials? IMPAIRED vs PRESERVED positions.
+
+    Replaces the working/disengaged split, retired 2026-08-18: "disengaged" has no valid post-stroke
+    construction, so that figure compared against a class that was never established. This contrast
+    splits on the true spout position, which is measured rather than inferred, and needs no
+    engagement label anywhere in it.
+    """
+    ans = sorted(rd)
+    fig, axes = plt.subplots(1, len(ans), figsize=(4.8 * len(ans) + 1.0, 4.8), squeeze=False)
+    for k, an in enumerate(ans):
+        ax = axes[0][k]
+        xt, lab, i = [], [], 0.0
+        for al in ("precue", "cue"):
+            r = rd[an].get(al, {})
+            for arm, col in (("preserved", "tab:green"), ("impaired", "tab:red")):
+                a = r.get(arm, {})
+                if "balanced_accuracy" in a:
+                    ax.bar(i, a["balanced_accuracy"], 0.66, color=col, edgecolor="k", linewidth=0.5)
+                    ax.plot([i - 0.33, i + 0.33], [a["bal_null_mean"]] * 2, color="k", lw=2.2, zorder=3)
+                    p = a["bal_p"]
+                    star = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else "n.s."
+                    ax.text(i, a["balanced_accuracy"] + 0.02, star + "\nn=" + str(a["n"]),
+                            ha="center", fontsize=7)
+                else:
+                    ax.text(i, 0.04, "n=" + str(a.get("n", 0)) + "\ntoo few", ha="center",
+                            fontsize=7, color="dimgrey")
+                xt.append(i)
+                lab.append(al + "\n" + arm)
+                i += 1
+            i += 0.4
+        ax.set_xticks(xt)
+        ax.set_xticklabels(lab, fontsize=7.5)
+        ax.set_ylim(0, 0.85)
+        ax.set_ylabel("balanced accuracy (6-way)")
+        ax.set_title(an + "\n" + rd[an].get("precue", {}).get("verdict", ""), fontsize=7.5)
+    fig.suptitle("Post-stroke NO-LICK trials: was the position represented anyway?\n"
+                 "Frozen pre-stroke decoder; BLACK RULE = that arm's own permutation null. Above the "
+                 "null at IMPAIRED positions = plan formed, movement failed. CAVEAT: 'no lick "
+                 "detected' is not 'no tongue protrusion' -- DLC replaces this inference with a "
+                 "measurement.", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.87))
+    q = Path(out) / "poststroke_G6_nolick_readout.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
