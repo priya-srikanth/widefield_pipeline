@@ -472,6 +472,20 @@ def reference_position_engagement(codes, cat, reference_positions):
             "reference_positions": sorted(reference_positions)}
 
 
+#: Comparisons that mix trial criteria ON PURPOSE, with the reason. `assert_comparable` permits
+#: exactly these and still raises on anything else, so a deliberate mismatch is declared rather than
+#: smuggled past the guard by disabling it.
+SANCTIONED_MISMATCHES = {
+    ("engaged_2s", "all_trials"):
+        "Priya, 2026-08-18: post-stroke no-lick trials are execution failures, not disengagement -- "
+        "they classify as engaged-like (0.71-0.86) and nowhere near pre-stroke undetected "
+        "(0.085-0.147). Excluding them post-stroke would discard the trials of interest, so the "
+        "sanctioned comparison is PRE-stroke engaged vs POST-stroke ALL trials. It remains a "
+        "criterion mismatch and the post side is the larger, less selected set -- report it as such. "
+        "Does NOT apply to post-lick analyses, which require a detected lick by definition.",
+}
+
+
 def assert_comparable(a, b, what="comparison"):
     """Refuse to compare two results whose trial-selection criteria differ.
 
@@ -485,8 +499,13 @@ def assert_comparable(a, b, what="comparison"):
             f"{what}: refusing to compare results without a recorded trial-selection criterion "
             f"(got {ca!r} and {cb!r}). Every result must carry `criterion`; see CRITERIA.")
     if ca != cb:
+        why = SANCTIONED_MISMATCHES.get((ca, cb)) or SANCTIONED_MISMATCHES.get((cb, ca))
+        if why:
+            return {"sanctioned_mismatch": [ca, cb], "why": why}
         raise ValueError(
             f"{what}: trial-selection criteria differ ({ca!r} vs {cb!r}). Comparing these would "
             f"confound the selection change with the effect. Recompute both sides under ONE "
-            f"criterion -- compute all of them and compare like with like.")
+            f"criterion -- compute all of them and compare like with like. If the mismatch is "
+            f"deliberate, add it to SANCTIONED_MISMATCHES with the reason rather than bypassing "
+            f"this check.")
     return True

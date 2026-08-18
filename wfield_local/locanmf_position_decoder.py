@@ -165,7 +165,7 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
     return lickfree_window(c0, strobe_f, licks_sorted, win_n)
 
 
-def _trial_features(s, args, signal=None, feat_region=None):
+def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False):
     """Trial-averaged features for one session.
 
     ``signal``/``feat_region`` let a caller INJECT an already-built (nfeat, T) signal instead of
@@ -212,6 +212,11 @@ def _trial_features(s, args, signal=None, feat_region=None):
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cue_f
     subtract = args.baseline == "precue"
     X, y, g, Xn, yn = [], [], [], [], []
+    # per-ENGAGED-trial flag: did the FIXED 2 s pre-cue window contain licks? Returned on request so
+    # callers never have to replay this loop to find out -- reconstructing a trial filter elsewhere
+    # is how bugs 15, 16 and 17 all happened, and a mask built outside here silently misaligned by 58
+    # trials the first time it was tried.
+    precue_lick = []
     for k in range(cue_f.size):
         if codes[k] < 0:
             continue
@@ -239,6 +244,9 @@ def _trial_features(s, args, signal=None, feat_region=None):
                 continue
             X.append(_window_feature(sig, w0, post_n, bins, base))
             y.append(int(codes[k])); g.append(int(blk_id[k]))
+            if with_precue_licks:
+                fx = c0 - post_n
+                precue_lick.append(bool(fx >= 0 and np.any((ls_sorted >= fx) & (ls_sorted < c0))))
         else:                                               # NO-LICK: cue/precue-referenced (no lick to align)
             Xn.append(_window_feature(sig, ref0, post_n, bins, base)); yn.append(int(codes[k]))
     # component->region labels must be tiled with the features, or the encoder would group a
@@ -248,6 +256,9 @@ def _trial_features(s, args, signal=None, feat_region=None):
     if n_dropped_dirty:
         print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
               f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
+    if with_precue_licks:
+        return (np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg,
+                np.array(precue_lick, bool))
     return np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg
 
 
