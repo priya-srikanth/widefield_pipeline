@@ -38,13 +38,34 @@ def test_curated_cross_session_policy():
 
 
 def test_curated_dates_is_live_and_excludes_the_policy_set():
-    """curated_dates() = REGISTERED minus cross_session_exclude (auto-includes new nights)."""
+    """curated_dates() = REGISTERED minus cross_session_exclude minus POST-STROKE.
+
+    CONTRACT CHANGED 2026-08-17. It used to be exactly "registered minus excluded", which
+    auto-included every new night -- correct while the cohort was pre-stroke and a live hazard
+    afterwards, since this list feeds the joint bases, the frozen decoder's training pool and the
+    no-lick pre-stroke reference. New PRE-stroke nights still join automatically; post-stroke ones
+    never do.
+    """
     live = config.curated_dates()
     registered = {s["label"].split("_")[1] for s in config.load_sessions()}
     exclude = set(config.date_policy()["cross_session_exclude"])
-    assert live == sorted(registered - exclude)
+    cut = config.stroke_cutoff()
+    expected = {d for d in registered - exclude if cut is None or d <= cut}
+    assert live == sorted(expected)
     assert not (set(live) & exclude), "an excluded date leaked into the curated set"
     assert {"0606", "0607", "0608", "0806", "0807"} <= set(live), "the policy anchors must survive"
+
+
+def test_a_post_stroke_night_is_NOT_auto_included():
+    """The property the old contract would have violated, pinned against the real 8/17 sessions."""
+    cut = config.stroke_cutoff()
+    if cut is None:
+        pytest.skip("cohort still pre-stroke")
+    registered = {s["label"].split("_")[1] for s in config.load_sessions()}
+    post = {d for d in registered if d > cut}
+    assert post, "expected at least one registered post-stroke date once a lesion exists"
+    assert not (post & set(config.curated_dates())), (
+        f"post-stroke date(s) {sorted(post)} leaked into the pre-stroke curated set")
 
 
 def test_no_static_curated_date_list_remains():

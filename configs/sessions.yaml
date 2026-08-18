@@ -104,6 +104,14 @@ sessions:
       h5: "20260814/PS92_20260814_145316.h5"
       regime: B
       fmdir: null
+    # POST-LESION ATTEMPT, EXCLUDED FROM BOTH PHASES. Lesioned 8/16 PM but no overt deficit;
+    # stroke is being REDONE after this session, so it is neither baseline nor post-stroke
+    # (animals.yaml exclude: ["0817"]). Shown per-session only.
+    "0817":
+      mc: "20260817/PS92_20260817_165929/motion_corrected"
+      h5: "20260817/PS92_20260817_170552.h5"
+      regime: B
+      fmdir: null
   PS93:
     "0605":
       mc: "20260605/PS93_20260605_174659/motion_corrected"
@@ -173,6 +181,12 @@ sessions:
     "0814":
       mc: "20260814/PS93_20260814_175422/motion_corrected"
       h5: "20260814/PS93_20260814_175419.h5"
+      regime: B
+      fmdir: null
+    # POST-LESION ATTEMPT, EXCLUDED FROM BOTH PHASES -- see PS92 0817.
+    "0817":
+      mc: "20260817/PS93_20260817_143215/motion_corrected"
+      h5: "20260817/PS93_20260817_143734.h5"
       regime: B
       fmdir: null
   PS94:
@@ -254,6 +268,12 @@ sessions:
     "0814":
       mc: "20260814/PS94_20260814_094522/motion_corrected"
       h5: "20260814/PS94_20260814_095453.h5"
+      regime: B
+      fmdir: null
+    # FIRST POST-STROKE SESSION (VLS lesion 8/16 PM, 3 mW, overt deficit).
+    "0817":
+      mc: "20260817/PS94_20260817_094207/motion_corrected"
+      h5: "20260817/PS94_20260817_095150.h5"
       regime: B
       fmdir: null
   PS95:
@@ -338,5 +358,11 @@ sessions:
     "0814":
       mc: "20260814/PS95_20260814_123626/motion_corrected"
       h5: "20260814/PS95_20260814_123815.h5"
+      regime: B
+      fmdir: null
+    # FIRST POST-STROKE SESSION (VLS lesion 8/16 PM, 3 mW, overt deficit).
+    "0817":
+      mc: "20260817/PS95_20260817_120733/motion_corrected"
+      h5: "20260817/PS95_20260817_121842.h5"
       regime: B
       fmdir: null
