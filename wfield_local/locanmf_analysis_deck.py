@@ -234,9 +234,13 @@ M_HEMIDYN = (
     "movement, different arousal, a noisier recording -- then a homotopic drop says nothing about "
     "interhemispheric coupling. The interpretable result is homotopic falling while WITHIN-hemisphere "
     "coupling holds, which is what homotopic-minus-within reports."
-    "\n\nGREY POINTS ARE THE NEGATIVE CONTROL: PS92/PS93 8/17, same surgery day, same handling, no "
-    "behavioural deficit. A post-stroke change that also appears in them is a property of 8/17 rather "
-    "than of the lesion, and nothing else in the dataset can make that distinction."
+    "\n\nGREY POINTS ARE PS92/PS93 8/17 — SMALL strokes with no overt deficit. They are "
+    "NOT a no-lesion control: the 8/16 laser did lesion them (Priya, 2026-08-18, correcting an "
+    "earlier claim of mine). What they DO control for is the recording DAY — same rig, "
+    "anaesthesia, handling, preprocessing and frozen decoder — so an artefact of 8/17 would "
+    "have hit all four animals. They also give a LESION-SEVERITY contrast. What they cannot show "
+    "is that a lesion is NECESSARY for an effect: a null in a small-stroke animal is equally "
+    "consistent with small stroke, small effect."
     "\n\nAllen-ROI basis by default, because homotopic pairing is then exact (SSp_left <-> "
     "SSp_right). The joint LocaNMF basis pairs through each component's dominant area and is "
     "approximate; where they disagree the ROI answer is the conservative one.")
@@ -939,13 +943,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
 
-        # --- G7. NEGATIVE CONTROL: the excluded sessions, used as the control they are
+        # --- G7. SMALL-LESION COMPARISON: the excluded sessions.
+        # NOT a negative control -- PS92/PS93 were lesioned too, just mildly (Priya,
+        # 2026-08-18). They control for the DAY and give a severity contrast; they cannot
+        # show that a lesion is necessary for an effect.
         # PS92/PS93 8/17 belongs to neither phase, which is exactly what makes it the control. These
         # slides are built from an EXPLICIT label list (poststroke_compare._pooled(post_labels=...)),
         # never from phase_labels("post"), and their JSON carries excluded_from_pooled_summaries.
         if _excluded and (src / "poststroke_G7_control_matched.png").exists():
             s = slide()
-            title(s, "G7. NEGATIVE CONTROL \u2014 the two animals whose lesion did NOT take",
+            title(s, "G7. SMALL-LESION COMPARISON \u2014 the two animals without an overt deficit",
                   f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
                   f"this session. Same day, same anaesthesia, same handling, same frozen decoder. If "
                   f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
@@ -953,7 +960,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, src / "poststroke_G7_control_matched.png", top=1.75, width=12.3)
             if (src / "poststroke_G7_control_behaviour.png").exists():
                 s = slide()
-                title(s, "G7b. NEGATIVE CONTROL behaviour \u2014 all six positions still attempted",
+                title(s, "G7b. SMALL-LESION behaviour \u2014 all six positions still attempted",
                       "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
                       "behavioural collapse is specific to the animals whose lesion took, which is "
                       "what makes the decoding comparison interpretable at all.")
@@ -968,14 +975,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             if not _cf.exists():
                 continue
             s = slide()
-            title(s, f"G7c. NEGATIVE CONTROL \u2014 {_nice} confusion, all trials",
-                  "The same all-trials matrix as G3b, for the animals whose lesion did not take. "
+            title(s, f"G7c. SMALL-LESION COMPARISON \u2014 {_nice} confusion, all trials",
+                  "The same all-trials matrix as G3b, for the two animals whose strokes were small enough to leave no overt deficit. "
                   "Near-diagonal, with prediction rates of 0.09-0.21 (uniform is 0.167) \u2014 NO "
                   "systematic pull toward any position. That is what makes PS94's far_R "
                   "over-prediction (0.35 of all its post-stroke trials) a lesion effect rather than "
                   "a property of the frozen decoder or of 8/17.")
             note(s, M_POSTSTROKE)
             big(s, _cf, top=1.85, width=9.6)
+
+        # G7d: the same fits-engaged test on the SMALL-LESION animals.
+        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+            _sf = src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
+            if not _sf.exists():
+                continue
+            s = slide()
+            title(s, f"G7d. SMALL-LESION COMPARISON — does the {_nice} no-lick session fit the "
+                     f"ENGAGED distribution?",
+                  "The same test as G4b for the two animals whose strokes were small. PS92 has too "
+                  "few no-lick trials to test (it responded on essentially every trial), which is "
+                  "itself the point: a small lesion left the behaviour intact.")
+            note(s, M_POSTSTROKE)
+            big(s, _sf, top=1.85, width=11.0)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
@@ -1002,7 +1023,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Temporal SD is what a mean image cannot show, and homotopic correlation is what "
                   "survives the optical asymmetries that make amplitudes fragile. Third row is the "
                   "specificity check: a homotopic drop only means interhemispheric decoupling if "
-                  "WITHIN-hemisphere coupling holds. Grey = the negative-control sessions.")
+                  "WITHIN-hemisphere coupling holds. Grey = the small-lesion sessions (not no-lesion).")
             note(s, M_HEMIDYN)
             big(s, _df, top=1.85, width=12.9)
 

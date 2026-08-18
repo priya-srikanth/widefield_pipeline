@@ -61,7 +61,7 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
     `chance` must match the number of positions the arm was scored over -- 0.25 when matched to four
     preserved positions (PS94/PS95), 1/6 when the animal still attempts all six (PS92/PS93, which are
     NOT position-restricted because nothing was lost). Hardcoding 0.25 would have drawn a chance line
-    50% too high on the negative-control figure.
+    50% too high on the small-lesion comparison figure.
     """
     ans = sorted(matched)
     conds = ["post-cue", "post-lick", "pre-cue"]
@@ -378,51 +378,70 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
     exceeds that column's own baseline.
     """
     ans = sorted(conf)
-    fig, axes = plt.subplots(len(ans), 2, figsize=(11.0, 4.9 * len(ans)), squeeze=False)
+    # three panels per animal: PRE (row), POST (row = recall), POST (column = precision). The PRE
+    # panel needs only one normalisation -- pre-stroke trials are balanced across positions by design,
+    # so row and column are nearly the same picture there. They diverge post-stroke, which is why that
+    # is where both are shown.
+    PANELS = (("pre", "row"), ("post", "row"), ("post", "col"))
+    fig, axes = plt.subplots(len(ans), 3, figsize=(15.4, 5.0 * len(ans)), squeeze=False)
     for r, an in enumerate(ans):
         if align not in conf[an]:
             continue
-        for c, phase in enumerate(("pre", "post")):
+        for c, (phase, norm) in enumerate(PANELS):
             ax = axes[r][c]
             d = conf[an][align][phase]
-            M = np.array(d["matrix"], float)
-            n = d["n_per_true_position"]
+            Mrow = np.array(d["matrix"], float)          # stored row-normalised
+            n = np.array(d["n_per_true_position"], float)
             nl = d.get("n_nolick_per_true_position", [0] * len(n))
+
+            # counts matrix, from which either normalisation follows exactly
+            C = Mrow * n[:, None]
+            colsum = np.nansum(C, axis=0)
+            tot = n.sum() or 1
+            pred_rate = colsum / tot                     # = expected recall under a label permutation
+            with np.errstate(invalid="ignore", divide="ignore"):
+                Mcol = C / colsum[None, :]               # P(true i | predicted j)
+                precision = np.array([Mcol[j, j] if colsum[j] else np.nan
+                                      for j in range(len(n))])
+
+            M = Mrow if norm == "row" else Mcol
             im = ax.imshow(np.ma.masked_invalid(M), vmin=0, vmax=1, cmap="magma")
-            # expected recall per column under a label permutation = that column's prediction rate
-            tot = sum(n) or 1
-            pred_rate = [sum(n[i] * M[i, j] for i in range(len(n)) if n[i]) / tot
-                         for j in range(len(n))]
             ax.set_xticks(range(len(POS)))
-            ax.set_xticklabels([f"{p}\n(pred {pr:.2f})" for p, pr in zip(POS, pred_rate)],
-                               rotation=45, ha="right", fontsize=6.5)
+            ax.set_xticklabels([f"{p}\n(pred {pr:.2f})\n(prec {pc:.2f})"
+                                for p, pr, pc in zip(POS, pred_rate, precision)],
+                               rotation=45, ha="right", fontsize=6)
             ax.set_yticks(range(len(POS)))
-            ax.set_yticklabels([f"{p} (n={a}, {100*b/a:.0f}% no-lick)" if a else f"{p} (n=0)"
+            ax.set_yticklabels([f"{p} (n={int(a)}, {100*b/a:.0f}% no-lick)" if a else f"{p} (n=0)"
                                 for p, a, b in zip(POS, n, nl)], fontsize=6.5)
             for i in range(len(POS)):
                 if not n[i]:
                     ax.text(len(POS) / 2 - 0.5, i, "no trials", ha="center", va="center",
                             fontsize=8, color="firebrick", fontweight="bold")
                     continue
-                # ring the diagonal only where it beats its own column's prediction rate
-                if M[i, i] > pred_rate[i]:
+                # ring the diagonal only where RECALL beats its own column's prediction rate -- the
+                # same criterion on both panels, so the two normalisations stay comparable
+                if Mrow[i, i] > pred_rate[i]:
                     ax.add_patch(plt.Rectangle((i - 0.5, i - 0.5), 1, 1, fill=False,
                                                edgecolor="lime", lw=2.0))
-            ttl = ("PRE (engaged, leave-one-session-out)" if phase == "pre"
-                   else "POST (frozen model, ALL trials)")
-            ax.set_title(f"{an} — {ttl}", fontsize=9)
+            ttl = ("PRE (engaged, LOSO) — row / recall" if phase == "pre" else
+                   "POST (frozen, ALL trials) — row / RECALL" if norm == "row" else
+                   "POST (frozen, ALL trials) — column / PRECISION")
+            ax.set_title(f"{an} — {ttl}", fontsize=8.5)
             ax.set_xlabel("predicted")
             ax.set_ylabel("true")
             fig.colorbar(im, ax=ax, fraction=0.046)
     fig.suptitle(
         f"Crossed confusion, {align}-aligned, POST arm = ALL trials (engaged + no detected lick). "
-        "Rows the lesion abolished are filled by the no-lick trials, which are the only trials that "
-        "exist there. '(pred x.xx)' under each column is how often the decoder predicts that "
-        "position across all trials — the expected recall under a label permutation, and the bar the "
-        "diagonal must clear. GREEN BOX = diagonal exceeds its own column baseline. Read the "
+        "Rows the lesion abolished are filled by no-lick trials, the only trials that exist there. "
+        "BOTH NORMALISATIONS for the post-stroke panel: ROW = P(pred | true) = RECALL, the question "
+        "the hypothesis asks; COLUMN = P(true | pred) = PRECISION, which exposes what row "
+        "normalisation structurally hides — a decoder that predicts one position everywhere earns a "
+        "high recall there without carrying information. Under each column: '(pred)' = how often that "
+        "position is predicted at all, which IS the recall expected under a label permutation, and "
+        "'(prec)' = precision. GREEN BOX = recall exceeds its own column's prediction rate. Read the "
         "OFF-diagonal: a systematic pull toward one position is the result, not the diagonal.",
         fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
     q = Path(out) / (name or f"poststroke_G3b_confusion_alltrials_{align}.png")
     fig.savefig(q, dpi=150)
     plt.close(fig)
@@ -459,7 +478,9 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
                                              (("nolick"), "tab:grey", "pre-stroke NO-LICK"))):
             ref = d[f"reference_{arm}_per_session"]
             v = np.array(list(ref.values()), float)
-            ax.axhspan(v.min(), v.max(), xmin=0.04 + j * 0.5, xmax=0.46 + j * 0.5,
+            # band confined to its own group: at xmin/xmax 0.04-0.46 it ran under the neighbouring
+            # column and read as though the reference extended across the whole panel
+            ax.axhspan(v.min(), v.max(), xmin=0.03 + j * 0.31, xmax=0.30 + j * 0.31,
                        color=col, alpha=0.18)
             ax.plot(np.full(len(v), j) + np.linspace(-0.12, 0.12, len(v)), v, "o", ms=5,
                     color=col, markeredgecolor="k", lw=0.3, label=lab)
@@ -476,10 +497,17 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
         ax.set_xlim(-0.5, 2.7)
         ie = d["engaged"]["post_inside_range"]
         inl = d["nolick"]["post_inside_range"]
+        # take the tag from the VERDICT the analysis computed, not a second copy of the logic here --
+        # they had already diverged once, with "outside BOTH" on a panel the analysis called
+        # INTERMEDIATE (PS94 pre-cue, 40% of the way toward engaged)
+        frac = d.get("fraction_of_gap_toward_engaged")
         tag = ("INSIDE engaged, OUTSIDE no-lick" if (ie and not inl) else
                "INSIDE no-lick, OUTSIDE engaged" if (inl and not ie) else
-               "inside BOTH — references overlap" if (ie and inl) else "outside BOTH")
-        col = "darkgreen" if (ie and not inl) else "firebrick" if (inl and not ie) else "darkorange"
+               "inside BOTH — references overlap" if (ie and inl) else
+               f"INTERMEDIATE — {frac:.0%} of the way toward engaged"
+               if frac is not None and frac == frac else "outside BOTH references")
+        col = ("darkgreen" if (ie and not inl) else "firebrick" if (inl and not ie) else
+               "darkorange")
         ax.set_title(f"{a}\n{tag}", fontsize=9, color=col, fontweight="bold")
         ax.set_xlabel(f"z vs engaged {d['engaged']['z_of_post']:+.2f}   "
                       f"vs no-lick {d['nolick']['z_of_post']:+.2f}", fontsize=7.5)

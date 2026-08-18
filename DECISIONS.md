@@ -1663,3 +1663,32 @@ is involved. Under a label permutation the expected recall for a position is exa
 rate — which is what the figure prints under each column, and what a diagonal must clear. Reading these
 diagonals against 1/6 would manufacture a result, the same error the `impaired_nolick_readout` nulls
 were built to prevent.
+
+
+## ⚠ PS92/PS93 ARE NOT A NEGATIVE CONTROL — they were lesioned too (Priya, 2026-08-18)
+
+> *"Note that PS92/93 are NOT a 'control' - they did have strokes, they were just too small to cause a
+> big behavioral deficit."*
+
+I called their 8/17 session a NEGATIVE CONTROL, in the deck (G7/G7b/G7c), in `M_POSTSTROKE`,
+`M_HEMIDYN`, `hemispheric_dynamics`, and in two commit messages — and I leaned on it, arguing that
+because they show no decoding change the PS94/PS95 effects must be the lesion rather than the day. The
+premise is false. The 8/16 laser **did** produce strokes in them; they were simply small enough to
+leave no overt behavioural deficit.
+
+**What survives.** They still control for the **day and the procedure**: same recording day, rig,
+anaesthesia, handling, preprocessing and frozen decoder. An artefact of 8/17 would have hit all four
+animals, and it did not. That half of the argument is intact, and it is the half that matters for
+"is the far_R over-prediction a property of the decoder or of the session".
+
+**What does not.** They cannot show that a lesion is **necessary** for an effect. A null in an animal
+with a small stroke is equally consistent with *small stroke, small effect* — so lesion-vs-no-lesion is
+not separable here, and no claim of that form may rest on them.
+
+**What they are instead**, and this is arguably more useful than a true control: the **small-lesion arm
+of a severity contrast**. Two animals with large strokes and overt deficits, two with small strokes and
+none, recorded the same day on the same rig. That is a dose axis, and the right way to read Section G's
+comparisons.
+
+Renamed SMALL-LESION COMPARISON throughout rather than merely re-worded, so a reader skimming a slide
+title cannot pick up the wrong reading.

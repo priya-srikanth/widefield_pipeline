@@ -191,15 +191,19 @@ def test_pooled_returns_nothing_for_an_excluded_animal_by_default():
     assert "if not pre or not post:\n        return None" in src
 
 
-def test_the_negative_control_slide_is_built_from_the_excluded_list():
-    """G7 must key off `_excluded`, which comes from session_phase, not from a date or a hardcoded
-    animal name."""
+def test_the_small_lesion_comparison_slide_is_built_from_the_excluded_list():
+    """G7 must key off `_excluded`, which comes from session_phase, not a date or a hardcoded animal.
+
+    Renamed from "negative control" 2026-08-18: PS92/PS93 were lesioned too, just mildly, so they
+    control for the recording DAY and give a severity contrast -- they cannot show that a lesion is
+    necessary for an effect.
+    """
     import io
     import re
     import tokenize
 
-    assert "NEGATIVE CONTROL" in SRC
-    g7 = SRC.split("# --- G7. NEGATIVE CONTROL")[-1].split("# --- G9.")[0]
+    assert "SMALL-LESION COMPARISON" in SRC
+    g7 = SRC.split("# --- G7. SMALL-LESION COMPARISON")[-1].split("# --- G9.")[0]
     assert "_excluded" in g7, "the control slide must be driven by the excluded-phase resolver"
 
     # An animal name is fine in a COMMENT or a caption -- the slide has to say which animals these
@@ -256,3 +260,24 @@ def test_no_figure_is_placed_on_two_slides_with_the_same_title(tmp_path):
     dupes = {k: n for k, n in seen.items() if n > 1}
     assert not dupes, ("the same figure is placed under the same title on multiple slides -- a loop "
                        f"is nested one level too deep: {[t for t, _ in dupes]}")
+
+
+def test_ps92_ps93_are_never_called_a_negative_control():
+    """They were lesioned too (Priya, 2026-08-18), just mildly enough to leave no overt deficit.
+
+    Calling them a negative control licenses the inference "the effect needs a lesion", which their
+    data cannot support -- a null in a small-stroke animal is equally consistent with small stroke,
+    small effect. They control for the recording DAY and give a severity contrast, and the deck must
+    say so rather than the stronger thing I originally wrote.
+    """
+    from wfield_local import hemispheric_dynamics, plot_poststroke
+
+    for mod in (deck, plot_poststroke, hemispheric_dynamics):
+        src = inspect.getsource(mod)
+        low = src.lower()
+        for phrase in ("negative control", "negative-control"):
+            if phrase in low:
+                i = low.index(phrase)
+                ctx = src[max(0, i - 200):i + 200]
+                assert "NOT a" in ctx or "not a no-lesion" in ctx, (
+                    f"{mod.__name__} calls PS92/PS93 a {phrase} without the correction: ...{ctx}...")

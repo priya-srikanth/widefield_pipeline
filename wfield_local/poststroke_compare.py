@@ -295,6 +295,16 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
                     # fraction of pre-stroke sessions this post value exceeds
                     "percentile_of_post": float((v < P).mean())}
     ie, inl = out["engaged"]["post_inside_range"], out["nolick"]["post_inside_range"]
+    e_lo, e_hi = out["engaged"]["min"], out["engaged"]["max"]
+    n_lo, n_hi = out["nolick"]["min"], out["nolick"]["max"]
+    # Where P sits BETWEEN the two references is a real and common state, and the first version of
+    # this verdict collapsed it into "OFF-SCALE", which reads as a failed measurement. PS94 pre-cue
+    # is exactly this: 0.662, above every pre-stroke no-lick session and below every engaged one.
+    between = (not ie) and (not inl) and (n_hi < P < e_lo or e_hi < P < n_lo)
+    if between:
+        span = abs(e_lo - n_hi) if n_hi < e_lo else abs(n_lo - e_hi)
+        frac = (P - n_hi) / span if (span and n_hi < e_lo) else float("nan")
+        out["fraction_of_gap_toward_engaged"] = float(frac)
     out["verdict"] = (
         "post-stroke NO-LICK trials fall inside the pre-stroke ENGAGED distribution and OUTSIDE the "
         "pre-stroke no-lick one -> indistinguishable from successful trials: plan intact, execution "
@@ -302,7 +312,11 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         "post-stroke no-lick trials look like ordinary pre-stroke FAILURES" if (inl and not ie) else
         "AMBIGUOUS: the post value sits inside both reference distributions -- they overlap too much "
         "to separate" if (ie and inl) else
-        "OFF-SCALE: outside BOTH pre-stroke distributions, so neither reference describes it")
+        (f"INTERMEDIATE: above every pre-stroke no-lick session and below every engaged one "
+         f"({out.get('fraction_of_gap_toward_engaged', float('nan')):.0%} of the way toward engaged) "
+         f"-> shifted toward successful trials but not indistinguishable from them") if between else
+        "OFF-SCALE: outside BOTH pre-stroke distributions and outside the gap between them, so "
+        "neither reference describes it")
     return out
 
 def pattern_similarity(d, keep):

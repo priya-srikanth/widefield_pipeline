@@ -26,8 +26,9 @@ scaling: dim the left hemisphere by any factor and its correlation with the righ
 the two disagree, believe concordance.
 
 THE CONTROL THAT MAKES EITHER READABLE. Both are reported against the animal's own pre-stroke range,
-and PS92/PS93 8/17 -- same surgery day, no deficit -- are analysed alongside as the negative control.
-A post-stroke drop that also appears in PS92/PS93 is a property of 8/17, not of the lesion.
+and PS92/PS93 8/17 are analysed alongside as a SMALL-LESION comparison -- they were lesioned too,
+just mildly enough to leave no overt deficit, so they are NOT a no-lesion control. They control
+for the recording day and provide a severity contrast.
 
 BASIS. Allen-ROI by default, because its regions are anatomically named and homotopic pairing is then
 exact (`SSp_left` <-> `SSp_right`). The joint LocaNMF basis is available via ``--source joint``; its
@@ -223,9 +224,9 @@ def plot(rows, out_dir, source="roi"):
                 ax.set_title(a, fontsize=11, fontweight="bold")
     fig.suptitle(
         f"Per-hemisphere DYNAMICS and cross-hemisphere COUPLING ({source} basis). What a mean image "
-        "cannot show. GREY points = the excluded sessions (PS92/PS93 8/17, same surgery day, no "
-        "deficit) which are the NEGATIVE CONTROL: a post-stroke drop that also appears in them is a "
-        "property of 8/17, not the lesion. Homotopic r is invariant to per-hemisphere gain, so it "
+        "cannot show. GREY points = PS92/PS93 8/17: SMALL strokes, no overt deficit — NOT a "
+        "no-lesion control, since the 8/16 laser did lesion them. They control for the recording "
+        "DAY and give a severity contrast. Homotopic r is invariant to per-hemisphere gain, so it "
         "survives the optical asymmetries that make the amplitude measures fragile — where the two "
         "disagree, believe the correlation. The third row is the specificity check: if EVERYTHING "
         "decorrelates, a homotopic drop says nothing about the callosum.",
