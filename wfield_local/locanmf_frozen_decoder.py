@@ -140,7 +140,9 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, fe
     """Pool several sessions into ONE feature matrix that is comparable across days.
 
     Shared by the frozen decoder and the frozen encoder. Returns
-    ``(XE, YE, GE, BE, XU, YU, kept_labels, common_regions)`` or ``None`` if <2 sessions load,
+    ``(XE, YE, GE, BE, XU, YU, kept_labels, common_regions, GU)`` or ``None`` if <2 sessions
+    load, where ``GU`` is the session index for each NO-LICK trial (added 2026-08-18: the post-stroke
+    arm scores one session at a time, and without it the no-lick trials could not be attributed),
     where ``GE`` is the SESSION index (the CV group for leave-one-day-out) and ``BE[i]`` is
     session *i*'s within-session position-block ids (the CV group for the same-day ceiling).
 
@@ -178,17 +180,18 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, fe
     else:
         mats, nl, common = [p[0] for p in per], [p[3] for p in per], regs[0]
 
-    XE, YE, GE, BE, XU, YU = [], [], [], [], [], []
+    XE, YE, GE, BE, XU, YU, GU = [], [], [], [], [], [], []
     for i, ((_X, y, g, _Xnl, ynl), Xa, Na) in enumerate(zip(per, mats, nl)):
         mu, sd = (Xa.mean(0), Xa.std(0)) if zscore else (0.0, 1.0)
         sd = np.where(np.asarray(sd) > 0, sd, 1.0) if zscore else 1.0
         XE.append((Xa - mu) / sd); YE.append(y); GE.append(np.full(len(y), i)); BE.append(g)
         if len(Na):
-            XU.append((Na - mu) / sd); YU.append(ynl)
+            XU.append((Na - mu) / sd); YU.append(ynl); GU.append(np.full(len(ynl), i))
     XE = np.vstack(XE); YE = np.concatenate(YE); GE = np.concatenate(GE)
     XU = np.vstack(XU) if XU else np.zeros((0, XE.shape[1]))
     YU = np.concatenate(YU) if YU else np.array([])
-    return XE, YE, GE, BE, XU, YU, kept, common
+    GU = np.concatenate(GU) if GU else np.array([], int)
+    return XE, YE, GE, BE, XU, YU, kept, common, GU
 
 
 def _ev(X, pred):
@@ -228,7 +231,7 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, features=features)
     if pooled is None:
         return None
-    XE, YE, GE, BE, _XU, _YU, kept, common = pooled
+    XE, YE, GE, BE, _XU, _YU, kept, common, _GU = pooled
     pos = np.array(DISPLAY_ORDER)
     P = np.stack([(YE == p).astype(float) for p in pos], 1)
 
@@ -290,7 +293,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
                            features=features)
     if pooled is None:
         return None
-    XE, YE, GE, BE, XU, YU, kept, common = pooled
+    XE, YE, GE, BE, XU, YU, kept, common, GU = pooled
 
     pred = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=GE)
     loso = float(accuracy_score(YE, pred))
@@ -736,3 +739,88 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def apply_frozen_to_post(pre_labels, post_labels, source="roi", align="cue", post_s=2.0,
+                         features=None, n_perm=2000, verbose=True):
+    """Fit on the pooled PRE-stroke sessions, apply UNCHANGED to each POST-stroke session.
+
+    This is the confirmatory arm the whole pre-stroke apparatus exists to support: the model never
+    sees a post-stroke trial, so a drop cannot be the model adapting to the lesion.
+
+    POOLED TOGETHER, THEN SPLIT. Both phases go through `pool_sessions` in ONE call rather than two,
+    so the feature columns are aligned by the same (label, occurrence) keying and each session is
+    z-scored on its OWN engaged trials. Pooling them separately would give each phase its own
+    `common` region list and its own column order -- a mismatch that would look exactly like a
+    stroke effect. The training rows are then selected by session index, so no post-stroke trial can
+    reach the fit.
+
+    Each post-stroke session is scored ALONE (not pooled), because that is the unit the result will
+    be read at, and reported against the PRE-stroke leave-one-session-out spread so "is this session
+    outside baseline?" has an answer rather than an impression.
+
+    Returns a dict per post-stroke label, plus ``pre_reference`` holding the baseline LOSO values.
+    """
+    from wfield_local import nolick_analysis as na
+
+    pre_labels, post_labels = list(pre_labels), list(post_labels)
+    pooled = pool_sessions(pre_labels + post_labels, source=source, align=align, post_s=post_s,
+                           features=features)
+    if pooled is None:
+        return None
+    XE, YE, GE, BE, XU, YU, kept, common, GU = pooled
+    pre_set = set(pre_labels)
+    pre_idx = {i for i, l in enumerate(kept) if l in pre_set}
+    post_idx = {i: l for i, l in enumerate(kept) if l not in pre_set}
+    if not pre_idx or not post_idx:
+        return None
+
+    tr = np.isin(GE, list(pre_idx))
+    clf = _pipe().fit(XE[tr], YE[tr])
+    classes = clf.named_steps["logisticregression"].classes_
+
+    # baseline: leave-one-SESSION-out ACROSS THE PRE-STROKE SET ONLY, so the reference band is what
+    # an unseen PRE-stroke day looks like under exactly this procedure
+    pre_pred = cross_val_predict(_pipe(), XE[tr], YE[tr], cv=LeaveOneGroupOut(), groups=GE[tr])
+    per_pre = {}
+    for i in sorted(pre_idx):
+        m = GE[tr] == i
+        if m.sum():
+            per_pre[kept[i]] = float(accuracy_score(YE[tr][m], pre_pred[m]))
+    vals = np.array(list(per_pre.values()), float)
+    ref = {"per_session": per_pre, "mean": float(vals.mean()), "sd": float(vals.std(ddof=1)),
+           "min": float(vals.min()), "max": float(vals.max()), "n_sessions": len(per_pre)}
+
+    out = {"pre_reference": ref, "source": source, "align": align,
+           "n_pre_sessions": len(pre_idx), "n_features": int(XE.shape[1]),
+           "criterion": "engaged_2s"}
+    for i, lab in sorted(post_idx.items(), key=lambda kv: kv[1]):
+        m = GE == i
+        if m.sum() < 20:
+            out[lab] = {"n": int(m.sum()), "note": "too few engaged trials to score"}
+            continue
+        pred = clf.predict(XE[m])
+        d = na.evaluate_arm(YE[m], pred, n_perm=n_perm)
+        d["accuracy"] = float(accuracy_score(YE[m], pred))
+        # where does it sit against the pre-stroke spread? z is descriptive: 11 sessions is a small
+        # sd, so the percentile-style min/max bracket is the more honest summary.
+        d["vs_pre_reference"] = {
+            "z": float((d["accuracy"] - ref["mean"]) / ref["sd"]) if ref["sd"] else float("nan"),
+            "below_every_pre_session": bool(d["accuracy"] < ref["min"]),
+            "inside_pre_range": bool(ref["min"] <= d["accuracy"] <= ref["max"])}
+        mu = GU == i
+        if mu.sum() >= 10:
+            d["undetected"] = na.evaluate_arm(YU[mu].astype(int), clf.predict(XU[mu]),
+                                              n_perm=max(500, n_perm // 4))
+        else:
+            d["undetected"] = {"n": int(mu.sum()), "note": "too few no-lick trials"}
+        out[lab] = d
+        if verbose:
+            u = d["undetected"]
+            print(f"  {lab}: engaged n={d['n']} acc={d['accuracy']:.3f} bal={d['balanced_accuracy']:.3f}"
+                  f"  | pre-stroke LOSO {ref['mean']:.3f} [{ref['min']:.3f}-{ref['max']:.3f}]"
+                  f"  below_all={d['vs_pre_reference']['below_every_pre_session']}"
+                  f"  | no-lick n={u.get('n', 0)}"
+                  + (f" bal={u['balanced_accuracy']:.3f} p={u['bal_p']:.3f}"
+                     if u.get("n", 0) >= 10 and "balanced_accuracy" in u else ""), flush=True)
+    return out
