@@ -165,7 +165,8 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
     return lickfree_window(c0, strobe_f, licks_sorted, win_n)
 
 
-def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False):
+def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,
+                    with_indices=False):
     """Trial-averaged features for one session.
 
     ``signal``/``feat_region`` let a caller INJECT an already-built (nfeat, T) signal instead of
@@ -217,6 +218,11 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # is how bugs 15, 16 and 17 all happened, and a mask built outside here silently misaligned by 58
     # trials the first time it was tried.
     precue_lick = []
+    # CUE INDICES for each arm, on request. Any per-trial attribute -- engagement state, lick
+    # category, RT -- can then be aligned to the feature matrices by indexing, instead of replaying
+    # this loop elsewhere and hoping the two agree. They did not: an externally rebuilt mask came
+    # out 633 long against 575 kept trials, and bugs 15-17 were all this same shape.
+    idx_eng, idx_nolick = [], []
     for k in range(cue_f.size):
         if codes[k] < 0:
             continue
@@ -244,11 +250,13 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
                 continue
             X.append(_window_feature(sig, w0, post_n, bins, base))
             y.append(int(codes[k])); g.append(int(blk_id[k]))
+            idx_eng.append(k)
             if with_precue_licks:
                 fx = c0 - post_n
                 precue_lick.append(bool(fx >= 0 and np.any((ls_sorted >= fx) & (ls_sorted < c0))))
         else:                                               # NO-LICK: cue/precue-referenced (no lick to align)
             Xn.append(_window_feature(sig, ref0, post_n, bins, base)); yn.append(int(codes[k]))
+            idx_nolick.append(k)
     # component->region labels must be tiled with the features, or the encoder would group a
     # sub-binned feature vector by the wrong regions
     if bins > 1:
@@ -256,10 +264,13 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     if n_dropped_dirty:
         print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
               f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
+    base_out = (np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg)
+    extra = ()
     if with_precue_licks:
-        return (np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg,
-                np.array(precue_lick, bool))
-    return np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg
+        extra += (np.array(precue_lick, bool),)
+    if with_indices:
+        extra += (np.array(idx_eng, int), np.array(idx_nolick, int))
+    return base_out + extra if extra else base_out
 
 
 def _save_session_fig(label, cmn, sm, labs, args, tag):

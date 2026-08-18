@@ -233,86 +233,6 @@ def crossed_confusion(d, labels=DISPLAY_ORDER):
     return out
 
 
-def undetected_state_split(d, keep, seed=0):
-    """THE ARBITRATING TEST: does the pre-stroke engaged/undetected boundary still work post-stroke?
-
-    Priya (2026-08-18): post-stroke undetected trials classify as engaged-like (0.71, 0.86) and sit
-    far from pre-stroke undetected (0.085, 0.147), so the failure to separate post-stroke engaged
-    from post-stroke undetected may not mean the boundary went blind -- it may mean there is nothing
-    left to separate, because the animal IS in an engaged-like state on trials it fails to execute.
-
-    That reading and "a global post-stroke shift pushes everything to the engaged side" are
-    distinguishable. Split the POST-stroke undetected trials by the engagement gate and apply the
-    same boundary:
-
-        disengaged trials classify LOW  -> the boundary still tracks state; the WORKING trials being
-                                           engaged-like is a real execution-failure signature
-        disengaged trials classify HIGH -> everything post-stroke reads engaged-like regardless, and
-                                           the headline is a global shift
-
-    Returns None when the post-stroke session has too few disengaged trials to decide, which is a
-    real possibility and must not be reported as either answer.
-    """
-    from wfield_local import nolick_decoder as nd
-    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-
-    base = looks_like_which(d, keep, seed=seed)
-    if "post_undetected_frac_classified_ENGAGED_like" not in base:
-        return base
-
-    # rebuild the boundary exactly as looks_like_which does, then score the two post subsets
-    rng = np.random.RandomState(seed)
-    pre_e = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
-    pre_u = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
-    Xe, ye = d["XE"][pre_e], d["YE"][pre_e]
-    Xu, yu = d["XU"][pre_u], d["YU"][pre_u]
-    xs, lab = [], []
-    for c in keep:
-        ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
-        n = min(len(ie), len(iu))
-        if n < 5:
-            continue
-        xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
-        xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
-    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(
-        np.vstack(xs), np.concatenate(lab))
-
-    # engagement state for each post-stroke undetected trial, from the pipeline's own gate
-    out = dict(base)
-    for i in sorted(d["post_i"]):
-        lab_i = d["kept"][i]
-        s = next((x for x in SESSIONS if x["label"] == lab_i), None)
-        if s is None:
-            continue
-        args = nd._args(align="precue"); args.max_rt = 2.0
-        codes, cat, blk, rt_s, cue_f, sess_eng = nd.categorize(s, args)
-        und = np.flatnonzero((cat == "undetected") & np.isin(codes, keep))
-        if not und.size:
-            continue
-        m = (d["GU"] == i) & np.isin(d["YU"], keep)
-        if m.sum() != und.size:
-            out[f"{lab_i}_split"] = {"note": f"trial-count mismatch ({int(m.sum())} pooled vs "
-                                             f"{und.size} categorised); split not attempted"}
-            continue
-        eng_state = sess_eng[und]
-        p = clf.predict(d["XU"][m])
-        res = {"n_working": int(eng_state.sum()), "n_disengaged": int((~eng_state).sum())}
-        if eng_state.sum() >= 10:
-            res["working_frac_engaged_like"] = float(p[eng_state].mean())
-        if (~eng_state).sum() >= 10:
-            res["disengaged_frac_engaged_like"] = float(p[~eng_state].mean())
-        if "working_frac_engaged_like" in res and "disengaged_frac_engaged_like" in res:
-            gap = res["working_frac_engaged_like"] - res["disengaged_frac_engaged_like"]
-            res["working_minus_disengaged"] = gap
-            res["verdict"] = ("boundary STILL tracks state -> engaged-like WORKING trials are a real "
-                              "execution-failure signature" if gap > 0.10 else
-                              "no separation -> consistent with a global post-stroke shift")
-        else:
-            res["verdict"] = "too few trials in one state to decide"
-        out[f"{lab_i}_split"] = res
-    return out
-
-
 def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     """Engagement judged ONLY at positions the animal can still reach (Priya, 2026-08-18).
 
@@ -359,3 +279,97 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     return eng, {"n_ref": int(ref_idx.size), "ref_response_rate": float(responded[ref_idx].mean()),
                  "frac_disengaged": float((~eng).mean()),
                  "reference_positions": sorted(int(c) for c in reference_positions)}
+
+
+def nolick_state_vector(kept, args, reference_positions=None):
+    """Engagement state + lick category for every trial in the pooled NO-LICK arm, in pool order.
+
+    Built by asking `_trial_features` which cues it kept (``with_indices``) and indexing the
+    per-cue arrays at those positions -- never by rebuilding the filter. That reconciliation is
+    exact: PS94 8/17's no-lick arm is 354 = 353 undetected + 1 late_rewarded, PS95's 273 = 265 + 8,
+    which is precisely the discrepancy that made the first attempt refuse to run.
+    """
+    from wfield_local import nolick_decoder as nd
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    from wfield_local.locanmf_position_decoder import _trial_features
+
+    refs = REFERENCE_POSITIONS if reference_positions is None else reference_positions
+    eng, cats = [], []
+    for lab in kept:
+        s_ = next((x for x in SESSIONS if x["label"] == lab), None)
+        if s_ is None:
+            continue
+        *_rest, idx_e, idx_nl = _trial_features(s_, args, with_indices=True)
+        ca = nd._args(align=args.align)
+        ca.max_rt = args.max_rt
+        codes, cat, _blk, _rt, _cf, _pre = nd.categorize(s_, ca)
+        st, _info = poststroke_engagement(s_, refs)
+        eng.append(np.asarray(st)[idx_nl])
+        cats.append(np.asarray(cat, dtype=object)[idx_nl])
+    return (np.concatenate(eng) if eng else np.array([], bool),
+            np.concatenate(cats) if cats else np.array([], dtype=object))
+
+
+def undetected_state_split(d, keep, args, seed=0):
+    """THE ARBITRATING TEST: is the engaged-like reading real, or a global post-stroke shift?
+
+    Priya (2026-08-18) read the numbers the other way round from me and was right: post-stroke
+    undetected trials classify at 0.71-0.86 against pre-stroke undetected at 0.085-0.147, so they do
+    not resemble unengaged trials. My control asked whether the boundary separates post-stroke
+    engaged from post-stroke DISENGAGED -- but under a valid gate there are almost no disengaged
+    trials to separate (PS95: none at all), so the absence of separation was the absence of a second
+    class, not a blind boundary.
+
+    This splits the post-stroke no-lick trials by the REFERENCE-POSITION gate (close_L,
+    close_center -- positions a left VLS lesion should spare) and scores each subset:
+
+        working trials engaged-like AND disengaged trials lower -> execution failure, boundary works
+        both equally high                                       -> global shift, not interpretable
+        too few disengaged trials                               -> UNDECIDABLE, and reported as such
+    """
+    base = looks_like_which(d, keep, seed=seed)
+    if "post_undetected_frac_classified_ENGAGED_like" not in base:
+        return base
+    rng = np.random.RandomState(seed)
+    pre_e = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
+    pre_u = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
+    Xe, ye = d["XE"][pre_e], d["YE"][pre_e]
+    Xu, yu = d["XU"][pre_u], d["YU"][pre_u]
+    xs, lab = [], []
+    for c in keep:
+        ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
+        n = min(len(ie), len(iu))
+        if n < 5:
+            continue
+        xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
+        xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(
+        np.vstack(xs), np.concatenate(lab))
+
+    state, cats = nolick_state_vector(d["kept"], args)
+    out = dict(base)
+    if state.size != d["GU"].size:
+        out["split"] = {"note": f"state vector {state.size} vs pooled no-lick {d['GU'].size}; "
+                                f"refusing to pair them"}
+        return out
+    post_m = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
+    p = clf.predict(d["XU"])
+    w = post_m & state
+    dis = post_m & ~state
+    res = {"n_working": int(w.sum()), "n_disengaged": int(dis.sum()),
+           "n_late_rewarded_in_arm": int((cats[post_m] == "late_rewarded").sum())}
+    if w.sum() >= 10:
+        res["working_frac_engaged_like"] = float(p[w].mean())
+    if dis.sum() >= 10:
+        res["disengaged_frac_engaged_like"] = float(p[dis].mean())
+    if "working_frac_engaged_like" in res and "disengaged_frac_engaged_like" in res:
+        gap = res["working_frac_engaged_like"] - res["disengaged_frac_engaged_like"]
+        res["working_minus_disengaged"] = gap
+        res["verdict"] = ("boundary STILL tracks state -> engaged-like WORKING trials are a real "
+                          "execution-failure signature" if gap > 0.10 else
+                          "no separation -> consistent with a global post-stroke shift")
+    else:
+        res["verdict"] = ("UNDECIDABLE: too few disengaged trials under the reference-position gate. "
+                          "That is itself informative -- the animal was working almost throughout.")
+    out["split"] = res
+    return out
