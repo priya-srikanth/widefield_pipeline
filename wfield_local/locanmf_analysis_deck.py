@@ -207,7 +207,7 @@ M_HEMI = (
     "\n\nRESULT ON 8/17: NO detected change. Every measure sits inside the animal's own pre-stroke "
     "range in both region groups -- PS94 whole-hemisphere 415 z=+0.7, 470 z=+0.3, GCaMP-specific "
     "z=-0.9; PS95 z=+0.3, -0.3, -0.9; SSp similar (|z| <= 0.8). No evidence here for a left-sided "
-    "470 increase, and none for left hypoperfusion, one day after the lesion."
+    "470 increase, and no detectable change in the optical asymmetry, one day post-lesion."
     "\n\nREAD THAT NULL WITH ITS POWER. The 415 L/R ratio DRIFTS monotonically across the "
     "pre-stroke period in all four animals (PS94 SSp 0.66 -> 0.82), so the min-max pre-stroke band "
     "spans a trend rather than noise, and a step change would have to be large to escape it. A "
@@ -218,6 +218,28 @@ M_HEMI = (
     "baseline fluorescence. An impression of more activity is about DYNAMICS, which the mean image "
     "cannot show. The matching test is a per-hemisphere temporal SD or task-evoked amplitude; it is "
     "not run here. n=1 post-stroke session, one day post-lesion, and perfusion changes evolve.")
+
+M_HEMIDYN = (
+    "PER-HEMISPHERE DYNAMICS AND CROSS-HEMISPHERE COUPLING (wfield_local.hemispheric_dynamics). Two "
+    "measures a MEAN image cannot give, which is what the hemispheric-intensity slides are limited to: "
+    "TEMPORAL SD (how much each hemisphere's signal actually moves over the session, as an L/R ratio) "
+    "and HOMOTOPIC CONCORDANCE (the correlation between the same Allen area in the two hemispheres). "
+    "Features are the same ones every decoder here uses, on the adopted hemodynamic variant."
+    "\n\nBELIEVE THE CORRELATION OVER THE AMPLITUDE. Temporal SD inherits every asymmetric optical "
+    "confound the intensity ratio has -- window clarity, focus tilt, uneven illumination -- because it "
+    "IS an amplitude and those are what move amplitudes. A homotopic correlation is invariant to "
+    "per-hemisphere gain: dim one hemisphere by any factor and its correlation with the other is "
+    "unchanged. Where the two disagree, the correlation is the trustworthy one."
+    "\n\nTHE SPECIFICITY CONTROL IS THE THIRD ROW. If EVERYTHING decorrelates post-stroke -- more "
+    "movement, different arousal, a noisier recording -- then a homotopic drop says nothing about "
+    "interhemispheric coupling. The interpretable result is homotopic falling while WITHIN-hemisphere "
+    "coupling holds, which is what homotopic-minus-within reports."
+    "\n\nGREY POINTS ARE THE NEGATIVE CONTROL: PS92/PS93 8/17, same surgery day, same handling, no "
+    "behavioural deficit. A post-stroke change that also appears in them is a property of 8/17 rather "
+    "than of the lesion, and nothing else in the dataset can make that distinction."
+    "\n\nAllen-ROI basis by default, because homotopic pairing is then exact (SSp_left <-> "
+    "SSp_right). The joint LocaNMF basis pairs through each component's dominant area and is "
+    "approximate; where they disagree the ROI answer is the conservative one.")
 
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
@@ -875,6 +897,26 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G4_identity.png", top=1.7, width=11.5)
 
+        # --- G4b. does the post-stroke session fit the PRE-stroke ENGAGED distribution?
+        # Replaces G4's control for Priya's hypothesis. G4 asks whether post-stroke engaged and
+        # no-lick trials still SEPARATE and treats failure to separate as a broken boundary -- but
+        # execution-failure predicts they should NOT separate, so that control can disqualify the very
+        # result it exists to license. This one places the post-stroke value against reference
+        # distributions built from PRE-stroke sessions, where the answer is known.
+        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+            _ff = src / f"poststroke_G4b_fits_engaged_{_al}.png"
+            if not _ff.exists():
+                continue
+            s = slide()
+            title(s, f"G4b. Do post-stroke NO-LICK trials fit the pre-stroke ENGAGED distribution? "
+                     f"({_nice})",
+                  "Each dot is a SESSION, held out from the discriminator that scored it, so the "
+                  "spread of the dots IS the confidence interval \u2014 and it is the right one, "
+                  "because sessions differ from one another far more than trials within a session. "
+                  "Makes NO assumption that the two post-stroke classes should differ.")
+            note(s, M_POSTSTROKE)
+            big(s, _ff, top=1.85, width=11.0)
+
         # --- G5. same code weaker, or a different code?
         if (src / "poststroke_G5_similarity.png").exists():
             s = slide()
@@ -941,12 +983,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         for _g, _f in _hemi:
             s = slide()
             title(s, f"G8. LEFT/RIGHT raw fluorescence across days \u2014 {_g}",
-                  "Is the lesioned hemisphere brighter, and is there hypoperfusion? 415 nm is the "
-                  "GCaMP ISOSBESTIC, so it reports haemoglobin absorption: hypoperfusion raises it "
-                  "AND raises 470 with it. A left-sided 470 rise is therefore not an activity change "
-                  "unless the 470/415 ratio moves too \u2014 the two questions are one measurement.")
+                  "Is the lesioned hemisphere brighter? 415 nm is the ISOSBESTIC channel, so a "
+                  "left-sided 470 rise is not an activity change unless 470/415 moves too \u2014 "
+                  "the two questions are one measurement. The PERFUSION DIRECTION of a 415 shift "
+                  "is UNRESOLVED: measured on this data the raw 415 RISES with activation "
+                  "(+0.5 to +2.0%), contradicting a simple absorption account, so do NOT read a "
+                  "415 change as hypo- or hyper-perfusion.")
             note(s, M_HEMI)
             big(s, _f, top=1.9, width=12.9)
+
+        # --- G8b. per-hemisphere dynamics + cross-hemisphere concordance
+        for _src_ in ("roi", "joint"):
+            _df = src / f"hemispheric_dynamics_{_src_}.png"
+            if not _df.exists():
+                continue
+            s = slide()
+            title(s, f"G8b. Per-hemisphere DYNAMICS and cross-hemisphere COUPLING ({_src_})",
+                  "Temporal SD is what a mean image cannot show, and homotopic correlation is what "
+                  "survives the optical asymmetries that make amplitudes fragile. Third row is the "
+                  "specificity check: a homotopic drop only means interhemispheric decoupling if "
+                  "WITHIN-hemisphere coupling holds. Grey = the negative-control sessions.")
+            note(s, M_HEMIDYN)
+            big(s, _df, top=1.85, width=12.9)
 
         # --- G9. what is NOT here, and why
         s = slide()

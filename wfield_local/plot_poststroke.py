@@ -427,3 +427,74 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
+
+
+def fig_fits_engaged(fits, out, align="precue", name=None):
+    """Does the post-stroke NO-LICK session sit inside the PRE-stroke ENGAGED distribution?
+
+    Priya, 2026-08-18: "my argument/hypothesis is that on the 'failed' trials, the animal was indeed
+    trying to lick but couldn't, so the pre-cue activity post-stroke looks like successful pre-cue
+    activity from pre-stroke trials... maybe a confidence interval that can tell us if the session's
+    value does or does not confidently fit in the 'engaged' pre-cue distribution?"
+
+    This replaces the G4 control for that question. G4 asked whether post-stroke ENGAGED and NO-LICK
+    trials still separate, and treated failure to separate as a broken boundary -- but the
+    execution-failure hypothesis predicts they should NOT separate, so that control could disqualify
+    the very result it was meant to license. Here the references come from PRE-stroke sessions, where
+    the answer is known, and the post-stroke session is simply placed against them.
+
+    Each dot is a SESSION, not a trial: the spread of those dots is the interval that matters, because
+    sessions differ from one another far more than trials within a session do.
+    """
+    ans = sorted(fits)
+    ans = [a for a in ans if align in fits[a] and "post_value" in fits[a].get(align, {})]
+    if not ans:
+        return None
+    fig, axes = plt.subplots(1, len(ans), figsize=(3.6 * len(ans) + 2.0, 5.4), squeeze=False,
+                            sharey=True)
+    for k, a in enumerate(ans):
+        ax = axes[0][k]
+        d = fits[a][align]
+        for j, (arm, col, lab) in enumerate(((("engaged"), "tab:blue", "pre-stroke ENGAGED"),
+                                             (("nolick"), "tab:grey", "pre-stroke NO-LICK"))):
+            ref = d[f"reference_{arm}_per_session"]
+            v = np.array(list(ref.values()), float)
+            ax.axhspan(v.min(), v.max(), xmin=0.04 + j * 0.5, xmax=0.46 + j * 0.5,
+                       color=col, alpha=0.18)
+            ax.plot(np.full(len(v), j) + np.linspace(-0.12, 0.12, len(v)), v, "o", ms=5,
+                    color=col, markeredgecolor="k", lw=0.3, label=lab)
+            ax.plot([j - 0.22, j + 0.22], [v.mean()] * 2, color=col, lw=2.2)
+        P, ci = d["post_value"], d["post_value_ci95"]
+        ax.errorbar(2, P, yerr=[[P - ci[0]], [ci[1] - P]], fmt="o", ms=11, color="tab:red",
+                    markeredgecolor="k", ecolor="k", elinewidth=1.6, capsize=5, zorder=5,
+                    label="POST-stroke NO-LICK")
+        if np.isfinite(d.get("post_engaged_value", np.nan)):
+            ax.plot(2.35, d["post_engaged_value"], "s", ms=8, color="tab:green",
+                    markeredgecolor="k", label="POST-stroke engaged")
+        ax.set_xticks([0, 1, 2])
+        ax.set_xticklabels(["pre\nENGAGED", "pre\nNO-LICK", "POST\nNO-LICK"], fontsize=8)
+        ax.set_xlim(-0.5, 2.7)
+        ie = d["engaged"]["post_inside_range"]
+        inl = d["nolick"]["post_inside_range"]
+        tag = ("INSIDE engaged, OUTSIDE no-lick" if (ie and not inl) else
+               "INSIDE no-lick, OUTSIDE engaged" if (inl and not ie) else
+               "inside BOTH — references overlap" if (ie and inl) else "outside BOTH")
+        col = "darkgreen" if (ie and not inl) else "firebrick" if (inl and not ie) else "darkorange"
+        ax.set_title(f"{a}\n{tag}", fontsize=9, color=col, fontweight="bold")
+        ax.set_xlabel(f"z vs engaged {d['engaged']['z_of_post']:+.2f}   "
+                      f"vs no-lick {d['nolick']['z_of_post']:+.2f}", fontsize=7.5)
+        if k == 0:
+            ax.set_ylabel("fraction classified ENGAGED-like (licking)")
+            ax.legend(fontsize=7, loc="lower left")
+    fig.suptitle(
+        f"Do post-stroke NO-LICK trials fall inside the PRE-stroke ENGAGED distribution? "
+        f"({align}-aligned)\nEach dot is a SESSION, held out from the discriminator that scored it, "
+        "so the spread IS the confidence interval — and it is the right one, because sessions differ "
+        "from each other far more than trials within a session. Unlike the G4 control this makes NO "
+        "assumption that the two post-stroke classes should differ, which is what the "
+        "execution-failure hypothesis denies.", fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    q = Path(out) / (name or f"poststroke_G4b_fits_engaged_{align}.png")
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
