@@ -379,7 +379,7 @@ def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):
 
 
 ARMS = ("engaged", "engaged_fast", "engaged_slow", "late_rewarded", "undetected",
-        "undetected_working", "undetected_sated", "nolick_pooled")
+        "undetected_working", "undetected_disengaged", "nolick_pooled")
 
 
 def summarize(res, fh=None):

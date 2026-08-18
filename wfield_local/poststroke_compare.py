@@ -134,3 +134,37 @@ def pattern_similarity(d, keep):
         out[POSITION_NAMES[c]] = {"r": float(np.corrcoef(ma, mb)[0, 1]),
                                   "n_pre": int(len(a)), "n_post": int(len(b))}
     return out
+
+
+def precue_lick_mask(s, args, want_licks):
+    """Mask over the trials `_trial_features` KEEPS, True where the fixed pre-cue window had licks.
+
+    Built by replaying the same keep-logic with the same helpers, then ASSERTED against the feature
+    matrix length by the caller. Replicating a trial filter is how two code paths silently come to
+    disagree (bugs 15-17 were all versions of that), so the assertion is the point: if this drifts
+    from `_trial_features`, the run stops instead of pairing the wrong mask with the wrong trials.
+    """
+    import numpy as _np
+    from wfield_local.behavior_position import classify_cues_with_backup
+    from wfield_local.locanmf_crossanimal_dff import _frames
+    from wfield_local.locanmf_position_decoder import _load_cue_events, precue_window_start
+    from wfield_local.plot_lick_aligned_averages import _load_daq_events
+
+    cue = _load_cue_events(s["h5"])
+    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue_f, lick_f, _ = _frames(s, cue, lk)
+    codes = classify_cues_with_backup(s, cue, verbose=False)
+    ls = _np.sort(_np.asarray(lick_f))
+    post_n = int(round(args.post_s * args.fs))
+    T = None
+    keep, has = [], []
+    for k in range(cue_f.size):
+        if codes[k] < 0:
+            continue
+        c0 = int(cue_f[k])
+        ref0 = precue_window_start(c0, _np.nan, ls, post_n, lickfree=False)
+        if ref0 is None or ref0 < 0:
+            continue
+        keep.append(k)
+        has.append(bool(_np.any((ls >= ref0) & (ls < ref0 + post_n))))
+    return _np.array(has, bool), _np.array(keep, int)

@@ -1352,7 +1352,7 @@ task scores them as).
 
 **Two splits, both of which changed the conclusion.** `late_rewarded` vs `undetected`: on PS93 8/12
 the pre-cue survival is carried ENTIRELY by late trials (0.532, p=0.003) while undetected show
-nothing (0.153, p=0.76). `undetected_working` vs `undetected_sated` (reusing `flag_engagement`): a
+nothing (0.153, p=0.76). `undetected_working` vs `undetected_disengaged` (reusing `flag_engagement`): a
 run of misses at the END of a session is satiation, not motor failure (Priya) — PS95 8/14 has 39 of
 57 undetected trials in a terminal run, PS93 8/12 has 36 of 39 inside working stretches.
 

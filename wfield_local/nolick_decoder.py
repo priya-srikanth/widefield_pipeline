@@ -464,8 +464,12 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     Yu_all, Xu_all = _cat("undetected", "y"), _cat("undetected", "X")
     Eu = _cat("undetected", "eng")
     if Yu_all.size and Eu.size == Yu_all.size:
+        # NAMED FOR WHAT THE GATE MEASURES. This arm was called "undetected_sated" until 2026-08-18;
+        # `flag_engagement` fires on a terminal run of non-responses OR a mid-session collapse in the
+        # rolling response rate, so it establishes DISENGAGEMENT and not satiety. The old name
+        # asserted a mechanism the measurement does not support.
         for nm, m in (("undetected_working", Eu.astype(bool)),
-                      ("undetected_sated", ~Eu.astype(bool))):
+                      ("undetected_disengaged", ~Eu.astype(bool))):
             if m.sum() >= 30:
                 res[nm] = na.evaluate_arm(Yu_all[m].astype(int), clf.predict(Xu_all[m]),
                                           target_frac=eng_frac, n_perm=n_perm)
