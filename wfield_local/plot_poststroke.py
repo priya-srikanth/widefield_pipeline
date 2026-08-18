@@ -340,3 +340,74 @@ def fig_nolick_readout(rd, out):
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
+
+
+def fig_confusion_alltrials(conf, out, align="cue", name=None):
+    """G3b: crossed confusion with ALL post-stroke trials, including those with no detected lick.
+
+    Priya, 2026-08-18: "even though far R lick was never successful, pre-cue looked like far R, or
+    far center looks like far R (because tongue is deviated leftward, animal has to try harder to get
+    tongue to the right)."
+
+    The engaged-only matrix cannot answer that: PS94 has ZERO engaged trials at far_center and far_R,
+    so those rows were blank -- the two positions the lesion abolished, and the two worth reading. The
+    animal was still CUED to them (104 and 105 no-lick trials), and those trials are the only evidence
+    that exists there.
+
+    THE COLUMN BASELINE IS ON THE FIGURE FOR A REASON. Reading a diagonal against 1/6 is wrong here:
+    the frozen decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R "recall" is
+    inflated by that bias before any position information is involved. Under a label permutation the
+    expected recall for a position is exactly its PREDICTION rate, which is what the grey bar under
+    each column shows. The finding is the OFF-diagonal pull, and the diagonal only counts where it
+    exceeds that column's own baseline.
+    """
+    ans = sorted(conf)
+    fig, axes = plt.subplots(len(ans), 2, figsize=(11.0, 4.9 * len(ans)), squeeze=False)
+    for r, an in enumerate(ans):
+        if align not in conf[an]:
+            continue
+        for c, phase in enumerate(("pre", "post")):
+            ax = axes[r][c]
+            d = conf[an][align][phase]
+            M = np.array(d["matrix"], float)
+            n = d["n_per_true_position"]
+            nl = d.get("n_nolick_per_true_position", [0] * len(n))
+            im = ax.imshow(np.ma.masked_invalid(M), vmin=0, vmax=1, cmap="magma")
+            # expected recall per column under a label permutation = that column's prediction rate
+            tot = sum(n) or 1
+            pred_rate = [sum(n[i] * M[i, j] for i in range(len(n)) if n[i]) / tot
+                         for j in range(len(n))]
+            ax.set_xticks(range(len(POS)))
+            ax.set_xticklabels([f"{p}\n(pred {pr:.2f})" for p, pr in zip(POS, pred_rate)],
+                               rotation=45, ha="right", fontsize=6.5)
+            ax.set_yticks(range(len(POS)))
+            ax.set_yticklabels([f"{p} (n={a}, {100*b/a:.0f}% no-lick)" if a else f"{p} (n=0)"
+                                for p, a, b in zip(POS, n, nl)], fontsize=6.5)
+            for i in range(len(POS)):
+                if not n[i]:
+                    ax.text(len(POS) / 2 - 0.5, i, "no trials", ha="center", va="center",
+                            fontsize=8, color="firebrick", fontweight="bold")
+                    continue
+                # ring the diagonal only where it beats its own column's prediction rate
+                if M[i, i] > pred_rate[i]:
+                    ax.add_patch(plt.Rectangle((i - 0.5, i - 0.5), 1, 1, fill=False,
+                                               edgecolor="lime", lw=2.0))
+            ttl = ("PRE (engaged, leave-one-session-out)" if phase == "pre"
+                   else "POST (frozen model, ALL trials)")
+            ax.set_title(f"{an} — {ttl}", fontsize=9)
+            ax.set_xlabel("predicted")
+            ax.set_ylabel("true")
+            fig.colorbar(im, ax=ax, fraction=0.046)
+    fig.suptitle(
+        f"Crossed confusion, {align}-aligned, POST arm = ALL trials (engaged + no detected lick). "
+        "Rows the lesion abolished are filled by the no-lick trials, which are the only trials that "
+        "exist there. '(pred x.xx)' under each column is how often the decoder predicts that "
+        "position across all trials — the expected recall under a label permutation, and the bar the "
+        "diagonal must clear. GREEN BOX = diagonal exceeds its own column baseline. Read the "
+        "OFF-diagonal: a systematic pull toward one position is the result, not the diagonal.",
+        fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    q = Path(out) / (name or f"poststroke_G3b_confusion_alltrials_{align}.png")
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q

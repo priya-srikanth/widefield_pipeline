@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
+from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -134,24 +134,40 @@ def looks_like_which(d, keep, seed=0):
     if pre_u.sum() < 30 or post_u.sum() < 20:
         return {"note": "too few no-lick trials to discriminate",
                 "n_pre_undetected": int(pre_u.sum()), "n_post_undetected": int(post_u.sum())}
-    Xe, ye = d["XE"][pre_e], d["YE"][pre_e]
-    Xu, yu = d["XU"][pre_u], d["YU"][pre_u]
-    xs, lab = [], []
+    Xe, ye, ge = d["XE"][pre_e], d["YE"][pre_e], d["GE"][pre_e]
+    Xu, yu, gu = d["XU"][pre_u], d["YU"][pre_u], d["GU"][pre_u]
+    xs, lab, grps = [], [], []
     for c in keep:                      # position-balanced within each position
         ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
         n = min(len(ie), len(iu))
         if n < 5:
             continue
-        xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
-        xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
+        se = rng.choice(ie, n, replace=False)
+        su = rng.choice(iu, n, replace=False)
+        xs.append(Xe[se]); lab.append(np.ones(n)); grps.append(ge[se])
+        xs.append(Xu[su]); lab.append(np.zeros(n)); grps.append(gu[su])
     if not xs:
         return {"note": "no position had >=5 of both classes"}
-    X, y = np.vstack(xs), np.concatenate(lab)
+    X, y, grp = np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
     clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(X, y)
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
-    sep = float(accuracy_score(y, cross_val_predict(
-        make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)), X, y, cv=5)))
+    # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
+    # session identity is exactly what a whole-brain feature vector can memorise; every other CV in
+    # this pipeline groups for that reason. Falls back to ungrouped only if the balanced training set
+    # somehow spans fewer than two sessions, and says so in the output.
+    ngrp = len(np.unique(grp))
+    if ngrp >= 2:
+        cv = GroupKFold(n_splits=min(5, ngrp))
+        sep_pred = cross_val_predict(
+            make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)),
+            X, y, cv=cv, groups=grp)
+        sep_grouped = True
+    else:
+        sep_pred = cross_val_predict(
+            make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)), X, y, cv=5)
+        sep_grouped = False
+    sep = float(accuracy_score(y, sep_pred))
     p_post = float(clf.predict(d["XU"][post_u]).mean())
 
     # THE CONTROL THIS TEST IS WORTHLESS WITHOUT. The boundary is trained entirely on PRE-stroke
@@ -165,14 +181,32 @@ def looks_like_which(d, keep, seed=0):
     pre_e_held = float(clf.predict(Xe).mean())          # pre-stroke engaged, for scale
     pre_u_held = float(clf.predict(Xu).mean())          # pre-stroke undetected, for scale
     gap = p_post_eng - p_post if np.isfinite(p_post_eng) else float("nan")
+
+    # Interval on the CONTROL gap. It decides whether the headline number may be read at all, so a
+    # point estimate either side of a 0.10 threshold was never enough. Stratified bootstrap: resample
+    # the post-stroke engaged and no-lick arms independently, since they are separate samples.
+    gap_ci = [float("nan"), float("nan")]
+    if np.isfinite(p_post_eng):
+        pe = clf.predict(d["XE"][post_e]).astype(float)
+        pu = clf.predict(d["XU"][post_u]).astype(float)
+        boots = [pe[rng.randint(0, len(pe), len(pe))].mean()
+                 - pu[rng.randint(0, len(pu), len(pu))].mean() for _ in range(2000)]
+        gap_ci = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
+
     return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": int(post_u.sum()),
             "pre_separability_cv": sep,
+            "pre_separability_cv_grouped_by_session": sep_grouped,
+            "control_gap_ci95": gap_ci,
             "post_undetected_frac_classified_ENGAGED_like": p_post,
             "CONTROL_post_engaged_frac_engaged_like": p_post_eng,
             "n_post_engaged": int(post_e.sum()),
             "scale_pre_engaged": pre_e_held, "scale_pre_undetected": pre_u_held,
             "engaged_minus_undetected_post": gap,
-            "boundary_still_discriminates_post": bool(np.isfinite(gap) and gap > 0.10),
+            # the WHOLE interval must clear zero: a positive point estimate whose interval spans
+            # zero is not a control that passed, it is a control that was not measured precisely
+            # enough to say either way
+            "boundary_still_discriminates_post": bool(
+                np.isfinite(gap) and gap > 0.10 and gap_ci[0] > 0),
             "reads_as": ("engaged-like (licking)" if p_post > 0.5 else "undetected-like (non-licking)")}
 
 
@@ -226,7 +260,7 @@ def precue_lick_mask(s, args):
     return _np.array(has, bool), _np.array(keep, int)
 
 
-def crossed_confusion(d, labels=DISPLAY_ORDER):
+def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
     """Full confusion of the FROZEN pre-stroke decoder applied to post-stroke trials.
 
     Scalar accuracy discards what a lateralised lesion should produce: WHERE the errors go. A
@@ -241,21 +275,43 @@ def crossed_confusion(d, labels=DISPLAY_ORDER):
     tr = np.isin(d["GE"], list(d["pre_i"]))
     te = np.isin(d["GE"], list(d["post_i"]))
     clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
-    out = {}
-    for phase, m, pred in (("pre", tr, cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
-                                                         cv=LeaveOneGroupOut(), groups=d["GE"][tr])),
-                           ("post", te, None)):
-        p = pred if pred is not None else clf.predict(d["XE"][m])
-        y = d["YE"][m]
+
+    # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
+    pre_y = d["YE"][tr]
+    pre_p = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr], cv=LeaveOneGroupOut(),
+                              groups=d["GE"][tr])
+    pre_nolick = np.zeros(len(pre_y), bool)
+
+    # POST: engaged, or engaged + no-lick when post_all_trials. The no-lick trials are the ONLY ones
+    # that exist at an abandoned position, so without them those rows cannot be filled at all.
+    if post_all_trials:
+        teu = np.isin(d["GU"], list(d["post_i"]))
+        post_y = np.concatenate([d["YE"][te], d["YU"][teu]])
+        post_X = np.vstack([d["XE"][te], d["XU"][teu]])
+        post_nolick = np.concatenate([np.zeros(int(te.sum()), bool), np.ones(int(teu.sum()), bool)])
+    else:
+        post_y, post_X = d["YE"][te], d["XE"][te]
+        post_nolick = np.zeros(len(post_y), bool)
+    post_p = clf.predict(post_X)
+
+    out = {"post_arm": "ALL trials (engaged + no-lick)" if post_all_trials else "engaged only",
+           "pre_arm": "engaged only, leave-one-session-out"}
+    for phase, y, p, nl in (("pre", pre_y, pre_p, pre_nolick),
+                            ("post", post_y, post_p, post_nolick)):
         M = np.full((len(labels), len(labels)), np.nan)
-        n = []
+        n, n_nolick = [], []
         for i, c in enumerate(labels):
             sel = y == c
             n.append(int(sel.sum()))
+            # how much of this row is carried by trials with no detected lick: a row that is 100%
+            # no-lick is a different kind of evidence from one that is 10%, and the matrix cannot
+            # show that by itself
+            n_nolick.append(int(nl[sel].sum()))
             if sel.sum():
                 for j, c2 in enumerate(labels):
                     M[i, j] = float((p[sel] == c2).mean())
         out[phase] = {"matrix": M.tolist(), "n_per_true_position": n,
+                      "n_nolick_per_true_position": n_nolick,
                       "positions": [POSITION_NAMES[c] for c in labels]}
     return out
 

@@ -8,7 +8,11 @@
 # which conflates the lesion with the recording schedule -- they differ here (last session
 # 8/14, lesion 8/16) and only the lesion date is a fact about the experiment.
 #
-# COHORT LESIONED 2026-08-16 PM -> stroke_date = 20260816 for all four. Last pre-stroke
+# COHORT LESION DATES DIFFER. PS94/PS95: 2026-08-16 PM at 3 mW, deficit -> stroke_date 20260816.
+# PS92/PS93: the 8/16 PM attempt did NOT take, redone 2026-08-17 after that session at 3.75 and
+# 5.5 mW -> stroke_date 20260817, with 0817 EXCLUDED (neither phase). stroke_cutoff() is the
+# EARLIEST date across the cohort (0816), so pooled pre-stroke references stay safe for everyone.
+# Last pre-stroke
 # session was 8/14 (no recordings 8/15-8/16), so the phase split is the same either way
 # here -- but the lesion date is the one that stays true if a same-day session is ever run. PS94 and PS95 took at 3 mW and show overt deficits ->
 # 8/17 onward is post-stroke for them. PS92 and PS93 showed NO overt deficit and are being
@@ -31,18 +35,28 @@ animals:
     date_of_birth: 2026-01-14
     genotype: "Thy1-GCaMP6s GP4.3"
     characteristics: {}
-    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
+    stroke_date: 20260817   # EFFECTIVE VLS lesion, done AFTER the 8/17 session
+                            #   (Priya, 2026-08-18). The 8/16 PM attempt produced no overt
+                            #   deficit and is NOT the stroke date. 8/17 is excluded below:
+                            #   the lesion followed that recording, but the animal had
+                            #   already been lasered once, so it is neither a clean
+                            #   baseline nor post-stroke.
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
-                             #   is not recorded here because I was not told it -- do not
-                             #   assume it matched PS94/PS95 (3 mW). Stroke is being REDONE
-                             #   after the 8/17 session; fill in the effective attempt's
-                             #   power and update stroke_date then.
+    stroke_laser_power_mW: 3.75     # EFFECTIVE lesion, 2026-08-17 after that session
+                             #   (Priya, 2026-08-18). Higher than PS94/PS95 (3 mW), which
+                             #   is why it took where the 8/16 PM attempt did not; that
+                             #   earlier attempt's power was never recorded.
     reference_landmarks: v2         # dorsal_cortex_landmarks_<v> version for the 6/6 cross-reg reference
-    exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
-                             #   REDONE after the 8/17 session, so 8/17 is
-                             #   neither baseline nor post-stroke (Priya,
-                             #   2026-08-17). Per-session figures still show it.
+    exclude: ["0817"]        # NEITHER baseline nor post-stroke: the 8/16 PM
+                             #   attempt gave no deficit, and the EFFECTIVE
+                             #   lesion followed this same 8/17 session. Load-
+                             #   bearing -- without it session_phase resolves
+                             #   8/17 to "pre" (stroke_date session = baseline)
+                             #   and it would enter the pre-stroke reference.
+                             #   KEEP when these animals become post-stroke.
+                             #   Per-session figures still show it; Section G
+                             #   uses it as the NEGATIVE CONTROL, which is why
+                             #   it must stay analysable but unpoolable.
 
   PS93:
     color: "tab:red"
@@ -52,18 +66,28 @@ animals:
     characteristics:
       orofacial_deficit: right   # tongue deviates right, minimal right whisking
       cortical_signature: "SSp-left << SSp-right (lateralized); natural positive control for lesion-style L/R asymmetry"
-    stroke_date: 20260816   # date the VLS lesion was INDUCED (8/16 PM)
+    stroke_date: 20260817   # EFFECTIVE VLS lesion, done AFTER the 8/17 session
+                            #   (Priya, 2026-08-18). The 8/16 PM attempt produced no overt
+                            #   deficit and is NOT the stroke date. 8/17 is excluded below:
+                            #   the lesion followed that recording, but the animal had
+                            #   already been lasered once, so it is neither a clean
+                            #   baseline nor post-stroke.
     stroke_laterality: "L"          # planned VLS lesion side (not yet induced)
-    stroke_laser_power_mW: null     # 2026-08-16 PM attempt gave NO overt deficit; its power
-                             #   is not recorded here because I was not told it -- do not
-                             #   assume it matched PS94/PS95 (3 mW). Stroke is being REDONE
-                             #   after the 8/17 session; fill in the effective attempt's
-                             #   power and update stroke_date then.
+    stroke_laser_power_mW: 5.5     # EFFECTIVE lesion, 2026-08-17 after that session
+                             #   (Priya, 2026-08-18). Higher than PS94/PS95 (3 mW), which
+                             #   is why it took where the 8/16 PM attempt did not; that
+                             #   earlier attempt's power was never recorded.
     reference_landmarks: v2
-    exclude: ["0817"]        # lesion 8/16 PM gave no overt deficit; stroke
-                             #   REDONE after the 8/17 session, so 8/17 is
-                             #   neither baseline nor post-stroke (Priya,
-                             #   2026-08-17). Per-session figures still show it.
+    exclude: ["0817"]        # NEITHER baseline nor post-stroke: the 8/16 PM
+                             #   attempt gave no deficit, and the EFFECTIVE
+                             #   lesion followed this same 8/17 session. Load-
+                             #   bearing -- without it session_phase resolves
+                             #   8/17 to "pre" (stroke_date session = baseline)
+                             #   and it would enter the pre-stroke reference.
+                             #   KEEP when these animals become post-stroke.
+                             #   Per-session figures still show it; Section G
+                             #   uses it as the NEGATIVE CONTROL, which is why
+                             #   it must stay analysable but unpoolable.
 
   PS94:
     color: "tab:orange"

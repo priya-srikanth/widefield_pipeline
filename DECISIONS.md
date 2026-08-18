@@ -1560,3 +1560,77 @@ conclusion in section G carries the ambiguity. See "PLANNED vs EXECUTED directio
 Post-stroke analyses use **ALL trials** (`nolick_analysis.SANCTIONED_MISMATCHES` declares the
 pre-engaged vs post-all pair by name). Post-lick-bout analyses are the sole exception, since they need
 a lick to align to.
+
+## Hemispheric raw fluorescence: the 470 and 415 questions are ONE measurement (2026-08-18)
+
+Priya's observation: *"post-stroke there is higher GCaMP 470 nm signal in the L hemisphere, especially
+parietally... as well as changes in 415 nm hemodynamic signal (is there evidence of L hemisphere
+hypoperfusion after striatal stroke?)"*
+
+**These cannot be asked separately.** 415 nm is the GCaMP isosbestic: insensitive to calcium, dominated
+by haemoglobin absorption. Less blood in the light path means less absorption, so hypoperfusion RAISES
+the raw counts at 415 — **and raises them at 470 too**, because the same blood absorbs both. A
+left-sided rise in 470 is exactly what hypoperfusion predicts *with no change in neural activity*. The
+anecdotal impression may BE the hypoperfusion rather than something beside it.
+
+Only the ratio of ratios separates them (`wfield_local/hemispheric_intensity.py`):
+
+| quantity | meaning |
+|---|---|
+| `R_415 = median(415, L) / median(415, R)` | absorption only. UP = left less absorbing = **hypoperfused** |
+| `R_470 = median(470, L) / median(470, R)` | optical **+** neural. Not interpretable alone |
+| `G = R_470 / R_415` | GCaMP-specific, absorption divided out |
+
+**Why ratios, not absolute counts.** `crossday_intensity` already tracks the absolute brain-ROI median
+and warns on its own figure that LED power is titrated by hand day to day. That confound is fatal for a
+cross-day claim about one hemisphere, but it is common to both hemispheres *within* a session and
+cancels in an L/R ratio — as do exposure, gain and bleaching. What does not cancel is anything
+spatially asymmetric (window clarity, focus tilt, uneven illumination, headplate shift), so the
+question is never "is L/R ≠ 1" — it never is — but "did L/R **move** from this animal's own pre-stroke
+range".
+
+### Result on 8/17: no detected change
+
+Every measure sits inside the animal's own pre-stroke range, whole-hemisphere and in SSp:
+
+| animal | region | R_415 | R_470 | G (GCaMP-specific) |
+|---|---|---|---|---|
+| PS94 | all | z = +0.7 | z = +0.3 | z = −0.9 |
+| PS95 | all | z = +0.3 | z = −0.3 | z = −0.9 |
+| PS94 | SSp | z = +0.2 | z = +0.3 | z = −0.3 |
+| PS95 | SSp | z = +0.4 | z = +0.8 | z = −0.3 |
+
+No evidence for a left-sided 470 increase, and none for left hypoperfusion, one day after the lesion.
+
+### Read that null with its power — two real limits
+
+**The 415 L/R ratio DRIFTS monotonically across the whole pre-stroke period in all four animals**
+(PS94 SSp 0.66 → 0.82; PS92 0.52 → 0.75; PS95 0.53 → 0.73). The min-max pre-stroke band therefore spans
+a *trend*, not noise, and a step change would have to be large to escape it. A sharper test compares
+against the extrapolated trend, or against the last few sessions only. The drift is present in
+PS92/PS93 too, who had no effective lesion until after 8/17, so it is **not lesion-related** — it is a
+property of the preparation or the rig, and it is unexplained. Worth explaining on its own account.
+
+**And this measures the wrong thing for "activity".** It is the session MEAN image: static baseline
+fluorescence. An impression of more activity is about DYNAMICS, which a mean image cannot show. The
+matching test is a per-hemisphere temporal SD or task-evoked amplitude, which is not run here.
+
+n = 1 post-stroke session, one day post-lesion; perfusion changes evolve.
+
+## Crossed confusion must include the trials with NO detected lick (Priya, 2026-08-18)
+
+*"even though far R lick was never successful, pre-cue looked like far R, or far center looks like
+far R (because tongue is deviated leftward, animal has to try harder to get tongue to the right)"*
+
+The engaged-only matrix cannot answer this. PS94 has **zero** engaged trials at far_center and far_R —
+the two positions the lesion abolished, and the two rows worth reading — so both were blank. But the
+animal was still *cued* to them (104 and 105 no-lick trials), and those trials are the only evidence
+that exists there. `crossed_confusion(post_all_trials=True)` fills the rows; the PRE arm stays
+engaged-only, because it is the reference for what the code looks like when the movement succeeds.
+
+**The column baseline is mandatory.** The frozen decoder predicts far_R on ~35% of ALL PS94
+post-stroke trials, so far_R "recall" is inflated by prediction bias before any position information
+is involved. Under a label permutation the expected recall for a position is exactly its prediction
+rate — which is what the figure prints under each column, and what a diagonal must clear. Reading these
+diagonals against 1/6 would manufacture a result, the same error the `impaired_nolick_readout` nulls
+were built to prevent.

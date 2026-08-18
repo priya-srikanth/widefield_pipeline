@@ -180,10 +180,48 @@ M_NOLICK = (
     "phenotype this analysis looks for post-stroke. DLC/facial tracking is needed to split attempted "
     "from unattempted; until then read the per-position breakdown, not the pooled number.")
 
+M_HEMI = (
+    "HEMISPHERIC RAW FLUORESCENCE (wfield_local.hemispheric_intensity). Per session, the median raw "
+    "count in the LEFT and RIGHT Allen masks on the atlas grid, per channel, from "
+    "frames_average_atlas.npy. Hemisphere comes from the signed Allen area code, checked against the "
+    "_left/_right name suffix, not from an image midline -- which would be wrong under any headplate "
+    "rotation."
+    "\n\nWHY RATIOS. LED power is titrated by hand day to day (crossday_intensity warns about this "
+    "on its own figure), so an absolute cross-day trend can be the LED setting. That confound is "
+    "common to both hemispheres WITHIN a session and cancels in an L/R ratio, as do exposure, gain "
+    "and bleaching. What does NOT cancel is anything spatially asymmetric -- window clarity, focus "
+    "tilt, uneven illumination, headplate shift -- so the question is never 'is L/R != 1' (it never "
+    "is) but 'did L/R MOVE from this animal's own pre-stroke range'."
+    "\n\nTHE 470 AND 415 QUESTIONS ARE THE SAME MEASUREMENT. 415 nm is the GCaMP isosbestic: it is "
+    "insensitive to calcium and dominated by haemoglobin absorption. Less blood means less "
+    "absorption, so hypoperfusion RAISES the raw counts at 415 and raises them at 470 too. A "
+    "left-sided 470 increase is exactly what hypoperfusion predicts with NO change in neural "
+    "activity. Only the ratio of ratios, (470 L/R) / (415 L/R), is GCaMP-specific."
+    "\n\nRESULT ON 8/17: NO detected change. Every measure sits inside the animal's own pre-stroke "
+    "range in both region groups -- PS94 whole-hemisphere 415 z=+0.7, 470 z=+0.3, GCaMP-specific "
+    "z=-0.9; PS95 z=+0.3, -0.3, -0.9; SSp similar (|z| <= 0.8). No evidence here for a left-sided "
+    "470 increase, and none for left hypoperfusion, one day after the lesion."
+    "\n\nREAD THAT NULL WITH ITS POWER. The 415 L/R ratio DRIFTS monotonically across the "
+    "pre-stroke period in all four animals (PS94 SSp 0.66 -> 0.82), so the min-max pre-stroke band "
+    "spans a trend rather than noise, and a step change would have to be large to escape it. A "
+    "sharper test compares against the EXTRAPOLATED trend, or against the last few sessions only. "
+    "That drift is present in PS92/PS93 as well, who had no effective lesion until after 8/17, so it "
+    "is not lesion-related -- it is a property of the preparation or the rig and is unexplained."
+    "\n\nAND IT MEASURES THE WRONG THING FOR 'ACTIVITY'. This is the session MEAN image: static "
+    "baseline fluorescence. An impression of more activity is about DYNAMICS, which the mean image "
+    "cannot show. The matching test is a per-hemisphere temporal SD or task-evoked amplitude; it is "
+    "not run here. n=1 post-stroke session, one day post-lesion, and perfusion changes evolve.")
+
 M_POSTSTROKE = (
-    "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). Lesion date "
-    "20260816 (configs/animals.yaml stroke_date); PS94/PS95 at 3 mW. The pre-stroke reference is "
-    "FROZEN: 11 curated dates ending 8/14, 44 sessions, all resolving to phase=='pre'. "
+    "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
+    "LESION DATES (configs/animals.yaml stroke_date). PS94/PS95: 2026-08-16 at 3 mW, deficit -> "
+    "stroke_date 20260816, and 8/17 is their first POST-stroke session. PS92/PS93: the 8/16 attempt "
+    "did NOT take, redone 2026-08-17 AFTER that session at 3.75 and 5.5 mW -> stroke_date 20260817, "
+    "with 8/17 belonging to NEITHER phase (lesion followed the recording, but the animal had already "
+    "been lasered once). The higher powers are why the second attempt took. stroke_cutoff() is the "
+    "EARLIEST date across the cohort (0816), so a pooled pre-stroke reference stays safe for every "
+    "animal regardless of which was lesioned when. The pre-stroke reference is FROZEN: 11 curated "
+    "dates ending 8/14, 44 sessions, all resolving to phase=='pre'. "
     "\n\nBEHAVIOUR IS SLIDE ONE, AND THAT IS NOT PRESENTATIONAL. On 8/17 both animals stopped "
     "attempting the far positions -- PS94 has ZERO engaged trials at far_center and far_R, PS95 has "
     "10 and 1. A 6-way accuracy computed across that is mostly a statement about which trials exist. "
@@ -804,6 +842,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G3_confusion.png", top=1.6, width=9.2)
 
+            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+                _f = src / f"poststroke_G3b_confusion_alltrials_{_al}.png"
+                if not _f.exists():
+                    continue
+                s = slide()
+                title(s, f"G3b. {_nice} confusion including the trials with NO detected lick",
+                      "The engaged-only matrix leaves the abandoned positions BLANK -- PS94 has zero "
+                      "engaged trials at far_center and far_R, which are the two rows worth reading. "
+                      "The animal was still cued to them (104 and 105 no-lick trials); those trials "
+                      "are the only evidence that exists there. '(pred x.xx)' under each column is "
+                      "how often the decoder picks that position overall, i.e. the recall expected "
+                      "under a label permutation -- the diagonal counts only where it clears that.")
+                note(s, M_POSTSTROKE)
+                big(s, _f, top=1.85, width=9.6)
+
         # --- G4. identity, with its control read first
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
@@ -858,14 +911,42 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 note(s, M_POSTSTROKE)
                 big(s, src / "poststroke_G7_control_behaviour.png", top=1.6, width=12.5)
 
+        # --- G9. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
+        _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
+                 for g in ("all", "SSp") if (src / f"hemispheric_intensity_{g}.png").exists()]
+        for _g, _f in _hemi:
+            s = slide()
+            title(s, f"G9. LEFT/RIGHT raw fluorescence across days \u2014 {_g}",
+                  "Is the lesioned hemisphere brighter, and is there hypoperfusion? 415 nm is the "
+                  "GCaMP ISOSBESTIC, so it reports haemoglobin absorption: hypoperfusion raises it "
+                  "AND raises 470 with it. A left-sided 470 rise is therefore not an activity change "
+                  "unless the 470/415 ratio moves too \u2014 the two questions are one measurement.")
+            note(s, M_HEMI)
+            big(s, _f, top=1.9, width=12.9)
+
+            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+                _f = src / f"poststroke_G7c_control_confusion_alltrials_{_al}.png"
+                if not _f.exists():
+                    continue
+                s = slide()
+                title(s, f"G7c. NEGATIVE CONTROL — {_nice} confusion, all trials",
+                      "The same all-trials matrix as G3b, for the animals whose lesion did not take. "
+                      "Near-diagonal, with prediction rates of 0.09-0.21 (uniform is 0.167) — NO "
+                      "systematic pull toward any position. That is what makes PS94's far_R "
+                      "over-prediction (0.35 of all its post-stroke trials) a lesion effect rather "
+                      "than a property of the frozen decoder or of 8/17.")
+                note(s, M_POSTSTROKE)
+                big(s, _f, top=1.85, width=9.6)
+
         # --- G8. what is NOT here, and why
         s = slide()
         title(s, "G8. Excluded sessions and deferred analyses",
               "A section that does not say what it left out reads as though it covered everything.")
         note(s, M_POSTSTROKE)
         bullets(s, [
-            (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 lesion produced "
-             "no deficit and was redone AFTER the 8/17 session, so they belong to neither phase. They "
+            (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
+             "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
+             "neither a clean baseline nor post-stroke and belongs to neither phase. They "
              "are NOT unanalysed \u2014 G7 uses them as the negative control, built from an explicit "
              "label list rather than phase_labels('post'). They also remain registered, are projected "
              "onto the joint bases, and appear per-session in sections A\u2013D.")
