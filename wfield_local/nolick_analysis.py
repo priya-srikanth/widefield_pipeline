@@ -224,7 +224,7 @@ def compare_arms(engaged, nolick):
             "survival_ratio": float(u / e) if e and np.isfinite(e) and e > 0 else float("nan")}
 
 
-DISSOCIATION_MIN = 1.5     # legacy label threshold; see dissociation_ci for the real test
+DISSOCIATION_MIN_DIFF = 0.15   # label threshold on the DIFFERENCE; dissociation_ci is the real test
 ALPHA = 0.05
 N_BOOT = 2000
 
@@ -354,23 +354,28 @@ def interpret(precue_cmp, cue_cmp, precue_arm=None, cue_arm=None):
         return "indeterminate: a survival ratio is undefined (engaged decoding at or below chance)"
 
     pre_sig = None if precue_arm is None else bool(precue_arm.get("bal_p", 1.0) < ALPHA)
-    ratio = (p / c) if c > 0 else float("inf")
+    # ratio only where the denominator is meaningfully above zero; post-cue survival is ~0 by
+    # hypothesis, so p/c is unstable exactly when the dissociation is clearest (see
+    # direction_consistency). The DIFFERENCE decides; the ratio is quoted when it is finite.
+    ratio = (p / c) if c > 0.05 else float("inf")
+    diff = p - c
     qual = "" if pre_sig is not None else "  [level unverified: no permutation p supplied]"
 
     if pre_sig is False:
         return ("consistent with NO PLAN FORMED: the pre-cue position code is not above its own "
                 f"permutation null on trials without a detected lick (p>={ALPHA}), so there is no "
                 f"preserved code for the movement to have failed to execute")
-    if ratio >= DISSOCIATION_MIN:
-        return (f"consistent with PLAN INTACT, EXECUTION FAILED: the pre-cue code survives "
-                f"{ratio:.1f}x better than the post-cue code without a detected lick "
-                f"({p:.2f} vs {c:.2f}){qual}")
+    if diff >= DISSOCIATION_MIN_DIFF:
+        how = f"{ratio:.1f}x" if np.isfinite(ratio) else "with the post-cue code at ~zero"
+        return (f"consistent with PLAN INTACT, EXECUTION FAILED: the pre-cue code survives {how} "
+                f"better than the post-cue code without a detected lick "
+                f"({p:.2f} vs {c:.2f}, difference {diff:+.2f}){qual}")
     if c >= 0.5:
         return ("UNEXPECTED: the post-cue code survives about as well as the pre-cue code without a "
                 "detected lick. Either the post-cue decode is not movement-driven, or these trials "
                 "contain undetected licks -- check the per-position breakdown before interpreting")
-    return (f"NO CLEAR DISSOCIATION: pre-cue {p:.2f} vs post-cue {c:.2f} ({ratio:.1f}x, below the "
-            f"{DISSOCIATION_MIN}x threshold) -- both arms degrade together{qual}")
+    return (f"NO CLEAR DISSOCIATION: pre-cue {p:.2f} vs post-cue {c:.2f} (difference {diff:+.2f}, "
+            f"below the {DISSOCIATION_MIN_DIFF:+.2f} threshold) -- both arms degrade together{qual}")
 
 
 ARMS = ("engaged", "engaged_fast", "engaged_slow", "late_rewarded", "undetected",

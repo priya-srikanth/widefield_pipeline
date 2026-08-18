@@ -111,6 +111,18 @@ SIG = {"bal_p": 0.001}
 NS = {"bal_p": 0.9}
 
 
+def test_ratio_is_not_used_when_postcue_survival_is_near_zero():
+    """The statistic must not explode where the effect is strongest.
+
+    Post-cue survival is ~0 by hypothesis (measured -0.02 to 0.12), so p/c ran -17.7 to 37.5x and
+    was largest exactly when the dissociation was cleanest. The verdict now keys off the DIFFERENCE.
+    """
+    r = na.interpret({"survival_ratio": 0.43}, {"survival_ratio": -0.02}, SIG, SIG)
+    assert "PLAN INTACT" in r
+    assert "-21" not in r and "inf" not in r.lower(), f"an exploded ratio leaked into the verdict: {r}"
+    assert "~zero" in r or "difference" in r
+
+
 def test_interpretation_maps_the_CONTRAST_to_the_right_hypothesis():
     hi, lo = {"survival_ratio": 0.8}, {"survival_ratio": 0.2}
     assert "PLAN INTACT" in na.interpret(hi, lo, SIG, SIG)

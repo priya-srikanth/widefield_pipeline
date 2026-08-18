@@ -688,22 +688,29 @@ def reinterpret(ref):
     # comparisons put pre-cue survival ABOVE post-cue asks the underlying question directly and
     # depends on no threshold at all -- so a reader can see whether a split verdict means the bases
     # contradict each other or merely straddle a line someone drew.
-    ratios, above = {}, 0
+    # THE SUMMARY IS A DIFFERENCE, NOT A RATIO. p/c divides by the post-cue survival, which is the
+    # quantity this analysis EXPECTS to be ~0 -- measured 2026-08-18 it runs -0.02 to 0.12, so the
+    # ratio ranged -17.7 to 37.5x and was largest exactly where the effect was strongest. A statistic
+    # that explodes when the result is cleanest is the wrong statistic. The difference is bounded and
+    # is what dissociation_ci already bootstraps.
+    diffs, above = {}, 0
     for bkey, blk in ref.get("by_basis", {}).items():
         for an, slot in blk.get("animals", {}).items():
             p = ((slot.get("precue") or {}).get("compare") or {}).get("survival_ratio")
             c = ((slot.get("cue") or {}).get("compare") or {}).get("survival_ratio")
             if p is None or c is None or not (np.isfinite(p) and np.isfinite(c)):
                 continue
-            ratios[f"{an}/{bkey}"] = round(float(p / c), 2) if c else None
+            diffs[f"{an}/{bkey}"] = round(float(p - c), 3)
             above += int(p > c)
     ref["direction_consistency"] = {
-        "n_comparisons": len(ratios), "n_precue_above_postcue": above,
-        "dissociation_ratio": ratios,
-        "statement": (f"pre-cue survival exceeds post-cue in {above}/{len(ratios)} animal x basis "
-                      f"comparisons" + (f"; ratios {min(ratios.values()):.1f}-{max(ratios.values()):.1f}x"
-                                        if ratios else "")),
-        "note": "threshold-free. Per-animal verdicts binarize this and can split at the margin.",
+        "n_comparisons": len(diffs), "n_precue_above_postcue": above,
+        "survival_difference": diffs,
+        "statement": (f"pre-cue survival exceeds post-cue in {above}/{len(diffs)} animal x basis "
+                      f"comparisons" + (f"; differences {min(diffs.values()):+.2f} to "
+                                        f"{max(diffs.values()):+.2f}" if diffs else "")),
+        "note": ("threshold-free, and a DIFFERENCE: the ratio p/c divides by a post-cue survival that "
+                 "is ~0 by hypothesis and was reported as -17.7 to 37.5x before 2026-08-18. Per-animal "
+                 "verdicts binarize this and can split at the margin."),
     }
     return ref
 
