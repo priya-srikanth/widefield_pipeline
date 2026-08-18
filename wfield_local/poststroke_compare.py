@@ -116,9 +116,26 @@ def looks_like_which(d, keep, seed=0):
     sep = float(accuracy_score(y, cross_val_predict(
         make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)), X, y, cv=5)))
     p_post = float(clf.predict(d["XU"][post_u]).mean())
+
+    # THE CONTROL THIS TEST IS WORTHLESS WITHOUT. The boundary is trained entirely on PRE-stroke
+    # data, so post-stroke trials are out of distribution: any global post-lesion shift could push
+    # them to one side whatever their trial state. Applying the SAME boundary to post-stroke ENGAGED
+    # trials says whether it still tracks licking after the lesion. If engaged and undetected land at
+    # the same rate, the classifier is reporting "post-stroke", not "licking", and the headline
+    # number means nothing.
+    post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
+    p_post_eng = float(clf.predict(d["XE"][post_e]).mean()) if post_e.sum() >= 20 else float("nan")
+    pre_e_held = float(clf.predict(Xe).mean())          # pre-stroke engaged, for scale
+    pre_u_held = float(clf.predict(Xu).mean())          # pre-stroke undetected, for scale
+    gap = p_post_eng - p_post if np.isfinite(p_post_eng) else float("nan")
     return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": int(post_u.sum()),
             "pre_separability_cv": sep,
             "post_undetected_frac_classified_ENGAGED_like": p_post,
+            "CONTROL_post_engaged_frac_engaged_like": p_post_eng,
+            "n_post_engaged": int(post_e.sum()),
+            "scale_pre_engaged": pre_e_held, "scale_pre_undetected": pre_u_held,
+            "engaged_minus_undetected_post": gap,
+            "boundary_still_discriminates_post": bool(np.isfinite(gap) and gap > 0.10),
             "reads_as": ("engaged-like (licking)" if p_post > 0.5 else "undetected-like (non-licking)")}
 
 
