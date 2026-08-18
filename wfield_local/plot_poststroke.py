@@ -19,7 +19,7 @@ import numpy as np                                                     # noqa: E
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
 
 
-def fig_behaviour(counts, out):
+def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None):
     """G1: per-position engaged / undetected counts, pre vs post. The primary finding."""
     ans = sorted(counts)
     fig, axes = plt.subplots(2, len(ans), figsize=(5.2 * len(ans), 6.4), squeeze=False)
@@ -44,18 +44,25 @@ def fig_behaviour(counts, out):
             ax.set_ylabel("trials")
             if r == 0 and k == 0:
                 ax.legend(fontsize=7)
-    fig.suptitle("POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
+    fig.suptitle(suptitle or
+                 "POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
                  "Zero engaged trials at a position means no decoding number for it can exist.",
                  fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    p = Path(out) / "poststroke_G1_behaviour.png"
+    p = Path(out) / name
     fig.savefig(p, dpi=150)
     plt.close(fig)
     return p
 
 
-def fig_matched(matched, out):
-    """G2: position-matched decoding in each condition against the pre-stroke LOSO band."""
+def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", suptitle=None):
+    """G2: position-matched decoding in each condition against the pre-stroke LOSO band.
+
+    `chance` must match the number of positions the arm was scored over -- 0.25 when matched to four
+    preserved positions (PS94/PS95), 1/6 when the animal still attempts all six (PS92/PS93, which are
+    NOT position-restricted because nothing was lost). Hardcoding 0.25 would have drawn a chance line
+    50% too high on the negative-control figure.
+    """
     ans = sorted(matched)
     conds = ["post-cue", "post-lick", "pre-cue"]
     fig, axes = plt.subplots(1, len(ans), figsize=(4.6 * len(ans), 4.4), squeeze=False)
@@ -75,19 +82,21 @@ def fig_matched(matched, out):
             if r.get("below_every_pre_session"):
                 ax.text(i, max(r["accuracy"] - 0.055, 0.02), "below all", ha="center",
                         fontsize=7.5, color="firebrick", fontweight="bold")
-        ax.axhline(0.25, color="k", ls=":", lw=1)
-        ax.text(len(conds) - 0.5, 0.26, "chance (4-way)", fontsize=7, ha="right")
+        ax.axhline(chance, color="k", ls=":", lw=1)
+        ax.text(len(conds) - 0.5, chance + 0.01,
+                f"chance ({int(round(1 / chance))}-way)", fontsize=7, ha="right")
         ax.set_xticks(range(len(conds)))
         ax.set_xticklabels(conds, fontsize=9)
         ax.set_ylim(0, 1.02)
         ax.set_title(f"{an} — position-matched", fontsize=10)
         ax.set_ylabel("accuracy")
-    fig.suptitle("Frozen PRE-stroke decoder on POST-stroke trials, matched to the positions the "
+    fig.suptitle(suptitle or
+                 "Frozen PRE-stroke decoder on POST-stroke trials, matched to the positions the "
                  "animal still attempts. Band = pre-stroke leave-one-session-out range under the "
                  "SAME restriction. 4-way: NOT comparable to 6-way numbers elsewhere in this deck.",
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
-    p = Path(out) / "poststroke_G2_matched.png"
+    p = Path(out) / name
     fig.savefig(p, dpi=150)
     plt.close(fig)
     return p

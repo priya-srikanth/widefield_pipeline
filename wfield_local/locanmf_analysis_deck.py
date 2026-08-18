@@ -837,16 +837,38 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
 
-        # --- G7. what is NOT here, and why
+        # --- G7. NEGATIVE CONTROL: the excluded sessions, used as the control they are
+        # PS92/PS93 8/17 belongs to neither phase, which is exactly what makes it the control. These
+        # slides are built from an EXPLICIT label list (poststroke_compare._pooled(post_labels=...)),
+        # never from phase_labels("post"), and their JSON carries excluded_from_pooled_summaries.
+        if _excluded and (src / "poststroke_G7_control_matched.png").exists():
+            s = slide()
+            title(s, "G7. NEGATIVE CONTROL \u2014 the two animals whose lesion did NOT take",
+                  f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
+                  f"this session. Same day, same anaesthesia, same handling, same frozen decoder. If "
+                  f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
+            note(s, M_POSTSTROKE)
+            big(s, src / "poststroke_G7_control_matched.png", top=1.75, width=12.3)
+            if (src / "poststroke_G7_control_behaviour.png").exists():
+                s = slide()
+                title(s, "G7b. NEGATIVE CONTROL behaviour \u2014 all six positions still attempted",
+                      "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
+                      "behavioural collapse is specific to the animals whose lesion took, which is "
+                      "what makes the decoding comparison interpretable at all.")
+                note(s, M_POSTSTROKE)
+                big(s, src / "poststroke_G7_control_behaviour.png", top=1.6, width=12.5)
+
+        # --- G8. what is NOT here, and why
         s = slide()
-        title(s, "G7. Excluded sessions and deferred analyses",
+        title(s, "G8. Excluded sessions and deferred analyses",
               "A section that does not say what it left out reads as though it covered everything.")
         note(s, M_POSTSTROKE)
         bullets(s, [
-            (f"EXCLUDED from every pooled slide above: {', '.join(_excluded)}. Their 8/16 lesion "
-             "produced no deficit and was redone AFTER the 8/17 session, so those sessions belong to "
-             "neither phase. They remain registered, are projected onto the joint bases, and appear "
-             "per-session in sections A\u2013D.")
+            (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 lesion produced "
+             "no deficit and was redone AFTER the 8/17 session, so they belong to neither phase. They "
+             "are NOT unanalysed \u2014 G7 uses them as the negative control, built from an explicit "
+             "label list rather than phase_labels('post'). They also remain registered, are projected "
+             "onto the joint bases, and appear per-session in sections A\u2013D.")
             if _excluded else
             "No sessions are currently in the 'excluded' phase.",
             "RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "

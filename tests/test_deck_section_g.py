@@ -47,7 +47,7 @@ def test_section_g_never_selects_sessions_by_date():
 def test_excluded_sessions_are_named_on_a_slide_not_just_dropped():
     """Dropping them silently is how a pooled slide reads as covering the whole cohort."""
     assert 'session_phase(a, "0817") == "excluded"' in SRC
-    assert "G7. Excluded sessions" in SRC, "the section must state what it left out"
+    assert "G8. Excluded sessions" in SRC, "the section must state what it left out"
 
 
 def test_the_post_pool_is_exactly_the_two_lesioned_animals():
@@ -155,3 +155,58 @@ def test_section_g_is_skipped_entirely_when_there_is_no_post_stroke_session():
     would look like a failed build.
     """
     assert "if _post_labels and (src /" in SRC
+
+
+# ------------------------------------------------------------------------------------------------
+# the negative control: excluded sessions may be ANALYSED, never POOLED
+# ------------------------------------------------------------------------------------------------
+def test_excluded_sessions_are_reachable_only_by_naming_them():
+    """`_pooled` must default to the phase resolver and require an explicit list otherwise.
+
+    This is the whole safety property of the override added 2026-08-18. If the default were ever
+    widened, PS92/PS93 8/17 -- lesioned 8/16, no deficit, re-lesioned after that session -- would flow
+    into pooled post-stroke results and nothing downstream would notice.
+    """
+    import inspect
+    sig = inspect.signature(pc._pooled)
+    assert "post_labels" in sig.parameters
+    assert sig.parameters["post_labels"].default is None, "the override must be opt-in"
+    src = inspect.getsource(pc._pooled)
+    assert 'config.phase_labels("post")' in src, "the DEFAULT must still be the sanctioned pool"
+
+
+def test_excluded_labels_returns_the_failed_lesions_and_nothing_else():
+    assert pc.excluded_labels("PS92") == ["PS92_0817"]
+    assert pc.excluded_labels("PS93") == ["PS93_0817"]
+    for a in ("PS94", "PS95"):
+        assert pc.excluded_labels(a) == [], f"{a} is post-stroke, not excluded"
+
+
+def test_pooled_returns_nothing_for_an_excluded_animal_by_default():
+    """The regression this guards: calling _pooled("PS92", ...) with no override must NOT silently
+    analyse the excluded session as though it were post-stroke."""
+    import inspect
+    src = inspect.getsource(pc._pooled)
+    assert "if not pre or not post:\n        return None" in src
+
+
+def test_the_negative_control_slide_is_built_from_the_excluded_list():
+    """G7 must key off `_excluded`, which comes from session_phase, not from a date or a hardcoded
+    animal name."""
+    import io
+    import re
+    import tokenize
+
+    assert "NEGATIVE CONTROL" in SRC
+    g7 = SRC.split("# --- G7. NEGATIVE CONTROL")[-1].split("# --- G8.")[0]
+    assert "_excluded" in g7, "the control slide must be driven by the excluded-phase resolver"
+
+    # An animal name is fine in a COMMENT or a caption -- the slide has to say which animals these
+    # are. It is not fine in a NAME or a selector. Tokenising separates those; a raw substring search
+    # cannot, and flagged the caption "Against G1b, where PS94 has ZERO engaged trials".
+    src = "if True:\n" + g7            # make the indented block parseable
+    for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+        if tok.type == tokenize.NAME and re.fullmatch(r"PS[0-9]+", tok.string):
+            raise AssertionError(
+                f"animal {tok.string} is hardcoded as an identifier in the control slide; "
+                f"the session set must come from session_phase via _excluded")

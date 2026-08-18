@@ -43,9 +43,36 @@ REFERENCE_POSITIONS = [c for c in DISPLAY_ORDER
                        if POSITION_NAMES[c] in ("close_L", "close_center")]
 
 
-def _pooled(animal, align, source="roi"):
+def excluded_labels(animal):
+    """Sessions for `animal` whose phase is neither pre nor post.
+
+    Currently PS92_0817 / PS93_0817: the 8/16 lesion produced no deficit and was redone AFTER that
+    session, so it is baseline-like but not a clean baseline, and post-lesion but not post-deficit.
+    They are analysable and must never be pooled.
+    """
+    out = []
+    for s in config.load_sessions():
+        lab = s["label"]
+        if not lab.startswith(animal + "_"):
+            continue
+        if config.session_phase(animal, lab.split("_")[-1]) == "excluded":
+            out.append(lab)
+    return sorted(out)
+
+
+def _pooled(animal, align, source="roi", post_labels=None):
+    """Pre-stroke pool + a comparison session, aligned and z-scored together.
+
+    `post_labels` overrides the comparison arm. Leave it None for real post-stroke work -- the default
+    is `phase_labels("post")`, which is the only sanctioned pool. Pass it ONLY to analyse sessions that
+    resolve to the 'excluded' phase, and label the output accordingly; `excluded_labels()` supplies
+    them. Results built this way must not enter any pooled post-stroke summary (Priya, 2026-08-18).
+    """
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
-    post = [l for l in config.phase_labels("post") if l.startswith(animal)]
+    if post_labels is None:
+        post = [l for l in config.phase_labels("post") if l.startswith(animal)]
+    else:
+        post = [l for l in post_labels if l.startswith(animal)]
     if not pre or not post:
         return None
     p = pool_sessions(pre + post, source=source, align=align, post_s=2.0)
