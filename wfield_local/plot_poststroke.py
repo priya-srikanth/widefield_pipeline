@@ -105,7 +105,7 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
 def fig_identity(ident, out):
     """G4: do post-stroke no-lick trials look like pre-stroke licking? WITH the control."""
     ans = sorted(ident)
-    fig, ax = plt.subplots(figsize=(3.2 * len(ans) + 4.0, 4.8))
+    fig, ax = plt.subplots(figsize=(3.6 * len(ans) + 4.0, 5.4))
     x = np.arange(len(ans))
     w = 0.2
     keys = [("scale_pre_engaged", "pre ENGAGED", "tab:blue"),
@@ -118,14 +118,29 @@ def fig_identity(ident, out):
     ax.axhline(0.5, color="k", ls="--", lw=1)
     for i, a in enumerate(ans):
         d = ident[a]
+        gap = d.get("engaged_minus_undetected_post", float("nan"))
+        lo, hi = d.get("control_gap_ci95", [float("nan"), float("nan")])
         ok = d.get("boundary_still_discriminates_post")
-        ax.text(i, 1.02, ("control PASSES — read the red bar"
-                          if ok else "CONTROL FAILS — do NOT read the red bar"),
-                ha="center", fontsize=8.5, fontweight="bold",
-                color=("darkgreen" if ok else "firebrick"))
-        ax.text(i, -0.12, f"pre-separability {d.get('pre_separability_cv', float('nan')):.2f}"
-                          f"   n post-undetected = {d.get('n_post_undetected', 0)}",
-                ha="center", fontsize=7.5)
+        # three states: an interval spanning zero is UNRESOLVED, not a failure -- the distinction
+        # decides whether the analysis is broken or merely underpowered
+        if ok:
+            msg, col = "control PASSES — read the red bar", "darkgreen"
+        elif np.isfinite(hi) and hi < 0:
+            msg, col = "CONTROL INVERTED — the boundary tracks something else", "firebrick"
+        else:
+            msg, col = "CONTROL UNDETERMINED — too few trials to tell; do NOT read the red bar", "darkorange"
+        ax.text(i, 1.02, msg, ha="center", fontsize=8, fontweight="bold", color=col)
+        ax.errorbar(i + 0.30, 0.5 + gap / 2, yerr=[[abs(gap - lo) / 2], [abs(hi - gap) / 2]],
+                    fmt="none", ecolor="k", elinewidth=1.4, capsize=4, zorder=5)
+        # two short lines under the tick label; one long line ran into the neighbouring animal
+        ax.text(i, -0.19, f"control gap {gap:+.3f}   95% CI [{lo:+.3f}, {hi:+.3f}]",
+                ha="center", fontsize=7.5, transform=ax.get_xaxis_transform())
+        ax.text(i, -0.25,
+                f"pre-sep {d.get('pre_separability_cv', float('nan')):.2f}"
+                f"{' (grouped)' if d.get('pre_separability_cv_grouped_by_session') else ' (UNGROUPED)'}"
+                f"   n post-no-lick = {d.get('n_post_undetected', 0)}",
+                ha="center", fontsize=7, color="dimgrey",
+                transform=ax.get_xaxis_transform())
     ax.set_xticks(x)
     ax.set_xticklabels(ans)
     ax.set_ylim(0, 1.30)
@@ -138,8 +153,9 @@ def fig_identity(ident, out):
                  "Boundary trained on PRE-stroke engaged-vs-undetected, position-balanced so it "
                  "cannot simply answer 'far'.  READ THE CONTROL FIRST: post ENGAGED (green) must sit "
                  "ABOVE post UNDETECTED (red), or the boundary is tracking 'post-stroke' rather than "
-                 "licking and the answer means nothing.", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+                 "licking and the answer means nothing. The control gap and its bootstrap 95% CI are printed under each animal: the whole interval must clear zero, and an interval spanning zero means UNDETERMINED, not failed.", fontsize=9, wrap=True)
+    fig.subplots_adjust(bottom=0.22)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.86))
     p = Path(out) / "poststroke_G4_identity.png"
     fig.savefig(p, dpi=150)
     plt.close(fig)
