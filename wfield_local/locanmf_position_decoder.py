@@ -42,6 +42,7 @@ from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, POSITION_NAMES, DISPLAY_ORDER
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
 from wfield_local.behavior_position import classify_cues_with_backup
+from wfield_local.block_ids import block_ids, block_size_max_for
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames
 
 
@@ -184,14 +185,13 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
     cue_f, lick_f, csmp = _frames(s, cue, lk)
     codes = classify_cues_with_backup(s, cue)
-    # block id: consecutive same-position cues = one block (positions are presented in ~6-trial blocks)
-    blk_id = np.full(cue_f.size, -1, dtype=int); b = -1; prev = None
-    for k in range(cue_f.size):
-        if codes[k] < 0:
-            continue
-        if prev is None or codes[k] != prev:
-            b += 1
-        blk_id[k] = b; prev = int(codes[k])
+    # BLOCK ID. A new block starts when the position changes OR when the run reaches this session's
+    # scheduler block_size_max -- a longer run cannot be one block. The old rule keyed on position
+    # change alone, so two adjacent blocks at the SAME position merged into one; audited against the
+    # firmware's own block_number that is 118/4216 = 2.8% of blocks (Priya, 2026-08-18). See
+    # wfield_local/block_ids.py for the audit, the residual limits, and why merging made the previous
+    # CV conservative rather than inflated.
+    blk_id = block_ids(np.asarray(codes), block_size_max_for(s))
     bins = _bins_for(args)
     # PRE-CUE WINDOWS ARE LICK-FREE (Priya, 2026-08-17). Bounded at the spout strobe, so compute the
     # per-trial strobe frame; `precue_window_start` needs it and returns None for a trial with no

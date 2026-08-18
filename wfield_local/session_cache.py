@@ -23,7 +23,18 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 8  # bump when any cached function's computation changes
+CACHE_VERSION = 9  # bump when any cached function's computation changes
+# v9 (2026-08-18): BLOCK IDS now split a run at the scheduler's block_size_max. The old rule
+# started a new block only when the POSITION changed, so two adjacent blocks at the same
+# position merged into one -- 118 of 4216 blocks (2.8%) across the 48 curated + 8/17 sessions,
+# audited against the firmware's own block_number in device_snapshot_end.json. Blocks are the
+# GroupKFold groups, and ALL FOUR cached kinds take `g` from _trial_features (per_session,
+# rdm_rel, crossnobis, hemi), so every cached entry was computed on merged groups and none can
+# be salvaged. The error ran in the SAFE direction -- larger groups hold more correlated data
+# out together, so the old numbers were conservative, mean delta +0.011 on the worst-affected
+# sessions -- which is why this is a correction rather than a retraction. NOT affected, because
+# they group by SESSION and never by block: the frozen cross-day decoder/encoder
+# (LeaveOneGroupOut over GE) and everything in Section G.
 # v8 (2026-08-17): the HEADLINE pre-cue window is now LICK-FREE (decode.precue_lickfree).
 # _trial_features slides the 2 s window earlier to the latest lick-free gap when a lick falls
 # in it, and DROPS a trial with no clean window -- so both the features and the trial set
