@@ -156,18 +156,24 @@ def looks_like_which(d, keep, seed=0):
     # session identity is exactly what a whole-brain feature vector can memorise; every other CV in
     # this pipeline groups for that reason. Falls back to ungrouped only if the balanced training set
     # somehow spans fewer than two sessions, and says so in the output.
+    def _mk():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+
+    # BOTH estimates, because they answer different questions and the grouped one can be too coarse
+    # here: GroupKFold holds out a whole SESSION, and with ~11 pre-stroke sessions a fold can lose an
+    # entire position's worth of one class. Ungrouped = "can these two states be separated at all";
+    # grouped = "can they be separated in a session the model has never seen", which is the
+    # conservative number and the one to quote when the answer must generalise across days.
+    sep_trial = float(accuracy_score(y, cross_val_predict(_mk(), X, y, cv=5)))
     ngrp = len(np.unique(grp))
     if ngrp >= 2:
-        cv = GroupKFold(n_splits=min(5, ngrp))
-        sep_pred = cross_val_predict(
-            make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)),
-            X, y, cv=cv, groups=grp)
+        sep_session = float(accuracy_score(y, cross_val_predict(
+            _mk(), X, y, cv=GroupKFold(n_splits=min(5, ngrp)), groups=grp)))
         sep_grouped = True
     else:
-        sep_pred = cross_val_predict(
-            make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)), X, y, cv=5)
+        sep_session = float("nan")
         sep_grouped = False
-    sep = float(accuracy_score(y, sep_pred))
+    sep = sep_session if sep_grouped else sep_trial
     p_post = float(clf.predict(d["XU"][post_u]).mean())
 
     # THE CONTROL THIS TEST IS WORTHLESS WITHOUT. The boundary is trained entirely on PRE-stroke
@@ -196,6 +202,9 @@ def looks_like_which(d, keep, seed=0):
     return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": int(post_u.sum()),
             "pre_separability_cv": sep,
             "pre_separability_cv_grouped_by_session": sep_grouped,
+            "pre_separability_cv_session_grouped": sep_session,
+            "pre_separability_cv_trialwise": sep_trial,
+            "n_train_sessions": int(ngrp),
             "control_gap_ci95": gap_ci,
             "post_undetected_frac_classified_ENGAGED_like": p_post,
             "CONTROL_post_engaged_frac_engaged_like": p_post_eng,
@@ -209,6 +218,92 @@ def looks_like_which(d, keep, seed=0):
                 np.isfinite(gap) and gap > 0.10 and gap_ci[0] > 0),
             "reads_as": ("engaged-like (licking)" if p_post > 0.5 else "undetected-like (non-licking)")}
 
+
+
+def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
+    """Does the POST-stroke no-lick session fall inside the PRE-stroke ENGAGED distribution?
+
+    See the module note on `looks_like_which`: that function's control assumes post-stroke engaged and
+    no-lick trials should separate, which is precisely what the execution-failure hypothesis denies.
+    This one makes no such assumption. The reference distributions come from PRE-stroke sessions, where
+    the truth is known, and the post-stroke session is placed against them.
+
+    Returns per-session reference values, their ranges, and where the post-stroke value sits.
+    """
+    rng = np.random.RandomState(seed)
+    pre_e_all = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
+    pre_u_all = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
+
+    def balanced_fit(exclude_session=None):
+        """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session."""
+        e = pre_e_all & (d["GE"] != exclude_session if exclude_session is not None else True)
+        u = pre_u_all & (d["GU"] != exclude_session if exclude_session is not None else True)
+        Xe, ye = d["XE"][e], d["YE"][e]
+        Xu, yu = d["XU"][u], d["YU"][u]
+        xs, lab = [], []
+        for c in keep:
+            ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
+            n = min(len(ie), len(iu))
+            if n < 5:
+                continue
+            xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
+            xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
+        if not xs:
+            return None
+        X, y = np.vstack(xs), np.concatenate(lab)
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(X, y)
+
+    ref = {"engaged": {}, "nolick": {}}
+    for i in sorted(d["pre_i"]):
+        clf = balanced_fit(exclude_session=i)
+        if clf is None:
+            continue
+        me = pre_e_all & (d["GE"] == i)
+        mu = pre_u_all & (d["GU"] == i)
+        if me.sum() >= 20:
+            ref["engaged"][d["kept"][i]] = float(clf.predict(d["XE"][me]).mean())
+        if mu.sum() >= 10:
+            ref["nolick"][d["kept"][i]] = float(clf.predict(d["XU"][mu]).mean())
+    if len(ref["engaged"]) < 3 or len(ref["nolick"]) < 3:
+        return {"note": "too few pre-stroke sessions to build a reference distribution",
+                "n_engaged_sessions": len(ref["engaged"]), "n_nolick_sessions": len(ref["nolick"])}
+
+    clf_all = balanced_fit()
+    post_u = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
+    post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
+    if post_u.sum() < 10 or clf_all is None:
+        return {"note": "too few post-stroke no-lick trials", "n_post_nolick": int(post_u.sum())}
+    pred_u = clf_all.predict(d["XU"][post_u]).astype(float)
+    P = float(pred_u.mean())
+
+    out = {"post_value": P, "n_post_nolick": int(post_u.sum()),
+           "post_engaged_value": float(clf_all.predict(d["XE"][post_e]).mean())
+                                 if post_e.sum() >= 20 else float("nan"),
+           "reference_engaged_per_session": ref["engaged"],
+           "reference_nolick_per_session": ref["nolick"]}
+    # a bootstrap interval on the post-stroke value itself, so the comparison is interval-to-interval
+    boots = [pred_u[rng.randint(0, len(pred_u), len(pred_u))].mean() for _ in range(n_boot)]
+    out["post_value_ci95"] = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
+
+    for arm in ("engaged", "nolick"):
+        v = np.array(list(ref[arm].values()), float)
+        lo, hi = float(v.min()), float(v.max())
+        mu, sd = float(v.mean()), float(v.std(ddof=1))
+        out[arm] = {"n_sessions": len(v), "mean": mu, "sd": sd, "min": lo, "max": hi,
+                    "z_of_post": (P - mu) / sd if sd else float("nan"),
+                    "post_inside_range": bool(lo <= P <= hi),
+                    # fraction of pre-stroke sessions this post value exceeds
+                    "percentile_of_post": float((v < P).mean())}
+    ie, inl = out["engaged"]["post_inside_range"], out["nolick"]["post_inside_range"]
+    out["verdict"] = (
+        "post-stroke NO-LICK trials fall inside the pre-stroke ENGAGED distribution and OUTSIDE the "
+        "pre-stroke no-lick one -> indistinguishable from successful trials: plan intact, execution "
+        "failed" if (ie and not inl) else
+        "post-stroke no-lick trials look like ordinary pre-stroke FAILURES" if (inl and not ie) else
+        "AMBIGUOUS: the post value sits inside both reference distributions -- they overlap too much "
+        "to separate" if (ie and inl) else
+        "OFF-SCALE: outside BOTH pre-stroke distributions, so neither reference describes it")
+    return out
 
 def pattern_similarity(d, keep):
     """Per-position mean-pattern correlation between phases -- is the code the SAME code?"""

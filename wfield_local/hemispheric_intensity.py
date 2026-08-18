@@ -6,21 +6,31 @@ hemispheric activity relative to pre-stroke, as well as changes in 415 nm hemody
 there evidence of L hemisphere hypoperfusion after striatal stroke?)."
 
 THE TWO QUESTIONS ARE NOT INDEPENDENT, AND THAT IS THE POINT OF THIS MODULE.
-415 nm is the GCaMP isosbestic: fluorescence there is insensitive to calcium and is dominated by
-HAEMOGLOBIN ABSORPTION. Less blood in the light path means less absorption, so hypoperfusion RAISES
-the raw counts at 415 -- and it raises them at 470 too, because the same blood absorbs both. So a
-left-sided rise in 470 is exactly what hypoperfusion predicts WITH NO CHANGE IN NEURAL ACTIVITY. The
-anecdotal observation may BE the hypoperfusion rather than evidence of activity beside it.
-
-Separating them needs the ratio of ratios:
+415 nm is the GCaMP isosbestic channel: it is meant to carry the haemodynamic/optical component
+without the calcium signal, which is why it is the control for 470.
 
     R_470 = median(470, LEFT) / median(470, RIGHT)      optical + neural
-    R_415 = median(415, LEFT) / median(415, RIGHT)      optical only (no calcium sensitivity)
-    G     = R_470 / R_415                               GCaMP-specific, absorption divided out
+    R_415 = median(415, LEFT) / median(415, RIGHT)      optical, ~calcium-free
+    G     = R_470 / R_415                               GCaMP-specific, optical component divided out
 
-  * R_415 rising post-stroke  -> left hemisphere is less absorbing == HYPOPERFUSED.
-  * R_470 rising with G flat  -> the 470 rise is entirely optical. Not an activity change.
-  * G rising                  -> a real left-sided GCaMP increase on top of whatever the blood did.
+  * R_470 moving with G flat  -> the 470 change is entirely optical. Not an activity change.
+  * G moving                  -> a GCaMP-specific change on top of whatever the optics did.
+
+THE SIGN OF R_415 IS NOT ESTABLISHED, AND AN EARLIER VERSION OF THIS DOCSTRING ASSERTED IT WRONGLY.
+It argued that haemoglobin absorbs, so more blood means less light, so a RISE in 415 meant less blood
+== hypoperfusion. Measured on this dataset, that is backwards: cue-triggered averages of the raw
+violet trace RISE in all four animals (+0.54 to +1.96%), tracking the blue channel (+2.31 to +3.69%,
+the positive control) at about a third of its amplitude. More activation -- and the increased blood
+that follows it -- goes with MORE 415 signal here, not less. (Why is open: 415 nm is not exactly
+GCaMP's isosbestic (~410 nm) so calcium can leak in; near the Soret band HbO and HbR absorb very
+differently, so an HbO rise with an HbR fall need not raise total absorption; and flavoprotein
+autofluorescence sits in this range.)
+
+Nor can the sign simply be flipped. That evoked test characterises the DYNAMIC, task-locked regime,
+while R_415 is a STATIC baseline difference between hemispheres over months, and the two need not
+share a sign. So this module reports R_415 as an optical asymmetry whose PERFUSION DIRECTION IS
+UNRESOLVED. Do not read a change in it as hypo- or hyper-perfusion without an independent perfusion
+measure (laser speckle, or a manipulation with a known direction).
 
 WHY RATIOS AND NOT ABSOLUTE COUNTS. `crossday_intensity` already tracks the absolute brain-ROI median
 and warns on its own figure that LED power is titrated by hand day to day, so its trend may be the
@@ -219,9 +229,9 @@ def plot(rows, out_dir, group="all"):
     animals = sorted({r["animal"] for r in rows})
     fig, axes = plt.subplots(3, len(animals), figsize=(4.2 * len(animals), 9.0), squeeze=False,
                              sharex="col")
-    keys = [("ratio_415", "415 nm  L/R  (absorption; UP = left less absorbing = HYPOperfused)"),
+    keys = [("ratio_415", "415 nm  L/R  (optical asymmetry; perfusion DIRECTION unresolved)"),
             ("ratio_470", "470 nm  L/R  (optical + neural, NOT interpretable alone)"),
-            ("ratio_gcamp_specific", "470/415  L/R  (GCaMP-specific, absorption divided out)")]
+            ("ratio_gcamp_specific", "470/415  L/R  (GCaMP-specific, optical component divided out)")]
     for c, a in enumerate(animals):
         sub = [r for r in rows if r["animal"] == a and r.get(group)]
         dates = [r["date"] for r in sub]
@@ -256,10 +266,11 @@ def plot(rows, out_dir, group="all"):
     fig.suptitle(
         f"LEFT/RIGHT raw fluorescence across days — region group '{group}'. Ratios, not absolute "
         "counts: LED power is titrated by hand day to day, and that cancels within a session but not "
-        "across one. 415 nm is the GCaMP isosbestic, so it tracks HAEMOGLOBIN ABSORPTION — "
-        "hypoperfusion raises it, and raises 470 with it. A left-sided 470 rise is therefore NOT "
-        "evidence of activity unless the 470/415 ratio moves too. L/R is never 1.0 in a healthy "
-        "mouse; only a MOVE from the animal's own pre-stroke range means anything.",
+        "across one. 415 nm is the isosbestic channel, so a left-sided 470 rise is NOT evidence of "
+        "activity unless 470/415 moves too. The PERFUSION DIRECTION of a 415 change is UNRESOLVED: "
+        "measured here the raw 415 RISES with activation (+0.5 to +2.0%), contradicting a simple "
+        "absorption account, so do not read a 415 shift as hypo- or hyper-perfusion. L/R is never "
+        "1.0 in a healthy mouse; only a MOVE from the animal's own pre-stroke range means anything.",
         fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out_dir) / f"hemispheric_intensity_{group}.png"

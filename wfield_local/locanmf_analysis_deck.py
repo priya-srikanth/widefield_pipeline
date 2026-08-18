@@ -192,11 +192,18 @@ M_HEMI = (
     "and bleaching. What does NOT cancel is anything spatially asymmetric -- window clarity, focus "
     "tilt, uneven illumination, headplate shift -- so the question is never 'is L/R != 1' (it never "
     "is) but 'did L/R MOVE from this animal's own pre-stroke range'."
-    "\n\nTHE 470 AND 415 QUESTIONS ARE THE SAME MEASUREMENT. 415 nm is the GCaMP isosbestic: it is "
-    "insensitive to calcium and dominated by haemoglobin absorption. Less blood means less "
-    "absorption, so hypoperfusion RAISES the raw counts at 415 and raises them at 470 too. A "
-    "left-sided 470 increase is exactly what hypoperfusion predicts with NO change in neural "
-    "activity. Only the ratio of ratios, (470 L/R) / (415 L/R), is GCaMP-specific."
+    "\n\nTHE 470 AND 415 QUESTIONS ARE THE SAME MEASUREMENT. 415 nm is the isosbestic "
+    "channel, meant to carry the optical component without calcium, so only the ratio of "
+    "ratios (470 L/R)/(415 L/R) is GCaMP-specific."
+    "\n\nTHE PERFUSION DIRECTION IS UNRESOLVED, and an earlier version of this note "
+    "asserted it wrongly (Priya challenged it, 2026-08-18). It argued that haemoglobin "
+    "absorbs, so more blood means less light, so a 415 RISE meant hypoperfusion. Measured "
+    "here that is backwards: cue-triggered averages of the RAW violet trace RISE in all four "
+    "animals (+0.54 to +1.96%), tracking the blue positive control (+2.31 to +3.69%) at about "
+    "a third of its amplitude. Nor can the sign simply be flipped -- that test is the DYNAMIC "
+    "task-locked regime while the L/R ratio is a STATIC months-long baseline, and they need "
+    "not agree. Read a 415 change as an optical asymmetry of UNKNOWN perfusion sign until an "
+    "independent measure (laser speckle, or a manipulation of known direction) settles it."
     "\n\nRESULT ON 8/17: NO detected change. Every measure sits inside the animal's own pre-stroke "
     "range in both region groups -- PS94 whole-hemisphere 415 z=+0.7, 470 z=+0.3, GCaMP-specific "
     "z=-0.9; PS95 z=+0.3, -0.3, -0.9; SSp similar (|z| <= 0.8). No evidence here for a left-sided "
@@ -842,7 +849,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G3_confusion.png", top=1.6, width=9.2)
 
-            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
                 _f = src / f"poststroke_G3b_confusion_alltrials_{_al}.png"
                 if not _f.exists():
                     continue
@@ -911,12 +918,29 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 note(s, M_POSTSTROKE)
                 big(s, src / "poststroke_G7_control_behaviour.png", top=1.6, width=12.5)
 
-        # --- G9. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
+        # G7c: the same all-trials matrix as G3b, for the control animals. At 8 spaces, NOT 12 --
+        # it was nested inside the G9 loop and rendered twice (slides 140-141 duplicated 137-138),
+        # and it rebound that loop's own `_f`. Loop variable renamed so it cannot shadow again.
+        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
+            _cf = src / f"poststroke_G7c_control_confusion_alltrials_{_al}.png"
+            if not _cf.exists():
+                continue
+            s = slide()
+            title(s, f"G7c. NEGATIVE CONTROL \u2014 {_nice} confusion, all trials",
+                  "The same all-trials matrix as G3b, for the animals whose lesion did not take. "
+                  "Near-diagonal, with prediction rates of 0.09-0.21 (uniform is 0.167) \u2014 NO "
+                  "systematic pull toward any position. That is what makes PS94's far_R "
+                  "over-prediction (0.35 of all its post-stroke trials) a lesion effect rather than "
+                  "a property of the frozen decoder or of 8/17.")
+            note(s, M_POSTSTROKE)
+            big(s, _cf, top=1.85, width=9.6)
+
+        # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
                  for g in ("all", "SSp") if (src / f"hemispheric_intensity_{g}.png").exists()]
         for _g, _f in _hemi:
             s = slide()
-            title(s, f"G9. LEFT/RIGHT raw fluorescence across days \u2014 {_g}",
+            title(s, f"G8. LEFT/RIGHT raw fluorescence across days \u2014 {_g}",
                   "Is the lesioned hemisphere brighter, and is there hypoperfusion? 415 nm is the "
                   "GCaMP ISOSBESTIC, so it reports haemoglobin absorption: hypoperfusion raises it "
                   "AND raises 470 with it. A left-sided 470 rise is therefore not an activity change "
@@ -924,23 +948,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_HEMI)
             big(s, _f, top=1.9, width=12.9)
 
-            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
-                _f = src / f"poststroke_G7c_control_confusion_alltrials_{_al}.png"
-                if not _f.exists():
-                    continue
-                s = slide()
-                title(s, f"G7c. NEGATIVE CONTROL — {_nice} confusion, all trials",
-                      "The same all-trials matrix as G3b, for the animals whose lesion did not take. "
-                      "Near-diagonal, with prediction rates of 0.09-0.21 (uniform is 0.167) — NO "
-                      "systematic pull toward any position. That is what makes PS94's far_R "
-                      "over-prediction (0.35 of all its post-stroke trials) a lesion effect rather "
-                      "than a property of the frozen decoder or of 8/17.")
-                note(s, M_POSTSTROKE)
-                big(s, _f, top=1.85, width=9.6)
-
-        # --- G8. what is NOT here, and why
+        # --- G9. what is NOT here, and why
         s = slide()
-        title(s, "G8. Excluded sessions and deferred analyses",
+        title(s, "G9. Excluded sessions and deferred analyses",
               "A section that does not say what it left out reads as though it covered everything.")
         note(s, M_POSTSTROKE)
         bullets(s, [

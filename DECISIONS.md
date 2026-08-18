@@ -1567,17 +1567,46 @@ Priya's observation: *"post-stroke there is higher GCaMP 470 nm signal in the L 
 parietally... as well as changes in 415 nm hemodynamic signal (is there evidence of L hemisphere
 hypoperfusion after striatal stroke?)"*
 
-**These cannot be asked separately.** 415 nm is the GCaMP isosbestic: insensitive to calcium, dominated
-by haemoglobin absorption. Less blood in the light path means less absorption, so hypoperfusion RAISES
-the raw counts at 415 — **and raises them at 470 too**, because the same blood absorbs both. A
-left-sided rise in 470 is exactly what hypoperfusion predicts *with no change in neural activity*. The
-anecdotal impression may BE the hypoperfusion rather than something beside it.
+**These cannot be asked separately**, because 415 nm is the isosbestic channel and therefore the
+control for 470: only the ratio of ratios is GCaMP-specific.
+
+> ### ⚠ RETRACTED 2026-08-18, same day: the absorption argument was wrong
+>
+> This section originally argued that haemoglobin absorbs, so more blood means less light, so
+> hypoperfusion RAISES the 415 counts. Priya challenged it — *"I think typically increased blood means
+> increased 415 and 470 signal, a-la neurovascular coupling"* — and the data agree with her.
+> Cue-triggered averages of the RAW violet trace (`scratchpad/hemo_sign_check.py`), whole brain:
+>
+> | session | 470 evoked (positive control) | 415 evoked |
+> |---|---|---|
+> | PS94_0814 | +3.69% | **+1.96%** |
+> | PS95_0814 | +3.54% | **+1.00%** |
+> | PS93_0812 | +2.66% | **+0.93%** |
+> | PS92_0813 | +2.31% | **+0.54%** |
+>
+> The 415 signal **rises** with activation in every animal, tracking the blue at about a third of its
+> amplitude. A simple absorption account predicts a dip. Why it rises is open: 415 nm is not exactly
+> GCaMP's isosbestic (~410 nm) so calcium can leak in; near the Soret band HbO and HbR absorb very
+> differently, so an HbO rise with an HbR fall need not raise total absorption; and flavoprotein
+> autofluorescence sits in this range.
+>
+> **The sign cannot simply be flipped either.** That test characterises the DYNAMIC, task-locked
+> regime; the L/R ratio is a STATIC baseline difference over months, and the two need not agree. So the
+> perfusion DIRECTION of a 415 change is **unresolved**. The null result below stands — what is
+> withdrawn is the claim that a change would have meant hypoperfusion. Settling it needs an independent
+> perfusion measure (laser speckle, or a manipulation of known direction).
+>
+> Two getting-it-wrong notes worth keeping: the first version of the check reported +692% and −2881%
+> evoked responses, because `U @ SVT` reconstructs the DEVIATION from each channel's mean (the
+> reconstructed means are 0) and I divided by them. And it assumed the channel order from a docstring
+> rather than deriving it — `SVTcorr` is the corrected BLUE channel, so whichever half of `SVT` it
+> correlates with IS blue, which is now how it is determined.
 
 Only the ratio of ratios separates them (`wfield_local/hemispheric_intensity.py`):
 
 | quantity | meaning |
 |---|---|
-| `R_415 = median(415, L) / median(415, R)` | absorption only. UP = left less absorbing = **hypoperfused** |
+| `R_415 = median(415, L) / median(415, R)` | optical asymmetry, ~calcium-free. Perfusion direction **unresolved** — see the retraction above |
 | `R_470 = median(470, L) / median(470, R)` | optical **+** neural. Not interpretable alone |
 | `G = R_470 / R_415` | GCaMP-specific, absorption divided out |
 
@@ -1600,7 +1629,7 @@ Every measure sits inside the animal's own pre-stroke range, whole-hemisphere an
 | PS94 | SSp | z = +0.2 | z = +0.3 | z = −0.3 |
 | PS95 | SSp | z = +0.4 | z = +0.8 | z = −0.3 |
 
-No evidence for a left-sided 470 increase, and none for left hypoperfusion, one day after the lesion.
+No evidence for a left-sided 470 increase, and no detectable change in the optical asymmetry, one day after the lesion. (Whether an asymmetry change would have indicated hypo- or hyper-perfusion is unresolved.)
 
 ### Read that null with its power — two real limits
 

@@ -17,6 +17,7 @@ for that boundary.
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -47,7 +48,7 @@ def test_section_g_never_selects_sessions_by_date():
 def test_excluded_sessions_are_named_on_a_slide_not_just_dropped():
     """Dropping them silently is how a pooled slide reads as covering the whole cohort."""
     assert 'session_phase(a, "0817") == "excluded"' in SRC
-    assert "G8. Excluded sessions" in SRC, "the section must state what it left out"
+    assert "G9. Excluded sessions" in SRC, "the section must state what it left out"
 
 
 def test_the_post_pool_is_exactly_the_two_lesioned_animals():
@@ -198,7 +199,7 @@ def test_the_negative_control_slide_is_built_from_the_excluded_list():
     import tokenize
 
     assert "NEGATIVE CONTROL" in SRC
-    g7 = SRC.split("# --- G7. NEGATIVE CONTROL")[-1].split("# --- G8.")[0]
+    g7 = SRC.split("# --- G7. NEGATIVE CONTROL")[-1].split("# --- G9.")[0]
     assert "_excluded" in g7, "the control slide must be driven by the excluded-phase resolver"
 
     # An animal name is fine in a COMMENT or a caption -- the slide has to say which animals these
@@ -210,3 +211,48 @@ def test_the_negative_control_slide_is_built_from_the_excluded_list():
             raise AssertionError(
                 f"animal {tok.string} is hardcoded as an identifier in the control slide; "
                 f"the session set must come from session_phase via _excluded")
+
+
+# ------------------------------------------------------------------------------------------------
+# no slide may be built twice
+# ------------------------------------------------------------------------------------------------
+def test_no_figure_is_placed_on_two_slides_with_the_same_title(tmp_path):
+    """Priya spotted slides 140-141 duplicating 137-138.
+
+    Cause: the G7c block was written at 12-space indentation, copying a pattern that had been inside
+    an `if`, and landed inside `for _g, _f in _hemi:` -- so it rendered once per hemispheric region
+    group, and rebound that loop's own `_f` on the way. Nothing failed; the deck simply built two
+    extra slides and reported "0 missing", because a duplicate is indistinguishable from an intended
+    repeat at build time.
+
+    A repeated (title, image) pair is never intentional in this deck: the same figure under two
+    different titles is fine (a control shown twice in different framings), and the same title over
+    two different figures is fine (per-animal slides). Both at once means a loop ran too many times.
+    """
+    from collections import Counter
+
+    from pptx import Presentation
+
+    from wfield_local.paths import PathResolver
+
+    src = Path(PathResolver().root("figures_working"))
+    if not src.exists():
+        pytest.skip("figure root not available on this machine")
+    out = tmp_path / "dup_check.pptx"
+    deck.build_analysis_deck(src, out)
+    prs = Presentation(str(out))
+
+    seen = Counter()
+    for i, sl in enumerate(prs.slides, 1):
+        texts = [sh.text_frame.text for sh in sl.shapes
+                 if sh.has_text_frame and sh.text_frame.text.strip()]
+        title = texts[0].split("\n")[0] if texts else ""
+        for sh in sl.shapes:
+            if sh.shape_type == 13:                     # PICTURE
+                try:
+                    seen[(title, sh.image.sha1)] += 1
+                except Exception:                        # noqa: BLE001 - unreadable blob
+                    pass
+    dupes = {k: n for k, n in seen.items() if n > 1}
+    assert not dupes, ("the same figure is placed under the same title on multiple slides -- a loop "
+                       f"is nested one level too deep: {[t for t, _ in dupes]}")
