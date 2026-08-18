@@ -1373,6 +1373,31 @@ preserved function. Compute every criterion; compare like with like.
 `reference_position_engagement` measures motivation only at positions the deficit is expected to
 spare (Priya's close_L/close_center), parameterised because which are spared is a phenotype question.
 
+## Per-session LocaNMF component COUNT is not a stable quantity (noted 2026-08-18)
+
+Fitting the first post-stroke night, PS92 8/17 came out at 143 components with regions 19/25/26
+absorbing 19/20/16 of them while every other region had 1-4 -- which looks alarming until it is
+compared with that animal's own history. Every PS92 session looks like this: 121-196 components,
+the same three regions taking 16-20 each, including 8/14 at 143 with exactly regions 19/25/26. Its
+post-stroke session is indistinguishable from its baseline.
+
+The variable animal is PS93, and it varies WITHIN the pre-stroke period: clean on 6/5, 6/6, 8/6,
+8/10, 8/13, 8/14 (80-91 components, max 2-3 per region) and heavily split on 6/7, 6/8, 8/5, 8/7,
+8/9, 8/11, 8/12 (98-166, max 8-20). Its 8/17 falls in the clean group.
+
+**Do not read a change in component count or per-region concentration as a lesion effect.** It swings
+by a factor of two within an animal across pre-stroke days, so the post-stroke value carries no
+information on its own. It also explains fit runtimes differing 7x between sessions (PS92 425 s vs
+PS93 62 s) -- that is the splitting, not a problem.
+
+The post-stroke comparisons are immune by construction: the frozen decoder uses Allen-ROI features
+and the joint analyses use SHARED footprints with new days PROJECTED, so neither depends on how many
+components a session's own fit produced. That immunity is the reason the cross-day work was put in
+those two bases in the first place, and this is the first observation that tests it.
+
+Worth a proper QC metric later (per-region concentration over sessions) if anyone wants to know what
+drives the swing; it is not needed for the stroke comparison.
+
 ## PLANNED vs EXECUTED direction — pending DLC/FR (Priya, 2026-08-17)
 
 Priya: once DLC/facial tracking lands, pre-cue trials could be binned by the direction the TONGUE

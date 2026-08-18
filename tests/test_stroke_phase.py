@@ -120,3 +120,31 @@ def test_pre_stroke_pool_is_unchanged_by_the_lesion_metadata():
     pre = config.curated_dates()
     assert pre[-1] == "0814" and len(pre) == 11
     assert config.stroke_cutoff() == "0816"
+
+
+# ---------------------------------------------------------------------------------------------
+# POST-STROKE SUMMARIES: the excluded sessions may be PROJECTED and shown per-session, but must
+# never enter a pooled summary (Priya, 2026-08-18).
+# ---------------------------------------------------------------------------------------------
+def test_post_stroke_summary_label_set_excludes_the_failed_lesions():
+    """`phase_labels("post")` is the ONLY sanctioned way to build a post-stroke pool.
+
+    The tempting shortcut -- select sessions by DATE, e.g. label.endswith("0817") -- sweeps in
+    PS92 and PS93, whose 8/17 lesion produced no deficit. They are fine to project onto the joint
+    bases and fine to show individually; they must not dilute a post-stroke summary.
+    """
+    post = set(config.phase_labels("post"))
+    by_date = {s["label"] for s in config.load_sessions() if s["label"].endswith("0817")}
+    assert post == {"PS94_0817", "PS95_0817"}
+    leaked = (by_date - post) & {"PS92_0817", "PS93_0817"}
+    assert leaked, "fixture check: the date-based shortcut should differ from the phase-based one"
+    for lab in ("PS92_0817", "PS93_0817"):
+        assert lab not in post, f"{lab} would dilute a post-stroke summary"
+
+
+def test_excluded_sessions_are_still_registered_and_projectable():
+    """Excluded from POOLS, not from the pipeline: they must still resolve as sessions so their
+    per-session figures and joint projections can be produced."""
+    labs = {s["label"] for s in config.load_sessions()}
+    for lab in ("PS92_0817", "PS93_0817"):
+        assert lab in labs, f"{lab} must remain registered so it can be projected and plotted"
