@@ -967,6 +967,10 @@ def session_row(session_dir: Path, params: dict, rv=None) -> dict | None:
     for idx in IDX_ORDER:
         nm = POS_BY_IDX[idx]["name"]
         rec[nm] = acc.loc[idx, "hit_rate"] if idx in acc.index else np.nan   # back-compat (hit rate)
+        # the UNGATED rate, so the longitudinal figure can show what the engagement gate removed.
+        # Post-stroke the gate drops motor failures (PS94 8/17: 59% of trials), which is precisely
+        # the effect being measured -- see DECISIONS.md "POST-STROKE ENGAGEMENT FILTERING IS RETIRED".
+        rec[f"hitall__{nm}"] = acc.loc[idx, "hit_rate_all"] if idx in acc.index else np.nan
         for prefix, table, col, _label in POS_METRICS:
             t = src[table]
             rec[f"{prefix}__{nm}"] = (t.loc[idx, col] if (t is not None and idx in t.index) else np.nan)
@@ -1128,12 +1132,22 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
             if key in adf:
                 ax.plot(x, adf[key].to_numpy(), color=pos_color(idx), marker=SIDE_MARKER[p["side"]],
                         ls=SIDE_LS[p["side"]], ms=5, alpha=0.9, label=_disp(p["name"]))
+            raw_key = f"hitall__{p['name']}"
+            if prefix == "hit" and raw_key in adf:      # ungated: thin, no marker, same colour
+                ax.plot(x, adf[raw_key].to_numpy(), color=pos_color(idx), lw=0.9, alpha=0.5,
+                        ls="-", zorder=1)
         ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
         _mark_stroke(ax, bx, excl, annotate=(prefix == "hit"))
-        ax.set_title(label)
+        ax.set_title(label if prefix != "hit"
+                     else "hit rate — bold+marker = ENGAGED-gated, thin = ALL trials")
         if prefix == "hit":
             ax.set_ylim(0, 1.05)
             ax.legend(fontsize=7, ncol=2)
+            if bx is not None:
+                # the gate is a PRE-stroke construction; after a lesion it removes motor failures
+                ax.text(0.01, 0.02, "after the lesion the gate drops motor failures — read the "
+                                    "THIN lines", transform=ax.transAxes, fontsize=6.5,
+                        color="firebrick", style="italic")
     # session-level panel: hit rate, close/far, engagement fraction over sessions
     ax = axes.flat[5]
     ax.plot(x, adf["hit_rate"], "-o", color="k", label="hit rate (engaged)")

@@ -752,7 +752,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ])
 
         # --- G1. behaviour, from the nightly pipeline's own longitudinal figures
-        for a in animals:
+        # Iterate the POST-STROKE animals, not every animal: PS92/PS93 have no post-stroke figure by
+        # design, and counting them through _exists reported two "missing figures" for files that
+        # should not exist -- which makes the build's own missing-figure count useless as a check.
+        _post_animals = sorted({l.split("_")[0] for l in _post_labels})
+        for a in _post_animals:
             beh = src / f"poststroke_G1a_behaviour_{a}.png"
             if not _exists(beh):
                 continue

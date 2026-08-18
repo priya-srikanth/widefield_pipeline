@@ -406,7 +406,7 @@ def undetected_state_split(d, keep, args, seed=0):
     return out
 
 
-def impaired_nolick_readout(d, keep, n_perm=2000):
+def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     """Was a PLAN formed on post-stroke trials where no lick was detected? (Priya, 2026-08-18.)
 
     This replaces `undetected_state_split`, which needed a "disengaged" label that has no valid
@@ -452,13 +452,35 @@ def impaired_nolick_readout(d, keep, n_perm=2000):
         r["per_position"] = na.per_position_recall(y, pred, labels=list(labs))
         out[name] = r
     a, b = out.get("impaired", {}), out.get("preserved", {})
-    if "balanced_accuracy" in a:
-        out["verdict"] = ("plan READ OUT on no-lick trials at impaired positions -> execution failure"
-                          if a.get("bal_p", 1.0) < 0.05 else
-                          "no decodable plan on impaired no-lick trials -> execution failure NOT "
-                          "supported by this test (see the DLC caveat)")
-        if "balanced_accuracy" in b:
-            out["impaired_minus_preserved"] = float(a["balanced_accuracy"] - b["balanced_accuracy"])
-    else:
+    if "balanced_accuracy" not in a:
         out["verdict"] = "UNDECIDABLE -- too few no-lick trials at impaired positions"
+        return out
+    if "balanced_accuracy" in b:
+        out["impaired_minus_preserved"] = float(a["balanced_accuracy"] - b["balanced_accuracy"])
+
+    # MULTIPLICITY: this function is run per alignment x arm, so a whole pass is 2 alignments x
+    # 2 arms x n_animals tests. A single uncorrected p just under 0.05 is not a result, and the first
+    # version of this verdict declared "execution failure" from PS95's p=0.017 (x8 = 0.14).
+    p = a.get("bal_p", 1.0)
+    out["bal_p_bonferroni_x8"] = float(min(1.0, p * 8))
+    survives = out["bal_p_bonferroni_x8"] < 0.05
+
+    if alignment == "precue":
+        # The clean index of a PLAN: before the cue there is no movement to explain the signal.
+        out["verdict"] = (
+            "PRE-CUE position code present on no-lick trials at impaired positions -> plan formed, "
+            "movement failed" if survives else
+            "no decodable PRE-CUE plan on impaired no-lick trials -> execution failure NOT supported "
+            "by this test" + ("" if p >= 0.05 else " once corrected for the 8 tests in a pass"))
+    else:
+        # POST-cue is NOT a plan readout on these trials. The spout is physically present throughout,
+        # so a position-specific sensory response exists whether or not anything was planned, and
+        # post-cue decoding is in any case largely lick-driven -- which is why the pre-stroke
+        # dissociation used pre-cue survival as the discriminating quantity.
+        out["verdict"] = (
+            "post-cue position code present on impaired no-lick trials -- AMBIGUOUS: the spout is "
+            "present, so this may be a sensory response rather than a plan. Read the pre-cue arm."
+            if survives else
+            "no post-cue position code on impaired no-lick trials")
+    out["verdict"] += ". CAVEAT: 'no lick detected' is not 'no tongue protrusion' -- DLC settles it."
     return out
