@@ -1692,3 +1692,67 @@ comparisons.
 
 Renamed SMALL-LESION COMPARISON throughout rather than merely re-worded, so a reader skimming a slide
 title cannot pick up the wrong reading.
+
+
+## Adjacent same-position blocks MERGE in the pipeline's block IDs (audited 2026-08-18)
+
+Priya: *"I want to be sure we are appropriately labeling two blocks when the GUI randomly put two
+blocks of the same position next to each other."*
+
+She is right that it happens and right that the pipeline mislabels it. `_trial_features` starts a new
+block whenever the POSITION changes, so two consecutive blocks at the same position become one.
+
+### The firmware records the ground truth, and I first said it didn't
+
+`device_snapshot_end.json` carries **`block_number`** — the firmware's own count of blocks scheduled
+(`block_pos`, `block_trial`, `current_block_size` are there too). I initially reported no block ID
+anywhere in the logs, having checked only `events.csv` event names and `config_changes.csv` keys, and
+missed `session_manifest.json` and the device snapshots.
+
+It is a **total, not per-trial**: the GUI polls device status every 1 s
+(`auto_status_poll_interval_s: 1.0`) but `logging.timeseries_enabled: False`, so the polls were never
+written. Turning that flag on would give per-trial block IDs for all future sessions and is the
+cheapest permanent fix.
+
+`firmware_blocks − observed_runs` is therefore the exact merge count per session, with no inference.
+
+### Audited over all 48 curated + 8/17 sessions
+
+**118 merges / 4216 firmware blocks = 2.8%**, range 0–8.2% per session. A run longer than
+`block_size_max` (8) cannot be one block, and that detector catches ~92% (108/118). The residual ~10
+are 4+4 merges at run-length exactly 8 and are not detectable from run length.
+
+**Positions must come from the DAQ, not `trials.csv`.** The GUI's `pos_idx` is mislabelled on
+position-change trials (docs/GUI_TRIALS_LOGGING.md) — exactly the trials that define a boundary. Using
+it gave PS94 8/17 an impossible count: 107 runs with 9 runs longer than 8, i.e. ≥116 blocks, against a
+firmware count of 110.
+
+**Two sessions have MORE runs than firmware blocks**, which cannot happen: PS93_0806 (−1) and
+PS92_0812 (−4). Both are already-flagged: dead `spout_bit1` behaviour-log fallback, and the
+crash-and-concat session. The check is worth keeping as a position-labelling guard regardless of the
+merge question.
+
+### Impact: the error runs in the SAFE direction
+
+Merging makes GroupKFold groups larger, so more correlated data is held out together — the current CV
+is *more* conservative, not inflated. Measured on the eight worst-affected sessions, both alignments:
+
+| | delta (split − merged) |
+|---|---|
+| mean | **+0.0105** |
+| max abs | 0.0528 (PS93_0817 pre-cue) |
+| sign | 10/16 positive |
+
+Splitting RAISES accuracy on average, confirming the direction. **Caveat I cannot yet remove:** the
+±0.05 scatter is probably dominated by fold-reassignment noise rather than the merge itself — changing
+group membership reshuffles folds and moves accuracy regardless. Separating the two needs a shuffled-
+group control at matched group count, which is not run. So "+0.011 mean" should be read as *no
+evidence of inflation*, not as a measured merge effect.
+
+### Decision
+
+Not urgent, because nothing is inflated. When done: split over-long runs at `block_size_max`, bump
+`CACHE_VERSION`, and assert per session that the block count matches `device_snapshot_end.json` — that
+last part turns the firmware count into a permanent guard. Leaves unfixed, and to be documented rather
+than hidden: the ~10 hidden 4+4 merges, and the placement of a split inside an over-long run (11 could
+be 4+7, 5+6, 6+5 or 7+4).
