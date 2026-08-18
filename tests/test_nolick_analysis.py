@@ -281,10 +281,25 @@ def test_absent_lick_is_undetected():
 # ---------------------------------------------------------------------------------------------
 # the pre/post-stroke criterion guard
 # ---------------------------------------------------------------------------------------------
-def test_comparing_different_criteria_raises():
-    """engaged-only pre vs all-trials post is the confound that mimics a stroke effect."""
+def test_comparing_UNDECLARED_different_criteria_raises():
+    """An undeclared mismatch is the confound that mimics a stroke effect."""
     with pytest.raises(ValueError, match="criteria differ"):
-        na.assert_comparable({"criterion": "engaged_2s"}, {"criterion": "all_trials"})
+        na.assert_comparable({"criterion": "engaged_2s"}, {"criterion": "engaged_respwin"})
+
+
+def test_a_SANCTIONED_mismatch_is_permitted_and_carries_its_reason():
+    """engaged-pre vs all-post is deliberate (Priya, 2026-08-18) because post-stroke no-lick trials
+    are execution failures, not disengagement. The guard exists to stop ACCIDENTAL mixing, so a
+    declared pair passes -- and returns the reason rather than a bare True, so the mismatch travels
+    with the result instead of being forgotten."""
+    r = na.assert_comparable({"criterion": "engaged_2s"}, {"criterion": "all_trials"})
+    assert isinstance(r, dict) and r["sanctioned_mismatch"] == ["engaged_2s", "all_trials"]
+    assert "execution failures" in r["why"]
+
+
+def test_sanction_is_symmetric():
+    a = na.assert_comparable({"criterion": "all_trials"}, {"criterion": "engaged_2s"})
+    assert isinstance(a, dict)
 
 
 def test_missing_criterion_raises_rather_than_assuming():

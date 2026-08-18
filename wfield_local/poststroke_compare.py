@@ -32,6 +32,16 @@ from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAME
 
 MIN_POST = 20          # a position needs this many post-stroke engaged trials to be "preserved"
 
+#: Positions used to judge post-stroke ENGAGEMENT: close_L and close_center only (Priya,
+#: 2026-08-18). Deliberately NOT every position that survives on 8/17. close_R is CONTRALESIONAL
+#: (both lesions are left-sided) and far_L carries the distance effect, so either could be impaired
+#: -- and a reference position that is itself impaired turns the gate back into the thing it exists
+#: to avoid, labelling motor failure as disengagement. These two are the least likely to be affected
+#: by a left VLS lesion, so a miss there is the strongest available evidence of genuine
+#: disengagement. Empirical: revisit if an animal turns out to miss them.
+REFERENCE_POSITIONS = [c for c in DISPLAY_ORDER
+                       if POSITION_NAMES[c] in ("close_L", "close_center")]
+
 
 def _pooled(animal, align, source="roi"):
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
