@@ -2005,3 +2005,72 @@ not stronger.
 animals on day 1, and PS95's far_R is 0.086 with one lick trial on 8/17 and 0.643 with 84 on 8/18 —
 tracking behaviour exactly. On the all-trials arm that is partly trial composition, not necessarily a
 lesion effect on the response to a given movement.
+
+## THE MIDLINE TEST IS A NULL; PS94's PRE-CUE GEOMETRY IS NOT (2026-08-19)
+
+Two tests on the spatial maps (`spatial_reorganisation`), both following from one prediction: if
+PS94's lateralisation collapses and its position information survives but is unreadable by the frozen
+decoder, those should be one fact seen from two sides.
+
+### Crossnobis convergence, both arms, position-matched bands
+
+z against that animal's pre-stroke range, rebuilt over **each session's own positions**:
+
+| session | post-cue ALL | post-cue LICK | pre-cue ALL | pre-cue LICK |
+|---|---|---|---|---|
+| PS92 8/18 | **−3.3** | −1.3 | −0.1 | −0.4 |
+| PS93 8/18 | **−2.3** | −1.4 | −1.2 | −1.4 |
+| PS94 8/17 | **−3.0** | −1.4 | **−3.7** | **−3.2** |
+| PS94 8/18 | **−4.2** | **−3.4** | **−5.5** | **−5.4** |
+| PS95 8/17 | −1.2 | +2.4 | +0.2 | −1.7 |
+| PS95 8/18 | +1.6 | +2.7 | +0.5 | +0.4 |
+
+Post-cue geometry converges in three of four on day 1. On the lick-only arm those weaken sharply, so
+much of the post-cue convergence is carried by the no-lick trials — expected if the missing movement
+is what changed, and a reason to read both arms rather than pick one.
+
+### The result that qualifies the headline
+
+**PS94's PRE-CUE geometry is degraded too**, and it survives the lick-only arm almost unchanged
+(−3.7 → −3.2, −5.5 → −5.4). So it is *not* an artefact of folding heterogeneous no-lick trials into a
+within-position covariance estimate — the obvious explanation, tested for exactly that reason. The
+other three animals' pre-cue geometry stays inside the band.
+
+This reconciles with PS94's pre-cue **decoding** sitting inside its band (z=−0.2) because crossnobis
+measures distance in noise units while decoding asks whether a boundary can still be drawn. PS94's
+pre-stroke pre-cue crossnobis is unusually large — **5.71** against 1.30 (PS92), 1.98 (PS93), 1.65
+(PS95) — so falling to 2.45 leaves it roughly where the other three animals normally sit, comfortably
+decodable.
+
+**So for PS94 the dissociation is a matter of DEGREE**: both windows lose separability and only the
+post-cue loss crosses the threshold where six-way decoding fails. It is not "pre-cue untouched". For
+PS92, PS93 and PS95 the dissociation is clean on crossnobis as well.
+
+### Two corrections to the criteria, both found by putting real numbers through them
+
+**The bands were not position-matched.** `mean_distance` averages over the position PAIRS a session
+has — 15 for six positions, 6 for four. On the lick-only arm PS94 keeps four positions and PS95 kept
+five on 8/17, so scoring them against a six-position band compared a mean over one pair set with a
+mean over another. A different quantity, not a smaller one. Same error class as the decoding arms'
+chance level moving with behaviour, arriving through the pair set instead.
+
+**TRANSFER did not require the pattern to resemble anything.** PS94 far_center, cue-aligned:
+normal_r −0.632 / mirror_r −0.480 on 8/17, and −0.100 / +0.043 on 8/18. The post-stroke pattern is
+*anti*-correlated with its own pre-stroke pattern and barely correlated with the mirrored one — it
+resembles neither — yet mirror beat normal by more than the margin, so both days were flagged
+TRANSFER. That would have put "the representation relocated across the midline" in the deck for the
+position where the representation had **disappeared**. An earlier version of the same rule flagged a
+0.005 correlation difference. Three verdicts now: TRANSFER (needs `mirror_r ≥ 0.20`, ahead of normal,
+and beating the pre-stroke baseline by 0.15), REDUCED ASYMMETRY, and **PATTERN LOST**.
+
+### Results after the corrections
+
+**Midline transfer is a clean null** — no transfer at any position, in any animal, at either
+alignment, on either arm. The "left map moved right" reading of the map observation is not supported.
+
+What is there instead is **pattern loss**: cue-aligned on day 1, far_R has lost its pattern in all
+four animals, and PS94 and PS95 lose far_center too. Those are the positions the animals stop
+attempting, so on that arm the finding is confounded with the absence of the movement and must not be
+read as a lesioned sensory representation. The **pre-cue** arm, which precedes the movement, shows no
+such far-position concentration — its losses are scattered and mostly PS95's close positions. That
+asymmetry is the caveat, not a footnote to it.
