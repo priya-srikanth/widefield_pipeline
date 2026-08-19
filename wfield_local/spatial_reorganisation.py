@@ -139,6 +139,11 @@ def _crossnobis(A, y, g, labels):
 #: ordering carries almost no information on its own.
 MIRROR_MARGIN = 0.15
 
+#: A correlation below this means the post-stroke pattern resembles neither its own pre-stroke
+#: pattern nor the mirrored one. "Which hemisphere does it look like" is then not a question with an
+#: answer, and both flags are withheld in favour of `pattern_lost`.
+MIN_RESEMBLANCE = 0.20
+
 
 def _flag_mirror(rec):
     """Set `transfer` and `reduced_asymmetry` on one position's mirror record.
@@ -157,8 +162,17 @@ def _flag_mirror(rec):
     asymmetric. REDUCED ASYMMETRY is that weaker, different claim and keeps its own flag.
     """
     d = rec["mirror_minus_normal"] - rec.get("pre_mirror_minus_normal", float("nan"))
-    rec["transfer"] = bool(rec["mirror_r"] > rec["normal_r"] and d > MIRROR_MARGIN)
-    rec["reduced_asymmetry"] = bool(d > MIRROR_MARGIN)
+    # THE PATTERN HAS TO RESEMBLE SOMETHING before "where does it resemble" is a question at all.
+    # PS94 far_center, cue-aligned: normal_r -0.632 and mirror_r -0.480 on 8/17, -0.100 and +0.043 on
+    # 8/18. The post-stroke pattern is ANTI-correlated with its own pre-stroke pattern and barely
+    # correlated with the mirrored one -- it resembles neither -- yet mirror beat normal by more than
+    # the margin, so it was flagged TRANSFER on both days. The honest reading is that the
+    # representation at that position is GONE, which is a different and stronger claim than
+    # relocation, and the two must not be reported as one.
+    rec["pattern_lost"] = bool(max(rec["mirror_r"], rec["normal_r"]) < MIN_RESEMBLANCE)
+    rec["transfer"] = bool(rec["mirror_r"] >= MIN_RESEMBLANCE
+                           and rec["mirror_r"] > rec["normal_r"] and d > MIRROR_MARGIN)
+    rec["reduced_asymmetry"] = bool(d > MIRROR_MARGIN and not rec["pattern_lost"])
     return rec
 
 
@@ -258,6 +272,27 @@ def collect(animals=None, align="cue", source="roi", post_all_trials=True):
     return sorted(rows, key=lambda r: (r["animal"], r["date"]))
 
 
+def _mean_distance_over(row, positions):
+    """Mean crossnobis distance over the PAIRS formed by `positions`, from a stored matrix.
+
+    Recomputed rather than read off `mean_distance`, so a post session scored on four positions is
+    compared with pre sessions scored on the SAME four. Returns NaN if the row lacks any of them.
+    """
+    have = list(row.get("positions") or [])
+    M = np.asarray(row.get("crossnobis"), float) if row.get("crossnobis") is not None else None
+    if M is None or not positions:
+        return float("nan")
+    try:
+        idx = [have.index(p) for p in positions]
+    except ValueError:
+        return float("nan")
+    sub = M[np.ix_(idx, idx)]
+    iu = np.triu_indices(len(idx), k=1)
+    vals = sub[iu]
+    vals = vals[np.isfinite(vals)]
+    return float(vals.mean()) if len(vals) else float("nan")
+
+
 def summarise(rows):
     out = {}
     for a in sorted({r["animal"] for r in rows}):
@@ -267,20 +302,43 @@ def summarise(rows):
             out[a] = {"note": f"{len(pre)} pre / {len(post)} post"}
             continue
         rec = {"n_pre": len(pre)}
-        v = np.array([r.get("mean_distance", np.nan) for r in pre], float)
-        v = v[np.isfinite(v)]
-        if len(v) >= 3:
+        rec["convergence"] = {"post": {}}
+        for r in post:
+            # THE PRE-STROKE BAND IS REBUILT ON THIS SESSION'S OWN POSITION SET.
+            #
+            # `mean_distance` is the mean over the position PAIRS a session has: 15 pairs for six
+            # positions, 6 for four. On the LICK-ONLY arm the post session keeps only the positions
+            # it still licks at -- PS94 has four, PS95 had five on 8/17 -- so scoring it against a
+            # band computed over six positions compares a mean over one pair set with a mean over
+            # another. That is not a smaller number because the code converged; it is a different
+            # quantity. The same error class as the decoding arms' chance level moving with
+            # behaviour, arriving here through the pair set instead.
+            pos = list(r.get("positions") or [])
+            v = np.array([_mean_distance_over(q, pos) for q in pre], float)
+            v = v[np.isfinite(v)]
+            if len(v) < 3:
+                continue
             band = {"mean": float(v.mean()), "sd": float(v.std(ddof=1)),
-                    "min": float(v.min()), "max": float(v.max()), "n": int(len(v))}
-            rec["convergence"] = {"pre_band": band, "post": {}}
-            for r in post:
-                x = r.get("mean_distance", np.nan)
-                z = (x - band["mean"]) / band["sd"] if band["sd"] else np.nan
-                rec["convergence"]["post"][r["label"]] = {
-                    "mean_distance": float(x), "z": float(z),
-                    # LOWER distance = the six positions became less distinguishable
-                    "converged": bool(x < band["min"])}
-        rec["mirror"] = {r["label"]: mirror_test(pre, r) for r in post}
+                    "min": float(v.min()), "max": float(v.max()), "n": int(len(v)),
+                    "positions": pos}
+            x = _mean_distance_over(r, pos)
+            z = (x - band["mean"]) / band["sd"] if band["sd"] else np.nan
+            rec["convergence"]["post"][r["label"]] = {
+                "mean_distance": float(x), "z": float(z), "pre_band": band,
+                "n_positions": len(pos),
+                # LOWER distance = those positions became less distinguishable from one another
+                "converged": bool(x < band["min"])}
+        if rec["convergence"]["post"]:
+            # kept for figures that want one band per animal; only meaningful when every post
+            # session scored the same positions
+            bands = [v["pre_band"] for v in rec["convergence"]["post"].values()]
+            if all(b["positions"] == bands[0]["positions"] for b in bands):
+                rec["convergence"]["pre_band"] = bands[0]
+        # The mirror test needs the raw per-position PATTERNS, which the saved JSON drops (they are
+        # large). Skipped rather than crashed when re-scoring a saved file, so the convergence half
+        # can be recomputed from the stored matrices without a 40-minute re-run.
+        if all("pattern" in r for r in post) and any("pattern" in r for r in pre):
+            rec["mirror"] = {r["label"]: mirror_test(pre, r) for r in post}
         out[a] = rec
     return out
 

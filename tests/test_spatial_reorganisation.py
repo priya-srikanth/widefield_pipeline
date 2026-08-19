@@ -73,3 +73,54 @@ def test_the_margin_is_actually_applied():
     over = _flag_mirror({**base, "mirror_minus_normal": MIRROR_MARGIN + 0.01})
     assert not under["transfer"]
     assert over["transfer"]
+
+
+# ------------------------------------------------------------------------------------------------
+# "Where does the pattern look like it lives now?" presupposes that it looks like SOMETHING.
+# ------------------------------------------------------------------------------------------------
+
+def test_an_anticorrelated_pattern_is_lost_not_transferred():
+    """PS94 far_center, cue-aligned, on BOTH post-stroke days.
+
+    8/17: normal_r -0.632, mirror_r -0.480. 8/18: -0.100 and +0.043. The post-stroke pattern is
+    ANTI-correlated with its own pre-stroke pattern and barely correlated with the mirrored one -- it
+    resembles neither. Because mirror still beat normal by more than the margin, the previous rule
+    called this TRANSFER on both days, which would have put "the representation relocated across the
+    midline" in the deck for the position where the representation had actually disappeared.
+
+    Those are different claims and the stronger one is the true one, so it gets its own flag.
+    """
+    from wfield_local.spatial_reorganisation import _flag_mirror
+
+    for normal, mirror in ((-0.632, -0.480), (-0.100, +0.043)):
+        r = _flag_mirror({"normal_r": normal, "mirror_r": mirror,
+                          "mirror_minus_normal": mirror - normal,
+                          "pre_mirror_minus_normal": -0.230})
+        assert r["pattern_lost"]
+        assert not r["transfer"], "a pattern that resembles nothing has not relocated"
+        assert not r["reduced_asymmetry"], "nor has it become symmetric; it is absent"
+
+
+def test_transfer_still_fires_when_the_mirrored_pattern_is_genuinely_matched():
+    from wfield_local.spatial_reorganisation import _flag_mirror
+
+    r = _flag_mirror({"normal_r": 0.05, "mirror_r": 0.72, "mirror_minus_normal": 0.67,
+                      "pre_mirror_minus_normal": -0.10})
+    assert r["transfer"]
+    assert not r["pattern_lost"]
+
+
+def test_the_three_verdicts_are_mutually_consistent():
+    """pattern_lost excludes the other two; transfer implies reduced_asymmetry. Guards a future
+    edit that loosens one threshold without noticing it has crossed another."""
+    from wfield_local.spatial_reorganisation import _flag_mirror
+
+    grid = [(n / 10, m / 10) for n in range(-9, 10, 3) for m in range(-9, 10, 3)]
+    for n, m in grid:
+        for base in (-0.6, -0.2, 0.0, 0.2):
+            r = _flag_mirror({"normal_r": n, "mirror_r": m, "mirror_minus_normal": m - n,
+                              "pre_mirror_minus_normal": base})
+            if r["pattern_lost"]:
+                assert not r["transfer"] and not r["reduced_asymmetry"], (n, m, base)
+            if r["transfer"]:
+                assert r["reduced_asymmetry"], (n, m, base)
