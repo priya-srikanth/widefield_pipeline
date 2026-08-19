@@ -92,3 +92,39 @@ def test_get_or_compute_caches(tmp_path, monkeypatch):
     ev2 = be.get_or_compute(rv, "PS92", "20260806")
     assert ev2 is not None and np.array_equal(ev1["lick_onsets"], ev2["lick_onsets"])
     assert be.get_or_compute(rv, "PS99", "20260806") is None       # no DAQ .h5 -> None
+
+
+# ------------------------------------------------------------------------------------------------
+# A RE-UPLOADED DAQ KEEPS ITS FILENAME, so the cached events' `daq_h5` field proves nothing.
+#
+# PS93_20260818_145123.h5 was re-recorded after a fault and re-uploaded under the same name on
+# 2026-08-19. The events cached from the first copy stayed on disk and were still used: they recorded
+# n_samples=38,005,000 against the replacement's 37,800,230, and one running bout began past the end
+# of the file. Nothing failed. The frame map HAD been rebuilt from the corrected DAQ, so the running
+# maps combined bout times from one recording with frame alignment from another -- the labelled
+# "running" windows averaged 1.84 mm/s, below the 3 mm/s threshold that supposedly defined them, and
+# the running-minus-quiet contrast collapsed to ~1/20 of every other session's.
+# ------------------------------------------------------------------------------------------------
+
+def test_cached_events_from_a_replaced_daq_are_rejected(tmp_path, capsys):
+    import h5py
+    import numpy as np
+
+    from wfield_local import behavior_events as be
+
+    h5 = tmp_path / "PS93_20260818_145123.h5"
+    with h5py.File(h5, "w") as f:
+        f.create_dataset("analog/samples_int16", data=np.zeros((1000, 6), dtype=np.int16))
+
+    assert be._matches_daq({"n_samples": 1000}, h5, "match")
+    assert not be._matches_daq({"n_samples": 1041}, h5, "PS93_20260818")
+    assert "STALE" in capsys.readouterr().out
+
+
+def test_missing_or_unreadable_daq_does_not_invalidate_a_cache(tmp_path):
+    """The guard must not turn an unrelated failure into a silent recompute of everything."""
+    from wfield_local import behavior_events as be
+
+    assert be._matches_daq({"n_samples": 123}, None, "no daq")
+    assert be._matches_daq({"n_samples": 123}, tmp_path / "nope.h5", "absent")
+    assert be._matches_daq({}, tmp_path / "nope.h5", "no n_samples recorded")

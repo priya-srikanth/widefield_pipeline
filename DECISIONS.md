@@ -1956,3 +1956,52 @@ therefore vouched for every later mention in the module, and one had slipped thr
 the reader "G7 uses them as the negative control" in user-visible text, contradicting the 2026-08-18
 correction. The guard now checks every occurrence, and the G9 bullet has been rewritten to say what
 those sessions actually are: the within-animal before/after control.
+
+## LATERALISATION COLLAPSE IS PS94's ALONE — and DIRECTION is what says so (2026-08-19)
+
+The `evoked_amplitude` headline had been **"amplitude rises in all four animals, graded by
+severity."** It was written from two animals. PS92 and PS93 contributed no post-stroke rows at all
+(see the hardcoded-date entry above), so "all four" described PS94 and PS95. Measured properly, PS92
+shows no rise anywhere.
+
+### What replaces it
+
+Restrict to positions that were **lateralised before the lesion** (|pre-stroke R−L| > 0.15) — a
+position with no lateralisation to begin with cannot lose any, and including them manufactures
+"changes" that are excursions around zero.
+
+| animal | lateralised positions | toward zero | sign reversal | AWAY from zero |
+|---|---|---|---|---|
+| **PS94 8/17** | 6 | **4** | 1 (far_center) | 0 |
+| **PS94 8/18** | 6 | **4** | 1 (far_center) | 0 |
+| PS95 8/17 | 4 | 0 | 0 | 1 (far_R) |
+| PS95 8/18 | 4 | 2 | 0 | 0 |
+| PS93 8/18 | 3 | 0–1 | 1 (close_L) | 0–1 (far_R) |
+| PS92 8/18 | 3–4 | 0 | 0 | 0 |
+
+PS94's four toward-zero positions are `close_L, close_center, close_R, far_R` — **the same four on
+both days and at both alignments**, with `far_center` reversing sign each time (−0.30 → +0.31).
+Four independent readings, no disagreement. `close_R` goes −0.81 → −0.26 (8/17) → −0.20 (8/18).
+
+### The methodological point, which is the recurring one
+
+**Counting "positions outside the pre-stroke band" would score PS93 4/6 and PS94 5/6 and make them
+look alike.** They are moving in opposite directions: PS93's far_R goes −0.19 → −0.47 lick-aligned,
+*more* lateralised. Only the direction separates a collapse from an intensification.
+
+This is the same direction-blindness that twice painted an above-band value as a deficit (PS95's
+recoding verdict, then the grid figure's colouring). Third instance in three days, so the note and
+the slide subtitle now lead with direction rather than with "outside".
+
+### Two caveats kept attached
+
+**The summed measure conflates amplitude with spatial extent.** `abs_total` sums |response| over 66
+areas. G8d's common-scale maps separate them: PS94 peak amplitude rises only at close_L
+(0.039 → 0.073) and close_center (0.029 → 0.055) and *falls* at the far positions, while the summed
+measure rose at far_L (0.278 → 1.070) with its peak flat. The response became spatially **broader**,
+not stronger.
+
+**The far-position amplitude drop covaries with the animal's attempts.** far_R falls in all four
+animals on day 1, and PS95's far_R is 0.086 with one lick trial on 8/17 and 0.643 with 84 on 8/18 —
+tracking behaviour exactly. On the all-trials arm that is partly trial composition, not necessarily a
+lesion effect on the response to a given movement.

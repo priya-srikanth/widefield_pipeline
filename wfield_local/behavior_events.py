@@ -150,17 +150,56 @@ def load_events(path: Path) -> dict | None:
         return out
 
 
+def daq_n_samples(h5_path) -> int | None:
+    """Sample count of a DAQ .h5, reading only the dataset shape. None if unreadable."""
+    import h5py
+
+    if h5_path is None or not Path(h5_path).exists():
+        return None
+    try:
+        with h5py.File(h5_path, "r") as f:
+            return int(f["analog/samples_int16"].shape[0])
+    except Exception:                                                # noqa: BLE001
+        return None
+
+
+def _matches_daq(cached: dict, h5_path, label: str = "") -> bool:
+    """Is this cached events file actually derived from the DAQ now on disk?
+
+    A RE-UPLOADED DAQ KEEPS ITS FILENAME, so `daq_h5` matching proves nothing. PS93_20260818_145123.h5
+    was re-recorded and re-uploaded on 2026-08-19 after a recording fault; the events cached from the
+    first copy stayed on disk, recording n_samples=38,005,000 against the replacement's 37,800,230 --
+    41 s of running/quiet segmentation belonging to a recording that no longer exists, including one
+    running bout starting past the end of the file. Nothing failed. The frame map had been rebuilt
+    from the corrected DAQ, so the running maps mixed bout times from one recording with frame
+    alignment from another.
+
+    Sample count is the cheap discriminator: it reads a dataset SHAPE, not the 0.5 GB of samples, and
+    any re-recording that changes duration changes it. Equal length with different contents would slip
+    through, which is why this is a guard and not a proof.
+    """
+    n_daq = daq_n_samples(h5_path)
+    n_cached = int(cached.get("n_samples", -1))
+    if n_daq is None or n_cached < 0 or n_cached == n_daq:
+        return True
+    print(f"[behavior_events] {label}: cached events are STALE -- they record n_samples={n_cached} "
+          f"but {Path(h5_path).name} now has {n_daq} ({(n_cached - n_daq) / 5000.0:+.1f} s). "
+          f"The DAQ was replaced under the same filename; recomputing.", flush=True)
+    return False
+
+
 def get_or_compute(rv, animal: str, date: str, force: bool = False) -> dict | None:
     """Load the canonical events for a session, computing + saving them if absent. None if no DAQ .h5.
 
     THIS is the entry point every consumer should call to get canonical licks/rewards/quiet/etc."""
     from wfield_local.spout_behavior import _daq_h5_for
     p = events_path(rv, animal, date)
+    h5 = _daq_h5_for(rv, animal, date)
     if not force:
         cached = load_events(p)
-        if cached is not None and int(cached.get("schema_version", 0)) >= SCHEMA_VERSION:
+        if (cached is not None and int(cached.get("schema_version", 0)) >= SCHEMA_VERSION
+                and _matches_daq(cached, h5, f"{animal}_{date}")):
             return cached      # stale-schema caches (missing newer arrays) fall through to recompute
-    h5 = _daq_h5_for(rv, animal, date)
     if h5 is None:
         return None
     ev = compute_events(h5)
