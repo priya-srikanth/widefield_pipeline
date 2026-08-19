@@ -75,34 +75,10 @@ MIN_TRIALS = 40        # below this a decode result is not reported at all
 ENL_LICKFREE_WARN = 0.85   # below this, say so: the ENL assumption is the pre-cue readout's floor
 
 
-def lickfree_window(cue_f, strobe_f, licks, win_n):
-    """Latest ``win_n``-frame window before the cue that contains NO licks, or None.
-
-    A FIXED window ending at the cue throws away a trial for a single lick anywhere in it -- including
-    one 200 ms before the cue, even when 2 s of clean data sits just earlier in the same enforced
-    no-lick period. Instead: take the lick-free GAPS between consecutive licks in [strobe, cue], and
-    use the last ``win_n`` frames of the LATEST gap long enough to hold the window. Closest to the cue
-    is preferred because that is the most informative about the upcoming action.
-
-    BOUNDED AT THE STROBE, deliberately. Before the spout arrives the position for THIS trial does not
-    yet exist, and because the task avoids recent repeats, activity from the previous trial carries
-    real information about the upcoming position (measured: last-5-distinct -> next is the missing one
-    45-53% of the time vs ~17% uniform). A window straying before the strobe would smuggle that in and
-    look like a pre-cue code. See DECISIONS.md '"Pre-cue" is AFTER the spout arrives'.
-    """
-    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
-    hi = int(cue_f)
-    if lo is None or hi - lo < win_n:
-        return None
-    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
-    # gap boundaries: strobe -> first lick -> ... -> last lick -> cue
-    edges = np.concatenate(([lo], inside, [hi]))
-    for i in range(len(edges) - 2, -1, -1):          # latest gap first
-        gap_start = int(edges[i]) + (1 if i > 0 else 0)   # a lick occupies its own frame
-        gap_end = int(edges[i + 1])
-        if gap_end - gap_start >= win_n:
-            return gap_end - win_n                   # last win_n frames of this gap
-    return None
+#: The rule that gates the HEADLINE pre-cue number, so it lives beside the
+#: production decoder rather than in this module, which used to be its only
+#: consumer. Re-exported here because callers and DECISIONS.md name it here.
+from wfield_local.locanmf_position_decoder import lickfree_window
 
 
 def trial_table(session, source="roi", pre_s=PRE_S):

@@ -162,10 +162,6 @@ def sessions_to_measure(animals=None, curated_only=True):
     return config.analysis_sessions(animals=animals, curated_only=curated_only)
 
 
-def _animal_of(s):
-    return s["label"][:4]
-
-
 def _date_of(s):
     return s["label"].split("_")[-1]
 

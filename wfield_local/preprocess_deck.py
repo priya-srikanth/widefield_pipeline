@@ -220,8 +220,7 @@ def _yyyymmdd(mc):
     return m.group(1) if m else None
 
 
-def _animal_of(session):
-    return session["label"].split("_")[0]
+_animal_of = config.animal_of        # one extractor, in config
 
 
 def _mmdd_of(session):

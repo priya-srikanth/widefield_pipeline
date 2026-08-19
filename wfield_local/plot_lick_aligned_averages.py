@@ -187,10 +187,8 @@ def _weighted_map(U: np.ndarray, svt_mean: np.ndarray) -> np.ndarray:
 from wfield_local.atlas_overlay import region_edges as _region_edges
 
 
-def _overlay_regions(ax, edges: np.ndarray) -> None:
-    overlay = np.zeros((*edges.shape, 4), dtype=np.float32)
-    overlay[edges] = (0, 0, 0, 0.65)
-    ax.imshow(overlay, interpolation="nearest")
+from wfield_local.atlas_overlay import (  # one implementation
+    overlay_regions as _overlay_regions)
 
 
 def _shared_limit(maps: dict[str, np.ndarray], percentile: float) -> float:

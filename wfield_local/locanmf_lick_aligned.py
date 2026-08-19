@@ -41,6 +41,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from wfield_local import config
+from wfield_local.framemap_event_maps import (  # one implementation
+    _corrected_frame_samples, _nearest_corrected_frame, coverage_mask)
 # h5py/numpy-only helpers (these modules do NOT import wfield)
 from wfield_local.plot_lick_aligned_averages import (
     _load_daq_events,
@@ -54,41 +56,13 @@ from wfield_local.plot_lick_aligned_averages import (
 OROFACIAL = {3: "MOp", 4: "MOs", 5: "SSp-n", 6: "SSp-m"}
 
 
-def _corrected_frame_samples(frame_map: Path, pco_samples: np.ndarray, offset: int) -> np.ndarray:
-    fm = np.load(frame_map)
-    if "original_frame_index_ch0" not in fm.files:
-        raise KeyError(f"{frame_map} has no 'original_frame_index_ch0' (keys: {fm.files})")
-    idx = np.clip(fm["original_frame_index_ch0"] + offset, 0, len(pco_samples) - 1)
-    return pco_samples[idx]
+# _corrected_frame_samples lives in framemap_event_maps -- imported below
 
 
-def coverage_mask(event_samples, csample, tol_samples=None):
-    """True where an event actually falls INSIDE the imaging coverage.
-
-    ``_nearest_corrected_frame`` clips, so an event before the first frame silently becomes frame 0
-    and one after the last becomes the final frame. For a normal session imaging spans the whole
-    recording and clipping never bites. For a session with a HOLE it is severe: PS95 2026-08-13 was
-    recorded single-channel for its first 32 min, the repair correctly dropped those frames, and 197
-    of its 871 cues (23%) then mapped to frame ~0 -- decoding arbitrary frames as if they were trials.
-    That alone took its cue-aligned accuracy to 0.61 against ~0.90 for that animal.
-
-    ``tol_samples`` defaults to one inter-frame interval, so an event landing between two real frames
-    still counts as covered.
-    """
-    csample = np.asarray(csample)
-    ev = np.asarray(event_samples)
-    if csample.size < 2:
-        return np.zeros(ev.shape, bool)
-    if tol_samples is None:
-        tol_samples = float(np.median(np.diff(csample)))
-    return (ev >= csample[0] - tol_samples) & (ev <= csample[-1] + tol_samples)
+# coverage_mask lives in framemap_event_maps -- imported below
 
 
-def _nearest_corrected_frame(event_samples: np.ndarray, csample: np.ndarray) -> np.ndarray:
-    ins = np.clip(np.searchsorted(csample, event_samples), 1, len(csample) - 1)
-    prev = np.abs(event_samples - csample[ins - 1])
-    nxt = np.abs(csample[ins] - event_samples)
-    return np.where(prev <= nxt, ins - 1, ins).astype(np.int64)
+# _nearest_corrected_frame lives in framemap_event_maps -- imported below
 
 
 def _quiet_zscore(C: np.ndarray, quiet: np.ndarray) -> tuple[np.ndarray, dict]:

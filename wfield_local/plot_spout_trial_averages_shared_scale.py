@@ -29,10 +29,8 @@ POSITION_NAMES = {
 from wfield_local.atlas_overlay import region_edges as _region_edges
 
 
-def _overlay_regions(ax, edges: np.ndarray) -> None:
-    overlay = np.zeros((*edges.shape, 4), dtype=np.float32)
-    overlay[edges] = (0, 0, 0, 0.65)
-    ax.imshow(overlay, interpolation="nearest")
+from wfield_local.atlas_overlay import (  # one implementation
+    overlay_regions as _overlay_regions)
 
 
 def _parse_counts(summary_path: Path) -> dict[str, int]:

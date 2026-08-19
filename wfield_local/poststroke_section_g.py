@@ -54,7 +54,7 @@ def post_animals(animals=None):
     """Animals with at least one post-stroke session, from the phase resolver rather than a literal."""
     if animals:
         return sorted(animals)
-    return sorted({lab[:4] for lab in config.phase_labels("post")})
+    return sorted({config.animal_of(lab) for lab in config.phase_labels("post")})
 
 
 def _counts(d, session):

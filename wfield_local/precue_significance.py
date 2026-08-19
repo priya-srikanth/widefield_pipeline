@@ -46,8 +46,8 @@ CHANCE = 1.0 / 6.0
 FS = 31.23
 
 
-def _pipe():
-    return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+from wfield_local.locanmf_frozen_decoder import (  # ONE decoder spec
+    _pipe)
 
 
 def _cv_predict(X, y, g):

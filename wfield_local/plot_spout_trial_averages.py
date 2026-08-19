@@ -172,18 +172,16 @@ def _classify_cues(cue_samples: np.ndarray, strobe_samples: np.ndarray, codes: n
     return out
 
 
-def _weighted_map(U: np.ndarray, svt_mean: np.ndarray) -> np.ndarray:
-    return np.tensordot(U, svt_mean, axes=([2], [0])).astype(np.float32)
+from wfield_local.plot_lick_aligned_averages import (  # one implementation
+    _weighted_map)
 
 
 # region_edges is centralized in wfield_local.atlas_overlay (symmetric edge fix)
 from wfield_local.atlas_overlay import region_edges as _region_edges
 
 
-def _overlay_regions(ax, edges: np.ndarray) -> None:
-    overlay = np.zeros((*edges.shape, 4), dtype=np.float32)
-    overlay[edges] = (0, 0, 0, 0.65)
-    ax.imshow(overlay, interpolation="nearest")
+from wfield_local.atlas_overlay import (  # one implementation
+    overlay_regions as _overlay_regions)
 
 
 def main() -> int:

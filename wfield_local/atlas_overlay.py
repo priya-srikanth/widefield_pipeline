@@ -29,3 +29,15 @@ def region_edges(atlas: np.ndarray) -> np.ndarray:
     edges[:, 1:] |= dh   # also mark the right col of each horizontal pair
     edges &= valid       # keep edges on the labeled (brain) side
     return ndimage.binary_dilation(edges, iterations=1)
+
+
+def overlay_regions(ax, edges: np.ndarray) -> None:
+    """Draw Allen region boundaries as a translucent black layer over an existing image.
+
+    Was copied identically into four map modules. `plot_lick_vs_cue_spout_maps` keeps its own
+    variant deliberately -- it draws at a different alpha for a denser panel -- and that difference
+    is now visible as a difference rather than hidden among four copies of the same thing.
+    """
+    overlay = np.zeros((*edges.shape, 4), dtype=np.float32)
+    overlay[edges] = (0, 0, 0, 0.65)
+    ax.imshow(overlay, interpolation="nearest")

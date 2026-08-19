@@ -48,7 +48,7 @@ def copy_behaviour_figures(out, rv=None):
     rv = rv or PathResolver()
     beh = Path(rv.root("behavior_out")) / "cohort" / "by_animal"
     made, missing = [], []
-    for a in sorted({lab[:4] for lab in config.phase_labels("post")}):
+    for a in sorted({config.animal_of(lab) for lab in config.phase_labels("post")}):
         srcp = beh / f"{a}_across_sessions.png"
         if not srcp.exists():
             missing.append(f"{a}: {srcp} (run `python -m wfield_local.spout_behavior --cohort`)")

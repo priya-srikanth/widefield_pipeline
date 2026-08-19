@@ -41,8 +41,8 @@ def _args():
     return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
 
 
-def _pipe():
-    return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+from wfield_local.locanmf_frozen_decoder import (  # ONE decoder spec
+    _pipe)
 
 
 def _bcv(X, y, g):

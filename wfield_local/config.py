@@ -125,6 +125,20 @@ def svtcorr_in(results_dir, variant: str | None = None) -> str:
     return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
 
 
+def animal_of(session) -> str | None:
+    """The animal id for a session, from either a session DICT or a label/name STRING.
+
+    ONE extractor, because there were four and they disagreed: `label.split("_")[0]`,
+    `label[:4]` (breaks on a five-character id), a regex over a session NAME, and an inline
+    `lab[:4]`. That spread is what produced the 2026-08-19 filter written as `s.get("animal")` --
+    a key session dicts do not carry at all -- which matched nothing and destroyed a 257 MB deck
+    without a word. A single function with one documented input contract removes the guess.
+    """
+    if isinstance(session, dict):
+        session = session.get("label") or session.get("name") or ""
+    return str(session).split("_")[0] or None
+
+
 def analysis_sessions(animals=None, curated_only=True, sessions=None):
     """Registered sessions for a cross-session analysis, with curation applied to the PRE side ONLY.
 
@@ -151,9 +165,9 @@ def analysis_sessions(animals=None, curated_only=True, sessions=None):
         keep = set(curated_dates())
         rows = [x for x in rows
                 if x["label"].split("_")[-1] in keep
-                or session_phase(x["label"][:4], x["label"].split("_")[-1]) != "pre"]
+                or session_phase(animal_of(x), x["label"].split("_")[-1]) != "pre"]
     if animals:
-        rows = [x for x in rows if x["label"][:4] in set(animals)]
+        rows = [x for x in rows if animal_of(x) in set(animals)]
     return rows
 
 
