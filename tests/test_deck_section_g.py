@@ -51,8 +51,23 @@ def test_excluded_sessions_are_named_on_a_slide_not_just_dropped():
     assert "G9. Excluded sessions" in SRC, "the section must state what it left out"
 
 
-def test_the_post_pool_is_exactly_the_two_lesioned_animals():
-    assert set(config.phase_labels("post")) == {"PS94_0817", "PS95_0817"}
+def test_the_post_pool_contains_only_genuinely_post_stroke_sessions():
+    """Asserts the INVARIANT, not a frozen list.
+
+    The literal set {PS94_0817, PS95_0817} was correct until 8/18 was registered, at which point
+    every animal became post-stroke and the test failed for a legitimate reason. Pinning the property
+    -- after that animal's stroke date, and not excluded -- keeps the guard useful as sessions are
+    added, which is the situation it exists for.
+    """
+    post = set(config.phase_labels("post"))
+    assert post, "no post-stroke sessions resolved"
+    for lab in post:
+        animal, date = lab.split("_")
+        sd = config.stroke_date(animal)
+        assert sd is not None and date > sd, f"{lab} is not after {animal}'s stroke date {sd}"
+        assert date not in config.animal_excluded_dates(animal), f"{lab} is an excluded date"
+    # the specific sessions that must never appear: lesion did not take, redone after that session
+    assert not ({"PS92_0817", "PS93_0817"} & post)
 
 
 # ------------------------------------------------------------------------------------------------

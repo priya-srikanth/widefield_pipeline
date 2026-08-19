@@ -81,7 +81,7 @@ def _pooled(animal, align, source="roi", post_labels=None):
     XE, YE, GE, BE, XU, YU, kept, common, GU = p
     pre_i = {i for i, l in enumerate(kept) if l in set(pre)}
     post_i = {i for i, l in enumerate(kept) if l not in set(pre)}
-    return dict(XE=XE, YE=YE, GE=GE, XU=XU, YU=YU.astype(int), GU=GU, kept=kept,
+    return dict(XE=XE, YE=YE, GE=GE, BE=BE, XU=XU, YU=YU.astype(int), GU=GU, kept=kept,
                 pre_i=pre_i, post_i=post_i)
 
 
@@ -675,4 +675,71 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
             if survives else
             "no post-cue position code on impaired no-lick trials")
     out["verdict"] += ". CAVEAT: 'no lick detected' is not 'no tongue protrusion' -- DLC settles it."
+    return out
+
+
+def recoding_test(d, keep, min_trials=40, n_splits=5):
+    """Is the position code LOST, or RECODED? Frozen pre-stroke decoder vs a within-session one.
+
+    THE DISTINCTION THIS EXISTS TO DRAW. `decode_matched` shows PS94's frozen pre-stroke decoder
+    falling below every pre-stroke session on 8/17, and that was reported as a decoding deficit. But a
+    frozen decoder fails for two quite different reasons: the information is gone, or the information
+    is there in a DIFFERENT code that the old model cannot read. Training a decoder on the post-stroke
+    session itself separates them -- if it recovers normal accuracy, the information is intact and only
+    the mapping changed.
+
+    THE COMPARISON MUST BE POSITION-MATCHED, and this is the trap it was built to avoid. PS94 8/17 has
+    engaged trials at 4 positions where its pre-stroke sessions have 6, so an unmatched within-session
+    comparison pits a 4-way problem (chance 0.25) against 6-way ones (chance 0.167) and inflates the
+    post-stroke side. That is the same trial-composition error that produced a spurious 'PS94 neural
+    deficit' headline earlier in this project, running the other way. Pre-stroke sessions are therefore
+    restricted to the SAME positions before their band is computed.
+
+    Both arms use GroupKFold on the real position blocks, so the within-session number carries the same
+    block-CV convention as everything else in the deck.
+    """
+    kp = np.isin(d["YE"], keep)
+    rows = []
+    for i in sorted(d["pre_i"]) + sorted(d["post_i"]):
+        m = (d["GE"] == i) & kp
+        if m.sum() < min_trials:
+            continue
+        y, X = d["YE"][m], d["XE"][m]
+        gb = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
+        ng = min(n_splits, int(np.unique(gb).size))
+        if ng < 2:
+            continue
+        acc = float(accuracy_score(y, cross_val_predict(_pipe(), X, y, cv=GroupKFold(ng), groups=gb)))
+        rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": int(m.sum()),
+                     "post": i in d["post_i"]})
+    pre = np.array([r["within_accuracy"] for r in rows if not r["post"]], float)
+    post = [r for r in rows if r["post"]]
+    if len(pre) < 3 or not post:
+        return {"note": "not enough sessions", "n_pre": int(len(pre)), "n_post": len(post)}
+    band = {"mean": float(pre.mean()), "sd": float(pre.std(ddof=1)),
+            "min": float(pre.min()), "max": float(pre.max()), "n": int(len(pre))}
+    out = {"n_positions": len(keep), "chance": 1.0 / len(keep), "within_pre_band": band,
+           "per_session": rows}
+    for r in post:
+        z = (r["within_accuracy"] - band["mean"]) / band["sd"] if band["sd"] else float("nan")
+        out.setdefault("post", {})[r["label"]] = {
+            "within_accuracy": r["within_accuracy"], "z": float(z),
+            "inside_pre_range": bool(band["min"] <= r["within_accuracy"] <= band["max"])}
+    # DIRECTION MATTERS. The first version tested only `inside_pre_range` and so called PS95 cue
+    # (z=+1.4, ABOVE every pre-stroke session) "impaired" -- outside on the HIGH side is the opposite
+    # of impairment. Only a value below the pre-stroke range is evidence of degraded information.
+    vals = list(out.get("post", {}).values())
+    below = [v for v in vals if v["z"] < 0 and not v["inside_pre_range"]]
+    above = [v for v in vals if v["z"] > 0 and not v["inside_pre_range"]]
+    if below:
+        out["verdict"] = ("within-session decoding is ALSO impaired -> the position information "
+                          "itself is degraded, not merely recoded")
+    elif above:
+        out["verdict"] = ("within-session decoding is ABOVE the pre-stroke range -> the information "
+                          "is intact and if anything sharper; the frozen decoder fails because the "
+                          "CODE CHANGED: RECODING, not loss")
+    else:
+        out["verdict"] = ("within-session decoding is NORMAL -> the position information is INTACT "
+                          "and the frozen decoder fails because the CODE CHANGED: RECODING, not loss")
+    out["information_degraded"] = bool(below)
     return out

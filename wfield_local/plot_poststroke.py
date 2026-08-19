@@ -526,3 +526,58 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
+
+
+def fig_recoding(rec, out, name="poststroke_recoding.png"):
+    """G2c: is the position code LOST or RECODED? Frozen vs within-session, position-matched.
+
+    The two bars answer different questions about the same trials. FROZEN asks whether a pre-stroke
+    model can still read this session; WITHIN asks whether the information is there at all. A frozen
+    failure with a normal within-session number is a changed CODE, not lost information -- and that
+    distinction is the difference between "PS94 is impaired" and "the pre-stroke decoder is impaired
+    on PS94".
+    """
+    ans = [a for a in sorted(rec) if any(k in rec[a] for k in ("cue", "precue", "lick"))]
+    aligns = [("cue", "post-cue"), ("precue", "pre-cue"), ("lick", "post-lick")]
+    fig, axes = plt.subplots(1, len(ans), figsize=(4.9 * len(ans) + 1.0, 5.4), squeeze=False)
+    for k, a in enumerate(ans):
+        ax = axes[0][k]
+        xt, lab = [], []
+        for i, (al, nice) in enumerate(aligns):
+            r = rec[a].get(al) or {}
+            if "within_pre_band" not in r:
+                continue
+            b = r["within_pre_band"]
+            ax.add_patch(plt.Rectangle((i - 0.36, b["min"]), 0.72, max(b["max"] - b["min"], 1e-9),
+                                       color="tab:blue", alpha=0.20, zorder=1))
+            ax.plot([i - 0.36, i + 0.36], [b["mean"]] * 2, color="tab:blue", lw=2, zorder=2)
+            for _lb, v in (r.get("post") or {}).items():
+                ax.plot(i, v["within_accuracy"], "o", ms=11, color="tab:green",
+                        markeredgecolor="k", zorder=4)
+                ax.text(i + 0.08, v["within_accuracy"], f" z{v['z']:+.1f}", fontsize=7,
+                        va="center", color="darkgreen")
+            ax.axhline(r["chance"], color="k", ls=":", lw=1)
+            xt.append(i)
+            lab.append(nice)
+        ax.set_xticks(xt)
+        ax.set_xticklabels(lab, fontsize=8.5)
+        ax.set_ylim(0, 1.02)
+        ax.set_title(a + " - WITHIN-session decoding\n(band = its own pre-stroke range)", fontsize=9)
+        if k == 0:
+            ax.set_ylabel("accuracy, position-matched")
+        v = rec[a].get("cue", {}).get("verdict", "")
+        tail = v.split(" -> ")[-1] if " -> " in v else v
+        ax.set_xlabel(textwrap.fill(tail, 46), fontsize=7)
+    fig.suptitle(
+        "Is the position code LOST, or RECODED? GREEN = a decoder trained on the POST-stroke session "
+        "itself; BAND = that animal's own pre-stroke range for the same measure. Compare with G2, "
+        "where the FROZEN pre-stroke decoder falls below every pre-stroke session. Same trials, same "
+        "positions, same features -- only the training data differs, so a normal green point means "
+        "the information is intact and the old model simply cannot read the new code. "
+        "POSITION-MATCHED: PS94 has 4 positions post-stroke against 6 pre-stroke, and comparing 4-way "
+        "with 6-way would flatter the post-stroke side (chance 0.25 vs 0.167).", fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    q = Path(out) / name
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q

@@ -135,7 +135,10 @@ def test_post_stroke_summary_label_set_excludes_the_failed_lesions():
     """
     post = set(config.phase_labels("post"))
     by_date = {s["label"] for s in config.load_sessions() if s["label"].endswith("0817")}
-    assert post == {"PS94_0817", "PS95_0817"}
+    # the 0817 sessions that ARE post-stroke are exactly PS94/PS95; PS92/PS93 were lesioned that
+    # evening, after their session. Asserted on the 0817 subset so registering later dates (8/18
+    # onward, where every animal is post-stroke) does not break the guard.
+    assert {l for l in post if l.endswith("0817")} == {"PS94_0817", "PS95_0817"}
     leaked = (by_date - post) & {"PS92_0817", "PS93_0817"}
     assert leaked, "fixture check: the date-based shortcut should differ from the phase-based one"
     for lab in ("PS92_0817", "PS93_0817"):

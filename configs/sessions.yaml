@@ -112,6 +112,14 @@ sessions:
       h5: "20260817/PS92_20260817_170552.h5"
       regime: B
       fmdir: null
+    # POST-STROKE. PS94/PS95 lesioned 8/16 (day 2); PS92/PS93 lesioned 8/17 AFTER that
+    # session, so this is their FIRST post-stroke day. All four are post-stroke on 8/18.
+    "0818":
+      mc: "20260818/PS92_20260818_172227/motion_corrected"
+      h5: "20260818/PS92_20260818_172255.h5"
+      regime: B
+      fmdir: null
+
   PS93:
     "0605":
       mc: "20260605/PS93_20260605_174659/motion_corrected"
@@ -276,6 +284,14 @@ sessions:
       h5: "20260817/PS94_20260817_095150.h5"
       regime: B
       fmdir: null
+    # POST-STROKE. PS94/PS95 lesioned 8/16 (day 2); PS92/PS93 lesioned 8/17 AFTER that
+    # session, so this is their FIRST post-stroke day. All four are post-stroke on 8/18.
+    "0818":
+      mc: "20260818/PS94_20260818_095441/motion_corrected"
+      h5: "20260818/PS94_20260818_095543.h5"
+      regime: B
+      fmdir: null
+
   PS95:
     "0601":
       mc: "20260601/PS95_20260601_153653/motion_corrected"
@@ -364,5 +380,12 @@ sessions:
     "0817":
       mc: "20260817/PS95_20260817_120733/motion_corrected"
       h5: "20260817/PS95_20260817_121842.h5"
+      regime: B
+      fmdir: null
+    # POST-STROKE. PS94/PS95 lesioned 8/16 (day 2); PS92/PS93 lesioned 8/17 AFTER that
+    # session, so this is their FIRST post-stroke day. All four are post-stroke on 8/18.
+    "0818":
+      mc: "20260818/PS95_20260818_120506/motion_corrected"
+      h5: "20260818/PS95_20260818_121357.h5"
       regime: B
       fmdir: null

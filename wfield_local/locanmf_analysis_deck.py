@@ -329,6 +329,38 @@ M_EVOKED = (
     "PS95's band at [0.15, 18.09], inside which no post-stroke value could ever fall. That is why PS95 "
     "first looked like a null on this measure and does not.")
 
+M_RECODING = (
+    "RECODING vs LOSS (poststroke_compare.recoding_test). G2 shows PS94's FROZEN pre-stroke decoder "
+    "falling below every pre-stroke session on 8/17, and that was first reported as a decoding "
+    "DEFICIT. A frozen decoder fails for two very different reasons, though: the information is gone, "
+    "or the information is present in a DIFFERENT code the old model cannot read. Training a decoder "
+    "on the post-stroke session ITSELF separates them."
+    "\n\nTHE COMPARISON IS POSITION-MATCHED, and it has to be. PS94 8/17 has engaged trials at 4 "
+    "positions where its pre-stroke sessions have 6, so an unmatched within-session number pits a "
+    "4-way problem (chance 0.25) against 6-way ones (chance 0.167) and flatters the post-stroke side. "
+    "That is the same trial-composition error that produced a spurious PS94 'neural deficit' headline "
+    "earlier in this project, running the other way. Unmatched it read 0.882 vs 0.866; matched it "
+    "reads 0.882 vs 0.906, and only the matched number means anything."
+    "\n\nRESULT: THE INFORMATION IS INTACT IN BOTH ANIMALS. Within-session accuracy sits inside or "
+    "above each animal's own pre-stroke range at all three alignments -- PS94 cue z=-0.7, pre-cue "
+    "z=-0.7, post-lick z=-1.9; PS95 +1.4, +0.6, +1.7. Against a FROZEN deficit of -0.24 for PS94. Same "
+    "trials, same positions, same features; the only difference is which data trained the decoder."
+    "\n\nSO THE SECTION G HEADLINE IS NOT A DEFICIT. It is: PS94's cortical position code was "
+    "REORGANISED, and a pre-stroke model can no longer read it, while the information itself is "
+    "preserved. Every statement of the form 'PS94 is impaired' on the matched-decoding slides should "
+    "be read as 'the frozen decoder is impaired', which is a claim about the model, not the cortex."
+    "\n\nIT COHERES WITH THREE INDEPENDENT MEASUREMENTS. The encoder noise CEILING is unchanged "
+    "(z=+0.3 to +1.0 across all four animals), so between-position signal-to-noise survives. Evoked "
+    "amplitude rises 2-3x with that ceiling flat, i.e. signal and noise scale together: a GAIN change. "
+    "And the R-L sensorimotor index collapses toward zero in PS94 only. A changed code with preserved "
+    "information is what those three predict, and it is what G3b shows as the far_R over-prediction "
+    "(35% of all trials) and the precision collapse from 0.92 to 0.28."
+    "\n\nCAVEATS: n=1 post-stroke session per animal; the within-session arm uses block CV, which the "
+    "2026-08-18 block-ID correction moves by ~+0.011 on average -- immaterial at these effect sizes. "
+    "A verdict-direction bug was fixed on 2026-08-19: the first version tested only 'outside the "
+    "pre-stroke range' and so labelled PS95 (z=+1.4, ABOVE every pre-stroke session) as 'information "
+    "degraded'. Outside-high is the opposite of impairment.")
+
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
     "LESION DATES (configs/animals.yaml stroke_date). PS94/PS95: 2026-08-16 at 3 mW, deficit -> "
@@ -345,7 +377,8 @@ M_POSTSTROKE = (
     "The first version of this analysis reported a PS94 'neural deficit' whose larger part was trial "
     "composition; every decoding slide here is therefore position-MATCHED to what the animal still "
     "attempts, and matched numbers are 4-way (chance 0.25) and NOT comparable to the 6-way numbers "
-    "in sections A-F. "
+    "in sections A\u2013F. "
+    "\n\nAND READ THE MATCHED DECODING AS A STATEMENT ABOUT THE MODEL, NOT THE CORTEX. G2c trains a decoder on the post-stroke session itself and recovers normal accuracy in both animals, so the frozen decoder's failure is a CHANGED CODE rather than lost information. Wherever these slides say PS94 is impaired, the supported claim is that the FROZEN DECODER is impaired on PS94. "
     "\n\nPRE-ENGAGED vs POST-ALL IS DELIBERATE. Post-stroke trials are NOT filtered to those with "
     "a detected lick, because the missing licks ARE the phenotype -- filtering them out would remove "
     "the effect being measured. Pre-stroke keeps the engaged cut (decode.max_rt_s). The mismatch is "
@@ -948,6 +981,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "recall.")
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G2b_per_position.png", top=1.6, width=12.0)
+
+        # --- G2c. recoding vs loss: the test that reframes G2
+        _rf = src / "poststroke_recoding.png"
+        if _rf.exists():
+            s = slide()
+            title(s, "G2c. Is the position code LOST, or RECODED?",
+                  "G2's frozen decoder falls below every pre-stroke session. A decoder trained on the "
+                  "post-stroke session ITSELF recovers normal accuracy \u2014 so the information is "
+                  "intact and the pre-stroke model simply cannot read the new code. "
+                  "POSITION-MATCHED: PS94 has 4 positions post-stroke against 6 pre-stroke, and "
+                  "comparing 4-way to 6-way would flatter the post-stroke side.")
+            note(s, M_RECODING)
+            big(s, _rf, top=1.85, width=11.4)
 
         # --- G3. crossed confusion: WHERE the errors go
         if (src / "poststroke_G3_confusion.png").exists():
