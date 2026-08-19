@@ -613,7 +613,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
         summaries.append(build_deck(
             out, sessions=subset, resolver=resolver, machine=machine,
             labcams_root=labcams_root, xday_root=xday_root, verbose=verbose,
-            include_global_summary=(i == len(buckets) - 1)))
+            include_global_summary=True))   # every per-animal deck carries the cross-day summary
 
     # Prune stale sibling decks from an earlier (different) split -- but ONLY when this run actually
     # covered every configured animal. When a date is split across machines (imaging box: PS92/PS93;
