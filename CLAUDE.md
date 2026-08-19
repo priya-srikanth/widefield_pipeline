@@ -42,6 +42,30 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    numba + numpy<2.1; this box = `locanmf` env, numpy 2.2.6, no numba. Deps are lower-bounds-only so
    `pip install -e .` never force-upgrades a working stack.
 
+## The three commands (end of day)
+
+Everything below is orchestrated; these are the only lines that need typing.
+
+```powershell
+# 1. IMAGING (PCO) box  — preprocess + preprocessing decks
+conda activate wfield
+python -m wfield_local.nightly <YYYYMMDD>     # DAQ upload -> preprocess -> preprocess_deck -> archive+verify
+
+# 2 & 3. ANALYSIS box    — behavior/camera + behavior deck, THEN LocaNMF/decode/encode/RSA + analysis deck
+conda activate locanmf
+python -m wfield_local.nightly <YYYYMMDD>     # stage 1 camera+behavior (builds the behavior deck),
+                                              # stage 2 figs (auto-defers until LocaNMF is registered)
+```
+
+`nightly` auto-detects the machine. Stage 2 on the analysis box now also runs the **post-stroke
+stage** (section G + the map-level analyses) whenever a post-stroke session exists — added
+2026-08-19, because those had been invoked by hand from scratchpad scripts and twelve deck figures
+silently went a day stale on a superseded basis. Overnight, one command: add `--await-locanmf` to
+block until the imaging box's LocaNMF inputs land and then run the whole figs stage.
+
+Useful skips: `--skip-camera`, `--skip-figs`, `--skip-frozen`, `--skip-poststroke`, `--skip-deck`,
+`--skip-archive`, `--dry-run`.
+
 ## Architecture (two machines)
 
 One nightly command, dispatched by machine: **`python -m wfield_local.nightly <YYYYMMDD>`**.

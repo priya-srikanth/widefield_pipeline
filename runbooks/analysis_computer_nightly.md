@@ -70,6 +70,16 @@ figs stage then waits for the imaging box's LocaNMF push.
 5. **Pre-cue lick-free control** (`precue_lickfree`), in BOTH bases (roi, locanmf) — decode/encode on a
    searched 2 s window containing no licks, between the position strobe and the cue. Deck Section C.
 6. **Per-animal rolling decoder** across the curated sessions (Section A of the deck).
+8. **POST-STROKE stage (deck section G)** — runs only when `config.phase_labels("post")` is
+   non-empty, so a pre-stroke-only cohort is unaffected. `--skip-poststroke` skips it.
+   `poststroke_section_g` computes EVERY section-G quantity into one `section_g.json` keyed by
+   session (both trial arms, the excluded small-lesion sessions tagged, and the three no-lick
+   readouts); `section_g_figures` renders all of them. Then the map-level analyses behind G8d–G8f:
+   `fixed_scale_maps`, `evoked_amplitude`, `spatial_reorganisation` (BOTH arms), `vessel_contrast`,
+   `hemispheric_dynamics`, `hemispheric_intensity`. Until 2026-08-19 every one of these was invoked
+   from a scratchpad script, which is how twelve deck figures came to be a day stale on a basis that
+   had already been corrected, with nothing on the slide to say so. **If it is part of the deck it is
+   part of the nightly.**
 7. **Frozen cross-day decoder + encoder** (`locanmf_frozen_decoder`, Allen-ROI, leave-one-session-out),
    for BOTH the post-cue and pre-cue alignments. ~30–40 min; `--skip-frozen` skips it and leaves those
    deck slides blank.
