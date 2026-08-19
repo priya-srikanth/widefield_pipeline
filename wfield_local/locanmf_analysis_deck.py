@@ -67,8 +67,16 @@ M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored 
             "analysis. Curated pre-stroke sessions only (6/6-6/8 + 8/6 onward). HEMODYNAMIC/DRIFT REMOVAL (adopted 2026-08-14, docs/PREPROCESSING_DECISION.md): every panel in this deck -- decoders, encoders, RSA and the activity MAPS -- is built on the meegkit_hpfit SVTcorr, not the pipeline default. The default removes drift with a ZERO-PHASE 0.1 Hz filter, which is acausal: it smears each post-cue response BACKWARDS and inflated pre-cue decoding by ~0.21 across 36 sessions. meegkit_hpfit keeps that high-pass for the hemodynamic COEFFICIENT fit (which is what it is for) and replaces it for the OUTPUT with de Cheveigne robust polynomial detrending (order 10, 600 s) on a mask excluding whole trials. Post-cue decoding IMPROVED (0.684 -> 0.759) and the shadow signature vanished (negative pre/post correlation in 30/36 sessions -> 2/36).")
 M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardized component activities, 6 "
             "positions, chance=0.167. Activity = a SUB-BINNED TIME COURSE over the aligned window (adopted 2026-08-14), NO per-trial baseline: the window is split into equal bins and their means concatenated, so the decoder sees the window's temporal profile rather than one number. Pre-cue and post-cue use 4 x 0.5 s, post-lick 8 x 0.25 s (configs/defaults.yaml decode.bins). PRE-CUE SUB-BINNING IS UNESTABLISHED (re-measured on all 44 curated sessions, 2026-08-17): +0.009 over the plain 2 s mean, better in 23/44 -- a coin flip. The +0.032 previously quoted here came from a 16-session pilot and did not replicate. roll2x1.0 is nominally best (+0.016, 28/44) but is the max of six arms scored on the same sessions. precue=4 is retained because changing it would move every pre-cue number again for no demonstrated gain, not because it is better. Post-cue (+0.020) and post-lick (+0.023) remain 16-session pilot values and have NOT been re-run. Bin WIDTH matters only post-event -- 0.25 s wins post-lick but OVER-slices pre-cue. "
-            "Cross-validation is BLOCK-AWARE (GroupKFold, groups = ~6-trial position blocks) so block drift "
-            "cannot leak train->test. Post-cue align = window after cue onset (predicts held-out no-lick "
+            "Cross-validation is BLOCK-AWARE (GroupKFold, groups = position blocks) so block drift "
+            "cannot leak train->test, and the StandardScaler sits INSIDE the pipeline so it is refit on "
+            "each training split -- no held-out trial enters it. A block runs until the position changes "
+            "OR until it reaches the scheduler block_size_max from that session's gui_config (8 so far). "
+            "That max-length rule was added 2026-08-18: without it, two blocks scheduled back-to-back at "
+            "the SAME position merged into one CV group -- 118 of 4216 blocks (2.8%), measured against "
+            "the firmware's own block_number. Merging made groups LARGER and the CV therefore more "
+            "CONSERVATIVE, so it understated rather than inflated accuracy (mean +0.011 on the "
+            "worst-affected sessions). Residual limit: 4+4 merges land at exactly block_size_max and "
+            "cannot be separated by length. Post-cue align = window after cue onset (predicts held-out no-lick "
             "trials too = 'no lick generalization'); pre-cue align = a 2 s LICK-FREE window ending at the "
             "cue (adopted 2026-08-17, configs/defaults.yaml decode.precue_lickfree). If a lick falls in "
             "the fixed window it slides earlier to the latest lick-free gap, BOUNDED AT THE SPOUT STROBE "
@@ -87,7 +95,13 @@ M_FROZEN = ("FROZEN cross-day decoder (wfield_local.locanmf_frozen_decoder --los
             "both count and identity, so they cannot be pooled across days; Allen-ROI features are "
             "atlas-anchored, so column j is the same cortical area every day. Per session the features are "
             "z-scored using that session's own engaged trials, so session-level F0/SNR offsets cannot drive "
-            "the result; CV groups are SESSIONS, so each held-out fold is an entire unseen day. The "
+            "the result; CV groups are SESSIONS, so each held-out fold is an entire unseen day. "
+            "WHAT 'NO TRIAL FROM THE PLOTTED DAY' MEANS EXACTLY: no trial from that day contributes to "
+            "the CLASSIFIER fit. The per-session z-scoring necessarily uses that day's own trials for "
+            "its mean and SD -- label-free, and what makes cross-session pooling possible at all, but "
+            "not nothing, and the stronger reading of that phrase would be wrong. Blocks play no part "
+            "in the cross-day arm: it groups on SESSION, so the block rule affects only the same-day "
+            "ceiling quoted beside it. The "
             "same-day ceiling quoted on each panel is that session's own within-day block-CV accuracy, so "
             "held-out-day minus ceiling is the true cost of freezing. Measured 2026-08-11: the cost is "
             "POSITIVE for every animal and BOTH alignments -- post-cue PS92 +0.140, PS93 +0.068, PS94 +0.071, PS95 +0.072; pre-cue +0.159, +0.078, +0.117, +0.124 (recomputed 2026-08-17 after bug 17, which had every ROI frozen number running on four copies of bin 0 since 8/14; the conclusion held, the magnitudes did not) - the frozen "
@@ -244,6 +258,34 @@ M_HEMIDYN = (
     "\n\nAllen-ROI basis by default, because homotopic pairing is then exact (SSp_left <-> "
     "SSp_right). The joint LocaNMF basis pairs through each component's dominant area and is "
     "approximate; where they disagree the ROI answer is the conservative one.")
+
+M_VESSEL = (
+    "SURFACE VESSEL CONTRAST (wfield_local.vessel_contrast). Vessels image DARK because haemoglobin "
+    "absorbs, so their contrast against surrounding cortex is an optical readout of blood in the light "
+    "path: fainter vessels mean less blood. Measured on the session mean image as the depth of dark "
+    "structure against a blurred background (90th percentile, plus the mean as a total-energy "
+    "companion), divided by the median so it is invariant to LED power, exposure and gain. A Frangi "
+    "vesselness filter runs alongside as an independent estimator."
+    "\n\nWHY THE L/R RATIO IS THE HEADLINE. Focus drift, a clouding window and a changed working "
+    "distance all reduce apparent vessel contrast BILATERALLY, so the two-hemisphere mean cannot "
+    "separate optics from biology and is shown only to reveal such a global change. A ratio is "
+    "untouched by a symmetric optical change."
+    "\n\nRESULT ON 8/17: NO detected change. PS94 415 depth L/R z=-1.0, energy z=-0.7, Frangi z=-0.4; "
+    "PS95 z=+1.0, +0.1, -0.1 -- opposite directions, both inside the animal's own pre-stroke range. "
+    "PS94 does trend toward fainter LEFT vessels, the direction the observation predicted, but it stays "
+    "within a pre-stroke range that spans 0.911-1.204, so the measure cannot resolve it."
+    "\n\nTHE LIMIT THAT MATTERS MOST HERE IS ANATOMICAL, NOT STATISTICAL. These are PIAL vessels over "
+    "DORSAL cortex; the lesion is VENTROLATERAL STRIATUM -- deep, lateral, and largely outside the "
+    "imaged field. A null in this measure is weak evidence about perfusion at the lesion, and it would "
+    "be wrong to read it as showing that striatal perfusion is intact."
+    "\n\nSANITY CHECK, and it fails in 11 of 65 sessions. 415 nm should show MORE vessel contrast "
+    "than 470 because haemoglobin absorbs far more strongly there. The failures cluster in PS92 (6) and "
+    "PS93 (4) rather than scattering, which points at something systematic in those animals' windows. "
+    "Every PS94 and PS95 session passes, including both 8/17 sessions, so the numbers quoted above are "
+    "not affected -- but PS93_0817 fails, so its small-lesion value should not be read."
+    "\n\nThis is the session MEAN image, so an acute or spatially focal vessel change would not "
+    "appear. It also does NOT settle the perfusion direction left unresolved in M_HEMI: that "
+    "retraction stands.")
 
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
@@ -1026,6 +1068,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "WITHIN-hemisphere coupling holds. Grey = the small-lesion sessions (not no-lesion).")
             note(s, M_HEMIDYN)
             big(s, _df, top=1.85, width=12.9)
+
+        # G8c: surface vessel contrast -- Priya's observation that vessels look fainter post-stroke
+        _vf = src / "vessel_contrast.png"
+        if _vf.exists():
+            s = slide()
+            title(s, "G8c. Surface vessel contrast — do the vessels get fainter?",
+                  "Vessels image dark because haemoglobin absorbs, so their contrast is an optical "
+                  "readout of blood in the light path. Gain-invariant by construction. Read the L/R "
+                  "ROW: focus drift and a clouding window reduce contrast BILATERALLY. CAVEAT: these "
+                  "are PIAL vessels over DORSAL cortex and the lesion is ventrolateral striatum, so a "
+                  "null here is weak evidence about perfusion at the lesion.")
+            note(s, M_VESSEL)
+            big(s, _vf, top=1.85, width=12.6)
 
         # --- G9. what is NOT here, and why
         s = slide()
