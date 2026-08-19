@@ -390,13 +390,21 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
     # panel needs only one normalisation -- pre-stroke trials are balanced across positions by design,
     # so row and column are nearly the same picture there. They diverge post-stroke, which is why that
     # is where both are shown.
-    PANELS = (("pre", "row"), ("post", "row"), ("post", "col"))
-    fig, axes = plt.subplots(len(ans), 3, figsize=(15.4, 5.0 * len(ans)), squeeze=False)
+    # FOUR panels since 2026-08-19. The PRE-NO-LICK one is the matched control: comparing
+    # post-stroke no-lick trials against a pre-stroke ENGAGED panel confounds the lesion with the
+    # absence of a movement, because the post rows have no lick and the pre rows do.
+    PANELS = (("pre", "row"), ("pre_nolick", "row"), ("post", "row"), ("post", "col"))
+    fig, axes = plt.subplots(len(ans), 4, figsize=(19.0, 5.0 * len(ans)), squeeze=False)
     for r, an in enumerate(ans):
         if align not in conf[an]:
             continue
         for c, (phase, norm) in enumerate(PANELS):
             ax = axes[r][c]
+            if phase not in conf[an][align]:      # older JSONs predate the matched control
+                ax.axis("off")
+                ax.text(0.5, 0.5, f"no {phase} panel in this record", ha="center", va="center",
+                        transform=ax.transAxes, fontsize=8, color="grey")
+                continue
             d = conf[an][align][phase]
             Mrow = np.array(d["matrix"], float)          # stored row-normalised
             n = np.array(d["n_per_true_position"], float)
@@ -432,6 +440,8 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
                     ax.add_patch(plt.Rectangle((i - 0.5, i - 0.5), 1, 1, fill=False,
                                                edgecolor="lime", lw=2.0))
             ttl = ("PRE (engaged, LOSO) — row / recall" if phase == "pre" else
+                   "PRE (NO-LICK, frozen) — row / recall  [matched control]"
+                   if phase == "pre_nolick" else
                    "POST (frozen, ALL trials) — row / RECALL" if norm == "row" else
                    "POST (frozen, ALL trials) — column / PRECISION")
             ax.set_title(f"{an} — {ttl}", fontsize=8.5)

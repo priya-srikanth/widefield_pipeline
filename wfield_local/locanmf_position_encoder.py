@@ -457,19 +457,99 @@ def fig_quiet_drift(labels, out, tag):
     return p
 
 
+def ev_per_position(label):
+    """Held-out per-position encoder EV for ONE session, as a length-6 array over DISPLAY_ORDER.
+
+    ONE implementation: `fig_ev_by_position_animal` had this inline and the EV matrix needed the
+    same numbers. Ridge from a one-hot position design onto the feature matrix, scored per position
+    with GroupKFold over blocks -- the same CV the decoders use, so the two are comparable.
+    """
+    pos = np.array(DISPLAY_ORDER)
+    X, y, g, _, _, _ = _trial_features(_sess(label), _args(2.0))
+    P = np.stack([(y == p).astype(float) for p in pos], 1)
+    pred = np.zeros_like(X)
+    ng = min(5, int(np.unique(g).size))
+    for tr, te in GroupKFold(ng).split(X, y, g):
+        pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
+    xbar = X.mean(0)
+    sstot = ((X - xbar) ** 2).sum(1)
+    ssres = ((X - pred) ** 2).sum(1)
+    return np.array([1 - ssres[y == p].sum() / max(sstot[y == p].sum(), 1e-12) for p in pos])
+
+
+def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
+    """Encoded variance per POSITION x SESSION, one panel per animal, on ONE colour scale.
+
+    The per-animal bar charts this summarises put six grouped bars per position on one axis and
+    asked the reader to track a position across sessions by colour. As a matrix, a position that
+    degrades over days is a column that changes colour, and the lesion is a horizontal rule.
+
+    ONE COLOUR SCALE across animals, so panels are comparable -- which is the whole point of a
+    summary and is exactly what the per-session figures could not offer.
+    """
+    from wfield_local import config
+
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
+    animals = sorted(by_animal)
+    rows = {a: sorted(by_animal[a], key=lambda x: x[-4:]) for a in animals}
+    M = {a: np.full((len(rows[a]), len(posn)), np.nan) for a in animals}
+    for a in animals:
+        for i, lab in enumerate(rows[a]):
+            try:
+                M[a][i] = ev_per_position(lab)
+            except Exception as ex:                                   # noqa: BLE001
+                print(f"  ev_matrix {lab}: skip ({type(ex).__name__} {str(ex)[:50]})", flush=True)
+    finite = np.concatenate([M[a][np.isfinite(M[a])] for a in animals]) if animals else np.array([])
+    if not finite.size:
+        return None
+    vmax = float(np.nanpercentile(finite, 98))
+    vmin = min(0.0, float(np.nanpercentile(finite, 2)))
+
+    fig, axes = plt.subplots(1, len(animals), figsize=(3.15 * len(animals) + 1.4, 5.6),
+                             squeeze=False)
+    for k, a in enumerate(animals):
+        ax = axes[0][k]
+        im = ax.imshow(np.ma.masked_invalid(M[a]), cmap="viridis", vmin=vmin, vmax=vmax,
+                       aspect="auto")
+        ax.set_xticks(range(len(posn)))
+        ax.set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
+        ax.set_yticks(range(len(rows[a])))
+        ax.set_yticklabels([l[-4:] for l in rows[a]], fontsize=6.5)
+        # the lesion, as a rule between the last pre-stroke row and the first post-stroke one
+        phases = [config.session_phase(a, l[-4:]) for l in rows[a]]
+        for i in range(1, len(phases)):
+            if phases[i - 1] == "pre" and phases[i] != "pre":
+                ax.axhline(i - 0.5, color="firebrick", lw=2.0)
+                ax.text(len(posn) - 0.4, i - 0.5, " lesion", color="firebrick", fontsize=6.5,
+                        va="center")
+        for i, ph in enumerate(phases):        # excluded sessions belong to neither phase
+            if ph == "excluded":
+                ax.text(-0.9, i, "excl", fontsize=5.5, color="grey", va="center", ha="right")
+        ax.set_title(a, fontsize=10, fontweight="bold")
+        if k == 0:
+            ax.set_ylabel("session (MMDD)", fontsize=8)
+    fig.colorbar(im, ax=axes[0].tolist(), fraction=0.02,
+                 label="encoder held-out EV (per position)")
+    fig.suptitle(
+        "ENCODED VARIANCE PER SPOUT POSITION, per session. Ridge from a one-hot position design onto "
+        "the feature matrix, scored per position with the same block GroupKFold the decoders use. "
+        "ONE colour scale across all animals, so the panels are comparable -- which the per-session "
+        "bar charts could not offer. A position that degrades across days is a COLUMN that changes "
+        "colour; the red rule is the lesion.", fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    p = out / name
+    fig.savefig(p, dpi=140)
+    plt.close(fig)
+    return p
+
+
 def fig_ev_by_position_animal(animal, labels, out):
     """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
     colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
-        X, y, g, _, _, _ = _trial_features(_sess(lab), _args(2.0))
-        P = np.stack([(y == p).astype(float) for p in pos], 1)
-        pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
-        for tr, te in GroupKFold(ng).split(X, y, g):
-            pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
-        xbar = X.mean(0); sstot = ((X - xbar) ** 2).sum(1); ssres = ((X - pred) ** 2).sum(1)
-        ev = [1 - ssres[y == p].sum() / max(sstot[y == p].sum(), 1e-12) for p in pos]
+        ev = ev_per_position(lab)          # one implementation, shared with fig_ev_matrix
         ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab[5:9])
     ax.axhline(0, color="k", lw=0.6); ax.set_xticks(x); ax.set_xticklabels(posn, rotation=45, ha="right")
     ax.set_ylabel("explained variance (held-out R^2, per position)"); ax.legend(fontsize=9, title="session")

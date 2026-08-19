@@ -420,6 +420,26 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
                               groups=d["GE"][tr])
     pre_nolick = np.zeros(len(pre_y), bool)
 
+    # PRE-NO-LICK: the matched control (Priya, 2026-08-19). Comparing post-stroke NO-LICK trials
+    # against a pre-stroke ENGAGED panel confounds the lesion with the absence of a movement -- the
+    # post rows have no lick and the pre rows do. Pre-stroke no-lick trials are the same KIND of
+    # trial, so this panel differs from the post panel in phase alone.
+    #
+    # Trained on the OTHER pre-stroke sessions' engaged trials and applied to this session's no-lick
+    # ones, which mirrors the post panel exactly (frozen on pre-stroke engaged, applied to no-lick).
+    # Training on engaged trials of the SAME session would let the decoder see that session's noise.
+    pre_u = np.isin(d["GU"], list(d["pre_i"]))
+    pre_nl_y, pre_nl_p = d["YU"][pre_u], np.full(int(pre_u.sum()), -1)
+    if pre_u.sum():
+        for gsess in np.unique(d["GU"][pre_u]):
+            hold = d["GU"][pre_u] == gsess
+            trn = tr & (d["GE"] != gsess)
+            if trn.sum() < 30 or not hold.sum():
+                continue
+            pre_nl_p[hold] = _pipe().fit(d["XE"][trn], d["YE"][trn]).predict(d["XU"][pre_u][hold])
+    keep_nl = pre_nl_p >= 0
+    pre_nl_y, pre_nl_p = pre_nl_y[keep_nl], pre_nl_p[keep_nl]
+
     # POST: engaged, or engaged + no-lick when post_all_trials. The no-lick trials are the ONLY ones
     # that exist at an abandoned position, so without them those rows cannot be filled at all.
     if post_all_trials:
@@ -433,8 +453,10 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
     post_p = clf.predict(post_X)
 
     out = {"post_arm": "ALL trials (engaged + no-lick)" if post_all_trials else "engaged only",
-           "pre_arm": "engaged only, leave-one-session-out"}
+           "pre_arm": "engaged only, leave-one-session-out",
+           "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged"}
     for phase, y, p, nl in (("pre", pre_y, pre_p, pre_nolick),
+                            ("pre_nolick", pre_nl_y, pre_nl_p, np.ones(len(pre_nl_y), bool)),
                             ("post", post_y, post_p, post_nolick)):
         M = np.full((len(labels), len(labels)), np.nan)
         n, n_nolick = [], []
