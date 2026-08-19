@@ -336,12 +336,21 @@ def main(argv=None) -> int:
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--align", nargs="+", default=["cue", "precue"])
     ap.add_argument("--source", default="roi")
+    ap.add_argument("--lick-only", action="store_true",
+                    help="score the post arm on ENGAGED trials only (default: ALL trials). Both arms "
+                         "belong in the deck: crossnobis whitens by the WITHIN-position residual "
+                         "covariance, so folding the no-lick trials in makes each position more "
+                         "heterogeneous, inflates that covariance and shrinks every distance even "
+                         "where the code is intact. The lick-only arm is the control for exactly that.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
+    arm = "lickonly" if args.lick_only else "all"
     for align in args.align:
-        print(f"\n=== {align}-aligned ===", flush=True)
-        rows = collect(args.animals, align=align, source=args.source)
+        print(f"\n=== {align}-aligned "
+              f"[{'LICK-ONLY' if args.lick_only else 'ALL-trials'} post arm] ===", flush=True)
+        rows = collect(args.animals, align=align, source=args.source,
+                       post_all_trials=not args.lick_only)
         if not rows:
             continue
         summ = summarise(rows)
@@ -367,9 +376,9 @@ def main(argv=None) -> int:
                           f"{v['pre_mirror_minus_normal']:+.3f})")
         json.dump({"align": align, "summary": summ,
                    "sessions": [{k: v for k, v in r.items() if k != "pattern"} for r in rows]},
-                  open(Path(out) / f"spatial_reorganisation_{align}.json", "w"), indent=1,
+                  open(Path(out) / f"spatial_reorganisation_{align}_{arm}.json", "w"), indent=1,
                   default=float)
-        p = plot(rows, summ, out, align)
+        p = plot(rows, summ, out, align + ("_lickonly" if args.lick_only else ""))
         if p:
             print(f"  wrote {p}")
     return 0

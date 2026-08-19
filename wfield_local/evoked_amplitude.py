@@ -151,6 +151,32 @@ def session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     return out
 
 
+def sessions_to_measure(animals=None, curated_only=True):
+    """Registered sessions to measure, with curation applied to the PRE-STROKE side only.
+
+    Split out of `collect` so the invariant below is testable without touching any data. The
+    invariant: a session whose phase is not "pre" is NEVER removed by curation. Curation exists to
+    keep noisy early sessions out of the reference BAND; applying it to post-stroke sessions deletes
+    the measurement instead, and does so silently -- the summary simply reports fewer animals.
+    """
+    sessions = config.load_sessions()
+    if curated_only:
+        keep = set(config.curated_dates())
+        sessions = [x for x in sessions
+                    if _date_of(x) in keep or config.session_phase(_animal_of(x), _date_of(x)) != "pre"]
+    if animals:
+        sessions = [x for x in sessions if _animal_of(x) in set(animals)]
+    return sessions
+
+
+def _animal_of(s):
+    return s["label"][:4]
+
+
+def _date_of(s):
+    return s["label"].split("_")[-1]
+
+
 def collect(animals=None, align="cue", source="roi", curated_only=True,
             post_all_trials=True):
     """Sessions to measure. CURATED dates only by default.
@@ -160,13 +186,16 @@ def collect(animals=None, align="cue", source="roi", curated_only=True,
     mean |amplitude| of 16.3 against ~0.53 for every other session. Including it put PS95's pre-stroke
     band at [0.145, 18.09], inside which no post-stroke value could ever fall. Every other analysis in
     this project builds its reference from the curated set; this one has to as well.
+
+    THE FILTER APPLIES TO THE PRE-STROKE REFERENCE ONLY. Curation exists to clean the BAND; a
+    post-stroke or excluded session must never be dropped by it. An earlier version hardcoded
+    `| {"0817"}`, so registering the 8/18 sessions silently produced no post-stroke row at all for
+    PS92 and PS93 -- whose effective lesion IS 8/18 -- and quietly truncated PS94/PS95 to day 1. Same
+    error class as the grid runner's `excluded_labels(an) or None`: a date list treated as fixed while
+    the study kept acquiring. Non-pre dates are now derived from config, so registering a session is
+    enough.
     """
-    keep_dates = set(config.curated_dates()) | {"0817"}
-    sessions = config.load_sessions()
-    if curated_only:
-        sessions = [x for x in sessions if x["label"].split("_")[-1] in keep_dates]
-    if animals:
-        sessions = [x for x in sessions if x["label"][:4] in set(animals)]
+    sessions = sessions_to_measure(animals, curated_only)
     rows = []
     for s in sessions:
         try:
@@ -220,21 +249,23 @@ def summarise(rows):
                                 float((v - b["mean"]) / b["sd"]) if b["sd"] else float("nan"))
                             e.setdefault("outside", {})[r["date"]] = bool(v < b["min"] or v > b["max"])
                 rec[qty][p] = e
-        # per-area z on the SHARE, so a redistribution shows even if the total moved
+        # Per-area z on the SHARE, so a redistribution shows even if the total moved.
+        # KEYED BY DATE. An earlier version read `post[0]` and so reported day 1 only; once 8/18 was
+        # registered that silently discarded half the post-stroke data while still looking complete.
         rec["share_z"] = {}
-        for p in [POSITION_NAMES[c] for c in DISPLAY_ORDER]:
-            if not any(p in r["share"] for r in pre) or not post:
-                continue
-            areas = sorted(post[0]["share"].get(p, {}))
-            zz = {}
-            for ar in areas:
-                b = _band([r["share"].get(p, {}).get(ar, np.nan) for r in pre])
-                if b is None or not b["sd"]:
+        for r in post:
+            for p in [POSITION_NAMES[c] for c in DISPLAY_ORDER]:
+                if not any(p in q["share"] for q in pre):
                     continue
-                v = post[0]["share"][p].get(ar, np.nan)
-                zz[ar] = float((v - b["mean"]) / b["sd"])
-            if zz:
-                rec["share_z"][p] = zz
+                zz = {}
+                for ar in sorted(r["share"].get(p, {})):
+                    b = _band([q["share"].get(p, {}).get(ar, np.nan) for q in pre])
+                    if b is None or not b["sd"]:
+                        continue
+                    v = r["share"][p].get(ar, np.nan)
+                    zz[ar] = float((v - b["mean"]) / b["sd"])
+                if zz:
+                    rec["share_z"].setdefault(r["date"], {})[p] = zz
         out[a] = rec
     return out
 

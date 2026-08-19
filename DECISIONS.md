@@ -1906,3 +1906,53 @@ One session per animal per day. And **"pre-cue" means pre-cue position informati
 motor intention** — the spout arrives ~3 s before the cue, so a sustained sensory response and a held
 plan are temporally coextensive and this design cannot separate them. The dissociation between two
 WINDOWS is solid; calling the earlier one a plan is an interpretation.
+
+## ⚠ A HARDCODED DATE LIST DELETED HALF THE POST-STROKE DATA (found 2026-08-19)
+
+`evoked_amplitude.collect` selected sessions with
+
+```python
+keep_dates = set(config.curated_dates()) | {"0817"}
+```
+
+Correct the day it was written — 8/17 was the only post-stroke date. The moment the 8/18 sessions were
+registered it became a silent data-deletion bug:
+
+- **PS92 and PS93 produced no post-stroke row at all.** Their effective lesion is 8/18, and 8/17 is in
+  their `exclude` list, so after filtering they had zero non-pre sessions. The summary printed
+  `--- PS92 ---` with nothing under it and moved on.
+- **PS94 and PS95 were truncated to day 1.** Their 8/18 sessions were dropped, so every amplitude
+  number reported for them described 8/17 only while appearing to describe "post-stroke".
+
+Nothing raised. A second instance of the same shape sat ten lines below: `share_z` read `post[0]`, the
+first post-stroke session, so per-area redistribution was reported for day 1 alone even when day 2 was
+present.
+
+### The error class, third instance today
+
+This is the same failure as `labs = excluded_labels(an) or None` in the grid runner and as the union
+`preserved_positions`: **a set that is a property of the current data was written down as a literal and
+then outlived the data.** Every instance failed silently in the direction of reporting less than it
+claimed, and every one was caught by a person reading the output, not by a check.
+
+### Fix
+
+Curation now applies to the **pre-stroke reference only** — its actual purpose. It exists to keep
+noisy early sessions (PS95_0605, mean |amplitude| 16.3 against ~0.53 elsewhere) out of the reference
+BAND; applied to a post-stroke session it deletes the measurement instead. The selection is split out
+as `evoked_amplitude.sessions_to_measure` so the invariant is testable without touching data:
+
+- a session whose phase is not `pre` is never removed by curation;
+- a non-curated PRE-stroke date still is.
+
+Both directions are pinned in `tests/test_stroke_phase.py`, next to the tests guarding the opposite
+leak (post-stroke data entering a pre-stroke pool). `share_z` is now keyed by post-stroke date.
+
+### The guard that vouched for the wrong thing
+
+Fixing this surfaced a weak test. `test_ps92_ps93_are_never_called_a_negative_control` checked
+`low.index(phrase)` — the **first** occurrence only. A properly hedged code comment at line 1089
+therefore vouched for every later mention in the module, and one had slipped through: the G9 slide told
+the reader "G7 uses them as the negative control" in user-visible text, contradicting the 2026-08-18
+correction. The guard now checks every occurrence, and the G9 bullet has been rewritten to say what
+those sessions actually are: the within-animal before/after control.

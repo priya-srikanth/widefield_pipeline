@@ -151,3 +151,49 @@ def test_excluded_sessions_are_still_registered_and_projectable():
     labs = {s["label"] for s in config.load_sessions()}
     for lab in ("PS92_0817", "PS93_0817"):
         assert lab in labs, f"{lab} must remain registered so it can be projected and plotted"
+
+
+# ---------------------------------------------------------------------------------------------
+# The MIRROR-IMAGE hazard: a post-stroke session silently dropped from a post-stroke analysis.
+#
+# The tests above guard the direction everyone thinks of -- post-stroke data leaking into a
+# pre-stroke pool. The opposite leak is just as damaging and much quieter. `evoked_amplitude`
+# curated its session list with a hardcoded `set(curated_dates()) | {"0817"}`, which was correct on
+# the day it was written and wrong the moment 8/18 was registered: PS92 and PS93, whose EFFECTIVE
+# lesion is 8/18, produced no post-stroke row at all, and PS94/PS95 were quietly truncated to day 1.
+# Nothing failed -- the summary just printed "--- PS92 ---" with nothing under it.
+#
+# Curation exists to keep noisy early sessions out of the REFERENCE BAND. Applied to a post-stroke
+# session it deletes the measurement instead.
+# ---------------------------------------------------------------------------------------------
+
+def test_curation_never_drops_a_post_stroke_session(lesioned, monkeypatch):
+    from wfield_local import evoked_amplitude as ea
+
+    labels = ["PS94_0812", "PS94_0813", "PS94_0817", "PS94_0818"]
+    monkeypatch.setattr(config, "load_sessions", lambda: [{"label": x} for x in labels])
+    # curation that admits ONLY pre-stroke dates -- the situation the bug created
+    monkeypatch.setattr(config, "curated_dates", lambda *a, **k: ["0812", "0813"])
+
+    kept = {s["label"] for s in ea.sessions_to_measure(curated_only=True)}
+    non_pre = {x for x in labels if config.session_phase(x[:4], x.split("_")[-1]) != "pre"}
+    assert non_pre, "fixture must contain at least one non-pre session or this proves nothing"
+    assert non_pre <= kept, f"curation dropped post-stroke sessions: {sorted(non_pre - kept)}"
+
+
+def test_curation_still_filters_the_pre_stroke_reference(lesioned, monkeypatch):
+    """The other half: curation must keep doing its job on the PRE side.
+
+    PS95_0605 has a mean |amplitude| of 16.3 against ~0.53 everywhere else; including it put PS95's
+    band at [0.15, 18.09], inside which no post-stroke value could ever fall. A fix that spared
+    post-stroke dates by disabling curation entirely would silently reintroduce that.
+    """
+    from wfield_local import evoked_amplitude as ea
+
+    labels = ["PS95_0605", "PS95_0812", "PS95_0817"]
+    monkeypatch.setattr(config, "load_sessions", lambda: [{"label": x} for x in labels])
+    monkeypatch.setattr(config, "curated_dates", lambda *a, **k: ["0812"])
+
+    kept = {s["label"] for s in ea.sessions_to_measure(curated_only=True)}
+    assert "PS95_0605" not in kept, "non-curated PRE-stroke date must still be excluded"
+    assert {"PS95_0812", "PS95_0817"} <= kept

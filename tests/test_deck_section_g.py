@@ -291,11 +291,17 @@ def test_ps92_ps93_are_never_called_a_negative_control():
         src = inspect.getsource(mod)
         low = src.lower()
         for phrase in ("negative control", "negative-control"):
-            if phrase in low:
-                i = low.index(phrase)
+            # EVERY occurrence, not just the first. The original checked `low.index(phrase)` only,
+            # so a correctly-hedged mention early in the module vouched for every later one -- and
+            # one did slip through: the G9 bullet said "G7 uses them as the negative control" in
+            # user-visible slide text while the code comment 120 lines above carried the correction.
+            i = low.find(phrase)
+            while i != -1:
                 ctx = src[max(0, i - 200):i + 200]
                 assert "NOT a" in ctx or "not a no-lesion" in ctx, (
-                    f"{mod.__name__} calls PS92/PS93 a {phrase} without the correction: ...{ctx}...")
+                    f"{mod.__name__} calls PS92/PS93 a {phrase} without the correction "
+                    f"(offset {i}): ...{ctx}...")
+                i = low.find(phrase, i + 1)
 
 
 # ------------------------------------------------------------------------------------------------

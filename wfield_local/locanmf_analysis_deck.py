@@ -1208,9 +1208,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 G7 uses them as the negative control, built from an explicit "
-             "label list rather than phase_labels('post'). They also remain registered, are projected "
-             "onto the joint bases, and appear per-session in sections A\u2013D.")
+             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON in G7 and, more "
+             "importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same animals' 8/18 "
+             "sessions ARE post-stroke and carry the dissociation, while their 8/17 sessions show "
+             "nothing outside the band at any alignment. Same animal, same rig, one day apart. That "
+             "control exists only because these sessions were kept analysable instead of discarded. "
+             "They also remain registered, are projected onto the joint bases, and appear "
+             "per-session in sections A\u2013D.")
             if _excluded else
             "No sessions are currently in the 'excluded' phase.",
             "RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
@@ -1220,8 +1224,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "and the independently-trained-decoder similarity analysis. Both need n > 1.",
             "BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
             "vs never-attempted. Until then every no-lick claim above carries that ambiguity.",
-            "PS92/PS93 re-enter as post-stroke once re-lesioned; stroke_date and laser power must be "
-            "updated in configs/animals.yaml, and 0817 kept in their exclude list.",
+            "PS92/PS93 HAVE re-entered as post-stroke: their effective lesion followed the 8/17 "
+            "session, so 8/18 is their post-stroke day 1 and appears in every pooled slide. 0817 "
+            "stays in their exclude list, which is what makes the before/after control above "
+            "possible.",
         ])
 
     out_path = Path(out_path)
