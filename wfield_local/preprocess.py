@@ -454,9 +454,19 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
         if Path(vdir).exists() and not dry_run:
             print(f"[skip] {Path(vdir).name} exists", flush=True)
         else:
-            _run(["wfield_local.hemo_variants", "--variant", build_variant, "--write",
-                  "--no-refit-t",            # hybrid: the saved T IS the high-pass-fitted T (3.5e-5)
-                  "--label", f"{animal}_{mmdd}", "--mc", mc, "--h5", s["daq_h5"]], dry_run)
+            # NON-FATAL: the hemo variant is an optional add-on for variant-based analyses; the core
+            # LocaNMF inputs (SVTcorr + Allen) must still push even if it fails. A session with a
+            # coverage gap / single-channel prefix can make meegkit divide by all-zero weights and
+            # raise -- that must not abort the whole night's preprocessing of the other animals.
+            try:
+                _run(["wfield_local.hemo_variants", "--variant", build_variant, "--write",
+                      "--no-refit-t",            # hybrid: the saved T IS the high-pass-fitted T (3.5e-5)
+                      "--label", f"{animal}_{mmdd}", "--mc", mc, "--h5", s["daq_h5"]], dry_run)
+            except SystemExit as ex:
+                print(f"[warn] hemo_variants FAILED for {animal}_{mmdd} ({ex}); continuing WITHOUT the "
+                      f"{build_variant} variant (LocaNMF inputs still pushed). Session likely has a "
+                      f"coverage gap / single-channel prefix -- rebuild the variant once that is fixed.",
+                      flush=True)
 
     # 4 push LocaNMF inputs to MICROSCOPE FIRST (results dir + frame_map + summary; NOT the .bin)
     ndst = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
