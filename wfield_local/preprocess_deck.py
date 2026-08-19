@@ -425,32 +425,52 @@ def all_sessions(machine=None, resolver=None, labcams_root=None, include_regime_
 # ---------------------------------------------------------------------------
 # Build.
 # ---------------------------------------------------------------------------
-def _refuse_empty_overwrite(out_path, type_counts, allow_empty=False):
-    """Refuse to replace an existing deck with one that found NO figures.
+#: A rebuild landing under this fraction of the previous file's size is REPORTED, never blocked.
+#: Legitimate rebuilds do shrink -- excluding the regime-A sessions dropped five cohort-wide -- so a
+#: hard threshold here would eventually block a correct run, which is how bans accumulate.
+DECK_SHRINK_WARN = 0.5
 
-    A deck is rebuilt in place, so a run that discovers nothing silently destroys the previous one.
-    That happened on 2026-08-19: PS93's deck was rebuilt with `sessions` filtered on `s.get("animal")`,
-    a key these dicts do not have -- the session dicts carry `label`, `mc`, `h5`, `fmdir`, `regime`.
-    The filter matched zero sessions, build_deck wrote a 2-slide file with every figure type at zero,
-    and 257 MB of deck became 264 kB. Nothing raised: an empty result is a perfectly valid deck.
 
-    The first line of defence is the caller checking its own filter, and the caller in question did
-    not. So the check lives here too, where it cannot be forgotten. `allow_empty=True` for the
-    legitimate case of building a deck for a tree that genuinely has no figures yet.
+def _check_replacement(out_path, type_counts, verbose=True, force=False):
+    """Compare a deck about to be written against the one it would replace.
+
+    A deck is rebuilt IN PLACE, so a run that discovers nothing destroys the previous one -- and an
+    empty deck is a perfectly valid deck, so nothing complains. On 2026-08-19 PS93's deck was rebuilt
+    with `sessions` filtered on `s.get("animal")`, a key these dicts do not have: they carry label /
+    mc / h5 / fmdir / regime, and `_animal_of` exists for precisely this. Zero sessions matched and
+    257 MB became 264 kB in silence.
+
+    Two outcomes, chosen by how certain the failure is:
+      REFUSE when no figure of ANY type was found. That is never a legitimate replacement.
+      WARN when the file shrinks sharply. Legitimate rebuilds shrink, so this must not block.
+
+    Size is the proxy for content deliberately: it needs no sidecar file, no second format to keep in
+    step, and one stat() call. `force=True` skips both.
     """
-    if allow_empty or not os.path.exists(out_path):
+    if force or not os.path.exists(out_path):
         return
-    if any(type_counts.values()):
+    if not any(type_counts.values()):
+        raise RuntimeError(
+            f"refusing to overwrite {out_path} with a deck containing NO figures of any type "
+            f"({os.path.getsize(out_path) / 1e6:.0f} MB already there). Check the `sessions` "
+            f"filter -- session dicts key on 'label' (use _animal_of), not 'animal'. "
+            f"Pass force=True if this is intended.")
+
+
+def _warn_if_shrunk(out_path, before_bytes, verbose=True):
+    """Report a sharp drop in deck size after the write. Informational; never raises."""
+    if not verbose or not before_bytes:
         return
-    raise RuntimeError(
-        f"refusing to overwrite {out_path} with a deck containing NO figures of any type "
-        f"({os.path.getsize(out_path) / 1e6:.0f} MB already there). Check the `sessions` filter -- "
-        f"session dicts key on 'label', not 'animal'. Pass allow_empty=True if this is intended.")
+    after = os.path.getsize(out_path)
+    if after < before_bytes * DECK_SHRINK_WARN:
+        print(f"[deck] WARNING: {os.path.basename(out_path)} shrank "
+              f"{before_bytes / 1e6:.0f} MB -> {after / 1e6:.0f} MB. Legitimate if sessions were "
+              f"excluded or curated out; otherwise check the `sessions` filter.")
 
 
 def build_deck(out_path, sessions=None, resolver=None, machine=None,
                labcams_root=None, xday_root=None, verbose=True, include_global_summary=True,
-               exclude_stale_maps=True, allow_empty=False):
+               exclude_stale_maps=True, force=False):
     """Build a fresh preprocessing deck at ``out_path`` and return a summary dict.
 
     ``sessions`` / ``resolver`` default to the live config; ``labcams_root`` /
@@ -532,8 +552,10 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     out_dir = os.path.dirname(os.path.abspath(out_path))
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
-    _refuse_empty_overwrite(out_path, type_counts, allow_empty=allow_empty)
+    _check_replacement(out_path, type_counts, verbose=verbose, force=force)
+    _before = os.path.getsize(out_path) if os.path.exists(out_path) else 0
     prs.save(out_path)
+    _warn_if_shrunk(out_path, _before, verbose=verbose)
 
     zero_types = [k for k, n in type_counts.items() if n == 0]
     stale = stale_map_sessions(sessions)

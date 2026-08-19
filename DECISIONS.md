@@ -233,9 +233,10 @@ normally; the ~190 GB `.bin` stays on local scratch and only the results are pus
 setting survives a reboot.** Hard-won cautions:
 - **Verify the raw `.sha256` sidecar**, and expect the `N:` mount to drop mid-transfer (`ERROR 53`). Plain
   `robocopy` discards a partial 190 GB file on a drop; use a resumable copier that hashes in the same pass.
-- **Do NOT run `preprocess_deck` (`build_decks`)** — it globs `cross-session_preprocessing*.pptx` and
-  **deletes every sibling deck it did not write this run**, destroying the other animals' decks. Call
-  `build_deck` (singular) with `sessions` filtered to the one animal.
+- **`preprocess_deck` (`build_decks`) is SAFE to run** — see "Deck writes are guarded, not banned"
+  below. The old blanket prohibition described a prune that no longer exists unguarded, and it had a
+  cost: it routed people onto a hand-rolled `build_deck` call, which is exactly where 257 MB of PS93's
+  deck was destroyed on 2026-08-19.
 - **Do NOT run the photobleach step via `preprocess`** (omit it with `--skip-photobleach`): `photobleach.run`
   calls `summary()`, which rewrites the date's **shared** `photobleach_SUMMARY.png` + `photobleach_results.json`
   with only the animals in *this* run. Call `photobleach.analyze()` alone — the deck only reads the
@@ -2074,3 +2075,33 @@ attempting, so on that arm the finding is confounded with the absence of the mov
 read as a lesioned sensory representation. The **pre-cue** arm, which precedes the movement, shows no
 such far-position concentration — its losses are scattered and mostly PS95's close positions. That
 asymmetry is the caveat, not a footnote to it.
+
+
+## Deck writes are guarded, not banned (2026-08-19)
+
+The single place to look before touching deck builders. It replaces a blanket ban in this file and
+another in `runbooks/helper_box_setup.md`, both of which described code that stopped existing on
+2026-08-14 and disagreed with `docs/STATUS_2026-08-14.md`.
+
+Three failure modes, three guards, each at the point where the damage would happen:
+
+**A partial run must not prune another run's decks.** `build_decks` deletes siblings it did not write,
+which is right after a re-split and catastrophic when a date is split across machines (imaging box:
+PS92/PS93; helper box: PS94/PS95). The prune is gated on `writeguard.covers_all(covered,
+all_animals)` and a partial run declines loudly instead. This is why the plural form is now safe to
+run, and why it is *preferable* to hand-rolling a filtered `build_deck`.
+
+**Nothing may be deleted outside the Priya subtree.** Every prune delete goes through
+`writeguard.assert_writable` (rule 1).
+
+**A rebuild that found nothing must not replace one that did.** A deck is rebuilt in place and an
+empty deck is perfectly valid, so this failed silently: PS93's deck was rebuilt with `sessions`
+filtered on `s.get("animal")` — a key those dicts do not have; they carry `label`, and `_animal_of`
+exists for exactly this — and 257 MB became 264 kB. `_check_replacement` now REFUSES when no figure
+of any type was found, and `_warn_if_shrunk` REPORTS a sharp size drop without blocking, because
+legitimate rebuilds do shrink (excluding the regime-A sessions dropped five cohort-wide). `force=True`
+skips both.
+
+**The general rule this came from:** when a guard is needed, put it where the damage happens and let
+the operation stay usable. A prohibition in prose protects only the reader who finds it, and pushes
+everyone else onto a less-tested path.

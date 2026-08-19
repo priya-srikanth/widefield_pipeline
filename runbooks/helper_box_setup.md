@@ -33,9 +33,11 @@ local scratch; only results are pushed to `N:`.
 
 ## 2. Two footguns when only ONE animal is being processed here
 
-* **Never run `preprocess_deck` / `build_decks`.** It globs `cross-session_preprocessing*.pptx` and
-  **deletes every sibling deck it did not write this run**, destroying the other animals' decks that
-  the imaging box is building. Call `build_deck` (singular) with `sessions` filtered to the animal.
+* **`preprocess_deck` / `build_decks` is fine to run here.** Its stale-deck prune is gated on the run
+  covering every configured animal, so a single-animal run declines it and says so — the imaging
+  box's decks are safe. Prefer it to a hand-rolled `build_deck` with a filtered `sessions` list; that
+  path destroyed a 257 MB deck on 2026-08-19. If you do filter, use `_animal_of(s)`: these dicts key
+  on `label`, not `animal`. See DECISIONS.md "Deck writes are guarded, not banned".
 * **Skip the photobleach step** (`--skip-photobleach`). `photobleach.run()` calls `summary()`, which
   rewrites the date's **shared** `photobleach_SUMMARY.png` + `photobleach_results.json` with only the
   animals in *this* run. Call `photobleach.analyze()` alone — the deck only reads the per-session

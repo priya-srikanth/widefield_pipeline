@@ -401,44 +401,59 @@ def test_build_deck_EXCLUDES_stale_map_sessions_not_just_warns(tmp_path, monkeyp
 # A deck is rebuilt IN PLACE, so a run that discovers nothing destroys the previous one.
 #
 # 2026-08-19: PS93's deck was rebuilt with `sessions` filtered on `s.get("animal")` -- a key these
-# dicts do not have (they carry label / mc / h5 / fmdir / regime). The filter matched zero sessions,
-# build_deck wrote a 2-slide file with every figure type at zero, and 257 MB became 264 kB. Nothing
-# raised, because an empty deck is a perfectly valid deck.
+# dicts do not have (they carry label / mc / h5 / fmdir / regime, and `_animal_of` exists for it).
+# Zero sessions matched, and 257 MB became 264 kB. Nothing raised, because an empty deck is a
+# perfectly valid deck.
 #
-# The first line of defence is the caller checking its own filter, and that caller did not. So the
-# check also lives where it cannot be forgotten.
+# Refuse when nothing at all was found; only WARN on a sharp shrink, because legitimate rebuilds do
+# shrink (excluding the regime-A sessions dropped five cohort-wide) and a blocking threshold there
+# would eventually stop a correct run.
 # ------------------------------------------------------------------------------------------------
 
 def test_empty_rebuild_refuses_to_overwrite_an_existing_deck(tmp_path):
     import pytest
 
-    from wfield_local.preprocess_deck import _refuse_empty_overwrite
+    from wfield_local.preprocess_deck import _check_replacement
 
     p = tmp_path / "cross-session_preprocessing_PS93.pptx"
     p.write_bytes(b"x" * 4096)
     with pytest.raises(RuntimeError, match="NO figures"):
-        _refuse_empty_overwrite(p, {"allen": 0, "cue_maps": 0, "quiet_running": 0})
+        _check_replacement(p, {"allen": 0, "cue_maps": 0, "quiet_running": 0})
 
 
 def test_a_rebuild_that_found_figures_is_allowed(tmp_path):
-    from wfield_local.preprocess_deck import _refuse_empty_overwrite
+    from wfield_local.preprocess_deck import _check_replacement
 
     p = tmp_path / "deck.pptx"
     p.write_bytes(b"x" * 4096)
-    _refuse_empty_overwrite(p, {"allen": 15, "cue_maps": 0})       # one non-zero type is enough
+    _check_replacement(p, {"allen": 15, "cue_maps": 0})        # one non-zero type is enough
 
 
 def test_a_brand_new_deck_may_be_empty(tmp_path):
     """Nothing is destroyed by writing an empty deck where none existed -- a fresh tree with no
     figures yet is a real case and must not be turned into an error."""
-    from wfield_local.preprocess_deck import _refuse_empty_overwrite
+    from wfield_local.preprocess_deck import _check_replacement
 
-    _refuse_empty_overwrite(tmp_path / "absent.pptx", {"allen": 0})
+    _check_replacement(tmp_path / "absent.pptx", {"allen": 0})
 
 
-def test_allow_empty_is_honoured(tmp_path):
-    from wfield_local.preprocess_deck import _refuse_empty_overwrite
+def test_force_skips_the_check(tmp_path):
+    from wfield_local.preprocess_deck import _check_replacement
 
     p = tmp_path / "deck.pptx"
     p.write_bytes(b"x" * 4096)
-    _refuse_empty_overwrite(p, {"allen": 0}, allow_empty=True)
+    _check_replacement(p, {"allen": 0}, force=True)
+
+
+def test_a_sharp_shrink_warns_but_never_raises(tmp_path, capsys):
+    """The failure mode that is NOT catastrophic: a deck that still found figures but far fewer.
+    Blocking it would eventually stop a legitimate re-curation, so it only has to be visible."""
+    from wfield_local.preprocess_deck import _warn_if_shrunk
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 1000)
+    _warn_if_shrunk(p, before_bytes=1_000_000)
+    assert "shrank" in capsys.readouterr().out
+
+    _warn_if_shrunk(p, before_bytes=1100)          # a mild shrink is normal and stays quiet
+    assert "shrank" not in capsys.readouterr().out
