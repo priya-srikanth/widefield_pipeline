@@ -1208,6 +1208,15 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
         elif from_spec:
             dates = config.expand_dates(from_spec)
         cohort_summary(rv, dates, animals, out_dir, dry=dry)
+        if not dry:                                 # assemble the standing behavior deck from the figures
+            try:
+                from wfield_local.behavior_deck import build_behavior_deck
+                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=animals)
+                print(f"[spout_behavior] wrote behavior deck: {Path(d['out']).name} "
+                      f"({d['slides']} slides, {d['figures_present']} figs, {d['figures_missing']} missing)",
+                      flush=True)
+            except Exception as e:
+                print(f"[spout_behavior] behavior deck FAILED: {type(e).__name__}: {e}", flush=True)
     return 0
 
 
