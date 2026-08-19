@@ -287,6 +287,31 @@ M_VESSEL = (
     "appear. It also does NOT settle the perfusion direction left unresolved in M_HEMI: that "
     "retraction stands.")
 
+M_FIXEDSCALE = (
+    "PRE- vs POST-STROKE ACTIVITY MAPS ON ONE COMMON COLOUR SCALE (wfield_local.fixed_scale_maps). "
+    "Built to answer Priya directly: the preprocessing decks show much larger amplitude bars post-stroke, and the question was whether any existing figure bears that out. None does, and one "
+    "actively hides it."
+    "\n\nWHY THE STANDARD MAPS CANNOT SHOW IT. plot_spout_trial_averages sets its colour limit from a percentile of THAT SESSION's own maps, so every session is renormalised to fill the same "
+    "colour range. A session whose responses are three times larger looks identical -- only the "
+    "number on the colourbar changes. That is the right default for reading one session's spatial "
+    "pattern and exactly wrong for comparing amplitude across sessions, which is why the "
+    "observation had to be made by reading colourbar numbers. Here every panel in a figure shares "
+    "one symmetric vmin/vmax computed across ALL panels, so a 2-3x amplitude difference appears as "
+    "a 2-3x difference in colour saturation."
+    "\n\nMETHOD. Maps are reconstructed on the ATLAS grid (U_atlas @ window-mean SVT), so pixels are comparable across sessions and animals, and the window is the same one the decoders use. "
+    "Minimum 8 trials per position. NO z-scoring anywhere in this figure -- z-scoring is what would "
+    "destroy the amplitude comparison it exists to make. Post-stroke sessions use ALL trials."
+    "\n\nTHE dF/F DENOMINATOR WAS CHECKED FIRST, because a figure that dramatises an artefact is worse than no figure. Baseline F is unchanged post-stroke (PS94 pre/post ratio 1.01, PS95 1.02, "
+    "PS92 0.99), so the rise is in the numerator, not the denominator."
+    "\n\nWHAT THE MAPS ACTUALLY SHOW, AND IT IS NOT WHAT THE SUMMED MEASURE SAID. PS94 PEAK amplitude rises only at close_L (0.039 -> 0.073) and close_center (0.029 -> 0.055), is flat at "
+    "close_R, and FALLS at the far positions (far_center 0.018 -> 0.008) -- the positions the animal "
+    "stopped reaching. Meanwhile evoked_amplitude's SUMMED |response| rose at far_L (0.278 -> "
+    "1.070) while its peak stayed flat (0.019 -> 0.017). Those reconcile only one way: the response "
+    "became spatially BROADER, not stronger. Read this figure as the evidence for SPREAD; read G8e "
+    "for the decomposition."
+    "\n\nCAVEAT. LED power is set by hand daily, so absolute pixel values carry a session confound that this figure deliberately does NOT normalise away. It is here to make the raw "
+    "comparison visible and honest, not to settle it; the scale-free measures in G8e do that.")
+
 M_EVOKED = (
     "PER-AREA EVOKED AMPLITUDE (wfield_local.evoked_amplitude). Built to test Priya's reading of the "
     "preprocessing decks: more R sensorimotor activity post-stroke, especially at the far positions, "
@@ -1182,14 +1207,32 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_VESSEL)
             big(s, _vf, top=1.85, width=12.6)
 
-        # G8d: per-area evoked amplitude -- the measure aimed at Priya's map observation, and the
+        # G8d: the OBSERVATION itself -- pre/post maps on one colour scale. This has to come
+        # BEFORE the decomposition, because the decomposition is only interesting once the reader has
+        # seen the thing being decomposed. Priya read the amplitude difference off colourbar numbers;
+        # no figure in the deck showed it, and the per-session renormalisation actively hid it.
+        for _al, _nice in (("cue", "POST-cue"), ("lick", "POST-lick")):
+            _fs = sorted(src.glob(f"fixed_scale_maps_*_{_al}.png"))
+            for _fsf in _fs:
+                _an = _fsf.name.split("_")[3]
+                s = slide()
+                title(s, f"G8d. Pre- vs post-stroke maps on ONE COMMON COLOUR SCALE "
+                         f"— {_an}, {_nice}",
+                      "Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude difference "
+                      "shows as a 2-3x difference in saturation. The standard maps renormalise per "
+                      "session and cannot show this. Baseline F is unchanged (ratios 0.99-1.02), so "
+                      "the change is in the numerator.")
+                note(s, M_FIXEDSCALE)
+                big(s, _fsf, top=1.9, width=11.6)
+
+        # G8e: per-area evoked amplitude -- the measure aimed at Priya's map observation, and the
         # only one in the hemispheric line that is not a null.
         for _al, _nice in (("cue", "POST-cue"), ("lick", "POST-lick")):
             _ef = src / f"evoked_amplitude_{_al}.png"
             if not _ef.exists():
                 continue
             s = slide()
-            title(s, f"G8d. Per-AREA evoked amplitude ({_nice}) — amplitude rises in all four, "
+            title(s, f"G8e. Per-AREA evoked amplitude ({_nice}) — amplitude rises in all four, "
                      f"lateralisation collapses only in PS94",
                   "ROW 1 is what the map colourbars show and is the only row carrying the baseline "
                   "confound. ROWS 2–3 are scale-free. Amplitude rises in every animal graded by "

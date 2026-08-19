@@ -125,6 +125,38 @@ def svtcorr_in(results_dir, variant: str | None = None) -> str:
     return f"{base}/SVTcorr.npy" if v is None else f"{base}/hemo_{v}/SVTcorr.npy"
 
 
+def analysis_sessions(animals=None, curated_only=True, sessions=None):
+    """Registered sessions for a cross-session analysis, with curation applied to the PRE side ONLY.
+
+    ONE PLACE, because this selection has been written wrong three times in three modules and each
+    time it deleted data silently rather than failing:
+
+      * `evoked_amplitude`      `set(curated_dates()) | {"0817"}`
+      * `spatial_reorganisation` `set(curated_dates()) | {"0817", "0818"}`
+      * the Section G runner     `for an in ("PS94", "PS95")`
+
+    Every one was correct on the day it was written and wrong at the next acquisition. A date literal
+    is a snapshot of the study; the study keeps moving.
+
+    THE INVARIANT: curation exists to keep noisy early sessions out of the pre-stroke REFERENCE BAND
+    (PS95_0605 has a mean |amplitude| of 16.3 against ~0.53 elsewhere, which put PS95's band at
+    [0.15, 18.09] -- a band no post-stroke value could fall outside). Applied to a session that is
+    not `pre`, it deletes the measurement instead. So: a session whose phase is not "pre" is NEVER
+    removed by curation; a non-curated PRE date still is.
+
+    Pinned in both directions in tests/test_stroke_phase.py.
+    """
+    rows = list(sessions if sessions is not None else load_sessions())
+    if curated_only:
+        keep = set(curated_dates())
+        rows = [x for x in rows
+                if x["label"].split("_")[-1] in keep
+                or session_phase(x["label"][:4], x["label"].split("_")[-1]) != "pre"]
+    if animals:
+        rows = [x for x in rows if x["label"][:4] in set(animals)]
+    return rows
+
+
 def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 

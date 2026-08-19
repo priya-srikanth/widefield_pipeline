@@ -208,20 +208,24 @@ def mirror_test(pre_rows, post_row):
         # difference toward mirror by >0.15 and so labelled PS94 close_R "transfer" when normal was
         # +0.718 against mirror +0.323 -- the pattern had not moved anywhere, it had merely become
         # less asymmetric. Those are different claims and only the first deserves the word.
-        out[p]["transfer"] = bool(out[p]["mirror_r"] > out[p]["normal_r"])
+        # A MARGIN IS REQUIRED, not just an ordering. `mirror_r > normal_r` alone flagged TRANSFER
+        # for PS94 8/18 far_center on normal +0.677 vs mirror +0.682 -- a 0.005 correlation
+        # difference, against a pre-stroke baseline difference of -0.015. Reporting that as a
+        # pattern relocating across the midline would be the same overclaiming this project has
+        # been correcting all week. Transfer now needs BOTH: mirror actually ahead of normal, AND
+        # the shift toward mirror larger than the pre-stroke baseline by the same 0.15 used for
+        # reduced_asymmetry (a symmetric brain already has substantial mirror correlation).
+        out[p]["transfer"] = bool(
+            out[p]["mirror_r"] > out[p]["normal_r"]
+            and out[p]["mirror_minus_normal"] > out[p]["pre_mirror_minus_normal"] + 0.15)
         out[p]["reduced_asymmetry"] = bool(
             out[p]["mirror_minus_normal"] > out[p]["pre_mirror_minus_normal"] + 0.15)
     return out
 
 
 def collect(animals=None, align="cue", source="roi", post_all_trials=True):
-    keep = set(config.curated_dates()) | {"0817", "0818"}
     rows = []
-    for s in config.load_sessions():
-        if s["label"].split("_")[-1] not in keep:
-            continue
-        if animals and s["label"][:4] not in set(animals):
-            continue
+    for s in config.analysis_sessions(animals=animals):
         try:
             r = session_geometry(s, align, source, post_all_trials)
         except Exception as ex:                                      # noqa: BLE001

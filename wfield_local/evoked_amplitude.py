@@ -159,14 +159,7 @@ def sessions_to_measure(animals=None, curated_only=True):
     keep noisy early sessions out of the reference BAND; applying it to post-stroke sessions deletes
     the measurement instead, and does so silently -- the summary simply reports fewer animals.
     """
-    sessions = config.load_sessions()
-    if curated_only:
-        keep = set(config.curated_dates())
-        sessions = [x for x in sessions
-                    if _date_of(x) in keep or config.session_phase(_animal_of(x), _date_of(x)) != "pre"]
-    if animals:
-        sessions = [x for x in sessions if _animal_of(x) in set(animals)]
-    return sessions
+    return config.analysis_sessions(animals=animals, curated_only=curated_only)
 
 
 def _animal_of(s):
