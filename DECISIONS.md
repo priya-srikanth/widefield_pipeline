@@ -25,6 +25,20 @@ orofacial deficit** (tongue deviates right, minimal right whisking) — the late
 - **Channel identity comes from the DAQ LED TTLs**, not frame parity. The relabel step
   (`trim_illuminated_labcams`) assigns 415/470 from `led415_ttl`/`led470_ttl`, so channel identity is correct
   regardless of the per-session parity ambiguity.
+  - **False-start / multi-recording DAQ caveat (found 2026-08-18, PS93_0818).** The relabel's automatic
+    exposure-offset search only tries **0/1**, so it assumes the `.dat`'s first frame is the DAQ's first
+    `pco_exposure` pulse. That breaks when the DAQ ran through an aborted first acquisition: PS93 on 8/18 had
+    a false-start recording (camera started, unsure it was recording, stopped + deleted, PCO timestamp
+    renamed, restarted), so the DAQ's `pco_exposure` had **1,174 orphan pulses (t=2.2–21 s), a 20 s gap, then
+    recording #2 (t=41 s→, = the analyzed `.dat`)**. The relabel mis-locked to the false-start pulses
+    (`chosen_exposure_offset=0`), which — because rescue-mode pairing interacts with the leading chunk —
+    corrupted the **415/470 pairing for ~58 % of the session** (verified by regenerating the frame map and
+    diffing `original_frame_index`), not merely the cue times. Symptom downstream: `hemo_variants` divides by
+    all-zero weights (`weights are all zero for channel 0` → `UnboundLocalError 'V'`) and maps report cues
+    outside coverage. **Recovery:** trim the DAQ to drop everything before recording #2's first exposure, then
+    re-run the session's **full** preprocessing (the bin is NOT reusable — the pairing changed). The original
+    untrimmed DAQ is kept for provenance at `labcams/<date>/<session>/daq_falsestart_recording1/`. A cleaner
+    long-term fix would be to widen the offset search to detect a leading orphan-recording block automatically.
 - **Allen alignment grid**: all spatial maps are warped to the **540×640 Allen atlas grid**
   (`apply_allen_transform --dims 540 640`), not native ROI size, with the atlas built in **reference space**
   (`do_transform=False`). Keeps ROI-cropped recordings aligned with the atlas.
