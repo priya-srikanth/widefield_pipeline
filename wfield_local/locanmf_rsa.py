@@ -60,11 +60,6 @@ def _rdm_from(X, y, mask=None):
     return 1.0 - np.corrcoef(P)
 
 
-def session_rdm(label):
-    """6x6 representational dissimilarity matrix (1 - Pearson r between the 6 position activity patterns)."""
-    s = next(x for x in SESSIONS if x["label"] == label)
-    X, y, _, _, _, _ = _trial_features(s, _args())
-    return _rdm_from(X, y)
 
 
 def _rdm_and_reliability(label):

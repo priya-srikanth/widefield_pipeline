@@ -536,56 +536,93 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
     return q
 
 
-def fig_recoding(rec, out, name="poststroke_recoding.png"):
-    """G2c: is the position code LOST or RECODED? Frozen vs within-session, position-matched.
+def fig_grid(rec, out, arm="all", name=None):
+    """G2c: WITHIN-SESSION decoding at each alignment, against that animal's own pre-stroke range.
 
-    The two bars answer different questions about the same trials. FROZEN asks whether a pre-stroke
-    model can still read this session; WITHIN asks whether the information is there at all. A frozen
-    failure with a normal within-session number is a changed CODE, not lost information -- and that
-    distinction is the difference between "PS94 is impaired" and "the pre-stroke decoder is impaired
-    on PS94".
+    The deck's headline figure, and it lived only in a scratchpad script until 2026-08-19 -- so the
+    one slide carrying the four-animal result could not be regenerated from the repo.
+
+    LAYOUT IS THE ARGUMENT. One column per animal; within it, sessions run left to right in time, so
+    PS92/PS93 show their INEFFECTIVE-lesion session (8/17, neither phase) beside their effective
+    day 1 (8/18). That pairing is a within-animal before/after control -- same rig, one day apart --
+    and it exists only because the excluded sessions were kept analysable rather than discarded.
+
+    DIRECTION IS COLOURED SEPARATELY, because it has to be. Colouring on `inside_pre_range` alone
+    paints a value ABOVE the pre-stroke band the same as a collapse, and PS95's post-lick sits at
+    z=+1.7/+2.4 -- better than pre-stroke. That mistake was made twice before this figure existed.
     """
-    ans = [a for a in sorted(rec) if any(k in rec[a] for k in ("cue", "precue", "lick"))]
-    aligns = [("cue", "post-cue"), ("precue", "pre-cue"), ("lick", "post-lick")]
-    fig, axes = plt.subplots(1, len(ans), figsize=(4.9 * len(ans) + 1.0, 5.4), squeeze=False)
-    for k, a in enumerate(ans):
+    ALIGN = [("pre-cue", "PRE-cue\n(plan)"), ("post-cue", "POST-cue\n(execution)"),
+             ("post-lick", "POST-lick")]
+    sessions = sorted(rec)
+    animals = sorted({rec[s]["animal"] for s in sessions})
+    if not animals:
+        return None
+    fig, axes = plt.subplots(1, len(animals), figsize=(4.3 * len(animals) + 1.0, 5.8),
+                             squeeze=False, sharey=True)
+    chance = None
+    for k, an in enumerate(animals):
         ax = axes[0][k]
-        xt, lab = [], []
-        for i, (al, nice) in enumerate(aligns):
-            r = rec[a].get(al) or {}
-            if "within_pre_band" not in r:
-                continue
-            b = r["within_pre_band"]
-            ax.add_patch(plt.Rectangle((i - 0.36, b["min"]), 0.72, max(b["max"] - b["min"], 1e-9),
-                                       color="tab:blue", alpha=0.20, zorder=1))
-            ax.plot([i - 0.36, i + 0.36], [b["mean"]] * 2, color="tab:blue", lw=2, zorder=2)
-            for _lb, v in (r.get("post") or {}).items():
-                ax.plot(i, v["within_accuracy"], "o", ms=11, color="tab:green",
+        labs = [s for s in sessions if rec[s]["animal"] == an]
+        width = 0.8 / max(len(labs), 1)
+        for si, lab in enumerate(labs):
+            excluded = rec[lab].get("phase_tag") == "excluded"
+            arms = rec[lab].get("arms", {}).get(arm, {})
+            for i, (cond, _nice) in enumerate(ALIGN):
+                r = arms.get(f"{cond} within-session")
+                if not r or not r.get("post"):
+                    continue
+                b = r["within_pre_band"]
+                v = list(r["post"].values())[0]
+                chance = r.get("chance", chance)
+                x = i + (si - (len(labs) - 1) / 2) * width
+                ax.add_patch(plt.Rectangle((i - 0.42, b["min"]), 0.84,
+                                           max(b["max"] - b["min"], 1e-9),
+                                           color="tab:blue", alpha=0.13, zorder=1))
+                ax.plot([i - 0.42, i + 0.42], [b["mean"]] * 2, color="tab:blue", lw=1.4, zorder=2)
+                if excluded:
+                    col = "grey"
+                elif v["inside_pre_range"]:
+                    col = "tab:green"
+                elif v["z"] > 0:
+                    col = "tab:purple"                    # outside, but BETTER than pre-stroke
+                else:
+                    col = "tab:red"
+                ax.plot(x, v["within_accuracy"], "s" if excluded else "o", ms=9, color=col,
                         markeredgecolor="k", zorder=4)
-                ax.text(i + 0.08, v["within_accuracy"], f" z{v['z']:+.1f}", fontsize=7,
-                        va="center", color="darkgreen")
-            ax.axhline(r["chance"], color="k", ls=":", lw=1)
-            xt.append(i)
-            lab.append(nice)
-        ax.set_xticks(xt)
-        ax.set_xticklabels(lab, fontsize=8.5)
+                ax.text(x, v["within_accuracy"] - 0.055, f"{v['z']:+.1f}", ha="center", fontsize=6.5,
+                        color=("dimgrey" if (excluded or v["inside_pre_range"])
+                               else "purple" if v["z"] > 0 else "firebrick"))
+                ax.text(x, 0.03, lab.split("_")[-1], ha="center", fontsize=5.5, rotation=90,
+                        color=("grey" if excluded else "k"))
+        if chance:
+            ax.axhline(chance, color="k", ls=":", lw=1)
+        ax.set_xticks(range(len(ALIGN)))
+        ax.set_xticklabels([n for _c, n in ALIGN], fontsize=8)
         ax.set_ylim(0, 1.02)
-        ax.set_title(a + " - WITHIN-session decoding\n(band = its own pre-stroke range)", fontsize=9)
+        ax.set_title(an, fontsize=11, fontweight="bold")
         if k == 0:
-            ax.set_ylabel("accuracy, position-matched")
-        v = rec[a].get("cue", {}).get("verdict", "")
-        tail = v.split(" -> ")[-1] if " -> " in v else v
-        ax.set_xlabel(textwrap.fill(tail, 46), fontsize=7)
+            ax.set_ylabel("within-session decoding accuracy")
+    handles = [plt.Line2D([], [], marker="o", ls="", color=c, markeredgecolor="k", label=t)
+               for c, t in (("tab:green", "inside pre-stroke range"),
+                            ("tab:red", "outside pre-stroke range"),
+                            ("tab:purple", "outside, but ABOVE pre-stroke"))]
+    handles.append(plt.Line2D([], [], marker="s", ls="", color="grey", markeredgecolor="k",
+                              label="lesion did not take (neither phase)"))
+    axes[0][0].legend(handles=handles, fontsize=6.5, loc="lower left")
+    arm_name = "ALL trials, six positions" if arm == "all" else "LICK-ONLY, per-session positions"
     fig.suptitle(
-        "Is the position code LOST, or RECODED? GREEN = a decoder trained on the POST-stroke session "
-        "itself; BAND = that animal's own pre-stroke range for the same measure. Compare with G2, "
-        "where the FROZEN pre-stroke decoder falls below every pre-stroke session. Same trials, same "
-        "positions, same features -- only the training data differs, so a normal green point means "
-        "the information is intact and the old model simply cannot read the new code. "
-        "POSITION-MATCHED: PS94 has 4 positions post-stroke against 6 pre-stroke, and comparing 4-way "
-        "with 6-way would flatter the post-stroke side (chance 0.25 vs 0.167).", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
-    q = Path(out) / name
-    fig.savefig(q, dpi=150)
+        "DAY 1 AFTER AN EFFECTIVE LESION: the PLAN survives, EXECUTION does not.\n"
+        f"{arm_name}; dotted line = chance. BAND = that animal's pre-stroke range for the same "
+        "measure. Pre-cue and post-cue are two windows on the SAME TRIALS, so LED power, baseline F, "
+        "amplitude, arousal, engagement and trial count act on both equally and cannot produce a "
+        "difference between them.\n"
+        "GREY SQUARES are sessions after a laser that did NOT take -- nothing outside the band. The "
+        "same animals one day later, after the effective lesion, show the dissociation: a "
+        "within-animal before/after control.", fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.83))
+    p = Path(out) / (name or f"poststroke_grid_{arm}.png")
+    fig.savefig(p, dpi=150)
     plt.close(fig)
-    return q
+    return p
+
+

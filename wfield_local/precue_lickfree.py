@@ -155,6 +155,9 @@ def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S
     Returns offsets (s, window CENTRE relative to cue), accuracy with and without lick filtering, and
     the surviving trial count per bin -- the count is reported because it is the honest denominator: a
     bin decoded from few trials is not comparable to one decoded from all of them.
+    
+
+    NO CURRENT CALLER. Kept deliberately: this is a working utility with no pipeline step that needs it yet, not a leftover of a superseded approach. If it is still uncalled when someone next audits, that is the moment to decide -- an unreferenced function with no note is indistinguishable from an oversight.
     """
     sig, _ = _build_signal(session, source)
     cue = _load_cue(session["h5"])

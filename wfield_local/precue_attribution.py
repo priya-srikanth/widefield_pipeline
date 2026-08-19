@@ -186,6 +186,9 @@ def pattern_to_pixels(pattern, session, source, basis=None):
 
     This is the step that makes the map well defined: per-feature values are basis-dependent, but the
     pixel image of the linear functional is not.
+    
+
+    NO CURRENT CALLER. Kept deliberately: this is a working utility with no pipeline step that needs it yet, not a leftover of a superseded approach. If it is still uncalled when someone next audits, that is the moment to decide -- an unreferenced function with no note is indistinguishable from an oversight.
     """
     ad = glob.glob(f"{session['mc']}/wfield_local_results/allen_aligned_affine8v1")[0]
     atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy")

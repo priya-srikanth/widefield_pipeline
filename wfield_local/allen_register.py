@@ -479,7 +479,10 @@ def run_gui(dat_path=None):
 
 
 def make_guide(path=None, show=False):
-    """Save (and optionally show) a standalone Allen landmark placement guide."""
+    """Save (and optionally show) a standalone Allen landmark placement guide.
+
+    NO CURRENT CALLER. Kept deliberately: this is a working utility with no pipeline step that needs it yet, not a leftover of a superseded approach. If it is still uncalled when someone next audits, that is the moment to decide -- an unreferenced function with no note is indistinguishable from an oversight.
+    """
     import matplotlib
     if not show:
         matplotlib.use("Agg")

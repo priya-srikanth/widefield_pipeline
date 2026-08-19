@@ -140,6 +140,8 @@ def main():
     ap.add_argument("--skip-nolick", action="store_true",
                     help="skip the no-detected-lick reference (engaged vs late vs undetected, "
                          "pre-cue vs post-cue). Adds ~1-2 h; see wfield_local.nolick_analysis.")
+    ap.add_argument("--skip-poststroke", action="store_true",
+                    help="skip the post-stroke stage (section G + the map-level analyses)")
     ap.add_argument("--skip-frozen", action="store_true",
                     help="skip the frozen cross-day decoder/encoder step (Allen-ROI, leave-one-session-out). "
                          "It adds ~30-40 min; skipping leaves those deck slides blank.")
@@ -291,6 +293,26 @@ def main():
                 log(f"  no-lick {an}: {v if isinstance(v, str) else 'BASES DISAGREE -- see deck section D2'}")
         except Exception as ex:
             log(f"  !! no-lick reference: {type(ex).__name__} {str(ex)[:80]}")
+
+    # ---------------- POST-STROKE (deck section G) ----------------
+    # Runs only once a post-stroke session exists, so a pre-stroke-only cohort is unaffected. Wired
+    # in here rather than left to be typed by hand: until 2026-08-19 every one of these was invoked
+    # from a scratchpad script, which is how twelve deck figures came to be a day stale on a basis
+    # that had been corrected, with nothing on the slide to say so. If it is part of the deck it is
+    # part of the nightly.
+    if not args.skip_poststroke and config.phase_labels("post"):
+        log("== POST-STROKE stage (section G)")
+        cli("wfield_local.poststroke_section_g", "--output", out)
+        cli("wfield_local.section_g_figures", "--src", out, "--output", out)
+        # the map-level analyses behind sections G8d-G8f
+        cli("wfield_local.fixed_scale_maps", "--output", out)
+        cli("wfield_local.evoked_amplitude", "--output", out, "--align", "cue", "lick")
+        for _arm in ([], ["--lick-only"]):
+            cli("wfield_local.spatial_reorganisation", "--output", out,
+                "--align", "cue", "precue", *_arm)
+        cli("wfield_local.vessel_contrast", "--output", out)
+        cli("wfield_local.hemispheric_dynamics", "--output", out)
+        cli("wfield_local.hemispheric_intensity", "--output", out)
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:

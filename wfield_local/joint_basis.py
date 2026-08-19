@@ -118,6 +118,9 @@ def reconstruction_error(mc, Uj, Vj_s, n_probe=200, seed=0):
     Compares ``U_s V_s`` against ``U_joint V_joint_s`` at ``n_probe`` random frames (pixel space is
     only materialized for those columns). Returns ``||diff|| / ||orig||`` -- near 0 means the joint
     basis loses nothing for this session.
+    
+
+    NO CURRENT CALLER. Kept deliberately: this is a working utility with no pipeline step that needs it yet, not a leftover of a superseded approach. If it is still uncalled when someone next audits, that is the moment to decide -- an unreferenced function with no note is indistinguishable from an oversight.
     """
     u, v = _load_session(mc)
     rs = np.random.RandomState(seed)
