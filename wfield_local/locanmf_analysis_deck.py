@@ -287,6 +287,48 @@ M_VESSEL = (
     "appear. It also does NOT settle the perfusion direction left unresolved in M_HEMI: that "
     "retraction stands.")
 
+M_EVOKED = (
+    "PER-AREA EVOKED AMPLITUDE (wfield_local.evoked_amplitude). Built to test Priya's reading of the "
+    "preprocessing decks: more R sensorimotor activity post-stroke, especially at the far positions, "
+    "and much larger amplitude bars overall. THE FOUR HEMISPHERIC NULLS CANNOT SPEAK TO THAT -- "
+    "intensity, dynamics, concordance and vessels all collapse across space, so a focal change "
+    "averages away in every one of them. This is the first measure aimed at the observation."
+    "\n\nTHREE QUANTITIES, because 'bigger' is ambiguous. ABSOLUTE = mean windowed response per area "
+    "x position, the quantity the map colourbars show. SHARE = each area's |response| as a fraction of "
+    "the session total. R-L INDEX = (right - left)/(|right| + |left|) per homotopic pair. Only "
+    "ABSOLUTE carries the baseline confound: the signal is a deviation from the session's own mean and "
+    "LED power is set by hand daily, so a rise can be a larger response OR a smaller baseline. SHARE "
+    "and R-L are scale-free. The R-L index validates on pre-stroke data, giving +0.44 for close_L and "
+    "-0.81 for close_R in PS94 -- clean contralateral organisation."
+    "\n\nFINDING 1: AMPLITUDE RISES IN ALL FOUR ANIMALS, GRADED BY SEVERITY. Positions outside that "
+    "animal's own pre-stroke range, and the largest z: PS94 4/4 (max +14.9), PS95 3/5 (+3.2), PS92 3/6 "
+    "(+2.5), PS93 1/6 (+2.8). Because the small-lesion animals show it too, part of this is the "
+    "RECORDING DAY -- but PS94's magnitude is roughly five times theirs, which no day artefact "
+    "explains. Day effect plus a much larger lesion effect, and a pure dose relationship, both survive "
+    "these numbers; they are not separable with n=1 session per animal."
+    "\n\nFINDING 2: LATERALISATION COLLAPSES, AND ONLY IN PS94. The R-L sensorimotor index moves "
+    "TOWARD ZERO at every testable position: close_L +0.44 -> +0.13 (z=-2.1), close_center -0.37 -> "
+    "-0.07 (z=+1.9), close_R -0.81 -> -0.23 (z=+8.2), all outside the pre-stroke range, and it "
+    "replicates lick-aligned (z=-2.5, +1.8, +6.6). PS95 shows one position outside of five, PS92 none, "
+    "PS93 one of six. THIS is the specific result: it is scale-free, so the baseline confound cannot "
+    "produce it; it is confined to the animal with the overt deficit; and it holds at both alignments."
+    "\n\nREAD FINDING 2 AS LOSS OF LATERALISATION, NOT AS 'MORE RIGHT'. The index moves toward zero "
+    "from BOTH directions -- at right-spout positions that reads as relatively more right activity, "
+    "which is what the maps show; at left-spout positions it reads as less right. A uniform rightward "
+    "shift would move every position the same way, and it does not."
+    "\n\nIT ALSO GAIN-CHANGES AND REDISTRIBUTES, not one or the other. PS94 per-area SHARE z exceeds "
+    "|2| in 8-9 of 66 areas at close_R and close_L against ~3 expected by chance, led by SSp-bfd, "
+    "SSp-n, SSs and VISC -- somatosensory and visceral, consistent with the sensorimotor reading. "
+    "close_center and far_L are at chance."
+    "\n\nMECHANISTICALLY THIS FITS THE DECODING. If contralateral lateralisation collapses, the "
+    "position-specific spatial patterns become less separable -- which is what G3b shows as PS94's "
+    "far_R over-prediction (35% of all trials) and its precision collapse from 0.92 to 0.28."
+    "\n\nREFERENCE IS THE CURATED SET ONLY. An earlier version built the pre-stroke band from every "
+    "date resolving to phase=='pre', which includes the noisy early-June sessions curated_dates() "
+    "exists to exclude -- PS95_0605 has a mean |amplitude| of 16.3 against ~0.53 elsewhere, and put "
+    "PS95's band at [0.15, 18.09], inside which no post-stroke value could ever fall. That is why PS95 "
+    "first looked like a null on this measure and does not.")
+
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
     "LESION DATES (configs/animals.yaml stroke_date). PS94/PS95: 2026-08-16 at 3 mW, deficit -> "
@@ -1081,6 +1123,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "null here is weak evidence about perfusion at the lesion.")
             note(s, M_VESSEL)
             big(s, _vf, top=1.85, width=12.6)
+
+        # G8d: per-area evoked amplitude -- the measure aimed at Priya's map observation, and the
+        # only one in the hemispheric line that is not a null.
+        for _al, _nice in (("cue", "POST-cue"), ("lick", "POST-lick")):
+            _ef = src / f"evoked_amplitude_{_al}.png"
+            if not _ef.exists():
+                continue
+            s = slide()
+            title(s, f"G8d. Per-AREA evoked amplitude ({_nice}) — amplitude rises in all four, "
+                     f"lateralisation collapses only in PS94",
+                  "ROW 1 is what the map colourbars show and is the only row carrying the baseline "
+                  "confound. ROWS 2–3 are scale-free. Amplitude rises in every animal graded by "
+                  "severity (PS94 max z=+14.9 vs +2.5 to +3.2 for the others), so part is the "
+                  "recording DAY — but the R-L index collapses toward zero ONLY in PS94, at "
+                  "every testable position and at both alignments.")
+            note(s, M_EVOKED)
+            big(s, _ef, top=1.9, width=11.6)
 
         # --- G9. what is NOT here, and why
         s = slide()
