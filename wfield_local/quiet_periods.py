@@ -44,6 +44,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import daq_io
+
 from wfield_local import config
 from wfield_local.treadmill import calibrate_treadmill, smooth_treadmill
 from wfield_local.lick_detection import detect_licks
@@ -99,8 +101,8 @@ def quiet_baseline_svt(svt: np.ndarray, quiet_frame: np.ndarray) -> np.ndarray:
 
 
 def _rising(sig: np.ndarray, thr: float = 0.5) -> np.ndarray:
-    bb = (np.asarray(sig) > thr).astype(np.int8)
-    return np.flatnonzero(np.diff(bb) == 1) + 1
+    # an animal ALREADY running at sample 0 has no bout onset to report -- see daq_io.rising_edges
+    return daq_io.rising_edges(sig, thr=thr, include_first_sample=False)
 
 
 def _runs_at_least(contact: np.ndarray, n: int) -> np.ndarray:

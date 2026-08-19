@@ -44,6 +44,8 @@ import json
 from pathlib import Path
 
 import numpy as np
+
+from wfield_local import daq_io
 import pandas as pd
 
 # pos_idx -> name, matching the task controller's own indexing (and spout_behavior.POSITIONS)
@@ -51,9 +53,7 @@ POS_NAMES = {0: "close_center", 1: "close_L", 2: "close_R", 3: "far_center", 4: 
 N_POS = 6
 
 
-def _rising(x: np.ndarray) -> np.ndarray:
-    return np.flatnonzero(np.diff(x.astype(np.int8), prepend=0) == 1)
-
+_rising = daq_io.rising_edges          # one implementation, in daq_io
 
 def response_window_s(session_dir: Path, default: float) -> tuple[float, str]:
     """The session's real response window (s) from ``gui_config.json``; ``default`` if absent.
@@ -85,30 +85,18 @@ def decode(h5_path: Path, lick_params: dict | None = None) -> dict:
     """Decode the DAQ digital/analog streams into event times (seconds on the DAQ clock)."""
     import h5py
 
-    with h5py.File(h5_path, "r") as f:
-        fs = float(f.attrs["sample_rate_hz"])
-        dnames = [n.decode() for n in f["digital/channel_names"][:]]
-        packed = f["digital/packed_samples"][:, 0]
-        anames = [n.decode() for n in f["analog/channel_names"][:]]
-        offs = f["analog/int16_offset_volts"][:]
-        scales = f["analog/int16_scale_volts_per_count"][:]
+    with daq_io.open_daq(h5_path) as f:
+        fs, _created = daq_io.session_attrs(f)
+        dnames, bits = daq_io.digital_bits(f)
+        lick_v = daq_io.analog_channel(f, "lick_analog", required=False)
+        reward_v = daq_io.analog_channel(f, "reward_ttl", required=False)
 
-        def analog(name):
-            if name not in anames:
-                return None
-            k = anames.index(name)
-            return f["analog/samples_int16"][:, k].astype(np.float32) * float(scales[k]) + float(offs[k])
-
-        lick_v = analog("lick_analog")
-        reward_v = analog("reward_ttl")
-
-    bits = np.unpackbits(packed[:, None], axis=1, bitorder="little")[:, : len(dnames)]
     idx = {n: i for i, n in enumerate(dnames)}
-    cue = _rising(bits[:, idx["cue"]])
-    strobe = _rising(bits[:, idx["spout_strobe"]])
-    tstart = _rising(bits[:, idx["trial_start"]]) if "trial_start" in idx else np.array([], int)
-    b = [bits[:, idx[f"spout_bit{k}"]] for k in range(3)]
-    codes = (b[0][strobe] + 2 * b[1][strobe] + 4 * b[2][strobe]).astype(np.int16)
+    cue = daq_io.rising_edges(bits[:, idx["cue"]])
+    strobe = daq_io.rising_edges(bits[:, idx["spout_strobe"]])
+    tstart = (daq_io.rising_edges(bits[:, idx["trial_start"]]) if "trial_start" in idx
+              else np.array([], int))
+    codes = daq_io.strobe_codes(bits, dnames, strobe)
 
     licks = np.array([], float)
     if lick_v is not None and lick_params is not None:

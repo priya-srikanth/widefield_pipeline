@@ -19,7 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config
+from wfield_local import config, daq_io
 from scipy import ndimage
 
 
@@ -34,31 +34,20 @@ POSITION_NAMES = {
 DISPLAY_ORDER = [1, 0, 2, 4, 3, 5]
 
 
-def _rising_edges(x: np.ndarray) -> np.ndarray:
-    return np.flatnonzero(np.diff(x.astype(np.int8), prepend=0) == 1)
+#: kept as a module-local alias: several helpers below and two sibling modules import it by name
+_rising_edges = daq_io.rising_edges
 
 
 def _load_daq_events(h5_path: Path) -> dict:
-    with h5py.File(h5_path, "r") as f:
-        sr = float(f.attrs["sample_rate_hz"])
-        created_at = str(f.attrs["created_at"])
-        names = [name.decode() for name in f["digital/channel_names"][:]]
-        packed = f["digital/packed_samples"][:, 0]
-        bits = np.unpackbits(packed[:, None], axis=1, bitorder="little")[:, : len(names)]
+    with daq_io.open_daq(h5_path) as f:
+        sr, created_at = daq_io.session_attrs(f)
+        names, bits = daq_io.digital_bits(f)
 
     idx = {name: names.index(name) for name in names}
-    cue = _rising_edges(bits[:, idx["cue"]])
-    strobe = _rising_edges(bits[:, idx["spout_strobe"]])
-    pco = _rising_edges(bits[:, idx["pco_exposure"]])
-
-    bit0 = bits[:, idx["spout_bit0"]]
-    bit1 = bits[:, idx["spout_bit1"]]
-    bit2 = bits[:, idx["spout_bit2"]]
-    codes_at_strobe = (
-        bit0[strobe].astype(np.int16)
-        + 2 * bit1[strobe].astype(np.int16)
-        + 4 * bit2[strobe].astype(np.int16)
-    )
+    cue = daq_io.rising_edges(bits[:, idx["cue"]])
+    strobe = daq_io.rising_edges(bits[:, idx["spout_strobe"]])
+    pco = daq_io.rising_edges(bits[:, idx["pco_exposure"]])
+    codes_at_strobe = daq_io.strobe_codes(bits, names, strobe)
 
     return {
         "sample_rate_hz": sr,

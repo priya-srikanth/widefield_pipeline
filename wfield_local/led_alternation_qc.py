@@ -27,6 +27,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from wfield_local import daq_io
+
 PCO_BIT_NAME, LED415, LED470 = "pco_exposure", "led415_ttl", "led470_ttl"
 
 
@@ -48,7 +50,8 @@ def _digital_bit(f, name):
 
 
 def _rising(b):
-    return np.flatnonzero((~b[:-1]) & b[1:]) + 1
+    # a mask that is already True at sample 0 is not an onset -- see daq_io.rising_edges
+    return daq_io.rising_edges(b, include_first_sample=False)
 
 
 def analyse(h5_path, thresh_v=2.5):

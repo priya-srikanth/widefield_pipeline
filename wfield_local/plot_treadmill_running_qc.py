@@ -13,6 +13,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import daq_io
+
 try:
     from .treadmill import (
         bout_edges,
@@ -40,17 +42,7 @@ DEFAULT_MAX_GAP_DURATION_S = 0.3
 DEFAULT_MIN_DURATION_S = 2.0
 
 
-def _decode_analog_channel(f: h5py.File, channel_name: str) -> np.ndarray:
-    names = [name.decode() for name in f["analog/channel_names"][:]]
-    if channel_name not in names:
-        raise ValueError(f"Analog channel {channel_name!r} not found. Available: {names}")
-    idx = names.index(channel_name)
-    if "samples_int16" in f["analog"]:
-        raw = f["analog/samples_int16"][:, idx]
-        scale = float(f["analog/int16_scale_volts_per_count"][idx])
-        offset = float(f["analog/int16_offset_volts"][idx])
-        return raw.astype(np.float32) * scale + offset
-    return np.asarray(f["analog/samples"][:, idx], dtype=np.float32)
+_decode_analog_channel = daq_io.analog_channel
 
 
 def _load_treadmill(h5_path: Path, channel_name: str) -> tuple[np.ndarray, float, str | None]:

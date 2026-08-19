@@ -28,21 +28,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config
+from wfield_local import config, daq_io
 
 from wfield_local.atlas_overlay import region_edges as _region_edges
 from wfield_local.behavior_events import load_events
 from wfield_local.framemap_event_maps import _corrected_frame_samples, _offset_from_summary
 
 
-def _decode_analog_channel(f, channel_name: str) -> np.ndarray:
-    names = [name.decode() for name in f["analog/channel_names"][:]]
-    idx = names.index(channel_name)
-    if "samples_int16" in f["analog"]:
-        raw = f["analog/samples_int16"][:, idx]
-        return raw.astype(np.float32) * float(f["analog/int16_scale_volts_per_count"][idx]) \
-            + float(f["analog/int16_offset_volts"][idx])
-    return np.asarray(f["analog/samples"][:, idx], dtype=np.float32)
+_decode_analog_channel = daq_io.analog_channel
 
 
 def _pco_samples(h5_path: Path) -> np.ndarray:

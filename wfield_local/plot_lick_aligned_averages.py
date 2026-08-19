@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
-from wfield_local import config
+from wfield_local import config, daq_io
 
 try:
     from .lick_detection import detect_licks
@@ -40,22 +40,11 @@ POSITION_NAMES = {
 DISPLAY_ORDER = [1, 0, 2, 4, 3, 5]
 
 
-def _rising_edges(x: np.ndarray) -> np.ndarray:
-    return np.flatnonzero(np.diff(x.astype(np.int8), prepend=0) == 1)
+#: module-local alias; the single implementation lives in daq_io
+_rising_edges = daq_io.rising_edges
 
 
-def _decode_analog_channel(f, channel_name: str) -> np.ndarray:
-    names = [name.decode() for name in f["analog/channel_names"][:]]
-    if channel_name not in names:
-        raise ValueError(f"Analog channel {channel_name!r} not found. Available: {names}")
-    idx = names.index(channel_name)
-    if "samples_int16" in f["analog"]:
-        raw = f["analog/samples_int16"][:, idx]
-        scale = float(f["analog/int16_scale_volts_per_count"][idx])
-        offset = float(f["analog/int16_offset_volts"][idx])
-        return raw.astype(np.float32) * scale + offset
-    return np.asarray(f["analog/samples"][:, idx], dtype=np.float32)
-
+_decode_analog_channel = daq_io.analog_channel
 
 def _load_daq_events(
     h5_path: Path,
@@ -65,35 +54,17 @@ def _load_daq_events(
     lockout_s: tuple[float, float],
     refractory_s: float,
 ) -> dict:
-    with h5py.File(h5_path, "r") as f:
-        sr = float(f.attrs["sample_rate_hz"])
-        created_at = str(f.attrs["created_at"])
-        lick = _decode_analog_channel(f, lick_channel)
-        names = [name.decode() for name in f["digital/channel_names"][:]]
-        packed = f["digital/packed_samples"][:, 0]
-        bits = np.unpackbits(packed[:, None], axis=1, bitorder="little")[:, : len(names)]
+    with daq_io.open_daq(h5_path) as f:
+        sr, created_at = daq_io.session_attrs(f)
+        lick = daq_io.analog_channel(f, lick_channel)
+        names, bits = daq_io.digital_bits(f)
 
-    lick_detection = detect_licks(
-        lick,
-        sr,
-        thresh_upper=thresh_upper,
-        thresh_lower=thresh_lower,
-        lockout_s=lockout_s,
-        refractory_s=refractory_s,
-        min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0,   # physiological floor
-    )
-    lick_samples = np.asarray(lick_detection["lick_onsets"], dtype=np.int64)
+    lick_samples, lick_detection = daq_io.lick_onsets(
+        lick, sr, thresh_upper, thresh_lower, lockout_s, refractory_s)
     idx = {name: names.index(name) for name in names}
-    strobe = _rising_edges(bits[:, idx["spout_strobe"]])
-    pco = _rising_edges(bits[:, idx["pco_exposure"]])
-    bit0 = bits[:, idx["spout_bit0"]]
-    bit1 = bits[:, idx["spout_bit1"]]
-    bit2 = bits[:, idx["spout_bit2"]]
-    codes_at_strobe = (
-        bit0[strobe].astype(np.int16)
-        + 2 * bit1[strobe].astype(np.int16)
-        + 4 * bit2[strobe].astype(np.int16)
-    )
+    strobe = daq_io.rising_edges(bits[:, idx["spout_strobe"]])
+    pco = daq_io.rising_edges(bits[:, idx["pco_exposure"]])
+    codes_at_strobe = daq_io.strobe_codes(bits, names, strobe)
     return {
         "sample_rate_hz": sr,
         "created_at": created_at,

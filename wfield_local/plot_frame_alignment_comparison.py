@@ -21,7 +21,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config
+from wfield_local import config, daq_io
 
 try:
     from .lick_detection import detect_licks
@@ -32,21 +32,10 @@ except ImportError:  # Allow direct script execution.
 DEFAULT_DIGITAL_EVENTS = ("cue", "trial_start", "spout_strobe", "reward_ttl")
 
 
-def _rising_edges(x: np.ndarray) -> np.ndarray:
-    return np.flatnonzero(np.diff(x.astype(np.int8), prepend=0) == 1).astype(np.int64)
+_rising_edges = daq_io.rising_edges
 
 
-def _decode_analog_channel(f: h5py.File, channel_name: str) -> np.ndarray:
-    names = [name.decode() for name in f["analog/channel_names"][:]]
-    if channel_name not in names:
-        raise ValueError(f"Analog channel {channel_name!r} not found. Available: {names}")
-    idx = names.index(channel_name)
-    if "samples_int16" in f["analog"]:
-        raw = f["analog/samples_int16"][:, idx]
-        scale = float(f["analog/int16_scale_volts_per_count"][idx])
-        offset = float(f["analog/int16_offset_volts"][idx])
-        return raw.astype(np.float32) * scale + offset
-    return np.asarray(f["analog/samples"][:, idx], dtype=np.float32)
+_decode_analog_channel = daq_io.analog_channel
 
 
 def _load_daq_events(
