@@ -294,25 +294,44 @@ def plot(rows, summ, out_dir, align="cue"):
             ax.set_title(f"{a} — {lab}", fontsize=9)
             if k == 0:
                 ax.set_ylabel(lab, fontsize=8)
-        # per-area SHARE z heatmap
+            if k == 0 and row == 0:
+                # WHAT THE MARKS MEAN. Asked for 2026-08-19: the figure had a band, a line and two
+                # kinds of dot with nothing saying which was which.
+                ax.legend(handles=[
+                    plt.Line2D([], [], marker="o", ls="", color="tab:red", markeredgecolor="k",
+                               label="post-stroke session (one dot per day)"),
+                    plt.Line2D([], [], color="tab:blue", lw=2, label="pre-stroke mean"),
+                    plt.Rectangle((0, 0), 1, 1, color="tab:blue", alpha=0.20,
+                                  label="pre-stroke range (min-max)"),
+                ], fontsize=6, loc="best")
+        # Per-area SHARE z heatmap, KEYED BY DATE -> {date: {position: {area: z}}}. Columns are
+        # position x post-stroke day, so a second night is visible rather than silently dropped.
         ax = axes[2][k]
         sz = rec.get("share_z", {})
-        areas = sorted({ar for p in sz for ar in sz[p]})
-        if areas:
-            M = np.full((len(areas), len(POS)), np.nan)
-            for j, p in enumerate(POS):
+        dates = sorted(sz)
+        areas = sorted({ar for dt in dates for p_ in sz[dt] for ar in sz[dt][p_]})
+        if areas and dates:
+            cols = [(dt, p_) for dt in dates for p_ in POS]
+            M = np.full((len(areas), len(cols)), np.nan)
+            for j, (dt, p_) in enumerate(cols):
                 for i, ar in enumerate(areas):
-                    if p in sz and ar in sz[p]:
-                        M[i, j] = sz[p][ar]
+                    if p_ in sz[dt] and ar in sz[dt][p_]:
+                        M[i, j] = sz[dt][p_][ar]
             im = ax.imshow(np.ma.masked_invalid(M), cmap="RdBu_r", vmin=-3, vmax=3, aspect="auto")
             ax.set_yticks(range(len(areas)))
             ax.set_yticklabels(areas, fontsize=4.5)
-            ax.set_xticks(range(len(POS)))
-            ax.set_xticklabels(POS, rotation=45, ha="right", fontsize=7)
-            ax.set_title(f"{a} — per-area SHARE z (red = larger share post-stroke)", fontsize=9)
+            ax.set_xticks(range(len(cols)))
+            ax.set_xticklabels([f"{p_}  {dt}" for dt, p_ in cols], rotation=90, fontsize=5)
+            for d_i in range(1, len(dates)):        # divider between post-stroke days
+                ax.axvline(d_i * len(POS) - 0.5, color="k", lw=1.2)
+            ax.set_title(f"{a} — per-area SHARE z by position and DAY "
+                         f"(red = larger share post-stroke)", fontsize=8.5)
             fig.colorbar(im, ax=ax, fraction=0.046)
         else:
-            ax.text(0.5, 0.5, "no share data", ha="center", transform=ax.transAxes)
+            # never silently blank again: say which half is missing
+            ax.text(0.5, 0.5, f"no share_z data ({len(dates)} post day(s), {len(areas)} areas)",
+                    ha="center", va="center", transform=ax.transAxes, fontsize=8, color="firebrick")
+            ax.set_xticks([]); ax.set_yticks([])
     fig.suptitle(
         f"Per-AREA evoked amplitude, {align}-aligned. THE HEMISPHERIC NULLS CANNOT SPEAK TO THIS: "
         "intensity, dynamics, concordance and vessels all collapse across space, so a focal change "

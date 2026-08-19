@@ -564,6 +564,7 @@ def fig_grid(rec, out, arm="all", name=None):
         ax = axes[0][k]
         labs = [s for s in sessions if rec[s]["animal"] == an]
         width = 0.8 / max(len(labs), 1)
+        bands = {}
         for si, lab in enumerate(labs):
             excluded = rec[lab].get("phase_tag") == "excluded"
             arms = rec[lab].get("arms", {}).get(arm, {})
@@ -575,10 +576,11 @@ def fig_grid(rec, out, arm="all", name=None):
                 v = list(r["post"].values())[0]
                 chance = r.get("chance", chance)
                 x = i + (si - (len(labs) - 1) / 2) * width
-                ax.add_patch(plt.Rectangle((i - 0.42, b["min"]), 0.84,
-                                           max(b["max"] - b["min"], 1e-9),
-                                           color="tab:blue", alpha=0.13, zorder=1))
-                ax.plot([i - 0.42, i + 0.42], [b["mean"]] * 2, color="tab:blue", lw=1.4, zorder=2)
+                # ONE band per alignment. Each session carries its own pre-stroke band (computed
+                # over ITS preserved positions), so drawing per session stacked two translucent
+                # rectangles that read as two distributions. Where the sessions' bands differ the
+                # union is drawn and the panel says so, rather than implying a single reference.
+                bands.setdefault(i, []).append(b)
                 if excluded:
                     col = "grey"
                 elif v["inside_pre_range"]:
@@ -594,6 +596,13 @@ def fig_grid(rec, out, arm="all", name=None):
                                else "purple" if v["z"] > 0 else "firebrick"))
                 ax.text(x, 0.03, lab.split("_")[-1], ha="center", fontsize=5.5, rotation=90,
                         color=("grey" if excluded else "k"))
+        for i, bs in bands.items():
+            lo = min(b["min"] for b in bs)
+            hi = max(b["max"] for b in bs)
+            ax.add_patch(plt.Rectangle((i - 0.42, lo), 0.84, max(hi - lo, 1e-9),
+                                       color="tab:blue", alpha=0.13, zorder=1))
+            for b in bs:                      # one mean line per session's own band
+                ax.plot([i - 0.42, i + 0.42], [b["mean"]] * 2, color="tab:blue", lw=1.4, zorder=2)
         if chance:
             ax.axhline(chance, color="k", ls=":", lw=1)
         ax.set_xticks(range(len(ALIGN)))

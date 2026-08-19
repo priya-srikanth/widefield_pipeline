@@ -261,8 +261,12 @@ def figure(per_session, out_png, title):
     good = [r for r in per_session if r]
     if not good:
         return None
-    fig = plt.figure(figsize=(14, 8.2))
-    gs = fig.add_gridspec(2, 4, hspace=0.42, wspace=0.34)
+    # ONE ROW of panels since the per-region encoding panel was cut: the figure had been
+    # 2x4 at 14x8.2 in, which does not fit a 13.3x7.5 in slide without shrinking the axis
+    # labels past legibility.
+    fig = plt.figure(figsize=(13.0, 6.4))
+    gs = fig.add_gridspec(2, 4, hspace=0.45, wspace=0.38,
+                          height_ratios=[1.35, 1.0])
     labs = [r["label"][-4:] for r in good]
     x = np.arange(len(good))
 
@@ -295,22 +299,7 @@ def figure(per_session, out_png, title):
         fig.colorbar(im, ax=ax, fraction=0.046)
     ax.set_title("Confusion, lick-free\n(mean over sessions)", fontsize=8)
 
-    ax = fig.add_subplot(gs[1, :2])
-    fams = sorted({f for r in good if r.get("encode_lickfree") for f in r["encode_lickfree"]})
-    if fams:
-        xf = np.arange(len(fams))
-        ev_lf = [np.nanmean([r["encode_lickfree"][f]["ev"] for r in good
-                             if r.get("encode_lickfree") and f in r["encode_lickfree"]]) for f in fams]
-        ev_all = [np.nanmean([r["encode_all"][f]["ev"] for r in good
-                              if r.get("encode_all") and f in r["encode_all"]]) for f in fams]
-        ax.bar(xf - 0.2, ev_all, 0.4, color="#888", label="all trials")
-        ax.bar(xf + 0.2, ev_lf, 0.4, color="#3b7dd8", label="lick-free")
-        ax.set_xticks(xf); ax.set_xticklabels(fams, rotation=30, ha="right", fontsize=7)
-        ax.axhline(0, color="k", lw=0.8); ax.set_ylabel("position EV ($R^2$)")
-        ax.legend(fontsize=7)
-    ax.set_title("Encoding: position variance explained per region, lick-free vs all", fontsize=9)
-
-    ax = fig.add_subplot(gs[1, 2:]); ax.axis("off")
+    ax = fig.add_subplot(gs[1, :]); ax.axis("off")
     nlf = sum(r["n_lickfree"] for r in good); ntot = sum(r["n_trials"] for r in good)
     ax.text(0, 1, "\n".join([
         title, "",

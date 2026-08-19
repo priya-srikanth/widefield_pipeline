@@ -169,8 +169,8 @@ M_NOLICK = (
     "and the movement failed, and the behaviour log cannot tell those apart. They make opposite "
     "predictions here -- plan-intact keeps the PRE-cue code while the POST-cue code collapses, "
     "because post-cue decoding is largely driven by the lick itself. "
-    "\n\nTHREE ARMS, NOT TWO. 'late' = a detected lick 2-5 s after the cue; 'undetected' = none "
-    "within 5 s. The pipeline's older arm pooled them, which is misleading: on PS93 8/12 the pre-cue "
+    "\n\nTHREE ARMS, NOT TWO, AND ALL THREE BOUNDED BY THE RESPONSE WINDOW. 'engaged' = a lick "
+    "within decode.max_rt_s (2.0 s); 'late_rewarded' = a first lick between 2.0 s and that session's RESPONSE WINDOW (3.5 s, read from gui_config.json timing.response_window) -- slow, but a HIT by the task's own scoring; 'undetected' = no detected lick within that window. There is deliberately NO arm past the response window: a lick at 4 s arrives while the spout is already moving and belongs to no trial cleanly. An earlier version of this note said '2-5 s' and 'none within 5 s' -- 5 s was never in the code (nolick_decoder.categorize); corrected 2026-08-19. The pipeline's older arm pooled them, which is misleading: on PS93 8/12 the pre-cue "
     "survival is carried entirely by LATE trials (balanced 0.532, p=0.003) while undetected trials "
     "show nothing (0.153, p=0.76). "
     "\n\nTHE NULL IS NOT 1/6. These trials are heavily skewed across positions (PS93: 49% far_center) "
@@ -827,16 +827,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
             "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
     for a in animals:
-        s = slide()
-        title(s, f"{a} — expected SSp / MO activity by position (encoder, across sessions)",
-              "Predicted per-position time-course of pooled SSp and MO activity. One panel per session.")
-        note(s, M_ENCODE)
-        grid(s, [src / f"locanmf_encoder_temporal_{a}_{d}.png" for d, _ in date_labels], cols=3)
-        s = slide()
-        title(s, f"{a} — encoder predicted maps by intended position (across sessions)",
-              "Footprint-reconstructed expected cortical map per intended spout position. One panel per session.")
-        note(s, M_ENCODE)
-        grid(s, [src / f"locanmf_encoder_predicted_maps_{a}_{d}.png" for d, _ in date_labels], cols=3)
+        # CUT 2026-08-19 (Priya): the expected-SSp/MO time-courses and the footprint-reconstructed
+        # predicted maps. They were a gut check that the encoder is not degenerate, and in three
+        # months never changed a conclusion -- the noise ceiling on the next slide does that job
+        # quantitatively. Recover from git history if a reviewer ever asks to see them.
         s = slide()
         title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
               "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
@@ -844,21 +838,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         note(s, M_ENCODE)
         grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
                  src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
-        s = slide()
-        title(s, f"{a} — encoder r² per Allen region across sessions (MOp, MOs, SS areas, …)",
-              "Explained variance per region; one panel per session. Absolute (explainable vs captured) + FEVE.")
-        note(s, M_ENCODE)
-        grid(s, [src / f"locanmf_encoder_r2_by_region_{a}_{d}.png" for d, _ in date_labels], cols=3)
+        # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
+        # session, so a cell in one panel is not the same region-set as the cell beside it and the
+        # panels cannot be read against each other. The POOLED FEVE slide below keeps a fixed
+        # region axis, which is the comparable form of the same measure.
     s = slide()
     title(s, "Encoder — explained-variance fraction (FEVE) by region, pooled per animal",
           "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.")
     note(s, M_ENCODE)
     big(s, src / "locanmf_encoder_feve_by_region_pooled.png", top=1.5, width=12.9)
-    s = slide()
-    title(s, "Encoder — FEVE by region, individual sessions per animal",
-          "Same metric, one row per session → session-to-session stability.")
-    note(s, M_ENCODE)
-    big(s, src / "locanmf_encoder_feve_by_region_sessions.png", top=1.5, width=12.9)
+    # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
+    # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
+    # read off it. The pooled slide above is retained.
 
     # ---------------- C. pre-cue without licking ----------------
     divider("C. Pre-cue code without licking — the motor-confound control",
@@ -1040,7 +1031,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # tests/test_deck_section_g.py pins that this section obeys it.
     _post_labels = list(config.phase_labels("post"))
     _excluded = [f"{a}_0817" for a in animals if config.session_phase(a, "0817") == "excluded"]
-    if _post_labels and (src / "section_g_G2_matched_all.png").exists():
+    if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
                 f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
                 f"Behaviour first: what the animal still attempts bounds what any decoding number "
@@ -1084,12 +1075,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "figure the nightly behaviour pipeline already produces, not a bespoke plot.")
             note(s, M_POSTSTROKE)
             big(s, beh, top=1.5, width=12.9)
-        for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-            _cf = src / f"section_g_G1b_counts_{_arm}.png"
+        # ONE counts slide: trial counts are trial counts, so this figure does not depend on the
+        # arm. Rendering it per arm produced two byte-identical files under two titles (Priya,
+        # 2026-08-19).
+        for _cf in [src / "section_g_counts.png"]:
             if not _cf.exists():
                 continue
             s = slide()
-            title(s, f"G1b. Which positions still have trials at all ({_armn} arm)",
+            title(s, "G1b. Which positions still have trials at all",
                   "Per-position engaged and no-lick counts, ONE PANEL PER POST-STROKE SESSION "
                   "against the pre-stroke per-session mean. A position with ZERO engaged trials "
                   "cannot have a lick-only decoding number at all; PS94 has two, and reading "
@@ -1099,14 +1092,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
         # --- G2. position-matched decoding
         for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-            _mf = src / f"section_g_G2_matched_{_arm}.png"
+            _mf = src / f"section_g_matched_{_arm}.png"
             if not _mf.exists():
                 continue
             s = slide()
             title(s, f"G2. The FROZEN pre-stroke decoder after the lesion ({_armn} arm)",
                   "One panel per POST-STROKE SESSION. BAND = that animal's pre-stroke "
                   "leave-one-session-out range for the same measure. "
-                  + ("All six positions, chance 1/6 on every panel."
+                  + ("All six positions, chance 1/6 on every panel. POST-LICK IS ABSENT HERE BY "
                      if _arm == "all" else
                      "Each session on ITS OWN preserved positions, so the chance line differs "
                      "between panels and the accuracies are NOT comparable across them."))
@@ -1149,7 +1142,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # confusion figures that disagree invite the reader to pick.
         for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
             for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-                _f = src / f"section_g_G3b_confusion_{_al}_{_arm}.png"
+                _f = src / f"section_g_confusion_{_al}_{_arm}.png"
                 if not _f.exists():
                     continue
                 s = slide()
@@ -1198,7 +1191,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
         # --- G5. same code weaker, or a different code?
         for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-            _sf5 = src / f"section_g_G5_similarity_{_arm}.png"
+            _sf5 = src / f"section_g_similarity_{_arm}.png"
             if not _sf5.exists():
                 continue
             s = slide()
