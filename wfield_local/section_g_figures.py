@@ -30,6 +30,37 @@ from wfield_local.paths import PathResolver
 CONFUSION_ALIGNS = (("post-cue", "cue"), ("pre-cue", "precue"))
 
 
+def copy_behaviour_figures(out, rv=None):
+    """G1a: the behaviour pipeline's own per-animal longitudinal figure, copied into the deck dir.
+
+    Copied rather than redrawn so the deck's behavioural ground truth IS the artefact the behaviour
+    pipeline produces -- if the two ever disagree, that is a bug, not a styling difference.
+
+    THE ANIMAL LIST COMES FROM THE PHASE RESOLVER. The scratchpad script this replaces filtered with
+    `if config.session_phase(a, "0817") != "post": continue`, which is false for PS92 and PS93 --
+    their effective lesion is 8/18 -- so PS93 simply had no behaviour slide, and the deck build
+    reported one missing figure with nothing to say why.
+    """
+    import shutil
+
+    from wfield_local import config
+
+    rv = rv or PathResolver()
+    beh = Path(rv.root("behavior_out")) / "cohort" / "by_animal"
+    made, missing = [], []
+    for a in sorted({lab[:4] for lab in config.phase_labels("post")}):
+        srcp = beh / f"{a}_across_sessions.png"
+        if not srcp.exists():
+            missing.append(f"{a}: {srcp} (run `python -m wfield_local.spout_behavior --cohort`)")
+            continue
+        dst = Path(out) / f"poststroke_G1a_behaviour_{a}.png"
+        shutil.copy2(srcp, dst)
+        made.append(dst)
+    for m in missing:
+        print(f"  MISSING G1a {m}", flush=True)
+    return made
+
+
 def _by_session(rec, key):
     """{session label -> rec[key]} for the sessions that have it, in chronological order."""
     return {lab: r[key] for lab, r in sorted(rec.items()) if key in r and r.get(key)}
@@ -97,6 +128,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     src = args.src or Path(PathResolver().root("figures_working"))
     out = args.output or src
+    for q in copy_behaviour_figures(out):
+        print(f"  copied {Path(q).name}", flush=True)
     for arm in args.arm:
         p = Path(src) / f"section_g_{arm}.json"
         if not p.exists():
