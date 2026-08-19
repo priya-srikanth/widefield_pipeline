@@ -376,6 +376,78 @@ M_EVOKED = (
     "band at [0.15, 18.09], inside which no post-stroke value could ever fall. Curation now applies "
     "to the PRE side only (config.analysis_sessions), which is what it was always for.")
 
+M_SPATIAL = (
+    "DID THE POSITION CODE CONVERGE, AND DID IT CROSS THE MIDLINE? "
+    "(wfield_local.spatial_reorganisation). Two tests on the spatial maps, both following from the "
+    "same prediction: if PS94's contralateral lateralisation collapses (G8e) and its position "
+    "information survives but is unreadable by the pre-stroke decoder (G2c), those should be one "
+    "fact seen from two sides."
+    "\n\nTEST 1, CONVERGENCE. Losing lateralisation should make the six position patterns LESS "
+    "distinguishable from one another. Measured as the mean CROSSNOBIS distance over the position "
+    "pairs -- cross-validated Mahalanobis, computed across disjoint block folds so the estimate is "
+    "unbiased by trial noise. That is not optional here: a plain correlation RDM is inflated by "
+    "noise, and post-stroke sessions differ in trial count AND in spatial extent, so a raw metric "
+    "would move even if the geometry were identical."
+    "\n\nTHE PRE-STROKE BAND IS REBUILT ON EACH SESSION'S OWN POSITIONS. Mean distance averages "
+    "over PAIRS -- 15 for six positions, 6 for four. On the lick-only arm a session keeps only the "
+    "positions it still licks at (PS94 has four), so scoring it against a band computed over six "
+    "would compare a mean over one pair set with a mean over another. That is a different quantity, "
+    "not a smaller one, and it is the same error class as the decoding arms' chance level moving "
+    "with behaviour. Corrected 2026-08-19; the pre-session matrices are stored, so the matched band "
+    "follows from them exactly."
+    "\n\nRESULT 1: POST-CUE GEOMETRY CONVERGES IN THREE OF FOUR. All-trials arm, day 1 after an "
+    "effective lesion: PS92 z=-3.3, PS93 -2.3, PS94 -3.0, all below their own pre-stroke minimum; "
+    "PS95 -1.2, inside. On the LICK-ONLY arm those weaken to -1.3, -1.4 and -1.4, so a substantial "
+    "part of the post-cue convergence is carried by the no-lick trials -- which is what one expects "
+    "if the missing movement is the thing that changed, and is a reason to read the two arms "
+    "together rather than picking one."
+    "\n\nRESULT 2, AND IT QUALIFIES THE HEADLINE: PS94's PRE-CUE GEOMETRY IS ALSO DEGRADED. "
+    "PS94 pre-cue z=-3.7 on 8/17 and -5.5 on 8/18, and this SURVIVES the lick-only arm almost "
+    "unchanged (-3.2, -5.4) -- so it is not an artefact of folding heterogeneous no-lick trials into "
+    "a within-position covariance estimate, which was the obvious explanation and was tested for "
+    "exactly this reason. The other three animals' pre-cue geometry stays inside the band (PS92 "
+    "-0.1, PS93 -1.2, PS95 +0.2/+0.5)."
+    "\n\nHOW THAT RECONCILES WITH G2c, WHERE PS94's PRE-CUE DECODING IS INSIDE THE BAND (z=-0.2). "
+    "Crossnobis measures how far apart the patterns are in units of noise; decoding measures whether "
+    "a boundary can still be drawn between them. PS94's PRE-STROKE pre-cue crossnobis is unusually "
+    "large -- 5.71, against 1.30 (PS92), 1.98 (PS93) and 1.65 (PS95) -- so falling to 2.45 leaves it "
+    "at roughly the level the other three animals run at normally, which is comfortably decodable. "
+    "Both statements are true: the distances shrank a great deal from an unusually high baseline, "
+    "and the code remained readable. For PS94 the dissociation is therefore a matter of DEGREE -- "
+    "both windows lose separability and only the post-cue loss crosses the threshold where six-way "
+    "decoding fails -- rather than 'pre-cue untouched'. Stated that way in DECISIONS.md."
+    "\n\nTEST 2, MIDLINE TRANSFER. 'More right activity' has two very different readings: the "
+    "right hemisphere doing more of its own thing, or the LEFT hemisphere's pattern having RELOCATED "
+    "to the right. Each post-stroke pattern is correlated against its own pre-stroke pattern AND "
+    "against the HEMISPHERE-SWAPPED version (each Allen area's _left value exchanged with its "
+    "_right -- a mirror at region resolution, robust to the pixel-level registration error a literal "
+    "image flip would inherit). The R-L index of G8e cannot answer this: it is symmetric, so a "
+    "rightward shift and a bilateral convergence both move it toward zero."
+    "\n\nRESULT: THE MIDLINE TEST IS A CLEAN NULL. No transfer at any position, in any animal, at "
+    "either alignment, on either arm. The 'left map moved right' reading of the map observation is "
+    "not supported."
+    "\n\nTHREE VERDICTS, BECAUSE TWO WERE NOT ENOUGH. TRANSFER requires the mirrored pattern to "
+    "actually be matched (mirror_r >= 0.20), to exceed the normal correlation, AND to beat the "
+    "pre-stroke baseline difference by 0.15 -- a symmetric brain already has substantial mirror "
+    "correlation, so the raw ordering carries almost no information. REDUCED ASYMMETRY is the weaker "
+    "claim and keeps its own flag. PATTERN LOST is the third: when the post-stroke pattern resembles "
+    "NEITHER its own pre-stroke pattern nor the mirrored one, 'which hemisphere does it look like' "
+    "has no answer. Two earlier versions of this rule reported transfer where none existed -- one "
+    "flagged a 0.005 correlation difference, the other flagged PS94 far_center where normal_r was "
+    "-0.632 and mirror_r -0.480, i.e. where the representation had disappeared. Both are recorded in "
+    "DECISIONS.md."
+    "\n\nWHAT PATTERN LOSS FINDS. Cue-aligned, all trials, day 1: far_R has lost its pattern in "
+    "ALL FOUR animals, and PS94 and PS95 lose far_center as well. Those are the positions the "
+    "animals stop attempting -- so on this arm the finding is confounded with the absence of the "
+    "movement itself and must not be read as a lesioned sensory representation. The PRE-CUE arm, "
+    "which precedes the movement, does NOT show the same far-position concentration: its losses are "
+    "scattered and fall mostly on PS95's close positions. That asymmetry is the caveat, not a "
+    "footnote to it."
+    "\n\nFIGURES. spatial_reorganisation_{cue,precue}.png is the ALL-trials arm; the "
+    "_lickonly suffix is the engaged-only arm. Per-position bars are the two correlations (own "
+    "pre-stroke pattern in blue, hemisphere-swapped in orange); orange above blue would be transfer, "
+    "and it never happens.")
+
 M_RECODING = (
     "PLAN vs EXECUTION (poststroke_compare.recoding_test; figure poststroke_grid.png). Within-session "
     "decoding -- a decoder trained on the post-stroke session ITSELF -- against that animal's own "
@@ -1264,6 +1336,25 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "does not move at all.")
             note(s, M_EVOKED)
             big(s, _ef, top=1.9, width=11.6)
+
+        # G8f: the two tests aimed at the mechanism behind the map observation -- do the position
+        # patterns converge, and did any of them cross the midline. Comes after G8e because it is
+        # the follow-up to the lateralisation collapse, not an independent question.
+        for _al, _nice in (("cue", "POST-cue"), ("precue", "PRE-cue")):
+            for _armf, _armn in (("", "ALL trials"), ("_lickonly", "LICK-ONLY")):
+                _sf = src / f"spatial_reorganisation_{_al}{_armf}.png"
+                if not _sf.exists():
+                    continue
+                s = slide()
+                title(s, f"G8f. Pattern CONVERGENCE and the MIDLINE test ({_nice}, {_armn})",
+                      "Crossnobis is noise-unbiased, so sessions of different trial count and "
+                      "response extent can be compared; the pre-stroke band is rebuilt on each "
+                      "session's OWN positions, because mean distance averages over PAIRS. Bars: "
+                      "correlation with the animal's own pre-stroke pattern (blue) vs the "
+                      "HEMISPHERE-SWAPPED one (orange). Orange above blue would mean the pattern "
+                      "relocated across the midline \u2014 it never happens.")
+                note(s, M_SPATIAL)
+                big(s, _sf, top=1.9, width=11.6)
 
         # --- G9. what is NOT here, and why
         s = slide()

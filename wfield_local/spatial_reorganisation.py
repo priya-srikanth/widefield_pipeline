@@ -344,65 +344,84 @@ def summarise(rows):
 
 
 def plot(rows, summ, out_dir, align="cue"):
-    animals = [a for a in sorted(summ) if "note" not in summ[a]]
-    if not animals:
+    """One column per POST-STROKE SESSION.
+
+    Was one column per ANIMAL, which drew `mirror[labs[0]]` -- the first post-stroke session only.
+    Invisible while each animal had one; with two it silently hid day 2. The convergence panel also
+    read a single per-animal `pre_band`, which no longer exists once sessions score different
+    position sets (the lick-only arm), so each session now carries and draws its OWN matched band.
+    """
+    cols = []
+    for a in sorted(summ):
+        rec = summ[a]
+        if "note" in rec:
+            continue
+        for lab in sorted(rec.get("convergence", {}).get("post", {})):
+            cols.append((a, lab, rec))
+    if not cols:
         return None
     POS = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
-    fig, axes = plt.subplots(2, len(animals), figsize=(5.0 * len(animals), 8.6), squeeze=False)
-    for k, a in enumerate(animals):
-        rec = summ[a]
+    fig, axes = plt.subplots(2, len(cols), figsize=(4.4 * len(cols), 8.6), squeeze=False)
+    for k, (a, lab, rec) in enumerate(cols):
+        v = rec["convergence"]["post"][lab]
+        b = v["pre_band"]
         ax = axes[0][k]
-        c = rec.get("convergence")
-        if c:
-            b = c["pre_band"]
-            ax.axhspan(b["min"], b["max"], color="tab:blue", alpha=0.18)
-            ax.axhline(b["mean"], color="tab:blue", lw=1.8)
-            for i, (lab, v) in enumerate(c["post"].items()):
-                ax.plot(i, v["mean_distance"], "o", ms=11, color="tab:red", markeredgecolor="k")
-                ax.text(i, v["mean_distance"], f"  z{v['z']:+.1f}", fontsize=8, va="center",
-                        color=("firebrick" if v["converged"] else "dimgrey"))
-            ax.set_xticks(range(len(c["post"])))
-            ax.set_xticklabels(list(c["post"]), rotation=30, ha="right", fontsize=7)
-            ax.set_xlim(-0.6, max(len(c["post"]) - 0.4, 0.6))
-        ax.set_title(f"{a} - between-position CROSSNOBIS distance", fontsize=9)
+        ax.axhspan(b["min"], b["max"], color="tab:blue", alpha=0.18)
+        ax.axhline(b["mean"], color="tab:blue", lw=1.8)
+        ax.plot(0, v["mean_distance"], "o", ms=12, color="tab:red", markeredgecolor="k")
+        ax.text(0.06, v["mean_distance"], f"  z{v['z']:+.1f}", fontsize=9, va="center",
+                color=("firebrick" if v["converged"] else "dimgrey"))
+        ax.set_xticks([])
+        ax.set_xlim(-0.5, 0.9)
+        ax.set_title(f"{lab} - crossnobis distance ({v['n_positions']} positions, band matched)",
+                     fontsize=8.5)
         if k == 0:
-            ax.set_ylabel("mean pairwise distance\n(LOWER = positions converged)", fontsize=8)
+            ax.set_ylabel("mean pairwise distance (LOWER = converged)", fontsize=8)
+
         ax = axes[1][k]
-        mir = rec.get("mirror", {})
-        labs = list(mir)
-        if labs:
-            m = mir[labs[0]]
-            x = np.arange(len(POS))
-            w = 0.38
-            nm = [m.get(p, {}).get("normal_r", np.nan) for p in POS]
-            mr = [m.get(p, {}).get("mirror_r", np.nan) for p in POS]
-            bl = [m.get(p, {}).get("pre_mirror_minus_normal", np.nan) for p in POS]
-            ax.bar(x - w / 2, nm, w, label="vs own pre-stroke pattern", color="tab:blue",
-                   edgecolor="k", lw=0.4)
-            ax.bar(x + w / 2, mr, w, label="vs MIRRORED pre-stroke pattern", color="tab:orange",
-                   edgecolor="k", lw=0.4)
-            for xi, dd in zip(x, bl):
-                if dd == dd:
-                    ax.plot([xi - w, xi + w], [dd, dd], color="grey", lw=1.4, ls="--")
-            ax.axhline(0, color="k", lw=1)
-            ax.set_xticks(x)
-            ax.set_xticklabels(POS, rotation=45, ha="right", fontsize=7)
-            ax.set_ylim(-1, 1.05)
-            ax.set_title(f"{a} - {labs[0]}: mirror test", fontsize=9)
-            if k == 0:
-                ax.set_ylabel("correlation with pre-stroke pattern", fontsize=8)
-                ax.legend(fontsize=6.5, loc="lower left")
+        m = rec.get("mirror", {}).get(lab, {})
+        x = np.arange(len(POS))
+        w = 0.38
+        nm = [m.get(p, {}).get("normal_r", np.nan) for p in POS]
+        mr = [m.get(p, {}).get("mirror_r", np.nan) for p in POS]
+        bl = [m.get(p, {}).get("pre_mirror_minus_normal", np.nan) for p in POS]
+        ax.bar(x - w / 2, nm, w, label="vs own pre-stroke pattern", color="tab:blue",
+               edgecolor="k", lw=0.4)
+        ax.bar(x + w / 2, mr, w, label="vs MIRRORED pre-stroke pattern", color="tab:orange",
+               edgecolor="k", lw=0.4)
+        for xi, dd in zip(x, bl):
+            if dd == dd:
+                ax.plot([xi - 0.45, xi + 0.45], [dd, dd], ls="--", color="grey", lw=1)
+        # A pattern that resembles NEITHER is not evidence about which hemisphere it resembles.
+        # Marked on the figure rather than left to the reader, because the flag rule got this
+        # wrong twice before landing on a third verdict.
+        for xi, pos_name in zip(x, POS):
+            if m.get(pos_name, {}).get("pattern_lost"):
+                ax.text(xi, -0.97, "pattern lost", ha="center", va="bottom", fontsize=5.5,
+                        rotation=90, color="firebrick", fontweight="bold")
+        ax.axhline(0, color="k", lw=0.8)
+        ax.set_xticks(x)
+        ax.set_xticklabels(POS, rotation=45, ha="right", fontsize=7)
+        ax.set_ylim(-1, 1.05)
+        ax.set_title(f"{lab}: mirror test", fontsize=9)
+        if k == 0:
+            ax.set_ylabel("correlation with pre-stroke pattern", fontsize=8)
+            ax.legend(fontsize=6.5, loc="lower left")
     fig.suptitle(
-        f"SPATIAL REORGANISATION, {align}-aligned. TOP: between-position CROSSNOBIS distance - "
-        "noise-unbiased, which is required here because post-stroke amplitude is 2-3x pre-stroke and "
-        "a plain correlation RDM would move on that alone. LOWER distance = the six positions became "
-        "less distinguishable, which is the same statement as a decoder failing. BOTTOM: does each "
-        "post-stroke pattern resemble its OWN pre-stroke pattern (blue) or the HEMISPHERE-SWAPPED one "
-        "(orange)? Orange above blue means the pattern relocated across the midline; the dashed grey "
-        "line is the pre-stroke mirror-minus-normal baseline, because a symmetric brain already has "
-        "some mirror correlation and only an excess over that baseline means anything.",
-        fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+        f"SPATIAL REORGANISATION, {align}-aligned. TOP: between-position CROSSNOBIS distance -- "
+        "noise-unbiased, required here because post-stroke sessions differ in trial count AND in "
+        "response extent, so a plain correlation RDM would move on that alone. LOWER distance = the "
+        "positions became less distinguishable, which is the same statement as a decoder failing. "
+        "The band is that animal's pre-stroke range recomputed over THIS session's positions, "
+        "because mean distance averages over PAIRS and a four-position session has six of them "
+        "against fifteen. BOTTOM: does each post-stroke pattern resemble its OWN pre-stroke pattern "
+        "(blue) or the HEMISPHERE-SWAPPED one (orange)? Orange above blue would mean the pattern "
+        "relocated across the midline. Dashed grey = the pre-stroke mirror-minus-normal baseline, "
+        "because a symmetric brain already has substantial mirror correlation and only an excess "
+        "over it means anything. Where NEITHER bar is appreciably positive the pattern resembles "
+        "nothing and is marked PATTERN LOST -- a different and stronger claim than relocation.",
+        fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
     p = Path(out_dir) / f"spatial_reorganisation_{align}.png"
     fig.savefig(p, dpi=150)
     plt.close(fig)
