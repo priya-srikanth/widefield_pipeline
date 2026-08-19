@@ -425,9 +425,32 @@ def all_sessions(machine=None, resolver=None, labcams_root=None, include_regime_
 # ---------------------------------------------------------------------------
 # Build.
 # ---------------------------------------------------------------------------
+def _refuse_empty_overwrite(out_path, type_counts, allow_empty=False):
+    """Refuse to replace an existing deck with one that found NO figures.
+
+    A deck is rebuilt in place, so a run that discovers nothing silently destroys the previous one.
+    That happened on 2026-08-19: PS93's deck was rebuilt with `sessions` filtered on `s.get("animal")`,
+    a key these dicts do not have -- the session dicts carry `label`, `mc`, `h5`, `fmdir`, `regime`.
+    The filter matched zero sessions, build_deck wrote a 2-slide file with every figure type at zero,
+    and 257 MB of deck became 264 kB. Nothing raised: an empty result is a perfectly valid deck.
+
+    The first line of defence is the caller checking its own filter, and the caller in question did
+    not. So the check lives here too, where it cannot be forgotten. `allow_empty=True` for the
+    legitimate case of building a deck for a tree that genuinely has no figures yet.
+    """
+    if allow_empty or not os.path.exists(out_path):
+        return
+    if any(type_counts.values()):
+        return
+    raise RuntimeError(
+        f"refusing to overwrite {out_path} with a deck containing NO figures of any type "
+        f"({os.path.getsize(out_path) / 1e6:.0f} MB already there). Check the `sessions` filter -- "
+        f"session dicts key on 'label', not 'animal'. Pass allow_empty=True if this is intended.")
+
+
 def build_deck(out_path, sessions=None, resolver=None, machine=None,
                labcams_root=None, xday_root=None, verbose=True, include_global_summary=True,
-               exclude_stale_maps=True):
+               exclude_stale_maps=True, allow_empty=False):
     """Build a fresh preprocessing deck at ``out_path`` and return a summary dict.
 
     ``sessions`` / ``resolver`` default to the live config; ``labcams_root`` /
@@ -509,6 +532,7 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     out_dir = os.path.dirname(os.path.abspath(out_path))
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
+    _refuse_empty_overwrite(out_path, type_counts, allow_empty=allow_empty)
     prs.save(out_path)
 
     zero_types = [k for k, n in type_counts.items() if n == 0]
