@@ -37,7 +37,11 @@ orofacial deficit** (tongue deviates right, minimal right whisking) — the late
     all-zero weights (`weights are all zero for channel 0` → `UnboundLocalError 'V'`) and maps report cues
     outside coverage. **Recovery:** trim the DAQ to drop everything before recording #2's first exposure, then
     re-run the session's **full** preprocessing (the bin is NOT reusable — the pairing changed). The original
-    untrimmed DAQ is kept for provenance at `labcams/<date>/<session>/daq_falsestart_recording1/`. A cleaner
+    untrimmed DAQ is kept for provenance at
+    `labcams/20260818/PS93_20260818_145203/daq_falsestart_recording1/PS93_20260818_recording1_falsestart_UNTRIMMED_DAQ.h5`
+    (+ a `README.txt` there; local backup `E:\_daq_provenance\`). It is deliberately **NOT** under
+    `DAQ_recorder_output/` — `archive_day.discover_daq` walks that tree and re-uploads any `.h5` whose name
+    contains the date, so a provenance copy there gets swept back onto the server as a session DAQ. A cleaner
     long-term fix would be to widen the offset search to detect a leading orphan-recording block automatically.
 - **Allen alignment grid**: all spatial maps are warped to the **540×640 Allen atlas grid**
   (`apply_allen_transform --dims 540 640`), not native ROI size, with the atlas built in **reference space**
