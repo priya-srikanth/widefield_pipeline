@@ -130,10 +130,19 @@ def _render_readouts(sub, out, prefix):
     ident = {k: v["looks_like_which"] for k, v in sub.items() if v.get("looks_like_which")}
     if ident:
         made.append(pp.fig_identity(ident, out))
-    fits = {k: v["fits_engaged_precue"] for k, v in sub.items() if v.get("fits_engaged_precue")}
+    # fig_fits_engaged indexes fits[session][align] -- it was written when the readout was computed
+    # per alignment. The runner stores the pre-cue record directly, so it is nested back here rather
+    # than changing a figure that reads correctly. Silently producing NOTHING is the failure this
+    # avoids: the renderer's own `if m` filter swallowed the None and the figure just never appeared.
+    fits = {k: {"precue": v["fits_engaged_precue"]} for k, v in sub.items()
+            if v.get("fits_engaged_precue")}
     if fits:
-        made.append(pp.fig_fits_engaged(fits, out, align="precue",
-                                        name=f"{prefix}_fits_engaged_precue.png"))
+        f = pp.fig_fits_engaged(fits, out, align="precue",
+                                name=f"{prefix}_fits_engaged_precue.png")
+        if f is None:
+            print("  !! fits_engaged produced no figure despite input for "
+                  f"{sorted(fits)}", flush=True)
+        made.append(f)
     rd = {k: v["impaired_nolick"] for k, v in sub.items() if v.get("impaired_nolick")}
     if rd:
         made.append(pp.fig_nolick_readout(rd, out))
