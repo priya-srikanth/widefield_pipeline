@@ -272,14 +272,28 @@ def test_session_path_can_name_an_EXPLICIT_root(monkeypatch):
 
 
 def test_ps93_0805_behavior_trials_resolves_on_this_machine():
-    """The regression itself: this session's recovered-position CSV must exist wherever we run."""
+    """The recovered-position CSV path must be stored MACHINE-RELATIVE (a ``<root>:...`` ref such as
+    ``labcams:20260805/...``), never pinned to one box's drive -- a drive-pinned path resolves only on
+    the machine that wrote it. Check the STORED config value: the RESOLVED ``SESSIONS`` path legitimately
+    begins with the local mount (``M:`` on the analysis box, ``N:`` on imaging), so asserting on the
+    resolved path is itself machine-specific and would fail on whichever box mounts MICROSCOPE at ``M:``.
+    """
+    import re
     from pathlib import Path
 
+    import pytest
+    import yaml
+
+    from wfield_local import config
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
+    sy = yaml.safe_load((config.CONFIG_DIR / "sessions.yaml").read_text(encoding="utf-8"))
+    bt = (sy.get("sessions", {}).get("PS93", {}).get("0805") or {}).get("behavior_trials")
+    if not bt:
+        pytest.skip("PS93_0805 behavior_trials not configured on this machine")
+    # a machine-relative ref is '<root>:...' (root is a logical name); a pinned path is a drive: 'M:/'..'N:\\'
+    assert not re.match(r"^[A-Za-z]:[\\/]", str(bt)), f"machine-pinned (drive) path is back: {bt!r}"
+    # and, where the resolved session is registered, that path must exist on THIS machine
     s = next((x for x in SESSIONS if x["label"] == "PS93_0805"), None)
-    if s is None or "behavior_trials" not in s:
-        import pytest
-        pytest.skip("PS93_0805 not registered on this machine")
-    assert not str(s["behavior_trials"]).startswith("M:/MICROSCOPE"), "machine-pinned path is back"
-    assert Path(s["behavior_trials"]).exists()
+    if s and "behavior_trials" in s:
+        assert Path(s["behavior_trials"]).exists()
