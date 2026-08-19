@@ -197,3 +197,57 @@ def test_curation_still_filters_the_pre_stroke_reference(lesioned, monkeypatch):
     kept = {s["label"] for s in ea.sessions_to_measure(curated_only=True)}
     assert "PS95_0605" not in kept, "non-curated PRE-stroke date must still be excluded"
     assert {"PS95_0812", "PS95_0817"} <= kept
+
+
+# ---------------------------------------------------------------------------------------------
+# NO POST-STROKE DATE OR ANIMAL LITERALS in the analysis modules.
+#
+# The same mistake has now been made in four places, and every one of them deleted data silently:
+#
+#   evoked_amplitude        set(curated_dates()) | {"0817"}      -> PS92/PS93 had NO post-stroke row
+#   spatial_reorganisation  set(curated_dates()) | {"0817","0818"} -> would drop 8/19 the same way
+#   the Section G runner    for an in ("PS94", "PS95")           -> two animals missing from Section G
+#   make_section_g_figs     session_phase(a, "0817") != "post"   -> PS93's behaviour figure missing
+#
+# Each was correct on the day it was written. A date literal is a snapshot of the study, and the
+# study keeps acquiring. These tests do not try to be clever: they just refuse to let a bare
+# post-stroke date or a hardcoded animal tuple back into the modules that select sessions.
+# ---------------------------------------------------------------------------------------------
+
+ANALYSIS_MODULES = ("evoked_amplitude", "spatial_reorganisation", "poststroke_section_g")
+
+
+@pytest.mark.parametrize("modname", ANALYSIS_MODULES)
+def test_no_post_stroke_date_literal_in_session_selection(modname):
+    import importlib
+    import inspect
+    import re
+
+    mod = importlib.import_module(f"wfield_local.{modname}")
+    src = inspect.getsource(mod)
+    # strip comments and docstrings -- the prose ABOUT the bug necessarily quotes the literals
+    code = "\n".join(ln.split("#")[0] for ln in src.splitlines())
+    for doc in re.findall(r'"""(?:.|\n)*?"""', code):
+        code = code.replace(doc, "")
+    bad = re.findall(r'["\'](0[678]\d\d)["\']', code)
+    assert not bad, (
+        f"{modname} selects sessions with the date literal(s) {sorted(set(bad))}. "
+        f"Use config.analysis_sessions() / config.phase_labels() so a newly registered session "
+        f"joins automatically instead of being silently dropped.")
+
+
+@pytest.mark.parametrize("modname", ANALYSIS_MODULES)
+def test_no_hardcoded_animal_list_in_session_selection(modname):
+    import importlib
+    import inspect
+    import re
+
+    mod = importlib.import_module(f"wfield_local.{modname}")
+    src = inspect.getsource(mod)
+    code = "\n".join(ln.split("#")[0] for ln in src.splitlines())
+    for doc in re.findall(r'"""(?:.|\n)*?"""', code):
+        code = code.replace(doc, "")
+    bad = re.findall(r'["\'](PS\d\d)["\']', code)
+    assert not bad, (
+        f"{modname} names the animals {sorted(set(bad))} in executable code. The cohort changes; "
+        f"derive it from config.phase_labels('post') or config.animals().")
