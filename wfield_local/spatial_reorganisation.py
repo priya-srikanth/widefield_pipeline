@@ -134,6 +134,34 @@ def _crossnobis(A, y, g, labels):
     return D
 
 
+#: How far the shift toward the mirrored pattern must exceed the pre-stroke baseline before it is
+#: called anything. A symmetric brain already has substantial mirror correlation, so the raw
+#: ordering carries almost no information on its own.
+MIRROR_MARGIN = 0.15
+
+
+def _flag_mirror(rec):
+    """Set `transfer` and `reduced_asymmetry` on one position's mirror record.
+
+    ONE FUNCTION so the live run and any re-scoring of a saved JSON cannot drift apart.
+
+    A MARGIN IS REQUIRED, not just an ordering. `mirror_r > normal_r` alone flagged TRANSFER for
+    PS94 8/18 far_center on normal +0.677 against mirror +0.682 -- a 0.005 correlation difference,
+    against a pre-stroke baseline difference of -0.015. Calling that a pattern relocating across the
+    midline would be the same overclaiming this project has spent the week removing.
+
+    TRANSFER means the pattern now resembles the OPPOSITE hemisphere's more than its own, so mirror
+    must actually exceed normal AND the shift must beat the pre-stroke baseline by MIRROR_MARGIN. An
+    even earlier version required only the shift, and so labelled PS94 close_R "transfer" when normal
+    was +0.718 against mirror +0.323 -- the pattern had not moved anywhere, it had merely become less
+    asymmetric. REDUCED ASYMMETRY is that weaker, different claim and keeps its own flag.
+    """
+    d = rec["mirror_minus_normal"] - rec.get("pre_mirror_minus_normal", float("nan"))
+    rec["transfer"] = bool(rec["mirror_r"] > rec["normal_r"] and d > MIRROR_MARGIN)
+    rec["reduced_asymmetry"] = bool(d > MIRROR_MARGIN)
+    return rec
+
+
 def _swap_lr(vec, areas):
     """Hemisphere-swapped copy of a region vector: each area's _left value exchanged with its _right."""
     idx = {a: i for i, a in enumerate(areas)}
@@ -208,18 +236,7 @@ def mirror_test(pre_rows, post_row):
         # difference toward mirror by >0.15 and so labelled PS94 close_R "transfer" when normal was
         # +0.718 against mirror +0.323 -- the pattern had not moved anywhere, it had merely become
         # less asymmetric. Those are different claims and only the first deserves the word.
-        # A MARGIN IS REQUIRED, not just an ordering. `mirror_r > normal_r` alone flagged TRANSFER
-        # for PS94 8/18 far_center on normal +0.677 vs mirror +0.682 -- a 0.005 correlation
-        # difference, against a pre-stroke baseline difference of -0.015. Reporting that as a
-        # pattern relocating across the midline would be the same overclaiming this project has
-        # been correcting all week. Transfer now needs BOTH: mirror actually ahead of normal, AND
-        # the shift toward mirror larger than the pre-stroke baseline by the same 0.15 used for
-        # reduced_asymmetry (a symmetric brain already has substantial mirror correlation).
-        out[p]["transfer"] = bool(
-            out[p]["mirror_r"] > out[p]["normal_r"]
-            and out[p]["mirror_minus_normal"] > out[p]["pre_mirror_minus_normal"] + 0.15)
-        out[p]["reduced_asymmetry"] = bool(
-            out[p]["mirror_minus_normal"] > out[p]["pre_mirror_minus_normal"] + 0.15)
+        _flag_mirror(out[p])
     return out
 
 
