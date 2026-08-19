@@ -1855,3 +1855,54 @@ survives the lesion on day 1 and is gone by day 2, while execution-phase coding 
 Caveats: one animal; one session per day; and "plan" means pre-cue position information, not a
 demonstrated motor intention — the spout arrives ~3 s before the cue and this design cannot separate a
 held intention from a sustained sensory response (see the terminology entry above).
+
+
+## THE PLAN/EXECUTION DISSOCIATION — REPLICATED IN ALL FOUR ANIMALS (2026-08-19)
+
+On the first session after an **effective** lesion, within-session decoding places the **pre-cue**
+window inside that animal's pre-stroke band and the **post-cue** window outside it. All-trials arm,
+six positions, chance 1/6:
+
+| animal | day 1 | laser | pre-cue z | post-cue z |
+|---|---|---|---|---|
+| PS94 | 8/17 | 3 mW | **−0.2** | **−7.1** |
+| PS95 | 8/17 | 3 mW | **+1.6** | **−3.4** |
+| PS92 | 8/18 | 3.75 mW | **+0.2** | **−2.4** |
+| PS93 | 8/18 | 5.5 mW | **−0.5** | **−3.6** |
+
+Four animals, two lesion days, three laser powers, no exception.
+
+### Why this survives when session-level comparisons did not
+
+Pre-cue and post-cue are **two windows on the same trials**. LED power, baseline F, evoked amplitude,
+arousal, engagement and trial count act on both equally and cannot produce a difference between them.
+It is a **within-trial** contrast, which is precisely the property that the four trial-set errors of
+2026-08-19 destroyed in every session-level measure.
+
+### PS92 and PS93 give a within-animal before/after control
+
+Their **8/17** sessions follow the 8/16 laser that did not take, and show nothing outside the band at
+any alignment (PS92 −0.1, +0.2, −0.3; PS93 −1.4, −0.0, −0.5). One day later, after the effective 8/17
+lesion, the dissociation is present. Same animal, same rig, one day apart.
+
+That control exists **only because the excluded sessions were kept analysable** rather than dropped —
+the `post_labels` override added on 2026-08-18 for what was then framed as a negative control.
+
+### Day 2 separates the animals
+
+PS94 loses the plan as well (pre-cue z=−3.4, post-cue z=−12.1). PS95 returns fully inside the band
+(+2.1, +1.3) alongside behavioural recovery of the far positions (far_center 10→99 trials, far_R 1→84).
+Deterioration versus recovery, tracking behaviour in both cases.
+
+### Laser power does not predict magnitude
+
+PS94 at the **lowest** dose (3 mW) has the largest post-cue deficit (z=−7.1); PS93 at the **highest**
+(5.5 mW) has −3.6. Behavioural severity tracks the effect; dose does not. PS93 was nominated in advance
+as the dose test and the prediction failed.
+
+### Caveats that stay attached
+
+One session per animal per day. And **"pre-cue" means pre-cue position information, not a demonstrated
+motor intention** — the spout arrives ~3 s before the cue, so a sustained sensory response and a held
+plan are temporally coextensive and this design cannot separate them. The dissociation between two
+WINDOWS is solid; calling the earlier one a plan is an interpretation.

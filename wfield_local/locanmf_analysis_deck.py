@@ -331,42 +331,46 @@ M_EVOKED = (
     "first looked like a null on this measure and does not.")
 
 M_RECODING = (
-    "RECODING vs LOSS (poststroke_compare.recoding_test). G2 applies the FROZEN pre-stroke decoder to "
-    "post-stroke sessions. A frozen decoder can fail two ways -- the information is gone, or it is "
-    "present in a code the old model cannot read -- and training a decoder on the post-stroke session "
-    "ITSELF separates them."
-    "\n\nTWO CORRECTIONS MADE THIS NOTE'S EARLIER VERSION WRONG, both found by Priya on 2026-08-19. "
-    "(1) This test filtered to ENGAGED trials, contradicting the standing decision that post-stroke "
-    "analyses use ALL trials because the missing licks ARE the phenotype; PS94 8/18 is only 40% "
-    "engaged, so it was reading a minority subset chosen by the behaviour the lesion disrupted. "
-    "(2) preserved_positions pooled across post sessions, which is the UNION -- PS95's 8/17 numbers "
-    "were scored over six positions when one had a SINGLE engaged trial that day. Both arms are now "
-    "reported, and every session is scored on ITS OWN preserved positions against a pre-stroke band "
-    "restricted to the same positions."
-    "\n\nPS94, DAY 1 (8/17), 4 positions, chance 0.25: a PLAN/EXECUTION DISSOCIATION. The PRE-CUE "
-    "window is intact on both arms (ALL 0.661 z=-0.3, ENGAGED 0.633 z=-0.7, band 0.676[0.563,0.771]). "
-    "The POST-CUE and POST-LICK windows are degraded on ALL trials (0.802 z=-3.2; 0.786 z=-4.1) but "
-    "NORMAL on engaged trials (0.882 z=-0.7; 0.851 z=-1.9). The impairment therefore lives entirely "
-    "in the trials where the movement failed, which is the plan-formed-execution-failed signature "
-    "appearing directly rather than by inference."
-    "\n\nPS94, DAY 2 (8/18): the dissociation is gone and everything is degraded, including the "
-    "planning window and including trials where the animal did lick -- pre-cue 0.441/0.416, post-cue "
-    "0.550/0.714, post-lick 0.562/0.788, all outside the band (z=-4.0 to -11.5). PS94 keeps 4 "
-    "positions on both days, so its day-1 vs day-2 contrast is the one genuine longitudinal "
-    "comparison in this dataset."
-    "\n\nPS95 AND PS92 SHOW NO DEGRADATION AT ALL, and an earlier claim that PS95 was impaired on "
-    "day 1 and recovered was an artefact of the union basis: PS95_0817 reads 0.877 (z=+0.3, inside) "
-    "on its own 4-position basis against 0.719 (z=-3.4, OUTSIDE) on the pooled 6-position one. "
-    "Several PS95 values sit ABOVE its pre-stroke range. PS92's ALL and ENGAGED arms are identical "
-    "because it responded on nearly every trial."
-    "\n\nPS95's TWO DAYS ARE NOT COMPARABLE TO EACH OTHER: it attempted 4 positions on 8/17 and 6 "
-    "on 8/18 (far_center 10 -> 99 trials, far_R 1 -> 84), so the two sessions carry different chance "
-    "levels. Its behavioural recovery is real and is visible in those trial counts; do not read a "
-    "recovery into the accuracy numbers, which are on different bases."
-    "\n\nWHAT THE TRIAL-COUNT CONTROL SHOWS. Restricting pre-stroke sessions to the post-stroke "
-    "engaged trial COUNT leaves PS94 8/17 inside the matched band (post-cue z=+0.2, pre-cue z=-0.1) "
-    "and 8/18 below it (z=-9.9, -6.6). The day-2 collapse is not a fewer-trials artefact. It does not "
-    "control for WHICH trials survive, only how many.")
+    "PLAN vs EXECUTION (poststroke_compare.recoding_test; figure poststroke_grid.png). Within-session "
+    "decoding -- a decoder trained on the post-stroke session ITSELF -- against that animal's own "
+    "pre-stroke range for the same measure. ALL-TRIALS arm: all six positions, chance 1/6, which is "
+    "the only arm comparable across sessions and animals."
+    "\n\nTHE RESULT, IN ALL FOUR ANIMALS. On the first session after an EFFECTIVE lesion the PRE-CUE "
+    "window sits inside the pre-stroke band while the POST-CUE window sits outside it: PS94 8/17 "
+    "pre-cue z=-0.2 vs post-cue z=-7.1; PS95 8/17 +1.6 vs -3.4; PS92 8/18 +0.2 vs -2.4; PS93 8/18 "
+    "-0.5 vs -3.6. Four animals, two lesion days, three laser powers, no exception."
+    "\n\nWHY IT RESISTS THE CONFOUNDS THAT SANK EVERYTHING ELSE. Pre-cue and post-cue are two "
+    "windows on the SAME TRIALS, so LED power, baseline F, evoked amplitude, arousal, engagement and "
+    "trial count act on both equally and cannot produce a difference between them. It is a "
+    "within-trial contrast, which is what makes it survive when session-level comparisons do not."
+    "\n\nPS92 AND PS93 SUPPLY A WITHIN-ANIMAL BEFORE/AFTER CONTROL. Their 8/17 sessions follow the "
+    "8/16 laser that did NOT take, and show NOTHING outside the band at any alignment (PS92 -0.1, "
+    "+0.2, -0.3; PS93 -1.4, -0.0, -0.5). One day later, after the effective 8/17 lesion, the "
+    "dissociation is present. Same animal, same rig, one day apart -- far stronger than a "
+    "between-animal comparison, and it exists only because the excluded sessions were kept analysable "
+    "instead of discarded."
+    "\n\nDAY 2 SEPARATES THE ANIMALS. PS94 loses the plan as well (pre-cue z=-3.4, post-cue z=-12.1) "
+    "while PS95 returns fully inside the band (+2.1, +1.3) alongside a behavioural recovery of the far "
+    "positions (far_center 10 -> 99 trials, far_R 1 -> 84). Deterioration versus recovery, tracking "
+    "the behaviour in both cases."
+    "\n\nLASER POWER DOES NOT PREDICT MAGNITUDE. PS94 at the LOWEST dose (3 mW) has the largest "
+    "post-cue deficit (z=-7.1) and PS93 at the highest (5.5 mW) has -3.6. Behavioural severity tracks "
+    "the effect; dose does not. PS93 was flagged in advance as the dose test and came out negative."
+    "\n\nTHE ALL-TRIALS ARM IS THE ONE TO READ ACROSS SESSIONS. Its position set is fixed at six, so "
+    "chance is fixed at 1/6. The LICK-ONLY arm uses each session's preserved positions, which change "
+    "with behaviour -- PS95 has 4 on 8/17 and 6 on 8/18 -- so its numbers carry different chance "
+    "levels and CANNOT be laid side by side. Both arms are reported because their DIFFERENCE separates "
+    "a degraded code from a code that is fine whenever the animal manages to lick."
+    "\n\nEARLIER VERSIONS OF THIS NOTE WERE WRONG and the corrections are recorded in DECISIONS.md "
+    "(2026-08-19). A claim that PS94's information was INTACT and only the code had changed came from "
+    "filtering to engaged trials; a claim that PS95 was impaired on day 1 and recovered came from a "
+    "pooled (union) position basis that scored its 8/17 session over a position with ONE engaged "
+    "trial. Both are withdrawn."
+    "\n\nCAVEATS. One session per animal per day. And PRE-CUE means pre-cue position information, "
+    "not a demonstrated motor intention: the spout arrives ~3 s before the cue, so a sustained sensory "
+    "response and a held plan are temporally coextensive and this design cannot separate them (see "
+    "DECISIONS.md). The dissociation is between two WINDOWS, which is solid; naming the earlier one a "
+    "plan is an interpretation.")
 
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
@@ -990,16 +994,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, src / "poststroke_G2b_per_position.png", top=1.6, width=12.0)
 
         # --- G2c. recoding vs loss: the test that reframes G2
-        _rf = src / "poststroke_recoding.png"
+        _rf = src / "poststroke_grid.png"
         if _rf.exists():
             s = slide()
-            title(s, "G2c. PS94 day 1: plan intact, execution impaired. Day 2: both gone.",
-                  "Each session on ITS OWN preserved positions, against a pre-stroke band restricted "
-                  "to the same ones. BOTH trial arms: ALL trials (the standing rule \u2014 the "
-                  "missing licks are the phenotype) and ENGAGED only. On day 1 PS94's pre-cue window "
-                  "is intact while post-cue and post-lick are degraded ONLY once failed trials are "
-                  "included; by day 2 every window is degraded on both arms. PS95 and PS92 show no "
-                  "degradation anywhere.")
+            title(s, "G2c. Day 1 after an effective lesion: the PLAN survives, EXECUTION does not "
+                     "\u2014 in all four animals",
+                  "Pre-cue and post-cue are two windows on the SAME trials, so every session-level "
+                  "confound acts on both equally and cannot produce a difference between them. GREY "
+                  "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "
+                  "band, then the dissociation appears one day later after the effective lesion \u2014 "
+                  "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
             note(s, M_RECODING)
             big(s, _rf, top=1.85, width=11.4)
 
