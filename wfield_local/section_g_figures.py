@@ -68,7 +68,14 @@ def render(rec, out, arm):
 
     sim = _by_session(rec, "postcue_pattern_similarity")
     if sim:
-        made.append(pp.fig_similarity(sim, out))
+        # NAME CARRIES THE ARM. Both arms wrote poststroke_G5_similarity.png, so the second render
+        # silently overwrote the first and the deck showed one arm labelled as whichever slide
+        # happened to point at it.
+        made.append(pp.fig_similarity(
+            sim, out, name=f"section_g_G5_similarity_{tag}.png",
+            suptitle=(f"Per-position correlation between the pre- and post-stroke mean patterns, "
+                      f"post arm = {arm_name}. Decoding accuracy alone cannot separate a weakened "
+                      f"code from a reorganised one; this can.")))
 
     for cond, align in CONFUSION_ALIGNS:
         conf = {lab: {align: r["confusion"][cond]}

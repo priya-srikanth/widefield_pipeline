@@ -1040,7 +1040,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # tests/test_deck_section_g.py pins that this section obeys it.
     _post_labels = list(config.phase_labels("post"))
     _excluded = [f"{a}_0817" for a in animals if config.session_phase(a, "0817") == "excluded"]
-    if _post_labels and (src / "poststroke_G2_matched.png").exists():
+    if _post_labels and (src / "section_g_G2_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
                 f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
                 f"Behaviour first: what the animal still attempts bounds what any decoding number "
@@ -1057,15 +1057,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
             "licks ARE the phenotype, so filtering them out would delete the effect being measured. "
             "Declared by name in nolick_analysis.SANCTIONED_MISMATCHES.",
-            "Position-MATCHED slides are 4-way (chance 0.25) and NOT comparable to the 6-way numbers "
-            "in sections A\u2013F.",
+            "EVERY post-stroke slide is shown on BOTH ARMS. ALL trials scores all six positions, so chance is 1/6 for every session and the panels are comparable across sessions and animals. LICK-ONLY uses that session's own preserved positions, so its chance level MOVES with the behaviour (PS95: 4 positions on 8/17, 6 on 8/18) and its accuracies must NOT be laid side by side. Neither arm is comparable to the 6-way numbers in sections A\u2013F, which are engaged-only throughout.",
+            "The DIFFERENCE between the arms is the point: it separates a code that degraded from a code that is fine whenever the animal manages to lick.",
             "There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
             "a local dip in response rate cannot be distinguished from a run of motor failures, and "
             "in a severe stroke no spared reference position exists to anchor one.",
             "'No lick detected' is NOT 'no tongue protrusion' \u2014 the spout needs contact. PS93 "
             "already shows this pre-stroke at far_L. Every no-lick conclusion is provisional on DLC.",
-            f"n = 1 post-stroke session per animal ({', '.join(_post_labels)}). PS94 and PS95 "
-            "differ; with one night each that is a description of two animals, not a dissociation.",
+            f"POST-STROKE POOL: {', '.join(_post_labels)}. Every slide is per SESSION, never pooled across days — PS94's two nights differ more from each other than pre differs from post, so averaging them would destroy the effect.",
+            "The day-1 plan/execution dissociation now REPLICATES in all four animals (G2c), so it is no longer a description of two animals. What remains n=1 is each animal's TRAJECTORY: one session per animal per day.",
         ])
 
         # --- G1. behaviour, from the nightly pipeline's own longitudinal figures
@@ -1084,26 +1084,40 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "figure the nightly behaviour pipeline already produces, not a bespoke plot.")
             note(s, M_POSTSTROKE)
             big(s, beh, top=1.5, width=12.9)
-        if (src / "poststroke_G1_behaviour.png").exists():
+        for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+            _cf = src / f"section_g_G1b_counts_{_arm}.png"
+            if not _cf.exists():
+                continue
             s = slide()
-            title(s, "G1b. Which positions still have trials at all",
-                  "Per-position engaged and no-lick counts: pre-stroke per-session mean against the "
-                  "post-stroke session. A position with ZERO engaged trials cannot have a decoding "
-                  "number, and PS94 has two of them.")
+            title(s, f"G1b. Which positions still have trials at all ({_armn} arm)",
+                  "Per-position engaged and no-lick counts, ONE PANEL PER POST-STROKE SESSION "
+                  "against the pre-stroke per-session mean. A position with ZERO engaged trials "
+                  "cannot have a lick-only decoding number at all; PS94 has two, and reading "
+                  "that as a neural deficit is how the first pass went wrong.")
             note(s, M_POSTSTROKE)
-            big(s, src / "poststroke_G1_behaviour.png", top=1.6, width=12.5)
+            big(s, _cf, top=1.6, width=12.5)
 
         # --- G2. position-matched decoding
-        s = slide()
-        title(s, "G2. Position-matched decoding: the frozen pre-stroke model after the lesion",
-              "Restricted to the positions the animal still attempts. BAND = the pre-stroke "
-              "leave-one-session-out range under the SAME restriction, which is the only fair "
-              "reference. 4-way, chance 0.25.")
-        note(s, M_POSTSTROKE)
-        big(s, src / "poststroke_G2_matched.png", top=1.7, width=12.3)
+        for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+            _mf = src / f"section_g_G2_matched_{_arm}.png"
+            if not _mf.exists():
+                continue
+            s = slide()
+            title(s, f"G2. The FROZEN pre-stroke decoder after the lesion ({_armn} arm)",
+                  "One panel per POST-STROKE SESSION. BAND = that animal's pre-stroke "
+                  "leave-one-session-out range for the same measure. "
+                  + ("All six positions, chance 1/6 on every panel."
+                     if _arm == "all" else
+                     "Each session on ITS OWN preserved positions, so the chance line differs "
+                     "between panels and the accuracies are NOT comparable across them."))
+            note(s, M_POSTSTROKE)
+            big(s, _mf, top=1.7, width=12.3)
+        # G2b is built from per_position_pre_vs_post_0817.json, which predates the all-trials,
+        # six-position and per-session corrections of 2026-08-19 and covers day 1 only. Shown
+        # ONLY while no replacement exists, and labelled as superseded rather than quietly kept.
         if (src / "poststroke_G2b_per_position.png").exists():
             s = slide()
-            title(s, "G2b. Per-position recall in all four conditions",
+            title(s, "G2b. Per-position recall in all four conditions \u2014 SUPERSEDED, day 1 only, engaged arm",
                   "post-cue, post-lick, pre-cue WITH lick, pre-cue NO lick \u2014 pre against post "
                   "at every position. 'With/without lick' is the RESPONSE lick, i.e. engaged vs "
                   "no-lick trials. 'n/a' means the position was never attempted, which is not zero "
@@ -1126,27 +1140,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, _rf, top=1.85, width=11.4)
 
         # --- G3. crossed confusion: WHERE the errors go
-        if (src / "poststroke_G3_confusion.png").exists():
-            s = slide()
-            title(s, "G3. Crossed confusion \u2014 where the errors go, not just how many",
-                  "Full 6x6, rows = true position, row-normalised. A lateralised lesion that shifts "
-                  "far_R onto far_L and one that scatters far_R are IDENTICAL in accuracy and "
-                  "different here. Rows with no trials are blank, not zero.")
-            note(s, M_POSTSTROKE)
-            big(s, src / "poststroke_G3_confusion.png", top=1.6, width=9.2)
-
-            for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
-                _f = src / f"poststroke_G3b_confusion_alltrials_{_al}.png"
+        # G3. Crossed confusion, per POST-STROKE SESSION and on BOTH arms.
+        #
+        # The engaged-only 6x6 that used to sit here was built from a day-1-only JSON on a pooled
+        # position basis, and it left the abandoned positions BLANK -- which are the rows worth
+        # reading. It is superseded on every axis by the figures below (both normalisations,
+        # precision annotated, no-lick rows filled) and is not shown beside them, because two
+        # confusion figures that disagree invite the reader to pick.
+        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
+            for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+                _f = src / f"section_g_G3b_confusion_{_al}_{_arm}.png"
                 if not _f.exists():
                     continue
                 s = slide()
-                title(s, f"G3b. {_nice} confusion including the trials with NO detected lick",
-                      "The engaged-only matrix leaves the abandoned positions BLANK -- PS94 has zero "
-                      "engaged trials at far_center and far_R, which are the two rows worth reading. "
-                      "The animal was still cued to them (104 and 105 no-lick trials); those trials "
-                      "are the only evidence that exists there. '(pred x.xx)' under each column is "
-                      "how often the decoder picks that position overall, i.e. the recall expected "
-                      "under a label permutation -- the diagonal counts only where it clears that.")
+                title(s, f"G3. {_nice} crossed confusion, per session ({_armn} arm)",
+                      "Rows = TRUE position, one row-block per post-stroke session. On the ALL "
+                      "arm the abandoned positions are filled by no-lick trials, the only "
+                      "evidence that exists there -- PS94 has zero engaged trials at far_center "
+                      "and far_R. '(pred x.xx)' under each column is how often the decoder picks "
+                      "that position at all, which IS the recall expected under a label "
+                      "permutation, so the diagonal counts only where it clears that; '(prec)' "
+                      "is precision. Read the OFF-diagonal: a systematic pull toward one "
+                      "position is the result, not the diagonal.")
                 note(s, M_POSTSTROKE)
                 big(s, _f, top=1.85, width=9.6)
 
@@ -1182,14 +1197,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, _ff, top=1.85, width=11.0)
 
         # --- G5. same code weaker, or a different code?
-        if (src / "poststroke_G5_similarity.png").exists():
+        for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+            _sf5 = src / f"section_g_G5_similarity_{_arm}.png"
+            if not _sf5.exists():
+                continue
             s = slide()
-            title(s, "G5. Same code at reduced strength, or a different code?",
-                  "Per-position correlation between the pre- and post-stroke mean activity patterns. "
-                  "Decoding accuracy alone cannot separate a weakened code from a reorganised one; "
-                  "this can.")
+            title(s, f"G5. Same code at reduced strength, or a different code? ({_armn} arm)",
+                  "Per-position correlation between the pre- and post-stroke mean activity "
+                  "patterns, one series per post-stroke session. Decoding accuracy alone cannot "
+                  "separate a weakened code from a reorganised one; this can. G8f asks the same "
+                  "question of the whole 6x6 geometry, and adds the midline test.")
             note(s, M_POSTSTROKE)
-            big(s, src / "poststroke_G5_similarity.png", top=1.7, width=11.8)
+            big(s, _sf5, top=1.7, width=11.8)
 
         # --- G6. was a plan formed on the no-lick trials?
         if (src / "poststroke_G6_nolick_readout.png").exists():

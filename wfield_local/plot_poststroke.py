@@ -168,7 +168,7 @@ def fig_identity(ident, out):
     return p
 
 
-def fig_similarity(sim, out):
+def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None):
     """G5: per-position pattern correlation between phases — same code or different code?"""
     ans = sorted(sim)
     fig, ax = plt.subplots(figsize=(3.0 * len(ans) + 4.4, 4.2))
@@ -192,8 +192,10 @@ def fig_similarity(sim, out):
     ax.set_title("Is it the same code at reduced strength, or a different code?\n"
                  "Per-position correlation of the mean activity pattern; decoding accuracy alone "
                  "cannot separate those.", fontsize=9)
-    fig.tight_layout()
-    p = Path(out) / "poststroke_G5_similarity.png"
+    fig.suptitle(suptitle or "Per-position correlation between the pre- and post-stroke mean "
+                 "activity patterns.", fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    p = Path(out) / name
     fig.savefig(p, dpi=150)
     plt.close(fig)
     return p
