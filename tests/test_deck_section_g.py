@@ -296,3 +296,34 @@ def test_ps92_ps93_are_never_called_a_negative_control():
                 ctx = src[max(0, i - 200):i + 200]
                 assert "NOT a" in ctx or "not a no-lesion" in ctx, (
                     f"{mod.__name__} calls PS92/PS93 a {phrase} without the correction: ...{ctx}...")
+
+
+# ------------------------------------------------------------------------------------------------
+# preserved positions are a PER-SESSION behavioural state
+# ------------------------------------------------------------------------------------------------
+def test_preserved_positions_pooled_is_the_intersection_not_the_union():
+    """Priya, 2026-08-19: "the preserved positions is session-specific though, right?"
+
+    It is, and the original pooled the trial counts across post-stroke sessions -- which is the UNION.
+    That produced a real error: PS95 attempted far_center/far_R on 8/18 (99 and 84 trials) but not on
+    8/17 (10 and 1), so the pooled set was six positions and PS95's 8/17 numbers ran over a position
+    with ONE engaged trial. Registering 8/18 also moved that result's chance level from 0.25 to 0.167
+    with nothing about 8/17 having changed.
+
+    A pooled statistic must be defensible for every session inside it, which the intersection
+    guarantees. This pins the default so a future simplification back to a pooled count fails.
+    """
+    import inspect
+
+    src = inspect.getsource(pc.preserved_positions)
+    assert "set.intersection" in src, "the pooled default must be the intersection"
+    assert 'combine == "union"' in src, "union must be reachable only when asked for explicitly"
+    sig = inspect.signature(pc.preserved_positions)
+    assert sig.parameters["combine"].default == "intersection"
+    assert "session" in sig.parameters, "a per-session set must be obtainable"
+
+
+def test_preserved_positions_by_session_exists_for_reporting():
+    """Per-session sets must be reportable, not just computable -- the pooled number hid a
+    two-session disagreement that only a per-session breakdown makes visible."""
+    assert callable(pc.preserved_positions_by_session)

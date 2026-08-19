@@ -85,10 +85,43 @@ def _pooled(animal, align, source="roi", post_labels=None):
                 pre_i=pre_i, post_i=post_i)
 
 
-def preserved_positions(d):
-    """Positions the animal still attempts post-stroke -- the only ones a comparison can use."""
-    m = np.isin(d["GE"], list(d["post_i"]))
-    return [c for c in DISPLAY_ORDER if int((d["YE"][m] == c).sum()) >= MIN_POST]
+def preserved_positions(d, session=None, combine="intersection"):
+    """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
+
+    PER SESSION, because "still attempts" is a behavioural state that changes day to day (Priya,
+    2026-08-19). Pass `session` (an index into d["kept"]) for one session's set.
+
+    WITHOUT `session`, sessions are combined by INTERSECTION: positions attempted on EVERY
+    post-stroke day. An earlier version pooled the trial counts across sessions, which is the UNION,
+    and it produced a concrete error -- PS95 attempted far_center/far_R on 8/18 (99 and 84 trials) but
+    not on 8/17 (10 and 1), so the pooled set was six positions and PS95's 8/17 numbers were computed
+    over a position with ONE engaged trial. It also silently moved that result's chance level from
+    0.25 to 0.167 when 8/18 was registered, with nothing about 8/17 having changed.
+
+    A pooled statistic has to be defensible for every session inside it, which is what the
+    intersection guarantees and the union cannot.
+    """
+    def _for(idx):
+        m = np.isin(d["GE"], list(idx))
+        return {c for c in DISPLAY_ORDER if int((d["YE"][m] == c).sum()) >= MIN_POST}
+
+    if session is not None:
+        return [c for c in DISPLAY_ORDER if c in _for([session])]
+    per = [_for([i]) for i in sorted(d["post_i"])]
+    if not per:
+        return []
+    if combine == "union":                       # never the default; here only to be explicit
+        keep = set.union(*per)
+    elif combine == "pooled":                    # the old behaviour, kept so it can be compared
+        keep = _for(list(d["post_i"]))
+    else:
+        keep = set.intersection(*per)
+    return [c for c in DISPLAY_ORDER if c in keep]
+
+
+def preserved_positions_by_session(d):
+    """{session label -> preserved positions} for every post-stroke session, for reporting."""
+    return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
 
 
 def decode_matched(d, keep):
@@ -678,7 +711,7 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     return out
 
 
-def recoding_test(d, keep, min_trials=40, n_splits=5):
+def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
     """Is the position code LOST, or RECODED? Frozen pre-stroke decoder vs a within-session one.
 
     THE DISTINCTION THIS EXISTS TO DRAW. `decode_matched` shows PS94's frozen pre-stroke decoder
@@ -698,20 +731,38 @@ def recoding_test(d, keep, min_trials=40, n_splits=5):
     Both arms use GroupKFold on the real position blocks, so the within-session number carries the same
     block-CV convention as everything else in the deck.
     """
-    kp = np.isin(d["YE"], keep)
+    # POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18): the missing licks ARE the phenotype, so
+    # filtering to engaged trials removes the effect being measured -- and post-stroke that is not a
+    # small correction, PS94 8/18 is only 40% engaged. Pre-stroke keeps the engaged cut, which is the
+    # mismatch declared in nolick_analysis.SANCTIONED_MISMATCHES. An earlier version of this function
+    # used engaged trials on BOTH sides, contradicting the decision it was written under.
     rows = []
     for i in sorted(d["pre_i"]) + sorted(d["post_i"]):
-        m = (d["GE"] == i) & kp
-        if m.sum() < min_trials:
+        is_post = i in d["post_i"]
+        if is_post and post_all_trials:
+            me = (d["GE"] == i) & np.isin(d["YE"], keep)
+            mu = (d["GU"] == i) & np.isin(d["YU"], keep)
+            X = np.vstack([d["XE"][me], d["XU"][mu]])
+            y = np.concatenate([d["YE"][me], d["YU"][mu]])
+            ge = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
+            # no-lick trials carry no block id in BE; give them their own groups so they cannot
+            # straddle a CV fold with the engaged trials they sit between
+            gb = np.concatenate([ge, np.arange(len(ge), len(ge) + int(mu.sum()))])
+            m = np.ones(len(y), bool)
+        else:
+            m = (d["GE"] == i) & np.isin(d["YE"], keep)
+            if m.sum() < min_trials:
+                continue
+            y, X = d["YE"][m], d["XE"][m]
+            gb = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
+        if len(y) < min_trials:
             continue
-        y, X = d["YE"][m], d["XE"][m]
-        gb = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
         ng = min(n_splits, int(np.unique(gb).size))
         if ng < 2:
             continue
         acc = float(accuracy_score(y, cross_val_predict(_pipe(), X, y, cv=GroupKFold(ng), groups=gb)))
-        rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": int(m.sum()),
-                     "post": i in d["post_i"]})
+        rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": int(len(y)),
+                     "post": is_post})
     pre = np.array([r["within_accuracy"] for r in rows if not r["post"]], float)
     post = [r for r in rows if r["post"]]
     if len(pre) < 3 or not post:
@@ -719,7 +770,7 @@ def recoding_test(d, keep, min_trials=40, n_splits=5):
     band = {"mean": float(pre.mean()), "sd": float(pre.std(ddof=1)),
             "min": float(pre.min()), "max": float(pre.max()), "n": int(len(pre))}
     out = {"n_positions": len(keep), "chance": 1.0 / len(keep), "within_pre_band": band,
-           "per_session": rows}
+           "post_arm": "ALL trials" if post_all_trials else "engaged only", "per_session": rows}
     for r in post:
         z = (r["within_accuracy"] - band["mean"]) / band["sd"] if band["sd"] else float("nan")
         out.setdefault("post", {})[r["label"]] = {

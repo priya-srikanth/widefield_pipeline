@@ -55,15 +55,30 @@ def _names(s):
     return {int(c): str(n) for c, n in json.load(open(f[0]))} if f else None
 
 
-def _area_matrix(s, align="cue", source="roi"):
-    """(trials x areas) with bins collapsed, plus labels, block ids and the area-name list."""
+def _area_matrix(s, align="cue", source="roi", post_all_trials=True):
+    """(trials x areas) with bins collapsed, plus labels, block ids and the area-name list.
+    POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18). The missing licks ARE the phenotype, so
+    discarding no-lick trials removes the effect being measured. This is not a small correction
+    post-stroke: PS94 8/18 is only 40% engaged, so an engaged-only version reads a minority subset
+    selected by the behaviour the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
+    declared in nolick_analysis.SANCTIONED_MISMATCHES). An earlier version filtered BOTH sides to
+    engaged trials, contradicting the decision it was written under.
+   """
     from wfield_local.locanmf_frozen_decoder import _args
     from wfield_local.locanmf_position_decoder import _trial_features
 
     names = _names(s)
     if names is None:
         return None
-    X, y, g, _Xn, _yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
+    X, y, g, Xn, yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
+    # post-stroke: fold the NO-LICK trials back in (see the note above)
+    if (post_all_trials
+            and config.session_phase(s["label"][:4], s["label"].split("_")[-1]) == "post"
+            and len(yn)):
+        X = np.vstack([X, Xn])
+        y = np.concatenate([y, yn])
+        g = np.concatenate([g, np.arange(g.max() + 1, g.max() + 1 + len(yn))])
+
     if len(y) < 30:
         return None
     reg = np.asarray(reg)
@@ -133,8 +148,8 @@ def _swap_lr(vec, areas):
     return out
 
 
-def session_geometry(s, align="cue", source="roi"):
-    got = _area_matrix(s, align, source)
+def session_geometry(s, align="cue", source="roi", post_all_trials=True):
+    got = _area_matrix(s, align, source, post_all_trials)
     if got is None:
         return None
     A, y, g, areas = got
@@ -186,12 +201,18 @@ def mirror_test(pre_rows, post_row):
                   "pre_mirror_r": float(np.mean(bm)) if bm else float("nan"),
                   "pre_mirror_minus_normal": float(np.mean(np.array(bm) - np.array(bn)))
                                               if bn else float("nan")}
-        out[p]["transfer"] = bool(out[p]["mirror_minus_normal"] >
-                                  out[p]["pre_mirror_minus_normal"] + 0.15)
+        # TRANSFER means the pattern now resembles the OPPOSITE hemisphere's more than its own, i.e.
+        # mirror_r must actually exceed normal_r. The first version flagged any shift of the
+        # difference toward mirror by >0.15 and so labelled PS94 close_R "transfer" when normal was
+        # +0.718 against mirror +0.323 -- the pattern had not moved anywhere, it had merely become
+        # less asymmetric. Those are different claims and only the first deserves the word.
+        out[p]["transfer"] = bool(out[p]["mirror_r"] > out[p]["normal_r"])
+        out[p]["reduced_asymmetry"] = bool(
+            out[p]["mirror_minus_normal"] > out[p]["pre_mirror_minus_normal"] + 0.15)
     return out
 
 
-def collect(animals=None, align="cue", source="roi"):
+def collect(animals=None, align="cue", source="roi", post_all_trials=True):
     keep = set(config.curated_dates()) | {"0817", "0818"}
     rows = []
     for s in config.load_sessions():
@@ -200,7 +221,7 @@ def collect(animals=None, align="cue", source="roi"):
         if animals and s["label"][:4] not in set(animals):
             continue
         try:
-            r = session_geometry(s, align, source)
+            r = session_geometry(s, align, source, post_all_trials)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  {s['label']}: skip ({str(ex)[:60]})", flush=True)
             continue
@@ -335,7 +356,9 @@ def main(argv=None) -> int:
                           f"{'  CONVERGED' if v['converged'] else ''}")
             for lab, m in rec.get("mirror", {}).items():
                 tr = [p for p, v in m.items() if v.get("transfer")]
-                print(f"  {a} MIRROR {lab}: transfer at {tr or 'no position'}")
+                ra = [p for p, v in m.items() if v.get("reduced_asymmetry")]
+                print(f"  {a} MIRROR {lab}: TRANSFER (mirror>normal) at {tr or 'no position'}; "
+                      f"reduced asymmetry at {ra or 'no position'}")
                 for p, v in m.items():
                     print(f"       {p:13s} normal {v['normal_r']:+.3f}  mirror {v['mirror_r']:+.3f}"
                           f"  diff {v['mirror_minus_normal']:+.3f}   (pre-stroke baseline diff "

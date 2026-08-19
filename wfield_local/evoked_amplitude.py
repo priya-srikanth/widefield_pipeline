@@ -70,20 +70,34 @@ def _names(s):
     return {int(c): str(n) for c, n in json.load(open(f[0]))}
 
 
-def session_amplitudes(s, align="cue", source="roi"):
+def session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     """Per-area x per-position evoked amplitude for one session, plus its share and R-L decomposition.
 
     Sub-bins are averaged back to one value per area: `_trial_features` tiles each region across the
     window's bins (4 at cue, 8 at lick), and treating those as separate features would weight an area
     by how many bins it happens to have.
-    """
+    
+    POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18). The missing licks ARE the phenotype, so
+    discarding no-lick trials removes the effect being measured. This is not a small correction
+    post-stroke: PS94 8/18 is only 40% engaged, so an engaged-only version reads a minority subset
+    selected by the behaviour the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
+    declared in nolick_analysis.SANCTIONED_MISMATCHES). An earlier version filtered BOTH sides to
+    engaged trials, contradicting the decision it was written under.
+   """
     from wfield_local.locanmf_frozen_decoder import _args
     from wfield_local.locanmf_position_decoder import _trial_features
 
     names = _names(s)
     if names is None:
         return None
-    X, y, _g, _Xn, _yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
+    X, y, _g, Xn, yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
+    # post-stroke: fold the NO-LICK trials back in (see the note above)
+    if (post_all_trials
+            and config.session_phase(s["label"][:4], s["label"].split("_")[-1]) == "post"
+            and len(yn)):
+        X = np.vstack([X, Xn])
+        y = np.concatenate([y, yn])
+
     if len(y) < 30:
         return None
     reg = np.asarray(reg)
@@ -137,7 +151,8 @@ def session_amplitudes(s, align="cue", source="roi"):
     return out
 
 
-def collect(animals=None, align="cue", source="roi", curated_only=True):
+def collect(animals=None, align="cue", source="roi", curated_only=True,
+            post_all_trials=True):
     """Sessions to measure. CURATED dates only by default.
 
     `session_phase(...) == "pre"` is TRUE for every date before the lesion, including the noisy early
@@ -155,7 +170,8 @@ def collect(animals=None, align="cue", source="roi", curated_only=True):
     rows = []
     for s in sessions:
         try:
-            r = session_amplitudes(s, align=align, source=source)
+            r = session_amplitudes(s, align=align, source=source,
+                                   post_all_trials=post_all_trials)
         except Exception as ex:                                          # noqa: BLE001
             print(f"  {s['label']}: skip ({str(ex)[:60]})", flush=True)
             continue
