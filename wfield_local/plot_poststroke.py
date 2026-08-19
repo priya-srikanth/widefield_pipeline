@@ -58,7 +58,8 @@ def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None
 def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", suptitle=None):
     """G2: position-matched decoding in each condition against the pre-stroke LOSO band.
 
-    `chance` must match the number of positions the arm was scored over -- 0.25 when matched to four
+    `chance` is a scalar OR a dict keyed like `matched`, and must match the number of positions the
+    arm was scored over -- 0.25 when matched to four
     preserved positions (PS94/PS95), 1/6 when the animal still attempts all six (PS92/PS93, which are
     NOT position-restricted because nothing was lost). Hardcoding 0.25 would have drawn a chance line
     50% too high on the small-lesion comparison figure.
@@ -82,9 +83,14 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
             if r.get("below_every_pre_session"):
                 ax.text(i, max(r["accuracy"] - 0.055, 0.02), "below all", ha="center",
                         fontsize=7.5, color="firebrick", fontweight="bold")
-        ax.axhline(chance, color="k", ls=":", lw=1)
-        ax.text(len(conds) - 0.5, chance + 0.01,
-                f"chance ({int(round(1 / chance))}-way)", fontsize=7, ha="right")
+        # PER-PANEL chance. On the ALL-trials arm every session is scored over six positions and one
+        # line is right for the whole figure; on the LICK-ONLY arm the position set is that session's
+        # own preserved set, so PS95 is 4-way on 8/17 and 6-way on 8/18 and a single line would be
+        # wrong for at least one panel. `chance` therefore accepts a dict keyed like `matched`.
+        ch = chance.get(an, 1 / 6) if isinstance(chance, dict) else chance
+        ax.axhline(ch, color="k", ls=":", lw=1)
+        ax.text(len(conds) - 0.5, ch + 0.01,
+                f"chance ({int(round(1 / ch))}-way)", fontsize=7, ha="right")
         ax.set_xticks(range(len(conds)))
         ax.set_xticklabels(conds, fontsize=9)
         ax.set_ylim(0, 1.02)
