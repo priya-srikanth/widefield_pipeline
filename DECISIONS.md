@@ -1774,3 +1774,84 @@ Not urgent, because nothing is inflated. When done: split over-long runs at `blo
 last part turns the firmware count into a permanent guard. Leaves unfixed, and to be documented rather
 than hidden: the ~10 hidden 4+4 merges, and the placement of a split inside an over-long run (11 could
 be 4+7, 5+6, 6+5 or 7+4).
+
+## ⚠ THE POST-STROKE TRIAL SET AND POSITION SET — four corrections, 2026-08-19
+
+Four errors, all the same shape: **a quantity treated as a fixed property of the animal was actually a
+property of the trial set**, and comparisons were made across changes in it. Each silently changed what
+a number meant while the number kept looking reasonable. All were caught by Priya reading the results,
+not by a check.
+
+### 1. Four of six post-stroke analyses filtered to ENGAGED trials
+
+`decode_matched`, `recoding_test`, `pattern_similarity`, `spatial_reorganisation` and
+`evoked_amplitude` used the engaged arm only — while `M_POSTSTROKE` had been asserting the all-trials
+rule since it was written. Only `crossed_confusion` and `fixed_scale_maps` complied. The deck mixed
+both conventions without saying so, which is why the fixed-scale maps showed PS94's far positions
+nearly silent while `evoked_amplitude` reported them elevated: different trial sets, never reconciled.
+
+Not a technicality: **PS94 8/18 is 40% engaged**, so those analyses read a minority subset selected by
+the behaviour the lesion disrupted.
+
+**Now:** every comparison exposes `post_all_trials`, defaulting to True, and BOTH arms are reported
+side by side — the difference separates "the code degraded" from "the code is fine when the animal
+manages to lick". The no-lick readouts (`looks_like_which`, `fits_engaged_distribution`,
+`impaired_nolick_readout`) are exempt because reading that arm is their purpose.
+
+### 2. `preserved_positions` pooled across sessions — i.e. took the UNION
+
+"Positions the animal still attempts" is a **per-session** behavioural state. PS95 attempted
+far_center/far_R on 8/18 (99 and 84 trials) but not on 8/17 (10 and 1), so the pooled set was six
+positions and **PS95's 8/17 numbers ran over a position with a single engaged trial**. Registering 8/18
+also moved that result's chance level from 0.25 to 0.167 with nothing about 8/17 having changed.
+
+**Now:** per-session, with pooled comparisons defaulting to the INTERSECTION — positions attempted on
+every post day, because a pooled statistic must be defensible for each session inside it.
+
+### 3. The ALL-trials arm was restricted to lick-defined positions
+
+The arm built to examine failed movements inherited a position set defined by *where licking survived*.
+PS94's far_center and far_R have **zero engaged and ~105 no-lick trials each** — a hundred trials per
+position, absent from every decoding number reported for that animal.
+
+Consequently **every "intact" result was scoped to positions the animal could still reach.** "PS95 was
+never degraded" meant *not degraded where it still licked*; its affected positions were unexamined,
+not normal.
+
+**Now:** the ALL arm scores all six positions (chance 1/6, fixed across sessions and animals, so it is
+the only arm comparable across sessions); the LICK-ONLY arm keeps the restriction, where it is forced.
+
+### 4. Block IDs merged adjacent same-position blocks
+
+See the separate entry. 118 of 4216 blocks (2.8%); CACHE_VERSION 9; error ran in the conservative
+direction.
+
+### What these corrections did to the results
+
+| claim | status |
+|---|---|
+| "PS94's information is INTACT, only the code changed" | **WITHDRAWN** — an engaged-only artefact |
+| "PS95 was degraded on day 1 and recovered" | **WITHDRAWN** — a union-basis artefact (0.877 inside on its own 4-position basis vs 0.719 outside on the pooled 6-position one) |
+| "amplitude rose 2–3× at every position" | **WITHDRAWN** — the summed measure conflates amplitude with spatial EXTENT; peak rises only at close_L/close_center and FALLS at the far positions |
+| PS94 day-1 plan/execution dissociation | **STRENGTHENED** — see below |
+
+### The result that survived and got stronger
+
+**PS94, 8/17, all trials, all six positions:** pre-cue within-session **0.521** against a pre-stroke
+band of 0.534 [0.443–0.618] (**z = −0.2, inside**); post-cue **0.633** against 0.866 [0.806–0.926]
+(**z = −7.1, outside**).
+
+On the **same trials**, including the ~210 trials at positions where the animal never licked, the
+pre-cue window carries normal position information while the post-cue window is severely degraded.
+
+This is a **within-session, within-trial contrast** — two windows on one trial set — so every
+session-level confound (LED power, baseline F, amplitude, arousal, engagement, trial count) affects
+both equally and cannot produce a difference between them. That rules out the entire class of
+artefacts the other corrections were about.
+
+By **8/18 the dissociation is gone**: pre-cue 0.337 (z = −3.4), post-cue 0.472 (z = −12.1). The plan
+survives the lesion on day 1 and is gone by day 2, while execution-phase coding is impaired from day 1.
+
+Caveats: one animal; one session per day; and "plan" means pre-cue position information, not a
+demonstrated motor intention — the spout arrives ~3 s before the cue and this design cannot separate a
+held intention from a sustained sensory response (see the terminology entry above).

@@ -10,8 +10,10 @@ position information intact but unreadable by the pre-stroke decoder. If those a
   sides. Measured as the 6x6 between-position structure, pre vs post.
 
       NOISE-UNBIASED, and this is not optional here. A plain correlation RDM is biased by trial noise,
-      and post-stroke amplitude rose 2-3x -- so a raw metric would move even if the geometry were
-      identical. Crossnobis (cross-validated Mahalanobis) removes that bias, which is exactly why the
+      and the post-stroke response changes in both spatial EXTENT and trial count -- so a raw metric
+      would move even if the geometry were identical. (An earlier note here said amplitude rose 2-3x;
+      that summed measure conflated amplitude with spatial spread and is withdrawn -- peak amplitude
+      rises only at close_L/close_center and FALLS at the far positions.) Crossnobis (cross-validated Mahalanobis) removes that bias, which is exactly why the
       project adopted it for cross-day RDMs (DECISIONS.md, CACHE_VERSION v3/v4).
 
   MIDLINE TRANSFER (test 2). "More right activity" has two very different readings: the right

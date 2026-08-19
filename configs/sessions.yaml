@@ -197,6 +197,14 @@ sessions:
       h5: "20260817/PS93_20260817_143734.h5"
       regime: B
       fmdir: null
+    # POST-STROKE day 1 for PS93 (lesioned 8/17 AFTER that session, 5.5 mW). DAQ was
+    # re-uploaded 2026-08-19 after a recording fix; the falsestart file is not used.
+    "0818":
+      mc: "20260818/PS93_20260818_145203/motion_corrected"
+      h5: "20260818/PS93_20260818_145123.h5"
+      regime: B
+      fmdir: null
+
   PS94:
     "0601":
       mc: "20260601/PS94_20260601_141614/motion_corrected"

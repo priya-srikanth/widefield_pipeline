@@ -124,9 +124,21 @@ def preserved_positions_by_session(d):
     return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
 
 
-def decode_matched(d, keep):
-    """Frozen pre-stroke decoder, scored on the SAME positions in both phases."""
-    kp = np.isin(d["YE"], keep)
+def decode_matched(d, keep, post_all_trials=True):
+    """Frozen pre-stroke decoder, scored on the SAME positions in both phases.
+
+    POST ARM USES ALL TRIALS by default (Priya, 2026-08-18/19): the missing licks ARE the phenotype,
+    and with the no-lick trials included every position has data, so the arm is scored over all SIX
+    positions rather than the lick-defined `keep` set. An engaged-only version excludes the positions
+    the lesion abolished -- PS94 has ZERO engaged and ~105 no-lick trials at far_center and far_R --
+    so it can only ever describe the part of the phenotype that still works.
+
+    `keep` still governs the LICK-ONLY arm, where it is forced: a position with no engaged trials
+    cannot be decoded from engaged trials. The two arms therefore differ in chance level and callers
+    must say which is shown.
+    """
+    pos = list(DISPLAY_ORDER) if post_all_trials else list(keep)
+    kp = np.isin(d["YE"], pos)
     tr = np.isin(d["GE"], list(d["pre_i"])) & kp
     te = np.isin(d["GE"], list(d["post_i"])) & kp
     if tr.sum() < 50 or te.sum() < 20:
@@ -140,14 +152,23 @@ def decode_matched(d, keep):
         m = d["GE"][tr] == i
         if m.sum():
             per[d["kept"][i]] = float(accuracy_score(d["YE"][tr][m], pre_pred[m]))
-    post_pred = clf.predict(d["XE"][te])
-    out = na.evaluate_arm(d["YE"][te], post_pred, n_perm=1000, labels=keep)
-    out["accuracy"] = float(accuracy_score(d["YE"][te], post_pred))
+    if post_all_trials:
+        teu = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], pos)
+        Xpost = np.vstack([d["XE"][te], d["XU"][teu]])
+        ypost = np.concatenate([d["YE"][te], d["YU"][teu]])
+    else:
+        Xpost, ypost = d["XE"][te], d["YE"][te]
+    post_pred = clf.predict(Xpost)
+    out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos)
+    out["accuracy"] = float(accuracy_score(ypost, post_pred))
+    out["post_arm"] = "ALL trials" if post_all_trials else "lick-only"
+    out["positions_scored"] = [POSITION_NAMES[c] for c in pos]
+    out["n_post"] = int(len(ypost))
     v = np.array(list(per.values()), float)
     out["pre_band"] = {"mean": float(v.mean()), "min": float(v.min()), "max": float(v.max()),
                        "n_sessions": len(per)}
     out["below_every_pre_session"] = bool(out["accuracy"] < out["pre_band"]["min"])
-    out["pre_recall"] = na.per_position_recall(d["YE"][tr], pre_pred, labels=keep)
+    out["pre_recall"] = na.per_position_recall(d["YE"][tr], pre_pred, labels=pos)
     return out
 
 
@@ -352,12 +373,21 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         "neither reference describes it")
     return out
 
-def pattern_similarity(d, keep):
-    """Per-position mean-pattern correlation between phases -- is the code the SAME code?"""
+def pattern_similarity(d, keep, post_all_trials=True):
+    """POST arm uses ALL trials by default and is scored over every position -- see decode_matched.
+
+    Per-position mean-pattern correlation between phases -- is the code the SAME code?"""
+    # ALL six positions when the post arm is all-trials: restricting to `keep` would silently drop
+    # far_center and far_R for PS94, which are the positions this comparison most needs to describe.
+    pos = list(DISPLAY_ORDER) if post_all_trials else list(keep)
     out = {}
-    for c in keep:
+    for c in pos:
         a = d["XE"][np.isin(d["GE"], list(d["pre_i"])) & (d["YE"] == c)]
         b = d["XE"][np.isin(d["GE"], list(d["post_i"])) & (d["YE"] == c)]
+        if post_all_trials:
+            bu = d["XU"][np.isin(d["GU"], list(d["post_i"])) & (d["YU"] == c)]
+            if len(bu):
+                b = np.vstack([b, bu]) if len(b) else bu
         if len(a) < 5 or len(b) < 5:
             continue
         ma, mb = a.mean(0), b.mean(0)
@@ -736,25 +766,36 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
     # small correction, PS94 8/18 is only 40% engaged. Pre-stroke keeps the engaged cut, which is the
     # mismatch declared in nolick_analysis.SANCTIONED_MISMATCHES. An earlier version of this function
     # used engaged trials on BOTH sides, contradicting the decision it was written under.
+    all_pos = list(DISPLAY_ORDER)
+    scored = all_pos if post_all_trials else list(keep)
     rows = []
     for i in sorted(d["pre_i"]) + sorted(d["post_i"]):
         is_post = i in d["post_i"]
         if is_post and post_all_trials:
-            me = (d["GE"] == i) & np.isin(d["YE"], keep)
-            mu = (d["GU"] == i) & np.isin(d["YU"], keep)
+            # ALL SIX POSITIONS. Restricting to `keep` would drop exactly the positions the lesion
+            # abolished -- the ones this arm exists to examine (Priya, 2026-08-19). PS94 far_center
+            # and far_R have ZERO engaged trials and ~105 no-lick trials each.
+            me = (d["GE"] == i) & np.isin(d["YE"], all_pos)
+            mu = (d["GU"] == i) & np.isin(d["YU"], all_pos)
             X = np.vstack([d["XE"][me], d["XU"][mu]])
             y = np.concatenate([d["YE"][me], d["YU"][mu]])
-            ge = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
+            # the block vector must be filtered by the SAME position set as the trials it labels --
+            # this line still said `keep` after the trials moved to all_pos, giving 600 trials and
+            # 597 block ids
+            ge = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], all_pos)]
             # no-lick trials carry no block id in BE; give them their own groups so they cannot
             # straddle a CV fold with the engaged trials they sit between
             gb = np.concatenate([ge, np.arange(len(ge), len(ge) + int(mu.sum()))])
             m = np.ones(len(y), bool)
         else:
-            m = (d["GE"] == i) & np.isin(d["YE"], keep)
+            # pre-stroke sessions are scored over whichever set this arm uses, so the band and the
+            # post value are always on the same positions and the same chance level
+            pos = all_pos if post_all_trials else keep
+            m = (d["GE"] == i) & np.isin(d["YE"], pos)
             if m.sum() < min_trials:
                 continue
             y, X = d["YE"][m], d["XE"][m]
-            gb = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], keep)]
+            gb = np.asarray(d["BE"][i])[np.isin(d["YE"][d["GE"] == i], pos)]
         if len(y) < min_trials:
             continue
         ng = min(n_splits, int(np.unique(gb).size))
@@ -769,7 +810,8 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
         return {"note": "not enough sessions", "n_pre": int(len(pre)), "n_post": len(post)}
     band = {"mean": float(pre.mean()), "sd": float(pre.std(ddof=1)),
             "min": float(pre.min()), "max": float(pre.max()), "n": int(len(pre))}
-    out = {"n_positions": len(keep), "chance": 1.0 / len(keep), "within_pre_band": band,
+    out = {"n_positions": len(scored), "chance": 1.0 / len(scored), "within_pre_band": band,
+           "positions_scored": [POSITION_NAMES[c] for c in scored],
            "post_arm": "ALL trials" if post_all_trials else "engaged only", "per_session": rows}
     for r in post:
         z = (r["within_accuracy"] - band["mean"]) / band["sd"] if band["sd"] else float("nan")

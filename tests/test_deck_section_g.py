@@ -327,3 +327,43 @@ def test_preserved_positions_by_session_exists_for_reporting():
     """Per-session sets must be reportable, not just computable -- the pooled number hid a
     two-session disagreement that only a per-session breakdown makes visible."""
     assert callable(pc.preserved_positions_by_session)
+
+
+# ------------------------------------------------------------------------------------------------
+# every post-stroke comparison must offer the ALL-TRIALS arm
+# ------------------------------------------------------------------------------------------------
+def test_post_stroke_comparisons_expose_an_all_trials_arm():
+    """The standing rule is that post-stroke analyses use ALL trials -- the missing licks ARE the
+    phenotype (DECISIONS.md, M_POSTSTROKE).
+
+    It was violated silently for days: decode_matched, recoding_test, pattern_similarity,
+    spatial_reorganisation and evoked_amplitude all filtered the post arm to engaged trials while the
+    deck note asserted the opposite, so the deck mixed two conventions without saying so. This pins
+    that every comparison function EXPOSES the arm, so a future one cannot quietly default to
+    engaged-only.
+
+    The no-lick readouts are exempt by construction: reading the no-lick arm is their purpose.
+    """
+    import inspect
+
+    exempt = {"looks_like_which", "fits_engaged_distribution", "impaired_nolick_readout"}
+    for name in ("decode_matched", "recoding_test", "pattern_similarity"):
+        fn = getattr(pc, name)
+        assert "post_all_trials" in inspect.signature(fn).parameters, (
+            f"{name} does not expose an all-trials arm")
+        assert inspect.signature(fn).parameters["post_all_trials"].default is True, (
+            f"{name} must default to ALL trials, which is the standing decision")
+    for name in exempt:
+        assert callable(getattr(pc, name)), f"{name} missing"
+
+
+def test_the_all_trials_arm_scores_every_position():
+    """Restricting the ALL arm to `keep` drops the positions the lesion abolished -- PS94 has ZERO
+    engaged and ~105 no-lick trials at far_center and far_R, so a lick-defined position set makes the
+    arm blind to exactly what it exists to measure (Priya, 2026-08-19)."""
+    import inspect
+
+    for name in ("decode_matched", "recoding_test", "pattern_similarity"):
+        src = inspect.getsource(getattr(pc, name))
+        assert "DISPLAY_ORDER" in src, (
+            f"{name}'s all-trials arm must score every position, not the lick-defined keep set")
