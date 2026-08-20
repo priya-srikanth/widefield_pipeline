@@ -1251,18 +1251,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      "between panels and the accuracies are NOT comparable across them."))
             note(s, M_POSTSTROKE)
             big(s, _mf, top=1.7, width=12.3)
-        # G2b is built from per_position_pre_vs_post_0817.json, which predates the all-trials,
-        # six-position and per-session corrections of 2026-08-19 and covers day 1 only. Shown
-        # ONLY while no replacement exists, and labelled as superseded rather than quietly kept.
-        if (src / "poststroke_G2b_per_position.png").exists():
+        # G2b now comes from the unified runner: per_position_table derives it from the confusion
+        # DIAGONALS in section_g.json, which are the per-position recall table by construction. The
+        # superseded version was built from per_position_pre_vs_post_0817.json -- day 1 only, so
+        # only the two animals whose lesion took on 8/17, and frozen at its 8/18 content because no
+        # step rewrote it (Priya, 2026-08-20).
+        if (src / "section_g_G2b_per_position.png").exists():
             s = slide()
-            title(s, "G2b. Per-position recall in all four conditions \u2014 SUPERSEDED, day 1 only, engaged arm",
-                  "post-cue, post-lick, pre-cue WITH lick, pre-cue NO lick \u2014 pre against post "
-                  "at every position. 'With/without lick' is the RESPONSE lick, i.e. engaged vs "
-                  "no-lick trials. 'n/a' means the position was never attempted, which is not zero "
-                  "recall.")
+            title(s, "G2b. Per-position recall in all four conditions \u2014 all four animals, every "
+                     "post-stroke day",
+                  "post-cue, post-lick, pre-cue WITH lick, pre-cue NO lick \u2014 the pre-stroke bar "
+                  "then ONE BAR PER POST-STROKE DAY at every position. 'With/without lick' is the "
+                  "RESPONSE lick, i.e. engaged vs no-lick trials; the no-lick condition pairs "
+                  "PRE-stroke no-lick against POST-stroke no-lick, so it differs in phase alone. "
+                  "'n/a' means the position was never attempted, which is not zero recall; RED "
+                  "HATCHED means fewer than 10 trials.")
             note(s, M_POSTSTROKE)
-            big(s, src / "poststroke_G2b_per_position.png", top=1.6, width=12.0)
+            big(s, src / "section_g_G2b_per_position.png", top=1.75, width=12.3)
 
         # --- G2c. recoding vs loss: the test that reframes G2
         # Reads the WITHCONTROL grid (post + excluded rendered TOGETHER). section_g_grid_all.png

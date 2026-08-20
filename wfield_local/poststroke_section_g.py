@@ -108,14 +108,21 @@ def _one_arm(d_by_align, session, keep, arm_all):
                 dd, keep, post_all_trials=arm_all)
         except Exception as ex:                                           # noqa: BLE001
             print(f"      pattern_similarity failed ({str(ex)[:60]})", flush=True)
-    for align, cond in (("cue", "post-cue"), ("precue", "pre-cue")):
+    # G2b needs the LICK alignment as well as cue/precue. Post-lick has ONE arm by construction:
+    # it aligns to an event that exists only when the animal licked, so the all-trials arm -- whose
+    # post panel is engaged PLUS no-lick -- has no meaningful lick-aligned version, and the no-lick
+    # panels are undefined at that alignment for the same reason. Both guards mirror the one the
+    # CONDITIONS loop above has always had ("no lick, no alignment point"); without them the record
+    # gained a post-lick entry whose rows were 63-99% no-lick trials (PS94_0819).
+    for align, cond in (("cue", "post-cue"), ("precue", "pre-cue"), ("lick", "post-lick")):
         d = d_by_align.get(align)
-        if d is None:
+        if d is None or (align == "lick" and arm_all):
             continue
         dd = dict(d)
         dd["post_i"] = {session}
         try:
-            rec.setdefault("confusion", {})[cond] = pc.crossed_confusion(dd, post_all_trials=arm_all)
+            rec.setdefault("confusion", {})[cond] = pc.crossed_confusion(
+                dd, post_all_trials=arm_all, include_nolick=(align != "lick"))
         except Exception as ex:                                           # noqa: BLE001
             print(f"      {cond} confusion failed ({str(ex)[:60]})", flush=True)
     return rec
@@ -128,12 +135,22 @@ def _nolick_readouts(d_by_align, session, keep):
     if dp is not None:
         dd = dict(dp)
         dd["post_i"] = {session}
-        for fn, key in ((pc.looks_like_which, "looks_like_which"),
-                        (pc.fits_engaged_distribution, "fits_engaged_precue")):
-            try:
-                out[key] = fn(dd, keep)
-            except Exception as ex:                                       # noqa: BLE001
-                print(f"      {key} failed ({str(ex)[:60]})", flush=True)
+        try:
+            out["looks_like_which"] = pc.looks_like_which(dd, keep)
+        except Exception as ex:                                           # noqa: BLE001
+            print(f"      looks_like_which failed ({str(ex)[:60]})", flush=True)
+    # G4b at BOTH alignments (Priya, 2026-08-20). Only the pre-cue record was stored, so the
+    # cue-aligned slide had no producer and sat on a superseded scratchpad figure.
+    for align, key in (("precue", "fits_engaged_precue"), ("cue", "fits_engaged_cue")):
+        d = d_by_align.get(align)
+        if d is None:
+            continue
+        dd = dict(d)
+        dd["post_i"] = {session}
+        try:
+            out[key] = pc.fits_engaged_distribution(dd, keep)
+        except Exception as ex:                                           # noqa: BLE001
+            print(f"      {key} failed ({str(ex)[:60]})", flush=True)
     for align in ("precue", "cue"):
         d = d_by_align.get(align)
         if d is None:

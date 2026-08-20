@@ -398,7 +398,8 @@ def pattern_similarity(d, keep, post_all_trials=True):
 
 
 
-def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
+def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
+                      include_nolick=True):
     """Full confusion of the FROZEN pre-stroke decoder applied to post-stroke trials.
 
     Scalar accuracy discards what a lateralised lesion should produce: WHERE the errors go. A
@@ -409,6 +410,11 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
     Rows are TRUE position, columns PREDICTED, row-normalised. Rows with no post-stroke trials are
     returned as NaN rather than zeros -- PS94 has none at far_center or far_R, and a row of zeros
     would read as "always wrong" instead of "never attempted".
+
+    ``include_nolick=False`` drops the two no-lick panels. Pass it for LICK-ALIGNED data: a trial
+    with no lick has no lick to align to, so a "no-lick, lick-aligned" panel is not a weak result
+    but an undefined one. The caller's other loop has guarded this since it was written ("no lick,
+    no alignment point"); this argument lets the confusion loop guard it too.
     """
     tr = np.isin(d["GE"], list(d["pre_i"]))
     te = np.isin(d["GE"], list(d["post_i"]))
@@ -452,12 +458,27 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False):
         post_nolick = np.zeros(len(post_y), bool)
     post_p = clf.predict(post_X)
 
+    # POST-NO-LICK: the post-stroke no-lick trials ON THEIR OWN, which is the panel that pairs with
+    # `pre_nolick`. The all-trials `post` matrix MIXES engaged and no-lick rows, so it cannot answer
+    # "what does the code look like when no movement happened" -- it records how many of each row
+    # were no-lick (n_nolick_per_true_position) but not how those trials alone were classified.
+    # Computed in both arms: the trials exist regardless of which arm the rest of the record uses.
+    post_u = np.isin(d["GU"], list(d["post_i"]))
+    post_nl_y = d["YU"][post_u]
+    post_nl_p = clf.predict(d["XU"][post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
+
     out = {"post_arm": "ALL trials (engaged + no-lick)" if post_all_trials else "engaged only",
            "pre_arm": "engaged only, leave-one-session-out",
-           "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged"}
-    for phase, y, p, nl in (("pre", pre_y, pre_p, pre_nolick),
-                            ("pre_nolick", pre_nl_y, pre_nl_p, np.ones(len(pre_nl_y), bool)),
-                            ("post", post_y, post_p, post_nolick)):
+           "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged",
+           "post_nolick_arm": "POST-stroke NO-LICK trials only, frozen pre-stroke decoder"}
+    phases = [("pre", pre_y, pre_p, pre_nolick), ("post", post_y, post_p, post_nolick)]
+    if include_nolick:
+        phases[1:1] = [("pre_nolick", pre_nl_y, pre_nl_p, np.ones(len(pre_nl_y), bool))]
+        phases.append(("post_nolick", post_nl_y, post_nl_p, np.ones(len(post_nl_y), bool)))
+    else:
+        out.pop("pre_nolick_arm", None)
+        out.pop("post_nolick_arm", None)
+    for phase, y, p, nl in phases:
         M = np.full((len(labels), len(labels)), np.nan)
         n, n_nolick = [], []
         for i, c in enumerate(labels):

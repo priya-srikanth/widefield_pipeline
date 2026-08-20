@@ -33,7 +33,9 @@ from wfield_local import plot_poststroke as pp
 from wfield_local.paths import PathResolver
 
 #: condition key in the JSON -> the align string the confusion figure expects
-CONFUSION_ALIGNS = (("post-cue", "cue"), ("pre-cue", "precue"))
+#: The lick-aligned confusion exists on the LICK-ONLY arm only -- see the guard in
+#: poststroke_section_g. _render_family simply finds nothing for it on the all-trials arm.
+CONFUSION_ALIGNS = (("post-cue", "cue"), ("pre-cue", "precue"), ("post-lick", "lick"))
 ARMS = (("all", "ALL trials"), ("lickonly", "LICK-ONLY"))
 
 
@@ -67,6 +69,66 @@ def copy_behaviour_figures(out, rv=None):
         shutil.copy2(srcp, dst)
         made.append(dst)
     return made
+
+
+#: G2b condition -> (arm, confusion condition, pre phase, post phase).
+#:
+#: The arm matters. "WITH lick" is the ENGAGED post panel, which is the lick-only arm's `post`;
+#: the no-lick condition pairs `pre_nolick` with `post_nolick`, which are decoder-identical across
+#: arms (both are the frozen pre-stroke-engaged decoder applied to no-lick trials), so either arm
+#: serves and "all" is used to keep the pairing in one record.
+G2B_CONDITIONS = (
+    ("post-cue", "lickonly", "post-cue", "pre", "post"),
+    ("post-lick", "lickonly", "post-lick", "pre", "post"),
+    ("pre-cue WITH lick", "lickonly", "pre-cue", "pre", "post"),
+    ("pre-cue NO lick", "all", "pre-cue", "pre_nolick", "post_nolick"),
+)
+
+
+def _recall_row(phase_rec):
+    """Per-position {n, recall} from ONE confusion phase.
+
+    The matrix is row-normalised with TRUE position on the rows, so its diagonal IS the per-position
+    recall -- `crossed_confusion` says so explicitly ("its diagonal is the per-position recall table,
+    so the two are one object rather than two"). Verified against the superseded day-1 JSON this
+    replaces: PS94 post-cue pre reads 0.974/0.916/0.955/0.945/0.903/0.913 on n=976/957/957/931/929/921
+    from both. So G2b needed no new decoding, only the lick alignment and a post-no-lick panel.
+    """
+    M = phase_rec["matrix"]
+    ns = phase_rec["n_per_true_position"]
+    pos = phase_rec["positions"]
+    out = {}
+    for i, nm in enumerate(pos):
+        v = M[i][i]
+        out[nm] = {"n": int(ns[i]), "recall": (float(v) if v is not None and v == v else float("nan"))}
+    return out
+
+
+def _balanced(row):
+    """Mean recall over the positions the animal actually attempted (n > 0)."""
+    vs = [r["recall"] for r in row.values() if r["n"] > 0 and r["recall"] == r["recall"]]
+    return float(sum(vs) / len(vs)) if vs else float("nan")
+
+
+def per_position_table(sub):
+    """G2b's input: {animal: {condition: {pre, posts[(label, row)], pre_balanced, balanced}}}."""
+    table = {}
+    for cond, arm, ckey, pre_ph, post_ph in G2B_CONDITIONS:
+        for lab in sorted(sub):
+            animal = lab.split("_")[0]
+            conf = (sub[lab].get("arms", {}).get(arm, {}).get("confusion", {}) or {}).get(ckey)
+            if not conf or pre_ph not in conf or post_ph not in conf:
+                continue
+            rec = table.setdefault(animal, {}).setdefault(
+                cond, {"pre": _recall_row(conf[pre_ph]), "posts": [], "balanced": {}})
+            post_row = _recall_row(conf[post_ph])
+            rec["posts"].append((lab, post_row))
+            rec["balanced"][lab] = _balanced(post_row)
+            rec["pre_balanced"] = _balanced(rec["pre"])
+    for a in table:
+        for c in table[a]:
+            table[a][c]["posts"].sort(key=lambda kv: kv[0])
+    return table
 
 
 def _render_family(sub, out, prefix, label):
@@ -135,13 +197,15 @@ def _render_readouts(sub, out, prefix):
     # per alignment. The runner stores the pre-cue record directly, so it is nested back here rather
     # than changing a figure that reads correctly. Silently producing NOTHING is the failure this
     # avoids: the renderer's own `if m` filter swallowed the None and the figure just never appeared.
-    fits = {k: {"precue": v["fits_engaged_precue"]} for k, v in sub.items()
-            if v.get("fits_engaged_precue")}
-    if fits:
-        f = pp.fig_fits_engaged(fits, out, align="precue",
-                                name=f"{prefix}_fits_engaged_precue.png")
+    for align in ("precue", "cue"):
+        fits = {k: {align: v[f"fits_engaged_{align}"]} for k, v in sub.items()
+                if v.get(f"fits_engaged_{align}")}
+        if not fits:
+            continue
+        f = pp.fig_fits_engaged(fits, out, align=align,
+                                name=f"{prefix}_fits_engaged_{align}.png")
         if f is None:
-            print("  !! fits_engaged produced no figure despite input for "
+            print(f"  !! fits_engaged[{align}] produced no figure despite input for "
                   f"{sorted(fits)}", flush=True)
         made.append(f)
     rd = {k: v["impaired_nolick"] for k, v in sub.items() if v.get("impaired_nolick")}
@@ -158,6 +222,11 @@ def render(rec, out):
     made += _render_readouts(post, out, "section_g")
     made += _render_family(excluded, out, "section_g_smalllesion",
                            "SMALL-LESION COMPARISON (the laser did not take)")
+
+    # G2b: per-position recall in the four conditions, derived from the confusion diagonals.
+    ptab = per_position_table(post)
+    if ptab:
+        made.append(pp.fig_per_position(ptab, out, name="section_g_G2b_per_position.png"))
 
     # G2c: the grid over BOTH families together. fig_grid colours on phase_tag == "excluded"
     # precisely so PS92/PS93's ineffective-lesion 8/17 sits as a grey square beside their effective

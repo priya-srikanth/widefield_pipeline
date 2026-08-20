@@ -373,3 +373,42 @@ def test_the_all_trials_arm_scores_every_position():
         src = inspect.getsource(getattr(pc, name))
         assert "DISPLAY_ORDER" in src, (
             f"{name}'s all-trials arm must score every position, not the lick-defined keep set")
+
+
+def _synthetic_confusion_input(n=60):
+    """Minimal (XE/YE/GE engaged, XU/YU/GU no-lick) bundle for crossed_confusion."""
+    import numpy as np
+
+    rs = np.random.RandomState(0)
+    y = np.tile(np.arange(6), n // 6)
+    g = np.repeat([1, 2, 3], len(y) // 3)
+    X = rs.randn(len(y), 8) + y[:, None] * 0.6
+    yu = np.tile(np.arange(6), 6)
+    gu = np.repeat([1, 2, 3], len(yu) // 3)
+    Xu = rs.randn(len(yu), 8) + yu[:, None] * 0.6
+    return {"XE": X, "YE": y, "GE": g, "XU": Xu, "YU": yu, "GU": gu,
+            "pre_i": {1, 2}, "post_i": {3}}
+
+
+def test_lick_alignment_drops_the_undefined_no_lick_panels():
+    """A trial with no lick has no lick to align to, so a no-lick LICK-ALIGNED panel is undefined.
+
+    Without this guard the record gained a post-lick entry whose rows were 63-99% no-lick trials
+    (PS94_0819, 2026-08-20) -- present, plausible-looking, and meaningless.
+    """
+    from wfield_local.poststroke_compare import crossed_confusion
+
+    out = crossed_confusion(_synthetic_confusion_input(), include_nolick=False)
+    assert "pre" in out and "post" in out
+    assert "pre_nolick" not in out and "post_nolick" not in out
+    assert "pre_nolick_arm" not in out and "post_nolick_arm" not in out
+
+
+def test_cue_and_precue_keep_both_no_lick_panels():
+    from wfield_local.poststroke_compare import crossed_confusion
+
+    out = crossed_confusion(_synthetic_confusion_input(), include_nolick=True)
+    for k in ("pre", "pre_nolick", "post", "post_nolick"):
+        assert k in out, k
+    # post_nolick pairs with pre_nolick: same kind of trial, differing in phase alone
+    assert len(out["post_nolick"]["n_per_true_position"]) == 6

@@ -265,47 +265,55 @@ CONDS = ["post-cue", "post-lick", "pre-cue WITH lick", "pre-cue NO lick"]
 MIN_N = 10        # below this a per-position recall is marked, not trusted
 
 
-def fig_per_position(pp, out):
+def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
     """G2b: per-position recall pre vs post in all four decoder conditions (Priya, 2026-08-17).
 
-    One row per condition, one column per animal; pre-stroke and post-stroke bars side by side at
-    every position. A position the animal stopped attempting gets an explicit "n/a" mark rather than
-    a zero bar -- the distinction the scalar summaries kept losing, and the one that turned a "PS94
-    neural deficit" headline into a statement about trial composition.
+    One row per condition, one column per animal; the pre-stroke bar then ONE BAR PER POST-STROKE
+    DAY at every position. A position the animal stopped attempting gets an explicit "n/a" mark
+    rather than a zero bar -- the distinction the scalar summaries kept losing, and the one that
+    turned a "PS94 neural deficit" headline into a statement about trial composition.
+
+    It was pre vs a SINGLE post session, because it was built from a day-1-only scratchpad JSON
+    covering the two animals that had an effective lesion on 8/17. It is now derived from
+    section_g.json, so it covers every animal and every post-stroke day (Priya, 2026-08-20).
     """
     ans = sorted(pp)
-    fig, axes = plt.subplots(len(CONDS), len(ans), figsize=(6.0 * len(ans), 3.1 * len(CONDS)),
+    fig, axes = plt.subplots(len(CONDS), len(ans), figsize=(6.4 * len(ans), 3.3 * len(CONDS)),
                              squeeze=False, sharey=True)
     x = np.arange(len(POS))
-    w = 0.38
+    ndays = max((len(d.get("posts", [])) for a in pp for d in [pp[a].get(c) or {}] for c in CONDS),
+                default=1)
+    daycols = plt.get_cmap("autumn")(np.linspace(0.0, 0.62, max(ndays, 2)))
     for r, cond in enumerate(CONDS):
         for k, an in enumerate(ans):
             ax = axes[r][k]
             d = pp[an].get(cond)
-            if not d:
-                ax.text(0.5, 0.5, cond + ": insufficient trials", transform=ax.transAxes,
-                        ha="center", va="center", fontsize=9, color="firebrick")
+            if not d or not d.get("posts"):
+                ax.text(0.5, 0.5, cond + ": not computed for this animal",
+                        transform=ax.transAxes, ha="center", va="center", fontsize=9,
+                        color="firebrick")
                 ax.set_xticks([])
                 continue
-            for j, (ph, col) in enumerate((("pre", "tab:blue"), ("post", "tab:red"))):
-                vals = [d[ph].get(q, {}).get("recall", np.nan) for q in POS]
-                ns = [d[ph].get(q, {}).get("n", 0) for q in POS]
-                xs = x + (j - 0.5) * w
+            series = [("pre", d["pre"], "tab:blue", "pre-stroke (LOSO)")]
+            for di, (lab, rec) in enumerate(d["posts"]):
+                series.append((lab, rec, daycols[di], f"day {di + 1} ({lab.split('_')[1]})"))
+            w = 0.82 / len(series)
+            for j, (_key, rec, col, lbl) in enumerate(series):
+                vals = [rec.get(q, {}).get("recall", np.nan) for q in POS]
+                ns = [rec.get(q, {}).get("n", 0) for q in POS]
+                xs = x + (j - (len(series) - 1) / 2) * w
                 ax.bar(xs, [v if v == v else 0 for v in vals], w, color=col,
-                       edgecolor="k", linewidth=0.4,
-                       label=("pre-stroke (LOSO)" if ph == "pre" else "post-stroke (frozen)"))
+                       edgecolor="k", linewidth=0.4, label=lbl)
                 # A recall computed on a handful of trials is not a number a reader should weigh the
                 # same as one computed on a hundred, and the extreme values are exactly where n is
                 # smallest: PS95 far_R post-stroke reads 1.00 off ONE trial.
                 for xi, n, v in zip(xs, ns, vals):
                     if n == 0:
-                        ax.text(xi, 0.02, "n/a", ha="center", va="bottom", fontsize=6.5,
+                        ax.text(xi, 0.02, "n/a", ha="center", va="bottom", fontsize=5.5,
                                 rotation=90, color="firebrick", fontweight="bold")
                     elif n < MIN_N:
                         ax.bar(xi, v if v == v else 0, w, color="none", edgecolor="firebrick",
-                               linewidth=1.1, hatch="////", zorder=3)
-                        ax.text(xi, (v if v == v else 0) + 0.03, f"n={n}", ha="center",
-                                va="bottom", fontsize=6, color="firebrick", fontweight="bold")
+                               linewidth=1.0, hatch="////", zorder=3)
             ax.axhline(1 / 6, color="k", ls=":", lw=1)
             ax.set_xticks(x)
             ax.set_xticklabels(POS if r == len(CONDS) - 1 else [], rotation=45, ha="right",
@@ -313,17 +321,19 @@ def fig_per_position(pp, out):
             ax.set_ylim(0, 1.05)
             if k == 0:
                 ax.set_ylabel(cond + "\nrecall", fontsize=8)
-            ax.set_title(f"{an} — {cond}  (balanced {d['pre_balanced']:.2f} -> "
-                         f"{d['post_balanced']:.2f})", fontsize=8.5)
+            bal = "  ".join(f"{lab.split('_')[1]} {d['balanced'].get(lab, float('nan')):.2f}"
+                            for lab, _ in d["posts"])
+            ax.set_title(f"{an} - {cond}   (balanced: pre {d['pre_balanced']:.2f} -> {bal})",
+                         fontsize=8)
             if r == 0 and k == 0:
-                ax.legend(fontsize=7)
-    fig.suptitle("Per-position recall in FOUR conditions. Training is ALWAYS on pre-stroke ENGAGED "
-                 "trials;\n'with/without lick' is the RESPONSE lick, i.e. engaged vs undetected "
-                 "trials. Dotted line = 1/6.\n'n/a' = position not attempted (NOT zero recall);   "
-                 f"RED HATCHED = fewer than {MIN_N} trials, do not weigh these",
+                ax.legend(fontsize=6.5, ncol=2)
+    fig.suptitle("Per-position recall in FOUR conditions, every post-stroke day. Training is ALWAYS "
+                 "on pre-stroke ENGAGED trials;\n'with/without lick' is the RESPONSE lick, i.e. "
+                 "engaged vs undetected trials. Dotted line = 1/6.\n'n/a' = position not attempted "
+                 f"(NOT zero recall);   RED HATCHED = fewer than {MIN_N} trials, do not weigh these",
                  fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    q = Path(out) / "poststroke_G2b_per_position.png"
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    q = Path(out) / name
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
