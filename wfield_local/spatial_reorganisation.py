@@ -145,7 +145,7 @@ MIRROR_MARGIN = 0.15
 MIN_RESEMBLANCE = 0.20
 
 
-def _flag_mirror(rec):
+def _flag_mirror(rec, resemblance_floor=None):
     """Set `transfer` and `reduced_asymmetry` on one position's mirror record.
 
     ONE FUNCTION so the live run and any re-scoring of a saved JSON cannot drift apart.
@@ -169,8 +169,21 @@ def _flag_mirror(rec):
     # the margin, so it was flagged TRANSFER on both days. The honest reading is that the
     # representation at that position is GONE, which is a different and stronger claim than
     # relocation, and the two must not be reported as one.
-    rec["pattern_lost"] = bool(max(rec["mirror_r"], rec["normal_r"]) < MIN_RESEMBLANCE)
-    rec["transfer"] = bool(rec["mirror_r"] >= MIN_RESEMBLANCE
+    # THE FLOOR IS PER FEATURE SPACE, and passing it in is not optional decoration.
+    #
+    # MIN_RESEMBLANCE = 0.20 was calibrated on ALLEN-ROI correlations, where a pattern is 66 numbers
+    # each averaged over ~3000 pixels. That averaging smooths, and smoothing inflates correlation:
+    # measured on the same sessions, the median post-vs-pre correlation is +0.830 in ROI space and
+    # +0.219 in PIXEL space (PS95_0818 close_center: +0.968 vs +0.391). Applying the ROI floor to
+    # pixel correlations therefore declares 46% of positions "pattern lost" against 25% in ROI --
+    # a difference in the SMOOTHING, reported as a difference in the brain.
+    #
+    # Callers working in another space must pass a floor derived from that space, the natural one
+    # being how well PRE-STROKE sessions resemble each other there.
+    floor = MIN_RESEMBLANCE if resemblance_floor is None else float(resemblance_floor)
+    rec["resemblance_floor"] = floor
+    rec["pattern_lost"] = bool(max(rec["mirror_r"], rec["normal_r"]) < floor)
+    rec["transfer"] = bool(rec["mirror_r"] >= floor
                            and rec["mirror_r"] > rec["normal_r"] and d > MIRROR_MARGIN)
     rec["reduced_asymmetry"] = bool(d > MIRROR_MARGIN and not rec["pattern_lost"])
     return rec

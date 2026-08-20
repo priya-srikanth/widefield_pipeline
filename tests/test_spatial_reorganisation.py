@@ -124,3 +124,46 @@ def test_the_three_verdicts_are_mutually_consistent():
                 assert not r["transfer"] and not r["reduced_asymmetry"], (n, m, base)
             if r["transfer"]:
                 assert r["reduced_asymmetry"], (n, m, base)
+
+
+# ------------------------------------------------------------------------------------------------
+# The resemblance floor is a property of the FEATURE SPACE, not a universal constant.
+#
+# MIN_RESEMBLANCE = 0.20 was calibrated on Allen-ROI correlations, where each pattern is 66 numbers
+# averaged over ~3000 pixels apiece. That smoothing inflates correlation. Measured on the same
+# sessions: median post-vs-pre correlation +0.830 in ROI space against +0.219 in PIXEL space, and
+# PS95_0818 close_center is +0.968 in ROI but +0.391 in pixels. Carrying the ROI floor into pixel
+# space flags 46% of positions "pattern lost" against 25% in ROI -- reporting a difference in the
+# smoothing as a difference in the brain.
+# ------------------------------------------------------------------------------------------------
+
+def test_the_floor_can_be_set_per_space():
+    from wfield_local.spatial_reorganisation import _flag_mirror
+
+    rec = {"normal_r": 0.30, "mirror_r": 0.25, "mirror_minus_normal": -0.05,
+           "pre_mirror_minus_normal": -0.10}
+    # under the ROI-calibrated floor this pattern resembles something
+    assert not _flag_mirror(dict(rec))["pattern_lost"]
+    # under a stricter floor appropriate to a less-smoothed space, it does not
+    assert _flag_mirror(dict(rec), resemblance_floor=0.5)["pattern_lost"]
+
+
+def test_the_floor_used_is_recorded_on_the_record():
+    """So a verdict can never be read without the threshold that produced it."""
+    from wfield_local.spatial_reorganisation import MIN_RESEMBLANCE, _flag_mirror
+
+    assert _flag_mirror({"normal_r": 0.1, "mirror_r": 0.1, "mirror_minus_normal": 0.0,
+                         "pre_mirror_minus_normal": 0.0})["resemblance_floor"] == MIN_RESEMBLANCE
+    assert _flag_mirror({"normal_r": 0.1, "mirror_r": 0.1, "mirror_minus_normal": 0.0,
+                         "pre_mirror_minus_normal": 0.0},
+                        resemblance_floor=0.42)["resemblance_floor"] == 0.42
+
+
+def test_transfer_also_respects_the_supplied_floor():
+    """A mirrored pattern that clears the ROI floor but not a stricter one is not transfer there."""
+    from wfield_local.spatial_reorganisation import _flag_mirror
+
+    rec = {"normal_r": -0.10, "mirror_r": 0.30, "mirror_minus_normal": 0.40,
+           "pre_mirror_minus_normal": 0.0}
+    assert _flag_mirror(dict(rec))["transfer"]
+    assert not _flag_mirror(dict(rec), resemblance_floor=0.5)["transfer"]
