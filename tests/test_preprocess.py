@@ -203,3 +203,46 @@ def test_maps_commands_raises_without_frame_map_when_not_dry_run():
     params = config.defaults()["preprocess"]
     with pytest.raises(SystemExit):        # no N: frame_map + allow_missing=False -> hard stop
         preprocess._maps_commands(_maps_session(), params, rv, allow_missing=False)
+
+
+# ------------------------------------------------------------------------------------------------
+# The push step must never destroy the results it is meant to publish.
+#
+# `push` is rmtree(destination) then copytree(source -> destination). That is right when raw was
+# staged locally and outputs live on E:. It is catastrophic when raw is discovered ON MICROSCOPE
+# (--raw-root, added 2026-08-20 because that night's raw arrived there with nothing on E:), because
+# source and destination are then the SAME directory: the rmtree deletes hours of computation and
+# the copytree then fails with its source gone. Caught by dry-running before the first real run.
+# ------------------------------------------------------------------------------------------------
+
+def test_push_is_skipped_when_source_and_destination_are_the_same(tmp_path, capsys):
+    import inspect
+
+    from wfield_local import preprocess
+
+    src = inspect.getsource(preprocess)
+    assert "_same = (Path(results).resolve() == Path(nres).resolve())" in src, (
+        "the push step must compare resolved source and destination before rmtree")
+    i = src.index("_same = (Path(results)")
+    guarded = src[i:i + 900]
+    assert "if not dry_run and not _same:" in guarded, (
+        "rmtree/copytree must be gated on the two paths differing")
+
+
+def test_discovery_roots_can_be_overridden(tmp_path):
+    """--raw-root exists so a night whose raw landed on the share can still be processed, with the
+    outputs still written beside the raw."""
+    import inspect
+
+    from wfield_local import preprocess
+
+    sig = inspect.signature(preprocess.discover_raw_sessions)
+    assert "raw_root" in sig.parameters and "daq_root" in sig.parameters
+
+
+def test_discovery_finds_nothing_rather_than_guessing(tmp_path):
+    """An empty root returns [] -- the 2026-08-20 symptom was discovery correctly reporting zero
+    sessions, not discovery silently inventing them somewhere else."""
+    from wfield_local.preprocess import _discover
+
+    assert _discover("20260820", str(tmp_path / "nope"), str(tmp_path)) == []

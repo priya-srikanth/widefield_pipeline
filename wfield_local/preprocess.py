@@ -112,16 +112,29 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
     return out
 
 
-def discover_raw_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
-    return _discover(yyyymmdd, rv.root("raw_labcams"), rv.root("raw_daq"))
+def discover_raw_sessions(yyyymmdd: str, rv: PathResolver,
+                          raw_root=None, daq_root=None) -> list[dict]:
+    """Sessions for a date, from this machine's raw roots unless they are overridden.
+
+    THE OVERRIDE EXISTS BECAUSE RAW DOES NOT ALWAYS LAND LOCALLY. The imaging box's normal flow is
+    acquire to ``E:/labcams_data`` -> preprocess -> upload results to MICROSCOPE, and `raw_labcams`
+    encodes that. On 2026-08-20 the night's raw arrived on MICROSCOPE with nothing on E: at all, so
+    discovery found zero sessions and said so correctly -- the data was simply somewhere the pipeline
+    had never been told to look. Pointing it at the shared tree is a path question, not a pipeline
+    change: outputs still land in ``<session>/motion_corrected`` beside the raw, which is exactly
+    where every previous night's already sit.
+    """
+    return _discover(yyyymmdd,
+                     raw_root or rv.root("raw_labcams"),
+                     daq_root or rv.root("raw_daq"))
 
 
-def list_raw_dates(rv: PathResolver) -> list[str]:
+def list_raw_dates(rv: PathResolver, raw_root=None) -> list[str]:
     """All YYYYMMDD acquisition date-dirs present on this machine's raw_labcams root (for `all`/ranges).
 
     Empty when the raw drive isn't mounted (e.g. a dry-run off the imaging box) — explicit date
     tokens still work in that case; only `all` / ranges need the disk to enumerate against."""
-    root = Path(rv.root("raw_labcams"))
+    root = Path(raw_root or rv.root("raw_labcams"))
     if not root.exists():
         return []
     return sorted(p.name for p in root.iterdir() if p.is_dir() and re.fullmatch(r"\d{8}", p.name))
@@ -471,8 +484,18 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     # 4 push LocaNMF inputs to MICROSCOPE FIRST (results dir + frame_map + summary; NOT the .bin)
     ndst = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
     nres = f"{ndst}/wfield_local_results"
-    print(f"[push] {results} -> {nres}", flush=True)
-    if not dry_run:
+    # ALREADY IN PLACE? Then there is nothing to push, and pushing would DESTROY the results.
+    #
+    # This step is rmtree(destination) followed by copytree(source -> destination). That is correct
+    # when the raw was staged locally and the outputs live on E:. It is catastrophic when the raw is
+    # discovered ON MICROSCOPE (--raw-root), because `results` and `nres` are then the SAME
+    # directory: the rmtree deletes the results this run just spent hours computing, and the
+    # copytree then fails with the source gone. Found by dry-running 2026-08-20, where the night's
+    # raw arrived on MICROSCOPE rather than on E:.
+    _same = (Path(results).resolve() == Path(nres).resolve())
+    print(f"[push] {results} -> {nres}" + ("   SKIPPED: already in place" if _same else ""),
+          flush=True)
+    if not dry_run and not _same:
         writeguard.assert_writable(ndst)   # never rmtree/copy outside MICROSCOPE/Priya (rule 1)
         Path(ndst).mkdir(parents=True, exist_ok=True)
         if Path(nres).exists():
@@ -480,7 +503,8 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
         shutil.copytree(results, nres)   # SVT/SVTcorr/U/T/rcoeffs/frames_average/summary + allen dir
         for pat in params["push_frame_map_globs"]:
             for f in glob.glob(f"{mc}/{pat}"):
-                shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
+                if Path(f).resolve() != Path(ndst, os.path.basename(f)).resolve():
+                    shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
         # motion-correction QC dir (deck reads motion_corrected/motion_qc/*_motion_qc.png from N:)
         if Path(mqc).exists():
             nmqc = f"{ndst}/motion_qc"
@@ -506,7 +530,8 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
 # --------------------------------------------------------------------------- main
 def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
-    sessions = discover_raw_sessions(date, rv)
+    sessions = discover_raw_sessions(date, rv, raw_root=getattr(args, "raw_root", None),
+                                     daq_root=getattr(args, "daq_root", None))
     if args.skip_preprocess:
         # MERGE, do not fall back only when raw discovery is empty. Ownership of a night can be SPLIT
         # across the two boxes (8/12: this box preprocessed PS92+PS93, the imaging box PS94+PS95), so
@@ -575,16 +600,24 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-crossday-intensity", action="store_true",
                     help="skip the cross-day raw ROI fluorescence-intensity trend")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
+    ap.add_argument("--raw-root", default=None,
+                    help="discover raw sessions HERE instead of this machine's raw_labcams root "
+                         "(e.g. the MICROSCOPE labcams tree when the night's raw was uploaded "
+                         "rather than staged locally). Outputs still land beside the raw.")
+    ap.add_argument("--daq-root", default=None,
+                    help="likewise for the DAQ .h5 tree (default: this machine's raw_daq root)")
     args = ap.parse_args(argv)
 
     rv = PathResolver(machine=args.machine)
     params = config.defaults()["preprocess"]
     try:
-        dates = config.expand_dates(args.dates, width=8, available=list_raw_dates(rv))
+        dates = config.expand_dates(args.dates, width=8,
+                                    available=list_raw_dates(rv, args.raw_root))
     except ValueError as e:
         ap.error(str(e))
     if not dates:
-        print(f"[preprocess] no dates resolved from {args.dates} (under {rv.root('raw_labcams')})")
+        print(f"[preprocess] no dates resolved from {args.dates} "
+              f"(under {args.raw_root or rv.root('raw_labcams')})")
         return 1
     args.only = config.normalize_animals(args.only)   # None => all animals
 
