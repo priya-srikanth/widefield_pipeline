@@ -44,3 +44,58 @@ def test_deck_carries_no_stale_inflation_warning():
         if re.search(r"inflated ~2|~half this|filter-inflated|are inflated by", line):
             bad.append(f"{i}: {line.strip()[:70]}")
     assert not bad, "stale inflation warning still rendered into the deck:\n  " + "\n  ".join(bad)
+
+
+def test_incomplete_rebuild_refuses_to_overwrite_an_existing_deck(tmp_path):
+    """The 2026-08-19 failure: a deck with holes published itself over a good one.
+
+    await_locanmf fitted LocaNMF to the superseded SVTcorr and wrote it where nothing reads, so the
+    whole 8/19 column raised FileNotFoundError -- and the build shipped anyway at 20 missing.
+    """
+    import pytest
+
+    from wfield_local.locanmf_analysis_deck import DeckIncomplete, _refuse_incomplete_overwrite
+
+    p = tmp_path / "spout_position_analysis_summary.pptx"
+    p.write_bytes(b"x" * 4096)
+    with pytest.raises(DeckIncomplete, match="missing 2 figure"):
+        _refuse_incomplete_overwrite(p, ["locanmf_encoder_quiet_drift_0819.png",
+                                         "locanmf_decoder_rolling_cue_0819.png"])
+
+
+def test_the_blocked_deck_names_every_missing_figure(tmp_path):
+    """A count alone cannot be acted on -- the caller truncates, so the names ride on the exception."""
+    import pytest
+
+    from wfield_local.locanmf_analysis_deck import DeckIncomplete, _refuse_incomplete_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    missing = [f"fig_{i}.png" for i in range(25)]
+    with pytest.raises(DeckIncomplete) as ei:
+        _refuse_incomplete_overwrite(p, missing)
+    assert ei.value.missing_figures == missing              # every one, not just the 20 shown
+    assert "... and 5 more" in str(ei.value)
+
+
+def test_a_complete_rebuild_is_allowed(tmp_path):
+    from wfield_local.locanmf_analysis_deck import _refuse_incomplete_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    _refuse_incomplete_overwrite(p, [])                     # nothing missing -> publish
+
+
+def test_allow_missing_tolerates_a_deliberate_gap(tmp_path):
+    from wfield_local.locanmf_analysis_deck import _refuse_incomplete_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    _refuse_incomplete_overwrite(p, ["one.png"], allow_missing=1)
+
+
+def test_a_brand_new_deck_may_have_gaps(tmp_path):
+    """A tree still filling up is a real case: there is no good deck to destroy yet."""
+    from wfield_local.locanmf_analysis_deck import _refuse_incomplete_overwrite
+
+    _refuse_incomplete_overwrite(tmp_path / "does_not_exist.pptx", ["a.png", "b.png"])
