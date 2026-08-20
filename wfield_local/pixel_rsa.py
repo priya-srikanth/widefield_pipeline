@@ -58,10 +58,14 @@ def brain_mask(atlas_dir) -> np.ndarray | None:
     Background is excluded deliberately: it carries registration edge artefacts and no signal, and
     including it lets those pixels dominate the Gram matrix that defines the metric.
     """
-    for name in ("atlas_labels.npy", "atlas.npy", "allen_atlas.npy"):
-        p = Path(atlas_dir) / name
-        if p.exists():
-            a = np.load(p)
+    p = Path(atlas_dir) / "allen_brain_mask_native_grid.npy"
+    if p.exists():
+        return np.load(p).astype(bool)
+    # fall back to the atlas labels, which define the same territory a different way
+    for name in ("allen_area_atlas_native_grid.npy", "atlas_labels.npy", "atlas.npy"):
+        q = Path(atlas_dir) / name
+        if q.exists():
+            a = np.load(q)
             if a.ndim == 2:
                 return np.isfinite(a) & (a != 0)
     return None
@@ -123,6 +127,73 @@ def basis_distortion(G) -> dict:
             "max_abs_offdiag": float(np.abs(off).max()),
             "offdiag_over_diag": float(np.abs(off).max() / max(d.mean(), 1e-12)),
             "relative_frobenius": float(np.linalg.norm(G - np.eye(k)) / np.sqrt(k))}
+
+
+def session_geometry(session, align="cue", post_all_trials=True):
+    """Per-position pixel-space patterns and the crossnobis RDM for ONE session.
+
+    The features are the RAW SVD coefficients (`source="svt"`), so nothing is averaged into regions
+    or components first -- then mapped through the Gram whitener, after which Euclidean distance IS
+    pixel distance. Bins are averaged to the WINDOW MEAN, which is what "the SVD map" means and what
+    fixed_scale_maps shows; keeping them would measure the temporal profile as well as the map.
+
+    Everything downstream (the crossnobis estimator, the position-matched pre-stroke band) is the
+    same code `spatial_reorganisation` uses on ROI features, so the pixel and parcellated versions
+    differ in the FEATURES ALONE and can be read against each other.
+    """
+    import numpy as np
+
+    from wfield_local.locanmf_frozen_decoder import _args
+    from wfield_local.locanmf_position_decoder import _trial_features
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
+    from wfield_local.spatial_reorganisation import MIN_TRIALS_PER_POS, _crossnobis
+
+    G = gram(session)
+    if G is None:
+        return None
+    L = pixel_whitener(G)
+    X, y, g, Xn, yn, reg = _trial_features(session, _args(source="svt", align=align, post_s=2.0))
+    lab = session["label"]
+    if (post_all_trials
+            and config.session_phase(config.animal_of(lab), lab.split("_")[-1]) == "post"
+            and len(yn)):
+        X = np.vstack([X, Xn])
+        y = np.concatenate([y, yn])
+        g = np.concatenate([g, np.arange(g.max() + 1, g.max() + 1 + len(yn))])
+    if len(y) < 30:
+        return None
+    k = int(np.unique(reg).size)
+    A = np.asarray(X, float).reshape(len(y), -1, k).mean(axis=1)      # window-mean map
+    Z = to_pixel_space(A, L)                                          # Euclidean here = pixel space
+
+    labels = [c for c in DISPLAY_ORDER if (y == c).sum() >= MIN_TRIALS_PER_POS]
+    D = _crossnobis(Z, np.asarray(y), np.asarray(g), labels)
+    if D is None:
+        return None
+    iu = np.triu_indices(len(labels), k=1)
+    vals = D[iu][np.isfinite(D[iu])]
+    return {"label": lab, "animal": config.animal_of(lab), "date": lab.split("_")[-1],
+            "align": align, "positions": [POSITION_NAMES[c] for c in labels],
+            "crossnobis": D.tolist(), "n_pairs": int(vals.size),
+            "mean_distance": float(vals.mean()) if vals.size else float("nan"),
+            "pattern": {POSITION_NAMES[c]: Z[y == c].mean(axis=0).tolist() for c in labels}}
+
+
+def collect(animals=None, align="cue", post_all_trials=True):
+    rows = []
+    for s in config.analysis_sessions(animals=animals):
+        try:
+            r = session_geometry(s, align=align, post_all_trials=post_all_trials)
+        except Exception as ex:                                       # noqa: BLE001
+            print(f"  {s['label']}: skip ({type(ex).__name__} {str(ex)[:60]})", flush=True)
+            continue
+        if r is None:
+            continue
+        r["phase"] = config.session_phase(r["animal"], r["date"])
+        rows.append(r)
+        print(f"  {r['label']} {align:6s} pixel crossnobis {r['mean_distance']:.4f}  "
+              f"({len(r['positions'])} positions)", flush=True)
+    return sorted(rows, key=lambda r: (r["animal"], r["date"]))
 
 
 def main(argv=None) -> int:

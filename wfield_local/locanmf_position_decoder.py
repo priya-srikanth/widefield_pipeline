@@ -56,6 +56,13 @@ def _build_signal(s, source):
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg
     ad = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")[0]
     U = np.load(f"{ad}/U_atlas.npy"); SVT = np.load(config.svtcorr_path(mc))
+    if source == "svt":
+        # RAW SVD COEFFICIENTS, no parcellation anywhere. For pixel-space RSA (wfield_local.pixel_rsa):
+        # every other source averages pixels into regions or components first, so its geometry is a
+        # property of that division of the cortex. Distances between these coefficients are NOT pixel
+        # distances -- U is not orthonormal after Allen registration -- so a caller must apply the
+        # Gram whitener from pixel_rsa before measuring anything.
+        return SVT.astype(np.float64), np.arange(SVT.shape[0])
     atlas = np.load(f"{ad}/allen_area_atlas_native_grid.npy")
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool)
     Uf = U.reshape(-1, U.shape[2]); at = atlas.reshape(-1); mk = mask.reshape(-1)
