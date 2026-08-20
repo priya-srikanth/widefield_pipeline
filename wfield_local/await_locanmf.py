@@ -4,7 +4,8 @@ runs standalone from PowerShell (no Claude Code session needed).
 
 Each tick (default every 30 min) it:
   1. DETECTS ready sessions on MICROSCOPE: for each mouse, ``labcams/<YYYYMMDD>/PSxx_<YYYYMMDD>_*/
-     motion_corrected/wfield_local_results/{SVTcorr.npy, allen_aligned_affine8v1/U_atlas.npy}`` present.
+     motion_corrected/wfield_local_results/{<hemo variant>/SVTcorr.npy, <allen_dir_name>/U_atlas.npy}``
+     present -- BOTH resolved from configs/defaults.yaml, never hardcoded.
   2. For each ready mouse whose LocaNMF has NOT run yet (no LocaNMF output dir -- ``config.locanmf_dir_name()``): runs
      ``batch_locanmf`` (r2 0.95 / loc 80 / maxrank 20 from configs/defaults.yaml).
   3. REGISTERS any ready+unregistered mouse in ``configs/sessions.yaml`` (regime B if a
@@ -37,7 +38,6 @@ from wfield_local.paths import PathResolver
 
 REPO = Path(__file__).resolve().parents[1]
 SESSIONS_YAML = REPO / "configs" / "sessions.yaml"
-TAG = "affine8v1"
 ANIMALS_ALL = ["PS92", "PS93", "PS94", "PS95"]
 
 
@@ -71,10 +71,11 @@ def _ensure_conda_prefix() -> None:
 def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
     """Ready LocaNMF-input sessions for the date, one dict per mouse found.
 
-    A mouse is INPUTS-READY when SVTcorr.npy + allen_aligned_<tag>/U_atlas.npy both exist under its
-    session's motion_corrected/wfield_local_results. Also reports regime (frame_map present -> B), whether
-    LocaNMF already ran (locanmf_<tag>_final present), whether it is already in sessions.yaml, and the
-    root-relative mc/h5 fields needed to register it.
+    A mouse is INPUTS-READY when the VARIANT SVTcorr (``config.svtcorr_path``) and
+    ``<allen_dir_name>/U_atlas.npy`` both exist under its session's
+    ``motion_corrected/wfield_local_results``. Also reports regime (frame_map present -> B), whether
+    LocaNMF already ran (``config.locanmf_dir`` present), whether it is already in sessions.yaml, and
+    the root-relative mc/h5 fields needed to register it.
     """
     config._load.cache_clear()   # re-read sessions.yaml fresh: this long-running process may have just
                                  # registered a mouse (config caches YAML loads for the process lifetime)
@@ -89,13 +90,13 @@ def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
         sdir = Path(sess_dirs[-1])              # newest session for that mouse that day
         mc = sdir / "motion_corrected"
         res = mc / "wfield_local_results"
-        allen = res / f"allen_aligned_{TAG}"
-        svt = res / "SVTcorr.npy"
+        allen = res / str(config.defaults()["locanmf"]["allen_dir_name"])
+        svt = Path(config.svtcorr_path(mc))     # the VARIANT SVTcorr the rest of the pipeline reads
         u_atlas = allen / "U_atlas.npy"
         if not (svt.exists() and u_atlas.exists()):
             continue                            # inputs not fully pushed yet
         frame_map = bool(glob.glob(str(mc / "*cleanpairs_frame_map.npz")))
-        locanmf_out = mc / f"locanmf_{TAG}_final"
+        locanmf_out = Path(config.locanmf_dir(mc))
         locanmf_done = locanmf_out.exists() and bool(glob.glob(str(locanmf_out / "*_C.npy")))
         # DAQ h5 for this mouse+date on MICROSCOPE (daq_recorder_output root, one date level)
         h5_glob = glob.glob(str(Path(rv.resolve("daq_recorder_output", yyyymmdd)) / f"{animal}_{yyyymmdd}_*.h5"))
@@ -192,7 +193,7 @@ def run_locanmf(entry: dict, dry: bool) -> bool:
     # (PS92_0809_locanmf_locanmf_C.npy) so every downstream fig failed to find the LocaNMF output.
     label = f"{entry['animal']}_{entry['mmdd']}"
     spec = [{"allen_dir": entry["allen_dir"], "label": label,
-             "output": str(Path(entry["mc_dir"]) / f"locanmf_{TAG}_final"), "svt": entry["svt"]}]
+             "output": entry["locanmf_out"], "svt": entry["svt"]}]
     log(f"  LocaNMF {entry['animal']} {entry['mmdd']} -> {spec[0]['output']}")
     if dry:
         log(f"    [dry-run] manifest={spec}")

@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 from wfield_local import await_locanmf as aw
@@ -108,8 +109,8 @@ def test_discover_ready_session(tmp_path, monkeypatch):
     lab, daq = tmp_path / "labcams", tmp_path / "daq"
     sd = lab / "20260809" / "PS92_20260809_120000" / "motion_corrected"
     res = sd / "wfield_local_results"
-    _touch(res / "SVTcorr.npy")
-    _touch(res / "allen_aligned_affine8v1" / "U_atlas.npy")
+    _touch(Path(aw.config.svtcorr_path(sd)))          # the VARIANT SVTcorr, not the bare one
+    _touch(res / str(aw.config.defaults()["locanmf"]["allen_dir_name"]) / "U_atlas.npy")
     _touch(sd / "pco_daq_led_cleanpairs_frame_map.npz")               # regime B marker
     _touch(daq / "20260809" / "PS92_20260809_120500.h5")
 
@@ -117,6 +118,11 @@ def test_discover_ready_session(tmp_path, monkeypatch):
     assert len(got) == 1 and got[0]["animal"] == "PS92"
     e = got[0]
     assert e["regime"] == "B" and not e["locanmf_done"] and not e["registered"]
+    # the fit input and the output dir must both come from config, so the decomposition the poller
+    # writes is the one every consumer reads (2026-08-20: they did not, and a whole night's 8/19
+    # figures failed with FileNotFoundError against locanmf_affine8v1_final)
+    assert Path(e["svt"]) == Path(aw.config.svtcorr_path(sd))
+    assert Path(e["locanmf_out"]) == Path(aw.config.locanmf_dir(sd))
     assert e["mc_rel"] == "20260809/PS92_20260809_120000/motion_corrected"
     assert e["h5_rel"] == "20260809/PS92_20260809_120500.h5"
 
@@ -124,7 +130,26 @@ def test_discover_ready_session(tmp_path, monkeypatch):
 def test_discover_skips_when_inputs_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(aw.config, "load_sessions", lambda *a, **k: [])
     lab, daq = tmp_path / "labcams", tmp_path / "daq"
-    res = lab / "20260809" / "PS92_20260809_120000" / "motion_corrected" / "wfield_local_results"
-    _touch(res / "SVTcorr.npy")                                       # U_atlas.npy absent -> not ready
+    sd = lab / "20260809" / "PS92_20260809_120000" / "motion_corrected"
+    _touch(Path(aw.config.svtcorr_path(sd)))                          # U_atlas.npy absent -> not ready
     got = aw.discover(_FakeRV(lab, daq), "20260809", ["PS92"])
     assert got == []
+
+
+def test_discover_ignores_bare_svtcorr_when_variant_configured(tmp_path, monkeypatch):
+    """A bare wfield_local_results/SVTcorr.npy must NOT count as inputs-ready.
+
+    That file is the superseded zerophase product. Treating it as ready is what made the poller fit
+    LocaNMF to the wrong data on 2026-08-19 (161 components off the bare file vs 113 off the adopted
+    meegkit_hpfit one) and write it to a directory no consumer reads.
+    """
+    monkeypatch.setattr(aw.config, "load_sessions", lambda *a, **k: [])
+    if aw.config.hemo_variant() is None:
+        pytest.skip("no hemo variant configured -- the bare SVTcorr IS the canonical input")
+    lab, daq = tmp_path / "labcams", tmp_path / "daq"
+    sd = lab / "20260809" / "PS92_20260809_120000" / "motion_corrected"
+    res = sd / "wfield_local_results"
+    _touch(res / "SVTcorr.npy")                                       # bare file only
+    _touch(res / str(aw.config.defaults()["locanmf"]["allen_dir_name"]) / "U_atlas.npy")
+    _touch(daq / "20260809" / "PS92_20260809_120500.h5")
+    assert aw.discover(_FakeRV(lab, daq), "20260809", ["PS92"]) == []
