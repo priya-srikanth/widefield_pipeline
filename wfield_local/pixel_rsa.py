@@ -176,7 +176,12 @@ def session_geometry(session, align="cue", post_all_trials=True):
             "align": align, "positions": [POSITION_NAMES[c] for c in labels],
             "crossnobis": D.tolist(), "n_pairs": int(vals.size),
             "mean_distance": float(vals.mean()) if vals.size else float("nan"),
-            "pattern": {POSITION_NAMES[c]: Z[y == c].mean(axis=0).tolist() for c in labels}}
+            # NOT "pattern": spatial_reorganisation.summarise runs its MIRROR test on any row that
+            # has one, and that test swaps each Allen area's _left value with its _right -- which
+            # pixel space has no areas to do. The patterns are kept under a different key so a
+            # pixel-space mirror (a left-right image flip, expressible as U^T flip(U) and still to
+            # be written) can use them later.
+            "pixel_pattern": {POSITION_NAMES[c]: Z[y == c].mean(axis=0).tolist() for c in labels}}
 
 
 def collect(animals=None, align="cue", post_all_trials=True):
