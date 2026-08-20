@@ -397,6 +397,41 @@ def test_plot_licking_smoke(tmp_path):
     assert (out / "sessions" / "PS92" / "20260806").is_dir()   # nested by animal/date
 
 
+def _mini_adf(animal, dates):
+    """Minimal per-animal across-session frame with every column the plotters read."""
+    rows = []
+    for i, d in enumerate(dates):
+        r = {"animal": animal, "date": d, "hit_rate": 0.7, "close": 0.8, "far": 0.6,
+             "n_engaged": 50, "n_disengaged": 5}
+        for idx in sb.IDX_ORDER:
+            nm = sb.POS_BY_IDX[idx]["name"]
+            r[nm] = 0.7
+            r[f"hitall__{nm}"] = 0.5
+            for prefix, _t, _c, _l in sb.POS_METRICS:
+                r[f"{prefix}__{nm}"] = 0.5 + 0.01 * i
+        rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def test_plot_animal_metric_series_writes_split_figures(tmp_path, monkeypatch):
+    pytest.importorskip("matplotlib")
+    # a lesion between the two dates so the boundary line (_mark_stroke) is exercised
+    base = {a: dict(v) for a, v in config.animals().items()}
+    base["PS94"]["stroke_date"] = "20260817"
+    monkeypatch.setattr(config, "animals", lambda: base)
+
+    written = sb.plot_animal_metric_series("PS94", _mini_adf("PS94", ["20260816", "20260818"]), tmp_path)
+    assert {p.name for p in written} == {
+        f"PS94_{s}_across_sessions.png"
+        for s in ("hit", "latency", "licks_per_trial", "lick_rate", "anticipatory", "session")}
+    for p in written:
+        assert p.exists() and p.stat().st_size > 0
+    # deck's expected stems and the producer's stems must agree
+    from wfield_local import behavior_deck as bd
+    assert {s for s, _t, _sub in bd.ACROSS_METRICS} == {p.name.split("PS94_")[1].rsplit(
+        "_across_sessions", 1)[0] for p in written}
+
+
 def test_daq_h5_for_missing(tmp_path):
     class _RV:
         def root(self, name):

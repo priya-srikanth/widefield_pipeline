@@ -9,12 +9,15 @@ root (``Behavior_logs/Widefield/behavior_summary``); it computes nothing:
                                                     engagement timeline, latency, by-position licks)
   sessions/<animal>/<date>/<session>_licking.png    per-session lick microstructure (raster/PSTH, ILI,
                                                     bouts, GUI-vs-DAQ)
-  cohort/by_animal/<animal>_across_sessions.png      per-animal per-position metrics across days
-  cohort/cohort_behavior.png                          cross-animal cohort summary
+  cohort/by_animal/<animal>_<metric>_across_sessions.png  per-animal, one metric across days, with
+                                                          the lesion line (hit/latency/licks_per_trial/
+                                                          lick_rate/anticipatory/session)
+  cohort/cohort_behavior.png                          cross-animal cohort summary (lesion window on
+                                                          the learning-curve panel)
 
 Layout: title -> per animal { divider, each task-performance day (one slide), each lick day (one
-slide), the across-sessions summary } -> a cross-animal divider + the cohort figure. One detailed
-figure per slide (like the analysis deck), so each day stays readable.
+slide), then one full-size slide per cross-session metric } -> a cross-animal divider + the cohort
+figure. One detailed figure per slide (like the analysis deck), so each day / metric stays readable.
 
     python -m wfield_local.behavior_deck                    # build from behavior_out, land beside the figures
     python -m wfield_local.behavior_deck --out <path.pptx>  # override the output path
@@ -35,6 +38,19 @@ from wfield_local.paths import PathResolver
 
 NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
+
+# split-out cross-session per-animal figures, one full-size slide each (file stem, title, subtitle).
+# Stems match wfield_local.spout_behavior.plot_animal_metric_series / METRIC_FILE.
+ACROSS_METRICS = [
+    ("hit", "hit rate per position across sessions",
+     "bold + marker = engaged-gated, thin = all trials.  firebrick dashed = lesion"),
+    ("latency", "first-lick latency per position across sessions", "firebrick dashed = lesion"),
+    ("licks_per_trial", "licks / trial per position across sessions", "firebrick dashed = lesion"),
+    ("lick_rate", "within-trial lick rate per position across sessions", "firebrick dashed = lesion"),
+    ("anticipatory", "anticipatory licks per position across sessions", "firebrick dashed = lesion"),
+    ("session", "session-level metrics across sessions",
+     "engaged hit rate, close vs far, engaged fraction.  firebrick dashed = lesion"),
+]
 
 
 def _mmdd(date8: str) -> str:
@@ -138,9 +154,10 @@ def build_behavior_deck(behavior_out, out_path, animals=None) -> dict:
         for kind, label in (("behavior", "task performance"), ("licking", "lick microstructure")):
             for d in dates:
                 fig_slide(_fig(root, a, d, kind), f"{a} — {label} — {_mmdd(d)}")
-        fig_slide(root / "cohort" / "by_animal" / f"{a}_across_sessions.png",
-                  f"{a} — per-position metrics across sessions",
-                  "hit rate, first-lick latency, licks/trial, within-trial lick rate, anticipatory licks")
+        # split-out cross-session metrics: one full-size slide per metric, each with the lesion line
+        for suffix, ttl, sub in ACROSS_METRICS:
+            fig_slide(root / "cohort" / "by_animal" / f"{a}_{suffix}_across_sessions.png",
+                      f"{a} — {ttl}", sub)
 
     # ---------------- cross-animal cohort (END) ----------------
     divider("Cross-animal", "cohort summary across all animals")

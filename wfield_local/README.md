@@ -665,9 +665,12 @@ engagement timeline, latency), row 2 the by-position lick metrics (licks/trial, 
 anticipatory licks) mirroring the across-session per-animal panels — and
 (2) a **lick-microstructure** figure (peri-cue raster + PSTH, ILI distribution, lick bouts, per-position lick
 rate / licks-per-trial / anticipatory pre-cue licks, and a GUI-vs-DAQ-pipeline lick-count comparison), under
-`behavior_summary/sessions/<animal>/<date>/`. `--cohort` adds a cross-animal cohort figure and a per-animal
-`cohort/by_animal/<animal>_across_sessions.png` tracking every per-position metric over days (color=ring,
-marker=side). Accuracy is **engaged-gated**: reward auto-holds after a miss run, so a sated animal's late
+`behavior_summary/sessions/<animal>/<date>/`. `--cohort` adds a cross-animal cohort figure (with a lesion-window band on the
+learning-curve panel) and, per animal, both a combined `cohort/by_animal/<animal>_across_sessions.png`
+grid (Section G copies this verbatim) and the split-out full-size per-metric figures
+`cohort/by_animal/<animal>_{hit,latency,licks_per_trial,lick_rate,anticipatory,session}_across_sessions.png`
+— one metric each, every one drawing the firebrick dashed lesion line — which the behavior deck presents
+one per slide (color=ring, marker=side). Accuracy is **engaged-gated**: reward auto-holds after a miss run, so a sated animal's late
 misses are disengagement, not spatial inaccuracy — a terminal sated-tail + rolling-collapse gate
 (`configs/defaults.yaml behavior.*`) excludes them, raw shown alongside. The DAQ comparison applies the
 `lick_detection.min_ili_ms` 40 ms physiological floor (see below).

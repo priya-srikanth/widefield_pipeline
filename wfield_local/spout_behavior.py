@@ -1043,16 +1043,37 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     ax.set_ylabel("hit rate (engaged, session-mean)")
     ax.set_title("per-position accuracy (bar=cohort, dots=animals)")
     ax.legend(fontsize=7, title="animal")
-    # (B) learning curve: engaged hit rate vs date
+    # (B) learning curve: engaged hit rate vs date, on a shared integer x-axis (so the per-animal
+    # lesion boundaries — which differ by a day — land on comparable positions)
     ax = axes[1]
+    all_dates = sorted(df["date"].unique())
+    xpos = {d: i for i, d in enumerate(all_dates)}
     for a in anims:
         sub = df[df["animal"] == a].sort_values("date")
-        ax.plot(sub["date"], sub["hit_rate"], "-o", label=a, color=colors.get(a, None))
+        ax.plot([xpos[d] for d in sub["date"]], sub["hit_rate"], "-o", label=a,
+                color=colors.get(a, None))
+    bxs = []                                  # each animal's pre/post boundary, mapped to shared x
+    for a in anims:
+        adates = df[df["animal"] == a].sort_values("date")["date"].tolist()
+        b, _excl = _stroke_boundary(a, adates)
+        if b is not None:
+            lo, hi = adates[int(np.floor(b))], adates[int(np.ceil(b))]
+            bxs.append((xpos[lo] + xpos[hi]) / 2)
+    if bxs:                                   # firebrick lesion marker (line, or window if animals differ)
+        if min(bxs) == max(bxs):
+            ax.axvline(min(bxs), color="firebrick", lw=1.8, ls="--", zorder=0)
+        else:
+            ax.axvspan(min(bxs), max(bxs), color="firebrick", alpha=0.12, zorder=0)
+            ax.axvline(min(bxs), color="firebrick", lw=1.2, ls="--", zorder=0)
+            ax.axvline(max(bxs), color="firebrick", lw=1.2, ls="--", zorder=0)
+        ax.text(min(bxs), 1.02, " LESION", color="firebrick", fontsize=7.5, fontweight="bold",
+                va="bottom", ha="left")
+    ax.set_xticks(range(len(all_dates)), [d[4:] for d in all_dates], rotation=45, ha="right",
+                  fontsize=7)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("hit rate (engaged)")
     ax.set_xlabel("date")
     ax.set_title("session hit rate over time")
-    ax.tick_params(axis="x", rotation=45, labelsize=7)
     ax.legend(fontsize=8)
     # (C) distance effect: close vs far per animal
     ax = axes[2]
@@ -1072,7 +1093,8 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     print(f"[spout_behavior] wrote {png.name} ({len(df)} sessions)", flush=True)
 
     for a in anims:                                   # per-animal across-session summaries
-        plot_animal_summary(a, df[df["animal"] == a], out_dir)
+        plot_animal_summary(a, df[df["animal"] == a], out_dir)          # combined 2x3 grid (Section G)
+        plot_animal_metric_series(a, df[df["animal"] == a], out_dir)    # split-out per-metric (deck)
     return df
 
 
@@ -1110,10 +1132,66 @@ def _mark_stroke(ax, bx, excluded_idx, annotate=False):
                     va="bottom", rotation=90)
 
 
+# file-name stems for the split-out per-metric cross-session figures (see plot_animal_metric_series)
+METRIC_FILE = {"hit": "hit", "lat": "latency", "lpt": "licks_per_trial",
+               "rate": "lick_rate", "ant": "anticipatory"}
+_HUE_LEGEND = "hue=side: blue=L, purple=center, red=R;  dark=close, light=far"
+
+
+def _draw_pos_metric_panel(ax, adf, x, dates, prefix, label, bx, excl, legend=False):
+    """Draw one per-position metric family (all 6 positions) across sessions onto ``ax``.
+
+    Shared by the combined grid (:func:`plot_animal_summary`) and the split-out per-metric figures
+    (:func:`plot_animal_metric_series`) so the two can never drift. ``legend`` forces a legend on the
+    non-hit metrics (the standalone figures want one; the cramped grid leaves them off)."""
+    for idx in IDX_ORDER:                        # colour=side hue x ring lightness; marker/ls=side
+        p = POS_BY_IDX[idx]
+        key = f"{prefix}__{p['name']}"
+        if key in adf:
+            ax.plot(x, adf[key].to_numpy(), color=pos_color(idx), marker=SIDE_MARKER[p["side"]],
+                    ls=SIDE_LS[p["side"]], ms=5, alpha=0.9, label=_disp(p["name"]))
+        raw_key = f"hitall__{p['name']}"
+        if prefix == "hit" and raw_key in adf:      # ungated: thin, no marker, same colour
+            ax.plot(x, adf[raw_key].to_numpy(), color=pos_color(idx), lw=0.9, alpha=0.5,
+                    ls="-", zorder=1)
+    ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+    _mark_stroke(ax, bx, excl, annotate=(prefix == "hit"))
+    ax.set_title(label if prefix != "hit"
+                 else "hit rate — bold+marker = ENGAGED-gated, thin = ALL trials")
+    if prefix == "hit":
+        ax.set_ylim(0, 1.05)
+        ax.legend(fontsize=7, ncol=2)
+        if bx is not None:
+            # the gate is a PRE-stroke construction; after a lesion it removes motor failures
+            ax.text(0.01, 0.02, "after the lesion the gate drops motor failures — read the "
+                                "THIN lines", transform=ax.transAxes, fontsize=6.5,
+                    color="firebrick", style="italic")
+    elif legend:
+        ax.legend(fontsize=7, ncol=2)
+
+
+def _draw_session_panel(ax, adf, x, dates, bx, excl):
+    """Draw the session-level panel (engaged hit rate, close/far, engaged fraction) onto ``ax``."""
+    ax.plot(x, adf["hit_rate"], "-o", color="k", label="hit rate (engaged)")
+    ax.plot(x, adf["close"], "-o", color=_ring_agg_color("close"), alpha=0.8, label="close")
+    ax.plot(x, adf["far"], "-o", color=_ring_agg_color("far"), alpha=0.8, label="far")
+    if "n_disengaged" in adf and "n_engaged" in adf:
+        frac = adf["n_engaged"] / (adf["n_engaged"] + adf["n_disengaged"]).replace(0, np.nan)
+        ax.plot(x, frac, "--s", color="grey", alpha=0.7, label="engaged frac")
+    ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
+    _mark_stroke(ax, bx, excl, annotate=True)
+    ax.set_ylim(0, 1.05)
+    ax.set_title("session-level")
+    ax.legend(fontsize=7)
+
+
 def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     """One across-session figure per animal: each per-position metric (hit rate, latency, licks/trial,
     lick rate, anticipatory) over that animal's sessions + a session-level panel. Same metrics as the
-    per-session figures, tracked across days."""
+    per-session figures, tracked across days.
+
+    Kept as the combined 2x3 grid (Section G copies it verbatim); the behavior deck instead uses the
+    split-out full-size per-metric figures from :func:`plot_animal_metric_series`."""
     adf = adf.sort_values("date").reset_index(drop=True)
     if adf.empty:
         return None
@@ -1126,48 +1204,52 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig, axes = plt.subplots(2, 3, figsize=(18, 9))
     panels = [(p, lab) for p, _t, _c, lab in POS_METRICS]      # 5 per-position metric families
     for ax, (prefix, label) in zip(axes.flat[:5], panels):
-        for idx in IDX_ORDER:                    # colour=side hue x ring lightness; marker/ls=side
-            p = POS_BY_IDX[idx]
-            key = f"{prefix}__{p['name']}"
-            if key in adf:
-                ax.plot(x, adf[key].to_numpy(), color=pos_color(idx), marker=SIDE_MARKER[p["side"]],
-                        ls=SIDE_LS[p["side"]], ms=5, alpha=0.9, label=_disp(p["name"]))
-            raw_key = f"hitall__{p['name']}"
-            if prefix == "hit" and raw_key in adf:      # ungated: thin, no marker, same colour
-                ax.plot(x, adf[raw_key].to_numpy(), color=pos_color(idx), lw=0.9, alpha=0.5,
-                        ls="-", zorder=1)
-        ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
-        _mark_stroke(ax, bx, excl, annotate=(prefix == "hit"))
-        ax.set_title(label if prefix != "hit"
-                     else "hit rate — bold+marker = ENGAGED-gated, thin = ALL trials")
-        if prefix == "hit":
-            ax.set_ylim(0, 1.05)
-            ax.legend(fontsize=7, ncol=2)
-            if bx is not None:
-                # the gate is a PRE-stroke construction; after a lesion it removes motor failures
-                ax.text(0.01, 0.02, "after the lesion the gate drops motor failures — read the "
-                                    "THIN lines", transform=ax.transAxes, fontsize=6.5,
-                        color="firebrick", style="italic")
-    # session-level panel: hit rate, close/far, engagement fraction over sessions
-    ax = axes.flat[5]
-    ax.plot(x, adf["hit_rate"], "-o", color="k", label="hit rate (engaged)")
-    ax.plot(x, adf["close"], "-o", color=_ring_agg_color("close"), alpha=0.8, label="close")
-    ax.plot(x, adf["far"], "-o", color=_ring_agg_color("far"), alpha=0.8, label="far")
-    if "n_disengaged" in adf and "n_engaged" in adf:
-        frac = adf["n_engaged"] / (adf["n_engaged"] + adf["n_disengaged"]).replace(0, np.nan)
-        ax.plot(x, frac, "--s", color="grey", alpha=0.7, label="engaged frac")
-    ax.set_xticks(x, dates, rotation=45, ha="right", fontsize=7)
-    _mark_stroke(ax, bx, excl, annotate=True)
-    ax.set_ylim(0, 1.05)
-    ax.set_title("session-level")
-    ax.legend(fontsize=7)
+        _draw_pos_metric_panel(ax, adf, x, dates, prefix, label, bx, excl)
+    _draw_session_panel(axes.flat[5], adf, x, dates, bx, excl)
     fig.suptitle(f"{animal} — behavior across {len(adf)} sessions "
-                 f"(hue=side: blue=L, purple=center, red=R;  dark=close, light=far)", fontsize=13)
+                 f"({_HUE_LEGEND})", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.relative_to(out_dir)}", flush=True)
     return png
+
+
+def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
+    """Split-out, full-size cross-session figures for one animal — one file per metric, each with the
+    lesion line. These are the readable form of :func:`plot_animal_summary`'s cramped grid that the
+    behavior deck presents (one metric per slide). Returns the list of PNG paths written."""
+    adf = adf.sort_values("date").reset_index(drop=True)
+    if adf.empty:
+        return []
+    outdir = out_dir / "cohort" / "by_animal"
+    outdir.mkdir(parents=True, exist_ok=True)
+    dates = adf["date"].tolist()
+    x = np.arange(len(dates))
+    bx, excl = _stroke_boundary(animal, dates)
+    written = []
+    for prefix, _t, _c, label in POS_METRICS:
+        fig, ax = plt.subplots(figsize=(13, 6.5))
+        _draw_pos_metric_panel(ax, adf, x, dates, prefix, label, bx, excl, legend=True)
+        ax.set_xlabel("session date")
+        fig.suptitle(f"{animal} — {label} across {len(adf)} sessions  ({_HUE_LEGEND})", fontsize=13)
+        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        p = outdir / f"{animal}_{METRIC_FILE[prefix]}_across_sessions.png"
+        fig.savefig(p, dpi=130)
+        plt.close(fig)
+        written.append(p)
+    # session-level panel as its own figure
+    fig, ax = plt.subplots(figsize=(13, 6.5))
+    _draw_session_panel(ax, adf, x, dates, bx, excl)
+    ax.set_xlabel("session date")
+    fig.suptitle(f"{animal} — session-level metrics across {len(adf)} sessions", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    p = outdir / f"{animal}_session_across_sessions.png"
+    fig.savefig(p, dpi=130)
+    plt.close(fig)
+    written.append(p)
+    print(f"[spout_behavior] wrote {len(written)} per-metric figures for {animal}", flush=True)
+    return written
 
 
 # --------------------------------------------------------------------------- orchestration

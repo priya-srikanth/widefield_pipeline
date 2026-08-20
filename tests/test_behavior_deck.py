@@ -26,10 +26,11 @@ def test_places_present_figures_grouped(tmp_path):
     for d, t in (("20260817", "100000"), ("20260818", "110000")):
         _png(root / f"sessions/PS92/{d}/PS92_{d}_{t}_behavior.png")
         _png(root / f"sessions/PS92/{d}/PS92_{d}_{t}_licking.png")
-    _png(root / "cohort/by_animal/PS92_across_sessions.png")
+    for suffix, _ttl, _sub in bd.ACROSS_METRICS:      # split-out per-metric cross-session figures
+        _png(root / f"cohort/by_animal/PS92_{suffix}_across_sessions.png")
     _png(root / "cohort/cohort_behavior.png")
     summary = bd.build_behavior_deck(root, tmp_path / "d.pptx", animals=["PS92"])
-    assert summary["figures_present"] == 6           # 2 behavior + 2 licking + across + cohort
+    assert summary["figures_present"] == 11          # 2 behavior + 2 licking + 6 per-metric + cohort
     assert summary["figures_missing"] == 0
 
 
