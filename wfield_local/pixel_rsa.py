@@ -129,6 +129,77 @@ def basis_distortion(G) -> dict:
             "relative_frobenius": float(np.linalg.norm(G - np.eye(k)) / np.sqrt(k))}
 
 
+def mirror_operators(session, mask=None):
+    """``(G, M, Gf, s, sf, n)`` -- everything needed for CENTRED pixel-space correlations, k x k.
+
+    The Allen mirror test swaps each area's ``_left`` value with its ``_right``. Pixel space has no
+    areas, so the equivalent is a genuine left-right image flip about the frame midline. Written out,
+    the quantities a Pearson correlation between map ``U a`` and flipped map ``flip(U) b`` needs are
+
+        G  = sum_P U[p]^T U[p]              (norm of the unflipped map)
+        Gf = sum_P U[f(p)]^T U[f(p)]        (norm of the flipped map)
+        M  = sum_P U[p]^T U[f(p)]           (their inner product)
+        s  = sum_P U[p],  sf = sum_P U[f(p)],  n = |P|      (for centring)
+
+    P IS SYMMETRISED: a pixel counts only if its mirror is also in the brain, so that a pixel whose
+    mirror lands on background cannot contribute a background value to one side of the comparison.
+    On PS94_0812 that drops 345 of 207,213 pixels. A consequence worth stating because I first
+    documented the opposite: since P is then closed under the flip, Gf EQUALS G and sf equals s
+    exactly (verified at 6.7e-15 and 0.0 on real data). They are computed and carried separately
+    anyway -- the identity is a property of this masking choice, not of the algebra, and a future
+    change to the masking would break it silently if the code assumed it.
+
+    all of which are k x k or k, so no pixel-sized array is ever formed. `f` is evaluated on the FULL
+    frame and then restricted to the mask, so a pixel whose mirror falls outside the brain is dropped
+    from both sides of the sum rather than silently contributing a background value.
+    """
+    ad = _atlas_dir(session)
+    if ad is None:
+        return None
+    U = np.load(f"{ad}/U_atlas.npy")
+    H, W, k = U.shape
+    if mask is None:
+        mask = brain_mask(ad)
+    finite = np.isfinite(U).all(axis=2)
+    m = finite if mask is None else (finite & mask)
+    mf = m[:, ::-1]                       # a pixel counts only if its MIRROR is also in the brain
+    both = m & mf
+    # float64: U is stored float32, and summing ~200k pixels in float32 leaves ~3e-8 of drift
+    # against a direct pixel computation. Cheap to remove at k x k, and it makes the operators
+    # exact rather than nearly exact, which is the only reason to trust them over brute force.
+    A = U[both].astype(np.float64)        # (n, k) unflipped
+    B = U[:, ::-1, :][both].astype(np.float64)   # (n, k) flipped, same pixels
+    return (A.T @ A, A.T @ B, B.T @ B, A.sum(0), B.sum(0), int(both.sum()))
+
+
+def mirror_correlation(a, b, ops) -> float:
+    """Pearson correlation between pixel maps ``U a`` and ``flip(U) b``, from the k x k operators.
+
+    Centred exactly as ``np.corrcoef`` would be on the pixel maps themselves: the mean of each map
+    over the shared mask is subtracted, which in this algebra is the ``s``/``n`` correction terms.
+    """
+    G, M, Gf, s, sf, n = ops
+    a = np.asarray(a, float)
+    b = np.asarray(b, float)
+    cov = float(a @ M @ b) - float(a @ s) * float(b @ sf) / n
+    va = float(a @ G @ a) - float(a @ s) ** 2 / n
+    vb = float(b @ Gf @ b) - float(b @ sf) ** 2 / n
+    den = np.sqrt(max(va, 0.0) * max(vb, 0.0))
+    return float(cov / den) if den > 0 else float("nan")
+
+
+def normal_correlation(a, b, ops) -> float:
+    """Pearson correlation between pixel maps ``U a`` and ``U b`` -- the unflipped comparison."""
+    G, _M, _Gf, s, _sf, n = ops
+    a = np.asarray(a, float)
+    b = np.asarray(b, float)
+    cov = float(a @ G @ b) - float(a @ s) * float(b @ s) / n
+    va = float(a @ G @ a) - float(a @ s) ** 2 / n
+    vb = float(b @ G @ b) - float(b @ s) ** 2 / n
+    den = np.sqrt(max(va, 0.0) * max(vb, 0.0))
+    return float(cov / den) if den > 0 else float("nan")
+
+
 def session_geometry(session, align="cue", post_all_trials=True):
     """Per-position pixel-space patterns and the crossnobis RDM for ONE session.
 
