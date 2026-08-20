@@ -675,10 +675,25 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         placed["present" if ok else "missing"] += 1
         return ok
 
-    def big(s, p, top=1.4, width=12.7):
-        if _exists(p):
-            w = Inches(width)
-            s.shapes.add_picture(str(p), (SW - w) / 2, Inches(top), width=w)
+    def big(s, p, top=1.4, width=12.7, bottom=0.15):
+        """Place one figure, scaled to fit the slide in BOTH dimensions.
+
+        Scaling by width alone overflows the bottom of the slide whenever a figure is taller than
+        (13.333 - margins) : (7.5 - top), which is most multi-row figures -- the picture simply ran
+        off the deck and the axis labels at the foot of it were never visible. Height is now capped
+        at the space actually available and the width follows from the image's own aspect ratio, so
+        a figure is never cropped and its fonts shrink proportionally rather than disappearing.
+        """
+        if not _exists(p):
+            return
+        from PIL import Image
+
+        with Image.open(str(p)) as im:
+            iw, ih = im.size
+        avail_h = float(SH.inches) - top - bottom
+        w_in = min(float(width), avail_h * (iw / ih))
+        w = Inches(w_in)
+        s.shapes.add_picture(str(p), (SW - w) / 2, Inches(top), width=w)
 
     def grid(s, paths, cols=2, top=1.25, side=0.25, gap=0.18, bottom=0.25):
         paths = [Path(p) for p in paths]
@@ -850,6 +865,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
     # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
     # read off it. The pooled slide above is retained.
+
+    if (src / "locanmf_encoder_ev_matrix.png").exists():
+        s = slide()
+        title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
+              "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
+              "that degrades across days is a COLUMN that changes colour, and the lesion is a rule "
+              "rather than something the reader has to hold in mind. Ridge from a one-hot position "
+              "design, scored per position with the same block GroupKFold the decoders use. ONE "
+              "colour scale across animals, so the panels are comparable.")
+        note(s, M_ENCODE)
+        big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
 
     # ---------------- C. pre-cue without licking ----------------
     divider("C. Pre-cue code without licking — the motor-confound control",
@@ -1142,21 +1168,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # confusion figures that disagree invite the reader to pick.
         for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
             for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-                _f = src / f"section_g_confusion_{_al}_{_arm}.png"
-                if not _f.exists():
-                    continue
-                s = slide()
-                title(s, f"G3. {_nice} crossed confusion, per session ({_armn} arm)",
-                      "Rows = TRUE position, one row-block per post-stroke session. On the ALL "
-                      "arm the abandoned positions are filled by no-lick trials, the only "
-                      "evidence that exists there -- PS94 has zero engaged trials at far_center "
-                      "and far_R. '(pred x.xx)' under each column is how often the decoder picks "
-                      "that position at all, which IS the recall expected under a label "
-                      "permutation, so the diagonal counts only where it clears that; '(prec)' "
-                      "is precision. Read the OFF-diagonal: a systematic pull toward one "
-                      "position is the result, not the diagonal.")
-                note(s, M_POSTSTROKE)
-                big(s, _f, top=1.85, width=9.6)
+                # ONE SLIDE PER SESSION: the stacked-rows version was 25 inches tall and ran off
+                # the bottom of the slide, so its lower sessions were never visible.
+                for _f in sorted(src.glob(f"section_g_confusion_{_al}_{_arm}_*.png")):
+                    _lab = _f.stem.split("_")[-1]
+                    s = slide()
+                    title(s, f"G3. {_nice} crossed confusion — {_lab} ({_armn} arm)",
+                          "Rows = TRUE position. PANEL 2 IS THE MATCHED CONTROL: pre-stroke NO-LICK "
+                          "trials, scored by a decoder trained on the OTHER pre-stroke sessions' "
+                          "engaged trials, so it differs from the post panel in PHASE alone rather "
+                          "than in phase and the absence of a movement together (Priya, "
+                          "2026-08-19). On the ALL arm the abandoned positions are filled by "
+                          "no-lick trials, the only evidence that exists there. '(pred)' under each "
+                          "column is how often the decoder picks that position at all, which IS the "
+                          "recall expected under a label permutation; '(prec)' is precision. Read "
+                          "the OFF-diagonal.")
+                    note(s, M_POSTSTROKE)
+                    big(s, _f, top=1.95, width=12.8)
 
         # --- G4. identity, with its control read first
         if (src / "poststroke_G4_identity.png").exists():

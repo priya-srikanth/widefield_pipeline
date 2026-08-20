@@ -113,8 +113,9 @@ def _render_family(sub, out, prefix, label):
             conf = {k: {align: v["arms"][arm]["confusion"][cond]} for k, v in sub.items()
                     if v.get("arms", {}).get(arm, {}).get("confusion", {}).get(cond)}
             if conf:
-                made.append(pp.fig_confusion_alltrials(
-                    conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png"))
+                # one figure per session now -- extend, not append
+                made += pp.fig_confusion_alltrials(
+                    conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png")
 
         made.append(pp.fig_grid(sub, out, arm=arm, name=f"{prefix}_grid_{arm}.png"))
     return made

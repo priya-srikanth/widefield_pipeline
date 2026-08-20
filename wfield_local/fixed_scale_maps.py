@@ -117,27 +117,41 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
     # ONE colour limit for every panel -- the entire point of the figure
     allv = np.concatenate([np.asarray(m[p]).ravel() for _t, m, _c in cols for p in POS if p in m])
     lim = float(np.nanpercentile(np.abs(allv), 99.5))
-    fig, axes = plt.subplots(len(POS), len(cols), figsize=(3.5 * len(cols), 2.9 * len(POS)),
+    # SESSIONS AS ROWS, POSITIONS AS COLUMNS. The transpose of this was 6 rows x 2-3 columns, i.e.
+    # 17-32 inches tall against 7-10 wide. Placed on a 13.3 x 7.5 in slide at full width it ran far
+    # off the bottom and the lower positions were never visible at all; scaled to fit, it was
+    # unreadable. This orientation is also the one every other figure in the deck uses, so positions
+    # line up across slides.
+    fig, axes = plt.subplots(len(cols), len(POS), figsize=(2.7 * len(POS), 2.5 * len(cols)),
                              squeeze=False)
-    for r, p in enumerate(POS):
-        for k, (tit, m, cnt) in enumerate(cols):
+    for r, (tit, m, cnt) in enumerate(cols):
+        for k, p_ in enumerate(POS):
             ax = axes[r][k]
             ax.set_axis_off()
-            if p not in m:
-                ax.text(0.5, 0.5, "not attempted", ha="center", va="center", fontsize=9,
-                        color="firebrick", transform=ax.transAxes)
-                if r == 0:
-                    ax.set_title(tit, fontsize=9)
-                continue
-            im = ax.imshow(m[p], cmap="RdBu_r", vmin=-lim, vmax=lim)
-            peak = float(np.nanmax(np.abs(m[p])))
-            ax.text(0.02, 0.02, f"peak {peak:.3f}", transform=ax.transAxes, fontsize=7,
-                    color="k", bbox=dict(fc="white", alpha=0.6, lw=0))
             if r == 0:
-                ax.set_title(tit + (f"\n(n={cnt[p]})" if cnt else ""), fontsize=9)
+                ax.set_title(p_, fontsize=9)
             if k == 0:
-                ax.text(-0.06, 0.5, p, transform=ax.transAxes, rotation=90, va="center",
-                        ha="center", fontsize=9)
+                ax.text(-0.07, 0.5, tit, transform=ax.transAxes, rotation=90, va="center",
+                        ha="center", fontsize=8)
+            if p_ not in m:
+                ax.text(0.5, 0.5, "not attempted", ha="center", va="center", fontsize=8,
+                        color="firebrick", transform=ax.transAxes)
+                continue
+            im = ax.imshow(m[p_], cmap="RdBu_r", vmin=-lim, vmax=lim)
+            peak = float(np.nanmax(np.abs(m[p_])))
+            # n ON EVERY PANEL (Priya, 2026-08-19). PS95 far_center on 8/17 is a mean over TEN
+            # trials sitting beside panels averaging 110+, and on a common colour scale an
+            # undersampled mean shows as saturated blobs that read as a large effect. Red when the
+            # count is within 3x of the inclusion floor, so the reader sees it without doing sums.
+            lab = f"peak {peak:.3f}"
+            low = False
+            if cnt:
+                lab += f"  n={cnt[p_]}"
+                low = cnt[p_] < 3 * MIN_TRIALS
+            ax.text(0.02, 0.02, lab, transform=ax.transAxes, fontsize=6.5,
+                    color=("firebrick" if low else "k"),
+                    fontweight=("bold" if low else "normal"),
+                    bbox=dict(fc="white", alpha=0.65, lw=0))
     fig.colorbar(im, ax=axes, fraction=0.02, pad=0.01)
     fig.suptitle(
         f"{animal} - {align}-aligned activity maps on ONE COMMON COLOUR SCALE (+-{lim:.3f}).\n"
@@ -145,7 +159,9 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
         "same colour range and an amplitude difference is invisible -- only the colourbar NUMBER "
         "changes. Here all panels share one limit, so a 2-3x larger response looks 2-3x more "
         "saturated. Baseline F is unchanged post-stroke (ratio ~1.0), so this is a numerator effect, "
-        "not a dF/F denominator artefact.", fontsize=9, wrap=True)
+        "not a dF/F denominator artefact. n IS ON EVERY PANEL, in RED where it is under 3x "
+        "the inclusion floor -- a mean over ten trials beside means over a hundred looks "
+        "like a large effect and is mostly noise.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = Path(out_dir) / f"fixed_scale_maps_{animal}_{align}.png"
     fig.savefig(q, dpi=140)

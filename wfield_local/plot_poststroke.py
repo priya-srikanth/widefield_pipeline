@@ -394,8 +394,13 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
     # post-stroke no-lick trials against a pre-stroke ENGAGED panel confounds the lesion with the
     # absence of a movement, because the post rows have no lick and the pre rows do.
     PANELS = (("pre", "row"), ("pre_nolick", "row"), ("post", "row"), ("post", "col"))
-    fig, axes = plt.subplots(len(ans), 4, figsize=(19.0, 5.0 * len(ans)), squeeze=False)
-    for r, an in enumerate(ans):
+    # ONE FIGURE PER SESSION. Stacking every session as a row made this 25 inches tall for a
+    # 7.5 inch slide: placed at full width it ran off the bottom and the axis labels were never
+    # visible, and scaled to fit it was illegible. Four panels across is close to slide aspect.
+    made = []
+    for an in ans:
+        fig, axes = plt.subplots(1, 4, figsize=(19.0, 5.4), squeeze=False)
+        r = 0
         if align not in conf[an]:
             continue
         for c, (phase, norm) in enumerate(PANELS):
@@ -448,22 +453,28 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
             ax.set_xlabel("predicted")
             ax.set_ylabel("true")
             fig.colorbar(im, ax=ax, fraction=0.046)
-    fig.suptitle(
-        f"Crossed confusion, {align}-aligned, POST arm = ALL trials (engaged + no detected lick). "
-        "Rows the lesion abolished are filled by no-lick trials, the only trials that exist there. "
-        "BOTH NORMALISATIONS for the post-stroke panel: ROW = P(pred | true) = RECALL, the question "
-        "the hypothesis asks; COLUMN = P(true | pred) = PRECISION, which exposes what row "
-        "normalisation structurally hides — a decoder that predicts one position everywhere earns a "
-        "high recall there without carrying information. Under each column: '(pred)' = how often that "
-        "position is predicted at all, which IS the recall expected under a label permutation, and "
-        "'(prec)' = precision. GREEN BOX = recall exceeds its own column's prediction rate. Read the "
-        "OFF-diagonal: a systematic pull toward one position is the result, not the diagonal.",
-        fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.91))
-    q = Path(out) / (name or f"poststroke_G3b_confusion_alltrials_{align}.png")
-    fig.savefig(q, dpi=150)
-    plt.close(fig)
-    return q
+        fig.suptitle(
+            f"{an} — crossed confusion, {align}-aligned, POST arm = ALL trials "
+            "(engaged + no detected lick). Rows the lesion abolished are filled by no-lick "
+            "trials, the only trials that exist there. PANEL 2 IS THE MATCHED CONTROL: "
+            "pre-stroke NO-LICK trials scored by a decoder trained on the OTHER pre-stroke "
+            "sessions' engaged trials, so it differs from the post panel in PHASE alone rather "
+            "than in phase and the absence of a movement together. BOTH NORMALISATIONS for the "
+            "post panel: ROW = P(pred|true) = RECALL, the question the hypothesis asks; COLUMN = "
+            "P(true|pred) = PRECISION, which exposes what row normalisation structurally hides "
+            "— a decoder predicting one position everywhere earns high recall there without "
+            "carrying information. '(pred)' under each column is how often that position is "
+            "predicted at all, which IS the recall expected under a label permutation; '(prec)' "
+            "is precision. GREEN BOX = recall beats its own column's prediction rate. Read the "
+            "OFF-diagonal: a systematic pull toward one position is the result, not the "
+            "diagonal.", fontsize=8, wrap=True)
+        fig.tight_layout(rect=(0, 0, 1, 0.88))
+        stem = (name or f"poststroke_G3b_confusion_alltrials_{align}.png")[:-4]
+        q = Path(out) / f"{stem}_{an}.png"
+        fig.savefig(q, dpi=150)
+        plt.close(fig)
+        made.append(q)
+    return made
 
 
 def fig_fits_engaged(fits, out, align="precue", name=None):
