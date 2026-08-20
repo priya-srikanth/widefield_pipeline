@@ -2105,3 +2105,43 @@ skips both.
 **The general rule this came from:** when a guard is needed, put it where the damage happens and let
 the operation stay usable. A prohibition in prose protects only the reader who finds it, and pushes
 everyone else onto a less-tested path.
+
+## THE ALLEN-ALIGNED SVD BASIS IS NOT ORTHONORMAL — coefficient-space RDMs use the wrong metric (2026-08-19)
+
+Priya asked for RSA on the SVD maps themselves. The shortcut is to take distances between per-position
+SVT **coefficient** vectors and call it pixel space, since the map is `U @ svt` and `U` is a fixed
+linear map. That is only valid if `U`'s columns are orthonormal. After Allen registration they are
+not — the affine warp resamples the spatial components, and resampling does not preserve
+orthogonality.
+
+Measured over **all 52 sessions** (`pixel_rsa`, `G = UᵀU` over the Allen brain mask, k=100):
+
+| | range across sessions |
+|---|---|
+| `‖G − I‖_F / √k` | **0.217 – 0.290** |
+| diagonal of `G` | as low as **0.408** (PS94_0814); typical 0.70–1.31 |
+| max off-diagonal | up to **0.43** (PS95_0814) |
+
+On a random coefficient pair the naive distance is **off by 14.6%**. This is not a quirk of one
+session: every session is 20–30% away from the metric that coefficient-space distance assumes.
+
+### The fix, and why it costs nothing
+
+The exact pixel-space squared distance is `d²(a,b) = (a−b)ᵀ G (a−b)`. Taking the Cholesky factor
+`G = LᵀL` and transforming `z = L a` makes ordinary Euclidean distance in `z` **exactly** pixel
+distance — verified to **2.8e-16** — so every existing crossnobis/RDM routine can be reused unchanged.
+`G` is only k×k, so no pixel maps are ever held in memory.
+
+The mask is load-bearing: `G` computed over the whole frame is dominated by background pixels, which
+carry registration edge artefacts and no signal.
+
+### What this does and does not invalidate
+
+It does **not** touch any result computed on **Allen ROIs or LocaNMF components** — those are
+averages over anatomically defined sets, not SVD coefficients, and their geometry is whatever those
+features are. Every RDM currently in the deck is of that kind.
+
+It **does** mean that a coefficient-space RDM — the obvious way to "do RSA on the maps" — would have
+been measuring the basis as much as the brain, and that the pixel-space version is the one worth
+running. Whether the convergence and midline results survive in pixel space is the open question this
+was built to answer.
