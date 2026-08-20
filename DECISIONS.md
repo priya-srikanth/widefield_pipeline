@@ -2145,3 +2145,61 @@ It **does** mean that a coefficient-space RDM — the obvious way to "do RSA on 
 been measuring the basis as much as the brain, and that the pixel-space version is the one worth
 running. Whether the convergence and midline results survive in pixel space is the open question this
 was built to answer.
+
+## WHICH BASIS FOR WHICH QUESTION — within-day vs cross-day (Priya, 2026-08-19/20)
+
+Priya, on being shown the pixel-space mirror result: *"maybe pixel basis is not the right thing to
+use, as pixels shift day to day."* That is correct, it is a better diagnosis than the one I gave, and
+it splits the geometry analyses cleanly in two.
+
+### The measurement
+
+Pixel-space correlations, PS94, `close_center`:
+
+| comparison | r |
+|---|---|
+| same position, 8/12 vs 8/13 | +0.666 |
+| same position, 8/12 vs 8/14 | **+0.189** |
+| same position, 8/13 vs 8/14 | +0.443 |
+| **different** positions, within 8/12 | median **+0.704** |
+| **different** positions, within 8/13 | median **+0.684** |
+
+**In pixel space, two different spout positions on the same day resemble each other more than the
+same position does across days.** Day-to-day variation — registration residual, hemodynamics, LED
+setting, brain state — dominates position identity.
+
+### The consequence
+
+- **WITHIN-DAY questions are safe in pixel space.** Crossnobis convergence is computed inside a
+  single session (between-position distances, cross-validated over that session's blocks). A
+  day-to-day shift moves all six positions together and largely cancels. This is why pixel and ROI
+  agreed on **12 of 12** convergence verdicts with a worst z gap of 0.8.
+- **CROSS-DAY questions are not.** The mirror test correlates a post-stroke pattern against the MEAN
+  OF OTHER SESSIONS' patterns. In pixel space that comparison is dominated by the day term, and no
+  threshold repairs it. **The pixel mirror verdicts are withdrawn.** The ROI mirror null stands.
+
+ROI averaging is therefore not merely "smoothing that inflates correlation" — for a cross-day
+comparison it buys robustness to exactly this spatial wobble. That is a reason to use it, not a
+defect.
+
+### The threshold problem was real but secondary
+
+`MIN_RESEMBLANCE = 0.20` was calibrated on ROI correlations (median post-vs-pre +0.830) and carried
+unchanged into pixel space (median +0.219), where it flagged 46% of positions "pattern lost" against
+25% in ROI. `_flag_mirror` now takes the floor as an argument and records which floor produced each
+verdict. But the deeper point is that a correctly-calibrated floor would still not make a cross-day
+pixel correlation measure what the mirror test needs.
+
+### What each basis is for
+
+| | retains of the pixel map | cross-session basis | use for |
+|---|---|---|---|
+| Allen ROI | 64.5% (92% lost in MOp_right) | fixed anatomy | cross-day pattern correlation |
+| per-session LocaNMF | 98.6% | **no** — refit each day | within-session only |
+| joint LocaNMF | ~98% | yes, fitted once | the right vehicle for cross-day, untested |
+| pixel (Gram-corrected) | 100% by construction | no | within-day geometry |
+
+The Allen-transformation correction (`pixel_rsa`, `G = UᵀU`) is a separate matter and still holds:
+warping U onto the Allen grid leaves its columns neither unit-length nor orthogonal (‖G−I‖_F/√k =
+0.217–0.290 across 52 sessions), so coefficient distance is not map distance. That is true regardless
+of which basis is chosen for which question.
