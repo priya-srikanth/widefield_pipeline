@@ -2203,3 +2203,38 @@ The Allen-transformation correction (`pixel_rsa`, `G = UᵀU`) is a separate mat
 warping U onto the Allen grid leaves its columns neither unit-length nor orthogonal (‖G−I‖_F/√k =
 0.217–0.290 across 52 sessions), so coefficient distance is not map distance. That is true regardless
 of which basis is chosen for which question.
+
+## THE MIDLINE NULL REPLICATES IN THE JOINT BASIS — and the floors measured something (2026-08-20)
+
+The mirror test re-run in the **joint-LocaNMF basis**: fitted once with every session projected onto
+fixed footprints, so cross-day comparison is legitimate, and retaining ~98% of the pixel map against
+Allen ROI's 64.5%. Same k×k algebra as `pixel_rsa`, different footprints.
+
+**Transfer at exactly one position** — PS94 8/18 pre-cue `far_center` — across four animals, three
+post-stroke days and two alignments. The "left hemisphere's map relocated to the right" reading
+remains unsupported in a basis where the averaging could not be hiding it.
+
+### The data-derived floor turned out to be a measurement
+
+The floor is no longer a picked constant: for each position it is **the worst that that animal's own
+PRE-stroke sessions manage against each other in the same basis**. So it reports day-to-day pattern
+reproducibility in an intact animal:
+
+| animal | post-cue (mean / worst) | pre-cue (mean / worst) |
+|---|---|---|
+| PS92 | 0.96 / 0.89 | **0.69 / 0.19** |
+| PS93 | 0.94 / 0.86 | **0.82 / 0.23** |
+| PS94 | 0.88 / 0.72 | **0.84 / 0.41** |
+| PS95 | 0.93 / 0.82 | **0.67 / 0.07** |
+
+**Post-cue spatial patterns are highly reproducible across days (0.88–0.96). Pre-cue patterns are
+not** — PS95's worst pre-stroke pairing is r = 0.07.
+
+Consequence, and it is a live caution rather than a footnote: any **cross-day pre-cue PATTERN
+comparison** rests on a signal that is not stable across days even before a lesion. This does NOT
+touch the pre-cue decoding results or the crossnobis convergence — both are computed within a
+session — but it applies directly to pre-cue pattern similarity, and it is a candidate explanation
+for why the pre-cue results have been the hardest to pin down.
+
+PS94 remains the outlier on loss: its post-cue pattern falls below the pre-stroke floor at 5–6 of 6
+positions on all three post-stroke days.

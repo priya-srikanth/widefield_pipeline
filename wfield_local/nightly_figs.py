@@ -316,12 +316,23 @@ def main():
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
-        from wfield_local.locanmf_analysis_deck import build_analysis_deck
+        from wfield_local.locanmf_analysis_deck import DeckIncomplete, build_analysis_deck
         deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
         d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag)
         log(f"== analysis deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
             f"{d['figures_missing']} missing) ==")
+    except DeckIncomplete as ex:
+        # NOT published: the previous deck is still in place. Name every gap -- the generic handler
+        # below truncates to 80 chars, which is exactly the detail needed to fix the upstream step.
+        FAILURES.append("analysis deck (incomplete -- NOT published)")
+        log(f"  !! analysis deck NOT PUBLISHED: {len(ex.missing_figures)} figure(s) missing, "
+            f"existing deck left untouched")
+        for m in ex.missing_figures:
+            log(f"       missing: {m}")
+        log("     fix the step that owns them, or rerun the deck with "
+            f"--allow-missing {len(ex.missing_figures)} to publish anyway")
     except Exception as ex:
+        FAILURES.append("analysis deck")
         log(f"  !! analysis deck: {type(ex).__name__} {str(ex)[:80]}")
 
     # Publish the component PNGs to MICROSCOPE so the individual analysis figures persist on the server

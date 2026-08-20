@@ -632,7 +632,45 @@ def _mmdd_label(mmdd: str) -> str:
     return f"{int(mmdd[:2])}/{int(mmdd[2:])}"
 
 
-def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None) -> dict:
+class DeckIncomplete(RuntimeError):
+    """Raised by :func:`_refuse_incomplete_overwrite` when a rebuild would publish a deck that is
+    missing figures. Carries ``missing_figures`` so the caller can name them instead of truncating."""
+
+    def __init__(self, message, missing_figures):
+        super().__init__(message)
+        self.missing_figures = list(missing_figures)
+
+
+def _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing=0):
+    """Refuse to replace an EXISTING deck with a rebuild that could not find every figure.
+
+    The deck is rebuilt in place onto MICROSCOPE, so a run whose upstream steps failed quietly
+    replaces a good deck with a worse one. That happened on 2026-08-19: await_locanmf fitted LocaNMF
+    to the superseded SVTcorr and wrote it to a directory no consumer reads, so the position decoder
+    and spatial_reorganisation raised FileNotFoundError, the whole 8/19 LocaNMF column went missing,
+    and the build published itself anyway at 20 missing -- 96 MB of deck became 52 MB. Nothing
+    raised, because a deck with holes in it is a perfectly valid deck.
+
+    The missing count is only meaningful as a check because the build already excludes figures that
+    should not exist (see the G1 loop over post-stroke animals), so a non-zero count means something
+    upstream genuinely failed. ``allow_missing=N`` tolerates N of them for the deliberate case; a
+    deck that does not exist yet is always allowed, since a tree still filling up is a real case.
+    """
+    if not missing_figures or len(missing_figures) <= allow_missing:
+        return
+    if not Path(out_path).exists():
+        return
+    shown = "\n  ".join(str(m) for m in missing_figures[:20])
+    more = f"\n  ... and {len(missing_figures) - 20} more" if len(missing_figures) > 20 else ""
+    raise DeckIncomplete(
+        f"refusing to overwrite {out_path} with a deck missing {len(missing_figures)} figure(s) "
+        f"({Path(out_path).stat().st_size / 1e6:.0f} MB already there). Fix the upstream step that "
+        f"did not produce them, or pass allow_missing={len(missing_figures)} to publish anyway. "
+        f"Missing:\n  {shown}{more}",
+        missing_figures)
+
+
+def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
     src = Path(src)
     # curated_dates() is DERIVED (registered minus excluded), so a hand-run deck covers the same
@@ -648,6 +686,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     BLANK = prs.slide_layouts[6]
     SW, SH = prs.slide_width, prs.slide_height
     placed = {"present": 0, "missing": 0}
+    missing_figures = []
 
     def slide():
         return prs.slides.add_slide(BLANK)
@@ -673,6 +712,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     def _exists(p):
         ok = Path(p).exists()
         placed["present" if ok else "missing"] += 1
+        if not ok:
+            missing_figures.append(Path(p).name)   # NAME the gap: a count alone cannot be acted on
         return ok
 
     def big(s, p, top=1.4, width=12.7, bottom=0.15):
@@ -1428,10 +1469,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ])
 
     out_path = Path(out_path)
+    _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out_path))
     return {"out": str(out_path), "slides": len(prs.slides),
-            "figures_present": placed["present"], "figures_missing": placed["missing"], "tag": tag}
+            "figures_present": placed["present"], "figures_missing": placed["missing"],
+            "missing_figures": missing_figures, "tag": tag}
 
 
 def main(argv=None) -> int:
@@ -1440,11 +1483,13 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None,
                     help="output pptx (default: <labcams>/spout_position_analysis_summary.pptx)")
     ap.add_argument("--machine", default=None)
+    ap.add_argument("--allow-missing", type=int, default=0, metavar="N",
+                    help="publish even though N figures are missing (default 0: refuse)")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
     out = args.out or (Path(rv.root("labcams")) / "spout_position_analysis_summary.pptx")
-    summary = build_analysis_deck(src, out)
+    summary = build_analysis_deck(src, out, allow_missing=args.allow_missing)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0
