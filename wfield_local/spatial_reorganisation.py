@@ -471,8 +471,13 @@ def main(argv=None) -> int:
                 continue
             c = rec.get("convergence")
             if c:
-                b = c["pre_band"]
                 for lab, v in c["post"].items():
+                    # each session's OWN matched band, not the per-animal one: that key is only set
+                    # when every post session scored the SAME positions, which the lick-only arm
+                    # breaks by construction. plot() was moved to the per-session band; this summary
+                    # print was not, so the whole step died with KeyError('pre_band') on that arm --
+                    # after the all-trials arm had already rewritten its half of the figures.
+                    b = v["pre_band"]
                     print(f"  {a} CONVERGENCE {lab}: {v['mean_distance']:.4f} vs pre "
                           f"{b['mean']:.4f}[{b['min']:.4f},{b['max']:.4f}] z={v['z']:+.1f}"
                           f"{'  CONVERGED' if v['converged'] else ''}")
