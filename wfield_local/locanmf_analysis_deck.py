@@ -1338,7 +1338,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # result it exists to license. This one places the post-stroke value against reference
         # distributions built from PRE-stroke sessions, where the answer is known.
         for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
-            _ff = src / f"poststroke_G4b_fits_engaged_{_al}.png"
+            # section_g prefix: the runner stored only the PRE-CUE record until 2026-08-20,
+            # so the cue-aligned slide had no producer and sat on a scratchpad figure.
+            _ff = src / f"section_g_fits_engaged_{_al}.png"
             if not _ff.exists():
                 continue
             s = slide()
@@ -1384,53 +1386,63 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # PS92/PS93 8/17 belongs to neither phase, which is exactly what makes it the control. These
         # slides are built from an EXPLICIT label list (poststroke_compare._pooled(post_labels=...)),
         # never from phase_labels("post"), and their JSON carries excluded_from_pooled_summaries.
-        if _excluded and (src / "poststroke_G7_control_matched.png").exists():
+        if _excluded and (src / "section_g_smalllesion_matched_all.png").exists():
             s = slide()
             title(s, "G7. SMALL-LESION COMPARISON \u2014 the two animals without an overt deficit",
                   f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
                   f"this session. Same day, same anaesthesia, same handling, same frozen decoder. If "
                   f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
             note(s, M_POSTSTROKE)
-            big(s, src / "poststroke_G7_control_matched.png", top=1.75, width=12.3)
-            if (src / "poststroke_G7_control_behaviour.png").exists():
+            big(s, src / "section_g_smalllesion_matched_all.png", top=1.75, width=12.3)
+            if (src / "section_g_smalllesion_counts.png").exists():
                 s = slide()
                 title(s, "G7b. SMALL-LESION behaviour \u2014 all six positions still attempted",
                       "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
                       "behavioural collapse is specific to the animals whose lesion took, which is "
                       "what makes the decoding comparison interpretable at all.")
                 note(s, M_POSTSTROKE)
-                big(s, src / "poststroke_G7_control_behaviour.png", top=1.6, width=12.5)
+                big(s, src / "section_g_smalllesion_counts.png", top=1.6, width=12.5)
 
         # G7c: the same all-trials matrix as G3b, for the control animals. At 8 spaces, NOT 12 --
         # it was nested inside the G9 loop and rendered twice (slides 140-141 duplicated 137-138),
         # and it rebound that loop's own `_f`. Loop variable renamed so it cannot shadow again.
+        # ONE SLIDE PER SESSION, as G3 does: the runner emits per-session confusion figures, and
+        # the single stacked file this used to read is a scratchpad-era orphan nothing rewrites.
+        # The LICK alignment exists on the lick-only arm alone (a no-lick trial has no lick to
+        # align to), so the all-trials glob simply finds nothing for it.
         for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
-            _cf = src / f"poststroke_G7c_control_confusion_alltrials_{_al}.png"
-            if not _cf.exists():
-                continue
-            s = slide()
-            title(s, f"G7c. SMALL-LESION COMPARISON \u2014 {_nice} confusion, all trials",
-                  "The same all-trials matrix as G3b, for the two animals whose strokes were small enough to leave no overt deficit. "
-                  "Near-diagonal, with prediction rates of 0.09-0.21 (uniform is 0.167) \u2014 NO "
-                  "systematic pull toward any position. That is what makes PS94's far_R "
-                  "over-prediction (0.35 of all its post-stroke trials) a lesion effect rather than "
-                  "a property of the frozen decoder or of 8/17.")
-            note(s, M_POSTSTROKE)
-            big(s, _cf, top=1.85, width=9.6)
+            for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+                for _cf in sorted(src.glob(f"section_g_smalllesion_confusion_{_al}_{_arm}_*.png")):
+                    _lab = "_".join(_cf.stem.split("_")[-2:])
+                    s = slide()
+                    title(s, f"G7c. SMALL-LESION COMPARISON \u2014 {_nice} confusion, {_lab} "
+                             f"({_armn} arm)",
+                          "The same matrix as G3, for the two animals whose strokes were small "
+                          "enough to leave no overt deficit. Near-diagonal, with prediction rates "
+                          "of 0.09-0.21 (uniform is 0.167) \u2014 NO systematic pull toward any "
+                          "position. That is what makes PS94's far_R over-prediction (0.35 of all "
+                          "its post-stroke trials) a lesion effect rather than a property of the "
+                          "frozen decoder or of 8/17.")
+                    note(s, M_POSTSTROKE)
+                    big(s, _cf, top=1.85, width=9.6)
 
-        # G7d: the same fits-engaged test on the SMALL-LESION animals.
-        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
-            _sf = src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
-            if not _sf.exists():
-                continue
+        # G7d: the same fits-engaged test on the SMALL-LESION animals. ONE slide, both alignments
+        # side by side (Priya, 2026-08-20). Deliberately NOT regenerated: this comparison is
+        # permanently PS92/PS93 on 8/17 -- the only sessions where a laser did not take -- so its
+        # content cannot change and the 2026-08-18 figures stand.
+        _g7d = [src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
+                for _al in ("precue", "cue")]
+        _g7d = [q for q in _g7d if q.exists()]
+        if _g7d:
             s = slide()
-            title(s, f"G7d. SMALL-LESION COMPARISON — does the {_nice} no-lick session fit the "
-                     f"ENGAGED distribution?",
+            title(s, "G7d. SMALL-LESION COMPARISON — do the no-lick trials fit the ENGAGED "
+                     "distribution?  LEFT: PRE-cue.  RIGHT: POST-cue.",
                   "The same test as G4b for the two animals whose strokes were small. PS92 has too "
                   "few no-lick trials to test (it responded on essentially every trial), which is "
-                  "itself the point: a small lesion left the behaviour intact.")
+                  "itself the point: a small lesion left the behaviour intact. FIXED CONTENT: this "
+                  "is PS92/PS93 on 8/17 and can never gain a session.")
             note(s, M_POSTSTROKE)
-            big(s, _sf, top=1.85, width=11.0)
+            grid(s, _g7d, cols=2, top=1.9)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")

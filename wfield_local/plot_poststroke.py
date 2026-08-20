@@ -281,7 +281,7 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
     fig, axes = plt.subplots(len(CONDS), len(ans), figsize=(6.4 * len(ans), 3.3 * len(CONDS)),
                              squeeze=False, sharey=True)
     x = np.arange(len(POS))
-    ndays = max((len(d.get("posts", [])) for a in pp for d in [pp[a].get(c) or {}] for c in CONDS),
+    ndays = max((len(d.get("posts", [])) for a in pp for c in CONDS for d in [pp[a].get(c) or {}]),
                 default=1)
     daycols = plt.get_cmap("autumn")(np.linspace(0.0, 0.62, max(ndays, 2)))
     for r, cond in enumerate(CONDS):
@@ -296,7 +296,11 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
                 continue
             series = [("pre", d["pre"], "tab:blue", "pre-stroke (LOSO)")]
             for di, (lab, rec) in enumerate(d["posts"]):
-                series.append((lab, rec, daycols[di], f"day {di + 1} ({lab.split('_')[1]})"))
+                # NO date in the legend: it is drawn once for the whole figure, but day 1 is 8/17
+                # for PS94/PS95 and 8/18 for PS92/PS93 (their lesion took a day later). A dated
+                # legend would therefore be wrong for half the columns. Each panel title carries
+                # that animal's own dates.
+                series.append((lab, rec, daycols[di], f"day {di + 1}"))
             w = 0.82 / len(series)
             for j, (_key, rec, col, lbl) in enumerate(series):
                 vals = [rec.get(q, {}).get("recall", np.nan) for q in POS]
