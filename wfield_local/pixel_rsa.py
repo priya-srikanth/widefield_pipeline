@@ -129,7 +129,7 @@ def basis_distortion(G) -> dict:
             "relative_frobenius": float(np.linalg.norm(G - np.eye(k)) / np.sqrt(k))}
 
 
-def mirror_operators(session, mask=None):
+def mirror_operators(session, mask=None, footprints=None):
     """``(G, M, Gf, s, sf, n)`` -- everything needed for CENTRED pixel-space correlations, k x k.
 
     The Allen mirror test swaps each area's ``_left`` value with its ``_right``. Pixel space has no
@@ -156,7 +156,11 @@ def mirror_operators(session, mask=None):
     ad = _atlas_dir(session)
     if ad is None:
         return None
-    U = np.load(f"{ad}/U_atlas.npy")
+    # ANY (H, W, k) footprint set works, not just the SVD basis. Passing the JOINT-LocaNMF
+    # footprints gives the same mirror algebra in a basis that is SHARED across sessions, which is
+    # what a cross-day comparison needs -- pixel space is dominated by the day-to-day term
+    # (DECISIONS.md, 2026-08-20), and per-session LocaNMF has a different basis every day.
+    U = np.load(f"{ad}/U_atlas.npy") if footprints is None else np.asarray(footprints)
     H, W, k = U.shape
     if mask is None:
         mask = brain_mask(ad)
