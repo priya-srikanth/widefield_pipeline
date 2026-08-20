@@ -1212,7 +1212,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 # ONE SLIDE PER SESSION: the stacked-rows version was 25 inches tall and ran off
                 # the bottom of the slide, so its lower sessions were never visible.
                 for _f in sorted(src.glob(f"section_g_confusion_{_al}_{_arm}_*.png")):
-                    _lab = _f.stem.split("_")[-1]
+                    # ANIMAL AND DATE. `split("_")[-1]` took the DATE alone, so PS92_0818 and
+                    # PS93_0818 produced two different slides with identical titles (Priya,
+                    # 2026-08-20: "what is the difference between slide 136 and 138").
+                    _lab = "_".join(_f.stem.split("_")[-2:])
                     s = slide()
                     title(s, f"G3. {_nice} crossed confusion — {_lab} ({_armn} arm)",
                           "Rows = TRUE position. PANEL 2 IS THE MATCHED CONTROL: pre-stroke NO-LICK "

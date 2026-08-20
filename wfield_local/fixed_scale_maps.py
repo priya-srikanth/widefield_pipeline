@@ -152,7 +152,11 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
                     color=("firebrick" if low else "k"),
                     fontweight=("bold" if low else "normal"),
                     bbox=dict(fc="white", alpha=0.65, lw=0))
-    fig.colorbar(im, ax=axes, fraction=0.02, pad=0.01)
+    # DEDICATED AXES on the right. `ax=axes` shrinks every panel to make room and still let the
+    # bar overlap them once the grid is wide (Priya, 2026-08-20, slides 181-188).
+    fig.subplots_adjust(right=0.90)
+    cax = fig.add_axes([0.92, 0.15, 0.012, 0.68])
+    fig.colorbar(im, cax=cax)
     fig.suptitle(
         f"{animal} - {align}-aligned activity maps on ONE COMMON COLOUR SCALE (+-{lim:.3f}).\n"
         "The per-session maps in the preprocessing deck are auto-scaled, so every session fills the "
@@ -162,7 +166,7 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
         "not a dF/F denominator artefact. n IS ON EVERY PANEL, in RED where it is under 3x "
         "the inclusion floor -- a mean over ten trials beside means over a hundred looks "
         "like a large effect and is mostly noise.", fontsize=8.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 0.90, 0.93))
     q = Path(out_dir) / f"fixed_scale_maps_{animal}_{align}.png"
     fig.savefig(q, dpi=140)
     plt.close(fig)

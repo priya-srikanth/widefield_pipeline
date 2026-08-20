@@ -99,3 +99,37 @@ def test_a_brand_new_deck_may_have_gaps(tmp_path):
     from wfield_local.locanmf_analysis_deck import _refuse_incomplete_overwrite
 
     _refuse_incomplete_overwrite(tmp_path / "does_not_exist.pptx", ["a.png", "b.png"])
+
+
+# ------------------------------------------------------------------------------------------------
+# Two slides must never carry the same title from different data.
+#
+# The G3 confusion slides are one per session, named from the figure's filename. Taking
+# `stem.split("_")[-1]` picked up the DATE alone, so PS92_0818 and PS93_0818 produced two different
+# slides both titled "0818" -- which is what Priya hit on 2026-08-20 ("what is the difference
+# between slide 136 and 138"). The label must carry the animal too.
+# ------------------------------------------------------------------------------------------------
+
+def test_per_session_slide_labels_carry_animal_and_date():
+    import inspect
+    import re
+
+    from wfield_local import locanmf_analysis_deck as deck
+
+    src = inspect.getsource(deck)
+    m = re.search(r'_lab = (.+)', src)
+    assert m, "the per-session confusion slide must derive a label"
+    expr = m.group(1)
+    assert 'split("_")[-2:]' in expr, (
+        f"per-session slide label is {expr!r}; taking only the last token gives the DATE, so two "
+        f"animals on the same date produce identically titled slides")
+
+
+def test_two_stems_from_different_animals_give_different_labels():
+    """The property itself, not just the source text."""
+    def label(stem):
+        return "_".join(stem.split("_")[-2:])
+
+    a = label("section_g_confusion_precue_all_PS92_0818")
+    b = label("section_g_confusion_precue_all_PS93_0818")
+    assert a != b and a == "PS92_0818" and b == "PS93_0818"

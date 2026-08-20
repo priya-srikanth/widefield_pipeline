@@ -21,6 +21,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os
+
 import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GroupKFold
@@ -398,6 +400,31 @@ def _feve_heatmap(ax, M, rows, regs, fig):
     return im
 
 
+#: A FEVE figure with fewer regions than this, built from sessions that did have data, is
+#: degenerate rather than informative -- the region axis has collapsed, not the biology.
+MIN_FEVE_REGIONS = 10
+
+
+def _degenerate_feve(res, regs, out_path, verbose=True) -> bool:
+    """Is this about to replace a good figure with a collapsed one?
+
+    The pooled FEVE figure is rebuilt per-day by the nightly, so a run in which most sessions fail
+    to load overwrites a 64-region heatmap with a one-region strip -- and renders it perfectly
+    happily. Slide 21 read as "empty" for exactly that reason (Priya, 2026-08-20); on the same
+    inputs a manual run recovers 64 regions, so the collapse is a property of that RUN, not of the
+    data, and it must not be allowed to land silently.
+
+    Returns True (and says so) when the figure should not be written.
+    """
+    if len(regs) >= MIN_FEVE_REGIONS or not res:
+        return False
+    if verbose:
+        print(f"  !! FEVE region axis collapsed to {len(regs)} region(s) from {len(res)} session(s) "
+              f"-- REFUSING to overwrite {os.path.basename(str(out_path))}. Something failed to load "
+              f"in this run; re-run the encoder alone and check the per-session skips.", flush=True)
+    return True
+
+
 def fig_region_feve_pooled(res, out, floor=0.02):
     """ACROSS-SESSIONS: per region, FEVE (% of explainable/ceiling variance the encoder captures) pooled
     within each animal (SS summed over all of that animal's sessions). Heatmap animal x region; 100% = the
@@ -415,6 +442,9 @@ def fig_region_feve_pooled(res, out, floor=0.02):
     ax.set_title(f"Encoder FEVE by region — pooled per animal across ALL sessions "
                  f"(100% = encoder captures all position-explainable variance; SSp red / MO blue labels; "
                  f"regions with explainable frac >{floor}, sorted by explainable variance)", fontsize=9.5)
+    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_pooled.png"):
+        plt.close(fig)
+        return out / "locanmf_encoder_feve_by_region_pooled.png"
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_pooled.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -437,6 +467,9 @@ def fig_region_feve_sessions(res, out, floor=0.02):
         seen += len(by[a]); ax.axhline(seen - 0.5, color="k", lw=1.2)
     ax.set_title(f"Encoder FEVE by region — individual sessions (grouped by animal) "
                  f"(% of explainable variance captured; 100% = all; regions explainable frac >{floor})", fontsize=9.5)
+    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
+        plt.close(fig)
+        return out / "locanmf_encoder_feve_by_region_sessions.png"
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_sessions.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -528,15 +561,18 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
         ax.set_title(a, fontsize=10, fontweight="bold")
         if k == 0:
             ax.set_ylabel("session (MMDD)", fontsize=8)
-    fig.colorbar(im, ax=axes[0].tolist(), fraction=0.02,
-                 label="encoder held-out EV (per position)")
+    # DEDICATED AXES on the right, not `ax=axes[...]`, which steals width from the panels and lets
+    # the bar land on top of them (Priya, 2026-08-20).
+    fig.subplots_adjust(right=0.88)
+    cax = fig.add_axes([0.905, 0.18, 0.015, 0.62])
+    fig.colorbar(im, cax=cax, label="encoder held-out EV (per position)")
     fig.suptitle(
         "ENCODED VARIANCE PER SPOUT POSITION, per session. Ridge from a one-hot position design onto "
         "the feature matrix, scored per position with the same block GroupKFold the decoders use. "
         "ONE colour scale across all animals, so the panels are comparable -- which the per-session "
         "bar charts could not offer. A position that degrades across days is a COLUMN that changes "
         "colour; the red rule is the lesion.", fontsize=8.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.tight_layout(rect=(0, 0, 0.88, 0.90))
     p = out / name
     fig.savefig(p, dpi=140)
     plt.close(fig)
