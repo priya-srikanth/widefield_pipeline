@@ -140,8 +140,12 @@ def test_discover_ignores_bare_svtcorr_when_variant_configured(tmp_path, monkeyp
     """A bare wfield_local_results/SVTcorr.npy must NOT count as inputs-ready.
 
     That file is the superseded zerophase product. Treating it as ready is what made the poller fit
-    LocaNMF to the wrong data on 2026-08-19 (161 components off the bare file vs 113 off the adopted
-    meegkit_hpfit one) and write it to a directory no consumer reads.
+    LocaNMF to the wrong data on 2026-08-19 and write it to a directory no consumer reads, so every
+    downstream figure raised FileNotFoundError.
+
+    The fitted SVT path in the run's summary.json is the evidence, NOT the component count: that
+    count swings 94-196 across days for one animal on the SAME input, so it cannot distinguish the
+    two variants and must not be used as a check.
     """
     monkeypatch.setattr(aw.config, "load_sessions", lambda *a, **k: [])
     if aw.config.hemo_variant() is None:
