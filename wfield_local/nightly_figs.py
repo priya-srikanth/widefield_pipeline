@@ -60,6 +60,9 @@ def log(m):
 
 
 FAILURES: list[str] = []
+#: epoch seconds this run began -- the reference the deck uses to tell a figure it
+#: refreshed from one left over from an earlier run.
+RUN_START: float = time.time()
 
 
 def cli(*a):
@@ -316,11 +319,37 @@ def main():
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
-        from wfield_local.locanmf_analysis_deck import DeckIncomplete, build_analysis_deck
+        from wfield_local.locanmf_analysis_deck import (
+            DeckFromFailedRun,
+            DeckIncomplete,
+            build_analysis_deck,
+        )
         deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
-        d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag)
+        # FAILURES and RUN_START are what let the deck judge its own inputs: a failed step means
+        # stale panels (its outputs are last run's), and RUN_START separates figures this run
+        # refreshed from ones it did not touch. Neither is visible from the figure tree alone.
+        d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag,
+                                failed_steps=sorted(set(FAILURES)), run_start=RUN_START)
         log(f"== analysis deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
             f"{d['figures_missing']} missing) ==")
+        _stale = d.get("stale_detail") or []
+        if _stale:
+            # NOT a failure: most of the figure tree is one-off analyses that do not regenerate.
+            # Reported so an ORPHANED reference -- a slide reading a filename no step writes any
+            # more -- is visible, which no other check can see because the file is present.
+            log(f"   {len(_stale)} placed figure(s) NOT refreshed by this run "
+                f"(manifest: {d.get('manifest')}):")
+            for r in sorted(_stale, key=lambda r: -r["age_days"])[:15]:
+                log(f"       {r['age_days']:6.2f}d  {r['figure']}")
+            if len(_stale) > 15:
+                log(f"       ... and {len(_stale) - 15} more (see the manifest)")
+    except DeckFromFailedRun as ex:
+        FAILURES.append("analysis deck (run had failed steps -- NOT published)")
+        log(f"  !! analysis deck NOT PUBLISHED: {len(ex.failed_steps)} step(s) failed in this run, "
+            f"so some panels would be left over from an earlier run; existing deck left untouched")
+        for f_ in sorted(set(ex.failed_steps)):
+            log(f"       failed step: {f_}")
+        log("     fix them and rerun, or rebuild with allow_failed_steps=True to publish anyway")
     except DeckIncomplete as ex:
         # NOT published: the previous deck is still in place. Name every gap -- the generic handler
         # below truncates to 80 chars, which is exactly the detail needed to fix the upstream step.

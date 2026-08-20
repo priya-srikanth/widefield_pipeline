@@ -36,6 +36,7 @@ from whatever figures are present.
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 
 from PIL import Image
@@ -670,7 +671,82 @@ def _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing=0):
         missing_figures)
 
 
-def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0) -> dict:
+class DeckFromFailedRun(RuntimeError):
+    """Raised when a rebuild would publish a deck assembled from a run that had failing steps.
+    Carries ``failed_steps`` so the caller can name them."""
+
+    def __init__(self, message, failed_steps):
+        super().__init__(message)
+        self.failed_steps = list(failed_steps)
+
+
+def _refuse_failed_steps(out_path, failed_steps, allow_failed_steps=False):
+    """Refuse to replace an EXISTING deck when a step in the run that fed it FAILED.
+
+    The missing-figure gate cannot see this. A step that dies PART WAY leaves its earlier outputs
+    rewritten and its later ones at yesterday's values -- every file present, nothing missing, and
+    a deck that silently mixes two days. That is what happened on 2026-08-20: spatial_reorganisation
+    rewrote its all-trials arm, then the lick-only arm raised KeyError, and the deck published at
+    0 missing with the lick-only panels a day old.
+
+    The run already KNOWS which steps failed, so this needs no freshness heuristic and has no false
+    positives: a failed step means its outputs are untrustworthy by definition. Enforced rather than
+    warned because the whole point is that the resulting deck looks healthy.
+    """
+    if not failed_steps or allow_failed_steps:
+        return
+    if not Path(out_path).exists():
+        return
+    raise DeckFromFailedRun(
+        f"refusing to overwrite {out_path}: {len(failed_steps)} step(s) FAILED in the run that "
+        f"produced these figures, so some panels may be left over from an earlier run. Fix them, "
+        f"or pass allow_failed_steps=True to publish anyway. Failed: {sorted(set(failed_steps))}",
+        failed_steps)
+
+
+def _write_manifest(out_path, placed_figures, run_start=None):
+    """Record every figure the deck PLACED, with its mtime, beside the deck.
+
+    Staleness is REPORTED, not enforced, and the measurement is why. Of 1311 PNGs in the figure tree
+    on 2026-08-20 only 402 were touched by that night's run; the rest are one-off and cross-sectional
+    analyses going back to June that legitimately do not regenerate. A blanket "must be recent" rule
+    would fire on two thirds of the tree every night, and an alarm that always fires is one nobody
+    reads.
+
+    Scoped to what the deck actually PLACES it becomes informative: the manifest is the evidence for
+    which figures a run refreshed and which it did not, diffable night to night. It is how an
+    ORPHANED reference surfaces -- a slide pointing at a filename no step writes any more, invisible
+    to every other check because the file is present, just never updated (poststroke_grid.png sat at
+    its 08-19 content until 2026-08-20).
+    """
+    import json as _json
+
+    # one row per FIGURE, not per placement: a figure checked once and drawn again lands in
+    # placed_figures twice, and a manifest that lists it twice reads as two different files.
+    seen = {}
+    for n, m in sorted(placed_figures):
+        seen.setdefault(n, m)
+    rows = [{"figure": n,
+             "mtime": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(m)),
+             "age_days": round((time.time() - m) / 86400, 2),
+             "refreshed_this_run": (run_start is not None and m >= run_start)}
+            for n, m in sorted(seen.items())]
+    man = Path(out_path).with_suffix(".manifest.json")
+    try:
+        man.write_text(_json.dumps(
+            {"deck": str(out_path), "n_placed": len(rows),
+             "run_start": (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run_start))
+                           if run_start else None),
+             "figures": rows}, indent=1), encoding="utf-8")
+    except OSError as ex:
+        print(f"[analysis_deck] could not write manifest: {ex}", flush=True)
+        return None, []
+    stale = [r for r in rows if run_start is not None and not r["refreshed_this_run"]]
+    return man, stale
+
+
+def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
+                        failed_steps=(), allow_failed_steps=False, run_start=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
     src = Path(src)
     # curated_dates() is DERIVED (registered minus excluded), so a hand-run deck covers the same
@@ -687,6 +763,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     SW, SH = prs.slide_width, prs.slide_height
     placed = {"present": 0, "missing": 0}
     missing_figures = []
+    placed_figures = []
 
     def slide():
         return prs.slides.add_slide(BLANK)
@@ -714,6 +791,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         placed["present" if ok else "missing"] += 1
         if not ok:
             missing_figures.append(Path(p).name)   # NAME the gap: a count alone cannot be acted on
+        else:
+            placed_figures.append((Path(p).name, Path(p).stat().st_mtime))
         return ok
 
     def big(s, p, top=1.4, width=12.7, bottom=0.15):
@@ -1479,11 +1558,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
     out_path = Path(out_path)
     _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)
+    _refuse_failed_steps(out_path, failed_steps, allow_failed_steps)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out_path))
+    manifest, stale = _write_manifest(out_path, placed_figures, run_start)
     return {"out": str(out_path), "slides": len(prs.slides),
             "figures_present": placed["present"], "figures_missing": placed["missing"],
-            "missing_figures": missing_figures, "tag": tag}
+            "missing_figures": missing_figures, "tag": tag,
+            "manifest": (str(manifest) if manifest else None),
+            "stale_figures": [r["figure"] for r in stale],
+            "stale_detail": stale}
 
 
 def main(argv=None) -> int:
@@ -1494,11 +1578,15 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None)
     ap.add_argument("--allow-missing", type=int, default=0, metavar="N",
                     help="publish even though N figures are missing (default 0: refuse)")
+    ap.add_argument("--run-start", type=float, default=None, metavar="EPOCH",
+                    help="epoch seconds this run began; placed figures older than it are "
+                         "reported as not-refreshed in the manifest")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
     out = args.out or (Path(rv.root("labcams")) / "spout_position_analysis_summary.pptx")
-    summary = build_analysis_deck(src, out, allow_missing=args.allow_missing)
+    summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
+                                  run_start=args.run_start)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0
