@@ -1186,11 +1186,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, src / "poststroke_G2b_per_position.png", top=1.6, width=12.0)
 
         # --- G2c. recoding vs loss: the test that reframes G2
-        _rf = src / "poststroke_grid.png"
+        # Reads the WITHCONTROL grid (post + excluded rendered TOGETHER). section_g_grid_all.png
+        # holds only the 10 post sessions and section_g_smalllesion_grid_* only the 2 excluded ones,
+        # so neither carries the grey-square before/after pairing this slide argues from. Until
+        # 2026-08-20 this read poststroke_grid.png, a scratchpad-era file that no step rewrote after
+        # the section-G consolidation -- so the headline four-animal slide silently kept its
+        # 8/19 10:17 content and never showed 8/19 itself (Priya, 2026-08-20).
+        _rf = src / "section_g_grid_withcontrol_all.png"
         if _rf.exists():
             s = slide()
-            title(s, "G2c. Day 1 after an effective lesion: the PLAN survives, EXECUTION does not "
-                     "\u2014 in all four animals",
+            title(s, "G2c. After an effective lesion: the PLAN survives, EXECUTION does not "
+                     "\u2014 in all four animals, every post-stroke day",
                   "Pre-cue and post-cue are two windows on the SAME trials, so every session-level "
                   "confound acts on both equally and cannot produce a difference between them. GREY "
                   "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "

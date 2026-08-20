@@ -153,10 +153,24 @@ def _render_readouts(sub, out, prefix):
 def render(rec, out):
     made = []
     post = _sessions(rec, "post")
+    excluded = _sessions(rec, "excluded")
     made += _render_family(post, out, "section_g", "POST-STROKE")
     made += _render_readouts(post, out, "section_g")
-    made += _render_family(_sessions(rec, "excluded"), out, "section_g_smalllesion",
+    made += _render_family(excluded, out, "section_g_smalllesion",
                            "SMALL-LESION COMPARISON (the laser did not take)")
+
+    # G2c: the grid over BOTH families together. fig_grid colours on phase_tag == "excluded"
+    # precisely so PS92/PS93's ineffective-lesion 8/17 sits as a grey square beside their effective
+    # day 1 -- a within-animal before/after control, same rig, one day apart. Rendering the families
+    # separately drops that pairing: section_g_grid_* holds only the 10 post sessions and
+    # section_g_smalllesion_grid_* only the 2 excluded ones, so NEITHER is the figure the G2c slide
+    # describes. Until 2026-08-20 the deck used a scratchpad-era poststroke_grid.png that no step
+    # rewrote, so the headline four-animal slide silently stayed at its 8/19 10:17 content.
+    both = {**post, **excluded}
+    if both:
+        for arm, _ in ARMS:
+            made.append(pp.fig_grid(both, out, arm=arm,
+                                    name=f"section_g_grid_withcontrol_{arm}.png"))
     return [m for m in made if m]
 
 

@@ -169,32 +169,57 @@ def fig_identity(ident, out):
 
 
 def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None):
-    """G5: per-position pattern correlation between phases — same code or different code?"""
-    ans = sorted(sim)
-    fig, ax = plt.subplots(figsize=(3.0 * len(ans) + 4.4, 4.2))
+    """G5: per-position pattern correlation between phases - same code or different code?
+
+    ONE PANEL PER ANIMAL, sessions as the series within it, so each animal's TRAJECTORY across
+    post-stroke days is readable. It was a single axes with one bar per session, which at 4 animals
+    x 3 days is 10 series x 6 positions = 60 bars competing for one legend: the per-animal
+    time course -- the thing the figure is for -- could not be read out of it (Priya, 2026-08-20).
+
+    Sessions are ordered in time within each animal and coloured by their position in that order,
+    so the same colour means the same day across panels.
+    """
+    by_animal = {}
+    for lab in sorted(sim):
+        by_animal.setdefault(lab.split("_")[0], []).append(lab)
+    animals = sorted(by_animal)
+    if not animals:
+        return None
+
+    # colour by timepoint INDEX, not by date string: animals do not all start on the same day
+    # (PS94/PS95 were lesioned 8/16, PS92/PS93 effectively 8/17), so "day 1" is what lines up.
+    ncols = max(len(v) for v in by_animal.values())
+    colours = plt.get_cmap("viridis")(np.linspace(0.15, 0.85, max(ncols, 2)))
+
+    fig, axes = plt.subplots(1, len(animals), figsize=(3.6 * len(animals) + 1.6, 4.4),
+                             squeeze=False, sharey=True)
     x = np.arange(len(POS))
-    w = 0.8 / max(len(ans), 1)
-    for k, an in enumerate(ans):
-        vals = [sim[an].get(p, {}).get("r", np.nan) for p in POS]
-        ax.bar(x + (k - (len(ans) - 1) / 2) * w, vals, w, label=an, edgecolor="k", linewidth=0.4)
-    ax.axhline(0, color="k", lw=1)
-    # An empty column reads as r = 0, i.e. "no similarity", when it means "the animal stopped
-    # attempting this position so there is no post-stroke pattern to correlate against".
-    for xi, q in zip(x, POS):
-        if all(sim[a].get(q, {}).get("r") is None or q not in sim[a] for a in ans):
-            ax.text(xi, 0.04, "not attempted", ha="center", va="bottom", fontsize=7,
-                    rotation=90, color="firebrick", style="italic")
-    ax.set_xticks(x)
-    ax.set_xticklabels(POS, rotation=30, ha="right", fontsize=8)
-    ax.set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
-    ax.set_ylim(-0.6, 1.0)
-    ax.legend(fontsize=8)
-    ax.set_title("Is it the same code at reduced strength, or a different code?\n"
-                 "Per-position correlation of the mean activity pattern; decoding accuracy alone "
-                 "cannot separate those.", fontsize=9)
+    for k, an in enumerate(animals):
+        ax = axes[0][k]
+        labs = by_animal[an]
+        w = 0.8 / max(len(labs), 1)
+        for si, lab in enumerate(labs):
+            vals = [sim[lab].get(p, {}).get("r", np.nan) for p in POS]
+            ax.bar(x + (si - (len(labs) - 1) / 2) * w, vals, w,
+                   label=f"day {si + 1} ({lab.split('_')[1]})", color=colours[si],
+                   edgecolor="k", linewidth=0.4)
+        ax.axhline(0, color="k", lw=1)
+        # An empty column reads as r = 0, i.e. "no similarity", when it means "the animal stopped
+        # attempting this position so there is no post-stroke pattern to correlate against".
+        for xi, q in zip(x, POS):
+            if all(sim[lab].get(q, {}).get("r") is None or q not in sim[lab] for lab in labs):
+                ax.text(xi, 0.04, "not attempted", ha="center", va="bottom", fontsize=6.5,
+                        rotation=90, color="firebrick", style="italic")
+        ax.set_xticks(x)
+        ax.set_xticklabels(POS, rotation=30, ha="right", fontsize=7.5)
+        ax.set_title(an, fontsize=10, fontweight="bold")
+        ax.legend(fontsize=6.5, loc="lower left", framealpha=0.85)
+        ax.set_ylim(-0.6, 1.0)
+    axes[0][0].set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
     fig.suptitle(suptitle or "Per-position correlation between the pre- and post-stroke mean "
-                 "activity patterns.", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+                 "activity patterns, one panel per animal, one series per post-stroke day.",
+                 fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
     fig.savefig(p, dpi=150)
     plt.close(fig)
