@@ -491,6 +491,32 @@ M_RECODING = (
     "DECISIONS.md). The dissociation is between two WINDOWS, which is solid; naming the earlier one a "
     "plan is an interpretation.")
 
+M_CODING_DIR = (
+    "PER-POSITION CODING DIRECTIONS. For each spout position P a logistic direction is fitted on "
+    "PRE-STROKE trials WITH A SUCCESSFUL LICK -- P against the other five positions -- so it is "
+    "'the pattern that precedes or accompanies a successful lick to P', defined entirely where "
+    "behaviour is intact. Every class is then projected onto it and compared ONLY WITHIN that "
+    "position.\n\nWHY PER POSITION. A single position-blind axis measures the spout, not the "
+    "state: MISS-WHILE-WORKING is 34-44% far_R while STOPPED is near-uniform (total variation "
+    "0.31-0.65 between them), and this activity carries position. An earlier position-blind version "
+    "produced an apparent PS95 effect that was entirely that imbalance.\n\nWHAT THE WINDOWS CAN "
+    "SAY. ENL has little dynamic range here -- every class falls between 0.21 and 0.56, consistent "
+    "with pre-cue decoding being ~0.3 against ~0.7 post-cue. The cue and lick windows CONTAIN the "
+    "movement (median first-lick latency 0.137-0.255 s pre-stroke, minimum 0.109 s, so no "
+    "movement-free window exists), which is why a no-lick class sitting low in those two windows "
+    "says nothing about whether a plan formed. The pre-stroke-lick vs post-stroke-lick contrast IS "
+    "like-for-like, because both contain a lick.\n\nTHE RESULT THAT REPLICATED. In the lick "
+    "window the pre-stroke position code is near-identical across animals (0.807-0.874) and "
+    "post-stroke it degrades in proportion to the behavioural deficit: PS92 0.776, PS95 0.752, "
+    "PS93 0.545, PS94 0.380. That is NOT the basis failing to describe post-stroke cortex -- "
+    "variance captured is 0.98-0.995 for every post-stroke session, and PS94 is the BEST-spanned "
+    "animal while showing the largest drop, with PS92 the worst-spanned while retaining the most. "
+    "The two run opposite to what under-description would predict.\n\nWHAT DID NOT REPLICATE. "
+    "Whether the two failure modes differ: MISS-WHILE-WORKING exceeds STOPPED at 14/20 positions "
+    "in ENL and 10/20 in cue, magnitudes swinging both ways. PS94 alone was 6/6 in ENL and the "
+    "other three did not follow. Treat the two failure modes as indistinguishable to this measure.")
+
+
 M_POSTSTROKE = (
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
     "LESION DATES (configs/animals.yaml stroke_date). PS94/PS95: 2026-08-16 at 3 mW, deficit -> "
@@ -1443,6 +1469,37 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "is PS92/PS93 on 8/17 and can never gain a session.")
             note(s, M_POSTSTROKE)
             grid(s, _g7d, cols=2, top=1.9)
+
+        # --- G9. PER-POSITION CODING DIRECTIONS (Priya, 2026-08-20/21)
+        # Each spout position gets a direction fitted on PRE-STROKE trials with a SUCCESSFUL LICK,
+        # that position against the others, and every class is projected onto it WITHIN that
+        # position. Fitting per position is what makes the comparison legitimate rather than
+        # decorative: the two post-stroke failure modes differ enormously in which positions they
+        # occur at -- MISS-WHILE-WORKING is 34-44% far_R, STOPPED is near-uniform, total variation
+        # 0.31-0.65 -- and this activity CARRIES position, so any position-blind axis compares the
+        # spout rather than the state.
+        for _al, _disp in (("precue", "ENL"), ("cue", "cue"), ("lick", "lick")):
+            _cd = src / f"coding_direction_{_disp}.png"
+            if not _cd.exists():
+                continue
+            s = slide()
+            _extra = ("" if _al == "lick" else
+                      " Both no-lick classes are shown: MISS WHILE WORKING (position-specific "
+                      "failure, still working the task) and STOPPED (quit for the day, licks "
+                      "nowhere).")
+            _lickonly = ("" if _al != "lick" else
+                         " ONLY the classes that HAVE licks appear: a no-lick trial has no lick to "
+                         "align to, so it is excluded rather than plotted against a different "
+                         "alignment.")
+            title(s, f"G9. {_disp} window \u2014 each position's pre-stroke successful-lick coding "
+                     f"direction, per position",
+                  "Positions run MOST IMPAIRED first (far_R > far_center > far_L > close_R > "
+                  "close_center > close_L). Every class is compared ONLY WITHIN a position, so the "
+                  "classes' different position composition cannot contribute. pre-stroke LICK is "
+                  "scored leave-one-session-out, or it would sit at its own training optimum."
+                  + _extra + _lickonly)
+            note(s, M_CODING_DIR)
+            big(s, _cd, top=1.95, width=12.6)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")

@@ -316,6 +316,11 @@ def main():
         cli("wfield_local.vessel_contrast", "--output", out)
         cli("wfield_local.hemispheric_dynamics", "--output", out)
         cli("wfield_local.hemispheric_intensity", "--output", out)
+        # Per-position coding directions (deck section G9). Wired in BEFORE the deck slide
+        # was added, deliberately: a slide reading a figure no nightly step regenerates is
+        # frozen at the day it was made, which is what section G spent 2026-08-20 undoing.
+        # ~30-40 min: pool_sessions rebuilds trial features per (animal, window).
+        cli("wfield_local.position_coding_directions", "--output", out)
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     try:
