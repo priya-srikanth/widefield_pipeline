@@ -112,6 +112,13 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
     return out
 
 
+def _blank_frame(f, i: int, single: int) -> bool:
+    """Is frame ``i`` all zeros? ``count(0)`` so the scan happens in C, not a Python loop."""
+    f.seek(i * single)
+    b = f.read(single)
+    return len(b) == single and b.count(0) == single
+
+
 def raw_integrity(dat_path, dims: str, settle_s: float = 4.0) -> dict:
     """Is this raw ``.dat`` whole, and has it stopped growing?
 
@@ -123,8 +130,22 @@ def raw_integrity(dat_path, dims: str, settle_s: float = 4.0) -> dict:
     past a frame boundary. Both mistakes point the same way: measure against the right block, and
     make sure the thing has stopped moving before judging it.
 
-    HARD failure: the size is not a whole number of single frames. That cannot happen to a complete
-    file, so refusing costs nothing and saves a multi-hour run on a partial upload.
+    HARD failure: the size is not a whole number of single frames, OR the last frame is all zeros.
+    Neither can happen to a complete file, so refusing costs nothing and saves a multi-hour run on a
+    partial upload.
+
+    WHY THE LAST FRAME IS CHECKED AT ALL. The size test alone is not enough, and on 2026-08-20 it
+    was not: PS92 and PS95 arrived with byte counts that divided exactly, matched their camlogs to
+    the frame, and had stopped growing hours earlier -- and were 53% and 93% unwritten zeros. The
+    transfer preallocates the destination to its full size, so a copy that dies leaves a file whose
+    every measurable property says "whole". Both preprocessed to completion and produced maps whose
+    brightness was simply scaled by the fraction that made it (PS92 frames_average mean 6295 against
+    ~17000; PS95 994), which no downstream step flagged.
+
+    An all-zero frame is unambiguous: an sCMOS writes its dark offset on every pixel even with the
+    LED off, so 220,800 exact zeros is unwritten file, never a dark recording. The last frame is the
+    whole test -- a complete recording cannot end on one. The interior probes below only locate the
+    boundary, so the message can say how much survived.
 
     SOFT warning: the frame count disagrees with the camlog. That invariant holds on every session
     still on the share (4 of 4 -- older raw is archived off, so the evidence is thin), which is not
@@ -150,10 +171,39 @@ def raw_integrity(dat_path, dims: str, settle_s: float = 4.0) -> dict:
     out = {"bytes": n, "grew_during_check": n != n0, "frames": frames, "remainder": rem,
            "camlog_rows": rows, "pairs": frames // 2, "odd_last_pair": bool(frames % 2),
            "single_frame_bytes": single}
-    out["ok"] = (rem == 0) and not out["grew_during_check"]
-    out["reason"] = ("still uploading (grew during the check)" if out["grew_during_check"]
-                     else f"{rem} B past a frame boundary -- partial upload" if rem
-                     else "")
+    out.update(last_frame_blank=None, first_blank_frame=None, written_fraction=None,
+               interior_blank=[])
+    if frames > 0 and rem == 0 and not out["grew_during_check"]:
+        with open(p, "rb") as f:
+            out["last_frame_blank"] = _blank_frame(f, frames - 1, single)
+            if out["last_frame_blank"]:
+                lo, hi = -1, 0
+                if not _blank_frame(f, 0, single):
+                    lo, hi = 0, frames - 1
+                    while hi - lo > 1:                       # first blank frame, in ~19 seeks
+                        mid = (lo + hi) // 2
+                        if _blank_frame(f, mid, single):
+                            hi = mid
+                        else:
+                            lo = mid
+                out["first_blank_frame"] = hi
+                out["written_fraction"] = hi / frames
+            else:
+                # A whole tail does not rule out a hole. One zero frame mid-recording is odd but
+                # survivable, so this warns and does not block -- unlike a blank tail, it has never
+                # been seen and is not worth refusing a night's processing over.
+                out["interior_blank"] = [i for i in
+                                         (int(frames * fr) for fr in (0.1, 0.25, 0.5, 0.75, 0.9))
+                                         if _blank_frame(f, i, single)]
+    out["ok"] = (rem == 0) and not out["grew_during_check"] and not out["last_frame_blank"]
+    out["reason"] = (
+        "still uploading (grew during the check)" if out["grew_during_check"]
+        else f"{rem} B past a frame boundary -- partial upload" if rem
+        else (f"unwritten from frame {out['first_blank_frame']} of {frames} -- only "
+              f"{100 * (out['written_fraction'] or 0.0):.1f}% of the file was actually copied; "
+              f"the SIZE is complete, the CONTENT is not. Re-upload from the acquisition box."
+              ) if out["last_frame_blank"]
+        else "")
     return out
 
 
@@ -592,6 +642,10 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
             print(f"  !! {s['animal']} {s['sess']}: .dat has {integ['frames']} frames but the "
                   f"camlog has {integ['camlog_rows']} -- proceeding, but the frame map may be off.",
                   flush=True)
+        elif integ.get("interior_blank"):
+            print(f"  !! {s['animal']} {s['sess']}: all-zero frame(s) at "
+                  f"{integ['interior_blank']} but the tail is written -- proceeding, but look at "
+                  f"the raw before trusting this session.", flush=True)
         elif integ["odd_last_pair"]:
             print(f"     {s['animal']}: {integ['frames']} frames (odd) -- last 415/470 pair is "
                   f"incomplete, which is where the recording stopped. Normal.", flush=True)

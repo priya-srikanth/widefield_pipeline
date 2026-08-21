@@ -257,11 +257,18 @@ def test_discovery_finds_nothing_rather_than_guessing(tmp_path):
 # being written, so the size I read was a partial flush 256 B past a frame boundary.
 # ------------------------------------------------------------------------------------------------
 
-def _fake_raw(tmp_path, frames, extra=0, camlog_rows=None, h=4, w=5):
+def _fake_raw(tmp_path, frames, extra=0, camlog_rows=None, h=4, w=5, blank_from=None):
+    """A fake raw. Frames carry a NONZERO dark offset, as a real sCMOS does, because
+    all-zero is now the signature of unwritten file. ``blank_from`` zeros every frame
+    from that index on, which is what an interrupted copy into a preallocated
+    destination leaves behind."""
     d = tmp_path / "raw_widefield_data"
     d.mkdir(parents=True, exist_ok=True)
     dat = d / "pco_edge_run000_00000000_2_4_5_uint16.dat"
-    dat.write_bytes(b"\0" * (frames * h * w * 2 + extra))
+    fb = h * w * 2
+    live = b"\x64\x00" * (h * w)                 # 100 ADU on every pixel
+    cut = frames if blank_from is None else blank_from
+    dat.write_bytes(live * cut + bytes(fb) * (frames - cut) + bytes(extra))
     (d / "pco_edge_run000_00000000.camlog").write_text(
         "".join(f"{i},0,0\n" for i in range(frames if camlog_rows is None else camlog_rows)))
     return dat
@@ -293,7 +300,7 @@ def test_a_file_still_growing_is_refused(tmp_path, monkeypatch):
     import time as _t
 
     def grow(_s):
-        dat.write_bytes(dat.read_bytes() + b"\0" * (4 * 5 * 2))
+        dat.write_bytes(dat.read_bytes() + b"\x64\x00" * (4 * 5))
 
     monkeypatch.setattr(_t, "sleep", grow)
     r = preprocess.raw_integrity(dat, "2_4_5", settle_s=0.01)
@@ -309,3 +316,68 @@ def test_camlog_disagreement_warns_but_does_not_block(tmp_path):
     r = raw_integrity(_fake_raw(tmp_path, frames=100, camlog_rows=97), "2_4_5", settle_s=0)
     assert r["ok"], "a camlog mismatch must not make the file unusable"
     assert r["camlog_rows"] == 97 and r["frames"] == 100
+
+
+# ------------------------------------------------------------------------------------------------
+# The size can be complete while the CONTENT is not.
+#
+# 2026-08-20: PS92 and PS95 arrived on the share with byte counts that divided exactly into whole
+# frames, camlogs that matched to the frame, and mtimes hours old -- and were 53% and 93% unwritten
+# zeros. Both preprocessed to completion; the only trace was that every map came out dimmer, scaled
+# by the fraction that had actually copied (PS92 frames_average mean 6295 against ~17000 for a good
+# session; PS95 994). The two .dat mtimes were identical to the second on sessions that ended hours
+# apart, which is one transfer being cut off, not two recordings failing.
+# ------------------------------------------------------------------------------------------------
+
+def test_a_correctly_sized_file_of_zeros_is_refused(tmp_path):
+    """The whole point: every size-based test passes and the file is still unusable."""
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100, blank_from=47), "2_4_5", settle_s=0)
+    assert r["remainder"] == 0 and not r["grew_during_check"], "size and stability say whole"
+    assert r["camlog_rows"] == r["frames"], "the camlog agrees too"
+    assert not r["ok"], "and it is still 53% unwritten"
+    assert r["first_blank_frame"] == 47
+    assert abs(r["written_fraction"] - 0.47) < 1e-9
+    assert "CONTENT" in r["reason"]
+
+
+def test_the_boundary_is_found_wherever_it_falls(tmp_path):
+    """The binary search has to land exactly, or the report of how much survived is wrong."""
+    from wfield_local.preprocess import raw_integrity
+
+    for cut in (1, 2, 63, 64, 65, 99):
+        r = raw_integrity(_fake_raw(tmp_path, frames=100, blank_from=cut), "2_4_5", settle_s=0)
+        assert r["first_blank_frame"] == cut, f"cut at {cut} reported as {r['first_blank_frame']}"
+
+
+def test_a_file_that_never_started_copying_is_refused(tmp_path):
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100, blank_from=0), "2_4_5", settle_s=0)
+    assert not r["ok"] and r["first_blank_frame"] == 0 and r["written_fraction"] == 0.0
+
+
+def test_a_hole_with_a_written_tail_warns_but_does_not_block(tmp_path):
+    """Held to a warning on purpose. A blank TAIL is the transfer signature and cannot occur in a
+    complete recording; an isolated blank frame mid-file has never been seen, so it is not worth
+    refusing a night of processing over."""
+    from wfield_local.preprocess import raw_integrity
+
+    dat = _fake_raw(tmp_path, frames=100)
+    fb = 4 * 5 * 2
+    b = bytearray(dat.read_bytes())
+    b[50 * fb:51 * fb] = bytes(fb)
+    dat.write_bytes(bytes(b))
+    r = raw_integrity(dat, "2_4_5", settle_s=0)
+    assert r["ok"], "a written tail means the copy finished"
+    assert r["interior_blank"] == [50]
+
+
+def test_a_whole_file_reports_no_blanks(tmp_path):
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100), "2_4_5", settle_s=0)
+    assert r["ok"] and r["last_frame_blank"] is False
+    assert r["first_blank_frame"] is None and r["interior_blank"] == []
+
