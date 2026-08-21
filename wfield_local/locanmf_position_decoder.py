@@ -174,9 +174,58 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
     return lickfree_window(c0, strobe_f, licks_sorted, win_n)
 
 
+def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
+    """Per-position median reaction time (frames) for placing a NO-LICK trial's lick-aligned window.
+
+    Returns ``(per_position, overall)``. A no-lick trial has no lick to align to, so its window is
+    placed where the lick WOULD have been: the cue plus this median. Taken from the session's OWN
+    engaged trials, per position, because latency differs by animal, by position and tenfold between
+    phases (0.137-0.255 s pre-stroke; a median of 2.439 s at post-stroke far_R) -- a cohort constant
+    would be wrong on all three axes.
+
+    Positions with fewer than ``min_trials`` engaged trials fall back to the session median, since a
+    median over three trials is not one. ``overall`` is None when the session has no engaged trials
+    at all, and the caller then drops those trials rather than guessing.
+
+    IT IS AN INFERENCE. The time comes from other trials; this one has no lick, which is the point.
+    """
+    import numpy as _np
+
+    codes = _np.asarray(codes)
+    rt = _np.asarray(rt, float)
+    engaged = _np.asarray(engaged, bool)
+    if not engaged.any():
+        return {}, None
+    overall = float(_np.median(rt[engaged]))
+    per = {}
+    for c in _np.unique(codes[codes >= 0]):
+        m = engaged & (codes == c)
+        if int(m.sum()) >= int(min_trials):
+            per[int(c)] = float(_np.median(rt[m]))
+    return per, overall
+
+
 def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,
-                    with_indices=False):
+                    with_indices=False, nolick_ref="cue"):
     """Trial-averaged features for one session.
+
+    ``nolick_ref`` controls where a NO-LICK trial's window starts when ``args.align == "lick"``.
+
+    * ``"cue"`` (default, historical): the cue. A lick trial's window starts at its FIRST LICK, so
+      the two arms are then offset by the whole reaction time -- 0.137-0.255 s pre-stroke, but a
+      median of 2.439 s at post-stroke far_R, where a 2 s window means the two do not overlap at
+      all. Comparing them is not meaningful, which is why the no-lick arm is excluded from
+      lick-aligned analyses rather than quietly used.
+    * ``"would_be_lick"``: the cue plus this session's OWN median reaction time AT THAT POSITION,
+      i.e. when the lick would have happened had it happened (Priya, 2026-08-21). Per session and
+      per position rather than a cohort constant, because the latency differs by animal, by position
+      and tenfold between phases -- taking it from the session's own engaged trials handles all
+      three without a lookup table. Falls back to the session median where a position has too few
+      engaged trials, and drops the trial if neither exists.
+
+      IT IS AN INFERENCE, NOT A MEASUREMENT. The time is taken from OTHER trials; this trial has no
+      lick, which is the whole point. It is shakiest exactly post-stroke, where latencies are long
+      and variable.
 
     ``signal``/``feat_region`` let a caller INJECT an already-built (nfeat, T) signal instead of
     loading ``args.source`` from disk -- used by the joint-basis cross-session analyses, where the
@@ -231,6 +280,11 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # this loop elsewhere and hoping the two agree. They did not: an externally rebuilt mask came
     # out 633 long against 575 kept trials, and bugs 15-17 were all this same shape.
     idx_eng, idx_nolick = [], []
+    # WOULD-BE-LICK reference: this session's own median RT per position, in frames.
+    med_rt, med_rt_all = {}, None
+    if args.align == "lick" and nolick_ref == "would_be_lick":
+        _eng = np.array([bool(is_engaged(first[k], rt[k], maxrt_n)) for k in range(cue_f.size)])
+        med_rt, med_rt_all = would_be_lick_offsets(codes, rt, _eng)
     for k in range(cue_f.size):
         if codes[k] < 0:
             continue
@@ -262,8 +316,16 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
             if with_precue_licks:
                 fx = c0 - post_n
                 precue_lick.append(bool(fx >= 0 and np.any((ls_sorted >= fx) & (ls_sorted < c0))))
-        else:                                               # NO-LICK: cue/precue-referenced (no lick to align)
-            Xn.append(_window_feature(sig, ref0, post_n, bins, base)); yn.append(int(codes[k]))
+        else:                                               # NO-LICK: no lick to align to
+            w0n = ref0                                      # cue/precue-referenced by default
+            if args.align == "lick" and nolick_ref == "would_be_lick":
+                _off = med_rt.get(int(codes[k]), med_rt_all)
+                if _off is None:
+                    continue
+                w0n = c0 + round(_off)      # round() on a float already yields int
+            if w0n < 0 or w0n + post_n > T:
+                continue
+            Xn.append(_window_feature(sig, w0n, post_n, bins, base)); yn.append(int(codes[k]))
             idx_nolick.append(k)
     # component->region labels must be tiled with the features, or the encoder would group a
     # sub-binned feature vector by the wrong regions

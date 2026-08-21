@@ -33,11 +33,23 @@ WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
         latency is 0.137-0.255 s pre-stroke, minimum 0.109 s), so there is NO movement-free cue
         window to retreat to. The per-position construction is what keeps this interpretable:
         movement is common to every training class, so it cannot define the direction.
-  lick  ONLY the classes that have licks. A no-lick trial has no lick to align to. This matters
-        operationally: at ``align="lick"`` ``_trial_features`` still RETURNS no-lick trials, but
-        referenced to the cue instead -- so they arrive populated, plausible, and on a different
-        alignment from everything they would be compared with. They are excluded explicitly here
-        rather than assumed absent (the same trap as the post-lick confusion bug of 2026-08-20).
+  lick  all five classes, but the no-lick ones sit at an INFERRED time. A no-lick trial has no
+        lick to align to, so its window starts at the cue plus this session's own median RT at that
+        position -- "when the lick would have been" (Priya, 2026-08-21). That makes the arms
+        comparable; it does not make the no-lick time measured. Read those two classes as an
+        inference, and most cautiously post-stroke, where latency is long and variable.
+
+        The default reference remains the CUE and must not be used here: it offsets the arms by the
+        whole reaction time (a median of 2.439 s at post-stroke far_R against a 2 s window, so no
+        overlap at all), and `_trial_features` returns those trials populated and plausible-looking
+        either way -- the same trap as the post-lick confusion bug of 2026-08-20.
+
+        THE ENGAGEMENT AXIS IS A LICKING AXIS HERE. Built in this window it separates trials WITH a
+        movement from trials without one, so the orthogonalised variants ask "what position
+        structure survives once movement presence is removed". That is the right question for the
+        no-lick classes and a conservative one for the lick classes: licks to different spouts
+        differ in kinematics, so position and position-specific MOVEMENT are not separable in this
+        window by any projection.
 """
 from __future__ import annotations
 
@@ -224,7 +236,12 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         print(f"[coding_dirs] {animal}: {ex}", flush=True)
         return None
 
-    feat = features_with_indices(basis)
+    # LICK WINDOW: no-lick trials are referenced to WHEN THE LICK WOULD HAVE BEEN (this
+    # session's own median RT at that position), not to the cue. Cue-referencing offsets the
+    # two arms by the whole reaction time -- a median of 2.439 s at post-stroke far_R, where a
+    # 2 s window means they do not overlap at all.
+    feat = features_with_indices(basis,
+                                 nolick_ref=("would_be_lick" if align == "lick" else "cue"))
     pooled = pool_sessions(pre + post, source="locanmf", align=align, post_s=post_s, features=feat)
     if pooled is None:
         return None
@@ -235,7 +252,8 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
     un = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
 
-    use_nolick = align != "lick"
+    # every window can now carry the no-lick classes; at "lick" their window is INFERRED
+    use_nolick = True
     not_eng = None
     if use_nolick:
         not_eng = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
@@ -266,7 +284,7 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
             m = m & (g == sess)
         return X[m]
 
-    classes = CLASSES_LICK if not use_nolick else CLASSES_FULL
+    classes = CLASSES_FULL
     out = {"animal": animal, "align": align, "window": disp, "basis_id": basis.basis_id,
            "ncomp": int(basis.ncomp), "n_features": int(XE.shape[1]), "sessions": sessions,
            "methods": {}}
@@ -423,7 +441,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
     if not res or meth not in res.get("methods", {}):
         return None
     disp, R = dict(ALIGNS)[align], res["methods"][meth]
-    classes = CLASSES_LICK if align == "lick" else CLASSES_FULL
+    classes = CLASSES_FULL
     sess = res["sessions"]
     x = np.arange(len(sess))
     bx = next((i - 0.5 for i, sn in enumerate(sess) if sn["phase"] == "post"), None)
@@ -560,7 +578,7 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
     if not res or meth not in res.get("methods", {}):
         return None
     disp, R = dict(ALIGNS)[align], res["methods"][meth]
-    classes = [c for c in (CLASSES_LICK if align == "lick" else CLASSES_FULL)
+    classes = [c for c in CLASSES_FULL
                if c in R.get("pairwise", {})]
     if not classes:
         return None

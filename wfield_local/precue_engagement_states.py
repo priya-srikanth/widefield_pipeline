@@ -77,7 +77,7 @@ def _disc():
     return make_pipeline(StandardScaler(), LogisticRegression(max_iter=4000, C=1.0))
 
 
-def features_with_indices(basis):
+def features_with_indices(basis, nolick_ref="cue"):
     """``joint_features``, but it also keeps each session's trial INDICES.
 
     The indices are what let the engagement gate be computed on exactly the trials the features
@@ -93,7 +93,8 @@ def features_with_indices(basis):
         else:
             sig, diag = basis.project(s, with_diagnostics=True)
             vc[lab] = float(diag["variance_captured"])
-        out = _trial_features(s, args, signal=sig, feat_region=basis.regions, with_indices=True)
+        out = _trial_features(s, args, signal=sig, feat_region=basis.regions,
+                              with_indices=True, nolick_ref=nolick_ref)
         idx[lab] = (out[6], out[7])
         return out[:6]
 
