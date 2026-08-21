@@ -112,6 +112,51 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
     return out
 
 
+def raw_integrity(dat_path, dims: str, settle_s: float = 4.0) -> dict:
+    """Is this raw ``.dat`` whole, and has it stopped growing?
+
+    WHY, and what NOT to check. On 2026-08-20 I called PS94's upload truncated because the file size
+    was not a multiple of a 415/470 PAIR. It was wrong twice over. The ``.dat`` is a sequence of
+    SINGLE ``h x w`` uint16 frames -- the ``2`` in ``2_460_480`` is the channel pairing, not the
+    file's atomic unit -- and a recording that stops on an odd frame leaves a half pair, which is
+    normal. The file was also still being written, so the size I measured was a partial flush 256 B
+    past a frame boundary. Both mistakes point the same way: measure against the right block, and
+    make sure the thing has stopped moving before judging it.
+
+    HARD failure: the size is not a whole number of single frames. That cannot happen to a complete
+    file, so refusing costs nothing and saves a multi-hour run on a partial upload.
+
+    SOFT warning: the frame count disagrees with the camlog. That invariant holds on every session
+    still on the share (4 of 4 -- older raw is archived off, so the evidence is thin), which is not
+    enough to justify blocking a night's processing on it.
+    """
+    import time
+
+    p = Path(dat_path)
+    if not p.exists():
+        return {"ok": False, "reason": "missing", "frames": 0}
+    nch, h, w = (int(x) for x in dims.split("_"))
+    single = h * w * 2                       # ONE frame, uint16 -- not the pair
+    n0 = p.stat().st_size
+    if settle_s:
+        time.sleep(settle_s)
+    n = p.stat().st_size
+    frames, rem = divmod(n, single)
+    cam = p.parent / "pco_edge_run000_00000000.camlog"
+    rows = None
+    if cam.exists():
+        with open(cam, errors="ignore") as f:
+            rows = sum(1 for ln in f if ln.strip() and not ln.startswith("#"))
+    out = {"bytes": n, "grew_during_check": n != n0, "frames": frames, "remainder": rem,
+           "camlog_rows": rows, "pairs": frames // 2, "odd_last_pair": bool(frames % 2),
+           "single_frame_bytes": single}
+    out["ok"] = (rem == 0) and not out["grew_during_check"]
+    out["reason"] = ("still uploading (grew during the check)" if out["grew_during_check"]
+                     else f"{rem} B past a frame boundary -- partial upload" if rem
+                     else "")
+    return out
+
+
 def discover_raw_sessions(yyyymmdd: str, rv: PathResolver,
                           raw_root=None, daq_root=None) -> list[dict]:
     """Sessions for a date, from this machine's raw roots unless they are overridden.
@@ -532,6 +577,26 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
     sessions = discover_raw_sessions(date, rv, raw_root=getattr(args, "raw_root", None),
                                      daq_root=getattr(args, "daq_root", None))
+    # CHECK THE RAW BEFORE COMMITTING HOURS TO IT (2026-08-20)
+    usable = []
+    for s in sessions:
+        integ = raw_integrity(s["raw_dat"], s["dims"])
+        s["raw_integrity"] = integ
+        if not integ["ok"]:
+            print(f"  !! {s['animal']} {s['sess']}: RAW NOT USABLE -- {integ['reason']} "
+                  f"({integ['bytes']} B). Skipping; re-upload and re-run.", flush=True)
+            if not getattr(args, "allow_incomplete_raw", False):
+                continue
+            print("     --allow-incomplete-raw given: processing anyway", flush=True)
+        if integ.get("camlog_rows") is not None and integ["camlog_rows"] != integ["frames"]:
+            print(f"  !! {s['animal']} {s['sess']}: .dat has {integ['frames']} frames but the "
+                  f"camlog has {integ['camlog_rows']} -- proceeding, but the frame map may be off.",
+                  flush=True)
+        elif integ["odd_last_pair"]:
+            print(f"     {s['animal']}: {integ['frames']} frames (odd) -- last 415/470 pair is "
+                  f"incomplete, which is where the recording stopped. Normal.", flush=True)
+        usable.append(s)
+    sessions = usable
     if args.skip_preprocess:
         # MERGE, do not fall back only when raw discovery is empty. Ownership of a night can be SPLIT
         # across the two boxes (8/12: this box preprocessed PS92+PS93, the imaging box PS94+PS95), so
@@ -600,6 +665,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-crossday-intensity", action="store_true",
                     help="skip the cross-day raw ROI fluorescence-intensity trend")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
+    ap.add_argument("--allow-incomplete-raw", action="store_true",
+                    help="process a .dat that is not a whole number of frames (default: skip it)")
     ap.add_argument("--raw-root", default=None,
                     help="discover raw sessions HERE instead of this machine's raw_labcams root "
                          "(e.g. the MICROSCOPE labcams tree when the night's raw was uploaded "

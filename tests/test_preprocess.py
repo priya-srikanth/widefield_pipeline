@@ -246,3 +246,66 @@ def test_discovery_finds_nothing_rather_than_guessing(tmp_path):
     from wfield_local.preprocess import _discover
 
     assert _discover("20260820", str(tmp_path / "nope"), str(tmp_path)) == []
+
+
+# ------------------------------------------------------------------------------------------------
+# raw_integrity: measure against the right block, and only after the file stops moving.
+#
+# On 2026-08-20 I called PS94's upload truncated. Twice wrong: the .dat is a sequence of SINGLE
+# h x w frames (the "2" in 2_460_480 is the channel pairing, not the file's atomic unit), and a
+# recording that stops on an odd frame leaves a half pair, which is normal. The file was also still
+# being written, so the size I read was a partial flush 256 B past a frame boundary.
+# ------------------------------------------------------------------------------------------------
+
+def _fake_raw(tmp_path, frames, extra=0, camlog_rows=None, h=4, w=5):
+    d = tmp_path / "raw_widefield_data"
+    d.mkdir(parents=True, exist_ok=True)
+    dat = d / "pco_edge_run000_00000000_2_4_5_uint16.dat"
+    dat.write_bytes(b"\0" * (frames * h * w * 2 + extra))
+    (d / "pco_edge_run000_00000000.camlog").write_text(
+        "".join(f"{i},0,0\n" for i in range(frames if camlog_rows is None else camlog_rows)))
+    return dat
+
+
+def test_an_odd_frame_count_is_normal_not_truncation(tmp_path):
+    """The exact case I got wrong: a complete file whose last 415/470 pair is incomplete."""
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=373833 % 1000 * 2 + 1), "2_4_5", settle_s=0)
+    assert r["ok"], "an odd frame count is where the recording stopped, not corruption"
+    assert r["odd_last_pair"] and r["remainder"] == 0
+
+
+def test_a_file_cut_mid_frame_is_refused(tmp_path):
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100, extra=17), "2_4_5", settle_s=0)
+    assert not r["ok"] and "partial upload" in r["reason"]
+
+
+def test_a_file_still_growing_is_refused(tmp_path, monkeypatch):
+    """The other half of my mistake: judging a size that was still being written."""
+    from wfield_local import preprocess
+
+    dat = _fake_raw(tmp_path, frames=100)
+
+    real_sleep = preprocess.time.sleep if hasattr(preprocess, "time") else None
+    import time as _t
+
+    def grow(_s):
+        dat.write_bytes(dat.read_bytes() + b"\0" * (4 * 5 * 2))
+
+    monkeypatch.setattr(_t, "sleep", grow)
+    r = preprocess.raw_integrity(dat, "2_4_5", settle_s=0.01)
+    assert not r["ok"] and "still uploading" in r["reason"]
+    assert real_sleep is None or True
+
+
+def test_camlog_disagreement_warns_but_does_not_block(tmp_path):
+    """Held to a WARNING deliberately: the invariant holds on 4 of 4 sessions still on the share,
+    and older raw is archived off, so there is not enough evidence to block a night's processing."""
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100, camlog_rows=97), "2_4_5", settle_s=0)
+    assert r["ok"], "a camlog mismatch must not make the file unusable"
+    assert r["camlog_rows"] == 97 and r["frames"] == 100
