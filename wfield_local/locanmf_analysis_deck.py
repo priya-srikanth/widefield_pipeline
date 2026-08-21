@@ -492,29 +492,32 @@ M_RECODING = (
     "plan is an interpretation.")
 
 M_CODING_DIR = (
-    "PER-POSITION CODING DIRECTIONS. For each spout position P a logistic direction is fitted on "
-    "PRE-STROKE trials WITH A SUCCESSFUL LICK -- P against the other five positions -- so it is "
-    "'the pattern that precedes or accompanies a successful lick to P', defined entirely where "
-    "behaviour is intact. Every class is then projected onto it and compared ONLY WITHIN that "
-    "position.\n\nWHY PER POSITION. A single position-blind axis measures the spout, not the "
-    "state: MISS-WHILE-WORKING is 34-44% far_R while STOPPED is near-uniform (total variation "
-    "0.31-0.65 between them), and this activity carries position. An earlier position-blind version "
-    "produced an apparent PS95 effect that was entirely that imbalance.\n\nWHAT THE WINDOWS CAN "
-    "SAY. ENL has little dynamic range here -- every class falls between 0.21 and 0.56, consistent "
-    "with pre-cue decoding being ~0.3 against ~0.7 post-cue. The cue and lick windows CONTAIN the "
-    "movement (median first-lick latency 0.137-0.255 s pre-stroke, minimum 0.109 s, so no "
-    "movement-free window exists), which is why a no-lick class sitting low in those two windows "
-    "says nothing about whether a plan formed. The pre-stroke-lick vs post-stroke-lick contrast IS "
-    "like-for-like, because both contain a lick.\n\nTHE RESULT THAT REPLICATED. In the lick "
-    "window the pre-stroke position code is near-identical across animals (0.807-0.874) and "
-    "post-stroke it degrades in proportion to the behavioural deficit: PS92 0.776, PS95 0.752, "
-    "PS93 0.545, PS94 0.380. That is NOT the basis failing to describe post-stroke cortex -- "
-    "variance captured is 0.98-0.995 for every post-stroke session, and PS94 is the BEST-spanned "
-    "animal while showing the largest drop, with PS92 the worst-spanned while retaining the most. "
-    "The two run opposite to what under-description would predict.\n\nWHAT DID NOT REPLICATE. "
-    "Whether the two failure modes differ: MISS-WHILE-WORKING exceeds STOPPED at 14/20 positions "
-    "in ENL and 10/20 in cue, magnitudes swinging both ways. PS94 alone was 6/6 in ENL and the "
-    "other three did not follow. Treat the two failure modes as indistinguishable to this measure.")
+    "PER-POSITION CODING DIRECTIONS. The feature space has one axis per (LocaNMF component, time "
+    "sub-bin) -- 348-380 dimensions for ENL/cue, ~700 for lick -- so a direction is a weight per "
+    "component PER MOMENT in the window. For each spout position P it is fitted on PRE-STROKE "
+    "trials WITH A SUCCESSFUL LICK, P against the other five, in the SHARED joint-LocaNMF basis "
+    "(fixed footprints; post-stroke sessions are projected, never refitted). It is a CONTRAST: "
+    "without the comparison there is no axis.\n\nREPORTED AS A LINEAR PROJECTION, pole-normalised "
+    "so 0 = pre-stroke not-this-position and 1 = pre-stroke lick here. NOT a probability: a sigmoid "
+    "saturates, these directions are strong (AUC up to 0.98), so degradation measured from a "
+    "saturated reference is understated and unevenly so between positions of different "
+    "separability -- which would corrupt exactly the orderings this is for.\n\nENGAGEMENT IS "
+    "PROJECTED OUT for ENL and cue. The plain difference-of-means direction carries a large "
+    "lick/no-lick component -- cos(w, engagement) of 0.82 / 0.91 / 0.71 / 0.52 in PS92/93/94/95, on "
+    "a different position in each animal -- so a no-lick class could score low because it was a "
+    "no-lick trial rather than because its position code changed. After removal, pre-stroke no-lick "
+    "sits at one consistent value on every axis (0.16-0.17 for PS94) instead of scattering -2.03 to "
+    "+1.38, and the pre-stroke lick diagonal improves. Logistic-regression directions were already "
+    "clean (|cos| <= 0.07) because they account for covariance; they are on disk as the independent "
+    "check.\n\nWHAT THE WINDOWS CAN SAY. ENL is the clean one: nothing has happened yet and the "
+    "window is lick-free by construction, so 'with lick following' means a lick came AFTER the cue, "
+    "not during the window. The cue and lick windows CONTAIN the movement (median first-lick "
+    "latency 0.137-0.255 s pre-stroke, minimum 0.109 s -- there is no movement-free cue window), so "
+    "a no-lick class sitting low there says nothing about whether a plan formed. The pre-stroke-lick "
+    "vs post-stroke-lick contrast IS like-for-like, since both contain a lick.\n\nCAVEAT ON "
+    "ONE-VS-REST. 'Not P' mixes the five other positions, and for MIDDLE positions that mixture is "
+    "majority-far, so the axis becomes largely close-vs-far and the position it is named for need "
+    "not be the extreme on it. Prefer the pairwise panels for remapping questions.")
 
 
 M_POSTSTROKE = (
@@ -1471,35 +1474,54 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             grid(s, _g7d, cols=2, top=1.9)
 
         # --- G9. PER-POSITION CODING DIRECTIONS (Priya, 2026-08-20/21)
-        # Each spout position gets a direction fitted on PRE-STROKE trials with a SUCCESSFUL LICK,
-        # that position against the others, and every class is projected onto it WITHIN that
-        # position. Fitting per position is what makes the comparison legitimate rather than
-        # decorative: the two post-stroke failure modes differ enormously in which positions they
-        # occur at -- MISS-WHILE-WORKING is 34-44% far_R, STOPPED is near-uniform, total variation
-        # 0.31-0.65 -- and this activity CARRIES position, so any position-blind axis compares the
-        # spout rather than the state.
-        for _al, _disp in (("precue", "ENL"), ("cue", "cue"), ("lick", "lick")):
-            _cd = src / f"coding_direction_{_disp}.png"
-            if not _cd.exists():
-                continue
-            s = slide()
-            _extra = ("" if _al == "lick" else
-                      " Both no-lick classes are shown: MISS WHILE WORKING (position-specific "
-                      "failure, still working the task) and STOPPED (quit for the day, licks "
-                      "nowhere).")
-            _lickonly = ("" if _al != "lick" else
-                         " ONLY the classes that HAVE licks appear: a no-lick trial has no lick to "
-                         "align to, so it is excluded rather than plotted against a different "
-                         "alignment.")
-            title(s, f"G9. {_disp} window \u2014 each position's pre-stroke successful-lick coding "
-                     f"direction, per position",
-                  "Positions run MOST IMPAIRED first (far_R > far_center > far_L > close_R > "
-                  "close_center > close_L). Every class is compared ONLY WITHIN a position, so the "
-                  "classes' different position composition cannot contribute. pre-stroke LICK is "
-                  "scored leave-one-session-out, or it would sit at its own training optimum."
-                  + _extra + _lickonly)
-            note(s, M_CODING_DIR)
-            big(s, _cd, top=1.95, width=12.6)
+        #
+        # Each spout position gets a direction fitted on PRE-STROKE trials WITH A SUCCESSFUL LICK --
+        # that position against the others -- and every class is projected onto it WITHIN that
+        # position, so the classes' very different position composition cannot contribute.
+        #
+        # WHICH VARIANT IS SHOWN, AND WHY IT IS NOT THE PLAIN ONE. The plain difference-of-means
+        # direction is badly contaminated by the lick/no-lick axis: cos(w, engagement) reaches 0.82,
+        # 0.91, 0.71 and 0.52 in PS92/93/94/95, and it lands on a DIFFERENT position in each animal
+        # (far_center, far_center, far_L, far_R), so it cannot be inspected around. PS93's
+        # far_center direction is 91% engagement axis wearing a position label. ENL and cue
+        # therefore show the ORTHOGONALISED direction, with that axis projected out; after removal
+        # the pre-stroke no-lick trials collapse to one consistent value on every axis (0.16-0.17
+        # for PS94) instead of scattering from -2.03 to +1.38, and the pre-stroke lick diagonal
+        # IMPROVES rather than degrading. The lick window keeps the plain direction: its only
+        # classes are lick trials on both sides, so the engagement axis cannot contaminate the
+        # comparison being made -- and no no-lick trials exist there to build one from.
+        _G9_METHOD = {"ENL": "dom_orth", "cue": "dom_orth", "lick": "dom"}
+        for _w in ("ENL", "cue", "lick"):
+            _m = _G9_METHOD[_w]
+            for _kind, _tag, _blurb in (
+                ("direction", "time course",
+                 "One panel per spout position, MOST IMPAIRED first, every class over sessions with "
+                 "the stroke marked. LINEAR projection, pole-normalised: 0 = pre-stroke "
+                 "NOT-this-position, 1 = pre-stroke LICK here. Error bars are SEM over trials; a "
+                 "HOLLOW marker means fewer than 12 trials, shown rather than dropped."),
+                ("cross", "cross-position matrix",
+                 "Rows = TRUE spout position, columns = which position's direction it was scored "
+                 "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "
+                 "intrinsically similar before any stroke; the rest are DIFFERENCES from it, so a "
+                 "row going red OFF the diagonal is a remapping rather than a large number."),
+                ("pairwise", "pairwise axes",
+                 "Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
+                 "mixes five positions and, for the MIDDLE positions, is majority-far -- PS94's "
+                 "close_center axis orders close_L 1.23 > close_R 0.83 > close_center 0.71, i.e. "
+                 "the position it is named for is only third on its own axis."),
+            ):
+                for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                    _f = src / f"coding_{_kind}_{_w}_{_m}_{_an}.png"
+                    if not _f.exists():
+                        continue
+                    s = slide()
+                    _lickonly = ("" if _w != "lick" else
+                                 "  ONLY the classes that HAVE licks appear \u2014 a no-lick trial "
+                                 "has no lick to align to.")
+                    title(s, f"G9. {_an} \u2014 {_w} window, {_tag}",
+                          _blurb + _lickonly)
+                    note(s, M_CODING_DIR)
+                    big(s, _f, top=1.95, width=12.7)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
