@@ -28,6 +28,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -68,6 +69,31 @@ def _ensure_conda_prefix() -> None:
 
 # --------------------------------------------------------------------------- detection
 
+def raw_is_whole(sdir) -> tuple[bool, str]:
+    """Is this session's RAW actually written, or only the right size?
+
+    WHY THE POLLER CHECKS THE RAW AT ALL. Readiness here means "SVTcorr and U_atlas exist", and on
+    2026-08-20 both existed for PS92 and PS95 -- computed from .dat files that were 53% and 93%
+    unwritten zeros. Preprocessing had run to completion on them and produced maps that were merely
+    dimmer. This poller runs UNATTENDED, so without this check it would have registered both nights
+    into sessions.yaml, pushed, fitted LocaNMF on them, and refreshed the figs, with nothing between
+    the bad upload and the deck.
+
+    ABSENT RAW IS NOT A FAILURE. Older raw is archived off the share, so a session whose .dat is
+    gone returns True: the check can only ever veto, never require.
+    """
+    from wfield_local.preprocess import raw_integrity
+
+    dats = sorted(glob.glob(str(Path(sdir) / "raw_widefield_data" / "*_uint16.dat")))
+    if not dats:
+        return True, "no raw on the share (archived) -- not checked"
+    m = re.search(r"_(\d+)_(\d+)_(\d+)_uint16", Path(dats[0]).name)
+    if not m:
+        return True, "unparseable dims -- not checked"
+    r = raw_integrity(dats[0], "_".join(m.groups()), settle_s=0)
+    return bool(r["ok"]), r.get("reason") or ""
+
+
 def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
     """Ready LocaNMF-input sessions for the date, one dict per mouse found.
 
@@ -95,6 +121,12 @@ def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
         u_atlas = allen / "U_atlas.npy"
         if not (svt.exists() and u_atlas.exists()):
             continue                            # inputs not fully pushed yet
+        whole, why = raw_is_whole(sdir)
+        if not whole:
+            log(f"  !! {animal} {yyyymmdd}: REFUSING -- {why}")
+            log(f"     SVTcorr and U_atlas exist but were computed from an incomplete upload. "
+                f"Re-upload the raw and re-run preprocessing; do NOT delete the acquisition copy.")
+            continue
         frame_map = bool(glob.glob(str(mc / "*cleanpairs_frame_map.npz")))
         locanmf_out = Path(config.locanmf_dir(mc))
         locanmf_done = locanmf_out.exists() and bool(glob.glob(str(locanmf_out / "*_C.npy")))

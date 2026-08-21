@@ -157,3 +157,53 @@ def test_discover_ignores_bare_svtcorr_when_variant_configured(tmp_path, monkeyp
     _touch(res / str(aw.config.defaults()["locanmf"]["allen_dir_name"]) / "U_atlas.npy")
     _touch(daq / "20260809" / "PS92_20260809_120500.h5")
     assert aw.discover(_FakeRV(lab, daq), "20260809", ["PS92"]) == []
+
+
+# ------------------------------------------------------------------------------------------------
+# The poller runs UNATTENDED, so "inputs exist" has to mean more than "files are present".
+#
+# 2026-08-20: PS92 and PS95 had SVTcorr and U_atlas, both computed from .dat files that were 53%
+# and 93% unwritten zeros (an interrupted copy into a preallocated destination -- right size, right
+# camlog, stale mtime). Without a content check the poller would have registered both nights,
+# pushed sessions.yaml, fitted LocaNMF on them and refreshed the figs unattended.
+# ------------------------------------------------------------------------------------------------
+
+def _raw(sdir, frames=40, blank_from=None, h=4, w=5):
+    d = sdir / "raw_widefield_data"
+    d.mkdir(parents=True, exist_ok=True)
+    cut = frames if blank_from is None else blank_from
+    live = bytes([100, 0]) * (h * w)
+    (d / "pco_edge_run000_00000000_2_4_5_uint16.dat").write_bytes(
+        live * cut + bytes(h * w * 2) * (frames - cut))
+    (d / "pco_edge_run000_00000000.camlog").write_text(
+        "".join(f"{i},0,0" + chr(10) for i in range(frames)))
+
+
+def _ready(tmp_path, monkeypatch, blank_from=None, with_raw=True):
+    monkeypatch.setattr(aw.config, "load_sessions", lambda *a, **k: [])
+    lab, daq = tmp_path / "labcams", tmp_path / "daq"
+    sdir = lab / "20260820" / "PS92_20260820_120000"
+    sd = sdir / "motion_corrected"
+    _touch(Path(aw.config.svtcorr_path(sd)))
+    _touch(sd / "wfield_local_results"
+           / str(aw.config.defaults()["locanmf"]["allen_dir_name"]) / "U_atlas.npy")
+    _touch(daq / "20260820" / "PS92_20260820_120500.h5")
+    if with_raw:
+        _raw(sdir, blank_from=blank_from)
+    return aw.discover(_FakeRV(lab, daq), "20260820", ["PS92"])
+
+
+def test_discover_refuses_a_session_whose_raw_is_half_unwritten(tmp_path, monkeypatch):
+    """The 8/20 case: every output file present, and the raw behind them mostly zeros."""
+    assert _ready(tmp_path, monkeypatch, blank_from=19) == []
+
+
+def test_discover_accepts_a_session_whose_raw_is_whole(tmp_path, monkeypatch):
+    got = _ready(tmp_path, monkeypatch)
+    assert len(got) == 1 and got[0]["animal"] == "PS92"
+
+
+def test_discover_accepts_a_session_whose_raw_is_archived_off(tmp_path, monkeypatch):
+    """The check can only veto, never require -- older raw is not on the share at all."""
+    got = _ready(tmp_path, monkeypatch, with_raw=False)
+    assert len(got) == 1, "an archived-off raw must not block a registered night"
