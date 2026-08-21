@@ -6,6 +6,9 @@ def _capture(monkeypatch):
     cmds = []
     monkeypatch.setattr(nightly, "_run", lambda args, dry: cmds.append([str(a) for a in args]))
     monkeypatch.setattr(nightly, "_available_dates", lambda rv: [])   # explicit dates pass through
+    # these tests assert on the COMMAND SEQUENCE, not on whether raw data exists; the
+    # raw-presence guard has its own tests below.
+    monkeypatch.setattr(nightly, "_assert_has_raw", lambda dates, rv: None)
     return cmds
 
 
@@ -102,3 +105,43 @@ def test_skip_flags(monkeypatch):
     cmds.clear()
     nightly.main(["20260807", "--machine", "imaging", "--skip-deck", "--skip-archive", "--skip-daq-upload"])
     assert [c[0] for c in cmds] == ["wfield_local.preprocess"]
+
+
+def test_imaging_branch_refuses_when_there_is_no_raw_data(tmp_path, monkeypatch):
+    """The analysis box resolves to machine='imaging' and must NOT run the preprocessing branch.
+
+    `detect_machine` tests `E:/labcams_data` FIRST, and the analysis box has that directory -- empty.
+    So `nightly <date>` there dispatched to upload-daq -> preprocess -> preprocess_deck -> archive on
+    a machine holding no raw data. Path resolution is fine on that box (N: really is MICROSCOPE); it
+    is the dispatch that is wrong, so the guard asks the question the branch actually depends on:
+    is there anything to preprocess?
+    """
+    import pytest
+
+    from wfield_local import nightly
+
+    monkeypatch.setattr(nightly, "list_raw_dates", lambda rv: ["20260819"], raising=False)
+    monkeypatch.setattr("wfield_local.preprocess.list_raw_dates", lambda rv: ["20260819"])
+
+    class _RV:
+        machine = "imaging"
+
+        def root(self, name):
+            return str(tmp_path / name)
+
+    with pytest.raises(SystemExit, match="no raw acquisition data"):
+        nightly._assert_has_raw(["20260820"], _RV())
+
+
+def test_imaging_branch_proceeds_when_the_raw_is_there(tmp_path, monkeypatch):
+    from wfield_local import nightly
+
+    monkeypatch.setattr("wfield_local.preprocess.list_raw_dates", lambda rv: ["20260819", "20260820"])
+
+    class _RV:
+        machine = "imaging"
+
+        def root(self, name):
+            return str(tmp_path / name)
+
+    nightly._assert_has_raw(["20260820"], _RV())      # must not raise

@@ -65,9 +65,40 @@ def _available_dates(rv: PathResolver) -> list[str]:
     return sorted(p.name for p in root.iterdir() if p.is_dir() and re.fullmatch(r"\d{8}", p.name))
 
 
+def _assert_has_raw(dates, rv) -> None:
+    """Refuse the IMAGING nightly on a box with no local raw acquisition data for these dates.
+
+    THE FAILURE THIS CATCHES. `detect_machine` keys on a signature MOUNT, and its first test is
+    `E:/labcams_data` -> imaging. The analysis box has that directory too -- empty -- so it resolves
+    to "imaging", and `nightly <date>` then runs upload-daq -> preprocess -> preprocess_deck ->
+    archive on a machine that holds no raw data and is not supposed to preprocess anything. Path
+    resolution is fine either way there (N: really is MICROSCOPE on that box); it is only this
+    DISPATCH that is wrong, which is why the fix belongs here and not in the resolver.
+
+    Checked against the raw root rather than the machine label, because "is there anything to
+    preprocess" is the question the imaging branch actually depends on -- and a real imaging box with
+    a genuinely missing date should stop here too, rather than run four steps over nothing.
+    """
+    from wfield_local.preprocess import list_raw_dates
+    have = set(list_raw_dates(rv))
+    missing = [d for d in dates if d not in have]
+    if not missing:
+        return
+    raise SystemExit(
+        f"[nightly] REFUSING the imaging branch: no raw acquisition data for {missing} under "
+        f"{rv.root('raw_labcams')}.\n"
+        f"          This machine resolved to '{rv.machine}'. If it is the ANALYSIS box, that is a "
+        f"signature-mount misdetection (an empty E:/labcams_data trips the imaging test) and you "
+        f"want the analysis steps directly:\n"
+        f"              python -m wfield_local.camera_nightly <DATE>\n"
+        f"              python -m wfield_local.await_locanmf <DATE>\n"
+        f"          Override with --machine imaging if the raw really is elsewhere.")
+
+
 def _imaging_nightly(dates, args, mach, only) -> int:
     # FIRST: push the DAQ .h5 to MICROSCOPE so the analysis box can run its behavior pipeline
     # (behavior_events / spout figures) immediately, in parallel with imaging's SVD+LocaNMF work.
+    _assert_has_raw(dates, PathResolver(machine=args.machine))
     if not args.skip_daq_upload:
         for d in dates:
             _run(["wfield_local.archive_day", "upload-daq", "--date", d, "--hash", *mach], dry=args.dry_run)
