@@ -76,7 +76,8 @@ BY_SEVERITY = [p for p, _ in sorted(SEVERITY.items(), key=lambda kv: kv[1])]
 #: classes each window can carry. `lick` drops both no-lick classes: no lick, no alignment point.
 CLASSES_FULL = ("prestroke_lick", "prestroke_nolick", "poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
 CLASSES_LICK = ("prestroke_lick", "poststroke_lick")
-MIN_TRIALS = 12
+MIN_TRIALS = 12      # below this a value is drawn HOLLOW, not dropped
+FLOOR_TRIALS = 3     # below this there is nothing to average at all
 
 
 def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
@@ -148,22 +149,36 @@ def run_animal(animal, align="precue", verbose=True):
         rec["auc_loso"] = _auc(trY.astype(bool), cv)
 
         def score(X, _m=model):     # bind the loop's model explicitly, not by closure
-            return (float(np.mean(_m.predict_proba(X)[:, 1])) if len(X) >= MIN_TRIALS else None)
+            """Value plus a low-n flag -- NEVER a silent gap.
+
+            A dropped point leaves a hole in the line, and a hole reads as "this never happened".
+            PS95 has 4 STOPPED trials at far_R and 6 at far_L, not zero (Priya, 2026-08-21); the
+            deck already draws this distinction elsewhere -- G2b marks "n/a = position not attempted
+            (NOT zero recall)" and hatches n < 10 rather than hiding it. Same rule here: below
+            MIN_TRIALS the value is still returned and flagged, below FLOOR_TRIALS there is genuinely
+            nothing to average.
+            """
+            if len(X) < FLOOR_TRIALS:
+                return None, len(X) == 0
+            return float(np.mean(_m.predict_proba(X)[:, 1])), len(X) < MIN_TRIALS
 
         # pre-stroke lick at P: HELD OUT, or it would sit at its own training optimum
+        def put(key, n, sc_low):
+            sc, low = sc_low
+            rec["classes"][key] = {"n": int(n), "score": sc, "low_n": bool(low)}
+
         sel = e_pre & (en == P)
-        rec["classes"]["prestroke_lick"] = {
-            "n": int(sel.sum()),
-            "score": (float(np.mean(cv[(en[e_pre] == P)])) if sel.sum() >= MIN_TRIALS else None)}
+        _pl = float(np.mean(cv[(en[e_pre] == P)])) if sel.sum() >= FLOOR_TRIALS else None
+        put("prestroke_lick", sel.sum(), (_pl, sel.sum() < MIN_TRIALS))
         m = ~e_pre & (en == P)
-        rec["classes"]["poststroke_lick"] = {"n": int(m.sum()), "score": score(XE[m])}
+        put("poststroke_lick", m.sum(), score(XE[m]))
         if use_nolick:
             m = u_pre & (un == P)
-            rec["classes"]["prestroke_nolick"] = {"n": int(m.sum()), "score": score(XU[m])}
+            put("prestroke_nolick", m.sum(), score(XU[m]))
             m = ~u_pre & ~not_eng & (un == P)
-            rec["classes"]["poststroke_miss_working"] = {"n": int(m.sum()), "score": score(XU[m])}
+            put("poststroke_miss_working", m.sum(), score(XU[m]))
             m = ~u_pre & not_eng & (un == P)
-            rec["classes"]["poststroke_stopped"] = {"n": int(m.sum()), "score": score(XU[m])}
+            put("poststroke_stopped", m.sum(), score(XU[m]))
         out["positions"][P] = rec
 
     if verbose:
@@ -192,9 +207,24 @@ def figure(results, out, align="precue"):
         pos = results[an]["positions"]
         for c in classes:
             col, mk, lab = style[c]
-            ys = [((pos.get(P, {}).get("classes", {}).get(c) or {}).get("score")) for P in BY_SEVERITY]
-            ax.plot(x, [np.nan if y is None else y for y in ys], "-", marker=mk, color=col,
-                    label=lab if k == 0 else None, lw=1.6, ms=6)
+            recs = [(pos.get(P, {}).get("classes", {}).get(c) or {}) for P in BY_SEVERITY]
+            ys = [r.get("score") for r in recs]
+            ax.plot(x, [np.nan if y is None else y for y in ys], "-", color=col,
+                    label=lab if k == 0 else None, lw=1.5, zorder=2)
+            # SOLID = enough trials to weigh. HOLLOW + its n = few trials, shown so the reader can
+            # see the point exists. Nothing at all = fewer than FLOOR_TRIALS.
+            for xi, r in zip(x, recs):
+                y, n, low = r.get("score"), r.get("n", 0), r.get("low_n")
+                if y is None:
+                    ax.text(xi, 0.012, f"n={n}", ha="center", va="bottom", fontsize=5.5,
+                            rotation=90, color=col, style="italic")
+                    continue
+                ax.plot([xi], [y], marker=mk, ms=7 if not low else 8, color=col,
+                        markerfacecolor=(col if not low else "none"),
+                        markeredgecolor=col, markeredgewidth=1.6, zorder=3)
+                if low:
+                    ax.annotate(f"{n}", (xi, y), textcoords="offset points", xytext=(0, 7),
+                                ha="center", fontsize=5.5, color=col, fontweight="bold")
         ax.set_xticks(x)
         ax.set_xticklabels(BY_SEVERITY, rotation=45, ha="right", fontsize=8)
         ax.set_title(an, fontsize=11, fontweight="bold")
@@ -204,7 +234,7 @@ def figure(results, out, align="precue"):
     fig.suptitle(
         f"{disp} window: each spout position's PRE-STROKE successful-lick coding direction, and where "
         f"each class falls on it.\nPositions ordered MOST IMPAIRED first. Compared only WITHIN a "
-        f"position, so class position-composition cannot contribute.", fontsize=10)
+        f"position, so class position-composition cannot contribute.\nHOLLOW marker with a number = fewer than {MIN_TRIALS} trials, shown rather than dropped; a bare 'n=' label means too few to average at all.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.09, 1, 0.90))
     p = Path(out) / f"coding_direction_{disp}.png"
     fig.savefig(p, dpi=150)

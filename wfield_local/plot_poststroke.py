@@ -66,9 +66,10 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
     """
     ans = sorted(matched)
     conds = ["post-cue", "post-lick", "pre-cue"]
-    fig, axes = plt.subplots(1, len(ans), figsize=(4.6 * len(ans), 4.4), squeeze=False)
+    _rows, _cols = _grid_shape(len(ans))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(4.9 * _cols, 4.4 * _rows), squeeze=False)
     for k, an in enumerate(ans):
-        ax = axes[0][k]
+        ax = axes[k // _cols][k % _cols]
         m = matched[an]
         for i, cname in enumerate(conds):
             r = m.get(cname)
@@ -103,57 +104,79 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
+    _blank_unused(axes, len(ans), _rows, _cols)
     fig.savefig(p, dpi=150)
     plt.close(fig)
     return p
 
 
+def _blank_unused(axes, n, rows, cols):
+    """Hide grid cells the cohort does not fill, so a partial row is empty space not empty boxes."""
+    for j in range(n, rows * cols):
+        axes[j // cols][j % cols].axis("off")
+
+
+def _grid_shape(n, max_cols=4):
+    """Rows x cols for n panels. One long row makes every panel tiny once the cohort grows past a
+    few sessions (Priya, 2026-08-21); wrapping keeps each one readable."""
+    cols = max(1, min(n, max_cols))
+    return int(np.ceil(n / cols)), cols
+
+
 def fig_identity(ident, out):
     """G4: do post-stroke no-lick trials look like pre-stroke licking? WITH the control."""
     ans = sorted(ident)
-    fig, ax = plt.subplots(figsize=(3.6 * len(ans) + 4.0, 5.4))
-    x = np.arange(len(ans))
+    # CHUNKED INTO ROWS. One long row put 10 post-stroke sessions in a single axes, and each
+    # session's four bars plus its two lines of annotation became unreadable (Priya, 2026-08-21).
+    per_row = 4      # 5 made the long 'CONTROL UNDETERMINED' annotations collide
+    chunks = [ans[i:i + per_row] for i in range(0, len(ans), per_row)] or [[]]
+    fig, axes = plt.subplots(len(chunks), 1, squeeze=False,
+                             figsize=(3.9 * per_row + 3.0, 6.1 * len(chunks)))
     w = 0.2
     keys = [("scale_pre_engaged", "pre ENGAGED", "tab:blue"),
             ("scale_pre_undetected", "pre UNDETECTED", "tab:grey"),
             ("CONTROL_post_engaged_frac_engaged_like", "post ENGAGED (control)", "tab:green"),
             ("post_undetected_frac_classified_ENGAGED_like", "post UNDETECTED", "tab:red")]
-    for j, (k, lab, col) in enumerate(keys):
-        ax.bar(x + (j - 1.5) * w, [ident[a].get(k, np.nan) for a in ans], w, label=lab,
-               color=col, edgecolor="k", linewidth=0.4)
-    ax.axhline(0.5, color="k", ls="--", lw=1)
-    for i, a in enumerate(ans):
-        d = ident[a]
-        gap = d.get("engaged_minus_undetected_post", float("nan"))
-        lo, hi = d.get("control_gap_ci95", [float("nan"), float("nan")])
-        ok = d.get("boundary_still_discriminates_post")
-        # three states: an interval spanning zero is UNRESOLVED, not a failure -- the distinction
-        # decides whether the analysis is broken or merely underpowered
-        if ok:
-            msg, col = "control PASSES — read the red bar", "darkgreen"
-        elif np.isfinite(hi) and hi < 0:
-            msg, col = "CONTROL INVERTED — the boundary tracks something else", "firebrick"
-        else:
-            msg, col = "CONTROL UNDETERMINED — too few trials to tell; do NOT read the red bar", "darkorange"
-        ax.text(i, 1.02, msg, ha="center", fontsize=8, fontweight="bold", color=col)
-        ax.errorbar(i + 0.30, 0.5 + gap / 2, yerr=[[abs(gap - lo) / 2], [abs(hi - gap) / 2]],
-                    fmt="none", ecolor="k", elinewidth=1.4, capsize=4, zorder=5)
-        # two short lines under the tick label; one long line ran into the neighbouring animal
-        ax.text(i, -0.19, f"control gap {gap:+.3f}   95% CI [{lo:+.3f}, {hi:+.3f}]",
-                ha="center", fontsize=7.5, transform=ax.get_xaxis_transform())
-        ax.text(i, -0.25,
-                f"pre-sep {d.get('pre_separability_cv', float('nan')):.2f}"
-                f"{' (grouped)' if d.get('pre_separability_cv_grouped_by_session') else ' (UNGROUPED)'}"
-                f"   n post-no-lick = {d.get('n_post_undetected', 0)}",
-                ha="center", fontsize=7, color="dimgrey",
-                transform=ax.get_xaxis_transform())
-    ax.set_xticks(x)
-    ax.set_xticklabels(ans)
-    ax.set_ylim(0, 1.30)
-    ax.set_ylabel("fraction classified ENGAGED-like (licking)")
-    # OUTSIDE the axes: at loc="lower center" it covered the pre-UNDETECTED bars, which are the
-    # baseline the whole comparison is against.
-    ax.legend(fontsize=7.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.14),
+    for _r, _chunk in enumerate(chunks):
+        ax = axes[_r][0]
+        ans_c = _chunk
+        x = np.arange(len(ans_c))
+        for j, (k, lab, col) in enumerate(keys):
+            ax.bar(x + (j - 1.5) * w, [ident[a].get(k, np.nan) for a in ans_c], w, label=lab,
+                   color=col, edgecolor="k", linewidth=0.4)
+        ax.axhline(0.5, color="k", ls="--", lw=1)
+        for i, a in enumerate(ans_c):
+            d = ident[a]
+            gap = d.get("engaged_minus_undetected_post", float("nan"))
+            lo, hi = d.get("control_gap_ci95", [float("nan"), float("nan")])
+            ok = d.get("boundary_still_discriminates_post")
+            # three states: an interval spanning zero is UNRESOLVED, not a failure -- the distinction
+            # decides whether the analysis is broken or merely underpowered
+            if ok:
+                msg, col = "control PASSES — read the red bar", "darkgreen"
+            elif np.isfinite(hi) and hi < 0:
+                msg, col = "CONTROL INVERTED — the boundary tracks something else", "firebrick"
+            else:
+                msg, col = "CONTROL UNDETERMINED — too few trials to tell; do NOT read the red bar", "darkorange"
+            ax.text(i, 1.02, msg, ha="center", fontsize=8, fontweight="bold", color=col)
+            ax.errorbar(i + 0.30, 0.5 + gap / 2, yerr=[[abs(gap - lo) / 2], [abs(hi - gap) / 2]],
+                        fmt="none", ecolor="k", elinewidth=1.4, capsize=4, zorder=5)
+            # two short lines under the tick label; one long line ran into the neighbouring animal
+            ax.text(i, -0.19, f"control gap {gap:+.3f}   95% CI [{lo:+.3f}, {hi:+.3f}]",
+                    ha="center", fontsize=7.5, transform=ax.get_xaxis_transform())
+            ax.text(i, -0.25,
+                    f"pre-sep {d.get('pre_separability_cv', float('nan')):.2f}"
+                    f"{' (grouped)' if d.get('pre_separability_cv_grouped_by_session') else ' (UNGROUPED)'}"
+                    f"   n post-no-lick = {d.get('n_post_undetected', 0)}",
+                    ha="center", fontsize=7, color="dimgrey",
+                    transform=ax.get_xaxis_transform())
+        ax.set_xticks(x)
+        ax.set_xticklabels(ans_c)
+        ax.set_ylim(0, 1.30)
+        ax.set_ylabel("fraction classified ENGAGED-like (licking)")
+        # OUTSIDE the axes: at loc="lower center" it covered the pre-UNDETECTED bars, which are the
+        # baseline the whole comparison is against.
+    axes[0][0].legend(fontsize=7.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.14),
               frameon=False)
     fig.suptitle("Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?  "
                  "Boundary trained on PRE-stroke engaged-vs-undetected, position-balanced so it "
@@ -352,9 +375,11 @@ def fig_nolick_readout(rd, out):
     engagement label anywhere in it.
     """
     ans = sorted(rd)
-    fig, axes = plt.subplots(1, len(ans), figsize=(5.4 * len(ans) + 1.0, 5.6), squeeze=False)
+    _rows, _cols = _grid_shape(len(ans))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(5.6 * _cols + 1.0, 5.2 * _rows),
+                             squeeze=False)
     for k, an in enumerate(ans):
-        ax = axes[0][k]
+        ax = axes[k // _cols][k % _cols]
         xt, lab, i = [], [], 0.0
         for al in ("precue", "cue"):
             r = rd[an].get(al, {})
@@ -400,6 +425,7 @@ def fig_nolick_readout(rd, out):
                  "is printed under each bar.", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     q = Path(out) / "poststroke_G6_nolick_readout.png"
+    _blank_unused(axes, len(ans), _rows, _cols)
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
@@ -537,10 +563,11 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
     ans = [a for a in ans if align in fits[a] and "post_value" in fits[a].get(align, {})]
     if not ans:
         return None
-    fig, axes = plt.subplots(1, len(ans), figsize=(3.6 * len(ans) + 2.0, 5.4), squeeze=False,
+    _rows, _cols = _grid_shape(len(ans))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(4.6 * _cols + 1.6, 4.9 * _rows), squeeze=False,
                             sharey=True)
     for k, a in enumerate(ans):
-        ax = axes[0][k]
+        ax = axes[k // _cols][k % _cols]
         d = fits[a][align]
         for j, (arm, col, lab) in enumerate(((("engaged"), "tab:blue", "pre-stroke ENGAGED"),
                                              (("nolick"), "tab:grey", "pre-stroke NO-LICK"))):
@@ -591,6 +618,7 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
         "execution-failure hypothesis denies.", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / (name or f"poststroke_G4b_fits_engaged_{align}.png")
+    _blank_unused(axes, len(ans), _rows, _cols)
     fig.savefig(q, dpi=150)
     plt.close(fig)
     return q
