@@ -63,11 +63,19 @@ CATEGORIES = ("engaged", "late_rewarded", "undetected")
 # trial's behaviour. The response window is therefore a hard ceiling on every category boundary and
 # every feature window here, not a parameter to be widened for statistical convenience.
 #
-# It also is NOT the decoder's engaged cut. decode.max_rt_s is 2.0 s while the task has run 3500 ms
-# throughout (configs/defaults.yaml:120, read per session from that session's gui_config.json), so a
-# lick at 2.5 s is a REWARDED HIT that the decoder calls "no lick". Both cuts are reported (Priya's
-# choice, 2026-08-17): 2.0 s keeps every existing deck number comparable, the response window is
-# what the task means by a response.
+# THE TWO CUTS CONVERGED ON 2026-08-21. decode.max_rt_s was 2.0 s while the task has run 3500 ms
+# throughout, so a lick at 2.5 s was a REWARDED HIT that the decoder called "no lick" -- and those
+# trials made up 39.3% of PS92's no-lick arm and 33.9% of PS93's. That was tolerable while those two
+# were pre-stroke-only controls; it stopped being tolerable when they re-entered as post-stroke
+# animals on 8/18, because the slides would then report a late-lick effect as a no-lick effect.
+# decode.max_rt_s is now 3.5 s, i.e. the response window, so "engaged" means the same thing here as
+# in the behaviour pipeline's hit/miss (Priya, 2026-08-21).
+#
+# THIS MODULE KEEPS ITS OWN 2.0 s BOUNDARY (`_args`, hardcoded and deliberately NOT read from
+# config). That is what still makes the three-arm split possible: with both cuts at 3.5 s the
+# late_rewarded arm is empty by construction, and the late-vs-undetected distinction is a real result
+# worth keeping visible -- on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced
+# 0.532, p=0.003) while undetected trials showed nothing (0.153, p=0.76).
 DEFAULT_RESPONSE_WINDOW_S = 3.5
 
 # Known non-stroke reasons a position's "undetected" trials over-represent failed EXECUTION rather

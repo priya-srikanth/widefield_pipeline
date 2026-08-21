@@ -82,7 +82,16 @@ decode:
   # which it does 90.8-99.5% of the time -- but PS93 8/9 falls to 76%, in the animal whose
   # licking is already atypical. Set false to recover the pre-2026-08-17 behaviour.
   precue_lickfree: true
-  max_rt_s: 2.0           # engaged = first lick within this of the cue; else -> no-lick
+  max_rt_s: 3.5           # engaged = first lick within this of the cue; else -> no-lick.
+                          # 3.5 s = the task's REAL response window (gui_config.json
+                          # timing.response_window), so 'engaged' now means the same thing
+                          # here as in the behaviour pipeline's hit/miss. At 2.0 s the
+                          # no-lick arm CONTAINED the late-but-rewarded trials -- 39.3% of
+                          # it for PS92 and 33.9% for PS93 -- so those slides reported a
+                          # late-lick effect as a no-lick effect (Priya, 2026-08-21).
+                          # Safe for the lick window: the window starts at the first lick
+                          # wherever it falls, and 3.5 + 2.0 = 5.5 s sits inside the
+                          # minimum measured cue-to-cue interval of 8.0 s.
   cv: block               # GroupKFold by ~6-trial position blocks (no per-trial baseline)
   baseline: none
   chance: 0.167           # 6 positions

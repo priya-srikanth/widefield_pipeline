@@ -147,7 +147,11 @@ def test_defaults_blocks_are_the_single_source():
     dec = d["decode"]
     assert dec["aligns"] == ["lick", "cue", "precue"]
     assert (dec["lick_post_s"], dec["cue_post_s"], dec["precue_post_s"]) == (2.0, 2.0, 2.0)
-    assert dec["max_rt_s"] == 2.0 and dec["cv"] == "block" and dec["baseline"] == "none" and dec["chance"] == 0.167
+    # 3.5 s since 2026-08-21: the engaged cut is now the task's REAL response window, so
+    # "engaged" means the same here as in the behaviour pipeline. At 2.0 s the no-lick arm
+    # held rewarded hits -- 39.3% of PS92's, 33.9% of PS93's -- which stopped being tolerable
+    # when those two re-entered as post-stroke animals.
+    assert dec["max_rt_s"] == 3.5 and dec["cv"] == "block" and dec["baseline"] == "none" and dec["chance"] == 0.167
 
 
 def test_normalize_animals():
