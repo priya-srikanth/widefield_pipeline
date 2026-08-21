@@ -381,3 +381,48 @@ def test_a_whole_file_reports_no_blanks(tmp_path):
     assert r["ok"] and r["last_frame_blank"] is False
     assert r["first_blank_frame"] is None and r["interior_blank"] == []
 
+
+# ------------------------------------------------------------------------------------------------
+# --redo: recovering a session that was preprocessed from a bad upload.
+#
+# The existence skips are right almost always -- they are what makes a re-run of a night cheap. They
+# are wrong in exactly one case: the inputs were bad and have been replaced. Without a way to say so,
+# recovery means moving files out from under the pipeline by hand.
+# ------------------------------------------------------------------------------------------------
+
+def _ran(monkeypatch, tmp_path, redo, svtcorr_exists=True, bin_exists=True):
+    """Run preprocess_session over a session whose outputs already exist; collect what it invoked."""
+    from wfield_local import preprocess
+
+    calls = []
+    monkeypatch.setattr(preprocess, "_run", lambda args, dry: calls.append(str(args[0])))
+    monkeypatch.setattr(preprocess, "generate_maps", lambda *a, **k: None)
+    mc = tmp_path / "sess" / "motion_corrected"
+    res = mc / "wfield_local_results"
+    res.mkdir(parents=True, exist_ok=True)
+    if bin_exists:
+        (mc / "motioncorrect_2_4_5_uint16.bin").write_bytes(b"x")
+    if svtcorr_exists:
+        (res / "SVTcorr.npy").write_bytes(b"x")
+    sess = {"animal": "PS92", "mmdd": "0820", "sess": "PS92_20260820_120000", "dims": "2_4_5",
+            "sess_dir": str(tmp_path / "sess"), "raw_dat": str(tmp_path / "r.dat"),
+            "daq_h5": str(tmp_path / "d.h5")}
+    try:
+        preprocess.preprocess_session(sess, config.defaults()["preprocess"],
+                                      PathResolver(), False, redo=redo)
+    except Exception:                      # later steps need a real reference/push; we only care
+        pass                               # about which of the first two ran
+    return calls
+
+
+def test_without_redo_existing_outputs_are_skipped(tmp_path, monkeypatch):
+    calls = _ran(monkeypatch, tmp_path, redo=False)
+    assert not any("run_wfield_motion" in c for c in calls), "motion must be skipped"
+    assert not any("run_wfield_local" in c for c in calls), "SVD must be skipped"
+
+
+def test_with_redo_existing_outputs_are_recomputed(tmp_path, monkeypatch):
+    """The 8/20 recovery: the outputs are there and they are wrong."""
+    calls = _ran(monkeypatch, tmp_path, redo=True)
+    assert any("run_wfield_motion" in c for c in calls), "--redo must re-run motion correction"
+    assert any("run_wfield_local" in c for c in calls), "--redo must re-run the SVD"

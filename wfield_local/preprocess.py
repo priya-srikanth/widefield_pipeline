@@ -474,8 +474,18 @@ def _run(args: list, dry_run: bool) -> None:
         raise SystemExit(f"[preprocess] FAILED: {args[0]}")
 
 
-def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -> None:
-    """motion(fixed) -> SVD -> cross-register to reference -> push LocaNMF inputs to MICROSCOPE."""
+def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
+                       redo: bool = False) -> None:
+    """motion(fixed) -> SVD -> cross-register to reference -> push LocaNMF inputs to MICROSCOPE.
+
+    ``redo`` recomputes the three steps that are otherwise skipped whenever their output
+    already exists. WHY IT HAS TO EXIST: on 2026-08-20 PS92 and PS95 were preprocessed from
+    uploads that were 53% and 93% unwritten zeros. Recovering them means re-running after a
+    good upload -- and without this flag that run prints "[skip] motion-corrected bin exists"
+    and "[skip] SVTcorr exists" and reuses the garbage, fast enough to look like success. The
+    only alternative was moving files out from under the pipeline by hand, which is a worse
+    thing to have to get right at midnight.
+    """
     animal, mmdd, sess, dims = s["animal"], s["mmdd"], s["sess"], s["dims"]
     yyyymmdd = f"2026{mmdd}"  # imaging cohort is 2026; keep in sync with the date arg
     mc = f"{s['sess_dir']}/motion_corrected"
@@ -483,6 +493,8 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     results = f"{mc}/wfield_local_results"
     svd = params["svd"]
     print(f"\n################ {animal} {sess} (dims {dims}) ################", flush=True)
+    if redo:
+        print("[redo] recomputing steps whose outputs already exist", flush=True)
     if s["daq_h5"] is None:
         raise SystemExit(f"[preprocess] {animal} {sess}: no matching DAQ .h5 found")
 
@@ -503,7 +515,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
                 f"under {mc} — run repair_single_channel.write_frame_map first")
         print(f"[repaired] {repaired.name} present: skipping TTL relabel, using "
               f"{fms[0].name if fms else '<frame map MISSING>'}", flush=True)
-    if Path(binp).exists() and not dry_run:
+    if Path(binp).exists() and not dry_run and not redo:
         print("[skip] motion-corrected bin exists", flush=True)
     elif repaired.exists():
         _run(["wfield_local.run_wfield_motion", s["raw_dat"], "--output", mc,
@@ -514,7 +526,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
               "--mode", params["motion_mode"], "--relabel-on-the-fly"], dry_run)
 
     # 2 SVD (functional channel = 470)
-    if Path(f"{results}/SVTcorr.npy").exists() and not dry_run:
+    if Path(f"{results}/SVTcorr.npy").exists() and not dry_run and not redo:
         print("[skip] SVTcorr exists", flush=True)
     else:
         _run(["wfield_local.run_wfield_local", binp, "--output", results,
@@ -559,7 +571,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool) -
     build_variant = hv.get("build_variant", "meegkit_hpfit")
     if build_variant and build_variant not in ("none", "zerophase"):
         vdir = f"{results}/hemo_{build_variant}"
-        if Path(vdir).exists() and not dry_run:
+        if Path(vdir).exists() and not dry_run and not redo:
             print(f"[skip] {Path(vdir).name} exists", flush=True)
         else:
             # NON-FATAL: the hemo variant is an optional add-on for variant-based analyses; the core
@@ -680,7 +692,8 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
         print("[preprocess] --skip-preprocess: skipping motion/SVD/cross-register/push", flush=True)
     else:
         for s in sessions:
-            preprocess_session(s, params, rv, args.dry_run)
+            preprocess_session(s, params, rv, args.dry_run,
+                               redo=getattr(args, 'redo', False))
 
     # cue/lick/quiet activity maps (AFTER the push loop so the GPU-box LocaNMF push stays first)
     if not args.skip_maps:
@@ -719,6 +732,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-crossday-intensity", action="store_true",
                     help="skip the cross-day raw ROI fluorescence-intensity trend")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
+    ap.add_argument("--redo", action="store_true",
+                    help="recompute motion correction, SVD and the hemo variant even when their outputs already exist (default: skip). Needed to recover a session preprocessed from a bad upload.")
     ap.add_argument("--allow-incomplete-raw", action="store_true",
                     help="process a .dat that is not a whole number of frames (default: skip it)")
     ap.add_argument("--raw-root", default=None,
