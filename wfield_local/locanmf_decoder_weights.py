@@ -35,6 +35,7 @@ from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDE
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
+from wfield_local.figgrid import blank_unused, grid_shape
 
 FS = 31.23
 POSNAMES = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
@@ -95,8 +96,9 @@ def _region_group(rn):
 
 # --------------------------------------------------------------------------- figures
 def fig_weights_by_region(labels, out, tag=""):
-    fig, axes = plt.subplots(1, len(labels), figsize=(5.7 * len(labels), 5.2), squeeze=False)
-    for ax, lab in zip(axes[0], labels):
+    _rows, _cols = grid_shape(len(labels))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(5.5 * _cols, 5.0 * _rows), squeeze=False)
+    for ax, lab in zip(axes.ravel(), labels):
         s = _sess(lab); names = _names(s)
         X, y, g, _, _, reg = _trial_features(s, _args("lick", 2.0))
         lr = _clf().fit(X, y).named_steps["logisticregression"]; ci = {int(c): i for i, c in enumerate(lr.classes_)}
@@ -120,6 +122,7 @@ def fig_weights_by_region(labels, out, tag=""):
                  "Contralateral SSp: left spouts->right-hemi SSp, right->left", fontsize=11)
     fig.tight_layout()
     p = out / f"locanmf_decoder_weights_by_region{('_' + tag) if tag else ''}.png"
+    blank_unused(axes, len(labels), _rows, _cols)
     fig.savefig(p, dpi=130); plt.close(fig)
     return p
 

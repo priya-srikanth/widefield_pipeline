@@ -30,6 +30,7 @@ from sklearn.metrics import accuracy_score
 from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local.figgrid import blank_unused, grid_shape
 
 FS = 31.23
 
@@ -105,10 +106,11 @@ def _gh(rn):
 
 
 def fig_grouped_ablation(labels, out, tag):
-    fig, axes = plt.subplots(1, len(labels), figsize=(7.5 * len(labels), 5.6), squeeze=False)
+    _rows, _cols = grid_shape(len(labels))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(7.0 * _cols, 5.4 * _rows), squeeze=False)
     G = ["SEN_L", "SEN_R", "MOT_L", "MOT_R"]
     pairs = [("SEN_L", "SEN_R"), ("MOT_L", "MOT_R"), ("SEN_L", "MOT_L"), ("SEN_R", "MOT_R"), ("SEN_L", "MOT_R"), ("SEN_R", "MOT_L")]
-    for ax, label in zip(axes[0], labels):
+    for ax, label in zip(axes.ravel(), labels):
         X, y, g, rn = _load(label); gr = np.array([_gh(r) for r in rn]); full = _acc(X, y, g)
         def msk(groups):
             return np.isin(gr, groups)
@@ -126,6 +128,7 @@ def fig_grouped_ablation(labels, out, tag):
     # tag with a non-date label (e.g. animal) suffixes the filename; the per-date all-animals call
     # passes a date (or "") and keeps the original name the existing deck reads.
     suffix = ("_" + tag) if (tag and not tag[:2].isdigit()) else ""
+    blank_unused(axes, len(labels), _rows, _cols)
     p = out / f"locanmf_ablation_grouped_unilateral{suffix}.png"; fig.savefig(p, dpi=130); plt.close(fig)
     return p
 

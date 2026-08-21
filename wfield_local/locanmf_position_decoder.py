@@ -44,6 +44,7 @@ from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.block_ids import block_ids, block_size_max_for
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames
+from wfield_local.figgrid import blank_unused, grid_shape
 
 
 def _build_signal(s, source):
@@ -344,7 +345,8 @@ def main() -> int:
         return cross_val_predict(clf, Xc, yv, cv=StratifiedKFold(5, shuffle=True, random_state=0))
 
     groups = {"all": None, "SSp": ("SSp",), "MO": ("MOp", "MOs")}
-    fig, axes = plt.subplots(1, len(sess), figsize=(5 * len(sess), 4.6), squeeze=False)
+    _rows, _cols = grid_shape(len(sess))
+    fig, axes = plt.subplots(_rows, _cols, figsize=(5.0 * _cols, 4.5 * _rows), squeeze=False)
     summary = {}
     for si, s in enumerate(sess):
         X, y, gblk, Xnl, ynl, feat_reg = _trial_features(s, args)
@@ -383,7 +385,7 @@ def main() -> int:
             else f" | no-lick n={Xnl.shape[0]} (skipped: needs --align cue)"
         print(f"{s['label']}: engaged n={X.shape[0]} {args.source}feat={X.shape[1]} | "
               + "  ".join(f"{g}={a:.2f}" for g, a in accs.items()) + nlstr, flush=True)
-        ax = axes[0][si]; im = ax.imshow(cmn, vmin=0, vmax=1, cmap="magma")
+        ax = axes[si // _cols][si % _cols]; im = ax.imshow(cmn, vmin=0, vmax=1, cmap="magma")
         labs = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
         ax.set_xticks(range(6)); ax.set_xticklabels(labs, rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(6)); ax.set_yticklabels(labs, fontsize=7)
@@ -392,6 +394,7 @@ def main() -> int:
         fig.colorbar(im, ax=ax, shrink=0.7)
         if args.per_session:
             _save_session_fig(s["label"], cmn, summary[s["label"]], labs, args, tag=f"{args.source}_{args.align}_base-{args.baseline}_cv-{args.cv}")
+    blank_unused(axes, len(sess), _rows, _cols)
     fig.suptitle(f"Spout-position decoding [{args.source}, {args.align}-aligned 0-{args.post_s:g}s, "
                  f"baseline={args.baseline}, {args.cv}-CV, engaged], {args.date}", fontsize=12)
     fig.tight_layout()
@@ -400,9 +403,11 @@ def main() -> int:
 
     # ---- per-position recall: engaged (5-fold) vs no-lick (trained on engaged) ----
     posnames = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
-    fig2, axes2 = plt.subplots(1, len(sess), figsize=(5 * len(sess), 4.2), squeeze=False, sharey=True)
+    _rows2, _cols2 = grid_shape(len(sess))
+    fig2, axes2 = plt.subplots(_rows2, _cols2, figsize=(5.0 * _cols2, 4.2 * _rows2),
+                               squeeze=False, sharey=True)
     for si, s in enumerate(sess):
-        ax = axes2[0][si]; sm = summary[s["label"]]; x = np.arange(6); w = 0.38
+        ax = axes2[si // _cols2][si % _cols2]; sm = summary[s["label"]]; x = np.arange(6); w = 0.38
         ax.bar(x - w / 2, sm["recall_by_position"].get("all", [np.nan] * 6), w, color="tab:blue",
                label="engaged (5-fold)")
         ax.bar(x + w / 2, sm["recall_nolick_by_position"].get("all", [np.nan] * 6), w, color="tab:red",
@@ -413,6 +418,7 @@ def main() -> int:
         ax.set_title(f"{s['label']}  eng={sm['acc']['all']:.2f}  no-lick={nls}", fontsize=9)
         if si == 0:
             ax.set_ylabel("per-position recall"); ax.legend(fontsize=7)
+    blank_unused(axes2, len(sess), _rows2, _cols2)
     fig2.suptitle(f"Per-position recall — engaged vs no-lick [{tag}], {args.date} "
                   f"(no-lick = baseline disengagement here; post-stroke = failed attempts)", fontsize=11)
     fig2.tight_layout()

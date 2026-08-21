@@ -43,6 +43,7 @@ def _args():
 
 from wfield_local.locanmf_frozen_decoder import (  # ONE decoder spec
     _pipe)
+from wfield_local.figgrid import blank_unused, grid_shape
 
 
 def _bcv(X, y, g):
@@ -79,7 +80,8 @@ def _load(label):
 
 
 def run(labels, out):
-    fig1, axes1 = plt.subplots(1, len(labels), figsize=(5.4 * len(labels), 5), squeeze=False)
+    _rows, _cols = grid_shape(len(labels))
+    fig1, axes1 = plt.subplots(_rows, _cols, figsize=(5.2 * _cols, 4.8 * _rows), squeeze=False)
     accs_all, accs_qc, drop = [], [], []
     for ai, label in enumerate(labels):
         A, mask, names, X, y, g, reg = _load(label)
@@ -96,13 +98,14 @@ def run(labels, out):
         regs = np.array([names.get(int(reg[c]), "?") for c in range(X.shape[1])])
         reg_imp = {rr: imp[regs == rr].sum() for rr in set(regs)}
         topr = sorted(reg_imp, key=reg_imp.get, reverse=True)[:14]
-        ax = axes1[0][ai]
+        ax = axes1[ai // _cols][ai % _cols]
         cols = ["#c0392b" if r.startswith(("SSp", "SSs")) else "#2980b9" if r.startswith("MO") else "#888" for r in topr]
         ax.barh(range(len(topr))[::-1], [reg_imp[r] for r in topr], color=cols)
         ax.set_yticks(range(len(topr))[::-1]); ax.set_yticklabels(topr, fontsize=7)
         ax.set_xlabel("permutation importance (acc drop, summed)"); ax.set_title(label, fontsize=11); ax.axvline(0, color="k", lw=0.6)
     fig1.suptitle("Region importance by PERMUTATION (block-CV held-out) — suppressor-robust. "
                   "Red=SSp/SSs, blue=MO, grey=other", fontsize=12)
+    blank_unused(axes1, len(labels), _rows, _cols)
     fig1.tight_layout(); p1 = out / "locanmf_region_permutation_importance.png"; fig1.savefig(p1, dpi=130); plt.close(fig1)
 
     fig2, ax = plt.subplots(figsize=(8, 5)); x = np.arange(len(labels)); w = 0.35
