@@ -425,6 +425,25 @@ def _degenerate_feve(res, regs, out_path, verbose=True) -> bool:
     return True
 
 
+def _feve_name(f) -> str:
+    """The figure a FEVE builder writes, for log lines where it refused and returned None."""
+    return ("locanmf_encoder_feve_by_region_pooled.png" if f is fig_region_feve_pooled
+            else "locanmf_encoder_feve_by_region_sessions.png")
+
+
+def _feve_log(f, q) -> str:
+    """What to say about a FEVE builder that returned ``q``.
+
+    A builder returns None when the degenerate-collapse guard refused to overwrite a good figure.
+    Reporting that as "wrote" is how a refusal came to read as a success in the 2026-08-21 nightly
+    log -- "REFUSING to overwrite X" on one line, "wrote X" on the next. The file on disk was
+    intact; only the report lied, which is the harder kind to catch, so the decision lives here
+    where a test can hold it.
+    """
+    return (f"wrote {q.name}" if q else
+            f"kept existing (guard refused to overwrite): {_feve_name(f)}")
+
+
 def fig_region_feve_pooled(res, out, floor=0.02):
     """ACROSS-SESSIONS: per region, FEVE (% of explainable/ceiling variance the encoder captures) pooled
     within each animal (SS summed over all of that animal's sessions). Heatmap animal x region; 100% = the
@@ -444,7 +463,7 @@ def fig_region_feve_pooled(res, out, floor=0.02):
                  f"regions with explainable frac >{floor}, sorted by explainable variance)", fontsize=9.5)
     if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_pooled.png"):
         plt.close(fig)
-        return out / "locanmf_encoder_feve_by_region_pooled.png"
+        return None                      # NOT the path: nothing was written to it
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_pooled.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -469,7 +488,7 @@ def fig_region_feve_sessions(res, out, floor=0.02):
                  f"(% of explainable variance captured; 100% = all; regions explainable frac >{floor})", fontsize=9.5)
     if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
         plt.close(fig)
-        return out / "locanmf_encoder_feve_by_region_sessions.png"
+        return None                      # NOT the path: nothing was written to it
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_sessions.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -659,7 +678,7 @@ def main() -> int:
             print(f"  {lab} feve skip: {type(ex).__name__}: {str(ex)[:60]}", flush=True)
     for f in (fig_region_feve_pooled, fig_region_feve_sessions):
         try:
-            print("wrote", f(res, args.output).name, flush=True)
+            print(_feve_log(f, f(res, args.output)), flush=True)
         except Exception as ex:
             print(f"{f.__name__}: FAILED {type(ex).__name__}: {str(ex)[:80]}", flush=True)
     # per-animal EV-per-position across the pooled sessions (one graph/animal, sessions by colour)
