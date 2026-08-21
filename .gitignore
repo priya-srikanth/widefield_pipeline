@@ -34,3 +34,6 @@ _xall_*.json
 
 # await_locanmf transient manifests
 .await_locanmf_*.json
+
+# git worktrees created by parallel Claude Code sessions: never part of the repo
+.claude/worktrees/
