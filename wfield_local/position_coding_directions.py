@@ -481,7 +481,20 @@ def figure_animal(res, out, align="precue", meth="dom"):
         ax.set_xticklabels([sn["date"] for sn in sess], rotation=60, ha="right", fontsize=6.5)
         ax.grid(alpha=0.25)
         if k % 3 == 0:
-            ax.set_ylabel("projection  (0 = pre-stroke not-P, 1 = pre-stroke lick at P)")
+            ax.set_ylabel("projection", fontsize=9)
+    # ROBUST Y-LIMITS. A class with a handful of trials in one session can sit far outside [0, 1]
+    # with a SEM to match -- pre-stroke no-lick reached ~5 on two PS94 sessions -- and a shared axis
+    # then squashes every real line into a thin band. Clip to the bulk; outliers run off the top.
+    _vals = []
+    for _P in BY_SEVERITY:
+        for _cell in ((R["positions"].get(_P) or {}).get("by_session") or {}).values():
+            for _c in _cell.values():
+                if isinstance(_c, dict) and _c.get("mean") is not None:
+                    _vals.append(_c["mean"])
+    if _vals:
+        _lo, _hi = np.percentile(_vals, [2, 98])
+        _pad = 0.15 * max(_hi - _lo, 0.5)
+        axes[0][0].set_ylim(min(_lo - _pad, -0.35), max(_hi + _pad, 1.35))
     fig.legend(loc="lower center", ncol=5, fontsize=8.5, frameon=False)
     fig.suptitle(
         f"{res['animal']} \u2014 {disp} window, {meth.upper()} coding direction. Each position's "
