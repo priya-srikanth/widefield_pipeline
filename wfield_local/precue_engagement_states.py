@@ -255,7 +255,37 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             disc["train_auc_loso"] = _auc(yd, cvp)
         for k, (X, _y, _g) in states.items():
             disc[k] = (float(np.mean(model.predict_proba(X)[:, 1])) if len(X) else None)
-        # D. DRIFT CONTROL: both halves are ENGAGED, so any separation here is time, not state.
+        # D2. THE STRONGER DRIFT CONTROL: PRE-STROKE LICK trials, early vs late.
+        #
+        # One state throughout, spanning the whole session, and thousands of trials instead of the
+        # 53-147 late trials state 5 can offer -- which was the weak point of D1 (Priya, 2026-08-20:
+        # "there are no early no-lick trials pre-stroke"). Exactly so: pre-stroke no-lick is 78-85%
+        # late, PS92 has 28 early ones, so the control cannot live inside the no-lick class. The
+        # LICK class can carry it.
+        #
+        # LOSO over pre-stroke sessions, refitting each time, so early and late trials are scored
+        # by a model that never saw that session. Scoring in-sample late trials against out-of-sample
+        # early ones would manufacture exactly the difference being tested for.
+        pre_e, pre_l = [], []
+        for si in sorted(pre_i):
+            hold = e_pre & (GE == si)
+            tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
+            if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
+                continue
+            m = _disc().fit(
+                np.vstack([XE[tr_e], XU[tr_d]]),
+                np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
+            pr = m.predict_proba(XE[hold])[:, 1]
+            lh = late_e[hold]
+            pre_e.extend(pr[~lh])
+            pre_l.extend(pr[lh])
+        if pre_e and pre_l:
+            disc["drift_control_pre_lick"] = {
+                "n_early": len(pre_e), "n_late": len(pre_l),
+                "early_p_disengaged": float(np.mean(pre_e)),
+                "late_p_disengaged": float(np.mean(pre_l))}
+
+        # D1. DRIFT CONTROL: both halves are ENGAGED, so any separation here is time, not state.
         eng5 = ~u_pre & ~not_eng_nl
         if eng5.sum() >= 20:
             early = XU[eng5 & ~late_nl]
