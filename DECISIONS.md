@@ -2627,3 +2627,51 @@ trial — which is why orthogonalising did not remove it.
   Untested — the obvious next check.
 - Anything that compares a post-stroke class to pre-stroke lick WITHIN a session position is exposed
   to this, because post-stroke misses concentrate late in a session while pre-stroke licks do not.
+
+---
+
+## THE PAIRWISE AXES: WITHIN-RING IS SAFE, CROSS-RING IS NOT (2026-08-22)
+
+The open question left by the disengagement result — whether the pairwise A-vs-B panels escape the
+drift that the one-vs-rest axes carry. Tested on pre-stroke LICK trials, all 15 position pairs per
+animal, with a built-in control rather than a single correlation: within-ring pairs (close-close,
+far-far) should carry little of the close-vs-far dimension, cross-ring pairs should carry a lot.
+
+**Half the prediction landed immediately.** Mean |cos| with the pre-stroke close-vs-far axis is
+**0.33 for within-ring pairs against 0.70 for cross-ring** — the pairwise construction does strip out
+most of that dimension when both positions share a ring.
+
+**And the aggregate looked like a refutation.** Over all 60 pairs r(cos, slope) = −0.143 against
+−0.567 for one-vs-rest, and mean |slope| was the same for both groups (0.176 vs 0.194). Read alone,
+that says the pairwise axes drift as much as anything else and the mechanism is wrong.
+
+**It was hiding the effect by pooling animals with and without a state drift to project.** Split by
+whether the animal actually disengages:
+
+| | cross-ring (A is always the FAR position) | within-ring |
+|---|---|---|
+| **PS94, PS95** (lose 0.25/0.35 of response rate) | mean **+0.187**, **positive 18/18** | mean −0.010, positive 6/12 |
+| **PS92, PS93** (lose 0.09/0.06) | mean +0.009, positive 9/18 | mean −0.049, positive 5/12 |
+
+Every cell except one is a coin flip. The exception is **18 out of 18 in the same direction**
+(binomial p ≈ 4e-6), in exactly the two animals with the behavioural drift and exactly the pair type
+that carries the close-vs-far dimension.
+
+**The sign is the part that could have failed and did not.** In these pairs A is always the far
+position, so a positive slope means far trials become MORE far-like as the session runs. In the
+one-vs-rest axes, close trials became LESS close-like. Both are the same drift along close→far, seen
+from opposite ends. That is a prediction the data could have contradicted and did not, which is what
+turns the account of 2026-08-21 from plausible into measured.
+
+### What to use
+- **Within-ring pairwise (close-vs-close, far-vs-far) is the safe contrast for remapping questions.**
+  Half the close-vs-far loading and no coherent drift even in the disengaging animals.
+- **Cross-ring pairwise is not safe**, though at roughly half the magnitude of one-vs-rest (+0.19
+  against −0.35). The deck note previously said "prefer the pairwise panels" without qualification;
+  that was right for within-ring and wrong for cross-ring.
+- One-vs-rest remains the most exposed of the three.
+
+### Caveat
+Two animals carry the whole result. PS92 and PS93 are not a negative control for the MECHANISM — they
+are animals with no state drift to project, so their 9/18 is what "nothing to detect" looks like, not
+evidence against it. A third disengaging animal would be the real test.

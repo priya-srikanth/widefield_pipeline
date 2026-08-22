@@ -531,7 +531,12 @@ M_CODING_DIR = (
     "vs post-stroke-lick contrast IS like-for-like, since both contain a lick.\n\nCAVEAT ON "
     "ONE-VS-REST. 'Not P' mixes the five other positions, and for MIDDLE positions that mixture is "
     "majority-far, so the axis becomes largely close-vs-far and the position it is named for need "
-    "not be the extreme on it. Prefer the pairwise panels for remapping questions.\n\nTHE LICK "
+    "not be the extreme on it. Prefer the WITHIN-RING pairwise panels (close-vs-close, far-vs-far) "
+    "for remapping questions -- measured 2026-08-22, they carry half the close-vs-far loading of a "
+    "one-vs-rest axis (|cos| 0.33 vs 0.70) and show NO coherent within-session drift even in the two "
+    "animals that disengage (6/12 positive, mean -0.01). CROSS-RING pairwise axes are NOT safe: in "
+    "those same two animals all 18 drift the same way (mean +0.19), the far position becoming more "
+    "far-like as the session runs.\n\nTHE LICK "
     "WINDOW'S NO-LICK CLASSES SIT AT AN INFERRED TIME (2026-08-21). Their window starts at the cue "
     "plus that session's own median RT at that position -- cue-referencing would offset the arms by "
     "the whole reaction time, a median of 2.439 s at post-stroke far_R against a 2 s window. A "
@@ -1715,7 +1720,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
                  "mixes five positions and, for the MIDDLE positions, is majority-far -- PS94's "
                  "close_center axis orders close_L 1.23 > close_R 0.83 > close_center 0.71, i.e. "
-                 "the position it is named for is only third on its own axis."),
+                 "the position it is named for is only third on its own axis. READ THE WITHIN-RING "
+                 "CELLS (close-vs-close, far-vs-far) FIRST: they carry half the close-vs-far "
+                 "loading (|cos| 0.33 vs 0.70) and no coherent within-session drift, while every "
+                 "one of the 18 cross-ring cells in the two disengaging animals drifts the same "
+                 "way (mean +0.19, the far position becoming more far-like over the session)."),
             ):
                 for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
                     _f = src / f"coding_{_kind}_{_w}_{_m}_{_an}.png"
