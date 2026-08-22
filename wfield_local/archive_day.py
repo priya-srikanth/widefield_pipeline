@@ -19,7 +19,9 @@ Classification of every file under E:\\labcams_data\\<date>:
   - ``*_uint16.dat`` whose name contains ``cleanpairs``            -> E-only intermediate
   - ``*_uint16.dat`` inside a ``*concat*`` folder                  -> E-only intermediate (concat raw)
   - any other ``*_uint16.dat``                                     -> RAW  -> M: (mirrors tree)
-  - everything else (npy/npz/png/json/csv/camlog/tif/bin/...)      -> OUTPUT -> N: (mirrors tree)
+  - ``*.camlog``                                                   -> BOTH: N: (output
+    convention) and M: (acquired frame-time record, beside the raw it describes)
+  - everything else (npy/npz/png/json/csv/tif/...)                 -> OUTPUT -> N: (mirrors tree)
 DAQ h5 files containing <date> anywhere under E:\\DAQ_recorder_output -> N: DAQ
 under a ``<date>\\`` folder (canonical server layout: ``DAQ_recorder_output\\<date>\\
 <animal>_<date>_<time>.h5``), regardless of how they are foldered on E:.
@@ -159,6 +161,20 @@ def discover(cfg, date):
                 # mirror into the session folder alongside raw_widefield_data on M:
                 jobs.append(dict(src=src, kind="mcbin", session=session,
                                  dst=os.path.join(cfg["m_raw"], date, rel)))
+            elif f.endswith(".camlog"):
+                # TWO DESTINATIONS, restored 2026-08-22 (Priya). It is an OUTPUT by pipeline
+                # convention and goes to N:, and it is also ACQUIRED DATA -- the frame-time record
+                # that cannot be regenerated from anything -- so it goes to M: beside the raw it
+                # describes. Without the M: copy a standby session is a movie with no timestamps.
+                #
+                # An earlier version did this and was reverted because `clean` then reported
+                # "KEEP (dest missing)" for a file it deleted via the other destination. That was a
+                # REPORTING bug, not a reason to keep one copy: _keep_reasons below now groups by
+                # source, so a file is reported kept only when NO destination verified.
+                jobs.append(dict(src=src, dst=os.path.join(cfg["n_lab"], date, rel),
+                                 kind="output", session=session))
+                jobs.append(dict(src=src, dst=os.path.join(cfg["m_raw"], date, rel),
+                                 kind="camlog", session=session))
             else:
                 jobs.append(dict(src=src, dst=os.path.join(cfg["n_lab"], date, rel),
                                  kind="output", session=session))
@@ -454,9 +470,19 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             print(f"  WARNING: no photobleach record for {j['session']} -- deleting its raw means "
                   f"that session cannot join the date's photobleach QC without re-staging from "
                   f"standby. Run preprocess WITHOUT --skip-photobleach before cleaning.")
+    # GROUP BY SOURCE. A camlog has two destinations; if one verified and the other did not, the
+    # file IS safely copied and saying "KEEP" about it is false -- that mismatch between the report
+    # and the behaviour is what got the dual destination reverted the first time.
+    _verified_src = {j["src"] for j in ok_jobs}
     for j in missing:
+        if j["src"] in _verified_src:
+            print(f"  note: {j['src']} not yet at {j['dst']} (its other destination is verified)")
+            continue
         print(f"  KEEP (dest missing): {j['src']}")
     for j, s, d in mismatch:
+        if j["src"] in _verified_src:
+            print(f"  note: {j['src']} mismatched at {j['dst']} (its other destination is verified)")
+            continue
         print(f"  KEEP (size mismatch): {j['src']}")
     for j in inter_skip:
         print(f"  KEEP (regen source not confirmed): {j['src']}")

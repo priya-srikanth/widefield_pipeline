@@ -170,14 +170,22 @@ def test_deleting_original_data_requires_a_verified_copy_or_permission(tmp_path)
     wg.assert_deletable(tmp_path / "SVTcorr.npy")                  # derived by nature
 
 
-def test_camlog_follows_pipeline_policy_and_goes_to_MICROSCOPE(tmp_path):
-    """Destination is the PREPROCESSING PIPELINE's policy, not this tool's opinion: raw movies and the
-    motion-corrected .bin go to standby; the camlog and every other output go to MICROSCOPE.
+def test_camlog_goes_to_BOTH_microscope_and_standby(tmp_path):
+    """A camlog is an output by pipeline convention AND acquired data. It goes to both.
 
-    A previous version mirrored the camlog to BOTH, reasoning it was an irreplaceable acquisition
-    record with a single copy. Priya's call is that a verified copy on either server is sufficient and
-    the pipeline convention governs, so it is an OUTPUT. The dual destination also made `clean` report
-    "KEEP (dest missing)" for a file it then deleted via its other, verified destination.
+    HISTORY, because this has been decided twice. An early version mirrored it to both; that was
+    reverted (a verified copy on either server is sufficient, and the pipeline convention governs),
+    and the revert was reinforced by a real defect -- `clean` reported "KEEP (dest missing)" for a
+    file it then deleted via its other, verified destination.
+
+    Priya restored the dual destination on 2026-08-22. The reason is asymmetry: the raw movie lives
+    on standby, and without the camlog beside it a standby session is a movie with no frame times,
+    and nothing can regenerate them. The reporting defect was a REPORTING defect -- cmd_clean now
+    groups by source and calls a file kept only when NO destination verified -- so it is no longer
+    an argument for a single copy.
+
+    Note what is NOT affected: clean only ever deletes the imaging box's local E: copy. Neither the
+    MICROSCOPE nor the standby copy is ever removed by this tool.
     """
     from wfield_local import archive_day as ad
 
@@ -190,6 +198,18 @@ def test_camlog_follows_pipeline_policy_and_goes_to_MICROSCOPE(tmp_path):
     jobs, _inter, _daq = ad.discover(cfg, "20260813")
     cam = [j for j in jobs if j["src"].endswith(".camlog")]
     raw = [j for j in jobs if j["src"].endswith("_uint16.dat")]
-    assert len(cam) == 1 and cam[0]["kind"] == "output"
-    assert str(tmp_path / "N") in cam[0]["dst"], "camlog is an OUTPUT -> MICROSCOPE"
+    assert len(cam) == 2, f"camlog must go to both servers, got {[c['dst'] for c in cam]}"
+    dests = {c["kind"]: c["dst"] for c in cam}
+    assert str(tmp_path / "N") in dests["output"], "camlog -> MICROSCOPE (output convention)"
+    assert str(tmp_path / "M") in dests["camlog"], "camlog -> standby (acquired data)"
     assert len(raw) == 1 and str(tmp_path / "M") in raw[0]["dst"], "raw -> standby"
+
+
+def test_a_camlog_is_not_treated_as_a_huge_cold_file():
+    """~24 MB, so it gets full byte verification rather than the size-only path the 190 GB files
+    take. _is_big is what decides that."""
+    from wfield_local import archive_day as ad
+
+    assert ad._is_big(dict(kind="camlog")) is False
+    assert ad._is_big(dict(kind="raw")) is True
+    assert ad._is_big(dict(kind="mcbin")) is True
