@@ -539,14 +539,17 @@ M_CODING_DIR = (
     "fired precisely where the animal had stopped licking while that median was set by the close "
     "positions that still worked, putting PS94's far_R windows at 0.17-0.23 s when its own "
     "successful licks there took 1.80-2.25 s. Where the offset rests on 1-4 trials the log says so. "
-    "Read those classes as inference, most cautiously at the far positions.\n\nAMPLITUDE IS NOT "
-    "RULED OUT FOR PS92. The projection is unbounded, so a gain change scales every cell without "
-    "any pattern change. Across all 22 measurable cells the post/pre feature-norm ratio correlates "
-    "with the projection at only r=+0.19, and the BETWEEN-ANIMAL ordering inverts against it (PS93 "
-    "has the highest mean ratio, 1.10, and the lowest projection, 0.46) -- so the headline ordering "
-    "is not a gain effect. But WITHIN PS92 the five cells track amplitude at r=+0.97, and its "
-    "far_center outlier at 2.12 carries its largest ratio (1.33). Do not read PS92's cell-to-cell "
-    "pattern as position structure. The other three animals are +0.06, -0.23, +0.14.")
+    "Read those classes as inference, most cautiously at the far positions.\n\nAMPLITUDE WAS TESTED "
+    "AND IS NOT DRIVING THIS. The projection is unbounded, so a trial sitting further from its "
+    "session's engaged centroid scores higher whether or not its ANGLE to the direction changed -- "
+    "and the two are not independent, since moving further out ALONG the direction raises both. "
+    "Re-projecting UNIT-NORMALISED trials (cos(x,w), blind to magnitude, sensitive only to "
+    "direction) leaves the picture intact: per-cell shifts are at most 0.15 in PS93/PS94/PS95, and "
+    "the cell-to-cell pattern is preserved at r=+0.86 to +1.00 in every animal. PS92's far_center "
+    "outlier moves 2.12 -> 1.75, so magnitude contributes about a third of its excess over 1.0 and "
+    "direction carries the rest; every other PS92 cell moves by <=0.07. Its earlier r=+0.97 with "
+    "the norm ratio reflects far_center being both the most distinctive and the highest-norm cell, "
+    "which is one phenomenon measured twice, not a confound. Post-stroke values ABOVE 1.0 are real.")
 
 
 M_POSTSTROKE = (
@@ -1694,7 +1697,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "positions (PS94 close_center 1.39 -> 1.02 -> 0.80 -> 0.67, close_L 1.33 -> 0.71, "
                  "SEM 0.03-0.09 on 183-290 trials per bin) while staying flat at the far ones, so "
                  "a within-session comparison has to be read against the pre-stroke profile AT THE "
-                 "SAME POSITION, not against the poles."),
+                 "SAME POSITION, not against the poles. THAT DECLINE IS DISENGAGEMENT: it appears "
+                 "in PS94 and PS95, which lose 0.25 and 0.35 of their pre-stroke response rate by "
+                 "the last quartile, and NOT in PS92/PS93, which lose 0.09 and 0.06. RT stays flat "
+                 "throughout (0.13 s in every quartile at close positions), so these are trials "
+                 "SKIPPED, not slowed -- the sated tail. But the behavioural drop is UNIFORM across "
+                 "positions (PS95 -0.31 to -0.39 at all six) while the neural decline is not, so it "
+                 "cannot be read position by position: a close-position one-vs-rest axis is largely "
+                 "a close-vs-far contrast, and a uniform state shift along that dimension loads on "
+                 "it asymmetrically."),
                 ("cross", "cross-position matrix",
                  "Rows = TRUE spout position, columns = which position's direction it was scored "
                  "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "

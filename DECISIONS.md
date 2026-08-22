@@ -2488,20 +2488,34 @@ asserts the opposite, with the measurement above in its docstring — a test can
 turns out to be wrong, and rewriting it needs the reason attached or it will be "corrected" back.
 
 ### Two controls that came out clean, and are worth keeping
-**Amplitude — clears the headline, does NOT clear PS92.** The linear projection is unbounded, so a
-global gain change post-stroke would inflate every cell without any pattern change, and PS92 reached
-2.12 and PS95 1.32 — FURTHER along the pre-stroke axis than pre-stroke licks. Post/pre mean feature
-norm per position, measured **in the lick window** (0.79–1.51; the ENL window is tighter at
-0.84–1.09, and quoting the ENL range for a lick-window result was the first version of this note):
+**Amplitude — tested twice, and the second test is the one that settles it.** The linear projection
+is unbounded, so a trial sitting further from its session's engaged centroid scores higher whether or
+not its ANGLE to the direction changed. PS92 reached 2.12 and PS95 1.32, FURTHER along the pre-stroke
+axis than pre-stroke licks themselves, which needed ruling out.
 
-- The BETWEEN-ANIMAL ordering is not amplitude. Mean norm ratio is 1.02–1.10 for every animal while
-  mean projection runs 0.46–1.12, and the ordering inverts: **PS93 has the highest mean ratio (1.10)
-  and the lowest projection (0.46)**. Across all 22 measurable cells r = **+0.19**, and pure gain
-  would make the projection EQUAL the ratio, against a mean absolute gap of 0.39.
-- **PS92 alone is not cleared.** Within that animal the five cells correlate with amplitude at
-  **r = +0.97**, and its 2.12 outlier at far_center carries its largest ratio (1.33). Five cells and
-  four animals tested, so this may be nothing — but PS92's cell-to-cell pattern must not be read as
-  position structure until it is separated from gain. The other three are +0.06, −0.23, +0.14.
+*First pass, per-position norm ratios (lick window 0.79–1.51; the ENL window is tighter at 0.84–1.09,
+and quoting the ENL range for a lick-window result was the first version of this note).* The
+BETWEEN-ANIMAL ordering is not amplitude: mean norm ratio is 1.02–1.10 for every animal while mean
+projection runs 0.46–1.12, and the ordering inverts — **PS93 has the highest mean ratio (1.10) and the
+lowest projection (0.46)**. Over all 22 measurable cells r = +0.19, against a mean absolute gap of
+0.39 from the projection-equals-ratio line that pure gain would produce. But WITHIN PS92 the five
+cells correlated with amplitude at **r = +0.97**, and this note first concluded that PS92's
+cell-to-cell pattern must not be read as position structure.
+
+*That conclusion was wrong, and the reasoning behind it was too.* The projection and the norm are NOT
+independent measurements — a trial moving further out ALONG the direction raises both — so a high
+correlation between them is partly guaranteed by construction and cannot distinguish an artefact from
+genuine increased separability. What separates them is re-projecting UNIT-NORMALISED trials,
+`cos(x, w)`: blind to magnitude, sensitive only to direction.
+
+    PS92 far_center   2.12 -> 1.75      every other PS92 cell moves <= 0.07
+    PS93/94/95        all cells move <= 0.15
+    r(raw, unit-norm) +0.99 / +0.86 / +1.00 / +0.97   (PS92/93/94/95)
+
+**The pattern is directional.** Magnitude contributes about a third of far_center's excess over 1.0
+and direction carries the rest; it stays well above 1. PS92's r=+0.97 reflects far_center being both
+the most distinctive and the highest-norm cell — one phenomenon measured twice. Post-stroke values
+above 1.0 are real, and the note that said otherwise stood for about six hours.
 
 **Within-session RT drift.** A session-CONSTANT offset would misplace late trials progressively if the
 animal slowed through the session, which is the exact shape of the gradient below. Median engaged RT
@@ -2551,3 +2565,65 @@ positions with the most trials. Whatever it is — satiety, arousal, engagement,
 is present in trials where the animal did the task correctly every time, so **a within-session
 comparison cannot assume a flat baseline**. Any future version of this analysis has to subtract the
 pre-stroke lick profile at the SAME position rather than treat 1.0 as a fixed reference.
+
+---
+
+## THE PRE-STROKE WITHIN-SESSION DECLINE IS DISENGAGEMENT, READ THROUGH AN ASYMMETRIC AXIS (2026-08-21)
+
+Priya's reading of the close-position decline — "this is mostly because of lack of engagement at the
+end, right?" — is correct at the ANIMAL level and does not survive at the POSITION level, and the gap
+between those two is the useful part.
+
+### The animals that disengage are exactly the animals with the decline
+
+Pre-stroke response rate, first to last within-session quartile, pooled over 11 sessions each:
+
+| animal | q1 → q4 | spread over the 6 positions | within-session neural slope |
+|---|---|---|---|
+| PS92 | 0.99 → 0.90 (**−0.09**) | −0.05 to −0.14 | all ≤ 0.45, no close/far pattern |
+| PS93 | 0.91 → 0.85 (**−0.06**) | −0.05 to −0.11 | all ≤ 0.33, no close/far pattern |
+| **PS94** | 0.99 → 0.74 (**−0.25**) | −0.22 to −0.29 | close −0.35/−0.72/−0.62, far +0.27/+0.08/+0.12 |
+| **PS95** | 0.99 → 0.64 (**−0.35**) | −0.31 to −0.39 | close −0.50/−1.19/−0.56, far −0.01/+0.30/+0.02 |
+
+Median RT is FLAT across quartiles throughout (PS94/PS95 sit at 0.13 s in every quartile at the close
+positions). These are trials **skipped, not slowed** — the sated tail that `flag_engagement` was
+built for, not fatigue. PS93's far_L is the one behavioural exception, 0.53 s → 1.03 s with a
+response rate of 0.71 → 0.60, which is its known orofacial deficit and not a within-session effect.
+
+### But the disengagement is uniform across positions and the readout is not
+
+Within PS94 and PS95 the behavioural drop is the SAME at every position (PS95: −0.31 to −0.39 at all
+six), while the neural decline lands on the close axes and leaves the far ones flat or rising. So the
+decline cannot be read position by position, and a position-specific interpretation of it would be
+wrong.
+
+**The reason is structural, and it is the one-vs-rest flaw again.** "Not close_center" is majority-far,
+so a close-position axis is largely a close-vs-far contrast, and a uniform state shift along that
+dimension loads on it asymmetrically. Measured directly — cos between each position's direction and
+the pre-stroke close-vs-far axis, against that position's within-session slope, over all 24
+animal-position pairs:
+
+    r = -0.567
+    axes pointing toward CLOSE (cos > 0, n=12):  mean slope  -0.347
+    axes pointing toward FAR   (cos <= 0, n=12): mean slope  +0.030
+
+The one-vs-rest axes really are close-vs-far contrasts: |cos| runs 0.26–0.91 and its SIGN matches the
+position's ring in 22 of 24 cases. The two exceptions are both PS93 (far_L +0.43, close_center −0.01),
+the animal whose orofacial deficit already distorts its far-left geometry.
+
+The relation is carried by PS94 and PS95; PS92 and PS93 have slopes near zero at every position, so
+there is little to correlate. That is what the account predicts — the mechanism needs a state shift to
+project, and those two animals barely have one.
+
+**This is NOT the engagement axis.** The directions are already Gram-Schmidt orthogonalised against
+lick-vs-no-lick, and cos(close-vs-far axis, engagement axis) is only −0.43 to +0.34. The within-session
+drift runs along a state dimension distinct from the one that separates a lick trial from a no-lick
+trial — which is why orthogonalising did not remove it.
+
+### Consequences
+- A within-session panel must be read against the **pre-stroke profile at the same position**, never
+  against the poles. 1.0 is not a flat baseline.
+- The pairwise (A-vs-B) panels should be far less exposed, since those axes are not majority-far.
+  Untested — the obvious next check.
+- Anything that compares a post-stroke class to pre-stroke lick WITHIN a session position is exposed
+  to this, because post-stroke misses concentrate late in a session while pre-stroke licks do not.
