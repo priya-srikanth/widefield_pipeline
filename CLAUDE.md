@@ -186,7 +186,18 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   effect); session-level scalars and the raster/PSTH stay over the whole recording; and **per-animal across-session** figures
   (`cohort/by_animal/<animal>_across_sessions.png`) tracking every per-position metric over days
   (color=ring, marker/linestyle=side so all 6 positions are distinguishable). Aborted runs
-  (< `min_session_trials`) are auto-skipped.
+  (< `min_session_trials`) are auto-skipped. Plus a **cumulative task raster** per session
+  (`<sid>_task_raster.png`, `plot_cumulative_raster`) mirroring the rig GUI's own live display:
+  session time (min) on x, the six positions as rows in the GUI's order, one dot per trial —
+  GREEN = hit (a lick inside the session's real response window), RED = miss. **The dot is the
+  animal's behaviour, not whether water arrived**: `reward_mode: auto_after_delay` delivers reward
+  on most trials regardless of the lick (withheld only by `auto_hold_after_miss`), so "hit" and
+  "rewarded" are different facts — PS92 8/21 ran 397 rewards against 310 hits. Reward provenance is
+  deliberately not drawn; it cannot be split into free/auto/manual in any case, since the GUI infers
+  that from live event payloads that are never persisted and `free_reward_delivered` is 0 in every
+  recent session (`is_free`/`reward_delivered` stay on the trial table). Deliberately **not**
+  engagement-gated — the sated tail is what it is for. On the behavior deck as its own per-session
+  slide (`behavior_deck.SESSION_FIGS`, with the method in the speaker notes).
 - **Lick-detection physiological floor (pipeline-wide).** `configs/defaults.yaml lick_detection.min_ili_ms`
   (40 ms) is a mandatory min-inter-lick-interval applied in `detect_licks` as `max(min_ili, refractory)`.
   These mice lick 5-7 Hz (peak ~9-11 Hz); 40 ms (25 Hz) removes only 0-3 physiologically-impossible

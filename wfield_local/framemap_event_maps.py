@@ -209,6 +209,60 @@ def run_cue(args) -> int:
     return 0
 
 
+
+def trial_end_samples(h5_path, threshold_v=2.0):
+    """Rising edges of the DAQ ``trial_end`` line, in samples, or None if the channel is absent.
+
+    A brief ~4 V pulse on the ANALOG block, one per trial, fired when the trial closes -- a median
+    of 3.64 s after the cue, i.e. at the end of the response window. Verified one-to-one against
+    cues: 642/643 on PS94 8/17, 718/718 on 8/14, 600/600 on PS93 8/19.
+
+    FIXED THRESHOLD, deliberately. It is a brief pulse, so the line sits at baseline almost all the
+    time and a PERCENTILE threshold lands in the noise -- the first attempt at this used the 1st and
+    99th percentiles and found 5.4 million "edges" in a 643-trial session, which reads as a dead
+    channel rather than as a mis-measurement.
+    """
+    import h5py
+
+    with h5py.File(h5_path, "r") as f:
+        names = [x.decode() if isinstance(x, bytes) else x for x in f["analog/channel_names"][:]]
+        if "trial_end" not in names:
+            return None
+        i = names.index("trial_end")
+        v = (f["analog/samples_int16"][:, i].astype(np.float32)
+             * float(f["analog/int16_scale_volts_per_count"][i])
+             + float(f["analog/int16_offset_volts"][i]))
+    b = v > float(threshold_v)
+    return (np.flatnonzero(b[1:] & ~b[:-1]) + 1).astype(np.int64)
+
+
+def in_trial_mask(lick_samples, cue_samples, end_samples):
+    """True for licks between a cue and that trial's ``trial_end`` -- i.e. NOT in the ITI.
+
+    WHY THIS EXISTS. Without it every lick in the session carries the position of the most recent
+    cue, however long after it falls, and the cue-to-cue interval is at least 8 s. Pre-stroke that
+    barely matters, because the animal responds promptly. Post-stroke, at a position it has stopped
+    attempting, the two meanings of the label -- "which spout was cued" and "the animal licked at
+    this spout" -- come apart completely: PS94 8/17 far_center and far_R had ZERO responses yet
+    contributed 93 and 83 licks to their maps, at a median of 7.2 and 7.6 s after the cue, by which
+    time the NEXT spout had already moved into place. Worse, the contamination is graded by severity
+    -- 18% of licks pre-stroke at every position, against 28/47/50/100/100% post-stroke -- so the
+    artefact tracks the very deficit it would be read as evidence for (Priya, 2026-08-22).
+
+    Reward-consumption licks are KEPT: trial_end lands after the response window, so a hit at 200 ms
+    still contributes its consumption bout, which belongs to that trial.
+    """
+    lick_samples = np.asarray(lick_samples, float)
+    cue_samples = np.asarray(cue_samples, float)
+    end_samples = np.asarray(end_samples, float)
+    if not len(cue_samples) or not len(end_samples):
+        return np.ones(lick_samples.shape, bool)
+    k = np.searchsorted(cue_samples, lick_samples, side="right") - 1
+    j = np.searchsorted(end_samples, cue_samples, side="left")
+    end_of = np.where(j < len(end_samples), end_samples[np.clip(j, 0, len(end_samples) - 1)], np.inf)
+    return (k >= 0) & (lick_samples < end_of[np.clip(k, 0, len(cue_samples) - 1)])
+
+
 def run_lick(args) -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     ev = _load_lick_events(
@@ -234,6 +288,24 @@ def run_lick(args) -> int:
             _classify_cues(cue_ev["cue_samples"], cue_ev["strobe_samples"], cue_ev["strobe_codes"]))
         j = np.searchsorted(cue_ev["cue_samples"], ev["lick_samples"], side="right") - 1
         codes = np.where(j >= 0, true_cue[np.clip(j, 0, len(true_cue) - 1)], -1).astype(np.int64)
+
+    # ---- ITI GATE: a lick outside its trial is not evidence about that spout ------------------
+    n_before = int((codes >= 0).sum())
+    gate_note, n_after = "NOT gated -- every lick, ITI included", n_before
+    if getattr(args, "lick_gate", "trial_end") == "trial_end":
+        te = trial_end_samples(args.daq_h5)
+        cue_s = np.asarray(_load_cue_events(args.daq_h5)["cue_samples"], float)
+        if te is None or len(te) < 0.5 * max(len(cue_s), 1):
+            gate_note = "trial_end requested but UNUSABLE -- not gated"
+            print(f"  [lick-gate] {args.label}: trial_end unusable "
+                  f"({0 if te is None else len(te)} pulses for {len(cue_s)} cues) -- NOT gated",
+                  flush=True)
+        else:
+            codes = np.where(in_trial_mask(ev["lick_samples"], cue_s, te), codes, -1)
+            n_after = int((codes >= 0).sum())
+            gate_note = "licks inside [cue, trial_end) only"
+            print(f"  [lick-gate] {args.label}: kept {n_after}/{n_before} licks inside a trial "
+                  f"({n_before - n_after} ITI licks dropped)", flush=True)
 
     post_n = max(1, int(round(args.post_s * args.fs)))
 
@@ -266,7 +338,8 @@ def run_lick(args) -> int:
         ax.set_title(f"{name} n={counts[name]} | {args.post_s*1000:.0f} ms post-lick", fontsize=10)
     if im is not None:
         fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.78, pad=0.01, label=f"Shared scale (+/-{lim:.4g})")
-    fig.suptitle(f"{args.label} post-lick hemo-corrected averages by spout position (frame-map mapping)", fontsize=14)
+    fig.suptitle(f"{args.label} post-lick hemo-corrected averages by spout position "
+                 f"(frame-map mapping) - {gate_note}", fontsize=12)
     ms = int(round(args.post_s * 1000))
     png = args.output / f"{args.label}_lick_aligned_{ms}ms_post_by_spout.png"
     fig.savefig(png, dpi=180); plt.close(fig)
@@ -310,6 +383,12 @@ def run_lick(args) -> int:
         "post_s": args.post_s, "fs": args.fs, "lick_channel": args.lick_channel,
         "detected_lick_count": int(ev["lick_samples"].size), "valid_licks_with_windows": int(valid.sum()),
         "counts_by_position": counts, "display_limit": lim,
+        # THE GATE IS RECORDED, so a map can say which licks it is made of. A summary WITHOUT these
+        # three fields predates 2026-08-22 and contains every lick in the session, ITI included --
+        # which at a position the animal stopped attempting means the map is of something else
+        # entirely (see `in_trial_mask`).
+        "lick_gate": getattr(args, "lick_gate", "trial_end"),
+        "licks_before_gate": n_before, "licks_after_gate": n_after,
         "quiet_frame": str(args.quiet_frame) if getattr(args, "quiet_frame", None) else None,
         "quietnorm_png": str(quietnorm_png) if quietnorm_png else None,
         "frame_mapping": "relabeled cleanpairs: DAQ lick -> nearest kept corrected frame via frame_map+pco pulses",
@@ -340,6 +419,10 @@ def main() -> int:
     p.add_argument("--quiet-frame", type=Path, default=None,
                    help="(lick only) *_quiet_frame.npy from quiet_periods.py -> also emit a "
                         "quiet-normalized figure/npz (post-lick minus quiet baseline)")
+    p.add_argument("--lick-gate", choices=("trial_end", "none"), default="trial_end",
+                   help="trial_end (default): keep only licks inside [cue, trial_end), so a "
+                        "lick in the ITI cannot be attributed to the spout that happened to be "
+                        "cued last. none: the pre-2026-08-22 behaviour, every lick.")
     p.add_argument("--lick-channel", default="lick_analog")
     ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
     p.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])

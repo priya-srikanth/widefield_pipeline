@@ -45,13 +45,13 @@ PER_DATE_TYPES = [
      "spout_trial_averages_affine8v1", "_spout_positions_1s_pre_post_delta_shared_scale.png", "FULL_HEIGHT"),
     ("cue_pairwise", "Cue pairwise spout-position contrasts",
      "spout_trial_averages_affine8v1", "_pairwise_spout_position_delta_contrasts_allen_overlay.png", "FIT"),
-    ("lick_maps", "Lick-aligned maps by spout position (150 ms)",
+    ("lick_maps", "Lick-aligned maps by spout position — 150 ms post-lick, in-trial licks only",
      "lick_aligned_affine8v1", "_lick_aligned_150ms_post_by_spout.png", "FULL_HEIGHT"),
-    ("lick_quietnorm", "Lick-evoked vs quiet baseline (150 ms)",
+    ("lick_quietnorm", "Lick-evoked vs quiet baseline — 150 ms post-lick, in-trial licks only",
      "lick_aligned_affine8v1", "_lick_aligned_150ms_post_by_spout_quietnorm.png", "FIT"),
-    ("lick_pairwise", "Lick pairwise spout-position contrasts",
+    ("lick_pairwise", "Lick pairwise spout-position contrasts — 150 ms post-lick, in-trial licks only",
      "lick_aligned_affine8v1", "_lick_aligned_pairwise_spout_position_contrasts.png", "FIT"),
-    ("cue_vs_lick", "Cue-aligned vs lick-aligned maps",
+    ("cue_vs_lick", "Cue-aligned (2 s) vs lick-aligned (150 ms, in-trial licks) maps",
      "lick_aligned_affine8v1", "_cue_vs_lick_spout_position_maps.png", "FIT"),
     ("quiet_running", "Quiet vs running activity (SVD)",
      "running_activity_affine8v1", "_quiet_running_activity_maps.png", "FIT"),
@@ -71,6 +71,27 @@ _M_PRE = ("Widefield GCaMP: alternating 470 nm (GCaMP) + 415 nm (isosbestic) fra
           "temporal mean, so the DC level is gone: read these as CONTRASTS (post-pre, or vs the quiet "
           "baseline), not absolute dF/F magnitudes. Spout position per trial from the DAQ spout-strobe "
           "bits (dead bit1 in Aug-2026 repaired from the behavior-log pos_idx).")
+#: Shared by every lick-map note. See `framemap_event_maps.in_trial_mask` for the implementation.
+_M_LICK_GATE = (
+    "\n\nWHICH LICKS: EVERY lick inside a trial, NOT the first lick of each trial -- a trial "
+    "contributes its whole bout, so n on each panel counts LICKS, not trials. Licks = DAQ "
+    "lick_analog double-threshold + lockout + the 40 ms physiological ILI floor.\n\n"
+    "WHAT IS EXCLUDED (ITI gate, added 2026-08-22): only licks inside [cue, trial_end) count. "
+    "Without it every lick in the session carried the position of the most recent CUE however long "
+    "after it fell, and cue-to-cue is at least 8 s -- so at a position the animal had stopped "
+    "attempting, the label stopped meaning 'the animal licked at this spout'. Measured on PS94 "
+    "8/17: far_center and far_R had ZERO responses yet contributed 93 and 83 licks, at a median of "
+    "7.2 and 7.6 s after the cue, by which time the NEXT spout had already moved into place. The "
+    "contamination was graded by severity -- 18% of licks pre-stroke at every position, against "
+    "28/47/50/100/100% post-stroke -- so it tracked the very deficit it would have been read as "
+    "evidence for. trial_end fires a median 3.64 s after the cue, i.e. AFTER the response window, "
+    "so reward CONSUMPTION licking is kept; what is dropped is the ITI. Of the licks that survive, "
+    "essentially 100% are on trials the animal responded to.\n\n"
+    "A panel reading 'no licks' where an older deck showed a map means every lick there was in the "
+    "ITI. The figure title states the gate, and the *_summary.json records lick_gate / "
+    "licks_before_gate / licks_after_gate -- a summary WITHOUT those three fields predates the gate "
+    "and contains every lick in the session.")
+
 METHOD_NOTES = {
     "allen": "Mean 470/415 image with Allen CCF area outlines overlaid — the atlas-alignment QC. " + _M_PRE,
     "cue_maps": "Cue-aligned maps: mean dF/F in the pre and post windows (both 2 s, from configs/defaults.yaml "
@@ -79,13 +100,19 @@ METHOD_NOTES = {
                 "historical sessions -- the pre window is 2 s, as recorded in the figure's *_summary.json. " + _M_PRE,
     "cue_pairwise": "Pairwise contrasts between spout positions (post-cue delta maps) — which cortex "
                     "distinguishes each position pair. " + _M_PRE,
-    "lick_maps": "First-lick-aligned maps: mean dF/F in the 150 ms post-lick window per spout position. "
-                 "Licks = DAQ lick_analog double-threshold + lockout + 40 ms physiological ILI floor. " + _M_PRE,
-    "lick_quietnorm": "Post-lick maps normalized to the QUIET-period baseline (subtract mean SVT over "
-                      "not-running/not-licking frames) — activity relative to rest. " + _M_PRE,
-    "lick_pairwise": "Pairwise post-lick spout-position contrasts. " + _M_PRE,
-    "cue_vs_lick": "Cue-aligned vs first-lick-aligned position maps side by side — separating cue/sensory "
-                   "from lick/motor contributions. " + _M_PRE,
+    "lick_maps": "Lick-aligned maps: mean dF/F in the 150 ms window AFTER each lick, per spout "
+                 "position, with NO pre-lick baseline -- licks come in bouts, so a pre-lick window "
+                 "would contain earlier lick-related activity." + _M_LICK_GATE + " " + _M_PRE,
+    "lick_quietnorm": "The same 150 ms post-lick maps, normalized to the QUIET-period baseline "
+                      "(subtract mean SVT over not-running/not-licking frames) -- activity relative "
+                      "to rest rather than to zero." + _M_LICK_GATE + " " + _M_PRE,
+    "lick_pairwise": "Pairwise contrasts between spout positions, built from the same gated 150 ms "
+                     "post-lick maps -- which cortex DIFFERS between two positions, rather than "
+                     "which is active for one." + _M_LICK_GATE + " " + _M_PRE,
+    "cue_vs_lick": "Cue-aligned (2 s) vs lick-aligned (150 ms) position maps side by side -- "
+                   "separating cue/sensory from lick/motor contributions. THE TWO WINDOWS ARE "
+                   "DIFFERENT LENGTHS and the alignments differ, so compare PATTERN, not amplitude."
+                   + _M_LICK_GATE + " " + _M_PRE,
     "quiet_running": "SVD activity averaged over QUIET periods vs RUNNING bouts (canonical behavior_events: "
                      "treadmill >3 mm/s sustained >=2 s = running; slow + not-near-lick/reward = quiet), plus "
                      "the running-minus-quiet contrast. Corrected frames mapped to DAQ samples via the "

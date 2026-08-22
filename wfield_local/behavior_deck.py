@@ -9,15 +9,18 @@ root (``Behavior_logs/Widefield/behavior_summary``); it computes nothing:
                                                     engagement timeline, latency, by-position licks)
   sessions/<animal>/<date>/<session>_licking.png    per-session lick microstructure (raster/PSTH, ILI,
                                                     bouts, GUI-vs-DAQ)
+  sessions/<animal>/<date>/<session>_task_raster.png  per-session cumulative task raster (the rig
+                                                    GUI's live display: trial dots over session time)
   cohort/by_animal/<animal>_<metric>_across_sessions.png  per-animal, one metric across days, with
                                                           the lesion line (hit/latency/licks_per_trial/
                                                           lick_rate/anticipatory/session)
   cohort/cohort_behavior.png                          cross-animal cohort summary (lesion window on
                                                           the learning-curve panel)
 
-Layout: title -> per animal { divider, each task-performance day (one slide), each lick day (one
-slide), then one full-size slide per cross-session metric } -> a cross-animal divider + the cohort
-figure. One detailed figure per slide (like the analysis deck), so each day / metric stays readable.
+Layout: title -> per animal { divider, then each per-session analysis across days — task
+performance, lick microstructure, cumulative task raster — then one full-size slide per
+cross-session metric } -> a cross-animal divider + the cohort figure. One detailed figure per slide
+(like the analysis deck), so each day / metric stays readable.
 
     python -m wfield_local.behavior_deck                    # build from behavior_out, land beside the figures
     python -m wfield_local.behavior_deck --out <path.pptx>  # override the output path
@@ -50,6 +53,44 @@ ACROSS_METRICS = [
     ("anticipatory", "anticipatory licks per position across sessions", "firebrick dashed = lesion"),
     ("session", "session-level metrics across sessions",
      "engaged hit rate, close vs far, engaged fraction.  firebrick dashed = lesion"),
+]
+
+
+# per-session figures, in the order each animal's slides run: (file kind, slide label, subtitle,
+# speaker note). The note says what is plotted and WHERE THE NUMBERS CAME FROM — these figures are
+# read months later, and "hit" vs "a reward was delivered" is not guessable from the picture.
+_M_TRIALS = ("Trials come from the DAQ recorder .h5 (wfield_local.daq_trials): position from the "
+             "spout_strobe code the firmware emits after the move, licks from lick_analog. The "
+             "GUI trials.csv is the FALLBACK only (it mislabels pos_idx on position-change trials, "
+             "docs/GUI_TRIALS_LOGGING.md) and is the source of the free-reward flag.")
+SESSION_FIGS = [
+    ("behavior", "task performance",
+     ("hit-rate grid, per-position accuracy (Wilson CI) + raw, engagement timeline, latency, "
+      "by-position lick metrics"),
+     ("Per-position accuracy is ENGAGED-gated (spout_behavior.flag_engagement: terminal sated tail "
+      "UNION rolling response-rate collapse), with the raw all-trial rate overlaid as black "
+      "diamonds. A hit = a lick inside the session's real response window, read per session from "
+      "gui_config.json timing.response_window (3500 ms). " + _M_TRIALS)),
+    ("licking", "lick microstructure",
+     "peri-cue raster + PSTH, ILI distribution, bouts, GUI-vs-DAQ lick counts, by-position licks",
+     ("Licks are the canonical DAQ detections (lick_detection + the 40 ms physiological ILI floor). "
+      "The per-position bars are engagement-gated like accuracy; session-level scalars and the "
+      "raster/PSTH cover the whole recording. " + _M_TRIALS)),
+    ("task_raster", "cumulative task raster",
+     "the rig GUI's own display: one dot per trial at its time in the session, on its position row",
+     ("Mirror of the live 'Cumulative task raster' on the rig GUI. x = time in the session "
+      "(minutes, t=0 at the first trial); y = the six spout positions in the GUI's own row order "
+      "(close_center, close_L, close_R, far_center, far_L, far_R). GREEN = hit, i.e. the animal "
+      "licked inside the session's real response window; RED = miss. THE DOT IS THE ANIMAL'S "
+      "BEHAVIOUR, NOT WHETHER WATER ARRIVED: recent sessions run reward_mode auto_after_delay with "
+      "auto_reward_delay 0, so reward is delivered on most trials whatever the animal does, "
+      "withheld only by auto_hold_after_miss. PS92 8/21 is the scale of that gap — 397 rewards "
+      "against 310 hits, and 55 trials watered on no lick. Reward provenance is deliberately NOT "
+      "drawn (it cannot be broken into free / auto / manual anyway: the GUI infers those from live "
+      "event payloads that are never persisted, and free_reward_delivered is 0 in every recent "
+      "session); the is_free and reward_delivered columns remain on the trial table for anyone who "
+      "wants that split. NOT engagement-gated, deliberately: the sated tail — the run of red at the "
+      "end — is what this figure is for. " + _M_TRIALS)),
 ]
 
 
@@ -128,10 +169,12 @@ def build_behavior_deck(behavior_out, out_path, animals=None) -> dict:
             r2 = tf.add_paragraph().add_run()
             r2.text, r2.font.size, r2.font.color.rgb = sub, Pt(15), GREY
 
-    def fig_slide(p, ttl, sub=None):
+    def fig_slide(p, ttl, sub=None, note=None):
         s = slide()
         title(s, ttl, sub)
         big(s, p)
+        if note:                          # methodology into the speaker notes, as the analysis deck does
+            s.notes_slide.notes_text_frame.text = note
 
     # ---------------- title ----------------
     s = slide()
@@ -151,9 +194,9 @@ def build_behavior_deck(behavior_out, out_path, animals=None) -> dict:
     for a in animals:
         dates = _session_dates(root, a)
         divider(a, f"{len(dates)} session(s): {_mmdd(dates[0])}–{_mmdd(dates[-1])}" if dates else "no sessions")
-        for kind, label in (("behavior", "task performance"), ("licking", "lick microstructure")):
+        for kind, label, sub, note in SESSION_FIGS:
             for d in dates:
-                fig_slide(_fig(root, a, d, kind), f"{a} — {label} — {_mmdd(d)}")
+                fig_slide(_fig(root, a, d, kind), f"{a} — {label} — {_mmdd(d)}", sub, note)
         # split-out cross-session metrics: one full-size slide per metric, each with the lesion line
         for suffix, ttl, sub in ACROSS_METRICS:
             fig_slide(root / "cohort" / "by_animal" / f"{a}_{suffix}_across_sessions.png",

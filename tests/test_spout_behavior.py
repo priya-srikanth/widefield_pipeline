@@ -483,3 +483,143 @@ def test_run_ignores_non_animal_dirs_when_resolving_a_range(tmp_path, monkeypatc
                         lambda s, *a, **k: (seen.append(s.name), (None, None))[1])
     sb.run("0606-0608", rv, dry=True)                 # must not raise
     assert seen == ["PS92_20260606_120000"]
+
+
+# ------------------------------------------------------------------- cumulative task raster
+
+def _daq_trials(specs, *, t0=1234.5, iti_s=20.0):
+    """A synthetic DAQ-shaped trial table (the columns `daq_trials.build_trials` emits).
+
+    ``specs`` = list of dicts with pos_idx / responded / rewarded / free. Cues start at ``t0`` on the
+    DAQ clock (i.e. NOT at zero — the recorder starts before the task) so the time axis is tested
+    against the session's first trial, not the clock's origin.
+    """
+    rows = []
+    for k, sp in enumerate(specs):
+        resp = bool(sp.get("responded", True))
+        rows.append({
+            "trial_id": k + 1, "pos_idx": sp.get("pos_idx", 0),
+            "pos_name": NAME.get(sp.get("pos_idx", 0), "?"),
+            "cue_s": t0 + iti_s * k, "trial_start_s": t0 + iti_s * k - 3.0,
+            "lick_in_response_window": int(resp), "hit": int(resp), "miss": int(not resp),
+            "latency_s": 0.4 if resp else np.nan, "n_licks_post": 3 if resp else 0, "n_licks_pre": 0,
+            "reward_delivered": int(sp.get("rewarded", resp)), "responded": resp,
+            "is_free": bool(sp.get("free", False)), "free_designated": bool(sp.get("free", False)),
+            "source": "DAQ",
+        })
+    return pd.DataFrame(rows)
+
+
+def _by_label(ax):
+    """Scatter collections of a raster axis, keyed by their legend label without the count."""
+    return {c.get_label().split(" (")[0]: c for c in ax.collections}
+
+
+def test_raster_rows_are_the_gui_order_and_labels():
+    """Row order mirrors the rig GUI's `position_labels` (pos_idx 0..5), not the L/center/R bar
+    order — the figure exists to be read beside the GUI display."""
+    assert [sb.POS_BY_IDX[i]["name"] for i in sb.RASTER_ROW_ORDER] == [
+        "close_center", "close_L", "close_R", "far_center", "far_L", "far_R"]
+    assert sorted(sb.RASTER_ROW_ORDER) == sorted(sb.IDX_ORDER)      # same six positions, other order
+
+
+def test_raster_outcome_follows_the_lick_not_the_reward():
+    """GREEN = the animal LICKED, not "water arrived".
+
+    Under `reward_mode: auto_after_delay` water is delivered on most trials whatever the animal does
+    (withheld only by `auto_hold_after_miss`), so a rewarded non-response is still a MISS. PS92 8/21
+    is the scale of the gap: 397 rewards against 310 hits.
+    """
+    mk = sb.raster_markers(_daq_trials([
+        {"pos_idx": 0, "responded": True, "rewarded": True},     # hit, auto-rewarded -> earned
+        {"pos_idx": 3, "responded": False, "rewarded": True},    # no lick but watered  -> MISS
+        {"pos_idx": 5, "responded": False, "rewarded": False},   # reward held after misses -> miss
+    ]))
+    assert mk["outcome"].tolist() == ["earned", "miss", "miss"]
+
+
+def test_reward_provenance_does_not_reach_the_raster():
+    """The teal free/auto/manual ring was built and then dropped (Priya, 2026-08-22).
+
+    Kept as a test because the columns it read (`is_free`, `reward_delivered`) are still on the
+    trial table, so a future change could quietly reintroduce reward into a figure that is about
+    the animal's behaviour. A free-rewarded hit and a plain hit must be indistinguishable here.
+    """
+    mk = sb.raster_markers(_daq_trials([
+        {"pos_idx": 1, "responded": True, "rewarded": True, "free": True},
+        {"pos_idx": 2, "responded": True, "rewarded": True},
+    ]))
+    assert mk["outcome"].tolist() == ["earned", "earned"]
+    assert "unearned" not in mk.columns and "is_free" not in mk.columns
+
+
+def test_raster_times_are_minutes_from_the_first_trial():
+    mk = sb.raster_markers(_daq_trials([{"pos_idx": i % 6} for i in range(4)], t0=900.0, iti_s=60.0))
+    # t=0 is the first trial (its start, 3 s before its cue), not the DAQ clock's zero
+    assert mk["t_min"].iloc[0] == pytest.approx(3.0 / 60.0)
+    assert mk["t_min"].iloc[-1] == pytest.approx(3.0 / 60.0 + 3.0)
+
+
+def test_raster_keeps_the_disengaged_tail():
+    """Explicitly NOT engagement-gated: the run of red at the end is the point of the figure."""
+    specs = ([{"pos_idx": i % 6, "responded": True} for i in range(30)]
+             + [{"pos_idx": i % 6, "responded": False, "rewarded": False} for i in range(15)])
+    trials = _daq_trials(specs)
+    m = sb.session_metrics(trials, None, config.defaults()["behavior"])
+    assert m["n_engaged"] < len(trials)                     # the gate drops the sated tail ...
+    mk = sb.raster_markers(trials)
+    assert len(mk) == len(trials)                           # ... the raster keeps every trial
+    assert (mk["outcome"].to_numpy()[-15:] == "miss").all()
+
+
+def test_raster_drops_unpaired_positions():
+    """A cue with no preceding strobe decodes as pos_idx -1: it has no row, so it is dropped rather
+    than drawn on an invented one."""
+    mk = sb.raster_markers(_daq_trials([{"pos_idx": -1}, {"pos_idx": 2}]))
+    assert mk["pos_idx"].tolist() == [2]
+
+
+def test_raster_markers_none_without_a_clock():
+    assert sb.raster_markers(pd.DataFrame()) is None
+    no_clock = _daq_trials([{"pos_idx": 0}]).drop(columns=["cue_s", "trial_start_s"])
+    assert sb.raster_markers(no_clock) is None
+
+
+def test_cumulative_raster_colours_match_the_gui_legend():
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    mk = sb.raster_markers(_daq_trials([
+        {"pos_idx": 0, "responded": True}, {"pos_idx": 4, "responded": False, "rewarded": True}]))
+    fig, ax = plt.subplots()
+    sb._cumulative_raster(ax, mk)
+    cols = _by_label(ax)
+    assert mcolors.to_hex(cols["hit / earned reward"].get_facecolor()[0]) == sb.RASTER_COLORS["earned"]
+    assert mcolors.to_hex(cols["miss"].get_facecolor()[0]) == sb.RASTER_COLORS["miss"]
+    assert set(cols) == {"hit / earned reward", "miss"}, "green and red only -- no ring"
+    assert ax.get_ylim() == (len(sb.RASTER_ROW_ORDER) - 0.5, -0.5)               # pos 0 on top
+    plt.close(fig)
+
+
+def test_cumulative_raster_renders_without_any_free_reward(tmp_path):
+    """The common case -- no free water all session -- must still render."""
+    import matplotlib.pyplot as plt
+    trials = _daq_trials([{"pos_idx": i % 6, "responded": (i % 4 != 0)} for i in range(40)])
+    mk = sb.raster_markers(trials)
+    fig, ax = plt.subplots()
+    sb._cumulative_raster(ax, mk)
+    assert "free / auto / manual reward" not in _by_label(ax)
+    plt.close(fig)
+    png = sb.plot_cumulative_raster("PS92_20260806_120000", tmp_path / "out", trials)
+    assert png.exists() and png.stat().st_size > 0
+    assert png.name == "PS92_20260806_120000_task_raster.png"
+    assert png.parent == tmp_path / "out" / "sessions" / "PS92" / "20260806"
+
+
+def test_plot_session_writes_the_task_raster(tmp_path):
+    """The raster is written on the log-fallback path too (device clock), beside the other figures."""
+    d = _write_session(tmp_path, "PS92_20260806_120000",
+                       [{"tid": i + 1, "pos_idx": i % 6, "hit": (i % 5 != 0)} for i in range(60)])
+    out = tmp_path / "out"
+    sb.plot_session(d, out, config.defaults()["behavior"])
+    raster = out / "sessions/PS92/20260806/PS92_20260806_120000_task_raster.png"
+    assert raster.exists() and raster.stat().st_size > 0

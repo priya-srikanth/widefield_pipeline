@@ -26,6 +26,10 @@ Two things it adds on top of the raw scores:
   Gating stays a REPORTING choice applied to the full trial table, not a parsing filter.
 * **First-lick latency.** First DAQ lick after each trial's cue (or, on the log fallback, the
   first ``lick_on`` in ``events.csv``).
+* **Cumulative task raster** (``<sid>_task_raster.png``, :func:`plot_cumulative_raster`) — the
+  analysis copy of the rig GUI's live display: session time on x, the six positions as rows, one
+  dot per trial (green = hit / earned reward, red = miss). This one is
+  deliberately UNGATED, because seeing where the animal quit is the point of it.
 
 CLI::
 
@@ -70,6 +74,21 @@ POS_BY_IDX = {p["idx"]: p for p in POSITIONS}
 SIDE_HUE = {"L": "dodgerblue", "C": "darkviolet", "R": "crimson"}   # blue L, purple center, red R
 SIDE_MARKER = {"L": "o", "C": "D", "R": "^"}
 SIDE_LS = {"L": "-", "C": "--", "R": ":"}
+
+# --- cumulative task raster (mirror of the rig GUI's live display) ----------------------------
+# The task GUI draws a "Cumulative task raster" while the session runs
+# (``BehaviorGUI_MobileSpouts_*._draw_cumulative_task_raster``): session time on x, the six spout
+# positions as rows, one marker per trial. That display is how a session is read AT the rig, so the
+# nightly figure mirrors it — same rows, same three marker kinds, same colours (lifted from the
+# GUI's own canvas calls) — and then scores the outcomes from the DAQ rather than from the GUI's
+# own flags (see :func:`raster_markers`).
+#: lifted verbatim from the rig GUI's own raster so the two read the same.
+RASTER_COLORS = {"earned": "#2e7d32", "miss": "#d32f2f"}
+RASTER_LEGEND = "green = hit / earned reward   |   red = miss"
+# Row order is the GUI's own ``position_labels`` order (pos_idx 0..5: close_center, close_L,
+# close_R, far_center, far_L, far_R), NOT the L/center/R ``IDX_ORDER`` the bar panels use — the
+# point of this figure is that it can be laid beside the rig display and read the same way.
+RASTER_ROW_ORDER = [0, 1, 2, 3, 4, 5]
 
 
 def pos_color(pos_idx: int):
@@ -825,6 +844,125 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     return png, csv
 
 
+# --------------------------------------------------------------------------- cumulative raster
+
+def _session_time_min(trials: pd.DataFrame) -> np.ndarray | None:
+    """Each trial's time in MINUTES from the start of the session, or ``None`` if there is no clock.
+
+    DAQ trials carry the DAQ clock (``cue_s``, seconds from the start of the recording); the log
+    fallback carries the task device clock (``device_trial_start_ms``). Either way t=0 is the
+    session's FIRST trial rather than the clock's own zero, so the axis reads like the GUI's
+    ("0s ... 59m") instead of starting at whatever offset the recorder happened to be at.
+    """
+    if "cue_s" in trials:
+        t = pd.to_numeric(trials["cue_s"], errors="coerce").to_numpy(dtype=float)
+    elif "device_trial_start_ms" in trials:
+        t = pd.to_numeric(trials["device_trial_start_ms"], errors="coerce").to_numpy(dtype=float) / 1000.0
+    else:
+        return None
+    if not np.isfinite(t).any():
+        return None
+    t0 = np.nanmin(t)
+    if "trial_start_s" in trials:      # a trial opens ~3 s before its cue; start the axis there
+        st = pd.to_numeric(trials["trial_start_s"], errors="coerce").to_numpy(dtype=float)
+        if np.isfinite(st).any():
+            t0 = min(t0, np.nanmin(st))
+    return (t - t0) / 60.0
+
+
+def raster_markers(trials: pd.DataFrame) -> pd.DataFrame | None:
+    """One row per trial for the cumulative raster: ``t_min``, ``pos_idx``, ``outcome``.
+
+    Outcomes are scored by US, not read off the GUI: on the DAQ-primary path ``responded`` is a lick
+    inside the session's REAL response window (``daq_trials``, read per session from the session's
+    ``gui_config.json`` ``timing.response_window`` = 3500 ms, never a hardcoded value); on the log
+    fallback it is the GUI's own ``lick_in_response_window``.
+
+      * ``outcome`` "earned" (green) — the animal licked in the response window
+      * ``outcome`` "miss"   (red)   — it did not
+
+    THE DOT IS THE ANIMAL'S BEHAVIOUR, NOT WHETHER WATER ARRIVED. Recent sessions run
+    ``reward_mode: auto_after_delay`` with ``auto_reward_delay: 0``, so water is delivered on most
+    trials whether or not the animal licks, withheld only by ``auto_hold_after_miss`` -- "hit" and
+    "a reward was delivered" are NOT the same fact, and PS92 8/21 shows the gap plainly (397 rewards
+    against 310 hits). This figure answers the first question only.
+
+    A teal ring marking free/auto/manual water was built and then dropped (Priya, 2026-08-22: "no
+    need for the ring anyway"). It cannot be broken down in any case: the GUI infers free/auto/manual
+    from live event payloads that are never persisted, ``free_reward_delivered`` is 0 in every recent
+    session, and ``reward_type`` is 16028 ``auto`` against 9 ``manual`` and 1 ``contingent`` over 40
+    sessions. The underlying columns (``is_free``, ``reward_delivered``) stay on the trial table for
+    anyone who wants that split later.
+
+    Deliberately NOT engagement-gated: the sated tail -- that run of red at the end -- is precisely
+    what this figure is for.
+    """
+    if not len(trials):
+        return None
+    t = _session_time_min(trials)
+    if t is None:
+        return None
+    pos = pd.to_numeric(trials["pos_idx"], errors="coerce").to_numpy(dtype=float)
+    responded = trials["responded"].to_numpy(dtype=bool)
+    # an unpaired strobe (pos_idx -1) or a NaN clock has no row to sit on: drop it rather than
+    # invent a position for it
+    ok = np.isfinite(t) & np.isin(pos, RASTER_ROW_ORDER)
+    return pd.DataFrame({
+        "t_min": t[ok],
+        "pos_idx": pos[ok].astype(int),
+        "outcome": np.where(responded[ok], "earned", "miss"),
+    }).reset_index(drop=True)
+
+
+def _cumulative_raster(ax, mk: pd.DataFrame, dot_size: float = 20.0):
+    """Draw the cumulative task raster onto ``ax``: rows = positions (GUI order), x = session minutes."""
+    row_of = {idx: i for i, idx in enumerate(RASTER_ROW_ORDER)}
+    x = mk["t_min"].to_numpy(dtype=float)
+    y = mk["pos_idx"].map(row_of).to_numpy(dtype=float)
+    for i in range(len(RASTER_ROW_ORDER)):
+        ax.axhline(i, color="#e7e7e7", lw=1, zorder=0)          # the GUI's per-row guide line
+    for kind, label in (("miss", "miss"), ("earned", "hit / earned reward")):
+        m = (mk["outcome"] == kind).to_numpy()                  # hits last: readable in a dense tail
+        ax.scatter(x[m], y[m], s=dot_size, c=RASTER_COLORS[kind], marker="o", linewidths=0,
+                   zorder=2, label=f"{label} ({int(m.sum())})")
+    ax.set_yticks(range(len(RASTER_ROW_ORDER)),
+                  [_disp(POS_BY_IDX[i]["name"]) for i in RASTER_ROW_ORDER])
+    for lab, idx in zip(ax.get_yticklabels(), RASTER_ROW_ORDER):
+        lab.set_color(pos_color(idx))                # same position palette as every other panel
+    ax.set_ylim(len(RASTER_ROW_ORDER) - 0.5, -0.5)   # pos 0 on the top row, like the GUI
+    ax.set_xlim(0, max(float(np.nanmax(x)) * 1.02, 1.0) if x.size else 1.0)
+    ax.set_xlabel("time in session (min)")
+    ax.set_title(RASTER_LEGEND, fontsize=9, color="#555555")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=2, fontsize=8, frameon=False)
+
+
+def plot_cumulative_raster(sid: str, out_dir: Path, trials: pd.DataFrame):
+    """Write the per-session cumulative task raster (``<sid>_task_raster.png``); its path, or None.
+
+    Lands beside the other per-session figures (``sessions/<animal>/<date>/``) so the behavior deck
+    picks it up with the same rule."""
+    mk = raster_markers(trials)
+    if mk is None or mk.empty:
+        print(f"[spout_behavior] {sid}: no usable trial clock/positions -> no cumulative raster",
+              flush=True)
+        return None
+    animal, date = _animal_date(sid)
+    out_sess = out_dir / "sessions" / animal / date
+    out_sess.mkdir(parents=True, exist_ok=True)
+    png = out_sess / f"{sid}_task_raster.png"
+    fig, ax = plt.subplots(figsize=(15, 5.2))
+    _cumulative_raster(ax, mk)
+    src = str(trials["source"].iloc[0]) if "source" in trials else "?"
+    fig.suptitle(f"Cumulative task raster — {sid}   {len(mk)} trials over "
+                 f"{float(mk['t_min'].max()):.0f} min  ({src}-sourced trials, ALL trials — "
+                 f"no engagement gate)", fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(png, dpi=130)
+    plt.close(fig)
+    print(f"[spout_behavior] wrote {png.name}", flush=True)
+    return png
+
+
 def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False, rv=None,
                  source: str = "auto"):
     """Write the per-session behavior figure + per-position CSV, plus the lick-microstructure figure.
@@ -881,6 +1019,8 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}  ({m['n_disengaged']} disengaged trials excluded)",
           flush=True)
+    # the GUI-mirror raster is UNGATED and needs neither licks nor metrics — always written
+    plot_cumulative_raster(sid, out_dir, trials)
     if licks is not None:
         plot_licking(session_dir, sid, out_dir, params, trials, licks, rv=rv, micro=micro)
     return png, csv
