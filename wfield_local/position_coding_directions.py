@@ -86,8 +86,19 @@ BY_SEVERITY = [p for p, _ in sorted(SEVERITY.items(), key=lambda kv: kv[1])]
 #: classes each window can carry. `lick` drops both no-lick classes: no lick, no alignment point.
 CLASSES_FULL = ("prestroke_lick", "prestroke_nolick", "poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
 CLASSES_LICK = ("prestroke_lick", "poststroke_lick")
-MIN_TRIALS = 12      # below this a value is drawn HOLLOW, not dropped
+#: Flag a value as thinly-supported. 10 to match this project's existing rule -- plot_poststroke
+#: MIN_N is 10 and G2b red-hatches below it -- rather than inventing a second threshold for the
+#: same idea. (It was 12, chosen for no reason; Priya asked why, and there was no answer.)
+MIN_TRIALS = 10
 FLOOR_TRIALS = 3     # below this there is nothing to average at all
+
+#: DO-NOT-DRAW rule for the within-session figure, on PRECISION rather than count. The pole
+#: separation is 1.0 by construction, and the measured within-class SD of the projection is ~1.08
+#: (median over 168 well-populated cells), so n=12 buys a SEM of 0.31 -- a third of the entire
+#: scale, enough to invent a shape from noise. A cell is drawn only if its OWN SEM is under this,
+#: which adapts to the real spread instead of assuming one; at the median SD it corresponds to
+#: n >= 20.
+MAX_SEM_DRAWN = 0.25
 
 
 # ---------------------------------------------------------------------------------------------
@@ -175,11 +186,16 @@ def project(X, w, p0, p1):
 
 
 def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
-    """`not_eng` per no-lick trial, or None if the bookkeeping does not line up."""
+    """(not_eng, frac_nolick, frac_eng), or None if the trial bookkeeping does not line up.
+
+    ``frac_*`` is each trial's position WITHIN its session, 0 at the first trial and 1 at the last.
+    It comes from the same indices the gate uses, so "where in the session" and "before or after the
+    quit" can never disagree about a trial.
+    """
     tables = _session_tables(feat, kept)
     if not tables:
         return None
-    not_eng = []
+    not_eng, frac_nl, frac_e = [], [], []
     for si in range(len(kept)):
         t = tables.get(si)
         if t is None:
@@ -188,9 +204,14 @@ def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
         pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
         ne = engagement_gate(t["order"], t["responded"], pos)
         bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
+        span = max(int(t["order"].max()), 1)
         not_eng += [bne.get(int(k), False) for k in inl]
+        frac_nl += [min(int(k) / span, 1.0) for k in inl]
+        frac_e += [min(int(k) / span, 1.0) for k in ie]
     not_eng = np.array(not_eng, bool)
-    return not_eng if len(not_eng) == len(XU) else None
+    if len(not_eng) != len(XU) or len(frac_e) != len(XE):
+        return None
+    return not_eng, np.array(frac_nl, float), np.array(frac_e, float)
 
 
 def _stats(vals):
@@ -254,12 +275,11 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
 
     # every window can now carry the no-lick classes; at "lick" their window is INFERRED
     use_nolick = True
-    not_eng = None
-    if use_nolick:
-        not_eng = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-        if not_eng is None:
-            print(f"[coding_dirs] {animal} {disp}: trial bookkeeping mismatch -- skipped", flush=True)
-            return None
+    _g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+    if _g is None:
+        print(f"[coding_dirs] {animal} {disp}: trial bookkeeping mismatch -- skipped", flush=True)
+        return None
+    not_eng, frac_nl, frac_e = _g
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     sessions = [{"label": kept[i], "date": kept[i].split("_")[1],
@@ -283,6 +303,20 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         if sess is not None:
             m = m & (g == sess)
         return X[m]
+
+    def _mask(cls, pos=None):
+        """Row mask for one class (same definitions as `trials`), optionally at one position."""
+        if cls == "prestroke_lick":
+            m, names = e_pre.copy(), en
+        elif cls == "poststroke_lick":
+            m, names = ~e_pre, en
+        elif cls == "prestroke_nolick":
+            m, names = u_pre.copy(), un
+        elif cls == "poststroke_miss_working":
+            m, names = ~u_pre & ~not_eng, un
+        else:
+            m, names = ~u_pre & not_eng, un
+        return m & (names == pos) if pos is not None else m
 
     classes = CLASSES_FULL
     out = {"animal": animal, "align": align, "window": disp, "basis_id": basis.basis_id,
@@ -380,6 +414,33 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                                     else proj(c, trials(c, P), D))
                 mat[P] = row
             res["cross_matrix"][c] = mat
+
+        # ---- 2b. POOLED across every session of the phase, and BINNED WITHIN a session --------
+        # Pooled because the per-session view showed the classes are noisy at that grain -- swings
+        # as large as any trend. Within-session because engagement is GRADED: a miss-while-working
+        # trial just before the animal quits is not the same state as one at trial 50, and the
+        # session-level split cannot see that (Priya, 2026-08-21).
+        QS = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01)]
+        for c in classes:
+            fr = frac_e if c in ("prestroke_lick", "poststroke_lick") else frac_nl
+            pooled, within = {}, {}
+            for P in BY_SEVERITY:
+                if P not in W:
+                    continue
+                w, p0, p1 = W[P]
+                m = _mask(c, P)
+                pooled[P] = _cells(proj(c, (XE if c in ("prestroke_lick", "poststroke_lick")
+                                            else XU)[m], P))
+                rows = []
+                for lo, hi in QS:
+                    mq = m & (fr >= lo) & (fr < hi)
+                    cell = _cells(proj(c, (XE if c in ("prestroke_lick", "poststroke_lick")
+                                           else XU)[mq], P))
+                    cell["quartile"] = f"{int(lo * 100)}-{int(hi * 100 if hi <= 1 else 100)}%"
+                    rows.append(cell)
+                within[P] = rows
+            res.setdefault("pooled", {})[c] = pooled
+            res.setdefault("within_session", {})[c] = within
 
         # ---- 3. PAIRWISE axes: A vs B directly, no five-way mixture in the contrast -----------
         # Sharper for the remapping question: "not-P" above averages five positions, so a trial can
@@ -629,6 +690,116 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
     return q
 
 
+def figure_pooled(res, out, align="precue", meth="dom"):
+    """Every class per position, POOLED over all sessions of its phase.
+
+    The per-session view is the honest one but it is noisy at that grain -- PS94's
+    miss-while-working swings +1.05 to -0.68 between adjacent sessions with intervals to match.
+    Pooling collapses that; read it WITH the time course, never instead of it, or a class that
+    swung wildly and a class that sat still look identical here.
+    """
+    if not res or meth not in res.get("methods", {}):
+        return None
+    disp, R = dict(ALIGNS)[align], res["methods"][meth]
+    if "pooled" not in R:
+        return None
+    fig, ax = plt.subplots(figsize=(11.5, 5.4))
+    x = np.arange(len(BY_SEVERITY))
+    for c in CLASSES_FULL:
+        if c not in R["pooled"]:
+            continue
+        col, mk, lab = STYLE[c]
+        cells = [(R["pooled"][c].get(P) or {}) for P in BY_SEVERITY]
+        ax.errorbar(x, [cc.get("mean") if cc.get("mean") is not None else np.nan for cc in cells],
+                    yerr=[cc.get("sem") or 0 for cc in cells], fmt="-", marker=mk, color=col,
+                    ecolor=col, capsize=3, ms=6.5, lw=1.6, label=lab)
+        for xi, cc in zip(x, cells):
+            if cc.get("mean") is not None and cc.get("low_n"):
+                ax.plot([xi], [cc["mean"]], marker=mk, ms=8.5, markerfacecolor="none",
+                        markeredgecolor=col, markeredgewidth=1.6, zorder=4)
+    ax.axhline(1.0, color="tab:blue", ls=":", lw=1.1)
+    ax.axhline(0.0, color="k", ls=":", lw=1.1)
+    ax.set_xticks(x)
+    ax.set_xticklabels(BY_SEVERITY, rotation=30, ha="right")
+    ax.set_ylabel("projection")
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=8, ncol=2)
+    fig.suptitle(f"{res['animal']} \u2014 {disp}, {meth.upper()}: POOLED over sessions. "
+                 f"0 = pre-stroke not-this-position, 1 = pre-stroke lick here.\n"
+                 f"Positions MOST IMPAIRED first. Bars = SEM. Read beside the per-session figure: "
+                 f"pooling hides whether a class was steady or swinging.", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    q = Path(out) / f"coding_pooled_{disp}_{meth}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def figure_within_session(res, out, align="precue", meth="dom"):
+    """Each class across the COURSE of a session, in within-session quartiles.
+
+    Engagement is graded, not binary: a miss-while-working trial just before the animal quits is not
+    the same state as one at trial 50, and a session-level split cannot see that. Trials are pooled
+    across sessions of a phase and binned by position WITHIN their session, so this reads as "how
+    does the state evolve over a typical session" (Priya, 2026-08-21).
+    """
+    if not res or meth not in res.get("methods", {}):
+        return None
+    disp, R = dict(ALIGNS)[align], res["methods"][meth]
+    if "within_session" not in R:
+        return None
+    fig, axes = plt.subplots(2, 3, figsize=(16.5, 8.2), squeeze=False, sharey=True, sharex=True)
+    for k, P in enumerate(BY_SEVERITY):
+        ax = axes[k // 3][k % 3]
+        for c in CLASSES_FULL:
+            rows = (R["within_session"].get(c) or {}).get(P)
+            if not rows:
+                continue
+            col, mk, lab = STYLE[c]
+            xq = np.arange(len(rows))
+            # A THIN BIN IS NOT PLOTTED HERE, only counted. Hollow markers are enough in the
+            # per-session figure, where a low-n point tells you the class exists at all; here they
+            # are not. STOPPED is terminal BY DEFINITION, so its early bins are guaranteed thin --
+            # 0 trials in the first quartile at every position, then 4-14 in the second -- and those
+            # few trials landed at +2.2 and -2.3, dominating the eye and inventing a within-session
+            # shape out of one session's tail (Priya, 2026-08-21). Same rule G2b uses: say "n=", do
+            # not draw a value you would not weigh.
+            def _thin(r):
+                return (r.get("mean") is None or r.get("sem") is None
+                        or r["sem"] > MAX_SEM_DRAWN)
+
+            ys = [np.nan if _thin(r) else r["mean"] for r in rows]
+            es = [0 if _thin(r) else r["sem"] for r in rows]
+            ax.errorbar(xq, ys, yerr=es, fmt="-", marker=mk, color=col, ecolor=col, capsize=2.5,
+                        ms=5.5, lw=1.4, label=(lab if k == 0 else None))
+            for xi, r in zip(xq, rows):
+                if _thin(r):
+                    ax.text(xi, 0.02, f"n={r.get('n', 0)}", ha="center", va="bottom", fontsize=5.5,
+                            rotation=90, color=col, style="italic",
+                            transform=ax.get_xaxis_transform())
+        ax.axhline(1.0, color="tab:blue", ls=":", lw=1.0)
+        ax.axhline(0.0, color="k", ls=":", lw=1.0)
+        ax.set_xticks(range(4))
+        ax.set_xticklabels(["0-25%", "25-50%", "50-75%", "75-100%"], fontsize=8)
+        ax.set_title(P, fontsize=10)
+        ax.grid(alpha=0.25)
+        if k % 3 == 0:
+            ax.set_ylabel("projection", fontsize=9)
+        if k >= 3:
+            ax.set_xlabel("position within session", fontsize=9)
+    fig.legend(loc="lower center", ncol=5, fontsize=8.5, frameon=False)
+    fig.suptitle(f"{res['animal']} \u2014 {disp}, {meth.upper()}: over the COURSE of a session. "
+                 f"Trials pooled across sessions of a phase, binned by where they fall within "
+                 f"their own session.\nA state that drifts as the animal tires shows here and "
+                 f"cannot show in a session-level split. Bars = SEM; hollow = few trials.",
+                 fontsize=10)
+    fig.tight_layout(rect=(0, 0.07, 1, 0.89))
+    q = Path(out) / f"coding_within_{disp}_{meth}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -664,7 +835,8 @@ def main(argv=None) -> int:
             if not res[an]:
                 continue
             for meth in res[an].get("methods", {}):
-                for fn in (figure_animal, figure_cross, figure_pairwise):
+                for fn in (figure_animal, figure_pooled, figure_within_session,
+                           figure_cross, figure_pairwise):
                     q = fn(res[an], out, align=align, meth=meth)
                     if q:
                         print(f"  wrote {q}", flush=True)

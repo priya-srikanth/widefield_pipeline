@@ -2238,3 +2238,213 @@ for why the pre-cue results have been the hardest to pin down.
 
 PS94 remains the outlier on loss: its post-cue pattern falls below the pre-stroke floor at 5–6 of 6
 positions on all three post-stroke days.
+
+
+---
+
+## THE ENGAGED CUT WAS 2.0 s WHILE THE TASK'S WINDOW IS 3.5 s (fixed 2026-08-21)
+
+`decode.max_rt_s` defined "engaged" for every imaging analysis at 2.0 s, while the task has run a
+3500 ms response window throughout and the behaviour pipeline scores hit/miss on it. **A lick at
+2.5 s was a rewarded HIT that every decoder filed under "no lick".**
+
+The deck already carried the measurement and a standing warning (`M_NOLICK`): the contamination is
+9.7% of PS94's no-lick arm and 4.7% of PS95's, **but 39.3% for PS92 and 33.9% for PS93** — and
+"when PS92/PS93 re-enter as post-stroke animals these slides must be rebuilt on the three-arm split,
+or they will report a late-lick effect as a no-lick effect." They re-entered on 8/18. The condition
+was met and the rebuild was overdue.
+
+Measured on the trial population before changing it: late-but-rewarded trials are **1.8% of
+pre-stroke responded trials and 3.1% post-stroke**, graded by DISTANCE not laterality — far_L worst
+in both phases (4.1% / 7.3%), close positions lowest (0.5–1.8%). Small against all trials, large
+against the no-lick ARM, which is the denominator that matters because that arm is what the no-lick
+analyses are about. **It is also present pre-stroke**, so the contamination sat in the REFERENCE that
+defines every coding direction, not only in the post-stroke classes.
+
+Two denominators, and the wrong one was quoted first: "% of responded trials" (1.8/3.1) reads as
+negligible; "% of the no-lick arm" (up to 39%) is the one that governs.
+
+### What changed and what did not
+- `decode.max_rt_s` 2.0 → 3.5. Analysis WINDOWS stay at 2.0 s: the cut is a claim about whether the
+  animal responded, the window a claim about how much activity to average.
+- The lick window was already safe — it starts at the FIRST LICK wherever that falls, so a lick at
+  2.5 s takes 2.5–4.5 s. Worst case under the new cut ends at 5.5 s, inside the **minimum measured
+  cue-to-cue interval of 8.00 s**, so no window can reach the next trial.
+- `nolick_decoder` KEEPS its own hardcoded 2.0 s boundary. With both cuts at 3.5 s its
+  `late_rewarded` arm would be empty by construction, and that split is a real result: on PS93 8/12
+  the entire pre-cue survival sat in the LATE arm (balanced 0.532, p=0.003) while undetected trials
+  showed nothing (0.153, p=0.76).
+- `CACHE_VERSION` 9 → 10. **Every number computed before this used the 2.0 s cut and will move.**
+
+---
+
+## PER-POSITION CODING DIRECTIONS — construction, and four things that were wrong first (2026-08-20/21)
+
+For each spout position P, a direction fitted on PRE-STROKE trials with a SUCCESSFUL LICK, P against
+the other five, in the shared joint-LocaNMF basis. The feature space is one axis per (component,
+time sub-bin) — 348–380 dims for ENL/cue, ~700 for lick — so a direction is a weight per component
+PER MOMENT. It is a CONTRAST: without the comparison there is no axis.
+
+### 1. Reported as a LINEAR projection, not a probability
+`predict_proba` was carried over from an earlier analysis and was never a considered choice. A
+sigmoid saturates; these directions reach AUC 0.98, so pre-stroke lick already sat in the flat
+region. Degradation measured from a saturated reference is understated, and **unevenly** between
+positions of different separability — which corrupts exactly the orderings the analysis is for. The
+squashing also depends on the regularisation and feature scale, so probabilities are not
+commensurable across panels shown side by side. Now `x·w` on a unit vector, pole-normalised so
+0 = pre-stroke not-this-position and 1 = pre-stroke lick here.
+
+### 2. Difference-of-means directions are heavily contaminated by ENGAGEMENT
+`cos(w, engagement axis)` reaches **0.82 / 0.91 / 0.71 / 0.52** in PS92/93/94/95 — and lands on a
+DIFFERENT position in each animal (far_center, far_center, far_L, far_R), so it cannot be inspected
+around. PS93's far_center direction is 91% engagement axis wearing a position label.
+
+Symptom that found it: pre-stroke no-lick scattering from **−2.03 to +1.38** across axes that should
+all read alike. After Gram-Schmidt removal they collapse to **0.16–0.17** and the pre-stroke lick
+diagonal IMPROVES rather than degrading. Logistic directions were already clean (|cos| ≤ 0.07)
+because they account for covariance; kept as the independent check.
+
+**Consequence: raw `dom` must not be used for the no-lick classes.** ENL and cue show `dom_orth`.
+
+### 3. One-vs-rest axes for MIDDLE positions are largely close-vs-far
+"Not P" mixes the five other positions, and for a middle position that mixture is majority-far. On
+PS94's close_center axis the ordering is **close_L 1.23 > close_R 0.83 > close_center 0.71** — the
+position the axis is named for is third on its own axis, which is how a cell exceeded 1.0. Its
+direction also has the lowest AUC (0.78) of the six for the same reason. **Prefer the pairwise
+(A-vs-B) panels for remapping questions**; one-vs-rest is context.
+
+### 4. Off-diagonal magnitude is meaningless without the pre-stroke baseline
+Neighbouring positions are intrinsically similar before any lesion — pre-stroke far_center already
+scores 0.76 on the far_R direction. Post-stroke cross-matrices are therefore reported as a
+DIFFERENCE from the pre-stroke lick matrix; remapping is a departure from that baseline, not a large
+number.
+
+### Thresholds
+`MIN_TRIALS` was 12, chosen for no reason and inconsistent with this project's existing rule
+(`plot_poststroke.MIN_N` = 10, which G2b red-hatches below). Now 10. Separately, the within-session
+figure suppresses a cell on **PRECISION rather than count**: drawn only if its own SEM < 0.25, a
+quarter of the pole separation. Measured within-class SD of the projection is ~1.08 (median over 168
+well-populated cells), so n=12 bought a SEM of 0.31 — a third of the entire scale, enough to invent
+a shape from noise. SEM 0.25 ≈ n ≥ 20 at the median SD, and is still generous: its 95% interval
+spans nearly the whole pole separation.
+
+---
+
+## WHAT THE CODING DIRECTIONS SHOW — one replication, two nulls (2026-08-20/21)
+
+### Replicated: post-stroke LICK degradation tracks the behavioural deficit
+In the lick window the pre-stroke position code is near-identical across animals (**0.807–0.874**)
+and post-stroke it degrades in proportion to the deficit: **PS92 0.776, PS95 0.752, PS93 0.545,
+PS94 0.380.** The same ordering appears in the cue window's post-stroke-lick column. PS94 is the
+animal whose far_center/far_R response rates reached 0.00 and whose far_R first-lick latency went
+0.255 s → 2.439 s.
+
+**Not under-description by the basis.** Variance captured is 0.98–0.995 for every post-stroke
+session, and it runs OPPOSITE to the ordering — PS94 is the BEST-spanned animal (0.992–0.995) while
+showing the largest drop; PS92 the worst-spanned (0.983) while retaining the most. Under-description
+would make those move together.
+
+This contrast is like-for-like (both sides contain a lick), which the no-lick classes in the cue and
+lick windows are not.
+
+### Null: the two post-stroke failure modes are indistinguishable
+MISS-while-working exceeds STOPPED at **14/20 positions in ENL and 10/20 in cue**, magnitudes
+swinging both ways. PS94 alone was 6/6 in ENL and the other three did not follow. ENL also has
+little dynamic range here — every class sits between 0.21 and 0.56, consistent with pre-cue decoding
+being ~0.3 against ~0.7 post-cue.
+
+### Null: no within-session gradient in the miss class (PS94, ENL)
+Engagement is graded, not binary, so a miss just before the quit might not be the state a miss at
+trial 50 is. Binned by within-session quartile, the two positions with enough trials show no
+monotone drift (far_R 0.55 → 0.60 → 0.40 → 0.95; far_center 0.4 → 0.95 → 0.55 → 0.35), while
+pre-stroke lick stays flat at ~1.0 across all four quartiles — so a drift WOULD have been visible.
+One animal, one window; not settled.
+
+STOPPED is terminal by construction, so its early bins are structurally near-empty (0 trials in the
+first quartile at every position). Four-trial points landing at ±2.2 dominated the eye and invented
+a shape until the precision rule above suppressed them.
+
+---
+
+## THE POST-STROKE ENGAGEMENT GATE — revisited, and what the data actually supports (2026-08-20/21)
+
+`POSTSTROKE_ENGAGEMENT_FILTERING` stays **False**; nothing filters on any of this. What follows is
+reported only.
+
+### The post-quit window IS a genuine, position-general stop
+Inside it the response rate is ~0 at EVERY position, close ones included (PS92_0818 0.00 across all
+six; PS94_0819 0.02/0.02/0.02/0.02/0.00/0.03). An earlier reading of PS95's class composition as
+"still licking at far, failing at close" was wrong — that window is 82 trials and the task simply
+presented more close positions in it. So "stopped" is what it claims.
+
+### The gate needs NON-RECOVERY, not a rolling rate
+The 2026-08-18 retirement note objected that "a short run of MOTOR failures produces that dip just
+as readily as a motivational lapse". True of a rolling rate. Requiring the reference-position
+collapse to be terminal — to not recover — separates them: PS94_0817's reference rate drops around
+trial 420 and is back near 0.95 by 480, and that session should not be called disengaged at all.
+With non-recovery required it flags **0%** of that session (was 7%), while the genuine quits keep
+their flags.
+
+### The discriminator test failed its own control, and then the control failed too
+Pushing states through a pre-stroke lick/no-lick axis gave a drift control (early vs late ENGAGED
+trials, a null contrast by construction) of **0.09–0.12 with the sign FLIPPING between animals** —
+as large as the state effect. But D1 was not a valid null: engagement is graded, so late engaged
+trials genuinely sit closer to disengaged. A stronger control on pre-stroke LICK trials
+(thousands, LOSO) gave **+0.008 / −0.022 / +0.033 / +0.105** — near zero for three of four animals,
+so the axis is NOT a clock and my first explanation was wrong.
+
+Then the position audit showed what actually drove it: the classes differ enormously in position
+composition (total variation **0.31–0.65**; MISS is 34–44% far_R, STOPPED near-uniform) and pre-cue
+activity CARRIES position. A position-blind axis was comparing the spout, not the state. That is why
+every subsequent analysis is fitted per position and compared only WITHIN a position.
+
+---
+
+## THE LICK WINDOW CAN CARRY THE NO-LICK CLASSES, AT AN INFERRED TIME (2026-08-21)
+
+At `align="lick"` an engaged trial's window starts at its FIRST LICK while a no-lick trial's started
+at the CUE — offset by the whole reaction time. Pre-stroke that is 0.137–0.255 s and merely untidy;
+at post-stroke far_R the median is **2.439 s against a 2 s window, so the arms do not overlap at
+all**. `_trial_features` returns those trials populated and plausible-looking either way, which is
+the same trap as the post-lick confusion bug of 2026-08-20.
+
+`nolick_ref="would_be_lick"` starts the window at the cue plus **this session's own median RT at
+that position**, taken from its engaged trials — latency differs by animal, by position and tenfold
+between phases, so a cohort constant would be wrong on all three axes. Under 5 engaged trials at a
+position falls back to the session median; no engaged trials drops those trials rather than guessing.
+
+**It is an inference, not a measurement.** The time comes from other trials; this one has no lick,
+which is the point. It is weakest exactly where the deficit is worst — and PS94's most extreme value
+sits on it (post-stroke miss at far_R, −0.55 orthogonalised, n=295, window placed ~2.4 s after the
+cue). Any slide from this must say so.
+
+**In this window the engagement axis IS a licking axis** (movement present vs absent), so the
+orthogonalised variants ask what position structure survives once movement PRESENCE is removed. That
+is right for the no-lick classes and deliberately conservative for the lick classes: licks to
+different spouts differ in kinematics, so position and position-specific MOVEMENT are not separable
+there by any projection.
+
+---
+
+## DECK SELF-CHECKS — what the deck can now refuse (2026-08-20)
+
+Three failures shipped a healthy-looking deck before these existed.
+
+1. **Missing figures block the publish.** A rebuild that cannot find every figure will not overwrite
+   an existing deck, and it NAMES the gaps — the caller truncates exceptions to 80 chars, which is
+   exactly the detail needed. `allow_missing=N` for the deliberate case.
+2. **A run with FAILED STEPS blocks the publish.** The missing-figure gate cannot see this: a step
+   that dies PART WAY leaves its earlier outputs rewritten and its later ones at yesterday's values —
+   every file present, nothing missing, a deck silently mixing two days. That is what
+   `spatial_reorganisation` did on 2026-08-20 (all-trials arm rewritten, lick-only arm dead on a
+   KeyError in a PRINT statement). The run already knew; the deck never asked.
+3. **A manifest of every placed figure and its mtime**, with the ones this run did not refresh named
+   in the log. REPORTED, not enforced: of 1311 PNGs in the tree only 402 were touched by that night's
+   run, the rest being one-off analyses back to June. A blanket freshness rule would fire on two
+   thirds of the tree nightly. Scoped to what the deck PLACES it is informative — 119 of 465 — and
+   sorting oldest-first surfaced an entire cluster of ORPHANS (`poststroke_grid`, `G7_control_*`,
+   `G4b`, `G7c`): slides reading filenames no step writes any more, frozen for two days, invisible to
+   every other check because the files were present.
+
+**Deck slides must not be added before the figure is in the nightly.** A slide reading a figure no
+step regenerates is an orphan the day it is made.
