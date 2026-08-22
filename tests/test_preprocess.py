@@ -397,6 +397,15 @@ def _ran(monkeypatch, tmp_path, redo, svtcorr_exists=True, bin_exists=True):
     calls = []
     monkeypatch.setattr(preprocess, "_run", lambda args, dry: calls.append(str(args[0])))
     monkeypatch.setattr(preprocess, "generate_maps", lambda *a, **k: None)
+    # REDIRECT THE RESOLVER AT tmp_path. Patching _run stops the SUBPROCESSES, but the push step
+    # does its own filesystem work against whatever the resolver returns -- which on this rig is the
+    # live MICROSCOPE share. This test created
+    # N:/MICROSCOPE/Priya/Widefield/labcams/20260820/PS92_20260820_120000/ with a 1-byte SVTcorr in
+    # it, every time the suite ran, and it turned up as a phantom session in the cross-day intensity
+    # scan (2026-08-22). A test must not be able to write to the data share, even a legal write.
+    monkeypatch.setattr(PathResolver, "root", lambda self, name: str(tmp_path / "roots" / name))
+    monkeypatch.setattr(PathResolver, "resolve",
+                        lambda self, name, rel: str(tmp_path / "roots" / name / rel))
     mc = tmp_path / "sess" / "motion_corrected"
     res = mc / "wfield_local_results"
     res.mkdir(parents=True, exist_ok=True)
