@@ -553,6 +553,12 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
         os.makedirs(out_dir, exist_ok=True)
     _check_replacement(out_path, type_counts, verbose=verbose, force=force)
     _before = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+    # Keep the version this is about to replace (see locanmf_analysis_deck.keep_previous).
+    try:
+        from wfield_local.locanmf_analysis_deck import keep_previous
+        keep_previous(out_path)
+    except Exception as ex:                                        # noqa: BLE001
+        print(f"[deck] backup skipped ({type(ex).__name__}); writing anyway", flush=True)
     prs.save(out_path)
     _warn_if_shrunk(out_path, _before, verbose=verbose)
 

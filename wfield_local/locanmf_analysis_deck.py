@@ -36,6 +36,7 @@ from whatever figures are present.
 from __future__ import annotations
 
 import argparse
+import shutil
 import time
 from pathlib import Path
 
@@ -787,6 +788,85 @@ def _write_manifest(out_path, placed_figures, run_start=None):
     return man, stale
 
 
+#: How an alignment token in a figure filename reads in prose.
+_ALIGN_PROSE = {
+    "precue": "PRE-CUE (ENL): the window ENDS at the cue",
+    "cue": "POST-CUE: the window STARTS at the cue",
+    "lick": "POST-LICK: the window STARTS at the first detected lick",
+}
+
+
+def window_provenance(fig_names) -> str:
+    """One line stating the window and binning behind the figures on a slide.
+
+    WHY EVERY SLIDE CARRIES THIS. On 2026-08-21 decode.max_rt_s moved from 2.0 s to 3.5 s and
+    eleven modules kept their own hardcoded 2.0, so for a day this deck showed figures cut at two
+    different definitions of "engaged" with nothing on either saying which. A reader cannot tell
+    those apart by looking, and neither could I. The parameters are read from configs/defaults.yaml
+    at build time and the alignment from the figure's own filename, so this line cannot drift from
+    the thing it describes the way a hand-written note does.
+
+    Returns "" when no figure on the slide encodes an alignment -- a schematic or a text slide gets
+    no claim rather than a guessed one.
+    """
+    from wfield_local import config
+
+    d = config.defaults()["decode"]
+    names = " ".join(str(n) for n in fig_names)
+    align = next((a for a in ("precue", "cue", "lick")
+                  if ("_" + a + "_") in names or ("_" + a + ".") in names), None)
+    if align is None:
+        return ""
+    post = float(d.get(align + "_post_s", 2.0))
+    nb = int((d.get("bins") or {}).get(align, 1) or 1)
+    binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
+               if nb > 1 else "1 bin (the window mean)")
+    bits = [f"WINDOW: {_ALIGN_PROSE[align]}, {post:.1f} s long, plus 1.0 s of context before the "
+            f"alignment point.",
+            f"BINNING: {binning}.",
+            f"ENGAGED: first detected lick within {float(d['max_rt_s']):.1f} s of the cue "
+            f"(decode.max_rt_s = the task's response window)."]
+    if "base-none" in names:
+        bits.append("BASELINE: none (no per-trial baseline subtraction).")
+    if "cv-block" in names:
+        bits.append("CV: block -- GroupKFold over ~6-trial position blocks, so a block never spans "
+                    "train and test.")
+    return "  ".join(bits)
+
+
+def keep_previous(out_path) -> "Path | None":
+    """Copy the deck that is about to be overwritten into ``deck_history/``, stamped with ITS mtime.
+
+    Every rebuild writes the same filename, so until 2026-08-22 each one destroyed the last. That is
+    fine while rebuilds only add -- and not fine the moment one is worse: a hand-run rebuild that day
+    published 249 slides over 265, and the only way back was to rebuild again, not to recover. A deck
+    is cheap to copy and expensive to reproduce (hours of figures), so the previous one is kept.
+
+    Returns the archived path, or None if there was nothing to keep. Never raises: failing to make a
+    backup must not stop the deck from being written.
+    """
+    from wfield_local import writeguard
+
+    try:
+        out_path = Path(out_path)
+        if not out_path.exists():
+            return None
+        hist = out_path.parent / "deck_history"
+        stamp = time.strftime("%Y%m%d_%H%M", time.localtime(out_path.stat().st_mtime))
+        dst = hist / f"{out_path.stem}__{stamp}{out_path.suffix}"
+        if dst.exists():
+            return dst
+        writeguard.assert_writable(dst)
+        hist.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(out_path, dst)
+        print(f"[deck] kept the previous version as {dst.name}", flush=True)
+        return dst
+    except Exception as ex:                                       # noqa: BLE001
+        print(f"[deck] could not keep the previous version ({type(ex).__name__}: {str(ex)[:60]}); "
+              f"writing anyway", flush=True)
+        return None
+
+
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
@@ -812,8 +892,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     missing_figures = []
     placed_figures = []
 
+    slide_order = []
+    figs_by_slide = {}
+
     def slide():
-        return prs.slides.add_slide(BLANK)
+        sl = prs.slides.add_slide(BLANK)
+        slide_order.append(sl)
+        return sl
+
+    def _record(sl, p):
+        figs_by_slide.setdefault(id(sl._element), []).append(Path(p).name)
 
     def title(s, text, sub=None):
         tf = s.shapes.add_textbox(Inches(0.4), Inches(0.16), Inches(12.6), Inches(0.95)).text_frame
@@ -843,6 +931,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         return ok
 
     def big(s, p, top=1.4, width=12.7, bottom=0.15):
+        _record(s, p)
         """Place one figure, scaled to fit the slide in BOTH dimensions.
 
         Scaling by width alone overflows the bottom of the slide whenever a figure is taller than
@@ -864,6 +953,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
     def grid(s, paths, cols=2, top=1.25, side=0.25, gap=0.18, bottom=0.25):
         paths = [Path(p) for p in paths]
+        for _p in paths:
+            _record(s, _p)
         present = [p for p in paths if _exists(p)]
         if not present:
             return
@@ -1679,6 +1770,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)
     _refuse_failed_steps(out_path, failed_steps, allow_failed_steps)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # WINDOW PROVENANCE ON EVERY SLIDE, appended last so it sits under whatever note the
+    # section already wrote. Derived from each figure's own filename plus defaults.yaml,
+    # so it cannot drift from what it describes.
+    _prov = 0
+    for _sl in slide_order:
+        _line = window_provenance(figs_by_slide.get(id(_sl._element), []))
+        if not _line:
+            continue
+        _tf = _sl.notes_slide.notes_text_frame
+        _tf.text = (_tf.text + chr(10) + chr(10) + _line) if _tf.text else _line
+        _prov += 1
+    print(f"[analysis_deck] window/binning provenance written to {_prov} slide(s)",
+          flush=True)
+    keep_previous(out_path)
     prs.save(str(out_path))
     manifest, stale = _write_manifest(out_path, placed_figures, run_start)
     return {"out": str(out_path), "slides": len(prs.slides),
