@@ -791,9 +791,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         failed_steps=(), allow_failed_steps=False, run_start=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
     src = Path(src)
-    # curated_dates() is DERIVED (registered minus excluded), so a hand-run deck covers the same
-    # dates as the nightly. The static policy list this used to read stopped at 8/7.
-    dates = dates or config.curated_dates()
+    # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
+    # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
+    # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
+    # That was true when written and stopped being true the day the phase default landed: on
+    # 2026-08-22 a hand-run rebuild published 249 slides over the nightly's 265, and the 16 it lost
+    # were the post-stroke sections -- the part of the study this deck exists to show. The nightly
+    # never hit it because it computes its own list (registered minus excluded) and passes it in.
+    dates = dates or config.curated_dates(phase="all")
     animals = animals or [a for a in config.animals()]
     tag = tag or f"{dates[0]}-{dates[-1]}"
     date_labels = [(d, _mmdd_label(d)) for d in dates]
