@@ -1271,11 +1271,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # ONE counts slide: trial counts are trial counts, so this figure does not depend on the
         # arm. Rendering it per arm produced two byte-identical files under two titles (Priya,
         # 2026-08-19).
-        for _cf in [src / "section_g_counts.png"]:
-            if not _cf.exists():
-                continue
+        # EVERY CHUNK, not just the first. fig_behaviour splits at COUNTS_PER_FIG sessions, so
+        # this is a glob and not a filename: with 14 post-stroke sessions the single figure was
+        # 12.50 x 1.10 in on the slide and unreadable (Priya, 2026-08-22). Sorted so _2 follows the
+        # unsuffixed original.
+        _counts = sorted(src.glob("section_g_counts*.png"),
+                         key=lambda q: (len(q.stem), q.stem))
+        for _i, _cf in enumerate(_counts):
             s = slide()
-            title(s, "G1b. Which positions still have trials at all",
+            _part = f" ({_i + 1} of {len(_counts)})" if len(_counts) > 1 else ""
+            title(s, f"G1b. Which positions still have trials at all{_part}",
                   "Per-position engaged and no-lick counts, ONE PANEL PER POST-STROKE SESSION "
                   "against the pre-stroke per-session mean. A position with ZERO engaged trials "
                   "cannot have a lick-only decoding number at all; PS94 has two, and reading "

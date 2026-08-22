@@ -19,9 +19,33 @@ import numpy as np                                                     # noqa: E
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
 
 
-def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None):
-    """G1: per-position engaged / undetected counts, pre vs post. The primary finding."""
+#: Post-stroke sessions per counts figure. One row of N panels was fine at N=2 and illegible at
+#: N=14: the figure is 5.2 in per session and the slide is 12.5 in, so every added session shrinks
+#: every existing one. Chunking keeps the panel width fixed and spends slides instead (Priya,
+#: 2026-08-22, on a 12.50 x 1.10 in slide).
+COUNTS_PER_FIG = 4
+
+
+def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None,
+                  per_fig=COUNTS_PER_FIG):
+    """G1: per-position engaged / undetected counts, pre vs post. The primary finding.
+
+    Returns a LIST of paths -- one figure per ``per_fig`` sessions. The first keeps ``name`` so an
+    existing reference still resolves; the rest get ``_2``, ``_3`` ... The deck globs them.
+    """
     ans = sorted(counts)
+    chunks = [ans[i:i + per_fig] for i in range(0, len(ans), max(per_fig, 1))] or [[]]
+    made = []
+    stem = Path(name).stem
+    for ci, group in enumerate(chunks):
+        made.append(_fig_behaviour_one(
+            counts, group, out,
+            name if ci == 0 else f"{stem}_{ci + 1}.png",
+            suptitle, part=(ci + 1, len(chunks))))
+    return made
+
+
+def _fig_behaviour_one(counts, ans, out, name, suptitle, part):
     fig, axes = plt.subplots(2, len(ans), figsize=(5.2 * len(ans), 6.4), squeeze=False)
     x = np.arange(len(POS))
     w = 0.38
@@ -33,7 +57,8 @@ def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None
                    label="pre-stroke (per-session mean)", color="tab:blue",
                    edgecolor="k", linewidth=0.4)
             ax.bar(x + w / 2, [c["post"][arm].get(p, 0) for p in POS], w,
-                   label="post-stroke 8/17", color="tab:red", edgecolor="k", linewidth=0.4)
+                   label="this session (post-stroke)", color="tab:red", edgecolor="k",
+                   linewidth=0.4)
             for xi, p in zip(x + w / 2, POS):
                 if c["post"][arm].get(p, 0) == 0:
                     ax.text(xi, 1, "0", ha="center", va="bottom", fontsize=8,
@@ -44,10 +69,12 @@ def fig_behaviour(counts, out, name="poststroke_G1_behaviour.png", suptitle=None
             ax.set_ylabel("trials")
             if r == 0 and k == 0:
                 ax.legend(fontsize=7)
-    fig.suptitle(suptitle or
-                 "POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
-                 "Zero engaged trials at a position means no decoding number for it can exist.",
-                 fontsize=10, wrap=True)
+    head = suptitle or ("POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
+                        "Zero engaged trials at a position means no decoding number for it can "
+                        "exist.")
+    if part[1] > 1:
+        head = f"[{part[0]} of {part[1]}] {head}"
+    fig.suptitle(head, fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     p = Path(out) / name
     fig.savefig(p, dpi=150)

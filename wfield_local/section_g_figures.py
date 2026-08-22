@@ -138,7 +138,7 @@ def _render_family(sub, out, prefix, label):
         return made
     counts = {k: v["counts"] for k, v in sub.items() if v.get("counts")}
     if counts:
-        made.append(pp.fig_behaviour(
+        made.extend(pp.fig_behaviour(
             counts, out, name=f"{prefix}_counts.png",
             suptitle=(f"{label}: which positions each session still attempts. A position with ZERO "
                       f"engaged trials has no lick-only decoding number at all, and reading one as "
