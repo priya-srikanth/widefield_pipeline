@@ -2510,21 +2510,44 @@ a drift of ≤0.05 s against a 2 s window. It cannot produce the gradient.
 
 ---
 
-## A WITHIN-SESSION GRADIENT DOES EXIST — in the lick window, not the ENL window (2026-08-21)
+## THE WITHIN-SESSION GRADIENT DID NOT SURVIVE THE OFFSET FIX — and the control it rested on is not flat (2026-08-21)
 
-The 2026-08-20 null said PS94's miss class showed no monotone within-session drift. That was measured
-in the **ENL** window. In the **lick** window the same animal and class declines monotonically:
+Recorded here because it was written up as a finding hours before it was withdrawn, and the reason it
+looked real is the useful part.
 
-    far_R       -0.26 -> -0.44 -> -0.69 -> -1.49     (within-session quartiles)
-    far_center   0.21 -> -0.12 -> -0.27 -> -0.47
+**The claim.** The 2026-08-20 null said PS94's miss class showed no monotone within-session drift,
+measured in the ENL window. In the LICK window the same animal and class appeared to decline
+monotonically across within-session quartiles — far_R −0.26 → −0.44 → −0.69 → **−1.49**, far_center
+0.21 → −0.12 → −0.27 → −0.47 — so the null looked window-specific rather than general. Two mechanical
+explanations were checked and both failed: the would-be-lick offset is a session CONSTANT, so it
+cannot manufacture a gradient, and median engaged RT does not drift within a session.
 
-while pre-stroke LICK stays flat at ~1.0 across all four quartiles, so a drift would have been
-visible. ENL at the same positions is flat or rising (far_R 0.54/0.58/0.42/0.96).
+**What it actually was.** Both checks were sound and both were beside the point. The offset does not
+drift within a session, but it was WRONG at far_R in the sessions that dominate the late quartiles:
+PS94_0817 and PS94_0820 contributed nearly all the 4th-quartile far_R trials, and those are exactly
+the two sessions where far_R had zero engaged trials and the window was placed ~2 s early. Dropping
+them removes the 4th quartile entirely and flattens the rest:
 
-Both mechanical explanations were checked and fail: the offset is a session constant, so it cannot
-manufacture a gradient, and RT does not drift within a session (above). **The null was
-window-specific, not general** — which is itself the finding, since ENL has little dynamic range here
-(every class between 0.21 and 0.56) and may simply be unable to show it.
+    far_R       old  -0.26 -> -0.44 -> -0.69 -> -1.49        (swing 1.23)
+                new  -0.74+-0.10 -> -0.96+-0.21 -> -1.02+-0.32 -> (n=0)   (swing 0.28, <1 SEM of the difference)
+    far_center  old  +0.19 -> -0.14 -> -0.26 -> -0.45        (monotone)
+                new  +0.34 -> -0.15 -> -0.01 -> (n=0)        (not monotone)
 
-Still one animal. far_R is also an affected cell above, so this must be re-read after the fix before
-it is called a result.
+So the gradient was largely WHICH SESSIONS landed in which quartile, and the ones that landed late
+were the mis-placed ones. **The ENL null stands, and the lick window does not contradict it.** Note
+that the pooled far_R miss value moved the other way (−0.55 → −0.86, n=295 → 113): the mis-placed
+windows sat near zero because they described an arbitrary moment, so they were DILUTING the pooled
+effect while inventing the within-session one.
+
+**And the control was not a control.** "Pre-stroke LICK stays flat at ~1.0 across all four quartiles,
+so a drift would have been visible" is true at the far positions (far_R 0.81 → 1.08, far_center 0.94
+→ 1.01) and false at the close ones, where it declines steadily and with tight errors:
+
+    close_center  1.39+-0.05 -> 1.02+-0.06 -> 0.80+-0.06 -> 0.67+-0.09     (n = 275/255/244/183)
+    close_L       1.33+-0.04 -> 0.97+-0.03 -> 0.92+-0.04 -> 0.71+-0.06
+
+That is a ~0.7 decline over the session on SUCCESSFUL pre-stroke licks, many SEM wide, at the
+positions with the most trials. Whatever it is — satiety, arousal, engagement, slow signal drift — it
+is present in trials where the animal did the task correctly every time, so **a within-session
+comparison cannot assume a flat baseline**. Any future version of this analysis has to subtract the
+pre-stroke lick profile at the SAME position rather than treat 1.0 as a fixed reference.
