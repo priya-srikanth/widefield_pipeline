@@ -87,8 +87,16 @@ def _position_maps(s, align="cue", post_s=2.0):
     return maps, counts
 
 
-def animal_maps(animal, align="cue", max_post=2):
-    """(pre-stroke mean map per position, {post label -> maps}, counts) for one animal."""
+def animal_maps(animal, align="cue", max_post=2, post_s=2.0):
+    """(pre-stroke mean map per position, {post label -> maps}, counts) for one animal.
+
+    ``post_s`` is the WINDOW LENGTH, and it was previously fixed at 2 s because `_position_maps`
+    accepted the argument and no caller passed it. The preprocessing decks show the post-lick maps
+    at **150 ms**, which is the window a reader actually compares across days -- and those had no
+    common-scale version at all, so every cross-day comparison of them was being made between two
+    independently-chosen colour limits (Priya, 2026-08-22: "scale is also wildly different"). PS94
+    is +-0.02425 on 8/14 and +-0.08854 on 8/17, a factor of 3.65.
+    """
     pre_dates = set(config.curated_dates())
     pre_maps, post = {}, {}
     for s in config.load_sessions():
@@ -97,19 +105,19 @@ def animal_maps(animal, align="cue", max_post=2):
         date = s["label"].split("_")[-1]
         phase = config.session_phase(animal, date)
         if phase == "pre" and date in pre_dates:
-            m, _c = _position_maps(s, align)
+            m, _c = _position_maps(s, align, post_s)
             if m:
                 for p, arr in m.items():
                     pre_maps.setdefault(p, []).append(arr)
         elif phase == "post":
-            m, c = _position_maps(s, align)
+            m, c = _position_maps(s, align, post_s)
             if m:
                 post[s["label"]] = (m, c)
     pre_mean = {p: np.mean(v, axis=0) for p, v in pre_maps.items() if len(v) >= 3}
     return pre_mean, dict(sorted(post.items())[:max_post])
 
 
-def plot(animal, pre_mean, post, out_dir, align="cue"):
+def plot(animal, pre_mean, post, out_dir, align, post_s):
     if not pre_mean or not post:
         return None
     POS = [p for p in (POSITION_NAMES[c] for c in DISPLAY_ORDER) if p in pre_mean]
@@ -158,7 +166,8 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
     cax = fig.add_axes([0.92, 0.15, 0.012, 0.68])
     fig.colorbar(im, cax=cax)
     fig.suptitle(
-        f"{animal} - {align}-aligned activity maps on ONE COMMON COLOUR SCALE (+-{lim:.3f}).\n"
+        f"{animal} - {align}-aligned activity maps, {round(post_s * 1000)} ms window, on ONE COMMON "
+        f"COLOUR SCALE (+-{lim:.3f}).\n"
         "The per-session maps in the preprocessing deck are auto-scaled, so every session fills the "
         "same colour range and an amplitude difference is invisible -- only the colourbar NUMBER "
         "changes. Here all panels share one limit, so a 2-3x larger response looks 2-3x more "
@@ -167,7 +176,10 @@ def plot(animal, pre_mean, post, out_dir, align="cue"):
         "the inclusion floor -- a mean over ten trials beside means over a hundred looks "
         "like a large effect and is mostly noise.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.90, 0.93))
-    q = Path(out_dir) / f"fixed_scale_maps_{animal}_{align}.png"
+    # the window goes in the FILENAME whenever it is not the historical 2 s, so a 150 ms
+    # figure can never overwrite the 2 s one or be mistaken for it
+    _tag = align if abs(post_s - 2.0) < 1e-9 else f"{align}{round(post_s * 1000)}ms"
+    q = Path(out_dir) / f"fixed_scale_maps_{animal}_{_tag}.png"
     fig.savefig(q, dpi=140)
     plt.close(fig)
     return q
@@ -178,6 +190,9 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--align", nargs="+", default=["cue", "lick"])
+    ap.add_argument("--post-s", type=float, default=2.0,
+                    help="window length in seconds (default 2.0; the preprocessing "
+                         "decks' post-lick maps are 0.15)")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
@@ -186,14 +201,14 @@ def main(argv=None) -> int:
         for a in animals:
             print(f"[fixed_scale_maps] {a} {align} ...", flush=True)
             try:
-                pre, post = animal_maps(a, align)
+                pre, post = animal_maps(a, align, post_s=args.post_s)
             except Exception as ex:                                  # noqa: BLE001
                 print(f"  {a}: skip ({str(ex)[:70]})", flush=True)
                 continue
             if not pre or not post:
                 print(f"  {a}: {len(pre)} pre positions, {len(post)} post sessions -> skip")
                 continue
-            p = plot(a, pre, post, out, align)
+            p = plot(a, pre, post, out, align, post_s=args.post_s)
             print(f"  wrote {p}", flush=True)
     return 0
 
