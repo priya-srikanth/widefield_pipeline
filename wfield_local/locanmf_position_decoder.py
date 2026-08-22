@@ -355,11 +355,19 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     if n_dropped_dirty:
         print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
               f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
-    if n_dropped_nolatency:
-        _weak = sorted(POSITION_NAMES.get(c, str(c)) for c, n in med_rt_n.items() if 1 <= n < 5)
-        print(f"  [would-be-lick] {s['label']}: dropped {n_dropped_nolatency} no-lick trial(s) at "
-              f"position(s) with NO engaged trial -- no evidence about their latency"
-              + (f"; offset rests on <5 trials at {', '.join(_weak)}" if _weak else ""), flush=True)
+    # Reported whenever EITHER condition holds. A session can have a thin position without an empty
+    # one -- PS94_0819 rests far_R on two trials and drops nothing -- and gating the whole message on
+    # the drop count would leave exactly those cells unflagged.
+    _weak = sorted((POSITION_NAMES.get(c, str(c)), n) for c, n in med_rt_n.items() if 1 <= n < 5)
+    if n_dropped_nolatency or _weak:
+        bits = []
+        if n_dropped_nolatency:
+            bits.append(f"dropped {n_dropped_nolatency} no-lick trial(s) at position(s) with NO "
+                        f"engaged trial -- no evidence about their latency")
+        if _weak:
+            bits.append("offset rests on <5 engaged trials at "
+                        + ", ".join(f"{p} (n={n})" for p, n in _weak))
+        print(f"  [would-be-lick] {s['label']}: " + "; ".join(bits), flush=True)
     base_out = (np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg)
     extra = ()
     if with_precue_licks:
