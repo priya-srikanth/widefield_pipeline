@@ -114,7 +114,13 @@ def analyze(label, dat, daq, out_dir):
 
     fig, ax = plt.subplots(1, 2, figsize=(13, 5))
     edges = np.linspace(t.min(), t.max(), NB + 1); ctr = 0.5 * (edges[:-1] + edges[1:])
+    # RECORD THE RAW'S IDENTITY. A record outlives the file it came from, and on 2026-08-20
+    # two of these described uploads that were later replaced. Size alone cannot tell a
+    # re-upload apart from the file it replaced (both are the same recording), so keep the
+    # mtime too -- it is what actually changed.
+    _st = os.stat(dat)
     res = {"label": label, "dat": dat, "daq": daq, "n_frames": int(nphys),
+           "dat_bytes": int(_st.st_size), "dat_mtime": float(_st.st_mtime),
            "dur_min": float(dur_min), "roi_px": int(P.sum()), "channels": {}}
     norm = {}
     for c, name in [(415, "415"), (470, "470")]:
@@ -202,6 +208,32 @@ def summary(results, out_dir):
               f"{c.get('415',{}).get('pct',float('nan')):8.1f} {c.get('470',{}).get('pct',float('nan')):8.1f}")
 
 
+def _still_describes_its_raw(rec) -> bool:
+    """Does this on-disk record still describe the file it was computed from?
+
+    WHY MERGE NEEDS THIS. Merging is right -- it stops two machines splitting a date from clobbering
+    each other's animals. But it re-publishes whatever is on disk without asking whether that is
+    still true. On 2026-08-21 the 8/20 summary was rebuilt and quietly carried PS95 forward at
+    -146% drift, computed from an upload that had been quarantined hours earlier and no longer
+    existed. The figure rendered perfectly and was wrong.
+
+    Records written before this check carry no fingerprint; those are accepted on existence alone,
+    which is still strictly better than accepting them blind.
+    """
+    dat = rec.get("dat")
+    if not dat:
+        return True                       # nothing to check against; not this function's call
+    try:
+        st = os.stat(dat)
+    except OSError:
+        return False                      # the raw is gone: the record describes nothing
+    if rec.get("dat_bytes") is not None and int(rec["dat_bytes"]) != st.st_size:
+        return False
+    if rec.get("dat_mtime") is not None and abs(float(rec["dat_mtime"]) - st.st_mtime) > 2:
+        return False                      # replaced since -- a re-upload has the same size
+    return True
+
+
 def run(sessions, out_dir, merge=True):
     """`sessions` = iterable of (label, dat, daq); analyze each, then rebuild the date's summary.
 
@@ -217,11 +249,18 @@ def run(sessions, out_dir, merge=True):
     fresh = {r["label"]: r for r in out if r}
     if merge:
         recs = load_records(out_dir)      # whatever any other run/machine already produced
+        stale = [k for k in recs if k not in fresh and not _still_describes_its_raw(recs[k])]
+        for k in stale:
+            recs.pop(k)
         pre_existing = [k for k in recs if k not in fresh]
         recs.update(fresh)                # this run is authoritative for the labels it just did
         if pre_existing:
             print(f"[photobleach] merging {len(pre_existing)} session(s) from disk: "
                   f"{sorted(pre_existing)}")
+        if stale:
+            print(f"[photobleach] DROPPED {len(stale)} stale record(s) whose raw is gone or has "
+                  f"changed since: {sorted(stale)}. They are NOT in this summary -- re-run "
+                  f"photobleach for them once their raw is back.", flush=True)
     else:
         recs = fresh
     merged = [recs[k] for k in sorted(recs)]
