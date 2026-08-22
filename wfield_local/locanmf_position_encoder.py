@@ -77,7 +77,16 @@ def encode_spatial(label):
     # noise ceiling per component = between-position var / total var (max R^2 a position-only model can reach)
     gm = X.mean(0); betw = np.zeros(X.shape[1]); wit = np.zeros(X.shape[1])
     for p in pos:
-        mm = y == p; mu = X[mm].mean(0); betw += mm.sum() * (mu - gm) ** 2; wit += ((X[mm] - mu) ** 2).sum(0)
+        mm = y == p
+        # AN ABANDONED POSITION CONTRIBUTES NO BETWEEN-CLASS SS. Skipping is not a
+        # convenience: X[mm].mean(0) on an empty mask is nan, and `mm.sum() * (...)` is
+        # then 0 * nan = nan, NOT 0. One such position turned every region's pooled
+        # `expl` into nan, and `nan > floor` is False, so the 58-session FEVE figure
+        # collapsed to ZERO regions (2026-08-20/21). Post-stroke animals abandoning a
+        # position outright is the phenotype, so this arrived with the science.
+        if not mm.any():
+            continue
+        mu = X[mm].mean(0); betw += mm.sum() * (mu - gm) ** 2; wit += ((X[mm] - mu) ** 2).sum(0)
     ceiling = betw / (betw + wit + 1e-12)
     return dict(label=label, r2=r2, B=B, reg=reg, pos=pos, cv_r2=float(np.mean(r2)), ceiling=ceiling)
 
@@ -261,7 +270,14 @@ def fig_ev_ceiling_by_position(labels, out, tag):
             pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
         xbar = X.mean(0); ceil = []; cap = []
         for p in pos:
-            m = y == p; mu = X[m].mean(0)
+            m = y == p
+            if not m.any():
+                # DELIBERATE nan, not an accidental one: the animal never went here, so
+                # there is no ceiling and no capture to report. Recorded as missing so the
+                # figure shows a gap rather than a fabricated zero.
+                ceil.append(np.nan); cap.append(np.nan)
+                continue
+            mu = X[m].mean(0)
             betw = m.sum() * ((mu - xbar) ** 2).sum(); tot = betw + ((X[m] - mu) ** 2).sum()
             ceil.append(betw / max(tot, 1e-12)); cap.append(1 - ((X[m] - pred[m]) ** 2).sum() / max(tot, 1e-12))
         ceil = np.array(ceil); ratio = np.where(ceil > 0.05, np.array(cap) / ceil, np.nan)
@@ -330,7 +346,10 @@ def _region_feve(label):
     gm = X.mean(0); sstot = ((X - gm) ** 2).sum(0); ssres = ((X - pred) ** 2).sum(0)
     betw = np.zeros(X.shape[1])
     for p in pos:
-        mm = y == p; mu = X[mm].mean(0); betw += mm.sum() * (mu - gm) ** 2
+        mm = y == p
+        if not mm.any():                 # see the note in _ceiling: 0 * nan = nan
+            continue
+        mu = X[mm].mean(0); betw += mm.sum() * (mu - gm) ** 2
     cap = sstot - ssres                                    # captured SS per component
     rn = np.array([names.get(int(reg[i]), "?") for i in range(X.shape[1])])
     out = {}
@@ -347,9 +366,21 @@ def _feve_regions(res, floor):
     keep regions whose pooled explainable FRACTION (expl/tot) exceeds `floor` (i.e. there is non-trivial
     position-explainable signal to normalize against), sorted by pooled explainable variance (desc)."""
     pe, pt = defaultdict(float), defaultdict(float)
+    dropped = 0
     for d in res.values():
         for r, v in d.items():
+            # DEFENCE IN DEPTH. The arithmetic that produced nan here is fixed above, but a
+            # single non-finite value silently deletes the ENTIRE region axis (nan > floor
+            # is False for every region), which is far too much damage for one bad session
+            # to do. Skip the contribution and count it instead.
+            if not (np.isfinite(v["expl"]) and np.isfinite(v["tot"])):
+                dropped += 1
+                continue
             pe[r] += v["expl"]; pt[r] += v["tot"]
+    if dropped:
+        print(f"  !! {dropped} non-finite region contribution(s) skipped when building the "
+              f"FEVE axis -- a session produced nan SS; the axis is built without it.",
+              flush=True)
     regs = [r for r in pe if pt[r] > 0 and pe[r] / pt[r] > floor]
     return sorted(regs, key=lambda r: pe[r], reverse=True)
 
