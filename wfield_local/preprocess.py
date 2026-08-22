@@ -172,29 +172,42 @@ def raw_integrity(dat_path, dims: str, settle_s: float = 4.0) -> dict:
            "camlog_rows": rows, "pairs": frames // 2, "odd_last_pair": bool(frames % 2),
            "single_frame_bytes": single}
     out.update(last_frame_blank=None, first_blank_frame=None, written_fraction=None,
-               interior_blank=[])
+               interior_blank=[], locked=False)
     if frames > 0 and rem == 0 and not out["grew_during_check"]:
-        with open(p, "rb") as f:
-            out["last_frame_blank"] = _blank_frame(f, frames - 1, single)
-            if out["last_frame_blank"]:
-                lo, hi = -1, 0
-                if not _blank_frame(f, 0, single):
-                    lo, hi = 0, frames - 1
-                    while hi - lo > 1:                       # first blank frame, in ~19 seeks
-                        mid = (lo + hi) // 2
-                        if _blank_frame(f, mid, single):
-                            hi = mid
-                        else:
-                            lo = mid
-                out["first_blank_frame"] = hi
-                out["written_fraction"] = hi / frames
-            else:
-                # A whole tail does not rule out a hole. One zero frame mid-recording is odd but
-                # survivable, so this warns and does not block -- unlike a blank tail, it has never
-                # been seen and is not worth refusing a night's processing over.
-                out["interior_blank"] = [i for i in
-                                         (int(frames * fr) for fr in (0.1, 0.25, 0.5, 0.75, 0.9))
-                                         if _blank_frame(f, i, single)]
+        try:
+            with open(p, "rb") as f:
+                out["last_frame_blank"] = _blank_frame(f, frames - 1, single)
+                if out["last_frame_blank"]:
+                    lo, hi = -1, 0
+                    if not _blank_frame(f, 0, single):
+                        lo, hi = 0, frames - 1
+                        while hi - lo > 1:                       # first blank frame, in ~19 seeks
+                            mid = (lo + hi) // 2
+                            if _blank_frame(f, mid, single):
+                                hi = mid
+                            else:
+                                lo = mid
+                    out["first_blank_frame"] = hi
+                    out["written_fraction"] = hi / frames
+                else:
+                    # A whole tail does not rule out a hole. One zero frame mid-recording is odd but
+                    # survivable, so this warns and does not block -- unlike a blank tail, it has never
+                    # been seen and is not worth refusing a night's processing over.
+                    out["interior_blank"] = [i for i in
+                                             (int(frames * fr) for fr in (0.1, 0.25, 0.5, 0.75, 0.9))
+                                             if _blank_frame(f, i, single)]
+        except OSError as ex:
+            # A file that EXISTS and cannot be OPENED is an upload in progress, not a broken file.
+            # Windows hands the writer an exclusive handle, so the destination of a running copy stats
+            # fine (size and mtime both readable) and raises PermissionError on open. On 2026-08-21 that
+            # killed the PS95 poller outright the moment its upload started -- and preprocess calls this
+            # too, so a night whose raw was still arriving would have taken the whole run down with it
+            # rather than skipping one session. Not readable yet is a WAIT, never a verdict.
+            out["locked"] = True
+            out["reason"] = (f"cannot be opened yet ({type(ex).__name__}) -- another process still "
+                             f"holds it, i.e. the upload is in progress")
+            out["ok"] = False
+            return out
     out["ok"] = (rem == 0) and not out["grew_during_check"] and not out["last_frame_blank"]
     out["reason"] = (
         "still uploading (grew during the check)" if out["grew_during_check"]

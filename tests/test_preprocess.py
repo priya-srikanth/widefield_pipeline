@@ -426,3 +426,56 @@ def test_with_redo_existing_outputs_are_recomputed(tmp_path, monkeypatch):
     calls = _ran(monkeypatch, tmp_path, redo=True)
     assert any("run_wfield_motion" in c for c in calls), "--redo must re-run motion correction"
     assert any("run_wfield_local" in c for c in calls), "--redo must re-run the SVD"
+
+
+# ------------------------------------------------------------------------------------------------
+# A file that exists and cannot be opened is an upload IN PROGRESS, not a broken file.
+#
+# 2026-08-21: the moment PS95's re-upload started, the destination .dat appeared with a readable
+# size and mtime, and open() raised PermissionError because Windows hands the writing process an
+# exclusive handle. That killed the poller outright. preprocess calls raw_integrity too, so a night
+# whose raw was still arriving would have taken the whole run down rather than skipping one session.
+# ------------------------------------------------------------------------------------------------
+
+def test_an_unopenable_file_is_a_wait_not_a_verdict(tmp_path, monkeypatch):
+    from wfield_local import preprocess
+
+    dat = _fake_raw(tmp_path, frames=100)
+    real_open = preprocess.open if hasattr(preprocess, "open") else open
+
+    def deny(path, *a, **k):
+        if str(path).endswith(".dat"):
+            raise PermissionError(13, "Permission denied")
+        return real_open(path, *a, **k)
+
+    monkeypatch.setattr("builtins.open", deny)
+    r = preprocess.raw_integrity(dat, "2_4_5", settle_s=0)
+    assert r["locked"] is True
+    assert not r["ok"], "unreadable must not be treated as usable"
+    assert "upload is in progress" in r["reason"]
+
+
+def test_an_unopenable_file_is_not_called_corrupt(tmp_path, monkeypatch):
+    """The distinction that matters: 'come back later' must not read as 'this file is bad'."""
+    from wfield_local import preprocess
+
+    dat = _fake_raw(tmp_path, frames=100)
+    real_open = open
+
+    def deny(path, *a, **k):
+        if str(path).endswith(".dat"):
+            raise PermissionError(13, "Permission denied")
+        return real_open(path, *a, **k)
+
+    monkeypatch.setattr("builtins.open", deny)
+    r = preprocess.raw_integrity(dat, "2_4_5", settle_s=0)
+    assert r["last_frame_blank"] is None, "nothing was measured, so nothing may be claimed"
+    assert r["first_blank_frame"] is None and r["written_fraction"] is None
+    assert "unwritten" not in r["reason"] and "CONTENT" not in r["reason"]
+
+
+def test_a_readable_file_reports_not_locked(tmp_path):
+    from wfield_local.preprocess import raw_integrity
+
+    r = raw_integrity(_fake_raw(tmp_path, frames=100), "2_4_5", settle_s=0)
+    assert r["locked"] is False and r["ok"]
