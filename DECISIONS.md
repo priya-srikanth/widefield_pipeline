@@ -2694,3 +2694,78 @@ turns the account of 2026-08-21 from plausible into measured.
 Two animals carry the whole result. PS92 and PS93 are not a negative control for the MECHANISM — they
 are animals with no state drift to project, so their 9/18 is what "nothing to detect" looks like, not
 evidence against it. A third disengaging animal would be the real test.
+
+---
+
+## THE POST-STROKE FAR-POSITION POST-LICK MAPS ARE MAPS OF ITI LICKING (2026-08-22)
+
+Priya, looking at the preprocessing decks: "in the SVD post-lick 150 ms maps there are overt
+differences across positions post-stroke" (PS94 slides 72 vs 73), and then "scale is also wildly
+different". Both observations are correct, and chasing the second one found something worse than a
+scaling problem.
+
+### What the map's position label actually means
+`framemap_event_maps.run_lick` labels **every detected lick** with a position and averages the 150 ms
+after it. There is no response-window gate, no first-lick-per-trial restriction and no engagement
+filter — by design, since the figure is "post-lick averages by spout position". With
+`--behavior-trials` (which `preprocess.py` always passes) the label is **the most recent CUE's
+position**, so every lick between one cue and the next carries that cue's label, however long after
+it falls. The cue-to-cue interval is at least 8 s.
+
+So the label means "which spout was most recently cued", NOT "the animal licked at this spout".
+Pre-stroke those two coincide. Post-stroke, at a position the animal has stopped attempting, they
+come apart completely.
+
+### Measured on PS94 (counts reproduce the map's own summary json exactly)
+
+| session | position | n licks | ≤3.5 s (a response) | >3.5 s (ITI) | % ITI | median t after cue |
+|---|---|---|---|---|---|---|
+| **0817** | far_center | 93 | **0** | 93 | **100%** | **7.20 s** |
+| **0817** | far_R | 83 | **0** | 83 | **100%** | **7.64 s** |
+| 0817 | far_L | 245 | 122 | 123 | 50% | 3.58 s |
+| 0817 | close_R | 292 | 156 | 136 | 47% | 0.74 s |
+| 0817 | close_L | 849 | 610 | 239 | 28% | 0.81 s |
+| 0814 (pre) | far_R | 914 | 750 | 164 | 18% | 0.81 s |
+| 0814 (pre) | far_center | 713 | 583 | 130 | 18% | 0.63 s |
+
+**Slide 73's two most saturated panels contain no task responses at all.** PS94 made zero engaged
+trials at far_center and far_R on 8/17 (independently confirmed: `would_be_lick_offsets` finds 0
+engaged trials at both), and the licks in those maps sit a median of 7.2–7.6 s after the cue — late
+ITI, essentially just before the next trial.
+
+**And the contamination is graded by severity**, which is the dangerous part: 18% ITI pre-stroke at
+every position, against 28% / 47% / 50% / 100% / 100% post-stroke, ordered exactly like the deficit.
+An artefact that tracks severity reads as a result about severity.
+
+### What this does and does not invalidate
+- The **close** positions' post-stroke maps are still majority-response (72%, 53%) and can be read,
+  with that caveat attached.
+- The **far** positions' post-stroke maps cannot be read as position-specific responses. They are
+  maps of whatever the animal was doing while that spout was pending.
+- It does NOT touch any decoder, encoder, RSA or coding-direction result: every one of those uses
+  the FIRST lick within the response window on ENGAGED trials, so an ITI lick cannot enter. It is
+  also why `fixed_scale_maps` prints "not attempted" for PS94 far_center and far_R — under 8 engaged
+  TRIALS — while the per-session map happily shows n=93 and n=83 licks.
+
+### The scale question, answered separately
+`plot_lick_aligned_averages` / `framemap_event_maps` set the colour limit from a percentile of THAT
+session's own maps, so cross-day comparison of two slides compares two different scales: PS94 is
+±0.02425 on 8/14 and ±0.08854 on 8/17, a factor of **3.65**. On 8/17's range the whole of 8/14's
+negative range would render near white, so "the post-stroke map lost its blue" is the scale, not the
+biology.
+
+On a COMMON scale (`fixed_scale_maps --post-s 0.15`, added 2026-08-22 — the module took a `post_s`
+argument that no caller had ever passed, so only the 2 s version existed):
+- at **2 s** the amplitude rise is real and large: pre-stroke peaks 0.019–0.052, post-stroke
+  0.059–0.083.
+- at **150 ms** it is much smaller: close positions 0.031–0.049 pre against 0.038–0.061 post
+  (1.1–1.45x), with only far_L larger (0.025 → 0.058) on n=25 trials.
+
+So the amplitude story is a 2 s story, not a 150 ms one, and the dramatic 150 ms per-session
+appearance is scale plus low n plus ITI licking.
+
+### Open
+The map is doing what it says; the label is what misleads. The contained fix is for `run_lick` to
+record the response/ITI split per position in its summary json and print it on the figure, so a
+panel built from non-responses says so. That is a change to the IMAGING box's preprocessing pipeline
+and has not been made.
