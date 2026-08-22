@@ -88,3 +88,32 @@ def test_nolick_decoder_uses_the_same_keying():
         keyed.append((r, seen[r]))
     assert len(set(keyed)) == len(reg) == 24
     assert len(set(reg)) == 6, "the fixture must genuinely repeat labels, else it tests nothing"
+
+
+def test_short_windows_do_not_produce_empty_nan_bins():
+    """decode.bins is 8, sized for a 2 s window. A 150 ms one is ~5 frames.
+
+    linspace(0, 5, 9).astype(int) repeats three edges, so three of the eight slices are w[:, a:a]
+    and mean over an empty axis is NaN -- indistinguishable from a real value until the fit fails.
+    Priya asked for a 150 ms post-lick decoder on 2026-08-22, which is exactly who hits this.
+    """
+    import numpy as np
+
+    from wfield_local.locanmf_position_decoder import _window_feature
+
+    sig = np.arange(3 * 40, dtype=float).reshape(3, 40)
+    for post_n in (1, 2, 3, 5, 8):
+        f = _window_feature(sig, 0, post_n, 8, 0.0)
+        assert np.isfinite(f).all(), f"post_n={post_n} produced NaN bins"
+        assert len(f) == 3 * min(8, post_n), f"post_n={post_n} gave {len(f)} features"
+
+
+def test_a_long_window_still_gets_every_bin_it_asked_for():
+    """The complement: the clamp must not quietly reduce resolution on the normal 2 s window."""
+    import numpy as np
+
+    from wfield_local.locanmf_position_decoder import _window_feature
+
+    sig = np.arange(3 * 80, dtype=float).reshape(3, 80)
+    f = _window_feature(sig, 0, 62, 8, 0.0)
+    assert len(f) == 3 * 8 and np.isfinite(f).all()

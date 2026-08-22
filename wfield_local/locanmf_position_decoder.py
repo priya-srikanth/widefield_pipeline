@@ -99,8 +99,16 @@ def _window_feature(sig, w0, post_n, bins, base):
     slices and concatenates their means, so the decoder sees the window's temporal PROFILE instead of
     one number -- worth +0.032 pre-cue, +0.020 post-cue and +0.023 post-lick on corrected data
     (DECISIONS.md). ``base`` is tiled to match, so a pre-cue baseline subtracts from every bin.
+
+    BINS ARE CLAMPED TO THE NUMBER OF FRAMES. `decode.bins` is 8 for the lick alignment, chosen for
+    a 2 s window (~62 frames). Asked for a SHORT window it silently produced empty slices -- 150 ms
+    is 5 frames at 31.23 Hz, and linspace(0, 5, 9) repeats three edges, so three of the eight bins
+    are `w[:, a:a]` and mean over an empty axis is NaN. Nothing downstream distinguishes that from
+    a real value until the fit fails, and a caller exploring window length is exactly who hits it
+    (Priya, 2026-08-22, asking for a 150 ms post-lick decoder).
     """
     w = sig[:, w0:w0 + post_n]
+    bins = min(int(bins), int(post_n))
     if bins <= 1:
         return w.mean(1) - base
     edges = np.linspace(0, post_n, bins + 1).astype(int)
@@ -265,7 +273,11 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # wfield_local/block_ids.py for the audit, the residual limits, and why merging made the previous
     # CV conservative rather than inflated.
     blk_id = block_ids(np.asarray(codes), block_size_max_for(s))
-    bins = _bins_for(args)
+    # CLAMPED HERE, not inside `_window_feature`, so the feature width and the component->region
+    # labels tiled from it below cannot disagree. `decode.bins` is 8, sized for a 2 s window; a
+    # 150 ms one is 5 frames and would otherwise give three empty (NaN) bins and a `feat_reg` eight
+    # times too long for a five-block feature vector.
+    bins = min(_bins_for(args), max(1, round(args.post_s * args.fs)))
     # PRE-CUE WINDOWS ARE LICK-FREE (Priya, 2026-08-17). Bounded at the spout strobe, so compute the
     # per-trial strobe frame; `precue_window_start` needs it and returns None for a trial with no
     # clean window anywhere, which is then dropped.
