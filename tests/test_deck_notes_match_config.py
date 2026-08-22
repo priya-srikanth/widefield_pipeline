@@ -96,3 +96,38 @@ def test_every_note_is_attached_to_at_least_one_slide():
             continue
         uses = src.count(name)
         assert uses >= 2, f"{name} is defined but never attached to a slide"
+
+
+#: Notes whose numbers rest on the ENGAGED / NO-LICK split. These are the ones that move when
+#: decode.max_rt_s changes, so each must carry the warning that its prose predates the current cut.
+#: M_HEMI, M_VESSEL, M_HEMIDYN and M_FIXEDSCALE are deliberately absent -- they read RAW
+#: fluorescence and never split on a lick, so warning there would advertise a dependency they do
+#: not have. M_COMMON carries its own longer version and reaches six more notes by embedding.
+TRIAL_SPLIT_NOTES = ("M_EVOKED", "M_SPATIAL", "M_RECODING", "M_NOLICK", "M_PRECUE_CAVEAT",
+                     "M_LICKFREE", "M_CODING_DIR")
+
+
+@pytest.mark.parametrize("name", TRIAL_SPLIT_NOTES)
+def test_notes_that_split_trials_carry_the_engaged_cut_warning(name):
+    """A number resting on the engaged/no-lick boundary must say which boundary produced it.
+
+    The cut moved 2.0 -> 3.5 s on 2026-08-21 and every earlier number shifts on rebuild. The warning
+    went into M_COMMON, which reaches only the six notes that embed it -- these seven quote results
+    from the same split and embed nothing, so they were silently exempt.
+    """
+    note = ALL_NOTES[name]
+    assert "2.0 s" in note and "3.5 s" in note, (
+        f"{name} quotes results from the engaged/no-lick split but does not say which cut produced "
+        f"them; append M_GATE (or M_COMMON) when adding such a note")
+
+
+def test_the_gate_warning_is_not_pasted_into_notes_that_do_not_split_trials():
+    """The complement, so the warning keeps meaning something.
+
+    A caveat attached to every note is read as boilerplate and stops being read at all. The raw-
+    fluorescence notes have no engaged/no-lick dependency, and saying otherwise would send a reader
+    looking for one.
+    """
+    for name in ("M_HEMI", "M_VESSEL", "M_HEMIDYN"):
+        assert deck.M_GATE not in ALL_NOTES[name], (
+            f"{name} reads raw fluorescence and does not split on a lick -- M_GATE does not apply")

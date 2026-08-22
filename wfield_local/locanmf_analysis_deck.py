@@ -531,7 +531,22 @@ M_CODING_DIR = (
     "vs post-stroke-lick contrast IS like-for-like, since both contain a lick.\n\nCAVEAT ON "
     "ONE-VS-REST. 'Not P' mixes the five other positions, and for MIDDLE positions that mixture is "
     "majority-far, so the axis becomes largely close-vs-far and the position it is named for need "
-    "not be the extreme on it. Prefer the pairwise panels for remapping questions.")
+    "not be the extreme on it. Prefer the pairwise panels for remapping questions.\n\nTHE LICK "
+    "WINDOW'S NO-LICK CLASSES SIT AT AN INFERRED TIME (2026-08-21). Their window starts at the cue "
+    "plus that session's own median RT at that position -- cue-referencing would offset the arms by "
+    "the whole reaction time, a median of 2.439 s at post-stroke far_R against a 2 s window. A "
+    "position with NO engaged trial that session is DROPPED: the fallback to the session median "
+    "fired precisely where the animal had stopped licking while that median was set by the close "
+    "positions that still worked, putting PS94's far_R windows at 0.17-0.23 s when its own "
+    "successful licks there took 1.80-2.25 s. Where the offset rests on 1-4 trials the log says so. "
+    "Read those classes as inference, most cautiously at the far positions.\n\nAMPLITUDE IS NOT "
+    "RULED OUT FOR PS92. The projection is unbounded, so a gain change scales every cell without "
+    "any pattern change. Across all 22 measurable cells the post/pre feature-norm ratio correlates "
+    "with the projection at only r=+0.19, and the BETWEEN-ANIMAL ordering inverts against it (PS93 "
+    "has the highest mean ratio, 1.10, and the lowest projection, 0.46) -- so the headline ordering "
+    "is not a gain effect. But WITHIN PS92 the five cells track amplitude at r=+0.97, and its "
+    "far_center outlier at 2.12 carries its largest ratio (1.33). Do not read PS92's cell-to-cell "
+    "pattern as position structure. The other three animals are +0.06, -0.23, +0.14.")
 
 
 M_POSTSTROKE = (
@@ -670,6 +685,27 @@ M_RSA = ("Per session build a 6x6 representational matrix from the 6 position me
          "> across-animal = stable individual geometry; % = within / split-half noise ceiling. Crossnobis = "
          "noise-unbiased (cross-validated Mahalanobis) RDM, removing the positive noise bias. Sessions are "
          "animal-blocked then date-ordered. " + M_COMMON)
+
+# THE ENGAGED-CUT WARNING HAS TO REACH EVERY NOTE THAT SPLITS TRIALS, not just the six that embed
+# M_COMMON. decode.max_rt_s moved 2.0 -> 3.5 s on 2026-08-21, so any number resting on the
+# engaged/no-lick boundary was measured under the old cut and shifts on the next rebuild. Appended
+# rather than pasted seven times, and applied by an explicit list rather than to every note, because
+# M_HEMI / M_VESSEL / M_HEMIDYN / M_FIXEDSCALE read RAW fluorescence and never split on a lick --
+# adding it there would warn about a dependency they do not have.
+M_GATE = (
+    "\n\nENGAGED CUT: numbers here predate 2026-08-21. decode.max_rt_s was 2.0 s while the task's "
+    "response window is 3.5 s, so trials licking between the two were scored as NO-LICK -- 39.3% of "
+    "PS92's no-lick arm and 33.9% of PS93's. The cut is now 3.5 s. Anything on this slide that rests "
+    "on the engaged/no-lick split moves on the next rebuild; the FIGURES are current, this prose is "
+    "not until re-measured.")
+
+M_EVOKED += M_GATE
+M_SPATIAL += M_GATE
+M_RECODING += M_GATE
+M_NOLICK += M_GATE
+M_PRECUE_CAVEAT += M_GATE
+M_LICKFREE += M_GATE
+M_CODING_DIR += M_GATE
 
 
 def _mmdd_label(mmdd: str) -> str:
@@ -1622,10 +1658,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # therefore show the ORTHOGONALISED direction, with that axis projected out; after removal
         # the pre-stroke no-lick trials collapse to one consistent value on every axis (0.16-0.17
         # for PS94) instead of scattering from -2.03 to +1.38, and the pre-stroke lick diagonal
-        # IMPROVES rather than degrading. The lick window keeps the plain direction: its only
-        # classes are lick trials on both sides, so the engagement axis cannot contaminate the
-        # comparison being made -- and no no-lick trials exist there to build one from.
-        _G9_METHOD = {"ENL": "dom_orth", "cue": "dom_orth", "lick": "dom"}
+        # IMPROVES rather than degrading.
+        #
+        # THE LICK WINDOW USED TO KEEP THE PLAIN DIRECTION, on the grounds that "its only classes
+        # are lick trials on both sides, so the engagement axis cannot contaminate the comparison --
+        # and no no-lick trials exist there to build one from". Both halves stopped being true on
+        # 2026-08-21, when the would-be-lick reference gave a no-lick trial a window at the cue plus
+        # its position's median RT: all five classes are now in this window, so an engagement axis
+        # both exists and matters. Here it IS a licking axis -- movement present against absent --
+        # so orthogonalising asks what position structure survives once movement PRESENCE is
+        # removed. Right for the no-lick classes, deliberately conservative for the lick ones, since
+        # licks to different spouts differ in kinematics and no projection can separate position
+        # from position-specific movement in this window.
+        _G9_METHOD = {"ENL": "dom_orth", "cue": "dom_orth", "lick": "dom_orth"}
         for _w in ("ENL", "cue", "lick"):
             _m = _G9_METHOD[_w]
             for _kind, _tag, _blurb in (
@@ -1633,7 +1678,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "One panel per spout position, MOST IMPAIRED first, every class over sessions with "
                  "the stroke marked. LINEAR projection, pole-normalised: 0 = pre-stroke "
                  "NOT-this-position, 1 = pre-stroke LICK here. Error bars are SEM over trials; a "
-                 "HOLLOW marker means fewer than 12 trials, shown rather than dropped."),
+                 "HOLLOW marker means fewer than 10 trials, shown rather than dropped."),
+                ("pooled", "pooled over sessions",
+                 "The same classes collapsed across every session of a phase, so each position is "
+                 "one point per class. Read it BESIDE the time course: pooling hides whether a "
+                 "class was steady or swinging, and a post-stroke class that moved a lot looks "
+                 "identical here to one that never did."),
+                ("within", "over the COURSE of a session",
+                 "Trials binned by where they fall within their OWN session, pooled across the "
+                 "sessions of a phase, so a state that drifts as the animal tires shows here and "
+                 "cannot show in a session-level split. A cell is drawn only if its own SEM is "
+                 "under 0.25 -- a quarter of the pole separation -- because a 4-trial point at "
+                 "+-2 dominates the eye and invents a shape. WARNING: do NOT read 1.0 as a flat "
+                 "baseline. Pre-stroke LICK itself declines across the session at the CLOSE "
+                 "positions (PS94 close_center 1.39 -> 1.02 -> 0.80 -> 0.67, close_L 1.33 -> 0.71, "
+                 "SEM 0.03-0.09 on 183-290 trials per bin) while staying flat at the far ones, so "
+                 "a within-session comparison has to be read against the pre-stroke profile AT THE "
+                 "SAME POSITION, not against the poles."),
                 ("cross", "cross-position matrix",
                  "Rows = TRUE spout position, columns = which position's direction it was scored "
                  "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "
@@ -1651,8 +1712,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         continue
                     s = slide()
                     _lickonly = ("" if _w != "lick" else
-                                 "  ONLY the classes that HAVE licks appear \u2014 a no-lick trial "
-                                 "has no lick to align to.")
+                                 "  The no-lick classes sit at an INFERRED time here: a no-lick "
+                                 "trial has no lick to align to, so its window starts at the cue "
+                                 "plus that session's own median RT at that position. A position "
+                                 "with NO engaged trial that session is DROPPED rather than given "
+                                 "the session median \u2014 read those classes as inference.")
                     title(s, f"G9. {_an} \u2014 {_w} window, {_tag}",
                           _blurb + _lickonly)
                     note(s, M_CODING_DIR)
