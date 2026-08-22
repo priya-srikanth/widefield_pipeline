@@ -30,6 +30,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GroupKFold
 from sklearn.metrics import accuracy_score
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
@@ -44,7 +45,7 @@ POSN = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
 def _roi(label, align):
     s = next(x for x in SESSIONS if x["label"] == label)
     a = SimpleNamespace(source="roi", align=align, baseline="none", cv="block",
-                        fs=FS, pre_s=1.0, post_s=2.0, max_rt=2.0)
+                        fs=FS, pre_s=1.0, post_s=2.0, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
     X, y, g, _, _, reg = _trial_features(s, a)
     return X, y, np.asarray(g), np.asarray(reg)
 

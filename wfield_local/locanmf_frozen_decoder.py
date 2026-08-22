@@ -33,6 +33,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local import config, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+from wfield_local import config
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
@@ -44,9 +45,19 @@ def _sess(label):
     return next(s for s in SESSIONS if s["label"] == label)
 
 
-def _args(source="locanmf", align="lick", post_s=2.0, baseline="none"):
+def _args(source="locanmf", align="lick", post_s=2.0, baseline="none", max_rt=None):
+    """Trial-feature args for the frozen decoder.
+
+    max_rt COMES FROM CONFIG. It was hardcoded to 2.0 here while decode.max_rt_s moved to 3.5 on
+    2026-08-21 -- the task's real response window -- so every frozen-decoder number was still being
+    cut at the old boundary, and "engaged" meant something different here than in the behaviour
+    pipeline and in the per-session decoders that read the config. A lick at 2.5 s is a REWARDED HIT
+    the task scored, and this module was filing it as no-lick. Found 2026-08-22.
+    """
+    if max_rt is None:
+        max_rt = float(config.defaults()["decode"]["max_rt_s"])
     return SimpleNamespace(source=source, align=align, baseline=baseline,
-                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0)
+                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=max_rt)
 
 
 def _pipe():

@@ -56,7 +56,7 @@ def _args(post_s=2.0, baseline="none", bins=1):
     forward model is untested, so the encoder stays on the mean until it is.
     """
     return SimpleNamespace(source="locanmf", align="lick", baseline=baseline, pre_s=1.0,
-                           post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
+                           post_s=post_s, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]), bins=bins)
 
 
 def _names(s):

@@ -202,7 +202,13 @@ def plot(rows, out_dir, source="roi"):
         sub = [r for r in rows if r["animal"] == a]
         dates, phases = [r["date"] for r in sub], [r["phase"] for r in sub]
         x = np.arange(len(sub))
-        first_non_pre = next((i for i, p in enumerate(phases) if p != "pre"), None)
+        # THE LINE MARKS THE LESION, so it belongs before the first POST session, not before
+        # the first non-"pre" one. PS92/PS93's 8/17 session is EXCLUDED -- the 8/16 attempt
+        # did not take and their effective lesion followed the 8/17 recording -- so "not pre"
+        # put the line between 8/14 and 8/17 and drew a session recorded BEFORE the lesion on
+        # the post side of it (Priya, 2026-08-22). PS94/PS95 were unaffected only because
+        # their 8/17 IS post, so the two rules coincide for them.
+        first_post = next((i for i, p in enumerate(phases) if p == "post"), None)
         for k, (key, lab) in enumerate(KEYS):
             ax = axes[k][c]
             y = np.array([r.get(key, np.nan) for r in sub], float)
@@ -214,8 +220,8 @@ def plot(rows, out_dir, source="roi"):
                 ax.plot(xi, yi, "o", ms=7, color=colours.get(ph, "k"), markeredgecolor="k", lw=0.4,
                         zorder=3)
             ax.plot(x, y, "-", color="k", lw=0.7, alpha=0.4, zorder=1)
-            if first_non_pre not in (None, 0):
-                ax.axvline(first_non_pre - 0.5, color="firebrick", ls="--", lw=1.6)
+            if first_post not in (None, 0):
+                ax.axvline(first_post - 0.5, color="firebrick", ls="--", lw=1.6)
             ax.set_xticks(x)
             ax.set_xticklabels(dates, rotation=45, ha="right", fontsize=6.5)
             if c == 0:

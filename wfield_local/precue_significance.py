@@ -83,7 +83,7 @@ def analyse(lab, variant="strobedetrend", align="precue", n_perm=200, seed=0, ve
     svtc, _T, _rc, _meta = hv.compute(s, variant, refit_t=True, verbose=False)
     sig, regs = roi_signal(ad[0], svtc)
     args = SimpleNamespace(source="roi", align=align, baseline="none",
-                           pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
+                           pre_s=1.0, post_s=2.0, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
     X, y, g, _, _, _ = _trial_features(s, args, signal=sig, feat_region=regs)
     del sig, svtc
     if len(y) < 60 or len(np.unique(y)) < len(DISPLAY_ORDER):

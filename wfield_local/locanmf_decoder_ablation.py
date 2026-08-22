@@ -27,6 +27,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.metrics import accuracy_score
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 
@@ -34,7 +35,7 @@ FS = 31.23
 
 
 def _args():
-    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
+    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
 
 
 def _acc(X, y, g):

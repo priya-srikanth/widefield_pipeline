@@ -222,7 +222,7 @@ def analyse_session(session, source, align="precue", fs=31.23):
     from wfield_local.locanmf_position_decoder import _trial_features
 
     args = SimpleNamespace(source=source, align=align, baseline="none", pre_s=1.0, post_s=2.0,
-                           fs=fs, max_rt=2.0)
+                           fs=fs, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
     X, y, g, _, _, feat_reg = _trial_features(session, args)
     if len(y) < 30 or len(np.unique(y)) < len(DISPLAY_ORDER):
         return None

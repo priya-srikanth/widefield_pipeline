@@ -38,7 +38,7 @@ FS = 31.23
 
 
 def _args():
-    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
+    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
 
 
 from wfield_local.locanmf_frozen_decoder import (  # ONE decoder spec

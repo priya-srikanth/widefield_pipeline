@@ -60,7 +60,7 @@ def _args(align="lick", post_s=2.0, baseline="none", bins=1):
     answering "which components carry position information", which is what they are for.
     """
     return SimpleNamespace(source="locanmf", align=align, baseline=baseline,
-                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
+                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]), bins=bins)
 
 
 def _names(s):

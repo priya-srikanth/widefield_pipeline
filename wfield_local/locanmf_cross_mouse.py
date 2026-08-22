@@ -33,7 +33,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
-from wfield_local import session_cache
+from wfield_local import config, session_cache
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
@@ -45,7 +45,11 @@ RSPOUT = [c for c in DISPLAY_ORDER if POSITION_NAMES[c].endswith("_R")]
 
 
 def _args():
-    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
+    # max_rt COMES FROM CONFIG. Hardcoding it meant this module kept cutting "engaged" at
+    # 2.0 s after decode.max_rt_s moved to 3.5 on 2026-08-21, so its figures and the
+    # decoders' sat in the same deck describing different trial sets. max_rt is part of the
+    # session-cache key, so changing it invalidates only what it should.
+    return SimpleNamespace(source="locanmf", align="lick", baseline="none", pre_s=1.0, post_s=2.0, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]))
 
 
 def _clf():

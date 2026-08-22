@@ -92,6 +92,16 @@ def s_label(s):
 
 
 def _args(source="locanmf", align="cue", post_s=2.0, bins=None):
+    """2.0 s HERE IS DELIBERATE, and is the one place it should stay.
+
+    Everywhere else the engaged cut is decode.max_rt_s (3.5 s, the task's response window). This
+    module exists to split the OTHER side of that boundary into three arms -- engaged, LATE-but-
+    rewarded (2.0 s to the response window), and undetected -- so it needs the 2.0 s line to keep
+    the late arm addressable at all. The distinction is a real result: on PS93 8/12 the entire
+    pre-cue survival sat in the late arm (balanced 0.532, p=0.003) while undetected showed nothing
+    (0.153, p=0.76). Until 2026-08-22 that reason lived only in the deck prose, where it looked
+    identical to the eleven modules that had simply been missed by the 3.5 s change.
+    """
     return SimpleNamespace(source=source, align=align, baseline="none", pre_s=1.0,
                            post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 

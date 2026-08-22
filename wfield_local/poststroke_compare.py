@@ -548,6 +548,11 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     from wfield_local import config, nolick_decoder as nd
 
     args = nd._args(align="cue")
+    # 2.0 s HERE IS NOT THE ENGAGED CUT. It is the boundary nd.categorize needs to produce the
+    # THREE-arm split, and the next line unions engaged + late_rewarded -- which IS the task's
+    # response window. Reading it as "this module missed the 3.5 s change" is the obvious mistake;
+    # raising it to 3.5 would collapse the late arm into engaged and silently change what
+    # `responded` means. Spelled out 2026-08-22, when eleven other modules genuinely had missed it.
     args.max_rt = 2.0
     codes, cat, blk, rt_s, cue_f, _pre_gate = nd.categorize(s, args)
     codes = np.asarray(codes)
