@@ -86,3 +86,43 @@ def test_regions_genuinely_below_the_floor_are_still_dropped():
     """The guard must not turn into 'keep everything'."""
     res = {"s0": {"loud": dict(expl=5.0, tot=10.0), "quiet": dict(expl=0.001, tot=10.0)}}
     assert enc._feve_regions(res, floor=0.02) == ["loud"]
+
+
+# ---------------------------------------------------------------- per-position EV
+
+def _ev(y, sstot, ssres, p, guard):
+    """The scoring expression from ev_per_position, with and without the guard."""
+    m = y == p
+    if guard and not m.any():
+        return np.nan
+    return 1 - ssres[m].sum() / max(sstot[m].sum(), 1e-12)
+
+
+def test_an_unvisited_position_used_to_score_a_perfect_one():
+    """PS94_0820 far_R: ZERO engaged trials, reported EV = 1.0.
+
+    Both sums are 0.0 over an empty mask, so `1 - 0.0 / max(0.0, 1e-12)` is exactly 1.0 -- a
+    perfect score for a position the animal never visited, feeding the per-position x date EV
+    matrix, where it would be the brightest cell in the figure."""
+    y = np.array([0] * 5 + [1] * 5)
+    sstot = np.ones(10); ssres = np.ones(10) * 0.5
+    assert _ev(y, sstot, ssres, 2, guard=False) == 1.0
+
+
+def test_an_unvisited_position_is_now_missing_not_perfect():
+    y = np.array([0] * 5 + [1] * 5)
+    sstot = np.ones(10); ssres = np.ones(10) * 0.5
+    assert np.isnan(_ev(y, sstot, ssres, 2, guard=True))
+
+
+def test_a_visited_position_is_unchanged_by_the_guard():
+    y = np.array([0] * 5 + [1] * 5)
+    sstot = np.ones(10); ssres = np.ones(10) * 0.5
+    assert _ev(y, sstot, ssres, 0, guard=True) == _ev(y, sstot, ssres, 0, guard=False) == 0.5
+
+
+def test_a_single_trial_position_still_reports_a_number():
+    """One trial is noisy, not absent. Dropping it would hide a real (if weak) measurement."""
+    y = np.array([0] * 9 + [1])
+    sstot = np.ones(10); ssres = np.ones(10) * 0.25
+    assert _ev(y, sstot, ssres, 1, guard=True) == 0.75

@@ -557,7 +557,18 @@ def ev_per_position(label):
     xbar = X.mean(0)
     sstot = ((X - xbar) ** 2).sum(1)
     ssres = ((X - pred) ** 2).sum(1)
-    return np.array([1 - ssres[y == p].sum() / max(sstot[y == p].sum(), 1e-12) for p in pos])
+    # A POSITION WITH NO TRIALS HAS NO EV, AND MUST NOT SCORE 1.0.
+    # Both sums are 0.0 over an empty mask, so `1 - 0.0/max(0.0, 1e-12)` is exactly 1.0: a PERFECT
+    # score for a position the animal never visited. PS94_0820 reported far_R = 1.0 that way with
+    # zero engaged trials there, beside neighbours between -0.04 and +0.21 -- and this feeds the
+    # per-position x date EV matrix, so the brightest cell in the figure sat exactly where the
+    # animal had abandoned the spout. An abandoned position is the post-stroke phenotype; reporting
+    # it as perfectly encoded inverts the reading.
+    out = []
+    for p in pos:
+        m = y == p
+        out.append(1 - ssres[m].sum() / max(sstot[m].sum(), 1e-12) if m.any() else np.nan)
+    return np.array(out)
 
 
 def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
@@ -592,7 +603,10 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
                              squeeze=False)
     for k, a in enumerate(animals):
         ax = axes[0][k]
-        im = ax.imshow(np.ma.masked_invalid(M[a]), cmap="viridis", vmin=vmin, vmax=vmax,
+        # Grey, not transparent: a position the animal abandoned must LOOK missing rather
+        # than blend into the page. Matches the FEVE heatmap's bad colour.
+        _cm = plt.cm.viridis.copy(); _cm.set_bad("#dddddd")
+        im = ax.imshow(np.ma.masked_invalid(M[a]), cmap=_cm, vmin=vmin, vmax=vmax,
                        aspect="auto")
         ax.set_xticks(range(len(posn)))
         ax.set_xticklabels(posn, rotation=45, ha="right", fontsize=7)
