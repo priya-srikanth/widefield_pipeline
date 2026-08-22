@@ -821,17 +821,15 @@ def window_provenance(fig_names) -> str:
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")
-    bits = [f"WINDOW: {_ALIGN_PROSE[align]}, {post:.1f} s long, plus 1.0 s of context before the "
-            f"alignment point.",
-            f"BINNING: {binning}.",
-            f"ENGAGED: first detected lick within {float(d['max_rt_s']):.1f} s of the cue "
-            f"(decode.max_rt_s = the task's response window)."]
+    bits = [f"- window: {_ALIGN_PROSE[align]}, {post:.1f} s (+1.0 s before it)",
+            f"- binning: {binning}",
+            f"- engaged: first lick within {float(d['max_rt_s']):.1f} s of the cue "
+            f"(decode.max_rt_s)"]
     if "base-none" in names:
-        bits.append("BASELINE: none (no per-trial baseline subtraction).")
+        bits.append("- baseline: none")
     if "cv-block" in names:
-        bits.append("CV: block -- GroupKFold over ~6-trial position blocks, so a block never spans "
-                    "train and test.")
-    return "  ".join(bits)
+        bits.append("- CV: block (GroupKFold over ~6-trial position blocks)")
+    return "HOW IT WAS BUILT" + chr(10) + chr(10).join(bits)
 
 
 def keep_previous(out_path) -> "Path | None":
@@ -917,9 +915,32 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             r2.font.size = Pt(12.5)
             r2.font.color.rgb = GREY
 
-    def note(s, text):
-        """Write the figure's methodology into the slide's speaker notes."""
-        s.notes_slide.notes_text_frame.text = text
+    seen_methods = {}
+
+    def note(s, text, specific=None):
+        """Speaker notes: what is specific to THIS slide first, methods once, then provenance.
+
+        WHY THIS DEDUPES. M_POSTSTROKE is 5823 characters and was written verbatim onto 15 slides;
+        37 slides carried a shared block and exactly ONE had a note specific to it. A reader
+        scrolling 15 identical walls of text learns nothing from the 15th, and stops reading the
+        first -- which is where the caveats live (Priya, 2026-08-22). The block is now written in
+        full the FIRST time it appears and replaced by a pointer to that slide afterwards, so the
+        text still exists exactly once and is still reachable from every slide that needs it.
+        """
+        idx = len(prs.slides)                       # 1-based number of the slide just added
+        parts = []
+        if specific:
+            parts.append("THIS SLIDE" + chr(10) + specific.strip())
+        key = (text or "")[:80]
+        if not text:
+            pass
+        elif key in seen_methods:
+            parts.append(f"METHODS -- same as slide {seen_methods[key]}; "
+                         f"not repeated here.")
+        else:
+            seen_methods[key] = idx
+            parts.append("METHODS" + chr(10) + text.strip())
+        s.notes_slide.notes_text_frame.text = (chr(10) + chr(10)).join(parts)
 
     def _exists(p):
         ok = Path(p).exists()

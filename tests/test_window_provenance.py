@@ -48,8 +48,8 @@ def test_the_bin_count_and_width_come_from_config():
 
 def test_baseline_and_cv_are_reported_when_the_name_carries_them():
     line = window_provenance(["a_cue_base-none_cv-block.png"])
-    assert "BASELINE: none" in line
-    assert "GroupKFold" in line
+    assert "- baseline: none" in line
+    assert "- CV: block" in line and "GroupKFold" in line
 
 
 def test_a_figure_with_no_alignment_gets_no_claim():
