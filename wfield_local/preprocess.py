@@ -338,7 +338,16 @@ def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bo
             a, mmdd = s["label"].split("_")
             if a != animal or mmdd < min_mmdd:
                 continue
-            sess[f"{animal}_{mmdd}"] = {"results": f"{s['mc']}/wfield_local_results"}
+            results_dir = f"{s['mc']}/wfield_local_results"
+            # SKIP sessions with no preprocessed outputs. Cross-day QC spans every registered date, but
+            # an offloaded/in-flight session (raw staged to MICROSCOPE for the desktop, not yet
+            # preprocessed) has no frames_average.npy and would crash cross_day_align mid-run, taking the
+            # whole nightly's maps step down with it. (2026-08-22)
+            if not Path(f"{results_dir}/frames_average.npy").exists():
+                print(f"[xall] {animal}_{mmdd}: no frames_average.npy (not preprocessed yet) -> skip",
+                      flush=True)
+                continue
+            sess[f"{animal}_{mmdd}"] = {"results": results_dir}
         if f"{animal}_{ref_date}" not in sess:
             print(f"[xall] {animal}: no reference {ref_date} in task-era set -> skip", flush=True)
             continue
