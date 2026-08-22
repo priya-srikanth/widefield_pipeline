@@ -2448,3 +2448,73 @@ Three failures shipped a healthy-looking deck before these existed.
 
 **Deck slides must not be added before the figure is in the nightly.** A slide reading a figure no
 step regenerates is an orphan the day it is made.
+
+
+---
+
+## THE WOULD-BE-LICK FALLBACK WAS WRONG EXACTLY WHERE IT MATTERED (found and fixed 2026-08-21)
+
+The lick-window no-lick reference added earlier the same day places a no-lick trial's window at the
+cue plus **that position's median RT among the session's engaged trials**. Positions with fewer than
+five engaged trials fell back to the SESSION median. That fallback was the failure: **it fires
+precisely where the animal has stopped licking, while the session median is set by the CLOSE
+positions that still work.** Measured across the post-stroke sessions:
+
+| animal / position | engaged trials per session | offset used | own median when any lick exists |
+|---|---|---|---|
+| PS94 far_R | 0 / 1 / 2 / 0 (of ~100 no-lick each) | 0.17–0.23 s | **1.80 s, 2.25 s** |
+| PS94 far_center | 0 on 0817 | 0.20 s | 0.75 s the next day |
+| PS92 far_R | 0 on 0818 | 0.23 s | **2.20 s** on 0819 |
+| PS95 far_R | 1 on 0817 | 0.20 s | 0.37 s (harmless) |
+
+So those windows sat up to **2.1 s early inside a 2 s window — they did not overlap the inferred lick
+at all**, and the error was largest at the most impaired positions. That correlates the artefact with
+SEVERITY, which is the very axis these figures report. PS94 far_R miss was the most extreme value in
+the whole table (−0.55) and it is one of the affected cells.
+
+This is the same shape as the bug the reference was introduced to fix, one level down: a plausible
+number returned for a window placed nowhere near the event it claims to describe.
+
+### The fix
+A position with **no engaged trial gets no offset and its no-lick trials are DROPPED** — this session
+says nothing about that position's latency, and borrowing one from the positions that still work is
+worse than having none. A position with one to four engaged trials **keeps its own median**, flagged:
+it is order-of-magnitude evidence rather than a real median, and being off by a factor of two beats
+being off by 2 s. `min_trials` now gates only the flag. The drop count and the weak positions are
+printed per session. `CACHE_VERSION` 10 → 11.
+
+The test that pinned the old fallback (`test_a_position_with_too_few_engaged_trials_falls_back`) now
+asserts the opposite, with the measurement above in its docstring — a test can pin a decision that
+turns out to be wrong, and rewriting it needs the reason attached or it will be "corrected" back.
+
+### Two controls that came out clean, and are worth keeping
+**Amplitude.** The linear projection is unbounded, so a global gain change post-stroke would inflate
+every cell without any pattern change — and PS92 reached 2.12 and PS95 1.32, i.e. FURTHER along the
+pre-stroke axis than pre-stroke licks. Post/pre mean feature norm per position is **0.84–1.09**
+across animals, so the >1 values are not a gain effect and need a real explanation.
+
+**Within-session RT drift.** A session-CONSTANT offset would misplace late trials progressively if the
+animal slowed through the session, which is the exact shape of the gradient below. Median engaged RT
+by within-session quartile is flat: PS94 0.200/0.200/0.200/0.200 (0817), 0.167/0.133/0.200 (0820) —
+a drift of ≤0.05 s against a 2 s window. It cannot produce the gradient.
+
+---
+
+## A WITHIN-SESSION GRADIENT DOES EXIST — in the lick window, not the ENL window (2026-08-21)
+
+The 2026-08-20 null said PS94's miss class showed no monotone within-session drift. That was measured
+in the **ENL** window. In the **lick** window the same animal and class declines monotonically:
+
+    far_R       -0.26 -> -0.44 -> -0.69 -> -1.49     (within-session quartiles)
+    far_center   0.21 -> -0.12 -> -0.27 -> -0.47
+
+while pre-stroke LICK stays flat at ~1.0 across all four quartiles, so a drift would have been
+visible. ENL at the same positions is flat or rising (far_R 0.54/0.58/0.42/0.96).
+
+Both mechanical explanations were checked and fail: the offset is a session constant, so it cannot
+manufacture a gradient, and RT does not drift within a session (above). **The null was
+window-specific, not general** — which is itself the finding, since ENL has little dynamic range here
+(every class between 0.21 and 0.56) and may simply be unable to show it.
+
+Still one animal. far_R is also an affected cell above, so this must be re-read after the fix before
+it is called a result.

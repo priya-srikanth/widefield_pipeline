@@ -177,15 +177,30 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
 def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
     """Per-position median reaction time (frames) for placing a NO-LICK trial's lick-aligned window.
 
-    Returns ``(per_position, overall)``. A no-lick trial has no lick to align to, so its window is
-    placed where the lick WOULD have been: the cue plus this median. Taken from the session's OWN
-    engaged trials, per position, because latency differs by animal, by position and tenfold between
-    phases (0.137-0.255 s pre-stroke; a median of 2.439 s at post-stroke far_R) -- a cohort constant
-    would be wrong on all three axes.
+    Returns ``(per_position, overall, n_engaged)``. A no-lick trial has no lick to align to, so its
+    window is placed where the lick WOULD have been: the cue plus this median. Taken from the
+    session's OWN engaged trials, per position, because latency differs by animal, by position and
+    tenfold between phases (0.137-0.255 s pre-stroke; a median of 2.439 s at post-stroke far_R) -- a
+    cohort constant would be wrong on all three axes.
 
-    Positions with fewer than ``min_trials`` engaged trials fall back to the session median, since a
-    median over three trials is not one. ``overall`` is None when the session has no engaged trials
-    at all, and the caller then drops those trials rather than guessing.
+    A POSITION WITH NO ENGAGED TRIAL GETS NO OFFSET, and the caller DROPS those trials (Priya,
+    2026-08-21). It used to fall back to the SESSION median, which was wrong in the worst possible
+    way: the fallback fires precisely where the animal has stopped licking, and the session median
+    is set by the CLOSE positions that still work. Measured on the post-stroke sessions --
+
+        PS94 far_R      0 / 1 / 2 / 0 engaged across the four sessions -> fell back to 0.17-0.23 s,
+                        while the two days with any lick at all give 1.80 s and 2.25 s
+        PS94 far_center 0 engaged on 0817 -> 0.20 s, against 0.75 s the next day
+        PS92 far_R      0 engaged on 0818 -> 0.23 s, against 2.20 s on 0819
+
+    -- so those windows sat up to 2.1 s early inside a 2 s window, i.e. they did not overlap the
+    inferred lick at all, and the error was largest at the most impaired positions. That correlates
+    the artefact with severity, which is the very axis these figures report.
+
+    ``min_trials`` no longer gates the offset, only the WEAK flag: below it the median rests on one
+    or two trials and is order-of-magnitude evidence rather than a real median. It is still the
+    right value to use -- being off by a factor of two beats being off by 2 s -- but a cell resting
+    on it should say so, which is what ``n_engaged`` is returned for.
 
     IT IS AN INFERENCE. The time comes from other trials; this one has no lick, which is the point.
     """
@@ -195,14 +210,15 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
     rt = _np.asarray(rt, float)
     engaged = _np.asarray(engaged, bool)
     if not engaged.any():
-        return {}, None
+        return {}, None, {}
     overall = float(_np.median(rt[engaged]))
-    per = {}
+    per, n_eng = {}, {}
     for c in _np.unique(codes[codes >= 0]):
         m = engaged & (codes == c)
-        if int(m.sum()) >= int(min_trials):
+        n_eng[int(c)] = int(m.sum())
+        if int(m.sum()) >= 1:
             per[int(c)] = float(_np.median(rt[m]))
-    return per, overall
+    return per, overall, n_eng
 
 
 def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,
@@ -264,6 +280,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     else:
         strobe_f = np.full(cue_f.shape, np.nan)
     n_dropped_dirty = 0
+    n_dropped_nolatency = 0     # no-lick trials at a position the animal never licked that session
     pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs))
     maxrt_n = int(round(args.max_rt * args.fs))
     ls = np.sort(lick_f); j = np.searchsorted(ls, cue_f, side="right")
@@ -281,10 +298,10 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # out 633 long against 575 kept trials, and bugs 15-17 were all this same shape.
     idx_eng, idx_nolick = [], []
     # WOULD-BE-LICK reference: this session's own median RT per position, in frames.
-    med_rt, med_rt_all = {}, None
+    med_rt, _med_rt_all, med_rt_n = {}, None, {}
     if args.align == "lick" and nolick_ref == "would_be_lick":
         _eng = np.array([bool(is_engaged(first[k], rt[k], maxrt_n)) for k in range(cue_f.size)])
-        med_rt, med_rt_all = would_be_lick_offsets(codes, rt, _eng)
+        med_rt, _med_rt_all, med_rt_n = would_be_lick_offsets(codes, rt, _eng)
     for k in range(cue_f.size):
         if codes[k] < 0:
             continue
@@ -319,8 +336,12 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         else:                                               # NO-LICK: no lick to align to
             w0n = ref0                                      # cue/precue-referenced by default
             if args.align == "lick" and nolick_ref == "would_be_lick":
-                _off = med_rt.get(int(codes[k]), med_rt_all)
+                # NO session-median fallback: a position with no engaged trial has no evidence
+                # about its own latency, and the session median is set by the positions that still
+                # work. Drop instead -- see `would_be_lick_offsets` for the 2 s misplacement.
+                _off = med_rt.get(int(codes[k]))
                 if _off is None:
+                    n_dropped_nolatency += 1
                     continue
                 w0n = c0 + round(_off)      # round() on a float already yields int
             if w0n < 0 or w0n + post_n > T:
@@ -334,6 +355,11 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     if n_dropped_dirty:
         print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
               f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
+    if n_dropped_nolatency:
+        _weak = sorted(POSITION_NAMES.get(c, str(c)) for c, n in med_rt_n.items() if 1 <= n < 5)
+        print(f"  [would-be-lick] {s['label']}: dropped {n_dropped_nolatency} no-lick trial(s) at "
+              f"position(s) with NO engaged trial -- no evidence about their latency"
+              + (f"; offset rests on <5 trials at {', '.join(_weak)}" if _weak else ""), flush=True)
     base_out = (np.array(X), np.array(y), np.array(g), np.array(Xn), np.array(yn), feat_reg)
     extra = ()
     if with_precue_licks:

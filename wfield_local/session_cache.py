@@ -23,7 +23,7 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 10  # bump when any cached function's computation changes
+CACHE_VERSION = 11  # bump when any cached function's computation changes
 # v9 (2026-08-18): BLOCK IDS now split a run at the scheduler's block_size_max. The old rule
 # started a new block only when the POSITION changed, so two adjacent blocks at the same
 # position merged into one -- 118 of 4216 blocks (2.8%) across the 48 curated + 8/17 sessions,
