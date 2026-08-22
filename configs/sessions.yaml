@@ -129,6 +129,11 @@ sessions:
       h5: "20260820/PS92_20260820_163103.h5"
       regime: B
       fmdir: null
+    "0821":
+      mc: "20260821/PS92_20260821_200339/motion_corrected"
+      h5: "20260821/PS92_20260821_200338.h5"
+      regime: B
+      fmdir: null
 
   PS93:
     "0605":
@@ -222,6 +227,11 @@ sessions:
     "0820":
       mc: "20260820/PS93_20260820_140838/motion_corrected"
       h5: "20260820/PS93_20260820_140848.h5"
+      regime: B
+      fmdir: null
+    "0821":
+      mc: "20260821/PS93_20260821_170341/motion_corrected"
+      h5: "20260821/PS93_20260821_170951.h5"
       regime: B
       fmdir: null
 
@@ -327,6 +337,11 @@ sessions:
     "0820":
       mc: "20260820/PS94_20260820_094411/motion_corrected"
       h5: "20260820/PS94_20260820_094459.h5"
+      regime: B
+      fmdir: null
+    "0821":
+      mc: "20260821/PS94_20260821_123846/motion_corrected"
+      h5: "20260821/PS94_20260821_123859.h5"
       regime: B
       fmdir: null
 
@@ -435,5 +450,10 @@ sessions:
     "0820":
       mc: "20260820/PS95_20260820_113748/motion_corrected"
       h5: "20260820/PS95_20260820_115249.h5"
+      regime: B
+      fmdir: null
+    "0821":
+      mc: "20260821/PS95_20260821_145526/motion_corrected"
+      h5: "20260821/PS95_20260821_150251.h5"
       regime: B
       fmdir: null
