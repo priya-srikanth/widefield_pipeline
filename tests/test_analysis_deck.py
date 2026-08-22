@@ -197,3 +197,46 @@ def test_manifest_reports_nothing_stale_without_a_run_start(tmp_path):
     man, stale = _write_manifest(tmp_path / "d.pptx", [("a.png", time.time() - 86400 * 30)])
     assert stale == []
     assert man.exists()
+
+
+def test_every_coding_figure_the_deck_names_is_one_the_module_writes():
+    """The ORPHAN guard: a slide must not read a filename no step produces.
+
+    That failure is invisible to every other check -- the file is present, just frozen at whatever
+    day it was last written, so the missing-figure gate sees nothing and the staleness manifest sees
+    an old file among hundreds of legitimately old ones. Four section-G slides sat that way for two
+    days in August 2026. Here the deck's `coding_<kind>_...` literals are checked against the kinds
+    `position_coding_directions` declares it writes.
+    """
+    import re
+    from pathlib import Path
+
+    from wfield_local import position_coding_directions as pcd
+
+    src = Path(ad.__file__).read_text(encoding="utf-8")
+    named = {n for n in re.findall(r"coding_([a-z]+)_", src) if n}
+    known = set(pcd.FIGURE_KINDS) | set(pcd.FIGURE_KINDS_NOMETHOD) | set(pcd.COHORT_FIGURE_KINDS)
+    known |= {"rtdrift"}          # coding_rtdrift.png comes from wfield_local.rt_drift, a one-off
+    unknown = named - known
+    assert not unknown, (
+        f"the deck names coding figure kind(s) {sorted(unknown)} that no step writes; add them to "
+        f"position_coding_directions (FIGURE_KINDS / COHORT_FIGURE_KINDS) or remove the slide")
+
+
+def test_the_kinds_the_deck_places_are_the_ones_the_module_declares():
+    """The complement: a figure the nightly spends time producing that no slide ever shows.
+
+    Not an error in general -- the `dom` and `lr` METHOD variants are deliberately generated as
+    on-disk cross-checks and never placed -- so this asserts only that every declared KIND reaches a
+    slide, which is the direction that wastes a reader rather than compute.
+    """
+    import re
+    from pathlib import Path
+
+    from wfield_local import position_coding_directions as pcd
+
+    src = Path(ad.__file__).read_text(encoding="utf-8")
+    for kind in (set(pcd.FIGURE_KINDS) | set(pcd.FIGURE_KINDS_NOMETHOD)
+                 | set(pcd.COHORT_FIGURE_KINDS)):
+        assert re.search(rf'\("{kind}"', src), (
+            f"position_coding_directions writes coding_{kind}_* every night and no slide places it")

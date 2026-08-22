@@ -54,6 +54,7 @@ WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 from pathlib import Path
 
@@ -83,7 +84,9 @@ SEVERITY = {"far_R": 1, "far_center": 2, "far_L": 3,
             "close_R": 4, "close_center": 5, "close_L": 6}
 BY_SEVERITY = [p for p, _ in sorted(SEVERITY.items(), key=lambda kv: kv[1])]
 
-#: classes each window can carry. `lick` drops both no-lick classes: no lick, no alignment point.
+#: classes each window can carry. Every window now carries all five: the lick window places a
+#: no-lick trial at its would-be-lick time (see the module docstring), so CLASSES_LICK is kept
+#: only for callers that deliberately want the two lick classes alone.
 CLASSES_FULL = ("prestroke_lick", "prestroke_nolick", "poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
 CLASSES_LICK = ("prestroke_lick", "poststroke_lick")
 #: Flag a value as thinly-supported. 10 to match this project's existing rule -- plot_poststroke
@@ -99,6 +102,16 @@ FLOOR_TRIALS = 3     # below this there is nothing to average at all
 #: which adapts to the real spread instead of assuming one; at the median SD it corresponds to
 #: n >= 20.
 MAX_SEM_DRAWN = 0.25
+
+#: Figure kinds this module writes, as they appear in the filenames the deck reads. Declared rather
+#: than left implicit so `tests/test_analysis_deck.py` can assert the deck never names a kind nothing
+#: produces -- the ORPHAN condition that froze four section-G slides for two days in August, invisible
+#: to every other check because the file was present and simply never updated.
+#:   PER-ANIMAL   coding_<kind>_<window>_<method>_<animal>.png   (engagement omits the method)
+#:   COHORT       coding_<kind>_<window>_<method>.png
+FIGURE_KINDS = ("direction", "pooled", "within", "cross", "pairwise", "normunit")
+FIGURE_KINDS_NOMETHOD = ("engagement",)
+COHORT_FIGURE_KINDS = ("cosslope", "pairsplit")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -183,6 +196,143 @@ def project(X, w, p0, p1):
     v = np.asarray(X) @ w
     d = (p1 - p0)
     return (v - p0) / d if abs(d) > 1e-12 else v - p0
+
+
+
+# --------------------------------------------------------------------------------------------
+# DIAGNOSTICS. Each of these answers "why does that panel read the way it does", and each was a
+# throwaway script before it was a figure -- which is exactly how a measured number becomes stale
+# prose in a speaker note that nothing regenerates (Priya, 2026-08-22).
+# --------------------------------------------------------------------------------------------
+
+QUARTILES = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01)]
+QLABELS = ["0-25%", "25-50%", "50-75%", "75-100%"]
+
+#: rings of the 2x3 spout grid. A pair is WITHIN-ring when both spouts sit at the same distance and
+#: differ only in laterality (close_L vs close_R); CROSS-ring when it spans the distance dimension
+#: (far_R vs close_R). The distinction matters because the within-session state drift runs ALONG
+#: close-vs-far, so a contrast that spans it inherits the drift and one that does not, does not.
+FAR = ("far_R", "far_center", "far_L")
+
+
+def _ring(p):
+    return "far" if p in FAR else "close"
+
+
+def _pos_color(name):
+    """The cohort's canonical per-position colour (side = hue, ring = lightness).
+
+    Borrowed from `spout_behavior` rather than reinvented: a position that is crimson in the
+    behaviour deck and something else here is a reader's problem, not a palette preference. Lazy
+    import so this module does not pull the behaviour stack unless a figure asks for a colour.
+    """
+    from wfield_local.spout_behavior import POSITIONS, pos_color
+    idx = next((q["idx"] for q in POSITIONS if q["name"] == name), None)
+    return pos_color(idx) if idx is not None else "tab:grey"
+
+
+def _slope(vals):
+    """Last usable quartile minus the first. None if under three quartiles have a value."""
+    v = [x for x in vals if x is not None]
+    return (v[-1] - v[0]) if len(v) >= 3 else None
+
+
+def _by_quartile(frac, mask, fn):
+    """fn applied to each within-session quartile of the trials in ``mask``."""
+    return [fn(mask & (frac >= lo) & (frac < hi)) for lo, hi in QUARTILES]
+
+
+def response_by_quartile(feat, kept, YE, GE, YU, GU, pre_i):
+    """Response rate per position per within-session quartile, split pre/post stroke.
+
+    THE BEHAVIOURAL COUNTERPART of the within-session neural figure, and the thing that decides how
+    to read it. Built from the SAME trial indices the features come from (feat.indices), so "where
+    in the session" cannot disagree between the two -- reconstructing a trial filter elsewhere is
+    how bugs 15-17 happened.
+    """
+    tables = _session_tables(feat, kept)
+    acc = {ph: {p: [[] for _ in QUARTILES] for p in BY_SEVERITY} for ph in ("pre", "post")}
+    for si in range(len(kept)):
+        t = tables.get(si)
+        if t is None:
+            continue
+        ie, inl = feat.indices[kept[si]]
+        pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
+        span = max(int(t["order"].max()), 1)
+        fr = np.array([min(int(k) / span, 1.0) for k in t["order"]], float)
+        ph = "pre" if si in pre_i else "post"
+        for p in BY_SEVERITY:
+            mp = pos == p
+            for qi, (lo, hi) in enumerate(QUARTILES):
+                acc[ph][p][qi].extend(t["responded"][mp & (fr >= lo) & (fr < hi)].tolist())
+    out = {}
+    for ph, d in acc.items():
+        out[ph] = {p: [{"rate": (float(np.mean(v)) if v else None), "n": len(v)} for v in rows]
+                   for p, rows in d.items()}
+    return out
+
+
+def _diagnostics(XE, en, e_pre, frac_e, W, base_m, do_orth, e_axis):
+    """Everything that explains a panel rather than being one.
+
+    closefar      how much of each position's axis is the close-vs-far dimension
+    slopes        that position's within-session drift on its own axis (pre-stroke LICK)
+    pairwise      the same two numbers for every A-vs-B axis, tagged within-ring or cross-ring
+    norm_unit     post-stroke LICK scored raw and on UNIT-NORMALISED trials, plus the norm ratio
+    """
+    d = {}
+    far_m = e_pre & np.isin(en, FAR)
+    close_m = e_pre & ~np.isin(en, FAR)
+    if far_m.sum() < 20 or close_m.sum() < 20:
+        return d
+    cf = XE[close_m].mean(0) - XE[far_m].mean(0)
+    cf = cf / max(float(np.linalg.norm(cf)), 1e-12)
+    d["closefar_engagement_cos"] = (float(cf @ e_axis) if e_axis is not None else None)
+
+    def unit(X):
+        n = np.linalg.norm(X, axis=1, keepdims=True)
+        return X / np.where(n > 0, n, 1.0)
+
+    d["positions"] = {}
+    for P in BY_SEVERITY:
+        if P not in W:
+            continue
+        w, p0, p1 = W[P]
+        mp = e_pre & (en == P)
+        pre_q = _by_quartile(frac_e, mp,
+                             lambda m, _w=w, _a=p0, _b=p1: (
+                                 float(np.mean(project(XE[m], _w, _a, _b)))
+                                 if m.sum() >= MIN_TRIALS else None))
+        post_m = (~e_pre) & (en == P)
+        cell = {"cos_closefar": float(w @ cf),
+                "prestroke_lick_by_quartile": pre_q,
+                "prestroke_lick_slope": _slope(pre_q),
+                "n_post": int(post_m.sum())}
+        if post_m.sum() >= MIN_TRIALS:
+            q0, q1 = poles(unit(XE[mp]), unit(XE[e_pre & (en != P)]), w)
+            cell["post_raw"] = float(np.mean(project(XE[post_m], w, p0, p1)))
+            cell["post_unit"] = float(np.mean(project(unit(XE[post_m]), w, q0, q1)))
+            cell["norm_ratio"] = float(np.linalg.norm(XE[post_m], axis=1).mean()
+                                       / np.linalg.norm(XE[mp], axis=1).mean())
+        d["positions"][P] = cell
+
+    d["pairwise"] = []
+    for A, B in itertools.combinations(BY_SEVERITY, 2):
+        mA, mB = e_pre & (en == A), e_pre & (en == B)
+        if mA.sum() < 20 or mB.sum() < 20:
+            continue
+        wab = direction(XE[mA], XE[mB], base_m)
+        if do_orth and e_axis is not None:
+            wab = orthogonalise(wab, e_axis)
+        r0, r1 = poles(XE[mA], XE[mB], wab)      # 0 = B, 1 = A
+        q = _by_quartile(frac_e, mA,
+                         lambda m, _w=wab, _a=r0, _b=r1: (
+                             float(np.mean(project(XE[m], _w, _a, _b)))
+                             if m.sum() >= MIN_TRIALS else None))
+        d["pairwise"].append({"A": A, "B": B, "same_ring": _ring(A) == _ring(B),
+                              "cos_closefar": float(wab @ cf),
+                              "by_quartile": q, "slope": _slope(q)})
+    return d
 
 
 def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
@@ -322,6 +472,12 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     out = {"animal": animal, "align": align, "window": disp, "basis_id": basis.basis_id,
            "ncomp": int(basis.ncomp), "n_features": int(XE.shape[1]), "sessions": sessions,
            "methods": {}}
+    # BEHAVIOUR, from the same trial indices the features came from. Method-independent, so it is
+    # computed once here rather than inside the per-method loop.
+    try:
+        out["response_by_quartile"] = response_by_quartile(feat, kept, YE, GE, YU, GU, pre_i)
+    except Exception as ex:                                          # noqa: BLE001
+        print(f"  [coding_dirs] {animal}: response-rate diagnostic unavailable ({ex})", flush=True)
 
     # the engagement axis, from pre-stroke lick vs pre-stroke no-lick
     e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
@@ -477,6 +633,12 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                     q0, q1 = poles(XA, XB, wab)        # 0 = pre-stroke B, 1 = pre-stroke A
                     pw[f"{A}|{B}"] = _cells(project(trials(c, A), wab, q0, q1))
             res["pairwise"][c] = pw
+
+        # ---- 4. DIAGNOSTICS: why a panel reads the way it does -------------------------------
+        # Folded in HERE rather than given their own module because every one of them needs the
+        # feature matrices that are already in memory. Run separately they cost a second ~40 min
+        # of loading to recompute what this loop already has.
+        res["diagnostics"] = _diagnostics(XE, en, e_pre, frac_e, W, base_m, do_orth, e_axis)
         out["methods"][meth] = res
 
     if verbose:
@@ -800,6 +962,240 @@ def figure_within_session(res, out, align="precue", meth="dom"):
     return q
 
 
+
+# ---------------------------------------------------------------------------------------------
+# DIAGNOSTIC FIGURES. Each of these was a throwaway script that produced a number, and the number
+# then lived in a speaker note that nothing regenerated -- the same failure mode as any other stale
+# prose, except invisible to the staleness manifest because there was no file to age
+# (Priya, 2026-08-22: "ensure each figure's analysis is clearly explained in the slide notes").
+# ---------------------------------------------------------------------------------------------
+
+def figure_engagement(res, out, align="precue", meth="dom"):
+    """BEHAVIOUR: response rate per position across the course of a session, pre and post stroke.
+
+    This is the figure that decides how to read the within-session neural panel. Pre-stroke, PS94 and
+    PS95 lose a quarter to a third of their responding by the last quartile while PS92 and PS93 lose
+    under a tenth -- and the two that disengage are exactly the two whose neural projection drifts.
+    """
+    disp = dict(ALIGNS)[align]
+    rq = (res or {}).get("response_by_quartile")
+    if not rq:
+        return None
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.4), sharey=True, squeeze=False)
+    for ax, ph, ttl in ((axes[0][0], "pre", "PRE-stroke"), (axes[0][1], "post", "POST-stroke")):
+        rows = rq.get(ph) or {}
+        any_pt = False
+        for P in BY_SEVERITY:
+            cells = rows.get(P) or []
+            xs = [i for i, c in enumerate(cells) if c.get("rate") is not None]
+            ys = [cells[i]["rate"] for i in xs]
+            if len(xs) < 2:
+                continue
+            any_pt = True
+            ax.plot(xs, ys, marker="o", ms=5, lw=1.6, color=_pos_color(P), label=P)
+        ax.set_title(ttl, fontsize=10)
+        ax.set_xticks(range(4)); ax.set_xticklabels(QLABELS, fontsize=8)
+        ax.set_ylim(-0.03, 1.05); ax.grid(alpha=0.3)
+        ax.set_xlabel("position within session")
+        if not any_pt:
+            ax.text(0.5, 0.5, "no data", ha="center", va="center", transform=ax.transAxes)
+    axes[0][0].set_ylabel("response rate")
+    axes[0][0].legend(fontsize=7.5, ncol=2, frameon=False)
+    fig.suptitle(f"{res['animal']} \u2014 BEHAVIOUR: response rate by position over the COURSE of a "
+                 f"session.\nA terminal collapse here is DISENGAGEMENT (reward is auto-held after a "
+                 f"miss run), and it is what a within-session neural decline has to be read against.",
+                 fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    q = Path(out) / f"coding_engagement_{disp}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def figure_norm_unit(res, out, align="precue", meth="dom"):
+    """Is the post-stroke value DIRECTION or MAGNITUDE?
+
+    x.w grows either because the trial points more along w (position structure) or because it sits
+    further from its session's engaged centroid (everything else). The two are not independent, so
+    correlating the projection with the norm cannot separate them -- re-projecting UNIT-NORMALISED
+    trials can, being blind to magnitude and sensitive only to direction.
+    """
+    disp = dict(ALIGNS)[align]
+    dg = ((res or {}).get("methods", {}).get(meth) or {}).get("diagnostics") or {}
+    pos = dg.get("positions") or {}
+    have = [P for P in BY_SEVERITY if (pos.get(P) or {}).get("post_raw") is not None]
+    if not have:
+        return None
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.2), squeeze=False)
+    ax = axes[0][0]
+    x = np.arange(len(have))
+    ax.bar(x - 0.2, [pos[P]["post_raw"] for P in have], 0.4, label="raw  x\u00b7w", color="tab:green")
+    ax.bar(x + 0.2, [pos[P]["post_unit"] for P in have], 0.4, label="unit-norm  cos(x,w)",
+           color="tab:olive")
+    ax.axhline(1.0, ls=":", lw=1, color="tab:blue")
+    ax.axhline(0.0, ls=":", lw=1, color="k")
+    ax.set_xticks(x); ax.set_xticklabels(have, rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("post-stroke LICK projection")
+    ax.legend(fontsize=8, frameon=False); ax.grid(alpha=0.3, axis="y")
+    ax.set_title("1 = pre-stroke lick here, 0 = pre-stroke not-here", fontsize=9)
+
+    ax2 = axes[0][1]
+    ax2.scatter([pos[P]["norm_ratio"] for P in have], [pos[P]["post_raw"] for P in have],
+                s=45, color="tab:green", label="raw")
+    ax2.scatter([pos[P]["norm_ratio"] for P in have], [pos[P]["post_unit"] for P in have],
+                s=45, marker="s", facecolors="none", edgecolors="tab:olive", label="unit-norm")
+    for P in have:
+        ax2.annotate(P, (pos[P]["norm_ratio"], pos[P]["post_raw"]), fontsize=6.5,
+                     xytext=(3, 3), textcoords="offset points")
+    lim = [min(0.7, *[pos[P]["norm_ratio"] for P in have]), max(1.6, *[pos[P]["norm_ratio"] for P in have])]
+    ax2.plot(lim, lim, ls="--", lw=1, color="grey", label="pure gain (proj = ratio)")
+    ax2.set_xlabel("post/pre feature-norm ratio"); ax2.set_ylabel("projection")
+    ax2.legend(fontsize=7.5, frameon=False); ax2.grid(alpha=0.3)
+    ax2.set_title("on the dashed line = magnitude alone", fontsize=9)
+
+    fig.suptitle(f"{res['animal']} \u2014 {disp}, {meth.upper()}: is the post-stroke value DIRECTION "
+                 f"or MAGNITUDE?\nIf the two bars agree, magnitude contributes nothing and the value "
+                 f"is directional \u2014 real position structure.", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.85))
+    q = Path(out) / f"coding_normunit_{disp}_{meth}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def figure_cos_slope(everything, out, align="precue", meth="dom"):
+    """WHY the within-session decline is close-specific when the disengagement is not.
+
+    THE ONE-LINE VERSION. x = how much a position's axis is really the close-vs-far dimension.
+    y = how much that position's own pre-stroke lick trials drift over the session. If a uniform
+    state shift runs along close-vs-far, then the more an axis points along that dimension, the more
+    drift it must show -- a downward slope here. Nothing about a position's own coding has to change
+    for that to happen, which is the point: the decline is a property of the AXIS, not the spout.
+    """
+    disp = dict(ALIGNS)[align]
+    pts = []
+    for an, res in sorted((everything or {}).items()):
+        dg = ((res or {}).get("methods", {}).get(meth) or {}).get("diagnostics") or {}
+        for P, c in (dg.get("positions") or {}).items():
+            if c.get("prestroke_lick_slope") is not None:
+                pts.append((an, P, c["cos_closefar"], c["prestroke_lick_slope"]))
+    if len(pts) < 6:
+        return None
+    fig, ax = plt.subplots(figsize=(8.6, 5.4))
+    for an in sorted({p[0] for p in pts}):
+        sub = [p for p in pts if p[0] == an]
+        for mk, ring in (("o", "close"), ("^", "far")):
+            g = [p for p in sub if _ring(p[1]) == ring]
+            if g:
+                ax.scatter([p[2] for p in g], [p[3] for p in g], s=52, marker=mk,
+                           color=config.animal_color().get(an, 'k'),
+                           label=(an if ring == "close" else None))
+        for p in sub:
+            ax.annotate(p[1], (p[2], p[3]), fontsize=6, xytext=(3, 3), textcoords="offset points")
+    xs = np.array([p[2] for p in pts]); ys = np.array([p[3] for p in pts])
+    r = float(np.corrcoef(xs, ys)[0, 1])
+    b, a = np.polyfit(xs, ys, 1)
+    gx = np.linspace(xs.min(), xs.max(), 20)
+    ax.plot(gx, a + b * gx, ls="--", lw=1.3, color="k")
+    ax.axhline(0, ls=":", lw=1, color="grey"); ax.axvline(0, ls=":", lw=1, color="grey")
+    ax.set_xlabel("cos(position axis, close-vs-far axis)\n"
+                  "negative = the axis points toward FAR, positive = toward CLOSE", fontsize=9)
+    ax.set_ylabel("within-session drift of PRE-STROKE LICK\n(last quartile minus first)", fontsize=9)
+    ax.legend(fontsize=8, frameon=False); ax.grid(alpha=0.3)
+    ax.set_title(f"{disp}, {meth.upper()}: the drift is a property of the AXIS, not the spout   "
+                 f"(n={len(pts)}, r={r:+.3f})", fontsize=10)
+    fig.tight_layout()
+    q = Path(out) / f"coding_cosslope_{disp}_{meth}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def figure_pairwise_split(everything, out, align="precue", meth="dom"):
+    """WHICH pairwise cells are safe to read: within-ring, not cross-ring.
+
+    A pairwise axis contrasts two spouts directly. When both sit at the same distance (within-ring)
+    it barely touches the close-vs-far dimension; when it spans the rings it does. The prediction is
+    that only the cross-ring cells inherit the drift, and only in animals that HAVE a state drift --
+    which is why this is split by animal as well as by pair type. Pooled, the effect vanishes.
+    """
+    disp = dict(ALIGNS)[align]
+    rows = []
+    for an, res in sorted((everything or {}).items()):
+        dg = ((res or {}).get("methods", {}).get(meth) or {}).get("diagnostics") or {}
+        for pr in (dg.get("pairwise") or []):
+            if pr.get("slope") is not None:
+                rows.append((an, bool(pr["same_ring"]), float(pr["cos_closefar"]), float(pr["slope"])))
+    if len(rows) < 8:
+        return None
+    animals = sorted({r[0] for r in rows})
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.6), squeeze=False)
+
+    ax = axes[0][0]
+    for j, same in enumerate((True, False)):
+        v = [abs(r[2]) for r in rows if r[1] is same]
+        ax.bar(j, np.mean(v) if v else 0, 0.55,
+               color=("tab:blue" if same else "tab:orange"))
+        ax.scatter(np.full(len(v), j) + np.linspace(-0.18, 0.18, len(v)), v, s=12, color="k", zorder=3)
+    ax.set_xticks([0, 1]); ax.set_xticklabels(["within-ring\n(close-close, far-far)",
+                                               "cross-ring\n(one of each)"], fontsize=8.5)
+    ax.set_ylabel("|cos| with the close-vs-far axis")
+    ax.set_title("how much of the distance dimension each pair type carries", fontsize=9)
+    ax.grid(alpha=0.3, axis="y")
+
+    ax2 = axes[0][1]
+    w = 0.36
+    for j, same in enumerate((True, False)):
+        for k, an in enumerate(animals):
+            v = [r[3] for r in rows if r[1] is same and r[0] == an]
+            if not v:
+                continue
+            xpos = k + (-w / 2 if same else w / 2)
+            npos = sum(1 for x in v if x > 0)
+            ax2.bar(xpos, np.mean(v), w * 0.9,
+                    color=("tab:blue" if same else "tab:orange"),
+                    label=(("within-ring" if same else "cross-ring") if k == 0 else None))
+            ax2.scatter(np.full(len(v), xpos) + np.linspace(-0.1, 0.1, len(v)), v, s=10,
+                        color="k", zorder=3)
+            ax2.annotate(f"{npos}/{len(v)}", (xpos, 0), fontsize=6.5, ha="center", va="bottom"
+                         if np.mean(v) < 0 else "top", xytext=(0, 2 if np.mean(v) < 0 else -2),
+                         textcoords="offset points")
+    ax2.axhline(0, lw=1, color="k")
+    ax2.set_xticks(range(len(animals))); ax2.set_xticklabels(animals, fontsize=9)
+    ax2.set_ylabel("within-session drift (last quartile minus first)")
+    ax2.legend(fontsize=8, frameon=False); ax2.grid(alpha=0.3, axis="y")
+    ax2.set_title("drift per animal. numbers = how many of the pairs went POSITIVE\n"
+                  "(A is the FAR position in every cross-ring pair)", fontsize=9)
+
+    fig.suptitle(f"{disp}, {meth.upper()}: WITHIN-RING pairwise cells are the ones to read. A "
+                 f"cross-ring axis spans the close-vs-far dimension and inherits the session drift "
+                 f"\u2014 but only in an animal that HAS one, which is why this is split by animal.",
+                 fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    q = Path(out) / f"coding_pairsplit_{disp}_{meth}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def _draw(fn, *a, **kw):
+    """Call one figure function, reporting a failure instead of taking the run down with it.
+
+    A figure raising used to kill main() AFTER every per-animal PNG was written and BEFORE
+    coding_direction.json -- so a one-line plotting bug discarded ~40 minutes of pooling and left the
+    figures with no data file beside them (2026-08-22, an argument-count error in the cohort loop).
+    The analysis is the expensive part and must survive its own presentation layer.
+    """
+    try:
+        q = fn(*a, **kw)
+    except Exception as ex:                                          # noqa: BLE001
+        print(f"  !! {fn.__name__}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+        return None
+    if q:
+        print(f"  wrote {q}", flush=True)
+    return q
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -834,12 +1230,18 @@ def main(argv=None) -> int:
         for an in sorted(res):
             if not res[an]:
                 continue
+            # behaviour is method-independent -- one per animal, not one per method
+            _draw(figure_engagement, res[an], out, align=align)
             for meth in res[an].get("methods", {}):
                 for fn in (figure_animal, figure_pooled, figure_within_session,
-                           figure_cross, figure_pairwise):
-                    q = fn(res[an], out, align=align, meth=meth)
-                    if q:
-                        print(f"  wrote {q}", flush=True)
+                           figure_cross, figure_pairwise, figure_norm_unit):
+                    _draw(fn, res[an], out, align=align, meth=meth)
+        # COHORT-level diagnostics: both describe how the AXES behave across animals, so neither can
+        # be drawn per animal -- the pairwise split in particular VANISHES when animals are pooled,
+        # which is the whole reason it is a figure.
+        for meth in sorted({m for r in res.values() if r for m in r.get("methods", {})}):
+            for fn in (figure_cos_slope, figure_pairwise_split):
+                _draw(fn, {a: r for a, r in res.items() if r}, out, align=align, meth=meth)
     (out / "coding_direction.json").write_text(
         json.dumps(everything, indent=1, default=float), encoding="utf-8")
     print("wrote coding_direction.json", flush=True)

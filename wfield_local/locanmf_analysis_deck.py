@@ -1716,6 +1716,27 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "
                  "intrinsically similar before any stroke; the rest are DIFFERENCES from it, so a "
                  "row going red OFF the diagonal is a remapping rather than a large number."),
+                ("engagement", "BEHAVIOUR: response rate over the session",
+                 "THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST. Response rate per "
+                 "position, binned by where a trial falls within its OWN session, pooled over the "
+                 "sessions of a phase. Reward is auto-held after a miss run, so a terminal collapse "
+                 "here is DISENGAGEMENT rather than spatial inaccuracy. Pre-stroke, PS94 and PS95 "
+                 "lose 0.25 and 0.35 of their responding by the last quartile while PS92 and PS93 "
+                 "lose 0.09 and 0.06 -- and the two that disengage are exactly the two whose neural "
+                 "projection drifts. The drop is UNIFORM across positions (PS95 -0.31 to -0.39 at "
+                 "all six), so it cannot explain a decline that appears at only some of them; see "
+                 "the cos-vs-drift slide for what does. NOT method-dependent: one per animal."),
+                ("normunit", "direction or magnitude?",
+                 "DOES THE POST-STROKE VALUE MEAN THE PATTERN CHANGED, OR JUST GOT BIGGER? The "
+                 "projection x\u00b7w rises either because the trial points more along the "
+                 "direction (position structure) or because it sits further from its session's "
+                 "engaged centroid (everything else) -- and correlating the two CANNOT separate "
+                 "them, since a trial moving further out ALONG the direction raises both. LEFT: the "
+                 "same post-stroke LICK value scored raw and on UNIT-NORMALISED trials, cos(x,w), "
+                 "which is blind to magnitude. Bars that agree = directional. RIGHT: each position "
+                 "against its post/pre norm ratio; pure gain would put it on the dashed line. "
+                 "Measured 2026-08-22: every cell moves by at most 0.15 except PS92 far_center "
+                 "(2.12 -> 1.75), so post-stroke values ABOVE 1.0 are real."),
                 ("pairwise", "pairwise axes",
                  "Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
                  "mixes five positions and, for the MIDDLE positions, is majority-far -- PS94's "
@@ -1741,6 +1762,68 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           _blurb + _lickonly)
                     note(s, M_CODING_DIR)
                     big(s, _f, top=1.95, width=12.7)
+
+        # --- G9b. COHORT diagnostics. Neither can be drawn per animal: the first needs every
+        # position of every animal on one axes to be a relationship at all, and the second VANISHES
+        # when animals are pooled, which is itself the finding.
+        for _w in ("ENL", "cue", "lick"):
+            _m = _G9_METHOD[_w]
+            for _kind, _tag, _blurb in (
+                ("cosslope",
+                 "why the decline is close-specific when the disengagement is not",
+                 "READ IT AS: how much is this axis really the close-vs-far dimension (x), and how "
+                 "much do its own pre-stroke LICK trials drift over the session (y). ONE POINT PER "
+                 "POSITION PER ANIMAL; circles are close positions, triangles far. THE ARGUMENT: "
+                 "the behavioural disengagement is uniform across positions, so it cannot by itself "
+                 "produce a decline at only some of them. What it CAN do is move activity along one "
+                 "dimension -- close-vs-far -- and a one-vs-rest axis for a close position is "
+                 "largely that dimension, because 'not close_center' is majority-far. So the more "
+                 "an axis points along close-vs-far, the more drift it must show even if nothing "
+                 "about that position's coding changed. A sloped cloud here says the drift is a "
+                 "property of the AXIS, not of the spout. Measured: r=-0.567, with axes pointing "
+                 "CLOSE averaging -0.347 and those pointing FAR +0.030. It is NOT the engagement "
+                 "axis -- these directions are already orthogonalised against lick-vs-no-lick, and "
+                 "cos(close-vs-far, engagement) is only -0.43 to +0.34."),
+                ("pairsplit", "which pairwise cells are safe to read",
+                 "A pairwise axis contrasts two spouts DIRECTLY, so it need not carry the "
+                 "close-vs-far dimension at all -- if both spouts sit at the same distance. LEFT: "
+                 "it does not (|cos| 0.33 within-ring against 0.70 cross-ring). RIGHT: the drift, "
+                 "split by animal, because pooling destroys the effect -- over all 60 pairs "
+                 "r(cos, drift) is only -0.143, which read alone says the pairwise axes drift as "
+                 "much as anything else. Split, the two DISENGAGING animals put all 18 of their "
+                 "cross-ring pairs in the same direction (p ~ 4e-6, mean +0.19) while their "
+                 "within-ring pairs are a coin flip (6/12, mean -0.01), and the two steady animals "
+                 "are 9/18 and 5/12 -- what 'nothing to detect' looks like. A is the FAR position "
+                 "in every cross-ring pair, so POSITIVE means far trials become MORE far-like as "
+                 "the session runs, the same drift the one-vs-rest axes show from the other end. "
+                 "USE THE WITHIN-RING CELLS for remapping questions."),
+            ):
+                _f = src / f"coding_{_kind}_{_w}_{_m}.png"
+                if not _f.exists():
+                    continue
+                s = slide()
+                title(s, f"G9b. {_w} window \u2014 {_tag}",
+                      "Diagnostic, not a result: it explains how to read the G9 panels.")
+                note(s, M_CODING_DIR)
+                big(s, _f, top=1.95, width=12.7)
+
+        # --- G9c. ONE-OFF control (wfield_local.rt_drift, not a nightly step)
+        _rt = src / "coding_rtdrift.png"
+        if _rt.exists():
+            s = slide()
+            title(s, "G9c. First-lick latency across the course of a session",
+                  "Two controls in one figure. (1) SLOWED vs SKIPPED: flat latency with a falling "
+                  "response rate means the late trials are skipped, not slow \u2014 the sated tail, "
+                  "which is what licenses reading the response-rate collapse as disengagement "
+                  "rather than fatigue. (2) THE WOULD-BE-LICK OFFSET: a no-lick trial's window uses "
+                  "ONE median RT for the whole session, so an animal that slowed through the "
+                  "session would have its late trials placed progressively too early \u2014 the "
+                  "exact shape of a within-session decline. Flat latency excludes it. Measured "
+                  "drift is <=0.05 s against a 2 s window. Post-stroke FAR positions are "
+                  "legitimately slow (PS93 far_R reaches 1.50 s); that is the deficit, not a "
+                  "within-session effect. Rebuild with: python -m wfield_local.rt_drift")
+            note(s, M_CODING_DIR)
+            big(s, _rt, top=1.95, width=12.7)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
