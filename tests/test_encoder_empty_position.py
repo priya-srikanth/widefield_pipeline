@@ -126,3 +126,32 @@ def test_a_single_trial_position_still_reports_a_number():
     y = np.array([0] * 9 + [1])
     sstot = np.ones(10); ssres = np.ones(10) * 0.25
     assert _ev(y, sstot, ssres, 1, guard=True) == 0.75
+
+
+# ---------------------------------------------------------------- no fourth copy
+
+def test_per_position_ev_is_computed_in_exactly_one_place():
+    """A duplicate outlives the fix to its twin.
+
+    ev_per_position was created to be the single implementation, folding in
+    fig_ev_by_position_animal and the EV matrix. It missed fig_ev_by_position, which kept its own
+    inline copy -- so when the empty-position guard was added on 2026-08-22, the per-date figure
+    went on reporting PS94_0820 far_R = 1.0 for a position with ZERO engaged trials, and the
+    published deck carried it. Two of three call sites were fixed and the figure still lied.
+    """
+    import ast
+    import inspect
+
+    from wfield_local import locanmf_position_encoder as m
+
+    src = inspect.getsource(m)
+    tree = ast.parse(src)
+    owners = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            seg = ast.get_source_segment(src, node) or ""
+            if "ssres[" in seg and "max(sstot" in seg:
+                owners.append(node.name)
+    assert owners == ["ev_per_position"], (
+        f"per-position EV is computed in {owners}; it must live only in ev_per_position so a guard "
+        f"added there reaches every figure")

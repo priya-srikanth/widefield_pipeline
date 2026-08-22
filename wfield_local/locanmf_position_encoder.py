@@ -236,15 +236,17 @@ def fig_ev_by_position(labels, out, tag):
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     summary = {}
     for i, lab in enumerate(labels):
-        s = _sess(lab)
-        X, y, g, _, _, _ = _trial_features(s, _args(2.0))
-        P = np.stack([(y == p).astype(float) for p in pos], 1)
-        pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
-        for tr, te in GroupKFold(ng).split(X, y, g):
-            pred[te] = Ridge(alpha=1.0).fit(P[tr], X[tr]).predict(P[te])
-        xbar = X.mean(0); sstot = ((X - xbar) ** 2).sum(1); ssres = ((X - pred) ** 2).sum(1)
-        ev = [1 - ssres[y == p].sum() / max(sstot[y == p].sum(), 1e-12) for p in pos]
+        # ev_per_position, NOT a fourth inline copy. This function kept its own until 2026-08-22,
+        # and so reported PS94_0820 far_R = 1.0 -- a perfect score for a position with ZERO engaged
+        # trials -- for a full day after the shared implementation had been fixed. The consolidation
+        # that created ev_per_position folded in fig_ev_by_position_animal and the EV matrix and
+        # missed this one, which is exactly how a duplicate outlives the fix to its twin.
+        ev = ev_per_position(lab)
         ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab[:4])
+        for k in range(6):                      # a position the animal never visited: say so
+            if not np.isfinite(ev[k]):
+                ax.text(x[k] + (i - (len(labels) - 1) / 2) * w, 0, "n/a", rotation=90,
+                        ha="center", va="bottom", fontsize=6, color="#888888")
         summary[lab] = {posn[k]: round(float(ev[k]), 3) for k in range(6)}
     ax.axhline(0, color="k", lw=0.6); ax.set_xticks(x); ax.set_xticklabels(posn, rotation=45, ha="right")
     ax.set_ylabel("explained variance (held-out R^2, per position)"); ax.legend(fontsize=9, title="session")
