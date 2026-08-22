@@ -145,3 +145,48 @@ def test_imaging_branch_proceeds_when_the_raw_is_there(tmp_path, monkeypatch):
             return str(tmp_path / name)
 
     nightly._assert_has_raw(["20260820"], _RV())      # must not raise
+
+
+def test_run_record_names_the_failed_steps(tmp_path, monkeypatch):
+    """A deck that refuses to publish must leave the reason on disk.
+
+    On 2026-08-21 the deck was correctly refused and the reason existed only in the terminal
+    scrollback of the window that launched the run. Recovering it needed a full rebuild to a scratch
+    path just to learn the missing count was 0 -- which meant the FAILED-STEP gate had fired -- and
+    even then the step could not be named.
+    """
+    import json as _json
+
+    from wfield_local import nightly_figs as nf
+
+    monkeypatch.setattr(nf, "FAILURES", ["wfield_local.spatial_reorganisation",
+                                         "wfield_local.evoked_amplitude"])
+    deck = tmp_path / "spout_position_analysis_summary.pptx"
+    nf._write_run_record(deck, "20260820", "0606-0820")
+
+    rec = _json.loads((tmp_path / "spout_position_analysis_summary.run.json").read_text())
+    assert rec["deck_published"] is False
+    assert rec["failed_steps"] == ["wfield_local.evoked_amplitude",
+                                   "wfield_local.spatial_reorganisation"]
+    assert rec["date"] == "20260820"
+
+
+def test_run_record_of_a_clean_run_says_so(tmp_path, monkeypatch):
+    """The complement: with nothing failed the record must not imply a refusal."""
+    import json as _json
+
+    from wfield_local import nightly_figs as nf
+
+    monkeypatch.setattr(nf, "FAILURES", [])
+    deck = tmp_path / "deck.pptx"
+    nf._write_run_record(deck, "20260820", "t")
+    rec = _json.loads((tmp_path / "deck.run.json").read_text())
+    assert rec["deck_published"] is True and rec["failed_steps"] == []
+
+
+def test_run_record_never_kills_the_run(monkeypatch):
+    """Soft-fail: a run must not die because it could not write its own record."""
+    from wfield_local import nightly_figs as nf
+
+    monkeypatch.setattr(nf, "FAILURES", ["x"])
+    nf._write_run_record("//no/such/share/deck.pptx", "20260820", "t")   # must not raise

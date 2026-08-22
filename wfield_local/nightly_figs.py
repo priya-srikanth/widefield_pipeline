@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-from wfield_local import config
+from wfield_local import config, writeguard
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
@@ -70,6 +70,33 @@ def cli(*a):
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
         log("  !! nonzero exit: " + a[0])
         FAILURES.append(a[0])
+
+
+def _write_run_record(deck_out, date, tag):
+    """Leave this run's failed-step list on disk, beside the deck.
+
+    WHY. On 2026-08-21 the deck refused to publish and the reason existed ONLY in the terminal
+    scrollback of the window that launched the run. Reconstructing it afterwards took a full rebuild
+    to a scratch path just to learn the missing count was 0, which meant the FAILED-STEP gate had
+    fired -- and even then the step could not be named. A gate that refuses to publish has to say
+    what it refused over, durably, or the refusal is a mystery instead of a diagnosis.
+
+    Soft-fails: a run must never die because it could not write its own record.
+    """
+    import json as _json
+
+    rec = {"date": date, "tag": tag,
+           "started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(RUN_START)),
+           "finished": time.strftime("%Y-%m-%d %H:%M:%S"),
+           "failed_steps": sorted(set(FAILURES)),
+           "deck_published": not FAILURES}
+    try:
+        p = Path(deck_out).with_suffix(".run.json")
+        writeguard.assert_writable(p)
+        p.write_text(_json.dumps(rec, indent=1), encoding="utf-8")
+        log(f"   run record: {p}")
+    except Exception as ex:                                       # noqa: BLE001
+        log(f"  !! could not write run record: {type(ex).__name__} {str(ex)[:80]}")
 
 
 def _per_day_figs(date, out, from_dates, only):
@@ -323,13 +350,15 @@ def main():
         cli("wfield_local.position_coding_directions", "--output", out)
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
+    # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
+    # and that is exactly the run whose failure list is worth having on disk.
+    deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,
             DeckIncomplete,
             build_analysis_deck,
         )
-        deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
         # FAILURES and RUN_START are what let the deck judge its own inputs: a failed step means
         # stale panels (its outputs are last run's), and RUN_START separates figures this run
         # refreshed from ones it did not touch. Neither is visible from the figure tree alone.
@@ -378,6 +407,7 @@ def main():
         log(f"  !! publish figs: {type(ex).__name__} {str(ex)[:80]}")
 
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
+    _write_run_record(deck_out, date, tag)
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:
