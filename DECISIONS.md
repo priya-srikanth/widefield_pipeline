@@ -2488,10 +2488,20 @@ asserts the opposite, with the measurement above in its docstring — a test can
 turns out to be wrong, and rewriting it needs the reason attached or it will be "corrected" back.
 
 ### Two controls that came out clean, and are worth keeping
-**Amplitude.** The linear projection is unbounded, so a global gain change post-stroke would inflate
-every cell without any pattern change — and PS92 reached 2.12 and PS95 1.32, i.e. FURTHER along the
-pre-stroke axis than pre-stroke licks. Post/pre mean feature norm per position is **0.84–1.09**
-across animals, so the >1 values are not a gain effect and need a real explanation.
+**Amplitude — clears the headline, does NOT clear PS92.** The linear projection is unbounded, so a
+global gain change post-stroke would inflate every cell without any pattern change, and PS92 reached
+2.12 and PS95 1.32 — FURTHER along the pre-stroke axis than pre-stroke licks. Post/pre mean feature
+norm per position, measured **in the lick window** (0.79–1.51; the ENL window is tighter at
+0.84–1.09, and quoting the ENL range for a lick-window result was the first version of this note):
+
+- The BETWEEN-ANIMAL ordering is not amplitude. Mean norm ratio is 1.02–1.10 for every animal while
+  mean projection runs 0.46–1.12, and the ordering inverts: **PS93 has the highest mean ratio (1.10)
+  and the lowest projection (0.46)**. Across all 22 measurable cells r = **+0.19**, and pure gain
+  would make the projection EQUAL the ratio, against a mean absolute gap of 0.39.
+- **PS92 alone is not cleared.** Within that animal the five cells correlate with amplitude at
+  **r = +0.97**, and its 2.12 outlier at far_center carries its largest ratio (1.33). Five cells and
+  four animals tested, so this may be nothing — but PS92's cell-to-cell pattern must not be read as
+  position structure until it is separated from gain. The other three are +0.06, −0.23, +0.14.
 
 **Within-session RT drift.** A session-CONSTANT offset would misplace late trials progressively if the
 animal slowed through the session, which is the exact shape of the gradient below. Median engaged RT
