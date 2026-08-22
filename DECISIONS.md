@@ -2517,10 +2517,29 @@ and direction carries the rest; it stays well above 1. PS92's r=+0.97 reflects f
 the most distinctive and the highest-norm cell — one phenomenon measured twice. Post-stroke values
 above 1.0 are real, and the note that said otherwise stood for about six hours.
 
-**Within-session RT drift.** A session-CONSTANT offset would misplace late trials progressively if the
-animal slowed through the session, which is the exact shape of the gradient below. Median engaged RT
-by within-session quartile is flat: PS94 0.200/0.200/0.200/0.200 (0817), 0.167/0.133/0.200 (0820) —
-a drift of ≤0.05 s against a 2 s window. It cannot produce the gradient.
+**Within-session RT drift — holds where it was used, and NOT in general (corrected 2026-08-22).** A
+session-CONSTANT offset misplaces late trials progressively if the animal slowed through the session,
+which is the exact shape of the gradient below. The first pass measured the session-wide median for
+PS94 (0.200/0.200/0.200/0.200 on 0817) and concluded ≤0.05 s. Building it as a figure, per position
+and per animal, showed the answer splits by RING:
+
+    CLOSE positions   flat in every animal, every position: <= 0.03 s drift over the four quartiles
+    FAR positions     PS94 <= 0.05, PS95 <= 0.03 -- but PS92 +0.13 / +0.15 / +0.23, and
+                      PS93 far_center +0.27, far_L +0.50 (0.53 s -> 1.03 s, nearly doubling)
+
+**The control survives for the claim it was made about**: the within-session neural decline sits at
+CLOSE positions in PS94/PS95, and latency there is flat in every animal, so a session-constant offset
+cannot have manufactured it. **It does not survive as a general statement.** For PS93's far_L the
+session median near 0.6 s against a last-quartile 1.03 s misplaces those windows by ~0.4 s — a fifth
+of a 2 s window, a smaller repeat of the fallback bug fixed the day before, and the reason to move to
+a per-quartile offset if the far-position no-lick cells are ever read closely.
+
+**And it separates two processes that had been treated as one.** DISENGAGEMENT is uniform across
+positions and shows as SKIPPING; FATIGUE is position-specific and shows as SLOWING at the animal's
+hard positions. PS93's far_L and far_center — where its right orofacial deficit lives — slow steadily
+through a session while its close positions do not move at all, and the two animals that disengage
+MOST (PS94, PS95) barely slow anywhere. "Trials skipped, not slowed" is therefore right for PS94/PS95
+and wrong for PS92/PS93 at far positions, where both happen.
 
 ---
 

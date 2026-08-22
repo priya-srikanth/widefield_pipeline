@@ -14,16 +14,31 @@ WHAT IT CONTROLS FOR. Two separate things, and they are easy to confuse:
      position's median RT -- ONE number for the whole session. If the animal slowed as the session
      ran, late trials would be placed progressively too early, and their features would drift away
      from the lick pattern for a purely mechanical reason. That is the exact shape of a within-
-     session decline, so it has to be excluded before any such decline is believed. Measured: RT is
-     flat (PS94 0.200/0.200/0.200/0.200 on 0817), a drift of <=0.05 s against a 2 s window.
+     session decline, so it has to be excluded before any such decline is believed.
 
   2. SLOWED VERSUS SKIPPED. A collapse in response rate late in a session could be an animal getting
      slower or an animal stopping. Flat RT with falling response rate is the SATED TAIL -- the licks
-     that still happen are as fast as ever, there are just fewer of them. That distinction is what
-     licenses reading the response-rate collapse as disengagement rather than fatigue.
+     that still happen are as fast as ever, there are just fewer of them. That is what licenses
+     reading the response-rate collapse as disengagement rather than fatigue.
 
-Post-stroke far positions are the exception and legitimately slow (PS93 far_R reaches 1.50 s), which
-is the deficit and not a within-session effect.
+WHAT IT ACTUALLY SHOWED, which is not what the first version of this docstring said (2026-08-22).
+The answer splits by RING, and the drift over the four quartiles is:
+
+    CLOSE positions   flat in every animal, every position: <= 0.03 s.
+    FAR positions     PS94 <= 0.05, PS95 <= 0.03 -- but PS92 +0.13/+0.15/+0.23 and PS93
+                      far_center +0.27, far_L +0.50 (0.53 s -> 1.03 s, nearly doubling).
+
+So the two processes are SEPARABLE and are not the same thing: DISENGAGEMENT is uniform across
+positions and shows as skipping (the response-rate figure), while FATIGUE is position-specific and
+shows as slowing at the animal's HARD positions -- PS93's far_L and far_center are exactly where its
+right orofacial deficit lives. PS94 and PS95, the two animals that disengage most, barely slow at all.
+
+CONSEQUENCES. The control holds where it was used: the within-session neural decline sits at CLOSE
+positions in PS94/PS95, and latency there is flat in every animal, so a session-constant offset
+cannot have manufactured it. But the offset IS materially wrong late in a session for PS93's far_L --
+a session median near 0.6 s against a last-quartile 1.03 s misplaces those windows by ~0.4 s, a fifth
+of a 2 s window. That is a smaller repeat of the fallback bug fixed on 2026-08-21 and the reason to
+move to a per-quartile offset if the far-position no-lick cells are ever read closely.
 """
 from __future__ import annotations
 

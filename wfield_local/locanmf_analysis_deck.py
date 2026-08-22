@@ -1812,16 +1812,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if _rt.exists():
             s = slide()
             title(s, "G9c. First-lick latency across the course of a session",
-                  "Two controls in one figure. (1) SLOWED vs SKIPPED: flat latency with a falling "
-                  "response rate means the late trials are skipped, not slow \u2014 the sated tail, "
-                  "which is what licenses reading the response-rate collapse as disengagement "
-                  "rather than fatigue. (2) THE WOULD-BE-LICK OFFSET: a no-lick trial's window uses "
-                  "ONE median RT for the whole session, so an animal that slowed through the "
-                  "session would have its late trials placed progressively too early \u2014 the "
-                  "exact shape of a within-session decline. Flat latency excludes it. Measured "
-                  "drift is <=0.05 s against a 2 s window. Post-stroke FAR positions are "
-                  "legitimately slow (PS93 far_R reaches 1.50 s); that is the deficit, not a "
-                  "within-session effect. Rebuild with: python -m wfield_local.rt_drift")
+                  "Two controls in one figure, and the answer splits by RING. (1) SLOWED vs "
+                  "SKIPPED: a late collapse in response rate could be an animal getting slower or "
+                  "an animal stopping. FLAT latency with a falling response rate is the sated tail "
+                  "\u2014 the licks that still happen are as fast as ever, there are just fewer. "
+                  "(2) THE WOULD-BE-LICK OFFSET: a no-lick trial's window uses ONE median RT for "
+                  "the whole session, so an animal that slowed through it would have its late "
+                  "trials placed progressively too early \u2014 the exact shape of a within-session "
+                  "decline, which must be excluded before any such decline is believed.\n\n"
+                  "MEASURED. CLOSE positions are flat in every animal (drift <=0.03 s). FAR "
+                  "positions are flat in PS94 (<=0.05) and PS95 (<=0.03) but NOT in PS92 "
+                  "(+0.13/+0.15/+0.23) or PS93 (far_center +0.27, far_L +0.50, i.e. 0.53 s to "
+                  "1.03 s across the session). So the two processes are separable and are not the "
+                  "same thing: DISENGAGEMENT is uniform across positions and shows as SKIPPING, "
+                  "while FATIGUE is position-specific and shows as SLOWING at the animal's hard "
+                  "positions \u2014 PS93's far_L and far_center are exactly where its right "
+                  "orofacial deficit lives, and the two animals that disengage most barely slow at "
+                  "all.\n\nSO: the control holds where it was used, since the within-session "
+                  "neural decline sits at CLOSE positions in PS94/PS95 and latency there is flat "
+                  "everywhere. But the offset IS wrong late in a session for PS93 far_L \u2014 a "
+                  "session median near 0.6 s against a last-quartile 1.03 s misplaces those windows "
+                  "by ~0.4 s, a fifth of the window. Read PS93's far no-lick cells with that in "
+                  "mind. Rebuild with: python -m wfield_local.rt_drift")
             note(s, M_CODING_DIR)
             big(s, _rt, top=1.95, width=12.7)
 
