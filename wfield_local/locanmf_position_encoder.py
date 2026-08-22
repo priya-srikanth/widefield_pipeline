@@ -486,6 +486,19 @@ def fig_region_feve_pooled(res, out, floor=0.02):
     for lab in res:
         by[lab[:4]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
+    # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
+    # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
+    # image data" instead of being declined -- a guard that only works when there is
+    # something to guard. Seen 2026-08-22 when a mistyped --pool-dates matched no
+    # session at all.
+    if not animals or not regs:
+        print(f"  !! locanmf_encoder_feve_by_region_pooled.png: nothing to plot "
+              f"({len(animals)} animal(s), {len(regs)} region(s)) from {len(res)} "
+              f"session(s) -- NOT written, the existing figure is left alone.",
+              flush=True)
+        return None
+    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_pooled.png"):
+        return None
     pooled = {a: _pool_region([res[l] for l in by[a]]) for a in animals}
     rows = [f"{a} (n={len(by[a])})" for a in animals]
     M = np.array([_feve_pct(pooled[a], regs, floor) for a in animals])
@@ -494,9 +507,6 @@ def fig_region_feve_pooled(res, out, floor=0.02):
     ax.set_title(f"Encoder FEVE by region — pooled per animal across ALL sessions "
                  f"(100% = encoder captures all position-explainable variance; SSp red / MO blue labels; "
                  f"regions with explainable frac >{floor}, sorted by explainable variance)", fontsize=9.5)
-    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_pooled.png"):
-        plt.close(fig)
-        return None                      # NOT the path: nothing was written to it
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_pooled.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -508,6 +518,19 @@ def fig_region_feve_sessions(res, out, floor=0.02):
     for lab in res:
         by[lab[:4]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
+    # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
+    # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
+    # image data" instead of being declined -- a guard that only works when there is
+    # something to guard. Seen 2026-08-22 when a mistyped --pool-dates matched no
+    # session at all.
+    if not animals or not regs:
+        print(f"  !! locanmf_encoder_feve_by_region_sessions.png: nothing to plot "
+              f"({len(animals)} animal(s), {len(regs)} region(s)) from {len(res)} "
+              f"session(s) -- NOT written, the existing figure is left alone.",
+              flush=True)
+        return None
+    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
+        return None
     labs = [l for a in animals for l in sorted(by[a], key=lambda x: x[-4:])]
     rows = [f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs]
     M = np.array([_feve_pct(res[l], regs, floor) for l in labs])
@@ -519,9 +542,6 @@ def fig_region_feve_sessions(res, out, floor=0.02):
         seen += len(by[a]); ax.axhline(seen - 0.5, color="k", lw=1.2)
     ax.set_title(f"Encoder FEVE by region — individual sessions (grouped by animal) "
                  f"(% of explainable variance captured; 100% = all; regions explainable frac >{floor})", fontsize=9.5)
-    if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
-        plt.close(fig)
-        return None                      # NOT the path: nothing was written to it
     fig.tight_layout(); p = out / "locanmf_encoder_feve_by_region_sessions.png"; fig.savefig(p, dpi=140); plt.close(fig)
     return p
 
@@ -732,6 +752,15 @@ def main() -> int:
     by_animal = {}
     for lab in all_labs:
         by_animal.setdefault(lab[:4], []).append(lab)
+    # THE EV MATRIX HAD NO CALLER. It was written, the deck renders it `if exists()`, and nothing
+    # in the repo produced it -- so the slide was served by a PNG from 2026-08-19 and would have
+    # gone on aging silently, because "figure missing" and "figure stale" look identical to a deck
+    # that only checks existence. Found 2026-08-22 while re-running the encoder.
+    try:
+        q = fig_ev_matrix(by_animal, args.output)
+        print("wrote" if q else "ev_matrix: nothing finite to plot", q.name if q else "", flush=True)
+    except Exception as ex:                                       # noqa: BLE001
+        print(f"fig_ev_matrix: FAILED {type(ex).__name__}: {str(ex)[:80]}", flush=True)
     for a, labs_a in sorted(by_animal.items()):
         for f in (fig_ev_by_position_animal, fig_ev_ceiling_by_position_animal):
             try:
