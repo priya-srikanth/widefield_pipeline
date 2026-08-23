@@ -24,32 +24,34 @@ def test_builds_and_skips_missing(tmp_path):
 def test_places_present_figures_grouped(tmp_path):
     root = tmp_path / "bs"
     for d, t in (("20260817", "100000"), ("20260818", "110000")):
-        for kind, _lbl, _sub, _note in bd.SESSION_FIGS:
+        for kind, _lbl, _sub, _note in bd.SESSION_FIGS:      # behavior, licking
             _png(root / f"sessions/PS92/{d}/PS92_{d}_{t}_{kind}.png")
-    for suffix, _ttl, _sub in bd.ACROSS_METRICS:      # split-out per-metric cross-session figures
+    _png(root / "cohort/by_animal/PS92_raster_grid_p1.png")   # tiled task rasters (8 sessions/slide)
+    for suffix, _ttl, _sub in bd.ACROSS_METRICS:             # split-out per-metric cross-session figures
         _png(root / f"cohort/by_animal/PS92_{suffix}_across_sessions.png")
     _png(root / "cohort/cohort_behavior.png")
     summary = bd.build_behavior_deck(root, tmp_path / "d.pptx", animals=["PS92"])
-    # 2 days x 3 per-session figures (behavior, licking, task raster) + 6 per-metric + cohort
-    assert summary["figures_present"] == 2 * len(bd.SESSION_FIGS) + 7 == 13
+    # 2 days x 2 per-session figs (behavior, licking) + 1 raster-grid page + 6 per-metric + cohort
+    assert summary["figures_present"] == 2 * len(bd.SESSION_FIGS) + 1 + 6 + 1 == 12
     assert summary["figures_missing"] == 0
 
 
-def test_cumulative_task_raster_gets_a_slide_with_a_note(tmp_path):
-    """The rig-GUI raster is on the deck, and its speaker note must say what the colours mean and
-    where the outcomes came from — 'hit' and 'a reward was delivered' are different facts here."""
+def test_cumulative_task_raster_grid_gets_a_slide_with_a_note(tmp_path):
+    """The rig-GUI raster is on the deck as a tiled per-animal grid, and its speaker note must say what
+    the colours mean and where the outcomes came from — 'hit' and 'a reward was delivered' differ."""
     from pptx import Presentation
     root = tmp_path / "bs"
-    _png(root / "sessions/PS92/20260818/PS92_20260818_110000_task_raster.png")
+    _png(root / "cohort/by_animal/PS92_raster_grid_p1.png")
+    _png(root / "cohort/by_animal/PS92_raster_grid_p2.png")   # a second page -> a second slide
     out = tmp_path / "d.pptx"
     bd.build_behavior_deck(root, out, animals=["PS92"])
     prs = Presentation(str(out))
     titles = [sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame]
-    assert any("cumulative task raster — 08/18" in t for t in titles)
+    assert sum("cumulative task rasters" in t.lower() for t in titles) == 2   # both grid pages placed
     notes = [s.notes_slide.notes_text_frame.text for s in prs.slides if s.has_notes_slide]
     raster_note = next(n for n in notes if "Cumulative task raster" in n)
     for must in ("GREEN", "RED", "auto_after_delay", "NOT engagement-gated",
-                 "DAQ recorder", "free_reward_delivered"):
+                 "DAQ recorder", "LONGEST session"):
         assert must in raster_note
     # the free/auto/manual RING was dropped (Priya, 2026-08-22). The note must not describe a marker
     # the figure does not draw -- a legend for something absent is worse than no legend.
@@ -60,8 +62,8 @@ def test_session_fig_kinds_match_the_producer():
     """Deck kinds and spout_behavior's file stems must agree, or a figure silently never appears."""
     from wfield_local import spout_behavior as sb
     kinds = {k for k, _l, _s, _n in bd.SESSION_FIGS}
-    assert kinds == {"behavior", "licking", "task_raster"}
-    assert sb.plot_cumulative_raster.__doc__.count("_task_raster.png")
+    assert kinds == {"behavior", "licking"}                   # the raster moved to a tiled grid
+    assert sb.plot_animal_raster_grid.__doc__.count("raster_grid")
 
 
 def test_prefers_concat_session_figure(tmp_path):

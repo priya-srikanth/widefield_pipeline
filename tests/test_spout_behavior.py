@@ -432,6 +432,21 @@ def test_plot_animal_metric_series_writes_split_figures(tmp_path, monkeypatch):
         "_across_sessions", 1)[0] for p in written}
 
 
+def test_plot_animal_raster_grid_tiles_sessions_on_a_shared_axis(tmp_path):
+    """The tiled raster grid writes one page per <=8 sessions, all normalised to the animal's longest
+    session, from DAQ-or-log trials (here the log fallback)."""
+    pytest.importorskip("matplotlib")
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    for name, n in (("PS92_20260817_100000", 30), ("PS92_20260818_110000", 60)):   # different lengths
+        _write_session(logs, name, [dict(tid=i + 1, pos_idx=i % 6, hit=(i % 2 == 0)) for i in range(n)])
+    params = config.defaults()["behavior"]
+    sessions = [logs / "PS92_20260817_100000", logs / "PS92_20260818_110000"]
+    written = sb.plot_animal_raster_grid("PS92", sessions, tmp_path / "out", params, rv=None)
+    assert [p.name for p in written] == ["PS92_raster_grid_p1.png"]     # 2 sessions -> one page
+    assert written[0].exists() and written[0].stat().st_size > 0
+
+
 def test_stroke_boundary_anchors_on_first_post_keeping_excluded_on_pre_side(monkeypatch):
     """PS92/PS93: pre, EXCLUDED (8/17), post (8/18). The lesion line sits before the first POST (8/18),
     NOT before the first non-pre (8/17) -- so the excluded 8/17 stays on the PRE side and reads as

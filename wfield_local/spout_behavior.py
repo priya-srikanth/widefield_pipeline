@@ -963,6 +963,87 @@ def plot_cumulative_raster(sid: str, out_dir: Path, trials: pd.DataFrame):
     return png
 
 
+RASTER_GRID_ROWS, RASTER_GRID_COLS = 4, 2
+RASTER_GRID_PER_PAGE = RASTER_GRID_ROWS * RASTER_GRID_COLS   # 8 sessions to a slide
+
+
+def _raster_panel(ax, mk: pd.DataFrame, xmax: float, title: str, show_ylabels: bool,
+                  show_xlabel: bool, dot_size: float = 9.0):
+    """Draw one session's cumulative raster into a grid cell on a SHARED x-axis (0..xmax minutes).
+
+    A trimmed form of :func:`_cumulative_raster` for tiling: no per-panel legend or method title,
+    larger relative fonts, y labels only on the left column and the x label only along the bottom."""
+    row_of = {idx: i for i, idx in enumerate(RASTER_ROW_ORDER)}
+    x = mk["t_min"].to_numpy(dtype=float)
+    y = mk["pos_idx"].map(row_of).to_numpy(dtype=float)
+    for i in range(len(RASTER_ROW_ORDER)):
+        ax.axhline(i, color="#e7e7e7", lw=0.8, zorder=0)
+    for kind in ("miss", "earned"):                    # hits drawn last: readable in a dense tail
+        m = (mk["outcome"] == kind).to_numpy()
+        ax.scatter(x[m], y[m], s=dot_size, c=RASTER_COLORS[kind], marker="o", linewidths=0, zorder=2)
+    ax.set_ylim(len(RASTER_ROW_ORDER) - 0.5, -0.5)     # pos 0 on top, like the GUI
+    ax.set_xlim(0, xmax)
+    if show_ylabels:
+        ax.set_yticks(range(len(RASTER_ROW_ORDER)),
+                      [_disp(POS_BY_IDX[i]["name"]) for i in RASTER_ROW_ORDER], fontsize=10)
+        for lab, idx in zip(ax.get_yticklabels(), RASTER_ROW_ORDER):
+            lab.set_color(pos_color(idx))
+    else:
+        ax.set_yticks(range(len(RASTER_ROW_ORDER)), [""] * len(RASTER_ROW_ORDER))
+    ax.tick_params(axis="x", labelsize=10)
+    if show_xlabel:
+        ax.set_xlabel("time in session (min)", fontsize=11)
+    ax.set_title(title, fontsize=12)
+
+
+def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: dict, rv=None):
+    """Tile the animal's per-session cumulative rasters 4x2 (8 dates a slide), every panel on ONE
+    shared x-axis normalised to that animal's LONGEST session so trial pacing reads across days. The
+    axis length is per-animal (a slow animal is not squeezed to match a fast one). One PNG per page of
+    8 sessions -> ``cohort/by_animal/<animal>_raster_grid_p{n}.png``. Returns the paths written."""
+    entries = []
+    for sd in sorted(session_dirs, key=lambda p: _animal_date(p.name)[1]):
+        try:
+            trials = load_trials(sd, rv=rv, params=params)
+        except Exception as e:
+            print(f"[spout_behavior] raster grid skip {sd.name}: {e}", flush=True)
+            continue
+        mk = raster_markers(trials)
+        if mk is None or mk.empty:
+            continue
+        entries.append((_animal_date(sd.name)[1], mk))
+    if not entries:
+        return []
+    xmax = max(float(mk["t_min"].max()) for _, mk in entries) * 1.02
+    outdir = out_dir / "cohort" / "by_animal"
+    outdir.mkdir(parents=True, exist_ok=True)
+    nrows, ncols, per = RASTER_GRID_ROWS, RASTER_GRID_COLS, RASTER_GRID_PER_PAGE
+    npages = (len(entries) + per - 1) // per
+    written = []
+    for pg in range(npages):
+        chunk = entries[pg * per:(pg + 1) * per]
+        fig, axes = plt.subplots(nrows, ncols, figsize=(16, 9))
+        axf = axes.flatten()
+        for i, (date, mk) in enumerate(chunk):
+            _raster_panel(axf[i], mk, xmax, title=f"{date[4:6]}/{date[6:8]}  ({len(mk)} trials)",
+                          show_ylabels=(i % ncols == 0),
+                          show_xlabel=(i + ncols >= len(chunk)))   # nothing below this cell in the page
+        for j in range(len(chunk), len(axf)):
+            axf[j].axis("off")
+        pg_txt = f"  (page {pg + 1}/{npages})" if npages > 1 else ""
+        fig.suptitle(f"{animal} — cumulative task rasters, shared axis to the longest session "
+                     f"({xmax / 1.02:.0f} min){pg_txt}    green = hit,  red = miss    "
+                     f"(DAQ trials, ALL trials — no engagement gate)", fontsize=14)
+        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        p = outdir / f"{animal}_raster_grid_p{pg + 1}.png"
+        fig.savefig(p, dpi=130)
+        plt.close(fig)
+        written.append(p)
+    print(f"[spout_behavior] wrote {len(written)} raster-grid page(s) for {animal} "
+          f"({len(entries)} sessions, xmax={xmax / 1.02:.0f} min)", flush=True)
+    return written
+
+
 def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = False, rv=None,
                  source: str = "auto"):
     """Write the per-session behavior figure + per-position CSV, plus the lick-microstructure figure.
@@ -1235,6 +1316,8 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     for a in anims:                                   # per-animal across-session summaries
         plot_animal_summary(a, df[df["animal"] == a], out_dir)          # combined 2x3 grid (Section G)
         plot_animal_metric_series(a, df[df["animal"] == a], out_dir)    # split-out per-metric (deck)
+        plot_animal_raster_grid(a, [s for s in sessions if _animal_date(s.name)[0] == a],
+                                out_dir, params, rv)                    # tiled task rasters (deck)
     return df
 
 
