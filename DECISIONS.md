@@ -2769,3 +2769,66 @@ The map is doing what it says; the label is what misleads. The contained fix is 
 record the response/ITI split per position in its summary json and print it on the figure, so a
 panel built from non-responses says so. That is a change to the IMAGING box's preprocessing pipeline
 and has not been made.
+
+---
+
+## THE POST-LICK WINDOW SWEEP: 150 ms IS REAL BUT WEAK, AND THE BINNING GAIN IS UNDERSTATED (2026-08-22)
+
+Priya, looking at the preprocessing decks' 150 ms post-lick maps: "could we try an individual
+post-lick-based decoder?" Answered by sweeping the window rather than testing one length. One feature
+extraction per session at 13 sub-bins over the 2 s lick window (154 ms each, matching the maps'
+150 ms almost exactly), then decoding from cumulative subsets — six window lengths for the price of
+one extraction, 44 pre-stroke and 18 post-stroke sessions.
+
+### Two mistakes on the way, both caught by asking the obvious question
+
+**Plain accuracy said post-stroke BEAT pre-stroke at 154 ms** — 0.614 against 0.576, which would have
+supported the maps' appearance. It is class imbalance: the post-stroke sessions are precisely the
+ones that LOST positions (PS94_0817 has zero engaged trials at far_R and far_center, so it is a
+4-way problem scoring 0.824 against a chance of 0.25). On BALANCED accuracy the ordering reverses to
+0.530 against 0.573. The gap between plain and balanced is 0.084 post-stroke and 0.003 pre-stroke,
+which is the imbalance measured directly.
+
+**The window curve confounded DURATION with DIMENSIONALITY** (Priya: "is this a mean or binned?").
+Keeping the first k sub-bins as separate features grows the feature count with the window, 90 → 1170,
+so a rising curve says nothing about time on its own. Re-run with the MEAN over [0, X) — features
+held at ~90 for every row, only duration varying — and the two runs agree exactly at 154 ms, where
+one bin IS the mean.
+
+### Chance-corrected (BA − 1/K)/(1 − 1/K), so sessions with different K are comparable
+
+| window | duration only (pre / post) | with sub-bins (pre / post) | binning gains (pre / post) |
+|---|---|---|---|
+| 154 ms | 0.488 / 0.436 | 0.488 / 0.436 | +0.000 / +0.000 |
+| 308 ms | 0.595 / 0.529 | 0.702 / 0.587 | **+0.107** / +0.057 |
+| 462 ms | 0.680 / 0.596 | 0.797 / 0.646 | **+0.117** / +0.049 |
+| 769 ms | 0.767 / 0.650 | 0.855 / 0.699 | +0.087 / +0.049 |
+| 1231 ms | 0.811 / 0.671 | 0.873 / 0.705 | +0.061 / +0.034 |
+| 2000 ms | **0.816 / 0.671** | 0.865 / 0.694 | +0.049 / +0.023 |
+
+### Three conclusions
+
+**`decode.lick_post_s = 2.0` stays.** An earlier version of this note recommended 1231 ms on the
+strength of the binned curve peaking there. That peak is dimensionality — going from 8 to 13 bins
+costs a little to overfitting — and on duration alone the curve rises monotonically to 2 s. The
+recommendation was withdrawn before it reached the config.
+
+**The +0.023 recorded for sub-binning is a 2 s number and understates it badly elsewhere.** It is
+right where it was measured and reaches **+0.117** at 462 ms. The temporal PROFILE within the window
+carries most of what a longer window adds, which is worth knowing before anyone shortens a window to
+save compute.
+
+**A dedicated 150 ms post-lick decoder is not worth building.** It works — 0.488 pre and 0.436 post
+against a chance of 0, so the window genuinely carries position — but that is ~60% of the full
+window's information, and the pre→post drop is SMALLEST there (−0.052, against −0.145 at 2 s). The
+deficit does not live in the first 150 ms. The observation that prompted it is separately explained:
+those map differences were ITI licking (100% of the licks at PS94's post-stroke far positions) plus a
+3.65x colour-scale difference, and the decoder never saw either, since it uses the first lick inside
+the response window on engaged trials.
+
+### Caveat kept attached
+Three post-stroke sessions have fewer than six positions — PS92_0818 (K=5), PS94_0817 (K=4),
+PS94_0820 (K=5) — and they are the MOST impaired days. The chance-corrected metric makes them
+comparable, but a position the animal never attempts contributes no error, so the post-stroke column
+is optimistic about exactly the sessions that matter most. Per-session results are in
+`E:/cue_lick/lick_window_sweep.json` and `..._mean.json`.
