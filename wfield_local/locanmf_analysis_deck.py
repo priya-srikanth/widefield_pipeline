@@ -1952,19 +1952,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # the follow-up to the lateralisation collapse, not an independent question.
         for _al, _nice in (("cue", "POST-cue"), ("precue", "PRE-cue")):
             for _armf, _armn in (("", "ALL trials"), ("_lickonly", "LICK-ONLY")):
-                _sf = src / f"spatial_reorganisation_{_al}{_armf}.png"
-                if not _sf.exists():
-                    continue
-                s = slide()
-                title(s, f"G8f. Pattern CONVERGENCE and the MIDLINE test ({_nice}, {_armn})",
-                      "Crossnobis is noise-unbiased, so sessions of different trial count and "
-                      "response extent can be compared; the pre-stroke band is rebuilt on each "
-                      "session's OWN positions, because mean distance averages over PAIRS. Bars: "
-                      "correlation with the animal's own pre-stroke pattern (blue) vs the "
-                      "HEMISPHERE-SWAPPED one (orange). Orange above blue would mean the pattern "
-                      "relocated across the midline \u2014 it never happens.")
-                note(s, M_SPATIAL)
-                big(s, _sf, top=1.9, width=11.6)
+                # ONE SLIDE PER PART. spatial_reorganisation draws one column per post-stroke
+                # session and chunks at MAX_COLS_PER_FIG, because a single figure of 18 columns
+                # placed at 11.6 in is 1.3 in tall and unreadable. Part 1 keeps the historical
+                # filename; the rest carry __pN.
+                _sfs = [src / f"spatial_reorganisation_{_al}{_armf}.png"]
+                _sfs += sorted(src.glob(f"spatial_reorganisation_{_al}{_armf}__p*.png"),
+                               key=lambda q: int(q.stem.rsplit("__p", 1)[1]))
+                _sfs = [q for q in _sfs if q.exists()]
+                for _pi, _sf in enumerate(_sfs, 1):
+                    _part = f" \u2014 part {_pi}/{len(_sfs)}" if len(_sfs) > 1 else ""
+                    s = slide()
+                    title(s, f"G8f. Pattern CONVERGENCE and the MIDLINE test ({_nice}, {_armn})"
+                             f"{_part}",
+                          "Crossnobis is noise-unbiased, so sessions of different trial count "
+                          "and response extent can be compared; the pre-stroke band is rebuilt "
+                          "on each session's OWN positions, because mean distance averages "
+                          "over PAIRS. Bars: correlation with the animal's own pre-stroke "
+                          "pattern (blue) vs the "
+                          "HEMISPHERE-SWAPPED one (orange). Orange above blue would mean the "
+                          "pattern relocated across the midline \u2014 it never happens.")
+                    note(s, M_SPATIAL)
+                    big(s, _sf, top=1.9, width=11.6)
 
         # --- G9. what is NOT here, and why
         s = slide()

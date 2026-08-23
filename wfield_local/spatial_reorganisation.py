@@ -356,8 +356,15 @@ def summarise(rows):
     return out
 
 
+#: post-stroke sessions per FIGURE. One column per session and a fixed slide width means every panel
+#: shrinks as the cohort grows: at 18 sessions the figure was 79 in wide, placed at 11.6 in, i.e.
+#: 11.6 x 1.3 in on the slide and unreadable (Priya, 2026-08-23: "these plots are TINY"). Chunking
+#: across figures keeps a panel the same size on day 40 as on day 4.
+MAX_COLS_PER_FIG = 5
+
+
 def plot(rows, summ, out_dir, align="cue"):
-    """One column per POST-STROKE SESSION.
+    """One column per POST-STROKE SESSION, chunked across figures so panels stay legible.
 
     Was one column per ANIMAL, which drew `mirror[labs[0]]` -- the first post-stroke session only.
     Invisible while each animal had one; with two it silently hid day 2. The convergence panel also
@@ -374,6 +381,15 @@ def plot(rows, summ, out_dir, align="cue"):
     if not cols:
         return None
     POS = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
+    chunks = [cols[i:i + MAX_COLS_PER_FIG] for i in range(0, len(cols), MAX_COLS_PER_FIG)]
+    written = []
+    for ci, chunk in enumerate(chunks, 1):
+        written.append(_plot_chunk(chunk, POS, out_dir, align, ci, len(chunks)))
+    return written[0] if written else None
+
+
+def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
+    """One figure for up to MAX_COLS_PER_FIG sessions. Part n of m is stated on the figure."""
     fig, axes = plt.subplots(2, len(cols), figsize=(4.4 * len(cols), 8.6), squeeze=False)
     for k, (a, lab, rec) in enumerate(cols):
         v = rec["convergence"]["post"][lab]
@@ -433,11 +449,24 @@ def plot(rows, summ, out_dir, align="cue"):
         "because a symmetric brain already has substantial mirror correlation and only an excess "
         "over it means anything. Where NEITHER bar is appreciably positive the pattern resembles "
         "nothing and is marked PATTERN LOST -- a different and stronger claim than relocation.",
+        + (f"   [part {part} of {n_parts}]" if n_parts > 1 else ""),
         fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    p = Path(out_dir) / f"spatial_reorganisation_{align}.png"
+    # part 1 keeps the historical filename so an existing deck reference never dangles; parts 2+ get
+    # a __pN suffix the deck globs for.
+    name = (f"spatial_reorganisation_{align}.png" if part == 1
+            else f"spatial_reorganisation_{align}__p{part}.png")
+    p = Path(out_dir) / name
     fig.savefig(p, dpi=150)
     plt.close(fig)
+    # a stale part from a run when the cohort was larger would silently show old sessions
+    if n_parts > 1 and part == n_parts:
+        for extra in sorted(Path(out_dir).glob(f"spatial_reorganisation_{align}__p*.png")):
+            n = int(extra.stem.rsplit("__p", 1)[1])
+            if n > n_parts:
+                print(f"[spatial_reorg] removing stale {extra.name} "
+                      f"(cohort now needs {n_parts} part(s))", flush=True)
+                extra.unlink()
     return p
 
 

@@ -783,7 +783,12 @@ def figure_cross(res, out, align="precue", meth="dom"):
                     ax.text(j, i, f"{M[i, j]:+.2f}" if isdiff else f"{M[i, j]:.2f}",
                             ha="center", va="center", fontsize=6.5)
         ax.set_xticks(range(len(BY_SEVERITY)))
-        ax.set_xticklabels(BY_SEVERITY, rotation=55, ha="right", fontsize=7)
+        # VERTICAL, CENTRED. At 55 degrees with ha="right" a long label extends LEFT of its tick
+        # and, with five panels across, is clipped by the neighbouring axes -- "far_center" and
+        # "close_center" both rendered as "center" and "close_R" as "-lose_R", so two columns
+        # appeared to have the same label (Priya, 2026-08-23). Vertical labels extend only
+        # downward, which nothing else occupies.
+        ax.set_xticklabels(BY_SEVERITY, rotation=90, ha="center", fontsize=7)
         ax.set_yticks(range(len(BY_SEVERITY)))
         ax.set_yticklabels(BY_SEVERITY if k == 0 else [], fontsize=7)
         ax.set_title(("BASELINE: " if not isdiff else "minus baseline: ") + STYLE[c][2],
@@ -798,7 +803,7 @@ def figure_cross(res, out, align="precue", meth="dom"):
         f"column's position than pre-stroke, blue = less. A row going red OFF the diagonal is a "
         f"remapping. CAVEAT: one-vs-rest axes for MIDDLE positions are largely close-vs-far \u2014 "
         f"see the pairwise figure.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.85))
+    fig.tight_layout(rect=(0, 0.04, 1, 0.85))
     q = Path(out) / f"coding_cross_{disp}_{meth}_{res['animal']}.png"
     fig.savefig(q, dpi=150)
     plt.close(fig)
@@ -832,6 +837,21 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
                         yerr=[0 if e is None else e for e in es], fmt="-", marker=mk, color=col,
                         ecolor=col, elinewidth=1.0, capsize=2.5, ms=5.5, lw=1.3,
                         label=(lab if k == 0 else None))
+        # WHERE THE PARTNER POSITION ACTUALLY SITS (Priya, 2026-08-23: "why aren't we showing the
+        # compared position for reference?"). The 0 line is pre-stroke B BY DEFINITION -- it is the
+        # pole, not a measurement -- so it says nothing about where B ended up. Post-stroke B is the
+        # reference that matters: if A has moved to 0.4 and B is still at 0.05 the two are still
+        # apart, and if B has come up to 0.35 they have converged. The value is already in the
+        # B|A cell, where the same axis is anchored the other way round; by linearity
+        # proj_B|A = 1 - proj_A|B exactly, so it is read back with 1 - x rather than recomputed.
+        partner = []
+        for B in others:
+            cc = (R["pairwise"].get("poststroke_lick", {}).get(f"{B}|{A}") or {})
+            partner.append(None if cc.get("mean") is None else 1.0 - cc["mean"])
+        if any(v is not None for v in partner):
+            ax.plot(x, [np.nan if v is None else v for v in partner], ls="--", lw=1.2,
+                    color="tab:green", marker="x", ms=6, alpha=0.75,
+                    label=("post-stroke LICK at the PARTNER position" if k == 0 else None))
         ax.axhline(1.0, color="tab:blue", ls=":", lw=1.0, alpha=0.7)
         ax.axhline(0.0, color="k", ls=":", lw=1.0, alpha=0.7)
         ax.set_xticks(x)
@@ -839,12 +859,21 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
         ax.set_title(f"trials truly at {A}", fontsize=9.5)
         ax.grid(alpha=0.25)
         if k % 3 == 0:
-            ax.set_ylabel("1 = pre-stroke THIS position,  0 = pre-stroke the OTHER one")
+            # SHORT. The full sentence collided with itself between the two rows; the meaning of the
+            # 0 and 1 anchors belongs in the suptitle, where it is written once.
+            ax.set_ylabel("projection", fontsize=9)
     fig.legend(loc="lower center", ncol=5, fontsize=8.5, frameon=False)
-    fig.suptitle(f"{res['animal']} \u2014 {disp}, {meth.upper()}. PAIRWISE axes \u2014 the sharper remapping instrument: each contrast is A vs B alone, "
-                 f"panel's position, how far toward each OTHER position does the class sit?\n"
-                 f"Dropping toward 0 against a particular partner is that trial set looking like "
-                 f"THAT position. Bars = SEM.", fontsize=10)
+    fig.suptitle(
+        f"{res['animal']} \u2014 {disp}, {meth.upper()}. PAIRWISE axes: each contrast is A vs B "
+        f"ALONE. For trials truly at the panel's position, how far toward each OTHER position does "
+        f"each class sit?\n"
+        f"SCALE: 1 = pre-stroke lick at THIS position, 0 = pre-stroke lick at the OTHER one. Both "
+        f"are DEFINITIONS -- the axis is anchored on them -- so the flat blue line at 1 is the "
+        f"anchor, not a result; only its scatter is data.\n"
+        f"Dropping toward 0 against a particular partner is that trial set looking like THAT "
+        f"position. The dashed green x marks where post-stroke lick at the PARTNER position "
+        f"actually sits, so convergence can be read directly rather than inferred. Bars = SEM.",
+        fontsize=9)
     fig.tight_layout(rect=(0, 0.07, 1, 0.90))
     q = Path(out) / f"coding_pairwise_{disp}_{meth}_{res['animal']}.png"
     fig.savefig(q, dpi=150)

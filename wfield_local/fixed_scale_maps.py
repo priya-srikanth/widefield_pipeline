@@ -87,7 +87,7 @@ def _position_maps(s, align="cue", post_s=2.0):
     return maps, counts
 
 
-def animal_maps(animal, align="cue", max_post=2, post_s=2.0):
+def animal_maps(animal, align="cue", max_post=None, post_s=2.0):
     """(pre-stroke mean map per position, {post label -> maps}, counts) for one animal.
 
     ``post_s`` is the WINDOW LENGTH, and it was previously fixed at 2 s because `_position_maps`
@@ -114,17 +114,63 @@ def animal_maps(animal, align="cue", max_post=2, post_s=2.0):
             if m:
                 post[s["label"]] = (m, c)
     pre_mean = {p: np.mean(v, axis=0) for p, v in pre_maps.items() if len(v) >= 3}
-    return pre_mean, dict(sorted(post.items())[:max_post])
+    # EVERY post-stroke session by default. This was capped at the first TWO, which silently dropped
+    # 0819 onward from every figure -- exactly the "no silent caps" failure: the figure looked
+    # complete, and a reader comparing it against a per-session deck would find days that simply were
+    # not there (Priya, 2026-08-23: "ensure the shared axis SVD maps generate for all post-stroke
+    # dates"). If a cap is ever passed again, say what it dropped.
+    ordered = sorted(post.items())
+    if max_post is not None and len(ordered) > max_post:
+        dropped = [lab for lab, _ in ordered[max_post:]]
+        print(f"[fixed_scale_maps] {animal}: --max-post {max_post} DROPS {len(dropped)} "
+              f"post-stroke session(s): {', '.join(dropped)}", flush=True)
+        ordered = ordered[:max_post]
+    return pre_mean, dict(ordered)
+
+
+#: post-stroke sessions per FIGURE. Rows are sessions, so with every post-stroke day shown the
+#: figure grows without bound -- at 18 it is 19 rows on one slide and each map is unreadable, the
+#: same failure as the G8f strip. Chunking keeps a map the same size however long the cohort runs.
+MAX_POST_PER_FIG = 4
 
 
 def plot(animal, pre_mean, post, out_dir, align, post_s):
+    """Chunked across figures, with the PRE-STROKE row repeated at the top of every part.
+
+    The pre-stroke row is the reference the whole figure exists to compare against, so a part
+    without it is unreadable on its own (Priya, 2026-08-23). It costs one row per part and makes
+    each slide self-contained.
+
+    THE COLOUR LIMIT IS COMPUTED ACROSS EVERY PART, not per part. Re-deriving it per chunk would
+    give each slide its own scale, which is precisely the auto-scaling defect this whole module
+    exists to fix -- and it would be invisible, because each part would look internally consistent.
+    """
     if not pre_mean or not post:
         return None
     POS = [p for p in (POSITION_NAMES[c] for c in DISPLAY_ORDER) if p in pre_mean]
-    cols = [("PRE-stroke mean", pre_mean, None)] + [(lab, m, c) for lab, (m, c) in post.items()]
-    # ONE colour limit for every panel -- the entire point of the figure
-    allv = np.concatenate([np.asarray(m[p]).ravel() for _t, m, _c in cols for p in POS if p in m])
+    pre_row = ("PRE-stroke mean", pre_mean, None)
+    post_rows = [(lab, m, c) for lab, (m, c) in post.items()]
+    # ONE colour limit for every panel of every PART -- the entire point of the figure
+    allv = np.concatenate([np.asarray(m[p]).ravel()
+                           for _t, m, _c in [pre_row] + post_rows for p in POS if p in m])
     lim = float(np.nanpercentile(np.abs(allv), 99.5))
+    chunks = [post_rows[i:i + MAX_POST_PER_FIG]
+              for i in range(0, len(post_rows), MAX_POST_PER_FIG)] or [[]]
+    written = []
+    for ci, chunk in enumerate(chunks, 1):
+        written.append(_plot_part(animal, [pre_row] + chunk, POS, lim, out_dir, align, post_s,
+                                  ci, len(chunks)))
+    # a stale part from a run when the cohort was larger would silently show old sessions
+    tag = align if abs(post_s - 2.0) < 1e-9 else f"{align}{round(post_s * 1000)}ms"
+    for extra in sorted(Path(out_dir).glob(f"fixed_scale_maps_{animal}_{tag}__p*.png")):
+        if int(extra.stem.rsplit("__p", 1)[1]) > len(chunks):
+            print(f"[fixed_scale_maps] removing stale {extra.name}", flush=True)
+            extra.unlink()
+    return written[0]
+
+
+def _plot_part(animal, cols, POS, lim, out_dir, align, post_s, part, n_parts):
+    """One figure: the pre-stroke row plus up to MAX_POST_PER_FIG post-stroke sessions."""
     # SESSIONS AS ROWS, POSITIONS AS COLUMNS. The transpose of this was 6 rows x 2-3 columns, i.e.
     # 17-32 inches tall against 7-10 wide. Placed on a 13.3 x 7.5 in slide at full width it ran far
     # off the bottom and the lower positions were never visible at all; scaled to fit, it was
@@ -167,6 +213,8 @@ def plot(animal, pre_mean, post, out_dir, align, post_s):
     fig.colorbar(im, cax=cax)
     fig.suptitle(
         f"{animal} - {align}-aligned activity maps, {round(post_s * 1000)} ms window, on ONE COMMON "
+        + (f"[part {part} of {n_parts}, PRE row repeated; the colour limit is shared "
+           f"across ALL parts] " if n_parts > 1 else "") + 
         f"COLOUR SCALE (+-{lim:.3f}).\n"
         "The per-session maps in the preprocessing deck are auto-scaled, so every session fills the "
         "same colour range and an amplitude difference is invisible -- only the colourbar NUMBER "
@@ -179,7 +227,9 @@ def plot(animal, pre_mean, post, out_dir, align, post_s):
     # the window goes in the FILENAME whenever it is not the historical 2 s, so a 150 ms
     # figure can never overwrite the 2 s one or be mistaken for it
     _tag = align if abs(post_s - 2.0) < 1e-9 else f"{align}{round(post_s * 1000)}ms"
-    q = Path(out_dir) / f"fixed_scale_maps_{animal}_{_tag}.png"
+    # part 1 keeps the historical filename so no existing deck reference dangles
+    q = Path(out_dir) / (f"fixed_scale_maps_{animal}_{_tag}.png" if part == 1
+                         else f"fixed_scale_maps_{animal}_{_tag}__p{part}.png")
     fig.savefig(q, dpi=140)
     plt.close(fig)
     return q
@@ -193,6 +243,9 @@ def main(argv=None) -> int:
     ap.add_argument("--post-s", type=float, default=2.0,
                     help="window length in seconds (default 2.0; the preprocessing "
                          "decks' post-lick maps are 0.15)")
+    ap.add_argument("--max-post", type=int, default=None,
+                    help="cap the number of post-stroke sessions shown (default: ALL). A cap is "
+                         "reported, never silent.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
@@ -201,7 +254,7 @@ def main(argv=None) -> int:
         for a in animals:
             print(f"[fixed_scale_maps] {a} {align} ...", flush=True)
             try:
-                pre, post = animal_maps(a, align, post_s=args.post_s)
+                pre, post = animal_maps(a, align, max_post=args.max_post, post_s=args.post_s)
             except Exception as ex:                                  # noqa: BLE001
                 print(f"  {a}: skip ({str(ex)[:70]})", flush=True)
                 continue
