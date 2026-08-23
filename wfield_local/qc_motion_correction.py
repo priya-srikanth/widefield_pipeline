@@ -50,6 +50,30 @@ def _focus(img: np.ndarray) -> float:
     return float(ndimage.laplace(img.astype(np.float64)).var())
 
 
+def _interp_cost(img, dy, dx):
+    """Sharpness of ``img`` after ONE pass through the same interpolator, at zero shift.
+
+    WHY THE RAW MEAN IS THE WRONG DENOMINATOR. Correction does two things to sharpness: it removes
+    motion blur (a gain) and it resamples every frame at non-integer offsets (a cost -- bilinear
+    interpolation is a low-pass filter, and variance-of-Laplacian is a pure high-frequency metric).
+    Comparing corrected against RAW measures gain MINUS cost, so a session with sub-pixel motion --
+    which is most of them -- scores below 1 on a perfect correction and reads as damage.
+
+    Measured over 80 sessions on 2026-08-23: 78% scored below 1, and the ratio correlates +0.70 with
+    MEDIAN shift and -0.01 with MAX shift. That is the signature of an interpolation cost that only
+    pays for itself when there was real motion to remove: the top motion quartile averages 1.13, the
+    rest 0.69-0.84. PS93_0606 at 8.69 px median comes out 2.52x sharper.
+
+    THE SHIFT MUST BE FRACTIONAL. A first attempt passed the image through at ZERO offset, which
+    costs exactly nothing: bilinear interpolation at an integer offset has weights 1 and 0, so it is
+    the identity. Measured 0.0% cost, which is the giveaway. The cost lives entirely in the
+    FRACTIONAL part of each shift, so the baseline applies the session's own typical fractional
+    offset -- one pass, matching the one pass the correction applies.
+    """
+    return _focus(ndimage.shift(img.astype(np.float64), (float(dy), float(dx)),
+                                order=1, mode="nearest"))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="QC motion correction for one session.")
     ap.add_argument("--motion-dir", type=Path, required=True)
@@ -110,6 +134,16 @@ def main() -> int:
         print("image QC skipped:", exc, flush=True)
 
     focus_ratio = (focus["corrected"] / focus["raw"]) if (focus["raw"] and focus["corrected"]) else None
+    # ALIGNMENT GAIN, with the interpolation cost divided out. See _interp_cost: focus_ratio alone
+    # is gain MINUS cost and sits below 1 on most sessions even when the correction is perfect.
+    # the session's own typical FRACTIONAL offset -- integer parts are free, so they must not
+    # dilute the estimate of what interpolation actually costs this data.
+    _fy = float(np.median(np.abs(y_t - np.round(y_t)))) if len(y_t) else 0.0
+    _fx = float(np.median(np.abs(x_t - np.round(x_t)))) if len(x_t) else 0.0
+    focus["interp_frac_shift"] = [_fy, _fx]
+    focus["raw_interp"] = (_interp_cost(mean_raw, _fy, _fx) if mean_raw is not None else None)
+    focus_gain = ((focus["corrected"] / focus["raw_interp"])
+                  if (focus.get("raw_interp") and focus["corrected"]) else None)
 
     # ---- figure ----
     fig, ax = plt.subplots(2, 3, figsize=(17, 9))
@@ -130,7 +164,10 @@ def main() -> int:
     # a perfect correction, so it must not flag low-motion sessions.
     p95 = float(np.percentile(mag_pair, 95))
     med = float(np.median(mag_pair))
-    focus_ok = (focus_ratio is None) or (p95 < 1.5) or (focus_ratio >= 0.9)
+    # Judge on the GAIN, not the raw ratio. The p95 escape stays: with sub-pixel motion there is
+    # nothing to sharpen, so neither number carries information about the correction's quality.
+    _judge = focus_gain if focus_gain is not None else focus_ratio
+    focus_ok = (_judge is None) or (p95 < 1.5) or (_judge >= 0.9)
     if frac_big < 0.001 and med < 1.0 and focus_ok:
         verdict = "GOOD"
     elif frac_big < 0.02 and focus_ok:
@@ -149,7 +186,10 @@ def main() -> int:
         "",
         f"focus raw: {focus['raw']:.1f}" if focus['raw'] else "focus raw: n/a",
         f"focus corrected: {focus['corrected']:.1f}" if focus['corrected'] else "focus corrected: n/a",
-        f"focus ratio (cor/raw): {focus_ratio:.2f}" if focus_ratio else "focus ratio: n/a",
+        (f"focus: alignment gain {focus_gain:.2f} (cor / raw-through-interpolator)"
+         if focus_gain else "focus gain: n/a"),
+        (f"        raw ratio {focus_ratio:.2f} (cor/raw -- includes the interpolation cost, so <1 "
+         f"is normal at sub-pixel motion)" if focus_ratio else ""),
         "(>1 = sharper after correction)",
     ]
     ax[0, 2].text(0.02, 0.98, "\n".join(lines), va="top", ha="left", fontsize=11, family="monospace")
@@ -174,6 +214,7 @@ def main() -> int:
         "frac_over_warn": frac_warn, "frac_over_big": frac_big, "frac_near_search_limit": near_max,
         "warn_px": args.warn_px, "big_px": args.big_px,
         "focus_raw": focus["raw"], "focus_corrected": focus["corrected"], "focus_ratio": focus_ratio,
+        "focus_raw_interpolated": focus.get("raw_interp"), "focus_gain": focus_gain,
         "rotation_min_max": [float(np.nanmin(rot_t)), float(np.nanmax(rot_t))],
         "notes": "shift magnitude = max over channels per pair; imagery excludes frames > big_px.",
     }
