@@ -62,3 +62,48 @@ def test_mixed_names_resolve_to_the_most_specific_alignment():
     """'precue' contains 'cue'; the pre-cue reading must win, or the window is stated backwards."""
     line = window_provenance(["locanmf_encoder_precue_thing.png"])
     assert "PRE-CUE" in line and "ENDS at the cue" in line
+
+
+def test_two_notes_sharing_a_long_prefix_are_not_deduped_together():
+    """The note dedup must key on the WHOLE text.
+
+    On 2026-08-23 _M_LICK_UNIT was prepended to M_FIXEDSCALE, M_GATE and M_POSTSTROKE -- three
+    unrelated methods blocks that then shared their first 80 characters. A prefix key would have
+    rendered the second and third as "METHODS -- same as slide N" pointing at the FIRST one's
+    methods. A wrong cross-reference reads exactly like a right one, so it is worse than the
+    repetition the dedup was added to remove.
+    """
+    import hashlib
+
+    from wfield_local import locanmf_analysis_deck as deck
+
+    blocks = {n: getattr(deck, n) for n in dir(deck)
+              if n.startswith("M_") and isinstance(getattr(deck, n), str)}
+    by_hash = {}
+    for n, t in blocks.items():
+        by_hash.setdefault(hashlib.sha1(t.encode("utf-8")).hexdigest(), []).append(n)
+    dupes = {h: v for h, v in by_hash.items() if len(v) > 1}
+    assert not dupes, f"distinct methods blocks hash the same: {list(dupes.values())}"
+
+    prefix_shared = {}
+    for n, t in blocks.items():
+        prefix_shared.setdefault(t[:80], []).append(n)
+    shared = [v for v in prefix_shared.values() if len(v) > 1]
+    if shared:
+        # not a failure -- it is the CONDITION that made the prefix key wrong. Assert the real key
+        # separates them, so this test keeps its meaning as the notes change.
+        for group in shared:
+            hs = {hashlib.sha1(blocks[n].encode("utf-8")).hexdigest() for n in group}
+            assert len(hs) == len(group), (
+                f"{group} share a prefix AND a key -- the dedup would cross-reference them wrongly")
+
+
+def test_the_dedup_key_is_not_a_prefix():
+    """Source-level, because the failure is silent and only shows up as a wrong slide number."""
+    import inspect
+
+    from wfield_local import locanmf_analysis_deck as deck
+
+    src = inspect.getsource(deck.build_analysis_deck)
+    assert 'key = (text or "")[:80]' not in src, "the dedup key is a prefix again"
+    assert "hashlib.sha1" in src

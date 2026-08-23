@@ -36,6 +36,7 @@ from whatever figures are present.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shutil
 import time
 from pathlib import Path
@@ -999,7 +1000,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         parts = []
         if specific:
             parts.append("THIS SLIDE" + chr(10) + specific.strip())
-        key = (text or "")[:80]
+        # HASH THE WHOLE TEXT, not a prefix. This keyed on text[:80] until 2026-08-23, when
+        # _M_LICK_UNIT was PREPENDED to M_FIXEDSCALE, M_GATE and M_POSTSTROKE -- three unrelated
+        # methods blocks that then shared their first 80 characters. The dedup would have called the
+        # second and third "same as slide N" and pointed each at the FIRST one's methods: a wrong
+        # cross-reference reads exactly like a right one, which is worse than the repetition this
+        # replaced.
+        key = hashlib.sha1((text or "").encode("utf-8")).hexdigest()
         if not text:
             pass
         elif key in seen_methods:
