@@ -459,6 +459,25 @@ def test_run_expands_a_date_range_into_each_session(tmp_path, monkeypatch):
     assert sorted(seen) == ["PS92_20260606_120000", "PS92_20260805_120000"]
 
 
+def test_cohort_and_deck_span_all_animals_even_with_only_subset(tmp_path, monkeypatch):
+    """A per-animal night (`camera_nightly --only PS92 PS93`) must NOT shrink the cohort figure or the
+    standing deck to that subset -- they are cohort-wide artifacts. Regression: the `--only` animals
+    were forwarded into cohort_summary + the deck build, silently dropping PS94/PS95 from the deck."""
+    rv = sb.PathResolver(machine="analysis")
+    monkeypatch.setattr(rv, "root", lambda n: str(tmp_path / "out"))
+    captured = {}
+    monkeypatch.setattr(sb, "cohort_summary",
+                        lambda rv_, dates, animals, out_dir, dry=False: captured.__setitem__("cohort", animals))
+    import wfield_local.behavior_deck as bd
+    monkeypatch.setattr(bd, "build_behavior_deck",
+                        lambda root, out, animals=None: (captured.__setitem__("deck", animals),
+                                                         {"out": str(out), "slides": 0,
+                                                          "figures_present": 0, "figures_missing": 0})[1])
+    sb.run(None, rv, animals=["PS92", "PS93"], cohort=True, from_spec="curated", dry=False)
+    assert captured["cohort"] is None, "cohort figure was scoped to the --only subset"
+    assert captured["deck"] is None, "standing deck was scoped to the --only subset"
+
+
 def test_run_warns_when_a_date_spec_matches_nothing(tmp_path, monkeypatch, capsys):
     logs = tmp_path / "logs"
     logs.mkdir()

@@ -1429,11 +1429,15 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
             dates = _curated_dates(rv)          # anchors + 'onward' window -> auto-includes 8/8, 8/9, ...
         elif from_spec:
             dates = config.expand_dates(from_spec)
-        cohort_summary(rv, dates, animals, out_dir, dry=dry)
+        # The cohort figure and the standing deck are COHORT-WIDE artifacts: a per-animal night
+        # (`camera_nightly --only PS92 PS93`) must not shrink them to that subset and silently drop
+        # the other animals from the deck. The per-DATE session figures above are correctly scoped by
+        # `animals`; these are not — always span every registered animal.
+        cohort_summary(rv, dates, None, out_dir, dry=dry)
         if not dry:                                 # assemble the standing behavior deck from the figures
             try:
                 from wfield_local.behavior_deck import build_behavior_deck
-                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=animals)
+                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=None)
                 print(f"[spout_behavior] wrote behavior deck: {Path(d['out']).name} "
                       f"({d['slides']} slides, {d['figures_present']} figs, {d['figures_missing']} missing)",
                       flush=True)
