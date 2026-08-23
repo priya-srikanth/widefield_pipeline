@@ -131,3 +131,34 @@ def test_the_gate_warning_is_not_pasted_into_notes_that_do_not_split_trials():
     for name in ("M_HEMI", "M_VESSEL", "M_HEMIDYN"):
         assert deck.M_GATE not in ALL_NOTES[name], (
             f"{name} reads raw fluorescence and does not split on a lick -- M_GATE does not apply")
+
+
+def test_every_lick_aligned_note_says_which_lick():
+    """ANALYSIS = one reference per TRIAL (first lick in the window). PREPROCESSING = one per LICK.
+
+    Neither convention said so, and the silence made the two decks look contradictory: PS94 8/17
+    far_R is n=83 on the preprocessing map and "not attempted" on fixed_scale_maps, because those 83
+    licks belonged to fewer than 8 trials. The preprocessing note also claimed "First-lick-aligned
+    maps" for a figure that has never been first-lick.
+    """
+    from wfield_local import locanmf_analysis_deck as deck
+
+    unstated = [n for n, v in ALL_NOTES.items()
+                if "lick" in v.lower() and deck._M_LICK_UNIT not in v and n != "_M_LICK_UNIT"]
+    assert not unstated, (
+        f"{sorted(unstated)} mention licks but do not state whether an n counts TRIALS or LICKS; "
+        f"append _M_LICK_UNIT (or embed M_COMMON / M_GATE, which carry it)")
+
+
+def test_the_preprocessing_deck_states_the_other_convention():
+    """The complement: the preprocessing note must say EVERY lick, and must not claim first-lick."""
+    from wfield_local import preprocess_deck as pdeck
+
+    gate = pdeck._M_LICK_GATE
+    assert "EVERY lick inside a trial" in gate
+    assert "NOT the first lick of each trial" in gate
+    for key in ("lick_maps", "lick_quietnorm", "lick_pairwise", "cue_vs_lick"):
+        note = pdeck.METHOD_NOTES[key]
+        assert gate in note, f"{key} is a lick figure and must carry the unit + gate note"
+        assert "First-lick-aligned" not in note, (
+            f"{key} said 'First-lick-aligned', which that figure has never been")

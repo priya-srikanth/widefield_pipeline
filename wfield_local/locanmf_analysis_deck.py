@@ -53,6 +53,25 @@ GREY = RGBColor(0x55, 0x55, 0x55)
 
 
 # ---- methodology blurbs for the speaker NOTES (how each figure is made) ----
+#: THE UNIT, stated on every note whose figure is lick-aligned.
+#:
+#: Every ANALYSIS figure aligned to the lick takes one reference per TRIAL -- the first lick inside
+#: the response window, on engaged trials. Every PREPROCESSING deck post-lick map takes one per
+#: LICK. Both are right for what they are, and neither said so, which made them look like they
+#: contradicted each other: PS94 8/17 far_R reads n=83 on the preprocessing map and "not attempted"
+#: on fixed_scale_maps, because those 83 licks belonged to fewer than 8 trials (Priya, 2026-08-23:
+#: "but there ARE still first-lick-aligned maps, right?").
+_M_LICK_UNIT = (
+    "\n\nUNIT -- THE FIRST LICK OF EACH TRIAL. Everything lick-aligned on the ANALYSIS side takes "
+    "ONE reference per TRIAL: that trial's FIRST lick, on ENGAGED trials (engaged = a lick within "
+    "decode.max_rt_s of the cue -- NOT the task's timing.response_window, which is a different "
+    "setting that happens to hold the same value). An n "
+    "here therefore counts TRIALS. The PREPROCESSING deck's post-lick maps use the other "
+    "convention, one reference per LICK (every lick inside a trial), so an n there counts LICKS and "
+    "is several times larger. Both are right for what they are; the two must NOT be compared by n. "
+    "PS94 8/17 far_R is n=83 on the preprocessing map and 'not attempted' on fixed_scale_maps, "
+    "because those 83 licks belonged to fewer than 8 trials.")
+
 M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored NMF, r2=0.95, "
             "loc_thresh=80, maxrank=20). Spout position per trial from the DAQ spout-strobe bits; when the "
             "DAQ is short a bit (Aug-2026 dead bit1) it is repaired from the behavior-log pos_idx via "
@@ -68,6 +87,8 @@ M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored 
             "unrewarded trials, so unrewarded trials remain available for the post-stroke failed-attempt "
             "analysis. Curated pre-stroke sessions only (6/6-6/8 + 8/6 onward). HEMODYNAMIC/DRIFT REMOVAL (adopted 2026-08-14, docs/PREPROCESSING_DECISION.md): every panel in this deck -- decoders, encoders, RSA and the activity MAPS -- is built on the meegkit_hpfit SVTcorr, not the pipeline default. The default removes drift with a ZERO-PHASE 0.1 Hz filter, which is acausal: it smears each post-cue response BACKWARDS and inflated pre-cue decoding by ~0.21 across 36 sessions. meegkit_hpfit keeps that high-pass for the hemodynamic COEFFICIENT fit (which is what it is for) and replaces it for the OUTPUT with de Cheveigne robust polynomial detrending (order 10, 600 s) on a mask excluding whole trials. Post-cue decoding IMPROVED (0.684 -> 0.759) and the shadow signature vanished (negative pre/post correlation in 30/36 sessions -> 2/36)."
             "\n\nEVERY NUMBER QUOTED IN THESE NOTES WAS COMPUTED WITH THE ENGAGED CUT AT 2.0 s. On 2026-08-21 decode.max_rt_s moved to 3.5 s -- the task's real response window -- because the no-lick arm was holding rewarded hits (39.3% of it for PS92, 33.9% for PS93). Trials licking between 2.0 and 3.5 s move from the no-lick arm into the engaged one, so every decode/encode number shifts on the next rebuild. The FIGURES are current; the numbers written into this prose are pre-change until re-measured. CACHE_VERSION was bumped so nothing silently reuses the old features.")
+
+M_COMMON = M_COMMON + _M_LICK_UNIT
 
 M_DECODE = ("Decoder: multinomial logistic regression (L2, C=0.5) on standardized component activities, 6 "
             "positions, chance=0.167. Activity = a SUB-BINNED TIME COURSE over the aligned window (adopted 2026-08-14), NO per-trial baseline: the window is split into equal bins and their means concatenated, so the decoder sees the window's temporal profile rather than one number. Pre-cue and post-cue use 4 x 0.5 s, post-lick 8 x 0.25 s (configs/defaults.yaml decode.bins). PRE-CUE SUB-BINNING IS UNESTABLISHED (re-measured on all 44 curated sessions, 2026-08-17): +0.009 over the plain 2 s mean, better in 23/44 -- a coin flip. The +0.032 previously quoted here came from a 16-session pilot and did not replicate. roll2x1.0 is nominally best (+0.016, 28/44) but is the max of six arms scored on the same sessions. precue=4 is retained because changing it would move every pre-cue number again for no demonstrated gain, not because it is better. Post-cue (+0.020) and post-lick (+0.023) remain 16-session pilot values and have NOT been re-run. Bin WIDTH matters only post-event -- 0.25 s wins post-lick but OVER-slices pre-cue. "
@@ -303,6 +324,7 @@ M_VESSEL = (
     "retraction stands.")
 
 M_FIXEDSCALE = (
+    _M_LICK_UNIT +
     "PRE- vs POST-STROKE ACTIVITY MAPS ON ONE COMMON COLOUR SCALE (wfield_local.fixed_scale_maps). "
     "Built to answer Priya directly: the preprocessing decks show much larger amplitude bars post-stroke, and the question was whether any existing figure bears that out. None does, and one "
     "actively hides it."
@@ -558,6 +580,7 @@ M_CODING_DIR = (
 
 
 M_POSTSTROKE = (
+    _M_LICK_UNIT +
     "POST-STROKE COMPARISON (wfield_local.poststroke_compare / plot_poststroke). THE COHORT HAS TWO "
     "LESION DATES (configs/animals.yaml stroke_date). PS94/PS95: 2026-08-16 at 3 mW, deficit -> "
     "stroke_date 20260816, and 8/17 is their first POST-stroke session. PS92/PS93: the 8/16 attempt "
@@ -701,6 +724,7 @@ M_RSA = ("Per session build a 6x6 representational matrix from the 6 position me
 # M_HEMI / M_VESSEL / M_HEMIDYN / M_FIXEDSCALE read RAW fluorescence and never split on a lick --
 # adding it there would warn about a dependency they do not have.
 M_GATE = (
+    _M_LICK_UNIT +
     "\n\nENGAGED CUT: numbers here predate 2026-08-21. decode.max_rt_s was 2.0 s while the task's "
     "response window is 3.5 s, so trials licking between the two were scored as NO-LICK -- 39.3% of "
     "PS92's no-lick arm and 33.9% of PS93's. The cut is now 3.5 s. Anything on this slide that rests "
