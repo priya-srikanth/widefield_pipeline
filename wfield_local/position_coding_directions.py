@@ -19,12 +19,30 @@ therefore compares the spout, not the state, which is what produced a spurious P
 first pass. Fitting per position and comparing only WITHIN a position removes that by construction.
 
 THE TWO POST-STROKE FAILURE MODES (Priya, 2026-08-20):
-  MISS WHILE WORKING  the animal is still working the task and fails to lick at THIS position.
-                      Position-specific, and graded by SEVERITY: far_R > far_center > far_L >
-                      close_R > close_center > close_L -- contraversive within each ring, far
-                      worse than close throughout.
-  STOPPED             the animal has quit for the day and licks nowhere. Verified position-GENERAL:
-                      inside that window the response rate is ~0 at every position, close included.
+  MISS WHILE WORKING  no spout contact at THIS position, while the animal is still contacting at
+                      others. Position-specific, and graded by SEVERITY: far_R > far_center >
+                      far_L > close_R > close_center > close_L -- contraversive within each ring,
+                      far worse than close throughout.
+  STOPPED             no spout contact anywhere, for a sustained non-recovering run. Position-
+                      GENERAL: inside that window the response rate is ~0 at every position, close
+                      included.
+
+BOTH ARE DEFINED BY SPOUT CONTACT, NOT BY ATTEMPTING (Priya, 2026-08-23: "its not clear the animal
+isnt trying in the 'stopped' trials - i still sometimes see reactive jaw movement"). A "lick" here is
+a detected event on `lick_analog`, i.e. the tongue REACHING the spout, and `engagement_gate` sees
+only that. A jaw movement, a tongue protrusion that falls short, or a mistimed reach all produce zero
+lick events and are indistinguishable from lying still.
+
+That matters most exactly where the deficit is. If the lesion impairs REACHING the contraversive
+spout, "failed to contact" is the deficit's signature rather than evidence about intention -- so
+STOPPED is NOT a "not trying" control, and a class labelled by non-response cannot support a claim
+about whether a plan formed. The fix is movement onset from the Blackfly VIDEO rather than contact
+from the spout sensor, which would split the miss class into attempted-but-no-contact (a motor
+deficit) and no-attempt (a plan deficit); those have opposite predictions here and no DAQ-only
+analysis can separate them. See DECISIONS.md.
+
+The `poststroke_lick` class is unaffected -- those trials have a contact by definition -- which is a
+further reason to prefer the same-class pre-vs-post comparison wherever both are available.
 
 WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
   ENL   all five classes. Nothing has happened yet, and the window is already lick-free by

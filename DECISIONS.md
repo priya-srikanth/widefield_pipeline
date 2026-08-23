@@ -3029,3 +3029,103 @@ anything coherent replaced it is unmeasured.**
   tongue would decouple "which spout was cued" from "how the tongue actually moved", give a
   continuous variable instead of six labels, and work on the trials the animal DOES perform. The
   video and the DAQ↔camera alignment templates already exist; the tracking does not.
+
+---
+
+## DEFERRED: POOLING POST-STROKE SESSIONS BY EPOCH (2026-08-23)
+
+Priya: "we may later pool sessions by poststroke epoch (eg acute, subacute, chronic) based on
+behavioral phenotype, but too soon to do this while still collecting data."
+
+Recorded now because it constrains how the per-session analyses are STORED, and that decision is
+being made today whether or not anyone notices.
+
+**Why per-session is the right granularity while the epochs are unknown.** `position_axes.json` and
+the `cross_by_session` / `pairwise_by_session` blocks key every cell by session label, so pooling by
+epoch later is a regrouping of stored numbers rather than another pass -- about 40 minutes per animal
+per window, since the cost is the feature load and not the fitting. Had these been written as pooled
+summaries, the epoch question would have required recomputing everything, and the epoch boundaries
+would then have been chosen while looking at the answers.
+
+**The trap to avoid when the time comes.** Epochs defined by BEHAVIOURAL phenotype and then used to
+test for NEURAL differences between epochs are not independent evidence -- the grouping already
+encodes the behaviour, so "the neural measure differs between epochs" can be true by construction.
+Two ways out, both cheaper to adopt now than to retrofit:
+
+  * fix the epoch criterion IN ADVANCE from behaviour alone (a stated response-rate or latency rule,
+    written down before the neural numbers are looked at), and treat the epoch labels as data rather
+    than as something to tune; or
+  * skip the categories entirely and report the neural measure as a CONTINUOUS function of the
+    behavioural one -- day-by-day response rate at the contraversive positions against day-by-day
+    disattenuated axis change. That needs no boundaries, uses every session, and is what the
+    per-session storage already supports.
+
+The second is the stronger analysis and the reason not to rush the first. Categories would be worth
+it only if the trajectory turns out to be genuinely stepwise rather than graded, which is itself an
+empirical question the per-session view can answer.
+
+**Not yet, deliberately.** The cohort is still being collected, the animals are 5-6 post-stroke
+sessions in, and the one trajectory measured so far (post-stroke lick coding value: PS95 1.27 -> 0.63,
+PS93 flat at ~0.65, all four converging near 0.6) has no obvious breakpoint. Defining acute /
+subacute / chronic on 5 days of data would be fitting boundaries to noise.
+
+---
+
+## "STOPPED" AND "MISS" ARE DEFINED BY SPOUT CONTACT, NOT BY ATTEMPTING (2026-08-23)
+
+Priya, watching the videos: "its not clear the animal isnt trying in the 'stopped' trials - i still
+sometimes see reactive jaw movement."
+
+This qualifies every result that leans on the miss / stopped distinction, so it is recorded before
+the distinction gets used further.
+
+### What the labels actually measure
+
+A "lick" in this pipeline is a detected event on `lick_analog` -- **tongue contact with the spout**,
+double-threshold with a lockout and the 40 ms ILI floor. `engagement_gate` sees only `responded`,
+which is "a detected lick inside the response window". Therefore:
+
+    MISS-while-working   no spout CONTACT on this trial, while still contacting on others
+    STOPPED              no spout CONTACT for a sustained, non-recovering run
+
+Neither is a statement about attempting. A jaw movement, a tongue protrusion that falls short, a
+mistimed reach -- all produce zero lick events and are indistinguishable from lying still.
+
+### Why that matters most exactly where the deficit is
+
+If the lesion impairs REACHING the contraversive spout, "failed to contact" is the deficit's
+signature rather than evidence about intention. The behavioural readout and the thing being explained
+are then the same variable measured once.
+
+Specifically qualified:
+
+- **STOPPED IS NOT A "NOT TRYING" CONTROL.** It was added on 2026-08-23 to separate two readings of
+  the miss result -- changed in miss but intact in stopped would mean the change is specific to
+  attempted-and-failed trials. That inference does not hold if stopped trials contain attempts, and
+  a null there is ambiguous rather than informative.
+- **The 22% of miss-class position axes with NO coherent representation** may be trials with a real
+  attempt and an intact plan, not trials where no plan formed.
+- **The engagement gate's own justification** -- reward is auto-held after a miss run, so a sated
+  animal's late misses are disengagement rather than spatial inaccuracy -- rests on the same
+  assumption that non-response means non-attempt.
+
+### The fix, and why it is now foundational rather than an enhancement
+
+Jaw and tongue movement are visible on the Blackfly video, and the DAQ-camera alignment templates
+already exist (`wfield_local/camera_sync.py`, one per cam per date). With movement onset taken from
+VIDEO instead of contact from the spout sensor, the miss class splits into two that are currently
+fused:
+
+    attempted, no contact   -> a motor / reaching deficit
+    no attempt              -> a plan or motivation deficit
+
+Those have opposite predictions for the pre-cue axis, and no DAQ-only analysis can separate them.
+This was previously proposed as a way to measure tongue KINEMATICS better (decoupling "which spout
+was cued" from "how the tongue actually moved"). It is more than that: the current trial taxonomy may
+be mislabelled at the class level, and every neural result conditioned on those classes inherits it.
+
+### What is NOT affected
+The `poststroke_lick` class is unaffected -- those trials have a contact by definition. Results
+comparing pre-stroke lick with post-stroke lick (the same-class control) do not depend on this at
+all, which is a further reason to prefer that comparison over the cross-class one wherever both are
+available.
