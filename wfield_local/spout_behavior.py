@@ -1241,16 +1241,19 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
 def _stroke_boundary(animal, dates):
     """x-position of the pre/post-stroke boundary for `plot_animal_summary`, or None.
 
-    Returned as a half-integer BETWEEN the last pre-stroke session and the first non-pre one, since
-    the lesion happened between two nights rather than on a session. Also returns the indices whose
-    phase is `excluded` (PS92/PS93 8/17: lesioned 8/16, no deficit, re-lesioned after that session)
-    so they can be marked instead of being read as post-stroke.
+    Returned as a half-integer immediately BEFORE the first POST-stroke session, since the lesion
+    happened between two nights rather than on a session. Anchored on the first `post` (not the first
+    non-`pre`) so an `excluded` session stays on the PRE side of the line and reads as excluded, not
+    post-stroke: PS92/PS93 8/17 was lesioned 8/16 with no deficit and re-lesioned after that session,
+    so their effective lesion is 8/18 — the line sits between 8/17 and 8/18 while 8/17 is shaded.
+    Also returns the `excluded` indices so they can be marked.
     """
     phases = [config.session_phase(animal, d) for d in dates]
-    first_non_pre = next((i for i, ph in enumerate(phases) if ph != "pre"), None)
-    if first_non_pre in (None, 0):
-        return None, [i for i, ph in enumerate(phases) if ph == "excluded"]
-    return first_non_pre - 0.5, [i for i, ph in enumerate(phases) if ph == "excluded"]
+    excl = [i for i, ph in enumerate(phases) if ph == "excluded"]
+    first_post = next((i for i, ph in enumerate(phases) if ph == "post"), None)
+    if first_post in (None, 0):
+        return None, excl
+    return first_post - 0.5, excl
 
 
 def _mark_stroke(ax, bx, excluded_idx, annotate=False):

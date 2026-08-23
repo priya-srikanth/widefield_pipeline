@@ -432,6 +432,37 @@ def test_plot_animal_metric_series_writes_split_figures(tmp_path, monkeypatch):
         "_across_sessions", 1)[0] for p in written}
 
 
+def test_stroke_boundary_anchors_on_first_post_keeping_excluded_on_pre_side(monkeypatch):
+    """PS92/PS93: pre, EXCLUDED (8/17), post (8/18). The lesion line sits before the first POST (8/18),
+    NOT before the first non-pre (8/17) -- so the excluded 8/17 stays on the PRE side and reads as
+    excluded, not post-stroke. Their effective lesion is 8/18 (re-lesioned after the 8/17 session)."""
+    dates = ["20260814", "20260817", "20260818", "20260819"]
+    phases = {"20260814": "pre", "20260817": "excluded", "20260818": "post", "20260819": "post"}
+    monkeypatch.setattr(sb.config, "session_phase", lambda a, d: phases[d])
+    bx, excl = sb._stroke_boundary("PS92", dates)
+    assert bx == 1.5                        # between 8/17 (idx 1) and 8/18 (idx 2)
+    assert excl == [1]                      # 8/17 is shaded...
+    assert excl[0] < bx                     # ...and sits to the LEFT of the lesion line
+
+
+def test_stroke_boundary_no_excluded_sits_before_first_post(monkeypatch):
+    """PS94/PS95: pre then post (8/17) with no excluded session -> line just before 8/17."""
+    dates = ["20260814", "20260817", "20260818"]
+    phases = {"20260814": "pre", "20260817": "post", "20260818": "post"}
+    monkeypatch.setattr(sb.config, "session_phase", lambda a, d: phases[d])
+    bx, excl = sb._stroke_boundary("PS95", dates)
+    assert bx == 0.5 and excl == []
+
+
+def test_stroke_boundary_none_when_no_post_yet(monkeypatch):
+    """An excluded session with no post session yet draws no line but is still reported as excluded."""
+    dates = ["20260814", "20260817"]
+    phases = {"20260814": "pre", "20260817": "excluded"}
+    monkeypatch.setattr(sb.config, "session_phase", lambda a, d: phases[d])
+    bx, excl = sb._stroke_boundary("PS92", dates)
+    assert bx is None and excl == [1]
+
+
 def test_daq_h5_for_missing(tmp_path):
     class _RV:
         def root(self, name):
