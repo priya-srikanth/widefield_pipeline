@@ -1096,6 +1096,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             r2.font.size = Pt(15)
             r2.font.color.rgb = GREY
 
+    # A SESSION THAT DOES NOT EXIST IS NOT A MISSING FIGURE.
+    # The per-session slides iterate animals x dates, which assumes every animal ran every night.
+    # It does not: 8/22 is PS92 and PS93 only, and the deck counted eight PS94/PS95 figures as
+    # missing and refused to publish over sessions that were never recorded (2026-08-23). The
+    # completeness gate is worth keeping -- it is what catches a step that genuinely failed -- so
+    # the fix is to stop it expecting the impossible rather than to loosen it.
+    _registered = {(config.animal_of(x["label"]), x["label"].split("_")[-1])
+                   for x in config.load_sessions()}
+
+    def have(animal, mmdd) -> bool:
+        """Was this animal actually recorded on this date?"""
+        return (animal, mmdd) in _registered
+
     def sess(label, align):
         return src / f"locanmf_position_session_{label}_locanmf_{align}_base-none_cv-block.png"
 
@@ -1177,13 +1190,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
               "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).")
         note(s, M_DECODE)
-        grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels], cols=3)
+        grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
+             cols=3)
         s = slide()
         title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
               "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
               "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.")
         note(s, M_DECODE + M_PRECUE_CAVEAT)
-        grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels], cols=3)
+        grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
+             cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
@@ -1300,7 +1315,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           f"Per date: confusion + per-position recall from a decoder trained on this "
                           f"animal's OTHER days only. {al_desc}.")
                     note(s, m_dec + cav)
-                    grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png" for d, _ in page],
+                    grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png"
+                             for d, _ in page if have(a, d)],
                          cols=2, top=1.35)
             s = slide()
             title(s, f"FROZEN decoder ({al_name}, {bname}): transfer cost & OOD control — all "
