@@ -448,7 +448,10 @@ def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
         "relocated across the midline. Dashed grey = the pre-stroke mirror-minus-normal baseline, "
         "because a symmetric brain already has substantial mirror correlation and only an excess "
         "over it means anything. Where NEITHER bar is appreciably positive the pattern resembles "
-        "nothing and is marked PATTERN LOST -- a different and stronger claim than relocation.",
+        "nothing and is marked PATTERN LOST -- a different and stronger claim than relocation."
+        # NO COMMA on the line above: it would close the suptitle argument and turn the `+` below
+        # into a UNARY plus on a string -- "bad operand type for unary +: 'str'", which is what took
+        # both spatial_reorganisation runs down on 2026-08-23.
         + (f"   [part {part} of {n_parts}]" if n_parts > 1 else ""),
         fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
