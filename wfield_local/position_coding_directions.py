@@ -110,6 +110,9 @@ MAX_SEM_DRAWN = 0.25
 #:   PER-ANIMAL   coding_<kind>_<window>_<method>_<animal>.png   (engagement omits the method)
 #:   COHORT       coding_<kind>_<window>_<method>.png
 FIGURE_KINDS = ("direction", "pooled", "within", "cross", "pairwise", "normunit")
+#: per-post-stroke-session pairwise, one figure PER CLASS (five classes on one figure
+#: with N sessions each would be unreadable). Named coding_pairsess_<win>_<meth>_<cls>_<animal>.
+PAIRSESS_CLASSES = ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
 FIGURE_KINDS_NOMETHOD = ("engagement",)
 COHORT_FIGURE_KINDS = ("cosslope", "pairsplit")
 
@@ -432,8 +435,18 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     not_eng, frac_nl, frac_e = _g
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
+    # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
+    # against the obvious artefact: the joint basis has FIXED footprints, and a session not in the
+    # fitting set is PROJECTED onto them. If the basis describes later days progressively worse,
+    # every projection shrinks and manufactures a decline with no neural change (Priya, 2026-08-23).
+    # `in_basis` matters: those sessions are recorded as 1.0 by CONSTRUCTION, not measured, so only
+    # the projected ones can be compared -- which is fine, since post-stroke sessions are projected.
+    _vc = getattr(feat, "variance_captured", {}) or {}
     sessions = [{"label": kept[i], "date": kept[i].split("_")[1],
-                 "phase": ("pre" if i in pre_i else "post")} for i in order]
+                 "phase": ("pre" if i in pre_i else "post"),
+                 "in_basis": bool(kept[i] in basis.labels),
+                 "variance_captured": (None if kept[i] not in _vc else float(_vc[kept[i]]))}
+                for i in order]
 
     def trials(cls, pos=None, sess=None):
         """Feature rows for one class, optionally restricted to a position and/or session."""
@@ -571,6 +584,28 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 mat[P] = row
             res["cross_matrix"][c] = mat
 
+        # ---- 2a2. THE SAME MATRIX, PER POST-STROKE SESSION ----------------------------------
+        # Pooled, a recovery and a collapse average to "no change". Same directions, same poles --
+        # only the trials projected change (Priya, 2026-08-23).
+        res["cross_by_session"] = {}
+        for c in ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped"):
+            if c not in classes:
+                continue
+            per = {}
+            for i in order:
+                if i in pre_i:
+                    continue
+                mat_i = {}
+                for P in BY_SEVERITY:
+                    row = {}
+                    for D in BY_SEVERITY:
+                        if D not in W:
+                            continue
+                        row[D] = _cells(proj(c, trials(c, P, sess=i), D))
+                    mat_i[P] = row
+                per[kept[i]] = mat_i
+            res["cross_by_session"][c] = per
+
         # ---- 2b. POOLED across every session of the phase, and BINNED WITHIN a session --------
         # Pooled because the per-session view showed the classes are noisy at that grain -- swings
         # as large as any trend. Within-session because engagement is GRADED: a miss-while-working
@@ -601,6 +636,27 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         # ---- 3. PAIRWISE axes: A vs B directly, no five-way mixture in the contrast -----------
         # Sharper for the remapping question: "not-P" above averages five positions, so a trial can
         # look unlike P without the axis saying WHICH other position it resembles.
+        # THE DENOMINATOR OF EVERY PAIRWISE VALUE, recorded so the figure can show it. The
+        # projection divides by the pre-stroke separation of A and B, so a pair that was barely
+        # distinguishable to begin with AMPLIFIES the same absolute displacement -- which is exactly
+        # where the largest |values| turn up, and was invisible on the figure (Priya, 2026-08-23).
+        res["pairwise_axes"] = {}
+        PW = {}          # key -> (w, pole_B, pole_A), fitted once and reused
+        for A in BY_SEVERITY:
+            for B in BY_SEVERITY:
+                if A == B:
+                    continue
+                XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
+                if len(XA) < 20 or len(XB) < 20:
+                    continue
+                wab = direction(XA, XB, base_m)
+                if do_orth and e_axis is not None:
+                    wab = orthogonalise(wab, e_axis)
+                a0, a1 = poles(XA, XB, wab)
+                res["pairwise_axes"][f"{A}|{B}"] = {
+                    "spread": float(a1 - a0), "n_A": len(XA), "n_B": len(XB)}
+                PW[f"{A}|{B}"] = (wab, a0, a1)
+
         for c in classes:
             pw = {}
             for A in BY_SEVERITY:
@@ -627,12 +683,33 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                                 ch.append(project(XE[m], wi, r0, r1))
                         pw[f"{A}|{B}"] = _cells(np.concatenate(ch) if ch else [])
                         continue
-                    wab = direction(XA, XB, base_m)
-                    if do_orth:
-                        wab = orthogonalise(wab, e_axis)
-                    q0, q1 = poles(XA, XB, wab)        # 0 = pre-stroke B, 1 = pre-stroke A
+                    got = PW.get(f"{A}|{B}")       # fitted once above; 0 = pre-stroke B, 1 = A
+                    if got is None:
+                        continue
+                    wab, q0, q1 = got
                     pw[f"{A}|{B}"] = _cells(project(trials(c, A), wab, q0, q1))
             res["pairwise"][c] = pw
+
+        # ---- 3b. PAIRWISE, PER POST-STROKE SESSION ------------------------------------------
+        # The pooled pairwise figure averages every post-stroke day into one number, and this repo
+        # already knows those classes MOVE -- PS94's miss-while-working swings +1.05 to -0.68
+        # between adjacent sessions. Pooling was chosen deliberately to tame that noise, and its
+        # honest cost is that a recovery and a collapse average to "no change" (Priya, 2026-08-23).
+        # Same axes, no refitting: only the trials being projected change.
+        res["pairwise_by_session"] = {}
+        for c in ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped"):
+            if c not in classes:
+                continue
+            by = {}
+            for key, (wab, q0, q1) in PW.items():
+                A = key.split("|")[0]
+                rows = {}
+                for i in order:
+                    if i in pre_i:
+                        continue
+                    rows[kept[i]] = _cells(project(trials(c, A, sess=i), wab, q0, q1))
+                by[key] = rows
+            res["pairwise_by_session"][c] = by
 
         # ---- 4. DIAGNOSTICS: why a panel reads the way it does -------------------------------
         # Folded in HERE rather than given their own module because every one of them needs the
@@ -855,7 +932,15 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
         ax.axhline(1.0, color="tab:blue", ls=":", lw=1.0, alpha=0.7)
         ax.axhline(0.0, color="k", ls=":", lw=1.0, alpha=0.7)
         ax.set_xticks(x)
-        ax.set_xticklabels(others, rotation=55, ha="right", fontsize=7.5)
+        # THE SEPARATION IS THE DENOMINATOR, so a small one amplifies. Shown under each partner
+        # rather than left to be inferred: the largest |values| on this figure sit against the
+        # partners a position was least distinguishable from pre-stroke.
+        axes_meta = R.get("pairwise_axes") or {}
+        ticks = []
+        for B in others:
+            sp = (axes_meta.get(f"{A}|{B}") or {}).get("spread")
+            ticks.append(B if sp is None else f"{B}\n(sep {sp:.2f})")
+        ax.set_xticklabels(ticks, rotation=55, ha="right", fontsize=7)
         ax.set_title(f"trials truly at {A}", fontsize=9.5)
         ax.grid(alpha=0.25)
         if k % 3 == 0:
@@ -872,7 +957,10 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
         f"anchor, not a result; only its scatter is data.\n"
         f"Dropping toward 0 against a particular partner is that trial set looking like THAT "
         f"position. The dashed green x marks where post-stroke lick at the PARTNER position "
-        f"actually sits, so convergence can be read directly rather than inferred. Bars = SEM.",
+        f"actually sits, so convergence can be read directly rather than inferred. Bars = SEM.\n"
+        f"(sep N) under each partner is the PRE-STROKE separation of that pair -- the denominator. "
+        f"A small separation amplifies the same absolute displacement, which is where the "
+        f"largest values on this figure come from.",
         fontsize=9)
     fig.tight_layout(rect=(0, 0.07, 1, 0.90))
     q = Path(out) / f"coding_pairwise_{disp}_{meth}_{res['animal']}.png"
@@ -880,6 +968,147 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
     plt.close(fig)
     return q
 
+
+
+def figure_pairwise_sessions(res, out, align="precue", meth="dom", cls="poststroke_miss_working"):
+    """ONE post-stroke class, one panel per position, a dot per POST-STROKE SESSION.
+
+    WHY THIS IS SEPARATE FROM `figure_pairwise` RATHER THAN ANOTHER LINE ON IT. That figure already
+    carries five classes; adding N sessions to each would be 5 x N lines per panel and unreadable.
+    Splitting by class keeps a panel to one class over time, which is the question the figure is for
+    (Priya, 2026-08-23: "show dots for each post-stroke session").
+
+    SEQUENTIAL COLOUR = DATE, so time reads left-to-right in the legend and dark-to-light in the
+    panel. The pooled value is drawn as a grey line behind the dots: if the dots straddle it widely,
+    the pooled pairwise figure is averaging a moving target and should not be read as a state.
+    """
+    if not res or meth not in res.get("methods", {}):
+        return None
+    disp, R = dict(ALIGNS)[align], res["methods"][meth]
+    by = (R.get("pairwise_by_session") or {}).get(cls) or {}
+    if not by:
+        return None
+    labs = sorted({lab for rows in by.values() for lab in rows})
+    if not labs:
+        return None
+    cmap = plt.get_cmap("viridis")
+    col = {lab: cmap(0.12 + 0.76 * (i / max(len(labs) - 1, 1))) for i, lab in enumerate(labs)}
+
+    fig, axes = plt.subplots(2, 3, figsize=(17.0, 8.4), squeeze=False, sharey=True)
+    drew = False
+    for k, A in enumerate(BY_SEVERITY):
+        ax = axes[k // 3][k % 3]
+        others = [B for B in BY_SEVERITY if B != A]
+        x = np.arange(len(others))
+        # POOLED, behind: the number the other pairwise figure shows
+        pooled = [((R.get("pairwise", {}).get(cls, {}).get(f"{A}|{B}") or {}).get("mean"))
+                  for B in others]
+        if any(v is not None for v in pooled):
+            ax.plot(x, [np.nan if v is None else v for v in pooled], color="0.55", lw=3.0,
+                    alpha=0.55, zorder=1, label=("POOLED over all sessions" if k == 0 else None))
+        for lab in labs:
+            ys, es = [], []
+            for B in others:
+                cc = (by.get(f"{A}|{B}") or {}).get(lab) or {}
+                ys.append(cc.get("mean"))
+                es.append(cc.get("sem"))
+            if all(v is None for v in ys):
+                continue
+            drew = True
+            ax.errorbar(x, [np.nan if v is None else v for v in ys],
+                        yerr=[0 if e is None else e for e in es], fmt="-o", ms=5, lw=1.2,
+                        color=col[lab], ecolor=col[lab], elinewidth=0.9, capsize=2, zorder=3,
+                        label=(lab.split("_")[-1] if k == 0 else None))
+        ax.axhline(1.0, color="tab:blue", ls=":", lw=1.0, alpha=0.7)
+        ax.axhline(0.0, color="k", ls=":", lw=1.0, alpha=0.7)
+        ax.set_xticks(x)
+        meta = R.get("pairwise_axes") or {}
+        ax.set_xticklabels(
+            [f"{B}\n(sep {(meta.get(f'{A}|{B}') or {}).get('spread', float('nan')):.2f})"
+             for B in others], rotation=55, ha="right", fontsize=7)
+        ax.set_title(f"trials truly at {A}", fontsize=9.5)
+        ax.grid(alpha=0.25)
+        if k % 3 == 0:
+            ax.set_ylabel("projection", fontsize=9)
+    if not drew:
+        plt.close(fig)
+        return None
+    fig.legend(loc="lower center", ncol=min(len(labs) + 1, 8), fontsize=8, frameon=False)
+    fig.suptitle(
+        f"{res['animal']} \u2014 {disp}, {meth.upper()}: {STYLE[cls][2]}, ONE DOT PER POST-STROKE "
+        f"SESSION.\n1 = pre-stroke lick at THIS position, 0 = pre-stroke lick at the OTHER one; "
+        f"both are DEFINITIONS, so the anchors are not results. Dropping toward 0 against a "
+        f"particular partner is that trial set looking like THAT position \u2014 but a drop against "
+        f"EVERY partner is loss of this position's pattern, not resemblance to all of them.\n"
+        f"Grey = the pooled value the other pairwise figure shows. Dots straddling it widely mean "
+        f"that figure is averaging a moving target. (sep N) is the pre-stroke separation of the "
+        f"pair, i.e. the denominator: a small one amplifies.", fontsize=9)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.86))
+    q = Path(out) / f"coding_pairsess_{disp}_{meth}_{cls}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
+def figure_cross_sessions(res, out, align="precue", meth="dom", cls="poststroke_miss_working"):
+    """ONE post-stroke class, one 6x6 matrix PER SESSION, each a difference from the baseline.
+
+    The pooled cross matrix is one number per cell over every post-stroke day. This is the same
+    quantity resolved in time, which is the only way to tell a settled state from a moving one.
+    Chunked so a panel stays the same size however long the cohort runs.
+    """
+    if not res or meth not in res.get("methods", {}):
+        return None
+    disp, R = dict(ALIGNS)[align], res["methods"][meth]
+    per = (R.get("cross_by_session") or {}).get(cls) or {}
+    base = (R.get("cross_matrix") or {}).get("prestroke_lick") or {}
+    if not per or not base:
+        return None
+    labs = sorted(per)
+    B = np.array([[(base.get(P, {}).get(D) or {}).get("mean", np.nan) for D in BY_SEVERITY]
+                  for P in BY_SEVERITY], float)
+
+    mats = []
+    for lab in labs:
+        M = np.array([[(per[lab].get(P, {}).get(D) or {}).get("mean", np.nan)
+                       for D in BY_SEVERITY] for P in BY_SEVERITY], float)
+        if np.isfinite(M).any():
+            mats.append((lab, M - B))
+    if not mats:
+        return None
+    lim = float(np.nanpercentile(np.abs(np.array([m for _l, m in mats])), 98)) or 1.0
+
+    n = len(mats)
+    cols = min(n, 4)
+    rows = int(np.ceil(n / cols))
+    fig, axes = plt.subplots(rows, cols, figsize=(4.0 * cols, 3.9 * rows), squeeze=False)
+    for k, (lab, M) in enumerate(mats):
+        ax = axes[k // cols][k % cols]
+        im = ax.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim)
+        for r in range(len(BY_SEVERITY)):
+            for cc in range(len(BY_SEVERITY)):
+                if np.isfinite(M[r, cc]):
+                    ax.text(cc, r, f"{M[r, cc]:+.1f}", ha="center", va="center", fontsize=6)
+        ax.set_xticks(range(len(BY_SEVERITY)))
+        ax.set_xticklabels(BY_SEVERITY, rotation=90, ha="center", fontsize=6.5)
+        ax.set_yticks(range(len(BY_SEVERITY)))
+        ax.set_yticklabels(BY_SEVERITY if k % cols == 0 else [], fontsize=6.5)
+        ax.set_title(lab, fontsize=9)
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+    for j in range(n, rows * cols):
+        axes[j // cols][j % cols].axis("off")
+    fig.suptitle(
+        f"{res['animal']} \u2014 {disp}, {meth.upper()}: {STYLE[cls][2]}, MINUS the pre-stroke "
+        f"baseline, ONE MATRIX PER SESSION.\nRows = TRUE spout position, columns = the direction "
+        f"scored on. Red = more like the column's position than pre-stroke, blue = less. A row "
+        f"going red OFF the diagonal is a remapping; a row going blue ACROSS is loss of that "
+        f"position's pattern. Read across sessions: a settled deficit looks the same each day, a "
+        f"moving one does not.", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    q = Path(out) / f"coding_crosssess_{disp}_{meth}_{cls}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
 
 def figure_pooled(res, out, align="precue", meth="dom"):
     """Every class per position, POOLED over all sessions of its phase.
@@ -1265,6 +1494,9 @@ def main(argv=None) -> int:
                 for fn in (figure_animal, figure_pooled, figure_within_session,
                            figure_cross, figure_pairwise, figure_norm_unit):
                     _draw(fn, res[an], out, align=align, meth=meth)
+                for _cls in PAIRSESS_CLASSES:
+                    _draw(figure_pairwise_sessions, res[an], out, align=align, meth=meth, cls=_cls)
+                    _draw(figure_cross_sessions, res[an], out, align=align, meth=meth, cls=_cls)
         # COHORT-level diagnostics: both describe how the AXES behave across animals, so neither can
         # be drawn per animal -- the pairwise split in particular VANISHES when animals are pooled,
         # which is the whole reason it is a figure.

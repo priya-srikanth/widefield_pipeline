@@ -2876,3 +2876,156 @@ check against a shrunken date set, another against an inflated animal x date set
 after the thing it guarded, a refusal reported as a write). Each time the number was true and the
 thing it was measured against was not.
 
+---
+
+## THE PER-SESSION VIEW OVERTURNS THE POOLED ONE, AND THE BASIS IS NOT TO BLAME (2026-08-23)
+
+Priya asked whether the coding-direction plots were pooled over post-stroke sessions. They were —
+`trials(c, P)` was called without a session argument everywhere except the one-vs-rest time course,
+so the cross matrix and every pairwise cell averaged all post-stroke days into one number. The pooled
+figure was chosen deliberately (the per-session view "showed swings as large as any trend", PS94's
+miss-while-working going +1.05 to −0.68 between adjacent sessions), and its honest cost is that a
+recovery and a collapse average to "no change".
+
+`cross_by_session` and `pairwise_by_session` now store the same quantities per post-stroke session,
+using the same directions and poles — only the projected trials change, so nothing is refitted.
+
+### What the pooled numbers were hiding
+
+Post-stroke LICK, pairwise mean over all pairs, ENL:
+
+| animal | 0817 | 0818 | 0819 | 0820 | 0821 | 0822 |
+|---|---|---|---|---|---|---|
+| PS95 | **1.27** | 0.98 | 0.92 | 0.62 | 0.63 | — |
+| PS94 | 0.82 | 0.60 | 0.60 | 0.71 | **0.48** | — |
+| PS92 | — | 0.73 | 1.10 | 1.04 | 0.78 | **0.63** |
+| PS93 | — | 0.56 | 0.67 | 0.65 | 0.68 | 0.65 |
+
+**PS95 declines monotonically 1.27 → 0.63** — the animal the pooled value (+1.05) called intact.
+**PS93 is flat at ~0.65 from day one.** All four converge near 0.6 by 8/21–8/22. So "severity-graded"
+is the wrong frame for the pooled numbers; what the data shows is a **progressive decline that
+severity sets the ONSET of, not the endpoint**, with PS93 starting where the others finish.
+
+Separately, PS94's cross matrix GEOMETRY is settled from 0817 and unchanged through 0821 — close
+trials shifted toward the far columns and away from close_center, identically every session — while
+its magnitude declines. Geometry and magnitude are separable claims and should be kept apart.
+
+### THE BASIS ARTEFACT CHECK — negative, and this is the one that licensed the above
+
+The joint basis has FIXED footprints; a session outside the fitting set is PROJECTED onto them. If it
+described later days progressively worse, every projection would shrink and manufacture exactly this
+decline. `variance_captured` is now stored per session (with `in_basis`, because sessions that built
+the basis are recorded as 1.0 by CONSTRUCTION and would poison the correlation).
+
+    r(variance_captured, coding value) over 20 projected sessions = +0.174
+    variance_captured spans 0.9631-0.9952 (0.032);  coding value spans 0.623
+    at the fitted slope the FULL vc span explains 0.126, i.e. 20% of the observed spread
+    dropping the single worst-fit session (PS94_0821, vc 0.9631): r = -0.228
+
+The basis describes every post-stroke session above 96% and within 3.2% of the others. **The decline
+is neural.** Caveat: this tests basis QUALITY, not basis APPROPRIATENESS — footprints can describe a
+reorganised cortex's variance well while no longer being the right parts. Only refitting could see
+that, and refitting defeats the point of a frozen basis.
+
+---
+
+## THE MISS CLASS IS WHERE THE CONTRAVERSIVE DATA LIVES (2026-08-23)
+
+Priya: "what about the miss but working trials?" The lick class cannot speak to contraversive-far
+encoding at all — the animal stopped licking there, so `far_R|far_L` has **n=5 for PS94 and n=15 for
+PS92**. The MISS class has **182–399**: the animal was cued to far_R and did not respond, so the
+trial exists and carries the intended position with no movement. That is the pre-cue plan, which is
+what this study is about.
+
+Pre-cue, miss-while-working, pure-lateral far axis (1 = pre-stroke A, 0 = pre-stroke partner):
+
+| animal | far_R trials | far_L trials |
+|---|---|---|
+| **PS92** | **−0.00** (n=355) | **+1.35** (n=132) |
+| PS93 | +0.30 | +0.38 |
+| PS94 | +0.59 | +0.48 |
+| PS95 | +0.61 | +0.61 |
+
+**PS92's far_R pre-cue pattern sits exactly on pre-stroke far_L** while its far_L is hyper-preserved.
+A lateralisation-specific collapse, and the cleanest in the cohort.
+
+**THIS CORRECTS A CLAIM MADE EARLIER THE SAME DAY.** PS92 was put in the "code intact" group on its
+pooled LICK value of +1.12. That number is computed over the positions it still licks, and PS92 on
+8/21 was 4 hits / 79 trials at far_R with a 2.02 s latency. The lick class was reporting that the
+animal is fine because it only licks where it can.
+
+---
+
+## WHAT CHANGES ABOUT LATERAL ENCODING — the analysis, and three things that had to be fixed first
+
+Priya, 2026-08-23: "what is changing about how lateralized tongue movements are encoded in cortex?"
+The six-label position code cannot answer this directly, so it is split into its two task dimensions
+and the LATERAL one is fitted as its own axis: `w_side = mean(LEFT spouts) − mean(RIGHT spouts)`,
+difference-of-means, unit-normalised, orthogonalised against engagement, in the (component × 0.5 s
+sub-bin) ENL feature space. Every animal is lesioned LEFT, so RIGHT is contraversive.
+
+### First it said the wrong thing, for three separate reasons
+
+**1. The distance component did not always cancel.** Pooling `close_L+far_L` against `close_R+far_R`
+removes close-vs-far only if the two sets match in close/far composition. Measured: fine pre-stroke
+(|imbalance| ≤ 0.05) and fine post-stroke for PS94 (+0.01) and PS95 (−0.04), but **PS93 −0.17** and
+PS92 −0.11. So the axis is fitted WITHIN A RING — `far_L` vs `far_R`, `close_L` vs `close_R` — where
+no distance component can enter. Note that both sets go from ~0.48 far pre-stroke to ~0.80 post: the
+post-stroke side axis is fitted mostly on far trials in every animal.
+
+**2. There was no null.** `cos(pre-axis, post-axis)` means nothing without knowing how reproducible
+the axis is at that trial count. Pre-stroke NO-LICK was the obvious null and is a bad one — Priya:
+those trials are the sated tail, "a fundamentally different animal state", and orthogonalising
+against the engagement axis removes only its linear component. **SPLIT-HALF of pre-stroke LICK,
+subsampled to the post-stroke n**, is the right floor: same animal, same state, no lesion, 40 draws.
+
+**3. The window is PRE-CUE, which defuses the movement objection.** The ENL window is lick-free by
+construction, so NEITHER class contains a movement and the lick/no-lick difference is not a movement
+difference. What remains is trial count, which is exactly what the split-half measures.
+
+### The result: different beyond noise, in 7 of 7 measurable cells
+
+| animal | ring | cos(pre-LICK, post-MISS) | split-half floor at matched n |
+|---|---|---|---|
+| PS92 | far | +0.151 | +0.724 [0.585, 0.814] |
+| PS92 | close | +0.318 | +0.635 [0.474, 0.792] |
+| PS93 | far | **−0.334** | +0.778 [0.672, 0.854] |
+| PS93 | close | +0.187 | +0.446 [0.243, 0.595] |
+| PS94 | far | **+0.053** | +0.832 [0.754, 0.897] |
+| PS94 | close | +0.294 | +0.755 [0.674, 0.846] |
+| PS95 | far | +0.150 | +0.456 [0.157, 0.662] — **marginal** |
+
+The floor also VALIDATES the method: two halves of pre-stroke lick reproduce each other at 0.45–0.83
+at these n, so the post-stroke values are not a small-sample artefact. Distance below the floor
+orders PS93 > PS94 > PS92 > PS95, roughly the behavioural severity, and PS95 — least affected — is
+the one marginal cell. **Left-hemisphere share stays 0.41–0.53 throughout**: the lateral code does
+NOT change hemispheres, consistent with the midline test never finding relocation.
+
+### AND A WORD THAT WAS NOT EARNED
+
+This was written up as the lateral axis "re-forming". Priya: "How does the table you showed indicate
+the lateral axis reforms?" It does not. A low cosine with the pre-stroke axis shows the post-stroke
+axis is DIFFERENT; it cannot show that a coherent new axis exists. **PS94's far value of +0.053 is
+exactly what NO lateral information looks like.** The distinguishing measurement is the post-stroke
+axis's OWN split-half reproducibility — near 0 means the axis is gone, high means a stable new axis
+near-orthogonal to the old one — and it had not been built. The pre-stroke floor existed and the
+post-stroke one did not, which is the asymmetry that let the overstatement through.
+
+Until that lands the defensible statement is: **the lateral axis is not what it was, and whether
+anything coherent replaced it is unmeasured.**
+
+### Still open
+- **The same-class control**: post-stroke LICK vs pre-stroke LICK at the CLOSE ring, where post-stroke
+  lick trials are plentiful. Same class both sides, only the lesion differs — kills the will-lick /
+  won't-lick confound that the noise floor does not address.
+- **A scale-free population-vector measure** (Priya's suggestion): cosine similarity between mean
+  (component × 4 × 0.5 s bin) ENL vectors, position by position, pre vs post. Cosine is
+  SCALE-INVARIANT, which separates "the pattern changed" from "the amplitude changed" — the confound
+  that made PS92's coding-direction magnitudes uninterpretable, and a real one given the measured
+  2–3× post-stroke amplitude rise at 2 s. Must be computed on residuals after subtracting the
+  across-position mean, or the large shared task-evoked component dominates every comparison.
+- **Tongue kinematics from the cameras.** The deepest limit on all of this: spout position is a proxy
+  for tongue direction, and the deficit removes exactly the trials the question needs. Tracking the
+  tongue would decouple "which spout was cued" from "how the tongue actually moved", give a
+  continuous variable instead of six labels, and work on the trials the animal DOES perform. The
+  video and the DAQ↔camera alignment templates already exist; the tracking does not.

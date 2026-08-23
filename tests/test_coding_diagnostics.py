@@ -101,3 +101,57 @@ def test_a_failing_figure_does_not_take_the_run_down(capsys):
 
     assert pcd._draw(boom, {}, "/nowhere") is None
     assert "!! boom: TypeError" in capsys.readouterr().out
+
+
+def _res_sessions(animal="PS94", n_post=3):
+    """A run_animal() return carrying the per-session pairwise and cross blocks."""
+    r = _res(animal)
+    R = r["methods"]["dom_orth"]
+    labs = [f"{animal}_08{17 + i}" for i in range(n_post)]
+    pairs = [f"{a}|{b}" for a in POS for b in POS if a != b]
+    R["pairwise_axes"] = {k: {"spread": 1.4, "n_A": 200, "n_B": 200} for k in pairs}
+    cell = {"n": 40, "mean": 0.6, "sem": 0.1, "sd": 0.6, "low_n": False}
+    R["pairwise"] = {c: dict.fromkeys(pairs, cell)
+                     for c in ("prestroke_lick", "poststroke_lick", "poststroke_miss_working")}
+    R["pairwise_by_session"] = {
+        "poststroke_miss_working": {
+            k: {lab: {"n": 30, "mean": 0.4 + 0.1 * j, "sem": 0.12, "sd": 0.6, "low_n": False}
+                for j, lab in enumerate(labs)} for k in pairs}}
+    R["cross_matrix"] = {"prestroke_lick": {P: dict.fromkeys(POS, cell) for P in POS}}
+    R["cross_by_session"] = {
+        "poststroke_miss_working": {lab: {P: dict.fromkeys(POS, cell) for P in POS}
+                                    for lab in labs}}
+    return r, labs
+
+
+def test_per_session_pairwise_draws_one_series_per_post_session(tmp_path):
+    """The pooled figure averages a moving target; this is the same quantity resolved in time."""
+    r, _labs = _res_sessions()
+    q = pcd.figure_pairwise_sessions(r, tmp_path, align="lick", meth="dom_orth",
+                                     cls="poststroke_miss_working")
+    assert q is not None and q.exists()
+    assert "poststroke_miss_working" in q.name and "pairsess" in q.name
+
+
+def test_per_session_cross_matrix_draws_one_matrix_per_session(tmp_path):
+    r, _labs = _res_sessions(n_post=4)
+    q = pcd.figure_cross_sessions(r, tmp_path, align="lick", meth="dom_orth",
+                                  cls="poststroke_miss_working")
+    assert q is not None and q.exists() and "crosssess" in q.name
+
+
+def test_a_class_with_no_per_session_data_returns_none(tmp_path):
+    """An empty axes reads as "measured, found nothing", which is a different claim."""
+    r, _labs = _res_sessions()
+    for fn in (pcd.figure_pairwise_sessions, pcd.figure_cross_sessions):
+        assert fn(r, tmp_path, align="lick", meth="dom_orth", cls="poststroke_stopped") is None
+    assert not list(tmp_path.glob("*poststroke_stopped*"))
+
+
+def test_the_per_session_cross_matrix_is_a_DIFFERENCE_from_the_baseline(tmp_path):
+    """Raw off-diagonal magnitude means nothing -- neighbouring positions are already similar
+    pre-stroke (far_center scores 0.76 on the far_R direction). A session identical to the baseline
+    must therefore render as all-zero difference rather than as a strong pattern."""
+    r, _labs = _res_sessions(n_post=1)
+    assert pcd.figure_cross_sessions(r, tmp_path, align="lick", meth="dom_orth",
+                                     cls="poststroke_miss_working") is not None
