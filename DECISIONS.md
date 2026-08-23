@@ -2832,3 +2832,47 @@ PS94_0820 (K=5) — and they are the MOST impaired days. The chance-corrected me
 comparable, but a position the animal never attempts contributes no error, so the post-stroke column
 is optimistic about exactly the sessions that matter most. Per-session results are in
 `E:/cue_lick/lick_window_sweep.json` and `..._mean.json`.
+
+## THE UNIFORM 1/6 NULL HAS FOLLOWED THE SKEW INTO THE ENGAGED ARM (2026-08-23)
+
+On 2026-08-17 the entry above ("The null was wrong") recorded that comparing accuracy to a uniform
+1/6 is invalid when the trials are skewed across positions, and the corrected machinery -- balanced
+accuracy as headline, plus a permutation null computed on those trials with the model's predictions
+held FIXED -- went into `nolick_analysis` and is used by `poststroke_compare` and
+`impaired_nolick_readout`.
+
+It was applied to the arm where the problem was noticed, not to the condition that causes it. The
+condition has since arrived in the ENGAGED arm by a different route. There the skew came from
+animals DECLINING far spouts; here it comes from post-stroke animals ABANDONING positions outright,
+and the engaged trial counts are no longer close to uniform:
+
+| session | n | uniform | best constant guess | engaged counts |
+|---|---:|---:|---:|---|
+| PS94_0812 (pre) | 456 | 0.167 | 0.178 | 78, 70, 78, 81, 73, 76 |
+| PS94_0820 | 291 | 0.167 | **0.247** | 71, 72, 68, 63, 17, **0** |
+| PS93_0818 | 380 | 0.167 | **0.232** | 88, 84, 77, 42, 79, 10 |
+| PS93_0820 | 235 | 0.167 | **0.255** | 50, 48, 60, 28, 40, 9 |
+| PS92_0822 | 294 | 0.167 | **0.276** | 58, 65, 81, 44, 41, 5 |
+
+Pre-stroke the two agree to within 0.011 and the distinction does not matter. Post-stroke they
+diverge by up to 65%: a constant "always guess close_R" scores 0.276 on PS92_0822 knowing nothing.
+
+WHAT WAS AND WAS NOT AFFECTED. The headline post-stroke claims go through `evaluate_arm` and are
+sound -- they were already balanced and permutation-tested. What was misleading is the PER-SESSION
+decoder panels in sections A-C, which drew a flat `axhline(1/6)` and titled themselves "chance .17"
+for post-stroke sessions whose floor is nowhere near that.
+
+FIX (`locanmf_position_decoder`). Every session now computes, from predictions already in hand and
+so at no fitting cost: the majority-class floor, balanced accuracy, and a permutation null with
+predictions held fixed. The floor is drawn on the recall panel ONLY when it exceeds 1/6 by more than
+0.005 -- pre-stroke the lines coincide and a second one would be clutter -- and the title carries
+balanced accuracy with its permutation p. All of it lands in the per-session summary JSON.
+
+THE GENERAL LESSON, which is the reason this is written down rather than just fixed: a reference
+level is a property of the DATA, not of the task design. 1/6 was correct while the animals attempted
+every position, and became wrong the moment they stopped -- without anything in the code changing.
+The same shape has now appeared six times this week (an empty class scoring 1.0, a completeness
+check against a shrunken date set, another against an inflated animal x date set, a guard running
+after the thing it guarded, a refusal reported as a write). Each time the number was true and the
+thing it was measured against was not.
+

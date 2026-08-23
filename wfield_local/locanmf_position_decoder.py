@@ -38,6 +38,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, accuracy_score
 
 from wfield_local import config
+from wfield_local import nolick_analysis as na
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, POSITION_NAMES, DISPLAY_ORDER
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
@@ -407,10 +408,20 @@ def _save_session_fig(label, cmn, sm, labs, args, tag):
     if nl_ok:
         axr.bar(x + w / 2, sm["recall_nolick_by_position"].get("all", [np.nan] * 6), w,
                 color="tab:red", label=f"no-lick (n={sm['n_nolick']})")
-    axr.axhline(1 / 6, color="grey", ls="--", lw=0.8, label="chance")
+    axr.axhline(1 / 6, color="grey", ls="--", lw=0.8, label="uniform 1/6")
+    _fl = sm.get("majority_class_floor")
+    if _fl and _fl > 1 / 6 + 0.005:
+        # Only drawn when it DIFFERS. Pre-stroke the two coincide (0.167 vs 0.178) and a second
+        # line would be clutter; post-stroke they diverge by up to 65% and the uniform line alone
+        # understates the no-information floor.
+        axr.axhline(_fl, color="firebrick", ls=":", lw=1.2,
+                    label=f"best constant guess ({_fl:.2f})")
     axr.set_xticks(x); axr.set_xticklabels(labs, rotation=45, ha="right", fontsize=7); axr.set_ylim(0, 1)
     nls = f"  no-lick={sm['acc_nolick']['all']:.2f}" if nl_ok else ""
-    axr.set_title(f"per-position recall  eng={sm['acc']['all']:.2f}{nls}", fontsize=9)
+    _bal = sm.get("balanced_accuracy")
+    _p = sm.get("null_balanced_p")
+    _extra = (f"  balanced={_bal:.2f}" if _bal is not None else "") +              (f" (perm p={_p:.3f})" if _p is not None else "")
+    axr.set_title(f"per-position recall  eng={sm['acc']['all']:.2f}{nls}{_extra}", fontsize=9)
     axr.set_ylabel("recall"); axr.legend(fontsize=7)
     fig.tight_layout()
     p = args.output / f"locanmf_position_session_{label}_{tag}.png"
@@ -482,11 +493,31 @@ def main() -> int:
             else:
                 acc_nl[g] = float("nan"); recall_nl[g] = [float("nan")] * 6
         npos = {POSITION_NAMES[c]: int((y == c).sum()) for c in DISPLAY_ORDER}
+        # THE FLOOR IS NOT 1/6 ONCE THE ENGAGED TRIALS ARE SKEWED.
+        # A uniform 1/6 assumes the animal attempted every position about equally. Post-stroke it
+        # does not: PS94_0820 engaged is [71,72,68,63,17,0] and PS92_0822 is [58,65,81,44,41,5], so
+        # a constant "always guess close_R" scores 0.247-0.276 with no information at all, against a
+        # chance line drawn at 0.167. DECISIONS records exactly this error for the NO-LICK arm
+        # (2026-08-17, "The null was wrong") and the corrected machinery went there; the same skew
+        # has since arrived in the ENGAGED arm by a different route -- abandonment rather than
+        # declining -- and the reference line did not follow it.
+        #
+        # Both references are cheap here because the model's predictions are held FIXED: the
+        # permutation shuffles labels only, so nothing is refitted.
+        floor = na.majority_class_floor(y, labels=DISPLAY_ORDER)
+        nullv = na.permutation_null(y, pred, n_perm=1000, labels=DISPLAY_ORDER)
+        balanced = na.balanced_accuracy(y, pred, labels=DISPLAY_ORDER)
         summary[s["label"]] = {"n_trials": int(X.shape[0]), "n_feat": int(X.shape[1]), "acc": accs,
                                "positions": [POSITION_NAMES[c] for c in DISPLAY_ORDER],
                                "recall_by_position": recall, "n_per_position": npos,
                                "n_nolick": int(Xnl.shape[0]), "acc_nolick": acc_nl,
                                "recall_nolick_by_position": recall_nl,
+                               "majority_class_floor": float(floor),
+                               "balanced_accuracy": float(balanced),
+                               "null_raw_mean": nullv["raw_null_mean"],
+                               "null_raw_ci": nullv["raw_null_ci"], "null_raw_p": nullv["raw_p"],
+                               "null_balanced_mean": nullv["bal_null_mean"],
+                               "null_balanced_p": nullv["bal_p"],
                                "confusion_all": cmn.tolist() if cmn is not None else None,
                                "source": args.source, "align": args.align}
         nlstr = (f" | NO-LICK(n={Xnl.shape[0]}) " + "  ".join(f"{g}={a:.2f}" for g, a in acc_nl.items())) if nl_ok \
