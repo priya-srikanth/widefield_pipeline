@@ -74,6 +74,34 @@ def test_is_free_uses_delivery_not_designation(tmp_path):
     assert df["free_designated"].tolist() == [False, True, True]
 
 
+def test_load_trials_auto_switches_to_log_when_daq_undercovers(monkeypatch, tmp_path):
+    """A crashed recorder (DAQ << log) makes the BEHAVIOUR loader use the full-session log on the
+    default 'auto' path (PS92 8/12); explicit --source daq must NOT switch (decode stays DAQ-only)."""
+    d = tmp_path / "PS92_20260812_concat"
+    d.mkdir()
+    daq_df = pd.DataFrame({"pos_idx": [0] * 10, "responded": [True] * 10, "source": ["DAQ"] * 10})
+    log_df = pd.DataFrame({"pos_idx": [0] * 20, "responded": [True] * 20, "source": ["log"] * 20})
+    monkeypatch.setattr(sb, "_daq_trials_for", lambda sd, rv, params: daq_df)
+    monkeypatch.setattr(sb, "load_gui_trials", lambda sd: log_df)
+    params = config.defaults()["behavior"]
+    auto = sb.load_trials(d, rv=object(), params=params, source="auto")
+    assert len(auto) == 20 and auto["source"].iloc[0] == "log"        # crashed recorder -> full log
+    daq = sb.load_trials(d, rv=object(), params=params, source="daq")
+    assert len(daq) == 10 and daq["source"].iloc[0] == "DAQ"          # explicit daq: never switches
+
+
+def test_load_trials_auto_keeps_daq_when_it_covers_the_log(monkeypatch, tmp_path):
+    """Full DAQ coverage (the normal case) keeps DAQ primary — the switch is only for a crashed recorder."""
+    d = tmp_path / "PS92_20260807_120000"
+    d.mkdir()
+    daq_df = pd.DataFrame({"pos_idx": [0] * 100, "responded": [True] * 100, "source": ["DAQ"] * 100})
+    log_df = pd.DataFrame({"pos_idx": [0] * 101, "responded": [True] * 101, "source": ["log"] * 101})
+    monkeypatch.setattr(sb, "_daq_trials_for", lambda sd, rv, params: daq_df)
+    monkeypatch.setattr(sb, "load_gui_trials", lambda sd: log_df)
+    out = sb.load_trials(d, rv=object(), params=config.defaults()["behavior"], source="auto")
+    assert out["source"].iloc[0] == "DAQ"                            # 100/101 is covered -> DAQ stays
+
+
 # --------------------------------------------------------------------------- engagement gate
 
 def test_engagement_all_responded():

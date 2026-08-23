@@ -147,6 +147,19 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
     if rv is not None:
         daq = _daq_trials_for(session_dir, rv, params)
         if daq is not None:
+            # A crashed/restarted RECORDER can leave the DAQ covering materially fewer trials than the
+            # behavior log (PS92 2026-08-12: 225 DAQ vs 280 logged). For BEHAVIOR figures the full
+            # session matters, and the log's positions are trustworthy on recent GUI versions (v47+,
+            # verified 2026-08-13), so on the DEFAULT ('auto') path fall back to the log rather than
+            # draw ~80% of the session with nothing to say so. load_trials is behaviour-only; decode/
+            # encode read daq_trials directly and stay DAQ-only, and explicit --source daq never switches.
+            if source == "auto":
+                gui = _gui_trials_or_none(session_dir)
+                if gui is not None and len(gui) and len(daq) < DAQ_LOG_COVER_TOL * len(gui):
+                    print(f"[spout_behavior] {session_dir.name}: DAQ covers {len(daq)} of {len(gui)} "
+                          f"logged trials (crashed recorder) -> BEHAVIOUR figures use the full-session "
+                          f"LOG", flush=True)
+                    return gui
             _warn_if_daq_covers_less_than_log(session_dir, daq)
             return daq
     if source == "daq":
@@ -154,7 +167,19 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
     return load_gui_trials(session_dir)
 
 
-def _warn_if_daq_covers_less_than_log(session_dir: Path, daq: pd.DataFrame, tol: float = 0.9) -> None:
+DAQ_LOG_COVER_TOL = 0.9   # DAQ trials below this fraction of the log = a crashed recorder (use the log)
+
+
+def _gui_trials_or_none(session_dir: Path):
+    """The behavior-log trials, or ``None`` if the log is unreadable (so callers can compare counts)."""
+    try:
+        return load_gui_trials(session_dir)
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def _warn_if_daq_covers_less_than_log(session_dir: Path, daq: pd.DataFrame,
+                                      tol: float = DAQ_LOG_COVER_TOL) -> None:
     """Warn when the DAQ holds materially FEWER trials than the behavior log.
 
     DAQ-primary is right, and stays the default. But it assumes the DAQ covers the session, and a
@@ -1011,10 +1036,11 @@ def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: di
         mk = raster_markers(trials)
         if mk is None or mk.empty:
             continue
-        entries.append((_animal_date(sd.name)[1], mk))
+        src = str(trials["source"].iloc[0]) if "source" in trials else "?"
+        entries.append((_animal_date(sd.name)[1], mk, src))
     if not entries:
         return []
-    xmax = max(float(mk["t_min"].max()) for _, mk in entries) * 1.02
+    xmax = max(float(mk["t_min"].max()) for _, mk, _ in entries) * 1.02
     outdir = out_dir / "cohort" / "by_animal"
     outdir.mkdir(parents=True, exist_ok=True)
     nrows, ncols, per = RASTER_GRID_ROWS, RASTER_GRID_COLS, RASTER_GRID_PER_PAGE
@@ -1024,8 +1050,11 @@ def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: di
         chunk = entries[pg * per:(pg + 1) * per]
         fig, axes = plt.subplots(nrows, ncols, figsize=(16, 9))
         axf = axes.flatten()
-        for i, (date, mk) in enumerate(chunk):
-            _raster_panel(axf[i], mk, xmax, title=f"{date[4:6]}/{date[6:8]}  ({len(mk)} trials)",
+        for i, (date, mk, src) in enumerate(chunk):
+            # a session whose recorder crashed is drawn from the full-session behavior LOG (the "GUI"
+            # source; see load_trials) -- mark it so a reader knows this panel is not DAQ-sourced
+            tag = "  [log]" if src == "GUI" else ""
+            _raster_panel(axf[i], mk, xmax, title=f"{date[4:6]}/{date[6:8]}  ({len(mk)} trials){tag}",
                           show_ylabels=(i % ncols == 0),
                           show_xlabel=(i + ncols >= len(chunk)))   # nothing below this cell in the page
         for j in range(len(chunk), len(axf)):
@@ -1033,7 +1062,8 @@ def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: di
         pg_txt = f"  (page {pg + 1}/{npages})" if npages > 1 else ""
         fig.suptitle(f"{animal} — cumulative task rasters, shared axis to the longest session "
                      f"({xmax / 1.02:.0f} min){pg_txt}    green = hit,  red = miss    "
-                     f"(DAQ trials, ALL trials — no engagement gate)", fontsize=14)
+                     f"(ALL trials — no engagement gate; DAQ-sourced unless a panel is marked [log])",
+                     fontsize=14)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         p = outdir / f"{animal}_raster_grid_p{pg + 1}.png"
         fig.savefig(p, dpi=130)
