@@ -53,6 +53,61 @@ NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
 
 
+
+# ---- per-slide READING NOTES: what to look for, and what would falsify it ----
+# The title says what the figure IS and the M_* block says how it was MADE. Neither says what to do
+# with it. These are the third thing, and they are drawn from DECISIONS.md rather than invented --
+# each states the reading, the trap specific to THIS panel, and where a contrary result would leave
+# the claim. Written 2026-08-23 after Priya pointed out that the repo already documents all of it.
+S_G1B = (
+    "READ THE DENOMINATOR FIRST. A position with zero engaged trials has no lick-only decoding "
+    "number at all -- not a low one. PS94 8/20 has ZERO engaged far_R and 17 far_center against ~70 "
+    "elsewhere; PS93 is at 8-10 far_R; PS92 reached 4 by 8/21. FALSIFIER: if the no-lick bars were "
+    "also near zero, the position stopped being PRESENTED and this is a task artefact. They are not "
+    "-- the spout still moves there every trial -- so this is the animal declining, which is the "
+    "phenotype the rest of section G is trying to explain.")
+
+S_G2 = (
+    "The BAND is the animal's own pre-stroke leave-one-session-out range, so a point inside it means "
+    "'no worse than this animal's ordinary day-to-day variation', not 'good'. ALL-trials arm: chance "
+    "is 1/6 on every panel and the panels ARE comparable. Lick-only arm: chance is 1/n for that "
+    "session's preserved positions, so the panels are NOT comparable with each other -- a higher "
+    "number on a four-position session can be worse performance than a lower one on six.")
+
+S_G2C = (
+    "THE CENTRAL CLAIM OF THIS SECTION. Pre-cue survives, post-cue collapses without a lick. If it "
+    "reversed -- post-cue intact and pre-cue gone -- the readout would be a sensory-response deficit "
+    "rather than an execution failure, and the frozen-decoder framing would not hold.")
+
+S_G4 = (
+    "This asks whether a no-lick trial carries the pattern of the position that was PRESENTED. "
+    "CAUTION documented at DECISIONS 2026-08-17: 'no detected lick' is not 'no attempt' -- the "
+    "sensor needs contact, so a short or weak lick registers as nothing. PS93 has a pre-existing "
+    "rightward tongue bias and reaches far_L poorly PRE-stroke, which makes PS93 far_L a "
+    "within-subject instance of the phenotype owing nothing to the lesion.")
+
+S_G5 = (
+    "Same code at lower gain, or a different code? A uniformly shrunken confusion matrix means "
+    "gain; off-diagonal mass moving to a NEW position means remapping. These have different "
+    "implications for recovery and the figure is the only thing here that separates them.")
+
+S_G7 = (
+    "PS92/PS93 8/17 follow the 8/16 laser that did NOT take, so they belong to neither phase and are "
+    "excluded from every other comparison. They are here because they are the within-animal control: "
+    "the same two animals, the same rig, a lesion attempt with no overt deficit. If the post-stroke "
+    "effects appeared here too, they would be attributable to the procedure rather than the lesion.")
+
+S_G8E = (
+    "Raw fluorescence, no lick split -- so this is independent of every behavioural gate elsewhere in "
+    "the section. That independence is the point: if the decoding results were an artefact of which "
+    "trials survive the engaged cut, this panel would not show anything.")
+
+S_G9 = (
+    "Coding DIRECTIONS, not accuracies: the question is whether the axis separating two positions "
+    "still points the same way, regardless of how well it decodes. PAIRWISE is the sharper "
+    "instrument -- each contrast is A vs B alone. Within-ring comparisons are safe; cross-ring ones "
+    "confound distance with side (DECISIONS 2026-08-21).")
+
 # ---- methodology blurbs for the speaker NOTES (how each figure is made) ----
 #: THE UNIT, stated on every note whose figure is lick-aligned.
 #:
@@ -1488,7 +1543,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "against the pre-stroke per-session mean. A position with ZERO engaged trials "
                   "cannot have a lick-only decoding number at all; PS94 has two, and reading "
                   "that as a neural deficit is how the first pass went wrong.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G1B)
             big(s, _cf, top=1.6, width=12.5)
 
         # --- G2. position-matched decoding
@@ -1504,7 +1559,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      if _arm == "all" else
                      "Each session on ITS OWN preserved positions, so the chance line differs "
                      "between panels and the accuracies are NOT comparable across them."))
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G2)
             big(s, _mf, top=1.7, width=12.3)
         # G2b now comes from the unified runner: per_position_table derives it from the confusion
         # DIAGONALS in section_g.json, which are the per-position recall table by construction. The
@@ -1541,7 +1596,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "
                   "band, then the dissociation appears one day later after the effective lesion \u2014 "
                   "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
-            note(s, M_RECODING)
+            note(s, M_RECODING, specific=S_G2C)
             big(s, _rf, top=1.85, width=11.4)
 
         # --- G3. crossed confusion: WHERE the errors go
@@ -1583,7 +1638,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "cannot simply answer 'far'. READ THE CONTROL FIRST: post-stroke ENGAGED trials "
                   "must sit above post-stroke no-lick, or the boundary is tracking 'post-stroke' "
                   "rather than licking and the answer means nothing.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G4)
             big(s, src / "poststroke_G4_identity.png", top=1.7, width=11.5)
 
         # --- G4b. does the post-stroke session fit the PRE-stroke ENGAGED distribution?
@@ -1619,7 +1674,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "patterns, one series per post-stroke session. Decoding accuracy alone cannot "
                   "separate a weakened code from a reorganised one; this can. G8f asks the same "
                   "question of the whole 6x6 geometry, and adds the midline test.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G5)
             big(s, _sf5, top=1.7, width=11.8)
 
         # --- G6. was a plan formed on the no-lick trials?
@@ -1647,7 +1702,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
                   f"this session. Same day, same anaesthesia, same handling, same frozen decoder. If "
                   f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G7)
             big(s, src / "section_g_smalllesion_matched_all.png", top=1.75, width=12.3)
             if (src / "section_g_smalllesion_counts.png").exists():
                 s = slide()
@@ -1807,7 +1862,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                                  "the session median \u2014 read those classes as inference.")
                     title(s, f"G9. {_an} \u2014 {_w} window, {_tag}",
                           _blurb + _lickonly)
-                    note(s, M_CODING_DIR)
+                    note(s, M_CODING_DIR, specific=S_G9)
                     big(s, _f, top=1.95, width=12.7)
 
         # --- G9b. COHORT diagnostics. Neither can be drawn per animal: the first needs every
@@ -1960,7 +2015,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "pre-stroke, PS94 moves 4 TOWARD ZERO and reverses a 5th, identically on both "
                   "days and both alignments, while PS93 and PS95 move AWAY from zero and PS92 "
                   "does not move at all.")
-            note(s, M_EVOKED)
+            note(s, M_EVOKED, specific=S_G8E)
             big(s, _ef, top=1.9, width=11.6)
 
         # G8f: the two tests aimed at the mechanism behind the map observation -- do the position
