@@ -31,6 +31,10 @@ from pathlib import Path
 
 import numpy as np
 
+#: `position_coding_directions` writes ONE coding_direction.json holding only the windows that run
+#: asked for, so auditing cue+lick after ENL OVERWRITES the ENL result. Any
+#: coding_direction*.json in the directory is read and merged here, and a per-window backup is the
+#: way to keep an earlier run (coding_direction_ENL.json).
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "E:/cd_audit")
 CLASSES = ("prestroke_lick", "prestroke_nolick", "poststroke_lick",
            "poststroke_miss_working", "poststroke_stopped")
@@ -58,7 +62,10 @@ def compare(a, b):
     return len(keys), float(np.median(np.abs(va - vb))), r
 
 
-everything = json.loads((ROOT / "coding_direction.json").read_text(encoding="utf-8"))
+everything = {}
+for jf in sorted(ROOT.glob("coding_direction*.json")):
+    for window, res in json.loads(jf.read_text(encoding="utf-8")).items():
+        everything.setdefault(window, {}).update({k: v for k, v in res.items() if v})
 for window, res in everything.items():
     print(f"\n{'=' * 96}\n### {window} window\n")
     verdicts = defaultdict(list)
