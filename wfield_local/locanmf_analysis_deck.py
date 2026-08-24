@@ -128,6 +128,44 @@ _M_LICK_UNIT = (
     "PS94 8/17 far_R is n=83 on the preprocessing map and 'not attempted' on fixed_scale_maps, "
     "because those 83 licks belonged to fewer than 8 trials.")
 
+
+_NL2 = chr(10) * 2
+
+M_MISS_STOPPED = (
+    "MISS-WHILE-WORKING vs STOPPED, per position, per session (wfield_local.miss_vs_stopped). "
+    "Nothing is recomputed: coding_direction.json already holds every value per position, per "
+    "session, per class; this draws the one contrast the other figures do not put side by side."
+    + _NL2 +
+    "WHY THE SPLIT IS THE ANALYSIS. The two post-stroke failure modes are different phenomena. "
+    "MISS WHILE WORKING = still working the task, fails to lick at THIS position; position-specific, "
+    "34-44% of these trials are far_R. STOPPED = quit for the day, licks nowhere; verified "
+    "position-GENERAL (response ~0 at every position, close included). They differ in position "
+    "composition by a total variation of 0.31-0.65, and ENL activity CARRIES position -- so a "
+    "no-lick analysis that pools them compares the spout, not the state. That is what produced a "
+    "spurious PS95 effect on the first pass."
+    + _NL2 +
+    "HOW TO READ IT. 1.0 (green dotted) = that position's own PRE-STROKE pole; 0 = no position "
+    "code. Miss clearly above zero with stopped AT zero, in the same animal and position, is the "
+    "plan-intact / execution-failed signature -- the code is there when the animal is trying and "
+    "gone when it has quit. Hollow unjoined points are n<20: a working animal rarely misses at a "
+    "position it can still reach, so close-position cells are structurally thin and must not be "
+    "read (PS95 close_center reaches +7.16 on n=6)."
+    + _NL2 +
+    "WHAT IT SHOWS (2026-08-23). The pattern holds at the impaired-but-attempted positions in three "
+    "animals and is ABSENT at far_L, which is what makes it evidence rather than a trend: PS92 "
+    "far_center miss +1.0 to +2.0 across all five sessions against stopped near +0.8; PS93 "
+    "far_center miss consistently positive against stopped flat at zero; PS94 far_R miss ~+0.6 on "
+    "four of five sessions at >=2 SEM, against stopped +0.15/+0.07/-0.02. PS92 shows NOTHING at "
+    "far_R (~0) and its strongest effect at far_center, which fits the documented severity ordering "
+    "-- far_R is far enough gone that there is no code left to find."
+    + _NL2 +
+    "PS95 CANNOT ANSWER THIS, structurally: it recovered, and a working animal generates few misses "
+    "(n 119 -> 24 -> 20 -> 4). Its STOPPED values also EXCEED its miss values, inverting the "
+    "pattern. See DECISIONS 2026-08-23 for the open question that follows -- whether stopped-trial "
+    "coding distinguishes a motivational quit from a representational collapse, and whether that "
+    "predicts recovery. PS95 vs PS94 fits; PS93 is a counterexample; the causal direction is "
+    "unresolved." + _M_LICK_UNIT)
+
 M_COMMON = ("Features = individual LocaNMF component activities (atlas-anchored NMF, r2=0.95, "
             "loc_thresh=80, maxrank=20). Spout position per trial from the DAQ spout-strobe bits; when the "
             "DAQ is short a bit (Aug-2026 dead bit1) it is repaired from the behavior-log pos_idx via "
@@ -1688,6 +1726,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "positions = position represented, movement did not happen.")
             note(s, M_POSTSTROKE)
             big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
+
+        # --- G6b. the miss/stopped contrast, per position and per session.
+        if (src / "poststroke_miss_vs_stopped.png").exists():
+            s = slide()
+            title(s, "G6b. Is the plan there when the animal is TRYING? Miss-while-working vs "
+                     "stopped",
+                  "Same position, same session, the two post-stroke failure modes side by "
+                  "side. 1.0 = that position's own pre-stroke pole. Miss above zero with "
+                  "stopped AT zero is plan-intact / execution-failed. far_L is the control: "
+                  "the effect is absent there.")
+            note(s, M_MISS_STOPPED)
+            big(s, src / "poststroke_miss_vs_stopped.png", top=1.7, width=12.4)
 
         # --- G7. SMALL-LESION COMPARISON: the excluded sessions.
         # NOT a negative control -- PS92/PS93 were lesioned too, just mildly (Priya,

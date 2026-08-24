@@ -348,6 +348,9 @@ def main():
         # frozen at the day it was made, which is what section G spent 2026-08-20 undoing.
         # ~30-40 min: pool_sessions rebuilds trial features per (animal, window).
         cli("wfield_local.position_coding_directions", "--output", out)
+        # reads coding_direction.json, so it must follow the line above. Seconds, not
+        # minutes: nothing is recomputed, the values are already stored per session.
+        cli("wfield_local.miss_vs_stopped", "--output", out)
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,

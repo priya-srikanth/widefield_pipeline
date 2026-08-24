@@ -3189,3 +3189,72 @@ produces at each reliability. That has NOT been done.
   power). Miss: 7% -> 12% -> 22% (adding data confirms the absence rather than revealing an axis).
   Under the contact/attempt ambiguity this cannot be read as "no plan formed" — only as "no coherent
   representation on trials with no contact".
+
+## THE PLAN IS THERE WHEN THE ANIMAL IS TRYING: MISS-WHILE-WORKING vs STOPPED (2026-08-23)
+
+Priya asked whether the no-lick analysis could be done per position using the trials where the
+animal is still WORKING rather than the ones where it has stopped. It can, the machinery already
+existed (`position_coding_directions` stores every value per position, per session, per class), and
+the contrast had never been drawn side by side. `miss_vs_stopped` now does, as G6b.
+
+WHY THIS IS NOT A REFINEMENT OF G6 BUT A DIFFERENT QUESTION. G6 applies a frozen decoder to no-lick
+trials at impaired positions and POOLS the two failure modes. They are not one phenomenon:
+MISS-WHILE-WORKING is position-specific and 34-44% far_R; STOPPED is the animal having quit and is
+position-GENERAL (response ~0 everywhere, close included). They differ in position composition by a
+total variation of 0.31-0.65 and ENL activity carries position, so pooling them compares the spout
+rather than the state -- which is what produced a spurious PS95 effect on the first pass.
+
+### The result: miss retains the code, stopped does not -- and far_L says it is not an artefact
+
+ENL window, value = that position's own pre-stroke pole (1.0), 0 = no code.
+
+| animal | position | MISS-WHILE-WORKING, per session | STOPPED |
+|---|---|---|---|
+| PS92 | far_center | +2.01, +1.78, +1.01, +1.78, +1.63 | +0.78, -0.06, +0.81, +1.22 |
+| PS93 | far_center | +0.79, +0.31, +0.63, +0.54, +1.06 | -0.06, +0.13, +0.01 |
+| PS94 | far_R | +0.88, +0.30, +0.11, +0.62, +0.62 (4/5 at >=2 SEM, n=33-105) | +0.15, +0.07, -0.02 |
+
+**far_L is the control and shows nothing**: PS94 miss -0.65/-0.77 against stopped ~0; PS95 miss
++2.08 against stopped +2.40. The effect appears at the impaired-but-ATTEMPTED positions and not at
+the least affected one, which is what makes it evidence rather than "miss beats stopped everywhere".
+
+PS92 shows NOTHING at far_R (~0) and its strongest effect at far_center. That fits the documented
+severity ordering far_R > far_center > far_L: far_R is far enough gone in PS92 that there is no code
+left to find, while far_center is impaired-but-attempted -- exactly where a preserved plan should be
+visible.
+
+This is the plan-intact / execution-failed signature, in three animals, with an internal control.
+
+### OPEN QUESTION: does stopped-trial coding predict recovery? (Priya's hypothesis, unresolved)
+
+PS95 is the animal this analysis cannot speak to -- it recovered, and a working animal generates few
+misses (n 119 -> 24 -> 20 -> 4). Its STOPPED values also EXCEED its miss values (+2.72 and +1.08 at
+far_R, +1.92 at far_center), inverting the pattern.
+
+Priya's reading: that inversion may be WHY it recovered. STOPPED would then mean two different
+things -- a motivational quit in a structurally intact animal (code preserved) versus a
+representational collapse (code gone) -- and only the first predicts recovery.
+
+Lining stopped-code up against far_R response rate:
+
+| animal | far_R response by session | stopped far_R coding | recovered |
+|---|---|---|---|
+| PS95 | 1% -> **79%** -> 74% -> 38% -> 55% | +2.72, +1.08, +0.25 | yes, fast |
+| PS94 | 0, 1, 2, 0, 2% | +0.15, +0.07, -0.02 | no |
+| PS92 | 0, 6, 1, 5, 6% | -0.66, +0.44, +0.13, +0.19 | no |
+| PS93 | 11, 12, 9, 4% -> **36%** | -0.06, -0.14, +0.08 | yes, late |
+
+PS95 vs PS94 fits. PS92 fits. **PS93 is a clean counterexample**: it recovered far_R from 4% to 36%
+on 8/22 with stopped-code flat at zero, and its MISS coding was declining to -0.16 over the same
+period -- the code looked worst immediately before the behaviour improved.
+
+The causal arrow is also unsupported as things stand: **PS95's stopped values are from 8/19-8/21,
+after its 8/18 recovery**, so they cannot have predicted it. They are equally consistent with
+recovery restoring the code.
+
+WHAT WOULD SETTLE IT. (1) Day-1 stopped-code as the predictor -- PS95's 8/17 has 119 miss trials but
+no stopped cell, so the decisive datapoint is missing and it is worth checking whether that session
+genuinely had no post-quit window or whether the detector did not fire. (2) Whether PS93's 8/22
+recovery persists: if it does, a hypothesis resting on stopped-code fails. (3) n=4 animals cannot
+establish this either way -- it is a hypothesis to carry, not a result.
+
