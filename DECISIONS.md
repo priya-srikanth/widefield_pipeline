@@ -3502,3 +3502,85 @@ is therefore narrower than the cue table suggests:
 
 Do not merge the two into "the far_R code is lost". The windows disagree, and they disagree in the
 direction that the movement confound predicts.
+
+---
+
+## PER SPOUT POSITION, PER WINDOW, ACROSS POST-STROKE TIME (2026-08-24)
+
+Priya asked for the whole thing laid out at once: if and how coding changed, per position, per
+window, per animal, over post-stroke days. The axis measure is PAIRWISE, so a per-position number is
+the **median disattenuated value over the five pairs involving that position** -- a position reads
+low when its contrasts against the others have moved, whatever the partner. Outcome-blind arm
+(`poststroke_all_working`), 2-session blocks, cells gated as everywhere else (both reliabilities
+>= 0.5, ratios > 1 dropped as at-ceiling). A BLANK IS "NOT MEASURABLE", NOT "UNCHANGED" -- the pre-cue
+window loses whole blocks this way and the lick window loses none, which is a power difference, not
+a result. Regenerate with `scripts/position_by_position.py`.
+
+### Pooled over post-stroke sessions
+
+| window | animal | null | far_R | far_center | far_L | close_R | close_center | close_L |
+|---|---|---|---|---|---|---|---|---|
+| pre-cue | PS92 | 0.79 | **+0.35** | +0.77 | +0.58 | +0.88 | +0.78 | +0.77 |
+| | PS93 | 0.93 | +0.25 | +0.45 | +0.49 | +0.43 | **−0.01** | +0.39 |
+| | PS94 | 0.89 | +0.54 | +0.53 | +0.64 | +0.58 | +0.58 | +0.78 |
+| | PS95 | 0.84 | +0.74 | +0.77 | +0.79 | +0.75 | +0.66 | +0.83 |
+| cue | PS92 | | **+0.27** | +0.90 | +0.58 | +0.87 | +0.87 | +0.92 |
+| | PS93 | | +0.23 | +0.73 | +0.47 | +0.54 | +0.31 | +0.23 |
+| | PS94 | | **−0.06** | +0.32 | +0.43 | +0.57 | +0.43 | +0.44 |
+| | PS95 | | +0.64 | +0.53 | +0.76 | +0.77 | +0.76 | +0.75 |
+| lick | PS92 | | **+0.23** | +0.91 | +0.74 | +0.90 | +0.84 | +0.92 |
+| | PS93 | | **+0.32** | +0.76 | +0.45 | +0.64 | +0.37 | +0.39 |
+| | PS94 | | **+0.01** | +0.40 | +0.49 | +0.63 | +0.49 | +0.53 |
+| | PS95 | | +0.63 | +0.56 | +0.77 | +0.80 | +0.77 | +0.72 |
+
+### Across post-stroke time -- four different animals, four different stories
+
+**PS92 -- FOCAL, ALL THREE WINDOWS, PERSISTENT.** far_R at +0.35 / +0.27 / +0.23 (pre-cue / cue /
+lick) against 0.74-0.92 at every other position, stable across all three blocks in the lick window
+(+0.31, +0.20, +0.38) with full cell coverage. far_L is intermediate (+0.58 to +0.74); the rest are
+untouched. **This is the cleanest result in the dataset, and it is in the animal that showed NOTHING
+in the lick CLASS** -- there its far_R had 15 trials. It exists only because the outcome-blind arm
+exists. Its 0822 block shows the OTHER positions declining (close_center +0.45, far_L +0.22 in cue),
+which reads as a late session-level problem rather than lesion progression.
+
+**PS93 -- BROAD, NOT LATERALISED, far_R IMPROVING.** Pre-cue every position is 0.25-0.49 against a
+0.93 null and the LOWEST is close_center (−0.01), not far_R. In cue and lick far_R is lowest but
+close_center and close_L are nearly as low. far_R does improve monotonically in the lick window
+(+0.09 -> +0.41 -> +0.66). The 0822 cue values jumping to +0.87 rest on n=1 cell each and are not
+recovery. This is the animal whose LICK CLASS was progressive (0.33 -> 0.17 -> 0.11) -- the two
+measures disagree about direction, and the class result is the better-controlled one.
+
+**PS94 -- FOCAL POST-CUE; THE NEIGHBOURS RECOVER AND far_R DOES NOT.** far_R is −0.06 (cue) and +0.01
+(lick) pooled -- not rotated, UNRELATED -- and per block −0.43 -> 0.00 -> +0.14 (cue), −0.38 -> +0.23
+-> +0.18 (lick). Over the same blocks far_center climbs −0.27 -> +0.38 -> +0.77 (cue) and −0.24 ->
++0.58 -> +0.81 (lick), close_R +0.35 -> +0.79. **The dissociation is the finding**: reorganisation
+and return at the neighbouring positions, no return at the contraversive one. Pre-cue is flat and
+mild (0.40-0.78, no ordering).
+
+**PS95 -- A TRANSIENT GLOBAL PRE-CUE HIT.** Pre-cue block 1 is uniformly depressed (0.41-0.67 at all
+six positions) and by 0821 every measurable position is 0.91-0.97. Cue and lick show none of it --
+flat 0.53-0.85 with no trend, and far_center rather than far_R is the lowest. Its recovery is real
+and reproduces across arms, but it is a PRE-CUE phenomenon and it is not position-specific.
+
+### WHAT THE PATTERN AMOUNTS TO, WITH THE CONFOUND ORDERING ATTACHED
+
+1. **Position-specific change is real in PS92 and PS94**, follows the behavioural severity ordering
+   (far_R worst, far_L intermediate, close untouched), and in PS92 it holds in ALL THREE windows
+   including the lick-free pre-cue one. That is the one place a position-specific effect cannot be a
+   movement artefact.
+2. **PS93 and PS95 change broadly, not focally.** Same lesion, different geometry of change.
+3. **Recovery, where it happens, is never at far_R.** PS95 recovers globally in pre-cue; PS94
+   recovers at far_center and close_R while far_R stays at zero. Nothing shows a contraversive
+   position's code returning.
+4. **Cue and lick agree closely in every animal** -- expected, since the windows overlap. The lick
+   window adds POWER (full coverage where pre-cue loses whole blocks), not an independent test.
+
+CONFOUND ORDERING, which decides how much of each row to believe:
+
+    pre-cue   lick-free on both sides by construction; the composition control was run here
+    cue       contains the movement, and post-stroke far_R trials mostly have none
+    lick      as cue, PLUS no-lick trials are aligned to an INFERRED would-be-lick time
+
+So the window where position-specificity is strongest is also the most exposed. PS92 surviving in
+pre-cue is what makes it the animal to build on; PS94's far_R result is stronger in magnitude but
+lives entirely in the two confounded windows.
