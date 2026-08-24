@@ -1891,7 +1891,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             title(s, f"G2. The FROZEN pre-stroke decoder after the lesion ({_armn} arm)",
                   "One panel per POST-STROKE SESSION. BAND = that animal's pre-stroke "
                   "leave-one-session-out range for the same measure. "
+                  # THIS SENTENCE USED TO STOP AT "BY " -- an unfinished clause, shipped on the
+                  # slide, promising a reason it never gave (found 2026-08-24 while building the
+                  # grant figures, which hit the same absence in the data and had to work out why).
                   + ("All six positions, chance 1/6 on every panel. POST-LICK IS ABSENT HERE BY "
+                     "CONSTRUCTION: this arm includes trials with NO detected lick, and a "
+                     "lick-aligned window cannot be defined for a trial that has no lick. At the "
+                     "impaired positions that is most of the trials, which is exactly where the "
+                     "question is. The lick window appears in G9, where the no-lick classes are "
+                     "placed at an INFERRED would-be-lick time and labelled as inference."
                      if _arm == "all" else
                      "Each session on ITS OWN preserved positions, so the chance line differs "
                      "between panels and the accuracies are NOT comparable across them."))
