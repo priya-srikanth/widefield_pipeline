@@ -3579,8 +3579,49 @@ CONFOUND ORDERING, which decides how much of each row to believe:
 
     pre-cue   lick-free on both sides by construction; the composition control was run here
     cue       contains the movement, and post-stroke far_R trials mostly have none
-    lick      as cue, PLUS no-lick trials are aligned to an INFERRED would-be-lick time
+    lick      lick trials start at the FIRST LICK; no-lick trials start at the CUE, because
+              `position_axes` passes nolick_ref="cue" -- see the correction below
 
 So the window where position-specificity is strongest is also the most exposed. PS92 surviving in
 pre-cue is what makes it the animal to build on; PS94's far_R result is stronger in magnitude but
 lives entirely in the two confounded windows.
+
+### CORRECTION: AT THE IMPAIRED POSITIONS THE LICK WINDOW *IS* THE CUE WINDOW (2026-08-24)
+
+Priya asked what the lick analysis actually compares, and checking it retired a claim made an hour
+earlier -- that the lick window aligns no-lick trials to an inferred would-be-lick time. It does not.
+`position_coding_directions` does that; `position_axes` calls
+`features_with_indices(basis, nolick_ref="cue")` unconditionally, so in the lick alignment a LICK
+trial's window starts at its first lick and a NO-LICK trial's starts at the CUE.
+
+Post-stroke NO-LICK fraction per position -- the fraction of the sample placed at the cue:
+
+| animal | far_R | far_center | far_L | close_R | close_center | close_L |
+|---|---|---|---|---|---|---|
+| PS92 | **96%** | 42% | 33% | 14% | 15% | 12% |
+| PS93 | **81%** | 28% | 50% | 9% | 17% | 18% |
+| PS94 | **97%** | 77% | 37% | 19% | 13% | 9% |
+| PS95 | 41% | 35% | 14% | 8% | 6% | 4% |
+
+**At far_R in PS92 and PS94 the lick window is 96-97% cue-aligned -- it is the cue window**, which is
+why those columns nearly coincide (+0.23 vs +0.27; +0.01 vs −0.06). The three-window table above must
+not be read as three measurements at the impaired positions: cue and lick are ONE measurement there,
+and only pre-cue is independent. The claim "PS92's far_R effect replicates in all three windows"
+is therefore wrong; it replicates in two, one of which re-runs the other. **PS92's pre-cue result
+(+0.35 against 0.77-0.88) is untouched and remains the load-bearing observation.**
+
+The residual misalignment is modest rather than catastrophic: pre-stroke reaction times are
+0.137-0.255 s, so the pre-stroke reference sits near cue+0.2 s against post-stroke far_R at cue+0.
+But it is graded by severity -- the no-lick fraction IS the impairment -- and the ~4% of far_R trials
+that do lick enter ~2.4 s later, making the post-stroke far_R sample a two-mode mixture.
+
+WHY THIS IS NOT SIMPLY FIXED BY SWITCHING TO would_be_lick. That reference DROPS any position with
+no engaged trial in a session (the 2026-08-21 fix, because the old session-median fallback misplaced
+windows by up to 2.1 s at exactly the impaired positions). PS94 far_R has 13 lick trials across all
+post-stroke sessions, so the drop would take back the far_R data the outcome-blind arm exists to
+provide. The options are to report the lick window only where the lick fraction is high, or to run
+both references and show them side by side. For now: **the cue window is the sound one for the
+outcome-blind arm** -- there BOTH arms are cue-referenced, so no misalignment exists at all -- and
+the lick column should be read as a power-boosted repeat of it, not as corroboration.
+
+Regenerate the fractions with `scripts/nolick_fraction.py`.
