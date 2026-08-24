@@ -45,7 +45,7 @@ CLS = "poststroke_all_working"
 #: the matched pooled-vs-held-out-two-sessions null, per animal (axis_holdout_null.py, 8/13 excluded)
 NULL = {"PS92": 0.79, "PS93": 0.93, "PS94": 0.89, "PS95": 0.84}
 POS = ["far_R", "far_center", "far_L", "close_R", "close_center", "close_L"]
-ROOT = Path("E:/posaxes3")
+ROOT = Path(os.environ.get("POSAXES_DIR", "E:/posaxes3"))
 
 
 def usable(cell):

@@ -3689,8 +3689,27 @@ imbalance -- is LESS far_L-aligned than PS92 or PS94. The reasoning that produce
 the step fails: each position's own lick-minus-no-lick difference points nearly the same way, so
 averaging over positions changes almost nothing.
 
-**What the check found instead applies to all four animals.** Position axes are strongly
-NON-ORTHOGONAL to the engagement axis:
+**What the check found instead was ALREADY IN THIS FILE.** Priya, 2026-08-24: "i think we did
+this initially when deciding on this analysis so please check our logs / decisions doc." Correct --
+the 2026-08-20/21 construction entry above records `cos(w, engagement axis)` at **0.82 / 0.91 / 0.71
+/ 0.52** for PS92/93/94/95 on the ONE-VS-REST directions. The numbers below are the same measurement
+on the PAIRWISE axes: same magnitudes, same animal ordering, PS93 highest in both. It was reported
+here as a discovery, which it was not. **Check the decisions file before writing a finding into it.**
+
+The original entry also carries two things that the "the projection is destroying position
+structure" framing ignored, both measured at the time:
+
+- **Orthogonalisation was validated, not assumed.** The symptom was pre-stroke no-lick projections
+  scattering from −2.03 to +1.38 across axes that should read alike; after Gram-Schmidt they
+  collapse to 0.16-0.17 **and the pre-stroke lick diagonal IMPROVES rather than degrading**. The
+  projection removes engagement contamination without costing position readout.
+- **An independent check already exists.** LOGISTIC (`lr`) directions were clean from the start
+  (|cos| <= 0.07) because they account for covariance, and were kept for exactly this purpose.
+  `dom_orth` agreeing with `lr` is what would show the projection is not distorting anything; they
+  are not stored by default (`--methods` defaults to `dom dom_orth`, the lr fits being far too slow
+  for a nightly), so the audit needs its own run.
+
+With that context, the measurement below stands as a re-measurement:
 
 | animal | most-aligned pair | abs cos with engagement axis |
 |---|---|---|
@@ -3824,3 +3843,83 @@ its supposed consequence -- lopsided counts do not imply a lopsided axis; a larg
 engagement axis does not imply a large change in a ratio that normalises by reliability. The cost of
 checking was one script and one run each; the cost of not checking would have been three wrong
 statements in the deck. **Propose the mechanism, then measure it before reporting it as a candidate.**
+
+---
+
+## THE CODING-DIRECTION AUDIT, RUN AT LAST: THE PROJECTION IS A CORRECTION (2026-08-24)
+
+Designed 2026-08-20/21 and never run, because `lr` needs a logistic fit per held-out session per pair
+(~330 extra fits per animal-window) and `--methods` defaults to `dom dom_orth`. Priya asked for it.
+`scripts/coding_direction_audit.py`, ENL window, pooled per-position per-class means -- what the deck
+figures show.
+
+`lr` is the reference: it reaches a near-uncontaminated direction WITHOUT any projection, by
+accounting for covariance. So the question is whether projecting moves `dom` toward it.
+
+| animal | dom vs lr | dom_orth vs lr | lr_orth vs lr |
+|---|---|---|---|
+| PS92 | 0.841 (r +0.67) | **0.128** (r +0.87) | 0.055 |
+| PS93 | 0.377 (r +0.44) | **0.127** (r +0.59) | 0.072 |
+| PS94 | 0.155 (r +0.44) | **0.122** (r +0.59) | 0.034 |
+| PS95 | 0.429 (r +0.28) | **0.188** (r +0.41) | 0.014 |
+
+**Orthogonalising moves `dom` toward `lr` in 4/4 animals**, dramatically in PS92 (0.841 -> 0.128). It
+is a correction toward the covariance-aware answer.
+
+**`lr_orth` vs `lr` is 0.014-0.072** -- projecting a direction that was never contaminated barely
+changes it. That is the direct refutation of the "the projection removes position structure" worry
+raised earlier today: if the engagement axis carried position information, removing it from a clean
+direction would move that direction. It does not.
+
+**The shift by class lands where the rule says it should.** `dom -> dom_orth` median shift:
+
+    prestroke_lick            0.00  0.00  0.00  0.00   (the class the direction is fitted on)
+    prestroke_nolick          1.69  0.62  0.35  0.82   (the class it was introduced for)
+    poststroke_miss_working   0.95  0.54  0.17  0.61
+    poststroke_stopped        0.78  0.67  0.15  0.46
+    poststroke_lick           0.29  0.15  0.04  0.05
+
+The correction acts on the no-lick classes and leaves the lick classes almost untouched -- exactly
+the disposition recorded in 2026-08-20/21 ("raw `dom` must not be used for the no-lick classes").
+
+### THE LIMIT THE AUDIT ALSO SHOWS
+Residual `dom_orth` vs `lr` disagreement is **0.12-0.19** -- 12-19% of the pole separation -- and the
+correlations are only +0.41 to +0.87, worst in PS95 (+0.41 AFTER orthogonalising). So "validated"
+means the projection does what it claims, NOT that the two methods give the same numbers. Any claim
+resting on a fine ordering between adjacent cells should be checked in both. Only the ENL window has
+been audited; cue and lick have not.
+
+---
+
+## PS93 RE-READ IN RAW: FAR_R-SPECIFIC IN THE POWERED WINDOWS, AND THE PRE-CUE CELL COUNTS WERE THIN
+
+far_R, orthogonalised -> raw, per window:
+
+| animal | pre-cue | cue | lick |
+|---|---|---|---|
+| PS92 | +0.35 -> +0.46 | +0.27 -> +0.32 | +0.23 -> **+0.23** |
+| PS93 | +0.25 -> +0.35 | +0.22 -> **−0.00** | +0.33 -> **−0.04** |
+| PS94 | +0.54 -> +0.48 | −0.06 -> +0.02 | +0.01 -> +0.04 |
+| PS95 | +0.80 -> +0.87 | +0.64 -> +0.48 | +0.63 -> +0.46 |
+
+PS92's lick-window far_R is IDENTICAL between treatments (+0.23 both) -- there the projection does
+nothing whatever.
+
+**PS93 is not "broad, unlateralised" in the two well-powered windows.** In raw cue and raw lick,
+far_R is lowest by a clear margin (−0.00 and −0.04; next lowest +0.13 and +0.29; everything else
++0.63 to +0.78) and it IMPROVES across blocks in both (cue −0.18 -> +0.11 -> +0.21; lick −0.13 ->
+−0.01 -> +0.51). That is a far_R-specific deficit with recovery.
+
+**The centre-position claim made earlier today is withdrawn.** It came from the pre-cue window, whose
+PS93 cells number **3 per centre position** against 5 everywhere in cue and lick. At n=3 that is not
+a finding, and the counts were printed beside every value specifically so this would be checked.
+
+### WHERE THAT LEAVES PS93 -- an impasse, not a result
+The two windows that show the far_R effect are the movement-confounded ones, and PS93's post-stroke
+far_R is 81% no-lick, which is exactly the condition that makes them unreliable (the lick window is
+then largely cue-aligned; see the correction entry). The controlled window, pre-cue, is too thin to
+adjudicate. So PS93 cannot currently be called either way, and it is the same missing measurement as
+everything else: attempts defined independently of spout contact.
+
+**PS92 remains the one animal whose far_R effect holds in all three windows, in both engagement
+treatments, with full cell coverage.**
