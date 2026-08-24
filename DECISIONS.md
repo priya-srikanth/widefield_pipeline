@@ -3923,3 +3923,46 @@ everything else: attempts defined independently of spout contact.
 
 **PS92 remains the one animal whose far_R effect holds in all three windows, in both engagement
 treatments, with full cell coverage.**
+
+---
+
+## THE AUDIT EXTENDED TO CUE AND LICK: ORTHOGONALISING IS RIGHT IN ENL AND WRONG FOR PS92 AFTER THE CUE (2026-08-24)
+
+The ENL result (projection moves `dom` toward `lr` in 4/4 animals) does not generalise. Median
+|dom − lr| -> |dom_orth − lr|, all three windows:
+
+| animal | ENL | cue | lick |
+|---|---|---|---|
+| PS92 | 0.841 -> **0.128** | 0.160 -> **0.192** | 0.202 -> **0.279** |
+| PS93 | 0.377 -> 0.127 | 0.279 -> 0.206 | 0.219 -> 0.135 |
+| PS94 | 0.155 -> 0.122 | 0.254 -> 0.140 | 0.181 -> 0.112 |
+| PS95 | 0.429 -> 0.188 | 0.569 -> 0.244 | 0.499 -> 0.191 |
+| | **4/4 toward lr** | 3/4 | 3/4 |
+
+**PS92 moves AWAY from the reference in both post-cue windows**, correlation +0.77 -> +0.69 (cue) and
++0.78 -> +0.62 (lick).
+
+### THE MECHANISM IS IN THE lr_orth COLUMN
+Projecting an ALREADY-CLEAN `lr` direction costs 0.014-0.072 in ENL but 0.024-0.116 in cue and lick.
+In a window with no movement in it the engagement axis carries almost no position structure, so
+removing it is nearly free. After the cue it is a LICKING axis, and removing it takes position-linked
+movement structure with it. PS92's plain directions were already the cleanest of the four in those
+windows (0.160/0.202 against 0.841 in ENL) -- little contamination to remove, real structure to lose.
+
+The deck's own note called the lick-window projection "deliberately conservative for the lick
+classes". Conservative and wrong-signed are different things, and for PS92 it is the second.
+
+### CONSEQUENCE, AND WHAT WAS DELIBERATELY NOT DONE
+`_G9_METHOD` shows `dom_orth` in all three windows for all four animals, so **the G9 cue and lick
+panels show the WORSE of the two available estimates for PS92**. The note now says so with the
+numbers, rather than the method being silently wrong.
+
+It was NOT switched per animal: six G9 panels chosen by different rules are incommensurable with each
+other, which is worse than one documented exception. The real decision -- whether cue and lick should
+show BOTH variants for every animal -- is left open rather than made by default.
+
+### AND THE LIMIT FOUND IN THE ENL AUDIT STILL APPLIES EVERYWHERE
+Residual |dom_orth − lr| is 0.11-0.28 across the three windows with correlations from +0.24 (PS93
+cue) to +0.69. The methods are not interchangeable anywhere. Any claim resting on a fine ordering
+between adjacent cells has to be checked in both -- which is the ORDERING flag on 13 notes in
+`docs/DECK_CLAIM_AUDIT.md`.

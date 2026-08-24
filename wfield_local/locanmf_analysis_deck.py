@@ -2124,6 +2124,36 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # removed. Right for the no-lick classes, deliberately conservative for the lick ones, since
         # licks to different spouts differ in kinematics and no projection can separate position
         # from position-specific movement in this window.
+        #
+        # AUDITED 2026-08-24 (`scripts/coding_direction_audit.py`), against the LOGISTIC directions
+        # that were kept from the start as the independent check -- they reach a near-uncontaminated
+        # direction WITHOUT any projection, by accounting for covariance. Median |dom - lr| ->
+        # |dom_orth - lr|:
+        #
+        #            ENL                 cue                 lick
+        #   PS92     0.841 -> 0.128      0.160 -> 0.192      0.202 -> 0.279     <-- AWAY, twice
+        #   PS93     0.377 -> 0.127      0.279 -> 0.206      0.219 -> 0.135
+        #   PS94     0.155 -> 0.122      0.254 -> 0.140      0.181 -> 0.112
+        #   PS95     0.429 -> 0.188      0.569 -> 0.244      0.499 -> 0.191
+        #            4/4 toward lr       3/4                 3/4
+        #
+        # ENL IS SETTLED: every animal moves toward the reference, and projecting an ALREADY-CLEAN
+        # lr direction costs only 0.014-0.072 there -- the engagement axis carries almost no
+        # position structure in a window with no movement in it.
+        #
+        # IN CUE AND LICK IT COSTS MORE (lr_orth vs lr 0.024-0.116), because there the axis is a
+        # LICKING axis and removing it takes position-linked movement with it. For PS92 that
+        # tips the balance: orthogonalising moves it AWAY from lr in both windows, correlation
+        # +0.77 -> +0.69 and +0.78 -> +0.62. Its plain directions were already the cleanest of the
+        # four in those windows (0.160/0.202 against 0.841 in ENL), so it had little contamination
+        # to remove and real structure to lose. "Deliberately conservative" was the right instinct
+        # for the lick classes; for PS92 specifically it is not conservative but wrong-signed, and
+        # THIS SLIDE SHOWS THE WORSE OF THE TWO ESTIMATES FOR PS92 cue AND PS92 lick. Read those two
+        # panels against the plain-direction ones, or against lr directly.
+        #
+        # NOT CHANGED HERE ON PURPOSE: switching per animal would make the six G9 panels
+        # incommensurable with each other, which is worse than one documented exception. The
+        # decision to make is whether cue/lick should show BOTH variants for every animal.
         _G9_METHOD = {"ENL": "dom_orth", "cue": "dom_orth", "lick": "dom_orth"}
         for _w in ("ENL", "cue", "lick"):
             _m = _G9_METHOD[_w]
