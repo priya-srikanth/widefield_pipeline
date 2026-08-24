@@ -320,34 +320,73 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     out = {"animal": animal, "align": align, "basis_id": basis.basis_id,
            "reference_axes": sorted(refs),
            "prestroke_null": prestroke_null(XE, en, GE, pre_i, e_ax, rng),
+           # THE NULL MUST MATCH THE ARM. A raw post-stroke cosine judged against an orthogonalised
+           # null compares two different measurements; both are computed so neither can be read
+           # against the wrong one.
+           "prestroke_null_raw": prestroke_null(XE, en, GE, pre_i, None, rng),
            "pairs": {}}
     for a, b in PAIRS:
         pL, pR = XE[e_pre & (en == a)], XE[e_pre & (en == b)]
         if len(pL) < MIN_PRE or len(pR) < MIN_PRE:
             continue
-        w_pre = axis(pL, pR, e_ax)
-        rec = {"type": pair_type(a, b), "n_pre": [len(pL), len(pR)],
-               "pooled": {}, "sessions": {}}
-        rec["pooled"]["poststroke_lick"] = compare(
-            w_pre, pL, pR, XE[(~e_pre) & (en == a)], XE[(~e_pre) & (en == b)], e_ax, rng)
-        rec["pooled"]["poststroke_miss_working"] = compare(
-            w_pre, pL, pR, XU[miss & (un == a)], XU[miss & (un == b)], e_ax, rng)
-        rec["pooled"]["poststroke_stopped"] = compare(
-            w_pre, pL, pR, XU[stopped & (un == a)], XU[stopped & (un == b)], e_ax, rng)
-        # ALL TRIALS, outcome-blind -- the only arm in which the most affected positions have
-        # enough trials on BOTH sides of a contrast. Its reference is also outcome-blind.
-        # BOTH VARIANTS, so the effect of including the terminal quit period is visible rather
-        # than assumed. `_working` is the one to prefer; `all` is kept as its comparison.
-        blind = {}
-        for tag, keep_stopped in (("poststroke_all", True), ("poststroke_all_working", False)):
-            aA = all_at(a, True, keep_stopped)
-            aB = all_at(b, True, keep_stopped)
-            if min(len(aA), len(aB)) < MIN_PRE:
-                continue
-            blind[tag] = (axis(aA, aB, e_ax), aA, aB, keep_stopped)
-            rec["pooled"][tag] = compare(blind[tag][0], aA, aB,
-                                         all_at(a, False, keep_stopped),
-                                         all_at(b, False, keep_stopped), e_ax, rng)
+        rec = {"type": pair_type(a, b), "n_pre": [len(pL), len(pR)]}
+
+        def arms(ax, a=a, b=b, pL=pL, pR=pR):
+            """Every arm under ONE engagement treatment. ax=e_ax orthogonalised, ax=None raw.
+
+            BOTH ARE COMPUTED because orthogonalising is not the safe default it was assumed to
+            be. Measured 2026-08-24 (`scripts/engagement_axis_balance.py`), position axes sit at
+            |cos| 0.61-0.89 to the engagement axis, so for the worst pairs the projection discards
+            most of the position axis and renormalises what is left. The raw form keeps that
+            structure and pays for it with any genuine state contamination. Neither is right on
+            its own; the pair brackets the answer, and a claim that holds in only one of them is
+            a claim about the projection.
+            """
+            w = axis(pL, pR, ax)
+            pooled, sess = {}, {}
+            pooled["poststroke_lick"] = compare(
+                w, pL, pR, XE[(~e_pre) & (en == a)], XE[(~e_pre) & (en == b)], ax, rng)
+            pooled["poststroke_miss_working"] = compare(
+                w, pL, pR, XU[miss & (un == a)], XU[miss & (un == b)], ax, rng)
+            pooled["poststroke_stopped"] = compare(
+                w, pL, pR, XU[stopped & (un == a)], XU[stopped & (un == b)], ax, rng)
+            # ALL TRIALS, outcome-blind -- the only arm in which the most affected positions have
+            # enough trials on BOTH sides of a contrast. Its reference is also outcome-blind.
+            # BOTH VARIANTS, so the effect of including the terminal quit period is visible rather
+            # than assumed. `_working` is the one to prefer; `all` is kept as its comparison.
+            blind = {}
+            for tag, keep_stopped in (("poststroke_all", True), ("poststroke_all_working", False)):
+                aA = all_at(a, True, keep_stopped)
+                aB = all_at(b, True, keep_stopped)
+                if min(len(aA), len(aB)) < MIN_PRE:
+                    continue
+                blind[tag] = (axis(aA, aB, ax), aA, aB, keep_stopped)
+                pooled[tag] = compare(blind[tag][0], aA, aB,
+                                      all_at(a, False, keep_stopped),
+                                      all_at(b, False, keep_stopped), ax, rng)
+            for blk in blocks:
+                lab = "+".join(kept[i].split("_")[1] for i in blk)
+                inE = np.isin(GE, blk)
+                inU = np.isin(GU, blk) if len(GU) else np.zeros(0, bool)
+                cells = {
+                    "poststroke_lick": compare(w, pL, pR, XE[(~e_pre) & inE & (en == a)],
+                                               XE[(~e_pre) & inE & (en == b)], ax, rng),
+                    "poststroke_miss_working": compare(w, pL, pR, XU[miss & inU & (un == a)],
+                                                       XU[miss & inU & (un == b)], ax, rng),
+                    "poststroke_stopped": compare(w, pL, pR, XU[stopped & inU & (un == a)],
+                                                  XU[stopped & inU & (un == b)], ax, rng)}
+                # The outcome-blind arms per block too: the per-block view is what separated PS95's
+                # recovery from PS93's progression, and it is worth nothing if it cannot be read in
+                # the one arm where the most affected positions have trials on both sides.
+                for tag, (w_blind, aA, aB, keep_stopped) in blind.items():
+                    cells[tag] = compare(
+                        w_blind, aA, aB, all_at(a, False, keep_stopped, blk=blk),
+                        all_at(b, False, keep_stopped, blk=blk), ax, rng)
+                sess[lab] = cells
+            return pooled, sess
+
+        rec["pooled"], rec["sessions"] = arms(e_ax)
+        rec["pooled_raw"], rec["sessions_raw"] = arms(None)
         # WHAT the pooled post-stroke axis is made of, per class. Only where an axis exists at all:
         # decomposing a direction fitted through noise describes the noise.
         rec["decomposition"] = {}
@@ -362,23 +401,6 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
                 continue
             rec["decomposition"][cls] = decompose(axis(qL, qR, e_ax), refs)
 
-        for blk in blocks:
-            lab = "+".join(kept[i].split("_")[1] for i in blk)
-            inE, inU = np.isin(GE, blk), (np.isin(GU, blk) if len(GU) else np.zeros(0, bool))
-            rec["sessions"][lab] = {
-                "poststroke_lick": compare(w_pre, pL, pR, XE[(~e_pre) & inE & (en == a)],
-                                           XE[(~e_pre) & inE & (en == b)], e_ax, rng),
-                "poststroke_miss_working": compare(w_pre, pL, pR, XU[miss & inU & (un == a)],
-                                                   XU[miss & inU & (un == b)], e_ax, rng),
-                "poststroke_stopped": compare(w_pre, pL, pR, XU[stopped & inU & (un == a)],
-                                              XU[stopped & inU & (un == b)], e_ax, rng)}
-            # The outcome-blind arms per block too: the per-block view is what separated PS95's
-            # recovery from PS93's progression, and it is worth nothing if it cannot be read in the
-            # one arm where the most affected positions have trials on both sides.
-            for tag, (w_blind, aA, aB, keep_stopped) in blind.items():
-                rec["sessions"][lab][tag] = compare(
-                    w_blind, aA, aB, all_at(a, False, keep_stopped, blk=blk),
-                    all_at(b, False, keep_stopped, blk=blk), e_ax, rng)
         out["pairs"][f"{a}|{b}"] = rec
     return out
 
@@ -397,6 +419,11 @@ def main(argv=None) -> int:
                     help="pool N CONSECUTIVE post-stroke sessions per cell (default 1). Per session "
                          "the measure is usually too noisy to interpret; N=2 roughly doubles the "
                          "trials per split-half.")
+    ap.add_argument("--engagement", default="orth", choices=("orth", "raw"),
+                    help="which treatment to PRINT: 'orth' projects the engagement axis out "
+                         "(the historical default), 'raw' does not. BOTH are always stored -- "
+                         "position axes sit at |cos| 0.61-0.89 to the engagement axis, so the "
+                         "projection is a real intervention, not a cleanup.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
@@ -411,15 +438,17 @@ def main(argv=None) -> int:
         if not r:
             continue
         res[an] = r
-        print(f"\n=== {an}  {args.align}  [{args.cls}]", flush=True)
+        pkey = "pooled" if args.engagement == "orth" else "pooled_raw"
+        skey = "sessions" if args.engagement == "orth" else "sessions_raw"
+        print(f"\n=== {an}  {args.align}  [{args.cls}]  engagement={args.engagement}", flush=True)
         for key, rec in r["pairs"].items():
             print(f"  {key:<26}({rec['type']})", flush=True)
-            cell = rec["pooled"].get(args.cls)
+            cell = rec[pkey].get(args.cls)
             if cell is None:                       # arm not computed for this pair (too few trials)
                 print(f"      {'POOLED':<14}not computed for this class", flush=True)
                 continue
             print(f"      {'POOLED':<14}{verdict(cell)}", flush=True)
-            for lab, cells in rec["sessions"].items():
+            for lab, cells in rec[skey].items():
                 if args.cls in cells:
                     print(f"      {lab.split('_')[-1]:<14}{verdict(cells[args.cls])}", flush=True)
     if res:

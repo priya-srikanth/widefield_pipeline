@@ -3709,10 +3709,14 @@ most-aligned pairs are all cross-ring. But because balancing does not change the
 counting artefact to be corrected: the genuine no-contact state lives along the same population
 directions as the close-vs-far contrast. There is nothing to remove.
 
-**CONSEQUENCE.** The orthogonalised arms systematically UNDERSTATE position effects, worst for
-cross-ring pairs, in every animal. A null in an orthogonalised arm is therefore weak evidence -- the
-existing note that "a class that stops separating is ambiguous, not negative" is carrying more weight
-than its phrasing suggests. This is the same geometry as the within-ring-safe / cross-ring-unsafe
+**CONSEQUENCE -- QUALIFIED THE SAME DAY, see the raw-vs-orthogonalised entry below.** The
+projection removes a large part of the raw position axis, so any analysis reading a COSINE or a
+projection directly (`position_coding_directions`, which is not disattenuated) understates position
+structure, and a null there is weak evidence -- the existing note that "a class that stops separating
+is ambiguous, not negative" carries more weight than its phrasing suggests. It does NOT follow for
+the DISATTENUATED position-axis verdicts: measured, raw and orthogonalised ratios differ by 0.02-0.15
+because the reliability in the denominator is computed under the same treatment and absorbs the loss.
+The cross-ring part of the prediction did not replicate either. This is the same geometry as the within-ring-safe / cross-ring-unsafe
 entry and the one-vs-rest flaw, now quantified against the engagement axis specifically.
 
 The position-balanced option stays in `engagement_axis` (off by default) because it costs nothing and
@@ -3744,3 +3748,79 @@ so a tongue that misses produces no signal whatever. The behaviour cameras are t
 that sees it. The video-based movement-onset item was already blocking the post-stroke classes; it
 now blocks the pre-stroke reference and the engagement axis as well, which raises it from "the next
 analysis" to the thing several current results are waiting on.
+
+---
+
+## RAW vs ORTHOGONALISED: THE PROJECTION BARELY MOVES THE DISATTENUATED RATIO (2026-08-24)
+
+Having found that position axes sit at |cos| 0.61-0.89 to the engagement axis, the obvious conclusion
+was that the orthogonalised arms must systematically understate position effects. Priya asked for
+both forms to be reported. `position_axes` now computes every arm TWICE in one pass -- `pooled` /
+`sessions` (projected) and `pooled_raw` / `sessions_raw` (not) -- **and both nulls**
+(`prestroke_null`, `prestroke_null_raw`), because a raw cosine judged against an orthogonalised null
+compares two different measurements. `scripts/orth_vs_raw.py` reads them side by side.
+
+### The obvious conclusion was wrong
+
+Pre-cue, outcome-blind arm, per position, each against its own null (which also shifts: PS92
+0.80 -> 0.70, PS93 0.88 -> 0.92, PS94 0.91 -> 0.88, PS95 0.81 -> 0.79):
+
+| | far_R | far_center | far_L | close_R | close_center | close_L |
+|---|---|---|---|---|---|---|
+| PS92 orth | +0.35 | +0.77 | +0.58 | +0.87 | +0.77 | +0.77 |
+| PS92 raw | **+0.46** | +0.92 | +0.83 | +0.90 | +0.88 | +0.88 |
+| PS93 orth | +0.25 | +0.12 | +0.36 | +0.43 | −0.04 | +0.38 |
+| PS93 raw | +0.35 | **−0.07** | +0.56 | +0.82 | **−0.10** | +0.38 |
+| PS94 orth | +0.54 | +0.52 | +0.64 | +0.59 | +0.59 | +0.79 |
+| PS94 raw | +0.48 | +0.48 | +0.64 | +0.61 | +0.63 | +0.66 |
+| PS95 orth | +0.80 | +0.83 | +0.79 | +0.74 | +0.71 | +0.83 |
+| PS95 raw | +0.87 | +0.82 | +0.80 | +0.80 | +0.68 | +0.84 |
+
+Median |delta| is 0.02-0.15 nearly everywhere. PS92 rises at all six positions, PS93 partly, PS94
+and PS95 essentially not at all. By PAIR TYPE the predicted cross-ring damage is weak at best --
+PS92 distance +0.25 / diagonal +0.10 against lateral-centre +0.11; PS93 distance +0.16 / diagonal
++0.13; PS94 and PS95 no ordering.
+
+### WHY, and it should have been predictable
+
+**The disattenuation absorbs it.** The ratio divides by the axis's own split-half reliability
+COMPUTED UNDER THE SAME TREATMENT. Projecting a direction out removes signal from the cosine AND from
+the reliability, so the two largely cancel. Raw and orthogonalised COSINES differ a great deal; their
+disattenuated RATIOS do not. The |cos| 0.61-0.89 finding is still true and still means the projection
+is a large intervention on the AXES -- it simply does not propagate to this statistic.
+
+**So the earlier claim needs qualifying**: "the orthogonalised arms systematically understate
+position effects, worst for cross-ring pairs, in every animal" holds for raw cosines and for any
+analysis reading them directly (`position_coding_directions` projections, which are NOT
+disattenuated), and does NOT hold for the disattenuated position-axis verdicts, which are what the
+post-stroke story rests on. Those are robust to the choice.
+
+### PS93's "BROAD, UNLATERALISED" SURVIVES -- with a different shape than "broad"
+
+Raw, against a 0.92 null: close_center −0.10 ~ far_center −0.07 < far_R +0.35 ~ close_L +0.38 <
+far_L +0.56 < close_R +0.82. **far_R is mid-pack in BOTH treatments**; the projection was not hiding
+a lateralised effect, which was the hypothesis this run was built to test.
+
+What is there instead is a CENTRE-POSITION concentration: both centre spouts sit near −0.1 while all
+four lateral positions run +0.35 to +0.82, in raw and orth alike. That is a centre-versus-lateral
+geometry, not a left-right one, and it is a different claim from "broad". It has NOT been checked
+against PS93's behaviour and should be before it is called anything.
+
+**PS92 strengthens.** far_R is the lowest position in raw too (+0.46 against a 0.70 null; next
+lowest +0.83), so its specificity is not a product of the projection. Holding in the lick-free
+pre-cue window AND in both engagement treatments, PS92 is the cleanest case in the cohort.
+
+### THE PATTERN IN THE ERRORS, RECORDED BECAUSE IT REPEATED THREE TIMES IN ONE DAY
+
+Three mechanisms were proposed from real observations and none survived measurement:
+
+1. PS93's far_L trial imbalance distorts its engagement axis -> balancing moves the axis by +0.958.
+2. The projection damages cross-ring pairs most -> no consistent ordering by pair type.
+3. The projection systematically understates position effects -> true for cosines, absorbed by the
+   disattenuation for the verdicts that matter.
+
+Each observation was correct. What failed each time was the UNTESTED STEP between the observation and
+its supposed consequence -- lopsided counts do not imply a lopsided axis; a large angle to the
+engagement axis does not imply a large change in a ratio that normalises by reliability. The cost of
+checking was one script and one run each; the cost of not checking would have been three wrong
+statements in the deck. **Propose the mechanism, then measure it before reporting it as a candidate.**
