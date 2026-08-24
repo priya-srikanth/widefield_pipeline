@@ -3399,3 +3399,106 @@ VAF alone would have flattered the on-manifold conclusion. And the manifold is d
 90-component LocaNMF basis, itself a fixed anatomically constrained reduction -- so "on-manifold" is
 a lower bound on any real excursion, not an estimate of it. Sensitivity to the 90% variance target
 has NOT been tested.
+
+---
+
+## THE COMPOSITION CONTROL: OUTCOME MIXTURE DOES NOT ROTATE A POSITION AXIS (2026-08-23)
+
+The outcome-blind arm is what finally gives far_R usable cells, and in it every far_R pair reads
+CHANGED. That is either the result or it is arithmetic: post-stroke far_R is nearly all misses while
+its partners are nearly all licks, and the pre-stroke reference is mostly licks, so the two sides of
+the contrast are drawn from different outcome mixtures. `scripts/axis_composition_null.py` builds
+that same asymmetry BY HAND inside pre-stroke, where there is no lesion -- position `a` from no-lick
+trials, position `b` from lick trials -- and measures how far it moves the outcome-blind axis.
+
+**It does not move it.**
+
+| animal | arm | n pairs | median disatt |
+|---|---|---|---|
+| PS93 | miss-while-working | 6 | **+1.26** [+1.09, +1.34] |
+| PS94 | miss-while-working | 3 | **+1.09** [+1.02, +1.11] |
+| PS95 | miss-while-working | 1 | **+0.90** |
+| PS95 | disengaged / sated tail | 8 | **+0.98** [+0.86, +1.10] |
+| PS92 | either | 0 | not testable |
+
+Values at or above 1.0 are AT CEILING -- indistinguishable from unchanged, and unstable as estimates
+(the same >1 instability documented for per-session cells). The reading is that an axis fitted with
+one side drawn entirely from no-lick trials is the SAME axis, not a rotated one. Post-stroke far_R
+cells sit at +0.23 to −0.06 in the cue window. Composition cannot manufacture that.
+
+**The sated-tail arm is Priya's, and it is deliberately ONE-SIDED** (2026-08-23). The terminal sated
+tail is a far larger state difference than a miss, so a null result there is conservative: if
+satiety does not rotate the axis, an outcome difference cannot. A positive result would have been
+inconclusive rather than a refutation, because satiety is not the post-stroke miss state. It came
+back +0.98, so the conservative reading applies.
+
+**The one exception is the headline pair.** PS95's `far_R|far_L` in the sated-tail arm is +0.52 --
+the only cell below 0.8 in the entire control, and the far lateral axis is exactly the contrast the
+post-stroke story rests on. So the far lateral axis IS the most state-sensitive of the fifteen. It
+still does not reach the post-stroke values (PS94 −0.06, PS93 +0.23), but any claim resting on
+far_R|far_L alone should carry this number with it.
+
+**Why PS92 could not be tested is not what it looked like.** An earlier reading of the first run --
+"pre-stroke no-lick is overwhelmingly the sated tail" -- was WRONG, and the per-position census
+added to the failure branch is what showed it:
+
+| animal | pre-stroke no-lick | miss-while-working | sated tail |
+|---|---|---|---|
+| PS92 | 132 | **126** | 6 |
+| PS93 | 530 | **492** | 38 |
+| PS94 | 475 | 227 | 248 |
+| PS95 | 778 | 391 | 387 |
+
+PS92 and PS93 are almost ALL miss-while-working; PS94 and PS95 split about evenly. PS92 failed for
+total n -- 132 no-lick trials across eleven sessions, because the animal almost never failed -- and
+the cells fell to the reliability gate, not the count gate. That also explains the reciprocal
+pattern: the two animals with a large sated tail (PS94, PS95) are the only ones where the tail arm
+could be run at all.
+
+### CONSEQUENCE
+The outcome-blind arm is a valid measurement, not an artefact of trial mixture, and the far_R
+verdicts stand. What the control does NOT license: the residual worry is not composition but
+MOVEMENT. In the cue window a pre-stroke far_R trial contains a lick and a post-stroke one usually
+does not, and the control above is built in the pre-cue window, which is lick-free on both sides by
+construction. So the pre-cue far_R result is controlled; the sharper cue-window far_R result is not,
+and its extra sharpness is exactly what either explanation predicts.
+
+---
+
+## WHAT THE OUTCOME-BLIND ARM SHOWS, AND WHERE IT IS AND IS NOT POSITION-SPECIFIC (2026-08-23)
+
+Pre-cue (disattenuated median, cells with reliability >= 0.5, against each animal's matched null):
+
+| animal | null | pooled | far_R pairs | non-far_R | per block |
+|---|---|---|---|---|---|
+| PS92 | 0.79 | +0.77 (11/15 below) | **+0.35** | +0.78 | 0.76 / 0.68 / 0.80 |
+| PS93 | 0.93 | +0.39 (11/11) | +0.25 | +0.41 | 0.26 / 0.35 / 0.21 |
+| PS94 | 0.89 | +0.60 (12/14) | +0.54 | +0.60 | 0.44 / 0.53 / 0.53 |
+| PS95 | 0.84 | +0.75 (12/13) | +0.74 | +0.75 | **0.59 -> 0.96** |
+
+Cue:
+
+| animal | pooled | far_R pairs | non-far_R | per block |
+|---|---|---|---|---|
+| PS92 | +0.71 | **+0.27** | +0.89 | 0.87 / 0.71 / 0.51 |
+| PS93 | +0.45 | **+0.23** | +0.52 | 0.39 / 0.35 / 0.87 |
+| PS94 | +0.35 | **−0.06** | +0.50 | **−0.12 -> 0.38 -> 0.60** |
+| PS95 | +0.74 | +0.64 | +0.75 | 0.69 / 0.70 / 0.64 |
+
+**Two recoveries, found independently.** PS95 pre-cue block 1 is 0.59 with 11/12 cells below the
+null and 0.96 with 0/3 by 0821 -- the same recovery the LICK class showed, now reproduced in an arm
+built from different trials. PS94's cue-aligned first block is −0.12 (not rotated: unrelated) and
+climbs to +0.60 by 0821+0823. Cross-arm reproduction is the strongest confirmation available at n=4.
+
+**POSITION-SPECIFICITY IS PRESENT IN CUE AND MOSTLY ABSENT IN PRE-CUE.** In the cue window three of
+four animals separate far_R (+0.27, +0.23, −0.06) from everything else (+0.89, +0.52, +0.50). In the
+pre-cue window only PS92 does (+0.35 vs +0.78); in PS93, PS94 and PS95 every pair changed by about
+the same amount. **A uniform shift across all fifteen pairs is what a global change looks like, not
+a lateralised lesion effect** -- and the pre-cue window is the CONTROLLED one. The honest statement
+is therefore narrower than the cue table suggests:
+
+    pre-cue   a broad change in the pre-cue state, position-specific only in PS92
+    cue       a far_R-specific collapse -- in the window where the movement confound is largest
+
+Do not merge the two into "the far_R code is lost". The windows disagree, and they disagree in the
+direction that the movement confound predicts.
