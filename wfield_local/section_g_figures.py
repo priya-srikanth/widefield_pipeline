@@ -100,7 +100,9 @@ def _recall_row(phase_rec):
     out = {}
     for i, nm in enumerate(pos):
         v = M[i][i]
-        out[nm] = {"n": int(ns[i]), "recall": (float(v) if v is not None and v == v else float("nan"))}
+        # `v != v` is the NaN test; ruff reads it as a self-comparison, hence the noqa.
+        ok = v is not None and v == v                                        # noqa: PLR0124
+        out[nm] = {"n": int(ns[i]), "recall": (float(v) if ok else float("nan"))}
     return out
 
 
@@ -125,9 +127,9 @@ def per_position_table(sub):
             rec["posts"].append((lab, post_row))
             rec["balanced"][lab] = _balanced(post_row)
             rec["pre_balanced"] = _balanced(rec["pre"])
-    for a in table:
-        for c in table[a]:
-            table[a][c]["posts"].sort(key=lambda kv: kv[0])
+    for conds in table.values():
+        for rec_c in conds.values():
+            rec_c["posts"].sort(key=lambda kv: kv[0])
     return table
 
 
@@ -176,8 +178,11 @@ def _render_family(sub, out, prefix, label):
                     if v.get("arms", {}).get(arm, {}).get("confusion", {}).get(cond)}
             if conf:
                 # one figure per session now -- extend, not append
+                # arm_name is what LABELS the post panels. Passing only the filename left every
+                # LICK-ONLY figure captioned "ALL trials" (fixed 2026-08-24).
                 made += pp.fig_confusion_alltrials(
-                    conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png")
+                    conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png",
+                    arm_name=arm_name)
 
         made.append(pp.fig_grid(sub, out, arm=arm, name=f"{prefix}_grid_{arm}.png"))
     return made
@@ -258,7 +263,7 @@ def main(argv=None) -> int:
         print(f"  SKIP: {p} not computed yet "
               f"(run `python -m wfield_local.poststroke_section_g`)", flush=True)
         return 0
-    rec = json.load(open(p))
+    rec = json.loads(Path(p).read_text(encoding="utf-8"))
     print(f"\n=== {len(rec)} sessions", flush=True)
     for q in render(rec, out):
         print(f"  wrote {Path(q).name}", flush=True)

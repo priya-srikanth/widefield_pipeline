@@ -33,11 +33,12 @@ import json
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
 
-from wfield_local import config  # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+from wfield_local import config
 
 #: Cells thinner than this are drawn hollow and excluded from the trend. A working animal rarely
 #: misses at a position it can still reach, so the CLOSE cells are structurally thin -- PS95 has
@@ -80,12 +81,22 @@ def fig_miss_vs_stopped(data, out_dir, window="ENL",
             ax = axes[ri][ci]
             ax.axhline(0, color="k", lw=0.8)
             ax.axhline(1.0, color="tab:green", ls=":", lw=1.0)
+            # X IS THE SESSION, NOT THE INDEX WITHIN A CLASS. Both classes are placed on a shared
+            # ordered list of that panel's dates. Using `np.arange(len(s))` per class put the two
+            # classes' k-th SESSIONS at the same x even when their session sets differed -- so a
+            # miss point at 0820 could sit above a stopped point at 0822 while the figure's own
+            # subtitle promised "same position, same session, side by side". The tick labels were
+            # also set INSIDE the class loop, so whichever class was drawn last (STOPPED) owned
+            # them: when miss had more sessions than stopped, its extra points fell beyond the last
+            # labelled tick and appeared with no date at all (Priya, 2026-08-24, slide 251).
+            ser = {cls: series(data[an], pos, cls) for cls in (MISS, STOPPED)}
+            dates = sorted({d for s in ser.values() for d, _, _, _ in s})
             for cls, colour, mark, lbl in ((MISS, "tab:red", "o", "miss while WORKING"),
                                            (STOPPED, "tab:purple", "v", "STOPPED (quit)")):
-                s = series(data[an], pos, cls)
+                s = ser[cls]
                 if not s:
                     continue
-                x = np.arange(len(s))
+                x = np.array([dates.index(d) for d, _, _, _ in s], float)
                 y = np.array([v for _, v, _, _ in s])
                 e = np.array([se for _, _, se, _ in s])
                 n = np.array([nn for _, _, _, nn in s])
@@ -95,8 +106,10 @@ def fig_miss_vs_stopped(data, out_dir, window="ENL",
                 if thin.any():                     # drawn, but hollow and unjoined
                     ax.errorbar(x[thin], y[thin], yerr=e[thin], color=colour, marker=mark,
                                 ms=5, lw=0, elinewidth=0.7, capsize=2, mfc="white", alpha=0.55)
-                ax.set_xticks(x)
-                ax.set_xticklabels([d for d, _, _, _ in s], rotation=45, ha="right", fontsize=7)
+            if dates:
+                ax.set_xticks(np.arange(len(dates)))
+                ax.set_xticklabels(dates, rotation=45, ha="right", fontsize=7)
+                ax.set_xlim(-0.5, len(dates) - 0.5)
             if ri == 0:
                 ax.set_title(an, fontsize=11)
             if ci == 0:
@@ -133,7 +146,7 @@ def main(argv=None) -> int:
         print(f"[miss_vs_stopped] {src} not found -- run position_coding_directions first",
               flush=True)
         return 1
-    d = json.load(open(src))
+    d = json.loads(Path(src).read_text(encoding="utf-8"))
     if args.window not in d:
         print(f"[miss_vs_stopped] window {args.window!r} not in {src.name}", flush=True)
         return 1

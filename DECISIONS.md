@@ -4008,3 +4008,64 @@ missing.
 
 Slide accounting, measured rather than assumed: the old rule matched 72 figures, the new one matches
 132 (+48 plain-direction variants, +12 behaviour), and **nothing that was shown before is dropped**.
+
+---
+
+## TWO FIGURE-LABELLING BUGS FOUND BY READING THE SLIDES (2026-08-24)
+
+Both were found by Priya looking at the deck, not by any check in the pipeline, and neither would
+ever have failed a test: the DATA was right in both cases and only the labels lied.
+
+### 1. Every LICK-ONLY crossed-confusion figure was captioned "ALL trials"
+
+`plot_poststroke.fig_confusion_alltrials` hardcoded the post-panel titles and the suptitle as
+"ALL trials", while `section_g_figures` calls it ONCE PER ARM and passed the arm into the FILENAME
+only. So the G3 slide title said "LICK-ONLY arm" (correct -- it comes from the loop) and the figure
+inside it said "POST (frozen, ALL trials)" (wrong). Priya, 2026-08-24: "the matrices are labeled the
+same. Which is correct?" The slide title is.
+
+The matrices themselves were always the right ones -- `conf` is indexed `arms[arm]["confusion"]` --
+which is what makes this the harder kind of error to catch: nothing about the numbers looks wrong,
+and a reader comparing the two G3 slides would conclude the two arms give identical results.
+
+Fixed by giving the function an `arm_name` parameter and passing `arm_name` (already in scope at the
+call site, from `ARMS`). The LICK-ONLY suptitle now also says what its missing rows mean: a position
+the animal abandoned has NO row in that arm, which is the gap the ALL-trials arm exists to fill, and
+an absent row must not be read as a failure to decode.
+
+### 2. `miss_vs_stopped` placed the two classes at the wrong x, in every panel
+
+`fig_miss_vs_stopped` built `x = np.arange(len(s))` SEPARATELY FOR EACH CLASS and called
+`set_xticklabels` INSIDE the class loop. Two consequences:
+
+- **The classes were not aligned by session.** The two classes have different session sets in ALL
+  TWELVE panels -- miss always has more, because a stopped cell needs a terminal quit period.
+  PS94 far_R is miss on 0817-0823 (6 sessions) against stopped on 0818/0819/0820/0823 (4). Drawn at
+  0..5 and 0..3, every PS94 miss point sat one session to the LEFT of the stopped point beside it,
+  under a figure whose own subtitle promises "same position, SAME SESSION, two failure modes side by
+  side".
+- **The last class drawn owned the tick labels.** STOPPED is drawn second, so its 4 ticks labelled
+  the axis and the 2 extra miss points fell beyond them with no date at all -- which is what Priya
+  spotted ("why are there data points that are not labeled with any date?").
+
+Fixed: a shared ordered date list per panel, `x = dates.index(d)` per point, ticks set once outside
+the class loop, xlim pinned to the shared range.
+
+**The quoted numbers survive.** Every value in the deck note and in the "THE PLAN IS THERE WHEN THE
+ANIMAL IS TRYING" entry was read from `coding_direction.json`, not off the figure, and re-checking
+them against the JSON they match exactly (PS92 far_center miss +2.01/+1.78/+1.01/+1.78/+1.63,
+stopped +0.78/−0.06/+0.81/+1.22). What was wrong was the picture, and any conclusion drawn by EYE
+from the paired trajectories -- particularly PS94, where the offset is a full session.
+
+**One stale count did surface**: the deck says "PS94 far_R miss ~+0.6 on four of five sessions ...
+against stopped +0.15/+0.07/−0.02". There are now SIX miss sessions (0.88, 0.30, 0.11, 0.62, 0.62,
+0.42) and FOUR stopped (+0.15, +0.07, −0.02, +0.04) -- 0823 was added after the sentence was
+written. A `DECK_CLAIM_AUDIT.md` case in the wild.
+
+### THE PATTERN, WHICH IS THE REUSABLE PART
+Both bugs are the same shape: a value that varies (the arm, the session) reaching the FILENAME or the
+DATA but not the LABEL. Neither can fail a test, neither trips the deck's figures-placed/missing
+counter, and both produce a figure that looks entirely reasonable. The only detector that worked was
+a person reading the slide and asking why two things that should differ looked the same. Worth
+assuming there are more: anything that draws per-arm, per-class or per-window figures from a shared
+plotting function is a candidate.

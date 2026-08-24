@@ -13,10 +13,21 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt                                        # noqa: E402
-import numpy as np                                                     # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
 
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+
+
+def _num(v, default=0.0):
+    """``v`` unless it is None or NaN, in which case ``default``.
+
+    ``v != v`` is the NaN test. Ruff flags the idiom as a self-comparison (PLR0124) because it
+    cannot tell it from a mistake, so it lives here once with a noqa rather than four times inline.
+    A missing bar must be drawn at zero rather than skipped: skipping it silently shifts every
+    later bar in the group left, which reads as a different position.
+    """
+    return default if v is None or v != v else v      # noqa: PLR0124
 
 
 #: Post-stroke sessions per counts figure. One row of N panels was fine at N=2 and illegible at
@@ -118,7 +129,7 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
         ch = chance.get(an, 1 / 6) if isinstance(chance, dict) else chance
         ax.axhline(ch, color="k", ls=":", lw=1)
         ax.text(len(conds) - 0.5, ch + 0.01,
-                f"chance ({int(round(1 / ch))}-way)", fontsize=7, ha="right")
+                f"chance ({round(1 / ch)}-way)", fontsize=7, ha="right")
         ax.set_xticks(range(len(conds)))
         ax.set_xticklabels(conds, fontsize=9)
         ax.set_ylim(0, 1.02)
@@ -356,7 +367,7 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
                 vals = [rec.get(q, {}).get("recall", np.nan) for q in POS]
                 ns = [rec.get(q, {}).get("n", 0) for q in POS]
                 xs = x + (j - (len(series) - 1) / 2) * w
-                ax.bar(xs, [v if v == v else 0 for v in vals], w, color=col,
+                ax.bar(xs, [_num(v) for v in vals], w, color=col,
                        edgecolor="k", linewidth=0.4, label=lbl)
                 # A recall computed on a handful of trials is not a number a reader should weigh the
                 # same as one computed on a hundred, and the extreme values are exactly where n is
@@ -366,7 +377,7 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
                         ax.text(xi, 0.02, "n/a", ha="center", va="bottom", fontsize=5.5,
                                 rotation=90, color="firebrick", fontweight="bold")
                     elif n < MIN_N:
-                        ax.bar(xi, v if v == v else 0, w, color="none", edgecolor="firebrick",
+                        ax.bar(xi, _num(v), w, color="none", edgecolor="firebrick",
                                linewidth=1.0, hatch="////", zorder=3)
             ax.axhline(1 / 6, color="k", ls=":", lw=1)
             ax.set_xticks(x)
@@ -458,8 +469,16 @@ def fig_nolick_readout(rd, out):
     return q
 
 
-def fig_confusion_alltrials(conf, out, align="cue", name=None):
-    """G3b: crossed confusion with ALL post-stroke trials, including those with no detected lick.
+def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL trials"):
+    """G3b: crossed confusion for one POST arm -- by default ALL trials, engaged and no-lick alike.
+
+    ``arm_name`` LABELS THE POST PANELS and must match the arm whose matrices were passed in. It
+    exists because it was missing: this function is called once per arm (`section_g_figures`
+    passes the arm into the FILENAME only), while the post-panel titles and the suptitle said
+    "ALL trials" unconditionally -- so every LICK-ONLY figure was captioned as the all-trials one
+    (Priya, 2026-08-24: "the matrices are labeled the same"). The DATA was always right, indexed
+    by `arms[arm]["confusion"]`; only the caption lied, which is the harder failure to notice
+    because nothing about the numbers looks wrong.
 
     Priya, 2026-08-18: "even though far R lick was never successful, pre-cue looked like far R, or
     far center looks like far R (because tongue is deviated leftward, animal has to try harder to get
@@ -539,16 +558,21 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None):
             ttl = ("PRE (engaged, LOSO) — row / recall" if phase == "pre" else
                    "PRE (NO-LICK, frozen) — row / recall  [matched control]"
                    if phase == "pre_nolick" else
-                   "POST (frozen, ALL trials) — row / RECALL" if norm == "row" else
-                   "POST (frozen, ALL trials) — column / PRECISION")
+                   f"POST (frozen, {arm_name}) — row / RECALL" if norm == "row" else
+                   f"POST (frozen, {arm_name}) — column / PRECISION")
             ax.set_title(f"{an} — {ttl}", fontsize=8.5)
             ax.set_xlabel("predicted")
             ax.set_ylabel("true")
             fig.colorbar(im, ax=ax, fraction=0.046)
+        _armblurb = ("ALL trials (engaged + no detected lick). Rows the lesion abolished are "
+                     "filled by no-lick trials, the only trials that exist there."
+                     if arm_name == "ALL trials" else
+                     f"{arm_name} — ONLY trials with a detected lick. A position the animal "
+                     "abandoned has NO row here at all, which is exactly the gap the ALL-trials "
+                     "arm exists to fill; do not read an absent row as a failure to decode.")
         fig.suptitle(
-            f"{an} — crossed confusion, {align}-aligned, POST arm = ALL trials "
-            "(engaged + no detected lick). Rows the lesion abolished are filled by no-lick "
-            "trials, the only trials that exist there. PANEL 2 IS THE MATCHED CONTROL: "
+            f"{an} — crossed confusion, {align}-aligned, POST arm = {_armblurb} "
+            "PANEL 2 IS THE MATCHED CONTROL: "
             "pre-stroke NO-LICK trials scored by a decoder trained on the OTHER pre-stroke "
             "sessions' engaged trials, so it differs from the post panel in PHASE alone rather "
             "than in phase and the absence of a movement together. BOTH NORMALISATIONS for the "
@@ -627,7 +651,7 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
                "INSIDE no-lick, OUTSIDE engaged" if (inl and not ie) else
                "inside BOTH — references overlap" if (ie and inl) else
                f"INTERMEDIATE — {frac:.0%} of the way toward engaged"
-               if frac is not None and frac == frac else "outside BOTH references")
+               if _num(frac, None) is not None else "outside BOTH references")
         col = ("darkgreen" if (ie and not inl) else "firebrick" if (inl and not ie) else
                "darkorange")
         ax.set_title(f"{a}\n{tag}", fontsize=9, color=col, fontweight="bold")
@@ -688,7 +712,7 @@ def fig_grid(rec, out, arm="all", name=None):
                 if not r or not r.get("post"):
                     continue
                 b = r["within_pre_band"]
-                v = list(r["post"].values())[0]
+                v = next(iter(r["post"].values()))
                 chance = r.get("chance", chance)
                 x = i + (si - (len(labs) - 1) / 2) * width
                 # ONE band per alignment. Each session carries its own pre-stroke band (computed
