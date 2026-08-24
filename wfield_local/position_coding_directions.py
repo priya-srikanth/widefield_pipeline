@@ -1307,9 +1307,15 @@ def figure_engagement(res, out, align="precue", meth="dom"):
             ax.text(0.5, 0.5, "no data", ha="center", va="center", transform=ax.transAxes)
     axes[0][0].set_ylabel("response rate")
     axes[0][0].legend(fontsize=7.5, ncol=2, frameon=False)
+    # THE WINDOW BELONGS IN THE TITLE even though this panel is behaviour. `disp` reached the
+    # FILENAME and not the caption, so the three files (ENL / cue / lick) were captioned
+    # identically -- and they are NOT the same figure: each alignment keeps a different trial set
+    # (pre-cue drops trials with no lick-free window, lick drops positions with no engaged trial),
+    # so the response rates can differ between them. Audited 2026-08-24.
     fig.suptitle(f"{res['animal']} \u2014 BEHAVIOUR: response rate by position over the COURSE of a "
-                 f"session.\nA terminal collapse here is DISENGAGEMENT (reward is auto-held after a "
-                 f"miss run), and it is what a within-session neural decline has to be read against.",
+                 f"session, on the trials the {disp} window keeps.\nA terminal collapse here is "
+                 f"DISENGAGEMENT (reward is auto-held after a miss run), and it is what a "
+                 f"within-session neural decline has to be read against.",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / f"coding_engagement_{disp}_{res['animal']}.png"

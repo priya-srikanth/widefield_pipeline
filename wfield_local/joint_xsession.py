@@ -44,7 +44,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 
 from wfield_local import config, joint_locanmf
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -151,7 +150,14 @@ def fig_basis_health(results, out, align="cue"):
     ax.set_xticks(ticks); ax.set_xticklabels(tlabs, rotation=90, fontsize=7)
     ax.set_ylabel("% of session energy captured\nby the joint basis")
     ax.set_ylim(0, 105); ax.legend(fontsize=8, loc="lower right")
-    ax.set_title("Joint-basis health: how much of each session the frozen footprints span\n"
+    # THE ALIGNMENT IS PART OF THE MEASUREMENT, not just the filename: the fraction of a session's
+    # energy the footprints span is computed on the ALIGNED window, so the cue and pre-cue figures
+    # are different numbers. `align` reached only `joint_basis_health_{align}.png`, so the two were
+    # captioned identically and the deck (which shows the pre-cue one alone) said nothing either.
+    # Audited 2026-08-24.
+    _win = {"precue": "pre-cue", "cue": "post-cue", "lick": "post-lick"}.get(align, align)
+    ax.set_title(f"Joint-basis health ({_win} window): how much of each "
+                 "session the frozen footprints span\n"
                  "(a low PROJECTED bar means the components under-describe that day — read its "
                  "decode accuracy accordingly)", fontsize=10.5, pad=26)
     fig.tight_layout()

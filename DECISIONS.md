@@ -4069,3 +4069,70 @@ counter, and both produce a figure that looks entirely reasonable. The only dete
 a person reading the slide and asking why two things that should differ looked the same. Worth
 assuming there are more: anything that draws per-arm, per-class or per-window figures from a shared
 plotting function is a candidate.
+
+---
+
+## THE FIGURE-LABEL AUDIT: TWO MORE INSTANCES, AND A CHECKER THAT KEPT REPEATING THE BUG (2026-08-24)
+
+After the two label bugs found by reading slides, the obvious question was how many more there are.
+`scripts/figure_label_audit.py` answers it statically: for every `fig*` function taking a parameter
+that DISCRIMINATES one figure from another (align, arm, meth, cls, window, phase), does that
+parameter reach a title?
+
+**Two genuine findings, both now fixed:**
+
+- `joint_xsession.fig_basis_health` is called once per alignment and writes
+  `joint_basis_health_{align}.png`, but its title never named the window -- and the span it plots is
+  computed ON the aligned window, so the cue and pre-cue figures are different measurements. The deck
+  shows the PRE-CUE one alone and its slide title did not say so either. Both now do.
+- `position_coding_directions.figure_engagement` put `disp` in the FILENAME and not the caption, so
+  its ENL/cue/lick files were captioned identically. They are not the same figure: each alignment
+  keeps a different trial set (pre-cue drops trials with no lick-free window, lick drops positions
+  with no engaged trial), so the response rates can differ.
+
+**Everything else labels itself correctly** -- 18/18 after the fixes, including `fig_grid`,
+`fig_matched` and `fig_similarity`, which were the ones I guessed at in conversation and would have
+"verified" by assertion.
+
+### THE CHECKER HAD THE BUG IT WAS WRITTEN TO FIND, THREE TIMES
+Each version missed one more level of indirection than the last, and each time the miss LOOKED like a
+result:
+
+1. Scanned only the title call site. `ttl = f"...{arm_name}..."; ax.set_title(f"{an} - {ttl}")`
+   reported the function it was written to catch as still broken. **False positive.**
+2. Resolved locals with `if var in txt` -- a SUBSTRING test. A local named `p`, assigned
+   `f"joint_basis_health_{align}.png"`, matched the letter "p" in any prose title and folded the
+   FILENAME's `align` into it, turning the one true positive into a pass. **False negative**, and
+   the more dangerous direction.
+3. Handled only `Name` assignment targets, so `disp, R = dict(ALIGNS)[align], res[...]` -- a TUPLE
+   target -- never marked `disp` as derived from `align`, and eleven correctly-labelled functions
+   were flagged. **False positives**, which would have wasted an hour of "fixing" working code.
+
+The pattern in all three is the pattern in the bugs themselves: a value reaching its destination by
+one more hop than whatever the check accounted for. Worth stating plainly -- **a checker for this bug
+class is itself unusually prone to this bug class**, and its output has to be spot-checked by hand
+against at least one known-good and one known-bad case before any of it is believed.
+
+Final rule that removed the last false positive: **a parameter the body never reads cannot
+discriminate anything.** `figure_engagement(res, out, align, meth)` takes `meth` only to match the
+uniform signature its caller dispatches on; the behaviour panel is method-independent, which is why
+its filename carries no method either.
+
+---
+
+## G9 PAIRWISE IS ALREADY PER-POSITION; THE BLURB DESCRIBED THE CONTRAST AND NOT THE LAYOUT
+
+Priya, 2026-08-24: "why isn't each position on its own graph (eg for trials truly at far R, show
+far R trials)". It is -- `figure_pairwise` draws a 2x3 grid with `set_title(f"trials truly at {A}")`,
+one panel per position, and has since it was written.
+
+The misreading is the slide's fault. The `direction` blurb opens "One panel per spout position, MOST
+IMPAIRED first"; the `pairwise` blurb opened "Each contrast is A vs B ALONE" and described the
+CONTRAST while never saying what a PANEL is -- and since the x-tick labels inside each panel are
+position names, "positions on the x-axis, not split per position" is the natural reading. The tag now
+says ONE PANEL PER POSITION and the blurb opens by stating that the panel is the trials' TRUE
+position and the x-axis is the PARTNER position.
+
+**A figure being right does not make the slide right.** This one cost a round trip on a figure that
+never needed changing, and the fix was eleven words of layout description that the neighbouring
+blurb already had.

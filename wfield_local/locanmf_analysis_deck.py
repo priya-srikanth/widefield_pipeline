@@ -1679,10 +1679,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         divider(f"D — {bname} basis", bdesc)
         if bkey == "joint":
             s = slide()
-            title(s, "Joint-basis health — how much of each session the frozen footprints span",
+            # THE PRE-CUE FILE, and the slide has to say so: `joint_basis_health_{align}.png` is
+            # written per alignment and the span is computed on the ALIGNED window, so the cue
+            # figure is a different measurement. Only one is shown, and until 2026-08-24 neither
+            # the figure nor this title named it.
+            title(s, "Joint-basis health (PRE-CUE window) — how much of each session the frozen "
+                     "footprints span",
                   "Sessions IN the fit are 1.0 by construction (hollow); a PROJECTED day (filled) is "
                   "not. Read a projected day's decode accuracy against its bar: low-and-low means the "
-                  "basis under-describes that day, not that its representation changed.")
+                  "basis under-describes that day, not that its representation changed. The span is "
+                  "measured on the ALIGNED window, so the post-cue figure "
+                  "(joint_basis_health_cue.png) is a different measurement and is not shown here.")
             note(s, M_JOINT, specific=S_JOINT)
             big(s, src / "joint_basis_health_precue.png", top=1.7, width=12.2)
         for al, al_name, al_desc in ALIGNS:
@@ -2231,8 +2238,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "against its post/pre norm ratio; pure gain would put it on the dashed line. "
                  "Measured 2026-08-22: every cell moves by at most 0.15 except PS92 far_center "
                  "(2.12 -> 1.75), so post-stroke values ABOVE 1.0 are real.")),
-                ("pairwise", "pairwise axes",
-                 ("Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
+                ("pairwise", "pairwise axes — ONE PANEL PER POSITION",
+                 # SAY WHAT A PANEL IS. This blurb described the CONTRAST and never the LAYOUT,
+                 # while the `direction` blurb next to it opens "One panel per spout position" --
+                 # so the one figure that is already split per position read as though it was not
+                 # (Priya, 2026-08-24: "why isn't each position on its own graph"). The x-tick
+                 # labels being position names makes the misreading the natural one.
+                 ("ONE PANEL PER POSITION, and the panel is the trials' TRUE position: the "
+                  "top-left panel is far_R trials only. The X-AXIS INSIDE A PANEL is the PARTNER "
+                  "position the axis contrasts against, with that pair's pre-stroke separation in "
+                  "brackets — so you read 'far_R trials, how far toward far_center / far_L / "
+                  "close_R / …'. "
+                  "Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
                  "mixes five positions and, for the MIDDLE positions, is majority-far -- PS94's "
                  "close_center axis orders close_L 1.23 > close_R 0.83 > close_center 0.71, i.e. "
                  "the position it is named for is only third on its own axis. READ THE WITHIN-RING "
