@@ -4229,3 +4229,79 @@ deficit, since those positions have response rates of 0.60-0.70.
 versions of both matrices, 3 windows x 2 methods x 3 classes x 4 animals -- are rendered every night
 by `position_coding_directions` and were referenced by no slide. They are the recovery view this
 question needs. Now placed as **G9c**, one method, three classes.
+
+---
+
+## VERDICT: POST-LICK IS ABSENT FROM THE POST-STROKE ANALYSIS, AND WAS NOT "FILLED IN" (2026-08-24)
+
+Priya asked directly whether I had filled in the post-lick analysis. **I did not.** What I did was
+establish WHY it is missing and finish a sentence in the deck that had been promising the reason
+without giving it. Stated plainly so nobody later reads the grant figures as though the gap were
+closed:
+
+| where | post-lick present? |
+|---|---|
+| PRE-STROKE cross-session decoding (grant figs 2, 2b, 4) | **YES** -- computed 2026-08-24 via `joint_xsession --align lick`; only cue and precue existed before |
+| POST-STROKE frozen analysis, ALL-trials arm (`section_g.json`) | **NO, and it cannot be** |
+| POST-STROKE frozen analysis, LICK-ONLY arm | **not computed, but it COULD be** |
+| Coding directions (G9, grant fig 3a) | YES -- with no-lick classes at an INFERRED would-be-lick time |
+
+**Why the all-trials arm cannot have it.** That arm exists to include trials with NO detected lick,
+and a lick-aligned window cannot be defined for a trial that has no lick. At the impaired positions
+that is most of the trials -- which is exactly where the question is. Checked, not assumed:
+`post-lick` appears in 0 of 24 session records, while `pre-cue` and `post-cue` appear in all 24.
+
+**The LICK-ONLY arm is the real option** if a third row is wanted in the frozen-vs-within figure:
+every trial there has a lick by construction. The cost is the one already documented for that arm --
+its position set is that session's own preserved set, so the chance line differs per panel and
+accuracies are NOT comparable across sessions. That is a decision to take deliberately, not a gap to
+quietly fill.
+
+**A deck sentence was shipping unfinished.** The G2 blurb read "...All six positions, chance 1/6 on
+every panel. POST-LICK IS ABSENT HERE BY " and stopped -- an incomplete clause on slide 153,
+promising a reason it never gave. Found only because the grant figures hit the same absence in the
+data and had to work out the answer independently. Now completed with the construction argument.
+
+---
+
+## GRANT FIGURES: WHAT WAS BUILT, AND THE FIVE THINGS THE FIRST DRAFTS GOT WRONG (2026-08-24)
+
+`wfield_local/grant_figures.py` -> `<labcams>/grant_figures/`. Deliberately not deck figures: the
+deck carries every caveat on the slide, which is right there and wrong in a grant, so each figure
+makes one point and the caveats live in the module docstring and here.
+
+  1   behaviour, six positions per animal vs DAYS FROM LESION, Wilson CIs, June collapsed
+  1b  the same with the WHOLE pre-stroke baseline as one mean +/- SEM point per position (Priya)
+  2   pre-stroke cross-session decoding per animal, ENL/cue/lick
+  2b  the cohort version -- **ENL 0.55, post-cue 0.89, post-lick 0.93**, chance 0.17 (Priya)
+  3a  coding retained, impaired vs preserved positions, three windows, over days
+  3b  frozen vs within-session decoding over days, with the pre-stroke band
+  4   mean pre-stroke LOSO confusion, 2x2 animals, one file per window (Priya) --
+      diagonals 0.89-0.95 in the lick window
+
+### The errors, all found by looking at the rendered figure rather than by reasoning
+1. **`config.stroke_date` returns MMDD, not YYYYMMDD.** Slicing it as the longer form gave an empty
+   string and an int() crash.
+2. **Fig 1 spent 85% of its width on empty space** -- the June block is at day -70 and the entire
+   result lives inside +/-8.
+3. **Fig 1 drew a line from day -2 to day +1**, straight through the lesion, implying a continuous
+   decline that was never measured. Pre and post are separate segments now.
+4. **Fig 3b's green line had ONE point per animal.** Within-session accuracy lives in `section_g`
+   under `"<cond> within-session"`, but each session's block carries only ITS OWN post row -- taking
+   the list from the first session and stopping is the obvious read and loses the trajectory.
+   `poststroke_grid.json`, the other obvious source, holds only days 1-2.
+5. **Fig 3a as six lines per panel was unreadable AND structurally wrong**: it read the lick class,
+   so the impaired positions -- the ones the figure exists to describe -- had no cell to plot.
+
+### Two definitional choices worth keeping
+- **"Impaired" is defined by the WORST post-stroke session, not the pooled rate.** Pooling reported
+  PS95 as having no impaired position at all, in the animal whose day-1 far_R collapse (0.00 -> 0.87
+  by day 2) is the cleanest in the cohort; the recovery averages the deficit away.
+- **In fig 2b the ANIMAL is the unit** -- mean of four per-animal LOSO accuracies, SEM across
+  animals. Pooling all ~44 held-out sessions gives a much tighter interval that describes how much a
+  SESSION varies, not an ANIMAL, and a cohort claim is about animals.
+
+### And the guard earned its keep
+`FIG = Path("E:/cue_lick")` failed `tests/test_no_hardcoded_machine_paths.py` immediately -- that
+literal is the analysis box's path and would be wrong on the imaging box. Now `PathResolver().root
+("figures_working")`.

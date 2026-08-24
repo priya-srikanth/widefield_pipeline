@@ -1,6 +1,6 @@
 """GRANT FIGURES — a small, self-contained set for a progress report and a new application.
 
-    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b]
+    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b 4]
 
 Priya, 2026-08-24. Deliberately NOT deck figures: the deck exists to be interrogated and carries every
 caveat on the slide, which is right there and wrong here. These are meant to be read in ten seconds by
@@ -393,6 +393,74 @@ def fig_prestroke_decoding_cohort(out_dir):
     return p
 
 
+#: The confusion matrices are stored in DISPLAY_ORDER -- the spatial layout of the spouts
+#: (left-to-right, close row then far row), not the raw position codes. Labelling them in code order
+#: would transpose the picture into nonsense while still looking like a plausible matrix.
+CONF_LABELS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+
+
+def fig_confusion_prestroke(out_dir):
+    """4: mean PRE-STROKE leave-one-session-out confusion, 2x2 animals, one file per window.
+
+    Counts are SUMMED over the held-out pre-stroke sessions and then row-normalised, so each row is
+    P(predicted | true) over the whole baseline -- not the mean of per-session rates, which would
+    weight a 200-trial session the same as a 500-trial one.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+        if not f.exists():
+            continue
+        d = json.loads(f.read_text(encoding="utf-8"))
+        fig, axes = plt.subplots(2, 2, figsize=(9.2, 9.0), squeeze=False)
+        drew = False
+        for k, an in enumerate(ANIMALS):
+            ax = axes[k // 2][k % 2]
+            r = d.get(an)
+            pre = {lab for lab in config.phase_labels("pre") if lab.startswith(an)}
+            mats = [np.array(m, float) for lab, m in ((r or {}).get("confusion") or {}).items()
+                    if lab in pre]
+            if not mats:
+                ax.axis("off")
+                continue
+            C = np.sum(mats, axis=0)
+            row = C.sum(1, keepdims=True)
+            M = np.divide(C, row, out=np.zeros_like(C), where=row > 0)
+            acc = float(np.trace(C) / C.sum()) if C.sum() else float("nan")
+            im = ax.imshow(M, vmin=0, vmax=1, cmap="magma")
+            for i in range(len(CONF_LABELS)):
+                for j in range(len(CONF_LABELS)):
+                    if M[i, j] >= 0.01:
+                        ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
+                                color="white" if M[i, j] < 0.6 else "black")
+            ax.set_xticks(range(len(CONF_LABELS)))
+            ax.set_xticklabels(CONF_LABELS, rotation=45, ha="right", fontsize=7.5)
+            ax.set_yticks(range(len(CONF_LABELS)))
+            ax.set_yticklabels(CONF_LABELS, fontsize=7.5)
+            ax.set_title(f"{an} — {acc:.2f} correct ({len(mats)} held-out sessions)",
+                         fontsize=10, fontweight="bold")
+            # X-LABEL ON THE BOTTOM ROW ONLY -- on the top row it lands on the row below's title.
+            if k // 2 == 1:
+                ax.set_xlabel("predicted")
+            if k % 2 == 0:
+                ax.set_ylabel("true")
+            drew = True
+        if not drew:
+            plt.close(fig)
+            continue
+        fig.colorbar(im, ax=axes, fraction=0.035, pad=0.04, label="P(predicted | true)")
+        fig.suptitle(f"Pre-stroke cross-session decoding — {wname} window\n"
+                     "Frozen leave-one-session-out in the shared LocaNMF basis: every trial scored "
+                     "by a decoder that never saw its session.\n"
+                     "Counts summed over held-out sessions, then row-normalised. Chance = 0.17.",
+                     fontsize=10)
+        p = Path(out_dir) / f"grant_4_confusion_prestroke_{align}.png"
+        fig.savefig(p, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
 # ------------------------------------------------------------------ 3a. coding retained
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
@@ -582,15 +650,16 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1", "1b", "2", "2b", "3a", "3b"))
+                    choices=("1", "1b", "2", "2b", "3a", "3b", "4"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b"))
+    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
-            ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within))
+            ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
+            ("4", fig_confusion_prestroke))
     for key, fn in jobs:
         if key not in want:
             continue
