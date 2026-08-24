@@ -46,3 +46,22 @@ Set the path explicitly when running a script from a worktree:
 
 Symptom when it bites: a `TypeError` about an argument the function visibly accepts, or worse,
 a result computed by an older version of a function you just edited.
+
+### Enabling the hooks from a worktree without disturbing the other checkouts
+
+`bash scripts/setup-hooks.sh` sets `core.hooksPath` in the SHARED config, so it turns the hooks on
+for the main checkout and every worktree at once — including any other session mid-commit. To opt
+one worktree in on its own:
+
+    git config extensions.worktreeConfig true
+    git config --worktree core.hooksPath .githooks
+
+The flag only permits per-worktree overrides; it changes nothing by itself. Verify with
+`cat .git/worktrees/<name>/config.worktree` — `hooksPath` should appear there and NOT in
+`.git/config`.
+
+Worth knowing before turning them on anywhere: `pre-commit` lints only STAGED files, so the ~700
+pre-existing ruff errors across the package do not block you until you touch one of those files
+(worst offenders: `tests/test_spout_behavior.py` 35, `wfield_local/allen_register.py` 26).
+`wfield_local/locanmf_analysis_deck.py` was cleaned on 2026-08-24 for exactly this reason — its 30
+errors would have blocked every deck edit. `pre-push` runs the full suite, ~25 s.
