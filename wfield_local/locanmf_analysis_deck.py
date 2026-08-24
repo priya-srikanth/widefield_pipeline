@@ -321,10 +321,16 @@ S_G7C = (
     "any post-stroke day. The same column-baseline rule as G2b applies to every diagonal here.")
 
 S_G7D = (
-    "THE CONTROL FOR G4b. Small-lesion animals also generate no-lick trials, since animals skip "
-    "trials for ordinary reasons -- so if THEIR no-lick trials fit the engaged distribution while "
-    "PS94's and PS95's do not, the misfit is about the lesion rather than about no-lick trials as a "
-    "class. A null here is informative in a way a null in G7b would not be.")
+    "IT CONTROLS FOR THE NO-LICK TRIAL CLASS, NOT FOR LESION SEVERITY. G4b's misfit has an "
+    "alternative reading that owes nothing to the stroke: no-lick trials might fail that test ALWAYS "
+    "-- different arousal, different movement, no first-lick reference. This is the identical test "
+    "on the only sessions where an animal was recorded in the post-stroke era with NO EFFECTIVE "
+    "LESION: PS92/PS93 on 8/17, after the 8/16 laser that did not take and before the effective 8/17 "
+    "stroke. Same rig, same week, same pipeline, same frozen decoder, same trial class, minus the "
+    "lesion. NOT the small-lesion arm -- that is these animals from 8/18 ONWARD. TWO LIMITS: it is "
+    "PS93 alone in practice, since PS92 responded on essentially every trial and has too few no-lick "
+    "trials to test; and it is one session, so read it as an existence check on the alternative "
+    "explanation, not as an estimate.")
 
 S_G9B = (
     "DIAGNOSTIC, NOT A RESULT -- it exists to make the G9 panels readable and carries no claim of "
@@ -2080,12 +2086,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _g7d = [q for q in _g7d if q.exists()]
         if _g7d:
             s = slide()
-            title(s, "G7d. SMALL-LESION COMPARISON — do the no-lick trials fit the ENGAGED "
+            title(s, "G7d. FAILED-LASER CONTROL — do the no-lick trials fit the ENGAGED "
                      "distribution?  LEFT: PRE-cue.  RIGHT: POST-cue.",
-                  "The same test as G4b for the two animals whose strokes were small. PS92 has too "
-                  "few no-lick trials to test (it responded on essentially every trial), which is "
-                  "itself the point: a small lesion left the behaviour intact. FIXED CONTENT: this "
-                  "is PS92/PS93 on 8/17 and can never gain a session.")
+                  "The same test as G4b on PS92/PS93 8/17 — after the 8/16 laser that did NOT take "
+                  "and before the effective 8/17 stroke, so these animals were un-lesioned here. "
+                  "That is what it controls for: whether a no-lick trial fails the fits-engaged test "
+                  "just by being a no-lick trial. NOT the small-lesion arm, which is these same "
+                  "animals from 8/18 onward. PS92 has too few no-lick trials to test (it responded "
+                  "on essentially every trial), so in practice this is PS93 alone. FIXED CONTENT: "
+                  "these two sessions are all there will ever be.")
             note(s, M_POSTSTROKE, specific=S_G7D)
             grid(s, _g7d, cols=2, top=1.9)
 
