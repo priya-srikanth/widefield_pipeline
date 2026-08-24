@@ -165,14 +165,44 @@ COHORT_FIGURE_KINDS = ("cosslope", "pairsplit")
 CD_METHODS = ("dom", "lr", "dom_orth", "lr_orth")
 
 
-def engagement_axis(X_lick, X_nolick):
+def engagement_axis(X_lick, X_nolick, pos_lick=None, pos_nolick=None):
     """Unit vector separating pre-stroke LICK from pre-stroke NO-LICK.
 
     Built PRE-STROKE, where "no lick" is unambiguous -- there is no motor deficit to confuse with
     intent. Whether the same axis describes post-stroke non-responding is an assumption, not a fact,
     and it is the main thing to distrust about the orthogonalised variants.
+
+    THE UNSTATED ASSUMPTION IS THAT NO-LICK TRIALS ARE POSITION-NEUTRAL, and in one animal they are
+    emphatically not (Priya, 2026-08-24; `scripts/nocontact_census.py`). Pre-stroke no-contact rate
+    by position:
+
+        PS93   far_L 26.8% (268 trials)  far_center 14.1%  far_R 4.3%  close 0.4-2.4%   -> 64x
+        PS92   far_L  6.2%               ...                                            -> 4.4x
+        PS94   far_R  6.2% (the other direction)                                        -> 2.9x
+        PS95   far_L  7.7%               near-flat                                      -> 1.9x
+
+    PS93 often licked LEFTWARD WITHOUT SPOUT CONTACT before any lesion -- its known orofacial
+    deficit -- and licks are detected BY CONTACT, so those trials land in the no-lick arm. 54% of
+    its no-lick side is far_L and 82% is far positions, while the lick side is balanced across all
+    six. The resulting "engagement" axis therefore carries a large far_L-versus-rest component, and
+    orthogonalising against it removes far_L POSITION structure from all fifteen pairs. That is a
+    mechanical candidate for PS93's broad, unlateralised profile: not a state effect measured, but
+    position information subtracted.
+
+    ``pos_lick``/``pos_nolick`` (position labels per trial) switch to the POSITION-BALANCED axis:
+    the mean over positions of each position's own lick-minus-no-lick difference, so a position
+    contributing ten times the no-lick trials no longer contributes ten times the axis. Positions
+    with no trials on one side are skipped. Off by default -- every result on disk predates this,
+    and the two must be COMPARED rather than silently swapped.
     """
-    e = np.asarray(X_lick).mean(0) - np.asarray(X_nolick).mean(0)
+    XL, XN = np.asarray(X_lick), np.asarray(X_nolick)
+    if pos_lick is not None and pos_nolick is not None:
+        pl, pn = np.asarray(pos_lick), np.asarray(pos_nolick)
+        diffs = [XL[pl == p].mean(0) - XN[pn == p].mean(0)
+                 for p in np.unique(pl) if (pl == p).any() and (pn == p).any()]
+        e = np.mean(diffs, axis=0) if diffs else XL.mean(0) - XN.mean(0)
+    else:
+        e = XL.mean(0) - XN.mean(0)
     n = float(np.linalg.norm(e))
     return e / n if n > 0 else e
 

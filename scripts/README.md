@@ -30,3 +30,19 @@ run when the verdict rule changes, not nightly.
 - `axis_manifold.py` — on- vs off-manifold (Sadtler 2014 / Oby 2019): post-stroke activity variance
   on the pre-stroke PCA manifold against a cross-validated pre-stroke ceiling, and the fraction of
   each coding axis lying inside it.
+
+## RUNNING THESE FROM A GIT WORKTREE — read this before trusting a result
+
+`python scripts/foo.py` puts **`scripts/`** on `sys.path`, not the working directory, so
+`import wfield_local` falls through to the EDITABLE INSTALL, which points at the main checkout
+(`C:/Users/SabatiniLab/Github/widefield_pipeline`). From a worktree that silently runs the MAIN
+copy of the package against your worktree's script — no error, just the wrong code. `python -m
+wfield_local.x` does not have this problem (`-m` puts the cwd first), which is why the nightly
+never hit it.
+
+Set the path explicitly when running a script from a worktree:
+
+    PYTHONPATH=$(pwd) python scripts/engagement_axis_balance.py
+
+Symptom when it bites: a `TypeError` about an argument the function visibly accepts, or worse,
+a result computed by an older version of a function you just edited.

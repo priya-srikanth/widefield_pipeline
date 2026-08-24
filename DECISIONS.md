@@ -3625,3 +3625,122 @@ outcome-blind arm** -- there BOTH arms are cue-referenced, so no misalignment ex
 the lick column should be read as a power-boosted repeat of it, not as corroboration.
 
 Regenerate the fractions with `scripts/nolick_fraction.py`.
+
+---
+
+## "MISS-WHILE-WORKING" IS A POST-STROKE CATEGORY AND WAS APPLIED TO PRE-STROKE TRIALS (2026-08-24)
+
+Priya: "how are you calling 'miss-while-working' pre-stroke? This was something we defined
+post-stroke. It is most relevant for PS93 far_L pre-stroke bc it often had leftward licks without
+spout contact."
+
+Correct on both counts. `position_axes` applies the SAME two masks to both phases -- `u_pre &
+~not_eng` and `u_pre & not_eng` -- and the post-stroke names came with them. Pre-stroke there is no
+motor deficit, so `miss_working` is not "tried and failed" there. What the mask actually selects is
+**a trial with NO SPOUT CONTACT that is not part of the terminal disengagement run**, and because
+licks are detected BY CONTACT, an OFF-TARGET LICK is indistinguishable from an inattentive trial.
+This is the contact-vs-attempt ambiguity already recorded for the post-stroke classes; the entry did
+not say it transfers to the pre-stroke side. It does.
+
+### The census says PS93 far_L is real and extreme
+
+`scripts/nocontact_census.py`, pre-stroke no-contact rate per position:
+
+| animal | far_R | far_center | far_L | close_R | close_center | close_L | spread |
+|---|---|---|---|---|---|---|---|
+| PS92 | 3.7% | 2.9% | **6.2%** | 2.6% | 1.4% | 2.3% | 4.4x |
+| **PS93** | 4.3% | 14.1% | **26.8%** (268 trials) | 0.4% | 2.4% | 1.9% | **64x** |
+| PS94 | **6.2%** | 4.3% | 3.0% | 3.3% | 3.2% | 2.1% | 2.9x |
+| PS95 | 7.3% | 6.4% | **7.7%** | 4.4% | 5.1% | 3.9% | 1.9x |
+
+PS93 has a clean far-ring gradient on the LEFT (far_L 26.8% > far_center 14.1% > far_R 4.3%) against
+0.4-2.4% at the close positions. 268 trials concentrated on one position, in the animal with a known
+orofacial deficit, is not inattention -- and the behavioural entry above already recorded PS93 far_L
+as its exception (RT 0.53 -> 1.03 s, response 0.71 -> 0.60). PS92 leans the same way weakly, PS95 is
+near-flat, PS94 runs the OTHER way (far_R highest).
+
+### THE CONSEQUENCE IS NOT THE LABEL, IT IS THE ENGAGEMENT AXIS
+
+`engagement_axis` is `mean(pre-stroke lick) - mean(pre-stroke no-lick)`, and EVERY position axis in
+EVERY arm is orthogonalised against it. That is a state correction only if the no-lick trials are
+POSITION-NEUTRAL, which was never checked. In PS93, **54% of the no-lick side is far_L and 82% is far
+positions**, while the lick side is balanced across all six (724-959 trials each). The axis therefore
+carries a far_L-versus-rest component, and orthogonalising against it removes far_L POSITION
+structure from all fifteen pairs.
+
+That WOULD be a mechanical candidate for PS93's profile. **It was measured, and it is not the
+explanation** -- see the next section. The imbalance is real; the inference from it to a distorted
+axis does not go through.
+
+### MEASURED: THE IMBALANCE DOES NOT STEER THE AXIS, AND THE REAL PROBLEM IS BIGGER
+
+`scripts/engagement_axis_balance.py`:
+
+| animal | cos(current, balanced) | cos(current, far_L-vs-rest) |
+|---|---|---|
+| PS92 | +0.997 | −0.753 |
+| PS93 | **+0.958** | +0.306 |
+| PS94 | +1.000 | +0.707 |
+| PS95 | +0.999 | +0.304 |
+
+Balancing per position leaves the axis essentially where it was, and PS93 -- the animal with the 64x
+imbalance -- is LESS far_L-aligned than PS92 or PS94. The reasoning that produced the hypothesis
+(counts are lopsided -> the axis must be lopsided) skipped the step where that has to be shown, and
+the step fails: each position's own lick-minus-no-lick difference points nearly the same way, so
+averaging over positions changes almost nothing.
+
+**What the check found instead applies to all four animals.** Position axes are strongly
+NON-ORTHOGONAL to the engagement axis:
+
+| animal | most-aligned pair | abs cos with engagement axis |
+|---|---|---|
+| PS93 | far_center\|close_center | **0.890** |
+| PS92 | far_L\|close_L | 0.809 |
+| PS94 | far_R\|far_L | 0.702 |
+| PS95 | far_R\|far_center | 0.609 |
+
+At 0.89 the orthogonalisation discards nearly all of that position axis and renormalises a residual
+of ~46% of the original magnitude. `orthogonalise` warns that "any position information lying along e
+goes with it"; how much was never measured, and for the worst pairs it is MOST OF IT.
+
+The mechanism is the far-heaviness of the no-contact population -- 61% PS94, 62% PS95, 67% PS92, 82%
+PS93 -- which makes `lick - no-lick` partly a CLOSE-VS-FAR direction. In PS93 the three
+most-aligned pairs are all cross-ring. But because balancing does not change the axis, this is not a
+counting artefact to be corrected: the genuine no-contact state lives along the same population
+directions as the close-vs-far contrast. There is nothing to remove.
+
+**CONSEQUENCE.** The orthogonalised arms systematically UNDERSTATE position effects, worst for
+cross-ring pairs, in every animal. A null in an orthogonalised arm is therefore weak evidence -- the
+existing note that "a class that stops separating is ambiguous, not negative" is carrying more weight
+than its phrasing suggests. This is the same geometry as the within-ring-safe / cross-ring-unsafe
+entry and the one-vs-rest flaw, now quantified against the engagement axis specifically.
+
+The position-balanced option stays in `engagement_axis` (off by default) because it costs nothing and
+the check should be repeatable, not because it fixes anything.
+
+`engagement_axis` now accepts per-trial position labels and returns the POSITION-BALANCED axis (the
+mean over positions of each position's own lick-minus-no-lick difference), so a position contributing
+ten times the no-lick trials no longer contributes ten times the axis. **OFF BY DEFAULT** -- every
+result on disk predates it and the two must be compared, not silently swapped.
+`scripts/engagement_axis_balance.py` measures the gap.
+
+### WHAT THIS DOES AND DOES NOT TOUCH
+
+- **Untouched:** the `poststroke_lick` arm (contact on both sides), and the matched holdout null,
+  which is built entirely from lick trials. PS95's recovery lives in the lick arm.
+- **Labelling only:** the outcome-blind reference. Pre-stroke no-contact is 132/~2200 trials in PS92
+  and 530/~4500 in PS93, so the reference is ~95% contact trials either way and the numbers do not
+  move -- only the description of what they compare.
+- **Substantive:** the engagement axis in PS92 and PS93, where 95%/93% of its no-lick side is this
+  population, and worst in PS93 where that population is far_L-dominated.
+- **A dead assumption:** the `_working` variants exclude the sated tail from BOTH phases on the
+  grounds that "the pre-stroke equivalent is the sated tail". PS92 and PS93 have essentially no
+  pre-stroke tail (6 and 38 trials), so in those two animals the exclusion does nothing at all.
+
+### AND IT PUTS THE PRE-STROKE SIDE BEHIND THE SAME MISSING MEASUREMENT
+
+Nothing in the DAQ can separate an off-target lick from no attempt: the lick sensor reports CONTACT,
+so a tongue that misses produces no signal whatever. The behaviour cameras are the only instrument
+that sees it. The video-based movement-onset item was already blocking the post-stroke classes; it
+now blocks the pre-stroke reference and the engagement axis as well, which raises it from "the next
+analysis" to the thing several current results are waiting on.
