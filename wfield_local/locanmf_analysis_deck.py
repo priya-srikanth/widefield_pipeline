@@ -108,6 +108,291 @@ S_G9 = (
     "instrument -- each contrast is A vs B alone. Within-ring comparisons are safe; cross-ring ones "
     "confound distance with side (DECISIONS 2026-08-21).")
 
+
+S_DRIFT = (
+    "THE ONE THING TO CARRY OUT OF THIS SLIDE: every pre-cue number in this deck is ~72% of what a "
+    "pre-14-Aug-2026 figure would have shown, and that is the CORRECTED value. Do not reconcile "
+    "against older slides -- they are the artefact. FALSIFIER APPLIED: the acausal filter's shadow "
+    "predicts pre-cue ANTI-correlated with post-cue; that was true in 30/36 sessions before the fix "
+    "and 2/36 after. What survives is real -- significant in 35/36 sessions, PS92 0.225 to PS94 "
+    "0.500, against an empirical null of 0.137-0.147 by block-label permutation, NOT 1/6.")
+
+S_DEC_CUE = (
+    "WITHIN-DAY, so nothing here can be compared across days -- Section D is the cross-day arm. "
+    "The no-lick column is a GENERALIZATION test, not a second dataset: the decoder is fit on "
+    "engaged trials only and the no-lick trials are held out entirely. Post-cue is the window that "
+    "is largely movement-driven, so a no-lick number well below the engaged one is expected here, "
+    "and it is the contrast that makes the PRE-cue slide interesting (DECISIONS 2026-08-17).")
+
+S_DEC_PRECUE = (
+    "'PRE-cue' means BEFORE THE CUE, not before the spout: the spout arrives ~3 s earlier, so a "
+    "sustained sensory response and a held plan are temporally coextensive here and this design "
+    "cannot separate them (DECISIONS 2026-08-13). Read it as pre-cue position INFORMATION. The "
+    "accuracies are drift-corrected, so compare only with other post-14-Aug figures. Pre-cue "
+    "survives without a lick far better than post-cue does -- that dissociation is the point.")
+
+S_DEC_ROLL = (
+    "READ THE SHAPE, NOT THE PEAK. The question is whether the trace is already above chance BEFORE "
+    "the cue and where it rises, not how high it gets -- height is set by trial count and window "
+    "width. Each line is one session, block-CV'd within that session, so the lines are comparable "
+    "in shape while the absolute level stays a within-day quantity. A rise that begins only AT the "
+    "cue would mean no pre-cue information; an already-elevated ENL level is the claim.")
+
+S_ENC_POS = (
+    "ENCODER, so the direction is position -> activity: this asks how much of each feature's "
+    "variance the six position means explain, not whether a boundary can be drawn. RAW EV alone is "
+    "uninterpretable across animals -- PS93's ceiling is the lowest of the four (frozen FEVE 0.09 "
+    "against 0.51-0.70), so ALWAYS read its EV beside its ceiling (DECISIONS 2026-08-11/12). The "
+    "vs-ceiling panel is the one that compares animals; the raw panel compares sessions within an "
+    "animal.")
+
+S_ENC_FEVE = (
+    "POOLED per animal, so this is the anatomy question: WHERE position is encoded, not how much. "
+    "Regions with a near-zero ceiling can show wild FEVE for free, so rank the regions and ignore "
+    "the tail. A negative value is not a paradox -- ridge on held-out data can do worse than the "
+    "mean, and several of PS93's frozen EVs are genuinely negative, which is its low ceiling "
+    "showing through rather than a model failure.")
+
+S_ENC_MATRIX = (
+    "ONE COMMON SCALE across all animals and sessions -- that is the whole reason this slide exists, "
+    "and it is what the per-animal EV slides cannot give you. So compare CELLS here, not panels. "
+    "A blank cell is a position with no trials, which is NOT a zero: it has no estimate at all (see "
+    "G1b for the denominators). Empty positions were silently contributing nan to the pooled "
+    "statistic until 2026-08-22; those cells now declare themselves instead.")
+
+S_LICKFREE = (
+    "The cleanest form of the pre-cue claim: no lick was detected anywhere in the window, so the "
+    "code cannot be a movement echo. CAVEAT THAT LIMITS IT: 'no detected lick' is not 'no attempt' "
+    "-- the sensor needs contact, so a short or misaimed lick registers as nothing, and PS93's "
+    "pre-existing rightward tongue bias makes its far_L a within-subject instance of exactly that "
+    "(Priya, 2026-08-17). Resolving it needs DLC / facial tracking, which is not in this deck.")
+
+S_JOINT = (
+    "DIAGNOSTIC, NOT A RESULT -- but a load-bearing one: every cross-day LocaNMF number downstream "
+    "assumes the frozen footprints still span the session they are applied to. In-fit sessions run "
+    "99.4-99.7%, so that is the reference. WHAT IT CANNOT CATCH: a PS92 basis spans a PS95 session "
+    "at 97%, because both are cortex on the same Allen grid -- only the label catches the wrong "
+    "animal, and project() refuses one outright (DECISIONS 2026-08-12).")
+
+S_FROZEN_SESS = (
+    "The decoder never saw this day. That is legitimate because a frozen decoder does NOT decay "
+    "across days on its own -- pre-stroke transfer cost is POSITIVE in every animal, +0.068 to "
+    "+0.159, i.e. the frozen model BEATS the same-day model by pooling ~3000 trials against ~500 "
+    "(DECISIONS 2026-08-11, magnitudes corrected 2026-08-17). So a post-stroke drop can be read as "
+    "lesion rather than day gap. ROI features, because LocaNMF component identity is not stable "
+    "across days.")
+
+S_FROZEN_ALL = (
+    "TWO REFERENCES, BOTH MANDATORY. A softmax decoder never abstains: on quiet / running windows "
+    "where no position is even defined it emits normalized entropy 0.24-0.54 and max-probability up "
+    "to 0.997 -- MORE confident than the shuffled-label floor -- and collapses onto a single "
+    "attractor position. So post-stroke confidence is not evidence of preserved coding. Read every "
+    "value against the shuffled-label floor AND the no-lick trials, never on its own.")
+
+S_FROZEN_ENC = (
+    "THE ENCODER DOES NOT TRANSFER LIKE THE DECODER, and the disagreement in SIGN is the finding: "
+    "decision boundaries transfer across days (cost positive in all four animals) while activity "
+    "MAGNITUDES do not (PS93 -0.063, PS95 -0.032). The encoder estimates only 6 position means per "
+    "feature, so it gains little from extra trials and is actively hurt by day-to-day differences "
+    "in the mapping that per-session z-scoring does not remove. CONSEQUENCE: judge post-stroke "
+    "encoder residuals against this NON-ZERO pre-stroke cross-day cost, not against zero. Read the "
+    "intention with the DECODER (DECISIONS 2026-08-11/12).")
+
+S_NOLICK_A = (
+    "HEADLINE IS BALANCED ACCURACY, whose null expectation is exactly 1/6 however skewed either side "
+    "is. Raw accuracy is shown against a permutation null computed on THESE trials with predictions "
+    "held fixed. Both are needed because these trials are heavily skewed by construction -- PS93's "
+    "are 49% far_center -- and a constant 'always guess far_center' scores 0.490, beating the real "
+    "decoder's 0.293 outright. Reading any of this against a uniform 1/6 manufactures a result, and "
+    "it did so in BOTH directions before this was fixed (DECISIONS 2026-08-17).")
+
+S_NOLICK_B = (
+    "THE DISSOCIATION THIS SECTION RESTS ON, and it is not 'engagement gates the code': the "
+    "POST-cue code is largely movement-driven and collapses without a lick, while the PRE-cue code "
+    "substantially survives. PS93 pooled over 11 sessions, ROI and joint agreeing: post-cue "
+    "survival ratio 0.357 / 0.422, with pre-cue far higher. An animal can know where the spout is "
+    "and still not lick (Priya, 2026-08-17). The ENCODER half is separate and stands: EV on these "
+    "trials is ~0 once the baseline offset is removed.")
+
+S_NOLICK_C = (
+    "AGREEMENT BETWEEN BASES IS THE POINT, not which basis wins. ROI is atlas-anchored and poolable "
+    "across days; joint LocaNMF retains ~98% of the pixel map against ROI's 64.5%. They answer the "
+    "same question through different features, so a result present in ONE of them is a basis "
+    "artefact and must not be reported. Both bases agreeing is what licensed the no-lick "
+    "conclusion.")
+
+S_XMOUSE = (
+    "ANIMAL IS THE UNIT: per-session metrics are averaged within mouse, so n=4 and no p-value here "
+    "carries weight. This is a HYPOTHESIS-GENERATING slide built around one specific prediction -- "
+    "PS93's right orofacial deficit is represented contralaterally, so it predicts altered LEFT "
+    "hemisphere representation and/or worse RIGHT-spout decoding. Read the L-vs-R spout and "
+    "SSp-left-vs-right panels against that prediction; the rest of the slide is description.")
+
+S_XCONSIST = (
+    "CONSISTENCY, NOT ACCURACY: whether an animal's per-position profile keeps the same SHAPE across "
+    "its sessions. A low-accuracy animal can be highly consistent and a high-accuracy one erratic, "
+    "and it is consistency -- not accuracy -- that licenses pooling sessions within an animal. Read "
+    "this before trusting any pooled per-position number elsewhere in the deck.")
+
+S_RSA_A = (
+    "RELIABILITY IS NOT INFORMATION. Mean sibling RSA measures how reproducible an RDM is, and ROI "
+    "wins it in 4/4 animals -- yet LocaNMF DECODES better in 4/4 (+0.061 mean). The dissociation "
+    "tracks exactly one thing: whether the quantity requires estimating a covariance in feature "
+    "space. Crossnobis does, and ROI's 66 well-conditioned features beat LocaNMF's 151 "
+    "rank-deficient ones. That is an estimability cost, not an information deficit (DECISIONS "
+    "2026-08-12).")
+
+S_RSA_B = (
+    "The 6x6 geometry itself. PRE-CUE AND POST-CUE GEOMETRY LARGELY AGREE: crossnobis +0.827 "
+    "(LocaNMF) and +0.843 (ROI) pre-cue against post-cue, so the positional geometry is largely "
+    "established BEFORE movement. Use the PRE-CUE pairs -- cue-to-lick (+0.93) is inflated by window "
+    "overlap, since the lick usually falls inside the 2 s after the cue. Ignore any '% of "
+    "reliability ceiling' column: it is invalid as computed (split-half on half the data, no "
+    "Spearman-Brown correction, impossible >100% values).")
+
+S_RSA_C = (
+    "CROSSNOBIS IS THE NOISE-UNBIASED ONE -- cross-validated, so its expected value is 0 for two "
+    "identical conditions, which 1-Pearson cannot promise. Prefer it wherever the covariance is "
+    "estimable. SCOPE: these RDMs are built on Allen ROIs or LocaNMF components, both averages over "
+    "anatomically defined sets, so the non-orthonormal-basis problem (DECISIONS 2026-08-19) does not "
+    "touch them. That one applies to SVD COEFFICIENT-space RDMs, which is why none appear here.")
+
+S_G0 = (
+    "READ THIS BEFORE ANY OTHER G SLIDE. Two arms, two different chance levels: ALL-TRIALS is 1/6 on "
+    "every panel and the panels ARE comparable; LICK-ONLY is 1/n for that session's attempted "
+    "positions and the panels are NOT comparable with each other. The band on later slides is the "
+    "animal's OWN pre-stroke leave-one-session-out range, so inside the band means 'within this "
+    "animal's ordinary day-to-day variation', not 'normal'. And PS92/PS93 are the SMALL-LESION arm "
+    "of a severity contrast -- NOT a negative control, because they were lesioned too, just mildly "
+    "enough to leave no overt deficit (Priya, 2026-08-18).")
+
+S_G1 = (
+    "BEHAVIOUR FIRST, because most of Section G is only interpretable against it. The lesion marker "
+    "is the axis every later comparison is anchored to, and the response-rate collapse is "
+    "POSITION-SPECIFIC in the animals with overt deficits -- that specificity is what separates a "
+    "lesion effect from a bad night. LASER POWER DOES NOT PREDICT MAGNITUDE: PS94 at the lowest dose "
+    "(3 mW) has the largest post-cue deficit, PS93 at the highest (5.5 mW) one of the smallest. "
+    "Behavioural severity tracks the neural effect; dose does not (DECISIONS 2026-08-19).")
+
+S_G2B = (
+    "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE, which is printed under each column. The frozen "
+    "decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R 'recall' is inflated by "
+    "prediction bias before any position information is involved. Under a label permutation the "
+    "expected recall for a position is exactly its prediction rate -- that is the number a diagonal "
+    "must clear. Read against 1/6 instead and this figure manufactures a result (Priya, 2026-08-18).")
+
+S_G3 = (
+    "The POST arm includes NO-LICK trials by design (Priya, 2026-08-18): PS94 has ZERO engaged "
+    "trials at far_center and far_R, the two positions worth reading, so an engaged-only matrix "
+    "leaves both rows blank. The PRE arm stays engaged-only because it is the reference for what the "
+    "code looks like when the movement succeeds. THE QUESTION: does far_center get read as far_R -- "
+    "the animal aiming right and undershooting -- or does the row simply disperse? Off-diagonal "
+    "STRUCTURE is the claim; off-diagonal magnitude means nothing without the pre-stroke matrix "
+    "beside it.")
+
+S_G4B = (
+    "DISTRIBUTION FIT, not accuracy -- a different question from G4 and a stricter one. G4 asks "
+    "whether no-lick trials DECODE like pre-stroke engaged trials; this asks whether they lie in the "
+    "same REGION of feature space at all. A trial can be classified correctly and still sit far "
+    "outside the training distribution, which is exactly the failure mode the OOD control exists "
+    "for: a softmax decoder is at its most confident where it has no business being.")
+
+S_G6 = (
+    "THE SPLIT IS PER SESSION, because 'still attempts this position' is a behavioural state that "
+    "changes overnight -- PS95 far_R is 1/120 on 8/17 and 88/112 on 8/18. A trial is therefore "
+    "labelled by what the animal was doing THAT night, not by an animal-level verdict. READ THE "
+    "PRESERVED ARM AS THE CONTROL: if the decoder cannot read a position from a no-lick trial even "
+    "where the animal is working that position, then 'no lick -> no code' is a property of no-lick "
+    "trials in general and says nothing about the lesion. That arm is thin per session -- PS95 8/17 "
+    "is n=38, p=0.11, which is UNDERPOWERED, not negative. G6b is the sharper form of this contrast.")
+
+S_G7B = (
+    "THE PREMISE OF THE WHOLE SMALL-LESION ARM: all six positions still attempted. If that fails, "
+    "every G7 comparison collapses into the same denominator problem as G1b and the neural "
+    "comparison stops being like-for-like -- so check this slide before reading G7c or G7d. These "
+    "animals control for the DAY and the PROCEDURE (same rig, anaesthesia, handling, preprocessing, "
+    "frozen decoder), and an 8/17 artefact would have hit all four and did not. They CANNOT show "
+    "that a lesion is necessary for an effect.")
+
+S_G7C = (
+    "The like-for-like reading of G3. These animals attempt every position, so their post arm is not "
+    "carried by no-lick trials the way PS94's is -- which makes this the cleanest available test of "
+    "whether the confusion STRUCTURE in G3 is a lesion effect or a property of the frozen decoder on "
+    "any post-stroke day. The same column-baseline rule as G2b applies to every diagonal here.")
+
+S_G7D = (
+    "THE CONTROL FOR G4b. Small-lesion animals also generate no-lick trials, since animals skip "
+    "trials for ordinary reasons -- so if THEIR no-lick trials fit the engaged distribution while "
+    "PS94's and PS95's do not, the misfit is about the lesion rather than about no-lick trials as a "
+    "class. A null here is informative in a way a null in G7b would not be.")
+
+S_G9B = (
+    "DIAGNOSTIC, NOT A RESULT -- it exists to make the G9 panels readable and carries no claim of "
+    "its own. If a G9 panel looks surprising, come here first: most surprises turn out to be the "
+    "linear projection being read as a probability, or a cross-ring contrast being read as a "
+    "distance effect when it confounds distance with side.")
+
+S_G9C = (
+    "TWO CONTROLS, AND THEY SPLIT BY RING -- the actionable half is the last paragraph of the "
+    "subtitle. The would-be-lick offset uses ONE session-median RT for every no-lick trial, so an "
+    "animal that SLOWED through the session has its late trials placed progressively too early, "
+    "which is the exact shape of a within-session decline. CLOSE positions are flat in every animal "
+    "(drift <=0.03 s), so the control holds where it was used. IT DOES NOT HOLD for PS93 far_L: a "
+    "session median near 0.6 s against a last-quartile 1.03 s misplaces those windows by ~0.4 s, a "
+    "fifth of the window. Read PS93's far no-lick cells with that discount.")
+
+S_G8 = (
+    "THE 470 AND 415 QUESTIONS ARE ONE MEASUREMENT and cannot be asked separately -- 415 is the "
+    "isosbestic channel and therefore the control for 470, so only the ratio of ratios is "
+    "GCaMP-specific. WHAT WAS RETRACTED (2026-08-18, same day it was written): the argument that a "
+    "415 change would have meant hypoperfusion. The raw violet trace RISES with activation in all "
+    "four animals (+0.54% to +1.96%), which a simple absorption account does not predict. The null "
+    "below stands; what is withdrawn is the interpretation. Perfusion DIRECTION is UNRESOLVED and "
+    "needs an independent measure -- G8c is the one panel in this line that does not need the sign.")
+
+S_G8B = (
+    "DYNAMICS, so this is immune to the static baseline problem that limits G8: a slow L/R "
+    "difference in raw counts cannot produce a task-locked difference in coupling. Read "
+    "cross-hemisphere coupling as the summary quantity -- a lesion that disconnects should reduce "
+    "it -- and treat per-hemisphere amplitude with the same caution as G8e, where a 'rise' turned "
+    "out to be spatial BROADENING rather than a stronger response.")
+
+S_G8C = (
+    "THE ONE PERFUSION-DIRECT MEASURE IN THIS DECK. Vessels appear dark because haemoglobin absorbs, "
+    "so their contrast against the surrounding cortex reads out how much blood sits in the light "
+    "path: fainter vessels mean less absorption, i.e. less blood. Crucially it does NOT depend on "
+    "knowing the sign of the evoked 415 response, which is what forced the G8 retraction. "
+    "GAIN-INVARIANT by construction -- contrast is normalised by the hemisphere's own median -- so "
+    "an exposure or LED change cannot manufacture an effect. Priya's observation, 2026-08-18: the "
+    "vessels look fainter post-stroke.")
+
+S_G8D = (
+    "COMMON COLOUR SCALE, and that is the entire point: the per-session maps elsewhere set their "
+    "limits from each session's OWN percentile. PS94 is +/-0.02425 on 8/14 and +/-0.08854 on 8/17, "
+    "a factor of 3.65 -- on 8/17's range the whole of 8/14's negative range renders near white, so "
+    "'the post-stroke map lost its blue' is the SCALE, not the biology (DECISIONS 2026-08-22). The "
+    "amplitude rise is real at 2 s (peaks 0.019-0.052 pre against 0.059-0.083 post) and much smaller "
+    "at 150 ms. A panel marked 'not attempted' has under 8 engaged trials; that is an absence of "
+    "data, not a low value.")
+
+S_G8F = (
+    "MIDLINE TRANSFER IS A CLEAN NULL -- no transfer at any position, in any animal, at either "
+    "alignment, on either arm, and it replicates in the joint basis with transfer at exactly ONE "
+    "cell (PS94 8/18 pre-cue far_center). The 'left map moved right' reading is not supported. What "
+    "is there instead is PATTERN LOSS, and cue-aligned it concentrates at exactly the positions the "
+    "animals stop attempting -- so on that arm it is confounded with the missing movement and must "
+    "not be read as a lesioned sensory map. CROSS-DAY PRE-CUE PATTERN COMPARISONS ARE WEAK BY "
+    "NATURE: pre-stroke day-to-day reproducibility is 0.67-0.84 mean and as low as r=0.07 at worst "
+    "(PS95), against 0.88-0.96 post-cue.")
+
+S_GEXCL = (
+    "THE HONEST LEDGER, and it earns its place. PS92/PS93 8/17 were nearly dropped as failed-lesion "
+    "sessions, and keeping them analysable is the ONLY reason the within-animal before/after control "
+    "exists -- nothing outside the band on 8/17, the dissociation present one day later, same animal "
+    "and same rig. EXCLUDED IS NOT DELETED: every session listed here is on disk and re-analysable, "
+    "and the reason is recorded per session. Check this slide before concluding a session is missing "
+    "from a grid.")
+
 # ---- methodology blurbs for the speaker NOTES (how each figure is made) ----
 #: THE UNIT, stated on every note whose figure is lick-aligned.
 #:
@@ -1271,7 +1556,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         r.text = line
         r.font.size = Pt(12.5)
         r.font.color.rgb = NAVY if line.startswith(("WHAT", "THE FIX", "MEASURED", "SIGN", "NOT")) else GREY
-    note(s, M_PRECUE_CAVEAT)
+    note(s, M_PRECUE_CAVEAT, specific=S_DRIFT)
 
     # ---------------- A. per-animal WITHIN-DAY decoding ----------------
     divider("A. Per-animal WITHIN-DAY decoding across sessions",
@@ -1282,21 +1567,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
               "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).")
-        note(s, M_DECODE)
+        note(s, M_DECODE, specific=S_DEC_CUE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
              cols=3)
         s = slide()
         title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
               "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
               "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.")
-        note(s, M_DECODE + M_PRECUE_CAVEAT)
+        note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
              cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
               "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)")
-        note(s, M_DECODE)
+        note(s, M_DECODE, specific=S_DEC_ROLL)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
 
     # ---------------- B. per-animal encoder ----------------
@@ -1312,7 +1597,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
               "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
               "right: relative to the per-position noise ceiling.")
-        note(s, M_ENCODE)
+        note(s, M_ENCODE, specific=S_ENC_POS)
         grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
                  src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
         # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
@@ -1322,7 +1607,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     s = slide()
     title(s, "Encoder — explained-variance fraction (FEVE) by region, pooled per animal",
           "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.")
-    note(s, M_ENCODE)
+    note(s, M_ENCODE, specific=S_ENC_FEVE)
     big(s, src / "locanmf_encoder_feve_by_region_pooled.png", top=1.5, width=12.9)
     # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
     # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
@@ -1336,7 +1621,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "rather than something the reader has to hold in mind. Ridge from a one-hot position "
               "design, scored per position with the same block GroupKFold the decoders use. ONE "
               "colour scale across animals, so the panels are comparable.")
-        note(s, M_ENCODE)
+        note(s, M_ENCODE, specific=S_ENC_MATRIX)
         big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
 
     # ---------------- C. pre-cue without licking ----------------
@@ -1354,7 +1639,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
                   "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
                   "corrected pre-cue values (meegkit_hpfit); see slide 2.")
-            note(s, M_LICKFREE + M_PRECUE_CAVEAT)
+            note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
             big(s, p, top=1.5, width=12.9)
 
     # ---------------- D. cross-session (frozen) decoders & encoders, BOTH bases ----------------
@@ -1392,7 +1677,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Sessions IN the fit are 1.0 by construction (hollow); a PROJECTED day (filled) is "
                   "not. Read a projected day's decode accuracy against its bar: low-and-low means the "
                   "basis under-describes that day, not that its representation changed.")
-            note(s, M_JOINT)
+            note(s, M_JOINT, specific=S_JOINT)
             big(s, src / "joint_basis_health_precue.png", top=1.7, width=12.2)
         for al, al_name, al_desc in ALIGNS:
             # the pre-cue arm inherits the zero-phase-filter inflation; the post-cue arm does not
@@ -1407,7 +1692,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                              f"({bname}){suffix}{warn}",
                           f"Per date: confusion + per-position recall from a decoder trained on this "
                           f"animal's OTHER days only. {al_desc}.")
-                    note(s, m_dec + cav)
+                    note(s, m_dec + cav, specific=S_FROZEN_SESS)
                     grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png"
                              for d, _ in page if have(a, d)],
                          cols=2, top=1.35)
@@ -1417,7 +1702,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
                   "the OOD control — a softmax decoder never abstains, so confidence alone is not "
                   "evidence.")
-            note(s, m_dec + cav)
+            note(s, m_dec + cav, specific=S_FROZEN_ALL)
             big(s, src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
             s = slide()
             title(s, f"FROZEN cross-day ENCODER ({al_name}, {bname}): position → activity — all "
@@ -1425,7 +1710,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
                   "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
                   "NEGATIVE where the decoder's is positive.")
-            note(s, m_enc + cav)
+            note(s, m_enc + cav, specific=S_FROZEN_ENC)
             big(s, src / f"locanmf_frozen_encoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
 
     # ---------------- D2. no-detected-lick reference ----------------
@@ -1456,7 +1741,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "on each bar is that arm's OWN permutation null, not a shared 1/6 - the nulls "
                   "differ per arm and a single chance line would misrepresent every bar but the "
                   "engaged one.")
-            note(s_, M_NOLICK)
+            note(s_, M_NOLICK, specific=S_NOLICK_A)
             big(s_, fig_ref, top=1.9, width=12.7)
             s_ = slide()
             title(s_, f"No-detected-lick ({nice}): PRE-cue surviving while POST-cue collapses = "
@@ -1464,7 +1749,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "The discriminating quantity. Post-cue decoding is largely driven by the lick "
                   "itself, so it should collapse without one; pre-cue reflects a maintained code "
                   "that need not.")
-            note(s_, M_NOLICK)
+            note(s_, M_NOLICK, specific=S_NOLICK_B)
             big(s_, fig_ref.with_name(fig_ref.name.replace("reference", "survival")),
                 top=1.9, width=10.5)
         if (src / "nolick_basis_agreement.png").exists():
@@ -1472,7 +1757,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             title(s_, "No-detected-lick: do the two bases agree?",
                   "Same trials, same statistics, two independent feature sets. Disagreement is "
                   "reported in red rather than resolved by preference.")
-            note(s_, M_NOLICK)
+            note(s_, M_NOLICK, specific=S_NOLICK_C)
             big(s_, src / "nolick_basis_agreement.png", top=1.9, width=11.5)
 
     # ---------------- E. cross-session summary ----------------
@@ -1481,12 +1766,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     title(s, f"Cross-mouse decoding & encoding across sessions ({_mmdd_label(dates[0])}–{_mmdd_label(dates[-1])})",
           "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's sessions "
           "(points = sessions).")
-    note(s, M_DECODE + " " + M_ENCODE)
+    note(s, M_DECODE + " " + M_ENCODE, specific=S_XMOUSE)
     big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
     s = slide()
     title(s, "Within-animal consistency of per-position decode / encode",
           "Per-position profile per session + mean ± SD (the session-to-session noise floor).")
-    note(s, M_DECODE + " " + M_ENCODE)
+    note(s, M_DECODE + " " + M_ENCODE, specific=S_XCONSIST)
     big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
 
     # ---------------- F. RSA ----------------
@@ -1495,17 +1780,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     s = slide()
     title(s, "RSA — within- vs across-animal representational geometry",
           "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.")
-    note(s, M_RSA)
+    note(s, M_RSA, specific=S_RSA_A)
     big(s, src / f"locanmf_rsa_sessions_{tag}.png", top=1.6, width=13.0)
     s = slide()
     title(s, "RSA — mean representational dissimilarity matrix per animal",
           "How the 6 positions relate (dark = similar patterns, bright = distinct).")
-    note(s, M_RSA)
+    note(s, M_RSA, specific=S_RSA_B)
     big(s, src / f"locanmf_rsa_rdms_{tag}.png", top=1.9, width=12.7)
     s = slide()
     title(s, "RSA — crossnobis (noise-unbiased) RDM",
           "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.")
-    note(s, M_RSA)
+    note(s, M_RSA, specific=S_RSA_C)
     big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
 
     # ---------------- G. POST-STROKE ----------------
@@ -1530,7 +1815,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, "G0. What is compared to what \u2014 and what cannot be compared",
               "Read this before the numbers. Four of these constraints changed a conclusion already.")
-        note(s, M_POSTSTROKE)
+        note(s, M_POSTSTROKE, specific=S_G0)
         bullets(s, [
             "PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
             "resolving to phase=='pre'.",
@@ -1562,7 +1847,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Every per-position behavioural metric over that animal's sessions. DASHED RED = "
                   "the lesion; grey shading = a session excluded from both phases. This is the "
                   "figure the nightly behaviour pipeline already produces, not a bespoke plot.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G1)
             big(s, beh, top=1.5, width=12.9)
         # ONE counts slide: trial counts are trial counts, so this figure does not depend on the
         # arm. Rendering it per arm produced two byte-identical files under two titles (Priya,
@@ -1614,7 +1899,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "PRE-stroke no-lick against POST-stroke no-lick, so it differs in phase alone. "
                   "'n/a' means the position was never attempted, which is not zero recall; RED "
                   "HATCHED means fewer than 10 trials.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G2B)
             big(s, src / "section_g_G2b_per_position.png", top=1.75, width=12.3)
 
         # --- G2c. recoding vs loss: the test that reframes G2
@@ -1665,7 +1950,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           "column is how often the decoder picks that position at all, which IS the "
                           "recall expected under a label permutation; '(prec)' is precision. Read "
                           "the OFF-diagonal.")
-                    note(s, M_POSTSTROKE)
+                    note(s, M_POSTSTROKE, specific=S_G3)
                     big(s, _f, top=1.95, width=12.8)
 
         # --- G4. identity, with its control read first
@@ -1698,7 +1983,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "spread of the dots IS the confidence interval \u2014 and it is the right one, "
                   "because sessions differ from one another far more than trials within a session. "
                   "Makes NO assumption that the two post-stroke classes should differ.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G4B)
             big(s, _ff, top=1.85, width=11.0)
 
         # --- G5. same code weaker, or a different code?
@@ -1724,7 +2009,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "has no valid post-stroke construction. This splits on the TRUE spout position, "
                   "which is measured rather than inferred. Above the black null at IMPAIRED "
                   "positions = position represented, movement did not happen.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G6)
             big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
 
         # --- G6b. the miss/stopped contrast, per position and per session.
@@ -1760,7 +2045,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
                       "behavioural collapse is specific to the animals whose lesion took, which is "
                       "what makes the decoding comparison interpretable at all.")
-                note(s, M_POSTSTROKE)
+                note(s, M_POSTSTROKE, specific=S_G7B)
                 big(s, src / "section_g_smalllesion_counts.png", top=1.6, width=12.5)
 
         # G7c: the same all-trials matrix as G3b, for the control animals. At 8 spaces, NOT 12 --
@@ -1783,7 +2068,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           "position. That is what makes PS94's far_R over-prediction (0.35 of all "
                           "its post-stroke trials) a lesion effect rather than a property of the "
                           "frozen decoder or of 8/17.")
-                    note(s, M_POSTSTROKE)
+                    note(s, M_POSTSTROKE, specific=S_G7C)
                     big(s, _cf, top=1.85, width=9.6)
 
         # G7d: the same fits-engaged test on the SMALL-LESION animals. ONE slide, both alignments
@@ -1801,7 +2086,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "few no-lick trials to test (it responded on essentially every trial), which is "
                   "itself the point: a small lesion left the behaviour intact. FIXED CONTENT: this "
                   "is PS92/PS93 on 8/17 and can never gain a session.")
-            note(s, M_POSTSTROKE)
+            note(s, M_POSTSTROKE, specific=S_G7D)
             grid(s, _g7d, cols=2, top=1.9)
 
         # --- G9. PER-POSITION CODING DIRECTIONS (Priya, 2026-08-20/21)
@@ -1956,7 +2241,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 s = slide()
                 title(s, f"G9b. {_w} window \u2014 {_tag}",
                       "Diagnostic, not a result: it explains how to read the G9 panels.")
-                note(s, M_CODING_DIR)
+                note(s, M_CODING_DIR, specific=S_G9B)
                 big(s, _f, top=1.95, width=12.7)
 
         # --- G9c. ONE-OFF control (wfield_local.rt_drift, not a nightly step)
@@ -1986,7 +2271,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "session median near 0.6 s against a last-quartile 1.03 s misplaces those windows "
                   "by ~0.4 s, a fifth of the window. Read PS93's far no-lick cells with that in "
                   "mind. Rebuild with: python -m wfield_local.rt_drift")
-            note(s, M_CODING_DIR)
+            note(s, M_CODING_DIR, specific=S_G9C)
             big(s, _rt, top=1.95, width=12.7)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
@@ -2001,7 +2286,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "is UNRESOLVED: measured on this data the raw 415 RISES with activation "
                   "(+0.5 to +2.0%), contradicting a simple absorption account, so do NOT read a "
                   "415 change as hypo- or hyper-perfusion.")
-            note(s, M_HEMI)
+            note(s, M_HEMI, specific=S_G8)
             big(s, _f, top=1.9, width=12.9)
 
         # --- G8b. per-hemisphere dynamics + cross-hemisphere concordance
@@ -2015,7 +2300,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "survives the optical asymmetries that make amplitudes fragile. Third row is the "
                   "specificity check: a homotopic drop only means interhemispheric decoupling if "
                   "WITHIN-hemisphere coupling holds. Grey = the small-lesion sessions (not no-lesion).")
-            note(s, M_HEMIDYN)
+            note(s, M_HEMIDYN, specific=S_G8B)
             big(s, _df, top=1.85, width=12.9)
 
         # G8c: surface vessel contrast -- Priya's observation that vessels look fainter post-stroke
@@ -2028,7 +2313,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "ROW: focus drift and a clouding window reduce contrast BILATERALLY. CAVEAT: these "
                   "are PIAL vessels over DORSAL cortex and the lesion is ventrolateral striatum, so a "
                   "null here is weak evidence about perfusion at the lesion.")
-            note(s, M_VESSEL)
+            note(s, M_VESSEL, specific=S_G8C)
             big(s, _vf, top=1.85, width=12.6)
 
         # G8d: the OBSERVATION itself -- pre/post maps on one colour scale. This has to come
@@ -2046,7 +2331,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "shows as a 2-3x difference in saturation. The standard maps renormalise per "
                       "session and cannot show this. Baseline F is unchanged (ratios 0.99-1.02), so "
                       "the change is in the numerator.")
-                note(s, M_FIXEDSCALE)
+                note(s, M_FIXEDSCALE, specific=S_G8D)
                 big(s, _fsf, top=1.9, width=11.6)
 
         # G8e: per-area evoked amplitude -- the measure aimed at Priya's map observation, and the
@@ -2093,14 +2378,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           "pattern (blue) vs the "
                           "HEMISPHERE-SWAPPED one (orange). Orange above blue would mean the "
                           "pattern relocated across the midline \u2014 it never happens.")
-                    note(s, M_SPATIAL)
+                    note(s, M_SPATIAL, specific=S_G8F)
                     big(s, _sf, top=1.9, width=11.6)
 
         # --- G9. what is NOT here, and why
         s = slide()
         title(s, "G9. Excluded sessions and deferred analyses",
               "A section that does not say what it left out reads as though it covered everything.")
-        note(s, M_POSTSTROKE)
+        note(s, M_POSTSTROKE, specific=S_GEXCL)
         bullets(s, [
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
