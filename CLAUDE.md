@@ -222,9 +222,11 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
-**[`docs/STATUS_2026-08-17.md`](docs/STATUS_2026-08-17.md)** — current state, the SEVENTEEN silent bugs
-found 15-17 Aug and their guards (five of them checks that were themselves broken), what is running, and the ordered to-do list. START HERE after a
-break. (`STATUS_2026-08-14.md` is kept as the record of the drift-removal decision week.)
+**[`docs/STATUS_2026-08-23.md`](docs/STATUS_2026-08-23.md)** — START HERE after a break. What the
+post-stroke analysis is actually asking, where the null came from, what is running, and the ordered
+to-do list. (`STATUS_2026-08-17.md` is kept as the record of the SEVENTEEN silent bugs found 15-17
+Aug and their guards — five of them checks that were themselves broken — which are still in force;
+`STATUS_2026-08-14.md` as the record of the drift-removal decision week.)
 
 ## Acquisition incidents
 
