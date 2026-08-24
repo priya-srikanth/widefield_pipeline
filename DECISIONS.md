@@ -3129,3 +3129,63 @@ The `poststroke_lick` class is unaffected -- those trials have a contact by defi
 comparing pre-stroke lick with post-stroke lick (the same-class control) do not depend on this at
 all, which is a further reason to prefer that comparison over the cross-class one wherever both are
 available.
+
+---
+
+## HOW THE POSITION CODE IS REDISTRIBUTED — about half of each changed axis is new structure (2026-08-23)
+
+Priya: "HOW is the code redistributed?" Everything up to this point established only that a
+post-stroke axis was RELIABLE and at a DIFFERENT ANGLE from its pre-stroke counterpart. That is
+*whether*, not *how* — it says nothing about where the code went.
+
+`position_axes.decompose()` answers it by expressing each changed post-stroke axis in a coordinate
+system of pre-stroke references: every other position axis, the close-vs-far axis, and the engagement
+axis. **The residual outside the span of all of them is the load-bearing number** — the references
+are not orthogonal to each other (position axes share structure), so the individual cosines overlap
+and must never be summed, whereas the fraction lying outside their span is well defined by least
+squares.
+
+### The result, pooled over post-stroke sessions, pre-cue, 2-session blocks
+
+| class | LOST | REDIST | modest | preserved | median reliability | median residual |
+|---|---|---|---|---|---|---|
+| **poststroke_lick** | **0** | 19 | 16 | 6 | **+0.69** | **0.56** |
+| poststroke_miss_working | 14 | 11 | 2 | 0 | +0.40 | 0.67 |
+| poststroke_stopped | 27 | 7 | 1 | 0 | +0.30 | 0.75 |
+
+**On trials with a spout contact, nothing is lost** — zero cells below the no-axis bar, and 35 of 41
+interpretable axes changed. This is the one row that depends on none of the day's caveats, because
+`poststroke_lick` trials have a contact by definition (see the entry on MISS/STOPPED being defined by
+contact rather than by attempting).
+
+**About half of each changed axis is structure with no pre-stroke counterpart.** Median residual 0.56
+for the lick class. Not a rotation onto some other existing position axis — new directions.
+
+**The interpretable half is not random.** Post-stroke `close_R|close_L` aligns with pre-stroke
+`close_R|close_L` (+0.76 in PS94, +0.68 in PS95): the axis KEEPS ITS OWN IDENTITY while acquiring new
+structure. The more interesting cases are cross-ring — PS95's post-stroke `close_center|close_L`
+aligning with the pre-stroke `far_R|far_center` axis (+0.76), a close-ring contrast coming to
+resemble a far-ring one.
+
+So "redistributed" resolves into three parts: **partly preserved in identity, partly moved onto other
+positions' pre-stroke axes, and about half into structure that did not previously exist.**
+
+### The caveat that limits the residual, stated because it is the obvious objection
+
+Residuals rise monotonically across the three classes — 0.56, 0.67, 0.75 — exactly tracking FALLING
+reliability (+0.69, +0.40, +0.30). Noise inflates a residual, since an axis fitted through noise is
+orthogonal to everything. So 0.56 is an UPPER BOUND on "genuinely new structure" even in the best
+class, and the miss and stopped residuals are uninterpretable on their own. The right next step, if
+this matters, is a residual computed on split halves of PRE-STROKE lick at matched n -- the same
+noise-floor logic used for the cosines -- which would say how much residual pure sampling noise
+produces at each reliability. That has NOT been done.
+
+### Two other results from the same run
+- **`pool 2` bought far less than trial count predicts.** Spearman-Brown gives +0.47 -> +0.64 at
+  double n; observed +0.52, about 30% of the expected gain. The two days are NOT exchangeable — the
+  axis moves between sessions. Pooling therefore costs reliability as well as time resolution, and
+  any epoch-based analysis will be weaker than a naive trial-count argument suggests.
+- **LOST behaves oppositely in the two classes as trials accumulate.** Lick: 12% -> 9% -> 0% (it was
+  power). Miss: 7% -> 12% -> 22% (adding data confirms the absence rather than revealing an axis).
+  Under the contact/attempt ambiguity this cannot be read as "no plan formed" — only as "no coherent
+  representation on trials with no contact".
