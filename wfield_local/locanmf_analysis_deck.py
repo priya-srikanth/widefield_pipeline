@@ -2296,6 +2296,49 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         note(s, M_CODING_DIR, specific=S_G9)
                         big(s, _f, top=1.95, width=12.7)
 
+        # --- G9c. THE PER-SESSION, PER-CLASS versions of the two matrices.
+        #
+        # These were RENDERED EVERY NIGHT AND NEVER PLACED. `position_coding_directions` writes
+        # `coding_{crosssess,pairsess}_{window}_{method}_{class}_{animal}.png` -- 144 files across
+        # 3 windows x 2 methods x 3 classes x 4 animals -- and no slide referenced them, so they
+        # existed only on disk (found 2026-08-24, while answering "how does the best match change
+        # over recovery sessions, split by miss-while-working vs stopped?" -- which is exactly what
+        # they show and nothing in the deck did).
+        #
+        # ONE METHOD ONLY here. Three classes x six sessions is already dense; adding the plain
+        # direction would double it again for a comparison the pooled G9 panels above already
+        # carry.
+        _SESS_CLS = (("poststroke_lick", "LICK trials"),
+                     ("poststroke_miss_working", "MISS while still working"),
+                     ("poststroke_stopped", "STOPPED (quit for the day)"))
+        for _w in ("ENL", "cue", "lick"):
+            _m = _G9_METHODS[_w][0]
+            for _kind, _tag, _blurb in (
+                ("crosssess", "cross-position matrix, PER SESSION",
+                 ("The pooled cross-position matrix split by post-stroke SESSION. Rows = TRUE spout "
+                  "position, columns = which position's direction it was scored on, 1.0 = that "
+                  "column's own pre-stroke lick signature. THIS IS THE RECOVERY VIEW: pooling every "
+                  "post-stroke day hides whether a row moved toward another position and stayed "
+                  "there, moved and came back, or never moved at all.")),
+                ("pairsess", "pairwise axes, PER SESSION",
+                 ("The pairwise A-vs-B axes split by post-stroke SESSION, same anchoring as the "
+                  "pooled version: 1 = pre-stroke lick at the panel's position, 0 = pre-stroke lick "
+                  "at the partner.")),
+            ):
+                for _cls, _clsn in _SESS_CLS:
+                    for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                        _f = src / f"coding_{_kind}_{_w}_{_m}_{_cls}_{_an}.png"
+                        if not _f.exists():
+                            continue
+                        s = slide()
+                        title(s, f"G9c. {_an} — {_w} window, {_tag} — {_clsn}",
+                              _blurb + "  READ THE CLASS: miss-while-working is position-specific, "
+                              "STOPPED is the animal having quit and is position-GENERAL, so a row "
+                              "that moves in STOPPED at every position is a state change and not a "
+                              "remapping.")
+                        note(s, M_CODING_DIR, specific=S_G9)
+                        big(s, _f, top=1.95, width=12.7)
+
         # --- G9b. COHORT diagnostics. Neither can be drawn per animal: the first needs every
         # position of every animal on one axes to be a relationship at all, and the second VANISHES
         # when animals are pooled, which is itself the finding.

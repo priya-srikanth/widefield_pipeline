@@ -4149,3 +4149,83 @@ A self column would have to be a ONE-VS-REST value, and putting one on a line wh
 are pairwise contrasts mixes two axis constructions in a single series. The one-vs-rest view already
 answers that question: the G9 time-course panels and the diagonal of the cross-position matrix. Now
 stated on the slide so the absence reads as a decision rather than an omission.
+
+---
+
+## WHAT DOES POST-STROKE ACTIVITY AT AN IMPAIRED POSITION LOOK LIKE? (2026-08-24)
+
+Priya asked the question the cross-position matrices were built for and had never been read as a
+table: for far_R trials in an animal that cannot lick far_R, does ENL activity resemble pre-stroke
+far_R, or pre-stroke far_L? And she added the observation that decides how to read it -- on far_R
+miss trials she often sees **incomplete LEFTWARD or CENTRAL licks after the cue**.
+
+**THE TWO WINDOWS SEPARATE THE TWO ANSWERS.** ENL is lick-free by construction, so a match there is
+the PLAN and cannot be a movement artefact. The cue window contains the attempted movement, so a
+far_L match there is cortex following the EXECUTED direction. `scripts/best_match.py` reads
+`cross_matrix` / `cross_by_session` from `coding_direction.json` (G9 slides 277-280 ENL, 301-304 cue)
+and reports, per class, the argmax column and the shift from the pre-stroke row.
+
+### far_R MISS-WHILE-WORKING, pooled
+
+| animal | resp | ENL own | ENL best | cue own | cue best |
+|---|---|---|---|---|---|
+| PS92 | 0.12 | +0.05 | **far_L +1.27** | −0.20 | close_L +0.53 |
+| PS93 | 0.23 | +0.20 | **far_L +0.59** | +0.03 | **far_L +0.54** |
+| PS94 | 0.02 | **+0.57 (own)** | far_R | **−0.46** | close_L +0.56 |
+| PS95 | 0.48 | +0.54 | far_center +0.61 | +0.46 | **far_R (own)** |
+
+**PS94 is the clean intention/execution dissociation Priya predicted**: the plan is still far_R in the
+lick-free window (+0.57, own-best) while the cue window collapses to −0.46 and matches close_L /
+close_center / far_L -- exactly "the tongue went left or centre". Per session its ENL even returns to
+own-best on 0820 and 0821 (+0.62 each) while the cue window never does.
+
+**PS92 is NOT that pattern.** Its far_R miss trials look like far_L ALREADY IN ENL (+1.27 against
++0.05 own), on all five sessions (+0.87 to +2.03). Before the cue, with no movement in the window,
+the pattern is leftward. That is a substituted plan, not a deviated execution.
+
+**PS93 is leftward in both windows** (ENL +0.59, cue +0.54) and then loses even that: the per-session
+best match runs far_L, far_L, far_L (0818-0820) then close_center (0821, 0822). Drift toward the
+central/close pattern, i.e. loss of position specificity rather than recovery.
+
+**PS95, the recovering animal, keeps far_R as far_R** in both windows, on essentially every session
+(lick class: ENL +0.83/+0.70/+1.04/+0.69, cue +1.01/+0.73/+0.86/+0.57).
+
+### STOPPED IS A STATE, AND THE TABLE SHOWS IT
+In PS93, PS94 and PS95 the stopped class moves toward **close_center** at every impaired position
+(shift +0.77 to +1.80), in both windows. That is the position-GENERAL signature already documented
+for stopped, arriving independently here. PS92's stopped still reads far_L, on n=74. So the miss/
+stopped split is not a refinement of the same measurement: miss carries position-specific structure,
+stopped carries a state that looks like the central spout in everyone.
+
+### Q2 -- AT POSITIONS THE ANIMAL STILL LICKS, IS MOTOR ENCODING INTACT? (lick window, own column)
+
+| animal | preserved positions | reading |
+|---|---|---|
+| PS92 | far_center +1.69, close_R +1.01, close_L +0.91, close_center +0.68, far_L +0.67 | own-best everywhere, at or above pole, stable across sessions -- **intact** |
+| PS93 | far_center +0.36 (best close_center), close_center +0.29 (best close_R), close_L +0.35 (best close_center) | **THREE OF FIVE licking positions no longer match themselves best** -- genuine motor-encoding change where behaviour is preserved |
+| PS94 | close_R +0.55, close_L +0.69, close_center +0.31 -- rising across sessions (close_R 0.37 -> 0.88, close_center −0.13 -> 0.70, far_L 0.25 -> 0.61) | own-best but reduced, **recovering** |
+| PS95 | close_R +1.25, far_L +1.10, close_center +1.04, close_L +0.87 | own-best, at pole, **intact**; a uniform dip on 0823 only |
+
+**PS93 is the important row.** It is the one animal whose lick-related activity has meaningfully
+shifted AT POSITIONS IT STILL PERFORMS -- and that dissociates neural change from behavioural
+deficit, since those positions have response rates of 0.60-0.70.
+
+### WHAT THESE NUMBERS CANNOT SETTLE
+- **The cue-window match is confounded by movement presence.** A post-stroke miss trial has no
+  contact where its pre-stroke reference had one. The confound is not total -- pre-stroke far_L is
+  itself a LICK trial, so "matches far_L" is matching a lick pattern rather than matching absence --
+  but the ENL rows are the ones that carry weight, and they are the lick-free ones.
+- **MISS is defined by spout CONTACT.** An incomplete leftward lick produces no signal and is scored
+  a miss, which is exactly the population Priya is describing; the DAQ cannot confirm the executed
+  direction on any single trial. **Video-based tongue tracking would turn this from a population
+  argument into a per-trial one** -- and it is the same missing measurement everything else waits on.
+- Raw argmax is reported beside the SHIFT from the pre-stroke row because positions are intrinsically
+  similar before any lesion; a raw winner that is flat in the shift was always that similar.
+- PS92's cue rows are the least trustworthy in the table: the 2026-08-24 audit found the
+  orthogonalised directions move AWAY from the covariance-aware reference for PS92 in cue and lick.
+
+### AND 144 FIGURES THAT ANSWER THIS WERE NEVER IN THE DECK
+`coding_{crosssess,pairsess}_{window}_{method}_{class}_{animal}.png` -- the per-session, per-class
+versions of both matrices, 3 windows x 2 methods x 3 classes x 4 animals -- are rendered every night
+by `position_coding_directions` and were referenced by no slide. They are the recovery view this
+question needs. Now placed as **G9c**, one method, three classes.
