@@ -3258,3 +3258,144 @@ genuinely had no post-quit window or whether the detector did not fire. (2) Whet
 recovery persists: if it does, a hypothesis resting on stopped-code fails. (3) n=4 animals cannot
 establish this either way -- it is a hypothesis to carry, not a result.
 
+---
+
+## THE DRIFT NULL, AND THE THREE WRONG NULLS BEFORE IT (2026-08-23)
+
+Every "the post-stroke axis CHANGED" verdict compares a post-stroke axis against a pre-stroke
+reference. What that comparison must be judged against went through three wrong answers before the
+right one, and each wrong answer changed which animals had an effect. Recorded in order, because the
+reasoning is the reusable part.
+
+**Null 1 — same-day split-half.** Measures sampling noise only. Says nothing about time, so it
+cannot distinguish a lesion effect from ordinary day-to-day change.
+
+**Null 2 — session-to-session drift.** Measured directly, and drift is real:
+
+| animal | 1-3 days | 4-10 days | June-August (~60 d) |
+|---|---|---|---|
+| PS92 | +0.97 | +0.74 | +0.62 |
+| PS93 | +1.02 | +0.86 | +0.86 |
+| PS94 | +0.89 | +0.77 | +0.68 |
+| PS95 | +0.83 | +0.43 | +0.57 |
+
+Axes are stable within 1-3 days (0.83-1.02) and drift over weeks to months. Applying the
+June-August rate as the null retired PS92 and PS95 from the result. **That was wrong on two counts**
+(Priya: "the drift doesnt nullify the post stroke result - because these arent over the same long
+time period"): the pre-to-post interval is 3-9 DAYS (8/14 is the last pre-stroke session, post-stroke
+is 8/17-8/23), not 60; and session-to-session comparison OVERSTATES the null anyway, because the
+actual analysis pools eleven pre-stroke sessions and pooling averages drift out.
+
+**Null 3 — pooled-vs-held-out, one session.** Structurally right, but unusable in PS92: its median
+per-session axis reliability is +0.47, right at the 0.5 gate, so 1-2 cells survived per held-out
+session and NONE at the matched 8/14 gap.
+
+**Null 4 — pooled-vs-held-out, TWO sessions.** The one to use. Same operation as the post-stroke
+comparison with no lesion in it, at a granularity every animal can support:
+
+    PS93 +0.93    PS94 +0.89    PS95 +0.76 (+0.84 excluding 8/13)    PS92 +0.73 (+0.79)
+
+### 8/13 is a known-degraded session still inside the curated set
+PS95 8/13 was recorded single-channel for its first 32 min; the repair left 197/871 cues (23%)
+outside the surviving imaging span, and after the coverage fix it reached 0.78 cue-aligned against
+~0.90 for that animal (docs/EXPERIMENT_ERRORS.md). In the leave-2-out null its block is **+0.46
+[-0.15, +0.60]** against 0.74-0.95 for that animal's other blocks -- half the value, IQR crossing
+zero -- and excluding it moves PS95's null from 0.76 to 0.84, which is enough to change that
+animal's verdict. PS92's block containing it is also its joint-lowest. PS93 and PS94 are untouched.
+`cross_session_exclude` is a COHORT-WIDE date list and cannot express "PS95 8/13 only", which is
+exactly the per-animal exclusion left open in the restructure roadmap.
+
+---
+
+## THE POST-STROKE SIDE WAS ALSO POOLED, WHICH HID A RECOVERY (2026-08-23)
+
+Having built per-session storage precisely because pooling averages a recovery and a collapse into
+"no change", the null comparison was then made against a POOLED post-stroke median (Priya: "but that
+is still pooled post stroke? ps95 was most affected for only 1 session"). Read at the same 2-session
+granularity as the null, the four animals have four different trajectories:
+
+| animal | null | block 1 | block 2 | block 3 |
+|---|---|---|---|---|
+| PS93 | 0.93 | **0.33** (8/8 cells below) | **0.17** (2/2) | **0.11** (1/1) |
+| PS94 | 0.89 | **0.72** (5/5) | **0.57** (5/6) | **0.76** (3/4) |
+| PS95 | 0.84 | **0.66** (10/10) | -- | 0.93 (0/2) |
+| PS92 | 0.79 | 0.87 (1/4) | 0.83 (2/6) | 0.55 (1/1) |
+
+**PS95 has a real effect confined to its first block** -- 10 of 10 cells below the null at
+0817+0818, back to 0.93 by 0821. The pooled median of 0.81 averaged that with the recovery and
+looked like nothing. **PS93 worsens progressively** (0.33 -> 0.17 -> 0.11). **PS94 dips and partly
+recovers.** **PS92 shows nothing** until a single last-block cell.
+
+The same lesion therefore produces recovery in one animal, progression in another and a
+dip-and-rebound in a third. Only PS93's and PS94's are sampled well enough to call trajectories; the
+0822 blocks are n=1 and PS95's middle block has no interpretable cells at all.
+
+### A "CELL" IS ONE POSITION PAIR, AND CELLS ARE NOT INDEPENDENT
+15 pairs come from 6 positions, so `far_R|far_L` and `far_R|close_R` share all their far_R trials.
+"10/10 cells below the null" is a CONSISTENCY statement -- the effect is not carried by one odd pair
+-- and NOT ten independent tests. Anything needing a real p-value has to permute pre/post labels at
+the TRIAL level and recompute, which has not been done.
+
+---
+
+## THE OUTCOME SPLIT CUTS THE TRIALS THE WRONG WAY FOR THE POSITIONS THAT MATTER (2026-08-23)
+
+Priya: "we need to be able to use data from the most affected spout positions!" The reason far_R kept
+failing is not reliability and not total trials -- it is that outcome sorts the two sides of a
+contrast into DIFFERENT classes:
+
+    LICK class   far_R has 5 (PS94) to 15 (PS92) trials; its partners have hundreds
+    MISS class   far_R has 182-399; its partners have few, because the animal still LICKS there
+                 -> PS94's far_R|far_L miss cell is n=[116, 24], limited by the GOOD position
+
+Measured: 0/15 far_R cells usable in the lick class for PS92, PS93 and PS94; 0-2 in the miss class.
+
+**The fix is an outcome-blind axis**: pool every trial at a position regardless of what the animal
+subsequently did. far_R then has ~370 and far_L ~400. In the PRE-CUE window this is also the more
+defensible measure -- nothing has happened yet, so splitting by outcome conditions on the future --
+and it sidesteps the contact/attempt ambiguity entirely, since it never reads the outcome label.
+
+Two variants are computed so the choice is visible: `poststroke_all_working` (lick +
+miss-while-working, STOPPED excluded, and excluded from the pre-stroke reference too since its
+equivalent is the sated tail) and `poststroke_all` (everything) as its comparison. Prefer the former.
+
+**The confound that survives this and cannot be fixed by trial selection**: post-stroke outcome
+composition differs BY position -- far_R is mostly misses, close mostly licks -- so an outcome-blind
+axis can still pick up outcome-correlated state that happens to correlate with position. Separating
+those needs attempts defined independently of spout contact, i.e. the video.
+
+---
+
+## ON- vs OFF-MANIFOLD: WITHIN-MANIFOLD, AND ITS OWN INTERNAL CONTROL SAYS SO (2026-08-23)
+
+The Sadtler/Golub/Batista distinction, since it carries a prognosis: a within-manifold rearrangement
+is learnable in hours, an outside-manifold excursion over days or not at all (Oby 2019).
+
+Manifold = PCA on pre-stroke (trial, 0.5 s bin) points in LocaNMF component space, top k for 90% of
+variance (k = 14-16 of 87-95).
+
+**Activity stays on it.** Post-stroke VAF 0.832-0.883 against held-out pre-stroke ceilings of
+0.894-0.908, every animal within or at the edge of the held-out range. No evidence of an
+outside-manifold excursion.
+
+**The coding axes drop slightly -- but NOT in the animals with the lesion effect:**
+
+| animal | axis-in-manifold pre -> post | drop | lesion effect? |
+|---|---|---|---|
+| PS92 | 0.866 -> 0.788 | 0.078 | none |
+| PS95 | 0.883 -> 0.817 | 0.066 | first block only |
+| PS94 | 0.880 -> 0.820 | 0.060 | yes |
+| PS93 | 0.923 -> 0.867 | 0.056 | yes |
+
+The two animals with the WEAKEST lesion effect show the LARGEST drops. That is the opposite of what
+a lesion-driven change predicts, so the ~0.06-0.08 decline is a generic pre-versus-post difference
+rather than the lesion -- most plausibly the same drift. An earlier draft of this reported "coding
+axes move partly out of the manifold post-stroke"; the internal control says do not.
+
+**Two caveats.** VAF is a VARIANCE ratio, so high-variance directions dominate: a coding axis could
+leave the manifold entirely and barely move it, because the position code carries little variance
+against the global task response. That is why the axis measure exists separately, and why reporting
+VAF alone would have flattered the on-manifold conclusion. And the manifold is defined WITHIN the
+90-component LocaNMF basis, itself a fixed anatomically constrained reduction -- so "on-manifold" is
+a lower bound on any real excursion, not an estimate of it. Sensitivity to the 90% variance target
+has NOT been tested.

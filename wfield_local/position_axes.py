@@ -182,6 +182,56 @@ def decompose(w_post, refs):
     return {"cos": cos, "residual_outside_span": resid}
 
 
+
+def prestroke_null(XE, en, GE, pre_i, e_ax, rng, block=2):
+    """The NULL every post-stroke cosine must beat: pooled pre-stroke vs a HELD-OUT pre-stroke block.
+
+    STRUCTURALLY MATCHED, which the earlier nulls were not. The post-stroke comparison is (pooled
+    pre-stroke) vs (a post-stroke subset); a session-to-session drift rate answers a different
+    question and OVERSTATES the null, because pooling eleven sessions averages drift out and gives a
+    more stable reference than any single session. Holding out a block and pooling the rest is the
+    identical operation with no lesion in it.
+
+    BLOCKS OF TWO because one session is not enough in every animal: PS92's median per-session axis
+    reliability is +0.47, right at the 0.5 gate, so single-session holdouts yielded 1-2 usable cells
+    and none at all at the matched 8/14 gap. Two sessions took it to 18 (Priya, 2026-08-23).
+
+    Returns per-block medians plus the pooled null. A block containing a KNOWN-DEGRADED session drags
+    it down -- 8/13 is the documented case (PS95 recorded single-channel for 32 min; 197/871 cues fell
+    outside the surviving imaging span, and after the coverage fix it still reached only 0.78 against
+    ~0.90 for that animal). Excluding it lifted PS92's null from +0.73 to +0.79, so the blocks are
+    returned individually rather than only as a summary.
+    """
+    idx = sorted(pre_i)
+    blocks = [idx[i:i + block] for i in range(0, len(idx), block)]
+    out = {}
+    for blk in blocks:
+        vals = []
+        rest = np.isin(GE, [i for i in idx if i not in blk])
+        inb = np.isin(GE, blk)
+        for a, b in PAIRS:
+            pL, pR = XE[rest & (en == a)], XE[rest & (en == b)]
+            hL, hR = XE[inb & (en == a)], XE[inb & (en == b)]
+            if min(len(pL), len(pR)) < MIN_PRE or min(len(hL), len(hR)) < MIN_FIT:
+                continue
+            r_pool = split_half(pL, pR, e_ax, min(len(hL), len(pL) // 2),
+                                min(len(hR), len(pR) // 2), rng)
+            r_held = split_half(hL, hR, e_ax, len(hL) // 2, len(hR) // 2, rng)
+            if not r_pool or not r_held or min(r_pool, r_held) < MIN_REL:
+                continue
+            dis = float(axis(pL, pR, e_ax) @ axis(hL, hR, e_ax)) / float(np.sqrt(r_pool * r_held))
+            if dis <= 1.0:
+                vals.append(dis)
+        if vals:
+            out["+".join(str(i) for i in blk)] = {"n": len(vals),
+                                                  "median": float(np.median(vals)),
+                                                  "values": [float(v) for v in vals]}
+    allv = [v for r in out.values() for v in r["values"]]
+    return {"blocks": out,
+            "null_median": (float(np.median(allv)) if allv else None),
+            "n_cells": len(allv)}
+
+
 def run_animal(animal, align="precue", seed=0, pool_n=1):
     rng = np.random.default_rng(seed)
     pre = [x for x in config.phase_labels("pre") if x.startswith(animal)]
@@ -215,6 +265,35 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     # drift lives. Stopped is terminal by construction, so its counts are small and end-skewed --
     # a null there needs its reliability read before it is called "intact".
     stopped = (~u_pre) & not_eng
+
+    def all_at(pos, pre_phase, include_stopped=True, blk=None):
+        """Every trial at a position REGARDLESS OF OUTCOME, lick and no-lick together.
+
+        THE OUTCOME SPLIT CUTS THE TRIALS THE WRONG WAY for the positions that matter. far_R lives
+        in the MISS class post-stroke (355-399 trials) while its partners live in the LICK class, so
+        no pair can contrast a failing position against a performed one -- PS94's far_R|far_L miss
+        cell is n=[116, 24], limited by the position the animal still performs (Priya, 2026-08-23:
+        "we need to be able to use data from the most affected spout positions!").
+
+        In the PRE-CUE window this is also the more defensible axis: nothing has happened yet, so
+        splitting by outcome conditions on the future. What it cannot do is separate position from
+        outcome-correlated state, because post-stroke the outcome composition differs BY position --
+        far_R is mostly misses, close mostly licks.
+        """
+        me = (e_pre if pre_phase else ~e_pre) & (en == pos)
+        mu = (u_pre if pre_phase else ~u_pre) & (un == pos) if len(un) else np.zeros(0, bool)
+        if blk is not None:
+            me = me & np.isin(GE, blk)
+            if len(un):
+                mu = mu & np.isin(GU, blk)
+        if len(un) and not include_stopped:
+            # STOPPED trials are the terminal non-recovering run -- end-of-session concentrated, and
+            # therefore carrying the close-vs-far state drift that contaminates exactly this kind of
+            # comparison. Excluded from BOTH phases, because the pre-stroke equivalent is the sated
+            # tail, "a fundamentally different animal state" (Priya, 2026-08-23).
+            mu = mu & ~not_eng
+        parts = [XE[me]] + ([XU[mu]] if len(un) and mu.any() else [])
+        return np.vstack(parts) if parts else XE[me]
     post_idx = sorted((i for i in range(len(kept)) if i not in pre_i),
                       key=lambda i: kept[i].split("_")[1])
     # CONSECUTIVE BLOCKS of pool_n sessions. Per session the measure mostly fails for want of
@@ -239,7 +318,9 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
         refs["AXIS_engagement"] = np.asarray(e_ax, float)
 
     out = {"animal": animal, "align": align, "basis_id": basis.basis_id,
-           "reference_axes": sorted(refs), "pairs": {}}
+           "reference_axes": sorted(refs),
+           "prestroke_null": prestroke_null(XE, en, GE, pre_i, e_ax, rng),
+           "pairs": {}}
     for a, b in PAIRS:
         pL, pR = XE[e_pre & (en == a)], XE[e_pre & (en == b)]
         if len(pL) < MIN_PRE or len(pR) < MIN_PRE:
@@ -253,6 +334,20 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
             w_pre, pL, pR, XU[miss & (un == a)], XU[miss & (un == b)], e_ax, rng)
         rec["pooled"]["poststroke_stopped"] = compare(
             w_pre, pL, pR, XU[stopped & (un == a)], XU[stopped & (un == b)], e_ax, rng)
+        # ALL TRIALS, outcome-blind -- the only arm in which the most affected positions have
+        # enough trials on BOTH sides of a contrast. Its reference is also outcome-blind.
+        # BOTH VARIANTS, so the effect of including the terminal quit period is visible rather
+        # than assumed. `_working` is the one to prefer; `all` is kept as its comparison.
+        blind = {}
+        for tag, keep_stopped in (("poststroke_all", True), ("poststroke_all_working", False)):
+            aA = all_at(a, True, keep_stopped)
+            aB = all_at(b, True, keep_stopped)
+            if min(len(aA), len(aB)) < MIN_PRE:
+                continue
+            blind[tag] = (axis(aA, aB, e_ax), aA, aB, keep_stopped)
+            rec["pooled"][tag] = compare(blind[tag][0], aA, aB,
+                                         all_at(a, False, keep_stopped),
+                                         all_at(b, False, keep_stopped), e_ax, rng)
         # WHAT the pooled post-stroke axis is made of, per class. Only where an axis exists at all:
         # decomposing a direction fitted through noise describes the noise.
         rec["decomposition"] = {}
@@ -277,6 +372,13 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
                                                    XU[miss & inU & (un == b)], e_ax, rng),
                 "poststroke_stopped": compare(w_pre, pL, pR, XU[stopped & inU & (un == a)],
                                               XU[stopped & inU & (un == b)], e_ax, rng)}
+            # The outcome-blind arms per block too: the per-block view is what separated PS95's
+            # recovery from PS93's progression, and it is worth nothing if it cannot be read in the
+            # one arm where the most affected positions have trials on both sides.
+            for tag, (w_blind, aA, aB, keep_stopped) in blind.items():
+                rec["sessions"][lab][tag] = compare(
+                    w_blind, aA, aB, all_at(a, False, keep_stopped, blk=blk),
+                    all_at(b, False, keep_stopped, blk=blk), e_ax, rng)
         out["pairs"][f"{a}|{b}"] = rec
     return out
 
@@ -288,7 +390,8 @@ def main(argv=None) -> int:
     ap.add_argument("--align", default="precue", choices=("precue", "cue", "lick"))
     ap.add_argument("--class", dest="cls", default="poststroke_lick",
                     choices=("poststroke_lick", "poststroke_miss_working",
-                             "poststroke_stopped"),
+                             "poststroke_stopped", "poststroke_all",
+                             "poststroke_all_working"),
                     help="which class to PRINT; both are always computed and stored")
     ap.add_argument("--pool", type=int, default=1, metavar="N",
                     help="pool N CONSECUTIVE post-stroke sessions per cell (default 1). Per session "
@@ -311,9 +414,14 @@ def main(argv=None) -> int:
         print(f"\n=== {an}  {args.align}  [{args.cls}]", flush=True)
         for key, rec in r["pairs"].items():
             print(f"  {key:<26}({rec['type']})", flush=True)
-            print(f"      {'POOLED':<14}{verdict(rec['pooled'][args.cls])}", flush=True)
+            cell = rec["pooled"].get(args.cls)
+            if cell is None:                       # arm not computed for this pair (too few trials)
+                print(f"      {'POOLED':<14}not computed for this class", flush=True)
+                continue
+            print(f"      {'POOLED':<14}{verdict(cell)}", flush=True)
             for lab, cells in rec["sessions"].items():
-                print(f"      {lab.split('_')[-1]:<14}{verdict(cells[args.cls])}", flush=True)
+                if args.cls in cells:
+                    print(f"      {lab.split('_')[-1]:<14}{verdict(cells[args.cls])}", flush=True)
     if res:
         p = out / (f"position_axes_{args.align}.json" if args.pool == 1
                    else f"position_axes_{args.align}_pool{args.pool}.json")
