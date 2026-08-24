@@ -1,6 +1,6 @@
 """GRANT FIGURES — a small, self-contained set for a progress report and a new application.
 
-    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b 4]
+    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b 4 5]
 
 Priya, 2026-08-24. Deliberately NOT deck figures: the deck exists to be interrogated and carries every
 caveat on the slide, which is right there and wrong here. These are meant to be read in ten seconds by
@@ -461,6 +461,102 @@ def fig_confusion_prestroke(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 
 
+def fig_confusion_pre_post(out_dir):
+    """5: pre-stroke lick / pre-stroke NO-LICK control / post-stroke, one row per animal.
+
+    THE MIDDLE PANEL IS WHY THIS IS THREE PANELS AND NOT TWO. Post-stroke the impaired positions are
+    almost entirely no-lick trials, so an honest pre-vs-post pair on the ALL-trials arm compares
+    pre-stroke LICK rows against post-stroke NON-LICK rows and confounds the lesion with the absence
+    of a movement. `pre_nolick` is the matched control that already exists in `section_g`:
+    PRE-stroke no-lick trials scored by a decoder trained on the OTHER pre-stroke sessions' engaged
+    trials, so it differs from the post panel in PHASE ALONE. Read left-to-right: what the code
+    looks like normally, what it looks like without a lick but without a lesion, and what it looks
+    like after the lesion.
+
+    Counts are reconstructed from the stored row-normalised matrices (matrix * n_per_true_position),
+    summed across post-stroke sessions, and re-normalised. The `pre` and `pre_nolick` panels are the
+    POOLED pre-stroke reference and are byte-identical in every session record -- summing them across
+    sessions would multiply the same matrix by the session count and change nothing except to imply
+    a sample size that does not exist.
+    """
+    sg = _fig_root() / "section_g.json"
+    if not sg.exists():
+        return None
+    G = json.loads(sg.read_text(encoding="utf-8"))
+    PANELS = (("pre", "PRE-stroke, LICK trials"),
+              ("pre_nolick", "PRE-stroke, NO-LICK\n(matched control)"),
+              ("post", "POST-stroke, ALL trials"))
+    made = []
+    for gkey, wname in (("pre-cue", "ENL (pre-cue)"), ("post-cue", "post-cue")):
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(11.0, 14.0), squeeze=False)
+        drew = False
+        for ri, an in enumerate(ANIMALS):
+            sessions = sorted(k for k in G if k.startswith(an)
+                              and config.session_phase(an, k.split("_")[-1]) == "post")
+            if not sessions:
+                for ci in range(3):
+                    axes[ri][ci].axis("off")
+                continue
+            blocks = [((G[s].get("arms") or {}).get("all") or {}).get("confusion", {}).get(gkey)
+                      for s in sessions]
+            blocks = [b for b in blocks if b]
+            if not blocks:
+                for ci in range(3):
+                    axes[ri][ci].axis("off")
+                continue
+            for ci, (key, ptitle) in enumerate(PANELS):
+                ax = axes[ri][ci]
+                use = blocks if key == "post" else blocks[:1]
+                C = None
+                for b in use:
+                    d = b.get(key)
+                    if not d:
+                        continue
+                    M = np.array(d["matrix"], float)
+                    n = np.array(d["n_per_true_position"], float)
+                    C = (np.nan_to_num(M) * n[:, None]) if C is None \
+                        else C + np.nan_to_num(M) * n[:, None]
+                if C is None:
+                    ax.axis("off")
+                    continue
+                row = C.sum(1, keepdims=True)
+                P = np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+                acc = float(np.nansum(np.diag(C)) / C.sum()) if C.sum() else float("nan")
+                im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
+                for i in range(len(CONF_LABELS)):
+                    if row[i, 0] == 0:
+                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=7,
+                                color="firebrick", fontweight="bold")
+                        continue
+                    for j in range(len(CONF_LABELS)):
+                        if P[i, j] >= 0.02:
+                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=6,
+                                    color="white" if P[i, j] < 0.6 else "black")
+                ax.set_xticks(range(len(CONF_LABELS)))
+                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                   rotation=45, ha="right", fontsize=6.5)
+                ax.set_yticks(range(len(CONF_LABELS)))
+                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f})", fontsize=8.5,
+                             fontweight="bold" if ci == 0 else "normal")
+                drew = True
+        if not drew:
+            plt.close(fig)
+            continue
+        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
+        fig.suptitle(f"The frozen pre-stroke decoder before and after the lesion — {wname} window\n"
+                     "Rows = TRUE spout position, columns = predicted. MIDDLE PANEL IS THE MATCHED "
+                     "CONTROL: pre-stroke NO-LICK trials scored by a decoder trained on the other "
+                     "pre-stroke sessions,\nso it differs from the post panel in PHASE alone rather "
+                     "than in phase and the absence of a movement together. "
+                     "Post-stroke sessions pooled. Chance = 0.17.", fontsize=9.5)
+        p = Path(out_dir) / f"grant_5_confusion_pre_post_{gkey.replace('-', '')}.png"
+        fig.savefig(p, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
 # ------------------------------------------------------------------ 3a. coding retained
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
@@ -559,11 +655,23 @@ def _binom_ci(p, n):
     return 1.96 * float(np.sqrt(max(p * (1 - p), 0) / n)) if n else 0.0
 
 
-#: The frozen post-stroke analysis computes PRE-CUE and POST-CUE only. Post-lick is absent BY
-#: CONSTRUCTION: the ALL-trials arm includes trials with no detected lick, and a lick-aligned window
-#: cannot be defined for a trial with no lick -- at the impaired positions that is most of the
-#: trials. The lick window is in panel 3a instead, where the no-lick classes sit at an inferred time.
-FROZEN_WINDOWS = (("ENL", "pre-cue", "ENL (pre-cue)"), ("cue", "post-cue", "post-cue"))
+#: (window, section_g condition key, display name, which ARM it comes from).
+#:
+#: POST-LICK COMES FROM THE LICK-ONLY ARM, and that is not a workaround -- it is the only arm in
+#: which the condition is defined. The ALL-trials arm includes trials with no detected lick and a
+#: lick-aligned window cannot be built for a trial with no lick, so `poststroke_section_g` skips it
+#: there (`if align == "lick" and arm_all: continue`) and computes it for lick-only, where every
+#: trial has a lick by construction. It has been computed all along, in all 24 session records, with
+#: permutation nulls and the pre-stroke band -- I asserted otherwise on 2026-08-24 after checking
+#: `arms["all"]` alone and generalising from one arm to the analysis.
+#:
+#: THE COST, which is why the row is drawn with its own chance line: the lick-only arm scores each
+#: session on ITS OWN preserved positions, so the class count and therefore chance differ between
+#: sessions -- 4-way at 0.25 on one day and 6-way at 0.167 on another. Accuracies in that row are
+#: NOT comparable across sessions or with the two rows above it.
+FROZEN_WINDOWS = (("ENL", "pre-cue", "ENL (pre-cue)", "all"),
+                  ("cue", "post-cue", "post-cue", "all"),
+                  ("lick", "post-lick", "post-lick  [lick-only arm]", "lickonly"))
 
 
 def fig_frozen_vs_within(out_dir):
@@ -571,18 +679,21 @@ def fig_frozen_vs_within(out_dir):
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))
-    fig, axes = plt.subplots(len(FROZEN_WINDOWS), len(ANIMALS), figsize=(16.0, 7.0),
+    fig, axes = plt.subplots(len(FROZEN_WINDOWS), len(ANIMALS), figsize=(16.0, 10.2),
                              sharey="row", squeeze=False)
-    for ri, (_disp, gkey, wname) in enumerate(FROZEN_WINDOWS):
+    for ri, (_disp, gkey, wname, armkey) in enumerate(FROZEN_WINDOWS):
         for ci, an in enumerate(ANIMALS):
             ax = axes[ri][ci]
             fx, fy, fe, wx, wy, we, band = [], [], [], [], [], [], None
+            chance_x, chance_y = [], []
             for sess in sorted(k for k in G if k.startswith(an)):
                 mmdd = sess.split("_")[-1]
                 if config.session_phase(an, mmdd) != "post":
                     continue
                 day = _day(an, mmdd)
-                arm = (G[sess].get("arms") or {}).get("all") or {}
+                arm = (G[sess].get("arms") or {}).get(armkey) or {}
+                if arm.get("chance"):
+                    chance_x.append(day); chance_y.append(arm["chance"])
                 cell = arm.get(gkey) or {}
                 n = cell.get("n") or 0
                 if cell.get("accuracy") is not None:
@@ -619,7 +730,15 @@ def fig_frozen_vs_within(out_dir):
                 ax.errorbar(wx, wy, yerr=we, color="tab:green", marker="s", ms=5, lw=1.6, capsize=3,
                             ls="--",
                             label="trained on that session" if (ri == 0 and ci == 0) else None)
-            ax.axhline(1 / 6, color="k", ls=":", lw=1.0)
+            # CHANCE IS PER SESSION IN THE LICK-ONLY ARM. One flat 1/6 line would be wrong on
+            # every 4-position session, and drawing it anyway is how a 4-way 0.5 gets read as
+            # twice chance when it is exactly twice a DIFFERENT chance.
+            if armkey == "lickonly" and chance_x:
+                o = np.argsort(chance_x)
+                ax.step(np.array(chance_x)[o], np.array(chance_y)[o], where="mid", color="k",
+                        ls=":", lw=1.1)
+            else:
+                ax.axhline(1 / 6, color="k", ls=":", lw=1.0)
             ax.set_ylim(0, 1.02)
             if fx or wx:
                 ax.set_xticks(sorted({int(v) for v in list(fx) + list(wx)}))
@@ -632,12 +751,12 @@ def fig_frozen_vs_within(out_dir):
             ax.grid(alpha=0.25, lw=0.5)
     axes[0][0].legend(fontsize=7, loc="lower left")
     fig.suptitle("Does the OLD code still read out, and is position information still there?\n"
-                 "RED = the frozen pre-stroke decoder. GREEN = a decoder trained on that "
-                 "post-stroke session itself. Red below the band while green stays in it is "
-                 "REORGANISATION rather than loss of information.\n"
-                 "Six positions, chance 1/6; bars are binomial 95% CIs. Post-lick is absent by "
-                 "construction — a trial with no lick has no lick-aligned window.",
-                 fontsize=10.5)
+                 "RED = frozen pre-stroke decoder.  GREEN = decoder trained on that session.  "
+                 "Band = pre-stroke range.  Bars = binomial 95% CIs.\n"
+                 "Top two rows: all trials, 6 positions, chance 1/6. Bottom row: LICK-ONLY arm "
+                 "(a trial with no lick has no lick-aligned window), so chance is per session "
+                 "(dotted step) and those panels are NOT comparable across sessions.",
+                 fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     p = Path(out_dir) / "grant_3b_frozen_vs_within.png"
     fig.savefig(p, dpi=200)
@@ -650,16 +769,16 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1", "1b", "2", "2b", "3a", "3b", "4"))
+                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4"))
+    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
-            ("4", fig_confusion_prestroke))
+            ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post))
     for key, fn in jobs:
         if key not in want:
             continue

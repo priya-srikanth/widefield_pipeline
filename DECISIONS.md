@@ -4243,7 +4243,7 @@ closed:
 |---|---|
 | PRE-STROKE cross-session decoding (grant figs 2, 2b, 4) | **YES** -- computed 2026-08-24 via `joint_xsession --align lick`; only cue and precue existed before |
 | POST-STROKE frozen analysis, ALL-trials arm (`section_g.json`) | **NO, and it cannot be** |
-| POST-STROKE frozen analysis, LICK-ONLY arm | **not computed, but it COULD be** |
+| POST-STROKE frozen analysis, LICK-ONLY arm | **ALREADY COMPUTED -- see the correction below** |
 | Coding directions (G9, grant fig 3a) | YES -- with no-lick classes at an INFERRED would-be-lick time |
 
 **Why the all-trials arm cannot have it.** That arm exists to include trials with NO detected lick,
@@ -4251,11 +4251,35 @@ and a lick-aligned window cannot be defined for a trial that has no lick. At the
 that is most of the trials -- which is exactly where the question is. Checked, not assumed:
 `post-lick` appears in 0 of 24 session records, while `pre-cue` and `post-cue` appear in all 24.
 
-**The LICK-ONLY arm is the real option** if a third row is wanted in the frozen-vs-within figure:
-every trial there has a lick by construction. The cost is the one already documented for that arm --
-its position set is that session's own preserved set, so the chance line differs per panel and
-accuracies are NOT comparable across sessions. That is a decision to take deliberately, not a gap to
-quietly fill.
+### CORRECTION, SAME DAY: THE LICK-ONLY ARM HAD IT ALL ALONG
+Priya then asked me to build the post-lick frozen decoder. There was nothing to build. `post-lick`
+and `post-lick within-session` are present in **all 24 session records** of `arms["lickonly"]`, with
+permutation nulls, per-position recall and the pre-stroke band (PS94 8/20: accuracy 0.883 against a
+0.954-0.993 band, 4 positions, chance 0.25). The guard in `poststroke_section_g` is
+`if align == "lick" and arm_all: continue` -- it skips post-lick for the ALL-TRIALS arm only, and
+has always computed it for lick-only.
+
+**It is also already in the deck**, on slide 154 (G2, LICK-ONLY arm): `section_g_figures` builds the
+matched dict from `("post-cue", "post-lick", "pre-cue")` and every session supplies all three.
+
+**HOW I GOT IT WRONG, and it is the same mistake twice in one day.** I checked `arms["all"]`, found
+post-lick in 0 of 24 records, and generalised from one arm to the whole analysis -- exactly the shape
+of the earlier error where checking one deck builder reported 700 files as unreferenced. An absence
+established in one place is an absence in that place. The verdict above stands for the all-trials
+arm, where the construction argument is real; it was never true of the analysis.
+
+WHAT WAS ACTUALLY MISSING was post-lick in the GRANT figure, which had two rows because I had
+believed my own verdict. It now has three, drawn from the lick-only arm with a PER-SESSION chance
+step -- that arm scores each session on its own preserved positions, so chance is 0.25 on a 4-way
+day and 0.167 on a 6-way one, and one flat 1/6 line would make a 4-way 0.5 read as twice chance when
+it is exactly twice a different chance. Those panels are not comparable across sessions, which the
+figure says.
+
+Worth noting from the new row: in the post-lick window the FROZEN decoder often beats the
+within-session one (PS92 day 1: 0.83 vs 0.75; PS94 days 5-7). That is not a paradox -- the frozen
+decoder is trained on eleven pooled sessions and the within-session one on a single session with
+block CV, so the frozen model has far more data and no CV penalty. It is a reminder that the two
+lines are not on a common footing and only their SHAPE over days is comparable.
 
 **A deck sentence was shipping unfinished.** The G2 blurb read "...All six positions, chance 1/6 on
 every panel. POST-LICK IS ABSENT HERE BY " and stopped -- an incomplete clause on slide 153,
