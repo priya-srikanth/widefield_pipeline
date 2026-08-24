@@ -4136,3 +4136,16 @@ position and the x-axis is the PARTNER position.
 **A figure being right does not make the slide right.** This one cost a round trip on a figure that
 never needed changing, and the fix was eleven words of layout description that the neighbouring
 blurb already had.
+
+### FOLLOW-UP: "why isn't there a far_R column in the far_R panel"
+Because an axis is a contrast between TWO positions and no far_R-vs-far_R axis exists
+(`others = [B for B in BY_SEVERITY if B != A]`). The panel's own position is the SCALE, not a
+column: each pair's axis is anchored 1 = pre-stroke lick at the panel's position, 0 = pre-stroke lick
+at the partner, so the flat line at 1.0 IS far_R and every class reads as its distance from it. The
+FIGURE says exactly this in its suptitle; the SLIDE did not -- the same gap as the layout one above,
+the explanation existing in the place the reader was not looking.
+
+A self column would have to be a ONE-VS-REST value, and putting one on a line whose other five points
+are pairwise contrasts mixes two axis constructions in a single series. The one-vs-rest view already
+answers that question: the G9 time-course panels and the diagonal of the cross-position matrix. Now
+stated on the slide so the absence reads as a decision rather than an omission.
