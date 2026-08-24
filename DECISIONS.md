@@ -3966,3 +3966,45 @@ Residual |dom_orth − lr| is 0.11-0.28 across the three windows with correlatio
 cue) to +0.69. The methods are not interchangeable anywhere. Any claim resting on a fine ordering
 between adjacent cells has to be checked in both -- which is the ORDERING flag on 13 notes in
 `docs/DECK_CLAIM_AUDIT.md`.
+
+---
+
+## G9 SHOWS BOTH VARIANTS WHERE THE CHOICE IS CONTESTED — and twelve slides were missing (2026-08-24)
+
+Priya, after the three-window audit: "let's show both in the deck."
+
+`_G9_METHODS = {"ENL": ("dom_orth",), "cue": ("dom_orth", "dom"), "lick": ("dom_orth", "dom")}`.
+Both figure sets already exist -- the nightly's default is `--methods dom dom_orth` -- so this is a
+deck-side change with no re-render. Each slide's title now names the variant, and the cue/lick
+slides carry the audit numbers in the blurb so a reader can see the size of the disagreement instead
+of taking it on trust.
+
+**ENL stays single** because there the audit is 4/4 toward the logistic reference and the plain
+direction is badly contaminated (|dom − lr| = 0.841 in PS92). Showing it beside the orthogonalised
+one would invite exactly the misreading the projection exists to prevent. Cue and lick are shown
+both ways because there the choice is genuinely contested -- PS92 goes the wrong way in both.
+
+**Not switched per animal.** Six panels built by different rules cannot be compared with each other,
+which is worse than one documented exception. Showing both everywhere the question is open gets the
+same information across without that cost.
+
+**The cohort diagnostics (G9b) stay on the orthogonalised variant alone.** They are arguments about
+the geometry of the axes -- how much an axis IS the close-vs-far dimension, and whether that predicts
+drift -- and both were measured on the orthogonalised directions. Drawing the plain ones beside them
+would put two different measurements under one claim.
+
+### TWELVE BEHAVIOUR SLIDES HAD NEVER APPEARED
+The behaviour panel is not method-dependent and its file carries no method in the name
+(`coding_engagement_<window>_<animal>.png`), but the loop built every name as
+`coding_<kind>_<window>_<method>_<animal>.png`. That never matched, `_f.exists()` skipped it, and
+the slide was silently absent -- for all three windows and all four animals -- while the
+within-session note called it "THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST".
+
+Found only because wiring the second variant meant re-reading the filename construction. **An
+`if not path.exists(): continue` is invisible by design**: it cannot distinguish "this figure was
+not produced" from "this filename is wrong", and it reports neither. The deck's own
+figures-placed/missing counter does not catch it either, because a skipped slide is never counted as
+missing.
+
+Slide accounting, measured rather than assumed: the old rule matched 72 figures, the new one matches
+132 (+48 plain-direction variants, +12 behaviour), and **nothing that was shown before is dropped**.

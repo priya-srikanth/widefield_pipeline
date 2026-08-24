@@ -1276,8 +1276,8 @@ def window_provenance(fig_names) -> str:
                if nb > 1 else "1 bin (the window mean)")
     bits = [f"- window: {_ALIGN_PROSE[align]}, {post:.1f} s (+1.0 s before it)",
             f"- binning: {binning}",
-            f"- engaged: first lick within {float(d['max_rt_s']):.1f} s of the cue "
-            f"(decode.max_rt_s)"]
+            (f"- engaged: first lick within {float(d['max_rt_s']):.1f} s of the cue "
+            f"(decode.max_rt_s)")]
     if "base-none" in names:
         bits.append("- baseline: none")
     if "cv-block" in names:
@@ -1285,7 +1285,7 @@ def window_provenance(fig_names) -> str:
     return "HOW IT WAS BUILT" + chr(10) + chr(10).join(bits)
 
 
-def keep_previous(out_path) -> "Path | None":
+def keep_previous(out_path) -> Path | None:
     """Copy the deck that is about to be overwritten into ``deck_history/``, stamped with ITS mtime.
 
     Every rebuild writes the same filename, so until 2026-08-22 each one destroyed the last. That is
@@ -1505,11 +1505,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     r.font.size = Pt(38)
     r.font.bold = True
     r.font.color.rgb = NAVY
-    for t in [f"Curated pre-stroke sessions ({', '.join(_mmdd_label(d) for d in dates)}) — "
-              f"{', '.join(animals)} (PS93 = right orofacial deficit)",
+    for t in [(f"Curated pre-stroke sessions ({', '.join(_mmdd_label(d) for d in dates)}) — "
+              f"{', '.join(animals)} (PS93 = right orofacial deficit)"),
               "Individual LocaNMF components, block-aware CV, no per-trial baseline, chance = 0.17.",
-              "A–C within-day, grouped animal → analysis type → date.  D cross-session (frozen), "
-              "grouped basis → alignment → animal.  E–F cohort summaries."]:
+              ("A–C within-day, grouped animal → analysis type → date.  D cross-session (frozen), "
+              "grouped basis → alignment → animal.  E–F cohort summaries.")]:
         rr = tf.add_paragraph().add_run()
         rr.text = t
         rr.font.size = Pt(15)
@@ -1529,33 +1529,33 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     tf = s.shapes.add_textbox(Inches(0.6), Inches(1.7), Inches(12.1), Inches(5.3)).text_frame
     tf.word_wrap = True
     for i, line in enumerate([
-        "WHAT WAS WRONG: wfield.hemodynamic_correction high-passes both channels at 0.1 Hz with scipy "
+        ("WHAT WAS WRONG: wfield.hemodynamic_correction high-passes both channels at 0.1 Hz with scipy "
         "filtfilt — zero-phase, therefore ACAUSAL — and that high-passed 470 channel becomes SVTcorr. "
         "Its impulse response is symmetric in time (−0.496 before an impulse, −0.496 after), so a "
         "position-specific POST-cue response cast a sign-flipped shadow BACKWARDS into the pre-cue "
-        "window. A linear decoder does not care about sign, so the shadow read as pre-cue information.",
-        "THE FIX (adopted 2026-08-14): keep the 0.1 Hz high-pass for the hemodynamic COEFFICIENT fit — "
+        "window. A linear decoder does not care about sign, so the shadow read as pre-cue information."),
+        ("THE FIX (adopted 2026-08-14): keep the 0.1 Hz high-pass for the hemodynamic COEFFICIENT fit — "
         "that is what it is for — and replace it for the OUTPUT with de Cheveigné robust polynomial "
-        "detrending (order 10, 600 s) on a mask that excludes whole trials.",
+        "detrending (order 10, 600 s) on a mask that excludes whole trials."),
         "MEASURED over ALL 36 CURATED SESSIONS:",
         "                        pre-cue        post-cue (control)",
         "        zerophase (old)       0.486          0.684",
         "        meegkit_hpfit (now)   0.352          0.759      post-cue IMPROVED",
-        "The variant that most IMPROVES the readout we trust also most REDUCES the one we suspected — "
-        "the strongest form this comparison could take.",
-        "WHAT SURVIVES: pre-cue position information is REAL and significant in 35/36 sessions, at "
+        ("The variant that most IMPROVES the readout we trust also most REDUCES the one we suspected — "
+        "the strongest form this comparison could take."),
+        ("WHAT SURVIVES: pre-cue position information is REAL and significant in 35/36 sessions, at "
         "~72% of the previously reported size. PS92 0.225, PS93 0.349, PS94 0.500, PS95 0.334 "
         "(chance 0.167; empirical null 0.137–0.147 by block-label permutation). PS94 was essentially "
-        "untouched; PS92 was the one substantially inflated and is now well above chance, not at it.",
-        "SIGN TEST: the pre-cue pattern used to be ANTI-correlated with the post-cue pattern (negative "
+        "untouched; PS92 was the one substantially inflated and is now well above chance, not at it."),
+        ("SIGN TEST: the pre-cue pattern used to be ANTI-correlated with the post-cue pattern (negative "
         "in 30 of 36 sessions; on the worst days the pre-cue MAP was literally the negative of the "
-        "post-cue map, r = −0.93). After correction that signature is gone — negative in 2 of 36.",
-        "NOT A LOCAL BUG: churchlandlab/WidefieldImager SvdHemoCorrect.m does the same in-place "
+        "post-cue map, r = −0.93). After correction that signature is gone — negative in 2 of 36."),
+        ("NOT A LOCAL BUG: churchlandlab/WidefieldImager SvdHemoCorrect.m does the same in-place "
         "filtfilt; Musall et al. 2019 state it in their methods. The artifact class is published — "
         "van Driel, Olivers & Fahrenfort 2021, J Neurosci Methods — including the negative sign, with "
-        "trial-masked robust detrending as the recommended fix, which is what was adopted.",
-        "REPRODUCE: python -m wfield_local.filter_acausality_test <LABEL,...>   •   see "
-        "docs/PREPROCESSING_DECISION.md and DECISIONS.md",
+        "trial-masked robust detrending as the recommended fix, which is what was adopted."),
+        ("REPRODUCE: python -m wfield_local.filter_acausality_test <LABEL,...>   •   see "
+        "docs/PREPROCESSING_DECISION.md and DECISIONS.md"),
     ]):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         r = p.add_run()
@@ -1665,13 +1665,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether IT
     # survives freezing across days is the more consequential question.
     ALIGNS = (("cue", "post-cue 2 s", "the readout during/after the movement"),
-              ("precue", "PRE-CUE 2 s", "pre-cue position information — the window ENDING "
-                                        "at the cue, before any movement"))
+              ("precue", "PRE-CUE 2 s", ("pre-cue position information — the window ENDING "
+                                        "at the cue, before any movement")))
     BASES = (("roi", "Allen-ROI", M_FROZEN, M_FROZEN_ENC,
               "66 atlas-anchored anatomical areas — column j is the same cortical region every day"),
              ("joint", "joint-LocaNMF", M_JOINT, M_JOINT,
-              "shared joint-basis components — footprints fitted once and FROZEN, new days projected "
-              "onto them rather than refitted"))
+              ("shared joint-basis components — footprints fitted once and FROZEN, new days projected "
+              "onto them rather than refitted")))
     for bkey, bname, m_dec, m_enc, bdesc in BASES:
         if not any((src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png").exists()
                    for al, _, _ in ALIGNS):
@@ -1823,18 +1823,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "Read this before the numbers. Four of these constraints changed a conclusion already.")
         note(s, M_POSTSTROKE, specific=S_G0)
         bullets(s, [
-            "PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
-            "resolving to phase=='pre'.",
-            "PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
+            ("PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
+            "resolving to phase=='pre'."),
+            ("PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
             "licks ARE the phenotype, so filtering them out would delete the effect being measured. "
-            "Declared by name in nolick_analysis.SANCTIONED_MISMATCHES.",
+            "Declared by name in nolick_analysis.SANCTIONED_MISMATCHES."),
             "EVERY post-stroke slide is shown on BOTH ARMS. ALL trials scores all six positions, so chance is 1/6 for every session and the panels are comparable across sessions and animals. LICK-ONLY uses that session's own preserved positions, so its chance level MOVES with the behaviour (PS95: 4 positions on 8/17, 6 on 8/18) and its accuracies must NOT be laid side by side. Neither arm is comparable to the 6-way numbers in sections A\u2013F, which are engaged-only throughout.",
             "The DIFFERENCE between the arms is the point: it separates a code that degraded from a code that is fine whenever the animal manages to lick.",
-            "There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
+            ("There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
             "a local dip in response rate cannot be distinguished from a run of motor failures, and "
-            "in a severe stroke no spared reference position exists to anchor one.",
-            "'No lick detected' is NOT 'no tongue protrusion' \u2014 the spout needs contact. PS93 "
-            "already shows this pre-stroke at far_L. Every no-lick conclusion is provisional on DLC.",
+            "in a severe stroke no spared reference position exists to anchor one."),
+            ("'No lick detected' is NOT 'no tongue protrusion' \u2014 the spout needs contact. PS93 "
+            "already shows this pre-stroke at far_L. Every no-lick conclusion is provisional on DLC."),
             f"POST-STROKE POOL: {', '.join(_post_labels)}. Every slide is per SESSION, never pooled across days — PS94's two nights differ more from each other than pre differs from post, so averaging them would destroy the effect.",
             "The day-1 plan/execution dissociation now REPLICATES in all four animals (G2c), so it is no longer a description of two animals. What remains n=1 is each animal's TRAJECTORY: one session per animal per day.",
         ])
@@ -2151,25 +2151,43 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # THIS SLIDE SHOWS THE WORSE OF THE TWO ESTIMATES FOR PS92 cue AND PS92 lick. Read those two
         # panels against the plain-direction ones, or against lr directly.
         #
-        # NOT CHANGED HERE ON PURPOSE: switching per animal would make the six G9 panels
-        # incommensurable with each other, which is worse than one documented exception. The
-        # decision to make is whether cue/lick should show BOTH variants for every animal.
-        _G9_METHOD = {"ENL": "dom_orth", "cue": "dom_orth", "lick": "dom_orth"}
+        # RESOLVED (Priya, 2026-08-24): cue and lick show BOTH variants, ENL shows only the
+        # orthogonalised one. Not switching PER ANIMAL -- six panels built by different rules are
+        # incommensurable with each other -- but showing both everywhere the choice is CONTESTED
+        # costs nothing (both figure sets are already rendered by the default
+        # `--methods dom dom_orth`) and lets the reader see the disagreement instead of taking my
+        # word for its size. ENL stays single because there the audit is 4/4 and the plain
+        # direction is badly contaminated (|dom - lr| 0.841 in PS92) -- showing it would invite the
+        # misreading the orthogonalisation exists to prevent.
+        _G9_METHODS = {"ENL": ("dom_orth",), "cue": ("dom_orth", "dom"), "lick": ("dom_orth", "dom")}
+        #: how to read a pair of slides that disagree, by window
+        _G9_PAIR_NOTE = {
+            "cue": ("  BOTH VARIANTS ARE SHOWN for this window. Audited 2026-08-24 against the "
+                    "logistic directions: orthogonalising moves the estimate TOWARD that reference "
+                    "in PS93/PS94/PS95 (0.279->0.206, 0.254->0.140, 0.569->0.244) and AWAY in PS92 "
+                    "(0.160->0.192). Prefer ORTH except in PS92, where the plain direction is the "
+                    "better estimate here."),
+            "lick": ("  BOTH VARIANTS ARE SHOWN for this window. Audited 2026-08-24: orthogonalising "
+                     "moves the estimate TOWARD the logistic reference in PS93/PS94/PS95 "
+                     "(0.219->0.135, 0.181->0.112, 0.499->0.191) and AWAY in PS92 (0.202->0.279). "
+                     "Prefer ORTH except in PS92. After the cue the engagement axis is a LICKING "
+                     "axis, so removing it also removes position-linked movement -- which is why "
+                     "this window is the contested one and ENL is not."),
+        }
         for _w in ("ENL", "cue", "lick"):
-            _m = _G9_METHOD[_w]
             for _kind, _tag, _blurb in (
                 ("direction", "time course",
-                 "One panel per spout position, MOST IMPAIRED first, every class over sessions with "
+                 ("One panel per spout position, MOST IMPAIRED first, every class over sessions with "
                  "the stroke marked. LINEAR projection, pole-normalised: 0 = pre-stroke "
                  "NOT-this-position, 1 = pre-stroke LICK here. Error bars are SEM over trials; a "
-                 "HOLLOW marker means fewer than 10 trials, shown rather than dropped."),
+                 "HOLLOW marker means fewer than 10 trials, shown rather than dropped.")),
                 ("pooled", "pooled over sessions",
-                 "The same classes collapsed across every session of a phase, so each position is "
+                 ("The same classes collapsed across every session of a phase, so each position is "
                  "one point per class. Read it BESIDE the time course: pooling hides whether a "
                  "class was steady or swinging, and a post-stroke class that moved a lot looks "
-                 "identical here to one that never did."),
+                 "identical here to one that never did.")),
                 ("within", "over the COURSE of a session",
-                 "Trials binned by where they fall within their OWN session, pooled across the "
+                 ("Trials binned by where they fall within their OWN session, pooled across the "
                  "sessions of a phase, so a state that drifts as the animal tires shows here and "
                  "cannot show in a session-level split. A cell is drawn only if its own SEM is "
                  "under 0.25 -- a quarter of the pole separation -- because a 4-trial point at "
@@ -2186,14 +2204,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "positions (PS95 -0.31 to -0.39 at all six) while the neural decline is not, so it "
                  "cannot be read position by position: a close-position one-vs-rest axis is largely "
                  "a close-vs-far contrast, and a uniform state shift along that dimension loads on "
-                 "it asymmetrically."),
+                 "it asymmetrically.")),
                 ("cross", "cross-position matrix",
-                 "Rows = TRUE spout position, columns = which position's direction it was scored "
+                 ("Rows = TRUE spout position, columns = which position's direction it was scored "
                  "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "
                  "intrinsically similar before any stroke; the rest are DIFFERENCES from it, so a "
-                 "row going red OFF the diagonal is a remapping rather than a large number."),
+                 "row going red OFF the diagonal is a remapping rather than a large number.")),
                 ("engagement", "BEHAVIOUR: response rate over the session",
-                 "THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST. Response rate per "
+                 ("THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST. Response rate per "
                  "position, binned by where a trial falls within its OWN session, pooled over the "
                  "sessions of a phase. Reward is auto-held after a miss run, so a terminal collapse "
                  "here is DISENGAGEMENT rather than spatial inaccuracy. Pre-stroke, PS94 and PS95 "
@@ -2201,9 +2219,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "lose 0.09 and 0.06 -- and the two that disengage are exactly the two whose neural "
                  "projection drifts. The drop is UNIFORM across positions (PS95 -0.31 to -0.39 at "
                  "all six), so it cannot explain a decline that appears at only some of them; see "
-                 "the cos-vs-drift slide for what does. NOT method-dependent: one per animal."),
+                 "the cos-vs-drift slide for what does. NOT method-dependent: one per animal.")),
                 ("normunit", "direction or magnitude?",
-                 "DOES THE POST-STROKE VALUE MEAN THE PATTERN CHANGED, OR JUST GOT BIGGER? The "
+                 ("DOES THE POST-STROKE VALUE MEAN THE PATTERN CHANGED, OR JUST GOT BIGGER? The "
                  "projection x\u00b7w rises either because the trial points more along the "
                  "direction (position structure) or because it sits further from its session's "
                  "engaged centroid (everything else) -- and correlating the two CANNOT separate "
@@ -2212,42 +2230,61 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "which is blind to magnitude. Bars that agree = directional. RIGHT: each position "
                  "against its post/pre norm ratio; pure gain would put it on the dashed line. "
                  "Measured 2026-08-22: every cell moves by at most 0.15 except PS92 far_center "
-                 "(2.12 -> 1.75), so post-stroke values ABOVE 1.0 are real."),
+                 "(2.12 -> 1.75), so post-stroke values ABOVE 1.0 are real.")),
                 ("pairwise", "pairwise axes",
-                 "Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
+                 ("Each contrast is A vs B ALONE. Sharper than one-vs-rest for remapping: 'not P' "
                  "mixes five positions and, for the MIDDLE positions, is majority-far -- PS94's "
                  "close_center axis orders close_L 1.23 > close_R 0.83 > close_center 0.71, i.e. "
                  "the position it is named for is only third on its own axis. READ THE WITHIN-RING "
                  "CELLS (close-vs-close, far-vs-far) FIRST: they carry half the close-vs-far "
                  "loading (|cos| 0.33 vs 0.70) and no coherent within-session drift, while every "
                  "one of the 18 cross-ring cells in the two disengaging animals drifts the same "
-                 "way (mean +0.19, the far position becoming more far-like over the session)."),
+                 "way (mean +0.19, the far position becoming more far-like over the session).")),
             ):
-                for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
-                    _f = src / f"coding_{_kind}_{_w}_{_m}_{_an}.png"
-                    if not _f.exists():
-                        continue
-                    s = slide()
-                    _lickonly = ("" if _w != "lick" else
-                                 "  The no-lick classes sit at an INFERRED time here: a no-lick "
-                                 "trial has no lick to align to, so its window starts at the cue "
-                                 "plus that session's own median RT at that position. A position "
-                                 "with NO engaged trial that session is DROPPED rather than given "
-                                 "the session median \u2014 read those classes as inference.")
-                    title(s, f"G9. {_an} \u2014 {_w} window, {_tag}",
-                          _blurb + _lickonly)
-                    note(s, M_CODING_DIR, specific=S_G9)
-                    big(s, _f, top=1.95, width=12.7)
+                # THE BEHAVIOUR PANEL IS NOT METHOD-DEPENDENT and its file carries no method in the
+                # name (`coding_engagement_<window>_<animal>.png`). The loop used to build every
+                # name with the method in it, so that file never matched and TWELVE BEHAVIOUR
+                # SLIDES WERE SILENTLY ABSENT from the deck -- while the within-session note called
+                # this "THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST". Found 2026-08-24
+                # while wiring the two variants; `_f.exists()` skips are invisible by design, which
+                # is what let it sit.
+                _methods = ("",) if _kind == "engagement" else _G9_METHODS[_w]
+                for _m in _methods:
+                    for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                        _f = src / (f"coding_{_kind}_{_w}_{_an}.png" if not _m else
+                                    f"coding_{_kind}_{_w}_{_m}_{_an}.png")
+                        if not _f.exists():
+                            continue
+                        s = slide()
+                        _lickonly = ("" if _w != "lick" else
+                                     "  The no-lick classes sit at an INFERRED time here: a no-lick "
+                                     "trial has no lick to align to, so its window starts at the cue "
+                                     "plus that session's own median RT at that position. A position "
+                                     "with NO engaged trial that session is DROPPED rather than given "
+                                     "the session median \u2014 read those classes as inference.")
+                        _pair = _G9_PAIR_NOTE.get(_w, "") if len(_methods) > 1 else ""
+                        _mlabel = ("" if not _m else
+                                   f", {'ORTHOGONALISED' if _m.endswith('_orth') else 'PLAIN'} "
+                                   f"direction")
+                        title(s, f"G9. {_an} \u2014 {_w} window, {_tag}{_mlabel}",
+                              _blurb + _lickonly + _pair)
+                        note(s, M_CODING_DIR, specific=S_G9)
+                        big(s, _f, top=1.95, width=12.7)
 
         # --- G9b. COHORT diagnostics. Neither can be drawn per animal: the first needs every
         # position of every animal on one axes to be a relationship at all, and the second VANISHES
         # when animals are pooled, which is itself the finding.
         for _w in ("ENL", "cue", "lick"):
-            _m = _G9_METHOD[_w]
+            # The COHORT diagnostics stay on the orthogonalised variant alone. They are arguments
+            # about the geometry of the axes (how much an axis IS the close-vs-far dimension, and
+            # whether that predicts drift), and both were measured on the orthogonalised
+            # directions; drawing the plain ones beside them would put two different measurements
+            # under one claim. The per-animal G9 panels are where both variants belong.
+            _m = _G9_METHODS[_w][0]
             for _kind, _tag, _blurb in (
                 ("cosslope",
                  "why the decline is close-specific when the disengagement is not",
-                 "READ IT AS: how much is this axis really the close-vs-far dimension (x), and how "
+                 ("READ IT AS: how much is this axis really the close-vs-far dimension (x), and how "
                  "much do its own pre-stroke LICK trials drift over the session (y). ONE POINT PER "
                  "POSITION PER ANIMAL; circles are close positions, triangles far. THE ARGUMENT: "
                  "the behavioural disengagement is uniform across positions, so it cannot by itself "
@@ -2259,9 +2296,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "property of the AXIS, not of the spout. Measured: r=-0.567, with axes pointing "
                  "CLOSE averaging -0.347 and those pointing FAR +0.030. It is NOT the engagement "
                  "axis -- these directions are already orthogonalised against lick-vs-no-lick, and "
-                 "cos(close-vs-far, engagement) is only -0.43 to +0.34."),
+                 "cos(close-vs-far, engagement) is only -0.43 to +0.34.")),
                 ("pairsplit", "which pairwise cells are safe to read",
-                 "A pairwise axis contrasts two spouts DIRECTLY, so it need not carry the "
+                 ("A pairwise axis contrasts two spouts DIRECTLY, so it need not carry the "
                  "close-vs-far dimension at all -- if both spouts sit at the same distance. LEFT: "
                  "it does not (|cos| 0.33 within-ring against 0.70 cross-ring). RIGHT: the drift, "
                  "split by animal, because pooling destroys the effect -- over all 60 pairs "
@@ -2272,7 +2309,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "are 9/18 and 5/12 -- what 'nothing to detect' looks like. A is the FAR position "
                  "in every cross-ring pair, so POSITIVE means far trials become MORE far-like as "
                  "the session runs, the same drift the one-vs-rest axes show from the other end. "
-                 "USE THE WITHIN-RING CELLS for remapping questions."),
+                 "USE THE WITHIN-RING CELLS for remapping questions.")),
             ):
                 _f = src / f"coding_{_kind}_{_w}_{_m}.png"
                 if not _f.exists():
@@ -2438,17 +2475,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
              "per-session in sections A\u2013D.")
             if _excluded else
             "No sessions are currently in the 'excluded' phase.",
-            "RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
+            ("RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
             "class was never validated, so its result (PS94 \u22120.060) is uninterpretable rather "
-            "than negative. G6 asks the same question without an engagement label.",
-            "DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2\u2013G6, "
-            "and the independently-trained-decoder similarity analysis. Both need n > 1.",
-            "BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
-            "vs never-attempted. Until then every no-lick claim above carries that ambiguity.",
-            "PS92/PS93 HAVE re-entered as post-stroke: their effective lesion followed the 8/17 "
+            "than negative. G6 asks the same question without an engagement label."),
+            ("DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2\u2013G6, "
+            "and the independently-trained-decoder similarity analysis. Both need n > 1."),
+            ("BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
+            "vs never-attempted. Until then every no-lick claim above carries that ambiguity."),
+            ("PS92/PS93 HAVE re-entered as post-stroke: their effective lesion followed the 8/17 "
             "session, so 8/18 is their post-stroke day 1 and appears in every pooled slide. 0817 "
             "stays in their exclude list, which is what makes the before/after control above "
-            "possible.",
+            "possible."),
         ])
 
     out_path = Path(out_path)
