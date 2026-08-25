@@ -5,9 +5,13 @@ pptx = __import__("pytest").importorskip("pptx")
 
 
 def test_builds_and_skips_missing(tmp_path):
-    # empty figure dir -> deck still builds (title + dividers + slides), all figures reported missing
+    # empty figure dir -> deck still builds (title + dividers + slides), all figures reported missing.
+    # grant_dir is pointed at an empty tmp path DELIBERATELY: the grant section is the one input that
+    # lives under labcams rather than under `src`, so leaving it at its default made this test place
+    # 25 real figures off the MICROSCOPE share and assert 25 == 0.
     out = tmp_path / "deck.pptx"
-    summary = ad.build_analysis_deck(tmp_path / "figs", out, dates=["0606", "0807"], animals=["PS92", "PS93"])
+    summary = ad.build_analysis_deck(tmp_path / "figs", out, dates=["0606", "0807"], animals=["PS92", "PS93"],
+                                     grant_dir=tmp_path / "grant")
     assert out.exists()
     assert summary["slides"] > 5                       # title + 4 dividers + per-animal/summary/RSA slides
     assert summary["figures_present"] == 0             # no figures on disk
@@ -22,7 +26,8 @@ def test_places_present_figures(tmp_path):
     from PIL import Image
     Image.new("RGB", (4, 4), "white").save(figs / "locanmf_rsa_crossnobis_0606-0807.png")
     Image.new("RGB", (4, 4), "white").save(figs / "locanmf_decoder_rolling_by_animal_PS92.png")
-    summary = ad.build_analysis_deck(figs, tmp_path / "d.pptx", dates=["0606", "0807"], animals=["PS92"])
+    summary = ad.build_analysis_deck(figs, tmp_path / "d.pptx", dates=["0606", "0807"], animals=["PS92"],
+                                     grant_dir=tmp_path / "grant")
     assert summary["figures_present"] == 2
 
 

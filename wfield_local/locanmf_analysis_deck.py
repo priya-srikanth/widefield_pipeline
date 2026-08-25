@@ -1319,9 +1319,18 @@ def keep_previous(out_path) -> Path | None:
 
 
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
-                        failed_steps=(), allow_failed_steps=False, run_start=None) -> dict:
-    """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict."""
+                        failed_steps=(), allow_failed_steps=False, run_start=None,
+                        grant_dir=None) -> dict:
+    """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
+
+    ``grant_dir`` is the ONE input that does not live under ``src`` -- the grant summary set is a
+    deliverable under ``labcams``, not an analysis intermediate under ``figures_working``. It is an
+    explicit parameter rather than a bare resolver call so a caller can point it somewhere else, and
+    so a test can keep the build hermetic instead of silently reaching onto the MICROSCOPE share.
+    """
     src = Path(src)
+    grant_dir = Path(grant_dir) if grant_dir is not None else (
+        Path(PathResolver().root("labcams")) / "grant_figures")
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
     # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
     # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
@@ -2563,6 +2572,121 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "stays in their exclude list, which is what makes the before/after control above "
             "possible."),
         ])
+
+    # ---------------- H. GRANT FIGURES ----------------
+    # The summary set built by `wfield_local.grant_figures` into <labcams>/grant_figures. Included
+    # here so the deck and the grant tell the same story from the same numbers -- a figure that
+    # exists only in a document is one nothing regenerates, which is how prose goes stale
+    # (Priya, 2026-08-25: "add these figures to the analysis deck code too").
+    #
+    # THEY ARE DELIBERATELY CAVEAT-LIGHT, which is the opposite of the rest of this deck. Each makes
+    # ONE point for a reader who has not been in the weeds; the caveats live in the module docstring
+    # and in DECISIONS.md. The speaker notes below carry the ones that would change a reading.
+    #
+    # A DIFFERENT ROOT: these are NOT in `src` (figures_working) but under `labcams`, because they
+    # are a deliverable rather than an analysis intermediate.
+    _grant = grant_dir
+    _GRANT = (
+        ("grant_1b_behaviour_pre_collapsed.png",
+         "H1. Licking accuracy per spout position, pre vs post",
+         ("The whole pre-stroke baseline as ONE point per position (mean +/- SEM across sessions), "
+         "then each day after the lesion. Engaged trials only, so the terminal quit period is "
+         "excluded. This is the deficit every later panel is trying to explain.")),
+        ("grant_1_behaviour_by_position.png",
+         "H1b. The same, every pre-stroke session shown",
+         ("Use this to check the baseline is flat before trusting H1's collapsed point. June is "
+         "collapsed to one marker because the true axis would spend 85% of its width on empty "
+         "space. Pre and post are drawn as SEPARATE segments: nothing was recorded between the "
+         "last baseline session and the first post-stroke one, and joining them would draw a "
+         "decline that was never measured.")),
+        ("grant_2b_prestroke_crossday_cohort.png",
+         "H2. Position decodes across sessions (pre-stroke, cohort)",
+         ("Leave-one-session-out in the shared joint-LocaNMF basis: every trial scored by a decoder "
+         "that never saw its session. THE ANIMAL IS THE UNIT -- bar = mean of the four per-animal "
+         "accuracies, error bar = SEM across animals. Pooling all ~44 held-out sessions would give "
+         "a far tighter interval describing how much a SESSION varies, not an ANIMAL.")),
+        ("grant_2_prestroke_crossday_decoding.png",
+         "H2b. The same, per animal, with every held-out session",
+         ("Each dot is one held-out session. Read it beside H2 to see whether an animal's mean "
+         "rests on a tight cluster or a spread.")),
+        ("grant_3a_coding_retained.png",
+         "H3. How much of each position's pre-stroke code survives, over days",
+         ("Cosine between the post-stroke pairwise position axis and its pre-stroke reference, "
+         "DISATTENUATED by each side's own split-half reliability -- a raw cosine confounds a lost "
+         "code with a noisy estimate of a preserved one, and the post-stroke arms are small. The "
+         "matched null (pooled vs held-out PRE-stroke sessions: PS92 0.79, PS93 0.93, PS94 0.89, "
+         "PS95 0.84) is the line to beat, NOT 1.0 -- two pre-stroke sessions do not reproduce each "
+         "other perfectly either. SOURCE IS coding_direction.json, which the footer reports; it can "
+         "lag the config.")),
+        ("grant_3b_frozen_vs_within.png",
+         "H3b. Frozen decoder vs a decoder retrained within each session",
+         ("The complement to H3: if a within-session decoder recovers accuracy the frozen one lost, "
+         "the information is still present and only the READOUT has moved; if both fall, the "
+         "information itself is degraded. Read the gap, not either line alone. Built from "
+         "section_g.json.")),
+        ("grant_4_confusion_prestroke_*.png",
+         "H4. Pre-stroke cross-session confusion, per window",
+         ("The strongest and least contestable result in the set: no lesion, no trial-class "
+         "definitions, no engagement gate, no alignment inference. Counts summed over held-out "
+         "sessions then row-normalised, so a 500-trial session is not weighted like a 200-trial "
+         "one. Rows = TRUE position, columns = PREDICTED.")),
+        ("grant_5_confusion_pre_post_*.png",
+         "H5. The frozen decoder before and after the lesion",
+         ("THREE panels, not two, and the middle one is why. Post-stroke the impaired positions are "
+         "almost entirely no-lick trials, so a bare pre-vs-post pair compares pre-stroke LICK rows "
+         "against post-stroke NON-LICK rows and confounds the lesion with the absence of a "
+         "movement. The middle panel -- pre-stroke NO-LICK scored by a decoder trained on the other "
+         "pre-stroke sessions -- differs from the post panel in PHASE ALONE.")),
+        ("grant_5b_confusion_working_*.png",
+         "H5b. The same with the terminal quit period removed",
+         ("Post-stroke trials are lick PLUS miss-while-working. Removing the quit period raises "
+         "accuracy in every animal, and the gain sits at the PRESERVED positions rather than the "
+         "impaired ones -- which is what a global state should do. THE GATE IS NOT VALIDATED as "
+         "satiety rather than a late motor collapse, and dropping trials on a criterion correlated "
+         "with the measure raises accuracy whatever it means. Read beside H4, never instead of it.")),
+        ("grant_5c_confusion_per_session_*.png",
+         "H5c. Session by session",
+         ("The pooled panels average a moving target: PS94 runs 0.39 to 0.76 across six days. "
+         "Columns are DAYS FROM LESION so a column means the same thing in every row even though "
+         "the animals were lesioned on different dates.")),
+        ("grant_6_pattern_*.png",
+         "H6. Mean-pattern similarity, within and across positions",
+         ("The model-free counterpart to the coding directions, and it fails differently: a coding "
+         "axis needs a contrast and so breaks at exactly the impaired positions, while a mean "
+         "pattern for far_R is well defined from miss trials with no partner. Conversely THIS is "
+         "sensitive to global gain and the coding directions are not. Agreement between them is "
+         "the claim worth making. ROWS = the post-stroke pattern, COLUMNS = the pre-stroke "
+         "reference -- the opposite convention to the confusion matrices above. Green ring = beats "
+         "a position-label permutation null. Third panel = post minus baseline, differenced draw by "
+         "draw. Bootstrap resamples TRIALS WITHIN SESSIONS and does NOT resample sessions, because "
+         "days are not exchangeable when the animal is recovering.")),
+        ("grant_6b_pattern_per_session_*.png",
+         "H6b. The same, session by session",
+         ("PRIMARY over H5 when sessions move: the trajectory IS the result. Single-session mean "
+         "patterns are noisier, so cells under 10 trials are blank rather than drawn.")),
+    )
+    if _grant.exists():
+        divider("H. GRANT FIGURES — the summary set",
+                "Built by `python -m wfield_local.grant_figures` into <labcams>/grant_figures. "
+                "Deliberately caveat-light for a non-specialist reader; the caveats are in the "
+                "speaker notes here and in DECISIONS.md.")
+        for _pat, _title, _blurb in _GRANT:
+            for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
+                if not _gf.exists():
+                    continue
+                s = slide()
+                # The suffix is whatever the glob's `*` matched (window, and for the pattern
+                # figures the trial class) -- NOT a blind split of the stem, which would repeat
+                # the family name already in the title.
+                _suffix = ""
+                if "*" in _pat:
+                    _suffix = " — " + _gf.stem[len(_pat.split("*")[0]):].replace("_", " ")
+                title(s, f"{_title}{_suffix}", _blurb)
+                note(s, "Grant summary figure. Source: wfield_local.grant_figures. The coverage "
+                        "footer on each figure states which post-stroke sessions ITS OWN SOURCE "
+                        "contains, and flags any that are registered but absent -- read it before "
+                        "comparing animals.")
+                big(s, _gf, top=1.95, width=12.6)
 
     out_path = Path(out_path)
     _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)

@@ -4508,3 +4508,46 @@ section-G deck slide -- stop at 8/22 for PS92/PS93. The cohort-coverage footer r
 the CONFIG and not of the JSON they were built from. Re-running `poststroke_section_g` and
 `position_coding_directions` is left to the nightly (Priya, 2026-08-25) and remains item 0 in
 `docs/STATUS_2026-08-23.md`.
+
+---
+
+## THE GRANT FIGURES ARE NOW A DECK SECTION (H), NOT A SIDE DELIVERABLE (2026-08-25)
+
+Priya: "add these figures to the analysis deck code too."
+
+All 25 PNGs under `<labcams>/grant_figures` are placed by `locanmf_analysis_deck.py` as **section H**
+(H1/H1b behaviour, H2/H2b pre-stroke cross-day decoding, H3/H3b coding retained + frozen-vs-within,
+H4 pre-stroke confusion, H5/H5b/H5c frozen decoder pre-vs-post, H6/H6b pattern similarity). A
+placement dry-run confirms **zero unplaced PNGs** — the failure mode this repo keeps hitting is a
+figure that exists on disk and appears in no deck, and the check is cheap.
+
+**Section H is deliberately the opposite of the rest of the deck.** The figures are caveat-LIGHT for a
+reader who has not been in the weeds; every caveat that would change a reading therefore moves into
+the SPEAKER NOTES, which travel with the slide: the row/column convention flips between the confusion
+figures (rows = true) and the pattern figures (rows = post-stroke); H5b's quit-period gate is not
+validated; H6b is PRIMARY over H6 when sessions move. Prose that lives only in DECISIONS.md is prose
+that goes stale unread.
+
+### TWO THINGS THE CHANGE FORCED
+
+1. **`build_analysis_deck(..., grant_dir=None)` is an explicit parameter.** The grant set is the ONE
+   deck input that does not live under `src`: it is a deliverable under `labcams`, not an analysis
+   intermediate under `figures_working`. Resolving it inline made the two hermetic deck tests reach
+   onto the MICROSCOPE share and place 25 real figures into a build whose whole premise was an empty
+   figure directory (`assert 25 == 0`). The tests now pass an empty tmp `grant_dir`. A test that
+   silently depends on a network share is not testing the builder.
+2. **The per-file suffix is derived from the GLOB, not from the stem.** `stem.split("_", 2)[-1]` gave
+   "confusion prestroke cue" — repeating the family name already in the slide title. Taking the part
+   of the stem the `*` matched gives "cue", "precue lick", "per session precue working".
+
+### AND IT SURFACED TWO FIGURES THAT HAD NO SLIDE
+`grant_3a_coding_retained.png` and `grant_3b_frozen_vs_within.png` were missing from the first pass —
+figure 3 is the one Priya asked for by name ("changes in ENL, cue and lick neural activity coding
+after stroke, shown over time and for each animal"). They are H3/H3b, and the H labels below them
+were shifted rather than leaving a gap.
+
+Re-rendered 3a/3b/5 so they carry the corrected source-aware footer. It now reads
+`PS92 5, PS93 5, PS94 6, PS95 6 — UNEQUAL — STALE: registered but ABSENT here: PS92_0824, PS93_0824`,
+which is the point of the change: those three figures are built from `coding_direction.json` /
+`section_g.json`, and the config-reading footer had been reporting the balanced 6/6/6/6 cohort on
+figures that do not contain it.
