@@ -2789,6 +2789,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          ("The pooled panels average a moving target: PS94 runs 0.39 to 0.76 across six days. "
          "Columns are DAYS FROM LESION so a column means the same thing in every row even though "
          "the animals were lesioned on different dates.")),
+        ("grant_5d_confusion_delta_*.png",
+         "H5d. The same, as CHANGE from pre-stroke",
+         ("H5c minus its own first column, cell by cell. The pre-stroke confusion is far from "
+         "uniform -- close positions are confusable with each other and far ones are not -- so an "
+         "absolute post-stroke cell of 0.3 means different things in different places. Subtracting "
+         "removes the baseline texture and leaves only what the lesion did: a negative DIAGONAL "
+         "cell is recall lost at that position, and the positive cell in the SAME ROW says where "
+         "those trials went instead. Two colour bars: column 1 is in probability, the rest in "
+         "change of probability.")),
         ("grant_6_pattern_*.png",
          "H6. Mean-pattern similarity, within and across positions",
          ("The model-free counterpart to the coding directions, and it fails differently: a coding "
@@ -2799,11 +2808,71 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "reference -- the opposite convention to the confusion matrices above. Green ring = beats "
          "a position-label permutation null. Third panel = post minus baseline, differenced draw by "
          "draw. Bootstrap resamples TRIALS WITHIN SESSIONS and does NOT resample sessions, because "
-         "days are not exchangeable when the animal is recovering.")),
+         "days are not exchangeable when the animal is recovering. THE BASELINE PANEL SPLITS "
+         "PRE-STROKE SESSIONS, not pre-stroke trials (corrected 2026-08-25): a random trial split "
+         "puts both halves on the SAME DAYS, so it carries no day-to-day drift and is a ceiling no "
+         "across-day comparison can reach.")),
         ("grant_6b_pattern_per_session_*.png",
          "H6b. The same, session by session",
-         ("PRIMARY over H5 when sessions move: the trajectory IS the result. Single-session mean "
-         "patterns are noisier, so cells under 10 trials are blank rather than drawn.")),
+         ("PRIMARY over H6 when sessions move: the trajectory IS the result. Single-session mean "
+         "patterns are noisier, so cells under 10 trials are blank rather than drawn. FIRST COLUMN "
+         "IS LEAVE-ONE-SESSION-OUT (corrected 2026-08-25) -- each pre-stroke session against the "
+         "pool of the others, averaged, which is one session against other days exactly like every "
+         "post column. It is the CEILING and it is NOT 1.0: two pre-stroke days differ by ordinary "
+         "drift, so a post column must be read against it and never against unity.")),
+        ("grant_6d_pattern_delta_*.png",
+         "H6d. The same, as CHANGE from pre-stroke",
+         ("H6b minus its own leave-one-session-out first column. ZERO means this day looks exactly "
+         "as much like the pre-stroke reference as one pre-stroke day looks like the others -- the "
+         "honest null, which is NOT a correlation of 1. READ THE OFF-DIAGONAL: a negative diagonal "
+         "cell says the position lost its own code, while a positive cell at (far_R, far_L) says "
+         "far_R trials came to look more like pre-stroke far_L than they used to. That "
+         "substitution is legible at a glance here and only from memory in the absolute panel. "
+         "r is differenced, NOT r-squared -- squaring would erase the sign the substitution lives "
+         "in.")),
+        ("grant_7_splithalf_*.png",
+         "H7. WITHIN-session split-half similarity — the ceiling H6 is measured against",
+         ("Both halves come from the SAME session, so no lesion comparison, no pre-stroke "
+         "reference and no alignment inference enters this. The diagonal is that session's own "
+         "reliability, which is the CEILING any correlation involving its mean pattern can reach. "
+         "H6 cannot distinguish a code that MOVED from one that merely became NOISIER, and a "
+         "graded drop at every position is exactly what a global change in repeatability looks "
+         "like.")),
+        ("grant_7d_splithalf_delta_*.png",
+         "H7d. The same, as CHANGE from pre-stroke — read this against H6d",
+         ("THE CONTROL IN ITS MOST DIRECT FORM, and the pair to put side by side. If H6d's fall "
+         "were really a reliability story, the diagonal HERE would fall by a comparable amount at "
+         "the same positions on the same days, because both halves come from the same session and "
+         "nothing about the lesion enters a single panel. Where H6d falls and this does not, the "
+         "code MOVED. Where both fall together, the code is noisier and H6 cannot tell the "
+         "difference on its own.")),
+        ("grant_7b_reliability_*.png",
+         "H7b. Moved code or noisier code? — H6's diagonal, disattenuated",
+         ("THE VERDICT PANEL for H6. Right = middle divided by sqrt(rel_post x rel_pre): what the "
+         "correlation would be if both means were noise-free. A drop that SURVIVES it is a code "
+         "that moved; a drop that DISAPPEARS was a code measured less repeatably. Same correction "
+         "the coding directions have used since 2026-08-20, which the pattern measure never had. "
+         "A grey dot marks reliability below 0.5 on one side, where the ratio is not stable enough "
+         "to print -- and that is worst exactly at the impaired positions, where the question is "
+         "sharpest.")),
+        ("grant_8_crossnobis_*.png",
+         "H8. H6's matrix rebuilt on cross-validated (crossnobis) distances",
+         ("Same layout as H6 -- rows = post-stroke position, columns = pre-stroke reference -- but "
+         "as NOISE-UNBIASED distance rather than correlation, so a noisier session does not read "
+         "as a bigger change. LOW on the diagonal = the pattern did not move. Units are the mean "
+         "pre-stroke between-position distance for that animal, because raw crossnobis units "
+         "depend on the whitener and the dimensionality and are not comparable across animals. "
+         "Still NOT gain-invariant: it is a distance between two patterns. H8b is that "
+         "companion.")),
+        ("grant_8b_crossnobis_geometry_*.png",
+         "H8b. Second-order RSA — the gain-invariant test",
+         ("Each session's OWN 6x6 crossnobis RDM correlated against the pre-stroke RDM. This is "
+         "RSA proper, and scaling every distance leaves it unchanged, so a uniform post-stroke "
+         "amplitude change CANNOT move it. That matters because H6's headline (every position "
+         "drops, far_R most) is precisely the signature a global change would leave. Per-position "
+         "information survives in a weaker form: each position's ROW is its five distances to the "
+         "others, so 'is far_R still arranged the way it was' is answerable and 'did far_R's "
+         "pattern move' is not -- that question belongs to H8.")),
     )
     if _grant.exists():
         divider("H. GRANT FIGURES — the summary set",

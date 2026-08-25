@@ -50,6 +50,8 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import warnings
+from functools import lru_cache
 from pathlib import Path
 
 import matplotlib
@@ -788,14 +790,31 @@ def fig_confusion_per_session(out_dir):
     Post-stroke trials are LICK + MISS-WHILE-WORKING with the terminal quit period removed, as in
     5b, and the pre-stroke column is leave-one-session-out for the reason recorded there.
     """
+    made = []
+    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
+        per_animal, days = _collect_5c(align)
+        if not days:
+            continue
+        p = _draw_5c(per_animal, days, out_dir, align, wname)
+        if p:
+            made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
+@lru_cache(maxsize=2)
+def _collect_5c(align):
+    """{animal: (pre-stroke LOSO confusion counts, {day: counts})} plus the sorted day list.
+
+    Shared by figure 5c and its delta twin 5d: fitting the frozen decoder means reading every
+    session's LocaNMF fit, and doing it twice to draw the same numbers two ways is pure waste.
+    """
     from wfield_local import joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
     from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
     from wfield_local.position_coding_directions import _gate_all
     from wfield_local.precue_engagement_states import features_with_indices
 
-    made = []
-    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
+    if True:
         per_animal, all_days = {}, set()
         for an in ANIMALS:
             pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
@@ -845,9 +864,12 @@ def fig_confusion_per_session(out_dir):
                 per_animal[an] = (Cpre, by_day)
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 5c {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
-        if not all_days:
-            continue
-        days = sorted(all_days)
+        return per_animal, sorted(all_days)
+
+
+def _draw_5c(per_animal, days, out_dir, align, wname):
+    """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
+    if True:
         ncol = 1 + len(days)
         fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.0),
                                  squeeze=False)
@@ -876,7 +898,7 @@ def fig_confusion_per_session(out_dir):
                     ax.set_ylabel(f"{an}\ntrue position", fontsize=8, fontweight="bold")
         if im is None:
             plt.close(fig)
-            continue
+            return None
         fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
         fig.suptitle(f"Frozen pre-stroke decoder, session by session — {wname} window\n"
                      "Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
@@ -887,8 +909,7 @@ def fig_confusion_per_session(out_dir):
         p = Path(out_dir) / f"grant_5c_confusion_per_session_{align}.png"
         fig.savefig(p, dpi=200, bbox_inches="tight")
         plt.close(fig)
-        made.append(p)
-    return made[0] if len(made) == 1 else (made or None)
+        return p
 
 
 def fig_pattern_similarity_per_session(out_dir, min_trials=10):
@@ -909,7 +930,8 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
     from wfield_local.position_coding_directions import _gate_all
     from wfield_local.precue_engagement_states import features_with_indices
 
-    rng = np.random.default_rng(0)
+    # NO rng: the pre-stroke split is no longer a random draw over trials but a leave-one-SESSION-out
+    # over the days themselves, so nothing here is stochastic.
     made = []
     for _disp, align, wname in WINDOWS:
         variants = ("lick",) if align == "lick" else ("lick", "working")
@@ -931,14 +953,29 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
                 un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
                       if len(YU) else np.zeros(0, str))
-                ref, other = {}, {}
+                # THE REFERENCE IS ALL PRE-STROKE TRIALS; the no-lesion column is LEAVE-ONE-SESSION-
+                # OUT (corrected 2026-08-25). This used to take a random half of the pooled trials
+                # as the reference and the other half as the ceiling, so both came from the SAME
+                # DAYS and the ceiling carried no between-session drift at all -- while every post
+                # column compares a DIFFERENT day against those days. It was an unreachable ceiling.
+                # Now each pre-stroke session in turn is scored against the pool of the OTHERS and
+                # the results averaged: one session against a pool, exactly like every post column.
+                ref, loo = {}, []
+                pre_ids = sorted(pre_i)
                 for q in CONF_LABELS:
                     idx = np.flatnonzero(e_pre & (en == q))
                     if len(idx) < 2 * min_trials:
                         continue
-                    sh = rng.permutation(idx)
-                    ref[q] = _mean_pattern(XE[sh[:len(sh) // 2]])
-                    other[q] = _mean_pattern(XE[sh[len(sh) // 2:]])
+                    ref[q] = _mean_pattern(XE[idx])
+                for i in pre_ids:
+                    held, rest = {}, {}
+                    for q in CONF_LABELS:
+                        h = XE[(GE == i) & (en == q)]
+                        r = XE[e_pre & (GE != i) & (en == q)]
+                        if len(h) >= min_trials and len(r) >= min_trials:
+                            held[q], rest[q] = _mean_pattern(h), _mean_pattern(r)
+                    if held:
+                        loo.append((held, rest))
                 for v in variants:
                     by_day = {}
                     for i, lab in enumerate(kept):
@@ -960,7 +997,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                         if pat:
                             by_day[day] = pat
                             all_days.add(day)
-                    store[v][an] = (ref, other, by_day)
+                    store[v][an] = (ref, loo, by_day)
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 6b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         if not all_days:
@@ -975,19 +1012,30 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 got = store[v].get(an)
                 for ci in range(ncol):
                     ax = axes[ri][ci]
-                    src = None
-                    if got:
-                        ref, other, by_day = got
-                        src = other if ci == 0 else by_day.get(days[ci - 1])
-                    if not src:
+                    if not got:
                         ax.axis("off")
                         continue
-                    M = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
-                    for i, pp in enumerate(CONF_LABELS):
-                        for j, q in enumerate(CONF_LABELS):
-                            if src.get(pp) is None or ref.get(q) is None:
-                                continue
-                            M[i, j] = float(np.corrcoef(src[pp], ref[q])[0, 1])
+                    ref, loo, by_day = got
+                    # COLUMN 0 averages the per-held-out-session matrices; every later column is one
+                    # post-stroke session against the pooled pre-stroke reference. Both are "one
+                    # session against a pool of other days", which is the comparison being made.
+                    pairs = loo if ci == 0 else ([(by_day[days[ci - 1]], ref)]
+                                                 if days[ci - 1] in by_day else [])
+                    if not pairs:
+                        ax.axis("off")
+                        continue
+                    Ms = []
+                    for src, rf in pairs:
+                        m1 = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
+                        for i, pp in enumerate(CONF_LABELS):
+                            for j, q in enumerate(CONF_LABELS):
+                                if src.get(pp) is None or rf.get(q) is None:
+                                    continue
+                                m1[i, j] = float(np.corrcoef(src[pp], rf[q])[0, 1])
+                        Ms.append(m1)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)   # all-NaN cells
+                        M = np.nanmean(np.stack(Ms), axis=0)
                     im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
@@ -995,7 +1043,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                                        rotation=90, fontsize=5.5)
                     ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
                     diag = np.nanmean(np.diag(M))
-                    head = "PRE (other half)" if ci == 0 else f"day {days[ci - 1]}"
+                    head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
                     ax.set_title(f"{head}  diag {diag:.2f}", fontsize=7.5,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
@@ -1009,10 +1057,13 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
             fig.suptitle(f"Mean-pattern similarity session by session — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows within a panel = the pattern being "
                          f"described; columns within a panel = the PRE-STROKE reference.\n"
-                         "FIRST COLUMN is the no-lesion expectation (the other pre-stroke half) and "
-                         "its diagonal is the ceiling. 'diag' above each panel is the mean of that "
-                         "panel's diagonal.\nColumns are DAYS FROM LESION; a blank is a session that "
-                         "animal does not have.", fontsize=9.5)
+                         "FIRST COLUMN is the no-lesion expectation and its diagonal is the "
+                         "CEILING: each pre-stroke session in turn scored against the pool of the "
+                         "OTHERS, averaged -- one session against other days, exactly like every "
+                         "post column.\nIt is NOT 1.0 and must not be read against 1.0: two "
+                         "pre-stroke days differ by ordinary drift. 'diag' above each panel is the "
+                         "mean of that panel's diagonal.\nColumns are DAYS FROM LESION; a blank is "
+                         "a session that animal does not have.", fontsize=9.5)
             _footer(fig)
             p = Path(out_dir) / f"grant_6b_pattern_per_session_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -1176,28 +1227,39 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
                 not_eng = g[0] if g else np.zeros(len(YU), bool)
                 pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-                e_pre = np.isin(GE, list(pre_i))
                 GU = np.asarray(GU)
-                # u_pre no longer needed: post trials are now selected per SESSION id
+                # No e_pre mask: the pre-stroke split is now over SESSION IDS, not over a pooled
+                # trial mask, so trials are selected per session throughout.
                 en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
                 un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
                       if len(YU) else np.zeros(0, str))
-                # SPLIT THE PRE-STROKE TRIALS ONCE PER POSITION: half becomes the reference every
-                # panel is scored against, half becomes the no-lesion expectation. Kept AS TRIALS
-                # GROUPED BY SESSION, not as means, because the stratified bootstrap resamples
-                # within sessions and a mean has already thrown that structure away.
+                # SPLIT THE PRE-STROKE **SESSIONS**, NOT THE TRIALS (corrected 2026-08-25).
+                #
+                # Until now this drew a random half of the pooled pre-stroke TRIALS as the
+                # reference and the other half as the no-lesion expectation. Both halves then came
+                # from the SAME DAYS, so the baseline panel contained within-session trial noise
+                # and NO between-session drift whatever -- while the post panel compares different
+                # days against those days. The baseline was therefore an upper bound no
+                # across-session comparison can reach, and "post minus baseline is negative at
+                # every position" was measured against it.
+                #
+                # Splitting by session makes both sides "one set of DAYS against another set of
+                # DAYS", which is what the post panel is. Trials stay GROUPED BY SESSION because
+                # the stratified bootstrap resamples within sessions and a mean has already thrown
+                # that structure away.
                 ref, other = {}, {}
                 pre_ids = sorted(pre_i)
+                sh = rng.permutation(len(pre_ids))
+                g_ref = {pre_ids[k] for k in sh[:max(1, len(pre_ids) // 2)]}
+                g_oth = {pre_ids[k] for k in sh[max(1, len(pre_ids) // 2):]}
                 for p in CONF_LABELS:
-                    idx = np.flatnonzero(e_pre & (en == p))
-                    if len(idx) < 2 * min_trials:
+                    a = [XE[(GE == i) & (en == p)] for i in pre_ids if i in g_ref]
+                    b = [XE[(GE == i) & (en == p)] for i in pre_ids if i in g_oth]
+                    a = [z for z in a if len(z)]
+                    b = [z for z in b if len(z)]
+                    if sum(len(z) for z in a) < min_trials or sum(len(z) for z in b) < min_trials:
                         continue
-                    sh = rng.permutation(idx)
-                    a, b = sh[:len(sh) // 2], sh[len(sh) // 2:]
-                    ref[p] = [XE[a[np.isin(GE[a], [i])]] for i in pre_ids]
-                    other[p] = [XE[b[np.isin(GE[b], [i])]] for i in pre_ids]
-                    ref[p] = [z for z in ref[p] if len(z)]
-                    other[p] = [z for z in other[p] if len(z)]
+                    ref[p], other[p] = a, b
                 post_ids = [i for i in range(len(kept)) if i not in pre_i]
                 for v in variants:
                     postm = {}
@@ -1308,6 +1370,1122 @@ def fig_pattern_similarity(out_dir, min_trials=10):
 
 
 # ------------------------------------------------------------------ 3a. coding retained
+# ---------------------------------------------------------------------------------------------
+# 7 / 7b: IS THE "LOST CODE" JUST A NOISIER ONE?  (Priya, 2026-08-25)
+# ---------------------------------------------------------------------------------------------
+
+#: Reliability below this makes the disattenuation ratio unstable -- dividing by sqrt(0.1) inflates
+#: both the estimate and its error without bound. Same threshold and same reasoning as the coding
+#: directions' MIN_REL, so the two analyses declare a cell uninterpretable on the same criterion.
+MIN_REL = 0.5
+
+#: Split-half draws per cell. The split is random, so one draw is itself a noisy estimate of the
+#: reliability; averaging over draws costs nothing (a correlation of two means) and removes it.
+SPLIT_REPS = 40
+
+
+def _pooled_bundle(an, align):
+    """The shared load behind figures 6, 6b, 7 and 8: joint basis, pooled sessions, engagement gate.
+
+    Extracted because it was character-identical in `fig_pattern_similarity` and
+    `fig_pattern_similarity_per_session`, and a third and fourth copy is how two figures that claim
+    to describe the same trials quietly stop doing so.
+    """
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.locanmf_frozen_decoder import pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.precue_engagement_states import features_with_indices
+
+    pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+    post = [x for x in config.phase_labels("post") if x.startswith(an)]
+    basis = joint_locanmf.load(an, sessions=SESSIONS)
+    feat = features_with_indices(basis, nolick_ref="cue")
+    XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+        pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+    g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+    not_eng = g[0] if g else np.zeros(len(YU), bool)
+    pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+    GU = np.asarray(GU)
+    en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
+    un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
+          if len(YU) else np.zeros(0, str))
+    return {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+            "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+            "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+
+
+def _session_trials(bd, i, q, variant):
+    """Trials for session index ``i`` at position ``q`` under a post-stroke trial class.
+
+    ``lick`` is the engaged (licking) set; ``working`` adds miss-while-working, i.e. everything but
+    the terminal quit period. Returns an empty array rather than None so callers can stack freely.
+    """
+    parts = [bd["XE"][(bd["GE"] == i) & (bd["en"] == q)]]
+    if variant == "working" and len(bd["un"]):
+        m = (bd["GU"] == i) & (bd["un"] == q) & ~bd["not_eng"]
+        if m.any():
+            parts.append(bd["XU"][m])
+    keep = [z for z in parts if len(z)]
+    return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
+
+
+def _split_half(Z, rng, reps=SPLIT_REPS):
+    """Mean correlation between the means of two disjoint halves of ``Z``. NaN under 4 trials.
+
+    This is the reliability of the MEAN PATTERN this many trials can support -- the ceiling any
+    correlation involving that mean can reach, and the quantity figure 6 does not show.
+    """
+    n = len(Z)
+    if n < 4:
+        return np.nan
+    h = n // 2
+    rs = []
+    for _ in range(reps):
+        idx = rng.permutation(n)
+        a, b = Z[idx[:h]].mean(0), Z[idx[h:2 * h]].mean(0)
+        if np.std(a) == 0 or np.std(b) == 0:
+            continue
+        rs.append(float(np.corrcoef(a, b)[0, 1]))
+    return float(np.mean(rs)) if rs else np.nan
+
+
+def _reliability(Z, rng, reps=SPLIT_REPS):
+    """Reliability of the mean of ALL of ``Z``, not of half of it.
+
+    `_split_half` correlates two means built from n/2 trials each, so it estimates the reliability
+    of an n/2-trial mean -- but the quantity figure 6 correlates is the mean of all n. Spearman-Brown
+    projects the split-half value up to the full length: rel(n) = 2r / (1 + r).
+
+    THIS IS NOT COSMETIC. Skipping it makes every reliability too LOW, and since 7b divides by
+    sqrt(rel_post * rel_pre), too low a denominator makes every disattenuated correlation too HIGH --
+    i.e. it would systematically manufacture the "the code moved" verdict the panel exists to test.
+    """
+    r = _split_half(Z, rng, reps)
+    if not np.isfinite(r):
+        return np.nan
+    if r <= -1:
+        return np.nan
+    return float(2.0 * r / (1.0 + r))
+
+
+def _split_half_matrix(src, rng, labels=None):
+    """6x6 WITHIN-set split-half matrix, SYMMETRIC by construction.
+
+    The diagonal is each position's own reliability -- corr(half A at P, half B at P), which must
+    use the two halves because a mean correlated with itself is 1 by definition. The off-diagonal is
+    how similar two positions look to each other MEASURED IN THE SAME SESSION, the within-session
+    counterpart of figure 6's off-diagonal.
+
+    WHY IT IS AVERAGED OVER BOTH PAIRINGS (Priya, 2026-08-25: "why aren't the fig 7 matrices
+    symmetrical about the diagonal?"). The first version took M[P,Q] = corr(A_P, B_Q) and left it,
+    so cell (far_R, close_L) and cell (close_L, far_R) were corr(A_far_R, B_close_L) and
+    corr(A_close_L, B_far_R) -- two estimates of ONE quantity, differing only in which random half
+    of each position's trials landed on which side. The asymmetry was therefore pure estimation
+    noise being drawn as if it were structure, in a figure whose entire job is to say how much
+    estimation noise there is. Averaging the two pairings is symmetric, has the same expectation, is
+    still cross-validated (no half is ever correlated with itself) and halves the variance.
+
+    The remaining asymmetry is zero by construction; if the two pairings disagreed a lot that fact
+    is worth knowing, so `_split_half_asymmetry` reports it separately rather than smuggling it into
+    the picture.
+    """
+    labels = labels or CONF_LABELS
+    n = len(labels)
+    M = np.full((n, n), np.nan)
+    halves = {}
+    for q in labels:
+        Z = src.get(q)
+        if Z is None or len(Z) < 4:
+            continue
+        idx = rng.permutation(len(Z))
+        h = len(Z) // 2
+        halves[q] = (Z[idx[:h]].mean(0), Z[idx[h:2 * h]].mean(0))
+
+    def _r(u, v):
+        return float(np.corrcoef(u, v)[0, 1]) if (np.std(u) and np.std(v)) else np.nan
+
+    for i, p in enumerate(labels):
+        if p not in halves:
+            continue
+        for j, q in enumerate(labels):
+            if q not in halves or j < i:
+                continue
+            if i == j:
+                M[i, j] = _r(halves[p][0], halves[p][1])
+                continue
+            both = [_r(halves[p][0], halves[q][1]), _r(halves[q][0], halves[p][1])]
+            both = [x for x in both if np.isfinite(x)]
+            M[i, j] = M[j, i] = float(np.mean(both)) if both else np.nan
+    return M
+
+
+def _split_half_asymmetry(src, rng, labels=None):
+    """Mean |corr(A_P, B_Q) - corr(A_Q, B_P)| over off-diagonal pairs -- a pure noise read.
+
+    The two orderings estimate the same thing, so any difference is sampling noise in the split.
+    Useful as a diagnostic on how much to trust a panel; deliberately NOT drawn into the matrix.
+    """
+    labels = labels or CONF_LABELS
+    halves = {}
+    for q in labels:
+        Z = src.get(q)
+        if Z is None or len(Z) < 4:
+            continue
+        idx = rng.permutation(len(Z))
+        h = len(Z) // 2
+        halves[q] = (Z[idx[:h]].mean(0), Z[idx[h:2 * h]].mean(0))
+    d = []
+    ks = [q for q in labels if q in halves]
+    for a in range(len(ks)):
+        for b in range(a + 1, len(ks)):
+            p, q = ks[a], ks[b]
+            r1 = float(np.corrcoef(halves[p][0], halves[q][1])[0, 1])
+            r2 = float(np.corrcoef(halves[q][0], halves[p][1])[0, 1])
+            if np.isfinite(r1) and np.isfinite(r2):
+                d.append(abs(r1 - r2))
+    return float(np.mean(d)) if d else np.nan
+
+
+#: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means
+#: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
+#: so a full render loads each one once instead of four times. The features are LocaNMF components,
+#: not pixels, so the whole cache is ~100 MB.
+@lru_cache(maxsize=6)
+def _collect_7(align, variant, min_trials):
+    """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
+
+    CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
+    figure in the same process.
+
+    PRE-STROKE SESSIONS ARE KEPT SEPARATE, not pooled, and that is the whole point of this
+    collector. The first render of figure 7 compared the split-half reliability of the POOLED
+    pre-stroke set (six sessions) against one post-stroke session at a time and showed 0.72-0.92
+    against 0.14-0.67. Split-half reliability rises with trial count, so most of that gap was six
+    times the trials -- and it is exactly the comparison the figure invites and exactly the question
+    ("is the lost code just a noisier one?") it exists to answer. Keeping the sessions apart lets
+    every caller build a LEAVE-ONE-SESSION-OUT reference that is both trial-count-matched and
+    disjoint from the session being scored.
+    """
+    out, all_days = {}, set()
+    for an in ANIMALS:
+        try:
+            bd = _pooled_bundle(an, align)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! 7 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            continue
+        pre_by_sess, by_day = {}, {}
+        for i, lab in enumerate(bd["kept"]):
+            mmdd = lab.split("_")[-1]
+            if i in bd["pre_i"]:
+                # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
+                # not missing, so "working" would add nothing and would silently make the reference
+                # a different kind of trial from itself.
+                pat = {q: Z for q in CONF_LABELS
+                       if len(Z := _session_trials(bd, i, q, "lick")) >= min_trials}
+                if pat:
+                    pre_by_sess[mmdd] = pat
+                continue
+            day = _day(an, mmdd)
+            pat = {q: Z for q in CONF_LABELS
+                   if len(Z := _session_trials(bd, i, q, variant)) >= min_trials}
+            if pat:
+                by_day[day] = pat
+                all_days.add(day)
+        out[an] = (pre_by_sess, by_day)
+    return out, sorted(all_days)
+
+
+def _pre_reference(pre_by_sess, exclude=None):
+    """Pooled pre-stroke trials per position, optionally leaving one session out.
+
+    Leaving the scored session out is what keeps a pre-stroke column from being circular: a session
+    correlated against a pool it is itself part of is scored partly against itself.
+    """
+    ref = {}
+    for s, pat in pre_by_sess.items():
+        if s == exclude:
+            continue
+        for q, Z in pat.items():
+            ref.setdefault(q, []).append(Z)
+    return {q: np.vstack(v) for q, v in ref.items()}
+
+
+def fig_splithalf_matrix(out_dir, min_trials=10):
+    """7: the WITHIN-session split-half matrix for every post-stroke session.
+
+    Figure 6 asks whether the post-stroke pattern still matches the pre-stroke one. It cannot
+    distinguish a code that MOVED from a code that merely became NOISIER, because a correlation
+    between two means is bounded above by the reliability of each mean, and a session with more
+    variable responses has a lower ceiling at every position at once. That is a live alternative
+    here: the headline result is that own-position similarity drops at EVERY position with far_R
+    largest, which is precisely the signature of a global change in how repeatable the responses are.
+
+    This figure supplies the missing ceiling. Both halves come from the SAME session, so the
+    diagonal is that session's own reliability and nothing about the lesion, the pre-stroke
+    reference or the alignment enters it. Off-diagonal is how similar the positions look to each
+    other WITHIN one session.
+
+    Read it beside figure 6 panel by panel: where 6's diagonal falls and this diagonal does not, the
+    code moved; where both fall together, the code is noisier and 6 cannot see the difference. 7b
+    does that division explicitly.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            store, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            ncol = 1 + len(days)
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+                                     squeeze=False)
+            im = None
+            for ri, an in enumerate(ANIMALS):
+                got = store.get(an)
+                for ci in range(ncol):
+                    ax = axes[ri][ci]
+                    src = None
+                    if got:
+                        pre_by_sess, by_day = got
+                        src = pre_by_sess if ci == 0 else by_day.get(days[ci - 1])
+                    if not src:
+                        ax.axis("off")
+                        continue
+                    rng = np.random.default_rng(abs(hash((an, align, v, ci))) % (2 ** 31))
+                    if ci == 0:
+                        # COLUMN 0 IS ONE PRE-STROKE SESSION AT A TIME, AVERAGED -- not the pooled
+                        # set. Pooling six sessions gives the reliability of a six-session mean and
+                        # compares it against one-session post-stroke means, so most of the gap
+                        # would be trial count rather than the lesion. Averaging per-session
+                        # matrices matches the units of every other column in the row.
+                        Ms = [_split_half_matrix(p, rng) for p in pre_by_sess.values()]
+                        M = np.nanmean(np.stack(Ms), axis=0) if Ms else np.full((6, 6), np.nan)
+                        n_med = int(np.median([len(z) for p in pre_by_sess.values()
+                                               for z in p.values()] or [0]))
+                    else:
+                        M = _split_half_matrix(src, rng)
+                        n_med = int(np.median([len(z) for z in src.values()] or [0]))
+                    im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                       rotation=90, fontsize=5.5)
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    head = "PRE, per session" if ci == 0 else f"day {days[ci - 1]}"
+                    # 'sh', NOT 'rel': this is the split-half correlation itself, the reliability of
+                    # a HALF-length mean. 7b applies the Spearman-Brown step that turns it into the
+                    # reliability of the full mean it actually divides by.
+                    # n IS PRINTED because sh depends on it, and a reader comparing two panels needs
+                    # to know whether they rest on comparable amounts of data.
+                    ax.set_title(f"{head}  sh {np.nanmean(np.diag(M)):.2f}  n{n_med}", fontsize=7.0,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel(f"{an}\nhalf A at", fontsize=8, fontweight="bold")
+            if im is None:
+                plt.close(fig)
+                continue
+            fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="split-half correlation r")
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"WITHIN-session split-half pattern similarity — {wname} window\n"
+                f"Post-stroke class: {cls}.  BOTH HALVES COME FROM THE SAME SESSION: no lesion "
+                f"comparison, no pre-stroke reference, no alignment inference enters this.\n"
+                f"SYMMETRIC BY CONSTRUCTION: an off-diagonal cell averages both half-pairings, "
+                "since (P,Q) and (Q,P) estimate one quantity and differ only by split noise.\n"
+                f"DIAGONAL ('sh' above each panel) = that session's own reliability, i.e. the "
+                f"CEILING figure 6's correlations can reach. Off-diagonal = how similar the "
+                f"positions look to each other within one session.\n"
+                f"If a post-stroke diagonal is low HERE, figure 6's matching low value is a noisier "
+                "code, not a moved one. Columns are days from lesion.\n"
+                f"FIRST COLUMN IS ONE PRE-STROKE SESSION AT A TIME, AVERAGED -- not the pooled set: "
+                f"split-half reliability rises with trial count, and pooling six sessions would "
+                f"compare a six-session mean with one-session post-stroke means. 'n' is the median "
+                f"trials per position in that panel.", fontsize=9.0)
+            _footer(fig)
+            p = Path(out_dir) / f"grant_7_splithalf_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
+def fig_reliability_verdict(out_dir, min_trials=10):
+    """7b: figure 6's own-position similarity, RAW and DISATTENUATED by both sides' reliability.
+
+    THE ARITHMETIC. A correlation between two independently estimated means is attenuated by each
+    side's reliability: E[r_obs] ~ r_true * sqrt(rel_post * rel_ref). Dividing it out estimates the
+    correlation the two patterns would have if both were measured without noise -- so a drop that
+    survives disattenuation is a code that MOVED, and a drop that disappears was a code measured
+    less repeatably. This is the same correction the coding-direction analysis has used since
+    2026-08-20, applied to the pattern measure, which has never had it.
+
+    WHERE IT CANNOT BE TRUSTED. Dividing by sqrt(rel) with rel near zero inflates without bound, so
+    a cell whose reliability is below MIN_REL on either side is drawn hollow and its number
+    suppressed. That is not a formality: an impaired position post-stroke is exactly where trials
+    are fewest and reliability lowest, which is exactly where the ratio is least stable -- the
+    correction is weakest precisely where the question is sharpest, and the figure has to say so
+    rather than print a confident number.
+
+    A disattenuated value may exceed 1. That is expected of a ratio estimator at low reliability and
+    is left visible rather than clipped: clipping would hide the instability the hollow marker is
+    there to declare.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            store, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(13.6, 11.4), squeeze=False)
+            drew = False
+            for ri, an in enumerate(ANIMALS):
+                got = store.get(an)
+                if not got:
+                    for ci in range(3):
+                        axes[ri][ci].axis("off")
+                    continue
+                pre_by_sess, by_day = got
+                rng = np.random.default_rng(abs(hash((an, align, v))) % (2 ** 31))
+                # COLUMN 0 IS THE NO-LESION EXPECTATION, built LEAVE-ONE-SESSION-OUT: each
+                # pre-stroke session in turn is scored against the pool of the OTHERS, then the six
+                # results are averaged. Disjoint, so it is not a session correlated against itself;
+                # and one session against a pool, exactly like every post-stroke column, so the
+                # reliability shown for it is a ONE-SESSION reliability and can be compared with
+                # them.
+                #
+                # IT DOES NOT COME OUT AT 1, AND THAT IS THE POINT. PS94 post-cue disattenuates to
+                # 0.75-0.86 here, not 1.0, because disattenuating by a WITHIN-session reliability
+                # removes within-session trial noise and nothing else: a pre-stroke session's mean
+                # pattern also differs from the other sessions' by day-to-day drift, which no
+                # within-session split half can see. So this column, not 1.0, is the ceiling the
+                # post-stroke columns are to be read against -- the same reason figure 6 has a
+                # baseline panel and the same reason the axis work uses a matched null instead of
+                # comparing cosines with unity.
+                cols = ["PRE"] + [f"d{d}" for d in days]
+                shape = (len(CONF_LABELS), len(cols))
+                rel = np.full(shape, np.nan)
+                raw = np.full(shape, np.nan)
+                dis = np.full(shape, np.nan)
+
+                def _score(scored, ref_trials, rng=rng):
+                    """(reliability, raw r, disattenuated r) per position for one scored session."""
+                    o_rel = np.full(len(CONF_LABELS), np.nan)
+                    o_raw = np.full(len(CONF_LABELS), np.nan)
+                    o_dis = np.full(len(CONF_LABELS), np.nan)
+                    for i, q in enumerate(CONF_LABELS):
+                        Z, R = scored.get(q), ref_trials.get(q)
+                        if Z is None or R is None:
+                            continue
+                        o_rel[i] = _reliability(Z, rng)
+                        rr = _reliability(R, rng)
+                        m, rm = Z.mean(0), R.mean(0)
+                        if np.std(m) and np.std(rm):
+                            o_raw[i] = float(np.corrcoef(m, rm)[0, 1])
+                        if (np.isfinite(rr) and np.isfinite(o_rel[i])
+                                and rr >= MIN_REL and o_rel[i] >= MIN_REL):
+                            o_dis[i] = o_raw[i] / np.sqrt(rr * o_rel[i])
+                    return o_rel, o_raw, o_dis
+
+                held = [_score(pat, _pre_reference(pre_by_sess, exclude=s))
+                        for s, pat in pre_by_sess.items()]
+                if held:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)   # all-NaN position rows
+                        rel[:, 0] = np.nanmean([h[0] for h in held], axis=0)
+                        raw[:, 0] = np.nanmean([h[1] for h in held], axis=0)
+                        dis[:, 0] = np.nanmean([h[2] for h in held], axis=0)
+                full_ref = _pre_reference(pre_by_sess)
+                for ci in range(1, len(cols)):
+                    a, b, c = _score(by_day.get(days[ci - 1]) or {}, full_ref)
+                    rel[:, ci], raw[:, ci], dis[:, ci] = a, b, c
+                for ci, (M, ttl, vmin, vmax, cmap) in enumerate((
+                        (rel, ("RELIABILITY of that session's own mean\n"
+                               "(split half, Spearman-Brown to full length)"),
+                         0.0, 1.0, "viridis"),
+                        (raw, "RAW similarity to pre-stroke\n(this is figure 6's diagonal)",
+                         -1.0, 1.0, "RdBu_r"),
+                        (dis, "DISATTENUATED\n(raw / sqrt(rel_post x rel_pre))",
+                         -1.0, 1.0, "RdBu_r"))):
+                    ax = axes[ri][ci]
+                    ax.imshow(np.ma.masked_invalid(M), vmin=vmin, vmax=vmax, cmap=cmap,
+                              aspect="auto")
+                    for i in range(len(CONF_LABELS)):
+                        for j in range(len(cols)):
+                            if not np.isfinite(M[i, j]):
+                                # A CELL SUPPRESSED BY MIN_REL IS NOT A CELL WITH NO DATA. Mark the
+                                # first case so it cannot be read as the second.
+                                if ci == 2 and np.isfinite(raw[i, j]):
+                                    ax.text(j, i, "·", ha="center", va="center", fontsize=11,
+                                            color="0.35")
+                                continue
+                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=6.5,
+                                    color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
+                    ax.set_xticks(range(len(cols)))
+                    ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                    if ci == 0:
+                        ax.set_ylabel(an, fontsize=9, fontweight="bold")
+                    if ri == 0:
+                        ax.set_title(ttl, fontsize=8.5)
+                    drew = True
+                # THE DENOMINATOR, spelled out. The ratio divides by the reference's reliability as
+                # well as the session's, and a reader cannot otherwise tell whether a low
+                # disattenuated value came from a weak numerator or a strong denominator.
+                rel_ref = {q: _reliability(Z, rng) for q, Z in full_ref.items()}
+                axes[ri][0].set_xlabel(
+                    "pooled pre-stroke reference reliability: "
+                    + "  ".join(f"{q.replace('close_', 'c').replace('far_', 'f')}"
+                                f" {rel_ref.get(q, float('nan')):.2f}" for q in CONF_LABELS),
+                    fontsize=5.6)
+            if not drew:
+                plt.close(fig)
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"Is the lost code a MOVED code or a NOISIER one? — {wname} window\n"
+                f"Post-stroke class: {cls}.  Rows = spout position, columns = days from lesion.\n"
+                f"LEFT: how repeatable that session's own pattern is (split half, within session). "
+                f"MIDDLE: figure 6's own-position correlation to the pre-stroke reference.\n"
+                f"RIGHT: the middle divided by sqrt(rel_post x rel_pre) -- what the correlation "
+                f"would be if both means were measured without noise.\n"
+                f"A drop that SURVIVES the right panel is a code that moved; a drop that "
+                f"DISAPPEARS was a code measured less repeatably. A grey dot = reliability below "
+                f"{MIN_REL} on one side, where the ratio is not stable enough to print.\n"
+                f"PRE COLUMN IS LEAVE-ONE-SESSION-OUT: each pre-stroke session scored against the "
+                f"pool of the others, averaged -- one session against a pool, exactly like every "
+                f"post-stroke column, so the columns are comparable.\n"
+                f"IT IS THE CEILING, AND IT IS NOT 1.0: disattenuating by a within-session "
+                f"reliability removes trial noise and NOT day-to-day drift, which a pre-stroke "
+                f"session also carries. Read the post columns against PRE, never against 1.",
+                fontsize=9.5)
+            fig.tight_layout(rect=(0, 0, 1, 0.88))
+            _footer(fig)
+            p = Path(out_dir) / f"grant_7b_reliability_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
+# ---------------------------------------------------------------------------------------------
+# 8 / 8b: THE CROSSNOBIS VERSION -- and what it can and cannot say per position
+# ---------------------------------------------------------------------------------------------
+#
+# Priya, 2026-08-25: "would this still give us any per-position information though? or just
+# overall representational geometry similarity?"  BOTH, but they are different questions and the
+# two figures below separate them deliberately.
+#
+#   8   CROSS-SET distances d(post at P, pre at Q). The direct translation of figure 6: per
+#       position, fully, with the diagonal reading "did this position's pattern move". Noise-
+#       UNBIASED, which figure 6's correlation is not. Still sensitive to a global amplitude
+#       change, exactly as figure 6 is -- an unbiased distance between two patterns is not a
+#       gain-invariant one.
+#
+#   8b  SECOND-ORDER: the within-set 6x6 RDM for each session correlated against the pre-stroke
+#       RDM. This is RSA proper, and it IS gain-invariant, because scaling every distance leaves
+#       a correlation between RDMs unchanged. Per-position information survives as each
+#       position's ROW -- its five distances to the other positions -- so "is far_R still
+#       arranged the way it was relative to everything else" is answerable, while "did far_R's
+#       pattern move" is not. That is the trade: 8 keeps the position and loses gain-invariance,
+#       8b keeps gain-invariance and can only speak about a position's RELATIONS.
+#
+# Together they bracket the headline pattern result. If the graded drop at every position in
+# figure 6 were a global amplitude change, 8 would show it and 8b would NOT.
+
+
+def _whitener(res):
+    """Inverse residual covariance, Ledoit-Wolf shrunk, with a diagonal fallback.
+
+    Estimated from trials MINUS their own cell mean, so it is independent of the differences it
+    later whitens -- which is what keeps the cross-validated product unbiased.
+    """
+    if not res:
+        return None
+    R = np.vstack(res)
+    if len(R) < 3:
+        return None
+    try:
+        from sklearn.covariance import LedoitWolf
+        return np.linalg.pinv(LedoitWolf().fit(R).covariance_)
+    except Exception:                                                # noqa: BLE001
+        return np.diag(1.0 / np.maximum(R.var(axis=0), 1e-12))
+
+
+def _halves(src, rng, labels, min_n=4):
+    """Per-position (half A mean, half B mean) plus the residuals both halves leave behind."""
+    m0, m1, res = {}, {}, []
+    for q in labels:
+        Z = src.get(q)
+        if Z is None or len(Z) < min_n:
+            continue
+        idx = rng.permutation(len(Z))
+        h = len(Z) // 2
+        A, B = Z[idx[:h]], Z[idx[h:2 * h]]
+        m0[q], m1[q] = A.mean(0), B.mean(0)
+        res.append(A - m0[q])
+        res.append(B - m1[q])
+    return m0, m1, res
+
+
+def _crossnobis_within(src, rng, labels):
+    """Noise-unbiased 6x6 RDM within ONE set of trials. Diagonal is 0 by construction, left NaN."""
+    m0, m1, res = _halves(src, rng, labels)
+    P = _whitener(res)
+    if P is None or len(m0) < 2:
+        return np.full((len(labels), len(labels)), np.nan)
+    D = np.full((len(labels), len(labels)), np.nan)
+    for i, a in enumerate(labels):
+        for j, b in enumerate(labels):
+            if i >= j or a not in m0 or b not in m0:
+                continue
+            D[i, j] = D[j, i] = float((m0[a] - m0[b]) @ P @ (m1[a] - m1[b]))
+    return D
+
+
+def _crossnobis_cross(post, ref, rng, labels):
+    """Unbiased d(post at P, reference at Q) for every ordered pair -- figure 6's matrix as distance.
+
+    The two factors of the product use DISJOINT halves on both sides (post half A against reference
+    half 1, post half B against reference half 2), so trial noise contributes zero in expectation
+    and the diagonal is an unbiased estimate of how far the post-stroke pattern has actually moved.
+    A raw squared distance would instead grow with noise alone, which is the bias this removes and
+    the reason a plain distance version of figure 6 would have been unreadable across sessions whose
+    amplitude differs 2-3x.
+    """
+    pm0, pm1, pres = _halves(post, rng, labels)
+    rm0, rm1, rres = _halves(ref, rng, labels)
+    P = _whitener(pres + rres)
+    if P is None:
+        return np.full((len(labels), len(labels)), np.nan)
+    D = np.full((len(labels), len(labels)), np.nan)
+    for i, a in enumerate(labels):
+        for j, b in enumerate(labels):
+            if a not in pm0 or b not in rm0:
+                continue
+            D[i, j] = float((pm0[a] - rm0[b]) @ P @ (pm1[a] - rm1[b]))
+    return D
+
+
+def _triu_vals(D):
+    iu = np.triu_indices(D.shape[0], 1)
+    return D[iu]
+
+
+def fig_crossnobis_cross(out_dir, min_trials=10):
+    """8: figure 6 rebuilt on cross-validated (crossnobis) distances instead of correlations.
+
+    ROWS = the post-stroke position, COLUMNS = the pre-stroke reference position, matching figure 6.
+    The DIAGONAL is what changed: near zero means the pattern did not move, and unlike a correlation
+    it is not bounded by how repeatable either mean was -- the cross-validated product is unbiased by
+    trial noise, so a session with more variable responses does not automatically read as a bigger
+    distance. That is the one thing figure 6 cannot do and the reason this exists.
+
+    UNITS. Distances are divided by the mean pre-stroke within-set pairwise distance for that animal
+    and window, so 1.0 = "as far apart as two different pre-stroke positions were". Raw crossnobis
+    units depend on the whitener and the dimensionality and are not comparable across animals.
+
+    WHAT IT STILL CANNOT DO: it is a distance between two patterns, so a uniform post-stroke gain
+    change moves every cell -- the same exposure figure 6 has. 8b is the gain-invariant companion.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            store, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            ncol = 1 + len(days)
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+                                     squeeze=False)
+            im = None
+            for ri, an in enumerate(ANIMALS):
+                got = store.get(an)
+                if not got:
+                    for ci in range(ncol):
+                        axes[ri][ci].axis("off")
+                    continue
+                pre_by_sess, by_day = got
+                rng = np.random.default_rng(abs(hash((an, align, v))) % (2 ** 31))
+                full_ref = _pre_reference(pre_by_sess)
+                scale = np.nanmean(_triu_vals(_crossnobis_within(full_ref, rng, CONF_LABELS)))
+                if not np.isfinite(scale) or scale <= 0:
+                    scale = 1.0
+                for ci in range(ncol):
+                    ax = axes[ri][ci]
+                    # COLUMN 0 IS THE NO-LESION EXPECTATION, LEAVE-ONE-SESSION-OUT: each
+                    # pre-stroke session scored against the pool of the others, averaged. One
+                    # session against a pool, exactly like every post-stroke column, so the columns
+                    # are comparable; disjoint, so nothing is scored against itself. Its diagonal is
+                    # what "did not move" looks like measured this way, and it is not 0.
+                    if ci == 0:
+                        Ds = [_crossnobis_cross(pat, _pre_reference(pre_by_sess, exclude=s),
+                                                rng, CONF_LABELS)
+                              for s, pat in pre_by_sess.items()]
+                        if not Ds:
+                            ax.axis("off")
+                            continue
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", RuntimeWarning)
+                            D = np.nanmean(np.stack(Ds), axis=0) / scale
+                    else:
+                        src = by_day.get(days[ci - 1])
+                        if not src:
+                            ax.axis("off")
+                            continue
+                        D = _crossnobis_cross(src, full_ref, rng, CONF_LABELS) / scale
+                    im = ax.imshow(np.ma.masked_invalid(D), vmin=0, vmax=2.0, cmap="magma_r")
+                    for i in range(len(CONF_LABELS)):
+                        for j in range(len(CONF_LABELS)):
+                            if np.isfinite(D[i, j]):
+                                ax.text(j, i, f"{D[i, j]:.1f}", ha="center", va="center",
+                                        fontsize=4.6,
+                                        color="w" if D[i, j] > 1.2 else "k")
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                       rotation=90, fontsize=5.5)
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
+                    ax.set_title(f"{head}  diag {np.nanmean(np.diag(D)):.2f}", fontsize=7.5,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+            if im is None:
+                plt.close(fig)
+                continue
+            fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
+                         label="crossnobis distance (1.0 = mean pre-stroke between-position distance)")
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"Cross-validated (crossnobis) distance to the pre-stroke pattern — {wname} window\n"
+                f"Post-stroke class: {cls}.  Rows = the post-stroke position, columns = the "
+                f"PRE-STROKE reference position. Figure 6's layout, as DISTANCE.\n"
+                f"DIAGONAL = did this position's pattern move. LOW is unchanged. Unlike figure 6 "
+                f"this is NOISE-UNBIASED: a noisier session does not read as a larger distance.\n"
+                f"First column is the no-lesion expectation. Units: mean pre-stroke between-position "
+                f"distance for that animal. Still NOT gain-invariant -- see 8b.", fontsize=9.5)
+            _footer(fig)
+            p = Path(out_dir) / f"grant_8_crossnobis_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
+def fig_crossnobis_geometry(out_dir, min_trials=10):
+    """8b: RSA proper -- each session's own 6x6 crossnobis RDM against the pre-stroke RDM.
+
+    THIS IS THE ONE THAT ANSWERS THE GAIN QUESTION. Correlating two RDMs is invariant to scaling
+    every distance by a constant, so a uniform post-stroke amplitude change cannot move it. Figure
+    6's headline -- every position drops, far_R most -- is precisely the signature a global change
+    would leave, and this is the measure that cannot be fooled by one.
+
+    PER-POSITION INFORMATION SURVIVES, in a weaker form. A whole-RDM correlation is one number per
+    session. Each position's ROW of the RDM -- its five distances to the other positions -- gives a
+    per-position number, so the question "is far_R still arranged relative to everything else the
+    way it was" is answerable. The question "did far_R's pattern move" is NOT, because second-order
+    RSA has thrown away the patterns themselves. That is the trade against figure 8, which keeps the
+    positions and gives up gain-invariance.
+
+    Rows = position, columns = day; the strip above each animal is the whole-RDM correlation.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            store, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(4.6 + 0.62 * len(days), 10.4),
+                                     squeeze=False,
+                                     gridspec_kw={"width_ratios": [len(days) + 1, 3.4]})
+            drew = False
+            for ri, an in enumerate(ANIMALS):
+                got = store.get(an)
+                if not got:
+                    for ci in range(2):
+                        axes[ri][ci].axis("off")
+                    continue
+                pre_by_sess, by_day = got
+                rng = np.random.default_rng(abs(hash((an, align, v, "8b"))) % (2 ** 31))
+                full_ref = _pre_reference(pre_by_sess)
+                Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
+                rows = np.full((len(CONF_LABELS), 1 + len(days)), np.nan)
+                whole = np.full(1 + len(days), np.nan)
+                for ci in range(1 + len(days)):
+                    # SAME LEAVE-ONE-OUT LOGIC AS 8. A correlation between two RDMs is attenuated by
+                    # how noisily each is estimated, so a pooled six-session pre-stroke RDM would
+                    # give the ceiling column an advantage in trial count that no post-stroke column
+                    # can have -- and the whole figure is a comparison of that column with the rest.
+                    if ci == 0:
+                        Ds = [_crossnobis_within(pat, rng, CONF_LABELS)
+                              for pat in pre_by_sess.values()]
+                        if not Ds:
+                            continue
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", RuntimeWarning)
+                            D = np.nanmean(np.stack(Ds), axis=0)
+                    else:
+                        src = by_day.get(days[ci - 1])
+                        if not src:
+                            continue
+                        D = _crossnobis_within(src, rng, CONF_LABELS)
+                    a, b = _triu_vals(D), _triu_vals(Dpre)
+                    ok = np.isfinite(a) & np.isfinite(b)
+                    if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]):
+                        whole[ci] = float(np.corrcoef(a[ok], b[ok])[0, 1])
+                    for i in range(len(CONF_LABELS)):
+                        ra = np.delete(D[i], i)
+                        rb = np.delete(Dpre[i], i)
+                        m = np.isfinite(ra) & np.isfinite(rb)
+                        # A ROW IS FIVE NUMBERS. Below four usable ones a correlation is not an
+                        # estimate of anything, so the cell stays blank rather than printing an
+                        # r built from three points.
+                        if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
+                            rows[i, ci] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+                ax = axes[ri][0]
+                ax.imshow(np.ma.masked_invalid(rows), vmin=-1, vmax=1, cmap="RdBu_r",
+                          aspect="auto")
+                for i in range(len(CONF_LABELS)):
+                    for j in range(1 + len(days)):
+                        if np.isfinite(rows[i, j]):
+                            ax.text(j, i, f"{rows[i, j]:.2f}", ha="center", va="center",
+                                    fontsize=6.2)
+                ax.set_xticks(range(1 + len(days)))
+                ax.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
+                                   if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                ax.set_yticks(range(len(CONF_LABELS)))
+                ax.set_yticklabels(CONF_LABELS, fontsize=6.5)
+                ax.set_ylabel(an, fontsize=9, fontweight="bold")
+                if ri == 0:
+                    ax.set_title("per-position: is this position's ROW of the RDM preserved?",
+                                 fontsize=8.5)
+                ax2 = axes[ri][1]
+                xs = np.arange(1 + len(days))
+                ax2.plot(xs, whole, "o-", color="#2166ac", ms=4.5, lw=1.4)
+                ax2.axhline(0, color="k", lw=0.8)
+                ax2.set_ylim(-0.3, 1.05)
+                ax2.set_xticks(xs)
+                ax2.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
+                                    if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                ax2.grid(alpha=0.25, lw=0.5)
+                if ri == 0:
+                    ax2.set_title("whole-RDM correlation\n(gain-invariant)", fontsize=8.5)
+                drew = True
+            if not drew:
+                plt.close(fig)
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"Second-order RSA on crossnobis RDMs — {wname} window\n"
+                f"Post-stroke class: {cls}.  Each session's OWN 6x6 crossnobis RDM correlated "
+                f"against the pre-stroke RDM.\n"
+                f"INVARIANT TO A GLOBAL AMPLITUDE CHANGE, which figures 6 and 8 are not: scaling "
+                f"every distance leaves a correlation between RDMs unchanged.\n"
+                f"PRE column = the other pre-stroke half, i.e. the ceiling. Per-position numbers "
+                f"are each position's five distances to the others -- 'is it still arranged the "
+                f"same way', NOT 'did its pattern move'.", fontsize=9.5)
+            fig.tight_layout(rect=(0, 0, 1, 0.89))
+            _footer(fig)
+            p = Path(out_dir) / f"grant_8b_crossnobis_geometry_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
+# ---------------------------------------------------------------------------------------------
+# DELTA VIEWS: every post-stroke panel as a DIFFERENCE from the pre-stroke reference
+# ---------------------------------------------------------------------------------------------
+#
+# Priya, 2026-08-25: "make additional versions of fig 5, 6, 7 as differences from prestroke --
+# show pre-stroke for reference, but then subsequent columns expressed as deltas."
+#
+# WHY THIS IS WORTH A SEPARATE FIGURE RATHER THAN A READER'S SUBTRACTION. The absolute panels ask
+# the eye to hold a six-by-six reference in memory and compare it with a panel three columns away,
+# and the pre-stroke reference is NOT uniform -- close positions are intrinsically more confusable
+# than far ones, and every animal's baseline has its own texture. A cell that reads "0.4, low" may
+# be 0.4 against a baseline of 0.45 (nothing happened) or against 0.9 (half the code gone). The
+# delta answers that directly and the absolute panel cannot.
+#
+# WHAT IS SUBTRACTED, in every case, is the SAME pre-stroke reference the absolute figure draws in
+# its first column -- leave-one-session-out, so it is one session against other days exactly like
+# the post columns, and NOT a random half of the pooled trials (see `_collect_7`). Getting this
+# wrong would put a floor under every delta.
+#
+# NOT r-SQUARED. Priya's phrasing was "deltas of r2 / accuracy"; for the correlation figures the
+# quantity differenced is r ITSELF, because the sign carries the result -- a far_R pattern moving
+# ONTO far_L shows as a positive off-diagonal, and squaring would erase exactly that. Accuracy
+# figures difference the row-normalised probability, which is already on [0, 1].
+
+
+def _corr_matrix(src_means, ref_means, labels=None):
+    """M[i, j] = corr(src pattern at label i, reference pattern at label j)."""
+    labels = labels or CONF_LABELS
+    M = np.full((len(labels), len(labels)), np.nan)
+    for i, p in enumerate(labels):
+        for j, q in enumerate(labels):
+            a, b = src_means.get(p), ref_means.get(q)
+            if a is None or b is None or not np.std(a) or not np.std(b):
+                continue
+            M[i, j] = float(np.corrcoef(a, b)[0, 1])
+    return M
+
+
+def _means(pat):
+    return {q: Z.mean(0) for q, Z in pat.items()}
+
+
+def _nanmean_stack(Ms):
+    if not Ms:
+        return None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)          # positions absent in every entry
+        return np.nanmean(np.stack(Ms), axis=0)
+
+
+@lru_cache(maxsize=6)
+def _matrices_pattern(align, variant, min_trials=10):
+    """{animal: {"PRE": M, day: M, ...}} of mean-pattern correlation matrices (figures 6b / 6d)."""
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        ref_m = _means(_pre_reference(pre_by_sess))
+        loo = [_corr_matrix(_means(pat), _means(_pre_reference(pre_by_sess, exclude=s)))
+               for s, pat in pre_by_sess.items()]
+        d = {}
+        base = _nanmean_stack(loo)
+        if base is not None:
+            d["PRE"] = base
+        for day, pat in by_day.items():
+            d[day] = _corr_matrix(_means(pat), ref_m)
+        if d:
+            out[an] = d
+    return out, days
+
+
+@lru_cache(maxsize=6)
+def _matrices_splithalf(align, variant, min_trials=10):
+    """{animal: {"PRE": M, day: M, ...}} of WITHIN-session split-half matrices (figures 7 / 7d)."""
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        rng = np.random.default_rng(abs(hash((an, align, variant))) % (2 ** 31))
+        d = {}
+        base = _nanmean_stack([_split_half_matrix(pat, rng) for pat in pre_by_sess.values()])
+        if base is not None:
+            d["PRE"] = base
+        for day, pat in by_day.items():
+            d[day] = _split_half_matrix(pat, rng)
+        if d:
+            out[an] = d
+    return out, days
+
+
+def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
+                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2):
+    """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
+    the reference, on a diverging scale centred at zero.
+
+    TWO COLOURBARS, DELIBERATELY. One shared scale would either compress the deltas into the middle
+    of an absolute ramp or draw the reference on a diverging map centred somewhere meaningless. The
+    two columns groups are different quantities and are scaled as such.
+    """
+    # A DEDICATED SPACER COLUMN FOR THE REFERENCE COLOUR BAR. Attaching it to `ax=axes[:, 0]` puts
+    # it against the RIGHT EDGE of column 1's bounding box -- i.e. in the narrow gap between the
+    # reference panel and the first delta panel, where it overlapped the day-1 matrices (Priya,
+    # 2026-08-25). Reserving a real column and drawing into an explicit `cax` inside it is
+    # deterministic; shrinking `fraction` would only have made the overlap thinner.
+    ncol = 1 + len(days)
+    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(2.05 * ncol + 2.6, figh),
+                             squeeze=False,
+                             gridspec_kw={"width_ratios": [1, 0.42] + [1] * len(days)})
+    spacer = grid[:, 1]
+    for ax in spacer:
+        ax.axis("off")
+    axes = np.delete(np.asarray(grid, dtype=object), 1, axis=1)
+    im_abs = im_del = None
+    for ri, an in enumerate(ANIMALS):
+        d = mats.get(an) or {}
+        base = d.get("PRE")
+        for ci in range(ncol):
+            ax = axes[ri][ci]
+            M = base if ci == 0 else d.get(days[ci - 1])
+            if M is None or base is None or not np.isfinite(M).any():
+                ax.axis("off")
+                continue
+            if ci == 0:
+                im_abs = ax.imshow(np.ma.masked_invalid(M), vmin=vmin, vmax=vmax, cmap=cmap)
+                head = "PRE (reference)"
+                stat = summary(M)
+            else:
+                D = M - base
+                im_del = ax.imshow(np.ma.masked_invalid(D), vmin=-dmax, vmax=dmax, cmap="PuOr_r")
+                head = f"day {days[ci - 1]}"
+                stat = summary(M) - summary(base)
+            ax.set_xticks(range(len(CONF_LABELS)))
+            ax.set_yticks(range(len(CONF_LABELS)))
+            ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                               rotation=90, fontsize=5.5)
+            ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+            ax.set_title(f"{head}  {stat:+.2f}" if ci else f"{head}  {stat:.2f}",
+                         fontsize=7.5, fontweight="bold" if ci == 0 else "normal")
+            if ci == 0:
+                ax.set_ylabel(f"{an}\n{ylab}", fontsize=8, fontweight="bold")
+    if im_abs is None or im_del is None:
+        plt.close(fig)
+        return None
+    fig.colorbar(im_del, ax=axes[:, 1:].ravel().tolist(), fraction=0.012, pad=0.02,
+                 label=delta_label)
+    # Explicit cax INSIDE the reserved spacer column, computed after the delta bar has taken its
+    # own space (it shrinks only the day columns, never the spacer).
+    top, bot = spacer[0].get_position(), spacer[-1].get_position()
+    cax = fig.add_axes([top.x0 + 0.30 * top.width, bot.y0,
+                        0.26 * top.width, top.y1 - bot.y0])
+    fig.colorbar(im_abs, cax=cax, label=abs_label)
+    fig.suptitle(title, fontsize=9.5)
+    _footer(fig)
+    p = Path(out_dir) / fname
+    fig.savefig(p, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return p
+
+
+def _diag(M):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        return float(np.nanmean(np.diag(M)))
+
+
+def fig_pattern_delta(out_dir, min_trials=10):
+    """6d: figure 6b as DIFFERENCES from the pre-stroke reference.
+
+    Every post-stroke panel minus the leave-one-session-out pre-stroke matrix. Zero means "this day
+    looks exactly like one pre-stroke day looks against the others" -- which is the honest null, not
+    a correlation of 1.
+
+    READ THE OFF-DIAGONAL AS WELL AS THE DIAGONAL. A negative diagonal cell says the position lost
+    its own code; a POSITIVE off-diagonal cell at (far_R, far_L) says far_R trials came to look more
+    like pre-stroke far_L than they used to -- a substitution, which the absolute panel shows only if
+    the reader remembers what that cell looked like before. The delta is the whole reason the
+    substitution result is legible at a glance.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            mats, days = _matrices_pattern(align, v, min_trials)
+            if not days or not mats:
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            p = _delta_grid(
+                mats, days, out_dir, f"grant_6d_pattern_delta_{align}_{v}.png",
+                title=(f"Mean-pattern similarity, CHANGE FROM PRE-STROKE — {wname} window\n"
+                       f"Post-stroke class: {cls}.  Column 1 is the pre-stroke reference "
+                       f"(leave-one-session-out); every later column is THAT DAY MINUS IT.\n"
+                       f"Rows = the pattern being described, columns within a panel = the "
+                       f"pre-stroke position it is correlated with. ZERO = indistinguishable from "
+                       f"an ordinary pre-stroke day.\nNegative on the DIAGONAL = the position lost "
+                       f"its own code. Positive OFF-DIAGONAL = it came to look like a different "
+                       f"position. The number above each panel is the change in mean diagonal."),
+                abs_label="pre-stroke r", delta_label="change in r vs pre-stroke",
+                vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
+                ylab="this position")
+            if p:
+                made.append(p)
+    return made
+
+
+def fig_splithalf_delta(out_dir, min_trials=10):
+    """7d: figure 7 as DIFFERENCES from the pre-stroke reference.
+
+    The within-session split-half matrix minus the per-pre-session average. Zero means this session
+    reproduces its own patterns exactly as repeatably as a pre-stroke session did.
+
+    THIS IS THE CONTROL FIGURE IN ITS MOST DIRECT FORM. If the pattern deltas in 6d were really a
+    reliability story, the diagonal here would fall by a comparable amount at the same positions on
+    the same days. Where 6d falls and this does not, the code moved.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            mats, days = _matrices_splithalf(align, v, min_trials)
+            if not days or not mats:
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            p = _delta_grid(
+                mats, days, out_dir, f"grant_7d_splithalf_delta_{align}_{v}.png",
+                title=(f"WITHIN-session split-half similarity, CHANGE FROM PRE-STROKE — {wname} "
+                       f"window\nPost-stroke class: {cls}.  Column 1 is the average over pre-stroke "
+                       f"sessions; every later column is THAT DAY MINUS IT.\n"
+                       f"BOTH HALVES COME FROM THE SAME SESSION, so nothing about the lesion or the "
+                       f"pre-stroke reference enters a single panel -- only how repeatable that "
+                       f"day's own patterns are.\nA diagonal that falls HERE as much as it falls in "
+                       f"6d means a noisier code; a 6d fall without one here means a MOVED code. "
+                       f"The number above each panel is the change in mean diagonal."),
+                abs_label="pre-stroke split-half r", delta_label="change in split-half r",
+                vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
+                ylab="half A at")
+            if p:
+                made.append(p)
+    return made
+
+
+def fig_confusion_delta(out_dir):
+    """5d: figure 5c as DIFFERENCES from the pre-stroke reference.
+
+    The frozen decoder's per-session confusion minus the leave-one-session-out pre-stroke confusion,
+    cell by cell, in row-normalised probability. Zero means the decoder makes the same errors in the
+    same proportions it made before the lesion.
+
+    WHY THIS IS THE MOST INFORMATIVE OF THE THREE. The pre-stroke confusion is far from uniform --
+    close positions are confusable with each other and far ones are not -- so an absolute
+    post-stroke cell of 0.3 means different things in different places. Subtracting removes the
+    baseline structure and leaves only what the lesion did: a negative diagonal cell is recall lost
+    at that position, and the positive cell in the same ROW says where those trials went instead.
+    """
+    made = []
+    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
+        per_animal, days = _collect_5c(align)
+        if not days or not per_animal:
+            continue
+
+        def _norm(C):
+            row = C.sum(1, keepdims=True)
+            return np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+
+        mats = {}
+        for an, (Cpre, by_day) in per_animal.items():
+            if Cpre is None or not Cpre.sum():
+                continue
+            d = {"PRE": _norm(Cpre)}
+            for day, C in by_day.items():
+                if C is not None and C.sum():
+                    d[day] = _norm(C)
+            mats[an] = d
+        p = _delta_grid(
+            mats, days, out_dir, f"grant_5d_confusion_delta_{align}.png",
+            title=(f"Frozen pre-stroke decoder, CHANGE FROM PRE-STROKE — {wname} window\n"
+                   f"Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
+                   f"removed). Column 1 is the pre-stroke confusion (leave-one-session-out);\n"
+                   f"every later column is THAT DAY MINUS IT. Rows = TRUE spout position, columns "
+                   f"within a panel = predicted. ZERO = the same errors in the same proportions.\n"
+                   f"A negative DIAGONAL cell is recall lost at that position; the positive cell in "
+                   f"the SAME ROW says where those trials went instead. The number above each panel "
+                   f"is the change in overall accuracy."),
+            abs_label="pre-stroke P(predicted | true)",
+            delta_label="change in P(predicted | true)",
+            vmin=0, vmax=1, cmap="magma", dmax=0.6, summary=_diag,
+            ylab="true position", figh=9.0)
+        if p:
+            made.append(p)
+    return made
+
+
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
 
@@ -1521,20 +2699,25 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "6", "6b"))
+                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
+                             "6b", "6d", "7", "7b", "7d", "8", "8b"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "6", "6b"))
+    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
+                             "6b", "6d", "7", "7b", "7d", "8", "8b"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
             ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post),
             ("5b", fig_confusion_pre_post_working),
-            ("5c", fig_confusion_per_session),
+            ("5c", fig_confusion_per_session), ("5d", fig_confusion_delta),
             ("6", fig_pattern_similarity),
-            ("6b", fig_pattern_similarity_per_session))
+            ("6b", fig_pattern_similarity_per_session), ("6d", fig_pattern_delta),
+            ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
+            ("7d", fig_splithalf_delta),
+            ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry))
     for key, fn in jobs:
         if key not in want:
             continue

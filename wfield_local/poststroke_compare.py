@@ -26,7 +26,8 @@ from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_pred
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from wfield_local import config, nolick_analysis as na
+from wfield_local import config
+from wfield_local import nolick_analysis as na
 from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
@@ -78,11 +79,11 @@ def _pooled(animal, align, source="roi", post_labels=None):
     p = pool_sessions(pre + post, source=source, align=align, post_s=2.0)
     if p is None:
         return None
-    XE, YE, GE, BE, XU, YU, kept, common, GU = p
+    XE, YE, GE, BE, XU, YU, kept, _common, GU = p
     pre_i = {i for i, l in enumerate(kept) if l in set(pre)}
     post_i = {i for i, l in enumerate(kept) if l not in set(pre)}
-    return dict(XE=XE, YE=YE, GE=GE, BE=BE, XU=XU, YU=YU.astype(int), GU=GU, kept=kept,
-                pre_i=pre_i, post_i=post_i)
+    return {"XE": XE, "YE": YE, "GE": GE, "BE": BE, "XU": XU, "YU": YU.astype(int), "GU": GU,
+            "kept": kept, "pre_i": pre_i, "post_i": post_i}
 
 
 def preserved_positions(d, session=None, combine="intersection"):
@@ -163,7 +164,7 @@ def decode_matched(d, keep, post_all_trials=True):
     out["accuracy"] = float(accuracy_score(ypost, post_pred))
     out["post_arm"] = "ALL trials" if post_all_trials else "lick-only"
     out["positions_scored"] = [POSITION_NAMES[c] for c in pos]
-    out["n_post"] = int(len(ypost))
+    out["n_post"] = len(ypost)
     v = np.array(list(per.values()), float)
     out["pre_band"] = {"mean": float(v.mean()), "min": float(v.min()), "max": float(v.max()),
                        "n_sessions": len(per)}
@@ -376,11 +377,27 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
 def pattern_similarity(d, keep, post_all_trials=True):
     """POST arm uses ALL trials by default and is scored over every position -- see decode_matched.
 
-    Per-position mean-pattern correlation between phases -- is the code the SAME code?"""
+    Per-position mean-pattern correlation between phases -- is the code the SAME code?
+
+    ``r_pre_loo`` IS THE CEILING AND ``r`` MUST NOT BE READ WITHOUT IT (added 2026-08-25). A bare
+    pre-vs-post correlation invites comparison with 1.0, and 1.0 is unreachable: two mean patterns
+    estimated on DIFFERENT DAYS differ by ordinary day-to-day drift and by however noisily each was
+    estimated, in a healthy animal with no lesion at all. ``r_pre_loo`` measures exactly that -- each
+    pre-stroke session's own mean pattern against the pooled mean of the OTHER pre-stroke sessions,
+    averaged -- so it is the value ``r`` would take if the lesion changed nothing. On PS94's post-cue
+    window the equivalent quantity in the grant figures is ~0.75-0.86, not 1.0, and reading a post
+    value of 0.7 against 1.0 rather than against 0.8 turns "unchanged" into "30% lost".
+
+    ONE SESSION AGAINST A POOL, deliberately, because that is the shape of the post comparison too.
+    Splitting the pre-stroke TRIALS at random instead would put both sides on the same days and
+    measure only trial noise, giving a ceiling no across-day comparison can reach -- the error this
+    docstring exists to prevent recurring.
+    """
     # ALL six positions when the post arm is all-trials: restricting to `keep` would silently drop
     # far_center and far_R for PS94, which are the positions this comparison most needs to describe.
     pos = list(DISPLAY_ORDER) if post_all_trials else list(keep)
     out = {}
+    pre_sessions = sorted(d["pre_i"])
     for c in pos:
         a = d["XE"][np.isin(d["GE"], list(d["pre_i"])) & (d["YE"] == c)]
         b = d["XE"][np.isin(d["GE"], list(d["post_i"])) & (d["YE"] == c)]
@@ -391,8 +408,18 @@ def pattern_similarity(d, keep, post_all_trials=True):
         if len(a) < 5 or len(b) < 5:
             continue
         ma, mb = a.mean(0), b.mean(0)
+        loo = []
+        for s in pre_sessions:
+            h = d["XE"][(d["GE"] == s) & (d["YE"] == c)]
+            r = d["XE"][np.isin(d["GE"], [x for x in pre_sessions if x != s]) & (d["YE"] == c)]
+            if len(h) >= 5 and len(r) >= 5:
+                mh, mr = h.mean(0), r.mean(0)
+                if np.std(mh) and np.std(mr):
+                    loo.append(float(np.corrcoef(mh, mr)[0, 1]))
         out[POSITION_NAMES[c]] = {"r": float(np.corrcoef(ma, mb)[0, 1]),
-                                  "n_pre": int(len(a)), "n_post": int(len(b))}
+                                  "r_pre_loo": (float(np.mean(loo)) if loo else None),
+                                  "n_pre_sessions": len(loo),
+                                  "n_pre": len(a), "n_post": len(b)}
     return out
 
 
@@ -545,7 +572,7 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     Returns (engaged_bool per trial, info). Trials at non-reference positions inherit the state of
     the reference-position trials around them, since that is what the estimate is FOR.
     """
-    from wfield_local import config, nolick_decoder as nd
+    from wfield_local import nolick_decoder as nd
 
     args = nd._args(align="cue")
     # 2.0 s HERE IS NOT THE ENGAGED CUT. It is the boundary nd.categorize needs to produce the
@@ -554,7 +581,7 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     # raising it to 3.5 would collapse the late arm into engaged and silently change what
     # `responded` means. Spelled out 2026-08-22, when eleven other modules genuinely had missed it.
     args.max_rt = 2.0
-    codes, cat, blk, rt_s, cue_f, _pre_gate = nd.categorize(s, args)
+    codes, cat, _blk, _rt_s, _cue_f, _pre_gate = nd.categorize(s, args)
     codes = np.asarray(codes)
     responded = np.array([c in ("engaged", "late_rewarded") for c in cat], bool)
     is_ref = np.isin(codes, list(reference_positions))
@@ -599,10 +626,10 @@ def nolick_state_vector(kept, args, reference_positions=None):
         s_ = next((x for x in SESSIONS if x["label"] == lab), None)
         if s_ is None:
             continue
-        *_rest, idx_e, idx_nl = _trial_features(s_, args, with_indices=True)
+        *_rest, _idx_e, idx_nl = _trial_features(s_, args, with_indices=True)
         ca = nd._args(align=args.align)
         ca.max_rt = args.max_rt
-        codes, cat, _blk, _rt, _cf, _pre = nd.categorize(s_, ca)
+        _codes, cat, _blk, _rt, _cf, _pre = nd.categorize(s_, ca)
         st, _info = poststroke_engagement(s_, refs)
         eng.append(np.asarray(st)[idx_nl])
         cats.append(np.asarray(cat, dtype=object)[idx_nl])
@@ -816,14 +843,14 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
         if ng < 2:
             continue
         acc = float(accuracy_score(y, cross_val_predict(_pipe(), X, y, cv=GroupKFold(ng), groups=gb)))
-        rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": int(len(y)),
+        rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": len(y),
                      "post": is_post})
     pre = np.array([r["within_accuracy"] for r in rows if not r["post"]], float)
     post = [r for r in rows if r["post"]]
     if len(pre) < 3 or not post:
-        return {"note": "not enough sessions", "n_pre": int(len(pre)), "n_post": len(post)}
+        return {"note": "not enough sessions", "n_pre": len(pre), "n_post": len(post)}
     band = {"mean": float(pre.mean()), "sd": float(pre.std(ddof=1)),
-            "min": float(pre.min()), "max": float(pre.max()), "n": int(len(pre))}
+            "min": float(pre.min()), "max": float(pre.max()), "n": len(pre)}
     out = {"n_positions": len(scored), "chance": 1.0 / len(scored), "within_pre_band": band,
            "positions_scored": [POSITION_NAMES[c] for c in scored],
            "post_arm": "ALL trials" if post_all_trials else "engaged only", "per_session": rows}

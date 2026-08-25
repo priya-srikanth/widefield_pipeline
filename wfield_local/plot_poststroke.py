@@ -274,11 +274,36 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
         ax.set_xticks(x)
         ax.set_xticklabels(POS, rotation=30, ha="right", fontsize=7.5)
         ax.set_title(an, fontsize=10, fontweight="bold")
+        # THE CEILING, PER POSITION, DRAWN AS A GREY BAND (added 2026-08-25). Without it a reader
+        # compares these bars with 1.0, and 1.0 is unreachable: two mean patterns measured on
+        # DIFFERENT DAYS differ by ordinary day-to-day drift and by however noisily each was
+        # estimated, in a healthy animal with no lesion at all. `r_pre_loo` is exactly that quantity
+        # -- each pre-stroke session against the pool of the others -- so it is what a bar would
+        # reach if the lesion changed nothing. On the grant figures the equivalent runs 0.75-0.86,
+        # so reading a post value of 0.7 against 1.0 rather than against 0.8 turns "unchanged" into
+        # "30% lost".
+        #
+        # ABSENT ON OLD JSON, and that is expected rather than an error: `r_pre_loo` is written by
+        # `poststroke_compare.pattern_similarity` from 2026-08-25 onward, so a section_g.json built
+        # before then simply has no band and the figure falls back to what it always drew.
+        ceil = [np.nanmean([sim[lab].get(p, {}).get("r_pre_loo") for lab in labs
+                            if sim[lab].get(p, {}).get("r_pre_loo") is not None] or [np.nan])
+                for p in POS]
+        if np.isfinite(ceil).any():
+            for xi, c in zip(x, ceil):
+                if np.isfinite(c):
+                    ax.plot([xi - 0.42, xi + 0.42], [c, c], color="0.35", lw=1.8,
+                            solid_capstyle="butt",
+                            label="pre-stroke ceiling (leave-1-session-out)"
+                                  if (k == 0 and xi == x[0]) else None)
         ax.legend(fontsize=6.5, loc="lower left", framealpha=0.85)
         ax.set_ylim(-0.6, 1.0)
     axes[0][0].set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
-    fig.suptitle(suptitle or "Per-position correlation between the pre- and post-stroke mean "
-                 "activity patterns, one panel per animal, one series per post-stroke day.",
+    fig.suptitle((suptitle or "Per-position correlation between the pre- and post-stroke mean "
+                  "activity patterns, one panel per animal, one series per post-stroke day.")
+                 + "  GREY LINE = the pre-stroke ceiling (each pre-stroke session against the pool "
+                   "of the others). Read the bars against IT, never against 1.0: two pre-stroke "
+                   "days already differ by ordinary drift.",
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
