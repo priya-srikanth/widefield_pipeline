@@ -2369,10 +2369,20 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                  label=delta_label)
     # Explicit cax INSIDE the reserved spacer column, computed after the delta bar has taken its
     # own space (it shrinks only the day columns, never the spacer).
+    #
+    # TICKS AND LABEL ON THE **LEFT** OF THE BAR. Matplotlib puts both on the right by default, so
+    # even with the bar itself safely inside the spacer the rotated label was drawn past the
+    # spacer's right edge and over the day-1 matrices (Priya, 2026-08-25 -- the second report of
+    # this, the first having been the bar itself). Everything now extends LEFT, toward the gap
+    # beside the reference panel, which carries no labels of its own.
     top, bot = spacer[0].get_position(), spacer[-1].get_position()
-    cax = fig.add_axes([top.x0 + 0.30 * top.width, bot.y0,
-                        0.26 * top.width, top.y1 - bot.y0])
-    fig.colorbar(im_abs, cax=cax, label=abs_label)
+    cax = fig.add_axes([top.x0 + 0.58 * top.width, bot.y0,
+                        0.20 * top.width, top.y1 - bot.y0])
+    cb = fig.colorbar(im_abs, cax=cax)
+    cax.yaxis.set_ticks_position("left")
+    cax.yaxis.set_label_position("left")
+    cax.tick_params(labelsize=7)
+    cb.set_label(abs_label, fontsize=8)
     fig.suptitle(title, fontsize=9.5)
     _footer(fig)
     p = Path(out_dir) / fname
@@ -2519,8 +2529,8 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
                        f"day.\nDiagonal = did the pattern move. A NEGATIVE off-diagonal cell is a "
                        f"substitution: that row's trials moved TOWARD the column's pre-stroke "
                        f"pattern. Distances are NOT gain-invariant -- read with 8b."),
-                abs_label="pre-stroke distance (1.0 = mean between-position)",
-                delta_label="change in distance vs pre-stroke",
+                abs_label="pre-stroke distance",
+                delta_label="change in distance (1.0 = mean pre-stroke between-position)",
                 vmin=0, vmax=2.5, cmap="magma", dmax=1.5, summary=_diag,
                 ylab="this position")
             if p:
@@ -2570,7 +2580,7 @@ def fig_confusion_delta(out_dir):
                    f"A negative DIAGONAL cell is recall lost at that position; the positive cell in "
                    f"the SAME ROW says where those trials went instead. The number above each panel "
                    f"is the change in overall accuracy."),
-            abs_label="pre-stroke P(predicted | true)",
+            abs_label="pre-stroke P(pred | true)",
             delta_label="change in P(predicted | true)",
             vmin=0, vmax=1, cmap="magma", dmax=0.6, summary=_diag,
             ylab="true position", figh=9.0)
