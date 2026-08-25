@@ -4551,3 +4551,193 @@ Re-rendered 3a/3b/5 so they carry the corrected source-aware footer. It now read
 which is the point of the change: those three figures are built from `coding_direction.json` /
 `section_g.json`, and the config-reading footer had been reporting the balanced 6/6/6/6 cohort on
 figures that do not contain it.
+
+---
+
+## THE PRE-STROKE BASELINE WAS POOLED WHERE THE POST COLUMNS WERE PER-SESSION (2026-08-25)
+
+Priya asked two questions that turned into a correction: *"building each post-stroke session's
+split-half correlation matrix (to see if part of the 'lost code' is just that responses are more
+variable)"*, and then *"can you redo the other pre vs post figures if needed to account for higher
+pre-stroke numbers?"*
+
+**She was right that there was something to account for, and it was worse than it looked.**
+
+### THE ERROR
+Figures 6 and 6b drew a random half of the POOLED pre-stroke TRIALS as the reference and the other
+half as the no-lesion baseline. Both halves therefore came from the **same days**. The baseline
+contained within-session trial noise and *no day-to-day drift whatever*, while every post-stroke
+panel compares DIFFERENT days against those days. It was a ceiling no across-day comparison can
+reach — and the headline result, "post minus baseline is negative at every position", was measured
+against it.
+
+The first draft of figure 7 had the same error in a starker form and was caught before it was
+believed: it compared the split-half reliability of the POOLED pre-stroke set (six sessions,
+0.97–0.99) against one post-stroke session at a time (0.14–0.67) and appeared to show that
+post-stroke responses were half as repeatable as baseline. Split-half reliability rises with trial
+count; almost all of that gap was six times the trials. The same animal's INDIVIDUAL pre-stroke
+sessions read 0.77–0.97.
+
+### THE FIX
+**Leave-one-session-out everywhere the comparison is a correlation.** Figure 6 splits pre-stroke
+SESSIONS rather than trials; 6b, 7, 7b, 8 and 8b score each pre-stroke session against the pool of
+the OTHERS and average. One session against other days — exactly the shape of every post-stroke
+column, and disjoint, so nothing is scored against itself.
+
+### WHAT WAS NOT WRONG, AND WHY
+The decoding matrices were already safe: `crossed_confusion` uses
+`cross_val_predict(LeaveOneGroupOut, groups=GE)`, the no-lick control trains on the other pre-stroke
+sessions, and 5b has an explicit LOSO loop. There is also a structural reason the decoders were never
+much exposed: **a decoder classifies each trial individually**, so test-set size moves the PRECISION
+of an accuracy estimate, not its expectation. A correlation between two MEANS is attenuated by how
+many trials went into each mean. That is why the damage was confined to the correlation figures, and
+it is the rule to apply when adding the next one.
+
+### THE CEILING IS NOT 1.0 — AND THAT IS A RESULT, NOT A DEFECT
+PS94 post-cue disattenuates to **0.75–0.86** in the leave-one-out column. Disattenuating by a
+WITHIN-session reliability removes trial noise and nothing else; two pre-stroke days also differ by
+ordinary drift, which no within-session split half can see. So the PRE column is the ceiling, the
+same way the axis analysis uses a matched null instead of comparing cosines with unity. The two
+constructions agree independently — PS94 scores 0.80 here and 0.89 on the axis null.
+
+**Read every post column against PRE, never against 1.** A post value of 0.7 read against 1.0 rather
+than against 0.8 turns "unchanged" into "30% lost".
+
+---
+
+## IS THE LOST CODE A MOVED CODE OR A NOISIER ONE? — IT MOVED (2026-08-25)
+
+The control Priya asked for, built as figures 7 (within-session split-half matrices) and 7b (figure
+6's diagonal, raw and disattenuated by `raw / sqrt(rel_post * rel_pre)`).
+
+**Disattenuation barely moves anything**, because reliability is mostly 0.8–0.95 and there was little
+attenuation to remove. Post-cue, working trials:
+
+| | PS92 far_R | PS93 far_R | PS94 far_R | PS95 far_R |
+|---|---|---|---|---|
+| reliability, post-stroke days | 0.90–0.95 | 0.79–0.96 | 0.82–0.98 | 0.81–0.99 |
+| raw similarity to pre-stroke | −0.09 … 0.02 | −0.33 … 0.16 | −0.26 … 0.37 | 0.06 … 0.57 |
+| PRE ceiling | 0.77 | 0.73 | 0.71 | 0.79 |
+
+PS92's far_R pattern is measured *more* repeatably after the lesion than before (0.90–0.95 against a
+pre-stroke 0.80) and has **zero** relationship to the pre-stroke far_R pattern. That is not a noisy
+code. It moved.
+
+**The control is not vacuous — it caught a different position.** `close_center` reliability collapses
+in three animals (PS92 d4 = 0.21, PS93 d5 = 0.01, PS94 d4 = 0.32) and those cells are suppressed
+rather than printed, because dividing by sqrt(0.01) yields a number with no information in it.
+**close_center's apparent change must not be quoted as a lesion effect.** Why it is poorly estimated
+is open; trial count and behavioural variability are both plausible and checkable.
+
+**Spearman-Brown is load-bearing.** `_split_half` correlates two means of n/2 trials, but figure 6
+correlates the mean of all n. Skipping the projection makes every reliability too low, and since 7b
+DIVIDES by sqrt(rel_post × rel_pre), too small a denominator inflates every disattenuated value — it
+would have manufactured the "code moved" verdict the panel exists to test.
+
+---
+
+## THE CROSSNOBIS VERSION, AND WHAT IT CAN AND CANNOT SAY PER POSITION (2026-08-25)
+
+Priya: *"would this still give us any per-position information though? or just overall
+representational geometry similarity?"* **Both, but they are different questions**, so they are two
+figures:
+
+| | keeps per-position patterns | invariant to a global gain change |
+|---|---|---|
+| 6 (correlation, cross-set) | yes | **no** |
+| **8** — crossnobis distance d(post P, pre Q) | yes | **no** (but noise-UNBIASED) |
+| **8b** — second-order RDM correlation | row-wise only | **yes** |
+
+Crossnobis's native object is a within-set RDM, so there is no single translation of figure 6. Figure
+8 keeps every position and gives up gain-invariance; **8b is RSA proper** and cannot be fooled by a
+uniform amplitude change, with per-position information surviving as each position's ROW — "is far_R
+still arranged relative to everything else the way it was" is answerable, "did far_R's pattern move"
+is not.
+
+**Why the pair matters:** figure 6's headline — every position drops, far_R most — is precisely the
+signature a global amplitude change would leave. 8b is the measure that distinguishes them. Verified
+on synthetic data rather than asserted: with post = pre scaled by 0.4 and nothing moved, the
+second-order correlation stays >0.9 while the cross-set distance rises.
+
+**Is 6b "a version of RSA"?** Partly. It is first-order representational geometry — in Kriegeskorte's
+terms the pre×post off-diagonal block of a joint RDM — but it has no second-order step and it
+REQUIRES feature correspondence (the shared joint-LocaNMF basis), which is the very thing RSA exists
+to avoid needing. Call it "pattern similarity", or "RSA-style"; reserve "RSA" for section F
+(crossnobis) and 8b, or a reader will assume a gain-invariance this measure does not have.
+
+---
+
+## DELTA VIEWS, AND A FIGURE-7 ASYMMETRY THAT WAS PURE NOISE (2026-08-25)
+
+Priya: *"make additional versions of fig 5, 6, 7 as differences from prestroke."* Built as **5d, 6d,
+7d**: column 1 is the pre-stroke reference in its own units, every later column is that day MINUS it.
+
+**Why it earns a separate figure rather than a reader's subtraction.** The pre-stroke reference is
+not uniform — close positions are intrinsically confusable and far ones are not — so an absolute
+cell of 0.3 may sit against a baseline of 0.35 (nothing happened) or 0.9 (most of the code gone). It
+made the substitution result legible at a glance: in every animal the far_R ROW shows a negative
+diagonal with POSITIVE off-diagonal at the close/central columns, i.e. post-stroke far_R activity
+came to resemble pre-stroke close_L/close_center. **That matches Priya's behavioural observation**
+that far_R miss trials carry incomplete leftward or central licks (2026-08-24). Present in the
+absolute panels, but only visible to a reader who remembered what those cells looked like before.
+
+**r is differenced, NOT r-squared** (Priya's phrasing was "deltas of r2 / accuracy"): the sign is the
+result — a far_R pattern moving ONTO far_L shows as a positive off-diagonal — and squaring erases
+exactly that.
+
+### THE FIGURE-7 ASYMMETRY
+Priya, on the first render: *"why aren't the fig 7 matrices symmetrical about the diagonal?"*
+`M[P,Q]` was `corr(half A at P, half B at Q)`, so (far_R, close_L) and (close_L, far_R) were **two
+estimates of one quantity**, differing only in which random half of each position's trials landed on
+which side. The asymmetry was pure estimation noise drawn as structure — in a figure whose entire job
+is to quantify estimation noise. Off-diagonal cells now average both pairings: symmetric, same
+expectation, still cross-validated (no half is ever correlated with itself), half the variance. The
+discarded difference is kept as `_split_half_asymmetry` — a real noise read, reported rather than
+smuggled into the picture.
+
+This does NOT apply to 6/6b/8, where rows are post-stroke and columns pre-stroke: those are genuinely
+different sets and the asymmetry IS the substitution signal. `_crossnobis_within` was already
+symmetric.
+
+---
+
+## SECTION G's `pattern_similarity` HAD NO CEILING AT ALL (2026-08-25)
+
+It reported a bare pre-vs-post `r`, which invites comparison with 1.0 — the error the whole
+leave-one-out correction above is about. It now also emits **`r_pre_loo`** (each pre-stroke session
+against the pool of the others, averaged) and `fig_similarity` draws it as a grey line per position,
+with the suptitle saying to read the bars against IT and never against 1.
+
+**Additive on purpose.** A `section_g.json` written before today has no such field, so the band
+simply does not appear rather than crashing a render that also holds fifteen other panels. Tests pin
+both paths.
+
+---
+
+## GRANT-FIGURE STALENESS AUDIT (2026-08-25, 17:00)
+
+Asked directly ("are the other grant_figures accurate / not stale?"), so recorded rather than
+answered once:
+
+| figure | built from | state |
+|---|---|---|
+| 1, 1b behaviour | live, config + behaviour tables | CURRENT (both 0824 sessions registered 08-24 17:34 / 20:08, before the 06:05 render) |
+| 2, 2b pre-stroke decoding | live, PRE-STROKE ONLY | CURRENT — 0824 is post-stroke and cannot affect them |
+| **3a coding retained** | `coding_direction.json`, mtime 08-24 05:44 | **STALE** — missing PS92_0824, PS93_0824 |
+| **3b frozen vs within** | `section_g.json`, mtime 08-24 03:57 | **STALE** — same |
+| 4 pre-stroke confusion | live, LOSO, pre only | CURRENT |
+| **5 frozen pre/post** | `section_g.json` | **STALE** — same |
+| 5b, 5c, 5d | live recompute | CURRENT |
+| 6, 6b, 6d, 7, 7b, 7d, 8, 8b | live recompute, corrected baseline | CURRENT (rendered 13:19–16:46 today) |
+
+**The three stale figures declare it themselves** — this is what the source-aware `coverage_note`
+was built for on 2026-08-25 morning. Their footer reads *"PS92 5, PS93 5, PS94 6, PS95 6 — UNEQUAL —
+STALE: registered but ABSENT here: PS92_0824, PS93_0824"*. A config-reading footer would have printed
+a confident 6/6/6/6 on all three, which would have been true of the config and false of the figure.
+
+`poststroke_section_g` was re-running as this was written (started 16:52), which will refresh
+`section_g.json` and with it figures 3b and 5. **It will NOT add `r_pre_loo`**: the nightly runs from
+the MAIN checkout, which is at `a7583e6`, and that field landed in `5ed4d75`. The main checkout was
+deliberately left alone rather than pulled mid-run — swapping code under a running multi-step
+pipeline would make different steps run different versions, which is a worse failure than a
+one-cycle delay.
