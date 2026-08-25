@@ -4426,3 +4426,85 @@ stops warning once the counts match.
    8/24 for both animals.
 3. Regenerate the grant figures (`python -m wfield_local.grant_figures`) and confirm the footer no
    longer warns.
+
+---
+
+## INTERVALS AND A NULL FOR THE PATTERN MATRICES — AND WHY SESSIONS ARE NOT RESAMPLED (2026-08-25)
+
+Priya: "how can we add significance / error bars? permutation? bootstrapping?" -- then, decisively:
+"session-level is problematic with things dynamically changing over sessions, no?"
+
+**She is right, and it settled the design.** A session bootstrap assumes days are exchangeable draws
+from one distribution. They are not, and the per-session figures now prove it rather than assert it:
+
+    mean own-position similarity, post-cue, working trials
+    PS92  PRE 0.95 | 0.41 0.65 0.54 0.48 0.37 0.59
+    PS93  PRE 0.96 | 0.36 0.22 0.15 0.19 0.32
+    PS94  PRE 0.97 | 0.14 0.06 0.28 0.34 0.25 0.55     <- 0.06 to 0.55 across one week
+    PS95  PRE 0.97 | 0.42 0.58 0.59 0.49 0.47 0.36
+
+Resampling those days would fold a ninefold trajectory into "sampling noise" and produce an interval
+for a post-stroke state that does not exist.
+
+### WHAT WAS BUILT INSTEAD
+- **Stratified bootstrap, sessions held FIXED**: trials resampled WITHIN each session, session
+  composition untouched. The interval then means "how well determined is this estimate GIVEN THESE
+  DAYS". It does NOT license generalisation to other days -- with a moving target and six sessions
+  that question needs the trajectory, which the per-session figure shows rather than summarises.
+- **Permutation null, position labels shuffled WITHIN session**: post-stroke trials keep their
+  session, their counts and the global post-stroke pattern; only WHICH POSITION they belong to is
+  shuffled. A ring on the figure therefore means POSITION-SPECIFIC STRUCTURE, not "r != 0" -- and
+  since positions are intrinsically similar, a zero-null would ring nearly every cell. Verified on
+  synthetic data: the null centres at 0.580 against a theoretical global-mean correlation of 0.579.
+- **The claim gets the interval, not the cells**: a third panel plots post MINUS baseline for each
+  position's own-position r, differenced DRAW BY DRAW. The two panels share the same resampled
+  reference, so their errors are correlated and differencing the published CIs would have overstated
+  the interval.
+
+**A performance bug worth recording**: the first permutation rebuilt Python lists of individual trial
+rows on every resample -- O(sessions x trials) per iteration, minutes per animal. Stacking each
+session's trials once with a label vector makes a permutation one `rng.permutation` and six boolean
+means. Same statistic, ~100x faster.
+
+### THE RESULT THE INTERVALS CHANGE
+Post minus baseline, own position, post-cue, working trials (95% stratified bootstrap):
+
+| | close_L | close_center | close_R | far_L | far_center | far_R |
+|---|---|---|---|---|---|---|
+| PS92 | −0.08 | −0.30 | −0.15 | −0.45 | −0.10 | **−0.92** |
+| PS93 | −0.58 | −0.78 | −0.24 | −0.22 | −0.25 | **−1.15** |
+| PS94 | −0.24 | −0.66 | −0.38 | −0.85 | −0.66 | **−0.95** |
+| PS95 | −0.22 | −0.20 | −0.21 | −0.34 | −0.77 | −0.65 |
+
+far_R is the largest drop in all four animals, **and every position drops with an interval excluding
+zero**. So the effect is GRADED, not far_R-exclusive. That is a materially more careful statement
+than "the far_R code is lost", and it is the same global-change signature that has surfaced in the
+manifold analysis, the pre-cue outcome-blind arm and the close-vs-far geometry of the baseline
+panels. Quote the gradient, not the exclusivity.
+
+### ORDERING, REVERSED FROM WHAT I SAID EARLIER
+I called the pooled figure the one to quote and the per-session one a diagnostic. With
+non-exchangeable sessions that is backwards: **the per-session figure is primary** -- the trajectory
+IS the result -- and the pooled figure is a summary whose interval is conditional on those six days.
+
+---
+
+## PS93_0824 REGISTERED: THE COHORT IS BALANCED, AND THE NUMBERS MOVED A LITTLE (2026-08-25)
+
+`await_locanmf` registered PS93_0824 in commit 4f33d61 while this work was in flight, so the cohort
+is now 6/6/6/6 and `coverage_note()` has switched its own warning off, as designed.
+
+**The five-session PS93 numbers reported earlier are SUPERSEDED**, not wrong-then-right: post-stroke
+far_R own-position r moved from −0.26 to **−0.17**, and the far_L substitution from +0.63 to
+**+0.70** (post-cue, working). The conclusion is unchanged and the cell is ringed against the
+permutation null, which is the useful fact -- a finding that survives a 20% change in the data behind
+it. PS93's per-session diagonals show no plateau (0.36 / 0.22 / 0.15 / 0.19 / 0.32), so a sixth day
+was not a small perturbation of a stable average and the numbers moving was expected.
+
+**STILL STALE, and the balanced footer does NOT cover it:** `section_g.json` and
+`coding_direction.json` predate BOTH 0824 sessions, so grant figures 3a, 3b and 5 -- and every G9 and
+section-G deck slide -- stop at 8/22 for PS92/PS93. The cohort-coverage footer reads
+`config.phase_labels("post")` and therefore reports 6/6/6/6 on those figures too, which is true of
+the CONFIG and not of the JSON they were built from. Re-running `poststroke_section_g` and
+`position_coding_directions` is left to the nightly (Priya, 2026-08-25) and remains item 0 in
+`docs/STATUS_2026-08-23.md`.

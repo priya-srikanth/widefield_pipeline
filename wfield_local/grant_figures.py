@@ -974,6 +974,104 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
     return made[0] if len(made) == 1 else (made or None)
 
 
+#: Resamples for the pattern-similarity intervals and null. 400 is enough for a 95% percentile
+#: interval and keeps a full render (4 animals x 3 windows x 2 variants) inside a few minutes.
+N_BOOT = 400
+
+
+def _strat_mean(by_session, rng):
+    """One stratified bootstrap mean: resample TRIALS WITHIN each session, sessions kept fixed.
+
+    SESSIONS ARE NOT RESAMPLED, and that is the whole point (Priya, 2026-08-25: "session-level is
+    problematic with things dynamically changing over sessions"). A session bootstrap assumes days
+    are exchangeable draws from one distribution; they are not -- PS94's frozen accuracy runs
+    0.39 -> 0.76 across six days and PS95 sits at 0.81-0.84 then falls to 0.60. Resampling days
+    would fold that trajectory into "sampling noise" and produce an interval for a post-stroke
+    state that does not exist.
+
+    Conditioning on the sessions instead makes the interval mean: "how well determined is this
+    estimate GIVEN THESE DAYS". It does NOT license generalisation to other days -- that question
+    needs the trajectory, which is what the per-session figure shows rather than summarises.
+    """
+    tot = None
+    n = 0
+    for X in by_session:
+        if not len(X):
+            continue
+        idx = rng.integers(0, len(X), len(X))       # trials within this session, count preserved
+        s = X[idx].sum(0)
+        tot = s if tot is None else tot + s
+        n += len(X)
+    return None if not n else tot / n
+
+
+def _pattern_stats(post_by_session, ref_by_session, labels, rng, n_boot=N_BOOT):
+    """(r, lo, hi, null_hi) per (row, col), all from the same stratified resampling scheme.
+
+    `null_hi` is the 97.5th percentile of |r| under a POSITION-LABEL PERMUTATION: the post-stroke
+    trials keep their session, their count and the global post-stroke pattern, and only which
+    position they belong to is shuffled. That is the right null for an off-diagonal claim, because
+    it asks "is there position-specific structure here" rather than "is r different from zero" --
+    and positions are intrinsically similar, so a zero-null would call almost every cell
+    significant.
+    """
+    K = len(labels)
+    obs = np.full((K, K), np.nan)
+    ref_mean = {q: _strat_mean(ref_by_session.get(q, []), rng) for q in labels}
+    post_mean = {p: _strat_mean(post_by_session.get(p, []), rng) for p in labels}
+    for i, p in enumerate(labels):
+        for j, q in enumerate(labels):
+            if post_mean.get(p) is None or ref_mean.get(q) is None:
+                continue
+            obs[i, j] = float(np.corrcoef(post_mean[p], ref_mean[q])[0, 1])
+    boots = np.full((n_boot, K, K), np.nan)
+    nulls = np.full((n_boot, K, K), np.nan)
+    # PER-SESSION STACKS, built ONCE. The first version rebuilt Python lists of single trial rows on
+    # every resample -- O(sessions x trials) list work per iteration, minutes per animal. Stacking
+    # each session's trials with a label vector makes a permutation one `rng.permutation` and six
+    # boolean means in numpy.
+    stacks = []
+    for si in range(max((len(v) for v in post_by_session.values()), default=0)):
+        Xs, ys = [], []
+        for p in labels:
+            v = post_by_session.get(p, [])
+            if si < len(v) and len(v[si]):
+                Xs.append(v[si])
+                ys += [p] * len(v[si])
+        if Xs:
+            stacks.append((np.vstack(Xs), np.array(ys)))
+    for b in range(n_boot):
+        rm = {q: _strat_mean(ref_by_session.get(q, []), rng) for q in labels}
+        pm = {p: _strat_mean(post_by_session.get(p, []), rng) for p in labels}
+        for i, p in enumerate(labels):
+            for j, q in enumerate(labels):
+                if pm.get(p) is None or rm.get(q) is None:
+                    continue
+                boots[b, i, j] = float(np.corrcoef(pm[p], rm[q])[0, 1])
+        tot, cnt = {}, {}
+        for Xs, ys in stacks:
+            yp = ys[rng.permutation(len(ys))]        # labels shuffled WITHIN this session
+            for p in labels:
+                m = yp == p
+                if m.any():
+                    tot[p] = Xs[m].sum(0) if p not in tot else tot[p] + Xs[m].sum(0)
+                    cnt[p] = cnt.get(p, 0) + int(m.sum())
+        pmn = {p: tot[p] / cnt[p] for p in tot if cnt.get(p)}
+        for i, p in enumerate(labels):
+            for j, q in enumerate(labels):
+                if pmn.get(p) is None or rm.get(q) is None:
+                    continue
+                nulls[b, i, j] = float(np.corrcoef(pmn[p], rm[q])[0, 1])
+    with np.errstate(invalid="ignore"):
+        lo = np.nanpercentile(boots, 2.5, axis=0)
+        hi = np.nanpercentile(boots, 97.5, axis=0)
+        null_hi = np.nanpercentile(np.abs(nulls), 97.5, axis=0)
+    # `boots` is returned so a CALLER can difference two matrices draw-by-draw. Differencing the
+    # published CIs instead would be wrong: the post and baseline panels share the same resampled
+    # reference, so their errors are correlated and an unpaired difference overstates the interval.
+    return obs, lo, hi, null_hi, boots
+
+
 def _mean_pattern(X):
     return X.mean(0) if len(X) else None
 
@@ -1033,61 +1131,81 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
                 e_pre = np.isin(GE, list(pre_i))
                 GU = np.asarray(GU)
-                u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
+                # u_pre no longer needed: post trials are now selected per SESSION id
                 en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
                 un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
                       if len(YU) else np.zeros(0, str))
                 # SPLIT THE PRE-STROKE TRIALS ONCE PER POSITION: half becomes the reference every
-                # panel is scored against, half becomes the no-lesion expectation.
+                # panel is scored against, half becomes the no-lesion expectation. Kept AS TRIALS
+                # GROUPED BY SESSION, not as means, because the stratified bootstrap resamples
+                # within sessions and a mean has already thrown that structure away.
                 ref, other = {}, {}
+                pre_ids = sorted(pre_i)
                 for p in CONF_LABELS:
                     idx = np.flatnonzero(e_pre & (en == p))
                     if len(idx) < 2 * min_trials:
                         continue
                     sh = rng.permutation(idx)
-                    ref[p] = _mean_pattern(XE[sh[:len(sh) // 2]])
-                    other[p] = _mean_pattern(XE[sh[len(sh) // 2:]])
+                    a, b = sh[:len(sh) // 2], sh[len(sh) // 2:]
+                    ref[p] = [XE[a[np.isin(GE[a], [i])]] for i in pre_ids]
+                    other[p] = [XE[b[np.isin(GE[b], [i])]] for i in pre_ids]
+                    ref[p] = [z for z in ref[p] if len(z)]
+                    other[p] = [z for z in other[p] if len(z)]
+                post_ids = [i for i in range(len(kept)) if i not in pre_i]
                 for v in variants:
                     postm = {}
                     for p in CONF_LABELS:
-                        parts = [XE[(~e_pre) & (en == p)]]
-                        if v == "working" and len(un):
-                            m = (~u_pre) & (un == p) & ~not_eng
-                            if m.any():
-                                parts.append(XU[m])
-                        Xp = np.vstack([q for q in parts if len(q)]) if any(
-                            len(q) for q in parts) else np.zeros((0, XE.shape[1]))
-                        if len(Xp) >= min_trials:
-                            postm[p] = _mean_pattern(Xp)
+                        by_sess, tot = [], 0
+                        for i in post_ids:
+                            parts = [XE[(GE == i) & (en == p)]]
+                            if v == "working" and len(un):
+                                m = (GU == i) & (un == p) & ~not_eng
+                                if m.any():
+                                    parts.append(XU[m])
+                            keep = [q for q in parts if len(q)]
+                            if keep:
+                                Z = np.vstack(keep)
+                                by_sess.append(Z)
+                                tot += len(Z)
+                        if tot >= min_trials:
+                            postm[p] = by_sess
                     store[v][an] = (ref, other, postm)
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 6 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         for v in variants:
-            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(9.0, 15.5), squeeze=False)
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(13.0, 15.5), squeeze=False)
             drew = False
             for ri, an in enumerate(ANIMALS):
                 got = store[v].get(an)
-                for ci, (which, ptitle) in enumerate(
-                        ((None, "PRE-stroke, other half\n(no-lesion expectation)"),
-                         (True, "POST-stroke"))):
+                if not got:
+                    for ci in range(3):
+                        axes[ri][ci].axis("off")
+                    continue
+                ref, other, postm = got
+                # SAME SEED FOR BOTH PANELS so the reference is resampled identically and the
+                # post-minus-baseline difference can be taken draw by draw.
+                seed = abs(hash((an, align, v))) % (2 ** 31)
+                base_obs, _bl, _bh, base_null, base_bt = _pattern_stats(
+                    other, ref, CONF_LABELS, np.random.default_rng(seed))
+                post_obs, _pl, _ph, post_null, post_bt = _pattern_stats(
+                    postm, ref, CONF_LABELS, np.random.default_rng(seed))
+                for ci, (M, NH, ptitle) in enumerate(
+                        ((base_obs, base_null, "PRE-stroke, other half\n(no-lesion expectation)"),
+                         (post_obs, post_null, "POST-stroke"))):
                     ax = axes[ri][ci]
-                    if not got:
-                        ax.axis("off")
-                        continue
-                    ref, other, postm = got
-                    src = postm if which else other
-                    M = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
-                    for i, p in enumerate(CONF_LABELS):
-                        for j, q in enumerate(CONF_LABELS):
-                            if src.get(p) is None or ref.get(q) is None:
-                                continue
-                            M[i, j] = float(np.corrcoef(src[p], ref[q])[0, 1])
                     im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
                     for i in range(len(CONF_LABELS)):
                         for j in range(len(CONF_LABELS)):
-                            if np.isfinite(M[i, j]):
-                                ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center",
-                                        fontsize=6, color="k")
+                            if not np.isfinite(M[i, j]):
+                                continue
+                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center",
+                                    fontsize=6, color="k")
+                            # RING = beats the position-shuffled null. Not "r != 0": the null keeps
+                            # the global post-stroke pattern and shuffles only WHICH position a
+                            # trial belongs to, so a ring means position-specific structure.
+                            if np.isfinite(NH[i, j]) and abs(M[i, j]) > NH[i, j]:
+                                ax.add_patch(plt.Rectangle((j - .5, i - .5), 1, 1, fill=False,
+                                                           edgecolor="lime", lw=1.6))
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
                                        rotation=45, ha="right", fontsize=6.5)
@@ -1100,6 +1218,27 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                     if ri == len(ANIMALS) - 1:
                         ax.set_xlabel("vs PRE-STROKE reference at", fontsize=7)
                     drew = True
+                # THIRD PANEL: the claim, with an interval. Own-position r post MINUS baseline,
+                # differenced draw by draw so the shared reference cancels.
+                ax = axes[ri][2]
+                d = np.array([post_bt[:, k, k] - base_bt[:, k, k]
+                              for k in range(len(CONF_LABELS))])
+                y = np.arange(len(CONF_LABELS))
+                with np.errstate(invalid="ignore"):
+                    med = np.nanmedian(d, axis=1)
+                    lo = np.nanpercentile(d, 2.5, axis=1)
+                    hi = np.nanpercentile(d, 97.5, axis=1)
+                ok = np.isfinite(med)
+                ax.errorbar(med[ok], y[ok], xerr=[med[ok] - lo[ok], hi[ok] - med[ok]],
+                            fmt="o", ms=5, color="#b2182b", capsize=3, lw=1.2)
+                ax.axvline(0, color="k", lw=1.0)
+                ax.set_yticks(y)
+                ax.set_yticklabels([])
+                ax.set_ylim(len(CONF_LABELS) - 0.5, -0.5)
+                ax.set_title("post − baseline (own position)", fontsize=8.5)
+                ax.grid(alpha=0.25, lw=0.5)
+                if ri == len(ANIMALS) - 1:
+                    ax.set_xlabel("Δr, 95% stratified bootstrap", fontsize=7)
             if not drew:
                 plt.close(fig)
                 continue
