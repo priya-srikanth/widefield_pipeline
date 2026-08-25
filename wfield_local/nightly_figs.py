@@ -159,6 +159,84 @@ def _publish_figs(out, rv) -> int:
     return n
 
 
+#: Where each analysis JSON lands under ``analysis_json/``, matched on the filename PREFIX in order.
+#: Derived from the name alone so the routing is deterministic and a new artifact cannot silently
+#: change where an old one lives; anything unmatched goes to ``other/`` rather than being dropped.
+JSON_GROUPS = (
+    ("nolick_reference", "references"),
+    ("coding_direction", "coding_directions"),
+    ("section_g", "section_g"),
+    ("poststroke_", "section_g"),
+    ("spatial_reorganisation", "spatial"),
+    ("evoked_amplitude", "evoked"),
+    ("joint_", "joint"),
+    ("locanmf_", "locanmf"),
+)
+
+#: Files that are FROZEN by construction -- written once and deliberately never regenerated, because
+#: recomputing them over a grown session set would produce a DIFFERENT reference and a reference that
+#: moves after the comparison data arrive is not a reference. The publisher will create these but
+#: will never overwrite them; a mismatch is reported, never resolved silently.
+JSON_FROZEN = ("nolick_reference_prestroke",)
+
+
+def json_group(name: str) -> str:
+    """Subdirectory for one artifact, from its filename prefix."""
+    for pref, grp in JSON_GROUPS:
+        if name.startswith(pref):
+            return grp
+    return "other"
+
+
+def _publish_json(out, rv, log=print) -> dict:
+    """Copy the analysis JSON artifacts to MICROSCOPE beside the published PNGs.
+
+    WHY THIS EXISTS (Priya, 2026-08-25). ``_publish_figs`` globs ``*.png``, so every JSON the analysis
+    writes lived only on the box that produced it. Two of them are load-bearing:
+    ``coding_direction.json`` is the source behind section G9 and the miss-while-working vs stopped
+    result recorded in DECISIONS, and ``nolick_reference_prestroke.json`` is a reference the pipeline
+    deliberately FREEZES. A frozen reference on one machine's local disk is the worst of both worlds --
+    it cannot be restored if that disk dies (regenerating it today gives a different reference, which
+    is precisely what the freeze prevents), and the second analysis box holds its own copy frozen at
+    whatever date IT first ran, so the two can disagree with nothing to notice it.
+
+    FROZEN FILES ARE NEVER OVERWRITTEN. For those, a destination that already exists is compared by
+    CONTENT: identical is a silent skip, DIFFERENT is reported and left alone. Overwriting would let
+    whichever box published second silently redefine the reference the other one used. Everything else
+    follows the PNG rule (missing / different size / newer). Never deletes, per the MICROSCOPE
+    no-auto-delete rule.
+    """
+    import hashlib
+    import shutil
+
+    from wfield_local import writeguard
+    root = Path(rv.root("cue_analysis_out")) / "analysis_json"
+    writeguard.assert_writable(root)
+    res = {"copied": 0, "skipped": 0, "frozen_conflicts": []}
+    for p in sorted(Path(out).glob("*.json")):
+        d = root / json_group(p.name) / p.name
+        frozen = any(p.name.startswith(f) for f in JSON_FROZEN)
+        if d.exists() and frozen:
+            same = (hashlib.sha256(p.read_bytes()).hexdigest()
+                    == hashlib.sha256(d.read_bytes()).hexdigest())
+            if not same:
+                res["frozen_conflicts"].append(p.name)
+                log(f"  !! FROZEN artifact differs from the published copy, NOT overwritten: "
+                    f"{p.name} -- the two analysis boxes have diverged; compare before trusting "
+                    f"any result that reads it")
+            else:
+                res["skipped"] += 1
+            continue
+        if d.exists() and not (p.stat().st_size != d.stat().st_size
+                               or p.stat().st_mtime > d.stat().st_mtime + 2):
+            res["skipped"] += 1
+            continue
+        d.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(p, d)
+        res["copied"] += 1
+    return res
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dates", nargs="*", metavar="DATE",
@@ -408,6 +486,16 @@ def main():
         log(f"published {n} analysis PNG(s) to MICROSCOPE cue_analysis")
     except Exception as ex:
         log(f"  !! publish figs: {type(ex).__name__} {str(ex)[:80]}")
+    # The JSON half: the numbers BEHIND the figures, including the frozen pre-stroke reference.
+    # Separate try/except so a JSON failure cannot cost the PNG publish, or vice versa.
+    try:
+        j = _publish_json(out, config.resolver(), log=log)
+        log(f"published {j['copied']} analysis JSON(s) to MICROSCOPE analysis_json "
+            f"({j['skipped']} already current)")
+        if j["frozen_conflicts"]:
+            FAILURES.append(f"frozen artifact divergence: {', '.join(j['frozen_conflicts'])}")
+    except Exception as ex:
+        log(f"  !! publish json: {type(ex).__name__} {str(ex)[:80]}")
 
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
     _write_run_record(deck_out, date, tag)
