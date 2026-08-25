@@ -78,32 +78,79 @@ WINDOWS = (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue"),
            ("lick", "lick", "post-lick"))
 
 
-def coverage_note():
-    """A footer stating which post-stroke sessions each animal actually contributes.
+def coverage_note(source_labels=None):
+    """Footer for one figure. `source_labels` = the post-stroke sessions THAT FIGURE actually used.
 
-    NOT COSMETIC. On 2026-08-25 PS92 had six registered post-stroke sessions and PS93 five, while
-    PS93's 8/24 was preprocessed and LocaNMF'd on MICROSCOPE and simply never registered
-    (`await_locanmf` auto-registered PS92_0824 in commit ec5dd4e and PS93_0824 was not). A cohort
-    figure that silently gives one animal an extra day is worse than one uniformly missing a day,
-    because the asymmetry is invisible and the comparison is between animals.
+    READS THE SOURCE, NOT THE CONFIG, and the difference is not academic. The first version counted
+    `config.phase_labels("post")` on every figure. That is correct for the figures that recompute
+    from the pooled data, and FALSE for the ones built from `section_g.json` /
+    `coding_direction.json`, which are written by a nightly and can lag the config by days. On
+    2026-08-25 those JSONs predated both 8/24 sessions while the config had them, so the footer
+    printed a reassuring "6, 6, 6, 6" on exactly the three figures that were stale — a check giving
+    false comfort about the thing it was built to catch (Priya: "fix it please").
 
-    Priya's call (2026-08-25) was to leave the data alone and regenerate after the next nightly --
-    which only works if the gap is legible on the figure in the meantime. Regenerating after the
-    nightly makes this line update itself; it is computed, never typed.
+    Pass the labels the figure really used and this compares them to the config, reporting the lag.
+    Called with nothing, it falls back to the config and says so.
     """
-    counts = {a: len([x for x in config.phase_labels("post") if x.startswith(a)])
-              for a in ANIMALS}
-    n = sorted(set(counts.values()))
-    note = "Post-stroke sessions used: " + ",  ".join(f"{a} {c}" for a, c in counts.items())
-    if len(n) > 1:
+    cfg = {a: {x for x in config.phase_labels("post") if x.startswith(a)} for a in ANIMALS}
+    if source_labels is None:
+        used = cfg
+        src = "from the session config"
+    else:
+        keep = set(source_labels)
+        used = {a: {x for x in keep if x.startswith(a)} for a in ANIMALS}
+        src = "as actually present in the data this figure was built from"
+    counts = {a: len(used[a]) for a in ANIMALS}
+    note = (f"Post-stroke sessions used ({src}): "
+            + ",  ".join(f"{a} {counts[a]}" for a in ANIMALS))
+    if len(set(counts.values())) > 1:
         note += ("   —  UNEQUAL: an animal with fewer sessions contributes less to every pooled "
-                 "panel. Check for preprocessed-but-unregistered sessions before comparing animals.")
+                 "panel.")
+    missing = sorted({x for a in ANIMALS for x in cfg[a] - used[a]})
+    if missing:
+        note += ("   —  STALE: registered but ABSENT here: " + ", ".join(missing)
+                 + ". Re-run the analysis that writes this figure's source.")
     return note
 
 
-def _footer(fig):
-    """Stamp the post-stroke session coverage on any figure that pools across animals."""
-    fig.text(0.5, 0.004, coverage_note(), ha="center", va="bottom", fontsize=7, color="0.30")
+def _sg_labels():
+    """Post-stroke sessions actually present in `section_g.json` (figures 3b and 5)."""
+    f = _fig_root() / "section_g.json"
+    if not f.exists():
+        return []
+    return [k for k in json.loads(f.read_text(encoding="utf-8"))
+            if config.session_phase(k.split("_")[0], k.split("_")[-1]) == "post"]
+
+
+def _cd_labels():
+    """Post-stroke sessions actually present in `coding_direction.json` (figure 3a).
+
+    Read from the per-session store of whichever window/animal the file has, since every window
+    carries the same session set.
+    """
+    f = _fig_root() / "coding_direction.json"
+    if not f.exists():
+        return []
+    d = json.loads(f.read_text(encoding="utf-8"))
+    out = set()
+    for res in (d.get("ENL") or {}).values():
+        if not res:
+            continue
+        for meth in res.get("methods", {}).values():
+            for cls in (meth.get("cross_by_session") or {}).values():
+                out |= set(cls)
+    return sorted(out)
+
+
+def _footer(fig, source_labels=None):
+    """Stamp session coverage on a figure. Pass the sessions the figure's SOURCE actually contains.
+
+    Figures that recompute from the pooled data can pass None (their source IS the config). Figures
+    built from a nightly-written JSON must pass that JSON's session list, or the footer reassures
+    about data it never saw -- which is exactly how it failed on 2026-08-25.
+    """
+    fig.text(0.5, 0.004, coverage_note(source_labels), ha="center", va="bottom", fontsize=7,
+             color="0.30")
 
 
 def _fig_root():
@@ -578,7 +625,7 @@ def fig_confusion_pre_post(out_dir):
                      "pre-stroke sessions,\nso it differs from the post panel in PHASE alone rather "
                      "than in phase and the absence of a movement together. "
                      "Post-stroke sessions pooled. Chance = 0.17.", fontsize=9.5)
-        _footer(fig)
+        _footer(fig, _sg_labels())
         p = Path(out_dir) / f"grant_5_confusion_pre_post_{gkey.replace('-', '')}.png"
         fig.savefig(p, dpi=200, bbox_inches="tight")
         plt.close(fig)
@@ -1346,7 +1393,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
                  "positions.\nThe two groups use DIFFERENT trial classes because an impaired "
                  "position has almost no lick trials to average.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    _footer(fig)
+    _footer(fig, _cd_labels())
     p = Path(out_dir) / "grant_3a_coding_retained.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -1462,7 +1509,7 @@ def fig_frozen_vs_within(out_dir):
                  "(dotted step) and those panels are NOT comparable across sessions.",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    _footer(fig)
+    _footer(fig, _sg_labels())
     p = Path(out_dir) / "grant_3b_frozen_vs_within.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
