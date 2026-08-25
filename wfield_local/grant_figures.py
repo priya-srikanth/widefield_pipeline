@@ -2035,13 +2035,19 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                             ax.axis("off")
                             continue
                         D = _crossnobis_cross(src, full_ref, rng, CONF_LABELS) / scale
-                    im = ax.imshow(np.ma.masked_invalid(D), vmin=0, vmax=2.0, cmap="magma_r")
+                    # SALIENCE FOLLOWS THE RESULT. `magma_r` at vmax=2.0 made LARGE distances
+                    # darkest -- so the eye landed on off-diagonal noise while the finding (a LOW
+                    # diagonal = the pattern did not move) faded to pale yellow. It also clipped:
+                    # PS93 day 7 holds 3.3-3.6 and every such cell rendered identically black.
+                    # `magma` at vmax=2.5 puts the bright end on SMALL distances and leaves the top
+                    # of the range distinguishable.
+                    im = ax.imshow(np.ma.masked_invalid(D), vmin=0, vmax=2.5, cmap="magma")
                     for i in range(len(CONF_LABELS)):
                         for j in range(len(CONF_LABELS)):
                             if np.isfinite(D[i, j]):
                                 ax.text(j, i, f"{D[i, j]:.1f}", ha="center", va="center",
                                         fontsize=4.6,
-                                        color="w" if D[i, j] > 1.2 else "k")
+                                        color="k" if D[i, j] > 1.3 else "w")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
@@ -2056,7 +2062,8 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
-                         label="crossnobis distance (1.0 = mean pre-stroke between-position distance)")
+                         label="crossnobis distance -- BRIGHT = unchanged "
+                               "(1.0 = mean pre-stroke between-position distance)")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             fig.suptitle(
@@ -2066,7 +2073,13 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                 f"DIAGONAL = did this position's pattern move. LOW is unchanged. Unlike figure 6 "
                 f"this is NOISE-UNBIASED: a noisier session does not read as a larger distance.\n"
                 f"First column is the no-lesion expectation. Units: mean pre-stroke between-position "
-                f"distance for that animal. Still NOT gain-invariant -- see 8b.", fontsize=9.5)
+                "distance for that animal.\n"
+                "UNBIASED IS NOT GAIN-INVARIANT, and the difference bites: a uniform amplitude "
+                "change moves every cell here while leaving 8b untouched. Where this figure and 8b "
+                "disagree, 8b is the one to believe about GEOMETRY.\n"
+                f"Concretely (post-cue, working): PS92 and PS93 read their WORST diagonal on day 7 "
+                f"(1.01, 1.31) while 8b puts day 7 among their BEST (0.66, 0.80) -- that spike is "
+                f"amplitude, not a code that moved further away.", fontsize=8.8)
             _footer(fig)
             p = Path(out_dir) / f"grant_8_crossnobis_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -2114,37 +2127,49 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
                 rows = np.full((len(CONF_LABELS), 1 + len(days)), np.nan)
                 whole = np.full(1 + len(days), np.nan)
-                for ci in range(1 + len(days)):
-                    # SAME LEAVE-ONE-OUT LOGIC AS 8. A correlation between two RDMs is attenuated by
-                    # how noisily each is estimated, so a pooled six-session pre-stroke RDM would
-                    # give the ceiling column an advantage in trial count that no post-stroke column
-                    # can have -- and the whole figure is a comparison of that column with the rest.
-                    if ci == 0:
-                        Ds = [_crossnobis_within(pat, rng, CONF_LABELS)
-                              for pat in pre_by_sess.values()]
-                        if not Ds:
-                            continue
-                        with warnings.catch_warnings():
-                            warnings.simplefilter("ignore", RuntimeWarning)
-                            D = np.nanmean(np.stack(Ds), axis=0)
-                    else:
-                        src = by_day.get(days[ci - 1])
-                        if not src:
-                            continue
-                        D = _crossnobis_within(src, rng, CONF_LABELS)
-                    a, b = _triu_vals(D), _triu_vals(Dpre)
+                def _score_rdm(D, Dref):
+                    """(whole-RDM r, per-position row r) for one session against one reference."""
+                    a, b = _triu_vals(D), _triu_vals(Dref)
                     ok = np.isfinite(a) & np.isfinite(b)
-                    if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]):
-                        whole[ci] = float(np.corrcoef(a[ok], b[ok])[0, 1])
+                    w = (float(np.corrcoef(a[ok], b[ok])[0, 1])
+                         if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]) else np.nan)
+                    rr = np.full(len(CONF_LABELS), np.nan)
                     for i in range(len(CONF_LABELS)):
-                        ra = np.delete(D[i], i)
-                        rb = np.delete(Dpre[i], i)
+                        ra, rb = np.delete(D[i], i), np.delete(Dref[i], i)
                         m = np.isfinite(ra) & np.isfinite(rb)
                         # A ROW IS FIVE NUMBERS. Below four usable ones a correlation is not an
                         # estimate of anything, so the cell stays blank rather than printing an
                         # r built from three points.
                         if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
-                            rows[i, ci] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+                            rr[i] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+                    return w, rr
+
+                for ci in range(1 + len(days)):
+                    # COLUMN 0 IS GENUINELY LEAVE-ONE-SESSION-OUT (corrected 2026-08-25). It used to
+                    # correlate the MEAN of the per-session RDMs against the RDM of the POOLED set --
+                    # which CONTAINS every one of those sessions. That is circular, and it showed:
+                    # the ceiling read 0.90-1.00 while the post columns it was meant to calibrate ran
+                    # 0.52-0.86. Each pre-stroke session is now scored against an RDM built from the
+                    # OTHER sessions only, and the resulting correlations are averaged -- one session
+                    # against other days, exactly like every post column.
+                    if ci == 0:
+                        got = [_score_rdm(_crossnobis_within(pat, rng, CONF_LABELS),
+                                          _crossnobis_within(
+                                              _pre_reference(pre_by_sess, exclude=s),
+                                              rng, CONF_LABELS))
+                               for s, pat in pre_by_sess.items()]
+                        if not got:
+                            continue
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", RuntimeWarning)
+                            whole[ci] = float(np.nanmean([g[0] for g in got]))
+                            rows[:, ci] = np.nanmean([g[1] for g in got], axis=0)
+                        continue
+                    src = by_day.get(days[ci - 1])
+                    if not src:
+                        continue
+                    whole[ci], rows[:, ci] = _score_rdm(
+                        _crossnobis_within(src, rng, CONF_LABELS), Dpre)
                 ax = axes[ri][0]
                 ax.imshow(np.ma.masked_invalid(rows), vmin=-1, vmax=1, cmap="RdBu_r",
                           aspect="auto")
@@ -2185,9 +2210,11 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 f"against the pre-stroke RDM.\n"
                 f"INVARIANT TO A GLOBAL AMPLITUDE CHANGE, which figures 6 and 8 are not: scaling "
                 f"every distance leaves a correlation between RDMs unchanged.\n"
-                f"PRE column = the other pre-stroke half, i.e. the ceiling. Per-position numbers "
-                f"are each position's five distances to the others -- 'is it still arranged the "
-                f"same way', NOT 'did its pattern move'.", fontsize=9.5)
+                f"PRE column = each pre-stroke session against an RDM built from the OTHERS only "
+                f"(leave-one-session-out), which is the ceiling. Per-position numbers are that "
+                "position's five distances to the others --\n'is it still arranged the same way', "
+                f"NOT 'did its pattern move'. Read the post columns against PRE, never against 1.",
+                fontsize=9.5)
             fig.tight_layout(rect=(0, 0, 1, 0.89))
             _footer(fig)
             p = Path(out_dir) / f"grant_8b_crossnobis_geometry_{align}_{v}.png"
@@ -2430,6 +2457,72 @@ def fig_splithalf_delta(out_dir, min_trials=10):
                 abs_label="pre-stroke split-half r", delta_label="change in split-half r",
                 vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
                 ylab="half A at")
+            if p:
+                made.append(p)
+    return made
+
+
+@lru_cache(maxsize=6)
+def _matrices_crossnobis(align, variant, min_trials=10):
+    """{animal: {"PRE": D, day: D}} of cross-set crossnobis distances, in pre-stroke units."""
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        rng = np.random.default_rng(abs(hash((an, align, variant, "8"))) % (2 ** 31))
+        full_ref = _pre_reference(pre_by_sess)
+        scale = np.nanmean(_triu_vals(_crossnobis_within(full_ref, rng, CONF_LABELS)))
+        if not np.isfinite(scale) or scale <= 0:
+            scale = 1.0
+        d = {}
+        base = _nanmean_stack([_crossnobis_cross(pat, _pre_reference(pre_by_sess, exclude=s),
+                                                 rng, CONF_LABELS)
+                               for s, pat in pre_by_sess.items()])
+        if base is not None:
+            d["PRE"] = base / scale
+        for day, pat in by_day.items():
+            d[day] = _crossnobis_cross(pat, full_ref, rng, CONF_LABELS) / scale
+        if d:
+            out[an] = d
+    return out, days
+
+
+def fig_crossnobis_delta(out_dir, min_trials=10):
+    """8d: figure 8 as DIFFERENCES from the pre-stroke reference.
+
+    The reference distances are NOT uniform -- close positions sit nearer each other than far ones
+    do, and each animal's baseline has its own texture -- so an absolute cell of 1.2 means different
+    things in different places. Subtracting leaves only what the lesion did.
+
+    POSITIVE = further from the pre-stroke pattern than a held-out pre-stroke session is; NEGATIVE =
+    closer. The diagonal is the headline and the off-diagonal carries the substitution: a post-stroke
+    far_R row going NEGATIVE under the close_L column means far_R trials moved TOWARD pre-stroke
+    close_L.
+
+    Read beside 8b before concluding anything about geometry: these are distances, so a uniform
+    amplitude change shifts the whole panel while leaving 8b untouched.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            mats, days = _matrices_crossnobis(align, v, min_trials)
+            if not days or not mats:
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            p = _delta_grid(
+                mats, days, out_dir, f"grant_8d_crossnobis_delta_{align}_{v}.png",
+                title=(f"Crossnobis distance to the pre-stroke pattern, CHANGE FROM PRE-STROKE — "
+                       f"{wname} window\nPost-stroke class: {cls}.  Column 1 is the pre-stroke "
+                       f"reference (leave-one-session-out); every later column is THAT DAY MINUS "
+                       f"IT.\nPOSITIVE = further from the pre-stroke pattern than a held-out "
+                       f"pre-stroke session is. NEGATIVE = closer. ZERO = an ordinary pre-stroke "
+                       f"day.\nDiagonal = did the pattern move. A NEGATIVE off-diagonal cell is a "
+                       f"substitution: that row's trials moved TOWARD the column's pre-stroke "
+                       f"pattern. Distances are NOT gain-invariant -- read with 8b."),
+                abs_label="pre-stroke distance (1.0 = mean between-position)",
+                delta_label="change in distance vs pre-stroke",
+                vmin=0, vmax=2.5, cmap="magma", dmax=1.5, summary=_diag,
+                ylab="this position")
             if p:
                 made.append(p)
     return made
@@ -2700,13 +2793,13 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -2717,7 +2810,8 @@ def main(argv=None) -> int:
             ("6b", fig_pattern_similarity_per_session), ("6d", fig_pattern_delta),
             ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
             ("7d", fig_splithalf_delta),
-            ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry))
+            ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
+            ("8d", fig_crossnobis_delta))
     for key, fn in jobs:
         if key not in want:
             continue

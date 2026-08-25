@@ -2864,6 +2864,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "depend on the whitener and the dimensionality and are not comparable across animals. "
          "Still NOT gain-invariant: it is a distance between two patterns. H8b is that "
          "companion.")),
+        ("grant_8d_crossnobis_delta_*.png",
+         "H8d. The same, as CHANGE from pre-stroke",
+         ("H8 minus its own first column. POSITIVE = further from the pre-stroke pattern than a "
+         "held-out pre-stroke session is; NEGATIVE = closer. The reference distances are not "
+         "uniform -- close positions sit nearer each other than far ones -- so an absolute cell of "
+         "1.2 means different things in different places. A NEGATIVE OFF-DIAGONAL cell is a "
+         "substitution: that row's trials moved TOWARD the column's pre-stroke pattern.")),
         ("grant_8b_crossnobis_geometry_*.png",
          "H8b. Second-order RSA — the gain-invariant test",
          ("Each session's OWN 6x6 crossnobis RDM correlated against the pre-stroke RDM. This is "
