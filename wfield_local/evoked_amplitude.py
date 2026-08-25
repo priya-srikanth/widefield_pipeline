@@ -71,6 +71,23 @@ def _names(s):
 
 
 def session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
+    """Memoized wrapper: this quantity depends on ONE session and cannot change when another runs.
+
+    Measured 2026-08-25, `evoked_amplitude` cost 18 min a night recomputing every session's
+    amplitudes from scratch, including the 11 pre-stroke sessions whose inputs had not moved in
+    weeks. The cache signature covers that session's LocaNMF C, its h5, its behavior trials and the
+    params (`session_cache.session_signature`), so a re-preprocess or a param change still
+    recomputes -- the saving is only ever on genuinely unchanged inputs.
+    """
+    from wfield_local import session_cache
+    return session_cache.cached(
+        s, f"evoked_amp__{align}__{source}__{int(bool(post_all_trials))}",
+        lambda: _session_amplitudes(s, align=align, source=source,
+                                    post_all_trials=post_all_trials),
+        params=None)
+
+
+def _session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     """Per-area x per-position evoked amplitude for one session, plus its share and R-L decomposition.
 
     Sub-bins are averaged back to one value per area: `_trial_features` tiles each region across the

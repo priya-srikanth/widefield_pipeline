@@ -43,6 +43,19 @@ MIN_TRIALS = 8
 
 
 def _position_maps(s, align="cue", post_s=2.0):
+    """Memoized wrapper: one session's maps cannot change when a different session is recorded.
+
+    The COMMON COLOUR SCALE is computed across sessions and legitimately moves when the cohort grows
+    -- that stays live. What is cached is only each session's own maps, which do not (18 min/night,
+    measured 2026-08-25).
+    """
+    from wfield_local import session_cache
+    return session_cache.cached(
+        s, f"fixed_scale_maps__{align}__{post_s}",
+        lambda: _position_maps_uncached(s, align=align, post_s=post_s), params=None)
+
+
+def _position_maps_uncached(s, align="cue", post_s=2.0):
     """{position -> (H, W) mean window map} on the atlas grid, plus the trial count per position."""
     from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.locanmf_crossanimal_dff import _frames

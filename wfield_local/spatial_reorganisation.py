@@ -58,6 +58,22 @@ def _names(s):
 
 
 def _area_matrix(s, align="cue", source="roi", post_all_trials=True):
+    """Memoized wrapper: the trial x area matrix is a property of ONE session's own recording.
+
+    Crossnobis convergence is computed INSIDE a single session (DECISIONS 2026-08-19/20: "a
+    day-to-day shift moves all six positions together and largely cancels"), so this input cannot be
+    changed by another session arriving. The cross-session parts built on top of it -- the pre-stroke
+    band, the mirror test -- are NOT cached and still see every new night.
+    """
+    from wfield_local import session_cache
+    return session_cache.cached(
+        s, f"spatial_area_matrix__{align}__{source}__{int(bool(post_all_trials))}",
+        lambda: _area_matrix_uncached(s, align=align, source=source,
+                                      post_all_trials=post_all_trials),
+        params=None)
+
+
+def _area_matrix_uncached(s, align="cue", source="roi", post_all_trials=True):
     """(trials x areas) with bins collapsed, plus labels, block ids and the area-name list.
     POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18). The missing licks ARE the phenotype, so
     discarding no-lick trials removes the effect being measured. This is not a small correction
