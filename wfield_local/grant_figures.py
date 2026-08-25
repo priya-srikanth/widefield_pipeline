@@ -1,6 +1,6 @@
 """GRANT FIGURES — a small, self-contained set for a progress report and a new application.
 
-    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b 4 5]
+    python -m wfield_local.grant_figures [--output <dir>] [--only 1 1b 2 2b 3a 3b 4 5 5b 5c 6 6b]
 
 Priya, 2026-08-24. Deliberately NOT deck figures: the deck exists to be interrogated and carries every
 caveat on the slide, which is right there and wrong here. These are meant to be read in ten seconds by
@@ -76,6 +76,34 @@ POS_STYLE = {
 }
 WINDOWS = (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue"),
            ("lick", "lick", "post-lick"))
+
+
+def coverage_note():
+    """A footer stating which post-stroke sessions each animal actually contributes.
+
+    NOT COSMETIC. On 2026-08-25 PS92 had six registered post-stroke sessions and PS93 five, while
+    PS93's 8/24 was preprocessed and LocaNMF'd on MICROSCOPE and simply never registered
+    (`await_locanmf` auto-registered PS92_0824 in commit ec5dd4e and PS93_0824 was not). A cohort
+    figure that silently gives one animal an extra day is worse than one uniformly missing a day,
+    because the asymmetry is invisible and the comparison is between animals.
+
+    Priya's call (2026-08-25) was to leave the data alone and regenerate after the next nightly --
+    which only works if the gap is legible on the figure in the meantime. Regenerating after the
+    nightly makes this line update itself; it is computed, never typed.
+    """
+    counts = {a: len([x for x in config.phase_labels("post") if x.startswith(a)])
+              for a in ANIMALS}
+    n = sorted(set(counts.values()))
+    note = "Post-stroke sessions used: " + ",  ".join(f"{a} {c}" for a, c in counts.items())
+    if len(n) > 1:
+        note += ("   —  UNEQUAL: an animal with fewer sessions contributes less to every pooled "
+                 "panel. Check for preprocessed-but-unregistered sessions before comparing animals.")
+    return note
+
+
+def _footer(fig):
+    """Stamp the post-stroke session coverage on any figure that pools across animals."""
+    fig.text(0.5, 0.004, coverage_note(), ha="center", va="bottom", fontsize=7, color="0.30")
 
 
 def _fig_root():
@@ -550,10 +578,546 @@ def fig_confusion_pre_post(out_dir):
                      "pre-stroke sessions,\nso it differs from the post panel in PHASE alone rather "
                      "than in phase and the absence of a movement together. "
                      "Post-stroke sessions pooled. Chance = 0.17.", fontsize=9.5)
+        _footer(fig)
         p = Path(out_dir) / f"grant_5_confusion_pre_post_{gkey.replace('-', '')}.png"
         fig.savefig(p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
+def fig_confusion_pre_post_working(out_dir):
+    """5b: figure 5 with the post-stroke TERMINAL QUIT PERIOD removed.
+
+    Priya, 2026-08-25: the same comparison on engaged post-stroke trials, without the "stopped"
+    ones. Recomputed rather than filtered, because `section_g.json` stores confusions already summed
+    over trials and a summed matrix cannot be un-summed.
+
+    WHICH TRIALS. Post-stroke = lick trials PLUS miss-while-working, i.e. everything except the
+    terminal non-recovering collapse. That is the `poststroke_all_working` population the coding
+    directions already use. Dropping the no-lick trials entirely would be a different figure -- it
+    would empty the impaired rows, which is the whole reason the all-trials arm exists.
+
+    THIS IS NOT THE GATE `POSTSTROKE_ENGAGEMENT_FILTERING = False` FORBIDS, and the distinction
+    matters. That flag rejects the ROLLING reference-rate gate, on the ground that a local dip is
+    indistinguishable from a run of motor failures, so splitting trials on it would label the effect
+    as the confound. `engagement_gate` requires a NON-RECOVERING FINAL collapse -- PS94_0817's rate
+    dips at trial ~420 and is back near 0.95 by 480, and that session is correctly NOT called
+    disengaged. Removing a terminal quit period is a much weaker claim than adjudicating individual
+    trials, and it is the same construct the miss-vs-stopped split rests on throughout.
+
+    STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
+    satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
+    """
+    from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+
+    PANELS = (("pre", "PRE-stroke, LICK trials"),
+              ("post_all", "POST-stroke, ALL trials"),
+              ("post_working", "POST-stroke, quit period REMOVED"))
+    made = []
+    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(11.0, 14.0), squeeze=False)
+        drew = False
+        for ri, an in enumerate(ANIMALS):
+            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+            post = [x for x in config.phase_labels("post") if x.startswith(an)]
+            mats = {}
+            try:
+                from wfield_local import joint_locanmf
+                from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+                from wfield_local.precue_engagement_states import features_with_indices
+                basis = joint_locanmf.load(an, sessions=SESSIONS)
+                feat = features_with_indices(basis, nolick_ref="cue")
+                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+                not_eng = g[0] if g else np.zeros(len(YU), bool)
+                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+                e_pre = np.isin(GE, list(pre_i))
+                GU = np.asarray(GU)
+                u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
+                clf = _pipe().fit(XE[e_pre], YE[e_pre])
+                name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
+
+                def conf(X, y, clf=clf, name=name):
+                    """Counts matrix in CONF_LABELS order. `clf`/`name` bound as defaults because
+                    they are loop variables and a late-binding closure would silently score every
+                    animal with the LAST animal's decoder."""
+                    if not len(y):
+                        return None
+                    pred = name(clf.predict(X))
+                    true = name(y)
+                    M = np.zeros((len(CONF_LABELS), len(CONF_LABELS)), float)
+                    for t, q in zip(true, pred):
+                        if t in CONF_LABELS and q in CONF_LABELS:
+                            M[CONF_LABELS.index(t), CONF_LABELS.index(q)] += 1
+                    return M
+
+                # THE PRE PANEL MUST BE LEAVE-ONE-SESSION-OUT. Scoring the training trials with the
+                # decoder fitted on them gave 0.89-0.99 here against 0.45-0.66 for the same animals
+                # in figure 5, and a reader comparing post 0.48 to an in-sample 0.97 would read a
+                # collapse that is mostly overfitting. The POST panels need no such care: those
+                # trials are held out by construction.
+                Cpre = None
+                for i in sorted(pre_i):
+                    tr = e_pre & (GE != i)
+                    te = e_pre & (GE == i)
+                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                        continue
+                    c1 = conf(XE[te], YE[te], clf=_pipe().fit(XE[tr], YE[tr]))
+                    Cpre = c1 if Cpre is None else Cpre + c1
+                mats["pre"] = Cpre
+                pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
+                Xa = np.vstack([XE[pe]] + ([XU[pu]] if len(u_pre) and pu.any() else []))
+                ya = np.concatenate([YE[pe]] + ([YU[pu]] if len(u_pre) and pu.any() else []))
+                mats["post_all"] = conf(Xa, ya)
+                pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
+                Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
+                yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
+                mats["post_working"] = conf(Xw, yw)
+            except Exception as ex:                                       # noqa: BLE001
+                print(f"  !! 5b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            for ci, (key, ptitle) in enumerate(PANELS):
+                ax = axes[ri][ci]
+                C = mats.get(key)
+                if C is None:
+                    ax.axis("off")
+                    continue
+                row = C.sum(1, keepdims=True)
+                P = np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+                acc = float(np.trace(C) / C.sum()) if C.sum() else float("nan")
+                im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
+                for i in range(len(CONF_LABELS)):
+                    if row[i, 0] == 0:
+                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=7,
+                                color="firebrick", fontweight="bold")
+                        continue
+                    for j in range(len(CONF_LABELS)):
+                        if P[i, j] >= 0.02:
+                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=6,
+                                    color="white" if P[i, j] < 0.6 else "black")
+                ax.set_xticks(range(len(CONF_LABELS)))
+                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                   rotation=45, ha="right", fontsize=6.5)
+                ax.set_yticks(range(len(CONF_LABELS)))
+                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f}, n={int(C.sum())})",
+                             fontsize=8, fontweight="bold" if ci == 0 else "normal")
+                drew = True
+        if not drew:
+            plt.close(fig)
+            continue
+        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
+        fig.suptitle(f"Frozen pre-stroke decoder, with and without the terminal quit period — "
+                     f"{wname} window\n"
+                     "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
+                     "post-stroke trials after a NON-RECOVERING collapse in responding at the "
+                     "positions the animal can still reach;\nlick and miss-while-working trials are "
+                     "kept, so the impaired rows still have trials. Post-stroke sessions pooled. "
+                     "Chance = 0.17.\nThe quit period is not independently validated as satiety "
+                     "rather than a late motor collapse — read this beside figure 5, not instead "
+                     "of it.", fontsize=9.5)
+        _footer(fig)
+        p = Path(out_dir) / f"grant_5b_confusion_working_{align}.png"
+        fig.savefig(p, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
+def fig_confusion_per_session(out_dir):
+    """5c: figure 5b unpooled -- one column per post-stroke SESSION, animals aligned by day.
+
+    Priya, 2026-08-25. 5b pools every post-stroke day into one matrix, which is the same objection
+    that produced the per-block coding-direction view: pooling averages a recovery and a collapse
+    into "no change". PS94's far_R row and PS95's whole matrix move a lot across days and the pooled
+    panel cannot show it.
+
+    COLUMNS ARE DAYS FROM LESION, not session index, so a column means the same thing in every row
+    even though the animals were lesioned on different dates and PS93 has one fewer post-stroke
+    session than the others. A missing session is a blank cell rather than a shift.
+
+    Post-stroke trials are LICK + MISS-WHILE-WORKING with the terminal quit period removed, as in
+    5b, and the pre-stroke column is leave-one-session-out for the reason recorded there.
+    """
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.precue_engagement_states import features_with_indices
+
+    made = []
+    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
+        per_animal, all_days = {}, set()
+        for an in ANIMALS:
+            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+            post = [x for x in config.phase_labels("post") if x.startswith(an)]
+            try:
+                basis = joint_locanmf.load(an, sessions=SESSIONS)
+                feat = features_with_indices(basis, nolick_ref="cue")
+                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+                not_eng = g[0] if g else np.zeros(len(YU), bool)
+                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+                e_pre = np.isin(GE, list(pre_i))
+                GU = np.asarray(GU)
+                name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
+
+                def conf(X, y, clf, name=name):
+                    if not len(y):
+                        return None
+                    M = np.zeros((len(CONF_LABELS), len(CONF_LABELS)), float)
+                    for t, q in zip(name(y), name(clf.predict(X))):
+                        if t in CONF_LABELS and q in CONF_LABELS:
+                            M[CONF_LABELS.index(t), CONF_LABELS.index(q)] += 1
+                    return M
+
+                clf = _pipe().fit(XE[e_pre], YE[e_pre])
+                Cpre = None
+                for i in sorted(pre_i):
+                    tr, te = e_pre & (GE != i), e_pre & (GE == i)
+                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                        continue
+                    c1 = conf(XE[te], YE[te], _pipe().fit(XE[tr], YE[tr]))
+                    Cpre = c1 if Cpre is None else Cpre + c1
+                by_day = {}
+                for i, lab in enumerate(kept):
+                    if i in pre_i:
+                        continue
+                    day = _day(an, lab.split("_")[-1])
+                    me = (GE == i)
+                    mu = (GU == i) & ~not_eng if len(GU) else np.zeros(0, bool)
+                    Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+                    ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
+                    C = conf(Xs, ys, clf)
+                    if C is not None and C.sum():
+                        by_day[day] = C
+                        all_days.add(day)
+                per_animal[an] = (Cpre, by_day)
+            except Exception as ex:                                       # noqa: BLE001
+                print(f"  !! 5c {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+        if not all_days:
+            continue
+        days = sorted(all_days)
+        ncol = 1 + len(days)
+        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.0),
+                                 squeeze=False)
+        im = None
+        for ri, an in enumerate(ANIMALS):
+            got = per_animal.get(an)
+            for ci in range(ncol):
+                ax = axes[ri][ci]
+                C = None if not got else (got[0] if ci == 0 else got[1].get(days[ci - 1]))
+                if C is None or not C.sum():
+                    ax.axis("off")
+                    continue
+                row = C.sum(1, keepdims=True)
+                P = np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+                acc = float(np.trace(C) / C.sum())
+                im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
+                ax.set_xticks(range(len(CONF_LABELS)))
+                ax.set_yticks(range(len(CONF_LABELS)))
+                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                   rotation=90, fontsize=5.5)
+                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                head = "PRE (LOSO)" if ci == 0 else f"day {days[ci - 1]}"
+                ax.set_title(f"{head}  {acc:.2f}", fontsize=7.5,
+                             fontweight="bold" if ci == 0 else "normal")
+                if ci == 0:
+                    ax.set_ylabel(f"{an}\ntrue position", fontsize=8, fontweight="bold")
+        if im is None:
+            plt.close(fig)
+            continue
+        fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
+        fig.suptitle(f"Frozen pre-stroke decoder, session by session — {wname} window\n"
+                     "Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
+                     "removed). Columns are DAYS FROM LESION so they mean the same thing in every "
+                     "row;\na blank cell is a session that animal does not have. Rows = TRUE spout "
+                     "position, columns within a panel = predicted. Chance = 0.17.", fontsize=9.5)
+        _footer(fig)
+        p = Path(out_dir) / f"grant_5c_confusion_per_session_{align}.png"
+        fig.savefig(p, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
+def fig_pattern_similarity_per_session(out_dir, min_trials=10):
+    """6b: figure 6 unpooled -- one column per post-stroke DAY, animals aligned by day.
+
+    Same construction as figure 6: every panel is scored against ONE half of the pre-stroke trials,
+    so the first column (the other pre-stroke half) is the no-lesion expectation and its diagonal is
+    the split-half ceiling. Read every later column against that first one.
+
+    A SINGLE SESSION'S MEAN PATTERN IS NOISIER than the pooled one, and at an impaired position it
+    can rest on a few dozen trials, so `min_trials` gates each cell and a position below it is blank
+    rather than drawn. The pooled figure 6 is the one to quote; this is the one that shows whether a
+    pooled cell is a steady state or an average of a collapse and a recovery.
+    """
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.locanmf_frozen_decoder import pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.precue_engagement_states import features_with_indices
+
+    rng = np.random.default_rng(0)
+    made = []
+    for _disp, align, wname in WINDOWS:
+        variants = ("lick",) if align == "lick" else ("lick", "working")
+        store = {v: {} for v in variants}
+        all_days = set()
+        for an in ANIMALS:
+            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+            post = [x for x in config.phase_labels("post") if x.startswith(an)]
+            try:
+                basis = joint_locanmf.load(an, sessions=SESSIONS)
+                feat = features_with_indices(basis, nolick_ref="cue")
+                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+                not_eng = g[0] if g else np.zeros(len(YU), bool)
+                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+                e_pre = np.isin(GE, list(pre_i))
+                GU = np.asarray(GU)
+                en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
+                un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
+                      if len(YU) else np.zeros(0, str))
+                ref, other = {}, {}
+                for q in CONF_LABELS:
+                    idx = np.flatnonzero(e_pre & (en == q))
+                    if len(idx) < 2 * min_trials:
+                        continue
+                    sh = rng.permutation(idx)
+                    ref[q] = _mean_pattern(XE[sh[:len(sh) // 2]])
+                    other[q] = _mean_pattern(XE[sh[len(sh) // 2:]])
+                for v in variants:
+                    by_day = {}
+                    for i, lab in enumerate(kept):
+                        if i in pre_i:
+                            continue
+                        day = _day(an, lab.split("_")[-1])
+                        pat = {}
+                        for q in CONF_LABELS:
+                            parts = [XE[(GE == i) & (en == q)]]
+                            if v == "working" and len(un):
+                                m = (GU == i) & (un == q) & ~not_eng
+                                if m.any():
+                                    parts.append(XU[m])
+                            Xp = [z for z in parts if len(z)]
+                            if Xp:
+                                Z = np.vstack(Xp)
+                                if len(Z) >= min_trials:
+                                    pat[q] = _mean_pattern(Z)
+                        if pat:
+                            by_day[day] = pat
+                            all_days.add(day)
+                    store[v][an] = (ref, other, by_day)
+            except Exception as ex:                                       # noqa: BLE001
+                print(f"  !! 6b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+        if not all_days:
+            continue
+        days = sorted(all_days)
+        for v in variants:
+            ncol = 1 + len(days)
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+                                     squeeze=False)
+            im = None
+            for ri, an in enumerate(ANIMALS):
+                got = store[v].get(an)
+                for ci in range(ncol):
+                    ax = axes[ri][ci]
+                    src = None
+                    if got:
+                        ref, other, by_day = got
+                        src = other if ci == 0 else by_day.get(days[ci - 1])
+                    if not src:
+                        ax.axis("off")
+                        continue
+                    M = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
+                    for i, pp in enumerate(CONF_LABELS):
+                        for j, q in enumerate(CONF_LABELS):
+                            if src.get(pp) is None or ref.get(q) is None:
+                                continue
+                            M[i, j] = float(np.corrcoef(src[pp], ref[q])[0, 1])
+                    im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                       rotation=90, fontsize=5.5)
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    diag = np.nanmean(np.diag(M))
+                    head = "PRE (other half)" if ci == 0 else f"day {days[ci - 1]}"
+                    ax.set_title(f"{head}  diag {diag:.2f}", fontsize=7.5,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+            if im is None:
+                plt.close(fig)
+                continue
+            fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="pattern correlation r")
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(f"Mean-pattern similarity session by session — {wname} window\n"
+                         f"Post-stroke class: {cls}.  Rows within a panel = the pattern being "
+                         f"described; columns within a panel = the PRE-STROKE reference.\n"
+                         "FIRST COLUMN is the no-lesion expectation (the other pre-stroke half) and "
+                         "its diagonal is the ceiling. 'diag' above each panel is the mean of that "
+                         "panel's diagonal.\nColumns are DAYS FROM LESION; a blank is a session that "
+                         "animal does not have.", fontsize=9.5)
+            _footer(fig)
+            p = Path(out_dir) / f"grant_6b_pattern_per_session_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made[0] if len(made) == 1 else (made or None)
+
+
+def _mean_pattern(X):
+    return X.mean(0) if len(X) else None
+
+
+def fig_pattern_similarity(out_dir, min_trials=10):
+    """6: WITHIN- and ACROSS-position pattern similarity, model-free.
+
+    Priya, 2026-08-25. The complement to the coding directions: correlate the post-stroke MEAN
+    ACTIVITY PATTERN at each position against the pre-stroke mean pattern at EVERY position. No
+    discriminant, no contrast -- which is exactly why it survives where the coding directions do
+    not. A pairwise axis needs trials on BOTH sides, so it fails at the positions the lesion broke;
+    a mean pattern for far_R is perfectly well defined from 400 miss trials with no partner at all.
+
+    DIAGONAL = within-position ("is this still the same code"). OFF-DIAGONAL = across-position
+    ("what does it look like instead"). `pattern_similarity` in `poststroke_compare` already computes
+    the diagonal; the off-diagonal is what is new here.
+
+    THE BASELINE PANEL IS NOT OPTIONAL. Positions are intrinsically similar before any lesion, so a
+    raw r of 0.8 between post far_R and pre far_L means nothing on its own. Both panels are scored
+    against the SAME reference -- one half of the pre-stroke trials -- so:
+        LEFT  corr(other pre-stroke half at P, reference at Q): the no-lesion expectation, and its
+              DIAGONAL is the split-half reliability, i.e. the ceiling this measure can reach.
+        RIGHT corr(post-stroke at P, reference at Q).
+    Comparing the right panel to the left is the only way to read it; comparing it to 1.0 is not.
+
+    CLASS VARIANTS. `lick` uses post-stroke trials with a lick. `working` adds miss-while-working
+    (everything but the terminal quit period) and exists for ENL and cue ONLY -- in the lick window
+    a no-lick trial is placed at the CUE, so pooling the two classes there would average patterns
+    from two different times and call the result a position effect.
+
+    WHAT THIS SHARES WITH NOTHING ELSE, and its weakness: mean-pattern correlation is sensitive to
+    global gain and offset, so a uniform post-stroke amplitude change moves every cell together.
+    The coding directions are immune to that by construction (unit vectors). The two measures agree
+    or they do not, and agreement is the claim worth making.
+    """
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.locanmf_frozen_decoder import pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.precue_engagement_states import features_with_indices
+
+    rng = np.random.default_rng(0)
+    made = []
+    for _disp, align, wname in WINDOWS:
+        variants = ("lick",) if align == "lick" else ("lick", "working")
+        store = {v: {} for v in variants}
+        for an in ANIMALS:
+            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+            post = [x for x in config.phase_labels("post") if x.startswith(an)]
+            try:
+                basis = joint_locanmf.load(an, sessions=SESSIONS)
+                feat = features_with_indices(basis, nolick_ref="cue")
+                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+                not_eng = g[0] if g else np.zeros(len(YU), bool)
+                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+                e_pre = np.isin(GE, list(pre_i))
+                GU = np.asarray(GU)
+                u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
+                en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
+                un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
+                      if len(YU) else np.zeros(0, str))
+                # SPLIT THE PRE-STROKE TRIALS ONCE PER POSITION: half becomes the reference every
+                # panel is scored against, half becomes the no-lesion expectation.
+                ref, other = {}, {}
+                for p in CONF_LABELS:
+                    idx = np.flatnonzero(e_pre & (en == p))
+                    if len(idx) < 2 * min_trials:
+                        continue
+                    sh = rng.permutation(idx)
+                    ref[p] = _mean_pattern(XE[sh[:len(sh) // 2]])
+                    other[p] = _mean_pattern(XE[sh[len(sh) // 2:]])
+                for v in variants:
+                    postm = {}
+                    for p in CONF_LABELS:
+                        parts = [XE[(~e_pre) & (en == p)]]
+                        if v == "working" and len(un):
+                            m = (~u_pre) & (un == p) & ~not_eng
+                            if m.any():
+                                parts.append(XU[m])
+                        Xp = np.vstack([q for q in parts if len(q)]) if any(
+                            len(q) for q in parts) else np.zeros((0, XE.shape[1]))
+                        if len(Xp) >= min_trials:
+                            postm[p] = _mean_pattern(Xp)
+                    store[v][an] = (ref, other, postm)
+            except Exception as ex:                                       # noqa: BLE001
+                print(f"  !! 6 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+        for v in variants:
+            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(9.0, 15.5), squeeze=False)
+            drew = False
+            for ri, an in enumerate(ANIMALS):
+                got = store[v].get(an)
+                for ci, (which, ptitle) in enumerate(
+                        ((None, "PRE-stroke, other half\n(no-lesion expectation)"),
+                         (True, "POST-stroke"))):
+                    ax = axes[ri][ci]
+                    if not got:
+                        ax.axis("off")
+                        continue
+                    ref, other, postm = got
+                    src = postm if which else other
+                    M = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
+                    for i, p in enumerate(CONF_LABELS):
+                        for j, q in enumerate(CONF_LABELS):
+                            if src.get(p) is None or ref.get(q) is None:
+                                continue
+                            M[i, j] = float(np.corrcoef(src[p], ref[q])[0, 1])
+                    im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
+                    for i in range(len(CONF_LABELS)):
+                        for j in range(len(CONF_LABELS)):
+                            if np.isfinite(M[i, j]):
+                                ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center",
+                                        fontsize=6, color="k")
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                       rotation=45, ha="right", fontsize=6.5)
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                    ax.set_title(f"{an if ci == 0 else ''}  {ptitle}", fontsize=8.5,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel("this position's pattern", fontsize=7)
+                    if ri == len(ANIMALS) - 1:
+                        ax.set_xlabel("vs PRE-STROKE reference at", fontsize=7)
+                    drew = True
+            if not drew:
+                plt.close(fig)
+                continue
+            fig.colorbar(im, ax=axes, fraction=0.025, pad=0.03, label="pattern correlation r")
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(f"Mean-pattern similarity, within and across positions — {wname} window\n"
+                         f"Post-stroke class: {cls}.  Rows = the pattern being described, columns = "
+                         f"the PRE-STROKE reference it is correlated with.\n"
+                         "DIAGONAL = is it still the same code. OFF-DIAGONAL = what it looks like "
+                         "instead. READ THE RIGHT PANEL AGAINST THE LEFT, not against 1.0:\n"
+                         "positions are intrinsically similar before any lesion, and the left "
+                         "diagonal is the split-half ceiling this measure can reach.", fontsize=9)
+            _footer(fig)
+            p = Path(out_dir) / f"grant_6_pattern_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
     return made[0] if len(made) == 1 else (made or None)
 
 
@@ -643,6 +1207,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
                  "positions.\nThe two groups use DIFFERENT trial classes because an impaired "
                  "position has almost no lick trials to average.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
+    _footer(fig)
     p = Path(out_dir) / "grant_3a_coding_retained.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -758,6 +1323,7 @@ def fig_frozen_vs_within(out_dir):
                  "(dotted step) and those panels are NOT comparable across sessions.",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
+    _footer(fig)
     p = Path(out_dir) / "grant_3b_frozen_vs_within.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -769,16 +1335,20 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5"))
+                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "6", "6b"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5"))
+    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "6", "6b"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
-            ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post))
+            ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post),
+            ("5b", fig_confusion_pre_post_working),
+            ("5c", fig_confusion_per_session),
+            ("6", fig_pattern_similarity),
+            ("6b", fig_pattern_similarity_per_session))
     for key, fn in jobs:
         if key not in want:
             continue

@@ -4329,3 +4329,100 @@ makes one point and the caveats live in the module docstring and here.
 `FIG = Path("E:/cue_lick")` failed `tests/test_no_hardcoded_machine_paths.py` immediately -- that
 literal is the analysis box's path and would be wrong on the imaging box. Now `PathResolver().root
 ("figures_working")`.
+
+---
+
+## MEAN-PATTERN SIMILARITY CORROBORATES THE CODING DIRECTIONS BY A DIFFERENT ROUTE (2026-08-25)
+
+Priya asked whether the ENCODING models would help or whether coding directions are better. The
+useful part of the encoder framing turns out to be obtainable without fitting one: correlate the
+post-stroke MEAN ACTIVITY PATTERN at each position against the pre-stroke mean pattern at EVERY
+position. `poststroke_compare.pattern_similarity` already computed the DIAGONAL of that ("is it the
+same code"); the OFF-DIAGONAL -- what it looks like INSTEAD -- did not exist.
+`grant_figures.fig_pattern_similarity` (figure 6) is it.
+
+**WHY THIS IS NOT REDUNDANT WITH THE CODING DIRECTIONS.** The two fail in different ways:
+
+| | needs a contrast? | sensitive to global gain? |
+|---|---|---|
+| coding direction | YES -- and so it FAILS at exactly the impaired positions, where one side has no trials | no (unit vectors, plus the normunit control) |
+| mean-pattern correlation | no -- far_R's mean pattern is well defined from 400 miss trials with no partner | YES -- a uniform amplitude change moves every cell together |
+
+So agreement between them is worth much more than either alone.
+
+**THE BASELINE PANEL IS THE MEASUREMENT, not decoration.** Positions are intrinsically similar
+pre-lesion, so a raw r of 0.8 is meaningless alone. Both panels are scored against the SAME
+reference -- one half of the pre-stroke trials -- so the left panel is the no-lesion expectation and
+its diagonal is the split-half CEILING (0.93-0.99 in every animal).
+
+### The result, post-cue window, lick + miss-while-working
+
+Own-position correlation (right-panel diagonal), against that ~0.95 ceiling:
+
+| animal | close_L | close_center | close_R | far_L | far_center | far_R |
+|---|---|---|---|---|---|---|
+| PS92 | 0.88 | 0.67 | 0.84 | 0.47 | 0.83 | **−0.01** |
+| PS93 | 0.24 | 0.04 | 0.64 | 0.66 | 0.56 | **−0.26** |
+| PS94 | 0.76 | 0.24 | 0.60 | 0.10 | 0.31 | **−0.01** |
+| PS95 | 0.75 | 0.76 | 0.76 | 0.64 | 0.17 | 0.33 |
+
+**far_R's own pattern collapses to zero or below in PS92, PS93 and PS94.**
+
+**AND THE CROSS-POSITION ROW REPRODUCES THE far_L SUBSTITUTION.** PS93's post-stroke far_R
+correlates **+0.63 with PRE-stroke far_L** while correlating **−0.26 with its own** pre-stroke
+pattern. The coding directions reached the same conclusion for PS93 (far_R -> far_L in ENL and cue,
+2026-08-24) by a construction that shares none of this one's assumptions. PS92 leans the same way
+weakly (far_center +0.31, far_L +0.23, own −0.01); PS94's row is flat near zero, i.e. no substitute
+rather than a substitution; PS95's own diagonal is still its best (+0.33), the recovering animal
+again.
+
+### THE STRUCTURAL FEATURE TO KEEP IN VIEW
+The baseline panels carry strong NEGATIVE close-vs-far correlations (PS92 close_L vs far_R −0.78),
+so this pattern space is dominated by a close-vs-far axis -- the same geometry that produced the
+one-vs-rest flaw and the cross-ring warning. Post-stroke those negatives soften toward zero in every
+animal, which is a GLOBAL change and not a far_R one. Read the far_R collapse against that, not in
+isolation.
+
+### CLASS VARIANTS, AND ONE THAT DELIBERATELY DOES NOT EXIST
+`lick` (trials with a lick) for all three windows; `working` (lick + miss-while-working, terminal
+quit period removed) for ENL and cue ONLY. There is no `working` variant in the LICK window because
+a no-lick trial is placed at the CUE there, so pooling the two classes would average patterns from
+two different times and call the result a position effect -- the same trap as the lick-window
+alignment issue recorded on 2026-08-24.
+
+---
+
+## THE COHORT IS UNEQUAL RIGHT NOW, AND THE FIGURES SAY SO (2026-08-25)
+
+Priya: "there is new PS92 and PS93 data from 8/24 - are you using this?" Partly, and the partial
+answer was the problem.
+
+| source | PS92 8/24 | PS93 8/24 |
+|---|---|---|
+| behaviour CSVs (figs 1, 1b) | yes | n/a |
+| recomputed from `phase_labels("post")` (5b, 5c, 6, 6b) | **yes** | **no** |
+| `section_g.json` (3b, 5) | **no** | no |
+| `coding_direction.json` (3a) | **no** | no |
+
+**Both animals' 8/24 sessions are preprocessed and LocaNMF'd on MICROSCOPE.** Only PS92_0824 was
+registered (`await_locanmf`, commit ec5dd4e); PS93_0824 exists on disk and is absent from
+`sessions.yaml`, so it is invisible to everything. And `section_g.json` / `coding_direction.json`
+predate even the PS92 registration.
+
+**The dangerous form of this is not the missing day, it is the ASYMMETRY.** The figures that
+recompute give PS92 six post-stroke sessions and PS93 five, in a cohort comparison, with nothing on
+the figure to say so. A uniformly missing day is a known limitation; an unequal one is a silent bias
+toward whichever animal happens to be registered.
+
+**Decision (Priya, 2026-08-25): leave the data alone and regenerate after the next nightly.** That
+only works if the gap is legible meanwhile, so `grant_figures.coverage_note()` stamps every
+post-stroke figure with the per-animal session count and warns when they differ. It is COMPUTED from
+`config.phase_labels("post")`, never typed, so it corrects itself when PS93_0824 is registered and
+stops warning once the counts match.
+
+**PENDING, for whoever runs the next nightly:**
+1. Register PS93_0824 (preprocessed and LocaNMF'd; `await_locanmf` should pick it up).
+2. Re-run `poststroke_section_g` and `position_coding_directions` so the JSON-derived figures include
+   8/24 for both animals.
+3. Regenerate the grant figures (`python -m wfield_local.grant_figures`) and confirm the footer no
+   longer warns.
