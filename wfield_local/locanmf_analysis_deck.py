@@ -37,8 +37,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import time
+from datetime import date
 from pathlib import Path
 
 from PIL import Image
@@ -1283,6 +1285,144 @@ def window_provenance(fig_names) -> str:
     if "cv-block" in names:
         bits.append("- CV: block (GroupKFold over ~6-trial position blocks)")
     return "HOW IT WAS BUILT" + chr(10) + chr(10).join(bits)
+
+
+_BASIS_PROSE = {
+    "roi": "Allen-ROI basis",
+    "joint": "shared joint-LocaNMF basis (the same components on every day, so days are comparable)",
+    "locanmf": "that session's OWN LocaNMF basis (within-day only; components are not comparable "
+               "across days)",
+}
+# LONGEST FIRST. "poststroke_all" is a prefix of "poststroke_all_working", and a shortest-first scan
+# would label the outcome-blind-minus-quit-period arm as the outcome-blind one -- a wrong caption
+# reads exactly like a right one.
+_ARM_PROSE = (
+    ("poststroke_all_working", ("post-stroke arm: EVERY trial except the terminal quit period "
+                                "(outcome-blind, so no lick/miss selection)")),
+    ("poststroke_miss_working", "post-stroke arm: MISS trials on which the animal was still working"),
+    ("poststroke_stopped", "post-stroke arm: the terminal quit period ONLY"),
+    ("poststroke_lick", "post-stroke arm: trials with a detected lick"),
+    ("poststroke_all", "post-stroke arm: ALL trials, outcome-blind"),
+    ("lickonly", "LICK-ONLY arm: both sides restricted to trials with a lick"),
+)
+_METHOD_PROSE = {
+    "dom": "difference-of-means coding axis",
+    "lr": "logistic (LDA-like) coding axis",
+}
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _session_years() -> dict:
+    """MMDD -> calendar year, read off the YYYYMMDD prefix of each session's own path.
+
+    The captions state a real day count from the lesion, which needs a year. Hardcoding 2026 would
+    be right today and silently wrong the first time this cohort runs over New Year, so the year is
+    recovered from `sessions.yaml` -- the file that already knows it.
+    """
+    out = {}
+    try:
+        for s in config.load_sessions():
+            m = re.search(r"(20\d{2})(\d{2})(\d{2})", str(s.get("mc") or ""))
+            if m:
+                out[m.group(2) + m.group(3)] = int(m.group(1))
+    except Exception as exc:                         # noqa: BLE001 - a caption must never break a build
+        print(f"[analysis_deck] caption years unavailable ({exc}); captions will name the phase "
+              f"instead of a day count")
+    return out
+
+
+def _date_prose(mmdd: str, animal: str | None, years: dict) -> str:
+    """'22 Aug 2026 (day 5 after the lesion)'. Falls back to the bare date when anything is unknown."""
+    mm, dd = mmdd[:2], mmdd[2:]
+    try:
+        label = f"{int(dd)} {_MONTHS[int(mm) - 1]}"
+    except (ValueError, IndexError):
+        return mmdd
+    yr = years.get(mmdd)
+    if yr:
+        label += f" {yr}"
+    if not animal:
+        return label
+    sd = config.stroke_date(animal)
+    if not sd:
+        return f"{label} (no lesion in this animal)"
+    # THE LESION DAY IS USUALLY NOT AN IMAGING DAY, so `sd` is normally absent from `years`
+    # (PS94/PS95 were lesioned on 0816 and nothing was recorded that day). While every registered
+    # session falls in ONE calendar year, that year is the lesion's year too; the moment the cohort
+    # straddles New Year it stops being inferable and the caption says which SIDE of the lesion the
+    # session is on rather than invent a day count.
+    sd_yr = years.get(sd)
+    if sd_yr is None and len(set(years.values())) == 1:
+        sd_yr = next(iter(set(years.values())))
+    if not yr or sd_yr is None:
+        return f"{label} ({'pre-stroke' if mmdd <= sd else 'post-stroke'})"
+    d0 = date(sd_yr, int(sd[:2]), int(sd[2:]))
+    d1 = date(yr, int(mm), int(dd))
+    n = (d1 - d0).days
+    if n == 0:
+        return f"{label} (the last pre-stroke session; the lesion was induced after it)"
+    rel = f"day {n} after the lesion" if n > 0 else f"{abs(n)} days before the lesion"
+    return f"{label} ({rel})"
+
+
+def figure_caption(fig_names, years=None) -> str:
+    """A caption naming what THIS slide's figure actually is: animal, day, window, basis, arm.
+
+    WHY THIS IS GENERATED AND NOT WRITTEN. Every figure slide already carried speaker notes, so the
+    gap this fills is not absence -- it is SPECIFICITY. The notes are written per FAMILY and the deck
+    places a family once per animal x date x window, so on 2026-08-25 an audit found the same "THIS
+    SLIDE" paragraph on 88 slides, another on 80 and another on 72. A caption repeated 88 times tells
+    a reader which family they are in and nothing about the panel in front of them; the one fact they
+    need -- is this PS93 on day 4 in the joint basis, or PS95 pre-stroke in the ROI basis -- was
+    legible only from the filename, which the deck does not show.
+
+    Derived from the figure's own name, like `window_provenance`, so it cannot drift from what it
+    describes. Returns "" when a name encodes nothing (a schematic, a cohort-wide summary): a slide
+    gets no caption rather than a guessed one.
+    """
+    years = _session_years() if years is None else years
+    lines = []
+    for raw in fig_names:
+        stem = Path(str(raw)).stem
+        toks = stem.split("_")
+        bits = []
+        an = next((t for t in toks if re.fullmatch(r"PS\d{2}", t)), None)
+        if an:
+            bits.append(an)
+        rng = next((t for t in toks if re.fullmatch(r"\d{4}-\d{4}", t)), None)
+        dates_ = [t for t in toks if re.fullmatch(r"(0[1-9]|1[0-2])[0-3]\d", t)]
+        if rng:
+            a, b = rng.split("-")
+            bits.append(f"sessions {_date_prose(a, None, years)} to {_date_prose(b, None, years)}")
+        elif dates_:
+            bits.append("; ".join(_date_prose(d, an, years) for d in dates_))
+        align = next((a for a in ("precue", "cue", "lick") if a in toks), None)
+        if align:
+            bits.append(_ALIGN_PROSE[align].split(":")[0] + " window")
+        basis = next((b for b in ("joint", "roi", "locanmf") if b in toks), None)
+        # "locanmf" leads almost every filename as a FAMILY prefix; it only names a basis when it
+        # sits beside an alignment token, as in ..._locanmf_precue_base-none_cv-block.
+        if basis == "locanmf" and not (align and f"locanmf_{align}" in stem):
+            basis = None
+        if basis:
+            bits.append(_BASIS_PROSE[basis])
+        arm = next((p for k, p in _ARM_PROSE if k in stem), None)
+        if arm:
+            bits.append(arm)
+        meth = next((_METHOD_PROSE[m] for m in ("dom", "lr") if m in toks), None)
+        if meth:
+            bits.append(meth + (", orthogonalised to the engagement axis" if "orth" in toks else ""))
+        pg = next((t for t in toks if re.fullmatch(r"p\d+", t)), None)
+        if pg:
+            bits.append(f"page {pg[1:]} of this family")
+        # THE FILENAME GOES IN EITHER WAY. 29 figure slides come from families whose names encode
+        # none of the tokens above (the G1b coverage grids, the pooled encoder panels, the G8 raw
+        # fluorescence series, the grant set) and returning "" for them left exactly the slides
+        # whose titles are least self-explanatory with no caption at all. A filename invents
+        # nothing -- it is the identity of the thing on the slide, and it is what a reader needs to
+        # regenerate or interrogate it.
+        lines.append(Path(str(raw)).name + ((chr(10) + "    " + " · ".join(bits)) if bits else ""))
+    return ("FIGURE" + chr(10) + (chr(10)).join(lines)) if lines else ""
 
 
 def keep_previous(out_path) -> Path | None:
@@ -2695,14 +2835,27 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # WINDOW PROVENANCE ON EVERY SLIDE, appended last so it sits under whatever note the
     # section already wrote. Derived from each figure's own filename plus defaults.yaml,
     # so it cannot drift from what it describes.
+    #
+    # THE CAPTION IS PREPENDED, the provenance appended, so the notes read: what this figure IS,
+    # then what is specific about it, then the shared methods, then how it was built. Both are
+    # derived from the figure's own filename in the same pass -- see `figure_caption`.
     _prov = 0
+    _caps = 0
+    _years = _session_years()
     for _sl in slide_order:
-        _line = window_provenance(figs_by_slide.get(id(_sl._element), []))
-        if not _line:
+        _figs = figs_by_slide.get(id(_sl._element), [])
+        _cap = figure_caption(_figs, years=_years)
+        _line = window_provenance(_figs)
+        if not _cap and not _line:
             continue
         _tf = _sl.notes_slide.notes_text_frame
-        _tf.text = (_tf.text + chr(10) + chr(10) + _line) if _tf.text else _line
-        _prov += 1
+        if _cap:
+            _tf.text = (_cap + chr(10) + chr(10) + _tf.text) if _tf.text else _cap
+            _caps += 1
+        if _line:
+            _tf.text = (_tf.text + chr(10) + chr(10) + _line) if _tf.text else _line
+            _prov += 1
+    print(f"[analysis_deck] per-figure captions written to {_caps} slide(s)", flush=True)
     print(f"[analysis_deck] window/binning provenance written to {_prov} slide(s)",
           flush=True)
     keep_previous(out_path)

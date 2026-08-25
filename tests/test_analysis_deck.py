@@ -245,3 +245,63 @@ def test_the_kinds_the_deck_places_are_the_ones_the_module_declares():
                  | set(pcd.COHORT_FIGURE_KINDS)):
         assert re.search(rf'\("{kind}"', src), (
             f"position_coding_directions writes coding_{kind}_* every night and no slide places it")
+
+
+def test_figure_caption_names_the_individual_figure():
+    """Every figure slide already had notes; what they lacked was SPECIFICITY.
+
+    An audit on 2026-08-25 found the same "THIS SLIDE" paragraph on 88 slides, another on 80 and
+    another on 72 -- because the notes are written per FAMILY and the deck places a family once per
+    animal x date x window. The one fact a reader needs (which animal, which day, which basis) was
+    legible only from the filename, which the deck does not show.
+    """
+    years = {"0606": 2026, "0814": 2026, "0817": 2026, "0820": 2026, "0822": 2026}
+
+    cap = ad.figure_caption(["locanmf_frozen_session_PS93_0822_joint_cue.png"], years=years)
+    assert "PS93" in cap and "22 Aug 2026" in cap
+    assert "POST-CUE" in cap
+    assert "joint-LocaNMF" in cap
+
+    # The lesion day is not an imaging day (PS94/PS95 were lesioned on 0816), so the year for the
+    # stroke date has to be inferred or the day count degrades to a bare phase word.
+    cap = ad.figure_caption(["locanmf_frozen_session_PS94_0817_joint_cue.png"], years=years)
+    assert "day 1 after the lesion" in cap, cap
+
+    # ARM MATCHING IS LONGEST-FIRST: "poststroke_all" is a prefix of "poststroke_all_working".
+    cap = ad.figure_caption(["coding_crosssess_cue_dom_poststroke_all_working_PS94.png"], years=years)
+    assert "quit period" in cap and "ALL trials, outcome-blind" not in cap, cap
+
+    # "locanmf" is a family PREFIX on almost every filename and names a basis only beside an
+    # alignment token. A caption calling an Allen-ROI figure a LocaNMF one reads exactly like a
+    # right one.
+    cap = ad.figure_caption(["locanmf_frozen_session_PS92_0606_roi_precue.png"], years=years)
+    assert "Allen-ROI" in cap and "OWN LocaNMF" not in cap, cap
+
+    # Nothing encoded -> the FILENAME still goes in, with no descriptor line invented under it.
+    # Returning "" here left the 29 slides whose titles are least self-explanatory (the G1b
+    # coverage grids, the pooled encoder panels, the G8 series) with no caption at all.
+    cap = ad.figure_caption(["some_schematic.png"], years=years)
+    assert cap == "FIGURE" + chr(10) + "some_schematic.png", cap
+    assert ad.figure_caption([], years=years) == ""
+
+
+def test_every_figure_slide_gets_a_caption(tmp_path):
+    """Captions are generated in a post-pass over the placed figures, so a slide carrying a figure
+    with no caption means that figure's name encoded nothing this deck can read."""
+    from PIL import Image
+    from pptx import Presentation
+
+    figs = tmp_path / "figs"
+    figs.mkdir()
+    for n in ("locanmf_rsa_crossnobis_0606-0807.png",
+              "locanmf_decoder_rolling_by_animal_PS92.png"):
+        Image.new("RGB", (4, 4), "white").save(figs / n)
+    out = tmp_path / "d.pptx"
+    ad.build_analysis_deck(figs, out, dates=["0606", "0807"], animals=["PS92"],
+                           grant_dir=tmp_path / "grant")
+    prs = Presentation(str(out))
+    for i, sl in enumerate(prs.slides, 1):
+        if not any(sh.shape_type == 13 for sh in sl.shapes):
+            continue
+        nt = sl.notes_slide.notes_text_frame.text if sl.has_notes_slide else ""
+        assert nt.startswith("FIGURE"), f"slide {i} carries a figure with no caption"
