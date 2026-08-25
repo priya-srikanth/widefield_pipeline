@@ -782,6 +782,32 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     return out
 
 
+def _within_accuracy(label, X, y, gb, ng, is_post, pos_key):
+    """Block-CV within-session accuracy for one session, memoized on ITS OWN inputs.
+
+    Only PRE-STROKE sessions are cached. A post-stroke session's row is the thing under examination
+    and is cheap (there are few of them), while the pre-stroke rows are the reference band and are
+    recomputed identically every night -- that asymmetry is where the time goes.
+
+    ``pos_key`` is in the cache key because the band is POSITION-MATCHED to the post-stroke arm: the
+    same pre-stroke session legitimately has a different accuracy when scored over four positions
+    than over six, and serving one for the other would reintroduce the chance-level mismatch this
+    function exists to prevent.
+    """
+    def _compute():
+        return float(accuracy_score(
+            y, cross_val_predict(_pipe(), X, y, cv=GroupKFold(ng), groups=gb)))
+
+    if is_post:
+        return _compute()
+    from wfield_local import config, session_cache
+    rec = [s for s in config.load_sessions() if s["label"] == label]
+    if not rec:                       # unregistered: compute rather than guess at a cache identity
+        return _compute()
+    return session_cache.cached(
+        rec[0], f"within_acc__{'-'.join(str(p) for p in pos_key)}__k{ng}", _compute, params=None)
+
+
 def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
     """Is the position code LOST, or RECODED? Frozen pre-stroke decoder vs a within-session one.
 
@@ -801,6 +827,14 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
 
     Both arms use GroupKFold on the real position blocks, so the within-session number carries the same
     block-CV convention as everything else in the deck.
+
+    THE PRE-STROKE BAND IS MEMOIZED PER SESSION, NOT FROZEN (2026-08-25). Recomputing every
+    pre-stroke session's within-session accuracy every night costs real time, and the obvious fix --
+    freeze the band the way `nolick_reference_prestroke.json` is frozen -- is WRONG here, for exactly
+    the reason given above: on the lick-only arm the pre-stroke sessions are deliberately re-scored
+    over the POST-stroke session's preserved positions, which change night to night. A frozen band
+    would silently stop being position-matched. So the cache key carries the POSITION SET: an
+    identical set reuses the value, a changed set recomputes.
     """
     # POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18): the missing licks ARE the phenotype, so
     # filtering to engaged trials removes the effect being measured -- and post-stroke that is not a
@@ -842,7 +876,10 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
         ng = min(n_splits, int(np.unique(gb).size))
         if ng < 2:
             continue
-        acc = float(accuracy_score(y, cross_val_predict(_pipe(), X, y, cv=GroupKFold(ng), groups=gb)))
+        # `scored` IS the position set both arms are matched on, so it is the right cache key --
+        # deriving a second expression here would be one more place for the two to drift apart.
+        acc = _within_accuracy(d["kept"][i], X, y, gb, ng, is_post,
+                               pos_key=tuple(sorted(scored)))
         rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": len(y),
                      "post": is_post})
     pre = np.array([r["within_accuracy"] for r in rows if not r["post"]], float)
