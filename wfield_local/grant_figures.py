@@ -275,13 +275,16 @@ def fig_behaviour(out_dir):
         ax.set_xlim(BASELINE_X - 2.5, None)          # else the collapsed baseline sits on the spine
         if k == 0:
             ax.set_ylabel("hit rate (engaged trials)")
-            ax.legend(fontsize=7, ncol=2, loc="lower left")
         ax.grid(alpha=0.25, lw=0.5)
+    # Below the panels, for the same reason as 1b: lower-left is where the impaired traces live.
+    _h, _lab = axes[0][0].get_legend_handles_labels()
+    if _h:
+        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
     fig.suptitle("Licking accuracy at each spout position, relative to the lesion. "
                  "Engaged trials only (the terminal quit period is excluded); bars are Wilson 95% "
                  "CIs. The two sessions after the laser that did not take are omitted.",
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.tight_layout(rect=(0, 0.09, 1, 0.90))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1_behaviour_by_position.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -331,11 +334,14 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
                 xs.append(d + off); ys.append(m[0])
             if xs:
                 ax.errorbar(xs, ys, color=col, marker=mk, ms=4.5, lw=1.3, alpha=0.95)
-        ax.axvline(-0.5, color="0.55", lw=1.0, ls=(0, (2, 3)))
-        # NO "lesion" LABEL HERE -- it collided with the per-panel title, which carries the
-        # impaired positions and is the more useful text. The dotted line plus the "ALL pre" tick
-        # already say where the lesion is.
-        ax.axvline(0.35, color="k", lw=1.6, ls=":")
+        # ONE dotted line, at the TRUE ZERO of the axis (Priya, 2026-08-25). There were two -- a
+        # grey one at -0.5 marking the break between the collapsed baseline point and the post days,
+        # and a black one at an arbitrary +0.35 for the lesion -- which read as a pair of unexplained
+        # rules with a gap between them. The x axis is already "days from lesion", so x = 0 IS the
+        # lesion and needs no second marker; the "ALL pre" tick says where the collapsed point sits.
+        # NO "lesion" TEXT: it collided with the per-panel title, which carries the impaired
+        # positions and is the more useful text.
+        ax.axvline(0, color="k", lw=1.4, ls=":")
         ax.set_xticks([-1] + post_days)
         ax.set_xticklabels(["ALL\npre"] + [str(d) for d in post_days], fontsize=8)
         ax.set_title(f"{an}\nimpaired: {', '.join(sorted(imp)) or 'none'}", fontsize=10,
@@ -344,14 +350,20 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
         ax.set_ylim(-0.02, 1.05)
         if k == 0:
             ax.set_ylabel("hit rate (engaged trials)")
-            ax.legend(fontsize=7, ncol=2, loc="lower left")
         ax.grid(alpha=0.25, lw=0.5)
+    # LEGEND BELOW ALL PANELS, not inside one (Priya, 2026-08-25). At lower-left of PS92 it sat
+    # exactly on that animal's far_R trace, which runs 0.0-0.5 over the early post-stroke days --
+    # i.e. it covered the deficit the figure exists to show. A figure-level legend cannot collide
+    # with data whatever the values turn out to be, which an in-panel "best" location cannot promise.
+    _h, _lab = axes[0][0].get_legend_handles_labels()
+    if _h:
+        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
     fig.suptitle("Licking accuracy per spout position: the WHOLE pre-stroke baseline as one point "
                  "(mean +/- SEM across sessions), then each day after the lesion.\n"
                  "Engaged trials only; positions offset horizontally so all six are visible. "
                  "Each panel title lists the positions that dropped below 50% on any post-stroke day.",
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.tight_layout(rect=(0, 0.09, 1, 0.90))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1b_behaviour_pre_collapsed.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
