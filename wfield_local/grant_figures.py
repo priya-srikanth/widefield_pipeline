@@ -2236,6 +2236,83 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
     return made
 
 
+def _pre_pool_blk(pre_b, exclude=None):
+    """Pooled pre-stroke BLOCK ids per position, mirroring `_pre_reference` for the trial arrays."""
+    acc = {}
+    for s, pat in pre_b.items():
+        if s == exclude:
+            continue
+        for q, b in pat.items():
+            acc.setdefault(q, []).append(np.asarray(b))
+    return {q: np.concatenate(v) for q, v in acc.items()}
+
+
+def _disattenuated_ci(align, variant, min_trials=10, n_boot=200):
+    """{animal: {day: {position: (lo, hi)}}} on the DISATTENUATED own-position similarity.
+
+    This is figure 7b's right-hand panel -- the number the whole "the code MOVED rather than got
+    noisier" reading rests on -- and it had no uncertainty at all. It is a RATIO of three estimated
+    quantities, raw / sqrt(rel_post * rel_pre), so its sampling distribution is not the raw
+    correlation's and cannot be guessed from it: at low reliability the denominator is itself noisy
+    and the ratio is skewed, which is exactly the regime the impaired positions sit in.
+
+    Blocks resampled within session, sessions held fixed, and the reference resampled in the SAME
+    draw as the day so the two share their noise -- the convention used by every other interval in
+    this module.
+
+    A draw whose reliability falls below MIN_REL on either side is DISCARDED rather than clipped:
+    the point estimate suppresses those cells, so an interval that quietly included them would not
+    describe the number printed beside it.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        rng = np.random.default_rng(abs(hash((an, align, variant, "7bci"))) % (2 ** 31))
+        per_day = {}
+        for d in days:
+            if d not in day_x:
+                continue
+            draws = {q: [] for q in CONF_LABELS}
+            for _ in range(n_boot):
+                ref_r = {}
+                for s in pre_x:
+                    got = _block_boot(pre_x[s], pre_b[s], rng)
+                    for q, Z in got.items():
+                        ref_r.setdefault(q, []).append(Z)
+                ref_r = {q: np.vstack(v) for q, v in ref_r.items()}
+                day_r = _block_boot(day_x[d], day_b[d], rng)
+                if not ref_r or not day_r:
+                    continue
+                for k, q in enumerate(CONF_LABELS):
+                    Z, R = day_r.get(q), ref_r.get(q)
+                    if Z is None or R is None:
+                        continue
+                    rp, rr = _reliability(Z, rng), _reliability(R, rng)
+                    if not (np.isfinite(rp) and np.isfinite(rr)):
+                        continue
+                    if rp < MIN_REL or rr < MIN_REL:
+                        continue
+                    m, rm = Z.mean(0), R.mean(0)
+                    if not (np.std(m) and np.std(rm)):
+                        continue
+                    raw = float(np.corrcoef(m, rm)[0, 1])
+                    draws[q].append(raw / np.sqrt(rp * rr))
+            rec = {}
+            for q, v in draws.items():
+                v = np.array([x for x in v if np.isfinite(x)])
+                if len(v) >= n_boot // 4:
+                    rec[q] = (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))
+            if rec:
+                per_day[d] = rec
+        if per_day:
+            out[an] = per_day
+    return out
+
+
 def fig_reliability_verdict(out_dir, min_trials=10):
     """7b: figure 6's own-position similarity, RAW and DISATTENUATED by both sides' reliability.
 
@@ -2263,6 +2340,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
+            cis = _disattenuated_ci(align, v, min_trials)
             fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(10.8, 9.4), squeeze=False)
             drew = False
             for ri, an in enumerate(ANIMALS):
@@ -2289,6 +2367,8 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                 # baseline panel and the same reason the axis work uses a matched null instead of
                 # comparing cosines with unity.
                 cols = ["PRE"] + [f"d{d}" for d in days]
+                # column index -> day, so a cell can find its own interval
+                cols_day = [None] + list(days)
                 shape = (len(CONF_LABELS), len(cols))
                 rel = np.full(shape, np.nan)
                 raw = np.full(shape, np.nan)
@@ -2345,8 +2425,18 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                                     _txt(ax, j, i, "·", ha="center", va="center", fontsize=11,
                                             color="0.35")
                                 continue
-                            _txt(ax, j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
-                                    color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
+                            # THE INTERVAL GOES ON THE DISATTENUATED PANEL ONLY -- that is the
+                            # number the verdict is read from, and putting a second line under all
+                            # three would triple the text for two panels that are diagnostics.
+                            lab = f"{M[i, j]:.2f}"
+                            if ci == 2 and j > 0:
+                                band = ((cis.get(an) or {}).get(cols_day[j]) or {}).get(
+                                    CONF_LABELS[i])
+                                if band:
+                                    lab = f"{M[i, j]:.2f}\n[{band[0]:.2f},{band[1]:.2f}]"
+                            _txt(ax, j, i, lab, ha="center", va="center",
+                                 fontsize=6.2 if len(lab) > 6 else 7.5,
+                                 color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
                     ax.set_xticks(range(len(cols)))
                     ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
                     ax.set_yticks(range(len(CONF_LABELS)))
@@ -2986,7 +3076,8 @@ def _matrices_splithalf(align, variant, min_trials=10):
 
 
 def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
-                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2, cis=None):
+                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2, cis=None,
+                higher_is_better=True):
     """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
     the reference, on a diverging scale centred at zero.
 
@@ -3017,6 +3108,15 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
             if M is None or base is None or not np.isfinite(M).any():
                 ax.axis("off")
                 continue
+            # THE WHOLE ROW, NOT ONLY ITS DIAGONAL (Priya, 2026-08-26). A diagonal of 0.2 cannot
+            # separate "the code is gone" from "the code moved to far_L" -- 0.2 against everything,
+            # and 0.2 against itself with 0.7 elsewhere, are the same number. `self n/6` counts the
+            # positions whose BEST match is still themselves: it uses all six entries and is
+            # invariant to any monotone change across a row, so the uniform row shifts that dominate
+            # the distance panels -- amplitude rather than resemblance -- cannot move it.
+            _bm, _rk = _best_match(M, higher_is_better=higher_is_better)
+            _self = int(sum(i == j for i, j in enumerate(_bm) if j >= 0))
+            _nrow = int(sum(1 for j in _bm if j >= 0))
             if ci == 0:
                 im_abs = ax.imshow(np.ma.masked_invalid(M), vmin=vmin, vmax=vmax, cmap=cmap)
                 # "PRE", not "PRE (reference)": the header already says column 1 is the
@@ -3039,12 +3139,13 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
             # needed. Blank when the bootstrap could not resolve that cell -- never an interval
             # silently omitted from a panel that has one everywhere else.
             band = (cis or {}).get(an, {}).get(days[ci - 1]) if ci else None
+            _sm = f"  self {_self}/{_nrow}" if _nrow else ""
             if ci == 0:
-                lab = f"{head}  {stat:.2f}"
+                lab = f"{head}  {stat:.2f}{_sm}"
             elif band:
-                lab = f"{head}  {stat:+.2f}\n[{band[0]:+.2f}, {band[1]:+.2f}]"
+                lab = f"{head}  {stat:+.2f}{_sm}\n[{band[0]:+.2f}, {band[1]:+.2f}]"
             else:
-                lab = f"{head}  {stat:+.2f}"
+                lab = f"{head}  {stat:+.2f}{_sm}"
             ax.set_title(lab, fontsize=9.5 if band else 7.5,
                          fontweight="bold" if ci == 0 else "normal")
             if ci == 0:
@@ -3342,7 +3443,8 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
                 abs_label="pre-stroke distance",
                 delta_label="change in distance (1.0 = mean pre-stroke between-position)",
                 vmin=0, vmax=2.5, cmap="magma", dmax=1.5, summary=_diag,
-                ylab="this position", cis=cis)
+                # DISTANCES: a row's best match is its SMALLEST entry, not its largest.
+                ylab="this position", cis=cis, higher_is_better=False)
             if p:
                 made.append(p)
     return made
@@ -3812,6 +3914,175 @@ def fig_geometry_by_position(out_dir, min_trials=10):
     return made
 
 
+def _best_match(M, higher_is_better=True):
+    """Per row: (index of the best-matching column, rank of the diagonal, 1..n).
+
+    USES THE WHOLE ROW, which is the point. The diagonal alone cannot separate "the code is gone"
+    from "the code moved to a specific other position" -- 0.2 against every position and 0.2 against
+    its own with 0.7 against far_L are the same diagonal and different results.
+
+    ARGMAX AND RANK ARE INVARIANT to any monotone transform applied ACROSS a row, so the uniform
+    row shifts that dominate the distance figures -- which are amplitude, not resemblance -- cannot
+    move them. That is precisely where the diagonal is weakest.
+    """
+    n = M.shape[0]
+    best = np.full(n, -1)
+    rank = np.full(n, np.nan)
+    for i in range(n):
+        row = M[i].astype(float)
+        ok = np.isfinite(row)
+        if ok.sum() < 2 or not np.isfinite(row[i]):
+            continue
+        v = row.copy()
+        if not higher_is_better:
+            v = -v
+        # TIES GO TO THE DIAGONAL. A row that is flat -- the code is gone, with no particular
+        # substitute -- has every entry equal, and a bare argmax then returns whichever position
+        # happens to come first in DISPLAY_ORDER, reporting a substitution that does not exist. It
+        # would also disagree with `rank`, which correctly calls the diagonal tied-best. Preferring
+        # the diagonal on a tie is the conservative direction: it never invents a move.
+        vmax = np.nanmax(np.where(ok, v, -np.inf))
+        best[i] = i if v[i] >= vmax else int(np.nanargmax(np.where(ok, v, -np.inf)))
+        # rank of the diagonal among the usable entries, 1 = best match is itself
+        rank[i] = 1 + int((v[ok] > v[i]).sum())
+    return best, rank
+
+
+@lru_cache(maxsize=6)
+def _match_tables(align, variant, min_trials=10):
+    """{animal: (pre counts 6x6, post counts 6x6, {day: (acc, mean rank)})}.
+
+    Counts how often each post-stroke position's BEST MATCH is each pre-stroke position, pooled over
+    sessions. The pre-stroke table is the same thing computed leave-one-session-out and is the
+    ceiling: even with no lesion a held-out day does not always match itself best.
+    """
+    mats, days = _matrices_pattern(align, variant, min_trials)
+    out = {}
+    for an, d in mats.items():
+        n = len(CONF_LABELS)
+        pre_C, post_C = np.zeros((n, n)), np.zeros((n, n))
+        per_day = {}
+        base = d.get("PRE")
+        if base is not None:
+            b, _r = _best_match(base)
+            for i, j in enumerate(b):
+                if j >= 0:
+                    pre_C[i, j] += 1
+        for day in days:
+            M = d.get(day)
+            if M is None:
+                continue
+            b, r = _best_match(M)
+            for i, j in enumerate(b):
+                if j >= 0:
+                    post_C[i, j] += 1
+            hit = [(i == j) for i, j in enumerate(b) if j >= 0]
+            per_day[day] = (float(np.mean(hit)) if hit else np.nan,
+                            float(np.nanmean(r)) if np.isfinite(r).any() else np.nan)
+        out[an] = (pre_C, post_C, per_day)
+    return out, days
+
+
+def fig_best_match(out_dir, min_trials=10):
+    """10: which PRE-STROKE position does each post-stroke position match BEST?
+
+    Priya, 2026-08-26: "I'm not yet sure that the diagonal is all that matters -- is there a way to
+    take into account the other cross-correlations?" This is that figure. Every panel above reduces a
+    row to its diagonal; this reduces it to its ARGMAX, which uses all six entries and answers "moved
+    where" rather than only "moved".
+
+    LEFT: the pre-stroke ceiling, leave-one-session-out -- how often a held-out pre-stroke day
+    matches itself best. It is not 6/6, and reading the right panel against 6/6 rather than against
+    this would overstate everything.
+    MIDDLE: the same over post-stroke sessions. A row's mass moving OFF the diagonal names the
+    substitute directly: far_R landing on far_L is the substitution the coding directions and the
+    off-diagonal of figure 6 both report, here as a count.
+    RIGHT: per day, the fraction of positions whose best match is themselves, and the mean RANK of
+    the true position among the six. Rank degrades gracefully where the fraction is all-or-nothing --
+    a position that slips from first to second is not the same as one that slips to sixth.
+
+    IMMUNE TO THE AMPLITUDE TERM. Argmax and rank do not change under a monotone transform of a row,
+    and the uniform row shifts in figures 8/8d are exactly that. So this summary cannot be moved by
+    the gain change that 8b exists to rule out.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            tables, days = _match_tables(align, v, min_trials)
+            if not tables or not days:
+                continue
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(11.0, 2.5 * len(ANIMALS) + 1.6),
+                                     squeeze=False, gridspec_kw={"width_ratios": [1, 1, 1.5],
+                                                                 "hspace": 0.45})
+            im = None
+            for ri, an in enumerate(ANIMALS):
+                got = tables.get(an)
+                if not got:
+                    for ci in range(3):
+                        axes[ri][ci].axis("off")
+                    continue
+                pre_C, post_C, per_day = got
+                for ci, (C, ttl) in enumerate(((pre_C, "PRE (leave-1-out)"),
+                                               (post_C, "POST-stroke sessions"))):
+                    ax = axes[ri][ci]
+                    im = ax.imshow(C, vmin=0, vmax=max(1, C.max()), cmap="magma")
+                    for i in range(len(CONF_LABELS)):
+                        for j in range(len(CONF_LABELS)):
+                            if C[i, j]:
+                                _txt(ax, j, i, f"{int(C[i, j])}", ha="center", va="center",
+                                     fontsize=8, color="w" if C[i, j] < C.max() * 0.6 else "k")
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=90, fontsize=9)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
+                    hit = np.trace(C) / max(1, C.sum())
+                    ax.set_title(f"{ttl}\n{hit:.0%} match self", fontsize=9.5,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
+                ax = axes[ri][2]
+                xs = [d for d in days if d in per_day]
+                if xs:
+                    ax.plot(xs, [per_day[d][0] for d in xs], "o-", color="#b2182b", ms=5, lw=1.5,
+                            label="matches self" if ri == 0 else None)
+                    ax2 = ax.twinx()
+                    ax2.plot(xs, [per_day[d][1] for d in xs], "s--", color="#2166ac", ms=4, lw=1.2,
+                             label="mean rank" if ri == 0 else None)
+                    ax2.set_ylim(6.4, 0.6)
+                    ax2.set_ylabel("mean rank of true position", fontsize=8.5, color="#2166ac")
+                    ax2.tick_params(labelsize=8, colors="#2166ac")
+                ax.set_ylim(-0.05, 1.05)
+                ax.grid(alpha=0.25, lw=0.5)
+                ax.set_ylabel("fraction matching self", fontsize=8.5, color="#b2182b")
+                ax.tick_params(labelsize=8)
+                if ri == len(ANIMALS) - 1:
+                    ax.set_xlabel("days from lesion", fontsize=10)
+            if im is None:
+                plt.close(fig)
+                continue
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            _suptitle(fig,
+                      f"Which PRE-STROKE position does each post-stroke position match BEST? -- "
+                      f"{wname} window\n"
+                      f"Post-stroke class: {cls}.  Uses the WHOLE ROW of the similarity matrix, not "
+                      f"its diagonal: 0.2 against everything and 0.2 against itself with 0.7 "
+                      f"against far_L are the same diagonal and different results.\n"
+                      f"ARGMAX AND RANK ARE INVARIANT to a monotone change across a row, so the "
+                      f"uniform row shifts that dominate figures 8 and 8d -- amplitude, not "
+                      f"resemblance -- cannot move this.\n"
+                      f"LEFT is the ceiling: even with no lesion a held-out pre-stroke day does not "
+                      f"always match itself best. Read the middle panel against it, never against "
+                      f"100%.")
+            _footer(fig)
+            p = _out(out_dir, f"grant_10_best_match_{align}_{v}")
+            _save(fig, p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
 
@@ -4029,13 +4300,13 @@ def main(argv=None) -> int:
                          "and narrower panels, for reproduction at a quarter of a letter page")
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -4048,7 +4319,8 @@ def main(argv=None) -> int:
             ("7d", fig_splithalf_delta),
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
             ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry), ("8g", fig_geometry_by_position),
-            ("9", fig_delta_trajectory))
+            ("9", fig_delta_trajectory),
+            ("10", fig_best_match))
     def _run(tag=""):
         for key, fn in jobs:
             if key not in want:
