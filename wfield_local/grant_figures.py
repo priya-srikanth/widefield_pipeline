@@ -880,7 +880,7 @@ def fig_confusion_pre_post(out_dir):
         if not drew:
             plt.close(fig)
             continue
-        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
+        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.07, label="P(predicted | true)")
         _suptitle(fig, f"The frozen pre-stroke decoder before and after the lesion — {wname} window\n"
                      "Rows = TRUE spout position, columns = predicted. MIDDLE PANEL IS THE MATCHED "
                      "CONTROL: pre-stroke NO-LICK trials scored by a decoder trained on the other "
@@ -1012,13 +1012,19 @@ def fig_confusion_pre_post_working(out_dir):
                                    rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
-                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f}, n={int(C.sum())})",
-                             fontsize=11, fontweight="bold" if ci == 0 else "normal")
+                # Same treatment as figure 5: the animal on the Y LABEL, not in the title where it
+                # competes for the panel's width. This figure's titles are the longest in the module
+                # ("quit period REMOVED") and the trial count made them longer still, so n moves onto
+                # its own line rather than extending the widest one.
+                if ci == 0:
+                    ax.set_ylabel(an, fontsize=11, fontweight="bold")
+                ax.set_title(f"{ptitle}\n({acc:.2f}, n={int(C.sum())})", fontsize=9.5,
+                             fontweight="bold" if ci == 0 else "normal")
                 drew = True
         if not drew:
             plt.close(fig)
             continue
-        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
+        fig.colorbar(im, ax=axes, fraction=0.02, pad=0.07, label="P(predicted | true)")
         _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
                      f"{wname} window\n"
                      "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
