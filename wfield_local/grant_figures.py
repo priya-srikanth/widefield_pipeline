@@ -530,6 +530,34 @@ POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
              "far_L": "fL", "far_center": "fC", "far_R": "fR"}
 
 
+#: Set by `--compact`: drop the number printed in each matrix cell and narrow the panels, for
+#: reproduction at a quarter of a letter page. The colour still carries the value; the digits are
+#: what cannot survive the reduction, and they are also what forces the panel to stay wide.
+COMPACT = False
+
+
+def _colw(full=1.45, compact=1.15):
+    """Inches per matrix column. Narrower without in-cell numbers to print."""
+    return compact if COMPACT else full
+
+
+def _txt(ax, *args, **kw):
+    """`ax.text` that draws nothing in a compact render.
+
+    Every in-cell number in this module goes through here, so the compact variant cannot be
+    half-applied -- which is what would happen if each of the eight call sites carried its own
+    `if not COMPACT` and one were added later without it.
+    """
+    if COMPACT:
+        return None
+    return ax.text(*args, **kw)
+
+
+def _out(out_dir, stem):
+    """Output path, tagged when compact so the two variants never overwrite each other."""
+    return Path(out_dir) / f"{stem}{'_compact' if COMPACT else ''}.png"
+
+
 def _short(labels):
     """Position labels shortened for an axis. Anything unrecognised passes through unchanged."""
     return [POS_SHORT.get(str(q), str(q)) for q in labels]
@@ -567,10 +595,10 @@ def fig_confusion_prestroke(out_dir):
             for i in range(len(CONF_LABELS)):
                 for j in range(len(CONF_LABELS)):
                     if M[i, j] >= 0.01:
-                        ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=8.5,
+                        _txt(ax, j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=8.5,
                                 color="white" if M[i, j] < 0.6 else "black")
             ax.set_xticks(range(len(CONF_LABELS)))
-            ax.set_xticklabels(_short(CONF_LABELS), rotation=0, ha="center", fontsize=10)
+            ax.set_xticklabels(_short(CONF_LABELS), rotation=(90 if COMPACT else 0), ha="center", fontsize=10)
             ax.set_yticks(range(len(CONF_LABELS)))
             ax.set_yticklabels(_short(CONF_LABELS), fontsize=10)
             ax.set_title(f"{an} — {acc:.2f} correct ({len(mats)} held-out sessions)",
@@ -666,11 +694,11 @@ def fig_confusion_pre_post(out_dir):
                         continue
                     for j in range(len(CONF_LABELS)):
                         if P[i, j] >= 0.02:
-                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
+                            _txt(ax, j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=0, ha="center", fontsize=9.5)
+                                   rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                 ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f})", fontsize=11,
@@ -803,11 +831,11 @@ def fig_confusion_pre_post_working(out_dir):
                         continue
                     for j in range(len(CONF_LABELS)):
                         if P[i, j] >= 0.02:
-                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
+                            _txt(ax, j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=0, ha="center", fontsize=9.5)
+                                   rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                 ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f}, n={int(C.sum())})",
@@ -930,7 +958,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
     """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
     if True:
         ncol = 1 + len(days)
-        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.2),
+        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.2),
                                  squeeze=False)
         im = None
         for ri, an in enumerate(ANIMALS):
@@ -948,7 +976,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=0, fontsize=9)
+                                   rotation=(90 if COMPACT else 0), fontsize=9)
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                 head = "PRE (LOSO)" if ci == 0 else f"day {days[ci - 1]}"
                 ax.set_title(f"{head}  {acc:.2f}", fontsize=10,
@@ -965,7 +993,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
                      "row;\na blank cell is a session that animal does not have. Rows = TRUE spout "
                      "position, columns within a panel = predicted. Chance = 0.17.", fontsize=9.5)
         _footer(fig)
-        p = Path(out_dir) / f"grant_5c_confusion_per_session_{align}.png"
+        p = _out(out_dir, f"grant_5c_confusion_per_session_{align}")
         fig.savefig(p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         return p
@@ -1064,7 +1092,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
         days = sorted(all_days)
         for v in variants:
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1099,7 +1127,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=0, fontsize=9)
+                                       rotation=(90 if COMPACT else 0), fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     diag = np.nanmean(np.diag(M))
                     head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
@@ -1124,7 +1152,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                          "mean of that panel's diagonal.\nColumns are DAYS FROM LESION; a blank is "
                          "a session that animal does not have.", fontsize=9.5)
             _footer(fig)
-            p = Path(out_dir) / f"grant_6b_pattern_per_session_{align}_{v}.png"
+            p = _out(out_dir, f"grant_6b_pattern_per_session_{align}_{v}")
             fig.savefig(p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
@@ -1366,7 +1394,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                         for j in range(len(CONF_LABELS)):
                             if not np.isfinite(M[i, j]):
                                 continue
-                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center",
+                            _txt(ax, j, i, f"{M[i, j]:.2f}", ha="center", va="center",
                                     fontsize=7.5, color="k")
                             # RING = beats the position-shuffled null. Not "r != 0": the null keeps
                             # the global post-stroke pattern and shuffles only WHICH position a
@@ -1376,7 +1404,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                                                            edgecolor="lime", lw=1.6))
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=0, ha="center", fontsize=9.5)
+                                       rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                     ax.set_title(f"{an if ci == 0 else ''}  {ptitle}", fontsize=11,
@@ -1737,7 +1765,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1769,7 +1797,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=0, fontsize=9)
+                                       rotation=(90 if COMPACT else 0), fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     head = "PRE, per session" if ci == 0 else f"day {days[ci - 1]}"
                     # 'sh', NOT 'rel': this is the split-half correlation itself, the reliability of
@@ -1803,7 +1831,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                 f"compare a six-session mean with one-session post-stroke means. 'n' is the median "
                 f"trials per position in that panel.", fontsize=9.0)
             _footer(fig)
-            p = Path(out_dir) / f"grant_7_splithalf_{align}_{v}.png"
+            p = _out(out_dir, f"grant_7_splithalf_{align}_{v}")
             fig.savefig(p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
@@ -1916,10 +1944,10 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                                 # A CELL SUPPRESSED BY MIN_REL IS NOT A CELL WITH NO DATA. Mark the
                                 # first case so it cannot be read as the second.
                                 if ci == 2 and np.isfinite(raw[i, j]):
-                                    ax.text(j, i, "·", ha="center", va="center", fontsize=11,
+                                    _txt(ax, j, i, "·", ha="center", va="center", fontsize=11,
                                             color="0.35")
                                 continue
-                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
+                            _txt(ax, j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
                     ax.set_xticks(range(len(cols)))
                     ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
@@ -2097,7 +2125,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -2145,13 +2173,13 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                     for i in range(len(CONF_LABELS)):
                         for j in range(len(CONF_LABELS)):
                             if np.isfinite(D[i, j]):
-                                ax.text(j, i, f"{D[i, j]:.1f}", ha="center", va="center",
+                                _txt(ax, j, i, f"{D[i, j]:.1f}", ha="center", va="center",
                                         fontsize=6,
                                         color="k" if D[i, j] > 1.3 else "w")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=0, fontsize=9)
+                                       rotation=(90 if COMPACT else 0), fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
                     ax.set_title(f"{head}  diag {np.nanmean(np.diag(D)):.2f}", fontsize=10,
@@ -2181,7 +2209,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                 f"(1.01, 1.31) while 8b puts day 7 among their BEST (0.66, 0.80) -- that spike is "
                 f"amplitude, not a code that moved further away.", fontsize=8.8)
             _footer(fig)
-            p = Path(out_dir) / f"grant_8_crossnobis_{align}_{v}.png"
+            p = _out(out_dir, f"grant_8_crossnobis_{align}_{v}")
             fig.savefig(p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
@@ -2276,7 +2304,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 for i in range(len(CONF_LABELS)):
                     for j in range(1 + len(days)):
                         if np.isfinite(rows[i, j]):
-                            ax.text(j, i, f"{rows[i, j]:.2f}", ha="center", va="center",
+                            _txt(ax, j, i, f"{rows[i, j]:.2f}", ha="center", va="center",
                                     fontsize=7.5)
                 ax.set_xticks(range(1 + len(days)))
                 ax.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
@@ -2573,7 +2601,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # 2026-08-25). Reserving a real column and drawing into an explicit `cax` inside it is
     # deterministic; shrinking `fraction` would only have made the overlap thinner.
     ncol = 1 + len(days)
-    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(1.45 * ncol + 2.0, figh),
+    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(_colw() * ncol + 2.0, figh),
                              squeeze=False,
                              gridspec_kw={"width_ratios": [1, 0.42] + [1] * len(days)})
     spacer = grid[:, 1]
@@ -2602,7 +2630,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
             ax.set_xticks(range(len(CONF_LABELS)))
             ax.set_yticks(range(len(CONF_LABELS)))
             ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                               rotation=0, fontsize=9)
+                               rotation=(90 if COMPACT else 0), fontsize=9)
             ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
             # THE INTERVAL GOES WHERE THE NUMBER IS. The change in mean diagonal is the claim each
             # panel makes, so a bare point estimate there is the one place an interval is most
@@ -2649,7 +2677,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     cb.set_label(abs_label, fontsize=11)
     _suptitle(fig, title, fontsize=9.5)
     _footer(fig)
-    p = Path(out_dir) / fname
+    p = _out(out_dir, fname.removesuffix(".png"))
     fig.savefig(p, dpi=200, bbox_inches="tight")
     plt.close(fig)
     return p
@@ -3156,7 +3184,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 continue
             cols = ["PRE"] + list(days)
             fig, axes = plt.subplots(len(ANIMALS), len(cols),
-                                     figsize=(1.45 * len(cols) + 1.4, 7.4), squeeze=False)
+                                     figsize=(_colw() * len(cols) + 1.4, 7.4), squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
                 rec = cis.get(an) or {}
@@ -3177,7 +3205,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=0, fontsize=9)
+                                       rotation=(90 if COMPACT else 0), fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     n_sig = int(sig.sum() // 2)          # antisymmetric: each pair rings twice
                     head = "PRE, leave-1-out" if key == "PRE" else f"day {key}"
@@ -3202,7 +3230,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 f"asymmetry has expectation zero and its rings are this construction's own "
                 f"false-positive rate.", fontsize=9.5)
             _footer(fig)
-            p = Path(out_dir) / f"grant_8e_asymmetry_{align}_{v}.png"
+            p = _out(out_dir, f"grant_8e_asymmetry_{align}_{v}")
             fig.savefig(p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
@@ -3421,6 +3449,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--compact", action="store_true",
+                    help="also emit *_compact.png of the dense per-day grids: no in-cell numbers "
+                         "and narrower panels, for reproduction at a quarter of a letter page")
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
                              "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "9"))
@@ -3443,6 +3474,12 @@ def main(argv=None) -> int:
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
             ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry),
             ("9", fig_delta_trajectory))
+    if args.compact:
+        # A MODULE FLAG rather than a parameter threaded through eighteen figure functions. It is
+        # set once here and read by _colw/_txt/_out; nothing else in the module branches on it.
+        globals()["COMPACT"] = True
+        print("  [compact] in-cell numbers dropped, panels narrowed; writing *_compact.png",
+              flush=True)
     for key, fn in jobs:
         if key not in want:
             continue
