@@ -289,7 +289,20 @@ def figure(per_session, out_png, title):
     ax.set_title("Position decoding survives with NO licking in the window", fontsize=9)
 
     ax = fig.add_subplot(gs[0, 3])
-    cms = [r["decode_lickfree"]["confusion"] for r in good if r["decode_lickfree"]]
+    # THE MEAN IS OVER PRE-STROKE SESSIONS ONLY (Priya, 2026-08-26). This averaged every session it
+    # was handed, and the nightly hands it all phases -- 39% post-stroke per animal by 8/26. That
+    # matters because of what this panel IS: `decode.precue_lickfree` is not a figure, it is the ENL
+    # DEFINITION applied inside `locanmf_position_decoder` for every pre-cue analysis on every
+    # session (session_cache v8), so Section G's pre-cue arm -- the plan/execution dissociation --
+    # rests on it. This panel is the evidence that the definition does not destroy the signal, and a
+    # control diluted with sessions whose code is degraded argues for LESS than it should.
+    #
+    # The per-session panels keep every session on purpose: post-stroke lick-free EXPOSURE is worth
+    # seeing (post-stroke animals lick less, so the ENL is quieter), and hiding it would trade one
+    # blind spot for another. Only the aggregate is restricted.
+    pre_lab = set(config.phase_labels("pre"))
+    pre_rows = [r for r in good if r["label"] in pre_lab and r["decode_lickfree"]]
+    cms = [r["decode_lickfree"]["confusion"] for r in pre_rows]
     if cms:
         im = ax.imshow(np.nanmean(np.stack(cms), 0), vmin=0, vmax=1, cmap="magma")
         names = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
@@ -297,7 +310,9 @@ def figure(per_session, out_png, title):
         ax.set_yticks(range(6)); ax.set_yticklabels(names, fontsize=6)
         ax.set_xlabel("predicted"); ax.set_ylabel("true")
         fig.colorbar(im, ax=ax, fraction=0.046)
-    ax.set_title("Confusion, lick-free\n(mean over sessions)", fontsize=8)
+    n_post = len([r for r in good if r["label"] not in pre_lab])
+    ax.set_title(f"Confusion, lick-free\n(mean over {len(cms)} PRE-stroke session(s);"
+                 f" {n_post} post-stroke shown left, excluded here)", fontsize=7)
 
     ax = fig.add_subplot(gs[1, :]); ax.axis("off")
     nlf = sum(r["n_lickfree"] for r in good); ntot = sum(r["n_trials"] for r in good)
