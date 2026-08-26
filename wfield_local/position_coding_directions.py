@@ -386,6 +386,72 @@ def _diagnostics(XE, en, e_pre, frac_e, W, base_m, do_orth, e_axis):
     return d
 
 
+#: Post-stroke classes written to `confusions`, finest-grain first. Any population a caller wants is
+#: a SUM over a subset of these -- "all working" is lick+miss_working, "all trials" is all three --
+#: which is exactly what a pre-summed matrix cannot provide.
+CONFUSION_CLASSES = ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
+
+
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept):
+    """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
+
+    Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
+    rather than row-normalised -- a caller summing two classes must be able to add them, and
+    normalised rows cannot be added.
+
+    THE PRE PANEL IS LEAVE-ONE-SESSION-OUT and the post panels are not, which is not an
+    inconsistency: post-stroke trials are held out by construction (the decoder never saw a
+    post-stroke session), while pre-stroke trials are the training set. Scoring them in-sample gives
+    0.89-0.99 against 0.45-0.66 held out, so a reader comparing a post value against an in-sample pre
+    value would read a collapse that is mostly overfitting (recorded in
+    `grant_figures.fig_confusion_pre_post_working`).
+    """
+    # This module imports only POSITION_NAMES, not the order -- take it from the one place that
+    # defines it, so these matrices are in the SAME row order as every other confusion in the deck.
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+
+    def pipe():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
+
+    def counts(y_true, y_pred):
+        M = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
+        idx = {c: i for i, c in enumerate(DISPLAY_ORDER)}
+        for t, q in zip(y_true, y_pred):
+            if int(t) in idx and int(q) in idx:
+                M[idx[int(t)], idx[int(q)]] += 1
+        return M
+
+    if e_pre.sum() < 20 or len(np.unique(YE[e_pre])) < 2:
+        return None
+    res = {"labels": [POSITION_NAMES.get(int(c), str(c)) for c in DISPLAY_ORDER],
+           "counts": True, "note": "raw counts; sum classes to build any population"}
+
+    # PRE, leave-one-session-out
+    Cpre = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
+    got = False
+    for i in sorted(pre_i):
+        tr, te = e_pre & (GE != i), e_pre & (GE == i)
+        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+            continue
+        Cpre += counts(YE[te], pipe().fit(XE[tr], YE[tr]).predict(XE[te]))
+        got = True
+    res["prestroke_lick"] = Cpre.tolist() if got else None
+
+    # POST, one matrix per class, all scored by the SAME frozen model fitted on every pre-stroke
+    # engaged trial -- so the classes are directly comparable and their sums are meaningful.
+    clf = pipe().fit(XE[e_pre], YE[e_pre])
+    for cls in CONFUSION_CLASSES:
+        m = _mask(cls)
+        X, y = ((XE, YE) if cls == "poststroke_lick" else (XU, YU))
+        res[cls] = counts(y[m], clf.predict(X[m])).tolist() if m.any() else None
+        res[f"n_{cls}"] = int(m.sum())
+    return res
+
+
 def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
     """(not_eng, frac_nolick, frac_eng), or None if the trial bookkeeping does not line up.
 
@@ -539,6 +605,26 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         out["response_by_quartile"] = response_by_quartile(feat, kept, YE, GE, YU, GU, pre_i)
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: response-rate diagnostic unavailable ({ex})", flush=True)
+
+    # PER-CLASS CONFUSIONS OF THE FROZEN PRE-STROKE DECODER (Priya, 2026-08-26).
+    #
+    # WHY HERE. `section_g.json` already stores a confusion, but summed over trials -- and
+    # `grant_figures.fig_confusion_pre_post_working` records why that is unusable: "a summed matrix
+    # cannot be un-summed". So 5b recomputed the whole pooling from LocaNMF, which costs >10 min of
+    # network reads to redraw a figure, and every layout iteration on it paid that again.
+    #
+    # The fix is granularity, not a second store: writing ONE MATRIX PER CLASS means any population
+    # a caller wants is a SUM of these, so nothing has to be un-summed. 5b's "post_working" is
+    # lick + miss_working; its "post_all" is those plus stopped.
+    #
+    # And it belongs in THIS file because this is where the classes are defined -- `_gate_all` and
+    # `_mask` live here, and `miss_vs_stopped` already reads these class names out of
+    # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
+    # happened: two places computing "the same" population and drifting apart.
+    try:
+        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept)
+    except Exception as ex:                                          # noqa: BLE001
+        print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
     # the engagement axis, from pre-stroke lick vs pre-stroke no-lick
     e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
