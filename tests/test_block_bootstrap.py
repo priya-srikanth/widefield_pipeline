@@ -98,9 +98,22 @@ def test_delta_ci_holds_sessions_fixed_and_brackets_a_known_shift():
     ci = gf._delta_diag_ci(mats, (pre_x, day_x), (pre_b, day_b), "PS94", [1],
                            np.random.default_rng(7), n_boot=60)
     assert 1 in ci
-    lo, hi = ci[1]
-    assert lo < hi
+    lo, hi, med = ci[1]["mean"]
+    assert lo < hi and lo <= med <= hi
     assert lo <= 0.0 <= hi, f"an unshifted day should cover zero, got ({lo:.3f}, {hi:.3f})"
+
+    # PER-POSITION RECORD, which figure 9 plots. Averaging the scalar mean per session first would
+    # give the same overall number and no breakdown -- and the per-position trajectory is what the
+    # deficit is about.
+    pos = ci[1]["pos"]
+    assert set(pos) <= set(LABELS) and len(pos) >= 4
+    for q, (qlo, qhi, qmed) in pos.items():
+        assert qlo < qhi and qlo <= qmed <= qhi, q
+        assert qlo <= 0.0 <= qhi, f"{q}: unshifted day should cover zero, got ({qlo:.2f}, {qhi:.2f})"
+
+    # the mean must sit inside the spread of the per-position medians, not outside it
+    meds = [v[2] for v in pos.values()]
+    assert min(meds) - 0.2 <= med <= max(meds) + 0.2
 
 
 @pytest.mark.parametrize("field", ["X", "blk"])

@@ -2410,19 +2410,42 @@ def _delta_diag_ci(mats_fn, x_store, blk_store, an, days, rng, n_boot=N_BOOT_DEL
             # perfectly uniform loss at every position in every animal.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
+                # PER-POSITION VECTORS, averaged across held-out sessions as VECTORS. Averaging the
+                # scalar mean-diagonal per session first and differencing that would give the same
+                # overall number but no per-position breakdown -- and the per-position trajectory is
+                # what the deficit is actually about.
                 bases = []
                 for s, held in pre_r.items():
                     rest = _pool(exclude=s)
                     if held and rest:
-                        bases.append(float(np.nanmean(np.diag(mats_fn(held, rest)))))
+                        bases.append(np.diag(mats_fn(held, rest)).copy())
                 full = _pool()
                 if not bases or not full:
                     continue
-                cur = float(np.nanmean(np.diag(mats_fn(day_r, full))))
-                deltas.append(cur - float(np.mean(bases)))
-        v = np.array([x for x in deltas if np.isfinite(x)])
-        if len(v) >= n_boot // 4:
-            out[d] = (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))
+                base_vec = np.nanmean(np.stack(bases), axis=0)
+                cur_vec = np.diag(mats_fn(day_r, full)).copy()
+                deltas.append(cur_vec - base_vec)
+        if len(deltas) < n_boot // 4:
+            continue
+        D = np.stack(deltas)                                   # draws x positions
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            m = np.nanmean(D, axis=1)                          # per draw, mean over positions
+            m = m[np.isfinite(m)]
+            rec = {}
+            if len(m):
+                rec["mean"] = (float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5)),
+                               float(np.median(m)))
+            pos = {}
+            for k, q in enumerate(CONF_LABELS):
+                col = D[:, k]
+                col = col[np.isfinite(col)]
+                if len(col) >= n_boot // 4:
+                    pos[q] = (float(np.percentile(col, 2.5)), float(np.percentile(col, 97.5)),
+                              float(np.median(col)))
+            rec["pos"] = pos
+        if rec.get("mean"):
+            out[d] = rec
     return out
 
 
@@ -2592,7 +2615,7 @@ def _diag(M):
         return float(np.nanmean(np.diag(M)))
 
 
-def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA):
+def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA, full=False):
     """{animal: {day: (lo, hi)}} on the change in mean diagonal, block-bootstrapped.
 
     ``mats_for(animal, rng)`` returns the matrix builder for one animal. It is a hook rather than a
@@ -2612,8 +2635,10 @@ def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA):
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
         rng = np.random.default_rng(abs(hash((an, align, variant, tag))) % (2 ** 31))
         try:
-            out[an] = _delta_diag_ci(mats_for(an, rng), (pre_x, day_x), (pre_b, day_b), an, days,
-                                     rng, n_boot=n_boot)
+            rich = _delta_diag_ci(mats_for(an, rng), (pre_x, day_x), (pre_b, day_b), an, days,
+                                  rng, n_boot=n_boot)
+            # `_delta_grid` prints only the mean's (lo, hi); figure 9 plots the whole record.
+            out[an] = rich if full else {d: r["mean"][:2] for d, r in rich.items()}
         except Exception as ex:                                          # noqa: BLE001
             print(f"  !! {tag} CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
                   flush=True)
@@ -2859,6 +2884,103 @@ def fig_confusion_delta(out_dir):
     return made
 
 
+def fig_delta_trajectory(out_dir, min_trials=10):
+    """9: THE BOOTSTRAP RESULTS AS A FIGURE -- change from pre-stroke over days, with intervals.
+
+    Priya, 2026-08-26: "is there a figure that shows the bootstrap results?" There was not. The
+    intervals existed only as text above the 6x6 matrices of 6d/7d/8d, which is the wrong shape for
+    the question they answer: whether a position is recovering, holding or getting worse is a
+    TRAJECTORY, and a trajectory read out of twenty-eight small matrices by eye is not read at all.
+
+    LEFT PANEL, per animal: the mean own-position change with its 95% block-bootstrap interval, one
+    point per day. This is the number printed in 6d's panel titles, plotted.
+    RIGHT PANEL: the same split BY POSITION, which is where the deficit lives -- far_R is the
+    position the lesion takes and the others are the control it has to be read against.
+
+    ZERO IS THE NULL AND IT IS A REAL ONE: it means "this day differs from the pre-stroke reference
+    no more than one pre-stroke day differs from the others", because the baseline is
+    leave-one-session-out rather than a correlation of 1. A point whose interval excludes zero has
+    changed by more than ordinary day-to-day drift.
+
+    SESSIONS ARE NOT RESAMPLED, so an interval says how well determined a day is GIVEN THESE DAYS
+    and licenses no claim about days not recorded. The trajectory is what speaks to that, which is
+    the whole reason this figure is per-day rather than pooled.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            _, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            cis = _delta_cis(align, v, min_trials, _mats_pattern, "9", full=True)
+            if not any(cis.values()):
+                continue
+            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(12.4, 2.35 * len(ANIMALS) + 1.4),
+                                     squeeze=False, sharex=True)
+            drew = False
+            for ri, an in enumerate(ANIMALS):
+                rec = cis.get(an) or {}
+                ax = axes[ri][0]
+                xs = [d for d in days if d in rec]
+                if xs:
+                    med = [rec[d]["mean"][2] for d in xs]
+                    lo = [rec[d]["mean"][2] - rec[d]["mean"][0] for d in xs]
+                    hi = [rec[d]["mean"][1] - rec[d]["mean"][2] for d in xs]
+                    ax.errorbar(xs, med, yerr=[lo, hi], fmt="o-", color="#b2182b", ms=5,
+                                capsize=3, lw=1.5)
+                    drew = True
+                ax.axhline(0, color="k", lw=1.2)
+                ax.set_ylabel(f"{an}\nchange in r", fontsize=9, fontweight="bold")
+                ax.grid(alpha=0.25, lw=0.5)
+                if ri == 0:
+                    ax.set_title("mean own-position change (95% block bootstrap)", fontsize=9.5)
+
+                ax2 = axes[ri][1]
+                for q in CONF_LABELS:
+                    col, mk, _ls = POS_STYLE[q]
+                    qx = [d for d in days if d in rec and q in rec[d]["pos"]]
+                    if not qx:
+                        continue
+                    qm = [rec[d]["pos"][q][2] for d in qx]
+                    ql = [rec[d]["pos"][q][2] - rec[d]["pos"][q][0] for d in qx]
+                    qh = [rec[d]["pos"][q][1] - rec[d]["pos"][q][2] for d in qx]
+                    ax2.errorbar(qx, qm, yerr=[ql, qh], fmt=mk + "-", color=col, ms=4,
+                                 capsize=2, lw=1.1, alpha=0.9,
+                                 label=q if ri == 0 else None)
+                ax2.axhline(0, color="k", lw=1.2)
+                ax2.grid(alpha=0.25, lw=0.5)
+                if ri == 0:
+                    ax2.set_title("the same, per position", fontsize=9.5)
+                if ri == len(ANIMALS) - 1:
+                    ax.set_xlabel("days from lesion")
+                    ax2.set_xlabel("days from lesion")
+            if not drew:
+                plt.close(fig)
+                continue
+            h, lab = axes[0][1].get_legend_handles_labels()
+            if h:
+                fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=8.5, frameon=False)
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"Change from pre-stroke over days, with block-bootstrap intervals — {wname} "
+                f"window\n"
+                f"Post-stroke class: {cls}.  ZERO = this day differs from the pre-stroke reference "
+                f"no more than one pre-stroke day differs from the others\n"
+                f"(the baseline is leave-one-session-out, NOT a correlation of 1). An interval "
+                f"excluding zero is a change beyond ordinary day-to-day drift.\n"
+                f"Blocks resampled within session; sessions NOT resampled, so an interval is "
+                f"conditional on these days and the trajectory is what speaks to the rest.",
+                fontsize=9.5)
+            fig.tight_layout(rect=(0, 0.05, 1, 0.90))
+            _footer(fig)
+            p = Path(out_dir) / f"grant_9_delta_trajectory_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
 
@@ -3073,13 +3195,13 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "9"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "9"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -3091,7 +3213,7 @@ def main(argv=None) -> int:
             ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
             ("7d", fig_splithalf_delta),
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
-            ("8d", fig_crossnobis_delta))
+            ("8d", fig_crossnobis_delta), ("9", fig_delta_trajectory))
     for key, fn in jobs:
         if key not in want:
             continue
