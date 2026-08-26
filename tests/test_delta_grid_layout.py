@@ -225,3 +225,137 @@ def test_bottom_legend_clears_the_footer():
                 offenders.append(name)
     assert not offenders, (
         f"these draw a bottom legend and a footer without separating them: {offenders}")
+
+
+def _chrome_boxes(fig):
+    """Bounding boxes of a figure's CHROME: suptitle, figure texts, legends, axis labels, titles.
+
+    Tick labels are excluded -- they sit close to their own axis by design and are checked
+    separately, against each other.
+    """
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    out = []
+
+    def add(artist, name):
+        if artist is None:
+            return
+        if hasattr(artist, "get_text") and not str(artist.get_text()).strip():
+            return
+        try:
+            bb = inv.transform_bbox(artist.get_window_extent(rend))
+        except Exception:                                       # noqa: BLE001
+            return
+        if bb.width > 0 and bb.height > 0:
+            out.append((name, bb))
+
+    sup = getattr(fig, "_suptitle", None)
+    add(sup, "suptitle")
+    for t in fig.texts:
+        if t is not sup:
+            add(t, f"figtext:{str(t.get_text())[:20]}")
+    for lg in fig.legends:
+        add(lg, "figlegend")
+    for i, ax in enumerate(fig.axes):
+        if ax.get_visible():
+            add(ax.xaxis.label, f"ax{i}.xlabel")
+            add(ax.yaxis.label, f"ax{i}.ylabel")
+            add(ax.title, f"ax{i}.title")
+    return out
+
+
+def chrome_overlaps(fig):
+    boxes = _chrome_boxes(fig)
+    bad = []
+    for a, b in itertools.combinations(range(len(boxes)), 2):
+        (na, ba), (nb, bb) = boxes[a], boxes[b]
+        ox = min(ba.x1, bb.x1) - max(ba.x0, bb.x0)
+        oy = min(ba.y1, bb.y1) - max(ba.y0, bb.y0)
+        if ox > 1e-4 and oy > 1e-4:
+            bad.append((na, nb))
+    return bad
+
+
+def _fig9_like(legend_y, rect_bottom, n_rows=4, fontsize=11):
+    """Structural replica of figure 9: rows x 2 panels, xlabels, a six-entry ERRORBAR legend, a
+    footer and a four-line header. Errorbar handles matter -- their caps make the legend taller than
+    a plain line handle, and a replica using lines would understate it."""
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(n_rows, 2, figsize=(10.0, 2.0 * n_rows + 1.3), squeeze=False,
+                             sharex=True)
+    for ri in range(n_rows):
+        for ci in range(2):
+            ax = axes[ri][ci]
+            ax.errorbar([1, 2, 3], [0.1, -0.2, -0.3], yerr=[[.1] * 3, [.1] * 3], fmt="o-")
+            ax.set_ylabel(f"PS9{ri}\nchange in r", fontsize=fontsize - 2, fontweight="bold")
+            if ri == 0:
+                ax.set_title("mean own-position change", fontsize=fontsize - 1.5)
+            if ri == n_rows - 1:
+                ax.set_xlabel("days from lesion", fontsize=fontsize)
+    for q in gf.CONF_LABELS:
+        col, mk, _ls = gf.POS_STYLE[q]
+        axes[0][1].errorbar([1], [0], yerr=[[0.1], [0.1]], fmt=mk + "-", color=col, ms=4,
+                            capsize=2, lw=1.1, label=q)
+    h, lab = axes[0][1].get_legend_handles_labels()
+    fig.legend(h, lab, loc="lower center", ncol=6, fontsize=fontsize, frameon=False,
+               bbox_to_anchor=(0.5, legend_y))
+    fig.tight_layout(rect=(0, rect_bottom, 1, 1.0))
+    gf._suptitle(fig, "\n".join(f"header line {i}" for i in range(4)))
+    gf._footer(fig)
+    return fig
+
+
+def test_the_overlap_checker_actually_fires():
+    """A layout check that never fails is worse than none. Figure 9's ORIGINAL constants -- legend
+    at the default lower-center anchor with 0.05 reserved -- put the footer under the legend, and
+    the checker must report exactly that."""
+    import matplotlib.pyplot as plt
+
+    fig = _fig9_like(legend_y=0.0, rect_bottom=0.05)
+    bad = chrome_overlaps(fig)
+    plt.close(fig)
+    assert any("figlegend" in a + b and "figtext" in a + b for a, b in bad), bad
+
+
+def test_fig9_layout_is_clean_at_its_current_constants():
+    import matplotlib.pyplot as plt
+
+    fig = _fig9_like(legend_y=0.035, rect_bottom=0.10)
+    bad = chrome_overlaps(fig)
+    plt.close(fig)
+    assert not bad, f"figure 9 chrome overlaps: {bad}"
+
+
+@pytest.mark.parametrize("compact", [False, True])
+def test_delta_grid_chrome_is_clean(tmp_path, compact):
+    """The same check on the REAL delta grid, in both variants -- these carry a suptitle, a footer,
+    two colour bars and per-row ylabels, which is the most crowded chrome in the module."""
+    import matplotlib.pyplot as plt
+
+    fig = _grid_fig_open(tmp_path, compact)
+    bad = chrome_overlaps(fig)
+    plt.close(fig)
+    assert not bad, f"delta grid (compact={compact}) chrome overlaps: {bad}"
+
+
+def _grid_fig_open(tmp_path, compact):
+    import matplotlib.pyplot as plt
+
+    real_close, held = plt.close, {}
+
+    def keep(f=None):
+        if hasattr(f, "canvas"):
+            held["fig"] = f
+        else:
+            real_close(f)
+
+    gf.COMPACT = compact
+    plt.close = keep
+    try:
+        _draw(tmp_path, "a header line\nand a second one", name=f"g{int(compact)}.png")
+    finally:
+        plt.close = real_close
+        gf.COMPACT = False
+    return held["fig"]

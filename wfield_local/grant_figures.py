@@ -2603,7 +2603,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     ncol = 1 + len(days)
     fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(_colw() * ncol + 2.0, figh),
                              squeeze=False,
-                             gridspec_kw={"width_ratios": [1, 0.42] + [1] * len(days)})
+                             gridspec_kw={"width_ratios": [1, 0.62] + [1] * len(days)})
     spacer = grid[:, 1]
     for ax in spacer:
         ax.axis("off")
@@ -2620,7 +2620,10 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                 continue
             if ci == 0:
                 im_abs = ax.imshow(np.ma.masked_invalid(M), vmin=vmin, vmax=vmax, cmap=cmap)
-                head = "PRE (reference)"
+                # "PRE", not "PRE (reference)": the header already says column 1 is the
+                # reference, and the longer title reached right far enough to collide with the
+                # colour bar's rotated label.
+                head = "PRE"
                 stat = summary(M)
             else:
                 D = M - base
@@ -2668,8 +2671,13 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # this, the first having been the bar itself). Everything now extends LEFT, toward the gap
     # beside the reference panel, which carries no labels of its own.
     top, bot = spacer[0].get_position(), spacer[-1].get_position()
-    cax = fig.add_axes([top.x0 + 0.58 * top.width, bot.y0,
-                        0.20 * top.width, top.y1 - bot.y0])
+    # The bar sits in the RIGHT part of the spacer and its ticks and label extend LEFT into the
+    # rest of it. The spacer therefore has to hold three things, not one: label, tick labels, bar.
+    # At 0.42 it did not, and the rotated label reached back over the reference column's panel
+    # TITLES -- the same colour bar intruding on a third neighbour, caught this time by measurement
+    # rather than by eye.
+    cax = fig.add_axes([top.x0 + 0.70 * top.width, bot.y0,
+                        0.16 * top.width, top.y1 - bot.y0])
     cb = fig.colorbar(im_abs, cax=cax)
     cax.yaxis.set_ticks_position("left")
     cax.yaxis.set_label_position("left")
