@@ -4907,3 +4907,73 @@ Anything that never pooled across the lesion: within-session decoders, the per-s
 coding directions, and the `spout_behavior` outputs. The joint BASES are also unaffected — they were
 fitted 2026-08-16 over 11 pre-stroke sessions each, before any lesion, and `joint_locanmf` refuses to
 refit silently precisely so that a reference frame cannot move.
+
+---
+
+## WHICH GRANT FIGURES THE FROZEN-MODEL CONTAMINATION REACHED (2026-08-26)
+
+Companion to the fix in `3de237c` ("frozen models were training on post-stroke sessions"). That
+entry records the bug; this one records the blast radius on the figures, so nobody has to re-derive
+it, and — more usefully — WHY most of the set escaped.
+
+Audited all **78 model-fit sites** in `wfield_local/` (every `.fit(`, `cross_val_predict`,
+`LeaveOneGroupOut`), classified by whether the training rows are visibly phase-restricted: 22
+pre-restricted, 39 within-session (no restriction needed), 17 with none visible — of which most are
+Ledoit-Wolf whiteners on residuals rather than decoders.
+
+### THE VERDICT
+
+| figure | source | verdict |
+|---|---|---|
+| 2, 2b, 4 (precue + cue) | `joint_xsession_decoder_*.json` | **CONTAMINATED** — 24 post-stroke labels in the pool, no `training_phase` key |
+| 4 (lick) | `joint_xsession_decoder_lick.json` | clean — 0 post-stroke labels |
+| 3a | `coding_direction.json` | clean — no pooled frozen fit |
+| 3b, 5 | `section_g.json` | clean, see below |
+| 5b, 5c, 5d | recomputed live | clean — fit on `XE[e_pre]` |
+| 6, 6b, 6d, 7, 7b, 7d, 8, 8b, 8d, 8e, 9 | recomputed live | clean — no decoder at all |
+
+**Figures 2, 2b and 4 are the ones the deck calls "the strongest and least contestable result in
+the set -- no lesion, no trial-class definitions, no engagement gate, no alignment inference".** They
+were the least contestable in every respect except which sessions trained the decoder.
+
+### WHY 5 AND 3b ARE CLEAN, WHICH IS NOT OBVIOUS
+They DO use a frozen pre-stroke decoder — the first pass of this audit grepped for
+`pooled_frozen_loso|pooled_frozen_encoder`, found none, and wrongly concluded "no frozen decoder"
+(Priya: *"doesn't figure 5 use the frozen decoder?"*). It does; it builds its own. Every fit site in
+`poststroke_compare` masks training to `pre_i`:
+
+    decode_matched      tr = isin(GE, pre_i) & kp;  LOSO groups=GE[tr]
+    crossed_confusion   tr = isin(GE, pre_i);       LOSO groups=GE[tr]
+    pre-no-lick control trn = tr & (GE != gsess)    -- leave-one-out WITHIN pre
+    engaged-vs-undetected  pre_e / pre_u both isin(GU/GE, pre_i)
+
+**The right test is what the training mask is, not which helper is called.** A grep for a function
+name answers a different question than the one being asked.
+
+### WHY THE NEW FIGURES ESCAPED — NOT FORESIGHT
+Figures 5b onward fit their own classifier from `pool_sessions`, which returns raw pooled data and
+FORCES the caller to state what it trains on. `pooled_frozen_loso` decides internally, and its
+internal decision (`LeaveOneGroupOut` over everything) was correct for the ten weeks when every
+curated session was pre-stroke. The lesson is about where the choice lives: **a helper that picks
+the training set silently will eventually pick the wrong one, and nothing at the call site will
+say so.**
+
+### THE SAME SHAPE, ONE MORE TIME
+This is a fourth instance of the pattern catalogued a day earlier — *a reference built from a pool
+that contains the thing being scored* — now at cohort scale: the pre-stroke baseline's TRAINING pool
+contained post-stroke sessions. The earlier three were figure 6's half-split baseline, 8b's ceiling,
+and `_delta_diag_ci`'s `mats_fn(ref, ref)`.
+
+### A LIVE TRAP LEFT BEHIND, mechanism not artifact
+`nolick_reference_prestroke.json` is written by `if not frozen.exists()` copying whatever
+`nolick_reference.json` holds at that instant. **The existing artifact is clean** — 11 pre-stroke
+dates, 44 pre-stroke labels, checked rather than assumed (an earlier claim here that it was
+contaminated was inferred from its 8/19 mtime being after the lesion, and was wrong). But the live
+file now holds 19 dates including 0817–0824, so it is pre-only **by an accident of timing, not by
+construction**: delete it, move the root, or freeze on a fresh clone and the result is a
+contaminated "pre-stroke reference" with nothing objecting. The behavior box has its own copy and
+its own `E:` root.
+
+The durable fix is to build it from `config.prestroke_dates()` explicitly and to validate on LOAD —
+a frozen artifact whose `dates` contain a post-stroke date should be refused, which is exactly the
+STALE contract `prestroke_reference.load_or_freeze` already implements.

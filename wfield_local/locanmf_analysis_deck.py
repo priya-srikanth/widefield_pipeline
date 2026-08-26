@@ -2871,6 +2871,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "uniform -- close positions sit nearer each other than far ones -- so an absolute cell of "
          "1.2 means different things in different places. A NEGATIVE OFF-DIAGONAL cell is a "
          "substitution: that row's trials moved TOWARD the column's pre-stroke pattern.")),
+        ("grant_8e_asymmetry_*.png",
+         "H8e. Is the distance matrix ASYMMETRIC, and where?",
+         ("A[P,Q] = d(post at P, pre at Q) minus d(post at Q, pre at P). Rows and columns index "
+         "genuinely different sets, so symmetry is NOT expected and the gap between the two "
+         "orderings is the substitution: which way a position moved, not merely that it moved. "
+         "Green ring = the 95% block-bootstrap interval excludes zero; the count above each panel "
+         "is rung pairs out of 15. READ THE PRE COLUMN FIRST -- both sides there estimate the same "
+         "patterns, so its asymmetry has expectation zero and its rings are this construction's own "
+         "false-positive rate. Unlike H7 this must NOT be symmetrised: there the two cells "
+         "estimated one quantity and averaging them was strictly better; here they estimate "
+         "different quantities and the difference IS the result.")),
         ("grant_9_delta_trajectory_*.png",
          "H9. The bootstrap results, plotted — change from pre-stroke over days",
          ("THE SUMMARY SLIDE OF THE DELTA SET. The intervals in H6d/H7d/H8d sit as text above 6x6 "
@@ -2897,7 +2908,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 "Built by `python -m wfield_local.grant_figures` into <labcams>/grant_figures. "
                 "Deliberately caveat-light for a non-specialist reader; the caveats are in the "
                 "speaker notes here and in DECISIONS.md.")
-        for _pat, _title, _blurb in _GRANT:
+        # SLIDES FOLLOW THE LABELS, not the order the entries happen to be written in. Entries get
+        # appended next to the family they relate to, which had already put H7d before H7b and
+        # H8e/H9 before H8b -- labels that promise an order the deck did not follow. Sorting on the
+        # label here means a future insertion cannot reintroduce that, wherever it is written.
+        def _hkey(entry):
+            m = re.match(r"H(\d+)([a-z]*)\.", entry[1])
+            return (int(m.group(1)), m.group(2)) if m else (99, "")
+
+        for _pat, _title, _blurb in sorted(_GRANT, key=_hkey):
             for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
                 if not _gf.exists():
                     continue
