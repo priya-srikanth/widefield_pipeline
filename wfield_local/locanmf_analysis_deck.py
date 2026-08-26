@@ -177,12 +177,16 @@ S_JOINT = (
     "animal, and project() refuses one outright (DECISIONS 2026-08-12).")
 
 S_FROZEN_SESS = (
-    "The decoder never saw this day. That is legitimate because a frozen decoder does NOT decay "
-    "across days on its own -- pre-stroke transfer cost is POSITIVE in every animal, +0.068 to "
-    "+0.159, i.e. the frozen model BEATS the same-day model by pooling ~3000 trials against ~500 "
-    "(DECISIONS 2026-08-11, magnitudes corrected 2026-08-17). So a post-stroke drop can be read as "
-    "lesion rather than day gap. ROI features, because LocaNMF component identity is not stable "
-    "across days.")
+    "TRAINED ON PRE-STROKE SESSIONS ONLY. A held-out PRE-stroke day is scored leave-one-out among "
+    "pre-stroke days; a POST-stroke day is scored by one model fitted on ALL pre-stroke days and "
+    "applied unchanged. Until 2026-08-26 training used every pooled session, so post-stroke nights "
+    "were ~30% of the training data behind a number whose whole job is to be a lesion-free baseline "
+    "-- every frozen figure before that date is superseded. Pooling for FEATURE ALIGNMENT still uses "
+    "all sessions, which is what makes the post-stroke rows comparable at all. The reference holds: "
+    "pre-stroke transfer cost is POSITIVE in every animal, so the frozen model BEATS the same-day "
+    "model by pooling ~3000 trials against ~500, and a post-stroke drop reads as lesion rather than "
+    "day gap. Correcting the contamination SHRANK the cost by 11-33% without changing that sign. "
+    "ROI features, because LocaNMF component identity is not stable across days.")
 
 S_FROZEN_ALL = (
     "TWO REFERENCES, BOTH MANDATORY. A softmax decoder never abstains: on quiet / running windows "
@@ -194,7 +198,12 @@ S_FROZEN_ALL = (
 S_FROZEN_ENC = (
     "THE ENCODER DOES NOT TRANSFER LIKE THE DECODER, and the disagreement in SIGN is the finding: "
     "decision boundaries transfer across days (cost positive in all four animals) while activity "
-    "MAGNITUDES do not (PS93 -0.063, PS95 -0.032). The encoder estimates only 6 position means per "
+    "MAGNITUDES do not (PS93 and PS95 NEGATIVE; -0.063 and -0.032 on the clean 8/11 pool, -0.026 and "
+    "-0.021 after the 2026-08-26 training fix -- the sign, which is the finding, survives). Like the "
+    "decoder, this is now trained on PRE-STROKE sessions only; before 2026-08-26 it was fitted "
+    "partly to post-stroke trials, which is worse here than for the decoder because the encoder's "
+    "RESIDUAL on those trials IS the representational-change readout. The encoder estimates only 6 "
+    "position means per "
     "feature, so it gains little from extra trials and is actively hurt by day-to-day differences "
     "in the mapping that per-session z-scoring does not remove. CONSEQUENCE: judge post-stroke "
     "encoder residuals against this NON-ZERO pre-stroke cross-day cost, not against zero. Read the "
@@ -224,17 +233,27 @@ S_NOLICK_C = (
     "conclusion.")
 
 S_XMOUSE = (
-    "ANIMAL IS THE UNIT: per-session metrics are averaged within mouse, so n=4 and no p-value here "
-    "carries weight. This is a HYPOTHESIS-GENERATING slide built around one specific prediction -- "
-    "PS93's right orofacial deficit is represented contralaterally, so it predicts altered LEFT "
-    "hemisphere representation and/or worse RIGHT-spout decoding. Read the L-vs-R spout and "
-    "SSp-left-vs-right panels against that prediction; the rest of the slide is description.")
+    "PRE-STROKE SESSIONS ONLY (since 2026-08-26) -- this is a BASELINE question, do these mice differ "
+    "from each other, so it is answered from baseline data. It previously pooled every session, 39% "
+    "of them post-stroke, and three of its six metrics are LATERALISATION measures while PS94's "
+    "lateralisation is exactly what collapses after its lesion (DECISIONS 2026-08-19): a "
+    "'between-mouse difference' could have been a between-lesion-severity one. ANIMAL IS THE UNIT, "
+    "so n=4 and no p-value here carries weight. HYPOTHESIS-GENERATING, around one prediction: PS93's "
+    "right orofacial deficit is represented contralaterally, predicting altered LEFT hemisphere "
+    "representation and/or worse RIGHT-spout decoding. Read the L-vs-R spout and SSp-left-vs-right "
+    "panels against that; the rest is description. The post-stroke version of these asymmetry "
+    "questions belongs in section G, which has the position-matching this slide does not.")
 
 S_XCONSIST = (
     "CONSISTENCY, NOT ACCURACY: whether an animal's per-position profile keeps the same SHAPE across "
     "its sessions. A low-accuracy animal can be highly consistent and a high-accuracy one erratic, "
-    "and it is consistency -- not accuracy -- that licenses pooling sessions within an animal. Read "
-    "this before trusting any pooled per-position number elsewhere in the deck.")
+    "and it is consistency -- not accuracy -- that licenses pooling sessions within an animal. "
+    "PRE-STROKE ONLY (since 2026-08-26), and here that is load-bearing rather than tidiness: this "
+    "slide IS the noise floor a post-stroke change has to exceed, and a floor built partly from "
+    "post-stroke sessions is inflated by the very change it exists to be exceeded by. That error "
+    "runs in the conservative direction -- it makes a real effect harder to clear -- but the "
+    "reference was still measuring the wrong thing. Read this before trusting any pooled "
+    "per-position number elsewhere in the deck.")
 
 S_RSA_A = (
     "RELIABILITY IS NOT INFORMATION. Mean sibling RSA measures how reproducible an RDM is, and ROI "
@@ -1925,14 +1944,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # ---------------- E. cross-session summary ----------------
     divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")
     s = slide()
-    title(s, f"Cross-mouse decoding & encoding across sessions ({_mmdd_label(dates[0])}–{_mmdd_label(dates[-1])})",
-          "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's sessions "
-          "(points = sessions).")
+    # SCOPE COMES FROM THE PHASE, NOT FROM `dates`. This interpolated the full cross-session range
+    # (e.g. 0606-0825) while the figure itself is pre-stroke only, so the title asserted a span the
+    # panels do not cover.
+    _pre_d = config.prestroke_dates()
+    title(s, f"Cross-mouse decoding & encoding — PRE-STROKE baseline "
+             f"({_mmdd_label(_pre_d[0])}–{_mmdd_label(_pre_d[-1])})",
+          "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's "
+          "PRE-STROKE sessions (points = sessions). Baseline question: do the mice differ from each "
+          "other? The post-stroke comparison lives in section G.")
     note(s, M_DECODE + " " + M_ENCODE, specific=S_XMOUSE)
     big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
     s = slide()
-    title(s, "Within-animal consistency of per-position decode / encode",
-          "Per-position profile per session + mean ± SD (the session-to-session noise floor).")
+    title(s, "Within-animal consistency of per-position decode / encode — PRE-STROKE noise floor",
+          "Per-position profile per session + mean ± SD. This IS the session-to-session floor a "
+          "post-stroke change must exceed, so it is built from pre-stroke sessions only.")
     note(s, M_DECODE + " " + M_ENCODE, specific=S_XCONSIST)
     big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
 

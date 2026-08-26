@@ -1,5 +1,16 @@
-"""Cross-mouse comparison of position decoding + encoding (all sessions pooled per mouse), to look for
-SYSTEMATIC differences in the cortical representation of movement / motor planning across mice.
+"""Cross-mouse comparison of position decoding + encoding (PRE-STROKE sessions pooled per mouse), to
+look for SYSTEMATIC differences in the cortical representation of movement / motor planning across mice.
+
+SCOPE IS PRE-STROKE (2026-08-26). This is a BASELINE question -- do these mice differ from each other
+-- so it is answered from baseline data. It was pooling every session, which by 8/26 was 39%
+post-stroke per mouse, and three of the six metrics below are lateralisation measures while
+DECISIONS 2026-08-19 records lateralisation collapsing post-stroke in PS94 specifically. A
+"between-mouse difference" drawn from that pool could be a between-lesion-severity difference.
+
+The post-stroke version of these asymmetry questions belongs in Section G, not here: a naive pre/post
+mean would compare a 4-position post-stroke session (chance 0.25) against 6-position pre-stroke ones
+(0.167), which is the trial-composition error `poststroke_compare` exists to prevent. Section G
+already has the position-matching, the pre-stroke band and the chance handling.
 
 Motivated by PS93's RIGHT orofacial deficit (tongue deviates right, minimal right whisking). Orofacial
 movement is represented CONTRALATERALLY, so a right-side deficit predicts altered LEFT-hemisphere
@@ -101,12 +112,46 @@ def _per_session_compute(s):
                 Rrecall=np.nanmean([recall[DISPLAY_ORDER.index(c)] for c in RSPOUT]))
 
 
-def fig_cross_mouse(out, dates=None, tag=None):
-    by_mouse = defaultdict(list)
+def _session_labels(dates=None, phase="pre"):
+    """Labels grouped by mouse, PRE-STROKE by default.
+
+    BOTH figures in this module are baselines and neither is a pre/post comparison (Priya,
+    2026-08-26). `fig_within_animal_consistency` says so in its own docstring -- "the within-animal
+    noise floor a post-stroke change must exceed" -- and a floor that includes post-stroke sessions is
+    inflated by the very change it exists to be exceeded by. `fig_cross_mouse` asks whether the mice
+    DIFFER at baseline, motivated by PS93's right orofacial deficit; three of its six metrics are
+    lateralisation measures, and DECISIONS 2026-08-19 records lateralisation collapsing post-stroke in
+    PS94 specifically. With 39% post-stroke sessions per mouse, a "between-mouse difference" could be
+    a between-lesion-severity difference -- the confound aimed straight at what the module measures.
+
+    Filtering HERE rather than at the call site, deliberately: the frozen-decoder contamination
+    survived eight days because the CLI and the nightly passed different date sets, so whichever you
+    read looked right. A module that defines its own scope cannot be given the wrong one.
+
+    Pass ``phase="all"`` to get the old behaviour for a deliberate post-stroke look; the per-session
+    numbers are unaffected either way, since every metric is computed within one session.
+    """
+    from wfield_local import config
+    keep = None if phase == "all" else set(config.phase_labels(phase))
+    by = defaultdict(list)
     for s in SESSIONS:
         if dates is not None and s["label"][-4:] not in dates:
             continue
-        by_mouse[s["label"][:4]].append(s["label"])
+        if keep is not None and s["label"] not in keep:
+            continue
+        by[s["label"][:4]].append(s["label"])
+    return by
+
+
+def _scope_label(by_mouse, phase) -> str:
+    """"PRE-STROKE 0606-0814" -- built from the sessions actually used, never from the caller's tag."""
+    ds = sorted({l[-4:] for labs in by_mouse.values() for l in labs})
+    span = f"{ds[0]}-{ds[-1]}" if ds else "no sessions"
+    return f"{'PRE-STROKE' if phase == 'pre' else phase.upper()} {span}"
+
+
+def fig_cross_mouse(out, dates=None, tag=None, phase="pre"):
+    by_mouse = _session_labels(dates, phase)
     mice = sorted(by_mouse)
     M = {}
     for mouse in mice:
@@ -182,8 +227,12 @@ def fig_cross_mouse(out, dates=None, tag=None):
     ax.axhline(0, color="k", lw=0.6); ax.set_xticks(x); ax.set_xticklabels(mice); ax.set_ylabel("asymmetry (L - R)")
     ax.legend(fontsize=7); ax.set_title("L/R asymmetry indices, mean +- SEM + sessions (PS93 = right orofacial deficit)")
     nsess = {m: len(M[m]) for m in mice}
-    scope = tag if tag else "all sessions"
-    fig.suptitle(f"Cross-mouse cortical representation of spout position ({scope}; n/mouse={nsess})", fontsize=13)
+    # THE SCOPE LINE DESCRIBES THE SESSIONS USED, NOT THE TAG. `tag` is the nightly's cross-session
+    # date range (e.g. 0606-0825) and is only a FILENAME, so printing it here would have claimed a
+    # span this figure no longer covers now that the pool is pre-stroke. A label that contradicts its
+    # own content is the failure this whole audit was about.
+    fig.suptitle(f"Cross-mouse cortical representation of spout position "
+                 f"({_scope_label(by_mouse, phase)}; n/mouse={nsess})", fontsize=13)
     fig.tight_layout()
     p = out / f"locanmf_cross_mouse_comparison{('_' + tag) if tag else ''}.png"
     fig.savefig(p, dpi=130); plt.close(fig)
@@ -201,18 +250,19 @@ def _pairwise_r(vecs):
     return float(np.nanmean(rs)) if rs else np.nan
 
 
-def fig_within_animal_consistency(out, dates=None, tag=None):
+def fig_within_animal_consistency(out, dates=None, tag=None, phase="pre"):
     """How reproducible is each animal's per-position pattern across its sessions? For DECODING (per-
     position recall) and ENCODING (per-position explained variance): overlay each session's 6-position
     profile (grey) + mean +- SD (bold), per animal. Title reports the mean pairwise cross-session
     correlation (pattern consistency) and the mean per-position SD (magnitude consistency). This sets the
     within-animal noise floor a post-stroke change must exceed. `dates` (set of 'MMDD') restricts to a
-    session subset; `tag` suffixes the filename (default = all sessions, no suffix)."""
-    by = defaultdict(list)
-    for s in SESSIONS:
-        if dates is not None and s["label"][-4:] not in dates:
-            continue
-        by[s["label"][:4]].append(s["label"])
+    session subset; `tag` suffixes the filename (default = all sessions, no suffix).
+
+    PRE-STROKE ONLY (see :func:`_session_labels`). A noise floor built partly from post-stroke
+    sessions is inflated by the change it is supposed to be exceeded by, which makes a real effect
+    harder to clear -- the failure runs in the conservative direction, but it is still the reference
+    measuring the wrong thing."""
+    by = _session_labels(dates, phase)
     mice = sorted(by)
     data = {}
     for m in mice:
@@ -253,7 +303,7 @@ def fig_within_animal_consistency(out, dates=None, tag=None):
                 ax.set_ylabel(ylab, fontsize=9)
             if row == 0:
                 ax.legend(fontsize=6, title="session (marker)", ncol=2)
-    sub = f" [{tag}]" if tag else ""
+    sub = f" [{_scope_label(by, phase)}]"          # the sessions used, not the caller's tag
     fig.suptitle(f"Within-animal per-position consistency across sessions{sub} "
                  "(one marker/color per DATE (see legend), bold black = mean +- SD; high pairwise r + low SD = reproducible)", fontsize=12)
     fig.tight_layout()
