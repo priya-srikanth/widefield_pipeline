@@ -182,8 +182,13 @@ def _footer(fig, source_labels=None):
     built from a nightly-written JSON must pass that JSON's session list, or the footer reassures
     about data it never saw -- which is exactly how it failed on 2026-08-25.
     """
-    fig.text(0.5, 0.004, coverage_note(source_labels), ha="center", va="bottom", fontsize=7,
-             color="0.30")
+    # THE ABBREVIATION KEY RIDES WITH THE FIGURE. Axis labels are two characters so they survive a
+    # reduction to a quarter page, which is only legible if the expansion travels with them -- a key
+    # that lives in the speaker notes is not present when the panel is lifted into a grant.
+    fig.text(0.5, 0.004,
+             coverage_note(source_labels)
+             + "      positions: c = close, f = far;  L / C / R = left / centre / right",
+             ha="center", va="bottom", fontsize=7, color="0.30")
 
 
 def _fig_root():
@@ -261,7 +266,7 @@ def _wilson(hits, n, z=1.96):
 
 
 def fig_behaviour(out_dir):
-    fig, axes = plt.subplots(1, 4, figsize=(17.5, 4.3), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(1, 4, figsize=(10.4, 3.6), sharey=True, squeeze=False)
     for k, an in enumerate(ANIMALS):
         ax = axes[0][k]
         for pos in POS:
@@ -298,7 +303,7 @@ def fig_behaviour(out_dir):
         ax.text(0, 1.035, "lesion", ha="center", fontsize=8, color="k",
                 transform=ax.get_xaxis_transform())
         ax.axvline((BASELINE_X + BASELINE_BEFORE) / 2 + 2, color="0.6", lw=1.0, ls=(0, (2, 3)))
-        ax.text(BASELINE_X, -0.075, "June\nbaseline", ha="center", va="top", fontsize=7,
+        ax.text(BASELINE_X, -0.075, "June\nbaseline", ha="center", va="top", fontsize=8,
                 color="0.35", transform=ax.get_xaxis_transform())
         ax.set_title(an, fontsize=12, fontweight="bold")
         ax.set_xlabel("days from lesion")
@@ -310,7 +315,7 @@ def fig_behaviour(out_dir):
     # Below the panels, for the same reason as 1b: lower-left is where the impaired traces live.
     _h, _lab = axes[0][0].get_legend_handles_labels()
     if _h:
-        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
+        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=11.5, frameon=False)
     _suptitle(fig, "Licking accuracy at each spout position, relative to the lesion. "
                  "Engaged trials only (the terminal quit period is excluded); bars are Wilson 95% "
                  "CIs. The two sessions after the laser that did not take are omitted.",
@@ -337,7 +342,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
     Positions are offset horizontally because at baseline five of the six sit on top of each other
     near 1.0 and are otherwise unreadable.
     """
-    fig, axes = plt.subplots(1, 4, figsize=(17.0, 4.5), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(1, 4, figsize=(10.4, 3.7), sharey=True, squeeze=False)
     for k, an in enumerate(ANIMALS):
         ax = axes[0][k]
         imp = _impaired(an)
@@ -374,7 +379,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
         # positions and is the more useful text.
         ax.axvline(0, color="k", lw=1.4, ls=":")
         ax.set_xticks([-1] + post_days)
-        ax.set_xticklabels(["ALL\npre"] + [str(d) for d in post_days], fontsize=8)
+        ax.set_xticklabels(["ALL\npre"] + [str(d) for d in post_days], fontsize=11)
         ax.set_title(f"{an}\nimpaired: {', '.join(sorted(imp)) or 'none'}", fontsize=10,
                      fontweight="bold")
         ax.set_xlabel("days from lesion")
@@ -388,7 +393,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
     # with data whatever the values turn out to be, which an in-panel "best" location cannot promise.
     _h, _lab = axes[0][0].get_legend_handles_labels()
     if _h:
-        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
+        fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=11.5, frameon=False)
     _suptitle(fig, "Licking accuracy per spout position: the WHOLE pre-stroke baseline as one point "
                  "(mean +/- SEM across sessions), then each day after the lesion.\n"
                  "Engaged trials only; positions offset horizontally so all six are visible. "
@@ -403,7 +408,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
 
 # ------------------------------------------------------------------ 2. pre-stroke decoding
 def fig_prestroke_decoding(out_dir):
-    fig, ax = plt.subplots(figsize=(11.0, 5.4))
+    fig, ax = plt.subplots(figsize=(9.8, 5.0))
     width = 0.26
     x = np.arange(len(ANIMALS))
     any_drawn = False
@@ -443,7 +448,7 @@ def fig_prestroke_decoding(out_dir):
     ax.set_ylim(0, 1.0)
     # LEGEND BELOW THE AXES. Bars run from 0 to ~0.95 in every animal, so there is no interior
     # corner it can sit in without covering data -- in-axes it landed on PS92's post-cue bar.
-    ax.legend(fontsize=9, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.09),
+    ax.legend(fontsize=11.5, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.09),
               frameon=False)
     ax.grid(axis="y", alpha=0.25, lw=0.5)
     ax.set_title("Spout position decodes across sessions from a shared LocaNMF basis (pre-stroke)\n"
@@ -500,7 +505,7 @@ def fig_prestroke_decoding_cohort(out_dir):
     ax.set_xticklabels([w[2] for w in WINDOWS], fontsize=11)
     ax.set_ylabel("cross-session decoding accuracy")
     ax.set_ylim(0, 1.05)
-    ax.legend(fontsize=8, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.08), frameon=False)
+    ax.legend(fontsize=11, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.08), frameon=False)
     ax.grid(axis="y", alpha=0.25, lw=0.5)
     ax.set_title("Spout position decodes across sessions, all four animals (pre-stroke)\n"
                  "Leave-one-session-out in a shared LocaNMF basis. Bar = mean across animals, "
@@ -517,6 +522,17 @@ def fig_prestroke_decoding_cohort(out_dir):
 #: (left-to-right, close row then far row), not the raw position codes. Labelling them in code order
 #: would transpose the picture into nonsense while still looking like a plausible matrix.
 CONF_LABELS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+#: Two-character position labels for dense axes. A 6-column matrix panel is ~2.05in wide, so a cell
+#: is ~0.34in; "close_center" is twelve characters and cannot be enlarged without collision, while
+#: "cC" can. The full names stay in every header, legend and speaker note, and the key is one line:
+#: c = close, f = far; L / C / R = left / centre / right.
+POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
+             "far_L": "fL", "far_center": "fC", "far_R": "fR"}
+
+
+def _short(labels):
+    """Position labels shortened for an axis. Anything unrecognised passes through unchanged."""
+    return [POS_SHORT.get(str(q), str(q)) for q in labels]
 
 
 def fig_confusion_prestroke(out_dir):
@@ -551,12 +567,12 @@ def fig_confusion_prestroke(out_dir):
             for i in range(len(CONF_LABELS)):
                 for j in range(len(CONF_LABELS)):
                     if M[i, j] >= 0.01:
-                        ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
+                        ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=8.5,
                                 color="white" if M[i, j] < 0.6 else "black")
             ax.set_xticks(range(len(CONF_LABELS)))
-            ax.set_xticklabels(CONF_LABELS, rotation=45, ha="right", fontsize=7.5)
+            ax.set_xticklabels(_short(CONF_LABELS), rotation=0, ha="center", fontsize=10)
             ax.set_yticks(range(len(CONF_LABELS)))
-            ax.set_yticklabels(CONF_LABELS, fontsize=7.5)
+            ax.set_yticklabels(_short(CONF_LABELS), fontsize=10)
             ax.set_title(f"{an} — {acc:.2f} correct ({len(mats)} held-out sessions)",
                          fontsize=10, fontweight="bold")
             # X-LABEL ON THE BOTTOM ROW ONLY -- on the top row it lands on the row below's title.
@@ -608,7 +624,7 @@ def fig_confusion_pre_post(out_dir):
               ("post", "POST-stroke, ALL trials"))
     made = []
     for gkey, wname in (("pre-cue", "ENL (pre-cue)"), ("post-cue", "post-cue")):
-        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(11.0, 14.0), squeeze=False)
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 11.6), squeeze=False)
         drew = False
         for ri, an in enumerate(ANIMALS):
             sessions = sorted(k for k in G if k.startswith(an)
@@ -645,19 +661,19 @@ def fig_confusion_pre_post(out_dir):
                 im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
                 for i in range(len(CONF_LABELS)):
                     if row[i, 0] == 0:
-                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=7,
+                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=8,
                                 color="firebrick", fontweight="bold")
                         continue
                     for j in range(len(CONF_LABELS)):
                         if P[i, j] >= 0.02:
-                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=6,
+                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
-                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                   rotation=45, ha="right", fontsize=6.5)
+                ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                   rotation=0, ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
-                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
-                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f})", fontsize=8.5,
+                ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
+                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f})", fontsize=11,
                              fontweight="bold" if ci == 0 else "normal")
                 drew = True
         if not drew:
@@ -709,7 +725,7 @@ def fig_confusion_pre_post_working(out_dir):
               ("post_working", "POST-stroke, quit period REMOVED"))
     made = []
     for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
-        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(11.0, 14.0), squeeze=False)
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 11.6), squeeze=False)
         drew = False
         for ri, an in enumerate(ANIMALS):
             pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
@@ -782,20 +798,20 @@ def fig_confusion_pre_post_working(out_dir):
                 im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
                 for i in range(len(CONF_LABELS)):
                     if row[i, 0] == 0:
-                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=7,
+                        ax.text(2.5, i, "no trials", ha="center", va="center", fontsize=8,
                                 color="firebrick", fontweight="bold")
                         continue
                     for j in range(len(CONF_LABELS)):
                         if P[i, j] >= 0.02:
-                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=6,
+                            ax.text(j, i, f"{P[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
-                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                   rotation=45, ha="right", fontsize=6.5)
+                ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                   rotation=0, ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
-                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                 ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f}, n={int(C.sum())})",
-                             fontsize=8, fontweight="bold" if ci == 0 else "normal")
+                             fontsize=11, fontweight="bold" if ci == 0 else "normal")
                 drew = True
         if not drew:
             plt.close(fig)
@@ -914,7 +930,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
     """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
     if True:
         ncol = 1 + len(days)
-        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.0),
+        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.2),
                                  squeeze=False)
         im = None
         for ri, an in enumerate(ANIMALS):
@@ -931,14 +947,14 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
                 im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_yticks(range(len(CONF_LABELS)))
-                ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                   rotation=90, fontsize=5.5)
-                ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                   rotation=0, fontsize=9)
+                ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                 head = "PRE (LOSO)" if ci == 0 else f"day {days[ci - 1]}"
-                ax.set_title(f"{head}  {acc:.2f}", fontsize=7.5,
+                ax.set_title(f"{head}  {acc:.2f}", fontsize=10,
                              fontweight="bold" if ci == 0 else "normal")
                 if ci == 0:
-                    ax.set_ylabel(f"{an}\ntrue position", fontsize=8, fontweight="bold")
+                    ax.set_ylabel(f"{an}\ntrue position", fontsize=11, fontweight="bold")
         if im is None:
             plt.close(fig)
             return None
@@ -1048,7 +1064,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
         days = sorted(all_days)
         for v in variants:
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1082,15 +1098,15 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                     im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                       rotation=90, fontsize=5.5)
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=0, fontsize=9)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     diag = np.nanmean(np.diag(M))
                     head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
-                    ax.set_title(f"{head}  diag {diag:.2f}", fontsize=7.5,
+                    ax.set_title(f"{head}  diag {diag:.2f}", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
-                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
             if im is None:
                 plt.close(fig)
                 continue
@@ -1325,7 +1341,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 6 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         for v in variants:
-            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(13.0, 15.5), squeeze=False)
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(10.4, 12.6), squeeze=False)
             drew = False
             for ri, an in enumerate(ANIMALS):
                 got = store[v].get(an)
@@ -1351,7 +1367,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                             if not np.isfinite(M[i, j]):
                                 continue
                             ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center",
-                                    fontsize=6, color="k")
+                                    fontsize=7.5, color="k")
                             # RING = beats the position-shuffled null. Not "r != 0": the null keeps
                             # the global post-stroke pattern and shuffles only WHICH position a
                             # trial belongs to, so a ring means position-specific structure.
@@ -1359,16 +1375,16 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                                 ax.add_patch(plt.Rectangle((j - .5, i - .5), 1, 1, fill=False,
                                                            edgecolor="lime", lw=1.6))
                     ax.set_xticks(range(len(CONF_LABELS)))
-                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                       rotation=45, ha="right", fontsize=6.5)
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=0, ha="center", fontsize=9.5)
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
-                    ax.set_title(f"{an if ci == 0 else ''}  {ptitle}", fontsize=8.5,
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
+                    ax.set_title(f"{an if ci == 0 else ''}  {ptitle}", fontsize=11,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
-                        ax.set_ylabel("this position's pattern", fontsize=7)
+                        ax.set_ylabel("this position's pattern", fontsize=9.5)
                     if ri == len(ANIMALS) - 1:
-                        ax.set_xlabel("vs PRE-STROKE reference at", fontsize=7)
+                        ax.set_xlabel("vs PRE-STROKE reference at", fontsize=9.5)
                     drew = True
                 # THIRD PANEL: the claim, with an interval. Own-position r post MINUS baseline,
                 # differenced draw by draw so the shared reference cancels.
@@ -1387,10 +1403,10 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 ax.set_yticks(y)
                 ax.set_yticklabels([])
                 ax.set_ylim(len(CONF_LABELS) - 0.5, -0.5)
-                ax.set_title("post − baseline (own position)", fontsize=8.5)
+                ax.set_title("post − baseline (own position)", fontsize=11)
                 ax.grid(alpha=0.25, lw=0.5)
                 if ri == len(ANIMALS) - 1:
-                    ax.set_xlabel("Δr, 95% stratified bootstrap", fontsize=7)
+                    ax.set_xlabel("Δr, 95% stratified bootstrap", fontsize=9.5)
             if not drew:
                 plt.close(fig)
                 continue
@@ -1721,7 +1737,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1752,19 +1768,19 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                     im = ax.imshow(np.ma.masked_invalid(M), vmin=-1, vmax=1, cmap="RdBu_r")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                       rotation=90, fontsize=5.5)
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=0, fontsize=9)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     head = "PRE, per session" if ci == 0 else f"day {days[ci - 1]}"
                     # 'sh', NOT 'rel': this is the split-half correlation itself, the reliability of
                     # a HALF-length mean. 7b applies the Spearman-Brown step that turns it into the
                     # reliability of the full mean it actually divides by.
                     # n IS PRINTED because sh depends on it, and a reader comparing two panels needs
                     # to know whether they rest on comparable amounts of data.
-                    ax.set_title(f"{head}  sh {np.nanmean(np.diag(M)):.2f}  n{n_med}", fontsize=7.0,
+                    ax.set_title(f"{head}  sh {np.nanmean(np.diag(M)):.2f}  n{n_med}", fontsize=9.5,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
-                        ax.set_ylabel(f"{an}\nhalf A at", fontsize=8, fontweight="bold")
+                        ax.set_ylabel(f"{an}\nhalf A at", fontsize=11, fontweight="bold")
             if im is None:
                 plt.close(fig)
                 continue
@@ -1821,7 +1837,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
-            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(13.6, 11.4), squeeze=False)
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(10.8, 9.4), squeeze=False)
             drew = False
             for ri, an in enumerate(ANIMALS):
                 got = store.get(an)
@@ -1903,16 +1919,16 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                                     ax.text(j, i, "·", ha="center", va="center", fontsize=11,
                                             color="0.35")
                                 continue
-                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=6.5,
+                            ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=7.5,
                                     color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
                     ax.set_xticks(range(len(cols)))
-                    ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                    ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=6.5)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                     if ci == 0:
-                        ax.set_ylabel(an, fontsize=9, fontweight="bold")
+                        ax.set_ylabel(an, fontsize=11.5, fontweight="bold")
                     if ri == 0:
-                        ax.set_title(ttl, fontsize=8.5)
+                        ax.set_title(ttl, fontsize=11)
                     drew = True
                 # THE DENOMINATOR, spelled out. The ratio divides by the reference's reliability as
                 # well as the session's, and a reader cannot otherwise tell whether a low
@@ -2081,7 +2097,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(2.05 * ncol + 1.4, 9.2),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(1.45 * ncol + 1.2, 7.4),
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -2130,18 +2146,18 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                         for j in range(len(CONF_LABELS)):
                             if np.isfinite(D[i, j]):
                                 ax.text(j, i, f"{D[i, j]:.1f}", ha="center", va="center",
-                                        fontsize=4.6,
+                                        fontsize=6,
                                         color="k" if D[i, j] > 1.3 else "w")
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                       rotation=90, fontsize=5.5)
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=0, fontsize=9)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
-                    ax.set_title(f"{head}  diag {np.nanmean(np.diag(D)):.2f}", fontsize=7.5,
+                    ax.set_title(f"{head}  diag {np.nanmean(np.diag(D)):.2f}", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
-                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
             if im is None:
                 plt.close(fig)
                 continue
@@ -2261,16 +2277,16 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                     for j in range(1 + len(days)):
                         if np.isfinite(rows[i, j]):
                             ax.text(j, i, f"{rows[i, j]:.2f}", ha="center", va="center",
-                                    fontsize=6.2)
+                                    fontsize=7.5)
                 ax.set_xticks(range(1 + len(days)))
                 ax.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
-                                   if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                                   if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
-                ax.set_yticklabels(CONF_LABELS, fontsize=6.5)
-                ax.set_ylabel(an, fontsize=9, fontweight="bold")
+                ax.set_yticklabels(_short(CONF_LABELS), fontsize=9.5)
+                ax.set_ylabel(an, fontsize=11.5, fontweight="bold")
                 if ri == 0:
                     ax.set_title("per-position: is this position's ROW of the RDM preserved?",
-                                 fontsize=8.5)
+                                 fontsize=11)
                 ax2 = axes[ri][1]
                 xs = np.arange(1 + len(days))
                 ax2.plot(xs, whole, "o-", color="#2166ac", ms=4.5, lw=1.4)
@@ -2278,10 +2294,10 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 ax2.set_ylim(-0.3, 1.05)
                 ax2.set_xticks(xs)
                 ax2.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
-                                    if ri == len(ANIMALS) - 1 else [], fontsize=6.5)
+                                    if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
                 ax2.grid(alpha=0.25, lw=0.5)
                 if ri == 0:
-                    ax2.set_title("whole-RDM correlation\n(gain-invariant)", fontsize=8.5)
+                    ax2.set_title("whole-RDM correlation\n(gain-invariant)", fontsize=11)
                 drew = True
             if not drew:
                 plt.close(fig)
@@ -2557,7 +2573,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # 2026-08-25). Reserving a real column and drawing into an explicit `cax` inside it is
     # deterministic; shrinking `fraction` would only have made the overlap thinner.
     ncol = 1 + len(days)
-    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(2.05 * ncol + 2.6, figh),
+    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(1.45 * ncol + 2.0, figh),
                              squeeze=False,
                              gridspec_kw={"width_ratios": [1, 0.42] + [1] * len(days)})
     spacer = grid[:, 1]
@@ -2585,9 +2601,9 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                 stat = summary(M) - summary(base)
             ax.set_xticks(range(len(CONF_LABELS)))
             ax.set_yticks(range(len(CONF_LABELS)))
-            ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                               rotation=90, fontsize=5.5)
-            ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+            ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                               rotation=0, fontsize=9)
+            ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
             # THE INTERVAL GOES WHERE THE NUMBER IS. The change in mean diagonal is the claim each
             # panel makes, so a bare point estimate there is the one place an interval is most
             # needed. Blank when the bootstrap could not resolve that cell -- never an interval
@@ -2599,10 +2615,10 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                 lab = f"{head}  {stat:+.2f}\n[{band[0]:+.2f}, {band[1]:+.2f}]"
             else:
                 lab = f"{head}  {stat:+.2f}"
-            ax.set_title(lab, fontsize=6.8 if band else 7.5,
+            ax.set_title(lab, fontsize=9.5 if band else 7.5,
                          fontweight="bold" if ci == 0 else "normal")
             if ci == 0:
-                ax.set_ylabel(f"{an}\n{ylab}", fontsize=8, fontweight="bold")
+                ax.set_ylabel(f"{an}\n{ylab}", fontsize=11, fontweight="bold")
     if im_abs is None or im_del is None:
         plt.close(fig)
         return None
@@ -2630,7 +2646,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     cax.yaxis.set_ticks_position("left")
     cax.yaxis.set_label_position("left")
     cax.tick_params(labelsize=7)
-    cb.set_label(abs_label, fontsize=8)
+    cb.set_label(abs_label, fontsize=11)
     _suptitle(fig, title, fontsize=9.5)
     _footer(fig)
     p = Path(out_dir) / fname
@@ -2951,7 +2967,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
             cis = _delta_cis(align, v, min_trials, _mats_pattern, "9", full=True)
             if not any(cis.values()):
                 continue
-            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(12.4, 2.35 * len(ANIMALS) + 1.4),
+            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(10.0, 2.0 * len(ANIMALS) + 1.3),
                                      squeeze=False, sharex=True)
             drew = False
             for ri, an in enumerate(ANIMALS):
@@ -2966,7 +2982,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                                 capsize=3, lw=1.5)
                     drew = True
                 ax.axhline(0, color="k", lw=1.2)
-                ax.set_ylabel(f"{an}\nchange in r", fontsize=9, fontweight="bold")
+                ax.set_ylabel(f"{an}\nchange in r", fontsize=11.5, fontweight="bold")
                 ax.grid(alpha=0.25, lw=0.5)
                 if ri == 0:
                     ax.set_title("mean own-position change (95% block bootstrap)", fontsize=9.5)
@@ -2995,7 +3011,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 continue
             h, lab = axes[0][1].get_legend_handles_labels()
             if h:
-                fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=8.5, frameon=False)
+                fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=11, frameon=False)
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             _suptitle(fig, 
@@ -3140,7 +3156,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 continue
             cols = ["PRE"] + list(days)
             fig, axes = plt.subplots(len(ANIMALS), len(cols),
-                                     figsize=(2.05 * len(cols) + 1.6, 9.2), squeeze=False)
+                                     figsize=(1.45 * len(cols) + 1.4, 7.4), squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
                 rec = cis.get(an) or {}
@@ -3160,15 +3176,15 @@ def fig_asymmetry(out_dir, min_trials=10):
                                                            edgecolor="lime", lw=1.4))
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
-                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
-                                       rotation=90, fontsize=5.5)
-                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                                       rotation=0, fontsize=9)
+                    ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     n_sig = int(sig.sum() // 2)          # antisymmetric: each pair rings twice
                     head = "PRE, leave-1-out" if key == "PRE" else f"day {key}"
-                    ax.set_title(f"{head}  {n_sig}/15", fontsize=7.5,
+                    ax.set_title(f"{head}  {n_sig}/15", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
-                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
             if im is None:
                 plt.close(fig)
                 continue
@@ -3228,7 +3244,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
     if not src.exists():
         return None
     data = json.loads(src.read_text(encoding="utf-8"))
-    fig, axes = plt.subplots(len(WINDOWS), len(ANIMALS), figsize=(16.0, 9.0),
+    fig, axes = plt.subplots(len(WINDOWS), len(ANIMALS), figsize=(10.4, 6.6),
                              sharey="row", squeeze=False)
     for ri, (disp, _align, wname) in enumerate(WINDOWS):
         for ci, an in enumerate(ANIMALS):
@@ -3271,7 +3287,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
             if ri == len(WINDOWS) - 1:
                 ax.set_xlabel("days from lesion")
             ax.grid(alpha=0.25, lw=0.5)
-    axes[0][0].legend(fontsize=8, loc="best")
+    axes[0][0].legend(fontsize=11, loc="best")
     _suptitle(fig, "How much of each position's PRE-STROKE code survives, over days after the lesion.\n"
                  "1.0 (green) = that position's own pre-stroke signature; 0 = indistinguishable from "
                  "the other positions. Mean over positions in each group, error bars = SEM across "
@@ -3315,7 +3331,7 @@ def fig_frozen_vs_within(out_dir):
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))
-    fig, axes = plt.subplots(len(FROZEN_WINDOWS), len(ANIMALS), figsize=(16.0, 10.2),
+    fig, axes = plt.subplots(len(FROZEN_WINDOWS), len(ANIMALS), figsize=(10.4, 7.2),
                              sharey="row", squeeze=False)
     for ri, (_disp, gkey, wname, armkey) in enumerate(FROZEN_WINDOWS):
         for ci, an in enumerate(ANIMALS):
@@ -3385,7 +3401,7 @@ def fig_frozen_vs_within(out_dir):
             if ri == len(FROZEN_WINDOWS) - 1:
                 ax.set_xlabel("days from lesion")
             ax.grid(alpha=0.25, lw=0.5)
-    axes[0][0].legend(fontsize=7, loc="lower left")
+    axes[0][0].legend(fontsize=9.5, loc="lower left")
     _suptitle(fig, "Does the OLD code still read out, and is position information still there?\n"
                  "RED = frozen pre-stroke decoder.  GREEN = decoder trained on that session.  "
                  "Band = pre-stroke range.  Bars = binomial 95% CIs.\n"
