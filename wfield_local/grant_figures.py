@@ -1193,126 +1193,201 @@ def fig_confusion_per_session(out_dir):
     5b, and the pre-stroke column is leave-one-session-out for the reason recorded there.
     """
     made = []
-    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
-        per_animal, days = _collect_5c(align)
-        if not days:
-            continue
-        p = _draw_5c(per_animal, days, out_dir, align, wname)
-        if p:
-            made.append(p)
+    for _disp, align, wname in WINDOWS:
+        # THE LICK WINDOW ADMITS ONLY THE LICK CLASS: a miss trial has no lick to align to, so a
+        # "miss, lick-aligned" panel is undefined rather than weak. Every other figure in this
+        # module already draws both classes for pre-cue and post-cue; 5c and 5d did not, which is
+        # why the LICK-ONLY reading of the frozen decoder had no per-session panel at all.
+        for variant in (("lick",) if align == "lick" else ("lick", "working")):
+            per_animal, days = _collect_5c(align, variant)
+            if not days:
+                continue
+            p = _draw_5c(per_animal, days, out_dir, align, wname, variant)
+            if p:
+                made.append(p)
     return made[0] if len(made) == 1 else (made or None)
 
 
-@lru_cache(maxsize=2)
-def _collect_5c(align):
-    """{animal: (pre-stroke LOSO confusion counts, {day: counts})} plus the sorted day list.
+@lru_cache(maxsize=8)
+def _collect_5c(align, variant="working"):
+    """{animal: (pre-stroke LOSO record, {day: record})} plus the sorted day list.
 
-    Shared by figure 5c and its delta twin 5d: fitting the frozen decoder means reading every
-    session's LocaNMF fit, and doing it twice to draw the same numbers two ways is pure waste.
+    A RECORD IS (y_true, y_pred, blocks), not a counts matrix. Counts are one reduction of it and a
+    bootstrap interval is another; keeping the trial-level predictions means the panel's accuracy and
+    its interval come from the same object rather than from two passes that can disagree.
+
+    ``variant`` selects the post-stroke trial class, as everywhere else in this module:
+      ``working`` -- lick PLUS miss-while-working, i.e. all but the terminal quit period
+      ``lick``    -- trials with a detected lick only
+
+    THE LICK-ALIGNED WINDOW ADMITS ONLY ``lick``. A trial with no detected lick has no lick to align
+    to, so a "miss trial, lick-aligned" panel is not a weak result but an undefined one -- the same
+    guard `crossed_confusion` carries as ``include_nolick=False``. The caller is responsible for not
+    asking; this raises rather than quietly returning the wrong population.
     """
+    if align == "lick" and variant != "lick":
+        raise ValueError("the lick-aligned window has no miss trials to align: use variant='lick'")
+
     from wfield_local import joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
     from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
     from wfield_local.position_coding_directions import _gate_all
     from wfield_local.precue_engagement_states import features_with_indices
 
-    if True:
-        per_animal, all_days = {}, set()
-        for an in ANIMALS:
-            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
-            post = [x for x in config.phase_labels("post") if x.startswith(an)]
-            try:
-                basis = joint_locanmf.load(an, sessions=SESSIONS)
-                feat = features_with_indices(basis, nolick_ref="cue")
-                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
-                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
-                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-                not_eng = g[0] if g else np.zeros(len(YU), bool)
-                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-                e_pre = np.isin(GE, list(pre_i))
-                GU = np.asarray(GU)
-                name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
+    per_animal, all_days = {}, set()
+    for an in ANIMALS:
+        pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+        post = [x for x in config.phase_labels("post") if x.startswith(an)]
+        try:
+            basis = joint_locanmf.load(an, sessions=SESSIONS)
+            feat = features_with_indices(basis, nolick_ref="cue")
+            XE, YE, GE, BE, XU, YU, kept, _c, GU = pool_sessions(
+                pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+            g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+            not_eng = g[0] if g else np.zeros(len(YU), bool)
+            pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+            e_pre = np.isin(GE, list(pre_i))
+            GU = np.asarray(GU)
+            GE = np.asarray(GE)
+            # Block ids, for the cluster bootstrap. The engaged arm carries the scheduler's own;
+            # the undetected arm has none from pool_sessions and gets runs of the same position.
+            BE_all = (np.concatenate([np.asarray(b) for b in BE]) if len(BE)
+                      else np.zeros(0, int))
+            BE_all = GE.astype(np.int64) * 1_000_000 + BE_all.astype(np.int64)
+            un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
+                  if len(YU) else np.zeros(0, str))
+            BU_all = _runs_to_blocks(GU, un) if len(YU) else np.zeros(0, np.int64)
 
-                def conf(X, y, clf, name=name):
-                    if not len(y):
-                        return None
-                    M = np.zeros((len(CONF_LABELS), len(CONF_LABELS)), float)
-                    for t, q in zip(name(y), name(clf.predict(X))):
-                        if t in CONF_LABELS and q in CONF_LABELS:
-                            M[CONF_LABELS.index(t), CONF_LABELS.index(q)] += 1
-                    return M
+            clf = _pipe().fit(XE[e_pre], YE[e_pre])
 
-                clf = _pipe().fit(XE[e_pre], YE[e_pre])
-                Cpre = None
-                for i in sorted(pre_i):
-                    tr, te = e_pre & (GE != i), e_pre & (GE == i)
-                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
-                        continue
-                    c1 = conf(XE[te], YE[te], _pipe().fit(XE[tr], YE[tr]))
-                    Cpre = c1 if Cpre is None else Cpre + c1
-                by_day = {}
-                for i, lab in enumerate(kept):
-                    if i in pre_i:
-                        continue
-                    day = _day(an, lab.split("_")[-1])
-                    me = (GE == i)
-                    mu = (GU == i) & ~not_eng if len(GU) else np.zeros(0, bool)
-                    Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
-                    ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
-                    C = conf(Xs, ys, clf)
-                    if C is not None and C.sum():
-                        by_day[day] = C
-                        all_days.add(day)
-                per_animal[an] = (Cpre, by_day)
-            except Exception as ex:                                       # noqa: BLE001
-                print(f"  !! 5c {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
-        return per_animal, sorted(all_days)
+            def rec(X, y, blk, model):
+                return (np.asarray(y), np.asarray(model.predict(X)), np.asarray(blk))
 
-
-def _draw_5c(per_animal, days, out_dir, align, wname):
-    """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
-    if True:
-        ncol = 1 + len(days)
-        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.5),
-                                     gridspec_kw={"hspace": 0.45},
-                                 squeeze=False)
-        im = None
-        for ri, an in enumerate(ANIMALS):
-            got = per_animal.get(an)
-            for ci in range(ncol):
-                ax = axes[ri][ci]
-                C = None if not got else (got[0] if ci == 0 else got[1].get(days[ci - 1]))
-                if C is None or not C.sum():
-                    ax.axis("off")
+            # PRE: leave-one-session-out among pre-stroke, concatenated over held-out sessions.
+            pre_y, pre_p, pre_b = [], [], []
+            for i in sorted(pre_i):
+                tr, te = e_pre & (GE != i), e_pre & (GE == i)
+                if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                row = C.sum(1, keepdims=True)
-                P = np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
-                acc = float(np.trace(C) / C.sum())
-                im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
-                ax.set_xticks(range(len(CONF_LABELS)))
-                ax.set_yticks(range(len(CONF_LABELS)))
-                ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=90, fontsize=9)
-                ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
-                head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
-                ax.set_title(f"{head}\n{acc:.2f}", fontsize=10,
-                             fontweight="bold" if ci == 0 else "normal")
-                if ci == 0:
-                    ax.set_ylabel(f"{an}\ntrue position", fontsize=11, fontweight="bold")
-        if im is None:
-            plt.close(fig)
-            return None
-        fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
-        _suptitle(fig, f"Frozen pre-stroke decoder, session by session — {wname} window\n"
-                     "Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
-                     "removed). Columns are DAYS FROM LESION so they mean the same thing in every "
-                     "row;\na blank cell is a session that animal does not have. Rows = TRUE spout "
-                     "position, columns within a panel = predicted. Chance = 0.17.", fontsize=9.5)
-        _footer(fig)
-        p = _out(out_dir, f"grant_5c_confusion_per_session_{align}")
-        _save(fig, p, dpi=200, bbox_inches="tight")
+                yt, yp, bb = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]))
+                pre_y.append(yt); pre_p.append(yp); pre_b.append(bb)
+            Cpre = ((np.concatenate(pre_y), np.concatenate(pre_p), np.concatenate(pre_b))
+                    if pre_y else None)
+
+            by_day = {}
+            for i, lab in enumerate(kept):
+                if i in pre_i:
+                    continue
+                day = _day(an, lab.split("_")[-1])
+                me = (GE == i)
+                mu = ((GU == i) & ~not_eng if (len(GU) and variant == "working")
+                      else np.zeros(len(GU), bool))
+                Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+                ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
+                bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
+                if not len(ys):
+                    continue
+                by_day[day] = rec(Xs, ys, bs, clf)
+                all_days.add(day)
+            per_animal[an] = (Cpre, by_day)
+        except Exception as ex:                                       # noqa: BLE001
+            print(f"  !! 5c {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+    return per_animal, sorted(all_days)
+
+
+def _counts(record):
+    """Confusion counts in CONF_LABELS order from a (y_true, y_pred, blocks) record."""
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    if record is None:
+        return None
+    y, p, _b = record
+    M = np.zeros((len(CONF_LABELS), len(CONF_LABELS)), float)
+    for t, q in zip(y, p):
+        tn = POSITION_NAMES.get(int(t), str(t))
+        qn = POSITION_NAMES.get(int(q), str(q))
+        if tn in CONF_LABELS and qn in CONF_LABELS:
+            M[CONF_LABELS.index(tn), CONF_LABELS.index(qn)] += 1
+    return M
+
+
+def _acc_ci(record, n_boot=400):
+    """(accuracy, lo, hi, n_blocks) by cluster bootstrap over the scheduler's own trial blocks.
+
+    Reuses `decode_ci.bootstrap_recall` rather than adding a second implementation of the same
+    resampling -- it already resamples BLOCKS, which is the unit these figures use everywhere else,
+    and it already reports n_effective, the honest sample size.
+    """
+    if record is None:
+        return (float("nan"),) * 3 + (0,)
+    from wfield_local.decode_ci import bootstrap_recall
+
+    y, p, b = record
+    if not len(y):
+        return (float("nan"),) * 3 + (0,)
+    try:
+        out = bootstrap_recall(y, p, blocks=b, n_boot=n_boot)
+        lo, hi = out["accuracy_ci"]
+        return float(out["accuracy"]), float(lo), float(hi), int(out["n_effective"])
+    except Exception as exc:                                          # noqa: BLE001
+        print(f"  [5c] accuracy CI unavailable ({type(exc).__name__})", flush=True)
+        acc = float((np.asarray(y) == np.asarray(p)).mean())
+        return acc, float("nan"), float("nan"), 0
+
+
+def _draw_5c(per_animal, days, out_dir, align, wname, variant="working"):
+    """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
+    ncol = 1 + len(days)
+    fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.5),
+                             gridspec_kw={"hspace": 0.45}, squeeze=False)
+    im = None
+    for ri, an in enumerate(ANIMALS):
+        got = per_animal.get(an)
+        for ci in range(ncol):
+            ax = axes[ri][ci]
+            record = None if not got else (got[0] if ci == 0 else got[1].get(days[ci - 1]))
+            C = _counts(record)
+            if C is None or not C.sum():
+                ax.axis("off")
+                continue
+            row = C.sum(1, keepdims=True)
+            P = np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+            # ACCURACY AND ITS INTERVAL FROM THE SAME RECORD. Both are reductions of the same
+            # (y_true, y_pred, blocks), so the number and its uncertainty cannot come from
+            # different populations.
+            acc, lo, hi, _nb = _acc_ci(record)
+            im = ax.imshow(np.ma.masked_invalid(P), vmin=0, vmax=1, cmap="magma")
+            ax.set_xticks(range(len(CONF_LABELS)))
+            ax.set_yticks(range(len(CONF_LABELS)))
+            ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                               rotation=90, fontsize=9)
+            ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
+            head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
+            band = f"\n[{lo:.2f}, {hi:.2f}]" if np.isfinite(lo) and np.isfinite(hi) else ""
+            ax.set_title(f"{head}\n{acc:.2f}{band}", fontsize=8.5,
+                         fontweight="bold" if ci == 0 else "normal")
+            if ci == 0:
+                ax.set_ylabel(f"{an}\ntrue position", fontsize=11, fontweight="bold")
+    if im is None:
         plt.close(fig)
-        return p
+        return None
+    fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
+    cls = ("LICK trials only" if variant == "lick"
+           else "LICK + MISS-WHILE-WORKING (terminal quit period removed)")
+    _suptitle(fig, f"Frozen pre-stroke decoder, session by session — {wname} window\n"
+                   f"Post-stroke class: {cls}. Columns are DAYS FROM LESION so they mean the same "
+                   f"thing in every row; a blank cell is a session that animal does not have.\n"
+                   f"Rows = TRUE spout position, columns within a panel = predicted. "
+                   f"Chance = 0.17.\n"
+                   f"Below each accuracy: its 95% CLUSTER-BOOTSTRAP interval, resampling the "
+                   f"scheduler's own ~6-trial position blocks. Blocks, not trials -- trials next to "
+                   f"each other in time are not independent, and a trial-level interval would be "
+                   f"several times too tight.", fontsize=9.5)
+    _footer(fig)
+    p = _out(out_dir, f"grant_5c_confusion_per_session_{align}_{variant}")
+    _save(fig, p, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return p
 
 
 def fig_pattern_similarity_per_session(out_dir, min_trials=10):
@@ -3287,40 +3362,46 @@ def fig_confusion_delta(out_dir):
     at that position, and the positive cell in the same ROW says where those trials went instead.
     """
     made = []
-    for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
-        per_animal, days = _collect_5c(align)
-        if not days or not per_animal:
-            continue
-
-        def _norm(C):
-            row = C.sum(1, keepdims=True)
-            return np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
-
-        mats = {}
-        for an, (Cpre, by_day) in per_animal.items():
-            if Cpre is None or not Cpre.sum():
+    for _disp, align, wname in WINDOWS:
+        # Same window/class coverage as 5c, and the same guard: a miss trial has no lick to align to.
+        for variant in (("lick",) if align == "lick" else ("lick", "working")):
+            per_animal, days = _collect_5c(align, variant)
+            if not days or not per_animal:
                 continue
-            d = {"PRE": _norm(Cpre)}
-            for day, C in by_day.items():
-                if C is not None and C.sum():
-                    d[day] = _norm(C)
-            mats[an] = d
-        p = _delta_grid(
-            mats, days, out_dir, f"grant_5d_confusion_delta_{align}.png",
-            title=(f"Frozen pre-stroke decoder, CHANGE FROM PRE-STROKE — {wname} window\n"
-                   f"Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
-                   f"removed). Column 1 is the pre-stroke confusion (leave-one-session-out);\n"
-                   f"every later column is THAT DAY MINUS IT. Rows = TRUE spout position, columns "
-                   f"within a panel = predicted. ZERO = the same errors in the same proportions.\n"
-                   f"A negative DIAGONAL cell is recall lost at that position; the positive cell in "
-                   f"the SAME ROW says where those trials went instead. The number above each panel "
-                   f"is the change in overall accuracy."),
-            abs_label="pre-stroke P(pred | true)",
-            delta_label="change in P(predicted | true)",
-            vmin=0, vmax=1, cmap="magma", dmax=0.6, summary=_diag,
-            ylab="true position", figh=9.0)
-        if p:
-            made.append(p)
+
+            def _norm(C):
+                row = C.sum(1, keepdims=True)
+                return np.divide(C, row, out=np.full_like(C, np.nan), where=row > 0)
+
+            mats = {}
+            for an, (Cpre, by_day) in per_animal.items():
+                Cp = _counts(Cpre)
+                if Cp is None or not Cp.sum():
+                    continue
+                d = {"PRE": _norm(Cp)}
+                for day, record in by_day.items():
+                    C = _counts(record)
+                    if C is not None and C.sum():
+                        d[day] = _norm(C)
+                mats[an] = d
+            cls = ("LICK trials only" if variant == "lick"
+                   else "LICK + MISS-WHILE-WORKING (terminal quit period removed)")
+            p = _delta_grid(
+                mats, days, out_dir, f"grant_5d_confusion_delta_{align}_{variant}.png",
+                title=(f"Frozen pre-stroke decoder, CHANGE FROM PRE-STROKE — {wname} window\n"
+                       f"Post-stroke class: {cls}. Column 1 is the pre-stroke confusion "
+                       f"(leave-one-session-out);\n"
+                       f"every later column is THAT DAY MINUS IT. Rows = TRUE spout position, columns "
+                       f"within a panel = predicted. ZERO = the same errors in the same proportions.\n"
+                       f"A negative DIAGONAL cell is recall lost at that position; the positive cell in "
+                       f"the SAME ROW says where those trials went instead. The number above each panel "
+                       f"is the change in overall accuracy."),
+                abs_label="pre-stroke P(pred | true)",
+                delta_label="change in P(predicted | true)",
+                vmin=0, vmax=1, cmap="magma", dmax=0.6, summary=_diag,
+                ylab="true position", figh=9.0)
+            if p:
+                made.append(p)
     return made
 
 
