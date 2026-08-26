@@ -1413,7 +1413,7 @@ def _pooled_bundle(an, align):
     post = [x for x in config.phase_labels("post") if x.startswith(an)]
     basis = joint_locanmf.load(an, sessions=SESSIONS)
     feat = features_with_indices(basis, nolick_ref="cue")
-    XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
+    XE, YE, GE, BE, XU, YU, kept, _c, GU = pool_sessions(
         pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
     g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
     not_eng = g[0] if g else np.zeros(len(YU), bool)
@@ -1422,22 +1422,61 @@ def _pooled_bundle(an, align):
     en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
     un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
           if len(YU) else np.zeros(0, str))
+    # BLOCK IDS, for the block bootstrap. `pool_sessions` returns BE as a LIST of per-session
+    # vectors in the same order it stacks XE, so concatenating aligns them row for row. A block is
+    # a run of trials at ONE position, ended by a position change or the scheduler's block_size_max
+    # (locanmf_position_decoder, audited against the firmware's own block_number to 2.8%).
+    BE_all = np.concatenate([np.asarray(b) for b in BE]) if len(BE) else np.zeros(0, int)
+    # Make ids unique ACROSS sessions -- they restart per session and a bootstrap that pooled two
+    # sessions' block 3 would resample a unit that does not exist.
+    BE_all = np.asarray(GE, dtype=np.int64) * 1_000_000 + BE_all.astype(np.int64)
+    # THE NO-LICK ARM HAS NO BLOCK IDS: pool_sessions does not return them for XU. They are
+    # reconstructed by the same rule minus the size cap -- a new block wherever the position
+    # changes in that session's trial order. Coarser than the real blocks, never finer, so it
+    # cannot make the intervals too narrow.
+    BU_all = _runs_to_blocks(np.asarray(GU), un) if len(YU) else np.zeros(0, np.int64)
     return {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+            "BE": BE_all, "BU": BU_all,
             "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
             "e_pre": np.isin(np.asarray(GE), list(pre_i))}
 
 
-def _session_trials(bd, i, q, variant):
-    """Trials for session index ``i`` at position ``q`` under a post-stroke trial class.
+def _runs_to_blocks(sess, pos):
+    """Block ids from runs of the same (session, position), for trials that carry none of their own.
+
+    Coarser than the scheduler's real blocks -- it misses the size cap that splits a long run in two
+    -- and never finer. A too-coarse block resamples larger correlated chunks, which WIDENS a
+    bootstrap interval; a too-fine one would narrow it. Erring wide is the safe direction.
+    """
+    sess, pos = np.asarray(sess), np.asarray(pos)
+    if not len(sess):
+        return np.zeros(0, np.int64)
+    changed = np.ones(len(sess), bool)
+    changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
+    # negative ids so they can never collide with the real BE ids, which are non-negative
+    return -(np.cumsum(changed).astype(np.int64) + 1)
+
+
+def _session_trials(bd, i, q, variant, field="X"):
+    """Trials (or their BLOCK IDS) for session ``i`` at position ``q`` under a trial class.
 
     ``lick`` is the engaged (licking) set; ``working`` adds miss-while-working, i.e. everything but
     the terminal quit period. Returns an empty array rather than None so callers can stack freely.
+
+    ``field`` selects what comes back -- "X" the patterns, "blk" the block id of each of those same
+    rows. THE MASK IS COMPUTED ONCE HERE for both, so the two cannot drift apart; a bootstrap whose
+    block vector did not line up with its data would silently resample the wrong trials.
     """
-    parts = [bd["XE"][(bd["GE"] == i) & (bd["en"] == q)]]
+    me = (bd["GE"] == i) & (bd["en"] == q)
+    mu = None
     if variant == "working" and len(bd["un"]):
         m = (bd["GU"] == i) & (bd["un"] == q) & ~bd["not_eng"]
-        if m.any():
-            parts.append(bd["XU"][m])
+        mu = m if m.any() else None
+    if field == "blk":
+        parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu is not None else [])
+        keep = [z for z in parts if len(z)]
+        return np.concatenate(keep) if keep else np.zeros(0, np.int64)
+    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu is not None else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 
@@ -1563,8 +1602,8 @@ def _split_half_asymmetry(src, rng, labels=None):
 #: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
 #: so a full render loads each one once instead of four times. The features are LocaNMF components,
 #: not pixels, so the whole cache is ~100 MB.
-@lru_cache(maxsize=6)
-def _collect_7(align, variant, min_trials):
+@lru_cache(maxsize=12)
+def _collect_7(align, variant, min_trials, field="X"):
     """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
 
     CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
@@ -1593,14 +1632,16 @@ def _collect_7(align, variant, min_trials):
                 # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
                 # not missing, so "working" would add nothing and would silently make the reference
                 # a different kind of trial from itself.
-                pat = {q: Z for q in CONF_LABELS
-                       if len(Z := _session_trials(bd, i, q, "lick")) >= min_trials}
+                pat = {q: _session_trials(bd, i, q, "lick", field) for q in CONF_LABELS
+                       if len(_session_trials(bd, i, q, "lick")) >= min_trials}
                 if pat:
                     pre_by_sess[mmdd] = pat
                 continue
             day = _day(an, mmdd)
-            pat = {q: Z for q in CONF_LABELS
-                   if len(Z := _session_trials(bd, i, q, variant)) >= min_trials}
+            # THE GATE IS ALWAYS ON THE TRIAL COUNT, never on the length of `field`, so the "blk"
+            # collection contains exactly the same (session, position) cells as the "X" one.
+            pat = {q: _session_trials(bd, i, q, variant, field) for q in CONF_LABELS
+                   if len(_session_trials(bd, i, q, variant)) >= min_trials}
             if pat:
                 by_day[day] = pat
                 all_days.add(day)
@@ -2261,6 +2302,129 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
 # figures difference the row-normalised probability, which is already on [0, 1].
 
 
+# ---------------------------------------------------------------------------------------------
+# BLOCK BOOTSTRAP for the delta figures (Priya, 2026-08-25)
+# ---------------------------------------------------------------------------------------------
+#
+# WHAT IS RESAMPLED, AND WHAT IS NOT.
+#
+#   BLOCKS, not trials. Trials adjacent in time share arousal, satiety and drift, so an i.i.d.
+#   trial bootstrap treats correlated samples as independent and returns intervals that are too
+#   narrow. The scheduler's own ~6-trial position blocks are the natural unit and the pipeline
+#   already uses them for GroupKFold. A block belongs to ONE position by construction (a new block
+#   starts when the position changes), so resampling a session's blocks also resamples each
+#   position's trial count -- which is right: how many trials a position got is itself uncertain.
+#
+#   SESSIONS ARE HELD FIXED. Days are not exchangeable while an animal is recovering: PS94's
+#   figure-8 diagonal runs 0.99 -> 0.46 across one week, so there is no single post-stroke value for
+#   an interval to be about. Resampling days would fold that trajectory into "sampling noise" and
+#   quote an interval for a state that does not exist. The interval therefore means "how well
+#   determined GIVEN THESE DAYS" and licenses no generalisation to other days -- the trajectory in
+#   the per-session panels is what speaks to that. Same decision, same reasoning, as the pattern
+#   bootstrap of 2026-08-25 (DECISIONS.md).
+#
+# WHY BOOTSTRAP AND NOT A PERMUTATION, for the asymmetry question specifically: permuting position
+# labels equalises the condition means, so the true distances collapse toward zero -- but the
+# sampling variance of a crossnobis distance scales with the true difference vector, so a real and
+# perfectly SYMMETRIC separation still yields a larger |D - D.T| than permuted data does. The
+# permuted null therefore sits too low and would call ordinary noise "asymmetry". A bootstrap
+# interval on D[P,Q] - D[Q,P] has no such problem.
+
+#: Resamples for the delta intervals. Fewer than the pattern figures' 400 because each draw here
+#: rebuilds a full 6x6 from scratch for every animal-day; 200 is ample for a 95% percentile interval.
+N_BOOT_DELTA = 200
+
+
+def _block_index(blk):
+    """{block id -> row indices} for one (session, position) trial set."""
+    out = {}
+    for j, b in enumerate(np.asarray(blk)):
+        out.setdefault(int(b), []).append(j)
+    return {k: np.asarray(v) for k, v in out.items()}
+
+
+def _block_boot(pat_x, pat_blk, rng, min_trials=4):
+    """One block-bootstrap draw of a whole session: {position -> resampled trials}.
+
+    The session's blocks are pooled ACROSS positions and drawn once with replacement, so every
+    position moves together in a single draw exactly as they do in a real session. A position whose
+    draw leaves it under ``min_trials`` is dropped from that replicate rather than estimated from
+    two trials -- it then shows as a wider interval, which is the honest consequence.
+    """
+    idx = {q: _block_index(pat_blk[q]) for q in pat_x if q in pat_blk}
+    blocks = [(q, b) for q, m in idx.items() for b in m]
+    if not blocks:
+        return {}
+    pick = rng.integers(0, len(blocks), size=len(blocks))
+    take = {}
+    for k in pick:
+        q, b = blocks[k]
+        take.setdefault(q, []).append(idx[q][b])
+    out = {}
+    for q, parts in take.items():
+        rows = np.concatenate(parts)
+        if len(rows) >= min_trials:
+            out[q] = pat_x[q][rows]
+    return out
+
+
+def _delta_diag_ci(mats_fn, x_store, blk_store, an, days, rng, n_boot=N_BOOT_DELTA):
+    """95% interval on (day diagonal - PRE diagonal), block-bootstrapped.
+
+    ``mats_fn(pat_by_pos, ref_by_pos) -> 6x6`` builds one matrix from resampled trial sets. The PRE
+    reference is resampled in the SAME draw as the day, so the two are correlated exactly as they
+    are in the data and the difference is taken draw by draw -- differencing two independently
+    published intervals would overstate the spread.
+    """
+    pre_x, day_x = x_store
+    pre_b, day_b = blk_store
+    out = {}
+    for d in days:
+        if d not in day_x:
+            continue
+        deltas = []
+        for _ in range(n_boot):
+            # Resample every pre-stroke session ONCE per draw, then reuse those same resampled
+            # sessions for both the baseline and the day's reference, so the two share their noise
+            # and the difference below is taken draw by draw.
+            pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
+            pre_r = {s: v for s, v in pre_r.items() if v}
+            day_r = _block_boot(day_x[d], day_b[d], rng)
+            if not pre_r or not day_r:
+                continue
+
+            def _pool(exclude=None, pre_r=pre_r):
+                acc = {}
+                for s, Z in pre_r.items():
+                    if s == exclude:
+                        continue
+                    for q, z in Z.items():
+                        acc.setdefault(q, []).append(z)
+                return {q: np.vstack(v) for q, v in acc.items()}
+
+            # THE BASELINE IS LEAVE-ONE-SESSION-OUT, not the reference against itself. Scoring the
+            # resampled reference on itself gives a diagonal of exactly 1.0 -- a mean correlated
+            # with its own mean -- so every delta came out at about -1 regardless of the data. The
+            # synthetic test caught it; on real data it would have looked like a catastrophic and
+            # perfectly uniform loss at every position in every animal.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                bases = []
+                for s, held in pre_r.items():
+                    rest = _pool(exclude=s)
+                    if held and rest:
+                        bases.append(float(np.nanmean(np.diag(mats_fn(held, rest)))))
+                full = _pool()
+                if not bases or not full:
+                    continue
+                cur = float(np.nanmean(np.diag(mats_fn(day_r, full))))
+                deltas.append(cur - float(np.mean(bases)))
+        v = np.array([x for x in deltas if np.isfinite(x)])
+        if len(v) >= n_boot // 4:
+            out[d] = (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))
+    return out
+
+
 def _corr_matrix(src_means, ref_means, labels=None):
     """M[i, j] = corr(src pattern at label i, reference pattern at label j)."""
     labels = labels or CONF_LABELS
@@ -2325,7 +2489,7 @@ def _matrices_splithalf(align, variant, min_trials=10):
 
 
 def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
-                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2):
+                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2, cis=None):
     """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
     the reference, on a diverging scale centred at zero.
 
@@ -2370,8 +2534,19 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
             ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
                                rotation=90, fontsize=5.5)
             ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
-            ax.set_title(f"{head}  {stat:+.2f}" if ci else f"{head}  {stat:.2f}",
-                         fontsize=7.5, fontweight="bold" if ci == 0 else "normal")
+            # THE INTERVAL GOES WHERE THE NUMBER IS. The change in mean diagonal is the claim each
+            # panel makes, so a bare point estimate there is the one place an interval is most
+            # needed. Blank when the bootstrap could not resolve that cell -- never an interval
+            # silently omitted from a panel that has one everywhere else.
+            band = (cis or {}).get(an, {}).get(days[ci - 1]) if ci else None
+            if ci == 0:
+                lab = f"{head}  {stat:.2f}"
+            elif band:
+                lab = f"{head}  {stat:+.2f}\n[{band[0]:+.2f}, {band[1]:+.2f}]"
+            else:
+                lab = f"{head}  {stat:+.2f}"
+            ax.set_title(lab, fontsize=6.8 if band else 7.5,
+                         fontweight="bold" if ci == 0 else "normal")
             if ci == 0:
                 ax.set_ylabel(f"{an}\n{ylab}", fontsize=8, fontweight="bold")
     if im_abs is None or im_del is None:
@@ -2409,6 +2584,29 @@ def _diag(M):
         return float(np.nanmean(np.diag(M)))
 
 
+def _pattern_delta_cis(align, variant, min_trials, n_boot=N_BOOT_DELTA):
+    """{animal: {day: (lo, hi)}} on the change in mean own-position r, block-bootstrapped."""
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+
+    def mats(pat, ref):
+        return _corr_matrix(_means(pat), _means(ref))
+
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        rng = np.random.default_rng(abs(hash((an, align, variant, "6dci"))) % (2 ** 31))
+        try:
+            out[an] = _delta_diag_ci(mats, (pre_x, day_x), (pre_b, day_b), an, days, rng,
+                                     n_boot=n_boot)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! 6d CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+                  flush=True)
+    return out
+
+
 def fig_pattern_delta(out_dir, min_trials=10):
     """6d: figure 6b as DIFFERENCES from the pre-stroke reference.
 
@@ -2439,7 +2637,11 @@ def fig_pattern_delta(out_dir, min_trials=10):
                        f"pre-stroke position it is correlated with. ZERO = indistinguishable from "
                        f"an ordinary pre-stroke day.\nNegative on the DIAGONAL = the position lost "
                        f"its own code. Positive OFF-DIAGONAL = it came to look like a different "
-                       f"position. The number above each panel is the change in mean diagonal."),
+                       f"position. Above each panel: the change in mean diagonal and its 95% "
+                       f"BLOCK-BOOTSTRAP interval -- the scheduler's ~6-trial position blocks "
+                       f"resampled within each session, sessions NOT resampled (days are not "
+                       f"exchangeable while an animal recovers), baseline resampled in the SAME "
+                       f"draw so the difference is taken draw by draw."),
                 abs_label="pre-stroke r", delta_label="change in r vs pre-stroke",
                 vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
                 ylab="this position")
