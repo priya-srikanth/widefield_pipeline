@@ -133,6 +133,16 @@ S_DEC_PRECUE = (
     "accuracies are drift-corrected, so compare only with other post-14-Aug figures. Pre-cue "
     "survives without a lick far better than post-cue does -- that dissociation is the point.")
 
+S_DEC_LICK = (
+    "ALIGNED TO THE MOVEMENT, not the cue -- the arm that isolates EXECUTION from the plan. Trials "
+    "are registered on the first lick inside the response window, so RT jitter no longer smears a "
+    "movement-locked signal the way it does on the cue-aligned slide. THE UNIT IS ONE REFERENCE PER "
+    "TRIAL, so an animal that licks many times contributes once. WHAT IT CANNOT TELL YOU: a trial "
+    "with no detected lick has no reference at all and is simply absent here -- which post-stroke is "
+    "exactly the population of interest, so read this beside G1b's denominators rather than alone. "
+    "Shown from 2026-08-26; the figures were being generated nightly before that and displayed "
+    "nowhere.")
+
 S_DEC_ROLL = (
     "READ THE SHAPE, NOT THE PEAK. The question is whether the trace is already above chance BEFORE "
     "the cue and where it rises, not how high it gets -- height is set by trial count and window "
@@ -1751,6 +1761,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
              cols=3)
+        # LICK-ALIGNED, added 2026-08-26. `nightly_figs` has been running --align lick per day all
+        # along, so these figures were written every night and shown nowhere -- computed-and-hidden,
+        # the mirror of the frozen lick arm that was shown-nowhere-because-never-computed.
+        s = slide()
+        title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
+              "Per session, registered on the FIRST LICK rather than the cue. Read against the "
+              "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
+              "movement-locked signal is smeared by RT jitter there and sharp here.")
+        note(s, M_DECODE, specific=S_DEC_LICK)
+        grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
+             cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
@@ -1832,9 +1853,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # BOTH alignments: post-cue (readout during/after the movement) and PRE-CUE (the maintained,
     # motor-independent code). The pre-cue one is the readout the stroke arm leans on, so whether IT
     # survives freezing across days is the more consequential question.
+    # LICK ADDED 2026-08-26 (Priya). This was cue+precue because the plan/execution dissociation is a
+    # cue-vs-precue contrast, and lick was never added -- while every OTHER consumer adopted it:
+    # grant_figures' WINDOWS is ENL/cue/lick, position_coding_directions emits lick, Section G has
+    # lick confusions, and the nightly has been running --align lick per day all along. The result was
+    # an arm computed nightly and never shown, and a frozen lick arm not computed at all.
     ALIGNS = (("cue", "post-cue 2 s", "the readout during/after the movement"),
               ("precue", "PRE-CUE 2 s", ("pre-cue position information — the window ENDING "
-                                        "at the cue, before any movement")))
+                                        "at the cue, before any movement")),
+              ("lick", "post-LICK 2 s", ("aligned to the first lick rather than the cue, so trials "
+                                         "are registered on the movement itself — the arm that "
+                                         "isolates execution from the plan")))
     BASES = (("roi", "Allen-ROI", M_FROZEN, M_FROZEN_ENC,
               "66 atlas-anchored anatomical areas — column j is the same cortical region every day"),
              ("joint", "joint-LocaNMF", M_JOINT, M_JOINT,

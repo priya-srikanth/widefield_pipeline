@@ -333,11 +333,15 @@ def main():
                 pooled_frozen_loso,
                 write_session_confusions,
             )
-            # BOTH alignments. post-cue is the readout during/after the movement; PRE-CUE is the
+            # ALL THREE alignments. post-cue is the readout during/after the movement; PRE-CUE is the
             # pre-cue POSITION INFORMATION (the 2 s window ENDING at the cue), which is the
             # one the stroke arm actually leans on -- so whether IT survives being frozen across
-            # days matters more than whether the post-cue one does.
-            for al in ("cue", "precue"):
+            # days matters more than whether the post-cue one does. LICK-ALIGNED added 2026-08-26
+            # (Priya: "we should have a frozen lick-aligned decoder and encoder"): it existed only as
+            # a by-hand run whose output nothing regenerated and nothing read, so it sat two days
+            # stale on an 11-session pre-stroke-only pool while cue and precue moved on. An arm worth
+            # having is an arm the nightly maintains; otherwise it silently becomes an orphan.
+            for al in ("cue", "precue", "lick"):
                 dec, enc = {}, {}
                 for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
                     if only and a not in set(only):
@@ -379,8 +383,12 @@ def main():
     # has been built for the animal (wfield_local.joint_locanmf); a missing basis is reported, never
     # silently refitted, because a refit over a grown session set is a DIFFERENT reference frame.
     if not args.skip_frozen:
+        # Same three alignments as the ROI arm above, so the two bases always answer the same
+        # question and can be compared. Until 2026-08-26 this passed only cue+precue while a hand-run
+        # produced the lick figures, which is how the joint lick arm ended up on a different session
+        # pool from its own siblings.
         cli("wfield_local.joint_xsession", "--output", out, "--from", from_dates,
-            "--align", "cue", "precue")
+            "--align", "cue", "precue", "lick")
 
     # NO-DETECTED-LICK arm. The pre-stroke reference for reading post-stroke failed trials: does the
     # PRE-cue position code survive on trials the animal did not lick, when the POST-cue one does
