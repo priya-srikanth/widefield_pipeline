@@ -2584,27 +2584,68 @@ def _diag(M):
         return float(np.nanmean(np.diag(M)))
 
 
-def _pattern_delta_cis(align, variant, min_trials, n_boot=N_BOOT_DELTA):
-    """{animal: {day: (lo, hi)}} on the change in mean own-position r, block-bootstrapped."""
+def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA):
+    """{animal: {day: (lo, hi)}} on the change in mean diagonal, block-bootstrapped.
+
+    ``mats_for(animal, rng)`` returns the matrix builder for one animal. It is a hook rather than a
+    fixed function because the crossnobis figure needs a whitener held FIXED across resamples --
+    re-estimating it per draw would make the cross-validated product depend on the resample and stop
+    being unbiased, the same reason the estimator wants a whitener independent of the data it
+    whitens.
+
+    ONE DRIVER FOR EVERY DELTA FIGURE, so they cannot drift apart in what they resample.
+    """
     x_store, days = _collect_7(align, variant, min_trials)
     b_store, _ = _collect_7(align, variant, min_trials, "blk")
-
-    def mats(pat, ref):
-        return _corr_matrix(_means(pat), _means(ref))
-
     out = {}
     for an in ANIMALS:
         if an not in x_store or an not in b_store:
             continue
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
-        rng = np.random.default_rng(abs(hash((an, align, variant, "6dci"))) % (2 ** 31))
+        rng = np.random.default_rng(abs(hash((an, align, variant, tag))) % (2 ** 31))
         try:
-            out[an] = _delta_diag_ci(mats, (pre_x, day_x), (pre_b, day_b), an, days, rng,
-                                     n_boot=n_boot)
+            out[an] = _delta_diag_ci(mats_for(an, rng), (pre_x, day_x), (pre_b, day_b), an, days,
+                                     rng, n_boot=n_boot)
         except Exception as ex:                                          # noqa: BLE001
-            print(f"  !! 6d CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+            print(f"  !! {tag} CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
                   flush=True)
     return out
+
+
+def _mats_pattern(_an, _rng):
+    return lambda pat, ref: _corr_matrix(_means(pat), _means(ref))
+
+
+def _mats_splithalf(_an, rng):
+    # WITHIN one set, so the reference argument is unused by design -- figure 7's whole point is
+    # that no pre-stroke reference enters a single panel.
+    return lambda pat, _ref: _split_half_matrix(pat, rng)
+
+
+def _mats_crossnobis(_an, rng):
+    """Crossnobis with the whitener fixed at the first call and reused for every later resample."""
+    held = {}
+
+    def build(pat, ref):
+        pm0, pm1, pres = _halves(pat, rng, CONF_LABELS)
+        rm0, rm1, rres = _halves(ref, rng, CONF_LABELS)
+        if "P" not in held:
+            held["P"] = _whitener(pres + rres)
+        P = held["P"]
+        D = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
+        if P is None:
+            return D
+        for i, a in enumerate(CONF_LABELS):
+            for j, b in enumerate(CONF_LABELS):
+                if a in pm0 and b in rm0:
+                    D[i, j] = float((pm0[a] - rm0[b]) @ P @ (pm1[a] - rm1[b]))
+        # NEGATED so "larger diagonal = more preserved" holds here as it does for the correlation
+        # figures. `_delta_diag_ci` differences mean diagonals, and for a DISTANCE a SMALLER
+        # diagonal means less change -- without the flip the interval would carry the opposite sign
+        # to the number printed beside it, which is worse than having no interval at all.
+        return -D
+
+    return build
 
 
 def fig_pattern_delta(out_dir, min_trials=10):
@@ -2626,6 +2667,7 @@ def fig_pattern_delta(out_dir, min_trials=10):
             mats, days = _matrices_pattern(align, v, min_trials)
             if not days or not mats:
                 continue
+            cis = _delta_cis(align, v, min_trials, _mats_pattern, "6d")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             p = _delta_grid(
@@ -2644,7 +2686,7 @@ def fig_pattern_delta(out_dir, min_trials=10):
                        f"draw so the difference is taken draw by draw."),
                 abs_label="pre-stroke r", delta_label="change in r vs pre-stroke",
                 vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
-                ylab="this position")
+                ylab="this position", cis=cis)
             if p:
                 made.append(p)
     return made
@@ -2666,6 +2708,7 @@ def fig_splithalf_delta(out_dir, min_trials=10):
             mats, days = _matrices_splithalf(align, v, min_trials)
             if not days or not mats:
                 continue
+            cis = _delta_cis(align, v, min_trials, _mats_splithalf, "7d")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             p = _delta_grid(
@@ -2680,7 +2723,7 @@ def fig_splithalf_delta(out_dir, min_trials=10):
                        f"The number above each panel is the change in mean diagonal."),
                 abs_label="pre-stroke split-half r", delta_label="change in split-half r",
                 vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
-                ylab="half A at")
+                ylab="half A at", cis=cis)
             if p:
                 made.append(p)
     return made
@@ -2731,6 +2774,10 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
             mats, days = _matrices_crossnobis(align, v, min_trials)
             if not days or not mats:
                 continue
+            # SIGN: _mats_crossnobis returns NEGATED distances so bigger = more preserved, matching
+            # the correlation figures; flip the interval back into distance units for display.
+            cis = {a2: {d: (-hi, -lo) for d, (lo, hi) in v2.items()}
+                   for a2, v2 in _delta_cis(align, v, min_trials, _mats_crossnobis, "8d").items()}
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             p = _delta_grid(
@@ -2746,7 +2793,7 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
                 abs_label="pre-stroke distance",
                 delta_label="change in distance (1.0 = mean pre-stroke between-position)",
                 vmin=0, vmax=2.5, cmap="magma", dmax=1.5, summary=_diag,
-                ylab="this position")
+                ylab="this position", cis=cis)
             if p:
                 made.append(p)
     return made
