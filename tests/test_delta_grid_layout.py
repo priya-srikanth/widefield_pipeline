@@ -199,3 +199,29 @@ def test_compact_tick_labels_do_not_collide_at_the_narrower_width(tmp_path):
                     clash = (t1.get_text(), t2.get_text())
     real_close(fig)
     assert clash is None, f"compact tick labels overlap: {clash}"
+
+
+def test_bottom_legend_clears_the_footer():
+    """`_footer` writes at y=0.004 and a legend at "lower center" defaults to the same place; in
+    figure 9's first render the two overprinted. Any figure carrying both must separate them.
+
+    Checked structurally rather than by rendering figure 9, which needs the full LocaNMF data: the
+    module is scanned for functions that contain BOTH, and each must anchor its legend explicitly.
+    """
+    import re
+    from pathlib import Path
+
+    src = Path(gf.__file__).read_text(encoding="utf-8")
+    offenders = []
+    for part in re.split(r"^def ", src, flags=re.MULTILINE)[1:]:
+        name = part.split("(")[0]
+        if 'loc="lower center"' in part and "_footer(fig" in part:
+            # the legend call must pin its own y, and it must sit above the footer's 0.004
+            # NB [^)]* cannot cross the ")" in `ncol=len(POS)`, which is how the first version of
+            # this test flagged a call that was in fact correct.
+            m = re.search(r'loc="lower center"[\s\S]{0,240}?bbox_to_anchor=\(0\.5,\s*([0-9.]+)\)',
+                          part)
+            if not m or float(m.group(1)) <= 0.004:
+                offenders.append(name)
+    assert not offenders, (
+        f"these draw a bottom legend and a footer without separating them: {offenders}")

@@ -3039,7 +3039,11 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 continue
             h, lab = axes[0][1].get_legend_handles_labels()
             if h:
-                fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=11, frameon=False)
+                # ABOVE THE FOOTER, not on it. `_footer` writes at y=0.004, and a legend at
+                # "lower center" lands in the same place -- the two overprinted each other in the
+                # first render of this figure. This is the only figure in the module carrying both.
+                fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=11, frameon=False,
+                           bbox_to_anchor=(0.5, 0.035))
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
             _suptitle(fig, 
@@ -3052,7 +3056,9 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 f"Blocks resampled within session; sessions NOT resampled, so an interval is "
                 f"conditional on these days and the trajectory is what speaks to the rest.",
                 fontsize=9.5)
-            fig.tight_layout(rect=(0, 0.05, 1, 1.0))   # top reserved by _suptitle
+            # Bottom band holds BOTH the legend (y=0.035) and the footer (y=0.004), so it needs
+            # more than the usual 0.05.
+            fig.tight_layout(rect=(0, 0.10, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_9_delta_trajectory_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
