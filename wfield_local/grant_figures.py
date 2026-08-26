@@ -1868,13 +1868,33 @@ MIN_REL = 0.5
 SPLIT_REPS = 40
 
 
+#: One bundle per (animal, alignment), reused across every figure that needs it.
+#:
+#: MEASURED 2026-08-26: `_collect_7` appears 14 times in this module and loops over 4 animals, so a
+#: full render built this bundle 56 times -- while only 4 animals x 3 alignments = 12 are distinct.
+#: Each build loads the joint basis, PROJECTS every one of ~18 sessions onto it, and re-derives the
+#: engagement gate. That is the dominant cost of figures 6, 6b, 6d, 7, 7b, 7d, 8, 8b, 8d, 8e, and it
+#: is the same work every time: nothing between two calls can change it within one process.
+#:
+#: In-process rather than on disk, deliberately. The bundle holds the pooled feature matrices for
+#: every session, so persisting it would write hundreds of MB per (animal, align) and invite exactly
+#: the staleness question this session has spent all day on. A render is one process, so an
+#: in-process memo captures the entire duplication with none of that.
+_BUNDLE_CACHE: dict = {}
+
+
 def _pooled_bundle(an, align):
     """The shared load behind figures 6, 6b, 7 and 8: joint basis, pooled sessions, engagement gate.
 
     Extracted because it was character-identical in `fig_pattern_similarity` and
     `fig_pattern_similarity_per_session`, and a third and fourth copy is how two figures that claim
-    to describe the same trials quietly stop doing so.
+    to describe the same trials quietly stop doing so. Memoized per (animal, alignment) for the same
+    reason it was extracted: two figures that claim to describe the same trials should not be able to
+    disagree, and now they cannot even in principle -- they hold the same object.
     """
+    key = (an, align)
+    if key in _BUNDLE_CACHE:
+        return _BUNDLE_CACHE[key]
     from wfield_local import joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
     from wfield_local.locanmf_frozen_decoder import pool_sessions
@@ -1907,10 +1927,12 @@ def _pooled_bundle(an, align):
     # changes in that session's trial order. Coarser than the real blocks, never finer, so it
     # cannot make the intervals too narrow.
     BU_all = _runs_to_blocks(np.asarray(GU), un) if len(YU) else np.zeros(0, np.int64)
-    return {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
-            "BE": BE_all, "BU": BU_all,
-            "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
-            "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    bundle = {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+              "BE": BE_all, "BU": BU_all,
+              "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    _BUNDLE_CACHE[key] = bundle
+    return bundle
 
 
 def _runs_to_blocks(sess, pos):
