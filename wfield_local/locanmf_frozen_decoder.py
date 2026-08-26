@@ -762,7 +762,14 @@ def main() -> int:
         print("wrote", _transfer_matrix_fig(args.output), flush=True)
     if args.loso:
         args.output.mkdir(parents=True, exist_ok=True)
-        dates = set(config.curated_dates())
+        # POOL EVERY PHASE; TRAINING IS RESTRICTED INSIDE `pooled_frozen_loso`. This said
+        # `curated_dates()` (pre-only), which made the CLI and the nightly two different analyses
+        # under one name -- and that divergence is exactly what hid the training contamination for
+        # eight days, because whichever one you read looked defensible. Post-2026-08-26 it would also
+        # be actively wrong: with training already pre-only, a pre-only POOL yields no post-stroke
+        # row at all, so the CLI could not rebuild the post-stroke frozen figures the deck is made
+        # of. Pooling is feature alignment; it is not training.
+        dates = set(config.curated_dates(phase="all"))
         animals = args.animals or list(config.animals())
         results = {}
         for an in animals:
