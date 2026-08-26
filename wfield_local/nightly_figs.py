@@ -395,8 +395,26 @@ def main():
             plot_nolick_reference.figures(ref, out)
             frozen = Path(out) / "nolick_reference_prestroke.json"
             if not frozen.exists():
-                frozen.write_text(ref_path.read_text())
-                log(f"froze the PRE-STROKE no-lick reference -> {frozen.name}")
+                # FREEZE WHAT IT SAYS ON THE TIN, not whatever happened to be in the live file.
+                # This used to copy `nolick_reference.json` unconditionally. That file is built from
+                # `from_list`, which is ALL phases -- today 19 dates including 0817-0824 -- so the
+                # only reason the artifact frozen on 2026-08-19 is genuinely pre-stroke is that the
+                # date list happened to be pre-only that night. Re-freezing today, or freezing for
+                # the first time on the other analysis box, would mint a "pre-stroke reference"
+                # containing post-stroke sessions and nothing would object: `exists()` cannot see
+                # what is inside the file. (Raised by the second window 2026-08-26; the existing
+                # artifact was checked and IS clean -- 11 pre-stroke dates, 44 pre-stroke labels,
+                # zero post -- but that was luck, not a guarantee.)
+                _post = sorted(set(from_list) & set(config.poststroke_dates()))
+                if _post:
+                    log(f"  !! NOT freezing the pre-stroke no-lick reference: the live reference "
+                        f"covers post-stroke dates {_post}. Freezing it would preserve the "
+                        f"contamination rather than prevent it. Rebuild with pre-stroke dates and "
+                        f"freeze that, deliberately.")
+                else:
+                    frozen.write_text(ref_path.read_text())
+                    log(f"froze the PRE-STROKE no-lick reference ({len(from_list)} pre-stroke "
+                        f"dates) -> {frozen.name}")
             for an, v in (ref.get("consensus") or {}).items():
                 log(f"  no-lick {an}: {v if isinstance(v, str) else 'BASES DISAGREE -- see deck section D2'}")
         except Exception as ex:
