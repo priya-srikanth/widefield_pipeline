@@ -171,6 +171,26 @@ def analysis_sessions(animals=None, curated_only=True, sessions=None):
     return rows
 
 
+def prestroke_dates(machine: str | None = None) -> list[str]:
+    """The PRE-STROKE curated dates. Say this, not ``curated_dates()``, when you mean pre-stroke.
+
+    Added 2026-08-26 (Priya: *"instead of 'curated dates' can we make this 'prestroke dates' for
+    clarity"*) after the frozen models were found training on post-stroke sessions. `curated_dates()`
+    already defaulted to ``phase="pre"`` and was not the direct cause -- `nightly_figs` passed its own
+    all-phase list past it -- but "curated" is what let the mistake read as correct at every review:
+    the word says a set was chosen carefully, not WHICH set, and it meant "pre-stroke" for the first
+    ten weeks of this project purely because no lesion existed yet.
+
+    A name that states the phase cannot quietly change meaning when the cohort does.
+    """
+    return curated_dates(machine, phase="pre")
+
+
+def poststroke_dates(machine: str | None = None) -> list[str]:
+    """The POST-STROKE curated dates -- the counterpart to :func:`prestroke_dates`."""
+    return curated_dates(machine, phase="post")
+
+
 def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     """The LIVE curated cross-session date set: every REGISTERED date minus ``cross_session_exclude``.
 

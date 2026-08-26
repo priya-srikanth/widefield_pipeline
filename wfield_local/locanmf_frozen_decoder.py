@@ -246,10 +246,21 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     pos = np.array(DISPLAY_ORDER)
     P = np.stack([(YE == p).astype(float) for p in pos], 1)
 
+    # TRAINING IS PRE-STROKE ONLY, for the same reason as the decoder (Priya, 2026-08-26). `tr = ~te`
+    # meant every other pooled session, so post-stroke nights trained the encoder whose RESIDUAL on
+    # post-stroke trials is the representational-change readout -- the model was being partly fitted
+    # to the very data whose departure from it is the result.
+    pre_i = [i for i, lab in enumerate(kept)
+             if config.session_phase(config.animal_of(lab), lab.split("_")[-1]) == "pre"]
+    if len(pre_i) < 2:
+        print(f"  !! only {len(pre_i)} PRE-stroke session(s) pooled; not a frozen encoder", flush=True)
+        return None
     per_sess, ceil, feve, within = {}, {}, {}, {}
     for i, lab in enumerate(kept):
         te = GE == i
-        tr = ~te
+        # A held-out PRE session is scored leave-one-out among pre; a POST session is scored against
+        # a model that never saw any post-stroke trial.
+        tr = np.isin(GE, [j for j in pre_i if j != i])
         pred = Ridge(alpha=alpha).fit(P[tr], XE[tr]).predict(P[te])
         per_sess[lab] = _ev(XE[te], pred)
         c, _, _ = _ceiling(XE[te], YE[te])
@@ -306,8 +317,41 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         return None
     XE, YE, GE, BE, XU, YU, kept, common, GU = pooled
 
-    pred = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=GE)
-    loso = float(accuracy_score(YE, pred))
+    # TRAINING IS PRE-STROKE ONLY (Priya, 2026-08-26 -- "the frozen models were supposed to be pre
+    # stroke only"). This was `cross_val_predict(..., LeaveOneGroupOut(), groups=GE)` over EVERY
+    # pooled session, so once post-stroke nights were registered they entered the training set of
+    # every fold: by 8/26 six of PS92's 18 pooled sessions were post-stroke, ~30% of the training
+    # data behind a number whose whole job is to be a lesion-free baseline. The transfer cost had
+    # already drifted from the +0.140 recorded in DECISIONS on 11 pre-stroke sessions to +0.123.
+    #
+    # The drift was invisible because the code was written when "curated" MEANT pre-stroke -- the
+    # strokes had not happened yet -- and post-stroke sessions joined silently as they registered.
+    # Same failure class as the hardcoded-date-list entry in DECISIONS: a list whose meaning changed
+    # underneath it.
+    #
+    # POOLING FOR FEATURE ALIGNMENT IS NOT THE PROBLEM and is kept: every session still contributes
+    # to the common feature space, which is what makes the post-stroke rows comparable at all. Only
+    # the TRAINING trials are restricted.
+    pre_i = [i for i, lab in enumerate(kept)
+             if config.session_phase(config.animal_of(lab), lab.split("_")[-1]) == "pre"]
+    post_i = [i for i in range(len(kept)) if i not in set(pre_i)]
+    if len(pre_i) < 2:
+        print(f"  !! only {len(pre_i)} PRE-stroke session(s) pooled; a frozen reference needs at "
+              f"least 2 and this result is not one", flush=True)
+        return None
+    pred = np.empty_like(YE)
+    for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
+        tr, te = np.isin(GE, [j for j in pre_i if j != i]), GE == i
+        pred[te] = _pipe().fit(XE[tr], YE[tr]).predict(XE[te])
+    if post_i:                           # post-stroke arm: ONE model, fit on ALL pre, applied unchanged
+        clf = _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)])
+        for i in post_i:
+            te = GE == i
+            pred[te] = clf.predict(XE[te])
+    # The headline is the PRE-STROKE band -- that is what "does a frozen decoder decay across days on
+    # its own" asks. Mixing post-stroke sessions into it answers a different question.
+    m_pre = np.isin(GE, pre_i)
+    loso = float(accuracy_score(YE[m_pre], pred[m_pre]))
     per_sess = {lab: float(accuracy_score(YE[GE == i], pred[GE == i])) for i, lab in enumerate(kept)}
     within = {}
     for i, lab in enumerate(kept):
@@ -317,11 +361,20 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         if ng >= 2:
             within[lab] = float(accuracy_score(YE[m], cross_val_predict(
                 _pipe(), XE[m], YE[m], cv=GroupKFold(ng), groups=gb)))
+    pre_labels = [kept[i] for i in pre_i]
+    within_pre = [v for k, v in within.items() if k in set(pre_labels)]
     res = {"labels": kept, "source": source, "align": align, "n_engaged": int(len(YE)),
            "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "loso_accuracy": loso, "per_session": per_sess, "within_session": within,
-           "mean_within": float(np.mean(list(within.values()))) if within else float("nan"),
+           # SELF-DOCUMENTING, so a consumer of this JSON can never again have to infer what the
+           # model was trained on -- which is exactly how the contamination stayed invisible.
+           "training_phase": "pre", "pre_labels": pre_labels,
+           "post_labels": [kept[i] for i in post_i],
+           "n_pre_sessions": len(pre_i), "n_post_sessions": len(post_i),
+           "mean_within": float(np.mean(within_pre)) if within_pre else float("nan"),
            "chance": 1 / 6}
+    # Both terms are PRE-STROKE. The cost of freezing across days is a lesion-free quantity; the
+    # post-stroke sessions are what it is the reference FOR, not part of it.
     res["transfer_cost"] = res["loso_accuracy"] - res["mean_within"]
     # CI + EMPIRICAL chance. The frozen slides quoted accuracy against the analytic 1/6, which is the
     # wrong reference for this design: positions come in ~6-trial BLOCKS, so trials are not independent

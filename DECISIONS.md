@@ -4828,3 +4828,82 @@ measuring them: a figure that is merely ugly looks much like a figure that is fi
 A note for the next such test: the reference bar is added with `fig.add_axes` and therefore does NOT
 carry matplotlib's `"<colorbar>"` label. Selecting on that label finds only the delta bar on the far
 right and reports a false overlap — which is what the first version of the check did.
+## THE FROZEN MODELS WERE TRAINING ON POST-STROKE SESSIONS (found and fixed 2026-08-26)
+
+Priya, on being shown the pool composition: *"yes the frozen models were supposed to be pre stroke
+only!!"*
+
+### What was happening
+
+`pooled_frozen_loso` predicted with `cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(),
+groups=GE)` over **every pooled session**, and `pooled_frozen_encoder` used `tr = ~te`. Both mean
+"train on all the other sessions" — which was exactly right when written on 2026-08-11, because every
+curated session was pre-stroke. The strokes had not happened yet.
+
+As post-stroke nights registered, they joined the training pool silently. Measured 2026-08-26:
+
+| animal | pre | post IN THE TRAINING POOL |
+|---|---|---|
+| PS92 | 16 | 6 — 0818–0822, 0824 |
+| PS93 | 13 | 6 — 0818–0822, 0824 |
+| PS94 | 16 | 7 — 0817–0821, 0823, 0825 |
+| PS95 | 16 | 7 — 0817–0821, 0823, 0825 |
+
+About **30% of the training data** behind a number whose entire purpose is to be a lesion-free
+baseline, growing every night. The drift is visible in the numbers: PS92 post-cue transfer cost was
+**+0.140** on 11 pre-stroke sessions in the 8/11 entry above, and **+0.123** on the 17-session mixed
+pool on 8/23.
+
+### Why it matters, and why the encoder is worse
+
+The argument this project rests on is: transfer cost is positive pre-stroke → a frozen decoder does
+not decay across days on its own → post-stroke degradation can be attributed to the lesion. That
+inference **requires the reference to be lesion-free**. It was not.
+
+For the ENCODER it is worse than a weakened inference. Its residual on post-stroke trials IS the
+representational-change readout, so training on post-stroke trials fits the model to the very data
+whose departure from it is the result — shrinking the effect toward zero by construction.
+
+### Why it was invisible
+
+Two reasons, both worth keeping.
+
+**The word "curated" does not name a phase.** `config.curated_dates()` already defaulted to
+`phase="pre"` and was stroke-aware; it was not the direct cause. But `nightly_figs` built its own
+label list from `from_list` (all phases) and called `pooled_frozen_loso` directly, bypassing it — and
+at every review "the curated sessions" read as correct, because for the first ten weeks of this
+project curated *did* mean pre-stroke. A name that states the phase cannot quietly change meaning
+when the cohort does. Added `config.prestroke_dates()` / `poststroke_dates()`.
+
+**Nothing in the output said what the pool was.** The result JSON recorded accuracies but never the
+training set, so no consumer could notice. It now carries `training_phase`, `pre_labels`,
+`post_labels`, `n_pre_sessions`, `n_post_sessions`.
+
+Same failure class as the hardcoded-date-list entry of 2026-08-19: a date list treated as fixed while
+its meaning moved underneath.
+
+### The fix
+
+Pooling for FEATURE ALIGNMENT still uses every session — that is what puts post-stroke sessions in a
+comparable feature space at all, and restricting it would delete the post-stroke rows the deck is
+built from. Only TRAINING is restricted:
+
+- a held-out **pre-stroke** session is scored leave-one-out among pre-stroke sessions only;
+- a **post-stroke** session is scored by one model fitted on ALL pre-stroke sessions and applied
+  unchanged — the train-pre / apply-post design the deck already claimed;
+- `loso_accuracy` and `mean_within`, and therefore `transfer_cost`, are computed over **pre-stroke
+  sessions only**. Both terms have to be pre-stroke or the contamination re-enters through the other
+  side of the subtraction.
+- fewer than 2 pre-stroke sessions REFUSES rather than approximating: there is no cross-day reference
+  to be had, and a number computed some other way would be worse than none.
+
+Guarded by `tests/test_frozen_models_are_prestroke_only.py`. **Every frozen number published before
+2026-08-26 was computed on a contaminated pool and needs regenerating** — the models have to be
+rebuilt, not just recomputed forward.
+
+### Not affected
+
+Anything that never pooled across the lesion: within-session decoders, the per-session encoders, RSA,
+coding directions, and the `spout_behavior` outputs. The joint BASES are also unaffected — they were
+fitted 2026-08-16 over 11 pre-stroke sessions each, before any lesion, and `joint_locanmf` refuses to
+refit silently precisely so that a reference frame cannot move.
