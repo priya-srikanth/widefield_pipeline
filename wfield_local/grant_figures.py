@@ -290,6 +290,33 @@ def _overlaps(fig):
         if ox > 1e-4 and oy > 1e-4:
             bad.append((na, nb, ox * oy))
 
+    # TICK LABELS AGAINST EACH OTHER, on the same axis. They are excluded from the checks above
+    # because they legitimately sit close to their own axis and to its neighbours' -- but "cL cC cR"
+    # running together into "cLcCcR" is a real fault and was visible in figure 5c while this
+    # function reported the figure clean.
+    for i, ax in drawn:
+        for getter, which in ((ax.get_xticklabels, "x"), (ax.get_yticklabels, "y")):
+            labs = [t for t in getter() if str(t.get_text()).strip()]
+            boxes = []
+            for t in labs:
+                try:
+                    boxes.append((t.get_text(), inv.transform_bbox(t.get_window_extent(rend))))
+                except Exception as exc:                             # noqa: BLE001
+                    print(f"  [layout] tick extent unavailable ({type(exc).__name__})", flush=True)
+            boxes.sort(key=lambda r: (r[1].x0, r[1].y0))
+            for (t1, b1), (t2, b2) in _it.pairwise(boxes):
+                ox = min(b1.x1, b2.x1) - max(b1.x0, b2.x0)
+                oy = min(b1.y1, b2.y1) - max(b1.y0, b2.y0)
+                if oy <= 1e-4:
+                    continue
+                # A MINIMUM GAP, not merely "not intersecting". "cL cC cR" with a hairline between
+                # them reads as "cLcCcR" -- which is what figure 5c did while a pure overlap test
+                # passed it -- and the whole point of these labels is to survive a reduction to a
+                # quarter page, where a hairline gap closes completely.
+                need = 0.18 * max(1e-9, (b1.width + b2.width) / 2)
+                if ox > -need:
+                    bad.append((f"ax{i}.{which}tick {t1!r}", f"crowds {t2!r}", ox + need))
+
     # TEXT OVER SOMEONE ELSE'S PANEL. Checking text-vs-text and axes-vs-axes leaves the commonest
     # crowding fault invisible: a two-line panel title printed across the BOTTOM ROW OF CELLS of the
     # panel above it. That is what figure 5 did while this function reported it clean. A title over
@@ -700,8 +727,22 @@ POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
 COMPACT = False
 
 
-def _colw(full=1.45, compact=1.15):
-    """Inches per matrix column. Narrower without in-cell numbers to print."""
+def _colw(full=1.55, compact=1.50):
+    """Inches per matrix column. Narrower without in-cell numbers to print.
+
+    MEASURED, not chosen. At 1.45 the panels come out 0.911in and six rotated two-character tick
+    labels crowd -- by a hairline, 0.0001 of the figure's width, but a hairline closes completely
+    when the figure is reproduced small. 1.50 is the first value that clears; 1.55 leaves margin.
+
+    THE COMPACT VARIANT IS BARELY NARROWER, AND THAT IS THE FINDING. It was built on the assumption
+    that the in-cell numbers were what forced the panel wide; measuring says otherwise -- the six
+    TICK LABELS set the floor, and they are present in both variants. 1.30 crowded, 1.50 clears, so
+    compact saves 0.4in of 13.6 rather than the third it was expected to. What it still buys is a
+    panel with no digits to compete with the colour at reproduction size; what it does not buy is
+    much width. The earlier claim that compact reaches a quarter page while the full version does
+    not was resting on the wider gap, and is withdrawn: at 13.2in against 13.6in the two are within
+    3% of each other.
+    """
     return compact if COMPACT else full
 
 
@@ -762,7 +803,7 @@ def fig_confusion_prestroke(out_dir):
                         _txt(ax, j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=8.5,
                                 color="white" if M[i, j] < 0.6 else "black")
             ax.set_xticks(range(len(CONF_LABELS)))
-            ax.set_xticklabels(_short(CONF_LABELS), rotation=(90 if COMPACT else 0), ha="center", fontsize=10)
+            ax.set_xticklabels(_short(CONF_LABELS), rotation=90, ha="center", fontsize=10)
             ax.set_yticks(range(len(CONF_LABELS)))
             ax.set_yticklabels(_short(CONF_LABELS), fontsize=10)
             ax.set_title(f"{an} — {acc:.2f} correct ({len(mats)} held-out sessions)",
@@ -866,7 +907,7 @@ def fig_confusion_pre_post(out_dir):
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
+                                   rotation=90, ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                 # THE ANIMAL MOVES TO THE Y LABEL, where every other figure in this module puts it.
@@ -1009,7 +1050,7 @@ def fig_confusion_pre_post_working(out_dir):
                                     color="white" if P[i, j] < 0.6 else "black")
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
+                                   rotation=90, ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                 # Same treatment as figure 5: the animal on the Y LABEL, not in the title where it
@@ -1138,7 +1179,8 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
     """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
     if True:
         ncol = 1 + len(days)
-        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.2),
+        fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.5),
+                                     gridspec_kw={"hspace": 0.45},
                                  squeeze=False)
         im = None
         for ri, an in enumerate(ANIMALS):
@@ -1156,10 +1198,10 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
                 ax.set_xticks(range(len(CONF_LABELS)))
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                   rotation=(90 if COMPACT else 0), fontsize=9)
+                                   rotation=90, fontsize=9)
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
-                head = "PRE (LOSO)" if ci == 0 else f"day {days[ci - 1]}"
-                ax.set_title(f"{head}  {acc:.2f}", fontsize=10,
+                head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
+                ax.set_title(f"{head}\n{acc:.2f}", fontsize=10,
                              fontweight="bold" if ci == 0 else "normal")
                 if ci == 0:
                     ax.set_ylabel(f"{an}\ntrue position", fontsize=11, fontweight="bold")
@@ -1272,7 +1314,8 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
         days = sorted(all_days)
         for v in variants:
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
+                                     gridspec_kw={"hspace": 0.45},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1307,11 +1350,16 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=(90 if COMPACT else 0), fontsize=9)
+                                       rotation=90, fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     diag = np.nanmean(np.diag(M))
-                    head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
-                    ax.set_title(f"{head}  diag {diag:.2f}", fontsize=10,
+                    # TWO LINES, and the head shortened to "PRE". The column-0 title was several times wider
+                    # than a day column's ("PRE, leave-1-out  diag 0.77" against "day 1  0.59"), so it
+                    # overran into column 1 and reached left into its own row's ylabel -- the ax0/8/16/24
+                    # stride in the layout report, one fault per row across three whole families. What
+                    # "PRE" means is in the header of every one of these figures.
+                    head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
+                    ax.set_title(f"{head}\ndiag {diag:.2f}", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
                         ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
@@ -1584,7 +1632,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                                                            edgecolor="lime", lw=1.6))
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
+                                       rotation=90, ha="center", fontsize=9.5)
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
                     ax.set_title(f"{an if ci == 0 else ''}  {ptitle}", fontsize=11,
@@ -1945,7 +1993,8 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
+                                     gridspec_kw={"hspace": 0.45},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -1977,15 +2026,15 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=(90 if COMPACT else 0), fontsize=9)
+                                       rotation=90, fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
-                    head = "PRE, per session" if ci == 0 else f"day {days[ci - 1]}"
+                    head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
                     # 'sh', NOT 'rel': this is the split-half correlation itself, the reliability of
                     # a HALF-length mean. 7b applies the Spearman-Brown step that turns it into the
                     # reliability of the full mean it actually divides by.
                     # n IS PRINTED because sh depends on it, and a reader comparing two panels needs
                     # to know whether they rest on comparable amounts of data.
-                    ax.set_title(f"{head}  sh {np.nanmean(np.diag(M)):.2f}  n{n_med}", fontsize=9.5,
+                    ax.set_title(f"{head}\nsh {np.nanmean(np.diag(M)):.2f}  n{n_med}", fontsize=9.5,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
                         ax.set_ylabel(f"{an}\nhalf A at", fontsize=11, fontweight="bold")
@@ -2305,7 +2354,8 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 7.4),
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
+                                     gridspec_kw={"hspace": 0.45},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -2359,10 +2409,10 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=(90 if COMPACT else 0), fontsize=9)
+                                       rotation=90, fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
-                    head = "PRE, leave-1-out" if ci == 0 else f"day {days[ci - 1]}"
-                    ax.set_title(f"{head}  diag {np.nanmean(np.diag(D)):.2f}", fontsize=10,
+                    head = "PRE" if ci == 0 else f"day {days[ci - 1]}"
+                    ax.set_title(f"{head}\ndiag {np.nanmean(np.diag(D)):.2f}", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
                         ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")
@@ -2813,7 +2863,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
             ax.set_xticks(range(len(CONF_LABELS)))
             ax.set_yticks(range(len(CONF_LABELS)))
             ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                               rotation=(90 if COMPACT else 0), fontsize=9)
+                               rotation=90, fontsize=9)
             ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
             # THE INTERVAL GOES WHERE THE NUMBER IS. The change in mean diagonal is the claim each
             # panel makes, so a bare point estimate there is the one place an interval is most
@@ -3399,11 +3449,11 @@ def fig_asymmetry(out_dir, min_trials=10):
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
-                                       rotation=(90 if COMPACT else 0), fontsize=9)
+                                       rotation=90, fontsize=9)
                     ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
                     n_sig = int(sig.sum() // 2)          # antisymmetric: each pair rings twice
-                    head = "PRE, leave-1-out" if key == "PRE" else f"day {key}"
-                    ax.set_title(f"{head}  {n_sig}/15", fontsize=10,
+                    head = "PRE" if key == "PRE" else f"day {key}"
+                    ax.set_title(f"{head}\n{n_sig}/15", fontsize=10,
                                  fontweight="bold" if ci == 0 else "normal")
                     if ci == 0:
                         ax.set_ylabel(f"{an}\nthis position", fontsize=11, fontweight="bold")

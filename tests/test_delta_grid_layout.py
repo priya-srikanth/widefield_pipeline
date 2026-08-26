@@ -359,3 +359,65 @@ def _grid_fig_open(tmp_path, compact):
         plt.close = real_close
         gf.COMPACT = False
     return held["fig"]
+
+
+def _dense_grid(pre_head, day_head, stat, ylab, fontsize=10, two_line=True):
+    """The 8-wide per-day grid shared by figures 5c, 6b, 7, 8 and 8e, without the LocaNMF load.
+
+    Reproducing it synthetically is what made this fixable: the real figures take hours because they
+    read every session's decomposition, and the fault is purely one of text width.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    days = [1, 2, 3, 4, 5, 7, 9]
+    ncol = 1 + len(days)
+    rng = np.random.default_rng(0)
+    fig, axes = plt.subplots(len(gf.ANIMALS), ncol, figsize=(gf._colw() * ncol + 1.2, 7.4),
+                             squeeze=False)
+    for ri, an in enumerate(gf.ANIMALS):
+        for ci in range(ncol):
+            ax = axes[ri][ci]
+            ax.imshow(rng.uniform(-1, 1, (6, 6)), vmin=-1, vmax=1, cmap="RdBu_r")
+            ax.set_xticks(range(6))
+            ax.set_yticks(range(6))
+            ax.set_xticklabels(gf._short(gf.CONF_LABELS) if ri == len(gf.ANIMALS) - 1 else [],
+                               fontsize=9)
+            ax.set_yticklabels(gf._short(gf.CONF_LABELS) if ci == 0 else [], fontsize=9)
+            head = pre_head if ci == 0 else day_head.format(d=days[ci - 1])
+            ax.set_title(f"{head}\n{stat}" if two_line else f"{head}  {stat}",
+                         fontsize=fontsize, fontweight="bold" if ci == 0 else "normal")
+            if ci == 0:
+                ax.set_ylabel(f"{an}\n{ylab}", fontsize=11, fontweight="bold")
+    gf._suptitle(fig, "a two line header\nand its second line")
+    gf._footer(fig)
+    return fig
+
+
+def test_the_one_line_dense_grid_title_really_did_collide():
+    """The fault a full render reported at ax0/8/16/24 -- a stride of 8, i.e. column 0 of each row.
+    Those are the PRE column, whose title was several times wider than a day column's."""
+    import matplotlib.pyplot as plt
+
+    fig = _dense_grid("PRE, per session", "day {d}", "sh 0.77  n45", "half A at",
+                      fontsize=9.5, two_line=False)
+    bad = chrome_overlaps(fig)
+    plt.close(fig)
+    assert bad, "the pre-fix layout must reproduce the reported collision"
+
+
+@pytest.mark.parametrize("pre,day,stat,ylab,fs", [
+    ("PRE", "day {d}", "diag 0.77", "this position", 10),        # 6b, 8
+    ("PRE", "day {d}", "sh 0.77  n45", "half A at", 9.5),        # 7
+    ("PRE", "day {d}", "0.77", "true position", 10),             # 5c
+    ("PRE", "day {d}", "4/15", "this position", 10),             # 8e
+])
+def test_dense_grid_titles_are_clear_two_line(pre, day, stat, ylab, fs):
+    """Two lines halve the title's width, which is the scarce dimension in an 8-wide grid. What
+    "PRE" stands for is in the header of every one of these figures."""
+    import matplotlib.pyplot as plt
+
+    fig = _dense_grid(pre, day, stat, ylab, fontsize=fs)
+    bad = chrome_overlaps(fig)
+    plt.close(fig)
+    assert not bad, f"dense grid still overlaps: {bad[:4]}"
