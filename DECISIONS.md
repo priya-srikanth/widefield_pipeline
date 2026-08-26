@@ -4741,3 +4741,90 @@ the MAIN checkout, which is at `a7583e6`, and that field landed in `5ed4d75`. Th
 deliberately left alone rather than pulled mid-run — swapping code under a running multi-step
 pipeline would make different steps run different versions, which is a worse failure than a
 one-cycle delay.
+
+---
+
+## BOOTSTRAPPING THE POST-STROKE FIGURES: BLOCKS YES, SESSIONS NO, PERMUTATION NO (2026-08-25/26)
+
+Priya: *"can we bootstrap / permute the post-stroke session blocks or trials?"* All three parts of
+that question turned out to have different answers, and the reasons are worth keeping.
+
+### BLOCKS, NOT TRIALS
+Trials adjacent in time share arousal, satiety and slow drift, so an i.i.d. trial bootstrap treats
+correlated samples as independent and returns intervals that are **too narrow**. The scheduler's own
+~6-trial position blocks are the natural unit and the pipeline already uses them for GroupKFold —
+`pool_sessions` had been returning them all along as `BE`, discarded at every call site as `_B`.
+
+A block belongs to ONE position by construction (a new block starts when the position changes, or at
+`block_size_max`), so resampling a session's blocks also resamples each position's trial count —
+which is correct, since how many trials a position got is itself uncertain.
+
+**Tested, not asserted.** With a per-block offset shared by six trials, the block bootstrap's spread
+is **>1.5x** the i.i.d. one. That is the entire justification for the added machinery, so it is a
+test rather than a docstring claim.
+
+### SESSIONS HELD FIXED
+Priya's own earlier objection, and it still governs: days are not exchangeable while an animal is
+recovering. PS94's figure-8 diagonal runs 0.99 → 0.46 across one week; there is no single
+post-stroke value for an interval to be *about*. An interval therefore means "how well determined
+GIVEN THESE DAYS" and licenses nothing about days not recorded — the trajectory is what speaks to
+that, which is why figure 9 is per-day rather than pooled.
+
+### BOOTSTRAP, NOT PERMUTATION, FOR ASYMMETRY
+Permuting position labels equalises the condition means, so the true distances collapse toward zero.
+But the sampling variance of a crossnobis distance **scales with the true difference vector**, so a
+real and perfectly SYMMETRIC separation still yields a larger |D − Dᵀ| than permuted data does. The
+permuted null therefore sits too low and would call ordinary noise "asymmetry". A bootstrap interval
+on `D[P,Q] − D[Q,P]` has no such problem, and matches trial counts by construction.
+
+### THE BUG THE TEST CAUGHT BEFORE ANY FIGURE DID
+The first `_delta_diag_ci` computed its baseline as `mats_fn(ref, ref)` — the resampled reference
+correlated **against itself**, whose diagonal is exactly 1.0 by construction — so every delta came
+out at about −1 regardless of the data. On real data that would have rendered as a catastrophic and
+suspiciously *uniform* loss at every position in every animal, which is plausible enough to quote.
+
+**That is the third instance in two days of one error shape: a reference built from a pool that
+contains the thing being scored.** The others were figure 6's half-split baseline (both halves from
+the same days) and 8b's ceiling (each session's RDM against the pooled RDM containing it). Worth
+stating as a standing check: *whenever a baseline is computed, ask what is inside it.*
+
+### RESULT, POST-CUE / WORKING (change in mean own-position r, 95% block bootstrap)
+
+| | d1 | d2 | d3 | d4 | d5 | d7 | d9 |
+|---|---|---|---|---|---|---|---|
+| PS92 | −0.36 | −0.13 | −0.23 | −0.27 | −0.40 | −0.18 | — |
+| PS93 | −0.37 | −0.52 | −0.59 | −0.55 | −0.41 | −0.22 | — |
+| PS94 | −0.65 | −0.72 | −0.48 | −0.43 | −0.52 | −0.19 | −0.32 |
+| PS95 | −0.29 | −0.13 | −0.12 | −0.23 | −0.26 | −0.34 | −0.38 |
+
+**Every one of the 27 intervals excludes zero.** And the intervals separate trajectories the point
+estimates only hinted at: PS93 and PS94 RECOVER (day-7 endpoints not overlapping their own worst
+days), PS95 does the OPPOSITE — −0.13 at day 2 drifting to −0.38 at day 9, day 9 not overlapping
+days 2 or 3 — and PS92 is flat throughout. A pooled figure averages all four into "a decline".
+
+### FIGURE 9 EXISTS BECAUSE THE INTERVALS WERE UNREADABLE
+Asked whether any figure showed the bootstrap results, the answer was no: they were text above 6x6
+matrices in 6d/7d/8d. Whether a position is recovering, holding or worsening is a trajectory, and a
+trajectory read out of twenty-eight small matrices by eye is not read at all. Figure 9 plots it, per
+animal and per position.
+
+**Zero is a real null there.** It means "this day differs from the pre-stroke reference no more than
+one pre-stroke day differs from the others", because the baseline is leave-one-session-out. Read
+against 1.0 instead, every point in every panel would look like a large loss.
+
+### TWO LAYOUT FAULTS, NOW MEASURED RATHER THAN EYEBALLED
+Both shipped and both were reported by Priya rather than caught here, which is the argument for
+measuring them: a figure that is merely ugly looks much like a figure that is fine.
+
+- The reference colour bar was drawn over the day-1 matrices. The first fix moved only the BAR;
+  matplotlib draws ticks and axis label on the right by default, so the rotated label still reached
+  over the first panel. The test now takes the bounding box of the bar, its tick labels AND its
+  axis label, and requires all three to end before the day-1 panel begins.
+- Describing the bootstrap in 6d's header produced a 420-character line, and `bbox_inches="tight"`
+  sizes the canvas around everything it contains — the figure went from aspect 2.1 to 3.3 with the
+  panels squashed into a third of it. `_delta_grid` now wraps lines over 150 characters while
+  preserving the caller's own newlines.
+
+A note for the next such test: the reference bar is added with `fig.add_axes` and therefore does NOT
+carry matplotlib's `"<colorbar>"` label. Selecting on that label finds only the delta bar on the far
+right and reports a false overlap — which is what the first version of the check did.

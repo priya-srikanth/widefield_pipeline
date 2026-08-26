@@ -2871,6 +2871,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "uniform -- close positions sit nearer each other than far ones -- so an absolute cell of "
          "1.2 means different things in different places. A NEGATIVE OFF-DIAGONAL cell is a "
          "substitution: that row's trials moved TOWARD the column's pre-stroke pattern.")),
+        ("grant_9_delta_trajectory_*.png",
+         "H9. The bootstrap results, plotted — change from pre-stroke over days",
+         ("THE SUMMARY SLIDE OF THE DELTA SET. The intervals in H6d/H7d/H8d sit as text above 6x6 "
+         "matrices, which is the wrong shape for what they answer: whether a position is "
+         "recovering, holding or worsening is a TRAJECTORY. Left = mean own-position change per "
+         "day with its 95% block-bootstrap interval; right = the same split BY POSITION, which is "
+         "where the deficit lives. ZERO IS A REAL NULL: it means this day differs from the "
+         "pre-stroke reference no more than one pre-stroke day differs from the others, because "
+         "the baseline is leave-one-session-out and not a correlation of 1. Blocks are resampled "
+         "within session and SESSIONS ARE NOT RESAMPLED, so an interval is conditional on these "
+         "days -- the trajectory is what speaks to days not recorded.")),
         ("grant_8b_crossnobis_geometry_*.png",
          "H8b. Second-order RSA — the gain-invariant test",
          ("Each session's OWN 6x6 crossnobis RDM correlated against the pre-stroke RDM. This is "
