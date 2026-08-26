@@ -936,6 +936,10 @@ def fig_confusion_pre_post(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 
 
+class _Stored(Exception):
+    """Raised to skip the LocaNMF recompute when the stored per-class confusions covered it."""
+
+
 def fig_confusion_pre_post_working(out_dir):
     """5b: figure 5 with the post-stroke TERMINAL QUIT PERIOD removed.
 
@@ -965,16 +969,56 @@ def fig_confusion_pre_post_working(out_dir):
     PANELS = (("pre", "PRE-stroke\nLICK trials"),
               ("post_all", "POST-stroke\nALL trials"),
               ("post_working", "POST-stroke\nquit period REMOVED"))
+
+    def _from_json(an, disp):
+        """The three panels as SUMS of the stored per-class confusions, or None to recompute.
+
+        Added 2026-08-26. This figure used to redo the whole LocaNMF pooling -- >10 min of network
+        reads -- because `section_g.json` stores a confusion already summed over trials and "a summed
+        matrix cannot be un-summed". `coding_direction.json` now stores one matrix PER CLASS, so the
+        populations this figure needs are additions:
+
+            post_working = poststroke_lick + poststroke_miss_working
+            post_all     = post_working    + poststroke_stopped
+
+        Returning None (missing file, missing block, missing class) falls through to the recompute
+        path, so this is a shortcut and never a new source of truth.
+        """
+        f = _fig_root() / "coding_direction.json"
+        if not f.exists():
+            return None
+        try:
+            rec = ((json.loads(f.read_text(encoding="utf-8")).get(disp) or {}).get(an) or {})
+            c = rec.get("confusions")
+            if not c or c.get("prestroke_lick") is None:
+                return None
+            lick, work, stop = (c.get("poststroke_lick"), c.get("poststroke_miss_working"),
+                                c.get("poststroke_stopped"))
+            if lick is None or work is None:
+                return None
+            L, W = np.array(lick, float), np.array(work, float)
+            S = np.zeros_like(L) if stop is None else np.array(stop, float)
+            return {"pre": np.array(c["prestroke_lick"], float),
+                    "post_working": L + W, "post_all": L + W + S}
+        except Exception:                                             # noqa: BLE001
+            return None
     made = []
     for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
         fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 12.4), squeeze=False,
                                  gridspec_kw={"hspace": 0.42})
         drew = False
+        stored = []                # animals served from coding_direction.json rather than recomputed
         for ri, an in enumerate(ANIMALS):
             pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
             post = [x for x in config.phase_labels("post") if x.startswith(an)]
-            mats = {}
+            # STORED CLASSES FIRST; the LocaNMF recompute is the fallback, not the default.
+            mats = _from_json(an, _disp)
+            if mats is not None:
+                stored.append(an)
             try:
+                if mats is not None:
+                    raise _Stored          # skip the pooling; panels are drawn below either way
+                mats = {}
                 from wfield_local import joint_locanmf
                 from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
                 from wfield_local.precue_engagement_states import features_with_indices
@@ -1027,8 +1071,11 @@ def fig_confusion_pre_post_working(out_dir):
                 Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
                 yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
                 mats["post_working"] = conf(Xw, yw)
+            except _Stored:
+                pass                       # the stored per-class matrices are already in `mats`
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 5b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+                mats = mats or {}
             for ci, (key, ptitle) in enumerate(PANELS):
                 ax = axes[ri][ci]
                 C = mats.get(key)
@@ -1075,6 +1122,18 @@ def fig_confusion_pre_post_working(out_dir):
                      "Chance = 0.17.\nThe quit period is not independently validated as satiety "
                      "rather than a late motor collapse — read this beside figure 5, not instead "
                      "of it.", fontsize=9.5)
+        # SAY WHERE THE NUMBERS CAME FROM, and whether that source lags. A figure served from
+        # coding_direction.json is only as current as the last position_coding_directions run, and
+        # this module already has the scar: on 2026-08-25 the JSONs predated both 8/24 sessions while
+        # the config had them, so the footer printed a reassuring "6, 6, 6, 6" on exactly the three
+        # stale figures. Reading a stored artifact silently would re-create that.
+        if stored:
+            lag = sorted(set(config.phase_labels("post")) - set(_cd_labels()))
+            print(f"  [5b] {align}: {len(stored)}/{len(ANIMALS)} animal(s) from stored per-class "
+                  f"confusions ({', '.join(stored)})"
+                  + (f" -- coding_direction.json LAGS the config by {len(lag)} session(s): "
+                     f"{', '.join(lag)}; re-run position_coding_directions" if lag else
+                     " -- coding_direction.json is current"), flush=True)
         _footer(fig)
         p = Path(out_dir) / f"grant_5b_confusion_working_{align}.png"
         _save(fig, p, dpi=200, bbox_inches="tight")
