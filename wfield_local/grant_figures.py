@@ -224,6 +224,40 @@ def _fit_header(fig):
         print(f"  [layout] header refinement skipped ({type(exc).__name__})", flush=True)
 
 
+def _fit_bottom(fig, pad=0.008):
+    """Raise the axes until a bottom-anchored figure legend clears the x labels.
+
+    `tight_layout(rect=(0, bottom, ...))` cannot do this: `_fit_header` rescales every axes AFTER
+    it, so the reserved band is recomputed away -- figure 8g's axes bottom came out at 0.097 whether
+    the rect asked for 0.10 or 0.18, and the legend sat squarely on the bottom row's "days from
+    lesion". A figure legend is not an axes, so it does not move with them either.
+
+    Measure instead: if the legend intrudes on the lowest x label, shift every axes up by exactly
+    the shortfall and take it out of their height.
+    """
+    if not fig.legends:
+        return
+    try:
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        inv = fig.transFigure.inverted()
+        lg = max((inv.transform_bbox(g.get_window_extent(rend)) for g in fig.legends),
+                 key=lambda b: b.y1)
+        xls = [inv.transform_bbox(a.xaxis.label.get_window_extent(rend))
+               for a in fig.axes if a.get_visible() and str(a.xaxis.label.get_text()).strip()]
+        if not xls:
+            return
+        lo = min(b.y0 for b in xls)
+        shift = (lg.y1 + pad) - lo
+        if shift <= 0:
+            return
+        for ax in fig.axes:
+            pos = ax.get_position()
+            ax.set_position([pos.x0, pos.y0 + shift, pos.width, max(0.02, pos.height - shift)])
+    except Exception as exc:                                         # noqa: BLE001
+        print(f"  [layout] bottom fit skipped ({type(exc).__name__})", flush=True)
+
+
 def _overlaps(fig):
     """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, colour-bar
     labels, axis labels and panel titles. Tick labels are excluded -- they sit close to their own
@@ -349,6 +383,7 @@ def _save(fig, path, **kw):
     # reservation `_suptitle` made; this is the last point before the file is written, so it is the
     # one place the fix cannot be undone by call order.
     _fit_header(fig)
+    _fit_bottom(fig)
     try:
         bad = _overlaps(fig)
     except Exception as ex:                                          # noqa: BLE001
