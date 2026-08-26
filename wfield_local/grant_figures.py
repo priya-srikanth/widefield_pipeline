@@ -60,6 +60,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.figure import Figure
 
 from wfield_local import config
 from wfield_local.paths import PathResolver
@@ -143,6 +144,35 @@ def _cd_labels():
             for cls in (meth.get("cross_by_session") or {}).values():
                 out |= set(cls)
     return sorted(out)
+
+
+def _suptitle(fig, text, fontsize=9.5, width=150):
+    """Wrap a long header, then reserve vertical room PROPORTIONAL TO ITS LINE COUNT.
+
+    Matplotlib anchors a suptitle near y=0.98 and grows it DOWNWARD, so a header gains lines at the
+    expense of the top row of panels. Every figure here reserved a hand-tuned constant instead
+    (``rect=(0, 0, 1, 0.88)`` and friends), which held only while the text did -- and the moment the
+    bootstrap description was added, several headers overlapped their own figures (Priya,
+    2026-08-26).
+
+    The reservation is computed from the figure's ACTUAL height in inches, because these range from
+    4.5 to 15.5: a five-line header costs a third of a 4.5-inch figure and a tenth of a 15-inch one,
+    so a single fraction cannot serve both.
+
+    Call this AFTER any ``tight_layout``: the adjustment is applied with ``subplots_adjust``, which
+    is a one-shot override of what tight_layout computed and would otherwise be recomputed away.
+    """
+    text = "\n".join(textwrap.fill(ln, width=width) if len(ln) > width else ln
+                     for ln in str(text).split("\n"))
+    n_lines = text.count("\n") + 1
+    line_frac = (fontsize * 1.5) / (fig.get_figheight() * 72.0)     # points -> figure fraction
+    top = min(0.97, max(0.45, 1.0 - (n_lines * line_frac + 0.015)))
+    fig.subplots_adjust(top=top)
+    # NOTE the bare matplotlib call: the sweep that routed every `fig.suptitle` in this module
+    # through `_suptitle` rewrote this line too, making the helper call itself. Caught by reading
+    # the diff rather than by a test, which would have hit a RecursionError at render time.
+    Figure.suptitle(fig, text, fontsize=fontsize, y=0.997, va="top")
+    return top
 
 
 def _footer(fig, source_labels=None):
@@ -281,11 +311,11 @@ def fig_behaviour(out_dir):
     _h, _lab = axes[0][0].get_legend_handles_labels()
     if _h:
         fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
-    fig.suptitle("Licking accuracy at each spout position, relative to the lesion. "
+    _suptitle(fig, "Licking accuracy at each spout position, relative to the lesion. "
                  "Engaged trials only (the terminal quit period is excluded); bars are Wilson 95% "
                  "CIs. The two sessions after the laser that did not take are omitted.",
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0.09, 1, 0.90))          # reserve the band the legend sits in
+    fig.tight_layout(rect=(0, 0.09, 1, 1.0))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1_behaviour_by_position.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -359,12 +389,12 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
     _h, _lab = axes[0][0].get_legend_handles_labels()
     if _h:
         fig.legend(_h, _lab, loc="lower center", ncol=len(POS), fontsize=9, frameon=False)
-    fig.suptitle("Licking accuracy per spout position: the WHOLE pre-stroke baseline as one point "
+    _suptitle(fig, "Licking accuracy per spout position: the WHOLE pre-stroke baseline as one point "
                  "(mean +/- SEM across sessions), then each day after the lesion.\n"
                  "Engaged trials only; positions offset horizontally so all six are visible. "
                  "Each panel title lists the positions that dropped below 50% on any post-stroke day.",
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0.09, 1, 0.90))          # reserve the band the legend sits in
+    fig.tight_layout(rect=(0, 0.09, 1, 1.0))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1b_behaviour_pre_collapsed.png"
     fig.savefig(p, dpi=200)
     plt.close(fig)
@@ -539,7 +569,7 @@ def fig_confusion_prestroke(out_dir):
             plt.close(fig)
             continue
         fig.colorbar(im, ax=axes, fraction=0.035, pad=0.04, label="P(predicted | true)")
-        fig.suptitle(f"Pre-stroke cross-session decoding — {wname} window\n"
+        _suptitle(fig, f"Pre-stroke cross-session decoding — {wname} window\n"
                      "Frozen leave-one-session-out in the shared LocaNMF basis: every trial scored "
                      "by a decoder that never saw its session.\n"
                      "Counts summed over held-out sessions, then row-normalised. Chance = 0.17.",
@@ -634,7 +664,7 @@ def fig_confusion_pre_post(out_dir):
             plt.close(fig)
             continue
         fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
-        fig.suptitle(f"The frozen pre-stroke decoder before and after the lesion — {wname} window\n"
+        _suptitle(fig, f"The frozen pre-stroke decoder before and after the lesion — {wname} window\n"
                      "Rows = TRUE spout position, columns = predicted. MIDDLE PANEL IS THE MATCHED "
                      "CONTROL: pre-stroke NO-LICK trials scored by a decoder trained on the other "
                      "pre-stroke sessions,\nso it differs from the post panel in PHASE alone rather "
@@ -771,7 +801,7 @@ def fig_confusion_pre_post_working(out_dir):
             plt.close(fig)
             continue
         fig.colorbar(im, ax=axes, fraction=0.02, pad=0.03, label="P(predicted | true)")
-        fig.suptitle(f"Frozen pre-stroke decoder, with and without the terminal quit period — "
+        _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
                      f"{wname} window\n"
                      "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
                      "post-stroke trials after a NON-RECOVERING collapse in responding at the "
@@ -913,7 +943,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
             plt.close(fig)
             return None
         fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
-        fig.suptitle(f"Frozen pre-stroke decoder, session by session — {wname} window\n"
+        _suptitle(fig, f"Frozen pre-stroke decoder, session by session — {wname} window\n"
                      "Post-stroke trials are LICK + MISS-WHILE-WORKING (terminal quit period "
                      "removed). Columns are DAYS FROM LESION so they mean the same thing in every "
                      "row;\na blank cell is a session that animal does not have. Rows = TRUE spout "
@@ -1067,7 +1097,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="pattern correlation r")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(f"Mean-pattern similarity session by session — {wname} window\n"
+            _suptitle(fig, f"Mean-pattern similarity session by session — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows within a panel = the pattern being "
                          f"described; columns within a panel = the PRE-STROKE reference.\n"
                          "FIRST COLUMN is the no-lesion expectation and its diagonal is the "
@@ -1367,7 +1397,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
             fig.colorbar(im, ax=axes, fraction=0.025, pad=0.03, label="pattern correlation r")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(f"Mean-pattern similarity, within and across positions — {wname} window\n"
+            _suptitle(fig, f"Mean-pattern similarity, within and across positions — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows = the pattern being described, columns = "
                          f"the PRE-STROKE reference it is correlated with.\n"
                          "DIAGONAL = is it still the same code. OFF-DIAGONAL = what it looks like "
@@ -1741,7 +1771,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="split-half correlation r")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"WITHIN-session split-half pattern similarity — {wname} window\n"
                 f"Post-stroke class: {cls}.  BOTH HALVES COME FROM THE SAME SESSION: no lesion "
                 f"comparison, no pre-stroke reference, no alignment inference enters this.\n"
@@ -1898,7 +1928,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                 continue
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"Is the lost code a MOVED code or a NOISIER one? — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = spout position, columns = days from lesion.\n"
                 f"LEFT: how repeatable that session's own pattern is (split half, within session). "
@@ -1915,7 +1945,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                 f"reliability removes trial noise and NOT day-to-day drift, which a pre-stroke "
                 f"session also carries. Read the post columns against PRE, never against 1.",
                 fontsize=9.5)
-            fig.tight_layout(rect=(0, 0, 1, 0.88))
+            fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_7b_reliability_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -2120,7 +2150,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                                "(1.0 = mean pre-stroke between-position distance)")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"Cross-validated (crossnobis) distance to the pre-stroke pattern — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = the post-stroke position, columns = the "
                 f"PRE-STROKE reference position. Figure 6's layout, as DISTANCE.\n"
@@ -2258,7 +2288,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 continue
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"Second-order RSA on crossnobis RDMs — {wname} window\n"
                 f"Post-stroke class: {cls}.  Each session's OWN 6x6 crossnobis RDM correlated "
                 f"against the pre-stroke RDM.\n"
@@ -2269,7 +2299,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 "position's five distances to the others --\n'is it still arranged the same way', "
                 f"NOT 'did its pattern move'. Read the post columns against PRE, never against 1.",
                 fontsize=9.5)
-            fig.tight_layout(rect=(0, 0, 1, 0.89))
+            fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_8b_crossnobis_geometry_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -2601,7 +2631,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     cax.yaxis.set_label_position("left")
     cax.tick_params(labelsize=7)
     cb.set_label(abs_label, fontsize=8)
-    fig.suptitle(title, fontsize=9.5)
+    _suptitle(fig, title, fontsize=9.5)
     _footer(fig)
     p = Path(out_dir) / fname
     fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -2968,7 +2998,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=8.5, frameon=False)
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"Change from pre-stroke over days, with block-bootstrap intervals — {wname} "
                 f"window\n"
                 f"Post-stroke class: {cls}.  ZERO = this day differs from the pre-stroke reference "
@@ -2978,7 +3008,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 f"Blocks resampled within session; sessions NOT resampled, so an interval is "
                 f"conditional on these days and the trajectory is what speaks to the rest.",
                 fontsize=9.5)
-            fig.tight_layout(rect=(0, 0.05, 1, 0.90))
+            fig.tight_layout(rect=(0, 0.05, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_9_delta_trajectory_{align}_{v}.png"
             fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -3146,7 +3176,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                          label="d(post P, pre Q) - d(post Q, pre P)")
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.suptitle(
+            _suptitle(fig, 
                 f"Is the distance matrix ASYMMETRIC, and where? -- {wname} window\n"
                 f"Post-stroke class: {cls}.  A[P,Q] = d(post at P, pre at Q) - d(post at Q, pre at "
                 f"P). Rows and columns index different sets, so symmetry is not expected.\n"
@@ -3242,12 +3272,12 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
                 ax.set_xlabel("days from lesion")
             ax.grid(alpha=0.25, lw=0.5)
     axes[0][0].legend(fontsize=8, loc="best")
-    fig.suptitle("How much of each position's PRE-STROKE code survives, over days after the lesion.\n"
+    _suptitle(fig, "How much of each position's PRE-STROKE code survives, over days after the lesion.\n"
                  "1.0 (green) = that position's own pre-stroke signature; 0 = indistinguishable from "
                  "the other positions. Mean over positions in each group, error bars = SEM across "
                  "positions.\nThe two groups use DIFFERENT trial classes because an impaired "
                  "position has almost no lick trials to average.", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.91))
+    fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
     _footer(fig, _cd_labels())
     p = Path(out_dir) / "grant_3a_coding_retained.png"
     fig.savefig(p, dpi=200)
@@ -3356,14 +3386,14 @@ def fig_frozen_vs_within(out_dir):
                 ax.set_xlabel("days from lesion")
             ax.grid(alpha=0.25, lw=0.5)
     axes[0][0].legend(fontsize=7, loc="lower left")
-    fig.suptitle("Does the OLD code still read out, and is position information still there?\n"
+    _suptitle(fig, "Does the OLD code still read out, and is position information still there?\n"
                  "RED = frozen pre-stroke decoder.  GREEN = decoder trained on that session.  "
                  "Band = pre-stroke range.  Bars = binomial 95% CIs.\n"
                  "Top two rows: all trials, 6 positions, chance 1/6. Bottom row: LICK-ONLY arm "
                  "(a trial with no lick has no lick-aligned window), so chance is per session "
                  "(dotted step) and those panels are NOT comparable across sessions.",
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
     _footer(fig, _sg_labels())
     p = Path(out_dir) / "grant_3b_frozen_vs_within.png"
     fig.savefig(p, dpi=200)

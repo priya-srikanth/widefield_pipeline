@@ -86,3 +86,39 @@ def test_reference_colour_bar_clears_the_first_delta_panel(tmp_path):
     assert right < day1_left, (
         f"colour-bar artists reach x={right:.4f}, day-1 panel starts at {day1_left:.4f}")
     real_close(fig)
+
+
+@pytest.mark.parametrize("n_lines,height", [(2, 4.5), (7, 4.5), (7, 15.5), (4, 9.2)])
+def test_suptitle_never_overlaps_the_axes(n_lines, height):
+    """Matplotlib anchors a suptitle near y=0.98 and grows it DOWNWARD, so a header gains lines at
+    the expense of the top row of panels.
+
+    Every figure in this module used to reserve a hand-tuned constant (rect=(0, 0, 1, 0.88) and
+    friends), which held only while the text did -- adding the bootstrap description to several
+    headers pushed them straight over their own figures. The reservation is now computed from the
+    line count AND the figure's real height, because these range from 4.5 to 15.5 inches and a
+    five-line header costs a third of the short one and a tenth of the tall one.
+    """
+    import matplotlib.pyplot as plt
+
+    fig, _ax = plt.subplots(2, 3, figsize=(12, height))
+    gf._suptitle(fig, "\n".join(f"header line {i}" for i in range(n_lines)))
+    fig.canvas.draw()
+    box = fig.transFigure.inverted().transform_bbox(
+        fig._suptitle.get_window_extent(fig.canvas.get_renderer()))
+    axes_top = max(a.get_position().y1 for a in fig.axes)
+    plt.close(fig)
+    assert box.y0 >= axes_top - 1e-3, (
+        f"{n_lines}-line title on a {height}in figure reaches y={box.y0:.3f}, "
+        f"axes top at {axes_top:.3f}")
+
+
+def test_suptitle_is_not_recursive():
+    """The sweep that routed every fig.suptitle in the module through _suptitle rewrote the helper's
+    OWN call too. It renders as a RecursionError, but only at render time, on whichever figure runs
+    first -- so it is pinned here where it costs a millisecond."""
+    import matplotlib.pyplot as plt
+
+    fig, _ax = plt.subplots(1, 1, figsize=(6, 4))
+    gf._suptitle(fig, "a title")            # would raise RecursionError if it called itself
+    plt.close(fig)
