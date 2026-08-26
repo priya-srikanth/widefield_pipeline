@@ -3568,6 +3568,134 @@ def fig_asymmetry(out_dir, min_trials=10):
     return made
 
 
+@lru_cache(maxsize=6)
+def _rdm_rows(align, variant, min_trials=10):
+    """{animal: {"PRE"|day: (per-position row r, whole-RDM r, n_positions)}} for figures 8b and 8g.
+
+    Extracted so the per-position TRAJECTORY figure and the heatmap cannot disagree: they are the
+    same numbers drawn two ways.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store:
+            continue
+        pre_by_sess, by_day = x_store[an]
+        rng = np.random.default_rng(abs(hash((an, align, variant, "8g"))) % (2 ** 31))
+        full_ref = _pre_reference(pre_by_sess)
+        Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
+
+        def score(D, Dref):
+            a, b = _triu_vals(D), _triu_vals(Dref)
+            ok = np.isfinite(a) & np.isfinite(b)
+            whole = (float(np.corrcoef(a[ok], b[ok])[0, 1])
+                     if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]) else np.nan)
+            rows = np.full(len(CONF_LABELS), np.nan)
+            for i in range(len(CONF_LABELS)):
+                ra, rb = np.delete(D[i], i), np.delete(Dref[i], i)
+                m = np.isfinite(ra) & np.isfinite(rb)
+                if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
+                    rows[i] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+            n_pos = int(np.isfinite(np.diag(Dref)).sum() or 0)
+            return rows, whole, n_pos
+
+        rec = {}
+        loo = [score(_crossnobis_within(pat, rng, CONF_LABELS),
+                     _crossnobis_within(_pre_reference(pre_by_sess, exclude=s), rng, CONF_LABELS))
+               for s, pat in pre_by_sess.items()]
+        if loo:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                rec["PRE"] = (np.nanmean([r for r, _w, _n in loo], axis=0),
+                              float(np.nanmean([w for _r, w, _n in loo])), 6)
+        for d, pat in by_day.items():
+            D = _crossnobis_within(pat, rng, CONF_LABELS)
+            r, w, _n = score(D, Dpre)
+            # POSITIONS PRESENT IN THIS SESSION, which is what governs whether a row is computable
+            rec[d] = (r, w, len(pat))
+        if rec:
+            out[an] = rec
+    return out, days
+
+
+def fig_geometry_by_position(out_dir, min_trials=10):
+    """8g: figure 8b split BY SPOUT POSITION -- one panel per position, animals as lines.
+
+    Priya, 2026-08-26. 8b's left panel is already per position, but as a heatmap of animal-major
+    rows: comparing one position ACROSS animals and days means reading four separate blocks. Here
+    each position gets a panel and each animal a line, which is the comparison the deficit is about
+    -- far_R against the positions that were spared, in every animal at once.
+
+    THE DASHED LINE IS THAT ANIMAL'S PRE CEILING for that position, leave-one-session-out. Read a
+    trace against its own dashed line, not against 1: a held-out pre-stroke session does not
+    reproduce the others perfectly either.
+
+    A GAP IS NOT A ZERO. A row correlation needs at least four of the five partner positions, so a
+    session missing two positions has every row uncomputable -- including the positions the animal
+    licked normally. That is why whole days vanish for PS94 in the LICK class, and it is a property
+    of the estimator, not of the animal. The `working` class keeps miss-while-working trials and
+    fills most of them; the panel titles carry how many sessions actually contributed.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            rows, days = _rdm_rows(align, v, min_trials)
+            if not days or not rows:
+                continue
+            fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.4), squeeze=False, sharex=True,
+                                     sharey=True, gridspec_kw={"hspace": 0.32})
+            drew = False
+            for k, q in enumerate(CONF_LABELS):
+                ax = axes[k // 3][k % 3]
+                n_have = 0
+                for an in ANIMALS:
+                    rec = rows.get(an) or {}
+                    xs = [d for d in days if d in rec and np.isfinite(rec[d][0][k])]
+                    ys = [rec[d][0][k] for d in xs]
+                    col = (config.animals().get(an) or {}).get("color", "0.4")
+                    if xs:
+                        ax.plot(xs, ys, "o-", color=col, ms=4, lw=1.4,
+                                label=an if k == 0 else None)
+                        n_have += 1
+                        drew = True
+                    if "PRE" in rec and np.isfinite(rec["PRE"][0][k]):
+                        ax.axhline(rec["PRE"][0][k], color=col, ls=(0, (2, 3)), lw=1.0, alpha=0.8)
+                ax.axhline(0, color="k", lw=1.0)
+                ax.set_ylim(-1.05, 1.05)
+                ax.grid(alpha=0.25, lw=0.5)
+                ax.set_title(f"{q}   ({n_have}/4 animals)", fontsize=11, fontweight="bold")
+                if k % 3 == 0:
+                    ax.set_ylabel("row of the RDM preserved (r)", fontsize=10)
+                if k // 3 == 1:
+                    ax.set_xlabel("days from lesion", fontsize=11)
+            if not drew:
+                plt.close(fig)
+                continue
+            h, lab = axes[0][0].get_legend_handles_labels()
+            if h:
+                fig.legend(h, lab, loc="lower center", ncol=len(ANIMALS), fontsize=10,
+                           frameon=False, bbox_to_anchor=(0.5, 0.035))
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.tight_layout(rect=(0, 0.10, 1, 1.0))
+            _suptitle(fig,
+                      f"Is each position's RDM row preserved? -- by POSITION -- {wname} window\n"
+                      f"Post-stroke class: {cls}.  Figure 8b split so one position can be compared "
+                      f"across animals and days in a single panel.\n"
+                      f"DASHED = that animal's own pre-stroke ceiling for that position "
+                      f"(leave-one-session-out). Read a trace against its own dashed line, never "
+                      f"against 1.\n"
+                      f"A GAP IS NOT A ZERO: a row needs 4 of its 5 partner positions, so a session "
+                      f"missing two positions has EVERY row uncomputable -- including positions the "
+                      f"animal licked normally.")
+            _footer(fig)
+            p = _out(out_dir, f"grant_8g_geometry_by_position_{align}_{v}")
+            _save(fig, p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
 
@@ -3785,13 +3913,13 @@ def main(argv=None) -> int:
                          "and narrower panels, for reproduction at a quarter of a letter page")
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -3803,7 +3931,7 @@ def main(argv=None) -> int:
             ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
             ("7d", fig_splithalf_delta),
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
-            ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry),
+            ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry), ("8g", fig_geometry_by_position),
             ("9", fig_delta_trajectory))
     def _run(tag=""):
         for key, fn in jobs:
