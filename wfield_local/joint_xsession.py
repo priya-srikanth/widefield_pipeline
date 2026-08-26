@@ -13,6 +13,29 @@ every day, and a day that was not in the fit is PROJECTED onto those same footpr
 refitted. That makes LocaNMF components poolable across sessions for the first time, and this module
 is the cross-session decode/encode built on them.
 
+WHY THIS FITS ITS OWN FROZEN DECODER RATHER THAN REUSING THE ROI ONE (Priya asked, 2026-08-26:
+*"why would we want joint_xsession to compute a new frozen decoder? I thought we'd want to use the
+same frozen pre-stroke models"*). It is not a duplicate and the two models cannot be shared, because
+they do not live in the same space: the ROI frozen decoder is fitted on **264** features (66 Allen
+areas x 4 sub-bins) and this one on **380** joint components. A weight vector over 264 ROI features
+is not applicable to a 380-dimensional component vector -- there is no mapping to reuse. "The same
+frozen model in both bases" is not a thing that can exist.
+
+What IS shared, and what makes them comparable, is everything else: the same pre-stroke training
+sessions, the same window and alignment, the same `_pipe()`, and since 2026-08-26 the same
+pre-stroke-only training restriction inside `pooled_frozen_loso`. So the two are the SAME analysis
+run through two parcellations, which is the point -- DECISIONS 2026-08-12 requires decoders and
+encoders in BOTH bases precisely so that a result appearing in only one can be recognised as a basis
+artefact rather than a finding. Agreement between them is evidence; a single shared model would
+destroy the check by construction.
+
+WHAT IS NOT YET UNIFIED, and is a real gap rather than a design choice: WITHIN a basis, several
+modules each fit their own pre-stroke decoder (`grant_figures`, `nolick_decoder`, `ood_control`,
+`poststroke_compare`) instead of loading one persisted artefact. They agree today because they share
+`_pipe()` and the same trial conventions, but nothing enforces that, so "the frozen pre-stroke
+decoder" is currently a recipe rather than an object. Packaging it is the open roadmap item
+"packaging the frozen pre-stroke model + baseline noise-floor" in CLAUDE.md.
+
 WHAT THIS IS NOT. Not the rejected frozen fixed-A path. That nominated a single session as the
 reference, and the choice mattered enormously -- no reference won for every animal and the within-animal
 swing reached 0.36, i.e. tuning a free parameter on the outcome. The joint basis is reference-FREE: it
