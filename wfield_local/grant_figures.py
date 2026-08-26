@@ -167,12 +167,176 @@ def _suptitle(fig, text, fontsize=9.5, width=150):
     n_lines = text.count("\n") + 1
     line_frac = (fontsize * 1.5) / (fig.get_figheight() * 72.0)     # points -> figure fraction
     top = min(0.97, max(0.45, 1.0 - (n_lines * line_frac + 0.015)))
-    fig.subplots_adjust(top=top)
+    # COMPRESS EVERY AXES, not just the subplot grid. `subplots_adjust` moves only axes that belong
+    # to the gridspec, so a colour bar placed by `fig.colorbar(ax=...)` -- which fixes its position
+    # from the panel geometry AT THE MOMENT IT IS CREATED -- stayed put while the panels moved under
+    # it, and ended up drawn over them. That is the fault reported in figures 4 and 5, and it would
+    # recur in any figure that made a colour bar before its header.
+    #
+    # Scaling y into [0, top] preserves the relative layout of everything, including colour bars and
+    # any manually added axes, and needs no knowledge of which is which.
+    def _apply(frac):
+        for _ax in fig.axes:
+            _pos = _ax.get_position()
+            _ax.set_position([_pos.x0, _pos.y0 * frac, _pos.width, _pos.height * frac])
+
+    _apply(top)
     # NOTE the bare matplotlib call: the sweep that routed every `fig.suptitle` in this module
     # through `_suptitle` rewrote this line too, making the helper call itself. Caught by reading
     # the diff rather than by a test, which would have hit a RecursionError at render time.
     Figure.suptitle(fig, text, fontsize=fontsize, y=0.997, va="top")
+
+    _fit_header(fig)
     return top
+
+
+def _fit_header(fig):
+    """Shrink the axes until no PANEL TITLE reaches into the header. Idempotent.
+
+    A panel title sits ABOVE its axes, so the reservation `_suptitle` computes from the header's own
+    line count does not account for it -- figure 3a's four panel titles landed under the header even
+    though the axes cleared it.
+
+    CALLED AGAIN FROM `_save`, and that is the point. Six figures call `tight_layout` AFTER their
+    header, which recomputes every position and discards the reservation; reordering all six would
+    fix them and would not stop the seventh. Re-fitting at save time is ordering-independent, and
+    idempotent because each pass shrinks by the measured shortfall and stops once there is none.
+    """
+    if getattr(fig, "_suptitle", None) is None:
+        return
+    try:
+        for _ in range(3):
+            fig.canvas.draw()
+            rend = fig.canvas.get_renderer()
+            inv = fig.transFigure.inverted()
+            sup_y0 = inv.transform_bbox(fig._suptitle.get_window_extent(rend)).y0
+            tops = [inv.transform_bbox(a.title.get_window_extent(rend)).y1
+                    for a in fig.axes if a.get_visible() and str(a.title.get_text()).strip()]
+            if not tops or max(tops) <= sup_y0 - 1e-4:
+                return
+            frac = max(0.5, 1.0 - (max(tops) - sup_y0) - 0.004)
+            for ax in fig.axes:
+                pos = ax.get_position()
+                ax.set_position([pos.x0, pos.y0 * frac, pos.width, pos.height * frac])
+    except Exception as exc:                                         # noqa: BLE001
+        # A layout refinement must never fail a render -- but it should say so, or a figure that
+        # silently skipped it looks identical to one that did not need it.
+        print(f"  [layout] header refinement skipped ({type(exc).__name__})", flush=True)
+
+
+def _overlaps(fig):
+    """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, colour-bar
+    labels, axis labels and panel titles. Tick labels are excluded -- they sit close to their own
+    axis by design.
+
+    Returns [(name_a, name_b, area)], largest first.
+    """
+    import itertools as _it
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    items = []
+
+    def add(artist, name):
+        if artist is None:
+            return
+        if hasattr(artist, "get_text") and not str(artist.get_text()).strip():
+            return
+        try:
+            bb = inv.transform_bbox(artist.get_window_extent(rend))
+        except Exception:                                            # noqa: BLE001
+            return
+        if bb.width > 0 and bb.height > 0:
+            items.append((name, bb))
+
+    owner = {}
+
+    def own(name, idx):
+        owner[name] = idx
+
+    sup = getattr(fig, "_suptitle", None)
+    add(sup, "suptitle")
+    for t in fig.texts:
+        if t is not sup:
+            add(t, f"text:{str(t.get_text())[:18]}")
+    for lg in fig.legends:
+        add(lg, "legend")
+    for i, ax in enumerate(fig.axes):
+        if not ax.get_visible():
+            continue
+        for artist, nm in ((ax.xaxis.label, f"ax{i}.xlabel"),
+                           (ax.yaxis.label, f"ax{i}.ylabel"),
+                           (ax.title, f"ax{i}.title")):
+            add(artist, nm)
+            own(nm, i)
+    # AXES RECTANGLES TOO, not only text. A colour bar drawn ON TOP of a panel carries no label that
+    # would collide, so a chrome-only check reports nothing while the figure is plainly wrong -- and
+    # a colour bar over a panel is the single most common fault in this module's history. Axes with
+    # no content are skipped: the delta grids reserve an empty spacer column on purpose.
+    drawn = [(i, ax) for i, ax in enumerate(fig.axes)
+             if ax.get_visible() and (ax.images or ax.lines or ax.patches or ax.collections)]
+    bad = []
+    for (ia, axa), (ib, axb) in _it.combinations(drawn, 2):
+        pa, pb = axa.get_position(), axb.get_position()
+        ox = min(pa.x1, pb.x1) - max(pa.x0, pb.x0)
+        oy = min(pa.y1, pb.y1) - max(pa.y0, pb.y0)
+        if ox > 1e-3 and oy > 1e-3:
+            bad.append((f"AXES ax{ia}", f"AXES ax{ib}", ox * oy))
+
+    for a, b in _it.combinations(range(len(items)), 2):
+        (na, ba), (nb, bb) = items[a], items[b]
+        ox = min(ba.x1, bb.x1) - max(ba.x0, bb.x0)
+        oy = min(ba.y1, bb.y1) - max(ba.y0, bb.y0)
+        if ox > 1e-4 and oy > 1e-4:
+            bad.append((na, nb, ox * oy))
+
+    # TEXT OVER SOMEONE ELSE'S PANEL. Checking text-vs-text and axes-vs-axes leaves the commonest
+    # crowding fault invisible: a two-line panel title printed across the BOTTOM ROW OF CELLS of the
+    # panel above it. That is what figure 5 did while this function reported it clean. A title over
+    # its OWN axes is normal and excluded.
+    for name, box in items:
+        src = owner.get(name)
+        for i, ax in drawn:
+            if src == i:
+                continue
+            pos = ax.get_position()
+            ox = min(box.x1, pos.x1) - max(box.x0, pos.x0)
+            oy = min(box.y1, pos.y1) - max(box.y0, pos.y0)
+            if ox > 1e-3 and oy > 1e-3:
+                bad.append((name, f"over AXES ax{i}", ox * oy))
+    return sorted(bad, key=lambda r: -r[2])
+
+
+def _save(fig, path, **kw):
+    """Save, and REPORT any chrome overlap on the way out.
+
+    Layout faults in this module have been found by eye, one at a time, each fix pushing the problem
+    onto a neighbour -- the reference colour bar alone collided with three different things. A render
+    that names its own overlaps turns that into a list, and the list is checkable after every run
+    instead of after every complaint.
+
+    It warns rather than raises: a figure with a cosmetic collision is still worth having, and
+    failing the render would lose the other twenty.
+    """
+    # RE-FIT THE HEADER FIRST. Six figures call tight_layout after their header, which discards the
+    # reservation `_suptitle` made; this is the last point before the file is written, so it is the
+    # one place the fix cannot be undone by call order.
+    _fit_header(fig)
+    try:
+        bad = _overlaps(fig)
+    except Exception as ex:                                          # noqa: BLE001
+        bad = []
+        print(f"  [layout] {Path(path).name}: check failed ({type(ex).__name__})", flush=True)
+    for na, nb, _area in bad[:6]:
+        print(f"  [layout] {Path(path).name}: {na} x {nb}", flush=True)
+    # UNBOUND CALL, for the same reason `_suptitle` uses `Figure.suptitle`: the sweep that routed
+    # every `fig.savefig(` in this module through `_save` rewrote this line too, and a helper that
+    # calls itself surfaces as a RecursionError on the first figure of a two-hour render. Second
+    # time this exact trap has been sprung by a mechanical sweep over a file containing its own
+    # definition -- hence the explicit form rather than a comment asking the next person to be
+    # careful.
+    Figure.savefig(fig, path, **kw)
+    return path
 
 
 def _footer(fig, source_labels=None):
@@ -322,7 +486,7 @@ def fig_behaviour(out_dir):
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.09, 1, 1.0))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1_behaviour_by_position.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
@@ -401,7 +565,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.09, 1, 1.0))          # reserve the band the legend sits in
     p = Path(out_dir) / "grant_1b_behaviour_pre_collapsed.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
@@ -457,7 +621,7 @@ def fig_prestroke_decoding(out_dir):
                  "dots = individual sessions.", fontsize=9.5)
     fig.tight_layout()
     p = Path(out_dir) / "grant_2_prestroke_crossday_decoding.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
@@ -513,7 +677,7 @@ def fig_prestroke_decoding_cohort(out_dir):
                  fontsize=9.5)
     fig.tight_layout()
     p = Path(out_dir) / "grant_2b_prestroke_crossday_cohort.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
@@ -612,14 +776,14 @@ def fig_confusion_prestroke(out_dir):
         if not drew:
             plt.close(fig)
             continue
-        fig.colorbar(im, ax=axes, fraction=0.035, pad=0.04, label="P(predicted | true)")
+        fig.colorbar(im, ax=axes, fraction=0.035, pad=0.09, label="P(predicted | true)")
         _suptitle(fig, f"Pre-stroke cross-session decoding — {wname} window\n"
                      "Frozen leave-one-session-out in the shared LocaNMF basis: every trial scored "
                      "by a decoder that never saw its session.\n"
                      "Counts summed over held-out sessions, then row-normalised. Chance = 0.17.",
                      fontsize=10)
         p = Path(out_dir) / f"grant_4_confusion_prestroke_{align}.png"
-        fig.savefig(p, dpi=200, bbox_inches="tight")
+        _save(fig, p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         made.append(p)
     return made[0] if len(made) == 1 else (made or None)
@@ -647,12 +811,16 @@ def fig_confusion_pre_post(out_dir):
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))
-    PANELS = (("pre", "PRE-stroke, LICK trials"),
+    # TWO LINES, because width is the scarce dimension. A one-line title plus the accuracy is wider
+    # than a third of a 9in figure at this font, and neighbouring titles collided. Height is free:
+    # the header reservation now measures panel titles rather than assuming their size.
+    PANELS = (("pre", "PRE-stroke\nLICK trials"),
               ("pre_nolick", "PRE-stroke, NO-LICK\n(matched control)"),
-              ("post", "POST-stroke, ALL trials"))
+              ("post", "POST-stroke\nALL trials"))
     made = []
     for gkey, wname in (("pre-cue", "ENL (pre-cue)"), ("post-cue", "post-cue")):
-        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 11.6), squeeze=False)
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 12.4), squeeze=False,
+                                 gridspec_kw={"hspace": 0.42})
         drew = False
         for ri, an in enumerate(ANIMALS):
             sessions = sorted(k for k in G if k.startswith(an)
@@ -701,7 +869,12 @@ def fig_confusion_pre_post(out_dir):
                                    rotation=(90 if COMPACT else 0), ha="center", fontsize=9.5)
                 ax.set_yticks(range(len(CONF_LABELS)))
                 ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9.5)
-                ax.set_title(f"{an if ci == 0 else ''}  {ptitle}  ({acc:.2f})", fontsize=11,
+                # THE ANIMAL MOVES TO THE Y LABEL, where every other figure in this module puts it.
+                # In the title it competed for the panel's WIDTH, which is the scarce dimension --
+                # the first column's title then reached its neighbour's.
+                if ci == 0:
+                    ax.set_ylabel(an, fontsize=11, fontweight="bold")
+                ax.set_title(f"{ptitle}  ({acc:.2f})", fontsize=10,
                              fontweight="bold" if ci == 0 else "normal")
                 drew = True
         if not drew:
@@ -716,7 +889,7 @@ def fig_confusion_pre_post(out_dir):
                      "Post-stroke sessions pooled. Chance = 0.17.", fontsize=9.5)
         _footer(fig, _sg_labels())
         p = Path(out_dir) / f"grant_5_confusion_pre_post_{gkey.replace('-', '')}.png"
-        fig.savefig(p, dpi=200, bbox_inches="tight")
+        _save(fig, p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         made.append(p)
     return made[0] if len(made) == 1 else (made or None)
@@ -748,12 +921,13 @@ def fig_confusion_pre_post_working(out_dir):
     from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
     from wfield_local.position_coding_directions import _gate_all
 
-    PANELS = (("pre", "PRE-stroke, LICK trials"),
-              ("post_all", "POST-stroke, ALL trials"),
-              ("post_working", "POST-stroke, quit period REMOVED"))
+    PANELS = (("pre", "PRE-stroke\nLICK trials"),
+              ("post_all", "POST-stroke\nALL trials"),
+              ("post_working", "POST-stroke\nquit period REMOVED"))
     made = []
     for _disp, align, wname in (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue")):
-        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 11.6), squeeze=False)
+        fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(9.0, 12.4), squeeze=False,
+                                 gridspec_kw={"hspace": 0.42})
         drew = False
         for ri, an in enumerate(ANIMALS):
             pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
@@ -856,7 +1030,7 @@ def fig_confusion_pre_post_working(out_dir):
                      "of it.", fontsize=9.5)
         _footer(fig)
         p = Path(out_dir) / f"grant_5b_confusion_working_{align}.png"
-        fig.savefig(p, dpi=200, bbox_inches="tight")
+        _save(fig, p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         made.append(p)
     return made[0] if len(made) == 1 else (made or None)
@@ -994,7 +1168,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname):
                      "position, columns within a panel = predicted. Chance = 0.17.", fontsize=9.5)
         _footer(fig)
         p = _out(out_dir, f"grant_5c_confusion_per_session_{align}")
-        fig.savefig(p, dpi=200, bbox_inches="tight")
+        _save(fig, p, dpi=200, bbox_inches="tight")
         plt.close(fig)
         return p
 
@@ -1153,7 +1327,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                          "a session that animal does not have.", fontsize=9.5)
             _footer(fig)
             p = _out(out_dir, f"grant_6b_pattern_per_session_{align}_{v}")
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made[0] if len(made) == 1 else (made or None)
@@ -1450,7 +1624,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                          "diagonal is the split-half ceiling this measure can reach.", fontsize=9)
             _footer(fig)
             p = Path(out_dir) / f"grant_6_pattern_{align}_{v}.png"
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made[0] if len(made) == 1 else (made or None)
@@ -1832,7 +2006,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                 f"trials per position in that panel.", fontsize=9.0)
             _footer(fig)
             p = _out(out_dir, f"grant_7_splithalf_{align}_{v}")
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -1992,7 +2166,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
             fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_7b_reliability_{align}_{v}.png"
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -2210,7 +2384,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                 f"amplitude, not a code that moved further away.", fontsize=8.8)
             _footer(fig)
             p = _out(out_dir, f"grant_8_crossnobis_{align}_{v}")
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -2346,7 +2520,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
             fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_8b_crossnobis_geometry_{align}_{v}.png"
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -2686,7 +2860,7 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     _suptitle(fig, title, fontsize=9.5)
     _footer(fig)
     p = _out(out_dir, fname.removesuffix(".png"))
-    fig.savefig(p, dpi=200, bbox_inches="tight")
+    _save(fig, p, dpi=200, bbox_inches="tight")
     plt.close(fig)
     return p
 
@@ -3069,7 +3243,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
             fig.tight_layout(rect=(0, 0.10, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
             p = Path(out_dir) / f"grant_9_delta_trajectory_{align}_{v}.png"
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -3245,7 +3419,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 f"false-positive rate.", fontsize=9.5)
             _footer(fig)
             p = _out(out_dir, f"grant_8e_asymmetry_{align}_{v}")
-            fig.savefig(p, dpi=200, bbox_inches="tight")
+            _save(fig, p, dpi=200, bbox_inches="tight")
             plt.close(fig)
             made.append(p)
     return made
@@ -3338,7 +3512,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
     fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
     _footer(fig, _cd_labels())
     p = Path(out_dir) / "grant_3a_coding_retained.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
@@ -3454,7 +3628,7 @@ def fig_frozen_vs_within(out_dir):
     fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
     _footer(fig, _sg_labels())
     p = Path(out_dir) / "grant_3b_frozen_vs_within.png"
-    fig.savefig(p, dpi=200)
+    _save(fig, p, dpi=200)
     plt.close(fig)
     return p
 
