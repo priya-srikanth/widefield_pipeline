@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import textwrap
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -2552,6 +2553,13 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     if im_abs is None or im_del is None:
         plt.close(fig)
         return None
+    # WRAP LONG TITLE LINES. `bbox_inches="tight"` sizes the saved canvas around EVERYTHING it
+    # contains, so one over-long suptitle line stretches the whole image and squashes the panels
+    # into a fraction of it -- which is what a 420-character line did to 6d the moment the bootstrap
+    # interval was described in the header. Explicit newlines the caller wrote are preserved; only
+    # over-long lines are broken, so this cannot silently reflow a deliberate layout.
+    title = "\n".join(textwrap.fill(ln, width=150) if len(ln) > 150 else ln
+                      for ln in title.split("\n"))
     fig.colorbar(im_del, ax=axes[:, 1:].ravel().tolist(), fraction=0.012, pad=0.02,
                  label=delta_label)
     # Explicit cax INSIDE the reserved spacer column, computed after the delta bar has taken its
@@ -2679,11 +2687,12 @@ def fig_pattern_delta(out_dir, min_trials=10):
                        f"pre-stroke position it is correlated with. ZERO = indistinguishable from "
                        f"an ordinary pre-stroke day.\nNegative on the DIAGONAL = the position lost "
                        f"its own code. Positive OFF-DIAGONAL = it came to look like a different "
-                       f"position. Above each panel: the change in mean diagonal and its 95% "
-                       f"BLOCK-BOOTSTRAP interval -- the scheduler's ~6-trial position blocks "
-                       f"resampled within each session, sessions NOT resampled (days are not "
-                       f"exchangeable while an animal recovers), baseline resampled in the SAME "
-                       f"draw so the difference is taken draw by draw."),
+                       "position.\n"
+                       "Above each panel: the change in mean diagonal and its 95% BLOCK-BOOTSTRAP "
+                       "interval -- the scheduler's ~6-trial position blocks resampled within each "
+                       "session,\nsessions NOT resampled (days are not exchangeable while an animal "
+                       "recovers), and the baseline resampled in the SAME draw so the difference is "
+                       "taken draw by draw."),
                 abs_label="pre-stroke r", delta_label="change in r vs pre-stroke",
                 vmin=-1, vmax=1, cmap="RdBu_r", dmax=1.0, summary=_diag,
                 ylab="this position", cis=cis)
