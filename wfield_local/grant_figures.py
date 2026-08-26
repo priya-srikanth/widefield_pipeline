@@ -3488,21 +3488,33 @@ def main(argv=None) -> int:
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
             ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry),
             ("9", fig_delta_trajectory))
+    def _run(tag=""):
+        for key, fn in jobs:
+            if key not in want:
+                continue
+            try:
+                p = fn(out)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! {tag}{key}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
+                continue
+            print(f"  {tag}{'wrote ' + str(p) if p else f'{key}: no data'}", flush=True)
+
+    _run()
     if args.compact:
-        # A MODULE FLAG rather than a parameter threaded through eighteen figure functions. It is
-        # set once here and read by _colw/_txt/_out; nothing else in the module branches on it.
+        # SECOND PASS IN THE SAME PROCESS, deliberately. The compact variant differs only in how the
+        # figures are DRAWN, and the expensive part is loading every session's LocaNMF fit, which
+        # `_collect_7` and friends have already cached by now. A separate invocation would pay that
+        # cost twice -- roughly an hour of the two -- to redraw the same numbers.
+        #
+        # COMPACT is a module flag rather than a parameter threaded through eighteen figure
+        # functions; it is read by _colw/_txt/_out and nothing else branches on it.
         globals()["COMPACT"] = True
-        print("  [compact] in-cell numbers dropped, panels narrowed; writing *_compact.png",
-              flush=True)
-    for key, fn in jobs:
-        if key not in want:
-            continue
+        print("\n  [compact] second pass: in-cell numbers dropped, panels narrowed, "
+              "writing *_compact.png", flush=True)
         try:
-            p = fn(out)
-        except Exception as ex:                                        # noqa: BLE001
-            print(f"  !! {key}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
-            continue
-        print(f"  {'wrote ' + str(p) if p else f'{key}: no data'}", flush=True)
+            _run("[compact] ")
+        finally:
+            globals()["COMPACT"] = False
     return 0
 
 
