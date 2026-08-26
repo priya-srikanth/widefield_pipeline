@@ -2655,8 +2655,14 @@ def _mats_splithalf(_an, rng):
     return lambda pat, _ref: _split_half_matrix(pat, rng)
 
 
-def _mats_crossnobis(_an, rng):
-    """Crossnobis with the whitener fixed at the first call and reused for every later resample."""
+def _mats_crossnobis(_an, rng, sign=-1):
+    """Crossnobis with the whitener fixed at the first call and reused for every later resample.
+
+    ``sign=-1`` (the default) negates the distances so "larger diagonal = more preserved" holds as
+    it does for the correlation figures -- see the note at the return. ``sign=+1`` gives the raw
+    distances, which is what the ASYMMETRY needs: D[P,Q] - D[Q,P] must be in distance units to be
+    read as "post P is further from pre Q than post Q is from pre P".
+    """
     held = {}
 
     def build(pat, ref):
@@ -2672,11 +2678,11 @@ def _mats_crossnobis(_an, rng):
             for j, b in enumerate(CONF_LABELS):
                 if a in pm0 and b in rm0:
                     D[i, j] = float((pm0[a] - rm0[b]) @ P @ (pm1[a] - rm1[b]))
-        # NEGATED so "larger diagonal = more preserved" holds here as it does for the correlation
-        # figures. `_delta_diag_ci` differences mean diagonals, and for a DISTANCE a SMALLER
-        # diagonal means less change -- without the flip the interval would carry the opposite sign
-        # to the number printed beside it, which is worse than having no interval at all.
-        return -D
+        # NEGATED BY DEFAULT so "larger diagonal = more preserved" holds here as it does for the
+        # correlation figures. `_delta_diag_ci` differences mean diagonals, and for a DISTANCE a
+        # SMALLER diagonal means less change -- without the flip the interval would carry the
+        # opposite sign to the number printed beside it, which is worse than no interval at all.
+        return sign * D
 
     return build
 
@@ -2981,6 +2987,182 @@ def fig_delta_trajectory(out_dir, min_trials=10):
     return made
 
 
+def _asymmetry_ci(align, variant, min_trials, n_boot=N_BOOT_DELTA):
+    """{animal: {"PRE"|day: (observed 6x6 asymmetry, bool 6x6 "interval excludes zero")}}.
+
+    THE QUANTITY. A[P,Q] = d(post at P, pre at Q) - d(post at Q, pre at P). Rows and columns index
+    genuinely different sets, so there is no reason for D to be symmetric and the gap between the
+    two orderings is the substitution signal: a large positive A[far_R, close_L] says post-stroke
+    far_R sits further from pre-stroke close_L than post-stroke close_L sits from pre-stroke far_R.
+
+    WHY THIS REPLACES THE EARLIER COMPARISON. The first pass compared each post column's mean
+    asymmetry against a SINGLE held-out pre-stroke session (n = 1, no spread), after establishing
+    that the leave-one-out AVERAGE was not a fair baseline -- averaging six matrices shrinks the
+    noise whose absolute value is being measured, so it sits systematically low. One draw with no
+    spread is not a baseline either: "PS93 post 0.31-0.47 vs pre 0.523" could be an unlucky 0606.
+    A bootstrap interval per PAIR needs no pre-stroke baseline at all -- if the interval on
+    A[P,Q] excludes zero, that pair is asymmetric, full stop -- and trial counts are matched by
+    construction, which disposes of the other objection to the earlier comparison.
+
+    NOT A PERMUTATION. Shuffling position labels equalises the condition means, so the true
+    distances collapse toward zero -- but the sampling variance of a crossnobis distance scales with
+    the true difference vector, so a real and perfectly SYMMETRIC separation still yields a larger
+    |A| than permuted data does. The permuted null sits too low and would call noise asymmetry.
+
+    The PRE column is leave-one-session-out and is computed ONCE, not per day: it does not depend on
+    which post-stroke day is being scored.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        rng = np.random.default_rng(abs(hash((an, align, variant, "asym"))) % (2 ** 31))
+        build = _mats_crossnobis(an, rng, sign=+1)
+
+        def _pool(pre_r, exclude=None):
+            acc = {}
+            for s, Z in pre_r.items():
+                if s == exclude:
+                    continue
+                for q, z in Z.items():
+                    acc.setdefault(q, []).append(z)
+            return {q: np.vstack(v) for q, v in acc.items()}
+
+        def _summarise(draws):
+            if len(draws) < n_boot // 4:
+                return None
+            S = np.stack(draws)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                obs = np.nanmedian(S, axis=0)
+                lo = np.nanpercentile(S, 2.5, axis=0)
+                hi = np.nanpercentile(S, 97.5, axis=0)
+            sig = np.isfinite(lo) & np.isfinite(hi) & ((lo > 0) | (hi < 0))
+            np.fill_diagonal(sig, False)                 # A[P,P] is 0 by construction
+            return obs, sig
+
+        rec, pre_draws, day_draws = {}, [], {d: [] for d in days}
+        for _ in range(n_boot):
+            pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
+            pre_r = {s: v for s, v in pre_r.items() if v}
+            if not pre_r:
+                continue
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                As = []
+                for s, held in pre_r.items():
+                    rest = _pool(pre_r, exclude=s)
+                    if held and rest:
+                        D = build(held, rest)
+                        As.append(D - D.T)
+                if As:
+                    pre_draws.append(np.nanmean(np.stack(As), axis=0))
+                full = _pool(pre_r)
+                for d in days:
+                    if d not in day_x:
+                        continue
+                    day_r = _block_boot(day_x[d], day_b[d], rng)
+                    if not day_r or not full:
+                        continue
+                    D = build(day_r, full)
+                    day_draws[d].append(D - D.T)
+        got = _summarise(pre_draws)
+        if got:
+            rec["PRE"] = got
+        for d in days:
+            got = _summarise(day_draws[d])
+            if got:
+                rec[d] = got
+        if rec:
+            out[an] = rec
+    return out
+
+
+def fig_asymmetry(out_dir, min_trials=10):
+    """8e: is the post-stroke distance matrix ASYMMETRIC, and where -- with intervals.
+
+    Priya, 2026-08-25: "the first column is prestroke LOSO right? so we don't necessarily expect it
+    to be symmetric across the diagonal?" Right, and the two column kinds differ. Column 1 scores one
+    pre-stroke session against OTHER pre-stroke sessions, so both sides estimate the same underlying
+    patterns and A[P,Q] has expectation zero -- whatever is there is noise. Every later column scores
+    a genuinely different distribution against the pre-stroke reference, and there the asymmetry is
+    the SUBSTITUTION: which way a position moved, not merely that it moved.
+
+    A GREEN RING marks a pair whose 95% block-bootstrap interval excludes zero. Read the PRE column
+    first: rings there are the false-positive rate this construction actually achieves, and they
+    should be few.
+
+    THIS FIGURE MUST NOT BE SYMMETRISED, unlike figure 7. There the two cells estimated ONE quantity
+    and differed only by which random half went where, so averaging them was strictly better. Here
+    they estimate different quantities and the difference is the result.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            _, days = _collect_7(align, v, min_trials)
+            if not days:
+                continue
+            cis = _asymmetry_ci(align, v, min_trials)
+            if not cis:
+                continue
+            cols = ["PRE"] + list(days)
+            fig, axes = plt.subplots(len(ANIMALS), len(cols),
+                                     figsize=(2.05 * len(cols) + 1.6, 9.2), squeeze=False)
+            im = None
+            for ri, an in enumerate(ANIMALS):
+                rec = cis.get(an) or {}
+                for ci, key in enumerate(cols):
+                    ax = axes[ri][ci]
+                    got = rec.get(key)
+                    if got is None:
+                        ax.axis("off")
+                        continue
+                    A, sig = got
+                    lim = float(np.nanpercentile(np.abs(A), 95)) or 1.0
+                    im = ax.imshow(np.ma.masked_invalid(A), vmin=-lim, vmax=lim, cmap="PuOr_r")
+                    for i in range(len(CONF_LABELS)):
+                        for j in range(len(CONF_LABELS)):
+                            if sig[i, j]:
+                                ax.add_patch(plt.Rectangle((j - .5, i - .5), 1, 1, fill=False,
+                                                           edgecolor="lime", lw=1.4))
+                    ax.set_xticks(range(len(CONF_LABELS)))
+                    ax.set_yticks(range(len(CONF_LABELS)))
+                    ax.set_xticklabels(CONF_LABELS if ri == len(ANIMALS) - 1 else [],
+                                       rotation=90, fontsize=5.5)
+                    ax.set_yticklabels(CONF_LABELS if ci == 0 else [], fontsize=5.5)
+                    n_sig = int(sig.sum() // 2)          # antisymmetric: each pair rings twice
+                    head = "PRE, leave-1-out" if key == "PRE" else f"day {key}"
+                    ax.set_title(f"{head}  {n_sig}/15", fontsize=7.5,
+                                 fontweight="bold" if ci == 0 else "normal")
+                    if ci == 0:
+                        ax.set_ylabel(f"{an}\nthis position", fontsize=8, fontweight="bold")
+            if im is None:
+                plt.close(fig)
+                continue
+            fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
+                         label="d(post P, pre Q) - d(post Q, pre P)")
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.suptitle(
+                f"Is the distance matrix ASYMMETRIC, and where? -- {wname} window\n"
+                f"Post-stroke class: {cls}.  A[P,Q] = d(post at P, pre at Q) - d(post at Q, pre at "
+                f"P). Rows and columns index different sets, so symmetry is not expected.\n"
+                f"GREEN RING = 95% block-bootstrap interval excludes zero. The count above each "
+                f"panel is rung pairs out of 15.\n"
+                f"READ THE PRE COLUMN FIRST: both sides there estimate the same patterns, so its "
+                f"asymmetry has expectation zero and its rings are this construction's own "
+                f"false-positive rate.", fontsize=9.5)
+            _footer(fig)
+            p = Path(out_dir) / f"grant_8e_asymmetry_{align}_{v}.png"
+            fig.savefig(p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
 def _impaired(an, thresh=0.5, min_n=10):
     """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
 
@@ -3195,13 +3377,13 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "9"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "9"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "9"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -3213,7 +3395,8 @@ def main(argv=None) -> int:
             ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
             ("7d", fig_splithalf_delta),
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
-            ("8d", fig_crossnobis_delta), ("9", fig_delta_trajectory))
+            ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry),
+            ("9", fig_delta_trajectory))
     for key, fn in jobs:
         if key not in want:
             continue
