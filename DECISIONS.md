@@ -4977,3 +4977,208 @@ its own `E:` root.
 The durable fix is to build it from `config.prestroke_dates()` explicitly and to validate on LOAD —
 a frozen artifact whose `dates` contain a post-stroke date should be refused, which is exactly the
 STALE contract `prestroke_reference.load_or_freeze` already implements.
+
+---
+
+## 2026-08-26 — Figure 8b gets an interval, and it retracts the figure's headline
+
+Priya: *"let's add intervals everywhere we can (as you deem appropriate scientifically)."* 8b was the
+last figure with none, and it is the one that most needed one: it is the **only** measure in the
+grant set that a global amplitude change cannot move, which is why it is the arbiter for every claim
+about geometry.
+
+### THE HEADLINE DOES NOT SURVIVE
+
+`_rdm_ci` block-bootstraps the scheduler's position blocks within session, sessions held fixed, with
+the leave-one-session-out ceiling resampled in the SAME draw so the delta is taken draw by draw.
+On the `cue` window, `lick` class:
+
+| | median 95% width | sessions whose change from the PRE ceiling excludes 0 |
+|---|---|---|
+| whole-RDM correlation | **0.278** | **2 of 27** |
+
+The figure was being read as a positive result — post-stroke values of 0.7–0.9 against a ceiling of
+0.88 look like *the geometry is preserved*. They are not. **They are undetermined.** PS93 day 1
+reads 0.64 against a ceiling of 0.89 — a drop of 0.25 — with an interval of [−0.69, +0.08]. At this
+trial count the whole-RDM correlation cannot separate "unchanged" from "substantially rearranged",
+and 8b must not be quoted as evidence for either. Only PS95 days 1 (−0.37 [−0.71, −0.04]) and 3
+(−0.20 [−0.37, −0.05]) are callable.
+
+The **per-position rows** are the sharper instrument — five distances instead of one number pooled
+over fifteen — and `close_center` is the position whose row most often excludes zero (PS92 d7,
+PS94 d3/d4/d5, PS95 d1). That is the same position the lick-free control has been singling out.
+
+This is another grant figure saying something it was not entitled to say, and again the cause was a
+missing denominator rather than a wrong number. **The interval was the whole finding.**
+
+### THE WHITENER IS NOT A FREE PARAMETER — measured, not assumed
+
+The obvious speed-up (a 200-draw bootstrap over ~125 ms pseudo-inverses runs for four hours) is to
+fix the whitener once per animal and reuse it across draws, as `_mats_crossnobis` already does for
+the distance figures. **That is not available here.** Measured over all four animals, on the mean
+post-stroke-minus-PRE contrast:
+
+| whitener rule | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| per set, as `_crossnobis_within` does (SHIPPED) | −0.067 | −0.053 | −0.064 | −0.090 |
+| per set, reference subsampled to matched n | −0.180 | −0.092 | −0.077 | −0.092 |
+| one common whitener, pre + post pooled | −0.258 | +0.014 | −0.111 | +0.003 |
+| one common whitener, PRE ONLY | −0.509 | −0.079 | −0.330 | −0.242 |
+
+Individual sessions move by up to **0.60**. An interval computed under one rule and printed beside
+an estimate computed under another describes nothing — precisely how figure 8d's
+`+0.28 [+6.63, +69.41]` announced itself. So `_fast_rdm` had to be a faster ROUTE to the same
+estimator, not a cheaper one: one Cholesky solve replaces a pinv (~25 ms against ~125 ms) by using
+the fact that all fifteen quadratic forms share a right-hand side, and `tests/test_fast_rdm.py`
+asserts agreement with `_crossnobis_within` on the same rng state to 1e-8.
+
+**Two separate things are in that table, and only one is an artefact.**
+
+1. *Regularisation asymmetry — an artefact.* One session's Ledoit-Wolf whitener comes from ~355
+   residual rows in 380 dimensions (n < p, shrunk nearly to a scaled identity); the pooled pre
+   reference has ~3900 and is barely shrunk. Row 2 equalises them and roughly doubles PS92's
+   measured loss. The asymmetry is MATCHED between the PRE column and the post columns (a held-out
+   single session against a pooled rest, exactly like a post day against the pool), so the contrast
+   the figure endorses is protected — but the absolute values are not comparable to anything else.
+2. *The noise covariance itself changed.* Residual-covariance correlation is 0.82–0.90 between
+   pre-stroke sessions and 0.69–0.85 between pre and post, with PS92 the largest drop and PS92 also
+   the most metric-sensitive animal. **A per-session whitener measures the post-stroke geometry with
+   a ruler that deformed along with the thing being measured.** Row 4 is not the fix — whitening
+   post data by a pre-only metric is biased against post by construction. Row 3 is the fair version,
+   and it still moves PS92 to −0.26 and PS93/PS95 to zero.
+
+**Kept the per-set rule** (standard RSA practice; the noise genuinely does differ per session, and
+the contrast is matched) **and did not silently change the point estimates.** But 8b's absolute
+numbers are a property of the metric as much as of the brain, and the honest reading is the
+contrast, with the interval, and only for the two sessions where it excludes zero.
+
+### IMPLEMENTATION NOTES
+
+- `_rdm_scores` extracted: the per-position row correlation had been written out THREE times (8b
+  inline, `_rdm_rows`, and the new bootstrap). A row that means one thing in the heatmap and another
+  in the trajectory is a divergence this repo has already been bitten by.
+- `N_LOO_DRAW = 4` of 11 held-out sessions per draw, halving the run. **Checked rather than
+  assumed**: at n_loo 4 / 8 / 11 the delta widths are 0.80 / 0.73 / 0.71 (PS93 d1) and
+  0.82 / 0.95 / 0.97 (d3) — indistinguishable. The width is dominated by the post-stroke session's
+  own trial noise, not by the ceiling.
+- Sessions are held FIXED, as in every other interval here, so this is **trial noise only**. It says
+  nothing about how much a NEW post-stroke day would differ; the spread of the PRE ceiling across
+  sessions is the figure's own estimate of that, and it is the larger of the two.
+- Drawn as a shaded band on the whole-RDM trace and as a **boxed cell** on the per-position heatmap
+  (an outline, not a printed number, so it survives the `--compact` variant that drops in-cell text).
+
+---
+
+## 2026-08-26 — The frozen ENCODER, and the amplitude-versus-tuning question finally answered
+
+Priya: *"then consider what encoder analyses make the most sense. I like the pre-stroke then
+post-stroke by session analysis structure. We don't have DLC yet."* Figure 11 is that, and it is the
+first encoder figure in the grant set.
+
+### WHY AN ENCODER, AND WHY THIS ONE
+
+The decoder asks whether position can be READ OUT of cortex. It answers with one number per session
+and, because it pools across components by construction, it cannot say what changed. The encoder
+asks whether the position → activity MAPPING still holds, and its residual is a per-position object.
+
+More to the point: it is the only framing in which the question figures 6, 7, 8 and 8b have circled
+for a fortnight — **did the code MOVE, or did it merely get SMALLER?** — becomes two separately
+estimated numbers rather than two readings of one. Correlations (6, 6b, 8b) are blind to amplitude
+by construction; distances (8, 8d) are dominated by it. Neither can decompose.
+
+A frozen one-hot position encoder trained on pre-stroke sessions only predicts, for a trial at
+position q, the pre-stroke mean pattern at q — ridge on a one-hot design IS the per-position mean,
+shrunk. So the whole analysis runs off `_collect_7`, which means figure 11 uses **the same trials,
+the same engagement gate, the same classes and the same leave-one-session-out reference** as figures
+6, 7, 8 and 8b. That consistency is not incidental; a sixth data path would be a sixth chance for
+two figures claiming to describe the same trials to stop doing so.
+
+Fitting ONE gain per session splits the failure (`_enc_terms`):
+
+    raw   = 1 - S|m - p|^2 / S|m|^2      what the frozen encoder actually achieves
+    a     = S m.p / S p.p                the single best gain for this session
+    gain  = 1 - S|m - a p|^2 / S|m|^2    what it would achieve if allowed to rescale
+
+Patterns are centred on the session's own across-position mean first, so a session-wide shift in F0
+or SNR — which carries no position information — is charged to neither term.
+
+**The gain is ONE number per session, deliberately.** A per-position gain would absorb exactly the
+position-specific amplitude loss that IS the deficit, and the decomposition would report nothing.
+
+### THE TRAP IN THE DECOMPOSITION, found by a test before it reached a caption
+
+The first docstring said `gain - raw` is *the part of the failure that is pure amplitude*. **It is
+not.** It is the part that RESCALING RECOVERS, and a code that is simply GONE also recovers a lot,
+because the best gain collapses towards zero and predicting nothing beats predicting an unrelated
+pattern. Unrelated patterns give raw = −1.37, gain = 0.01 — a difference of 1.38 that is not an
+amplitude story at all. Only `gain` itself separates the two, and the reading order is fixed:
+
+    gain high, a far from 1  -> same code, smaller (or larger). Pure amplitude.
+    gain high, a near 1      -> nothing changed.
+    gain low                 -> the tuning changed, whatever `a` says.
+
+`test_gain_minus_raw_is_not_by_itself_an_amplitude_claim` pins both cases side by side so the
+caption cannot drift back.
+
+### WHAT IT SAYS (cue window, lick class, PRE = leave-one-session-out ceiling)
+
+| animal | PRE `raw` | post-stroke `raw` | post `gain` | post amplitude `a` | verdict |
+|---|---|---|---|---|---|
+| PS92 | +0.57 | +0.47 … +0.61 | 0.48–0.65 | 0.85–1.42 | **no detectable change on any day** |
+| PS93 | +0.63 | **−1.63 … −0.47** (d1–5), +0.42 (d7) | 0.03–0.19 | 0.12–0.35 | collapse, then full recovery by d7 |
+| PS94 | +0.56 | −0.11 … +0.39 | 0.11–0.40 | 0.41–0.95 | sustained loss, partial recovery d7 |
+| PS95 | +0.46 | +0.07 … +0.44 | 0.20–0.44 | 0.55–1.12 | intermediate; d4, d7, d9 down |
+
+**The decisive column is `gain`.** For PS93, PS94 and PS95 it stays at 0.03–0.44 against ceilings of
+0.46–0.67, so **rescaling does not recover the loss — the tuning itself changed.** A pure amplitude
+story predicts the opposite: `gain` back at the ceiling with only `a` moved. It is not observed in
+any impaired session. Note the honest qualifier that follows from the trap above: where `gain` is
+this low, `a` is no longer a clean amplitude estimate either (regression dilution drives it towards
+zero), so the correct statement is **"the loss is not explained by amplitude alone"**, not "the
+amplitude is unchanged".
+
+PS92 is the control case the figure needs: an animal where the encoder transfers as well
+post-stroke as it does between pre-stroke days, showing the measure is not simply detecting the
+passage of time.
+
+### A BOOTSTRAP BIAS THAT SHOWED UP THE FIRST TIME IT MET REAL DATA
+
+Several point estimates sat at or ABOVE the upper limit of their own percentile interval — PS92's
+encoder PRE read +0.57 against [+0.32, +0.56]. **An interval that does not contain its own
+estimate**, which is exactly how figure 8d announced itself.
+
+The cause is general and applies to every correlation or R² bootstrapped here: resampling blocks
+with replacement leaves only ~63% of a session's distinct trials in a draw, so every resampled mean
+is noisier than the observed one, and two noisier means agree less. The bootstrap distribution
+genuinely sits below the estimate.
+
+`_anchor` shifts a percentile interval by (estimate − bootstrap median): **the bootstrap supplies
+the WIDTH, the plotted estimate supplies the LOCATION.** Width and skew survive, and the band is
+guaranteed to contain the point drawn on top of it. A pivotal interval (2θ̂ − hi, 2θ̂ − lo) corrects
+the same bias but reflects the asymmetry, and where the bias exceeds half the width it returns a
+band lying entirely to one side of the estimate — true to the arithmetic, unreadable on a figure.
+
+Intervals are clipped to the parameter space, because a correlation of 0.98 shifted upward otherwise
+advertises an upper limit of 1.08. Bounds apply to correlations and R² and NOT to the gain `a` or to
+any difference of two correlations.
+
+**Applied to `_rdm_ci` as well**, so figures 8b, 8g and 11 follow one rule. For the DELTAS the bias
+largely cancels — day and ceiling are resampled in the same draw and both are pulled down together —
+and the shift there does come out small, which is a check on the correction rather than a use of it.
+
+### LIMITS, STATED ON THE FIGURE
+
+**No movement regressors — no DLC yet.** A position → activity encoder attributes to POSITION
+anything that co-varies with it, including how differently the animal moves to reach each spout, so
+a post-stroke change in movement appears here as a change in tuning. The `lick` class, the pre-cue
+window (which contains no lick at all) and the `working` class bound that differently: a difference
+holding across all three is not a movement artefact, and one appearing only in the lick window
+probably is. **This is the single largest caveat on figure 11 and it is on the figure, not only
+here.**
+
+### A CACHE HAZARD WORTH REMEMBERING
+
+`_rdm_ci` anchors on `_rdm_rows`, and both memoise on `(align, variant, min_trials)`. Clearing only
+one in a test left a stale point estimate from the PREVIOUS test driving this one's interval, and
+the scrambled-geometry case came out as "no change" — correct code, a ceiling computed from someone
+else's data. Any test that monkeypatches `_collect_7` must clear EVERY cache keyed on that tuple.

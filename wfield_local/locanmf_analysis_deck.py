@@ -2957,6 +2957,47 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "information survives in a weaker form: each position's ROW is its five distances to the "
          "others, so 'is far_R still arranged the way it was' is answerable and 'did far_R's "
          "pattern move' is not -- that question belongs to H8.")),
+        ("grant_8g_geometry_by_position_*.png",
+         "H8g. H8b split BY POSITION — one panel per spout, animals as lines",
+         ("H8b's left panel is already per position, but as an animal-major heatmap: comparing one "
+         "position ACROSS animals means reading four separate blocks. Here each position is a "
+         "panel and each animal a line, which is the comparison the deficit is about. DASHED = "
+         "that animal's own leave-one-session-out pre-stroke ceiling for that position; read a "
+         "trace against its own dashed line, never against 1. SHADED = 95% block bootstrap. "
+         "A GAP IS NOT A ZERO: a row correlation needs 4 of its 5 partner positions, so a session "
+         "missing two positions has EVERY row uncomputable, including the positions the animal "
+         "licked normally. That is a property of the estimator, not of the animal, and it is why "
+         "whole days vanish for PS94 in the lick class; the `working` class fills most of them.")),
+        ("grant_10_best_match_*.png",
+         "H10. Which pre-stroke position does each post-stroke position match BEST?",
+         ("Every panel above reduces a row of the similarity matrix to its DIAGONAL. That cannot "
+         "separate 'the code is gone' from 'the code moved to far_L': 0.2 against everything and "
+         "0.2 against itself with 0.7 against far_L are the same diagonal and different results. "
+         "This reduces the row to its ARGMAX instead, which uses all six entries and answers "
+         "'moved WHERE'. LEFT is the ceiling, leave-one-session-out -- it is NOT 6/6, and reading "
+         "the middle panel against 100% would overstate everything. RIGHT adds the mean RANK of "
+         "the true position, which degrades gracefully where the fraction is all-or-nothing: "
+         "slipping from first to second is not slipping to sixth. IMMUNE TO THE AMPLITUDE TERM -- "
+         "argmax and rank cannot move under a monotone change across a row, and the uniform row "
+         "shifts that dominate H8/H8d are exactly that. Ties go to the diagonal, so a flat row "
+         "never manufactures a substitution.")),
+        ("grant_11_encoder_gain_shape_*.png",
+         "H11. FROZEN ENCODER — did the position code MOVE, or just get SMALLER?",
+         ("THE FIRST ENCODER FIGURE IN THE SET, and the only one that answers that question with "
+         "two separately estimated numbers rather than two readings of one: correlations (H6, "
+         "H8b) are blind to amplitude by construction, distances (H8, H8d) are dominated by it. "
+         "A one-hot position encoder trained on PRE-STROKE SESSIONS ONLY predicts each position's "
+         "pre-stroke mean pattern; one gain fitted per session splits its failure. LEFT: transfer "
+         "without rescaling and with, the shaded gap being what rescaling recovers. MIDDLE: the "
+         "fitted gain, 1.0 = no amplitude change. RIGHT: what is left per position after the "
+         "session gain, i.e. a genuine tuning change, localised. READ THE GAIN FIRST -- a wide gap "
+         "alone is NOT an amplitude result, because an unrelated code also recovers a lot by "
+         "collapsing the gain towards zero. Observed: PS92 shows no detectable change on any day, "
+         "while PS93/94/95 keep a LOW after-gain score, so rescaling does not recover their loss. "
+         "CAVEAT, and it is the big one: NO MOVEMENT REGRESSORS (no DLC yet), so a post-stroke "
+         "change in how the animal moves would appear here as a change in tuning. A difference "
+         "that holds across the lick, working and pre-cue variants is not a movement artefact; one "
+         "that appears only in the lick window probably is.")),
     )
     if _grant.exists():
         divider("H. GRANT FIGURES — the summary set",

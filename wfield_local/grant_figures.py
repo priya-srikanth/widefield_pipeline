@@ -2612,6 +2612,92 @@ def _triu_vals(D):
     return D[iu]
 
 
+def _lw_cov(R):
+    """Ledoit-Wolf shrunk covariance, computed directly instead of through sklearn.
+
+    Bit-identical to ``LedoitWolf().fit(R).covariance_`` -- asserted, not assumed, in
+    ``tests/test_fast_rdm.py`` -- and about four times faster. sklearn stays the route the point
+    estimates take; this exists only so a per-draw whitener is affordable inside a bootstrap.
+    """
+    n, p = R.shape
+    X = R - R.mean(0)
+    S = X.T @ X / n
+    mu = np.trace(S) / p
+    d2 = float(((S - mu * np.eye(p)) ** 2).sum() / p)
+    if d2 <= 0:
+        return S
+    b2 = min(float((((X ** 2).T @ (X ** 2)) / n - S ** 2).sum() / p / n), d2)
+    return (b2 / d2) * mu * np.eye(p) + (1 - b2 / d2) * S
+
+
+def _fast_rdm(src, rng, labels):
+    """`_crossnobis_within` without the 380x380 pseudo-inverse. THE SAME ESTIMATOR, not a new one.
+
+    Every quadratic form (m0_a - m0_b) P (m1_a - m1_b) shares one right-hand side, so with
+    A = M0 C^-1 M1' the entry is A[a,a] - A[a,b] - A[b,a] + A[b,b] and ONE Cholesky solve replaces a
+    pinv per call: ~25 ms against ~125 ms. That is the difference between a bootstrap that finishes
+    and one that runs for four hours.
+
+    IT HAD TO BE THE SAME ESTIMATOR. The obvious speed-up -- fix the whitener once per animal and
+    reuse it across draws, as `_mats_crossnobis` does for the distance figures -- is not available
+    here: measured over all four animals it moves 8b's whole-RDM correlation by up to 0.60 and its
+    post-minus-PRE contrast from -0.07 to -0.51 (DECISIONS.md, 2026-08-26). An interval computed
+    under a different whitener rule would not describe the number printed beside it, which is
+    exactly how figure 8d's "+0.28 [+6.63, +69.41]" announced itself.
+    """
+    m0, m1, res = _halves(src, rng, labels)
+    n = len(labels)
+    D = np.full((n, n), np.nan)
+    if len(m0) < 2 or not res:
+        return D
+    R = np.vstack(res)
+    if len(R) < 3:
+        return D
+    keys = [q for q in labels if q in m0]
+    M0 = np.stack([m0[q] for q in keys])
+    M1 = np.stack([m1[q] for q in keys])
+    try:
+        from scipy.linalg import cho_factor, cho_solve
+        A = M0 @ cho_solve(cho_factor(_lw_cov(R)), M1.T)
+    except Exception:                                                # noqa: BLE001
+        # SAME FALLBACK AS `_whitener`, so a box without scipy or sklearn degrades identically
+        # rather than silently producing a second kind of number.
+        P = _whitener(res)
+        if P is None:
+            return D
+        A = M0 @ P @ M1.T
+    at = {q: i for i, q in enumerate(keys)}
+    for i, a in enumerate(labels):
+        for j, b in enumerate(labels):
+            if i >= j or a not in at or b not in at:
+                continue
+            x, y = at[a], at[b]
+            D[i, j] = D[j, i] = float(A[x, x] - A[x, y] - A[y, x] + A[y, y])
+    return D
+
+
+def _rdm_scores(D, Dref):
+    """(whole-RDM r, per-position row r) for one RDM against a reference RDM.
+
+    ONE DEFINITION for figure 8b, figure 8g and the bootstrap that puts intervals on both. It was
+    written out three times; a per-position row that means one thing in the heatmap and another in
+    the trajectory is precisely the divergence this repo has already been bitten by.
+    """
+    a, b = _triu_vals(D), _triu_vals(Dref)
+    ok = np.isfinite(a) & np.isfinite(b)
+    whole = (float(np.corrcoef(a[ok], b[ok])[0, 1])
+             if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]) else np.nan)
+    rows = np.full(D.shape[0], np.nan)
+    for i in range(D.shape[0]):
+        ra, rb = np.delete(D[i], i), np.delete(Dref[i], i)
+        m = np.isfinite(ra) & np.isfinite(rb)
+        # A ROW IS FIVE NUMBERS. Below four usable ones a correlation is not an estimate of
+        # anything, so the cell stays blank rather than printing an r built from three points.
+        if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
+            rows[i] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+    return whole, rows
+
+
 def fig_crossnobis_cross(out_dir, min_trials=10):
     """8: figure 6 rebuilt on cross-validated (crossnobis) distances instead of correlations.
 
@@ -2743,6 +2829,16 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
     positions and gives up gain-invariance.
 
     Rows = position, columns = day; the strip above each animal is the whole-RDM correlation.
+
+    WHAT THE INTERVALS CHANGED (2026-08-26). This figure carried no uncertainty for two weeks and
+    was being read as a positive result: post-stroke correlations of 0.7-0.9 against a ceiling of
+    0.88 look like "the geometry is preserved". With a block bootstrap the median 95% interval on a
+    post-stroke whole-RDM correlation is 0.28 wide, and of 27 post-stroke sessions only TWO have a
+    change from the ceiling that excludes zero. The rest are UNDETERMINED, not preserved -- PS93
+    day 1 reads 0.64 against a ceiling of 0.89, a drop of 0.25, with an interval of [-0.69, +0.08].
+    At this trial count the whole-RDM correlation cannot distinguish "unchanged" from "substantially
+    rearranged", and the figure must not be quoted as evidence for either. The per-position rows are
+    the sharper instrument, and close_center is where they most often exclude zero.
     """
     made = []
     for _disp, align, wname in WINDOWS:
@@ -2750,6 +2846,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
+            ci_store, _cd = _rdm_ci(align, v, min_trials)
             fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(4.6 + 0.62 * len(days), 10.4),
                                      squeeze=False,
                                      gridspec_kw={"width_ratios": [len(days) + 1, 3.4]})
@@ -2766,23 +2863,9 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
                 rows = np.full((len(CONF_LABELS), 1 + len(days)), np.nan)
                 whole = np.full(1 + len(days), np.nan)
-                def _score_rdm(D, Dref):
-                    """(whole-RDM r, per-position row r) for one session against one reference."""
-                    a, b = _triu_vals(D), _triu_vals(Dref)
-                    ok = np.isfinite(a) & np.isfinite(b)
-                    w = (float(np.corrcoef(a[ok], b[ok])[0, 1])
-                         if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]) else np.nan)
-                    rr = np.full(len(CONF_LABELS), np.nan)
-                    for i in range(len(CONF_LABELS)):
-                        ra, rb = np.delete(D[i], i), np.delete(Dref[i], i)
-                        m = np.isfinite(ra) & np.isfinite(rb)
-                        # A ROW IS FIVE NUMBERS. Below four usable ones a correlation is not an
-                        # estimate of anything, so the cell stays blank rather than printing an
-                        # r built from three points.
-                        if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
-                            rr[i] = float(np.corrcoef(ra[m], rb[m])[0, 1])
-                    return w, rr
-
+                # `_rdm_scores` is shared with figure 8g and with the bootstrap that puts intervals
+                # on both -- it used to be written out here a third time.
+                _score_rdm = _rdm_scores
                 for ci in range(1 + len(days)):
                     # COLUMN 0 IS GENUINELY LEAVE-ONE-SESSION-OUT (corrected 2026-08-25). It used to
                     # correlate the MEAN of the per-session RDMs against the RDM of the POOLED set --
@@ -2809,6 +2892,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                         continue
                     whole[ci], rows[:, ci] = _score_rdm(
                         _crossnobis_within(src, rng, CONF_LABELS), Dpre)
+                crec = ci_store.get(an) or {}
                 ax = axes[ri][0]
                 ax.imshow(np.ma.masked_invalid(rows), vmin=-1, vmax=1, cmap="RdBu_r",
                           aspect="auto")
@@ -2817,6 +2901,15 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                         if np.isfinite(rows[i, j]):
                             _txt(ax, j, i, f"{rows[i, j]:.2f}", ha="center", va="center",
                                     fontsize=7.5)
+                        # A BOXED CELL is one whose block-bootstrap interval on the CHANGE from the
+                        # pre-stroke ceiling excludes zero. Drawn as an outline rather than printed
+                        # as a number so it survives the compact variant, which drops in-cell text.
+                        if j == 0:
+                            continue
+                        iv = ((crec.get(days[j - 1]) or {}).get("drows") or {}).get(CONF_LABELS[i])
+                        if _excludes_zero(iv):
+                            ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
+                                                       edgecolor="k", lw=1.6, zorder=5))
                 ax.set_xticks(range(1 + len(days)))
                 ax.set_xticklabels((["PRE"] + [f"d{d}" for d in days])
                                    if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
@@ -2828,6 +2921,21 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                                  fontsize=11)
                 ax2 = axes[ri][1]
                 xs = np.arange(1 + len(days))
+                # THE SHADED BAND is the 95% block-bootstrap interval on each point. Where a post
+                # column's band clears the PRE band the geometry demonstrably changed; where they
+                # overlap the figure is not entitled to say so, and until now it had no way to
+                # express the difference.
+                lo = np.full(1 + len(days), np.nan)
+                hi = np.full(1 + len(days), np.nan)
+                for j in range(1 + len(days)):
+                    iv = (crec.get("PRE" if j == 0 else days[j - 1]) or {}).get("whole")
+                    if iv:
+                        lo[j], hi[j] = iv[0], iv[1]
+                m = np.isfinite(lo)
+                if m.any():
+                    ax2.fill_between(xs[m], lo[m], hi[m], color="#2166ac", alpha=0.18, lw=0)
+                    if m[0]:
+                        ax2.axhspan(lo[0], hi[0], color="0.55", alpha=0.20, lw=0, zorder=0)
                 ax2.plot(xs, whole, "o-", color="#2166ac", ms=4.5, lw=1.4)
                 ax2.axhline(0, color="k", lw=0.8)
                 ax2.set_ylim(-0.3, 1.05)
@@ -2852,7 +2960,10 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 f"PRE column = each pre-stroke session against an RDM built from the OTHERS only "
                 f"(leave-one-session-out), which is the ceiling. Per-position numbers are that "
                 "position's five distances to the others --\n'is it still arranged the same way', "
-                f"NOT 'did its pattern move'. Read the post columns against PRE, never against 1.",
+                f"NOT 'did its pattern move'. Read the post columns against PRE, never against 1.\n"
+                f"SHADED BAND / BOXED CELL = 95% block bootstrap over the scheduler's position "
+                f"blocks; a box means the change from the PRE ceiling excludes zero. Sessions are "
+                f"held FIXED, so this is TRIAL noise only.",
                 fontsize=9.5)
             fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
             _footer(fig)
@@ -3826,16 +3937,7 @@ def _rdm_rows(align, variant, min_trials=10):
         Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
 
         def score(D, Dref):
-            a, b = _triu_vals(D), _triu_vals(Dref)
-            ok = np.isfinite(a) & np.isfinite(b)
-            whole = (float(np.corrcoef(a[ok], b[ok])[0, 1])
-                     if ok.sum() >= 4 and np.std(a[ok]) and np.std(b[ok]) else np.nan)
-            rows = np.full(len(CONF_LABELS), np.nan)
-            for i in range(len(CONF_LABELS)):
-                ra, rb = np.delete(D[i], i), np.delete(Dref[i], i)
-                m = np.isfinite(ra) & np.isfinite(rb)
-                if m.sum() >= 4 and np.std(ra[m]) and np.std(rb[m]):
-                    rows[i] = float(np.corrcoef(ra[m], rb[m])[0, 1])
+            whole, rows = _rdm_scores(D, Dref)
             n_pos = int(np.isfinite(np.diag(Dref)).sum() or 0)
             return rows, whole, n_pos
 
@@ -3856,6 +3958,200 @@ def _rdm_rows(align, variant, min_trials=10):
         if rec:
             out[an] = rec
     return out, days
+
+
+#: draws for the RDM bootstrap. Matches `N_BOOT_DELTA`; kept separate so the RDM figures can be
+#: retuned without touching the delta grids.
+N_BOOT_RDM = 200
+#: held-out pre-stroke sessions scored per draw when building the leave-one-out ceiling. With 11
+#: pre-stroke sessions a full pass costs 22 RDMs a draw and dominates the run; subsampling four
+#: keeps the ceiling UNBIASED (every session is still held out ~70 times over 200 draws) at the cost
+#: of a little Monte-Carlo variance, which would WIDEN the delta interval.
+#: MEASURED, not assumed: on PS93 at 4 / 8 / 11 the delta widths are 0.80 / 0.73 / 0.71 (day 1) and
+#: 0.82 / 0.95 / 0.97 (day 3) -- indistinguishable, and half the run time. The width is dominated by
+#: the post-stroke session's own trial noise, not by the ceiling.
+N_LOO_DRAW = 4
+
+
+def _pct3(v):
+    return (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)), float(np.median(v)))
+
+
+def _anchor(iv, theta, lo=None, hi=None):
+    """Move a percentile interval so it contains the estimate the figure actually plots.
+
+    A block bootstrap of a CORRELATION or an R^2 is biased LOW, and not subtly. Resampling blocks
+    with replacement leaves only ~63% of a session's distinct trials in a draw, so every resampled
+    mean is noisier than the observed one, and two noisier means agree less. It showed the first
+    time this was run on real data: several encoder point estimates sat at or ABOVE the upper limit
+    of their own percentile interval (PS92 PRE +0.57 against [+0.32, +0.56]). That is the same
+    "interval that does not contain its own estimate" failure figure 8d announced itself with.
+
+    THE SPREAD IS STILL RIGHT; only the location is wrong. Shifting by (estimate - bootstrap median)
+    keeps the width and the asymmetry and guarantees the band contains the point drawn on top of it.
+    A pivotal interval (2*theta - hi, 2*theta - lo) corrects the same bias but REFLECTS the
+    asymmetry, and where the bias exceeds half the width it returns a band lying entirely to one
+    side of the estimate -- true to the arithmetic and unreadable on a figure.
+
+    FOR THE DELTAS THE BIAS LARGELY CANCELS: the day and the ceiling are resampled in the SAME draw
+    and both are pulled down together, so the shift there comes out small. That is a check on this
+    correction rather than a use of it.
+    """
+    if not iv or theta is None or not np.isfinite(theta):
+        return iv
+    d = float(theta) - iv[2]
+    lo_, hi_ = iv[0] + d, iv[1] + d
+    # CLIPPED TO THE PARAMETER SPACE. Shifting a band that already sits near a bound pushes it past
+    # one: a row correlation of 0.98 acquires an upper limit of 1.08, which no correlation can take.
+    # The bound is a fact about the quantity, not a cosmetic trim.
+    if lo is not None:
+        lo_ = max(lo_, lo)
+    if hi is not None:
+        hi_ = min(hi_, hi)
+    return (lo_, hi_, float(theta))
+
+
+def _rdm_pct(ws, rs, n_boot):
+    """{"whole": (lo, hi, med), "rows": {position: (lo, hi, med)}} from a draw list, or None."""
+    w = np.array([x for x in ws if np.isfinite(x)])
+    if len(w) < n_boot // 4:
+        return None
+    rec = {"whole": _pct3(w), "rows": {}}
+    if rs:
+        R = np.stack(rs)
+        for k, q in enumerate(CONF_LABELS):
+            col = R[:, k]
+            col = col[np.isfinite(col)]
+            if len(col) >= n_boot // 4:
+                rec["rows"][q] = _pct3(col)
+    return rec
+
+
+@lru_cache(maxsize=6)
+def _rdm_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
+    """Block-bootstrap intervals for figures 8b and 8g.
+
+    Returns ``({animal: {"PRE"|day: rec}}, days)`` where a post-stroke ``rec`` carries the day's own
+    correlation (``whole``, ``rows``) AND its change from the leave-one-session-out pre-stroke
+    ceiling (``dwhole``, ``drows``). Both come from the same draws, so the delta is taken draw by
+    draw and the two share their noise -- differencing two independently published intervals would
+    overstate the spread.
+
+    8b IS THE ARBITER for anything about geometry -- it is the one measure here that a global
+    amplitude change cannot move -- and it shipped for two weeks with no uncertainty at all. A
+    post-stroke session reading 0.82 against a pre-stroke ceiling of 0.90 is either a real loss or
+    nothing, and the figure gave the reader no way to tell.
+
+    WHAT IS RESAMPLED: the scheduler's ~6-trial position blocks, within session. SESSIONS ARE HELD
+    FIXED, following every other interval in this module, so this is trial-level noise only and says
+    nothing about how much a NEW post-stroke day would differ. The spread of the PRE ceiling across
+    sessions is the figure's own estimate of that, and it is the larger of the two.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        if len(pre_x) < 2 or not day_x:
+            continue
+        rng = np.random.default_rng(abs(hash((an, align, variant, "8bci"))) % (2 ** 31))
+        pre_w, pre_r = [], []
+        acc = {d: {"w": [], "r": [], "dw": [], "dr": []} for d in day_x}
+        try:
+            for _ in range(n_boot):
+                drawn = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in sorted(pre_x)}
+                drawn = {s: v for s, v in drawn.items() if v}
+                if len(drawn) < 2:
+                    continue
+
+                def _pool(exclude=None, drawn=drawn):
+                    a = {}
+                    for s, Z in drawn.items():
+                        if s == exclude:
+                            continue
+                        for q, z in Z.items():
+                            a.setdefault(q, []).append(z)
+                    return {q: np.vstack(v) for q, v in a.items()}
+
+                # THE CEILING IS LEAVE-ONE-SESSION-OUT, never the reference against itself: a set
+                # correlated with an RDM built from a pool CONTAINING it reads ~1 by construction,
+                # and every delta would come out at about -1 regardless of the data.
+                keys = list(drawn)
+                if len(keys) > n_loo:
+                    keys = [keys[k] for k in rng.choice(len(keys), n_loo, replace=False)]
+                ws, rs = [], []
+                for s in keys:
+                    rest = _pool(exclude=s)
+                    if not rest:
+                        continue
+                    w, rr = _rdm_scores(_fast_rdm(drawn[s], rng, CONF_LABELS),
+                                        _fast_rdm(rest, rng, CONF_LABELS))
+                    ws.append(w)
+                    rs.append(rr)
+                if not ws:
+                    continue
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    ceil_w = float(np.nanmean(ws))
+                    ceil_r = np.nanmean(np.stack(rs), axis=0)
+                pre_w.append(ceil_w)
+                pre_r.append(ceil_r)
+                Dref = _fast_rdm(_pool(), rng, CONF_LABELS)
+                for d in day_x:
+                    dr = _block_boot(day_x[d], day_b[d], rng)
+                    if not dr:
+                        continue
+                    w, rr = _rdm_scores(_fast_rdm(dr, rng, CONF_LABELS), Dref)
+                    acc[d]["w"].append(w)
+                    acc[d]["r"].append(rr)
+                    acc[d]["dw"].append(w - ceil_w)
+                    acc[d]["dr"].append(rr - ceil_r)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! 8b CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+                  flush=True)
+            continue
+        # ANCHORED ON THE PLOTTED ESTIMATE (see `_anchor`): `_rdm_rows` is what 8b and 8g draw, and
+        # a band that did not contain the point on top of it would be describing something else.
+        obs_all, _od = _rdm_rows(align, variant, min_trials)
+        orec = obs_all.get(an) or {}
+
+        def _fix(rc, col, delta=False, orec=orec):
+            t = orec.get(col)
+            if not rc or t is None:
+                return rc
+            b0 = orec.get("PRE") if delta else None
+            if delta and b0 is None:
+                return rc
+            # A CORRELATION LIVES IN [-1, 1]; a DIFFERENCE of two of them does not.
+            bd = {} if delta else {"lo": -1.0, "hi": 1.0}
+            rc["whole"] = _anchor(rc["whole"], t[1] - b0[1] if delta else t[1], **bd)
+            for k, q in enumerate(CONF_LABELS):
+                if q in rc["rows"]:
+                    th = t[0][k] - b0[0][k] if delta else t[0][k]
+                    rc["rows"][q] = _anchor(rc["rows"][q], th, **bd)
+            return rc
+
+        rec = {}
+        base = _fix(_rdm_pct(pre_w, pre_r, n_boot), "PRE")
+        if base:
+            rec["PRE"] = base
+        for d, a in acc.items():
+            cur = _fix(_rdm_pct(a["w"], a["r"], n_boot), d)
+            dlt = _fix(_rdm_pct(a["dw"], a["dr"], n_boot), d, delta=True)
+            if cur:
+                if dlt:
+                    cur["dwhole"], cur["drows"] = dlt["whole"], dlt["rows"]
+                rec[d] = cur
+        if rec:
+            out[an] = rec
+    return out, days
+
+
+def _excludes_zero(iv):
+    """True when a (lo, hi, med) interval lies wholly on one side of zero."""
+    return bool(iv) and (iv[0] > 0 or iv[1] < 0)
 
 
 def fig_geometry_by_position(out_dir, min_trials=10):
@@ -3882,6 +4178,7 @@ def fig_geometry_by_position(out_dir, min_trials=10):
             rows, days = _rdm_rows(align, v, min_trials)
             if not days or not rows:
                 continue
+            ci_store, _cd = _rdm_ci(align, v, min_trials)
             fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.4), squeeze=False, sharex=True,
                                      sharey=True, gridspec_kw={"hspace": 0.32})
             drew = False
@@ -3894,6 +4191,16 @@ def fig_geometry_by_position(out_dir, min_trials=10):
                     ys = [rec[d][0][k] for d in xs]
                     col = (config.animals().get(an) or {}).get("color", "0.4")
                     if xs:
+                        # 95% block-bootstrap band, drawn per animal. Four overlaid bands would be
+                        # unreadable at full opacity; at 0.13 the traces stay legible and a band
+                        # that clears its own dashed ceiling is still obvious.
+                        crec = ci_store.get(an) or {}
+                        bl = [((crec.get(d) or {}).get("rows") or {}).get(q) for d in xs]
+                        if any(bl):
+                            bx = [x for x, iv in zip(xs, bl) if iv]
+                            ax.fill_between(bx, [iv[0] for iv in bl if iv],
+                                            [iv[1] for iv in bl if iv],
+                                            color=col, alpha=0.13, lw=0)
                         ax.plot(xs, ys, "o-", color=col, ms=4, lw=1.4,
                                 label=an if k == 0 else None)
                         n_have += 1
@@ -3927,7 +4234,10 @@ def fig_geometry_by_position(out_dir, min_trials=10):
                       f"against 1.\n"
                       f"A GAP IS NOT A ZERO: a row needs 4 of its 5 partner positions, so a session "
                       f"missing two positions has EVERY row uncomputable -- including positions the "
-                      f"animal licked normally.")
+                      f"animal licked normally.\n"
+                      f"SHADED = 95% block bootstrap over the scheduler's position blocks, sessions "
+                      f"held FIXED (trial noise only). A band overlapping its own dashed ceiling is "
+                      f"a session this figure cannot call changed.")
             _footer(fig)
             p = _out(out_dir, f"grant_8g_geometry_by_position_{align}_{v}")
             _save(fig, p, dpi=200, bbox_inches="tight")
@@ -4103,6 +4413,433 @@ def fig_best_match(out_dir, min_trials=10):
             plt.close(fig)
             made.append(p)
     return made
+
+
+def fig_encoder_gain_shape(out_dir, min_trials=10):
+    """11: the FROZEN ENCODER -- and the amplitude-versus-tuning question answered directly.
+
+    Priya, 2026-08-26: *"then consider what encoder analyses make the most sense. I like the
+    pre-stroke then post-stroke by session analysis structure."* This is the forward model, in that
+    structure, and it is the first encoder figure in the grant set.
+
+    WHY AN ENCODER EARNS ITS PLACE HERE. The decoder asks whether position can be READ OUT of
+    cortex; it answers with one number per session and, because it pools across components by
+    construction, it cannot say what changed. The encoder asks whether the position -> activity
+    MAPPING still holds, and its residual is a per-position, per-component object. More to the
+    point, it is the only framing in which the question figures 6, 7, 8 and 8b have circled for a
+    fortnight -- did the code MOVE, or did it merely get SMALLER? -- becomes two separately
+    estimated numbers instead of two readings of one.
+
+    A frozen encoder with a one-hot position design trained on pre-stroke sessions only predicts,
+    for a trial at position q, the pre-stroke mean pattern at q. Fitting ONE gain for the session
+    splits its failure (`_enc_terms`):
+
+    LEFT -- how well the frozen model transfers, without rescaling (`raw`) and with (`gain`). The
+    SHADED GAP between them is what rescaling recovers. Read `gain` first: a high `gain` with a gap
+    means the code is intact and smaller, a low `gain` means the tuning itself changed and no
+    rescaling saves it. A LARGE GAP IS NOT BY ITSELF AN AMPLITUDE RESULT -- an unrelated code also
+    recovers a lot, because the best gain collapses towards zero and predicting nothing beats
+    predicting something wrong.
+
+    MIDDLE -- the fitted gain. 1.0 is no amplitude change; below it the whole position code is
+    weaker, above it stronger. This is the quantity every correlation-based panel here is blind to
+    by construction and every distance-based panel is dominated by.
+
+    RIGHT -- per position, what is left after the session gain is removed: a genuine tuning change,
+    localised. A boxed cell is one whose change from the pre-stroke ceiling excludes zero.
+
+    THE PRE COLUMN IS THE CEILING, leave-one-session-out, and it is not 1.0: a held-out pre-stroke
+    day does not reproduce the others exactly either. Read every post column against it.
+
+    NO MOVEMENT REGRESSORS (no DLC yet). A position -> activity encoder attributes to POSITION
+    anything that co-varies with it, including how differently the animal moves to reach each spout,
+    so a post-stroke change in movement would appear here as a change in tuning. The `lick` class,
+    the pre-cue window (which contains no lick at all) and the `working` class each bound that
+    differently; a difference that holds across all three is not a movement artefact, and one that
+    appears only in the lick window probably is.
+    """
+    made = []
+    for _disp, align, wname in WINDOWS:
+        for v in (("lick",) if align == "lick" else ("lick", "working")):
+            tab, days = _enc_tables(align, v, min_trials)
+            if not tab or not days:
+                continue
+            cis, _cd = _enc_ci(align, v, min_trials)
+            fig, axes = plt.subplots(
+                len(ANIMALS), 3, squeeze=False,
+                figsize=(8.4 + 0.62 * len(days), 2.5 * len(ANIMALS) + 2.0),
+                gridspec_kw={"width_ratios": [1.5, 1.0, 1.3], "hspace": 0.42, "wspace": 0.30})
+            drew = False
+            cols = ["PRE"] + list(days)
+            xs = np.arange(len(cols))
+            lab_c = ["PRE"] + [f"d{d}" for d in days]
+            for ri, an in enumerate(ANIMALS):
+                rec = tab.get(an)
+                if not rec:
+                    for ci in range(3):
+                        axes[ri][ci].axis("off")
+                    continue
+                crec = cis.get(an) or {}
+                drew = True
+
+                def _tr(idx, rec=rec, cols=cols):
+                    return np.array([rec[c][idx] if c in rec else np.nan for c in cols], float)
+
+                def _err(key, crec=crec, cols=cols):
+                    """(lower, upper) bar lengths from the stored percentile interval."""
+                    lo = np.full(len(cols), np.nan)
+                    hi = np.full(len(cols), np.nan)
+                    for j, c in enumerate(cols):
+                        iv = (crec.get(c) or {}).get(key)
+                        if iv:
+                            lo[j], hi[j] = iv[0], iv[1]
+                    return lo, hi
+
+                # ---------------- left: transfer, with and without a refitted gain
+                ax = axes[ri][0]
+                raw, gain = _tr(0), _tr(2)
+                m = np.isfinite(raw) & np.isfinite(gain)
+                if m.any():
+                    # THE SHADED GAP is what rescaling recovers. Drawn under the traces so neither
+                    # line is obscured by it.
+                    ax.fill_between(xs[m], raw[m], gain[m], color="#f0a202", alpha=0.28, lw=0,
+                                    label="recovered by rescaling" if ri == 0 else None)
+                for key, y, col, mk, nm in ((("raw"), raw, "#b2182b", "o", "frozen, as fitted"),
+                                            (("gain"), gain, "#2166ac", "s", "after one gain")):
+                    lo, hi = _err(key)
+                    ok = np.isfinite(y)
+                    e = np.vstack([np.where(np.isfinite(lo), y - lo, np.nan),
+                                   np.where(np.isfinite(hi), hi - y, np.nan)])
+                    ax.errorbar(xs[ok], y[ok], yerr=np.abs(e[:, ok]), fmt=mk + "-", color=col,
+                                ms=4.5, lw=1.4, elinewidth=1.0, capsize=2.5,
+                                label=nm if ri == 0 else None)
+                ax.axhline(0, color="k", lw=0.8)
+                lowest = np.nanmin(np.concatenate([raw, gain, [0.0]])) if m.any() else -0.5
+                ax.set_ylim(max(-2.0, lowest - 0.15), 1.08)
+                ax.set_ylabel(f"{an}\nvariance explained", fontsize=10.5, fontweight="bold")
+                if ri == 0:
+                    ax.set_title("does the position->activity map transfer?", fontsize=10.5)
+
+                # ---------------- middle: the fitted gain
+                ax1 = axes[ri][1]
+                a = _tr(1)
+                lo, hi = _err("a")
+                ok = np.isfinite(a)
+                e = np.vstack([np.where(np.isfinite(lo), a - lo, np.nan),
+                               np.where(np.isfinite(hi), hi - a, np.nan)])
+                ax1.errorbar(xs[ok], a[ok], yerr=np.abs(e[:, ok]), fmt="D-", color="#4d4d4d",
+                             ms=4, lw=1.3, elinewidth=1.0, capsize=2.5)
+                ax1.axhline(1.0, color="#1a9850", lw=1.2, ls="--")
+                if np.isfinite(a[0]):
+                    ax1.axhline(a[0], color="0.55", lw=1.0, ls=(0, (1, 2)))
+                ax1.set_ylim(-0.1, max(1.6, float(np.nanmax(a)) + 0.2) if ok.any() else 1.6)
+                ax1.set_ylabel("fitted gain", fontsize=9.5)
+                if ri == 0:
+                    ax1.set_title("amplitude of the whole\nposition code (1 = unchanged)",
+                                  fontsize=10.5)
+
+                # ---------------- right: what is left per position after the gain
+                ax2 = axes[ri][2]
+                G = np.full((len(CONF_LABELS), len(cols)), np.nan)
+                for j, c in enumerate(cols):
+                    for i, q in enumerate(CONF_LABELS):
+                        if c in rec and q in rec[c][3]:
+                            G[i, j] = rec[c][3][q]
+                ax2.imshow(np.ma.masked_invalid(G), vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
+                for i in range(len(CONF_LABELS)):
+                    for j in range(len(cols)):
+                        if np.isfinite(G[i, j]):
+                            _txt(ax2, j, i, f"{G[i, j]:.2f}", ha="center", va="center", fontsize=7)
+                        if j == 0:
+                            continue
+                        iv = ((crec.get(cols[j]) or {}).get("dpos") or {}).get(CONF_LABELS[i])
+                        if _excludes_zero(iv):
+                            ax2.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
+                                                        edgecolor="k", lw=1.6, zorder=5))
+                ax2.set_yticks(range(len(CONF_LABELS)))
+                ax2.set_yticklabels(_short(CONF_LABELS), fontsize=9)
+                if ri == 0:
+                    ax2.set_title("tuning left per position\n(gain already removed)", fontsize=10.5)
+
+                last = ri == len(ANIMALS) - 1
+                for axx in (ax, ax1):
+                    axx.set_xticks(xs)
+                    axx.set_xticklabels(lab_c if last else [], fontsize=9, rotation=45,
+                                        ha="right" if last else "center")
+                    axx.grid(alpha=0.25, lw=0.5)
+                ax2.set_xticks(xs)
+                ax2.set_xticklabels(lab_c if last else [], fontsize=9, rotation=45,
+                                    ha="right" if last else "center")
+                if last:
+                    for axx in (ax, ax1, ax2):
+                        axx.set_xlabel("days from lesion", fontsize=10)
+            if not drew:
+                plt.close(fig)
+                continue
+            h, lb = axes[0][0].get_legend_handles_labels()
+            if h:
+                fig.legend(h, lb, loc="lower center", ncol=3, fontsize=9.5, frameon=False,
+                           bbox_to_anchor=(0.5, 0.012))
+            cls = ("LICK trials only" if v == "lick" else
+                   "LICK + miss-while-working (quit period removed)")
+            fig.tight_layout(rect=(0, 0.075, 1, 1.0))
+            _suptitle(fig,
+                      f"FROZEN ENCODER: did the position code MOVE, or just get SMALLER? -- "
+                      f"{wname} window\n"
+                      f"Post-stroke class: {cls}.  A one-hot position encoder trained on pre-stroke "
+                      f"sessions ONLY predicts each position's pre-stroke mean pattern; one gain "
+                      f"fitted per session splits its failure in two.\n"
+                      f"READ THE GAIN FIRST. High 'after one gain' with a wide shaded gap = the "
+                      f"code is intact and WEAKER. Low 'after one gain' = the tuning itself "
+                      f"changed, and no rescaling saves it. A wide gap alone is not an amplitude "
+                      f"result: an unrelated code also recovers a lot, by collapsing the gain "
+                      f"towards zero.\n"
+                      f"PRE column = leave-one-session-out and is NOT 1.0. Boxed cell = change from "
+                      f"it excludes zero (95% block bootstrap, sessions held fixed).  NO MOVEMENT "
+                      f"REGRESSORS yet: a post-stroke change in how the animal moves would appear "
+                      f"here as a change in tuning.")
+            _footer(fig)
+            p = _out(out_dir, f"grant_11_encoder_gain_shape_{align}_{v}")
+            _save(fig, p, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+            made.append(p)
+    return made
+
+
+def _enc_terms(m_by_q, p_by_q):
+    """Split a FROZEN ENCODER's failure into an amplitude part and a tuning part.
+
+    A frozen encoder with a one-hot position design and a pre-stroke-only training set predicts, for
+    a trial at position q, the pre-stroke mean pattern p_q -- ridge on a one-hot design IS the
+    per-position mean, shrunk. Its residual on a post-stroke session mixes the two hypotheses the
+    rest of this figure set has spent a fortnight unable to separate: the response may be the same
+    shape but SMALLER, or it may genuinely have changed shape. ONE gain fitted for the whole session
+    splits them:
+
+        raw   = 1 - sum|m - p|^2 / sum|m|^2      what the frozen encoder actually achieves
+        a     = sum m.p / sum p.p                the single best gain for this session
+        gain  = 1 - sum|m - a p|^2 / sum|m|^2    what it would achieve if allowed to rescale
+
+    ``1 - gain`` is what survives rescaling and is a genuine change in TUNING. ``gain - raw`` is the
+    part of the failure that rescaling recovers -- **which is an amplitude change only when `gain`
+    itself is high.** A session whose code is simply gone also recovers a lot, because the best gain
+    collapses towards zero and predicting nothing beats predicting an unrelated pattern: unrelated
+    patterns give raw = -1.37, gain = 0.01, a difference of 1.38 that is not an amplitude story at
+    all. READ `gain` FIRST, then `a`:
+
+        gain high, a far from 1   -> same code, smaller (or larger). Pure amplitude.
+        gain high, a near 1       -> nothing changed.
+        gain low                  -> the tuning changed, whatever `a` says.
+
+    THE GAIN IS ONE NUMBER PER SESSION, deliberately: a per-position gain would absorb the
+    position-specific amplitude loss that IS the deficit, and the decomposition would say nothing.
+
+    Patterns are centred on the session's own mean across positions first, so a session-wide shift
+    in F0 or SNR -- which carries no position information and which the encoder is not being asked
+    to predict -- is charged to neither term.
+
+    Returns ``(raw, a, gain, {position: shape r2 after the gain})`` or NaNs when fewer than two
+    positions are shared.
+    """
+    qs = [q for q in CONF_LABELS if q in m_by_q and q in p_by_q]
+    nan = (np.nan, np.nan, np.nan, {})
+    if len(qs) < 2:
+        return nan
+    M = np.stack([m_by_q[q] for q in qs])
+    P = np.stack([p_by_q[q] for q in qs])
+    M = M - M.mean(0)
+    P = P - P.mean(0)
+    tot = float((M ** 2).sum())
+    pp = float((P ** 2).sum())
+    if tot <= 1e-12 or pp <= 1e-12:
+        return nan
+    raw = 1.0 - float(((M - P) ** 2).sum()) / tot
+    a = float((M * P).sum()) / pp
+    gain = 1.0 - float(((M - a * P) ** 2).sum()) / tot
+    per = {}
+    for k, q in enumerate(qs):
+        d = float((M[k] ** 2).sum())
+        if d > 1e-12:
+            per[q] = 1.0 - float(((M[k] - a * P[k]) ** 2).sum()) / d
+    return raw, a, gain, per
+
+
+def _enc_scores(src, ref):
+    """`_enc_terms` on the MEAN patterns of a scored set against a reference set."""
+    return _enc_terms(_means(src), _means(ref))
+
+
+@lru_cache(maxsize=6)
+def _enc_tables(align, variant, min_trials=10):
+    """{animal: {"PRE"|day: (raw, a, gain, per-position)}} for the encoder figure, plus days.
+
+    The PRE entry is LEAVE-ONE-SESSION-OUT and averaged over the held-out sessions -- the same
+    construction as every other pre-stroke column here. Without it the reference would contain the
+    session being scored and the encoder would read as near-perfect by construction.
+    """
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        if len(pre_by_sess) < 2 or not by_day:
+            continue
+        rec = {}
+        loo = [_enc_scores(pat, _pre_reference(pre_by_sess, exclude=s))
+               for s, pat in pre_by_sess.items()]
+        loo = [t for t in loo if np.isfinite(t[0])]
+        if loo:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                per = {q: float(np.nanmean([t[3][q] for t in loo if q in t[3]]))
+                       for q in CONF_LABELS if any(q in t[3] for t in loo)}
+                rec["PRE"] = (float(np.nanmean([t[0] for t in loo])),
+                              float(np.nanmean([t[1] for t in loo])),
+                              float(np.nanmean([t[2] for t in loo])), per)
+        full = _pre_reference(pre_by_sess)
+        for d, pat in by_day.items():
+            t = _enc_scores(pat, full)
+            if np.isfinite(t[0]):
+                rec[d] = t
+        if len(rec) > 1:
+            out[an] = rec
+    return out, days
+
+
+@lru_cache(maxsize=6)
+def _enc_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
+    """Block-bootstrap intervals for the encoder figure, built exactly like `_rdm_ci`.
+
+    Every draw resamples the scheduler's position blocks within each session, holds the SESSIONS
+    fixed, and scores the day and the leave-one-out pre-stroke ceiling in the SAME draw, so the
+    delta is taken draw by draw and the two share their noise.
+
+    Returns ``({animal: {"PRE"|day: rec}}, days)`` where each ``rec`` carries ``raw``, ``a``,
+    ``gain`` and ``pos`` intervals, and a post-stroke ``rec`` also carries ``d*`` versions -- the
+    change from the pre-stroke ceiling, which is the only quantity the figure makes a claim about.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        if len(pre_x) < 2 or not day_x:
+            continue
+        rng = np.random.default_rng(abs(hash((an, align, variant, "encci"))) % (2 ** 31))
+        keys3 = ("raw", "a", "gain")
+        base = {k: [] for k in keys3}
+        base["pos"] = []
+        acc = {d: {k: [] for k in list(keys3) + ["d" + k for k in keys3] + ["pos", "dpos"]}
+               for d in day_x}
+        try:
+            for _ in range(n_boot):
+                drawn = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in sorted(pre_x)}
+                drawn = {s: v for s, v in drawn.items() if v}
+                if len(drawn) < 2:
+                    continue
+
+                def _pool(exclude=None, drawn=drawn):
+                    a = {}
+                    for s, Z in drawn.items():
+                        if s == exclude:
+                            continue
+                        for q, z in Z.items():
+                            a.setdefault(q, []).append(z)
+                    return {q: np.vstack(v) for q, v in a.items()}
+
+                held = list(drawn)
+                if len(held) > n_loo:
+                    held = [held[k] for k in rng.choice(len(held), n_loo, replace=False)]
+                got = [_enc_scores(drawn[s], _pool(exclude=s)) for s in held]
+                got = [t for t in got if np.isfinite(t[0])]
+                if not got:
+                    continue
+                ceil = [float(np.mean([t[i] for t in got])) for i in range(3)]
+                cper = {q: float(np.mean([t[3][q] for t in got if q in t[3]]))
+                        for q in CONF_LABELS if any(q in t[3] for t in got)}
+                for k, v in zip(keys3, ceil):
+                    base[k].append(v)
+                base["pos"].append(cper)
+                full = _pool()
+                for d in day_x:
+                    dr = _block_boot(day_x[d], day_b[d], rng)
+                    if not dr:
+                        continue
+                    t = _enc_scores(dr, full)
+                    if not np.isfinite(t[0]):
+                        continue
+                    for ki, (k, v) in enumerate(zip(keys3, t[:3])):
+                        acc[d][k].append(v)
+                        acc[d]["d" + k].append(v - ceil[ki])
+                    acc[d]["pos"].append(t[3])
+                    acc[d]["dpos"].append({q: t[3][q] - cper[q] for q in t[3] if q in cper})
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! enc CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+                  flush=True)
+            continue
+
+        # THE PLOTTED ESTIMATE SUPPLIES THE LOCATION, the bootstrap the width -- see `_anchor`.
+        # `_enc_tables` is lru_cached and computes these with the very same `_enc_scores`, so the
+        # band and the point on top of it cannot come from two different definitions.
+        obs_all, _od = _enc_tables(align, variant, min_trials)
+        orec = obs_all.get(an) or {}
+
+        def _theta(col, key, orec=orec):
+            t = orec.get(col)
+            if t is None:
+                return None
+            if key in ("raw", "a", "gain"):
+                return t[("raw", "a", "gain").index(key)]
+            if key.startswith("d") and key[1:] in ("raw", "a", "gain"):
+                b0 = orec.get("PRE")
+                i = ("raw", "a", "gain").index(key[1:])
+                return None if b0 is None else t[i] - b0[i]
+            return None
+
+        def _theta_pos(col, q, delta, orec=orec):
+            t = orec.get(col)
+            if t is None or q not in t[3]:
+                return None
+            if not delta:
+                return t[3][q]
+            b0 = orec.get("PRE")
+            return None if b0 is None or q not in b0[3] else t[3][q] - b0[3][q]
+
+        def _pack(store_, want, col, n_boot=n_boot):
+            rec = {}
+            for k in want:
+                v = np.array([x for x in store_.get(k, []) if np.isfinite(x)])
+                if len(v) >= n_boot // 4:
+                    # `a` IS AN UNBOUNDED GAIN; the R^2 terms cannot exceed 1 and their intervals
+                    # must not either, or a session at ceiling advertises an impossible upper limit.
+                    hi = None if k in ("a", "da") else 1.0
+                    rec[k] = _anchor(_pct3(v), _theta(col, k), hi=hi)
+            for pk in ("pos", "dpos"):
+                dicts = store_.get(pk) or []
+                if not dicts:
+                    continue
+                got = {}
+                for q in CONF_LABELS:
+                    v = np.array([dd[q] for dd in dicts if q in dd and np.isfinite(dd[q])])
+                    if len(v) < n_boot // 4:
+                        continue
+                    got[q] = _anchor(_pct3(v), _theta_pos(col, q, pk == "dpos"),
+                                     hi=None if pk == "dpos" else 1.0)
+                if got:
+                    rec[pk] = got
+            return rec
+
+        rec = {}
+        b = _pack(base, keys3, "PRE")
+        if b:
+            rec["PRE"] = b
+        for d, s in acc.items():
+            r = _pack(s, list(keys3) + ["d" + k for k in keys3], d)
+            if r:
+                rec[d] = r
+        if len(rec) > 1:
+            out[an] = rec
+    return out, days
 
 
 def _impaired(an, thresh=0.5, min_n=10):
@@ -4322,13 +5059,13 @@ def main(argv=None) -> int:
                          "and narrower panels, for reproduction at a quarter of a letter page")
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10", "11"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10"))
+                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10", "11"))
     jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
             ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
             ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
@@ -4342,7 +5079,7 @@ def main(argv=None) -> int:
             ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
             ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry), ("8g", fig_geometry_by_position),
             ("9", fig_delta_trajectory),
-            ("10", fig_best_match))
+            ("10", fig_best_match), ("11", fig_encoder_gain_shape))
     def _run(tag=""):
         for key, fn in jobs:
             if key not in want:
