@@ -2982,6 +2982,14 @@ def _mats_crossnobis(_an, rng, sign=-1):
         rm0, rm1, rres = _halves(ref, rng, CONF_LABELS)
         if "P" not in held:
             held["P"] = _whitener(pres + rres)
+            # SAME UNITS AS THE FIGURE. `_matrices_crossnobis` divides every distance by the mean
+            # pre-stroke between-position distance, so 1.0 reads as "as far apart as two different
+            # pre-stroke positions". The interval was computed in RAW crossnobis units and printed
+            # beside a normalised point estimate -- figure 8d showed "day 1 +0.28 [+6.63, +69.41]",
+            # an interval not containing its own estimate, which is how the mismatch announced
+            # itself. Fixed from the first reference seen, so both numbers share one scale.
+            s = np.nanmean(_triu_vals(_crossnobis_within(ref, rng, CONF_LABELS)))
+            held["scale"] = float(s) if np.isfinite(s) and s > 0 else 1.0
         P = held["P"]
         D = np.full((len(CONF_LABELS), len(CONF_LABELS)), np.nan)
         if P is None:
@@ -2989,7 +2997,7 @@ def _mats_crossnobis(_an, rng, sign=-1):
         for i, a in enumerate(CONF_LABELS):
             for j, b in enumerate(CONF_LABELS):
                 if a in pm0 and b in rm0:
-                    D[i, j] = float((pm0[a] - rm0[b]) @ P @ (pm1[a] - rm1[b]))
+                    D[i, j] = float((pm0[a] - rm0[b]) @ P @ (pm1[a] - rm1[b])) / held["scale"]
         # NEGATED BY DEFAULT so "larger diagonal = more preserved" holds here as it does for the
         # correlation figures. `_delta_diag_ci` differences mean diagonals, and for a DISTANCE a
         # SMALLER diagonal means less change -- without the flip the interval would carry the
@@ -3081,9 +3089,25 @@ def fig_splithalf_delta(out_dir, min_trials=10):
     return made
 
 
-@lru_cache(maxsize=6)
-def _matrices_crossnobis(align, variant, min_trials=10):
-    """{animal: {"PRE": D, day: D}} of cross-set crossnobis distances, in pre-stroke units."""
+@lru_cache(maxsize=12)
+def _matrices_crossnobis(align, variant, min_trials=10, row_centre=False):
+    """{animal: {"PRE": D, day: D}} of cross-set crossnobis distances, in pre-stroke units.
+
+    ``row_centre`` subtracts each ROW's own mean, which is the difference between asking "did this
+    position move" and "which position did it move TOWARD".
+
+    WHY THAT MATTERS (Priya, 2026-08-26, on whole rows shifting together). Writing the
+    cross-validated distance out, in the whitened metric:
+
+        d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2
+
+    the first term depends ONLY ON P. So a change in the overall magnitude of position P's
+    post-stroke response moves its distance to EVERY pre-stroke position by the same amount, and the
+    panel shows a uniform orange or purple row. That is amplitude, not "this position came to
+    resemble all six". Row-centring removes the term that carries it and leaves the CONTRAST within
+    the row, which is where a substitution lives. Same gain sensitivity that makes 8b the arbiter
+    for anything about geometry.
+    """
     store, days = _collect_7(align, variant, min_trials)
     out = {}
     for an, (pre_by_sess, by_day) in store.items():
@@ -3100,6 +3124,10 @@ def _matrices_crossnobis(align, variant, min_trials=10):
             d["PRE"] = base / scale
         for day, pat in by_day.items():
             d[day] = _crossnobis_cross(pat, full_ref, rng, CONF_LABELS) / scale
+        if row_centre:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)      # a row can be entirely NaN
+                d = {k: M - np.nanmean(M, axis=1, keepdims=True) for k, M in d.items()}
         if d:
             out[an] = d
     return out, days
