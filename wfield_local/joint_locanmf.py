@@ -62,6 +62,59 @@ SEED = 0
 FORMAT_VERSION = 1          # bump if the on-disk layout or the fitting logic changes
 
 
+def server_basis_dir():
+    """Where `publish_basis` puts the bases on MICROSCOPE, or None if the share is unreachable.
+
+    READ-ONLY from here. `build` still writes locally: fitting is the expensive, machine-local step,
+    and publishing is a separate deliberate act with byte verification behind it (Rule 0 -- a copy
+    whose existence you have checked is not a verified copy).
+    """
+    try:
+        return Path(config.resolver().root("labcams")) / "joint_bases"
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+def _basis_candidates(animal):
+    """[(root, built_utc, origin)] for `animal` across BOTH the local dir and the server.
+
+    WHY THE SERVER IS SEARCHED AT ALL (Priya, 2026-08-26). The bases live in a LOCAL directory, so
+    the behavior box ran the 8/24 and 8/25 analysis and then could not build a single joint-basis
+    figure -- its deck hit the completeness gate and refused. `publish_basis` put the bases on the
+    share; this is the other half, the loader that can see them.
+
+    DEDUPED BY BASIS ID, PREFERRING LOCAL. A `basis_id` is a hash of its own inputs, so two
+    directories carrying the same id necessarily hold the same basis; when both roots have it the
+    local copy is the same bytes and is the one that does not read 180 MB of footprints over SMB.
+
+    NEWEST STILL WINS ACROSS ROOTS, and that is deliberate rather than incidental. `load` has always
+    meant "the newest saved basis"; if it preferred local wholesale it would quietly serve a
+    superseded frame on whichever box happened to be behind -- the same shape as the frozen-model
+    contamination, an artifact whose name asserts a currency nothing checks.
+    """
+    seen, out = {}, []
+    roots = [(BASIS_DIR, "local"), (server_basis_dir(), "server")]
+    for root, origin in roots:
+        if root is None:
+            continue
+        d = Path(root) / animal
+        if not d.exists():
+            continue
+        for p in sorted(d.glob("*")):
+            man = p / "manifest.json"
+            if not man.exists():
+                continue
+            try:
+                built = json.loads(man.read_text())["built_utc"]
+            except Exception:                      # noqa: BLE001
+                continue                           # a half-copied basis is not a candidate
+            if p.name in seen:
+                continue                           # local wins the tie; same id means same bytes
+            seen[p.name] = origin
+            out.append((p, built, origin))
+    return sorted(out, key=lambda r: r[1])
+
+
 def _stat_sig(path) -> str:
     try:
         st = os.stat(path)
@@ -344,16 +397,30 @@ def load(animal, bid=None, sessions=None, warn_stale=True):
     mismatch as soon as anything upstream is reprocessed. What must not happen is not noticing.
     """
     d = BASIS_DIR / animal
+    cands = _basis_candidates(animal)
     if bid:
-        root = d / bid
-        if not (root / "manifest.json").exists():
-            raise FileNotFoundError(f"no joint basis {bid} for {animal} under {d}")
+        hit = [(p, o) for p, _t, o in cands if p.name == bid]
+        if not hit:
+            raise FileNotFoundError(f"no joint basis {bid} for {animal} under {d} or the server")
+        root, origin = hit[0]
+        if origin == "server":
+            print(f"[joint_locanmf] {animal} basis {bid} served from MICROSCOPE (not on this box)",
+                  flush=True)
         return Basis(root)
-    cands = [p for p in sorted(d.glob("*")) if (p / "manifest.json").exists()] if d.exists() else []
     if not cands:
-        raise FileNotFoundError(f"no joint basis for {animal} under {d} — build one first")
-    cands.sort(key=lambda p: json.loads((p / "manifest.json").read_text())["built_utc"])
-    b = Basis(cands[-1])
+        srv = server_basis_dir()
+        raise FileNotFoundError(
+            f"no joint basis for {animal} under {d}"
+            + (f" or {srv / animal}" if srv else "")
+            + " — build one first, or publish it from the box that has it "
+              "(python -m wfield_local.publish_basis)")
+    root, _built, origin = cands[-1]
+    if origin == "server":
+        # NAMED, not silent. A basis is a reference frame, so which copy answered is provenance --
+        # and reading it over SMB is slow enough that a run which suddenly crawls should say why.
+        print(f"[joint_locanmf] {animal} basis {root.name} served from MICROSCOPE — this box has "
+              f"no local copy. Figures are correct; reads are over the network.", flush=True)
+    b = Basis(root)
     if warn_stale and sessions is not None:
         ok, exp = basis_is_current(b, sessions)
         if not ok:
@@ -367,10 +434,21 @@ def load(animal, bid=None, sessions=None, warn_stale=True):
 
 
 def listing():
-    """Every saved basis, newest last — for provenance when a figure's numbers are questioned."""
+    """Every saved basis, newest last — for provenance when a figure's numbers are questioned.
+
+    Covers the server as well as this box, and says which answered: "the basis is missing" and "the
+    basis is on the share but not here" are different problems with different fixes, and a listing
+    that only sees local disk cannot tell them apart.
+    """
+    animals = set()
+    for root in (BASIS_DIR, server_basis_dir()):
+        if root is None or not Path(root).exists():
+            continue
+        animals |= {p.name for p in Path(root).iterdir() if p.is_dir()}
     out = []
-    for man in sorted(BASIS_DIR.glob("*/*/manifest.json")):
-        m = json.loads(man.read_text())
-        out.append({k: m[k] for k in ("animal", "basis_id", "ncomp", "rank", "built_utc")}
-                   | {"n_sessions": len(m["labels"])})
+    for an in sorted(animals):
+        for p, _built, origin in _basis_candidates(an):
+            m = json.loads((p / "manifest.json").read_text())
+            out.append({k: m[k] for k in ("animal", "basis_id", "ncomp", "rank", "built_utc")}
+                       | {"n_sessions": len(m["labels"]), "origin": origin})
     return sorted(out, key=lambda r: r["built_utc"])

@@ -5182,3 +5182,59 @@ here.**
 one in a test left a stale point estimate from the PREVIOUS test driving this one's interval, and
 the scrambled-geometry case came out as "no change" — correct code, a ceiling computed from someone
 else's data. Any test that monkeypatches `_collect_7` must clear EVERY cache keyed on that tuple.
+
+## 2026-08-26 — The joint basis loader can see the server, and why "newest" beats "local"
+
+`publish_basis` (earlier today) put the eight joint LocaNMF bases on MICROSCOPE, byte-verified. That
+was only half a fix: `joint_locanmf.load` still looked in the LOCAL directory alone, so the share had
+the bases and no box could load them from it. This is the other half.
+
+### THE FAILURE IT CLOSES
+
+The behavior box ran the 8/24 and 8/25 analysis and could not build a single joint-basis figure —
+its deck hit the completeness gate and refused — because `BASIS_DIR` resolves to a machine-local path
+(`E:/joint_bases` on the helper box, elsewhere on the others) and nothing else was consulted. The
+bases were not missing. They were unreachable, which looked identical from the log.
+
+`load` now gathers candidates from BOTH the local directory and `labcams/joint_bases`, and `listing`
+reports which root answered — because "the basis does not exist" and "the basis is on the share but
+not on this box" are different problems with different fixes, and a listing that only sees local disk
+cannot tell them apart.
+
+### NEWEST WINS ACROSS ROOTS — NOT LOCAL-FIRST
+
+The tempting rule is "prefer local, fall back to the server". It is wrong. `load` has always meant
+*the newest saved basis*; preferring local wholesale would silently serve a superseded reference frame
+on whichever box happened to be behind. That is the frozen-model contamination shape again — an
+artifact whose name asserts a currency that nothing checks — and it would be harder to catch here,
+because a basis mismatch does not change a number's plausibility, only its meaning.
+
+So candidates are pooled and sorted by `built_utc`, exactly as before, with the search widened. Both
+directions are pinned by test: a newer server basis beats an older local one, AND a newer local basis
+beats an older server one, so the test cannot pass by always choosing one root.
+
+### THE ONE PLACE LOCAL IS PREFERRED, AND WHY IT IS SAFE
+
+When the same `basis_id` appears in both roots — the normal state after publishing — the local copy is
+used. A `basis_id` is a hash of its own inputs, so two directories carrying the same id necessarily
+hold the same basis; this is not a judgement call about which is better, it is a choice between two
+copies known to be identical. VERIFIED, not assumed: `A.npy` for PS92/76d884873920 is SHA-256 equal
+across the two roots (`26a8fbc7180fb11d…`), so the preference costs nothing but a 180 MB SMB read.
+
+### WHAT STAYS LOCAL
+
+`build` still writes locally, and a missing basis still RAISES rather than refitting. The module
+exists to stop a silent refit — "a refit over a grown session set is a DIFFERENT reference frame" —
+and a server fallback must not become a back door to that. The error message now names both places it
+looked and points at `python -m wfield_local.publish_basis`, so the fix is discoverable from the
+failure instead of from this file.
+
+### MEASURED, on the real share
+
+With `WIDEFIELD_JOINT_BASIS_DIR` pointed at an empty directory — the behavior box's exact situation —
+`load('PS92')` returns `76d884873920` (11 sessions, ncomp 95) from MICROSCOPE, `A` reads as
+(540, 640, 95) float32 and `signal('PS92_0606')` returns (95, 143788). The non-finite entries in `A`
+are the off-brain mask, present identically in the local copy; they are data, not a bad network read.
+
+A half-copied basis directory — publishing is a file-by-file copy, so one can exist mid-flight with an
+unreadable manifest — is skipped rather than raising, and does not shadow a good basis. Tested.

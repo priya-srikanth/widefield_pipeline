@@ -16,6 +16,17 @@ from wfield_local import config
 from wfield_local import joint_locanmf as jl
 
 
+@pytest.fixture(autouse=True)
+def _no_server(monkeypatch):
+    """Every test below is about the LOCAL directory, so the server is switched off by default.
+
+    Without this, `load` would reach MICROSCOPE on every one of them: slow, and it would make the
+    suite pass or fail on what happens to be published rather than on what the test set up. The
+    fallback gets its own tests, which turn it back on explicitly.
+    """
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: None)
+
+
 @pytest.fixture
 def fake_sessions(tmp_path):
     """Two sessions with real files on disk, so the mtime/size signatures are meaningful."""
@@ -147,3 +158,102 @@ def test_a_freshly_built_basis_reads_as_CURRENT(fake_sessions, tmp_path, monkeyp
         basis_id = "0000deadbeef"
     ok2, exp = jl.basis_is_current(_Old(), fake_sessions)
     assert not ok2 and exp, "a genuinely stale basis must still be caught"
+
+
+# --------------------------------------------------------------------------------------------
+# The server fallback.
+#
+# WHY IT EXISTS (Priya, 2026-08-26). The bases live in a LOCAL directory, so the behavior box ran the
+# 8/24 and 8/25 analysis and then could not build a single joint-basis figure -- its deck hit the
+# completeness gate and refused. `publish_basis` put them on the share; these cover the loader half.
+# --------------------------------------------------------------------------------------------
+
+def _write_basis(root, bid, when, ncomp=90, animal="PS99"):
+    d = root / animal / bid
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "manifest.json").write_text(json.dumps(
+        {"basis_id": bid, "animal": animal, "labels": ["PS99_0101"], "ncomp": ncomp,
+         "rank": 100, "seed": 0, "built_utc": when}))
+    return d
+
+
+def test_a_basis_only_on_the_server_is_found(tmp_path, monkeypatch):
+    """The behavior box's exact situation: nothing local, the basis published to MICROSCOPE."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    local.mkdir()
+    _write_basis(server, "srv001", "2026-08-20T00:00:00Z", ncomp=95)
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: server)
+    assert jl.load("PS99").basis_id == "srv001"
+    assert jl.load("PS99", "srv001").ncomp == 95      # by explicit id too, not only "newest"
+
+
+def test_the_newest_wins_across_roots(tmp_path, monkeypatch):
+    """NOT local-first. Preferring local wholesale would serve a superseded reference frame on
+    whichever box was behind -- an artifact whose name asserts a currency nothing checks, which is
+    the same shape as the frozen-model contamination this repo already had once."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    _write_basis(local, "old111", "2026-08-01T00:00:00Z")
+    _write_basis(server, "new222", "2026-08-20T00:00:00Z")
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: server)
+    assert jl.load("PS99").basis_id == "new222"
+
+    # ...and the converse, so the test cannot pass by always choosing the server.
+    _write_basis(local, "newest333", "2026-08-25T00:00:00Z")
+    assert jl.load("PS99").basis_id == "newest333"
+
+
+def test_the_local_copy_is_preferred_when_both_have_the_same_id(tmp_path, monkeypatch):
+    """A basis_id is a hash of its own inputs, so the same id in both roots is the same bytes. Read
+    the one that is not 180 MB of footprints over SMB."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    _write_basis(local, "same999", "2026-08-20T00:00:00Z")
+    _write_basis(server, "same999", "2026-08-20T00:00:00Z")
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: server)
+    got = jl.load("PS99")
+    assert got.basis_id == "same999"
+    assert local in got.root.parents
+
+
+def test_an_unreachable_server_does_not_break_loading(tmp_path, monkeypatch):
+    """The share is down or unmounted on this box. A local basis must still load."""
+    local = tmp_path / "local"
+    _write_basis(local, "loc555", "2026-08-20T00:00:00Z")
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: tmp_path / "does_not_exist")
+    assert jl.load("PS99").basis_id == "loc555"
+
+
+def test_a_half_copied_basis_is_not_a_candidate(tmp_path, monkeypatch):
+    """Publishing is a file-by-file copy, so a directory can exist mid-flight with an unreadable or
+    absent manifest. That must not shadow a good basis, and must not raise."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    _write_basis(local, "good777", "2026-08-01T00:00:00Z")
+    (server / "PS99" / "partial888").mkdir(parents=True)
+    (server / "PS99" / "partial888" / "manifest.json").write_text("{not json")
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: server)
+    assert jl.load("PS99").basis_id == "good777"
+
+
+def test_missing_everywhere_still_raises_and_names_both_places(tmp_path, monkeypatch):
+    """A missing basis must stay an explicit build. The message has to say where it looked, or the
+    fix ("publish it from the box that has it") is not discoverable from the error."""
+    monkeypatch.setattr(jl, "BASIS_DIR", tmp_path / "local")
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: tmp_path / "server")
+    with pytest.raises(FileNotFoundError) as ex:
+        jl.load("PS99")
+    assert "publish_basis" in str(ex.value)
+
+
+def test_listing_says_which_root_answered(tmp_path, monkeypatch):
+    """"Missing" and "on the share but not here" are different problems with different fixes."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    _write_basis(local, "loc111", "2026-08-01T00:00:00Z")
+    _write_basis(server, "srv222", "2026-08-20T00:00:00Z")
+    monkeypatch.setattr(jl, "BASIS_DIR", local)
+    monkeypatch.setattr(jl, "server_basis_dir", lambda: server)
+    got = {r["basis_id"]: r["origin"] for r in jl.listing()}
+    assert got == {"loc111": "local", "srv222": "server"}
