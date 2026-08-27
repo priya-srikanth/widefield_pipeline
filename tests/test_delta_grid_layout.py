@@ -361,11 +361,16 @@ def _grid_fig_open(tmp_path, compact):
     return held["fig"]
 
 
-def _dense_grid(pre_head, day_head, stat, ylab, fontsize=10, two_line=True):
+def _dense_grid(pre_head, day_head, stat, ylab, fontsize=10, two_line=True, colw=None):
     """The 8-wide per-day grid shared by figures 5c, 6b, 7, 8 and 8e, without the LocaNMF load.
 
     Reproducing it synthetically is what made this fixable: the real figures take hours because they
     read every session's decomposition, and the fault is purely one of text width.
+
+    ``colw`` defaults to the CURRENT `_colw`, so the "is it clear now" tests track the module. A test
+    that pins a HISTORICAL fault must pass the width that fault was measured at instead -- otherwise
+    it silently stops testing anything the day `_colw` moves, which is exactly what happened when the
+    seventh post-stroke day forced the columns wider on 2026-08-27.
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -373,7 +378,8 @@ def _dense_grid(pre_head, day_head, stat, ylab, fontsize=10, two_line=True):
     days = [1, 2, 3, 4, 5, 7, 9]
     ncol = 1 + len(days)
     rng = np.random.default_rng(0)
-    fig, axes = plt.subplots(len(gf.ANIMALS), ncol, figsize=(gf._colw() * ncol + 1.2, 7.4),
+    cw = gf._colw() if colw is None else colw
+    fig, axes = plt.subplots(len(gf.ANIMALS), ncol, figsize=(cw * ncol + 1.2, 7.4),
                              squeeze=False)
     for ri, an in enumerate(gf.ANIMALS):
         for ci in range(ncol):
@@ -396,11 +402,17 @@ def _dense_grid(pre_head, day_head, stat, ylab, fontsize=10, two_line=True):
 
 def test_the_one_line_dense_grid_title_really_did_collide():
     """The fault a full render reported at ax0/8/16/24 -- a stride of 8, i.e. column 0 of each row.
-    Those are the PRE column, whose title was several times wider than a day column's."""
+    Those are the PRE column, whose title was several times wider than a day column's.
+
+    PINNED AT colw=1.55, the width this was measured at. `_colw` went to 1.80 on 2026-08-27 (the
+    seventh post-stroke day crowded the tick labels), and at that width this one-line title fits --
+    so left on the live value the assertion would flip from "the fault reproduces" to "no fault
+    here" and the evidence for the two-line titles would quietly evaporate.
+    """
     import matplotlib.pyplot as plt
 
     fig = _dense_grid("PRE, per session", "day {d}", "sh 0.77  n45", "half A at",
-                      fontsize=9.5, two_line=False)
+                      fontsize=9.5, two_line=False, colw=1.55)
     bad = chrome_overlaps(fig)
     plt.close(fig)
     assert bad, "the pre-fix layout must reproduce the reported collision"

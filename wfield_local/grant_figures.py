@@ -787,12 +787,34 @@ POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
 COMPACT = False
 
 
-def _colw(full=1.55, compact=1.50):
+def _colw(full=1.80, compact=1.75):
     """Inches per matrix column. Narrower without in-cell numbers to print.
 
     MEASURED, not chosen. At 1.45 the panels come out 0.911in and six rotated two-character tick
     labels crowd -- by a hairline, 0.0001 of the figure's width, but a hairline closes completely
     when the figure is reproduced small. 1.50 is the first value that clears; 1.55 leaves margin.
+
+    RE-MEASURED 2026-08-27, and the earlier margin was NOT margin. Every caller sizes its figure as
+    ``_colw() * ncol + <a fixed inch overhead>``, but matplotlib's subplot margins are FRACTIONS of
+    the figure width, so the fixed overhead is diluted as columns are added and each panel comes out
+    slightly narrower than the one before. Registering the seventh post-stroke day (PS92_0826 /
+    PS93_0826) took 5c from ncol 7 to 8 and closed the hairline: driving the real ``_draw_5c`` with
+    fabricated data gives 0 overlapping tick labels at 5 and 6 post-stroke days and 40 at 7, in both
+    the full and the compact pass. It would have kept getting worse -- the same probe faults at 8,
+    9, 10 and 12 days.
+
+    1.75 clears it and holds to 12 days. Note it cannot be raised much further ALONE: at 1.75 with
+    the old vertical spacing the panel titles begin colliding with the axes above, so the four
+    matrix grids also carry more room between rows. Width and vertical space are opposing knobs here
+    and 1.65 is the only value that clears both without the extra room -- a one-value gap, which is
+    not a place to sit.
+
+    THE COMPACT VARIANT STAYS NARROWER, but only just, and the gap is now 0.05in rather than 0.05
+    with a different floor under it. The previous docstring had already found that the six TICK
+    LABELS set the floor and are present in both variants, so compact cannot go far below full
+    whatever the in-cell numbers do; 1.75 is where it clears. Making the two EQUAL was tried first
+    and is wrong -- `test_compact_narrows_the_grid_and_tags_the_file` asserts the compact PNG is
+    strictly narrower, which is the whole point of a variant meant for a quarter page.
 
     THE COMPACT VARIANT IS BARELY NARROWER, AND THAT IS THE FINDING. It was built on the assumption
     that the in-cell numbers were what forced the panel wide; measuring says otherwise -- the six
@@ -1363,8 +1385,11 @@ def _acc_ci(record, n_boot=400):
 def _draw_5c(per_animal, days, out_dir, align, wname, variant="working"):
     """The absolute rendering of 5c. Split from the collector so 5d reuses the same numbers."""
     ncol = 1 + len(days)
-    fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.5),
-                             gridspec_kw={"hspace": 0.45}, squeeze=False)
+    # Taller with more room between rows than the width alone would need: at the wider `_colw`
+    # the two-line panel titles ("day N" over the accuracy and its interval) reach into the axes
+    # above. See `_colw` -- width and vertical space are opposing knobs here.
+    fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 9.5),
+                             gridspec_kw={"hspace": 0.60}, squeeze=False)
     im = None
     for ri, an in enumerate(ANIMALS):
         got = per_animal.get(an)
@@ -1508,8 +1533,9 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
         days = sorted(all_days)
         for v in variants:
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
-                                     gridspec_kw={"hspace": 0.45},
+            # Height and hspace raised with `_colw` -- see the note in `_draw_5c`.
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 9.5),
+                                     gridspec_kw={"hspace": 0.60},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -2209,8 +2235,9 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
-                                     gridspec_kw={"hspace": 0.45},
+            # Height and hspace raised with `_colw` -- see the note in `_draw_5c`.
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 9.5),
+                                     gridspec_kw={"hspace": 0.60},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
@@ -2746,8 +2773,9 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             if not days:
                 continue
             ncol = 1 + len(days)
-            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 8.7),
-                                     gridspec_kw={"hspace": 0.45},
+            # Height and hspace raised with `_colw` -- see the note in `_draw_5c`.
+            fig, axes = plt.subplots(len(ANIMALS), ncol, figsize=(_colw() * ncol + 1.2, 9.5),
+                                     gridspec_kw={"hspace": 0.60},
                                      squeeze=False)
             im = None
             for ri, an in enumerate(ANIMALS):
