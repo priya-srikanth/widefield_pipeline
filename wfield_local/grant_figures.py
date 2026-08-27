@@ -258,6 +258,31 @@ def _fit_bottom(fig, pad=0.008):
         print(f"  [layout] bottom fit skipped ({type(exc).__name__})", flush=True)
 
 
+def _twinned(axa, axb):
+    """True when two axes are a twinx/twiny pair, which overlay each other BY CONSTRUCTION.
+
+    Figure 10 puts a second y-scale (mean rank) on its trend panel, and the axes check reported all
+    four of them as faults. A twin having its parent's rectangle is the entire point of it, and a
+    checker that cries wolf trains the reader to ignore it -- which is worse than not checking.
+
+    BOTH CONDITIONS ARE REQUIRED. Sharing an axis is not enough: `plt.subplots(sharex=True)` puts
+    every panel of figure 8g in one shared group, so testing siblings alone would silently disable
+    the overlap check for a whole figure. A twin also has the SAME rectangle, and panels of a shared
+    grid do not.
+    """
+    pa, pb = axa.get_position(), axb.get_position()
+    if max(abs(pa.x0 - pb.x0), abs(pa.y0 - pb.y0),
+           abs(pa.x1 - pb.x1), abs(pa.y1 - pb.y1)) > 1e-6:
+        return False
+    for getter in ("get_shared_x_axes", "get_shared_y_axes"):
+        try:
+            if axb in getattr(axa, getter)().get_siblings(axa):
+                return True
+        except Exception:                                    # noqa: BLE001,S112  matplotlib version
+            continue                                         # differences in the sharing API only
+    return False
+
+
 def _overlaps(fig):
     """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, colour-bar
     labels, axis labels and panel titles. Tick labels are excluded -- they sit close to their own
@@ -314,7 +339,7 @@ def _overlaps(fig):
         pa, pb = axa.get_position(), axb.get_position()
         ox = min(pa.x1, pb.x1) - max(pa.x0, pb.x0)
         oy = min(pa.y1, pb.y1) - max(pa.y0, pb.y0)
-        if ox > 1e-3 and oy > 1e-3:
+        if ox > 1e-3 and oy > 1e-3 and not _twinned(axa, axb):
             bad.append((f"AXES ax{ia}", f"AXES ax{ib}", ox * oy))
 
     for a, b in _it.combinations(range(len(items)), 2):
@@ -2894,8 +2919,8 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                         _crossnobis_within(src, rng, CONF_LABELS), Dpre)
                 crec = ci_store.get(an) or {}
                 ax = axes[ri][0]
-                ax.imshow(np.ma.masked_invalid(rows), vmin=-1, vmax=1, cmap="RdBu_r",
-                          aspect="auto")
+                im = ax.imshow(np.ma.masked_invalid(rows), vmin=-1, vmax=1, cmap="RdBu_r",
+                               aspect="auto")
                 for i in range(len(CONF_LABELS)):
                     for j in range(1 + len(days)):
                         if np.isfinite(rows[i, j]):
@@ -2951,7 +2976,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 continue
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            _suptitle(fig, 
+            _suptitle(fig,
                 f"Second-order RSA on crossnobis RDMs — {wname} window\n"
                 f"Post-stroke class: {cls}.  Each session's OWN 6x6 crossnobis RDM correlated "
                 f"against the pre-stroke RDM.\n"
@@ -2966,6 +2991,16 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                 f"held FIXED, so this is TRIAL noise only.",
                 fontsize=9.5)
             fig.tight_layout(rect=(0, 0, 1, 1.0))   # top reserved by _suptitle
+            # A SCALE THE COMPACT VARIANT STILL HAS. `--compact` drops every in-cell number, and
+            # without a colour bar this heatmap would carry no scale at all -- a reader could not
+            # tell 0.9 from -0.9.
+            #
+            # CREATED AFTER `tight_layout`, and that ordering is the whole of it. `tight_layout`
+            # moves only axes belonging to the gridspec, so a colour bar made before it stayed put
+            # while the panels expanded rightwards underneath -- the fault at the top of this file,
+            # reproduced here on the first attempt and caught by `_overlaps` before it shipped.
+            fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
+                         label="row of the RDM preserved (r)")
             _footer(fig)
             p = Path(out_dir) / f"grant_8b_crossnobis_geometry_{align}_{v}.png"
             _save(fig, p, dpi=200, bbox_inches="tight")
@@ -4224,8 +4259,12 @@ def fig_geometry_by_position(out_dir, min_trials=10):
                            frameon=False, bbox_to_anchor=(0.5, 0.035))
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.tight_layout(rect=(0, 0.10, 1, 1.0))
-            _suptitle(fig,
+            # LAY THE PANELS OUT INTO WHAT THE HEADER LEFT, not into the full height. `tight_layout`
+            # first and `_suptitle` after -- which compresses every axes into [0, top] -- spread the
+            # panels over the whole figure and then shrank them away from the header, wasting about
+            # a tenth of the height. `_suptitle` returns that `top`; target it. Same fault, same fix
+            # as figure 11.
+            top = _suptitle(fig,
                       f"Is each position's RDM row preserved? -- by POSITION -- {wname} window\n"
                       f"Post-stroke class: {cls}.  Figure 8b split so one position can be compared "
                       f"across animals and days in a single panel.\n"
@@ -4238,6 +4277,7 @@ def fig_geometry_by_position(out_dir, min_trials=10):
                       f"SHADED = 95% block bootstrap over the scheduler's position blocks, sessions "
                       f"held FIXED (trial noise only). A band overlapping its own dashed ceiling is "
                       f"a session this figure cannot call changed.")
+            fig.tight_layout(rect=(0, 0.10, 1, top))
             _footer(fig)
             p = _out(out_dir, f"grant_8g_geometry_by_position_{align}_{v}")
             _save(fig, p, dpi=200, bbox_inches="tight")
@@ -4514,8 +4554,14 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
                                 ms=4.5, lw=1.4, elinewidth=1.0, capsize=2.5,
                                 label=nm if ri == 0 else None)
                 ax.axhline(0, color="k", lw=0.8)
-                lowest = np.nanmin(np.concatenate([raw, gain, [0.0]])) if m.any() else -0.5
-                ax.set_ylim(max(-2.0, lowest - 0.15), 1.08)
+                # THE LIMIT COMES FROM THE INTERVAL BOUNDS, NOT THE POINTS. Scaling to the points
+                # alone cut PS93 day 3's lower bar off at the axis floor: the estimate is -1.63 and
+                # the interval reaches -2.42, so the figure drew a bar that stopped where the axis
+                # did and understated the uncertainty exactly where it was largest.
+                lo_r, _hr = _err("raw")
+                lo_g, _hg = _err("gain")
+                floor = np.nanmin(np.concatenate([raw, gain, lo_r, lo_g, [0.0]]))
+                ax.set_ylim(max(-3.5, floor - 0.12) if np.isfinite(floor) else -0.5, 1.10)
                 ax.set_ylabel(f"{an}\nvariance explained", fontsize=10.5, fontweight="bold")
                 if ri == 0:
                     ax.set_title("does the position->activity map transfer?", fontsize=10.5)
@@ -4532,7 +4578,10 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
                 ax1.axhline(1.0, color="#1a9850", lw=1.2, ls="--")
                 if np.isfinite(a[0]):
                     ax1.axhline(a[0], color="0.55", lw=1.0, ls=(0, (1, 2)))
-                ax1.set_ylim(-0.1, max(1.6, float(np.nanmax(a)) + 0.2) if ok.any() else 1.6)
+                # Same rule here: the bars, not the diamonds, decide the limits.
+                _top = np.nanmax(np.concatenate([a, hi, [1.05]])) if ok.any() else 1.6
+                _bot = np.nanmin(np.concatenate([a, lo, [0.0]])) if ok.any() else 0.0
+                ax1.set_ylim(min(-0.1, _bot - 0.08), max(1.6, _top + 0.08))
                 ax1.set_ylabel("fitted gain", fontsize=9.5)
                 if ri == 0:
                     ax1.set_title("amplitude of the whole\nposition code (1 = unchanged)",
@@ -4545,7 +4594,8 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
                     for i, q in enumerate(CONF_LABELS):
                         if c in rec and q in rec[c][3]:
                             G[i, j] = rec[c][3][q]
-                ax2.imshow(np.ma.masked_invalid(G), vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
+                imh = ax2.imshow(np.ma.masked_invalid(G), vmin=-1, vmax=1, cmap="RdBu_r",
+                                 aspect="auto")
                 for i in range(len(CONF_LABELS)):
                     for j in range(len(cols)):
                         if np.isfinite(G[i, j]):
@@ -4582,8 +4632,13 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
                            bbox_to_anchor=(0.5, 0.012))
             cls = ("LICK trials only" if v == "lick" else
                    "LICK + miss-while-working (quit period removed)")
-            fig.tight_layout(rect=(0, 0.075, 1, 1.0))
-            _suptitle(fig,
+            # LAY THE PANELS OUT INTO WHAT THE HEADER ACTUALLY LEFT. Calling `tight_layout` FIRST
+            # and then `_suptitle` -- which compresses every axes into [0, top] afterwards -- left
+            # a tenth of the figure blank between the header and the first panel title, because
+            # tight_layout had spread the panels over the full height and the compression then
+            # shrank them away from it. `_suptitle` returns that `top`, so the layout can simply
+            # target it.
+            top = _suptitle(fig,
                       f"FROZEN ENCODER: did the position code MOVE, or just get SMALLER? -- "
                       f"{wname} window\n"
                       f"Post-stroke class: {cls}.  A one-hot position encoder trained on pre-stroke "
@@ -4595,9 +4650,18 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
                       f"result: an unrelated code also recovers a lot, by collapsing the gain "
                       f"towards zero.\n"
                       f"PRE column = leave-one-session-out and is NOT 1.0. Boxed cell = change from "
-                      f"it excludes zero (95% block bootstrap, sessions held fixed).  NO MOVEMENT "
+                      f"it excludes zero (95% block bootstrap, sessions held fixed).  A BLANK CELL "
+                      f"is a position with too few trials that session, NOT a zero.  NO MOVEMENT "
                       f"REGRESSORS yet: a post-stroke change in how the animal moves would appear "
                       f"here as a change in tuning.")
+            fig.tight_layout(rect=(0, 0.075, 1, top))
+            # THE SCALE FOR THE RIGHT-HAND PANEL, attached to that column only so it lands at the
+            # figure's right edge and cannot sit between panels. `--compact` drops the in-cell
+            # numbers, and this is then the only thing telling red from blue. AFTER `tight_layout`,
+            # for the reason spelled out in figure 8b: a colour bar made before it does not move
+            # when the panels do.
+            fig.colorbar(imh, ax=axes[:, 2].tolist(), fraction=0.02, pad=0.03,
+                         label="tuning left (R^2 after the session gain)")
             _footer(fig)
             p = _out(out_dir, f"grant_11_encoder_gain_shape_{align}_{v}")
             _save(fig, p, dpi=200, bbox_inches="tight")
