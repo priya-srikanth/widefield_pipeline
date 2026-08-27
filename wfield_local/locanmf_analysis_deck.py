@@ -3012,9 +3012,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             m = re.match(r"H(\d+)([a-z]*)\.", entry[1])
             return (int(m.group(1)), m.group(2)) if m else (99, "")
 
+        # EXCLUDE THE COMPACT VARIANTS. `grant_figures --compact` writes `<stem>_compact.png` beside
+        # each dense grid, and every pattern here ends in `_*.png`, so they matched: the 2026-08-27
+        # deck placed 13 of them as if they were separate figures -- the same numbers twice, once
+        # with in-cell digits and once without. Four were worse than duplicates. They predate the
+        # lick/working variant split (`d064ae4`), so no step writes those filenames any more and no
+        # render can refresh them; they would have sat at their 2026-08-26 21:44 content in every
+        # future deck. The compact PNGs are a deliverable for pasting into the grant document, not
+        # deck slides, and nothing else in the repo reads them.
         for _pat, _title, _blurb in sorted(_GRANT, key=_hkey):
             for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
-                if not _gf.exists():
+                if not _gf.exists() or _gf.stem.endswith("_compact"):
                     continue
                 s = slide()
                 # The suffix is whatever the glob's `*` matched (window, and for the pattern

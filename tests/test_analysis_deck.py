@@ -305,3 +305,32 @@ def test_every_figure_slide_gets_a_caption(tmp_path):
             continue
         nt = sl.notes_slide.notes_text_frame.text if sl.has_notes_slide else ""
         assert nt.startswith("FIGURE"), f"slide {i} carries a figure with no caption"
+
+
+def test_compact_grant_variants_are_not_placed_as_slides(tmp_path):
+    """`grant_figures --compact` writes `<stem>_compact.png` beside each dense grid, and every
+    section-H pattern ends in `_*.png`. They matched: the 2026-08-27 deck placed 13 compact files as
+    separate figures -- the same numbers twice, once with digits and once without.
+
+    Four were worse than duplicates. `grant_5c_confusion_per_session_cue_compact.png` predates the
+    lick/working variant split, so no render writes that name any more and none can refresh it; it
+    would have sat at its 2026-08-26 content in every future deck, looking current.
+    """
+    from PIL import Image
+
+    grant = tmp_path / "grant"
+    grant.mkdir()
+    full = "grant_5c_confusion_per_session_precue_lick.png"
+    for name in (full,
+                 "grant_5c_confusion_per_session_precue_lick_compact.png",
+                 "grant_5c_confusion_per_session_cue_compact.png"):   # the orphaned old naming
+        Image.new("RGB", (4, 4), "white").save(grant / name)
+
+    summary = ad.build_analysis_deck(tmp_path / "figs", tmp_path / "d.pptx",
+                                     dates=["0606", "0807"], animals=["PS92"], grant_dir=grant)
+    placed = {p.name if hasattr(p, "name") else str(p) for p in summary.get("placed", [])}
+    if placed:                                  # exact check when the builder reports what it placed
+        assert full in placed
+        assert not [p for p in placed if p.endswith("_compact.png")], placed
+    # and the count check, which holds whether or not `placed` is reported: one of the three files
+    assert summary["figures_present"] == 1, summary["figures_present"]
