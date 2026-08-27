@@ -5238,3 +5238,44 @@ are the off-brain mask, present identically in the local copy; they are data, no
 
 A half-copied basis directory — publishing is a file-by-file copy, so one can exist mid-flight with an
 unreadable manifest — is skipped rather than raising, and does not shadow a good basis. Tested.
+
+## 2026-08-26 — A coverage gap was being reported as a licking failure (PS95_0813)
+
+`_frames` excludes cues that fall outside the imaging coverage by marking their frame `-1`. That part
+was right. What was wrong is what happened next: `_trial_features` let those trials fall through to
+`precue_window_start`, which computes `fixed = -1 - win_n < 0`, returns `None`, and lands the trial on
+`n_dropped_dirty` — the LICK-FREE counter.
+
+### MEASURED, on the session that exposed it
+
+    PS95_0813   total cues                                        871
+                outside the imaging coverage                      197
+                genuine lick-free drops                             1
+                kept (587 engaged + 86 no-lick)                   673
+
+The log therefore announced *"dropped 198 trial(s) with no lick-free 2 s window"* — 23% of the
+session — when the true lick-free exclusion rate is 1/674 = 0.15%. Its neighbours PS95_0812 and
+PS95_0814 report no lick-free drops at all, so the session looked like a behavioural outlier and was
+not one. The cause is an imaging gap (a repaired single-channel prefix), which `_frames` had already
+said in the line above.
+
+### THE KEPT SET NEVER CHANGED — which is why it survived two weeks
+
+Both paths drop the same trial: coverage-excluded cues were reaching `ref0 < 0` or `None` and being
+skipped either way. Every number computed from the features was correct before this change and is
+byte-identical after it (587 + 86 = 673, verified on PS95_0813, and PS95_0812/0814 unchanged at
+720/633). Nothing about the reference band moves.
+
+What was wrong was the REASON GIVEN, on a pre-stroke session that feeds the reference band. This is
+the same shape as the frozen models trained on post-stroke data and the "curated" dates that meant
+pre-stroke only by historical accident: a label asserting a cause that nothing checks. Here it was
+pointing an exclusion at the animal's behaviour when the cause was a gap in the imaging — the kind of
+error that does not corrupt a number but does corrupt what someone concludes from it.
+
+### THE FIX, and what the test pins
+
+Coverage-excluded cues are now dropped explicitly, BEFORE the lick-free accounting, with their own
+counter and their own log line that says the count is excluded from the one below it. The ordering is
+what matters and is what the test pins: behind the `precue_window_start` call the trial is still
+dropped but still misattributed, and a test that only checked the counter existed would pass on a
+broken build.

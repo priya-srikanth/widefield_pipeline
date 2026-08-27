@@ -293,6 +293,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     else:
         strobe_f = np.full(cue_f.shape, np.nan)
     n_dropped_dirty = 0
+    n_dropped_coverage = 0      # cue outside the imaging coverage: `_frames` marked its frame -1
     n_dropped_nolatency = 0     # no-lick trials at a position the animal never licked that session
     pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs))
     maxrt_n = int(round(args.max_rt * args.fs))
@@ -319,6 +320,23 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         if codes[k] < 0:
             continue
         c0 = int(cue_f[k])
+        # OUTSIDE THE IMAGING COVERAGE — dropped HERE, before the lick-free accounting, because it
+        # is not a lick-free failure and must not be counted as one (Priya, 2026-08-26).
+        #
+        # `_frames` marks such cues -1. They were already being dropped, but implicitly: with c0=-1,
+        # `precue_window_start` computes `fixed = -1 - win_n < 0` and returns None, which lands on
+        # `n_dropped_dirty`. MEASURED on PS95_0813, the session that exposed this: 197 of 871 cues
+        # fall outside coverage, and the lick-free message then claimed 198 drops -- when exactly ONE
+        # was a genuine lick-free drop. The log read as a 23% licking failure on a session whose real
+        # lick-free exclusion rate is 0.15%, in line with 0812 and 0814, which report none at all.
+        #
+        # THE KEPT TRIALS DO NOT CHANGE. Both paths drop the same trial; only the attribution moves.
+        # That is the whole point -- it is the same shape as the frozen models and the "curated"
+        # dates, a label asserting a cause that nothing checks, and here it was pointing an
+        # exclusion at the animal's behaviour when the cause was a gap in the imaging.
+        if c0 < 0:
+            n_dropped_coverage += 1
+            continue
         # cue/precue-referenced window start (precue = the post_n window ENDING at the cue, slid
         # earlier if a lick falls in it; None -> no clean window exists, drop the trial)
         if args.align == "precue":
@@ -365,6 +383,11 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # sub-binned feature vector by the wrong regions
     if bins > 1:
         feat_reg = np.tile(feat_reg, bins)
+    if n_dropped_coverage:
+        # Restated here even though `_frames` already reported it, because the two numbers are read
+        # together and the question a reader has is "how many of these are behavioural?".
+        print(f"  [coverage] {s['label']}: {n_dropped_coverage} trial(s) dropped for falling outside "
+              f"the imaging coverage -- NOT counted below", flush=True)
     if n_dropped_dirty:
         print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
               f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
