@@ -5279,3 +5279,69 @@ counter and their own log line that says the count is excluded from the one belo
 what matters and is what the test pins: behind the `precue_window_start` call the trial is still
 dropped but still misattributed, and a test that only checked the counter existed would pass on a
 broken build.
+
+---
+
+## 2026-08-26 — Figure 10's ceiling was 100% by construction, and it hid a pre-existing deficit
+
+Priya, reading the first render: *"pre-stroke number is '1' but there are 11 sessions right?"*
+
+Yes. `_match_tables` took the argmax of `_matrices_pattern`'s `"PRE"` entry, which is the **mean of
+the eleven leave-one-out matrices**, so each row could contribute exactly one count. Every PRE panel
+read **100% match self, in all four animals** — printed directly beneath a caption instructing the
+reader *"read the middle panel against it, never against 100%."* The figure contradicted its own
+instruction, and nothing in the render log could have said so.
+
+**Averaging is not the same as counting.** Eleven averaged matrices have had their per-session noise
+removed; the post-stroke columns each still carry theirs. The comparison was never like for like, so
+the post-stroke scores (56–90%) were being measured against perfection. Same family as figure 6's
+half-split, 8b's old ceiling and `_delta_diag_ci`'s `mats_fn(ref, ref)`: **a baseline that is not
+subject to the noise it is the baseline for.**
+
+`_pre_loo_matrices` now exposes the eleven matrices and `_match_tables` counts one per held-out
+session, exactly as the post panel counts one per day. Each panel prints its own `n`, because the
+cell totals are no longer on one scale (11 versus 6–7) and only the percentage is comparable.
+
+### THE CEILING WAS LOAD-BEARING, AND IT CHANGES A READING
+
+| animal | PRE ceiling | post | the row that moved |
+|---|---|---|---|
+| PS92 | 100% | 90% | — |
+| PS93 | **92%** | 56% | **close_center matched itself only 7 of 11 PRE-STROKE sessions** (2 → close_L, 2 → far_C) |
+| PS94 | 98% | 59% | far_R 10/11 |
+| PS95 | 97% | 78% | close_center 10/11, close_R 10/11 |
+
+PS93's `close_center` substitutes on **every** post-stroke day in figure 10b (cR, cR, fR, cR, cR,
+cL — never itself). Against a 100% ceiling that reads as a total lesion-induced collapse. Against
+its real 7/11 ceiling, a large part of it is **pre-existing instability in that animal at that
+position**. This is the third time `close_center` has turned out to be the position where a control
+bites, after the reliability collapse recorded on 25 Aug. **close_center must not be quoted from
+figure 10 or 10b without its PRE column beside it.**
+
+## Figure 10b — the per-session view
+
+Priya: *"make a version that shows the matching matrix for each session over the post-stroke course
+(like our other first-column pre-stroke, subsequent columns post-stroke sessions)"*.
+
+Rows = position, columns = PRE then each post-stroke day, in the grammar of 5c/6b/8b. **Text** = the
+position matched best. **Colour** = the RANK of the true position among six, because a cell reading
+`fL` means one thing when the correct answer ranked second and another when it ranked sixth, and the
+text alone cannot say which. **Boxed** = still matched itself, so the intact diagonal survives
+`--compact`, which drops the text. PRE collapses the eleven held-out sessions: colour = mean rank,
+text = modal match with the fraction that agreed.
+
+What it shows that the pooled figure cannot: **persistence**. PS95's `far_C` matches `far_L` on
+every day but one; PS94's `close_center` alternates. Pooled counts cannot distinguish a substitution
+that held all week from one present on a single day.
+
+### PER BLOCK — asked for, and not directly possible
+
+Priya: *"can we do this on a per-block rather than per session basis?"*
+
+**A 6x6 match matrix needs all six positions.** A scheduler block is ~6 trials at ONE position, so a
+block cannot produce a matrix at all. The nearest honest unit is a time-contiguous CHUNK spanning
+blocks at all six positions — split each session in two or three. That multiplies the units and is
+the only construction here that would expose WITHIN-session variability, which nothing currently
+shows. It needs a per-chunk trial-count gate: a third of a session at an impaired position will
+often fall under `min_trials` and blank the row, which is the same estimator threshold that empties
+whole days in 8g. Not built.

@@ -70,3 +70,35 @@ def test_invariance_to_a_monotone_change_across_a_row():
     assert list(b0) == list(b1)
     assert np.allclose(r0, r1, equal_nan=True)
     assert M[FAR_R, FAR_R] != shifted[FAR_R, FAR_R], "the diagonal DID move"
+
+
+def test_the_pre_ceiling_counts_sessions_not_one_averaged_matrix():
+    """THE BUG PRIYA SPOTTED FROM A "1". Figure 10's PRE panel counted argmax over the MEAN of the
+    eleven leave-one-out matrices, so every row contributed exactly one count and the ceiling read
+    100% match self in all four animals -- printed directly under a caption telling the reader never
+    to compare against 100%.
+
+    Averaging removes the per-session noise that the post-stroke columns still carry. Here: eleven
+    noisy matrices, half of which get far_R wrong, whose AVERAGE gets it right.
+    """
+    rng = np.random.default_rng(0)
+    mats = []
+    for k in range(11):
+        M = np.full((6, 6), 0.1)
+        np.fill_diagonal(M, 0.5)
+        # far_R goes to far_L on a MINORITY of sessions -- often enough that the ceiling is not
+        # perfect, rarely enough that the average still favours itself: 4 x 0.9 + 7 x 0.1 over 11
+        # is 0.39, under the diagonal's 0.5.
+        if k % 3 == 0:
+            M[FAR_R, FAR_L] = 0.9
+        M = M + rng.normal(0, 0.01, M.shape)
+        mats.append(M)
+
+    avg = np.mean(np.stack(mats), axis=0)
+    b_avg, _r = gf._best_match(avg)
+    assert b_avg[FAR_R] == FAR_R, "the AVERAGE matrix matches itself -- hence a 6/6 ceiling"
+
+    per_session = [gf._best_match(M)[0][FAR_R] for M in mats]
+    hits = sum(1 for j in per_session if j == FAR_R)
+    assert 0 < hits < len(mats), (
+        f"counting sessions individually must give a REACHABLE ceiling, got {hits}/{len(mats)}")
