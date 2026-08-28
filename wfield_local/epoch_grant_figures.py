@@ -43,6 +43,18 @@ ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working")
 CHANCE = 1.0 / 6.0
 
 
+def _minor():
+    """Per-tick labels for a bar figure: Ipsi / Middle / Contra."""
+    from wfield_local.grant_figures import CONF_LABELS
+    return ef.split_labels(CONF_LABELS)[0]
+
+
+def _groups():
+    """The second x level: a rule under each of Near and Far."""
+    from wfield_local.grant_figures import CONF_LABELS
+    return ef.split_labels(CONF_LABELS)[1]
+
+
 def _short_labels():
     """Position labels for an axis: nI/nM/nC, fI/fM/fC.
 
@@ -129,7 +141,7 @@ def fig_behaviour(out_dir):
                       # subtitle answers "how many of them are in the panel I am reading", which
                       # is the one that carries the imbalance.
                       subtitle=_counts_line(counts), counts=_totals(counts),
-                      ylabel="hit rate", positions=_short_labels(), points=points,
+                      ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
                       # HEADROOM ABOVE 1.0 so a session at ceiling is a visible dot rather than a
                       # smear on the spine -- and the close positions sit at ceiling throughout.
                       ylim=(0.0, 1.06))
@@ -196,7 +208,7 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
         title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
         subtitle=_counts_line(per_epoch, {"pre": "animals, leave-one-session-out"}),
         counts=_totals(per_epoch),
-        ylabel="accuracy", positions=_short_labels(), points=points,
+        ylabel="accuracy", positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
         chance=CHANCE, ylim=(0.0, 1.06))
 
 

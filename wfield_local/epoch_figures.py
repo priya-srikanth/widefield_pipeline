@@ -404,7 +404,7 @@ def _value_and_ci(v):
 
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
-            counts=None, ylim=(0.0, 1.0), subtitle=None):
+            counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
@@ -415,6 +415,17 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     drawn as an error bar. ``points`` is ``{epoch: {position: [(animal, value), ...]}}`` and becomes
     one dot per SESSION -- the honest picture of the session weighting, since the bar itself is
     weighted by session and the epochs are not balanced across animals.
+
+    ``positions`` are the KEYS into ``values`` and ``points``; ``tick_labels`` is what is printed
+    under each bar, defaulting to the keys. THEY HAVE TO BE SEPARATE, and the reason is not
+    stylistic: the two-level axis prints "Ipsi" under both the near and the far triple, so the
+    display labels are not unique and cannot address a dict. Passing them as the keys silently
+    looked up nothing and drew a figure with a correct axis and no bars at all.
+
+    ``groups`` is ``[(label, first index, last index), ...]`` from `split_labels`, and draws a
+    SECOND LEVEL on the x axis: a rule spanning each triple with "Near" / "Far" beneath it. The
+    abbreviations are for heatmaps, where six labels have to fit under a panel an inch wide; a bar
+    figure has the room to name the positions and should use it.
 
     ``subtitle`` carries the PER-EPOCH session counts. The legend cannot: it has one entry per
     animal, so the only count it can show is that animal's total across all three epochs -- and a
@@ -461,7 +472,18 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     if chance is not None:
         ax.axhline(chance, color="0.35", lw=0.8, ls="--", zorder=1)
     ax.set_xticks(xs)
-    ax.set_xticklabels(positions, fontsize=FS_TICK - 1)
+    ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
+    if groups:
+        # DRAWN IN THE X-AXIS TRANSFORM: x in data coordinates so the rule lines up with the bars
+        # it spans whatever the axis limits, y in axes fraction so it sits a fixed distance below
+        # the ticks whatever the data range. `clip_on=False` because it is deliberately outside
+        # the axes.
+        tr = ax.get_xaxis_transform()
+        for label, lo, hi in groups:
+            ax.plot([xs[lo] - 0.42, xs[hi] + 0.42], [-0.150, -0.150], transform=tr,
+                    color="0.35", lw=0.9, clip_on=False, zorder=6)
+            ax.text((xs[lo] + xs[hi]) / 2.0, -0.205, label, transform=tr, ha="center", va="top",
+                    fontsize=FS_LABEL - 1, color="0.15", clip_on=False)
     # THE CHANCE LEVEL GOES IN THE Y-LABEL, not on the line. Annotating the line inside the axes
     # printed grey text across the dark subacute bars wherever the bars were tall there -- and
     # `_overlaps` cannot see it, because text over its OWN axes is excluded by design (a panel
@@ -491,7 +513,10 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     # ABSOLUTE INCH MARGINS -- `subplots_adjust` takes fractions, so these are inch targets divided
     # by the canvas. The 1.24in right gutter is the legend's, and it is reserved rather than
     # negotiated so the axes is the same width on every figure in the family.
-    left_in, right_in, top_in, bottom_in = 0.62, 1.24, 0.52 + 0.16 * bool(subtitle), 0.46
+    left_in, right_in = 0.62, 1.24
+    top_in = 0.52 + 0.16 * bool(subtitle)
+    # the second x level needs its own band; without it the rule and its label fall off
+    bottom_in = 0.46 + 0.34 * bool(groups)
     fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
                         top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
     q = pathlib.Path(out) / f"{name}.png"
@@ -556,3 +581,29 @@ def anatomical_labels(order, short=True, animals=None):
             ab = ab[:-1] + _SWAP.get(ab[-1], ab[-1])
         out.append(ab if short else long)
     return out
+
+
+def split_labels(order, animals=None):
+    """``(minor labels, [(group label, first index, last index), ...])`` for a two-level x axis.
+
+    The abbreviations earn their keep on a heatmap, where six tick labels have to fit under a
+    panel an inch and a bit wide. A bar figure has room to say what they mean, so it says it:
+    "Ipsi / Middle / Contra" under each tick, and "Near" / "Far" under a rule spanning each triple.
+    Priya, 2026-08-28.
+
+    DERIVED FROM THE SAME `anatomical_labels`, so the two levels cannot disagree with the
+    abbreviations used elsewhere, and the near/far grouping is read off the long names rather than
+    assumed to be the first three and the last three -- a reordered `CONF_LABELS` would otherwise
+    put the rule under the wrong bars while every label on it stayed correct.
+    """
+    longs = anatomical_labels(order, short=False, animals=animals)
+    minor = [x.split(" ", 1)[1].capitalize() if " " in x else x for x in longs]
+    groups, start = [], 0
+    for i, x in enumerate(longs):
+        head = x.split(" ", 1)[0]
+        last = (i == len(longs) - 1)
+        nxt = None if last else longs[i + 1].split(" ", 1)[0]
+        if last or nxt != head:
+            groups.append((head.capitalize(), start, i))
+            start = i + 1
+    return minor, groups
