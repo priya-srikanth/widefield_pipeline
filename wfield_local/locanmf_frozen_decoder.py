@@ -31,7 +31,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_predict
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-from wfield_local import config, decode_ci
+from wfield_local import config, frozen_models, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local import config
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
@@ -255,13 +255,34 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     if len(pre_i) < 2:
         print(f"  !! only {len(pre_i)} PRE-stroke session(s) pooled; not a frozen encoder", flush=True)
         return None
+    # FROZEN, on the same terms as the decoder. The encoder needs it MORE, if anything: its residual
+    # on post-stroke trials IS the representational-change readout, so a model that quietly refits as
+    # sessions accumulate is a reference sliding under the thing it measures.
+    pre_labels_ = [kept[i] for i in pre_i]
+    spec = frozen_models.make_spec(
+        config.animal_of(kept[0]), "encoder", align=align, source=source,
+        train_labels=pre_labels_, post_s=post_s, alpha=alpha,
+        basis_id=getattr(features, "basis_id", None), n_features=int(XE.shape[1]))
+
+    def _fit_all():
+        # `full` scores every POST session and any pre session not in the fit; `loso[label]` is the
+        # leave-that-pre-session-out model behind the pre-stroke band.
+        pre_m = np.isin(GE, pre_i)
+        return {"full": Ridge(alpha=alpha).fit(P[pre_m], XE[pre_m]),
+                "loso": {kept[i]: Ridge(alpha=alpha).fit(
+                    P[np.isin(GE, [j for j in pre_i if j != i])],
+                    XE[np.isin(GE, [j for j in pre_i if j != i])]) for i in pre_i}}
+
+    models, freeze_status = frozen_models.load_or_fit(
+        spec, _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)})
+
     per_sess, ceil, feve, within = {}, {}, {}, {}
     for i, lab in enumerate(kept):
         te = GE == i
         # A held-out PRE session is scored leave-one-out among pre; a POST session is scored against
         # a model that never saw any post-stroke trial.
-        tr = np.isin(GE, [j for j in pre_i if j != i])
-        pred = Ridge(alpha=alpha).fit(P[tr], XE[tr]).predict(P[te])
+        mdl = models["loso"].get(lab, models["full"])
+        pred = mdl.predict(P[te])
         per_sess[lab] = _ev(XE[te], pred)
         c, _, _ = _ceiling(XE[te], YE[te])
         ceil[lab] = c
@@ -277,6 +298,10 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     res = {"labels": kept, "source": source, "align": align, "n_trials": int(len(YE)),
            "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "per_session_ev": per_sess, "ceiling": ceil, "feve": feve, "within_session_ev": within,
+           # Self-documenting on the same terms as the decoder: which stored model, trained on what.
+           "training_phase": "pre", "pre_labels": pre_labels_,
+           "n_pre_sessions": len(pre_i), "n_post_sessions": len(kept) - len(pre_i),
+           "frozen_model_id": frozen_models.spec_id(spec), "frozen_status": freeze_status,
            "mean_ev": float(np.mean(list(per_sess.values()))),
            "mean_feve": float(np.nanmean(list(feve.values()))),
            "mean_within_ev": float(np.mean(list(within.values()))) if within else float("nan")}
@@ -339,12 +364,34 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         print(f"  !! only {len(pre_i)} PRE-stroke session(s) pooled; a frozen reference needs at "
               f"least 2 and this result is not one", flush=True)
         return None
+    # THE MODELS ARE FROZEN OBJECTS, not refits (Priya, 2026-08-27). Keyed on the PRE-STROKE training
+    # set and its input signatures, so adding a post-stroke session cannot change them and adding a
+    # PRE-stroke one mints a new model under a new id rather than moving this one. That is the
+    # property whose absence let the contamination above happen: a model refitted every run has no
+    # identity to interrogate, so "what were you trained on?" had no answer on disk.
+    pre_labels_ = [kept[i] for i in pre_i]
+    spec = frozen_models.make_spec(
+        config.animal_of(kept[0]), "decoder", align=align, source=source,
+        train_labels=pre_labels_, post_s=post_s, zscore=zscore,
+        basis_id=getattr(features, "basis_id", None), n_features=int(XE.shape[1]))
+
+    def _fit_all():
+        # One artifact holds BOTH arms: the leave-one-out models behind the pre-stroke reference band
+        # and the single all-pre model applied to post-stroke days. They are determined by the same
+        # spec, and splitting them would let one be refrozen without the other.
+        return {"full": _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)]),
+                "loso": {kept[i]: _pipe().fit(XE[np.isin(GE, [j for j in pre_i if j != i])],
+                                              YE[np.isin(GE, [j for j in pre_i if j != i])])
+                         for i in pre_i}}
+
+    models, freeze_status = frozen_models.load_or_fit(
+        spec, _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)})
+
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
-        tr, te = np.isin(GE, [j for j in pre_i if j != i]), GE == i
-        pred[te] = _pipe().fit(XE[tr], YE[tr]).predict(XE[te])
+        pred[GE == i] = models["loso"][kept[i]].predict(XE[GE == i])
     if post_i:                           # post-stroke arm: ONE model, fit on ALL pre, applied unchanged
-        clf = _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)])
+        clf = models["full"]
         for i in post_i:
             te = GE == i
             pred[te] = clf.predict(XE[te])
@@ -369,6 +416,9 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
            # SELF-DOCUMENTING, so a consumer of this JSON can never again have to infer what the
            # model was trained on -- which is exactly how the contamination stayed invisible.
            "training_phase": "pre", "pre_labels": pre_labels,
+           # WHICH STORED MODEL PRODUCED THIS. A result that names its model can be re-derived and
+           # audited; one that does not is the state the contamination hid in.
+           "frozen_model_id": frozen_models.spec_id(spec), "frozen_status": freeze_status,
            "post_labels": [kept[i] for i in post_i],
            "n_pre_sessions": len(pre_i), "n_post_sessions": len(post_i),
            "mean_within": float(np.mean(within_pre)) if within_pre else float("nan"),

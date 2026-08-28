@@ -31,7 +31,7 @@ import json
 import shutil
 from pathlib import Path
 
-from wfield_local import config, joint_locanmf, writeguard
+from wfield_local import config, frozen_models, joint_locanmf, writeguard
 
 CHUNK = 8 << 20
 
@@ -63,13 +63,43 @@ def local_bases():
     return out
 
 
-def publish_one(animal, basis_dir: Path, dry_run=False, log=print) -> dict:
-    dst = server_root() / animal / basis_dir.name
-    res = {"animal": animal, "basis": basis_dir.name, "copied": 0, "verified": 0,
-           "already": 0, "MISMATCH": []}
-    files = sorted(p for p in basis_dir.rglob("*") if p.is_file())
+def frozen_root():
+    return Path(config.resolver().root("labcams")) / "frozen_models"
+
+
+def local_frozen():
+    """[(animal, model_dir)] for every frozen model on this box, newest last.
+
+    Frozen decoders and encoders are reference artifacts on exactly the same footing as a basis: a
+    model keyed on a pre-stroke training set cannot be regenerated once that set has grown, so losing
+    the disk it sits on loses the reference every post-stroke number was scored against. Superseded
+    directories are published too -- they are what an earlier deck was scored against.
+    """
+    root = Path(frozen_models.local_dir())
+    out = []
+    if not root.exists():
+        return out
+    for an in sorted(root.iterdir()):
+        if not an.is_dir():
+            continue
+        for m in sorted(an.iterdir(), key=lambda x: x.stat().st_mtime):
+            if m.is_dir() and (m / "manifest.json").exists():
+                out.append((an.name, m))
+    return out
+
+
+def publish_tree(src: Path, dst: Path, name: str, dry_run=False, log=print) -> dict:
+    """Copy a directory tree to the server, verifying every file by content at the DESTINATION.
+
+    Shared by the joint bases and the frozen models because the requirement is identical: both are
+    immutable-by-construction reference artifacts whose directory name is a hash of their own inputs,
+    so two directories with the same name must hold the same bytes, and a digest mismatch under an
+    unchanged name means corruption rather than an update.
+    """
+    res = {"name": name, "copied": 0, "verified": 0, "already": 0, "MISMATCH": []}
+    files = sorted(p for p in src.rglob("*") if p.is_file() and not p.name.endswith(".tmp"))
     for p in files:
-        rel = p.relative_to(basis_dir)
+        rel = p.relative_to(src)
         d = dst / rel
         want = sha256(p)
         if d.exists():
@@ -78,8 +108,8 @@ def publish_one(animal, basis_dir: Path, dry_run=False, log=print) -> dict:
                 res["already"] += 1
                 continue
             res["MISMATCH"].append(str(rel))
-            log(f"  !! {animal}/{basis_dir.name}/{rel}: published copy DIFFERS from local and a "
-                f"basis id is a hash of its own inputs, so this is corruption, not an update. "
+            log(f"  !! {name}/{rel}: published copy DIFFERS from local, and the directory name is a "
+                f"hash of its own inputs, so this is corruption rather than an update. "
                 f"NOT overwritten.")
             continue
         if dry_run:
@@ -90,16 +120,30 @@ def publish_one(animal, basis_dir: Path, dry_run=False, log=print) -> dict:
         shutil.copy2(p, d)
         if sha256(d) != want:                      # read back from the DESTINATION
             res["MISMATCH"].append(str(rel))
-            log(f"  !! {animal}/{basis_dir.name}/{rel}: copied but the destination digest does not "
-                f"match. Left in place for inspection; do NOT treat this basis as published.")
+            log(f"  !! {name}/{rel}: copied but the destination digest does not match. Left in "
+                f"place for inspection; do NOT treat it as published.")
             continue
         res["copied"] += 1
         res["verified"] += 1
     if not dry_run and not res["MISMATCH"]:
         (dst / "PUBLISH_MANIFEST.json").write_text(json.dumps(
-            {"animal": animal, "basis_id": basis_dir.name, "n_files": len(files),
-             "sha256": {str(p.relative_to(basis_dir)): sha256(p) for p in files}}, indent=2))
+            {"name": name, "n_files": len(files),
+             "sha256": {str(p.relative_to(src)): sha256(p) for p in files}}, indent=2))
     return res
+
+
+def publish_one(animal, basis_dir: Path, dry_run=False, log=print) -> dict:
+    """One joint basis. Kept as the named entry point its callers and tests already use."""
+    r = publish_tree(basis_dir, server_root() / animal / basis_dir.name,
+                     f"{animal}/{basis_dir.name}", dry_run=dry_run, log=log)
+    return dict(r, animal=animal, basis=basis_dir.name)
+
+
+def publish_frozen_one(animal, model_dir: Path, dry_run=False, log=print) -> dict:
+    """One frozen decoder or encoder."""
+    r = publish_tree(model_dir, frozen_root() / animal / model_dir.name,
+                     f"{animal}/{model_dir.name}", dry_run=dry_run, log=log)
+    return dict(r, animal=animal, model=model_dir.name)
 
 
 def main(argv=None) -> int:
@@ -107,19 +151,30 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--what", choices=("bases", "frozen", "all"), default="all",
+                    help="which reference artifacts to publish (default: all)")
     a = ap.parse_args(argv)
-    bases = [(an, b) for an, b in local_bases() if not a.animals or an in set(a.animals)]
-    if not bases:
-        print("[publish_basis] no local basis found", flush=True)
+    keep = (lambda an: not a.animals or an in set(a.animals))
+
+    jobs = []
+    if a.what in ("bases", "all"):
+        jobs += [("basis", an, d, publish_one) for an, d in local_bases() if keep(an)]
+    if a.what in ("frozen", "all"):
+        jobs += [("frozen", an, d, publish_frozen_one) for an, d in local_frozen() if keep(an)]
+    if not jobs:
+        print(f"[publish_basis] nothing to publish for --what {a.what}", flush=True)
         return 1
+
     bad = 0
-    for an, b in bases:
-        r = publish_one(an, b, dry_run=a.dry_run)
+    for what, an, d, fn in jobs:
+        r = fn(an, d, dry_run=a.dry_run)
         flag = "  !! MISMATCH" if r["MISMATCH"] else ""
-        print(f"  {an}/{b.name}: copied {r['copied']}, verified {r['verified']}, "
+        print(f"  [{what}] {an}/{d.name}: copied {r['copied']}, verified {r['verified']}, "
               f"already current {r['already']}{flag}", flush=True)
         bad += len(r["MISMATCH"])
-    print(f"[publish_basis] {'DRY RUN' if a.dry_run else 'done'} -> {server_root()}", flush=True)
+    where = " and ".join(str(p) for p, on in ((server_root(), a.what in ("bases", "all")),
+                                              (frozen_root(), a.what in ("frozen", "all"))) if on)
+    print(f"[publish_basis] {'DRY RUN' if a.dry_run else 'done'} -> {where}", flush=True)
     return 1 if bad else 0
 
 

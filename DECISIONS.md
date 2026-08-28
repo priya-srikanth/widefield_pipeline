@@ -5424,3 +5424,71 @@ CACHE_VERSION 10 -> 11. 800 tests pass.
 cache hit prints nothing. Their counts will drop sharply — `[behavior-backup]` from 56 to 4,
 `[coverage]` for PS95_0813 from 53 to 1. That is the cache working, not the dead-strobe-bit repair
 having stopped, and a quiet log is exactly what a broken repair would also look like.
+
+## 2026-08-27 — The frozen decoder and encoder become OBJECTS, not recipes
+
+Until now nothing in this repo persisted a fitted frozen model. `pooled_frozen_loso` fitted `_pipe()`
+inline on every call, `pooled_frozen_encoder` fitted its Ridge inline, and every JSON on the server
+held RESULT NUMBERS — accuracies, confusions, EV — with no weights behind them. `save_session_decoder`
+is the one exception and nothing ever loads its `.joblib` back. "The frozen pre-stroke decoder" was a
+recipe re-executed nightly.
+
+### THAT IS WHY THE CONTAMINATION WAS POSSIBLE
+
+On 2026-08-26 the frozen models were found to have been training on post-stroke sessions — roughly
+30–39% of the training data by then — because the code was written when "curated" meant pre-stroke and
+post-stroke nights joined the pool silently. **A model refitted every run has no identity to
+interrogate.** There was nothing on disk to ask "what were you trained on?", so the drift was
+invisible until someone recomputed the number by hand. A stored model carries its own answer, and
+adding a session cannot retroactively change what an already-frozen model saw. This is a bug-class
+removal first and a time saving second.
+
+### WHAT DETERMINES A MODEL'S IDENTITY — and what does not
+
+    animal, kind (decoder|encoder), align (precue|cue|lick), source (roi|locanmf),
+    basis_id, post_s, zscore, alpha, n_features,
+    train_labels  + a per-session INPUT SIGNATURE for each
+
+**Trial inclusion is deliberately NOT in the spec**, and this is the part most likely to be
+mis-assumed. Training always uses the pre-stroke ENGAGED trials (`XE`); "all", "lick + miss-while-
+working" and "lick only" select which POST-STROKE trials are pushed through the finished model. They
+are scoring-time populations, not training-time variants. So the inventory is **4 animals × 3
+alignments × 2 sources = 24 decoders and 24 encoders**, not 72 of each — and because every population
+is scored by the SAME model, per-class results stay summable, which is the property
+`position_coding_directions` already relies on for its raw-count confusions.
+
+The input signature matters as much as the label list: on 2026-08-14 the switch to the meegkit_hpfit
+SVTcorr changed the underlying data while every label stayed identical. A model keyed on labels alone
+would have been served for data it was never fitted to.
+
+ROI and joint models remain separate artifacts by construction — 264 features against 380, with no
+mapping between them — and `source` + `basis_id` in the spec make cross-serving impossible rather
+than merely unlikely.
+
+### ONE ARTIFACT HOLDS BOTH ARMS
+
+`{"full": …, "loso": {held_out_label: …}}`. The all-pre model scores post-stroke days; the
+leave-one-out models are the pre-stroke reference band. They are determined by the same spec, and
+splitting them would let one be re-frozen without the other.
+
+### A MISMATCH IS NEVER RESOLVED SILENTLY
+
+A changed pre-stroke set mints a NEW model under a new id; the old one is left untouched and the
+change is reported by name ("added PS92_0830"). Refitting in place would move a reference that
+post-stroke results are already quoted against; reusing blindly would score today's data against a
+model built from data that is gone. `refreeze='<reason>'` is the deliberate supersede path and
+RENAMES rather than deletes, matching the convention already on disk for the nolick reference.
+
+### VERIFIED: freezing changed no number
+
+Freezing changes WHEN the fit happens, never WHAT is fit, so a run that fits-and-stores and a run
+that loads must agree to the last digit. Both were run through the real `pooled_frozen_loso` /
+`pooled_frozen_encoder` with the store first emptied, and compared on `loso_accuracy`, `mean_within`,
+`transfer_cost`, every per-session accuracy, and the encoder's `mean_ev` / `mean_feve` /
+`transfer_cost_ev` / per-session EV.
+
+### STILL A RECIPE, and named so it is not mistaken for done
+
+`grant_figures`, `nolick_decoder`, `ood_control` and `poststroke_compare` each still fit their own
+pre-stroke model. They agree with these today because they share `_pipe()` and the same trial
+conventions, but nothing enforces it. That is the next step, not this one.

@@ -102,6 +102,10 @@ def features_with_indices(basis, nolick_ref="cue"):
 
     _feat.indices = idx
     _feat.variance_captured = vc
+    # THE FEATURE SPACE IS PART OF A FROZEN MODEL'S IDENTITY. Same session, same args, different
+    # basis -> different features (256 columns vs 380, measured), so a model frozen against one basis
+    # must never be served for another. `frozen_models` reads this off the callable.
+    _feat.basis_id = basis.basis_id
     return _feat
 
 

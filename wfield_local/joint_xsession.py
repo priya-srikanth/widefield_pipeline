@@ -29,12 +29,17 @@ encoders in BOTH bases precisely so that a result appearing in only one can be r
 artefact rather than a finding. Agreement between them is evidence; a single shared model would
 destroy the check by construction.
 
-WHAT IS NOT YET UNIFIED, and is a real gap rather than a design choice: WITHIN a basis, several
-modules each fit their own pre-stroke decoder (`grant_figures`, `nolick_decoder`, `ood_control`,
-`poststroke_compare`) instead of loading one persisted artefact. They agree today because they share
-`_pipe()` and the same trial conventions, but nothing enforces that, so "the frozen pre-stroke
-decoder" is currently a recipe rather than an object. Packaging it is the open roadmap item
-"packaging the frozen pre-stroke model + baseline noise-floor" in CLAUDE.md.
+THE FROZEN MODEL IS NOW AN OBJECT, not a recipe (2026-08-27). This paragraph used to record the gap:
+several modules each fitted their own pre-stroke decoder and agreed only because they shared `_pipe()`
+and the same trial conventions, with nothing enforcing it. `pooled_frozen_loso` and
+`pooled_frozen_encoder` now load a stored artefact from `wfield_local.frozen_models`, keyed on the
+PRE-STROKE training set and its input signatures, so adding a post-stroke session cannot change the
+model and adding a pre-stroke one mints a new id rather than moving the old one.
+
+Note that a ROI frozen decoder and a joint one still cannot be the same artefact -- as above, 264
+features against 380, no mapping between them -- and the spec records `source` and `basis_id` so the
+two can never be served for each other. The remaining unpackaged fitters (`grant_figures`,
+`nolick_decoder`, `ood_control`, `poststroke_compare`) are the next step, not this one.
 
 WHAT THIS IS NOT. Not the rejected frozen fixed-A path. That nominated a single session as the
 reference, and the choice mattered enormously -- no reference won for every animal and the within-animal
@@ -112,6 +117,7 @@ def joint_features(basis):
         return _FEAT_CACHE[key]
 
     _feat.variance_captured = vc
+    _feat.basis_id = basis.basis_id      # see precue_engagement_states: the feature space is identity
     return _feat
 
 
