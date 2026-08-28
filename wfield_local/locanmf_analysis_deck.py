@@ -2692,18 +2692,30 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # seen the thing being decomposed. Priya read the amplitude difference off colourbar numbers;
         # no figure in the deck showed it, and the per-session renormalisation actively hid it.
         for _al, _nice in (("cue", "POST-cue"), ("lick", "POST-lick")):
-            _fs = sorted(src.glob(f"fixed_scale_maps_*_{_al}.png"))
-            for _fsf in _fs:
-                _an = _fsf.name.split("_")[3]
-                s = slide()
-                title(s, f"G8d. Pre- vs post-stroke maps on ONE COMMON COLOUR SCALE "
-                         f"— {_an}, {_nice}",
-                      "Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude difference "
-                      "shows as a 2-3x difference in saturation. The standard maps renormalise per "
-                      "session and cannot show this. Baseline F is unchanged (ratios 0.99-1.02), so "
-                      "the change is in the numerator.")
-                note(s, M_FIXEDSCALE, specific=S_G8D)
-                big(s, _fsf, top=1.9, width=11.6)
+            # EVERY PAGE, not just the first (Priya, 2026-08-28: "only the first few post-stroke
+            # dates are shown"). `fixed_scale_maps` paginates at MAX_POST_PER_FIG and part 1 keeps
+            # the historical filename, so this glob matched page 1 alone and the later post-stroke
+            # days -- exactly the ones the recovery story is about -- were written every night and
+            # shown nowhere. The colour limit is shared across ALL parts and the PRE row is repeated
+            # on each, so the pages are directly comparable to one another.
+            for _an in sorted({p.name.split("_")[3] for p in src.glob(f"fixed_scale_maps_*_{_al}.png")}):
+                _pages = [src / f"fixed_scale_maps_{_an}_{_al}.png"]
+                _pages += sorted(src.glob(f"fixed_scale_maps_{_an}_{_al}__p*.png"),
+                                 key=lambda q: int(q.stem.rsplit("__p", 1)[1]))
+                _pages = [q for q in _pages if q.exists()]
+                for _pi, _fsf in enumerate(_pages, 1):
+                    s = slide()
+                    _of = f" (part {_pi} of {len(_pages)})" if len(_pages) > 1 else ""
+                    title(s, f"G8d. Pre- vs post-stroke maps on ONE COMMON COLOUR SCALE "
+                             f"— {_an}, {_nice}{_of}",
+                          "Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude "
+                          "difference shows as a 2-3x difference in saturation. The standard maps "
+                          "renormalise per session and cannot show this. Baseline F is unchanged "
+                          "(ratios 0.99-1.02), so the change is in the numerator."
+                          + (" The colour limit is shared across ALL parts and the PRE row is "
+                             "repeated on each, so the pages compare directly." if _of else ""))
+                    note(s, M_FIXEDSCALE, specific=S_G8D)
+                    big(s, _fsf, top=1.9, width=11.6)
 
         # G8e: per-area evoked amplitude -- the measure aimed at Priya's map observation, and the
         # only one in the hemispheric line that is not a null.
