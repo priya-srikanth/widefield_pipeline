@@ -5550,3 +5550,60 @@ warning, so the caveat disappears on its own once a clean artifact lands. Keying
 `dates ∩ poststroke_dates()` would now over-fire: the LIVE reference legitimately spans both phases —
 that is the comparison — while its model is pre-stroke-only. `training_phase` is the honest
 discriminator, and is written for exactly that.
+
+## 2026-08-28 — The deck's slide budget, measured, and four consolidations
+
+Priya: *"I'd like to consolidate the powerpoint so it isn't several hundred slides."* Before proposing
+anything, the deck was measured — a static scan cannot answer where the slides are, because most
+figure names are built with f-strings and `f"{stem}.png"` matches every file. So a real build was
+instrumented at `add_picture` and the slides counted by section.
+
+### WHERE THE SLIDES WERE (published deck, 8/27: 712 slides)
+
+    section D   155   one slide per 4 held-out days, per animal, per alignment, per basis
+    G3          112   one slide per post-stroke session, per alignment, per arm
+    G9 + G9c    206   coding directions, per animal x alignment x method
+    H            98   grant figures
+    everything else
+
+### FOUR CONSOLIDATIONS, 712 → 521 SLIDES
+
+**Section D, 155 → 40.** `write_animal_confusion_grid` puts every held-out day for one animal on one
+figure — a 6-wide grid of small confusion matrices, post-stroke dates in red. The per-day PNGs are
+still written and the deck still falls back to paging them if the grid is absent. Dropped from the
+grid deliberately: the per-position recall bars (they have their own summary two slides later) and
+the in-cell numbers, which at ~1.5 in are too small to read and compete with the colour that is not.
+
+**G3, 112 → 32.** Four sessions per slide in a 2×2, grouped by ANIMAL first so a slide never
+straddles two — the earlier bug here was a title naming only the date, which made PS92_0818 and
+PS93_0818 two slides with identical headings.
+
+**G8d, +8 and a bug fixed.** `fixed_scale_maps` paginates at four post-stroke days and part 1 keeps
+the historical filename, so the deck's glob matched page 1 alone: the LATER post-stroke days — the
+ones the recovery story is about — were written nightly and shown nowhere. One slide per animal is
+not available here and it is worth recording why rather than re-attempting it: nine rows by six
+positions of square maps has a natural aspect of 1.5, and a slide with a title leaves 0.48.
+
+**D2, +4.** `nolick_per_session_*.png` had been written every night and embedded nowhere.
+
+### THE AUDIT METHOD, because it is reusable
+
+Instrumenting `add_picture` on a real build and diffing against the figures directory found **1229 of
+2336 PNGs never placed**, in 333 families — of which 79 were current rather than superseded. Two
+weaker methods were tried first and both failed: grepping for distinctive stems reported everything
+present (any 4-character chunk matches something), and converting f-strings to regexes reported
+everything covered (`[^/\]*\.png` is a wildcard). Only the instrumented build is sound.
+
+### RELATED, from the other window and recorded here so it is found
+
+`_save` prints `bad[:6]`, so **every layout-fault count taken from a log is a floor, not a count** —
+their 5c "6" was really 40, and the 204-fault report of 2026-08-26 was a floor too. Measure with
+`_overlaps(fig)` directly.
+
+### THE COMPACT GRANT VARIANT IS GONE
+
+It cost a second full render pass — roughly half the total — for panels 3% narrower (13.2 in against
+13.6 in). It was built on the assumption that in-cell numbers forced the panels wide; the six rotated
+TICK LABELS set the floor and are present in both variants. `_txt` survives as a seam even though it
+now gates nothing, because eight call sites routed through one function is how the next global change
+to in-cell text stays a one-line change.
