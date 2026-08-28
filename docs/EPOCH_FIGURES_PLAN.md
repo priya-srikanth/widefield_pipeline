@@ -57,18 +57,53 @@ Windows: **ENL, cue** (both `variant="working"`), **lick** (`variant="lick"` by 
 
 ## What is actually left
 
-1. **Extract per-session collectors for 8g, 10, 10b, 11.** They build their per-day data INLINE
-   rather than through a `_collect_*`. `epoch_figures` must not re-derive it — that would put a
-   second definition of the same population in the codebase, which is how the frozen-decoder
-   contamination survived eight days. `_collect_5c`, `_collect_7` and `_pooled_bundle` were all
-   extracted for exactly this reason; these four are the same job.
-2. **Write the renderers.** Each is short given the scaffolding.
-3. **Drive every one through `_overlaps` at 6.2in.** This is the step that must not be skipped:
-   larger fonts on a smaller canvas is precisely where labels collide, and three layout faults this
-   month were found only by driving the function rather than reading the diff.
-4. **8/8b without in-box numbers** — a `annotate=False` flag on the crossnobis renderers rather
-   than a forked copy.
+1. ~~**Extract per-session collectors for 8g, 10, 10b, 11.**~~ **NOT NEEDED — this item was wrong.**
+   Audited 2026-08-28: all four already route through collectors, which are simply not named
+   `_collect_*`, so a grep for that prefix missed them. Every one bottoms out in `_collect_7` and
+   is keyed by `"PRE"` or day, which is exactly what an epoch is defined on:
+
+   | figure | collector | returns |
+   |---|---|---|
+   | 8b, 8g | `_rdm_rows`, `_rdm_ci` | `{animal: {"PRE"\|day: (row r, whole-RDM r, n)}}` |
+   | 10 | `_match_tables` → `_matrices_pattern` | `{animal: (pre 6x6, post 6x6, {day: (acc, rank)})}` |
+   | 10b | `_matrices_pattern` | `{animal: {"PRE": M, day: M}}` |
+   | 11 | `_enc_tables`, `_enc_ci` | `{animal: {"PRE"\|day: (raw, a, gain, per-position)}}` |
+   | 7, 7d | `_matrices_splithalf` | `{animal: {"PRE": M, day: M}}` |
+   | 8, 8d | `_matrices_crossnobis` | `{animal: {"PRE": D, day: D}}` |
+
+   Note what these return: **reduced matrices, not trials.** So pooling within an epoch is a mean
+   over sessions, not a re-pooling of trials — which is exactly the session weighting Priya asked
+   for. Only the 4/5c/5d family returns trial-level records, and those stay summable.
+
+2. **Write the renderers.** Each is short given the scaffolding. `confusion_row` is done and driven.
+3. **Drive every one through `_overlaps` at 6.2in.** Not optional — see below.
+4. ~~**8/8b without in-box numbers**~~ — `annotate=False` is already the default on `confusion_row`.
 5. **Deck placement** — a new section, quarter-page figures placed 4-up.
+
+## What driving `confusion_row` actually found (2026-08-28)
+
+Three faults, and **none of them was a collision** — `_overlaps` reported the figure clean at every
+step until the last one.
+
+* **The canvas was sized per panel**: 6.2in for three, 8.27in for four. The deck places both in the
+  same quarter-page column, so the four-panel delta row rendered its ticks at **6.0pt** beside the
+  three-panel row's 8.0pt. A 25% type difference between two figures side by side, invisible to any
+  overlap check. Fixed by making the canvas ALWAYS `QUARTER_IN`: a point size written in the module
+  is now the point size the reader gets, and a fourth panel costs panel width, which is the honest
+  price of a quarter page.
+* **The axes were numbered 0–5, not named.** `labels` was a local initialised to `None` and
+  immediately overwritten with digits, with no way for a caller to pass the position names.
+* **The comment said "ABSOLUTE MARGINS" over `subplots_adjust` fractions** — `left=0.085` is 0.53in
+  on one canvas and 0.70in on another. Now inch targets divided by the canvas.
+
+One thing I got wrong on the way and the measurement caught: laying the short labels flat instead of
+rotating them looks like a saving and is not. Rotated, a label's horizontal extent is the type
+HEIGHT (~0.11in at 8pt); `cC` flat is ~0.13in. Flat labels crowded a row that rotation had already
+passed clean. Rotation stays, with the numbers written next to it.
+
+Final state, measured: 3-panel and 4-panel variants both 6.20in wide, ticks at 8.0pt, titles at
+8.5pt, **0 overlaps**, pinned by `test_nothing_collides_at_a_quarter_page` and
+`test_the_canvas_is_the_placed_size_whatever_the_panel_count`.
 
 ## Open
 

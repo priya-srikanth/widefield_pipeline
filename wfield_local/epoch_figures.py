@@ -271,7 +271,7 @@ def per_session_values(per_animal, epoch, value_of):
 
 
 def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance=None,
-                  annotate=False, cmap="viridis"):
+                  annotate=False, cmap="viridis", labels=None):
     """The shared 3-epoch confusion panel: pre | acute | subacute [| delta].
 
     Serves figures 4, 5c and 5d, which differ only in which counts they are handed -- the LOSO
@@ -293,6 +293,11 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
 
     ``coverage`` is `epoch_coverage(...)['per_epoch']`; when given, each post panel's title carries
     its per-animal session counts, because a heatmap has no axis to hang the session dots on.
+
+    ``labels`` names the positions, normally `grant_figures.CONF_LABELS` shortened. It is a
+    PARAMETER because this renderer has no business deciding what the rows of a matrix it was
+    handed mean; the digit fallback exists for tests, and a real figure that shows 0-5 instead
+    of far_L..far_R is unreadable rather than merely terse.
     """
     import matplotlib.pyplot as plt
 
@@ -301,12 +306,21 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         return None
     cols = order + (["delta"] if delta and {"acute", "subacute"} <= set(order) else [])
     n = len(cols)
-    # 6.2in for the whole row, so it renders 1:1 at a quarter page. Height follows the panels.
-    fig, axes = plt.subplots(1, n, figsize=(QUARTER_IN * max(n, 3) / 3.0, 2.05 + 0.22 * (n > 3)),
-                             squeeze=False)
+    # THE CANVAS IS THE PLACED SIZE. Every figure here is QUARTER_IN wide whatever the panel
+    # count, so a point size written below is the point size the reader gets -- no scaling
+    # arithmetic, and two of these side by side in the deck carry identical type.
+    #
+    # This was measured the other way first, and the measurement is why the rule is written
+    # down. Sizing the canvas per panel (6.2in for three, 8.27in for four) left the four-panel
+    # delta row rendering its ticks at 6.0pt where the three-panel row beside it rendered 8.0,
+    # a 25% difference with NO overlap anywhere to give it away. Scaling the fonts up to
+    # compensate then held the rendered size but bought it by growing type against panels that
+    # had not grown -- 23 crowded tick labels. A fourth panel costs PANEL WIDTH; that is the
+    # real price of a quarter page and it should be paid visibly rather than hidden in type.
+    fig_w, fig_h = QUARTER_IN, 2.05 + 0.10 * (n > 3)
+    fig, axes = plt.subplots(1, n, figsize=(fig_w, fig_h), squeeze=False)
     axes = axes[0]
-    labels = None
-    im_main = im_delta = None
+    labels = list(labels) if labels else None
     norm = {}
     for e in order:
         M = np.asarray(counts[e], float)
@@ -316,11 +330,14 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         if key == "delta":
             D = norm["subacute"] - norm["acute"]
             lim = float(np.nanmax(np.abs(D))) or 1.0
-            im_delta = ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
-            ttl = "subacute - acute"
+            ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
+            # THE SCALE, IN THE TITLE. The row carries no colour bar -- at this width one would
+            # cost a panel -- so without the limit printed the delta panel is a picture of signs
+            # with no magnitude, and red at 0.03 looks exactly like red at 0.30.
+            ttl = f"subacute - acute\nscale +/-{lim:.2f} recall"
         else:
             M = np.asarray(counts[key], float)
-            im_main = ax.imshow(np.ma.masked_invalid(norm[key]), cmap=cmap, vmin=0, vmax=1)
+            ax.imshow(np.ma.masked_invalid(norm[key]), cmap=cmap, vmin=0, vmax=1)
             acc = float(np.nansum(np.diag(M)) / M.sum()) if M.sum() else float("nan")
             ttl = f"{key}\nn={int(M.sum())}, acc={acc:.2f}"
             if coverage and key in coverage:
@@ -330,6 +347,10 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         labels = labels or [str(i) for i in range(k)]
         ax.set_title(ttl, fontsize=FS_ANNOT)
         ax.set_xticks(range(k)); ax.set_yticks(range(k))
+        # ROTATED, ALWAYS, and this was measured rather than assumed. Laying two-character
+        # labels flat looks like the obvious saving and is not: rotated, a label's HORIZONTAL
+        # extent is the type height (~0.11in at 8pt), where "cC" flat is ~0.13in. Flat labels
+        # crowded on the three-panel row, which rotation had already passed clean.
         ax.set_xticklabels(labels, rotation=90, fontsize=FS_TICK - 1)
         ax.set_yticklabels(labels if ax is axes[0] else [], fontsize=FS_TICK - 1)
         if annotate:
@@ -342,10 +363,18 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
             ax.set_xlabel(f"chance {chance:.2f}", fontsize=FS_TICK - 1)
     axes[0].set_ylabel("true position", fontsize=FS_LABEL - 1)
     fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
-    # ABSOLUTE MARGINS, not tight_layout: imshow fixes an aspect, which makes the figure "not
-    # compatible with tight_layout" -- one warning per panel into the nightly log -- and a negotiated
-    # layout is not reproducible as panel counts change.
-    fig.subplots_adjust(left=0.085, right=0.995, top=0.60, bottom=0.20, wspace=0.22)
+    # ABSOLUTE INCH MARGINS, not tight_layout: imshow fixes an aspect, which makes the figure
+    # "not compatible with tight_layout" -- one warning per panel into the nightly log -- and a
+    # negotiated layout is not reproducible as panel counts change.
+    #
+    # `subplots_adjust` takes FRACTIONS, so constants there are not absolute at all -- the
+    # gutter would grow with the canvas. These are inch targets divided by the canvas, which
+    # is what keeps the y-label gutter and the title band the same physical size as the row
+    # gains a panel. Every one of them exists to hold TEXT, and the text no longer scales.
+    left_in, right_in = 0.53, 0.03
+    top_in, bottom_in = 0.82, 0.41
+    fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
+                        top=1 - top_in / fig_h, bottom=bottom_in / fig_h, wspace=0.22)
     q = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q, dpi=200)
     plt.close(fig)

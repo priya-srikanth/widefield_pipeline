@@ -218,3 +218,82 @@ def test_per_session_values_returns_one_entry_per_session():
     got = ef.per_session_values(per, "acute", lambda an, day, rec: float(len(rec[0])))
     assert sorted(got) == [("PS92", 6.0), ("PS92", 6.0), ("PS95", 6.0)]
     assert len(ef.per_session_values(per, "pre", lambda a, d, r: 1.0)) == 2
+
+
+# --------------------------------------------------------------------------- layout, measured
+
+def _counts_matrix(k, seed, n):
+    rng = np.random.default_rng(seed)
+    M = rng.random((k, k)) + np.eye(k) * k
+    return np.round(M / M.sum() * n)
+
+
+def _row(tmp_path, **kw):
+    """Render one `confusion_row` and hand back the Figure it saved, for measuring."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.figure
+
+    from wfield_local.grant_figures import CONF_LABELS, _short
+
+    k = len(CONF_LABELS)
+    counts = {"pre": _counts_matrix(k, 1, 9800), "acute": _counts_matrix(k, 2, 5200),
+              "subacute": _counts_matrix(k, 3, 4600)}
+    seen = []
+    orig = matplotlib.figure.Figure.savefig
+
+    def spy(self, *a, **k_):
+        seen.append(self)
+        return orig(self, *a, **k_)
+
+    matplotlib.figure.Figure.savefig = spy
+    try:
+        ef.confusion_row(counts, tmp_path, name="probe", title="probe title",
+                         labels=_short(CONF_LABELS), **kw)
+    finally:
+        matplotlib.figure.Figure.savefig = orig
+    return seen[-1]
+
+
+@pytest.mark.parametrize("delta", [False, True])
+def test_the_canvas_is_the_placed_size_whatever_the_panel_count(tmp_path, delta):
+    """A point size written in this module is the point size the reader gets.
+
+    WHY THIS IS PINNED. The first version sized the canvas per panel -- 6.2in for three panels,
+    8.27in for four -- so the deck, placing both in the same quarter-page column, rendered the
+    four-panel row's ticks at 6.0pt against the three-panel row's 8.0pt. Two figures side by side
+    with a 25% type difference, and `_overlaps` reported BOTH clean, because nothing collided. A
+    layout fault that produces no collision is invisible to every check except this one.
+    """
+    fig = _row(tmp_path, delta=delta, chance=1 / 6)
+    assert fig.get_size_inches()[0] == pytest.approx(ef.QUARTER_IN)
+
+
+@pytest.mark.parametrize("delta,annotate", [(False, False), (True, False), (True, True)])
+def test_nothing_collides_at_a_quarter_page(tmp_path, delta, annotate):
+    """Driven, not read. Three layout faults this month were found only by rendering the figure.
+
+    Uses the REAL position names: the digit fallback is far narrower than `far_center` rotated and
+    could not find a crowding fault even where one existed.
+    """
+    from wfield_local.grant_figures import _overlaps
+
+    fig = _row(tmp_path, delta=delta, annotate=annotate, chance=1 / 6)
+    bad = _overlaps(fig)
+    assert not bad, "; ".join(f"{a} {b}" for a, b, _ in bad[:6])
+
+
+def test_the_delta_panel_states_its_scale(tmp_path):
+    """A signed heatmap with no scale is a picture of signs: red at 0.03 looks like red at 0.30."""
+    fig = _row(tmp_path, delta=True)
+    titles = [ax.get_title() for ax in fig.axes]
+    assert any("subacute - acute" in t and "recall" in t for t in titles), titles
+
+
+def test_the_positions_are_named_not_numbered(tmp_path):
+    """`labels` is a parameter because this renderer has no business deciding what the rows mean."""
+    from wfield_local.grant_figures import CONF_LABELS, _short
+
+    fig = _row(tmp_path, delta=False)
+    got = [t.get_text() for t in fig.axes[0].get_yticklabels()]
+    assert got == _short(CONF_LABELS), got
