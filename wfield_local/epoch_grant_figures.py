@@ -629,6 +629,39 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
                         notes=["pooled as a MEAN OVER SESSIONS: these matrices are already "
                                "reduced, so a session is the unit and cannot be re-weighted "
                                "by its trial count"])
+
+    # THE DIAGONAL AS BARS, beside the matrix (Priya, 2026-08-28). The matrix carries the whole
+    # structure -- where a position's pattern went, not only that it left -- and the diagonal
+    # carries the headline: how much each position still resembles its own pre-stroke pattern.
+    # One is not a summary of the other, which is why both are drawn: a diagonal that falls with a
+    # flat off-diagonal is a code that faded, and the same diagonal with mass at a neighbour is a
+    # code that MOVED. Same statistics as every other bar family here.
+    from wfield_local.grant_figures import CONF_LABELS
+
+    short = dict(zip(CONF_LABELS, _short_labels()))
+    dpos = {short[q]: i for i, q in enumerate(CONF_LABELS)}
+
+    def _diag(M, key):
+        A = np.asarray(M, float)
+        i = dpos[key]
+        v = A[i, i] if i < A.shape[0] else np.nan
+        return None if not np.isfinite(v) else float(v)
+
+    dvals, dpoints = ef.scalar_by_epoch(mats, _diag, keys=_short_labels())
+    if dvals:
+        try:
+            _scalar_figure(
+                out_dir, name=f"epoch_{key}diag_{collector.strip('_')}_{align}_{variant}",
+                title=f"{stem}: own-position value by epoch -- {wname}",
+                ylabel=unit, keys=_short_labels(), values=dvals, points=dpoints,
+                tick_labels=_minor(), groups=_groups(),
+                ylim=(min(-0.05, float(vmin) if vmin is not None else -0.05),
+                      (float(vmax) if vmax is not None else 1.10)),
+                delta_name=f"epoch_{key}diagdelta_{collector.strip('_')}_{align}_{variant}",
+                delta_title=f"{stem}: change from pre-stroke in the own-position value -- {wname}")
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! {key}diag {align}/{variant}: {type(ex).__name__} {str(ex)[:120]}",
+                  flush=True)
     return ef.matrix_row(
         pooled, out_dir, name=f"epoch_{key}_{collector.strip('_')}_{align}_{variant}",
         title=f"{stem} -- {wname}", labels=_short_labels(), cmap=cmap,

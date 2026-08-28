@@ -480,3 +480,42 @@ def test_scalar_value_draws_gives_every_epoch_a_bar_interval():
         got = ef.scalar_value_draws(points, e, "k", rng=np.random.default_rng(5), n_boot=200)
         ci = ef.with_ci(got)
         assert ci is not None and ci[1] <= ci[0] <= ci[2]
+
+
+# ------------------------------------------------------- running off the canvas
+
+def test_off_canvas_sees_what_overlaps_cannot(tmp_path):
+    """A label that collides with nothing but runs past the edge.
+
+    `_overlaps` compares artists to EACH OTHER, so a lone label is clean however far past the edge
+    it goes. That is how a rotated y label two inches long on a 1.55in axes, and a six-inch title
+    on a 2.58in canvas, both shipped looking finished. Priya, 2026-08-28.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(2.0, 2.0))
+    ax.set_ylabel("x" * 200, fontsize=20)          # far longer than the canvas is tall
+    bad = ef.off_canvas(fig)
+    plt.close(fig)
+    assert bad, "a label running off the canvas was not detected"
+    assert any(r[0].endswith("ylabel") for r in bad)
+    assert max(abs(r[2]) for r in bad) > 0.5       # reported in INCHES over, not as a boolean
+
+
+def test_long_text_is_wrapped_to_the_thing_that_bounds_it():
+    """Titles are bounded by the canvas WIDTH, rotated y labels by the axes HEIGHT."""
+    t, n = ef.wrap_title("word " * 60, 2.58, 8.5)
+    assert n > 1 and max(len(x) for x in t.split(chr(10))) * 0.5 * 8.5 / 72 <= 2.58
+    y, m = ef.wrap_ylabel("best-match accuracy (chance 0.17)", 1.6, 9.0)
+    assert m == 2 and chr(10) in y
+    short, one = ef.wrap_ylabel("hit rate", 1.6, 9.0)
+    assert one == 1 and short == "hit rate"
+
+
+def test_a_narrow_figure_is_narrower(tmp_path):
+    """One bar group should not reserve the canvas six need."""
+    assert ef.bar_figure_width(6) == pytest.approx(ef.QUARTER_IN, abs=0.05)
+    assert ef.bar_figure_width(1) < ef.bar_figure_width(2) < ef.bar_figure_width(6)
+    assert ef.bar_figure_width(1) < 3.0

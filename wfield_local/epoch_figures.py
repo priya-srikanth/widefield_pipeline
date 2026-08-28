@@ -350,7 +350,7 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     # sizing the canvas per panel left a four-panel row rendering ticks at 6.0pt beside a
     # three-panel row's 8.0, a 25% difference with no overlap anywhere to give it away.
     fig_w = QUARTER_IN
-    left_in, gutter_in = 0.60, 0.72          # y labels; colour bars
+    left_in, gutter_in = 0.60, 0.98          # y labels; colour bar AND ITS LABEL
     top_in = 0.86 + 0.10 * bool(coverage)
     # THE ROW GAP HOLDS A SET OF ROTATED TICK LABELS. Priya, 2026-08-28: label the top
     # row's x axis too -- a reader should not have to count across to the row below
@@ -419,7 +419,8 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         _cbar(fig, im_delta, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 1, row_gap_in,
               "change in recall")
 
-    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
     q = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q, dpi=200)
     plt.close(fig)
@@ -482,6 +483,51 @@ def _value_and_ci(v):
                 float(v[1]) if len(v) > 1 and v[1] is not None else None,
                 float(v[2]) if len(v) > 2 and v[2] is not None else None)
     return float(v), None, None
+
+
+#: Inches of canvas per bar GROUP (one group = one x position, holding up to three epoch bars).
+#: Chosen so six groups reproduce QUARTER_IN exactly -- 0.62 + 6*0.72 + 1.24 = 6.18 -- which keeps
+#: every per-position figure at the width it already had while letting the one- and two-group
+#: figures stop reserving space for four groups that do not exist. Priya, 2026-08-28: figures with
+#: a single pre/acute/subacute triple were mostly empty.
+#:
+#: THE FONTS DO NOT SHRINK WITH IT. A narrower canvas placed at the same width renders type LARGER,
+#: which is the direction that helps; the module's constraint is on what the reader sees, not on
+#: inches. See the QUARTER PAGE note in the module docstring.
+GROUP_IN = 0.72
+
+#: Left gutter (y label + ticks) and right gutter (the reserved legend column). Absolute, so the
+#: axes width is what changes with the group count and the chrome does not.
+BAR_LEFT_IN, BAR_RIGHT_IN = 0.62, 1.24
+
+
+def bar_figure_width(n_groups):
+    """Canvas width for ``n_groups`` bar groups, never wider than a quarter page."""
+    return min(QUARTER_IN, BAR_LEFT_IN + max(1, int(n_groups)) * GROUP_IN + BAR_RIGHT_IN)
+
+
+def wrap_ylabel(text, axes_h_in, fontsize, *, max_lines=3):
+    """A rotated y label wrapped to fit the AXES HEIGHT, with the line count.
+
+    A rotated label runs along the axis, so its length is bounded by the axes HEIGHT and not by
+    anything the horizontal margins control. `"best-match accuracy (chance 0.17)"` is 33 characters
+    -- about 2.1in at 9pt -- against a 1.55in axes, so it ran off the top of the canvas and was
+    silently clipped. `_overlaps` cannot see this: the label collides with nothing, it is simply
+    outside the figure. Priya, 2026-08-28.
+
+    Returns ``(wrapped text, n_lines)``; the caller widens the left gutter by the line count,
+    because each extra line makes the label thicker in the direction the gutter does control.
+    """
+    import textwrap
+
+    per_char = 0.5 * fontsize / 72.0                       # rough advance width for this face
+    fits = max(8, int(axes_h_in / per_char))
+    if len(text) <= fits:
+        return text, 1
+    lines = textwrap.wrap(text, width=fits) or [text]
+    if len(lines) > max_lines:                             # give up gracefully rather than stack
+        lines = lines[:max_lines]
+    return chr(10).join(lines), len(lines)
 
 
 def _group_rule(fig, ax, xs, groups, *, pad_in=0.07, gap_in=0.055):
@@ -565,8 +611,18 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         return None
     m, k = len(epochs_present), len(positions)
 
-    fig_w, fig_h = QUARTER_IN, 2.60
+    fig_w, fig_h = bar_figure_width(k), 2.60
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    # ALL TEXT METRICS BEFORE ANYTHING IS DRAWN. The y label has to be wrapped to the axes height,
+    # the axes height depends on the top band, and the top band depends on how many lines the
+    # title and subtitle wrap to -- so the order is title, subtitle, bands, axes height, label.
+    # Computing the label first (and guessing the axes height) is what put it 0.16in off the
+    # bottom of the narrow figures.
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    _top_in = 0.52 + 0.15 * _slines + 0.15 * (_tlines - 1)
+    _bot_in = 0.46 + 0.34 * bool(groups)
+    _axes_h = max(0.6, fig_h - _top_in - _bot_in)
     bw = 0.78 / m
     xs = np.arange(k, dtype=float)
     for j, e in enumerate(epochs_present):
@@ -617,8 +673,12 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     # `_overlaps` cannot see it, because text over its OWN axes is excluded by design (a panel
     # title legitimately sits over its own panel). So this one is unreachable by the detector and
     # has to be prevented by construction rather than caught.
-    ax.set_ylabel(ylabel if chance is None else f"{ylabel} (chance {chance:.2f})",
-                  fontsize=FS_LABEL - 1)
+    # WRAPPED TO THE REAL AXES HEIGHT. `fig_h - 1.0` was a guess and it was too generous: a
+    # 25-character label measured as just fitting and then ran 0.16in off the bottom. The axes
+    # height is fig_h minus the bands, so the bands are computed first and the label second.
+    _yl = ylabel if chance is None else f"{ylabel} (chance {chance:.2f})"
+    _yl, _ylines = wrap_ylabel(_yl, _axes_h, FS_LABEL - 1)
+    ax.set_ylabel(_yl, fontsize=FS_LABEL - 1)
     ax.set_ylim(*ylim)
     ax.tick_params(axis="y", labelsize=FS_TICK - 1)
     ax.set_xlim(-0.6, k - 0.4)
@@ -634,19 +694,22 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
               bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4,
               borderpad=0.15, labelspacing=0.32, handlelength=1.1)
 
-    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
-    if subtitle:
-        fig.text(0.5, 0.90, subtitle, ha="center", va="top", fontsize=FS_ANNOT - 2.0,
-                 color="0.30")
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.30 + 0.15 * (_tlines - 1)) / fig_h, _sub, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
     # ABSOLUTE INCH MARGINS -- `subplots_adjust` takes fractions, so these are inch targets divided
     # by the canvas. The 1.24in right gutter is the legend's, and it is reserved rather than
     # negotiated so the axes is the same width on every figure in the family.
-    left_in, right_in = 0.62, 1.24
+    # a wrapped label is thicker in the direction the LEFT gutter controls
+    left_in, right_in = BAR_LEFT_IN + 0.15 * (_ylines - 1), BAR_RIGHT_IN
     # the band grows with the subtitle's LINE COUNT; a flat constant clipped the
     # bootstrap line off the top the moment the stats line wrapped to two
-    top_in = 0.52 + 0.15 * len(str(subtitle).split(chr(10))) * bool(subtitle)
+    # THE TOP BAND HOLDS BOTH the wrapped title and the subtitle. Sizing it from the
+    # subtitle alone let a two-line title push the first line off the canvas.
+    top_in = _top_in
     # the second x level needs its own band; without it the rule and its label fall off
-    bottom_in = 0.46 + 0.34 * bool(groups)
+    bottom_in = _bot_in
     fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
                         top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
     if groups:
@@ -925,8 +988,18 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     if not epochs or not positions:
         return None
     k, m = len(positions), len(epochs)
-    fig_w, fig_h = QUARTER_IN, 2.60
+    fig_w, fig_h = bar_figure_width(k), 2.60
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    # ALL TEXT METRICS BEFORE ANYTHING IS DRAWN. The y label has to be wrapped to the axes height,
+    # the axes height depends on the top band, and the top band depends on how many lines the
+    # title and subtitle wrap to -- so the order is title, subtitle, bands, axes height, label.
+    # Computing the label first (and guessing the axes height) is what put it 0.16in off the
+    # bottom of the narrow figures.
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    _top_in = 0.52 + 0.15 * _slines + 0.15 * (_tlines - 1)
+    _bot_in = 0.46 + 0.34 * bool(groups)
+    _axes_h = max(0.6, fig_h - _top_in - _bot_in)
     xs = np.arange(k, dtype=float)
     off = 0.78 / m
     for j, e in enumerate(epochs):
@@ -946,7 +1019,8 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     ax.axhline(0.0, color="0.35", lw=0.9, ls="--", zorder=1)
     ax.set_xticks(xs)
     ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
-    ax.set_ylabel(ylabel, fontsize=FS_LABEL - 1)
+    _yl, _ylines = wrap_ylabel(ylabel, _axes_h, FS_LABEL - 1)
+    ax.set_ylabel(_yl, fontsize=FS_LABEL - 1)
     ax.tick_params(axis="y", labelsize=FS_TICK - 1)
     ax.set_xlim(-0.6, k - 0.4)
     for sp in ("top", "right"):
@@ -961,15 +1035,18 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
               bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4, borderpad=0.15,
               labelspacing=0.32, handlelength=1.1)
-    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
-    if subtitle:
-        fig.text(0.5, 0.90, subtitle, ha="center", va="top", fontsize=FS_ANNOT - 2.0,
-                 color="0.30")
-    left_in, right_in = 0.62, 1.24
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.30 + 0.15 * (_tlines - 1)) / fig_h, _sub, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    # a wrapped label is thicker in the direction the LEFT gutter controls
+    left_in, right_in = BAR_LEFT_IN + 0.15 * (_ylines - 1), BAR_RIGHT_IN
     # the band grows with the subtitle's LINE COUNT; a flat constant clipped the
     # bootstrap line off the top the moment the stats line wrapped to two
-    top_in = 0.52 + 0.15 * len(str(subtitle).split(chr(10))) * bool(subtitle)
-    bottom_in = 0.46 + 0.34 * bool(groups)
+    # THE TOP BAND HOLDS BOTH the wrapped title and the subtitle. Sizing it from the
+    # subtitle alone let a two-line title push the first line off the canvas.
+    top_in = _top_in
+    bottom_in = _bot_in
     fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
                         top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
     if groups:
@@ -1107,8 +1184,13 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
         vmax = float(np.nanmax(allv)) if vmax is None else vmax
 
     fig_w = QUARTER_IN
-    left_in, gutter_in = 0.60, 0.78
-    top_in = 0.86 + 0.10 * bool(coverage) + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
+    left_in, gutter_in = 0.60, 0.98
+    # FITTED FIRST, THEN THE BAND. Sizing from the caller's own line breaks understates it:
+    # `fit_subtitle` re-flows them to this canvas and usually yields MORE lines, which put the
+    # subtitle straight through the panel titles.
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    top_in = 0.86 + 0.10 * bool(coverage) + 0.15 * _slines + 0.15 * (_tlines - 1)
     # THE ROW GAP HOLDS A SET OF ROTATED TICK LABELS. Priya, 2026-08-28: label the top
     # row's x axis too -- a reader should not have to count across to the row below
     # to learn what a column is. That costs vertical space between the rows, and
@@ -1161,9 +1243,9 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
     if im_d is not None:
         _cbar(fig, im_d, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 1, row_gap_in,
               f"change in {unit}")
-    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
-    if subtitle:
-        fig.text(0.5, 1.0 - 0.30 / fig_h, subtitle, ha="center", va="top",
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.26 + 0.15 * _tlines) / fig_h, _sub, ha="center", va="top",
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q, dpi=200)
@@ -1251,9 +1333,11 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
              "days from lesion (each animal's own)", ha="center", fontsize=FS_LABEL - 1)
     animal_legend(axes[-1], fontsize=FS_ANNOT - 1.5, loc="upper left")
     axes[-1].get_legend().set_bbox_to_anchor((1.02, 1.0))
-    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
-    if subtitle:
-        fig.text(0.5, 1.0 - 0.22 / fig_h, subtitle, ha="center", va="top",
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.22 + 0.15 * (_tlines - 1)) / fig_h, _sub, ha="center", va="top",
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q_, dpi=200)
@@ -1412,3 +1496,81 @@ def with_ci(point_draws):
     point, draws = point_draws
     lo, hi = np.percentile(draws, [2.5, 97.5])
     return (float(point), float(lo), float(hi))
+
+
+def wrap_title(text, fig_w_in, fontsize, *, margin_in=0.12):
+    """A horizontal title wrapped to the CANVAS WIDTH, with its line count.
+
+    The counterpart of `wrap_ylabel` for the other axis. A suptitle is centred, and matplotlib does
+    not clip it -- it runs off BOTH edges, which is how a 2.58in figure ended up with a title
+    written for a 6.2in one. Priya, 2026-08-28.
+    """
+    import textwrap
+
+    per_char = 0.5 * fontsize / 72.0
+    fits = max(12, int((fig_w_in - 2 * margin_in) / per_char))
+    if len(text) <= fits:
+        return text, 1
+    lines = textwrap.wrap(text, width=fits) or [text]
+    return chr(10).join(lines), len(lines)
+
+
+def fit_subtitle(text, fig_w_in, fontsize):
+    """Re-wrap an already-wrapped subtitle to THIS canvas: ``(text, n_lines)``.
+
+    `stats_line` wraps at a fixed character count chosen for a quarter page. On the narrow one- and
+    two-group figures that overflowed by nearly two inches on EACH side -- and a centred `fig.text`
+    is not clipped, it simply runs off both edges. Line breaks the caller already inserted are
+    treated as paragraph breaks and re-flowed, so a subtitle written once fits every width it is
+    drawn at.
+    """
+    if not text:
+        return "", 0
+    out = []
+    for para in str(text).split(chr(10)):
+        wrapped, _n = wrap_title(para, fig_w_in, fontsize)
+        out.extend(wrapped.split(chr(10)))
+    return chr(10).join(out), len(out)
+
+
+def off_canvas(fig, *, tol=0.002):
+    """Text artists that fall outside the figure: ``[(name, side, inches over)]``.
+
+    THE CLASS `_overlaps` CANNOT SEE. That check compares artists to each ANOTHER, so a label with
+    nothing beside it is clean however far past the edge it runs -- which is exactly how a rotated
+    y label two inches long on a 1.55in axes, and a six-inch title on a 2.58in canvas, both shipped
+    looking finished. Priya, 2026-08-28: check titles for running off canvas as well.
+
+    Reported in INCHES over the edge rather than as a boolean, because "0.02in" is a nudge and
+    "1.4in" is a different figure, and a caller deciding whether to act needs to know which.
+    """
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    w, h = fig.get_size_inches()
+    out = []
+
+    def check(artist, name):
+        if artist is None or not str(getattr(artist, "get_text", lambda: "")()).strip():
+            return
+        try:
+            bb = inv.transform_bbox(artist.get_window_extent(rend))
+        except Exception:                                              # noqa: BLE001
+            return
+        for side, over, inches in (("left", -bb.x0, -bb.x0 * w), ("right", bb.x1 - 1.0,
+                                                                  (bb.x1 - 1.0) * w),
+                                   ("bottom", -bb.y0, -bb.y0 * h), ("top", bb.y1 - 1.0,
+                                                                    (bb.y1 - 1.0) * h)):
+            if over > tol:
+                out.append((name, side, round(float(inches), 3)))
+
+    check(getattr(fig, "_suptitle", None), "suptitle")
+    for t in fig.texts:
+        check(t, f"text:{str(t.get_text())[:24]}")
+    for i, ax in enumerate(fig.axes):
+        check(ax.yaxis.label, f"ax{i}.ylabel")
+        check(ax.xaxis.label, f"ax{i}.xlabel")
+        check(ax.title, f"ax{i}.title")
+        for t in list(ax.get_xticklabels()) + list(ax.get_yticklabels()):
+            check(t, f"ax{i}.tick:{str(t.get_text())[:10]}")
+    return sorted(out, key=lambda r: -abs(r[2]))
