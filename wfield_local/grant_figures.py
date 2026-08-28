@@ -3300,10 +3300,29 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # post-stroke days. This grid set no hspace at all, so it ran at matplotlib's default
     # 0.2 while every sibling matrix grid had already moved to 0.60 -- the per-day titles
     # sat on the row above.
-    fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(_colw() * ncol + 2.0, figh),
+    #
+    # THE WIDTH IS DERIVED FROM THE RATIOS, not from `ncol`, and that is the fix rather than the
+    # tidiness. The figure was sized `_colw() * ncol` while the grid divided that space among
+    # `ncol + SPACER` units -- the colour-bar spacer is a real column and was taking its share
+    # from panels the width had not paid for. Every panel therefore came out narrower than
+    # `_colw()` promises, by a fraction that GROWS with the day count.
+    #
+    # It went unnoticed while the slack absorbed it. Registering 0827 took the delta grids to
+    # EIGHT post-stroke days, and driving the real function with fabricated data (two-line 9.5pt
+    # titles, which is what `cis` produces -- an earlier probe passed cis=None, got one-line
+    # 7.5pt titles, and reported clean while the shipped figure was not) gives 8 title-vs-title
+    # overlaps at 8 days and 0 once the spacer is paid for. `hspace` cannot help: the collision
+    # is horizontal.
+    #
+    # NOT PERMANENT, and worth saying so rather than discovering it again: at 12 days this is
+    # back to 5 overlaps. The durable fix is absolute margins in inches instead of matplotlib's
+    # fractional ones, which is the same root cause as `_colw`'s two raises. This buys headroom
+    # to about ten post-stroke days.
+    ratios = [1, 0.62] + [1] * len(days)
+    fig, grid = plt.subplots(len(ANIMALS), ncol + 1,
+                             figsize=(_colw() * sum(ratios) + 2.0, figh),
                              squeeze=False,
-                             gridspec_kw={"hspace": 0.60,
-                                          "width_ratios": [1, 0.62] + [1] * len(days)})
+                             gridspec_kw={"hspace": 0.60, "width_ratios": ratios})
     spacer = grid[:, 1]
     for ax in spacer:
         ax.axis("off")
