@@ -63,6 +63,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from wfield_local import config
+from wfield_local.console import use_utf8_stdout
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -5294,6 +5295,11 @@ def fig_frozen_vs_within(out_dir):
 
 
 def main(argv=None) -> int:
+    # BEFORE ANY FIGURE IS DRAWN. `_save` names the offending tick labels when it reports an
+    # overlap, and matplotlib writes a negative one with U+2212, which cp1252 cannot encode --
+    # so on Windows the layout reporter killed exactly those figures that had a fault to report,
+    # before savefig, leaving the previous render's PNG in place. See wfield_local/console.py.
+    use_utf8_stdout()
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)

@@ -33,6 +33,7 @@ from pathlib import Path
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local import config, writeguard
+from wfield_local.console import use_utf8_stdout
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
@@ -238,6 +239,9 @@ def _publish_json(out, rv, log=print) -> dict:
 
 
 def main():
+    # A subprocess inherits this, so every `cli(...)` step below is covered too. See
+    # wfield_local/console.py: a cp1252 stdout turns a printed U+2212 into a lost figure.
+    use_utf8_stdout()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dates", nargs="*", metavar="DATE",
                     help="per-day figure date(s): MMDD or YYYYMMDD; a range (0806-0808), 'all', or a "
@@ -455,6 +459,21 @@ def main():
         # reads coding_direction.json, so it must follow the line above. Seconds, not
         # minutes: nothing is recomputed, the values are already stored per session.
         cli("wfield_local.miss_vs_stopped", "--output", out)
+
+    # GRANT FIGURES -- deck section H places 19 of these patterns, so by the rule this file already
+    # follows for the post-stroke stage ("if it is part of the deck it is part of the nightly") they
+    # cannot be left to a hand-run command. Until 2026-08-27 they were: `nightly_figs` never invoked
+    # `grant_figures`, so every deck built section H from whatever happened to be on disk, and a
+    # night nobody re-rendered by hand shipped a silently day-stale H. Exactly the failure the
+    # post-stroke stage was wired in to end.
+    #
+    # BEFORE THE DECK BUILD, because the deck reads the PNGs this writes. `--compact` keeps the
+    # digit-free variants current for the grant document; they are deliberately NOT placed as
+    # slides (see the section-H filter in locanmf_analysis_deck).
+    #
+    # Its own root: these land under `labcams/grant_figures`, not `out` -- a deliverable rather than
+    # an analysis intermediate -- so no --output is passed.
+    cli("wfield_local.grant_figures", "--compact")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
