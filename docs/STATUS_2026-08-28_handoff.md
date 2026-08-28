@@ -1,11 +1,45 @@
 # Handoff, 2026-08-28 — five approved items, with the plumbing already traced
 
-Priya approved all five. None is started. Each is written up to the point where the next person can
-begin editing rather than begin investigating.
+Priya approved all five. **#1 and #2 are DONE** (`837a8e3`, `73b651d`); #3, #4 and #5 remain, and
+each is written up to the point where the next person can begin editing rather than investigating.
+
+Two things this document got WRONG, corrected in place below so nobody re-derives them:
+
+* **#1 said to bump `CACHE_VERSION` 11 -> 12. Do not.** `with_rt=False` returns a tuple byte-identical
+  to what `_trial_features` returned before the flag existed, so every warm entry on disk is still
+  correct. The key omits the flag when false and carries it when true, which is unambiguous (two specs
+  differing by the presence of a NAMED key cannot collide) and preserves ~1 MB per session-alignment
+  at ~168 s each to rebuild. A bump would additionally have discarded every UNRELATED cached kind --
+  RSA, spatial reorganisation, the engagement tables -- for a change none of them can see.
+  `CACHE_VERSION` is for when the COMPUTE CODE moves; this was a new key, not a moved one.
+* **#2's blocker was already clear.** `_pooled` built `phase_labels("pre") + phase_labels("post")`
+  filtered by animal, which is what `config.pooled_labels` returns. It now CALLS that function rather
+  than agreeing with it, which is the point: agreement by coincidence is the failure mode.
 
 ---
 
-## 1. Early vs late-rewarded confusion classes  (blocks: removing the D2 respwin variants)
+## 1. Early vs late-rewarded confusion classes -- DONE (`837a8e3`)
+
+Landed as `position_coding_directions.figure_rt_split` -> `coding_rtsplit_<window>_<animal>.png`,
+deck section **G9e**, one animal per slide. D2's respwin arm is unplaced (figures still written, so
+it is reversible). `rt_drift` was relabelled **G9d** -- it and the per-session matrices both called
+themselves G9c, so a spoken reference picked out two different slides.
+
+Two design points worth keeping:
+
+* `poststroke_lick_early` / `_late` are in a new **`CONFUSION_SUBCLASSES`** mapping, deliberately NOT
+  in `CONFUSION_CLASSES`. That tuple's whole invariant is that summing a subset gives a population;
+  a fourth and fifth sibling would have made "all trials" count every lick trial twice, silently,
+  and the result would still have looked like a confusion matrix.
+* The figure uses **absolute `subplots_adjust` margins, not `tight_layout`** -- `imshow` fixes an
+  aspect, so tight_layout warns once per panel and fills the nightly log, and a negotiated layout is
+  not reproducible (`_delta_grid` was clean at 10 post-stroke days and overlapping at 12 for exactly
+  that reason). Verified by driving the function through `_overlaps`: 0, including the empty-late-arm
+  case.
+
+The original plan follows, since the plumbing description is still the record of how RT gets out.
+
+### (as planned)
 
 **Why.** `decode.max_rt_s = 3.5 s` is the task's response window, so "engaged" everywhere outside
 `nolick_decoder` already merges a 0.2 s lick with a 3.0 s lick. Post-stroke the mass shifts into the
@@ -44,7 +78,24 @@ happened, and one such mask came out 633 long against 575 kept trials.
 
 ---
 
-## 2. `poststroke_compare` — stop refitting what is already stored
+## 2. `poststroke_compare` -- stop refitting what is already stored -- DONE (`73b651d`)
+
+`locanmf_frozen_decoder.frozen_decoder_models()` now owns the spec and the fit; both modules call it,
+so the models are identical BY CONSTRUCTION rather than by six recipes agreeing.
+`poststroke_compare.frozen(d)` loads once per pool and memoises on the pool dict.
+
+THE TEST THAT MATTERS IS EQUIVALENCE, not that the call happens:
+`tests/test_poststroke_compare_uses_the_stored_model.py` asserts the frozen path predicts IDENTICALLY
+to the old inline fit and that `models["loso"]` reproduces `cross_val_predict(LeaveOneGroupOut)` fold
+for fold. Keyed by LABEL, not pooled index -- the index depends on the order the caller assembled its
+pool and the label does not.
+
+The two sites that are NOT the same model still fit locally and are pinned: `decode_matched`'s
+lick-only arm (class-filtered, 4-way for PS94/PS95, so a different chance level) and
+`_within_accuracy`. A helper that quietly served `full` to those would be worse than the duplication
+it removed.
+
+### (as planned)
 
 Priya: *"let's not refit independently if we are replicating the exact same thing."*
 
