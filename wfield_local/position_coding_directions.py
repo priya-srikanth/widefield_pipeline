@@ -884,7 +884,10 @@ def figure_animal(res, out, align="precue", meth="dom"):
     x = np.arange(len(sess))
     bx = next((i - 0.5 for i, sn in enumerate(sess) if sn["phase"] == "post"), None)
 
-    fig, axes = plt.subplots(2, 3, figsize=(17.5, 8.8), squeeze=False, sharey=True, sharex=True)
+    # 17.5in placed at 12.7in is a 73% reduction, so 6.5pt date labels arrived at 4.7pt.
+    # 12.2in renders at ~100% and the labels below are enlarged to match.
+    fig, axes = plt.subplots(2, 3, figsize=(12.2, 8.4), squeeze=False, sharey=True,
+                             sharex=True, gridspec_kw={"hspace": 0.34, "wspace": 0.10})
     for k, P in enumerate(BY_SEVERITY):
         ax = axes[k // 3][k % 3]
         bys = (R["positions"].get(P) or {}).get("by_session") or {}
@@ -900,7 +903,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
             for xi, cc in zip(x, cells):
                 y, n, low = cc.get("mean"), cc.get("n", 0), cc.get("low_n")
                 if y is None and n:
-                    ax.text(xi, 0.02, f"n={n}", ha="center", va="bottom", fontsize=5,
+                    ax.text(xi, 0.02, f"n={n}", ha="center", va="bottom", fontsize=6.5,
                             rotation=90, color=col, style="italic",
                             transform=ax.get_xaxis_transform())
                 elif y is not None and low:
@@ -916,7 +919,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
         ax.set_title(f"{P}   (rank {(R['positions'].get(P) or {}).get('severity_rank', '?')} of 6)",
                      fontsize=9.5)
         ax.set_xticks(x)
-        ax.set_xticklabels([sn["date"] for sn in sess], rotation=60, ha="right", fontsize=6.5)
+        ax.set_xticklabels([sn["date"] for sn in sess], rotation=60, ha="right", fontsize=8.5)
         ax.grid(alpha=0.25)
         if k % 3 == 0:
             ax.set_ylabel("projection", fontsize=9)
@@ -987,7 +990,16 @@ def figure_cross(res, out, align="precue", meth="dom"):
     lim = float(np.nanpercentile(np.abs(d), 95)) if d.size else 1.0
     lim = max(lim, 0.2)
 
-    fig, axes = plt.subplots(1, len(mats), figsize=(4.3 * len(mats) + 1.2, 5.1), squeeze=False)
+    # SIZED FOR THE SLIDE IT IS PLACED ON (Priya, 2026-08-28). Six matrices in one row at
+    # 4.3in each made a 22.7in figure placed at 12.7in -- a 56% reduction, so its 7pt tick
+    # labels reached the reader at 3.9pt. Two rows of three at 3.2in is 10.8in wide and
+    # renders at ~100%, so 8.5pt labels arrive as 8.5pt. Fewer inches, larger type: the
+    # figure is smaller and MORE legible, because what a reader sees is
+    # fontsize x (placed width / figure width).
+    _nc = min(len(mats), 3)
+    _nr = (len(mats) + _nc - 1) // _nc
+    fig, axes = plt.subplots(_nr, _nc, figsize=(3.2 * _nc + 1.1, 3.5 * _nr + 1.1),
+                             squeeze=False, gridspec_kw={"hspace": 0.45, "wspace": 0.16})
     for k, (c, M, isdiff) in enumerate(mats):
         ax = axes[0][k]
         im = ax.imshow(np.ma.masked_invalid(M), cmap="RdBu_r",
@@ -996,16 +1008,18 @@ def figure_cross(res, out, align="precue", meth="dom"):
             for j in range(len(BY_SEVERITY)):
                 if np.isfinite(M[i, j]):
                     ax.text(j, i, f"{M[i, j]:+.2f}" if isdiff else f"{M[i, j]:.2f}",
-                            ha="center", va="center", fontsize=6.5)
+                            ha="center", va="center", fontsize=8)
         ax.set_xticks(range(len(BY_SEVERITY)))
         # VERTICAL, CENTRED. At 55 degrees with ha="right" a long label extends LEFT of its tick
         # and, with five panels across, is clipped by the neighbouring axes -- "far_center" and
         # "close_center" both rendered as "center" and "close_R" as "-lose_R", so two columns
         # appeared to have the same label (Priya, 2026-08-23). Vertical labels extend only
         # downward, which nothing else occupies.
-        ax.set_xticklabels(BY_SEVERITY, rotation=90, ha="center", fontsize=7)
+        ax.set_xticklabels([POS_SHORT.get(p_, p_) for p_ in BY_SEVERITY], rotation=90,
+                           ha="center", fontsize=9)
         ax.set_yticks(range(len(BY_SEVERITY)))
-        ax.set_yticklabels(BY_SEVERITY if k == 0 else [], fontsize=7)
+        ax.set_yticklabels([POS_SHORT.get(p_, p_) for p_ in BY_SEVERITY]
+                           if k % _nc == 0 else [], fontsize=9)
         ax.set_title(("BASELINE: " if not isdiff else "minus baseline: ") + STYLE[c][2],
                      fontsize=8.5)
         ax.set_xlabel("scored on THIS position's direction", fontsize=8)

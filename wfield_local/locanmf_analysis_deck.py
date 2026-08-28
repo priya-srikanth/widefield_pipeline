@@ -2431,6 +2431,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # direction is badly contaminated (|dom - lr| 0.841 in PS92) -- showing it would invite the
         # misreading the orthogonalisation exists to prevent.
         _G9_METHODS = {"ENL": ("dom_orth",), "cue": ("dom_orth", "dom"), "lick": ("dom_orth", "dom")}
+        #: G9 kinds narrow enough to place TWO ANIMALS per slide. Measured widths:
+        #: pooled 11.5in, normunit 12.0in -> ~6.2in each at 2-up, labels still ~6pt.
+        #: The dense kinds are 16-23in and are deliberately absent.
+        _G9_PACK_2UP = {"pooled", "normunit"}
         #: how to read a pair of slides that disagree, by window
         _G9_PAIR_NOTE = {
             "cue": ("  BOTH VARIANTS ARE SHOWN for this window. Audited 2026-08-24 against the "
@@ -2539,11 +2543,43 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 # is what let it sit.
                 _methods = ("",) if _kind == "engagement" else _G9_METHODS[_w]
                 for _m in _methods:
+                    _found = []
                     for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
                         _f = src / (f"coding_{_kind}_{_w}_{_an}.png" if not _m else
                                     f"coding_{_kind}_{_w}_{_m}_{_an}.png")
-                        if not _f.exists():
-                            continue
+                        if _f.exists():
+                            _found.append((_an, _f))
+                    # TWO ANIMALS PER SLIDE where the figure is narrow enough to survive it.
+                    # MEASURED, not assumed: a figure placed 2-up sits ~6.2in wide, so a label
+                    # reaches the reader at fontsize x 6.2/figure_width. `pooled` (11.5in) and
+                    # `normunit` (12.0in) keep 9pt labels at ~5in-equivalent and stay readable; the
+                    # dense kinds in this same loop are 16-23in and would land at 3-4pt, which is
+                    # why they are NOT in this set. See DECISIONS 2026-08-28.
+                    if _kind in _G9_PACK_2UP and len(_found) > 1:
+                        # THE CAVEATS TRAVEL WITH THE SLIDE. The one-per-animal path below appends
+                        # the lick-window inference note and the plain-vs-orth pair note to the
+                        # blurb; a packed slide showing the same figures must carry the same
+                        # qualifications, or consolidating the deck would quietly strip the reasons
+                        # its numbers are conditional.
+                        _lick2 = ("" if _w != "lick" else
+                                  "  The no-lick classes sit at an INFERRED time here: a no-lick "
+                                  "trial has no lick to align to, so its window starts at the cue "
+                                  "plus that session's own median RT at that position. A position "
+                                  "with NO engaged trial that session is DROPPED rather than given "
+                                  "the session median — read those classes as inference.")
+                        _pair2 = _G9_PAIR_NOTE.get(_w, "") if len(_methods) > 1 else ""
+                        _mlabel2 = ("" if not _m else
+                                    f", {'ORTHOGONALISED' if _m.endswith('_orth') else 'PLAIN'} "
+                                    f"direction")
+                        for _i in range(0, len(_found), 2):
+                            _two = _found[_i:_i + 2]
+                            s = slide()
+                            title(s, f"G9. {' & '.join(a for a, _ in _two)} — {_w} window, "
+                                     f"{_tag}{_mlabel2}", _blurb + _lick2 + _pair2)
+                            note(s, M_CODING_DIR, specific=S_G9)
+                            grid(s, [q for _, q in _two], cols=2, top=1.95)
+                        continue
+                    for _an, _f in _found:
                         s = slide()
                         _lickonly = ("" if _w != "lick" else
                                      "  The no-lick classes sit at an INFERRED time here: a no-lick "

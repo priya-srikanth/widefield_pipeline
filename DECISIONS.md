@@ -5607,3 +5607,31 @@ It cost a second full render pass — roughly half the total — for panels 3% n
 TICK LABELS set the floor and are present in both variants. `_txt` survives as a seam even though it
 now gates nothing, because eight call sites routed through one function is how the next global change
 to in-cell text stays a one-line change.
+
+### 2026-08-28, later — figure geometry sized for the slide it lands on
+
+`coding_cross_` was **22.7 in** wide and `coding_direction_` **19.6 in**, both placed at 12.7 in. A
+reader sees `fontsize × (placed width / figure width)`, so their 7 pt and 6.5 pt labels arrived at
+**3.9 pt and 4.7 pt**. Reshaped to 10.8 in and 12.2 in with the type enlarged: fewer inches and larger
+points, so the figures are physically smaller and MORE legible. `crosssess` got the same treatment
+(6 sessions per row instead of 4, one shared colour bar instead of one per panel — every panel already
+shared vmin/vmax, so N of them asserted a scale that does not exist while taking width from the maps).
+
+**Two animals per slide only where the width allows it**, measured rather than assumed: `pooled`
+(11.5 in) and `normunit` (12.0 in) survive 2-up; the dense kinds in the same loop are 16–23 in and
+would land at 3–4 pt, so they are explicitly excluded via `_G9_PACK_2UP`.
+
+**The caveats travel with the packed slide.** The per-animal path appends the lick-window inference
+note and the plain-vs-orth pair note to each blurb; the packed path initially did not, which would
+have made consolidating the deck a way of quietly stripping the reasons its numbers are conditional.
+
+### Deck state: 712 → 501 slides, 20 section headers, 98% carrying notes
+
+### PLAIN vs ORTHOGONALISED — kept, and why (Priya asked 2026-08-28)
+
+Orthogonalising projects the lick/no-lick engagement axis out of the position direction. It is needed:
+`cos(w, engagement)` reaches 0.82 / 0.91 / 0.71 / 0.52 across PS92–95 and lands on a different
+position in each animal, so PS93's far_center "position" direction is 91% engagement axis. But the
+2026-08-24 audit against logistic directions shows orth moves TOWARD that reference in PS93/94/95 and
+AWAY in PS92 (cue 0.160→0.192, lick 0.202→0.279). **For PS92, plain is the better estimate**, and in
+the lick window orthogonalising also removes position-linked MOVEMENT, not only confound. Both stay.
