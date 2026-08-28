@@ -182,3 +182,61 @@ def test_a_model_cannot_be_built_from_another_animals_sessions():
     with pytest.raises(ValueError, match="PS98"):
         F.make_spec("PS99", "decoder", align="cue", source="locanmf",
                     train_labels=["PS99_0101", "PS98_0101"])
+
+
+# ---------------------------------------------------------------------------------------------
+# The SERVER path. Verified end-to-end on the real share 2026-08-28: with the local store empty --
+# the behavior box's situation -- `listing` found both published PS92 models, `find` resolved to
+# MICROSCOPE, and `load_or_fit` returned frozen-hit with 11 LOSO models and classes [0..5], with the
+# fit callable rigged to raise if it were ever invoked.
+# ---------------------------------------------------------------------------------------------
+
+def test_a_model_only_on_the_server_is_found_and_loaded(tmp_path, monkeypatch):
+    """The behavior box: nothing local, the model published to MICROSCOPE. Without this it would
+    refit a reference that already exists -- and a refit over a grown session set is a DIFFERENT
+    reference, which is the whole thing being prevented."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    local.mkdir()
+    monkeypatch.setattr(F, "local_dir", lambda: server)      # freeze INTO the server dir...
+    sp = spec()
+    F.load_or_fit(sp, lambda: {"full": "PUBLISHED"}, log=lambda *a: None)
+
+    monkeypatch.setattr(F, "local_dir", lambda: local)       # ...then look for it with local empty
+    monkeypatch.setattr(F, "server_dir", lambda: server)
+    payload, status = F.load_or_fit(
+        sp, lambda: pytest.fail("refitted instead of loading the published model"),
+        log=lambda *a: None)
+    assert status == F.STATUS_HIT and payload == {"full": "PUBLISHED"}
+
+
+def test_local_is_preferred_when_both_have_the_same_spec(tmp_path, monkeypatch):
+    """A spec_id is a hash of the spec, so the same id in both roots is the same model. Read the copy
+    that is not over SMB."""
+    local, server = tmp_path / "local", tmp_path / "server"
+    sp = spec()
+    for root, tag in ((server, "SERVER"), (local, "LOCAL")):
+        monkeypatch.setattr(F, "local_dir", lambda r=root: r)
+        F.load_or_fit(sp, lambda t=tag: {"full": t}, log=lambda *a: None)
+    monkeypatch.setattr(F, "local_dir", lambda: local)
+    monkeypatch.setattr(F, "server_dir", lambda: server)
+    _d, origin = F.find(sp)
+    assert origin == "local"
+    assert F.load_or_fit(sp, lambda: None, log=lambda *a: None)[0] == {"full": "LOCAL"}
+
+
+def test_an_unreachable_server_does_not_break_loading(tmp_path, monkeypatch):
+    """The share is down or unmounted. A local model must still load, and a missing one must still
+    fit rather than raise."""
+    monkeypatch.setattr(F, "local_dir", lambda: tmp_path / "local")
+    monkeypatch.setattr(F, "server_dir", lambda: tmp_path / "does_not_exist")
+    assert F.load_or_fit(spec(), lambda: {"full": "M"}, log=lambda *a: None)[1] == F.STATUS_NEW
+    assert F.load_or_fit(spec(), lambda: None, log=lambda *a: None) == ({"full": "M"}, F.STATUS_HIT)
+
+
+def test_server_dir_returning_none_is_tolerated(tmp_path, monkeypatch):
+    """`server_dir` returns None when the labcams root cannot be resolved at all -- an offline box."""
+    monkeypatch.setattr(F, "local_dir", lambda: tmp_path / "local")
+    monkeypatch.setattr(F, "server_dir", lambda: None)
+    assert F.find(spec()) == (None, None)
+    assert F.siblings(spec()) == []
+    assert F.load_or_fit(spec(), lambda: {"full": "M"}, log=lambda *a: None)[1] == F.STATUS_NEW
