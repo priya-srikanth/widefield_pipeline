@@ -5977,17 +5977,98 @@ loop, so the dispatch site is not the obstacle.
 * **`session_cache` writes must not race.** Several stages share entries.
 * **Set `OMP_NUM_THREADS`/`MKL_NUM_THREADS` per worker.** Because BLAS is already taking ~1.5
   cores, 8 unconstrained workers oversubscribe rather than scale.
-* **THE MEMOISATION IS PER PROCESS, and this now cuts against the fan-out.** `_BUNDLE_CACHE` and
-  the `lru_cache`s on `_collect_5c`/`_collect_7` are what make the second figure of a family nearly
-  free: 5c and 5d share a collection, as do 6/6b/6d, 7/7b/7d and 8/8b/8d/8e. Scatter one figure per
-  worker and each worker pays that collection again — total CPU goes UP even as wall clock comes
-  down, and on a cold `session_cache` it could go up a great deal.
-
-  So the unit of parallelism should be the **figure FAMILY**, not the figure: keep everything that
-  shares a collector in one process. Better still, parallelise the POOLING stage across
-  (animal, alignment) — twelve independent units, which is the natural width here — let it fill the
-  disk cache, then render. That ordering gets the wall-clock win without multiplying the work, and
-  it is the same reasoning that made sharing one bundle worth doing in the first place.
+* ~~**The memoisation is per process, so the unit must be the figure FAMILY.**~~ **WRONG, and the
+  measurement is below.** The argument was that `_BUNDLE_CACHE` and the collector `lru_cache`s make
+  the second figure of a family nearly free, so scattering one figure per worker re-pays every
+  shared collection. The premise is true and the conclusion does not follow, because it assumed
+  collection was a large share of the cost. It is about **20 seconds** against bootstraps of
+  **10–37 minutes**. Re-paying it is the right trade by three orders of magnitude.
 
 This is real work, not a flag, and it is the honest answer to "how do we make the nightly faster" —
 a bigger win than anything left in the serial code. Not started; the current render must land first.
+
+---
+
+## 2026-08-28 (evening) — Where the render's hours actually go, and what that changed
+
+Priya: fix the parallelism before any further full render, and store bootstrap results so a night
+re-runs only the new sessions.
+
+### The measurement, taken from the output PNG mtimes rather than assumed
+
+A figure family writes its files as it finishes, so the gap before each file is what was computed
+to produce it. Over 5.79 h of the 2026-08-28 serial render, 78 figures:
+
+| family | share | per unit |
+|---|---|---|
+| 7b reliability | 31.2% | 17–37 min |
+| 8d crossnobis delta | 26.6% | 14–36 min |
+| 6d pattern delta | 11.9% | ~12 min |
+| 7d split-half delta | 10.5% | ~11 min |
+| 8b crossnobis geometry | 9.5% | ~13 min |
+| 8e asymmetry | 5.0% | ~7 min |
+| **the other twenty families** | **1.3%** | |
+
+**94.7% of the render is six bootstrap families**, and each writes exactly five files — one per
+(alignment, trial class). Collection is ~20 s. Pooling, the thing I spent the morning on, is ~4%.
+
+That is worth saying plainly: the `_pooled_bundle` migration was right for correctness — one
+pooling instead of four recipes agreeing by coincidence — but its render-time saving is a few
+percent, not the "single highest-value change" I called it before measuring.
+
+### So the unit of parallelism is the FIGURE, and there are 96 of them
+
+`--jobs N` fans `(figure, alignment, trial class)` over a spawn process pool, longest first so the
+two 30-minute families are not picked up last. Processes, not threads: pyplot keeps a global figure
+registry and the GIL serialises the numpy that dominates anyway. Each worker is capped to 2 BLAS
+threads — the serial render already averaged 1.51 cores from BLAS alone, so unconstrained workers
+oversubscribe 24 rather than scale on them. `nightly_figs` passes `--grant-jobs 8`.
+
+### Three things had to be true first, and none of them was
+
+**THE RENDER HAS NEVER BEEN REPRODUCIBLE.** Every bootstrap seed was
+`abs(hash((animal, align, variant))) % 2**31`. Python salts string hashing per process unless
+PYTHONHASHSEED is set, and it is not: three consecutive interpreters returned 1125027485,
+2138950357 and 223190567 for the same tuple. Rerunning the render moved every confidence interval.
+Point estimates never moved, which is why nobody caught it. Now blake2b of the labels.
+
+**SEEDS WERE PER ANIMAL, NOT PER DAY.** A day's interval depended on how many days preceded it in
+that run, so rendering a subset of days silently changed the days that remained — and no day's
+result could be stored and replayed.
+
+**FIGURE 4 SPLITS BY ALIGNMENT BUT NOT BY TRIAL CLASS**, and its filename carries no variant.
+Treating "windowed" and "variant-split" as one question had two workers writing one path at the
+same time. Both are now read from the function's source, and a runtime guard reports any two units
+claiming one output path — a torn PNG presents in the deck as a merely missing figure.
+
+### The bootstrap cache is keyed on the input BYTES, not on a session name
+
+`_boot_cached(tag, parts, compute)` stores one day's bootstrap under a blake2b digest of the arrays
+that produced it, beside the session cache and under the same `WIDEFIELD_NO_CACHE` switch. A
+name-keyed entry goes stale the moment a session is re-preprocessed under the same label — the
+contamination class this repo keeps finding, most recently a frozen decoder that carried a stale
+basis for eight days behind a name asserting it did not. Hashing the bytes cannot do that.
+
+The pre-stroke reference is digested once per animal and folded into every day's key, so
+re-preprocessing a pre-stroke session invalidates that animal's days and nothing else.
+
+Covered: 7b and the delta family (6d, 7d, 8d, 9) — about **80% of the render**. Not yet: `_rdm_ci`
+(8b, 8g) and `_asymmetry_ci` (8e), another ~15%.
+
+**It is only sound because the seeds are stable and per-day.** A cached draw has to be the draw the
+uncached path would have produced. Both fixes came first, deliberately, and neither is optional.
+
+### The consequence, which should not be discovered later
+
+**Confidence intervals will differ from the figures currently on the server.** They had to — they
+were drawn from a per-process salt and were never reproducible. Point estimates are unchanged,
+with one exception: in figure 6 the seed also picks which pre-stroke sessions form the reference
+half, so that figure's content can shift slightly. From here on, the same inputs give the same
+figure, which has not been true before today.
+
+### Still open
+
+- `_rdm_ci` and `_asymmetry_ci` are not cached yet (~15%).
+- **The bootstrap cache is never pruned.** `session_cache` prunes superseded signatures because its
+  key is a session; these are keyed by content, so a changed session leaves its old entry behind.
+  Harmless but unbounded — it needs an age-based sweep.
