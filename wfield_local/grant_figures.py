@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import textwrap
 import warnings
 from functools import lru_cache
@@ -82,6 +83,150 @@ POS_STYLE = {
 }
 WINDOWS = (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue"),
            ("lick", "lick", "post-lick"))
+
+
+#: Restrict the render to ONE alignment / trial class. Set from `--window` / `--variant`, and the
+#: reason they exist: `(figure, alignment, variant)` is the unit the parallel driver hands to a
+#: worker, and a worker must be able to render exactly its own unit and nothing else.
+#:
+#: Module globals rather than threaded parameters because every figure function already loops over
+#: WINDOWS internally, and adding two arguments to twenty-six of them would be a far larger and
+#: riskier change than a filter they all read through one accessor.
+_ONLY_WINDOW: str | None = None
+_ONLY_VARIANT: str | None = None
+
+
+#: Bumped when the BOOTSTRAP arithmetic changes. Separate from `session_cache.CACHE_VERSION`,
+#: which covers the per-session features underneath: the two invalidate for different reasons, and
+#: sharing one number would throw away hours of still-valid bootstraps every time a feature moved.
+BOOT_CACHE_VERSION = 1
+
+
+def _feed(h, a):
+    """One array -- or a nested list/dict of them -- into a digest, shape and dtype included.
+
+    Shape and dtype matter: two differently shaped arrays can share a byte string, and an int64
+    block vector reinterpreted as float64 would collide with one that means something else.
+    """
+    if a is None:
+        h.update(b"\x00none")
+        return
+    if isinstance(a, dict):
+        for k in sorted(a, key=str):
+            h.update(str(k).encode("utf-8"))
+            _feed(h, a[k])
+        return
+    if isinstance(a, (list, tuple)):
+        h.update(f"[{len(a)}]".encode("utf-8"))
+        for x in a:
+            _feed(h, x)
+        return
+    if isinstance(a, (str, int, float, bool)):
+        h.update(repr(a).encode("utf-8"))
+        return
+    arr = np.ascontiguousarray(a)
+    h.update(str(arr.shape).encode("utf-8"))
+    h.update(str(arr.dtype).encode("utf-8"))
+    h.update(arr.tobytes())
+
+
+def _digest(*parts) -> str:
+    """A content digest of what a bootstrap actually consumes.
+
+    THE KEY IS THE DATA, NOT THE SESSION NAME. A name-keyed cache goes stale silently the moment a
+    session is re-preprocessed under the same label -- the contamination class this repo keeps
+    finding, most recently a frozen decoder that carried a stale basis for eight days behind a name
+    asserting it did not. Hashing the bytes cannot do that: identical inputs give identical
+    outputs, and changed inputs simply miss.
+    """
+    import hashlib
+    h = hashlib.blake2b(digest_size=16)
+    for p in parts:
+        _feed(h, p)
+    return h.hexdigest()
+
+
+def _boot_cached(tag, parts, compute):
+    """Memoise one bootstrap result to disk under a digest of its inputs.
+
+    Priya, 2026-08-28: store bootstrap results so a nightly run recomputes only what changed. That
+    is what makes this worth having -- the 2026-08-28 render spent 94.7% of 5.79 hours in six
+    bootstrap families, and on a typical night exactly one session is new. The other seventy-three
+    have identical inputs and therefore identical draws.
+
+    IT IS ONLY SOUND BECAUSE THE SEEDS ARE STABLE AND PER-DAY. A cached draw has to be the draw the
+    uncached path would have produced. With `hash()`-salted seeds it never was, and with one RNG
+    stream shared across an animal's days a cached day would silently depend on which other days
+    were present in the run that produced it. Both were fixed first, deliberately, and neither is
+    optional for this.
+
+    Stored beside the session cache and honouring the same disable switch, so one environment
+    variable turns off every memoisation at once when a result is under suspicion.
+    """
+    import pickle
+
+    from wfield_local import session_cache as _sc
+
+    if _sc._disabled():
+        return compute()
+    fp = _sc.CACHE_DIR / "bootstrap" / f"{tag}__v{BOOT_CACHE_VERSION}__{_digest(*parts)}.pkl"
+    if fp.exists():
+        try:
+            with open(fp, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:                                              # noqa: BLE001
+            pass                    # truncated by a killed run -> recompute and republish
+    res = compute()
+    try:
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        tmp = fp.with_suffix(f".{os.getpid()}.tmp")
+        with open(tmp, "wb") as fh:
+            pickle.dump(res, fh)
+        os.replace(tmp, fp)
+    except OSError:
+        # A worker racing us to the same entry, or a full disk. The result is computed and correct;
+        # failing a render over a cache write would be the wrong trade.
+        pass
+    return res
+
+
+def _seed(*parts) -> int:
+    """A STABLE integer seed from a tuple of labels.
+
+    NOT `hash()`, which this module used at fourteen sites. Python SALTS string hashing per
+    process unless PYTHONHASHSEED is set, and it is not set here -- three consecutive interpreters
+    returned 1125027485, 2138950357 and 223190567 for `hash(("PS92", "cue", "lick"))`. So every
+    bootstrap in this module drew a different resample on every run: the point estimates never
+    moved, but every confidence interval did, and two renders of the same data could not be
+    compared to each other. That is a reproducibility defect that predates any parallelism.
+
+    It becomes unignorable with a worker pool, because each worker is its own process with its own
+    salt -- but the fix is owed to the serial render just as much.
+
+    blake2b of the joined labels is stable across processes, machines and Python versions.
+    """
+    import hashlib
+    key = "\x1f".join(str(p) for p in parts).encode("utf-8")
+    return int.from_bytes(hashlib.blake2b(key, digest_size=4).digest(), "big")
+
+
+def _windows():
+    """The alignments this process should render. Iterate this, never WINDOWS directly."""
+    return tuple(w for w in WINDOWS if _ONLY_WINDOW in (None, w[1]))
+
+
+def _variants(align):
+    """Trial classes for one alignment.
+
+    THE LICK-ALIGNED WINDOW ADMITS ONLY ``lick``: a trial with no detected lick has no lick to
+    align to, so a "miss trial, lick-aligned" panel is not a weak result but an undefined one.
+
+    This rule was written out SEVENTEEN times as an inline conditional before it was a function.
+    That is exactly the shape of duplication `_pooled_bundle` was extracted for -- seventeen copies
+    agree today and one of them grows a third class tomorrow.
+    """
+    vs = ("lick",) if align == "lick" else ("lick", "working")
+    return tuple(v for v in vs if _ONLY_VARIANT in (None, v))
 
 
 def coverage_note(source_labels=None):
@@ -834,7 +979,7 @@ def fig_confusion_prestroke(out_dir):
     weight a 200-trial session the same as a 500-trial one.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
+    for _disp, align, wname in _windows():
         f = _fig_root() / f"joint_xsession_decoder_{align}.json"
         if not f.exists():
             continue
@@ -1210,12 +1355,12 @@ def fig_confusion_per_session(out_dir):
     5b, and the pre-stroke column is leave-one-session-out for the reason recorded there.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
+    for _disp, align, wname in _windows():
         # THE LICK WINDOW ADMITS ONLY THE LICK CLASS: a miss trial has no lick to align to, so a
         # "miss, lick-aligned" panel is undefined rather than weak. Every other figure in this
         # module already draws both classes for pre-cue and post-cue; 5c and 5d did not, which is
         # why the LICK-ONLY reading of the frozen decoder had no per-session panel at all.
-        for variant in (("lick",) if align == "lick" else ("lick", "working")):
+        for variant in _variants(align):
             per_animal, days = _collect_5c(align, variant)
             if not days:
                 continue
@@ -1413,8 +1558,8 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
     # NO rng: the pre-stroke split is no longer a random draw over trials but a leave-one-SESSION-out
     # over the days themselves, so nothing here is stochastic.
     made = []
-    for _disp, align, wname in WINDOWS:
-        variants = ("lick",) if align == "lick" else ("lick", "working")
+    for _disp, align, wname in _windows():
+        variants = _variants(align)
         store = {v: {} for v in variants}
         all_days = set()
         for an in ANIMALS:
@@ -1684,10 +1829,9 @@ def fig_pattern_similarity(out_dir, min_trials=10):
     The coding directions are immune to that by construction (unit vectors). The two measures agree
     or they do not, and agreement is the claim worth making.
     """
-    rng = np.random.default_rng(0)
     made = []
-    for _disp, align, wname in WINDOWS:
-        variants = ("lick",) if align == "lick" else ("lick", "working")
+    for _disp, align, wname in _windows():
+        variants = _variants(align)
         store = {v: {} for v in variants}
         for an in ANIMALS:
             try:
@@ -1716,7 +1860,14 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 # that structure away.
                 ref, other = {}, {}
                 pre_ids = sorted(pre_i)
-                sh = rng.permutation(len(pre_ids))
+                # SEEDED PER (animal, alignment), not drawn from one stream shared across the
+                # whole figure. This picks WHICH pre-stroke sessions form the reference half, so
+                # an order-dependent stream meant the cue panel's reference set depended on how
+                # many draws the pre-cue panel happened to take before it -- and rendering one
+                # alignment alone, as a parallel worker does, would silently choose a different
+                # split than the same alignment got in a full serial run. Not CI noise: a
+                # different set of sessions in the reference.
+                sh = np.random.default_rng(_seed(an, align, "pre-split")).permutation(len(pre_ids))
                 g_ref = {pre_ids[k] for k in sh[:max(1, len(pre_ids) // 2)]}
                 g_oth = {pre_ids[k] for k in sh[max(1, len(pre_ids) // 2):]}
                 for p in CONF_LABELS:
@@ -1767,7 +1918,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 ref, other, postm = got
                 # SAME SEED FOR BOTH PANELS so the reference is resampled identically and the
                 # post-minus-baseline difference can be taken draw by draw.
-                seed = abs(hash((an, align, v))) % (2 ** 31)
+                seed = _seed(an, align, v)
                 base_obs, _bl, _bh, base_null, base_bt = _pattern_stats(
                     other, ref, CONF_LABELS, np.random.default_rng(seed))
                 post_obs, _pl, _ph, post_null, post_bt = _pattern_stats(
@@ -2177,8 +2328,8 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
     does that division explicitly.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -2199,7 +2350,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                     if not src:
                         ax.axis("off")
                         continue
-                    rng = np.random.default_rng(abs(hash((an, align, v, ci))) % (2 ** 31))
+                    rng = np.random.default_rng(_seed(an, align, v, ci))
                     if ci == 0:
                         # COLUMN 0 IS ONE PRE-STROKE SESSION AT A TIME, AVERAGED -- not the pooled
                         # set. Pooling six sessions gives the reliability of a six-session mean and
@@ -2293,46 +2444,69 @@ def _disattenuated_ci(align, variant, min_trials=10, n_boot=200):
         if an not in x_store or an not in b_store:
             continue
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
-        rng = np.random.default_rng(abs(hash((an, align, variant, "7bci"))) % (2 ** 31))
+        # THE PRE-STROKE REFERENCE IS SHARED BY EVERY DAY, so its digest is taken once and folded
+        # into each day's key: re-preprocessing a pre-stroke session must invalidate every day of
+        # that animal, and re-preprocessing one post-stroke session must invalidate only that day.
+        pre_key = _digest(pre_x, pre_b)
+        params = (align, variant, min_trials, n_boot, MIN_REL, SPLIT_REPS)
         per_day = {}
         for d in days:
             if d not in day_x:
                 continue
-            draws = {q: [] for q in CONF_LABELS}
-            for _ in range(n_boot):
-                ref_r = {}
-                for s in pre_x:
-                    got = _block_boot(pre_x[s], pre_b[s], rng)
-                    for q, Z in got.items():
-                        ref_r.setdefault(q, []).append(Z)
-                ref_r = {q: np.vstack(v) for q, v in ref_r.items()}
-                day_r = _block_boot(day_x[d], day_b[d], rng)
-                if not ref_r or not day_r:
-                    continue
-                for k, q in enumerate(CONF_LABELS):
-                    Z, R = day_r.get(q), ref_r.get(q)
-                    if Z is None or R is None:
-                        continue
-                    rp, rr = _reliability(Z, rng), _reliability(R, rng)
-                    if not (np.isfinite(rp) and np.isfinite(rr)):
-                        continue
-                    if rp < MIN_REL or rr < MIN_REL:
-                        continue
-                    m, rm = Z.mean(0), R.mean(0)
-                    if not (np.std(m) and np.std(rm)):
-                        continue
-                    raw = float(np.corrcoef(m, rm)[0, 1])
-                    draws[q].append(raw / np.sqrt(rp * rr))
-            rec = {}
-            for q, v in draws.items():
-                v = np.array([x for x in v if np.isfinite(x)])
-                if len(v) >= n_boot // 4:
-                    rec[q] = (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))
+            # SEEDED PER DAY, not drawn from one stream shared across the animal's days. A shared
+            # stream made a day's interval depend on how many days preceded it in that run -- so
+            # the same session gave different numbers depending on what else was rendered, and no
+            # per-day result could be cached and reused. One fix, both problems.
+            rec = _boot_cached(
+                "7b_disatt", (pre_key, day_x[d], day_b[d], params),
+                lambda an=an, d=d: _disatt_one(
+                    pre_x, pre_b, day_x[d], day_b[d],
+                    np.random.default_rng(_seed(an, align, variant, d, "7bci")), n_boot))
             if rec:
                 per_day[d] = rec
         if per_day:
             out[an] = per_day
     return out
+
+
+def _disatt_one(pre_x, pre_b, dx, db, rng, n_boot):
+    """One day's disattenuated own-position interval: ``{position: (lo, hi)}``.
+
+    Extracted from `_disattenuated_ci` so a single day is the unit that gets cached. The arithmetic
+    is unchanged -- blocks resampled within session, sessions held fixed, and the reference drawn
+    in the SAME iteration as the day so the two share their noise.
+    """
+    draws = {q: [] for q in CONF_LABELS}
+    for _ in range(n_boot):
+        ref_r = {}
+        for s in pre_x:
+            got = _block_boot(pre_x[s], pre_b[s], rng)
+            for q, Z in got.items():
+                ref_r.setdefault(q, []).append(Z)
+        ref_r = {q: np.vstack(v) for q, v in ref_r.items()}
+        day_r = _block_boot(dx, db, rng)
+        if not ref_r or not day_r:
+            continue
+        for q in CONF_LABELS:
+            Z, R = day_r.get(q), ref_r.get(q)
+            if Z is None or R is None:
+                continue
+            rp, rr = _reliability(Z, rng), _reliability(R, rng)
+            if not (np.isfinite(rp) and np.isfinite(rr)):
+                continue
+            if rp < MIN_REL or rr < MIN_REL:
+                continue
+            m, rm = Z.mean(0), R.mean(0)
+            if not (np.std(m) and np.std(rm)):
+                continue
+            raw = float(np.corrcoef(m, rm)[0, 1])
+            draws[q].append(raw / np.sqrt(rp * rr))
+    rec = {}
+    for q, v in draws.items():
+        v = np.array([x for x in v if np.isfinite(x)])
+        if len(v) >= n_boot // 4:
+            rec[q] = (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))
+    return rec
 
 
 def fig_reliability_verdict(out_dir, min_trials=10):
@@ -2357,8 +2531,8 @@ def fig_reliability_verdict(out_dir, min_trials=10):
     there to declare.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -2372,7 +2546,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                         axes[ri][ci].axis("off")
                     continue
                 pre_by_sess, by_day = got
-                rng = np.random.default_rng(abs(hash((an, align, v))) % (2 ** 31))
+                rng = np.random.default_rng(_seed(an, align, v))
                 # COLUMN 0 IS THE NO-LESION EXPECTATION, built LEAVE-ONE-SESSION-OUT: each
                 # pre-stroke session in turn is scored against the pool of the OTHERS, then the six
                 # results are averaged. Disjoint, so it is not a session correlated against itself;
@@ -2715,8 +2889,8 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
     change moves every cell -- the same exposure figure 6 has. 8b is the gain-invariant companion.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -2733,7 +2907,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                         axes[ri][ci].axis("off")
                     continue
                 pre_by_sess, by_day = got
-                rng = np.random.default_rng(abs(hash((an, align, v))) % (2 ** 31))
+                rng = np.random.default_rng(_seed(an, align, v))
                 full_ref = _pre_reference(pre_by_sess)
                 scale = np.nanmean(_triu_vals(_crossnobis_within(full_ref, rng, CONF_LABELS)))
                 if not np.isfinite(scale) or scale <= 0:
@@ -2842,8 +3016,8 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
     the sharper instrument, and close_center is where they most often exclude zero.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             store, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -2859,7 +3033,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
                         axes[ri][ci].axis("off")
                     continue
                 pre_by_sess, by_day = got
-                rng = np.random.default_rng(abs(hash((an, align, v, "8b"))) % (2 ** 31))
+                rng = np.random.default_rng(_seed(an, align, v, "8b"))
                 full_ref = _pre_reference(pre_by_sess)
                 Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
                 rows = np.full((len(CONF_LABELS), 1 + len(days)), np.nan)
@@ -3076,84 +3250,109 @@ def _block_boot(pat_x, pat_blk, rng, min_trials=4):
     return out
 
 
-def _delta_diag_ci(mats_fn, x_store, blk_store, an, days, rng, n_boot=N_BOOT_DELTA):
-    """95% interval on (day diagonal - PRE diagonal), block-bootstrapped.
+def _delta_diag_ci(mats_for, x_store, blk_store, an, days, seed_parts, n_boot=N_BOOT_DELTA):
+    """95% interval on (day diagonal - PRE diagonal), block-bootstrapped, ONE DAY AT A TIME.
 
-    ``mats_fn(pat_by_pos, ref_by_pos) -> 6x6`` builds one matrix from resampled trial sets. The PRE
-    reference is resampled in the SAME draw as the day, so the two are correlated exactly as they
-    are in the data and the difference is taken draw by draw -- differencing two independently
-    published intervals would overstate the spread.
+    ``mats_for(animal, rng)`` returns the matrix builder; it is called per day so the builder and
+    the draws share that day's generator. The PRE reference is resampled in the SAME draw as the
+    day, so the two are correlated exactly as they are in the data and the difference is taken draw
+    by draw -- differencing two independently published intervals would overstate the spread.
+
+    EACH DAY IS SEEDED AND CACHED SEPARATELY. Previously every day of an animal came off one shared
+    stream, which had two costs: a day's interval depended on how many days preceded it in that
+    run, and no day could be stored and replayed. Priya, 2026-08-28 -- store the bootstraps so a
+    nightly run recomputes only the sessions that changed. This family is 49% of a full render
+    (6d, 7d, 8d and 9 all come through here), so on a night with one new session it is most of the
+    saving.
     """
     pre_x, day_x = x_store
     pre_b, day_b = blk_store
+    # Taken once: a re-preprocessed PRE-stroke session must invalidate every day of this animal.
+    pre_key = _digest(pre_x, pre_b)
     out = {}
     for d in days:
         if d not in day_x:
             continue
-        deltas = []
-        for _ in range(n_boot):
-            # Resample every pre-stroke session ONCE per draw, then reuse those same resampled
-            # sessions for both the baseline and the day's reference, so the two share their noise
-            # and the difference below is taken draw by draw.
-            pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
-            pre_r = {s: v for s, v in pre_r.items() if v}
-            day_r = _block_boot(day_x[d], day_b[d], rng)
-            if not pre_r or not day_r:
-                continue
-
-            def _pool(exclude=None, pre_r=pre_r):
-                acc = {}
-                for s, Z in pre_r.items():
-                    if s == exclude:
-                        continue
-                    for q, z in Z.items():
-                        acc.setdefault(q, []).append(z)
-                return {q: np.vstack(v) for q, v in acc.items()}
-
-            # THE BASELINE IS LEAVE-ONE-SESSION-OUT, not the reference against itself. Scoring the
-            # resampled reference on itself gives a diagonal of exactly 1.0 -- a mean correlated
-            # with its own mean -- so every delta came out at about -1 regardless of the data. The
-            # synthetic test caught it; on real data it would have looked like a catastrophic and
-            # perfectly uniform loss at every position in every animal.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
-                # PER-POSITION VECTORS, averaged across held-out sessions as VECTORS. Averaging the
-                # scalar mean-diagonal per session first and differencing that would give the same
-                # overall number but no per-position breakdown -- and the per-position trajectory is
-                # what the deficit is actually about.
-                bases = []
-                for s, held in pre_r.items():
-                    rest = _pool(exclude=s)
-                    if held and rest:
-                        bases.append(np.diag(mats_fn(held, rest)).copy())
-                full = _pool()
-                if not bases or not full:
-                    continue
-                base_vec = np.nanmean(np.stack(bases), axis=0)
-                cur_vec = np.diag(mats_fn(day_r, full)).copy()
-                deltas.append(cur_vec - base_vec)
-        if len(deltas) < n_boot // 4:
-            continue
-        D = np.stack(deltas)                                   # draws x positions
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            m = np.nanmean(D, axis=1)                          # per draw, mean over positions
-            m = m[np.isfinite(m)]
-            rec = {}
-            if len(m):
-                rec["mean"] = (float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5)),
-                               float(np.median(m)))
-            pos = {}
-            for k, q in enumerate(CONF_LABELS):
-                col = D[:, k]
-                col = col[np.isfinite(col)]
-                if len(col) >= n_boot // 4:
-                    pos[q] = (float(np.percentile(col, 2.5)), float(np.percentile(col, 97.5)),
-                              float(np.median(col)))
-            rec["pos"] = pos
-        if rec.get("mean"):
+        rng = np.random.default_rng(_seed(*seed_parts, d))
+        mats_fn = mats_for(an, rng)
+        rec = _boot_cached(
+            f"delta_{seed_parts[-1]}",
+            (pre_key, day_x[d], day_b[d], tuple(str(p) for p in seed_parts), n_boot),
+            lambda mats_fn=mats_fn, rng=rng, d=d: _delta_diag_one(
+                mats_fn, pre_x, pre_b, day_x[d], day_b[d], rng, n_boot))
+        if rec and rec.get("mean"):
             out[d] = rec
     return out
+
+
+def _delta_diag_one(mats_fn, pre_x, pre_b, dx, db, rng, n_boot):
+    """One day's delta record: ``{"mean": (lo, hi, med), "pos": {position: (lo, hi, med)}}``.
+
+    Extracted from `_delta_diag_ci` so a single day is the unit that gets cached. The arithmetic is
+    unchanged, including the leave-one-session-out baseline the synthetic test was built to catch.
+    """
+    deltas = []
+    for _ in range(n_boot):
+        # Resample every pre-stroke session ONCE per draw, then reuse those same resampled
+        # sessions for both the baseline and the day's reference, so the two share their noise
+        # and the difference below is taken draw by draw.
+        pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
+        pre_r = {s: v for s, v in pre_r.items() if v}
+        day_r = _block_boot(dx, db, rng)
+        if not pre_r or not day_r:
+            continue
+
+        def _pool(exclude=None, pre_r=pre_r):
+            acc = {}
+            for s, Z in pre_r.items():
+                if s == exclude:
+                    continue
+                for q, z in Z.items():
+                    acc.setdefault(q, []).append(z)
+            return {q: np.vstack(v) for q, v in acc.items()}
+
+        # THE BASELINE IS LEAVE-ONE-SESSION-OUT, not the reference against itself. Scoring the
+        # resampled reference on itself gives a diagonal of exactly 1.0 -- a mean correlated
+        # with its own mean -- so every delta came out at about -1 regardless of the data. The
+        # synthetic test caught it; on real data it would have looked like a catastrophic and
+        # perfectly uniform loss at every position in every animal.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            # PER-POSITION VECTORS, averaged across held-out sessions as VECTORS. Averaging the
+            # scalar mean-diagonal per session first and differencing that would give the same
+            # overall number but no per-position breakdown -- and the per-position trajectory is
+            # what the deficit is actually about.
+            bases = []
+            for s, held in pre_r.items():
+                rest = _pool(exclude=s)
+                if held and rest:
+                    bases.append(np.diag(mats_fn(held, rest)).copy())
+            full = _pool()
+            if not bases or not full:
+                continue
+            base_vec = np.nanmean(np.stack(bases), axis=0)
+            cur_vec = np.diag(mats_fn(day_r, full)).copy()
+            deltas.append(cur_vec - base_vec)
+    if len(deltas) < n_boot // 4:
+        return {}
+    D = np.stack(deltas)                                   # draws x positions
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        m = np.nanmean(D, axis=1)                          # per draw, mean over positions
+        m = m[np.isfinite(m)]
+        rec = {}
+        if len(m):
+            rec["mean"] = (float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5)),
+                           float(np.median(m)))
+        pos = {}
+        for k, q in enumerate(CONF_LABELS):
+            col = D[:, k]
+            col = col[np.isfinite(col)]
+            if len(col) >= n_boot // 4:
+                pos[q] = (float(np.percentile(col, 2.5)), float(np.percentile(col, 97.5)),
+                          float(np.median(col)))
+        rec["pos"] = pos
+    return rec
 
 
 def _corr_matrix(src_means, ref_means, labels=None):
@@ -3228,7 +3427,7 @@ def _matrices_splithalf(align, variant, min_trials=10):
     store, days = _collect_7(align, variant, min_trials)
     out = {}
     for an, (pre_by_sess, by_day) in store.items():
-        rng = np.random.default_rng(abs(hash((an, align, variant))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant))
         d = {}
         base = _nanmean_stack([_split_half_matrix(pat, rng) for pat in pre_by_sess.values()])
         if base is not None:
@@ -3404,10 +3603,9 @@ def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA, f
         if an not in x_store or an not in b_store:
             continue
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
-        rng = np.random.default_rng(abs(hash((an, align, variant, tag))) % (2 ** 31))
         try:
-            rich = _delta_diag_ci(mats_for(an, rng), (pre_x, day_x), (pre_b, day_b), an, days,
-                                  rng, n_boot=n_boot)
+            rich = _delta_diag_ci(mats_for, (pre_x, day_x), (pre_b, day_b), an, days,
+                                  (an, align, variant, tag), n_boot=n_boot)
             # `_delta_grid` prints only the mean's (lo, hi); figure 9 plots the whole record.
             out[an] = rich if full else {d: r["mean"][:2] for d, r in rich.items()}
         except Exception as ex:                                          # noqa: BLE001
@@ -3480,8 +3678,8 @@ def fig_pattern_delta(out_dir, min_trials=10):
     substitution result is legible at a glance.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             mats, days = _matrices_pattern(align, v, min_trials)
             if not days or not mats:
                 continue
@@ -3522,8 +3720,8 @@ def fig_splithalf_delta(out_dir, min_trials=10):
     the same days. Where 6d falls and this does not, the code moved.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             mats, days = _matrices_splithalf(align, v, min_trials)
             if not days or not mats:
                 continue
@@ -3570,7 +3768,7 @@ def _matrices_crossnobis(align, variant, min_trials=10, row_centre=False):
     store, days = _collect_7(align, variant, min_trials)
     out = {}
     for an, (pre_by_sess, by_day) in store.items():
-        rng = np.random.default_rng(abs(hash((an, align, variant, "8"))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant, "8"))
         full_ref = _pre_reference(pre_by_sess)
         scale = np.nanmean(_triu_vals(_crossnobis_within(full_ref, rng, CONF_LABELS)))
         if not np.isfinite(scale) or scale <= 0:
@@ -3608,8 +3806,8 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
     amplitude change shifts the whole panel while leaving 8b untouched.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             mats, days = _matrices_crossnobis(align, v, min_trials)
             if not days or not mats:
                 continue
@@ -3653,9 +3851,9 @@ def fig_confusion_delta(out_dir):
     at that position, and the positive cell in the same ROW says where those trials went instead.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
+    for _disp, align, wname in _windows():
         # Same window/class coverage as 5c, and the same guard: a miss trial has no lick to align to.
-        for variant in (("lick",) if align == "lick" else ("lick", "working")):
+        for variant in _variants(align):
             per_animal, days = _collect_5c(align, variant)
             if not days or not per_animal:
                 continue
@@ -3719,8 +3917,8 @@ def fig_delta_trajectory(out_dir, min_trials=10):
     the whole reason this figure is per-day rather than pooled.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             _, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -3837,7 +4035,7 @@ def _asymmetry_ci(align, variant, min_trials, n_boot=N_BOOT_DELTA):
         if an not in x_store or an not in b_store:
             continue
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
-        rng = np.random.default_rng(abs(hash((an, align, variant, "asym"))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant, "asym"))
         build = _mats_crossnobis(an, rng, sign=+1)
 
         def _pool(pre_r, exclude=None):
@@ -3918,8 +4116,8 @@ def fig_asymmetry(out_dir, min_trials=10):
     they estimate different quantities and the difference is the result.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             _, days = _collect_7(align, v, min_trials)
             if not days:
                 continue
@@ -3998,7 +4196,7 @@ def _rdm_rows(align, variant, min_trials=10):
         if an not in x_store:
             continue
         pre_by_sess, by_day = x_store[an]
-        rng = np.random.default_rng(abs(hash((an, align, variant, "8g"))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant, "8g"))
         full_ref = _pre_reference(pre_by_sess)
         Dpre = _crossnobis_within(full_ref, rng, CONF_LABELS)
 
@@ -4122,7 +4320,7 @@ def _rdm_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
         if len(pre_x) < 2 or not day_x:
             continue
-        rng = np.random.default_rng(abs(hash((an, align, variant, "8bci"))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant, "8bci"))
         pre_w, pre_r = [], []
         acc = {d: {"w": [], "r": [], "dw": [], "dr": []} for d in day_x}
         try:
@@ -4239,8 +4437,8 @@ def fig_geometry_by_position(out_dir, min_trials=10):
     fills most of them; the panel titles carry how many sessions actually contributed.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             rows, days = _rdm_rows(align, v, min_trials)
             if not days or not rows:
                 continue
@@ -4413,8 +4611,8 @@ def fig_best_match(out_dir, min_trials=10):
     the gain change that 8b exists to rule out.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             tables, days = _match_tables(align, v, min_trials)
             if not tables or not days:
                 continue
@@ -4540,8 +4738,8 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
     appears only in the lick window probably is.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             tab, days = _enc_tables(align, v, min_trials)
             if not tab or not days:
                 continue
@@ -4734,8 +4932,8 @@ def fig_best_match_by_session(out_dir, min_trials=10):
     the same quantity as a post column, computed the same way, and it is NOT a perfect score.
     """
     made = []
-    for _disp, align, wname in WINDOWS:
-        for v in (("lick",) if align == "lick" else ("lick", "working")):
+    for _disp, align, wname in _windows():
+        for v in _variants(align):
             mats, days = _matrices_pattern(align, v, min_trials)
             loo_all = _pre_loo_matrices(align, v, min_trials)
             if not mats or not days:
@@ -4950,7 +5148,7 @@ def _enc_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
         if len(pre_x) < 2 or not day_x:
             continue
-        rng = np.random.default_rng(abs(hash((an, align, variant, "encci"))) % (2 ** 31))
+        rng = np.random.default_rng(_seed(an, align, variant, "encci"))
         keys3 = ("raw", "a", "gain")
         base = {k: [] for k in keys3}
         base["pos"] = []
@@ -5275,6 +5473,147 @@ def fig_frozen_vs_within(out_dir):
     return p
 
 
+#: (key, function) for every grant figure, in render order. AT MODULE SCOPE because a worker
+#: process re-imports this module and looks a job up BY KEY -- a table built inside `main()` is
+#: not reachable from a spawned child.
+JOBS = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
+        ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
+        ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
+        ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post),
+        ("5b", fig_confusion_pre_post_working),
+        ("5c", fig_confusion_per_session), ("5d", fig_confusion_delta),
+        ("6", fig_pattern_similarity),
+        ("6b", fig_pattern_similarity_per_session), ("6d", fig_pattern_delta),
+        ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
+        ("7d", fig_splithalf_delta),
+        ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
+        ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry), ("8g", fig_geometry_by_position),
+        ("9", fig_delta_trajectory),
+        ("10", fig_best_match), ("10b", fig_best_match_by_session),
+        ("11", fig_encoder_gain_shape))
+
+ALL_KEYS = tuple(k for k, _ in JOBS)
+
+#: Measured shares of a full serial render (2026-08-28, 5.79 h wall, from the output mtimes). Used
+#: ONLY to start the long units first, which is what decides the makespan of a fixed pool: 7b and
+#: 8d are each ~30 minutes per unit, and a pool that picks them up last finishes half an hour after
+#: it had nothing else to do. Wrong numbers here cost scheduling, never correctness.
+_COST_HINT = {"7b": 31.2, "8d": 26.6, "6d": 11.9, "7d": 10.5, "8b": 9.5, "8e": 5.0, "5c": 4.0,
+              "6": 0.5, "8": 0.5}
+
+
+def _splits(fn) -> tuple[bool, bool]:
+    """``(splits by alignment, splits by trial class)`` for one figure function.
+
+    Answered from the SOURCE -- does it iterate `_windows()`, does it iterate `_variants(` --
+    rather than from a hand-kept list, because a hand-kept list is wrong the first time somebody
+    adds a figure.
+
+    THE TWO ARE NOT THE SAME QUESTION, and assuming they were produced the first bug this parallel
+    driver had. Figure 4 loops over alignments but not over trial classes, and its filename carries
+    no variant: asking for `4[precue/lick]` and `4[precue/working]` as separate units had two
+    workers rendering the identical figure and writing the identical path at the same time. Not a
+    slow render -- a torn PNG, and one that would look merely "missing" in the deck.
+    """
+    import inspect
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError):
+        return False, False
+    return "_windows()" in src, "_variants(" in src
+
+
+def render_units(want=None):
+    """[(key, align, variant)] -- the independent units of a render, longest first.
+
+    A windowed figure contributes one unit per (alignment, trial class); everything else one unit
+    with `None` for both. The units are independent by construction: each writes its own PNG and
+    shares nothing but the on-disk session cache.
+    """
+    want = set(want or ALL_KEYS)
+    units = []
+    for key, fn in JOBS:
+        if key not in want:
+            continue
+        windowed, varianted = _splits(fn)
+        if not windowed:
+            units.append((key, None, None))
+            continue
+        for _d, align, _w in WINDOWS:
+            if not varianted:
+                units.append((key, align, None))
+                continue
+            vs = ("lick",) if align == "lick" else ("lick", "working")
+            units.extend((key, align, v) for v in vs)
+    units.sort(key=lambda u: -_COST_HINT.get(u[0], 0.0))
+    return units
+
+
+def _render_unit(spec):
+    """Render ONE unit in this process. Top-level and picklable, so a spawned worker can run it."""
+    global _ONLY_WINDOW, _ONLY_VARIANT
+    key, align, variant, out = spec
+    _ONLY_WINDOW, _ONLY_VARIANT = align, variant
+    fn = dict(JOBS)[key]
+    tag = key if align is None else f"{key}[{align}/{variant}]"
+    try:
+        p = fn(Path(out))
+        return (tag, str(p) if p else None, None)
+    except Exception as ex:                                            # noqa: BLE001
+        return (tag, None, f"{type(ex).__name__} {str(ex)[:160]}")
+
+
+def _run_parallel(units, out, n_jobs, threads_per_worker):
+    """Fan the units over a PROCESS pool. Returns (n_written, [failures]).
+
+    PROCESSES, NOT THREADS, and not negotiable: pyplot keeps a global figure registry and the GIL
+    serialises the numpy that dominates this render anyway. The backend is Agg, set at import.
+
+    Each worker is capped to `threads_per_worker` BLAS threads. Left uncapped, every worker's numpy
+    grabs the whole box: the serial render already averages 1.5 cores from BLAS alone, so ten
+    unconstrained workers oversubscribe 24 cores rather than scale on them.
+    """
+    import concurrent.futures as cf
+    import os as _os
+
+    env = dict(_os.environ)
+    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+        _os.environ[var] = str(threads_per_worker)
+    written, failures = 0, []
+    try:
+        ctx = __import__("multiprocessing").get_context("spawn")
+        with cf.ProcessPoolExecutor(max_workers=n_jobs, mp_context=ctx) as pool:
+            futs = {pool.submit(_render_unit, (k, a, v, str(out))): (k, a, v)
+                    for k, a, v in units}
+            claimed = {}
+            for i, fut in enumerate(cf.as_completed(futs), 1):
+                tag, path, err = fut.result()
+                if err:
+                    failures.append((tag, err))
+                    print(f"  !! [{i}/{len(units)}] {tag}: {err}", flush=True)
+                else:
+                    written += 1
+                    # TWO UNITS, ONE FILE is the failure mode of a wrong unit decomposition, and
+                    # it is silent: the loser's bytes are simply gone and the PNG may be torn.
+                    # `_splits` is meant to prevent it; this catches the case where a new figure
+                    # breaks the assumption anyway, which a static check cannot see.
+                    for p in (path if isinstance(path, (list, tuple)) else [path]):
+                        if p is None:
+                            continue
+                        if p in claimed:
+                            failures.append((tag, f"wrote {p}, already written by {claimed[p]} "
+                                                  f"-- two units share one output path"))
+                            print(f"  !! COLLISION {tag} and {claimed[p]} both wrote {p}",
+                                  flush=True)
+                        claimed[p] = tag
+                    print(f"  [{i}/{len(units)}] {tag}: {path or 'no data'}", flush=True)
+    finally:
+        _os.environ.clear()
+        _os.environ.update(env)
+    return written, failures
+
+
 def main(argv=None) -> int:
     # BEFORE ANY FIGURE IS DRAWN. `_save` names the offending tick labels when it reports an
     # overlap, and matplotlib writes a negative one with U+2212, which cp1252 cannot encode --
@@ -5284,42 +5623,56 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
-    ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10", "10b", "11"))
+    ap.add_argument("--only", nargs="+", default=None, choices=ALL_KEYS)
+    ap.add_argument("--jobs", "-j", type=int, default=1, metavar="N",
+                    help="render N units in parallel (default 1, i.e. the serial render). "
+                         "A unit is one (figure, alignment, trial class).")
+    ap.add_argument("--threads-per-worker", type=int, default=None, metavar="N",
+                    help="BLAS threads per worker (default: cores // jobs, capped at 2)")
+    ap.add_argument("--window", default=None, choices=tuple(w[1] for w in WINDOWS),
+                    help="render only this alignment")
+    ap.add_argument("--variant", default=None, choices=("lick", "working"),
+                    help="render only this trial class")
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
-                             "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10", "10b", "11"))
-    jobs = (("1", fig_behaviour), ("1b", fig_behaviour_collapsed),
-            ("2", fig_prestroke_decoding), ("2b", fig_prestroke_decoding_cohort),
-            ("3a", fig_coding_retained), ("3b", fig_frozen_vs_within),
-            ("4", fig_confusion_prestroke), ("5", fig_confusion_pre_post),
-            ("5b", fig_confusion_pre_post_working),
-            ("5c", fig_confusion_per_session), ("5d", fig_confusion_delta),
-            ("6", fig_pattern_similarity),
-            ("6b", fig_pattern_similarity_per_session), ("6d", fig_pattern_delta),
-            ("7", fig_splithalf_matrix), ("7b", fig_reliability_verdict),
-            ("7d", fig_splithalf_delta),
-            ("8", fig_crossnobis_cross), ("8b", fig_crossnobis_geometry),
-            ("8d", fig_crossnobis_delta), ("8e", fig_asymmetry), ("8g", fig_geometry_by_position),
-            ("9", fig_delta_trajectory),
-            ("10", fig_best_match), ("10b", fig_best_match_by_session),
-            ("11", fig_encoder_gain_shape))
-    def _run(tag=""):
-        for key, fn in jobs:
-            if key not in want:
-                continue
-            try:
-                p = fn(out)
-            except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! {tag}{key}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
-                continue
-            print(f"  {tag}{'wrote ' + str(p) if p else f'{key}: no data'}", flush=True)
+    want = set(args.only or ALL_KEYS)
 
-    _run()
+    global _ONLY_WINDOW, _ONLY_VARIANT
+    _ONLY_WINDOW, _ONLY_VARIANT = args.window, args.variant
+
+    if args.jobs and args.jobs > 1:
+        # THE UNITS ARE INDEPENDENT AND THE COST IS ALL IN THE BOOTSTRAPS. Measured on the
+        # 2026-08-28 serial render: 7b, 8d, 6d, 7d, 8b and 8e together are 94.7% of 5.79 hours,
+        # and each of them writes exactly five files -- one per (alignment, trial class) -- at
+        # 10-37 minutes apiece. Collection is ~20 s per unit against that, which is why the unit
+        # can be the FIGURE rather than the figure family: a worker re-collecting what a sibling
+        # already collected wastes seconds to save half an hour.
+        units = [(k, a, v) for k, a, v in render_units(want)]
+        if args.window:
+            units = [u for u in units if u[1] in (None, args.window)]
+        if args.variant:
+            units = [u for u in units if u[2] in (None, args.variant)]
+        cores = os.cpu_count() or 4
+        tpw = args.threads_per_worker or max(1, min(2, cores // max(1, args.jobs)))
+        print(f"  {len(units)} units, {args.jobs} workers, {tpw} BLAS thread(s) each "
+              f"({cores} cores)", flush=True)
+        written, failures = _run_parallel(units, out, args.jobs, tpw)
+        print(f"  {written} units wrote, {len(failures)} failed", flush=True)
+        for tag, err in failures:
+            print(f"    FAILED {tag}: {err}", flush=True)
+        return 1 if failures else 0
+
+    for key, fn in JOBS:
+        if key not in want:
+            continue
+        try:
+            p = fn(out)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! {key}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
+            continue
+        print(f"  {'wrote ' + str(p) if p else f'{key}: no data'}", flush=True)
     return 0
 
 

@@ -165,7 +165,18 @@ def cached(session, kind, compute, params=None, verbose=True):
     tmp = fp.with_suffix(f".{os.getpid()}.tmp")
     with open(tmp, "wb") as fh:
         pickle.dump(res, fh)
-    os.replace(tmp, fp)  # atomic publish
+    try:
+        os.replace(tmp, fp)  # atomic publish
+    except OSError:
+        # CONCURRENT WORKERS. Two processes computing the same entry is wasteful but not
+        # wrong -- the signature is a function of the inputs, so their bytes are
+        # equivalent. On Windows `os.replace` also fails while another process holds the
+        # destination open for reading. Either way the cache is already correct without
+        # our copy, so drop it rather than fail a render eight hours in.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
     for old in CACHE_DIR.glob(f"{lab}__{kind}__*.pkl"):  # prune superseded signatures
         if old != fp:
             try:

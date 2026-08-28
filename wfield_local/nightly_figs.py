@@ -255,6 +255,10 @@ def main():
     ap.add_argument("--skip-nolick", action="store_true",
                     help="skip the no-detected-lick reference (engaged vs late vs undetected, "
                          "pre-cue vs post-cue). Adds ~1-2 h; see wfield_local.nolick_analysis.")
+    ap.add_argument("--grant-jobs", type=int, default=8, metavar="N",
+                    help="parallel workers for the grant render (default 8). The box has 24 cores "
+                         "and the render used 1.5 of them serially; 8 workers x 2 BLAS threads "
+                         "leaves headroom for the rest of the nightly.")
     ap.add_argument("--skip-grant", action="store_true",
                     help="skip the grant-figure render. MEASURED 2026-08-27: the analysis stage is "
                          "~9.6 h and the grant render ~8-10 h, so the two together "
@@ -509,7 +513,14 @@ def main():
         log("== grant figures SKIPPED (--skip-grant): deck section H will show the PREVIOUS "
             "render; the deck manifest lists them as not refreshed by this run ==")
     else:
-        cli("wfield_local.grant_figures")
+        # FANNED OVER PROCESSES (2026-08-28). Measured serially: 5.79 h at 1.51 of 24 cores, with
+        # 94.7% of it inside six bootstrap families that are independent per (figure, alignment,
+        # trial class). One figure per worker, two BLAS threads each -- see `grant_figures`
+        # `_run_parallel` for why processes and why the thread cap.
+        #
+        # The bootstraps are also cached per (animal, day) under a digest of their inputs, so a
+        # night with one new session recomputes that session and replays the other seventy-three.
+        cli("wfield_local.grant_figures", "--jobs", str(args.grant_jobs))
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,

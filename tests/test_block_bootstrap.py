@@ -81,9 +81,16 @@ def test_block_bootstrap_is_wider_than_an_iid_trial_bootstrap():
         f"{sd_trial:.4f} when trials within a block share an offset")
 
 
-def test_delta_ci_holds_sessions_fixed_and_brackets_a_known_shift():
+def test_delta_ci_holds_sessions_fixed_and_brackets_a_known_shift(monkeypatch):
     """Sessions are NOT resampled: the same pre-stroke session set enters every draw. And a day
-    built from the pre-stroke distribution should give a delta interval covering zero."""
+    built from the pre-stroke distribution should give a delta interval covering zero.
+
+    THE BOOTSTRAP CACHE IS OFF HERE. `_delta_diag_ci` memoises each day under a digest of its
+    inputs, and this fixture is deterministic -- so the second run of this test would replay a
+    stored record instead of recomputing it, and the guard that caught the leave-one-session-out
+    bug would stop executing the arithmetic it was written to check.
+    """
+    monkeypatch.setenv("WIDEFIELD_NO_CACHE", "1")
     rng = np.random.default_rng(6)
     mus = _mus(rng)
     pre_x, pre_b, day_x, day_b = {}, {}, {}, {}
@@ -95,8 +102,11 @@ def test_delta_ci_holds_sessions_fixed_and_brackets_a_known_shift():
     def mats(pat, ref):
         return gf._corr_matrix(gf._means(pat), gf._means(ref))
 
-    ci = gf._delta_diag_ci(mats, (pre_x, day_x), (pre_b, day_b), "PS94", [1],
-                           np.random.default_rng(7), n_boot=60)
+    # `_delta_diag_ci` now takes a FACTORY and SEED PARTS, not a built matrix function and a live
+    # generator: it seeds and caches per DAY, so it has to make the generator itself. The property
+    # under test is unchanged -- sessions held fixed, an unshifted day covering zero.
+    ci = gf._delta_diag_ci(lambda _an, _rng: mats, (pre_x, day_x), (pre_b, day_b), "PS94", [1],
+                           ("PS94", "cue", "lick", "test-delta"), n_boot=60)
     assert 1 in ci
     lo, hi, med = ci[1]["mean"]
     assert lo < hi and lo <= med <= hi
