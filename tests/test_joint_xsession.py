@@ -109,19 +109,27 @@ def test_joint_features_records_variance_captured_per_session():
     feat = joint_xsession.joint_features(FakeBasis())
     joint_xsession._FEAT_CACHE.clear()
 
-    def fake_tf(s, args, signal=None, feat_region=None):
+    def fake_tf(s, args, signal=None, feat_region=None, **kw):
         calls[s["label"]] = (signal.shape, tuple(feat_region))
         return (np.zeros((6, 3)), np.arange(6), np.arange(6), np.zeros((0, 3)), np.array([]),
                 feat_region)
 
-    import wfield_local.joint_xsession as jx
-    orig, jx._trial_features = jx._trial_features, fake_tf
+    # PATCHED ONE LEVEL DOWN since 2026-08-27: `joint_features` now goes through
+    # `trial_features_cached`, so patching this module's own name no longer intercepts anything. The
+    # disk cache is bypassed too -- this test is about the DIAGNOSTIC being collected, and a real
+    # cache would either write entries for a fake session or serve a hit and skip `fake_tf` entirely.
+    import wfield_local.locanmf_position_decoder as pd
+
+    orig, pd._trial_features = pd._trial_features, fake_tf
+    orig_cached, pd.session_cache.cached = pd.session_cache.cached, \
+        lambda session, kind, compute, params=None, verbose=True: compute()
     try:
         args = SimpleNamespace(align="precue", post_s=2.0, source="locanmf")
         feat({"label": "S_in", "mc": "", "h5": ""}, args)
         feat({"label": "S_out", "mc": "", "h5": ""}, args)
     finally:
-        jx._trial_features = orig
+        pd._trial_features = orig
+        pd.session_cache.cached = orig_cached
         joint_xsession._FEAT_CACHE.clear()
     assert feat.variance_captured == {"S_in": 1.0, "S_out": 0.77}
     assert calls["S_out"][1] == (1, 2, 3), "component region labels must travel with the features"

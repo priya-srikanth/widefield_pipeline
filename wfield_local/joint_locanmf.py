@@ -452,3 +452,70 @@ def listing():
             out.append({k: m[k] for k in ("animal", "basis_id", "ncomp", "rank", "built_utc")}
                        | {"n_sessions": len(m["labels"]), "origin": origin})
     return sorted(out, key=lambda r: r["built_utc"])
+
+
+class BasisSource:
+    """Lazily project one session onto a fixed basis, remembering the projection diagnostic.
+
+    WHY LAZY (2026-08-27). Both feature builders used to project FIRST and build trial features
+    second. Once the features are cached to disk that ordering wastes the entire saving: projecting a
+    session costs a U/SVT load and a ~100 MB result, and it is needed only to compute features that
+    are already on disk. Deferring it behind a callable means a warm cache never touches the basis at
+    all, which is where most of the measured 5x redundancy went.
+
+    ``key`` is what makes the feature cache SAFE to key on. The same session and the same args give
+    completely different features depending on whether the signal is the session's own LocaNMF fit or
+    a projection onto a shared basis, and `session_cache.session_signature` stats neither the basis
+    nor anything that moves with it. A basis_id is a hash of its own inputs, so it is exactly the
+    right discriminator -- and the one thing a features cache cannot be correct without.
+
+    ``variance_captured`` survives a cache hit by being cached separately, one float under its own
+    kind. It is written on the cold pass, when the projection runs anyway, so the only way to see
+    None is a features cache that was warmed without it. Callers already treat None as "not
+    measured" (`position_coding_directions` writes it as null), and the deck has said since
+    2026-08-13 that this number is not a sufficient health check -- so it is a diagnostic worth
+    keeping cheaply, not a reason to project.
+    """
+
+    def __init__(self, basis, session):
+        self.basis = basis
+        self.session = session
+        self.label = session["label"]
+        self.key = f"basis:{basis.basis_id}"
+        self._vc_kind = f"jointvc-{basis.basis_id}"
+        self._vc = 1.0 if self.label in basis.labels else None
+        self._projected = False
+
+    def signal(self):
+        """``(signal, regions)``. Projects on first call; in-fit sessions keep their fitted courses."""
+        from wfield_local import session_cache
+
+        if self.label in self.basis.labels:
+            return self.basis.signal(self.label), self.basis.regions
+        sig, diag = self.basis.project(self.session, with_diagnostics=True)
+        self._vc = float(diag["variance_captured"])
+        self._projected = True
+        # Stored so a later run whose FEATURES hit the cache still has the diagnostic without
+        # repeating a projection purely to report it.
+        vc = self._vc
+        session_cache.cached(self.session, self._vc_kind, lambda: vc, verbose=False)
+        return sig, self.basis.regions
+
+    def variance_captured(self):
+        """The projection diagnostic, or None if it was never measured and is not on disk."""
+        from wfield_local import session_cache
+
+        if self._vc is not None:
+            return self._vc
+        if session_cache._disabled():
+            return None
+        fp = session_cache.CACHE_DIR / f"{self.label}__{self._vc_kind}__"
+        for p in session_cache.CACHE_DIR.glob(f"{fp.name}*.pkl"):
+            try:
+                import pickle
+                with open(p, "rb") as fh:
+                    self._vc = float(pickle.load(fh))
+                return self._vc
+            except Exception:                      # noqa: BLE001
+                continue
+        return None

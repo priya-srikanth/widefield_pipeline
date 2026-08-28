@@ -102,12 +102,12 @@ def _session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     engaged trials, contradicting the decision it was written under.
    """
     from wfield_local.locanmf_frozen_decoder import _args
-    from wfield_local.locanmf_position_decoder import _trial_features
+    from wfield_local.locanmf_position_decoder import trial_features_cached
 
     names = _names(s)
     if names is None:
         return None
-    X, y, _g, Xn, yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
+    X, y, _g, Xn, yn, reg = trial_features_cached(s, _args(source=source, align=align, post_s=2.0))
     # post-stroke: fold the NO-LICK trials back in (see the note above)
     if (post_all_trials
             and config.session_phase(s["label"][:4], s["label"].split("_")[-1]) == "post"

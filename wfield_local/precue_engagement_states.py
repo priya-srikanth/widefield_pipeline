@@ -55,7 +55,7 @@ from sklearn.preprocessing import StandardScaler
 
 from wfield_local import config, joint_locanmf
 from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
-from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 
@@ -87,14 +87,16 @@ def features_with_indices(basis, nolick_ref="cue"):
     idx, vc = {}, {}
 
     def _feat(s, args):
+        # CACHED, AND THE PROJECTION IS DEFERRED BEHIND THE CACHE (2026-08-27). This builder had no
+        # memoisation of any kind while its sibling `joint_xsession.joint_features` did, and
+        # `grant_figures` constructs it at FIVE independent call sites -- each a fresh closure, so
+        # each re-projected every session and rebuilt every trial matrix. Measured ~5x rebuilds per
+        # distinct session across a render.
         lab = s["label"]
-        if lab in basis.labels:
-            sig, vc[lab] = basis.signal(lab), 1.0
-        else:
-            sig, diag = basis.project(s, with_diagnostics=True)
-            vc[lab] = float(diag["variance_captured"])
-        out = _trial_features(s, args, signal=sig, feat_region=basis.regions,
-                              with_indices=True, nolick_ref=nolick_ref)
+        src = joint_locanmf.BasisSource(basis, s)
+        out = trial_features_cached(s, args, signal_fn=src.signal, signal_key=src.key,
+                                    with_indices=True, nolick_ref=nolick_ref)
+        vc[lab] = src.variance_captured()
         idx[lab] = (out[6], out[7])
         return out[:6]
 

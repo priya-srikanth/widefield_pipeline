@@ -34,7 +34,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from wfield_local import config, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local import config
-from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
 FS = 31.23
@@ -73,7 +73,7 @@ def _decoder_dir(s):
 def save_session_decoder(label, source="locanmf", align="lick", post_s=2.0):
     """Fit on ALL engaged trials and persist the pipeline + metadata to MICROSCOPE."""
     s = _sess(label)
-    X, y, g, Xnl, ynl, feat_reg = _trial_features(s, _args(source, align, post_s))
+    X, y, g, Xnl, ynl, feat_reg = trial_features_cached(s, _args(source, align, post_s))
     pipe = _pipe().fit(X, y)
     # honest block-CV accuracy for the record
     ng = min(5, int(np.unique(g).size))
@@ -171,7 +171,7 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, fe
     ``features(session, args) -> (X, y, g, Xnl, ynl, reg)`` overrides how one session's trial matrix
     is built. Default: :func:`locanmf_position_decoder._trial_features` on ``source``.
     """
-    feat = features or _trial_features
+    feat = features or trial_features_cached
     per, regs, kept = [], [], []
     for lab in labels:
         s = next((x for x in SESSIONS if x["label"] == lab), None)

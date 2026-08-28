@@ -22,6 +22,7 @@ chance, confusion matrix, and per-area decoding (SSp / MO / all).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import glob
 import json
 from pathlib import Path
@@ -39,6 +40,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 
 from wfield_local import config
 from wfield_local import nolick_analysis as na
+from wfield_local import session_cache
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, POSITION_NAMES, DISPLAY_ORDER
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
@@ -228,6 +230,108 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
         if int(m.sum()) >= 1:
             per[int(c)] = float(_np.median(rt[m]))
     return per, overall, n_eng
+
+
+# ------------------------------------------------------------------------------------------------
+# CACHING `_trial_features`
+#
+# It is the per-session workhorse every downstream analysis is built from, and it had no memoisation
+# at any level. MEASURED 2026-08-27: ~5 rebuilds per distinct session in a grant render, and the
+# uncached calls account for roughly 6 of the nightly's 9.62 h on top of most of the 8-10 h render.
+#
+# ON DISK, NOT IN PROCESS. The nightly is 17 SEPARATE PROCESSES -- `cli()` shells out to
+# `python -m <module>` -- so an `lru_cache` is discarded at every step boundary and would fix only
+# the render. `session_cache.cached` is the only tier that crosses a process, and it also carries
+# results between NIGHTS, which is where most of the win is: per-session feature extraction does not
+# depend on which other sessions exist, so yesterday's sessions never need rebuilding.
+#
+# EVERYTHING RESULT-CHANGING GOES IN `kind`, NOT `params`. `session_cache.cached` prunes with
+# `glob(f"{lab}__{kind}__*.pkl")` after every write, so two callers sharing a kind but differing in
+# params would evict each other on every single call -- a cache that is strictly slower than none and
+# looks like it is working. Folding into the kind is what the two existing users
+# (`fixed_scale_maps._position_maps`, `evoked_amplitude`) do, and why.
+# ------------------------------------------------------------------------------------------------
+
+#: Fields of `args` that change what `_trial_features` returns. Kept as an explicit tuple rather than
+#: `vars(args)` because callers build their own namespaces with different extra fields, and hashing
+#: those would split the cache by caller -- every entry a miss, with nothing to show it.
+_FEATURE_ARGS = ("align", "post_s", "pre_s", "fs", "max_rt", "baseline", "source")
+
+
+def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_indices) -> str:
+    """Cache kind for one `_trial_features` call: every result-changing input, hashed.
+
+    Readable prefix plus a digest rather than the full spec, because the kind lands in a FILENAME and
+    the full spec would push a Windows path over its limit while making the cache directory
+    unreadable. The prefix is what a human scanning the directory needs; the digest is what makes it
+    correct.
+
+    WHAT MUST BE IN HERE THAT IS NOT IN `session_signature`:
+
+    * ``signal_key`` -- the PROVENANCE of an injected signal. The same session and the same args
+      return completely different features depending on whether the signal is this session's own
+      LocaNMF fit or a projection onto a shared joint basis, and `session_signature` stats neither
+      the basis nor anything that changes with it. Without this the disk cache would serve joint
+      features to the per-session path and back again, silently, across processes, for days.
+    * ``bins`` RESOLVED -- `_bins_for` falls through to `defaults.yaml decode.bins` per alignment.
+    * ``lickfree`` RESOLVED -- from `defaults.yaml decode.precue_lickfree`.
+
+    The last two matter because `session_signature` stats DATA files only; a `defaults.yaml` edit
+    changes the result and moves no mtime it looks at. `decode.max_rt_s` going 2.0 -> 3.5 s on
+    2026-08-21 invalidated every previously computed number, which is exactly this failure mode.
+    """
+    spec = {k: getattr(args, k, None) for k in _FEATURE_ARGS}
+    spec["bins"] = _bins_for(args)
+    spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
+    spec["signal_key"] = signal_key
+    spec["nolick_ref"] = nolick_ref
+    spec["with_precue_licks"] = bool(with_precue_licks)
+    spec["with_indices"] = bool(with_indices)
+    digest = hashlib.sha1(repr(sorted(spec.items())).encode()).hexdigest()[:12]
+    return f"tf-{spec['align']}-{digest}"
+
+
+def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=None,
+                          signal_key=None, with_precue_licks=False, with_indices=False,
+                          nolick_ref="cue", verbose=False):
+    """`_trial_features`, memoised to disk. Falls back to computing when it cannot key safely.
+
+    TWO REFUSALS, both fail-safe. A wrong key here is wrong numbers in the decoder, the encoder, RSA
+    and cross-mouse at once -- not a failed render -- so anything the key cannot describe is computed
+    rather than guessed at:
+
+    * AN INJECTED SIGNAL WITH NO ``signal_key``. The array itself cannot go in a key (it is the
+      expensive thing we are avoiding building, and hashing ~100 MB per call would cost more than the
+      rebuild). A caller that injects a signal must say where it came from; one that does not gets a
+      correct, uncached answer instead of a fast, possibly wrong one.
+    * ``source`` OTHER THAN ``locanmf`` WITHOUT AN INJECTED SIGNAL. `_build_signal` then reads
+      `U_atlas.npy` and the SVTcorr, and `session_signature` stats neither, so a re-preprocess would
+      not invalidate the entry. Those sources are diagnostics (`pixel_rsa`, the filter tests), not
+      the hot path, so the honest fix is to leave them uncached rather than to widen a signature
+      every other cached kind also depends on.
+
+    ``signal_fn`` is the same injection DEFERRED: a zero-arg callable returning ``(signal, regions)``,
+    invoked only when the cache misses. That is what makes the saving real for the joint-basis paths,
+    where building the signal -- a U/SVT load and a ~100 MB projection -- costs far more than the
+    features derived from it. Pass ``signal_fn`` and ``signal_key`` together; see
+    `joint_locanmf.BasisSource`.
+    """
+    def _compute():
+        sig, reg = (signal, feat_region)
+        if signal_fn is not None:
+            sig, reg = signal_fn()
+        return _trial_features(s, args, signal=sig, feat_region=reg,
+                               with_precue_licks=with_precue_licks, with_indices=with_indices,
+                               nolick_ref=nolick_ref)
+
+    injected = signal is not None or signal_fn is not None
+    if injected and not signal_key:
+        return _compute()
+    if not injected and getattr(args, "source", "locanmf") != "locanmf":
+        return _compute()
+    kind = feature_cache_kind(args, signal_key=signal_key or "own", nolick_ref=nolick_ref,
+                              with_precue_licks=with_precue_licks, with_indices=with_indices)
+    return session_cache.cached(s, kind, _compute, verbose=verbose)
 
 
 def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,

@@ -23,7 +23,17 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 10  # bump when any cached function's computation changes
+CACHE_VERSION = 11  # bump when any cached function's computation changes
+# v11 (2026-08-27): `_trial_features` is now cached (kind `tf-<align>-<digest>`), which makes this
+# module's signature load-bearing for the per-session feature matrices every downstream analysis is
+# built from -- not just for the four derived kinds. Bumped rather than relying on the new kind being
+# new, because `locanmf_position_decoder` changed in the same change set (coverage-excluded cues are
+# now dropped before the lick-free accounting, 74b65aa) and mtimes do not see code.
+#   THE DISCRIMINATOR THAT IS NOT IN THIS SIGNATURE, and why the kind carries it: the same session and
+# the same args give different features depending on whether the signal is that session's own LocaNMF
+# fit or a projection onto a shared joint basis. `session_signature` stats neither the basis nor
+# anything that moves with it, so `feature_cache_kind` folds the basis_id in. See
+# `locanmf_position_decoder.trial_features_cached` for the two cases it refuses to cache at all.
 # v9 (2026-08-18): BLOCK IDS now split a run at the scheduler's block_size_max. The old rule
 # started a new block only when the POSITION changed, so two adjacent blocks at the same
 # position merged into one -- 118 of 4216 blocks (2.8%) across the 48 curated + 8/17 sessions,

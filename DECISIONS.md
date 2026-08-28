@@ -5345,3 +5345,82 @@ the only construction here that would expose WITHIN-session variability, which n
 shows. It needs a per-chunk trial-count gate: a third of a session at an impaired position will
 often fall under `min_trials` and blank the row, which is the same estimator threshold that empties
 whole days in 8g. Not built.
+
+## 2026-08-27 — `_trial_features` is cached to disk, and why the key is the whole change
+
+`_trial_features` is the per-session workhorse every downstream analysis is built from, and it had no
+memoisation at any level. Measured: ~5 rebuilds per distinct session in a grant render, with the
+uncached calls accounting for roughly 6 of the nightly's 9.62 h on top of most of the 8-10 h render.
+The `lru_cache`s that existed sat one level too high, at the collectors, so each collector
+independently rebuilt the same per-session features.
+
+### DISK, NOT `lru_cache` — the detail that decides whether it works at all
+
+The nightly is **17 separate processes**; `cli()` shells out to `python -m <module>`. An `lru_cache`
+is discarded at every step boundary, so the obvious choice — and it is the obvious one, since every
+existing collector cache uses it — would have fixed the grant render and left the nightly at 9.6 h.
+`session_cache.cached` is the only tier that crosses a process, and it also carries results between
+NIGHTS: per-session feature extraction does not depend on which other sessions exist, so yesterday's
+sessions never need rebuilding. That is where most of the win is.
+
+### EVERYTHING RESULT-CHANGING GOES IN `kind`, NOT `params`
+
+`session_cache.cached` prunes with `glob(f"{lab}__{kind}__*.pkl")` after every write. Two callers
+sharing a kind but differing in params would therefore **evict each other on every single call** — a
+cache strictly slower than none, which still looks like it is working. Folding into the kind is what
+the two existing users already do, and this is why.
+
+### THE DISCRIMINATOR THAT IS NOT IN `session_signature`
+
+The same session and the same args return **completely different features** depending on whether the
+signal is that session's own LocaNMF fit or a projection onto a shared joint basis — 256 feature
+columns against 380, measured on PS92_0602. `session_signature` stats `locanmf_C.npy`, the h5 and the
+behaviour table; it stats neither the basis nor anything that moves with it. A key without the basis
+id would serve joint features to the per-session path and back again — silently, across processes,
+persisting for days. `feature_cache_kind` folds in `signal_key`, plus the RESOLVED `bins` and
+`lickfree`, which come from `defaults.yaml` and move no mtime the signature looks at. (`decode.max_rt_s`
+going 2.0 -> 3.5 s on 2026-08-21 invalidated every number computed before it. That is this failure
+mode, already realised once.)
+
+### TWO REFUSALS, BOTH FAIL-SAFE
+
+`_trial_features` feeds the decoder, encoder, RSA and cross-mouse, so a key bug is wrong numbers
+everywhere rather than a failed render. Anything the key cannot describe is computed instead:
+
+* **an injected signal with no `signal_key`** — the array cannot go in a key (it is the expensive
+  thing being avoided; hashing ~100 MB per call would cost more than the rebuild), so a caller that
+  injects without saying where it came from gets a correct uncached answer rather than a fast one.
+* **`source` other than `locanmf` with no injected signal** — `_build_signal` then reads `U_atlas.npy`
+  and the SVTcorr, which the signature does not stat. Those sources are diagnostics, so leaving them
+  uncached is honest where widening a signature every other cached kind depends on would not be.
+
+### THE PROJECTION IS DEFERRED BEHIND THE CACHE
+
+Both joint feature builders used to project first and build features second. Once the features are on
+disk that ordering wastes the entire saving. `joint_locanmf.BasisSource` makes the signal a callable
+invoked only on a miss, so a warm cache never touches the basis. `variance_captured` is cached
+separately as one float, written on the cold pass, so the diagnostic survives a hit without a
+projection performed purely to report it.
+
+### VERIFIED — and note what the OBVIOUS A/B cannot catch
+
+The natural check is `WIDEFIELD_NO_CACHE=1` against a cached run of one figure. It **cannot detect the
+failure that matters**: run entirely on the joint path it uses one provenance in both arms, so it
+passes on a build that cross-serves. The check run instead does two things:
+
+    PS92_0602, all three alignments      cached == uncached, element-wise
+      cue     OWN  X(243, 256)   JOINT X(243, 380)   both exact
+      precue  OWN  X(142, 256)   JOINT X(142, 380)   both exact
+      lick    OWN  X(243, 512)   JOINT X(243, 760)   both exact
+    own != joint on every alignment      the key DISCRIMINATES, so neither was served for the other
+    with_indices 6-tuple vs 8-tuple      the shape-changing kwargs do not collide
+    nolick_ref moves the no-lick arm     placement is in the key
+
+CACHE_VERSION 10 -> 11. 800 tests pass.
+
+### ONE THING TO EXPECT IN THE LOGS, so a quiet log is not misread
+
+`[precue lick-free]`, `[coverage]` and `[behavior-backup]` print from inside `_trial_features`, so a
+cache hit prints nothing. Their counts will drop sharply — `[behavior-backup]` from 56 to 4,
+`[coverage]` for PS95_0813 from 53 to 1. That is the cache working, not the dead-strobe-bit repair
+having stopped, and a quiet log is exactly what a broken repair would also look like.

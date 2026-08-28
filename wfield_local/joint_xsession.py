@@ -77,7 +77,7 @@ from wfield_local.locanmf_frozen_decoder import (
     pooled_frozen_loso,
     write_session_confusions,
 )
-from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 
 BASIS = "joint"
 
@@ -97,15 +97,18 @@ def joint_features(basis):
     vc = {}
 
     def _feat(s, args):
+        # TWO TIERS, deliberately. The dict below is the IN-PROCESS tier and stays: within one run it
+        # avoids re-reading and re-unpickling an entry that is already in memory. `trial_features_cached`
+        # is the ON-DISK tier underneath it, and is the one that matters -- the nightly is 17 separate
+        # processes, so nothing in this dict survives a step boundary, and per-session features do not
+        # depend on which other sessions exist, so they need not be rebuilt between nights either.
         key = (s["label"], basis.basis_id, args.align, args.post_s)
         if key not in _FEAT_CACHE:
             lab = s["label"]
-            if lab in basis.labels:
-                sig, vc[lab] = basis.signal(lab), 1.0
-            else:
-                sig, diag = basis.project(s, with_diagnostics=True)
-                vc[lab] = float(diag["variance_captured"])
-            _FEAT_CACHE[key] = _trial_features(s, args, signal=sig, feat_region=basis.regions)
+            src = joint_locanmf.BasisSource(basis, s)
+            _FEAT_CACHE[key] = trial_features_cached(
+                s, args, signal_fn=src.signal, signal_key=src.key)
+            vc[lab] = src.variance_captured()
         return _FEAT_CACHE[key]
 
     _feat.variance_captured = vc

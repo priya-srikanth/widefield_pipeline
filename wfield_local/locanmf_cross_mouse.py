@@ -45,7 +45,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
 from wfield_local import config, session_cache
-from wfield_local.locanmf_position_decoder import _trial_features
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
 FS = 31.23
@@ -84,7 +84,7 @@ def per_session(label):
 
 
 def _per_session_compute(s):
-    X, y, g, _, _, reg = _trial_features(s, _args())
+    X, y, g, _, _, reg = trial_features_cached(s, _args())
     names = {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
     rn = np.array([names.get(int(reg[i]), "?") for i in range(X.shape[1])])
