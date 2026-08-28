@@ -175,3 +175,89 @@ def counts_by_epoch(per_animal: dict) -> dict:
     """``{epoch: confusion counts}``, pooled across animals. Raw counts, so a panel is a SUM."""
     from wfield_local.grant_figures import _counts
     return {e: _counts(pool_records(per_animal, e)) for e in PANELS}
+
+
+# ---------------------------------------------------------------------------------------------
+# SHOWING THE IMBALANCE RATHER THAN ASSERTING IT
+# ---------------------------------------------------------------------------------------------
+# Priya, 2026-08-28: "it can be made clear in the figure ... by using data points with transparency
+# to allow overlap, with different colors for sessions from each mouse (ie 4 colors, 1 dot per
+# session value)".
+#
+# This is the honest answer to session weighting. The pooled bar is weighted by session, so PS94
+# dominates the acute panel (6 sessions) and PS95 the subacute (7) -- and a note saying so is read
+# once and forgotten, while a column of dots is read every time the figure is looked at. One dot per
+# SESSION VALUE means the reader can count the contributors and see that PS95's acute panel rests on
+# a single session.
+#
+# IT DOES NOT APPLY TO THE HEATMAP PANELS. A confusion or crossnobis matrix has no axis to carry a
+# per-session dot, so those state n and the per-animal session counts in the panel title instead.
+
+#: Transparency for overlaid session points. Low enough that ~7 coincident dots are still separable.
+POINT_ALPHA = 0.55
+POINT_SIZE = 26
+
+
+def session_points(ax, x, per_session, *, spread=0.16, size=POINT_SIZE, alpha=POINT_ALPHA,
+                   zorder=5):
+    """One dot per session value at ``x``, coloured by animal, spread deterministically.
+
+    ``per_session`` is ``[(animal, value), ...]``. Colours come from `config.animal_color`, the
+    single source of truth, rather than four colours chosen here -- the same animal must be the same
+    colour in this figure and in every per-animal figure beside it.
+
+    THE SPREAD IS DETERMINISTIC, NOT RANDOM. A jittered point cloud that moves between renders makes
+    two versions of the same figure impossible to compare, and this project has already been bitten
+    by figures that differed for reasons nobody could pin down. Points are laid out by their index
+    within the group, so the same data always draws the same picture.
+
+    Returns the number of points drawn, so a caller can assert the panel shows what it claims.
+    """
+    colors = config.animal_color()
+    vals = [(a, v) for a, v in per_session if v is not None and np.isfinite(v)]
+    if not vals:
+        return 0
+    n = len(vals)
+    # centred, evenly spaced; a single point sits exactly on the tick
+    offs = np.zeros(1) if n == 1 else np.linspace(-spread, spread, n)
+    for (an, v), dx in zip(sorted(vals, key=lambda t: t[0]), offs):
+        ax.scatter([x + dx], [v], s=size, color=colors.get(an, "k"), alpha=alpha,
+                   edgecolors="none", zorder=zorder)
+    return n
+
+
+def animal_legend(ax, *, fontsize=None, loc="best", counts=None):
+    """A four-entry animal legend, optionally annotated with each animal's session count.
+
+    ``counts`` is ``{animal: n}``; when given the label reads ``PS95 (n=1)``, which is where the
+    imbalance becomes unmissable rather than merely visible.
+    """
+    from matplotlib.lines import Line2D
+    colors = config.animal_color()
+    handles = [Line2D([], [], marker="o", ls="", color=colors[a], alpha=POINT_ALPHA,
+                      markersize=6,
+                      label=a if not counts else f"{a} (n={counts.get(a, 0)})")
+               for a in sorted(colors)]
+    ax.legend(handles=handles, fontsize=fontsize or FS_ANNOT - 1.5, loc=loc, frameon=False,
+              handletextpad=0.3, borderpad=0.2, labelspacing=0.25)
+
+
+def per_session_values(per_animal, epoch, value_of):
+    """``[(animal, value), ...]`` for one epoch, one value per SESSION -- the input `session_points`
+    wants.
+
+    ``value_of(animal, day, record)`` reduces a per-day record to the scalar the panel plots, so the
+    same grouping serves accuracy, similarity and reliability without any of them re-deriving which
+    sessions belong to which epoch.
+    """
+    out = []
+    if epoch == "pre":
+        for an, (pre, _bd) in sorted(per_animal.items()):
+            if pre is not None:
+                out.append((an, value_of(an, None, pre)))
+        return out
+    for an, day in group_days_by_epoch(per_animal).get(epoch, []):
+        rec = per_animal[an][1].get(day)
+        if rec is not None:
+            out.append((an, value_of(an, day, rec)))
+    return out

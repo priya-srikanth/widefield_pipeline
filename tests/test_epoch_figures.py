@@ -143,3 +143,78 @@ def test_it_adds_no_second_definition_of_any_population():
     body = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
     for forbidden in ("pool_sessions(", ".fit(", "_trial_features", "make_pipeline"):
         assert forbidden not in body, f"epoch_figures recomputes ({forbidden}); it must aggregate"
+
+
+# --- showing the imbalance rather than asserting it ----------------------------------------------
+# Priya, 2026-08-28: one dot per session value, four colours, transparency for overlap. A note about
+# session weighting is read once; a column of dots is read every time the figure is looked at.
+
+
+def _ax():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    return plt.subplots()[1]
+
+
+def test_one_dot_per_session_value():
+    ax = _ax()
+    pts = [("PS92", 0.4), ("PS92", 0.5), ("PS94", 0.6)]
+    assert ef.session_points(ax, 1.0, pts) == 3
+    assert sum(len(c.get_offsets()) for c in ax.collections) == 3
+
+
+def test_colours_come_from_the_single_source_of_truth():
+    """The same animal must be the same colour here and in every per-animal figure beside it.
+    Four colours chosen in this module would drift from `config.animal_color` the first time one
+    changed."""
+    import inspect
+    assert "config.animal_color()" in inspect.getsource(ef.session_points)
+    ax = _ax()
+    ef.session_points(ax, 0.0, [("PS93", 0.5)])
+    import matplotlib.colors as mc
+    want = mc.to_rgb(config.animal_color()["PS93"])
+    got = tuple(ax.collections[0].get_facecolor()[0][:3])
+    assert all(abs(a - b) < 1e-6 for a, b in zip(want, got))
+
+
+def test_the_spread_is_deterministic():
+    """A random jitter makes two renders of the same data impossible to compare. Points are laid out
+    by index, so the same data always draws the same picture."""
+    pts = [("PS92", 0.4), ("PS93", 0.5), ("PS94", 0.6), ("PS95", 0.7)]
+    xs = []
+    for _ in range(2):
+        ax = _ax()
+        ef.session_points(ax, 2.0, pts)
+        xs.append([tuple(c.get_offsets()[0]) for c in ax.collections])
+    assert xs[0] == xs[1]
+
+
+def test_a_single_session_sits_on_the_tick():
+    """PS95 contributes ONE acute session. Offsetting a lone dot would misplace exactly the case the
+    overlay exists to make visible."""
+    ax = _ax()
+    ef.session_points(ax, 3.0, [("PS95", 0.2)])
+    assert ax.collections[0].get_offsets()[0][0] == pytest.approx(3.0)
+
+
+def test_missing_values_are_skipped_not_plotted_as_zero():
+    ax = _ax()
+    assert ef.session_points(ax, 0.0, [("PS92", None), ("PS93", float("nan")), ("PS94", 0.3)]) == 1
+
+
+def test_the_legend_can_carry_the_session_counts():
+    """`PS95 (n=1)` is where the imbalance stops being merely visible and becomes unmissable."""
+    ax = _ax()
+    ef.animal_legend(ax, counts={"PS92": 5, "PS93": 4, "PS94": 6, "PS95": 1})
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert "PS95 (n=1)" in labels and "PS94 (n=6)" in labels
+
+
+def test_per_session_values_returns_one_entry_per_session():
+    """The bridge from the collectors to the dots: one value per session, tagged with its animal, so
+    the panel's dots and its pooled bar describe the same sessions."""
+    per = _fake({"PS92": {1: 6, 2: 6}, "PS95": {1: 6}})
+    got = ef.per_session_values(per, "acute", lambda an, day, rec: float(len(rec[0])))
+    assert sorted(got) == [("PS92", 6.0), ("PS92", 6.0), ("PS95", 6.0)]
+    assert len(ef.per_session_values(per, "pre", lambda a, d, r: 1.0)) == 2
