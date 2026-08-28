@@ -1076,7 +1076,14 @@ def figure_cross(res, out, align="precue", meth="dom"):
     fig, axes = plt.subplots(_nr, _nc, figsize=(3.2 * _nc + 1.1, 3.5 * _nr + 1.1),
                              squeeze=False, gridspec_kw={"hspace": 0.45, "wspace": 0.16})
     for k, (c, M, isdiff) in enumerate(mats):
-        ax = axes[0][k]
+        # TWO-DIMENSIONAL, because the grid is. This said `axes[0][k]` -- correct while the panels
+        # were one row of six, and an IndexError from the moment they became two rows of three on
+        # 2026-08-28 (`index 3 is out of bounds for axis 0 with size 3`). It only ever fired on ENL
+        # and cue: the LICK window carries two classes, so `_nc` is 2, `_nr` is 1, and row 0 is the
+        # whole grid. `_draw` caught it, so the run continued and the deck simply had no
+        # `coding_cross_*` for those windows -- an absence, not an error, which is why measuring the
+        # placed figures is the only check that finds this class of fault.
+        ax = axes[k // _nc][k % _nc]
         im = ax.imshow(np.ma.masked_invalid(M), cmap="RdBu_r",
                        vmin=(-lim if isdiff else -0.3), vmax=(lim if isdiff else 1.3))
         for i in range(len(BY_SEVERITY)):
@@ -1098,9 +1105,16 @@ def figure_cross(res, out, align="precue", meth="dom"):
         ax.set_title(("BASELINE: " if not isdiff else "minus baseline: ") + STYLE[c][2],
                      fontsize=8.5)
         ax.set_xlabel("scored on THIS position's direction", fontsize=8)
-        if k == 0:
+        # ONCE PER ROW, not once per figure -- with two rows, a single y-label on panel 0 leaves the
+        # second row's axis unnamed. Matches the y-TICK rule three lines above, which already keyed
+        # on the column.
+        if k % _nc == 0:
             ax.set_ylabel("TRUE spout position", fontsize=8.5)
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+    # A 5-panel set in a 2x3 grid leaves one cell over; an unused axes draws as an empty framed box
+    # that reads as a panel with no data rather than as no panel.
+    for k in range(len(mats), _nr * _nc):
+        axes[k // _nc][k % _nc].set_axis_off()
     fig.suptitle(
         f"{res['animal']} \u2014 {disp}, {meth.upper()}. Panel 1 is the PRE-STROKE baseline (1 = "
         f"that column's own position); the rest are DIFFERENCES from it.\nRed = more like the "
