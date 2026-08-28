@@ -530,6 +530,68 @@ def compare_daq_licks(h5_path: Path, params: dict) -> dict | None:
 
 # --------------------------------------------------------------------------- engagement
 
+def reference_engagement(responded, positions, *, tail_min_misses=6, reference=None):
+    """Disengagement judged ONLY where the lesion spares the animal. Returns ``(not_engaged, info)``.
+
+    THE UNION OF TWO REFERENCE-RESTRICTED ARMS (Priya, 2026-08-28):
+
+      * **sustained collapse** -- `precue_engagement_states.engagement_gate` verbatim: the trailing
+        reference-position response rate below MIN_RATE and NOT recovering. This is the imaging
+        path's own definition, called rather than reimplemented, so the two cannot drift.
+      * **terminal reference tail** -- the last ``tail_min_misses`` REFERENCE trials all
+        non-responses, marked from the first of that run to the end of the session.
+
+    WHY BOTH, AND WHY THE RESTRICTION IS THE PART THAT MATTERS. The property that closes the
+    circularity is not "terminal" or "non-recovering" -- it is WHERE THE GATE LOOKS. Judging at
+    close_L and close_center means a run of far-contra misses can never trip either arm, so a
+    position-specific deficit is counted as the miss it is instead of being deleted as
+    disengagement. `flag_engagement` judged over ALL positions and therefore wrote the effect off
+    as the confound: 380 of PS94_0817's 643 trials, against 0 here.
+
+    Given the restriction, the non-recovery requirement was only making SATIETY detection slow. A
+    rolling mean over a 15-trial reference window needs 8 misses to cross 0.5; a sated animal has
+    stopped responding at the reference positions too, and the tail arm catches that at six. So the
+    union keeps the anti-circularity of the imaging gate and the sensitivity of the old terminal
+    rule, and gives up neither.
+
+    THIS IS A BEHAVIOUR-SIDE GATE, and that is deliberate rather than an inconsistency. Imaging
+    KEEPS its disengaged trials as the `poststroke_stopped` class and analyses them; a behavioural
+    hit rate wants them out of the denominator. Same invariant, different question.
+    """
+    from wfield_local.precue_engagement_states import REFERENCE, engagement_gate
+
+    resp = np.asarray(responded, dtype=bool)
+    pos = np.asarray(positions, dtype=str)
+    n = resp.size
+    if n == 0:
+        return np.zeros(0, bool), {"n_disengaged": 0, "tail_start": None, "n_tail": 0,
+                                   "gate": "reference_engagement"}
+    ref_names = tuple(reference or REFERENCE)
+    collapse = engagement_gate(np.arange(n), resp, pos)
+
+    # the terminal tail, counted in REFERENCE trials but marked over the whole session: once the
+    # animal has stopped, the interleaved far trials are not evidence about anything either
+    tail = np.zeros(n, bool)
+    ref_idx = np.flatnonzero(np.isin(pos, ref_names))
+    if len(ref_idx) >= tail_min_misses:
+        last = ref_idx[~resp[ref_idx]]
+        run = 0
+        for i in reversed(ref_idx):
+            if resp[i]:
+                break
+            run += 1
+        if run >= tail_min_misses:
+            start = ref_idx[len(ref_idx) - run]
+            tail[start:] = True
+        del last
+    not_eng = collapse | tail
+    starts = np.flatnonzero(not_eng)
+    return not_eng, {"n_disengaged": int(not_eng.sum()),
+                     "tail_start": int(starts[0]) if starts.size else None,
+                     "n_tail": int(tail.sum()), "n_collapse": int(collapse.sum()),
+                     "gate": "reference_engagement"}
+
+
 def flag_engagement(responded, *, window: int, min_rate: float, tail_min_misses: int):
     """Classify each trial engaged vs disengaged from the ``responded`` (lick-in-window) sequence.
 
@@ -604,15 +666,12 @@ def session_metrics(trials: pd.DataFrame, latency: pd.Series | None, params: dic
     # docstring as the case that must not be called disengaged. PS95_0817: 224 against 0. The
     # pooled far-contra hit rate moves by -0.017 (pre), -0.008 (acute), -0.034 (subacute): small
     # in the mean, and computed on a much larger, non-circular trial set.
-    from wfield_local.precue_engagement_states import engagement_gate
-
     _resp = scored["responded"].to_numpy(bool)
     _pos = scored["pos_name"].to_numpy(str)
-    _not_eng = engagement_gate(np.arange(len(scored)), _resp, _pos)
+    _not_eng, _info = reference_engagement(_resp, _pos,
+                                           tail_min_misses=params["engagement"]["tail_min_misses"])
     engaged_bool = ~_not_eng
-    _tail = int(np.flatnonzero(_not_eng)[0]) if _not_eng.any() else None
-    info = {"n": int(len(scored)), "n_disengaged": int(_not_eng.sum()),
-            "tail_start": _tail, "n_tail": int(_not_eng.sum()), "gate": "engagement_gate"}
+    info = {"n": int(len(scored)), **_info}
     scored = scored.copy()
     scored["engaged"] = engaged_bool
 

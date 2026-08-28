@@ -384,13 +384,13 @@ def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000", trials, _events(ev))
     tr = sb.load_trials(d)
     m = sb.session_metrics(tr, None, params)
-    # PART of the tail, not all of it, and that is a property of a rate-collapse gate rather than
-    # a defect: it fires where the trailing reference rate crosses MIN_RATE, which a run of misses
-    # takes ~8 reference trials to do, then extends to the end. The old gate marked from the first
-    # miss because it carried a separate "terminal run of N" rule; the reference-judged gate has
-    # none, which is the trade for not calling a far-position deficit disengagement.
-    assert 0 < m["n_disengaged"] < tail
-    assert not m["scored"]["engaged"].to_numpy()[-1], "the end of a collapse must be excluded"
+    # THE WHOLE TAIL, because the union's tail arm marks from the FIRST of a run of >= 6
+    # consecutive REFERENCE non-responses rather than from where a rolling mean happens to cross.
+    # The collapse arm alone caught only 9 of these 16 -- that lag is exactly what the tail arm is
+    # there to remove, and it can still never fire on a far-position run because it counts
+    # reference trials only.
+    assert m["n_disengaged"] == tail
+    assert not m["scored"]["engaged"].to_numpy()[-1], "the end of a tail must be excluded"
 
     ungated = sb.lick_microstructure(d, tr, params)
     gated = sb.lick_microstructure(d, tr, params, engaged_ids=sb._engaged_ids(m))
@@ -754,3 +754,54 @@ def test_plot_session_writes_the_task_raster(tmp_path):
     sb.plot_session(d, out, config.defaults()["behavior"])
     raster = out / "sessions/PS92/20260806/PS92_20260806_120000_task_raster.png"
     assert raster.exists() and raster.stat().st_size > 0
+
+
+# ------------------------------------------------- the reference-restricted engagement gate
+
+def test_the_union_gate_never_fires_on_a_far_position_run():
+    """The invariant that closes the circularity, asserted directly.
+
+    Both arms count REFERENCE trials only, so no run of far-position misses -- however long, and
+    however far it drags the all-position response rate down -- can be called disengagement.
+    Measured on the cohort: `flag_engagement` excluded 380 of PS94_0817's 643 trials; this gate
+    excludes 0.
+    """
+    import numpy as np
+
+    n = 40
+    pos = np.array(["close_L"] * 20 + ["far_R"] * 20)
+    resp = np.array([True] * 20 + [False] * 20)          # perfect at reference, nothing at far
+    not_eng, info = sb.reference_engagement(resp, pos, tail_min_misses=6)
+    assert not not_eng.any(), "a far-position run was written off as disengagement"
+    assert info["n_collapse"] == 0 and info["n_tail"] == 0
+    assert len(not_eng) == n
+
+
+def test_the_union_gate_catches_a_sated_reference_tail():
+    """A sated animal stops at the reference positions too, and that is what the tail arm is for.
+
+    The collapse arm alone needs the trailing reference mean to cross MIN_RATE, which takes ~8
+    misses in a 15-trial window; the tail arm catches the same satiety at six.
+    """
+    import numpy as np
+
+    pos = np.array(["close_L"] * 30)
+    resp = np.array([True] * 24 + [False] * 6)
+    not_eng, info = sb.reference_engagement(resp, pos, tail_min_misses=6)
+    assert not_eng[-6:].all() and not not_eng[:24].any()
+    assert info["n_tail"] == 6
+
+
+def test_the_union_gate_marks_interleaved_far_trials_inside_a_tail():
+    """Once the animal has stopped, the far trials interleaved in the tail are not evidence either.
+
+    Counted in reference trials, marked over the whole session -- otherwise a sated tail would
+    contribute far-position misses to the hit rate it was excluded from.
+    """
+    import numpy as np
+
+    pos = np.array(["close_L", "far_R"] * 20)
+    resp = np.array(([True, True] * 12) + ([False, False] * 8))
+    not_eng, _info = sb.reference_engagement(resp, pos, tail_min_misses=6)
+    assert not_eng[-16:].all()
+    assert not not_eng[:20].any()
