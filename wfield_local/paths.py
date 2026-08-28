@@ -76,14 +76,43 @@ class PathResolver:
     def root_names(self) -> list[str]:
         return list(self._candidates)
 
+    #: A logical root may be overridden per machine by ``WIDEFIELD_<ROOT_NAME_UPPERCASED>``.
+    #: ``figures_working`` -> ``WIDEFIELD_FIGURES_WORKING``, which is the variable
+    #: `configs/paths.yaml` has documented since 2026-08-11.
+    ENV_PREFIX = "WIDEFIELD_"
+
+    @staticmethod
+    def env_var(name: str) -> str:
+        """The environment variable that overrides logical root `name`."""
+        return PathResolver.ENV_PREFIX + name.upper()
+
     def root(self, name: str) -> str:
         """Return the resolved mount string for a logical root (forward-slash form).
 
-        Single-mount roots return directly (no existence check — a write destination may
-        not exist yet). List mounts return the first candidate that exists on disk.
+        An environment override (:meth:`env_var`) wins over `paths.yaml`. Otherwise single-mount
+        roots return directly (no existence check — a write destination may not exist yet), and
+        list mounts return the first candidate that exists on disk.
+
+        THE OVERRIDE BELONGS HERE, NOT IN ONE CALLER (2026-08-28). `WIDEFIELD_FIGURES_WORKING` was
+        read only by `nightly_figs._figures_root`, while NINETEEN modules -- every standalone figure
+        CLI, and `joint_locanmf.BASIS_DIR`, which derives the joint-basis path from this root -- called
+        `PathResolver().root("figures_working")` directly and never saw it. So on a box whose profile
+        resolves that root wrongly, setting the documented variable fixed the nightly and silently
+        did not fix anything run by hand, or the basis directory. The failure it was introduced for
+        is on record: a machine with the imaging profile's mounts doing analysis work sent every
+        figure to the OTHER box's `C:/Users/sabatini/...` path and built a deck with 80 slides and
+        287 missing figures, exit code 0.
+
+        This matters for any THIRD machine. `detect_machine` knows three profiles and falls back to
+        'analysis'; a new box therefore adopts another machine's local paths by default, and the
+        env override is the supported way to correct it -- so it has to work everywhere, not in the
+        orchestrator alone.
         """
         if name not in self._candidates:
             raise KeyError(f"Unknown logical root {name!r}. Known: {self.root_names()}")
+        override = os.environ.get(self.env_var(name))
+        if override:
+            return override.replace("\\", "/")
         cands = self._candidates[name]
         if not cands:
             raise RuntimeError(f"Root {name!r} has no mount for machine {self.machine!r}.")

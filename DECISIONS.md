@@ -5635,3 +5635,184 @@ position in each animal, so PS93's far_center "position" direction is 91% engage
 2026-08-24 audit against logistic directions shows orth moves TOWARD that reference in PS93/94/95 and
 AWAY in PS92 (cue 0.160→0.192, lick 0.202→0.279). **For PS92, plain is the better estimate**, and in
 the lick window orthogonalising also removes position-linked MOVEMENT, not only confound. Both stay.
+
+
+---
+
+## 2026-08-28 — EARLY vs LATE rewarded trials, and a prediction the data refuted
+
+`decode.max_rt_s` moved to 3.5 s on 2026-08-21 — the task's real response window — because the
+no-lick arm was holding rewarded hits (39.3% of it for PS92, 33.9% for PS93). That was right, and it
+put a 0.2 s lick and a 3.0 s lick in one ENGAGED class, so the class every decode number is computed
+on could change composition after the lesion with no figure able to show it.
+
+`position_coding_directions._class_confusions` now splits `poststroke_lick` at a **fixed 2.0 s** —
+`nolick_decoder`'s cut, and what `max_rt_s` was before 8/21. **Not the session median**: that is
+session-relative, so "late" would mean a different thing on every day and be comparable neither
+across sessions nor against the `late_rewarded` category the no-lick reference already defines.
+
+**The split is a PARTITION, not two new siblings.** `poststroke_lick_early`/`_late` live in a new
+`CONFUSION_SUBCLASSES` mapping and are deliberately kept OUT of `CONFUSION_CLASSES`. That tuple's
+whole invariant is that summing a subset gives a population; a fourth and fifth sibling would have
+made "all trials" count every lick trial twice, silently, and the result would still have looked like
+a confusion matrix. Same mask, same frozen model, raw counts, so `early + late == poststroke_lick`
+cell for cell — asserted in the code and verified element-wise on all 12 animal-windows.
+
+### The measurement contradicted the premise, including the note written for it
+
+| | PS92 | PS93 | PS94 | PS95 | all |
+|---|---|---|---|---|---|
+| late (RT ≥ 2.0 s) | 5.6% | 7.5% | **1.0% (26 trials)** | **0.8% (27 trials)** | **3.4%** (1029/30645) |
+
+The design — and the deck note, the slide subtitle and `RT_SPLIT_S`'s own comment, all of which I
+wrote — asserted that post-stroke the mass moves late. It does not. **That is a result, not a failed
+figure**, and it agrees with the rest of section G: the two most impaired animals do not lick
+SLOWLY, they lick fast or not at all. Slowed execution would have filled the late arm; "the missing
+licks are the phenotype" predicts exactly this, and the no-detected-lick arm is where those trials
+went. All three claims were corrected and a test fails if the prediction returns without the
+measurement beside it.
+
+**PS94's and PS95's late panels cannot be read and say so in red.** 26 trials over six positions is
+~4 per row, where a per-position recall is 0.0 or 0.33 by arithmetic rather than by measurement. A
+panel below `len(positions) * MIN_TRIALS` is titled TOO FEW TO READ; recall points below
+`MIN_TRIALS` are hollow and carry their n; below `FLOOR_TRIALS` none is drawn, because plotting 0.0
+on two trials looks measured. Both floors are the ones `_stats` and `_cells` already use.
+
+Deck: **G9e**, one animal per slide (6×6 ticks at 7pt reach the reader at ~7.4pt placed at 11.0in,
+and 4.2pt if packed 2-up). D2's response-window arm is **unplaced** — its question stands, but G9e
+answers it directly, since the trials that move between the two cuts ARE its late class. Figures
+still written, so it is reversible; the note records that respwin uses each session's own window
+against G9e's fixed 2.0 s, so the populations are close but not identical.
+
+`CACHE_VERSION` was **not** bumped. `with_rt=False` returns a tuple byte-identical to the old one, so
+the key omits the flag when false and every warm entry stays valid; bumping would have discarded
+~1 MB per session-alignment at ~168 s each *and* invalidated every unrelated cached kind, to record a
+value none of them can see. `CACHE_VERSION` is for when the COMPUTE CODE moves.
+
+---
+
+## 2026-08-28 — Six recipes for one frozen decoder, three for one discriminator, four for one cut
+
+Four de-duplications, all of the same shape: several places computing "the same" object and agreeing
+only by coincidence. **That is not a tidiness problem.** It is how the training contamination fixed
+on 2026-08-26 survived eight days — whichever copy you read looked defensible on its own.
+
+**The frozen decoder (`73b651d`).** `pooled_frozen_loso` froze it; `poststroke_compare` rebuilt the
+same two models five more times with a bare `_pipe().fit(XE[tr], YE[tr])`. `poststroke_section_g`
+mutates only `d["post_i"]` and calls back in, so a fit that does not depend on `post_i` at all was
+redone once per post-stroke session per arm per alignment. `frozen_decoder_models()` now owns the
+spec and the fit and both modules call it. **The acceptance test is equivalence**, not that the call
+happens: the frozen path predicts identically to the old inline fit, and `models["loso"]` reproduces
+`cross_val_predict(LeaveOneGroupOut)` fold for fold. Keyed by LABEL, not pooled index — the index
+depends on the order the caller assembled its pool. `_pooled` now calls `config.pooled_labels` rather
+than rebuilding the list: for ROI features `_align_many` intersects region×bin columns across the
+pool, so a different pool is a different `n_features`, a different spec id, and a permanent cache
+MISS — a failure that looks like slowness, not an error.
+
+**NOT substituted, and must not be:** `decode_matched`'s lick-only arm (class-filtered to preserved
+positions — 4-way for PS94/PS95, a different chance level) and `_within_accuracy` (a within-session
+ceiling). Both pinned.
+
+**The lick discriminator (`c63ff54`).** Three copies, and **the coincidence was already broken**:
+`looks_like_which` and `undetected_state_split` each start a fresh `RandomState(seed)` and draw the
+same sample, but `fits_engaged_distribution.balanced_fit` shares one generator across its
+leave-one-out loop, so its full-pool fit is a DIFFERENT sample from a function that reads as though
+it were the same. `balanced_lick_sample` takes the rng as an ARGUMENT so every call site keeps its
+exact draw — the refactor moved no number, asserted draw for draw. Making `balanced_fit`
+deterministic per fold is defensible and would move published numbers: a decision to take on its own,
+not a side effect of removing duplication. It is **not** the position decoder — same
+hyperparameters, two-class label space against six positions — so anything keyed on a stored model
+needs `kind="lick_discriminator"`, never `kind="decoder"`.
+
+**The engaged cut (`b93fbc0`). There were FOUR modules, not three.** `postcue_window_test.py` was
+missed by the by-hand survey and found on the first run of an AST walk. It is where the literal did
+the most damage: that module sweeps the post-cue WINDOW over [2.0, 2.5, 3.0, 3.5] s, so the longer
+windows were scored on trials selected by the shortest one — window and trials disagreeing by up to
+1.5 s. All four now read `decode.max_rt_s` **and announce the cut at run time**, because fixing only
+the code moves the disagreement into the docs: every number recorded for these modules was measured
+at 2.0 s. `nolick_decoder`/`nolick_analysis` are exempt and a test asserts the exemption still
+carries its reason — an exemption that stops explaining itself is indistinguishable from the bug.
+
+---
+
+## 2026-08-28 — Figures rendered nightly and shown to nobody: measure, do not grep
+
+**14 placed; 496 → 525 slides.** Measured by instrumenting `add_picture` on a real build. 739 of 2430
+PNGs on disk are placed and most of the rest SHOULD stay unplaced — superseded dates, non-curated
+variants. Two cheaper methods were tried and both reported full coverage wrongly: grepping
+distinctive stems, and converting the deck's f-strings to regexes (`f"{stem}.png"` becomes
+`[^/\\]*\.png`, a wildcard). **Only the build knows.**
+
+- **G2c lick-only arm.** The all-trials with-control grid carried the headline since 2026-08-20
+  while its sibling was written nightly and never shown. It is the control for the standing
+  objection — that the dissociation is about missing MOVEMENTS rather than coding — since every
+  trial it scores has a lick. The cost is positions: an abandoned position drops out and chance
+  moves 6-way → 4-way. Neither arm is complete, so showing one silently was choosing a result.
+- **G2d, the small-lesion family (9).** `section_g_figures` renders the whole readout family twice,
+  and the second copy had never reached a slide — only the two grey squares inside G2c stood for it.
+  PS92/PS93 on 8/17 after a laser that did not take is the strongest control this design has, and
+  **what it should show is NOTHING** — which cannot be said of a figure nobody has looked at.
+- **Joint-basis health, all three alignments.** The span is computed on the ALIGNED window, so the
+  three are different numbers. The deck showed the pre-cue one and said in its own subtitle that the
+  others "are not shown here" — an accurate note about an incomplete slide.
+- **Hemisphere-resolved RSA (2).** The one RSA arm explicitly about the lesion's SIDE, placed on
+  none of the three slides it belongs beside. Put in **F, not G**: it is a PRE-stroke geometry
+  measurement, the reference a post-stroke asymmetry must be read against; in G it would read as a
+  result about the stroke.
+
+**Deliberately still unplaced:** `coding_cosslope_*_dom` and `coding_pairsplit_*_dom`. G9b shows the
+ORTHOGONALISED variant alone because both cohort diagnostics were measured on it; drawing the plain
+ones beside them would put two different measurements under one claim.
+
+### A missing figure is an absence, not an error — which is why it needs measuring
+
+`figure_cross` indexed `axes[0][k]` after its panels were reshaped to two rows of three, and failed
+16 times in one run. It hid twice over: **the lick window never fails** (2 classes → `_nr` is 1, so
+row 0 IS the grid), and **`_draw` caught it** — that wrapper exists so a plotting bug cannot discard
+40 minutes of pooling, and it did its job. The cost is that the failure presented as missing figures.
+Recovered by redrawing from `coding_direction.json` with no re-pooling, since `run_animal`'s result
+is exactly what is persisted. Third layout fault this month found by DRIVING the function rather than
+reading the diff.
+
+---
+
+## 2026-08-28 — A logical-root override must reach every consumer (third-machine readiness)
+
+`WIDEFIELD_FIGURES_WORKING` has been documented in `configs/paths.yaml` since 2026-08-11 as the way
+to correct a machine whose profile resolves `figures_working` wrongly. **It was read in exactly one
+place** — `nightly_figs._default_out` — while **19 modules** called
+`PathResolver().root("figures_working")` directly and never saw it: every standalone figure CLI, and
+`joint_locanmf.BASIS_DIR`, which derives the joint-basis directory from that root. Setting the
+documented variable fixed the nightly and silently fixed nothing run by hand, nor where the basis was
+looked for — and for the basis a wrong answer is not a missing figure but a WRONG FEATURE SPACE (the
+same session gives 256 columns vs 380).
+
+The override now lives in `PathResolver.root`, derived generically as `WIDEFIELD_<ROOT_NAME>` so a new
+logical root gets one without a branch. `nightly_figs` keeps its loud failure and gives up the
+override.
+
+**This matters for any THIRD machine.** `detect_machine` knows three profiles — `analysis`,
+`imaging`, `mac` — and falls back to `analysis`, so a new box adopts another machine's local paths by
+default. The failure that fallback causes is on record: a box with the imaging profile's mounts doing
+analysis work sent every figure to the other machine's `C:/Users/sabatini/...` path and built a deck
+with 80 slides and 287 missing figures, **exit code 0**.
+
+### What a third box can and cannot do (audited 2026-08-28)
+
+**Present and sufficient:** all 74 pooled sessions have `SVTcorr.npy`, `allen_aligned_*/U_atlas.npy`
+and LocaNMF outputs on MICROSCOPE — so a new box does **not** need to run LocaNMF for existing
+sessions, only for new nights. Joint bases for all four animals are on the server
+(`labcams/joint_bases`), reachable by the 2026-08-27 server fallback. The repo is config-driven and
+carries no machine-specific paths (`test_no_hardcoded_machine_paths`).
+
+**Gaps a new box hits:**
+- **No machine profile.** Needs `WIDEFIELD_MACHINE` and `WIDEFIELD_FIGURES_WORKING` set explicitly,
+  or it silently adopts another box's local paths.
+- **Deck source.** `--src` defaults to the LOCAL `figures_working`, empty on a fresh box. Build from
+  `cue_analysis_out` on the server, or run the analysis first.
+- **GPU stack is not pip-resolvable.** torch (CUDA), `wfield==0.6.0`, LocaNMF/localnmf and cuhals are
+  a custom Windows build with patches in `wfield_local/*.patch`. This, not data availability, is the
+  real blocker for *running* LocaNMF on a new machine.
+- **Cold `session_cache`** → the full ~9.6 h analysis stage rather than the cached path.
+- **`frozen_models` on the server holds PS92 only** (decoder + encoder, cue). Everything else refits
+  as `frozen-new` — correct, deterministic, and slow.

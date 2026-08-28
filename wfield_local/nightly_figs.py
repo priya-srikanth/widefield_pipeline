@@ -45,9 +45,12 @@ def _default_out() -> str:
     built with 0 figures and 287 missing, while the run still exited 0. Resolve it per machine, and
     fail loudly if the machine has no such root rather than writing somewhere that does not exist.
     """
-    env = os.environ.get("WIDEFIELD_FIGURES_WORKING")
-    if env:
-        return env
+    # THE OVERRIDE MOVED INTO `PathResolver.root` on 2026-08-28 and is no longer read here.
+    # Reading it in this one function meant the nineteen modules that resolve the root directly --
+    # every standalone figure CLI, and the joint-basis directory -- did not honour it, so setting
+    # the documented variable fixed the nightly and silently missed everything run by hand.
+    # What stays here is the LOUD FAILURE: a machine with no such root must stop, not write
+    # somewhere that does not exist.
     try:
         return config.resolver().root("figures_working")
     except Exception as exc:                      # noqa: BLE001
