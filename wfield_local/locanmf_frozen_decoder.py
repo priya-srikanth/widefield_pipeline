@@ -442,7 +442,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],
                                               labels=DISPLAY_ORDER).tolist()
                         for i, lab in enumerate(kept)}
-    res["ood"] = ood_control(XE, YE, GE, XU, YU)
+    res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept)
     if verbose:
         print(f"\n  pooled: {len(YE)} engaged trials, {len(YU)} no-lick, {XE.shape[1]} {source} "
               f"features, {len(kept)} sessions")
@@ -467,7 +467,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     return res
 
 
-def ood_control(XE, YE, GE, XU, YU):
+def ood_control(XE, YE, GE, XU, YU, *, GU=None, pre_i=None, models=None, labels=None):
     """Out-of-distribution control for a frozen decoder. Confidence is NOT evidence.
 
     A softmax decoder never abstains: applied to input carrying no position information it still
@@ -497,11 +497,48 @@ def ood_control(XE, YE, GE, XU, YU):
     POST-cue within the same trials, not either against chance.
     """
     from wfield_local import nolick_analysis as na
-    clf = _pipe().fit(XE, YE)
+
+    # PRE-STROKE ONLY, AND THE SAME MODEL THIS CONTROL IS ABOUT (Priya, 2026-08-28).
+    #
+    # Two bugs in one line, both fixed here. `clf = _pipe().fit(XE, YE)` trained on EVERY pooled
+    # session, so once post-stroke nights registered they entered the training set -- the identical
+    # contamination fixed in the main arm on 2026-08-26, still live in the control three lines below
+    # the frozen load. And the LOSO/permutation references ran over all sessions too, so the
+    # "no-information floor" this arm exists to establish was itself computed partly on post-stroke
+    # data.
+    #
+    # It also FIT ITS OWN MODEL. That defeats the purpose: this control's whole claim is "THIS
+    # decoder's confidence is not evidence", and a control that fits a second decoder characterises
+    # something other than the decoder being defended. It now takes the frozen models, so the
+    # entropy and no-lick references describe the same object the headline does, by construction
+    # rather than by the two recipes happening to agree.
+    #
+    # The SHUFFLE null still fits: a permutation null cannot be loaded, by definition. It is
+    # restricted to the pre-stroke sessions so it is the matching floor for the arm above it.
+    pre_i = list(range(len(np.unique(GE)))) if pre_i is None else list(pre_i)
+    m = np.isin(GE, pre_i)
+    if not m.any():
+        return {}
+    clf = models["full"] if models else _pipe().fit(XE[m], YE[m])
     classes = clf.named_steps["logisticregression"].classes_
-    pe = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=GE, method="predict_proba")
-    ysh = np.random.RandomState(0).permutation(YE)
-    psh = cross_val_predict(_pipe(), XE, ysh, cv=LeaveOneGroupOut(), groups=GE, method="predict_proba")
+    if models and labels:
+        # Row ORDER differs from the cross_val_predict path (grouped by session rather than by
+        # original index) and that is harmless here: everything computed from `pe` is a MEAN over
+        # rows -- normalised entropy and mean max-probability -- so it is order-invariant. Anything
+        # added later that pairs `pe` row-wise with `YE` would need the index map.
+        pe = np.vstack([models["loso"][labels[i]].predict_proba(XE[GE == i]) for i in pre_i])
+    else:
+        pe = cross_val_predict(_pipe(), XE[m], YE[m], cv=LeaveOneGroupOut(), groups=GE[m],
+                               method="predict_proba")
+    ysh = np.random.RandomState(0).permutation(YE[m])
+    psh = cross_val_predict(_pipe(), XE[m], ysh, cv=LeaveOneGroupOut(), groups=GE[m],
+                            method="predict_proba")
+    # The no-lick arm is the PRE-STROKE analogue of a failed post-stroke attempt, as this function's
+    # own docstring says. Post-stroke no-lick trials are what it is the reference FOR, not part of it.
+    if GU is not None and len(GU):
+        um = np.isin(np.asarray(GU), pre_i)
+        XU, YU = np.asarray(XU)[um], np.asarray(YU)[um]
+    YE_pre = YE[m]
     out = {"engaged_H": _entropy_norm(pe), "engaged_maxp": float(pe.max(1).mean()),
            "shuffle_H": _entropy_norm(psh), "shuffle_maxp": float(psh.max(1).mean()),
            "shuffle_acc": float(accuracy_score(ysh, np.unique(ysh)[psh.argmax(1)]))}
@@ -512,7 +549,7 @@ def ood_control(XE, YE, GE, XU, YU):
         se = float(np.sqrt(acc * (1 - acc) / len(YU)))
         # engaged position profile is the matching target: it is near-uniform in every animal, so
         # matching to it makes the no-lick arm directly comparable to the engaged arm above.
-        eng_frac = {POSITION_NAMES[c]: float((YE == c).mean()) for c in DISPLAY_ORDER}
+        eng_frac = {POSITION_NAMES[c]: float((YE_pre == c).mean()) for c in DISPLAY_ORDER}
         arm = na.evaluate_arm(YU, pred, target_frac=eng_frac)
         out.update(n_nolick=int(len(YU)), nolick_acc=acc, nolick_H=_entropy_norm(pu),
                    nolick_maxp=float(pu.max(1).mean()),
