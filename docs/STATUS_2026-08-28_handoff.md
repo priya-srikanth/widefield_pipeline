@@ -1,7 +1,7 @@
 # Handoff, 2026-08-28 — five approved items, with the plumbing already traced
 
-Priya approved all five. **#1 and #2 are DONE** (`837a8e3`, `73b651d`); #3, #4 and #5 remain, and
-each is written up to the point where the next person can begin editing rather than investigating.
+Priya approved all five. **ALL FIVE ARE DONE** -- `837a8e3`, `73b651d`, `b93fbc0`, `c63ff54`,
+`f3601d6`. What follows is kept as the record of what each was and what the plan got wrong.
 
 Two things this document got WRONG, corrected in place below so nobody re-derives them:
 
@@ -126,7 +126,20 @@ a different `spec_id` → a permanent cache miss rather than a hit.
 
 ---
 
-## 3. Three modules still on the 2.0 s engaged cut
+## 3. Modules still on the 2.0 s engaged cut -- DONE (`b93fbc0`)
+
+**THERE WERE FOUR, NOT THREE.** `postcue_window_test.py:40` was missed by the by-hand survey below
+and found on the first run of `tests/test_engaged_cut_comes_from_config.py`, which walks the AST
+instead of grepping. It is also where the literal did the most damage: that module sweeps the
+post-cue WINDOW over [2.0, 2.5, 3.0, 3.5] s, so the longer windows were scored on trials selected by
+the shortest one -- the window under test and the trials it was tested on disagreed by up to 1.5 s.
+
+All four now read `decode.max_rt_s` AND announce the cut at run time, because fixing only the code
+would have moved the disagreement into the docs: every number recorded for these modules was measured
+at 2.0 s. `nolick_decoder` / `nolick_analysis` are exempt and the guard checks the exemption still
+carries its reason.
+
+### (as planned)
 
 `decoder_c_sweep.py:57`, `encoder_bins_test.py:123`, `filter_acausality_test.py:205` hardcode
 `max_rt=2.0`; `decode.max_rt_s` moved to 3.5 on 2026-08-21. They are internally-consistent PARAMETER
@@ -140,7 +153,21 @@ correct THERE rather than merely recording that it is used.
 
 ---
 
-## 4. Three copies of the lick-vs-no-lick discriminator
+## 4. Three copies of the lick-vs-no-lick discriminator -- DONE (`c63ff54`)
+
+Collapsed to `balanced_lick_sample` + `lick_pipe`. **The coincidence was already broken**, which is
+the argument for having done it: `looks_like_which` and `undetected_state_split` each start a fresh
+`RandomState(seed)` and draw the same sample, but `fits_engaged_distribution.balanced_fit` shares one
+generator across its leave-one-out loop, so its full-pool fit is a DIFFERENT sample from a function
+that reads as though it were the same. The rng is passed in rather than created, so every call site
+keeps its exact draw and the refactor moved no number -- asserted draw for draw against the inline
+loop as it was written.
+
+Not frozen via `frozen_models` after all: the sample depends on generator state, so a stored artifact
+would be keyed on something the spec cannot see. `lick_pipe`'s docstring carries the
+`kind="lick_discriminator"` warning instead.
+
+### (as planned)
 
 `poststroke_compare.py:207` (`looks_like_which`), `:309` (`fits_engaged_distribution.balanced_fit`),
 `:673` (`undetected_state_split`) each build the same model: a bare
@@ -154,7 +181,17 @@ store exists to replace with an identity.
 
 ---
 
-## 5. Figures written nightly and never shown
+## 5. Figures written nightly and never shown -- DONE (`f3601d6`)
+
+Fourteen placed, measured by instrumenting `add_picture` on a real build. 496 -> 513 slides.
+
+**The list below was partly wrong.** `coding_cosslope_*` and `coding_pairsplit_*` are NOT unplaced --
+G9b shows the orthogonalised variant and omits the plain one deliberately, because both cohort
+diagnostics were measured on the orthogonalised directions. And the real gap in section G was one the
+list missed: `section_g_grid_withcontrol_lickonly` (the all-trials arm was placed, its sibling was
+not) plus the whole nine-figure `section_g_smalllesion_*` family.
+
+### (as planned)
 
 Include the informative ones: `section_g_grid_{all,lickonly,withcontrol_lickonly}`,
 `section_g_smalllesion_*` (5), `joint_basis_health_{cue,lick}`, `locanmf_rsa_hemisphere_{rdms,summary}`
