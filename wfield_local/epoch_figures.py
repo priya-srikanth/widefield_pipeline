@@ -345,7 +345,12 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     fig_w = QUARTER_IN
     left_in, gutter_in = 0.60, 0.72          # y labels; colour bars
     top_in = 0.86 + 0.10 * bool(coverage)
-    row_gap_in, bottom_in = 0.34, 0.46
+    # THE ROW GAP HOLDS A SET OF ROTATED TICK LABELS. Priya, 2026-08-28: label the top
+    # row's x axis too -- a reader should not have to count across to the row below
+    # to learn what a column is. That costs vertical space between the rows, and
+    # 0.34in (which only had to clear a title) leaves the labels sitting on the
+    # delta row's titles.
+    row_gap_in, bottom_in = 0.72, 0.46
     panel_in = (fig_w - left_in - gutter_in - 0.14 * (ncol - 1)) / ncol
     fig_h = top_in + nrow * panel_in + (nrow - 1) * row_gap_in + bottom_in
     fig = plt.figure(figsize=(fig_w, fig_h))
@@ -370,7 +375,7 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         if coverage and e in coverage:
             ttl += "\n" + " ".join(f"{a[-2:]}:{n}" for a, n in sorted(coverage[e].items()) if n)
         ax.set_title(ttl, fontsize=FS_ANNOT)
-        _ticks(ax, k, labels, first=(c == 0), xlabels=not deltas)
+        _ticks(ax, k, labels, first=(c == 0), xlabels=True)
         if annotate:
             _annotate(ax, norm[e], k)
         if chance is not None and not deltas:
@@ -415,8 +420,12 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
 
 
 def _ticks(ax, k, labels, *, first, xlabels):
-    """Position ticks. Only the leftmost panel of a row carries the y labels, and only the bottom
-    row carries the x labels -- six repeated label sets on a quarter page is most of the ink."""
+    """Position ticks. Only the leftmost panel of a ROW carries the y labels -- six repeated sets
+    of those is most of the ink on a quarter page, and a row shares one y axis by construction.
+
+    Every row carries its own X labels, though: the columns are what a reader is comparing across,
+    and making them count down to another row to find out what a column is defeats the point of
+    putting the delta directly beneath its epoch."""
     ax.set_xticks(range(k))
     ax.set_yticks(range(k))
     # ROTATED, ALWAYS, and measured rather than assumed: rotated, a label's horizontal extent is
@@ -1013,3 +1022,132 @@ def stats_line(per_epoch, *, blocks=None, n_boot=None, notes=None, unit="session
     for c in chunks:
         out.extend(textwrap.wrap(c, width=width) or [c])
     return chr(10).join(out)
+
+
+def mean_matrix_by_epoch(mats: dict) -> tuple[dict, dict]:
+    """``({epoch: mean matrix}, {epoch: {animal: n sessions}})`` from a `_matrices_*` collector.
+
+    A MEAN OVER SESSIONS, not a sum, and the difference from `counts_by_epoch` is not incidental.
+    The confusion collectors return raw counts, so pooling them is addition and every trial counts
+    once. These return matrices that have ALREADY been reduced -- a correlation, a split-half
+    reliability, a crossnobis distance -- and there is no meaningful way to add two of those. The
+    session becomes the unit, which is exactly the weighting Priya asked for ("weighted mean, ie
+    just use each session's value") and exactly why the session dots matter: the acute panel is
+    six PS94 sessions against one PS95 session.
+
+    ``mats`` is ``{animal: {"PRE": M, day: M, ...}}``. NaN cells are skipped per cell rather than
+    per matrix, so one position gated out in one session does not discard that session's other
+    five.
+    """
+    out, cov = {}, {}
+    for e in PANELS:
+        stack, per = [], {}
+        for an, by in sorted(mats.items()):
+            if e == "pre":
+                M = by.get("PRE")
+                if M is not None:
+                    stack.append(np.asarray(M, float))
+                    per[an] = per.get(an, 0) + 1
+                continue
+            for key, M in by.items():
+                if key == "PRE" or M is None:
+                    continue
+                if epoch_of_day(an, int(key)) != e:
+                    continue
+                stack.append(np.asarray(M, float))
+                per[an] = per.get(an, 0) + 1
+        if not stack:
+            continue
+        with np.errstate(invalid="ignore"):
+            out[e] = np.nanmean(np.stack(stack), axis=0)
+        cov[e] = per
+    return out, cov
+
+
+def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vmax=None,
+               unit="correlation", coverage=None, subtitle=None, delta=True, annotate=False):
+    """pre | acute | subacute of an ALREADY-REDUCED matrix, with each epoch's change beneath it.
+
+    The sibling of `confusion_row` for the `_matrices_*` family. It does not row-normalise -- these
+    are correlations, reliabilities or distances, already on their own scale -- and it takes the
+    scale from the data unless told, because a crossnobis distance and a correlation do not share
+    a sensible fixed range.
+    """
+    import matplotlib.pyplot as plt
+
+    order = [e for e in PANELS if mats.get(e) is not None]
+    if not order:
+        return None
+    deltas = [e for e in order if e != "pre"] if (delta and "pre" in order) else []
+    ncol, nrow = len(order), 1 + bool(deltas)
+    k = np.asarray(mats[order[0]]).shape[0]
+    labels = list(labels) if labels else [str(i) for i in range(k)]
+    if vmin is None or vmax is None:
+        allv = np.concatenate([np.asarray(mats[e], float).ravel() for e in order])
+        allv = allv[np.isfinite(allv)]
+        vmin = float(np.nanmin(allv)) if vmin is None else vmin
+        vmax = float(np.nanmax(allv)) if vmax is None else vmax
+
+    fig_w = QUARTER_IN
+    left_in, gutter_in = 0.60, 0.78
+    top_in = 0.86 + 0.10 * bool(coverage) + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
+    # THE ROW GAP HOLDS A SET OF ROTATED TICK LABELS. Priya, 2026-08-28: label the top
+    # row's x axis too -- a reader should not have to count across to the row below
+    # to learn what a column is. That costs vertical space between the rows, and
+    # 0.34in (which only had to clear a title) leaves the labels sitting on the
+    # delta row's titles.
+    row_gap_in, bottom_in = 0.72, 0.46
+    panel_in = (fig_w - left_in - gutter_in - 0.14 * (ncol - 1)) / ncol
+    fig_h = top_in + nrow * panel_in + (nrow - 1) * row_gap_in + bottom_in
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    def _ax(r, c):
+        x0 = (left_in + c * (panel_in + 0.14)) / fig_w
+        y0 = 1.0 - (top_in + (r + 1) * panel_in + r * row_gap_in) / fig_h
+        return fig.add_axes([x0, y0, panel_in / fig_w, panel_in / fig_h])
+
+    lim = 0.0
+    for e in deltas:
+        d = np.asarray(mats[e], float) - np.asarray(mats["pre"], float)
+        lim = max(lim, float(np.nanmax(np.abs(d))) if np.isfinite(d).any() else 0.0)
+    lim = lim or 1.0
+
+    im_a = im_d = None
+    for c, e in enumerate(order):
+        ax = _ax(0, c)
+        M = np.asarray(mats[e], float)
+        im_a = ax.imshow(np.ma.masked_invalid(M), cmap=cmap, vmin=vmin, vmax=vmax)
+        ttl = f"{e}\nmean diag {np.nanmean(np.diag(M)):.2f}"
+        if coverage and e in coverage:
+            ttl += "\n" + " ".join(f"{a[-2:]}:{n}" for a, n in sorted(coverage[e].items()) if n)
+        ax.set_title(ttl, fontsize=FS_ANNOT)
+        _ticks(ax, k, labels, first=(c == 0), xlabels=True)
+        if annotate:
+            _annotate(ax, M, k)
+        if c == 0:
+            ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
+    first_delta = min(order.index(e) for e in deltas) if deltas else None
+    for e in deltas:
+        c = order.index(e)
+        ax = _ax(1, c)
+        D = np.asarray(mats[e], float) - np.asarray(mats["pre"], float)
+        im_d = ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
+        ax.set_title(f"{e} - pre", fontsize=FS_ANNOT)
+        _ticks(ax, k, labels, first=(c == first_delta), xlabels=True)
+        if annotate:
+            _annotate(ax, D, k)
+        if c == first_delta:
+            ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
+
+    _cbar(fig, im_a, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 0, row_gap_in, unit)
+    if im_d is not None:
+        _cbar(fig, im_d, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 1, row_gap_in,
+              f"change in {unit}")
+    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
+    if subtitle:
+        fig.text(0.5, 1.0 - 0.30 / fig_h, subtitle, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    q = pathlib.Path(out) / f"{name}.png"
+    fig.savefig(q, dpi=200)
+    plt.close(fig)
+    return q
