@@ -188,7 +188,30 @@ def test_excluded_sessions_are_reachable_only_by_naming_them():
     assert "post_labels" in sig.parameters
     assert sig.parameters["post_labels"].default is None, "the override must be opt-in"
     src = inspect.getsource(pc._pooled)
-    assert 'config.phase_labels("post")' in src, "the DEFAULT must still be the sanctioned pool"
+    # THE SANCTIONED POOL IS NOW `config.pooled_labels`, which is strictly stronger than the
+    # `phase_labels("post")` this used to grep for: it is pre + post and NOTHING ELSE, so an
+    # 'excluded' session cannot reach the default arm by any route. It is also what the frozen
+    # decoder was frozen against, which is why `_pooled` calls it rather than rebuilding the list --
+    # a fourth open-coded copy would make the stored model a permanent cache MISS.
+    assert "config.pooled_labels(" in src, "the DEFAULT must still be the sanctioned pool"
+    assert "post_labels" in src, "the override branch is gone"
+
+
+def test_the_sanctioned_pool_cannot_contain_an_excluded_session():
+    """The PROPERTY the source check above is a proxy for, asserted on the data itself.
+
+    A source grep can only see that the right function was named. This checks what that function
+    actually returns: PS92_0817 and PS93_0817 were lesioned 8/16 with no deficit and re-lesioned
+    AFTER the session, so they are neither phase -- and `pooled_frozen_loso` calls everything that
+    is not pre-stroke "post", which is how they came to be SCORED and REPORTED as post-stroke days.
+    """
+    from wfield_local import config
+    for animal in config.animals():
+        pool = set(config.pooled_labels(animal))
+        excluded = set(pc.excluded_labels(animal))
+        assert not (pool & excluded), (
+            f"{animal}: the default pool contains excluded session(s) {sorted(pool & excluded)}; "
+            f"they would be scored by the frozen decoder and reported as post-stroke days")
 
 
 def test_excluded_labels_returns_the_failed_lesions_and_nothing_else():

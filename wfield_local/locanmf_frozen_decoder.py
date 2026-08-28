@@ -317,6 +317,57 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
+def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
+                          basis_id=None, log=print):
+    """The stored PRE-stroke position decoder for one pooled set: ``(models, status)``.
+
+    ``models`` is ``{"full": pipeline, "loso": {held_out_label: pipeline}}`` -- ``full`` is fitted on
+    every pre-stroke engaged trial and is what a post-stroke day is scored by; ``loso[label]`` leaves
+    that one pre-stroke session out and is what the pre-stroke reference band is made of. Keyed by
+    LABEL rather than by pooled index, because the index depends on the order the caller assembled
+    its pool and the label does not.
+
+    WHY THIS IS A FUNCTION. `pooled_frozen_loso` built this inline, and `poststroke_compare` built
+    the same two models FIVE more times with a bare `_pipe().fit(XE[tr], YE[tr])` -- `crossed_confusion`
+    three times, `impaired_nolick_readout` once, `decode_matched`'s all-trials arm once. Six recipes
+    for one object, agreeing only by coincidence and re-fitted once per post-stroke session per arm
+    per alignment because `poststroke_section_g` mutates `post_i` and calls back in. Priya, 2026-08-28:
+    "let's not refit independently if we are replicating the exact same thing."
+
+    Two copies of "the same" model drifting apart is not hypothetical here -- it is exactly how the
+    training contamination fixed on 2026-08-26 stayed invisible for eight days, because whichever
+    copy you read looked defensible.
+
+    NOT EVERY FIT IN THOSE MODULES IS THIS ONE, and the ones that are not must keep fitting locally:
+    `decode_matched`'s lick-only arm is class-filtered to the preserved positions (4-way for PS94 and
+    PS95, so a different chance level), and `_within_accuracy` is a within-session ceiling. A helper
+    that quietly served `full` to those would be worse than the duplication it removed.
+
+    ``n_features`` is part of the spec, so a caller whose pool produced a different feature space
+    gets a loud ``SPEC-CHANGED`` and a model of its own rather than a silent mis-scoring: for ROI
+    features `_align_many` intersects region x bin columns across the pool, so one extra session
+    changes the width for every session in it.
+    """
+    pre_i = sorted(pre_i)
+    pre_labels_ = [kept[i] for i in pre_i]
+
+    def _fit_all():
+        # One artifact holds BOTH arms: the leave-one-out models behind the pre-stroke reference band
+        # and the single all-pre model applied to post-stroke days. They are determined by the same
+        # spec, and splitting them would let one be refrozen without the other.
+        return {"full": _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)]),
+                "loso": {kept[i]: _pipe().fit(XE[np.isin(GE, [j for j in pre_i if j != i])],
+                                              YE[np.isin(GE, [j for j in pre_i if j != i])])
+                         for i in pre_i}}
+
+    spec = frozen_models.make_spec(
+        config.animal_of(kept[0]), "decoder", align=align, source=source,
+        train_labels=pre_labels_, post_s=post_s, zscore=zscore,
+        basis_id=basis_id, n_features=int(XE.shape[1]))
+    return frozen_models.load_or_fit(
+        spec, _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
+
+
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
                        features=None):
     """Leave-one-SESSION-out frozen decoder over an animal's pooled sessions (ROI features).
@@ -370,22 +421,9 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # property whose absence let the contamination above happen: a model refitted every run has no
     # identity to interrogate, so "what were you trained on?" had no answer on disk.
     pre_labels_ = [kept[i] for i in pre_i]
-    spec = frozen_models.make_spec(
-        config.animal_of(kept[0]), "decoder", align=align, source=source,
-        train_labels=pre_labels_, post_s=post_s, zscore=zscore,
-        basis_id=getattr(features, "basis_id", None), n_features=int(XE.shape[1]))
-
-    def _fit_all():
-        # One artifact holds BOTH arms: the leave-one-out models behind the pre-stroke reference band
-        # and the single all-pre model applied to post-stroke days. They are determined by the same
-        # spec, and splitting them would let one be refrozen without the other.
-        return {"full": _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)]),
-                "loso": {kept[i]: _pipe().fit(XE[np.isin(GE, [j for j in pre_i if j != i])],
-                                              YE[np.isin(GE, [j for j in pre_i if j != i])])
-                         for i in pre_i}}
-
-    models, freeze_status = frozen_models.load_or_fit(
-        spec, _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)})
+    models, freeze_status = frozen_decoder_models(
+        XE, YE, GE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
+        basis_id=getattr(features, "basis_id", None))
 
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only

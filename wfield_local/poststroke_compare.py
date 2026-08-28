@@ -28,7 +28,11 @@ from sklearn.preprocessing import StandardScaler
 
 from wfield_local import config
 from wfield_local import nolick_analysis as na
-from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
+from wfield_local.locanmf_frozen_decoder import (
+    _pipe,
+    frozen_decoder_models,
+    pool_sessions,
+)
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
 MIN_POST = 20          # a position needs this many post-stroke engaged trials to be "preserved"
@@ -71,7 +75,14 @@ def _pooled(animal, align, source="roi", post_labels=None):
     """
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     if post_labels is None:
-        post = [l for l in config.phase_labels("post") if l.startswith(animal)]
+        # THE SAME POOL THE FROZEN DECODER WAS FROZEN AGAINST, by calling the same function rather
+        # than by rebuilding the same list. `config.pooled_labels` exists because three call sites
+        # built it independently and identically wrongly; a fourth open-coded copy here would make
+        # the stored model a permanent MISS instead of a hit, because for ROI features `_align_many`
+        # intersects region x bin columns across the pool and a different pool is a different
+        # `n_features` and therefore a different spec id.
+        labs = config.pooled_labels(animal)
+        post = [l for l in labs if l not in set(pre)]
     else:
         post = [l for l in post_labels if l.startswith(animal)]
     if not pre or not post:
@@ -83,7 +94,15 @@ def _pooled(animal, align, source="roi", post_labels=None):
     pre_i = {i for i, l in enumerate(kept) if l in set(pre)}
     post_i = {i for i, l in enumerate(kept) if l not in set(pre)}
     return {"XE": XE, "YE": YE, "GE": GE, "BE": BE, "XU": XU, "YU": YU.astype(int), "GU": GU,
-            "kept": kept, "pre_i": pre_i, "post_i": post_i}
+            "kept": kept, "pre_i": pre_i, "post_i": post_i,
+            # WHAT THE FROZEN MODEL IS KEYED ON, recorded at pool time. `post_i` is MUTATED by
+            # `poststroke_section_g` to isolate one session at a time; `align`/`source` are not, and
+            # `frozen` must key on the pre-stroke training set rather than on whatever comparison
+            # arm the caller has narrowed to, or every narrowing would look like a new model.
+            "align": align, "source": source,
+            # DELIBERATELY NOT the frozen model itself. It is loaded lazily and memoised on first
+            # use, so a caller that never needs it never pays for it.
+            "_frozen_cache": {}}
 
 
 def preserved_positions(d, session=None, combine="intersection"):
@@ -120,6 +139,35 @@ def preserved_positions(d, session=None, combine="intersection"):
     return [c for c in DISPLAY_ORDER if c in keep]
 
 
+def frozen(d):
+    """The stored pre-stroke decoder for this pool, memoised on ``d``.
+
+    Returns ``{"full": pipeline, "loso": {label: pipeline}}``, or None when the pool did not record
+    what it was built from (an `excluded_labels` pool, or a dict assembled by a test). A None here
+    means the caller fits locally exactly as it did before -- this is a shortcut, never a new source
+    of truth, so a pool it cannot key for degrades to the old behaviour rather than to a wrong model.
+
+    MEMOISED PER POOL, which is where the saving is. `poststroke_section_g` mutates only
+    ``d["post_i"]`` and calls back in once per post-stroke session per arm per alignment, so the
+    identical pre-stroke model was being refitted on every one of those passes. The pre-stroke
+    training set does not depend on ``post_i`` at all.
+    """
+    cache = d.get("_frozen_cache")
+    if cache is None or "align" not in d:
+        return None
+    if "models" not in cache:
+        try:
+            models, _status = frozen_decoder_models(
+                d["XE"], d["YE"], d["GE"], d["kept"], d["pre_i"],
+                align=d["align"], source=d["source"])
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  [frozen] unavailable ({type(ex).__name__} {str(ex)[:70]}); fitting locally",
+                  flush=True)
+            models = None
+        cache["models"] = models
+    return cache["models"]
+
+
 def preserved_positions_by_session(d):
     """{session label -> preserved positions} for every post-stroke session, for reporting."""
     return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
@@ -144,10 +192,26 @@ def decode_matched(d, keep, post_all_trials=True):
     te = np.isin(d["GE"], list(d["post_i"])) & kp
     if tr.sum() < 50 or te.sum() < 20:
         return None
-    clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
-    # pre-stroke baseline under the SAME restriction, leave-one-session-out
-    pre_pred = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
-                                 cv=LeaveOneGroupOut(), groups=d["GE"][tr])
+    # THE STORED MODEL, BUT ONLY ON THE ALL-TRIALS ARM. With `post_all_trials` the position set is
+    # the full DISPLAY_ORDER and `kp` selects everything, so `tr` is precisely "all pre-stroke
+    # engaged trials" -- the definition `frozen_decoder_models` freezes. The LICK-ONLY arm is a
+    # DIFFERENT model: `keep` drops the positions the lesion abolished (4-way for PS94 and PS95, so
+    # a different chance level), and serving it the 6-way model would silently change what its
+    # accuracy means. It keeps fitting locally.
+    models = frozen(d) if post_all_trials else None
+    if models is not None:
+        clf = models["full"]
+        pre_pred = np.empty_like(d["YE"][tr])
+        _gi = d["GE"][tr]
+        for i in sorted(d["pre_i"]):
+            m = _gi == i
+            if m.sum():
+                pre_pred[m] = models["loso"][d["kept"][i]].predict(d["XE"][tr][m])
+    else:
+        clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
+        # pre-stroke baseline under the SAME restriction, leave-one-session-out
+        pre_pred = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
+                                     cv=LeaveOneGroupOut(), groups=d["GE"][tr])
     per = {}
     for i in sorted(d["pre_i"]):
         m = d["GE"][tr] == i
@@ -445,12 +509,25 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     """
     tr = np.isin(d["GE"], list(d["pre_i"]))
     te = np.isin(d["GE"], list(d["post_i"]))
-    clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
+    # THE STORED MODEL. No class filter and no restriction on `tr`, so this is the frozen decoder
+    # exactly. It matters most here: `poststroke_section_g` mutates only `d["post_i"]` and calls
+    # back in once per post-stroke session per arm per alignment, and the pre-stroke fit -- which
+    # does not depend on `post_i` at all -- was redone on every one of those passes.
+    models = frozen(d)
+    clf = models["full"] if models else _pipe().fit(d["XE"][tr], d["YE"][tr])
 
     # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
     pre_y = d["YE"][tr]
-    pre_p = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr], cv=LeaveOneGroupOut(),
-                              groups=d["GE"][tr])
+    if models:
+        pre_p = np.empty_like(pre_y)
+        _gi = d["GE"][tr]
+        for i in sorted(d["pre_i"]):
+            m = _gi == i
+            if m.sum():
+                pre_p[m] = models["loso"][d["kept"][i]].predict(d["XE"][tr][m])
+    else:
+        pre_p = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr], cv=LeaveOneGroupOut(),
+                                  groups=d["GE"][tr])
     pre_nolick = np.zeros(len(pre_y), bool)
 
     # PRE-NO-LICK: the matched control (Priya, 2026-08-19). Comparing post-stroke NO-LICK trials
@@ -469,7 +546,13 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
             trn = tr & (d["GE"] != gsess)
             if trn.sum() < 30 or not hold.sum():
                 continue
-            pre_nl_p[hold] = _pipe().fit(d["XE"][trn], d["YE"][trn]).predict(d["XU"][pre_u][hold])
+            # `models["loso"][label]` IS this fit -- all pre-stroke engaged trials except this
+            # session's -- keyed by label rather than by the pooled index, which depends on the
+            # order the pool was assembled and this does not.
+            mdl = (models["loso"].get(d["kept"][int(gsess)]) if models else None)
+            if mdl is None:
+                mdl = _pipe().fit(d["XE"][trn], d["YE"][trn])
+            pre_nl_p[hold] = mdl.predict(d["XU"][pre_u][hold])
     keep_nl = pre_nl_p >= 0
     pre_nl_y, pre_nl_p = pre_nl_y[keep_nl], pre_nl_p[keep_nl]
 
@@ -731,7 +814,10 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     """
     impaired = [c for c in DISPLAY_ORDER if c not in keep]
     tr = np.isin(d["GE"], list(d["pre_i"]))
-    clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
+    # THE STORED MODEL. `keep` splits the OUTPUT into preserved and impaired arms below; it does not
+    # restrict training, so `tr` is all pre-stroke engaged trials and this is the frozen decoder.
+    _m = frozen(d)
+    clf = _m["full"] if _m else _pipe().fit(d["XE"][tr], d["YE"][tr])
     post_u = np.isin(d["GU"], list(d["post_i"]))
     out = {"preserved_positions": [POSITION_NAMES[c] for c in keep],
            "impaired_positions": [POSITION_NAMES[c] for c in impaired]}
