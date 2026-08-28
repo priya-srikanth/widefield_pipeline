@@ -338,3 +338,61 @@ def test_missing_laterality_raises_rather_than_defaulting(monkeypatch):
     from wfield_local.grant_figures import CONF_LABELS
     with pytest.raises(ValueError, match="stroke_laterality"):
         ef.anatomical_labels(CONF_LABELS)
+
+
+# --------------------------------------------------- animals -> sessions -> blocks bootstrap
+
+def _rec(rng, n_blocks, per_block, acc, k=6):
+    """A (y_true, y_pred, blocks) record at a known accuracy, with real block structure."""
+    y, p, b = [], [], []
+    for blk in range(n_blocks):
+        q = blk % k
+        yy = np.full(per_block, q)
+        pp = np.where(rng.random(per_block) < acc, q, (q + 1) % k)
+        y.append(yy); p.append(pp); b.append(np.full(per_block, blk))
+    return np.concatenate(y), np.concatenate(p), np.concatenate(b)
+
+
+def _acc(y, p):
+    return float(np.mean(y == p)) if len(y) else None
+
+
+def test_the_contrast_recovers_a_known_shift():
+    rng = np.random.default_rng(0)
+    per = {}
+    for an in ("PS92", "PS93", "PS94", "PS95"):
+        per[an] = (_rec(rng, 30, 6, 0.90), {1: _rec(rng, 30, 6, 0.50), 2: _rec(rng, 30, 6, 0.50)})
+    got = ef.contrast_ci(per, "acute", "pre", _acc, rng=np.random.default_rng(1), n_boot=200)
+    point, lo, hi, n = got
+    assert -0.55 < point < -0.25, point
+    assert lo < point < hi and hi < 0, (lo, point, hi)
+
+
+def test_the_point_estimate_comes_from_the_data_not_the_bootstrap():
+    """A figure prints the point; it must be the number in the data, not the resample mean."""
+    rng = np.random.default_rng(2)
+    per = {a: (_rec(rng, 20, 6, 0.9), {1: _rec(rng, 20, 6, 0.6)})
+           for a in ("PS92", "PS93", "PS94", "PS95")}
+    direct = _acc(*ef._pooled(per, "acute")) - _acc(*ef._pooled(per, "pre"))
+    point, *_ = ef.contrast_ci(per, "acute", "pre", _acc, rng=np.random.default_rng(3), n_boot=120)
+    assert point == pytest.approx(direct)
+
+
+def test_blocks_are_the_unit_inside_a_session():
+    """Trials inside one block share a position and a moment; resampling them independently would
+    treat them as independent and understate the interval."""
+    rng = np.random.default_rng(4)
+    rec = _rec(rng, 12, 5, 0.8)
+    blocks = ef._blocks_of(rec)
+    assert len(blocks) == 12 and all(len(y) == 5 for y, _p in blocks)
+
+
+def test_no_session_in_one_arm_does_not_crash_the_contrast():
+    """An animal can contribute to one epoch and not the other -- PS95 has a single acute session
+    and it could as easily have had none."""
+    rng = np.random.default_rng(5)
+    per = {"PS92": (_rec(rng, 20, 6, 0.9), {1: _rec(rng, 20, 6, 0.5)}),
+           "PS93": (_rec(rng, 20, 6, 0.9), {}),           # no post-stroke session at all
+           "PS94": (_rec(rng, 20, 6, 0.9), {1: _rec(rng, 20, 6, 0.5)})}
+    got = ef.contrast_ci(per, "acute", "pre", _acc, rng=np.random.default_rng(6), n_boot=120)
+    assert got is not None and got[1] < got[0] < got[2]

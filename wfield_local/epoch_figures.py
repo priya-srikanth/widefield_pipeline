@@ -607,3 +607,112 @@ def split_labels(order, animals=None):
             groups.append((head.capitalize(), start, i))
             start = i + 1
     return minor, groups
+
+
+# ---------------------------------------------------------------------------------------------
+# UNCERTAINTY: animals -> sessions -> blocks
+# ---------------------------------------------------------------------------------------------
+# Priya, 2026-08-28: session-level, clustered by animal -- and then, "can it be by blocks nested
+# within session?" It can, for anything built on `_collect_5c`, because those records carry the
+# scheduler's own block ids as their third element.
+#
+# WHY THREE LEVELS AND NOT ONE. A Wilson interval over pooled trials answers "how precisely do we
+# know this rate", treating 20,000 trials from four mice as 20,000 independent observations. It is
+# the wrong question and the answer is far too narrow. The variance that matters here enters at
+# three points: mice differ, a mouse's sessions differ, and within a session the ~6-trial position
+# block is the unit the scheduler actually randomises -- trials inside one share a position and a
+# moment in the session, so they are not independent either.
+#
+# THE ANIMAL DRAW IS THE OUTER ONE AND IT IS PAIRED. Pre and acute come from the SAME four mice, so
+# a contrast resamples animals ONCE per draw and takes that animal's pre and acute sessions inside
+# it. Resampling the two arms independently would discard the pairing the design provides and widen
+# every interval for no reason.
+#
+# WHAT IT CANNOT BUY: n=4. Four animals is four, and the outer draw has only 35 distinct
+# multisets. The interval is honest about between-animal variance but it is coarse, and no
+# resampling scheme converts four mice into more.
+
+def _blocks_of(rec):
+    """``[(y, p), ...]`` grouped by block id -- the resampling unit inside one session."""
+    y, p, b = np.asarray(rec[0]), np.asarray(rec[1]), np.asarray(rec[2])
+    out = {}
+    for k in np.unique(b):
+        m = (b == k)
+        out[int(k)] = (y[m], p[m])
+    return list(out.values())
+
+
+def _sessions_of(per_animal, animal, epoch):
+    """Every session's blocks for one animal in one epoch: ``[[(y, p), ...], ...]``."""
+    pre, by_day = per_animal.get(animal, (None, {}))
+    if epoch == "pre":
+        return [_blocks_of(pre)] if pre is not None else []
+    days = [d for a, d in group_days_by_epoch(per_animal).get(epoch, []) if a == animal]
+    return [_blocks_of(by_day[d]) for d in days if by_day.get(d) is not None]
+
+
+def _draw(sessions, rng):
+    """One hierarchical draw from one animal-epoch: sessions with replacement, then blocks."""
+    if not sessions:
+        return None
+    picks = rng.integers(0, len(sessions), len(sessions))
+    ys, ps = [], []
+    for i in picks:
+        blocks = sessions[i]
+        if not blocks:
+            continue
+        for j in rng.integers(0, len(blocks), len(blocks)):
+            y, p = blocks[j]
+            ys.append(y)
+            ps.append(p)
+    if not ys:
+        return None
+    return np.concatenate(ys), np.concatenate(ps)
+
+
+def contrast_ci(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
+    """95% CI on ``stat(epoch_a) - stat(epoch_b)``, resampling animals then sessions then blocks.
+
+    ``stat(y, p) -> float | None`` reduces a pooled trial set (for instance accuracy at one
+    position). Returns ``(point, lo, hi, n_draws)``; ``point`` is computed on the REAL data, not
+    on the bootstrap mean, so the number printed on a figure is the number in the data.
+
+    The animal draw is shared between the two epochs, which keeps the contrast paired.
+    """
+    animals = sorted(per_animal)
+    if not animals:
+        return None
+    real_a, real_b = _pooled(per_animal, epoch_a), _pooled(per_animal, epoch_b)
+    if real_a is None or real_b is None:
+        return None
+    pa, pb = stat(*real_a), stat(*real_b)
+    if pa is None or pb is None:
+        return None
+    sess = {(an, e): _sessions_of(per_animal, an, e)
+            for an in animals for e in (epoch_a, epoch_b)}
+    diffs = []
+    for _ in range(n_boot):
+        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
+        ya, pa_, yb, pb_ = [], [], [], []
+        for an in pick:
+            da, db = _draw(sess[(an, epoch_a)], rng), _draw(sess[(an, epoch_b)], rng)
+            if da is None or db is None:
+                continue                       # this animal has no session in one arm
+            ya.append(da[0]); pa_.append(da[1])
+            yb.append(db[0]); pb_.append(db[1])
+        if not ya or not yb:
+            continue
+        va = stat(np.concatenate(ya), np.concatenate(pa_))
+        vb = stat(np.concatenate(yb), np.concatenate(pb_))
+        if va is not None and vb is not None:
+            diffs.append(va - vb)
+    if len(diffs) < n_boot // 4:
+        return None
+    d = np.asarray(diffs, float)
+    return float(pa - pb), float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5)), len(d)
+
+
+def _pooled(per_animal, epoch):
+    """``(y, p)`` for one epoch across animals, from the real (unresampled) records."""
+    rec = pool_records(per_animal, epoch)
+    return None if rec is None else (np.asarray(rec[0]), np.asarray(rec[1]))
