@@ -3139,12 +3139,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "impaired ones -- which is what a global state should do. THE GATE IS NOT VALIDATED as "
          "satiety rather than a late motor collapse, and dropping trials on a criterion correlated "
          "with the measure raises accuracy whatever it means. Read beside H4, never instead of it.")),
-        ("grant_5c_confusion_per_session_*.png",
+        # `*_*` REQUIRES THE ARM TOKEN. These figures gained a `_lick`/`_working` suffix on
+        # 2026-08-28, and the superseded `..._<align>.png` files from 8/26 are still on MICROSCOPE
+        # (which is never deleted from). A single `*` globs both, so the deck placed four slides of
+        # 8/26 data among 93 current ones -- undetectable by eye and invisible to the "0 missing"
+        # count, because a stale figure is present. This is the 2026-08-24 `coding_engagement_*`
+        # bug inverted: that pattern was too tight and dropped twelve slides silently, this one was
+        # too loose and added four.
+        ("grant_5c_confusion_per_session_*_*.png",
          "H5c. Session by session",
          ("The pooled panels average a moving target: PS94 runs 0.39 to 0.76 across six days. "
          "Columns are DAYS FROM LESION so a column means the same thing in every row even though "
          "the animals were lesioned on different dates.")),
-        ("grant_5d_confusion_delta_*.png",
+        ("grant_5d_confusion_delta_*_*.png",
          "H5d. The same, as CHANGE from pre-stroke",
          ("H5c minus its own first column, cell by cell. The pre-stroke confusion is far from "
          "uniform -- close positions are confusable with each other and far ones are not -- so an "

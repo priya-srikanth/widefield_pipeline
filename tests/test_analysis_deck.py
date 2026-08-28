@@ -334,3 +334,37 @@ def test_compact_grant_variants_are_not_placed_as_slides(tmp_path):
         assert not [p for p in placed if p.endswith("_compact.png")], placed
     # and the count check, which holds whether or not `placed` is reported: one of the three files
     assert summary["figures_present"] == 1, summary["figures_present"]
+
+
+def test_superseded_grant_confusion_names_are_not_placed():
+    """The 8/26 `grant_5{c,d}_..._<align>.png` files must not match the section H patterns.
+
+    Those figures gained a `_lick`/`_working` arm suffix on 2026-08-28. The old files remain on
+    MICROSCOPE because nothing there is ever deleted, so the pattern -- not the filesystem -- is
+    what has to exclude them. A `*` that globs both puts four slides of superseded data in a deck
+    that reports "0 missing", since a stale figure is present rather than absent.
+    """
+    import fnmatch
+    import re
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parent.parent
+           / "wfield_local" / "locanmf_analysis_deck.py").read_text(encoding="utf-8")
+    pats = re.findall(r'"(grant_5[cd]_[a-z_]*\*[^"]*\.png)"', src)
+    assert pats, "could not find the section H grant_5c/5d patterns"
+
+    superseded = ["grant_5c_confusion_per_session_cue.png",
+                  "grant_5c_confusion_per_session_precue.png",
+                  "grant_5d_confusion_delta_cue.png",
+                  "grant_5d_confusion_delta_precue.png"]
+    current = ["grant_5c_confusion_per_session_cue_lick.png",
+               "grant_5c_confusion_per_session_cue_working.png",
+               "grant_5c_confusion_per_session_lick_lick.png",
+               "grant_5d_confusion_delta_precue_working.png"]
+
+    for name in superseded:
+        assert not any(fnmatch.fnmatch(name, p) for p in pats), (
+            f"{name} is a superseded 8/26 filename and must not be placed")
+    for name in current:
+        assert any(fnmatch.fnmatch(name, p) for p in pats), (
+            f"{name} is a current figure and must still be placed")
