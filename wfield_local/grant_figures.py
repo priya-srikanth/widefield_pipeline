@@ -3473,15 +3473,47 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # overlaps at 8 days and 0 once the spacer is paid for. `hspace` cannot help: the collision
     # is horizontal.
     #
-    # NOT PERMANENT, and worth saying so rather than discovering it again: at 12 days this is
-    # back to 5 overlaps. The durable fix is absolute margins in inches instead of matplotlib's
-    # fractional ones, which is the same root cause as `_colw`'s two raises. This buys headroom
-    # to about ten post-stroke days.
+    # ABSOLUTE INCH MARGINS (2026-08-28), which is the durable fix the note above promised and
+    # the same root cause as `_colw`'s two raises.
+    #
+    # `subplots_adjust` and `gridspec_kw` take FRACTIONS. The old figsize was
+    # `_colw() * sum(ratios) + 2.0`, and matplotlib's default left=0.125/right=0.9 then took
+    # 22.5% of whatever that came to -- so at eight post-stroke days each panel arrived 1.56in
+    # wide against the 1.80in `_colw()` promises, and the shortfall GREW with every session
+    # registered. That is why the width constant had to be raised twice and why the crowding came
+    # back on schedule at the eleventh day: an additive margin diluted by a fractional one is not
+    # a margin, it is a slowly closing gap.
+    #
+    # Deriving the width from the margins instead of the margins from the width gives every panel
+    # a column exactly `_colw()` inches wide at any day count.
+    #
+    # MEASURED, and it corrects what `_colw` believes about itself: the DRAWN axes is 1.216in, not
+    # 1.80, at every day count both before and after this change. `imshow` fixes a square aspect,
+    # and four rows inside figh=9.5 leave about 1.2in of height each -- so the panels are HEIGHT
+    # limited, and the column width has never been what sets their size. What the extra width buys
+    # is space BETWEEN panels, and that is precisely what the titles were colliding for. Driven at
+    # 6, 8, 11 and 14 post-stroke days: 16 title-vs-title overlaps at 14 days before, 0 after, and
+    # 0 at every count in between.
+    #
+    # So `_colw()`'s docstring is half right. Six rotated tick labels do set a floor, but raising
+    # it twice worked by widening the gaps, not by widening the panels. Anyone wanting genuinely
+    # larger panels has to raise `figh`.
+    #
+    # HORIZONTAL ONLY, deliberately. The collision this fixes is horizontal, and the vertical
+    # layout (hspace 0.60 at figh 9.5) was measured clean across 6, 9 and 12 days -- rewriting it
+    # here would put a verified layout back at risk for nothing.
+    LEFT_IN, RIGHT_IN, GAP_IN = 1.15, 0.95, 0.14      # row labels; colour bars; between panels
     ratios = [1, 0.62] + [1] * len(days)
+    panel_in = _colw()
+    fig_w = (LEFT_IN + RIGHT_IN + panel_in * sum(ratios) + GAP_IN * (len(ratios) - 1))
     fig, grid = plt.subplots(len(ANIMALS), ncol + 1,
-                             figsize=(_colw() * sum(ratios) + 2.0, figh),
+                             figsize=(fig_w, figh),
                              squeeze=False,
-                             gridspec_kw={"hspace": 0.60, "width_ratios": ratios})
+                             gridspec_kw={"hspace": 0.60, "width_ratios": ratios,
+                                          "left": LEFT_IN / fig_w,
+                                          "right": 1.0 - RIGHT_IN / fig_w,
+                                          # wspace is a fraction of the MEAN panel width
+                                          "wspace": GAP_IN / panel_in})
     spacer = grid[:, 1]
     for ax in spacer:
         ax.axis("off")
