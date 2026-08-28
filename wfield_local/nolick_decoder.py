@@ -539,6 +539,19 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # A session's undetected arm is often a dozen trials, which is not a measurement. Each one
     # therefore carries its own permutation null and n; anything read off a single session should be
     # read against those, not against the pooled number.
+    # ONE PREDICTION PER POOLED TRIAL, so the per-session loop below can index by position in the
+    # FULL pool. Pre-stroke trials carry their leave-one-SESSION-out prediction; post-stroke trials
+    # carry the frozen all-pre model's. Both are out-of-sample -- the property every per-session
+    # number here relies on -- but for different reasons, and only the pre arm is a training row.
+    #
+    # fd67f63 restricted `pred_e` to `m_pre` for the pooled band, which is right, but left this loop
+    # indexing it with positions in the full array. `pred_e[ie]` then ran off the end on the first
+    # post-stroke session -- IndexError, and the whole nightly no-lick stage with it.
+    pred_pooled = np.empty_like(YE)
+    pred_pooled[m_pre] = pred_e
+    if (~m_pre).any():
+        pred_pooled[~m_pre] = clf.predict(XE[~m_pre])
+
     sess_labels = sorted(set(SE.tolist()))
     per = {}
     idx_e = {lab: np.flatnonzero(SE == lab) for lab in sess_labels}
@@ -549,7 +562,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         d = {}
         ie = idx_e[lab]
         if ie.size >= 20:
-            d["engaged"] = na.evaluate_arm(YE[ie], pred_e[ie], n_perm=max(200, n_perm // 4))
+            d["engaged"] = na.evaluate_arm(YE[ie], pred_pooled[ie], n_perm=max(200, n_perm // 4))
         for c in ("late_rewarded", "undetected"):
             if not cat_y[c].size:
                 continue
@@ -573,7 +586,13 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["max_rt_s"] = None if max_rt is None else float(max_rt)
     if return_raw and Yp.size:
         res["_raw"] = {
-            "engaged": (YE.tolist(), pred_e.tolist(), SE.tolist(),
+            # POOLED, not the pre-only training rows: YE/SE/blk here span every pooled session, so
+            # a pre-only prediction column made this tuple ragged and `dissociation_ci` indexed off
+            # the end of it (the second head of the same fd67f63 mismatch). Using `pred_pooled`
+            # keeps the dissociation test the all-phase quantity it was before that commit, with
+            # every trial still scored out-of-sample -- pre by leave-one-session-out, post by a
+            # frozen model that never saw it.
+            "engaged": (YE.tolist(), pred_pooled.tolist(), SE.tolist(),
                         _cat("engaged", "blk").tolist()),
             "nolick": (Yp.tolist(), clf.predict(Xp).tolist(),
                        np.concatenate([_cat("late_rewarded", "sess"),
