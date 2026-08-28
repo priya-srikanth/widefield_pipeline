@@ -97,6 +97,56 @@ def _totals(per_epoch):
 
 # --------------------------------------------------------------------------------- behaviour
 
+def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
+    """``(point, draws)`` for the change in hit rate at one position, epoch minus pre.
+
+    ``per_session`` is ``{epoch: {position: [(animal, hits, n), ...]}}``.
+
+    ANIMALS THEN SESSIONS, and NOT trials-within-session. The trial level is deliberately absent
+    rather than approximated: trials inside a position block share a position and a moment, so
+    resampling them independently would treat correlated trials as independent and report an
+    interval narrower than the data supports. Until the per-session trial tables are backfilled
+    -- `spout_behavior` writes them from now on -- the session is the finest honest unit here, and
+    the figure says so instead of implying it matched the imaging panels.
+
+    Session-weighted within a draw (hits summed over n summed), which is the same weighting the
+    bars use, so the interval describes the quantity actually plotted.
+    """
+    animals = sorted({a for e in (epoch, "pre")
+                      for a, _h, _n in per_session.get(e, {}).get(position, [])})
+    if not animals:
+        return None
+
+    def rate(rows):
+        h = sum(x[1] for x in rows)
+        n = sum(x[2] for x in rows)
+        return (h / n) if n else None
+
+    real_a = per_session.get(epoch, {}).get(position, [])
+    real_b = per_session.get("pre", {}).get(position, [])
+    pa, pb = rate(real_a), rate(real_b)
+    if pa is None or pb is None:
+        return None
+    by = {(e, a): [r for r in per_session.get(e, {}).get(position, []) if r[0] == a]
+          for e in (epoch, "pre") for a in animals}
+    diffs = []
+    for _ in range(n_boot):
+        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
+        ra, rb = [], []
+        for an in pick:
+            sa, sb = by[(epoch, an)], by[("pre", an)]
+            if not sa or not sb:
+                continue                       # animal absent from one arm
+            ra += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
+            rb += [sb[i] for i in rng.integers(0, len(sb), len(sb))]
+        va, vb = rate(ra), rate(rb)
+        if va is not None and vb is not None:
+            diffs.append(va - vb)
+    if len(diffs) < n_boot // 4:
+        return None
+    return float(pa - pb), np.asarray(diffs, float)
+
+
 def fig_behaviour(out_dir):
     """1b pooled: hit rate per spout position, per epoch, weighted by session."""
     from wfield_local.grant_figures import _position_metrics, _sessions, CONF_LABELS
@@ -110,7 +160,7 @@ def fig_behaviour(out_dir):
     # ONE DOT PER SESSION, from the same store the bars are summed from -- not a second pass over
     # the behaviour tree, which could disagree with the bars it sits on.
     points = {e: {short[p]: [] for p in CONF_LABELS} for e in values}
-    counts = {}
+    counts, per_sess = {}, {}
     for an in config.animals():
         for mmdd, day in _sessions(an):
             e = ef.epoch_of_day(an, int(day))
@@ -126,20 +176,58 @@ def fig_behaviour(out_dir):
             if seen:
                 counts.setdefault(e, {})
                 counts[e][an] = counts[e].get(an, 0) + 1
-    return ef.bar_row(values, out_dir, name="epoch_1b_behaviour_by_position",
+            for p in CONF_LABELS:
+                m = met.get(p)
+                if m and m[3] >= 5:
+                    # hits and n, so a draw can re-weight by session exactly as the bars do
+                    per_sess.setdefault(e, {}).setdefault(short[p], []).append(
+                        (an, int(round(m[0] * m[3])), int(m[3])))
+    post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
+    n_comp = sum(len(values[e]) for e in post)
+    marks, rows = {}, {}
+    for e in post:
+        marks[e], rows[e] = {}, {}
+        for p in CONF_LABELS:
+            key = short[p]
+            if key not in values[e]:
+                continue
+            got = _behaviour_contrast(per_sess, e, key,
+                                      rng=np.random.default_rng(
+                                          _seed_for("behaviour", "hit", e, p)),
+                                      n_boot=N_BOOT)
+            if got is None:
+                continue
+            point, draws = got
+            marks[e][key] = ef.contrast_marks(draws, n_comparisons=n_comp)
+            lo, hi = np.percentile(draws, [2.5, 97.5])
+            a = 0.05 / max(1, n_comp)
+            clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+            rows[e][key] = (point, float(lo), float(hi), float(clo), float(chi))
+
+    sub = ef.stats_line(
+        counts, n_boot=N_BOOT,
+        notes=["bootstrap: animals -> sessions (behaviour has no stored block ids yet; "
+               "the imaging panels resample blocks within session as well)"])
+    made = ef.bar_row(values, out_dir, name="epoch_1b_behaviour_by_position",
                       title="Behaviour: hit rate by spout position, pooled across animals "
                             "(one dot per session)",
                       # TOTALS in the legend, the PER-EPOCH breakdown in the subtitle. The legend
                       # answers "how many dots of this colour are on the figure at all"; the
-                      # subtitle answers "how many of them are in the panel I am reading", which
-                      # is the one that carries the imbalance.
-                      # ONE HELPER for every figure's N/n line, so two figures side by side
-                      # cannot state the cohort differently.
-                      subtitle=ef.stats_line(counts), counts=_totals(counts),
-                      ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
+                      # subtitle answers "how many are in the panel I am reading", which is the
+                      # one that carries the imbalance.
+                      subtitle=sub, counts=_totals(counts), marks=marks,
+                      ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(),
+                      groups=_groups(), points=points,
                       # HEADROOM ABOVE 1.0 so a session at ceiling is a visible dot rather than a
-                      # smear on the spine -- and the close positions sit at ceiling throughout.
-                      ylim=(0.0, 1.06))
+                      # smear on the spine -- the near positions sit at ceiling in every epoch.
+                      ylim=(0.0, 1.10))
+    if any(rows.values()):
+        ef.contrast_panel(
+            rows, out_dir, name="epoch_1bdelta_behaviour_by_position",
+            title="Change from pre-stroke in hit rate by spout position",
+            subtitle=sub, ylabel="hit rate - pre", positions=_short_labels(),
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+    return made
 
 
 # ------------------------------------------------------------- decoding, from `_collect_5c`

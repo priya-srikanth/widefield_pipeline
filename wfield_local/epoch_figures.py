@@ -199,6 +199,17 @@ def counts_by_epoch(per_animal: dict) -> dict:
 POINT_ALPHA = 0.55
 POINT_SIZE = 26
 
+#: MORE transparent on the bar figures, and deliberately a different number from POINT_ALPHA. A
+#: bar group can hold nineteen dots where a scatter panel holds seven, so the alpha that reads as
+#: a separable cloud there reads as an opaque mass here -- and what it covers is the bar and its
+#: error bar, which are the figure's actual claim. Priya, 2026-08-28.
+BAR_POINT_ALPHA = 0.30
+
+#: Dots sit ABOVE the bar and BELOW the error bar. Drawing them on top (the earlier zorder=5) hid
+#: the interval behind the very points it was computed from, so raising transparency alone would
+#: not have fixed it: at nineteen overlapping dots even a light alpha accumulates opaque.
+BAR_POINT_Z = 2.5
+
 
 def session_points(ax, x, per_session, *, spread=0.16, size=POINT_SIZE, alpha=POINT_ALPHA,
                    zorder=5):
@@ -554,12 +565,14 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
                edgecolor="none", zorder=2, label=e)
         if np.any(np.isfinite(los)) or np.any(np.isfinite(his)):
             ax.errorbar(xs + dx, vals, yerr=[np.nan_to_num(los), np.nan_to_num(his)],
-                        fmt="none", ecolor="0.25", elinewidth=0.8, capsize=1.5, zorder=3)
+                        fmt="none", ecolor="0.15", elinewidth=1.1, capsize=2.0,
+                        zorder=BAR_POINT_Z + 1)
         for i, p in enumerate(positions):
             per = (points or {}).get(e, {}).get(p) or []
             # spread inside the bar, never across it: a dot that drifts under a neighbouring bar
             # is attributed to the wrong epoch by every reader who does not count.
-            session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55)
+            session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55,
+                           alpha=BAR_POINT_ALPHA, zorder=BAR_POINT_Z)
 
     if marks:
         # ABOVE THE TALLER OF (bar, its dots), so a mark never lands on the data it refers to.
@@ -598,7 +611,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
 
     colors = config.animal_color()
     handles = [Patch(facecolor=EPOCH_GREY.get(e, "#8a8a8a"), label=e) for e in epochs_present]
-    handles += [Line2D([], [], marker="o", ls="", color=colors[a], alpha=POINT_ALPHA,
+    handles += [Line2D([], [], marker="o", ls="", color=colors[a], alpha=BAR_POINT_ALPHA,
                        markersize=5, label=a if not counts else f"{a} ({counts.get(a, 0)})")
                 for a in sorted(colors)]
     ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
