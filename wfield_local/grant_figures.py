@@ -782,68 +782,42 @@ POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
              "far_L": "fL", "far_center": "fC", "far_R": "fR"}
 
 
-#: Set by `--compact`: drop the number printed in each matrix cell and narrow the panels, for
-#: reproduction at a quarter of a letter page. The colour still carries the value; the digits are
-#: what cannot survive the reduction, and they are also what forces the panel to stay wide.
-COMPACT = False
 
 
-def _colw(full=1.80, compact=1.75):
-    """Inches per matrix column. Narrower without in-cell numbers to print.
+def _colw(full=1.80):
+    """Inches per matrix column.
 
-    MEASURED, not chosen. At 1.45 the panels come out 0.911in and six rotated two-character tick
-    labels crowd -- by a hairline, 0.0001 of the figure's width, but a hairline closes completely
-    when the figure is reproduced small. 1.50 is the first value that clears; 1.55 leaves margin.
+    MEASURED, not chosen. Six rotated two-character tick labels set the floor: at 1.45 the
+    panels come out 0.911in and the labels crowd -- by a hairline, but a hairline closes
+    completely when the figure is reproduced small. The value has been raised twice as
+    post-stroke days accumulated, because the per-column width shrinks as columns are added:
+    the additive margin constant in each grid's figsize is diluted by matplotlib's
+    FRACTIONAL default margins, so more sessions means less width each.
 
-    RE-MEASURED 2026-08-27, and the earlier margin was NOT margin. Every caller sizes its figure as
-    ``_colw() * ncol + <a fixed inch overhead>``, but matplotlib's subplot margins are FRACTIONS of
-    the figure width, so the fixed overhead is diluted as columns are added and each panel comes out
-    slightly narrower than the one before. Registering the seventh post-stroke day (PS92_0826 /
-    PS93_0826) took 5c from ncol 7 to 8 and closed the hairline: driving the real ``_draw_5c`` with
-    fabricated data gives 0 overlapping tick labels at 5 and 6 post-stroke days and 40 at 7, in both
-    the full and the compact pass. It would have kept getting worse -- the same probe faults at 8,
-    9, 10 and 12 days.
-
-    1.75 clears it and holds to 12 days. Note it cannot be raised much further ALONE: at 1.75 with
-    the old vertical spacing the panel titles begin colliding with the axes above, so the four
-    matrix grids also carry more room between rows. Width and vertical space are opposing knobs here
-    and 1.65 is the only value that clears both without the extra room -- a one-value gap, which is
-    not a place to sit.
-
-    THE COMPACT VARIANT STAYS NARROWER, but only just, and the gap is now 0.05in rather than 0.05
-    with a different floor under it. The previous docstring had already found that the six TICK
-    LABELS set the floor and are present in both variants, so compact cannot go far below full
-    whatever the in-cell numbers do; 1.75 is where it clears. Making the two EQUAL was tried first
-    and is wrong -- `test_compact_narrows_the_grid_and_tags_the_file` asserts the compact PNG is
-    strictly narrower, which is the whole point of a variant meant for a quarter page.
-
-    THE COMPACT VARIANT IS BARELY NARROWER, AND THAT IS THE FINDING. It was built on the assumption
-    that the in-cell numbers were what forced the panel wide; measuring says otherwise -- the six
-    TICK LABELS set the floor, and they are present in both variants. 1.30 crowded, 1.50 clears, so
-    compact saves 0.4in of 13.6 rather than the third it was expected to. What it still buys is a
-    panel with no digits to compete with the colour at reproduction size; what it does not buy is
-    much width. The earlier claim that compact reaches a quarter page while the full version does
-    not was resting on the wider gap, and is withdrawn: at 13.2in against 13.6in the two are within
-    3% of each other.
+    THE COMPACT VARIANT IS GONE (2026-08-28) and this is why. It was built on the assumption
+    that the in-cell numbers forced the panels wide; measuring said otherwise -- the TICK
+    LABELS set the floor and are present in both variants, so compact reached 13.2in against
+    full's 13.6in, a 3% saving for a second full render pass. Priya: "just get rid of
+    compact grant figures."
     """
-    return compact if COMPACT else full
+    return full
 
 
 def _txt(ax, *args, **kw):
-    """`ax.text` that draws nothing in a compact render.
+    """`ax.text`, kept as a seam.
 
-    Every in-cell number in this module goes through here, so the compact variant cannot be
-    half-applied -- which is what would happen if each of the eight call sites carried its own
-    `if not COMPACT` and one were added later without it.
+    It existed so a `--compact` render could drop every in-cell number from one place
+    rather than from eight call sites. That variant is gone (2026-08-28: measured at 3%
+    narrower for a second full render pass), but the indirection stays: eight call sites
+    routed through one function is how the next global change to in-cell text stays a
+    one-line change instead of a sweep that misses one.
     """
-    if COMPACT:
-        return None
     return ax.text(*args, **kw)
 
 
 def _out(out_dir, stem):
-    """Output path, tagged when compact so the two variants never overwrite each other."""
-    return Path(out_dir) / f"{stem}{'_compact' if COMPACT else ''}.png"
+    """Output path for a figure stem."""
+    return Path(out_dir) / f"{stem}.png"
 
 
 def _short(labels):
@@ -5303,9 +5277,6 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
-    ap.add_argument("--compact", action="store_true",
-                    help="also emit *_compact.png of the dense per-day grids: no in-cell numbers "
-                         "and narrower panels, for reproduction at a quarter of a letter page")
     ap.add_argument("--only", nargs="+", default=None,
                     choices=("1", "1b", "2", "2b", "3a", "3b", "4", "5", "5b", "5c", "5d", "6",
                              "6b", "6d", "7", "7b", "7d", "8", "8b", "8d", "8e", "8g", "9", "10", "10b", "11"))
@@ -5342,21 +5313,6 @@ def main(argv=None) -> int:
             print(f"  {tag}{'wrote ' + str(p) if p else f'{key}: no data'}", flush=True)
 
     _run()
-    if args.compact:
-        # SECOND PASS IN THE SAME PROCESS, deliberately. The compact variant differs only in how the
-        # figures are DRAWN, and the expensive part is loading every session's LocaNMF fit, which
-        # `_collect_7` and friends have already cached by now. A separate invocation would pay that
-        # cost twice -- roughly an hour of the two -- to redraw the same numbers.
-        #
-        # COMPACT is a module flag rather than a parameter threaded through eighteen figure
-        # functions; it is read by _colw/_txt/_out and nothing else branches on it.
-        globals()["COMPACT"] = True
-        print("\n  [compact] second pass: in-cell numbers dropped, panels narrowed, "
-              "writing *_compact.png", flush=True)
-        try:
-            _run("[compact] ")
-        finally:
-            globals()["COMPACT"] = False
     return 0
 
 

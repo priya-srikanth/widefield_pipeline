@@ -126,79 +126,29 @@ def test_suptitle_is_not_recursive():
     plt.close(fig)
 
 
-def test_txt_is_the_single_gate_on_in_cell_numbers():
-    """Every in-cell number in grant_figures goes through `_txt`, so the compact variant cannot be
-    half-applied -- which is what would happen if each of the eight call sites carried its own
-    `if not COMPACT` and a ninth were added later without one."""
+def test_txt_is_still_the_single_seam_for_in_cell_numbers():
+    """`_txt` no longer gates anything -- the compact variant it existed for was removed on
+    2026-08-28 -- but the INDIRECTION is kept and is worth pinning.
+
+    Eight call sites routed through one function is how the next global change to in-cell text
+    stays a one-line change instead of a sweep that misses one. Inlining `ax.text` at all eight
+    would be a silent regression: nothing would fail today, and the next person to want a
+    digit-free render would rediscover the half-applied bug this seam was created to prevent.
+    """
+    import inspect
+
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
-    assert gf.COMPACT is False
     assert gf._txt(ax, 0, 0, "0.42") is not None
-    n_full = len(ax.texts)
-
-    gf.COMPACT = True
-    try:
-        assert gf._txt(ax, 1, 1, "0.42") is None
-    finally:
-        gf.COMPACT = False
-    assert len(ax.texts) == n_full, "compact must add no text object at all"
+    assert len(ax.texts) == 1
     plt.close(fig)
 
-
-def test_compact_narrows_the_grid_and_tags_the_file(tmp_path):
-    """The compact variant is for reproduction at a quarter of a letter page, where 32 panels are
-    0.13in each. It must be narrower than the full one AND must not overwrite it."""
-    from PIL import Image
-
-    full = _draw(tmp_path, "t", name="grant_x_delta.png")
-    gf.COMPACT = True
-    try:
-        comp = _draw(tmp_path, "t", name="grant_x_delta.png")
-    finally:
-        gf.COMPACT = False
-    assert gf.COMPACT is False, "the flag must be left off after a compact render"
-
-    assert comp.name.endswith("_compact.png") and comp != full
-    assert full.exists() and comp.exists()
-    assert Image.open(comp).width < Image.open(full).width
+    src = inspect.getsource(gf)
+    assert src.count("_txt(") >= 8, "in-cell numbers have been inlined past the seam"
+    assert not hasattr(gf, "COMPACT"), "the compact flag is back without its machinery"
 
 
-def test_compact_tick_labels_do_not_collide_at_the_narrower_width(tmp_path):
-    """Narrowing the panels is only useful if the enlarged labels still fit inside them."""
-    import matplotlib.pyplot as plt
-
-    real_close, held = plt.close, {}
-
-    def keep(f=None):
-        if hasattr(f, "canvas"):
-            held["fig"] = f
-        else:
-            real_close(f)
-
-    gf.COMPACT = True
-    plt.close = keep
-    try:
-        _draw(tmp_path, "t", name="c.png")
-    finally:
-        plt.close = real_close
-        gf.COMPACT = False
-
-    fig = held["fig"]
-    fig.canvas.draw()
-    inv, rend = fig.transFigure.inverted(), fig.canvas.get_renderer()
-    clash = None
-    for ax in fig.axes:
-        for getter in (ax.get_xticklabels, ax.get_yticklabels):
-            labs = [t for t in getter() if t.get_text().strip()]
-            boxes = [inv.transform_bbox(t.get_window_extent(rend)) for t in labs]
-            for (b1, t1), (b2, t2) in itertools.pairwise(
-                    sorted(zip(boxes, labs), key=lambda b: (b[0].x0, b[0].y0))):
-                if (min(b1.x1, b2.x1) - max(b1.x0, b2.x0) > 1e-4
-                        and min(b1.y1, b2.y1) - max(b1.y0, b2.y0) > 1e-4):
-                    clash = (t1.get_text(), t2.get_text())
-    real_close(fig)
-    assert clash is None, f"compact tick labels overlap: {clash}"
 
 
 def test_bottom_legend_clears_the_footer():
@@ -328,19 +278,18 @@ def test_fig9_layout_is_clean_at_its_current_constants():
     assert not bad, f"figure 9 chrome overlaps: {bad}"
 
 
-@pytest.mark.parametrize("compact", [False, True])
-def test_delta_grid_chrome_is_clean(tmp_path, compact):
+def test_delta_grid_chrome_is_clean(tmp_path):
     """The same check on the REAL delta grid, in both variants -- these carry a suptitle, a footer,
     two colour bars and per-row ylabels, which is the most crowded chrome in the module."""
     import matplotlib.pyplot as plt
 
-    fig = _grid_fig_open(tmp_path, compact)
+    fig = _grid_fig_open(tmp_path)
     bad = chrome_overlaps(fig)
     plt.close(fig)
-    assert not bad, f"delta grid (compact={compact}) chrome overlaps: {bad}"
+    assert not bad, f"delta grid chrome overlaps: {bad}"
 
 
-def _grid_fig_open(tmp_path, compact):
+def _grid_fig_open(tmp_path):
     import matplotlib.pyplot as plt
 
     real_close, held = plt.close, {}
@@ -351,13 +300,11 @@ def _grid_fig_open(tmp_path, compact):
         else:
             real_close(f)
 
-    gf.COMPACT = compact
     plt.close = keep
     try:
-        _draw(tmp_path, "a header line\nand a second one", name=f"g{int(compact)}.png")
+        _draw(tmp_path, "a header line\nand a second one", name="g.png")
     finally:
         plt.close = real_close
-        gf.COMPACT = False
     return held["fig"]
 
 

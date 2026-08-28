@@ -254,7 +254,7 @@ def main():
                          "pre-cue vs post-cue). Adds ~1-2 h; see wfield_local.nolick_analysis.")
     ap.add_argument("--skip-grant", action="store_true",
                     help="skip the grant-figure render. MEASURED 2026-08-27: the analysis stage is "
-                         "~9.6 h and the grant render ~8-10 h with --compact, so the two together "
+                         "~9.6 h and the grant render ~8-10 h, so the two together "
                          "do not fit in a night. Skipping leaves deck section H showing the "
                          "PREVIOUS render -- the deck's manifest reports them as not refreshed, "
                          "which is the signal to re-run it by hand.")
@@ -491,9 +491,12 @@ def main():
     # night nobody re-rendered by hand shipped a silently day-stale H. Exactly the failure the
     # post-stroke stage was wired in to end.
     #
-    # BEFORE THE DECK BUILD, because the deck reads the PNGs this writes. `--compact` keeps the
-    # digit-free variants current for the grant document; they are deliberately NOT placed as
-    # slides (see the section-H filter in locanmf_analysis_deck).
+    # BEFORE THE DECK BUILD, because the deck reads the PNGs this writes.
+    #
+    # THE `--compact` SECOND PASS IS GONE (2026-08-28). It cost a full second render -- roughly
+    # half the total -- to produce panels 3% narrower (13.2in against 13.6in), because the six
+    # rotated tick labels set the width floor and they are present in both variants. The
+    # quarter-page claim it was built for had already been withdrawn.
     #
     # Its own root: these land under `labcams/grant_figures`, not `out` -- a deliverable rather than
     # an analysis intermediate -- so no --output is passed.
@@ -501,7 +504,7 @@ def main():
         log("== grant figures SKIPPED (--skip-grant): deck section H will show the PREVIOUS "
             "render; the deck manifest lists them as not refreshed by this run ==")
     else:
-        cli("wfield_local.grant_figures", "--compact")
+        cli("wfield_local.grant_figures")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
