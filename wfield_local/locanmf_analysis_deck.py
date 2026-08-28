@@ -2172,26 +2172,39 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # confusion figures that disagree invite the reader to pick.
         for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue")):
             for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
-                # ONE SLIDE PER SESSION: the stacked-rows version was 25 inches tall and ran off
-                # the bottom of the slide, so its lower sessions were never visible.
-                for _f in sorted(src.glob(f"section_g_confusion_{_al}_{_arm}_*.png")):
-                    # ANIMAL AND DATE. `split("_")[-1]` took the DATE alone, so PS92_0818 and
-                    # PS93_0818 produced two different slides with identical titles (Priya,
-                    # 2026-08-20: "what is the difference between slide 136 and 138").
-                    _lab = "_".join(_f.stem.split("_")[-2:])
-                    s = slide()
-                    title(s, f"G3. {_nice} crossed confusion — {_lab} ({_armn} arm)",
-                          "Rows = TRUE position. PANEL 2 IS THE MATCHED CONTROL: pre-stroke NO-LICK "
-                          "trials, scored by a decoder trained on the OTHER pre-stroke sessions' "
-                          "engaged trials, so it differs from the post panel in PHASE alone rather "
-                          "than in phase and the absence of a movement together (Priya, "
-                          "2026-08-19). On the ALL arm the abandoned positions are filled by "
-                          "no-lick trials, the only evidence that exists there. '(pred)' under each "
-                          "column is how often the decoder picks that position at all, which IS the "
-                          "recall expected under a label permutation; '(prec)' is precision. Read "
-                          "the OFF-diagonal.")
-                    note(s, M_POSTSTROKE, specific=S_G3)
-                    big(s, _f, top=1.95, width=12.8)
+                # FOUR SESSIONS PER SLIDE (Priya, 2026-08-28: "There are too many slides and I think
+                # we should consolidate"). One slide per session gave 2 alignments x 2 arms x ~28
+                # animal-days = over a hundred slides in G3 alone, and a reader comparing days had
+                # to page between them. A 2x2 grid puts a whole animal's post-stroke progression --
+                # or four consecutive days of it -- in one visual field, which is the comparison the
+                # figure exists for.
+                #
+                # GROUPED BY ANIMAL FIRST, then by date, so a slide never straddles two animals: the
+                # earlier bug here was a title naming only the DATE, which made PS92_0818 and
+                # PS93_0818 two slides with identical headings (Priya, 2026-08-20: "what is the
+                # difference between slide 136 and 138"). Grouping by animal makes that
+                # unrepresentable rather than merely fixed.
+                _files = sorted(src.glob(f"section_g_confusion_{_al}_{_arm}_*.png"))
+                _by_an: dict[str, list] = {}
+                for _f in _files:
+                    _by_an.setdefault(_f.stem.split("_")[-2], []).append(_f)
+                for _an, _fs in sorted(_by_an.items()):
+                    for _i in range(0, len(_fs), 4):
+                        _chunk = _fs[_i:_i + 4]
+                        _days = ", ".join(p.stem.split("_")[-1] for p in _chunk)
+                        s = slide()
+                        title(s, f"G3. {_nice} crossed confusion — {_an} ({_armn} arm): {_days}",
+                              "Rows = TRUE position. PANEL 2 OF EACH FIGURE IS THE MATCHED CONTROL: "
+                              "pre-stroke NO-LICK trials, scored by a decoder trained on the OTHER "
+                              "pre-stroke sessions' engaged trials, so it differs from the post "
+                              "panel in PHASE alone rather than in phase and the absence of a "
+                              "movement together (Priya, 2026-08-19). On the ALL arm the abandoned "
+                              "positions are filled by no-lick trials, the only evidence that "
+                              "exists there. '(pred)' under each column is how often the decoder "
+                              "picks that position at all, which IS the recall expected under a "
+                              "label permutation; '(prec)' is precision. Read the OFF-diagonal.")
+                        note(s, M_POSTSTROKE, specific=S_G3)
+                        grid(s, _chunk, cols=2, top=1.95)
 
         # --- G4. identity, with its control read first
         if (src / "poststroke_G4_identity.png").exists():
