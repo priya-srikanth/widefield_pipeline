@@ -53,7 +53,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from wfield_local import config, results_store as rs
+from wfield_local import config, parallel, results_store as rs
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -324,9 +324,18 @@ def figure(per_session, out_png, title):
     return out_png
 
 
+def _analyse_one(unit):
+    """One session. Module level, so spawn can pickle it by name."""
+    lab, source = unit
+    s = next(x for x in SESSIONS if x["label"] == lab)
+    return analyse(s, source)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
+                    help="sessions in parallel; 1 for the serial path")
     ap.add_argument("--output", required=True)
     ap.add_argument("--from", dest="from_dates", default=None, help="date spec (default: curated set)")
     ap.add_argument("--only", nargs="+", default=None, help="animals (default: all)")
@@ -338,22 +347,32 @@ def main(argv=None) -> int:
              else set(config.curated_dates()))
     only = config.normalize_animals(args.only) or ["PS92", "PS93", "PS94", "PS95"]
 
+    # THE UNIT IS THE SESSION, not the animal. `analyse` touches no frozen model and no shared
+    # store, so sessions are independent by construction -- no phase-1 warm is needed here, unlike
+    # `poststroke_section_g`. ~80 sessions against 4 animals is also what fills the box: per-animal
+    # would give 4 workers and leave two thirds of it idle. Measured 2026-08-28: this step is
+    # 1 h 47 m of the nightly at `--source locanmf`, the largest item outside section G and grant.
+    # The FIGURE is still per animal, so the rows are regrouped after the fan-out.
+    units = [(s["label"], args.source) for s in SESSIONS
+             if s["label"][:4] in set(only) and s["label"][-4:] in dates]
+    got, failures = parallel.fan_out(units, _analyse_one, jobs=args.jobs, label="session")
+    for (lab, _src), err in failures:
+        print(f"  !! {lab}: {err}", flush=True)
+
+    by_animal = {}
+    for (lab, _src), r in got:
+        if r:
+            by_animal.setdefault(lab[:4], []).append((lab, r))
+
     summary = {}
     for an in only:
         rows = []
-        for lab in [s["label"] for s in SESSIONS
-                    if s["label"].startswith(an) and s["label"][-4:] in dates]:
-            s = next(x for x in SESSIONS if x["label"] == lab)
-            try:
-                r = analyse(s, args.source)
-            except Exception as ex:                        # noqa: BLE001
-                print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True); continue
-            if r:
-                rows.append(r)
-                d = r["decode_lickfree"]
-                print(f"  {lab:12s} lick-free {r['n_lickfree']:4d}/{r['n_trials']:4d} "
-                      f"({100*r['frac_lickfree']:5.1f}%)  decode "
-                      f"{d['accuracy']:.3f}" if d else f"  {lab:12s} (too few)", flush=True)
+        for lab, r in sorted(by_animal.get(an, [])):
+            rows.append(r)
+            d = r["decode_lickfree"]
+            print(f"  {lab:12s} lick-free {r['n_lickfree']:4d}/{r['n_trials']:4d} "
+                  f"({100*r['frac_lickfree']:5.1f}%)  decode "
+                  f"{d['accuracy']:.3f}" if d else f"  {lab:12s} (too few)", flush=True)
         if not rows:
             continue
         png = os.path.join(args.output, f"precue_lickfree_{an}_{args.source}.png")

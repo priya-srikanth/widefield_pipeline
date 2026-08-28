@@ -65,6 +65,7 @@ unfalsifiable claim.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 from pathlib import Path
 
@@ -73,7 +74,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from wfield_local import config, joint_locanmf
+from wfield_local import config, parallel, joint_locanmf
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_frozen_decoder import (
     _encoder_fig,
@@ -199,9 +200,24 @@ def fig_basis_health(results, out, align="cue"):
     return p
 
 
+def _joint_one(unit, *, dates):
+    """One (animal, alignment). Module level, so spawn can pickle it by name."""
+    an, align = unit
+    # POOLED = pre + post, never the raw date list: PS92/PS93 0817 is a post-lesion attempt that
+    # `session_phase` calls 'excluded', and a date list cannot express a per-animal phase.
+    labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
+    if len(labs) < 2:
+        print(f"[joint_xsession] {an}: <2 curated sessions -> skipped", flush=True)
+        return None
+    print(f"\n=== {an} [{align}]: {len(labs)} curated sessions ===", flush=True)
+    return run_animal(an, labs, align=align)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
+                    help="(animal, alignment) units in parallel; 1 for the serial path")
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--align", nargs="+", default=["cue", "precue"], choices=("cue", "precue", "lick"))
     ap.add_argument("--animals", nargs="+", default=None)
@@ -217,20 +233,25 @@ def main(argv=None) -> int:
     animals = config.normalize_animals(args.animals) or sorted({s["label"][:4] for s in SESSIONS})
 
     rc = 0
+    # THE UNIT IS (animal, alignment) -- 12 of them, not 4. `make_spec` keys on the alignment as
+    # well as the animal, so two units can never fit and write the same frozen model, and this
+    # stage needs no phase-1 pre-warm the way `poststroke_section_g` does. Twelve units also fill
+    # the box: four would leave two thirds of it idle, the cohort being the cap.
+    units = [(an, al) for al in args.align for an in animals]
+    got, failures = parallel.fan_out(
+        units, functools.partial(_joint_one, dates=dates), jobs=args.jobs, label="animal/align")
+    if failures:
+        rc = 1
+        for (an, al), err in failures:
+            print(f"[joint_xsession] !! {an} [{al}]: {err}", flush=True)
+    by_align = {}
+    for (an, al), r in got:
+        if r:
+            by_align.setdefault(al, {})[an] = r
+
     for align in args.align:
         dec, enc, health = {}, {}, {}
-        for an in animals:
-            # POOLED = pre + post, never the raw date list: PS92/PS93 0817 is a post-lesion attempt
-            # that `session_phase` calls 'excluded', and a date list cannot express a per-animal phase.
-            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
-            if len(labs) < 2:
-                print(f"[joint_xsession] {an}: <2 curated sessions -> skipped", flush=True)
-                continue
-            print(f"\n=== {an} [{align}]: {len(labs)} curated sessions ===", flush=True)
-            r = run_animal(an, labs, align=align)
-            if not r:
-                rc = 1
-                continue
+        for an, r in sorted(by_align.get(align, {}).items()):
             health[an] = r
             if r["decoder"]:
                 dec[an] = r["decoder"]

@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import functools
 import json
 from pathlib import Path
 
@@ -82,7 +83,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config, joint_locanmf
+from wfield_local import config, parallel, joint_locanmf
 from wfield_local.locanmf_frozen_decoder import pool_sessions
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -1858,10 +1859,19 @@ def _draw(fn, *a, **kw):
     return q
 
 
+def _coding_one(unit, *, methods):
+    """One (animal, alignment). Module level, so spawn can pickle it by name."""
+    an, align, disp = unit
+    print(f"  {an} [{disp}] pooling", flush=True)
+    return run_animal(an, align=align, methods=methods)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
+                    help="(animal, window) units in parallel; 1 for the serial path")
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--windows", nargs="+", default=["ENL", "cue", "lick"],
                     choices=("ENL", "cue", "lick"))
@@ -1874,19 +1884,33 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     want = set(args.windows)
+    # THE ANALYSIS FANS OUT; THE DRAWING DOES NOT. This module already says the analysis is the
+    # expensive part and must survive its own presentation layer -- so the (alignment, animal)
+    # pooling runs in parallel and the figures are drawn serially from the results. `make_spec`
+    # keys on both alignment and animal, so no two units can fit and write the same frozen model
+    # and no phase-1 warm is needed. Twelve units rather than four: per animal alone would cap at
+    # the cohort size and leave two thirds of the box idle.
+    units = [(an, align, disp) for align, disp in ALIGNS if disp in want for an in animals]
+    got, failures = parallel.fan_out(
+        units, functools.partial(_coding_one, methods=tuple(args.methods)),
+        jobs=args.jobs, label="animal/window")
+    for (an, _al, disp), err in failures:
+        print(f"  !! {an} [{disp}]: {err}", flush=True)
+
     everything = {}
+    for (an, _al, disp), r in got:
+        everything.setdefault(disp, {})[an] = r
+    for _al, disp in ALIGNS:
+        if disp in want:
+            everything.setdefault(disp, {})
+            for an in animals:
+                everything[disp].setdefault(an, None)
+
     for align, disp in ALIGNS:
         if disp not in want:
             continue
         print(f"=== {disp} window (align={align}) ===", flush=True)
-        res = {}
-        for an in animals:
-            try:
-                res[an] = run_animal(an, align=align, methods=tuple(args.methods))
-            except Exception as ex:                                       # noqa: BLE001
-                print(f"  !! {an} [{disp}]: {type(ex).__name__} {str(ex)[:90]}", flush=True)
-                res[an] = None
-        everything[disp] = res
+        res = everything[disp]
         # ONE FIGURE PER ANIMAL: the post-stroke course is expected to move, and four animals on
         # one axes cannot show six positions x five classes x N sessions each.
         for an in sorted(res):
