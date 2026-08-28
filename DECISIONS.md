@@ -6055,6 +6055,11 @@ re-preprocessing a pre-stroke session invalidates that animal's days and nothing
 Covered: 7b and the delta family (6d, 7d, 8d, 9) — about **80% of the render**. Not yet: `_rdm_ci`
 (8b, 8g) and `_asymmetry_ci` (8e), another ~15%.
 
+**MEASURED on one real unit** (7b, pre-cue, lick trials, a fresh process each time): **18 min 38 s
+cold, 21 s warm.** 53x — and the 21 s is the collection cost, `_collect_7` twice plus drawing, with
+the bootstrap replayed in full. That independently confirms the ~20 s collection estimate the whole
+unit-of-parallelism argument rests on.
+
 **It is only sound because the seeds are stable and per-day.** A cached draw has to be the draw the
 uncached path would have produced. Both fixes came first, deliberately, and neither is optional.
 
