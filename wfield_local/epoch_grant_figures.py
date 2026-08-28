@@ -60,6 +60,17 @@ def _session_counts():
     return out
 
 
+def _long_labels():
+    """Full position names, title-cased: "Near Ipsi" ... "Far Contra".
+
+    For panel TITLES, where there is room and where the two-level x axis is unavailable. Figure
+    1c's six panels read "Ipsi / Middle / Contra" twice over, which is ambiguous the moment the
+    Near and Far groups are not visibly bracketed together (Priya, 2026-08-28).
+    """
+    from wfield_local.grant_figures import CONF_LABELS
+    return [x.title() for x in ef.anatomical_labels(CONF_LABELS, short=False)]
+
+
 def _minor():
     """Per-tick labels for a bar figure: Ipsi / Middle / Contra."""
     from wfield_local.grant_figures import CONF_LABELS
@@ -165,7 +176,10 @@ def fig_behaviour_timecourse(out_dir):
             "pre = that animal's whole pre-stroke baseline as one point, hits and trials summed "
             "-- the same number figure 1b's pre bar plots, and the one the acute rule is "
             "measured against"]),
-        ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(), boundaries=bounds)
+        # LONG names in the panel titles: this figure has no Near/Far bracket under its
+        # axis, so "Ipsi" appearing twice would not say which distance it is.
+        ylabel="hit rate", positions=_short_labels(), tick_labels=_long_labels(),
+        boundaries=bounds)
 
 
 def _behaviour_records():
