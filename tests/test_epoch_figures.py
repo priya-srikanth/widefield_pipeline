@@ -283,11 +283,41 @@ def test_nothing_collides_at_a_quarter_page(tmp_path, delta, annotate):
     assert not bad, "; ".join(f"{a} {b}" for a, b, _ in bad[:6])
 
 
-def test_the_delta_panel_states_its_scale(tmp_path):
-    """A signed heatmap with no scale is a picture of signs: red at 0.03 looks like red at 0.30."""
+def test_the_delta_panels_are_measured_against_pre_not_against_each_other(tmp_path):
+    """Priya, 2026-08-28: acute - pre AND subacute - pre.
+
+    `subacute - acute` answers "did it recover from its worst point"; `subacute - pre` answers
+    "has it returned to baseline", which is what a recovery figure is asked and what a reader
+    assumes unless told otherwise. Sharing one reference also makes the two delta panels directly
+    comparable to each other, which they are not when one is measured against pre and the other
+    against acute.
+    """
     fig = _row(tmp_path, delta=True)
     titles = [ax.get_title() for ax in fig.axes]
-    assert any("subacute - acute" in t and "recall" in t for t in titles), titles
+    assert "acute - pre" in titles and "subacute - pre" in titles, titles
+    assert not any("subacute - acute" in t for t in titles), titles
+
+
+def test_the_signed_panels_carry_a_scale(tmp_path):
+    """A signed heatmap with no scale is a picture of signs: red at 0.03 looks like red at 0.30.
+
+    The scale used to be printed in the delta title; it now lives on a colour bar, one per row,
+    because the two rows are in different units -- recall in [0, 1] above, a signed change below --
+    and a single shared bar would be wrong for one of them.
+    """
+    fig = _row(tmp_path, delta=True)
+    labels = [ax.get_ylabel() for ax in fig.axes] + [ax.get_xlabel() for ax in fig.axes]
+    assert any("change in recall" in x for x in labels), labels
+    assert any("recall" == x for x in labels), labels
+
+
+def test_every_drawn_row_has_its_positions_named(tmp_path):
+    """The delta row starts under `acute`, so keying the y labels to column 0 left the whole row
+    unlabelled -- six unnamed rows of a signed matrix, and no overlap check can see it."""
+    fig = _row(tmp_path, delta=True)
+    labelled = [ax for ax in fig.axes
+                if [t.get_text() for t in ax.get_yticklabels() if t.get_text().strip()]]
+    assert len(labelled) >= 2, "only one row of panels carries y tick labels"
 
 
 def test_the_positions_are_named_not_numbered(tmp_path):

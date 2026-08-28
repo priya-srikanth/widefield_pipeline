@@ -272,113 +272,167 @@ def per_session_values(per_animal, epoch, value_of):
 
 def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance=None,
                   annotate=False, cmap="viridis", labels=None):
-    """The shared 3-epoch confusion panel: pre | acute | subacute [| delta].
+    """The pooled epoch matrices: pre | acute | subacute, with each epoch's change beneath it.
 
     Serves figures 4, 5c and 5d, which differ only in which counts they are handed -- the LOSO
-    matrix, the frozen-decoder matrix, and the same matrix as a difference. One renderer rather than
-    three, for the reason `_pooled_bundle` was extracted: three copies of a panel that claim to show
-    the same thing eventually stop doing so.
+    matrix, the frozen-decoder matrix, and the same matrix as a difference. One renderer rather
+    than three, for the reason `_pooled_bundle` was extracted: three copies of a panel that claim
+    to show the same thing eventually stop doing so.
 
-    ``counts`` is ``{epoch: MxM raw counts or None}``. Panels are ROW-NORMALISED for display only --
-    the stored matrices stay raw counts so they remain addable, which is what makes epoch pooling a
-    sum in the first place.
+    ``counts`` is ``{epoch: MxM raw counts or None}``. Panels are ROW-NORMALISED for display only;
+    the stored matrices stay raw counts so they remain addable, which is what makes epoch pooling
+    a sum in the first place.
 
-    ``delta`` adds a fourth panel, subacute minus acute in recall units, which is 5d. It is a
-    difference of two ROW-NORMALISED matrices, not of counts: the epochs have very different n
-    (acute 16 sessions, subacute 14, and neither balanced across animals), so a count difference
-    would mostly report how many sessions each epoch happens to contain.
+    TWO ROWS, NOT ONE LONG ROW. ``delta=True`` adds a second row holding acute - pre and
+    subacute - pre, each placed DIRECTLY BENEATH the epoch it describes, so the eye reads down a
+    column rather than hunting along five panels for which pair a difference refers to.
 
-    ``annotate=False`` by default -- Priya, 2026-08-28, for the crossnobis panels: numbers in the
-    boxes are unreadable at a quarter page and fight the colour they duplicate.
+    THE BASELINE IS PRE-STROKE, NOT THE PREVIOUS EPOCH (Priya, 2026-08-28). subacute - acute
+    answers "did it recover from its worst point"; subacute - pre answers "has it returned to
+    baseline", which is the question a recovery figure is asked, and it is the one a reader
+    assumes is being answered unless told otherwise. Both deltas therefore share the SAME
+    reference and the same colour scale, so the two panels are directly comparable to each other
+    -- which they are not when one is measured against pre and the other against acute.
+
+    Differences are of ROW-NORMALISED matrices, not of counts: the epochs have very different n
+    (acute 16 sessions, subacute 14, neither balanced across animals), so a count difference would
+    mostly report how many sessions each epoch happens to contain.
+
+    ``annotate=False`` by default -- Priya, for the crossnobis panels: numbers in the boxes are
+    unreadable at a quarter page and fight the colour they duplicate. The colour bars carry the
+    scale instead, one per row, since the two rows are on different scales and units.
 
     ``coverage`` is `epoch_coverage(...)['per_epoch']`; when given, each post panel's title carries
     its per-animal session counts, because a heatmap has no axis to hang the session dots on.
 
-    ``labels`` names the positions, normally `grant_figures.CONF_LABELS` shortened. It is a
-    PARAMETER because this renderer has no business deciding what the rows of a matrix it was
-    handed mean; the digit fallback exists for tests, and a real figure that shows 0-5 instead
-    of far_L..far_R is unreadable rather than merely terse.
+    ``labels`` names the positions. It is a PARAMETER because this renderer has no business
+    deciding what the rows of a matrix it was handed mean; the digit fallback exists for tests, and
+    a real figure showing 0-5 instead of the position names is unreadable rather than merely terse.
     """
     import matplotlib.pyplot as plt
 
     order = [e for e in PANELS if counts.get(e) is not None]
     if not order:
         return None
-    cols = order + (["delta"] if delta and {"acute", "subacute"} <= set(order) else [])
-    n = len(cols)
-    # THE CANVAS IS THE PLACED SIZE. Every figure here is QUARTER_IN wide whatever the panel
-    # count, so a point size written below is the point size the reader gets -- no scaling
-    # arithmetic, and two of these side by side in the deck carry identical type.
-    #
-    # This was measured the other way first, and the measurement is why the rule is written
-    # down. Sizing the canvas per panel (6.2in for three, 8.27in for four) left the four-panel
-    # delta row rendering its ticks at 6.0pt where the three-panel row beside it rendered 8.0,
-    # a 25% difference with NO overlap anywhere to give it away. Scaling the fonts up to
-    # compensate then held the rendered size but bought it by growing type against panels that
-    # had not grown -- 23 crowded tick labels. A fourth panel costs PANEL WIDTH; that is the
-    # real price of a quarter page and it should be paid visibly rather than hidden in type.
-    fig_w, fig_h = QUARTER_IN, 2.05 + 0.10 * (n > 3)
-    fig, axes = plt.subplots(1, n, figsize=(fig_w, fig_h), squeeze=False)
-    axes = axes[0]
-    labels = list(labels) if labels else None
     norm = {}
     for e in order:
         M = np.asarray(counts[e], float)
         rows = M.sum(1, keepdims=True)
         norm[e] = np.divide(M, rows, out=np.full_like(M, np.nan), where=rows > 0)
-    for ax, key in zip(axes, cols):
-        if key == "delta":
-            D = norm["subacute"] - norm["acute"]
-            lim = float(np.nanmax(np.abs(D))) or 1.0
-            ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
-            # THE SCALE, IN THE TITLE. The row carries no colour bar -- at this width one would
-            # cost a panel -- so without the limit printed the delta panel is a picture of signs
-            # with no magnitude, and red at 0.03 looks exactly like red at 0.30.
-            ttl = f"subacute - acute\nscale +/-{lim:.2f} recall"
-        else:
-            M = np.asarray(counts[key], float)
-            ax.imshow(np.ma.masked_invalid(norm[key]), cmap=cmap, vmin=0, vmax=1)
-            acc = float(np.nansum(np.diag(M)) / M.sum()) if M.sum() else float("nan")
-            ttl = f"{key}\nn={int(M.sum())}, acc={acc:.2f}"
-            if coverage and key in coverage:
-                per = coverage[key]
-                ttl += "\n" + " ".join(f"{a[-2:]}:{c}" for a, c in sorted(per.items()) if c)
-        k = norm[order[0]].shape[0]
-        labels = labels or [str(i) for i in range(k)]
+
+    # which epochs get a delta panel: everything post-stroke that has a pre to be measured against
+    deltas = [e for e in order if e != "pre"] if (delta and "pre" in order) else []
+    ncol, nrow = max(len(order), 1), 1 + bool(deltas)
+    k = norm[order[0]].shape[0]
+    labels = list(labels) if labels else [str(i) for i in range(k)]
+
+    # THE CANVAS IS THE PLACED SIZE. Every figure here is QUARTER_IN wide whatever the panel count,
+    # so a point size written below is the point size the reader gets -- no scaling arithmetic, and
+    # two of these side by side in the deck carry identical type. Measured the other way first:
+    # sizing the canvas per panel left a four-panel row rendering ticks at 6.0pt beside a
+    # three-panel row's 8.0, a 25% difference with no overlap anywhere to give it away.
+    fig_w = QUARTER_IN
+    left_in, gutter_in = 0.60, 0.72          # y labels; colour bars
+    top_in = 0.86 + 0.10 * bool(coverage)
+    row_gap_in, bottom_in = 0.34, 0.46
+    panel_in = (fig_w - left_in - gutter_in - 0.14 * (ncol - 1)) / ncol
+    fig_h = top_in + nrow * panel_in + (nrow - 1) * row_gap_in + bottom_in
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    def _axes(r, c):
+        x0 = (left_in + c * (panel_in + 0.14)) / fig_w
+        y0 = 1.0 - (top_in + (r + 1) * panel_in + r * row_gap_in) / fig_h
+        return fig.add_axes([x0, y0, panel_in / fig_w, panel_in / fig_h])
+
+    im_main = im_delta = None
+    lim = 0.0
+    for e in deltas:
+        lim = max(lim, float(np.nanmax(np.abs(norm[e] - norm["pre"]))))
+    lim = lim or 1.0
+
+    for c, e in enumerate(order):
+        ax = _axes(0, c)
+        im_main = ax.imshow(np.ma.masked_invalid(norm[e]), cmap=cmap, vmin=0, vmax=1)
+        M = np.asarray(counts[e], float)
+        acc = float(np.nansum(np.diag(M)) / M.sum()) if M.sum() else float("nan")
+        ttl = f"{e}\nn={int(M.sum())}, acc={acc:.2f}"
+        if coverage and e in coverage:
+            ttl += "\n" + " ".join(f"{a[-2:]}:{n}" for a, n in sorted(coverage[e].items()) if n)
         ax.set_title(ttl, fontsize=FS_ANNOT)
-        ax.set_xticks(range(k)); ax.set_yticks(range(k))
-        # ROTATED, ALWAYS, and this was measured rather than assumed. Laying two-character
-        # labels flat looks like the obvious saving and is not: rotated, a label's HORIZONTAL
-        # extent is the type height (~0.11in at 8pt), where "cC" flat is ~0.13in. Flat labels
-        # crowded on the three-panel row, which rotation had already passed clean.
-        ax.set_xticklabels(labels, rotation=90, fontsize=FS_TICK - 1)
-        ax.set_yticklabels(labels if ax is axes[0] else [], fontsize=FS_TICK - 1)
+        _ticks(ax, k, labels, first=(c == 0), xlabels=not deltas)
         if annotate:
-            for i in range(k):
-                for j in range(k):
-                    v = (norm[key][i, j] if key != "delta" else None)
-                    if v is not None and np.isfinite(v):
-                        ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.5)
-        if chance is not None and key != "delta":
+            _annotate(ax, norm[e], k)
+        if chance is not None and not deltas:
             ax.set_xlabel(f"chance {chance:.2f}", fontsize=FS_TICK - 1)
-    axes[0].set_ylabel("true position", fontsize=FS_LABEL - 1)
+        if c == 0:
+            ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
+
+    # THE LEFTMOST DRAWN COLUMN OF THIS ROW, not column 0. The delta row starts under `acute`,
+    # so keying the y labels to column 0 left the entire row unlabelled -- six unnamed rows of a
+    # signed matrix, which the overlap check cannot see because nothing collided.
+    first_delta = min(order.index(e) for e in deltas) if deltas else None
+    for e in deltas:
+        c = order.index(e)
+        ax = _axes(1, c)
+        D = norm[e] - norm["pre"]
+        im_delta = ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
+        ax.set_title(f"{e} - pre", fontsize=FS_ANNOT)
+        _ticks(ax, k, labels, first=(c == first_delta), xlabels=True)
+        if annotate:
+            _annotate(ax, D, k)
+        if chance is not None:
+            ax.set_xlabel(f"chance {chance:.2f}", fontsize=FS_TICK - 1)
+        if c == first_delta:
+            ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
+    # The pre column carries no delta by construction: pre - pre is zero everywhere, and drawing
+    # it would invite a reader to compare a panel of exact zeros against two real ones.
+
+    # ONE COLOUR BAR PER ROW. The rows are in different units -- recall in [0, 1] above, a signed
+    # change below -- so a single shared bar would be wrong for one of them, and a delta heatmap
+    # with no scale is a picture of signs: red at 0.03 looks exactly like red at 0.30.
+    _cbar(fig, im_main, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 0, row_gap_in,
+          "recall")
+    if im_delta is not None:
+        _cbar(fig, im_delta, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, 1, row_gap_in,
+              "change in recall")
+
     fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
-    # ABSOLUTE INCH MARGINS, not tight_layout: imshow fixes an aspect, which makes the figure
-    # "not compatible with tight_layout" -- one warning per panel into the nightly log -- and a
-    # negotiated layout is not reproducible as panel counts change.
-    #
-    # `subplots_adjust` takes FRACTIONS, so constants there are not absolute at all -- the
-    # gutter would grow with the canvas. These are inch targets divided by the canvas, which
-    # is what keeps the y-label gutter and the title band the same physical size as the row
-    # gains a panel. Every one of them exists to hold TEXT, and the text no longer scales.
-    left_in, right_in = 0.53, 0.03
-    top_in, bottom_in = 0.82, 0.41
-    fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
-                        top=1 - top_in / fig_h, bottom=bottom_in / fig_h, wspace=0.22)
     q = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q, dpi=200)
     plt.close(fig)
     return q
+
+
+def _ticks(ax, k, labels, *, first, xlabels):
+    """Position ticks. Only the leftmost panel of a row carries the y labels, and only the bottom
+    row carries the x labels -- six repeated label sets on a quarter page is most of the ink."""
+    ax.set_xticks(range(k))
+    ax.set_yticks(range(k))
+    # ROTATED, ALWAYS, and measured rather than assumed: rotated, a label's horizontal extent is
+    # the type height (~0.11in at 8pt), where "cC" laid flat is ~0.13in. Flat labels crowded a row
+    # that rotation had already passed clean.
+    ax.set_xticklabels(labels if xlabels else [], rotation=90, fontsize=FS_TICK - 1)
+    ax.set_yticklabels(labels if first else [], fontsize=FS_TICK - 1)
+
+
+def _annotate(ax, M, k):
+    for i in range(k):
+        for j in range(k):
+            v = M[i, j]
+            if np.isfinite(v):
+                ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.0)
+
+
+def _cbar(fig, im, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, row, row_gap_in, label):
+    """A slim colour bar in the reserved right gutter, aligned to one row of panels."""
+    if im is None:
+        return
+    x0 = (fig_w - gutter_in + 0.10) / fig_w
+    y0 = 1.0 - (top_in + (row + 1) * panel_in + row * row_gap_in) / fig_h
+    cax = fig.add_axes([x0, y0, 0.16 / fig_w, panel_in / fig_h])
+    cb = fig.colorbar(im, cax=cax)
+    cb.ax.tick_params(labelsize=FS_TICK - 2.5)
+    cb.set_label(label, fontsize=FS_ANNOT - 1.5)
 
 
 #: Epoch bar colours. Deliberately a GREY RAMP, not four hues: the dots already spend the colour
