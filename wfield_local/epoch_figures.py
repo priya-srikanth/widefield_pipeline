@@ -35,6 +35,8 @@ agree, so a September session divides them loudly rather than silently moving an
 """
 from __future__ import annotations
 
+import pathlib
+
 import numpy as np
 
 from wfield_local import config, epochs
@@ -261,3 +263,90 @@ def per_session_values(per_animal, epoch, value_of):
         if rec is not None:
             out.append((an, value_of(an, day, rec)))
     return out
+
+
+# ---------------------------------------------------------------------------------------------
+# RENDERERS
+# ---------------------------------------------------------------------------------------------
+
+
+def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance=None,
+                  annotate=False, cmap="viridis"):
+    """The shared 3-epoch confusion panel: pre | acute | subacute [| delta].
+
+    Serves figures 4, 5c and 5d, which differ only in which counts they are handed -- the LOSO
+    matrix, the frozen-decoder matrix, and the same matrix as a difference. One renderer rather than
+    three, for the reason `_pooled_bundle` was extracted: three copies of a panel that claim to show
+    the same thing eventually stop doing so.
+
+    ``counts`` is ``{epoch: MxM raw counts or None}``. Panels are ROW-NORMALISED for display only --
+    the stored matrices stay raw counts so they remain addable, which is what makes epoch pooling a
+    sum in the first place.
+
+    ``delta`` adds a fourth panel, subacute minus acute in recall units, which is 5d. It is a
+    difference of two ROW-NORMALISED matrices, not of counts: the epochs have very different n
+    (acute 16 sessions, subacute 14, and neither balanced across animals), so a count difference
+    would mostly report how many sessions each epoch happens to contain.
+
+    ``annotate=False`` by default -- Priya, 2026-08-28, for the crossnobis panels: numbers in the
+    boxes are unreadable at a quarter page and fight the colour they duplicate.
+
+    ``coverage`` is `epoch_coverage(...)['per_epoch']`; when given, each post panel's title carries
+    its per-animal session counts, because a heatmap has no axis to hang the session dots on.
+    """
+    import matplotlib.pyplot as plt
+
+    order = [e for e in PANELS if counts.get(e) is not None]
+    if not order:
+        return None
+    cols = order + (["delta"] if delta and {"acute", "subacute"} <= set(order) else [])
+    n = len(cols)
+    # 6.2in for the whole row, so it renders 1:1 at a quarter page. Height follows the panels.
+    fig, axes = plt.subplots(1, n, figsize=(QUARTER_IN * max(n, 3) / 3.0, 2.05 + 0.22 * (n > 3)),
+                             squeeze=False)
+    axes = axes[0]
+    labels = None
+    im_main = im_delta = None
+    norm = {}
+    for e in order:
+        M = np.asarray(counts[e], float)
+        rows = M.sum(1, keepdims=True)
+        norm[e] = np.divide(M, rows, out=np.full_like(M, np.nan), where=rows > 0)
+    for ax, key in zip(axes, cols):
+        if key == "delta":
+            D = norm["subacute"] - norm["acute"]
+            lim = float(np.nanmax(np.abs(D))) or 1.0
+            im_delta = ax.imshow(np.ma.masked_invalid(D), cmap="RdBu_r", vmin=-lim, vmax=lim)
+            ttl = "subacute - acute"
+        else:
+            M = np.asarray(counts[key], float)
+            im_main = ax.imshow(np.ma.masked_invalid(norm[key]), cmap=cmap, vmin=0, vmax=1)
+            acc = float(np.nansum(np.diag(M)) / M.sum()) if M.sum() else float("nan")
+            ttl = f"{key}\nn={int(M.sum())}, acc={acc:.2f}"
+            if coverage and key in coverage:
+                per = coverage[key]
+                ttl += "\n" + " ".join(f"{a[-2:]}:{c}" for a, c in sorted(per.items()) if c)
+        k = norm[order[0]].shape[0]
+        labels = labels or [str(i) for i in range(k)]
+        ax.set_title(ttl, fontsize=FS_ANNOT)
+        ax.set_xticks(range(k)); ax.set_yticks(range(k))
+        ax.set_xticklabels(labels, rotation=90, fontsize=FS_TICK - 1)
+        ax.set_yticklabels(labels if ax is axes[0] else [], fontsize=FS_TICK - 1)
+        if annotate:
+            for i in range(k):
+                for j in range(k):
+                    v = (norm[key][i, j] if key != "delta" else None)
+                    if v is not None and np.isfinite(v):
+                        ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.5)
+        if chance is not None and key != "delta":
+            ax.set_xlabel(f"chance {chance:.2f}", fontsize=FS_TICK - 1)
+    axes[0].set_ylabel("true position", fontsize=FS_LABEL - 1)
+    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.995)
+    # ABSOLUTE MARGINS, not tight_layout: imshow fixes an aspect, which makes the figure "not
+    # compatible with tight_layout" -- one warning per panel into the nightly log -- and a negotiated
+    # layout is not reproducible as panel counts change.
+    fig.subplots_adjust(left=0.085, right=0.995, top=0.60, bottom=0.20, wspace=0.22)
+    q = pathlib.Path(out) / f"{name}.png"
+    fig.savefig(q, dpi=200)
+    plt.close(fig)
+    return q

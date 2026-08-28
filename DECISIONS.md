@@ -5816,3 +5816,113 @@ carries no machine-specific paths (`test_no_hardcoded_machine_paths`).
 - **Cold `session_cache`** → the full ~9.6 h analysis stage rather than the cached path.
 - **`frozen_models` on the server holds PS92 only** (decoder + encoder, cue). Everything else refits
   as `frozen-new` — correct, deterministic, and slow.
+
+
+---
+
+## 2026-08-28 (later) — Pooled cross-animal EPOCH figures: definition, weighting, and reuse
+
+Priya, mirroring `stroke_orofacial_pipeline`: pooled figures should stratify post-stroke sessions by
+RECOVERY STAGE — pre / acute / subacute — rather than plot a linear time axis, which makes four
+animals with different cadences and different lesion dates incomparable at every x position.
+Boundaries derived from far_R accuracy < 25% of that animal's pre-stroke baseline.
+
+### The unit is DAYS SINCE THAT ANIMAL'S OWN LESION, not session index
+
+Read as session index the specification is **impossible**: PS94 has eight post-stroke sessions and no
+ninth, so "subacute 9+" would be EMPTY and PS94 would contribute nothing to every subacute panel —
+silently, because an empty arm and an unpopulated one look identical once drawn. Read as days since
+stroke it is exact (PS94 day 9 = 0825, day 11 = 0827), and the apparent gaps (PS92 day 6, PS94 days 6
+and 8) are days nobody recorded.
+
+The lesion dates differ — PS94/PS95 0816, PS92/PS93 0817, because PS92/PS93's 0816 attempt produced
+no deficit and was redone after the 0817 session — so the same calendar date is a different
+post-stroke day per animal. A session-index reading would align 0818 across all four; it is the day
+reading that makes recovery stage comparable.
+
+**Session counts every pooled panel must state** — acute PS92 5 / PS93 4 / PS94 6 / **PS95 1**;
+subacute **PS92 2** / PS93 3 / PS94 2 / PS95 7.
+
+### The behavioural rule is a CHECK, not the source
+
+`epochs.verify_against_behaviour` re-derives the split and REPORTS agreement. The stored boundaries
+are Priya's call and are what figures use. A rule evaluated at figure time would redraw every
+published epoch boundary the moment a session registered or a metric changed — the failure class this
+repo keeps finding (`curated_dates`, the frozen models, the 0817 pooling). Adding "chronic" is one
+entry per animal in `EPOCH_SPEC` plus its name in `EPOCHS`.
+
+### Weighting: by SESSION, shown as dots rather than asserted in a caption
+
+Priya: *"weighted mean (ie just use each session's value)"*, and then *"it can be made clear in the
+figure … by using data points with transparency to allow overlap, with different colors for sessions
+from each mouse (ie 4 colors, 1 dot per session value)."*
+
+Session weighting means PS94 dominates the acute panel and PS95 the subacute. A note saying so is
+read once; a column of dots is read every time. Colours come from `config.animal_color` — the same
+animal must be the same colour here and in every per-animal figure beside it. **The spread is
+deterministic, not random**: a jittered cloud that moves between renders makes two versions of a
+figure impossible to compare, and a lone point sits exactly on its tick, since PS95's single acute
+session is the case the overlay exists to show. Heatmap panels have no axis for dots, so they carry
+n and the per-animal counts in the title (`animal_legend(counts=...)` renders `PS95 (n=1)`).
+
+### Nothing recomputes — the reuse is enforced by test
+
+Priya: *"I do NOT want this to have to re-create the wheel."* Audited and correct.
+`_collect_5c(align, variant)` already returns `{animal: (pre LOSO record, {day: record})}` at TRIAL
+level keyed by DAY — which is what an epoch is defined on — and `variant='working'` is already
+exactly "lick plus miss-while-working". So an epoch figure is a grouping and a sum. A test forbids
+`epoch_figures` from fitting a model, pooling sessions or building features: if it could, its panels
+and the per-animal figures could drift while both looked defensible.
+
+### Two day definitions exist and they disagree
+
+`grant_figures._day` is month*31 ORDERING; `epochs.days_since_stroke` is a calendar difference. They
+agree exactly on every POST-stroke session (all August, a 31-day month), so epoch boundaries are
+safe, and differ by one on June dates. Harmless — every pre-stroke day is negative and both say
+`pre` — and it is only the x position of a pre-stroke point on figures 1/1b, whose own docstring
+records the approximation. **Both facts are pinned**, so nobody "fixes" one to match the other
+without knowing it moves published x positions, and so a September session divides them loudly.
+
+---
+
+## 2026-08-28 — The grant render is slow because `_pooled_bundle` was extracted and never adopted
+
+`_pooled_bundle(animal, align)` exists to be the ONE shared pooling — joint basis load, feature
+build, `pool_sessions`, engagement gate — memoised per (animal, alignment). Its own docstring records
+why: *"extracted because it was character-identical in `fig_pattern_similarity` and
+`fig_pattern_similarity_per_session`, and a third and fourth copy is how two figures that claim to
+describe the same trials quietly stop doing so."*
+
+**The extraction happened; the callers were never migrated.** Five sites build the same pooling and
+only `_collect_7` uses the bundle:
+
+| line | site | uses bundle |
+|---|---|---|
+| 1946 | `_pooled_bundle` | (is the bundle) |
+| 2157 | `_collect_7` | yes |
+| 1084 | `fig_confusion_pre_post_working` recompute path | **no** |
+| 1266 | `_collect_5c` | **no** — plus its own `_gate_all` |
+| 1449 | `fig_pattern_similarity_per_session` | **no** |
+| 1735 | `fig_pattern_similarity` | **no** |
+
+`_collect_5c` alone is lru-cached on `(align, variant)` — five keys x four animals ≈ **20 poolings
+where 12 would serve the whole render** — and the other three sites add more. This matches the 4-5x
+redundancy measured before the disk cache existed.
+
+The fix is one line per site (`bd = _pooled_bundle(an, align)`) and it IMPROVES accuracy,
+reproducibility and interpretability rather than trading against them: the figures then provably
+share one pooling instead of four recipes agreeing by coincidence.
+
+**A one-off cost is also in play and should not be mistaken for the standing one.** The `with_rt=True`
+change altered the feature-cache digest; `position_coding_directions` rewarmed
+`(precue, nolick_ref="cue")` and `(cue, "cue")`, but the LICK alignment warms under
+`nolick_ref="would_be_lick"` while the grant render asks for `"cue"` — so the lick third of this
+render pays a cold rebuild the other two thirds do not.
+
+### Layout: `_delta_grid` crowding arrived on schedule at the 11th post-stroke day
+
+`grant_8b_crossnobis_geometry_cue_lick.png: ax7.xtick 'd9' crowds 'd11'`, exactly as predicted from
+"clean only to ~10 post-stroke days". A legibility problem, not a wrong number. The durable fix is
+ABSOLUTE INCH MARGINS rather than matplotlib's fractional ones — the same approach used on
+`figure_rt_split` and on the epoch renderer — because a negotiated layout is not reproducible as the
+session count grows. To be applied after the current render, not by restarting it.
