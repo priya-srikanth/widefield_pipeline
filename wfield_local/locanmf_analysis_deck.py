@@ -1906,15 +1906,29 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             # written per alignment and the span is computed on the ALIGNED window, so the cue
             # figure is a different measurement. Only one is shown, and until 2026-08-24 neither
             # the figure nor this title named it.
-            title(s, "Joint-basis health (PRE-CUE window) — how much of each session the frozen "
-                     "footprints span",
-                  "Sessions IN the fit are 1.0 by construction (hollow); a PROJECTED day (filled) is "
-                  "not. Read a projected day's decode accuracy against its bar: low-and-low means the "
-                  "basis under-describes that day, not that its representation changed. The span is "
-                  "measured on the ALIGNED window, so the post-cue figure "
-                  "(joint_basis_health_cue.png) is a different measurement and is not shown here.")
-            note(s, M_JOINT, specific=S_JOINT)
-            big(s, src / "joint_basis_health_precue.png", top=1.7, width=12.2)
+            # ALL THREE ALIGNMENTS, not the pre-cue one alone. The span is computed on the
+            # ALIGNED window, so these are three different measurements, and the deck used to show
+            # one and say in its own subtitle that the others "are a different measurement and are
+            # not shown here" -- an accurate note about an incomplete slide. Each of the three
+            # decode arms in section D is read against its OWN basis-health figure now, which is the
+            # only way "low-and-low means the basis under-describes that day" can be checked for the
+            # arm actually being read.
+            for _bal, _balname in (("precue", "PRE-CUE"), ("cue", "POST-CUE"), ("lick", "POST-LICK")):
+                _bh = src / f"joint_basis_health_{_bal}.png"
+                if not _bh.exists():
+                    continue
+                s = slide()
+                title(s, f"Joint-basis health ({_balname} window) \u2014 how much of each session "
+                         f"the frozen footprints span",
+                      "Sessions IN the fit are 1.0 by construction (hollow); a PROJECTED day "
+                      "(filled) is not. Read a projected day's decode accuracy against its bar: "
+                      "low-and-low means the basis under-describes that day, not that its "
+                      "representation changed. THE SPAN IS MEASURED ON THE ALIGNED WINDOW, so the "
+                      "three alignments are three different numbers for the same session and each "
+                      "belongs with its own decode arm \u2014 which is why all three are here "
+                      "rather than the pre-cue one standing for all of them.")
+                note(s, M_JOINT, specific=S_JOINT)
+                big(s, _bh, top=1.7, width=12.2)
         for al, al_name, al_desc in ALIGNS:
             # the pre-cue arm inherits the zero-phase-filter inflation; the post-cue arm does not
             cav = M_PRECUE_CAVEAT if al == "precue" else ""
@@ -2083,6 +2097,42 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     note(s, M_RSA, specific=S_RSA_C)
     big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
 
+    # HEMISPHERE-RESOLVED RSA. Written by `locanmf_rsa` on the same tag as the three slides above and
+    # never placed on any of them, so the one RSA arm that is explicitly ABOUT the lesion's side has
+    # been rendered every night and read by nobody.
+    #
+    # WHY IT BELONGS HERE RATHER THAN IN SECTION G. It is a pre-stroke geometry measurement, like the
+    # rest of F -- it establishes what left-vs-right asymmetry looks like BEFORE any lesion, which is
+    # the reference a post-stroke asymmetry has to be read against. Put in G it would look like a
+    # result about the stroke.
+    #
+    # BOTH lesions are LEFT-sided, and PS93 has a RIGHT orofacial deficit, so its LEFT hemisphere is
+    # the contralesional one. That mapping is stated on the slide because getting it backwards
+    # inverts the interpretation of every panel.
+    for _hk, _htitle, _hsub in (
+        ("rdms", "per-animal RDMs, split by hemisphere",
+         "Top row = LEFT-hemisphere components, bottom = RIGHT, same 6 positions and the same "
+         "colour scale in both. A position geometry that is genuinely bilateral looks the same in "
+         "the two rows; a hemisphere that carries the code differently is visible as a row that "
+         "does not match. This is the PRE-stroke reference for that comparison, so the asymmetry "
+         "seen here is the baseline a post-stroke asymmetry has to beat."),
+        ("summary", "animal x animal RDM similarity, per hemisphere",
+         "Is the geometry shared ACROSS animals within a hemisphere? Left and right are scored "
+         "separately, so a value that is high in one panel and low in the other says the shared "
+         "structure is hemisphere-specific. BOTH LESIONS ARE LEFT-SIDED and PS93's orofacial "
+         "deficit is on the RIGHT, so PS93's LEFT hemisphere is the CONTRALESIONAL one \u2014 read "
+         "the left panel for it, not the right."),
+    ):
+        _hp = src / f"locanmf_rsa_hemisphere_{_hk}_{tag}.png"
+        if not _hp.exists():
+            _hp = src / f"locanmf_rsa_hemisphere_{_hk}.png"     # untagged, older runs
+        if not _hp.exists():
+            continue
+        s = slide()
+        title(s, f"RSA \u2014 {_htitle}", _hsub)
+        note(s, M_RSA, specific=S_RSA_B)
+        big(s, _hp, top=1.75, width=12.7)
+
     # ---------------- G. POST-STROKE ----------------
     # ORDER IS THE ARGUMENT, and it was chosen after getting it wrong once. Behaviour comes FIRST
     # because on 8/17 both animals stopped attempting the far positions, so any decoding number that
@@ -2219,6 +2269,72 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
             note(s, M_RECODING, specific=S_G2C)
             big(s, _rf, top=1.85, width=11.4)
+
+        # THE LICK-ONLY ARM OF THE SAME GRID. Written every night since the section-G consolidation
+        # and never placed, while the all-trials arm above carried the headline alone.
+        #
+        # It is not decoration: the standing objection to G2c is that the post-stroke ALL-trials arm
+        # includes trials with no lick, so a reader can say the dissociation is about MISSING
+        # MOVEMENTS rather than about coding. This arm scores only trials the animal licked on, which
+        # removes that confound -- at the cost of the abandoned positions, which have no lick trials
+        # to score. The two arms are therefore complementary and neither is complete: all-trials
+        # keeps every position and admits the confound, lick-only removes the confound and loses
+        # positions. Showing one without the other lets a reader assume the choice was neutral.
+        _rf2 = src / "section_g_grid_withcontrol_lickonly.png"
+        if _rf2.exists():
+            s = slide()
+            title(s, "G2c (LICK-ONLY arm). The same grid, scored only on trials the animal "
+                     "actually licked on",
+                  "THE CONTROL FOR THE OBVIOUS OBJECTION to the slide before this one: that the "
+                  "all-trials dissociation is about missing MOVEMENTS rather than about coding. "
+                  "Here every scored trial has a lick, so it cannot be. THE COST is positions: an "
+                  "abandoned position has no lick trials, so it drops out entirely and the chance "
+                  "level moves with it (4-way rather than 6-way for PS94 and PS95 on day 1). Read "
+                  "the two arms TOGETHER \u2014 all-trials keeps every position and admits the "
+                  "confound, lick-only removes the confound and loses positions. Neither is the "
+                  "complete figure, and choosing one silently would be choosing a result.")
+            note(s, M_RECODING, specific=S_G2C)
+            big(s, _rf2, top=1.85, width=11.4)
+
+        # --- G2d. THE SMALL-LESION FAMILY, in full.
+        #
+        # `section_g_figures` renders the whole readout family TWICE -- once for the post-stroke
+        # sessions and once for the 'excluded' ones under `section_g_smalllesion_*` -- and nine of
+        # those figures had never reached a slide. Only the two grey squares inside G2c's grid
+        # represented them, which is the summary of this family rather than the family.
+        #
+        # WHAT THEY ARE, and the label has to be exact: PS92 and PS93 on 8/17, after a laser that
+        # did NOT take. They are neither pre-stroke nor post-stroke -- `session_phase` returns
+        # 'excluded' -- and `config.pooled_labels` keeps them out of every pooled result by
+        # construction. They are shown here and NOWHERE ELSE, because a within-animal control one
+        # day before the effective lesion is the strongest control this design has, and because a
+        # figure that exists and is never shown is a figure nobody has checked.
+        _SMALL = (("grid", "the four-condition grid"),
+                  ("confusion_precue", "crossed confusion, PRE-cue"),
+                  ("confusion_cue", "crossed confusion, POST-cue"),
+                  ("similarity", "pattern similarity to the pre-stroke reference"),
+                  ("matched", "position-matched frozen decoding"))
+        _small_found = [(k, nice, arm, armn, q)
+                        for k, nice in _SMALL
+                        for arm, armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY"))
+                        if (q := src / f"section_g_smalllesion_{k}_{arm}.png").exists()]
+        if _small_found:
+            divider("G2d - SMALL-LESION COMPARISON (the laser did not take)",
+                    "PS92 and PS93 on 8/17. Neither pre-stroke nor post-stroke, never pooled with "
+                    "either, and the within-animal control for everything in G2: the same animals, "
+                    "the same rig, one day before the lesion that did take.")
+            for _k, _nice, _arm, _armn, _q in _small_found:
+                s = slide()
+                title(s, f"G2d. Small lesion \u2014 {_nice} ({_armn})",
+                      "THE SAME ANALYSIS AS THE POST-STROKE SLIDES ABOVE, on the sessions where the "
+                      "laser did not take. What it should show is NOTHING: no dissociation, values "
+                      "inside the pre-stroke band. That is what makes the effective-lesion result "
+                      "one day later a lesion effect rather than a day-to-day effect, a handling "
+                      "effect, or an anaesthesia effect. THESE SESSIONS ARE NEVER POOLED with either "
+                      "phase \u2014 `session_phase` returns 'excluded' and `config.pooled_labels` "
+                      "drops them by construction, so nothing on any other slide contains them.")
+                note(s, M_RECODING, specific=S_G2C)
+                big(s, _q, top=1.85, width=11.4)
 
         # --- G3. crossed confusion: WHERE the errors go
         # G3. Crossed confusion, per POST-STROKE SESSION and on BOTH arms.
