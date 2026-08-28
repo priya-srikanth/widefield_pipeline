@@ -51,9 +51,17 @@ DEFAULT_BLOCK_SIZE_MAX = 8          # gui_config timing.block_size_max on every 
 def _behavior_dir(s):
     """The behaviour-log directory for this session, or None.
 
+    ``s`` is a session MAPPING, or a Path to the behaviour directory itself. The second form is
+    what `spout_behavior` holds -- it is already standing in the session's log directory -- and
+    accepting it here keeps `block_size_max_for` the single reader of `timing.block_size_max`
+    rather than having the behaviour path grow its own copy of the same three lines.
+
     Resolved from the session's OWN date, never by globbing the animal — that shortcut silently gave
     every session its animal's earliest config once already (see nolick_decoder.response_window_for).
     """
+    if isinstance(s, (str, Path)):
+        d = Path(s)
+        return d if (d / "gui_config.json").exists() else None
     for cand in config.load_sessions():
         if cand["label"] == s["label"] and cand.get("behavior_trials"):
             return Path(cand["behavior_trials"]).parent

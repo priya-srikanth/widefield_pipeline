@@ -70,3 +70,39 @@ def test_block_size_max_is_read_per_session_not_hardcoded():
     from wfield_local import block_ids as b
 
     assert "gui_config.json" in inspect.getsource(b.block_size_max_for)
+
+
+def test_block_size_max_reads_a_behaviour_directory_directly(tmp_path):
+    """`spout_behavior` holds the log directory, not a session mapping.
+
+    Accepting both keeps `block_size_max_for` the single reader of `timing.block_size_max`. The
+    alternative was three lines of gui_config parsing in the behaviour path, which is how the block
+    definition ends up with two homes that agree until one of them is edited.
+    """
+    import json
+
+    from wfield_local.block_ids import DEFAULT_BLOCK_SIZE_MAX, block_size_max_for
+
+    d = tmp_path / "PS94_20260812_120000"
+    d.mkdir()
+    (d / "gui_config.json").write_text(json.dumps({"timing": {"block_size_max": 6}}))
+    assert block_size_max_for(d) == 6
+    # a directory with no config falls back rather than raising
+    assert block_size_max_for(tmp_path / "nope") == DEFAULT_BLOCK_SIZE_MAX
+
+
+def test_a_run_of_nine_is_two_blocks():
+    """Priya, 2026-08-28: any run of >= 9 at one position is by definition two blocks.
+
+    This is the run-length detector the 2026-08-18 audit measured: it recovers ~92% of the
+    adjacent same-position merges (108 of 118 over 48 curated + 8/17 sessions). The residual are
+    4+4 merges landing at exactly `block_size_max`, which no run-length rule can separate from one
+    genuine maximal block.
+    """
+    from wfield_local.block_ids import block_ids
+
+    codes = np.array([3] * 9 + [1] * 4 + [3] * 8)
+    b = block_ids(codes, 8)
+    assert len(set(b[:9].tolist())) == 2, "a run of 9 stayed one block"
+    assert len(set(b[13:].tolist())) == 1, "a run of exactly 8 was split"
+    assert len(set(b.tolist())) == 4

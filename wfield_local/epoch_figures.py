@@ -457,8 +457,46 @@ def _value_and_ci(v):
     return float(v), None, None
 
 
+def _group_rule(fig, ax, xs, groups, *, pad_in=0.07, gap_in=0.055):
+    """Draw the second x level BELOW the tick labels, positioned by MEASURING them.
+
+    The offset used to be a guessed constant in axes fractions (-0.150), and it put the rule
+    through the middle of "Ipsi"/"Middle"/"Contra". Nothing could catch it: `_overlaps` excludes
+    tick labels from the chrome checks by design -- they legitimately sit close to their own axis
+    -- and the rule is a Line2D, not text, so no text-vs-text test covers it either. A line through
+    a label is invisible to every automated check this module has.
+
+    So it is measured instead of guessed: draw once, take the lowest tick-label edge, and hang the
+    rule a fixed number of INCHES below it. That holds whatever the font size, the label length or
+    the figure height, none of which the old constant knew about.
+    """
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    inv = ax.transAxes.inverted()
+    bottoms = []
+    for t in ax.get_xticklabels():
+        if not str(t.get_text()).strip():
+            continue
+        try:
+            bottoms.append(inv.transform_bbox(t.get_window_extent(rend)).y0)
+        except Exception:                                              # noqa: BLE001
+            continue
+    ax_h_in = max(1e-6, ax.get_position().height * fig.get_size_inches()[1])
+    base = min(bottoms) if bottoms else -0.13
+    y_rule = base - pad_in / ax_h_in
+    y_text = y_rule - gap_in / ax_h_in
+    tr = ax.get_xaxis_transform()
+    for label, lo_i, hi_i in groups:
+        ax.plot([xs[lo_i] - 0.42, xs[hi_i] + 0.42], [y_rule, y_rule], transform=tr,
+                color="0.35", lw=0.9, clip_on=False, zorder=6)
+        ax.text((xs[lo_i] + xs[hi_i]) / 2.0, y_text, label, transform=tr, ha="center", va="top",
+                fontsize=FS_LABEL - 1, color="0.15", clip_on=False)
+    return y_text
+
+
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
-            counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None):
+            counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
+            marks=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
@@ -523,21 +561,28 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
             # is attributed to the wrong epoch by every reader who does not count.
             session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55)
 
+    if marks:
+        # ABOVE THE TALLER OF (bar, its dots), so a mark never lands on the data it refers to.
+        for j, e in enumerate(epochs_present):
+            dx = (j - (m - 1) / 2.0) * bw
+            for i, q in enumerate(positions):
+                mk = (marks.get(e) or {}).get(q)
+                if not mk:
+                    continue
+                v, _lo, hi = _value_and_ci(values[e].get(q))
+                pts = [y for _a, y in ((points or {}).get(e, {}).get(q) or [])
+                       if y is not None and np.isfinite(y)]
+                top = max([z for z in (v, hi) if z is not None] + pts) if (v is not None) else None
+                if top is None:
+                    continue
+                ax.text(xs[i] + dx, top + 0.015 * (ylim[1] - ylim[0]), mk, ha="center",
+                        va="bottom", fontsize=FS_ANNOT, color="0.10", zorder=7)
     if chance is not None:
         ax.axhline(chance, color="0.35", lw=0.8, ls="--", zorder=1)
     ax.set_xticks(xs)
     ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
-    if groups:
-        # DRAWN IN THE X-AXIS TRANSFORM: x in data coordinates so the rule lines up with the bars
-        # it spans whatever the axis limits, y in axes fraction so it sits a fixed distance below
-        # the ticks whatever the data range. `clip_on=False` because it is deliberately outside
-        # the axes.
-        tr = ax.get_xaxis_transform()
-        for label, lo, hi in groups:
-            ax.plot([xs[lo] - 0.42, xs[hi] + 0.42], [-0.150, -0.150], transform=tr,
-                    color="0.35", lw=0.9, clip_on=False, zorder=6)
-            ax.text((xs[lo] + xs[hi]) / 2.0, -0.205, label, transform=tr, ha="center", va="top",
-                    fontsize=FS_LABEL - 1, color="0.15", clip_on=False)
+    # The second level is drawn AFTER the layout is set, below -- it has to measure the tick
+    # labels, which do not have a position until the figure has been laid out once.
     # THE CHANCE LEVEL GOES IN THE Y-LABEL, not on the line. Annotating the line inside the axes
     # printed grey text across the dark subacute bars wherever the bars were tall there -- and
     # `_overlaps` cannot see it, because text over its OWN axes is excluded by design (a panel
@@ -568,11 +613,15 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     # by the canvas. The 1.24in right gutter is the legend's, and it is reserved rather than
     # negotiated so the axes is the same width on every figure in the family.
     left_in, right_in = 0.62, 1.24
-    top_in = 0.52 + 0.16 * bool(subtitle)
+    # the band grows with the subtitle's LINE COUNT; a flat constant clipped the
+    # bootstrap line off the top the moment the stats line wrapped to two
+    top_in = 0.52 + 0.15 * len(str(subtitle).split(chr(10))) * bool(subtitle)
     # the second x level needs its own band; without it the rule and its label fall off
     bottom_in = 0.46 + 0.34 * bool(groups)
     fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
                         top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
+    if groups:
+        _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
     fig.savefig(q, dpi=200)
     plt.close(fig)
@@ -724,12 +773,31 @@ def _draw(sessions, rng):
     return np.concatenate(ys), np.concatenate(ps)
 
 
-def contrast_ci(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
-    """95% CI on ``stat(epoch_a) - stat(epoch_b)``, resampling animals then sessions then blocks.
+def contrast_ci(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000, alpha=0.05):
+    """Interval on ``stat(epoch_a) - stat(epoch_b)``. See `contrast_draws` for the resampling.
+
+    Returns ``(point, lo, hi, n_draws)`` at the requested ``alpha``.
+    """
+    got = contrast_draws(per_animal, epoch_a, epoch_b, stat, rng=rng, n_boot=n_boot)
+    if got is None:
+        return None
+    point, d = got
+    return (point, float(np.percentile(d, 100 * alpha / 2)),
+            float(np.percentile(d, 100 * (1 - alpha / 2))), len(d))
+
+
+def contrast_draws(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
+    """``(point, draws)`` for ``stat(epoch_a) - stat(epoch_b)``: animals, then sessions, then blocks.
 
     ``stat(y, p) -> float | None`` reduces a pooled trial set (for instance accuracy at one
-    position). Returns ``(point, lo, hi, n_draws)``; ``point`` is computed on the REAL data, not
-    on the bootstrap mean, so the number printed on a figure is the number in the data.
+    position). ``point`` is computed on the REAL data, not on the bootstrap mean, so the number
+    printed on a figure is the number in the data.
+
+    THE DRAWS ARE RETURNED RATHER THAN AN INTERVAL because the same draws have to be summarised at
+    more than one level -- an uncorrected 95% and a Bonferroni-corrected one across the twelve
+    comparisons a per-position figure makes. Re-running the bootstrap per level would cost twice
+    and, worse, give two intervals from two different resamples, so a corrected interval could come
+    out NARROWER than the uncorrected one it is supposed to contain.
 
     The animal draw is shared between the two epochs, which keeps the contrast paired.
     """
@@ -762,11 +830,173 @@ def contrast_ci(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
             diffs.append(va - vb)
     if len(diffs) < n_boot // 4:
         return None
-    d = np.asarray(diffs, float)
-    return float(pa - pb), float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5)), len(d)
+    return float(pa - pb), np.asarray(diffs, float)
 
 
 def _pooled(per_animal, epoch):
     """``(y, p)`` for one epoch across animals, from the real (unresampled) records."""
     rec = pool_records(per_animal, epoch)
     return None if rec is None else (np.asarray(rec[0]), np.asarray(rec[1]))
+
+
+#: Marks for a contrast whose interval excludes zero. Two levels, because a per-position figure
+#: makes TWELVE comparisons (six positions x two epochs) and a single asterisk that ignores this
+#: is the commonest way a figure overstates itself.
+MARK_UNCORRECTED, MARK_CORRECTED = "*", "**"
+
+
+def contrast_marks(draws, *, n_comparisons, alpha=0.05):
+    """``("", "*", "**")`` for one set of bootstrap draws.
+
+    ``*`` the uncorrected 95% interval excludes zero; ``**`` it still excludes zero after a
+    Bonferroni correction across ``n_comparisons``. BOTH ARE SHOWN rather than only the corrected
+    one, because with four animals the corrected interval is very wide and reporting only it would
+    turn every real effect into a blank -- and only the uncorrected one would call twelve
+    comparisons one. The figure states which is which; the reader decides.
+
+    Summarised from ONE set of draws, so the corrected interval necessarily contains the
+    uncorrected one. Two bootstraps would not guarantee that.
+    """
+    if draws is None or not len(draws):
+        return ""
+    lo, hi = np.percentile(draws, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    if not (lo > 0 or hi < 0):
+        return ""
+    a = alpha / max(1, n_comparisons)
+    clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+    return MARK_CORRECTED if (clo > 0 or chi < 0) else MARK_UNCORRECTED
+
+
+def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=None, groups=None,
+                   subtitle=None, n_comparisons=None):
+    """The companion panel: each epoch's change from pre-stroke, per position, with intervals.
+
+    ``rows`` is ``{epoch: {position: (point, lo, hi, clo, chi)}}`` -- the uncorrected and the
+    Bonferroni-corrected bounds from the same draws. The bar figure beside this one carries the
+    marks; this carries the numbers, because a mark says only "not zero" and the size of the change
+    is the thing a grant figure is actually claiming.
+
+    ZERO IS DRAWN, not implied. A difference plot without its zero line invites the reader to
+    compare two points to each other when the comparison that matters is each to no change.
+    """
+    import matplotlib.pyplot as plt
+
+    epochs = [e for e in PANELS if rows.get(e)]
+    if not epochs or not positions:
+        return None
+    k, m = len(positions), len(epochs)
+    fig_w, fig_h = QUARTER_IN, 2.60
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    xs = np.arange(k, dtype=float)
+    off = 0.78 / m
+    for j, e in enumerate(epochs):
+        dx = (j - (m - 1) / 2.0) * off
+        for i, q in enumerate(positions):
+            v = rows[e].get(q)
+            if v is None:
+                continue
+            pt, lo, hi, clo, chi = v
+            # the CORRECTED interval as a thin whisker behind the uncorrected one, so the figure
+            # shows what the correction costs instead of only its verdict
+            ax.plot([xs[i] + dx, xs[i] + dx], [clo, chi], color=EPOCH_GREY.get(e, "0.4"),
+                    lw=0.9, solid_capstyle="butt", zorder=2)
+            ax.plot([xs[i] + dx, xs[i] + dx], [lo, hi], color=EPOCH_GREY.get(e, "0.4"),
+                    lw=2.6, solid_capstyle="butt", zorder=3)
+            ax.plot([xs[i] + dx], [pt], marker="o", ms=4.0, color="0.12", zorder=4)
+    ax.axhline(0.0, color="0.35", lw=0.9, ls="--", zorder=1)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
+    ax.set_ylabel(ylabel, fontsize=FS_LABEL - 1)
+    ax.tick_params(axis="y", labelsize=FS_TICK - 1)
+    ax.set_xlim(-0.6, k - 0.4)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+
+    from matplotlib.lines import Line2D
+    handles = [Line2D([], [], color=EPOCH_GREY.get(e, "0.4"), lw=2.6, label=f"{e} - pre")
+               for e in epochs]
+    handles += [Line2D([], [], color="0.4", lw=2.6, label="95%"),
+                Line2D([], [], color="0.4", lw=0.9,
+                       label=f"95% / {n_comparisons}" if n_comparisons else "corrected")]
+    ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
+              bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4, borderpad=0.15,
+              labelspacing=0.32, handlelength=1.1)
+    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
+    if subtitle:
+        fig.text(0.5, 0.90, subtitle, ha="center", va="top", fontsize=FS_ANNOT - 2.0,
+                 color="0.30")
+    left_in, right_in = 0.62, 1.24
+    # the band grows with the subtitle's LINE COUNT; a flat constant clipped the
+    # bootstrap line off the top the moment the stats line wrapped to two
+    top_in = 0.52 + 0.15 * len(str(subtitle).split(chr(10))) * bool(subtitle)
+    bottom_in = 0.46 + 0.34 * bool(groups)
+    fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
+                        top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
+    if groups:
+        _group_rule(fig, ax, xs, groups)
+    q = pathlib.Path(out) / f"{name}.png"
+    fig.savefig(q, dpi=200)
+    plt.close(fig)
+    return q
+
+
+def block_counts(per_animal) -> dict:
+    """``{epoch: number of distinct blocks}`` -- the bootstrap's innermost resampling unit.
+
+    Stated on a figure alongside N animals and n sessions because it is the unit the interval is
+    actually built from, and because it is the one a reader cannot infer: sessions are countable
+    from the panel titles, blocks are not. Where an epoch's interval looks surprisingly tight or
+    wide, the block count is usually the explanation.
+    """
+    out = {}
+    for e in PANELS:
+        rec = pool_records(per_animal, e)
+        out[e] = int(len(np.unique(np.asarray(rec[2])))) if rec is not None else 0
+    return out
+
+
+def stats_line(per_epoch, *, blocks=None, n_boot=None, notes=None, unit="sessions", width=104):
+    """``N=4 animals, n=74 sessions -- pre 44 (92:11 ...) | acute 16 (...) | subacute 14 (...)``
+
+    Priya, 2026-08-28: state N and n on every figure -- animals and total sessions -- and the other
+    resampling unit where one is used.
+
+    BOTH NUMBERS, ALWAYS, because they answer different questions and each misleads alone. "n=74
+    sessions" sounds like a large study and is four mice; "N=4 animals" says nothing about how
+    unevenly those mice are spread across the panels. The per-epoch breakdown is what makes the
+    imbalance legible -- PS95 is one of sixteen acute sessions and seven of fourteen subacute --
+    and it cannot be recovered from either total.
+
+    ``per_epoch`` must count SESSIONS, not whatever a panel happens to be built from. The first
+    version summed the accuracy figure's pre panel as 4 because `_collect_5c` returns one
+    leave-one-session-out record per animal, and printed "n=34 sessions" for a cohort with 74. A
+    count on a figure has to mean the thing it names.
+
+    WRAPPED, because a single line of this does not fit 6.2in and matplotlib does not clip a
+    centred `fig.text` -- it runs off BOTH edges, which is how the first render lost the "N=4
+    animals" at one end and half the subacute breakdown at the other.
+    """
+    import textwrap
+
+    parts, totals, animals = [], 0, set()
+    for e in PANELS:
+        per = per_epoch.get(e) or {}
+        if not any(per.values()):
+            continue
+        animals |= {a for a, c in per.items() if c}
+        n = sum(per.values())
+        totals += n
+        inner = " ".join(f"{a[-2:]}:{c}" for a, c in sorted(per.items()) if c)
+        parts.append(f"{e} {n} ({inner})")
+    head = f"N={len(animals)} animals, n={totals} {unit}"
+    chunks = [head + " -- " + "   |   ".join(parts)]
+    if blocks:
+        got = " / ".join(f"{e} {blocks[e]:,}" for e in PANELS if blocks.get(e))
+        chunks.append(f"bootstrap: animals -> sessions -> blocks"
+                      f"{f', {n_boot:,} draws' if n_boot else ''}; blocks {got}")
+    for note in (notes or []):
+        chunks.append(note)
+    out = []
+    for c in chunks:
+        out.extend(textwrap.wrap(c, width=width) or [c])
+    return chr(10).join(out)

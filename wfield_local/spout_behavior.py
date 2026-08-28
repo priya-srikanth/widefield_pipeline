@@ -1108,6 +1108,25 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     sess_dir.mkdir(parents=True, exist_ok=True)
     m["per_position"].to_csv(csv, index=False)
 
+    # THE PER-TRIAL TABLE, PERSISTED (2026-08-28, Priya). Only the aggregated per-position rows
+    # were ever written, so anything downstream wanting an interval could resample SESSIONS and
+    # nothing finer -- while every imaging figure beside it resamples animals, then sessions, then
+    # the scheduler's position blocks. Two adjacent panels with different error models, for a
+    # reason invisible on the page.
+    #
+    # The table already exists here: it is what scores the aggregate and draws the task raster.
+    # Saving it costs one small CSV per session and removes the alternative, which was to rebuild
+    # it from the DAQ inside the figure code -- a SECOND path to "the trial table", and the
+    # duplication class this repo keeps having to unwind.
+    #
+    # THE BLOCK ID IS COMPUTED HERE, not at read time, so the block definition has one home. It is
+    # the same `block_ids` rule the imaging path uses: a new block when the position changes or the
+    # run reaches the scheduler's own `block_size_max`, read from this session's gui_config.
+    from wfield_local.block_ids import block_ids, block_size_max_for
+    sc = m["scored"].copy()
+    sc["block"] = block_ids(sc["pos_idx"].to_numpy(), block_size_max_for(session_dir))
+    sc.to_csv(sess_dir / f"{sid}_trials.csv", index=False)
+
     # row 0 = task performance; row 1 = the same by-position lick metrics the across-session
     # per-animal figure tracks, so a single session can be read against the cross-day trend.
     # Without licks (no DAQ/events) there is no row 1 -> the original 2x2 performance figure.

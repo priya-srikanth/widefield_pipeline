@@ -43,6 +43,23 @@ ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working")
 CHANCE = 1.0 / 6.0
 
 
+def _session_counts():
+    """``{epoch: {animal: sessions}}`` from the epoch assignment itself.
+
+    One definition of "how many sessions is this epoch", shared by every figure, rather than each
+    one counting whatever it happens to hold.
+    """
+    from wfield_local import epochs
+    out = {}
+    for e, labels in epochs.labels_by_epoch().items():
+        per = {}
+        for lab in labels:
+            an = lab.split("_")[0]
+            per[an] = per.get(an, 0) + 1
+        out[e] = per
+    return out
+
+
 def _minor():
     """Per-tick labels for a bar figure: Ipsi / Middle / Contra."""
     from wfield_local.grant_figures import CONF_LABELS
@@ -63,30 +80,6 @@ def _short_labels():
     """
     from wfield_local.grant_figures import CONF_LABELS
     return ef.anatomical_labels(CONF_LABELS)
-
-
-def _counts_line(per_epoch, unit_of=None):
-    """``pre n=44 (92:11 ...) | acute n=16 (... 95:1) | subacute ...`` for a figure's subtitle.
-
-    THE PER-EPOCH BREAKDOWN, not a per-animal total. A total is what hides the imbalance: PS95
-    contributes 19 sessions overall and exactly ONE of them is acute, which is the fact a reader
-    of the acute panel needs and the only place it can be stated on a bar figure is here.
-
-    ``unit_of`` names what is being counted when it is not sessions. THE PRE PANEL OF THE DECODING
-    FIGURES IS NOT COUNTED IN SESSIONS: `_collect_5c` returns ONE leave-one-session-out record per
-    animal, already concatenated over its held-out pre-stroke sessions. Printing a bare "n=4"
-    beside "acute n=16" invites the reading that the baseline rests on four sessions when it rests
-    on forty-four, so the unit is stated wherever it changes.
-    """
-    parts = []
-    for e in ef.PANELS:
-        per = per_epoch.get(e) or {}
-        if not any(per.values()):
-            continue
-        inner = " ".join(f"{a[-2:]}:{c}" for a, c in sorted(per.items()) if c)
-        unit = (unit_of or {}).get(e)
-        parts.append(f"{e} n={sum(per.values())}{' ' + unit if unit else ''} ({inner})")
-    return "   |   ".join(parts)
 
 
 def _totals(per_epoch):
@@ -140,7 +133,9 @@ def fig_behaviour(out_dir):
                       # answers "how many dots of this colour are on the figure at all"; the
                       # subtitle answers "how many of them are in the panel I am reading", which
                       # is the one that carries the imbalance.
-                      subtitle=_counts_line(counts), counts=_totals(counts),
+                      # ONE HELPER for every figure's N/n line, so two figures side by side
+                      # cannot state the cohort differently.
+                      subtitle=ef.stats_line(counts), counts=_totals(counts),
                       ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
                       # HEADROOM ABOVE 1.0 so a session at ceiling is a visible dot rather than a
                       # smear on the spine -- and the close positions sit at ceiling throughout.
@@ -163,6 +158,46 @@ def _named(record):
         return np.array([POSITION_NAMES.get(int(x), str(x)) for x in np.asarray(v)])
 
     return nm(record[0]), nm(record[1])
+
+
+#: Bootstrap draws per contrast. Well past where the 95% percentile stops moving; the outer
+#: animal draw has only 35 distinct multisets, so more draws buy resolution on the inner levels
+#: and nothing whatever on the outer one.
+N_BOOT = 2000
+
+
+def _seed_for(align, variant, epoch, position) -> int:
+    """A stable seed, for the same reason `grant_figures._seed` exists: `hash()` is salted per
+    process, so seeding a bootstrap with it gives a different interval on every render."""
+    from wfield_local.grant_figures import _seed
+    return _seed("epoch-contrast", align, variant, epoch, position)
+
+
+def _code_of(position):
+    """The NUMERIC code for a position name.
+
+    `contrast_draws` gets its arrays straight from `pool_records`, which returns the records as
+    stored -- the integer codes the decoder was fitted on, NOT display names. Comparing those to
+    "close_L" matches nothing and returns an empty figure with no error, which is exactly the
+    fault that produced three blank panels earlier today. Working in codes here keeps the mapping
+    in one place instead of naming twenty thousand trials per bootstrap draw.
+    """
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    for code, nm in POSITION_NAMES.items():
+        if nm == position:
+            return int(code)
+    return None
+
+
+def _accuracy_at(y, p, code):
+    """Accuracy at one true position CODE, on raw (unnamed) arrays."""
+    if code is None:
+        return None
+    y, p = np.asarray(y), np.asarray(p)
+    m = (y == code)
+    if m.sum() < 5:
+        return None
+    return float(np.mean(y[m] == p[m]))
 
 
 def _accuracy_of(record, position=None):
@@ -203,13 +238,55 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     per_epoch = dict(cov["per_epoch"])
     per_epoch["pre"] = {an: (1 if per_animal.get(an, (None, {}))[0] is not None else 0)
                         for an in per_animal}
-    return ef.bar_row(
+
+    # THE CONTRAST AGAINST PRE-STROKE, per position, resampling animals -> sessions -> blocks.
+    # Draws are taken ONCE per contrast and summarised at both an uncorrected and a corrected
+    # level, so the corrected interval necessarily contains the uncorrected one -- two separate
+    # bootstraps could not guarantee that and could print a corrected interval that was narrower.
+    post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
+    n_comp = sum(len(values[e]) for e in post)          # every contrast this figure draws
+    marks, rows = {}, {}
+    for e in post:
+        marks[e], rows[e] = {}, {}
+        for q in CONF_LABELS:
+            key = short[q]
+            if key not in values[e]:
+                continue
+            got = ef.contrast_draws(
+                per_animal, e, "pre",
+                lambda y, pr, c=_code_of(q): _accuracy_at(y, pr, c),
+                # SEEDED PER (window, class, epoch, position), stably: the same figure has to give
+                # the same interval on every render, and `hash()` is salted per process.
+                rng=np.random.default_rng(_seed_for(align, variant, e, q)), n_boot=N_BOOT)
+            if got is None:
+                continue
+            point, draws = got
+            marks[e][key] = ef.contrast_marks(draws, n_comparisons=n_comp)
+            lo, hi = np.percentile(draws, [2.5, 97.5])
+            a = 0.05 / max(1, n_comp)
+            clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+            rows[e][key] = (point, float(lo), float(hi), float(clo), float(chi))
+
+    # SESSION COUNTS COME FROM THE EPOCH ASSIGNMENT, not from the panel's construction. The pre
+    # panel here is four leave-one-session-out records -- one per animal -- so counting the panel
+    # would print "pre 4" beside "acute 16" and imply the baseline rests on four sessions when it
+    # rests on forty-four.
+    sub = ef.stats_line(_session_counts(), blocks=ef.block_counts(per_animal), n_boot=N_BOOT,
+                        notes=["pre panel is leave-one-session-out within each animal, "
+                               "pooled across animals"])
+    made = ef.bar_row(
         values, out_dir, name=f"epoch_acc_by_position_{align}_{variant}",
         title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
-        subtitle=_counts_line(per_epoch, {"pre": "animals, leave-one-session-out"}),
-        counts=_totals(per_epoch),
-        ylabel="accuracy", positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
-        chance=CHANCE, ylim=(0.0, 1.06))
+        subtitle=sub, counts=_totals(per_epoch), marks=marks, points=points,
+        ylabel="accuracy", positions=_short_labels(), tick_labels=_minor(), groups=_groups(),
+        chance=CHANCE, ylim=(0.0, 1.10))
+    if any(rows.values()):
+        ef.contrast_panel(
+            rows, out_dir, name=f"epoch_accdelta_by_position_{align}_{variant}",
+            title=f"Change from pre-stroke in per-position accuracy, {wname}",
+            subtitle=sub, ylabel="accuracy - pre", positions=_short_labels(),
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+    return made
 
 
 def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
