@@ -54,6 +54,10 @@ from wfield_local.paths import PathResolver
 
 REPO = Path(__file__).resolve().parents[1]
 DAT_RE = re.compile(r"pco_edge_run\d+_\d+_(2_\d+_\d+)_uint16\.dat$", re.I)
+# Same name shape but ANY channel count, so a raw that labcams mis-saved as single-channel (1_H_W) --
+# a normal alternating 415/470 session whose movie header wrote the wrong channel count -- is WARNED
+# about, not silently dropped by discovery (PS92 8/28). Groups: (channels, H, W).
+DAT_ANY_RE = re.compile(r"pco_edge_run\d+_\d+_(\d+)_(\d+)_(\d+)_uint16\.dat$", re.I)
 ANIMAL_RE = re.compile(r"(PS9\d)")
 
 
@@ -90,8 +94,20 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
     datedir = Path(raw_root) / yyyymmdd
     if not datedir.exists():
         return []
-    dats = [Path(p) for p in glob.glob(str(datedir / "**" / "*_uint16.dat"), recursive=True)
-            if DAT_RE.search(Path(p).name)]
+    all_dats = [Path(p) for p in glob.glob(str(datedir / "**" / "*_uint16.dat"), recursive=True)]
+    dats = [p for p in all_dats if DAT_RE.search(p.name)]
+    for p in all_dats:                        # never silently drop a raw we can see (2026-08-28)
+        if DAT_RE.search(p.name):
+            continue
+        m = DAT_ANY_RE.search(p.name)
+        if m and m.group(1) != "2":
+            ch, h, w = m.groups()
+            print(f"[discover] WARNING: {p.name} is labelled {ch}-channel, not 2, and was SKIPPED. "
+                  f"A normal 415/470 session that labcams mis-saved as single-channel looks exactly "
+                  f"like this; if its DAQ shows both LEDs alternating, rename the '_{ch}_{h}_{w}_' "
+                  f"segment to '_2_{h}_{w}_' to rescue it. [{p}]", flush=True)
+        else:
+            print(f"[discover] WARNING: unrecognized raw name {p.name} was SKIPPED. [{p}]", flush=True)
     h5s = [Path(p) for p in glob.glob(str(Path(daq_root) / "**" / "*.h5"), recursive=True)]
 
     by_sess: dict[Path, list[Path]] = {}
@@ -699,7 +715,14 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
                   f" -> included in the downstream steps")
             sessions = sorted(sessions + extra, key=lambda s: (s["animal"] or "", s["sess"]))
     if args.only:
-        sessions = [s for s in sessions if s["animal"] in set(args.only)]
+        requested = set(args.only)
+        sessions = [s for s in sessions if s["animal"] in requested]
+        missing = sorted(requested - {s["animal"] for s in sessions})
+        if missing:
+            print(f"[preprocess] WARNING: --only asked for {', '.join(missing)} but no session was "
+                  f"discovered for {'them' if len(missing) > 1 else 'it'} on {date} -- see any "
+                  f"[discover] warnings above (e.g. a single-channel-mislabelled or missing raw).",
+                  flush=True)
     if not sessions:
         where = "raw or processed" if args.skip_preprocess else "raw"
         print(f"[preprocess] no {where} sessions discovered for {date} under {rv.root('raw_labcams')}")
