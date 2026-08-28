@@ -105,6 +105,62 @@ def _pooled(animal, align, source="roi", post_labels=None):
             "_frozen_cache": {}}
 
 
+def lick_pipe():
+    """The lick-vs-no-lick discriminator's estimator. NOT the position decoder.
+
+    Same hyperparameters as `locanmf_frozen_decoder._pipe`, and that coincidence is the trap: this
+    model has a two-class label space (1 = engaged, 0 = no detected lick) and that one has six
+    positions, so they are different objects that happen to be configured alike. Anything keyed on
+    "the frozen model" must never serve one for the other -- `frozen_models` would need
+    ``kind="lick_discriminator"``, not ``kind="decoder"``.
+    """
+    return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+
+
+def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
+    """Position-balanced PRE-stroke engaged-vs-no-lick training set: ``(X, y, groups)`` or None.
+
+    Within each kept position both classes are subsampled to the same count, so POSITION carries no
+    information about the label. Without that the discriminator answers "far" and looks like an
+    answer: undetected trials are overwhelmingly far pre-stroke, and post-stroke no-lick trials are
+    far too. A position with fewer than 5 of either class is skipped.
+
+    ``groups`` are session ids, for callers that want GroupKFold -- an ungrouped fold puts trials
+    from one session on both sides, and session identity is exactly what a whole-brain feature
+    vector can memorise.
+
+    THREE COPIES OF THIS EXISTED (`looks_like_which`, `fits_engaged_distribution.balanced_fit`,
+    `undetected_state_split`), agreeing only by coincidence, and one of them did not: `balanced_fit`
+    shares a single RandomState across its leave-one-out loop, so by the time it takes the full-pool
+    fit the generator has already been advanced by every fold before it. The other two each start a
+    fresh RandomState(seed) and therefore draw the SAME sample as each other.
+
+    THE RNG IS AN ARGUMENT, NOT CREATED HERE, so that difference is preserved exactly rather than
+    quietly unified. Making `balanced_fit` deterministic per fold would be defensible and would
+    change published numbers; that is a decision, not a refactor, and this is the refactor.
+    """
+    e = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
+    u = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
+    if exclude_session is not None:
+        e &= d["GE"] != exclude_session
+        u &= d["GU"] != exclude_session
+    Xe, ye, ge = d["XE"][e], d["YE"][e], d["GE"][e]
+    Xu, yu, gu = d["XU"][u], d["YU"][u], d["GU"][u]
+    xs, lab, grps = [], [], []
+    for c in keep:
+        ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
+        n = min(len(ie), len(iu))
+        if n < 5:
+            continue
+        se = rng.choice(ie, n, replace=False)
+        su = rng.choice(iu, n, replace=False)
+        xs.append(Xe[se]); lab.append(np.ones(n)); grps.append(ge[se])
+        xs.append(Xu[su]); lab.append(np.zeros(n)); grps.append(gu[su])
+    if not xs:
+        return None
+    return np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
+
+
 def preserved_positions(d, session=None, combine="intersection"):
     """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
 
@@ -253,22 +309,11 @@ def looks_like_which(d, keep, seed=0):
     if pre_u.sum() < 30 or post_u.sum() < 20:
         return {"note": "too few no-lick trials to discriminate",
                 "n_pre_undetected": int(pre_u.sum()), "n_post_undetected": int(post_u.sum())}
-    Xe, ye, ge = d["XE"][pre_e], d["YE"][pre_e], d["GE"][pre_e]
-    Xu, yu, gu = d["XU"][pre_u], d["YU"][pre_u], d["GU"][pre_u]
-    xs, lab, grps = [], [], []
-    for c in keep:                      # position-balanced within each position
-        ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
-        n = min(len(ie), len(iu))
-        if n < 5:
-            continue
-        se = rng.choice(ie, n, replace=False)
-        su = rng.choice(iu, n, replace=False)
-        xs.append(Xe[se]); lab.append(np.ones(n)); grps.append(ge[se])
-        xs.append(Xu[su]); lab.append(np.zeros(n)); grps.append(gu[su])
-    if not xs:
+    sample = balanced_lick_sample(d, keep, rng)
+    if sample is None:
         return {"note": "no position had >=5 of both classes"}
-    X, y, grp = np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
-    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(X, y)
+    X, y, grp = sample
+    clf = lick_pipe().fit(X, y)
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
     # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
@@ -276,7 +321,7 @@ def looks_like_which(d, keep, seed=0):
     # this pipeline groups for that reason. Falls back to ungrouped only if the balanced training set
     # somehow spans fewer than two sessions, and says so in the output.
     def _mk():
-        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+        return lick_pipe()
 
     # BOTH estimates, because they answer different questions and the grouped one can be too coarse
     # here: GroupKFold holds out a whole SESSION, and with ~11 pre-stroke sessions a fold can lose an
@@ -303,8 +348,13 @@ def looks_like_which(d, keep, seed=0):
     # number means nothing.
     post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
     p_post_eng = float(clf.predict(d["XE"][post_e]).mean()) if post_e.sum() >= 20 else float("nan")
-    pre_e_held = float(clf.predict(Xe).mean())          # pre-stroke engaged, for scale
-    pre_u_held = float(clf.predict(Xu).mean())          # pre-stroke undetected, for scale
+    # ALL pre-stroke trials of each class, not the position-balanced training subsample -- these two
+    # are the scale the post-stroke rate is read against, so they must describe the population and
+    # not the sample the boundary was drawn from. (They were `Xe`/`Xu`, bound by the sampling loop
+    # that `balanced_lick_sample` replaced on 2026-08-28; caught by ruff F821, which is why that
+    # guard exists -- an undefined name here fails hours into a run, not at import.)
+    pre_e_held = float(clf.predict(d["XE"][pre_e]).mean())   # pre-stroke engaged, for scale
+    pre_u_held = float(clf.predict(d["XU"][pre_u]).mean())   # pre-stroke undetected, for scale
     gap = p_post_eng - p_post if np.isfinite(p_post_eng) else float("nan")
 
     # Interval on the CONTROL gap. It decides whether the headline number may be read at all, so a
@@ -354,23 +404,21 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     pre_u_all = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
 
     def balanced_fit(exclude_session=None):
-        """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session."""
-        e = pre_e_all & (d["GE"] != exclude_session if exclude_session is not None else True)
-        u = pre_u_all & (d["GU"] != exclude_session if exclude_session is not None else True)
-        Xe, ye = d["XE"][e], d["YE"][e]
-        Xu, yu = d["XU"][u], d["YU"][u]
-        xs, lab = [], []
-        for c in keep:
-            ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
-            n = min(len(ie), len(iu))
-            if n < 5:
-                continue
-            xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
-            xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
-        if not xs:
+        """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session.
+
+        ONE `rng` ACROSS EVERY CALL, deliberately preserved in the 2026-08-28 de-duplication: each
+        leave-one-out fold advances the generator, so the fits here are independent draws rather
+        than one sample reused, and the full-pool fit below is NOT the same sample that
+        `looks_like_which` and `undetected_state_split` take (each of those starts a fresh
+        RandomState(seed)). Making this deterministic per fold would be defensible and would move
+        published numbers, so it is a decision to take separately rather than a side effect of
+        removing duplication.
+        """
+        sample = balanced_lick_sample(d, keep, rng, exclude_session=exclude_session)
+        if sample is None:
             return None
-        X, y = np.vstack(xs), np.concatenate(lab)
-        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(X, y)
+        X, y, _grp = sample
+        return lick_pipe().fit(X, y)
 
     ref = {"engaged": {}, "nolick": {}}
     for i in sorted(d["pre_i"]):
@@ -740,21 +788,17 @@ def undetected_state_split(d, keep, args, seed=0):
     base = looks_like_which(d, keep, seed=seed)
     if "post_undetected_frac_classified_ENGAGED_like" not in base:
         return base
+    # A FRESH RandomState(seed), so this is the SAME sample `looks_like_which` drew a few lines
+    # above -- the two really are one model, refitted, and the de-duplication preserves that.
     rng = np.random.RandomState(seed)
-    pre_e = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
-    pre_u = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
-    Xe, ye = d["XE"][pre_e], d["YE"][pre_e]
-    Xu, yu = d["XU"][pre_u], d["YU"][pre_u]
-    xs, lab = [], []
-    for c in keep:
-        ie, iu = np.flatnonzero(ye == c), np.flatnonzero(yu == c)
-        n = min(len(ie), len(iu))
-        if n < 5:
-            continue
-        xs.append(Xe[rng.choice(ie, n, replace=False)]); lab.append(np.ones(n))
-        xs.append(Xu[rng.choice(iu, n, replace=False)]); lab.append(np.zeros(n))
-    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5)).fit(
-        np.vstack(xs), np.concatenate(lab))
+    sample = balanced_lick_sample(d, keep, rng)
+    if sample is None:
+        # The old code called np.vstack([]) here and raised. It survived only because
+        # `looks_like_which` returns early on the same condition and its result is checked above --
+        # a guard held in place by a caller rather than by this function.
+        return dict(base, split={"note": "no position had >=5 of both classes"})
+    X, y, _grp = sample
+    clf = lick_pipe().fit(X, y)
 
     state, cats = nolick_state_vector(d["kept"], args)
     out = dict(base)
