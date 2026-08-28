@@ -341,6 +341,7 @@ def main():
                 _loso_fig,
                 pooled_frozen_encoder,
                 pooled_frozen_loso,
+                write_animal_confusion_grid,
                 write_session_confusions,
             )
             # ALL THREE alignments. post-cue is the readout during/after the movement; PRE-CUE is the
@@ -373,6 +374,7 @@ def main():
                         enc[a] = e
                 if dec:
                     n = len(write_session_confusions(dec, Path(out)))
+                    write_animal_confusion_grid(dec, Path(out), align=al)
                     _loso_fig(dec, Path(out), al)
                     # PERSIST the numbers, not just the pictures. Only the standalone
                     # `locanmf_frozen_decoder --loso` CLI used to write these, so the nightly left

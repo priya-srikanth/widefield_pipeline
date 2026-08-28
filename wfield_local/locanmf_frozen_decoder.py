@@ -874,6 +874,7 @@ def main() -> int:
             (args.output / f"locanmf_frozen_decoder_loso_roi_{args.align}.json").write_text(
                 json.dumps(results, indent=2, default=float))
             n = len(write_session_confusions(results, args.output))
+            write_animal_confusion_grid(results, args.output, align=args.align)
             print(f"\nwrote {n} per-held-out-day confusion figure(s)", flush=True)
             print("wrote", _loso_fig(results, args.output, args.align), flush=True)
         # frozen ENCODER over the same pooled sessions (position -> activity, applied to an unseen day)
@@ -899,3 +900,87 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
+
+
+#: Two-character position labels for dense axes. c = close, f = far; L/C/R = left/centre/right.
+#: A 6-column matrix drawn at ~1.5in cannot carry "close_center"; it can carry "cC".
+POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
+             "far_L": "fL", "far_center": "fC", "far_R": "fR"}
+
+
+def write_animal_confusion_grid(results, out, basis="roi", align="cue"):
+    """ONE figure per animal: every held-out day's frozen confusion, side by side.
+
+    WHY (Priya, 2026-08-28: "can we make those figures smaller to fit figures for one animal on the
+    slides"). `write_session_confusions` writes one PNG per day, sized for four to a slide, so an
+    animal with 18 sessions took five slides per alignment per basis -- 155 slides in section D --
+    and a reader comparing day 1 with day 12 had to page between them. The whole point of a frozen
+    decoder is the TRAJECTORY across days, and the trajectory was the one thing the layout hid.
+
+    WHAT IS DROPPED, deliberately: the per-position recall bar (it has its own summary figure) and
+    the in-cell numbers. At ~1.5in a panel cannot carry a 6x6 grid of two-decimal numbers, and a
+    number too small to read is worse than none -- it competes with the colour that IS readable.
+    Position labels use `POS_SHORT` for the same reason, and are drawn only on the edge panels.
+
+    PRE- AND POST-STROKE ARE MARKED, because the transition is what the reader is looking for and
+    the dates alone do not show it -- 8/17 is post-stroke for PS94 and PS95 and excluded for
+    PS92 and PS93.
+    """
+    from matplotlib.lines import Line2D
+
+    bname = BASIS_NAME.get(basis, basis)
+    short = [POS_SHORT.get(POSITION_NAMES[c], POSITION_NAMES[c]) for c in DISPLAY_ORDER]
+    written = []
+    for an, r in results.items():
+        labs = [x for x in r.get("labels", []) if x in (r.get("confusion") or {})]
+        if not labs:
+            continue
+        ncol = min(6, len(labs))
+        nrow = (len(labs) + ncol - 1) // ncol
+        fig, axes = plt.subplots(nrow, ncol, figsize=(2.05 * ncol, 2.35 * nrow), squeeze=False)
+        pre = set(r.get("pre_labels") or [])
+        for k, lab in enumerate(labs):
+            ax = axes[k // ncol][k % ncol]
+            cm = np.asarray(r["confusion"][lab], dtype=float)
+            row = cm.sum(1, keepdims=True)
+            cmn = np.divide(cm, row, out=np.zeros_like(cm), where=row > 0)
+            im = ax.imshow(cmn, vmin=0, vmax=1, cmap="magma")
+            acc = r["per_session"].get(lab, float("nan"))
+            is_pre = lab in pre
+            ax.set_title(f"{lab.split('_')[-1]}  {acc:.2f}", fontsize=9,
+                         color="k" if is_pre else "firebrick",
+                         fontweight="normal" if is_pre else "bold")
+            # EDGE PANELS ONLY. Six labels on every panel would triple the ink and halve the maps.
+            # X LABELS GO ON THE LAST PANEL IN EACH COLUMN, not on the last ROW: the final row is
+            # partially filled whenever the session count is not a multiple of ncol, so "row ==
+            # nrow-1" left five of six columns with no x axis at all.
+            ax.set_xticks(range(len(short)))
+            ax.set_xticklabels(short if k + ncol >= len(labs) else [], rotation=90, fontsize=7.5)
+            ax.set_yticks(range(len(short)))
+            ax.set_yticklabels(short if k % ncol == 0 else [], fontsize=7.5)
+            ax.tick_params(length=2, pad=1)
+        for k in range(len(labs), nrow * ncol):
+            axes[k // ncol][k % ncol].axis("off")
+        n_post = len(labs) - sum(1 for x in labs if x in pre)
+        fig.suptitle(
+            f"{an} — FROZEN {bname} decoder, {align}: every held-out day\n"
+            f"rows = TRUE position, columns = predicted; the number beside each date is that day's "
+            f"held-out accuracy. {len(labs) - n_post} pre-stroke (black) / {n_post} post-stroke (red)",
+            fontsize=10)
+        fig.legend(handles=[Line2D([], [], color="k", lw=0, marker="s", markersize=0,
+                                   label="training was PRE-STROKE ONLY")],
+                   loc="lower right", fontsize=7, frameon=False)
+        fig.tight_layout(rect=(0, 0, 0.93, 0.90))
+        # THE COLOUR BAR IS ADDED AFTER THE LAYOUT IS FINAL, in its own axes. Created before
+        # `tight_layout` with `ax=axes`, it does not move when the panels do -- it was drawn as a
+        # vertical bar straight across the sixth column, hiding two dates. The other window hit the
+        # identical fault on figure 8b on 2026-08-27; same cause, same fix.
+        cax = fig.add_axes([0.945, 0.28, 0.011, 0.42])
+        cb = fig.colorbar(im, cax=cax)
+        cb.set_label("P(predicted | true)", fontsize=8)
+        cb.ax.tick_params(labelsize=7)
+        p = Path(out) / f"locanmf_frozen_grid_{an}_{basis}_{align}.png"
+        fig.savefig(p, dpi=170)
+        plt.close(fig)
+        written.append(p)
+    return written

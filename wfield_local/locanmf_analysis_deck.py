@@ -1893,8 +1893,32 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             # the pre-cue arm inherits the zero-phase-filter inflation; the post-cue arm does not
             cav = M_PRECUE_CAVEAT if al == "precue" else ""
             warn = ""
+            # ONE SLIDE PER ANIMAL (Priya, 2026-08-28: "can we make those figures smaller to fit
+            # figures for one animal on the slides"). Four-to-a-slide meant five slides per animal
+            # per alignment per basis -- 155 in section D -- and a reader comparing day 1 with day 12
+            # had to page between them. The whole point of a frozen decoder is the TRAJECTORY across
+            # days, and the layout hid exactly that.
+            #
+            # `write_animal_confusion_grid` draws every held-out day as one small matrix with
+            # `POS_SHORT` tick labels on the edge panels only, post-stroke dates in red. It drops the
+            # recall bars (they have their own summary figure below) and the in-cell numbers, which
+            # at ~1.5in are too small to read and compete with the colour that is not.
+            #
+            # The per-day figures are still written and still reachable; they are simply no longer
+            # the thing 155 slides are spent on.
             for a in animals:
-                for page in pages:
+                _g = src / f"locanmf_frozen_grid_{a}_{bkey}_{al}.png"
+                if _exists(_g):
+                    s = slide()
+                    title(s, f"{a} — FROZEN cross-day decoder, {al_name}, every held-out day "
+                             f"({bname}){warn}",
+                          f"One matrix per date, rows = TRUE position. The number beside each date "
+                          f"is that day's held-out accuracy; POST-STROKE dates are red. Trained on "
+                          f"this animal's PRE-STROKE days only. {al_desc}.")
+                    note(s, m_dec + cav, specific=S_FROZEN_SESS)
+                    big(s, _g, top=1.7, width=12.9)
+                    continue
+                for page in pages:                      # fallback: the per-day figures, 4 to a slide
                     span = f"{page[0][1]}–{page[-1][1]}" if len(page) > 1 else page[0][1]
                     suffix = f"  ({span})" if len(pages) > 1 else ""
                     s = slide()

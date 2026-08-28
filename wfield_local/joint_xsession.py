@@ -80,6 +80,7 @@ from wfield_local.locanmf_frozen_decoder import (
     _loso_fig,
     pooled_frozen_encoder,
     pooled_frozen_loso,
+    write_animal_confusion_grid,
     write_session_confusions,
 )
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
@@ -239,6 +240,7 @@ def main(argv=None) -> int:
             (args.output / f"joint_xsession_decoder_{align}.json").write_text(
                 json.dumps(dec, indent=2, default=float))
             n = len(write_session_confusions(dec, args.output, basis=BASIS))
+            write_animal_confusion_grid(dec, args.output, basis=BASIS, align=align)
             print("wrote", _loso_fig(dec, args.output, align, basis=BASIS).name,
                   f"and {n} per-day confusion figure(s)", flush=True)
         if enc:
