@@ -356,8 +356,13 @@ def main():
                 for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
                     if only and a not in set(only):
                         continue
-                    labs = [s["label"] for s in SESSIONS
-                            if s["label"].startswith(a) and s["label"][-4:] in set(from_list)]
+                    # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
+                    # list and cannot express "8/17 is post-stroke for PS94 and PS95 but excluded for
+                    # PS92 and PS93", so it carried PS92_0817 and PS93_0817 -- a post-lesion attempt
+                    # that is neither phase. `pooled_frozen_loso` calls everything not pre-stroke
+                    # "post", so those two were being scored by the frozen decoder and REPORTED as
+                    # post-stroke days. See config.pooled_labels.
+                    labs = [x for x in config.pooled_labels(a) if x[-4:] in set(from_list)]
                     if len(labs) < 2:
                         continue
                     r = pooled_frozen_loso(labs, source="roi", align=al, verbose=False)

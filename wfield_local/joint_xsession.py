@@ -219,8 +219,9 @@ def main(argv=None) -> int:
     for align in args.align:
         dec, enc, health = {}, {}, {}
         for an in animals:
-            labs = [s["label"] for s in SESSIONS
-                    if s["label"].startswith(an) and s["label"][-4:] in dates]
+            # POOLED = pre + post, never the raw date list: PS92/PS93 0817 is a post-lesion attempt
+            # that `session_phase` calls 'excluded', and a date list cannot express a per-animal phase.
+            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
             if len(labs) < 2:
                 print(f"[joint_xsession] {an}: <2 curated sessions -> skipped", flush=True)
                 continue

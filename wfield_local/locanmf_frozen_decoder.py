@@ -860,8 +860,9 @@ def main() -> int:
         animals = args.animals or list(config.animals())
         results = {}
         for an in animals:
-            labs = [s["label"] for s in SESSIONS
-                    if s["label"].startswith(an) and s["label"][-4:] in dates]
+            # See config.pooled_labels: the raw date list carries PS92/PS93 0817, which pooled_frozen_loso
+            # would then score and REPORT as a post-stroke day.
+            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
             if len(labs) < 2:
                 print(f"[loso] {an}: <2 curated sessions -> skipped", flush=True)
                 continue
@@ -878,8 +879,7 @@ def main() -> int:
         # frozen ENCODER over the same pooled sessions (position -> activity, applied to an unseen day)
         enc = {}
         for an in animals:
-            labs = [s["label"] for s in SESSIONS
-                    if s["label"].startswith(an) and s["label"][-4:] in dates]
+            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]   # see config.pooled_labels
             if len(labs) < 2:
                 continue
             print(f"\n=== {an}: frozen ENCODER ===", flush=True)

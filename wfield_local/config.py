@@ -300,6 +300,32 @@ def phase_labels(phase: str = "pre", machine: str | None = None) -> list[str]:
     return sorted(out)
 
 
+def pooled_labels(animal: str | None = None, machine: str | None = None) -> list[str]:
+    """Labels for a POOLED cross-session analysis: pre-stroke plus post-stroke, nothing else.
+
+    THE POINT IS WHAT IT LEAVES OUT (Priya, 2026-08-28). PS92_0817 and PS93_0817 are a post-lesion
+    ATTEMPT — neither a true pre-stroke day nor a true post-stroke one — and `session_phase` already
+    returns ``'excluded'`` for them. But the pooled analyses were building their label list from
+    ``curated_dates(phase="all")``, a cohort-wide DATE list that cannot express "8/17 is post-stroke
+    for PS94 and PS95 but excluded for PS92 and PS93". So the pool carried 74 labels where the phases
+    carry 72.
+
+    That is not merely untidy. `pooled_frozen_loso` defines ``post_i`` as "every session that is not
+    pre-stroke", so an excluded session did not sit inertly in the pool — it was scored by the frozen
+    decoder and REPORTED as a post-stroke day, in `per_session`, in `post_labels`, and in every
+    figure built from them. And for ROI features `_align_many` intersects region×bin columns across
+    the whole pool, so one extra session can shrink `n_features` for every other session too.
+
+    Three call sites built this list independently and identically wrongly (`nightly_figs`,
+    `joint_xsession`, the `--loso` CLI), which is the argument for it living here: a pool definition
+    duplicated three times is a pool definition that will diverge.
+    """
+    labs = phase_labels("pre", machine) + phase_labels("post", machine)
+    if animal:
+        labs = [x for x in labs if animal_of(x) == animal]
+    return sorted(labs)
+
+
 def animal_color() -> dict:
     """Per-animal matplotlib color (single source of truth for figure coloring)."""
     return {a: v.get("color", "k") for a, v in animals().items()}
