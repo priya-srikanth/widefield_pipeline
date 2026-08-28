@@ -594,6 +594,112 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
         vmin=vmin, vmax=vmax, unit=unit, coverage=cov, subtitle=sub, delta=True)
 
 
+
+
+# --------------------------------------------------------- the per-day scalar families
+
+def _fig_8g(out_dir, align, variant, wname):
+    """8g pooled: per-position RDM row correlation against the pre-stroke geometry, by epoch.
+
+    `_rdm_rows` gives ``{animal: {"PRE"|day: (per-position row r, whole r, n)}}`` -- one number per
+    position per day, which is a bar figure once grouped.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local.grant_figures import CONF_LABELS
+
+    rows, _days = G._rdm_rows(align, variant)
+    if not rows:
+        return None
+    short = dict(zip(CONF_LABELS, _short_labels()))
+    idx = {short[q]: i for i, q in enumerate(CONF_LABELS)}
+
+    def value_of(payload, key):
+        try:
+            per = payload[0]
+            v = per.get(key) if isinstance(per, dict) else per[idx[key]]
+        except Exception:                                              # noqa: BLE001
+            return None
+        return None if v is None else float(v)
+
+    values, points = ef.scalar_by_epoch(rows, value_of, keys=_short_labels())
+    if not values:
+        return None
+    return ef.bar_row(
+        values, out_dir, name=f"epoch_8g_geometry_by_position_{align}_{variant}",
+        title=f"Per-position RDM row correlation with the pre-stroke geometry -- {wname}",
+        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
+        ylabel="row correlation", positions=_short_labels(), tick_labels=_minor(),
+        groups=_groups(), points=points, counts=_totals(_session_counts()),
+        ylim=(-0.2, 1.06))
+
+
+def _fig_10(out_dir, align, variant, wname):
+    """10 pooled: best-match accuracy and mean rank of the correct position, by epoch."""
+    from wfield_local import grant_figures as G
+
+    tables, _days = G._match_tables(align, variant)
+    if not tables:
+        return None
+    by = {an: dict(per_day) for an, (_pre, _post, per_day) in tables.items()}
+    made = []
+    for key, i, lab, ylim in (("acc", 0, "best-match accuracy", (0.0, 1.06)),
+                              ("rank", 1, "mean rank of the correct position", (0.0, 6.2))):
+        values, points = ef.scalar_by_epoch(
+            by, lambda p, _k, i=i: (None if p is None else float(p[i])), keys=[lab])
+        if not values:
+            continue
+        p = ef.bar_row(
+            values, out_dir, name=f"epoch_10_best_match_{key}_{align}_{variant}",
+            title=f"Best-match {key} against the pre-stroke patterns -- {wname}",
+            subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
+            ylabel=lab, positions=[lab], points=points,
+            counts=_totals(_session_counts()), ylim=ylim)
+        if p:
+            made.append(p)
+    return made[0] if made else None
+
+
+def _fig_11(out_dir, align, variant, wname):
+    """11 pooled: the encoder's gain and shape terms, by epoch.
+
+    `_enc_tables` gives ``{animal: {"PRE"|day: (raw, a, gain, per-position)}}``. `raw` and `gain`
+    are the two scalars the per-animal figure plots against day; here they become two bars each.
+    """
+    from wfield_local import grant_figures as G
+
+    tab, _days = G._enc_tables(align, variant)
+    if not tab:
+        return None
+    LABELS = ["raw", "gain"]
+    take = {"raw": 0, "gain": 2}
+
+    def value_of(payload, key):
+        try:
+            v = payload[take[key]]
+        except Exception:                                              # noqa: BLE001
+            return None
+        return None if v is None else float(v)
+
+    values, points = ef.scalar_by_epoch(tab, value_of, keys=LABELS)
+    if not values:
+        return None
+    return ef.bar_row(
+        values, out_dir, name=f"epoch_11_encoder_gain_shape_{align}_{variant}",
+        title=f"Encoder explained variance and gain -- {wname}",
+        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
+        ylabel="value", positions=LABELS, points=points,
+        counts=_totals(_session_counts()), ylim=(0.0, 1.30))
+
+
+#: Stated on every already-reduced family, because it is the one thing that separates them from
+#: the confusion figures: those pool by SUMMING raw counts (every trial once), these by AVERAGING
+#: one value per session (every session once). Same figure shape, different weighting.
+_MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced per session, so a "
+              "session is the unit and cannot be re-weighted by its trial count")
+
+SCALAR_FAMILIES = (("8g", _fig_8g), ("10", _fig_10), ("11", _fig_11))
+
+
 # ------------------------------------------------------------------------------ the driver
 
 def _epoch_arm(align, variant):
@@ -625,12 +731,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "mat"))
+                    choices=("1b", "1c", "acc", "5c", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "mat"))
+    want = set(args.only or ("1b", "1c", "acc", "5c", "mat", "scal"))
 
     if "1b" in want:
         try:
@@ -643,8 +749,13 @@ def main(argv=None) -> int:
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 1c: {type(ex).__name__} {str(ex)[:160]}", flush=True)
 
+    #: The per-arm keys. DERIVED, not written out again: the guard below skips the whole arm loop
+    #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
+    #: broke out of the loop immediately and produced NOTHING, with no error and no report --
+    #: an empty output directory and exit 0.
+    ARM_KEYS = {"acc", "5c", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
-        if not (want & {"acc", "5c"}):
+        if not (want & ARM_KEYS):
             break
         try:
             per_animal = _epoch_arm(align, variant)
@@ -674,6 +785,13 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
+        if "scal" in want:
+            for key, fn in SCALAR_FAMILIES:
+                try:
+                    _report(f"{key} {align}/{variant}", fn(out, align, variant, wname))
+                except Exception as ex:                                # noqa: BLE001
+                    print(f"  !! {key} {align}/{variant}: {type(ex).__name__} "
+                          f"{str(ex)[:160]}", flush=True)
         if "mat" in want:
             for key, collector, unit, cmap, scale, stem in MATRIX_FAMILIES:
                 try:

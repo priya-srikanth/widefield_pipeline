@@ -1259,3 +1259,42 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
     fig.savefig(q_, dpi=200)
     plt.close(fig)
     return q_
+
+
+def scalar_by_epoch(by_animal_day, value_of, *, keys=None):
+    """``({epoch: {key: value}}, {epoch: {key: [(animal, value), ...]}})`` for a per-day scalar.
+
+    The bar-figure counterpart of `mean_matrix_by_epoch`, for the collectors that return one
+    NUMBER (or one number per position) per day rather than a matrix: `_rdm_rows`, `_match_tables`
+    and `_enc_tables` between them cover figures 8g, 10, 10b and 11.
+
+    ``by_animal_day`` is ``{animal: {"PRE"|day: payload}}`` and ``value_of(payload, key)`` pulls the
+    scalar out, returning None where the key is absent. ``keys`` names what the x axis carries --
+    the six positions for a per-position figure, or a single pseudo-key for a scalar one.
+
+    A MEAN OVER SESSIONS, like the matrices and for the same reason: these payloads are already
+    reduced, so a session is the unit. The per-session values come back alongside so the caller can
+    draw the dots from the SAME numbers the bar averages, rather than a second pass that could
+    disagree with it.
+    """
+    keys = list(keys or ["value"])
+    values = {e: {} for e in PANELS}
+    points = {e: {k: [] for k in keys} for e in PANELS}
+    for an, by in sorted(by_animal_day.items()):
+        for day, payload in by.items():
+            e = "pre" if day == "PRE" else epoch_of_day(an, int(day))
+            if e not in values:
+                continue
+            for k in keys:
+                v = value_of(payload, k)
+                if v is not None and np.isfinite(v):
+                    points[e][k].append((an, float(v)))
+    for e in list(values):
+        for k in keys:
+            got = [v for _a, v in points[e][k]]
+            if got:
+                values[e][k] = float(np.mean(got))
+        if not values[e]:
+            values.pop(e)
+            points.pop(e, None)
+    return values, points

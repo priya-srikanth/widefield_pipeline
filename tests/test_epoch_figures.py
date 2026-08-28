@@ -426,3 +426,21 @@ def test_no_session_in_one_arm_does_not_crash_the_contrast():
            "PS94": (_rec(rng, 20, 6, 0.9), {1: _rec(rng, 20, 6, 0.5)})}
     got = ef.contrast_ci(per, "acute", "pre", _acc, rng=np.random.default_rng(6), n_boot=120)
     assert got is not None and got[1] < got[0] < got[2]
+
+
+def test_every_per_arm_key_reaches_the_arm_loop():
+    """`--only mat` and `--only scal` must not silently produce nothing.
+
+    The arm loop is skipped entirely when none of its keys is wanted, and that guard listed only
+    two of the four. `--only scal` therefore broke out immediately: empty output directory, exit 0,
+    no error and no report. A completeness count cannot see this -- there is nothing to count.
+    """
+    import inspect
+
+    from wfield_local import epoch_grant_figures as eg
+
+    src = inspect.getsource(eg.main)
+    keys = set(eg.MATRIX_FAMILIES and ["mat"]) | {"scal", "acc", "5c"}
+    assert "ARM_KEYS" in src, "the arm-loop guard should be one named set, not a repeated literal"
+    for k in keys:
+        assert f'"{k}"' in src, f"{k} is not reachable from main()"
