@@ -19,10 +19,22 @@ ROI features deliberately: they read the adopted `meegkit_hpfit` SVTcorr already
 LocaNMF refit and sits in the same basis the decoder sub-binning was measured in.
 
     python -m wfield_local.encoder_bins_test [--bins 1 4 8] [--align lick] [--from 0607,0806,0810,0811]
+
+THE ENGAGED CUT COMES FROM CONFIG (`decode.max_rt_s`), not from a literal here. It was hardcoded to
+2.0 s while the config moved to 3.5 s on 2026-08-21 -- the task's REAL response window, read per
+session from `gui_config.json` -- so this module was filing a lick at 2.5 s as "no lick" when it is a
+REWARDED HIT the task scored, and "engaged" meant one thing here and another in the analysis this is a
+diagnostic FOR. A sweep is internally consistent at either cut, which is exactly why it could drift
+unnoticed; what it cannot survive is being quoted against a headline computed at the other one.
+
+EVERY NUMBER RECORDED FOR THIS MODULE IN DECISIONS WAS MEASURED AT 2.0 s and is pre-change until
+re-measured. The cut actually used is printed at run time, so a result can never be read without it.
 """
 from __future__ import annotations
 
 import argparse
+
+from wfield_local import config
 
 import numpy as np
 from sklearn.linear_model import Ridge
@@ -32,6 +44,26 @@ from wfield_local.locanmf_frozen_decoder import _ceiling
 from wfield_local.locanmf_position_decoder import _build_signal, _trial_features
 
 ALPHA = 1.0
+
+
+
+_ANNOUNCED = False
+
+
+def _max_rt() -> float:
+    """The engaged cut, from `decode.max_rt_s`, announced once so a result carries its own boundary.
+
+    Announced rather than merely read: this module's recorded numbers were measured at 2.0 s, and a
+    silent change of boundary is how a diagnostic and the headline it is a diagnostic FOR come to
+    disagree without either looking wrong.
+    """
+    global _ANNOUNCED
+    v = float(config.defaults()["decode"]["max_rt_s"])
+    if not _ANNOUNCED:
+        print(f"[{__name__.rsplit('.', 1)[-1]}] engaged cut = {v:g}s (decode.max_rt_s). Numbers "
+              f"recorded in DECISIONS for this module were measured at 2.0s.", flush=True)
+        _ANNOUNCED = True
+    return v
 
 
 def ceiling_eta2(X, y):
@@ -120,7 +152,7 @@ def ceiling_splithalf(X, y, n_splits=50, seed=0):
 def _args(align, post_s, bins):
     from types import SimpleNamespace
     return SimpleNamespace(source="roi", align=align, baseline="none", pre_s=1.0,
-                           post_s=post_s, fs=31.23, max_rt=2.0, bins=bins)
+                           post_s=post_s, fs=31.23, max_rt=_max_rt(), bins=bins)
 
 
 def encoder_scores(X, y, g, alpha=ALPHA):

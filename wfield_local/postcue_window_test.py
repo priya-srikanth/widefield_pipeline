@@ -35,9 +35,36 @@ from wfield_local.precue_significance import FS, _cv_predict
 WINDOWS = [2.0, 2.5, 3.0, 3.5]
 
 
+
+_ANNOUNCED = False
+
+
+def _max_rt() -> float:
+    """The engaged cut, from `decode.max_rt_s`, announced once so a result carries its own boundary.
+
+    FOUND 2026-08-28 by `tests/test_engaged_cut_comes_from_config.py`, which walks the AST rather
+    than grepping -- the by-hand survey that listed the other three sweeps missed this one entirely.
+    Same defect: the cut was pinned at 2.0 s while `decode.max_rt_s` moved to 3.5 s on 2026-08-21,
+    so a lick at 2.5 s was filed as "no lick" when the task scored it as a REWARDED HIT.
+
+    Especially wrong HERE. This module sweeps the post-cue WINDOW over [2.0, 2.5, 3.0, 3.5] s, so at
+    a 2.0 s engaged cut the longer windows were being scored on trials selected by the shortest one
+    -- the window under test and the trials it was tested on disagreed by up to 1.5 s.
+
+    Numbers recorded for this module in DECISIONS were measured at the 2.0 s cut.
+    """
+    global _ANNOUNCED
+    v = float(config.defaults()["decode"]["max_rt_s"])
+    if not _ANNOUNCED:
+        print(f"[{__name__.rsplit('.', 1)[-1]}] engaged cut = {v:g}s (decode.max_rt_s). Numbers "
+              f"recorded in DECISIONS for this module were measured at 2.0s.", flush=True)
+        _ANNOUNCED = True
+    return v
+
+
 def one(s, sig, regs, post_s, align="cue"):
     args = SimpleNamespace(source="roi", align=align, baseline="none",
-                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=2.0)
+                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=_max_rt())
     X, y, g, _, _, _ = _trial_features(s, args, signal=sig, feat_region=regs)
     if len(y) < 60 or len(np.unique(y)) < len(DISPLAY_ORDER):
         return None

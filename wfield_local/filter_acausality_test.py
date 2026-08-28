@@ -28,6 +28,16 @@ survive every variant. PRE-CUE is the test:
     needs re-deriving from causally-filtered data.
 
 Anything in between is a mixture, and the causal number is then the honest size of the real effect.
+
+THE ENGAGED CUT COMES FROM CONFIG (`decode.max_rt_s`), not from a literal here. It was hardcoded to
+2.0 s while the config moved to 3.5 s on 2026-08-21 -- the task's REAL response window, read per
+session from `gui_config.json` -- so this module was filing a lick at 2.5 s as "no lick" when it is a
+REWARDED HIT the task scored, and "engaged" meant one thing here and another in the analysis this is a
+diagnostic FOR. A sweep is internally consistent at either cut, which is exactly why it could drift
+unnoticed; what it cannot survive is being quoted against a headline computed at the other one.
+
+EVERY NUMBER RECORDED FOR THIS MODULE IN DECISIONS WAS MEASURED AT 2.0 s and is pre-change until
+re-measured. The cut actually used is printed at run time, so a result can never be read without it.
 """
 from __future__ import annotations
 
@@ -42,11 +52,32 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
 
 FS, HP, LP, FUNC = 31.23, 0.1, 14.0, 1        # configs/defaults.yaml svd.*
+
+
+
+_ANNOUNCED = False
+
+
+def _max_rt() -> float:
+    """The engaged cut, from `decode.max_rt_s`, announced once so a result carries its own boundary.
+
+    Announced rather than merely read: this module's recorded numbers were measured at 2.0 s, and a
+    silent change of boundary is how a diagnostic and the headline it is a diagnostic FOR come to
+    disagree without either looking wrong.
+    """
+    global _ANNOUNCED
+    v = float(config.defaults()["decode"]["max_rt_s"])
+    if not _ANNOUNCED:
+        print(f"[{__name__.rsplit('.', 1)[-1]}] engaged cut = {v:g}s (decode.max_rt_s). Numbers "
+              f"recorded in DECISIONS for this module were measured at 2.0s.", flush=True)
+        _ANNOUNCED = True
+    return v
 
 
 def _hp(X, mode):
@@ -202,7 +233,7 @@ def roi_signal(allen_dir, SVTc):
 
 def decode(s, sig, regs, align):
     args = SimpleNamespace(source="roi", align=align, baseline="none",
-                           pre_s=1.0, post_s=2.0, fs=FS, max_rt=2.0)
+                           pre_s=1.0, post_s=2.0, fs=FS, max_rt=_max_rt())
     X, y, g, _, _, _ = _trial_features(s, args, signal=sig, feat_region=regs)
     ng = min(5, int(np.unique(g).size))
     if ng < 2 or len(np.unique(y)) < len(DISPLAY_ORDER):
@@ -377,8 +408,6 @@ def main(argv=None) -> int:
                          "and is the correct choice for a controlled comparison.")
     ap.add_argument("--output", default=None, help="write the per-session results JSON here")
     args = ap.parse_args(argv)
-
-    from wfield_local import config
     modes = args.modes.split(",")
     if args.sessions:
         labs = list(args.sessions)
