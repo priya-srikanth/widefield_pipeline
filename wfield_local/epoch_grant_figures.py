@@ -890,14 +890,85 @@ def _fig_11(out_dir, align, variant, wname):
         delta_title=f"Change from pre-stroke in encoder variance and gain -- {wname}")
 
 
+def _fig_9(out_dir, align, variant, wname):
+    """9 pooled: the per-position change in pattern similarity, by epoch.
+
+    THE ONE FAMILY THAT CARRIES ITS OWN BOOTSTRAP. Every other scalar family reads a collector and
+    is reduced by the time it arrives here; `_delta_cis(..., full=True)` computes the day-minus-pre
+    difference by resampling blocks within session, and returns a record per day holding the
+    interval and the median for the mean diagonal and for each position separately.
+
+    AND ITS VALUES ARE ALREADY DIFFERENCES, so there is no pre-stroke bar and no contrast against
+    one -- pre minus pre is zero by construction, and drawing it would invite a reader to compare
+    two real panels against a column of exact zeros. The question here is whether each epoch's
+    change differs from ZERO, so the mark tests the value's own interval rather than a contrast.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local.grant_figures import CONF_LABELS
+
+    cis = G._delta_cis(align, variant, 10, G._mats_pattern, "9", full=True)
+    if not cis:
+        return None
+    short = dict(zip(CONF_LABELS, _short_labels()))
+
+    def value_of(rec, key):
+        try:
+            v = (rec.get("pos") or {}).get(_inv_short[key])
+        except AttributeError:
+            return None
+        return None if not v else float(v[2])          # the median of the day's own draws
+
+    _inv_short = {short[q]: q for q in CONF_LABELS}
+    values, points = ef.scalar_by_epoch(cis, value_of, keys=_short_labels())
+    if not values:
+        return None
+
+    # MARKS TEST THE VALUE AGAINST ZERO, not against a pre bar there is no room for.
+    n_comp = sum(len(values[e]) for e in values)
+    marks, rows = {}, {}
+    for e in list(values):
+        marks[e], rows[e] = {}, {}
+        for k in list(values[e]):
+            got = ef.scalar_value_draws(
+                points, e, k, rng=np.random.default_rng(_seed_for("9", align, variant, f"{e}-{k}")),
+                n_boot=N_BOOT)
+            if got is None:
+                continue
+            point, draws = got
+            values[e][k] = ef.with_ci(got)
+            marks[e][k] = ef.contrast_marks(draws, n_comparisons=n_comp)
+            lo, hi = np.percentile(draws, [2.5, 97.5])
+            a = 0.05 / max(1, n_comp)
+            clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+            rows[e][k] = (point, float(lo), float(hi), float(clo), float(chi))
+
+    sub = ef.stats_line(_session_counts(), n_boot=N_BOOT, notes=[
+        _MEAN_NOTE,
+        "values are ALREADY day-minus-pre differences, so there is no pre-stroke bar; the mark "
+        "asks whether that epoch's change differs from zero"])
+    made = ef.bar_row(
+        values, out_dir, name=f"epoch_9_delta_trajectory_{align}_{variant}",
+        title=f"Change in own-position pattern similarity from pre-stroke -- {wname}",
+        subtitle=sub, marks=marks, ylabel="similarity - pre",
+        positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
+        counts=_totals(_session_counts()), ylim=(-0.65, 0.35))
+    if any(rows.values()):
+        ef.contrast_panel(
+            rows, out_dir, name=f"epoch_9ci_delta_trajectory_{align}_{variant}",
+            title=f"Change in own-position pattern similarity, with intervals -- {wname}",
+            subtitle=sub, ylabel="similarity - pre", positions=_short_labels(),
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+    return made
+
+
 #: Stated on every already-reduced family, because it is the one thing that separates them from
 #: the confusion figures: those pool by SUMMING raw counts (every trial once), these by AVERAGING
 #: one value per session (every session once). Same figure shape, different weighting.
 _MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced per session, so a "
               "session is the unit and cannot be re-weighted by its trial count")
 
-SCALAR_FAMILIES = (("8g", _fig_8g), ("10", _fig_10), ("10b", _fig_10b),
-                   ("11", _fig_11))
+SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),
+                   ("10b", _fig_10b), ("11", _fig_11))
 
 
 # ------------------------------------------------------------------------------ the driver

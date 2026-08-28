@@ -6228,3 +6228,83 @@ Three things bound the ceiling regardless:
   * **The deck and the publish are inherently serial**, and the stage graph has real edges — grant
     reads `section_g.json` and `coding_direction.json`, the deck reads everything. Those are
     seconds-to-minutes, so Amdahl's floor here is low, but it is not zero.
+
+---
+
+## 2026-08-28 (night) — Engagement judged at the SPARED positions, and the epoch figures' statistics
+
+### The behaviour gate was circular, and the repo had already said so
+
+`spout_behavior.flag_engagement` judged the trailing response rate over ALL positions. Post-stroke
+that rate collapses BECAUSE the animal cannot reach the far spouts, so it labelled motor failure as
+disengagement and then dropped those trials from the hit rate that was supposed to measure the
+deficit. `poststroke_compare.poststroke_engagement` has carried the warning since 2026-08-18 — *"THE
+PRE-STROKE GATE IS INVALID AFTER A LESION"* — and the behaviour figures had never been moved across.
+
+Measured: `flag_engagement` excluded **380 of PS94_0817's 643 trials**, the session named in
+`engagement_gate`'s own docstring as the one that must NOT be called disengaged (its reference rate
+dips near trial 420 and is back at 0.95 by 480). PS95_0817: 224 against 0.
+
+### The union, and why the restriction is the part that matters
+
+`reference_engagement` fires on EITHER a sustained collapse (`engagement_gate` called verbatim, not
+reimplemented) OR a terminal run of >= 6 non-responses — both counting only the REFERENCE positions
+`close_L` and `close_center`.
+
+The property that closes the circularity is not "terminal" versus "rolling", it is WHERE THE GATE
+LOOKS. Given the restriction, the non-recovery requirement was only making satiety detection slow: a
+rolling mean over a 15-trial reference window needs 8 misses to cross 0.5, and the tail arm catches
+the same satiety at six.
+
+| gate | excluded | far-contra hit (pre / acute / subacute) |
+|---|---|---|
+| old, all positions | 7181 (17.9%) | 0.963 / 0.063 / 0.817 |
+| imaging, reference non-recovering | 4043 (10.1%) | 0.946 / 0.053 / 0.759 |
+| **union, reference collapse OR tail** | **4274 (10.6%)** | 0.951 / 0.054 / 0.759 |
+
+### The imaging gate is unchanged, and that is deliberate
+
+Adopting the union in imaging would move **111 trials — 0.81% of the working class** — with 20 of 26
+post-stroke sessions unchanged, against re-deriving every published imaging number. The asymmetry is
+principled: imaging KEEPS its disengaged trials as `poststroke_stopped` and analyses them, while a
+behavioural hit rate wants them out of the denominator. Same invariant, different question. The
+residual is a ~0.5% disagreement between the two denominators, documented in the gate's docstring.
+
+### Statistics on the epoch figures
+
+Priya: session-level clustered by animal, then blocks nested within session; marks on the bars and
+intervals in a companion panel; N and n on every subtitle.
+
+- **Trial-level families** resample animals -> sessions -> blocks, with the animal draw SHARED
+  between epochs so the contrast is paired. **Per-session scalar families** resample animals ->
+  sessions and have no block level, because their collectors already reduced the trials away. Every
+  subtitle states which, so two adjacent panels cannot silently differ.
+- **Two-level marks**: `*` the 95% interval excludes zero, `**` it survives Bonferroni across every
+  comparison on the figure. Both, from ONE set of draws — so the corrected interval necessarily
+  contains the uncorrected one, which two separate bootstraps could not guarantee.
+- **Every bar carries its own CI** from that same resampling. Before this only figure 1b had
+  intervals at all, and they were Wilson over pooled trials: too narrow everywhere, and narrowest
+  exactly where the clustering is worst.
+- **Deltas are measured against PRE-STROKE**, not the previous epoch. `subacute - acute` answers
+  "did it recover from its worst point"; `subacute - pre` answers "has it returned to baseline".
+
+### Positions are named by anatomy, derived from the lesion
+
+near/far x ipsi/middle/contra (nI/nM/nC, fI/fM/fC), read from `stroke_laterality` rather than
+hardcoded. Every animal here is lesioned LEFT, so the rename needs no reflection of the position
+axis — and the data agrees rather than merely permitting it: the collapse is at far_R in all four. A
+mixed cohort RAISES, because a pooled figure keeping one label set would average ipsi with contra
+under a single name.
+
+### Three layout faults no automated check could see
+
+1. **A figure sized per panel count** renders type 25% smaller when the deck places it at a fixed
+   width. No overlap anywhere. Canvases are now always the placed size.
+2. **Text that runs off the canvas collides with nothing.** `_overlaps` compares artists to each
+   OTHER. `off_canvas` now reports what falls outside, in INCHES over — 0.02in is a nudge, 1.4in is
+   a different figure. A subtitle written for 6.2in overflowed a 2.58in canvas by 1.8in per side.
+3. **A rule drawn through tick labels** is a Line2D over text, which no text-vs-text check covers.
+
+Wrapping had to be ordered: the rotated y label is bounded by the AXES HEIGHT, which depends on the
+top band, which depends on how many lines the title and subtitle wrap to. Computing the label first
+and guessing the height left it 0.16in off the bottom.
