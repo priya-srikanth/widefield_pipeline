@@ -6077,3 +6077,87 @@ figure, which has not been true before today.
 - **The bootstrap cache is never pruned.** `session_cache` prunes superseded signatures because its
   key is a session; these are keyed by content, so a changed session leaves its old entry behind.
   Harmless but unbounded — it needs an age-based sweep.
+
+## 2026-08-28 (night) — The render defaults to parallel, and a figure stopped depending on core count
+
+### The default was serial, and only hand-run renders paid for it
+
+`grant_figures --jobs` defaulted to **1** while `nightly_figs` passed `--grant-jobs 8`. So the
+nightly was parallel and only DIRECT invocations were serial — and that is the shape of default
+that survives longest, because the path it penalises is the one a person runs by hand while
+watching it, and the automated path everyone checks looks healthy.
+
+**Measured, not estimated:** a full render invoked directly on 2026-08-28 took **6 h 35 m** on a
+24-core box, averaging ~1.5 cores. Task Manager read 7% throughout, which is one saturated core out
+of 24 (4.2%) plus background — the process was compute-bound the whole time and could not touch the
+other 23. `--jobs` now defaults to `max(1, min(8, cpu_count - 2))`, derived rather than hardcoded:
+this repo runs on an imaging box, an analysis box and a laptop, and 24 cores belongs to one of them.
+
+`nightly_figs --grant-jobs` now defaults to `None` and defers. It held a literal `8` while
+`grant_figures` held `1`; a repo that has already collapsed six copies of a decoder recipe and three
+of a lick discriminator does not need a fourth instance of the same lesson.
+
+**One trap worth recording.** The branch read `if args.jobs and args.jobs > 1`. A `None` default is
+falsy, so switching the default without touching the condition would have silently kept the serial
+render — the exact bug being fixed, now passing its own tests. The condition tests the RESOLVED
+count, and `tests/test_grant_render_is_parallel_by_default.py` pins that.
+
+### The figures depended on BLAS thread count, which is a property of the machine
+
+Verifying the parallel path against the serial one found all ten smoke figures differing. The
+obvious reading — a parallelism bug — was wrong. Three runs, same code, same data, `--only 5d
+--window cue --variant lick`:
+
+    parallel -j6, BLAS 2 threads    288,642 B   d0d2d0d8...
+    serial   -j1, BLAS 2 threads    288,642 B   d0d2d0d8...   identical to the parallel render
+    serial   -j1, BLAS uncapped     289,032 B   d29f5ecb...   differs
+
+**Same BLAS with different `-j` is byte-identical; same `-j` with different BLAS is not.** The fan-out
+was never the variable. BLAS sums in a different order per thread count, the last bits move, and a
+bootstrap CI lands a pixel elsewhere.
+
+`_run_parallel` capped BLAS per worker; the serial path capped nothing. So the render was
+machine-dependent (analysis box vs laptop) AND path-dependent (`--jobs 1` vs the default) — which is
+precisely the reproducibility `d084ede` set out to establish when it made the bootstrap seeds stable
+and per-day. **Stable seeds were necessary and not sufficient.**
+
+**The first fix did not work, and the test said it did.** Setting `OMP_NUM_THREADS` and friends
+inside `main()` changes nothing: OpenBLAS reads them when numpy is IMPORTED, and `main()` runs long
+after this module's own `import numpy`. `_run_parallel` gets away with exactly that code only
+because it SPAWNS — each worker imports numpy afresh with the variables already set. The serial path
+has no such boundary. The uncapped serial render still produced 289,032 B after the "fix", while a
+test asserting `_pin_blas` is *called* in `main()` passed — a structural check standing in for a
+behavioural one, which is the same substitution that let the too-loose section H glob through
+earlier the same night.
+
+`_pin_blas()` now uses `threadpoolctl.threadpool_limits`, which re-threads the ALREADY-LOADED
+library, and still sets the environment variables for the spawned workers. Verified: an uncapped
+environment, serial, now renders 288,642 B — byte-identical to the parallel render. A missing
+`threadpoolctl` is REPORTED rather than silently tolerated, because an unpinned render that looks
+identical to a pinned one is the state that made this hard to find.
+
+**What was fixed is the VARIABILITY, not the sensitivity.** The arithmetic is still
+thread-order-dependent; `BLAS_THREADS = 2` is a constant so that every run agrees, and it is not
+derived from `cpu_count` because deriving it would reintroduce the machine dependence it removes.
+Changing that constant will change the last pixels again.
+
+**Consequence, which should not be discovered later:** figures rendered from here on may differ in
+their last pixels from those currently on the server, which were drawn uncapped. Point estimates are
+unaffected; this is float-reduction noise in the CIs, not a change of result. It is the last step in
+making the render reproducible, and it is the reason the comparison was worth doing at all — the
+parallel default would otherwise have shipped a silent change of output alongside a change of speed.
+
+### Where the nightly's hours actually are now
+
+From the 8/26 full nightly (23:07:46 → 08:45:02, **9 h 37 m**, and that run did NOT include grant):
+
+    per-day + backfill              54 min
+    cross_mouse / rsa / lickfree   2 h 00 m
+    joint_xsession + frozen        2 h 27 m
+    POST-STROKE section G          3 h 45 m
+    position_coding_directions      31 min
+    deck                            31 s
+
+Parallelising grant turns a ~6.5 h stage into roughly an hour, inside a ~9.5 h remainder that is
+still entirely serial. **Section G, at 3 h 45 m, is now the largest stage in the nightly — larger
+than parallelised grant.** The next runtime change belongs there, not in the render.
