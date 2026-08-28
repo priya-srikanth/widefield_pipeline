@@ -1,4 +1,6 @@
 """Tests for the config loader (reads the real configs/*.yaml)."""
+import pytest
+
 from wfield_local import config
 
 

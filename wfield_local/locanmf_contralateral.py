@@ -67,6 +67,7 @@ def _gather_cue(args, name2lab):
     """Per-component per-position cue-triggered response, mean over 0..cue_window_s post-cue,
     computed fresh from C (pre-cue 1 s baseline-subtracted). Parallel to the lick version but
     cue-aligned over a longer (2 s) window."""
+    from wfield_local import config
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
     from wfield_local.plot_lick_aligned_averages import _event_frame_indices_from_pco

@@ -317,6 +317,22 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
+def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None):
+    """The frozen-decoder spec for one pooled set -- the identity `frozen_models` stores it under.
+
+    WHY THIS IS SEPARATE FROM `frozen_decoder_models`. `pooled_frozen_loso` needs the spec_id for its
+    `frozen_model_id` field but not the models, and the extraction on 2026-08-28 left it reading a
+    `spec` local that had moved into the callee -- a NameError that killed the [lick] alignment
+    mid-run. Rebuilding the spec by hand at the reporting site would have "fixed" that while
+    reintroducing the exact failure the freeze exists to prevent: a result naming an id that is not
+    the id its model was stored under. One builder, called with one argument set, cannot drift.
+    """
+    return frozen_models.make_spec(
+        config.animal_of(kept[0]), "decoder", align=align, source=source,
+        train_labels=[kept[i] for i in sorted(pre_i)], post_s=post_s, zscore=zscore,
+        basis_id=basis_id, n_features=int(XE.shape[1]))
+
+
 def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
                           basis_id=None, log=print):
     """The stored PRE-stroke position decoder for one pooled set: ``(models, status)``.
@@ -360,12 +376,10 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
                                               YE[np.isin(GE, [j for j in pre_i if j != i])])
                          for i in pre_i}}
 
-    spec = frozen_models.make_spec(
-        config.animal_of(kept[0]), "decoder", align=align, source=source,
-        train_labels=pre_labels_, post_s=post_s, zscore=zscore,
-        basis_id=basis_id, n_features=int(XE.shape[1]))
     return frozen_models.load_or_fit(
-        spec, _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
+        decoder_spec(XE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
+                     basis_id=basis_id),
+        _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
 
 
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
@@ -420,10 +434,11 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # PRE-stroke one mints a new model under a new id rather than moving this one. That is the
     # property whose absence let the contamination above happen: a model refitted every run has no
     # identity to interrogate, so "what were you trained on?" had no answer on disk.
-    pre_labels_ = [kept[i] for i in pre_i]
-    models, freeze_status = frozen_decoder_models(
-        XE, YE, GE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
-        basis_id=getattr(features, "basis_id", None))
+    # ONE argument set feeds both the models and the id, so the reported id cannot describe a
+    # different model than the one that produced the numbers.
+    _spec_kw = dict(align=align, source=source, post_s=post_s, zscore=zscore,
+                    basis_id=getattr(features, "basis_id", None))
+    models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, **_spec_kw)
 
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
@@ -456,7 +471,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
            "training_phase": "pre", "pre_labels": pre_labels,
            # WHICH STORED MODEL PRODUCED THIS. A result that names its model can be re-derived and
            # audited; one that does not is the state the contamination hid in.
-           "frozen_model_id": frozen_models.spec_id(spec), "frozen_status": freeze_status,
+           "frozen_model_id": frozen_models.spec_id(decoder_spec(XE, kept, pre_i, **_spec_kw)),
+           "frozen_status": freeze_status,
            "post_labels": [kept[i] for i in post_i],
            "n_pre_sessions": len(pre_i), "n_post_sessions": len(post_i),
            "mean_within": float(np.mean(within_pre)) if within_pre else float("nan"),
