@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import functools
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,7 +32,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut, cross_val_predict
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-from wfield_local import config, frozen_models, decode_ci
+from wfield_local import config, parallel, frozen_models, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local import config
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
@@ -878,6 +879,25 @@ def _transfer_matrix_fig(out):
     return p
 
 
+def _loso_one(an, *, align, dates):
+    """One animal's frozen LOSO decoder. Module level, so spawn can pickle it by name."""
+    labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
+    if len(labs) < 2:
+        print(f"[loso] {an}: <2 curated sessions -> skipped", flush=True)
+        return None
+    print(f"\n=== {an}: {len(labs)} curated sessions ===", flush=True)
+    return pooled_frozen_loso(labs, source="roi", align=align)
+
+
+def _encoder_one(an, *, align, dates):
+    """One animal's frozen encoder over the same pooled sessions."""
+    labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
+    if len(labs) < 2:
+        return None
+    print(f"\n=== {an}: frozen ENCODER ===", flush=True)
+    return pooled_frozen_encoder(labs, source="roi", align=align)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--save", action="store_true", help="fit + persist decoders for all baseline sessions to MICROSCOPE")
@@ -887,6 +907,9 @@ def main() -> int:
                          "(over the curated set) -> summary JSON + figure")
     ap.add_argument("--animals", nargs="+", default=None, help="animals for --loso (default: all in animals.yaml)")
     ap.add_argument("--align", default="cue", choices=("cue", "lick", "precue"), help="alignment for --loso")
+    ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
+                    help="animals in parallel (default cores-2 capped at 8 and at the cohort; "
+                         "1 for the serial path)")
     ap.add_argument("--output", type=Path, default=Path("."))
     args = ap.parse_args()
     labels = [s["label"] for s in SESSIONS if s["label"][-4:] in BASELINE_DAYS]
@@ -912,18 +935,19 @@ def main() -> int:
         # of. Pooling is feature alignment; it is not training.
         dates = set(config.curated_dates(phase="all"))
         animals = args.animals or list(config.animals())
+        # ONE PROCESS PER ANIMAL. `make_spec` keys on the animal, so no two workers can fit and
+        # write the same stored model -- the race that made (animal, tag) the wrong unit in
+        # `poststroke_section_g`. Measured 2026-08-28: the three alignments took 53 min serially,
+        # every minute of it on one core.
         results = {}
-        for an in animals:
-            # See config.pooled_labels: the raw date list carries PS92/PS93 0817, which pooled_frozen_loso
-            # would then score and REPORT as a post-stroke day.
-            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]
-            if len(labs) < 2:
-                print(f"[loso] {an}: <2 curated sessions -> skipped", flush=True)
-                continue
-            print(f"\n=== {an}: {len(labs)} curated sessions ===", flush=True)
-            r = pooled_frozen_loso(labs, source="roi", align=args.align)
-            if r:
-                results[an] = r
+        _dec, _fail = parallel.fan_out(
+            animals, functools.partial(_loso_one, align=args.align, dates=dates),
+            jobs=args.jobs, label="animal")
+        for _an, _r in _dec:
+            if _r:
+                results[_an] = _r
+        if _fail:
+            raise RuntimeError(f"frozen decoder failed for {[a for a, _ in _fail]}: {_fail[0][1]}")
         if results:
             (args.output / f"locanmf_frozen_decoder_loso_roi_{args.align}.json").write_text(
                 json.dumps(results, indent=2, default=float))
@@ -933,14 +957,14 @@ def main() -> int:
             print("wrote", _loso_fig(results, args.output, args.align), flush=True)
         # frozen ENCODER over the same pooled sessions (position -> activity, applied to an unseen day)
         enc = {}
-        for an in animals:
-            labs = [x for x in config.pooled_labels(an) if x[-4:] in dates]   # see config.pooled_labels
-            if len(labs) < 2:
-                continue
-            print(f"\n=== {an}: frozen ENCODER ===", flush=True)
-            r = pooled_frozen_encoder(labs, source="roi", align=args.align)
-            if r:
-                enc[an] = r
+        _e, _efail = parallel.fan_out(
+            animals, functools.partial(_encoder_one, align=args.align, dates=dates),
+            jobs=args.jobs, label="animal")
+        for _an, _r in _e:
+            if _r:
+                enc[_an] = _r
+        if _efail:
+            raise RuntimeError(f"frozen encoder failed for {[a for a, _ in _efail]}: {_efail[0][1]}")
         if enc:
             (args.output / f"locanmf_frozen_encoder_loso_roi_{args.align}.json").write_text(
                 json.dumps(enc, indent=2, default=float))

@@ -280,12 +280,31 @@ def _write(spec, payload, meta, log=print):
     d = local_dir() / spec["animal"] / _slug(spec)
     writeguard.assert_writable(d.parent)
     d.mkdir(parents=True, exist_ok=True)
-    tmp = d / f"model.{os.getpid()}.tmp"
-    joblib.dump(payload, tmp)
-    os.replace(tmp, d / "model.joblib")                  # atomic publish, as session_cache does
-    (d / "manifest.json").write_text(json.dumps(
-        {"spec": spec, "spec_id": spec_id(spec), "frozen_utc": dt.datetime.utcnow().isoformat(),
-         "meta": meta}, indent=2, default=str), encoding="utf-8")
+    # CONCURRENCY, since 2026-08-28: stages now fan out over animals and sessions, and two workers
+    # that both miss the same spec will both fit and both land here. `session_cache` solved this
+    # already and this is the same solution -- write to a PID-named temp, publish with `os.replace`,
+    # and treat a failed publish as "someone else already wrote the same bytes". The payload is a
+    # function of the spec, so their copy is equivalent to ours by construction.
+    #
+    # BOTH FILES, not just the model. `manifest.json` was a bare `write_text`: a reader arriving
+    # mid-write got a truncated file, and a manifest is what `find`/`listing` read to answer "what
+    # was this trained on" -- the question the freeze exists to make answerable.
+    man = json.dumps({"spec": spec, "spec_id": spec_id(spec),
+                      "frozen_utc": dt.datetime.utcnow().isoformat(), "meta": meta},
+                     indent=2, default=str)
+    for name, dump in (("model.joblib", lambda t: joblib.dump(payload, t)),
+                       ("manifest.json", lambda t: t.write_text(man, encoding="utf-8"))):
+        tmp = d / f"{name}.{os.getpid()}.tmp"
+        dump(tmp)
+        try:
+            os.replace(tmp, d / name)
+        except OSError:
+            # Windows refuses the replace while another process holds the destination open for
+            # reading. The destination is already correct; drop our copy rather than fail a run.
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
     log(f"[frozen] {spec['animal']} {_slug(spec)}: FROZEN on {len(spec['train_labels'])} "
         f"pre-stroke session(s)")
     return d

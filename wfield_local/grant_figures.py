@@ -5595,63 +5595,12 @@ def _render_unit(spec):
         return (tag, None, f"{type(ex).__name__} {str(ex)[:160]}")
 
 
-BLAS_THREADS = 2
-#: Pinned so a figure does not depend on how many cores drew it. MEASURED 2026-08-28: the same
-#: code and the same data, `--only 5d --window cue --variant lick`, rendered serially with BLAS
-#: uncapped (24 threads) and with BLAS at 2, gave DIFFERENT PNGs -- 289,032 B vs 288,642 B. The
-#: parallel render at -j6 matched the BLAS-2 serial one byte for byte, so parallelism was never
-#: the variable: thread count is. BLAS sums in a different order per thread count, the last bits
-#: move, and a bootstrap CI lands a pixel elsewhere.
-#:
-#: That made the render machine-dependent -- the analysis box and a laptop would disagree, and
-#: `--jobs 1` would disagree with the default -- which is the reproducibility d084ede set out to
-#: establish when it made the bootstrap seeds stable. Stable seeds are necessary and were not
-#: sufficient.
-
-
-def _pin_blas(threads: int = BLAS_THREADS):
-    """Fix BLAS threading for the CALLING process, and return a handle to restore it.
-
-    ENVIRONMENT VARIABLES ARE NOT ENOUGH HERE, which cost a wrong fix on 2026-08-28. OpenBLAS reads
-    OMP_NUM_THREADS when numpy is IMPORTED; `main()` runs long after this module's own
-    `import numpy`, so setting them there changes nothing. `_run_parallel` gets away with it only
-    because it sets them in the parent and then SPAWNS -- each worker imports numpy afresh with the
-    variables already set. The serial path has no such boundary and needs a runtime control.
-
-    `threadpoolctl` reaches into the loaded library and sets it live, which is the only thing that
-    works in-process. The env vars are still set, for the spawned workers.
-    """
-    import os as _os
-    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
-        _os.environ[var] = str(threads)
-    try:
-        import threadpoolctl
-    except ImportError:      # pragma: no cover - reported, never silently ignored
-        print(f"  !! threadpoolctl missing: BLAS stays at its import-time thread count, so this "
-              f"render is NOT reproducible against one that had it", flush=True)
-        return None
-    ctl = threadpoolctl.threadpool_limits(limits=threads, user_api="blas")
-    print(f"  BLAS pinned to {threads} thread(s)", flush=True)
-    return ctl
-
-
-def _default_jobs() -> int:
-    """Workers to use when the caller does not say -- PARALLEL, because serial is a bug now.
-
-    The default was 1 until 2026-08-28, and its cost was measured rather than guessed: a full render
-    invoked directly took 6 h 35 m on a 24-core box at ~1.5 cores. `nightly_figs` passed --jobs 8, so
-    the NIGHTLY was fine and only DIRECT invocations paid. That is the shape of default that goes
-    unnoticed longest, because the path it penalises is the one a person runs by hand while watching
-    it, and a default that is only right when someone remembers to override it is not a default.
-
-    Derived, not hardcoded: this repo runs on an imaging box, an analysis box and a laptop, and the
-    24-core figure belongs to one of them. `- 2` leaves the box usable while a render runs; the cap
-    of 8 holds peak RSS near 11 GB (workers measured ~1.4 GB each) and leaves room for the rest of
-    the nightly -- which is `nightly_figs`' own stated reason for having chosen 8.
-    """
-    import os as _os
-    return max(1, min(8, (_os.cpu_count() or 4) - 2))
+# Thread pinning and worker counts live in `wfield_local.parallel` now: `poststroke_section_g`,
+# `joint_xsession` and `locanmf_frozen_decoder` fan out too, and four copies of "how many workers,
+# how many BLAS threads, what happens when one dies" is how they drift. Re-exported under the old
+# names so this module's callers and tests are unaffected.
+from wfield_local.parallel import BLAS_THREADS, pin_blas as _pin_blas  # noqa: E402
+from wfield_local.parallel import default_jobs as _default_jobs        # noqa: E402
 
 
 def _run_parallel(units, out, n_jobs, threads_per_worker):

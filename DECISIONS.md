@@ -6161,3 +6161,70 @@ From the 8/26 full nightly (23:07:46 → 08:45:02, **9 h 37 m**, and that run di
 Parallelising grant turns a ~6.5 h stage into roughly an hour, inside a ~9.5 h remainder that is
 still entirely serial. **Section G, at 3 h 45 m, is now the largest stage in the nightly — larger
 than parallelised grant.** The next runtime change belongs there, not in the render.
+
+## 2026-08-28 (night, later) — Fanning the rest of the nightly out, and the two stores underneath it
+
+### `wfield_local/parallel.py`, because four stages were about to grow four pools
+
+`grant_figures` got a process pool and the stages around it did not, so the nightly was 9 h 37 m of
+which one stage was parallel. Adding a pool per stage would have put four copies of the same three
+decisions in the tree — how many workers, how many BLAS threads, what happens when a unit dies —
+and this repo has already had to collapse six copies of a decoder recipe, three of a lick
+discriminator and two of an engaged cut. The copies always agree at first.
+
+`default_jobs()`, `pin_blas()` and `fan_out()` live there; `grant_figures` re-exports the first two
+under its old private names so its tests and callers are untouched. **The caller still owns the
+UNIT**, which is a per-stage judgement and not a mechanical one.
+
+### Section G: the unit is the SESSION, reached in two phases
+
+Per-animal was the obvious unit and it is the wrong one: four animals is four workers, 8 of 24
+cores, with the cohort size as the cap. Per session is ~30 units and fills the box.
+
+**Phase 1 is serial and is not waste.** It pools each (animal, tag) once to learn `kept` and
+`post_i` — the indices the units are named by — and in doing so materialises the frozen decoder for
+that animal. `_pooled` returns an EMPTY `_frozen_cache` and loads the model lazily, so N workers on
+one animal would otherwise all miss, all fit, and all write the same stored model.
+
+**The bundles are not pickled across the process boundary.** `XE` is thousands of trials by hundreds
+of features; shipping three of those to each of ~30 workers costs more than the analysis. Workers
+re-read from `session_cache` instead.
+
+### Both shared stores were audited before widening anything
+
+`session_cache.cached` was already safe: PID-named temp, `os.replace` to publish, and an explicit
+Windows branch for a destination held open by a reader — two processes computing one entry is
+wasteful, not wrong, because the signature is a function of the inputs.
+
+`frozen_models._write` was **not**, and this is why the pre-warm above exists rather than being
+belt-and-braces. `model.joblib` was published atomically but its `os.replace` was unguarded, so on
+Windows a concurrent reader could make it RAISE and kill a worker; `manifest.json` was a bare
+`write_text`, so a reader arriving mid-write got a truncated file — and the manifest is what answers
+"what was this trained on", the question the freeze exists to make answerable. Both files now follow
+the `session_cache` pattern.
+
+### Measured, because the profile was not what it looked like
+
+Section G at 55% of one core and **687 MB read per 15 s** looks I/O-bound, and session-level units
+multiply those reads about fivefold. That would be disqualifying on a network path. It is not one:
+`E:` is a second partition of the box's only physical disk, a 954 GB NVMe, so ~370 MB/s aggregate
+across eight workers has ample headroom. **The alarm was raised before the device was checked** —
+the number resembled network I/O and was treated as such for a few minutes.
+
+### What is still serial, and why the answer is not "all of it"
+
+Parallelisable and not yet done: `joint_xsession` (~1 h 34 m, per animal × alignment),
+`locanmf_cross_mouse` / `locanmf_rsa` / `precue_lickfree` (~2 h), per-day backfill (54 min, per date
+× alignment), `position_coding_directions` (31 min).
+
+Three things bound the ceiling regardless:
+
+  * **The cohort caps per-animal units at four.** Any stage whose natural unit is the animal gets 4
+    workers — 8 cores of 24. Only a finer unit widens it, and finer units re-open the frozen-store
+    question above.
+  * **`BLAS_THREADS` cannot be tuned per stage.** Four workers × four threads would fill the box,
+    and would also change the figures: the constant is what makes a render reproducible across
+    machines and across `--jobs`. Speed there is bought with determinism, which is not for sale.
+  * **The deck and the publish are inherently serial**, and the stage graph has real edges — grant
+    reads `section_g.json` and `coding_direction.json`, the deck reads everything. Those are
+    seconds-to-minutes, so Amdahl's floor here is low, but it is not zero.

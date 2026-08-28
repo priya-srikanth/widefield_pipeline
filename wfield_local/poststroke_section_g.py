@@ -181,28 +181,96 @@ def run_session(d_by_align, animal, session, label, phase_tag):
     return rec
 
 
-def collect(animals=None, include_excluded=True):
-    """Every post-stroke session, plus the excluded ones tagged as such."""
+def collect_animal(an, include_excluded=True):
+    """One animal's sessions, serially. Kept as the `--jobs 1` path and as the unit test seam."""
     out = {}
+    for tag, labels in (("post", None),
+                        ("excluded", pc.excluded_labels(an) if include_excluded else None)):
+        if tag == "excluded" and not labels:
+            continue
+        print(f"\n##### {an} [{tag}]", flush=True)
+        d_by_align = _pool_all(an, labels)
+        d0 = d_by_align.get("cue")
+        if d0 is None:
+            continue
+        for i in sorted(d0["post_i"]):
+            rec = run_session(d_by_align, an, i, d0["kept"][i], tag)
+            if rec:
+                out[rec["label"]] = rec
+    return out
+
+
+def _pool_all(an, labels):
+    """The three pooled bundles one session needs. Disk-cached, so a worker re-reads rather than
+    recomputes -- which is what makes the SESSION affordable as a unit."""
+    d = {}
+    for align, _ in CONDITIONS:
+        try:
+            d[align] = pc._pooled(an, align, post_labels=labels)
+        except Exception as ex:                                   # noqa: BLE001
+            print(f"  {an} {align}: pool failed ({str(ex)[:60]})", flush=True)
+    return d
+
+
+def _session_worker(spec):
+    """One session. Rebuilds its animal's bundles from the disk cache rather than receiving them.
+
+    THE BUNDLES ARE NOT PICKLED ACROSS THE PROCESS BOUNDARY. `XE` alone is thousands of trials by
+    hundreds of features; shipping three of those to each of ~30 workers would cost more than the
+    analysis. `pool_sessions` is `session_cache`-backed, so the worker pays a read instead.
+    """
+    an, tag, labels, i = spec
+    d_by_align = _pool_all(an, labels)
+    d0 = d_by_align.get("cue")
+    if d0 is None:
+        return None
+    return run_session(d_by_align, an, i, d0["kept"][i], tag)
+
+
+def collect(animals=None, include_excluded=True, jobs=None):
+    """Every post-stroke session, plus the excluded ones tagged as such.
+
+    THE UNIT IS THE SESSION, reached in two phases, and the phases exist for a reason each.
+
+    PHASE 1 IS SERIAL AND IS NOT WASTE. It pools each (animal, tag) once to learn `kept` and
+    `post_i` -- the session indices the units are named by -- and in doing so it materialises the
+    frozen decoder for that animal. That matters: `_pooled` returns an EMPTY `_frozen_cache` and the
+    model is loaded lazily, so N session-workers for one animal would otherwise all miss, all fit,
+    and all WRITE the same stored model. `load_or_fit` is not atomic. Warming it here turns every
+    worker's lookup into a read.
+
+    PHASE 2 IS THE WIDTH. ~30 sessions against 4 animals is what takes this stage from 4 workers
+    (8 cores of 24, the cohort size being the cap) to the full 8 x 2. The earlier per-animal version
+    was correct and left two thirds of the box idle.
+
+    A failed unit RAISES rather than yielding a short file: a `section_g.json` missing a session is
+    indistinguishable from a session that legitimately produced nothing.
+    """
+    from wfield_local import parallel
+
+    units, warmed = [], 0
     for an in post_animals(animals):
         for tag, labels in (("post", None),
                             ("excluded", pc.excluded_labels(an) if include_excluded else None)):
             if tag == "excluded" and not labels:
                 continue
-            print(f"\n##### {an} [{tag}]", flush=True)
-            d_by_align = {}
-            for align, _ in CONDITIONS:
-                try:
-                    d_by_align[align] = pc._pooled(an, align, post_labels=labels)
-                except Exception as ex:                                   # noqa: BLE001
-                    print(f"  {an} {align}: pool failed ({str(ex)[:60]})", flush=True)
-            d0 = d_by_align.get("cue")
+            print(f"\n##### {an} [{tag}] pooling", flush=True)
+            d0 = _pool_all(an, labels).get("cue")
             if d0 is None:
                 continue
-            for i in sorted(d0["post_i"]):
-                rec = run_session(d_by_align, an, i, d0["kept"][i], tag)
-                if rec:
-                    out[rec["label"]] = rec
+            warmed += 1
+            units += [(an, tag, labels, i) for i in sorted(d0["post_i"])]
+
+    print(f"\n  phase 1: {warmed} (animal, tag) pool(s) warmed; "
+          f"phase 2: {len(units)} session unit(s)", flush=True)
+    results, failures = parallel.fan_out(units, _session_worker, jobs=jobs, label="session")
+    if failures:
+        raise RuntimeError(f"section G failed for {[u for u, _ in failures]}: {failures[0][1]} "
+                           f"-- refusing to write a partial section_g.json")
+    out = {}
+    for _u, rec in results:
+        if rec:
+            out[rec["label"]] = rec
     return out
 
 
@@ -213,9 +281,12 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-excluded", action="store_true",
                     help="omit the excluded (small-lesion / before-after control) sessions")
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
+                    help="animals to process in parallel (default: cores-2 capped at 8, and at "
+                         "the cohort size; pass 1 for the serial path)")
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
-    rec = collect(args.animals, include_excluded=not args.skip_excluded)
+    rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
     p = Path(out) / "section_g.json"
     json.dump(rec, open(p, "w"), indent=1, default=float)
     n_post = sum(1 for r in rec.values() if r["phase_tag"] == "post")
