@@ -29,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield_local import config, epoch_figures as ef
+from wfield_local import config, epoch_figures as ef, epochs
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -96,6 +96,129 @@ def _totals(per_epoch):
 
 
 # --------------------------------------------------------------------------------- behaviour
+
+def fig_behaviour_timecourse(out_dir):
+    """1c: hit rate per position against DAYS SINCE LESION, one dot per animal per day.
+
+    Priya, 2026-08-28: keep the time course but pool across animals, so each position and day
+    carries four dots -- "helpful to show how I defined acute and subacute".
+
+    THIS IS THE FIGURE THE BOUNDARIES WERE DRAWN FROM, which is why it belongs beside the pooled
+    epoch bars rather than instead of them. The acute range is where far-contra accuracy sits below
+    25% of that animal's own pre-stroke baseline; a reader can see that threshold being crossed and
+    recrossed here, and can check the boundary instead of taking it.
+
+    Days are each animal's OWN days since its lesion, not calendar dates: PS94/PS95 were lesioned
+    on 0816 and PS92/PS93 on 0817, so a calendar axis would put four different post-stroke days in
+    one column and dissolve the structure the figure exists to show.
+    """
+    from wfield_local.grant_figures import CONF_LABELS, _position_metrics, _sessions
+
+    short = dict(zip(CONF_LABELS, _short_labels()))
+    per_day = {short[p]: {} for p in CONF_LABELS}
+    counts = {}
+    # THE SAME SESSIONS THE EPOCH FIGURES USE. `_sessions` returns every registered session, so
+    # taking it whole put the uncurated early-June dates on this axis and reported 61 pre sessions
+    # where figure 1b reports 44 -- two figures side by side describing different cohorts.
+    keep = {lab for labs in epochs.labels_by_epoch().values() for lab in labs}
+    # ALL OF PRE-STROKE COLLAPSES TO ONE POINT, the same one figure 1b's pre bar is built from
+    # (Priya, 2026-08-28). Two reasons beyond width: the June block sits near day -70 so a true
+    # axis spends most of itself on empty space, and -- the point of this figure -- the acute
+    # boundary is defined RELATIVE TO that collapsed baseline, so the baseline has to be on the
+    # axis as the single number the rule actually uses rather than as a scatter the reader has to
+    # average by eye.
+    #
+    # HITS AND TRIALS SUMMED, not rates averaged, which is how 1b pools: a session with more
+    # trials at a position counts for more, and the point here must be the same number the bar is.
+    early = {}
+    for an in config.animals():
+        for mmdd, day in _sessions(an):
+            if f"{an}_{mmdd}" not in keep:
+                continue
+            e = ef.epoch_of_day(an, int(day))
+            if e is None:
+                continue
+            met = _position_metrics(an, mmdd) or {}
+            for p in CONF_LABELS:
+                m = met.get(p)
+                if m and m[3] >= 5:
+                    if e == "pre":
+                        h, n = early.setdefault(short[p], {}).setdefault(an, [0.0, 0])
+                        early[short[p]][an] = [h + m[0] * m[3], n + m[3]]
+                    else:
+                        per_day[short[p]].setdefault(an, {})[int(day)] = float(m[0])
+            counts.setdefault(e, {})
+            counts[e][an] = counts[e].get(an, 0) + 1
+    for q, by in early.items():
+        for an, (h, n) in by.items():
+            if n:
+                per_day[q].setdefault(an, {})[ef.PRE_X] = float(h / n)
+    if not any(per_day.values()):
+        return None
+    bounds = {a: (spec["acute"][1], spec["subacute_from"])
+              for a, spec in epochs.EPOCH_SPEC.items()}
+    return ef.timecourse_panel(
+        per_day, out_dir, name="epoch_1c_behaviour_timecourse",
+        title="Hit rate by spout position over days since lesion, one dot per animal per day",
+        subtitle=ef.stats_line(counts, notes=[
+            f"shaded = acute ({epochs.ACUTE_RULE}); dotted = each animal's first subacute day",
+            "pre = that animal's whole pre-stroke baseline as one point, hits and trials summed "
+            "-- the same number figure 1b's pre bar plots, and the one the acute rule is "
+            "measured against"]),
+        ylabel="hit rate", positions=_short_labels(), tick_labels=_minor(), boundaries=bounds)
+
+
+def _behaviour_records():
+    """``{animal: ([pre records], {day: record})}`` from the persisted per-trial tables.
+
+    A behaviour session is encoded as the SAME ``(y_true, y_pred, blocks)`` record the decoding
+    collectors return: ``y_true`` is the spout position, ``y_pred`` is that position on a hit and
+    -1 on a miss. "Accuracy at position q" then reads out as the hit rate at q, and behaviour and
+    decoding share one bootstrap -- animals, then sessions, then blocks -- rather than growing a
+    second one that agrees with the first until somebody edits it.
+
+    ENGAGED TRIALS ONLY, matching `_position_metrics`' `trials_engaged`, which is what the bars
+    plot. Reward is auto-held after a miss run, so a sated animal's late misses are disengagement
+    rather than spatial inaccuracy; including them would move the bars AND the interval.
+
+    Returns ``{}`` when the tables are absent, so the caller can fall back to the session-level
+    contrast instead of failing -- they only exist for sessions processed since 2026-08-28.
+    """
+    import pandas as pd
+
+    from wfield_local.grant_figures import _sessions
+    from wfield_local.paths import PathResolver
+
+    root = Path(PathResolver().root("behavior_out")) / "sessions"
+    out = {}
+    for an in config.animals():
+        pre, by_day = [], {}
+        for mmdd, day in _sessions(an):
+            d = root / an / f"2026{mmdd}"
+            files = sorted(d.glob("*_trials.csv")) if d.exists() else []
+            if not files:
+                continue
+            try:
+                t = pd.read_csv(files[-1])
+            except Exception:                                          # noqa: BLE001
+                continue
+            if not {"pos_idx", "hit", "block", "engaged"} <= set(t.columns):
+                continue
+            t = t[t["engaged"].astype(bool) & (t["block"] >= 0)]
+            if t.empty:
+                continue
+            y = t["pos_idx"].to_numpy(int)
+            hit = t["hit"].to_numpy(bool)
+            rec = (y, np.where(hit, y, -1), t["block"].to_numpy(int))
+            e = ef.epoch_of_day(an, int(day))
+            if e == "pre":
+                pre.append(rec)
+            elif e is not None:
+                by_day[int(day)] = rec
+        if pre or by_day:
+            out[an] = (pre, by_day)
+    return out
+
 
 def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
     """``(point, draws)`` for the change in hit rate at one position, epoch minus pre.
@@ -182,6 +305,13 @@ def fig_behaviour(out_dir):
                     # hits and n, so a draw can re-weight by session exactly as the bars do
                     per_sess.setdefault(e, {}).setdefault(short[p], []).append(
                         (an, int(round(m[0] * m[3])), int(m[3])))
+    # PREFER THE TRIAL TABLES when they exist: they carry block ids, so behaviour gets the same
+    # animals -> sessions -> blocks resampling the imaging panels use. Absent them, fall back to
+    # the session-level contrast rather than fail -- the tables only exist for sessions processed
+    # since 2026-08-28, and a half-backfilled tree must still produce a figure.
+    blocks_recs = _behaviour_records()
+    p_idx = _position_codes()
+    used_blocks = {}          # per epoch: how many contrasts the blocks path actually served
     post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
     n_comp = sum(len(values[e]) for e in post)
     marks, rows = {}, {}
@@ -191,10 +321,24 @@ def fig_behaviour(out_dir):
             key = short[p]
             if key not in values[e]:
                 continue
-            got = _behaviour_contrast(per_sess, e, key,
-                                      rng=np.random.default_rng(
-                                          _seed_for("behaviour", "hit", e, p)),
-                                      n_boot=N_BOOT)
+            # TRY BLOCKS, FALL BACK PER CONTRAST. A non-empty `blocks_recs` is NOT evidence that
+            # this contrast can be computed from it: a half-backfilled tree has every animal's
+            # pre-stroke sessions and none of its post-stroke ones, so the blocks path returns
+            # None for every acute and subacute contrast. Guarding on the dict being non-empty
+            # would have silently dropped every mark from the figure -- which is what it did.
+            got = None
+            if blocks_recs:
+                got = ef.contrast_draws(
+                    blocks_recs, e, "pre",
+                    lambda y, pr, c=int(p_idx[p]): _accuracy_at(y, pr, c),
+                    rng=np.random.default_rng(_seed_for("behaviour", "hit", e, p)),
+                    n_boot=N_BOOT)
+                used_blocks[e] = used_blocks.get(e, 0) + (got is not None)
+            if got is None:
+                got = _behaviour_contrast(per_sess, e, key,
+                                          rng=np.random.default_rng(
+                                              _seed_for("behaviour", "hit", e, p)),
+                                          n_boot=N_BOOT)
             if got is None:
                 continue
             point, draws = got
@@ -204,10 +348,18 @@ def fig_behaviour(out_dir):
             clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
             rows[e][key] = (point, float(lo), float(hi), float(clo), float(chi))
 
-    sub = ef.stats_line(
-        counts, n_boot=N_BOOT,
-        notes=["bootstrap: animals -> sessions (behaviour has no stored block ids yet; "
-               "the imaging panels resample blocks within session as well)"])
+    # THE SUBTITLE HAS TO NAME THE LEVEL THAT WAS ACTUALLY USED, per epoch, because a partly
+    # backfilled tree can serve one epoch from blocks and another from sessions -- and a figure
+    # whose panels were built two different ways has to say so rather than average the claim.
+    if used_blocks and all(used_blocks.get(e) for e in post):
+        nb = ef.block_counts({a: (v[0], v[1]) for a, v in blocks_recs.items()})
+        sub = ef.stats_line(counts, blocks=nb, n_boot=N_BOOT)
+    else:
+        served = ", ".join(f"{e}: {'blocks' if used_blocks.get(e) else 'sessions'}" for e in post)
+        sub = ef.stats_line(
+            counts, n_boot=N_BOOT,
+            notes=[f"bootstrap: animals -> sessions -> ({served}); a session-level arm means "
+                   "that epoch's per-trial tables are not on disk yet"])
     made = ef.bar_row(values, out_dir, name="epoch_1b_behaviour_by_position",
                       title="Behaviour: hit rate by spout position, pooled across animals "
                             "(one dot per session)",
@@ -259,6 +411,12 @@ def _seed_for(align, variant, epoch, position) -> int:
     process, so seeding a bootstrap with it gives a different interval on every render."""
     from wfield_local.grant_figures import _seed
     return _seed("epoch-contrast", align, variant, epoch, position)
+
+
+def _position_codes():
+    """``{position name: numeric code}`` -- the behaviour table's `pos_idx` domain."""
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    return {nm: int(code) for code, nm in POSITION_NAMES.items()}
 
 
 def _code_of(position):
@@ -467,18 +625,23 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "acc", "5c", "mat"))
+                    choices=("1b", "1c", "acc", "5c", "mat"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "acc", "5c", "mat"))
+    want = set(args.only or ("1b", "1c", "acc", "5c", "mat"))
 
     if "1b" in want:
         try:
             _report("1b", fig_behaviour(out))
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
+    if "1c" in want:
+        try:
+            _report("1c", fig_behaviour_timecourse(out))
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! 1c: {type(ex).__name__} {str(ex)[:160]}", flush=True)
 
     for disp, align, variant, wname in ARMS:
         if not (want & {"acc", "5c"}):

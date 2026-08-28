@@ -113,7 +113,12 @@ def pool_records(per_animal: dict, epoch: str) -> tuple | None:
     block bootstrap cannot treat two animals' block 3 as one cluster.
     """
     if epoch == "pre":
-        recs = [rec for _an, (pre, _bd) in per_animal.items() if (rec := pre) is not None]
+        recs = []
+        for _an, (pre, _bd) in sorted(per_animal.items()):
+            if pre is None:
+                continue
+            recs.extend(pre if isinstance(pre, list) else [pre])
+        recs = [r for r in recs if r is not None]
         offs = list(range(len(recs)))
     else:
         recs, offs, k = [], [], 0
@@ -266,8 +271,10 @@ def per_session_values(per_animal, epoch, value_of):
     out = []
     if epoch == "pre":
         for an, (pre, _bd) in sorted(per_animal.items()):
-            if pre is not None:
-                out.append((an, value_of(an, None, pre)))
+            if pre is None:
+                continue
+            for r in (pre if isinstance(pre, list) else [pre]):
+                out.append((an, value_of(an, None, r)))
         return out
     for an, day in group_days_by_epoch(per_animal).get(epoch, []):
         rec = per_animal[an][1].get(day)
@@ -768,10 +775,21 @@ def _blocks_of(rec):
 
 
 def _sessions_of(per_animal, animal, epoch):
-    """Every session's blocks for one animal in one epoch: ``[[(y, p), ...], ...]``."""
+    """Every session's blocks for one animal in one epoch: ``[[(y, p), ...], ...]``.
+
+    A ``pre`` entry may be ONE record or a LIST of them. `_collect_5c` gives one -- a
+    leave-one-session-out pool that is already an aggregate over that animal's pre-stroke days --
+    while the behaviour tables give one record per session, and there the session level is real
+    and must be resampled. Accepting both is what lets behaviour and decoding share this bootstrap
+    instead of growing a second one that agrees with it until it doesn't.
+    """
     pre, by_day = per_animal.get(animal, (None, {}))
     if epoch == "pre":
-        return [_blocks_of(pre)] if pre is not None else []
+        if pre is None:
+            return []
+        if isinstance(pre, list):
+            return [_blocks_of(r) for r in pre if r is not None]
+        return [_blocks_of(pre)]
     days = [d for a, d in group_days_by_epoch(per_animal).get(epoch, []) if a == animal]
     return [_blocks_of(by_day[d]) for d in days if by_day.get(d) is not None]
 
@@ -1151,3 +1169,93 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
     fig.savefig(q, dpi=200)
     plt.close(fig)
     return q
+
+
+#: Where the collapsed pre-stroke baseline sits on a days-since-lesion axis. Left of day 1 with a
+#: visible gap, and its tick reads "pre" rather than a day number, because it is not a day: it is
+#: that animal's whole baseline summed into one point.
+PRE_X = -2.0
+
+
+def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_labels=None,
+                     subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06)):
+    """One small axes per position: value against DAYS SINCE LESION, one dot per animal per day.
+
+    Priya, 2026-08-28: keep the time course but pool across animals, so each position and day
+    carries four dots. This is the figure the epoch boundaries were DRAWN FROM, and showing it
+    beside the pooled epoch bars is what lets a reader check the boundaries rather than take them.
+
+    ``per_day`` is ``{position: {animal: {day: value}}}``; ``boundaries`` is
+    ``{animal: (last acute day, first subacute day)}`` and is drawn as shaded spans, per animal
+    where they differ.
+
+    DAYS ARE EACH ANIMAL'S OWN, not calendar dates. The lesion dates differ -- PS94/PS95 on 0816,
+    PS92/PS93 on 0817 -- so a calendar axis would put four different post-stroke days in one
+    column and the epoch structure would dissolve. Day 0 is the last pre-stroke session.
+    """
+    import matplotlib.pyplot as plt
+
+    positions = list(positions)
+    ncol = len(positions)
+    if not ncol:
+        return None
+    colors = config.animal_color()
+    fig_w = QUARTER_IN * 2.0                 # a time axis needs width; this is a half-page figure
+    left_in, right_in = 0.62, 1.05
+    top_in = 0.52 + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
+    bottom_in, gap_in = 0.52, 0.16
+    panel_w = (fig_w - left_in - right_in - gap_in * (ncol - 1)) / ncol
+    fig_h = top_in + 1.55 + bottom_in
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    days_all = sorted({d for per in per_day.values() for by in per.values() for d in by})
+    lo = min(days_all) if days_all else -1
+    hi = max(days_all) if days_all else 1
+    axes = []
+    for i, q in enumerate(positions):
+        ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, bottom_in / fig_h,
+                           panel_w / fig_w, 1.55 / fig_h])
+        axes.append(ax)
+        # THE EPOCH SPANS, drawn per animal only where they differ, so a reader can see that the
+        # boundary is not one date but one rule applied to four animals.
+        if boundaries:
+            for an, (acute_hi, sub_lo) in sorted(boundaries.items()):
+                ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.28, lw=0, zorder=0)
+                ax.axvline(sub_lo - 0.5, color=colors.get(an, "0.5"), lw=0.7, alpha=0.5,
+                           ls=":", zorder=1)
+        ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
+        for an, by in sorted(per_day.get(q, {}).items()):
+            xs = sorted(by)
+            ax.plot(xs, [by[d] for d in xs], "-", color=colors.get(an, "k"), lw=0.8,
+                    alpha=0.45, zorder=3)
+            ax.scatter(xs, [by[d] for d in xs], s=13, color=colors.get(an, "k"),
+                       alpha=0.85, edgecolors="none", zorder=4)
+        if chance is not None:
+            ax.axhline(chance, color="0.4", lw=0.7, ls="--", zorder=2)
+        # THE BASELINE TICK IS NAMED, not numbered. Leaving it as "-2" invites reading it as a
+        # day two before the lesion, when it is every pre-stroke session at once.
+        post = [d for d in days_all if d > 0]
+        ticks = [PRE_X] + [d for d in post if d % 2 == 1]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
+        ax.set_title((tick_labels or positions)[i], fontsize=FS_ANNOT)
+        ax.set_ylim(*ylim)
+        ax.set_xlim(lo - 0.6, hi + 0.6)
+        ax.tick_params(labelsize=FS_TICK - 2)
+        if i:
+            ax.set_yticklabels([])
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel(ylabel, fontsize=FS_LABEL - 1)
+    fig.text((left_in + (fig_w - left_in - right_in) / 2) / fig_w, 0.055,
+             "days from lesion (each animal's own)", ha="center", fontsize=FS_LABEL - 1)
+    animal_legend(axes[-1], fontsize=FS_ANNOT - 1.5, loc="upper left")
+    axes[-1].get_legend().set_bbox_to_anchor((1.02, 1.0))
+    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
+    if subtitle:
+        fig.text(0.5, 1.0 - 0.22 / fig_h, subtitle, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    q_ = pathlib.Path(out) / f"{name}.png"
+    fig.savefig(q_, dpi=200)
+    plt.close(fig)
+    return q_
