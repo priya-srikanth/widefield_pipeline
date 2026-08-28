@@ -258,7 +258,8 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
 _FEATURE_ARGS = ("align", "post_s", "pre_s", "fs", "max_rt", "baseline", "source")
 
 
-def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_indices) -> str:
+def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_indices,
+                       with_rt=False) -> str:
     """Cache kind for one `_trial_features` call: every result-changing input, hashed.
 
     Readable prefix plus a digest rather than the full spec, because the kind lands in a FILENAME and
@@ -287,13 +288,30 @@ def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_
     spec["nolick_ref"] = nolick_ref
     spec["with_precue_licks"] = bool(with_precue_licks)
     spec["with_indices"] = bool(with_indices)
+    # RETURN-SHAPE FLAGS BELONG IN THE KEY. They change no value in the tuple, but they change its
+    # LENGTH, so an entry written without one would be unpacked by a caller expecting the longer
+    # form -- a crash at best, a silently misassigned array at worst.
+    #
+    # ADDED ONLY WHEN TRUE, deliberately, and this is the one place in this spec where that is done.
+    # `with_rt=False` returns a tuple byte-identical to what this function returned before `with_rt`
+    # existed, so every warm entry on disk is still correct -- and adding the key unconditionally
+    # would change EVERY digest and discard the lot (~1 MB per session-alignment, ~168 s each to
+    # rebuild) to record a value that changes nothing. Two specs differing by the presence of a
+    # NAMED key cannot collide, so the True arm is still unambiguous.
+    #
+    # CACHE_VERSION IS NOT BUMPED for the same reason: no cached computation changed. A bump would
+    # invalidate every OTHER cached kind (RSA, spatial reorganisation, the engagement tables) for a
+    # change none of them can see. `session_cache.CACHE_VERSION` is for when the COMPUTE CODE moves;
+    # this is a new key, not a moved one.
+    if with_rt:
+        spec["with_rt"] = True
     digest = hashlib.sha1(repr(sorted(spec.items())).encode()).hexdigest()[:12]
     return f"tf-{spec['align']}-{digest}"
 
 
 def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=None,
                           signal_key=None, with_precue_licks=False, with_indices=False,
-                          nolick_ref="cue", verbose=False):
+                          with_rt=False, nolick_ref="cue", verbose=False):
     """`_trial_features`, memoised to disk. Falls back to computing when it cannot key safely.
 
     TWO REFUSALS, both fail-safe. A wrong key here is wrong numbers in the decoder, the encoder, RSA
@@ -322,7 +340,7 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
             sig, reg = signal_fn()
         return _trial_features(s, args, signal=sig, feat_region=reg,
                                with_precue_licks=with_precue_licks, with_indices=with_indices,
-                               nolick_ref=nolick_ref)
+                               with_rt=with_rt, nolick_ref=nolick_ref)
 
     injected = signal is not None or signal_fn is not None
     if injected and not signal_key:
@@ -330,12 +348,13 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
     if not injected and getattr(args, "source", "locanmf") != "locanmf":
         return _compute()
     kind = feature_cache_kind(args, signal_key=signal_key or "own", nolick_ref=nolick_ref,
-                              with_precue_licks=with_precue_licks, with_indices=with_indices)
+                              with_precue_licks=with_precue_licks, with_indices=with_indices,
+                              with_rt=with_rt)
     return session_cache.cached(s, kind, _compute, verbose=verbose)
 
 
 def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,
-                    with_indices=False, nolick_ref="cue"):
+                    with_indices=False, with_rt=False, nolick_ref="cue"):
     """Trial-averaged features for one session.
 
     ``nolick_ref`` controls where a NO-LICK trial's window starts when ``args.align == "lick"``.
@@ -415,6 +434,15 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     # this loop elsewhere and hoping the two agree. They did not: an externally rebuilt mask came
     # out 633 long against 575 kept trials, and bugs 15-17 were all this same shape.
     idx_eng, idx_nolick = [], []
+    # PER-ENGAGED-TRIAL REACTION TIME IN SECONDS, on request. Seconds and not frames because the only
+    # consumer compares it against a FIXED boundary (2.0 s, see `position_coding_directions.RT_SPLIT_S`),
+    # and a frame count would silently mean different things at different `fs`.
+    #
+    # Returned from HERE for the same reason `idx_eng` is: `rt` is already computed a few lines above
+    # to decide engagement, and the alternative -- handing back indices and having the caller reload
+    # the DAQ and re-derive first-lick latency -- is the shape of bugs 15, 16 and 17. One such
+    # externally rebuilt mask came out 633 long against 575 kept trials.
+    rt_eng = []
     # WOULD-BE-LICK reference: this session's own median RT per position, in frames.
     med_rt, _med_rt_all, med_rt_n = {}, None, {}
     if args.align == "lick" and nolick_ref == "would_be_lick":
@@ -465,6 +493,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
             X.append(_window_feature(sig, w0, post_n, bins, base))
             y.append(int(codes[k])); g.append(int(blk_id[k]))
             idx_eng.append(k)
+            rt_eng.append(float(rt[k]) / float(args.fs))
             if with_precue_licks:
                 fx = c0 - post_n
                 precue_lick.append(bool(fx >= 0 and np.any((ls_sorted >= fx) & (ls_sorted < c0))))
@@ -514,6 +543,10 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         extra += (np.array(precue_lick, bool),)
     if with_indices:
         extra += (np.array(idx_eng, int), np.array(idx_nolick, int))
+    if with_rt:
+        # LAST, so adding it cannot move `precue_lick` or the index arrays under a caller that
+        # unpacks positionally.
+        extra += (np.array(rt_eng, float),)
     return base_out + extra if extra else base_out
 
 

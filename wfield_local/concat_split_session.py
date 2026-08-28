@@ -309,8 +309,6 @@ def main(argv=None) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
 
 
 # --------------------------------------------------------------------- behavior log concatenation
@@ -358,3 +356,6 @@ def concat_behavior_events(segment_dirs, out_dir, verbose: bool = True):
         print(f"  wrote {dst} ({len(out):,} events, "
               f"{int((out['event_name'] == 'lick_on').sum()):,} licks)", flush=True)
     return dst
+
+if __name__ == "__main__":
+    raise SystemExit(main())

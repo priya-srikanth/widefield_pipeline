@@ -896,12 +896,6 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
-
-
-
-
 #: Two-character position labels for dense axes. c = close, f = far; L/C/R = left/centre/right.
 #: A 6-column matrix drawn at ~1.5in cannot carry "close_center"; it can carry "cC".
 POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
@@ -984,3 +978,15 @@ def write_animal_confusion_grid(results, out, basis="roi", align="cue"):
         plt.close(fig)
         written.append(p)
     return written
+
+
+# THE ENTRY POINT LIVES AT THE BOTTOM, and that is load-bearing rather than stylistic. It used to sit
+# above `write_animal_confusion_grid`, so `python -m wfield_local.locanmf_frozen_decoder --loso` ran
+# `main()` at a point where that name did not exist yet and died with a NameError -- AFTER writing the
+# decoder JSON and BEFORE the encoder ran, so it left a half-finished output set and a nonzero exit.
+#
+# It survived because nothing exercised this path: `nightly_figs` IMPORTS the module and calls the
+# functions in-process, which executes the whole body first, so the nightly never saw it. Only the CLI
+# was broken, and the CLI is what a by-hand re-run uses (2026-08-28).
+if __name__ == "__main__":
+    raise SystemExit(main())

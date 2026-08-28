@@ -78,13 +78,22 @@ def _disc():
 
 
 def features_with_indices(basis, nolick_ref="cue"):
-    """``joint_features``, but it also keeps each session's trial INDICES.
+    """``joint_features``, but it also keeps each session's trial INDICES and reaction times.
 
     The indices are what let the engagement gate be computed on exactly the trials the features
     come from, in their true within-session order -- including the fact that the pre-cue alignment
     DROPS trials with no lick-free window, so the sequence has gaps that must not be closed up.
+
+    ``.rts`` is the same idea for first-lick latency: seconds from cue, aligned row-for-row with
+    ``.indices[lab][0]`` and therefore with the engaged feature rows. It is what
+    `position_coding_directions` splits post-stroke lick trials on at 2.0 s.
+
+    RT IS REQUESTED UNCONDITIONALLY, not behind a flag. Every caller of this builder shares one disk
+    cache, and a per-caller flag would give them different `feature_cache_kind` digests -- the
+    split-the-cache-by-caller failure `_FEATURE_ARGS` is explicitly shaped to avoid. One float per
+    trial is not worth two copies of a ~1 MB-per-session store, nor a second cold build.
     """
-    idx, vc = {}, {}
+    idx, rts, vc = {}, {}, {}
 
     def _feat(s, args):
         # CACHED, AND THE PROJECTION IS DEFERRED BEHIND THE CACHE (2026-08-27). This builder had no
@@ -95,12 +104,14 @@ def features_with_indices(basis, nolick_ref="cue"):
         lab = s["label"]
         src = joint_locanmf.BasisSource(basis, s)
         out = trial_features_cached(s, args, signal_fn=src.signal, signal_key=src.key,
-                                    with_indices=True, nolick_ref=nolick_ref)
+                                    with_indices=True, with_rt=True, nolick_ref=nolick_ref)
         vc[lab] = src.variance_captured()
         idx[lab] = (out[6], out[7])
+        rts[lab] = out[8]
         return out[:6]
 
     _feat.indices = idx
+    _feat.rts = rts
     _feat.variance_captured = vc
     # THE FEATURE SPACE IS PART OF A FROZEN MODEL'S IDENTITY. Same session, same args, different
     # basis -> different features (256 columns vs 380, measured), so a model frozen against one basis

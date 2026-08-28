@@ -58,6 +58,35 @@ def synthetic():
     return r, int((~e_pre).sum()), int((~u_pre & ~not_eng).sum()), int((~u_pre & not_eng).sum())
 
 
+@pytest.fixture
+def with_rt():
+    """The same synthetic data, plus a per-engaged-trial RT so the early/late split is computed."""
+    rng = np.random.default_rng(0)
+    K = len(DISPLAY_ORDER)
+    n_e, n_u = 240, 120
+    YE = np.array([DISPLAY_ORDER[i % K] for i in range(n_e)])
+    YU = np.array([DISPLAY_ORDER[i % K] for i in range(n_u)])
+    GE = np.repeat(np.arange(4), n_e // 4)
+    XE = rng.normal(size=(n_e, 12)) + YE[:, None] * 0.6
+    XU = rng.normal(size=(n_u, 12)) + YU[:, None] * 0.6
+    e_pre, u_pre = GE < 2, np.repeat(np.arange(4), n_u // 4) < 2
+    not_eng = np.zeros(n_u, bool)
+    not_eng[-30:] = True
+    # spread across the boundary on purpose: a split that puts everything on one side would pass a
+    # sum check while testing nothing
+    rt_e = rng.uniform(0.1, 3.4, size=n_e)
+
+    def _mask(cls, pos=None):
+        if cls == "poststroke_lick":
+            return ~e_pre
+        if cls == "poststroke_miss_working":
+            return ~u_pre & ~not_eng
+        return ~u_pre & not_eng
+
+    r = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, {0, 1}, _mask, list("abcd"), rt_e=rt_e)
+    return r, rt_e, ~e_pre
+
+
 def test_classes_partition_the_post_trials(synthetic):
     """The three classes must be disjoint AND exhaustive, or a sum of them is not a population."""
     r, n_lick, n_work, n_stop = synthetic
@@ -112,3 +141,80 @@ def test_too_little_pre_data_returns_none_rather_than_a_number():
     out = pcd._class_confusions(XE, YE, GE, XE, YE, np.ones(10, bool), {0},
                                 lambda cls, pos=None: np.zeros(10, bool), ["a"])
     assert out is None
+
+
+# --- early vs late rewarded ---------------------------------------------------------------------
+# `decode.max_rt_s` is 3.5 s, so one "engaged" class holds a 0.2 s lick and a 3.0 s lick. Post-stroke
+# the mass moves late, and that is the distinction the study is about: position coding preserved on
+# LATE trials is plan intact / execution slow, degraded on late trials is a different result. The
+# split is only trustworthy if it is a genuine PARTITION of the class it refines -- otherwise the two
+# panels are two different populations that happen to be drawn side by side.
+
+
+def test_early_plus_late_reconstructs_the_lick_class_exactly(with_rt):
+    """THE acceptance test. Element-wise, not just in total: two matrices can sum to the right
+    grand total while individual cells are wrong."""
+    r, *_ = with_rt
+    lick = np.array(r["poststroke_lick"])
+    early = np.array(r["poststroke_lick_early"])
+    late = np.array(r["poststroke_lick_late"])
+    assert np.array_equal(early + late, lick), "early + late is not the lick class"
+    assert r["n_poststroke_lick_early"] + r["n_poststroke_lick_late"] == r["n_poststroke_lick"]
+
+
+def test_the_split_is_at_the_documented_boundary(with_rt):
+    """A boundary that drifts from `RT_SPLIT_S` would make 'late' mean something different here
+    than in `nolick_decoder`, which is the whole reason the constant is shared."""
+    r, rt_e, post = with_rt
+    assert r["rt_split_s"] == pcd.RT_SPLIT_S
+    assert r["n_poststroke_lick_early"] == int((post & (rt_e < pcd.RT_SPLIT_S)).sum())
+    assert r["n_poststroke_lick_late"] == int((post & (rt_e >= pcd.RT_SPLIT_S)).sum())
+    assert min(r["n_poststroke_lick_early"], r["n_poststroke_lick_late"]) > 0, "one arm is empty"
+
+
+def test_subclasses_are_not_siblings(with_rt):
+    """If early/late joined `CONFUSION_CLASSES`, summing that tuple for 'all trials' would count
+    every lick trial twice -- silently, and the result would still look like a confusion matrix."""
+    r, *_ = with_rt
+    subs = pcd.CONFUSION_SUBCLASSES["poststroke_lick"]
+    assert not set(subs) & set(pcd.CONFUSION_CLASSES)
+    total = sum(np.array(r[c]).sum() for c in pcd.CONFUSION_CLASSES)
+    assert total == r["n_poststroke_lick"] + r["n_poststroke_miss_working"] + r["n_poststroke_stopped"]
+
+
+def test_without_rt_there_is_no_split_rather_than_a_guess(synthetic):
+    """The split is optional. A caller that cannot supply RT gets the old keys and nothing else --
+    never a boundary inferred from something that is not reaction time."""
+    r, *_ = synthetic
+    for k in ("poststroke_lick_early", "poststroke_lick_late", "rt_split_s"):
+        assert k not in r
+
+
+def test_rt_alignment_is_length_checked_not_assumed():
+    """An RT vector one trial out of step does not fail -- it mislabels the boundary trial of every
+    session and still draws a plausible figure. `_rt_engaged` must refuse rather than trim."""
+    class F:
+        rts = {"a": np.array([0.5, 1.0, 2.5]), "b": np.array([1.1, 3.0])}
+    XE = np.zeros((5, 3))
+    assert pcd._rt_engaged(F(), ["a", "b"], XE).shape == (5,)
+    assert pcd._rt_engaged(F(), ["a", "b"], np.zeros((6, 3))) is None, "a short RT vector was accepted"
+    assert pcd._rt_engaged(F(), ["a"], XE) is None, "a missing session was accepted"
+
+    class G:
+        rts = {"a": np.array([0.5, np.nan, 2.5])}
+    assert pcd._rt_engaged(G(), ["a"], np.zeros((3, 3))) is None, "a non-finite RT was accepted"
+
+
+def test_rt_leaves_the_feature_builder_rather_than_being_rebuilt():
+    """Reconstructing a trial filter outside `_trial_features` is how bugs 15-17 happened; one such
+    mask came out 633 long against 575 kept trials. RT must ride out with the features."""
+    import inspect
+
+    from wfield_local import locanmf_position_decoder as lpd
+    from wfield_local import precue_engagement_states as pes
+    assert "with_rt" in inspect.signature(lpd._trial_features).parameters
+    assert "with_rt" in inspect.signature(lpd.trial_features_cached).parameters
+    assert "with_rt=True" in inspect.getsource(pes.features_with_indices)
+    # and the flag must reach the cache key, or a with_rt entry would be served to a caller that
+    # unpacks the shorter tuple
+    assert "with_rt" in inspect.signature(lpd.feature_cache_kind).parameters

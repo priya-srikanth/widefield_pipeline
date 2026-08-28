@@ -390,13 +390,61 @@ def _diagnostics(XE, en, e_pre, frac_e, W, base_m, do_orth, e_axis):
     return d
 
 
-#: Post-stroke classes written to `confusions`, finest-grain first. Any population a caller wants is
-#: a SUM over a subset of these -- "all working" is lick+miss_working, "all trials" is all three --
-#: which is exactly what a pre-summed matrix cannot provide.
+#: Post-stroke classes written to `confusions`, finest-grain first. These PARTITION the post-stroke
+#: trials: they are mutually exclusive and exhaustive, so any population a caller wants is a SUM over
+#: a subset -- "all working" is lick+miss_working, "all trials" is all three -- which is exactly what
+#: a pre-summed matrix cannot provide.
 CONFUSION_CLASSES = ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
 
+#: REFINEMENTS of a class in `CONFUSION_CLASSES`, deliberately kept OUT of that tuple.
+#:
+#: `poststroke_lick_early` / `_late` partition `poststroke_lick` at `RT_SPLIT_S`; they are not a
+#: fourth and fifth sibling. Putting them in `CONFUSION_CLASSES` would have broken the invariant that
+#: file's whole design rests on -- a caller summing the tuple to get "all trials" would have counted
+#: every lick trial twice, silently, and the result would still have looked like a confusion matrix.
+#: Written as a mapping so a consumer can discover the relationship rather than hardcode it.
+CONFUSION_SUBCLASSES = {"poststroke_lick": ("poststroke_lick_early", "poststroke_lick_late")}
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept):
+#: Boundary between an early and a late rewarded lick, in seconds from the cue.
+#:
+#: 2.0 s, which is `nolick_decoder._args`'s engaged cut and the value `decode.max_rt_s` held until
+#: 2026-08-21, so "late" means the same thing in both places. NOT the session's median RT: that is
+#: session-relative, so a "late" trial on one day would be an "early" trial on the next, and it could
+#: not be compared across days nor against the `late_rewarded` category the no-lick reference already
+#: defines. A fixed boundary is comparable; an adaptive one is a different measurement per session.
+#:
+#: The split exists because `decode.max_rt_s` is now 3.5 s, so a 0.2 s lick and a 3.0 s lick sit in
+#: one "engaged" class. Post-stroke the mass moves late, and telling those apart is the study's
+#: question: position coding preserved on LATE trials is plan intact / execution slow; degraded on
+#: late trials is a different result entirely.
+RT_SPLIT_S = 2.0
+
+
+def _rt_engaged(feat, kept, XE):
+    """First-lick latency in seconds, one row per ENGAGED feature row, or None.
+
+    Concatenated in `kept` order, which is the order `pool_sessions` stacks XE in -- and then LENGTH
+    CHECKED against XE. The check is the point: an RT vector one trial out of step would not fail,
+    it would mislabel the boundary trial of every session and still produce a plausible figure.
+    Returning None on any mismatch means the caller writes no split at all, which is recoverable;
+    writing a misaligned one is not.
+    """
+    rts = getattr(feat, "rts", None)
+    if not rts:
+        return None
+    out = []
+    for lab in kept:
+        v = rts.get(lab)
+        if v is None:
+            return None
+        out.append(np.asarray(v, float))
+    rt = np.concatenate(out) if out else np.array([], float)
+    if rt.size != len(XE) or not np.all(np.isfinite(rt)):
+        return None
+    return rt
+
+
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -453,6 +501,27 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept):
         X, y = ((XE, YE) if cls == "poststroke_lick" else (XU, YU))
         res[cls] = counts(y[m], clf.predict(X[m])).tolist() if m.any() else None
         res[f"n_{cls}"] = int(m.sum())
+
+    # EARLY vs LATE REWARDED, a partition of `poststroke_lick` at RT_SPLIT_S.
+    #
+    # Built from the SAME mask and scored by the SAME `clf`, so `early + late == poststroke_lick`
+    # element-wise by construction rather than by two recipes agreeing -- and the assertion below
+    # checks the construction held rather than trusting it. Two places computing "the same"
+    # population and drifting apart is how the frozen-decoder contamination happened.
+    if rt_e is not None:
+        m_lick = _mask("poststroke_lick")
+        early = m_lick & (rt_e < RT_SPLIT_S)
+        late = m_lick & (rt_e >= RT_SPLIT_S)
+        if int(early.sum()) + int(late.sum()) != int(m_lick.sum()):
+            # Only reachable via a non-finite RT, which `_rt_engaged` already refuses -- so if it
+            # ever fires, the partition is broken somewhere new and the safe answer is no split.
+            print(f"  [coding_dirs] early+late != lick ({int(early.sum())}+{int(late.sum())} vs "
+                  f"{int(m_lick.sum())}) -- early/late split omitted", flush=True)
+        else:
+            res["rt_split_s"] = RT_SPLIT_S
+            for cls, m in (("poststroke_lick_early", early), ("poststroke_lick_late", late)):
+                res[cls] = counts(YE[m], clf.predict(XE[m])).tolist() if m.any() else None
+                res[f"n_{cls}"] = int(m.sum())
     return res
 
 
@@ -626,7 +695,8 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
     # happened: two places computing "the same" population and drifting apart.
     try:
-        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept)
+        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
+                                              rt_e=_rt_engaged(feat, kept, XE))
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
