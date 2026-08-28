@@ -404,7 +404,7 @@ def _value_and_ci(v):
 
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
-            counts=None, ylim=(0.0, 1.0)):
+            counts=None, ylim=(0.0, 1.0), subtitle=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
@@ -415,6 +415,11 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     drawn as an error bar. ``points`` is ``{epoch: {position: [(animal, value), ...]}}`` and becomes
     one dot per SESSION -- the honest picture of the session weighting, since the bar itself is
     weighted by session and the epochs are not balanced across animals.
+
+    ``subtitle`` carries the PER-EPOCH session counts. The legend cannot: it has one entry per
+    animal, so the only count it can show is that animal's total across all three epochs -- and a
+    total is precisely what hides the imbalance the dots exist to expose. PS95 contributing 19
+    sessions overall says nothing about its contributing ONE acute session and SEVEN subacute.
 
     THE LEGEND SITS IN A RESERVED GUTTER, not inside the axes. Two legends -- three epochs and four
     animals -- placed on a 6.2in axes will overlap the bars or each other at some data range, and a
@@ -480,10 +485,13 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
               borderpad=0.15, labelspacing=0.32, handlelength=1.1)
 
     fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
+    if subtitle:
+        fig.text(0.5, 0.90, subtitle, ha="center", va="top", fontsize=FS_ANNOT - 2.0,
+                 color="0.30")
     # ABSOLUTE INCH MARGINS -- `subplots_adjust` takes fractions, so these are inch targets divided
     # by the canvas. The 1.24in right gutter is the legend's, and it is reserved rather than
     # negotiated so the axes is the same width on every figure in the family.
-    left_in, right_in, top_in, bottom_in = 0.62, 1.24, 0.52, 0.46
+    left_in, right_in, top_in, bottom_in = 0.62, 1.24, 0.52 + 0.16 * bool(subtitle), 0.46
     fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
                         top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
     q = pathlib.Path(out) / f"{name}.png"
