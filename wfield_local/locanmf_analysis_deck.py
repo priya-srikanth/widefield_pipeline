@@ -1962,6 +1962,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s_, M_NOLICK, specific=S_NOLICK_B)
             big(s_, fig_ref.with_name(fig_ref.name.replace("reference", "survival")),
                 top=1.9, width=10.5)
+            # PER SESSION, not only pooled (Priya, 2026-08-28: "is the late rewarded data in the
+            # deck?"). `figure_per_session` has been written every night since it was added and
+            # embedded nowhere -- the computed-and-hidden pattern the lick arm was fixed for on
+            # 2026-08-26. It matters here specifically: the pooled bar says what an animal does on
+            # AVERAGE, while the post-stroke comparison is made one session at a time, so this is
+            # the same quantity resolved to the unit it is actually used at.
+            _ps = fig_ref.with_name(fig_ref.name.replace("reference", "per_session"))
+            if _ps.exists():
+                s_ = slide()
+                title(s_, f"No-detected-lick ({nice}): survival session by session",
+                      "Green = pre-cue, purple = post-cue. OPACITY TRACKS n of the no-detected-lick "
+                      "arm and the count is printed at each bar's base: a survival ratio computed "
+                      "on nine trials should not look as solid as one computed on ninety.")
+                note(s_, M_NOLICK, specific=S_NOLICK_B)
+                big(s_, _ps, top=1.9, width=11.0)
         if (src / "nolick_basis_agreement.png").exists():
             s_ = slide()
             title(s_, "No-detected-lick: do the two bases agree?",
