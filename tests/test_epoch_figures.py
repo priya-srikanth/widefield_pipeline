@@ -444,3 +444,39 @@ def test_every_per_arm_key_reaches_the_arm_loop():
     assert "ARM_KEYS" in src, "the arm-loop guard should be one named set, not a repeated literal"
     for k in keys:
         assert f'"{k}"' in src, f"{k} is not reachable from main()"
+
+
+def test_a_bar_without_an_interval_is_a_bare_number_and_draws_nothing():
+    """Why 8g, 10, 11 and the accuracy figures had no error bars.
+
+    `bar_row` draws one only where a value arrives as a (value, lo, hi) tuple. Every family except
+    behaviour passed a plain float, so the bars had no interval and nothing said so -- no warning,
+    no gap, just an absent whisker on a figure that looked complete.
+    """
+    v, lo, hi = ef._value_and_ci(0.42)
+    assert (v, lo, hi) == (0.42, None, None)
+    v, lo, hi = ef._value_and_ci((0.42, 0.30, 0.55))
+    assert lo == 0.30 and hi == 0.55
+
+
+def test_value_draws_and_contrast_draws_share_one_resampling():
+    """A bar's interval and the mark above it must not come from two different schemes."""
+    rng = np.random.default_rng(3)
+    per = {a: (_rec(rng, 20, 6, 0.9), {1: _rec(rng, 20, 6, 0.5)})
+           for a in ("PS92", "PS93", "PS94", "PS95")}
+    got = ef.value_draws(per, "acute", _acc, rng=np.random.default_rng(4), n_boot=200)
+    assert got is not None
+    point, draws = got
+    assert 0.35 < point < 0.65
+    lo, hi = np.percentile(draws, [2.5, 97.5])
+    assert lo < point < hi
+    assert ef.with_ci(got)[0] == pytest.approx(point)
+
+
+def test_scalar_value_draws_gives_every_epoch_a_bar_interval():
+    points = {"pre": {"k": [("PS92", 0.9), ("PS92", 0.88), ("PS93", 0.92)]},
+              "acute": {"k": [("PS92", 0.5), ("PS93", 0.55)]}}
+    for e in ("pre", "acute"):
+        got = ef.scalar_value_draws(points, e, "k", rng=np.random.default_rng(5), n_boot=200)
+        ci = ef.with_ci(got)
+        assert ci is not None and ci[1] <= ci[0] <= ci[2]

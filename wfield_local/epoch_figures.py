@@ -1336,3 +1336,79 @@ def scalar_contrast_draws(points, epoch_a, epoch_b, key, *, rng, n_boot=2000):
     if len(diffs) < n_boot // 4:
         return None
     return point, np.asarray(diffs, float)
+
+
+def value_draws(per_animal, epoch, stat, *, rng, n_boot=2000):
+    """``(point, draws)`` for one epoch's own value -- the error bar, not a contrast.
+
+    Same resampling as `contrast_draws` (animals, then sessions, then blocks) applied to a single
+    epoch, so a bar's interval and the mark above it come from one scheme. The alternative in use
+    until now was a Wilson interval over pooled trials, which answers "how precisely do we know
+    this pooled rate" while treating twenty thousand trials from four mice as independent -- far
+    too narrow, and narrower still exactly where the clustering is worst.
+    """
+    animals = sorted(per_animal)
+    real = _pooled(per_animal, epoch)
+    if not animals or real is None:
+        return None
+    point = stat(*real)
+    if point is None:
+        return None
+    sess = {an: _sessions_of(per_animal, an, epoch) for an in animals}
+    out = []
+    for _ in range(n_boot):
+        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
+        ys, ps = [], []
+        for an in pick:
+            d = _draw(sess[an], rng)
+            if d is None:
+                continue
+            ys.append(d[0])
+            ps.append(d[1])
+        if not ys:
+            continue
+        v = stat(np.concatenate(ys), np.concatenate(ps))
+        if v is not None:
+            out.append(v)
+    if len(out) < n_boot // 4:
+        return None
+    return float(point), np.asarray(out, float)
+
+
+def scalar_value_draws(points, epoch, key, *, rng, n_boot=2000):
+    """``(point, draws)`` for one epoch's value in a per-session scalar family.
+
+    Animals then sessions, matching `scalar_contrast_draws`: there is no block level because these
+    collectors return one number per session.
+    """
+    rows = (points.get(epoch) or {}).get(key) or []
+    if not rows:
+        return None
+    animals = sorted({an for an, _v in rows})
+    by = {an: [v for x, v in rows if x == an] for an in animals}
+    point = float(np.mean([v for _a, v in rows]))
+    out = []
+    for _ in range(n_boot):
+        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
+        vals = []
+        for an in pick:
+            sa = by[an]
+            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
+        if vals:
+            out.append(float(np.mean(vals)))
+    if len(out) < n_boot // 4:
+        return None
+    return point, np.asarray(out, float)
+
+
+def with_ci(point_draws):
+    """``(point, lo, hi)`` from a ``(point, draws)`` pair, or the bare point when there are none.
+
+    The shape `bar_row` needs: it draws an error bar only where a value arrives as a tuple, which
+    is why every family that returned a plain float silently had none.
+    """
+    if point_draws is None:
+        return None
+    point, draws = point_draws
+    lo, hi = np.percentile(draws, [2.5, 97.5])
+    return (float(point), float(lo), float(hi))

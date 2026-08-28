@@ -292,7 +292,13 @@ def fig_behaviour(out_dir):
     if not any(by.values()):
         return None
     short = dict(zip(CONF_LABELS, _short_labels()))
-    values = {e: {short[p]: v for p, v in per.items()} for e, per in by.items() if per}
+    # WILSON OVER POOLED TRIALS IS THE WRONG INTERVAL and was the only one any of these figures
+    # had. It answers "how precisely do we know this pooled rate" while treating twenty thousand
+    # trials from four mice as independent observations -- far too narrow, and narrowest exactly
+    # where the clustering is worst. `behaviour_by_epoch` still returns it; the bootstrap below
+    # replaces it wherever the per-trial tables allow, and only the point estimate is kept from it.
+    values = {e: {short[p]: (v[0] if isinstance(v, (tuple, list)) else v)
+                  for p, v in per.items()} for e, per in by.items() if per}
 
     # ONE DOT PER SESSION, from the same store the bars are summed from -- not a second pass over
     # the behaviour tree, which could disagree with the bars it sits on.
@@ -325,6 +331,20 @@ def fig_behaviour(out_dir):
     # since 2026-08-28, and a half-backfilled tree must still produce a figure.
     blocks_recs = _behaviour_records()
     p_idx = _position_codes()
+    # the bar intervals, from the same resampling as the marks, wherever the trial tables exist
+    if blocks_recs:
+        for e in list(values):
+            for p in CONF_LABELS:
+                key = short[p]
+                if key not in values[e]:
+                    continue
+                got = ef.value_draws(
+                    blocks_recs, e, lambda y, pr, c=int(p_idx[p]): _accuracy_at(y, pr, c),
+                    rng=np.random.default_rng(_seed_for("behaviour", "value", e, p)),
+                    n_boot=N_BOOT)
+                ci = ef.with_ci(got)
+                if ci is not None:
+                    values[e][key] = ci
     used_blocks = {}          # per epoch: how many contrasts the blocks path actually served
     post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
     n_comp = sum(len(values[e]) for e in post)
@@ -486,7 +506,14 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
         values[e] = {}
         points[e] = {}
         for q in CONF_LABELS:
-            a = _accuracy_of(rec, q)
+            # THE BAR'S OWN INTERVAL, from the same animals -> sessions -> blocks resampling the
+            # marks use. Passing a bare number drew no error bar at all, silently: `bar_row` draws
+            # one only where a value arrives as a (value, lo, hi) tuple.
+            got = ef.value_draws(
+                per_animal, e, lambda y, pr, c=_code_of(q): _accuracy_at(y, pr, c),
+                rng=np.random.default_rng(_seed_for(align, variant, e, f"{q}-value")),
+                n_boot=N_BOOT)
+            a = ef.with_ci(got) if got is not None else _accuracy_of(rec, q)
             if a is not None:
                 values[e][short[q]] = a
             # one dot per session, from the SAME records the pooled bar sums
@@ -632,6 +659,16 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
                           points=points, counts=_totals(_session_counts()), chance=chance,
                           ylim=ylim)
     n_comp = sum(len(values[e]) for e in post)
+    # EVERY BAR GETS ITS OWN INTERVAL, including pre. Same resampling as the contrasts, so a bar
+    # and the mark above it cannot come from two different schemes.
+    for e in list(values):
+        for k in list(values[e]):
+            got = ef.scalar_value_draws(
+                points, e, k, rng=np.random.default_rng(_seed_for(name, "value", e, k)),
+                n_boot=N_BOOT)
+            ci = ef.with_ci(got)
+            if ci is not None:
+                values[e][k] = ci
     marks, rows = {}, {}
     for e in post:
         marks[e], rows[e] = {}, {}
