@@ -3302,7 +3302,8 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # sat on the row above.
     fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(_colw() * ncol + 2.0, figh),
                              squeeze=False,
-                             gridspec_kw={"width_ratios": [1, 0.62] + [1] * len(days)})
+                             gridspec_kw={"hspace": 0.60,
+                                          "width_ratios": [1, 0.62] + [1] * len(days)})
     spacer = grid[:, 1]
     for ax in spacer:
         ax.axis("off")
@@ -3747,8 +3748,11 @@ def fig_delta_trajectory(out_dir, min_trials=10):
             cis = _delta_cis(align, v, min_trials, _mats_pattern, "9", full=True)
             if not any(cis.values()):
                 continue
-            # Shortest figure in the module and it also set no hspace, so its titles had
-            # the least room of any of them.
+            # More row height and an explicit hspace. This is figure 9, not
+            # fig_asymmetry -- an earlier edit matched here by mistake because both
+            # call plt.subplots(len(ANIMALS), 2, ...). The extra room is kept because
+            # it is an improvement on its own terms, but the claim it carried was not
+            # about this figure.
             fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(10.0, 2.4 * len(ANIMALS) + 1.6),
                                      gridspec_kw={"hspace": 0.60},
                                      squeeze=False, sharex=True)
@@ -3944,8 +3948,12 @@ def fig_asymmetry(out_dir, min_trials=10):
             if not cis:
                 continue
             cols = ["PRE"] + list(days)
+            # SHORTEST FIGURE IN THE MODULE and it set no hspace, so its per-panel titles had the
+            # least room of any of them -- 30 of the 41 faults in one render. 0.60 at a taller
+            # figure is the combination verified clean on the sibling grids.
             fig, axes = plt.subplots(len(ANIMALS), len(cols),
-                                     figsize=(_colw() * len(cols) + 1.4, 7.4), squeeze=False)
+                                     figsize=(_colw() * len(cols) + 1.4, 9.5), squeeze=False,
+                                     gridspec_kw={"hspace": 0.60})
             im = None
             for ri, an in enumerate(ANIMALS):
                 rec = cis.get(an) or {}

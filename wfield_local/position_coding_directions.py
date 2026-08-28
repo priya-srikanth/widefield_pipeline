@@ -101,6 +101,10 @@ ALIGNS = (("precue", "ENL"), ("cue", "cue"), ("lick", "lick"))
 SEVERITY = {"far_R": 1, "far_center": 2, "far_L": 3,
             "close_R": 4, "close_center": 5, "close_L": 6}
 BY_SEVERITY = [p for p, _ in sorted(SEVERITY.items(), key=lambda kv: kv[1])]
+#: two-character position labels for dense axes (c/f = close/far, L/C/R). One
+#: definition, imported rather than re-spelled -- three copies of a label map is
+#: how two figures come to disagree about what 'fC' means.
+from wfield_local.locanmf_frozen_decoder import POS_SHORT  # noqa: E402
 
 #: classes each window can carry. Every window now carries all five: the lick window places a
 #: no-lick trial at its would-be-lick time (see the module docstring), so CLASSES_LICK is kept
@@ -1212,33 +1216,55 @@ def figure_cross_sessions(res, out, align="precue", meth="dom", cls="poststroke_
         return None
     lim = float(np.nanpercentile(np.abs(np.array([m for _l, m in mats])), 98)) or 1.0
 
+    # MORE SESSIONS PER FIGURE, SMALLER PANELS, LARGER TEXT (Priya, 2026-08-28). The across-session
+    # view is PREFERRED over the pooled one -- pooling post-stroke merges early-deficit days with
+    # late-recovered days, which is the very thing this figure exists to separate -- so the answer to
+    # its slide cost is to make the figure denser and more legible, not to drop it.
+    #
+    # WHY THIS IS A NET GAIN IN LEGIBILITY DESPITE SMALLER PANELS. The figure is placed at a FIXED
+    # 12.7in on the slide, so what a reader sees is fontsize x (12.7 / figure width). At 4 columns of
+    # 4.0in the figure was 16in wide and its 6.5pt ticks rendered at ~5.1pt. At 6 columns of 2.25in
+    # it is 13.5in and 8pt ticks render at ~7.5pt -- half again as large, with two more sessions
+    # visible at once.
     n = len(mats)
-    cols = min(n, 4)
+    cols = min(n, 6)
     rows = int(np.ceil(n / cols))
-    fig, axes = plt.subplots(rows, cols, figsize=(4.0 * cols, 3.9 * rows), squeeze=False)
+    fig, axes = plt.subplots(rows, cols, figsize=(2.25 * cols + 0.9, 2.55 * rows + 1.0),
+                             squeeze=False, gridspec_kw={"hspace": 0.42, "wspace": 0.18})
+    short = [POS_SHORT.get(p, p) for p in BY_SEVERITY]
+    im = None
     for k, (lab, M) in enumerate(mats):
         ax = axes[k // cols][k % cols]
         im = ax.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim)
         for r in range(len(BY_SEVERITY)):
             for cc in range(len(BY_SEVERITY)):
                 if np.isfinite(M[r, cc]):
-                    ax.text(cc, r, f"{M[r, cc]:+.1f}", ha="center", va="center", fontsize=6)
+                    ax.text(cc, r, f"{M[r, cc]:+.1f}", ha="center", va="center", fontsize=7)
         ax.set_xticks(range(len(BY_SEVERITY)))
-        ax.set_xticklabels(BY_SEVERITY, rotation=90, ha="center", fontsize=6.5)
+        # Bottom-most panel IN EACH COLUMN, not the last row: the final row is short whenever the
+        # session count is not a multiple of `cols`, which would leave most columns with no x axis.
+        ax.set_xticklabels(short if k + cols >= n else [], rotation=90, ha="center", fontsize=8)
         ax.set_yticks(range(len(BY_SEVERITY)))
-        ax.set_yticklabels(BY_SEVERITY if k % cols == 0 else [], fontsize=6.5)
-        ax.set_title(lab, fontsize=9)
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+        ax.set_yticklabels(short if k % cols == 0 else [], fontsize=8)
+        ax.set_title(lab.split("_")[-1], fontsize=10)
+        ax.tick_params(length=2, pad=1)
     for j in range(n, rows * cols):
         axes[j // cols][j % cols].axis("off")
+    # ONE COLOUR BAR, not one per panel. Every panel already shares vmin/vmax=+/-lim, so N of them
+    # asserted a per-panel scale that does not exist while taking width from the maps themselves.
+    # Added after the layout is final so it cannot be displaced by it.
+    fig.tight_layout(rect=(0, 0, 0.93, 0.86))
+    cax = fig.add_axes([0.945, 0.22, 0.012, 0.46])
+    cb = fig.colorbar(im, cax=cax)
+    cb.set_label("difference from the pre-stroke baseline", fontsize=8)
+    cb.ax.tick_params(labelsize=7)
     fig.suptitle(
         f"{res['animal']} \u2014 {disp}, {meth.upper()}: {STYLE[cls][2]}, MINUS the pre-stroke "
         f"baseline, ONE MATRIX PER SESSION.\nRows = TRUE spout position, columns = the direction "
         f"scored on. Red = more like the column's position than pre-stroke, blue = less. A row "
         f"going red OFF the diagonal is a remapping; a row going blue ACROSS is loss of that "
         f"position's pattern. Read across sessions: a settled deficit looks the same each day, a "
-        f"moving one does not.", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+        f"moving one does not.", fontsize=10)
     q = Path(out) / f"coding_crosssess_{disp}_{meth}_{cls}_{res['animal']}.png"
     fig.savefig(q, dpi=150)
     plt.close(fig)
