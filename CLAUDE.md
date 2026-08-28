@@ -63,8 +63,22 @@ stage** (section G + the map-level analyses) whenever a post-stroke session exis
 silently went a day stale on a superseded basis. Overnight, one command: add `--await-locanmf` to
 block until the imaging box's LocaNMF inputs land and then run the whole figs stage.
 
-Useful skips: `--skip-camera`, `--skip-figs`, `--skip-frozen`, `--skip-poststroke`, `--skip-deck`,
-`--skip-archive`, `--dry-run`.
+Stage 2 also runs **`grant_figures`** (added 2026-08-27, same rule as the post-stroke stage: deck
+section H places 19 of its patterns, and a deck input no nightly step regenerates is frozen at the
+day it was last made by hand).
+
+**HOW LONG IT TAKES** (measured 2026-08-26/27, four animals, 21 curated dates): analysis stage
+**~9.6 h**, grant render **~8–10 h** with `--compact`, so a full stage 2 is **~18–20 h** and does not
+fit in a night. `--skip-grant` (also accepted by `await_locanmf`, which forwards it) runs everything
+else; section H then shows the previous render and the deck manifest reports it as not-refreshed.
+The grant render is that long because `_trial_features` — the per-session workhorse — is NOT
+memoized, so each collector rebuilds the same features: 40 sessions produced 200 builds on the
+2026-08-27 render, ~5x each. Fixing that is the way to make the full nightly fit; the disk cache
+(`session_cache.cached`) already exists and is used by `locanmf_rsa`, `locanmf_cross_mouse`,
+`evoked_amplitude` and `fixed_scale_maps`, just not here.
+
+Useful skips: `--skip-camera`, `--skip-figs`, `--skip-frozen`, `--skip-poststroke`, `--skip-grant`,
+`--skip-deck`, `--skip-archive`, `--dry-run`.
 
 ## Architecture (two machines)
 

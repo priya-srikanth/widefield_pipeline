@@ -252,6 +252,12 @@ def main():
     ap.add_argument("--skip-nolick", action="store_true",
                     help="skip the no-detected-lick reference (engaged vs late vs undetected, "
                          "pre-cue vs post-cue). Adds ~1-2 h; see wfield_local.nolick_analysis.")
+    ap.add_argument("--skip-grant", action="store_true",
+                    help="skip the grant-figure render. MEASURED 2026-08-27: the analysis stage is "
+                         "~9.6 h and the grant render ~8-10 h with --compact, so the two together "
+                         "do not fit in a night. Skipping leaves deck section H showing the "
+                         "PREVIOUS render -- the deck's manifest reports them as not refreshed, "
+                         "which is the signal to re-run it by hand.")
     ap.add_argument("--skip-poststroke", action="store_true",
                     help="skip the post-stroke stage (section G + the map-level analyses)")
     ap.add_argument("--skip-frozen", action="store_true",
@@ -473,7 +479,11 @@ def main():
     #
     # Its own root: these land under `labcams/grant_figures`, not `out` -- a deliverable rather than
     # an analysis intermediate -- so no --output is passed.
-    cli("wfield_local.grant_figures", "--compact")
+    if args.skip_grant:
+        log("== grant figures SKIPPED (--skip-grant): deck section H will show the PREVIOUS "
+            "render; the deck manifest lists them as not refreshed by this run ==")
+    else:
+        cli("wfield_local.grant_figures", "--compact")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,

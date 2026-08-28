@@ -34,3 +34,22 @@ def test_section_h_still_places_grant_figures():
     test is the reminder to reconsider it -- rather than leaving an hours-long step nothing reads."""
     src = inspect.getsource(ad)
     assert src.count('("grant_') > 10, "section H no longer places grant figures; revisit the nightly step"
+
+
+def test_grant_step_can_be_skipped():
+    """MEASURED 2026-08-27: analysis stage ~9.6 h + grant render ~8-10 h does not fit in a night,
+    so the step that was just made mandatory needs an escape (Priya)."""
+    src = inspect.getsource(nightly_figs)
+    assert '"--skip-grant"' in src, "nightly_figs needs a --skip-grant flag"
+    assert re.search(r"if args\.skip_grant:", src), "the flag must actually gate the grant step"
+
+
+def test_await_locanmf_forwards_skip_grant():
+    """The one-command overnight path is await_locanmf, so the escape has to reach nightly_figs
+    through it -- nightly.py already fails to forward --skip-frozen/--skip-poststroke, and a flag
+    that cannot be reached from the command people actually run is not an escape."""
+    from wfield_local import await_locanmf
+    src = inspect.getsource(await_locanmf)
+    assert '"--skip-grant"' in src, "await_locanmf must accept --skip-grant"
+    assert re.search(r"skip_grant.*\n.*nightly_figs|nightly_figs.*_figs", src), \
+        "await_locanmf must forward --skip-grant to nightly_figs"

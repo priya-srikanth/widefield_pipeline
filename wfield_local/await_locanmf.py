@@ -274,7 +274,11 @@ def tick(rv, yyyymmdd, animals, args) -> set[str]:
     if written:
         commit_push(written, args.no_push, args.dry_run)
         if not args.no_figs:
-            _run([sys.executable, "-u", "-m", "wfield_local.nightly_figs", yyyymmdd], args.dry_run)
+            # --skip-grant forwarded: the analysis stage is ~9.6 h and the grant render ~8-10 h, so
+            # the one-command overnight path needs a way to fit in a night (Priya, 2026-08-27).
+            _figs = ["--skip-grant"] if args.skip_grant else []
+            _run([sys.executable, "-u", "-m", "wfield_local.nightly_figs", yyyymmdd, *_figs],
+                 args.dry_run)
 
     registered_now = {e["animal"] for e in discover(rv, yyyymmdd, animals) if e["registered"]}
     if args.dry_run:                             # dry-run never writes, so treat written as "would-register"
@@ -290,6 +294,10 @@ def main(argv=None) -> int:
     ap.add_argument("--once", action="store_true", help="single detection pass, then exit")
     ap.add_argument("--no-locanmf", action="store_true", help="register only; assume LocaNMF already ran")
     ap.add_argument("--no-figs", action="store_true", help="skip the nightly_figs refresh after registration")
+    ap.add_argument("--skip-grant", action="store_true",
+                    help="run nightly_figs WITHOUT the grant-figure render (~8-10 h of it). Deck "
+                         "section H then shows the previous render, reported as not-refreshed in "
+                         "the deck manifest.")
     ap.add_argument("--no-push", action="store_true", help="commit sessions.yaml locally but do not push")
     ap.add_argument("--dry-run", action="store_true", help="print the plan; write/commit/run nothing")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
