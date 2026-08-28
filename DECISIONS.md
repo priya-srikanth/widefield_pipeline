@@ -5492,3 +5492,61 @@ that loads must agree to the last digit. Both were run through the real `pooled_
 `grant_figures`, `nolick_decoder`, `ood_control` and `poststroke_compare` each still fit their own
 pre-stroke model. They agree with these today because they share `_pipe()` and the same trial
 conventions, but nothing enforces it. That is the next step, not this one.
+
+## 2026-08-28 — The no-lick "pre-stroke reference" was neither, in two independent ways
+
+`nolick_reference_prestroke.json` calls itself, in its own `kind` field, the frozen PRE-STROKE
+no-detected-lick reference. Two separate things were not pre-stroke.
+
+### THE MODEL — the third instance of the same contamination
+
+`analyse_animal` fitted `clf = _pipe().fit(XE, YE)` over every pooled session, and ran the engaged
+arm's leave-one-session-out over all of them too. This module exists, in its own docstring, as *"the
+pre-stroke reference for reading post-stroke failed trials"* — and the model reading them was being
+trained on them. The position-matching target (`eng_frac`, the engaged position profile every other
+arm is matched to) also spanned all phases.
+
+That is the same class as `pooled_frozen_loso` (fixed 2026-08-26) and `ood_control` (fixed
+2026-08-28). Three instances now, all with the same cause: code written when the cohort was
+pre-stroke only, and post-stroke sessions joining a list silently.
+
+Training is now restricted to pre-stroke; the engaged arm is leave-one-out among pre; the matching
+target is the pre-stroke profile. **Pooling is unchanged** and still spans every session — it is what
+reconciles the feature columns and makes post-stroke rows comparable at all. Post-stroke sessions are
+still SCORED, by a model that never saw one. That is the measurement. The result now carries
+`training_phase`, `pre_labels` and `post_labels`, and refuses outright below two pre-stroke sessions.
+
+### THE ARTIFACT — a guard that could only ever say no
+
+The freeze was `if not frozen.exists()` plus, since 2026-08-26, a refusal when the live reference
+covered post-stroke dates. The refusal was right. But it was built from `from_list`, which now ALWAYS
+contains post-stroke dates — so the guard could only ever refuse. Every night logged a refusal, and
+the only pre-stroke reference in existence stayed the one written on 2026-08-19, which is clean by
+accident of timing. **A guard that can never pass is not a mechanism.** It also meant the behavior box
+could never mint one at all.
+
+`build_reference(phase="pre")` now restricts the date list itself, so the artifact matches its name by
+construction. The post-stroke check survives as a second line rather than the only one, and it now
+interrogates the PRODUCED artifact's own `dates` rather than the caller's request — asking for
+pre-stroke and trusting compliance is the same category of mistake as `exists()` standing in for "is
+pre-stroke". A bad artifact is RENAMED to `.REFUSED_contaminated.json`, not deleted.
+
+### WHY IT COULD NOT SIMPLY LOAD THE FROZEN DECODER
+
+It looks like `pooled_frozen_loso` — same `_pipe()`, same z-scoring rationale, ROI or joint basis —
+but it is three ways different, and only one of those is a bug. Its engaged cut is **2.0 s** (or the
+session's own response window), deliberately, because that is what keeps the `late_rewarded` arm
+addressable at all; with both cuts at 3.5 s that arm is empty by construction and the
+late-versus-undetected distinction disappears — a real result (PS93 8/12: the entire pre-cue survival
+sat in the LATE arm, balanced 0.532, p=0.003, while undetected showed nothing, 0.153, p=0.76). It also
+builds features with its own `session_features`, whose pre-cue window is not lick-free. Different
+training rows and a different feature space mean a different model, so it correctly keeps its own —
+it just has to be pre-stroke, which it now is.
+
+### FOR THE DECK'S DERIVED CAVEAT
+
+The other window is having the deck mark D2/G6 by reading the artifact rather than hardcoding a
+warning, so the caveat disappears on its own once a clean artifact lands. Keying on
+`dates ∩ poststroke_dates()` would now over-fire: the LIVE reference legitimately spans both phases —
+that is the comparison — while its model is pre-stroke-only. `training_phase` is the honest
+discriminator, and is written for exactly that.

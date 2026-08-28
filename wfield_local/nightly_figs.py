@@ -428,16 +428,29 @@ def main():
                 # what is inside the file. (Raised by the second window 2026-08-26; the existing
                 # artifact was checked and IS clean -- 11 pre-stroke dates, 44 pre-stroke labels,
                 # zero post -- but that was luck, not a guarantee.)
-                _post = sorted(set(from_list) & set(config.poststroke_dates()))
+                # BUILT PRE-STROKE, not copied and then checked (2026-08-28). The guard above was
+                # right to refuse a contaminated copy, but `from_list` now ALWAYS contains
+                # post-stroke dates, so it could only ever say no: every night logged a refusal and
+                # the only pre-stroke reference in existence was the one written on 2026-08-19 that
+                # happened to be clean. A guard that can never pass is not a mechanism.
+                #
+                # `build_reference(phase="pre")` restricts the date list itself, so the artifact
+                # matches its own `kind` field by construction. Only on the branch where no frozen
+                # file exists, so the extra build is a one-off per box rather than a nightly cost.
+                pre_ref = nolick_decoder.build_reference(
+                    dates=from_list, out=frozen, phase="pre")
+                _post = sorted(set(pre_ref.get("dates", [])) & set(config.poststroke_dates()))
                 if _post:
-                    log(f"  !! NOT freezing the pre-stroke no-lick reference: the live reference "
-                        f"covers post-stroke dates {_post}. Freezing it would preserve the "
-                        f"contamination rather than prevent it. Rebuild with pre-stroke dates and "
-                        f"freeze that, deliberately.")
+                    # Belt and braces: the artifact is asked what it actually covers, rather than
+                    # the caller being trusted about what it asked for.
+                    supers = frozen.with_name(f"{frozen.stem}.REFUSED_contaminated{frozen.suffix}")
+                    frozen.rename(supers)
+                    log(f"  !! the PRE-STROKE no-lick reference came back covering post-stroke "
+                        f"dates {_post} -- phase filtering did not hold. Renamed to {supers.name}; "
+                        f"nothing downstream will read it as a reference.")
                 else:
-                    frozen.write_text(ref_path.read_text())
-                    log(f"froze the PRE-STROKE no-lick reference ({len(from_list)} pre-stroke "
-                        f"dates) -> {frozen.name}")
+                    log(f"froze the PRE-STROKE no-lick reference "
+                        f"({len(pre_ref.get('dates', []))} pre-stroke dates) -> {frozen.name}")
             for an, v in (ref.get("consensus") or {}).items():
                 log(f"  no-lick {an}: {v if isinstance(v, str) else 'BASES DISAGREE -- see deck section D2'}")
         except Exception as ex:

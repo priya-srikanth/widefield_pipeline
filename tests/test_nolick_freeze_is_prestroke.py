@@ -25,25 +25,41 @@ def _freeze_block() -> str:
     return src
 
 
-def test_the_freeze_checks_the_phase_before_writing():
+def test_the_freeze_BUILDS_prestroke_rather_than_copying_and_checking():
+    """UPDATED 2026-08-28, and the reason is the point.
+
+    The original mechanism copied the live reference and refused when it covered post-stroke dates.
+    Refusing was right. But `from_list` now ALWAYS contains post-stroke dates, so the guard could
+    only ever say no: every night logged a refusal, and the only pre-stroke reference in existence
+    stayed the one written on 2026-08-19 that happened to be clean. A guard that can never pass is
+    not a mechanism -- it is a permanently closed door with a sign on it.
+
+    So the freeze now BUILDS with `phase="pre"`, and the artifact matches its `kind` field by
+    construction rather than by luck. The check below survives as a second line, not the only one.
+    """
     src = _freeze_block()
     i = src.index("nolick_reference_prestroke.json")
-    window = src[i:i + 2500]
-    assert "poststroke_dates()" in window, (
-        "the freeze does not check whether the reference it is about to freeze covers post-stroke "
-        "dates")
+    window = src[i:i + 4200]
+    assert 'phase="pre"' in window, "the freeze does not restrict the build to pre-stroke"
+    assert "poststroke_dates()" in window, "the produced artifact is no longer phase-checked"
 
 
-def test_a_contaminated_reference_is_refused_not_frozen():
-    """Refusing is the only safe branch: writing it would preserve the contamination under a name
-    that asserts the opposite, and every later reader would trust the name."""
+def test_a_contaminated_reference_is_still_refused_not_published():
+    """The second check must act on what was PRODUCED, not on what was requested.
+
+    Asking `build_reference` for pre-stroke and then trusting that it complied is the same category
+    of mistake as `exists()` standing in for "is pre-stroke". The artifact is asked what it actually
+    covers, and a bad one is renamed out of the way so nothing downstream reads it as a reference --
+    renamed rather than deleted, matching the convention everywhere else here.
+    """
     src = _freeze_block()
     i = src.index("nolick_reference_prestroke.json")
-    window = src[i:i + 2500]
-    assert "NOT freezing" in window, "no refusal path"
-    # the write must be on the clean branch, i.e. guarded by the post-stroke check
-    assert window.index("poststroke_dates()") < window.index("frozen.write_text"), (
-        "the write happens before the phase check, so the check cannot prevent it")
+    window = src[i:i + 4200]
+    assert 'pre_ref.get("dates"' in window, (
+        "the check reads the caller's date list rather than the artifact's own")
+    assert "REFUSED_contaminated" in window, "a contaminated artifact is not moved out of the way"
+    assert window.index("poststroke_dates()") < window.index("froze the PRE-STROKE"), (
+        "the success message can be reached without the phase check")
 
 
 def test_the_existing_artifact_is_actually_clean():

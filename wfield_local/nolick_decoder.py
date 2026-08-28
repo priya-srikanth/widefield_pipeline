@@ -460,13 +460,41 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         res["skipped"] = "too few pooled engaged trials"
         return res
 
-    from sklearn.model_selection import LeaveOneGroupOut
-    pred_e = cross_val_predict(_pipe(), XE, YE, cv=LeaveOneGroupOut(), groups=SE)
-    res["engaged"] = na.evaluate_arm(YE, pred_e, n_perm=n_perm)
-    res["engaged"]["loso_accuracy"] = float(accuracy_score(YE, pred_e))
-    eng_frac = {POSITION_NAMES[c]: float((YE == c).mean()) for c in DISPLAY_ORDER}
+    # TRAINING IS PRE-STROKE ONLY (Priya, 2026-08-28), for the reason `pooled_frozen_loso` was fixed
+    # on 2026-08-26 and `ood_control` on 2026-08-28. This module's whole purpose, in its own words,
+    # is "the pre-stroke reference for reading post-stroke failed trials" -- and the model reading
+    # them was being trained on them. `clf = _pipe().fit(XE, YE)` used every pooled session, and the
+    # engaged arm's LOSO ran over all of them too, so once post-stroke nights joined `from_list` the
+    # reference became partly the thing it is a reference for.
+    #
+    # POOLING IS UNCHANGED and still spans every session: it is what reconciles the feature columns
+    # and makes post-stroke rows comparable at all. Only the TRAINING rows are restricted -- the same
+    # distinction that made the frozen decoder's fix safe.
+    #
+    # Post-stroke sessions in the pool are still SCORED, by a model that never saw one. That is the
+    # measurement.
+    labs_pre = {lab for lab in set(SE.tolist())
+                if config.session_phase(config.animal_of(lab), lab.split("_")[-1]) == "pre"}
+    m_pre = np.isin(SE, list(labs_pre))
+    if m_pre.sum() < 100 or len(labs_pre) < 2:
+        res["skipped"] = (f"only {len(labs_pre)} pre-stroke session(s) / {int(m_pre.sum())} engaged "
+                          f"trials pooled; a pre-stroke reference needs at least 2 sessions")
+        return res
+    res["training_phase"] = "pre"
+    res["pre_labels"] = sorted(labs_pre)
+    res["post_labels"] = sorted(set(SE.tolist()) - labs_pre)
 
-    clf = _pipe().fit(XE, YE)
+    from sklearn.model_selection import LeaveOneGroupOut
+    # The ENGAGED arm is the pre-stroke reference band, so it is leave-one-session-out among PRE.
+    # Mixing post-stroke sessions into it answers a different question.
+    pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
+    res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
+    res["engaged"]["loso_accuracy"] = float(accuracy_score(YE[m_pre], pred_e))
+    # The MATCHING TARGET is the pre-stroke engaged position profile, for the same reason: it is what
+    # the other arms are being made comparable to.
+    eng_frac = {POSITION_NAMES[c]: float((YE[m_pre] == c).mean()) for c in DISPLAY_ORDER}
+
+    clf = _pipe().fit(XE[m_pre], YE[m_pre])
     for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:
@@ -560,7 +588,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
 BASES = ("roi", "joint")
 
 
-def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N_PERM):
+def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N_PERM, phase=None):
     """The frozen PRE-STROKE reference: both bases, both alignments, all animals, written once.
 
     Both alignments are always computed even if a caller only wants one, because the discriminating
@@ -579,7 +607,25 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
 
     animals = config.normalize_animals(animals) or ["PS92", "PS93", "PS94", "PS95"]
     dates = sorted(dates or config.curated_dates())
-    ref = {"kind": "pre-stroke no-detected-lick reference", "dates": dates, "bases": list(bases),
+    if phase:
+        # PRE-STROKE BY CONSTRUCTION, not by whatever date list the caller happened to pass.
+        #
+        # This artifact is named "the frozen PRE-STROKE reference" in its own `kind` field, and the
+        # nightly built it from `from_list` -- ALL phases. The 2026-08-26 guard in `nightly_figs`
+        # stopped a contaminated file being FROZEN, which was right, but it also meant the freeze
+        # could never happen again: `from_list` always contains post-stroke dates now, so every
+        # night logged a refusal and the only pre-stroke reference in existence was the one written
+        # on 2026-08-19 that happened to be clean. A guard that can only ever say no is not a
+        # mechanism. Restricting here makes the artifact match its name, and turns that guard back
+        # into a cheap second check rather than the only thing standing between us and a bad file.
+        keep = {x.split("_")[-1] for x in config.phase_labels(phase)}
+        dropped = sorted(set(dates) - keep)
+        dates = sorted(set(dates) & keep)
+        if dropped:
+            print(f"[nolick] phase={phase!r}: dropped {len(dropped)} date(s) not in that phase "
+                  f"({dropped[:6]}{'...' if len(dropped) > 6 else ''})", flush=True)
+    ref = {"kind": f"{phase or 'all-phase'} no-detected-lick reference", "phase": phase,
+           "dates": dates, "bases": list(bases),
            "max_rt_s": 2.0, "response_window_s": "per session (gui_config.json)",
            "no_analysis_past_response_window": True, "n_perm": n_perm,
            "categories": {"engaged": "first detected lick within max_rt_s",
