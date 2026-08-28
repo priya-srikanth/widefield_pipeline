@@ -135,7 +135,12 @@ FIGURE_KINDS = ("direction", "pooled", "within", "cross", "pairwise", "normunit"
 #: per-post-stroke-session pairwise, one figure PER CLASS (five classes on one figure
 #: with N sessions each would be unreadable). Named coding_pairsess_<win>_<meth>_<cls>_<animal>.
 PAIRSESS_CLASSES = ("poststroke_lick", "poststroke_miss_working", "poststroke_stopped")
-FIGURE_KINDS_NOMETHOD = ("engagement",)
+#: Figures that carry NO method in their filename, because they do not come from a coding direction
+#: at all -- `engagement` is behaviour and `rtsplit` reads the frozen decoder's stored confusions.
+#: Getting this wrong is not cosmetic: the deck once built every name with the method interpolated,
+#: so `coding_engagement_<win>_<animal>.png` never matched and TWELVE behaviour slides were silently
+#: absent (2026-08-24). `tests/test_analysis_deck.py` checks the deck's literals against this tuple.
+FIGURE_KINDS_NOMETHOD = ("engagement", "rtsplit")
 COHORT_FIGURE_KINDS = ("cosslope", "pairsplit")
 
 
@@ -1399,6 +1404,113 @@ def figure_pooled(res, out, align="precue", meth="dom"):
     return q
 
 
+def figure_rt_split(res, out, align="precue", meth="dom"):
+    """Frozen pre-stroke decoder on EARLY vs LATE rewarded post-stroke trials.
+
+    THE QUESTION. `decode.max_rt_s` is 3.5 s, so "engaged" holds a 0.2 s lick and a 3.0 s lick in one
+    class, and post-stroke the mass moves late. Position coding PRESERVED on late trials means the
+    plan is intact and execution is slow; DEGRADED on late trials is a different result. Every other
+    figure in this deck averages the two together and so cannot distinguish them.
+
+    METHOD-INDEPENDENT, like `figure_engagement`: these confusions come from the frozen decoder, not
+    from a coding direction, so there is one per animal per window rather than one per method. The
+    `meth` argument is accepted and ignored so the driver can call it in the same loop shape.
+
+    The two post panels are a PARTITION of the lick class -- `early + late` is the `poststroke_lick`
+    matrix cell for cell (`tests/test_class_confusions.py`) -- so the reader can add them back and
+    recover the familiar figure, and any difference between the panels is a real regrouping of the
+    same trials rather than two differently-selected populations.
+    """
+    c = (res or {}).get("confusions") or {}
+    if c.get("poststroke_lick_early") is None and c.get("poststroke_lick_late") is None:
+        return None
+    disp = dict(ALIGNS)[align]
+    short = [POS_SHORT.get(p, p) for p in c["labels"]]
+    cut = c.get("rt_split_s", RT_SPLIT_S)
+
+    panels = [("prestroke_lick", "PRE-stroke LICK\n(leave-one-session-out)"),
+              ("poststroke_lick_early", f"POST-stroke EARLY\nlick < {cut:g} s"),
+              ("poststroke_lick_late", f"POST-stroke LATE\nlick \u2265 {cut:g} s")]
+
+    # 10.4in for four panels rather than a wider canvas: the deck places this ~9in, so a figure this
+    # size renders 9pt type at ~7.8pt. A 16in version of the same axes would land at 5pt.
+    fig, axes = plt.subplots(1, 4, figsize=(10.4, 2.95), squeeze=False,
+                             gridspec_kw={"wspace": 0.40, "width_ratios": [1, 1, 1, 1.25]})
+    axes = axes[0]
+    im = None
+    for ax, (key, title) in zip(axes[:3], panels):
+        M = c.get(key)
+        if M is None:
+            ax.set_axis_off()
+            ax.set_title(f"{title}\nno trials", fontsize=8)
+            continue
+        M = np.array(M, float)
+        n = int(M.sum())
+        # ROW-NORMALISED FOR DISPLAY ONLY. The stored matrices are raw counts precisely so they stay
+        # addable; normalising here is what makes three panels of very different n comparable by eye.
+        rows = M.sum(1, keepdims=True)
+        P = np.divide(M, rows, out=np.zeros_like(M), where=rows > 0)
+        im = ax.imshow(P, vmin=0, vmax=1, cmap="viridis")
+        acc = float(np.trace(M) / n) if n else float("nan")
+        ax.set_title(f"{title}\nn={n}, acc={acc:.2f}", fontsize=8)
+        ax.set_xticks(range(len(short)))
+        ax.set_xticklabels(short, fontsize=7, rotation=90)
+        ax.set_yticks(range(len(short)))
+        ax.set_yticklabels(short if ax is axes[0] else [], fontsize=7)
+        ax.set_xlabel("predicted", fontsize=8)
+        if ax is axes[0]:
+            ax.set_ylabel("true position", fontsize=8)
+
+    # FOURTH PANEL: per-position recall, early vs late, which is the actual comparison. Reading it
+    # off two heatmaps means comparing colours across panels, and that is exactly the judgement the
+    # eye is worst at.
+    ax = axes[3]
+    E, L = c.get("poststroke_lick_early"), c.get("poststroke_lick_late")
+    x = np.arange(len(short))
+    for M, col, lab in ((E, "#2166ac", f"early (<{cut:g}s)"),
+                        (L, "#b2182b", f"late (\u2265{cut:g}s)")):
+        if M is None:
+            continue
+        M = np.array(M, float)
+        rows = M.sum(1)
+        # a position with no trials in this arm is a GAP, not a zero: plotting 0 recall there would
+        # read as "the decoder failed here" when nothing was asked of it
+        rec = np.divide(np.diag(M), rows, out=np.full(len(rows), np.nan), where=rows > 0)
+        ax.plot(x, rec, "-o", color=col, ms=5, lw=1.5, label=f"{lab}  n={int(M.sum())}")
+    ax.axhline(1 / len(short), color="k", ls=":", lw=1.1, label="chance")
+    ax.set_xticks(x)
+    ax.set_xticklabels(short, fontsize=7, rotation=90)
+    ax.set_ylim(-0.03, 1.03)
+    ax.set_ylabel("recall", fontsize=8)
+    ax.tick_params(labelsize=7)
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=6.5, loc="upper right")
+    ax.set_title("per-position recall", fontsize=8)
+
+    fig.suptitle(f"{res['animal']} \u2014 {disp}: frozen PRE-stroke decoder on post-stroke "
+                 f"rewarded trials, split at {cut:g} s. Same decoder, same trials as the LICK "
+                 f"class, regrouped by reaction time.", fontsize=9.5, y=0.965)
+    # ABSOLUTE MARGINS, NOT `tight_layout`. Two reasons, both learned the hard way on 2026-08-28.
+    # `imshow` fixes an axes aspect, which makes the figure "not compatible with tight_layout" --
+    # matplotlib warns once per panel and the nightly log fills with it, which is how a real
+    # [layout] line stops being noticed. And a negotiated layout is not reproducible: `_delta_grid`
+    # was clean at 10 post-stroke days and overlapping at 12 because its margins were fractional.
+    # These numbers are checked by driving the function, not by reading them (see
+    # scratchpad/smoke_rtsplit.py and `_overlaps`).
+    fig.subplots_adjust(left=0.055, right=0.918, top=0.735, bottom=0.225, wspace=0.40)
+    if im is not None:
+        # Its OWN axes, added last, or the colorbar steals width from the final panel -- the fault
+        # found on the section D grid on 2026-08-28.
+        cax = fig.add_axes([0.935, 0.225, 0.012, 0.51])
+        cb = fig.colorbar(im, cax=cax)
+        cb.set_label("P(predicted | true)", fontsize=7.5)
+        cb.ax.tick_params(labelsize=6.5)
+    q = Path(out) / f"coding_rtsplit_{disp}_{res['animal']}.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
 def figure_within_session(res, out, align="precue", meth="dom"):
     """Each class across the COURSE of a session, in within-session quartiles.
 
@@ -1740,6 +1852,8 @@ def main(argv=None) -> int:
                 continue
             # behaviour is method-independent -- one per animal, not one per method
             _draw(figure_engagement, res[an], out, align=align)
+            # so is the RT split: it reads the frozen decoder's confusions, not a coding direction
+            _draw(figure_rt_split, res[an], out, align=align)
             for meth in res[an].get("methods", {}):
                 for fn in (figure_animal, figure_pooled, figure_within_session,
                            figure_cross, figure_pairwise, figure_norm_unit):

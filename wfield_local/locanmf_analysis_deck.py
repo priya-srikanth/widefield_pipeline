@@ -378,6 +378,32 @@ S_G9C = (
     "session median near 0.6 s against a last-quartile 1.03 s misplaces those windows by ~0.4 s, a "
     "fifth of the window. Read PS93's far no-lick cells with that discount.")
 
+S_G9E = (
+    "EARLY + LATE IS THE LICK CLASS, CELL FOR CELL. The two post panels are a PARTITION of the "
+    "post-stroke lick trials at 2.0 s, scored by the SAME frozen pre-stroke decoder, stored as raw "
+    "counts -- so adding them back reproduces the poststroke_lick matrix every other section G "
+    "slide shows, and any difference between the panels is a regrouping of the same trials rather "
+    "than two differently-selected populations. Pinned by `tests/test_class_confusions.py`.\n\n"
+    "WHY THE SPLIT EXISTS. decode.max_rt_s moved to 3.5 s on 2026-08-21 -- the task's real response "
+    "window -- because the no-lick arm was holding rewarded hits (39.3% of it for PS92, 33.9% for "
+    "PS93). That was the right fix, but it put a 0.2 s lick and a 3.0 s lick in one ENGAGED class, "
+    "and post-stroke the mass moves late. So the class that every decode number is computed on "
+    "changed its composition after the stroke, and no figure could show it.\n\n"
+    "WHAT THE PANELS DISCRIMINATE. Position coding PRESERVED on late trials = the plan is intact "
+    "and execution is slow. DEGRADED on late trials = a different injury. Those are the two "
+    "readings the study has to separate, and averaging them is what the merged class does.\n\n"
+    "THE BOUNDARY IS FIXED AT 2.0 s, not the session's median RT. A session-relative cut would make "
+    "'late' mean a different thing on every day, so it could be compared neither across sessions "
+    "nor against the late_rewarded category the no-detected-lick reference already defines. 2.0 s "
+    "is what nolick_decoder uses and what decode.max_rt_s was before 8/21.\n\n"
+    "THE PRE PANEL IS LEAVE-ONE-SESSION-OUT and the post panels are not, which is not an "
+    "inconsistency: post-stroke trials are held out by construction, pre-stroke trials are the "
+    "training set. Scoring pre in-sample gives 0.89-0.99 against 0.45-0.66 held out, so an "
+    "in-sample pre panel would read as a post-stroke collapse that is mostly overfitting.\n\n"
+    "N IS PRINTED ON EVERY PANEL. The late arm is the smaller one by construction and in some "
+    "animal-windows it is empty -- that panel then says 'no trials' rather than drawing a matrix of "
+    "zeros, which would read as a decoder failure instead of an absence of data.")
+
 S_G8 = (
     "THE 470 AND 415 QUESTIONS ARE ONE MEASUREMENT and cannot be asked separately -- 415 is the "
     "isosbestic channel and therefore the control for 470, so only the ratio of ratios is "
@@ -1954,13 +1980,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # Rendered in BOTH poolable bases (Allen-ROI and joint-LocaNMF), like Section D, plus an
     # agreement panel -- a result that appears in only one parcellation is a result about the
     # parcellation, and quoting whichever basis was run is exactly the failure two bases prevent.
-    # Both bases AND both engaged cuts. The cut is not a detail: moving it to the task's response
-    # window reclassifies the late-but-successful trials as engaged, which removes exactly the trials
-    # carrying the pre-cue signal -- so the dissociation looks very different at the two cuts, and a
-    # deck showing only one of them would be showing a choice rather than a result.
-    _NL_BASES = (("roi", "Allen-ROI, 2.0 s cut"), ("joint", "joint-LocaNMF, 2.0 s cut"),
-                 ("roi_respwin", "Allen-ROI, response-window cut"),
-                 ("joint_respwin", "joint-LocaNMF, response-window cut"))
+    # BOTH BASES, ONE CUT. The response-window variants were dropped from the deck on 2026-08-28
+    # (Priya: "remove D2 respwin once the early/late lands").
+    #
+    # The reason they were here still stands as a QUESTION -- moving the cut to the response window
+    # reclassifies the late-but-successful trials as engaged, and a deck showing one cut would be
+    # showing a choice rather than a result. What changed is that G9e now answers that question
+    # DIRECTLY: the trials that move between the two cuts ARE its "late" class, so they get their
+    # own panel instead of having to be inferred by differencing two four-slide arms.
+    #
+    # NOT deleted, only unplaced. `nolick_decoder` still writes both cuts (`--cut respwin`) and
+    # `nolick_reference_{roi,joint}_respwin.png` is still on disk, so nothing has to be recomputed to
+    # put them back. Read G9e with one caveat the differencing did not have: the respwin arm uses
+    # each SESSION's own response window from gui_config.json, while G9e's boundary is a fixed 2.0 s,
+    # so the two populations are close but not identical.
+    _NL_BASES = (("roi", "Allen-ROI, 2.0 s cut"), ("joint", "joint-LocaNMF, 2.0 s cut"))
     _nl = [(nice, src / f"nolick_reference_{b}.png") for b, nice in _NL_BASES
            if (src / f"nolick_reference_{b}.png").exists()]
     if _nl:
@@ -2688,11 +2722,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 note(s, M_CODING_DIR, specific=S_G9B)
                 big(s, _f, top=1.95, width=12.7)
 
-        # --- G9c. ONE-OFF control (wfield_local.rt_drift, not a nightly step)
+        # --- G9d. ONE-OFF control (wfield_local.rt_drift, not a nightly step).
+        # RELABELLED G9c -> G9d on 2026-08-28: two unrelated analyses both called themselves G9c
+        # (the per-session matrices above, and this), so a spoken reference to "G9c" picked out two
+        # different slides. Section labels are navigation; a duplicate one is a broken link.
         _rt = src / "coding_rtdrift.png"
         if _rt.exists():
             s = slide()
-            title(s, "G9c. First-lick latency across the course of a session",
+            title(s, "G9d. First-lick latency across the course of a session",
                   "Two controls in one figure, and the answer splits by RING. (1) SLOWED vs "
                   "SKIPPED: a late collapse in response rate could be an animal getting slower or "
                   "an animal stopping. FLAT latency with a falling response rate is the sated tail "
@@ -2717,6 +2754,46 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "mind. Rebuild with: python -m wfield_local.rt_drift")
             note(s, M_CODING_DIR, specific=S_G9C)
             big(s, _rt, top=1.95, width=12.7)
+
+        # --- G9e. EARLY vs LATE rewarded trials (Priya, 2026-08-28).
+        #
+        # PLACED HERE because it is the payoff of the latency control immediately above: G9d
+        # establishes that first-lick latency is a real, position-specific quantity that moves, and
+        # this splits the decode on it. Reading them the other way round makes the split look
+        # arbitrary.
+        #
+        # ONE ANIMAL PER SLIDE, not 2-up. The figure is 10.4in and carries 6x6 tick labels at 7pt;
+        # placed at 11.0in those reach the reader at ~7.4pt, while 2-up at 6.2in would land them at
+        # 4.2pt. The same measurement that put `pooled` and `normunit` INTO the 2-up set keeps this
+        # one out of it (DECISIONS 2026-08-28).
+        # THE KIND AS A LITERAL, like every other block here. `test_analysis_deck` reads the deck's
+        # `("<kind>"` literals to check that every kind the module declares reaches a slide, and it
+        # has to: the sibling blocks all build their filenames from a loop variable, so the
+        # filename itself never appears in this source and cannot be searched for. Interpolating
+        # "rtsplit" straight into the f-string would place the figure while reading, to that guard,
+        # as an unplaced kind.
+        _kind, _tag = ("rtsplit", "EARLY vs LATE rewarded trials")
+        for _w in ("ENL", "cue", "lick"):
+            for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                _f = src / f"coding_{_kind}_{_w}_{_an}.png"
+                if not _f.exists():
+                    continue
+                s = slide()
+                _lickwin = ("" if _w != "lick" else
+                            "  IN THE LICK WINDOW the split is between trials whose window STARTS "
+                            "early and late; the window still opens at the animal's own first lick, "
+                            "so this is not the cue-referenced timing the other two windows show.")
+                title(s, f"G9e. {_an} \u2014 {_w} window, {_tag}",
+                      "The same frozen pre-stroke decoder, the same post-stroke LICK trials, "
+                      "regrouped by reaction time at 2.0 s. Left panel is the pre-stroke "
+                      "leave-one-session-out reference; the two post panels ADD BACK to the "
+                      "poststroke_lick matrix shown everywhere else. Rightmost panel is the actual "
+                      "comparison \u2014 per-position recall, early against late \u2014 because "
+                      "judging that by matching colours across two heatmaps is the one thing the "
+                      "eye is worst at.  PRESERVED on late trials = plan intact, execution slow; "
+                      "DEGRADED = a different result." + _lickwin)
+                note(s, M_CODING_DIR, specific=S_G9E)
+                big(s, _f, top=1.95, width=11.0)
 
         # --- G8. hemispheric raw fluorescence: the 470 question cannot be asked without the 415 one
         _hemi = [(g, src / f"hemispheric_intensity_{g}.png")
