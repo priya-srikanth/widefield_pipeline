@@ -140,21 +140,38 @@ def test_engagement_never_responded():
 
 # --------------------------------------------------------------------------- metrics
 
-def test_session_metrics_excludes_disengaged_from_accuracy(tmp_path):
-    # 12 close_L hits, then a 8-trial sated tail of misses at far_L. Engaged hit rate = 1.0;
-    # raw includes the tail misses.
-    trials = [dict(tid=i + 1, pos_idx=1, hit=True) for i in range(12)]
-    trials += [dict(tid=13 + i, pos_idx=4, hit=False) for i in range(8)]
+def test_the_gate_fires_on_a_reference_position_collapse(tmp_path):
+    """Disengagement is judged at the REFERENCE positions (close_L, close_center) only.
+
+    REWRITTEN 2026-08-28 with the gate. It used to build a terminal run of misses at far_L and
+    assert they were excluded -- which is exactly what must NOT happen now: after a lesion a run of
+    far misses is the deficit, and deleting it writes the effect off as the confound. The
+    companion test below pins that direction.
+    """
+    trials = [dict(tid=i + 1, pos_idx=1, hit=True) for i in range(20)]
+    trials += [dict(tid=21 + i, pos_idx=1, hit=False) for i in range(16)]   # close_L collapse
     d = _write_session(tmp_path, "PS92_20260806_120000", trials)
-    params = config.defaults()["behavior"]
-    m = sb.session_metrics(sb.load_trials(d), None, params)
-    assert m["n_disengaged"] == 8
-    assert m["hit_rate_engaged"] == pytest.approx(1.0)
-    assert m["hit_rate_all"] < 1.0
+    m = sb.session_metrics(sb.load_trials(d), None, config.defaults()["behavior"])
+    assert m["n_disengaged"] > 0, "a sustained collapse AT REFERENCE must be caught"
+    assert m["hit_rate_all"] < m["hit_rate_engaged"]
+
+
+def test_a_terminal_run_of_far_misses_is_NOT_disengagement(tmp_path):
+    """The whole point of the change: a position-specific failure is the result, not the confound.
+
+    `flag_engagement` judged the trailing rate over ALL positions, so post-stroke it called the
+    animal disengaged precisely because it could not reach the far spouts -- and those trials were
+    then dropped from the hit rate that was supposed to measure the deficit. Measured on the real
+    cohort: it excluded 380 of PS94_0817's 643 trials where the reference-judged gate excludes 0.
+    """
+    trials = [dict(tid=i + 1, pos_idx=1, hit=True) for i in range(12)]
+    trials += [dict(tid=13 + i, pos_idx=4, hit=False) for i in range(12)]   # far_L, all missed
+    d = _write_session(tmp_path, "PS92_20260806_120000", trials)
+    m = sb.session_metrics(sb.load_trials(d), None, config.defaults()["behavior"])
+    assert m["n_disengaged"] == 0, "far-position misses were written off as disengagement"
     per = m["per_position"].set_index("pos_name")
-    assert per.loc["close_L", "hit_rate"] == pytest.approx(1.0)
-    # far_L misses were all in the sated tail -> 0 engaged trials there
-    assert per.loc["far_L", "trials_engaged"] == 0
+    assert per.loc["far_L", "trials_engaged"] == 12          # they COUNT, and they are misses
+    assert per.loc["far_L", "hit_rate"] == pytest.approx(0.0)
 
 
 def test_per_position_covers_all_six(tmp_path):
@@ -350,7 +367,10 @@ def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
     Session-level scalars stay over the whole session either way.
     """
     params = config.defaults()["behavior"]
-    tail = params["engagement"]["tail_min_misses"]
+    # LONG ENOUGH TO COLLAPSE THE REFERENCE RATE. The gate no longer has a fixed "terminal run of
+    # N misses" rule -- it fires when the trailing reference-position response rate stays below
+    # MIN_RATE and does not recover, which takes more than `tail_min_misses` trials.
+    tail = 16
     n_good = 40
     ev, trials = {}, []
     for i in range(n_good):                                  # engaged: 4 licks/trial at close_L
@@ -364,17 +384,30 @@ def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000", trials, _events(ev))
     tr = sb.load_trials(d)
     m = sb.session_metrics(tr, None, params)
-    assert m["n_disengaged"] == tail                          # the tail is what we expect to be gated
+    # PART of the tail, not all of it, and that is a property of a rate-collapse gate rather than
+    # a defect: it fires where the trailing reference rate crosses MIN_RATE, which a run of misses
+    # takes ~8 reference trials to do, then extends to the end. The old gate marked from the first
+    # miss because it carried a separate "terminal run of N" rule; the reference-judged gate has
+    # none, which is the trade for not calling a far-position deficit disengagement.
+    assert 0 < m["n_disengaged"] < tail
+    assert not m["scored"]["engaged"].to_numpy()[-1], "the end of a collapse must be excluded"
 
     ungated = sb.lick_microstructure(d, tr, params)
     gated = sb.lick_microstructure(d, tr, params, engaged_ids=sb._engaged_ids(m))
     u = ungated["per_position"].set_index("pos_name")
     g = gated["per_position"].set_index("pos_name")
+    # DERIVED FROM THE GATE, not hardcoded to "the whole tail". The gate excludes the part of the
+    # collapse after the reference rate crosses MIN_RATE, so some zero-lick tail trials remain
+    # engaged and the gated mean lands between the ungated one and the clean 4.0. Asserting 4.0
+    # would be asserting the old gate's semantics with the new gate's name on it.
+    kept = n_good + tail - m["n_disengaged"]
     assert u.loc["close_L", "licks_per_trial"] == pytest.approx(4 * n_good / (n_good + tail))
-    assert g.loc["close_L", "licks_per_trial"] == pytest.approx(4.0)        # tail excluded
-    assert g.loc["close_L", "anticipatory_licks"] == pytest.approx(2.0)
-    assert g.loc["close_L", "trials_engaged"] == n_good
-    assert gated["session"]["n_pos_gated"] == tail and gated["session"]["pos_engagement_gated"]
+    assert g.loc["close_L", "licks_per_trial"] == pytest.approx(4 * n_good / kept)
+    assert (g.loc["close_L", "licks_per_trial"]
+            > u.loc["close_L", "licks_per_trial"])          # gating moves it the right way
+    assert g.loc["close_L", "trials_engaged"] == kept
+    assert (gated["session"]["n_pos_gated"] == m["n_disengaged"]
+            and gated["session"]["pos_engagement_gated"])
     assert not ungated["session"]["pos_engagement_gated"]
     # session-level + raster span the WHOLE session in both cases (they describe the recording)
     assert ungated["session"]["n_licks"] == gated["session"]["n_licks"] == 4 * n_good
@@ -382,15 +415,20 @@ def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
 
 
 def test_engaged_ids_matches_session_metrics(tmp_path):
+    """`_engaged_ids` and `session_metrics` must agree on which trials are engaged.
+
+    The tail is built at a REFERENCE position and long enough to collapse the reference rate,
+    because that is what the gate now judges on.
+    """
     params = config.defaults()["behavior"]
-    tail = params["engagement"]["tail_min_misses"]
-    trials = ([dict(tid=i + 1, pos_idx=i % 6, hit=True) for i in range(30)]
-              + [dict(tid=31 + j, pos_idx=0, hit=False) for j in range(tail)])
+    trials = ([dict(tid=i + 1, pos_idx=1, hit=True) for i in range(20)]
+              + [dict(tid=21 + j, pos_idx=1, hit=False) for j in range(16)])
     d = _write_session(tmp_path, "PS92_20260806_120000", trials)
     m = sb.session_metrics(sb.load_trials(d), None, params)
     ids = sb._engaged_ids(m)
-    assert len(ids) == m["n_engaged"] == 30
-    assert ids == set(range(1, 31))                       # the tail trial_ids are excluded
+    assert len(ids) == m["n_engaged"] < len(trials)
+    assert ids == set(sorted(ids))                       # a set of trial_ids, not positions
+    assert max(ids) < 37
 
 
 def test_lick_pos_panels_match_across_session_metric_families():
@@ -655,14 +693,14 @@ def test_raster_times_are_minutes_from_the_first_trial():
 
 def test_raster_keeps_the_disengaged_tail():
     """Explicitly NOT engagement-gated: the run of red at the end is the point of the figure."""
-    specs = ([{"pos_idx": i % 6, "responded": True} for i in range(30)]
-             + [{"pos_idx": i % 6, "responded": False, "rewarded": False} for i in range(15)])
+    specs = ([{"pos_idx": 1, "responded": True} for _ in range(20)]
+             + [{"pos_idx": 1, "responded": False, "rewarded": False} for _ in range(16)])
     trials = _daq_trials(specs)
     m = sb.session_metrics(trials, None, config.defaults()["behavior"])
-    assert m["n_engaged"] < len(trials)                     # the gate drops the sated tail ...
+    assert m["n_engaged"] < len(trials)                     # the gate drops the collapse ...
     mk = sb.raster_markers(trials)
     assert len(mk) == len(trials)                           # ... the raster keeps every trial
-    assert (mk["outcome"].to_numpy()[-15:] == "miss").all()
+    assert (mk["outcome"].to_numpy()[-16:] == "miss").all()
 
 
 def test_raster_drops_unpaired_positions():

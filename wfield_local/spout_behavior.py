@@ -583,12 +583,36 @@ def _wilson(hits: int, n: int, z: float = 1.96):
 
 def session_metrics(trials: pd.DataFrame, latency: pd.Series | None, params: dict) -> dict:
     """Per-position + session-level metrics, engaged-gated. ``params`` = defaults()['behavior']."""
-    eng = params["engagement"]
     scored = trials[~trials["is_free"]] if params.get("free_reward_excluded", True) else trials
-    engaged_bool, info = flag_engagement(
-        scored["responded"].to_numpy(),
-        window=eng["window_trials"], min_rate=eng["min_response_rate"],
-        tail_min_misses=eng["tail_min_misses"])
+    # THE IMAGING GATE, not the behaviour one (Priya, 2026-08-28). They differed in two ways and
+    # both mattered here.
+    #
+    # `flag_engagement` judges the trailing response rate over ALL positions and flags any low
+    # window. Post-stroke that rate collapses BECAUSE the animal cannot reach the far positions, so
+    # it labels motor failure as disengagement -- the effect being measured written off as the
+    # confound. `poststroke_compare` has said so since 2026-08-18 ("THE PRE-STROKE GATE IS INVALID
+    # AFTER A LESION"), and the behaviour figures were still using it.
+    #
+    # `engagement_gate` judges only at the REFERENCE positions (close_L, close_center), which a
+    # lesion of this kind spares, and requires a terminal NON-RECOVERING collapse rather than any
+    # low window. A position-specific deficit therefore passes through as a miss instead of being
+    # deleted, and a mid-session dip that recovers is not punished.
+    #
+    # MEASURED over the sessions on disk 2026-08-28: `flag_engagement` excluded 380 of PS94_0817's
+    # 643 trials and `engagement_gate` excludes none -- that is the session whose reference rate
+    # dips near trial 420 and is back at 0.95 by 480, and it is cited in `engagement_gate`'s own
+    # docstring as the case that must not be called disengaged. PS95_0817: 224 against 0. The
+    # pooled far-contra hit rate moves by -0.017 (pre), -0.008 (acute), -0.034 (subacute): small
+    # in the mean, and computed on a much larger, non-circular trial set.
+    from wfield_local.precue_engagement_states import engagement_gate
+
+    _resp = scored["responded"].to_numpy(bool)
+    _pos = scored["pos_name"].to_numpy(str)
+    _not_eng = engagement_gate(np.arange(len(scored)), _resp, _pos)
+    engaged_bool = ~_not_eng
+    _tail = int(np.flatnonzero(_not_eng)[0]) if _not_eng.any() else None
+    info = {"n": int(len(scored)), "n_disengaged": int(_not_eng.sum()),
+            "tail_start": _tail, "n_tail": int(_not_eng.sum()), "gate": "engagement_gate"}
     scored = scored.copy()
     scored["engaged"] = engaged_bool
 
