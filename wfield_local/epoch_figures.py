@@ -379,3 +379,114 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     fig.savefig(q, dpi=200)
     plt.close(fig)
     return q
+
+
+#: Epoch bar colours. Deliberately a GREY RAMP, not four hues: the dots already spend the colour
+#: budget on animal identity, and a second categorical palette beside it makes the reader ask which
+#: colour system a given mark belongs to. Light-to-dark also reads as an ordering, which epochs are.
+EPOCH_GREY = {"pre": "#c9c9c9", "acute": "#8a8a8a", "subacute": "#4a4a4a"}
+
+
+def _value_and_ci(v):
+    """``(value, lo, hi)`` from either a bare number or a `behaviour_by_epoch` tuple.
+
+    Both shapes occur by design -- behaviour carries a Wilson interval, a decoding accuracy read off
+    a confusion diagonal does not -- and a renderer that accepted only one would force its caller to
+    invent the other, which is how a fabricated interval gets drawn.
+    """
+    if v is None:
+        return None, None, None
+    if isinstance(v, (tuple, list)):
+        return (float(v[0]),
+                float(v[1]) if len(v) > 1 and v[1] is not None else None,
+                float(v[2]) if len(v) > 2 and v[2] is not None else None)
+    return float(v), None, None
+
+
+def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
+            counts=None, ylim=(0.0, 1.0)):
+    """Per-position values as grouped bars, one group per position and one bar per epoch.
+
+    Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
+    accuracies, which differ only in what they are handed.
+
+    ``values`` is ``{epoch: {position: value}}`` where a value is a bare number or a
+    ``(v, lo, hi, ...)`` tuple; `behaviour_by_epoch` returns the latter and its Wilson interval is
+    drawn as an error bar. ``points`` is ``{epoch: {position: [(animal, value), ...]}}`` and becomes
+    one dot per SESSION -- the honest picture of the session weighting, since the bar itself is
+    weighted by session and the epochs are not balanced across animals.
+
+    THE LEGEND SITS IN A RESERVED GUTTER, not inside the axes. Two legends -- three epochs and four
+    animals -- placed on a 6.2in axes will overlap the bars or each other at some data range, and a
+    legend that moves with the data is not a reproducible layout. An inch and a fifth of the canvas
+    is spent so the figure is self-contained wherever it is placed.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    epochs_present = [e for e in PANELS if values.get(e)]
+    if not epochs_present or not positions:
+        return None
+    m, k = len(epochs_present), len(positions)
+
+    fig_w, fig_h = QUARTER_IN, 2.60
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    bw = 0.78 / m
+    xs = np.arange(k, dtype=float)
+    for j, e in enumerate(epochs_present):
+        dx = (j - (m - 1) / 2.0) * bw
+        vals, los, his = [], [], []
+        for p in positions:
+            v, lo, hi = _value_and_ci(values[e].get(p))
+            vals.append(np.nan if v is None else v)
+            los.append(np.nan if (v is None or lo is None) else v - lo)
+            his.append(np.nan if (v is None or hi is None) else hi - v)
+        ax.bar(xs + dx, vals, width=bw * 0.9, color=EPOCH_GREY.get(e, "#8a8a8a"),
+               edgecolor="none", zorder=2, label=e)
+        if np.any(np.isfinite(los)) or np.any(np.isfinite(his)):
+            ax.errorbar(xs + dx, vals, yerr=[np.nan_to_num(los), np.nan_to_num(his)],
+                        fmt="none", ecolor="0.25", elinewidth=0.8, capsize=1.5, zorder=3)
+        for i, p in enumerate(positions):
+            per = (points or {}).get(e, {}).get(p) or []
+            # spread inside the bar, never across it: a dot that drifts under a neighbouring bar
+            # is attributed to the wrong epoch by every reader who does not count.
+            session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55)
+
+    if chance is not None:
+        ax.axhline(chance, color="0.35", lw=0.8, ls="--", zorder=1)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(positions, fontsize=FS_TICK - 1)
+    # THE CHANCE LEVEL GOES IN THE Y-LABEL, not on the line. Annotating the line inside the axes
+    # printed grey text across the dark subacute bars wherever the bars were tall there -- and
+    # `_overlaps` cannot see it, because text over its OWN axes is excluded by design (a panel
+    # title legitimately sits over its own panel). So this one is unreachable by the detector and
+    # has to be prevented by construction rather than caught.
+    ax.set_ylabel(ylabel if chance is None else f"{ylabel} (chance {chance:.2f})",
+                  fontsize=FS_LABEL - 1)
+    ax.set_ylim(*ylim)
+    ax.tick_params(axis="y", labelsize=FS_TICK - 1)
+    ax.set_xlim(-0.6, k - 0.4)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+
+    colors = config.animal_color()
+    handles = [Patch(facecolor=EPOCH_GREY.get(e, "#8a8a8a"), label=e) for e in epochs_present]
+    handles += [Line2D([], [], marker="o", ls="", color=colors[a], alpha=POINT_ALPHA,
+                       markersize=5, label=a if not counts else f"{a} ({counts.get(a, 0)})")
+                for a in sorted(colors)]
+    ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
+              bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4,
+              borderpad=0.15, labelspacing=0.32, handlelength=1.1)
+
+    fig.suptitle(title, fontsize=FS_ANNOT + 0.5, y=0.985)
+    # ABSOLUTE INCH MARGINS -- `subplots_adjust` takes fractions, so these are inch targets divided
+    # by the canvas. The 1.24in right gutter is the legend's, and it is reserved rather than
+    # negotiated so the axes is the same width on every figure in the family.
+    left_in, right_in, top_in, bottom_in = 0.62, 1.24, 0.52, 0.46
+    fig.subplots_adjust(left=left_in / fig_w, right=1 - right_in / fig_w,
+                        top=1 - top_in / fig_h, bottom=bottom_in / fig_h)
+    q = pathlib.Path(out) / f"{name}.png"
+    fig.savefig(q, dpi=200)
+    plt.close(fig)
+    return q
