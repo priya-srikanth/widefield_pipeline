@@ -59,6 +59,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 from matplotlib.figure import Figure
 
@@ -1792,7 +1793,14 @@ def fig_pattern_similarity(out_dir, min_trials=10):
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 6 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         for v in variants:
-            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(10.4, 12.6), squeeze=False)
+            # TICK COUNT BOUNDED BY PANEL WIDTH, not by the data range (other window,
+            # 2026-08-28). matplotlib's default locator asks for a tick every 0.25 over
+            # whatever span the data happens to have: a delta-r range of -1.25..+0.5 wants
+            # 8 labels at ~0.45in = 3.6in inside a 2.4in panel. It bites only the _working
+            # variants and only for some animals, because it depends on the range -- which
+            # is exactly why it survived a spot check.
+            fig, axes = plt.subplots(len(ANIMALS), 3, figsize=(10.4, 12.6), squeeze=False,
+                                     gridspec_kw={"hspace": 0.60})
             drew = False
             for ri, an in enumerate(ANIMALS):
                 got = store[v].get(an)
@@ -1856,6 +1864,11 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 ax.set_ylim(len(CONF_LABELS) - 0.5, -0.5)
                 ax.set_title("post − baseline (own position)", fontsize=11)
                 ax.grid(alpha=0.25, lw=0.5)
+                # AT MOST FOUR X TICKS, and smaller labels. The default locator picks a tick every
+                # 0.25 over whatever span the data has, so a delta-r range of -1.25..+0.5 asks for
+                # eight labels at ~0.45in inside a 2.4in panel. Four at 8.5pt is ~1.9in and fits.
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+                ax.tick_params(axis="x", labelsize=8.5)
                 if ri == len(ANIMALS) - 1:
                     ax.set_xlabel("Δr, 95% stratified bootstrap", fontsize=9.5)
             if not drew:
@@ -3268,7 +3281,7 @@ def _matrices_splithalf(align, variant, min_trials=10):
 
 
 def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
-                vmin, vmax, cmap, dmax, summary, ylab, figh=9.2, cis=None,
+                vmin, vmax, cmap, dmax, summary, ylab, figh=9.5, cis=None,
                 higher_is_better=True):
     """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
     the reference, on a diverging scale centred at zero.
@@ -3283,6 +3296,10 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
     # 2026-08-25). Reserving a real column and drawing into an explicit `cax` inside it is
     # deterministic; shrinking `fraction` would only have made the overlap thinner.
     ncol = 1 + len(days)
+    # HSPACE 0.60 AT HEIGHT 9.5, the combination verified clean across 6, 9 and 12
+    # post-stroke days. This grid set no hspace at all, so it ran at matplotlib's default
+    # 0.2 while every sibling matrix grid had already moved to 0.60 -- the per-day titles
+    # sat on the row above.
     fig, grid = plt.subplots(len(ANIMALS), ncol + 1, figsize=(_colw() * ncol + 2.0, figh),
                              squeeze=False,
                              gridspec_kw={"width_ratios": [1, 0.62] + [1] * len(days)})
@@ -3730,7 +3747,10 @@ def fig_delta_trajectory(out_dir, min_trials=10):
             cis = _delta_cis(align, v, min_trials, _mats_pattern, "9", full=True)
             if not any(cis.values()):
                 continue
-            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(10.0, 2.0 * len(ANIMALS) + 1.3),
+            # Shortest figure in the module and it also set no hspace, so its titles had
+            # the least room of any of them.
+            fig, axes = plt.subplots(len(ANIMALS), 2, figsize=(10.0, 2.4 * len(ANIMALS) + 1.6),
+                                     gridspec_kw={"hspace": 0.60},
                                      squeeze=False, sharex=True)
             drew = False
             for ri, an in enumerate(ANIMALS):
