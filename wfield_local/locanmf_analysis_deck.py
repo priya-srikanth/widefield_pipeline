@@ -387,8 +387,10 @@ S_G9E = (
     "WHY THE SPLIT EXISTS. decode.max_rt_s moved to 3.5 s on 2026-08-21 -- the task's real response "
     "window -- because the no-lick arm was holding rewarded hits (39.3% of it for PS92, 33.9% for "
     "PS93). That was the right fix, but it put a 0.2 s lick and a 3.0 s lick in one ENGAGED class, "
-    "and post-stroke the mass moves late. So the class that every decode number is computed on "
-    "changed its composition after the stroke, and no figure could show it.\n\n"
+    "so the class every decode number is computed on could change composition after the stroke with "
+    "no figure able to show it.\n\n"
+    "MEASURED 2026-08-28, and it is NOT what this split was built expecting. The late arm is 1029 of 30645 post-stroke rewarded trials -- 3.4% -- and it is not evenly spread: PS92 5.6%, PS93 7.5%, PS94 1.0% (26 trials), PS95 0.8% (27 trials). The prediction written into this figure's own design was that post-stroke the mass would move late. It does not, at a 2.0 s cut.\n\nTHAT IS A RESULT, not a failed figure, and it points the same way as the rest of section G: the two most impaired animals do not lick SLOWLY, they lick fast or not at all. Slowed execution would have filled the late arm; the missing licks being the phenotype predicts exactly this. Read it beside the no-detected-lick arm, which is where those trials went.\n\nSO PS94 AND PS95's LATE PANELS CANNOT BE READ, and they say so in red on the figure itself: 26 trials over six positions is ~4 per row, and a per-position recall computed on 3 trials is 0.0 or 0.33 by arithmetic, not by measurement. Points below n=10 are hollow and carry their n; below n=3 no point is drawn at all. PS92 and PS93 carry enough to look at.\n\n"
+    
     "WHAT THE PANELS DISCRIMINATE. Position coding PRESERVED on late trials = the plan is intact "
     "and execution is slow. DEGRADED on late trials = a different injury. Those are the two "
     "readings the study has to separate, and averaging them is what the merged class does.\n\n"
@@ -2907,7 +2909,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "comparison \u2014 per-position recall, early against late \u2014 because "
                       "judging that by matching colours across two heatmaps is the one thing the "
                       "eye is worst at.  PRESERVED on late trials = plan intact, execution slow; "
-                      "DEGRADED = a different result." + _lickwin)
+                      "DEGRADED = a different result. BUT READ n FIRST: measured 2026-08-28 the late "
+                      "arm is only 3.4% of post-stroke rewarded trials (PS92 5.6%, PS93 7.5%, PS94 "
+                      "1.0% = 26 trials, PS95 0.8% = 27), so PS94's and PS95's late panels are "
+                      "marked TOO FEW TO READ in red on the figure. The emptiness of that arm is "
+                      "itself the finding: the impaired animals do not lick slowly, they lick fast "
+                      "or not at all." + _lickwin)
                 note(s, M_CODING_DIR, specific=S_G9E)
                 big(s, _f, top=1.95, width=11.0)
 

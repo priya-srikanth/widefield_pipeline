@@ -419,9 +419,16 @@ CONFUSION_SUBCLASSES = {"poststroke_lick": ("poststroke_lick_early", "poststroke
 #: defines. A fixed boundary is comparable; an adaptive one is a different measurement per session.
 #:
 #: The split exists because `decode.max_rt_s` is now 3.5 s, so a 0.2 s lick and a 3.0 s lick sit in
-#: one "engaged" class. Post-stroke the mass moves late, and telling those apart is the study's
-#: question: position coding preserved on LATE trials is plan intact / execution slow; degraded on
-#: late trials is a different result entirely.
+#: one "engaged" class, and telling those apart is the study's question: position coding preserved on
+#: LATE trials is plan intact / execution slow; degraded on late trials is a different result.
+#:
+#: MEASURED 2026-08-28, AND THE ANSWER SURPRISED THE DESIGN. This was built expecting the post-stroke
+#: mass to move late. It does not: the late arm is 1029 of 30645 post-stroke rewarded trials (3.4%),
+#: and only 26 for PS94 and 27 for PS95 -- the two most impaired animals. They do not lick SLOWLY,
+#: they lick fast or not at all, which is the same conclusion the no-detected-lick arm reaches from
+#: the other side. The split is still worth computing (PS92 and PS93 carry enough to read, and an
+#: empty arm is an answer), but any figure drawn from it MUST mark its n -- see `figure_rt_split`,
+#: where a panel below `len(positions) * MIN_TRIALS` is titled TOO FEW TO READ in red.
 RT_SPLIT_S = 2.0
 
 
@@ -1466,7 +1473,13 @@ def figure_rt_split(res, out, align="precue", meth="dom"):
         P = np.divide(M, rows, out=np.zeros_like(M), where=rows > 0)
         im = ax.imshow(P, vmin=0, vmax=1, cmap="viridis")
         acc = float(np.trace(M) / n) if n else float("nan")
-        ax.set_title(f"{title}\nn={n}, acc={acc:.2f}", fontsize=8)
+        # LOW n IS PART OF THE TITLE, not a footnote. Measured 2026-08-28 on the real pool: the LATE
+        # arm is 3.4% of post-stroke rewarded trials overall and only 26 (PS94) and 27 (PS95) trials
+        # in total, so its 6x6 rests on ~4 trials per row. Without this a reader sees "late decodes
+        # at chance" and reads a RESULT, when the honest statement is that it cannot be measured.
+        _thin = ("  -- TOO FEW TO READ" if n < len(short) * MIN_TRIALS else "")
+        ax.set_title(f"{title}\nn={n}, acc={acc:.2f}{_thin}", fontsize=8,
+                     color=("#b2182b" if _thin else "black"))
         ax.set_xticks(range(len(short)))
         ax.set_xticklabels(short, fontsize=7, rotation=90)
         ax.set_yticks(range(len(short)))
@@ -1487,10 +1500,24 @@ def figure_rt_split(res, out, align="precue", meth="dom"):
             continue
         M = np.array(M, float)
         rows = M.sum(1)
-        # a position with no trials in this arm is a GAP, not a zero: plotting 0 recall there would
-        # read as "the decoder failed here" when nothing was asked of it
-        rec = np.divide(np.diag(M), rows, out=np.full(len(rows), np.nan), where=rows > 0)
-        ax.plot(x, rec, "-o", color=col, ms=5, lw=1.5, label=f"{lab}  n={int(M.sum())}")
+        # A POSITION WITH TOO FEW TRIALS IS A GAP, NOT A ZERO. Plotting 0 recall on an empty row
+        # reads as "the decoder failed here" when nothing was asked of it -- and plotting 0.0 or 1.0
+        # on a row of two trials is worse, because it looks like a measurement. `FLOOR_TRIALS` is the
+        # same floor `_stats` and `_cells` use, so a cell that is too thin to report here is too thin
+        # to report anywhere in this module.
+        rec = np.divide(np.diag(M), rows, out=np.full(len(rows), np.nan),
+                        where=rows >= FLOOR_TRIALS)
+        ax.plot(x, rec, "-", color=col, lw=1.5, label=f"{lab}  n={int(M.sum())}")
+        # HOLLOW BELOW `MIN_TRIALS`, the house idiom from `figure_pooled`: the point is drawn because
+        # it exists, and marked because it should not be read as firmly as a filled one.
+        solid = rows >= MIN_TRIALS
+        ax.plot(x[solid], rec[solid], "o", color=col, ms=5)
+        thin = (~solid) & np.isfinite(rec)
+        ax.plot(x[thin], rec[thin], "o", ms=6, markerfacecolor="none", markeredgecolor=col,
+                markeredgewidth=1.5)
+        for xi in x[thin]:
+            ax.annotate(f"n={int(rows[xi])}", (xi, rec[xi]), textcoords="offset points",
+                        xytext=(0, 7), ha="center", fontsize=5.5, color=col)
     ax.axhline(1 / len(short), color="k", ls=":", lw=1.1, label="chance")
     ax.set_xticks(x)
     ax.set_xticklabels(short, fontsize=7, rotation=90)
@@ -1499,7 +1526,8 @@ def figure_rt_split(res, out, align="precue", meth="dom"):
     ax.tick_params(labelsize=7)
     ax.grid(alpha=0.25)
     ax.legend(fontsize=6.5, loc="upper right")
-    ax.set_title("per-position recall", fontsize=8)
+    ax.set_title(f"per-position recall  (hollow = n<{MIN_TRIALS}; "
+                 f"no point = n<{FLOOR_TRIALS})", fontsize=7.5)
 
     fig.suptitle(f"{res['animal']} \u2014 {disp}: frozen PRE-stroke decoder on post-stroke "
                  f"rewarded trials, split at {cut:g} s. Same decoder, same trials as the LICK "

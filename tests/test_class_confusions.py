@@ -218,3 +218,63 @@ def test_rt_leaves_the_feature_builder_rather_than_being_rebuilt():
     # and the flag must reach the cache key, or a with_rt entry would be served to a caller that
     # unpacks the shorter tuple
     assert "with_rt" in inspect.signature(lpd.feature_cache_kind).parameters
+
+
+# --- the thin-arm guard --------------------------------------------------------------------------
+# MEASURED 2026-08-28: the late arm is 3.4% of post-stroke rewarded trials, and only 26 (PS94) and
+# 27 (PS95) in total. A 6x6 on 26 trials is ~4 per row, so a per-position recall there is 0.0 or
+# 0.33 by arithmetic rather than by measurement. The figure must say so or a reader takes "late
+# decodes at chance" for a result.
+
+
+def test_a_thin_panel_is_marked_unreadable(tmp_path):
+    """The red TOO FEW TO READ title, driven rather than grepped."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    K = len(DISPLAY_ORDER)
+    thin = np.zeros((K, K)); thin[0, 0] = 26          # 26 trials, as PS94 actually has
+    fat = np.full((K, K), 50.0)
+    res = {"animal": "PS94", "confusions": {
+        "labels": [str(c) for c in DISPLAY_ORDER], "counts": True, "rt_split_s": 2.0,
+        "prestroke_lick": fat.tolist(), "poststroke_lick": fat.tolist(),
+        "poststroke_lick_early": fat.tolist(), "poststroke_lick_late": thin.tolist()}}
+    seen = {}
+    orig = plt.subplots
+
+    def spy(*a, **k):
+        fig, axes = orig(*a, **k)
+        seen["axes"] = axes
+        return fig, axes
+
+    plt.subplots = spy
+    try:
+        assert pcd.figure_rt_split(res, tmp_path, align="cue") is not None
+    finally:
+        plt.subplots = orig
+    titles = [ax.get_title() for row in seen["axes"] for ax in row]
+    marked = [t for t in titles if "TOO FEW TO READ" in t]
+    assert len(marked) == 1 and "n=26" in marked[0], f"the thin panel is not marked: {titles}"
+    fatt = [t for t in titles if "n=1800" in t]
+    assert fatt and not any("TOO FEW" in t for t in fatt), "a well-populated panel was marked"
+
+
+def test_a_position_with_too_few_trials_gets_no_point():
+    """Plotting 0.0 on a row of two trials is worse than plotting nothing: it looks measured.
+    FLOOR_TRIALS is the same floor `_stats` and `_cells` use, so a cell too thin to report here is
+    too thin to report anywhere in this module."""
+    import inspect
+    src = inspect.getsource(pcd.figure_rt_split)
+    assert "rows >= FLOOR_TRIALS" in src, "the recall panel draws points on empty/near-empty rows"
+    assert "rows >= MIN_TRIALS" in src, "there is no hollow-marker threshold"
+
+
+def test_the_module_no_longer_predicts_a_late_shift():
+    """The design assumed post-stroke mass moves late; the data says 3.4%. A comment asserting the
+    refuted version is the exact failure this session has been fixing."""
+    import inspect
+    src = inspect.getsource(pcd)
+    head = src[:src.index("def _rt_engaged")]
+    assert "Post-stroke the mass moves late, and telling" not in head, (
+        "the module still states the prediction the measurement refuted")
+    assert "3.4%" in head, "the measured late fraction is not recorded where the constant is defined"
