@@ -498,3 +498,61 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     fig.savefig(q, dpi=200)
     plt.close(fig)
     return q
+
+#: Spout position names by ANATOMY rather than by the rig. Priya, 2026-08-28.
+#:
+#: near/far replaces close/far, and ipsi/middle/contra replaces left/center/right. The second half
+#: is the one that carries meaning: "the right spout" is a fact about the apparatus, "the
+#: contralateral spout" is a fact about the lesion, and it is the second a reader of a stroke
+#: figure needs. Abbreviated nI/nM/nC and fI/fM/fC -- "C" is unambiguous only because centre
+#: became middle, which is half the reason that half of the rename is worth doing.
+_ANATOMICAL = {"close_L": ("near ipsi", "nI"), "close_center": ("near middle", "nM"),
+               "close_R": ("near contra", "nC"), "far_L": ("far ipsi", "fI"),
+               "far_center": ("far middle", "fM"), "far_R": ("far contra", "fC")}
+
+_SWAP = {"I": "C", "C": "I"}
+
+
+def lesion_side(animals=None) -> str:
+    """The cohort's lesion side, or a raise if it is not one side.
+
+    Priya, 2026-08-28: derive it, "in case of a change in stroke location".
+    """
+    sides = {a: str((config.animals().get(a) or {}).get("stroke_laterality", "")).upper()[:1]
+             for a in (animals or config.animals())}
+    distinct = {v for v in sides.values() if v}
+    if not distinct:
+        raise ValueError("no stroke_laterality in animals.yaml: ipsi/contra cannot be named")
+    if len(distinct) > 1:
+        raise ValueError(
+            f"mixed lesion sides {sides}: ipsi/contra cannot label a POOLED figure until the "
+            "position axis is reflected per animal -- see `anatomical_labels`")
+    return distinct.pop()
+
+
+def anatomical_labels(order, short=True, animals=None):
+    """Position labels as near/far x ipsi/middle/contra, DERIVED FROM THE LESION SIDE.
+
+    IPSI AND CONTRA ARE PROPERTIES OF THE LESION, NOT OF THE RIG, so this refuses to guess. Every
+    animal in this cohort is lesioned on the LEFT, which is why left maps to ipsi and right to
+    contra uniformly here and the rename is a rename rather than a reflection of the spout axis.
+    The data agrees rather than merely permitting it: the collapse is at far_R, the position
+    contralateral to a left lesion, and it is at far_R in all four animals.
+
+    A RIGHT-LESIONED ANIMAL WOULD INVERT THE MAPPING FOR THAT ANIMAL ALONE. A pooled figure that
+    kept one label set would then average ipsi trials with contra trials under a single name --
+    a wrong number wearing a correct-looking label, which is the failure class this repo keeps
+    finding. So a mixed cohort raises here instead of mislabelling. The fix at that point is to
+    reflect the position axis per animal BEFORE pooling, which is a real analysis change and has
+    to be a deliberate one, not a silent consequence of adding a mouse.
+    """
+    left = lesion_side(animals) == "L"
+    out = []
+    for q in order:
+        long, ab = _ANATOMICAL.get(str(q), (str(q), str(q)))
+        if not left:
+            long = (long.replace("ipsi", "\x00").replace("contra", "ipsi")
+                        .replace("\x00", "contra"))
+            ab = ab[:-1] + _SWAP.get(ab[-1], ab[-1])
+        out.append(ab if short else long)
+    return out

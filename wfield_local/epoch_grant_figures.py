@@ -44,16 +44,27 @@ CHANCE = 1.0 / 6.0
 
 
 def _short_labels():
-    from wfield_local.grant_figures import CONF_LABELS, _short
-    return _short(CONF_LABELS)
+    """Position labels for an axis: nI/nM/nC, fI/fM/fC.
+
+    ANATOMY, NOT THE RIG -- and derived from `stroke_laterality` rather than hardcoded, so a
+    right-lesioned animal raises instead of inheriting a label that would be backwards for it.
+    """
+    from wfield_local.grant_figures import CONF_LABELS
+    return ef.anatomical_labels(CONF_LABELS)
 
 
-def _counts_line(per_epoch):
-    """``pre 92:11 93:11 ... | acute 92:5 ... 95:1 | subacute ...`` for a figure's subtitle.
+def _counts_line(per_epoch, unit_of=None):
+    """``pre n=44 (92:11 ...) | acute n=16 (... 95:1) | subacute ...`` for a figure's subtitle.
 
     THE PER-EPOCH BREAKDOWN, not a per-animal total. A total is what hides the imbalance: PS95
     contributes 19 sessions overall and exactly ONE of them is acute, which is the fact a reader
     of the acute panel needs and the only place it can be stated on a bar figure is here.
+
+    ``unit_of`` names what is being counted when it is not sessions. THE PRE PANEL OF THE DECODING
+    FIGURES IS NOT COUNTED IN SESSIONS: `_collect_5c` returns ONE leave-one-session-out record per
+    animal, already concatenated over its held-out pre-stroke sessions. Printing a bare "n=4"
+    beside "acute n=16" invites the reading that the baseline rests on four sessions when it rests
+    on forty-four, so the unit is stated wherever it changes.
     """
     parts = []
     for e in ef.PANELS:
@@ -61,7 +72,8 @@ def _counts_line(per_epoch):
         if not any(per.values()):
             continue
         inner = " ".join(f"{a[-2:]}:{c}" for a, c in sorted(per.items()) if c)
-        parts.append(f"{e} n={sum(per.values())} ({inner})")
+        unit = (unit_of or {}).get(e)
+        parts.append(f"{e} n={sum(per.values())}{' ' + unit if unit else ''} ({inner})")
     return "   |   ".join(parts)
 
 
@@ -82,12 +94,12 @@ def _totals(per_epoch):
 
 def fig_behaviour(out_dir):
     """1b pooled: hit rate per spout position, per epoch, weighted by session."""
-    from wfield_local.grant_figures import _position_metrics, _sessions, CONF_LABELS, _short
+    from wfield_local.grant_figures import _position_metrics, _sessions, CONF_LABELS
 
     by = ef.behaviour_by_epoch(_position_metrics, lambda an: _sessions(an), positions=CONF_LABELS)
     if not any(by.values()):
         return None
-    short = dict(zip(CONF_LABELS, _short(CONF_LABELS)))
+    short = dict(zip(CONF_LABELS, _short_labels()))
     values = {e: {short[p]: v for p, v in per.items()} for e, per in by.items() if per}
 
     # ONE DOT PER SESSION, from the same store the bars are summed from -- not a second pass over
@@ -117,7 +129,7 @@ def fig_behaviour(out_dir):
                       # subtitle answers "how many of them are in the panel I am reading", which
                       # is the one that carries the imbalance.
                       subtitle=_counts_line(counts), counts=_totals(counts),
-                      ylabel="hit rate", positions=_short(CONF_LABELS), points=points,
+                      ylabel="hit rate", positions=_short_labels(), points=points,
                       # HEADROOM ABOVE 1.0 so a session at ceiling is a visible dot rather than a
                       # smear on the spine -- and the close positions sit at ceiling throughout.
                       ylim=(0.0, 1.06))
@@ -125,9 +137,27 @@ def fig_behaviour(out_dir):
 
 # ------------------------------------------------------------- decoding, from `_collect_5c`
 
+def _named(record):
+    """A record's ``(true, predicted)`` as POSITION NAMES.
+
+    `_collect_5c` stores the NUMERIC position codes the decoder was fitted on, not the display
+    names -- which is why `grant_figures._counts` maps through `POSITION_NAMES` before indexing
+    `CONF_LABELS`. Comparing the raw codes to a name silently matches nothing: the first run of
+    this figure produced empty panels and reported "wrote None", with no error anywhere.
+    """
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    def nm(v):
+        return np.array([POSITION_NAMES.get(int(x), str(x)) for x in np.asarray(v)])
+
+    return nm(record[0]), nm(record[1])
+
+
 def _accuracy_of(record, position=None):
     """Accuracy of one record, overall or at one true position. `None` when the class is absent."""
-    y, p = np.asarray(record[0]), np.asarray(record[1])
+    if record is None:
+        return None
+    y, p = _named(record)
     if position is not None:
         m = (y == position)
         if m.sum() < 5:
@@ -138,9 +168,9 @@ def _accuracy_of(record, position=None):
 
 def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     """Per-position accuracy of the frozen pre-stroke decoder, by epoch."""
-    from wfield_local.grant_figures import CONF_LABELS, _short
+    from wfield_local.grant_figures import CONF_LABELS
 
-    short = dict(zip(CONF_LABELS, _short(CONF_LABELS)))
+    short = dict(zip(CONF_LABELS, _short_labels()))
     values, points = {}, {}
     for e in ef.PANELS:
         rec = ef.pool_records(per_animal, e)
@@ -164,8 +194,9 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     return ef.bar_row(
         values, out_dir, name=f"epoch_acc_by_position_{align}_{variant}",
         title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
-        subtitle=_counts_line(per_epoch), counts=_totals(per_epoch),
-        ylabel="accuracy", positions=_short(CONF_LABELS), points=points,
+        subtitle=_counts_line(per_epoch, {"pre": "animals, leave-one-session-out"}),
+        counts=_totals(per_epoch),
+        ylabel="accuracy", positions=_short_labels(), points=points,
         chance=CHANCE, ylim=(0.0, 1.06))
 
 
@@ -196,6 +227,20 @@ def _epoch_arm(align, variant):
     return per_animal
 
 
+def _report(tag, path):
+    """A figure that returned None is an ABSENCE, and it has to say so.
+
+    `print(f"wrote {fn(...)}")` renders a None return as "wrote None", which scans as success in a
+    log nobody reads closely -- and that is exactly how the per-position accuracy figure came back
+    empty three times without anyone noticing. Same class as `_draw` swallowing a plotting error so
+    a broken figure reports as zero missing.
+    """
+    if path:
+        print(f"  wrote {path}", flush=True)
+    else:
+        print(f"  ?? {tag}: NO FIGURE -- the renderer found no data to draw", flush=True)
+
+
 def main(argv=None) -> int:
     from wfield_local.console import use_utf8_stdout
     use_utf8_stdout()
@@ -212,7 +257,7 @@ def main(argv=None) -> int:
 
     if "1b" in want:
         try:
-            print(f"  wrote {fig_behaviour(out)}", flush=True)
+            _report("1b", fig_behaviour(out))
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
 
@@ -235,15 +280,15 @@ def main(argv=None) -> int:
               flush=True)
         if "acc" in want:
             try:
-                print(f"  wrote {_per_position_accuracy(per_animal, out, disp, align, variant, wname)}",
-                      flush=True)
+                _report(f"acc {align}/{variant}",
+                        _per_position_accuracy(per_animal, out, disp, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! acc {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "5c" in want:
             try:
                 for p in _confusion_rows(per_animal, out, disp, align, variant, wname):
-                    print(f"  wrote {p}", flush=True)
+                    _report(f"5c {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)

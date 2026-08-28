@@ -297,3 +297,44 @@ def test_the_positions_are_named_not_numbered(tmp_path):
     fig = _row(tmp_path, delta=False)
     got = [t.get_text() for t in fig.axes[0].get_yticklabels()]
     assert got == _short(CONF_LABELS), got
+
+
+# ---------------------------------------------------------- anatomical position labels
+
+def test_ipsi_and_contra_come_from_the_lesion_side():
+    """Priya, 2026-08-28: derive them, "in case of a change in stroke location".
+
+    Every animal in this cohort is lesioned on the LEFT, so left maps to ipsi and right to contra
+    uniformly and the rename is a rename. The data agrees rather than merely permitting it: the
+    collapse is at far_R in all four animals, the position contralateral to a left lesion.
+    """
+    from wfield_local.grant_figures import CONF_LABELS
+
+    assert ef.lesion_side() == "L"
+    assert ef.anatomical_labels(CONF_LABELS) == ["nI", "nM", "nC", "fI", "fM", "fC"]
+    assert ef.anatomical_labels(CONF_LABELS, short=False)[-1] == "far contra"
+
+
+def test_a_right_lesion_inverts_the_mapping(monkeypatch):
+    """The whole reason it is derived. A right-lesioned animal's far_R is IPSI."""
+    monkeypatch.setattr(config, "animals", lambda: {"PSxx": {"stroke_laterality": "R"}})
+    from wfield_local.grant_figures import CONF_LABELS
+    assert ef.anatomical_labels(CONF_LABELS) == ["nC", "nM", "nI", "fC", "fM", "fI"]
+
+
+def test_a_mixed_cohort_refuses_to_label_a_pooled_figure(monkeypatch):
+    """Averaging ipsi with contra under one name is a wrong number wearing a correct-looking
+    label. It must raise, not guess -- reflecting the position axis per animal is a real analysis
+    change and has to be deliberate, not a silent consequence of adding a mouse."""
+    monkeypatch.setattr(config, "animals",
+                        lambda: {"A": {"stroke_laterality": "L"}, "B": {"stroke_laterality": "R"}})
+    from wfield_local.grant_figures import CONF_LABELS
+    with pytest.raises(ValueError, match="mixed lesion sides"):
+        ef.anatomical_labels(CONF_LABELS)
+
+
+def test_missing_laterality_raises_rather_than_defaulting(monkeypatch):
+    monkeypatch.setattr(config, "animals", lambda: {"A": {}, "B": {}})
+    from wfield_local.grant_figures import CONF_LABELS
+    with pytest.raises(ValueError, match="stroke_laterality"):
+        ef.anatomical_labels(CONF_LABELS)
