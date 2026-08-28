@@ -1021,8 +1021,7 @@ def fig_confusion_pre_post_working(out_dir):
     STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
     satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
     """
-    from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
-    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.locanmf_frozen_decoder import _pipe
 
     PANELS = (("pre", "PRE-stroke\nLICK trials"),
               ("post_all", "POST-stroke\nALL trials"),
@@ -1067,8 +1066,6 @@ def fig_confusion_pre_post_working(out_dir):
         drew = False
         stored = []                # animals served from coding_direction.json rather than recomputed
         for ri, an in enumerate(ANIMALS):
-            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
-            post = [x for x in config.phase_labels("post") if x.startswith(an)]
             # STORED CLASSES FIRST; the LocaNMF recompute is the fallback, not the default.
             mats = _from_json(an, _disp)
             if mats is not None:
@@ -1077,18 +1074,15 @@ def fig_confusion_pre_post_working(out_dir):
                 if mats is not None:
                     raise _Stored          # skip the pooling; panels are drawn below either way
                 mats = {}
-                from wfield_local import joint_locanmf
-                from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
-                from wfield_local.precue_engagement_states import features_with_indices
-                basis = joint_locanmf.load(an, sessions=SESSIONS)
-                feat = features_with_indices(basis, nolick_ref="cue")
-                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
-                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
-                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-                not_eng = g[0] if g else np.zeros(len(YU), bool)
-                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-                e_pre = np.isin(GE, list(pre_i))
-                GU = np.asarray(GU)
+                from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+                # THE SHARED POOLING, not a fourth recipe for it -- see `_pooled_bundle`.
+                # The call stays INSIDE the try, after `raise _Stored`: hoisting it above
+                # would force the pooling even when the stored classes already serve, which
+                # is the whole reason they are checked first.
+                bd = _pooled_bundle(an, align)
+                XE, YE, GE = bd["XE"], bd["YE"], bd["GE"]
+                XU, YU, GU = bd["XU"], bd["YU"], bd["GU"]
+                pre_i, e_pre, not_eng = bd["pre_i"], bd["e_pre"], bd["not_eng"]
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
                 clf = _pipe().fit(XE[e_pre], YE[e_pre])
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
@@ -1251,35 +1245,23 @@ def _collect_5c(align, variant="working"):
     if align == "lick" and variant != "lick":
         raise ValueError("the lick-aligned window has no miss trials to align: use variant='lick'")
 
-    from wfield_local import joint_locanmf
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
-    from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
-    from wfield_local.position_coding_directions import _gate_all
-    from wfield_local.precue_engagement_states import features_with_indices
+    from wfield_local.locanmf_frozen_decoder import _pipe
 
     per_animal, all_days = {}, set()
     for an in ANIMALS:
-        pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
-        post = [x for x in config.phase_labels("post") if x.startswith(an)]
         try:
-            basis = joint_locanmf.load(an, sessions=SESSIONS)
-            feat = features_with_indices(basis, nolick_ref="cue")
-            XE, YE, GE, BE, XU, YU, kept, _c, GU = pool_sessions(
-                pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
-            g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-            not_eng = g[0] if g else np.zeros(len(YU), bool)
-            pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-            e_pre = np.isin(GE, list(pre_i))
-            GU = np.asarray(GU)
-            GE = np.asarray(GE)
-            # Block ids, for the cluster bootstrap. The engaged arm carries the scheduler's own;
-            # the undetected arm has none from pool_sessions and gets runs of the same position.
-            BE_all = (np.concatenate([np.asarray(b) for b in BE]) if len(BE)
-                      else np.zeros(0, int))
-            BE_all = GE.astype(np.int64) * 1_000_000 + BE_all.astype(np.int64)
-            un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
-                  if len(YU) else np.zeros(0, str))
-            BU_all = _runs_to_blocks(GU, un) if len(YU) else np.zeros(0, np.int64)
+            # THE SHARED POOLING -- see `_pooled_bundle`, which derives these block ids by
+            # the same two rules this site used to repeat: the scheduler's own for the
+            # engaged arm, runs of one position for the undetected arm that carries none.
+            #
+            # This function is lru-cached on (align, variant), so rebuilding the pooling
+            # here cost one rebuild PER VARIANT -- five keys x four animals, where twelve
+            # memoised bundles serve the entire render.
+            bd = _pooled_bundle(an, align)
+            XE, YE, GE = bd["XE"], bd["YE"], bd["GE"]
+            XU, YU, GU = bd["XU"], bd["YU"], bd["GU"]
+            kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
+            not_eng, BE_all, BU_all = bd["not_eng"], bd["BE"], bd["BU"]
 
             clf = _pipe().fit(XE[e_pre], YE[e_pre])
 
@@ -1428,12 +1410,6 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
     rather than drawn. The pooled figure 6 is the one to quote; this is the one that shows whether a
     pooled cell is a steady state or an average of a collapse and a recovery.
     """
-    from wfield_local import joint_locanmf
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
-    from wfield_local.locanmf_frozen_decoder import pool_sessions
-    from wfield_local.position_coding_directions import _gate_all
-    from wfield_local.precue_engagement_states import features_with_indices
-
     # NO rng: the pre-stroke split is no longer a random draw over trials but a leave-one-SESSION-out
     # over the days themselves, so nothing here is stochastic.
     made = []
@@ -1442,21 +1418,13 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
         store = {v: {} for v in variants}
         all_days = set()
         for an in ANIMALS:
-            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
-            post = [x for x in config.phase_labels("post") if x.startswith(an)]
             try:
-                basis = joint_locanmf.load(an, sessions=SESSIONS)
-                feat = features_with_indices(basis, nolick_ref="cue")
-                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
-                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
-                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-                not_eng = g[0] if g else np.zeros(len(YU), bool)
-                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-                e_pre = np.isin(GE, list(pre_i))
-                GU = np.asarray(GU)
-                en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
-                un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
-                      if len(YU) else np.zeros(0, str))
+                # THE SHARED POOLING -- see `_pooled_bundle`. Figure 6b and figure 6 now
+                # read the same trials by construction, not by two recipes agreeing.
+                bd = _pooled_bundle(an, align)
+                XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
+                not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # THE REFERENCE IS ALL PRE-STROKE TRIALS; the no-lesion column is LEAVE-ONE-SESSION-
                 # OUT (corrected 2026-08-25). This used to take a random half of the pooled trials
                 # as the reference and the other half as the ceiling, so both came from the SAME
@@ -1716,34 +1684,22 @@ def fig_pattern_similarity(out_dir, min_trials=10):
     The coding directions are immune to that by construction (unit vectors). The two measures agree
     or they do not, and agreement is the claim worth making.
     """
-    from wfield_local import joint_locanmf
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
-    from wfield_local.locanmf_frozen_decoder import pool_sessions
-    from wfield_local.position_coding_directions import _gate_all
-    from wfield_local.precue_engagement_states import features_with_indices
-
     rng = np.random.default_rng(0)
     made = []
     for _disp, align, wname in WINDOWS:
         variants = ("lick",) if align == "lick" else ("lick", "working")
         store = {v: {} for v in variants}
         for an in ANIMALS:
-            pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
-            post = [x for x in config.phase_labels("post") if x.startswith(an)]
             try:
-                basis = joint_locanmf.load(an, sessions=SESSIONS)
-                feat = features_with_indices(basis, nolick_ref="cue")
-                XE, YE, GE, _B, XU, YU, kept, _c, GU = pool_sessions(
-                    pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
-                g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
-                not_eng = g[0] if g else np.zeros(len(YU), bool)
-                pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
-                GU = np.asarray(GU)
-                # No e_pre mask: the pre-stroke split is now over SESSION IDS, not over a pooled
-                # trial mask, so trials are selected per session throughout.
-                en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
-                un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
-                      if len(YU) else np.zeros(0, str))
+                # THE SHARED POOLING -- see `_pooled_bundle`, whose docstring was written
+                # when this site and 6b were character-identical. They share the object now.
+                #
+                # No e_pre mask is unpacked: the pre-stroke split here is over SESSION IDS,
+                # not over a pooled trial mask, so trials are selected per session below.
+                bd = _pooled_bundle(an, align)
+                XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                kept, pre_i = bd["kept"], bd["pre_i"]
+                not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # SPLIT THE PRE-STROKE **SESSIONS**, NOT THE TRIALS (corrected 2026-08-25).
                 #
                 # Until now this drew a random half of the pooled pre-stroke TRIALS as the
@@ -1967,6 +1923,10 @@ def _pooled_bundle(an, align):
     # cannot make the intervals too narrow.
     BU_all = _runs_to_blocks(np.asarray(GU), un) if len(YU) else np.zeros(0, np.int64)
     bundle = {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+              # The NUMERIC labels as well as the names. `pool_sessions` returns them and
+              # this used to discard them, which is the only reason two callers could not
+              # adopt the bundle: they fit and score on the integer codes, not the names.
+              "YE": YE, "YU": YU,
               "BE": BE_all, "BU": BU_all,
               "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}

@@ -34,9 +34,11 @@ section H would regress against the copy already there until the render lands.
 
 ## Pending, in the order I would do them
 
-1. **Migrate four sites to `_pooled_bundle`** (`grant_figures.py` lines 1084, 1266, 1449, 1735).
-   One line each. The single highest-value change for render time; see DECISIONS. **Wait for the
-   render to land — the other window owns that file and may have uncommitted work.**
+1. ~~**Migrate four sites to `_pooled_bundle`**~~ — **DONE.** `pool_sessions` is now called from
+   exactly one place in the module, pinned by a test. Safe to do during the render after all: the
+   run is a single `-m wfield_local.grant_figures` process with no children, so it holds the module
+   in memory and an edit on disk cannot reach it; the tree was clean, so no uncommitted work was at
+   risk. **The running render does NOT benefit — it is still executing the old code.**
 2. **Absolute inch margins for `_delta_grid`** — the 11th post-stroke day crowding. Their file.
 3. **Rebuild deck + publish** on the watch's signal. Deck is currently 525 slides locally.
 4. **Extract per-session collectors for figs 8g, 10, 10b, 11.** They build per-day data INLINE
@@ -46,6 +48,13 @@ section H would regress against the copy already there until the render lands.
    not optional: larger fonts on a smaller canvas is exactly where labels collide, and three layout
    faults this month were found only by driving rather than reading the diff.
 6. **Deck section for the epoch figures**, placed 4-up at quarter page.
+
+7. **Parallelise the render.** Measured 2026-08-28: 1.51 of 24 cores over 5.65 h, 6.3% of the box,
+   with 42 GB free. The bigger win than anything left in the serial code, and the real answer to
+   "how do we make the nightly faster". **Parallelise by figure FAMILY or by (animal, alignment),
+   not by figure** — `_BUNDLE_CACHE` and the collector `lru_cache`s are per process, so one figure
+   per worker re-pays every shared collection and raises total CPU. See DECISIONS for the full set
+   of caveats (Agg, processes not threads, `session_cache` write races, `OMP_NUM_THREADS`).
 
 Full scope and reuse map: [`docs/EPOCH_FIGURES_PLAN.md`](EPOCH_FIGURES_PLAN.md).
 

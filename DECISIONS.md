@@ -5926,3 +5926,68 @@ render pays a cold rebuild the other two thirds do not.
 ABSOLUTE INCH MARGINS rather than matplotlib's fractional ones — the same approach used on
 `figure_rt_split` and on the epoch renderer — because a negotiated layout is not reproducible as the
 session count grows. To be applied after the current render, not by restarting it.
+
+---
+
+## 2026-08-28 (later) — The four pooling sites now share one bundle, and the render is serial
+
+### Done: `_pooled_bundle` adopted at all four remaining sites
+
+`fig_confusion_pre_post_working`, `_collect_5c`, `fig_pattern_similarity_per_session` and
+`fig_pattern_similarity` no longer rebuild the pooling. Each unpacks the memoised bundle instead.
+`pool_sessions` is now called from exactly ONE place in the module, pinned by
+`tests/test_one_pooling_per_animal_alignment.py`.
+
+Two mechanical points made this safe to do without re-deriving any number:
+
+* The four prologues were **character-identical** to the bundle's own, modulo variable naming —
+  same `sessions=SESSIONS` basis, same `nolick_ref="cue"` features, same `post_s=2.0`, same
+  `_gate_all` call, same `pre_i`, and in `_collect_5c` the same two block-id rules. Verified by
+  AST rather than by eye: an audit listed, per function, exactly which prologue names the body
+  below still reads, which is how `u_pre` and the `BE_all`/`BU_all` renames were caught.
+* **The bundle was discarding `YE`/`YU`.** That is the only reason two of the four could not adopt
+  it: they fit and score on the integer position codes, not the display names, and refitting on
+  names would have been a different call to the optimiser rather than a rename. Adding the two
+  keys is purely additive — `pool_sessions` already returned them.
+
+The call in `fig_confusion_pre_post_working` stays INSIDE its `try`, after `raise _Stored`.
+Hoisting it above would force the pooling even when the stored classes already serve, which is the
+whole reason they are checked first — a "speed-up" that made that figure slower.
+
+### Measured: the render uses 1.51 of 24 cores
+
+Not a slow computation — a serial one on a 24-core box. Over 5.65 h of wall clock the render
+accumulated 30,727 s of CPU: **1.51 cores busy on average, 6.3% of the machine**, which is the same
+fact as Task Manager's "7%". Memory is not the constraint anywhere near it: 1.4 GB working set,
+2.9 GB private, 42.4 GB free.
+
+One correction to the obvious reading: the process is **not** strictly single-threaded. It holds 47
+threads and the 1.51 mean says BLAS is already giving roughly 1.5x inside the numpy calls. The
+conclusion is unchanged — 26 figures rendered one at a time, alignment loops (cue/precue/lick, about
+26 min each) run strictly in sequence, and the per-animal work inside them likewise — but it changes
+the arithmetic for anyone sizing a worker pool, and it changes one of the caveats below.
+
+`main()` already holds the work as a `jobs` list of `(key, fn)` pairs driven by a single `_run()`
+loop, so the dispatch site is not the obstacle.
+
+### What the parallel version has to get right, and the one cost nobody has priced
+
+* **Agg backend, one figure per WORKER PROCESS, never threads.** The GIL and pyplot's global
+  figure registry both bite.
+* **`session_cache` writes must not race.** Several stages share entries.
+* **Set `OMP_NUM_THREADS`/`MKL_NUM_THREADS` per worker.** Because BLAS is already taking ~1.5
+  cores, 8 unconstrained workers oversubscribe rather than scale.
+* **THE MEMOISATION IS PER PROCESS, and this now cuts against the fan-out.** `_BUNDLE_CACHE` and
+  the `lru_cache`s on `_collect_5c`/`_collect_7` are what make the second figure of a family nearly
+  free: 5c and 5d share a collection, as do 6/6b/6d, 7/7b/7d and 8/8b/8d/8e. Scatter one figure per
+  worker and each worker pays that collection again — total CPU goes UP even as wall clock comes
+  down, and on a cold `session_cache` it could go up a great deal.
+
+  So the unit of parallelism should be the **figure FAMILY**, not the figure: keep everything that
+  shares a collector in one process. Better still, parallelise the POOLING stage across
+  (animal, alignment) — twelve independent units, which is the natural width here — let it fill the
+  disk cache, then render. That ordering gets the wall-clock win without multiplying the work, and
+  it is the same reasoning that made sharing one bundle worth doing in the first place.
+
+This is real work, not a flag, and it is the honest answer to "how do we make the nightly faster" —
+a bigger win than anything left in the serial code. Not started; the current render must land first.
