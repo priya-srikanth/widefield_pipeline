@@ -691,13 +691,53 @@ def _fig_11(out_dir, align, variant, wname):
         counts=_totals(_session_counts()), ylim=(0.0, 1.30))
 
 
+def _fig_10b(out_dir, align, variant, wname):
+    """10b pooled: is the best-matching pre-stroke pattern the CORRECT position, per position?
+
+    Read off `_matrices_pattern` -- ``{animal: {"PRE"|day: M}}`` where ``M[i, j]`` is the
+    correlation of this session's pattern at position i with the pre-stroke pattern at j. The
+    session scores 1 at position i when j = i is the argmax of that row.
+
+    A ROW OF ALL-NaN SCORES NOTHING rather than scoring zero: a position gated out for too few
+    trials has no best match, and counting that as "matched the wrong position" would turn missing
+    data into evidence of reorganisation, which is the direction that would flatter the result.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local.grant_figures import CONF_LABELS
+
+    mats, _days = G._matrices_pattern(align, variant)
+    if not mats:
+        return None
+    short = dict(zip(CONF_LABELS, _short_labels()))
+    idx = {short[q]: i for i, q in enumerate(CONF_LABELS)}
+
+    def value_of(M, key):
+        i = idx[key]
+        row = np.asarray(M, float)[i]
+        if not np.isfinite(row).any():
+            return None
+        return float(np.nanargmax(row) == i)
+
+    values, points = ef.scalar_by_epoch(mats, value_of, keys=_short_labels())
+    if not values:
+        return None
+    return ef.bar_row(
+        values, out_dir, name=f"epoch_10b_best_match_by_position_{align}_{variant}",
+        title=f"Fraction of sessions whose best pre-stroke match is the correct position -- {wname}",
+        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
+        ylabel="fraction of sessions", positions=_short_labels(), tick_labels=_minor(),
+        groups=_groups(), points=points, counts=_totals(_session_counts()),
+        chance=1.0 / len(CONF_LABELS), ylim=(0.0, 1.10))
+
+
 #: Stated on every already-reduced family, because it is the one thing that separates them from
 #: the confusion figures: those pool by SUMMING raw counts (every trial once), these by AVERAGING
 #: one value per session (every session once). Same figure shape, different weighting.
 _MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced per session, so a "
               "session is the unit and cannot be re-weighted by its trial count")
 
-SCALAR_FAMILIES = (("8g", _fig_8g), ("10", _fig_10), ("11", _fig_11))
+SCALAR_FAMILIES = (("8g", _fig_8g), ("10", _fig_10), ("10b", _fig_10b),
+                   ("11", _fig_11))
 
 
 # ------------------------------------------------------------------------------ the driver
