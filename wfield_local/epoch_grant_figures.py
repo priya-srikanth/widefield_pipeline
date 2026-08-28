@@ -65,6 +65,19 @@ def _counts_line(per_epoch):
     return "   |   ".join(parts)
 
 
+def _totals(per_epoch):
+    """``{animal: sessions across all epochs}`` -- the legend's count.
+
+    Deliberately a different number from the subtitle's, and both are wanted: the legend says how
+    many dots of a colour are on the figure, the subtitle says how they split across the panels.
+    """
+    out = {}
+    for per in per_epoch.values():
+        for an, c in (per or {}).items():
+            out[an] = out.get(an, 0) + c
+    return out
+
+
 # --------------------------------------------------------------------------------- behaviour
 
 def fig_behaviour(out_dir):
@@ -99,7 +112,11 @@ def fig_behaviour(out_dir):
     return ef.bar_row(values, out_dir, name="epoch_1b_behaviour_by_position",
                       title="Behaviour: hit rate by spout position, pooled across animals "
                             "(one dot per session)",
-                      subtitle=_counts_line(counts),
+                      # TOTALS in the legend, the PER-EPOCH breakdown in the subtitle. The legend
+                      # answers "how many dots of this colour are on the figure at all"; the
+                      # subtitle answers "how many of them are in the panel I am reading", which
+                      # is the one that carries the imbalance.
+                      subtitle=_counts_line(counts), counts=_totals(counts),
                       ylabel="hit rate", positions=_short(CONF_LABELS), points=points,
                       # HEADROOM ABOVE 1.0 so a session at ceiling is a visible dot rather than a
                       # smear on the spine -- and the close positions sit at ceiling throughout.
@@ -147,7 +164,7 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     return ef.bar_row(
         values, out_dir, name=f"epoch_acc_by_position_{align}_{variant}",
         title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
-        subtitle=_counts_line(per_epoch),
+        subtitle=_counts_line(per_epoch), counts=_totals(per_epoch),
         ylabel="accuracy", positions=_short(CONF_LABELS), points=points,
         chance=CHANCE, ylim=(0.0, 1.06))
 
