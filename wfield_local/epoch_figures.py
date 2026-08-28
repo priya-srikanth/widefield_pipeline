@@ -1298,3 +1298,41 @@ def scalar_by_epoch(by_animal_day, value_of, *, keys=None):
             values.pop(e)
             points.pop(e, None)
     return values, points
+
+def scalar_contrast_draws(points, epoch_a, epoch_b, key, *, rng, n_boot=2000):
+    """``(point, draws)`` for the change in a per-session scalar, epoch_a minus epoch_b.
+
+    ``points`` is `scalar_by_epoch`'s second return: ``{epoch: {key: [(animal, value), ...]}}``.
+
+    ANIMALS THEN SESSIONS, and there is no third level BY CONSTRUCTION. These families hand back
+    one number per session -- a row correlation, a best-match fraction, an encoder gain -- so there
+    are no trials left to resample; the reduction already happened inside the collector. That is a
+    real difference from the confusion families, where the records are trial-level and blocks are
+    the innermost unit, and the subtitle says which one a figure used rather than leaving a reader
+    to assume they match.
+
+    The animal draw is shared between the two epochs, so the contrast stays paired.
+    """
+    a_rows = (points.get(epoch_a) or {}).get(key) or []
+    b_rows = (points.get(epoch_b) or {}).get(key) or []
+    if not a_rows or not b_rows:
+        return None
+    animals = sorted({an for an, _v in a_rows} & {an for an, _v in b_rows})
+    if not animals:
+        return None
+    by_a = {an: [v for x, v in a_rows if x == an] for an in animals}
+    by_b = {an: [v for x, v in b_rows if x == an] for an in animals}
+    point = float(np.mean([v for _a, v in a_rows]) - np.mean([v for _a, v in b_rows]))
+    diffs = []
+    for _ in range(n_boot):
+        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
+        va, vb = [], []
+        for an in pick:
+            sa, sb = by_a[an], by_b[an]
+            va += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
+            vb += [sb[i] for i in rng.integers(0, len(sb), len(sb))]
+        if va and vb:
+            diffs.append(float(np.mean(va) - np.mean(vb)))
+    if len(diffs) < n_boot // 4:
+        return None
+    return point, np.asarray(diffs, float)

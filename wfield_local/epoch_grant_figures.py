@@ -598,6 +598,59 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
 
 # --------------------------------------------------------- the per-day scalar families
 
+def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_labels=None,
+                   groups=None, chance=None, ylim=(0.0, 1.06), delta_name=None,
+                   delta_title=None, delta_ylabel=None):
+    """Bar row + marks + the epoch-minus-pre companion panel, for a per-session scalar family.
+
+    ONE PATH FOR ALL OF THEM. 8g, 10, 10b and 11 differ only in which collector fills `values` and
+    `points`, so the statistics, the marks and the companion panel are written once. Four copies
+    would agree today and diverge the first time one of them gained a correction.
+    """
+    post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
+    if not post or "pre" not in values:
+        # NO PRE, NO CONTRAST -- and say so, rather than draw bars with no marks and let a reader
+        # assume the test was run and came back null.
+        return ef.bar_row(values, out_dir, name=name, title=title,
+                          subtitle=ef.stats_line(_session_counts(), notes=[
+                              _MEAN_NOTE, "no pre-stroke arm in this collector: no contrast drawn"]),
+                          ylabel=ylabel, positions=keys, tick_labels=tick_labels, groups=groups,
+                          points=points, counts=_totals(_session_counts()), chance=chance,
+                          ylim=ylim)
+    n_comp = sum(len(values[e]) for e in post)
+    marks, rows = {}, {}
+    for e in post:
+        marks[e], rows[e] = {}, {}
+        for k in keys:
+            if k not in values[e]:
+                continue
+            got = ef.scalar_contrast_draws(
+                points, e, "pre", k,
+                rng=np.random.default_rng(_seed_for(name, "scalar", e, k)), n_boot=N_BOOT)
+            if got is None:
+                continue
+            point, draws = got
+            marks[e][k] = ef.contrast_marks(draws, n_comparisons=n_comp)
+            lo, hi = np.percentile(draws, [2.5, 97.5])
+            a = 0.05 / max(1, n_comp)
+            clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+            rows[e][k] = (point, float(lo), float(hi), float(clo), float(chi))
+    sub = ef.stats_line(_session_counts(), n_boot=N_BOOT, notes=[
+        _MEAN_NOTE,
+        "bootstrap: animals -> sessions. No block level: these values are one number per session, "
+        "so the trial reduction already happened inside the collector"])
+    made = ef.bar_row(values, out_dir, name=name, title=title, subtitle=sub, marks=marks,
+                      ylabel=ylabel, positions=keys, tick_labels=tick_labels, groups=groups,
+                      points=points, counts=_totals(_session_counts()), chance=chance, ylim=ylim)
+    if any(rows.values()):
+        ef.contrast_panel(rows, out_dir, name=delta_name or f"{name}_delta",
+                          title=delta_title or f"Change from pre-stroke -- {title}",
+                          subtitle=sub, ylabel=delta_ylabel or f"{ylabel} - pre",
+                          positions=keys, tick_labels=tick_labels, groups=groups,
+                          n_comparisons=n_comp)
+    return made
+
+
 def _fig_8g(out_dir, align, variant, wname):
     """8g pooled: per-position RDM row correlation against the pre-stroke geometry, by epoch.
 
@@ -624,71 +677,61 @@ def _fig_8g(out_dir, align, variant, wname):
     values, points = ef.scalar_by_epoch(rows, value_of, keys=_short_labels())
     if not values:
         return None
-    return ef.bar_row(
-        values, out_dir, name=f"epoch_8g_geometry_by_position_{align}_{variant}",
+    return _scalar_figure(
+        out_dir, name=f"epoch_8g_geometry_by_position_{align}_{variant}",
         title=f"Per-position RDM row correlation with the pre-stroke geometry -- {wname}",
-        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
-        ylabel="row correlation", positions=_short_labels(), tick_labels=_minor(),
-        groups=_groups(), points=points, counts=_totals(_session_counts()),
-        ylim=(-0.2, 1.06))
+        ylabel="row correlation", keys=_short_labels(), values=values, points=points,
+        tick_labels=_minor(), groups=_groups(), ylim=(-0.2, 1.10),
+        delta_name=f"epoch_8gdelta_geometry_by_position_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in per-position row correlation -- {wname}")
 
 
 def _fig_10(out_dir, align, variant, wname):
-    """10 pooled: best-match accuracy and mean rank of the correct position, by epoch."""
-    from wfield_local import grant_figures as G
+    """10 pooled: best-match accuracy and the correct position's rank, by epoch.
 
-    tables, _days = G._match_tables(align, variant)
-    if not tables:
-        return None
-    by = {an: dict(per_day) for an, (_pre, _post, per_day) in tables.items()}
-    made = []
-    for key, i, lab, ylim in (("acc", 0, "best-match accuracy", (0.0, 1.06)),
-                              ("rank", 1, "mean rank of the correct position", (0.0, 6.2))):
-        values, points = ef.scalar_by_epoch(
-            by, lambda p, _k, i=i: (None if p is None else float(p[i])), keys=[lab])
-        if not values:
-            continue
-        p = ef.bar_row(
-            values, out_dir, name=f"epoch_10_best_match_{key}_{align}_{variant}",
-            title=f"Best-match {key} against the pre-stroke patterns -- {wname}",
-            subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
-            ylabel=lab, positions=[lab], points=points,
-            counts=_totals(_session_counts()), ylim=ylim)
-        if p:
-            made.append(p)
-    return made[0] if made else None
+    BUILT ON `_matrices_pattern`, not `_match_tables`. Priya asked for a pre-stroke bar and
+    `_match_tables` cannot give one: its per-day dict is post-stroke only, with pre held separately
+    as a 6x6 of counts from which a mean rank cannot be recovered. `_matrices_pattern` is keyed
+    "PRE"|day, so the baseline is a session like any other -- and it is the same source 10b reads,
+    so the two figures cannot disagree about what a best match is.
 
-
-def _fig_11(out_dir, align, variant, wname):
-    """11 pooled: the encoder's gain and shape terms, by epoch.
-
-    `_enc_tables` gives ``{animal: {"PRE"|day: (raw, a, gain, per-position)}}``. `raw` and `gain`
-    are the two scalars the per-animal figure plots against day; here they become two bars each.
+    `_best_match` is `grant_figures`' own, used rather than reimplemented: it takes the WHOLE ROW,
+    which is what separates "the code is gone" from "the code moved somewhere specific".
     """
     from wfield_local import grant_figures as G
 
-    tab, _days = G._enc_tables(align, variant)
-    if not tab:
+    mats, _days = G._matrices_pattern(align, variant)
+    if not mats:
         return None
-    LABELS = ["raw", "gain"]
-    take = {"raw": 0, "gain": 2}
+    ACC, RANK = "best-match accuracy", "rank of correct position"
 
-    def value_of(payload, key):
-        try:
-            v = payload[take[key]]
-        except Exception:                                              # noqa: BLE001
+    def value_of(M, key):
+        best, rank = G._best_match(np.asarray(M, float))
+        ok = np.isfinite(rank)
+        if not ok.any():
             return None
-        return None if v is None else float(v)
+        if key == ACC:
+            return float(np.mean(best[ok] == np.flatnonzero(ok)))
+        return float(np.nanmean(rank))
 
-    values, points = ef.scalar_by_epoch(tab, value_of, keys=LABELS)
+    values, points = ef.scalar_by_epoch(mats, value_of, keys=[ACC, RANK])
     if not values:
         return None
-    return ef.bar_row(
-        values, out_dir, name=f"epoch_11_encoder_gain_shape_{align}_{variant}",
-        title=f"Encoder explained variance and gain -- {wname}",
-        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
-        ylabel="value", positions=LABELS, points=points,
-        counts=_totals(_session_counts()), ylim=(0.0, 1.30))
+    made = None
+    for key, ylim, chance in ((ACC, (0.0, 1.10), 1.0 / 6.0), (RANK, (0.0, 6.4), None)):
+        v = {e: {key: d[key]} for e, d in values.items() if key in d}
+        pt = {e: {key: points[e][key]} for e in v}
+        if not v:
+            continue
+        got = _scalar_figure(
+            out_dir, name=f"epoch_10_best_match_{'acc' if key == ACC else 'rank'}_{align}_{variant}",
+            title=f"Best match against the pre-stroke patterns -- {wname}",
+            ylabel=key, keys=[key], values=v, points=pt, chance=chance, ylim=ylim,
+            delta_name=(f"epoch_10delta_best_match_"
+                        f"{'acc' if key == ACC else 'rank'}_{align}_{variant}"),
+            delta_title=f"Change from pre-stroke in {key} -- {wname}")
+        made = made or got
+    return made
 
 
 def _fig_10b(out_dir, align, variant, wname):
@@ -721,13 +764,46 @@ def _fig_10b(out_dir, align, variant, wname):
     values, points = ef.scalar_by_epoch(mats, value_of, keys=_short_labels())
     if not values:
         return None
-    return ef.bar_row(
-        values, out_dir, name=f"epoch_10b_best_match_by_position_{align}_{variant}",
+    return _scalar_figure(
+        out_dir, name=f"epoch_10b_best_match_by_position_{align}_{variant}",
         title=f"Fraction of sessions whose best pre-stroke match is the correct position -- {wname}",
-        subtitle=ef.stats_line(_session_counts(), notes=[_MEAN_NOTE]),
-        ylabel="fraction of sessions", positions=_short_labels(), tick_labels=_minor(),
-        groups=_groups(), points=points, counts=_totals(_session_counts()),
-        chance=1.0 / len(CONF_LABELS), ylim=(0.0, 1.10))
+        ylabel="fraction of sessions", keys=_short_labels(), values=values, points=points,
+        tick_labels=_minor(), groups=_groups(), chance=1.0 / len(CONF_LABELS), ylim=(0.0, 1.10),
+        delta_name=f"epoch_10bdelta_best_match_by_position_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in best-match fraction -- {wname}")
+
+
+def _fig_11(out_dir, align, variant, wname):
+    """11 pooled: the encoder's explained variance and gain, by epoch.
+
+    `_enc_tables` is keyed "PRE"|day, so the pre-stroke baseline is a bar here without any special
+    handling -- unlike figure 10, whose collector holds pre separately and had to be rebuilt on
+    `_matrices_pattern` to get one.
+    """
+    from wfield_local import grant_figures as G
+
+    tab, _days = G._enc_tables(align, variant)
+    if not tab:
+        return None
+    LABELS = ["raw", "gain"]
+    take = {"raw": 0, "gain": 2}
+
+    def value_of(payload, key):
+        try:
+            v = payload[take[key]]
+        except Exception:                                              # noqa: BLE001
+            return None
+        return None if v is None else float(v)
+
+    values, points = ef.scalar_by_epoch(tab, value_of, keys=LABELS)
+    if not values:
+        return None
+    return _scalar_figure(
+        out_dir, name=f"epoch_11_encoder_gain_shape_{align}_{variant}",
+        title=f"Encoder explained variance and gain -- {wname}",
+        ylabel="value", keys=LABELS, values=values, points=points, ylim=(0.0, 1.30),
+        delta_name=f"epoch_11delta_encoder_gain_shape_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in encoder variance and gain -- {wname}")
 
 
 #: Stated on every already-reduced family, because it is the one thing that separates them from
