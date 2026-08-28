@@ -394,6 +394,48 @@ def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
     return made
 
 
+
+
+# ------------------------------------------------------- the already-reduced matrix families
+
+#: (key, collector name, colour bar unit, colormap, fixed scale or None, title stem).
+#: The scale is fixed only where the quantity has a natural range: a correlation does, a
+#: crossnobis distance does not, and forcing one on it would compress every panel into a corner.
+MATRIX_FAMILIES = (
+    ("6", "_matrices_pattern", "pattern correlation", "viridis", (-1.0, 1.0),
+     "Mean-pattern correlation against the pre-stroke reference"),
+    ("7", "_matrices_splithalf", "split-half correlation", "viridis", (-1.0, 1.0),
+     "Within-session split-half pattern similarity"),
+    ("8", "_matrices_crossnobis", "crossnobis distance", "magma", None,
+     "Crossnobis geometry, in pre-stroke units"),
+)
+
+
+def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, variant, wname):
+    """One matrix family's pooled epoch row, from the collector the per-animal figures already use.
+
+    NOTHING IS RECOMPUTED: `_matrices_pattern`, `_matrices_splithalf` and `_matrices_crossnobis`
+    all bottom out in `_collect_7`, keyed by "PRE" or day, which is what an epoch is defined on.
+    """
+    from wfield_local import grant_figures as G
+
+    mats, _days = getattr(G, collector)(align, variant)
+    if not mats:
+        return None
+    pooled, cov = ef.mean_matrix_by_epoch(mats)
+    if not pooled:
+        return None
+    vmin, vmax = (scale if scale else (None, None))
+    sub = ef.stats_line(_session_counts(),
+                        notes=["pooled as a MEAN OVER SESSIONS: these matrices are already "
+                               "reduced, so a session is the unit and cannot be re-weighted "
+                               "by its trial count"])
+    return ef.matrix_row(
+        pooled, out_dir, name=f"epoch_{key}_{collector.strip('_')}_{align}_{variant}",
+        title=f"{stem} -- {wname}", labels=_short_labels(), cmap=cmap,
+        vmin=vmin, vmax=vmax, unit=unit, coverage=cov, subtitle=sub, delta=True)
+
+
 # ------------------------------------------------------------------------------ the driver
 
 def _epoch_arm(align, variant):
@@ -425,12 +467,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "acc", "5c"))
+                    choices=("1b", "acc", "5c", "mat"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "acc", "5c"))
+    want = set(args.only or ("1b", "acc", "5c", "mat"))
 
     if "1b" in want:
         try:
@@ -469,6 +511,15 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
+        if "mat" in want:
+            for key, collector, unit, cmap, scale, stem in MATRIX_FAMILIES:
+                try:
+                    _report(f"{key} {align}/{variant}",
+                            _matrix_family(key, collector, unit, cmap, scale, stem,
+                                           out, align, variant, wname))
+                except Exception as ex:                                # noqa: BLE001
+                    print(f"  !! {key} {align}/{variant}: {type(ex).__name__} "
+                          f"{str(ex)[:160]}", flush=True)
     return 0
 
 
