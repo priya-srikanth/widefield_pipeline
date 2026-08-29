@@ -6366,3 +6366,52 @@ exists to excise sated tails, not to hold the animal to a criterion — but it m
 0.2 range of reference performance, and any analysis treating engaged trials as homogeneous within a
 session is averaging over it. `tests/` does not pin this; the probe is
 `docs/gate_bias_probe.py`.
+
+## 2026-08-28 (late) — figure dimensions, and a cache that memoised its own failures
+
+**Bar figures are sized from their DATA REGION, not from a fixed canvas.** Priya: *"the 8g figures
+are too short ... make the dimensions of each plot less fat."* `fig_h` was the constant 2.60 and the
+axes took whatever the text left over — `max(0.6, fig_h - top - bottom)` — so the figure carrying
+the MOST chrome ended up with the LEAST plot. 8g is the worst case, being the only family with a
+wrapped title, a two-line subtitle AND the two-level Ipsi/Middle/Contra x axis: **1.92in of text
+against a 0.68in plot, 26% of the canvas.** Every bar figure measured between 26% and 33% data.
+
+The arrow is now reversed. `wrap_title` and `fit_subtitle` need only the WIDTH, so every band is
+known before a figure exists and the height is a RESULT: `fig_h = top + bar_axes_height(fig_w) +
+bottom`. A subtitle that wraps to a third line now makes the figure taller instead of making the
+plot shorter. Six-group data height **0.68in → 2.25in**; 8g's canvas 2.60 → 4.62in.
+
+**The same fault was present rotated ninety degrees.** Narrowing the canvas by group count
+reclaimed real empty space, but the gutters are absolute (0.62 + 1.24 = 1.86in of chrome), so the
+reclaimed width went to the LEGEND, not the plot: a one-group canvas of 2.58in left a 0.57in axes.
+`BAR_AXES_MIN_W_IN` floors it, so one- and two-group figures are 3.31in wide with a square plot.
+The lesson generalises — *reclaiming space says nothing about who receives it.*
+
+**`big()` fits BOTH dimensions, so for a tall figure the placed scale is `avail_h / fig_h` and the
+width never binds.** Section I asked for `top=1.95` while passing an empty subtitle, leaving 5.40in;
+the 5.76in matrix families were being placed at **0.94× — smaller than native** — rendering their
+9pt titles at 8.4pt. Now 1.40, the deck's own default. Matrices 0.94→1.03×, 5c 1.07→1.18×, bars
+1.29→1.43×. **Taller figures cost placed type size directly**, and that trade is now explicit
+rather than accidental.
+
+**`_boot_cached` never persists a falsy result.** Every producer signals failure by returning None
+or `{}` through a broad `except`, so an empty result is the signature of a FAILURE, not an answer —
+and memoising it makes one bad run permanent. Caught in the act: a NameError inside a refactored
+`_rdm_one` was swallowed, None was pickled under twelve keys, and the CORRECTED code then read
+those back and produced no intervals, silently, both times. 7b_disatt and delta_9 audited clean.
+
+**8b/8g bootstrap is cached per ANIMAL, never per day.** The loop runs draws-outer and days-inner
+deliberately, so every day of an animal shares each draw's leave-one-out reference resample —
+caching per day would break that correlation structure invisibly. An animal's draws depend on
+nothing outside that animal (the RNG is seeded from its own name), so the boundary is exact. That
+distinction is why this sat parked as "not mechanical": *per-day* isn't, *per-animal* is.
+
+**The cache prune was dropped, not deferred.** Measured before building it: 61 entries totalling
+under 0.05 MB, against a 2.4 GB session cache. These are dicts of `(lo, hi)` tuples. Unbounded
+growth would need millions of entries to matter, so the age-based sweep would have been machinery
+for a problem that does not exist.
+
+**A blanket `continue` → `return None` is not a safe extraction.** Lifting a loop body into a
+function turned three nested `continue`s into early returns, one of them inside `_pool`, where
+`continue` WAS the leave-one-out. Tests caught it; nothing else would have. Only the `continue`
+belonging to the extracted loop may become a return.

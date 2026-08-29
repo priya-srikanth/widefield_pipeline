@@ -69,6 +69,17 @@ over ALL positions, so post-stroke it called the animal disengaged precisely bec
 reach the far spouts — and dropped those trials from the hit rate meant to measure the deficit. It
 excluded 380 of PS94_0817's 643 trials; the reference-judged gate excludes 0.
 
+**A figure's height must be a RESULT, not a budget.** `fig_h` was the constant 2.60 and the axes
+took what the text left over, so the figure with the most chrome got the least plot -- 8g ran a
+0.68in plot under 1.92in of text, 26% of the canvas. Height is now `top + bar_axes_height(fig_w) +
+bottom`. The same fault existed rotated ninety degrees: narrowing the canvas handed the reclaimed
+width to the LEGEND, leaving a 0.57in axes. Reclaiming space says nothing about who receives it.
+
+**A cache that memoises failures makes one bad run permanent.** Every bootstrap producer signals
+failure by returning None through a broad `except`, and `_boot_cached` pickled it. A swallowed
+NameError poisoned twelve keys, and the CORRECTED code then read them back and produced nothing --
+silently, both times. Falsy results are no longer persisted.
+
 **Three fault classes the layout checker cannot see**, all found by driving:
 1. A figure sized per panel count renders type 25% smaller when the deck places it at a fixed
    width — no overlap anywhere.
@@ -118,12 +129,12 @@ partial section G figures and reports **0 missing**, because a partially-written
    imaging collectors would try to pool a session with no `motion_corrected`; those loops catch per
    ANIMAL, so the likely result is PS92 and PS93 vanishing from the imaging epoch figures. Wait for
    the upload. Their behaviour has already been re-scored under the new gate.
-4. **Bootstrap cache** does not yet cover `_rdm_ci` (8b, 8g) or `_asymmetry_ci` (8e) — ~15% of the
-   render. They loop draws-outer/days-inner, so the days deliberately share each draw's reference
-   resample; splitting them changes the correlation structure and is not a mechanical change.
-5. **The bootstrap cache is never pruned.** `session_cache` prunes superseded signatures because
-   its key is a session; these are keyed by content, so a changed session leaves its old entry
-   behind. Harmless but unbounded — it needs an age-based sweep.
+4. ~~**Bootstrap cache** for `_rdm_ci`~~ **DONE.** Cached per ANIMAL, which is what makes it
+   sound: the loop runs draws-outer/days-inner so an animal's days share each draw's reference
+   resample, and the per-DAY split I had feared is exactly the one that breaks it. `_asymmetry_ci`
+   (8e) is still uncached and has the same shape, so it is the same change whenever it is wanted.
+5. ~~**Age-based prune**~~ **DROPPED, measured.** 61 entries, under 0.05 MB in total, against a
+   2.4 GB session cache. It would have been machinery for a problem that does not exist.
 
 ## Method notes
 
