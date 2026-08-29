@@ -3499,7 +3499,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      "`epochs.verify_against_behaviour` re-derives them from the far-contralateral "
                      "accuracy rule and REPORTS agreement rather than reassigning, so a published "
                      "boundary cannot move when a session is registered.")
-                big(_sl, _ef, top=1.95, width=12.6)
+                # `big` fits BOTH dimensions, so for anything taller than the space available
+                # the placed scale is avail_h / fig_h and the WIDTH never binds. At top=1.95 that
+                # left 5.40in, and the 5.76in matrix families were placed at 0.94x -- SMALLER than
+                # native, rendering their 9pt titles at 8.4pt. The 1.95 was reserving room for a
+                # subtitle this section does not pass (`title(_sl, ..., "")`); the title box ends
+                # at 1.11in, so the deck's own 1.40 default clears it and buys back 0.55in.
+                big(_sl, _ef, top=1.40, width=12.6)
 
     out_path = Path(out_path)
     _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)
