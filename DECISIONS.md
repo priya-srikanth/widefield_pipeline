@@ -6440,3 +6440,19 @@ The cause was structural rather than careless. Slide keys were written into the 
 family in narrative order meant renumbering every entry after it — expensive enough that the
 diagonals were never inserted at all. Keys now derive from position, so a family goes where it
 belongs and the numbering follows.
+
+**The nightly run now BUILDS the epoch figures, which it never did.** Section I was written, the
+figures were rendered by hand, and nothing wired `epoch_grant_figures` into `nightly_figs` — it
+appeared in that module only inside comments. Every future night would have refreshed sections A–H
+while section I kept placing a manual render that aged silently, and no check could have caught it:
+the files were PRESENT, and a completeness check only knows about absence. It runs AFTER
+`grant_figures`, because it recomputes nothing and reads the collectors that step warms; and it
+runs through `cli`, so a nonzero exit lands in `FAILURES` and the deck marks the section stale
+rather than publishing old numbers under tonight's date.
+
+**A subset run must not publish over a pooled deliverable.** `grant_figures.ANIMALS` is a fixed
+four-tuple while the collectors beneath it honour `WIDEFIELD_ONLY_ANIMALS`, so `--only PS92` would
+render a "pooled" figure from ONE animal straight over the four-animal one. The subtitle would
+report N=1 perfectly honestly — which is the trap, not the mitigation: it is a *correct figure of
+the wrong thing*, sitting at the path the deck reads. The step is skipped on any `--only` run and
+says so in the log.

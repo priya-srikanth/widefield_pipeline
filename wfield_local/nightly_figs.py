@@ -511,8 +511,8 @@ def main():
     # Its own root: these land under `labcams/grant_figures`, not `out` -- a deliverable rather than
     # an analysis intermediate -- so no --output is passed.
     if args.skip_grant:
-        log("== grant figures SKIPPED (--skip-grant): deck section H will show the PREVIOUS "
-            "render; the deck manifest lists them as not refreshed by this run ==")
+        log("== grant figures SKIPPED (--skip-grant): deck sections H and I will show the "
+            "PREVIOUS render; the deck manifest lists them as not refreshed by this run ==")
     else:
         # FANNED OVER PROCESSES (2026-08-28). Measured serially: 5.79 h at 1.51 of 24 cores, with
         # 94.7% of it inside six bootstrap families that are independent per (figure, alignment,
@@ -523,6 +523,30 @@ def main():
         # night with one new session recomputes that session and replays the other seventy-three.
         cli("wfield_local.grant_figures",
             *(("--jobs", str(args.grant_jobs)) if args.grant_jobs is not None else ()))
+        # THE POOLED EPOCH FIGURES (deck section I), into `labcams/grant_figures/epoch`.
+        #
+        # RUNS AFTER `grant_figures` AND NOT BESIDE IT. This module recomputes nothing -- every
+        # population comes from the collectors the step above just warmed, and a test forbids it
+        # from fitting a model or pooling sessions itself -- so running it first would do all that
+        # collection twice.
+        #
+        # It was missing entirely until 2026-08-28, and the failure mode was the quiet one: the
+        # deck placed whatever manual render happened to be on disk, so section I would have gone
+        # stale while every other section refreshed, and the completeness check would have reported
+        # nothing wrong because the files were PRESENT. Going through `cli` means a nonzero exit
+        # lands in FAILURES, which is what lets the deck mark the section stale rather than
+        # publishing last week's numbers under tonight's date.
+        if only:
+            # NOT ON A SUBSET RUN. These figures POOL ACROSS ANIMALS, and `grant_figures.ANIMALS`
+            # is a fixed four-tuple while the collectors underneath it honour
+            # WIDEFIELD_ONLY_ANIMALS -- so `--only PS92` would render a "pooled" figure from one
+            # animal and overwrite the four-animal deliverable on the server with it. The subtitle
+            # would say N=1 honestly, which is exactly the problem: it is a correct figure of the
+            # wrong thing, sitting at the path the deck reads.
+            log(f"== pooled epoch figures SKIPPED: --only {','.join(only)} would pool a SUBSET "
+                "over the full-cohort deliverable; deck section I keeps the previous render ==")
+        else:
+            cli("wfield_local.epoch_grant_figures")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
