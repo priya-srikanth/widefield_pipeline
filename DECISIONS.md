@@ -6308,3 +6308,61 @@ under a single name.
 Wrapping had to be ordered: the rotated y label is bounded by the AXES HEIGHT, which depends on the
 top band, which depends on how many lines the title and subtitle wrap to. Computing the label first
 and guessing the height left it 0.16in off the bottom.
+
+## 2026-08-28 (night) — Does the reference-restricted gate deflate the non-reference positions?
+
+### The question
+
+The engagement gate judges only `REFERENCE = ("close_L", "close_center")`. Priya asked whether that
+biases accuracy DOWN at the positions it does not look at — might a `close_R` deficit be partly an
+artefact of how engagement is decided? The mechanism would be graded disengagement: if effort at the
+hard positions fades before the animal stops responding at the easy ones, those late `close_R` and
+far misses are scored as engaged and charged to the lesion instead of to satiety.
+
+Two things already rule out the cruder versions of the worry. `REFERENCE` is a FIXED anatomical
+pair, not chosen from performance, so there is no "select the bad positions, then measure them as
+bad" circularity. And far trials interleaved inside a sated tail are marked with it, so a tail
+cannot contribute far misses to a hit rate it was excluded from.
+
+### The test, and why it is a DIFFERENCE and not a slope
+
+Within ENGAGED trials only, hit rate by within-session quartile, reference vs non-reference. The
+non-reference slope alone says nothing — animals slow down, and a shared decline is just the session
+ending. The informative quantity is the non-reference decline MINUS the reference decline in the
+same bins: a shared fall is fatigue, a non-reference-only fall is the bias.
+
+    phase    group            Q1     Q2     Q3     Q4     Q1-Q4
+    pre      reference      0.987  0.989  0.967  0.856   +0.131
+    pre      non-reference  0.943  0.948  0.918  0.744   +0.199
+    post     reference      0.994  0.985  0.877  0.799   +0.195
+    post     non-reference  0.764  0.756  0.666  0.516   +0.247
+
+    per-session paired:  pre excess +0.057 (n=117, sd 0.174)
+                         post excess +0.046 (n= 32, sd 0.176)
+
+### The answer: real, ~0.05, and NOT specific to the lesion
+
+Non-reference positions do decay about 0.05 more than reference within a session, so late trials
+carry a downward bias on `close_R` and the far positions. **But the excess is the same size
+PRE-STROKE (+0.057) as post (+0.046) — if anything larger.** Pre-stroke animals have no lesion, so
+that excess is a task-difficulty × fatigue interaction: harder positions degrade faster as an animal
+tires, lesion or not. **Pre-versus-post contrasts are therefore not differentially biased**, which is
+what the claims rest on. Keeping the gate as it stands (Priya, 2026-08-28).
+
+What is biased is the ABSOLUTE late-session far-position hit rate, in both phases alike. A figure or
+a grant sentence quoting absolute far-position accuracy should either match quartiles or say so;
+ratios and pre/post differences need neither.
+
+Statistics, stated because the two rows are not equally strong: pre is n=117 with sd 0.174, so
++0.057 is ~3.5 se from zero. Post is n=32, ~1.5 se — consistent with pre, not independently solid.
+The `excluded` phase has ~100 trials per bin and was not read.
+
+### The finding the test was not looking for
+
+**The gate catches collapse, not fade.** Reference hit rate itself falls 0.994 → 0.799 post-stroke
+across a session while every one of those trials stays "engaged", because `MIN_RATE = 0.5` over a
+15-trial window sits far below where the decline actually happens. That is defensible — the gate
+exists to excise sated tails, not to hold the animal to a criterion — but it means "engaged" spans a
+0.2 range of reference performance, and any analysis treating engaged trials as homogeneous within a
+session is averaging over it. `tests/` does not pin this; the probe is
+`docs/gate_bias_probe.py`.
