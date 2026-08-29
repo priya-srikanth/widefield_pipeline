@@ -4075,63 +4075,12 @@ def _asymmetry_ci(align, variant, min_trials, n_boot=N_BOOT_DELTA):
         if an not in x_store or an not in b_store:
             continue
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
-        rng = np.random.default_rng(_seed(an, align, variant, "asym"))
-        build = _mats_crossnobis(an, rng, sign=+1)
-
-        def _pool(pre_r, exclude=None):
-            acc = {}
-            for s, Z in pre_r.items():
-                if s == exclude:
-                    continue
-                for q, z in Z.items():
-                    acc.setdefault(q, []).append(z)
-            return {q: np.vstack(v) for q, v in acc.items()}
-
-        def _summarise(draws):
-            if len(draws) < n_boot // 4:
-                return None
-            S = np.stack(draws)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
-                obs = np.nanmedian(S, axis=0)
-                lo = np.nanpercentile(S, 2.5, axis=0)
-                hi = np.nanpercentile(S, 97.5, axis=0)
-            sig = np.isfinite(lo) & np.isfinite(hi) & ((lo > 0) | (hi < 0))
-            np.fill_diagonal(sig, False)                 # A[P,P] is 0 by construction
-            return obs, sig
-
-        rec, pre_draws, day_draws = {}, [], {d: [] for d in days}
-        for _ in range(n_boot):
-            pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
-            pre_r = {s: v for s, v in pre_r.items() if v}
-            if not pre_r:
-                continue
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
-                As = []
-                for s, held in pre_r.items():
-                    rest = _pool(pre_r, exclude=s)
-                    if held and rest:
-                        D = build(held, rest)
-                        As.append(D - D.T)
-                if As:
-                    pre_draws.append(np.nanmean(np.stack(As), axis=0))
-                full = _pool(pre_r)
-                for d in days:
-                    if d not in day_x:
-                        continue
-                    day_r = _block_boot(day_x[d], day_b[d], rng)
-                    if not day_r or not full:
-                        continue
-                    D = build(day_r, full)
-                    day_draws[d].append(D - D.T)
-        got = _summarise(pre_draws)
-        if got:
-            rec["PRE"] = got
-        for d in days:
-            got = _summarise(day_draws[d])
-            if got:
-                rec[d] = got
+        rec = _boot_cached(
+            "8e_asym", (pre_x, pre_b, day_x, day_b, days,
+                        (an, align, variant, min_trials, n_boot)),
+            lambda an=an, pre_x=pre_x, pre_b=pre_b, day_x=day_x,
+            day_b=day_b: _asymmetry_one(
+                an, align, variant, pre_x, pre_b, day_x, day_b, days, n_boot))
         if rec:
             out[an] = rec
     return out
@@ -4223,6 +4172,80 @@ def fig_asymmetry(out_dir, min_trials=10):
     return made
 
 
+
+
+def _asymmetry_one(an, align, variant, pre_x, pre_b, day_x, day_b, days, n_boot):
+    """One ANIMAL's 8e asymmetry intervals: ``{"PRE"|day: (obs, sig)}``, or None.
+
+    Extracted so one animal is the cache unit, as `_disatt_one` is for 7b and `_rdm_one` for
+    8b/8g. The same reasoning applies: the draws loop is outer and the days inner, so an
+    animal's days share each draw's leave-one-out pre-stroke pool -- and that shared pool is
+    what the PRE column is a baseline FOR. Caching per day would dissolve it. An animal's
+    draws depend on nothing outside that animal (the RNG is seeded from its own name and
+    `build` is bound to it), so the boundary is exact rather than approximate.
+
+    `days` is a parameter rather than a closure because it comes from `_collect_7` at
+    function scope, not from this animal: it decides which columns are scored, so it changes
+    the answer and therefore belongs in the cache key.
+    """
+    rng = np.random.default_rng(_seed(an, align, variant, "asym"))
+    build = _mats_crossnobis(an, rng, sign=+1)
+
+    def _pool(pre_r, exclude=None):
+        acc = {}
+        for s, Z in pre_r.items():
+            if s == exclude:
+                continue
+            for q, z in Z.items():
+                acc.setdefault(q, []).append(z)
+        return {q: np.vstack(v) for q, v in acc.items()}
+
+    def _summarise(draws):
+        if len(draws) < n_boot // 4:
+            return None
+        S = np.stack(draws)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            obs = np.nanmedian(S, axis=0)
+            lo = np.nanpercentile(S, 2.5, axis=0)
+            hi = np.nanpercentile(S, 97.5, axis=0)
+        sig = np.isfinite(lo) & np.isfinite(hi) & ((lo > 0) | (hi < 0))
+        np.fill_diagonal(sig, False)                 # A[P,P] is 0 by construction
+        return obs, sig
+
+    rec, pre_draws, day_draws = {}, [], {d: [] for d in days}
+    for _ in range(n_boot):
+        pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
+        pre_r = {s: v for s, v in pre_r.items() if v}
+        if not pre_r:
+            continue
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            As = []
+            for s, held in pre_r.items():
+                rest = _pool(pre_r, exclude=s)
+                if held and rest:
+                    D = build(held, rest)
+                    As.append(D - D.T)
+            if As:
+                pre_draws.append(np.nanmean(np.stack(As), axis=0))
+            full = _pool(pre_r)
+            for d in days:
+                if d not in day_x:
+                    continue
+                day_r = _block_boot(day_x[d], day_b[d], rng)
+                if not day_r or not full:
+                    continue
+                D = build(day_r, full)
+                day_draws[d].append(D - D.T)
+    got = _summarise(pre_draws)
+    if got:
+        rec["PRE"] = got
+    for d in days:
+        got = _summarise(day_draws[d])
+        if got:
+            rec[d] = got
+    return rec or None
 @lru_cache(maxsize=6)
 def _rdm_rows(align, variant, min_trials=10):
     """{animal: {"PRE"|day: (per-position row r, whole-RDM r, n_positions)}} for figures 8b and 8g.

@@ -6456,3 +6456,26 @@ render a "pooled" figure from ONE animal straight over the four-animal one. The 
 report N=1 perfectly honestly — which is the trap, not the mitigation: it is a *correct figure of
 the wrong thing*, sitting at the path the deck reads. The step is skipped on any `--only` run and
 says so in the log.
+
+**8e is cached per animal too, completing the set.** `_asymmetry_ci` joins 7b, 8b/8g and delta_9;
+every bootstrap family in `grant_figures` is now memoised on a digest of its own inputs. The grain
+is the ANIMAL for the same reason throughout: the draws loop is outer and the days inner, so an
+animal's days deliberately share each draw's leave-one-out pre-stroke pool — which, for 8e, is
+exactly what the PRE column is a baseline for. `days` is passed in and keyed rather than closed
+over, because it decides which columns are scored and so changes the answer.
+
+**Mechanical extraction of a loop body has three specific hazards, all of which bit tonight.**
+Worth stating together, because each produced working code that was silently wrong rather than an
+error:
+1. **Anchoring a search at the file** instead of inside the function. `out = {}` matched an earlier
+   function and hoisted the anchor into it — seven failing tests.
+2. **Blanket `continue` → `return None`.** Only the extracted loop's OWN `continue` may become a
+   return; the rest are nested loop control, and one of them (`if s == exclude: continue` inside
+   `_pool`) *was* the leave-one-out. Converting it produced intervals from a pool that never
+   excluded anything.
+3. **Inserting "before the next `def`"** lands between a decorator and its function, moving it to
+   the inserted one. `@lru_cache` jumped to `_asymmetry_one` and `_rdm_ci` lost its `.cache_clear`.
+   Eleven top-level defs in that module are decorated.
+
+The tests caught all three. None would have raised at import, and all three would have produced a
+figure.

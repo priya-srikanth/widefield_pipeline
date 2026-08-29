@@ -248,3 +248,42 @@ def test_a_failed_bootstrap_is_never_memoised(tmp_path, monkeypatch):
     assert gf._boot_cached("probe", ("k",), lambda: real.append(1) or {"x": 1}) == {"x": 1}
     assert gf._boot_cached("probe", ("k",), lambda: real.append(1) or {"x": 2}) == {"x": 1}
     assert len(real) == 1, "a real result was NOT memoised"
+
+
+def test_the_8e_cache_returns_what_the_uncached_path_would(monkeypatch, tmp_path):
+    """`_asymmetry_ci` cached per animal must BE the uncached result, not merely arrive faster.
+
+    Same contract as the 8b round trip above, and the same reason it is worth pinning: a cached
+    bootstrap that diverges from a fresh one still renders a figure, with different numbers and
+    nothing to say so.
+    """
+    from wfield_local import session_cache as sc
+    monkeypatch.setattr(sc, "CACHE_DIR", tmp_path)
+    an, _mu, _days = _install(monkeypatch, [{}] * 4, {1: {}, 2: {}}, seed=7)
+    cold = gf._asymmetry_ci("cue", "lick", 10, n_boot=40)
+    assert cold and an in cold
+    assert list(tmp_path.glob("bootstrap/8e_asym__*.pkl")), "nothing was cached"
+    warm = gf._asymmetry_ci("cue", "lick", 10, n_boot=40)
+    assert set(warm) == set(cold)
+    for a in cold:
+        assert set(warm[a]) == set(cold[a])
+        for col in cold[a]:
+            obs_c, sig_c = cold[a][col]
+            obs_w, sig_w = warm[a][col]
+            np.testing.assert_array_equal(obs_w, obs_c)
+            np.testing.assert_array_equal(sig_w, sig_c)
+
+
+def test_extracting_a_loop_body_keeps_every_decorator_on_its_own_function():
+    """Guards a hazard that bit twice while extracting these per-animal units.
+
+    Inserting a new function "before the next `def`" lands BETWEEN a decorator and the function it
+    decorates, silently moving it to the inserted one. `@lru_cache` jumped to `_asymmetry_one` and
+    `_rdm_ci` lost its `.cache_clear`; eleven top-level defs in that module are decorated, so this
+    is a live trap rather than a one-off.
+    """
+    for name in ("_rdm_ci", "_rdm_rows", "_enc_ci", "_enc_tables"):
+        assert hasattr(getattr(gf, name), "cache_clear"), f"{name} lost its cache decorator"
+    for name in ("_rdm_one", "_asymmetry_one", "_disatt_one"):
+        assert not hasattr(getattr(gf, name), "cache_clear"), (
+            f"{name} picked up a decorator belonging to another function")
