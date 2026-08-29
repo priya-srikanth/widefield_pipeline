@@ -8,6 +8,38 @@ Newest first. Each entry: what happened → what it costs → what we do → wha
 
 ---
 
+## 2026-08-28 — PS92: 415/470 excitation channels swapped (imaging only; behavior intact)
+
+**What happened.** For `PS92_20260828` the 415 nm (isosbestic) and 470 nm (functional) excitation
+channels were swapped — visible on the preprocessing-deck mean-image slide. Motion correction is
+correct (the `.dat` de-interleaves into 415/470 pairs fine); only the SVD + hemodynamic-correction step
+took the wrong half of each pair as functional (`svd.functional_channel: 1` in `defaults.yaml`), so
+`SVTcorr.npy` — and everything derived from it — is computed on the isosbestic with the hemodynamic
+correction running backwards.
+
+**What it costs.** Every IMAGING-derived result for PS92 8/28 is invalid: the SVD/activity maps, LocaNMF
+components, within-session decode (still 0.78 — a fresh decoder finds *some* structure in the corrupted
+signal), and most visibly the frozen pre-stroke decoder, which reads **0.016 with a systematic close↔far
+permutation** (grant_5c: cL→fL, cC→fR, cR→fC, fL→cC, fC→cR, fR→cC) rather than a near-chance smear. A
+decoder trained on correct-channel pre-stroke data cannot read a swapped-channel session, so the
+permutation is the tell that this is technical, not biological — a 2-day jump from day 9 (0826) = 0.91 to
+day 11 (0828) = 0.016 confirms it. **BEHAVIOUR IS UNAFFECTED**: positions and licks come from the DAQ,
+independent of the optical channels — PS92 8/28 hit rate is 1.0/1.0/1.0/0.91/0.98/0.98 over 311 engaged
+trials. **PS93 8/28 is fine** (frozen 0.80), so the swap was PS92's session only, not the rig.
+
+**What we do.** Fix at PREPROCESSING (imaging box), because the corruption is baked into `SVTcorr` and
+cannot be relabelled downstream. Add a per-session override in `configs/session_overrides.yaml` flipping
+`svd.functional_channel` 1→0 for PS92 8/28, then re-run ONLY the SVD + hemodynamic step with `--redo`
+(it otherwise skips on the existing `SVTcorr` — `preprocess.py:567`); motion correction is reused. Re-upload
+the corrected `SVTcorr`, re-fit LocaNMF, then the analysis box redoes ONLY PS92 8/28's affected
+decode/encode/RSA/pattern figures and rebuilds the deck. Behaviour stays in throughout.
+
+**What is still open.** As of 2026-08-29 the corrected preprocessing has not yet been produced; the
+published deck still shows the corrupted PS92 8/28 (frozen 0.016, flipped maps). Corrected once the
+imaging box re-runs the SVD step and the analysis is redone.
+
+---
+
 ## 2026-08-13 — PS95: blue LED only (no 415 alternation) for the first ~32 min
 
 **What happened.** Only the 470 nm LED was armed at session start; the 415 nm isosbestic channel did not
