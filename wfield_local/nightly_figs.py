@@ -217,18 +217,19 @@ def _perday_figs_incomplete(out, d) -> bool:
 
 
 def _publish_figs(out, rv) -> int:
-    """Copy the analysis component PNGs to MICROSCOPE (``cue_analysis_out``) so the individual figures
-    persist on the server next to the deck -- durable + accessible, not just embedded in the .pptx and
-    living only on this box (matches how the preprocessing figures persist under labcams/<date>/).
-    Incremental: copies a PNG only when the destination is missing, a different size, or newer. Never
-    deletes (mirror cleanup stays a manual step, per the MICROSCOPE no-auto-delete rule)."""
+    """Copy the analysis component PNGs -- and the vector SVGs the grant/epoch renders now write beside
+    them -- to MICROSCOPE (``cue_analysis_out``) so the individual figures persist on the server next to
+    the deck: durable + accessible, not just embedded in the .pptx and living only on this box (matches
+    how the preprocessing figures persist under labcams/<date>/). Incremental: copies a file only when
+    the destination is missing, a different size, or newer. Never deletes (mirror cleanup stays a manual
+    step, per the MICROSCOPE no-auto-delete rule)."""
     import shutil
     from wfield_local import writeguard
     dst = Path(rv.root("cue_analysis_out"))
     writeguard.assert_writable(dst)
     dst.mkdir(parents=True, exist_ok=True)
     n = 0
-    for p in sorted(Path(out).glob("*.png")):
+    for p in sorted(q for ext in ("*.png", "*.svg") for q in Path(out).glob(ext)):
         d = dst / p.name
         if (not d.exists()) or p.stat().st_size != d.stat().st_size or p.stat().st_mtime > d.stat().st_mtime + 2:
             shutil.copy2(p, d)

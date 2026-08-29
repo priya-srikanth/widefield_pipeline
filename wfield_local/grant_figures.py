@@ -578,6 +578,16 @@ def _save(fig, path, **kw):
     # definition -- hence the explicit form rather than a comment asking the next person to be
     # careful.
     Figure.savefig(fig, path, **kw)
+    # Also emit a vector SVG beside the PNG (Priya, 2026-08-29). The deck places the PNGs, so those
+    # stay; the SVGs are for editing / print. UNBOUND call for the same self-reference reason as above,
+    # and it WARNS rather than raises so an un-vectorisable figure never loses the PNG or its neighbours.
+    _p = Path(path)
+    if _p.suffix.lower() == ".png":
+        try:
+            Figure.savefig(fig, _p.with_suffix(".svg"),
+                           **{k: v for k, v in kw.items() if k != "dpi"})   # dpi is a no-op for vector
+        except Exception as ex:                                            # noqa: BLE001
+            print(f"  [svg] {_p.name}: failed ({type(ex).__name__})", flush=True)
     return path
 
 

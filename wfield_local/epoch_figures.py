@@ -44,6 +44,19 @@ from wfield_local import config, epochs
 #: Panel order, left to right. `epochs.EPOCHS` is the single definition; restated for readability.
 PANELS = epochs.EPOCHS
 
+
+def _save_png_svg(fig, q, *, dpi=200):
+    """Write the figure as PNG (what the deck places) AND a vector SVG beside it (Priya, 2026-08-29).
+
+    The SVG warns rather than raises, so a figure that cannot vectorise still yields its PNG."""
+    import pathlib
+    q = pathlib.Path(q)
+    fig.savefig(q, dpi=dpi)
+    try:
+        fig.savefig(q.with_suffix(".svg"))
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
+
 #: Placed at a quarter page (~6.2in on a 13.33in slide). Figures are built at this width so type
 #: arrives at ~1:1; see the module docstring.
 QUARTER_IN = 6.2
@@ -422,7 +435,7 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
     q = pathlib.Path(out) / f"{name}.png"
-    fig.savefig(q, dpi=200)
+    _save_png_svg(fig, q)
     plt.close(fig)
     return q
 
@@ -761,7 +774,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     if groups:
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
-    fig.savefig(q, dpi=200)
+    _save_png_svg(fig, q)
     plt.close(fig)
     return q
 
@@ -1103,7 +1116,7 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     if groups:
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
-    fig.savefig(q, dpi=200)
+    _save_png_svg(fig, q)
     plt.close(fig)
     return q
 
@@ -1299,7 +1312,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
         fig.text(0.5, 1.0 - (0.26 + 0.15 * _tlines) / fig_h, _sub, ha="center", va="top",
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
-    fig.savefig(q, dpi=200)
+    _save_png_svg(fig, q)
     plt.close(fig)
     return q
 
@@ -1391,7 +1404,7 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
         fig.text(0.5, 1.0 - (0.22 + 0.15 * (_tlines - 1)) / fig_h, _sub, ha="center", va="top",
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
-    fig.savefig(q_, dpi=200)
+    _save_png_svg(fig, q_)
     plt.close(fig)
     return q_
 
