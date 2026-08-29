@@ -201,3 +201,50 @@ def test_every_published_interval_contains_its_own_estimate(monkeypatch):
                     n += 1
     assert n > 40, f"only {n} intervals checked; the structure changed shape"
     assert days
+
+def test_the_cache_returns_what_the_uncached_path_would_have(monkeypatch, tmp_path):
+    """A cached 8b interval must BE the interval, not merely arrive faster.
+
+    The whole memoisation is only sound because the seeds are stable and scoped to one animal. If
+    that ever stops being true the cached run and the fresh run diverge, and nothing downstream
+    would show it -- the figure still renders, with different numbers.
+    """
+    from wfield_local import session_cache as sc
+    monkeypatch.setattr(sc, "CACHE_DIR", tmp_path)
+    an, _mu, _days = _install(monkeypatch, [{}] * 5, {1: {}}, seed=11)
+    cold, _d = gf._rdm_ci("cue", "lick", 10, n_boot=40, n_loo=3)
+    assert cold and an in cold
+    assert list(tmp_path.glob("bootstrap/8b_rdm__*.pkl")), "nothing was cached"
+    warm, _d2 = gf._rdm_ci("cue", "lick", 10, n_boot=40, n_loo=3)
+    assert set(warm) == set(cold)
+    for a in cold:
+        assert set(warm[a]) == set(cold[a])
+        for col in cold[a]:
+            assert warm[a][col]["whole"] == cold[a][col]["whole"]
+            assert warm[a][col]["rows"] == cold[a][col]["rows"]
+
+
+def test_a_failed_bootstrap_is_never_memoised(tmp_path, monkeypatch):
+    """An empty result is a FAILURE, and caching it makes one bad run permanent.
+
+    This is not hypothetical: a NameError inside `_rdm_one` was swallowed by its broad `except`,
+    None was pickled under twelve keys, and the corrected code then read those back and produced
+    no intervals -- silently, twice.
+    """
+    from wfield_local import session_cache as sc
+    monkeypatch.setattr(sc, "CACHE_DIR", tmp_path)
+    calls = []
+
+    def _empty():
+        calls.append(1)
+        return None
+
+    for _ in range(2):
+        assert gf._boot_cached("probe", ("k",), _empty) is None
+    assert len(calls) == 2, "a falsy result was memoised and replayed"
+    assert not list(tmp_path.glob("bootstrap/probe__*.pkl"))
+
+    real = []
+    assert gf._boot_cached("probe", ("k",), lambda: real.append(1) or {"x": 1}) == {"x": 1}
+    assert gf._boot_cached("probe", ("k",), lambda: real.append(1) or {"x": 2}) == {"x": 1}
+    assert len(real) == 1, "a real result was NOT memoised"

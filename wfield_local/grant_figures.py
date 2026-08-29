@@ -177,6 +177,14 @@ def _boot_cached(tag, parts, compute):
         except Exception:                                              # noqa: BLE001
             pass                    # truncated by a killed run -> recompute and republish
     res = compute()
+    # A FALSY RESULT IS NEVER PERSISTED. Every producer here returns None or {} by way of a broad
+    # `except Exception`, so an empty result is the signature of a FAILURE rather than an answer --
+    # and memoising it makes one bad run permanent. Caught in the act: a NameError inside `_rdm_one`
+    # was swallowed, None was pickled under twelve keys, and the CORRECTED code then read those back
+    # and produced nothing, with no error either time. Recomputing an empty result costs one run;
+    # caching it costs every run until someone thinks to look in the cache directory.
+    if not res:
+        return res
     try:
         fp.parent.mkdir(parents=True, exist_ok=True)
         tmp = fp.with_suffix(f".{os.getpid()}.tmp")
@@ -4345,6 +4353,10 @@ def _rdm_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
     """
     x_store, days = _collect_7(align, variant, min_trials)
     b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    # HOISTED OUT OF THE LOOP so it can form part of the cache key, and because it is a
+    # function of (align, variant) alone -- it was recomputed once per animal for no reason
+    # beyond where the call happened to sit.
+    obs_all, _od = _rdm_rows(align, variant, min_trials)
     out = {}
     for an in ANIMALS:
         if an not in x_store or an not in b_store:
@@ -4352,99 +4364,119 @@ def _rdm_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
         (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
         if len(pre_x) < 2 or not day_x:
             continue
-        rng = np.random.default_rng(_seed(an, align, variant, "8bci"))
-        pre_w, pre_r = [], []
-        acc = {d: {"w": [], "r": [], "dw": [], "dr": []} for d in day_x}
-        try:
-            for _ in range(n_boot):
-                drawn = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in sorted(pre_x)}
-                drawn = {s: v for s, v in drawn.items() if v}
-                if len(drawn) < 2:
-                    continue
-
-                def _pool(exclude=None, drawn=drawn):
-                    a = {}
-                    for s, Z in drawn.items():
-                        if s == exclude:
-                            continue
-                        for q, z in Z.items():
-                            a.setdefault(q, []).append(z)
-                    return {q: np.vstack(v) for q, v in a.items()}
-
-                # THE CEILING IS LEAVE-ONE-SESSION-OUT, never the reference against itself: a set
-                # correlated with an RDM built from a pool CONTAINING it reads ~1 by construction,
-                # and every delta would come out at about -1 regardless of the data.
-                keys = list(drawn)
-                if len(keys) > n_loo:
-                    keys = [keys[k] for k in rng.choice(len(keys), n_loo, replace=False)]
-                ws, rs = [], []
-                for s in keys:
-                    rest = _pool(exclude=s)
-                    if not rest:
-                        continue
-                    w, rr = _rdm_scores(_fast_rdm(drawn[s], rng, CONF_LABELS),
-                                        _fast_rdm(rest, rng, CONF_LABELS))
-                    ws.append(w)
-                    rs.append(rr)
-                if not ws:
-                    continue
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", RuntimeWarning)
-                    ceil_w = float(np.nanmean(ws))
-                    ceil_r = np.nanmean(np.stack(rs), axis=0)
-                pre_w.append(ceil_w)
-                pre_r.append(ceil_r)
-                Dref = _fast_rdm(_pool(), rng, CONF_LABELS)
-                for d in day_x:
-                    dr = _block_boot(day_x[d], day_b[d], rng)
-                    if not dr:
-                        continue
-                    w, rr = _rdm_scores(_fast_rdm(dr, rng, CONF_LABELS), Dref)
-                    acc[d]["w"].append(w)
-                    acc[d]["r"].append(rr)
-                    acc[d]["dw"].append(w - ceil_w)
-                    acc[d]["dr"].append(rr - ceil_r)
-        except Exception as ex:                                          # noqa: BLE001
-            print(f"  !! 8b CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
-                  flush=True)
-            continue
-        # ANCHORED ON THE PLOTTED ESTIMATE (see `_anchor`): `_rdm_rows` is what 8b and 8g draw, and
-        # a band that did not contain the point on top of it would be describing something else.
-        obs_all, _od = _rdm_rows(align, variant, min_trials)
-        orec = obs_all.get(an) or {}
-
-        def _fix(rc, col, delta=False, orec=orec):
-            t = orec.get(col)
-            if not rc or t is None:
-                return rc
-            b0 = orec.get("PRE") if delta else None
-            if delta and b0 is None:
-                return rc
-            # A CORRELATION LIVES IN [-1, 1]; a DIFFERENCE of two of them does not.
-            bd = {} if delta else {"lo": -1.0, "hi": 1.0}
-            rc["whole"] = _anchor(rc["whole"], t[1] - b0[1] if delta else t[1], **bd)
-            for k, q in enumerate(CONF_LABELS):
-                if q in rc["rows"]:
-                    th = t[0][k] - b0[0][k] if delta else t[0][k]
-                    rc["rows"][q] = _anchor(rc["rows"][q], th, **bd)
-            return rc
-
-        rec = {}
-        base = _fix(_rdm_pct(pre_w, pre_r, n_boot), "PRE")
-        if base:
-            rec["PRE"] = base
-        for d, a in acc.items():
-            cur = _fix(_rdm_pct(a["w"], a["r"], n_boot), d)
-            dlt = _fix(_rdm_pct(a["dw"], a["dr"], n_boot), d, delta=True)
-            if cur:
-                if dlt:
-                    cur["dwhole"], cur["drows"] = dlt["whole"], dlt["rows"]
-                rec[d] = cur
+        rec = _boot_cached(
+            "8b_rdm", (pre_x, pre_b, day_x, day_b, obs_all.get(an) or {},
+                       (an, align, variant, min_trials, n_boot, n_loo)),
+            lambda an=an, pre_x=pre_x, pre_b=pre_b, day_x=day_x, day_b=day_b,
+            orec=(obs_all.get(an) or {}): _rdm_one(
+                an, align, variant, pre_x, pre_b, day_x, day_b, orec, n_boot, n_loo))
         if rec:
             out[an] = rec
     return out, days
 
 
+
+
+def _rdm_one(an, align, variant, pre_x, pre_b, day_x, day_b, orec, n_boot, n_loo):
+    """One ANIMAL's 8b/8g intervals: ``{"PRE"|day: rec}``, or None.
+
+    Extracted so a single animal is the unit that gets cached, exactly as `_disatt_one` is
+    for 7b. THE ANIMAL IS THE RIGHT GRAIN AND THE DAY IS NOT: the draws loop runs
+    draws-outer and days-inner precisely so every day of an animal shares each draw's
+    leave-one-out reference resample, which is what makes those days' intervals comparable
+    to one another. Caching per day would break that silently. One animal's draws depend on
+    nothing outside that animal -- the RNG is seeded from its own name -- so this boundary
+    is exact rather than approximate.
+
+    `orec` (the plotted `_rdm_rows` estimate the bands are anchored to) is passed IN so it
+    forms part of the cache key: a cached band anchored to a stale point estimate would sit
+    off the value drawn on top of it, which is the one failure here a reader could not see.
+    """
+    rng = np.random.default_rng(_seed(an, align, variant, "8bci"))
+    pre_w, pre_r = [], []
+    acc = {d: {"w": [], "r": [], "dw": [], "dr": []} for d in day_x}
+    try:
+        for _ in range(n_boot):
+            drawn = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in sorted(pre_x)}
+            drawn = {s: v for s, v in drawn.items() if v}
+            if len(drawn) < 2:
+                continue
+
+            def _pool(exclude=None, drawn=drawn):
+                a = {}
+                for s, Z in drawn.items():
+                    if s == exclude:
+                        continue
+                    for q, z in Z.items():
+                        a.setdefault(q, []).append(z)
+                return {q: np.vstack(v) for q, v in a.items()}
+
+            # THE CEILING IS LEAVE-ONE-SESSION-OUT, never the reference against itself: a set
+            # correlated with an RDM built from a pool CONTAINING it reads ~1 by construction,
+            # and every delta would come out at about -1 regardless of the data.
+            keys = list(drawn)
+            if len(keys) > n_loo:
+                keys = [keys[k] for k in rng.choice(len(keys), n_loo, replace=False)]
+            ws, rs = [], []
+            for s in keys:
+                rest = _pool(exclude=s)
+                if not rest:
+                    continue
+                w, rr = _rdm_scores(_fast_rdm(drawn[s], rng, CONF_LABELS),
+                                    _fast_rdm(rest, rng, CONF_LABELS))
+                ws.append(w)
+                rs.append(rr)
+            if not ws:
+                continue
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                ceil_w = float(np.nanmean(ws))
+                ceil_r = np.nanmean(np.stack(rs), axis=0)
+            pre_w.append(ceil_w)
+            pre_r.append(ceil_r)
+            Dref = _fast_rdm(_pool(), rng, CONF_LABELS)
+            for d in day_x:
+                dr = _block_boot(day_x[d], day_b[d], rng)
+                if not dr:
+                    continue
+                w, rr = _rdm_scores(_fast_rdm(dr, rng, CONF_LABELS), Dref)
+                acc[d]["w"].append(w)
+                acc[d]["r"].append(rr)
+                acc[d]["dw"].append(w - ceil_w)
+                acc[d]["dr"].append(rr - ceil_r)
+    except Exception as ex:                                          # noqa: BLE001
+        print(f"  !! 8b CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+              flush=True)
+        return None
+
+    def _fix(rc, col, delta=False, orec=orec):
+        t = orec.get(col)
+        if not rc or t is None:
+            return rc
+        b0 = orec.get("PRE") if delta else None
+        if delta and b0 is None:
+            return rc
+        # A CORRELATION LIVES IN [-1, 1]; a DIFFERENCE of two of them does not.
+        bd = {} if delta else {"lo": -1.0, "hi": 1.0}
+        rc["whole"] = _anchor(rc["whole"], t[1] - b0[1] if delta else t[1], **bd)
+        for k, q in enumerate(CONF_LABELS):
+            if q in rc["rows"]:
+                th = t[0][k] - b0[0][k] if delta else t[0][k]
+                rc["rows"][q] = _anchor(rc["rows"][q], th, **bd)
+        return rc
+
+    rec = {}
+    base = _fix(_rdm_pct(pre_w, pre_r, n_boot), "PRE")
+    if base:
+        rec["PRE"] = base
+    for d, a in acc.items():
+        cur = _fix(_rdm_pct(a["w"], a["r"], n_boot), d)
+        dlt = _fix(_rdm_pct(a["dw"], a["dr"], n_boot), d, delta=True)
+        if cur:
+            if dlt:
+                cur["dwhole"], cur["drows"] = dlt["whole"], dlt["rows"]
+            rec[d] = cur
+    return rec or None
 def _excludes_zero(iv):
     """True when a (lo, hi, med) interval lies wholly on one side of zero."""
     return bool(iv) and (iv[0] > 0 or iv[1] < 0)
