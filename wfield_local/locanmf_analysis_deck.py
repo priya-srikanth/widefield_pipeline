@@ -3362,115 +3362,187 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # costs. A mark says only "not zero", which is the half of the result that travels worst.
     _epoch = _grant / "epoch"
     _EPOCH = (
-        ("I1", "epoch_1c_behaviour_timecourse.png",
+        ("epoch_1c_behaviour_timecourse.png",
          "Behavioural deficit and recovery, and where the epochs come from",
-         "Licking accuracy at each of six spout positions across days from lesion, pooled across "
-         "four mice (N = 4, n = 74 sessions). Each point is one session of one animal; colour "
-         "identifies the animal. The pre-stroke baseline is that animal's entire pre-lesion record "
-         "collapsed to a single point (hits and trials summed), which is the value the epoch rule "
-         "is measured against. Days are counted from each animal's OWN lesion, since PS94/PS95 and "
-         "PS92/PS93 were lesioned on different dates. Shaded span, the ACUTE epoch, defined as "
-         "days on which far-contralateral accuracy is below 25% of that animal's pre-stroke "
-         "baseline; dotted line, each animal's first SUBACUTE day. Accuracy falls at the far "
-         "positions, most severely at far contralateral, and recovers at animal-specific rates -- "
-         "which is why the analyses that follow are stratified by epoch rather than by day."),
-        ("I2", "epoch_1b_behaviour_by_position.png",
+         "Licking accuracy at each of six spout positions across days from lesion, pooled"
+         "across four mice (N = 4, n = 74 sessions). Each point is one session of one animal;"
+         "colour identifies the animal. The pre-stroke baseline is that animal's entire pre-"
+         "lesion record collapsed to a single point (hits and trials summed), which is the"
+         "value the epoch rule is measured against. Days are counted from each animal's OWN"
+         "lesion, since PS94/PS95 and PS92/PS93 were lesioned on different dates. Shaded span,"
+         "the ACUTE epoch, defined as days on which far-contralateral accuracy is below 25% of"
+         "that animal's pre-stroke baseline; dotted line, each animal's first SUBACUTE day."
+         "Accuracy falls at the far positions, most severely at far contralateral, and recovers"
+         "at animal-specific rates -- which is why the analyses that follow are stratified by"
+         "epoch rather than by day."),
+        ("epoch_1b_behaviour_by_position.png",
          "Behaviour by position and epoch",
-         "Licking accuracy per spout position, pooled across four mice and stratified by recovery "
-         "epoch. Bars, session-weighted means; dots, individual sessions coloured by animal, so "
-         "the imbalance between epochs is visible rather than asserted (the acute epoch is six "
-         "PS94 sessions against one PS95 session). Error bars, 95% intervals from a hierarchical "
-         "bootstrap resampling animals, then sessions within animal, then the scheduler's position "
-         "blocks within session. *, the epoch-minus-pre interval excludes zero; **, it still "
-         "excludes zero after Bonferroni correction across all twelve comparisons. Trials are "
-         "gated for engagement at the SPARED positions only, so a run of misses at an impaired "
-         "position counts as the deficit it is rather than being discarded as disengagement."),
-        ("I3", "epoch_1bdelta_behaviour_by_position.png",
+         "Licking accuracy per spout position, pooled across four mice and stratified by"
+         "recovery epoch. Bars, session-weighted means; dots, individual sessions coloured by"
+         "animal, so the imbalance between epochs is visible rather than asserted (the acute"
+         "epoch is six PS94 sessions against one PS95 session). Error bars, 95% intervals from"
+         "a hierarchical bootstrap resampling animals, then sessions within animal, then the"
+         "scheduler's position blocks within session. *, the epoch-minus-pre interval excludes"
+         "zero; **, it still excludes zero after Bonferroni correction across all twelve"
+         "comparisons. Trials are gated for engagement at the SPARED positions only, so a run"
+         "of misses at an impaired position counts as the deficit it is rather than being"
+         "discarded as disengagement."),
+        ("epoch_1bdelta_behaviour_by_position.png",
          "Behaviour, change from pre-stroke",
-         "The contrasts of the preceding figure plotted as differences from the pre-stroke "
-         "baseline. Point, the difference in the data; thick bar, 95% interval; thin bar, the "
-         "Bonferroni-corrected interval -- both from one set of bootstrap draws, so the corrected "
-         "interval necessarily contains the uncorrected one. Zero is drawn: the comparison that "
-         "matters is each epoch against no change, not the epochs against each other."),
-        ("I4", "epoch_acc_by_position_*_*.png",
+         "The contrasts of the preceding figure plotted as differences from the pre-stroke"
+         "baseline. Point, the difference in the data; thick bar, 95% interval; thin bar, the"
+         "Bonferroni-corrected interval -- both from one set of bootstrap draws, so the"
+         "corrected interval necessarily contains the uncorrected one. Zero is drawn: the"
+         "comparison that matters is each epoch against no change, not the epochs against each"
+         "other."),
+        ("epoch_acc_by_position_*_*.png",
          "Position decoding by epoch",
-         "Accuracy of a decoder trained ONLY on pre-stroke trials, applied to held-out trials in "
-         "each epoch, per spout position and pooled across animals; chance 1/6. Bars pool over "
-         "trials -- raw confusion counts sum, so every trial counts once -- while dots are "
-         "individual sessions. Intervals and marks as above. One figure per alignment window and "
-         "trial class: the ENL and post-cue windows use lick plus miss-while-working trials, and "
-         "the lick-aligned window admits lick trials only, because a trial with no detected lick "
-         "has no lick to align to."),
-        ("I5", "epoch_accdelta_by_position_*_*.png",
+         "Accuracy of a decoder trained ONLY on pre-stroke trials, applied to held-out trials"
+         "in each epoch, per spout position and pooled across animals; chance 1/6. Bars pool"
+         "over trials -- raw confusion counts sum, so every trial counts once -- while dots are"
+         "individual sessions. Intervals and marks as above. One figure per alignment window"
+         "and trial class: the ENL and post-cue windows use lick plus miss-while-working"
+         "trials, and the lick-aligned window admits lick trials only, because a trial with no"
+         "detected lick has no lick to align to."),
+        ("epoch_accdelta_by_position_*_*.png",
          "Decoding accuracy, change from pre-stroke",
-         "Epoch minus pre-stroke at each position, with 95% and corrected intervals as above. Note "
-         "that the ENL (pre-cue) deficit is BROAD -- every position falls, not only the impaired "
-         "ones -- while the behavioural deficit is spatially specific. The pre-cue position code "
-         "degrades globally after the lesion even where the animal can still reach the spout."),
-        ("I6", "epoch_5c_frozen_confusion_*_*.png",
+         "Epoch minus pre-stroke at each position, with 95% and corrected intervals as above."
+         "Note that the ENL (pre-cue) deficit is BROAD -- every position falls, not only the"
+         "impaired ones -- while the behavioural deficit is spatially specific. The pre-cue"
+         "position code degrades globally after the lesion even where the animal can still"
+         "reach the spout."),
+        ("epoch_5c_frozen_confusion_*_*.png",
          "Frozen pre-stroke decoder, confusion by epoch",
-         "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each "
-         "epoch (top row), and each epoch's change from pre-stroke (bottom row, placed beneath the "
-         "epoch it describes). Rows, true position; columns, decoded position. Panels are "
-         "row-normalised for display while the stored matrices remain raw counts, which is what "
-         "makes pooling a sum. BOTH differences use the pre-stroke baseline and share one colour "
-         "scale, so they are directly comparable -- the question a recovery figure is asked is "
-         "whether the code returned to baseline, not whether it improved on its worst point. Panel "
-         "titles carry n and the per-animal session counts."),
-        ("I7", "epoch_6_matrices_pattern_*_*.png",
+         "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each"
+         "epoch (top row), and each epoch's change from pre-stroke (bottom row, placed beneath"
+         "the epoch it describes). Rows, true position; columns, decoded position. Panels are"
+         "row-normalised for display while the stored matrices remain raw counts, which is what"
+         "makes pooling a sum. BOTH differences use the pre-stroke baseline and share one"
+         "colour scale, so they are directly comparable -- the question a recovery figure is"
+         "asked is whether the code returned to baseline, not whether it improved on its worst"
+         "point. Panel titles carry n and the per-animal session counts."),
+        ("epoch_6_matrices_pattern_*_*.png",
          "Mean-pattern similarity by epoch",
-         "Correlation between each session's mean activity pattern at one position and the "
-         "pre-stroke pattern at each position, averaged over sessions within an epoch, with the "
-         "change from pre-stroke beneath. Pooling here is a MEAN OVER SESSIONS rather than a sum "
-         "over trials: these matrices are already reduced per session, so the session is the unit "
-         "and cannot be re-weighted by its trial count. This measure is sensitive to global gain "
-         "and the coding-direction measures are not, so agreement between them is the claim worth "
-         "making."),
-        ("I8", "epoch_7_matrices_splithalf_*_*.png",
+         "Correlation between each session's mean activity pattern at one position and the pre-"
+         "stroke pattern at each position, averaged over sessions within an epoch, with the"
+         "change from pre-stroke beneath. Pooling here is a MEAN OVER SESSIONS rather than a"
+         "sum over trials: these matrices are already reduced per session, so the session is"
+         "the unit and cannot be re-weighted by its trial count. This measure is sensitive to"
+         "global gain and the coding-direction measures are not, so agreement between them is"
+         "the claim worth making."),
+        ("epoch_6diag_matrices_pattern_*_*.png",
+         "Mean-pattern similarity, own position",
+         "The DIAGONAL of the preceding matrix drawn as bars: each position's similarity to its"
+         "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
+         "compare six diagonal cells across three panels by eye, which is the comparison the"
+         "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
+         "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+         "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
+         "figure."),
+        ("epoch_6diagdelta_matrices_pattern_*_*.png",
+         "Mean-pattern similarity, own position, change from pre-stroke",
+         None),
+        ("epoch_7_matrices_splithalf_*_*.png",
          "Within-session split-half reliability by epoch",
-         "The same matrix computed within each session by splitting its trials in half, which sets "
-         "the ceiling any across-session similarity can reach. A drop in the preceding figure "
-         "accompanied by a drop here is a code measured less repeatably; a drop without one is a "
-         "code that MOVED."),
-        ("I9", "epoch_8_matrices_crossnobis_*_*.png",
+         "The same matrix computed within each session by splitting its trials in half, which"
+         "sets the ceiling any across-session similarity can reach. A drop in the preceding"
+         "figure accompanied by a drop here is a code measured less repeatably; a drop without"
+         "one is a code that MOVED."),
+        ("epoch_7diag_matrices_splithalf_*_*.png",
+         "Split-half reliability, own position",
+         "The DIAGONAL of the preceding matrix drawn as bars: each position's similarity to its"
+         "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
+         "compare six diagonal cells across three panels by eye, which is the comparison the"
+         "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
+         "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+         "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
+         "figure. Read against the preceding figure this is the CEILING: a drop there with a"
+         "drop here is a code measured less repeatably, a drop there without one is a code that"
+         "moved."),
+        ("epoch_7diagdelta_matrices_splithalf_*_*.png",
+         "Split-half reliability, own position, change from pre-stroke",
+         None),
+        ("epoch_8_matrices_crossnobis_*_*.png",
          "Crossnobis geometry by epoch",
-         "Cross-validated Mahalanobis distances between position patterns, in pre-stroke units. "
-         "Crossnobis is noise-unbiased and, being built on unit-normalised contrasts, immune to "
-         "uniform amplitude change -- which is what makes it the arbiter when the correlation "
-         "measures and the coding directions disagree. The colour scale is taken from the data "
+         "Cross-validated Mahalanobis distances between position patterns, in pre-stroke units."
+         "Crossnobis is noise-unbiased and, being built on unit-normalised contrasts, immune to"
+         "uniform amplitude change -- which is what makes it the arbiter when the correlation"
+         "measures and the coding directions disagree. The colour scale is taken from the data"
          "rather than fixed, because a distance has no natural range."),
-        ("I10", "epoch_8g_geometry_by_position_*_*.png",
+        ("epoch_8diag_matrices_crossnobis_*_*.png",
+         "Crossnobis distance, own position",
+         "The DIAGONAL of the preceding matrix drawn as bars: each position's similarity to its"
+         "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
+         "compare six diagonal cells across three panels by eye, which is the comparison the"
+         "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
+         "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+         "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
+         "figure. Crossnobis is noise-unbiased and immune to uniform amplitude change, so this"
+         "is the arbiter when the correlation measures and the coding directions disagree."),
+        ("epoch_8diagdelta_matrices_crossnobis_*_*.png",
+         "Crossnobis distance, own position, change from pre-stroke",
+         None),
+        ("epoch_8g_geometry_by_position_*_*.png",
          "Geometry preserved, per position",
-         "For each position, the correlation between that position's row of the representational "
-         "dissimilarity matrix and the same row pre-stroke -- whether this position still sits in "
-         "the same relationship to the other five. One value per session, averaged within epoch; "
-         "dots are sessions. The bootstrap resamples animals then sessions and has NO block level, "
-         "because these values are already one number per session: the trial-level reduction "
-         "happened inside the measure."),
-        ("I11", "epoch_8gdelta_geometry_by_position_*_*.png",
-         "Geometry preserved, change from pre-stroke", None),
-        ("I12", "epoch_10_best_match_acc_*_*.png",
+         "For each position, the correlation between that position's row of the"
+         "representational dissimilarity matrix and the same row pre-stroke -- whether this"
+         "position still sits in the same relationship to the other five. One value per"
+         "session, averaged within epoch; dots are sessions. The bootstrap resamples animals"
+         "then sessions and has NO block level, because these values are already one number per"
+         "session: the trial-level reduction happened inside the measure."),
+        ("epoch_8gdelta_geometry_by_position_*_*.png",
+         "Geometry preserved, change from pre-stroke",
+         None),
+        ("epoch_9_delta_trajectory_*_*.png",
+         "Delta trajectory across the recovery epochs",
+         "Change from the pre-stroke reference at each epoch. THIS FAMILY CARRIES ITS OWN"
+         "BOOTSTRAP: unlike every other panel here its values are ALREADY day-minus-pre"
+         "differences, so there is no pre-stroke bar and each mark tests that epoch's value"
+         "against ZERO rather than against a baseline panel. Pre minus pre is zero by"
+         "construction, and drawing it would invite comparing two real panels against a column"
+         "of exact zeros. Bars, mean over sessions; dots, sessions; 95% intervals from"
+         "resampling animals then sessions; *, excludes zero; **, survives Bonferroni across"
+         "the figure."),
+        ("epoch_9ci_delta_trajectory_*_*.png",
+         "Delta trajectory, intervals",
+         None),
+        ("epoch_10_best_match_acc_*_*.png",
          "Is the best-matching pre-stroke pattern the correct one?",
-         "Fraction of positions whose closest pre-stroke pattern is that same position, per "
-         "session and averaged within epoch; chance 1/6. This uses the WHOLE similarity row rather "
-         "than its diagonal, which is what separates 'the code is gone' from 'the code moved to a "
-         "specific other position' -- 0.2 against everything, and 0.2 against itself with 0.7 "
-         "against far ipsilateral, are the same diagonal and different results."),
-        ("I13", "epoch_10delta_best_match_acc_*_*.png",
-         "Best-match accuracy, change from pre-stroke", None),
-        ("I14", "epoch_10b_best_match_by_position_*_*.png",
+         "Fraction of positions whose closest pre-stroke pattern is that same position, per"
+         "session and averaged within epoch; chance 1/6. This uses the WHOLE similarity row"
+         "rather than its diagonal, which is what separates 'the code is gone' from 'the code"
+         "moved to a specific other position' -- 0.2 against everything, and 0.2 against itself"
+         "with 0.7 against far ipsilateral, are the same diagonal and different results."),
+        ("epoch_10delta_best_match_acc_*_*.png",
+         "Best-match accuracy, change from pre-stroke",
+         None),
+        ("epoch_10_best_match_rank_*_*.png",
+         "Best match, scored by rank",
+         "The same question scored by RANK rather than by hit: where the correct pre-stroke"
+         "pattern falls in the ordered list of six, so 1 is a hit and 6 is maximally wrong."
+         "Rank degrades gracefully where the accuracy version is all-or-nothing -- a"
+         "representation that has drifted but not moved to another position shows here and is"
+         "invisible there."),
+        ("epoch_10delta_best_match_rank_*_*.png",
+         "Best match by rank, change from pre-stroke",
+         None),
+        ("epoch_10b_best_match_by_position_*_*.png",
          "Best match, per position",
-         "The same question resolved per position: the fraction of sessions at which that "
-         "position's closest pre-stroke pattern is itself. A position whose row is entirely "
-         "ungated in a session scores nothing rather than zero -- counting missing data as a wrong "
-         "match would turn absence into evidence of reorganisation."),
-        ("I15", "epoch_11_encoder_gain_shape_*_*.png",
+         "The same question resolved per position: the fraction of sessions at which that"
+         "position's closest pre-stroke pattern is itself. A position whose row is entirely"
+         "ungated in a session scores nothing rather than zero -- counting missing data as a"
+         "wrong match would turn absence into evidence of reorganisation."),
+        ("epoch_10bdelta_best_match_by_position_*_*.png",
+         "Best match per position, change from pre-stroke",
+         None),
+        ("epoch_11_encoder_gain_shape_*_*.png",
          "Encoder variance and gain by epoch",
-         "Explained variance of the position encoder and its fitted gain term, per session and "
-         "averaged within epoch. Separating gain from shape asks whether the post-stroke "
+         "Explained variance of the position encoder and its fitted gain term, per session and"
+         "averaged within epoch. Separating gain from shape asks whether the post-stroke"
          "representation is the same pattern scaled down or a different pattern altogether."),
-        ("I16", "epoch_11delta_encoder_gain_shape_*_*.png",
-         "Encoder variance and gain, change from pre-stroke", None),
+        ("epoch_11delta_encoder_gain_shape_*_*.png",
+         "Encoder variance and gain, change from pre-stroke",
+         None),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "
@@ -3484,7 +3556,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 "<labcams>/grant_figures/epoch. Pooled across all four animals and stratified by "
                 "recovery epoch instead of a time axis. Speaker notes are written as grant figure "
                 "legends.")
-        for _key, _pat, _ttl, _legend in _EPOCH:
+        # NUMBERED BY POSITION. The keys used to be written into the data, so inserting a
+        # family in narrative order meant renumbering every entry after it -- and the cost of not
+        # doing that was 33 of 75 figures simply not referenced anywhere, which the deck's own
+        # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
+        # it was never told about.
+        for _n, (_pat, _ttl, _legend) in enumerate(_EPOCH, 1):
             for _ef in (sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]):
                 if not _ef.exists():
                     continue
@@ -3492,7 +3569,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 _suffix = ""
                 if "*" in _pat:
                     _suffix = " — " + _ef.stem[len(_pat.split("*")[0]):].replace("_", " ")
-                title(_sl, f"{_key}. {_ttl}{_suffix}", "")
+                title(_sl, f"I{_n}. {_ttl}{_suffix}", "")
                 note(_sl, (_legend or _CI_LEGEND) + "\n\nSource: "
                      "wfield_local.epoch_grant_figures. Epoch boundaries are Priya's, stored in "
                      "wfield_local/epochs.py and counted from each animal's own lesion date; "
