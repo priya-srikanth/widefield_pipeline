@@ -76,6 +76,53 @@ def cli(*a):
         FAILURES.append(a[0])
 
 
+def _cli_many(cmds, jobs=None):
+    """Run several `cli` invocations CONCURRENTLY. THREADS, not processes, and that is the point.
+
+    Each `cli` is already a subprocess; the parent does nothing but wait on it, so a thread pool
+    costs one thread per command instead of a second full interpreter per command. The GIL is
+    irrelevant here for the same reason -- `subprocess.call` releases it.
+
+    BLAS IS PINNED IN THE CHILDREN'S ENVIRONMENT, for two reasons and not only for speed. Three
+    unconstrained decoders on a 24-core box each start 24 BLAS threads and thrash; and a figure that
+    depends on how many threads drew it is not reproducible, which is the property
+    `wfield_local.parallel` exists to hold. Environment variables are the right mechanism HERE --
+    unlike in-process, where OpenBLAS has already read them -- because each child imports numpy
+    fresh after this env is applied.
+
+    Failures land in the shared FAILURES list under a lock: the deck reads it to decide whether it
+    may publish, and a lost entry there is a deck that publishes over a step that failed.
+    """
+    import concurrent.futures as cf
+    import threading
+
+    from wfield_local import parallel
+
+    cmds = [tuple(c) for c in cmds]
+    n = min(len(cmds), parallel.default_jobs() if jobs is None else jobs)
+    if n <= 1 or len(cmds) <= 1:
+        for a in cmds:
+            cli(*a)
+        return
+
+    env = dict(os.environ)
+    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+        env[var] = str(parallel.BLAS_THREADS)
+    lock = threading.Lock()
+
+    def _run(a):
+        log("CLI " + " ".join(a))
+        if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO), env=env):
+            log("  !! nonzero exit: " + a[0])
+            with lock:
+                FAILURES.append(a[0])
+
+    log(f"  {len(cmds)} CLI step(s) over {n} thread(s)")
+    with cf.ThreadPoolExecutor(max_workers=n) as pool:
+        list(pool.map(_run, cmds))
+
+
 def _write_run_record(deck_out, date, tag):
     """Leave this run's failed-step list on disk, beside the deck.
 
@@ -103,13 +150,20 @@ def _write_run_record(deck_out, date, tag):
         log(f"  !! could not write run record: {type(ex).__name__} {str(ex)[:80]}")
 
 
-def _per_day_figs(date, out, from_dates, only):
-    """Per-day decode (lick/cue/pre-cue), in-process dynamics/laterality/components, and the encoder."""
+def _per_day_cmds(date, out, from_dates):
+    """The two CLI groups one date needs: the per-alignment decoders, then its encoder."""
     dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
-    for al in dp["aligns"]:
-        cli("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", out)
+    dec = [("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
+            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", str(out))
+           for al in dp["aligns"]]
+    enc = ("wfield_local.locanmf_position_encoder", "--date", date,
+           "--pool-dates", from_dates, "--output", str(out))
+    return dec, enc
 
+
+def _per_day_inproc(date, out, only):
+    """The in-process per-day figures. SERIAL, deliberately: pyplot keeps global state, so these
+    cannot be threaded, and they are seconds against the decoders' minutes."""
     from wfield_local.locanmf_decoder_weights import (_avail, fig_rolling_cue, fig_temporal_dynamics,
                                                       fig_rolling_laterality, fig_top_components)
     labs = _avail(date)
@@ -129,7 +183,26 @@ def _per_day_figs(date, out, from_dates, only):
         except Exception as ex:
             log(f"  !! top_components {lab}: {str(ex)[:60]}")
 
-    cli("wfield_local.locanmf_position_encoder", "--date", date, "--pool-dates", from_dates, "--output", out)
+
+
+def _per_day_figs(per_day, out, from_dates, only):
+    """Per-day decode (lick/cue/pre-cue), in-process dynamics/laterality/components, the encoder.
+
+    THREE PHASES ACROSS EVERY DATE AT ONCE, not one date end-to-end at a time. Measured from the
+    8/26 nightly: this step plus the backfill was 54 min, all of it serial, on a box where a single
+    decoder uses one core. Every (date, alignment) decoder is independent -- each writes its own
+    per-date figures and reads only that session's cached features -- so with the curated backfill
+    there are typically a dozen or more of them to run at once rather than three.
+
+    The middle phase stays serial because `pyplot` keeps a global figure registry; it is seconds
+    against the decoders' minutes, so threading it would buy nothing and risk a torn canvas. The
+    encoders go last as their own group: they pool across dates, so they want every decoder done.
+    """
+    groups = [_per_day_cmds(d, out, from_dates) for d in per_day]
+    _cli_many([c for dec, _enc in groups for c in dec])       # every (date, alignment) at once
+    for d in per_day:
+        _per_day_inproc(d, out, only)
+    _cli_many([enc for _dec, enc in groups])                  # then every date's encoder
 
 
 def _perday_figs_incomplete(out, d) -> bool:
@@ -310,8 +383,7 @@ def main():
     per_day = sorted(set(per_day) | set(backfill))
 
     log(f"per-day dates={per_day} cross-session dates={from_dates} tag={tag} out={out}")
-    for date in per_day:
-        _per_day_figs(date, out, from_dates, only)
+    _per_day_figs(per_day, out, from_dates, only)
 
     # cross-session comparisons: once, spanning the whole --from set (not per per-day date)
     cli("wfield_local.locanmf_cross_mouse", "--output", out, "--dates", from_dates, "--tag", tag)
@@ -616,7 +688,9 @@ def main():
         log(f"  !! publish json: {type(ex).__name__} {str(ex)[:80]}")
 
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
-    _write_run_record(deck_out, date, tag)
+    # The last per-day date, which is what this was when it was the loop variable left over
+    # from `for date in per_day` -- named now that the loop is a phase.
+    _write_run_record(deck_out, per_day[-1] if per_day else None, tag)
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:
