@@ -13,6 +13,14 @@ Priya's subtree, so ``writeguard`` allowed it, correctly -- which is why nothing
 writeguard answers "may this code write here?". This answers a different question: "may a TEST write
 anywhere real?" The answer is no, and it has to be enforced at the filesystem call, because the way
 this happened was a test reaching production paths without ever naming one.
+
+THE SESSION CACHE IS THE SAME QUESTION ON A LOCAL DISK. `session_cache.CACHE_DIR` resolves to
+`E:/.widefield_session_cache` on this box -- shared lab state, but not a UNC share, so the guard
+above never looked at it. On 2026-08-28 a NameError inside a bootstrap being refactored was
+swallowed, and running the SUITE wrote twelve `None` entries into that production cache, which the
+corrected code then read back and turned into empty figures. A `delta_test-delta` entry was sitting
+in it too. The keys are content digests, so synthetic fixture data could never collide with a real
+session -- but that is luck, not isolation. Tests now get their own cache directory.
 """
 from __future__ import annotations
 
@@ -105,4 +113,21 @@ def no_share_writes(monkeypatch):
     monkeypatch.setattr(shutil, "copyfile", guarded_copyfile)
     monkeypatch.setattr(shutil, "rmtree", guarded_rmtree)
     monkeypatch.setattr(pathlib.Path, "replace", guarded_replace)
+    yield
+
+@pytest.fixture(autouse=True)
+def no_real_cache_writes(monkeypatch, tmp_path_factory):
+    """Point every cache read and write at a per-test directory.
+
+    REDIRECTED RATHER THAN REFUSED, unlike the share guard above. Caching is meant to be
+    transparent: a test exercising a bootstrap should not have to know one exists, so failing it
+    for touching the cache would punish the wrong thing. Redirecting also gives each test a COLD
+    cache, which is what makes a cold-vs-warm round-trip assertion mean anything.
+
+    `CACHE_DIR` is a module global read at call time by `session_cache`, `grant_figures` and
+    `joint_locanmf` alike, so patching the one attribute covers all three. Tests that set it
+    themselves still win -- they run after this.
+    """
+    from wfield_local import session_cache
+    monkeypatch.setattr(session_cache, "CACHE_DIR", tmp_path_factory.mktemp("session_cache"))
     yield

@@ -6479,3 +6479,17 @@ error:
 
 The tests caught all three. None would have raised at import, and all three would have produced a
 figure.
+
+**Tests get their own session cache.** The conftest share guard watches `N:/` and `M:/`;
+`session_cache.CACHE_DIR` resolves to `E:/.widefield_session_cache` — shared lab state on a LOCAL
+disk, so it went unwatched. Running the SUITE with a half-finished bootstrap refactor wrote twelve
+`None` entries into the production cache, and a `delta_test-delta` entry was sitting in it too. The
+keys are content digests, so synthetic fixture data could never collide with a real session — but
+that is luck rather than isolation, and it is how the poisoning propagated. An autouse fixture now
+points `CACHE_DIR` at a per-test directory.
+
+**Redirected rather than refused**, unlike the share guard. Caching is meant to be transparent: a
+test exercising a bootstrap should not have to know one exists, so failing it for touching the cache
+would punish the wrong thing. Redirecting also hands every test a COLD cache, which is what makes a
+cold-versus-warm round-trip assertion mean anything. Eight test-authored entries were removed from
+the real cache; `7b_disatt` (30) and `delta_9` (90) are genuine and were left.
