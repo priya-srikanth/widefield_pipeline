@@ -98,14 +98,17 @@ def test_an_empty_epoch_returns_none_rather_than_an_empty_matrix():
 
 
 def test_coverage_reports_the_imbalance_a_panel_must_state():
-    """PS95 contributes ONE acute session and PS92 TWO subacute. A pooled panel that does not say so
-    implies four equal contributors when one animal can dominate."""
+    """No epoch is balanced across animals, so a pooled panel that does not state its per-animal n
+    implies four equal contributors when one animal can dominate. Asserts that imbalance (durable),
+    not a count snapshot -- the subacute counts grow with each registration (2026-08-28)."""
     per = _fake({an: {epochs.days_since_stroke(l): 5
                       for l in config.pooled_labels(an) if epochs.epoch_of(l) != "pre"}
                  for an in ("PS92", "PS93", "PS94", "PS95")})
     cov = ef.epoch_coverage(per)
-    assert cov["per_epoch"]["acute"] == {"PS92": 5, "PS93": 4, "PS94": 6, "PS95": 1}
-    assert cov["per_epoch"]["subacute"] == {"PS92": 2, "PS93": 3, "PS94": 2, "PS95": 7}
+    for e in ("acute", "subacute"):
+        assert len(set(cov["per_epoch"][e].values())) > 1, (
+            f"{e} epoch balanced across animals ({cov['per_epoch'][e]}); the panel must state n")
+    assert cov["per_epoch"]["acute"]["PS95"] == 1     # PS95 acute is day 1 only
     assert cov["unassigned"] == []
 
 

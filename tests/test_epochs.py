@@ -83,16 +83,26 @@ def test_the_pool_is_the_sanctioned_one():
 
 
 def test_the_epoch_counts_are_what_the_pooled_figures_will_show():
-    """A pooled panel is only interpretable if its n is known. PS95 contributes ONE acute session and
-    PS92 contributes TWO subacute, so neither epoch is balanced across animals and any figure must
-    say so rather than implying four equal contributors."""
+    """A pooled panel is only interpretable if its n is known, and NO epoch is balanced across
+    animals, so any figure must state its per-animal n rather than imply four equal contributors.
+
+    Asserts that IMBALANCE and the pre/post accounting, which are durable as the cohort grows -- NOT a
+    snapshot of the exact counts. The subacute counts increase every time a post-stroke session is
+    registered (that stale snapshot is what blocked the nightly registration push, 2026-08-28); the
+    assignment logic itself is pinned by the spec / day-list / no-gap tests above."""
     by = epochs.labels_by_epoch()
-    per = {e: {a: sum(1 for l in v if l.startswith(a)) for a in ("PS92", "PS93", "PS94", "PS95")}
-           for e, v in by.items()}
-    assert per["acute"] == {"PS92": 5, "PS93": 4, "PS94": 6, "PS95": 1}
-    assert per["subacute"] == {"PS92": 2, "PS93": 3, "PS94": 2, "PS95": 7}
-    assert len(by["acute"]) + len(by["subacute"]) == 30
-    assert len(by["pre"]) == len(config.pooled_labels()) - 30
+    ANIMALS = ("PS92", "PS93", "PS94", "PS95")
+    per = {e: {a: sum(1 for l in v if l.startswith(a)) for a in ANIMALS} for e, v in by.items()}
+    for e in ("acute", "subacute"):
+        assert len(set(per[e].values())) > 1, (
+            f"{e} epoch is balanced across animals ({per[e]}); a pooled figure could imply four "
+            f"equal contributors, so it must state per-animal n")
+    assert per["acute"]["PS95"] == 1              # PS95 acute is spec'd as day 1 only -- one session
+    # every acute/subacute label is a post-stroke pooled label; pre is exactly the remainder
+    n_post = len(by["acute"]) + len(by["subacute"])
+    assert n_post == sum(1 for l in config.pooled_labels()
+                         if epochs.epoch_of(l) in ("acute", "subacute"))
+    assert len(by["pre"]) == len(config.pooled_labels()) - n_post
 
 
 def test_the_ordering_is_the_plot_order():
