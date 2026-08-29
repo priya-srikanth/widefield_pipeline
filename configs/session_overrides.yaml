@@ -13,4 +13,13 @@
 #     locanmf:
 #       maxrank: 25
 
-overrides: {}
+overrides:
+  # PS92 8/28: labcams saved this normal alternating 415/470 session MISLABELED single-channel
+  # (pco_edge_..._1_460_480_uint16.dat). After renaming to _2_ to rescue it, the rescue relabel
+  # locked exposure offset 1, which swaps the .bin's channel slots: slot 0 holds the 470 (functional)
+  # frames and slot 1 the 415 (isosbestic). Motion correction is correct and is NOT redone; only SVD
+  # onward must read slot 0 as functional. Flip functional_channel 1 -> 0 for this one session.
+  PS92_0828:
+    preprocess:
+      svd:
+        functional_channel: 0

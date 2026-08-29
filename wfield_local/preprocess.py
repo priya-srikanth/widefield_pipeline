@@ -737,14 +737,21 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
         print("[preprocess] --skip-preprocess: skipping motion/SVD/cross-register/push", flush=True)
     else:
         for s in sessions:
-            preprocess_session(s, params, rv, args.dry_run,
+            # per-session params so configs/session_overrides.yaml actually applies (e.g. PS92 8/28
+            # needs svd.functional_channel=0: labcams saved that 2-ch session mislabeled 1_460_480,
+            # the rescue relabel locked offset 1 and swapped the .bin channel slots -- motion is fine
+            # but SVD/hemo must read slot 0 as the 470 functional channel). Was passing global params,
+            # so overrides never reached the per-session steps. Non-overridden sessions are unchanged.
+            sp = config.defaults(session=f"{s['animal']}_{s['mmdd']}")["preprocess"]
+            preprocess_session(s, sp, rv, args.dry_run,
                                redo=getattr(args, 'redo', False))
 
     # cue/lick/quiet activity maps (AFTER the push loop so the GPU-box LocaNMF push stays first)
     if not args.skip_maps:
         print("\n################ activity maps ################", flush=True)
         for s in sessions:
-            generate_maps(s, params, rv, args.dry_run)
+            sp = config.defaults(session=f"{s['animal']}_{s['mmdd']}")["preprocess"]
+            generate_maps(s, sp, rv, args.dry_run)
 
     if not args.skip_photobleach:
         print("\n################ photobleach QC ################", flush=True)
