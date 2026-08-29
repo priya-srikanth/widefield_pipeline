@@ -6425,3 +6425,18 @@ for a problem that does not exist.
 function turned three nested `continue`s into early returns, one of them inside `_pool`, where
 `continue` WAS the leave-one-out. Tests caught it; nothing else would have. Only the `continue`
 belonging to the extracted loop may become a return.
+
+**A completeness check reports what it EXPECTS, and is silent about what it was never told.**
+Section I listed 16 families covering 42 of the 75 rendered epoch figures. The 33 it did not name
+were the ones added most recently: figure 9 and its interval panel, all eighteen diagonal bar
+figures for 6/7/8, 10b's delta, and the best-match rank pair. `_record` and
+`_refuse_incomplete_overwrite` would have passed the build clean, because a family present in the
+renderer but absent from `_EPOCH` is invisible to both — the same *"a missing figure is an ABSENCE,
+not an error"* trap, one level up. **When a renderer gains a family, the check that a deck
+references it has to be run in BOTH directions**: every pattern must match a file, and every file
+must be matched by some pattern. The second direction is the one nothing was doing.
+
+The cause was structural rather than careless. Slide keys were written into the data, so inserting a
+family in narrative order meant renumbering every entry after it — expensive enough that the
+diagonals were never inserted at all. Keys now derive from position, so a family goes where it
+belongs and the numbering follows.
