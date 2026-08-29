@@ -6181,10 +6181,20 @@ UNIT**, which is a per-stage judgement and not a mechanical one.
 Per-animal was the obvious unit and it is the wrong one: four animals is four workers, 8 of 24
 cores, with the cohort size as the cap. Per session is ~30 units and fills the box.
 
-**Phase 1 is serial and is not waste.** It pools each (animal, tag) once to learn `kept` and
-`post_i` — the indices the units are named by — and in doing so materialises the frozen decoder for
-that animal. `_pooled` returns an EMPTY `_frozen_cache` and loads the model lazily, so N workers on
-one animal would otherwise all miss, all fit, and all write the same stored model.
+**Phase 1 pools and warms — and it is parallel too, after a correction.** It was written serial,
+on the claim that pooling each (animal, tag) "materialises the frozen decoder". **That claim was
+wrong.** `_pooled` returns an EMPTY `_frozen_cache` and the model is loaded lazily on first USE,
+inside `run_session` — so the pass pooled everything and warmed nothing, and every session worker
+would still have raced to fit the same model. `pc.frozen(d)` is the warm; pooling is not.
+
+Corrected, the phase does both and fans out over **(animal, alignment) with both tags inside one
+unit**. That grouping is the safety property: `make_spec` keys on animal and alignment but NOT on
+the comparison arm, so `post` and `excluded` at one alignment are the same stored model and must
+share a worker, while different (animal, alignment) pairs are different specs and cannot collide.
+
+It mattered more than expected. Measured: phase 1 is **~12.5 min for ONE animal**, so serially it
+was ~50 min against phase 2's ~15 — the stage's cost was in the phase that was not parallel, and
+the "~1 h, mostly parallel" estimate had the split backwards.
 
 **The bundles are not pickled across the process boundary.** `XE` is thousands of trials by hundreds
 of features; shipping three of those to each of ~30 workers costs more than the analysis. Workers

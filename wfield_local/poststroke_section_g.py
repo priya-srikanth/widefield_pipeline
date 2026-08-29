@@ -227,41 +227,73 @@ def _session_worker(spec):
     return run_session(d_by_align, an, i, d0["kept"][i], tag)
 
 
+def _warm_one(spec):
+    """Pool BOTH tags of one (animal, alignment) and force its frozen model to exist.
+
+    THE UNIT IS (animal, alignment) AND BOTH TAGS LIVE INSIDE IT, which is what makes this phase
+    parallelisable at all. `frozen_models.make_spec` keys on animal and alignment but NOT on the
+    comparison arm, so `post` and `excluded` at one alignment are the SAME stored model: split them
+    across workers and both miss, both fit, both write. Different (animal, alignment) pairs are
+    different specs and cannot collide.
+
+    `pc.frozen(d)` IS THE WARM, not `pc._pooled`. The model is loaded lazily into the bundle's
+    `_frozen_cache` on first USE -- inside `run_session`, not at pool time -- so the first version
+    of this pass pooled everything and warmed nothing, leaving every session worker still racing to
+    fit the same model. Pooling is not a pre-warm; forcing the lookup is.
+
+    Returns the cue-alignment `(kept, post_i)` so the caller can name its session units without
+    pooling a second time.
+    """
+    an, align, include_excluded = spec
+    out = {}
+    for tag, labels in (("post", None),
+                        ("excluded", pc.excluded_labels(an) if include_excluded else None)):
+        if tag == "excluded" and not labels:
+            continue
+        try:
+            d = pc._pooled(an, align, post_labels=labels)
+        except Exception as ex:                                   # noqa: BLE001
+            print(f"  {an} {align} [{tag}]: pool failed ({str(ex)[:60]})", flush=True)
+            continue
+        if d is None:
+            continue
+        pc.frozen(d)                     # force the fit/load HERE, one worker per spec
+        if align == "cue":
+            out[tag] = (list(d["kept"]), sorted(d["post_i"]), labels)
+    return out
+
+
 def collect(animals=None, include_excluded=True, jobs=None):
-    """Every post-stroke session, plus the excluded ones tagged as such.
+    """Every post-stroke session, plus the excluded ones tagged as such. Two parallel phases.
 
-    THE UNIT IS THE SESSION, reached in two phases, and the phases exist for a reason each.
+    PHASE 1 -- (animal, alignment), both tags inside each unit. Pools, and forces the frozen decoder
+    to exist via `pc.frozen`, because the model loads LAZILY on first use and pooling alone warms
+    nothing. Measured 2026-08-28: ~12.5 min for ONE animal, so run serially it dominated the stage
+    at ~50 min against phase 2's ~15 -- the phase that was already parallel was not the expensive
+    one.
 
-    PHASE 1 IS SERIAL AND IS NOT WASTE. It pools each (animal, tag) once to learn `kept` and
-    `post_i` -- the session indices the units are named by -- and in doing so it materialises the
-    frozen decoder for that animal. That matters: `_pooled` returns an EMPTY `_frozen_cache` and the
-    model is loaded lazily, so N session-workers for one animal would otherwise all miss, all fit,
-    and all WRITE the same stored model. `load_or_fit` is not atomic. Warming it here turns every
-    worker's lookup into a read.
-
-    PHASE 2 IS THE WIDTH. ~30 sessions against 4 animals is what takes this stage from 4 workers
-    (8 cores of 24, the cohort size being the cap) to the full 8 x 2. The earlier per-animal version
-    was correct and left two thirds of the box idle.
+    PHASE 2 -- the SESSION, ~30 units, every frozen lookup now a read rather than a fit.
 
     A failed unit RAISES rather than yielding a short file: a `section_g.json` missing a session is
     indistinguishable from a session that legitimately produced nothing.
     """
     from wfield_local import parallel
 
-    units, warmed = [], 0
-    for an in post_animals(animals):
-        for tag, labels in (("post", None),
-                            ("excluded", pc.excluded_labels(an) if include_excluded else None)):
-            if tag == "excluded" and not labels:
-                continue
-            print(f"\n##### {an} [{tag}] pooling", flush=True)
-            d0 = _pool_all(an, labels).get("cue")
-            if d0 is None:
-                continue
-            warmed += 1
-            units += [(an, tag, labels, i) for i in sorted(d0["post_i"])]
+    warm_units = [(an, align, include_excluded)
+                  for an in post_animals(animals) for align, _ in CONDITIONS]
+    warmed, wfail = parallel.fan_out(warm_units, _warm_one, jobs=jobs, label="pool")
+    if wfail:
+        raise RuntimeError(f"section G phase 1 failed for {[u for u, _ in wfail]}: {wfail[0][1]}")
 
-    print(f"\n  phase 1: {warmed} (animal, tag) pool(s) warmed; "
+    units = []
+    for (an, align, _inc), res in warmed:
+        if align != "cue":
+            continue
+        for tag, (_kept, post_i, labels) in sorted(res.items()):
+            units += [(an, tag, labels, i) for i in post_i]
+    units.sort()
+
+    print(f"\n  phase 1: {len(warm_units)} (animal, alignment) pool(s) warmed; "
           f"phase 2: {len(units)} session unit(s)", flush=True)
     results, failures = parallel.fan_out(units, _session_worker, jobs=jobs, label="session")
     if failures:
