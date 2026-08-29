@@ -585,11 +585,17 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
 
     # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
     ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
+    ref_func = config.defaults(session=f"{animal}_{ref_date}")["preprocess"]["svd"]["functional_channel"]
+    # Per-session func_channel: a swapped session (e.g. PS92 8/28, fc=0) must still register against
+    # the reference's OWN 470 channel (fc=1), not read the reference's 415 slot -- a cross-channel
+    # 470-vs-415 compare tanks the NCC. Same values for normal sessions, so behaviour is unchanged.
     cfg = {"animal": animal, "mode": "reference-native", "func_channel": svd["functional_channel"],
            "reference": f"{animal}_{ref_date}", "warp_u": True,
            "output": rv.resolve("xday_qc", f"{animal}_{mmdd}"),
-           "sessions": {f"{animal}_{ref_date}": {"results": ref_results, "landmarks": ref_landmarks},
-                        f"{animal}_{mmdd}": {"results": results}}}
+           "sessions": {f"{animal}_{ref_date}": {"results": ref_results, "landmarks": ref_landmarks,
+                                                 "func_channel": ref_func},
+                        f"{animal}_{mmdd}": {"results": results,
+                                             "func_channel": svd["functional_channel"]}}}
     cfg_path = f"{mc}/xday_config_{animal}_{mmdd}.json"
     print(f"[xreg] config -> {cfg_path}", flush=True)
     if not dry_run:
