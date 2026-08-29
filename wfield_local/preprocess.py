@@ -619,6 +619,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
             try:
                 _run(["wfield_local.hemo_variants", "--variant", build_variant, "--write",
                       "--no-refit-t",            # hybrid: the saved T IS the high-pass-fitted T (3.5e-5)
+                      "--functional-channel", str(svd["functional_channel"]),  # per-session (PS92 8/28 swap)
                       "--label", f"{animal}_{mmdd}", "--mc", mc, "--h5", s["daq_h5"]], dry_run)
             except SystemExit as ex:
                 print(f"[warn] hemo_variants FAILED for {animal}_{mmdd} ({ex}); continuing WITHOUT the "

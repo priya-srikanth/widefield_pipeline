@@ -172,8 +172,12 @@ def refit_T(U, a, b, chunk=20000):
     return np.linalg.pinv(UtU) @ UtUrc, rc
 
 
-def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None):
-    """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing."""
+def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=FUNC):
+    """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing.
+
+    ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. Defaults
+    to the cohort FUNC=1, but must be 0 for a session whose labcams channels came out swapped (e.g.
+    PS92 8/28, saved mislabeled single-channel then rescued at exposure offset 1)."""
     from wfield_local.filter_acausality_test import MASK_SPEC, fit_mask
     from wfield_local.locanmf_crossanimal_dff import _frames as _fr
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
@@ -181,8 +185,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
 
     res = Path(session["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
-    a = svt[:, FUNC::2].astype(np.float64)
-    b = svt[:, (FUNC + 1) % 2::2].astype(np.float64)
+    a = svt[:, func::2].astype(np.float64)
+    b = svt[:, (func + 1) % 2::2].astype(np.float64)
 
     spec = VARIANTS[variant]
     mask, mask_frac = None, None
@@ -243,7 +247,7 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "win_s": win_s if spec["drift"] == "median" else None,
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
-            "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": FUNC,
+            "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
         print(f"  {session['label']:12s} {variant}{'_refitT' if refit_t else ''}: SVTcorr{c.shape}"
@@ -257,13 +261,13 @@ def out_dir(session, variant, refit_t=True) -> Path:
             / f"hemo_{variant}{'_refitT' if refit_t else ''}")
 
 
-def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True) -> Path:
+def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=FUNC) -> Path:
     """Compute and persist to the labelled subdirectory. Refuses to touch the original files."""
     from wfield_local import writeguard
 
     d = out_dir(session, variant, refit_t)
     writeguard.assert_writable(d)
-    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose)
+    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose, func=func)
     tmp = d.with_name(d.name + f".{os.getpid()}.tmp")
     tmp.mkdir(parents=True, exist_ok=True)
     np.save(tmp / "SVTcorr.npy", c)
@@ -295,6 +299,10 @@ def main(argv=None) -> int:
                     help="reuse the saved T instead of refitting on the drift-removed traces "
                          "(correct for a controlled COMPARISON, wrong for a product)")
     ap.add_argument("--write", action="store_true", help="persist to the labelled subdirectory")
+    ap.add_argument("--functional-channel", type=int, default=FUNC,
+                    help="functional (470) channel index; the isosbestic (415) is the other slot. "
+                         "Default %(default)s. Set 0 for a session whose labcams channels came out "
+                         "swapped (mislabeled single-channel then rescued at exposure offset 1).")
     args = ap.parse_args(argv)
 
     if args.list:
@@ -324,9 +332,9 @@ def main(argv=None) -> int:
         lab = s["label"]
         try:
             if args.write:
-                write(s, args.variant, not args.no_refit_t)
+                write(s, args.variant, not args.no_refit_t, func=args.functional_channel)
             else:
-                compute(s, args.variant, not args.no_refit_t)
+                compute(s, args.variant, not args.no_refit_t, func=args.functional_channel)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
             rc = 1
