@@ -246,8 +246,9 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
     -- `spout_behavior` writes them from now on -- the session is the finest honest unit here, and
     the figure says so instead of implying it matched the imaging panels.
 
-    Session-weighted within a draw (hits summed over n summed), which is the same weighting the
-    bars use, so the interval describes the quantity actually plotted.
+    WITHIN-ANIMAL: each session's delta is its own rate minus that animal's pre rate, and the epoch
+    value is the SESSION-WEIGHTED MEAN of those (every session counts once). So the delta is normalised
+    per animal even though it is still pooled by session -- the interval describes that quantity.
     """
     animals = sorted({a for e in (epoch, "pre")
                       for a, _h, _n in per_session.get(e, {}).get(position, [])})
@@ -259,29 +260,42 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
         n = sum(x[2] for x in rows)
         return (h / n) if n else None
 
-    real_a = per_session.get(epoch, {}).get(position, [])
-    real_b = per_session.get("pre", {}).get(position, [])
-    pa, pb = rate(real_a), rate(real_b)
-    if pa is None or pb is None:
+    # WITHIN-ANIMAL, SESSION-WEIGHTED MEAN (Priya, 2026-08-29). Each epoch session's delta is its own
+    # rate minus THAT animal's pre rate -- so PS94's acute is measured against PS94's pre, not against a
+    # pooled pre that another animal dominates -- and every session counts once, so a six-session animal
+    # weighs 6x (the "just use each session's value" weighting, applied to the within-animal delta).
+    # ONLY the delta normalises within animal; the absolute/raw panel (behaviour_by_epoch) is unchanged.
+    epoch_rows = per_session.get(epoch, {}).get(position, [])          # one (animal, hits, n) per session
+    pre_rows = {a: [r for r in per_session.get("pre", {}).get(position, []) if r[0] == a]
+                for a in animals}
+    pre_rate = {a: rate(pre_rows[a]) for a in animals}
+
+    def within_animal_mean(ep_rows, pre_by_animal):
+        ds = [(h / n) - pre_by_animal[a] for a, h, n in ep_rows
+              if n and pre_by_animal.get(a) is not None]
+        return float(np.mean(ds)) if ds else None
+
+    point = within_animal_mean(epoch_rows, pre_rate)
+    if point is None:
         return None
-    by = {(e, a): [r for r in per_session.get(e, {}).get(position, []) if r[0] == a]
-          for e in (epoch, "pre") for a in animals}
+    by_ep = {a: [r for r in epoch_rows if r[0] == a] for a in animals}
     diffs = []
-    for _ in range(n_boot):
+    for _ in range(n_boot):                    # ANIMALS then SESSIONS; pre re-estimated per draw
         pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
-        ra, rb = [], []
+        ds = []
         for an in pick:
-            sa, sb = by[(epoch, an)], by[("pre", an)]
-            if not sa or not sb:
+            ep, pr_rows = by_ep[an], pre_rows[an]
+            if not ep or not pr_rows:
                 continue                       # animal absent from one arm
-            ra += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-            rb += [sb[i] for i in rng.integers(0, len(sb), len(sb))]
-        va, vb = rate(ra), rate(rb)
-        if va is not None and vb is not None:
-            diffs.append(va - vb)
+            pr = rate([pr_rows[i] for i in rng.integers(0, len(pr_rows), len(pr_rows))])
+            if pr is None:
+                continue
+            ds += [(ep[i][1] / ep[i][2]) - pr for i in rng.integers(0, len(ep), len(ep)) if ep[i][2]]
+        if ds:
+            diffs.append(float(np.mean(ds)))
     if len(diffs) < n_boot // 4:
         return None
-    return float(pa - pb), np.asarray(diffs, float)
+    return point, np.asarray(diffs, float)
 
 
 def fig_behaviour(out_dir):
