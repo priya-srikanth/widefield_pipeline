@@ -501,9 +501,50 @@ GROUP_IN = 0.72
 BAR_LEFT_IN, BAR_RIGHT_IN = 0.62, 1.24
 
 
+#: Floor on the DATA REGION's width, matching the floor on its height so the smallest plot this
+#: module draws is square rather than a strip.
+#:
+#: Narrowing the canvas by group count (Priya, 2026-08-28: the single-triple figures "were mostly
+#: empty") handed the reclaimed width to the LEGEND, not to the plot. The gutters are absolute --
+#: 0.62 + 1.24 = 1.86in of chrome -- so a one-group canvas of 2.58in left the axes 0.72in, and a
+#: wrapped y label took it to 0.57in: a 0.57in plot inside a 2.58in figure, nine per cent of the
+#: canvas, which is the same fault as the short 8g axes rotated ninety degrees. The empty space was
+#: real and worth reclaiming; what was wrong was reclaiming it from the only part that carries data.
+BAR_AXES_MIN_W_IN = 1.45
+
+
 def bar_figure_width(n_groups):
     """Canvas width for ``n_groups`` bar groups, never wider than a quarter page."""
-    return min(QUARTER_IN, BAR_LEFT_IN + max(1, int(n_groups)) * GROUP_IN + BAR_RIGHT_IN)
+    axes_w = max(max(1, int(n_groups)) * GROUP_IN, BAR_AXES_MIN_W_IN)
+    return min(QUARTER_IN, BAR_LEFT_IN + axes_w + BAR_RIGHT_IN)
+
+
+#: Target width:height for the DATA REGION, and the range the height is allowed to take.
+#:
+#: Priya, 2026-08-28: "the 8g figures are too short ... make the dimensions of each plot less fat".
+#: They were short for a reason worth recording. `fig_h` was the constant 2.60 and the axes got
+#: whatever the text left over -- `max(0.6, fig_h - top - bottom)` -- so the figure carrying the
+#: MOST chrome ended up with the LEAST data. 8g is the worst case because it is the only family
+#: with all three of a wrapped title, a two-line subtitle and the two-level Ipsi/Middle/Contra x
+#: axis: 1.92in of text against 0.68in of plot, twenty-six per cent of the canvas.
+#:
+#: SO THE ARROW IS REVERSED. The data region is sized first and the canvas is whatever holds it
+#: plus the text -- the same absolute-inch discipline the width already used, applied to the axis
+#: that never got it. A subtitle that wraps to a third line now makes the figure TALLER instead of
+#: making the plot shorter.
+#:
+#: THE CLAMPS ARE NOT DECORATION. Height tracks the axes WIDTH so a plot stays proportionate, but
+#: the narrow one- and two-group figures have only 0.72in and 1.44in of axes, and dividing that by
+#: the target would give a 0.4in-tall plot. The floor is what stops a narrow figure collapsing;
+#: the ceiling is what stops a six-group figure turning into a portrait strip of spikes.
+BAR_AXES_AR = 1.9
+BAR_AXES_MIN_IN, BAR_AXES_MAX_IN = 1.45, 2.25
+
+
+def bar_axes_height(fig_w_in):
+    """Height of the DATA REGION for a bar canvas of this width."""
+    axes_w = max(0.25, fig_w_in - BAR_LEFT_IN - BAR_RIGHT_IN)
+    return float(np.clip(axes_w / BAR_AXES_AR, BAR_AXES_MIN_IN, BAR_AXES_MAX_IN))
 
 
 def wrap_ylabel(text, axes_h_in, fontsize, *, max_lines=3):
@@ -611,8 +652,8 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         return None
     m, k = len(epochs_present), len(positions)
 
-    fig_w, fig_h = bar_figure_width(k), 2.60
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig_w = bar_figure_width(k)
+    fig, ax = None, None
     # ALL TEXT METRICS BEFORE ANYTHING IS DRAWN. The y label has to be wrapped to the axes height,
     # the axes height depends on the top band, and the top band depends on how many lines the
     # title and subtitle wrap to -- so the order is title, subtitle, bands, axes height, label.
@@ -622,7 +663,12 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
     _top_in = 0.52 + 0.15 * _slines + 0.15 * (_tlines - 1)
     _bot_in = 0.46 + 0.34 * bool(groups)
-    _axes_h = max(0.6, fig_h - _top_in - _bot_in)
+    # THE CANVAS FOLLOWS THE CONTENT, not the other way round. `wrap_title` and `fit_subtitle`
+    # need only the WIDTH, so every band is known before a figure exists and the height is a
+    # result rather than a budget the plot is squeezed into.
+    _axes_h = bar_axes_height(fig_w)
+    fig_h = _top_in + _axes_h + _bot_in
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     bw = 0.78 / m
     xs = np.arange(k, dtype=float)
     for j, e in enumerate(epochs_present):
@@ -988,8 +1034,8 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     if not epochs or not positions:
         return None
     k, m = len(positions), len(epochs)
-    fig_w, fig_h = bar_figure_width(k), 2.60
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig_w = bar_figure_width(k)
+    fig, ax = None, None
     # ALL TEXT METRICS BEFORE ANYTHING IS DRAWN. The y label has to be wrapped to the axes height,
     # the axes height depends on the top band, and the top band depends on how many lines the
     # title and subtitle wrap to -- so the order is title, subtitle, bands, axes height, label.
@@ -999,7 +1045,12 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
     _top_in = 0.52 + 0.15 * _slines + 0.15 * (_tlines - 1)
     _bot_in = 0.46 + 0.34 * bool(groups)
-    _axes_h = max(0.6, fig_h - _top_in - _bot_in)
+    # THE CANVAS FOLLOWS THE CONTENT, not the other way round. `wrap_title` and `fit_subtitle`
+    # need only the WIDTH, so every band is known before a figure exists and the height is a
+    # result rather than a budget the plot is squeezed into.
+    _axes_h = bar_axes_height(fig_w)
+    fig_h = _top_in + _axes_h + _bot_in
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     xs = np.arange(k, dtype=float)
     off = 0.78 / m
     for j, e in enumerate(epochs):

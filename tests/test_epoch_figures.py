@@ -515,7 +515,47 @@ def test_long_text_is_wrapped_to_the_thing_that_bounds_it():
 
 
 def test_a_narrow_figure_is_narrower(tmp_path):
-    """One bar group should not reserve the canvas six need."""
+    """One bar group should not reserve the canvas six need -- but not at the plot's expense.
+
+    The width floor makes one and two groups the SAME width, which is why this no longer asserts
+    strict monotonicity across all three. Narrowing past the floor took the space out of the axes
+    rather than out of the empty margin: the gutters are absolute, so a 2.58in canvas left a 0.57in
+    plot. Both halves matter, so both are asserted.
+    """
     assert ef.bar_figure_width(6) == pytest.approx(ef.QUARTER_IN, abs=0.05)
-    assert ef.bar_figure_width(1) < ef.bar_figure_width(2) < ef.bar_figure_width(6)
-    assert ef.bar_figure_width(1) < 3.0
+    assert ef.bar_figure_width(1) == ef.bar_figure_width(2) < ef.bar_figure_width(6)
+    assert ef.bar_figure_width(1) < 3.6
+    for n in (1, 2, 6):
+        w = ef.bar_figure_width(n)
+        assert w - ef.BAR_LEFT_IN - ef.BAR_RIGHT_IN >= ef.BAR_AXES_MIN_W_IN - 1e-9
+
+
+def test_the_canvas_grows_with_its_text_instead_of_shrinking_the_plot(tmp_path):
+    """A taller top band must make the FIGURE taller, never the data region shorter.
+
+    The regression this pins: `fig_h` was the constant 2.60 and the axes took what the text left,
+    so the figure carrying the most chrome got the least plot -- 8g ran a 0.68in axes under 1.92in
+    of title, subtitle and two-level x labels. Priya, 2026-08-28: "the 8g figures are too short".
+    """
+    long_title = ("Geometry preserved against the pre-stroke reference, per position -- "
+                  "ENL (pre-cue), lick + miss-while-working")
+    two_line_sub = "N=4 animals, n=74 sessions" + chr(10) + "bootstrap: animals -> sessions"
+    keys = ["nI", "nM", "nC", "fI", "fM", "fC"]
+    vals = {e: {k: (0.5, 0.4, 0.6) for k in keys} for e in ("pre", "acute", "subacute")}
+    heights, axes_h = [], []
+    for title, sub, groups in ((("short"), None, None),
+                               (long_title, two_line_sub,
+                                [("Near", 0, 2), ("Far", 3, 5)])):
+        p = ef.bar_row(vals, tmp_path, name=f"g{len(heights)}", ylabel="accuracy",
+                       positions=keys, title=title, subtitle=sub, groups=groups,
+                       tick_labels=(["Ipsi", "Middle", "Contra"] * 2 if groups else None))
+        assert p is not None
+        import matplotlib.image as mpimg
+        im = mpimg.imread(str(p))
+        heights.append(im.shape[0])
+        axes_h.append(ef.bar_axes_height(ef.bar_figure_width(len(keys))))
+    # more text -> taller canvas ...
+    assert heights[1] > heights[0]
+    # ... and the data region is untouched by how much text sits above it
+    assert axes_h[0] == pytest.approx(axes_h[1])
+    assert axes_h[0] >= ef.BAR_AXES_MIN_IN
