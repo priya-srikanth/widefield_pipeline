@@ -146,6 +146,21 @@ def engagement_gate(order, responded, positions, reference=REFERENCE):
         i = len(low) - 1
         while i > 0 and low[i - 1]:
             i -= 1
+        # BACKDATED TO THE START OF THE RUN THAT TRIPPED IT (Priya, 2026-09-07), matching the
+        # behaviour gate. `low` turns True where the trailing reference mean CROSSES MIN_RATE, which
+        # takes about eight reference misses to accumulate -- so without this the first misses of a
+        # quit are scored `poststroke_miss_working`, a class whose whole meaning is that the animal
+        # was still trying. The onset is the trial after the last reference RESPONSE: "last
+        # demonstrably engaged" is a fact about the animal, where the crossing is an artefact of
+        # WINDOW and MIN_RATE and would move if either were retuned.
+        #
+        # Moves 408 of 3797 post-stroke miss_working trials (10.7%) into poststroke_stopped. Both
+        # classes are analysed downstream, so this is a RELABEL rather than an exclusion -- but a
+        # miss-while-working class holding trials from after the animal quit is contaminated in
+        # exactly the way the behavioural one was.
+        resp_arr = np.asarray(responded, bool)
+        prior_ok = np.flatnonzero(ref[:i] & resp_arr[:i])
+        i = int(prior_ok[-1]) + 1 if prior_ok.size else 0
         out[i:] = True
     return out
 

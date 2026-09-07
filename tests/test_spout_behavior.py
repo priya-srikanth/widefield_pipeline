@@ -858,18 +858,55 @@ def test_backdating_never_reaches_past_the_last_reference_response():
     assert first == last_ref_ok + 1, (first, last_ref_ok)
 
 
-def test_the_imaging_gate_is_untouched_by_the_behaviour_backdating():
-    """`engagement_gate` feeds the frozen decoders and must keep its own onset.
+def test_both_gates_agree_on_where_a_quit_starts():
+    """The imaging and behaviour gates now share one onset rule (Priya, 2026-09-07).
 
-    `reference_engagement` is behaviour-side and has exactly one caller; the imaging path calls
-    `engagement_gate` directly. If backdating ever leaked into the shared function, the decoders'
-    trial classes would move silently.
+    They were deliberately separate until today: the behaviour gate was backdated first and this
+    test pinned the imaging one at the CROSSING so the two could not drift silently. Priya then
+    asked for the same definition on the imaging side, because `poststroke_miss_working` is a class
+    whose entire meaning is that the animal was still trying -- and it was holding the first ~8
+    misses of a quit. That moves 408 of 3797 such trials (10.7%) into `poststroke_stopped`.
+
+    Both classes are analysed downstream, so this is a RELABEL, not an exclusion.
+
+    The gates remain SEPARATE FUNCTIONS with separate jobs -- behaviour drops disengaged trials from
+    a hit-rate denominator, imaging keeps them as their own condition -- so this asserts they agree
+    about the ONSET, which is the part that must not diverge.
+    """
+    import numpy as np
+
+    from wfield_local.precue_engagement_states import engagement_gate
+    from wfield_local.spout_behavior import reference_engagement
+
+    pos = np.array(["close_L"] * 22)
+    resp = np.array([True] * 10 + [False] * 12)
+    img = engagement_gate(np.arange(len(pos)), resp, pos)
+    beh, _ = reference_engagement(resp, pos)
+    assert int(np.flatnonzero(img)[0]) == 10, "imaging gate must start at the first miss"
+    assert int(np.flatnonzero(beh)[0]) == 10, "behaviour gate must start at the first miss"
+
+
+def test_the_imaging_gate_still_requires_a_non_recovering_collapse():
+    """Backdating must not make the imaging gate fire on a dip that recovers.
+
+    This is the property that separates satiety from a motor patch, and the reason PS94_0817 is not
+    called disengaged at all despite dropping near trial 420.
     """
     import numpy as np
 
     from wfield_local.precue_engagement_states import engagement_gate
 
-    pos = np.array(["close_L"] * 22)
-    resp = np.array([True] * 10 + [False] * 12)
-    ne = engagement_gate(np.arange(len(pos)), resp, pos)
-    assert int(np.flatnonzero(ne)[0]) > 10, "imaging gate must still mark at the crossing"
+    pos = np.array(["close_L"] * 40)
+    resp = np.array([True] * 10 + [False] * 10 + [True] * 20)
+    assert not engagement_gate(np.arange(len(pos)), resp, pos).any()
+
+
+def test_far_position_misses_still_cannot_trip_the_imaging_gate():
+    """The anti-circularity property must survive backdating."""
+    import numpy as np
+
+    from wfield_local.precue_engagement_states import engagement_gate
+
+    pos = np.array(["close_L", "close_center"] * 10 + ["far_R"] * 15 + ["far_center"] * 15)
+    resp = np.array([True] * 20 + [False] * 30)
+    assert not engagement_gate(np.arange(len(pos)), resp, pos).any()

@@ -6700,3 +6700,27 @@ timeline, so an animal that recovers accuracy while working fewer trials still r
     `timecourse_panel`'s 2-tuple `boundaries`, and `verify_against_behaviour` above. Three would have
     rendered a wrong figure and the fourth a wrong audit. `tests/test_chronic_epoch.py` now pins the
     two copies of the rule together for every pooled session.
+
+**The imaging gate is backdated too (Priya, 2026-09-07), reversing the 08-28 decision to hold it.**
+`poststroke_miss_working` is a class whose entire meaning is that the animal was still trying, and
+it was holding the first ~8 misses of a quit — contaminated in exactly the way the behavioural class
+was. Moves **408 of 3797 post-stroke miss_working trials (10.7%)** into `poststroke_stopped`.
+
+**A RELABEL, NOT AN EXCLUSION**, which is why the cost differs from the behaviour side. Imaging
+analyses both classes, so no trial leaves the analysis — what changes is which condition it is
+counted under. The frozen decoder's TRAINING is untouched either way: it is pre-stroke lick trials
+only (21,254 of them), and no-lick trials never enter it. What moves is the post-stroke EVALUATION
+population, so per-day decoding, the RDM/crossnobis matrices and the encoders all shift.
+
+**No `CACHE_VERSION` bump is needed, and this was checked rather than assumed.** All eight modules
+that write `session_cache` — `frozen_models`, `locanmf_position_decoder`, `locanmf_rsa`,
+`poststroke_compare`, `locanmf_cross_mouse`, `joint_locanmf`, `evoked_amplitude`,
+`fixed_scale_maps` — contain **zero** references to the engagement split. They cache features and
+pre-stroke-trained models, which do not depend on it; the gate is applied downstream in-process.
+The one gate-dependent artefact on disk, `coding_direction.json`, is regenerated every night by
+`position_coding_directions`. The bootstrap caches key on input BYTES, so they invalidate
+themselves — which also means the first run after this change pays the full bootstrap cost.
+
+**The two gates remain separate functions with separate jobs** — behaviour drops disengaged trials
+from a hit-rate denominator, imaging keeps them as their own condition — and a test now asserts they
+agree about the ONSET, which is the part that must not silently diverge.
