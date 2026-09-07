@@ -46,10 +46,36 @@ def _robust_lim(arrays, pct=99.0) -> float:
     return max(float(np.percentile(np.abs(vals), pct)), 1e-9)
 
 
+def _functional_slot(label: str) -> int:
+    """Which slot of ``frames_average`` holds the 470 (functional) frames, for THIS session.
+
+    Normally 1. PS92 2026-08-28 is 0: labcams saved a normal alternating session mislabelled
+    single-channel, and the rescue relabel locked exposure offset 1, which swaps the slots. The
+    override records that as `preprocess.svd.functional_channel`, and `preprocess.py` already reads
+    it per session when cross-registering -- "a swapped session must still register against the
+    reference's OWN 470 channel". This figure did not, so it printed "415 nm mean" over the 470
+    image and vice versa (Priya, 2026-09-07, preprocessing deck).
+
+    Falls back to 1 rather than raising: an unregistered or ad-hoc label should still render, and 1
+    is what every session but one uses.
+    """
+    try:
+        from wfield_local import config
+        return int(config.defaults(session=label)["preprocess"]["svd"]["functional_channel"])
+    except Exception:                                                  # noqa: BLE001
+        return 1
+
+
 def _plot_mean_overlay(label: str, frames_average: np.ndarray, edges: np.ndarray, outdir: Path) -> Path:
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), constrained_layout=True)
-    titles = ["415 nm mean", "470 nm mean", "470 nm mean + Allen outlines"]
-    arrays = [frames_average[0], frames_average[1], frames_average[1]]
+    # LABELLED BY WAVELENGTH, INDEXED BY SLOT. The two coincide for every session except a swapped
+    # one, where assuming slot 0 == 415 mislabels both panels -- the image is right and the caption
+    # is wrong, which is the harder error to notice.
+    func = _functional_slot(label)
+    iso = 1 - func
+    titles = ["415 nm mean (isosbestic)", "470 nm mean (functional)",
+              "470 nm mean + Allen outlines"]
+    arrays = [frames_average[iso], frames_average[func], frames_average[func]]
     for ax, title, arr in zip(axes, titles, arrays):
         ax.imshow(arr, cmap="gray", vmin=np.percentile(arr, 1), vmax=np.percentile(arr, 99.5))
         if "Allen" in title:
