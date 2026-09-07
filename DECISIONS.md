@@ -6493,3 +6493,90 @@ test exercising a bootstrap should not have to know one exists, so failing it fo
 would punish the wrong thing. Redirecting also hands every test a COLD cache, which is what makes a
 cold-versus-warm round-trip assertion mean anything. Eight test-authored entries were removed from
 the real cache; `7b_disatt` (30) and `delta_9` (90) are genuine and were left.
+
+## 2026-09-07 — Post-stroke DISENGAGEMENT: confound, or part of the recovery?
+
+### The observation
+
+PS94's task rasters (08/23, 08/25, 08/27, 08/31, 09/03; 600 trials each, shared time axis) end in a
+red block spanning ALL six positions — the animal stops responding entirely rather than selectively.
+On **08/31 and 09/03 that block starts earlier**, around 75-80 min against 85-90 min on the earlier
+sessions. Priya, from the raster: *"is the issue that there are more 'stopped' trials 8/31 and 9/3?"*
+
+It changed a conclusion. A far_R hit rate computed over ALL trials fell 97% → 74% → 69% across those
+last three sessions, which reads as **PS94 getting worse after day 11** — a reversal worth taking
+seriously, and one I reported before checking. Much or all of it may simply be that the disengaged
+tail grew. The rate was computed with no engagement gate, which is precisely the confound
+`reference_engagement`'s terminal-tail arm exists to excise.
+
+### The question that is NOT settled, and should not be settled by a rule
+
+**Is earlier disengagement a confound to remove, or a post-stroke phenomenon to report?**
+
+  * REMOVE IT. Every other post-stroke measure in this pipeline is computed on engaged trials, for
+    the reason recorded on 2026-08-28: judging engagement over all positions "labelled motor failure
+    as disengagement and then dropped those trials from the hit rate that was supposed to measure the
+    deficit". If a session's last quarter is a sated tail, including it charges satiety to the lesion.
+  * KEEP IT. A stroked animal that works for 75 minutes where it used to work for 90 has changed, and
+    that change is plausibly part of what the lesion did — fatigue, effort cost, or reduced
+    motivation are outcomes, not artefacts. Gating them away asserts they are nuisance, which is a
+    scientific claim and not a bookkeeping one.
+
+Priya, 2026-09-07: *"I think this is a post-stroke phenomenon but it is hard to decide if I should
+include it in the recovery timeline."* It is left open deliberately.
+
+### What follows for the epoch boundaries
+
+**Derive them on ENGAGED trials.** Not because the question above is settled, but because every other
+post-stroke quantity is, and an epoch boundary computed on a different trial set than the figures it
+segments would be comparing two things. The ungated numbers above are the demonstration of what
+happens otherwise.
+
+**And report the engagement change as its own quantity.** Time-to-disengagement, or engaged-trial
+count per session, plotted across epochs. That way the phenomenon is visible and measurable rather
+than silently divided out — whoever later decides it belongs in the recovery story can see it, and
+whoever decides it does not has lost nothing. Dividing it out invisibly is the only option that
+forecloses the question.
+
+### Related
+
+  * The gate itself: `precue_engagement_states.engagement_gate` and `spout_behavior.reference_engagement`
+    (2026-08-28), reference-restricted so a run of far-position misses cannot read as disengagement.
+  * Its residual bias, measured 2026-09-07: non-reference positions decay ~0.05 more than reference
+    within a session, EQUALLY before and after the lesion, so pre/post contrasts are unbiased but
+    absolute late-session far-position rates are depressed in both.
+  * The gate catches COLLAPSE, not FADE: reference hit rate falls 0.994 → 0.799 across a post-stroke
+    session while every trial stays "engaged". "Engaged" spans a wide range of performance, which is
+    a further reason not to treat the gated set as clean by construction.
+
+## 2026-09-07 — Disengagement starts where the animal stopped, not where the average noticed
+
+**The gate is backdated to the first miss of the run that trips it.** Priya: *"start the 'disengaged'
+gate at the start of the run of misses that trips the gate."* Both arms of `reference_engagement`
+marked late by construction. The collapse arm fires where the trailing reference mean CROSSES
+`MIN_RATE`, which takes about eight reference misses to accumulate — and every one of those was
+scored **working**, an *engaged* failure, although the animal had already stopped responding at the
+spared positions. The onset is now the trial after the last reference RESPONSE.
+
+**"Last demonstrably engaged" is the claim the data supports.** "Where a rolling average happened to
+cross" is an artefact of `WINDOW` and `MIN_RATE` and would move if either constant were retuned; the
+last reference response is a fact about the animal. Measured over the 44 clip sessions: **335 trials
+move engaged → disengaged (8.9% of the working class)**, and the mean engaged hit rate goes
+**0.8187 → 0.8313 (+1.26 pp)**. Worst single session PS94 0903: working 65 → 16, stopped 80 → 129.
+
+**BEHAVIOUR ONLY — the frozen decoders do not move.** `reference_engagement` has exactly one caller
+(`spout_behavior`), and `grant_figures` never reads `trials.csv` or the `engaged` column. The imaging
+classes (`poststroke_lick`, `poststroke_miss_working`, `poststroke_stopped`) are built in
+`position_coding_directions` from `engagement_gate`, which is untouched. A test asserts the imaging
+gate still marks at the crossing, so the two cannot be silently unified later.
+
+**Backdating cannot CREATE a disengagement**, only move the start of one that already qualified — the
+non-recovery requirement still gates whether the collapse counts at all, which is what separates
+satiety from a motor patch (PS94_0817 dips near trial 420 and is back at 0.95 by 480). Pinned by test.
+
+**Two corrections to earlier claims in this session.** `stroke_laterality: "L"` IS present for all
+four animals — an earlier report that `lesion_side()` raises was a malformed probe passing the bare
+string `'PS92'`, which iterates as the characters `P,S,9,2`. And `SPATIAL_MISS = {"PS93": ("far_L",
+"far_center")}` is not in tension with PS93's post-stroke deficit: it excludes those positions from
+the PRE-stroke *disengaged* training class, and PS93's pre-stroke rates there are 0.720 / 0.854
+against 0.95-0.99 elsewhere — a real pre-existing spatial bias, unrelated to the lesion.

@@ -585,6 +585,29 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
             tail[start:] = True
         del last
     not_eng = collapse | tail
+
+    # BACKDATED TO THE START OF THE RUN THAT TRIPPED IT (Priya, 2026-09-07).
+    #
+    # Both arms mark LATE by construction. The collapse arm fires where the trailing reference mean
+    # CROSSES MIN_RATE, which takes about eight reference misses to accumulate; every one of those
+    # misses was scored `working` -- an engaged failure -- although the animal had already stopped.
+    # The onset is the trial after the last reference RESPONSE, i.e. the first miss of the run that
+    # tripped the gate. "Last demonstrably engaged" is the claim the data supports; "where a rolling
+    # average happened to cross" is an artefact of WINDOW and MIN_RATE, and it would move if either
+    # constant were retuned.
+    #
+    # Measured over the 44 clip sessions: 335 trials move engaged -> disengaged (8.9% of the working
+    # class) and the mean engaged hit rate goes 0.8187 -> 0.8313.
+    #
+    # BEHAVIOUR ONLY. `engagement_gate` is untouched, so the imaging path -- the frozen decoders and
+    # the poststroke_lick / miss_working / stopped classes built in `position_coding_directions` --
+    # keeps its own trial assignment. `reference_engagement` has exactly one caller.
+    if not_eng.any():
+        first = int(np.flatnonzero(not_eng)[0])
+        prior_ok = np.flatnonzero(np.isin(pos[:first], ref_names) & resp[:first])
+        onset = int(prior_ok[-1]) + 1 if prior_ok.size else 0
+        not_eng[onset:] = True
+
     starts = np.flatnonzero(not_eng)
     return not_eng, {"n_disengaged": int(not_eng.sum()),
                      "tail_start": int(starts[0]) if starts.size else None,

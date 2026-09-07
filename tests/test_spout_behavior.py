@@ -805,3 +805,71 @@ def test_the_union_gate_marks_interleaved_far_trials_inside_a_tail():
     not_eng, _info = sb.reference_engagement(resp, pos, tail_min_misses=6)
     assert not_eng[-16:].all()
     assert not not_eng[:20].any()
+
+
+def test_disengagement_starts_at_the_first_miss_of_the_run_that_trips_it():
+    """The gate is backdated to the run's onset, not to where the rolling mean crossed.
+
+    Priya, 2026-09-07. Both arms mark late by construction: the collapse arm needs ~8 reference
+    misses to drag a 15-trial trailing mean under 0.5, and every one of those was scored `working`
+    -- an engaged failure -- although the animal had already stopped. Over the 44 sessions used for
+    the lab-meeting clips this moved 335 trials, 8.9% of the working class.
+    """
+    import numpy as np
+
+    from wfield_local.spout_behavior import reference_engagement
+
+    pos = np.array(["close_L"] * 22)
+    resp = np.array([True] * 10 + [False] * 12)
+    ne, info = reference_engagement(resp, pos)
+    assert int(np.flatnonzero(ne)[0]) == 10, "must start at the FIRST miss, not the crossing"
+    assert info["n_disengaged"] == 12
+
+
+def test_a_recovering_dip_is_still_ignored_after_backdating():
+    """Backdating must not turn a recovered dip into a disengagement.
+
+    The non-recovery requirement is what separates satiety from a motor patch (PS94_0817 drops
+    near trial 420 and is back at 0.95 by 480). Backdating only moves the START of a collapse that
+    already qualified; it must never create one.
+    """
+    import numpy as np
+
+    from wfield_local.spout_behavior import reference_engagement
+
+    pos = np.array(["close_L"] * 40)
+    resp = np.array([True] * 10 + [False] * 10 + [True] * 20)
+    ne, _ = reference_engagement(resp, pos)
+    assert not ne.any()
+
+
+def test_backdating_never_reaches_past_the_last_reference_response():
+    """Trials before the animal last demonstrably responded stay engaged."""
+    import numpy as np
+
+    from wfield_local.spout_behavior import reference_engagement
+
+    # far misses interleaved BEFORE the terminal reference run must not be swept in
+    pos = np.array(["close_L", "far_R", "far_R"] * 5 + ["close_L"] * 10)
+    resp = np.array([True, False, False] * 5 + [False] * 10)
+    ne, _ = reference_engagement(resp, pos)
+    first = int(np.flatnonzero(ne)[0])
+    last_ref_ok = max(i for i, (p, r) in enumerate(zip(pos, resp)) if p == "close_L" and r)
+    assert first == last_ref_ok + 1, (first, last_ref_ok)
+
+
+def test_the_imaging_gate_is_untouched_by_the_behaviour_backdating():
+    """`engagement_gate` feeds the frozen decoders and must keep its own onset.
+
+    `reference_engagement` is behaviour-side and has exactly one caller; the imaging path calls
+    `engagement_gate` directly. If backdating ever leaked into the shared function, the decoders'
+    trial classes would move silently.
+    """
+    import numpy as np
+
+    from wfield_local.precue_engagement_states import engagement_gate
+
+    pos = np.array(["close_L"] * 22)
+    resp = np.array([True] * 10 + [False] * 12)
+    ne = engagement_gate(np.arange(len(pos)), resp, pos)
+    assert int(np.flatnonzero(ne)[0]) > 10, "imaging gate must still mark at the crossing"
