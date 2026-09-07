@@ -1,9 +1,14 @@
-"""The epoch audit runs every nightly, reports, and never reassigns.
+"""The epoch audit runs every nightly. It DERIVES chronic and only REPORTS acute.
 
 Both verifiers existed and neither was called by anything until 2026-09-07 -- `epochs` was
 checkable in principle and unchecked in practice. These tests are mostly about the ways a wired-in
 check can still fail to be a check: reading the wrong column, blocking the deck, or being unable to
 say "I did not run" as distinct from "nothing is wrong".
+
+The two contracts are tested separately and must not be merged. Acute disagreements are REPORTED and
+the stored `EPOCH_SPEC` stands; chronic is DERIVED and the run's figures are built on the result. A
+reader who confuses them either edits a spec that is no longer consulted for that boundary, or
+assumes a panel moved when nothing did. Derivation itself is tested in `test_derived_epochs.py`.
 """
 import pandas as pd
 import pytest
@@ -103,33 +108,58 @@ def test_the_cli_exits_zero_even_when_behaviour_has_moved(monkeypatch, capsys):
     assert epoch_audit.main([]) == 0
     out = capsys.readouterr().out
     assert "DISAGREE" in out
-    assert "NOT updated automatically" in out
+    # THE TWO CONTRACTS MUST BE DISTINGUISHED IN THE OUTPUT. Acute is reported only; chronic has
+    # already been applied to this run's figures. A reader who confuses them either edits a spec
+    # that is no longer consulted, or assumes a boundary moved when nothing did.
+    assert "ACUTE" in out and "reported only" in out
+    assert "CHRONIC is derived" in out and "epoch_boundaries.json" in out
 
 
-def test_the_nightly_keeps_drift_out_of_the_failure_list(monkeypatch):
-    """Drift goes to EPOCH_DRIFT and never to FAILURES, and a CRASH goes to FAILURES.
+def test_the_nightly_keeps_a_moved_boundary_out_of_the_failure_list(monkeypatch):
+    """A MOVED boundary goes to EPOCH_DRIFT and never to FAILURES; a CRASH goes to FAILURES.
 
-    The two halves are the point. Drift in FAILURES would block the deck; a crash NOT in FAILURES
-    would let the audit silently stop running, which is how both verifiers came to be uncalled for
-    ten days while reading as though they were wired in."""
+    Both halves matter. A boundary moving is the expected consequence of deriving them, and
+    `nightly_figs.cli` failures stop the deck publishing -- so routing movement into FAILURES would
+    withhold the deck on exactly the nights the movement most needs to be seen. A crash NOT in
+    FAILURES would let resolution silently stop running, which is how both verifiers came to be
+    uncalled for ten days while reading as though they were wired in."""
+    from wfield_local import epochs
     from wfield_local import nightly_figs as nf
 
+    monkeypatch.delenv("WIDEFIELD_EPOCHS_PINNED", raising=False)
+    epochs.clear_resolved()
     monkeypatch.setattr(nf, "FAILURES", [])
     monkeypatch.setattr(nf, "EPOCH_DRIFT", [])
-    monkeypatch.setattr(epoch_audit, "audit", lambda **k: {"available": True, "position": POS,
-                                                           "n_sessions": 1, "csv": "x",
-                                                           "acute": {}, "chronic": {}})
-    monkeypatch.setattr(epoch_audit, "disagreements", lambda r: ["PS93 chronic: 11 vs None"])
-    nf._epoch_audit()
-    assert nf.EPOCH_DRIFT == ["PS93 chronic: 11 vs None"]
-    assert nf.FAILURES == [], "drift must not block the deck"
+    monkeypatch.setattr(epoch_audit, "resolve", lambda **k: {
+        "available": True, "spec": {"PS93": {"chronic_from": 11}},
+        "changes": ["PS93 chronic_from: None -> 11"], "path": "x",
+        "report": {"available": True, "position": POS, "n_sessions": 1, "csv": "x",
+                   "acute": {}, "chronic": {}}})
+    nf._resolve_epochs()
+    assert nf.EPOCH_DRIFT == ["PS93 chronic_from: None -> 11"]
+    assert nf.FAILURES == [], "a moved boundary must not block the deck"
 
     def _boom(**k):
         raise RuntimeError("cohort table unreadable")
 
-    monkeypatch.setattr(epoch_audit, "audit", _boom)
-    nf._epoch_audit()
-    assert any("epoch audit" in f for f in nf.FAILURES), "a crashed audit must be a failure"
+    monkeypatch.setattr(epoch_audit, "resolve", _boom)
+    nf._resolve_epochs()
+    assert any("epoch resolution" in f for f in nf.FAILURES), "a crash must be a failure"
+
+
+def test_resolution_is_skipped_when_pinned(monkeypatch):
+    """`WIDEFIELD_EPOCHS_PINNED=1` must not merely be ignored downstream -- nothing may be derived
+    or written, so rebuilding an old figure set cannot overwrite the boundaries file."""
+    from wfield_local import nightly_figs as nf
+
+    monkeypatch.setenv("WIDEFIELD_EPOCHS_PINNED", "1")
+    monkeypatch.setattr(nf, "FAILURES", [])
+    monkeypatch.setattr(nf, "EPOCH_DRIFT", [])
+    called = []
+    monkeypatch.setattr(epoch_audit, "resolve", lambda **k: called.append(1))
+    nf._resolve_epochs()
+    assert called == [], "pinned runs must not derive"
+    assert nf.FAILURES == [] and nf.EPOCH_DRIFT == []
 
 
 @pytest.mark.skipif(not epoch_audit._cohort_path().exists(),

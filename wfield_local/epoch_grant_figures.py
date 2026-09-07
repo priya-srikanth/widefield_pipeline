@@ -166,8 +166,12 @@ def fig_behaviour_timecourse(out_dir):
                 per_day[q].setdefault(an, {})[ef.PRE_X] = float(h / n)
     if not any(per_day.values()):
         return None
-    bounds = {a: (spec["acute"][1], spec["subacute_from"], spec.get("chronic_from"))
-              for a, spec in epochs.EPOCH_SPEC.items()}
+    # `spec_for`, not EPOCH_SPEC: this is THE figure the boundaries are read off, so it must draw
+    # the ones actually in force. Reading the stored dict here would show a chronic line the pooled
+    # panels beside it disagree with, and the figure whose job is to let a reader check the
+    # boundaries would be the one lying about them.
+    bounds = {a: (s_["acute"][1], s_["subacute_from"], s_.get("chronic_from"))
+              for a in epochs.EPOCH_SPEC for s_ in [epochs.spec_for(a)] if s_}
     return ef.timecourse_panel(
         per_day, out_dir, name="epoch_1c_behaviour_timecourse",
         title="Hit rate by spout position over days since lesion, one dot per animal per day",

@@ -68,8 +68,10 @@ FAILURES: list[str] = []
 #: refreshed from one left over from an earlier run.
 RUN_START: float = time.time()
 
-#: Animals whose behaviour has moved away from the stored epoch boundaries, from `epoch_audit`.
-#: NOT a failure and deliberately not in FAILURES -- see `_epoch_audit`.
+#: Epoch boundaries that MOVED between the previous run and this one, from `epoch_audit.resolve`.
+#: NOT a failure and deliberately not in FAILURES -- see `_resolve_epochs`. A boundary moving is the
+#: expected consequence of deriving them; routing it into FAILURES would stop the deck publishing
+#: on exactly the nights the movement most needs to be seen.
 EPOCH_DRIFT: list[str] = []
 
 
@@ -127,31 +129,76 @@ def _cli_many(cmds, jobs=None):
         list(pool.map(_run, cmds))
 
 
-def _epoch_audit():
-    """Check the stored epoch boundaries against tonight's behaviour. Logs; never reassigns.
+def _resolve_epochs():
+    """DERIVE tonight's epoch boundaries from behaviour, publish them, and log anything that moved.
+
+    MUST RUN BEFORE ANY FIGURE STEP. Every figure that stratifies by epoch reads `epochs.epoch_of`,
+    so resolving after the figures would render the deck on last run's boundaries and then write
+    tonight's to disk -- the deck and the file beside it disagreeing, with nothing to show which the
+    panels used. It runs before `_per_day_figs` for that reason and no other.
+
+    IT PUBLISHES THROUGH A FILE because `grant_figures` and `epoch_grant_figures` are SUBPROCESSES:
+    they re-import `epochs` fresh and read the boundaries from disk. Installing them only here would
+    build the per-day figures on derived boundaries and the pooled ones on stored boundaries, and
+    every figure would render without complaint.
 
     IN-PROCESS, NOT THROUGH `cli`. `cli` routes a nonzero exit into FAILURES and a run with failed
-    steps refuses to publish the deck -- so if this ran that way and an animal's behaviour moved,
-    the night's entire deck would be withheld over the one outcome the check exists to discover.
-    `epoch_audit.main` returns 0 unconditionally for the same reason; running it in-process makes
-    that guarantee structural rather than a convention a future edit could break.
+    steps refuses to publish the deck -- so a boundary MOVING, which is the expected outcome this
+    exists to detect, would withhold the night's entire deck.
 
-    A CRASH here IS a failure, and is reported as one -- an audit that silently stopped running is
-    how `verify_against_behaviour` sat uncalled for ten days while reading as if it were wired in.
+    A CRASH here IS a failure. An audit that silently stopped running is how both verifiers sat
+    uncalled for ten days while reading as though they were wired in. On a crash the stored
+    `EPOCH_SPEC` stays in force, which is the safe direction: figures are built on the last
+    hand-checked boundaries rather than on nothing.
     """
     try:
-        from wfield_local import epoch_audit
-        rep = epoch_audit.audit()
-        for line in epoch_audit.report_lines(rep):
+        from wfield_local import epoch_audit, epochs
+        if epochs.pinned():
+            log("== epoch boundaries PINNED to EPOCH_SPEC (WIDEFIELD_EPOCHS_PINNED) -- "
+                "not derived this run ==")
+            return
+        res = epoch_audit.resolve()
+        for line in epoch_audit.report_lines(res["report"]):
             log("   " + line)
-        EPOCH_DRIFT.extend(epoch_audit.disagreements(rep))
-        if not rep.get("available"):
-            # NOT the same as agreement, and must not read like it: the behaviour stage has not
-            # produced its cohort table, so nothing was checked at all.
-            log("  !! epoch boundaries NOT CHECKED this run (no cohort behaviour table)")
+        if not res["available"]:
+            # NOT the same as "nothing changed", and must not read like it: without the cohort
+            # table nothing was derived, and the stored spec is what the figures will use.
+            log("  !! epoch boundaries NOT DERIVED this run (no cohort behaviour table); "
+                "figures will use the stored EPOCH_SPEC")
+            return
+        log(f"   epoch boundaries in force: {epochs.resolved_source()}")
+        if res.get("first_run"):
+            # DISTINCT FROM "moved". No previous file means nothing to have moved from; saying the
+            # panels are not comparable here would be false and would teach the reader to skip the
+            # message on the night it is true.
+            log("   (first run to record epoch boundaries -- nothing to compare against)")
+        if res["changes"]:
+            # THE RECORD OF WHY PANELS MOVED. A stored boundary could not change without someone
+            # editing it; a derived one can, so the run that moved it has to say so.
+            EPOCH_DRIFT.extend(res["changes"])
+            log(f"== EPOCH BOUNDARIES MOVED since the last run ({len(res['changes'])}) ==")
+            for c in res["changes"]:
+                log(f"     {c}")
+            log("   Pooled epoch panels in this deck are NOT comparable to the previous one.")
     except Exception as ex:                                       # noqa: BLE001
-        FAILURES.append("epoch audit")
-        log(f"  !! epoch audit: {type(ex).__name__} {str(ex)[:120]}")
+        FAILURES.append("epoch resolution")
+        log(f"  !! epoch resolution: {type(ex).__name__} {str(ex)[:120]} "
+            "-- falling back to the stored EPOCH_SPEC")
+
+
+def _epoch_boundaries_used():
+    """The epoch boundaries this run's figures were built on, for the run record.
+
+    Soft-fails to None. A run record that cannot be written is worse than one missing a field, and
+    this is the field most likely to fault on a box with no resolver.
+    """
+    try:
+        from wfield_local import epochs
+        return {"source": epochs.resolved_source(),
+                "chronic_from": {a: epochs.spec_for(a).get("chronic_from")
+                                 for a in sorted(epochs.EPOCH_SPEC)}}
+    except Exception:                                             # noqa: BLE001
+        return None
 
 
 def _write_run_record(deck_out, date, tag):
@@ -171,10 +218,12 @@ def _write_run_record(deck_out, date, tag):
            "started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(RUN_START)),
            "finished": time.strftime("%Y-%m-%d %H:%M:%S"),
            "failed_steps": sorted(set(FAILURES)),
-           # SEPARATE FROM failed_steps, and it must stay separate: this is behaviour disagreeing
-           # with `epochs.EPOCH_SPEC`, which is a finding to act on rather than a broken step, and
-           # folding it into the failure list would stop the deck publishing over it.
+           # SEPARATE FROM failed_steps, and it must stay separate: a boundary moving is a finding
+           # about the animals, not a broken step, and folding it into the failure list would stop
+           # the deck publishing over it. Paired with `epoch_boundaries`, which records what this
+           # run's figures were actually built on -- the two answer "did it move?" and "to what?".
            "epoch_drift": list(EPOCH_DRIFT),
+           "epoch_boundaries": _epoch_boundaries_used(),
            "deck_published": not FAILURES}
     try:
         p = Path(deck_out).with_suffix(".run.json")
@@ -444,6 +493,13 @@ def main():
         log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
     per_day = sorted(set(per_day) | set(backfill))
 
+    # DERIVE THE EPOCH BOUNDARIES BEFORE ANY FIGURE IS DRAWN. Every epoch-stratified figure reads
+    # `epochs.epoch_of`, so this cannot move later without the deck and the boundaries file beside
+    # it describing different epochs. Runs unconditionally -- including on `--only` and
+    # `--skip-grant` runs -- because it reads the behaviour stage's cohort table rather than
+    # anything the figs stage produces.
+    _resolve_epochs()
+
     log(f"per-day dates={per_day} cross-session dates={from_dates} tag={tag} out={out}")
     _per_day_figs(per_day, out, from_dates, only)
 
@@ -682,14 +738,6 @@ def main():
         else:
             cli("wfield_local.epoch_grant_figures")
 
-    # DO THE STORED EPOCH BOUNDARIES STILL MATCH BEHAVIOUR? Runs unconditionally -- including on
-    # `--only` and `--skip-grant` runs, because it reads the behaviour stage's cohort table rather
-    # than anything the figs stage produces, and a night that skipped the pooled figures is exactly
-    # a night nobody would otherwise look at the boundaries.
-    #
-    # BEFORE the deck, so the verdict is logged and recorded whatever the deck then does with it.
-    _epoch_audit()
-
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
@@ -765,11 +813,12 @@ def main():
     # of log lines above this point. A drift notice nobody scrolls back far enough to see is the
     # same as no notice. Exit code is deliberately unaffected -- see `_epoch_audit`.
     if EPOCH_DRIFT:
-        log(f"== EPOCH BOUNDARIES: behaviour disagrees with `epochs.EPOCH_SPEC` on "
-            f"{len(EPOCH_DRIFT)} boundary/ies ==")
+        log(f"== EPOCH BOUNDARIES MOVED THIS RUN ({len(EPOCH_DRIFT)}) ==")
         for d in EPOCH_DRIFT:
             log(f"     {d}")
-        log("   The spec was NOT changed. Edit `epochs.EPOCH_SPEC` and rerun if the change is real.")
+        log("   The epochs under this deck differ from the previous one; its pooled epoch panels "
+            "are not comparable. Boundaries used are recorded in epoch_boundaries.json beside the "
+            "deck, and WIDEFIELD_EPOCHS_PINNED=1 rebuilds under the stored EPOCH_SPEC.")
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:

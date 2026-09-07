@@ -49,6 +49,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 from wfield_local import config
+from wfield_local import epochs as _epochs
 from wfield_local.paths import PathResolver
 
 NAVY = RGBColor(0x1F, 0x33, 0x55)
@@ -3594,11 +3595,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "summarised from one set of bootstrap draws, so the corrected interval "
                   "necessarily contains the uncorrected one. Zero is drawn.")
     if _epoch.exists():
+        # THE BOUNDARIES ARE NAMED ON THE DIVIDER because `chronic_from` is DERIVED each run
+        # (2026-09-07). A deck that shows epoch-stratified panels without saying which epochs it
+        # used cannot be compared with last week's, and the boundaries can now differ between the
+        # two without anyone having edited anything.
+        _bnd = ", ".join(
+            f"{a} chronic from day {_epochs.spec_for(a).get('chronic_from')}"
+            if _epochs.spec_for(a).get("chronic_from") is not None else f"{a} not chronic"
+            for a in sorted(_epochs.EPOCH_SPEC))
         divider("I. POOLED EPOCH FIGURES — pre / acute / subacute / chronic",
                 "Built by `python -m wfield_local.epoch_grant_figures` into "
                 "<labcams>/grant_figures/epoch. Pooled across all four animals and stratified by "
                 "recovery epoch instead of a time axis. Speaker notes are written as grant figure "
-                "legends.")
+                "legends."
+                f"\n\nBOUNDARIES USED IN THIS DECK ({_epochs.resolved_source()}): {_bnd}. "
+                f"Chronic is derived from behaviour each run -- {_epochs.CHRONIC_RULE}.")
         # NUMBERED BY POSITION. The keys used to be written into the data, so inserting a
         # family in narrative order meant renumbering every entry after it -- and the cost of not
         # doing that was 33 of 75 figures simply not referenced anywhere, which the deck's own

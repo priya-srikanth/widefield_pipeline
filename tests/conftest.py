@@ -116,7 +116,7 @@ def no_share_writes(monkeypatch):
     yield
 
 @pytest.fixture(autouse=True)
-def no_real_cache_writes(monkeypatch, tmp_path_factory):
+def no_real_cache_writes(monkeypatch, tmp_path):
     """Point every cache read and write at a per-test directory.
 
     REDIRECTED RATHER THAN REFUSED, unlike the share guard above. Caching is meant to be
@@ -129,5 +129,27 @@ def no_real_cache_writes(monkeypatch, tmp_path_factory):
     themselves still win -- they run after this.
     """
     from wfield_local import session_cache
-    monkeypatch.setattr(session_cache, "CACHE_DIR", tmp_path_factory.mktemp("session_cache"))
+    monkeypatch.setattr(session_cache, "CACHE_DIR", tmp_path / "session_cache")
     yield
+
+
+@pytest.fixture(autouse=True)
+def pinned_epoch_boundaries(monkeypatch):
+    """Run the suite against the STORED `EPOCH_SPEC`, never against the last real run's output.
+
+    `epochs` learned on 2026-09-07 to derive `chronic_from` from behaviour and publish it to
+    `epoch_boundaries.json` beside the deck, which every process picks up lazily. That is right for
+    the pipeline and wrong for a test suite: the assertions about which sessions land in which epoch
+    would start depending on what the behaviour box wrote last night, and would pass or fail on
+    different boxes for reasons no test names.
+
+    Pinning also keeps the guard honest in the other direction -- tests that exercise the DERIVED
+    path opt in explicitly by setting `WIDEFIELD_EPOCH_BOUNDARIES` at a tmp_path and clearing the
+    pin, so a test only sees derived boundaries when it says it wants them.
+    """
+    from wfield_local import epochs
+
+    monkeypatch.setenv("WIDEFIELD_EPOCHS_PINNED", "1")
+    epochs.clear_resolved()
+    yield
+    epochs.clear_resolved()

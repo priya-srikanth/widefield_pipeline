@@ -17,13 +17,23 @@ Read as session INDEX, Priya's specification ("PS94 acute 1-7, subacute 9+") is 
 has eight sessions and no ninth. Read as DAYS SINCE STROKE it is exact, and the apparent gaps are
 simply days nobody recorded. Verified below and pinned in `tests/test_epochs.py`.
 
-WHERE THE BOUNDARIES CAME FROM. The rule is behavioural: acute = the days on which far_R accuracy is
-below 25% of that animal's pre-stroke baseline. `verify_against_behaviour` re-derives the boundaries
-from the behaviour tables and reports whether they agree with the stored specification; it is a CHECK,
-not the source. The specification is stored explicitly because a rule evaluated at figure time would
-silently redraw every epoch boundary the moment a session was added or a behaviour metric changed --
-and an epoch boundary that moves under a published figure is exactly the class of failure this
-codebase keeps finding (`curated_dates`, the frozen models, the 0817 pooling).
+WHERE THE BOUNDARIES COME FROM, and it differs by epoch since 2026-09-07:
+
+  * ACUTE / SUBACUTE are STORED in `EPOCH_SPEC`. The rule is behavioural -- acute = the days on
+    which far_R accuracy is below 25% of that animal's pre-stroke baseline -- and
+    `verify_against_behaviour` re-derives it and reports agreement, but it is a CHECK, not the
+    source. It currently reproduces the stored boundaries exactly on all four animals, so deriving
+    them would change nothing today while adding a way for a published acute boundary to move.
+  * CHRONIC is DERIVED from behaviour every run (Priya, 2026-09-07: *"I'd like the pipeline to run
+    the epoch definitions and just determine if we have met 'chronic' criteria, order sessions into
+    epochs appropriately, and analyze"*). See the DERIVED BOUNDARIES section below.
+
+The standing objection to deriving a boundary is that it can move between two runs and silently
+redraw published panels -- the failure class this codebase keeps finding (`curated_dates`, the
+frozen models, the 0817 pooling). Deriving does not remove that risk, so it is answered directly
+rather than avoided: every run writes the boundaries it used to `epoch_boundaries.json` beside the
+deck, the nightly diffs that file against the previous run and logs every boundary that moved, and
+`WIDEFIELD_EPOCHS_PINNED=1` reproduces an older figure set under `EPOCH_SPEC` exactly.
 
 CHRONIC WAS ADDED 2026-09-07, and this docstring used to promise it would cost one entry per animal
 in `EPOCH_SPEC` plus its name in `EPOCHS`, with nothing else needing to know. That was not true, and
@@ -45,6 +55,9 @@ audit, which is why the parity test exists rather than a comment asking the next
 from __future__ import annotations
 
 import datetime as dt
+import json
+import os
+from pathlib import Path
 
 from wfield_local import config
 
@@ -144,6 +157,151 @@ CHRONIC_K_SD = 1.0 / 3.0
 CHRONIC_K_RES = 1.5
 CHRONIC_MIN_TAIL = 3
 
+# --- DERIVED boundaries -------------------------------------------------------------------------
+# Priya, 2026-09-07: "I'd like the pipeline to run the epoch definitions and just determine if we
+# have met 'chronic' criteria, order sessions into epochs appropriately, and analyze."
+#
+# So `chronic_from` is now DERIVED FROM BEHAVIOUR each run rather than hand-edited. `EPOCH_SPEC`
+# remains as the fallback and as the acute/subacute specification, which stays stored: the acute
+# rule reproduces its boundaries exactly on all four animals, so deriving it would change nothing
+# today while adding a way for a published acute boundary to move.
+#
+# THE OBJECTION TO DERIVING WAS NEVER "it might be wrong". It was that a boundary can move between
+# two runs and silently redraw published panels with no record of why. Deriving does not remove
+# that risk, so the risk is answered directly instead:
+#
+#   * every run WRITES the boundaries it used to `epoch_boundaries.json` beside the deck, so a
+#     figure set can always be asked which epochs it was built from;
+#   * the nightly DIFFS that file against the previous run and logs every boundary that moved,
+#     which is the "record of why" the stored spec used to provide by refusing to change;
+#   * `WIDEFIELD_EPOCHS_PINNED=1` disables the whole mechanism and falls back to `EPOCH_SPEC`, for
+#     reproducing an older figure set exactly.
+#
+# IT MUST GO THROUGH A FILE, not a module global. `nightly_figs` runs `grant_figures` and
+# `epoch_grant_figures` as SUBPROCESSES via `cli()`, which re-import this module fresh -- a value
+# set in the parent does not propagate, and half the deck would then be built on stored boundaries
+# and half on derived ones. That failure would render cleanly and be invisible.
+BOUNDARIES_FILE = "epoch_boundaries.json"
+
+#: What THIS process resolved, or None if it has not looked yet. `_RESOLVE_TRIED` separates "looked
+#: and found nothing" from "has not looked", so a missing file is not re-stat'ed on every call.
+_RESOLVED: dict | None = None
+_RESOLVE_TRIED: bool = False
+_RESOLVED_SOURCE: str | None = None
+
+
+def pinned() -> bool:
+    """True when derivation is disabled and `EPOCH_SPEC` is authoritative.
+
+    Set `WIDEFIELD_EPOCHS_PINNED=1` to rebuild an older figure set under the boundaries it was
+    published with, rather than under whatever behaviour now implies.
+    """
+    return os.environ.get("WIDEFIELD_EPOCHS_PINNED", "") not in ("", "0")
+
+
+def boundaries_path() -> Path | None:
+    """Where the derived boundaries live: beside the deck, on the share both boxes read.
+
+    Overridable with `WIDEFIELD_EPOCH_BOUNDARIES`, which the tests use so the suite never depends
+    on -- or is perturbed by -- whatever the last real run wrote.
+    """
+    override = os.environ.get("WIDEFIELD_EPOCH_BOUNDARIES")
+    if override:
+        return Path(override)
+    try:
+        return Path(config.resolver().root("labcams")) / BOUNDARIES_FILE
+    except Exception:                                             # noqa: BLE001
+        return None                # no resolver on this box -> stored spec, not a crash
+
+
+def set_resolved(mapping, *, source="explicit") -> None:
+    """Install derived boundaries for this process. ``{animal: {"chronic_from": int|None}}``."""
+    global _RESOLVED, _RESOLVE_TRIED, _RESOLVED_SOURCE
+    _RESOLVED = {a: dict(v) for a, v in (mapping or {}).items()}
+    _RESOLVE_TRIED = True
+    _RESOLVED_SOURCE = source
+
+
+def clear_resolved() -> None:
+    """Forget any derived boundaries AND the fact that we looked. Mainly for tests."""
+    global _RESOLVED, _RESOLVE_TRIED, _RESOLVED_SOURCE
+    _RESOLVED, _RESOLVE_TRIED, _RESOLVED_SOURCE = None, False, None
+
+
+def resolved_source() -> str:
+    """``'stored'``, ``'pinned'``, or the path the boundaries were loaded from. For captions."""
+    _ensure_resolved()
+    if pinned():
+        return "pinned"
+    return _RESOLVED_SOURCE or "stored"
+
+
+def save_boundaries(mapping, path=None) -> Path | None:
+    """Write the boundaries this run used, so a figure set can be asked what it was built from."""
+    path = Path(path) if path is not None else boundaries_path()
+    if path is None:
+        return None
+    # THE RULE AND ITS CONSTANTS TRAVEL WITH THE NUMBERS. A file saying only "PS92: 11" is
+    # unfalsifiable a month later -- it cannot be checked against the rule it claims to be the
+    # output of, and a constant that changed in between would leave no trace.
+    payload = {"chronic_rule": CHRONIC_RULE,
+               "constants": {"K_SD": CHRONIC_K_SD, "K_RES": CHRONIC_K_RES,
+                             "LEVEL_MIN": CHRONIC_LEVEL_MIN, "MIN_TAIL": CHRONIC_MIN_TAIL},
+               "boundaries": {a: dict(v) for a, v in sorted((mapping or {}).items())}}
+    from wfield_local import writeguard
+    writeguard.assert_writable(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    return path
+
+
+def load_boundaries(path=None):
+    """``{animal: {...}}`` from the boundaries file, or None if absent/unreadable.
+
+    Unreadable is deliberately the same as absent: a truncated file from a killed run must fall
+    back to the stored spec, not abort every figure in the deck.
+    """
+    path = Path(path) if path is not None else boundaries_path()
+    if path is None or not path.exists():
+        return None
+    try:
+        return (json.loads(path.read_text(encoding="utf-8")) or {}).get("boundaries") or None
+    except Exception:                                             # noqa: BLE001
+        return None
+
+
+def _ensure_resolved() -> None:
+    global _RESOLVE_TRIED, _RESOLVED, _RESOLVED_SOURCE
+    if _RESOLVE_TRIED or pinned():
+        return
+    _RESOLVE_TRIED = True
+    p = boundaries_path()
+    got = load_boundaries(p)
+    if got:
+        _RESOLVED = {a: dict(v) for a, v in got.items()}
+        _RESOLVED_SOURCE = str(p)
+
+
+def spec_for(animal: str) -> dict | None:
+    """The epoch specification in force for one animal: stored, overlaid with anything derived.
+
+    A MERGE, not a replacement. The derived file carries only `chronic_from`; acute and
+    subacute_from continue to come from `EPOCH_SPEC`, and a derived file that somehow lacked a key
+    must not delete a boundary that every published figure depends on.
+    """
+    base = EPOCH_SPEC.get(animal)
+    if base is None:
+        return None
+    _ensure_resolved()
+    extra = (_RESOLVED or {}).get(animal)
+    if not extra:
+        return base
+    out = dict(base)
+    for k in ("chronic_from",):
+        if k in extra:
+            out[k] = extra[k]
+    return out
+
 
 def _date(mmdd: str) -> dt.date:
     """MMDD in the study year. The cohort is a single 2026 season; `config` stores MMDD throughout."""
@@ -188,7 +346,7 @@ def epoch_of(label: str) -> str | None:
         return "pre"
     if phase != "post":
         return None
-    spec = EPOCH_SPEC.get(animal)
+    spec = spec_for(animal)
     n = days_since_stroke(label)
     if spec is None or n is None:
         return None

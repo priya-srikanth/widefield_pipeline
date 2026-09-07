@@ -6779,3 +6779,85 @@ today's behaviour still matches `EPOCH_SPEC`. It is deliberately not a tautology
 genuinely crosses a boundary this test fails, and that failure is the prompt to edit `EPOCH_SPEC`
 and rerun. The spec is never updated automatically — a boundary that moved on its own would redraw
 published panels silently, which is the whole reason it is stored rather than derived.
+
+## 2026-09-07 (later still) — `chronic_from` is DERIVED each run, and the file is what makes that safe
+
+Priya: *"I'd like the pipeline to run the epoch definitions and just determine if we have met
+'chronic' criteria, order sessions into epochs appropriately, and analyze."*
+
+**`chronic_from` is now computed from behaviour on every nightly run and applied to the figures.**
+`EPOCH_SPEC` remains the fallback and keeps the acute/subacute specification.
+
+### Only chronic is derived
+
+Acute/subacute stay stored. `verify_against_behaviour` reproduces their boundaries exactly on all
+four animals today, so deriving them would change nothing while adding a way for a published acute
+boundary to move. The two contracts now differ and the audit output says which is which: acute
+disagreements are REPORTED and the stored spec stands; chronic is DERIVED and this run's figures are
+built on the result.
+
+### The objection was never that the rule might be wrong
+
+It was that a boundary can move between two runs and silently redraw published panels — the failure
+class this repo keeps finding (`curated_dates`, the frozen models, the 0817 pooling). Deriving does
+not remove that risk, so it is answered directly rather than avoided:
+
+  * **every run writes `epoch_boundaries.json` beside the deck** — the boundaries used, plus the rule
+    text and its constants. A file saying only "PS92: 11" would be unfalsifiable a month later;
+    carrying the rule means a figure set can be checked against what it claims to be the output of.
+  * **the nightly diffs it against the previous run and names every boundary that moved**, in the log
+    and in the run record's `epoch_drift` field. That is the record the stored spec used to provide
+    by refusing to change at all.
+  * **the deck's section I divider states the boundaries it was built on.** A deck showing
+    epoch-stratified panels without saying which epochs cannot be compared with last week's.
+  * **`WIDEFIELD_EPOCHS_PINNED=1`** rebuilds an older figure set under `EPOCH_SPEC` exactly.
+
+### It has to go through a file, not a module global
+
+`nightly_figs` runs `grant_figures` and `epoch_grant_figures` as SUBPROCESSES via `cli()`. They
+re-import `epochs` fresh, so a boundary installed only in the parent would build the per-day figures
+on derived boundaries and the pooled ones on stored boundaries — and every figure would render
+without complaint. `tests/test_derived_epochs.py` asserts this with a real child process, because an
+in-process check cannot tell "published through the file" from "left in a global".
+
+### Ordering: resolution moved to before the first figure
+
+It was originally wired in before the DECK, which was wrong. Every epoch-stratified figure reads
+`epochs.epoch_of`, so resolving after the figures would render the deck on last run's boundaries and
+then write tonight's to disk — the deck and the file beside it describing different epochs, with
+nothing to say which the panels used.
+
+### Failure directions, all chosen deliberately
+
+  * **Behaviour unavailable → derive nothing, write nothing.** The stored spec stays in force. A
+    missing cohort table must not silently move every animal to "no chronic epoch" and restage the
+    whole deck on a mount failure.
+  * **Truncated boundaries file → fall back to stored.** A run killed mid-write must not take every
+    figure in the deck down with it.
+  * **A moved boundary is NOT a failed step.** `cli` failures stop the deck publishing, so routing
+    movement into `FAILURES` would withhold the deck on exactly the nights the movement most needs
+    to be seen. It goes to `EPOCH_DRIFT` instead.
+  * **A CRASH in resolution IS a failed step.** Resolution that silently stopped running is how both
+    verifiers came to be uncalled for ten days while reading as though they were wired in.
+  * **No previous file ≠ everything moved.** The first run — and any run after the file is deleted or
+    the share remounted — reports "first run to record boundaries", not four spurious movements.
+    Announcing that the epochs changed when they did not would train the reader to skip the one
+    message that matters on the night it is true.
+  * **The merge is an overlay, not a replacement.** The derived file carries only `chronic_from`; if
+    it replaced the spec, `acute` and `subacute_from` would vanish and `epoch_of` would return None
+    for every post-stroke session — emptying every pooled panel while rendering cleanly.
+
+### The suite is pinned
+
+`tests/conftest.py` sets `WIDEFIELD_EPOCHS_PINNED=1` for every test. Otherwise assertions about
+which sessions land in which epoch would depend on what the behaviour box wrote last night, and
+would pass or fail differently per box for reasons no test names. Tests that exercise the derived
+path opt in explicitly.
+
+### Today it changes nothing, and that is pinned too
+
+The derived boundaries and `EPOCH_SPEC` agree on all four animals, so switching to derivation moved
+no published panel on the day it landed. `test_the_live_derivation_still_matches_the_stored_spec`
+asserts that — and is expected to fail when an animal genuinely crosses, at which point the STORED
+spec is the stale one and needs updating so the fallback (on a crash, or a missing cohort table)
+does not silently revert a real boundary.

@@ -1,16 +1,25 @@
-"""Do the STORED epoch boundaries still agree with the behaviour? Reports; never reassigns.
+"""Evaluate the epoch definitions against behaviour, every run. Derives chronic; checks acute.
 
-`epochs.EPOCH_SPEC` is deliberately a stored specification rather than a rule evaluated at figure
-time -- an epoch boundary that moves under a published figure is the failure class this codebase
-keeps finding. The cost of storing it is that behaviour can drift away from it silently, which is
-what this module exists to prevent: both verifiers are run every nightly and their verdict is
-logged and written into the run record.
+Priya, 2026-09-07: *"I'd like the pipeline to run the epoch definitions and just determine if we
+have met 'chronic' criteria, order sessions into epochs appropriately, and analyze."*
+
+TWO DIFFERENT CONTRACTS, and conflating them is the easiest mistake to make here:
+
+  * `resolve()` DERIVES `chronic_from` and installs it -- sessions really do move between epochs on
+    the strength of it, and the figures are built on the result.
+  * the acute half REPORTS ONLY. `verify_against_behaviour` re-derives the acute boundary and says
+    whether it agrees with the stored `EPOCH_SPEC`; it never reassigns. The acute rule currently
+    reproduces its stored boundaries exactly on all four animals, so deriving it would change
+    nothing today while adding a way for a published acute boundary to move.
 
 Until 2026-09-07 neither verifier was called by anything. `verify_against_behaviour` was mentioned
-only in deck prose and `derive_chronic_boundaries` not at all, so the specification was checkable in
-principle and unchecked in practice. That matters most for CHRONIC, which sits at the END of the
-series where every new session lands: PS93 currently fails the lick-plateau condition and nothing
-would have said so when it stops failing.
+only in deck prose and `derive_chronic_boundaries` not at all, so the definitions were checkable in
+principle and unchecked in practice.
+
+WHAT MAKES DERIVING SAFE IS THE RECORD, not the rule. `resolve` writes the boundaries it produced to
+`epoch_boundaries.json` beside the deck and diffs them against the previous run, so a figure set can
+always be asked which epochs it was built from and a run that moved one has to say so. See the
+DERIVED BOUNDARIES section of `epochs`.
 
 IT READS THE BEHAVIOUR STAGE'S OWN CSV, and does not re-derive anything from the DAQ. Two reasons,
 and the second is the important one:
@@ -99,6 +108,68 @@ def audit(rv=None, position=None):
             "chronic": epochs.derive_chronic_boundaries(hit, lick, position=position)}
 
 
+def derived_spec(rep) -> dict:
+    """``{animal: {"chronic_from": int|None}}`` from an audit report -- what the rule decided.
+
+    Only `chronic_from`. Acute and subacute stay stored (see the `epochs` module docstring), so this
+    is deliberately a PARTIAL specification that `epochs.spec_for` merges over the stored one.
+    """
+    return {animal: {"chronic_from": r.get("derived_day")}
+            for animal, r in sorted((rep.get("chronic") or {}).items())}
+
+
+def changes(new_spec, old_spec) -> list[str]:
+    """One line per boundary that MOVED between two runs. Empty when stable.
+
+    This is what replaces the stored spec's guarantee. A stored boundary could not move without
+    someone editing it; a derived one can, so the pipeline has to say when it did -- otherwise a
+    reader comparing two decks has no way to learn that the epochs under them are not the same.
+
+    ``old_spec`` of None means NO PREVIOUS FILE, and returns empty rather than reporting every
+    animal as moved. There is nothing to have moved from: the first run -- and any run after the
+    file is deleted or the share is remounted -- would otherwise announce that the epochs changed
+    and that the panels are not comparable, which is false and would train the reader to skip the
+    one message that matters when it is true.
+    """
+    if old_spec is None:
+        return []
+    out = []
+    for animal in sorted(set(new_spec) | set(old_spec)):
+        a = old_spec.get(animal, {}).get("chronic_from", "absent")
+        b = new_spec.get(animal, {}).get("chronic_from", "absent")
+        if a != b:
+            out.append(f"{animal} chronic_from: {a} -> {b}")
+    return out
+
+
+def resolve(rv=None, position=None, write=True):
+    """Derive the boundaries, install them for THIS process, and publish them for the subprocesses.
+
+    Returns ``{"report", "spec", "changes", "path", "available"}``.
+
+    THE FILE IS THE MECHANISM, not a log. `nightly_figs` runs `grant_figures` and
+    `epoch_grant_figures` as subprocesses, which re-import `epochs` fresh and pick the boundaries up
+    from disk; installing them only in the parent would build half the deck on derived boundaries
+    and half on stored ones, and it would render cleanly.
+
+    ON UNAVAILABLE BEHAVIOUR IT WRITES NOTHING AND INSTALLS NOTHING. The stored spec stays in force,
+    which is the safe direction: a missing cohort table must not silently move every animal to
+    "no chronic epoch" and quietly restage the whole deck.
+    """
+    rep = audit(rv=rv, position=position)
+    if not rep.get("available"):
+        return {"available": False, "report": rep, "spec": {}, "changes": [], "path": None}
+    spec = derived_spec(rep)
+    old = epochs.load_boundaries()
+    moved = changes(spec, old)
+    path = None
+    if write:
+        path = epochs.save_boundaries(spec)
+    epochs.set_resolved(spec, source=str(path) if path else "derived (not written)")
+    return {"available": True, "report": rep, "spec": spec, "changes": moved, "path": path,
+            "first_run": old is None}
+
+
 def disagreements(rep) -> list[str]:
     """One line per animal whose behaviour disagrees with the stored spec. Empty when all agree.
 
@@ -150,9 +221,9 @@ def report_lines(rep) -> list[str]:
     if bad:
         lines.append("  BEHAVIOUR HAS MOVED AWAY FROM THE STORED SPEC:")
         lines += [f"    {b}" for b in bad]
-        lines.append("    The spec is NOT updated automatically. Edit `epochs.EPOCH_SPEC` and "
-                     "rerun if the change is real -- an epoch boundary that moved on its own "
-                     "would redraw published panels silently.")
+        lines.append("    ACUTE disagreements are reported only -- edit `epochs.EPOCH_SPEC` if "
+                     "real. CHRONIC is derived and has already been applied to this run's "
+                     "figures; `epoch_boundaries.json` records what was used.")
     else:
         lines.append("  stored spec agrees with behaviour on every animal and both boundaries")
     return lines

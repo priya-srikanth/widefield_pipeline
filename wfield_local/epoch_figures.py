@@ -80,7 +80,7 @@ def epoch_of_day(animal: str, day: int) -> str | None:
     """
     if day < 0:
         return "pre"
-    spec = epochs.EPOCH_SPEC.get(animal)
+    spec = epochs.spec_for(animal)
     if spec is None:
         return None
     lo, hi = spec["acute"]
