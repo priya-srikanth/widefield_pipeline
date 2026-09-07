@@ -11,6 +11,9 @@ One command per date runs the camera nightly, in order:
   3. **Canonical behavior events** (:mod:`wfield_local.behavior_events`) -> per-session
      ``events/<PSxx>/<date>.npz`` (licks/rewards/running/quiet on the DAQ clock), the shared event
      identity every downstream analysis loads instead of re-detecting.
+  5. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
+     clips per trial class under ``example_clips/<animal>/<epoch>/<date>/``, plus a
+     manifest. Needs the template AND the trial table, so it runs last.
   4. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
      per-position metrics, and a refresh of the curated cross-session cohort summary.
 
@@ -31,7 +34,8 @@ import os
 import re
 from pathlib import Path
 
-from wfield_local import behavior_events, camera_sync, config, dropframe_qc, spout_behavior, writeguard
+from wfield_local import (behavior_clips, behavior_events, camera_sync, config, dropframe_qc,
+                          spout_behavior, writeguard)
 from wfield_local.paths import PathResolver
 
 BUF = 1 << 20
@@ -137,7 +141,7 @@ def upload(date, rv, animals=None, dry=False, verify=False) -> tuple[dict, list]
 
 
 def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, do_events=True,
-        do_behavior=True, dry=False, verify=False) -> int:
+        do_behavior=True, do_clips=True, dry=False, verify=False) -> int:
     """Upload -> dropped-frame QC -> alignment templates -> behavior events -> behavior figs for ``date``.
 
     Returns 0 on success, 1 on copy fail (stops before any downstream step)."""
@@ -170,6 +174,16 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
     if do_behavior:
         print("\n################ spout behavior figures (+ curated cohort) ################", flush=True)
         spout_behavior.run(date, rv, animals=animals, cohort=True, from_spec="curated", dry=dry)
+    if do_clips:
+        print("\n################ annotated example clips (cam4, cue-aligned) ################",
+              flush=True)
+        # LAST, because it needs BOTH steps above: the alignment template to find the cue
+        # frame, and the trial table to know what each trial was. INCREMENTAL -- this date
+        # only, about five minutes -- where re-cutting the whole cohort nightly would spend
+        # two hours reproducing clips that have not changed.
+        behavior_clips.run(date, rv, animals=animals, dry=dry)
+        if not dry:
+            behavior_clips.write_manifest(rv)
     print(f"\nCAMERA NIGHTLY {date} DONE", flush=True)
     return 0
 
@@ -184,6 +198,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-align", action="store_true", help="skip the alignment-template pass")
     ap.add_argument("--skip-events", action="store_true", help="skip the canonical behavior-events pass")
     ap.add_argument("--skip-behavior", action="store_true", help="skip the spout behavior figures")
+    ap.add_argument("--skip-clips", action="store_true",
+                    help="skip the annotated cam4 example clips")
     ap.add_argument("--hash", action="store_true",
                     help="byte-verify (SHA-256) uploads by read-back, not just size "
                          f"(files >= {HASH_READBACK_MAX >> 30} GB stay size-only)")
@@ -192,7 +208,8 @@ def main(argv=None) -> int:
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,
-               do_behavior=not args.skip_behavior, dry=args.dry_run, verify=args.hash)
+               do_behavior=not args.skip_behavior, do_clips=not args.skip_clips,
+               dry=args.dry_run, verify=args.hash)
 
 
 if __name__ == "__main__":
