@@ -669,8 +669,15 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
                 title=f"{stem}: own-position value by epoch -- {wname}",
                 ylabel=unit, keys=_short_labels(), values=dvals, points=dpoints,
                 tick_labels=_minor(), groups=_groups(),
-                ylim=(min(-0.05, float(vmin) if vmin is not None else -0.05),
-                      (float(vmax) if vmax is not None else 1.10)),
+                # THE BARS INHERIT THE FAMILY'S SCALE DECISION. `MATRIX_FAMILIES` sets a fixed range
+                # only where the quantity has one -- a correlation does, a crossnobis distance does
+                # not -- and the matrix already honours that by passing vmin/vmax through as None.
+                # The diagonal bars used to fall back to (-0.05, 1.10) instead, which is a
+                # CORRELATION's bound applied to a distance: crossnobis values above 1.10 were drawn
+                # clipped, bars and 95% intervals cut off at the axis (Priya, deck slides 590-592).
+                # None here means autoscale, which is the same answer the matrix arrives at.
+                ylim=(None if scale is None
+                      else (min(-0.05, float(vmin)), float(vmax))),
                 delta_name=f"epoch_{key}diagdelta_{collector.strip('_')}_{align}_{variant}",
                 delta_title=f"{stem}: change from pre-stroke in the own-position value -- {wname}")
         except Exception as ex:                                        # noqa: BLE001
@@ -965,7 +972,11 @@ def _fig_9(out_dir, align, variant, wname):
         title=f"Change in own-position pattern similarity from pre-stroke -- {wname}",
         subtitle=sub, marks=marks, ylabel="similarity - pre",
         positions=_short_labels(), tick_labels=_minor(), groups=_groups(), points=points,
-        counts=_totals(_session_counts()), ylim=(-0.65, 0.35))
+        # AUTOSCALED, for the same reason as the crossnobis bars above: (-0.65, 0.35) was a window
+        # fitted to the data as it stood when the figure was written, and a recovery trajectory that
+        # moved outside it was drawn clipped rather than drawn larger. A change-from-baseline has no
+        # natural range either.
+        counts=_totals(_session_counts()), ylim=None)
     if any(rows.values()):
         ef.contrast_panel(
             rows, out_dir, name=f"epoch_9ci_delta_trajectory_{align}_{variant}",

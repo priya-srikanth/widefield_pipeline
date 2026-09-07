@@ -621,6 +621,28 @@ def _group_rule(fig, ax, xs, groups, *, pad_in=0.07, gap_in=0.055):
     return y_text
 
 
+def _data_span(values, points):
+    """(min, max) over every bar, interval end and session dot -- what an autoscaled axis must hold.
+
+    THE INTERVALS AND THE DOTS COUNT, not just the bar heights. The clipping this exists to prevent
+    cut the ERROR BARS off first: a mean can sit inside a fixed window while its 95% interval and
+    its individual sessions run past the top of the axis.
+    """
+    lo, hi = [], []
+    for e, row in (values or {}).items():
+        for q, cell in (row or {}).items():
+            v, l, h = _value_and_ci(cell)
+            for z in (v, l, h):
+                if z is not None and np.isfinite(z):
+                    lo.append(z); hi.append(z)
+            for _a, y in ((points or {}).get(e, {}).get(q) or []):
+                if y is not None and np.isfinite(y):
+                    lo.append(y); hi.append(y)
+    if not lo:
+        return 0.0, 1.0
+    return float(min(lo)), float(max(hi))
+
+
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
             counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
             marks=None):
@@ -704,6 +726,16 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
             # is attributed to the wrong epoch by every reader who does not count.
             session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55,
                            alpha=BAR_POINT_ALPHA, zorder=BAR_POINT_Z)
+
+    # ylim=None MEANS AUTOSCALE, for quantities with no natural range. A crossnobis distance and a
+    # change-from-baseline both have none, and a fixed window fitted to yesterday's data draws
+    # today's outside it CLIPPED -- bars and 95% intervals cut off at the axis rather than the axis
+    # growing (Priya, deck slides 590-592 and 602-604). The span is resolved here, before the
+    # significance marks are placed, because their offset is a fraction of it.
+    if ylim is None:
+        _lo, _hi = _data_span(values, points)
+        pad = 0.08 * (_hi - _lo or 1.0)
+        ylim = (min(0.0, _lo - pad) if _lo >= 0 else _lo - pad, _hi + pad * 2.0)
 
     if marks:
         # ABOVE THE TALLER OF (bar, its dots), so a mark never lands on the data it refers to.
