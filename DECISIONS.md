@@ -6861,3 +6861,52 @@ no published panel on the day it landed. `test_the_live_derivation_still_matches
 asserts that — and is expected to fail when an animal genuinely crosses, at which point the STORED
 spec is the stale one and needs updating so the fallback (on a crash, or a missing cohort table)
 does not silently revert a real boundary.
+
+## 2026-09-07 — Example clips: the library answers questions, the deck presents them
+
+**A FLAT CAP OF FIVE PER CELL ON DISK; the curation lives in the deck.** Priya: *"don't change the
+clip generation, just the deck."* `behavior_clips` cuts five of every (position, category) so any
+later question can be answered from what is already encoded; `behavior_clip_deck` shows success 2,
+stopped 2, and working 5 at far middle / far contra and 2 elsewhere. Pushing presentation choices
+down into generation would mean re-encoding video every time the presentation changes its mind — and
+the caps changed three times in the hour they were being decided.
+
+**THE DENOMINATOR RIDES IN THE FILENAME.** `far_R_working_1of1_trial0015.avi` against
+`far_R_success_5of108_trial0016.avi`. A cell holding one qualifying trial and one sampled from a
+hundred otherwise produce indistinguishable files, and the rare one is the likeliest to be picked up
+and shown: PS94's only pre-stroke engaged far_R miss is 1 of 109, and next to a post-stroke miss it
+looks identical. A manifest alongside can be separated from the clip; a filename cannot.
+
+**FRAMES COME FROM THE ALIGNMENT TEMPLATE, and a bad template SKIPS rather than guesses.** The trial
+table's `cue_s` IS the DAQ cue rising edge — checked at 0.0000 s over 600 trials — and
+`camera_sync`'s affine maps DAQ samples to camera frames at ~1.2 ms, a third of one frame at 250 fps.
+The phase labels use that same map, so what the label says is what the frame shows. Refusing to cut
+without a good template is what surfaced the 8/18 folder swap.
+
+**3.5 s POST-CUE, NOT 3.0.** `timing.response_window` is 3500 ms in every session's gui_config.json;
+`defaults.yaml`'s 2.0 s is a fallback the task never ran. A 3 s clip ends half a second before the
+window the animal is scored on and cuts off late licks.
+
+**THE EPOCH FOLDER IS A CLAIM, AND `epochs` RE-DERIVES THE TRUTH EACH RUN.** `chronic_from` is
+computed from behaviour and republished nightly, so a boundary that shifts restales every clip cut
+before it — three PS92 sessions sat under `subacute/` after that animal's chronic boundary landed.
+Two guards: `refile_stale_epochs` moves the folders before each cut, and the deck derives its label
+from `epoch_of` rather than the directory, so the slide is right even if the re-file has not run.
+
+**AN EMPTY TRIAL CLASS GETS A SLIDE.** PS92 09-04 hit 378 of 378 trials, so it has no working and no
+stopped trials at all — and the deck simply had no slides for them, which reads as a rendering gap
+rather than as the result it is. Same reasoning as `-- none --` in an empty position slot, and the
+same reasoning as `_report`'s "NO FIGURE": *an absence has to be stated to be read as one.*
+
+**EVERY POSITION KEEPS ITS SLOT, and cells are square.** The grid is indexed by position, not by
+what a slide happens to show: packing the shown clips from the top-left moves a position between
+slides and the reader compares different spouts in the same screen position without noticing. cam4
+is 680x680, so a 4.05 x 2.75in placeholder stretched every frame 1.47x horizontally — on a mouse's
+face that reads as an anatomical difference rather than as a layout bug.
+
+**EVERY SLIDE SAYS WHICH TRIALS IT RAN ON.** "Engaged" meant two different things in the analysis
+deck and no slide said which: the decode/encode/frozen/RSA families split on a lick detected within
+`max_rt` (3.5 s) and hold the no-lick trials out as one undifferentiated arm, while sections G/H/I
+SUBDIVIDE those no-lick trials with the engagement gate. A reader comparing a frozen-decoder curve
+against a section-G contrast is comparing two trial SETS, not two results. Section G is left alone —
+its titles already carry `({_armn} arm)`, and a second static label could disagree with the first.
