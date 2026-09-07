@@ -903,12 +903,91 @@ def _fig_11(out_dir, align, variant, wname):
     values, points = ef.scalar_by_epoch(tab, value_of, keys=LABELS)
     if not values:
         return None
-    return _scalar_figure(
+    made = _scalar_figure(
         out_dir, name=f"epoch_11_encoder_gain_shape_{align}_{variant}",
         title=f"Encoder explained variance and gain -- {wname}",
         ylabel="value", keys=LABELS, values=values, points=points, ylim=(0.0, 1.30),
         delta_name=f"epoch_11delta_encoder_gain_shape_{align}_{variant}",
         delta_title=f"Change from pre-stroke in encoder variance and gain -- {wname}")
+
+    # THE FITTED GAIN ITSELF, H11's middle panel, which the epoch version had been dropping.
+    # `_enc_terms` returns (raw, a, gain, per) and this figure took only 0 and 2 -- transfer before
+    # rescaling and after -- so `a`, the amplitude term the whole decomposition exists to isolate,
+    # was computed nightly and never shown by epoch.
+    #
+    # ITS OWN FIGURE, NOT A THIRD BAR BESIDE raw AND gain. Those two are variance-explained on
+    # [0, 1]; `a` is a RATIO around 1.0 and unbounded above. Sharing one axis would either squash
+    # the r2 pair into the bottom third or clip `a` -- the same category error as the crossnobis
+    # bars fixed earlier today, where a bound belonging to one quantity was applied to another.
+    #
+    # 1.0 IS THE MEANINGFUL VALUE, not zero: a = 1 means no amplitude change, a < 1 a weaker code,
+    # a > 1 a stronger one. It is deliberately NOT passed as `chance=1.0` -- that would draw the
+    # line but also append "(chance 1.00)" to the y-label, and a gain of 1 is not a chance level.
+    def _amp(payload, key):
+        try:
+            v = payload[1]
+        except Exception:                                              # noqa: BLE001
+            return None
+        return None if v is None or not np.isfinite(v) else float(v)
+
+    avals, apoints = ef.scalar_by_epoch(tab, _amp, keys=["gain"])
+    if avals:
+        try:
+            _scalar_figure(
+                out_dir, name=f"epoch_11amp_encoder_amplitude_{align}_{variant}",
+                title=f"Fitted encoder gain by epoch (1.0 = no amplitude change) -- {wname}",
+                ylabel="fitted gain a", keys=["gain"], values=avals, points=apoints,
+                ylim=None,
+                delta_name=f"epoch_11ampdelta_encoder_amplitude_{align}_{variant}",
+                delta_title=f"Change from pre-stroke in the fitted encoder gain -- {wname}")
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! 11amp {align}/{variant}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
+
+    # PER POSITION, the way the decoding families already are (Priya, 2026-09-07). `_enc_terms`
+    # already returns `{position: shape r2 after the gain}` as its fourth term and this figure was
+    # reading only terms 0 and 2, so the per-position tuning was computed every night and shown to
+    # nobody.
+    #
+    # SHAPE r2 IS THE RIGHT PER-POSITION QUANTITY AND THE GAIN IS NOT. `_enc_terms` fits ONE gain
+    # per session deliberately -- "a per-position gain would absorb the position-specific amplitude
+    # loss that IS the deficit, and the decomposition would say nothing". Shape r2 asks the question
+    # that survives that: with the session's amplitude change already divided out, is THIS position
+    # still predicted by its pre-stroke pattern?
+    #
+    # AND IT IS THE PER-POSITION COMPLEMENT OF THE DECODING RECALL. Recall asks whether a position
+    # stays DISCRIMINABLE from the other five; shape r2 asks whether its pattern is still the
+    # pre-stroke one. A position can stay decodable on a changed pattern, so the two dissociating is
+    # the measurement behind "decodable but re-geometried" -- read them side by side.
+    short = dict(zip(G.CONF_LABELS, _short_labels()))
+
+    def _shape_at(payload, key):
+        try:
+            per = payload[3] or {}
+        except Exception:                                              # noqa: BLE001
+            return None
+        for q, sh in short.items():
+            if sh == key:
+                v = per.get(q)
+                return None if v is None or not np.isfinite(v) else float(v)
+        return None
+
+    pvals, ppoints = ef.scalar_by_epoch(tab, _shape_at, keys=_short_labels())
+    if pvals:
+        try:
+            _scalar_figure(
+                out_dir, name=f"epoch_11pos_encoder_shape_{align}_{variant}",
+                title=f"Encoder shape r² after the gain, per position -- {wname}",
+                ylabel="shape r² (gain removed)", keys=_short_labels(),
+                values=pvals, points=ppoints, tick_labels=_minor(), groups=_groups(),
+                # r2 is bounded above by 1 and NOT below: a pattern unrelated to its reference goes
+                # sharply negative, so a fixed floor would clip exactly the positions that lost
+                # their tuning -- the ones the figure exists to find.
+                ylim=None,
+                delta_name=f"epoch_11posdelta_encoder_shape_{align}_{variant}",
+                delta_title=f"Change from pre-stroke in per-position encoder shape r² -- {wname}")
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! 11pos {align}/{variant}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
+    return made
 
 
 def _fig_9(out_dir, align, variant, wname):

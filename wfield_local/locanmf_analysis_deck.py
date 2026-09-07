@@ -3543,6 +3543,42 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_11delta_encoder_gain_shape_*_*.png",
          "Encoder variance and gain, change from pre-stroke",
          None),
+        ("epoch_11amp_encoder_amplitude_*_*.png",
+         "Fitted encoder gain by epoch (1.0 = no amplitude change)",
+         "H11's MIDDLE PANEL, by epoch. `_enc_terms` returns (raw, a, gain, per-position)"
+         " and the epoch figures had been reading only `raw` and `gain` -- transfer before"
+         " rescaling and after -- so `a`, the amplitude term the decomposition exists to"
+         " isolate, was computed every night and never shown against epoch."
+         "\n\nREAD IT FIRST, then the r² pair. a = 1 is no amplitude change,"
+         " a < 1 a weaker code, a > 1 a stronger one. A high post-rescaling r² with `a`"
+         " far from 1 is a code that is intact and SMALLER; a low one means the tuning"
+         " changed whatever `a` says. The trap the per-day version already warns about"
+         " applies here too: a code that is simply GONE also recovers a lot under"
+         " rescaling, because the best gain collapses toward zero and predicting nothing"
+         " beats predicting an unrelated pattern."
+         "\n\nITS OWN AXIS, not a third bar beside raw and gain: those are"
+         " variance-explained on [0, 1] and this is a ratio around 1.0, unbounded above."),
+        ("epoch_11ampdelta_encoder_amplitude_*_*.png",
+         "Fitted encoder gain, change from pre-stroke",
+         None),
+        ("epoch_11pos_encoder_shape_*_*.png",
+         "Encoder shape r² after the gain, per position",
+         "THE ENCODER'S PER-POSITION FIGURE, the counterpart of the decoding recall panels."
+         " `_enc_terms` fits ONE gain for the whole session on purpose -- a per-position gain would"
+         " absorb the position-specific amplitude loss that IS the deficit -- so the per-position"
+         " quantity is what survives that division: with the session's amplitude change already"
+         " removed, is THIS position still predicted by its pre-stroke pattern?"
+         "\n\nREAD IT AGAINST THE DECODING RECALL, not instead of it. Recall asks whether a"
+         " position stays DISCRIMINABLE from the other five; this asks whether its pattern is still"
+         " the pre-stroke one. A position can remain decodable on a changed pattern, so the two"
+         " coming apart is the measurement behind 'decodable but re-geometried' -- and the two"
+         " agreeing rules that reading out."
+         "\n\nr² IS BOUNDED ABOVE BY 1 AND NOT BELOW: a pattern unrelated to its reference"
+         " goes sharply negative, so the axis is autoscaled. A position sitting well below zero has"
+         " not merely weakened, it is being predicted worse than by predicting nothing."),
+        ("epoch_11posdelta_encoder_shape_*_*.png",
+         "Encoder shape r² per position, change from pre-stroke",
+         None),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "
