@@ -11,13 +11,16 @@ One command per date runs the camera nightly, in order:
   3. **Canonical behavior events** (:mod:`wfield_local.behavior_events`) -> per-session
      ``events/<PSxx>/<date>.npz`` (licks/rewards/running/quiet on the DAQ clock), the shared event
      identity every downstream analysis loads instead of re-detecting.
-  5. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
-     clips per trial class under ``example_clips/<animal>/<epoch>/<date>/``, plus a
-     manifest. Needs the template AND the trial table, so it runs after both.
-  6. **Example-clip decks** (:mod:`wfield_local.behavior_clip_deck`) -> one PowerPoint per
-     animal, six spout positions to a slide, rebuilt whole from the clips on disk.
   4. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
      per-position metrics, and a refresh of the curated cross-session cohort summary.
+  5. **Epoch boundaries** (:mod:`wfield_local.epoch_audit`) -> derives ``chronic_from`` from the
+     cohort table step 4 just wrote and publishes ``epoch_boundaries.json``. Nothing below may
+     label a session before this runs; see the note at the call site.
+  6. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
+     clips per trial class under ``example_clips/<animal>/<epoch>/<date>/``, plus a
+     manifest. Needs the template AND the trial table, so it runs after both.
+  7. **Example-clip decks** (:mod:`wfield_local.behavior_clip_deck`) -> one PowerPoint per
+     animal, six spout positions to a slide, rebuilt whole from the clips on disk.
 
 Copies are idempotent + size-verified; a copy FAILURE stops the run before QC/align (never process a
 partial upload). ``D:`` deletion is a separate manual step after byte-verification + check-in. Writes only
@@ -176,6 +179,33 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
     if do_behavior:
         print("\n################ spout behavior figures (+ curated cohort) ################", flush=True)
         spout_behavior.run(date, rv, animals=animals, cohort=True, from_spec="curated", dry=dry)
+    if (do_clips or do_clip_deck) and not dry:
+        print("\n################ epoch boundaries ################", flush=True)
+        # AFTER the behaviour and BEFORE the clips, and both halves of that sandwich carry weight.
+        # `refile_stale_epochs` and the deck's `_sessions_for` both label a session through
+        # `epochs.epoch_of`, which reads the boundaries lazily out of `epoch_boundaries.json` --
+        # and until now only `nightly_figs` ever refreshed that file. The camera nightly runs
+        # FIRST, so on a night a boundary moved, clips were filed and captioned under YESTERDAY's
+        # epoch while the figures built minutes later used today's. It self-heals on the next
+        # run, which is exactly what makes it a trap: the one deck that disagreed with itself was
+        # the deck cut the night the animal actually became chronic. It has to follow the
+        # behaviour step because `resolve` DERIVES the boundary from the cohort table that step
+        # writes; with no table it writes nothing and leaves the last derivation in force.
+        from wfield_local import epoch_audit, epochs
+        if epochs.pinned():
+            print("   epoch boundaries PINNED -- not derived this run", flush=True)
+        else:
+            _res = epoch_audit.resolve(rv)
+            for _line in epoch_audit.report_lines(_res["report"]):
+                print("   " + _line, flush=True)
+            if not _res["available"]:
+                print("   !! NOT DERIVED (no cohort behaviour table); clips will be filed on the "
+                      "LAST DERIVED boundaries", flush=True)
+            elif _res["changes"]:
+                # The clips cut below are the FIRST artifact to use the new boundary, so this is
+                # the line that explains why a session changed folders tonight.
+                for _c in _res["changes"]:
+                    print("   epoch MOVED: %s" % (_c,), flush=True)
     if do_clips:
         print("\n################ annotated example clips (cam4, cue-aligned) ################",
               flush=True)
