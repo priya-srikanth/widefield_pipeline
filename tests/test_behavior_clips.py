@@ -73,3 +73,42 @@ def test_a_session_without_a_good_template_is_skipped_not_guessed(tmp_path, monk
     np.savez(p / "20260820.npz", quality_ok=False, fs_daq=5000.0, fps_cam=250.0,
              n_cam_frames=10, slope_daqSample_per_camFrame=20.0, intercept_daqSample=0.0)
     assert bc.session_clips("PS94", "20260820", "sid", "acute", rv=rv) == 0
+
+
+def test_the_analysis_deck_states_its_trial_population():
+    """"Engaged" means two different things in this deck, and the slides never said which.
+
+    The decode/encode/frozen/RSA families split on a lick detected within `max_rt`; sections G/H/I
+    split the no-lick trials with the ENGAGEMENT GATE. A reader comparing a frozen-decoder curve
+    against a section-G contrast is comparing two trial SETS, not two results.
+    """
+    import pathlib
+
+    src = (pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+           / "locanmf_analysis_deck.py").read_text(encoding="utf-8")
+    assert "TRIALS_LICK" in src and "TRIALS_NOLICK" in src
+    assert "max_rt 3.5 s" in src, "the lick label must name the actual window"
+    assert "ENGAGEMENT GATE" in src, "the working label must name the gate"
+    # the ambiguous families are the ones that must carry it
+    assert src.count("trials=TRIALS_LICK") >= 12
+    assert "def title(s, text, sub=None, trials=None):" in src
+
+
+def test_the_clip_deck_keeps_every_position_in_its_own_slot():
+    """Packing shown clips from the top-left would move a position between slides."""
+    from wfield_local import behavior_clip_deck as d
+
+    assert list(d.POS_ORDER).index("far_center") == 4     # bottom row, centre column
+    assert list(d.POS_ORDER).index("far_R") == 5          # bottom row, right column
+    src = __import__("inspect").getsource(d.build)
+    assert "for i, pos in enumerate(POS_ORDER)" in src, "grid must be indexed by position"
+    assert "-- none --" in src, "an empty slot must say so rather than go blank"
+
+
+def test_the_clip_deck_curates_but_the_library_does_not():
+    from wfield_local import behavior_clip_deck as d
+
+    assert d.deck_cap("far_R", "working") == 5            # the deficit earns a run
+    assert d.deck_cap("close_L", "working") == 2
+    assert d.deck_cap("far_R", "success") == 2            # a hit looks like a hit
+    assert d.deck_cap("far_R", "stopped") == 2

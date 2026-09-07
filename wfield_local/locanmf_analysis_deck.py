@@ -54,6 +54,7 @@ from wfield_local.paths import PathResolver
 
 NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
+SLATE = RGBColor(0x44, 0x55, 0x77)
 
 
 
@@ -62,6 +63,32 @@ GREY = RGBColor(0x55, 0x55, 0x55)
 # with it. These are the third thing, and they are drawn from DECISIONS.md rather than invented --
 # each states the reading, the trap specific to THIS panel, and where a contrary result would leave
 # the claim. Written 2026-08-23 after Priya pointed out that the repo already documents all of it.
+# ---------------------------------------------------------------- TRIAL POPULATIONS
+#
+# "ENGAGED" MEANS TWO DIFFERENT THINGS IN THIS DECK and the slides never said which. The
+# decode/encode/frozen/RSA families split trials by whether a LICK WAS DETECTED within the response
+# window (`decode.max_rt_s`, 3.5 s) and treat the no-lick trials as one undifferentiated
+# generalization arm. Sections G/H/I instead split the no-lick trials into miss-while-working and
+# stopped using the ENGAGEMENT GATE. Those are different populations, and a reader comparing a
+# frozen-decoder curve against a section-G contrast is comparing two trial sets, not two results.
+#
+# So each slide now states its own. Priya, 2026-09-07.
+TRIALS_LICK = (
+    "TRIALS: engaged = a lick detected within the response window (max_rt 3.5 s); no-lick trials "
+    "are held out as the generalization arm and are NOT subdivided. The engagement gate is not "
+    "used here.")
+TRIALS_NOLICK = (
+    "TRIALS: no-lick only -- trials with NO detected lick in the response window. Absence of a "
+    "detection, not a judgement about engagement.")
+TRIALS_WORKING = (
+    "TRIALS: lick + miss-while-working. The no-lick trials are split by the ENGAGEMENT GATE "
+    "(judged at the reference positions close_L/close_center, backdated to the first miss of the "
+    "run that trips it); 'stopped' trials are analysed as their own class, not discarded.")
+TRIALS_BEHAVIOUR = (
+    "TRIALS: all scored trials, with disengaged trials REMOVED from the denominator by the "
+    "engagement gate (reference positions only, backdated to the first miss of the run).")
+
+
 S_G1B = (
     "READ THE DENOMINATOR FIRST. A position with zero engaged trials has no lick-only decoding "
     "number at all -- not a low one. PS94 8/20 has ZERO engaged far_R and 17 far_center against ~70 "
@@ -1561,8 +1588,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     def _record(sl, p):
         figs_by_slide.setdefault(id(sl._element), []).append(Path(p).name)
 
-    def title(s, text, sub=None):
-        tf = s.shapes.add_textbox(Inches(0.4), Inches(0.16), Inches(12.6), Inches(0.95)).text_frame
+    def title(s, text, sub=None, trials=None):
+        """Slide title, an optional subtitle, and an optional TRIAL POPULATION line.
+
+        The population is its own line rather than a clause in the subtitle because it is the one
+        fact a reader needs before comparing two slides, and subtitles here are already long enough
+        that it would be buried in the middle of one.
+        """
+        tf = s.shapes.add_textbox(Inches(0.4), Inches(0.16), Inches(12.6), Inches(1.15)).text_frame
         tf.word_wrap = True
         r = tf.paragraphs[0].add_run()
         r.text = text
@@ -1574,6 +1607,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             r2.text = sub
             r2.font.size = Pt(12.5)
             r2.font.color.rgb = GREY
+        if trials:
+            r3 = tf.add_paragraph().add_run()
+            r3.text = trials
+            r3.font.size = Pt(10)
+            r3.font.italic = True
+            r3.font.color.rgb = SLATE
 
     seen_methods = {}
 
@@ -1779,14 +1818,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     for a in animals:
         s = slide()
         title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
-              "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).")
+              "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).",
+              trials=TRIALS_LICK)
         note(s, M_DECODE, specific=S_DEC_CUE)
         grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
              cols=3)
         s = slide()
         title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
               "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
-              "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.")
+              "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.",
+              trials=TRIALS_LICK)
         note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
         grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
              cols=3)
@@ -1797,14 +1838,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
               "Per session, registered on the FIRST LICK rather than the cue. Read against the "
               "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
-              "movement-locked signal is smeared by RT jitter there and sharp here.")
+              "movement-locked signal is smeared by RT jitter there and sharp here.",
+              trials=TRIALS_LICK)
         note(s, M_DECODE, specific=S_DEC_LICK)
         grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
              cols=3)
         s = slide()
         title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
               "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
-              "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)")
+              "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)",
+              trials=TRIALS_LICK)
         note(s, M_DECODE, specific=S_DEC_ROLL)
         big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
 
@@ -1820,7 +1863,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
               "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
-              "right: relative to the per-position noise ceiling.")
+              "right: relative to the per-position noise ceiling.",
+              trials=TRIALS_LICK)
         note(s, M_ENCODE, specific=S_ENC_POS)
         grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
                  src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
@@ -1830,7 +1874,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # region axis, which is the comparable form of the same measure.
     s = slide()
     title(s, "Encoder — explained-variance fraction (FEVE) by region, pooled per animal",
-          "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.")
+          "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.",
+          trials=TRIALS_LICK)
     note(s, M_ENCODE, specific=S_ENC_FEVE)
     big(s, src / "locanmf_encoder_feve_by_region_pooled.png", top=1.5, width=12.9)
     # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
@@ -1844,7 +1889,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               "that degrades across days is a COLUMN that changes colour, and the lesion is a rule "
               "rather than something the reader has to hold in mind. Ridge from a one-hot position "
               "design, scored per position with the same block GroupKFold the decoders use. ONE "
-              "colour scale across animals, so the panels are comparable.")
+              "colour scale across animals, so the panels are comparable.",
+              trials=TRIALS_LICK)
         note(s, M_ENCODE, specific=S_ENC_MATRIX)
         big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
 
@@ -1862,7 +1908,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      "",
                   "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
                   "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
-                  "corrected pre-cue values (meegkit_hpfit); see slide 2.")
+                  "corrected pre-cue values (meegkit_hpfit); see slide 2.",
+                  trials=TRIALS_NOLICK)
             note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
             big(s, p, top=1.5, width=12.9)
 
@@ -1929,7 +1976,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "representation changed. THE SPAN IS MEASURED ON THE ALIGNED WINDOW, so the "
                       "three alignments are three different numbers for the same session and each "
                       "belongs with its own decode arm \u2014 which is why all three are here "
-                      "rather than the pre-cue one standing for all of them.")
+                      "rather than the pre-cue one standing for all of them.",
+                      trials=TRIALS_LICK)
                 note(s, M_JOINT, specific=S_JOINT)
                 big(s, _bh, top=1.7, width=12.2)
         for al, al_name, al_desc in ALIGNS:
@@ -1957,7 +2005,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                              f"({bname}){warn}",
                           f"One matrix per date, rows = TRUE position. The number beside each date "
                           f"is that day's held-out accuracy; POST-STROKE dates are red. Trained on "
-                          f"this animal's PRE-STROKE days only. {al_desc}.")
+                          f"this animal's PRE-STROKE days only. {al_desc}.",
+                          trials=TRIALS_LICK)
                     note(s, m_dec + cav, specific=S_FROZEN_SESS)
                     big(s, _g, top=1.7, width=12.9)
                     continue
@@ -1968,7 +2017,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                     title(s, f"{a} — FROZEN cross-day decoder, {al_name}, held-out day "
                              f"({bname}){suffix}{warn}",
                           f"Per date: confusion + per-position recall from a decoder trained on this "
-                          f"animal's OTHER days only. {al_desc}.")
+                          f"animal's OTHER days only. {al_desc}.",
+                          trials=TRIALS_LICK)
                     note(s, m_dec + cav, specific=S_FROZEN_SESS)
                     grid(s, [src / f"locanmf_frozen_session_{a}_{d}_{bkey}_{al}.png"
                              for d, _ in page if have(a, d)],
@@ -1978,7 +2028,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      f"animals{warn}",
                   "Held-out day vs same-day ceiling per session; the cost of freezing across days; and "
                   "the OOD control — a softmax decoder never abstains, so confidence alone is not "
-                  "evidence.")
+                  "evidence.",
+                  trials=TRIALS_LICK)
             note(s, m_dec + cav, specific=S_FROZEN_ALL)
             big(s, src / f"locanmf_frozen_decoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
             s = slide()
@@ -1986,7 +2037,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      f"animals{warn}",
                   "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
                   "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
-                  "NEGATIVE where the decoder's is positive.")
+                  "NEGATIVE where the decoder's is positive.",
+                  trials=TRIALS_LICK)
             note(s, m_enc + cav, specific=S_FROZEN_ENC)
             big(s, src / f"locanmf_frozen_encoder_loso_{bkey}_{al}.png", top=1.9, width=12.7)
 
@@ -2071,7 +2123,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
              f"({_mmdd_label(_pre_d[0])}–{_mmdd_label(_pre_d[-1])})",
           "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's "
           "PRE-STROKE sessions (points = sessions). Baseline question: do the mice differ from each "
-          "other? The post-stroke comparison lives in section G.")
+          "other? The post-stroke comparison lives in section G.",
+          trials=TRIALS_LICK)
     note(s, M_DECODE + " " + M_ENCODE, specific=S_XMOUSE)
     big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
     s = slide()
@@ -2086,17 +2139,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "Within- vs across-animal second-order RSA, per-animal RDM, and the noise-unbiased crossnobis RDM.")
     s = slide()
     title(s, "RSA — within- vs across-animal representational geometry",
-          "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.")
+          "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.",
+          trials=TRIALS_LICK)
     note(s, M_RSA, specific=S_RSA_A)
     big(s, src / f"locanmf_rsa_sessions_{tag}.png", top=1.6, width=13.0)
     s = slide()
     title(s, "RSA — mean representational dissimilarity matrix per animal",
-          "How the 6 positions relate (dark = similar patterns, bright = distinct).")
+          "How the 6 positions relate (dark = similar patterns, bright = distinct).",
+          trials=TRIALS_LICK)
     note(s, M_RSA, specific=S_RSA_B)
     big(s, src / f"locanmf_rsa_rdms_{tag}.png", top=1.9, width=12.7)
     s = slide()
     title(s, "RSA — crossnobis (noise-unbiased) RDM",
-          "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.")
+          "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.",
+          trials=TRIALS_LICK)
     note(s, M_RSA, specific=S_RSA_C)
     big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
 
