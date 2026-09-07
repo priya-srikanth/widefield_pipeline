@@ -148,9 +148,16 @@ def test_the_first_run_does_not_announce_that_everything_moved():
     first run -- or after the file is deleted or the share remounted -- would be false, and would
     train the reader to skip the one message that matters on the night it is true."""
     assert epoch_audit.changes({"PS92": {"chronic_from": 11}}, None) == []
-    # an EMPTY previous file is different from an absent one: it really did lose a boundary
-    assert epoch_audit.changes({"PS92": {"chronic_from": 11}}, {}) == [
-        "PS92 chronic_from: absent -> 11"]
+    # AN EMPTY OVERLAY IS NOT A LOST BOUNDARY. The artifact overlays the declared config, so a key
+    # it does not carry was being served from `animals.yaml` -- and PS92 is declared chronic from
+    # day 11, so deriving 11 has moved nothing. (This assertion used to read the other way, on the
+    # theory that an empty file "lost" the boundary; that model is wrong and produced eight
+    # spurious moves the first time the derived schema grew.)
+    declared = epochs.EPOCH_SPEC["PS92"]["chronic_from"]
+    assert epoch_audit.changes({"PS92": {"chronic_from": declared}}, {}) == []
+    # ...but an empty overlay whose derived value DIFFERS from the declared one is a real move
+    assert epoch_audit.changes({"PS92": {"chronic_from": 99}}, {}) == [
+        f"PS92 chronic_from: {declared} -> 99"]
 
 
 # --- the boundaries and the rule now come from configs/, not from Python -------------------------
@@ -327,3 +334,20 @@ def test_a_derived_acute_range_survives_the_json_round_trip(derived):
     spec = epochs.spec_for("PS92")
     assert spec["acute"] == (1, 3) and isinstance(spec["acute"], tuple)
     assert epochs.epoch_of("PS92_0821") == "subacute"     # day 4, acute under the declared (1,5)
+
+
+def test_growing_the_schema_is_not_a_boundary_move():
+    """A key the OLD artifact never carried was being served from `animals.yaml` all along -- that
+    is what the boundary was, so its appearing in the file is not a move.
+
+    This fired for real: when `acute`/`subacute_from` joined the derived schema, the first run
+    compared them against "absent" and announced eight moved boundaries and non-comparable panels,
+    with nothing actually changed. That is the noise that teaches a reader to skip the block."""
+    old = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}  # pre-schema
+    new = {a: {"acute": list(s["acute"]), "subacute_from": s["subacute_from"],
+               "chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
+    assert epoch_audit.changes(new, old) == []
+    # but a key appearing with a value that DIFFERS from the declared one is a real move
+    moved = dict(new)
+    moved["PS93"] = {**new["PS93"], "subacute_from": 9}
+    assert epoch_audit.changes(moved, old) == ["PS93 subacute_from: 5 -> 9"]

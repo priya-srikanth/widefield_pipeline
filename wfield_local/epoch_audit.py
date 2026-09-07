@@ -167,9 +167,17 @@ def changes(new_spec, old_spec) -> list[str]:
         return []
     out = []
     for animal in sorted(set(new_spec) | set(old_spec)):
+        declared = config.epoch_spec(animal) or {}
         for key in ("acute", "subacute_from", "chronic_from"):
-            a = old_spec.get(animal, {}).get(key, "absent")
-            b = new_spec.get(animal, {}).get(key, "absent")
+            old_animal = old_spec.get(animal, {})
+            # A KEY MISSING FROM THE OLD FILE IS NOT A MOVE. The artifact is an OVERLAY on the
+            # declared config, so a key it never carried was being served from `animals.yaml` all
+            # along -- that is what the boundary WAS. Comparing against "absent" instead made the
+            # first run after `acute`/`subacute_from` joined the schema report eight boundaries as
+            # having moved, and announce that the panels were not comparable, when nothing had
+            # changed at all. Precisely the noise that teaches a reader to skip this block.
+            a = old_animal[key] if key in old_animal else declared.get(key, "absent")
+            b = new_spec.get(animal, {}).get(key, declared.get(key, "absent"))
             if not _same(a, b):
                 out.append(f"{animal} {key}: {a} -> {b}")
     return out

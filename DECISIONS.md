@@ -7038,3 +7038,18 @@ nightly (stage 1); epoch resolution runs in `nightly_figs` (stage 2). Stage 1 th
 PREVIOUS run's boundaries, so on a night a boundary moves, clips are filed under last night's epoch
 while the deck reports tonight's. It self-heals on the next run's re-file. The fix is one line --
 call `epoch_audit.resolve()` before the clips step -- and it belongs in the camera nightly.
+
+### 2026-09-07 addendum — the artifact is an OVERLAY, and "absent" is not "moved"
+
+Growing the derived schema to carry `acute`/`subacute_from` made the first run report **eight moved
+boundaries** and announce that the pooled panels were not comparable, when nothing had changed. The
+old artifact simply had not carried those keys.
+
+`epoch_boundaries.json` is an OVERLAY on `configs/animals.yaml`, not a replacement, and `changes()`
+now compares against the declared value for any key the old file lacked — because that is what the
+boundary actually WAS on the previous run. An empty overlay is likewise not a lost boundary. A test
+had asserted the opposite model and had to be corrected with it.
+
+This is the same failure the first-run guard already existed to prevent, arriving through a
+different door: a "boundaries moved" banner that fires when nothing moved teaches the reader to skip
+the one banner that matters on the night something does.
