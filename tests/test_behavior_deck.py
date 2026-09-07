@@ -78,3 +78,33 @@ def test_session_dates_sorted_and_filtered(tmp_path):
     for d in ("20260818", "20260806", "notadate"):
         (root / "sessions/PS92" / d).mkdir(parents=True)
     assert bd._session_dates(root, "PS92") == ["20260806", "20260818"]
+
+
+def test_epoch_section_is_opt_in_and_placed_when_asked(tmp_path):
+    """The behaviour-by-epoch figures go on the deck, but ONLY when a caller passes the directory.
+
+    Both halves matter. `spout_behavior` builds this deck in camera-nightly step 4, BEFORE the
+    epoch boundaries are resolved in step 5, so a deck built there must not carry an epoch section
+    at all rather than one drawn on last night's boundaries -- `camera_nightly` rebuilds it after
+    the resolve. And deriving the directory inside the builder would make this very test read the
+    real MICROSCOPE share instead of its tmp root.
+    """
+    from pptx import Presentation
+    root = tmp_path / "bs"
+    ep = tmp_path / "epoch"
+    for stem, _t, _s in bd.EPOCH_FIGS:
+        _png(ep / f"{stem}.png")
+
+    without = bd.build_behavior_deck(root, tmp_path / "a.pptx", animals=["PS92"])
+    with_ep = bd.build_behavior_deck(root, tmp_path / "b.pptx", animals=["PS92"], epoch_dir=ep)
+
+    assert with_ep["figures_present"] == without["figures_present"] + len(bd.EPOCH_FIGS)
+    assert with_ep["slides"] == without["slides"] + 1 + len(bd.EPOCH_FIGS)   # +divider
+
+    titles = [sh.text_frame.text for s in Presentation(str(tmp_path / "b.pptx")).slides
+              for sh in s.shapes if sh.has_text_frame]
+    assert any("Behaviour by epoch" in t for t in titles)
+    assert any("days since lesion" in t for t in titles)
+    bare = [sh.text_frame.text for s in Presentation(str(tmp_path / "a.pptx")).slides
+            for sh in s.shapes if sh.has_text_frame]
+    assert not any("Behaviour by epoch" in t for t in bare)

@@ -42,6 +42,30 @@ from wfield_local.paths import PathResolver
 NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
 
+#: Epoch-grouped BEHAVIOUR figures (file stem, title, subtitle). Built by
+#: `epoch_grant_figures --only 1b 1c`, which despite living in the grant module reads ONLY the
+#: per-session `position_metrics.csv` this deck's own figures come from -- no LocaNMF, no imaging.
+#: They are placed here because that is where a behaviour reader looks for them, and because the
+#: grant render is routinely skipped (`--skip-grant`, 8-10 h), which would otherwise leave the only
+#: copy of the epoch behaviour result as stale as the last night someone ran the full stage 2.
+EPOCH_FIGS = [
+    ("epoch_1b_behaviour_by_position",
+     "Hit rate by spout position, pooled across animals, by epoch",
+     "one dot per session; pre / acute / subacute / chronic on the boundaries in force this run"),
+    ("epoch_1bdelta_behaviour_by_position",
+     "Change from pre-stroke in hit rate by spout position",
+     "within-animal delta against that animal's own pre-stroke baseline"),
+    ("epoch_1c_behaviour_timecourse",
+     "Hit rate by spout position over days since lesion",
+     "one dot per animal per day; shaded = acute, dotted = first subacute day, dashed = first "
+     "chronic day where one exists"),
+]
+
+def epoch_fig_dir(rv=None):
+    """Where `epoch_grant_figures` writes. ONE definition of the path, shared by both writers."""
+    return Path((rv or PathResolver()).root("labcams")) / "grant_figures" / "epoch"
+
+
 # split-out cross-session per-animal figures, one full-size slide each (file stem, title, subtitle).
 # Stems match wfield_local.spout_behavior.plot_animal_metric_series / METRIC_FILE.
 ACROSS_METRICS = [
@@ -118,8 +142,14 @@ def _fig(root: Path, animal: str, date: str, kind: str) -> Path | None:
     return concat[0] if concat else hits[0]
 
 
-def build_behavior_deck(behavior_out, out_path, animals=None) -> dict:
-    """Build the behavior deck at ``out_path`` from figures under ``behavior_out``. Returns a summary."""
+def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) -> dict:
+    """Build the behavior deck at ``out_path`` from figures under ``behavior_out``. Returns a summary.
+
+    ``epoch_dir`` is EXPLICIT rather than derived here, and omitting it drops the epoch section
+    entirely. This builder computes nothing and takes its roots as arguments; reaching for a
+    machine path internally would make a tmp-root caller silently read the real share, and would
+    make the epoch section appear on decks built before the boundaries were resolved.
+    """
     root = Path(behavior_out)
     out_path = Path(out_path)
     animals = animals or [a for a in config.animals()]
@@ -211,6 +241,14 @@ def build_behavior_deck(behavior_out, out_path, animals=None) -> dict:
     fig_slide(root / "cohort" / "cohort_behavior.png", "Cohort — per-animal per-position accuracy, "
               "learning curve, close-vs-far distance effect")
 
+    # ---------------- behaviour by epoch (END) ----------------
+    if epoch_dir:
+        divider("Behaviour by epoch",
+                "the same per-session hit rates as above, pooled into pre / acute / subacute / "
+                "chronic on the boundaries in force this run")
+        for stem, ttl, sub in EPOCH_FIGS:
+            fig_slide(Path(epoch_dir) / f"{stem}.png", ttl, sub)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out_path))
     return {"out": str(out_path), "slides": len(prs.slides),
@@ -223,11 +261,14 @@ def main(argv=None) -> int:
                     help="output .pptx (default: <behavior_out>/behavior_summary_deck.pptx)")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals, or 'all'")
     ap.add_argument("--machine", default=None)
+    ap.add_argument("--skip-epoch", action="store_true",
+                    help="omit the behaviour-by-epoch section (it is placed by default)")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     root = Path(rv.root("behavior_out"))
     out = args.out or root / "behavior_summary_deck.pptx"
-    d = build_behavior_deck(root, out, animals=config.normalize_animals(args.only))
+    d = build_behavior_deck(root, out, animals=config.normalize_animals(args.only),
+                            epoch_dir=None if args.skip_epoch else epoch_fig_dir(rv))
     print(f"== behavior deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
           f"{d['figures_missing']} missing) ==", flush=True)
     return 0
