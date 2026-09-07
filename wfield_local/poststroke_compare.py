@@ -912,7 +912,7 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     return out
 
 
-def _within_accuracy(label, X, y, gb, ng, is_post, pos_key):
+def _within_accuracy(label, X, y, gb, ng, is_post, pos_key, align):
     """Block-CV within-session accuracy for one session, memoized on ITS OWN inputs.
 
     Only PRE-STROKE sessions are cached. A post-stroke session's row is the thing under examination
@@ -934,8 +934,20 @@ def _within_accuracy(label, X, y, gb, ng, is_post, pos_key):
     rec = [s for s in config.load_sessions() if s["label"] == label]
     if not rec:                       # unregistered: compute rather than guess at a cache identity
         return _compute()
+    # ALIGN IS PART OF THE IDENTITY, and leaving it out was a silent cross-window collision. `X` is
+    # the pre-cue, post-cue or post-lick feature window, and the same pre-stroke session has a
+    # different within-session accuracy in each. Keyed only on positions and folds, all three hashed
+    # to ONE entry, so whichever alignment ran first served the other two: G2c drew the POST-cue band
+    # on its pre-cue panel, the plan/execution dissociation the figure exists to show was flattened,
+    # and the post-stroke z-scores were measured against the wrong reference.
+    #
+    # Nothing about the computation was wrong; the KEY was. Every other cached kind here already
+    # carries the alignment (`evoked_amp__{align}__...`, `spatial_area_matrix__{align}__...`,
+    # `fixed_scale_maps__{align}__...`) -- this one was the exception. `params=None` with everything
+    # result-changing folded into `kind` is the house idiom exactly so this stays checkable by eye.
     return session_cache.cached(
-        rec[0], f"within_acc__{'-'.join(str(p) for p in pos_key)}__k{ng}", _compute, params=None)
+        rec[0], f"within_acc__{align}__{'-'.join(str(p) for p in pos_key)}__k{ng}",
+        _compute, params=None)
 
 
 def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
@@ -1009,7 +1021,7 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
         # `scored` IS the position set both arms are matched on, so it is the right cache key --
         # deriving a second expression here would be one more place for the two to drift apart.
         acc = _within_accuracy(d["kept"][i], X, y, gb, ng, is_post,
-                               pos_key=tuple(sorted(scored)))
+                               pos_key=tuple(sorted(scored)), align=d["align"])
         rows.append({"label": d["kept"][i], "within_accuracy": acc, "n": len(y),
                      "post": is_post})
     pre = np.array([r["within_accuracy"] for r in rows if not r["post"]], float)

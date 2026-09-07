@@ -29,7 +29,7 @@ def test_post_stroke_rows_are_never_cached(monkeypatch):
         raise AssertionError("a post-stroke row was routed through the cache")
 
     monkeypatch.setattr("wfield_local.session_cache.cached", boom)
-    out = pc._within_accuracy("PS94_0817", [[0]], [0], [0], 2, True, pos_key=(0, 1, 2))
+    out = pc._within_accuracy("PS94_0817", [[0]], [0], [0], 2, True, pos_key=(0, 1, 2), align="cue")
     assert out == 0.5 and len(calls) == 1
 
 
@@ -47,7 +47,7 @@ def test_pre_stroke_rows_go_through_the_cache(monkeypatch):
         return compute()
 
     monkeypatch.setattr("wfield_local.session_cache.cached", fake)
-    got = pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 2, 3, 4, 5))
+    got = pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 2, 3, 4, 5), align="cue")
     assert got == 0.9 and "within_acc__" in seen["kind"]
 
 
@@ -64,8 +64,8 @@ def test_a_different_position_set_is_a_different_key(monkeypatch):
                         lambda session, kind, compute, params=None, verbose=True:
                         keys.append(kind) or compute())
 
-    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 2, 3, 4, 5))
-    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 4, 5))
+    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 2, 3, 4, 5), align="cue")
+    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False, pos_key=(0, 1, 4, 5), align="cue")
     assert len(set(keys)) == 2, f"position set is not in the cache key: {keys}"
 
 
@@ -81,8 +81,8 @@ def test_fold_count_is_in_the_key(monkeypatch):
     monkeypatch.setattr("wfield_local.session_cache.cached",
                         lambda session, kind, compute, params=None, verbose=True:
                         keys.append(kind) or compute())
-    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 5, False, pos_key=(0, 1))
-    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 3, False, pos_key=(0, 1))
+    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 5, False, pos_key=(0, 1), align="cue")
+    pc._within_accuracy("PS92_0606", [[0]], [0], [0], 3, False, pos_key=(0, 1), align="cue")
     assert len(set(keys)) == 2
 
 
@@ -95,7 +95,7 @@ def test_an_unregistered_session_computes_rather_than_guessing(monkeypatch):
     monkeypatch.setattr("wfield_local.config.load_sessions", lambda *a, **k: [])
     monkeypatch.setattr("wfield_local.session_cache.cached",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("used the cache")))
-    assert pc._within_accuracy("PS99_9999", [[0]], [0], [0], 2, False, pos_key=(0,)) == 0.42
+    assert pc._within_accuracy("PS99_9999", [[0]], [0], [0], 2, False, pos_key=(0,), align="cue") == 0.42
 
 
 def test_the_call_site_keys_on_the_matched_position_set():
@@ -105,3 +105,28 @@ def test_the_call_site_keys_on_the_matched_position_set():
     assert "pos_key=tuple(sorted(scored))" in src.replace("\n", "").replace(" ", "").replace(
         "pos_key=tuple(sorted(scored))", "pos_key=tuple(sorted(scored))") or \
         "tuple(sorted(scored))" in src, "the call site must key on `scored`"
+
+
+def test_different_alignments_do_not_share_an_entry(monkeypatch):
+    """The gap that let slide 115 ship: this file pinned `pos_key` and the fold count, and simply
+    never pinned the alignment.
+
+    `X` is the pre-cue, post-cue or post-lick feature window. The same pre-stroke session has a
+    different within-session accuracy in each, so all three keying to one entry means whichever ran
+    first serves the other two -- which is exactly what `section_g.json` contained on 2026-09-07:
+    an identical `within_pre_band` (mean 0.7457034401132404 for PS92) under every window, while the
+    uncached post-stroke values differed correctly.
+    """
+    seen = []
+
+    def _fake(rec, kind, compute, params=None, verbose=True):
+        seen.append(kind)
+        return 0.5          # never run the real CV: the dummy X/y cannot support GroupKFold
+
+    monkeypatch.setattr("wfield_local.session_cache.cached", _fake)
+    for al in ("precue", "cue", "lick"):
+        pc._within_accuracy("PS92_0606", [[0]], [0], [0], 2, False,
+                            pos_key=(0, 1, 2, 3, 4, 5), align=al)
+    assert len(set(seen)) == 3, (
+        f"three alignments produced {len(set(seen))} distinct cache key(s): {seen} -- one window's "
+        f"band would be served for all of them")
