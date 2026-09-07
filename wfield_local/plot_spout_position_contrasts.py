@@ -56,12 +56,24 @@ def _functional_slot(label: str) -> int:
     reference's OWN 470 channel". This figure did not, so it printed "415 nm mean" over the 470
     image and vice versa (Priya, 2026-09-07, preprocessing deck).
 
-    Falls back to 1 rather than raising: an unregistered or ad-hoc label should still render, and 1
-    is what every session but one uses.
+    THE LABEL ARRIVES SUFFIXED. Callers pass the pipeline label -- `PS92_0828_affine8v1`, not
+    `PS92_0828` -- and `config.defaults(session=...)` keys on the bare session. Looking up the
+    suffixed form found no override and fell back to 1, which is the WRONG answer for the only
+    session that has one, so the first regeneration after this fix reproduced the same mislabelled
+    figure. The session id is extracted rather than assumed.
+
+    Falls back to 1 only when the label does not contain a session id at all: an ad-hoc render
+    should still work, and 1 is what every session but one uses. A label that DOES name a session
+    resolves through config, so a missing override there is a real answer and not a guess.
     """
+    import re
+
+    from wfield_local import config
+
+    m = re.match(r"(PS\d+_\d{4})", str(label))
     try:
-        from wfield_local import config
-        return int(config.defaults(session=label)["preprocess"]["svd"]["functional_channel"])
+        return int(config.defaults(session=m.group(1) if m else label)
+                   ["preprocess"]["svd"]["functional_channel"])
     except Exception:                                                  # noqa: BLE001
         return 1
 
@@ -150,7 +162,12 @@ def main() -> int:
         "allen_dir": str(args.allen_dir),
         "outputs": [str(mean_png), str(pair_png)],
         "pairwise_definition": "Each contrast is first condition's post-pre map minus second condition's post-pre map.",
-        "mean_image_note": "Channel 0 shown as 415 nm, channel 1 shown as 470 nm, matching the rig's corrected functional-channel setting.",
+        # DERIVED, not asserted. This string said "Channel 0 shown as 415 nm" unconditionally --
+        # the same slot-is-wavelength assumption the figure itself carried, restated as provenance.
+        "mean_image_note": (
+            f"Channel {1 - _functional_slot(args.label)} shown as 415 nm (isosbestic), "
+            f"channel {_functional_slot(args.label)} as 470 nm (functional), from this session's "
+            f"preprocess.svd.functional_channel."),
     }
     (args.output / f"{args.label}_extra_spout_position_overlay_summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"

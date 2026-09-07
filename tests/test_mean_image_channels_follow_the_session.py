@@ -13,6 +13,7 @@ figure after the fix changed nothing, because the figure never consulted the fix
 import inspect
 
 import numpy as np
+import pytest
 
 from wfield_local import plot_spout_position_contrasts as pc
 
@@ -40,3 +41,40 @@ def test_a_swapped_session_reads_the_other_slot(monkeypatch):
 
 def test_an_unknown_label_falls_back_rather_than_raising():
     assert pc._functional_slot("NOT_A_SESSION") == 1
+
+
+def test_the_suffixed_pipeline_label_resolves_the_override():
+    """The hole the first fix left, found by running it rather than by the unit tests.
+
+    Callers pass `PS92_0828_affine8v1`, not `PS92_0828`. `config.defaults(session=...)` keys on the
+    bare session, so the suffixed form found nothing and fell back to 1 -- the WRONG answer for the
+    only session with an override -- and the first regeneration after the fix reproduced the same
+    mislabelled figure. The earlier tests passed throughout, because they asked with the bare label.
+    """
+    assert pc._functional_slot("PS92_0828_affine8v1") == 0
+    assert pc._functional_slot("PS92_0828") == 0
+    assert pc._functional_slot("PS93_0828_affine8v1") == 1
+
+
+def test_the_sidecar_note_is_derived_not_asserted():
+    """AST: the note's VALUE must be computed, not a fixed string.
+
+    Text-searching for the old wording matches the comment that explains the fix as readily as a
+    regression -- the fourth time that trap has been hit in this repo, so the guard resolves the
+    dict value structurally instead.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(pc.main)))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for k, v in zip(node.keys, node.values):
+            if isinstance(k, ast.Constant) and k.value == "mean_image_note":
+                assert not isinstance(v, ast.Constant), (
+                    "the note is a fixed string; it must follow the session's functional_channel "
+                    "rather than restate the slot-is-wavelength assumption as provenance")
+                return
+    pytest.fail("could not find the mean_image_note entry")
