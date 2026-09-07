@@ -42,7 +42,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from wfield_local import epochs
+from wfield_local import config, epochs
 from wfield_local.paths import PathResolver
 
 #: Written by `spout_behavior --cohort`, which the CAMERA/behaviour nightly runs in stage 1 -- ahead
@@ -142,6 +142,55 @@ def changes(new_spec, old_spec) -> list[str]:
     return out
 
 
+def stale_fallback(spec) -> list[str]:
+    """Animals where the DERIVED boundary differs from the declared fallback in `animals.yaml`.
+
+    A DIFFERENT COMPARISON FROM `changes`, and both are needed. `changes` asks "did this move since
+    last night" -- transient news. This asks "is the committed fallback still right", a standing
+    condition that persists until a human acts.
+
+    IT IS NOT URGENT, and saying so matters as much as reporting it. A crashed or behaviour-less run
+    falls back to the LAST DERIVED `epoch_boundaries.json`, not to this, so a stale fallback does
+    not silently revert tonight's epochs. It bites in exactly two places: a fresh clone or a box
+    with no artifact yet, and `WIDEFIELD_EPOCHS_PINNED=1`. Both are about REPRODUCING a figure set
+    rather than producing one, which is why promotion is a deliberate human step and not a nightly
+    write.
+    """
+    out = []
+    for animal, derived in sorted(spec.items()):
+        want = derived.get("chronic_from")
+        have = (config.epoch_spec(animal) or {}).get("chronic_from")
+        if want != have:
+            out.append(f"{animal}: animals.yaml says chronic_from {have}, behaviour says {want}")
+    return out
+
+
+def promotion_yaml(spec) -> list[str]:
+    """The exact `animals.yaml` lines to paste, for the animals whose fallback is stale.
+
+    Printed rather than written. The pipeline must not edit `animals.yaml` -- it is
+    version-controlled, both machines push `main`, and most of its value is hand-written comments a
+    YAML dump would delete. But a human promotion that requires re-deriving the number by hand is a
+    human promotion that does not happen, so the diff is produced ready to paste.
+    """
+    lines = []
+    for animal, derived in sorted(spec.items()):
+        want = derived.get("chronic_from")
+        have = (config.epoch_spec(animal) or {}).get("chronic_from")
+        if want == have:
+            continue
+        # YAML SPELLING THROUGHOUT, comment included. The whole block is meant to be pasted into
+        # animals.yaml, and a "was None" sitting next to a "chronic_from: null" invites the reader
+        # to write Python's spelling into a YAML file, where it is the STRING "None" and parses as
+        # a truthy value rather than an absent boundary.
+        _y = (lambda v: "null" if v is None else str(v))
+        note = ("has not stabilised" if want is None
+                else f"derived from behaviour, was {_y(have)}")
+        lines += [f"  {animal}:", "    epochs:",
+                  f"      chronic_from: {_y(want)}    # {note}"]
+    return lines
+
+
 def resolve(rv=None, position=None, write=True):
     """Derive the boundaries, install them for THIS process, and publish them for the subprocesses.
 
@@ -152,9 +201,11 @@ def resolve(rv=None, position=None, write=True):
     from disk; installing them only in the parent would build half the deck on derived boundaries
     and half on stored ones, and it would render cleanly.
 
-    ON UNAVAILABLE BEHAVIOUR IT WRITES NOTHING AND INSTALLS NOTHING. The stored spec stays in force,
-    which is the safe direction: a missing cohort table must not silently move every animal to
-    "no chronic epoch" and quietly restage the whole deck.
+    ON UNAVAILABLE BEHAVIOUR IT WRITES NOTHING AND INSTALLS NOTHING, which leaves the LAST DERIVED
+    `epoch_boundaries.json` in force (`epochs` loads it lazily). That is the safe direction: a
+    missing cohort table must not silently move every animal to "no chronic epoch" and restage the
+    whole deck, and it must not quietly revert to a hand-declared fallback that may be much older
+    than the last good derivation.
     """
     rep = audit(rv=rv, position=position)
     if not rep.get("available"):
@@ -167,7 +218,8 @@ def resolve(rv=None, position=None, write=True):
         path = epochs.save_boundaries(spec)
     epochs.set_resolved(spec, source=str(path) if path else "derived (not written)")
     return {"available": True, "report": rep, "spec": spec, "changes": moved, "path": path,
-            "first_run": old is None}
+            "first_run": old is None, "stale_fallback": stale_fallback(spec),
+            "promote_yaml": promotion_yaml(spec)}
 
 
 def disagreements(rep) -> list[str]:

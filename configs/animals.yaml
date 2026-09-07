@@ -27,6 +27,26 @@
 #
 # characteristics: free-form per-animal traits the analysis conditions on.
 # exclude: dates (MMDD) to drop, optionally scoped to an analysis tag (see docs).
+#
+# epochs: recovery-stage boundaries in DAYS SINCE stroke_date (not session index -- sessions are
+#   not daily, and the two disagree; see wfield_local/epochs.py). Read by config.epoch_spec().
+#
+#   acute / subacute_from ARE THE SOURCE -- nothing derives them; delete them and those boundaries
+#   have no definition at all. chronic_from is DERIVED from behaviour every nightly run (Priya,
+#   2026-09-07) and published to `epoch_boundaries.json` beside the deck; THAT file is what the
+#   figures were built on, and it is also what a crashed or behaviour-less run falls back to.
+#   The chronic_from written HERE is a last-resort seed, used only when pinned
+#   (WIDEFIELD_EPOCHS_PINNED=1) or when no artifact exists at all -- a fresh clone, or a box that
+#   has never run. It can therefore sit stale for a while without affecting nightly output.
+#
+#   THE PIPELINE NEVER WRITES THIS FILE, deliberately: it is version-controlled and both machines
+#   push main, so a nightly rewriting it would race and conflict; and a YAML dump would destroy the
+#   hand-written comments that are most of this file's value. When derivation and this block
+#   disagree the nightly logs the exact line to paste here, and a human promotes it.
+#
+#   acute: [first, last] inclusive. subacute_from / chronic_from: first day of that epoch, or null
+#   for chronic to assert "tested against the rule, has not stabilised" -- an ABSENT key would read
+#   as "nobody has looked", which is a different claim.
 
 animals:
   PS92:
@@ -47,6 +67,10 @@ animals:
                              #   is why it took where the 8/16 PM attempt did not; that
                              #   earlier attempt's power was never recorded.
     reference_landmarks: v2         # dorsal_cortex_landmarks_<v> version for the 6/6 cross-reg reference
+    epochs:                         # days since stroke_date; see the note above
+      acute: [1, 5]
+      subacute_from: 7
+      chronic_from: 11    # derived 2026-09-07
     exclude: ["0817"]        # NEITHER baseline nor post-stroke: the 8/16 PM
                              #   attempt gave no deficit, and the EFFECTIVE
                              #   lesion followed this same 8/17 session. Load-
@@ -78,6 +102,10 @@ animals:
                              #   is why it took where the 8/16 PM attempt did not; that
                              #   earlier attempt's power was never recorded.
     reference_landmarks: v2
+    epochs:                         # days since stroke_date; see the note above
+      acute: [1, 4]
+      subacute_from: 5
+      chronic_from: null    # has not stabilised
     exclude: ["0817"]        # NEITHER baseline nor post-stroke: the 8/16 PM
                              #   attempt gave no deficit, and the EFFECTIVE
                              #   lesion followed this same 8/17 session. Load-
@@ -100,6 +128,10 @@ animals:
     stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
                              #   from 8/17 (Priya, 2026-08-17)
     reference_landmarks: v1
+    epochs:                         # days since stroke_date; see the note above
+      acute: [1, 7]
+      subacute_from: 9
+      chronic_from: null    # has not stabilised
     exclude: []
 
   PS95:
@@ -113,6 +145,10 @@ animals:
     stroke_laser_power_mW: 3       # VLS lesion 2026-08-16 PM; overt deficit -> POST-stroke
                              #   from 8/17 (Priya, 2026-08-17)
     reference_landmarks: v1
+    epochs:                         # days since stroke_date; see the note above
+      acute: [1, 1]
+      subacute_from: 2
+      chronic_from: null    # has not stabilised
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero

@@ -19,11 +19,12 @@ simply days nobody recorded. Verified below and pinned in `tests/test_epochs.py`
 
 WHERE THE BOUNDARIES COME FROM, and it differs by epoch since 2026-09-07:
 
-  * ACUTE / SUBACUTE are STORED in `EPOCH_SPEC`. The rule is behavioural -- acute = the days on
-    which far_R accuracy is below 25% of that animal's pre-stroke baseline -- and
-    `verify_against_behaviour` re-derives it and reports agreement, but it is a CHECK, not the
-    source. It currently reproduces the stored boundaries exactly on all four animals, so deriving
-    them would change nothing today while adding a way for a published acute boundary to move.
+  * ACUTE / SUBACUTE are DECLARED in `configs/animals.yaml`, beside each animal's `stroke_date`.
+    The rule is behavioural -- acute = the days on which far_R accuracy is below 25% of that
+    animal's pre-stroke baseline -- and `verify_against_behaviour` re-derives it and reports
+    agreement, but it is a CHECK, not the source. It currently reproduces the declared boundaries
+    exactly on all four animals, so deriving them would change nothing today while adding a way for
+    a published acute boundary to move.
   * CHRONIC is DERIVED from behaviour every run (Priya, 2026-09-07: *"I'd like the pipeline to run
     the epoch definitions and just determine if we have met 'chronic' criteria, order sessions into
     epochs appropriately, and analyze"*). See the DERIVED BOUNDARIES section below.
@@ -34,6 +35,28 @@ frozen models, the 0817 pooling). Deriving does not remove that risk, so it is a
 rather than avoided: every run writes the boundaries it used to `epoch_boundaries.json` beside the
 deck, the nightly diffs that file against the previous run and logs every boundary that moved, and
 `WIDEFIELD_EPOCHS_PINNED=1` reproduces an older figure set under `EPOCH_SPEC` exactly.
+
+THE PIPELINE NEVER WRITES `configs/animals.yaml`. It is version-controlled, both machines push
+`main`, and most of its value is hand-written comments a YAML dump would delete. So the declared
+`chronic_from` there can fall behind what behaviour now implies. `epoch_audit` reports that every
+run and prints the lines to paste; promoting is a deliberate human step.
+
+THE PRECEDENCE, because "fallback" is too vague to act on:
+
+    pinned                        -> `configs/animals.yaml`
+    normal run                    -> derived, then written to `epoch_boundaries.json`
+    derivation unavailable/crashed-> the LAST DERIVED `epoch_boundaries.json`
+    no artifact at all            -> `configs/animals.yaml`
+
+A stale `chronic_from` in the YAML therefore does NOT silently revert tonight's epochs when a run
+fails -- the last good derivation carries. It bites in two places only, both about REPRODUCING a
+figure set rather than producing one: a fresh clone with no artifact, and `WIDEFIELD_EPOCHS_PINNED=1`.
+
+WHERE EACH THING LIVES, since there are now three files and they are easy to confuse:
+  * `configs/defaults.yaml epochs.*`   -- the RULE (thresholds, tolerances). Human-edited.
+  * `configs/animals.yaml <an>.epochs` -- the per-animal FALLBACK boundaries. Human-edited.
+  * `<labcams>/epoch_boundaries.json`  -- what the last run DERIVED and built its figures on.
+                                          Machine-written every run; never hand-edited.
 
 CHRONIC WAS ADDED 2026-09-07, and this docstring used to promise it would cost one entry per animal
 in `EPOCH_SPEC` plus its name in `EPOCHS`, with nothing else needing to know. That was not true, and
@@ -65,24 +88,31 @@ from wfield_local import config
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 #: Per animal: (acute days inclusive, first subacute day, first chronic day), in DAYS SINCE
-#: `config.stroke_date`. Priya, 2026-08-28 (acute/subacute) and 2026-09-07 (chronic).
-#: A day outside every range is deliberately unassigned -- see `epoch_of`.
+#: `config.stroke_date`. FROM `configs/animals.yaml`, beside each animal's `stroke_date` -- these
+#: are per-animal facts about the experiment and belong with the rest of them, not in a Python dict
+#: (CLAUDE.md rule 3; the same reason the hardcoded SESSIONS and ANIMAL_COLOR were retired).
 #:
-#: ``chronic_from: None`` is an ASSERTION, not an omission: that animal was tested against
+#: `acute` and `subacute_from` ARE THE SOURCE -- nothing derives them, so removing them leaves
+#: those two boundaries with no definition at all and `epoch_of` returns None for every post-stroke
+#: session. `chronic_from` here is a LAST-RESORT SEED: it is derived every run and published to
+#: `epoch_boundaries.json`, and applies only when pinned or when no artifact exists at all (a fresh
+#: clone, or a box that has never run). A crashed or behaviour-less run uses the last DERIVED file,
+#: not this.
+#:
+#: ``chronic_from: null`` is an ASSERTION, not an omission: that animal was tested against
 #: `CHRONIC_RULE` and has not stabilised. Three of the four have not, for three different reasons --
 #: PS93's licking overshot baseline and is still coming back down, PS94 is DECLINING, PS95's hit
-#: rate is still climbing. Written as an explicit None so a reader cannot mistake it for a gap.
-EPOCH_SPEC = {
-    "PS92": {"acute": (1, 5), "subacute_from": 7, "chronic_from": 11},
-    "PS93": {"acute": (1, 4), "subacute_from": 5, "chronic_from": None},
-    "PS94": {"acute": (1, 7), "subacute_from": 9, "chronic_from": None},
-    "PS95": {"acute": (1, 1), "subacute_from": 2, "chronic_from": None},
-}
+#: rate is still climbing. Written explicitly so a reader cannot mistake it for a gap.
+EPOCH_SPEC = config.epoch_spec()
+
+_EP = config.defaults().get("epochs") or {}
+_CHRONIC = _EP.get("chronic") or {}
 
 #: The behavioural rule the boundaries were derived from, for `verify_against_behaviour`.
-ACUTE_RULE = "far_R accuracy < 25% of that animal's pre-stroke baseline"
-ACUTE_FRACTION = 0.25
-RULE_POSITION = "far_R"
+ACUTE_FRACTION = float(_EP.get("acute_fraction", 0.25))
+RULE_POSITION = str(_EP.get("rule_position", "far_R"))
+ACUTE_RULE = (f"{RULE_POSITION} accuracy < {ACUTE_FRACTION:.0%} of that animal's pre-stroke "
+              "baseline")
 
 # --- the chronic rule ---------------------------------------------------------------------------
 # Priya, 2026-09-07: "maybe we should have a separate intersection (AND) plateau requirement for
@@ -144,18 +174,30 @@ RULE_POSITION = "far_R"
 # include it in the recovery timeline". Gating EXCLUDES it from the timeline, so an animal that
 # recovers accuracy but works fewer trials still reaches chronic. That is a choice, not a fact; PS94
 # is the case where it matters most.
-CHRONIC_RULE = ("far_R hit rate AND licks/trial both flat (|slope| <= 1/3 x pre-stroke SD/session), "
-                "recovered (>= 90% / 80% of baseline) and settled (residual <= 1.5 x pre-stroke SD) "
-                "from this session onward, on engaged trials")
+#: Every constant below comes from `configs/defaults.yaml epochs.chronic`, so the thresholds are
+#: tunable without a code edit and the reasoning for each sits beside the value it justifies.
+CHRONIC_K_SD = float(_CHRONIC.get("k_sd", 1.0 / 3.0))
+CHRONIC_K_RES = float(_CHRONIC.get("k_res", 1.5))
+CHRONIC_MIN_TAIL = int(_CHRONIC.get("min_tail", 3))
+CHRONIC_LEVEL_MIN = {k: float(v) for k, v in
+                     (_CHRONIC.get("level_min") or {"hit": 0.90, "licks": 0.80}).items()}
+
+#: BUILT FROM THE CONSTANTS, not written out beside them. This string is stamped into
+#: `epoch_boundaries.json` and into the deck's section I divider as the rule a figure set claims to
+#: be the output of -- so a hand-written copy would go stale the first time a threshold was tuned in
+#: YAML, and would then be asserting something false in a published deck.
+CHRONIC_RULE = (
+    f"{RULE_POSITION} hit rate AND licks/trial both flat (|slope| <= {CHRONIC_K_SD:.4g} x "
+    f"pre-stroke SD/session), recovered (>= "
+    + " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
+                 if k in CHRONIC_LEVEL_MIN)
+    + f" of baseline) and settled (residual <= {CHRONIC_K_RES:.4g} x pre-stroke SD) from this "
+      f"session onward, on engaged trials")
 #: Per series, as a fraction of that animal's pre-stroke baseline. Hit rate uses Priya's original
 #: by-eye bar ("> 90% pre-stroke baseline"), which also lands at a consistent 1.3-2.0 SD across
 #: animals. Licks are looser in fraction terms because they are intrinsically noisier; 1.00 would
 #: demand full lick recovery and reject PS92 at 97%. Empirically the levels barely matter -- every
 #: combination from 0.75/0.60 to 0.95/0.90 gives the same four boundaries.
-CHRONIC_LEVEL_MIN = {"hit": 0.90, "licks": 0.80}
-CHRONIC_K_SD = 1.0 / 3.0
-CHRONIC_K_RES = 1.5
-CHRONIC_MIN_TAIL = 3
 
 # --- DERIVED boundaries -------------------------------------------------------------------------
 # Priya, 2026-09-07: "I'd like the pipeline to run the epoch definitions and just determine if we

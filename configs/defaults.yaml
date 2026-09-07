@@ -189,3 +189,34 @@ sync:
   daq_sync_line: 0            # DAQ digital line0 rising edges == camera CSV col3 LSB rising edges
   behavior_starts_after_daq: true   # align by sync pulses / trial-offset, NOT wall-clock (drift-free)
   strobe_bits: {bit0: 4, bit1: 5, bit2: 6}   # DAQ digital lines encoding spout position
+
+epochs:                       # recovery-stage boundary RULES. The per-animal boundaries these
+                              # produce live in animals.yaml (fallback) and epoch_boundaries.json
+                              # (what the last run actually used). See wfield_local/epochs.py.
+  rule_position: far_R        # the spared/affected position both rules are measured at
+  acute_fraction: 0.25        # acute = far_R accuracy below this fraction of pre-stroke baseline
+
+  chronic:                    # chronic = BOTH hit rate AND licks/trial stable, on ENGAGED trials.
+                              # Not a composite: PS94 sits at 91% hit rate with 45% licking, so the
+                              # two measure different things (accuracy vs vigour) and averaging them
+                              # hides whichever is worse. Each is tested alone; chronic begins at
+                              # the LATER of the two plateaus, and only if both exist.
+    min_tail: 3               # sessions required from a candidate start; also the shortest window
+    k_sd: 0.3333333333333333  # FLAT: |slope| <= k_sd x that series' own pre-stroke SD, per session.
+                              #   Per-series because licking is ~3.5x noisier than hit rate; one
+                              #   absolute tolerance makes the lick test ~3.5x stricter and mostly
+                              #   reports that licking is noisy (at a fixed 2%/session NO animal
+                              #   reaches chronic).
+                              #   0.5 WAS REJECTED: it makes permitted drift exactly 1.0 baseline SD
+                              #   over the minimum window, which reads better than 0.67, but moves
+                              #   PS93 from failing by 55% of tolerance to failing by 3.6% -- one
+                              #   session from flipping an animal, on a cohort that gains a session
+                              #   most nights.
+    k_res: 1.5                # SETTLED: residual scatter about the fit <= k_res x pre-stroke SD.
+                              #   A flat FIT through scattered points is a noisy climb: PS95's hit
+                              #   rate trends shallowly from day 2 while swinging 72-105%.
+    level_min:                # RECOVERED: tail mean, as a fraction of that animal's own baseline.
+      hit: 0.90               #   Priya's original by-eye bar; also 1.3-2.0 SD for every animal.
+      licks: 0.80             #   looser because licking is noisier; 1.00 would demand full lick
+                              #   recovery and reject PS92 at 97%. Flat is NOT recovered -- PS94's
+                              #   licking is dead flat at 47% of baseline from day 9.

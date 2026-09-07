@@ -236,6 +236,39 @@ def stroke_date(animal: str) -> str | None:
     return v[4:] if len(v) == 8 else v          # accept YYYYMMDD or MMDD
 
 
+def epoch_spec(animal: str | None = None):
+    """Per-animal recovery-stage boundaries from `configs/animals.yaml`, in DAYS since stroke.
+
+    ``{animal: {"acute": (lo, hi), "subacute_from": int, "chronic_from": int|None}}``, or one
+    animal's dict when `animal` is given.
+
+    `acute` and `subacute_from` ARE THE SOURCE. `chronic_from` is a last-resort seed: it is derived
+    from behaviour each nightly run and published to `epoch_boundaries.json`, and this value applies
+    only when pinned or when no artifact exists (a fresh clone). A crashed or behaviour-less run
+    uses the last DERIVED file. See `wfield_local.epochs` for the full precedence.
+
+    `acute` becomes a TUPLE. YAML gives a list, and `epoch_of` compares it against stored specs and
+    test fixtures written as tuples -- a list would compare unequal to an identical tuple and the
+    mismatch would surface as a test failure nowhere near this function.
+    """
+    out = {}
+    for an, meta in (animals() or {}).items():
+        spec = (meta or {}).get("epochs")
+        if not spec:
+            continue
+        acute = spec.get("acute")
+        if acute is None or len(acute) != 2:
+            raise ValueError(f"animals.yaml {an}.epochs.acute must be [first, last], got {acute!r}")
+        cf = spec.get("chronic_from")
+        if cf is not None and not isinstance(cf, int):
+            raise ValueError(f"animals.yaml {an}.epochs.chronic_from must be an int or null, "
+                             f"got {cf!r}")
+        out[an] = {"acute": (int(acute[0]), int(acute[1])),
+                   "subacute_from": int(spec["subacute_from"]),
+                   "chronic_from": cf}
+    return out.get(animal) if animal else out
+
+
 def stroke_cutoff() -> str | None:
     """The EARLIEST stroke date across the cohort, or None if nobody is lesioned yet.
 

@@ -6910,3 +6910,65 @@ deck and no slide said which: the decode/encode/frozen/RSA families split on a l
 SUBDIVIDE those no-lick trials with the engagement gate. A reader comparing a frozen-decoder curve
 against a section-G contrast is comparing two trial SETS, not two results. Section G is left alone —
 its titles already carry `({_armn} arm)`, and a second static label could disagree with the first.
+
+## 2026-09-07 (end of day) — Epoch boundaries and rules move into `configs/`, and the precedence gets written down
+
+Priya: *"are the boundaries noted in a config file?"* They were not. `EPOCH_SPEC` was a Python dict
+in `epochs.py` and the six chronic-rule constants were module literals — the same class of thing as
+the hardcoded `SESSIONS`/`ANIMAL_COLOR` that CLAUDE.md rule 3 retired, and I had added the constants
+that afternoon without wiring them.
+
+  * **`configs/animals.yaml <animal>.epochs`** — `acute`, `subacute_from`, `chronic_from`, beside
+    each animal's `stroke_date`. Read by the new `config.epoch_spec()`.
+  * **`configs/defaults.yaml epochs.*`** — `rule_position`, `acute_fraction`, and
+    `chronic.{min_tail,k_sd,k_res,level_min}`. The reasoning for each threshold now sits in the YAML
+    beside the value it justifies, including why `k_sd` is ⅓ and not 0.5.
+  * **`CHRONIC_RULE` is now BUILT from the constants**, not written out beside them. That string is
+    stamped into `epoch_boundaries.json` and the deck's section I divider as the rule a figure set
+    claims to be the output of, so a hand-written copy would go stale the first time a threshold was
+    tuned in YAML and would then assert something false in a published deck.
+
+### The precedence, which had been described wrongly
+
+*"if a new run determines 'chronic' session for PS93, how does it change the config files?"* It does
+not — and testing that question exposed that several docstrings, three log messages and the YAML
+comment I had just written all claimed a fallback that does not happen. The actual order:
+
+```
+pinned (WIDEFIELD_EPOCHS_PINNED=1)  -> configs/animals.yaml
+normal run                          -> derived, written to epoch_boundaries.json
+derivation unavailable or crashed   -> the LAST DERIVED epoch_boundaries.json
+no artifact at all                  -> configs/animals.yaml
+```
+
+A crashed or behaviour-less run therefore keeps the **last derived** boundaries; it does not revert
+to the hand-declared seed. That matters: reverting would mean a mount failure silently restaged
+every pooled panel to whatever was last promoted, which could be months old. Pinned in
+`test_the_fallback_precedence`, because it is exactly the kind of ordering that drifts back.
+
+### What each file is for
+
+  * `acute` / `subacute_from` **are the source**. Nothing derives them; delete them and those
+    boundaries have no definition at all and `epoch_of` returns None for every post-stroke session.
+    Pinned in `test_acute_and_subacute_have_no_other_source`, so nobody "tidies up" the epochs block
+    on the theory that the pipeline derives all of it.
+  * `chronic_from` in the YAML is a **last-resort seed**, not a live fallback. It bites in two places
+    only, both about REPRODUCING a figure set rather than producing one: a fresh clone with no
+    artifact, and a pinned rebuild.
+
+### Why `animals.yaml` does not reference `epoch_boundaries.json`, and is not written by the pipeline
+
+A version-controlled, reviewable config pointing at a machine-written artifact on a share would make
+its meaning depend on a file that is not in the repo, differs per box, and is itself produced by a
+run that reads `animals.yaml` for acute/subacute — circular and unreviewable. And the pipeline must
+not write the YAML: both machines push `main`, so a nightly rewriting a tracked file would race and
+conflict, and a YAML dump would delete the hand-written comments that are most of that file's value.
+
+### Promotion is a human step, made cheap
+
+`epoch_audit.stale_fallback()` reports every run where the derived boundary differs from the declared
+one, and `promotion_yaml()` prints the exact lines to paste — YAML-spelled throughout, comments
+included, because a `was None` sitting beside a `chronic_from: null` invites writing Python's
+spelling into a YAML file, where it parses as the truthy string `"None"` rather than an absent
+boundary. It is reported as a standing condition rather than an urgent one, since a stale seed does
+not affect nightly output.

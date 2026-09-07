@@ -144,3 +144,110 @@ def test_the_first_run_does_not_announce_that_everything_moved():
     # an EMPTY previous file is different from an absent one: it really did lose a boundary
     assert epoch_audit.changes({"PS92": {"chronic_from": 11}}, {}) == [
         "PS92 chronic_from: absent -> 11"]
+
+
+# --- the boundaries and the rule now come from configs/, not from Python -------------------------
+
+def test_the_spec_comes_from_animals_yaml():
+    """CLAUDE.md rule 3: `configs/*.yaml` is the single source of truth, and the hardcoded
+    per-animal dicts were retired for this reason. The epoch boundaries are per-animal facts about
+    the experiment and belong beside `stroke_date`, not in a Python literal."""
+    from wfield_local import config
+
+    assert epochs.EPOCH_SPEC == config.epoch_spec()
+    for animal, spec in epochs.EPOCH_SPEC.items():
+        assert isinstance(spec["acute"], tuple), (
+            f"{animal}: acute must be a TUPLE -- YAML yields a list, and a list compares unequal "
+            f"to an identical tuple, which would surface as a failure far from the loader")
+        assert isinstance(spec["subacute_from"], int)
+        assert spec["chronic_from"] is None or isinstance(spec["chronic_from"], int)
+
+
+def test_the_rule_constants_come_from_defaults_yaml():
+    """The thresholds chosen on 2026-09-07 are tunable without a code edit, and the reasoning for
+    each sits in the YAML beside the value it justifies."""
+    from wfield_local import config
+
+    ep = config.defaults()["epochs"]
+    assert epochs.RULE_POSITION == ep["rule_position"]
+    assert epochs.ACUTE_FRACTION == pytest.approx(ep["acute_fraction"])
+    assert epochs.CHRONIC_K_SD == pytest.approx(ep["chronic"]["k_sd"])
+    assert epochs.CHRONIC_K_RES == pytest.approx(ep["chronic"]["k_res"])
+    assert epochs.CHRONIC_MIN_TAIL == ep["chronic"]["min_tail"]
+    assert epochs.CHRONIC_LEVEL_MIN == {k: pytest.approx(v)
+                                        for k, v in ep["chronic"]["level_min"].items()}
+
+
+def test_the_rule_text_is_built_from_the_constants():
+    """`CHRONIC_RULE` is stamped into `epoch_boundaries.json` and the deck's section I divider as
+    the rule a figure set claims to be the output of. A hand-written copy would go stale the first
+    time a threshold was tuned in YAML, and would then assert something false in a published deck."""
+    assert f"{epochs.CHRONIC_K_RES:.4g}" in epochs.CHRONIC_RULE
+    assert f"{100 * epochs.CHRONIC_LEVEL_MIN['hit']:.0f}%" in epochs.CHRONIC_RULE
+    assert epochs.RULE_POSITION in epochs.CHRONIC_RULE
+
+
+def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
+    """When behaviour moves a boundary, `animals.yaml` does NOT follow -- the pipeline must not edit
+    a version-controlled file both machines push. But a promotion that requires re-deriving the
+    number by hand is one that does not happen, so the lines to paste are produced ready."""
+    crossed = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
+    crossed["PS93"] = {"chronic_from": 11}                    # PS93 crosses
+    stale = epoch_audit.stale_fallback(crossed)
+    assert len(stale) == 1 and "PS93" in stale[0], stale
+    paste = "\n".join(epoch_audit.promotion_yaml(crossed))
+    assert "PS93:" in paste and "chronic_from: 11" in paste
+    # only the animal that moved...
+    assert "PS92" not in paste
+    # ...and every value is YAML-spelled, comments included: a "was None" beside a
+    # "chronic_from: null" invites writing Python's spelling into a YAML file, where it parses as
+    # the truthy STRING "None" rather than an absent boundary.
+    assert "None" not in paste, paste
+    unset = " ".join(epoch_audit.promotion_yaml({"PS92": {"chronic_from": None}}))
+    assert "null" in unset and "None" not in unset
+
+
+def test_nothing_is_stale_today():
+    """The committed fallback matches what behaviour currently implies. Expected to fail when an
+    animal crosses -- which is the prompt to promote, not a defect."""
+    spec = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
+    assert epoch_audit.stale_fallback(spec) == []
+
+
+def test_the_fallback_precedence(derived, monkeypatch):
+    """PINNED > derived > LAST DERIVED FILE > animals.yaml, in that order.
+
+    The third step is the one that is easy to get wrong and was documented wrongly for an hour: a
+    crashed or behaviour-less run keeps the LAST DERIVED boundaries rather than reverting to the
+    hand-declared seed. Reverting would mean a mount failure silently restaged every pooled panel
+    to whatever was last promoted, which could be months old.
+    """
+    lab = "PS93_0828"
+    assert epochs.EPOCH_SPEC["PS93"]["chronic_from"] is None      # the declared seed
+
+    # no artifact -> animals.yaml
+    epochs.clear_resolved()
+    assert epochs.epoch_of(lab) == "subacute"
+
+    # a previous run derived it -> that file wins, even though nothing derives this run
+    epochs.save_boundaries({"PS93": {"chronic_from": 11}}, derived)
+    epochs.clear_resolved()
+    assert epochs.epoch_of(lab) == "chronic", "a failed run must keep the last derived boundaries"
+
+    # pinned beats everything
+    monkeypatch.setenv("WIDEFIELD_EPOCHS_PINNED", "1")
+    epochs.clear_resolved()
+    assert epochs.epoch_of(lab) == "subacute"
+
+
+def test_acute_and_subacute_have_no_other_source(derived):
+    """`chronic_from` is optional in `animals.yaml` -- it is derived. `acute` and `subacute_from`
+    are NOT: nothing computes them, so removing them from the YAML would leave every post-stroke
+    session unassigned. Pinned here so nobody 'tidies up' the epochs block on the theory that the
+    pipeline derives all of it."""
+    epochs.save_boundaries({a: {"chronic_from": None} for a in epochs.EPOCH_SPEC}, derived)
+    epochs.clear_resolved()
+    for animal, spec in epochs.EPOCH_SPEC.items():
+        assert spec["acute"] and spec["subacute_from"], animal
+    assert epochs.epoch_of("PS92_0818") == "acute"
+    assert epochs.epoch_of("PS92_0828") == "subacute"      # chronic cleared -> falls to subacute

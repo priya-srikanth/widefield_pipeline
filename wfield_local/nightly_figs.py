@@ -147,9 +147,10 @@ def _resolve_epochs():
     exists to detect, would withhold the night's entire deck.
 
     A CRASH here IS a failure. An audit that silently stopped running is how both verifiers sat
-    uncalled for ten days while reading as though they were wired in. On a crash the stored
-    `EPOCH_SPEC` stays in force, which is the safe direction: figures are built on the last
-    hand-checked boundaries rather than on nothing.
+    uncalled for ten days while reading as though they were wired in. On a crash the LAST DERIVED
+    boundaries stay in force -- `epochs` loads `epoch_boundaries.json` lazily -- so a failed run
+    reproduces the previous run's epochs rather than reverting to a possibly much older
+    hand-declared fallback. Only with no artifact at all does `animals.yaml` apply.
     """
     try:
         from wfield_local import epoch_audit, epochs
@@ -164,7 +165,8 @@ def _resolve_epochs():
             # NOT the same as "nothing changed", and must not read like it: without the cohort
             # table nothing was derived, and the stored spec is what the figures will use.
             log("  !! epoch boundaries NOT DERIVED this run (no cohort behaviour table); "
-                "figures will use the stored EPOCH_SPEC")
+                "figures will use the LAST DERIVED epoch_boundaries.json, or animals.yaml if "
+                "there is none")
             return
         log(f"   epoch boundaries in force: {epochs.resolved_source()}")
         if res.get("first_run"):
@@ -180,10 +182,22 @@ def _resolve_epochs():
             for c in res["changes"]:
                 log(f"     {c}")
             log("   Pooled epoch panels in this deck are NOT comparable to the previous one.")
+        # A STANDING CONDITION, reported every run until someone acts -- unlike `changes`, which is
+        # news for one night only. The committed fallback is what a crashed or behaviour-less run
+        # uses, so leaving it stale means a mount failure silently reverts the epochs and restages
+        # every pooled panel, with the deck describing the older boundaries perfectly correctly.
+        if res.get("stale_fallback"):
+            log(f"== configs/animals.yaml FALLBACK IS STALE ({len(res['stale_fallback'])}) ==")
+            for c in res["stale_fallback"]:
+                log(f"     {c}")
+            log("   The pipeline does NOT edit animals.yaml (version-controlled, both boxes push "
+                "main, and a YAML dump would delete its comments). Paste this and commit:")
+            for line in res.get("promote_yaml", []):
+                log(f"       {line}")
     except Exception as ex:                                       # noqa: BLE001
         FAILURES.append("epoch resolution")
         log(f"  !! epoch resolution: {type(ex).__name__} {str(ex)[:120]} "
-            "-- falling back to the stored EPOCH_SPEC")
+            "-- falling back to the last derived epoch_boundaries.json (animals.yaml if none)")
 
 
 def _epoch_boundaries_used():
