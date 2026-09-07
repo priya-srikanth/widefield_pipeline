@@ -3,14 +3,15 @@
 Priya, 2026-09-07: *"I'd like the pipeline to run the epoch definitions and just determine if we
 have met 'chronic' criteria, order sessions into epochs appropriately, and analyze."*
 
-TWO DIFFERENT CONTRACTS, and conflating them is the easiest mistake to make here:
+ALL THREE BOUNDARIES ARE DERIVED as of 2026-09-07. Priya: *"we have clear derivation definitions
+for acute and subacute right? like, we don't have to hard-code them?"* -- correct. The acute rule
+reproduces all four declared ranges exactly, and subacute has no rule of its own: it is the
+complement, with `subacute_from` falling out as the first session day after the acute prefix ends.
 
-  * `resolve()` DERIVES `chronic_from` and installs it -- sessions really do move between epochs on
-    the strength of it, and the figures are built on the result.
-  * the acute half REPORTS ONLY. `verify_against_behaviour` re-derives the acute boundary and says
-    whether it agrees with the stored `EPOCH_SPEC`; it never reassigns. The acute rule currently
-    reproduces its stored boundaries exactly on all four animals, so deriving it would change
-    nothing today while adding a way for a published acute boundary to move.
+ACUTE IS THE SAFEST OF THE THREE TO DERIVE, which is the opposite of what was assumed at first. It
+depends only on early post-stroke sessions and the pre-stroke baseline, neither of which changes as
+the cohort grows -- recording day 21 cannot alter day 1-5 accuracy. Chronic is the volatile one: it
+re-evaluates at the END of the series, exactly where every new session lands.
 
 Until 2026-09-07 neither verifier was called by anything. `verify_against_behaviour` was mentioned
 only in deck prose and `derive_chronic_boundaries` not at all, so the definitions were checkable in
@@ -105,17 +106,48 @@ def audit(rv=None, position=None):
     return {"available": True, "position": position,
             "csv": str(_cohort_path(rv)), "n_sessions": len(hit),
             "acute": epochs.verify_against_behaviour(hit, position=position),
+            "acute_derived": epochs.derive_acute_boundaries(hit, position=position),
             "chronic": epochs.derive_chronic_boundaries(hit, lick, position=position)}
 
 
-def derived_spec(rep) -> dict:
-    """``{animal: {"chronic_from": int|None}}`` from an audit report -- what the rule decided.
+def _same(a, b) -> bool:
+    """Equality that does not care whether a range arrived as a list or a tuple.
 
-    Only `chronic_from`. Acute and subacute stay stored (see the `epochs` module docstring), so this
-    is deliberately a PARTIAL specification that `epochs.spec_for` merges over the stored one.
+    `acute` is declared in YAML as a list, normalised to a tuple by `config.epoch_spec`, and
+    round-trips through JSON as a list again. Comparing them raw reports `(1, 5) -> [1, 5]` as a
+    change every single night -- noise that teaches the reader to skip the block that matters.
     """
-    return {animal: {"chronic_from": r.get("derived_day")}
-            for animal, r in sorted((rep.get("chronic") or {}).items())}
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return list(a) == list(b)
+    return a == b
+
+
+def derived_spec(rep) -> dict:
+    """``{animal: {"acute", "subacute_from", "chronic_from"}}`` -- what the rules decided.
+
+    ALL THREE boundaries are derived as of 2026-09-07. Priya: *"we have clear derivation
+    definitions for acute and subacute right? like, we don't have to hard-code them?"* -- correct,
+    and the acute rule reproduces all four declared ranges exactly.
+
+    A boundary the rules could not determine is OMITTED rather than written as None, so
+    `epochs.spec_for` falls back to the declared value for that key. Writing None would assert
+    "there is no acute epoch", which is a different and much stronger claim than "behaviour could
+    not tell me" -- and for acute it would unassign every early post-stroke session.
+
+    `chronic_from` is the exception: None there IS the assertion "tested, has not stabilised", which
+    is why it is always written.
+    """
+    acute = rep.get("acute_derived") or {}
+    out = {}
+    for animal, r in sorted((rep.get("chronic") or {}).items()):
+        spec = {"chronic_from": r.get("derived_day")}
+        a = acute.get(animal) or {}
+        if a.get("acute") is not None:
+            spec["acute"] = list(a["acute"])            # JSON has no tuple; spec_for restores it
+        if a.get("subacute_from") is not None:
+            spec["subacute_from"] = a["subacute_from"]
+        out[animal] = spec
+    return out
 
 
 def changes(new_spec, old_spec) -> list[str]:
@@ -135,10 +167,11 @@ def changes(new_spec, old_spec) -> list[str]:
         return []
     out = []
     for animal in sorted(set(new_spec) | set(old_spec)):
-        a = old_spec.get(animal, {}).get("chronic_from", "absent")
-        b = new_spec.get(animal, {}).get("chronic_from", "absent")
-        if a != b:
-            out.append(f"{animal} chronic_from: {a} -> {b}")
+        for key in ("acute", "subacute_from", "chronic_from"):
+            a = old_spec.get(animal, {}).get(key, "absent")
+            b = new_spec.get(animal, {}).get(key, "absent")
+            if not _same(a, b):
+                out.append(f"{animal} {key}: {a} -> {b}")
     return out
 
 
@@ -158,10 +191,13 @@ def stale_fallback(spec) -> list[str]:
     """
     out = []
     for animal, derived in sorted(spec.items()):
-        want = derived.get("chronic_from")
-        have = (config.epoch_spec(animal) or {}).get("chronic_from")
-        if want != have:
-            out.append(f"{animal}: animals.yaml says chronic_from {have}, behaviour says {want}")
+        have_all = config.epoch_spec(animal) or {}
+        for key in ("acute", "subacute_from", "chronic_from"):
+            if key not in derived:
+                continue
+            want, have = derived[key], have_all.get(key)
+            if not _same(want, have):
+                out.append(f"{animal}: animals.yaml says {key} {have}, behaviour says {want}")
     return out
 
 
@@ -173,21 +209,32 @@ def promotion_yaml(spec) -> list[str]:
     YAML dump would delete. But a human promotion that requires re-deriving the number by hand is a
     human promotion that does not happen, so the diff is produced ready to paste.
     """
+    # YAML SPELLING THROUGHOUT, comments included. The whole block is meant to be pasted into
+    # animals.yaml, and a "was None" beside a "chronic_from: null" invites writing Python's spelling
+    # into a YAML file, where it is the STRING "None" and parses truthy rather than as an absent
+    # boundary. Lists render as YAML flow sequences for the same reason.
+    def _y(v):
+        if v is None:
+            return "null"
+        if isinstance(v, (list, tuple)):
+            return "[" + ", ".join(str(x) for x in v) + "]"
+        return str(v)
+
     lines = []
     for animal, derived in sorted(spec.items()):
-        want = derived.get("chronic_from")
-        have = (config.epoch_spec(animal) or {}).get("chronic_from")
-        if want == have:
-            continue
-        # YAML SPELLING THROUGHOUT, comment included. The whole block is meant to be pasted into
-        # animals.yaml, and a "was None" sitting next to a "chronic_from: null" invites the reader
-        # to write Python's spelling into a YAML file, where it is the STRING "None" and parses as
-        # a truthy value rather than an absent boundary.
-        _y = (lambda v: "null" if v is None else str(v))
-        note = ("has not stabilised" if want is None
-                else f"derived from behaviour, was {_y(have)}")
-        lines += [f"  {animal}:", "    epochs:",
-                  f"      chronic_from: {_y(want)}    # {note}"]
+        have_all = config.epoch_spec(animal) or {}
+        rows = []
+        for key in ("acute", "subacute_from", "chronic_from"):
+            if key not in derived:
+                continue
+            want, have = derived[key], have_all.get(key)
+            if _same(want, have):
+                continue
+            note = ("has not stabilised" if (key == "chronic_from" and want is None)
+                    else f"derived from behaviour, was {_y(have)}")
+            rows.append(f"      {key}: {_y(want)}    # {note}")
+        if rows:
+            lines += [f"  {animal}:", "    epochs:", *rows]
     return lines
 
 
@@ -252,15 +299,22 @@ def report_lines(rep) -> list[str]:
     """
     if not rep.get("available"):
         return [f"epoch audit: NOT CHECKED -- {rep.get('reason')}"]
-    lines = [f"epoch audit ({rep['position']}, engaged trials, {rep['n_sessions']} sessions)"]
-    lines.append(f"  {'animal':7s} {'acute':>10s}   {'chronic (derived / stored)':>28s}")
+    lines = [f"epoch audit ({rep['position']}, engaged trials, {rep['n_sessions']} sessions)",
+             "  all three boundaries DERIVED from behaviour; animals.yaml is the seed/pinned ref"]
+    lines.append(f"  {'animal':7s} {'acute':>10s} {'subacute':>9s} {'chronic':>8s}   "
+                 f"{'(derived, vs animals.yaml)':<28s}")
+    ad = rep.get("acute_derived") or {}
     for animal in sorted(rep["chronic"]):
-        a = (rep["acute"] or {}).get(animal, {})
         c = rep["chronic"][animal]
-        a_txt = {True: "agree", False: "DISAGREE", None: "no data"}.get(a.get("agree"), "?")
-        mark = "" if c.get("agree") else "   <-- DISAGREE"
-        lines.append(f"  {animal:7s} {a_txt:>10s}   "
-                     f"{c.get('derived_day')!s:>12s} / {c.get('stored_day')!s:<12s}{mark}")
+        a = ad.get(animal) or {}
+        decl = config.epoch_spec(animal) or {}
+        acute = a.get("acute")
+        same = (list(acute or []) == list(decl.get("acute") or [])
+                and a.get("subacute_from") == decl.get("subacute_from")
+                and c.get("derived_day") == decl.get("chronic_from"))
+        lines.append(f"  {animal:7s} {acute!s:>10s} {a.get('subacute_from')!s:>9s} "
+                     f"{c.get('derived_day')!s:>8s}   "
+                     + ("matches animals.yaml" if same else "<-- DIFFERS from animals.yaml"))
         for name in ("hit", "licks"):
             s = c.get(name) or {}
             if s.get("day") is not None:
@@ -269,15 +323,26 @@ def report_lines(rep) -> list[str]:
             else:
                 lines.append(f"            {name:6s} no plateau"
                              + (f" ({s['note']})" if s.get("note") else ""))
+    relapsed = [(a, r["relapse"]) for a, r in sorted((rep.get("acute_derived") or {}).items())
+                if r.get("relapse")]
+    if relapsed:
+        # NOT folded into the acute range. `(lo, hi)` cannot express "acute, recovered, acute
+        # again", so absorbing a later dip would silently relabel the recovered sessions between.
+        lines.append("  RELAPSE -- post-stroke session(s) back below the acute threshold AFTER "
+                     "recovering. Not folded into the acute range; reported so it is a finding:")
+        for animal, days in relapsed:
+            lines.append(f"    {animal}: day(s) {', '.join(str(d) for d in days)}")
     bad = disagreements(rep)
     if bad:
         lines.append("  BEHAVIOUR HAS MOVED AWAY FROM THE STORED SPEC:")
         lines += [f"    {b}" for b in bad]
-        lines.append("    ACUTE disagreements are reported only -- edit `epochs.EPOCH_SPEC` if "
-                     "real. CHRONIC is derived and has already been applied to this run's "
-                     "figures; `epoch_boundaries.json` records what was used.")
+        lines.append("    ALL THREE boundaries are DERIVED and have already been applied to this "
+                     "run's figures; `epoch_boundaries.json` records what was used. animals.yaml "
+                     "is the seed and the pinned reference -- promote when you want a fresh clone "
+                     "or a pinned rebuild to reproduce these epochs.")
     else:
-        lines.append("  stored spec agrees with behaviour on every animal and both boundaries")
+        lines.append("  animals.yaml agrees with behaviour on every animal and all three "
+                     "boundaries")
     return lines
 
 

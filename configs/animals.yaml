@@ -31,13 +31,12 @@
 # epochs: recovery-stage boundaries in DAYS SINCE stroke_date (not session index -- sessions are
 #   not daily, and the two disagree; see wfield_local/epochs.py). Read by config.epoch_spec().
 #
-#   acute / subacute_from ARE THE SOURCE -- nothing derives them; delete them and those boundaries
-#   have no definition at all. chronic_from is DERIVED from behaviour every nightly run (Priya,
-#   2026-09-07) and published to `epoch_boundaries.json` beside the deck; THAT file is what the
-#   figures were built on, and it is also what a crashed or behaviour-less run falls back to.
-#   The chronic_from written HERE is a last-resort seed, used only when pinned
-#   (WIDEFIELD_EPOCHS_PINNED=1) or when no artifact exists at all -- a fresh clone, or a box that
-#   has never run. It can therefore sit stale for a while without affecting nightly output.
+#   ALL THREE are DERIVED from behaviour on every nightly run (Priya, 2026-09-07) and published to
+#   `epoch_boundaries.json` beside the deck; THAT file is what the figures were built on, and it is
+#   also what a crashed or behaviour-less run falls back to. The values written HERE are a seed and
+#   a pinned reference, used only under WIDEFIELD_EPOCHS_PINNED=1 or when no artifact exists at all
+#   (a fresh clone, or a box that has never run). They can therefore sit stale for a while without
+#   affecting nightly output -- the nightly reports the divergence and prints the lines to paste.
 #
 #   THE PIPELINE NEVER WRITES THIS FILE, deliberately: it is version-controlled and both machines
 #   push main, so a nightly rewriting it would race and conflict; and a YAML dump would destroy the

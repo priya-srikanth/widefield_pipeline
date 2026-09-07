@@ -19,15 +19,24 @@ simply days nobody recorded. Verified below and pinned in `tests/test_epochs.py`
 
 WHERE THE BOUNDARIES COME FROM, and it differs by epoch since 2026-09-07:
 
-  * ACUTE / SUBACUTE are DECLARED in `configs/animals.yaml`, beside each animal's `stroke_date`.
-    The rule is behavioural -- acute = the days on which far_R accuracy is below 25% of that
-    animal's pre-stroke baseline -- and `verify_against_behaviour` re-derives it and reports
-    agreement, but it is a CHECK, not the source. It currently reproduces the declared boundaries
-    exactly on all four animals, so deriving them would change nothing today while adding a way for
-    a published acute boundary to move.
-  * CHRONIC is DERIVED from behaviour every run (Priya, 2026-09-07: *"I'd like the pipeline to run
-    the epoch definitions and just determine if we have met 'chronic' criteria, order sessions into
-    epochs appropriately, and analyze"*). See the DERIVED BOUNDARIES section below.
+ALL THREE are DERIVED from behaviour every run (Priya, 2026-09-07: *"I'd like the pipeline to run
+the epoch definitions and just determine if we have met 'chronic' criteria"*, and then *"we have
+clear derivation definitions for acute and subacute right? like, we don't have to hard-code
+them?"*). `configs/animals.yaml` holds the declared values as a seed and a pinned reference.
+
+  * ACUTE = the contiguous prefix of post-stroke sessions whose far_R accuracy is below
+    `ACUTE_FRACTION` of that animal's own pre-stroke baseline (`derive_acute_boundaries`). A LATER
+    dip is reported as a RELAPSE rather than folded in -- `(lo, hi)` cannot express "acute,
+    recovered, acute again", so absorbing it would silently relabel the recovered days between.
+  * SUBACUTE has no rule of its own. It is the complement, and `subacute_from` is the first session
+    day after the acute prefix ends. The apparent gaps (PS92 day 6, PS94 day 8) are days nobody
+    recorded, not a decision anyone made.
+  * CHRONIC = `CHRONIC_RULE` below (`derive_chronic_boundaries`).
+
+ACUTE IS THE SAFEST TO DERIVE AND CHRONIC THE MOST VOLATILE, which is the opposite of the ordering
+assumed when chronic was derived first. Acute depends only on early post-stroke sessions and the
+pre-stroke baseline, neither of which changes as the cohort grows; chronic re-evaluates at the END
+of the series, exactly where every new session lands.
 
 The standing objection to deriving a boundary is that it can move between two runs and silently
 redraw published panels -- the failure class this codebase keeps finding (`curated_dates`, the
@@ -327,9 +336,14 @@ def _ensure_resolved() -> None:
 def spec_for(animal: str) -> dict | None:
     """The epoch specification in force for one animal: stored, overlaid with anything derived.
 
-    A MERGE, not a replacement. The derived file carries only `chronic_from`; acute and
-    subacute_from continue to come from `EPOCH_SPEC`, and a derived file that somehow lacked a key
-    must not delete a boundary that every published figure depends on.
+    A MERGE, not a replacement, and it is KEY-BY-KEY. A derived file that lacked a key -- an older
+    artifact written before acute was derived, or one truncated mid-write -- must fall back to the
+    declared value for that key rather than deleting a boundary every published figure depends on.
+    Replacing wholesale would leave `epoch_of` returning None for every post-stroke session, which
+    empties every pooled panel while rendering perfectly cleanly.
+
+    `acute` is normalised to a TUPLE because JSON round-trips it as a list, and a list compares
+    unequal to an identical tuple -- which would surface as a mismatch far from here.
     """
     base = EPOCH_SPEC.get(animal)
     if base is None:
@@ -339,9 +353,11 @@ def spec_for(animal: str) -> dict | None:
     if not extra:
         return base
     out = dict(base)
-    for k in ("chronic_from",):
+    for k in ("acute", "subacute_from", "chronic_from"):
         if k in extra:
             out[k] = extra[k]
+    if isinstance(out.get("acute"), list):
+        out["acute"] = tuple(out["acute"])
     return out
 
 
@@ -550,6 +566,62 @@ def _normalised_series(by_session, animal, position):
         if v is not None and day is not None:
             out.append((day, v / mean))
     return [v / mean for v in base], out
+
+
+def derive_acute_boundaries(accuracy_by_session, *, position=RULE_POSITION,
+                            fraction=ACUTE_FRACTION):
+    """Re-derive each animal's acute range and first subacute day from behaviour.
+
+    Returns ``{animal: {"acute": (lo, hi)|None, "subacute_from": int|None, "relapse": [days],
+    "threshold": float}}``.
+
+    ACUTE IS THE CONTIGUOUS PREFIX of post-stroke sessions below `fraction` of that animal's own
+    pre-stroke baseline. SUBACUTE HAS NO RULE OF ITS OWN -- it is the complement, and
+    `subacute_from` is simply the first session day after that prefix ends. The apparent gaps in
+    the stored spec (PS92 day 6, PS94 day 8) are days nobody recorded, not a separate decision.
+
+    A LATER DIP IS REPORTED AS A RELAPSE, NOT FOLDED INTO THE RANGE. The `(lo, hi)` encoding cannot
+    express "acute, then recovered, then acute again", so a naive `(first, last)` over all
+    below-threshold days would silently swallow the recovered sessions in between and relabel them
+    acute. No animal has relapsed as of 2026-09-07; if one does, `relapse` names the days and the
+    range still describes only the initial prefix.
+
+    THIS IS THE SAFEST OF THE THREE BOUNDARIES TO DERIVE, which is worth stating because the
+    opposite was assumed at first. It depends only on early post-stroke sessions and the pre-stroke
+    baseline, neither of which changes as the cohort grows -- recording day 21 cannot alter day 1-5
+    accuracy. Chronic is the volatile one: it re-evaluates at the END of the series, exactly where
+    every new session lands.
+    """
+    out = {}
+    for animal in EPOCH_SPEC:
+        pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == animal]
+        base = [(accuracy_by_session.get(l) or {}).get(position) for l in pre]
+        base = [v for v in base if v is not None]
+        if not base:
+            out[animal] = {"acute": None, "subacute_from": None, "relapse": [],
+                           "note": f"no pre-stroke {position} accuracy"}
+            continue
+        thresh = fraction * (sum(base) / len(base))
+        post = sorted((l for l in config.pooled_labels(animal) if epoch_of(l) != "pre"),
+                      key=lambda x: x.split("_")[-1])
+        rows = []
+        for lab in post:
+            acc = (accuracy_by_session.get(lab) or {}).get(position)
+            day = days_since_stroke(lab)
+            if acc is not None and day is not None:
+                rows.append((day, acc < thresh))
+        if not rows:
+            out[animal] = {"acute": None, "subacute_from": None, "relapse": [],
+                           "note": "no post-stroke sessions"}
+            continue
+        n = 0
+        while n < len(rows) and rows[n][1]:
+            n += 1
+        acute = (rows[0][0], rows[n - 1][0]) if n else None
+        sub = rows[n][0] if n < len(rows) else None
+        out[animal] = {"acute": acute, "subacute_from": sub, "threshold": thresh,
+                       "relapse": [d for d, low in rows[n:] if low]}
+    return out
 
 
 def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE_POSITION):

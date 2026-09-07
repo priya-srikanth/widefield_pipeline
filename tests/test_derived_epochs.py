@@ -130,10 +130,17 @@ def test_the_live_derivation_still_matches_the_stored_spec(derived):
         pytest.skip("no cohort behaviour table on this box")
     rep = epoch_audit.audit()
     derived_now = epoch_audit.derived_spec(rep)
-    stored = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
-    assert derived_now == stored, (
-        "derived boundaries have moved away from EPOCH_SPEC; update the stored fallback so a "
-        f"crash or a missing cohort table does not silently revert them: {derived_now} vs {stored}")
+    # ALL THREE boundaries, not just chronic. Normalised because `acute` round-trips as a list.
+    def _norm(spec):
+        out = {}
+        for a, s in spec.items():
+            out[a] = {k: (list(v) if isinstance(v, (list, tuple)) else v)
+                      for k, v in s.items() if k in ("acute", "subacute_from", "chronic_from")}
+        return out
+
+    assert _norm(derived_now) == _norm(epochs.EPOCH_SPEC), (
+        "derived boundaries have moved away from configs/animals.yaml; promote them so a pinned "
+        f"rebuild or a fresh clone reproduces today's epochs: {derived_now} vs {epochs.EPOCH_SPEC}")
 
 
 def test_the_first_run_does_not_announce_that_everything_moved():
@@ -251,3 +258,72 @@ def test_acute_and_subacute_have_no_other_source(derived):
         assert spec["acute"] and spec["subacute_from"], animal
     assert epochs.epoch_of("PS92_0818") == "acute"
     assert epochs.epoch_of("PS92_0828") == "subacute"      # chronic cleared -> falls to subacute
+
+
+# --- acute and subacute are derived too, as of 2026-09-07 ---------------------------------------
+
+def test_acute_is_derived_and_reproduces_the_declared_ranges():
+    """Priya: "we have clear derivation definitions for acute and subacute right? like, we don't
+    have to hard-code them?" -- correct. The rule reproduces all four declared ranges exactly, which
+    is why switching to deriving them moved no published panel."""
+    if not epoch_audit._cohort_path().exists():
+        pytest.skip("no cohort behaviour table on this box")
+    hit, _lick = epoch_audit.load_far_position_tables()
+    got = epochs.derive_acute_boundaries(hit)
+    for animal, declared in epochs.EPOCH_SPEC.items():
+        assert got[animal]["acute"] == declared["acute"], animal
+        assert got[animal]["subacute_from"] == declared["subacute_from"], animal
+
+
+def test_subacute_is_the_first_session_after_acute_not_the_next_day():
+    """Subacute has NO rule of its own. `subacute_from` is the first RECORDED session after the
+    acute prefix -- PS92's day 6 and PS94's day 8 were simply not run, and reading the boundary as
+    `acute_hi + 1` would place it on a day with no data."""
+    from wfield_local import config
+    for animal, spec in epochs.EPOCH_SPEC.items():
+        days = sorted(d for d in (epochs.days_since_stroke(l)
+                                  for l in config.pooled_labels(animal)
+                                  if epochs.epoch_of(l) != "pre") if d is not None)
+        after = [d for d in days if d > spec["acute"][1]]
+        assert spec["subacute_from"] == after[0], animal
+
+
+def test_a_relapse_is_reported_not_folded_into_the_acute_range():
+    """`(lo, hi)` cannot express "acute, recovered, acute again". A naive (first, last) over all
+    below-threshold days would silently relabel the recovered sessions between them as acute."""
+    from wfield_local import config
+    animal = "PS92"
+    pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == animal]
+    post = sorted((l for l in config.pooled_labels(animal) if epochs.epoch_of(l) != "pre"),
+                  key=lambda x: x.split("_")[-1])
+    hit = {l: {epochs.RULE_POSITION: 1.0} for l in pre}
+    for i, l in enumerate(post):
+        hit[l] = {epochs.RULE_POSITION: 0.01 if i < 2 else 0.9}
+    hit[post[-1]] = {epochs.RULE_POSITION: 0.01}                # relapses at the very end
+    got = epochs.derive_acute_boundaries(hit)[animal]
+    assert got["acute"] == (epochs.days_since_stroke(post[0]),
+                            epochs.days_since_stroke(post[1])), "range must be the PREFIX only"
+    assert got["relapse"] == [epochs.days_since_stroke(post[-1])]
+    assert got["subacute_from"] == epochs.days_since_stroke(post[2])
+
+
+def test_an_underivable_boundary_is_omitted_not_written_as_none():
+    """`spec_for` merges key-by-key, so an omitted key falls back to the declared value. Writing
+    None instead would assert "there is no acute epoch" -- a much stronger claim than "behaviour
+    could not tell me", and one that unassigns every early post-stroke session."""
+    rep = {"chronic": {"PS92": {"derived_day": 11}},
+           "acute_derived": {"PS92": {"acute": None, "subacute_from": None, "relapse": []}}}
+    spec = epoch_audit.derived_spec(rep)
+    assert spec["PS92"] == {"chronic_from": 11}, spec
+    assert "acute" not in spec["PS92"] and "subacute_from" not in spec["PS92"]
+
+
+def test_a_derived_acute_range_survives_the_json_round_trip(derived):
+    """JSON has no tuple. `acute` goes out as a list and must come back as a tuple, or it compares
+    unequal to an identical declared value and every consumer disagrees for no visible reason."""
+    epochs.save_boundaries({"PS92": {"acute": [1, 3], "subacute_from": 4, "chronic_from": 11}},
+                           derived)
+    epochs.clear_resolved()
+    spec = epochs.spec_for("PS92")
+    assert spec["acute"] == (1, 3) and isinstance(spec["acute"], tuple)
+    assert epochs.epoch_of("PS92_0821") == "subacute"     # day 4, acute under the declared (1,5)

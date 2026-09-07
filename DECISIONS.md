@@ -6972,3 +6972,69 @@ included, because a `was None` sitting beside a `chronic_from: null` invites wri
 spelling into a YAML file, where it parses as the truthy string `"None"` rather than an absent
 boundary. It is reported as a standing condition rather than an urgent one, since a stale seed does
 not affect nightly output.
+
+## 2026-09-07 (end of day, later) — acute and subacute are derived too, and acute is the SAFEST to derive
+
+Priya: *"but we have clear derivation definitions for acute and subacute right? like, we don't have
+to hard-code them?"* Correct on both counts, and checking it reversed an argument made earlier the
+same day.
+
+**The acute rule reproduces all four declared ranges exactly:**
+
+```
+animal  thresh   per-session verdict                    derived    declared
+PS92    0.241    1A 2A 3A 4A 5A 7s 9s 11s 15s 18s      (1,5)/7    (1,5)/7
+PS93    0.239    1A 2A 3A 4A 5s 7s 9s 11s 15s 18s      (1,4)/5    (1,4)/5
+PS94    0.237    1A 2A 3A 4A 5A 7A 9s 11s 15s 18s      (1,7)/9    (1,7)/9
+PS95    0.237    1A 2s 3s 4s 5s 7s 9s 11s 15s 18s      (1,1)/2    (1,1)/2
+```
+
+**Subacute has no rule of its own.** It is the complement — post-stroke, past acute, not yet
+chronic — and `subacute_from` falls out as the first RECORDED session after the acute prefix ends.
+The apparent gaps at PS92 day 6 and PS94 day 8 are days nobody ran, not a decision anyone made;
+reading the boundary as `acute_hi + 1` would place it on a day with no data.
+
+### The ordering assumption that was backwards
+
+Chronic was derived first and acute left declared, on the argument that deriving acute "changes
+nothing today while adding a way for a published boundary to move". That has it the wrong way round.
+**Acute is the most stable of the three** — it depends only on early post-stroke sessions and the
+pre-stroke baseline, neither of which changes as the cohort grows. Recording day 21 cannot alter
+day 1-5 accuracy. **Chronic is the volatile one**: it re-evaluates at the END of the series, exactly
+where every new session lands. The conservative choice would have been to derive acute first.
+
+### Relapse is reported, not absorbed
+
+`(lo, hi)` cannot express "acute, recovered, acute again". A naive `(first, last)` over all
+below-threshold days would silently relabel the recovered sessions between them as acute. So acute
+is the CONTIGUOUS PREFIX, and a later dip is reported as a `relapse` — a finding worth surfacing
+rather than a range to widen. No animal has relapsed as of 2026-09-07.
+
+### An underivable boundary is OMITTED, not written as None
+
+`derived_spec` omits a key the rules could not determine, and `spec_for` merges key-by-key, so the
+declared value stands for that key. Writing None would assert "there is no acute epoch" — a much
+stronger claim than "behaviour could not tell me", and one that would unassign every early
+post-stroke session while rendering cleanly. `chronic_from` is the deliberate exception: None there
+IS the assertion "tested, has not stabilised", so it is always written.
+
+### `acute` round-trips as a list
+
+YAML declares it as a list, `config.epoch_spec` normalises to a tuple, JSON writes a list again. All
+three comparison sites (`changes`, `stale_fallback`, `promotion_yaml`) go through one `_same()`
+helper, and `spec_for` restores the tuple on load. Without that, `(1, 5) -> [1, 5]` would be
+reported as a boundary change every single night — noise that teaches the reader to skip the block
+that matters.
+
+### Note for the other window
+
+The epoch API grew today and `epochs.EPOCH_SPEC` is no longer a literal. `epochs.epoch_of(label)`
+is unchanged and remains the right entry point for consumers (`behavior_clips` uses it correctly).
+New: `epochs.spec_for(animal)` for the merged per-animal spec, `epochs.pinned()`,
+`epochs.resolved_source()`, and `epochs.clear_resolved()` for tests.
+
+**Stage ordering is an open coordination item.** `behavior_clips` files clips by epoch in the CAMERA
+nightly (stage 1); epoch resolution runs in `nightly_figs` (stage 2). Stage 1 therefore sees the
+PREVIOUS run's boundaries, so on a night a boundary moves, clips are filed under last night's epoch
+while the deck reports tonight's. It self-heals on the next run's re-file. The fix is one line --
+call `epoch_audit.resolve()` before the clips step -- and it belongs in the camera nightly.

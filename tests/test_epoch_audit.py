@@ -107,12 +107,12 @@ def test_the_cli_exits_zero_even_when_behaviour_has_moved(monkeypatch, capsys):
                              "hit": {"day": 9, "level": 0.95}, "licks": {"day": 9, "level": 0.9}}}})
     assert epoch_audit.main([]) == 0
     out = capsys.readouterr().out
-    assert "DISAGREE" in out
-    # THE TWO CONTRACTS MUST BE DISTINGUISHED IN THE OUTPUT. Acute is reported only; chronic has
-    # already been applied to this run's figures. A reader who confuses them either edits a spec
-    # that is no longer consulted, or assumes a boundary moved when nothing did.
-    assert "ACUTE" in out and "reported only" in out
-    assert "CHRONIC is derived" in out and "epoch_boundaries.json" in out
+    # THE OUTPUT MUST SAY THE BOUNDARIES WERE APPLIED, not merely observed. All three are
+    # derived as of 2026-09-07, so a reader who takes them as advisory would go looking for
+    # a spec to edit instead of reading the artifact that records what the figures were
+    # actually built on.
+    assert "DERIVED" in out and "applied to this" in out
+    assert "epoch_boundaries.json" in out
 
 
 def test_the_nightly_keeps_a_moved_boundary_out_of_the_failure_list(monkeypatch):
