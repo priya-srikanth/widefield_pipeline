@@ -190,3 +190,44 @@ def test_run_record_never_kills_the_run(monkeypatch):
 
     monkeypatch.setattr(nf, "FAILURES", ["x"])
     nf._write_run_record("//no/such/share/deck.pptx", "20260820", "t")   # must not raise
+
+
+def test_backfill_treats_a_stale_figure_as_missing(tmp_path, monkeypatch):
+    """A session whose INPUTS changed must be redrawn even though its figure exists.
+
+    WHY (2026-09-07). `_perday_figs_incomplete` tested existence alone. PS92 8/28's SVD was
+    corrected on 08-29 and its per-day figures already existed, so no nightly ever redrew them and
+    they sat at their pre-fix content for nine days. Existence is not currency.
+
+    The rule is the same one `session_cache` keys on -- if the cache would miss, the figure is out
+    of date -- so the two cannot drift apart.
+    """
+    import time
+
+    from wfield_local import config, nightly_figs as nf
+
+    mc = tmp_path / "mc"
+    (mc / "loc").mkdir(parents=True)
+    (mc / "wfield_local_results").mkdir(parents=True)
+    c = mc / "loc" / "PS92_0828_locanmf_C.npy"
+    svt = mc / "wfield_local_results" / "SVTcorr.npy"
+    c.write_bytes(b"c"); svt.write_bytes(b"s")
+
+    sess = [{"label": "PS92_0828", "mc": str(mc), "h5": ""}]
+    monkeypatch.setattr(config, "load_sessions", lambda dates=None: sess)
+    monkeypatch.setattr(config, "locanmf_dir", lambda m, variant=None: str(mc / "loc"))
+    monkeypatch.setattr(config, "svtcorr_path", lambda m, variant=None: str(svt))
+
+    out = tmp_path / "figs"
+    out.mkdir()
+    fig = out / "locanmf_position_session_PS92_0828_locanmf_cue_base-none_cv-block.png"
+
+    assert nf._perday_figs_incomplete(str(out), "0828") is True, "absent figure must backfill"
+
+    fig.write_bytes(b"png")
+    assert nf._perday_figs_incomplete(str(out), "0828") is False, "current figure must not backfill"
+
+    time.sleep(1.1)
+    svt.write_bytes(b"corrected")          # the 08-29 channel fix, in miniature
+    assert nf._perday_figs_incomplete(str(out), "0828") is True, (
+        "a regenerated SVD must mark the per-day figure stale; existence is not currency")

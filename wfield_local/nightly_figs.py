@@ -211,9 +211,35 @@ def _perday_figs_incomplete(out, d) -> bool:
     The deck spans the whole curated set, so a date whose figs failed on its own night stays blank forever;
     nightly_figs backfills any such date so the deck self-heals."""
     labs = [s["label"] for s in config.load_sessions(dates=[d])]
-    return bool(labs) and not all(
-        (Path(out) / f"locanmf_position_session_{lab}_locanmf_cue_base-none_cv-block.png").exists()
-        for lab in labs)
+    if not labs:
+        return False
+    for s_ in config.load_sessions(dates=[d]):
+        lab = s_["label"]
+        fig = Path(out) / f"locanmf_position_session_{lab}_locanmf_cue_base-none_cv-block.png"
+        if not fig.exists():
+            return True
+        # STALE COUNTS AS MISSING. Existence alone was the test, so a session whose INPUTS changed
+        # but whose figure already existed was never redrawn: PS92 8/28's SVD was corrected on
+        # 2026-08-29 and its per-day figures sat at their pre-fix content until someone noticed
+        # nine days later. The same signature `session_cache` keys on decides it here -- if the
+        # cache would miss, the figure is out of date, and the two cannot drift apart.
+        try:
+            newest = max(_stat_mtime(f"{config.locanmf_dir(s_['mc'])}/{lab}_locanmf_C.npy"),
+                         _stat_mtime(config.svtcorr_path(s_["mc"])),
+                         _stat_mtime(s_.get("h5", "")))
+        except Exception:                                              # noqa: BLE001
+            continue
+        if newest > fig.stat().st_mtime + 1:
+            return True
+    return False
+
+
+def _stat_mtime(path) -> float:
+    """mtime, or 0.0 when the file is absent -- an input that is not there cannot make a figure stale."""
+    try:
+        return Path(path).stat().st_mtime
+    except OSError:
+        return 0.0
 
 
 def _publish_figs(out, rv) -> int:
