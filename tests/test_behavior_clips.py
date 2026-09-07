@@ -112,3 +112,48 @@ def test_the_clip_deck_curates_but_the_library_does_not():
     assert d.deck_cap("close_L", "working") == 2
     assert d.deck_cap("far_R", "success") == 2            # a hit looks like a hit
     assert d.deck_cap("far_R", "stopped") == 2
+
+
+def test_an_empty_trial_class_still_gets_a_slide():
+    """Skipping it silently reads as a rendering gap, not as a result.
+
+    PS92 09-04 hit 378 of 378 trials, so it has no working and no stopped trials at all -- and the
+    deck simply had no slides for them, which is what prompted the question.
+    """
+    from wfield_local import behavior_clip_deck as d
+
+    for cat in ("success", "working", "stopped"):
+        note = d._absence_note(cat)
+        assert note and len(note) > 40
+    assert "378" in d._absence_note("working"), "say what an empty working class means"
+    src = __import__("inspect").getsource(d.build)
+    assert "if depth == 0:" in src and "NO TRIALS IN THIS CLASS" in src
+
+
+def test_the_deck_derives_its_epoch_label_rather_than_reading_the_folder():
+    """`chronic_from` is recomputed each run, so a folder can carry an epoch the animal has left."""
+    from wfield_local import behavior_clip_deck as d
+
+    src = __import__("inspect").getsource(d._sessions_for)
+    assert "epochs.epoch_of(" in src
+    assert "lab or epoch_dir.name" in src, "fall back to the folder, never crash"
+
+
+def test_stale_epoch_folders_are_re_filed():
+    """Three PS92 sessions sat under subacute/ after the animal's chronic boundary landed."""
+    from wfield_local import behavior_clips as bc
+
+    src = __import__("inspect").getsource(bc.refile_stale_epochs)
+    assert "epochs.epoch_of(" in src
+    assert "assert_writable" in src
+    run_src = __import__("inspect").getsource(bc.run)
+    assert "refile_stale_epochs(" in run_src, "the nightly must re-file before it cuts"
+
+
+def test_the_camera_nightly_rebuilds_the_clip_decks_after_cutting():
+    from wfield_local import camera_nightly as cn
+
+    src = __import__("inspect").getsource(cn.run)
+    assert "behavior_clip_deck.run(" in src
+    assert src.index("do_clips") < src.index("do_clip_deck")
+    assert "do_clip_deck" in __import__("inspect").signature(cn.run).parameters

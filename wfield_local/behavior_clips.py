@@ -128,8 +128,6 @@ def out_root(rv=None):
     return Path(rv.root("behavior_cameras")) / "example_clips"
 
 
-#: Positions where a post-stroke MISS is the result rather than noise, so a run of examples is
-#: worth having. far contra collapses hardest and far middle next (Priya, 2026-09-07).
 def _cell_counts(d, per_cell):
     """[(position, category, available, take), ...] for one session's trial table.
 
@@ -203,6 +201,52 @@ def session_clips(animal, date, sid, epoch, rv=None, per_cell=PER_CELL, dry=Fals
     return made
 
 
+def refile_stale_epochs(rv=None, dry=False):
+    """Move clip folders whose EPOCH has moved since they were cut. Returns the moves made.
+
+    THE DIRECTORY NAME IS A CLAIM, AND `epochs` RE-DERIVES THE TRUTH EACH RUN. `chronic_from` is
+    computed from behaviour and republished nightly, so a boundary that shifts silently restales
+    every clip cut before it: three PS92 sessions were sitting under `subacute/` on 2026-09-07 after
+    the animal's chronic boundary landed, and the deck was labelling them from the folder.
+
+    Cheap to do every night -- a rename, no video touched -- and it is the difference between a
+    label that is checked and a label that was true once.
+    """
+    from wfield_local import epochs
+
+    rv = rv or PathResolver()
+    root = out_root(rv)
+    if not root.is_dir():
+        return []
+    moves = []
+    for an_dir in sorted(p for p in root.iterdir() if p.is_dir() and p.name.startswith("PS")):
+        for ep_dir in sorted(p for p in an_dir.iterdir()
+                             if p.is_dir() and not p.name.startswith(".")):
+            for d_dir in sorted(p for p in ep_dir.iterdir() if p.is_dir()):
+                now = epochs.epoch_of("%s_%s" % (an_dir.name, d_dir.name[4:]))
+                if now is None or now == ep_dir.name:
+                    continue
+                dest = an_dir / now / d_dir.name
+                moves.append((str(d_dir), str(dest)))
+                print("[behavior_clips] re-file %s %s: %s -> %s"
+                      % (an_dir.name, d_dir.name, ep_dir.name, now), flush=True)
+                if dry:
+                    continue
+                assert_writable(dest.parent)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if dest.exists():
+                    # both present: keep the newer cut rather than merging two epochs' worth
+                    for f in d_dir.glob("*.avi"):
+                        f.replace(dest / f.name)
+                    try:
+                        d_dir.rmdir()
+                    except OSError:
+                        pass
+                else:
+                    d_dir.replace(dest)
+    return moves
+
+
 def run(date, rv=None, animals=None, per_cell=PER_CELL, dry=False, categories=None) -> int:
     """Clips for every session on ``date``.
 
@@ -212,6 +256,7 @@ def run(date, rv=None, animals=None, per_cell=PER_CELL, dry=False, categories=No
     from wfield_local import epochs
 
     rv = rv or PathResolver()
+    refile_stale_epochs(rv, dry=dry)   # a boundary may have moved since the last cut
     base = Path(rv.root("behavior_out")) / "sessions"
     want = set(config.normalize_animals(animals) or [])
     total = 0

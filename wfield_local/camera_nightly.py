@@ -13,7 +13,9 @@ One command per date runs the camera nightly, in order:
      identity every downstream analysis loads instead of re-detecting.
   5. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
      clips per trial class under ``example_clips/<animal>/<epoch>/<date>/``, plus a
-     manifest. Needs the template AND the trial table, so it runs last.
+     manifest. Needs the template AND the trial table, so it runs after both.
+  6. **Example-clip decks** (:mod:`wfield_local.behavior_clip_deck`) -> one PowerPoint per
+     animal, six spout positions to a slide, rebuilt whole from the clips on disk.
   4. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
      per-position metrics, and a refresh of the curated cross-session cohort summary.
 
@@ -34,8 +36,8 @@ import os
 import re
 from pathlib import Path
 
-from wfield_local import (behavior_clips, behavior_events, camera_sync, config, dropframe_qc,
-                          spout_behavior, writeguard)
+from wfield_local import (behavior_clip_deck, behavior_clips, behavior_events, camera_sync,
+                          config, dropframe_qc, spout_behavior, writeguard)
 from wfield_local.paths import PathResolver
 
 BUF = 1 << 20
@@ -141,7 +143,7 @@ def upload(date, rv, animals=None, dry=False, verify=False) -> tuple[dict, list]
 
 
 def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, do_events=True,
-        do_behavior=True, do_clips=True, dry=False, verify=False) -> int:
+        do_behavior=True, do_clips=True, do_clip_deck=True, dry=False, verify=False) -> int:
     """Upload -> dropped-frame QC -> alignment templates -> behavior events -> behavior figs for ``date``.
 
     Returns 0 on success, 1 on copy fail (stops before any downstream step)."""
@@ -184,6 +186,12 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
         behavior_clips.run(date, rv, animals=animals, dry=dry)
         if not dry:
             behavior_clips.write_manifest(rv)
+    if do_clip_deck and not dry:
+        print("\n################ per-animal example-clip decks ################", flush=True)
+        # REBUILT WHOLE, not appended: a deck is cheap to regenerate from the clips on
+        # disk, and `behavior_clips.run` may have RE-FILED sessions whose epoch moved
+        # since the last cut -- an appended deck would keep the old label.
+        behavior_clip_deck.run(rv, animals=animals)
     print(f"\nCAMERA NIGHTLY {date} DONE", flush=True)
     return 0
 
@@ -200,6 +208,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-behavior", action="store_true", help="skip the spout behavior figures")
     ap.add_argument("--skip-clips", action="store_true",
                     help="skip the annotated cam4 example clips")
+    ap.add_argument("--skip-clip-deck", action="store_true",
+                    help="skip the per-animal example-clip decks")
     ap.add_argument("--hash", action="store_true",
                     help="byte-verify (SHA-256) uploads by read-back, not just size "
                          f"(files >= {HASH_READBACK_MAX >> 30} GB stay size-only)")
@@ -209,6 +219,7 @@ def main(argv=None) -> int:
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,
                do_behavior=not args.skip_behavior, do_clips=not args.skip_clips,
+               do_clip_deck=not args.skip_clip_deck,
                dry=args.dry_run, verify=args.hash)
 
 

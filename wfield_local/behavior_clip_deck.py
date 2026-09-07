@@ -49,6 +49,20 @@ def deck_cap(position, category):
     return DECK_CAP.get(category, 2)
 
 
+
+def _absence_note(category):
+    """Why a class is empty, in the terms that make it a RESULT rather than a gap."""
+    return {
+        "success": ("No trials were hit in this session at any position. Every trial was either a "
+                    "miss while still working or came after the animal stopped."),
+        "working": ("The animal made NO engaged misses this session: every trial was either hit, "
+                    "or came after it had stopped responding at the reference positions. On a "
+                    "recovered animal this is the result -- PS92 09-04 hit 378 of 378."),
+        "stopped": ("The animal never disengaged this session: the engagement gate marked no "
+                    "trials, so every miss here was made while still working."),
+    }.get(category, "No trials met the criteria for this class in this session.")
+
+
 def parse(p):
     """``(position, category, take, available, trial_id)`` from a clip filename, or None."""
     m = re.match(r"(.+?)_(success|working|stopped)_(\d+)of(\d+)_trial(\d+)", Path(p).stem)
@@ -88,13 +102,20 @@ def _shrink(src, dst):
 
 def _sessions_for(animal_dir):
     """[(date, epoch, dir), ...] sorted by DATE, so pre-stroke leads by fact not by alphabet."""
+    from wfield_local import epochs
+
     out = []
     for epoch_dir in animal_dir.iterdir():
         if not epoch_dir.is_dir() or epoch_dir.name.startswith("."):
             continue
         for date_dir in epoch_dir.iterdir():
             if date_dir.is_dir() and not date_dir.name.startswith("."):
-                out.append((date_dir.name, epoch_dir.name, date_dir))
+                # DERIVED, not read off the folder: `chronic_from` is recomputed from
+                # behaviour each run, so a folder cut last week can carry an epoch the
+                # animal has since left. `refile_stale_epochs` keeps storage in step;
+                # this makes the LABEL right even if it has not run yet.
+                lab = epochs.epoch_of("%s_%s" % (animal_dir.name, date_dir.name[4:]))
+                out.append((date_dir.name, lab or epoch_dir.name, date_dir))
     return sorted(out, key=lambda t: t[0])
 
 
@@ -123,7 +144,7 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
     top0 = Inches(1.22)
     left0 = (Inches(13.333) - (cell * 3 + gap_x * 2)) / 2
 
-    made = 0
+    made = made_empty = 0
     sessions = [s for s in _sessions_for(root) if not dates or s[0] in set(dates)]
     for date, epoch, date_dir in sessions:
         clips = {}
@@ -134,6 +155,23 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
         for cat in ("success", "working", "stopped"):
             depth = max([min(len(v), deck_cap(p, c)) for (c, p), v in clips.items() if c == cat]
                         or [0])
+            if depth == 0:
+                # AN EMPTY CLASS GETS A SLIDE OF ITS OWN. Skipping it silently is what made PS92
+                # 09-04 look like a rendering gap: the animal hit 378 of 378 trials, so there were
+                # no working and no stopped trials to show, and "no engaged misses at all" is the
+                # result rather than the absence of one. Priya, 2026-09-07.
+                s = prs.slides.add_slide(blank)
+                tf = s.shapes.add_textbox(Inches(0.4), Inches(0.13), Inches(12.5),
+                                          Inches(0.9)).text_frame
+                r = tf.paragraphs[0].add_run()
+                r.text = "%s  %s  %s  |  %s  |  NO TRIALS IN THIS CLASS" % (
+                    animal, date, epoch.upper(), cat.upper())
+                r.font.size, r.font.bold, r.font.color.rgb = Pt(21), True, navy
+                r2 = tf.add_paragraph().add_run()
+                r2.text = _absence_note(cat)
+                r2.font.size, r2.font.color.rgb = Pt(12), grey
+                made_empty += 1
+                continue
             for k in range(depth):
                 shown = {p: sorted(clips[(cat, p)])[k] for p in POS_ORDER
                          if len(clips.get((cat, p), [])) > k and k < deck_cap(p, cat)}
@@ -173,14 +211,15 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
                     lr.text = "%s (%s)  %d of %d" % (NICE[pos], pos, n[2], n[3])
                     lr.font.size, lr.font.color.rgb = Pt(10), grey
                     made += 1
-    if not made:
+    if not made and not made_empty:
         print("[clip_deck] %s: nothing to place" % animal, flush=True)
         return None
     assert_writable(dest.parent)
     prs.save(str(dest))
     mb = dest.stat().st_size / 1e6
-    print("[clip_deck] %s: %d sessions, %d slides, %d clips, %.0f MB -> %s"
-          % (animal, len(sessions), len(prs.slides._sldIdLst), made, mb, dest), flush=True)
+    print("[clip_deck] %s: %d sessions, %d slides, %d clips, %d empty-class, %.0f MB -> %s"
+          % (animal, len(sessions), len(prs.slides._sldIdLst), made, made_empty, mb,
+             dest), flush=True)
     return dest
 
 
