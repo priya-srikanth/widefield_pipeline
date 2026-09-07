@@ -126,8 +126,8 @@ def _params_str(params) -> str:
 
 
 def session_signature(session, params=None) -> str:
-    """Hash of the inputs that determine a per-session result: LocaNMF C.npy + h5 + behavior_trials
-    mtimes/sizes, the params, and CACHE_VERSION.
+    """Hash of the inputs that determine a per-session result: the SVD (SVTcorr + U), LocaNMF C.npy,
+    h5 and behavior_trials mtimes/sizes, the params, and CACHE_VERSION.
 
     The LocaNMF directory NAMES the hemodynamic variant it was fitted to, so switching variants
     changes this path and therefore the signature -- cached results from one drift-removal cannot be
@@ -140,6 +140,19 @@ def session_signature(session, params=None) -> str:
     parts = [
         f"v{CACHE_VERSION}", lab, _params_str(params),
         _stat_sig(f"{config.locanmf_dir(mc)}/{lab}_locanmf_C.npy"),
+        # THE SVD IS AN INPUT TOO, and leaving it out cost nine days of wrong figures. PS92 8/28 was
+        # recorded with its 415/470 excitation channels swapped; the fix (2026-08-29,
+        # `session_overrides.yaml` functional_channel: 0) regenerated SVTcorr and U -- and NOTHING
+        # recomputed, because `locanmf_C` and the `.h5` were untouched so this signature did not
+        # move. Every cached ROI and pixel feature went on serving swapped-channel values, and the
+        # G8d SVD maps and every ROI-sourced result carried them until Priya spotted it on 09-07.
+        #
+        # THE LOCANMF FILE IS NOT A PROXY FOR THE SVD. It is downstream of SVTcorr, so it is stale
+        # whenever the SVD is -- but it is only REWRITTEN when someone re-runs LocaNMF, which a
+        # preprocessing fix does not do. That is the whole gap: one input changed and its hash was
+        # not in the key.
+        _stat_sig(config.svtcorr_path(mc)),
+        _stat_sig(f"{str(mc).rstrip('/')}/wfield_local_results/U.npy"),
         _stat_sig(session.get("h5", "")),
         _stat_sig(session.get("behavior_trials", "")),
     ]
