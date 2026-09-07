@@ -20,16 +20,18 @@ import pytest
 
 from wfield_local import config, epochs
 
-#: Priya's specification, transcribed as {animal: (acute days, first subacute day)}.
-SPEC = {"PS92": (range(1, 6), 7), "PS93": (range(1, 5), 5),
-        "PS94": (range(1, 8), 9), "PS95": (range(1, 2), 2)}
+#: Priya's specification, transcribed as {animal: (acute days, first subacute day, first chronic
+#: day or None)}. Chronic added 2026-09-07: PS92 from day 11; the other three have not stabilised.
+SPEC = {"PS92": (range(1, 6), 7, 11), "PS93": (range(1, 5), 5, None),
+        "PS94": (range(1, 8), 9, None), "PS95": (range(1, 2), 2, None)}
 
 
 def test_the_stored_spec_is_the_one_priya_gave():
-    for animal, (acute, sub) in SPEC.items():
+    for animal, (acute, sub, chronic) in SPEC.items():
         s = epochs.EPOCH_SPEC[animal]
         assert s["acute"] == (min(acute), max(acute)), animal
         assert s["subacute_from"] == sub, animal
+        assert s["chronic_from"] == chronic, animal
 
 
 def test_every_post_stroke_session_lands_in_exactly_one_epoch():
@@ -52,7 +54,7 @@ def test_days_are_counted_from_each_animals_own_lesion():
 
 def test_it_reproduces_the_day_lists_priya_wrote():
     """The whole specification, re-derived from dates and checked day by day."""
-    for animal, (acute, sub) in SPEC.items():
+    for animal, (acute, sub, chronic) in SPEC.items():
         sd = config.stroke_date(animal)
         base = dt.date(2026, int(sd[:2]), int(sd[2:]))
         for lab in config.pooled_labels(animal):
@@ -60,7 +62,17 @@ def test_it_reproduces_the_day_lists_priya_wrote():
                 continue
             mmdd = lab.split("_")[-1]
             n = (dt.date(2026, int(mmdd[:2]), int(mmdd[2:])) - base).days
-            want = "acute" if n in acute else ("subacute" if n >= sub else None)
+            # CHRONIC BEFORE SUBACUTE, mirroring `epoch_of`: the ranges overlap by construction
+            # (PS92 is subacute from day 7 and chronic from day 11), so testing subacute first
+            # would make every chronic day come back subacute and the branch a silent no-op.
+            if n in acute:
+                want = "acute"
+            elif chronic is not None and n >= chronic:
+                want = "chronic"
+            elif n >= sub:
+                want = "subacute"
+            else:
+                want = None
             assert epochs.epoch_of(lab) == want, f"{lab} (day {n})"
 
 
@@ -98,15 +110,18 @@ def test_the_epoch_counts_are_what_the_pooled_figures_will_show():
             f"{e} epoch is balanced across animals ({per[e]}); a pooled figure could imply four "
             f"equal contributors, so it must state per-animal n")
     assert per["acute"]["PS95"] == 1              # PS95 acute is spec'd as day 1 only -- one session
-    # every acute/subacute label is a post-stroke pooled label; pre is exactly the remainder
-    n_post = len(by["acute"]) + len(by["subacute"])
+    # every post-stroke label is acute, subacute OR CHRONIC; pre is exactly the remainder. Written
+    # over EPOCHS rather than a literal pair so a future epoch cannot silently fall out of the
+    # accounting the way chronic would have on 2026-09-07.
+    post_epochs = tuple(e for e in epochs.EPOCHS if e != "pre")
+    n_post = sum(len(by[e]) for e in post_epochs)
     assert n_post == sum(1 for l in config.pooled_labels()
-                         if epochs.epoch_of(l) in ("acute", "subacute"))
+                         if epochs.epoch_of(l) in post_epochs)
     assert len(by["pre"]) == len(config.pooled_labels()) - n_post
 
 
 def test_the_ordering_is_the_plot_order():
-    assert epochs.EPOCHS == ("pre", "acute", "subacute")
+    assert epochs.EPOCHS == ("pre", "acute", "subacute", "chronic")
 
 
 def test_the_behavioural_rule_reports_rather_than_reassigns(monkeypatch):
@@ -133,9 +148,17 @@ def test_a_missing_baseline_is_reported_not_guessed():
     assert all(r["agree"] is None for r in rep.values())
 
 
-def test_adding_chronic_needs_one_entry_per_animal():
-    """The extension path, asserted so it stays cheap: the epoch names and the per-animal spec are
-    the only two places a new epoch appears."""
-    import inspect
-    src = inspect.getsource(epochs)
-    assert "ADDING \"CHRONIC\"" in src or 'ADDING "CHRONIC"' in src
+def test_every_animal_carries_an_explicit_chronic_verdict():
+    """`chronic_from: None` is an ASSERTION -- "tested, has not stabilised" -- not an omission.
+
+    A MISSING key and an explicit None read identically to `epoch_of` (both leave the animal
+    subacute) and completely differently to a person: one says nobody has looked. Requiring the key
+    is what keeps "PS94 has not reached chronic" distinguishable from "PS94 was never assessed"."""
+    for animal, spec in epochs.EPOCH_SPEC.items():
+        assert "chronic_from" in spec, f"{animal} has no chronic verdict recorded"
+        cf = spec["chronic_from"]
+        assert cf is None or isinstance(cf, int), animal
+        if cf is not None:
+            assert cf > spec["subacute_from"], (
+                f"{animal} chronic_from {cf} must be after subacute_from {spec['subacute_from']}, "
+                f"or the subacute epoch is empty and `epoch_of`'s branch order is a silent no-op")

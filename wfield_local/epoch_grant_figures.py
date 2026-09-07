@@ -166,13 +166,15 @@ def fig_behaviour_timecourse(out_dir):
                 per_day[q].setdefault(an, {})[ef.PRE_X] = float(h / n)
     if not any(per_day.values()):
         return None
-    bounds = {a: (spec["acute"][1], spec["subacute_from"])
+    bounds = {a: (spec["acute"][1], spec["subacute_from"], spec.get("chronic_from"))
               for a, spec in epochs.EPOCH_SPEC.items()}
     return ef.timecourse_panel(
         per_day, out_dir, name="epoch_1c_behaviour_timecourse",
         title="Hit rate by spout position over days since lesion, one dot per animal per day",
         subtitle=ef.stats_line(counts, notes=[
-            f"shaded = acute ({epochs.ACUTE_RULE}); dotted = each animal's first subacute day",
+            (f"shaded = acute ({epochs.ACUTE_RULE}); dotted = each animal's first subacute day; "
+             f"dashed = first chronic day where one exists ({epochs.CHRONIC_RULE}) -- only PS92 "
+             "has stabilised, so only PS92 carries a dashed line"),
             "pre = that animal's whole pre-stroke baseline as one point, hits and trials summed "
             "-- the same number figure 1b's pre bar plots, and the one the acute rule is "
             "measured against"]),

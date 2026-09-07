@@ -6580,3 +6580,123 @@ string `'PS92'`, which iterates as the characters `P,S,9,2`. And `SPATIAL_MISS =
 "far_center")}` is not in tension with PS93's post-stroke deficit: it excludes those positions from
 the PRE-stroke *disengaged* training class, and PS93's pre-stroke rates there are 0.720 / 0.854
 against 0.95-0.99 elsewhere — a real pre-existing spatial bias, unrelated to the lesion.
+
+## 2026-09-07 — The CHRONIC epoch: an AND of two measures, not a composite of them
+
+**PS92 is chronic from day 11 (0828). PS93, PS94 and PS95 are not chronic.** Stored in
+`epochs.EPOCH_SPEC` as `chronic_from`, with an explicit `None` for the three that have not
+stabilised — an assertion that they were tested, not a gap.
+
+Priya's opening definition was by eye: *"the date after which behavior is 'stable' … when accuracy of
+far R reaches > 90% pre-stroke baseline, eg PS92 8/28 onward, PS93 8/28 onward, PS94 8/25 onward,
+PS95 8/27 onward."* The rule below reproduces the PS92 and PS93 dates and rejects PS94 and PS95, for
+reasons visible in their series rather than in the rule.
+
+### Why not a composite
+
+The first attempt averaged far_R hit rate and far_R licks/trial, each normalised to that animal's own
+pre-stroke baseline. Priya: *"can we include a lick number in the composite?"*, then *"how are you
+combining these metrics?"*
+
+**PS94 killed it.** Its hit rate sits at 91% of baseline while its licking sits at 45%, sustained
+across four sessions. Those are not two noisy readings of one latent "recovery" — they are accuracy
+and vigour, and they came apart. Inverse-variance weighting (the optimal way to average two noisy
+measurements OF THE SAME QUANTITY) is therefore answering the wrong question here. Measured anyway,
+from pre-stroke scatter only: licks are ~3.5x noisier than hit rate in fraction-of-baseline units, so
+the weight lands at 0.93/0.07 pooled and 0.03-0.27 per animal. At any noise-justified weight the
+composite IS hit rate to within two points and PS94's vigour deficit vanishes; at equal weight PS94
+reads 68% and its accuracy is misrepresented. Neither is acceptable, and no weight in between fixes
+both.
+
+Priya, on the alternative of clipping the ratio: *"I don't think we should cap the ratio at 1 -
+changes > 1 are still informative for whether things may be changing."* Correct, and load-bearing:
+PS93's licking overshoots to 129% of baseline and is coming back DOWN at 4.4%/session, and that
+decline is the entire reason PS93 is not chronic. Capping would have flattened it and handed PS93 a
+chronic stamp for an above-baseline excursion. Pinned in
+`tests/test_chronic_epoch.py::test_ratios_are_not_capped_at_one`.
+
+**The resolution was Priya's:** *"maybe we should have a separate intersection (AND) plateau
+requirement for chronic, so both hit rate and lick number reach a plateau?"* Each measure is tested
+on its own with identical logic; chronic begins at the LATER of the two plateaus, and only if both
+exist. The AND does real work — PS93 has a hit plateau with no lick plateau, PS95 the reverse, and
+neither is chronic.
+
+### Three conditions, each forced by an animal
+
+  * **FLAT** — |slope| <= 1/3 x that series' own pre-stroke SD, per session.
+  * **RECOVERED** — tail mean >= 90% (hit) / 80% (licks) of baseline. Rejects *stably impaired*:
+    PS94's licks are dead flat at **47%** of baseline from day 9, and slope alone calls that a
+    plateau.
+  * **SETTLED** — residual scatter about the fit <= 1.5 x pre-stroke SD. Rejects a *flat fit through
+    scatter*: PS95's hit rate has a shallow trend from day 2 while swinging 72-105% inside the window.
+
+**The tolerance is scaled per series, not absolute.** Licking is ~3.5x noisier, so one absolute slope
+tolerance makes the lick test ~3.5x stricter and mostly reports that licking is noisy. Under a fixed
+2%/session tolerance NO animal reaches chronic, which is an artefact of that choice.
+
+**The level bar is a fixed fraction, not SD-scaled**, and that is the one place consistency was
+traded away deliberately. 90% of baseline is 1.3-2.0 SD for hit rate across all four animals — near
+enough. For licks the same fraction is 0.3-1.2 SD, which is not. But the SD-scaled alternative is
+worse: PS94's pre-stroke licking scatters by 34% of baseline, so `1 - 2*SD` would put its threshold
+at **32%** and pass its clearly impaired 47% licking. PS94's baseline is too erratic to be its own
+yardstick, which is itself worth knowing about the animal the vigour question hangs on.
+
+### Persistence: "from here on", not "there exists a window"
+
+The three conditions are **not monotone in the start index**. PS95's hit rate satisfies all three at
+day 2 and at no other index — a lucky window on a series running 84 82 97 84 72 80 92 105 104 that is
+plainly still climbing. "First index that passes" reports PS95 chronic on post-stroke day 2. The
+plateau is therefore the earliest index such that EVERY later start also passes.
+
+### K_SD = 1/3 and not 0.5, on a 3.6% margin
+
+1/3 was almost changed to 0.5, because 2 intervals x 0.5 = exactly 1.0 baseline SD of permitted drift
+across the minimum window, which states better than 0.67. **It also moves PS93's lick series from
+failing by 55% of tolerance to failing by 3.6%** — one session from flipping an animal into chronic,
+on a cohort that gains a session most nights. Every other decisive margin is comfortable at either
+value; PS93 is the only one that discriminates, so it chose the constant. Recorded because the
+argument for the tidier anchor was purely aesthetic and will be made again.
+
+### Two limitations, kept and documented rather than fixed
+
+  * **The slope is per SESSION INDEX, not per day.** Sessions run at gaps of 1,1,1,1,2,2,2,4,3 days,
+    so a 3-session window spans 2-7 calendar days and the qualifying late windows are the widest — in
+    per-day terms the test is ~3.5x more permissive exactly where plateaus get declared, biasing
+    mildly TOWARD calling chronic. Kept because the pre-stroke SD setting the tolerance is itself
+    session-to-session scatter, so per-session keeps both sides in matching units; rescaling one side
+    only would be worse. All four animals share an identical schedule, so nothing is confounded
+    between animals. Priya: *"leave it and document it."*
+  * **Censoring.** With 10 post-stroke sessions and a 3-session minimum tail, the latest detectable
+    plateau starts at day 11. Today's three "not yet" verdicts are genuine failures rather than
+    censoring — PS94 is declining and PS95 still climbing — but PS93 is one series away, so this
+    should be re-derived as sessions accumulate.
+
+### Engagement
+
+Both series are computed on ENGAGED trials (`spout_behavior.reference_engagement`), per the
+2026-09-07 disengagement decision above. That EXCLUDES the disengagement change from the recovery
+timeline, so an animal that recovers accuracy while working fewer trials still reaches chronic.
+**That is a choice, not a fact**, and PS94 is where it matters most. The question Priya left open —
+*"it is hard to decide if I should include it in the recovery timeline"* — is not settled by this rule.
+
+### What it changed downstream
+
+  * `EPOCHS` is now a 4-tuple; every pooled epoch figure gains a fourth bar and the grey ramp a
+    fourth step. The bar group did NOT widen — that would push figures past `QUARTER_IN` and break
+    the read-at-1:1 constraint — so bars are thinner instead.
+  * **The subacute panel MOVED.** PS92's days 11/15/18 left subacute for chronic, so subacute went to
+    21 sessions from 24. Pooled epoch figures built before 2026-09-07 are not comparable.
+  * The chronic panel is **PS92 only**, n=3. Every subtitle names its per-animal counts, so the
+    reader sees n=1 animal stated rather than inferred.
+  * `verify_against_behaviour` now compares on ACUTE-NESS only. It derives from a single accuracy
+    threshold and can never say "chronic", so a direct label comparison reported every one of PS92's
+    chronic sessions as a disagreement with a rule that was never meant to adjudicate them.
+  * **`CACHE_VERSION` was NOT bumped.** No cached computation imports `epochs` — epoch assignment
+    happens at figure-aggregation time — and the bootstrap cache is content-keyed, so subacute's
+    changed membership misses automatically. A bump would have discarded ~9.6 h of valid per-session
+    work for nothing.
+  * Four places assumed three epochs and none would have raised: `epoch_figures.epoch_of_day` (its
+    own copy of the branch logic), `EPOCH_GREY` (chronic would have fallen back to the acute grey),
+    `timecourse_panel`'s 2-tuple `boundaries`, and `verify_against_behaviour` above. Three would have
+    rendered a wrong figure and the fourth a wrong audit. `tests/test_chronic_epoch.py` now pins the
+    two copies of the rule together for every pooled session.

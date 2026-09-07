@@ -3347,9 +3347,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
     # ----------------------------------------------------------- SECTION I: pooled EPOCH figures
     #
-    # `wfield_local.epoch_grant_figures` into <labcams>/grant_figures/epoch. Cross-animal, three
-    # panels -- pre / acute / subacute -- instead of a time axis, sized to be read at a quarter
-    # page (Priya, 2026-08-28).
+    # `wfield_local.epoch_grant_figures` into <labcams>/grant_figures/epoch. Cross-animal, four
+    # panels -- pre / acute / subacute / chronic -- instead of a time axis, sized to be read at a
+    # quarter page (Priya, 2026-08-28; chronic added 2026-09-07).
+    #
+    # THE CHRONIC PANEL IS PS92 ONLY, and that is the finding rather than a gap in the data: it is
+    # the one animal whose far_R hit rate AND licks/trial both satisfy `epochs.CHRONIC_RULE`. The
+    # per-epoch counts in every subtitle name the contributing animals, so a reader sees n=1 stated
+    # rather than inferred. Adding chronic also REMOVED PS92's days 11/15/18 from the subacute
+    # panel, so subacute bars moved on 2026-09-07 -- they are not comparable to a deck built before
+    # that date.
     #
     # THE SPEAKER NOTES ARE WRITTEN AS GRANT FIGURE LEGENDS, not as deck commentary: a reader
     # should be able to lift one into a proposal and have it stand alone -- what is plotted, what
@@ -3587,7 +3594,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "summarised from one set of bootstrap draws, so the corrected interval "
                   "necessarily contains the uncorrected one. Zero is drawn.")
     if _epoch.exists():
-        divider("I. POOLED EPOCH FIGURES — pre / acute / subacute",
+        divider("I. POOLED EPOCH FIGURES — pre / acute / subacute / chronic",
                 "Built by `python -m wfield_local.epoch_grant_figures` into "
                 "<labcams>/grant_figures/epoch. Pooled across all four animals and stratified by "
                 "recovery epoch instead of a time axis. Speaker notes are written as grant figure "

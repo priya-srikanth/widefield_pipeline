@@ -72,6 +72,11 @@ def epoch_of_day(animal: str, day: int) -> str | None:
     Pre-stroke days are negative and return ``'pre'``. Delegates the post-stroke boundaries to
     `epochs.EPOCH_SPEC` so there is one definition; a day between the acute range and the first
     subacute day returns None rather than being rounded to a neighbour.
+
+    THE BRANCH ORDER MIRRORS `epochs.epoch_of` AND MUST STAY IN STEP: chronic is tested before
+    subacute because the ranges overlap by construction (PS92 is subacute from day 7 and chronic
+    from day 11). `tests/test_epochs.py` pins the two functions against each other for every pooled
+    session, because this file having its own copy of the rule is exactly how they would drift.
     """
     if day < 0:
         return "pre"
@@ -81,6 +86,9 @@ def epoch_of_day(animal: str, day: int) -> str | None:
     lo, hi = spec["acute"]
     if lo <= day <= hi:
         return "acute"
+    chronic_from = spec.get("chronic_from")
+    if chronic_from is not None and day >= chronic_from:
+        return "chronic"
     if day >= spec["subacute_from"]:
         return "subacute"
     return None
@@ -479,7 +487,7 @@ def _cbar(fig, im, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, row, row_
 #: Epoch bar colours. Deliberately a GREY RAMP, not four hues: the dots already spend the colour
 #: budget on animal identity, and a second categorical palette beside it makes the reader ask which
 #: colour system a given mark belongs to. Light-to-dark also reads as an ordering, which epochs are.
-EPOCH_GREY = {"pre": "#c9c9c9", "acute": "#8a8a8a", "subacute": "#4a4a4a"}
+EPOCH_GREY = {"pre": "#c9c9c9", "acute": "#8a8a8a", "subacute": "#4a4a4a", "chronic": "#1f1f1f"}
 
 
 def _value_and_ci(v):
@@ -498,7 +506,10 @@ def _value_and_ci(v):
     return float(v), None, None
 
 
-#: Inches of canvas per bar GROUP (one group = one x position, holding up to three epoch bars).
+#: Inches of canvas per bar GROUP (one group = one x position, holding one bar per epoch PRESENT --
+#: up to four since chronic was added 2026-09-07, and the group width did NOT grow to accommodate
+#: it: widening it would push every figure past QUARTER_IN and break the read-at-1:1 constraint the
+#: whole module is built around, so the bars got thinner instead).
 #: Chosen so six groups reproduce QUARTER_IN exactly -- 0.62 + 6*0.72 + 1.24 = 6.18 -- which keeps
 #: every per-position figure at the width it already had while letting the one- and two-group
 #: figures stop reserving space for four groups that do not exist. Priya, 2026-08-28: figures with
@@ -1364,8 +1375,10 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
     beside the pooled epoch bars is what lets a reader check the boundaries rather than take them.
 
     ``per_day`` is ``{position: {animal: {day: value}}}``; ``boundaries`` is
-    ``{animal: (last acute day, first subacute day)}`` and is drawn as shaded spans, per animal
-    where they differ.
+    ``{animal: (last acute day, first subacute day[, first chronic day])}`` and is drawn as shaded
+    spans, per animal where they differ. The third element is optional and may be None -- most
+    animals have no chronic boundary, and a 2-tuple is still accepted so a caller that predates
+    chronic keeps working rather than raising inside a figure.
 
     DAYS ARE EACH ANIMAL'S OWN, not calendar dates. The lesion dates differ -- PS94/PS95 on 0816,
     PS92/PS93 on 0817 -- so a calendar axis would put four different post-stroke days in one
@@ -1397,10 +1410,18 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
         # THE EPOCH SPANS, drawn per animal only where they differ, so a reader can see that the
         # boundary is not one date but one rule applied to four animals.
         if boundaries:
-            for an, (acute_hi, sub_lo) in sorted(boundaries.items()):
+            for an, bnd in sorted(boundaries.items()):
+                acute_hi, sub_lo = bnd[0], bnd[1]
+                chronic_lo = bnd[2] if len(bnd) > 2 else None
                 ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.28, lw=0, zorder=0)
                 ax.axvline(sub_lo - 0.5, color=colors.get(an, "0.5"), lw=0.7, alpha=0.5,
                            ls=":", zorder=1)
+                # DASHED, not dotted, and only where a chronic boundary exists. Three of the four
+                # animals have none; drawing a line for them at the axis edge would say "chronic
+                # starts here" about animals that never stabilised.
+                if chronic_lo is not None:
+                    ax.axvline(chronic_lo - 0.5, color=colors.get(an, "0.5"), lw=0.9, alpha=0.7,
+                               ls="--", zorder=1)
         ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
         for an, by in sorted(per_day.get(q, {}).items()):
             xs = sorted(by)
