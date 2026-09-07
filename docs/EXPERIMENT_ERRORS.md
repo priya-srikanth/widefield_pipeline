@@ -8,6 +8,43 @@ Newest first. Each entry: what happened → what it costs → what we do → wha
 
 ---
 
+## 2026-09-07 — PS92/PS93 8/18: behavior-camera folders swapped at acquisition (corrected)
+
+**What happened.** On `20260818` the two behavior-camera folders were written under the wrong animal
+names. `PS92/` held the 14:52:10 recording and `PS93/` the 17:23:46 one, while the DAQ h5, the
+behavior log directory and the imaging session directory all agree PS92 ran at ~17:22 and PS93 at
+~14:52. Three independent sources against one: the camera folders were the odd one out. All eight
+files in each folder shared a single timestamp, so whole folders were swapped, not individual files.
+
+**How it was caught.** Building the alignment templates missing for 8/12-8/18. `camera_sync` pairs a
+camera CSV with a DAQ h5 BY ANIMAL NAME, so it matched each camera against the wrong session's sync
+train and its quality gate fired: 6313/17812 edges matched at a **3325 ms** residual, against the
+1.16 ms every good session gives. The tell was in the edge counts — PS92 reported daq=17812 /
+cam=19388 and PS93 daq=19388 / cam=17812, the same two numbers transposed. Re-pairing each camera
+with the other animal's DAQ gave 19306/19388 and 17730/17812 at **1.15-1.16 ms**, with exactly the
+82-edge boundary margin every clean session shows. The gate did its job: it refused to publish a
+bad template rather than writing one that looked fine.
+
+**What it costs.** Nothing that was published. The imaging, DAQ and behaviour paths never read the
+behavior-camera folders — trials, positions and licks come from the DAQ — so hit rates, engagement,
+decoding and every epoch figure are unaffected. The two alignment templates had already FAILED their
+quality check rather than being written as usable, so nothing downstream consumed them. The single
+wrong artefact on disk was `dropped_frames_summary_20260818.csv`, whose `session` column named the
+wrong animal for eight of sixteen rows.
+
+**What we do.** Swapped the two directories — a metadata-only rename, no file read or rewritten,
+with byte totals verified transposed (30,081,755,282 <-> 31,593,528,060). Regenerated the eight
+alignment templates for the date (all now 1.15-1.16 ms, `quality_ok` true) and the dropped-frame
+summary. A whole-tree audit comparing camera start times against DAQ start times over **100 sessions
+found these two and no others**, and now reports zero.
+
+**Still open.** That audit is a one-off script, not a nightly check. `camera_nightly` pairs by name
+and would not notice a recurrence on its own — though `camera_sync`'s quality gate would fail loudly
+again, which is exactly how this surfaced. Folding the start-time comparison into the nightly would
+turn a loud failure into a named one.
+
+---
+
 ## 2026-08-28 — PS92: 415/470 excitation channels swapped (imaging only; behavior intact)
 
 **What happened.** For `PS92_20260828` the 415 nm (isosbestic) and 470 nm (functional) excitation
