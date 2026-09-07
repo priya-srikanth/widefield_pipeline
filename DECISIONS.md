@@ -6724,3 +6724,58 @@ themselves — which also means the first run after this change pays the full bo
 **The two gates remain separate functions with separate jobs** — behaviour drops disengaged trials
 from a hit-rate denominator, imaging keeps them as their own condition — and a test now asserts they
 agree about the ONSET, which is the part that must not silently diverge.
+
+## 2026-09-07 (later) — Wiring the epoch verifiers in, and why a disagreement must not fail the run
+
+**Both epoch verifiers now run every nightly** (`wfield_local/epoch_audit.py`, called from
+`nightly_figs` before the deck build). Until today neither was called by anything:
+`verify_against_behaviour` appeared only in deck prose and `derive_chronic_boundaries` nowhere, so
+the specification was checkable in principle and unchecked in practice.
+
+That gap matters most for CHRONIC, which sits at the END of each series where every new session
+lands. PS93 currently fails only the lick-plateau condition; nothing would have said so when it
+stops failing.
+
+### It reads the behaviour stage's CSV, not the DAQ
+
+`cohort_session_metrics.csv`, written by `spout_behavior --cohort` in the camera/behaviour nightly
+(stage 1), ahead of the figs stage. Milliseconds instead of the ~11 minutes a re-parse costs — but
+the real reason is CONSISTENCY: that table is what the behaviour figures are drawn from, and an
+audit that recomputed its own numbers could disagree with the figures it audits, leaving nobody able
+to say which was right. Verified before adopting it: `hit__far_R` reproduces an independent
+re-derivation from `load_trials` + `reference_engagement` on all ten of PS94's post-stroke sessions,
+including the ones where gating moves the value by 0.18.
+
+**Engaged columns, not all-trial ones.** `hit__<pos>` is gated and `hitall__<pos>` is not, and they
+differ by up to 0.18 post-stroke. Reading the wrong one would audit a different quantity than the
+rule defines and would still look like it worked.
+
+### A disagreement is a finding, not a failed step
+
+`nightly_figs.cli` routes nonzero exits into `FAILURES`, and **a run with failed steps refuses to
+publish the deck**. So a disagreement reported as a failure would withhold an entire night's deck
+over precisely the outcome the audit exists to surface. Therefore:
+
+  * drift goes to `EPOCH_DRIFT` and into the run record as its own field, never to `FAILURES`;
+  * `epoch_audit.main` returns 0 unconditionally, and the nightly calls the module IN-PROCESS rather
+    than through `cli`, so that guarantee is structural rather than a convention an edit could break;
+  * **a CRASH in the audit IS a failure.** An audit that silently stopped running is exactly how
+    both verifiers came to be uncalled for ten days while reading as though they were wired in.
+
+### Three things it must be able to say
+
+  * **"I did not run"**, distinctly from "nothing is wrong". A box without the cohort table reports
+    NOT CHECKED; the two are indistinguishable in a log otherwise and mean opposite things.
+  * **"Agreed"**, out loud, every night. A check that is silent on success cannot be told from one
+    that was removed.
+  * **WHICH animal and WHICH boundary.** `disagreements()` returns strings, not a boolean — a bare
+    flag sends the reader back through a 20-hour log. The drift block is also repeated at the very
+    end of the run, because the audit fires ~20 h in and its lines are thousands of lines above.
+
+### The live test is expected to fail one day
+
+`tests/test_epoch_audit.py::test_against_the_real_cohort_table_the_stored_spec_agrees` asserts that
+today's behaviour still matches `EPOCH_SPEC`. It is deliberately not a tautology: when an animal
+genuinely crosses a boundary this test fails, and that failure is the prompt to edit `EPOCH_SPEC`
+and rerun. The spec is never updated automatically — a boundary that moved on its own would redraw
+published panels silently, which is the whole reason it is stored rather than derived.

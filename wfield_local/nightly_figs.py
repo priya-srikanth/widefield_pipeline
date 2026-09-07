@@ -68,6 +68,10 @@ FAILURES: list[str] = []
 #: refreshed from one left over from an earlier run.
 RUN_START: float = time.time()
 
+#: Animals whose behaviour has moved away from the stored epoch boundaries, from `epoch_audit`.
+#: NOT a failure and deliberately not in FAILURES -- see `_epoch_audit`.
+EPOCH_DRIFT: list[str] = []
+
 
 def cli(*a):
     log("CLI " + " ".join(a))
@@ -123,6 +127,33 @@ def _cli_many(cmds, jobs=None):
         list(pool.map(_run, cmds))
 
 
+def _epoch_audit():
+    """Check the stored epoch boundaries against tonight's behaviour. Logs; never reassigns.
+
+    IN-PROCESS, NOT THROUGH `cli`. `cli` routes a nonzero exit into FAILURES and a run with failed
+    steps refuses to publish the deck -- so if this ran that way and an animal's behaviour moved,
+    the night's entire deck would be withheld over the one outcome the check exists to discover.
+    `epoch_audit.main` returns 0 unconditionally for the same reason; running it in-process makes
+    that guarantee structural rather than a convention a future edit could break.
+
+    A CRASH here IS a failure, and is reported as one -- an audit that silently stopped running is
+    how `verify_against_behaviour` sat uncalled for ten days while reading as if it were wired in.
+    """
+    try:
+        from wfield_local import epoch_audit
+        rep = epoch_audit.audit()
+        for line in epoch_audit.report_lines(rep):
+            log("   " + line)
+        EPOCH_DRIFT.extend(epoch_audit.disagreements(rep))
+        if not rep.get("available"):
+            # NOT the same as agreement, and must not read like it: the behaviour stage has not
+            # produced its cohort table, so nothing was checked at all.
+            log("  !! epoch boundaries NOT CHECKED this run (no cohort behaviour table)")
+    except Exception as ex:                                       # noqa: BLE001
+        FAILURES.append("epoch audit")
+        log(f"  !! epoch audit: {type(ex).__name__} {str(ex)[:120]}")
+
+
 def _write_run_record(deck_out, date, tag):
     """Leave this run's failed-step list on disk, beside the deck.
 
@@ -140,6 +171,10 @@ def _write_run_record(deck_out, date, tag):
            "started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(RUN_START)),
            "finished": time.strftime("%Y-%m-%d %H:%M:%S"),
            "failed_steps": sorted(set(FAILURES)),
+           # SEPARATE FROM failed_steps, and it must stay separate: this is behaviour disagreeing
+           # with `epochs.EPOCH_SPEC`, which is a finding to act on rather than a broken step, and
+           # folding it into the failure list would stop the deck publishing over it.
+           "epoch_drift": list(EPOCH_DRIFT),
            "deck_published": not FAILURES}
     try:
         p = Path(deck_out).with_suffix(".run.json")
@@ -647,6 +682,14 @@ def main():
         else:
             cli("wfield_local.epoch_grant_figures")
 
+    # DO THE STORED EPOCH BOUNDARIES STILL MATCH BEHAVIOUR? Runs unconditionally -- including on
+    # `--only` and `--skip-grant` runs, because it reads the behaviour stage's cohort table rather
+    # than anything the figs stage produces, and a night that skipped the pooled figures is exactly
+    # a night nobody would otherwise look at the boundaries.
+    #
+    # BEFORE the deck, so the verdict is logged and recorded whatever the deck then does with it.
+    _epoch_audit()
+
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
@@ -718,6 +761,15 @@ def main():
     # The last per-day date, which is what this was when it was the loop variable left over
     # from `for date in per_day` -- named now that the loop is a phase.
     _write_run_record(deck_out, per_day[-1] if per_day else None, tag)
+    # REPEATED AT THE END, because the audit runs ~20 h into the night and its lines are thousands
+    # of log lines above this point. A drift notice nobody scrolls back far enough to see is the
+    # same as no notice. Exit code is deliberately unaffected -- see `_epoch_audit`.
+    if EPOCH_DRIFT:
+        log(f"== EPOCH BOUNDARIES: behaviour disagrees with `epochs.EPOCH_SPEC` on "
+            f"{len(EPOCH_DRIFT)} boundary/ies ==")
+        for d in EPOCH_DRIFT:
+            log(f"     {d}")
+        log("   The spec was NOT changed. Edit `epochs.EPOCH_SPEC` and rerun if the change is real.")
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:
