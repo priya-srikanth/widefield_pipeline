@@ -44,10 +44,23 @@ across the whole recording. Two things are wrong with it, and neither is "you di
 
 ### Re-recording the calibration
 
+0. **Print the new board.** Ready to print on the share at
+   `Behavior_Cameras/calibration_boards/charuco_9x7_10mm_a4.pdf` (94 x 74 mm board on A4; an A3
+   variant at 154 x 112 mm is beside it), or regenerate with `python -m wfield_local.dlc_board`.
+
+   Its markers are **8 mm against the current ~1.2 mm** — sized from the recording, not from paper:
+   in cam2 the printed pattern spans ~145 px while the card it is taped to (a 30 mm cage plate,
+   38.1 mm) spans ~390 px. That puts cam2 near 14 px per code cell instead of 2.1. It is
+   deliberately NOT a full page: ~20x would leave `cam4`, whose field is the snout alone, seeing two
+   squares.
+
+   **Print at 100% / "actual size", then measure the 100 mm ruler on the sheet.** "Fit to page" is
+   on by default in most dialogs and would rescale the board — which changes nothing about the
+   images and everything about the millimetres they imply, with nothing downstream to reveal it.
+   The board carries its own spec (squares, mm, dictionary) so the geometry cannot be separated from
+   the object, and a pattern-free **mount tab** for taping to the cage plate so no marker is covered.
+
 1. Animal off the rig. All four cameras recording, as in a session.
-2. **Use a bigger board** — ~2.5x the current one, so the side views get ≥3 px per code cell. It will
-   overflow `cam1`/`cam4`'s tight framing at close range; that is fine, ChArUco handles partial
-   boards, and those two already resolve it comfortably.
 3. **Move it constantly**: pause ~0.5 s per pose, then change position AND tilt. Aim for **≥20
    distinct poses per camera** and **≥15 shared per pair**. Holding it steady adds frames, not poses,
    which is exactly the mistake in the 08-05 recording.

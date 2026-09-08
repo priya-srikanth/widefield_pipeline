@@ -1789,6 +1789,37 @@ and cannot disagree with itself.
 `cam3` is the **right**-side view, so it is the one that carries PS93's right orofacial deficit;
 the laterality in that table is a measurement decision, not a naming convention.
 
+### The replacement board is sized from the recording, not from paper (2026-09-08)
+
+Priya: *"give me a board I can print out"*, then *"card is taped to a 30 mm cage plate"* — which is
+what made the board sizeable rather than guessable. A 30 mm cage plate is **38.1 mm** square and
+COPLANAR with the pattern taped to it, so their pixel ratio gives the pattern's true size
+independently of distance. In cam2 the pattern spans ~145 px and the card ~390 px, so the markers
+in use are about **1.2 mm** — which is exactly why they resolve to 2.1 px per code cell there.
+
+`wfield_local/dlc_board.py` generates the replacement: **9x7 squares, 10.5 mm square, 8.0 mm marker,
+DICT_4X4_50, 94 x 74 mm on A4** (an A3 variant is 11x8 at 14 mm). Written to
+`Behavior_Cameras/calibration_boards/`.
+
+**8 mm is ~7x the current marker and puts cam2 near 14 px/cell** — margin over the ~3 needed, at the
+same working distance. It is deliberately not a full page: an A3-filling board would be ~20x, and
+`cam4`, whose field is the snout alone, would see two squares of it. Sizing the board is a trade
+between the widest view and the tightest, and this rig has both.
+
+Three things are printed ON the sheet, each for a failure that is otherwise invisible:
+
+* **The spec** (squares, mm, dictionary). It is the metric scale of every 3D reconstruction and is
+  not recoverable from video — a board whose geometry has been lost can only produce a scale-free
+  result. Printed in the margin, it cannot be separated from the object it describes.
+* **A 100 mm ruler.** "Fit to page" is on by default in most print dialogs and would rescale the
+  board, which changes nothing about the images and everything about the millimetres they imply,
+  with nothing downstream to reveal it.
+* **A pattern-free mount tab**, one cage plate deep, for the tape. An occluded marker is not a
+  smaller board — it is a missing ID, and the ChArUco corners that depended on it go with it.
+
+`check_fits` REFUSES an oversized board rather than letting the print dialog shrink it, and accounts
+for the ruler and tab, which share the page.
+
 ### Labelling order: cam4 + cam1 now, the side views after recalibration (Priya, 2026-09-08)
 
 Priya: *"should we only label jaw, tongue, spout in the other 3 angles?"* For `cam1` that IS its whole
