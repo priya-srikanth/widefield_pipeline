@@ -312,6 +312,22 @@ labelling GUI. Without `--label` it does everything except open the GUI.
 The project is `Behavior_Cameras/Widefield/dlc/widefield-Priya-2026-09-08/` — **26 folders,
 1853 images**, 13 of them cam4 with ~82% of points already placed.
 
+### If the GUI does not stay open
+
+Two failures, both environment rather than project:
+
+* `AttributeError: 'label_frames' is unavailable because DeepLabCut was loaded without GUI
+  dependencies` — `pip install "deeplabcut[gui]"`.
+* `QThread: Destroyed while thread 'StatusChecker' is still running`, window flashes and closes —
+  DLC's `label_frames` builds a napari viewer and returns it **without starting a Qt event loop**,
+  which is fine from IPython (the shell already runs one) and fatal from `python -m`. `dlc_project`
+  calls `napari.run()` after it, which supplies the loop and blocks until you close the window. Any
+  other script driving a `deeplabcut.gui` entry point needs the same — they are all written for
+  interactive use.
+
+`--folder <video-stem>` opens a particular session first; by default DLC opens the alphabetically
+first folder, which is a cam1 June session.
+
 ### Place ONLY what each view can see
 
 DLC has one bodypart list per project, so `config.yaml` carries the union of all twelve. The GUI
