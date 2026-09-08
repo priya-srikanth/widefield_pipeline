@@ -1769,6 +1769,34 @@ and cannot disagree with itself.
 `cam3` is the **right**-side view, so it is the one that carries PS93's right orofacial deficit;
 the laterality in that table is a measurement decision, not a naming convention.
 
+### Labelling order: cam4 + cam1 now, the side views after recalibration (Priya, 2026-09-08)
+
+Priya: *"should we only label jaw, tongue, spout in the other 3 angles?"* For `cam1` that IS its whole
+set. For the side views the answer is not to trim them but to DEFER them, and the numbers say why:
+
+| view | frames | parts | points | seeded | by hand | 3D today? |
+|---|---|---|---|---|---|---|
+| `cam4` | 927 | 10 | 9,270 | 7,642 | 1,628 | yes, with cam1 |
+| `cam1` | 926 | 3 | 2,778 | 0 | 2,778 | yes, with cam4 |
+| `cam2` | 774 | 7 | 5,418 | 0 | 5,418 | no |
+| `cam3` | 774 | 7 | 5,418 | 0 | 5,418 | no |
+
+`jaw`, `tongue` and `spout` are exactly the parts reconstructable from `cam1↔cam4` — the one pair the
+2026-08-05 calibration solves — so **4,406 placements buys 3D orofacial kinematics**. The whiskers
+pair `cam4` with a side view, and `cam4↔cam2` has 11 co-visible board frames, so none of the side
+views' 10,836 placements (71% of the remaining work) converts into 3D until the calibration is
+re-recorded. Deferring costs nothing: the frames are extracted and selection is deterministic.
+
+**A trimmed first pass on the side views is a false economy.** It halves the placements by discarding
+the whiskers, which are the main reason to have side views: triangulatable once calibration is fixed,
+better measured in profile than frontally, and carrying PS93's minimal-right-whisking phenotype on
+`cam3`. DLC labels per FRAME, so adding a bodypart later means reopening all 774 frames — the same
+work split in two, plus a revisit tax.
+
+`nose`, `L_eye` and `R_eye` are single-view and stay 2D regardless. The eyes are still worth placing
+when the side views are labelled: one more point on a frame already open, and the only rigid landmark
+those views would have if 3D never works.
+
 ### `analyze_videos` silently reuses a stale prediction file
 
 Growing the cam4 set from 465 to 927 frames and re-running returned the PREVIOUS run's **465**

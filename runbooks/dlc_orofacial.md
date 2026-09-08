@@ -162,6 +162,40 @@ here. Measured: 217 fps at 320×320, 66 fps at 672×672.
 
 ---
 
+## Step 1c — what to label FIRST, and what to leave alone
+
+The frames exist for all four views, but the work is not evenly distributed and not all of it is
+useful yet:
+
+| view | frames | parts | points | seeded | **by hand** | 3D today? |
+|---|---|---|---|---|---|---|
+| `cam4` front | 927 | 10 | 9,270 | 7,642 | **1,628** | yes, with cam1 |
+| `cam1` bottom | 926 | 3 | 2,778 | 0 | **2,778** | yes, with cam4 |
+| `cam2` side_left | 774 | 7 | 5,418 | 0 | **5,418** | not until recalibration |
+| `cam3` side_right | 774 | 7 | 5,418 | 0 | **5,418** | not until recalibration |
+
+**Label `cam4` + `cam1` now.** They are the one pair the existing calibration solves (1225 co-visible
+board frames), and between them they carry `jaw`, `tongue` and `spout` — which is the entire set that
+can be reconstructed in 3D today. 4,406 placements gets you 3D orofacial kinematics.
+
+**Leave `cam2`/`cam3` until the calibration is re-recorded.** They are 71% of the remaining work and
+none of it converts into 3D yet: the whiskers pair `cam4` with a side view, and `cam4↔cam2` currently
+has 11 co-visible frames. Deferring costs nothing — the frames are extracted and the selection is
+deterministic, so they will be exactly these frames afterwards.
+
+**Do not label the side views "just jaw/tongue/spout" as a cheaper first pass.** It halves the
+placements but discards the whiskers, which are the main reason to have side views at all: they are
+triangulatable once calibration is fixed, a profile is the better view of whisking than a frontal one,
+and PS93's phenotype includes minimal right whisking (`cam3`). And DLC labels per FRAME — adding a
+bodypart later means reopening all 774 frames, so a partial pass is not less work, it is the same
+work split in two with a revisit tax.
+
+`nose`, `L_eye` and `R_eye` are single-view and stay 2D whatever happens. The eyes are still worth
+placing when you do label the side views: one extra point on a frame already open, and the only rigid
+landmark those views have if 3D ever fails.
+
+---
+
 ## Step 2 — create the DLC project and adopt the frames
 
 In the DLC environment (not `locanmf` — DeepLabCut is not installed there):
