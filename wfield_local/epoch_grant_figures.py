@@ -172,18 +172,22 @@ def fig_behaviour_timecourse(out_dir):
     # boundaries would be the one lying about them.
     bounds = {a: (s_["acute"][1], s_["subacute_from"], s_.get("chronic_from"))
               for a in epochs.EPOCH_SPEC for s_ in [epochs.spec_for(a)] if s_}
-    return ef.timecourse_panel(
+    # ONE PANEL PER ANIMAL, six positions overlaid (Priya, 2026-09-08). The epochs are per-animal,
+    # so the per-POSITION layout had to draw all four animals' boundaries on every axes -- eight
+    # vertical lines belonging to no particular trace. Per animal, a shaded span means that
+    # animal's acute period and the recovery can be read straight off it.
+    return ef.timecourse_by_animal(
         per_day, out_dir, name="epoch_1c_behaviour_timecourse",
-        title="Hit rate by spout position over days since lesion, one dot per animal per day",
+        title="Hit rate by spout position over days since lesion, one panel per animal",
         subtitle=ef.stats_line(counts, notes=[
-            (f"shaded = acute ({epochs.ACUTE_RULE}); dotted = each animal's first subacute day; "
-             f"dashed = first chronic day where one exists ({epochs.CHRONIC_RULE}) -- only PS92 "
-             "has stabilised, so only PS92 carries a dashed line"),
-            "pre = that animal's whole pre-stroke baseline as one point, hits and trials summed "
-            "-- the same number figure 1b's pre bar plots, and the one the acute rule is "
-            "measured against"]),
-        # LONG names in the panel titles: this figure has no Near/Far bracket under its
-        # axis, so "Ipsi" appearing twice would not say which distance it is.
+            (f"shaded = that animal's acute period ({epochs.ACUTE_RULE}); dotted = its first "
+             f"subacute day; dashed = its first chronic day where one exists "
+             f"({epochs.CHRONIC_RULE}) -- only PS92 has stabilised, so only PS92 carries a "
+             "dashed line"),
+            "colour = spout position (hue = side, lighter = far); pre = that animal's whole "
+            "pre-stroke baseline as one point, hits and trials summed -- the same number figure "
+            "1b's pre bar plots, and the one the acute rule is measured against"]),
+        # LONG names in the LEGEND: "Ipsi" appearing twice would not say which distance it is.
         ylabel="hit rate", positions=_short_labels(), tick_labels=_long_labels(),
         boundaries=bounds)
 

@@ -1462,6 +1462,120 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
     return q_
 
 
+def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_labels=None,
+                         subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06)):
+    """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries.
+
+    THE TRANSPOSE OF `timecourse_panel`, and the reason is the boundaries (Priya, 2026-09-08). The
+    epochs are per-animal -- four lesion dates, four acute ends, four subacute starts -- so a
+    per-POSITION panel had to draw all four animals' boundaries on top of each other: eight
+    vertical lines and four shaded spans per axes, none of which belonged to any one trace. Here
+    each panel carries exactly one animal, so a shaded acute span and a dotted subacute line mean
+    that animal's, and the deficit can be read against them directly.
+
+    IT ALSO PUTS THE COMPARISON ON THE RIGHT AXIS. The question this figure answers is "which
+    positions did THIS animal lose, and when did they come back" -- that is a within-animal
+    comparison across positions, and it was previously split across six panels.
+
+    ``per_day`` is ``{position: {animal: {day: value}}}`` -- unchanged, so the collector does not
+    move; the transpose happens here. ``positions`` is the ordered position list and must match
+    `grant_figures.CONF_LABELS` order, which is `spout_behavior.IDX_ORDER`'s -- that is what lets
+    each trace take the pipeline's existing spout palette (hue = side, lightness = ring, marker and
+    linestyle = side) rather than inventing a second scheme for the same six things.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.spout_behavior import IDX_ORDER, POS_BY_IDX, SIDE_LS, SIDE_MARKER, pos_color
+
+    positions = list(positions)
+    labels = list(tick_labels or positions)
+    # TRANSPOSE, and keep animal order stable rather than discovery order.
+    per_animal: dict = {}
+    for qi, q in enumerate(positions):
+        for an, by in (per_day.get(q) or {}).items():
+            per_animal.setdefault(an, {})[qi] = by
+    animals = sorted(per_animal)
+    ncol = len(animals)
+    if not ncol:
+        return None
+
+    fig_w = QUARTER_IN * 2.0
+    left_in, right_in = 0.62, 1.30           # room for a six-entry position legend
+    top_in = 0.52 + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
+    # TALLER THAN THE PER-POSITION VERSION. `stats_line` wraps the epoch rules to ~10 lines, so at
+    # the old 1.55in the caption occupied more of the figure than the data did and the hit-rate
+    # axis -- the thing being read -- was the smallest thing on it. Four panels instead of six also
+    # buys width, so the extra height does not make them narrow.
+    bottom_in, gap_in, panel_h = 0.52, 0.20, 2.45
+    panel_w = (fig_w - left_in - right_in - gap_in * (ncol - 1)) / ncol
+    fig_h = top_in + panel_h + bottom_in
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    days_all = sorted({d for by in per_animal.values() for m in by.values() for d in m})
+    lo = min(days_all) if days_all else -1
+    hi = max(days_all) if days_all else 1
+    axes = []
+    for i, an in enumerate(animals):
+        ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, bottom_in / fig_h,
+                           panel_w / fig_w, panel_h / fig_h])
+        axes.append(ax)
+        bnd = (boundaries or {}).get(an)
+        if bnd:
+            acute_hi, sub_lo = bnd[0], bnd[1]
+            chronic_lo = bnd[2] if len(bnd) > 2 else None
+            # NEUTRAL GREY, not the animal colour: the panel already IS the animal, and a coloured
+            # span here would read as one of the six position traces.
+            ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.45, lw=0, zorder=0)
+            ax.axvline(sub_lo - 0.5, color="0.35", lw=0.9, alpha=0.8, ls=":", zorder=1)
+            if chronic_lo is not None:
+                ax.axvline(chronic_lo - 0.5, color="0.20", lw=1.0, alpha=0.85, ls="--", zorder=1)
+        ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
+        for qi in sorted(per_animal[an]):
+            p = POS_BY_IDX[IDX_ORDER[qi]]
+            by = per_animal[an][qi]
+            xs = sorted(by)
+            ax.plot(xs, [by[d] for d in xs], color=pos_color(IDX_ORDER[qi]), lw=0.9, alpha=0.75,
+                    ls=SIDE_LS[p["side"]], marker=SIDE_MARKER[p["side"]], ms=3.0, zorder=3)
+        if chance is not None:
+            ax.axhline(chance, color="0.4", lw=0.7, ls="--", zorder=2)
+        post = [d for d in days_all if d > 0]
+        ticks = [PRE_X] + [d for d in post if d % 2 == 1]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
+        ax.set_title(an, fontsize=FS_ANNOT)
+        ax.set_ylim(*ylim)
+        ax.set_xlim(lo - 0.6, hi + 0.6)
+        ax.tick_params(labelsize=FS_TICK - 2)
+        if i:
+            ax.set_yticklabels([])
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel(ylabel, fontsize=FS_LABEL - 1)
+    # ANCHORED IN INCHES, not in a figure fraction. A fixed fraction moves with `fig_h`, so raising
+    # the panel height slid this label up into the tick numbers it labels.
+    fig.text((left_in + (fig_w - left_in - right_in) / 2) / fig_w, 0.11 / fig_h,
+             "days from lesion (each animal's own)", ha="center", va="bottom",
+             fontsize=FS_LABEL - 1)
+    handles = [Line2D([], [], color=pos_color(IDX_ORDER[qi]), lw=1.2,
+                      ls=SIDE_LS[POS_BY_IDX[IDX_ORDER[qi]]["side"]],
+                      marker=SIDE_MARKER[POS_BY_IDX[IDX_ORDER[qi]]["side"]], ms=3.5,
+                      label=labels[qi]) for qi in range(len(positions))]
+    leg = axes[-1].legend(handles=handles, fontsize=FS_ANNOT - 1.5, loc="upper left",
+                          frameon=False, handlelength=2.2, labelspacing=0.35)
+    leg.set_bbox_to_anchor((1.02, 1.0))
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.22 + 0.15 * (_tlines - 1)) / fig_h, _sub, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    q_ = pathlib.Path(out) / f"{name}.png"
+    _save_png_svg(fig, q_)
+    plt.close(fig)
+    return q_
+
+
 def scalar_by_epoch(by_animal_day, value_of, *, keys=None):
     """``({epoch: {key: value}}, {epoch: {key: [(animal, value), ...]}})`` for a per-day scalar.
 

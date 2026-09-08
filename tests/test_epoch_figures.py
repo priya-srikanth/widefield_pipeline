@@ -562,3 +562,36 @@ def test_the_canvas_grows_with_its_text_instead_of_shrinking_the_plot(tmp_path):
     # ... and the data region is untouched by how much text sits above it
     assert axes_h[0] == pytest.approx(axes_h[1])
     assert axes_h[0] >= ef.BAR_AXES_MIN_IN
+
+
+def test_timecourse_by_animal_is_one_panel_per_animal_with_its_own_boundaries(tmp_path):
+    """The per-ANIMAL layout (Priya, 2026-09-08): epochs are per-animal, so the boundaries only
+    mean something on an axes that carries one animal. The per-position version had to draw all
+    four animals' spans on every panel."""
+    per_day = {q: {an: {ef.PRE_X: 0.9, 1: 0.4, 3: 0.7, 5: 0.95}
+                   for an in ("PS92", "PS93")}
+               for q in ("nI", "nM", "nC", "fI", "fM", "fC")}
+    out = ef.timecourse_by_animal(
+        per_day, tmp_path, name="tc", title="t", ylabel="hit rate",
+        positions=["nI", "nM", "nC", "fI", "fM", "fC"],
+        tick_labels=["Near Ipsi", "Near Middle", "Near Contra",
+                     "Far Ipsi", "Far Middle", "Far Contra"],
+        boundaries={"PS92": (5, 6, 11), "PS93": (4, 5, None)})
+    assert out is not None and out.exists()
+
+
+def test_timecourse_by_animal_returns_none_without_data(tmp_path):
+    assert ef.timecourse_by_animal({}, tmp_path, name="tc", title="t", ylabel="y",
+                                   positions=["nI"]) is None
+
+
+def test_timecourse_position_order_matches_the_spout_palette():
+    """The traces are coloured by INDEX into CONF_LABELS, so that order must stay the palette's.
+
+    If CONF_LABELS were ever reordered without IDX_ORDER following, every trace would keep its
+    label and take another spout's colour -- a wrong figure that looks entirely correct.
+    """
+    from wfield_local.grant_figures import CONF_LABELS
+    from wfield_local.spout_behavior import IDX_ORDER, POS_BY_IDX
+
+    assert list(CONF_LABELS) == [POS_BY_IDX[i]["name"] for i in IDX_ORDER]
