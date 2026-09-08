@@ -60,6 +60,36 @@ across the whole recording. Two things are wrong with it, and neither is "you di
    The board carries its own spec (squares, mm, dictionary) so the geometry cannot be separated from
    the object, and a pattern-free **mount tab** for taping to the cage plate so no marker is covered.
 
+### "Is it better for the board to be too big?"
+
+**Yes — err big, because the two failure modes are not symmetric.** Too big means `cam1`/`cam4` see
+only PART of the board, and ChArUco is built for exactly that: every marker carries a unique id, so
+a partial view is still uniquely located and yields a pose. It costs corners per frame, a precision
+cost repaid by more poses. Too small means `cam2`/`cam3` cannot DECODE a marker at all — the square
+is found, rejected, and the frame contributes nothing. That one is a cliff, not a slope.
+
+But size does not buy latitude. Both bounds scale with the board, so the usable window of working
+distances is always about **4x** wide — bigger boards *move* it further out rather than widening it
+(`working_window`, pinned in `test_making_the_board_bigger_MOVES_the_window_it_does_not_widen_it`).
+As a multiple of the distance the 08-05 board was held at:
+
+| board | marker | usable window |
+|---|---|---|
+| current | 1.2 mm | **0.18–0.73x** — excludes 1.0, i.e. no usable distance where it was held |
+| **new A4** 9x7 | 8.0 mm | **1.2–4.8x** |
+| new A3 11x8 | 10.5 mm | 1.5–6.4x |
+| 2x bigger | 16 mm | 2.3–9.7x |
+| 4x bigger | 32 mm | 4.6–19.4x |
+
+So the board is not chosen by "how big can I print" but by **where you can physically stand**. The
+A4 board wants ~1.2–4.8x the old standoff, which is inside the enclosure; a 32 mm-marker board would
+need 4.6x minimum and probably puts you outside it. Print the A3 as well and use whichever suits the
+distance you can actually achieve — it costs a sheet of paper.
+
+**Pre-flight before the real sweep:** record ~30 s, run
+`python -m wfield_local.dlc_calibration --step 5`, and read the `px/bit` column. Above ~5 on every
+camera means the size and standoff are right; then do the full sweep.
+
 1. Animal off the rig. All four cameras recording, as in a session.
 3. **Move it constantly**: pause ~0.5 s per pose, then change position AND tilt. Aim for **≥20
    distinct poses per camera** and **≥15 shared per pair**. Holding it steady adds frames, not poses,

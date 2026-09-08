@@ -80,3 +80,46 @@ def test_the_dictionary_matches_the_board_already_in_use():
 
 def test_the_mount_tab_is_at_least_a_cage_plate_deep():
     assert db.MOUNT_TAB_MM >= db.CAGE_PLATE_MM
+
+
+# --------------------------------------------------------------------- working distance
+
+#: cam4 (tight, 680 px snout view) and cam2 (wide, whole animal), at the distance the 08-05 board
+#: was held: 30.4 px and 13.1 px across the same 1.2 mm marker.
+CAM4_PXMM, CAM4_PX, CAM2_PXMM = 25.0, 680, 10.9
+
+
+def test_the_OLD_board_had_no_usable_window_at_the_distance_it_was_used():
+    """The failure, in one number. Its window is 0.18-0.73x the distance it was actually held at --
+    it excludes 1.0, so there was no way to record a usable calibration with it where it was."""
+    _lo, hi = db.working_window({"squares_x": 9, "squares_y": 7, "square_mm": 1.6,
+                                 "marker_mm": 1.2}, CAM4_PXMM, CAM4_PX, CAM2_PXMM)
+    assert hi < 1.0, "the board could only work held much closer than it was"
+
+
+def test_the_new_board_window_contains_a_workable_standoff():
+    lo, hi = db.working_window(db.board_spec(), CAM4_PXMM, CAM4_PX, CAM2_PXMM)
+    assert lo < 1.5, "needing >1.5x standoff starts to leave the rig"
+    assert hi / lo > 3.0, "less than 3x of latitude is hard to hold by hand"
+
+
+def test_making_the_board_bigger_MOVES_the_window_it_does_not_widen_it():
+    """Why "just print it huge" is not the answer.
+
+    Both bounds scale linearly with the board, so the ratio is invariant: a 4x board has the same
+    ~4x of latitude, just centred 4x further away -- which may be outside the enclosure. Size picks
+    WHERE you stand, not how forgiving the setup is.
+    """
+    small = db.working_window(db.board_spec(), CAM4_PXMM, CAM4_PX, CAM2_PXMM)
+    big = db.working_window({"squares_x": 7, "squares_y": 5, "square_mm": 42.0, "marker_mm": 32.0},
+                            CAM4_PXMM, CAM4_PX, CAM2_PXMM)
+    assert big[0] > small[0] and big[1] > small[1], "a bigger board must be held further away"
+    assert abs((big[1] / big[0]) - (small[1] / small[0])) < 0.2, "the latitude is size-invariant"
+
+
+def test_a_board_with_no_window_at_all_is_reported_as_such():
+    """If the tight camera cannot see 3 squares before the wide one stops decoding, no distance
+    works and the pair cannot be calibrated with that board at any standoff."""
+    lo, hi = db.working_window({"squares_x": 5, "squares_y": 5, "square_mm": 200.0,
+                                "marker_mm": 1.0}, CAM4_PXMM, CAM4_PX, CAM2_PXMM)
+    assert hi == 0.0 and lo == float("inf")

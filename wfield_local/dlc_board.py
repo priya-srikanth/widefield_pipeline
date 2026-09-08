@@ -104,6 +104,37 @@ def n_markers(spec: dict) -> int:
     return (spec["squares_x"] * spec["squares_y"]) // 2
 
 
+#: A pose needs MIN_MARKERS, which on a ChArUco needs roughly this many squares across the visible
+#: patch -- 3x3 squares yields about 4 markers.
+MIN_SQUARES_ACROSS = 3.0
+
+
+def working_window(spec: dict, tight_px_per_mm: float, tight_px: int,
+                   wide_px_per_mm: float, min_px_per_bit: float = 3.0) -> tuple[float, float]:
+    """Range of working distances (x the reference distance) at which BOTH cameras can use the board.
+
+    ERR BIG. The two failure modes are not symmetric, and that is the whole answer to "is it better
+    for the board to be too big?":
+
+    * **Too big** — the tight camera sees only PART of the board. ChArUco is built for exactly this:
+      every marker carries a unique id, so a partial view is still uniquely located and a pose comes
+      out of it. The cost is fewer corners per frame, which is a precision cost paid back by more
+      poses. It degrades.
+    * **Too small** — the wide camera cannot DECODE a marker at all. Not fewer corners: none. The
+      square is found, rejected, and the frame contributes nothing. It fails absolutely, and no
+      amount of extra recording recovers it.
+
+    So the lower bound (stand far enough back that the tight camera sees ~3 squares) is a nuisance,
+    and the upper bound (stay close enough that the wide camera resolves the code) is a cliff.
+
+    Returns ``(min_scale, max_scale)`` as multiples of the distance at which ``*_px_per_mm`` were
+    measured; a window that does not exist comes back as ``(inf, 0)``.
+    """
+    lo = MIN_SQUARES_ACROSS * spec["square_mm"] * tight_px_per_mm / tight_px
+    hi = spec["marker_mm"] * wide_px_per_mm / (6.0 * min_px_per_bit)
+    return (round(lo, 2), round(hi, 2)) if lo <= hi else (float("inf"), 0.0)
+
+
 def px_per_bit_at(spec: dict, px_per_mm: float, bits_across: int = 6) -> float:
     """Code-cell size in pixels for a camera imaging at ``px_per_mm`` -- the decode budget.
 
