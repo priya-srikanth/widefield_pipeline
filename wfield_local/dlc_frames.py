@@ -63,11 +63,48 @@ def _cfg() -> dict:
 
 
 def cameras() -> list[str]:
-    return [str(c) for c in (_cfg().get("cameras") or ["cam4"])]
+    """Camera names, in declaration order. Accepts the old flat list form too."""
+    c = _cfg().get("cameras") or ["cam4"]
+    return [str(k) for k in (c.keys() if isinstance(c, dict) else c)]
 
 
-def bodyparts() -> list[str]:
-    return [str(b) for b in (_cfg().get("bodyparts") or [])]
+def role(cam: str) -> str:
+    c = _cfg().get("cameras") or {}
+    return str((c.get(cam) or {}).get("role", "")) if isinstance(c, dict) else ""
+
+
+def bodyparts(cam: str | None = None) -> list[str]:
+    """What ``cam`` can see, or the union across all cameras when ``cam`` is None.
+
+    PER VIEW, not one shared list. cam1 looks up from below and has no nose or identifiable
+    whiskers; a side view has only one side's. A label for a part a camera cannot see is not merely
+    wasted -- it is invented, and a network trained on invented points learns to hallucinate.
+
+    The union is what a DLC project's own `bodyparts:` must contain, since one project spans the
+    views; the per-camera list is what may actually be placed in each. Names are shared where views
+    overlap, which is what makes triangulation possible at all.
+    """
+    c = _cfg().get("cameras")
+    if not isinstance(c, dict):                       # old flat form: one shared list
+        return [str(b) for b in (_cfg().get("bodyparts") or [])]
+    if cam is not None:
+        return [str(b) for b in ((c.get(cam) or {}).get("bodyparts") or [])]
+    out: list[str] = []
+    for spec in c.values():
+        for b in (spec or {}).get("bodyparts") or []:
+            if str(b) not in out:
+                out.append(str(b))
+    return out
+
+
+def shared_bodyparts(cams=None) -> list[str]:
+    """Bodyparts visible in at least TWO of ``cams`` -- the only ones 3D can ever reconstruct."""
+    cams = list(cams or cameras())
+    counts: dict[str, int] = {}
+    for cam in cams:
+        for b in bodyparts(cam):
+            counts[b] = counts.get(b, 0) + 1
+    return [b for b in bodyparts() if counts.get(b, 0) >= 2]
 
 
 def phases() -> dict[str, float]:
@@ -83,13 +120,61 @@ def lick_per_session() -> int:
     return int(_cfg().get("frames", {}).get("lick_per_session", 0))
 
 
-def lick_offset_s() -> float:
-    return float(_cfg().get("frames", {}).get("lick_offset_s", 0.008))
+def lick_offsets_s() -> list[float]:
+    """Seconds from a lick onset to sample, spanning the tongue-out epoch.
+
+    A LIST, not one offset. The tongue is out for ~70 ms per lick and looks very different across
+    that -- emerging, at peak extension well clear of the spout, retracting -- so one offset per
+    lick both wastes the event and teaches the network a single posture. Falls back to the older
+    scalar ``lick_offset_s`` so a config that predates this still works.
+    """
+    f = _cfg().get("frames", {})
+    if f.get("lick_offsets_s"):
+        return [float(v) for v in f["lick_offsets_s"]]
+    return [float(f.get("lick_offset_s", 0.008))]
 
 
 #: Decoding one session's DAQ takes minutes and the cohort walk asks for the same session once per
 #: camera. Keyed on (animal, date) because the licks are a property of the SESSION, not the view.
 _LICKS: dict[tuple[str, str], np.ndarray] = {}
+
+
+def _lick_cache_path(animal: str, date: str, rv=None) -> Path:
+    return out_root(rv) / "lick_onsets" / f"{animal}_{date}.npz"
+
+
+def _params_key(params: dict) -> str:
+    """A stable digest of the lick-detection settings the cache was built under."""
+    return ";".join(f"{k}={params[k]}" for k in sorted(params))
+
+
+def _cached_licks(animal: str, date: str, params: dict, rv=None):
+    """Previously decoded onsets, or None. Returns None on a params change rather than stale times.
+
+    Re-decoding a session's DAQ is minutes of network I/O and the whole cohort is ~20 minutes, which
+    is paid every time an offset is tuned -- but a cache of DERIVED event times is only safe while
+    the settings that derived them hold, so the params digest is stored beside the array and a
+    mismatch is a miss, not a warning nobody reads.
+    """
+    p = _lick_cache_path(animal, date, rv)
+    if not p.exists():
+        return None
+    try:
+        z = np.load(p, allow_pickle=False)
+        if str(z["params"]) != _params_key(params):
+            print(f"[dlc_frames] {animal} {date}: lick cache built under different "
+                  f"lick_detection params -> re-decoding", flush=True)
+            return None
+        return np.asarray(z["lick_s"], float)
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def _store_licks(animal: str, date: str, licks: np.ndarray, params: dict, rv=None) -> None:
+    p = _lick_cache_path(animal, date, rv)
+    assert_writable(p.parent)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(p, lick_s=licks, params=np.array(_params_key(params)))
 
 
 def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
@@ -103,6 +188,11 @@ def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
     if (animal, date) in _LICKS:
         return _LICKS[(animal, date)]
     rv = rv or PathResolver()
+    params = config.defaults()["lick_detection"]
+    cached = _cached_licks(animal, date, params, rv)
+    if cached is not None:
+        _LICKS[(animal, date)] = cached
+        return cached
     root = Path(rv.root("daq_recorder_output")) / date
     if not root.is_dir():
         return np.array([], float)
@@ -113,13 +203,14 @@ def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
         print(f"[dlc_frames] {animal} {date}: no DAQ .h5 -> no lick-locked frames", flush=True)
         return np.array([], float)
     try:
-        dec = daq_trials.decode(cands[0], config.defaults()["lick_detection"])
+        dec = daq_trials.decode(cands[0], params)
     except Exception as exc:                                  # noqa: BLE001 - report, do not stop
         print(f"[dlc_frames] {animal} {date}: DAQ decode failed ({exc}) -> no lick-locked frames",
               flush=True)
         return np.array([], float)
     out = np.asarray(dec["lick_s"], float)
-    print(f"[dlc_frames] {animal} {date}: {out.size} DAQ lick onsets", flush=True)
+    print(f"[dlc_frames] {animal} {date}: {out.size} DAQ lick onsets (decoded)", flush=True)
+    _store_licks(animal, date, out, params, rv)
     _LICKS[(animal, date)] = out
     return out
 
@@ -276,14 +367,18 @@ def plan_session(animal, date, sid, epoch, cam, rv=None) -> list[dict]:
         picks = select_licks(trials, lick_onsets(animal, date, sid, rv),
                              max(1, n_lick // 6), POST_S, _rng(animal, date, cam + "_lick"))
         for row, t_lick in picks:
-            f = frame_of(tpl, t_lick, lick_offset_s())
-            if 0 <= f < n_frames:
-                rows.append({"animal": animal, "date": date, "cam": cam, "epoch": epoch,
-                             "video_stem": stem, "frame": f, "trial_id": int(row["trial_id"]),
-                             "position": str(row["pos_name"]), "category": str(row["cat"]),
-                             "phase": "lick",
-                             "t_from_cue_s": round(t_lick - float(row["cue_s"]), 4),
-                             "image": f"img{f:07d}.png", "_video": str(vids[0])})
+            for off in lick_offsets_s():
+                f = frame_of(tpl, t_lick, off)
+                if 0 <= f < n_frames:
+                    rows.append({"animal": animal, "date": date, "cam": cam, "epoch": epoch,
+                                 "video_stem": stem, "frame": f, "trial_id": int(row["trial_id"]),
+                                 "position": str(row["pos_name"]), "category": str(row["cat"]),
+                                 # The phase names the offset, so a labelled frame can be traced to
+                                 # a point in the lick cycle -- "lick" alone would lose that, and
+                                 # the tongue's appearance is exactly what varies across it.
+                                 "phase": f"lick{off * 1000:+.0f}",
+                                 "t_from_cue_s": round(t_lick + off - float(row["cue_s"]), 4),
+                                 "image": f"img{f:07d}.png", "_video": str(vids[0])})
     return rows
 
 

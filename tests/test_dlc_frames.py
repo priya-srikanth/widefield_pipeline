@@ -175,19 +175,65 @@ def test_a_session_with_no_licks_contributes_no_lick_frames():
     assert df.select_licks(_trials(), np.array([]), 2, 3.5, np.random.default_rng(0)) == []
 
 
-def test_the_lick_offset_lands_a_couple_of_frames_AFTER_contact():
-    """At the onset the tongue is at the spout and maximally occluded by it; a little later it is
-    still out and better separated. Later than ~40 ms and it is retracting."""
-    off = df.lick_offset_s()
-    assert 0 < off < 0.040
-    assert round(off * 250) == 2, "two frames at 250 fps"
+def test_the_lick_offsets_span_the_tongue_out_epoch_not_a_symmetric_window():
+    """Measured on PS94 at 12 ms steps from -28 to +84 ms: the tongue is still IN through most of
+    the pre-onset half, is broadest at +24..+48 ms, and is retracting by +72..+84. A symmetric
+    +/-28 ms window spends half its frames before the tongue appears and stops before the peak.
+    """
+    offs = df.lick_offsets_s()
+    assert len(offs) > 1, "one offset per lick teaches the network a single tongue posture"
+    assert offs == sorted(offs)
+    assert min(offs) < 0, "at least one frame with the tongue still in, as a negative case"
+    assert max(offs) >= 0.040, "must reach peak extension, not stop at +28 ms"
+    assert max(offs) <= 0.080, "past ~72 ms the tongue is retracting"
+    assert len(set(offs)) == len(offs), "a repeated offset is a duplicate frame to label"
+
+
+def test_offsets_are_far_enough_apart_to_be_different_postures():
+    """At 250 fps, adjacent frames are near-duplicates; labelling both is wasted effort."""
+    offs = df.lick_offsets_s()
+    gaps = np.diff(offs)
+    assert (gaps * 250 >= 3).all(), f"offsets closer than 3 frames apart: {gaps * 1000} ms"
+
+
+def test_the_lick_cache_is_invalidated_when_the_detection_params_change(tmp_path, monkeypatch):
+    """A cache of DERIVED event times is only valid while the settings that derived them hold.
+
+    Re-decoding the cohort is ~20 minutes, paid every time an offset is tuned, so caching is worth
+    it -- but a lick threshold change has to be a MISS, not a warning nobody reads.
+    """
+    monkeypatch.setattr(df, "out_root", lambda rv=None: tmp_path)
+    p0 = {"thresh_upper": 2.5, "thresh_lower": 0.5, "min_ili_ms": 40}
+    df._store_licks("PS94", "20260831", np.array([1.0, 2.0, 3.0]), p0)
+
+    assert df._cached_licks("PS94", "20260831", p0).tolist() == [1.0, 2.0, 3.0]
+    assert df._cached_licks("PS94", "20260831", {**p0, "thresh_upper": 3.0}) is None
+    assert df._cached_licks("PS94", "20260606", p0) is None, "a session never cached is a miss"
+
+
+def test_a_corrupt_lick_cache_is_a_miss_not_a_crash(tmp_path, monkeypatch):
+    monkeypatch.setattr(df, "out_root", lambda rv=None: tmp_path)
+    p = df._lick_cache_path("PS94", "20260831")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(b"not an npz")
+    assert df._cached_licks("PS94", "20260831", {"a": 1}) is None
+
+
+def test_a_scalar_lick_offset_config_still_works(monkeypatch):
+    """Older configs wrote `lick_offset_s: 0.008`; reading one must not become a crash."""
+    real = df._cfg()
+    frames = {k: v for k, v in real["frames"].items() if k != "lick_offsets_s"}
+    frames["lick_offset_s"] = 0.008
+    monkeypatch.setattr(df, "_cfg", lambda: {**real, "frames": frames})
+    assert df.lick_offsets_s() == [0.008]
 
 
 def test_a_lick_frame_maps_through_the_same_template_as_a_cue_frame():
     """frame_of takes a DAQ TIME, not specifically a cue -- both live on the one DAQ clock."""
     tpl = _tpl()
     lick_t = 100.0
-    assert df.frame_of(tpl, lick_t, df.lick_offset_s()) == 25_000 + 2
+    assert df.frame_of(tpl, lick_t, 0.008) == 25_000 + 2
+    assert df.frame_of(tpl, lick_t, -0.016) == 25_000 - 4
 
 
 # --------------------------------------------------------------------------- manifest
@@ -229,12 +275,33 @@ def test_the_manifest_carries_the_provenance_needed_to_audit_the_set(tmp_path):
 
 # --------------------------------------------------------------------------- config
 
-def test_the_bodypart_set_is_shared_across_cameras():
-    """Triangulation matches keypoints by NAME, so a per-view set cannot be lifted to 3D later."""
+def test_names_are_shared_where_the_views_OVERLAP():
+    """Triangulation matches keypoints by NAME, so the overlap is what can ever become 3D.
+
+    The sets are per-view because the views genuinely differ -- cam1 looks up from below and has no
+    nose -- but a part seen by two cameras must carry the SAME name in both or it is two parts.
+    """
     bps = df.bodyparts()
     assert "spout" in bps and "L_spout" not in bps and "R_spout" not in bps
-    assert "L_eye" not in bps and "R_eye" not in bps, "not in frame on cam1/cam4"
-    assert bps == sorted(set(bps), key=bps.index), "duplicate bodypart"
+    assert bps == sorted(set(bps), key=bps.index), "duplicate bodypart in the union"
+
+    shared = df.shared_bodyparts()
+    assert {"jaw", "tongue", "spout"} <= set(shared), "the cohort-wide 3D parts"
+    assert "nose" not in shared, "cam4 only -- it stays 2D, and pretending otherwise hides that"
+    assert "L_eye" not in shared and "R_eye" not in shared, "one side view each"
+
+
+def test_each_view_declares_only_what_it_can_see():
+    assert df.bodyparts("cam1") == ["jaw", "tongue", "spout"], "bottom view: no nose, no whiskers"
+    assert "nose" in df.bodyparts("cam4")
+    for cam in df.cameras():
+        assert df.bodyparts(cam), f"{cam} declares no bodyparts"
+        assert set(df.bodyparts(cam)) <= set(df.bodyparts()), f"{cam} has a part outside the union"
+
+
+def test_an_unknown_camera_asks_for_nothing_rather_than_everything():
+    """A typo in --cam must not silently seed the full frontal set onto some other view."""
+    assert df.bodyparts("cam9") == []
 
 
 def test_the_phase_offsets_sit_inside_the_example_clip_window():

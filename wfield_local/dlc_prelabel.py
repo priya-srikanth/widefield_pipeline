@@ -159,11 +159,22 @@ def build_video(index: pd.DataFrame, scale: float, dest: Path) -> tuple[int, int
     return dw, dh
 
 
-def predict(cfg_path: Path, video: Path, dest: Path) -> pd.DataFrame:
-    """Run the donor over ``video``; returns the per-frame prediction table (bodypart, coord)."""
+def predict(cfg_path: Path, video: Path, dest: Path, expect: int | None = None) -> pd.DataFrame:
+    """Run the donor over ``video``; returns the per-frame prediction table (bodypart, coord).
+
+    STALE OUTPUTS ARE DELETED FIRST. `analyze_videos` silently skips a video whose .h5 already
+    exists and leaves the old file in place -- so growing the frame set and re-running returned the
+    PREVIOUS run's 465 predictions for a 927-frame video, which would have attached every label to
+    the wrong image. It surfaced as an out-of-bounds index, which was luck; the same mismatch one
+    row long would have gone through. These are derived files in a scratch directory, so deleting
+    them is safe, and `expect` is the belt to that braces.
+    """
     import deeplabcut
 
     d = donor()
+    dest.mkdir(parents=True, exist_ok=True)
+    for stale in list(dest.glob(video.stem + "*.h5")) + list(dest.glob(video.stem + "*.pickle")):
+        stale.unlink()
     deeplabcut.analyze_videos(str(cfg_path), [str(video)], videotype="avi",
                               shuffle=int(d["shuffle"]),
                               trainingsetindex=int(d["trainingsetindex"]),
@@ -173,7 +184,13 @@ def predict(cfg_path: Path, video: Path, dest: Path) -> pd.DataFrame:
         raise RuntimeError(f"analyze_videos produced no .h5 for {video}")
     out = pd.read_hdf(h5[-1])
     out.columns = out.columns.droplevel(0)          # drop the scorer level
-    return out.reset_index(drop=True)
+    out = out.reset_index(drop=True)
+    if expect is not None and len(out) != expect:
+        raise RuntimeError(
+            f"{video.name}: {len(out)} predictions for {expect} frames. Predictions are matched to "
+            f"images BY POSITION, so a mismatch would label the wrong frames."
+        )
+    return out
 
 
 def scale_for(bp: str) -> float:
@@ -189,15 +206,16 @@ def scale_for(bp: str) -> float:
     return float((pc.get("scale_overrides") or {}).get(bp, pc.get("scale", 0.45)))
 
 
-def scale_groups() -> dict[float, list[str]]:
+def scale_groups(cam: str | None = None) -> dict[float, list[str]]:
     """``{scale: [bodyparts predicted at it]}`` -- one inference pass per distinct scale."""
     groups: dict[float, list[str]] = {}
-    for bp in bodyparts():
+    for bp in bodyparts(cam):
         groups.setdefault(scale_for(bp), []).append(bp)
     return groups
 
 
-def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float, only=None) -> pd.DataFrame:
+def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float, only=None,
+              cam: str | None = None) -> pd.DataFrame:
     """Donor predictions -> this project's bodyparts, in ORIGINAL pixels, blanked below threshold.
 
     Returns one column pair per entry of ``dlc.bodyparts``, NaN where nothing is written -- NaN is
@@ -210,10 +228,11 @@ def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float, only=None) -> 
     thresh = float(pc.get("min_likelihood", 0.6))
     never = set(pc.get("never_prelabel") or [])
     spout_from = list(pc.get("spout_from") or [])
-    wanted = set(bodyparts()) if only is None else set(only)
+    cols_for = bodyparts(cam)
+    wanted = set(cols_for) if only is None else set(only)
     n = len(pred)
     out = {}
-    for bp in bodyparts():
+    for bp in cols_for:
         x = np.full(n, np.nan)
         y = np.full(n, np.nan)
         if bp in never or bp not in wanted:
@@ -256,6 +275,9 @@ def write_labels(labels: pd.DataFrame, index: pd.DataFrame, rv=None, dry: bool =
     implied by anything else, because this module cannot tell a seeded label from a corrected one --
     only the person who did the correcting knows, which is why they have to say so.
     """
+    if len(labels) != len(index):
+        raise RuntimeError(f"{len(labels)} label rows for {len(index)} frames -- these are paired "
+                           f"BY POSITION and a mismatch would label the wrong images.")
     root = out_root(rv) / "labeled-data"
     todo = []
     for stem, g in index.groupby("video_stem", sort=True):
@@ -294,9 +316,10 @@ def write_labels(labels: pd.DataFrame, index: pd.DataFrame, rv=None, dry: bool =
     return written
 
 
-def coverage(labels: pd.DataFrame) -> pd.Series:
+def coverage(labels: pd.DataFrame, cam: str | None = None) -> pd.Series:
     """Fraction of frames that got a point, per bodypart -- what the labeller still has to place."""
-    return pd.Series({bp: float(labels[(SCORER, bp, "x")].notna().mean()) for bp in bodyparts()})
+    return pd.Series({bp: float(labels[(SCORER, bp, "x")].notna().mean())
+                      for bp in bodyparts(cam)})
 
 
 def merge_scales(parts: list[pd.DataFrame]) -> pd.DataFrame:
@@ -318,7 +341,7 @@ def run(cam="cam4", scale=None, rv=None, dry=False, workdir=None, force=False):
     if index.empty:
         print(f"[dlc_prelabel] no extracted {cam} frames -- run dlc_frames first", flush=True)
         return None
-    groups = ({float(scale): bodyparts()} if scale is not None else scale_groups())
+    groups = ({float(scale): bodyparts(cam)} if scale is not None else scale_groups(cam))
     work = Path(workdir or Path(donor()["local_copy"]).parent / "prelabel")
 
     import cv2
@@ -330,10 +353,10 @@ def run(cam="cam4", scale=None, rv=None, dry=False, workdir=None, force=False):
         print(f"[dlc_prelabel] {len(index)} {cam} frames at scale {s:.2f} for "
               f"{', '.join(bps)}", flush=True)
         dw, dh = build_video(index, s, video)
-        pred = predict(cfg_path, video, work / f"out_{s:.2f}")
-        parts.append(to_labels(pred, dw / first.shape[1], dh / first.shape[0], only=bps))
+        pred = predict(cfg_path, video, work / f"out_{s:.2f}", expect=len(index))
+        parts.append(to_labels(pred, dw / first.shape[1], dh / first.shape[0], only=bps, cam=cam))
     labels = merge_scales(parts)
-    cov = coverage(labels)
+    cov = coverage(labels, cam)
     print("[dlc_prelabel] seeded fraction per bodypart:", flush=True)
     for bp, v in cov.items():
         note = "  <- place by hand" if v == 0 else ""

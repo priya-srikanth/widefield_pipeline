@@ -199,34 +199,52 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # is the weight donor, not the predictor -- see DECISIONS.md
                               # "DLC on the widefield rig". Survey the calibration before trusting
                               # any of this: python -m wfield_local.dlc_calibration
-  cameras:                    # Which views get labelled, and why. cam2/cam3 (the side views) are
-                              # NOT here yet: they are the only cameras that see the eye, but the
-                              # 2026-08-05 calibration leaves them disconnected from the pair
-                              # graph, so labelling them buys nothing until it is re-recorded.
-    - cam4                    # front-facing; the nearest analogue of the old `video2`
-    - cam1                    # under-snout; with cam4 it is the one PAIR the calibration solves
-  bodyparts:                  # Identical across cameras ON PURPOSE -- triangulation matches
-                              # keypoints by NAME, so a set that differs per view cannot be lifted
-                              # to 3D later without re-labelling.
-    - nose
-    - jaw
-    - tongue
-    - L_whiskers_1
-    - L_whiskers_2
-    - L_whiskers_3
-    - R_whiskers_1
-    - R_whiskers_2
-    - R_whiskers_3
-    - spout                   # ONE spout that MOVES across 6 positions, vs the old rig's fixed
-                              # L_spout/R_spout. Renamed from L_spout so the old snapshot's
-                              # conversion table has somewhere to land. NOT split into
-                              # spout_tip/spout_base: two points would give the spout's axis as
-                              # well as its position, which is worth having, but it is a new
-                              # measurement rather than a port and should be decided as one.
-                              # L_eye / R_eye are absent: out of frame on cam4 and cam1. They were
-                              # the CENTERING FIDUCIAL in the old pipeline, not a result; the
-                              # replacement is the 3D world frame (Priya, 2026-09-08), which head
-                              # fixation makes static without any fiducial at all.
+  cameras:                    # EACH VIEW DECLARES WHAT IT CAN ACTUALLY SEE (Priya, 2026-09-08).
+                              # Not one shared list: cam1 looks UP from below and has no nose or
+                              # identifiable whiskers, and a side view has only one side's. Labels
+                              # for a part a camera cannot see are not merely wasted -- they are
+                              # invented, and a network trained on them learns to hallucinate.
+                              #
+                              # NAMES ARE SHARED WHERE THE VIEWS OVERLAP, which is what makes 3D
+                              # possible: triangulation matches keypoints by name. jaw / tongue /
+                              # spout appear in ALL FOUR views, so those are the parts that can be
+                              # reconstructed cohort-wide. Whiskers pair cam4 with one side view;
+                              # `nose` is cam4 only and so stays 2D.
+    cam4:
+      role: front             # the nearest analogue of the old `video2`
+      bodyparts: [nose, jaw, tongue,
+                  L_whiskers_1, L_whiskers_2, L_whiskers_3,
+                  R_whiskers_1, R_whiskers_2, R_whiskers_3,
+                  spout]
+    cam1:
+      role: bottom            # looks UP at the underside of the snout; the spout enters from the
+                              # top of frame. The nose (dorsal, nostrils) is not in view at all and
+                              # the whiskers, while visible, cannot be identified as the frontal
+                              # view's numbered points. Best view of the tongue there is.
+      bodyparts: [jaw, tongue, spout]
+    cam2:
+      role: side_left         # sees the animal's LEFT side (Priya, 2026-09-08)
+      bodyparts: [L_eye, jaw, tongue,
+                  L_whiskers_1, L_whiskers_2, L_whiskers_3,
+                  spout]
+    cam3:
+      role: side_right        # sees the animal's RIGHT side -- so this is the view that carries
+                              # PS93's right orofacial deficit, and the laterality above is not a
+                              # cosmetic label.
+      bodyparts: [R_eye, jaw, tongue,
+                  R_whiskers_1, R_whiskers_2, R_whiskers_3,
+                  spout]
+
+                              # `spout`: ONE spout that MOVES across 6 positions, vs the old rig's
+                              # fixed L_spout/R_spout. NOT split into spout_tip/spout_base -- two
+                              # points would give the spout's axis as well as its position, which
+                              # is worth having, but it is a new measurement rather than a port and
+                              # should be decided as one.
+                              # The EYES survive only on the side views. They are out of frame on
+                              # cam4 and cam1, where the donor still returns them at 0.44-0.79 in
+                              # the top corners. They were the CENTERING FIDUCIAL in the old
+                              # pipeline, not a result; the replacement is the 3D world frame,
+                              # which head fixation makes static without any fiducial at all.
   frames:                     # labelling-set extraction (wfield_local/dlc_frames.py)
     per_session: 24           # = 6 spout positions x 4 within-trial phases, one frame per cell.
                               # Small per session on purpose: coverage comes from spanning animals
@@ -241,7 +259,9 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       Cue: 0.05               # within the 100 ms cue pulse
       early: 0.40             # first licks -- where the tongue is out and worth labelling
       late: 1.50              # into the response window; consummatory licking or a failed attempt
-    lick_per_session: 12      # ADDITIONAL frames sampled AT DAQ lick onsets, 2 per spout position.
+    lick_per_session: 6       # DAQ lick ONSETS sampled per session, one per spout position. Each
+                              # yields one frame per entry of lick_offsets_s below, so the frame
+                              # count is lick_per_session x len(lick_offsets_s) = 36.
                               # Fixed cue offsets are the wrong instrument for the tongue: scored
                               # against DAQ licks, only 8 of 96 ground-truthed frames landed within
                               # 40 ms of a lick, because a mouse at 5-7 Hz has its tongue out ~15
@@ -249,10 +269,20 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # by construction, which is a labelling-set problem and not a network
                               # one. The lick sensor fires on tongue-SPOUT CONTACT, so a frame at a
                               # lick onset is a frame with the tongue out, by measurement.
-    lick_offset_s: 0.008      # 2 frames after contact at 250 fps. AT the onset the tongue is at the
-                              # spout and maximally occluded by it; a couple of frames later it is
-                              # still out and better separated. Not later than that -- by ~40 ms it
-                              # is retracting.
+    lick_offsets_s:           # WHERE IN THE LICK CYCLE, measured rather than assumed (2026-09-08).
+                              # Rendering PS94 licks at 12 ms steps from -28 to +84 ms shows the
+                              # tongue is still IN for most of the pre-onset half, emerges around
+                              # the onset, is broadest and best separated from the spout at
+                              # +24..+48 ms, and is retracting by +72..+84 ms. A symmetric +/-28 ms
+                              # window (Priya's first suggestion) therefore spends half its frames
+                              # before the tongue appears and stops before the peak.
+      - -0.016                #   tongue still in or just emerging: the negative/edge case, so the
+                              #   network learns when NOT to fire as well as when to
+      - 0.0                   #   contact
+      - 0.016                 #   protruding
+      - 0.032                 #   near peak extension
+      - 0.048                 #   peak, well clear of the spout
+      - 0.064                 #   beginning to retract
     seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
                               # rather than quietly growing a second labelling set.
   donor:                      # The 2pRAM network, used as a PRE-LABELLER (and later as training
@@ -306,9 +336,13 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # lick-onset scoring above showed it discriminates tongue-out from
                               # tongue-in frames cleanly. It is seeded, at its own scale, and
                               # checked like everything else.
-    drop:                     # Not in frame on cam1/cam4 at all, yet predicted at 0.44-0.79 in the
-      - L_eye                 # top corners. A hallucination is not a weak detection and no
-      - R_eye                 # likelihood threshold separates them.
+                              # THERE IS NO `drop` LIST ANY MORE. It held L_eye/R_eye, because the
+                              # donor returns them at 0.44-0.79 in cam4's top corners where there
+                              # are no eyes. Now that each camera declares what it can see
+                              # (`dlc.cameras.<cam>.bodyparts`), the eyes are simply not columns on
+                              # cam4/cam1 and ARE columns on the side views that genuinely show
+                              # them -- so the exclusion follows from anatomy rather than from a
+                              # second list that could disagree with it.
     spout_from:               # ONE spout replaces two. Take whichever of the donor's two fires
       - L_spout               # harder: which one responds depends on where the moving spout is, and
       - R_spout               # the max-of-two lands at x=255/300/343/346/397/439 px for

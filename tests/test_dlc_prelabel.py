@@ -82,12 +82,34 @@ def test_merging_scale_passes_never_lets_one_overwrite_another():
     assert _x(other, "nose")[0] == 10.0 and _x(other, "jaw")[0] == 20.0
 
 
-def test_the_eyes_never_reach_the_output_at_all():
-    """Not in frame on cam4, yet returned at 0.44-0.79 in the top corners."""
-    labels = pl.to_labels(_pred(), 1.0, 1.0)
-    got = {c[1] for c in labels.columns}
-    assert "L_eye" not in got and "R_eye" not in got
-    assert "L_spout" not in got and "R_spout" not in got, "the two donor spouts collapse into one"
+def test_a_camera_only_ever_gets_columns_for_what_it_can_see():
+    """The eyes are out of frame on cam4 yet returned at 0.44-0.79 in its top corners, and cam1
+    looks up from below so has no nose. Anatomy decides the columns -- not a second exclusion list
+    that could disagree with it."""
+    cam4 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam4").columns}
+    assert "L_eye" not in cam4 and "R_eye" not in cam4
+    assert "nose" in cam4
+    assert "L_spout" not in cam4 and "R_spout" not in cam4, "the two donor spouts collapse into one"
+
+    cam1 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam1").columns}
+    assert "nose" not in cam1, "cam1 is a bottom view -- the nose is not in it"
+    assert not any("whisker" in b for b in cam1), "no identifiable whiskers from below"
+    assert {"jaw", "tongue", "spout"} <= cam1
+
+    cam2 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam2").columns}
+    assert "L_eye" in cam2 and "R_eye" not in cam2, "a side view sees ONE eye"
+    assert not any(b.startswith("R_whisker") for b in cam2)
+
+
+def test_the_side_views_carry_opposite_laterality():
+    """PS93's deficit is on the RIGHT, so which camera holds which side is not a cosmetic label."""
+    from wfield_local.dlc_frames import bodyparts, role
+
+    assert role("cam2") == "side_left" and role("cam3") == "side_right"
+    left, right = set(bodyparts("cam2")), set(bodyparts("cam3"))
+    assert "L_eye" in left and "R_eye" in right
+    assert all(b.startswith("L_") for b in left if "whisker" in b)
+    assert all(b.startswith("R_") for b in right if "whisker" in b)
 
 
 def test_low_confidence_points_are_left_blank_rather_than_placed():

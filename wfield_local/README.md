@@ -680,8 +680,14 @@ misses are disengagement, not spatial inaccuracy — a terminal sated-tail + rol
 Ported in spirit from `stroke_orofacial_pipeline`, not in code: that rig had one 100 fps camera, two
 FIXED spouts and both eyes in frame; this one has four hardware-synced 250 fps cameras, ONE spout
 that moves across 6 positions, and a `cam4` framed on the snout alone. All parameters live in
-`configs/defaults.yaml dlc.*`; the bodypart set there is shared across cameras on purpose, because
-triangulation matches keypoints by name.
+`configs/defaults.yaml dlc.*`.
+
+**Each view declares what it can see** (`dlc.cameras.<cam>.bodyparts`) — `cam4` front (nose,
+whiskers, jaw, tongue, spout), `cam1` bottom (jaw, tongue, spout only; no nose and no identifiable
+whiskers from below), `cam2` side_left and `cam3` side_right (one eye and one side's whiskers each).
+Names are shared where the views overlap, which is what triangulation matches on:
+`dlc_frames.shared_bodyparts()` returns the parts in ≥2 views — `jaw`, `tongue`, `spout` cohort-wide.
+`nose` is `cam4` only and stays 2D.
 
 ```powershell
 python -m wfield_local.dlc_calibration                  # ChArUco survey of the newest calibration
@@ -698,7 +704,13 @@ has three components (`cam1+cam4`, `cam2`, `cam3`), so 3D needs a re-recorded ca
 
 **`dlc_frames`** builds the labelling set by experimental design rather than by appearance: spout
 position × within-trial phase, using the same `camera_sync` alignment template `behavior_clips` cuts
-with, one session per animal × epoch. Frames land in DLC's own layout at
+with, one session per animal × epoch. It also adds **lick-locked** frames — DAQ lick onsets (the
+sensor fires on tongue–spout contact, so these have the tongue out *by measurement*) sampled at six
+offsets spanning the protrusion, `−16 … +64 ms`. Without them the tongue is under-represented by
+construction: it is out for only ~70 ms per lick, and of 96 ground-truthed frames only 8 landed
+within 40 ms of one. Lick onsets are cached under `dlc/lick_onsets/`, keyed by a digest of the
+`lick_detection` params so a threshold change is a miss rather than stale times. Frames land in DLC's
+own layout at
 `<behavior_cameras>/dlc/labeled-data/<video-stem>/img<FRAME>.png` with a `frame_manifest.csv` giving
 each frame's animal / date / camera / epoch / trial / position / category / phase. Source videos are
 opened READ-ONLY; selection is deterministic, so a re-run re-picks the same frames rather than

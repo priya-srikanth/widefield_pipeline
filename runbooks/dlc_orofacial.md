@@ -54,10 +54,25 @@ python -m wfield_local.dlc_frames --cohort --dry-run    # inspect first
 python -m wfield_local.dlc_frames --cohort
 ```
 
-624 frames — 13 animal × epoch cells × 24 frames × 2 cameras — into DLC's own layout at
+Frames land in DLC's own layout at
 `Behavior_Cameras/Widefield/dlc/labeled-data/<video-stem>/img<FRAME>.png`, with
 `frame_manifest.csv` beside it giving every frame's animal / date / camera / epoch / trial / spout
 position / trial category / phase.
+
+Two kinds of frame per session, per camera:
+
+* **24 cue-locked** — 6 spout positions × 4 within-trial phases (ENL, Cue, early, late).
+* **36 lick-locked** — 6 DAQ lick onsets (one per position) × 6 offsets spanning the tongue-out
+  epoch (`−16, 0, +16, +32, +48, +64 ms`). These exist because the tongue is out for only ~70 ms
+  per lick, so fixed cue offsets catch it by accident: of 96 ground-truthed frames, 8 landed within
+  40 ms of a lick. The phase name records the offset (`lick+32`) so a labelled frame traces back
+  to a point in the cycle.
+
+Current cohort set: **1853 frames — 927 cam4, 926 cam1** (624 cue-locked, 1229 lick-locked; the
+`lick` phase with no offset is an earlier single-offset batch, still valid examples).
+
+`dlc.frames.lick_per_session` is the knob if that is more tongue frames than you want to label; the
+offsets themselves were measured (see DECISIONS.md) and a symmetric ±28 ms window misses the peak.
 
 Re-running is safe and idempotent: selection is seeded per session, and an image that already exists
 is never overwritten. Add a single date later with `python -m wfield_local.dlc_frames <YYYYMMDD>`.
@@ -68,11 +83,29 @@ one of the two cameras.
 
 ---
 
-## Step 1b — seed the labels from the 2pRAM network (so labelling is correction, not blank-page)
+## Step 1b — seed the labels from the 2pRAM network (`cam4` ONLY)
 
-**You do not have to label from scratch.** The donor network transfers to `cam4` once the frames are
-resized to match the apparent size it was trained at — `dlc.prelabel.scale = 0.45`. At native scale
-it finds the nose on 8% of frames; at 0.45, on 97%.
+**On `cam4` you do not have to label from scratch.** The donor transfers once the frames are resized
+to the apparent size it was trained at — `dlc.prelabel.scale = 0.45`. At native scale it finds the
+nose on 8% of frames; at 0.45, on 97%.
+
+**On the other three views it does not transfer at all**, and this was measured across a scale sweep
+rather than assumed:
+
+| view | best case (fraction ≥0.6) |
+|---|---|
+| `cam1` bottom | jaw 5.9%, tongue 0.3%, **spout 0%** |
+| `cam2` side | jaw 14%, tongue 1%, eye ~0%, spout 38% |
+
+`cam4` is the only view whose geometry resembles the old frontal `video2`; the others are new
+viewpoints. On `cam2` one number looks like transfer — `L_whiskers_3` at 76% — and is not: overlaying
+the most confident predictions puts them all on the snout region generally, with jaw, tongue, eye and
+spout never firing. The network recognises "front of a face" and nothing more.
+
+So `cam1`/`cam2`/`cam3` are labelled without a seed. Their frames are extracted and stratified
+exactly the same way, so nothing else about the workflow changes. If seeding them matters, the option
+worth trying is DLC 3's **SuperAnimal-Quadruped**, trained across many animals in side view — it
+carries eye and nose but not tongue or spout, so it would seed part of the set.
 
 ```powershell
 conda activate dlc
@@ -140,21 +173,35 @@ cfg = d.create_new_project("widefield", "Priya", [<one video path per stem>],
                            working_directory=r"...\DeepLabCut", copy_videos=False)
 ```
 
-Then edit the project `config.yaml` to match `configs/defaults.yaml dlc.bodyparts` exactly:
+The project's `bodyparts:` must be the **union** across views (twelve):
 
 ```
 nose, jaw, tongue,
 L_whiskers_1, L_whiskers_2, L_whiskers_3,
 R_whiskers_1, R_whiskers_2, R_whiskers_3,
-spout
+spout, L_eye, R_eye
 ```
 
-Ten bodyparts, the same list for `cam4` and `cam1` — triangulation matches keypoints by NAME, so a
-set that differs per view cannot be lifted to 3D later without re-labelling. `L_spout` became
-`spout` (one spout, six positions); `R_spout` is gone; `L_eye`/`R_eye` are gone because they are out
-of frame on both snout views. **The eye was the centering fiducial in the old pipeline, not a
-result** — the replacement is the 3D world frame, which head fixation makes static without any
-fiducial at all.
+but **only place what each view can actually see** (`configs/defaults.yaml dlc.cameras.<cam>.bodyparts`):
+
+| view | role | place these |
+|---|---|---|
+| `cam4` | front | nose, jaw, tongue, L/R_whiskers_1-3, spout |
+| `cam1` | bottom | jaw, tongue, spout — **no nose, no whiskers**: it looks UP at the underside |
+| `cam2` | side_left | L_eye, jaw, tongue, L_whiskers_1-3, spout |
+| `cam3` | side_right | R_eye, jaw, tongue, R_whiskers_1-3, spout |
+
+A label for a part a camera cannot see is not merely wasted — it is invented, and a network trained
+on invented points learns to hallucinate. **Names stay shared where views overlap**, which is what
+makes 3D possible: `jaw`, `tongue` and `spout` are in all four views and are the parts triangulation
+can reconstruct cohort-wide; whiskers pair `cam4` with one side view; `nose` is `cam4` only and stays
+2D.
+
+`L_spout` became `spout` (one spout, six positions) and `R_spout` is gone. The eyes survive only on
+the side views — they were the centering fiducial in the old pipeline, not a result, and the
+replacement is the 3D world frame, which head fixation makes static without any fiducial at all.
+**`cam3` is the right-side view**, so it is the one carrying PS93's right orofacial deficit; that
+laterality is a measurement decision, not a naming convention.
 
 Copy `Behavior_Cameras/Widefield/dlc/labeled-data/*` into the project's `labeled-data/` — images AND
 the `CollectedData_Priya.{h5,csv}` written in step 1b. The folder names are already the video stems

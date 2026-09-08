@@ -1676,6 +1676,35 @@ bounds the response window at `min(cue + window, next_cue)`. Measured across all
 applied, because a lick belonging to the next trial would be filed under a spout position the tongue
 was not reaching for.
 
+#### Where in the lick cycle to sample — measured, and NOT symmetric (2026-09-08)
+
+Priya asked for more tongue examples, sampling *"from 28 ms before to 28 ms after"* each lick.
+Rendering PS94 licks at 12 ms steps from −28 to +84 ms first says that window is in the wrong place:
+
+| offset from lick onset | tongue |
+|---|---|
+| −28 to −16 ms | still in |
+| ~0 ms | emerging at the spout, maximally occluded by it |
+| +16 ms | protruding |
+| **+24 to +48 ms** | **broadest, well clear of the spout** |
+| +72 to +84 ms | retracting, mostly back in |
+
+A symmetric ±28 ms window spends half its frames before the tongue appears and **stops before peak
+extension**. `dlc.frames.lick_offsets_s` is therefore `[-0.016, 0, +0.016, +0.032, +0.048, +0.064]`
+— one frame with the tongue still in as a negative/edge case, then the emergence, peak and retraction
+of the protrusion. Offsets are ≥3 frames apart because at 250 fps adjacent frames are
+near-duplicates and labelling both is wasted effort (pinned in
+`test_offsets_are_far_enough_apart_to_be_different_postures`).
+
+`lick_per_session` drops 12 → 6 (one lick per spout position) so the frame count rises ~3x rather
+than ~6x: **36 tongue frames per session per camera**. The phase name records the offset
+(`lick+32`), so a labelled frame can be traced to a point in the cycle — the tongue's appearance is
+exactly what varies across it, and `lick` alone would throw that away.
+
+Lick onsets are now cached per session under `dlc/lick_onsets/`, keyed by a digest of the
+`lick_detection` params. Re-decoding the cohort is ~20 minutes of network I/O, paid every time an
+offset is tuned; a params change is a cache MISS rather than a warning nobody reads.
+
 `wfield_local/dlc_prelabel.py` writes the surviving predictions as DLC `CollectedData_Priya.{h5,csv}`
 in each `labeled-data/` folder: **2536 of 3120 possible points (81%) seeded across 312 cam4 frames**.
 It refuses to overwrite an existing CollectedData file, since discarding a human's corrections is the
@@ -1691,6 +1720,63 @@ env (the repo installed with `pip install -e . --no-deps`, so `locanmf` is untou
 6). The RTX 5060 runs 217 fps at 320x320 and 66 fps at 672x672, so a scale sweep over 312 frames is
 seconds, not an O2 round trip. The donor project is COPIED locally first: `analyze_videos` writes
 into a project directory as a matter of course, and the original is irreplaceable source data.
+
+### The donor transfers to cam4 ONLY — the other three views are new viewpoints (measured 2026-09-08)
+
+Priya: *"could you add best guess markers for the other camera angles?"* Tried, and measured across a
+scale sweep on the extracted frames. The answer is no, and the reason is viewpoint rather than scale:
+`cam4` is the only camera whose geometry resembles the old frontal `video2`.
+
+| view | best case, fraction of frames ≥0.6 |
+|---|---|
+| **cam4** front | nose 97%, whiskers 81–100%, jaw 78%, spout 78%, tongue 30% (61% on lick frames) |
+| **cam1** bottom (0.45→1.00) | jaw 5.9%, tongue 0.3%, **spout 0%** |
+| **cam2** side (0.80→2.00) | jaw 14%, tongue 1%, L_eye ~0%, spout 38% |
+
+The one number on the side view that looks like transfer — `L_whiskers_3` at 76% — is not. Overlaying
+the six most confident showed all of them on the snout/whisker-pad region generally, with jaw, tongue,
+eye and spout never firing: the network recognises "front of a face" and nothing more. Reporting the
+76% without the overlay would have been the same mistake as the tongue, in the other direction.
+
+**So cam1/cam2/cam3 must be labelled without a seed.** Their frames ARE extracted (the stratification
+and lick-locking are view-independent), so labelling can start on any of them; only the pre-labels
+are missing. The promising next option is DLC 3's **SuperAnimal-Quadruped**, which is trained across
+many animals in SIDE view and would suit `cam2`/`cam3` far better than a single-frontal-view donor —
+it carries eye and nose but not tongue or spout, so it would seed part of the set.
+
+### Each view declares what it can see (Priya, 2026-09-08)
+
+`dlc.cameras.<cam>.bodyparts`, replacing one shared list — because the views genuinely differ:
+
+| view | role | bodyparts |
+|---|---|---|
+| `cam4` | front | nose, jaw, tongue, L/R_whiskers_1-3, spout |
+| `cam1` | bottom | jaw, tongue, spout — **no nose, no identifiable whiskers** (it looks UP at the underside) |
+| `cam2` | side_left | L_eye, jaw, tongue, L_whiskers_1-3, spout |
+| `cam3` | side_right | R_eye, jaw, tongue, R_whiskers_1-3, spout |
+
+A label for a part a camera cannot see is not merely wasted — it is invented, and a network trained
+on invented points learns to hallucinate. **Names stay shared where the views overlap**, which is what
+makes triangulation possible: `jaw`, `tongue` and `spout` appear in all four views and are therefore
+the parts 3D can reconstruct cohort-wide; whiskers pair `cam4` with one side view; `nose` is `cam4`
+only and stays 2D. `shared_bodyparts()` computes that overlap rather than leaving it implicit.
+
+This also retires the `prelabel.drop` list. It existed to suppress L_eye/R_eye, which the donor
+returns at 0.44–0.79 in cam4's empty top corners — but the eyes ARE visible on the side views, so a
+global drop was wrong in one direction and right in the other. Now the exclusion follows from anatomy
+and cannot disagree with itself.
+
+`cam3` is the **right**-side view, so it is the one that carries PS93's right orofacial deficit;
+the laterality in that table is a measurement decision, not a naming convention.
+
+### `analyze_videos` silently reuses a stale prediction file
+
+Growing the cam4 set from 465 to 927 frames and re-running returned the PREVIOUS run's **465**
+predictions, because DLC skips a video whose `.h5` already exists and leaves the old file in place.
+Predictions are matched to images BY POSITION, so every label would have gone onto the wrong frame.
+It surfaced as an out-of-bounds index — luck; a mismatch one row long would have passed silently.
+`predict()` now deletes stale outputs first and takes an `expect=` row count, and `write_labels`
+re-checks the length before writing anything.
 
 ### Deployment: HMS O2, per the orofacial notebook
 
