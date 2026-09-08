@@ -1461,6 +1461,104 @@ until DLC exists, but even 10% leaves 65-110 per animal: adequate POOLED, thin p
   A target-labelled result compared with an execution-labelled one is the same trap as the
   pre/post trial-criterion mismatch, and would manufacture exactly the effect being looked for.
 
+## DLC on the widefield rig — what carries over from `stroke_orofacial_pipeline`, and what does not (surveyed 2026-09-08)
+
+**Widefield behavior analysis has run from THIS repo since June 2026.** `stroke_orofacial_pipeline`
+is the reference for LAYOUT and owns the earlier 2pRAM/facerhythm cohort (PS38–PS55); its behavior
+modules are not imported, invoked, or kept in sync here. Ports that were deliberate (the ITI edge
+matcher, `spout_behavior`'s shape, the epoch scaffold) say so at the call site. See the note at the
+head of `CLAUDE.md`'s restructure-roadmap section.
+
+The orofacial DLC work is the next thing to bring over, and the survey below is what it costs.
+
+### The two rigs are not the same experiment for a tracker
+
+|                  | old (facerhythm, `video2`)          | new (widefield)                                |
+|------------------|-------------------------------------|------------------------------------------------|
+| cameras          | 1 used for DLC                      | 4 (`cam1`–`cam4`), hardware-synced              |
+| resolution       | 752x564 / 800x600                   | cam1 600x600, cam2/3 600x450, **cam4 680x680**  |
+| rate             | ~100 fps                            | **250 fps**                                     |
+| session          | ~10–20 min                          | **~100 min ⇒ ~1.5 M frames per camera**         |
+| spouts           | two, FIXED (L and R)                | **one, MOVING** across 6 positions              |
+| framing          | whole head; both eyes in frame      | cam4 = **snout only**                           |
+
+`cam4` is the front-facing camera (`docs/STATUS_2026-09-07.md`) and is the nearest analogue of the
+old `video2`. `cam1` is the under-snout view (spout enters from the top of frame); `cam2`/`cam3` are
+opposing side views showing the whole animal, forepaws, and treadmill.
+
+### The trained network is reusable as WEIGHTS, not as a predictor
+
+`DLC_train_config` iteration-5 shuffle5: ResNet-50 (group-norm) + HeatmapHead, bottom-up, 13
+bodyparts, trainset 0.8, 60 epochs, **test RMSE 2.70 px** (2.34 at pcutoff). Genuinely good, on the
+old view.
+
+Renaming `L_spout`→`spout` and dropping `R_spout` is the easy part — DLC 3.x supports exactly this
+(initialise from a custom snapshot with a bodypart conversion table), and the head is a 13-channel
+1x1 conv that gets re-initialised for a new keypoint set either way. **The framing is the hard
+part.** In the old labelled frames the head spans ~47% of frame width; on cam4 it overflows the
+frame — roughly 2–2.5x more zoomed. The training augmentation was `affine.scaling: [1.0, 1.0]` with
+`ResizeFromDataSizeCollate(min_scale=0.4, max_scale=1.0)`, i.e. the network saw its training scale
+and DOWN, never up. The new view is outside the regime it was augmented for, so expect the
+pretrained weights to help as an initialisation and expect to re-label regardless.
+
+### The eye markers are not "harder" on cam4 — they are absent
+
+Sampled cam4 at four widely separated frames of `PS94_20260907`: the eyes are outside the field of
+view in all of them, not merely small or dark. This matters because the eyes were not a result in
+the old pipeline, they were the FIDUCIAL: `centered_eye_midpoint` is the anatomical origin for
+nose/jaw/whisker traces, and their own regime comparison found `eye_centered` the winner for every
+bodypart except tongue (`spout_centered`). Replacements, in the order they should be considered:
+
+1. **3D world coordinates.** Under head fixation the skull is static in the world frame, so a
+   calibrated 3D reconstruction makes centering unnecessary rather than substituted. This is the
+   real argument for the 3D route, above and beyond the extra views.
+2. **The eye from `cam2`/`cam3`.** Both side views show it clearly. Costs a second labelled view and
+   makes the fiducial cross-camera, which only works once calibration exists — so it collapses
+   into (1).
+3. **Spout-centred.** Biologically meaningful for reach-to-spout, and already the winner for
+   tongue — but on this rig the spout MOVES, so it is a per-trial origin, not a rigid one. Usable
+   as an origin, useless as a head-motion reference.
+
+Nose-centred is a trap for the same reason it always was: the nose is one of the things being
+measured.
+
+### The 2026-08-05 calibration recording cannot support 3D
+
+Measured by `wfield_local/dlc_calibration.py` (report written beside the recording). ChArUco,
+`DICT_4X4_50`, marker ids 0–37:
+
+    cam1  usable 1262/1926 (65.5%)      cam1-cam4  1225   OK
+    cam2  usable   11/1926  (0.6%)      cam1-cam2    11   too few
+    cam3  usable    3/1926  (0.2%)      cam1-cam3     3   too few
+    cam4  usable 1792/1926 (93.0%)      cam2-cam3     0   DISCONNECTED
+
+The board was waved in front of the two snout cameras and never presented systematically to the side
+views, which additionally see it small and oblique across a much wider FOV, below reliable 4x4
+marker detection size. The pair graph has three components, so the four cameras cannot be placed in
+one coordinate frame. **The only fix is to re-record**, which is why this is measured before any
+labelling or GPU time is spent.
+
+For the re-record: the criterion is SIMULTANEOUS detections on enough camera PAIRS to connect the
+graph — not per-camera detections, which the failed recording already had in abundance on cam1/cam4.
+`cam2` and `cam3` face opposite sides and may share no field of view at all; that is fine, since
+connectivity through `cam1`/`cam4` is sufficient (pinned in `test_connectivity_does_not_require_every_pair`).
+Also needed and NOT recoverable from video: the board's physical geometry (squaresX/Y, square mm,
+marker mm), without which reconstruction has no metric scale.
+
+### Deployment: HMS O2, per the orofacial notebook
+
+`DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb` is the working pattern — paramiko/scp
+from a local notebook, stage videos to `/n/scratch/users/<u>/<user>/dlc_in`, `sbatch` a GPU job
+(`-p gpu --gres=gpu:1 --cpus-per-task=10 --mem=30G -t 9:30:00`, `module load conda/miniforge3`,
+`conda activate deeplabcut`) running a `run_dlc_batch.py` that loops `analyze_videos` →
+`filterpredictions` one video at a time, then pulls the H5/CSV back. It carries an MD5-compare
+upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
+
+**The scaling does not carry over.** That job costs ~3 h per old video; a widefield session is
+~1.5 M frames per camera. Any plan that says "run DLC on the sessions" needs a frame budget first —
+which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
+recordings.
+
 ## Lick BOUT ONSETS as the motor event set (decided 2026-08-17)
 
 The lick-aligned decoder uses ONE lick per trial and discards 80–93% of lick events. `lick_bout_events`

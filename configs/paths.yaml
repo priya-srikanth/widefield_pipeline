@@ -49,6 +49,16 @@ logical_roots:
       mac:      "/Volumes/Priya/Behavior_Cameras/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
 
+  camera_calibration:
+    description: "PARENT of the Widefield subdir — holds the ChArUco camera-calibration recordings
+      as sibling dirs `camera_calibration_<YYYYMMDD>/` (cam1..cam4 .avi + .csv). Deliberately the
+      parent and not a dated dir: `dlc_calibration.find_calibration_dir` picks the NEWEST by the
+      date in the folder name, so re-recording a calibration needs no config edit."
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras"
+      mac:      "/Volumes/Priya/Behavior_Cameras"
+      imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras"
+
   alignment_templates:
     description: "Camera<->DAQ sync alignment templates (.npz): <cam>/<PSxx>/<YYYYMMDD>.npz"
     mounts:

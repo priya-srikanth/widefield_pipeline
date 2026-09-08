@@ -112,6 +112,17 @@ One nightly command, dispatched by machine: **`python -m wfield_local.nightly <Y
 
 ## Restructure roadmap — mirror `../stroke_orofacial_pipeline`
 
+**We mirror its LAYOUT, we do not run its ANALYSIS.** Since **June 2026**, every widefield behavior
+analysis (PS92–PS95: trials, engagement, licks, epochs, DLC/orofacial tracking) runs from THIS repo.
+`stroke_orofacial_pipeline` remains the reference for structure and for the earlier 2pRAM/facerhythm
+cohort (PS38–PS55) whose results it still owns; its behavior modules are NOT imported, invoked, or
+kept in sync here. The two rigs differ enough that shared code would be wrong, not merely
+inconvenient: **one moving spout at 6 positions** vs their two fixed L/R spouts, **four Blackfly
+cameras at 250 fps** vs their single 100-fps Flea3 `video2`, and a widefield imaging arm they do not
+have. Where a decision was ported deliberately (the ITI edge matcher, `spout_behavior`'s shape, the
+epoch scaffold) the porting note says so at the call site. Read a result from `pipeline_outputs/` on
+their side as belonging to the OLD cohort; ours land under `Widefield/…` per `configs/paths.yaml`.
+
 Target = that repo's mature config-driven layout. **DONE:** `configs/{animals,sessions,paths,defaults}.yaml`
 (animals now carries full cohort metadata: sex/DOB/genotype/stroke_laterality/reference_landmarks);
 config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (22);
