@@ -108,6 +108,69 @@ def _totals(per_epoch):
 
 # --------------------------------------------------------------------------------- behaviour
 
+def _licks_per_trial_by_day(short, keep):
+    """``{position: {animal: {day: licks/trial}}}`` -- the OTHER half of the chronic rule.
+
+    FROM THE COHORT TABLE `epoch_audit` ITSELF READS (`lpt__<position>` in
+    `cohort/cohort_session_metrics.csv`, engaged-gated), not a second derivation. The chronic
+    boundary is a conjunction -- far-contra hit rate AND licks/trial both flat, recovered and
+    settled -- so a reader checking the dashed line needs the same numbers the rule saw, and a
+    parallel computation that drifted would make the figure disagree with the boundary it draws.
+
+    Pre-stroke collapses to one point like the hit-rate row, but trial-WEIGHTED
+    (sum(lpt x n) / sum(n)) rather than a mean of session means, matching how the hit-rate
+    baseline sums hits and trials.
+    """
+    import pandas as pd
+
+    from wfield_local import epoch_audit
+    from wfield_local.grant_figures import CONF_LABELS, _position_metrics, _sessions
+
+    fp = epoch_audit._cohort_path()
+    if not fp.exists():
+        print("  ?? licks/trial: no cohort table, row omitted", flush=True)
+        return {}
+    df = pd.read_csv(fp)
+    if "n_engaged" in df.columns:                      # same duplicate rule as epoch_audit
+        df = df.sort_values("n_engaged").drop_duplicates(["animal", "date"], keep="last")
+    lpt = {}
+    for _i, r in df.iterrows():
+        mmdd = str(int(r["date"]))[4:]
+        for p in CONF_LABELS:
+            v = r.get("lpt__" + p)
+            if v is not None and pd.notna(v):
+                lpt.setdefault((str(r["animal"]), mmdd), {})[p] = float(v)
+    if not lpt:
+        return {}
+
+    out, early = {short[p]: {} for p in CONF_LABELS}, {}
+    for an in config.animals():
+        for mmdd, day in _sessions(an):
+            if an + "_" + mmdd not in keep:
+                continue
+            e = ef.epoch_of_day(an, int(day))
+            if e is None:
+                continue
+            met = _position_metrics(an, mmdd) or {}
+            vals = lpt.get((an, mmdd)) or {}
+            for p in CONF_LABELS:
+                m, v = met.get(p), vals.get(p)
+                # THE SAME >=5 ENGAGED-TRIAL FLOOR the hit-rate row uses, so the two rows describe
+                # the same session set and a point present in one is present in the other.
+                if v is None or not m or m[3] < 5:
+                    continue
+                if e == "pre":
+                    s_, n_ = early.setdefault(short[p], {}).setdefault(an, [0.0, 0])
+                    early[short[p]][an] = [s_ + v * m[3], n_ + m[3]]
+                else:
+                    out[short[p]].setdefault(an, {})[int(day)] = v
+    for q, by in early.items():
+        for an, (s_, n_) in by.items():
+            if n_:
+                out[q].setdefault(an, {})[ef.PRE_X] = float(s_ / n_)
+    return out if any(out.values()) else {}
+
+
 def fig_behaviour_timecourse(out_dir):
     """1c: hit rate per position against DAYS SINCE LESION, one dot per animal per day.
 
@@ -166,6 +229,7 @@ def fig_behaviour_timecourse(out_dir):
                 per_day[q].setdefault(an, {})[ef.PRE_X] = float(h / n)
     if not any(per_day.values()):
         return None
+    lick_day = _licks_per_trial_by_day(short, keep)
     # `spec_for`, not EPOCH_SPEC: this is THE figure the boundaries are read off, so it must draw
     # the ones actually in force. Reading the stored dict here would show a chronic line the pooled
     # panels beside it disagree with, and the figure whose job is to let a reader check the
@@ -178,17 +242,31 @@ def fig_behaviour_timecourse(out_dir):
     # animal's acute period and the recovery can be read straight off it.
     return ef.timecourse_by_animal(
         per_day, out_dir, name="epoch_1c_behaviour_timecourse",
-        title="Hit rate by spout position over days since lesion, one panel per animal",
+        title="Hit rate and licks/trial by spout position over days since lesion, "
+              "one panel per animal",
         subtitle=ef.stats_line(counts, notes=[
-            (f"shaded = that animal's acute period ({epochs.ACUTE_RULE}); dotted = its first "
-             f"subacute day; dashed = its first chronic day where one exists "
-             f"({epochs.CHRONIC_RULE}) -- only PS92 has stabilised, so only PS92 carries a "
-             "dashed line"),
+            (f"shaded = that animal's acute period ({epochs.ACUTE_RULE}); subacute is simply "
+             f"everything after it, so the shading's right edge marks that onset. dashed = "
+             f"its first chronic day where one exists ({epochs.CHRONIC_RULE}) -- only PS92 "
+             "has stabilised, so only PS92 carries a dashed line"),
+            "ENGAGED TRIALS ONLY (the `hit_rate` column, hits_engaged / trials_engaged): the "
+            "gate is judged at the reference positions and backdated to the start of the run "
+            "of misses that trips it, so far misses after a lesion stay in as the deficit "
+            "rather than being deleted as disengagement",
             "colour = spout position (hue = side, lighter = far); pre = that animal's whole "
             "pre-stroke baseline as one point, hits and trials summed -- the same number figure "
             "1b's pre bar plots, and the one the acute rule is measured against"]),
         # LONG names in the LEGEND: "Ipsi" appearing twice would not say which distance it is.
-        ylabel="hit rate", positions=_short_labels(), tick_labels=_long_labels(),
+        # THE AXIS NAMES THE POPULATION (Priya, 2026-09-08). Engaged and all-trial rates
+        # diverge hard in the acute period -- PS94 8/23 far contra is 0.129 engaged against
+        # 0.08 on all trials, on 62 of 100 trials -- so a bare "hit rate" is two figures.
+        ylabel="hit rate (engaged trials)", positions=_short_labels(),
+        tick_labels=_long_labels(),
+        # THE SECOND HALF OF THE CHRONIC RULE. The dashed line requires far-contra hit rate
+        # AND licks/trial both flat, recovered and settled; with only the hit-rate row drawn,
+        # half of what placed that line was invisible. ylim from the data -- licks/trial is
+        # not a rate and forcing 0-1 would flatten it against the axis.
+        extra_rows=[(lick_day, "licks / trial (engaged)", None)] if lick_day else None,
         boundaries=bounds)
 
 

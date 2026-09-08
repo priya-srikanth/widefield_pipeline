@@ -595,3 +595,30 @@ def test_timecourse_position_order_matches_the_spout_palette():
     from wfield_local.spout_behavior import IDX_ORDER, POS_BY_IDX
 
     assert list(CONF_LABELS) == [POS_BY_IDX[i]["name"] for i in IDX_ORDER]
+
+
+def test_timecourse_by_animal_adds_a_second_measure_row(tmp_path):
+    """licks/trial is the OTHER half of the chronic rule, so the figure that draws the chronic
+    line has to show it (Priya, 2026-09-08). Two rows, same animals, x axis and boundaries."""
+    pos = ["nI", "nM", "nC", "fI", "fM", "fC"]
+    hits = {q: {an: {ef.PRE_X: 0.9, 1: 0.4, 3: 0.7} for an in ("PS92", "PS93")} for q in pos}
+    lpt = {q: {an: {ef.PRE_X: 8.0, 1: 1.5, 3: 6.0} for an in ("PS92", "PS93")} for q in pos}
+    one = ef.timecourse_by_animal(hits, tmp_path, name="one", title="t", ylabel="hit rate",
+                                  positions=pos, boundaries={"PS92": (5, 6, 11)})
+    two = ef.timecourse_by_animal(hits, tmp_path, name="two", title="t", ylabel="hit rate",
+                                  positions=pos, boundaries={"PS92": (5, 6, 11)},
+                                  extra_rows=[(lpt, "licks / trial", None)])
+    assert one.exists() and two.exists()
+    # the two-row figure is taller; it must not simply reuse the one-row layout
+    from PIL import Image
+    assert Image.open(two).size[1] > Image.open(one).size[1]
+
+
+def test_licks_row_is_omitted_rather_than_faked_when_absent(tmp_path):
+    """No cohort table -> no licks row, not a row of zeros. A session entering as 0.0 licks would
+    read as total loss of vigour."""
+    pos = ["nI"]
+    hits = {q: {"PS92": {1: 0.5}} for q in pos}
+    out = ef.timecourse_by_animal(hits, tmp_path, name="nolpt", title="t", ylabel="hit rate",
+                                  positions=pos, extra_rows=None)
+    assert out is not None and out.exists()

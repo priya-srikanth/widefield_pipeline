@@ -1463,7 +1463,8 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
 
 
 def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_labels=None,
-                         subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06)):
+                         subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06),
+                         extra_rows=None):
     """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries.
 
     THE TRANSPOSE OF `timecourse_panel`, and the reason is the boundaries (Priya, 2026-09-08). The
@@ -1490,13 +1491,23 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
 
     positions = list(positions)
     labels = list(tick_labels or positions)
-    # TRANSPOSE, and keep animal order stable rather than discovery order.
-    per_animal: dict = {}
-    for qi, q in enumerate(positions):
-        for an, by in (per_day.get(q) or {}).items():
-            per_animal.setdefault(an, {})[qi] = by
-    animals = sorted(per_animal)
-    ncol = len(animals)
+
+    def _transpose(pd_):
+        out_ = {}
+        for qi, q in enumerate(positions):
+            for an, by in (pd_.get(q) or {}).items():
+                out_.setdefault(an, {})[qi] = by
+        return out_
+
+    # EACH ROW IS ONE MEASURE, sharing the animals, the x axis and the boundaries. The chronic rule
+    # is a conjunction over hit rate AND licks/trial, so a figure showing only the first shows half
+    # of what drew the dashed line (Priya, 2026-09-08).
+    series = [(_transpose(per_day), ylabel, ylim, chance)]
+    for extra in (extra_rows or []):
+        series.append((_transpose(extra[0]), extra[1],
+                       (extra[2] if len(extra) > 2 else None), None))
+    animals = sorted({a for s in series for a in s[0]})
+    ncol, nrow = len(animals), len(series)
     if not ncol:
         return None
 
@@ -1507,51 +1518,71 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     # the old 1.55in the caption occupied more of the figure than the data did and the hit-rate
     # axis -- the thing being read -- was the smallest thing on it. Four panels instead of six also
     # buys width, so the extra height does not make them narrow.
-    bottom_in, gap_in, panel_h = 0.52, 0.20, 2.45
+    bottom_in, gap_in = 0.52, 0.20
+    panel_h = 2.45 if nrow == 1 else 1.85    # a second row earns its height without doubling it
+    row_gap_in = 0.42                        # room between rows
     panel_w = (fig_w - left_in - right_in - gap_in * (ncol - 1)) / ncol
-    fig_h = top_in + panel_h + bottom_in
+    fig_h = top_in + nrow * panel_h + (nrow - 1) * row_gap_in + bottom_in
     fig = plt.figure(figsize=(fig_w, fig_h))
 
-    days_all = sorted({d for by in per_animal.values() for m in by.values() for d in m})
+    days_all = sorted({d for s in series for by in s[0].values() for m in by.values() for d in m})
     lo = min(days_all) if days_all else -1
     hi = max(days_all) if days_all else 1
-    axes = []
-    for i, an in enumerate(animals):
-        ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, bottom_in / fig_h,
-                           panel_w / fig_w, panel_h / fig_h])
-        axes.append(ax)
-        bnd = (boundaries or {}).get(an)
-        if bnd:
-            acute_hi, sub_lo = bnd[0], bnd[1]
-            chronic_lo = bnd[2] if len(bnd) > 2 else None
-            # NEUTRAL GREY, not the animal colour: the panel already IS the animal, and a coloured
-            # span here would read as one of the six position traces.
-            ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.45, lw=0, zorder=0)
-            ax.axvline(sub_lo - 0.5, color="0.35", lw=0.9, alpha=0.8, ls=":", zorder=1)
-            if chronic_lo is not None:
-                ax.axvline(chronic_lo - 0.5, color="0.20", lw=1.0, alpha=0.85, ls="--", zorder=1)
-        ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
-        for qi in sorted(per_animal[an]):
-            p = POS_BY_IDX[IDX_ORDER[qi]]
-            by = per_animal[an][qi]
-            xs = sorted(by)
-            ax.plot(xs, [by[d] for d in xs], color=pos_color(IDX_ORDER[qi]), lw=0.9, alpha=0.75,
-                    ls=SIDE_LS[p["side"]], marker=SIDE_MARKER[p["side"]], ms=3.0, zorder=3)
-        if chance is not None:
-            ax.axhline(chance, color="0.4", lw=0.7, ls="--", zorder=2)
-        post = [d for d in days_all if d > 0]
-        ticks = [PRE_X] + [d for d in post if d % 2 == 1]
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
-        ax.set_title(an, fontsize=FS_ANNOT)
-        ax.set_ylim(*ylim)
-        ax.set_xlim(lo - 0.6, hi + 0.6)
-        ax.tick_params(labelsize=FS_TICK - 2)
-        if i:
-            ax.set_yticklabels([])
-        for sp in ("top", "right"):
-            ax.spines[sp].set_visible(False)
-    axes[0].set_ylabel(ylabel, fontsize=FS_LABEL - 1)
+    post = [d for d in days_all if d > 0]
+    ticks = [PRE_X] + [d for d in post if d % 2 == 1]
+    first_col, top_right = [], None
+    for r, (per_animal, row_label, row_ylim, row_chance) in enumerate(series):
+        y0 = bottom_in + (nrow - 1 - r) * (panel_h + row_gap_in)   # row 0 is the TOP row
+        for i, an in enumerate(animals):
+            ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, y0 / fig_h,
+                               panel_w / fig_w, panel_h / fig_h])
+            if i == 0:
+                first_col.append(ax)
+            if r == 0 and i == ncol - 1:
+                top_right = ax
+            bnd = (boundaries or {}).get(an)
+            if bnd:
+                acute_hi = bnd[0]
+                chronic_lo = bnd[2] if len(bnd) > 2 else None
+                # NEUTRAL GREY, not the animal colour: the panel already IS the animal, and a
+                # coloured span here would read as one of the six position traces.
+                ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.45, lw=0, zorder=0)
+                # NO SUBACUTE LINE (Priya, 2026-09-08). Subacute is simply "after acute", so the
+                # right edge of the shaded span already marks it and a second line said the same
+                # thing twice. It was not even the same day: `subacute_from` is the first RECORDED
+                # session after the acute period, so PS92 read acute-ends-5 / subacute-starts-7
+                # purely because nothing was run on day 6 -- a recording-schedule gap drawn as
+                # though it were a boundary.
+                if chronic_lo is not None:
+                    ax.axvline(chronic_lo - 0.5, color="0.20", lw=1.2, alpha=0.9, ls="--", zorder=1)
+            ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
+            for qi in sorted(per_animal.get(an, {})):
+                p = POS_BY_IDX[IDX_ORDER[qi]]
+                by = per_animal[an][qi]
+                xs = sorted(by)
+                ax.plot(xs, [by[d] for d in xs], color=pos_color(IDX_ORDER[qi]), lw=0.9,
+                        alpha=0.75, ls=SIDE_LS[p["side"]], marker=SIDE_MARKER[p["side"]], ms=3.0,
+                        zorder=3)
+            if row_chance is not None:
+                ax.axhline(row_chance, color="0.4", lw=0.7, ls="--", zorder=2)
+            ax.set_xticks(ticks)
+            ax.set_xlim(lo - 0.6, hi + 0.6)
+            if row_ylim:
+                ax.set_ylim(*row_ylim)
+            ax.tick_params(labelsize=FS_TICK - 2)
+            if r == 0:
+                ax.set_title(an, fontsize=FS_ANNOT)
+            # ONLY THE BOTTOM ROW CARRIES DAY NUMBERS: repeating them under every row spends height
+            # on the same axis twice and invites reading the rows as separate x scales.
+            if r == nrow - 1:
+                ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
+            else:
+                ax.set_xticklabels([])
+            if i:
+                ax.set_yticklabels([])
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+        first_col[r].set_ylabel(row_label, fontsize=FS_LABEL - 1)
     # ANCHORED IN INCHES, not in a figure fraction. A fixed fraction moves with `fig_h`, so raising
     # the panel height slid this label up into the tick numbers it labels.
     fig.text((left_in + (fig_w - left_in - right_in) / 2) / fig_w, 0.11 / fig_h,
@@ -1561,8 +1592,8 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
                       ls=SIDE_LS[POS_BY_IDX[IDX_ORDER[qi]]["side"]],
                       marker=SIDE_MARKER[POS_BY_IDX[IDX_ORDER[qi]]["side"]], ms=3.5,
                       label=labels[qi]) for qi in range(len(positions))]
-    leg = axes[-1].legend(handles=handles, fontsize=FS_ANNOT - 1.5, loc="upper left",
-                          frameon=False, handlelength=2.2, labelspacing=0.35)
+    leg = top_right.legend(handles=handles, fontsize=FS_ANNOT - 1.5, loc="upper left",
+                           frameon=False, handlelength=2.2, labelspacing=0.35)
     leg.set_bbox_to_anchor((1.02, 1.0))
     _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
