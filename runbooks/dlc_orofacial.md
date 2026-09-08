@@ -68,6 +68,52 @@ one of the two cameras.
 
 ---
 
+## Step 1b — seed the labels from the 2pRAM network (so labelling is correction, not blank-page)
+
+**You do not have to label from scratch.** The donor network transfers to `cam4` once the frames are
+resized to match the apparent size it was trained at — `dlc.prelabel.scale = 0.45`. At native scale
+it finds the nose on 8% of frames; at 0.45, on 97%.
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_prelabel --cam cam4 --dry-run   # coverage report, writes nothing
+python -m wfield_local.dlc_prelabel --cam cam4
+```
+
+Writes `CollectedData_Priya.{h5,csv}` into each `labeled-data/` folder — **2536 of 3120 points (81%)
+seeded across the 312 cam4 frames.** Refuses to overwrite an existing CollectedData, so a re-run
+cannot discard corrections.
+
+| seeded | leave to you |
+|---|---|
+| nose 97%, whiskers 81–100%, jaw 78%, spout 75% | **tongue — every frame** |
+
+**The blanks are deliberate.** The eyes are outside cam4's field of view yet come back at 0.44–0.79
+in the top corners, and the tongue fires at **0.99 on the spout** while the tongue is out beside it.
+Likelihood does not separate those from the good predictions — an overlay does. A blank cell is what
+the labelling GUI shows as "place this"; a wrong point invites being accepted rather than checked.
+
+So the manual pass is: **place the tongue, then check the rest.** Expect to move some whisker points
+— they land on the whisker field but their anatomical identity across the two rigs is not
+guaranteed.
+
+### First-time `dlc` env setup (this box)
+
+`locanmf` is left alone (CLAUDE.md rule 6); DeepLabCut goes in its own env.
+
+```powershell
+conda create -n dlc python=3.10 -y
+conda activate dlc
+pip install "deeplabcut[pytorch]"
+pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.11.0+cu128 torchvision==0.26.0+cu128
+pip install -e C:\Users\SabatiniLab\Github\widefield_pipeline --no-deps    # makes wfield_local importable
+```
+
+The cu128 wheels are not optional — the RTX 5060 is Blackwell and the default torch build is CPU-only
+here. Measured: 217 fps at 320×320, 66 fps at 672×672.
+
+---
+
 ## Step 2 — create the DLC project and adopt the frames
 
 In the DLC environment (not `locanmf` — DeepLabCut is not installed there):
@@ -95,12 +141,13 @@ of frame on both snout views. **The eye was the centering fiducial in the old pi
 result** — the replacement is the 3D world frame, which head fixation makes static without any
 fiducial at all.
 
-Copy `Behavior_Cameras/Widefield/dlc/labeled-data/*` into the project's `labeled-data/`. The folder
-names are already the video stems DLC expects, so the labelling GUI picks them up directly — do NOT
-run `extract_frames`, which would add appearance-clustered frames beside the designed set.
+Copy `Behavior_Cameras/Widefield/dlc/labeled-data/*` into the project's `labeled-data/` — images AND
+the `CollectedData_Priya.{h5,csv}` written in step 1b. The folder names are already the video stems
+DLC expects, so the labelling GUI opens with the seeded points in place. Do NOT run `extract_frames`,
+which would add appearance-clustered frames beside the designed set.
 
 ```python
-d.label_frames(cfg)      # the manual step
+d.label_frames(cfg)      # the manual step: place the tongue, check the rest
 d.check_labels(cfg)
 ```
 

@@ -1581,6 +1581,63 @@ outward from the centre for a usable session, and an epoch that yields none says
 Verified: the June and September `cam4` views are the same framing, so the fallback's June sessions
 are not a different camera geometry.
 
+### The donor network DOES transfer to cam4 — once the apparent SIZE is corrected (measured 2026-09-08)
+
+Priya: *"I don't want to start labelling from scratch."* Measured, and she does not have to: **9 of
+10 bodyparts get a usable starting position; the tongue is the only one that must be placed by
+hand.**
+
+The obstacle was never the weights, it was that DLC does not rescale at inference and `cam4` is
+~2.5x more zoomed than the donor's `video2`. Run on native cam4 frames, the donor finds the nose on
+**8%** of them. Feed it the same frames resized to **0.45** and it finds the nose on **97%**. Swept
+1.00 / 0.60 / 0.45 / 0.35 / 0.28 over the 312 extracted cam4 frames (fraction above 0.6):
+
+| bodypart | 1.00 | 0.60 | **0.45** | 0.35 | verdict |
+|---|---|---|---|---|---|
+| nose | 0.08 | 0.87 | **0.97** | 0.96 | dead on the nose pad |
+| L_whiskers_1/2/3 | 0.75–0.87 | 0.97–0.99 | **0.98–1.00** | 0.95–1.00 | excellent |
+| R_whiskers_2 | 0.90 | 1.00 | **1.00** | 0.99 | excellent |
+| jaw | 0.78 | 0.77 | **0.78** | 0.79 | good, and scale-insensitive |
+| R_whiskers_1/3 | 0.70–0.78 | 0.82–0.84 | **0.81–0.85** | 0.72 | usable |
+| spout (max of L/R) | 0.30 | 0.48 | **0.75** | 0.68 | see below |
+| tongue | 0.14 | 0.14 | **0.13** | 0.10 | withheld |
+| L_eye / R_eye | 0.39–0.40 | 0.58–0.69 | **0.60–0.61** | 0.37–0.53 | withheld |
+
+**Two independent checks that this is transfer and not coincidence.** The nose's x sits at 336–341 px
+across all six spout positions — which is what head fixation says it must do — while the *spout*
+point lands at 255 / 300 / 343 / 346 / 397 / 439 px for far_R / close_R / far_center / close_center /
+close_L / far_L, i.e. monotonically ordered R→centre→L with `far` more extreme than `close`. And in
+the written labels the two whisker groups separate anatomically without being told to: L at
+388–482 px, R at 173–270 px.
+
+**ONE spout from two.** Take whichever of the donor's fixed `L_spout`/`R_spout` fires harder — which
+one responds depends on where the moving spout is. `R_spout` alone clears 0.6 on 53% of frames and
+`L_spout` on 23%; the max-of-two clears it on **75%**.
+
+**Two categories are withheld, and likelihood does not separate them from the good ones.** The eyes
+are outside cam4's field of view entirely, yet come back at 0.44–0.79 in the top corners. The tongue
+fires at **0.99 on the SPOUT** while the tongue is out beside it (verified by overlay, not by
+likelihood). Its low overall rate is honest behaviour rather than failure — out on 27% of `early`
+(+0.4 s) frames versus 1% of ENL frames — but a confidently misplaced point is worse than a blank
+one, because a point already placed invites being accepted rather than checked. NaN is what the
+labelling GUI reads as "place this".
+
+`wfield_local/dlc_prelabel.py` writes the surviving predictions as DLC `CollectedData_Priya.{h5,csv}`
+in each `labeled-data/` folder: **2536 of 3120 possible points (81%) seeded across 312 cam4 frames**.
+It refuses to overwrite an existing CollectedData file, since discarding a human's corrections is the
+one thing it must never do.
+
+**Caveat to carry forward.** Tongue detection by epoch runs 20% pre / 4% acute / 10% subacute / 25%
+chronic. That tracks real licking behaviour, but it is also indistinguishable from tracking
+degradation without ground truth — the exact confound the epoch-stratified labelling set exists to
+prevent. Re-check it against hand labels after training.
+
+**Local inference is now possible.** DeepLabCut 3.0.1 + torch 2.11 cu128 in a separate `dlc` conda
+env (the repo installed with `pip install -e . --no-deps`, so `locanmf` is untouched — CLAUDE.md rule
+6). The RTX 5060 runs 217 fps at 320x320 and 66 fps at 672x672, so a scale sweep over 312 frames is
+seconds, not an O2 round trip. The donor project is COPIED locally first: `analyze_videos` writes
+into a project directory as a matter of course, and the original is irreplaceable source data.
+
 ### Deployment: HMS O2, per the orofacial notebook
 
 `DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb` is the working pattern — paramiko/scp

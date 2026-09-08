@@ -243,6 +243,41 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       late: 1.50              # into the response window; consummatory licking or a failed attempt
     seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
                               # rather than quietly growing a second labelling set.
+  donor:                      # The 2pRAM network, used as a PRE-LABELLER (and later as training
+                              # weights). READ-ONLY: a local copy is made, the original is never
+                              # touched. ResNet-50 group-norm + HeatmapHead, 13 bodyparts, test
+                              # RMSE 2.70 px on ITS OWN view.
+    project: "N:/MICROSCOPE/Priya/DeepLabCut/DLC_train_config"
+    local_copy: "E:/dlc_donor_probe/DLC_train_config"
+    shuffle: 5
+    trainingsetindex: 0
+    snapshot: snapshot-best-060.pt
+
+  prelabel:                   # Run the donor over the extracted frames and seed DLC's labels with
+                              # what it gets right, so labelling is CORRECTION rather than blank-page
+                              # work. Measured on the 312 cam4 frames, 2026-09-08 -- see DECISIONS.md.
+    scale: 0.45               # THE WHOLE TRICK. DLC does not rescale at inference and cam4 is ~2.5x
+                              # more zoomed than the donor's view, so at native scale the nose is
+                              # found on 8% of frames. At 0.45 it is found on 97%. Swept
+                              # 1.0/0.6/0.45/0.35/0.28; 0.45 and 0.60 are close, 0.45 wins on nose.
+    min_likelihood: 0.6       # below this the point is left BLANK for manual placement. The donor's
+                              # own pcutoff was 0.6 at evaluation.
+    never_prelabel:           # Predicted CONFIDENTLY and WRONGLY -- worse than no label, because a
+                              # placed point invites being accepted rather than checked.
+      - tongue                #   fires at 0.99 on the SPOUT while the tongue is out beside it.
+                              #   Genuinely low most of the time (out only during licking: 27% of
+                              #   `early` frames vs 1% of ENL), so the low rate is correct behaviour
+                              #   -- it is the confident firings that are wrong.
+    drop:                     # Not in frame on cam1/cam4 at all, yet predicted at 0.44-0.79 in the
+      - L_eye                 # top corners. A hallucination is not a weak detection and no
+      - R_eye                 # likelihood threshold separates them.
+    spout_from:               # ONE spout replaces two. Take whichever of the donor's two fires
+      - L_spout               # harder: which one responds depends on where the moving spout is, and
+      - R_spout               # the max-of-two lands at x=255/300/343/346/397/439 px for
+                              # far_R/close_R/far_center/close_center/close_L/far_L -- i.e. it
+                              # tracks the actual position -- while the nose holds 336-341 px
+                              # throughout, as head fixation says it must. 75% of frames >0.6.
+
   o2:                         # HMS O2 batch inference, ported from the 2pRAM notebook
                               # DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb
     partition: gpu

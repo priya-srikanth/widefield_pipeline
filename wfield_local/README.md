@@ -704,9 +704,23 @@ each frame's animal / date / camera / epoch / trial / position / category / phas
 opened READ-ONLY; selection is deterministic, so a re-run re-picks the same frames rather than
 growing a second set beside the one already annotated.
 
-Not yet built: the DLC project scaffold (weight transfer from the 2pRAM snapshot with a
-`L_spout`→`spout` conversion table) and the O2 batch deployment (`dlc.o2.*` holds its parameters and
-the measured ~86 fps throughput).
+**`dlc_prelabel`** (run from the **`dlc`** env, not `locanmf`) runs the 2pRAM network over those
+frames and writes what it gets right as DLC `CollectedData_Priya.{h5,csv}`, so labelling is
+correction rather than blank-page work — **81% of points seeded** on cam4. The trick is
+`dlc.prelabel.scale`: DLC does not rescale at inference and cam4 is ~2.5× more zoomed than the
+donor's view, so at native scale the nose is found on 8% of frames and at 0.45 on 97%. The tongue and
+the eyes are deliberately left blank (`dlc.prelabel.{never_prelabel,drop}`) — both are predicted
+*confidently and wrongly*, and no likelihood threshold separates them from the good predictions.
+Existing CollectedData files are never overwritten.
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_prelabel --cam cam4 --dry-run
+python -m wfield_local.dlc_prelabel --cam cam4
+```
+
+Not yet built: the O2 batch deployment (`dlc.o2.*` holds its parameters and the measured ~86 fps
+throughput; local inference on the RTX 5060 measures 217 fps at 320×320).
 
 ### 17. LocaNMF decomposition
 
