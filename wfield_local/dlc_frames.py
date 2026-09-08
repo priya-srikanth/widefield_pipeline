@@ -79,6 +79,84 @@ def per_session() -> int:
     return int(_cfg().get("frames", {}).get("per_session", 24))
 
 
+def lick_per_session() -> int:
+    return int(_cfg().get("frames", {}).get("lick_per_session", 0))
+
+
+def lick_offset_s() -> float:
+    return float(_cfg().get("frames", {}).get("lick_offset_s", 0.008))
+
+
+#: Decoding one session's DAQ takes minutes and the cohort walk asks for the same session once per
+#: camera. Keyed on (animal, date) because the licks are a property of the SESSION, not the view.
+_LICKS: dict[tuple[str, str], np.ndarray] = {}
+
+
+def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
+    """DAQ lick-onset times (s) for one session, or an empty array if the recording is unavailable.
+
+    Straight from ``daq_trials.decode`` -- the pipeline's single source for licks -- rather than any
+    count column on the trials table, because what is needed here is the TIMES.
+    """
+    from wfield_local import daq_trials
+
+    if (animal, date) in _LICKS:
+        return _LICKS[(animal, date)]
+    rv = rv or PathResolver()
+    root = Path(rv.root("daq_recorder_output")) / date
+    if not root.is_dir():
+        return np.array([], float)
+    # The DAQ filename's timestamp is a second or two off the session id's (separate clocks), so
+    # match on the animal and date and take the one recording that exists for them.
+    cands = sorted(root.glob(f"{animal}_{date}_*.h5"))
+    if not cands:
+        print(f"[dlc_frames] {animal} {date}: no DAQ .h5 -> no lick-locked frames", flush=True)
+        return np.array([], float)
+    try:
+        dec = daq_trials.decode(cands[0], config.defaults()["lick_detection"])
+    except Exception as exc:                                  # noqa: BLE001 - report, do not stop
+        print(f"[dlc_frames] {animal} {date}: DAQ decode failed ({exc}) -> no lick-locked frames",
+              flush=True)
+        return np.array([], float)
+    out = np.asarray(dec["lick_s"], float)
+    print(f"[dlc_frames] {animal} {date}: {out.size} DAQ lick onsets", flush=True)
+    _LICKS[(animal, date)] = out
+    return out
+
+
+def select_licks(trials: pd.DataFrame, licks: np.ndarray, n_per_pos: int, window_s: float, rng):
+    """``[(trial_row, lick_time), ...]`` -- licks inside the response window, spread over positions.
+
+    Spread over spout POSITION for the same reason the cue-locked frames are: a tongue labelled only
+    where the animal licks most would train a network that finds the tongue best exactly where the
+    behaviour is already easiest.
+
+    The window is ``[cue, min(cue + window_s, next_cue)]`` -- bounded by the NEXT CUE, which is
+    `daq_trials`' own rule. Without that bound a lick belonging to the following trial can be
+    attributed to this one, and since the following trial may be at a different spout position, the
+    frame would be filed under a position the tongue was not reaching for.
+    """
+    if licks.size == 0 or trials.empty:
+        return []
+    cues = np.sort(trials["cue_s"].to_numpy(float))
+    out = []
+    for pos in sorted(trials["pos_name"].dropna().astype(str).unique()):
+        g = trials[trials["pos_name"].astype(str) == pos]
+        pool = []
+        for _, row in g.iterrows():
+            cue = float(row["cue_s"])
+            nxt = cues[cues > cue]
+            hi = min(cue + window_s, nxt[0]) if nxt.size else cue + window_s
+            inside = licks[(licks >= cue) & (licks <= hi)]
+            pool += [(row, float(t)) for t in inside]
+        if not pool:
+            continue
+        take = min(n_per_pos, len(pool))
+        for k in rng.choice(len(pool), size=take, replace=False):
+            out.append(pool[int(k)])
+    return out
+
+
 def seed() -> int:
     return int(_cfg().get("frames", {}).get("seed", 92))
 
@@ -132,8 +210,11 @@ def select_trials(trials: pd.DataFrame, n_cells: int, rng) -> pd.DataFrame:
     return out.head(max(1, n_cells)) if not out.empty else out
 
 
-def frame_of(tpl, cue_s: float, offset_s: float) -> int:
-    """Camera frame index for ``offset_s`` from a cue at DAQ time ``cue_s``.
+def frame_of(tpl, t_daq_s: float, offset_s: float) -> int:
+    """Camera frame index for ``offset_s`` after DAQ time ``t_daq_s``.
+
+    Takes a DAQ TIME rather than specifically a cue, because the lick-locked frames anchor on a lick
+    onset instead. Both are times on the same DAQ clock; the template does not care which event.
 
     The same affine ``behavior_clips`` cuts with: the alignment template maps DAQ samples to camera
     frames at ~1.2 ms residual, about a third of one frame at 250 fps.
@@ -143,7 +224,7 @@ def frame_of(tpl, cue_s: float, offset_s: float) -> int:
     icept = float(tpl["intercept_daqSample"])
     # Every term is coerced to a Python float first: `round` on a numpy float returns a numpy
     # float, which would flow into `cv2.CAP_PROP_POS_FRAMES` and the manifest as `2481.0`.
-    return round((float(cue_s) * fs - icept) / slope + float(offset_s) * fps)
+    return round((float(t_daq_s) * fs - icept) / slope + float(offset_s) * fps)
 
 
 def plan_session(animal, date, sid, epoch, cam, rv=None) -> list[dict]:
@@ -183,6 +264,25 @@ def plan_session(animal, date, sid, epoch, cam, rv=None) -> list[dict]:
                              "video_stem": stem, "frame": f, "trial_id": int(row["trial_id"]),
                              "position": str(row["pos_name"]), "category": str(row["cat"]),
                              "phase": name, "t_from_cue_s": off,
+                             "image": f"img{f:07d}.png", "_video": str(vids[0])})
+
+    n_lick = lick_per_session()
+    if n_lick:
+        from wfield_local.behavior_clips import POST_S, categorise
+        trials = pd.read_csv(tpath)
+        trials["cat"] = categorise(trials)
+        # POST_S is the scored response window (3.5 s, from every session's gui_config.json) --
+        # the same bound behavior_clips cuts to, so a lick-locked frame is inside a clip that exists.
+        picks = select_licks(trials, lick_onsets(animal, date, sid, rv),
+                             max(1, n_lick // 6), POST_S, _rng(animal, date, cam + "_lick"))
+        for row, t_lick in picks:
+            f = frame_of(tpl, t_lick, lick_offset_s())
+            if 0 <= f < n_frames:
+                rows.append({"animal": animal, "date": date, "cam": cam, "epoch": epoch,
+                             "video_stem": stem, "frame": f, "trial_id": int(row["trial_id"]),
+                             "position": str(row["pos_name"]), "category": str(row["cat"]),
+                             "phase": "lick",
+                             "t_from_cue_s": round(t_lick - float(row["cue_s"]), 4),
                              "image": f"img{f:07d}.png", "_video": str(vids[0])})
     return rows
 

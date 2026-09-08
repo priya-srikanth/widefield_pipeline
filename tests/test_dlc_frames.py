@@ -135,6 +135,61 @@ def test_a_failed_template_is_not_usable(tmp_path):
     assert not df.usable("PS94", "20260907", ["cam4"], RV())
 
 
+# --------------------------------------------------------------------------- lick-locked frames
+
+def test_lick_frames_are_spread_over_spout_position():
+    """A tongue labelled only where the animal licks most trains a network that finds the tongue
+    best exactly where the behaviour is already easiest."""
+    t = _trials(n_per_pos=2)
+    licks = np.concatenate([t["cue_s"].to_numpy() + off for off in (0.3, 0.6, 0.9)])
+    picks = df.select_licks(t, licks, n_per_pos=2, window_s=3.5, rng=np.random.default_rng(0))
+    assert {str(r["pos_name"]) for r, _ in picks} == set(t["pos_name"])
+
+
+def test_only_licks_INSIDE_the_response_window_are_used():
+    """A lick 6 s after the cue is ITI licking, not a response to this trial's spout position."""
+    t = _trials(n_per_pos=1)
+    t["cue_s"] = 10.0 + 20.0 * np.arange(len(t))          # well-separated, so only the bound bites
+    late = t["cue_s"].to_numpy() + 6.0
+    assert df.select_licks(t, late, 2, 3.5, np.random.default_rng(0)) == []
+
+    inside = t["cue_s"].to_numpy() + 0.5
+    assert len(df.select_licks(t, inside, 2, 3.5, np.random.default_rng(0))) == len(t)
+
+
+def test_the_window_is_bounded_by_the_NEXT_CUE_not_just_its_length():
+    """`daq_trials`' own rule. Trials here are 1 s apart while the window is 3.5 s, so without the
+    bound a lick belonging to the next trial -- at a DIFFERENT spout position -- is attributed to
+    this one, and the frame gets filed under a position the tongue was not reaching for.
+    """
+    t = pd.DataFrame([
+        {"trial_id": 0, "pos_name": "far_L", "cue_s": 10.0, "trial_start_s": 9.0, "cat": "success"},
+        {"trial_id": 1, "pos_name": "far_R", "cue_s": 11.0, "trial_start_s": 10.5, "cat": "success"},
+    ])
+    picks = df.select_licks(t, np.array([11.5]), 2, 3.5, np.random.default_rng(0))
+    assert [str(r["pos_name"]) for r, _ in picks] == ["far_R"], "1.5 s past far_L's cue, but far_R's trial"
+
+
+def test_a_session_with_no_licks_contributes_no_lick_frames():
+    """Post-stroke sessions where the animal barely licks must degrade, not raise."""
+    assert df.select_licks(_trials(), np.array([]), 2, 3.5, np.random.default_rng(0)) == []
+
+
+def test_the_lick_offset_lands_a_couple_of_frames_AFTER_contact():
+    """At the onset the tongue is at the spout and maximally occluded by it; a little later it is
+    still out and better separated. Later than ~40 ms and it is retracting."""
+    off = df.lick_offset_s()
+    assert 0 < off < 0.040
+    assert round(off * 250) == 2, "two frames at 250 fps"
+
+
+def test_a_lick_frame_maps_through_the_same_template_as_a_cue_frame():
+    """frame_of takes a DAQ TIME, not specifically a cue -- both live on the one DAQ clock."""
+    tpl = _tpl()
+    lick_t = 100.0
+    assert df.frame_of(tpl, lick_t, df.lick_offset_s()) == 25_000 + 2
+
+
 # --------------------------------------------------------------------------- manifest
 
 def _row(stem="cam4_x", frame=10, **kw):

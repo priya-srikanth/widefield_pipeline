@@ -1610,17 +1610,71 @@ close_L / far_L, i.e. monotonically ordered R→centre→L with `far` more extre
 the written labels the two whisker groups separate anatomically without being told to: L at
 388–482 px, R at 173–270 px.
 
-**ONE spout from two.** Take whichever of the donor's fixed `L_spout`/`R_spout` fires harder — which
-one responds depends on where the moving spout is. `R_spout` alone clears 0.6 on 53% of frames and
-`L_spout` on 23%; the max-of-two clears it on **75%**.
+**ONE spout from two.** Priya: *"we should keep only one spout label — is that possible?"* The
+project already has exactly one: `dlc.bodyparts` lists ten, with a single `spout` and no L/R. The
+question only bites on the DONOR side, where two fixed channels have to become one moving spout, and
+the answer differs by purpose:
 
-**Two categories are withheld, and likelihood does not separate them from the good ones.** The eyes
-are outside cam4's field of view entirely, yet come back at 0.44–0.79 in the top corners. The tongue
-fires at **0.99 on the SPOUT** while the tongue is out beside it (verified by overlay, not by
-likelihood). Its low overall rate is honest behaviour rather than failure — out on 27% of `early`
-(+0.4 s) frames versus 1% of ENL frames — but a confidently misplaced point is worse than a blank
-one, because a point already placed invites being accepted rather than checked. NaN is what the
-labelling GUI reads as "place this".
+* **Seeding labels** — take whichever donor channel fires harder. They are complementary BY SIDE,
+  each having learned its own half of the rig, so constraining to one loses entire spout positions
+  rather than just coverage:
+
+  | source | coverage | far_R | close_R | far_center | close_center | close_L | far_L |
+  |---|---|---|---|---|---|---|---|
+  | `L_spout` | 23% | — | — | — | 331 | 379 | 420 |
+  | `R_spout` | 53% | 244 | 287 | 328 | 331 | 370 | — |
+  | max-of-two | **75%** | 244 | 287 | 328 | 331 | 379 | 420 |
+
+  (median x in original px; all three monotonic, but only the max spans the full 176 px of travel.)
+  Since spout position is the experimental variable, a seed that is systematically blank at specific
+  positions is the one kind of gap worth avoiding.
+
+* **Training** — DLC 3.x's weight-init conversion table is strictly 1:1, so there you must pick one:
+  `dlc.donor.conversion` maps `spout: R_spout`, the better-covering channel. The unused donor spout
+  and both eyes have no target and their head channels are re-initialised.
+
+**The eyes are withheld** — outside cam4's field of view entirely, yet returned at 0.44–0.79 in the
+top corners. A hallucination is not a weak detection and no likelihood threshold separates them.
+
+#### The tongue: a conclusion I got wrong, and how it was settled (Priya, 2026-09-08)
+
+I first put the tongue on the withheld list, on the strength of **one** overlay in which it sat on
+the spout while the tongue was out beside it. Priya: *"we should be able to find tongue too."* She
+was right, and two checks settled it.
+
+**Twelve overlays, not one.** Most markers land at or near the tongue, biased toward the
+tongue–spout contact point rather than misplaced. That is consistent with where the donor's own
+label sat: in the old rig the tongue was labelled where it met the two fixed spouts.
+
+**Ground truth the network never saw.** The DAQ lick sensor fires on tongue–spout CONTACT, so a
+camera frame at a lick onset is a frame with the tongue out, by measurement rather than by eye.
+Mapping DAQ lick onsets through the same `camera_sync` template and scoring the predictions:
+
+| input scale | fires on frames ≤40 ms from a lick | fires on frames ≥150 ms from any lick |
+|---|---|---|
+| 1.00 | **50%** | 0.0% |
+| 0.60 | 37.5% | 1.3% |
+| 0.45 | 25.0% | 1.3% |
+| 0.35 | 12.5% | 1.3% |
+
+The tongue detector is **specific** — essentially silent when the tongue is in — and simply wants a
+larger input than the nose does, monotonically across the sweep. So `dlc.prelabel.scale_overrides`
+predicts the tongue at native scale and everything else at 0.45, one inference pass per distinct
+scale. There was never a reason to make the bodyparts compete for one number; 312 frames is seconds
+on the local GPU.
+
+**And the labelling set was the real constraint.** Only **8 of 96** ground-truthed frames landed
+within 40 ms of a lick — a mouse licking at 5–7 Hz has its tongue out for ~15 frames in 40, and
+fixed cue offsets are simply the wrong instrument for catching it. `dlc.frames.lick_per_session`
+now adds frames sampled AT lick onsets (2 per spout position, +8 ms ≈ 2 frames after contact, where
+the tongue is still out but better separated from the spout). The cohort set grew 624 → **930**
+frames, of which **306 are lick-locked**.
+
+Writing that up exposed a second thing: `select_licks` used a flat 3.5 s window where `daq_trials`
+bounds the response window at `min(cue + window, next_cue)`. Measured across all 306 lick frames,
+**0 were affected** — the ITI in these sessions is longer than the window — but the bound is now
+applied, because a lick belonging to the next trial would be filed under a spout position the tongue
+was not reaching for.
 
 `wfield_local/dlc_prelabel.py` writes the surviving predictions as DLC `CollectedData_Priya.{h5,csv}`
 in each `labeled-data/` folder: **2536 of 3120 possible points (81%) seeded across 312 cam4 frames**.

@@ -7,7 +7,7 @@ finds the nose on **8%** of them. Feed it the same frames resized to ``dlc.prela
 finds the nose on **97%**. Everything here follows from that: the weights are fine, the apparent
 size was wrong.
 
-Measured on the 312 extracted cam4 frames, 2026-09-08, at scale 0.45 (fraction of frames above 0.6):
+Measured on the extracted cam4 frames, 2026-09-08 (fraction of frames above 0.6, at scale 0.45):
 
     nose          0.97   dead on the nose pad; x holds 336-341 px across all six spout positions,
                          which is what head fixation says it must do
@@ -16,16 +16,22 @@ Measured on the 312 extracted cam4 frames, 2026-09-08, at scale 0.45 (fraction o
     spout         0.75   max-of-(L_spout, R_spout); lands at x=255/300/343/346/397/439 for
                          far_R/close_R/far_center/close_center/close_L/far_L -- it TRACKS the moving
                          spout, which is the non-trivial part
-    tongue        0.13   NOT WRITTEN -- see below
-    L_eye/R_eye   0.60   NOT WRITTEN -- hallucinated, the eyes are outside cam4's field of view
+    L_eye/R_eye   0.60   NOT WRITTEN -- hallucinated; the eyes are outside cam4's field of view
+                         entirely, and no threshold separates a hallucination from a weak detection
 
-**Two categories are deliberately withheld, and the likelihood does not tell them apart.** The eyes
-are not in frame at all, yet come back at 0.44-0.79 in the top corners. The tongue fires at 0.99 on
-the SPOUT while the tongue is out beside it. Its overall rate is honest — out on 27% of `early`
-(+0.4 s) frames versus 1% of ENL frames, which is licking behaviour, not failure — but a
-confidently misplaced point is worse than a blank one, because a point that is already placed
-invites being accepted rather than checked. Blank cells are what the labelling GUI shows as "you
-must place this".
+**NOT ONE SCALE FOR EVERYTHING** (``dlc.prelabel.scale_overrides``). The tongue was briefly on the
+withheld list, on the strength of a single overlay in which it sat on the spout. Twelve more
+overlays showed most markers at or near the tongue, biased toward the tongue-spout contact rather
+than wrong — and scoring against DAQ lick onsets, an objective "is the tongue out?" the network
+never saw, showed it is SPECIFIC: it fires on 0-1.3% of frames a full inter-lick interval away from
+any lick, against 12-50% of frames within 40 ms of one. It simply wants a bigger input than the nose
+does, monotonically across the sweep (1.00 > 0.60 > 0.45 > 0.35), so it is predicted at native scale
+and everything else at 0.45. One inference pass per distinct scale; 312 frames is seconds on the
+local GPU, so there is no reason to make the parts compete for one number.
+
+That measurement also showed the labelling set was the real constraint: only 8 of 96 ground-truthed
+frames landed within 40 ms of a lick, because a mouse licking at 5-7 Hz has its tongue out for ~15
+frames in 40. ``dlc_frames`` now adds LICK-LOCKED frames for exactly this reason.
 
 RUN THIS FROM THE ``dlc`` ENV, not ``locanmf``: DeepLabCut is installed only there (``pip install -e
 . --no-deps`` makes this repo importable from it). The donor project is copied locally before use
@@ -170,22 +176,47 @@ def predict(cfg_path: Path, video: Path, dest: Path) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float) -> pd.DataFrame:
+def scale_for(bp: str) -> float:
+    """The input scale this bodypart is predicted at.
+
+    NOT one scale for the whole frame. The donor's parts do not all prefer the same apparent size on
+    cam4 -- scored against DAQ lick onsets, the tongue is found on twice as many true tongue-out
+    frames at native scale as at 0.45, while the nose goes the other way (8% -> 97%). One scale for
+    everything would have to sacrifice one of them, and there is no reason to: the frames are cheap
+    to re-encode and inference over 312 of them is seconds.
+    """
+    pc = prelabel_cfg()
+    return float((pc.get("scale_overrides") or {}).get(bp, pc.get("scale", 0.45)))
+
+
+def scale_groups() -> dict[float, list[str]]:
+    """``{scale: [bodyparts predicted at it]}`` -- one inference pass per distinct scale."""
+    groups: dict[float, list[str]] = {}
+    for bp in bodyparts():
+        groups.setdefault(scale_for(bp), []).append(bp)
+    return groups
+
+
+def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float, only=None) -> pd.DataFrame:
     """Donor predictions -> this project's bodyparts, in ORIGINAL pixels, blanked below threshold.
 
     Returns one column pair per entry of ``dlc.bodyparts``, NaN where nothing is written -- NaN is
     what the labelling GUI reads as "unplaced", and every withheld cell is deliberate.
+
+    ``only`` restricts which bodyparts are filled; the rest come back NaN so the frames from several
+    scale passes can be merged column-wise without one pass overwriting another's work.
     """
     pc = prelabel_cfg()
     thresh = float(pc.get("min_likelihood", 0.6))
     never = set(pc.get("never_prelabel") or [])
     spout_from = list(pc.get("spout_from") or [])
+    wanted = set(bodyparts()) if only is None else set(only)
     n = len(pred)
     out = {}
     for bp in bodyparts():
         x = np.full(n, np.nan)
         y = np.full(n, np.nan)
-        if bp in never:
+        if bp in never or bp not in wanted:
             out[bp] = (x, y)
             continue
         if bp == "spout" and spout_from:
@@ -213,19 +244,25 @@ def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float) -> pd.DataFram
     return pd.DataFrame(data, columns=cols)
 
 
-def write_labels(labels: pd.DataFrame, index: pd.DataFrame, rv=None, dry: bool = False) -> list[Path]:
+def write_labels(labels: pd.DataFrame, index: pd.DataFrame, rv=None, dry: bool = False,
+                 force: bool = False) -> list[Path]:
     """Split by source folder and write DLC ``CollectedData_<scorer>.{h5,csv}``.
 
     REFUSES to overwrite an existing CollectedData file. Once a human has corrected labels, a
     re-run that replaced them would silently discard the work this whole module exists to save.
+
+    ``force`` overrides that, and exists because re-seeding is legitimate when the FRAME SET or the
+    scales change and the labels are still machine-generated. It is opt-in per invocation and never
+    implied by anything else, because this module cannot tell a seeded label from a corrected one --
+    only the person who did the correcting knows, which is why they have to say so.
     """
     root = out_root(rv) / "labeled-data"
     todo = []
     for stem, g in index.groupby("video_stem", sort=True):
         dest_h5 = root / stem / f"CollectedData_{SCORER}.h5"
-        if dest_h5.exists():
-            print(f"[dlc_prelabel] {stem}: CollectedData already exists -> NOT overwritten",
-                  flush=True)
+        if dest_h5.exists() and not force:
+            print(f"[dlc_prelabel] {stem}: CollectedData already exists -> NOT overwritten "
+                  f"(--force to re-seed)", flush=True)
             continue
         sub = labels.iloc[g.index].copy()
         sub.index = pd.MultiIndex.from_tuples([("labeled-data", stem, img) for img in g["image"]])
@@ -262,30 +299,46 @@ def coverage(labels: pd.DataFrame) -> pd.Series:
     return pd.Series({bp: float(labels[(SCORER, bp, "x")].notna().mean()) for bp in bodyparts()})
 
 
-def run(cam="cam4", scale=None, rv=None, dry=False, workdir=None):
+def merge_scales(parts: list[pd.DataFrame]) -> pd.DataFrame:
+    """Column-wise merge of one label frame per scale pass.
+
+    Each pass fills only its own bodyparts and leaves the rest NaN, so this is a fill rather than a
+    priority rule -- no pass can overwrite another's points, and a bodypart assigned to two scales
+    would be a config error rather than a silent last-writer-wins.
+    """
+    out = parts[0].copy()
+    for p in parts[1:]:
+        out = out.where(out.notna(), p)
+    return out
+
+
+def run(cam="cam4", scale=None, rv=None, dry=False, workdir=None, force=False):
     rv = rv or PathResolver()
-    scale = float(scale if scale is not None else prelabel_cfg().get("scale", 0.45))
     index = frame_index(cam, rv)
     if index.empty:
         print(f"[dlc_prelabel] no extracted {cam} frames -- run dlc_frames first", flush=True)
         return None
+    groups = ({float(scale): bodyparts()} if scale is not None else scale_groups())
     work = Path(workdir or Path(donor()["local_copy"]).parent / "prelabel")
-    video = work / f"{cam}_scale{scale:.2f}.avi"
-    print(f"[dlc_prelabel] {len(index)} {cam} frames at scale {scale:.2f}", flush=True)
-    dw, dh = build_video(index, scale, video)
 
     import cv2
     first = cv2.imread(index.iloc[0]["path"])
-    sx, sy = dw / first.shape[1], dh / first.shape[0]
-
-    pred = predict(ensure_local_donor(), video, work / "out")
-    labels = to_labels(pred, sx, sy)
+    cfg_path = ensure_local_donor()
+    parts = []
+    for s, bps in sorted(groups.items()):
+        video = work / f"{cam}_scale{s:.2f}.avi"
+        print(f"[dlc_prelabel] {len(index)} {cam} frames at scale {s:.2f} for "
+              f"{', '.join(bps)}", flush=True)
+        dw, dh = build_video(index, s, video)
+        pred = predict(cfg_path, video, work / f"out_{s:.2f}")
+        parts.append(to_labels(pred, dw / first.shape[1], dh / first.shape[0], only=bps))
+    labels = merge_scales(parts)
     cov = coverage(labels)
     print("[dlc_prelabel] seeded fraction per bodypart:", flush=True)
     for bp, v in cov.items():
         note = "  <- place by hand" if v == 0 else ""
         print(f"    {bp:16s} {v:5.1%}{note}", flush=True)
-    write_labels(labels, index, rv, dry)
+    write_labels(labels, index, rv, dry, force)
     return labels
 
 
@@ -295,10 +348,14 @@ def main(argv=None) -> int:
     ap.add_argument("--cam", default="cam4")
     ap.add_argument("--scale", type=float, default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="re-seed folders that already have CollectedData "
+                         "(ONLY when those labels are still machine-generated)")
     ap.add_argument("--workdir", default=None)
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)
-    run(args.cam, args.scale, PathResolver(machine=args.machine), args.dry_run, args.workdir)
+    run(args.cam, args.scale, PathResolver(machine=args.machine), args.dry_run,
+        args.workdir, args.force)
     return 0
 
 

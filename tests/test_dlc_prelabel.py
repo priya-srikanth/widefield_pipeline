@@ -32,10 +32,54 @@ def _x(labels, bp):
     return labels[(pl.SCORER, bp, "x")].to_numpy()
 
 
-def test_the_tongue_is_never_pre_labelled_however_confident():
-    """It fires at 0.99 on the SPOUT while the tongue is out beside it."""
-    labels = pl.to_labels(_pred(tongue=(50.0, 60.0, 1.0)), 1.0, 1.0)
-    assert np.isnan(_x(labels, "tongue")).all()
+def test_anything_listed_as_never_prelabel_stays_blank_however_confident(monkeypatch):
+    """The withholding mechanism, tested independently of who is currently on the list.
+
+    `tongue` was on it for one afternoon on the strength of a single overlay, and came off after
+    twelve more overlays and the lick-onset scoring. The list is a config decision; that it is
+    OBEYED is the invariant.
+    """
+    real = pl.prelabel_cfg()
+    monkeypatch.setattr(pl, "prelabel_cfg", lambda: {**real, "never_prelabel": ["jaw"]})
+    labels = pl.to_labels(_pred(jaw=(50.0, 60.0, 1.0)), 1.0, 1.0)
+    assert np.isnan(_x(labels, "jaw")).all()
+    assert not np.isnan(_x(labels, "nose")).any()
+
+
+def test_the_tongue_is_predicted_at_its_own_scale():
+    """Scored against DAQ lick onsets the tongue is found on 2x as many true tongue-out frames at
+    native scale as at 0.45, while the nose goes the other way (8% -> 97%). One scale for the whole
+    frame would have to sacrifice one of them."""
+    assert pl.scale_for("tongue") == 1.0
+    assert pl.scale_for("nose") == float(pl.prelabel_cfg()["scale"])
+    assert pl.scale_for("tongue") != pl.scale_for("nose")
+
+
+def test_every_bodypart_is_predicted_at_exactly_one_scale():
+    """A bodypart in two groups would be filled twice and the merge would hide which pass won."""
+    from wfield_local.dlc_frames import bodyparts
+    groups = pl.scale_groups()
+    flat = [bp for bps in groups.values() for bp in bps]
+    assert sorted(flat) == sorted(bodyparts())
+    assert len(flat) == len(set(flat))
+
+
+def test_only_restricts_which_bodyparts_a_pass_fills():
+    labels = pl.to_labels(_pred(), 1.0, 1.0, only=["nose"])
+    assert not np.isnan(_x(labels, "nose")).any()
+    assert np.isnan(_x(labels, "jaw")).all()
+
+
+def test_merging_scale_passes_never_lets_one_overwrite_another():
+    a = pl.to_labels(_pred(nose=(10.0, 10.0, 0.99)), 1.0, 1.0, only=["nose"])
+    b = pl.to_labels(_pred(jaw=(20.0, 20.0, 0.99)), 1.0, 1.0, only=["jaw"])
+    merged = pl.merge_scales([a, b])
+    assert _x(merged, "nose")[0] == 10.0
+    assert _x(merged, "jaw")[0] == 20.0
+
+    # Order must not matter -- each pass only ever fills cells the others left NaN.
+    other = pl.merge_scales([b, a])
+    assert _x(other, "nose")[0] == 10.0 and _x(other, "jaw")[0] == 20.0
 
 
 def test_the_eyes_never_reach_the_output_at_all():
@@ -158,9 +202,11 @@ def test_a_missing_pytables_fails_before_anything_is_written(tmp_path, monkeypat
     assert list((tmp_path / "labeled-data" / "cam4_stem").iterdir()) == []
 
 
-def test_coverage_reports_the_withheld_parts_as_zero():
+def test_coverage_reports_what_the_labeller_still_has_to_place(monkeypatch):
+    real = pl.prelabel_cfg()
+    monkeypatch.setattr(pl, "prelabel_cfg", lambda: {**real, "never_prelabel": ["jaw"]})
     cov = pl.coverage(pl.to_labels(_pred(), 1.0, 1.0))
-    assert cov["tongue"] == 0.0
+    assert cov["jaw"] == 0.0, "a withheld part must read as 0%, which is what prints 'by hand'"
     assert cov["nose"] == 1.0
 
 

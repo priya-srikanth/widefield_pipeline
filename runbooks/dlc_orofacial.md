@@ -80,22 +80,37 @@ python -m wfield_local.dlc_prelabel --cam cam4 --dry-run   # coverage report, wr
 python -m wfield_local.dlc_prelabel --cam cam4
 ```
 
-Writes `CollectedData_Priya.{h5,csv}` into each `labeled-data/` folder — **2536 of 3120 points (81%)
-seeded across the 312 cam4 frames.** Refuses to overwrite an existing CollectedData, so a re-run
-cannot discard corrections.
+Writes `CollectedData_Priya.{h5,csv}` into each `labeled-data/` folder — **~83% of points seeded
+across the 465 cam4 frames.** Refuses to overwrite an existing CollectedData unless you pass
+`--force`, so a re-run cannot discard corrections.
 
-| seeded | leave to you |
-|---|---|
-| nose 97%, whiskers 81–100%, jaw 78%, spout 75% | **tongue — every frame** |
+Seeded fraction, by within-trial phase — the phase matters more than the average:
 
-**The blanks are deliberate.** The eyes are outside cam4's field of view yet come back at 0.44–0.79
-in the top corners, and the tongue fires at **0.99 on the spout** while the tongue is out beside it.
-Likelihood does not separate those from the good predictions — an overlay does. A blank cell is what
-the labelling GUI shows as "place this"; a wrong point invites being accepted rather than checked.
+| phase | n | tongue | jaw | nose | spout |
+|---|---|---|---|---|---|
+| ENL (−0.6 s) | 78 | 2.6% | 91% | 96% | 69% |
+| Cue (+0.05 s) | 78 | 5.1% | 89% | 99% | 78% |
+| early (+0.4 s) | 78 | 35% | 58% | 96% | 78% |
+| late (+1.5 s) | 78 | 14% | 74% | 96% | 74% |
+| **lick-locked** | **153** | **61%** | **13%** | 98% | 84% |
 
-So the manual pass is: **place the tongue, then check the rest.** Expect to move some whisker points
-— they land on the whisker field but their anatomical identity across the two rigs is not
-guaranteed.
+**The tongue is found where the tongue is out** (61% on lick-locked frames) and is near-silent when
+it is in (2.6% on ENL). The **jaw** is the part that needs you most: it falls to 13% on lick frames,
+because the chin point the donor learned is occluded once the mouth is open at the spout.
+
+**The eyes stay blank on purpose** — outside cam4's field of view entirely, yet returned at
+0.44–0.79 in the top corners. A hallucination is not a weak detection and no threshold separates
+them. A blank cell is what the labelling GUI shows as "place this".
+
+**The tongue seed has a consistent offset.** It lands at the tongue–spout CONTACT — the lower edge
+of the tongue where it meets the tube — not at the tip or centroid. That is where the donor's own
+label sat on the old rig. Consistent bias is the easy kind: decide once where you want `tongue` to
+be, and every seeded point needs the same nudge in the same direction. **Decide it before you
+start**, because that choice defines the kinematic variable for the whole study.
+
+So the manual pass is: **place the jaw on lick frames, fill the missing tongues, nudge the seeded
+ones to your chosen landmark, check the rest.** Expect to move some whisker points too — they land
+on the whisker field, but their anatomical identity across the two rigs is not guaranteed.
 
 ### First-time `dlc` env setup (this box)
 

@@ -706,12 +706,14 @@ growing a second set beside the one already annotated.
 
 **`dlc_prelabel`** (run from the **`dlc`** env, not `locanmf`) runs the 2pRAM network over those
 frames and writes what it gets right as DLC `CollectedData_Priya.{h5,csv}`, so labelling is
-correction rather than blank-page work — **81% of points seeded** on cam4. The trick is
+correction rather than blank-page work — **~83% of points seeded** on cam4. The trick is
 `dlc.prelabel.scale`: DLC does not rescale at inference and cam4 is ~2.5× more zoomed than the
-donor's view, so at native scale the nose is found on 8% of frames and at 0.45 on 97%. The tongue and
-the eyes are deliberately left blank (`dlc.prelabel.{never_prelabel,drop}`) — both are predicted
-*confidently and wrongly*, and no likelihood threshold separates them from the good predictions.
-Existing CollectedData files are never overwritten.
+donor's view, so at native scale the nose is found on 8% of frames and at 0.45 on 97%. Not one scale
+for everything, though — `scale_overrides` predicts the **tongue at native scale**, where it is
+found on 61% of lick-locked frames against 2.6% of pre-cue ones. Only the **eyes** are withheld
+(`drop`): outside cam4's field of view entirely, yet returned at 0.44–0.79 in the top corners, and no
+threshold separates a hallucination from a weak detection. Existing CollectedData files are never
+overwritten without `--force`.
 
 ```powershell
 conda activate dlc

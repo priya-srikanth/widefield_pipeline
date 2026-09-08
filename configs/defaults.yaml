@@ -241,6 +241,18 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       Cue: 0.05               # within the 100 ms cue pulse
       early: 0.40             # first licks -- where the tongue is out and worth labelling
       late: 1.50              # into the response window; consummatory licking or a failed attempt
+    lick_per_session: 12      # ADDITIONAL frames sampled AT DAQ lick onsets, 2 per spout position.
+                              # Fixed cue offsets are the wrong instrument for the tongue: scored
+                              # against DAQ licks, only 8 of 96 ground-truthed frames landed within
+                              # 40 ms of a lick, because a mouse at 5-7 Hz has its tongue out ~15
+                              # frames in 40. The tongue is therefore under-represented in the set
+                              # by construction, which is a labelling-set problem and not a network
+                              # one. The lick sensor fires on tongue-SPOUT CONTACT, so a frame at a
+                              # lick onset is a frame with the tongue out, by measurement.
+    lick_offset_s: 0.008      # 2 frames after contact at 250 fps. AT the onset the tongue is at the
+                              # spout and maximally occluded by it; a couple of frames later it is
+                              # still out and better separated. Not later than that -- by ~40 ms it
+                              # is retracting.
     seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
                               # rather than quietly growing a second labelling set.
   donor:                      # The 2pRAM network, used as a PRE-LABELLER (and later as training
@@ -252,6 +264,23 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
     shuffle: 5
     trainingsetindex: 0
     snapshot: snapshot-best-060.pt
+    conversion:               # For TRAINING (DLC 3.x weight init), which is strictly 1:1 -- one
+                              # donor bodypart per target. Distinct from `prelabel.spout_from`,
+                              # which may merge two donor channels because seeding a label is not
+                              # constrained the way initialising a head channel is.
+      nose: nose
+      jaw: jaw
+      tongue: tongue
+      L_whiskers_1: L_whiskers_1
+      L_whiskers_2: L_whiskers_2
+      L_whiskers_3: L_whiskers_3
+      R_whiskers_1: R_whiskers_1
+      R_whiskers_2: R_whiskers_2
+      R_whiskers_3: R_whiskers_3
+      spout: R_spout          # R, not L: it clears 0.6 on 53% of frames against L's 23%, and covers
+                              # far_R..close_L while L covers only close_center..far_L.
+                              # (L_eye, R_eye, and the unused donor spout have no target and are
+                              #  dropped -- their head channels are re-initialised.)
 
   prelabel:                   # Run the donor over the extracted frames and seed DLC's labels with
                               # what it gets right, so labelling is CORRECTION rather than blank-page
@@ -260,14 +289,23 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # more zoomed than the donor's view, so at native scale the nose is
                               # found on 8% of frames. At 0.45 it is found on 97%. Swept
                               # 1.0/0.6/0.45/0.35/0.28; 0.45 and 0.60 are close, 0.45 wins on nose.
+    scale_overrides:          # NOT every part prefers the same apparent size. Scored against DAQ
+                              # lick onsets -- an objective "is the tongue out?" the network never
+                              # saw -- the tongue is found on 50% of true tongue-out frames at
+                              # native scale and only 25% at 0.45, monotonically across the sweep
+                              # (1.00 > 0.60 > 0.45 > 0.35), while firing on 0-1.3% of no-lick
+                              # frames throughout. So it is SPECIFIC, and it simply wants a bigger
+                              # input than the nose does. One inference pass per distinct scale;
+                              # 312 frames is seconds on the local GPU.
+      tongue: 1.0
     min_likelihood: 0.6       # below this the point is left BLANK for manual placement. The donor's
                               # own pcutoff was 0.6 at evaluation.
-    never_prelabel:           # Predicted CONFIDENTLY and WRONGLY -- worse than no label, because a
-                              # placed point invites being accepted rather than checked.
-      - tongue                #   fires at 0.99 on the SPOUT while the tongue is out beside it.
-                              #   Genuinely low most of the time (out only during licking: 27% of
-                              #   `early` frames vs 1% of ENL), so the low rate is correct behaviour
-                              #   -- it is the confident firings that are wrong.
+    never_prelabel: []        # WAS [tongue], on the strength of one overlay where it sat on the
+                              # spout. Checking twelve showed most markers at or near the tongue,
+                              # biased toward the tongue-spout contact rather than wrong -- and the
+                              # lick-onset scoring above showed it discriminates tongue-out from
+                              # tongue-in frames cleanly. It is seeded, at its own scale, and
+                              # checked like everything else.
     drop:                     # Not in frame on cam1/cam4 at all, yet predicted at 0.44-0.79 in the
       - L_eye                 # top corners. A hallucination is not a weak detection and no
       - R_eye                 # likelihood threshold separates them.
