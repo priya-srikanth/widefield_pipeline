@@ -164,7 +164,7 @@ def print_plan(proj: Path, rv=None, cams=None) -> None:
           "trained on it learns to hallucinate", flush=True)
 
 
-def run(create=False, cams=None, rv=None, label=False) -> Path:
+def run(create=False, cams=None, rv=None, label=False, folder=None) -> Path:
     rv = rv or PathResolver()
     proj = project_dir(rv)
     if not (proj / "config.yaml").exists() and not create:
@@ -175,28 +175,40 @@ def run(create=False, cams=None, rv=None, label=False) -> Path:
           flush=True)
     print_plan(proj, rv, cams)
     if label:
-        open_gui(cfg)
+        open_gui(cfg, folder)
     return proj
 
 
-def open_gui(cfg: Path) -> None:
-    """Open DLC's labelling GUI, or explain what to install.
+def open_gui(cfg: Path, folder: str | None = None) -> None:
+    """Open DLC's labelling GUI and BLOCK until it is closed.
 
-    ``pip install deeplabcut[pytorch]`` gets inference and training but NOT the Qt GUI, and the
-    resulting failure is an ``AttributeError`` on ``label_frames`` several frames below a
+    ``deeplabcut.label_frames`` builds a napari viewer and returns it without starting a Qt event
+    loop (``deeplabcut/gui/widgets.py::launch_napari``). From IPython that is fine -- the loop is
+    already hooked -- but from ``python -m`` the call returns, the interpreter exits, and the viewer
+    is torn down mid-construction. That is the
+
+        QThread: Destroyed while thread 'StatusChecker' is still running
+
+    seen on 2026-09-08: not a broken project, an unstarted event loop. ``napari.run()`` supplies it.
+
+    ``pip install deeplabcut[pytorch]`` also gets inference and training but NOT the Qt GUI, whose
+    failure lands as an ``AttributeError`` on ``label_frames`` several frames below a
     ``ModuleNotFoundError: qtpy`` -- which reads as a broken project rather than a missing extra.
     """
     import deeplabcut
 
-    print("\n[dlc_project] opening the labelling GUI ...", flush=True)
+    print("\n[dlc_project] opening the labelling GUI (close the window to return) ...", flush=True)
     try:
-        deeplabcut.label_frames(str(cfg))
+        deeplabcut.label_frames(str(cfg), folder) if folder else deeplabcut.label_frames(str(cfg))
     except (AttributeError, ImportError) as exc:
         raise SystemExit(
             f"DeepLabCut has no GUI in this environment ({exc}).\n"
             f"  conda activate dlc && pip install \"deeplabcut[gui]\"\n"
             f"Then re-run. The project itself is built and unaffected:\n  {cfg}"
         ) from exc
+
+    import napari
+    napari.run()          # without this the viewer is destroyed the moment this function returns
 
 
 def main(argv=None) -> int:
@@ -206,9 +218,11 @@ def main(argv=None) -> int:
     ap.add_argument("--cam", action="append", default=None,
                     help="restrict to these cameras (repeatable; default: all with frames)")
     ap.add_argument("--label", action="store_true", help="open the DLC labelling GUI afterwards")
+    ap.add_argument("--folder", default=None,
+                    help="labeled-data folder to open first (default: the alphabetically first)")
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)
-    run(args.create, args.cam, PathResolver(machine=args.machine), args.label)
+    run(args.create, args.cam, PathResolver(machine=args.machine), args.label, args.folder)
     return 0
 
 
