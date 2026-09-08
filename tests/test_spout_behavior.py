@@ -194,24 +194,24 @@ def test_first_lick_latency_from_events(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000",
                        [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=2, hit=True)], events)
     tr = sb.load_trials(d)
-    lat = sb.first_lick_latency_s(d, tr, max_s=5.0)
+    lat = sb.first_lick_latency_s(d, tr)
     assert lat.iloc[0] == pytest.approx(0.3)
     assert lat.iloc[1] == pytest.approx(0.05)
 
 
 def test_latency_nan_without_events(tmp_path):
     d = _write_session(tmp_path, "PS92_20260806_120000", [dict(tid=1, pos_idx=1, hit=True)])
-    lat = sb.first_lick_latency_s(d, sb.load_trials(d), max_s=5.0)
+    lat = sb.first_lick_latency_s(d, sb.load_trials(d))
     assert lat.isna().all()
 
 
 def test_latency_capped(tmp_path):
     events = [
         {"device_t_ms": 1000, "event_name": "cue", "trial_id": 1},
-        {"device_t_ms": 9000, "event_name": "lick_on", "trial_id": 1},   # 8 s > cap
+        {"device_t_ms": 9000, "event_name": "lick_on", "trial_id": 1},   # 8 s, long past the window
     ]
     d = _write_session(tmp_path, "PS92_20260806_120000", [dict(tid=1, pos_idx=1, hit=True)], events)
-    lat = sb.first_lick_latency_s(d, sb.load_trials(d), max_s=5.0)
+    lat = sb.first_lick_latency_s(d, sb.load_trials(d))
     assert lat.isna().all()
 
 
@@ -316,7 +316,7 @@ def test_load_licks_gui_fallback_and_latency(tmp_path):
     licks = sb.load_licks(d, rv=None)      # no rv -> GUI fallback (no DAQ events)
     assert licks["source"] == "GUI" and licks["all_s"].size == 3
     assert licks["cue_next_by_trial"].loc[1] == pytest.approx(2.0)   # next cue
-    lat = sb.first_lick_latency_s(d, sb.load_trials(d), 5.0, licks=licks)
+    lat = sb.first_lick_latency_s(d, sb.load_trials(d), licks=licks)
     assert lat.iloc[0] == pytest.approx(0.3)
 
 
@@ -910,3 +910,29 @@ def test_far_position_misses_still_cannot_trip_the_imaging_gate():
     pos = np.array(["close_L", "close_center"] * 10 + ["far_R"] * 15 + ["far_center"] * 15)
     resp = np.array([True] * 20 + [False] * 30)
     assert not engagement_gate(np.arange(len(pos)), resp, pos).any()
+
+
+def test_latency_comes_from_the_trial_table_and_never_outlives_the_response_window():
+    """First-lick latency and hit/miss must be the SAME judgement, not two windows.
+
+    `daq_trials.build_trials` scores both together over [cue, min(cue+response_window, next_cue)],
+    so latency exists on exactly the responded trials. `spout_behavior` used to recompute it
+    against a separate `latency_max_s` of 5.0 s -- wider than the task's 3.5 s window -- so a lick
+    made while the spout was already returning to dock became the "response latency" of a trial
+    scored a MISS. On PS94 2026-08-23 far contra that reported a median of 3.91 s where the animal,
+    on the 8 trials it actually responded, licked at 0.49 s (Priya, 2026-09-08).
+    """
+    import pathlib
+    trials = pd.DataFrame({
+        "trial_id": [1, 2, 3, 4],
+        "responded": [True, False, True, False],
+        # a MISS may carry no latency, however late the animal licked afterwards
+        "latency_s": [0.30, np.nan, 3.10, np.nan],
+    })
+    lat = sb.first_lick_latency_s(pathlib.Path("unused"), trials)
+    assert np.isfinite(lat.to_numpy(dtype=float)).tolist() == trials["responded"].tolist()
+    assert np.nanmax(lat.to_numpy(dtype=float)) <= 3.5
+
+    # and the config key that was the second window must stay retired
+    from wfield_local import config
+    assert "latency_max_s" not in (config.defaults().get("behavior") or {})

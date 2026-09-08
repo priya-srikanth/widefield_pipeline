@@ -219,17 +219,31 @@ def categorize(s, args):
     # the contrast this module measures, and post-stroke the mixture will be different again, so the
     # comparison would be between two different blends.
     #
-    # flag_engagement is the pipeline's existing gate and is reused rather than reimplemented; it
-    # already has the property this needs -- a patch of hard-POSITION misses does not trip it while
-    # the animal keeps hitting easy positions, so PS93's far_L attempts stay in the engaged period
-    # instead of being written off as disengagement.
-    from wfield_local.spout_behavior import flag_engagement
-    eng = config.defaults()["behavior"]["engagement"]
+    # SWITCHED OFF `flag_engagement` 2026-09-08. The comment here used to justify that gate by
+    # claiming "a patch of hard-POSITION misses does not trip it while the animal keeps hitting easy
+    # positions". IT DOES NOT HAVE THAT PROPERTY -- it is position-BLIND, judging one rolling
+    # response rate over all six spouts. Measured on the sessions on disk: it excludes 380 of
+    # PS94_0817's 643 trials and 224 of PS95_0817's 720, where the reference gate excludes NONE, and
+    # PS94_0817 is the very session named elsewhere as the one that must not be called disengaged.
+    #
+    # THAT MATTERS HERE SPECIFICALLY BECAUSE THIS MODULE IS NOT PRE-STROKE-ONLY. Its date default is
+    # `curated_dates()` (phase="pre"), but the nightly passes `from_list`, which -- as nightly_figs
+    # says at its freeze guard -- ALWAYS contains post-stroke dates; only the frozen
+    # `nolick_reference_prestroke.json` is pre-only. So the gate runs on post-stroke sessions, where
+    # a position-blind collapse IS the motor deficit, and splitting `undetected` into working vs
+    # disengaged on it would file the effect under the confound -- circular, in the one arm built to
+    # separate "no plan formed" from "plan formed, movement fell short" (Priya, 2026-09-08).
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.precue_engagement_states import engagement_gate
     responded = np.array([c == "engaged" or c == "late_rewarded" for c in cat], bool)
+    #: Reference positions in CODE space, from the same names the rest of the pipeline gates on.
+    #: Derived here rather than imported from `poststroke_compare` (which imports this module).
+    ref_codes = tuple(c for c, nm in POSITION_NAMES.items()
+                      if nm in ("close_L", "close_center"))
     try:
-        sess_eng, _info = flag_engagement(responded, window=eng["window_trials"],
-                                          min_rate=eng["min_response_rate"],
-                                          tail_min_misses=eng["tail_min_misses"])
+        _not_eng = engagement_gate(np.arange(len(codes)), responded, np.asarray(codes),
+                                   reference=ref_codes)
+        sess_eng = ~np.asarray(_not_eng, bool)
     except Exception as ex:                                            # noqa: BLE001
         print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
               flush=True)

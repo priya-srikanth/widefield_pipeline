@@ -702,6 +702,13 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
 
     Returns (engaged_bool per trial, info). Trials at non-reference positions inherit the state of
     the reference-position trials around them, since that is what the estimate is FOR.
+
+    THE RULE ITSELF NOW LIVES IN ONE PLACE: this delegates to
+    `precue_engagement_states.engagement_gate`, which supplies the non-recovery requirement and the
+    backdating to the start of the run of misses that trips the gate. ``min_rate`` is therefore no
+    longer read (the shared gate owns its own ``MIN_RATE``), and ``window`` survives only as the
+    "too few reference trials to gate at all" guard. Both are kept in the signature so existing
+    callers do not break; neither now changes the answer.
     """
     from wfield_local import nolick_decoder as nd
 
@@ -721,21 +728,20 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     ref_idx = np.flatnonzero(is_ref & (codes >= 0))
     if ref_idx.size < window:
         return eng, {"note": "too few reference-position trials to gate", "n_ref": int(ref_idx.size)}
-    # rolling response rate over REFERENCE trials only, then mapped back onto the full trial order
-    r = responded[ref_idx].astype(float)
-    roll = np.array([r[max(0, i - window + 1):i + 1].mean() for i in range(r.size)])
-    low = roll < min_rate
-    for j, k in enumerate(ref_idx):
-        eng[k] = not low[j]
-    # non-reference trials take the state of the nearest preceding reference trial
-    last = True
-    for k in range(codes.size):
-        if is_ref[k] and codes[k] >= 0:
-            last = eng[k]
-        else:
-            eng[k] = last
+    # DELEGATED 2026-09-08 (Priya: "replace poststroke_engagement to be consistent with the same
+    # engagement gate we use everywhere else"). This used to carry its own copy of the rule -- a
+    # rolling reference-rate threshold with no non-recovery requirement and no backdating -- so it
+    # agreed with `engagement_gate` on the easy sessions and diverged on exactly the hard ones:
+    # a dip that recovers tripped it, and the run of misses that trips it stayed "engaged" up to
+    # the crossing point. Same inputs, one definition. `engagement_gate` compares with `np.isin`,
+    # so the integer position codes used here work unchanged.
+    from wfield_local.precue_engagement_states import engagement_gate
+    not_eng = engagement_gate(np.arange(codes.size), responded, codes,
+                              reference=tuple(reference_positions))
+    eng = ~np.asarray(not_eng, bool)
     return eng, {"n_ref": int(ref_idx.size), "ref_response_rate": float(responded[ref_idx].mean()),
                  "frac_disengaged": float((~eng).mean()),
+                 "gate": "precue_engagement_states.engagement_gate",
                  "reference_positions": sorted(int(c) for c in reference_positions)}
 
 

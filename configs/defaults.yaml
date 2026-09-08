@@ -126,7 +126,11 @@ lick_detection:            # DAQ lick_analog (ai0) — shared by behavior + imag
 # these params only govern the engagement gate + latency, NOT lick re-detection.
 behavior:
   free_reward_excluded: true      # drop free-reward (non-scored) trials from accuracy
-  latency_max_s: 5.0              # first-lick latency past this (from cue) -> treat as no response
+  # latency_max_s RETIRED 2026-09-08. It was a SECOND response window (5.0 s) beside the task's
+  # real one (3.5 s, read per session from gui_config.json), so a lick made after the window
+  # closed -- while the spout was already returning to dock -- was reported as that trial's
+  # response latency on a trial scored a MISS. First-lick latency now comes from the same
+  # `latency_s` the trial table scores hit/miss with. See spout_behavior.first_lick_latency_s.
   min_session_trials: 20          # skip near-empty aborted runs (fewer scored trials than this)
   engagement:                     # separate a sated/disengaged tail from genuine spatial inaccuracy
     window_trials: 15             # trailing window for the rolling response (lick-in-window) rate

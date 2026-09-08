@@ -362,14 +362,35 @@ def load_licks(session_dir: Path, rv=None, trials: pd.DataFrame | None = None) -
             "precue_reset_by_trial": gui["precue_reset_by_trial"], "source": source}
 
 
-def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, max_s: float,
-                         licks: dict | None = None, rv=None) -> pd.Series:
-    """Per-trial first-lick latency (s): first lick in ``[cue, min(cue+max_s, next_cue)]``. NaN where no
-    events, no cue, or none in window. Pass a pre-loaded ``licks`` dict to avoid re-parsing."""
+def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, licks: dict | None = None,
+                         rv=None, params: dict | None = None) -> pd.Series:
+    """Per-trial first-lick latency (s) -- the SAME definition that scored hit/miss.
+
+    PREFERS THE COLUMN THE TRIAL TABLE ALREADY CARRIES. `daq_trials.build_trials` scores
+    hit/miss and latency together over ``[cue, min(cue + response_window, next_cue)]``, so a trial
+    with no lick in the window is a miss AND has no latency, by construction.
+
+    THIS USED TO RECOMPUTE THE NUMBER against a separate ``latency_max_s`` of 5.0 s, wider than the
+    task's 3.5 s response window, so a lick made after the window closed -- while the spout was
+    already returning to dock -- was reported as that trial's response latency even though the trial
+    was scored a MISS. On PS94 2026-08-23 far contra that turned 8 real responses into 21
+    "latencies" and reported a median of 3.91 s where the animal, on the trials it actually
+    responded, licked at 0.49 s: a failure to respond rendered as slow responding, at exactly the
+    position carrying the deficit (Priya, 2026-09-08). The second window is gone rather than
+    corrected -- two constants for one quantity is how they drift apart again.
+
+    The recompute survives ONLY for the log fallback, whose table has no ``latency_s``, and it now
+    uses that session's real response window so both paths mean the same thing.
+    """
+    if "latency_s" in trials.columns:
+        return pd.to_numeric(trials["latency_s"], errors="coerce")
     idx = pd.Series(np.nan, index=trials.index)
     licks = licks if licks is not None else load_licks(session_dir, rv)
     if licks is None:
         return idx
+    from wfield_local import daq_trials
+    max_s, _src = daq_trials.response_window_s(
+        session_dir, (params or {}).get("response_window_s", 2.0))
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
     for i, row in trials.iterrows():
         tid = row["trial_id"]
@@ -1192,7 +1213,7 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
               f"(< {min_trials}; aborted run?)", flush=True)
         return None, None
     licks = load_licks(session_dir, rv, trials=trials)
-    latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), licks=licks)
+    latency = first_lick_latency_s(session_dir, trials, licks=licks, params=params)
     m = session_metrics(trials, latency, params)
     # one microstructure pass feeds BOTH figures (the by-position lick row is shared)
     micro = (lick_microstructure(session_dir, trials, params, licks=licks,
@@ -1325,7 +1346,7 @@ def session_row(session_dir: Path, params: dict, rv=None) -> dict | None:
     if len(trials) < params.get("min_session_trials", 20):
         return None
     licks = load_licks(session_dir, rv, trials=trials)
-    latency = first_lick_latency_s(session_dir, trials, params.get("latency_max_s", 5.0), licks=licks)
+    latency = first_lick_latency_s(session_dir, trials, licks=licks, params=params)
     m = session_metrics(trials, latency, params)
     micro = (lick_microstructure(session_dir, trials, params, licks=licks,
                                  engaged_ids=_engaged_ids(m)) if licks is not None else None)
