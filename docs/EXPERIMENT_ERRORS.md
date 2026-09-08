@@ -8,6 +8,40 @@ Newest first. Each entry: what happened → what it costs → what we do → wha
 
 ---
 
+## 2026-09-08 — PS92: session-wide camera frame drops (~9–12%; cameras only)
+
+**What happened.** All four Blackfly cameras dropped a large fraction of frames throughout PS92's
+13:36 session — cam1 155,602 (8.5%) / cam2 156,522 (8.6%) / cam3 156,685 (8.6%) / cam4 212,973 (11.7%)
+— spread across 50k–57k small gaps (max gap 43–62 frames, ~0.2 s), with effective fps sagging to
+220–228 against the nominal 250. PS93's 11:10 session on the same rig the same day was pristine
+(0 drops, 249.81 fps, ~1.15 ms sync residual). Tens of thousands of *small* gaps rather than one
+large one is throughput starvation during acquisition — the capture/write path could not keep up —
+not a crash+concat (contrast the 8/12 entry).
+
+**How it was caught.** `dropframe_qc` + `camera_sync` in the camera nightly. cam4's sync residual
+rose to **13.56 ms** (vs ~1.15 ms on a clean session) and its alignment template failed the
+`quality_ok` gate, so PS92's example clips were skipped; cam1–3 residuals (6.3–9.7 ms) passed the
+gate but were built on drop-heavy data. `dropped_frames_summary_20260908.{csv,txt}` on MICROSCOPE
+records the per-cam counts.
+
+**What it costs.** Nothing on the analysis paths: behavior is DAQ-based (PS92 scored 389 trials /
+6 positions normally) and imaging/LocaNMF rides the `pco_exposure` clock — both independent of the
+Blackfly frames. The cost falls on camera-derived products for PS92 9/8: the cam4 template was not
+written (clips skipped), and any later DLC/orofacial kinematics on this session run on ~9–12% fewer
+frames. The camera→DAQ affine mapping is built on absolute timestamps and is drop-proof, so the
+frames that *were* captured still map to DAQ time correctly.
+
+**What we do.** Kept the raw `.avi`/`.camlog` (uploaded and byte-verified on MICROSCOPE). The drops
+are baked into the recording — identical on the local and server copies — so deleting local staging
+loses nothing the server does not have, and no re-run recovers frames that were never captured.
+
+**Still open.** The cause of the starvation (disk I/O vs USB bandwidth vs competing load during the
+afternoon slot) — worth watching whether it recurs specifically on PS92's later session. The three
+templates that passed on drop-heavy data (cam1–3, 6–10 ms) are usable but lower quality than a clean
+session's ~1 ms.
+
+---
+
 ## 2026-09-07 — PS92/PS93 8/18: behavior-camera folders swapped at acquisition (corrected)
 
 **What happened.** On `20260818` the two behavior-camera folders were written under the wrong animal
