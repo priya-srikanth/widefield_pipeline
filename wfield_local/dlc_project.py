@@ -175,10 +175,28 @@ def run(create=False, cams=None, rv=None, label=False) -> Path:
           flush=True)
     print_plan(proj, rv, cams)
     if label:
-        import deeplabcut
-        print("\n[dlc_project] opening the labelling GUI ...", flush=True)
-        deeplabcut.label_frames(str(cfg))
+        open_gui(cfg)
     return proj
+
+
+def open_gui(cfg: Path) -> None:
+    """Open DLC's labelling GUI, or explain what to install.
+
+    ``pip install deeplabcut[pytorch]`` gets inference and training but NOT the Qt GUI, and the
+    resulting failure is an ``AttributeError`` on ``label_frames`` several frames below a
+    ``ModuleNotFoundError: qtpy`` -- which reads as a broken project rather than a missing extra.
+    """
+    import deeplabcut
+
+    print("\n[dlc_project] opening the labelling GUI ...", flush=True)
+    try:
+        deeplabcut.label_frames(str(cfg))
+    except (AttributeError, ImportError) as exc:
+        raise SystemExit(
+            f"DeepLabCut has no GUI in this environment ({exc}).\n"
+            f"  conda activate dlc && pip install \"deeplabcut[gui]\"\n"
+            f"Then re-run. The project itself is built and unaffected:\n  {cfg}"
+        ) from exc
 
 
 def main(argv=None) -> int:

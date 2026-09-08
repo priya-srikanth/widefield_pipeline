@@ -245,10 +245,15 @@ on the whisker field, but their anatomical identity across the two rigs is not g
 ```powershell
 conda create -n dlc python=3.10 -y
 conda activate dlc
-pip install "deeplabcut[pytorch]"
+pip install "deeplabcut[pytorch,gui]"
 pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.11.0+cu128 torchvision==0.26.0+cu128
 pip install -e C:\Users\SabatiniLab\Github\widefield_pipeline --no-deps    # makes wfield_local importable
 ```
+
+**`[gui]` is not optional if you intend to label.** `deeplabcut[pytorch]` alone gets inference and
+training but no Qt, and the failure surfaces as `AttributeError: 'label_frames' is unavailable`
+several frames below a `ModuleNotFoundError: qtpy` — which reads as a broken project rather than a
+missing extra. Add it later with `pip install "deeplabcut[gui]"`; nothing else needs redoing.
 
 The cu128 wheels are not optional — the RTX 5060 is Blackwell and the default torch build is CPU-only
 here. Measured: 217 fps at 320×320, 66 fps at 672×672.
