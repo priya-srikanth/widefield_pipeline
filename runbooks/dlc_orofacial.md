@@ -19,31 +19,48 @@ conda activate locanmf
 python -m wfield_local.dlc_calibration          # newest camera_calibration_<YYYYMMDD>/
 ```
 
-Read the **pair** table, not the per-camera table. A camera that sees the board on 90% of frames but
-never at the same instant as another cannot be placed relative to it, and the per-camera numbers look
-excellent in exactly that case. The verdict line is the answer.
+Read the **poses** column, not the frame counts. A board held still in front of a camera is one
+view of it however many frames that fills, and a calibration is constrained by distinct views. On
+`camera_calibration_20260805` at 50 Hz:
 
-As of `camera_calibration_20260805` the pair graph has three components — `cam1+cam4`, `cam2`,
-`cam3` — so **3D reconstruction is blocked on a re-recorded calibration**. 2D labelling on
-`cam4`/`cam1` is not blocked and can proceed in parallel.
+| cam | usable frames | **poses** | px/bit | | pair | frames | **poses** |
+|---|---|---|---|---|---|---|---|
+| cam1 | 6350 | 20 | 5.2 | | cam1-cam4 | 6163 | 22 OK |
+| cam2 | 70 | 16 | **2.1** | | cam1-cam2 | 69 | 16 OK |
+| cam3 | 8 | 7 | ~2 | | cam2-cam4 | 70 | 16 OK |
+| cam4 | 8969 | **4** | 5.2 | | cam1-cam3 | 8 | 7 thin |
+| | | | | | cam3-cam4 | 8 | 7 thin |
+| | | | | | cam2-cam3 | 0 | 0 none |
+
+So the board **was** presented to the side views, repeatedly — 12 separate episodes each, spread
+across the whole recording. Two things are wrong with it, and neither is "you didn't sweep enough":
+
+1. **The board is too small for `cam2`/`cam3`.** Their markers come out at ~2.1 px per code cell
+   against `cam4`'s 5.1; a DICT_4X4 marker is 6 cells across and stops decoding below ~3. The squares
+   are found and then rejected — 58 rejected candidates in one cam2 frame. No detector setting fixes
+   this. **Print the board ~2.5x larger, or hold it that much closer to the side cameras.**
+2. **`cam4` was held, not swept.** 8,969 usable frames and **four** distinct poses. It looks like the
+   best camera in the rig on every frame-based measure and has the least-constrained intrinsics.
 
 ### Re-recording the calibration
 
 1. Animal off the rig. All four cameras recording, as in a session.
-2. Move the ChArUco board slowly through poses where **two cameras see it at once**, and work every
-   pair you can: `cam1↔cam4` (already fine), `cam2↔cam1`, `cam2↔cam4`, `cam3↔cam1`, `cam3↔cam4`.
-   `cam2↔cam3` face opposite sides and may share no field of view at all — that is fine, the graph
-   only has to be *connected*, not complete.
-3. The side views see the board small and oblique across a much wider FOV, which is why they failed
-   before. Hold it **closer to cam2/cam3**, or print a **larger** board.
-4. Slowly. At 250 fps motion blur is not the limit, but a board swept through a pose in three frames
-   contributes three near-identical views.
+2. **Use a bigger board** — ~2.5x the current one, so the side views get ≥3 px per code cell. It will
+   overflow `cam1`/`cam4`'s tight framing at close range; that is fine, ChArUco handles partial
+   boards, and those two already resolve it comfortably.
+3. **Move it constantly**: pause ~0.5 s per pose, then change position AND tilt. Aim for **≥20
+   distinct poses per camera** and **≥15 shared per pair**. Holding it steady adds frames, not poses,
+   which is exactly the mistake in the 08-05 recording.
+4. Work the pairs deliberately: `cam3↔cam1` and `cam3↔cam4` are the thin ones (7 poses each), and
+   `cam2↔cam3` has none. `cam2↔cam3` face opposite sides and may share no field of view at all —
+   that is fine, the graph only has to be *connected*, not complete.
 5. Save as `Behavior_Cameras/camera_calibration_<YYYYMMDD>/` — `dlc_calibration` picks up the newest
    by the date in the name, with no config edit.
 6. **Write down the board's physical geometry**: squaresX, squaresY, square length mm, marker length
    mm. Not recoverable from the video, and without it a reconstruction has no metric scale. Put it in
    `configs/defaults.yaml dlc.board.*` when you have it.
-7. Re-run step 0 and confirm `RESULT: pair graph CONNECTED`.
+7. Re-run step 0 with `--step 5` and confirm `RESULT: pair graph CONNECTED` with every camera at
+   ≥20 poses.
 
 ---
 
@@ -68,8 +85,8 @@ Two kinds of frame per session, per camera:
   40 ms of a lick. The phase name records the offset (`lick+32`) so a labelled frame traces back
   to a point in the cycle.
 
-Current cohort set: **1853 frames — 927 cam4, 926 cam1** (624 cue-locked, 1229 lick-locked; the
-`lick` phase with no offset is an earlier single-offset batch, still valid examples).
+Current cohort set: **3401 frames — cam4 927, cam1 926, cam2 774, cam3 774** (1248 cue-locked,
+2153 lick-locked; the `lick` phase with no offset is an earlier single-offset batch, still valid).
 
 `dlc.frames.lick_per_session` is the knob if that is more tongue frames than you want to label; the
 offsets themselves were measured (see DECISIONS.md) and a symmetric ±28 ms window misses the peak.
@@ -113,8 +130,8 @@ python -m wfield_local.dlc_prelabel --cam cam4 --dry-run   # coverage report, wr
 python -m wfield_local.dlc_prelabel --cam cam4
 ```
 
-Writes `CollectedData_Priya.{h5,csv}` into each `labeled-data/` folder — **~83% of points seeded
-across the 465 cam4 frames.** Refuses to overwrite an existing CollectedData unless you pass
+Writes `CollectedData_Priya.{h5,csv}` into each `labeled-data/` folder — **~82% of points seeded
+across the 927 cam4 frames.** Refuses to overwrite an existing CollectedData unless you pass
 `--force`, so a re-run cannot discard corrections.
 
 Seeded fraction, by within-trial phase — the phase matters more than the average:
@@ -125,7 +142,12 @@ Seeded fraction, by within-trial phase — the phase matters more than the avera
 | Cue (+0.05 s) | 78 | 5.1% | 89% | 99% | 78% |
 | early (+0.4 s) | 78 | 35% | 58% | 96% | 78% |
 | late (+1.5 s) | 78 | 14% | 74% | 96% | 74% |
-| **lick-locked** | **153** | **61%** | **13%** | 98% | 84% |
+| lick −16 ms | 77 | 44% | 43% | 97% | 92% |
+| lick 0 ms | 77 | 34% | 25% | 97% | 91% |
+| **lick +16 ms** | 77 | **58%** | 26% | 97% | 78% |
+| lick +32 ms | 77 | 51% | 23% | 97% | 79% |
+| **lick +48 ms** | 77 | **58%** | 33% | 97% | 81% |
+| lick +64 ms | 77 | 36% | 47% | 97% | 90% |
 
 **The tongue is found where the tongue is out** (61% on lick-locked frames) and is near-silent when
 it is in (2.6% on ENL). The **jaw** is the part that needs you most: it falls to 13% on lick frames,

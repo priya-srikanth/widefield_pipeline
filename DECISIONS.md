@@ -1522,21 +1522,41 @@ bodypart except tongue (`spout_centered`). Replacements, in the order they shoul
 Nose-centred is a trap for the same reason it always was: the nose is one of the things being
 measured.
 
-### The 2026-08-05 calibration recording cannot support 3D
+### The 2026-08-05 calibration: POSES, not frames — and my first verdict was wrong
 
-Measured by `wfield_local/dlc_calibration.py` (report written beside the recording). ChArUco,
-`DICT_4X4_50`, marker ids 0–37:
+Priya: *"do cam4 and cam2/3 really not have more co-visible frames? I thought I recorded for a fair
+amount of time at many angles."* She had, and the first version of `dlc_calibration` reported an
+artefact. Counting FRAMES was wrong in both directions:
 
-    cam1  usable 1262/1926 (65.5%)      cam1-cam4  1225   OK
-    cam2  usable   11/1926  (0.6%)      cam1-cam2    11   too few
-    cam3  usable    3/1926  (0.2%)      cam1-cam3     3   too few
-    cam4  usable 1792/1926 (93.0%)      cam2-cam3     0   DISCONNECTED
+* **Undercounted.** A threshold on frames SAMPLED at `step` is a different quantity at every step.
+  `cam1-cam2` read **11** co-visible frames at step 25 and **69** at step 5 — same recording,
+  opposite verdict. cam2 is in fact CONNECTED to the snout pair.
+* **Overcounted.** At 250 fps a board held still for two seconds is 500 frames and ONE pose, and a
+  calibration is constrained by distinct views. **cam4 has 8,969 usable frames and FOUR poses.**
 
-The board was waved in front of the two snout cameras and never presented systematically to the side
-views, which additionally see it small and oblique across a much wider FOV, below reliable 4x4
-marker detection size. The pair graph has three components, so the four cameras cannot be placed in
-one coordinate frame. **The only fix is to re-record**, which is why this is measured before any
-labelling or GPU time is spent.
+Re-measured at 50 Hz, in distinct poses (runs >0.5 s apart):
+
+    cam    usable  poses  px/bit      pair        frames  poses
+    cam1     6350     20     5.2      cam1-cam4     6163     22   OK
+    cam2       70     16     2.1      cam1-cam2       69     16   OK
+    cam3        8      7     ~2       cam2-cam4       70     16   OK
+    cam4     8969      4     5.2      cam1-cam3        8      7   thin
+                                      cam3-cam4        8      7   thin
+                                      cam2-cam3        0      0   none
+
+So the real state is: **cam2 joins the graph; cam3 is the hole (7 shared poses); and cam4 — best on
+every frame-based measure — has the least-constrained intrinsics in the rig.** `MIN_CAM_POSES = 20`
+and `MIN_PAIR_POSES = 15` replace the frame thresholds, and `count_poses` is step-robust by
+construction (pinned in `test_the_pose_count_does_not_depend_on_the_SAMPLING_STEP` and
+`test_a_board_held_STILL_is_one_pose_however_many_frames_it_fills`).
+
+**And the side views' problem is the board's SIZE, not the sweep.** On cam2 the squares ARE found —
+58 rejected candidates in a single frame — at 12.6 px per marker side, i.e. **2.1 px per code cell**
+against cam4's 5.1. A DICT_4X4 marker is 6 cells across and stops decoding below ~3. Detector tuning
+does nothing: `minMarkerPerimeterRate` down to 0.003, sub-pixel corner refinement and a finer
+threshold ladder all return the same 6 markers. The survey now reports `px_per_bit` and says
+**"BOARD TOO SMALL (2.1 px/bit); 1.4x larger or closer"** rather than "never presented" — opposite
+fixes, and the wrong one sends someone to re-sweep a board that cannot work.
 
 For the re-record: the criterion is SIMULTANEOUS detections on enough camera PAIRS to connect the
 graph — not per-camera detections, which the failed recording already had in abundance on cam1/cam4.

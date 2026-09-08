@@ -10,13 +10,47 @@ import pytest
 from wfield_local import dlc_calibration as dc
 
 
-def _survey(counts: dict[str, list[int]]) -> pd.DataFrame:
-    """A survey frame from ``{cam: [n_markers per sampled frame]}`` (all cams share the frame grid)."""
+#: Samples this far apart count as separate board POSES (POSE_GAP_S at 250 fps is 125 frames).
+POSE_STRIDE = 250
+
+
+def _survey(counts: dict[str, list[int]], stride: int = POSE_STRIDE) -> pd.DataFrame:
+    """A survey frame from ``{cam: [n_markers per sample]}``; all cams share the frame grid.
+
+    ``stride`` is frames between samples. The default puts each sample in its OWN pose, which is what
+    most of these tests want; pass a small stride to build one long pose instead -- the distinction
+    the module now turns on.
+    """
     rows = []
     for cam, seq in counts.items():
         for i, n in enumerate(seq):
-            rows.append({"cam": cam, "frame": i * 25, "n_markers": n, "ids": " ".join(map(str, range(n)))})
+            rows.append({"cam": cam, "frame": i * stride, "n_markers": n,
+                         "ids": " ".join(map(str, range(n)))})
     return pd.DataFrame(rows, columns=["cam", "frame", "n_markers", "ids"])
+
+
+def test_a_board_held_STILL_is_one_pose_however_many_frames_it_fills():
+    """The overcounting half of the frame-vs-pose correction.
+
+    cam4 in the real recording has 8,969 usable sampled frames and FOUR distinct poses, because the
+    board sat in front of it. A frame count called that the best camera in the rig; it is the worst
+    constrained.
+    """
+    still = _survey({"cam1": [8] * 400}, stride=1)      # 400 consecutive frames = 1.6 s
+    assert dc.per_camera(still).loc[0, "poses"] == 1
+    assert not bool(dc.per_camera(still).loc[0, "ok"]), "400 frames of one pose is not a calibration"
+
+    swept = _survey({"cam1": [8] * 400})                # 400 samples 1 s apart = 400 poses
+    assert dc.per_camera(swept).loc[0, "poses"] == 400
+    assert bool(dc.per_camera(swept).loc[0, "ok"])
+
+
+def test_the_pose_count_does_not_depend_on_the_SAMPLING_STEP():
+    """The undercounting half. cam1-cam2 read 11 co-visible frames at step 25 and 69 at step 5 --
+    same recording, opposite verdict, because the threshold was on a step-dependent quantity."""
+    coarse = dc.count_poses([0, 5000, 10000])                       # 3 poses, sparsely sampled
+    dense = dc.count_poses([0, 10, 20, 5000, 5010, 10000, 10010])   # same 3, densely sampled
+    assert coarse == dense == 3
 
 
 def test_two_cameras_that_never_see_the_board_at_the_same_time_are_not_a_pair():
@@ -89,6 +123,52 @@ def test_a_camera_that_only_ever_sees_three_markers_is_unusable():
     cams = dc.per_camera(df).set_index("cam")
     assert not bool(cams.loc["cam1", "ok"])
     assert cams.loc["cam1", "any_pct"] == 100.0, "detects markers on every frame, still unusable"
+
+
+def _survey_ppb(counts: dict[str, list[int]], ppb: dict[str, float]) -> pd.DataFrame:
+    """Like ``_survey`` but carrying the marker scale, so the two failure modes can be told apart."""
+    df = _survey(counts)
+    df["px_per_bit"] = [ppb.get(c, 0.0) if n > 0 else 0.0
+                        for c, n in zip(df["cam"], df["n_markers"], strict=True)]
+    df["n_rejected"] = [0 if n > 0 else 12 for n in df["n_markers"]]
+    return df
+
+
+def test_a_board_that_is_TOO_SMALL_reads_differently_from_one_never_shown():
+    """The distinction the first version of this module missed, and Priya caught.
+
+    A board present but unreadable and a board never presented both score ~0 usable frames, and they
+    have opposite fixes: print it bigger versus sweep it into view. `px_per_bit` separates them --
+    a DICT_4X4 marker is 6 cells across and below ~3 px/cell the square is still FOUND and then
+    rejected, so the camera reports markers-seen but nothing decoded.
+    """
+    n = 400
+    small = _survey_ppb({"cam1": [8] * n, "cam2": [1] * n},          # sees it, cannot read it
+                        {"cam1": 5.2, "cam2": 2.1})
+    text = "\n".join(dc.report_lines(small, "camera_calibration_20260805", 25))
+    assert "BOARD TOO SMALL" in text
+    assert "1.4x larger" in text, "the shortfall is quantified, not just named"
+    assert "NEVER PRESENTED" not in text
+
+    absent = _survey_ppb({"cam1": [8] * n, "cam2": [0] * n}, {"cam1": 5.2})
+    text2 = "\n".join(dc.report_lines(absent, "camera_calibration_20260805", 25))
+    assert "NEVER PRESENTED" in text2
+    assert "BOARD TOO SMALL" not in text2
+
+
+def test_the_fix_line_says_re_sweeping_will_not_help_when_the_board_is_too_small():
+    n = 400
+    df = _survey_ppb({"cam1": [8] * n, "cam2": [1] * n}, {"cam1": 5.2, "cam2": 1.5})
+    text = "\n".join(dc.report_lines(df, "camera_calibration_20260805", 25))
+    assert "re-sweeping the same board will not help" in text
+    assert "2.0x larger" in text
+
+
+def test_a_survey_without_the_scale_column_still_reports(tmp_path):
+    """Older survey CSVs predate px_per_bit; reading one must not become a crash."""
+    text = "\n".join(dc.report_lines(_survey({"cam1": [8] * 400, "cam2": [0] * 400}),
+                                     "camera_calibration_20260805", 25))
+    assert "RESULT:" in text
 
 
 def test_the_newest_calibration_is_chosen_by_NAME_not_mtime(tmp_path):

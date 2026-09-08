@@ -14,19 +14,32 @@ It answers three questions, in order:
 2. **Which camera PAIRS see it simultaneously?** (extrinsics: relative pose)
 3. **Is the pair graph connected?** (can all four cameras land in one frame)
 
-Measured on ``camera_calibration_20260805`` (2026-09-08), sampling every 25th frame — 10 Hz over
-192 s, 1926 samples per camera:
+**IT COUNTS POSES, NOT FRAMES**, and the first version did not — which made it wrong in both
+directions on the same recording. Priya, 2026-09-08: *"do cam4 and cam2/3 really not have more
+co-visible frames? I thought I recorded for a fair amount of time at many angles."* She had, and the
+frame-based verdict was an artefact. Measured on ``camera_calibration_20260805`` at 50 Hz:
 
-    cam1  any=88.5%  >=4 markers=65.5%      cam1-cam4 both>=4: 1225 frames   OK
-    cam2  any=20.1%  >=4 markers= 0.6%      cam1-cam2 both>=4:   11 frames   too few
-    cam3  any=12.3%  >=4 markers= 0.2%      cam1-cam3 both>=4:    3 frames   too few
-    cam4  any=95.0%  >=4 markers=93.0%      cam2-cam3 both>=4:    0 frames   disconnected
+    cam    usable  poses   px/bit    pair        frames  poses
+    cam1     6350     20     5.2     cam1-cam4     6163     22   OK
+    cam2       70     16     2.1     cam1-cam2       69     16   OK
+    cam3        8      7     ~2      cam2-cam4       70     16   OK
+    cam4     8969      4     5.2     cam1-cam3        8      7   thin
+                                     cam3-cam4        8      7   thin
+                                     cam2-cam3        0      0   none
 
-That recording therefore calibrates the cam1-cam4 snout pair and nothing else: the board was waved
-in front of the two snout cameras and never presented systematically to the side views, which
-additionally see it small and oblique (600x450 across a much wider FOV, so the 4x4 markers fall
-below reliable detection size). The side cameras are the ones that see the eye, so this is not a
-corner worth cutting.
+Three things only the pose count shows. **cam2 IS connected** to the snout pair (16 shared poses) —
+the earlier "11 frames" was a step-25 sampling artefact, and the same recording read 69 at step 5.
+**cam3 is the real hole** at 7 shared poses. And **cam4, which looks like the best camera on every
+frame-based measure, has FOUR distinct poses** out of 8,969 usable frames: the board was held in
+front of it rather than swept, so its intrinsics are the least constrained in the rig.
+
+**Why the side views resolve so few markers.** On cam2 the board's squares ARE found — 58 rejected
+candidates in one frame — at 12.6 px per marker side, i.e. **2.1 px per code cell** against cam4's
+5.1. A DICT_4X4 marker is 6 cells across and stops decoding below ~3, so this is a board that is
+present and too small to READ. Detector tuning does not touch it (minMarkerPerimeterRate, corner
+refinement and threshold ladders all return the same 6 markers); a physically larger board, or one
+held closer, is the only fix. Reporting "never presented" instead of "too small" would send someone
+to re-sweep a board that cannot work.
 
 **The board.** ``DICT_4X4_50``; marker ids 0-37 observed, i.e. a 38-marker board. Its physical
 geometry (squaresX/Y, square mm, marker mm) is NOT recoverable from the video and is not needed
@@ -61,14 +74,25 @@ ARUCO_DICT = "DICT_4X4_50"
 #: board pose at all. It is the floor for "this frame is usable", not a recommendation.
 MIN_MARKERS = 4
 
-#: Per-camera usable frames needed for stable intrinsics. Well below what anipose suggests for a
-#: careful job (~200) because this is a SCREENING threshold: under it the recording is certainly
-#: unusable, over it is worth attempting.
-MIN_CAM_FRAMES = 100
+#: POSES, NOT FRAMES — and this is the correction that matters (Priya, 2026-09-08: "I thought I
+#: recorded for a fair amount of time at many angles"). She had. Counting FRAMES made this module
+#: report a harsher verdict than the data supported, in both directions:
+#:
+#:   * it undercounted, because a threshold on frames SAMPLED at ``step`` is a different quantity at
+#:     every step. cam1-cam2 read 11 at step 25 and 69 at step 5 — same recording, opposite verdict.
+#:   * it OVERcounted, because at 250 fps a board held still for two seconds is 500 frames and ONE
+#:     pose, and a calibration is constrained by distinct views of the board, not by frame count.
+#:     cam4 has 44,845 usable frames and only FOUR distinct poses.
+#:
+#: A pose here is a run of co-visible samples separated from the next by more than ``POSE_GAP_S``.
+POSE_GAP_S = 0.5
 
-#: Simultaneous detections needed on a camera PAIR before its relative pose is worth estimating.
-#: Deliberately lenient for the same reason.
-MIN_PAIR_FRAMES = 50
+#: Distinct board poses per camera for usable intrinsics. OpenCV's own guidance is ~20 well-spread
+#: views; below that focal length and distortion trade off against each other.
+MIN_CAM_POSES = 20
+
+#: Distinct poses seen simultaneously by a PAIR before its relative pose is worth estimating.
+MIN_PAIR_POSES = 15
 
 CAM_RE = re.compile(r"^(cam\d+)_", re.IGNORECASE)
 CAL_DIR_RE = re.compile(r"^camera_calibration_(\d{8})$", re.IGNORECASE)
@@ -105,6 +129,45 @@ def _detector():
     return aruco.ArucoDetector(aruco.getPredefinedDictionary(getattr(aruco, ARUCO_DICT)), params)
 
 
+#: A DICT_4X4 marker is 6 bits across including its border, so one marker side spans 6 code cells.
+#: Below ~3 px per cell the pattern stops being readable however good the optics: the square is
+#: still found as a candidate and then REJECTED, which is why a too-small board looks like a board
+#: that was never shown unless the rejections are counted.
+BITS_ACROSS = 6
+MIN_PX_PER_BIT = 3.0
+
+
+def _px_per_bit(corners) -> float:
+    """Median code-cell size in pixels across the decoded markers of one frame, or 0 if none.
+
+    THE MOST USEFUL NUMBER IN THIS MODULE, and it was missing from the first version. It separates
+    "the board was never presented to this camera" from "the board was presented and is too small to
+    read", which have completely different fixes -- re-sweep vs print a bigger board.
+    """
+    import cv2
+    import numpy as np
+
+    if corners is None or len(corners) == 0:
+        return 0.0
+    sides = [cv2.arcLength(np.asarray(c, dtype=np.float32).reshape(-1, 2), True) / 4.0
+             for c in corners]
+    return round(float(np.median(sides)) / BITS_ACROSS, 2)
+
+
+def count_poses(frames, fps: float = 250.0, gap_s: float = POSE_GAP_S) -> int:
+    """Distinct board poses among sampled frame indices: runs separated by more than ``gap_s``.
+
+    Robust to the sampling step in a way a frame count is not, and it is the quantity a calibration
+    actually consumes -- 500 consecutive frames of a board held still are one view of it, however
+    densely they are sampled.
+    """
+    import numpy as np
+    f = np.sort(np.asarray(list(frames), dtype=float))
+    if f.size == 0:
+        return 0
+    return 1 + int((np.diff(f) / fps > gap_s).sum())
+
+
 def survey_video(path, step: int = 25) -> pd.DataFrame:
     """Per-sampled-frame marker counts for one video: columns ``cam, frame, n_markers, ids``.
 
@@ -128,14 +191,22 @@ def survey_video(path, step: int = 25) -> pd.DataFrame:
                 ok, frame = cap.retrieve()
                 if ok:
                     grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    _, ids, _ = det.detectMarkers(grey)
+                    corners, ids, rejected = det.detectMarkers(grey)
                     n = 0 if ids is None else len(ids)
                     id_str = "" if ids is None else " ".join(str(int(x)) for x in sorted(ids.ravel()))
-                    rows.append({"cam": cam, "frame": i, "n_markers": n, "ids": id_str})
+                    rows.append({"cam": cam, "frame": i, "n_markers": n, "ids": id_str,
+                                 # WHY a frame fails, not just that it did. `rejected` are
+                                 # quadrilaterals that look like markers but whose bit pattern could
+                                 # not be read -- a board present but too small reads as many
+                                 # rejections and few decodes, which is a different problem from a
+                                 # board that was never in view.
+                                 "n_rejected": len(rejected) if rejected is not None else 0,
+                                 "px_per_bit": _px_per_bit(corners)})
             i += 1
     finally:
         cap.release()
-    return pd.DataFrame(rows, columns=["cam", "frame", "n_markers", "ids"])
+    return pd.DataFrame(rows, columns=["cam", "frame", "n_markers", "ids",
+                                       "n_rejected", "px_per_bit"])
 
 
 def survey(cal_dir, step: int = 25, pattern: str = "cam*.avi") -> pd.DataFrame:
@@ -152,6 +223,10 @@ def per_camera(df: pd.DataFrame) -> pd.DataFrame:
     for cam, g in df.groupby("cam", sort=True):
         n = g["n_markers"]
         usable = int((n >= MIN_MARKERS).sum())
+        # Frames where squares were FOUND but not read: the signature of a board that is present
+        # and too small. Measured on frames with at least one rejection and no usable decode.
+        seen_ppb = g.loc[g.get("px_per_bit", pd.Series(dtype=float)) > 0, "px_per_bit"]             if "px_per_bit" in g else pd.Series(dtype=float)
+        rej = g["n_rejected"] if "n_rejected" in g else pd.Series(dtype=float)
         out.append({
             "cam": cam,
             "sampled": len(g),
@@ -159,7 +234,10 @@ def per_camera(df: pd.DataFrame) -> pd.DataFrame:
             "usable": usable,
             "usable_pct": round(float((n >= MIN_MARKERS).mean() * 100), 1),
             "max_markers": int(n.max()) if len(n) else 0,
-            "ok": bool(usable >= MIN_CAM_FRAMES),
+            "px_per_bit": round(float(seen_ppb.median()), 2) if len(seen_ppb) else 0.0,
+            "rejected_pct": round(float((rej > 0).mean() * 100), 1) if len(rej) else 0.0,
+            "poses": count_poses(g.loc[n >= MIN_MARKERS, "frame"]),
+            "ok": bool(count_poses(g.loc[n >= MIN_MARKERS, "frame"]) >= MIN_CAM_POSES),
         })
     return pd.DataFrame(out)
 
@@ -175,9 +253,11 @@ def per_pair(df: pd.DataFrame) -> pd.DataFrame:
     piv = df.pivot_table(index="frame", columns="cam", values="n_markers", aggfunc="max").fillna(0)
     out = []
     for a, b in itertools.combinations(sorted(piv.columns), 2):
-        both = int(((piv[a] >= MIN_MARKERS) & (piv[b] >= MIN_MARKERS)).sum())
-        out.append({"cam_a": a, "cam_b": b, "both": both, "ok": bool(both >= MIN_PAIR_FRAMES)})
-    return pd.DataFrame(out, columns=["cam_a", "cam_b", "both", "ok"])
+        shared = piv.index[(piv[a] >= MIN_MARKERS) & (piv[b] >= MIN_MARKERS)]
+        poses = count_poses(shared)
+        out.append({"cam_a": a, "cam_b": b, "both": len(shared), "poses": poses,
+                    "ok": bool(poses >= MIN_PAIR_POSES)})
+    return pd.DataFrame(out, columns=["cam_a", "cam_b", "both", "poses", "ok"])
 
 
 def connected(pairs: pd.DataFrame, cams) -> tuple[bool, list[list[str]]]:
@@ -207,15 +287,26 @@ def report_lines(df: pd.DataFrame, cal_dir, step: int) -> list[str]:
     ok, comps = connected(pairs, list(cams["cam"]))
     lines = [f"ChArUco calibration survey - {Path(cal_dir).name}",
              f"dictionary {ARUCO_DICT}; every {step}th frame; >={MIN_MARKERS} markers = usable", "",
-             f"{'cam':6s} {'sampled':>8s} {'any':>7s} {'usable':>8s} {'usable%':>8s} {'max':>5s}  verdict"]
+             (f"{'cam':6s} {'sampled':>8s} {'any':>7s} {'usable':>8s} {'poses':>6s} "
+              f"{'max':>5s} {'px/bit':>7s}  verdict")]
     for _, r in cams.iterrows():
-        verdict = "OK" if r["ok"] else f"TOO FEW (<{MIN_CAM_FRAMES})"
+        ppb = float(r.get("px_per_bit", 0.0) or 0.0)
+        if r["ok"]:
+            verdict = "OK"
+        elif 0 < ppb < MIN_PX_PER_BIT:
+            # The distinction that matters: the board WAS there and could not be read.
+            verdict = (f"BOARD TOO SMALL ({ppb:.1f} px/bit, need >={MIN_PX_PER_BIT:.0f}); "
+                       f"{MIN_PX_PER_BIT / ppb:.1f}x larger or closer")
+        elif r["any_pct"] < 1.0:
+            verdict = "BOARD NEVER PRESENTED to this camera"
+        else:
+            verdict = f"ONLY {int(r['poses'])} DISTINCT POSES (need {MIN_CAM_POSES})"
         lines.append(f"{r['cam']:6s} {r['sampled']:8d} {r['any_pct']:6.1f}% {r['usable']:8d} "
-                     f"{r['usable_pct']:7.1f}% {r['max_markers']:5d}  {verdict}")
-    lines += ["", f"{'pair':14s} {'both':>7s}  verdict"]
+                     f"{int(r['poses']):6d} {r['max_markers']:5d} {ppb:7.2f}  {verdict}")
+    lines += ["", f"{'pair':14s} {'frames':>8s} {'poses':>6s}  verdict"]
     for _, r in pairs.iterrows():
-        verdict = "OK" if r["ok"] else f"TOO FEW (<{MIN_PAIR_FRAMES})"
-        lines.append(f"{r['cam_a']}-{r['cam_b']:9s} {r['both']:7d}  {verdict}")
+        verdict = "OK" if r["ok"] else f"only {int(r['poses'])} pose(s), need {MIN_PAIR_POSES}"
+        lines.append(f"{r['cam_a']}-{r['cam_b']:9s} {r['both']:8d} {int(r['poses']):6d}  {verdict}")
     lines.append("")
     if ok:
         lines.append("RESULT: pair graph CONNECTED - all cameras can be placed in one frame.")
@@ -224,8 +315,16 @@ def report_lines(df: pd.DataFrame, cal_dir, step: int) -> list[str]:
                      "recording.")
         for comp in comps:
             lines.append(f"  component: {', '.join(comp)}")
-        lines.append("  Fix: re-record with the board presented to EVERY camera, and to camera "
-                     "PAIRS at the same instant.")
+        small = [r for _, r in cams.iterrows()
+                 if not r["ok"] and 0 < float(r.get("px_per_bit", 0.0) or 0.0) < MIN_PX_PER_BIT]
+        if small:
+            need = max(MIN_PX_PER_BIT / float(r["px_per_bit"]) for r in small)
+            lines.append(f"  Fix: the board IS reaching {', '.join(r['cam'] for r in small)} and is "
+                         f"too small to DECODE there. Print it ~{need:.1f}x larger, or hold it that "
+                         f"much closer to them; re-sweeping the same board will not help.")
+        else:
+            lines.append("  Fix: re-record with the board presented to EVERY camera, and to camera "
+                         "PAIRS at the same instant.")
     return lines
 
 
