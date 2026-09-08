@@ -289,58 +289,62 @@ landmark those views have if 3D ever fails.
 
 ---
 
-## Step 2 — create the DLC project and adopt the frames
+## Step 2 — LABEL
 
-In the DLC environment (not `locanmf` — DeepLabCut is not installed there):
+Everything upstream is done: the project exists on the share with the frames and cam4's seeds in it.
+Two commands.
+
+```powershell
+conda activate dlc
+cd C:\Users\SabatiniLab\Github\widefield_pipeline
+python -m wfield_local.dlc_project --cam cam4 --cam cam1 --label
+```
+
+That refreshes the project (adds any new frames, repoints `project_path` to this machine's drive
+letter, never touches a label you have edited), prints the per-view bodypart list, and opens DLC's
+labelling GUI. Without `--label` it does everything except open the GUI.
+
+The project is `Behavior_Cameras/Widefield/dlc/widefield-Priya-2026-09-08/` — **26 folders,
+1853 images**, 13 of them cam4 with ~82% of points already placed.
+
+### Place ONLY what each view can see
+
+DLC has one bodypart list per project, so `config.yaml` carries the union of all twelve. The GUI
+shows all twelve on every frame and **cannot enforce the per-view subset** — that part is yours:
+
+| view | folders | place these | leave EMPTY |
+|---|---|---|---|
+| `cam4` front | 13 | nose, jaw, tongue, L/R_whiskers_1-3, spout | **L_eye, R_eye** |
+| `cam1` bottom | 13 | jaw, tongue, spout | nose, all whiskers, both eyes |
+
+**Why the eyes are empty on cam4:** they are outside its field of view — sampled at four separated
+timepoints in PS94 and one in PS95, never in frame. The columns exist so the file is well-formed for
+DLC, not as an invitation; they get filled on `cam2` (L_eye) and `cam3` (R_eye), the views that
+actually see one. The donor network does return them at 0.44–0.79 in cam4's empty top corners, which
+is a hallucination and exactly why they are not seeded.
+
+A point placed for a part a camera cannot see is invented data, and a network trained on invented
+points learns to hallucinate.
+
+### What the work actually is
+
+* **cam4** — mostly CHECKING; ~82% is placed. The **jaw** needs the most attention: it falls to 13%
+  on lick frames because the chin point the donor learned is occluded once the mouth is open at the
+  spout. Fill the missing tongues and nudge the seeded ones to your chosen landmark.
+* **cam1** — from scratch, but only three parts: jaw, tongue, spout. It is the best tongue view on
+  the rig.
+
+**Decide the tongue landmark before you start.** The seeds land at the tongue–spout CONTACT (where
+the donor's own label sat), not the tip or centroid. Consistent bias is easy to correct — but pick
+one and hold to it, because that choice defines the kinematic variable for the whole study.
+
+Save often; the GUI writes `CollectedData_Priya.h5` per folder and that file is the only record of
+the work.
 
 ```python
 import deeplabcut as d
-
-cfg = d.create_new_project("widefield", "Priya", [<one video path per stem>],
-                           working_directory=r"...\DeepLabCut", copy_videos=False)
+d.check_labels(cfg)      # renders your labels onto the frames for a visual audit
 ```
-
-The project's `bodyparts:` must be the **union** across views (twelve):
-
-```
-nose, jaw, tongue,
-L_whiskers_1, L_whiskers_2, L_whiskers_3,
-R_whiskers_1, R_whiskers_2, R_whiskers_3,
-spout, L_eye, R_eye
-```
-
-but **only place what each view can actually see** (`configs/defaults.yaml dlc.cameras.<cam>.bodyparts`):
-
-| view | role | place these |
-|---|---|---|
-| `cam4` | front | nose, jaw, tongue, L/R_whiskers_1-3, spout |
-| `cam1` | bottom | jaw, tongue, spout — **no nose, no whiskers**: it looks UP at the underside |
-| `cam2` | side_left | L_eye, jaw, tongue, L_whiskers_1-3, spout |
-| `cam3` | side_right | R_eye, jaw, tongue, R_whiskers_1-3, spout |
-
-A label for a part a camera cannot see is not merely wasted — it is invented, and a network trained
-on invented points learns to hallucinate. **Names stay shared where views overlap**, which is what
-makes 3D possible: `jaw`, `tongue` and `spout` are in all four views and are the parts triangulation
-can reconstruct cohort-wide; whiskers pair `cam4` with one side view; `nose` is `cam4` only and stays
-2D.
-
-`L_spout` became `spout` (one spout, six positions) and `R_spout` is gone. The eyes survive only on
-the side views — they were the centering fiducial in the old pipeline, not a result, and the
-replacement is the 3D world frame, which head fixation makes static without any fiducial at all.
-**`cam3` is the right-side view**, so it is the one carrying PS93's right orofacial deficit; that
-laterality is a measurement decision, not a naming convention.
-
-Copy `Behavior_Cameras/Widefield/dlc/labeled-data/*` into the project's `labeled-data/` — images AND
-the `CollectedData_Priya.{h5,csv}` written in step 1b. The folder names are already the video stems
-DLC expects, so the labelling GUI opens with the seeded points in place. Do NOT run `extract_frames`,
-which would add appearance-clustered frames beside the designed set.
-
-```python
-d.label_frames(cfg)      # the manual step: place the tongue, check the rest
-d.check_labels(cfg)
-```
-
----
 
 ## Step 3 — train, starting from the 2pRAM snapshot
 
