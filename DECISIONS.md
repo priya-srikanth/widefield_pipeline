@@ -1545,6 +1545,42 @@ connectivity through `cam1`/`cam4` is sufficient (pinned in `test_connectivity_d
 Also needed and NOT recoverable from video: the board's physical geometry (squaresX/Y, square mm,
 marker mm), without which reconstruction has no metric scale.
 
+### What we decided to do (Priya, 2026-09-08)
+
+* **Label `cam4` + `cam1` now, 3D later.** They are the only pair the existing calibration solves,
+  they are the two snout views the orofacial measures live on, and they are already a stereo pair
+  for a first 3D test. `cam2`/`cam3` join after the calibration is re-recorded.
+* **The 3D world frame replaces the eye midpoint.** Not the eye seen from `cam2`/`cam3` — that
+  fiducial would sit on a different camera from the parts it centres, which needs calibration
+  anyway and so collapses into the same answer.
+* **Inference on cue-aligned windows first, whole sessions later.** ~22% of frames, ~1 h per
+  camera-session, enough to validate the network before spending ~31 GPU-days on `cam4` alone.
+
+### The labelling set is stratified by DESIGN, not by appearance
+
+`wfield_local/dlc_frames.py`. DLC's own `extract_frames` clusters on appearance, which on a 1.5 M
+frame recording of a head-fixed mouse returns mostly the resting posture — the animal spends most of
+its time not licking, so appearance clustering under-samples the events the analysis is about.
+Frames are chosen by **spout position x within-trial phase** (ENL −0.6 s, Cue +0.05 s, early
++0.4 s, late +1.5 s from the DAQ cue), using the same alignment template `behavior_clips` cuts with.
+Trial CATEGORY (success / working / stopped) is rotated across positions rather than crossed: a
+success-only set teaches the network the posture of a mouse that is licking, and post-stroke the
+interesting frames are the ones where it tries and fails.
+
+**Breadth comes from epochs, not from frames per session** — `per_session: 24`, one session per
+animal x epoch, 13 cells, 624 frames across both cameras. A network labelled only pre-stroke
+degrades exactly where the result lives, and the 2pRAM cohort has the cautionary case on record:
+post-stroke tongue tracking fell apart in its two severe animals, a tracking artefact sitting on top
+of a real deficit and nearly impossible to separate afterwards.
+
+The first version of the cohort walk took the median session of each epoch and **silently produced a
+set with no pre-stroke frames at all**: camera alignment templates start on 2026-06-06 while `pre`
+opens on 2026-05-27, so the median pre session was untemplated for every animal, was skipped with a
+printed reason nobody would read as fatal, and the run reported success. `_pick_middle` now searches
+outward from the centre for a usable session, and an epoch that yields none says so in capitals.
+Verified: the June and September `cam4` views are the same framing, so the fallback's June sessions
+are not a different camera geometry.
+
 ### Deployment: HMS O2, per the orofacial notebook
 
 `DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb` is the working pattern — paramiko/scp

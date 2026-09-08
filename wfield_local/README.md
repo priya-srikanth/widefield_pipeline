@@ -675,6 +675,39 @@ misses are disengagement, not spatial inaccuracy — a terminal sated-tail + rol
 (`configs/defaults.yaml behavior.*`) excludes them, raw shown alongside. The DAQ comparison applies the
 `lick_detection.min_ili_ms` 40 ms physiological floor (see below).
 
+### DLC orofacial tracking (new 2026-09-08 — see `DECISIONS.md` "DLC on the widefield rig")
+
+Ported in spirit from `stroke_orofacial_pipeline`, not in code: that rig had one 100 fps camera, two
+FIXED spouts and both eyes in frame; this one has four hardware-synced 250 fps cameras, ONE spout
+that moves across 6 positions, and a `cam4` framed on the snout alone. All parameters live in
+`configs/defaults.yaml dlc.*`; the bodypart set there is shared across cameras on purpose, because
+triangulation matches keypoints by name.
+
+```powershell
+python -m wfield_local.dlc_calibration                  # ChArUco survey of the newest calibration
+python -m wfield_local.dlc_frames --cohort --dry-run    # what the labelling set would be
+python -m wfield_local.dlc_frames --cohort              # extract it
+python -m wfield_local.dlc_frames 20260907              # add one date's sessions
+```
+
+**`dlc_calibration`** is the go/no-go gate for 3D and should be run before any labelling. It reports
+per-camera board detection AND per-PAIR simultaneous detection, then whether the pair graph is
+connected — the criterion, since a camera that sees the board constantly but never at the same
+instant as another cannot be placed relative to it. As of `camera_calibration_20260805` the graph
+has three components (`cam1+cam4`, `cam2`, `cam3`), so 3D needs a re-recorded calibration.
+
+**`dlc_frames`** builds the labelling set by experimental design rather than by appearance: spout
+position × within-trial phase, using the same `camera_sync` alignment template `behavior_clips` cuts
+with, one session per animal × epoch. Frames land in DLC's own layout at
+`<behavior_cameras>/dlc/labeled-data/<video-stem>/img<FRAME>.png` with a `frame_manifest.csv` giving
+each frame's animal / date / camera / epoch / trial / position / category / phase. Source videos are
+opened READ-ONLY; selection is deterministic, so a re-run re-picks the same frames rather than
+growing a second set beside the one already annotated.
+
+Not yet built: the DLC project scaffold (weight transfer from the 2pRAM snapshot with a
+`L_spout`→`spout` conversion table) and the O2 batch deployment (`dlc.o2.*` holds its parameters and
+the measured ~86 fps throughput).
+
 ### 17. LocaNMF decomposition
 
 Atlas-anchored components (r²=0.95, loc=80, maxrank=20) from `SVTcorr` + the Allen-aligned `U`. One

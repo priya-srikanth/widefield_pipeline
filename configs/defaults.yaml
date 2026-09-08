@@ -194,6 +194,65 @@ sync:
   behavior_starts_after_daq: true   # align by sync pulses / trial-offset, NOT wall-clock (drift-free)
   strobe_bits: {bit0: 4, bit1: 5, bit2: 6}   # DAQ digital lines encoding spout position
 
+dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD rig. The earlier
+                              # 2pRAM cohort's project (MICROSCOPE/Priya/DeepLabCut/DLC_train_config)
+                              # is the weight donor, not the predictor -- see DECISIONS.md
+                              # "DLC on the widefield rig". Survey the calibration before trusting
+                              # any of this: python -m wfield_local.dlc_calibration
+  cameras:                    # Which views get labelled, and why. cam2/cam3 (the side views) are
+                              # NOT here yet: they are the only cameras that see the eye, but the
+                              # 2026-08-05 calibration leaves them disconnected from the pair
+                              # graph, so labelling them buys nothing until it is re-recorded.
+    - cam4                    # front-facing; the nearest analogue of the old `video2`
+    - cam1                    # under-snout; with cam4 it is the one PAIR the calibration solves
+  bodyparts:                  # Identical across cameras ON PURPOSE -- triangulation matches
+                              # keypoints by NAME, so a set that differs per view cannot be lifted
+                              # to 3D later without re-labelling.
+    - nose
+    - jaw
+    - tongue
+    - L_whiskers_1
+    - L_whiskers_2
+    - L_whiskers_3
+    - R_whiskers_1
+    - R_whiskers_2
+    - R_whiskers_3
+    - spout                   # ONE spout that MOVES across 6 positions, vs the old rig's fixed
+                              # L_spout/R_spout. Renamed from L_spout so the old snapshot's
+                              # conversion table has somewhere to land. NOT split into
+                              # spout_tip/spout_base: two points would give the spout's axis as
+                              # well as its position, which is worth having, but it is a new
+                              # measurement rather than a port and should be decided as one.
+                              # L_eye / R_eye are absent: out of frame on cam4 and cam1. They were
+                              # the CENTERING FIDUCIAL in the old pipeline, not a result; the
+                              # replacement is the 3D world frame (Priya, 2026-09-08), which head
+                              # fixation makes static without any fiducial at all.
+  frames:                     # labelling-set extraction (wfield_local/dlc_frames.py)
+    per_session: 24           # = 6 spout positions x 4 within-trial phases, one frame per cell.
+                              # Small per session on purpose: coverage comes from spanning animals
+                              # and EPOCHS, not from many frames of one session. A network
+                              # labelled only pre-stroke degrades exactly where the result lives --
+                              # the 2pRAM cohort saw post-stroke tongue tracking fall apart in its
+                              # two severe animals.
+    phases:                   # seconds from the DAQ cue rising edge; the window matches
+                              # behavior_clips (-1.0 s to +3.5 s), so a labelled frame is always
+                              # inside a window that has an example clip.
+      ENL: -0.60              # spout in position, before the cue: mouth closed, whiskers free
+      Cue: 0.05               # within the 100 ms cue pulse
+      early: 0.40             # first licks -- where the tongue is out and worth labelling
+      late: 1.50              # into the response window; consummatory licking or a failed attempt
+    seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
+                              # rather than quietly growing a second labelling set.
+  o2:                         # HMS O2 batch inference, ported from the 2pRAM notebook
+                              # DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb
+    partition: gpu
+    conda_env: deeplabcut
+    module: conda/miniforge3/24.11.3-0
+    throughput_fps: 86        # MEASURED, not assumed: the old cohort's ~925k-frame videos took
+                              # ~3 h each at batchsize 1. At 250 fps a widefield session-camera is
+                              # ~1.5M frames, so a WHOLE recording is ~4.8 h of GPU. Inference runs
+                              # on cue-aligned windows first (Priya, 2026-09-08) -- ~22% of frames.
+
 epochs:                       # recovery-stage boundary RULES. The per-animal boundaries these
                               # produce live in animals.yaml (fallback) and epoch_boundaries.json
                               # (what the last run actually used). See wfield_local/epochs.py.
