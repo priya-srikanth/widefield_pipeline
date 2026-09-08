@@ -207,3 +207,57 @@ def test_discover_accepts_a_session_whose_raw_is_archived_off(tmp_path, monkeypa
     """The check can only veto, never require -- older raw is not on the share at all."""
     got = _ready(tmp_path, monkeypatch, with_raw=False)
     assert len(got) == 1, "an archived-off raw must not block a registered night"
+
+
+# ------------------------------------------------------- when the figs run is allowed to start
+# Both cases below are what actually happened on the night of 2026-09-07.
+
+def _drive(monkeypatch, registered_per_tick, *, once=True, max_wait_min=None):
+    """Run aw.main's loop with `tick` stubbed; returns the dates figs was asked to run."""
+    calls, seq = [], list(registered_per_tick)
+    monkeypatch.setattr(aw, "tick", lambda rv, d, animals, args: set(seq.pop(0)))
+    monkeypatch.setattr(aw, "run_figs", lambda d, args: calls.append(d) or 0)
+    monkeypatch.setattr(aw, "_ensure_conda_prefix", lambda: None)
+    monkeypatch.setattr(aw.time, "sleep", lambda _s: None)      # no real 30-min waits in a test
+    monkeypatch.setattr(aw.PathResolver, "__init__", lambda self, machine=None: None)
+    argv = ["20260907", "--animals", "PS94", "PS95", "--no-locanmf", "--no-push"]
+    if once:
+        argv.append("--once")
+    if max_wait_min is not None:
+        argv += ["--max-wait-min", str(max_wait_min)]
+    aw.main(argv)
+    return calls
+
+
+def test_figs_do_not_start_on_a_partial_cohort(monkeypatch):
+    """PS94 was ready at 21:00; PS95's U_atlas did not land until 22:56.
+
+    Starting figs on PS94 alone burned a blocking multi-hour run on half the cohort AND stopped the
+    poller from ever noticing PS95. The date must be complete before it is analysed.
+    """
+    assert _drive(monkeypatch, [{"PS94"}]) == []
+
+
+def test_figs_run_when_the_date_is_already_complete(monkeypatch):
+    """The other half: re-running the poller after both mice were registered did NOTHING.
+
+    The figs step used to sit inside `if written:`, so "nothing newly registered" meant "no
+    analysis" -- and the run exited 0 in one second looking like success.
+    """
+    assert _drive(monkeypatch, [{"PS94", "PS95"}]) == ["20260907"]
+
+
+def test_figs_run_once_the_straggler_lands(monkeypatch):
+    """Polling: partial on the first tick, complete on the second -> exactly one figs run."""
+    assert _drive(monkeypatch, [{"PS94"}, {"PS94", "PS95"}], once=False) == ["20260907"]
+
+
+def test_expired_max_wait_runs_on_what_is_registered(monkeypatch):
+    """A mouse that was never recorded must not hang the night forever.
+
+    The clock is driven explicitly rather than slept through: the deadline is set from the first
+    `monotonic()` and tested microseconds later, so a real short timeout would race the test.
+    """
+    ticks = iter([0.0, 1e9, 1e9, 1e9])
+    monkeypatch.setattr(aw.time, "monotonic", lambda: next(ticks))
+    assert _drive(monkeypatch, [{"PS94"}], max_wait_min=1.0) == ["20260907"]

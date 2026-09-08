@@ -362,6 +362,26 @@ def load_licks(session_dir: Path, rv=None, trials: pd.DataFrame | None = None) -
             "precue_reset_by_trial": gui["precue_reset_by_trial"], "source": source}
 
 
+def _atomic_csv(df: pd.DataFrame, path: Path) -> None:
+    """Write a CSV by tmp-then-rename, so a concurrent reader never sees a half-written file.
+
+    `<sid>_position_metrics.csv` is READ BY THE IMAGING SIDE while behaviour is being regenerated:
+    `grant_figures._position_metrics` opens it for section G and the epoch figures. A plain
+    `to_csv` truncates in place, so re-cutting the behaviour figures during a `nightly_figs` run --
+    which is exactly when you want to, since the run takes hours -- exposes a window where the
+    reader gets a short file and the stage dies or, worse, scores a session on three positions.
+    """
+    import os
+
+    tmp = path.with_suffix(f".{os.getpid()}.tmp")
+    try:
+        df.to_csv(tmp, index=False)
+        os.replace(tmp, path)                       # atomic publish
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
 def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, licks: dict | None = None,
                          rv=None, params: dict | None = None) -> pd.Series:
     """Per-trial first-lick latency (s) -- the SAME definition that scored hit/miss.
@@ -1233,7 +1253,7 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     from wfield_local import writeguard
     writeguard.assert_writable(out_dir)
     sess_dir.mkdir(parents=True, exist_ok=True)
-    m["per_position"].to_csv(csv, index=False)
+    _atomic_csv(m["per_position"], csv)
 
     # THE PER-TRIAL TABLE, PERSISTED (2026-08-28, Priya). Only the aggregated per-position rows
     # were ever written, so anything downstream wanting an interval could resample SESSIONS and

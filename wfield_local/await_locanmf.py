@@ -10,9 +10,13 @@ Each tick (default every 30 min) it:
      ``batch_locanmf`` (r2 0.95 / loc 80 / maxrank 20 from configs/defaults.yaml).
   3. REGISTERS any ready+unregistered mouse in ``configs/sessions.yaml`` (regime B if a
      ``*cleanpairs_frame_map.npz`` is present, else A; fmdir null), preserving the file's comments/format.
-  4. If anything was newly registered: commit + push ``configs/sessions.yaml`` (rig procedure), then run
-     ``nightly_figs`` for the date.
-  5. Exits 0 once every requested mouse is registered; otherwise sleeps and re-checks.
+  4. If anything was newly registered: commit + push ``configs/sessions.yaml`` (rig procedure).
+  5. Once EVERY requested mouse is registered, runs ``nightly_figs`` for the date -- once, over the
+     whole cohort. Deliberately NOT "whenever something was newly registered": `nightly_figs` is a
+     single blocking run over the date, so starting it on a partial cohort spends the run twice and
+     blinds the poller to stragglers for hours. ``--max-wait-min`` (default 240) is the escape for a
+     mouse that was never recorded; it then runs on what IS registered and says so.
+  6. Exits 0 once every requested mouse is registered; otherwise sleeps and re-checks.
 
 Fully automatic by design (the user opted in). Escapes: ``--once`` (single pass), ``--no-push`` (commit
 locally, don't push), ``--no-figs`` (skip the figs refresh), ``--no-locanmf`` (register only; assume LocaNMF
@@ -256,6 +260,15 @@ def commit_push(labels: list[str], no_push: bool, dry: bool) -> None:
 
 # --------------------------------------------------------------------------- loop
 
+def run_figs(yyyymmdd: str, args) -> int:
+    """Hand the whole date to `nightly_figs`, ONCE, when the date is complete."""
+    # --skip-grant forwarded: the analysis stage is ~9.6 h and the grant render ~8-10 h, so
+    # the one-command overnight path needs a way to fit in a night (Priya, 2026-08-27).
+    _figs = ["--skip-grant"] if args.skip_grant else []
+    return _run([sys.executable, "-u", "-m", "wfield_local.nightly_figs", yyyymmdd, *_figs],
+                args.dry_run)
+
+
 def tick(rv, yyyymmdd, animals, args) -> set[str]:
     """One detection+action pass. Returns the set of animals now registered for the date."""
     ready = discover(rv, yyyymmdd, animals)
@@ -269,16 +282,16 @@ def tick(rv, yyyymmdd, animals, args) -> set[str]:
             if not e["locanmf_done"]:
                 if run_locanmf(e, args.dry_run):
                     e["locanmf_done"] = True
-    # 2. register newly-ready mice, then commit/push + figs if anything changed
+    # 2. register newly-ready mice and commit/push. THE FIGS RUN IS NOT DECIDED HERE -- see
+    #    `main`. It used to be, gated on `written`, and that was wrong in both directions on the
+    #    night of 2026-09-07: PS94 was ready at 21:00 and PS95's U_atlas did not land until 22:56,
+    #    so figs started on PS94 alone and then BLOCKED for hours, and the poller -- which can only
+    #    re-check between ticks -- could not notice the straggler. Re-running afterwards with
+    #    `--once` then did nothing at all, because by then nothing was NEWLY registered and the
+    #    whole figs step sat inside `if written:`.
     written = register(ready, args.dry_run)
     if written:
         commit_push(written, args.no_push, args.dry_run)
-        if not args.no_figs:
-            # --skip-grant forwarded: the analysis stage is ~9.6 h and the grant render ~8-10 h, so
-            # the one-command overnight path needs a way to fit in a night (Priya, 2026-08-27).
-            _figs = ["--skip-grant"] if args.skip_grant else []
-            _run([sys.executable, "-u", "-m", "wfield_local.nightly_figs", yyyymmdd, *_figs],
-                 args.dry_run)
 
     registered_now = {e["animal"] for e in discover(rv, yyyymmdd, animals) if e["registered"]}
     if args.dry_run:                             # dry-run never writes, so treat written as "would-register"
@@ -294,6 +307,10 @@ def main(argv=None) -> int:
     ap.add_argument("--once", action="store_true", help="single detection pass, then exit")
     ap.add_argument("--no-locanmf", action="store_true", help="register only; assume LocaNMF already ran")
     ap.add_argument("--no-figs", action="store_true", help="skip the nightly_figs refresh after registration")
+    ap.add_argument("--max-wait-min", type=float, default=240.0, metavar="MIN",
+                    help="give up waiting for stragglers after this long and run figs on whatever "
+                         "IS registered (default 240; 0 = wait indefinitely). Guards the case "
+                         "where a requested animal was never recorded that night.")
     ap.add_argument("--skip-grant", action="store_true",
                     help="run nightly_figs WITHOUT the grant-figure render (~8-10 h of it). Deck "
                          "section H then shows the previous render, reported as not-refreshed in "
@@ -314,14 +331,33 @@ def main(argv=None) -> int:
 
     log(f"awaiting LocaNMF inputs for {d}, animals={animals}, every {args.interval_min:g} min"
         + (" [DRY-RUN]" if args.dry_run else ""))
+    # WAIT FOR THE WHOLE DATE BEFORE ANALYSING IT. `nightly_figs` is a single blocking run over the
+    # date, so starting it on a partial cohort costs the run twice: once on the subset, once again
+    # after the straggler lands. Waiting is also what lets the poller keep polling.
+    deadline = None if not args.max_wait_min else time.monotonic() + args.max_wait_min * 60
+    figs_ran = False
     while True:
         done = tick(rv, d, animals, args)
         remaining = [a for a in animals if a not in done]
+        expired = deadline is not None and time.monotonic() > deadline
+
+        # RUN FIGS ON COMPLETENESS, not on novelty. Re-running the poller after a crash, or on a
+        # date whose animals were all registered by an earlier pass, must still produce the figures.
+        if done and not args.no_figs and not figs_ran and (not remaining or expired):
+            if remaining:
+                log(f"!! --max-wait-min={args.max_wait_min:g} expired with {remaining} still "
+                    f"missing -- running figs on {sorted(done)} ONLY. The deck will not contain "
+                    f"{remaining}; re-run the date once they land.")
+            log(f"running nightly_figs for {d} over {sorted(done)}")
+            run_figs(d, args)
+            figs_ran = True
+
         if not remaining:
             log(f"ALL DONE -- {d} registered for {animals}. Exiting.")
             return 0
         if args.once:
-            log(f"--once: stopping. Still waiting on {remaining}.")
+            log(f"--once: stopping. Still waiting on {remaining}."
+                + ("" if figs_ran else " Figs NOT run -- the date is incomplete."))
             return 0
         log(f"still waiting on {remaining}; next check in {args.interval_min:g} min")
         time.sleep(args.interval_min * 60)
