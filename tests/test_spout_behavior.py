@@ -582,9 +582,13 @@ def test_cohort_and_deck_span_all_animals_even_with_only_subset(tmp_path, monkey
                         lambda rv_, dates, animals, out_dir, dry=False: captured.__setitem__("cohort", animals))
     import wfield_local.behavior_deck as bd
     monkeypatch.setattr(bd, "build_behavior_deck",
-                        lambda root, out, animals=None: (captured.__setitem__("deck", animals),
-                                                         {"out": str(out), "slides": 0,
-                                                          "figures_present": 0, "figures_missing": 0})[1])
+                        lambda root, out, animals=None, epoch_dir=None: (
+                            captured.__setitem__("deck", animals),
+                            {"out": str(out), "slides": 0,
+                             "figures_present": 0, "figures_missing": 0})[1])
+    # this test is about ANIMAL SCOPE; the epoch refresh derives boundaries and draws figures on
+    # the live share, which the test guard rightly refuses
+    monkeypatch.setattr(sb, "_refresh_epoch_behaviour", lambda rv_: None)
     sb.run(None, rv, animals=["PS92", "PS93"], cohort=True, from_spec="curated", dry=False)
     assert captured["cohort"] is None, "cohort figure was scoped to the --only subset"
     assert captured["deck"] is None, "standing deck was scoped to the --only subset"

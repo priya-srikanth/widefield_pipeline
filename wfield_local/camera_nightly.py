@@ -13,18 +13,14 @@ One command per date runs the camera nightly, in order:
      identity every downstream analysis loads instead of re-detecting.
   4. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
      per-position metrics, and a refresh of the curated cross-session cohort summary.
-  5. **Epoch boundaries** (:mod:`wfield_local.epoch_audit`) -> derives ``chronic_from`` from the
-     cohort table step 4 just wrote and publishes ``epoch_boundaries.json``. Nothing below may
-     label a session before this runs; see the note at the call site.
-  6. **Behaviour-by-epoch figures** (:mod:`wfield_local.epoch_grant_figures` ``--only 1b 1c``) ->
-     hit rate by position pooled into pre/acute/subacute/chronic, plus the days-since-lesion
-     timecourse, and a REBUILD of the behavior deck so it carries them. Behaviour-only inputs
-     despite the module they live in; here rather than in stage 2 because ``--skip-grant`` is
-     the common path and the epoch result must not go stale with the grant render.
-  7. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
+  5. **Epoch boundaries** (:mod:`wfield_local.epoch_audit`) -> derives ``chronic_from`` and
+     publishes ``epoch_boundaries.json``. Step 4 resolves these too (and draws the epoch behaviour
+     figures onto the deck from them); this repeats it so the clips below are still filed on
+     tonight's boundaries under ``--skip-behavior``. Idempotent and cheap.
+  6. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
      clips per trial class under ``example_clips/<animal>/<epoch>/<date>/``, plus a
      manifest. Needs the template AND the trial table, so it runs after both.
-  8. **Example-clip decks** (:mod:`wfield_local.behavior_clip_deck`) -> one PowerPoint per
+  7. **Example-clip decks** (:mod:`wfield_local.behavior_clip_deck`) -> one PowerPoint per
      animal, six spout positions to a slide, rebuilt whole from the clips on disk.
 
 Copies are idempotent + size-verified; a copy FAILURE stops the run before QC/align (never process a
@@ -151,8 +147,7 @@ def upload(date, rv, animals=None, dry=False, verify=False) -> tuple[dict, list]
 
 
 def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, do_events=True,
-        do_behavior=True, do_epoch_figs=True, do_clips=True, do_clip_deck=True, dry=False,
-        verify=False) -> int:
+        do_behavior=True, do_clips=True, do_clip_deck=True, dry=False, verify=False) -> int:
     """Upload -> dropped-frame QC -> alignment templates -> behavior events -> behavior figs for ``date``.
 
     Returns 0 on success, 1 on copy fail (stops before any downstream step)."""
@@ -185,7 +180,7 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
     if do_behavior:
         print("\n################ spout behavior figures (+ curated cohort) ################", flush=True)
         spout_behavior.run(date, rv, animals=animals, cohort=True, from_spec="curated", dry=dry)
-    if (do_clips or do_clip_deck or do_epoch_figs) and not dry:
+    if (do_clips or do_clip_deck) and not dry:
         print("\n################ epoch boundaries ################", flush=True)
         # AFTER the behaviour and BEFORE the clips, and both halves of that sandwich carry weight.
         # `refile_stale_epochs` and the deck's `_sessions_for` both label a session through
@@ -212,32 +207,6 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
                 # the line that explains why a session changed folders tonight.
                 for _c in _res["changes"]:
                     print("   epoch MOVED: %s" % (_c,), flush=True)
-    if do_epoch_figs and not dry:
-        print("\n################ behaviour-by-epoch figures + deck refresh ################",
-              flush=True)
-        # THESE ARE BEHAVIOUR FIGURES, despite living in the grant module: `fig_behaviour` and
-        # `fig_behaviour_timecourse` read only the per-session `position_metrics.csv` that step 4
-        # just wrote. Nothing about them needs LocaNMF, so leaving them to stage 2 meant the epoch
-        # behaviour result refreshed only on nights the grant render ran -- and `--skip-grant` is
-        # the common path at 8-10 h. ~85 s here buys a behaviour deck that is never stale.
-        try:
-            from wfield_local import behavior_deck, epoch_grant_figures
-            epoch_grant_figures.main(["--only", "1b", "1c"])
-            # REBUILT, not appended: `spout_behavior` already wrote this deck in step 4, before the
-            # boundaries were resolved, so the copy on disk has no epoch section. Rebuilding is
-            # cheap -- the builder places PNGs and computes nothing.
-            out_dir = Path(rv.root("behavior_out"))
-            d = behavior_deck.build_behavior_deck(
-                out_dir, out_dir / "behavior_summary_deck.pptx", animals=None,
-                epoch_dir=behavior_deck.epoch_fig_dir(rv))
-            print("[camera_nightly] behavior deck refreshed with epoch section: %d slides, "
-                  "%d figs, %d missing" % (d["slides"], d["figures_present"],
-                                           d["figures_missing"]), flush=True)
-        except Exception as e:                                             # noqa: BLE001
-            # NON-FATAL, like the deck build it mirrors: the clips below are independent, and a
-            # missing epoch section must not cost the night its clips.
-            print("[camera_nightly] epoch behaviour figures FAILED: %s: %s"
-                  % (type(e).__name__, e), flush=True)
     if do_clips:
         print("\n################ annotated example clips (cam4, cue-aligned) ################",
               flush=True)
@@ -268,8 +237,6 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-align", action="store_true", help="skip the alignment-template pass")
     ap.add_argument("--skip-events", action="store_true", help="skip the canonical behavior-events pass")
     ap.add_argument("--skip-behavior", action="store_true", help="skip the spout behavior figures")
-    ap.add_argument("--skip-epoch-figs", action="store_true",
-                    help="skip the behaviour-by-epoch figures and the deck refresh that places them")
     ap.add_argument("--skip-clips", action="store_true",
                     help="skip the annotated cam4 example clips")
     ap.add_argument("--skip-clip-deck", action="store_true",
@@ -282,8 +249,7 @@ def main(argv=None) -> int:
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,
-               do_behavior=not args.skip_behavior, do_epoch_figs=not args.skip_epoch_figs,
-               do_clips=not args.skip_clips,
+               do_behavior=not args.skip_behavior, do_clips=not args.skip_clips,
                do_clip_deck=not args.skip_clip_deck,
                dry=args.dry_run, verify=args.hash)
 

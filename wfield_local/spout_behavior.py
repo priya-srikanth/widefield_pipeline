@@ -1676,6 +1676,38 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
 
 # --------------------------------------------------------------------------- orchestration
 
+def _refresh_epoch_behaviour(rv):
+    """Derive tonight's epoch boundaries, redraw the epoch BEHAVIOUR figures, return their dir.
+
+    Returns None on any failure, which drops the deck's epoch section rather than placing one built
+    on boundaries that may not be tonight's -- a wrong epoch label on a published figure is worse
+    than a missing section, because nothing about the slide says which boundaries drew it.
+
+    IN THIS ORDER, AND HERE. `epoch_audit.resolve` derives `chronic_from` from the cohort behaviour
+    table that `cohort_summary` has just written, so the boundaries cannot be resolved before this
+    point in the run -- and the two epoch figures read only the per-session `position_metrics.csv`
+    this module also writes, so nothing here waits on LocaNMF. Building them anywhere else is what
+    made a standalone `--cohort` run silently produce a deck missing a section (Priya, 2026-09-08).
+    """
+    try:
+        from wfield_local import behavior_deck, epoch_audit, epoch_grant_figures, epochs
+        if epochs.pinned():
+            print("[spout_behavior] epoch boundaries PINNED -- not derived", flush=True)
+        else:
+            res = epoch_audit.resolve(rv)
+            if not res.get("available"):
+                print("[spout_behavior] epoch boundaries NOT DERIVED (no cohort table); epoch "
+                      "figures will use the LAST DERIVED boundaries", flush=True)
+            for c in res.get("changes") or []:
+                print(f"[spout_behavior] epoch MOVED: {c}", flush=True)
+        epoch_grant_figures.main(["--only", "1b", "1c"])
+        return behavior_deck.epoch_fig_dir(rv)
+    except Exception as e:                                             # noqa: BLE001
+        print(f"[spout_behavior] epoch behaviour figures FAILED: {type(e).__name__}: {e} "
+              f"-- deck will omit the epoch section", flush=True)
+        return None
+
+
 def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
     """Per-session figures for ``date`` (and/or a cohort summary). Returns 0."""
     params = config.defaults()["behavior"]
@@ -1717,9 +1749,11 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
         # `animals`; these are not — always span every registered animal.
         cohort_summary(rv, dates, None, out_dir, dry=dry)
         if not dry:                                 # assemble the standing behavior deck from the figures
+            epoch_dir = _refresh_epoch_behaviour(rv)
             try:
                 from wfield_local.behavior_deck import build_behavior_deck
-                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=None)
+                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=None,
+                                        epoch_dir=epoch_dir)
                 print(f"[spout_behavior] wrote behavior deck: {Path(d['out']).name} "
                       f"({d['slides']} slides, {d['figures_present']} figs, {d['figures_missing']} missing)",
                       flush=True)
