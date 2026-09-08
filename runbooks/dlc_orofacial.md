@@ -44,11 +44,39 @@ across the whole recording. Two things are wrong with it, and neither is "you di
 
 ### Re-recording the calibration
 
-0. **Print the new board.** Ready to print on the share at
-   `Behavior_Cameras/calibration_boards/charuco_9x7_10mm_a4.pdf` (94 x 74 mm board on A4; an A3
-   variant at 154 x 112 mm is beside it), or regenerate with `python -m wfield_local.dlc_board`.
+0. **Print the new board.** Ready to print in
+   `Behavior_Cameras/calibration_boards/`, all on A4 unless noted:
 
-   Its markers are **8 mm against the current ~1.2 mm** — sized from the recording, not from paper:
+   | file | board | squares | marker | markers | cam2 px/cell | working window |
+   |---|---|---|---|---|---|---|
+   | `charuco_5x5_40mmboard_8.0mmsq.pdf` | 40 x 40 mm | 5x5 | 6.1 mm | 12 | 11.1 | 0.88-3.68x |
+   | **`charuco_6x6_40mmboard_6.7mmsq.pdf`** | **40 x 40 mm** | **6x6** | **5.1 mm** | **18** | **9.2** | **0.74-3.07x** |
+   | `charuco_7x7_40mmboard_5.7mmsq.pdf` | 40 x 40 mm | 7x7 | 4.3 mm | 24 | 7.9 | 0.63-2.63x |
+   | `charuco_5x5_50mmboard_10.0mmsq.pdf` | 50 x 50 mm | 5x5 | 7.6 mm | 12 | 13.8 | 1.10-4.60x |
+   | `charuco_7x7_50mmboard_7.1mmsq.pdf` | 50 x 50 mm | 7x7 | 5.4 mm | 24 | 9.9 | 0.79-3.29x |
+   | `charuco_9x9_50mmboard_5.6mmsq.pdf` | 50 x 50 mm | 9x9 | 4.2 mm | 40 | 7.7 | 0.61-2.56x |
+   | `charuco_9x7_10mm_a4.pdf` | 94 x 74 mm | 9x7 | 8.0 mm | 31 | 17.5 | 1.16-4.84x |
+   | `charuco_11x8_14mm_a3.pdf` (A3) | 154 x 112 mm | 11x8 | 10.5 mm | 44 | 19.1 | 1.54-6.36x |
+
+   (`cam2 px/cell` at the distance the 08-05 board was held. The bar is ~3; that board managed 2.1.)
+
+   **Start with the 40 mm 6x6.** At 40 mm the board is flush with the 30 mm cage plate (38.1 mm), so
+   it adds nothing to the rig's footprint — and a smaller board moves its working window CLOSER,
+   which is the direction you want when space is tight. Every 40 mm variant still clears the decode
+   bar on cam2 by 2-4x, and 6x6 keeps 18 markers with a window that contains 1.0, so the distance
+   you already worked at stays valid.
+
+   Going below ~4 mm markers starts to be limited by the PRINTER rather than the cameras: the 7x7 at
+   40 mm puts 0.72 mm per code cell on paper, which a 600 dpi laser handles but where toner spread
+   begins to soften the edges. Check a print under magnification before committing to a session.
+
+   Regenerate any size with
+   `python -m wfield_local.dlc_board --size-mm 50 --squares 7x7`.
+
+   **One board in frame at a time.** They all draw on DICT_4X4_50, so two boards in view share
+   marker ids and a repeated id is a pose that can solve in two places.
+
+   Their markers are **4-10 mm against the current ~1.2 mm** — sized from the recording, not from paper:
    in cam2 the printed pattern spans ~145 px while the card it is taped to (a 30 mm cage plate,
    38.1 mm) spans ~390 px. That puts cam2 near 14 px per code cell instead of 2.1. It is
    deliberately NOT a full page: ~20x would leave `cam4`, whose field is the snout alone, seeing two

@@ -78,6 +78,24 @@ def board_spec(paper: str | None = None) -> dict:
             "dictionary": "DICT_4X4_50", "paper": p}
 
 
+def sized(squares_x: int, squares_y: int, size_mm: float, marker_ratio: float = 0.76,
+          dictionary: str = "DICT_4X4_50", paper: str = "a4") -> dict:
+    """A board whose LONGEST side is ``size_mm``, with the given square count.
+
+    Square count trades corners against decode margin at a fixed physical size: more squares means
+    more ChArUco corners per view and a smaller marker, so the wide cameras stop reading it sooner.
+    ``working_window`` prices that trade for a given rig.
+
+    ``marker_ratio`` is the marker's share of its square. 0.76 leaves a white quiet zone wide enough
+    for the detector to find the square edge; much above 0.8 the black squares start to merge into
+    their markers under blur.
+    """
+    square = size_mm / max(squares_x, squares_y)
+    return {"squares_x": squares_x, "squares_y": squares_y,
+            "square_mm": round(square, 2), "marker_mm": round(square * marker_ratio, 2),
+            "dictionary": dictionary, "paper": paper}
+
+
 def check_fits(spec: dict, margin_mm: float = 12.0) -> tuple[float, float]:
     """Board size in mm; raises if it will not fit the paper with ``margin_mm`` to spare.
 
@@ -199,7 +217,7 @@ def render(spec: dict, out_dir, stem: str | None = None) -> list[Path]:
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = stem or (f"charuco_{spec['squares_x']}x{spec['squares_y']}_"
-                    f"{spec['square_mm']:.0f}mm_{spec['paper']}")
+                    f"{max(w_mm, h_mm):.0f}mmboard_{spec['square_mm']:.1f}mmsq")
     paths = []
     for ext in ("pdf", "png"):
         p = out_dir / f"{stem}.{ext}"
@@ -216,9 +234,19 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--paper", default=None, choices=sorted(PAPER),
                     help="built-in variant for this paper size (default: the configured board)")
+    ap.add_argument("--size-mm", type=float, default=None,
+                    help="longest side of the BOARD in mm (e.g. 50); overrides the built-in size")
+    ap.add_argument("--squares", default=None, metavar="XxY",
+                    help="square count, e.g. 7x7 (default: keep the configured/built-in count)")
     ap.add_argument("--out", default=".", help="output directory")
     args = ap.parse_args(argv)
     spec = board_spec(args.paper)
+    if args.squares:
+        sx, sy = (int(v) for v in args.squares.lower().split("x"))
+        spec = {**spec, "squares_x": sx, "squares_y": sy}
+    if args.size_mm:
+        spec = sized(spec["squares_x"], spec["squares_y"], args.size_mm,
+                     dictionary=spec["dictionary"], paper=spec["paper"])
     w, h = check_fits(spec)
     print(f"[dlc_board] {spec['squares_x']}x{spec['squares_y']} ChArUco, square "
           f"{spec['square_mm']:.0f} mm, marker {spec['marker_mm']:.0f} mm, {spec['dictionary']}, "

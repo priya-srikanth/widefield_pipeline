@@ -1820,6 +1820,33 @@ Three things are printed ON the sheet, each for a failure that is otherwise invi
 `check_fits` REFUSES an oversized board rather than letting the print dialog shrink it, and accounts
 for the ruler and tab, which share the page.
 
+### Board size: 40 mm, because a SMALLER board works CLOSER (Priya, 2026-09-08)
+
+*"there is limited space on the rig so smaller is better."* Smaller is not a compromise here — it is
+the right direction, and for a reason beyond footprint. Both ends of the usable working-distance
+window scale with the board, so **shrinking the board moves the whole window nearer**, which is
+exactly what a cramped rig needs. The 08-05 board failed not for being small but for being *far too*
+small to decode: 1.2 mm markers, 2.1 px per code cell on cam2, window 0.18-0.73x.
+
+At 40 mm the board is flush with the 30 mm cage plate it mounts on (38.1 mm), so it adds nothing to
+the footprint. Every variant still clears the ~3 px/cell decode bar by 2-4x:
+
+| squares | square | marker | markers | cam2 px/cell | window |
+|---|---|---|---|---|---|
+| 5x5 | 8.00 mm | 6.08 mm | 12 | 11.1 | 0.88-3.68x |
+| **6x6** | **6.67 mm** | **5.07 mm** | **18** | **9.2** | **0.74-3.07x** |
+| 7x7 | 5.71 mm | 4.34 mm | 24 | 7.9 | 0.63-2.63x |
+| 9x9 | 4.44 mm | 3.38 mm | 40 | 6.1 | 0.49-2.05x |
+
+**6x6 is the default**: 18 markers, and a window that still contains 1.0 so the distance already in
+use stays valid. Square count trades ChArUco corners against how close you must stand — it does not
+change the decode margin much at this size.
+
+**The new floor is the PRINTER, not the cameras.** 7x7 at 40 mm puts 0.72 mm per code cell on paper;
+a 600 dpi laser resolves that, but toner spread starts to soften the edges, and a soft edge costs
+corner localisation — the one thing a calibration board is for. Below ~4 mm markers, check a print
+under magnification first. `dlc_board --size-mm 40 --squares 6x6` regenerates any of them.
+
 ### Labelling order: cam4 + cam1 now, the side views after recalibration (Priya, 2026-09-08)
 
 Priya: *"should we only label jaw, tongue, spout in the other 3 angles?"* For `cam1` that IS its whole
