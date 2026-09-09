@@ -1388,13 +1388,56 @@ def fig_confusion_per_session(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 
 
-@lru_cache(maxsize=8)
-def _collect_5c(align, variant="working"):
+def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
+    """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
+
+    The counterpart to the frozen decoder, and the control that separates the two readings of a
+    frozen-decoder failure: a code that is GONE cannot be decoded by any model, while a code that
+    has MOVED is decodable within the session and unreadable only by the pre-stroke model. Same
+    estimator, same trials, same block grouping -- the only difference is what the model was fitted
+    on.
+
+    Returns None rather than guessing when the session cannot support the split (one class, fewer
+    than two blocks, or a fold that leaves a training set with one class). A silent fallback to
+    something else would put a different kind of number in the same bar.
+    """
+    from sklearn.model_selection import GroupKFold, cross_val_predict
+
+    b = np.asarray(blk)
+    ng = int(np.unique(b).size)
+    if ng < 2 or len(np.unique(y)) < 2:
+        return None
+    try:
+        return np.asarray(cross_val_predict(pipe_of(), X, y, cv=GroupKFold(min(max_splits, ng)),
+                                            groups=b))
+    except Exception:                                                 # noqa: BLE001
+        return None
+
+
+@lru_cache(maxsize=24)
+def _collect_5c(align, variant="working", mode="frozen"):
     """{animal: (pre-stroke LOSO record, {day: record})} plus the sorted day list.
 
     A RECORD IS (y_true, y_pred, blocks), not a counts matrix. Counts are one reduction of it and a
     bootstrap interval is another; keeping the trial-level predictions means the panel's accuracy and
     its interval come from the same object rather than from two passes that can disagree.
+
+    ``mode`` selects WHICH MODEL PRODUCED ``y_pred``, on trial sets that are identical in all three:
+
+      ``frozen``  -- the pre-stroke model, frozen (the default, and what every existing caller gets)
+      ``refit``   -- a within-session block-CV decoder fitted on the session being scored
+      ``paired``  -- ``y_pred`` is an (n, 2) array: column 0 frozen, column 1 refit
+
+    ``paired`` exists so the frozen-minus-refit contrast is PAIRED at the trial level. Collecting
+    the two arms separately and subtracting their pooled accuracies would compare two bootstraps
+    that resampled different blocks, and the difference of two intervals is not an interval on the
+    difference.
+
+    IN ``refit``/``paired`` THE PRE ENTRY IS A LIST, one record per pre-stroke session, not the
+    single concatenated leave-one-session-out record ``frozen`` returns. The refit arm's unit is a
+    session -- each pre-stroke session is scored by a model fitted on ITSELF -- so the session level
+    is real there and has to be resampled. `epoch_figures._sessions_of` accepts both forms for
+    exactly this reason. ``frozen`` is left byte-identical so no existing figure moves.
 
     ``variant`` selects the post-stroke trial class, as everywhere else in this module:
       ``working`` -- lick PLUS miss-while-working, i.e. all but the terminal quit period
@@ -1407,6 +1450,8 @@ def _collect_5c(align, variant="working"):
     """
     if align == "lick" and variant != "lick":
         raise ValueError("the lick-aligned window has no miss trials to align: use variant='lick'")
+    if mode not in ("frozen", "refit", "paired"):
+        raise ValueError(f"mode must be frozen/refit/paired, got {mode!r}")
 
     from wfield_local.locanmf_frozen_decoder import _pipe
 
@@ -1429,18 +1474,38 @@ def _collect_5c(align, variant="working"):
             clf = _pipe().fit(XE[e_pre], YE[e_pre])
 
             def rec(X, y, blk, model):
-                return (np.asarray(y), np.asarray(model.predict(X)), np.asarray(blk))
+                """One record, with `mode` deciding whose prediction fills column(s) of y_pred."""
+                y, blk = np.asarray(y), np.asarray(blk)
+                fz = np.asarray(model.predict(X))
+                if mode == "frozen":
+                    return (y, fz, blk)
+                rf = _refit_pred(_pipe, X, y, blk)
+                if rf is None:
+                    return None
+                return (y, rf, blk) if mode == "refit" else (y, np.column_stack([fz, rf]), blk)
 
             # PRE: leave-one-session-out among pre-stroke, concatenated over held-out sessions.
-            pre_y, pre_p, pre_b = [], [], []
+            #
+            # THE FROZEN ARM'S PRE BASELINE IS LOSO, and the refit arm's counterpart on the same
+            # session is a within-session fit -- so the pre column of the paired figure is not a
+            # null contrast but the TRAINING-SET-SIZE effect measured on its own: ten sessions of
+            # training data against one, with no lesion involved. Every post-stroke gap has to be
+            # read against it, which is why pre is drawn rather than assumed to be zero.
+            pre_y, pre_p, pre_b, pre_recs = [], [], [], []
             for i in sorted(pre_i):
                 tr, te = e_pre & (GE != i), e_pre & (GE == i)
                 if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                yt, yp, bb = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]))
-                pre_y.append(yt); pre_p.append(yp); pre_b.append(bb)
-            Cpre = ((np.concatenate(pre_y), np.concatenate(pre_p), np.concatenate(pre_b))
-                    if pre_y else None)
+                r = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]))
+                if r is None:
+                    continue
+                pre_recs.append(r)
+                pre_y.append(r[0]); pre_p.append(r[1]); pre_b.append(r[2])
+            if mode == "frozen":
+                Cpre = ((np.concatenate(pre_y), np.concatenate(pre_p), np.concatenate(pre_b))
+                        if pre_y else None)
+            else:
+                Cpre = pre_recs or None
 
             by_day = {}
             for i, lab in enumerate(kept):
@@ -1455,11 +1520,15 @@ def _collect_5c(align, variant="working"):
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                by_day[day] = rec(Xs, ys, bs, clf)
+                r = rec(Xs, ys, bs, clf)
+                if r is None:
+                    continue
+                by_day[day] = r
                 all_days.add(day)
             per_animal[an] = (Cpre, by_day)
         except Exception as ex:                                       # noqa: BLE001
-            print(f"  !! 5c {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            print(f"  !! 5c {an} {align}/{variant}/{mode}: {type(ex).__name__} {str(ex)[:90]}",
+                  flush=True)
     return per_animal, sorted(all_days)
 
 

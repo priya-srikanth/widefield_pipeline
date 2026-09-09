@@ -595,8 +595,80 @@ def _accuracy_of(record, position=None):
     return float(np.mean(y == p)) if len(y) else None
 
 
+def _gap_at(y, p, code):
+    """Refit-minus-frozen accuracy at one true position CODE, from a PAIRED record.
+
+    ``p`` is the (n, 2) array `grant_figures._collect_5c(mode="paired")` returns -- column 0 the
+    frozen pre-stroke decoder, column 1 the within-session refit -- so the difference is taken on
+    the SAME trials and survives every level of the block bootstrap paired.
+
+    Positive = the session's own decoder reads a position the frozen one cannot: information
+    PRESENT but unreadable by the pre-stroke model. Zero = both fail together, which is what a
+    genuinely degraded code looks like.
+    """
+    if code is None:
+        return None
+    y, p = np.asarray(y), np.asarray(p)
+    if p.ndim != 2 or p.shape[1] != 2:
+        raise ValueError("_gap_at needs a paired record: use _collect_5c(..., mode='paired')")
+    m = (y == code)
+    if m.sum() < 5:
+        return None
+    return float(np.mean(p[m, 1] == y[m]) - np.mean(p[m, 0] == y[m]))
+
+
+def _gap_of(record, position):
+    """`_gap_at` for one whole record, at one position NAME. `None` when the class is absent."""
+    if record is None:
+        return None
+    return _gap_at(record[0], record[1], _code_of(position))
+
+
+def _refit_at(y, p, code):
+    """Accuracy of the REFIT column of a paired record at one true position code."""
+    if code is None:
+        return None
+    y, p = np.asarray(y), np.asarray(p)
+    m = (y == code)
+    if m.sum() < 5:
+        return None
+    return float(np.mean(p[m, 1] == y[m]))
+
+
+def _refit_of(record, position):
+    if record is None:
+        return None
+    return _refit_at(record[0], record[1], _code_of(position))
+
+
 def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     """Per-position accuracy of the frozen pre-stroke decoder, by epoch."""
+    return _position_bars(
+        per_animal, out_dir, align, variant, wname,
+        name=f"epoch_acc_by_position_{align}_{variant}",
+        title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
+        delta_name=f"epoch_accdelta_by_position_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in per-position accuracy, {wname}",
+        ylabel="accuracy", delta_ylabel="accuracy - pre",
+        stat_at=_accuracy_at, value_of=_accuracy_of,
+        chance=CHANCE, ylim=(0.0, 1.10),
+        notes=["pre panel is leave-one-session-out within each animal, pooled across animals"])
+
+
+def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, delta_name,
+                   delta_title, ylabel, delta_ylabel, stat_at, value_of, chance, ylim, notes,
+                   reference=None):
+    """ONE path for every per-position bar row built from decoder records.
+
+    Frozen accuracy, refit accuracy and the paired frozen-minus-refit gap differ only in which
+    statistic reduces a trial set, so the resampling, the marks, the Bonferroni correction across
+    the twelve contrasts and the companion interval panel are written once. Three copies would
+    agree today and diverge the first time one of them gained a correction -- the same argument
+    `_scalar_figure` already makes for the scalar families.
+
+    ``stat_at(y, p, code) -> float | None`` reduces a POOLED trial set at one position;
+    ``value_of(record, position_name) -> float | None`` reduces ONE session for its dot.
+    """
     from wfield_local.grant_figures import CONF_LABELS
 
     short = dict(zip(CONF_LABELS, _short_labels()))
@@ -612,21 +684,26 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
             # marks use. Passing a bare number drew no error bar at all, silently: `bar_row` draws
             # one only where a value arrives as a (value, lo, hi) tuple.
             got = ef.value_draws(
-                per_animal, e, lambda y, pr, c=_code_of(q): _accuracy_at(y, pr, c),
+                per_animal, e, lambda y, pr, c=_code_of(q): stat_at(y, pr, c),
                 rng=np.random.default_rng(_seed_for(align, variant, e, f"{q}-value")),
                 n_boot=N_BOOT)
-            a = ef.with_ci(got) if got is not None else _accuracy_of(rec, q)
+            a = ef.with_ci(got) if got is not None else value_of(rec, q)
             if a is not None:
                 values[e][short[q]] = a
             # one dot per session, from the SAME records the pooled bar sums
-            pts = ef.per_session_values(per_animal, e, lambda _an, _d, r, q=q: _accuracy_of(r, q))
+            pts = ef.per_session_values(per_animal, e, lambda _an, _d, r, q=q: value_of(r, q))
             points[e][short[q]] = [(an, v) for an, v in pts if v is not None]
     if not values:
         return None
     cov = ef.epoch_coverage(per_animal)
     per_epoch = dict(cov["per_epoch"])
-    per_epoch["pre"] = {an: (1 if per_animal.get(an, (None, {}))[0] is not None else 0)
-                        for an in per_animal}
+    # A LIST OF PRE RECORDS IS A LIST OF SESSIONS. The frozen arm's pre entry is one
+    # leave-one-session-out pool per animal and counts as one; the refit arm's is one record per
+    # pre-stroke session, and counting that as one would print "pre 4" under a bar resting on 44.
+    def _n_pre(pre):
+        return 0 if pre is None else (len(pre) if isinstance(pre, list) else 1)
+
+    per_epoch["pre"] = {an: _n_pre(per_animal.get(an, (None, {}))[0]) for an in per_animal}
 
     # THE CONTRAST AGAINST PRE-STROKE, per position, resampling animals -> sessions -> blocks.
     # Draws are taken ONCE per contrast and summarised at both an uncorrected and a corrected
@@ -643,7 +720,7 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
                 continue
             got = ef.contrast_draws(
                 per_animal, e, "pre",
-                lambda y, pr, c=_code_of(q): _accuracy_at(y, pr, c),
+                lambda y, pr, c=_code_of(q): stat_at(y, pr, c),
                 # SEEDED PER (window, class, epoch, position), stably: the same figure has to give
                 # the same interval on every render, and `hash()` is salted per process.
                 rng=np.random.default_rng(_seed_for(align, variant, e, q)), n_boot=N_BOOT)
@@ -661,21 +738,79 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
     # would print "pre 4" beside "acute 16" and imply the baseline rests on four sessions when it
     # rests on forty-four.
     sub = ef.stats_line(_session_counts(), blocks=ef.block_counts(per_animal), n_boot=N_BOOT,
-                        notes=["pre panel is leave-one-session-out within each animal, "
-                               "pooled across animals"])
+                        notes=list(notes))
     made = ef.bar_row(
-        values, out_dir, name=f"epoch_acc_by_position_{align}_{variant}",
-        title=f"Per-position decoding accuracy, {wname} -- pooled across animals",
+        values, out_dir, name=name, title=title,
         subtitle=sub, counts=_totals(per_epoch), marks=marks, points=points,
-        ylabel="accuracy", positions=_short_labels(), tick_labels=_minor(), groups=_groups(),
-        chance=CHANCE, ylim=(0.0, 1.10))
+        ylabel=ylabel, positions=_short_labels(), tick_labels=_minor(), groups=_groups(),
+        chance=chance, ylim=ylim, reference=reference)
     if any(rows.values()):
         ef.contrast_panel(
-            rows, out_dir, name=f"epoch_accdelta_by_position_{align}_{variant}",
-            title=f"Change from pre-stroke in per-position accuracy, {wname}",
-            subtitle=sub, ylabel="accuracy - pre", positions=_short_labels(),
+            rows, out_dir, name=delta_name, title=delta_title,
+            subtitle=sub, ylabel=delta_ylabel, positions=_short_labels(),
             tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
     return made
+
+
+def _frozen_vs_refit(out_dir, align, variant, wname):
+    """5r: is the position code LOST, or present and MISREAD by the pre-stroke model?
+
+    THE QUESTION THE FROZEN DECODER CANNOT ANSWER ALONE. A frozen decoder that fails post-stroke is
+    consistent with two opposite readings -- the information is gone, or the information is there
+    and the pre-stroke readout no longer points at it -- and every other figure in this set attacks
+    that ambiguity indirectly (split-half reliability says the pattern is still repeatable;
+    crossnobis says it moved; the confusions say where it went). This attacks it directly: refit a
+    decoder WITHIN each session, on the same trials, with the same estimator and the same block
+    grouping, and ask whether the position becomes decodable again.
+
+        gap ~ 0, both low   -> the code is degraded. No model recovers it.
+        gap > 0             -> the code is present and DISPLACED: only the frozen readout fails.
+
+    THE PRE PANEL IS THE CONTROL AND IS NOT ZERO BY CONSTRUCTION. The frozen arm trains on ten
+    pre-stroke sessions and the refit arm on one, so a gap exists at pre from training-set size
+    alone, with no lesion involved. The post-stroke claim is the gap at that epoch MINUS the gap at
+    pre, which is what the companion contrast panel plots -- reading the raw gap as the effect
+    would charge the lesion for the handicap the design imposes.
+
+    Trials are IDENTICAL between the two arms by construction (`mode="paired"` fills two columns of
+    one record), so the difference is paired at the trial level and every bootstrap level inherits
+    the pairing.
+    """
+    from wfield_local import grant_figures as G
+
+    per_animal, _days = G._collect_5c(align, variant, "paired")
+    if not per_animal:
+        return None
+    made = []
+    p = _position_bars(
+        per_animal, out_dir, align, variant, wname,
+        name=f"epoch_5r_refit_by_position_{align}_{variant}",
+        title=f"Per-position accuracy of a WITHIN-SESSION refit decoder, {wname}",
+        delta_name=f"epoch_5rdelta_refit_by_position_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in refit decoding accuracy, {wname}",
+        ylabel="accuracy (refit within session)", delta_ylabel="accuracy - pre",
+        stat_at=_refit_at, value_of=_refit_of, chance=CHANCE, ylim=(0.0, 1.10),
+        notes=["each session scored by a 5-fold block-CV decoder fitted on ITSELF",
+               "pre panel is one record per pre-stroke session, not a pooled LOSO record"])
+    if p:
+        made.append(p)
+    q = _position_bars(
+        per_animal, out_dir, align, variant, wname,
+        name=f"epoch_5rgap_frozen_vs_refit_{align}_{variant}",
+        title=f"Recoverable information: refit minus frozen accuracy, {wname}",
+        delta_name=f"epoch_5rgapdelta_frozen_vs_refit_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in the refit-minus-frozen gap, {wname}",
+        ylabel="refit - frozen accuracy", delta_ylabel="gap - pre gap",
+        stat_at=_gap_at, value_of=_gap_of,
+        # A DIFFERENCE HAS NO CHANCE LEVEL and no natural range: zero is the reference and the
+        # axis autoscales, because clipping a negative gap to a [0, 1] window would hide the
+        # reading that matters most -- both decoders failing together.
+        chance=None, reference=0.0, ylim=None,
+        notes=["paired within trial: both arms score the SAME trials",
+               "the pre gap is the training-set-size handicap, not an effect"])
+    if q:
+        made.append(q)
+    return made or None
 
 
 def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
@@ -1203,12 +1338,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "mat", "scal"))
+                    choices=("1b", "1c", "acc", "5c", "5r", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "mat", "scal"))
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5r", "mat", "scal"))
 
     if "1b" in want:
         try:
@@ -1225,7 +1360,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5r", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -1256,6 +1391,13 @@ def main(argv=None) -> int:
                     _report(f"5c {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        if "5r" in want:
+            try:
+                for q in (_frozen_vs_refit(out, align, variant, wname) or []):
+                    _report(f"5r {align}/{variant}", q)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 5r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "scal" in want:
             for key, fn in SCALAR_FAMILIES:

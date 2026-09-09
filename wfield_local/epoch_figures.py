@@ -656,7 +656,7 @@ def _data_span(values, points):
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
             counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
-            marks=None):
+            marks=None, reference=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
@@ -766,6 +766,11 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
                         va="bottom", fontsize=FS_ANNOT, color="0.10", zorder=7)
     if chance is not None:
         ax.axhline(chance, color="0.35", lw=0.8, ls="--", zorder=1)
+    # A REFERENCE IS NOT A CHANCE LEVEL. A difference of two accuracies has a meaningful zero and
+    # no chance level at all, and passing 0.0 as `chance` would print "(chance 0.00)" on the axis
+    # -- a category error on the one figure whose unit is a difference.
+    if reference is not None:
+        ax.axhline(reference, color="0.35", lw=0.9, ls="-", zorder=1)
     ax.set_xticks(xs)
     ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
     # The second level is drawn AFTER the layout is set, below -- it has to measure the tick
