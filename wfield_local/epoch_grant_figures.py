@@ -709,6 +709,15 @@ MATRIX_FAMILIES = (
      "Within-session split-half pattern similarity"),
     ("8", "_matrices_crossnobis", "crossnobis distance", "magma", None,
      "Crossnobis geometry, in pre-stroke units"),
+    # WHICH POSITION DID IT MOVE TOWARD (Priya, 2026-09-09). Family 8 answers "did this position
+    # move"; its rows are confounded by amplitude, because a pure gain change in P shifts P's
+    # distance to every pre-stroke position equally and paints a uniform row. Row-centring removes
+    # that term, so the off-diagonal contrast is substitution rather than gain. Needed because the
+    # substitution claim otherwise rests on decoder confusions and best-match fraction, both of
+    # which are LABEL-level -- they say which position the readout assigns, not which position the
+    # pattern moved toward. Diverging: the scale is centred on zero, so RdBu_r not magma.
+    ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centred", "RdBu_r", None,
+     "Crossnobis geometry, row-centred -- which position did it move TOWARD"),
 )
 
 

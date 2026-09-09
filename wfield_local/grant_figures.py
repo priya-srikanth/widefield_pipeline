@@ -3860,6 +3860,26 @@ def _matrices_crossnobis(align, variant, min_trials=10, row_centre=False):
     return out, days
 
 
+def _matrices_crossnobis_rowcentred(align, variant, min_trials=10):
+    """`_matrices_crossnobis` with every ROW centred: WHICH position did it move toward.
+
+    A NAMED COLLECTOR RATHER THAN A KWARG because `MATRIX_FAMILIES` resolves collectors by name
+    through `getattr`, and a family is the unit that gets a matrix, a diagonal and a delta panel.
+    One line of delegation keeps the arithmetic in exactly one place.
+
+    WHAT IT BUYS, and why the label-level measures do not already give it (Priya, 2026-09-09). The
+    decoder confusion and the best-match fraction say which position the READOUT assigns; they are
+    label-level and can move for reasons that are not representational. The raw distance row is
+    confounded the other way: `d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2`
+    has a first term depending only on P, so a pure amplitude change in P shifts its distance to
+    EVERY pre-stroke position equally and paints a uniform row that looks like "moved toward all
+    six". Row-centring removes that term and leaves the CONTRAST within the row, which is where a
+    substitution actually lives -- so a far-contra row going negative under the far-middle column is
+    that position's pattern having moved toward far-middle, not merely away from itself.
+    """
+    return _matrices_crossnobis(align, variant, min_trials=min_trials, row_centre=True)
+
+
 def fig_crossnobis_delta(out_dir, min_trials=10):
     """8d: figure 8 as DIFFERENCES from the pre-stroke reference.
 

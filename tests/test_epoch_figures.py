@@ -622,3 +622,32 @@ def test_licks_row_is_omitted_rather_than_faked_when_absent(tmp_path):
     out = ef.timecourse_by_animal(hits, tmp_path, name="nolpt", title="t", ylabel="hit rate",
                                   positions=pos, extra_rows=None)
     assert out is not None and out.exists()
+
+
+def test_row_centred_crossnobis_is_its_own_epoch_family():
+    """"Which position did it move TOWARD" needs the row-centred matrix (Priya, 2026-09-09).
+
+    Family 8's rows are confounded by amplitude: d(post P, pre Q) carries a |mu_postP|^2 term that
+    depends only on P, so a pure gain change shifts P's distance to every pre-stroke position
+    equally and paints a uniform row that reads as "moved toward all six". Row-centring removes it.
+    Without this family the substitution claim rests only on decoder confusions and best-match
+    fraction, which are LABEL-level.
+    """
+    from wfield_local import epoch_grant_figures as EG
+    from wfield_local import grant_figures as G
+
+    keys = [f[0] for f in EG.MATRIX_FAMILIES]
+    assert "8rc" in keys, "the row-centred crossnobis family is missing"
+    fam = next(f for f in EG.MATRIX_FAMILIES if f[0] == "8rc")
+    assert callable(getattr(G, fam[1])), f"{fam[1]} must exist -- families resolve by getattr"
+    # a centred quantity is signed about zero, so it must not inherit family 8's one-sided map
+    assert fam[3] != "magma", "row-centred values are signed; use a diverging colormap"
+    assert fam[4] is None, "a crossnobis distance has no natural fixed range"
+
+
+def test_row_centring_removes_the_row_mean_but_keeps_the_contrast():
+    """The property the substitution reading depends on: within-row differences survive."""
+    M = np.array([[3.0, 1.0, 2.0], [6.0, 4.0, 5.0]])
+    C = M - np.nanmean(M, axis=1, keepdims=True)
+    assert np.allclose(np.nanmean(C, axis=1), 0.0)
+    assert np.allclose(np.diff(M, axis=1), np.diff(C, axis=1))
