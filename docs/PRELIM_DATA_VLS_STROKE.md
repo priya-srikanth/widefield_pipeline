@@ -23,7 +23,10 @@ than living in a chat log.
 > errors are structured rather than random -- far-contralateral trials are preferentially
 > misclassified as OTHER FAR TARGETS (far-ipsilateral, far-middle) rather than as near targets, so
 > the acute deficit is a loss of discriminability within the far-target subspace rather than a
-> uniform degradation. Three measures indicate that the affected code is relocated rather than lost.
+> uniform degradation. Three measures indicate that the affected code is PARTLY relocated rather than
+> simply lost (a within-session refit recovers a third of the far-contralateral deficit and under
+> an eighth of the far-ipsilateral one -- see the frozen-vs-refit section below before quoting
+> "relocated" unqualified).
 > Within-session split-half pattern reliability is preserved at the most impaired position (+0.12 at
 > far-contralateral, interval excluding zero), so the post-stroke representation remains as
 > internally repeatable as the pre-stroke one even as the frozen decoder fails on it; a similarity
@@ -155,6 +158,67 @@ Epoch coverage for the tables above is NOT balanced across animals: acute = PS94
 PS93 4 / PS95 1; subacute = PS95 10 / PS93 7 / PS94 5 / PS92 2; **chronic = PS92 4, one animal**.
 Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a single-animal claim.
 
+## LOST or MISREAD? The frozen-vs-refit arm (figures 5r), 2026-09-09
+
+The "relocated rather than lost" claim above rested on three INDIRECT measures -- split-half
+reliability, crossnobis displacement, best-match fraction. `epoch_5rgap_frozen_vs_refit_*` tests it
+directly: refit a decoder WITHIN each session on the SAME trials, same estimator, same block
+grouping, and ask whether the position becomes decodable again. Post-cue, lick + miss-while-working.
+
+    gap ~ 0, both arms low  ->  the code is degraded; no model recovers it
+    gap > 0                 ->  the code is present and DISPLACED; only the frozen readout fails
+
+**THE PRE PANEL IS NOT ZERO AND IS NOT AN EFFECT.** The frozen arm trains on ten pre-stroke sessions
+and the refit arm on one, so refitting COSTS 0.073 accuracy at baseline (frozen 0.886 vs refit
+0.813). Every number below is the gap at that epoch MINUS the pre gap.
+
+| epoch | frozen | refit | gap | gap - pre gap |
+|---|---|---|---|---|
+| pre | 0.886 | 0.813 | -0.073 | -- |
+| acute | 0.525 | 0.552 | **+0.027** | **+0.100** |
+| subacute | 0.772 | 0.764 | -0.008 | +0.065 |
+| chronic | 0.846 | 0.841 | -0.005 | +0.068 |
+
+The sign of the gap FLIPS acutely: post-stroke, refitting stops costing accuracy and starts buying
+it. Per position, acute (gap minus pre gap), against each position's own frozen deficit:
+
+| position | frozen deficit (acute - pre) | recovered by refitting | fraction recovered |
+|---|---|---|---|
+| near ipsi   | -0.234 | +0.027 | 12% |
+| near middle | -0.273 | +0.132 | 48% |
+| near contra | -0.313 | +0.168 | 54% |
+| far ipsi    | -0.373 | +0.034 | **9%** |
+| far middle  | -0.408 | +0.044 | **11%** |
+| **far contra** | **-0.573** | **+0.196** | 34% |
+
+**THIS QUALIFIES THE "MOVED NOT LOST" CLAIM RATHER THAN CONFIRMING IT.** Three readings:
+
+1. **The displaced component is REAL and largest in absolute terms at the impaired position**
+   (+0.196 at far-contra, the largest of the six), which is where crossnobis displacement is also
+   largest. Two independent methods agree on where the code moved.
+2. **It is a MINORITY of the deficit.** A third of far-contra's acute drop is recovered by
+   refitting; two thirds is not. The paragraph's "relocated rather than lost" overstates it --
+   the defensible claim is "partly relocated, mostly lost, and the relocated part is
+   position-specific."
+3. **The far ipsilateral and far middle positions lose information OUTRIGHT** -- 9% and 11%
+   recovered, the two smallest fractions. Their deficits are not a readout problem at all. So the
+   acute lesion does two different things at once, and which one dominates depends on the position.
+
+The gap remains positive subacutely (+0.065) and chronically (+0.068) even as frozen accuracy
+returns to 0.846, so a residual readout mismatch outlives the behavioural recovery -- consistent
+with the chronic row-centred far-contra displacement of +0.177.
+
+### The cell that is NOT drawn, and why
+
+Acute far-contralateral is GATED OUT of the lick-aligned arm. That arm conditions on a detected
+lick, and acutely far-contra is the spout the animal does not lick: every acute session holds it at
+0.0-4.3% of trials against a pre-stroke 16.5%. A within-session refit will not predict a class at
+4% prior in a six-way problem, so the cell read -0.42 -- the mouse not licking, presented as the
+code being gone, in the direction that would have flattered the "lost" reading. Gated by
+`grant_figures.MIN_REFIT_SHARE` (a third of uniform); the gate fires on 78 of 37,562 trials, 0.21%,
+all of them that one cell, and never in the cue or pre-cue arms. A count-only floor did NOT catch it
+and made it worse -- see the constant's own note.
+
 ## Where each number comes from
 
 | claim | figure | value |
@@ -168,6 +232,8 @@ Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a sing
 | crossnobis displacement | `epoch_8diagdelta_matrices_crossnobis_cue_working` | acute fC **+1.02**; chronic nI +0.98, nC +0.86, fM +1.01 |
 | pre-stroke frozen decoder accuracy | run log, `frozen decoder [.]` | cue .87/.78/.93/.92; precue .47/.46/.66/.45; lick .92/.88/.95/.93 |
 | no-lick dissociation | run log, `=>` verdicts | PS95 pre-cue 0.36 vs post-cue 0.09 |
+| refit-minus-frozen gap | `epoch_5rgapdelta_frozen_vs_refit_cue_working` | pre -0.073; acute +0.027, subacute -0.008, chronic -0.005 |
+| refit recovery by position, acute | same | nI +0.03, nM +0.13, nC +0.17, fI +0.03, fM +0.04, **fC +0.20** |
 
 Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3**.
 
@@ -197,7 +263,12 @@ Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3**.
    and RT cut. The run flags `BASES DISAGREE`. Quote it as a per-animal result, not a cohort one.
 5. **Several intervals cross zero** (subacute near-ipsi and near-contra decoder). The paragraph reads
    as more uniform than the intervals support.
-6. **Seven placed figures were stale at deck build** (`section_g_smalllesion_*`,
+6. **"Relocated rather than lost" is now QUALIFIED by the refit arm.** A within-session refit
+   recovers about a third of the acute far-contralateral deficit and under an eighth of the
+   far-ipsilateral and far-middle ones. The displacement is real, position-specific and agrees with
+   the crossnobis geometry on WHERE, but most of the acute deficit is information the population no
+   longer carries linearly. Do not quote "relocated" without it.
+7. **Seven placed figures were stale at deck build** (`section_g_smalllesion_*`,
    `poststroke_G7d_smalllesion_*`, `coding_rtdrift`; 17-21 days old, predating both engagement-gate
    changes). None are cited above, but do not cite them until re-run.
 
