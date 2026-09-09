@@ -3345,6 +3345,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "argmax and rank cannot move under a monotone change across a row, and the uniform row "
          "shifts that dominate H8/H8d are exactly that. Ties go to the diagonal, so a flat row "
          "never manufactures a substitution.")),
+        ("grant_10b_best_match_by_session_*.png",
+         "H10b. The true position's RANK, session by session",
+         ("The same rank statistic as the right panel of H10, resolved to one cell per session "
+         "rather than pooled -- so a fraction driven by two bad sessions is visible as two bad "
+         "sessions. Rank 1 means the position's post-stroke pattern still matches its own "
+         "pre-stroke pattern better than any other; rank 6 means five other positions match it "
+         "better. THIS IS THE RANK-BASED, THRESHOLD-FREE READOUT, and it is why an AUROC family "
+         "would add less here than it first appears: rank over the six class prototypes already "
+         "removes any monotone transform of the similarities. What it does NOT measure is "
+         "TRIAL-level discriminability -- it ranks classes for a session's mean pattern, not "
+         "trials within a class -- which is the gap the epoch 5r refit arm fills instead. "
+         "Rendered since 2026-08-27 and unplaced until 2026-09-09; earlier decks show H10's "
+         "pooled version only.")),
         ("grant_11_encoder_gain_shape_*.png",
          "H11. FROZEN ENCODER — did the position code MOVE, or just get SMALLER?",
          ("THE FIRST ENCODER FIGURE IN THE SET, and the only one that answers that question with "
@@ -3475,6 +3488,41 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "impaired ones -- while the behavioural deficit is spatially specific. The pre-cue"
          "position code degrades globally after the lesion even where the animal can still"
          "reach the spout."),
+        ("epoch_5r_refit_by_position_*_*.png",
+         "Refit within session: is the information still there?",
+         "Per-position accuracy of a decoder REFITTED inside each session -- same trials, same"
+         "estimator, same block grouping as the frozen decoder two figures up, differing only in"
+         "what it was trained on. Five-fold block cross-validation within the session, so every"
+         "prediction is out of sample. Bars, session-weighted means with 95% hierarchical"
+         "bootstrap intervals; dots, individual sessions coloured by animal; chance 1/6. Read"
+         "against the frozen panel: a position the refit decoder recovers is a position whose"
+         "information survived and whose pre-stroke readout no longer points at it."),
+        ("epoch_5rdelta_refit_by_position_*_*.png",
+         "Refit decoding, change from pre-stroke",
+         "The refit arm's epoch-minus-pre contrasts. Point, the difference in the data; thick"
+         "bar, 95% interval; thin bar, the Bonferroni-corrected interval across all twelve"
+         "comparisons, from one set of draws. A refit decoder that ALSO falls is measuring loss"
+         "of information rather than loss of readout."),
+        ("epoch_5rgap_frozen_vs_refit_*_*.png",
+         "Recoverable information: refit minus frozen",
+         "The paired difference between the two preceding arms, per position and epoch. Both"
+         "arms score the SAME trials -- the two predictions are two columns of one record -- so"
+         "the difference is paired at the trial level and stays paired through every level of"
+         "the bootstrap. A positive gap means the position is decodable within the session but"
+         "not by the pre-stroke model: information PRESENT and DISPLACED. A gap near zero with"
+         "both arms low means no model recovers the position: information DEGRADED. THE PRE BAR"
+         "IS NOT ZERO BY CONSTRUCTION and is not an effect: the frozen arm trains on ten"
+         "pre-stroke sessions and the refit arm on one, so a gap exists at baseline from"
+         "training-set size alone, with no lesion involved. Solid line, zero. The whole-session,"
+         "per-animal version of this comparison is H3b; this is its per-position,"
+         "epoch-stratified form, and the only one carrying an interval on the DIFFERENCE."),
+        ("epoch_5rgapdelta_frozen_vs_refit_*_*.png",
+         "Recoverable information, change from the pre-stroke gap",
+         "The gap at each epoch minus the gap at pre -- the figure that carries the claim, because"
+         "it is the only one from which the training-set-size handicap has been subtracted. An"
+         "interval excluding zero means the lesion made MORE information recoverable by refitting"
+         "than the design's own handicap accounts for, which is the signature of a displaced code."
+         "Marks and correction as in the other contrast panels."),
         ("epoch_5c_frozen_confusion_*_*.png",
          "Frozen pre-stroke decoder, confusion by epoch",
          "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each"
