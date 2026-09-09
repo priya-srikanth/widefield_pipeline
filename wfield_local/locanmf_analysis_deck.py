@@ -2368,9 +2368,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # construction. They are shown here and NOWHERE ELSE, because a within-animal control one
         # day before the effective lesion is the strongest control this design has, and because a
         # figure that exists and is never shown is a figure nobody has checked.
+        # NO CONFUSION ENTRIES HERE, and their absence is the fix rather than an omission. This
+        # tuple used to carry ("confusion_precue", ...) and ("confusion_cue", ...), which resolve to
+        # `section_g_smalllesion_confusion_<align>_<arm>.png` -- POOLED filenames that
+        # `plot_poststroke.fig_confusion_alltrials` stopped writing on 2026-08-19, when it went one
+        # figure per session. The four files it kept placing were the last ones written under the
+        # old name, so G2d showed 2026-08-19 content for three weeks while every other figure on
+        # the slide beside it was current, and the deck's own staleness manifest was the only place
+        # that said so. The per-session versions ARE shown, on their own slides, at G7c.
         _SMALL = (("grid", "the four-condition grid"),
-                  ("confusion_precue", "crossed confusion, PRE-cue"),
-                  ("confusion_cue", "crossed confusion, POST-cue"),
                   ("similarity", "pattern similarity to the pre-stroke reference"),
                   ("matched", "position-matched frozen decoding"))
         _small_found = [(k, nice, arm, armn, q)
