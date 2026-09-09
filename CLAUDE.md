@@ -67,15 +67,38 @@ Stage 2 also runs **`grant_figures`** (added 2026-08-27, same rule as the post-s
 section H places 19 of its patterns, and a deck input no nightly step regenerates is frozen at the
 day it was last made by hand).
 
-**HOW LONG IT TAKES** (measured 2026-08-26/27, four animals, 21 curated dates): analysis stage
-**~9.6 h**, grant render **~8–10 h** with `--compact`, so a full stage 2 is **~18–20 h** and does not
-fit in a night. `--skip-grant` (also accepted by `await_locanmf`, which forwards it) runs everything
-else; section H then shows the previous render and the deck manifest reports it as not-refreshed.
-The grant render is that long because `_trial_features` — the per-session workhorse — is NOT
-memoized, so each collector rebuilds the same features: 40 sessions produced 200 builds on the
-2026-08-27 render, ~5x each. Fixing that is the way to make the full nightly fit; the disk cache
-(`session_cache.cached`) already exists and is used by `locanmf_rsa`, `locanmf_cross_mouse`,
-`evoked_amplitude` and `fixed_scale_maps`, just not here.
+**HOW LONG IT TAKES** — **re-measured 2026-09-07/09. The previous entry here said the grant render
+took 8–10 h; it takes 1 h 51 m. That estimate was made before the parallel renderer and before
+`_trial_features` was cached, and it was still being used to plan nights three weeks later.**
+
+| what | measured | when |
+|---|---|---|
+| full stage 2 (analysis + grant + deck) | **10 h 26 m** | 2026-09-07 run, finished 09-08 15:13, 0 failed steps |
+| grant render, 96 units, parallel | **1 h 51 m** | same run |
+| ONE grant family re-rendered (`--only 7b -j 5`) | **~15 min** | 2026-09-09, 5 units, 24 cores |
+| epoch figures, one family, 3 arms (`--only 5r`) | **~26 min** | 2026-09-09 |
+| one per-day date + cross-session + deck rebuild | **1 h 30 m** | 2026-09-09, `nightly_figs 0908 --skip-grant --skip-poststroke --skip-frozen --skip-nolick` |
+
+So a full stage 2 DOES fit in a night, and `--skip-grant` is no longer the routine choice it was —
+the grant render is now ~18% of the run, not half of it. It still exists (and `await_locanmf`
+still forwards it); section H then shows the previous render and the deck manifest reports it as
+not-refreshed.
+
+**`_trial_features` IS MEMOIZED** — since `session_cache` v11, 2026-08-27, under cache kind
+`tf-<align>-<digest>` via `locanmf_position_decoder.trial_features_cached`. The old claim that it
+was not, and the 200-builds-for-40-sessions figure that followed from it, described the render
+BEFORE that change and is the single reason the 8–10 h estimate persisted. Do not re-derive a
+timing from that paragraph; measure it.
+
+**RE-RENDER ONE FAMILY RATHER THAN THE SET.** `python -m wfield_local.grant_figures --only <key>
+-j <N>` and `python -m wfield_local.epoch_grant_figures --only <key>` both exist, and a unit is one
+(figure, alignment, trial class). Fixing one figure has cost ~15 min since the parallel renderer
+landed; re-running all 96 to fix one of them is the mistake this line exists to prevent.
+
+**THE COST HINT IS NOT ALIGNMENT-AWARE** (`grant_figures._COST_HINT`): it is keyed by figure only,
+so the scheduler treats a lick-aligned unit as costing the same as a cue-aligned one when lick uses
+8 sub-bins against 4 — roughly 3x the work. That is why the tail of a parallel render is always the
+`lick/lick` units. Harmless, but it makes the last 10% of a render slower than it needs to be.
 
 Useful skips: `--skip-camera`, `--skip-figs`, `--skip-frozen`, `--skip-poststroke`, `--skip-grant`,
 `--skip-deck`, `--skip-archive`, `--dry-run`.

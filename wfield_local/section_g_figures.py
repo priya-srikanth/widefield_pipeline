@@ -188,15 +188,23 @@ def _render_family(sub, out, prefix, label):
     return made
 
 
-def _render_readouts(sub, out, prefix):
+def _render_readouts(sub, out, prefix, *, named_only=False):
     """The arm-INDEPENDENT no-lick readouts (G4, G4b, G6).
 
     They read the no-lick arm on purpose, which is what they are for, so they are computed and drawn
     once per session rather than once per arm.
+
+    ``named_only`` RENDERS ONLY THE FIGURES THAT ACCEPT A FILENAME, and exists so a second family
+    can be rendered without destroying the first's output. `fig_identity` (G4) and
+    `fig_nolick_readout` (G6) take no `name` and write FIXED paths that carry no prefix, so calling
+    this twice would have the small-lesion family silently overwrite the post-stroke family's two
+    headline slides -- one output path claimed by two units, which is the collision the grant
+    render's own guard exists to catch and which nothing checks here. The small-lesion family
+    therefore takes the fits-engaged pair only, which is the one G7d places.
     """
     made = []
     ident = {k: v["looks_like_which"] for k, v in sub.items() if v.get("looks_like_which")}
-    if ident:
+    if ident and not named_only:
         made.append(pp.fig_identity(ident, out))
     # fig_fits_engaged indexes fits[session][align] -- it was written when the readout was computed
     # per alignment. The runner stores the pre-cue record directly, so it is nested back here rather
@@ -214,7 +222,7 @@ def _render_readouts(sub, out, prefix):
                   f"{sorted(fits)}", flush=True)
         made.append(f)
     rd = {k: v["impaired_nolick"] for k, v in sub.items() if v.get("impaired_nolick")}
-    if rd:
+    if rd and not named_only:
         made.append(pp.fig_nolick_readout(rd, out))
     return made
 
@@ -227,6 +235,14 @@ def render(rec, out):
     made += _render_readouts(post, out, "section_g")
     made += _render_family(excluded, out, "section_g_smalllesion",
                            "SMALL-LESION COMPARISON (the laser did not take)")
+    # THE FAILED-LASER FITS-ENGAGED PAIR (G7d), which until 2026-09-09 NO STEP PRODUCED. The deck
+    # placed a pair of files hand-made on 2026-08-18 and justified freezing them on the grounds that
+    # "this comparison is permanently PS92/PS93 on 8/17, so its content cannot change". The sessions
+    # cannot change; the ANALYSIS did. `fits_engaged` is computed on ENGAGED trials, and the
+    # engagement gate was replaced twice since -- position-blind, then reference-restricted and
+    # backdated (880e6bd) -- so those figures were drawn against a gate that no other figure in the
+    # deck still uses. A frozen figure is only safe when nothing upstream of it moves.
+    made += _render_readouts(excluded, out, "section_g_smalllesion", named_only=True)
 
     # G2b: per-position recall in the four conditions, derived from the confusion diagonals.
     ptab = per_position_table(post)

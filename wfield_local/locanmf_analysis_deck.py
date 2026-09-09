@@ -2558,11 +2558,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                     big(s, _cf, top=1.85, width=9.6)
 
         # G7d: the same fits-engaged test on the SMALL-LESION animals. ONE slide, both alignments
-        # side by side (Priya, 2026-08-20). Deliberately NOT regenerated: this comparison is
-        # permanently PS92/PS93 on 8/17 -- the only sessions where a laser did not take -- so its
-        # content cannot change and the 2026-08-18 figures stand.
-        _g7d = [src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
+        # side by side (Priya, 2026-08-20).
+        #
+        # THIS USED TO READ A PAIR OF HAND-MADE 2026-08-18 FILES, frozen on the grounds that "this
+        # comparison is permanently PS92/PS93 on 8/17, so its content cannot change". The SESSIONS
+        # cannot change; the ANALYSIS did. `fits_engaged` is computed on ENGAGED trials and the
+        # engagement gate was replaced twice after those files were drawn -- position-blind, then
+        # reference-restricted and backdated (880e6bd) -- so this slide was showing the only figures
+        # in section G still built on a retired gate, and saying so nowhere. `section_g_figures`
+        # now renders them with everything else; the legacy name is kept as a fallback only so a
+        # deck built before that step has run does not lose the slide.
+        _g7d = [src / f"section_g_smalllesion_fits_engaged_{_al}.png"
                 for _al in ("precue", "cue")]
+        if not any(q.exists() for q in _g7d):
+            _g7d = [src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
+                    for _al in ("precue", "cue")]
         _g7d = [q for q in _g7d if q.exists()]
         if _g7d:
             s = slide()
@@ -2573,8 +2583,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "That is what it controls for: whether a no-lick trial fails the fits-engaged test "
                   "just by being a no-lick trial. NOT the small-lesion arm, which is these same "
                   "animals from 8/18 onward. PS92 has too few no-lick trials to test (it responded "
-                  "on essentially every trial), so in practice this is PS93 alone. FIXED CONTENT: "
-                  "these two sessions are all there will ever be.")
+                  "on essentially every trial), so in practice this is PS93 alone. The two "
+                  "SESSIONS are all there will ever be, but the figure is REGENERATED with the "
+                  "rest of section G rather than frozen: it is scored on ENGAGED trials, so it "
+                  "moves when the engagement gate does.")
             note(s, M_POSTSTROKE, specific=S_G7D)
             grid(s, _g7d, cols=2, top=1.9)
 
