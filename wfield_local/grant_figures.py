@@ -2639,17 +2639,33 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                                     _txt(ax, j, i, "·", ha="center", va="center", fontsize=11,
                                             color="0.35")
                                 continue
-                            # THE INTERVAL GOES ON THE DISATTENUATED PANEL ONLY -- that is the
-                            # number the verdict is read from, and putting a second line under all
-                            # three would triple the text for two panels that are diagnostics.
+                            # THE INTERVAL IS DRAWN, NOT PRINTED (Priya, 2026-09-08). It used to go
+                            # under the value as "[lo,hi]" at 6.2pt. Twelve day columns in a ~3.5in
+                            # panel is a ~0.29in cell, and that string needs about twice that, so
+                            # every interval overlapped its neighbours into unreadable runs like
+                            # "[0.21,0.0948,0.0873,0.0818,...]" -- the numbers were on the figure
+                            # and could not be read off it, which is worse than omitting them.
+                            #
+                            # A BOX INSTEAD, AND IT ANSWERS THE FIGURE'S OWN QUESTION. This panel
+                            # exists to ask whether a drop SURVIVES disattenuation, i.e. whether the
+                            # code moved. So the box marks cells whose 95% interval lies entirely
+                            # BELOW that animal-and-position's own PRE ceiling: a drop that the
+                            # interval separates from the pre-stroke reference. Cells without a box
+                            # are not "no change" -- they are drops the interval cannot resolve,
+                            # which at these reliabilities is a real and frequent state.
                             lab = f"{M[i, j]:.2f}"
                             if ci == 2 and j > 0:
                                 band = ((cis.get(an) or {}).get(cols_day[j]) or {}).get(
                                     CONF_LABELS[i])
-                                if band:
-                                    lab = f"{M[i, j]:.2f}\n[{band[0]:.2f},{band[1]:.2f}]"
-                            _txt(ax, j, i, lab, ha="center", va="center",
-                                 fontsize=6.2 if len(lab) > 6 else 7.5,
+                                # PRE IS THE COMPARATOR, NOT ZERO. Against zero almost every cell
+                                # would be "significant" and the mark would carry no information;
+                                # the question is always post versus that animal's own pre.
+                                if (band and np.isfinite(dis[i, 0])
+                                        and np.isfinite(band[1]) and band[1] < dis[i, 0]):
+                                    ax.add_patch(plt.Rectangle(
+                                        (j - .5, i - .5), 1, 1, fill=False, edgecolor="k",
+                                        lw=1.5, zorder=5))
+                            _txt(ax, j, i, lab, ha="center", va="center", fontsize=7.5,
                                  color="w" if (ci == 0 and M[i, j] < 0.5) else "k")
                     ax.set_xticks(range(len(cols)))
                     ax.set_xticklabels(cols if ri == len(ANIMALS) - 1 else [], fontsize=9.5)
@@ -2684,6 +2700,10 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                 f"A drop that SURVIVES the right panel is a code that moved; a drop that "
                 f"DISAPPEARS was a code measured less repeatably. A grey dot = reliability below "
                 f"{MIN_REL} on one side, where the ratio is not stable enough to print.\n"
+                f"BOXED cell (right panel) = its 95% cluster-bootstrap interval lies entirely "
+                f"BELOW that animal-and-position's own PRE value: a drop the interval separates "
+                f"from the pre-stroke reference. An unboxed cell is NOT 'no change' -- it is a "
+                f"drop the interval cannot resolve, which at these reliabilities is common.\n"
                 f"PRE COLUMN IS LEAVE-ONE-SESSION-OUT: each pre-stroke session scored against the "
                 f"pool of the others, averaged -- one session against a pool, exactly like every "
                 f"post-stroke column, so the columns are comparable.\n"
