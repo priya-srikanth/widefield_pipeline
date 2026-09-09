@@ -8,15 +8,22 @@ Newest first. Each entry: what happened → what it costs → what we do → wha
 
 ---
 
-## 2026-09-08 — PS92: session-wide camera frame drops (~9–12%; cameras only)
+## 2026-09-08 — PS92: camera frame drops after a mid-session cliff (~9–12% overall; cameras only)
 
-**What happened.** All four Blackfly cameras dropped a large fraction of frames throughout PS92's
-13:36 session — cam1 155,602 (8.5%) / cam2 156,522 (8.6%) / cam3 156,685 (8.6%) / cam4 212,973 (11.7%)
-— spread across 50k–57k small gaps (max gap 43–62 frames, ~0.2 s), with effective fps sagging to
-220–228 against the nominal 250. PS93's 11:10 session on the same rig the same day was pristine
-(0 drops, 249.81 fps, ~1.15 ms sync residual). Tens of thousands of *small* gaps rather than one
-large one is throughput starvation during acquisition — the capture/write path could not keep up —
-not a crash+concat (contrast the 8/12 entry).
+**What happened.** PS92's 13:36 session recorded a large fraction of dropped frames — cam1 155,602
+(8.5%) / cam2 156,522 (8.6%) / cam3 156,685 (8.6%) / cam4 212,973 (11.7%), 50k–57k gaps per cam.
+PS93's 11:10 session on the same rig the same day was pristine (0 drops, 249.81 fps, ~1.15 ms sync).
+
+**The overall % hides the shape** (cross-camera gap-timing analysis, `scratchpad/ps92_0908_gap_timing.py`):
+the session was **flawless for its first ~104 minutes** (0.0% drops), then fell off a **cliff at
+minute ~104 (≈15:20 wall-clock)** — 20% by minute 105, >50% by 108, ~78% by session end (~15:37).
+And all four cameras dropped at the **same instants**: mean pairwise Pearson r of per-second
+drop-count = **0.98** (cam1–cam2 = 1.000), with **95–97%** of one cam's gap-onsets coincident within
+20 ms in each other cam. That combination — one abrupt onset, then escalation, hitting all four
+streams simultaneously — is a **single shared bottleneck** on the recording box (the disk-write path,
+a USB controller, CPU, or a system process) that seized ~15:20 and never let the write queue recover.
+It is **not** per-camera bandwidth (the streams would drop independently), **not** disk space (D: is
+3.7 TB, 3% used), and **not** a crash+concat (that is one large gap — contrast the 8/12 entry).
 
 **How it was caught.** `dropframe_qc` + `camera_sync` in the camera nightly. cam4's sync residual
 rose to **13.56 ms** (vs ~1.15 ms on a clean session) and its alignment template failed the
@@ -35,10 +42,16 @@ frames that *were* captured still map to DAQ time correctly.
 are baked into the recording — identical on the local and server copies — so deleting local staging
 loses nothing the server does not have, and no re-run recovers frames that were never captured.
 
-**Still open.** The cause of the starvation (disk I/O vs USB bandwidth vs competing load during the
-afternoon slot) — worth watching whether it recurs specifically on PS92's later session. The three
-templates that passed on drop-heavy data (cam1–3, 6–10 ms) are usable but lower quality than a clean
-session's ~1 ms.
+**Still open — rig-side review.** The shared bottleneck is identified but its *trigger* is not, and
+that evidence lives on the recording box (outside this repo). Look at what started/ran on the
+recording computer in the **15:20–15:40 window on 2026-09-08**: Task Scheduler jobs, a Windows
+Update / antivirus full-scan, backup or cloud-sync software, or any competing file transfer; and
+check Event Viewer for disk or USB-controller errors (a drive dropping into error-retry) at that
+time. The abrupt onset at a specific wall-clock minute points to a scheduled/triggered process
+rather than gradual thermal or fill effects. Worth confirming whether it recurs on the afternoon
+slot. The three templates that passed on drop-heavy data (cam1–3, 6–10 ms) are usable but lower
+quality than a clean session's ~1 ms; the drops are concentrated in the final ~17 minutes, so the
+first ~104 minutes of PS92 9/8 camera data are clean.
 
 ---
 
