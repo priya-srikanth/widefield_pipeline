@@ -45,24 +45,54 @@ than living in a chat log.
 
 ## HOW the code changed -- the mechanistic claim and its evidence
 
-The "collapse of the far-target subspace" claim is the one that says something biological, so it is
-worth separating from the measures that only say "changed":
+Measured post-cue, lick + miss-while-working, 2026-09-09. **Exact values, not heatmap readings.**
 
-* `epoch_5c_frozen_confusion_cue_working`, acute-minus-pre panel. The diagonal loss is deepest at
-  far-contra (~-0.55 recall), and the recall it loses reappears as INCREASED off-diagonal recall in
-  the far-ipsi and far-middle COLUMNS of that row. Errors go to other FAR targets, not to near ones
-  and not uniformly.
-* `epoch_10bdelta_best_match_by_position_cue_working`: the fraction of sessions where far-contra's
-  post-stroke pattern still best-matches its own pre-stroke pattern falls by 0.94 acutely.
-* Pooled frozen-decoder accuracy: pre 0.89 (n=21,017 trials) -> acute 0.52 (7,354) -> subacute 0.77
-  (10,691) -> chronic 0.87 (1,067).
+### Crossnobis own-position diagonal, RAW vs ROW-CENTRED
 
-What this does NOT establish: which position far-contra moved TOWARD in the representational space,
-as opposed to which label the decoder assigns. `_matrices_crossnobis(row_centre=True)` is the tool
-for that question -- row-centring removes the amplitude term that shifts a whole row together, and is
-the difference between "did this position move" and "which position did it move toward". That
-analysis has not been run per-epoch; the substitution claim above rests on decoder confusions and
-best-match fraction, both of which are label-level.
+Row-centring subtracts each row's own mean. It matters because
+`d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2` has a first term depending
+ONLY on P: a change in the magnitude of P's post-stroke response shifts its distance to every
+pre-stroke position equally. Raw therefore mixes "moved" with "got bigger/smaller"; row-centred
+isolates the within-row contrast, which is where a substitution lives.
+
+| position | ROW-CENTRED acute-pre | ROW-CENTRED chronic-pre | RAW acute-pre | RAW chronic-pre |
+|---|---|---|---|---|
+| near ipsi   | +0.463 | **-0.032** | +0.211 | **+0.862** |
+| near middle | +0.188 | +0.107 | +0.008 | +0.400 |
+| near contra | +0.455 | **-0.063** | +0.245 | **+0.776** |
+| far ipsi    | +0.421 | +0.061 | +0.304 | +0.220 |
+| far middle  | +0.272 | **+0.010** | +0.319 | **+0.845** |
+| **far contra** | **+0.665** | **+0.177** | **+1.017** | +0.264 |
+
+Three readings, in order of confidence:
+
+1. **ACUTELY THE PATTERN GENUINELY MOVES, most at the impaired position.** Row-centred far-contra
+   +0.665 against +0.188 to +0.463 elsewhere; raw far-contra +1.017, i.e. as far from its own
+   baseline as two DIFFERENT pre-stroke positions are from each other.
+2. **CHRONICALLY THE PATTERN RESOLVES EVERYWHERE EXCEPT THE IMPAIRED POSITION.** Row-centred
+   returns to ~0 at near-ipsi (-0.032), near-contra (-0.063) and far-middle (+0.010), but far-contra
+   remains +0.177 (95% interval excludes zero on `epoch_8rcdiagdelta_...`).
+3. **THE LARGE CHRONIC RAW VALUES ARE AMPLITUDE, NOT REORGANISATION.** Raw is most elevated
+   chronically at SPARED positions -- near-ipsi +0.862, far-middle +0.845, near-contra +0.776 --
+   exactly where row-centred is ~0. A global gain change moves every row; only row-centring
+   separates it. This is also why the deck's old claim that crossnobis is "immune to uniform
+   amplitude change" was wrong and has been corrected.
+
+### Direction of the acute move
+
+`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre panel: the far-contra row
+rises against its own pre-stroke column and FALLS against the ipsilateral columns -- the impaired
+target's pattern moves toward ipsilateral target representations. Consistent with the decoder
+confusions, which send far-contra's lost recall to far-ipsi and far-middle
+(`epoch_5c_frozen_confusion_cue_working`, acute-pre panel), and with best-match fraction falling
+0.94 (`epoch_10bdelta_best_match_by_position_cue_working`).
+
+### What this does NOT establish
+
+Direction is read off the acute-minus-pre heatmap, not from a per-cell interval. The claim
+"toward ipsilateral" is supported by two independent measures pointing the same way, but neither
+carries a significance test on the OFF-diagonal cells. A per-cell interval on the row-centred
+off-diagonal would settle it.
 
 ## Where each number comes from
 

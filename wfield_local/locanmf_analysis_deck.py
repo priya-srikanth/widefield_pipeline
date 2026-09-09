@@ -3529,10 +3529,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_8_matrices_crossnobis_*_*.png",
          "Crossnobis geometry by epoch",
          "Cross-validated Mahalanobis distances between position patterns, in pre-stroke units."
-         "Crossnobis is noise-unbiased and, being built on unit-normalised contrasts, immune to"
-         "uniform amplitude change -- which is what makes it the arbiter when the correlation"
-         "measures and the coding directions disagree. The colour scale is taken from the data"
-         "rather than fixed, because a distance has no natural range."),
+         " Crossnobis is noise-unbiased, which is what makes it the arbiter when the correlation"
+         " measures and the coding directions disagree. It is NOT, however, immune to a change in"
+         " response magnitude: d(post P, pre Q) carries a |mu_postP|^2 term depending only on P, so"
+         " a gain change shifts P's distance to every reference equally. Measured post-cue"
+         " 2026-09-09, chronic elevation here is largest at SPARED positions (near-ipsi +0.862,"
+         " far-middle +0.845) where the row-centred value is ~0 -- amplitude, not geometry. Use the"
+         " row-centred family below for anything about WHERE a pattern went. The colour scale is"
+         " taken from the data rather than fixed, because a distance has no natural range."),
         ("epoch_8diag_matrices_crossnobis_*_*.png",
          "Crossnobis distance, own position",
          "The DIAGONAL of the preceding matrix drawn as bars: each position's similarity to its"
@@ -3546,6 +3550,33 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_8diagdelta_matrices_crossnobis_*_*.png",
          "Crossnobis distance, own position, change from pre-stroke",
          None),
+        ("epoch_8rc_matrices_crossnobis_rowcentred_*_*.png",
+         "Crossnobis geometry, row-centred: which position did it move TOWARD",
+         "The same matrices with each ROW centred on its own mean. The raw distance"
+         " d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2 carries a first"
+         " term depending only on P, so a change in the overall MAGNITUDE of position P's"
+         " post-stroke response shifts its distance to every pre-stroke position equally and"
+         " paints a uniform row -- which reads as 'moved toward all six' and means nothing of the"
+         " kind. Centring removes that term and leaves the contrast WITHIN the row, which is where"
+         " a substitution lives: a far-contra row going negative under an ipsilateral column is"
+         " that position's pattern having moved toward it. Needed because the decoder confusions"
+         " and best-match fraction are LABEL-level -- they say which position the readout assigns,"
+         " not which position the pattern moved toward (Priya, 2026-09-09)."),
+        ("epoch_8rcdiag_matrices_crossnobis_rowcentred_*_*.png",
+         "Crossnobis distance row-centred, own position",
+         "The diagonal of the row-centred matrix: how far each position sits from its own"
+         " pre-stroke pattern RELATIVE to its distance from the other five. Read against the raw"
+         " diagonal two slides earlier -- the pair separates a pattern that moved from a response"
+         " that merely changed size, and the two disagree chronically."),
+        ("epoch_8rcdiagdelta_matrices_crossnobis_rowcentred_*_*.png",
+         "Crossnobis distance row-centred, own position, change from pre-stroke",
+         "THE ARBITER FOR 'DID THE CODE COME BACK'. Measured post-cue 2026-09-09: acutely every"
+         " position is displaced and far-contra most (+0.665 vs +0.188 to +0.463 elsewhere);"
+         " chronically the displacement resolves at every position except far-contra (+0.177) and"
+         " near-middle (+0.107). The RAW diagonal disagrees, showing chronic elevation largest at"
+         " SPARED positions (near-ipsi +0.862, far-middle +0.845) where the row-centred value is"
+         " ~0 -- that is a global gain change, not reorganisation, and it is the reason this panel"
+         " exists."),
         ("epoch_8g_geometry_by_position_*_*.png",
          "Geometry preserved, per position",
          "For each position, the correlation between that position's row of the"
