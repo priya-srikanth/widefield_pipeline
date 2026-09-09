@@ -148,3 +148,55 @@ non-recovering collapse, backdated to the start of the run of misses that trips 
 because the previous position-blind gate discarded far-position motor failures as "disengagement" --
 i.e. deleted the effect as the confound. See `docs/STATUS_2026-09-07.md` and
 `tests/test_one_engagement_gate.py`.
+
+---
+
+# A manipulation hypothesis these data motivate
+
+Priya, 2026-09-09: "what might be a reasonable hypothesis to test how we can manipulate
+post-stroke recovery? eg DREADD- or optogenetic manipulation of activity in contralateral striatum
+vs ipsi/contra orofacial motor cortex in subacute post-stroke?" Recorded as a FRAMING to argue
+with, not a recommendation -- the design choices are the lab's.
+
+## The question the data poses
+
+The impaired target's pattern moves TOWARD ipsilateral target representations
+(`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre). Two readings make
+OPPOSITE predictions, which is what makes it worth an experiment:
+
+* **MALADAPTIVE CAPTURE.** The intact contralesional hemisphere captures the impaired target's
+  code and the drift IMPEDES recovery. Rodent analogue of the interhemispheric-rivalry rationale
+  behind contralesional low-frequency rTMS in human stroke.
+* **COMPENSATORY.** The drift IS the recovery -- the intact circuit takes the target over.
+
+## What the data already says, and how weakly
+
+PS92 -- the only animal to reach chronic -- recovered to 378/378 hits while retaining a residual
+far-contra row-centred displacement of +0.177. A displaced-but-functional code is what the
+COMPENSATORY account predicts. This is n = 1 and cannot separate "the displacement is the
+mechanism" from "the displacement is a harmless scar".
+
+## Predictions by target, subacute window
+
+| target | if MALADAPTIVE | if COMPENSATORY |
+|---|---|---|
+| contralesional (R) orofacial M1, inhibit | far-contra displacement falls, hit rate rises | displacement rises, recovery stalls |
+| perilesional (L) orofacial M1, excite | contra-specific drive restored; displacement falls | little effect, or gain-only change |
+| contralesional (R) VLS, inhibit | as R-M1 but slower onset | recovery blocked if the striatal route carries it |
+
+## Two design points the preliminary data adds
+
+1. **USE THE IMAGING READOUT AS THE DEPENDENT VARIABLE, NOT HIT RATE.** Behaviour saturates: PS92
+   hit 378/378 while its representation was still displaced. The row-centred far-contra
+   displacement is unsaturated and position-specific, so it can detect an effect hit rate cannot.
+2. **PREDICT A DISSOCIATION, NOT A GLOBAL EFFECT.** The deficit is post-cue and execution-side;
+   pre-cue selection is comparatively preserved (LOSO 0.510 vs 0.873 post-cue) and the plan
+   survives on failed trials. A manipulation of motor-output circuits should move the POST-cue code
+   and leave the PRE-cue code alone. One that moved both would argue for arousal or engagement
+   rather than the transformation -- and the engagement gate and no-lick arm already exist to catch
+   exactly that confound.
+
+## Timing
+
+Row-centred far-contra displacement runs +0.665 acute -> +0.30 subacute -> +0.177 chronic, so the
+trajectory is set during subacute. That supports subacute as the intervention window.
