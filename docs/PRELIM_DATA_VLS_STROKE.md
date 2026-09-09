@@ -78,21 +78,82 @@ Three readings, in order of confidence:
    separates it. This is also why the deck's old claim that crossnobis is "immune to uniform
    amplitude change" was wrong and has been corrected.
 
+### GAIN vs MOVE: the two are separated in TIME, not mixed
+
+Measured 2026-09-09 from `_matrices_crossnobis` / `_matrices_crossnobis_rowcentred`, post-cue,
+lick + miss-while-working, pooled as a mean over sessions.
+
+Row-centring is an EXACT decomposition, not an approximation. Because
+`rowcentred[i,j] = raw[i,j] - mean_j raw[i,:]`, the own-position distance splits into two terms
+that sum back to it:
+
+    raw_diag[i]  =  rowmean[i]         +  rc_diag[i]
+                    ^GAIN               ^MOVE
+                    position-NONspecific  position-SPECIFIC
+                    (shifts the whole row) (which column it moved toward)
+
+Verified numerically: max |raw_diag - rowmean - rc_diag| = 5.6e-16 in every epoch.
+
+Change from pre-stroke in each term:
+
+| position | acute ΔGAIN | acute ΔMOVE | subacute ΔGAIN | subacute ΔMOVE | chronic ΔGAIN | chronic ΔMOVE |
+|---|---|---|---|---|---|---|
+| near ipsi   | **-0.252** | +0.463 | +0.540 | +0.056 | **+0.894** | **-0.032** |
+| near middle | -0.180 | +0.188 | +0.239 | +0.127 | +0.293 | +0.107 |
+| near contra | **-0.211** | +0.455 | +0.334 | +0.098 | **+0.839** | **-0.063** |
+| far ipsi    | -0.117 | +0.421 | +0.112 | +0.163 | +0.159 | +0.061 |
+| far middle  | +0.047 | +0.272 | +0.309 | +0.099 | **+0.835** | **+0.010** |
+| **far contra** | +0.352 | **+0.665** | +0.117 | **+0.296** | +0.087 | **+0.177** |
+
+**ACUTE IS A MOVE, NOT A GAIN CHANGE.** ΔMOVE is positive at all six positions (+0.19 to +0.67)
+while ΔGAIN is NEGATIVE at four of six. Whatever the acute lesion does, it is not turning the
+response volume down uniformly -- if anything the non-specific term shrinks.
+
+**CHRONIC IS A GAIN CHANGE, NOT A MOVE.** The sign flips: ΔGAIN reaches +0.89 / +0.84 / +0.84 at
+near-ipsi, near-contra and far-middle while ΔMOVE at those same positions is -0.03 / -0.06 / +0.01.
+This is the whole reason the RAW chronic diagonal looks alarming at SPARED positions -- it is
+reading a global amplitude change as though it were reorganisation.
+
+**SUBACUTE IS THE CROSSOVER**, with both terms present and neither dominant.
+
+**FAR-CONTRA IS THE EXCEPTION IN BOTH DIRECTIONS.** It is the only position whose ΔGAIN stays small
+throughout (+0.35 / +0.12 / +0.09) and the only one whose ΔMOVE never returns to zero
+(+0.665 -> +0.296 -> +0.177). The impaired target's deficit is position-specific at every epoch;
+the spared positions' chronic change is not position-specific at all.
+
+Equivalently, in terms of the OWN-POSITION ADVANTAGE (`rc_diag`, negative = closer to its own
+pre-stroke pattern than to the average pre-stroke pattern), far-contra runs
+pre **-0.831** -> acute **-0.166** -> subacute **-0.535** -> chronic **-0.654**: acutely the
+advantage is all but abolished, and it never fully returns.
+
 ### Direction of the acute move
 
-`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre panel: the far-contra row
-rises against its own pre-stroke column and FALLS against the ipsilateral columns -- the impaired
-target's pattern moves toward ipsilateral target representations. Consistent with the decoder
+`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre panel. Exact far-contra row,
+acute minus pre (negative = moved TOWARD that pre-stroke position):
+
+| toward | nI | nM | nC | fI | fM | fC (own) |
+|---|---|---|---|---|---|---|
+| acute    | **-0.410** | -0.062 | +0.350 | **-0.466** | -0.076 | **+0.665** |
+| subacute | -0.052 | -0.039 | +0.088 | -0.215 | -0.078 | +0.296 |
+| chronic  | -0.157 | -0.040 | -0.038 | +0.052 | +0.006 | +0.177 |
+
+The two columns it moves toward acutely are both IPSILESIONAL-side targets (far-ipsi -0.466,
+near-ipsi -0.410); it moves AWAY from near-contra (+0.350) and from its own pre-stroke pattern
+(+0.665). By chronic only the near-ipsi pull survives (-0.157). Consistent with the decoder
 confusions, which send far-contra's lost recall to far-ipsi and far-middle
 (`epoch_5c_frozen_confusion_cue_working`, acute-pre panel), and with best-match fraction falling
 0.94 (`epoch_10bdelta_best_match_by_position_cue_working`).
 
 ### What this does NOT establish
 
-Direction is read off the acute-minus-pre heatmap, not from a per-cell interval. The claim
-"toward ipsilateral" is supported by two independent measures pointing the same way, but neither
-carries a significance test on the OFF-diagonal cells. A per-cell interval on the row-centred
-off-diagonal would settle it.
+The off-diagonal values above are exact point estimates, but they carry NO per-cell interval. The
+claim "toward ipsilateral" is supported by three measures pointing the same way (row-centred
+off-diagonal, decoder confusions, best-match fraction) and by no significance test on any
+off-diagonal cell. A per-cell interval on the row-centred off-diagonal would settle it.
+
+Epoch coverage for the tables above is NOT balanced across animals: acute = PS94 6 / PS92 5 /
+PS93 4 / PS95 1; subacute = PS95 10 / PS93 7 / PS94 5 / PS92 2; **chronic = PS92 4, one animal**.
+Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a single-animal claim.
 
 ## Where each number comes from
 
