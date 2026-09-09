@@ -213,3 +213,30 @@ def test_position_with_too_few_available_trials_scores_nothing():
 def test_min_refit_class_leaves_two_per_training_fold():
     """The floor has to survive the 5-fold split it exists to protect."""
     assert G.MIN_REFIT_CLASS >= 10
+
+
+def test_share_floor_catches_what_the_count_floor_misses():
+    """The two acute lick sessions that broke the count-only guard: 10/380 and 12/277 trials."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    def pipe():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=500))
+
+    rng = np.random.default_rng(0)
+    #     12 trials of class 5 in a session of 277 -> 4.3%, above the count floor of 10
+    y = np.concatenate([np.repeat(np.arange(5), 53), np.full(12, 5)])
+    X = rng.normal(size=(len(y), 4)) + y[:, None]
+    blk = np.repeat(np.arange(len(y) // 5 + 1), 5)[: len(y)]
+    pred = G._refit_pred(pipe, X, y, blk)
+    assert pred is not None
+    assert (y == 5).sum() > G.MIN_REFIT_CLASS                 # clears the COUNT floor
+    assert (y == 5).mean() < G.MIN_REFIT_SHARE                # fails the SHARE floor
+    assert (pred[y == 5] == G.REFIT_UNAVAILABLE).all()
+    assert (pred[y != 5] != G.REFIT_UNAVAILABLE).all()
+
+
+def test_share_floor_is_a_third_of_uniform_for_six_positions():
+    assert G.MIN_REFIT_SHARE == pytest.approx(1 / 18)
+    assert G.MIN_REFIT_SHARE < 1 / 6                          # never fires on a balanced session

@@ -1388,19 +1388,27 @@ def fig_confusion_per_session(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 
 
-#: A class this session cannot TRAIN on, per session. Below it the within-session refit has no
-#: chance of learning the position and its prediction says something about trial counts rather than
-#: about the code -- so those trials are marked unavailable (-1) instead of scored. Set at 10 so a
-#: 5-fold split leaves at least two examples per training fold.
+#: A class this session cannot TRAIN on. Below either floor the within-session refit has no chance
+#: of learning the position, and its prediction says something about trial counts rather than about
+#: the code -- so those trials are marked unavailable (-1) instead of scored.
+#:
+#: THE SHARE FLOOR IS THE LOAD-BEARING ONE, and an absolute count is not a substitute for it. What
+#: stops a regularised multinomial predicting a class is the PRIOR against it, not the number of
+#: examples: at 4% of a session's trials in a six-way problem the model is right to almost never
+#: emit that label, and the frozen decoder -- carrying a balanced pre-stroke prior -- is not. A
+#: count-only floor of 10 was tried first and made the artefact WORSE (-0.42 -> -0.47), because the
+#: two sessions that cleared it were the two with the largest absolute counts and still only 2.6%
+#: and 4.3% shares. Set at a third of uniform for six positions.
 #:
 #: THIS BITES IN EXACTLY ONE PLACE, and it is behavioural rather than technical: the lick-aligned
 #: arm conditions on a DETECTED LICK, and acutely the far-contralateral spout is the one the animal
-#: does not lick -- 64 pooled acute trials against ~1100 at the near positions. The refit decoder
-#: then predicts far-contra 26 times where the frozen one predicts it 380 times, and the resulting
-#: "refit is 0.42 WORSE" reads as evidence the code is gone when it is a statement about how often
-#: the mouse licked. Same principle as figure 10b scoring an absent position as nothing rather than
-#: as a wrong match: missing data must not become evidence.
+#: does not lick. Every acute session holds far-contra at 0.0-4.3% of its trials against a
+#: pre-stroke 16.5%, so the whole cell is gated out and draws nothing -- the same principle figure
+#: 10b already applies by scoring an absent position as nothing rather than as a wrong match.
+#: Missing data must not become evidence, least of all evidence in the direction that says the code
+#: is gone.
 MIN_REFIT_CLASS = 10
+MIN_REFIT_SHARE = 1.0 / 18.0
 
 #: Sentinel written into the refit column for a trial whose class the session could not train on.
 #: Both arms drop these trials together, so the frozen-minus-refit contrast stays paired.
@@ -1433,7 +1441,7 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
         return None
     y = np.asarray(y)
     cls, cnt = np.unique(y, return_counts=True)
-    thin = cls[cnt < MIN_REFIT_CLASS]
+    thin = cls[(cnt < MIN_REFIT_CLASS) | (cnt / max(len(y), 1) < MIN_REFIT_SHARE)]
     if thin.size:
         pred = pred.copy()
         pred[np.isin(y, thin)] = REFIT_UNAVAILABLE
