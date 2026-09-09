@@ -1388,6 +1388,25 @@ def fig_confusion_per_session(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 
 
+#: A class this session cannot TRAIN on, per session. Below it the within-session refit has no
+#: chance of learning the position and its prediction says something about trial counts rather than
+#: about the code -- so those trials are marked unavailable (-1) instead of scored. Set at 10 so a
+#: 5-fold split leaves at least two examples per training fold.
+#:
+#: THIS BITES IN EXACTLY ONE PLACE, and it is behavioural rather than technical: the lick-aligned
+#: arm conditions on a DETECTED LICK, and acutely the far-contralateral spout is the one the animal
+#: does not lick -- 64 pooled acute trials against ~1100 at the near positions. The refit decoder
+#: then predicts far-contra 26 times where the frozen one predicts it 380 times, and the resulting
+#: "refit is 0.42 WORSE" reads as evidence the code is gone when it is a statement about how often
+#: the mouse licked. Same principle as figure 10b scoring an absent position as nothing rather than
+#: as a wrong match: missing data must not become evidence.
+MIN_REFIT_CLASS = 10
+
+#: Sentinel written into the refit column for a trial whose class the session could not train on.
+#: Both arms drop these trials together, so the frozen-minus-refit contrast stays paired.
+REFIT_UNAVAILABLE = -1
+
+
 def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
@@ -1408,10 +1427,17 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     if ng < 2 or len(np.unique(y)) < 2:
         return None
     try:
-        return np.asarray(cross_val_predict(pipe_of(), X, y, cv=GroupKFold(min(max_splits, ng)),
+        pred = np.asarray(cross_val_predict(pipe_of(), X, y, cv=GroupKFold(min(max_splits, ng)),
                                             groups=b))
     except Exception:                                                 # noqa: BLE001
         return None
+    y = np.asarray(y)
+    cls, cnt = np.unique(y, return_counts=True)
+    thin = cls[cnt < MIN_REFIT_CLASS]
+    if thin.size:
+        pred = pred.copy()
+        pred[np.isin(y, thin)] = REFIT_UNAVAILABLE
+    return pred
 
 
 @lru_cache(maxsize=24)

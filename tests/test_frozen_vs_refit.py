@@ -165,3 +165,51 @@ def test_pre_panel_counts_sessions_not_records():
 
     src = inspect.getsource(eg._position_bars)
     assert "_n_pre" in src and "isinstance(pre, list)" in src
+
+
+# ------------------------------------------------------- the thin-class guard (the lick-arm trap)
+
+def test_thin_classes_are_marked_unavailable_not_scored_wrong():
+    """A class the session could not train on must not be scored as a refit FAILURE.
+
+    Acute far-contralateral in the lick-aligned arm has 64 pooled trials against ~1100 at the near
+    positions, because acutely that is the spout the mouse does not lick. Scoring it produced a
+    -0.42 gap: the behaviour, presented as the code being gone.
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    def pipe():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=500))
+
+    rng = np.random.default_rng(0)
+    y = np.concatenate([np.repeat([0, 1, 2], 40), np.full(4, 3)])      # class 3 has 4 trials
+    X = rng.normal(size=(len(y), 4)) + y[:, None]
+    blk = np.repeat(np.arange(len(y) // 4 + 1), 4)[: len(y)]
+    pred = G._refit_pred(pipe, X, y, blk)
+    assert pred is not None
+    assert (pred[y == 3] == G.REFIT_UNAVAILABLE).all()                # thin class marked
+    assert (pred[y != 3] != G.REFIT_UNAVAILABLE).all()                # the rest untouched
+
+
+def test_gap_drops_unavailable_trials_from_BOTH_arms():
+    """Dropping them from one arm only would unpair the difference."""
+    y = np.array([1] * 10)
+    frozen = np.array([1, 1, 1, 1, 1, 4, 4, 4, 4, 4])                 # 5/10 right
+    refit = np.array([1, 1, 1, 1, 1, 1] + [G.REFIT_UNAVAILABLE] * 4)  # 5/6 right on the scored 6
+    p = np.column_stack([frozen, refit])
+    # scored on the six available trials only: refit 6/6, frozen 5/6
+    assert eg._gap_at(y, p, 1) == pytest.approx(6 / 6 - 5 / 6)
+    assert eg._refit_at(y, p, 1) == pytest.approx(1.0)
+
+
+def test_position_with_too_few_available_trials_scores_nothing():
+    y = np.array([1] * 10)
+    p = np.column_stack([y, np.array([1, 1] + [G.REFIT_UNAVAILABLE] * 8)])
+    assert eg._gap_at(y, p, 1) is None                                # 2 available < the floor of 5
+
+
+def test_min_refit_class_leaves_two_per_training_fold():
+    """The floor has to survive the 5-fold split it exists to protect."""
+    assert G.MIN_REFIT_CLASS >= 10

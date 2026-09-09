@@ -602,16 +602,23 @@ def _gap_at(y, p, code):
     frozen pre-stroke decoder, column 1 the within-session refit -- so the difference is taken on
     the SAME trials and survives every level of the block bootstrap paired.
 
+    Trials whose class the session could not TRAIN on are dropped from both arms together (the
+    refit column carries `grant_figures.REFIT_UNAVAILABLE`), which keeps the pairing while refusing
+    to score a decoder on a class it never saw. Without it the lick-aligned acute far-contralateral
+    cell reads -0.42 -- the mouse not licking, presented as the code being gone.
+
     Positive = the session's own decoder reads a position the frozen one cannot: information
     PRESENT but unreadable by the pre-stroke model. Zero = both fail together, which is what a
     genuinely degraded code looks like.
     """
+    from wfield_local.grant_figures import REFIT_UNAVAILABLE
+
     if code is None:
         return None
     y, p = np.asarray(y), np.asarray(p)
     if p.ndim != 2 or p.shape[1] != 2:
         raise ValueError("_gap_at needs a paired record: use _collect_5c(..., mode='paired')")
-    m = (y == code)
+    m = (y == code) & (p[:, 1] != REFIT_UNAVAILABLE)
     if m.sum() < 5:
         return None
     return float(np.mean(p[m, 1] == y[m]) - np.mean(p[m, 0] == y[m]))
@@ -625,11 +632,18 @@ def _gap_of(record, position):
 
 
 def _refit_at(y, p, code):
-    """Accuracy of the REFIT column of a paired record at one true position code."""
+    """Accuracy of the REFIT column of a paired record at one true position code.
+
+    Trials the session could not train on (`grant_figures.MIN_REFIT_CLASS`) are DROPPED, not scored
+    as errors: the refit arm was never asked about them. Dropping them from both arms is what keeps
+    this comparable to `_gap_at`, which drops the same trials.
+    """
+    from wfield_local.grant_figures import REFIT_UNAVAILABLE
+
     if code is None:
         return None
     y, p = np.asarray(y), np.asarray(p)
-    m = (y == code)
+    m = (y == code) & (p[:, 1] != REFIT_UNAVAILABLE)
     if m.sum() < 5:
         return None
     return float(np.mean(p[m, 1] == y[m]))
