@@ -13,34 +13,56 @@ than living in a chat log.
 ## The paragraph
 
 > Widefield calcium imaging of dorsal cortex during a six-position mobile-spout licking task,
-> decomposed into localised components by LocaNMF, shows that unilateral left ventrolateral
-> striatal (VLS) stroke displaces rather than destroys the cortical representation of reach target.
-> An L2-regularised multinomial logistic-regression decoder (C = 0.5) trained on z-scored component
-> time courses and frozen on each animal's pre-stroke sessions loses accuracy at every spout
-> acutely, but with a spatial gradient that tracks the behavioural deficit: −0.24 at the
-> near-ipsilateral spout versus −0.58 at the far-contralateral spout (post-cue window, engaged
-> trials; N = 4 animals, 16 acute vs 44 pre-stroke sessions; hierarchical bootstrap over animals →
-> sessions → position blocks). A ridge encoder mapping position to component activity degrades in
-> parallel, losing 0.94 of its pre-stroke explained variance acutely. Two further measures indicate
-> that this reflects relocation of the code rather than its loss. First, within-session split-half
-> pattern reliability is preserved at the most impaired position (+0.12 at far-contralateral,
-> interval excluding zero), so the post-stroke representation remains as internally repeatable as
-> the pre-stroke one even as the frozen decoder fails on it; a similarity drop that reliability
-> cannot explain is a moved code, not a noisier one. Second, cross-validated crossnobis distance
-> between each position's post-stroke pattern and its own pre-stroke pattern — normalised so that
-> 1.0 equals the separation between two *different* pre-stroke positions — rises acutely to +1.02 at
-> far-contralateral: the impaired target's cortical code becomes as distant from its own baseline as
-> it previously was from an entirely different target. Decoding and encoding recover substantially
-> by the subacute period (far-contra −0.22; encoder −0.34), yet the geometric displacement persists.
-> Finally, the deficit is not uniform across the trial: pre-cue (ENL) decoding falls far less than
-> post-cue decoding and does so evenly across positions (−0.11 to −0.26, versus −0.24 to −0.58
-> post-cue), and on post-stroke trials with no detected lick the pre-cue code survives above chance
-> while the post-cue code does not. Together these data support a model in which VLS stroke leaves
-> target selection comparatively intact while disrupting the transformation from selected target to
-> executed movement, and in which behavioural recovery proceeds on a reorganised rather than a
-> restored cortical code.
+> decomposed into localised components by LocaNMF, shows that unilateral left ventrolateral striatal
+> (VLS) stroke degrades the cortical representation of reach target by collapsing its spatial
+> specificity rather than abolishing it. An L2-regularised multinomial logistic-regression decoder
+> (C = 0.5) trained on z-scored component time courses and frozen on each animal's pre-stroke
+> sessions falls from 0.89 to 0.52 accuracy acutely (chance 0.167; N = 4 animals, 7,354 acute vs
+> 21,017 pre-stroke trials), with a spatial gradient that tracks the behavioural deficit: -0.24 at
+> the near-ipsilateral spout versus -0.58 at the far-contralateral spout. Critically, the resulting
+> errors are structured rather than random -- far-contralateral trials are preferentially
+> misclassified as OTHER FAR TARGETS (far-ipsilateral, far-middle) rather than as near targets, so
+> the acute deficit is a loss of discriminability within the far-target subspace rather than a
+> uniform degradation. Three measures indicate that the affected code is relocated rather than lost.
+> Within-session split-half pattern reliability is preserved at the most impaired position (+0.12 at
+> far-contralateral, interval excluding zero), so the post-stroke representation remains as
+> internally repeatable as the pre-stroke one even as the frozen decoder fails on it; a similarity
+> drop that reliability cannot explain is a moved code, not a noisier one. Cross-validated crossnobis
+> distance between each position's post-stroke pattern and its own pre-stroke pattern -- normalised
+> so 1.0 equals the separation between two DIFFERENT pre-stroke positions -- rises acutely to +1.02
+> at far-contralateral, and the fraction of sessions in which that position's pattern still
+> best-matches its own pre-stroke pattern falls by 0.94. A ridge encoder mapping position to
+> component activity loses 0.94 of its pre-stroke explained variance acutely, roughly half
+> attributable to response gain and half to pattern shape, indicating that the change is not simple
+> amplitude scaling. The deficit is also non-uniform across the trial: pre-cue (ENL) decoding falls
+> far less than post-cue decoding and does so evenly across positions (-0.11 to -0.26 versus -0.24 to
+> -0.58), and on post-stroke trials with no detected lick the pre-cue code survives above chance
+> while the post-cue code does not. Decoding recovers substantially by the subacute period (0.77) and
+> approaches baseline chronically (0.87), yet the geometric displacement persists. Together these
+> data support a model in which VLS stroke spares target selection while disrupting the
+> transformation from selected target to executed movement, and in which behavioural recovery
+> proceeds on a reorganised rather than a restored cortical code.
 
----
+## HOW the code changed -- the mechanistic claim and its evidence
+
+The "collapse of the far-target subspace" claim is the one that says something biological, so it is
+worth separating from the measures that only say "changed":
+
+* `epoch_5c_frozen_confusion_cue_working`, acute-minus-pre panel. The diagonal loss is deepest at
+  far-contra (~-0.55 recall), and the recall it loses reappears as INCREASED off-diagonal recall in
+  the far-ipsi and far-middle COLUMNS of that row. Errors go to other FAR targets, not to near ones
+  and not uniformly.
+* `epoch_10bdelta_best_match_by_position_cue_working`: the fraction of sessions where far-contra's
+  post-stroke pattern still best-matches its own pre-stroke pattern falls by 0.94 acutely.
+* Pooled frozen-decoder accuracy: pre 0.89 (n=21,017 trials) -> acute 0.52 (7,354) -> subacute 0.77
+  (10,691) -> chronic 0.87 (1,067).
+
+What this does NOT establish: which position far-contra moved TOWARD in the representational space,
+as opposed to which label the decoder assigns. `_matrices_crossnobis(row_centre=True)` is the tool
+for that question -- row-centring removes the amplitude term that shifts a whole row together, and is
+the difference between "did this position move" and "which position did it move toward". That
+analysis has not been run per-epoch; the substitution claim above rests on decoder confusions and
+best-match fraction, both of which are label-level.
 
 ## Where each number comes from
 
