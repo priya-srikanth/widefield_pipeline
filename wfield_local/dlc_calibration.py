@@ -95,7 +95,13 @@ MIN_CAM_POSES = 20
 MIN_PAIR_POSES = 15
 
 CAM_RE = re.compile(r"^(cam\d+)_", re.IGNORECASE)
-CAL_DIR_RE = re.compile(r"^camera_calibration_(\d{8})$", re.IGNORECASE)
+#: Calibration folders are named by hand and the convention has already drifted --
+#: `camera_calibration_20260805` became `Widefield_camera_calibration_20260805`, and the next one
+#: was `Widefield_calibration_20260910_4cm_6x6_Charuco`. Matching the exact old name meant the
+#: newest recording was invisible to `find_calibration_dir` the day it appeared. So: anything with
+#: "calibration" and an 8-digit date in it, and the DATE is what orders them, not the rest of the
+#: name -- a trailing description of the board is useful to a human and must not affect the pick.
+CAL_DIR_RE = re.compile(r"calibration[_-](\d{8})", re.IGNORECASE)
 
 
 def find_calibration_dir(root=None, machine=None) -> Path:
@@ -112,12 +118,12 @@ def find_calibration_dir(root=None, machine=None) -> Path:
     root = Path(root)
     dirs = []
     for p in sorted(root.iterdir()):
-        m = CAL_DIR_RE.match(p.name)
+        m = CAL_DIR_RE.search(p.name)
         if m and p.is_dir():
-            dirs.append((m.group(1), p))
+            dirs.append((m.group(1), p.name, p))
     if not dirs:
         raise FileNotFoundError(f"No camera_calibration_<YYYYMMDD>/ directory under {root}")
-    return max(dirs)[1]
+    return max(dirs)[2]
 
 
 def _detector():

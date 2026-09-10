@@ -9,7 +9,6 @@ import pytest
 
 from wfield_local import dlc_calibration as dc
 
-
 #: Samples this far apart count as separate board POSES (POSE_GAP_S at 250 fps is 125 frames).
 POSE_STRIDE = 250
 
@@ -207,3 +206,31 @@ def test_the_calibration_root_is_the_parent_of_the_widefield_subdir():
         cal, cams = r.root("camera_calibration"), r.root("behavior_cameras")
         assert cams.lower().startswith(cal.lower())
         assert cams.rstrip("/").lower().endswith("/widefield")
+
+
+def test_calibration_folders_are_found_despite_naming_drift(tmp_path):
+    """The convention has already drifted twice and the newest recording must not go invisible.
+
+    `camera_calibration_20260805` -> `Widefield_camera_calibration_20260805` ->
+    `Widefield_calibration_20260910_4cm_6x6_Charuco`. An exact-name match meant the 09-10 recording
+    could not be found the day it landed, which is precisely when it matters.
+    """
+    for name in ("camera_calibration_20260805",
+                 "Widefield_camera_calibration_20260805",
+                 "Widefield_calibration_20260910_4cm_6x6_Charuco"):
+        (tmp_path / name).mkdir()
+    assert dc.find_calibration_dir(root=tmp_path).name == \
+        "Widefield_calibration_20260910_4cm_6x6_Charuco"
+
+
+def test_a_trailing_board_description_does_not_affect_which_is_newest(tmp_path):
+    """The suffix documents the board for a human; ordering is by DATE alone."""
+    (tmp_path / "Widefield_calibration_20260910_4cm_6x6_Charuco").mkdir()
+    (tmp_path / "Widefield_calibration_20261101_aaa").mkdir()
+    assert "20261101" in dc.find_calibration_dir(root=tmp_path).name
+
+
+def test_a_folder_with_no_date_is_not_a_calibration(tmp_path):
+    (tmp_path / "calibration_boards").mkdir()
+    (tmp_path / "Widefield_calibration_20260910_x").mkdir()
+    assert dc.find_calibration_dir(root=tmp_path).name == "Widefield_calibration_20260910_x"
