@@ -1847,6 +1847,44 @@ a 600 dpi laser resolves that, but toner spread starts to soften the edges, and 
 corner localisation — the one thing a calibration board is for. Below ~4 mm markers, check a print
 under magnification first. `dlc_board --size-mm 40 --squares 6x6` regenerates any of them.
 
+### The 2026-09-10 calibration is USABLE — pair graph connected (2026-09-10)
+
+Re-recorded with the 40 mm 6x6 board. Surveyed at 50 Hz:
+
+| cam | usable frames | poses | px/cell |   | pair | poses |
+|---|---|---|---|---|---|---|
+| cam1 | 310 | **37** | 25.4 | | cam1-cam2 | 23 |
+| cam2 | 12035 | **28** | 8.2 | | cam1-cam3 | 37 |
+| cam3 | 13502 | **27** | 8.3 | | cam1-cam4 | 18 |
+| cam4 | 2665 | **116** | 25.7 | | cam2-cam3 | **43** |
+| | | | | | cam2-cam4 | 100 |
+| | | | | | cam3-cam4 | 113 |
+
+**`RESULT: pair graph CONNECTED`** — every camera over `MIN_CAM_POSES` (20) and every pair over
+`MIN_PAIR_POSES` (15), including `cam2-cam3` which had **zero** shared poses on 08-05.
+
+**The side views went from unusable to routine.** `cam2` 0.7% → 78% of frames with a readable board
+and 2.1 → 8.2 px per code cell; `cam3` 0.1% → 88%. That is the board size fix, confirmed.
+
+**And the frame-vs-pose lesson repeated itself, in the opposite direction.** The snout cameras look
+alarming by frame count — `cam1` clears 4 markers on 1.9% of frames and `cam4` on 16%, because at
+25 px/cell the 40 mm board overflows their fields. On a frame count that reads as a new failure, and
+a preliminary probe of mine said exactly that. In POSES they are the strongest cameras in the
+recording: `cam4` has 116 and `cam1` 37. The board was swept rather than parked, so plenty of
+distinct views survive even though most individual frames show too little of it.
+
+`cam1-cam4` at 18 poses is the thinnest edge and the one to watch if the solve is noisy — both
+snout cameras being too close to the board at once is the configuration that starves it.
+
+The board block in `configs/defaults.yaml` now records the board PHYSICALLY IN USE (6x6, 6.67 mm
+square, 5.07 mm marker) rather than the 9x7 that was proposed. Those four numbers are the metric
+scale of every reconstruction, so that block has to describe the object on the rig.
+
+`test_the_board_does_not_outgrow_the_rig` asserted `n_markers >= 20`, which was written for the 9x7
+candidate; the adopted 6x6 has 18 and demonstrably works. The floor is now 12, and the real
+constraint was never the total on the sheet but whether a PARTIAL view still yields `MIN_MARKERS` --
+which `MIN_SQUARES_ACROSS` already encodes.
+
 ### Labelling order: cam4 + cam1 now, the side views after recalibration (Priya, 2026-09-08)
 
 Priya: *"should we only label jaw, tongue, spout in the other 3 angles?"* For `cam1` that IS its whole

@@ -60,7 +60,11 @@ def test_the_board_does_not_outgrow_the_rig():
     spec = db.board_spec()
     w, _ = db.check_fits(spec)
     assert w < 4 * db.CAGE_PLATE_MM, "wider than ~4 cage plates stops being a rig-scale target"
-    assert db.n_markers(spec) >= 20, "too few markers to constrain a pose well"
+    # >=12, not >=20. The bar was 20 when the candidate was a 9x7; the board actually adopted is a
+    # 6x6 with 18 markers, and Widefield_calibration_20260910 surveys as CONNECTED on all six pairs
+    # with it (27-116 poses per camera). What matters is that a PARTIAL view still yields
+    # MIN_MARKERS -- which MIN_SQUARES_ACROSS encodes -- not the total on the sheet.
+    assert db.n_markers(spec) >= 12, "too few markers for a partial view to pin a pose"
 
 
 def test_the_marker_count_matches_the_dictionary():

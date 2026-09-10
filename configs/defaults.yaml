@@ -292,15 +292,19 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # 1.2 mm and resolve to 2.1 px per code cell. A DICT_4X4 marker is 6
                               # cells across and stops decoding below ~3, which is exactly why the
                               # side views see the board and cannot read it.
-    squares_x: 9
-    squares_y: 7
-    square_mm: 10.5
-    marker_mm: 8.0            # ~7x the current 1.2 mm -> ~14 px/cell on cam2 at the same working
-                              # distance. Comfortable margin over the ~3 needed WITHOUT outgrowing
-                              # the rig: a full-page board would be ~20x, and cam4 -- whose field is
-                              # the snout alone -- would see two squares of it.
-    dictionary: DICT_4X4_50   # matches the board already in use, so dlc_calibration is unchanged
-    paper: a4                 # 94x74 mm board, about 2.5x the cage plate it mounts on
+                              # THE BOARD ACTUALLY IN USE since 2026-09-10 -- 40 x 40 mm, 6x6,
+                              # printed from dlc_board and used for
+                              # Widefield_calibration_20260910_4cm_6x6_Charuco, which surveys as
+                              # CONNECTED on all six camera pairs. These numbers are the metric
+                              # scale of every 3D reconstruction, so this block must describe the
+                              # PHYSICAL board on the rig, not a design intent.
+    squares_x: 6
+    squares_y: 6
+    square_mm: 6.67           # 40 mm / 6
+    marker_mm: 5.07           # ~4x the 1.2 mm board it replaces -> 8.2 px/cell on the side views,
+                              # against the ~3 needed and the 2.1 that made them unusable.
+    dictionary: DICT_4X4_50   # unchanged, so dlc_calibration needs no edit
+    paper: a4                 # flush with the 30 mm cage plate (38.1 mm): no added footprint
                               # THESE FOUR NUMBERS ARE THE METRIC SCALE of every 3D reconstruction
                               # and are not recoverable from video, which is why dlc_board prints
                               # them onto the board itself along with a 100 mm ruler.
