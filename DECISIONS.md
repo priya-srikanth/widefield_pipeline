@@ -1847,6 +1847,51 @@ a 600 dpi laser resolves that, but toner spread starts to soften the edges, and 
 corner localisation — the one thing a calibration board is for. Below ~4 mm markers, check a print
 under magnification first. `dlc_board --size-mm 40 --squares 6x6` regenerates any of them.
 
+### CORRECTION: markers are not corners, and the 09-10 recording calibrates only cam2/cam3
+
+The verdict below ("usable, pair graph connected") was produced by a gate that measured the wrong
+quantity, and the solve found it out. `dlc_calibrate` on that recording:
+
+    cam1: 2 frames with >=6 charuco corners (2 poses)   -> RuntimeError, cannot solve intrinsics
+    cam2: 2061 frames (46 poses)
+    cam3: 2367 frames (42 poses)
+    cam4: 30 frames (11 poses)
+
+**A ChArUco corner is INTERPOLATED from the four markers around it.** A camera that sees four
+markers scattered across a board yields no corners at all, so a gate on markers cannot see this.
+Measured over the recording, the maximum corners EVER visible is **5 on cam1 and 8 on cam4**,
+against 24-25 on the side views — and a 6x6 board has 25 interior corners. The snout cameras are
+seeing a small patch of a board that is too LARGE in their view, which is the exact mirror of the
+08-05 failure and has the opposite fix: stand further back, do not reprint.
+
+So the correct verdict on `Widefield_calibration_20260910`:
+
+| cam | marker poses | **corner poses** | max corners | verdict |
+|---|---|---|---|---|
+| cam1 | 37 | **2** | 5 | cannot calibrate |
+| cam2 | 28 | 46 | 24 | OK |
+| cam3 | 27 | 42 | 25 | OK |
+| cam4 | 116 | **11** | 8 | too thin |
+
+`dlc_calibration` now detects ChArUco corners alongside markers and gates on **corner POSES**
+(`MIN_CORNERS = 6`, `MIN_CORNER_POSES = 20`), reporting `CANNOT CALIBRATE: N poses with >=6 ChArUco
+corners ... the board is too LARGE in this view -- move it further from this camera`. Marker columns
+stay, as diagnostics. Pinned in `test_a_camera_with_MARKERS_but_no_CORNERS_cannot_calibrate` and
+`test_the_corner_verdict_says_move_the_board_AWAY_not_closer` — the two failure modes have opposite
+remedies and confusing them sends someone to reprint a board that is already the right size.
+
+This also needs the board geometry, which the marker survey never did: a corner only exists relative
+to a known square layout, so `dlc.board` must describe the board actually in use.
+
+**And it revises the answer on combining the two recordings.** The earlier "09-10 dominates 08-05 on
+9 of 10 measures" rested on marker poses. On the quantity that matters the two recordings are
+COMPLEMENTARY: 09-10 calibrates cam2/cam3 and 08-05's small board is what the snout cameras could
+resolve. Combining is still blocked — different board geometries, overlapping marker ids in one
+dictionary, five weeks apart with no attestation the rig was untouched — so the fix remains one
+recording that works for all four: **the 40 mm board held ~1.5-2x further back**, which puts cam1 at
+~4.5 and cam4 at ~5 squares across (enough for 16-25 corners) while cam2/cam3 still sit at ~5.5
+px/cell, comfortably over the ~3 decode floor.
+
 ### The 2026-09-10 calibration is USABLE — pair graph connected (2026-09-10)
 
 Re-recorded with the 40 mm 6x6 board. Surveyed at 50 Hz:

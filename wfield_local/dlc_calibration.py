@@ -70,9 +70,24 @@ from wfield_local import writeguard
 #: frame in which the board was large and in focus: only the 4X4 family matched.
 ARUCO_DICT = "DICT_4X4_50"
 
-#: A ChArUco corner needs its four surrounding markers, so 4 is the smallest count that can pin a
-#: board pose at all. It is the floor for "this frame is usable", not a recommendation.
+#: A ChArUco corner needs its four surrounding markers, so 4 markers is the smallest count that can
+#: pin a board pose at all. Kept for the marker columns, which remain diagnostic.
 MIN_MARKERS = 4
+
+#: WHAT CALIBRATION ACTUALLY CONSUMES, and the correction that matters (2026-09-10). This module
+#: screened on MARKERS and passed `Widefield_calibration_20260910` as usable on all four cameras;
+#: the solve then found cam1 had TWO frames it could use and failed. Markers are not corners: a
+#: ChArUco corner is interpolated from the four markers around it, so a camera seeing four markers
+#: scattered across a board yields no corners at all. Measured on that recording, cam1 tops out at
+#: FIVE corners ever and cam4 at eight, against 24-25 on the side views -- a gate on markers cannot
+#: see that, and `cv2.calibrateCamera` needs >=6 corners per view over several views.
+MIN_CORNERS = 6
+
+#: Corner-bearing POSES per camera before intrinsics are worth solving. Poses again, not views, for
+#: the same reason as everywhere else: cam4 on 2026-09-10 has ~80 frames with enough corners and
+#: only ELEVEN distinct poses among them, and eleven views of a board is a weak intrinsics solve
+#: however many frames they span.
+MIN_CORNER_POSES = 20        # same bar as MIN_CAM_POSES, defined below
 
 #: POSES, NOT FRAMES — and this is the correction that matters (Priya, 2026-09-08: "I thought I
 #: recorded for a fair amount of time at many angles"). She had. Counting FRAMES made this module
@@ -124,6 +139,20 @@ def find_calibration_dir(root=None, machine=None) -> Path:
     if not dirs:
         raise FileNotFoundError(f"No camera_calibration_<YYYYMMDD>/ directory under {root}")
     return max(dirs)[2]
+
+
+def _charuco_detector():
+    """Detector for interpolated ChArUco CORNERS -- needs the board geometry from config.
+
+    The marker survey never needed the board's dimensions; the corner survey does, because a corner
+    only exists relative to a known square layout. `dlc.board` must therefore describe the board
+    actually in use, which it now does.
+    """
+    from cv2 import aruco
+
+    from wfield_local.dlc_calibrate import board_from_config
+    board, _ = board_from_config()
+    return aruco.CharucoDetector(board)
 
 
 def _detector():
@@ -187,6 +216,7 @@ def survey_video(path, step: int = 25) -> pd.DataFrame:
     m = CAM_RE.match(path.name)
     cam = m.group(1).lower() if m else path.stem
     det = _detector()
+    cdet = _charuco_detector()
     cap = cv2.VideoCapture(str(path))
     if not cap.isOpened():
         raise RuntimeError(f"Could not open {path}")
@@ -198,6 +228,8 @@ def survey_video(path, step: int = 25) -> pd.DataFrame:
                 if ok:
                     grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     corners, ids, rejected = det.detectMarkers(grey)
+                    cc, _ci, _, _ = cdet.detectBoard(grey)
+                    n_corners = 0 if cc is None else len(cc)
                     n = 0 if ids is None else len(ids)
                     id_str = "" if ids is None else " ".join(str(int(x)) for x in sorted(ids.ravel()))
                     rows.append({"cam": cam, "frame": i, "n_markers": n, "ids": id_str,
@@ -207,12 +239,13 @@ def survey_video(path, step: int = 25) -> pd.DataFrame:
                                  # rejections and few decodes, which is a different problem from a
                                  # board that was never in view.
                                  "n_rejected": len(rejected) if rejected is not None else 0,
-                                 "px_per_bit": _px_per_bit(corners)})
+                                 "px_per_bit": _px_per_bit(corners),
+                                 "n_corners": n_corners})
             i += 1
     finally:
         cap.release()
     return pd.DataFrame(rows, columns=["cam", "frame", "n_markers", "ids",
-                                       "n_rejected", "px_per_bit"])
+                                       "n_rejected", "px_per_bit", "n_corners"])
 
 
 def survey(cal_dir, step: int = 25, pattern: str = "cam*.avi") -> pd.DataFrame:
@@ -233,6 +266,7 @@ def per_camera(df: pd.DataFrame) -> pd.DataFrame:
         # and too small. Measured on frames with at least one rejection and no usable decode.
         seen_ppb = g.loc[g.get("px_per_bit", pd.Series(dtype=float)) > 0, "px_per_bit"]             if "px_per_bit" in g else pd.Series(dtype=float)
         rej = g["n_rejected"] if "n_rejected" in g else pd.Series(dtype=float)
+        cor = g["n_corners"] if "n_corners" in g else pd.Series(dtype=float)
         out.append({
             "cam": cam,
             "sampled": len(g),
@@ -243,7 +277,14 @@ def per_camera(df: pd.DataFrame) -> pd.DataFrame:
             "px_per_bit": round(float(seen_ppb.median()), 2) if len(seen_ppb) else 0.0,
             "rejected_pct": round(float((rej > 0).mean() * 100), 1) if len(rej) else 0.0,
             "poses": count_poses(g.loc[n >= MIN_MARKERS, "frame"]),
-            "ok": bool(count_poses(g.loc[n >= MIN_MARKERS, "frame"]) >= MIN_CAM_POSES),
+            # CORNERS decide. A camera can clear the marker and pose bars and still be
+            # uncalibratable, which is exactly what happened to cam1 on 2026-09-10.
+            "corner_poses": (count_poses(g.loc[cor >= MIN_CORNERS, "frame"]) if len(cor) else -1),
+            "max_corners": int(cor.max()) if len(cor) else -1,
+            "ok": bool(count_poses(g.loc[n >= MIN_MARKERS, "frame"]) >= MIN_CAM_POSES
+                       and (len(cor) == 0                       # older survey: cannot judge
+                            or count_poses(g.loc[cor >= MIN_CORNERS, "frame"])
+                            >= MIN_CORNER_POSES)),
         })
     return pd.DataFrame(out)
 
@@ -294,7 +335,7 @@ def report_lines(df: pd.DataFrame, cal_dir, step: int) -> list[str]:
     lines = [f"ChArUco calibration survey - {Path(cal_dir).name}",
              f"dictionary {ARUCO_DICT}; every {step}th frame; >={MIN_MARKERS} markers = usable", "",
              (f"{'cam':6s} {'sampled':>8s} {'any':>7s} {'usable':>8s} {'poses':>6s} "
-              f"{'max':>5s} {'px/bit':>7s}  verdict")]
+              f"{'crnpose':>8s} {'maxcrn':>7s} {'px/bit':>7s}  verdict")]
     for _, r in cams.iterrows():
         ppb = float(r.get("px_per_bit", 0.0) or 0.0)
         if r["ok"]:
@@ -305,10 +346,17 @@ def report_lines(df: pd.DataFrame, cal_dir, step: int) -> list[str]:
                        f"{MIN_PX_PER_BIT / ppb:.1f}x larger or closer")
         elif r["any_pct"] < 1.0:
             verdict = "BOARD NEVER PRESENTED to this camera"
+        elif "corner_poses" in r and 0 <= int(r["corner_poses"]) < MIN_CORNER_POSES:
+            verdict = (f"CANNOT CALIBRATE: {int(r['corner_poses'])} poses with >={MIN_CORNERS} "
+                       f"ChArUco corners (max seen {int(r['max_corners'])}, need "
+                       f"{MIN_CORNER_POSES}). The board is too LARGE in this view -- move it "
+                       f"further from this camera.")
         else:
             verdict = f"ONLY {int(r['poses'])} DISTINCT POSES (need {MIN_CAM_POSES})"
+        cv = int(r["corner_poses"]) if "corner_poses" in r else -1
+        mc = int(r["max_corners"]) if "max_corners" in r else -1
         lines.append(f"{r['cam']:6s} {r['sampled']:8d} {r['any_pct']:6.1f}% {r['usable']:8d} "
-                     f"{int(r['poses']):6d} {r['max_markers']:5d} {ppb:7.2f}  {verdict}")
+                     f"{int(r['poses']):6d} {cv:8d} {mc:7d} {ppb:7.2f}  {verdict}")
     lines += ["", f"{'pair':14s} {'frames':>8s} {'poses':>6s}  verdict"]
     for _, r in pairs.iterrows():
         verdict = "OK" if r["ok"] else f"only {int(r['poses'])} pose(s), need {MIN_PAIR_POSES}"

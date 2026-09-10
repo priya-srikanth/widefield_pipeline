@@ -234,3 +234,44 @@ def test_a_folder_with_no_date_is_not_a_calibration(tmp_path):
     (tmp_path / "calibration_boards").mkdir()
     (tmp_path / "Widefield_calibration_20260910_x").mkdir()
     assert dc.find_calibration_dir(root=tmp_path).name == "Widefield_calibration_20260910_x"
+
+
+# --------------------------------------------------------------- markers are not corners
+
+def test_a_camera_with_MARKERS_but_no_CORNERS_cannot_calibrate():
+    """The gap that let Widefield_calibration_20260910 pass and then fail in the solve.
+
+    A ChArUco corner is INTERPOLATED from the four markers around it, so a camera seeing four
+    markers scattered over a board yields no corners at all. cam1 cleared the marker bar with 37
+    poses and tops out at FIVE corners ever; `cv2.calibrateCamera` needs >=6 per view. A gate on
+    markers cannot see that, and the solve is where it surfaced -- after the recording session.
+    """
+    n = 400
+    df = _survey({"cam1": [8] * n, "cam2": [8] * n})
+    df["n_corners"] = [2 if c == "cam1" else 20 for c in df["cam"]]   # markers yes, corners no
+    cams = dc.per_camera(df).set_index("cam")
+
+    assert cams.loc["cam1", "poses"] >= dc.MIN_CAM_POSES, "passes every marker-based test"
+    assert not bool(cams.loc["cam1", "ok"]), "and still cannot be calibrated"
+    assert bool(cams.loc["cam2", "ok"])
+
+    text = "\n".join(dc.report_lines(df, "Widefield_calibration_20260910", 5))
+    assert "CANNOT CALIBRATE" in text
+    assert "too" in text and "LARGE" in text, "names the direction of the fix"
+
+
+def test_the_corner_verdict_says_move_the_board_AWAY_not_closer():
+    """Opposite of the 08-05 failure, and the opposite fix. Too small -> unreadable markers, print
+    bigger. Too large -> markers readable but too few corners, stand further back. Confusing them
+    sends someone to reprint a board that is already the right size."""
+    df = _survey({"cam1": [8] * 400, "cam2": [8] * 400})
+    df["n_corners"] = [1 if c == "cam1" else 20 for c in df["cam"]]
+    text = "\n".join(dc.report_lines(df, "rec", 5))
+    assert "move it further from this camera" in text
+    assert "larger or closer" not in text
+
+
+def test_a_survey_predating_the_corner_column_still_reports():
+    """Older survey CSVs have no n_corners; they must not silently fail every camera."""
+    df = _survey({"cam1": [8] * 400, "cam2": [8] * 400})
+    assert dc.per_camera(df)["ok"].all(), "no corner data means cannot judge, not judged failing"
