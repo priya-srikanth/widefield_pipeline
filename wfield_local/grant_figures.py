@@ -1415,6 +1415,34 @@ MIN_REFIT_SHARE = 1.0 / 18.0
 REFIT_UNAVAILABLE = -1
 
 
+def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
+    """The frozen estimator fitted on a SIZE-MATCHED random subset of pre-stroke blocks.
+
+    WHY THE COMPARISON NEEDS THIS. The frozen arm trains on ten pre-stroke sessions (~4,500-5,500
+    trials) and the refit arm on four fifths of one (~400), so at pre-stroke -- where no lesion has
+    happened -- refitting COSTS 0.073 accuracy post-cue and 0.138 pre-cue. That gap is training-set
+    size and nothing else, and it is why the raw gap bars cannot be read directly. Matching the
+    training-set size leaves WHICH SESSIONS the data came from as the only difference between arms,
+    which is the comparison the figure is meant to make.
+
+    WHOLE BLOCKS, NOT RANDOM TRIALS. Blocks are the scheduler's ~6-trial runs at one position and
+    they are the unit everything else here resamples. Sampling loose trials would hand the matched
+    model a training set with less within-block correlation than the refit model's, which is a
+    second difference reintroduced while removing the first.
+
+    Returns ``(fitted, n_used)`` or None when the subset cannot carry two classes.
+    """
+    ub = rng.permutation(np.unique(Bp))
+    keep = np.zeros(len(Yp), bool)
+    for b in ub:
+        keep |= (Bp == b)
+        if keep.sum() >= n_target:
+            break
+    if keep.sum() < 2 or len(np.unique(Yp[keep])) < 2:
+        return None
+    return pipe_of().fit(Xp[keep], Yp[keep]), int(keep.sum())
+
+
 def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
@@ -1484,8 +1512,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
     """
     if align == "lick" and variant != "lick":
         raise ValueError("the lick-aligned window has no miss trials to align: use variant='lick'")
-    if mode not in ("frozen", "refit", "paired"):
-        raise ValueError(f"mode must be frozen/refit/paired, got {mode!r}")
+    if mode not in ("frozen", "refit", "paired", "paired_matched"):
+        raise ValueError(f"mode must be frozen/refit/paired/paired_matched, got {mode!r}")
 
     from wfield_local.locanmf_frozen_decoder import _pipe
 
@@ -1507,9 +1535,30 @@ def _collect_5c(align, variant="working", mode="frozen"):
 
             clf = _pipe().fit(XE[e_pre], YE[e_pre])
 
-            def rec(X, y, blk, model):
-                """One record, with `mode` deciding whose prediction fills column(s) of y_pred."""
+            def rec(X, y, blk, model, pool=None):
+                """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
+
+                ``pool`` is the pre-stroke (X, y, blocks) the matched frozen model may draw from --
+                for a post-stroke day that is every pre-stroke session, and for the pre column it is
+                every pre-stroke session BUT the one being scored, so the matched arm inherits the
+                same leave-one-session-out discipline as the unmatched one.
+                """
                 y, blk = np.asarray(y), np.asarray(blk)
+                if mode == "paired_matched":
+                    if pool is None:
+                        return None
+                    k = min(5, int(np.unique(blk).size))
+                    # what the refit model gets: (k-1)/k of this session's trials
+                    n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
+                    # SEEDED PER SCORED SESSION, not per animal. One seed per animal makes
+                    # `rng.permutation` return the same block ORDER every time, so every session of
+                    # that animal is scored by very nearly the SAME matched model -- one draw
+                    # presented as many, and one unlucky subset would bias the whole animal.
+                    got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(
+                        abs(_seed(an, align, variant)) + 1000003 * len(y) + int(blk[0])))
+                    if got is None:
+                        return None
+                    model = got[0]
                 fz = np.asarray(model.predict(X))
                 if mode == "frozen":
                     return (y, fz, blk)
@@ -1530,7 +1579,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 tr, te = e_pre & (GE != i), e_pre & (GE == i)
                 if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                r = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]))
+                r = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]),
+                        pool=(XE[tr], YE[tr], BE_all[tr]))
                 if r is None:
                     continue
                 pre_recs.append(r)
@@ -1554,7 +1604,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf)
+                r = rec(Xs, ys, bs, clf, pool=(XE[e_pre], YE[e_pre], BE_all[e_pre]))
                 if r is None:
                     continue
                 by_day[day] = r
@@ -3560,6 +3610,64 @@ def _pre_loo_matrices(align, variant, min_trials=10):
         if loo:
             out[an] = loo
     return out
+
+
+@lru_cache(maxsize=6)
+def _matrices_best_match_destination(align, variant, min_trials=10):
+    """{animal: {"PRE"|day: M}} where M[i, j] = 1 if position i's BEST pre-stroke match was j.
+
+    THE ARGMAX OF `_matrices_pattern`, ONE-HOT. Figure 10b reduces that argmax to a single number --
+    "was it still itself" -- which answers whether the code moved and says nothing about WHERE it
+    went. Averaged over sessions within an epoch, this matrix is the destination distribution: the
+    diagonal is 10b, and the off-diagonal mass shows whether a position's code went to ONE other
+    position or scattered evenly, which is the difference between substitution and collapse.
+
+    WHY THIS IS THE MOST LEGIBLE FORM OF "MOVED TOWARD" (Priya, 2026-09-10, asking for exactly this):
+    it needs no sign convention, no row-centring and no units. A cell is a fraction of sessions.
+    Everything else in the 6/7/8 families requires the reader to hold "is larger better here" in
+    their head; a destination matrix does not.
+
+    A ROW WITH NO FINITE VALUES SCORES NOTHING rather than voting for column 0. `np.nanargmax` on an
+    all-NaN row raises, and catching that to return 0 would have manufactured a systematic pull
+    toward the first position out of missing data -- the same failure `_fig_10b` guards.
+
+    THE PRE COLUMN IS ONE-HOTTED PER SESSION AND THEN AVERAGED, and it is NOT built from
+    `_matrices_pattern`'s "PRE" entry for that reason. That entry is the MEAN of the
+    leave-one-session-out correlation matrices, and `argmax(mean) != mean(argmax)`: one-hotting the
+    averaged matrix asks "does the average pre-stroke session match itself", which is 6/6 for every
+    animal and makes the baseline a perfect identity. Every post-stroke epoch is a mean of
+    PER-SESSION one-hots, so scoring pre the other way compares a session against an average and
+    charges the difference to the lesion. Built from `_collect_7` directly so both sides are the
+    same construction.
+    """
+    store, days = _collect_7(align, variant, min_trials)
+
+    def _onehot(M):
+        A = np.asarray(M, float)
+        H = np.full(A.shape, np.nan)
+        for i in range(A.shape[0]):
+            if not np.isfinite(A[i]).any():
+                continue
+            H[i] = 0.0
+            H[i, int(np.nanargmax(A[i]))] = 1.0
+        return H if np.isfinite(H).any() else None
+
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        ref_m = _means(_pre_reference(pre_by_sess))
+        loo = [_onehot(_corr_matrix(_means(pat), _means(_pre_reference(pre_by_sess, exclude=s))))
+               for s, pat in pre_by_sess.items()]
+        d = {}
+        base = _nanmean_stack([h for h in loo if h is not None])
+        if base is not None:
+            d["PRE"] = base
+        for day, pat in by_day.items():
+            h = _onehot(_corr_matrix(_means(pat), ref_m))
+            if h is not None:
+                d[day] = h
+        if d:
+            out[an] = d
+    return out, days
 
 
 @lru_cache(maxsize=6)

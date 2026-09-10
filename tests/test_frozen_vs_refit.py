@@ -156,7 +156,8 @@ def test_5r_is_an_arm_key_and_a_cli_choice():
 
     src = inspect.getsource(eg.main)
     assert '"5r"' in src
-    assert 'ARM_KEYS = {"acc", "5c", "5r", "mat", "scal"}' in src
+    assert 'ARM_KEYS = {"acc", "5c", "5r", "5rm", "mat", "scal"}' in src
+    assert '"5rm"' in src, "the training-set-matched arm must be reachable from the CLI too"
 
 
 def test_pre_panel_counts_sessions_not_records():
@@ -240,3 +241,56 @@ def test_share_floor_catches_what_the_count_floor_misses():
 def test_share_floor_is_a_third_of_uniform_for_six_positions():
     assert G.MIN_REFIT_SHARE == pytest.approx(1 / 18)
     assert G.MIN_REFIT_SHARE < 1 / 6                          # never fires on a balanced session
+
+
+# ------------------------------------------------------- the training-set-matched arm (2026-09-10)
+
+def test_matched_mode_is_a_valid_collector_mode():
+    import inspect
+
+    src = inspect.getsource(G._collect_5c)
+    assert "paired_matched" in src
+    with pytest.raises(ValueError, match="paired_matched"):
+        G._collect_5c("cue", "working", "nope")
+
+
+def test_matched_frozen_samples_whole_blocks_and_respects_the_target():
+    """Whole blocks, because blocks are the unit every other resampling here uses."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    def pipe():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=300))
+
+    rng = np.random.default_rng(0)
+    y = np.tile(np.arange(6), 100)                       # 600 trials
+    X = rng.normal(size=(len(y), 4)) + y[:, None]
+    blk = np.repeat(np.arange(100), 6)
+    got = G._matched_frozen(pipe, X, y, blk, 120, np.random.default_rng(1))
+    assert got is not None
+    _fitted, n_used = got
+    assert 120 <= n_used < 120 + 6, f"overshot the target by more than one block: {n_used}"
+    assert n_used % 6 == 0, "partial blocks were taken"
+
+
+def test_matched_frozen_refuses_a_single_class_subset():
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    def pipe():
+        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=300))
+
+    X = np.random.default_rng(0).normal(size=(30, 3))
+    y = np.zeros(30, int)
+    assert G._matched_frozen(pipe, X, y, np.repeat(np.arange(5), 6), 12,
+                             np.random.default_rng(0)) is None
+
+
+def test_the_matched_seed_varies_by_session():
+    """One seed per animal would score every session with very nearly the same matched model."""
+    import inspect
+
+    src = inspect.getsource(G._collect_5c)
+    assert "1000003 * len(y)" in src, "the matched draw is no longer session-specific"

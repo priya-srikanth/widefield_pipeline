@@ -34,7 +34,7 @@ than living in a chat log.
 > distance between each position's post-stroke pattern and its own pre-stroke pattern -- normalised
 > so 1.0 equals the separation between two DIFFERENT pre-stroke positions -- rises acutely to +1.02
 > at far-contralateral, and the fraction of sessions in which that position's pattern still
-> best-matches its own pre-stroke pattern falls by 0.94. A ridge encoder mapping position to
+> best-matches its own pre-stroke pattern falls by 0.92. A ridge encoder mapping position to
 > component activity loses 0.94 of its pre-stroke explained variance acutely, roughly half
 > attributable to response gain and half to pattern shape, indicating that the change is not simple
 > amplitude scaling. The deficit is also non-uniform across the trial: pre-cue (ENL) decoding falls
@@ -288,11 +288,31 @@ Three differences, and each one is the reason to keep both:
    POST x PRE, so every cell carries the pre-stroke geometry and asks "which position did this one
    move TOWARD". A code that scrambled into a brand-new configuration would show up in the first and
    not the second.
-2. **THE COMMON SHIFT.** Row-centring subtracts each row's mean, which removes anything that moved
-   the whole row -- including "every position became more alike". Split-half keeps it. That is why
-   the acute mean off-diagonal delta is +0.260 for split-half and only +0.082 for the row-centred
-   crossnobis: roughly two thirds of the merging is a COMMON shift and one third is the differential
-   substitution.
+2. **WHAT ROW-CENTRING REMOVES.** Row-centring subtracts each row's mean, which removes anything
+   that shifted the whole row -- including the amplitude term. Split-half has no such term to
+   remove.
+
+   **CORRECTION, 2026-09-10.** An earlier version of this section said the +0.260 vs +0.082
+   difference meant "roughly two thirds of the merging is a COMMON shift and one third is the
+   differential substitution". That was wrong and should not be quoted. The two numbers are a
+   CORRELATION change and a NORMALISED DISTANCE change: different units, no reason for their
+   magnitudes to be commensurate, and no ratio to take between them. Priya caught it by asking the
+   right question -- split-half is a Pearson correlation, so it is already fully blind to gain,
+   global or per position, and cannot contain an amplitude component for row-centring to be
+   removing. The defensible comparison between the two measures is their RANK agreement, not their
+   magnitudes.
+
+   **AND ROW-CENTRED CROSSNOBIS IS NOT FULLY GAIN-BLIND EITHER.** Writing the row out,
+
+       d(P,Q) - mean_Q d(P,.) = -2 mu_postP . (mu_preQ - mean mu_pre) + (|mu_preQ|^2 - mean |mu_pre|^2)
+
+   the first term scales LINEARLY with |mu_postP| and the second does not depend on P at all. So
+   row-centring removes gain from the row's OFFSET but leaves it multiplying the row's SHAPE: double
+   P's response and the whole row-centred profile doubles. Row-centred values are therefore
+   comparable in SIGN and in RANK across epochs but not in MAGNITUDE when amplitude has changed --
+   and the encoder says it changed a lot (fitted gain a: 0.94 pre to 0.36 acute, post-cue). Dividing
+   each row by its own SD across columns would make it scale-free as well; that is not currently
+   done.
 3. **METRIC.** Pearson correlation is gain-blind by construction; crossnobis is a noise-normalised
    distance and is gain-SENSITIVE, which is the whole reason the row-centred family had to be built.
 
@@ -332,6 +352,9 @@ third panel of `grant_7b_reliability_*` shows cell by cell.
 | encoder Δ (variance, gain) | `epoch_11delta_encoder_gain_shape_cue_working` | acute −0.94 / −0.45; subacute −0.34 / −0.26; chronic −0.05 / −0.03 |
 | within-session reliability Δ | `epoch_7diagdelta_matrices_splithalf_cue_working` | acute nI −0.12, nM −0.33, nC −0.07, fI +0.01, fM −0.03, **fC +0.12** |
 | crossnobis displacement | `epoch_8diagdelta_matrices_crossnobis_cue_working` | acute fC **+1.02**; chronic nI +0.98, nC +0.86, fM +1.01 |
+| best-match DESTINATION, acute fC | `epoch_10c_matrices_best_match_destination_cue_working` | fM 0.50, fI 0.25, nI 0.12, nC 0.06, itself 0.06 |
+| best-match fraction fC, pre -> acute | `epoch_10cdiagdelta_...` | 0.98 -> 0.06 (a drop of **0.92**, not 0.94 -- see below) |
+| recoverable, MATCHED training sets | `epoch_5rmgapdelta_frozen_vs_refit_cue_working` | pre gap **+0.090**; acute fC **+0.158**, nC +0.128, nI +0.093 |
 | pre-stroke frozen decoder accuracy | run log, `frozen decoder [.]` | cue .87/.78/.93/.92; precue .47/.46/.66/.45; lick .92/.88/.95/.93 |
 | no-lick dissociation | run log, `=>` verdicts | PS95 pre-cue 0.36 vs post-cue 0.09 |
 | refit-minus-frozen gap | `epoch_5rgapdelta_frozen_vs_refit_cue_working` | pre -0.073; acute +0.027, subacute -0.008, chronic -0.005 |

@@ -3541,6 +3541,34 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "interval excluding zero means the lesion made MORE information recoverable by refitting"
          "than the design's own handicap accounts for, which is the signature of a displaced code."
          "Marks and correction as in the other contrast panels."),
+        ("epoch_5rm_refit_by_position_*_*.png",
+         "Refit within session, training-set MATCHED",
+         "The refit arm again, now against a frozen decoder trained on a size-matched random"
+         "subset of pre-stroke BLOCKS rather than on all ten pre-stroke sessions. Blocks rather"
+         "than loose trials, so the matched model's training set carries the same within-block"
+         "correlation the refit model's does. Everything else is as the preceding figures."),
+        ("epoch_5rmdelta_refit_by_position_*_*.png",
+         "Refit decoding (matched), change from pre-stroke",
+         "The matched refit arm's epoch-minus-pre contrasts. Marks and correction as elsewhere."),
+        ("epoch_5rmgap_frozen_vs_refit_*_*.png",
+         "Recoverable information, training-set MATCHED",
+         "THE BASELINE DOES NOT GO TO ZERO WHEN THE TRAINING SETS ARE MATCHED -- IT GOES THE OTHER"
+         "WAY. Unmatched, the frozen arm has ten sessions against the refit arm's four fifths of"
+         "one, and refitting COSTS 0.073 pre-stroke (post-cue). Matched, refitting is +0.090"
+         "BETTER pre-stroke, because a model trained inside a session shares that session's own"
+         "nuisance structure -- alignment, haemodynamics, arousal, the LocaNMF projection -- while"
+         "the matched frozen model has to generalise across days. So the no-lesion baseline is"
+         "BRACKETED, -0.073 to +0.090, and neither bound is 'the' answer: one measures training-set"
+         "size, the other cross-session generalisation. Both are read as epoch-minus-pre, and the"
+         "headline survives either way -- far-contralateral carries the largest lesion-attributable"
+         "recoverable component, +0.196 unmatched and +0.158 matched."),
+        ("epoch_5rmgapdelta_frozen_vs_refit_*_*.png",
+         "Recoverable information (matched), change from the pre-stroke gap",
+         "The matched companion to the unmatched contrast panel, and the more conservative of the"
+         "two: matching costs the frozen arm more at pre-stroke (where extra training data helps)"
+         "than acutely (where it fails regardless), so the acute contrast shrinks from +0.100 to"
+         "+0.039 pooled. Per position the ordering is unchanged and far-contralateral is still"
+         "the largest, +0.158."),
         ("epoch_5c_frozen_confusion_*_*.png",
          "Frozen pre-stroke decoder, confusion by epoch",
          "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each"
@@ -3643,6 +3671,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " SPARED positions (near-ipsi +0.862, far-middle +0.845) where the row-centred value is"
          " ~0 -- that is a global gain change, not reorganisation, and it is the reason this panel"
          " exists."),
+        ("epoch_10c_matrices_best_match_destination_*_*.png",
+         "Where each position's best pre-stroke match went",
+         "For every session, each post-stroke position's pattern is matched to whichever"
+         "PRE-stroke position it correlates with best, and the winner is scored one-hot; the"
+         "matrix is the average over sessions in that epoch. Rows are the position the animal was"
+         "cued to, columns the pre-stroke position its activity most resembled, cells the fraction"
+         "of sessions. The DIAGONAL is the best-match fraction plotted elsewhere; the OFF-DIAGONAL"
+         "is what that number cannot show -- whether a position's code moved to ONE other position"
+         "(substitution) or scattered evenly (collapse). Acutely far-contralateral keeps only 0.06"
+         "of its own sessions and sends 0.50 to far-MIDDLE and 0.25 to far-ipsilateral: a"
+         "concentrated substitution onto specific neighbours, not a dissolution. THE PRE COLUMN IS"
+         "ONE-HOTTED PER SESSION AND THEN AVERAGED, matching how every post-stroke epoch is built;"
+         "one-hotting the AVERAGED leave-one-session-out matrix instead makes the baseline a"
+         "perfect identity and charges the difference to the lesion."),
+        ("epoch_10cdiag_matrices_best_match_destination_*_*.png",
+         "Best match is still the correct position, per position",
+         "The diagonal of the preceding matrix as bars. Same quantity as the best-match-by-position"
+         "figure later in this section, but with the pre baseline built the same way as the"
+         "post-stroke epochs -- so it is the one to quote."),
+        ("epoch_10cdiagdelta_matrices_best_match_destination_*_*.png",
+         "Best match is still the correct position, change from pre-stroke",
+         "Far-contralateral falls 0.98 -> 0.06 acutely, a drop of 0.92."),
         ("epoch_8g_geometry_by_position_*_*.png",
          "Geometry preserved, per position",
          "For each position, the correlation between that position's row of the"

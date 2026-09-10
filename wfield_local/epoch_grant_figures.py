@@ -766,7 +766,27 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
     return made
 
 
-def _frozen_vs_refit(out_dir, align, variant, wname):
+def _frozen_vs_refit_matched(out_dir, align, variant, wname):
+    """5rm: the same contrast with the two arms given the SAME AMOUNT of training data.
+
+    Priya, 2026-09-10: "build the training set-matched version too". The unmatched pre bar is a
+    training-set-size handicap -- ten pre-stroke sessions against four fifths of one -- so the raw
+    gap cannot be read directly. Matching removes it, and what it exposes is that the baseline does
+    not go to zero: it goes the OTHER WAY. At equal training-set size the refit arm is +0.090 BETTER
+    pre-stroke (post-cue), because training within a session shares that session's own nuisance
+    structure -- alignment, haemodynamics, arousal, the LocaNMF projection -- while the matched
+    frozen model has to generalise across days.
+
+    SO THE NO-LESION BASELINE IS BRACKETED RATHER THAN KNOWN: -0.073 unmatched (frozen has 10x the
+    data) and +0.090 matched (frozen must cross sessions). Both bounds are real effects and neither
+    is "the" answer, which is why both families are drawn and both are read as
+    epoch-minus-pre. The headline survives either way -- far-contralateral has the largest
+    lesion-attributable recoverable component, +0.196 unmatched and +0.158 matched.
+    """
+    return _frozen_vs_refit(out_dir, align, variant, wname, matched=True)
+
+
+def _frozen_vs_refit(out_dir, align, variant, wname, *, matched=False):
     """5r: is the position code LOST, or present and MISREAD by the pre-stroke model?
 
     THE QUESTION THE FROZEN DECODER CANNOT ANSWER ALONE. A frozen decoder that fails post-stroke is
@@ -792,36 +812,43 @@ def _frozen_vs_refit(out_dir, align, variant, wname):
     """
     from wfield_local import grant_figures as G
 
-    per_animal, _days = G._collect_5c(align, variant, "paired")
+    per_animal, _days = G._collect_5c(align, variant,
+                                      "paired_matched" if matched else "paired")
     if not per_animal:
         return None
+    key = "5rm" if matched else "5r"
+    what = (" (training-set MATCHED)" if matched else "")
+    note_arm = (["frozen arm trained on a size-matched random subset of pre-stroke BLOCKS",
+                 "the pre gap is cross-session generalisation, not training-set size"]
+                if matched else
+                ["each session scored by a 5-fold block-CV decoder fitted on ITSELF",
+                 "the pre gap is the training-set-size handicap, not an effect"])
     made = []
     p = _position_bars(
         per_animal, out_dir, align, variant, wname,
-        name=f"epoch_5r_refit_by_position_{align}_{variant}",
-        title=f"Per-position accuracy of a WITHIN-SESSION refit decoder, {wname}",
-        delta_name=f"epoch_5rdelta_refit_by_position_{align}_{variant}",
+        name=f"epoch_{key}_refit_by_position_{align}_{variant}",
+        title=f"Per-position accuracy of a WITHIN-SESSION refit decoder{what}, {wname}",
+        delta_name=f"epoch_{key}delta_refit_by_position_{align}_{variant}",
         delta_title=f"Change from pre-stroke in refit decoding accuracy, {wname}",
         ylabel="accuracy (refit within session)", delta_ylabel="accuracy - pre",
         stat_at=_refit_at, value_of=_refit_of, chance=CHANCE, ylim=(0.0, 1.10),
-        notes=["each session scored by a 5-fold block-CV decoder fitted on ITSELF",
-               "pre panel is one record per pre-stroke session, not a pooled LOSO record"])
+        notes=note_arm + ["pre panel is one record per pre-stroke session, not a pooled LOSO "
+                          "record"])
     if p:
         made.append(p)
     q = _position_bars(
         per_animal, out_dir, align, variant, wname,
-        name=f"epoch_5rgap_frozen_vs_refit_{align}_{variant}",
-        title=f"Recoverable information: refit minus frozen accuracy, {wname}",
-        delta_name=f"epoch_5rgapdelta_frozen_vs_refit_{align}_{variant}",
-        delta_title=f"Change from pre-stroke in the refit-minus-frozen gap, {wname}",
+        name=f"epoch_{key}gap_frozen_vs_refit_{align}_{variant}",
+        title=f"Recoverable information: refit minus frozen accuracy{what}, {wname}",
+        delta_name=f"epoch_{key}gapdelta_frozen_vs_refit_{align}_{variant}",
+        delta_title=f"Change from pre-stroke in the refit-minus-frozen gap{what}, {wname}",
         ylabel="refit - frozen accuracy", delta_ylabel="gap - pre gap",
         stat_at=_gap_at, value_of=_gap_of,
         # A DIFFERENCE HAS NO CHANCE LEVEL and no natural range: zero is the reference and the
         # axis autoscales, because clipping a negative gap to a [0, 1] window would hide the
         # reading that matters most -- both decoders failing together.
         chance=None, reference=0.0, ylim=None,
-        notes=["paired within trial: both arms score the SAME trials",
-               "the pre gap is the training-set-size handicap, not an effect"])
+        notes=["paired within trial: both arms score the SAME trials"] + note_arm[1:])
     if q:
         made.append(q)
     return made or None
@@ -867,6 +894,14 @@ MATRIX_FAMILIES = (
     # pattern moved toward. Diverging: the scale is centred on zero, so RdBu_r not magma.
     ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centred", "RdBu_r", None,
      "Crossnobis geometry, row-centred -- which position did it move TOWARD"),
+    # WHERE THE BEST MATCH WENT (Priya, 2026-09-10): "could we add a version that plots, for each
+    # spout position across epochs, where the best matches were -- so we could see if there is a
+    # shift to one other position or if it's evenly distributed". Family 10b already reduces this
+    # argmax to its diagonal; the whole matrix is the part that distinguishes SUBSTITUTION (mass on
+    # one off-diagonal cell) from COLLAPSE (mass spread evenly). Fraction of sessions, so the scale
+    # is a real 0-1 and fixing it is correct here where it is not for a distance.
+    ("10c", "_matrices_best_match_destination", "fraction of sessions", "viridis", (0.0, 1.0),
+     "Where each position's best pre-stroke match went"),
 )
 
 
@@ -1352,12 +1387,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "5r", "mat", "scal"))
+                    choices=("1b", "1c", "acc", "5c", "5r", "5rm", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5r", "mat", "scal"))
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5r", "5rm", "mat", "scal"))
 
     if "1b" in want:
         try:
@@ -1374,7 +1409,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5r", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5r", "5rm", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -1406,12 +1441,14 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
-        if "5r" in want:
+        for _k, _fn in (("5r", _frozen_vs_refit), ("5rm", _frozen_vs_refit_matched)):
+            if _k not in want:
+                continue
             try:
-                for q in (_frozen_vs_refit(out, align, variant, wname) or []):
-                    _report(f"5r {align}/{variant}", q)
+                for q in (_fn(out, align, variant, wname) or []):
+                    _report(f"{_k} {align}/{variant}", q)
             except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! 5r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                print(f"  !! {_k} {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "scal" in want:
             for key, fn in SCALAR_FAMILIES:
