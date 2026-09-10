@@ -229,6 +229,98 @@ code being gone, in the direction that would have flattered the "lost" reading. 
 all of them that one cell, and never in the cue or pre-cue arms. A count-only floor did NOT catch it
 and made it worse -- see the constant's own note.
 
+## THE POSITIONS STOP BEING DIFFERENT FROM EACH OTHER (split-half off-diagonal), 2026-09-10
+
+Priya, reading the deck: "after stroke, split-half similarity suggests significantly more similarity
+between R/L/center spout position brain activity compared to pre-stroke, when these were more
+different than each other." That reading is correct, and it is the most direct statement of the
+effect in the whole figure set.
+
+`_split_half_matrix` splits each position's trials into halves WITHIN one session. The diagonal is
+that position's own reliability -- corr(half A at P, half B at P) -- and the OFF-diagonal is how
+similar two DIFFERENT positions look, measured on independent halves so no cell is a mean correlated
+with itself. Post-cue, lick + miss-while-working:
+
+| epoch | own-position (diagonal) | between-position (off-diagonal) | separation |
+|---|---|---|---|
+| pre | 0.791 | **-0.169** | 0.959 |
+| **acute** | 0.724 | **+0.091** | **0.632** |
+| subacute | 0.785 | -0.133 | 0.918 |
+| chronic | 0.858 | -0.180 | 1.038 |
+
+**EACH POSITION STAYS ABOUT AS REPEATABLE AS BEFORE WHILE THE POSITIONS STOP BEING DISTINGUISHABLE
+FROM EACH OTHER.** The diagonal moves 0.791 -> 0.724, a 0.067 drop. The off-diagonal moves -0.169 ->
++0.091, a swing of +0.260 -- four times larger, and in the direction that says different targets now
+evoke the same pattern. A code that had gone NOISY would show the opposite: diagonal collapsing,
+off-diagonal unchanged.
+
+The far-contralateral row is where it happens. Its correlation with the other far positions, acute
+minus pre: far-ipsi -0.24 -> **+0.58**, far-middle +0.15 -> **+0.63**. The impaired target's pattern
+does not become noise; it becomes the OTHER far positions' pattern.
+
+**FOUR MEASURES, ONE EVENT -- and "independent" needs qualifying.** The split-half off-diagonal
+(patterns merge), the frozen decoder's confusions (far-contra misread as far-ipsi/far-middle), the
+row-centred crossnobis (far-contra moves toward ipsilesional targets) and the best-match fraction
+(its nearest pre-stroke neighbour stops being itself) are four DIFFERENT quantities and they agree.
+They are analytically independent -- different metric, different reference frame -- but NOT
+statistically independent: all four are computed from the same per-trial joint-LocaNMF features, the
+same engagement gate and the same trial sets, so a fault in those would move all four together. The
+convergence rules out four different analysis choices, not one bad feature matrix.
+
+It reverses by subacute: off-diagonal back to -0.133, and to -0.180 chronically, slightly BELOW its
+own pre-stroke value.
+
+### Split-half off-diagonal vs row-centred crossnobis: related, not redundant
+
+Priya, 2026-09-10: "are these essentially the same?" No -- they agree on the acute event and
+disagree in ways that identify what each one measures.
+
+| epoch | Spearman rho, 30 off-diagonal cells | mean delta, split-half | mean delta, row-centred crossnobis |
+|---|---|---|---|
+| acute | **+0.711** | **+0.260** | **+0.082** |
+| subacute | +0.472 | +0.036 | +0.028 |
+| chronic | -0.115 | -0.012 | +0.009 |
+
+Three differences, and each one is the reason to keep both:
+
+1. **REFERENCE FRAME.** Split-half lives entirely inside ONE session: both halves come from the same
+   session, so it asks "are these positions distinguishable right now". The crossnobis matrices are
+   POST x PRE, so every cell carries the pre-stroke geometry and asks "which position did this one
+   move TOWARD". A code that scrambled into a brand-new configuration would show up in the first and
+   not the second.
+2. **THE COMMON SHIFT.** Row-centring subtracts each row's mean, which removes anything that moved
+   the whole row -- including "every position became more alike". Split-half keeps it. That is why
+   the acute mean off-diagonal delta is +0.260 for split-half and only +0.082 for the row-centred
+   crossnobis: roughly two thirds of the merging is a COMMON shift and one third is the differential
+   substitution.
+3. **METRIC.** Pearson correlation is gain-blind by construction; crossnobis is a noise-normalised
+   distance and is gain-SENSITIVE, which is the whole reason the row-centred family had to be built.
+
+They dissociate exactly where that matters. Far-contra against NEAR-contra, acute minus pre:
+split-half **+0.152** (slightly more alike) but row-centred crossnobis **-0.350** (moved AWAY).
+Same trials, opposite sign, because one is absolute similarity within the session and the other is
+similarity relative to that row's own mean.
+
+Where they DO agree they agree completely: the far-contra row's five off-diagonal columns come out in
+IDENTICAL rank order under both measures (rho = +1.000) -- far-ipsi > near-ipsi > far-middle >
+near-middle > near-contra. That is the substitution claim, made twice from different arithmetic.
+
+
+
+### Why a gain change cannot explain the similarity drop
+
+`_corr_matrix` uses `np.corrcoef`, i.e. Pearson, which centres and scales each pattern vector. A
+uniform gain change on all components leaves *r* exactly unchanged -- so a drop in mean-pattern
+similarity is a change in the SHAPE of the pattern across components, never its size. The inverse is
+the one to watch: a LINEAR DECODER is sensitive to gain (fixed hyperplane, fixed intercepts), so
+amplitude can break decoding while correlation holds. Anyone reasoning "the components still decode,
+so the pattern must be intact" has it backwards.
+
+Nor is it attenuation. Split-half reliability falls only 0.791 -> 0.724 acutely, so the most
+attenuation can account for is a factor sqrt(0.724 / 0.791) = 0.957: it would take the mean-pattern
+similarity from 0.741 to 0.709, not to the observed **0.350**. That is also what the disattenuated
+third panel of `grant_7b_reliability_*` shows cell by cell.
+
 ## Where each number comes from
 
 | claim | figure | value |

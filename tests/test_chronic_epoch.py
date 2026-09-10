@@ -90,16 +90,23 @@ def test_the_plateau_must_persist():
 
 
 def test_ratios_are_not_capped_at_one():
-    """PS93's licking overshoots to 129% of baseline and is coming back DOWN at -4.4%/session.
+    """PS93's licking overshoots to 129% of baseline. Capping ratios at 1.0 must stay forbidden.
 
-    That decline is why PS93 is not chronic. Capping ratios at 1.0 would flatten 1.26/1.29/1.18 to
-    1.00/1.00/1.00 and hand PS93 a chronic stamp for an above-baseline excursion -- which is the
-    proposal Priya rejected: "changes > 1 are still informative for whether things may be
-    changing." This pins the uncapped behaviour so a later "tidy-up" cannot reintroduce it."""
-    assert _plateau(PS93_LICKS, PS93_LICK_SD, "licks") is None
-    capped = [min(1.0, v) for v in PS93_LICKS]
-    assert epochs._plateau_index(capped, PS93_LICK_SD, epochs.CHRONIC_LEVEL_MIN["licks"]) is not None, (
-        "capping no longer changes the verdict; this test has stopped guarding anything")
+    Priya: "changes > 1 are still informative for whether things may be changing." Capping would
+    flatten 1.26/1.29/1.18 to 1.00/1.00/1.00 and erase an above-baseline excursion.
+
+    THIS TEST USED TO ASSERT PS93'S LICKS NEVER PLATEAU, which was the observable consequence of
+    uncapped ratios under the RATE flat test. Under `flat_mode: drift` (2026-09-10) they DO plateau,
+    and that is the intended change -- so the test now checks the property it is named for directly:
+    the capped and uncapped series must give different verdicts, whatever those verdicts are. Pinning
+    a downstream consequence rather than the property meant a legitimate rule change looked like a
+    regression in a test about capping.
+    """
+    uncapped = _plateau(PS93_LICKS, PS93_LICK_SD, "licks")
+    capped = _plateau([min(1.0, v) for v in PS93_LICKS], PS93_LICK_SD, "licks")
+    assert uncapped != capped, (
+        f"capping no longer changes the verdict (both {uncapped}); this test guards nothing")
+    assert max(PS93_LICKS) > 1.0, "the fixture no longer overshoots; it cannot test capping"
 
 
 def test_one_measure_plateauing_is_not_enough():
@@ -166,3 +173,70 @@ def test_the_two_copies_of_the_rule_agree(label):
     if expect == "pre" or day is None:
         return
     assert ef.epoch_of_day(config.animal_of(label), int(day)) == expect, f"{label} day {day}"
+
+
+# ---------------------------------------------------------------- the drift flat test (2026-09-10)
+
+def _with_mode(monkeypatch, mode):
+    monkeypatch.setattr(epochs, "CHRONIC_FLAT_MODE", mode)
+
+
+def test_drift_mode_is_available_but_not_the_default():
+    """Switching it on moves a published boundary, so the flip is Priya's, not the code's."""
+    assert epochs.CHRONIC_FLAT_MODE == "rate"
+    assert epochs.CHRONIC_K_DRIFT == pytest.approx(1.0)
+
+
+def test_the_rate_test_is_stricter_on_widely_spaced_tails(monkeypatch):
+    """The correction of 2026-09-10: `rate` was ~3.5x STRICTER in the tail, not more permissive.
+
+    PS93's licking is the case. Its late sessions sit 3-4 days apart while its pre-stroke sessions
+    are mostly consecutive days, so a per-session slope is ~3.7x a per-day one measured against a
+    tolerance calibrated on 1-day steps. Under `drift` -- which asks only how far the fitted line
+    moves across the whole window -- it plateaus.
+    """
+    _with_mode(monkeypatch, "rate")
+    assert _plateau(PS93_LICKS, PS93_LICK_SD, "licks") is None
+    _with_mode(monkeypatch, "drift")
+    assert _plateau(PS93_LICKS, PS93_LICK_SD, "licks") is not None
+
+
+def test_drift_still_rejects_a_series_that_is_climbing(monkeypatch):
+    """`drift` must not become a rubber stamp. PS95's hit rate climbs 84 -> 104% and must fail."""
+    _with_mode(monkeypatch, "drift")
+    early = epochs._plateau_index(PS95_HIT[1:], PS95_HIT_SD, epochs.CHRONIC_LEVEL_MIN["hit"])
+    assert early is None or early >= len(PS95_HIT[1:]) - epochs.CHRONIC_MIN_TAIL
+
+
+def test_drift_does_not_care_how_many_sessions_the_window_holds(monkeypatch):
+    """The property that makes it the right test: doubling the sampling rate must not change it.
+
+    Under `rate` the same underlying drift, sampled twice as often, halves the per-session slope and
+    can flip the verdict. Under `drift` the fitted change across the window is the same either way.
+    """
+    # THE SAME TOTAL DRIFT (+0.06), sampled at two densities. Perfectly linear, so `settled` passes
+    # either way and the flat test is the only thing deciding.
+    coarse = [1.00, 1.02, 1.04, 1.06]                       # 4 sessions, +0.02 each
+    fine = [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06]       # 7 sessions, +0.01 each
+    sd = 0.05
+
+    # TESTED ON `_is_flat`, NOT on the whole plateau search, and the distinction matters. Under
+    # `drift` a long window can always be made to pass by starting later -- a shorter tail carries
+    # less total drift -- so `_plateau_index` legitimately returns an index for both series and
+    # would hide the property. The flat PREDICATE is what has to be density-invariant.
+    _with_mode(monkeypatch, "drift")
+    assert epochs._is_flat(coarse, sd)[0] is False
+    assert epochs._is_flat(fine, sd)[0] is False, \
+        "drift changed its mind when the same total drift was sampled more finely"
+
+    _with_mode(monkeypatch, "rate")
+    assert epochs._is_flat(coarse, sd)[0] is False
+    assert epochs._is_flat(fine, sd)[0] is True, \
+        "rate no longer depends on sampling density; this test guards nothing"
+
+
+def test_dropping_the_level_bar_lets_a_never_licking_animal_plateau():
+    """Why `level_min: null` is not free. PS94 licked ~0 for five sessions; flat is not recovered."""
+    flat_at_zero = [0.00, 0.00, 0.00, 0.00, 0.00]
+    assert epochs._plateau_index(flat_at_zero, 0.341, epochs.CHRONIC_LEVEL_MIN["licks"]) is None
+    assert epochs._plateau_index(flat_at_zero, 0.341, None) == 0

@@ -164,13 +164,29 @@ ACUTE_RULE = (f"{RULE_POSITION} accuracy < {ACUTE_FRACTION:.0%} of that animal's
 #
 # TWO KNOWN LIMITATIONS, left in deliberately and recorded here rather than fixed:
 #
-#   * THE SLOPE IS PER SESSION INDEX, NOT PER DAY. Sessions are not evenly spaced (gaps run 1, 1, 1,
-#     1, 2, 2, 2, 4, 3 days), so a 3-session window spans 2-7 calendar days and the qualifying late
-#     windows are the widest. In per-day terms the test is ~3.5x more permissive exactly where
-#     plateaus get declared, which biases mildly TOWARD calling chronic. Kept because the pre-stroke
-#     SD that sets the tolerance is itself session-to-session scatter, so per-session keeps both
-#     sides of the comparison in matching units; rescaling only one side would be worse. All four
-#     animals share an identical schedule, so nothing is confounded BETWEEN animals.
+#   * THE SLOPE IS PER SESSION INDEX, NOT PER DAY -- and this note used to claim that made the test
+#     "~3.5x more permissive exactly where plateaus get declared, which biases mildly TOWARD calling
+#     chronic". THAT WAS BACKWARDS, corrected 2026-09-10 (Priya: "I wonder if our slope criteria is
+#     too strict?"). Post-stroke tail sessions sit 3.3-3.7x further apart than the typical
+#     pre-stroke session (median gap 1 day), so a series drifting at a fixed rate PER DAY produces a
+#     per-session slope 3.3-3.7x larger in the tail, measured against a tolerance calibrated on
+#     1-day steps. The rate test was therefore ~3.5x STRICTER exactly where plateaus get declared.
+#     Measured: switching the same data to a per-day slope moves PS93 from never qualifying to
+#     day 11, and PS92 from day 11 to day 9.
+#
+#     PER-DAY IS NOT THE FIX EITHER. Fitting against the calendar makes a long window forgiving for
+#     the opposite reason -- PS95's hit rate climbs 83 -> 104% over twenty days and its per-day
+#     slope passes from day 2, on a series that is plainly still rising. The quantity the rule
+#     actually cares about is TOTAL DRIFT ACROSS THE WINDOW, which is free of both biases: it does
+#     not care how many sessions the window holds or how far apart they are. `flat_mode: drift`
+#     implements it: |fitted change from the first to the last session of the tail| <= k_drift x
+#     pre-stroke SD.
+#
+#     IT IS NOT THE DEFAULT YET, and that is deliberate. Switching to it moves PS93 to chronic from
+#     day 11, taking the chronic epoch from ONE animal to two -- which changes every epoch figure and
+#     the "chronic is n = 1" caveat that the preliminary-data document is built around. That is a
+#     scientific call, so the code ships the mode and the measurement and leaves the flip to a
+#     one-key edit in `configs/defaults.yaml`.
 #   * PS94'S LICK BASELINE IS A POOR YARDSTICK. Its pre-stroke licks/trial scatter by 34% of
 #     baseline, 2-4x every other animal, which is why the level bar is a fixed fraction rather than
 #     SD-scaled: `1 - 2*SD` would put PS94's threshold at 32% of baseline and pass its clearly
@@ -188,18 +204,27 @@ ACUTE_RULE = (f"{RULE_POSITION} accuracy < {ACUTE_FRACTION:.0%} of that animal's
 CHRONIC_K_SD = float(_CHRONIC.get("k_sd", 1.0 / 3.0))
 CHRONIC_K_RES = float(_CHRONIC.get("k_res", 1.5))
 CHRONIC_MIN_TAIL = int(_CHRONIC.get("min_tail", 3))
-CHRONIC_LEVEL_MIN = {k: float(v) for k, v in
+#: "drift" tests the TOTAL fitted change across the tail; "rate" tests the per-session slope, which
+#: is what this rule did before 2026-09-10 and is kept so the old boundaries can be reproduced.
+CHRONIC_FLAT_MODE = str(_CHRONIC.get("flat_mode", "rate"))
+CHRONIC_K_DRIFT = float(_CHRONIC.get("k_drift", 1.0))
+#: A SERIES MAY OPT OUT with a null: `level_min: {hit: null}` removes the recovered test for hit rate
+#: and leaves the plateau tests alone. Removing it entirely is NOT free -- see the note on
+#: `_plateau_index`, where "stably impaired" becomes indistinguishable from "recovered".
+CHRONIC_LEVEL_MIN = {k: (None if v is None else float(v)) for k, v in
                      (_CHRONIC.get("level_min") or {"hit": 0.90, "licks": 0.80}).items()}
 
 #: BUILT FROM THE CONSTANTS, not written out beside them. This string is stamped into
 #: `epoch_boundaries.json` and into the deck's section I divider as the rule a figure set claims to
 #: be the output of -- so a hand-written copy would go stale the first time a threshold was tuned in
 #: YAML, and would then be asserting something false in a published deck.
+_FLAT_TXT = (f"|slope| <= {CHRONIC_K_SD:.4g} x pre-stroke SD/session"
+             if CHRONIC_FLAT_MODE == "rate" else
+             f"total drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD")
 CHRONIC_RULE = (
-    f"{RULE_POSITION} hit rate AND licks/trial both flat (|slope| <= {CHRONIC_K_SD:.4g} x "
-    f"pre-stroke SD/session), recovered (>= "
+    f"{RULE_POSITION} hit rate AND licks/trial both flat ({_FLAT_TXT}), recovered (>= "
     + " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
-                 if k in CHRONIC_LEVEL_MIN)
+                 if CHRONIC_LEVEL_MIN.get(k) is not None)
     + f" of baseline) and settled (residual <= {CHRONIC_K_RES:.4g} x pre-stroke SD) from this "
       f"session onward, on engaged trials")
 #: Per series, as a fraction of that animal's pre-stroke baseline. Hit rate uses Priya's original
@@ -515,6 +540,26 @@ def _fit_line(ys):
     return slope, resid
 
 
+def _is_flat(tail, sd_pre):
+    """FLAT test for one candidate tail. Returns ``(ok, slope, resid)``.
+
+    ``drift`` (the default) tests the TOTAL fitted change across the window, ``slope x (n - 1)``,
+    against ``CHRONIC_K_DRIFT x pre-stroke SD``. That is the quantity "has it stopped moving"
+    actually refers to, and unlike a per-session slope it is unaffected by how many sessions the
+    window holds or how far apart they are -- which matters here because post-stroke tail sessions
+    sit 3.3-3.7x further apart than pre-stroke ones. See the correction above `CHRONIC_RULE`.
+
+    ``rate`` reproduces the pre-2026-09-10 behaviour: the per-session slope against
+    ``CHRONIC_K_SD x SD``. At the minimum window the two coincide when
+    ``k_drift = k_sd x (min_tail - 1)``; they diverge for longer tails, where ``rate`` lets total
+    drift grow with the number of sessions and ``drift`` does not.
+    """
+    slope, resid = _fit_line(tail)
+    if CHRONIC_FLAT_MODE == "rate":
+        return abs(slope) <= CHRONIC_K_SD * sd_pre, slope, resid
+    return abs(slope * (len(tail) - 1)) <= CHRONIC_K_DRIFT * sd_pre, slope, resid
+
+
 def _plateau_index(series, sd_pre, level_min):
     """Earliest index whose tail -- AND every later tail -- is flat, recovered and settled.
 
@@ -523,6 +568,14 @@ def _plateau_index(series, sd_pre, level_min):
     day 3 (2.8%), on a series that runs 84 82 97 84 72 80 92 105 104 and is plainly still climbing.
     "First index that passes" would report day 2. "First index from which it never stops passing"
     reports nothing, which is correct.
+
+    ``level_min`` OF None DROPS THE RECOVERED TEST, and the cost is specific rather than
+    philosophical: PS94's licking is flat at 0% of baseline for its first five post-stroke sessions
+    and flat at ~50% from day 9. With no level bar, "flat" alone calls the first of those a plateau
+    at DAY 1 and the second at day 9 -- an animal that never licked, entering the chronic epoch.
+    Stably impaired is not recovered. Measured 2026-09-10: dropping both level bars moves NO derived
+    boundary for any of the four animals, because every current blocker is FLAT, so the bars can be
+    removed only at a cost and with no benefit on this cohort.
     """
     if sd_pre <= 0:
         return None
@@ -530,9 +583,9 @@ def _plateau_index(series, sd_pre, level_min):
     ok = {}
     for i in cand:
         tail = series[i:]
-        slope, resid = _fit_line(tail)
-        ok[i] = (abs(slope) <= CHRONIC_K_SD * sd_pre
-                 and sum(tail) / len(tail) >= level_min
+        flat, _slope, resid = _is_flat(tail, sd_pre)
+        ok[i] = (flat
+                 and (level_min is None or sum(tail) / len(tail) >= level_min)
                  and resid <= CHRONIC_K_RES * sd_pre)
     for i in cand:
         if ok[i] and all(ok[j] for j in cand if j >= i):
@@ -653,7 +706,7 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
                 days.append(None)
                 continue
             sd = _pstdev(pre)
-            idx = _plateau_index([v for _d, v in post], sd, CHRONIC_LEVEL_MIN[name])
+            idx = _plateau_index([v for _d, v in post], sd, CHRONIC_LEVEL_MIN.get(name))
             day = post[idx][0] if idx is not None else None
             tail = [v for _d, v in post[idx:]] if idx is not None else []
             per_series[name] = {"day": day, "sd_pre": sd, "n_post": len(post),

@@ -396,7 +396,26 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               # hides whichever is worse. Each is tested alone; chronic begins at
                               # the LATER of the two plateaus, and only if both exist.
     min_tail: 3               # sessions required from a candidate start; also the shortest window
-    k_sd: 0.3333333333333333  # FLAT: |slope| <= k_sd x that series' own pre-stroke SD, per session.
+    flat_mode: rate           # FLAT test. "drift" = total fitted change across the window;
+                              #   "rate" = per-session slope (the pre-2026-09-10 behaviour).
+                              #   CHANGED 2026-09-10: the rate test fits against SESSION INDEX while
+                              #   post-stroke tail sessions sit 3.3-3.7x further apart than
+                              #   pre-stroke ones, so it was ~3.5x stricter exactly where plateaus
+                              #   get declared. Fitting per DAY overcorrects (PS95's hit rate passes
+                              #   from day 2 while still climbing 83 -> 104%). Total drift is free of
+                              #   both biases. Effect of switching to "drift": PS93 moves from
+                              #   never qualifying to day 11 (passing with 27-30% margin, not
+                              #   marginally); PS92 stays at day 11; PS94 and PS95 still do not
+                              #   qualify. LEFT AT "rate" PENDING PRIYA'S CALL, because that flip
+                              #   takes the chronic epoch from one animal to two and every epoch
+                              #   figure and the prelim-data "chronic is n = 1" caveat move with it.
+    k_drift: 1.0              # FLAT (drift mode): |total fitted change| <= k_drift x pre-stroke SD.
+                              #   1.0 is what k_sd = 0.5 would have permitted over the MINIMUM
+                              #   window -- the value the k_sd note below rejected for being one
+                              #   session from flipping PS93. Under drift PS93 passes with 27-30%
+                              #   margin instead, because the fragility came from the window-length
+                              #   dependence rather than from the threshold.
+    k_sd: 0.3333333333333333  # FLAT (rate mode only): |slope| <= k_sd x pre-stroke SD, per session.
                               #   Per-series because licking is ~3.5x noisier than hit rate; one
                               #   absolute tolerance makes the lick test ~3.5x stricter and mostly
                               #   reports that licking is noisy (at a fixed 2%/session NO animal
@@ -410,6 +429,11 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   A flat FIT through scattered points is a noisy climb: PS95's hit
                               #   rate trends shallowly from day 2 while swinging 72-105%.
     level_min:                # RECOVERED: tail mean, as a fraction of that animal's own baseline.
+                              #   SET A SERIES TO null TO DROP ITS BAR. Measured 2026-09-10:
+                              #   dropping BOTH bars moves no derived boundary on this cohort (every
+                              #   current blocker is FLAT), and it lets PS94's licking -- flat at 0%
+                              #   of baseline for five sessions -- register as a plateau at day 1.
+                              #   Stably impaired is not recovered.
       hit: 0.90               #   Priya's original by-eye bar; also 1.3-2.0 SD for every animal.
       licks: 0.80             #   looser because licking is noisier; 1.00 would demand full lick
                               #   recovery and reject PS92 at 97%. Flat is NOT recovered -- PS94's
