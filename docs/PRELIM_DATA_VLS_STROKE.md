@@ -160,6 +160,16 @@ Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a sing
 
 ## LOST or MISREAD? The frozen-vs-refit arm (figures 5r), 2026-09-09
 
+> **SESSION-SET CAVEAT, added 2026-09-09 late.** Every table below, and the crossnobis tables above,
+> were computed on the 0606-0907 session set. `PS92_0908` (day 22, CHRONIC) and `PS93_0908` (day 22,
+> SUBACUTE) were registered by the poller and analysed afterwards, and they are now in the pooled
+> bundle. The ACUTE numbers are unaffected -- neither session is acute -- but subacute and chronic
+> have shifted in the third decimal (post-cue far-contra recovery subacute +0.130 -> +0.136, pooled
+> subacute refit 0.764 -> 0.767). Regenerate with `scripts/prelim_numbers_frozen_vs_refit.py` and
+> `scripts/prelim_numbers_crossnobis.py` before quoting a subacute or chronic value, and re-render
+> the epoch figures so the deck agrees with the text.
+
+
 The "relocated rather than lost" claim above rested on three INDIRECT measures -- split-half
 reliability, crossnobis displacement, best-match fraction. `epoch_5rgap_frozen_vs_refit_*` tests it
 directly: refit a decoder WITHIN each session on the SAME trials, same estimator, same block

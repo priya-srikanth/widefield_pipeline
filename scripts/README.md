@@ -65,3 +65,23 @@ pre-existing ruff errors across the package do not block you until you touch one
 (worst offenders: `tests/test_spout_behavior.py` 35, `wfield_local/allen_register.py` 26).
 `wfield_local/locanmf_analysis_deck.py` was cleaned on 2026-08-24 for exactly this reason — its 30
 errors would have blocked every deck edit. `pre-push` runs the full suite, ~25 s.
+
+## Reproducing the preliminary-data numbers
+
+`docs/PRELIM_DATA_VLS_STROKE.md` quotes exact per-position per-epoch values that the grant paragraph
+rests on. These two scripts regenerate them. A document that quotes numbers with no committed way to
+recompute them is a document nobody can check — which is the only reason they are here rather than in
+a scratchpad.
+
+- `prelim_numbers_crossnobis.py` — the GAIN vs MOVE decomposition of the crossnobis own-position
+  distance, per position per epoch, plus the far-contra row that carries the "moved toward
+  ipsilesional targets" claim. Row-centring is an exact split (`raw_diag = rowmean + rc_diag`); the
+  script checks that identity numerically and prints the residual, so a collector change that
+  invalidates the document's tables shows up as a number instead of silently.
+- `prelim_numbers_frozen_vs_refit.py` — frozen / within-session-refit / paired gap per position per
+  epoch, and the fraction of each position's frozen deficit that refitting recovers. The pre-stroke
+  gap is the training-set-size handicap and not an effect; the fraction is suppressed where the
+  deficit is too small for a ratio to mean anything.
+
+Both read the same collectors the epoch figures use, so they cannot drift from the figures without
+the figures drifting too.

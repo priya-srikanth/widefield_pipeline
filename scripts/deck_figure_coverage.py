@@ -36,7 +36,30 @@ from pathlib import Path
 DECKS = [Path("wfield_local/locanmf_analysis_deck.py"),
          Path("wfield_local/preprocess_deck.py"),
          Path("wfield_local/behavior_deck.py")]
-FIGDIR = Path(sys.argv[1] if len(sys.argv) > 1 else "E:/cue_lick")
+
+
+def _default_roots():
+    """EVERY root a deck reads, not just the working one.
+
+    This defaulted to `E:/cue_lick` alone, and pointing it elsewhere was left to whoever remembered
+    to pass an argument. Nobody did: `grant_10b_best_match_by_session_*` -- five figures, rendered by
+    every nightly since 2026-08-27 -- sat unplaced until it was found by hand on 2026-09-09, by
+    exactly the check this script performs, run against a root it was never given. A tool that finds
+    a class of bug only when invoked correctly does not find that class of bug.
+    """
+    roots = [Path("E:/cue_lick")]
+    try:
+        from wfield_local.paths import PathResolver
+
+        lab = Path(PathResolver().root("labcams"))
+        roots += [lab / "grant_figures", lab / "grant_figures" / "epoch"]
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! could not resolve the labcams root ({type(ex).__name__}); "
+              f"grant + epoch figures NOT checked", file=sys.stderr)
+    return [r for r in roots if r.exists()]
+
+
+ROOTS = [Path(sys.argv[1])] if len(sys.argv) > 1 else _default_roots()
 
 
 def png_patterns(path):
@@ -68,20 +91,6 @@ def png_patterns(path):
     return out
 
 
-pats = [q for d in DECKS if d.exists() for q in png_patterns(d)]
-files = sorted(p.name for p in FIGDIR.glob("*.png"))
-print(f"{len(files)} PNGs in {FIGDIR}, {len(pats)} filename patterns across "
-      f"{len([d for d in DECKS if d.exists()])} deck builders\n")
-
-unmatched, used = [], set()
-for f in files:
-    hit = [i for i, (_src, rx) in enumerate(pats) if rx.match(f)]
-    if hit:
-        used.update(hit)
-    else:
-        unmatched.append(f)
-
-
 def family(name):
     """Collapse a filename to its family so 300 files report as a handful of lines."""
     s = re.sub(r"PS9[2345]", "<animal>", name)
@@ -89,39 +98,67 @@ def family(name):
     return s
 
 
-# AGE IS THE DISCRIMINATOR, and without it this report is unusable. 137 unreferenced families
-# sounds alarming and is mostly archaeology: figures from a June naming scheme, component
-# figures superseded by a merged one, one-off grant panels. A file the CURRENT nightly still
-# rewrites and no slide places is the actual gap -- that is how the 144 per-session matrices
-# were distinguished from 700 files of history (2026-08-24).
-newest = max((FIGDIR / f).stat().st_mtime for f in files) if files else 0
+#: A file the CURRENT nightly still rewrites and no slide places is the actual gap. Without this
+#: split the report is unusable: 137 unreferenced families sounds alarming and is mostly
+#: archaeology -- figures from a June naming scheme, component figures superseded by a merged one,
+#: one-off grant panels. That is how the 144 per-session matrices were distinguished from 700 files
+#: of history (2026-08-24).
 FRESH_DAYS = 3
 
-fams = {}
-for f in unmatched:
-    fams.setdefault(family(f), []).append(f)
+
+def report(figdir, pats):
+    """One root: which of its PNGs no slide places. Returns the pattern indices it DID match."""
+    files = sorted(q.name for q in figdir.glob("*.png"))
+    rule = "=" * 96
+    print(f"\n{rule}\n{figdir}  --  {len(files)} PNG\n{rule}")
+    if not files:
+        return set()
+    used, unmatched = set(), []
+    for f in files:
+        hit = [i for i, (_src, rx) in enumerate(pats) if rx.match(f)]
+        if hit:
+            used.update(hit)
+        else:
+            unmatched.append(f)
+
+    newest = max((figdir / f).stat().st_mtime for f in files)
+
+    def age_days(fs):
+        return (newest - max((figdir / f).stat().st_mtime for f in fs)) / 86400.0
+
+    fams = {}
+    for f in unmatched:
+        fams.setdefault(family(f), []).append(f)
+    fresh = {k: v for k, v in fams.items() if age_days(v) <= FRESH_DAYS}
+    stale = {k: v for k, v in fams.items() if age_days(v) > FRESH_DAYS}
+
+    print(f"--- {sum(len(v) for v in fresh.values())} files in {len(fresh)} CURRENT families the "
+          f"deck never places (rewritten within {FRESH_DAYS} days of the newest figure)\n")
+    for fam, fs in sorted(fresh.items(), key=lambda kv: -len(kv[1])):
+        print(f"  {len(fs):>4}  {fam}")
+    print(f"\n--- {sum(len(v) for v in stale.values())} files in {len(stale)} STALE families "
+          f"(not rewritten by the current nightly -- archaeology, not a gap)\n")
+    for fam, fs in sorted(stale.items(), key=lambda kv: -age_days(kv[1]))[:12]:
+        print(f"  {len(fs):>4}  {fam:<62} {age_days(fs):>6.0f} d older")
+    if len(stale) > 12:
+        print(f"  ... and {len(stale) - 12} more")
+    return used
 
 
-def age_days(fs):
-    newest_in = max((FIGDIR / f).stat().st_mtime for f in fs)
-    return (newest - newest_in) / 86400.0
+pats = [q for d in DECKS if d.exists() for q in png_patterns(d)]
+print(f"{len(pats)} filename patterns across {len([d for d in DECKS if d.exists()])} deck builders; "
+      f"{len(ROOTS)} root(s): {', '.join(str(r) for r in ROOTS)}")
 
+used = set()
+for root in ROOTS:
+    used |= report(root, pats)
 
-fresh = {k: v for k, v in fams.items() if age_days(v) <= FRESH_DAYS}
-stale = {k: v for k, v in fams.items() if age_days(v) > FRESH_DAYS}
-
-print(f"--- {sum(len(v) for v in fresh.values())} files in {len(fresh)} CURRENT families the deck "
-      f"never places (rewritten within {FRESH_DAYS} days of the newest figure)\n")
-for fam, fs in sorted(fresh.items(), key=lambda kv: -len(kv[1])):
-    print(f"  {len(fs):>4}  {fam}")
-print(f"\n--- {sum(len(v) for v in stale.values())} files in {len(stale)} STALE families "
-      f"(not rewritten by the current nightly -- archaeology, not a gap)\n")
-for fam, fs in sorted(stale.items(), key=lambda kv: -age_days(kv[1]))[:12]:
-    print(f"  {len(fs):>4}  {fam:<62} {age_days(fs):>6.0f} d older")
-if len(stale) > 12:
-    print(f"  ... and {len(stale) - 12} more")
-
+# THE DEAD HALF IS POOLED ACROSS ROOTS, deliberately. A pattern is only dead if NO root has a file
+# for it -- reported per root, every grant pattern would show as dead while scanning the working
+# tree, and every working-tree pattern dead while scanning the grant root. That noise is what made
+# the previous single-root output easy to stop reading.
 dead = [src for i, (src, _rx) in enumerate(pats) if i not in used]
-print(f"\n--- {len(dead)} patterns matching NO file (dead reference, or renderer stopped)\n")
+print(f"\n{'=' * 96}\n--- {len(dead)} patterns matching NO file in ANY scanned root "
+      f"(dead reference, or renderer stopped)\n")
 for src in sorted(dead):
     print(f"  {src}")
