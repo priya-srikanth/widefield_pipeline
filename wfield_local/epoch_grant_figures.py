@@ -1364,39 +1364,46 @@ _MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced 
               "session is the unit and cannot be re-weighted by its trial count")
 
 def _fig_11c(out_dir, align, variant, wname):
-    """11c: the encoder's CEILING, and how much of the failure is the template being wrong.
+    """11c: the encoder's CEILING, and how much of its failure is the TEMPLATE being wrong.
 
-    THE NUMBER THIS FIGURE EXISTS TO MAKE READABLE. Figure 11's `frozen EV` is an R^2 and acutely it
-    is -0.388 post-cue, which says "worse than predicting the mean" and nothing about what was
-    achievable in that session. `EV after rescale` frees the AMPLITUDE only, and a large gap between
-    the two is an amplitude story only when the rescaled value is HIGH -- a code that is simply gone
-    also recovers a lot under rescaling. That ambiguity is what forced the withdrawal of the "half
-    amplitude, half shape" reading on 2026-09-10.
+    THE NUMBER THIS FIGURE EXISTS TO MAKE READABLE. Figure 11's `frozen EV` is an R^2, and acutely it
+    is -0.388 post-cue: "worse than predicting the mean", and mute about what was achievable in that
+    session. `EV after rescale` frees the AMPLITUDE only, and a large gap between the two is an
+    amplitude story only when the rescaled value is HIGH -- a code that is simply gone also recovers
+    a lot under rescaling. That ambiguity forced the withdrawal of the "half amplitude, half shape"
+    reading on 2026-09-10.
 
-    Three bars, all in the same units:
+    THREE BARS, ALL DIRECTLY MEASURED, all in the same units, all scoring the SAME half-session:
 
-        ceiling        this session predicting ITSELF on held-out trials (split-half, both
-                       orderings, 8 random splits) -- how much position structure it has at all
-        frozen EV      what the pre-stroke template achieves on it
-        template loss  ceiling - frozen EV, i.e. how much of the failure is the TEMPLATE
+        ceiling          scored against the OTHER half of the same session -- how much position
+                         structure the session has at all
+        frozen (matched) scored against an equally sized draw from the pre-stroke pool -- the same
+                         estimator and the same number of reference trials, differing only in WHICH
+                         SESSIONS the reference came from
+        frozen (all pre) scored against the whole pre-stroke pool: the encoder as it is actually
+                         used elsewhere in this deck, and the only one of the three that is not
+                         size-matched
 
-    WHAT IT SHOWS POST-CUE. Acutely the ceiling is 0.475 -- the session CAN predict itself -- while
-    the frozen template gets -0.388, and 0.134 with amplitude free. So the post-stroke pattern is
-    NOT noise; it carries structure the pre-stroke template cannot reach. Of the structure available,
-    the template captures 84% pre-stroke, 28% acutely, 57% subacutely and 56% chronically.
+    READ `ceiling - frozen (matched)`, NOT `ceiling - frozen (all pre)`. Only the first holds
+    training-set size constant, so only the first isolates "the template came from other sessions".
+    And read it against its own PRE value rather than against zero: at pre-stroke that difference is
+    the cross-session generalisation cost with no lesion involved, and it is large -- 0.317 post-cue.
 
-    THE PRE-CUE ARM MUST NOT BE READ THE SAME WAY, and the figure says so rather than leaving it to
-    be noticed. There the ceiling is 0.090 pre-stroke against a frozen EV of 0.330: the frozen arm
-    BEATS its own ceiling, which is impossible for a real ceiling and diagnostic of the construction.
-    Both sides of the ceiling are half-session means while the frozen arm scores against a reference
-    pooled over ~10 sessions, so on a weak signal the ceiling is noise-dominated. It is a ceiling for
-    the cue and lick windows and a lower bound at best for the ENL window.
+    WHY THE MATCHED ARM HAD TO BE ADDED. Without it the pre-cue window was uninterpretable: frozen EV
+    0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling, which is impossible for a
+    real ceiling and was a fact about the construction rather than the data. Matching removes the
+    asymmetry and the inversion goes with it, in all three windows.
+
+    THE PRE-CUE WINDOW IS NOW SELF-CONSISTENT BUT STILL NEARLY SIGNAL-FREE: its ceiling is 0.117
+    pre-stroke and hovers near zero afterwards, so the gap there is a ratio of two near-zero
+    quantities. Consistent is not the same as informative.
     """
     from wfield_local import grant_figures as G
 
     raw_tab, _d1 = G._enc_tables(align, variant)
     cei_tab, _d2 = G._enc_ceiling_tables(align, variant)
-    if not raw_tab or not cei_tab:
+    mat_tab, _d3 = G._enc_matched_tables(align, variant)
+    if not cei_tab or not mat_tab:
         return None
 
     def _first(payload, _key):
@@ -1406,39 +1413,33 @@ def _fig_11c(out_dir, align, variant, wname):
             return None
         return None if v is None or not np.isfinite(v) else float(v)
 
-    rvals, rpts = ef.scalar_by_epoch(raw_tab, _first, keys=["frozen EV"])
-    cvals, cpts = ef.scalar_by_epoch(cei_tab, _first, keys=["ceiling"])
-    if not rvals or not cvals:
-        return None
+    KEYS = ["ceiling", "frozen (matched)", "frozen (all pre)"]
+    got = {}
+    for key, tab in zip(KEYS, (cei_tab, mat_tab, raw_tab)):
+        vals, pts = ef.scalar_by_epoch(tab, _first, keys=[key.split(" ")[0]])
+        got[key] = (vals, pts, key.split(" ")[0])
 
-    # ONE MERGED TABLE so the three bars share an axis and a subtitle. `template loss` is derived
-    # per EPOCH rather than per session: the two collectors key their pre entries differently (one
-    # leave-one-session-out and averaged, one per-session and averaged), so a per-session difference
-    # would be pairing records that are not the same unit.
     values, points = {}, {}
     for e in ef.PANELS:
-        row = {}
-        if (cvals.get(e) or {}).get("ceiling") is not None:
-            row["ceiling"] = cvals[e]["ceiling"]
-        if (rvals.get(e) or {}).get("frozen EV") is not None:
-            row["frozen EV"] = rvals[e]["frozen EV"]
-        c, r = row.get("ceiling"), row.get("frozen EV")
-        if c is not None and r is not None:
-            row["template loss"] = ef._value_and_ci(c)[0] - ef._value_and_ci(r)[0]
+        row, pt = {}, {}
+        for key, (vals, pts, inner) in got.items():
+            v = (vals.get(e) or {}).get(inner)
+            if v is not None:
+                row[key] = v
+                pt[key] = (pts.get(e) or {}).get(inner, [])
         if row:
-            values[e] = row
-            points[e] = {"ceiling": (cpts.get(e) or {}).get("ceiling", []),
-                         "frozen EV": (rpts.get(e) or {}).get("frozen EV", []),
-                         "template loss": []}
+            values[e], points[e] = row, pt
     if not values:
         return None
     return _scalar_figure(
         out_dir, name=f"epoch_11c_encoder_ceiling_{align}_{variant}",
-        title=(f"Encoder CEILING vs the frozen template -- {wname}"),
-        ylabel="explained variance", keys=["ceiling", "frozen EV", "template loss"],
-        values=values, points=points, ylim=None,
+        title=f"Encoder ceiling vs the frozen template, training-set matched -- {wname}",
+        ylabel="explained variance", keys=KEYS, values=values, points=points, ylim=None,
+        # WRAPPED, because "frozen (matched)" and "frozen (all pre)" collide at this axis width and
+        # the collision lands on the two bars a reader most needs to tell apart.
+        tick_labels=["ceiling", "frozen\n(matched)", "frozen\n(all pre)"],
         delta_name=f"epoch_11cdelta_encoder_ceiling_{align}_{variant}",
-        delta_title=f"Encoder ceiling and template loss, change from pre-stroke -- {wname}")
+        delta_title=f"Encoder ceiling and frozen template, change from pre-stroke -- {wname}")
 
 
 SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),

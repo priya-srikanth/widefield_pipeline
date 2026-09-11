@@ -77,7 +77,7 @@ def test_both_orderings_are_averaged():
     structure, the argument `_split_half_matrix` already makes."""
     import inspect
 
-    src = inspect.getsource(G._enc_ceiling)
+    src = inspect.getsource(G._enc_half_scores)
     assert "((A, B), (B, A))" in src
 
 

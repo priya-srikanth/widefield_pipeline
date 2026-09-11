@@ -5522,10 +5522,34 @@ def _enc_ceiling(pat, rng, repeats=8):
     where matching flipped the pre-stroke gap from -0.073 to +0.090. Read `ceiling - raw` against its
     own pre-stroke value, never against zero.
     """
+    return _enc_half_scores(pat, rng, repeats=repeats)["ceiling"]
+
+
+def _enc_half_scores(pat, rng, repeats=8, ref_pool=None):
+    """``{"ceiling": terms, "matched": terms|None}`` -- both scored on the SAME half-session means.
+
+    THE CEILING AND THE MATCHED FROZEN ARM DIFFER IN ONE THING AND MUST DIFFER IN ONE THING ONLY.
+    Both score half A of this session. The ceiling scores it against half B of the SAME session; the
+    matched arm scores it against an equally sized random draw from the PRE-STROKE pool. Same scored
+    side, same number of reference trials, same estimator -- so the difference is which sessions the
+    reference came from, and nothing else.
+
+    WHY IT IS NEEDED. The unmatched frozen arm scores the full session against a reference pooled
+    over ~10 pre-stroke sessions, which carries far less noise than a half-session reference. On the
+    post-cue window that asymmetry is tolerable; on the PRE-CUE window it inverts the comparison
+    outright -- frozen EV 0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling,
+    which is impossible for a real ceiling and is a fact about the construction rather than the
+    data. Matching removes the asymmetry, at the cost of a noisier reference for both.
+
+    COMPUTED TOGETHER, not in two passes, so the two share `halves` exactly. Two passes with the same
+    seed would coincide only for as long as nobody changed the call order, and the pairing is the
+    whole point.
+    """
     labels = [q for q in CONF_LABELS if q in pat and len(pat[q]) >= 4]
     if len(labels) < 2:
-        return (np.nan, np.nan, np.nan, {})
-    got = []
+        nan = (np.nan, np.nan, np.nan, {})
+        return {"ceiling": nan, "matched": None if ref_pool is None else nan}
+    got, got_m = [], []
     for _ in range(repeats):
         halves = {}
         for q in labels:
@@ -5539,15 +5563,36 @@ def _enc_ceiling(pat, rng, repeats=8):
             t = _enc_terms(m, ref)
             if np.isfinite(t[0]):
                 got.append(t)
-    if not got:
-        return (np.nan, np.nan, np.nan, {})
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        per = {q: float(np.nanmean([t[3][q] for t in got if q in t[3]]))
-               for q in labels if any(q in t[3] for t in got)}
-        return (float(np.nanmean([t[0] for t in got])),
-                float(np.nanmean([t[1] for t in got])),
-                float(np.nanmean([t[2] for t in got])), per)
+        if ref_pool is not None:
+            # SAME n PER POSITION as that position's half, drawn without replacement from the pool.
+            # Per position rather than one global n: the halves differ in size between positions
+            # whenever the animal worked them unevenly, which post-stroke it always does.
+            mref = {}
+            for q in labels:
+                R = np.asarray(ref_pool.get(q, []))
+                h = len(np.asarray(pat[q])) // 2
+                if len(R) < 2 or h < 1:
+                    continue
+                take = min(h, len(R))
+                mref[q] = R[rng.permutation(len(R))[:take]].mean(0)
+            if len(mref) >= 2:
+                for m in (A, B):
+                    t = _enc_terms({q: m[q] for q in mref}, mref)
+                    if np.isfinite(t[0]):
+                        got_m.append(t)
+
+    def _pool(ts):
+        if not ts:
+            return (np.nan, np.nan, np.nan, {})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            per = {q: float(np.nanmean([t[3][q] for t in ts if q in t[3]]))
+                   for q in labels if any(q in t[3] for t in ts)}
+            return (float(np.nanmean([t[0] for t in ts])),
+                    float(np.nanmean([t[1] for t in ts])),
+                    float(np.nanmean([t[2] for t in ts])), per)
+
+    return {"ceiling": _pool(got), "matched": (_pool(got_m) if ref_pool is not None else None)}
 
 
 @lru_cache(maxsize=6)
@@ -5558,28 +5603,72 @@ def _enc_ceiling_tables(align, variant, min_trials=10):
     is a statement about ONE session's own repeatability, so pooling ten of them would measure
     something else and would sit far above anything a single post-stroke session could reach.
     """
+    ceil_t, _matched, days = _enc_half_tables(align, variant, min_trials)
+    return ceil_t, days
+
+
+@lru_cache(maxsize=6)
+def _enc_matched_tables(align, variant, min_trials=10):
+    """The SIZE-MATCHED frozen arm: same half-session scored side, reference drawn to the same size.
+
+    Read against `_enc_ceiling_tables` rather than against `_enc_tables`: those two share the scored
+    side and the reference size, so `ceiling - matched` is the cost of the reference coming from
+    OTHER sessions, with training-set size held constant. At pre-stroke that difference is the
+    cross-session generalisation cost and nothing else, which is the baseline every post-stroke epoch
+    has to be read against.
+    """
+    _ceil, matched, days = _enc_half_tables(align, variant, min_trials)
+    return matched, days
+
+
+@lru_cache(maxsize=6)
+def _enc_half_tables(align, variant, min_trials=10):
+    """``(ceiling_tables, matched_tables, days)`` -- one pass, so the two arms share their halves.
+
+    PRE IS PER-SESSION AND THEN AVERAGED, and its reference is LEAVE-ONE-SESSION-OUT: a pre-stroke
+    session must not draw its matched reference from a pool that contains itself, or the matched arm
+    is scored partly against its own trials and the baseline it defines is too easy.
+    """
     store, days = _collect_7(align, variant, min_trials)
-    out = {}
+    out, out_m = {}, {}
     for an, (pre_by_sess, by_day) in store.items():
         rng = np.random.default_rng(_seed(an, align, variant))
-        rec = {}
-        pre = [_enc_ceiling(pat, rng) for pat in pre_by_sess.values()]
-        pre = [t for t in pre if np.isfinite(t[0])]
-        if pre:
+        rec, rec_m = {}, {}
+
+        def _avg(ts):
+            ts = [t for t in ts if t is not None and np.isfinite(t[0])]
+            if not ts:
+                return None
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                per = {q: float(np.nanmean([t[3][q] for t in pre if q in t[3]]))
-                       for q in CONF_LABELS if any(q in t[3] for t in pre)}
-                rec["PRE"] = (float(np.nanmean([t[0] for t in pre])),
-                              float(np.nanmean([t[1] for t in pre])),
-                              float(np.nanmean([t[2] for t in pre])), per)
-        for d, pat in by_day.items():
-            t = _enc_ceiling(pat, rng)
-            if np.isfinite(t[0]):
-                rec[d] = t
+                per = {q: float(np.nanmean([t[3][q] for t in ts if q in t[3]]))
+                       for q in CONF_LABELS if any(q in t[3] for t in ts)}
+                return (float(np.nanmean([t[0] for t in ts])),
+                        float(np.nanmean([t[1] for t in ts])),
+                        float(np.nanmean([t[2] for t in ts])), per)
+
+        pre, pre_m = [], []
+        for sess, pat in pre_by_sess.items():
+            d = _enc_half_scores(pat, rng, ref_pool=_pre_reference(pre_by_sess, exclude=sess))
+            pre.append(d["ceiling"])
+            pre_m.append(d["matched"])
+        if (t := _avg(pre)) is not None:
+            rec["PRE"] = t
+        if (t := _avg(pre_m)) is not None:
+            rec_m["PRE"] = t
+
+        full = _pre_reference(pre_by_sess)
+        for day, pat in by_day.items():
+            d = _enc_half_scores(pat, rng, ref_pool=full)
+            if np.isfinite(d["ceiling"][0]):
+                rec[day] = d["ceiling"]
+            if d["matched"] is not None and np.isfinite(d["matched"][0]):
+                rec_m[day] = d["matched"]
         if len(rec) > 1:
             out[an] = rec
-    return out, days
+        if len(rec_m) > 1:
+            out_m[an] = rec_m
+    return out, out_m, days
 
 
 @lru_cache(maxsize=6)
