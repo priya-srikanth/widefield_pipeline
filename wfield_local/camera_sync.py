@@ -118,6 +118,51 @@ def clean_edge_mask(fid, ts_ns, edge_frame_idx, bin_s=None, max_drop_pct=None,
     return mask, frac
 
 
+def drop_profile(fid, ts_ns, bin_s=None) -> tuple[float, np.ndarray, float]:
+    """``(bin_s, pct_dropped_per_bin, first_cam_sec)`` -- WHERE in the recording frames went missing.
+
+    Saved with every template because the affine alone cannot answer the question consumers actually
+    have. The map stays correct across a dropout (it is built on absolute timestamps), so a caller
+    asking for DAQ time 6800 s gets the right camera instant -- and the FRAME at that instant does
+    not exist. `behavior_clips` cut two PS92 9/8 clips from a stretch that was missing 73-86% of its
+    frames, and nothing in the template could have told it not to.
+
+    Coarse on purpose: a 10 s bin over a two-hour session is ~720 floats.
+    """
+    b, _maxpct, _minfrac = _drop_trim_params()
+    bin_s = b if bin_s is None else bin_s
+    fid = np.asarray(fid, dtype=np.int64)
+    t = (np.asarray(ts_ns, dtype=np.float64) - float(ts_ns[0])) / 1e9
+    lost = np.clip(np.diff(fid) - 1, 0, None).astype(np.float64)
+    b_idx = (t[1:] / bin_s).astype(np.int64)
+    n_bins = int(b_idx.max()) + 1 if b_idx.size else 1
+    lost_per = np.bincount(b_idx, weights=lost, minlength=n_bins)
+    kept_per = np.bincount(b_idx, minlength=n_bins).astype(np.float64)
+    pct = 100.0 * lost_per / np.maximum(lost_per + kept_per, 1.0)
+    return float(bin_s), pct, float(ts_ns[0]) / 1e9
+
+
+def camera_healthy_at(template, cam_seconds, max_drop_pct=None) -> np.ndarray:
+    """Was the camera actually capturing frames at these ABSOLUTE camera times?
+
+    The check every consumer of a template should make before cutting a clip or pulling a labelling
+    frame. Returns all-True for a template saved before ``drop_bin_pct`` existed, so an old file
+    behaves as it always did rather than silently excluding everything.
+    """
+    cam_seconds = np.atleast_1d(np.asarray(cam_seconds, dtype=np.float64))
+    if "drop_bin_pct" not in dict(template):
+        return np.ones(cam_seconds.shape, dtype=bool)
+    pct = np.asarray(template["drop_bin_pct"], dtype=np.float64)
+    if pct.size == 0:
+        return np.ones(cam_seconds.shape, dtype=bool)
+    bin_s = float(np.asarray(template["drop_bin_s"]))
+    t0 = float(np.asarray(template["drop_first_cam_sec"]))
+    if max_drop_pct is None:
+        _b, max_drop_pct, _f = _drop_trim_params()
+    idx = np.clip(((cam_seconds - t0) / bin_s).astype(np.int64), 0, pct.size - 1)
+    return pct[idx] <= max_drop_pct
+
+
 def robust_fit_mask(mct, mdt, seed_mask, outlier_ms=None, max_iter=8,
                     min_clean_frac=None) -> np.ndarray:
     """Drop anchors whose residual says they are mis-PAIRED, wherever in the recording they sit.
@@ -189,6 +234,7 @@ def build_template(h5_path, csv_path, sync_name: str = "sync", sync_bit: int = 0
     # Anchors from frame-dropping stretches are excluded from the FIT but kept in the file: a missed
     # GPIO edge makes the ITI matcher pair the wrong pulses, and those pairs would otherwise drag the
     # single affine across the whole recording. No-op when nothing was dropped.
+    drop_bin_s, drop_pct, drop_t0 = drop_profile(fid, ts_ns)
     fit = np.ones(ci.size, dtype=bool)
     clean_frac = 1.0
     if n_frame_drops:
@@ -218,6 +264,9 @@ def build_template(h5_path, csv_path, sync_name: str = "sync", sync_bit: int = 0
         resid_ms_rms_all=float(np.sqrt((resid_ms ** 2).mean())),
         fit_cam_sec_lo=float(mct[fit].min()), fit_cam_sec_hi=float(mct[fit].max()),
         matched_in_fit=fit,
+        # WHERE the frames went missing, so a consumer can refuse to cut a clip or pull a labelling
+        # frame from a stretch the camera was not capturing. See camera_healthy_at().
+        drop_bin_s=drop_bin_s, drop_bin_pct=drop_pct, drop_first_cam_sec=drop_t0,
         matched_cam_edge_frame=mcf.astype(np.int64), matched_daq_edge_sample=mds.astype(np.int64),
         matched_cam_edge_sec=mct, matched_daq_edge_sec=mdt,
     )

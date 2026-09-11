@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
+from wfield_local.camera_sync import camera_healthy_at
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -74,18 +75,35 @@ def categorise(d):
     return cat
 
 
-def _clip(cap, tpl, row, dest, meta):
-    """One clip. Returns frames written, or None if the window runs off the recording."""
+def _clip(cap, tpl, row, dest, meta, cam_ts=None):
+    """One clip. Returns frames written, or None if the window runs off the recording.
+
+    **The cue is located by TIMESTAMP, not by frame index, whenever ``cam_ts`` is supplied.**
+    ``slope_daqSample_per_camFrame`` maps DAQ samples to the camera's ROW NUMBER in the video, which
+    tracks real time only while no frame has been dropped. After a gap the row counter advances more
+    slowly than the clock, so the index affine displaces every later clip by the frames lost before
+    it -- up to 1.2 s on 20260606 (309 lost on cam4) and minutes on PS92 20260908. ``camera_sync``'s
+    docstring says the mapping "rides through" drops precisely because it is built on absolute
+    TIMESTAMPS; this had been reading the one field that is not.
+
+    ``cam_ts`` is the video's per-row timestamp column, so the row is found by searching it.
+    """
     import cv2
 
     fs, fps = float(tpl["fs_daq"]), float(tpl["fps_cam"])
-    slope = float(tpl["slope_daqSample_per_camFrame"])
-    icept = float(tpl["intercept_daqSample"])
-    cue_frame = (row["cue_s"] * fs - icept) / slope
     enl_len = float(row["cue_s"] - row["trial_start_s"])
-    f0 = int(round(cue_frame - PRE_S * fps))
     n = int(round((PRE_S + POST_S) * fps))
-    if f0 < 0 or f0 + n >= int(tpl["n_cam_frames"]):
+    if cam_ts is not None and len(cam_ts):
+        # DAQ seconds -> absolute camera seconds -> the row actually holding that instant.
+        cam_s = (row["cue_s"] - float(tpl["intercept_daqSec"])) / float(tpl["slope_daqSec_per_camSec"])
+        f0 = int(np.searchsorted(cam_ts, (cam_s - PRE_S) * 1e9))
+        n_rows = len(cam_ts)
+    else:
+        slope = float(tpl["slope_daqSample_per_camFrame"])
+        icept = float(tpl["intercept_daqSample"])
+        f0 = int(round((row["cue_s"] * fs - icept) / slope - PRE_S * fps))
+        n_rows = int(tpl["n_cam_frames"])
+    if f0 < 0 or f0 + n >= n_rows:
         return None
     cap.set(cv2.CAP_PROP_POS_FRAMES, f0)
     vw, wrote = None, 0
@@ -172,6 +190,25 @@ def session_clips(animal, date, sid, epoch, rv=None, per_cell=PER_CELL, dry=Fals
         return 0
     d = pd.read_csv(trials)
     d["cat"] = categorise(d)
+
+    # Per-row timestamps, so the clip is located by TIME rather than by row number (see _clip), and
+    # so a trial can be checked against where the camera was actually capturing.
+    cam_ts, healthy = None, None
+    csvs = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(CAM + "_*.csv"))
+    if csvs:
+        cam_ts = pd.read_csv(csvs[0], header=None, usecols=[1],
+                             dtype="int64").to_numpy().ravel()
+        cam_s = ((d["cue_s"].to_numpy(float) - float(tpl["intercept_daqSec"]))
+                 / float(tpl["slope_daqSec_per_camSec"]))
+        healthy = camera_healthy_at(tpl, cam_s)
+        d = d[healthy].copy()
+        if not healthy.all():
+            # NOT a silent filter. A clip cut from a stretch missing 73-86% of its frames shows
+            # whatever happened to survive, and looks like a real recording of the wrong thing.
+            print("[behavior_clips] %s %s: %d/%d trials fall where %s was dropping frames -> "
+                  "excluded from clip selection" % (animal, date, int((~healthy).sum()),
+                                                    healthy.size, CAM), flush=True)
+
     dest_dir = out_root(rv) / animal / epoch / date
     cells = _cell_counts(d, per_cell)
     if categories:
@@ -192,7 +229,7 @@ def session_clips(animal, date, sid, epoch, rv=None, per_cell=PER_CELL, dry=Fals
                 nm = "%s_%s_%dof%d_trial%04d.avi" % (pos, cat, take, avail, int(row["trial_id"]))
                 meta = "%s %s %s | %s | %s | trial %d" % (animal, date, epoch, pos, cat,
                                                           int(row["trial_id"]))
-                if _clip(cap, tpl, row, dest_dir / nm, meta):
+                if _clip(cap, tpl, row, dest_dir / nm, meta, cam_ts):
                     made += 1
     finally:
         cap.release()

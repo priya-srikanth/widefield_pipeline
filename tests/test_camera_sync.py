@@ -236,3 +236,49 @@ def test_the_residual_pass_is_what_catches_anchors_OUTSIDE_the_damaged_stretch()
     keep = cs.robust_fit_mask(mct, mdt, seed)
     assert not keep[17]
     assert keep.sum() == mct.size - 1
+
+
+# --------------------------------------------------------------------- where the drops were
+#
+# The affine stays correct across a dropout because it is built on absolute timestamps -- so a caller
+# asking for DAQ time 6800 s gets the right camera INSTANT, and the FRAME at that instant does not
+# exist. behavior_clips selected two PS92 9/8 clips from a stretch missing 73-86% of its frames and
+# nothing in the template could have told it not to.
+
+
+def test_the_template_records_WHERE_the_frames_went_missing(tmp_path):
+    pt = _pulses()
+    fid, ts, gpio = _cam_arrays(pt)
+    t = _build(tmp_path, *_drop_window(fid, ts, gpio, 25.0, 45.0, p=0.7), pt)
+    pct = np.asarray(t["drop_bin_pct"])
+    bin_s = float(t["drop_bin_s"])
+    assert pct.size > 5
+    damaged = pct[int(30 / bin_s):int(40 / bin_s)]
+    quiet = pct[:int(20 / bin_s)]
+    assert damaged.mean() > 10.0, "the damaged window must show up in the profile"
+    assert quiet.max() == 0.0, "the clean part must not"
+
+
+def test_camera_healthy_at_separates_the_clean_part_from_the_dropout(tmp_path):
+    pt = _pulses()
+    fid, ts, gpio = _cam_arrays(pt)
+    t = _build(tmp_path, *_drop_window(fid, ts, gpio, 25.0, 45.0, p=0.7), pt)
+    t0 = float(t["drop_first_cam_sec"])
+    assert cs.camera_healthy_at(t, [t0 + 5.0])[0]
+    assert not cs.camera_healthy_at(t, [t0 + 35.0])[0]
+
+
+def test_an_OLD_template_without_the_profile_reports_healthy_rather_than_empty():
+    """Every template on the share predates this field. Returning all-False would make a consumer
+    silently skip every trial of every session -- far worse than the problem being fixed."""
+    assert cs.camera_healthy_at({"quality_ok": True}, [1.0, 2.0, 3.0]).all()
+    assert cs.camera_healthy_at({"drop_bin_pct": np.array([])}, [1.0]).all()
+
+
+def test_a_clean_recordings_profile_is_all_zero(tmp_path):
+    pt = _pulses()
+    fid, ts, gpio = _cam_arrays(pt)
+    t = _build(tmp_path, fid, ts, gpio, pt)
+    assert np.asarray(t["drop_bin_pct"]).max() == 0.0
+    assert cs.camera_healthy_at(t, np.linspace(float(t["drop_first_cam_sec"]),
+                                               float(t["drop_first_cam_sec"]) + 80, 50)).all()

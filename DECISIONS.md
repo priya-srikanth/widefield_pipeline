@@ -7953,3 +7953,56 @@ frame set, which cam4's failing template had excluded. The frames are still gone
 Of all 364 templates on the share, six were built over a recording with any drops: the four above,
 plus PS92/PS93 20260606 cam4 at 309 and 129 frames, already at 1.25-1.36 ms. Nothing else needed
 rebuilding.
+
+---
+
+## 2026-09-11 — Clips were located by ROW NUMBER, which stops tracking time at the first dropped frame
+
+Found while re-cutting PS92 2026-09-08. A latent bug, harmless on every session recorded so far, and
+guaranteed to bite the first time it mattered.
+
+`behavior_clips._clip` computed the cue's position with `slope_daqSample_per_camFrame` — the affine
+mapping DAQ samples to the camera's **row number in the video**. That tracks real time only while no
+frame has been dropped. After a gap the row counter advances more slowly than the clock, so every
+later clip is displaced by the frames lost before it: up to **1.2 s on 20260606** (309 lost on cam4)
+and **minutes** on PS92 20260908.
+
+`camera_sync`'s docstring says the mapping "rides through" dropped frames precisely because it is
+built on absolute TIMESTAMPS. `_clip` was reading the one field in the template that is not. The two
+agree exactly on a clean recording, which is why this never showed up.
+
+Now the cue is located by timestamp: DAQ seconds → absolute camera seconds via
+`slope_daqSec_per_camSec`, then `searchsorted` into the video's own per-row timestamp column. The
+row-index path is kept for the case where the camera CSV is unavailable.
+
+### Knowing frames were dropped is not the same as knowing WHEN
+
+The template recorded `n_frame_drops` and nothing about their distribution, so no consumer could ask
+the question it actually has. `drop_profile` now saves a coarse per-bin drop percentage
+(`drop_bin_pct`, 10 s bins — ~720 floats for a two-hour session) and `camera_healthy_at(tpl, t)`
+answers it. **It returns all-True for a template saved before the field existed**: returning all-False
+would make every consumer silently skip every trial of every session, which is far worse than the
+problem being fixed.
+
+`behavior_clips` now excludes trials landing where the camera was down, and says how many rather than
+filtering silently — on PS92 9/8 that is 95 of 389 trials, and it removed exactly the two clips
+(trials 353 and 383, both `far_center`/`working` at 6832 s and 7202 s) that would otherwise have been
+cut from a stretch missing 73–86% of its frames. A clip cut there is not obviously broken; it shows
+whatever survived, and looks like a real recording of the wrong thing.
+
+### The audit, because "which other clips are wrong" is the question worth answering
+
+All **3250** clips on the share, checked two ways:
+
+- **Re-place** (filed under an epoch that has since moved): **0**.
+- **Re-derive** (cut from a stretch the camera was not capturing, or displaced by the row-index bug):
+  **0** — because of 364 templates only six were built over a recording that dropped any frames at
+  all (PS92/PS93 20260908 all four cams; PS92/PS93 20260606 cam4 at 309 and 129), and **no clips
+  exist for either 20260606 session**. PS92 20260908's clips had never been cut, because cam4's
+  template failed `quality_ok`.
+
+So the bug was real, the exposure was zero, and the only session that needed clips is the one that
+prompted the question. PS92 20260908 now has 36 clips (not 38 — the health filter removed two).
+
+`behavior_clips` uses **cam4**, not cam1. I said cam1 twice while tracing this; cam4 is the camera
+whose failing template skipped the session, which is what made the two facts line up.
