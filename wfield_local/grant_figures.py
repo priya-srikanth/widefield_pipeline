@@ -3613,6 +3613,54 @@ def _pre_loo_matrices(align, variant, min_trials=10):
 
 
 @lru_cache(maxsize=6)
+def _matrices_crossnobis_rownorm(align, variant, min_trials=10):
+    """`_matrices_crossnobis_rowcentred` with every row also divided by its OWN SD across columns.
+
+    WHY ROW-CENTRING ALONE IS NOT SCALE-FREE. Writing the row out,
+
+        d(P,Q) - mean_Q d(P,.) = -2 mu_postP . (mu_preQ - mean mu_pre)
+                                  + (|mu_preQ|^2 - mean |mu_pre|^2)
+
+    the first term scales LINEARLY with |mu_postP| and the second does not depend on P at all. So
+    row-centring removes amplitude from the row's OFFSET and leaves it MULTIPLYING the row's shape:
+    double P's response and the whole row-centred profile doubles. Priya, 2026-09-10: "any universal
+    gain should change the shape anyway, right?" -- right in the sense that matters for DIRECTION,
+    since scaling a profile preserves its rank order and its signs, which is what the "moved toward"
+    claim rests on. Wrong for MAGNITUDE: a row-centred value cannot be compared across epochs or
+    positions whose amplitude differs, and the encoder says amplitude fell hard acutely (fitted
+    a: 0.94 pre to 0.36 acute, post-cue).
+
+    Dividing each row by its own SD fixes that: every row becomes a z-profile, so a cell reads "how
+    many row-SDs from this row's mean", and epochs become magnitude-comparable.
+
+    WHAT IT DELIBERATELY THROWS AWAY: how FAR a position moved. A row that barely moved and a row
+    that moved enormously have the same z-profile if they moved in the same direction. This is the
+    companion to the row-centred family, not its replacement -- read direction here and distance
+    there.
+    """
+    mats, days = _matrices_crossnobis_rowcentred(align, variant, min_trials)
+    out = {}
+    for an, by_key in mats.items():
+        d = {}
+        for key, M in by_key.items():
+            A = np.asarray(M, float).copy()
+            for i in range(A.shape[0]):
+                row = A[i]
+                if not np.isfinite(row).any():
+                    continue
+                sd = np.nanstd(row)
+                # A ZERO-SD ROW IS NOT A FLAT PROFILE WORTH DIVIDING: it is one surviving cell, or a
+                # degenerate row. NaN it rather than emitting an inf that a colour map will render
+                # as the strongest effect on the figure.
+                A[i] = row / sd if np.isfinite(sd) and sd > 1e-12 else np.nan
+            if np.isfinite(A).any():
+                d[key] = A
+        if d:
+            out[an] = d
+    return out, days
+
+
+@lru_cache(maxsize=6)
 def _matrices_best_match_destination(align, variant, min_trials=10):
     """{animal: {"PRE"|day: M}} where M[i, j] = 1 if position i's BEST pre-stroke match was j.
 

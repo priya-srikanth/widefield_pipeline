@@ -902,6 +902,12 @@ MATRIX_FAMILIES = (
     # is a real 0-1 and fixing it is correct here where it is not for a distance.
     ("10c", "_matrices_best_match_destination", "fraction of sessions", "viridis", (0.0, 1.0),
      "Where each position's best pre-stroke match went"),
+    # SCALE-FREE COMPANION TO 8rc (Priya, 2026-09-10). Row-centring removes amplitude from the row's
+    # offset but leaves it multiplying the row's shape, so 8rc is comparable in DIRECTION across
+    # epochs and not in MAGNITUDE. Dividing each row by its own SD makes it a z-profile and fixes
+    # that, at the cost of discarding how far the position moved -- which 8 and 8rc still carry.
+    ("8rz", "_matrices_crossnobis_rownorm", "row z-score", "RdBu_r", (-2.0, 2.0),
+     "Crossnobis geometry, row-NORMALISED -- direction only, scale-free"),
 )
 
 
@@ -1171,8 +1177,12 @@ def _fig_11(out_dir, align, variant, wname):
     tab, _days = G._enc_tables(align, variant)
     if not tab:
         return None
-    LABELS = ["raw", "gain"]
-    take = {"raw": 0, "gain": 2}
+    # THREE THINGS WERE CALLED "gain" IN THIS FAMILY and Priya, reasonably, could not tell them
+    # apart: the explained variance AFTER one best rescale (this figure's second bar), the fitted
+    # amplitude factor `a` (the 11amp figure), and the quantity 11pos calls "shape r2" -- which is
+    # the SAME number as this figure's second bar, per position. Renamed to say what each is.
+    LABELS = ["frozen EV", "EV after rescale"]
+    take = {"frozen EV": 0, "EV after rescale": 2}
 
     def value_of(payload, key):
         try:
@@ -1186,10 +1196,10 @@ def _fig_11(out_dir, align, variant, wname):
         return None
     made = _scalar_figure(
         out_dir, name=f"epoch_11_encoder_gain_shape_{align}_{variant}",
-        title=f"Encoder explained variance and gain -- {wname}",
+        title=(f"Encoder explained variance, before and after ONE best rescale -- {wname}"),
         ylabel="value", keys=LABELS, values=values, points=points, ylim=(0.0, 1.30),
         delta_name=f"epoch_11delta_encoder_gain_shape_{align}_{variant}",
-        delta_title=f"Change from pre-stroke in encoder variance and gain -- {wname}")
+        delta_title=f"Change from pre-stroke in encoder explained variance -- {wname}")
 
     # THE FITTED GAIN ITSELF, H11's middle panel, which the epoch version had been dropping.
     # `_enc_terms` returns (raw, a, gain, per) and this figure took only 0 and 2 -- transfer before
@@ -1216,11 +1226,12 @@ def _fig_11(out_dir, align, variant, wname):
         try:
             _scalar_figure(
                 out_dir, name=f"epoch_11amp_encoder_amplitude_{align}_{variant}",
-                title=f"Fitted encoder gain by epoch (1.0 = no amplitude change) -- {wname}",
-                ylabel="fitted gain a", keys=["gain"], values=avals, points=apoints,
+                title=(f"Fitted AMPLITUDE factor a by epoch (1.0 = no amplitude change; "
+                       f"below 1 = smaller) -- {wname}"),
+                ylabel="amplitude factor a", keys=["gain"], values=avals, points=apoints,
                 ylim=None,
                 delta_name=f"epoch_11ampdelta_encoder_amplitude_{align}_{variant}",
-                delta_title=f"Change from pre-stroke in the fitted encoder gain -- {wname}")
+                delta_title=f"Change from pre-stroke in the fitted amplitude factor a -- {wname}")
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 11amp {align}/{variant}: {type(ex).__name__} {str(ex)[:120]}", flush=True)
 
@@ -1257,8 +1268,8 @@ def _fig_11(out_dir, align, variant, wname):
         try:
             _scalar_figure(
                 out_dir, name=f"epoch_11pos_encoder_shape_{align}_{variant}",
-                title=f"Encoder shape r² after the gain, per position -- {wname}",
-                ylabel="shape r² (gain removed)", keys=_short_labels(),
+                title=(f"Encoder EV after rescale (= shape r2), per position -- {wname}"),
+                ylabel="EV after rescale", keys=_short_labels(),
                 values=pvals, points=ppoints, tick_labels=_minor(), groups=_groups(),
                 # r2 is bounded above by 1 and NOT below: a pattern unrelated to its reference goes
                 # sharply negative, so a fixed floor would clip exactly the positions that lost
