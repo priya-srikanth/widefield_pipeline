@@ -30,11 +30,11 @@ def derived(monkeypatch, tmp_path):
 def test_a_derived_boundary_reassigns_sessions(derived):
     """The point of the whole change: deriving a boundary must actually move sessions between
     epochs, not merely be recorded somewhere."""
-    lab = "PS93_0828"                                   # day 11, subacute under the stored spec
-    assert epochs.EPOCH_SPEC["PS93"]["chronic_from"] is None
+    lab = "PS94_0828"                                   # day 12, subacute under the stored spec
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None
     epochs.clear_resolved()
     assert epochs.epoch_of(lab) == "subacute"
-    epochs.save_boundaries({"PS93": {"chronic_from": 11}}, derived)
+    epochs.save_boundaries({"PS94": {"chronic_from": 11}}, derived)
     epochs.clear_resolved()
     assert epochs.epoch_of(lab) == "chronic"
 
@@ -45,10 +45,10 @@ def test_the_file_is_what_a_subprocess_reads(derived):
     derived boundaries and the pooled ones on stored boundaries -- and every figure would render
     without complaint. Asserted with a real child process, because an in-process check cannot
     distinguish "published through the file" from "left in a module global"."""
-    epochs.save_boundaries({"PS93": {"chronic_from": 11}}, derived)
+    epochs.save_boundaries({"PS94": {"chronic_from": 11}}, derived)
     out = subprocess.run(
         [sys.executable, "-c",
-         "from wfield_local import epochs; print(epochs.epoch_of('PS93_0828'))"],
+         "from wfield_local import epochs; print(epochs.epoch_of('PS94_0828'))"],
         capture_output=True, text=True, check=False,
         env={**__import__("os").environ, "WIDEFIELD_EPOCH_BOUNDARIES": str(derived)})
     assert out.returncode == 0, out.stderr
@@ -58,12 +58,12 @@ def test_the_file_is_what_a_subprocess_reads(derived):
 def test_the_pin_reproduces_the_stored_spec(derived, monkeypatch):
     """`WIDEFIELD_EPOCHS_PINNED=1` rebuilds an older figure set under the boundaries it was
     published with, whatever is sitting in the boundaries file."""
-    epochs.save_boundaries({"PS93": {"chronic_from": 11}}, derived)
+    epochs.save_boundaries({"PS94": {"chronic_from": 11}}, derived)
     epochs.clear_resolved()
-    assert epochs.epoch_of("PS93_0828") == "chronic"
+    assert epochs.epoch_of("PS94_0828") == "chronic"
     monkeypatch.setenv("WIDEFIELD_EPOCHS_PINNED", "1")
     epochs.clear_resolved()
-    assert epochs.epoch_of("PS93_0828") == "subacute"
+    assert epochs.epoch_of("PS94_0828") == "subacute"
     assert epochs.resolved_source() == "pinned"
 
 
@@ -83,18 +83,18 @@ def test_the_merge_cannot_delete_a_stored_boundary(derived):
 def test_a_truncated_file_falls_back_instead_of_crashing(derived):
     """A run killed mid-write must not take every figure in the deck down with it."""
     derived.parent.mkdir(parents=True, exist_ok=True)
-    derived.write_text('{"boundaries": {"PS93": {"chron', encoding="utf-8")
+    derived.write_text('{"boundaries": {"PS94": {"chron', encoding="utf-8")
     epochs.clear_resolved()
     assert epochs.load_boundaries(derived) is None
-    assert epochs.epoch_of("PS93_0828") == "subacute", "must fall back to the stored spec"
+    assert epochs.epoch_of("PS94_0828") == "subacute", "must fall back to the stored spec"
 
 
 def test_changes_names_every_boundary_that_moved():
     """The record that replaces the stored spec's guarantee. A stored boundary could not move
     without someone editing it; a derived one can, so the run has to say which and from what."""
-    moved = epoch_audit.changes({"PS92": {"chronic_from": 11}, "PS93": {"chronic_from": 11}},
-                                {"PS92": {"chronic_from": 11}, "PS93": {"chronic_from": None}})
-    assert moved == ["PS93 chronic_from: None -> 11"]
+    moved = epoch_audit.changes({"PS92": {"chronic_from": 11}, "PS94": {"chronic_from": 11}},
+                                {"PS92": {"chronic_from": 11}, "PS94": {"chronic_from": None}})
+    assert moved == ["PS94 chronic_from: None -> 11"]
     assert epoch_audit.changes({"PS92": {"chronic_from": 11}},
                                {"PS92": {"chronic_from": 11}}) == []
 
@@ -118,7 +118,7 @@ def test_unavailable_behaviour_writes_nothing(monkeypatch, derived):
     res = epoch_audit.resolve()
     assert res["available"] is False
     assert not derived.exists(), "nothing may be written when behaviour is unavailable"
-    assert epochs.epoch_of("PS93_0828") == "subacute"
+    assert epochs.epoch_of("PS94_0828") == "subacute"
 
 
 def test_the_live_derivation_still_matches_the_stored_spec(derived):
@@ -206,11 +206,11 @@ def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
     a version-controlled file both machines push. But a promotion that requires re-deriving the
     number by hand is one that does not happen, so the lines to paste are produced ready."""
     crossed = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
-    crossed["PS93"] = {"chronic_from": 11}                    # PS93 crosses
+    crossed["PS94"] = {"chronic_from": 11}                    # PS94 crosses
     stale = epoch_audit.stale_fallback(crossed)
-    assert len(stale) == 1 and "PS93" in stale[0], stale
+    assert len(stale) == 1 and "PS94" in stale[0], stale
     paste = "\n".join(epoch_audit.promotion_yaml(crossed))
-    assert "PS93:" in paste and "chronic_from: 11" in paste
+    assert "PS94:" in paste and "chronic_from: 11" in paste
     # only the animal that moved...
     assert "PS92" not in paste
     # ...and every value is YAML-spelled, comments included: a "was None" beside a
@@ -236,15 +236,15 @@ def test_the_fallback_precedence(derived, monkeypatch):
     hand-declared seed. Reverting would mean a mount failure silently restaged every pooled panel
     to whatever was last promoted, which could be months old.
     """
-    lab = "PS93_0828"
-    assert epochs.EPOCH_SPEC["PS93"]["chronic_from"] is None      # the declared seed
+    lab = "PS94_0828"
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None      # the declared seed
 
     # no artifact -> animals.yaml
     epochs.clear_resolved()
     assert epochs.epoch_of(lab) == "subacute"
 
     # a previous run derived it -> that file wins, even though nothing derives this run
-    epochs.save_boundaries({"PS93": {"chronic_from": 11}}, derived)
+    epochs.save_boundaries({"PS94": {"chronic_from": 11}}, derived)
     epochs.clear_resolved()
     assert epochs.epoch_of(lab) == "chronic", "a failed run must keep the last derived boundaries"
 

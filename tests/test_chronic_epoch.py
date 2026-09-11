@@ -28,6 +28,11 @@ PS95_HIT_SD = 0.076
 PS93_LICKS = [0.08, 0.14, 0.09, 0.04, 0.41, 0.84, 0.84, 1.26, 1.29, 1.18]
 PS93_LICK_SD = 0.086
 
+#: PS95 far_R licks/trial as a fraction of baseline, days 1-25. Climbs PAST baseline to 133% and
+#: keeps going, which is why PS95's chronic boundary is set by its licking and not its hit rate.
+PS95_LICKS = [0.00, 0.50, 0.64, 0.67, 0.75, 0.79, 1.07, 1.01, 1.07, 1.12, 1.33, 1.15]
+PS95_LICK_SD = 0.184
+
 #: PS92 far_R hit rate. The one series in the cohort that genuinely plateaus.
 PS92_HIT = [0.00, 0.08, 0.02, 0.06, 0.07, 0.50, 0.85, 1.02, 1.02, 1.04]
 PS92_HIT_SD = 0.050
@@ -102,11 +107,17 @@ def test_ratios_are_not_capped_at_one():
     a downstream consequence rather than the property meant a legitimate rule change looked like a
     regression in a test about capping.
     """
-    uncapped = _plateau(PS93_LICKS, PS93_LICK_SD, "licks")
-    capped = _plateau([min(1.0, v) for v in PS93_LICKS], PS93_LICK_SD, "licks")
+    # PS95's LICKS, NOT PS93'S. Under the rate test PS93's overshoot-then-decline was the series
+    # where capping changed the answer; under `drift` it no longer is -- capped and uncapped both
+    # plateau at the same index, so PS93 can no longer demonstrate the property. PS95 climbs to 133%
+    # of baseline and is the series where the excursion is now load-bearing: capped, it flattens at
+    # 1.0 and plateaus early; uncapped, the climb keeps it moving. Swapping the fixture keeps the
+    # test about capping rather than about whichever animal happened to illustrate it.
+    uncapped = _plateau(PS95_LICKS, PS95_LICK_SD, "licks")
+    capped = _plateau([min(1.0, v) for v in PS95_LICKS], PS95_LICK_SD, "licks")
     assert uncapped != capped, (
         f"capping no longer changes the verdict (both {uncapped}); this test guards nothing")
-    assert max(PS93_LICKS) > 1.0, "the fixture no longer overshoots; it cannot test capping"
+    assert max(PS95_LICKS) > 1.0, "the fixture no longer overshoots; it cannot test capping"
 
 
 def test_one_measure_plateauing_is_not_enough():
@@ -181,9 +192,9 @@ def _with_mode(monkeypatch, mode):
     monkeypatch.setattr(epochs, "CHRONIC_FLAT_MODE", mode)
 
 
-def test_drift_mode_is_available_but_not_the_default():
-    """Switching it on moves a published boundary, so the flip is Priya's, not the code's."""
-    assert epochs.CHRONIC_FLAT_MODE == "rate"
+def test_drift_is_the_flat_test_in_force():
+    """Switched on 2026-09-10 on Priya's call. `rate` stays reachable to reproduce older figures."""
+    assert epochs.CHRONIC_FLAT_MODE == "drift"
     assert epochs.CHRONIC_K_DRIFT == pytest.approx(1.0)
 
 

@@ -104,7 +104,10 @@ animals:
     epochs:                         # days since stroke_date; see the note above
       acute: [1, 4]
       subacute_from: 5
-      chronic_from: null    # has not stabilised
+      chronic_from: 11      # derived 2026-09-10 under flat_mode: drift. Blocked under the old
+                            #   rate test by licks/trial only, and by 0.001 of tolerance --
+                            #   a per-SESSION slope on a tail whose sessions are 3-4 days
+                            #   apart. Total drift across the window: 0.060 against 0.086.
     exclude: ["0817"]        # NEITHER baseline nor post-stroke: the 8/16 PM
                              #   attempt gave no deficit, and the EFFECTIVE
                              #   lesion followed this same 8/17 session. Load-
@@ -147,7 +150,10 @@ animals:
     epochs:                         # days since stroke_date; see the note above
       acute: [1, 1]
       subacute_from: 2
-      chronic_from: 11      # ratified 2026-09-10 (hit plateau d11 @101%, licks plateau d9 @113%)
+      chronic_from: 15      # 2026-09-10: MOVED from 11 by the drift rule + the new day-25
+                            #   session. Day 11 was promoted by the behaviour box under the
+                            #   rate test before d25 existed; with it, the d11 tail drifts
+                            #   0.096 (hit) against a 0.072 tolerance and the d15 tail 0.002.
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero

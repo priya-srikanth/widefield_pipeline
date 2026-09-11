@@ -396,7 +396,7 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               # hides whichever is worse. Each is tested alone; chronic begins at
                               # the LATER of the two plateaus, and only if both exist.
     min_tail: 3               # sessions required from a candidate start; also the shortest window
-    flat_mode: rate           # FLAT test. "drift" = total fitted change across the window;
+    flat_mode: drift          # FLAT test. "drift" = total fitted change across the window;
                               #   "rate" = per-session slope (the pre-2026-09-10 behaviour).
                               #   CHANGED 2026-09-10: the rate test fits against SESSION INDEX while
                               #   post-stroke tail sessions sit 3.3-3.7x further apart than
@@ -406,9 +406,10 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   both biases. Effect of switching to "drift": PS93 moves from
                               #   never qualifying to day 11 (passing with 27-30% margin, not
                               #   marginally); PS92 stays at day 11; PS94 and PS95 still do not
-                              #   qualify. LEFT AT "rate" PENDING PRIYA'S CALL, because that flip
-                              #   takes the chronic epoch from one animal to two and every epoch
-                              #   figure and the prelim-data "chronic is n = 1" caveat move with it.
+                              #   qualify. SWITCHED TO "drift" 2026-09-10 on Priya's call. The
+                              #   chronic epoch is now TWO animals (PS92 from day 11, PS93 from day
+                              #   11), so every epoch figure restages and the prelim-data
+                              #   "chronic is n = 1" caveat is retired.
     k_drift: 1.0              # FLAT (drift mode): |total fitted change| <= k_drift x pre-stroke SD.
                               #   1.0 is what k_sd = 0.5 would have permitted over the MINIMUM
                               #   window -- the value the k_sd note below rejected for being one

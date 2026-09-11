@@ -360,7 +360,8 @@ third panel of `grant_7b_reliability_*` shows cell by cell.
 | refit-minus-frozen gap | `epoch_5rgapdelta_frozen_vs_refit_cue_working` | pre -0.073; acute +0.027, subacute -0.008, chronic -0.005 |
 | refit recovery by position, acute | same | nI +0.03, nM +0.13, nC +0.17, fI +0.03, fM +0.04, **fC +0.20** |
 
-Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3**.
+Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3** -- as of the 2026-09-07 run, i.e.
+BEFORE the 2026-09-10 boundary change and before the 0908/0910 sessions. Recount after re-rendering.
 
 ## Sign conventions that are easy to get wrong
 
@@ -374,9 +375,17 @@ Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3**.
 
 ## Caveats that must survive into any submitted version
 
-1. **The chronic epoch is ONE ANIMAL** (PS92, 3 sessions). The most quotable claim -- geometry stays
-   displaced while behaviour recovers -- is the least supported. Either restrict it to subacute or
-   state n in the text.
+1. **THE CHRONIC EPOCH IS NO LONGER ONE ANIMAL, as of 2026-09-10** -- and every chronic number in
+   this document predates that. It was PS92 alone; under `flat_mode: drift` it is PS92 from day 11,
+   PS93 from day 11 and PS95 from day 15, with PS94 still not qualifying. PS95 also MOVED LATER,
+   from a day-11 boundary the behaviour box had promoted under the old per-session rate test before
+   PS95's day-25 session existed.
+
+   **CONSEQUENCE: EVERY CHRONIC AND SUBACUTE NUMBER BELOW IS STALE**, because sessions moved between
+   the two panels in both directions. The acute numbers are untouched. Re-render and re-read before
+   quoting anything from those two epochs. The upside is that the caveat this entry used to carry --
+   "the most quotable claim is the least supported, n = 1" -- is retired: three animals now reach
+   chronic.
 2. **Pre-cue is not "spared".** Its baseline is only ~0.45-0.66, so −0.26 at far-contra leaves it
    near chance (0.167). The defensible claim is about the *shape* of the loss (flat across positions
    vs graded), not its absence.
