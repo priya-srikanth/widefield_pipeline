@@ -473,31 +473,44 @@ like-for-like comparison of two trial classes.
 
 | epoch | ceiling | frozen (matched) | gap | Δ vs pre | template captures | amplitude a |
 |---|---|---|---|---|---|---|
-| pre | 0.703 | 0.426 | 0.277 | -- | 61% | 0.745 |
-| **acute** | 0.571 | 0.098 | 0.473 | **+0.196** | **17%** | **0.285** |
-| subacute | 0.643 | 0.222 | 0.421 | +0.144 | 35% | 0.517 |
-| chronic | 0.778 | 0.319 | 0.459 | **+0.183** | 41% | 0.741 |
+| pre | 0.706 | 0.429 | 0.276 | -- | 61% | 0.749 |
+| **acute** | 0.568 | 0.100 | 0.468 | **+0.192** | **18%** | **0.286** |
+| subacute | 0.631 | 0.226 | 0.405 | +0.128 | 36% | 0.527 |
+| chronic | 0.778 | 0.315 | 0.463 | **+0.186** | 41% | 0.745 |
 
-The fitted amplitude returns to baseline (0.285 -> 0.741 against 0.745 pre-stroke). The shape
-mismatch does not (+0.196 -> +0.144 -> +0.183, flat). **The pre-stroke gap of 0.277 is not an
-effect** -- it is the cost of a template coming from other sessions at equal training-set size, the
-same asymmetry the matched frozen DECODER arm exposed.
+The fitted amplitude returns to baseline (0.286 -> 0.745 against 0.749 pre-stroke). The shape
+mismatch does not (+0.192 -> +0.128 -> +0.186, flat, and no better at chronic than acute). **The
+pre-stroke gap of 0.276 is not an effect** -- it is the cost of a template coming from other sessions
+at equal training-set size, the same asymmetry the matched frozen DECODER arm exposed.
+
+`amplitude a` is the factor the MATCHED arm fits. The unmatched, as-actually-used frozen arm fits a
+larger one (0.943 / 0.361 / 0.677 / 0.947); that is the number behind the `R² = 1 - (1-a)²/a² =
+-2.13` statement about raw EV, and the two have been confused once.
+
+None of the `Δ vs pre` values carries an interval -- they are differences of pooled point estimates
+-- so "flat" is a reading of three numbers without error bars, not a test.
 
 ### Per position: THE DISSOCIATION
 
 | position | pre ceiling / captured | acute ceiling / captured | **Δ ceiling** |
 |---|---|---|---|
-| near ipsi | 0.741 / 0.67 | 0.585 / 0.22 | -0.156 |
-| near middle | 0.453 / 0.26 | 0.438 / 0.22 | -0.015 |
-| near contra | 0.726 / 0.62 | 0.627 / 0.28 | -0.099 |
-| **far ipsi** | 0.629 / 0.54 | 0.336 / 0.19 | **-0.293** |
-| **far middle** | 0.717 / 0.63 | 0.468 / 0.43 | **-0.249** |
-| **far contra** | 0.613 / 0.57 | **0.613** / **0.01** | **0.000** |
+| near ipsi | 0.740 / 0.67 | 0.584 / 0.28 | -0.156 |
+| near middle | 0.462 / 0.31 | 0.455 / 0.22 | -0.007 |
+| near contra | 0.731 / 0.63 | 0.616 / 0.27 | -0.115 |
+| **far ipsi** | 0.629 / 0.56 | 0.306 / 0.22 | **-0.323** |
+| **far middle** | 0.721 / 0.63 | 0.451 / 0.42 | **-0.270** |
+| **far contra** | 0.628 / 0.55 | **0.626** / **0.01** | **-0.002** |
 
 **FAR-CONTRALATERAL LOSES NO STRUCTURE AND LOSES ITS TEMPLATE ENTIRELY.** Its ceiling acutely is
-0.613, *identical* to its 0.613 pre-stroke -- its own trials predict each other exactly as well as
-before the lesion -- while the pre-stroke template's capture falls 0.57 -> 0.01 and recovers only to
-0.27-0.31. The positions that lose CEILING are the flanking ones, far-ipsi and far-middle.
+0.626 against 0.628 pre-stroke, a change of -0.002 -- its own trials predict each other exactly as
+well as before the lesion -- while the pre-stroke template's capture falls 0.55 -> 0.01 and recovers
+only to 0.28-0.34. The positions that lose CEILING are the flanking ones, far-ipsi (-0.323) and
+far-middle (-0.270).
+
+The captured fraction is clipped to [0, 1]. At far-contra acutely that clip hides a sign: the
+underlying matched EV is **-0.060**, i.e. the pre-stroke template is further from that position's
+measured pattern than predicting zero would be. Per-position scores use the session-GLOBAL scale
+factor, which at a position whose amplitude has collapsed is the wrong one. Quote the fraction.
 
 **THIS CONVERGES WITH THE DECODER ARM** from the same day: refitting recovers 34% of far-contra's
 acute deficit and only **9% at far-ipsi and 11% at far-middle**. Two analyses, opposite directions of

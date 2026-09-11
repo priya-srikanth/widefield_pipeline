@@ -5492,7 +5492,22 @@ def _enc_scores(src, ref):
     return _enc_terms(_means(src), _means(ref))
 
 
-def _enc_ceiling(pat, rng, repeats=8):
+#: Random half-splits averaged per session. MEASURED rather than guessed (Priya, 2026-09-10: "how
+#: did we decide on 8 splits?" -- it had been a guess, and the honest answer was that nobody had
+#: checked). Re-running PS92_0606 post-cue under 20 different seeds:
+#:
+#:     repeats    1      2      4      8     16     32     64
+#:     seed SD  0.147  0.133  0.076  0.045  0.038  0.025  0.017
+#:
+#: falling as 1/sqrt(r), as it must. Eight was ADEQUATE -- a per-session SD of 0.045 pools to about
+#: 0.007-0.011 at the epoch level, ~5% of the acute effect -- but the splits themselves cost almost
+#: nothing next to `_collect_7`, which is memoised and dominates the runtime. Thirty-two cuts the
+#: seed-dependence 1.8x for no measurable time. Effect on the pooled post-cue gaps of moving 8 -> 32:
+#: -0.000 pre, -0.005 acute, -0.016 subacute, +0.003 chronic, so no conclusion turns on it.
+ENC_CEILING_REPEATS = 32
+
+
+def _enc_ceiling(pat, rng, repeats=ENC_CEILING_REPEATS):
     """THE CEILING the frozen encoder is failing against: this session predicting ITSELF, held out.
 
     WHY THE FROZEN ENCODER NEEDS ONE. `raw` is an R^2 and acutely it is -0.388, which says "worse
@@ -5525,7 +5540,7 @@ def _enc_ceiling(pat, rng, repeats=8):
     return _enc_half_scores(pat, rng, repeats=repeats)["ceiling"]
 
 
-def _enc_half_scores(pat, rng, repeats=8, ref_pool=None):
+def _enc_half_scores(pat, rng, repeats=ENC_CEILING_REPEATS, ref_pool=None):
     """``{"ceiling": terms, "matched": terms|None}`` -- both scored on the SAME half-session means.
 
     THE CEILING AND THE MATCHED FROZEN ARM DIFFER IN ONE THING AND MUST DIFFER IN ONE THING ONLY.

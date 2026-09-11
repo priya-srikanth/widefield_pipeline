@@ -1387,7 +1387,7 @@ def _fig_11c(out_dir, align, variant, wname):
     READ `ceiling - frozen (matched)`, NOT `ceiling - frozen (all pre)`. Only the first holds
     training-set size constant, so only the first isolates "the template came from other sessions".
     And read it against its own PRE value rather than against zero: at pre-stroke that difference is
-    the cross-session generalisation cost with no lesion involved, and it is large -- 0.317 post-cue.
+    the cross-session generalisation cost with no lesion involved, and it is large -- 0.276 post-cue.
 
     WHY THE MATCHED ARM HAD TO BE ADDED. Without it the pre-cue window was uninterpretable: frozen EV
     0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling, which is impossible for a
@@ -1417,8 +1417,8 @@ def _fig_11c(out_dir, align, variant, wname):
         acutely. So a raw comparison between the ceiling and the matched arm is confounded: the
         ceiling's two halves have matched amplitude BY CONSTRUCTION (a = 0.75-0.89) while the matched
         frozen arm scores a shrunken post-stroke pattern against a full-amplitude pre-stroke template
-        (a = 0.285 acutely). The raw gap would be reporting amplitude and calling it template
-        mismatch.
+        (a = 0.286 acutely in this arm, 0.361 in the unmatched one). The raw gap would be reporting
+        amplitude and calling it template mismatch.
 
         The after-rescale score is amplitude-free on both sides and cannot go negative -- a = 0 is
         always available, which scores exactly 0 -- so this figure is about SHAPE and nothing else.

@@ -7827,14 +7827,19 @@ positions, so negative means the template's prediction is FURTHER from the data 
 
 That broke the comparison as first built. The ceiling's two halves have matched amplitude BY
 CONSTRUCTION (fitted a 0.75–0.89) while the matched frozen arm scores a shrunken post-stroke pattern
-against a full-amplitude pre-stroke template (a = 0.285 acutely), so a raw gap reports amplitude and
-calls it template mismatch. **All three arms are now scored after rescale** — amplitude-free on both
+against a full-amplitude pre-stroke template (a = 0.286 acutely in the matched arm, 0.361 in the
+unmatched one), so a raw gap reports amplitude and calls it template mismatch. **All three arms are now scored after rescale** — amplitude-free on both
 sides, and unable to go negative since a = 0 is always available and scores exactly 0.
 
 **It changed the conclusion.** On raw scores the lesion-attributable gap looked monotone and
-recovering (+0.666 acute, +0.309 subacute, +0.181 chronic). On shape it is **+0.196, +0.144, +0.183
-— and does NOT recover.** What was recovering was the AMPLITUDE: a goes 0.285 → 0.517 → 0.741
-against 0.745 pre-stroke. Amplitude returns; shape does not.
+recovering (+0.666 acute, +0.309 subacute, +0.181 chronic). On shape it is **+0.192, +0.128, +0.186
+— and does NOT recover.** What was recovering was the AMPLITUDE: a goes 0.286 → 0.527 → 0.745
+against 0.749 pre-stroke. Amplitude returns; shape does not.
+
+(Numbers re-pulled 2026-09-10 at `ENC_CEILING_REPEATS = 32` by
+`scripts/prelim_numbers_encoder_ceiling.py`. The first pull was at 8 splits and differs in the third
+decimal; the one place it mattered was the PRE-CUE window, where the subacute Δ changed sign from
++0.017 to −0.005 — which is why that window is declared uninterpretable rather than weakly positive.)
 
 ### Per position, and this is the finding
 
@@ -7843,18 +7848,24 @@ what the pre-stroke template gets; `frac` is the second over the first.
 
 | position | pre ceil / frac | acute ceil / frac | Δ ceiling acute |
 |---|---|---|---|
-| near ipsi | 0.741 / 0.67 | 0.585 / 0.22 | −0.156 |
+| near ipsi | 0.740 / 0.67 | 0.584 / 0.28 | −0.156 |
 | near middle | 0.453 / 0.26 | 0.438 / 0.22 | −0.015 |
 | near contra | 0.726 / 0.62 | 0.627 / 0.28 | −0.099 |
-| **far ipsi** | 0.629 / 0.54 | 0.336 / 0.19 | **−0.293** |
-| **far middle** | 0.717 / 0.63 | 0.468 / 0.43 | **−0.249** |
-| **far contra** | 0.613 / 0.57 | **0.613** / **−0.11** | **0.000** |
+| **far ipsi** | 0.629 / 0.56 | 0.306 / 0.22 | **−0.323** |
+| **far middle** | 0.721 / 0.63 | 0.451 / 0.42 | **−0.270** |
+| **far contra** | 0.628 / 0.55 | **0.626** / **0.01** | **−0.002** |
 
 **FAR-CONTRALATERAL LOSES NO STRUCTURE AT ALL AND LOSES ITS TEMPLATE ENTIRELY.** Its ceiling is
-0.613 acutely, identical to its 0.613 pre-stroke — its own trials predict each other exactly as well
-as before — while the pre-stroke template captures nothing (−0.11; per-position values use the
-session-global scale factor, so they can go negative). The positions that lose CEILING are the
-flanking ones, far-ipsi (−0.293) and far-middle (−0.249).
+0.626 acutely against 0.628 pre-stroke, a change of −0.002 — its own trials predict each other as well
+as before — while the pre-stroke template captures 1% of it, down from 55%. The positions that lose
+CEILING are the flanking ones, far-ipsi (−0.323) and far-middle (−0.270).
+
+The captured fraction is clipped to [0, 1] and at far-contra acutely that clip hides a sign: the
+underlying matched EV is **−0.060**, the template being further from the measured pattern than
+predicting zero. Per-position scores use the session-GLOBAL scale factor, fitted to a session the
+other five positions dominate, so at a position whose amplitude has collapsed it is the wrong factor
+— which the pooled after-rescale score, free to choose a = 0, can never be. Quote the fraction. An
+earlier version of this table printed −0.11 in the fraction column, which was neither.
 
 This converges with the frozen-vs-refit DECODER arm from the same day, which found refitting
 recovers 34% of far-contra's acute deficit but only **9% at far-ipsi and 11% at far-middle**. Two
