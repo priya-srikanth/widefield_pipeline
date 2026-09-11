@@ -1407,8 +1407,25 @@ def _fig_11c(out_dir, align, variant, wname):
         return None
 
     def _first(payload, _key):
+        """THE AFTER-RESCALE SCORE, index 2 -- not the raw one. Priya: "what does negative variance
+        explained mean though".
+
+        It means the template's prediction is FURTHER from the data than predicting zero, i.e. than
+        assuming no position tuning at all. And at these amplitudes that is almost entirely an
+        amplitude statement: with PERFECT shape and only a scale mismatch,
+        ``R2 = 1 - (1-a)^2 / a^2``, which is 0.000 at a = 0.5 and -2.13 at the a = 0.361 observed
+        acutely. So a raw comparison between the ceiling and the matched arm is confounded: the
+        ceiling's two halves have matched amplitude BY CONSTRUCTION (a = 0.75-0.89) while the matched
+        frozen arm scores a shrunken post-stroke pattern against a full-amplitude pre-stroke template
+        (a = 0.285 acutely). The raw gap would be reporting amplitude and calling it template
+        mismatch.
+
+        The after-rescale score is amplitude-free on both sides and cannot go negative -- a = 0 is
+        always available, which scores exactly 0 -- so this figure is about SHAPE and nothing else.
+        The amplitude story is figure 11amp's, where it belongs.
+        """
         try:
-            v = payload[0]
+            v = payload[2]
         except Exception:                                              # noqa: BLE001
             return None
         return None if v is None or not np.isfinite(v) else float(v)
@@ -1433,8 +1450,10 @@ def _fig_11c(out_dir, align, variant, wname):
         return None
     return _scalar_figure(
         out_dir, name=f"epoch_11c_encoder_ceiling_{align}_{variant}",
-        title=f"Encoder ceiling vs the frozen template, training-set matched -- {wname}",
-        ylabel="explained variance", keys=KEYS, values=values, points=points, ylim=None,
+        title=(f"Encoder SHAPE ceiling vs the frozen template, training-set matched "
+               f"-- {wname}"),
+        ylabel="EV after rescale (shape only)", keys=KEYS, values=values,
+        points=points, ylim=(0.0, 1.05),
         # WRAPPED, because "frozen (matched)" and "frozen (all pre)" collide at this axis width and
         # the collision lands on the two bars a reader most needs to tell apart.
         tick_labels=["ceiling", "frozen\n(matched)", "frozen\n(all pre)"],
