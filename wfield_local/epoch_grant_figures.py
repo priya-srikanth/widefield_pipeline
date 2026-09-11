@@ -1037,16 +1037,37 @@ def _retained(acc, chance):
     when the floor is 0.167 than when it is 0.333. Normalising asks the one question both can
     answer -- of the performance this readout had above chance, how much survived?
     """
-    if acc is None or not np.isfinite(acc):
+    if acc is None:
+        return None
+    if np.ndim(acc):
+        # A CALLER HANDED A CI TUPLE WHERE A POINT ESTIMATE BELONGS -- almost certainly because
+        # `_scalar_figure` rewrote its `values` in place (see that function). Say which mistake it
+        # is; the bare numpy error is "truth value of an array is ambiguous", which names neither
+        # the variable nor the cause.
+        raise TypeError(f"_retained needs a scalar accuracy, got {type(acc).__name__} of "
+                        f"shape {np.shape(acc)} -- did _scalar_figure already overwrite it?")
+    if not np.isfinite(acc):
         return None
     return float((acc - chance) / (1.0 - chance))
 
 
 def _position_accuracy_by_epoch(align, variant):
-    """``{epoch: pooled accuracy}`` of the FROZEN position decoder, from the 5c confusion counts.
+    """``{epoch: BALANCED accuracy}`` of the FROZEN position decoder, from the 5c confusion counts.
 
     Read off the same matrices the 5c panel draws rather than recomputed, so the two figures can
     never disagree about the number this whole comparison hinges on.
+
+    BALANCED -- the mean of the six row recalls -- and NOT the trial-weighted `trace / total`.
+    The first version used the trial-weighted form and it made the comparison in 13n unfair in a
+    way that was being disclosed as a caveat instead of fixed: the STATE arm is scored with
+    `balanced_accuracy_score` because its class balance moves with epoch, so scoring position the
+    other way put two different estimators on one axis. It also disagreed with the 5c panel's own
+    printed accuracy (0.859 against the 0.89 on the figure), which is the row-recall mean.
+
+    IT MATTERS HERE SPECIFICALLY because the post-stroke position sets are skewed by construction --
+    PS93's are 49% far_center -- so a trial-weighted accuracy is pulled toward whichever positions
+    the animal still attempts. The same reason `nolick_analysis` made balanced accuracy the headline
+    on 2026-08-17.
     """
     from wfield_local import grant_figures as G
 
@@ -1058,8 +1079,10 @@ def _position_accuracy_by_epoch(align, variant):
         if M is None:
             continue
         A = np.asarray(M, float)
-        if A.sum():
-            out[e] = float(np.trace(A) / A.sum())
+        rows = A.sum(1)
+        ok = rows > 0
+        if ok.any():
+            out[e] = float(np.mean(np.diag(A)[ok] / rows[ok]))
     return out
 
 
@@ -1165,26 +1188,37 @@ def _fig_13_state(out_dir, align, variant, wname):
     vals, pts = _state_epoch_values(store, "balacc", ["state"])
     if not vals:
         return None
+    # SNAPSHOTTED BEFORE `_scalar_figure` TOUCHES IT: that helper stores each bar's bootstrap
+    # interval back into `values`, so these floats become (point, lo, hi) tuples the moment the
+    # first figure is drawn. 13n needs the plain numbers.
+    balacc = {e: float(row["state"]) for e, row in vals.items() if "state" in row}
 
-    NOTES = ["1 s segments, 4 x 0.25 s bins, 380 features on the joint basis -- NOT trials",
-             "classes MUTUALLY EXCLUSIVE: running not licking, licking not running, quiet inside "
-             "a buffered quiet period; overlaps dropped and counted",
-             "licking anchored at bout ONSET (median bout 0.37 s); running and quiet tiled, at "
-             "most 8 segments per period",
-             "frozen on ALL pre-stroke segments; the pre column is leave-one-session-out",
-             "BALANCED accuracy -- the class balance moves with epoch (quiet is 3.4% of a pre "
-             "session, 15.1% acute, 0.7% chronic)",
-             "PS92 8/12 excluded: its 2,441 s 'running bout' is the crash+concat discontinuity"]
+    # THREE LINES ON THE CANVAS, NOT EIGHT. The full method is in this function's docstring and in
+    # the deck speaker notes, which is where a reader who wants it goes; repeating it here wrapped
+    # to thirteen lines and left the axes a fifth of the figure's height, so the one thing the
+    # figure exists to show was the smallest thing on it. Keep what a reader CANNOT infer from the
+    # title -- the unit, the class rule, and the fact that the model is frozen.
+    NOTES = ["unit is a 1 s SEGMENT, not a trial: 4 x 0.25 s bins x 95 components, joint basis",
+             "quiet / running / licking, mutually exclusive; frozen on ALL pre-stroke segments, "
+             "pre column leave-one-session-out",
+             "BALANCED accuracy: the class balance moves with epoch (quiet is 3.4% of a pre "
+             "session, 15.1% acute, 0.7% chronic). Full method in the speaker notes"]
     counts = {e: {a: sum(1 for x, _v in pts[e]["state"] if x == a)
                   for a in sorted({x for x, _v in pts[e]["state"]})} for e in pts}
     made = []
     p = _scalar_figure(
         out_dir, name="epoch_13_state_decoder_cue",
+        # NOT "preserved". The acute bar carries ** and chronic *, so the state decoder's fall IS
+        # detectable -- it is 0.945 -> 0.875, small but not nothing. The claim this figure supports
+        # is that it falls FAR LESS than position does, which is what 13n quantifies; a title
+        # saying "preserved" would be contradicted by the marks on its own bars.
         title=("Does EVERYTHING degrade? Frozen pre-stroke BEHAVIOURAL-STATE decoder "
                "(quiet / running / licking), spout-position agnostic"),
-        ylabel="balanced accuracy (chance 1/3)", keys=["state"], values=vals, points=pts,
+        # `bar_row` APPENDS THE CHANCE LEVEL ITSELF, so naming it here too rendered
+        # "balanced accuracy (chance 1/3) (chance 0.33)" down the side of the axes.
+        ylabel="balanced accuracy", keys=["state"], values=vals, points=pts,
         tick_labels=["frozen state\ndecoder"], ylim=(0.0, 1.05), chance=1.0 / 3.0,
-        subtitle=ef.stats_line(counts, n_boot=N_BOOT, notes=NOTES),
+        notes=NOTES, session_counts=counts,
         delta_name="epoch_13delta_state_decoder_cue",
         delta_title="Frozen state decoder, change from pre-stroke")
     if p:
@@ -1192,36 +1226,56 @@ def _fig_13_state(out_dir, align, variant, wname):
 
     pos = _position_accuracy_by_epoch(align, variant)
     if pos:
-        cvals, cpts = {}, {}
+        cvals = {}
         for e in ef.PANELS:
             row = {}
             r_pos = _retained(pos.get(e), 1.0 / 6.0)
             if r_pos is not None:
                 row["position (6-way)"] = r_pos
-            if e in vals:
-                r_st = _retained(vals[e]["state"], 1.0 / 3.0)
+            if e in balacc:
+                r_st = _retained(balacc[e], 1.0 / 3.0)
                 if r_st is not None:
                     row["state (3-way)"] = r_st
             if row:
-                cvals[e], cpts[e] = row, {k: [] for k in row}
+                cvals[e] = row
         if cvals:
-            q = _scalar_figure(
-                out_dir, name="epoch_13n_state_vs_position_cue",
+            # DRAWN DIRECTLY, NOT THROUGH `_scalar_figure`, and this is not a shortcut. That
+            # helper bootstraps every bar from its per-SESSION points and marks the contrasts; this
+            # figure has no per-session points by construction -- each bar is ONE pooled number
+            # derived from a pooled accuracy, and the position bar is not even per-session in
+            # origin (it is the trace of a summed confusion matrix). Feeding it empty point lists
+            # produced a numpy truth-value error, which was the right failure: the honest fix is
+            # not to fake points but to draw the bars with NO marks and say in the subtitle that
+            # there are none, rather than to emit error bars the data cannot support.
+            q = ef.bar_row(
+                cvals, out_dir, name="epoch_13n_state_vs_position_cue",
                 title=("Of the performance each readout had ABOVE CHANCE, how much survived? "
                        "-- frozen decoders, post-cue"),
                 ylabel="fraction of above-chance performance retained",
-                keys=["position (6-way)", "state (3-way)"], values=cvals, points=cpts,
+                positions=["position (6-way)", "state (3-way)"],
                 tick_labels=["position\n(6-way)", "state\n(3-way)"], ylim=(0.0, 1.05),
-                subtitle=ef.stats_line({}, notes=[
-                    "(accuracy - chance) / (1 - chance). Chance is 1/6 for position and 1/3 for "
-                    "state, so raw accuracies -- and raw DROPS -- are not comparable",
-                    "NOT THE SAME ESTIMATOR IN THE TWO BARS: position is the trial-weighted pooled "
-                    "accuracy read off the 5c confusion counts; state is the mean over sessions of "
-                    "a balanced accuracy. The contrast is far larger than that difference, but the "
-                    "two columns are not interchangeable numbers",
-                    "position 0.87 -> 0.42 acutely, losing 51%; state 0.92 -> 0.81, losing 11%; "
+                # THE COUNTS ARE THE STATE ARM'S, and they are the honest ones to print: the
+                # position bar pools the same sessions minus PS92 8/12, which only this arm
+                # excludes. Passing {} printed "N=0 animals, n=0 sessions" over a figure built
+                # from eighty-nine.
+                subtitle=ef.stats_line(counts, notes=[
+                    "(accuracy - chance) / (1 - chance). Chance is 1/6 for the six-way position "
+                    "decoder and 1/3 for the three-way state decoder, so raw accuracies -- and raw "
+                    "DROPS -- are not comparable",
+                    "BOTH BARS ARE BALANCED ACCURACY: mean of the row recalls for position, "
+                    "sklearn balanced_accuracy_score for state. Both frozen on pre-stroke, pre "
+                    "column leave-one-session-out",
+                    "WHY NOT TRIAL-WEIGHTED for position (Priya asked): because THIS figure divides "
+                    "by (1 - chance), and a trial-weighted chance level is not 1/6 -- it moves with "
+                    "the trial mix, and the post-stroke mix is skewed by construction (PS93's "
+                    "trials are 49% far_center, where always-guess-far_center scores 0.490). "
+                    "Balanced accuracy has a null of exactly 1/6 however skewed either side is. The "
+                    "trial-weighted accuracies are 0.859 / 0.525 / 0.749 / 0.833 -- they barely "
+                    "differ here, so nothing in the reading turns on it; the 5c panel prints them",
+                    "position 0.86 -> 0.43 acutely, losing 50%; state 0.92 -> 0.81, losing 11%; "
                     "RUNNING alone 0.98 -> 0.95, losing 3%",
-                    "NO INTERVALS: both bars are pooled point estimates"]))
+                    "NO INTERVALS AND NO MARKS: each bar is one pooled number. The per-session "
+                    "distribution is on the figures either side of this one"]))
             if q:
                 made.append(q)
 
@@ -1232,15 +1286,12 @@ def _fig_13_state(out_dir, align, variant, wname):
             out_dir, name="epoch_13pos_state_decoder_by_class_cue",
             title="Frozen state decoder, RECALL PER CLASS -- which behavioural state changed?",
             ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
-            ylim=(0.0, 1.05),
-            subtitle=ef.stats_line(counts, n_boot=N_BOOT, notes=NOTES + [
+            ylim=(0.0, 1.05), session_counts=counts, notes=[
+                NOTES[0],
                 "RUNNING IS THE CLEAN EXAMPLE: 0.98 / 0.95 / 0.94 / 0.97, flat at every epoch",
-                "QUIET IS THE ONE THAT MOVES (0.86 -> 0.70 acutely), and that is probably real "
-                "rather than noise -- quiet goes from 3.4% of a pre-stroke session to 15.1% "
-                "acutely, so a post-stroke animal sitting still may be in a genuinely different "
-                "state from a pre-stroke one sitting still. A finding about immobility, not a "
-                "failure of the control",
-                "reported per class because a pooled score averages exactly that away"]),
+                "QUIET IS THE ONE THAT MOVES (0.86 -> 0.70 acutely) -- quiet goes from 3.4% of a "
+                "pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still may be "
+                "in a genuinely different state. A finding about immobility, not a failed control"],
             delta_name="epoch_13posdelta_state_decoder_by_class_cue",
             delta_title="State decoder recall per class, change from pre-stroke")
         if r:
@@ -1517,19 +1568,39 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
 
 def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_labels=None,
                    groups=None, chance=None, ylim=(0.0, 1.06), delta_name=None,
-                   delta_title=None, delta_ylabel=None):
+                   delta_title=None, delta_ylabel=None, notes=None, session_counts=None):
     """Bar row + marks + the epoch-minus-pre companion panel, for a per-session scalar family.
 
     ONE PATH FOR ALL OF THEM. 8g, 10, 10b and 11 differ only in which collector fills `values` and
     `points`, so the statistics, the marks and the companion panel are written once. Four copies
     would agree today and diverge the first time one of them gained a correction.
+
+    ``notes`` EXTENDS the standard subtitle rather than replacing it, so a family with an unusual
+    method can state it without any family losing the two lines every one of them needs (what the
+    mean is over, and what the bootstrap resamples).
+
+    **IT REWRITES ``values`` IN PLACE.** Every bar gets a bootstrap interval, and the interval is
+    stored back as ``values[epoch][key] = (point, lo, hi)`` -- so a caller that reads its own
+    ``values`` AFTER calling this gets a tuple where it put a float. That cost an afternoon: figure
+    13n read ``vals[e]["state"]`` to compute a retention and got an array, and `np.isfinite` on an
+    array is an array, so `if not np.isfinite(...)` raised "truth value ambiguous". Snapshot
+    anything you need afterwards BEFORE the call. (Left in place rather than fixed by copying,
+    because four existing families depend on the mutation to draw their intervals.)
+
+    ``session_counts`` OVERRIDES the epoch assignment's counts. Every family here is built on
+    TRIALS, so the assignment's per-epoch session counts describe them exactly; the behavioural-
+    state family is built on one-second SEGMENTS that are not trials and whose sessions are a
+    different set, and a subtitle that states the assignment's counts over that panel is simply
+    wrong. The same correction `_position_bars` needed for the `stopped` class.
     """
     post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
     if not post or "pre" not in values:
         # NO PRE, NO CONTRAST -- and say so, rather than draw bars with no marks and let a reader
         # assume the test was run and came back null.
         return ef.bar_row(values, out_dir, name=name, title=title,
-                          subtitle=ef.stats_line(_session_counts(), notes=[
+                          subtitle=ef.stats_line(
+                              session_counts if session_counts is not None
+                              else _session_counts(), notes=list(notes or []) + [
                               _MEAN_NOTE, "no pre-stroke arm in this collector: no contrast drawn"]),
                           ylabel=ylabel, positions=keys, tick_labels=tick_labels, groups=groups,
                           points=points, counts=_totals(_session_counts()), chance=chance,
@@ -1562,13 +1633,14 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
             a = 0.05 / max(1, n_comp)
             clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
             rows[e][k] = (point, float(lo), float(hi), float(clo), float(chi))
-    sub = ef.stats_line(_session_counts(), n_boot=N_BOOT, notes=[
+    counts = session_counts if session_counts is not None else _session_counts()
+    sub = ef.stats_line(counts, n_boot=N_BOOT, notes=[
         _MEAN_NOTE,
         "bootstrap: animals -> sessions. No block level: these values are one number per session, "
-        "so the trial reduction already happened inside the collector"])
+        "so the trial reduction already happened inside the collector"] + list(notes or []))
     made = ef.bar_row(values, out_dir, name=name, title=title, subtitle=sub, marks=marks,
                       ylabel=ylabel, positions=keys, tick_labels=tick_labels, groups=groups,
-                      points=points, counts=_totals(_session_counts()), chance=chance, ylim=ylim)
+                      points=points, counts=_totals(counts), chance=chance, ylim=ylim)
     if any(rows.values()):
         ef.contrast_panel(rows, out_dir, name=delta_name or f"{name}_delta",
                           title=delta_title or f"Change from pre-stroke -- {title}",

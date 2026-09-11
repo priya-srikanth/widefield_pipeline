@@ -39,13 +39,14 @@ Frozen pre-stroke decoders, post-cue window, same sessions:
 | subacute | 18 | 0.888 | 0.82 | 0.94 | 0.90 |
 | chronic | 12 | 0.909 | 0.80 | **0.97** | 0.96 |
 
-Against the frozen POSITION decoder on the same sessions: 0.89 → 0.52 → 0.75 → 0.83 (chance 1/6).
+Against the frozen POSITION decoder on the same sessions, scored the SAME way (balanced
+accuracy, the mean of the six row recalls): 0.886 → 0.523 → 0.749 → 0.833 (chance 1/6).
 
 Normalised as the fraction of above-chance performance retained — the only way to compare a 6-way
 problem at chance 0.167 with a 3-way at 0.333:
 
-* **position: 0.87 → 0.42 acutely. It loses 51% of what it had.**
-* **state: 0.92 → 0.81. It loses 11%.**
+* **position: 0.863 → 0.428 acutely. It loses 50% of what it had.**
+* **state: 0.917 → 0.812. It loses 11%.**
 * **running alone: 0.98 → 0.95. It loses 3%.**
 
 **Running is the clean example, exactly as Priya predicted: 0.98 / 0.95 / 0.94 / 0.97, flat at every
@@ -201,10 +202,11 @@ accuracy, and it would be noise with a number on it.
 
 ## Known limits
 
-1. **The two bars of `epoch_13n` are not the same estimator.** Position is the trial-weighted pooled
-   accuracy read off the 5c confusion counts; state is the mean over sessions of a balanced
-   accuracy. The contrast (51% vs 11%) is far larger than that difference can account for, but the
-   two columns are not interchangeable numbers and the subtitle says so.
+1. ~~The two bars of `epoch_13n` are not the same estimator.~~ **FIXED** rather than disclosed:
+   both are now balanced accuracy (mean of the six row recalls for position,
+   `balanced_accuracy_score` for state). It matters because the post-stroke position sets are
+   skewed by construction — PS93's are 49% far_center — so a trial-weighted accuracy is pulled
+   toward whichever positions the animal still attempts.
 2. **No intervals on the retention bars.** Both are pooled point estimates.
 3. **The licking/state asymmetry** described above.
 4. **One alignment only.** These segments are not trials and have no cue to align to, so there is no
@@ -212,3 +214,30 @@ accuracy, and it would be noise with a number on it.
    would imply three analyses where there is one.
 5. **`by_animal_day` projects every session onto the joint basis** (~10 min for the cohort) and is
    `lru_cache`d in-process only. A second process pays it again.
+
+
+---
+
+## A regression this analysis caught, in the position pipeline
+
+Promoting `stopped` to a trial class meant routing the selection rule through one helper
+(`_class_select`). Routing the **pre-stroke branch** of `_collect_5c` through it too silently added
+the miss-while-working trials to a panel that had always been licking-only:
+
+| | before | after the mistake | restored |
+|---|---|---|---|
+| frozen position, pre-stroke n | 21,017 | 22,076 | 21,017 |
+| its accuracy | 0.886 | 0.859 | 0.886 |
+
+That moves **every pre-stroke position number in the deck**. `_collect_7` already stated the rule a
+pre panel follows — a pre-stroke animal is not missing, so `working` adds nothing at pre except a
+different KIND of trial, and the reference then differs from itself — and the `_collect_5c` copy of
+that rule was not written down anywhere, so it was easy to "tidy" away.
+
+**It surfaced only because a brand-new figure's pre bar disagreed with a number printed on an older
+one.** That is luck, not a guard. `stopped` is now the only class that may take unengaged rows at
+pre, and `test_pre_panel_is_licking_only_for_lick_and_working` pins it.
+
+Every figure rendered from `_collect_5c` on the `working` / `lick` arms between the two commits
+carries the inflated pre panel — `acc`, `5c`, `5cr`, `5r`, `5rm`. The matrix and scalar families go
+through `_collect_7`, which was not touched, and are unaffected.

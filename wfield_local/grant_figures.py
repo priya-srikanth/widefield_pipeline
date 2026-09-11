@@ -1595,8 +1595,28 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 # mostly the two panels being different kinds of trial. Caught 2026-09-11 by the
                 # subtitle reporting 44 pre sessions when only 15 pre-stroke sessions have any
                 # stopped trials at all.
-                me_te, mu_te = _class_select(variant, e_pre & (GE == i),
-                                             (GU == i) if len(GU) else np.zeros(0, bool), not_eng)
+                # THE PRE PANEL IS THE LICKING SET FOR `lick` AND `working`, and `stopped` is the
+                # ONLY class that may take unengaged rows here.
+                #
+                # REGRESSION I INTRODUCED AND THEN CAUGHT, 2026-09-11. Routing every variant
+                # through `_class_select` looked like the tidy thing to do, and for `working` it
+                # quietly ADDED the miss-while-working trials to a panel that had always been
+                # licking-only: the pooled pre-stroke set went 21,017 -> 22,076 trials and its
+                # accuracy 0.89 -> 0.859, moving every pre-stroke position number in the deck. It
+                # surfaced only because a NEW figure's pre bar disagreed with the number printed on
+                # an OLD one, which is luck, not a guard -- hence
+                # `test_pre_panel_is_licking_only_for_lick_and_working`.
+                #
+                # `_collect_7` states the rule the other collectors follow: a pre-stroke animal is
+                # not missing, so `working` adds nothing at pre except a different KIND of trial,
+                # and the reference then differs from itself.
+                if variant == "stopped":
+                    me_te, mu_te = _class_select(variant, e_pre & (GE == i),
+                                                 (GU == i) if len(GU) else np.zeros(0, bool),
+                                                 not_eng)
+                else:
+                    me_te = e_pre & (GE == i)
+                    mu_te = np.zeros(len(GU), bool)
                 Xte = np.vstack([XE[me_te]] + ([XU[mu_te]] if mu_te.any() else []))
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))

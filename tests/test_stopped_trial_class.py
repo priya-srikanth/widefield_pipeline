@@ -111,3 +111,28 @@ def test_session_trials_returns_the_same_rows_for_X_and_for_blk(variant):
     X = G._session_trials(bd, 0, "close_L", variant, "X")
     B = G._session_trials(bd, 0, "close_L", variant, "blk")
     assert len(X) == len(B), f"{variant}: {len(X)} patterns against {len(B)} block ids"
+
+
+def test_pre_panel_is_licking_only_for_lick_and_working():
+    """The pre-stroke panel of `_collect_5c` must take NO unengaged rows except for `stopped`.
+
+    THE REGRESSION THIS PINS, 2026-09-11. Promoting `stopped` to a trial class meant routing the
+    selection rule through one helper, and routing the PRE branch through it too silently added the
+    miss-while-working trials to a panel that had always been licking-only. The pooled pre-stroke
+    set went 21,017 -> 22,076 trials and its accuracy 0.89 -> 0.859, which moves every pre-stroke
+    position number in the deck -- and it surfaced only because a brand-new figure's pre bar
+    disagreed with a number printed on an older one. That is luck, not a guard.
+
+    `_collect_7` states the rule: a pre-stroke animal is not missing, so `working` adds nothing at
+    pre except a different KIND of trial, and the reference then differs from itself.
+    """
+    import inspect
+
+    src = inspect.getsource(G._collect_5c)
+    pre = src[src.index("PRE: leave-one-session-out"):]
+    pre = pre[:pre.index("by_day = {}")]
+    assert 'if variant == "stopped":' in pre, (
+        "the pre branch must special-case `stopped`; routing every variant through "
+        "`_class_select` here re-adds miss-while-working trials to the pre panel")
+    assert "mu_te = np.zeros(len(GU), bool)" in pre, (
+        "lick/working must contribute NO unengaged rows to the pre panel")

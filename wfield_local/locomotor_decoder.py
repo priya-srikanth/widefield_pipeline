@@ -14,7 +14,7 @@ has to be the same object: freeze a pre-stroke state decoder, apply it to each p
 and put its accuracy on the same axis as the frozen position decoder's. Cross-session generalisation
 is the hard part of the position result, and the state arm has to survive exactly that.
 
-    frozen POSITION decoder, by epoch    0.89 pre -> 0.52 acute  (collapses)
+    frozen POSITION decoder, by epoch    0.886 pre -> 0.523 acute  (collapses)
     frozen STATE decoder, by epoch       <- if this holds, the deficit is specific
 
 WHY IT IS CREDIBLE THAT IT HOLDS, and why that is not circular: the lesion is ventrolateral

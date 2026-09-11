@@ -8157,11 +8157,25 @@ with a 3-way at 1/3:
 
 | | pre | acute | subacute | chronic |
 |---|---|---|---|---|
-| frozen POSITION (6-way) | 0.87 | **0.42** | 0.70 | 0.80 |
-| frozen STATE (3-way) | 0.92 | **0.81** | 0.83 | 0.86 |
+| frozen POSITION (6-way) | 0.863 | **0.428** | 0.698 | 0.800 |
+| frozen STATE (3-way) | 0.917 | **0.812** | 0.832 | 0.864 |
 | RUNNING recall alone | 0.98 | **0.95** | 0.94 | 0.97 |
 
-**Position loses 51% of what it had; state loses 11%; running loses 3%.**
+**Position loses 50% of what it had; state loses 11%; running loses 3%.**
+
+Both arms are scored with BALANCED accuracy -- the mean of the six row recalls for
+position, `balanced_accuracy_score` for state. An earlier version scored position
+trial-weighted and disclosed the mismatch as a caveat; scoring both the same way is the
+fix, and it matters because the post-stroke position sets are skewed by construction
+(PS93's are 49% far_center).
+
+**A REGRESSION THIS CAUGHT, and it was mine.** Routing every variant's PRE branch through
+`_class_select` silently added the miss-while-working trials to a panel that had always
+been licking-only: the pooled pre-stroke position set went 21,017 -> 22,076 trials and its
+accuracy 0.886 -> 0.859, moving every pre-stroke position number in the deck. It surfaced
+only because a NEW figure's pre bar disagreed with a number printed on an OLD one, which
+is luck rather than a guard. `stopped` is now the only class that may take unengaged rows
+at pre, and `test_pre_panel_is_licking_only_for_lick_and_working` pins it.
 
 **ONE CLASS MOVES AND IT IS PROBABLY REAL.** Quiet recall falls 0.86 -> 0.70 acutely. Quiet goes from
 3.4% of a pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still plausibly IS in

@@ -3940,14 +3940,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "THE COMPARISON ITSELF. (accuracy - chance) / (1 - chance), because chance is 1/6 for the"
          "six-way position decoder and 1/3 for the three-way state decoder, so their raw accuracies"
          "are not comparable and their raw DROPS are not either -- the same absolute fall means"
-         "something different when the floor is 0.167 than when it is 0.333. POSITION falls 0.87 to"
-         "0.42 acutely, losing 51% of what it had. STATE falls 0.92 to 0.81, losing 11%. RUNNING"
+         "something different when the floor is 0.167 than when it is 0.333. POSITION falls 0.86 to"
+         "0.43 acutely, losing 50% of what it had. STATE falls 0.92 to 0.81, losing 11%. RUNNING"
          "alone falls 0.98 to 0.95, losing 3%."
-         "\n\nTWO CAVEATS ON THE FACE OF IT. The two bars are NOT the same estimator: position is"
-         "the trial-weighted pooled accuracy read off the 5c confusion counts while state is the"
-         "mean over sessions of a balanced accuracy. The contrast is far larger than that difference"
-         "can account for, but the two columns are not interchangeable numbers. And neither bar"
-         "carries an interval -- both are pooled point estimates."),
+         "\n\nBOTH BARS ARE BALANCED ACCURACY -- the mean of the six row recalls for position, and"
+         "sklearn's balanced_accuracy_score for state. An earlier version scored position"
+         "trial-weighted and disclosed the mismatch as a caveat; scoring it the same way as the"
+         "state arm is the fix, and it matters because the post-stroke position sets are skewed by"
+         "construction (PS93's are 49% far_center). Neither bar carries an interval: each is one"
+         "pooled number, so there is nothing to resample."),
         ("epoch_13pos_state_decoder_by_class_*.png",
          "State decoder recall PER CLASS -- which behavioural state changed?",
          "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: 0.98 / 0.95 / 0.94 / 0.97, flat"
