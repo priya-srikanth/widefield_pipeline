@@ -3894,6 +3894,79 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "never degraded -- which is what DISPLACED rather than LOST means, stated in the"
          "encoder's units. Converges with the frozen-vs-refit decoder arm, which recovers 34% of"
          "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
+        ("epoch_13_state_decoder_*.png",
+         "DOES EVERYTHING DEGRADE? Frozen BEHAVIOURAL-STATE decoder",
+         "THE SPECIFICITY CONTROL FOR THE WHOLE DECK. The lesion is ventrolateral STRIATAL, so no"
+         "cortex is damaged anywhere in the field of view: same window, same LocaNMF basis, same"
+         "estimator, same frozen-model discipline, and only the LABEL changes -- spout target, or"
+         "behavioural state. If the target readout collapses and the state readout does not, the"
+         "deficit is SPECIFIC, and every generic explanation a reader reaches for first fails at"
+         "once -- window clouding, haemodynamic drift, arousal, basis drift, 'a lesion was made and"
+         "everything got worse' -- because each of them would degrade this readout too."
+         "\n\nMETHOD. The unit is a ONE-SECOND window, not a trial: trial-level labelling gives"
+         "~17 running trials per session, which decodes nothing, while tiling the bouts gives"
+         "33,060 running and 41,549 quiet one-second segments across the cohort. The window LENGTH"
+         "is set by quiet and not chosen -- quiet periods have a median of 1.10 s, so the 2 s window"
+         "every other family here uses fits 17% of them and 1 s fits 58%. Features are four 0.25 s"
+         "sub-bins x 95 components = 380 columns, the SAME width as the trial arms and on the SAME"
+         "joint basis, with no per-segment baseline (a segment inside a running bout has no"
+         "'before' that is not also running). Classes are quiet / running / licking, MUTUALLY"
+         "EXCLUSIVE: running only if not also licking, licking only if not also running, quiet only"
+         "when the window is CONTAINED in a behavior_events quiet period -- overlaps are dropped and"
+         "counted, never assigned. Licking is anchored at lick-bout ONSET and may run past the bout"
+         "end, because lick bouts have a median of 0.37 s and tiling inside them would keep 22% of"
+         "101,018 bouts and bias the class toward sustained licking; running and quiet are tiled at"
+         "most 8 segments per period so no long period dominates. The model is multinomial logistic"
+         "frozen on ALL pre-stroke segments, with the pre column leave-one-session-out. The score is"
+         "BALANCED accuracy against a chance of 1/3, never raw, because the class balance moves with"
+         "epoch (quiet is 3.4% of a pre session, 15.1% acute, 0.7% chronic). PS92 8/12 is excluded:"
+         "its longest 'running bout' is 2,441 s -- 41 minutes, 29% of the session, against a cohort"
+         "maximum of 54 s -- which is the crash+concat discontinuity read as locomotion."
+         "\n\nWHY THE FROZEN ARM AND NOT A WITHIN-SESSION REFIT: refit inside a session this"
+         "decodes at macro-AUROC 0.98-1.00, and a CEILING CANNOT DEMONSTRATE PRESERVATION. The"
+         "position claim rests on a frozen pre-stroke model failing, so the control has to be the"
+         "same object carrying the same cross-session burden. Two confounds were checked first:"
+         "session TIME alone separates the classes at AUROC 0.165-0.752, near chance, and"
+         "time-matching leaves the cortical score unchanged; and the animals RUN MORE acutely (5.1%"
+         "of session against 3.1% pre-stroke), so this arm is not rescued by having more data at"
+         "baseline than afterwards."),
+        ("epoch_13delta_state_decoder_*.png",
+         "Frozen state decoder, change from pre-stroke",
+         "The same quantity as epoch-minus-pre. Read it beside the POSITION decoder's contrast"
+         "panel earlier in this section, and read the normalised comparison on the next slide,"
+         "which is the one that puts the two on a single axis."),
+        ("epoch_13n_state_vs_position_*.png",
+         "Of what each readout had ABOVE CHANCE, how much survived?",
+         "THE COMPARISON ITSELF. (accuracy - chance) / (1 - chance), because chance is 1/6 for the"
+         "six-way position decoder and 1/3 for the three-way state decoder, so their raw accuracies"
+         "are not comparable and their raw DROPS are not either -- the same absolute fall means"
+         "something different when the floor is 0.167 than when it is 0.333. POSITION falls 0.87 to"
+         "0.42 acutely, losing 51% of what it had. STATE falls 0.92 to 0.81, losing 11%. RUNNING"
+         "alone falls 0.98 to 0.95, losing 3%."
+         "\n\nTWO CAVEATS ON THE FACE OF IT. The two bars are NOT the same estimator: position is"
+         "the trial-weighted pooled accuracy read off the 5c confusion counts while state is the"
+         "mean over sessions of a balanced accuracy. The contrast is far larger than that difference"
+         "can account for, but the two columns are not interchangeable numbers. And neither bar"
+         "carries an interval -- both are pooled point estimates."),
+        ("epoch_13pos_state_decoder_by_class_*.png",
+         "State decoder recall PER CLASS -- which behavioural state changed?",
+         "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: 0.98 / 0.95 / 0.94 / 0.97, flat"
+         "at every epoch. LICKING is 0.99 / 0.97 / 0.90 / 0.96. QUIET IS THE ONE THAT MOVES, 0.86"
+         "to 0.70 acutely, and that is probably real rather than noise: quiet goes from 3.4% of a"
+         "pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still may be in a"
+         "genuinely different state from a pre-stroke one sitting still. That is a finding about"
+         "IMMOBILITY, not a failure of the control, and it is why this panel exists rather than"
+         "only the pooled bar -- a pooled score averages exactly that away."
+         "\n\nONE LIMIT, easy to miss: licking windows are locked to a behavioural TRANSITION"
+         "(the bout onset) while running and quiet are sampled from inside sustained STATES, so a"
+         "decoder could separate them partly on transient-versus-sustained rather than on which"
+         "behaviour it is. This family answers 'does cortex still distinguish behavioural state at"
+         "all', which is what the control needs; it is not a clean three-way contrast of matched"
+         "epochs."),
+        ("epoch_13posdelta_state_decoder_by_class_*.png",
+         "State decoder recall per class, change from pre-stroke",
+         "Quiet is the only class with a visible fall. See the preceding slide for why that is a"
+         "result about immobility rather than a weakness of the control."),
         ("epoch_12_stopped_pattern_*.png",
          "STOPPED trials: does the position pattern survive the animal quitting?",
          "THE NULL THE WHOLE STOPPED ARM RESTS ON, and the figure to read before any of the"

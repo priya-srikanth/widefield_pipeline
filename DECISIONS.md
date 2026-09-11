@@ -8134,3 +8134,86 @@ were compared instead of assumed identical.
 The digest hashes whatever dict it is handed. `board_for` builds a five-key spec; the raw
 `board.yaml` also carries a `note`. Hashing the raw YAML produced a filename the module would never
 look for — a cache that silently never hits. Anything computing the key must go through `board_for`.
+
+
+---
+
+## 2026-09-11 — THE BEHAVIOURAL-STATE CONTROL: does everything degrade, or only the target?
+
+Priya: "I'm more looking for evidence that not *all* decoding/encoding degrades post stroke, with
+running as an example." Full write-up: [`docs/BEHAVIOURAL_STATE_CONTROL.md`](docs/BEHAVIOURAL_STATE_CONTROL.md).
+Figures `epoch_13*`; code `wfield_local/locomotor_{state,features,decoder}.py`.
+
+**THE LESION IS VENTROLATERAL STRIATAL — no cortex is damaged anywhere in the field of view.** I had
+this wrong and proposed a hemisphere split to find "undamaged" cortex; Priya corrected it ("but
+cortex isn't lesioned at all"). Whole cortex is correct and makes the control STRONGER: one window,
+one basis, one estimator, one frozen-model discipline, and only the LABEL changes. If the target
+readout collapses while the state readout does not, then window clouding, haemodynamic drift,
+arousal and basis drift are all excluded at once, because every one of them would degrade both.
+
+**THE RESULT.** Frozen pre-stroke decoders, post-cue, same sessions. Expressed as the fraction of
+above-chance performance retained, which is the only way to compare a 6-way problem at chance 1/6
+with a 3-way at 1/3:
+
+| | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| frozen POSITION (6-way) | 0.87 | **0.42** | 0.70 | 0.80 |
+| frozen STATE (3-way) | 0.92 | **0.81** | 0.83 | 0.86 |
+| RUNNING recall alone | 0.98 | **0.95** | 0.94 | 0.97 |
+
+**Position loses 51% of what it had; state loses 11%; running loses 3%.**
+
+**ONE CLASS MOVES AND IT IS PROBABLY REAL.** Quiet recall falls 0.86 -> 0.70 acutely. Quiet goes from
+3.4% of a pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still plausibly IS in
+a different state from a pre-stroke one sitting still. A finding about immobility, not a failure of
+the control — and the reason the per-class panel exists rather than only a pooled bar.
+
+**IT HAD TO BE THE FROZEN ARM, and that is measured.** Within session, binary running-vs-quiet
+decodes at AUROC 0.99–1.00 and the three-way problem at macro-AUROC 0.98–1.00. **A ceiling cannot
+demonstrate preservation** — a reader sees "the task was too easy to fail" and is right. The position
+claim rests on a frozen pre-stroke model failing on post-stroke data, so the control must be the same
+object carrying the same cross-session generalisation burden. The within-session number is the
+ceiling line, not the result.
+
+**FOUR MEASUREMENTS CHANGED THE DESIGN.** Each would have produced a wrong or uninterpretable figure
+if assumed instead of measured:
+
+1. **The trial is not the unit.** Trial-level labelling gives 1,795 running and 3,151 quiet trials
+   across 107 sessions — ~17 running per session over six positions, which decodes nothing. Tiling
+   the bouts gives 33,060 and 41,549 one-second segments.
+2. **The window is set by QUIET.** Quiet periods have a median of 1.10 s: the 2 s window every other
+   family here uses fits 17% of them, 1 s fits 58%. Four 0.25 s bins give 380 columns, the same
+   width as the trial arms.
+3. **Licking needed the OPPOSITE fix.** Lick bouts have a median of 0.37 s, so tiling inside them
+   kept 22% of 101,018 bouts and biased the class toward sustained licking. Licking is an EVENT with
+   an onset, so its window is anchored there and may run past the bout end. Quiet must NOT be — a
+   window past its end sits in the movement the period was buffered away from. Licking went from
+   72–297 to 413–969 segments per session.
+4. **PS92 8/12 is an artefact.** Its longest "running bout" is 2,441 s — 41 minutes, 29% of the
+   session — against a cohort maximum of 54 s. The crash+concat discontinuity
+   (`docs/EXPERIMENT_ERRORS.md`) read as sustained locomotion; uncapped it would supply ~7% of the
+   whole running class. Excluded by name.
+
+**TWO CONFOUNDS CHECKED BEFORE ANYTHING WAS PLOTTED.** Session TIME alone separates the classes at
+AUROC 0.165–0.752 (near chance) and time-matching leaves the cortical score unchanged, so it reads
+cortex and not drift. And the animals RUN MORE acutely (5.1% of session against 3.1% pre-stroke), so
+the state arm is not rescued by having more data at baseline than afterwards.
+
+**MUTUAL EXCLUSIVITY, per Priya's rule:** running only if not also licking, licking only if not also
+running, quiet only when the window is CONTAINED in a buffered quiet period (containment, not
+overlap — quiet asserts an absence). Overlaps are dropped and counted, never assigned by tie-break.
+`_class_select` is the single implementation; four hand-written copies of the trial-class rule had
+each included the licking rows unconditionally, which is correct for `lick`/`working` and
+catastrophic for a class meaning "the animal had quit".
+
+**BALANCED ACCURACY, NEVER RAW.** The class balance moves with epoch (quiet 3.4% pre, 15.1% acute,
+0.7% chronic) and raw accuracy under a base rate that moves that much is not comparable across the
+epochs being compared.
+
+**LIMITS, all in the figure subtitles.** The two bars of `epoch_13n` are not the same estimator
+(position is a trial-weighted pooled accuracy off the 5c counts, state is a session-mean balanced
+accuracy) — the 51%-vs-11% contrast is far larger than that difference, but they are not
+interchangeable numbers. No intervals on the retention bars. Licking windows are locked to a
+behavioural TRANSITION while running and quiet are sampled from sustained STATES, so a decoder could
+separate them partly on transient-versus-sustained. One alignment only: segments are not trials and
+have no cue to align to.

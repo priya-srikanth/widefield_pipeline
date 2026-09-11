@@ -1028,6 +1028,226 @@ def _fig_12_stopped(out_dir, align, variant, wname):
                   f"not zero. {verdict}"))
 
 
+def _retained(acc, chance):
+    """Fraction of the ABOVE-CHANCE range a score holds: ``(acc - chance) / (1 - chance)``.
+
+    THE ONLY HONEST WAY TO PUT A SIX-WAY AND A THREE-WAY PROBLEM ON ONE AXIS. Position decoding has
+    a chance of 1/6 and the behavioural-state decoder 1/3, so their raw accuracies are not
+    comparable and their raw DROPS are not either: the same absolute fall means something different
+    when the floor is 0.167 than when it is 0.333. Normalising asks the one question both can
+    answer -- of the performance this readout had above chance, how much survived?
+    """
+    if acc is None or not np.isfinite(acc):
+        return None
+    return float((acc - chance) / (1.0 - chance))
+
+
+def _position_accuracy_by_epoch(align, variant):
+    """``{epoch: pooled accuracy}`` of the FROZEN position decoder, from the 5c confusion counts.
+
+    Read off the same matrices the 5c panel draws rather than recomputed, so the two figures can
+    never disagree about the number this whole comparison hinges on.
+    """
+    from wfield_local import grant_figures as G
+
+    per_animal, _d = G._collect_5c(align, variant, "frozen")
+    if not per_animal:
+        return {}
+    out = {}
+    for e, M in ef.counts_by_epoch(per_animal).items():
+        if M is None:
+            continue
+        A = np.asarray(M, float)
+        if A.sum():
+            out[e] = float(np.trace(A) / A.sum())
+    return out
+
+
+def _state_epoch_values(store, field, keys):
+    """``(values, points)`` over epochs for one field of the state-decoder records.
+
+    THE PRE COLUMN IS EVERY LEAVE-ONE-OUT RECORD, not one per animal: taking the first would throw
+    away ten of each animal's eleven pre-stroke sessions and rest the baseline on four numbers.
+    """
+    vals, pts = {}, {}
+    for e in ef.PANELS:
+        row, pt = {}, {}
+        for k in keys:
+            got = []
+            for an, rec in sorted(store.items()):
+                src = (rec.get("PRE", []) if e == "pre" else
+                       [r for day, r in rec.items()
+                        if day != "PRE" and ef.epoch_of_day(an, int(day)) == e])
+                for r in src:
+                    v = (r.get(field) if field != "per_class"
+                         else (r.get("per_class") or {}).get(k))
+                    if v is not None and np.isfinite(v):
+                        got.append((an, float(v)))
+            if got:
+                row[k] = float(np.mean([v for _a, v in got]))
+                pt[k] = got
+        if row:
+            vals[e], pts[e] = row, pt
+    return vals, pts
+
+
+def _fig_13_state(out_dir, align, variant, wname):
+    """13: DOES EVERYTHING DEGRADE, OR ONLY THE TARGET? The frozen behavioural-state decoder.
+
+    Priya, 2026-09-11: "I'm more looking for evidence that not *all* decoding/encoding degrades
+    post stroke, with running as an example."
+
+    THE LESION IS VENTROLATERAL STRIATAL. No cortex is damaged anywhere in the field of view, the
+    imaging window is the same one, the LocaNMF basis is the same. So if the frozen pre-stroke
+    POSITION decoder collapses while a frozen pre-stroke BEHAVIOURAL-STATE decoder built from the
+    identical features does not, the target deficit is SPECIFIC -- and the generic explanations a
+    reader reaches for first (window clouding, haemodynamic drift, arousal, basis drift, "a lesion
+    was made and everything got worse") all fail at once, because every one of them would degrade
+    this readout too.
+
+    IT HAD TO BE THE FROZEN ARM, which is a measurement and not a preference. Refit WITHIN a
+    session, running-vs-quiet decodes at AUROC 0.99-1.00 and the three-way problem at macro-AUROC
+    0.98-1.00. A ceiling cannot demonstrate preservation; a reader sees "the task was too easy to
+    fail" and is right. The position claim rests on a frozen pre-stroke model failing on
+    post-stroke data, so the control must be the same object carrying the same cross-session
+    generalisation burden.
+
+    METHOD IN FULL, because nothing else in this deck is built this way:
+
+      UNIT      a ONE-SECOND window, not a trial. Trial-level labelling gives ~17 running trials
+                per session, which decodes nothing; tiling the bouts gives 33,060 running and
+                41,549 quiet one-second segments across the cohort. The length is set by QUIET and
+                not chosen: quiet periods have a median of 1.10 s, so the 2 s window every other
+                family here uses fits 17% of them while 1 s fits 58%.
+      FEATURES  four 0.25 s sub-bins x 95 LocaNMF components = 380 columns, the SAME width as the
+                trial-aligned arms and on the SAME joint basis. No per-segment baseline: a segment
+                inside a running bout has no "before" that is not also running.
+      CLASSES   quiet / running / licking, MUTUALLY EXCLUSIVE per Priya's rule -- running only if
+                not also licking, licking only if not also running, quiet only inside a
+                `behavior_events` quiet period (already buffered away from licks and rewards).
+                Overlapping segments are DROPPED and counted, never assigned.
+      LICKING   anchored at lick-bout ONSET and allowed to run past the bout end, because lick
+                bouts have a median of 0.37 s and tiling strictly inside them would keep 22% of
+                101,018 bouts and bias the class toward sustained licking. Running and quiet are
+                tiled, at most 8 segments per period so no single long period dominates.
+      MODEL     multinomial logistic on standardised features, frozen on ALL pre-stroke segments.
+                The pre column is leave-one-session-out, as everywhere else here.
+      SCORE     BALANCED accuracy against a chance of 1/3, never raw: quiet runs 3.4% of a
+                pre-stroke session, 15.1% acutely and 0.7% chronically, and raw accuracy under a
+                base rate that moves that much is not comparable across the epochs being compared.
+      EXCLUDED  PS92 8/12, whose longest "running bout" is 2,441 s -- 41 minutes, 29% of the
+                session, against a cohort maximum of 54 s. That is the crash+concat discontinuity
+                (`docs/EXPERIMENT_ERRORS.md`) read as sustained locomotion.
+
+    TWO CONFOUNDS CHECKED BEFORE THIS WAS DRAWN. Session TIME alone separates the classes at AUROC
+    0.165-0.752, near chance, and restricting to the range where the classes overlap in time leaves
+    the cortical score unchanged, so it is reading cortex rather than drift. And the animals RUN
+    MORE after the lesion (5.1% of session acutely against 3.1% pre-stroke), so the state arm is
+    not rescued by having more data at baseline than afterwards.
+
+    THE LIMIT, stated here because it is easy to miss: licking windows are locked to a behavioural
+    TRANSITION while running and quiet are sampled from inside sustained STATES, so a decoder could
+    separate them partly on transient-versus-sustained rather than on which behaviour it is. This
+    answers "does cortex still distinguish behavioural state at all", which is what the control
+    needs; it is not a clean three-way contrast of matched epochs.
+    """
+    # ONE ALIGNMENT ONLY. These segments are not trials and have no cue to align to, so there is no
+    # pre-cue/post-cue/post-lick distinction to make -- rendering the same figure under three arm
+    # labels would imply three analyses where there is one.
+    if variant != "working" or align != "cue":
+        return None
+    from wfield_local import locomotor_decoder as ld
+
+    store, _days = ld.by_animal_day()
+    if not store:
+        return None
+
+    vals, pts = _state_epoch_values(store, "balacc", ["state"])
+    if not vals:
+        return None
+
+    NOTES = ["1 s segments, 4 x 0.25 s bins, 380 features on the joint basis -- NOT trials",
+             "classes MUTUALLY EXCLUSIVE: running not licking, licking not running, quiet inside "
+             "a buffered quiet period; overlaps dropped and counted",
+             "licking anchored at bout ONSET (median bout 0.37 s); running and quiet tiled, at "
+             "most 8 segments per period",
+             "frozen on ALL pre-stroke segments; the pre column is leave-one-session-out",
+             "BALANCED accuracy -- the class balance moves with epoch (quiet is 3.4% of a pre "
+             "session, 15.1% acute, 0.7% chronic)",
+             "PS92 8/12 excluded: its 2,441 s 'running bout' is the crash+concat discontinuity"]
+    counts = {e: {a: sum(1 for x, _v in pts[e]["state"] if x == a)
+                  for a in sorted({x for x, _v in pts[e]["state"]})} for e in pts}
+    made = []
+    p = _scalar_figure(
+        out_dir, name="epoch_13_state_decoder_cue",
+        title=("Does EVERYTHING degrade? Frozen pre-stroke BEHAVIOURAL-STATE decoder "
+               "(quiet / running / licking), spout-position agnostic"),
+        ylabel="balanced accuracy (chance 1/3)", keys=["state"], values=vals, points=pts,
+        tick_labels=["frozen state\ndecoder"], ylim=(0.0, 1.05), chance=1.0 / 3.0,
+        subtitle=ef.stats_line(counts, n_boot=N_BOOT, notes=NOTES),
+        delta_name="epoch_13delta_state_decoder_cue",
+        delta_title="Frozen state decoder, change from pre-stroke")
+    if p:
+        made.append(p)
+
+    pos = _position_accuracy_by_epoch(align, variant)
+    if pos:
+        cvals, cpts = {}, {}
+        for e in ef.PANELS:
+            row = {}
+            r_pos = _retained(pos.get(e), 1.0 / 6.0)
+            if r_pos is not None:
+                row["position (6-way)"] = r_pos
+            if e in vals:
+                r_st = _retained(vals[e]["state"], 1.0 / 3.0)
+                if r_st is not None:
+                    row["state (3-way)"] = r_st
+            if row:
+                cvals[e], cpts[e] = row, {k: [] for k in row}
+        if cvals:
+            q = _scalar_figure(
+                out_dir, name="epoch_13n_state_vs_position_cue",
+                title=("Of the performance each readout had ABOVE CHANCE, how much survived? "
+                       "-- frozen decoders, post-cue"),
+                ylabel="fraction of above-chance performance retained",
+                keys=["position (6-way)", "state (3-way)"], values=cvals, points=cpts,
+                tick_labels=["position\n(6-way)", "state\n(3-way)"], ylim=(0.0, 1.05),
+                subtitle=ef.stats_line({}, notes=[
+                    "(accuracy - chance) / (1 - chance). Chance is 1/6 for position and 1/3 for "
+                    "state, so raw accuracies -- and raw DROPS -- are not comparable",
+                    "NOT THE SAME ESTIMATOR IN THE TWO BARS: position is the trial-weighted pooled "
+                    "accuracy read off the 5c confusion counts; state is the mean over sessions of "
+                    "a balanced accuracy. The contrast is far larger than that difference, but the "
+                    "two columns are not interchangeable numbers",
+                    "position 0.87 -> 0.42 acutely, losing 51%; state 0.92 -> 0.81, losing 11%; "
+                    "RUNNING alone 0.98 -> 0.95, losing 3%",
+                    "NO INTERVALS: both bars are pooled point estimates"]))
+            if q:
+                made.append(q)
+
+    CLS = ["quiet", "running", "licking"]
+    pvals, ppts = _state_epoch_values(store, "per_class", CLS)
+    if pvals:
+        r = _scalar_figure(
+            out_dir, name="epoch_13pos_state_decoder_by_class_cue",
+            title="Frozen state decoder, RECALL PER CLASS -- which behavioural state changed?",
+            ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
+            ylim=(0.0, 1.05),
+            subtitle=ef.stats_line(counts, n_boot=N_BOOT, notes=NOTES + [
+                "RUNNING IS THE CLEAN EXAMPLE: 0.98 / 0.95 / 0.94 / 0.97, flat at every epoch",
+                "QUIET IS THE ONE THAT MOVES (0.86 -> 0.70 acutely), and that is probably real "
+                "rather than noise -- quiet goes from 3.4% of a pre-stroke session to 15.1% "
+                "acutely, so a post-stroke animal sitting still may be in a genuinely different "
+                "state from a pre-stroke one sitting still. A finding about immobility, not a "
+                "failure of the control",
+                "reported per class because a pooled score averages exactly that away"]),
+            delta_name="epoch_13posdelta_state_decoder_by_class_cue",
+            delta_title="State decoder recall per class, change from pre-stroke")
+        if r:
+            made.append(r)
+    return made or None
+
+
 def _fig_10e_best_match_grid(out_dir, align, variant, wname):
     """10e: which pre-stroke position each position matches best -- PER ANIMAL, PER EPOCH.
 
@@ -1923,12 +2143,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "mat", "scal"))
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s",
                                  "mat", "scal"))
 
     if "1b" in want:
@@ -1946,7 +2166,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -1991,6 +2211,13 @@ def main(argv=None) -> int:
         # from the other three arms made the renderer print "NO FIGURE" three times a render for a
         # case that is correct by construction. A warning that always fires is a warning nobody
         # reads.
+        if "13s" in want:
+            try:
+                for p in (_fig_13_state(out, align, variant, wname) or []):
+                    _report(f"13s {align}/{variant}", p)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 13s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
         if "12s" in want and variant == "working":
             try:
                 _report(f"12s {align}/{variant}",
