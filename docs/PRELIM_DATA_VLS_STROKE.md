@@ -420,25 +420,54 @@ refit supplies the ceiling. A refit encoder must be cross-validated or it is 1.0
 ridge on a one-hot design reduces to the per-position mean, so a session predicting its own means
 from themselves is an identity.
 
-> **WHAT "EXPLAINED VARIANCE" IS THE VARIANCE OF, because the name invites the wrong reading.**
-> Priya, 2026-09-10: "if the encoder is literally an average per position, we're asking how much of
-> all the trials the AVERAGE (binned) per-position activity explains?" The first half is right and
-> the second half is not. The encoder IS the per-position average of the binned component activity.
-> But the score is computed MEAN against MEAN: `M` and `P` are both 6 x features matrices of
-> per-position mean patterns, centred across positions, and the denominator is `sum M^2` — the
-> BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
-> number answers "how much of the measured position-to-position pattern does the template's
-> position-to-position pattern reproduce", not "how much of the trial variance is explained"; a
-> trial-level R2 would be far lower, because single-trial noise is large and is excluded here by
-> construction. It also means the CEILING's shortfall from 1.0 is entirely sampling noise in the
-> half-session means — which is why halving the trials lowers it, and why the size-matched arm was
-> needed at all.
+### What is actually being measured, and on which trials
 
-**EVERYTHING IS SCORED AFTER RESCALE, i.e. SHAPE.** Negative explained variance here is almost
-entirely an amplitude statement: with PERFECT shape and only a scale mismatch,
-`R^2 = 1 - (1-a)^2/a^2`, which is exactly 0.000 at a = 0.5 and **-2.13** at the a = 0.361 observed
-acutely. The ceiling's two halves have matched amplitude by construction while the frozen arm's
-reference does not, so a raw comparison reports amplitude and calls it template mismatch.
+**THE "ENCODER" IS THE PER-POSITION MEAN PATTERN.** Six vectors, one per spout position, each the
+average over that position's trials of the z-scored LocaNMF component time courses in sub-bins (4
+for cue/pre-cue, 8 for lick). Nothing is fitted. Earlier notes described it as "ridge on a one-hot
+position design", which is what it is EQUIVALENT to and not what the code does: with a one-hot design
+the least-squares solution for each column IS that position's mean, and ridge only shrinks each
+toward zero by `n_q / (n_q + alpha)`. An actual `Ridge(alpha=1.0)` on a one-hot design is fitted
+elsewhere -- `locanmf_cross_mouse._per_session_compute`, a different figure -- but not here.
+
+**THE VARIANCE IS THE VARIANCE OF THE MEANS, NOT OF THE TRIALS.** `M` and `P` are both 6 x features
+matrices of per-position means, centred across positions, and the denominator is `sum M^2`: the
+BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
+score answers "how much of the measured position-to-position pattern does the template's
+position-to-position pattern reproduce", NOT "how much of the trial variance is explained" -- a
+trial-level R^2 would be far lower, because single-trial noise is large and is excluded here by
+construction.
+
+**CENTRING ACROSS POSITIONS** is the line `M = M - M.mean(0)`. `M` is 6 positions x features;
+`M.mean(0)` averages down the POSITION axis, giving one grand-mean pattern -- what the cortex does on
+an average trial regardless of where the spout was. Subtracting it leaves each position as its
+DEVIATION from that average, so anything common to all six is gone and only what DIFFERS between
+positions survives. A session that is 20% dimmer overall, or has a different F0 or SNR or arousal
+level, moves all six rows together and vanishes under this operation. The encoder is not being asked
+to predict the average trial, so it is neither charged nor credited for it. The denominator
+`sum M^2` is therefore the size of the position-DIFFERENTIAL signal, which is also why a session with
+strong overall activity but no position tuning collapses it (guarded: `tot <= 1e-12` returns NaN).
+
+Not to be confused with the ROW-centring in the crossnobis matrices, which subtracts each row's mean
+across the reference-position COLUMNS. Same spirit -- remove what is common, keep what discriminates
+-- but a different axis of a different matrix.
+
+It also means the CEILING's shortfall from 1.0 is entirely sampling noise in the half-session means,
+which is why halving the trials lowers it and why the size-matched arm was needed at all.
+
+**ENGAGED TRIALS ONLY, AND NOT SYMMETRICALLY.** The terminal quit period is excluded everywhere
+(`~not_eng`, the reference-restricted backdated gate). But the two sides are not the same trial
+class:
+
+* the PRE-STROKE reference is built from LICK trials only;
+* the post-stroke set is `working` = lick PLUS miss-while-working.
+
+That is deliberate -- a pre-stroke animal is not missing, so `working` would add almost nothing and
+would make the reference a different KIND of trial from itself -- but it does mean **the template is
+made of successful trials and is scored against a set that includes failures.** At far-contralateral
+acutely that set is mostly failures, which is exactly the population the deficit lives in. It is the
+right comparison for "does the old template describe what the animal is doing now", and it is not a
+like-for-like comparison of two trial classes.
 
 ### Pooled: amplitude recovers, shape does not
 
