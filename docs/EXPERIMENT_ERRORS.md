@@ -33,9 +33,10 @@ records the per-cam counts.
 
 **What it costs.** Nothing on the analysis paths: behavior is DAQ-based (PS92 scored 389 trials /
 6 positions normally) and imaging/LocaNMF rides the `pco_exposure` clock — both independent of the
-Blackfly frames. The cost falls on camera-derived products for PS92 9/8: the cam4 template was not
-written (clips skipped), and any later DLC/orofacial kinematics on this session run on ~9–12% fewer
-frames. The camera→DAQ affine mapping is built on absolute timestamps and is drop-proof, so the
+Blackfly frames. The cost falls on camera-derived products for PS92 9/8: the cam4 template
+failed `quality_ok` (it WAS written — an earlier version of this entry said otherwise — but
+consumers skip a failing template, so clips were skipped), and any later DLC/orofacial kinematics on
+this session run on ~9–12% fewer frames. The camera→DAQ affine mapping is built on absolute timestamps and is drop-proof, so the
 frames that *were* captured still map to DAQ time correctly.
 
 **What we do.** Kept the raw `.avi`/`.camlog` (uploaded and byte-verified on MICROSCOPE). The drops
@@ -49,9 +50,38 @@ Update / antivirus full-scan, backup or cloud-sync software, or any competing fi
 check Event Viewer for disk or USB-controller errors (a drive dropping into error-retry) at that
 time. The abrupt onset at a specific wall-clock minute points to a scheduled/triggered process
 rather than gradual thermal or fill effects. Worth confirming whether it recurs on the afternoon
-slot. The three templates that passed on drop-heavy data (cam1–3, 6–10 ms) are usable but lower
-quality than a clean session's ~1 ms; the drops are concentrated in the final ~17 minutes, so the
-first ~104 minutes of PS92 9/8 camera data are clean.
+slot.
+
+### RESOLVED 2026-09-11 (alignment half) — templates refitted, all four cameras back to ~1.15 ms
+
+The degraded residuals were not an unavoidable consequence of the lost frames. **A camera that drops
+frames also drops GPIO sync EDGES, and a missing edge re-pairs the ITI matcher**, so the bad tail was
+contributing mis-paired anchors to an affine fitted over the whole recording — and one line had to
+split the difference with the 86% of the session that was perfect.
+
+`camera_sync` now fits on anchors from low-drop regions, then discards any remaining anchor whose
+residual says it is mis-paired (both passes gated on `n_frame_drops`, so a clean recording is
+untouched — pinned in `test_camera_sync`). Rebuilt 2026-09-11:
+
+| | before | after | anchors used |
+|---|---|---|---|
+| PS92 cam1 | 6.35 ms | **1.153 ms** | 16167 / 18727 |
+| PS92 cam2 | 7.71 ms | **1.157 ms** | 16167 / 18728 |
+| PS92 cam3 | 9.66 ms | **1.157 ms** | 16167 / 18728 |
+| PS92 cam4 | 13.56 ms, **quality_ok FALSE** | **1.155 ms, PASSES** | 15468 / 18723 |
+| PS93 (all) | 1.15–1.17 ms | unchanged, 18534/18534 | no trim |
+
+That is the same precision PS93 got on a pristine recording. The two maps place the same camera
+instant within **0.9–1.9 ms at one hour**, so this is a precision fix, not a correction of a gross
+error — nothing previously computed from these templates was badly wrong.
+
+**cam4 is now usable for PS92 9/8**, which is what had excluded the session from the DLC frame set.
+The frames themselves are still gone: **use only the first ~104 minutes** (camera t < 6240 s), which
+is **309 of the session's 389 trials (79.4%)**. A survey of all 364 templates found only two others
+built over any drops at all (PS92/PS93 20260606 cam4, 309 and 129 frames) and both were already at
+1.25–1.36 ms, so nothing else needed rebuilding.
+
+**The rig-side trigger above is still open** — this fixes the alignment, not the acquisition.
 
 ---
 

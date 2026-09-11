@@ -193,6 +193,24 @@ sync:
   daq_sync_line: 0            # DAQ digital line0 rising edges == camera CSV col3 LSB rising edges
   behavior_starts_after_daq: true   # align by sync pulses / trial-offset, NOT wall-clock (drift-free)
   strobe_bits: {bit0: 4, bit1: 5, bit2: 6}   # DAQ digital lines encoding spout position
+  # DROPPED-FRAME TRIMMING of the alignment fit (added 2026-09-11, from PS92 20260908).
+  # A camera that is dropping frames also drops GPIO sync EDGES, and a missed edge makes the ITI
+  # matcher pair the wrong two pulses. Those bad anchors then drag the single affine fitted over the
+  # whole recording -- PS92 9/8 was clean for 104 of its 122 minutes and still came out at 6-14 ms
+  # residual against the 1.15 ms its clean sibling PS93 managed, with cam4 failing the gate outright.
+  # So the affine is fitted on anchors from LOW-DROP regions only; every matched edge is still saved,
+  # with a mask recording which ones the fit used. On a recording with no drops every bin is clean and
+  # this is a no-op by construction (pinned in test_camera_sync).
+  drop_trim:
+    bin_s: 10.0            # window for the local drop rate; fine enough to localise a tail failure
+    max_drop_pct: 1.0      # a bin above this is not trusted to supply anchors
+    min_clean_frac: 0.5    # below this, DO NOT trim -- a short lever arm gives a confidently wrong
+                           # slope, and a mostly-broken recording should fail the gate, not be rescued
+    resid_outlier_ms: 3.0  # a SECOND pass, because the drop-rate mask alone is not enough: losing one
+                           # GPIO edge re-pairs the ITI matcher GLOBALLY, so mis-paired anchors turn up
+                           # far from the damage. An honest anchor sits within ~1-2 ms of the line and
+                           # a mis-pairing lands an ITI away (100s of ms) -- the gap is wide, so a fixed
+                           # threshold is safe where a percentile would not be. Drops only.
 
 dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD rig. The earlier
                               # 2pRAM cohort's project (MICROSCOPE/Priya/DeepLabCut/DLC_train_config)

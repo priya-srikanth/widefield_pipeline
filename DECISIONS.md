@@ -7875,3 +7875,81 @@ different things and should not be quoted without the split.
 
 Built on branch `encoder/ceiling` so the 2026-09-10 render was not chasing a moving figure set;
 merged once that was confirmed safe. Full working notes: `docs/ENCODER_CEILING.md`.
+
+---
+
+## 2026-09-11 — The alignment fit excludes anchors from frame-dropping stretches
+
+PS92 2026-09-08 dropped frames on all four cameras for the last ~18 of its 122 minutes. The
+acquisition incident is in [`docs/EXPERIMENT_ERRORS.md`](docs/EXPERIMENT_ERRORS.md); this is the
+analysis half.
+
+### The thing that was not obvious
+
+`camera_sync`'s docstring already says the mapping "rides through" dropped frames, and it is right
+about the mechanism it describes: the affine is built on absolute camera TIMESTAMPS, so a lost frame
+removes an anchor without shifting the time axis. That is why the templates were built at all.
+
+But **a camera that drops frames also drops GPIO sync EDGES**, and a missing edge is not just a lost
+anchor. `align_edge_sequences` matches on the *sequence* of inter-pulse intervals, so losing one
+pulse can re-pair edges — including edges far from the damage. Those mis-paired anchors were then
+least-squares-fitted alongside the good ones, and one line had to split the difference:
+
+| | PS92 9/8 (dropping) | PS93 9/8 (clean, same rig, same morning) |
+|---|---|---|
+| cam1 | 6.35 ms | 1.153 ms |
+| cam2 | 7.71 ms | 1.163 ms |
+| cam3 | 9.66 ms | 1.156 ms |
+| cam4 | **13.56 ms, `quality_ok` FALSE** | 1.165 ms |
+
+86% of PS92's session was flawless and every camera came out 6-12x worse than its clean sibling.
+
+### Two passes, both gated on `n_frame_drops`
+
+**Drop-rate mask** (`clean_edge_mask`) — bin `frame_id` discontinuities in TIME, exclude anchors from
+bins above `max_drop_pct`. Binning by time rather than by row keeps the bins meaning the same thing
+whatever the drop rate.
+
+**Residual pass** (`robust_fit_mask`) — and this one is necessary, which took a measurement to learn.
+On a synthetic 50% mid-session dropout, **every matched anchor sat in a clean bin and the fit still
+landed at 214 ms**: the re-pairing shows up outside the damaged stretch. So: fit, discard anchors
+whose residual says they are mis-paired, refit.
+
+**The threshold has to survive the contamination it is measuring.** A fixed 3 ms cut fails on the
+first iteration — a least-squares line pulled by one gross outlier leaves *every* honest anchor above
+it (40 anchors, one an ITI out, puts the rest at ~11 ms), so the whole set gets rejected and the
+guard gives up. Scaling by `5 x median(|residual|)` keeps the cut loose while the fit is bad and lets
+it tighten to the fixed floor once it is clean.
+
+**Neither pass will trim below `min_clean_frac` (0.5).** A slope fitted over a short span
+extrapolates badly to the rest of a two-hour recording; a recording that far gone should fail
+`quality_ok` and be reported, not polished until it looks fine.
+
+### It is a no-op where there is nothing to trim
+
+Both passes only run when `n_frame_drops > 0`, so every clean session's template is exactly what it
+was. That is what made it safe to enable for all sessions at once rather than as a per-session
+override, and it is pinned by test rather than asserted: rebuilding PS93 9/8 returns 18534/18534
+anchors and an unchanged residual.
+
+### Result
+
+PS92 9/8: **6.35 / 7.71 / 9.66 / 13.56 ms -> 1.153 / 1.157 / 1.157 / 1.155 ms**, cam4 now passing.
+The two maps place the same camera instant within **0.9-1.9 ms at one hour** — a precision fix, not a
+correction of a gross error, so nothing previously computed from these templates was badly wrong.
+
+Every matched edge is still saved; `matched_in_fit` records which ones the fit used, alongside
+`n_fit_edges`, `drop_trim_applied`, `clean_edge_frac`, `resid_ms_rms_all` and the fit window. A
+reader who wants to re-fit differently must not find the excluded anchors already discarded.
+
+### Scope, so this is not oversold
+
+These templates have exactly two consumers — `behavior_clips` (example clips, cam1) and `dlc_frames`
+(the DLC labelling set). **Neither is in the nightly LocaNMF/decode/encode path**, which rides the
+`pco_exposure` clock, and behavior scoring is DAQ-based. What this unblocks is PS92 9/8 for the DLC
+frame set, which cam4's failing template had excluded. The frames are still gone: only the first
+~104 minutes (camera t < 6240 s) are usable, which is 309 of 389 trials.
+
+Of all 364 templates on the share, six were built over a recording with any drops: the four above,
+plus PS92/PS93 20260606 cam4 at 309 and 129 frames, already at 1.25-1.36 ms. Nothing else needed
+rebuilding.
