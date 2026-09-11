@@ -221,12 +221,13 @@ CHRONIC_LEVEL_MIN = {k: (None if v is None else float(v)) for k, v in
 _FLAT_TXT = (f"|slope| <= {CHRONIC_K_SD:.4g} x pre-stroke SD/session"
              if CHRONIC_FLAT_MODE == "rate" else
              f"total drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD")
+_LEVEL_TXT = " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
+                        if CHRONIC_LEVEL_MIN.get(k) is not None)
 CHRONIC_RULE = (
-    f"{RULE_POSITION} hit rate AND licks/trial both flat ({_FLAT_TXT}), recovered (>= "
-    + " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
-                 if CHRONIC_LEVEL_MIN.get(k) is not None)
-    + f" of baseline) and settled (residual <= {CHRONIC_K_RES:.4g} x pre-stroke SD) from this "
-      f"session onward, on engaged trials")
+    f"{RULE_POSITION} hit rate AND licks/trial both flat ({_FLAT_TXT}), "
+    + (f"recovered (>= {_LEVEL_TXT} of baseline), " if _LEVEL_TXT else "")
+    + f"and settled (residual <= {CHRONIC_K_RES:.4g} x pre-stroke SD) from this session onward, "
+      f"on engaged trials; the plateau may not start before that animal's subacute onset")
 #: Per series, as a fraction of that animal's pre-stroke baseline. Hit rate uses Priya's original
 #: by-eye bar ("> 90% pre-stroke baseline"), which also lands at a consistent 1.3-2.0 SD across
 #: animals. Licks are looser in fraction terms because they are intrinsically noisier; 1.00 would
@@ -560,7 +561,7 @@ def _is_flat(tail, sd_pre):
     return abs(slope * (len(tail) - 1)) <= CHRONIC_K_DRIFT * sd_pre, slope, resid
 
 
-def _plateau_index(series, sd_pre, level_min):
+def _plateau_index(series, sd_pre, level_min, *, days=None, min_day=None):
     """Earliest index whose tail -- AND every later tail -- is flat, recovered and settled.
 
     The persistence requirement is not decoration. The three conditions are not monotone in the
@@ -569,17 +570,26 @@ def _plateau_index(series, sd_pre, level_min):
     "First index that passes" would report day 2. "First index from which it never stops passing"
     reports nothing, which is correct.
 
-    ``level_min`` OF None DROPS THE RECOVERED TEST, and the cost is specific rather than
-    philosophical: PS94's licking is flat at 0% of baseline for its first five post-stroke sessions
-    and flat at ~50% from day 9. With no level bar, "flat" alone calls the first of those a plateau
-    at DAY 1 and the second at day 9 -- an animal that never licked, entering the chronic epoch.
-    Stably impaired is not recovered. Measured 2026-09-10: dropping both level bars moves NO derived
-    boundary for any of the four animals, because every current blocker is FLAT, so the bars can be
-    removed only at a cost and with no benefit on this cohort.
+    ``min_day`` REFUSES TO START THE PLATEAU BEFORE THE SUBACUTE TRANSITION, and it is what makes
+    ``level_min`` of None safe. The objection to dropping the level bar was that PS94's licking is
+    flat at 0% of baseline for its first five post-stroke sessions, so "flat" alone would call day 1
+    a plateau -- an animal that never licked, entering the chronic epoch. Those sessions are ACUTE by
+    construction, so a candidate floor at `subacute_from` excludes them without a level test.
+
+    Priya, 2026-09-10: "I have had prior stroke animals that plateau well below pre-stroke baseline,
+    this is why I'm saying the plateau (defined AFTER the acute to subacute transition) should be
+    enough." A level bar encodes "recovered to near baseline", which is a different claim from
+    "stopped changing" and is not true of every animal that has finished recovering. Chronic is the
+    second claim.
+
+    ``level_min`` of None therefore drops the recovered test entirely; the floor does the work the
+    bar was doing, and does it without asserting where an animal must end up.
     """
     if sd_pre <= 0:
         return None
     cand = [i for i in range(len(series)) if len(series) - i >= CHRONIC_MIN_TAIL]
+    if min_day is not None and days is not None:
+        cand = [i for i in cand if days[i] >= min_day]
     ok = {}
     for i in cand:
         tail = series[i:]
@@ -706,7 +716,10 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
                 days.append(None)
                 continue
             sd = _pstdev(pre)
-            idx = _plateau_index([v for _d, v in post], sd, CHRONIC_LEVEL_MIN.get(name))
+            # THE FLOOR IS THAT ANIMAL'S OWN SUBACUTE ONSET, not a constant: PS95 leaves acute on
+            # day 2 and PS94 on day 9, and a shared floor would be arbitrary for both.
+            idx = _plateau_index([v for _d, v in post], sd, CHRONIC_LEVEL_MIN.get(name),
+                                 days=[d for d, _v in post], min_day=spec.get("subacute_from"))
             day = post[idx][0] if idx is not None else None
             tail = [v for _d, v in post[idx:]] if idx is not None else []
             per_series[name] = {"day": day, "sd_pre": sd, "n_post": len(post),

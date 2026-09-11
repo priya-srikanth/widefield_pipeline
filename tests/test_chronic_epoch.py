@@ -47,17 +47,21 @@ def test_a_real_plateau_is_found():
     assert _plateau(PS92_HIT, PS92_HIT_SD) == 7
 
 
-def test_flat_but_impaired_is_not_a_plateau():
-    """THE LEVEL CONDITION. PS94's licking is flatter than PS92's from day 9 and sits at ~47-50% of
-    baseline throughout. A slope-only rule calls that chronic, which would report an animal with a
-    halved lick vigour as recovered.
+def test_a_plateau_below_baseline_now_COUNTS():
+    """THE LEVEL CONDITION, RETIRED 2026-09-10, and this is the case that retired it.
 
-    STILL FAILS AT THE 0.70 BAR the licks level was lowered to on 2026-09-10, and by a wide margin:
-    the tail mean never exceeds 52.5% from any candidate start. The bar moved 0.80 -> 0.70 without
-    reclassifying anybody, which is the measurement this test now also pins."""
-    assert _plateau(PS94_LICKS, PS94_LICK_SD, "licks") is None
-    # and it is the LEVEL that rejects it, not the slope: drop the bar under 47% and it qualifies
-    assert epochs._plateau_index(PS94_LICKS, PS94_LICK_SD, 0.30) is not None
+    PS94's licking is flat from day 9 and sits at ~50% of baseline. Until today a level bar rejected
+    that as "stably impaired, not recovered". Priya: "I have had prior stroke animals that plateau
+    well below pre-stroke baseline, this is why I'm saying the plateau (defined AFTER the acute to
+    subacute transition) should be enough." A level bar asserts where an animal must END UP; chronic
+    is a claim about it having STOPPED CHANGING. Those are different claims and only the second one
+    is chronic.
+
+    So the flat-at-50% series must now register as a plateau -- which is the exact assertion this
+    test used to make in reverse."""
+    assert epochs.CHRONIC_LEVEL_MIN.get("licks") is None, "a licks level bar has come back"
+    assert _plateau(PS94_LICKS, PS94_LICK_SD, "licks") is not None
+    assert sum(PS94_LICKS[6:]) / len(PS94_LICKS[6:]) < 0.55, "the fixture is no longer impaired"
 
 
 def test_a_flat_fit_through_scattered_points_is_not_a_plateau():
@@ -70,9 +74,9 @@ def test_a_flat_fit_through_scattered_points_is_not_a_plateau():
     sd = 0.05
     slope, resid = epochs._fit_line(scattered)
     assert abs(slope) <= epochs.CHRONIC_K_SD * sd, "flat: the fit is dead level"
-    assert sum(scattered) / len(scattered) >= epochs.CHRONIC_LEVEL_MIN["hit"], "recovered"
+    assert epochs._is_flat(scattered, sd)[0], "flat under the drift test too"
     assert resid > epochs.CHRONIC_K_RES * sd, "settled is the condition that must reject it"
-    assert epochs._plateau_index(scattered, sd, epochs.CHRONIC_LEVEL_MIN["hit"]) is None
+    assert epochs._plateau_index(scattered, sd, epochs.CHRONIC_LEVEL_MIN.get("hit")) is None
 
 
 def test_the_plateau_must_persist():
@@ -250,8 +254,17 @@ def test_drift_does_not_care_how_many_sessions_the_window_holds(monkeypatch):
         "rate no longer depends on sampling density; this test guards nothing"
 
 
-def test_dropping_the_level_bar_lets_a_never_licking_animal_plateau():
-    """Why `level_min: null` is not free. PS94 licked ~0 for five sessions; flat is not recovered."""
+def test_the_subacute_floor_is_what_stops_a_never_licking_animal_plateauing():
+    """The guard that REPLACED the level bar, on the case that motivated it.
+
+    PS94 licked ~0 for its first five post-stroke sessions. With no level bar, "flat" alone calls
+    that a plateau at DAY 1 -- an animal that never licked, entering the chronic epoch. Those
+    sessions are ACUTE (PS94's acute range is days 1-7), so a candidate floor at that animal's own
+    `subacute_from` excludes them by construction, without asserting anything about where licking
+    has to end up.
+
+    This is the whole reason the level bar could be retired rather than merely lowered."""
+    days = [1, 2, 3, 4, 5]
     flat_at_zero = [0.00, 0.00, 0.00, 0.00, 0.00]
-    assert epochs._plateau_index(flat_at_zero, 0.341, epochs.CHRONIC_LEVEL_MIN["licks"]) is None
-    assert epochs._plateau_index(flat_at_zero, 0.341, None) == 0
+    assert epochs._plateau_index(flat_at_zero, 0.341, None) == 0, "unguarded, it plateaus at day 1"
+    assert epochs._plateau_index(flat_at_zero, 0.341, None, days=days, min_day=9) is None,         "the subacute floor did not reject an all-acute window"

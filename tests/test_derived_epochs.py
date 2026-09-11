@@ -197,8 +197,18 @@ def test_the_rule_text_is_built_from_the_constants():
     the rule a figure set claims to be the output of. A hand-written copy would go stale the first
     time a threshold was tuned in YAML, and would then assert something false in a published deck."""
     assert f"{epochs.CHRONIC_K_RES:.4g}" in epochs.CHRONIC_RULE
-    assert f"{100 * epochs.CHRONIC_LEVEL_MIN['hit']:.0f}%" in epochs.CHRONIC_RULE
     assert epochs.RULE_POSITION in epochs.CHRONIC_RULE
+    # THE FLAT TEST AND THE LEVEL BARS BOTH APPEAR ONLY IF THEY APPLY, so the sentence cannot claim
+    # a threshold that is switched off. Level bars were retired 2026-09-10; the subacute floor that
+    # replaced them is unconditional and must always be stated.
+    for k in ("hit", "licks"):
+        v = epochs.CHRONIC_LEVEL_MIN.get(k)
+        claimed = f"{100 * v:.0f}%" in epochs.CHRONIC_RULE if v is not None else True
+        assert claimed, f"the {k} level bar is set to {v} and the rule text does not say so"
+        if v is None:
+            assert "recovered (" not in epochs.CHRONIC_RULE,                 "the rule still claims a recovered test that is switched off"
+    assert "subacute onset" in epochs.CHRONIC_RULE
+    assert ("total drift" in epochs.CHRONIC_RULE) == (epochs.CHRONIC_FLAT_MODE == "drift")
 
 
 def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
