@@ -3671,6 +3671,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " SPARED positions (near-ipsi +0.862, far-middle +0.845) where the row-centred value is"
          " ~0 -- that is a global gain change, not reorganisation, and it is the reason this panel"
          " exists."),
+        ("epoch_8rz_matrices_crossnobis_rownorm_*_*.png",
+         "Crossnobis geometry, row-NORMALISED (scale-free)",
+         "The row-centred matrix with every row also divided by its own SD across columns, so each"
+         "row is a z-profile and a cell reads 'how many row-SDs from this row's mean'. Row-centring"
+         "alone is NOT scale-free: writing the row out, the position-dependent term scales linearly"
+         "with that position's response amplitude, so row-centred values are comparable across"
+         "epochs in SIGN and RANK but not in MAGNITUDE -- and amplitude moved hard (fitted"
+         "amplitude factor a: 0.94 pre-stroke to 0.36 acute, post-cue). This figure is magnitude-"
+         "comparable and deliberately throws away HOW FAR a position moved, which the two preceding"
+         "families still carry. Read direction here, distance there."),
+        ("epoch_8rzdiag_matrices_crossnobis_rownorm_*_*.png",
+         "Row-normalised crossnobis, own position",
+         "The diagonal: how many row-SDs the own-position cell sits from that row's mean. More"
+         "negative = the position still resembles its own pre-stroke pattern more than it resembles"
+         "the others, which is the pre-stroke state."),
+        ("epoch_8rzdiagdelta_matrices_crossnobis_rownorm_*_*.png",
+         "Row-normalised crossnobis, own position, change from pre-stroke",
+         "Scale-free, so these deltas are comparable between epochs even where amplitude is not."),
         ("epoch_10c_matrices_best_match_destination_*_*.png",
          "Where each position's best pre-stroke match went",
          "For every session, each post-stroke position's pattern is matched to whichever"
@@ -3747,15 +3765,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "Best match per position, change from pre-stroke",
          None),
         ("epoch_11_encoder_gain_shape_*_*.png",
-         "Encoder variance and gain by epoch",
+         "Encoder explained variance, before and after one best rescale",
          "Explained variance of the position encoder and its fitted gain term, per session and"
          "averaged within epoch. Separating gain from shape asks whether the post-stroke"
          "representation is the same pattern scaled down or a different pattern altogether."),
         ("epoch_11delta_encoder_gain_shape_*_*.png",
-         "Encoder variance and gain, change from pre-stroke",
+         "Encoder explained variance, change from pre-stroke",
          None),
         ("epoch_11amp_encoder_amplitude_*_*.png",
-         "Fitted encoder gain by epoch (1.0 = no amplitude change)",
+         "Fitted AMPLITUDE factor a (1.0 = unchanged, below 1 = SMALLER)",
          "H11's MIDDLE PANEL, by epoch. `_enc_terms` returns (raw, a, gain, per-position)"
          " and the epoch figures had been reading only `raw` and `gain` -- transfer before"
          " rescaling and after -- so `a`, the amplitude term the decomposition exists to"
@@ -3770,7 +3788,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "\n\nITS OWN AXIS, not a third bar beside raw and gain: those are"
          " variance-explained on [0, 1] and this is a ratio around 1.0, unbounded above."),
         ("epoch_11ampdelta_encoder_amplitude_*_*.png",
-         "Fitted encoder gain, change from pre-stroke",
+         "Fitted amplitude factor a, change from pre-stroke",
          None),
         ("epoch_11pos_encoder_shape_*_*.png",
          "Encoder shape r² after the gain, per position",
