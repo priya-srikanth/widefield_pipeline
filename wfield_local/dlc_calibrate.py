@@ -60,20 +60,54 @@ MIN_CORNERS = 6
 MAX_CALIB_FRAMES = 120
 
 
-def board_from_config():
-    """The ChArUco board described by ``dlc.board`` -- the metric scale of every result here."""
+def _make_board(spec):
     from cv2 import aruco
+    d = aruco.getPredefinedDictionary(getattr(aruco, spec["dictionary"]))
+    return aruco.CharucoBoard((spec["squares_x"], spec["squares_y"]),
+                              spec["square_mm"], spec["marker_mm"], d)
 
+
+def board_from_config():
+    """The ChArUco board described by ``dlc.board`` -- the fallback when a recording has no sidecar."""
     b = (config.defaults().get("dlc") or {}).get("board") or {}
     spec = {
         "squares_x": int(b.get("squares_x", 6)), "squares_y": int(b.get("squares_y", 6)),
         "square_mm": float(b.get("square_mm", 6.67)), "marker_mm": float(b.get("marker_mm", 5.07)),
         "dictionary": str(b.get("dictionary", ARUCO_DICT)),
     }
-    d = aruco.getPredefinedDictionary(getattr(aruco, spec["dictionary"]))
-    board = aruco.CharucoBoard((spec["squares_x"], spec["squares_y"]),
-                               spec["square_mm"], spec["marker_mm"], d)
-    return board, spec
+    return _make_board(spec), spec
+
+
+def board_for(cal_dir):
+    """The board used for ONE recording: ``board.yaml`` beside it, else ``dlc.board``.
+
+    PER RECORDING, not global, and this is what makes combining recordings possible at all. Two
+    boards can share a dictionary -- ours both use DICT_4X4_50 with overlapping marker ids -- so
+    detecting a recording with the WRONG geometry does not error: it interpolates corners at
+    positions that belong to a different board and returns them confidently. The only defence is
+    that each recording carries its own spec, which is also why `dlc_board` prints the spec onto the
+    board itself.
+    """
+    import yaml
+
+    side = Path(cal_dir) / "board.yaml"
+    if side.exists():
+        b = yaml.safe_load(side.read_text(encoding="utf-8")) or {}
+        spec = {"squares_x": int(b["squares_x"]), "squares_y": int(b["squares_y"]),
+                "square_mm": float(b["square_mm"]), "marker_mm": float(b["marker_mm"]),
+                "dictionary": str(b.get("dictionary", ARUCO_DICT))}
+        return _make_board(spec), spec
+    return board_from_config()
+
+
+def write_board_sidecar(cal_dir, spec) -> Path:
+    """Record which board a recording used, beside the recording."""
+    import yaml
+
+    side = Path(cal_dir) / "board.yaml"
+    assert_writable(side.parent)
+    side.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+    return side
 
 
 def detect(cal_dir, step: int = 25, pattern: str = "cam*.avi"):
@@ -88,7 +122,7 @@ def detect(cal_dir, step: int = 25, pattern: str = "cam*.avi"):
     import cv2
     from cv2 import aruco
 
-    board, _ = board_from_config()
+    board, _ = board_for(cal_dir)
     det = aruco.CharucoDetector(board)
     vids = sorted(Path(cal_dir).glob(pattern))
     if not vids:
