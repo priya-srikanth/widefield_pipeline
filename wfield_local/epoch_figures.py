@@ -1439,7 +1439,7 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
         # THE BASELINE TICK IS NAMED, not numbered. Leaving it as "-2" invites reading it as a
         # day two before the lesion, when it is every pre-stroke session at once.
         post = [d for d in days_all if d > 0]
-        ticks = [PRE_X] + [d for d in post if d % 2 == 1]
+        ticks = [PRE_X] + _thin_day_ticks(post)
         ax.set_xticks(ticks)
         ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
         ax.set_title((tick_labels or positions)[i], fontsize=FS_ANNOT)
@@ -1465,6 +1465,29 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
     _save_png_svg(fig, q_)
     plt.close(fig)
     return q_
+
+
+def _thin_day_ticks(post, max_ticks=9):
+    """Tick the days that were RECORDED, thinned by index -- never by parity.
+
+    This used to be ``[d for d in post if d % 2 == 1]``, which reads as "every other day" and is
+    not: the schedule runs 1 2 3 4 5 7 9 11 15 18 22 25, so an odd-number filter keeps 1 3 5 7 9 11
+    15 and silently drops 2, 4, 18, 22 and 25. The visible symptom was an axis whose ticks stopped
+    after day 15 while the data carried on to 25 (Priya, 2026-09-10), which reads as "no sessions
+    after day 15" rather than as a thinning rule.
+
+    Thinning by INDEX cannot do that: it keeps a subset of days that exist, spaced evenly in
+    sessions rather than in calendar days, and always keeps the LAST one so the axis ends where the
+    data ends.
+    """
+    post = sorted(post)
+    if len(post) <= max_ticks:
+        return post
+    step = -(-len(post) // max_ticks)          # ceil, so the result never exceeds max_ticks
+    keep = post[::step]
+    if post[-1] not in keep:
+        keep.append(post[-1])
+    return keep
 
 
 def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_labels=None,

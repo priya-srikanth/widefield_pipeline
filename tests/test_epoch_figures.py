@@ -651,3 +651,25 @@ def test_row_centring_removes_the_row_mean_but_keeps_the_contrast():
     C = M - np.nanmean(M, axis=1, keepdims=True)
     assert np.allclose(np.nanmean(C, axis=1), 0.0)
     assert np.allclose(np.diff(M, axis=1), np.diff(C, axis=1))
+
+
+def test_day_ticks_are_thinned_by_index_not_by_parity():
+    """The axis must end where the DATA ends. Symptom: no ticks after day 15 (Priya, 2026-09-10).
+
+    The cohort schedule is 1 2 3 4 5 7 9 11 15 18 22 25. An odd-number filter -- which is what the
+    code did, and which reads as "every other day" -- keeps 1 3 5 7 9 11 15 and drops 2, 4, 18 and
+    22, so the labelled axis appeared to stop at 15 while three more sessions were plotted past it.
+    """
+    from wfield_local.epoch_figures import _thin_day_ticks
+
+    sched = [1, 2, 3, 4, 5, 7, 9, 11, 15, 18, 22, 25]
+    ticks = _thin_day_ticks(sched)
+    assert ticks[-1] == 25, "the last recorded day must be ticked"
+    assert set(ticks) <= set(sched), "a tick was placed on a day with no session"
+    assert len(ticks) <= 9
+
+    # a short schedule is ticked in full, not thinned for its own sake
+    assert _thin_day_ticks([1, 2, 3, 5, 9]) == [1, 2, 3, 5, 9]
+
+    # and the old rule is genuinely gone: it would have ticked day 7 and not day 22
+    assert not all(d % 2 == 1 for d in ticks), "still filtering by parity"
