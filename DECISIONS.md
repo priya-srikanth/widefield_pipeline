@@ -8006,3 +8006,82 @@ prompted the question. PS92 20260908 now has 36 clips (not 38 — the health fil
 
 `behavior_clips` uses **cam4**, not cam1. I said cam1 twice while tracing this; cam4 is the camera
 whose failing template skipped the session, which is what made the two facts line up.
+
+---
+
+## 2026-09-11 — The 26 mm 7x7 board calibrates all four cameras, and reprojection error was the wrong number to judge it by
+
+Priya re-recorded with `charuco_7x7_26mmboard_3.7mmsq.pdf` at 1200 dpi
+(`Widefield_calibration_20260911_26mm_7x7_1200dpi_charuco`). **It works**, and the board-size
+prediction from 2026-09-10 held with room to spare:
+
+| cam | max ChArUco corners: 40 mm 6x6 -> 26 mm 7x7 | predicted | intrinsic poses | verdict |
+|---|---|---|---|---|
+| cam1 | **6 -> 23** | ~16 | 193 | OK |
+| cam2 | 24 -> 36 | — | 83 | OK |
+| cam3 | 25 -> 36 | — | 54 | OK |
+| cam4 | **9 -> 29** | ~25 | 117 | OK |
+
+All six camera pairs are connected on ChArUco corners too (51-162 poses with >=8 shared), so nothing
+about the recording is thin.
+
+### The principal point is now MEASURED, not assumed
+
+Each camera records a crop off a 1280x1024 sensor, and the optical axis is at the SENSOR centre — so
+in frame coordinates the principal point is `sensor_centre - roi_offset`, which is a measurement.
+Read off the FLIR settings snapshots, with serial->cam taken from the acquisition workflow itself
+(`mobile_spout_behavior/bonsai/…_cam4first.bonsai`) and **not** from frame size:
+
+| cam | serial | ROI | principal point | vs frame centre |
+|---|---|---|---|---|
+| cam1 | 23336444 | 600x600 @ (440,312) | (200, 200) | **(-100, -100)** |
+| cam2 | 24143771 | 600x450 @ (188,236) | (452, 276) | **(+152, +51)** |
+| cam3 | 24143772 | 600x450 @ (344,252) | (296, 260) | (-4, +35) |
+| cam4 | 23336442 | 680x680 @ (308,132) | (332, 380) | (-8, +40) |
+
+**cam2 and cam3 are both 600x450 and their offsets differ by 156 px**, so identifying them by frame
+size would have had a coin-flip chance of putting a confident 150 px error on one of them — worse
+than assuming the centre. `dlc.sensor.roi` records the size and `measured_principal_point` refuses to
+use the offset if it disagrees with the actual video, so a re-cropped camera degrades to the old
+behaviour instead of silently poisoning the solve.
+
+### It barely helped, and that is worth recording
+
+Bundle-adjusted reprojection went 4.833 -> 4.787 px. The per-camera intrinsic RMS improved (cam2
+0.400 -> 0.358) but the joint solve did not. **My hypothesis that the principal point was driving the
+error was wrong.** So were the next two:
+
+- *Not co-visibility*: all six pairs have 51-162 usable poses.
+- *Not the intrinsics being under-determined*: letting the bundle adjustment refine them makes it
+  slightly WORSE (4.689 -> 4.757) while the focal lengths drift by 300-500 px, which says the
+  objective is flat in those directions rather than pulling toward a better answer.
+- *Not outliers*: aniposelib's reported figure is `average_error(..., median=True)`, a median over
+  points, not a mean.
+
+### The number that actually decides: triangulate the board and measure it
+
+Reprojection error is in pixels, and a pixel means something different on a camera at f=5490 than at
+f=1770. The calibration exists to turn 2D keypoints into millimetres, so measure a known length —
+the ChArUco square is 3.71 mm. Over 118 board views triangulated across >=3 cameras (1573 neighbour
+pairs):
+
+    measured square = 3.687 mm   (SD 0.038)
+    scale error     = -0.6%
+    precision       = 38 um SD on a 3.71 mm length
+
+**38 µm on a snout-scale length is comfortably good enough for 3D orofacial tracking**, and it
+settles the question the 4.8 px could not: a median 4.8 px reprojection is only ~0.05° at f=5490, and
+four cameras average it down.
+
+**So the depth/tilt sweep is NOT required.** The 2026-09-10 advice was right about what makes
+intrinsics identifiable in principle and wrong to treat as a gate on usability — the free-principal-
+point solve still fails `intrinsics_quality`, and it does not matter, because the principal point is
+now measured rather than fitted. Judge a calibration by reconstructed millimetres, not by pixels.
+
+### The residual -0.6% is probably the PRINT, and is checkable
+
+A uniform scale error is exactly what a printer that scales by 99.4% produces, and `dlc_board` prints
+a **100 mm ruler** on the sheet for this reason. If that ruler measures 99.4 mm, the fix is to correct
+`square_mm` in `board.yaml` and re-solve — no re-recording. Until then every reconstructed distance
+carries a -0.6% systematic, which matters for absolute measurements and cancels in any ratio or
+within-session comparison.

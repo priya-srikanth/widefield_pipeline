@@ -62,6 +62,7 @@ from pathlib import Path
 
 import numpy as np
 
+from wfield_local import config
 from wfield_local.dlc_calibration import (
     CAM_RE,
     POSE_GAP_S,
@@ -296,7 +297,32 @@ def gate(recordings) -> dict:
     return out
 
 
-def intrinsics_quality(K, dist, size) -> dict:
+def measured_principal_point(cam, size):
+    """The optical axis in FRAME coordinates, from the recorded ROI -- or ``None`` if not known.
+
+    Each camera records a crop off a 1280x1024 sensor and the optical axis is at the SENSOR centre,
+    so in frame coordinates the principal point is ``sensor_centre - roi_offset``. That is a
+    measurement; the frame centre is an assumption, and on this rig it is wrong by 141 px on cam1 and
+    160 px on cam2 -- error the solve then has to absorb into focal length and distortion.
+
+    **The recorded ROI size is checked against the actual frame.** A camera re-cropped without
+    updating ``dlc.sensor.roi`` would otherwise contribute a confident ~150 px offset in the wrong
+    place, which is worse than assuming the centre. A mismatch returns None and the caller falls back.
+    """
+    sen = (config.defaults().get("dlc") or {}).get("sensor") or {}
+    roi = (sen.get("roi") or {}).get(cam)
+    if not roi or not sen.get("width"):
+        return None
+    if (int(roi["w"]), int(roi["h"])) != (int(size[0]), int(size[1])):
+        print(f"[dlc_anipose] {cam}: dlc.sensor.roi says {roi['w']}x{roi['h']} but the video is "
+              f"{size[0]}x{size[1]} -- the camera was re-cropped and the config was not updated. "
+              f"Falling back to the frame centre for the principal point.", flush=True)
+        return None
+    return (float(sen["width"]) / 2.0 - float(roi["x"]),
+            float(sen["height"]) / 2.0 - float(roi["y"]))
+
+
+def intrinsics_quality(K, dist, size, expect_pp=None) -> dict:
     """Is this K IDENTIFIABLE, as distinct from well-fitting? See ``MAX_PP_OFFSET``.
 
     Reported alongside every solve because reprojection error cannot distinguish a calibration from
@@ -304,15 +330,20 @@ def intrinsics_quality(K, dist, size) -> dict:
     """
     cx, cy = float(K[0, 2]), float(K[1, 2])
     fx, fy = float(K[0, 0]), float(K[1, 1])
-    off = float(np.hypot(cx - size[0] / 2, cy - size[1] / 2) / max(size))
+    # Measured against the ROI-derived optical axis where we have it, the frame centre otherwise.
+    # On this rig the two differ by up to 0.24 image widths, so scoring a correct solve against the
+    # frame centre would flag it as a failure.
+    ref = expect_pp if expect_pp is not None else (size[0] / 2, size[1] / 2)
+    off = float(np.hypot(cx - ref[0], cy - ref[1]) / max(size))
     k1 = float(np.ravel(dist)[0])
     aspect = abs(fx - fy) / max(fx, fy)
     inside = 0 <= cx < size[0] and 0 <= cy < size[1]
+    where = "the measured optical axis" if expect_pp is not None else "the frame centre"
     problems = []
     if not inside:
         problems.append(f"principal point ({cx:.0f},{cy:.0f}) is OUTSIDE the {size[0]}x{size[1]} frame")
     elif off > MAX_PP_OFFSET:
-        problems.append(f"principal point is {off:.2f} image-widths off centre (max {MAX_PP_OFFSET})")
+        problems.append(f"principal point is {off:.2f} image-widths from {where} (max {MAX_PP_OFFSET})")
     if aspect > MAX_ASPECT_ERROR:
         problems.append(f"fx={fx:.0f} and fy={fy:.0f} differ by {aspect * 100:.1f}%, i.e. a "
                         f"non-square pixel -- these sensors have square pixels")
@@ -357,7 +388,19 @@ def pooled_intrinsics(recordings, cam, flags: int = 0):
     if len(obj) > MAX_VIEWS:
         k = np.linspace(0, len(obj) - 1, MAX_VIEWS).round().astype(int)
         obj, img = [obj[j] for j in k], [img[j] for j in k]
-    rms, K, dist, _, _ = cv2.calibrateCamera(obj, img, tuple(size), None, None, flags=flags)
+
+    K0, d0 = None, None
+    if flags & cv2.CALIB_FIX_PRINCIPAL_POINT:
+        # CALIB_FIX_PRINCIPAL_POINT pins pp to the IMAGE CENTRE unless CALIB_USE_INTRINSIC_GUESS is
+        # also set and a matrix supplied -- so the measured optical axis has to be seeded here or it
+        # is silently ignored. Focal length is seeded from the data and left free.
+        pp = measured_principal_point(cam, size)
+        if pp is not None:
+            K0 = cv2.initCameraMatrix2D(obj, img, tuple(size))
+            K0[0, 2], K0[1, 2] = pp
+            d0 = np.zeros(5)
+            flags |= cv2.CALIB_USE_INTRINSIC_GUESS
+    rms, K, dist, _, _ = cv2.calibrateCamera(obj, img, tuple(size), K0, d0, flags=flags)
     return K, dist, float(rms), len(obj), sources
 
 
@@ -485,11 +528,16 @@ def solve(cal_dirs, step: int = 10, assume_rig_unmoved: bool = False, refresh: b
             print(f"    {cam}: {exc}", flush=True)
             continue
         usable.append(cam)
-        qual[cam] = intrinsics_quality(K[cam], dist[cam], _any_size(recordings, cam))
+        sz = _any_size(recordings, cam)
+        pp = measured_principal_point(cam, sz)
+        qual[cam] = intrinsics_quality(K[cam], dist[cam], sz, pp)
+        qual[cam]["measured_pp"] = list(pp) if pp else None
         f = (K[cam][0, 0] + K[cam][1, 1]) / 2
         where = ", ".join(f"{k}:{v}" for k, v in src[cam].items())
-        print(f"    {cam}: {nviews[cam]:3d} views ({where}), f={f:7.1f} px, RMS {rms[cam]:.3f} px",
-              flush=True)
+        pp_note = (f", pp=({pp[0]:.0f},{pp[1]:.0f}) MEASURED from the ROI"
+                   if pp is not None and fix_principal_point else "")
+        print(f"    {cam}: {nviews[cam]:3d} views ({where}), f={f:7.1f} px, RMS {rms[cam]:.3f} px"
+              f"{pp_note}", flush=True)
         for p in qual[cam]["problems"]:
             print(f"          NOT IDENTIFIABLE: {p}", flush=True)
 

@@ -217,6 +217,29 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # is the weight donor, not the predictor -- see DECISIONS.md
                               # "DLC on the widefield rig". Survey the calibration before trusting
                               # any of this: python -m wfield_local.dlc_calibration
+  # SENSOR GEOMETRY, so the principal point can be MEASURED rather than assumed (2026-09-11).
+  # Every camera records a cropped ROI off a 1280x1024 sensor, and the optical axis is at the SENSOR
+  # centre, not the ROI centre -- so the principal point in frame coordinates is
+  # (sensor_centre - roi_offset). Pinning it to the frame centre instead is wrong by up to 141 px on
+  # cam1 and 160 px on cam2, which the solve then has to absorb somewhere.
+  #
+  # Read off the FLIR settings snapshots in Behavior_cameras/Camera_settings_20260606/
+  # (*_20260805_image_format_control.png). serial -> cam comes from the acquisition workflow itself,
+  # mobile_spout_behavior/bonsai/Priya_bonsai_BlackflyGPIO_4camera_20260603_cam4first.bonsai, NOT
+  # from frame size: cam2 and cam3 are both 600x450 and their offsets differ by 156 px, so guessing
+  # which is which would be worse than not doing this at all.
+  #
+  # `roi.w`/`roi.h` are checked against the actual video before the offset is used. If a camera is
+  # re-cropped and these are not updated, the mismatch is a refusal, not a silent 150 px error.
+  sensor:
+    width: 1280               # Blackfly S BFS-U3-13Y3M
+    height: 1024
+    roi:
+      cam1: {serial: 23336444, w: 600, h: 600, x: 440, y: 312}
+      cam2: {serial: 24143771, w: 600, h: 450, x: 188, y: 236}
+      cam3: {serial: 24143772, w: 600, h: 450, x: 344, y: 252}
+      cam4: {serial: 23336442, w: 680, h: 680, x: 308, y: 132}
+
   cameras:                    # EACH VIEW DECLARES WHAT IT CAN ACTUALLY SEE (Priya, 2026-09-08).
                               # Not one shared list: cam1 looks UP from below and has no nose or
                               # identifiable whiskers, and a side view has only one side's. Labels

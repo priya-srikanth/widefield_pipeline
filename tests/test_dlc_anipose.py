@@ -137,7 +137,7 @@ def test_square_pixels_within_tolerance_pass():
 def test_a_principal_point_inside_the_frame_but_far_off_centre_is_still_refused():
     K = np.array([[1500.0, 0, 560.0], [0, 1500.0, 225.0], [0, 0, 1.0]])
     q = da.intrinsics_quality(K, np.zeros(5), (600, 450))
-    assert not q["identifiable"] and any("off centre" in p for p in q["problems"])
+    assert not q["identifiable"] and any("image-widths from" in p for p in q["problems"])
 
 
 # ------------------------------------------------------------------ what may and may not be pooled
@@ -289,3 +289,32 @@ def test_the_detection_cache_key_moves_with_anything_that_changes_detection():
     assert da._digest(SPEC_40, 10) != da._digest(SPEC_26, 10)
     assert da._digest(SPEC_40, 10) != da._digest(SPEC_40, 25)
     assert da._digest(SPEC_40, 10) == da._digest(dict(SPEC_40), 10)
+
+
+# ------------------------------------------------------------------ the principal point is MEASURED
+
+def test_the_principal_point_comes_from_the_ROI_not_the_frame_centre():
+    """Every camera records a crop off a 1280x1024 sensor and the optical axis is at the SENSOR
+    centre. cam1's ROI is 600x600 at (440,312), so its principal point is at (200,200) in frame
+    coordinates -- 141 px from the frame centre, which is error the solve would have to absorb."""
+    assert da.measured_principal_point("cam1", (600, 600)) == (200.0, 200.0)
+    assert da.measured_principal_point("cam2", (600, 450)) == (452.0, 276.0)
+    assert da.measured_principal_point("cam4", (680, 680)) == (332.0, 380.0)
+
+
+def test_a_RECROPPED_camera_falls_back_rather_than_applying_a_stale_offset():
+    """cam2 and cam3 are both 600x450 and their recorded offsets differ by 156 px, so a stale entry
+    is not a small error -- it is a confident 150 px offset in the wrong direction, which is worse
+    than assuming the frame centre. The ROI size is checked against the actual video."""
+    assert da.measured_principal_point("cam1", (800, 600)) is None
+    assert da.measured_principal_point("cam9", (600, 600)) is None
+
+
+def test_the_identifiability_check_scores_against_the_MEASURED_axis():
+    """cam2's optical axis is 0.25 image-widths from its frame centre. Scored against the centre, a
+    CORRECT solve would be reported as a failure."""
+    K = np.array([[1779.0, 0, 452.0], [0, 1779.0, 276.0], [0, 0, 1.0]])
+    d = np.array([-0.1, 0, 0, 0, 0])
+    assert da.intrinsics_quality(K, d, (600, 450), expect_pp=(452.0, 276.0))["identifiable"]
+    assert not da.intrinsics_quality(K, d, (600, 450))["identifiable"], \
+        "against the frame centre the same solve must look wrong -- that is why expect_pp exists"
