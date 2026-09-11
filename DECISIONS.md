@@ -1847,6 +1847,32 @@ a 600 dpi laser resolves that, but toner spread starts to soften the edges, and 
 corner localisation — the one thing a calibration board is for. Below ~4 mm markers, check a print
 under magnification first. `dlc_board --size-mm 40 --squares 6x6` regenerates any of them.
 
+### CORRECTION: aniposelib is NOT unusable — I asserted that without checking (2026-09-10)
+
+Priya: *"why is anipose unusable?"* It is not. I claimed aniposelib calls
+`cv2.aruco.interpolateCornersCharuco` and `calibrateCameraCharuco`, removed in OpenCV 4.8+, and used
+that to justify writing `dlc_calibrate`. That is true of aniposelib **0.4–0.5**; the current release
+is **0.8.0** and uses the modern `CharucoDetector` / `ArucoDetector` API. Tested against this
+environment's cv2 4.11: board construction, rendering and detection all work, 25/25 corners.
+
+I inferred the incompatibility from OpenCV's API surface and never ran `pip install aniposelib`.
+
+**Disposition.** `dlc_calibrate`'s diagnostics keep their place — reporting ChArUco corners per
+camera is what exposed that the 09-10 recording cannot calibrate the snout cameras while the
+marker-based gate was passing it. Its SOLVE is the weaker half: it chains pairwise extrinsics over a
+spanning tree, where aniposelib does joint bundle adjustment across all cameras simultaneously, and
+aniposelib also provides the triangulation this is ultimately for. **Prefer aniposelib for the
+solve**, keep `dlc_calibrate` for diagnostics and as an independent cross-check.
+
+**Installed 2026-09-10 and verified.** It required the labelling GUI to be closed first — the
+first attempt failed with `WinError 5` on `cv2.pyd` while napari held it open. It pulls
+`opencv-contrib-python`, which moved the `dlc` env from **cv2 4.11 -> 5.0.0**; checked afterwards
+that `CharucoDetector`, `ArucoDetector`, `CharucoBoard.matchImagePoints`, `calibrateCamera`,
+`stereoCalibrate` and `Rodrigues` are all still present, that torch is still 2.11.0+cu128 with CUDA,
+that DeepLabCut 3.0.1 still imports, and that all six `dlc_*` modules still import and run. The
+failed first attempt left `~umpy` / `~umpy.libs` stubs in site-packages; harmless, numpy imports at
+2.2.6, removable when convenient.
+
 ### CORRECTION: markers are not corners, and the 09-10 recording calibrates only cam2/cam3
 
 The verdict below ("usable, pair graph connected") was produced by a gate that measured the wrong

@@ -4,11 +4,23 @@
 per-camera intrinsics (focal length, principal point, distortion) and a rigid transform placing
 every camera in ONE coordinate frame, which is what triangulating DLC keypoints needs.
 
-**Not aniposelib.** It is the obvious choice and it does not work here: it calls
-``cv2.aruco.interpolateCornersCharuco`` and ``calibrateCameraCharuco``, both REMOVED from OpenCV
-4.8+, and this environment has 4.11. Rather than pin the whole stack backwards for one dependency,
-this uses the supported ``CharucoDetector`` / ``matchImagePoints`` path. The output is written in
-anipose's TOML layout anyway, so anipose or aniposelib can consume it if that ever becomes useful.
+**CORRECTION (2026-09-10): aniposelib DOES work here, and this module was written on a claim that
+was wrong.** The claim was that aniposelib calls ``cv2.aruco.interpolateCornersCharuco`` and
+``calibrateCameraCharuco``, removed in OpenCV 4.8+ — true of aniposelib 0.4-0.5, and asserted here
+without checking the current release. **aniposelib 0.8.0 uses the modern ``CharucoDetector`` /
+``ArucoDetector`` API**; tested against this environment's cv2 4.11 it builds a board, renders it and
+detects 25/25 corners.
+
+What that means for this module. Its DIAGNOSTICS earned their place: reporting corners per camera is
+what exposed that the 09-10 recording cannot calibrate the snout cameras, and the marker-based gate
+in ``dlc_calibration`` was passing it. Its SOLVE is the weaker half — it chains pairwise extrinsics
+over a spanning tree, where aniposelib does joint bundle adjustment over all cameras at once, and
+aniposelib also carries the triangulation this is all for. Prefer aniposelib for the solve; keep
+this for the diagnostics and as an independent cross-check, which is worth having on a quantity no
+one can eyeball.
+
+Installing it needs the labelling GUI closed (it holds ``cv2.pyd`` open) and pulls
+``opencv-contrib-python`` over ``opencv-python``.
 
 **The reported number that matters is REPROJECTION ERROR**, in pixels. The pose counts in
 ``dlc_calibration`` are a screening gate -- they say a solve is worth attempting, not that it is
