@@ -5492,6 +5492,96 @@ def _enc_scores(src, ref):
     return _enc_terms(_means(src), _means(ref))
 
 
+def _enc_ceiling(pat, rng, repeats=8):
+    """THE CEILING the frozen encoder is failing against: this session predicting ITSELF, held out.
+
+    WHY THE FROZEN ENCODER NEEDS ONE. `raw` is an R^2 and acutely it is -0.388, which says "worse
+    than predicting the mean" and nothing about whether anything could have done better in that
+    session. The existing companion, `gain`, frees the AMPLITUDE only -- and `_enc_terms`' own
+    docstring warns that a large `gain - raw` is an amplitude story only when `gain` itself is high,
+    because a code that is simply GONE also recovers a lot under rescaling. That ambiguity is what
+    forced the withdrawal of the "half amplitude, half shape" reading on 2026-09-10. A ceiling
+    resolves it: `ceiling - raw` is how much of the failure is the TEMPLATE being wrong, and
+    `1 - ceiling` is how much is the session having no position information to predict at all.
+
+    A REFIT ENCODER MUST BE CROSS-VALIDATED OR IT IS 1.0 BY CONSTRUCTION. Ridge on a one-hot
+    position design reduces to the per-position mean (see `_enc_terms`), so "refit within the
+    session", predicting that session's own means from themselves, is an identity. Splitting the
+    trials is what makes it a prediction -- which also makes this the split-half family scored in the
+    ENCODER's units rather than as a correlation. Deliberately: a correlation is gain-blind and `raw`
+    is not, so the two cannot otherwise be read against each other.
+
+    BOTH ORDERINGS, AVERAGED, over `repeats` random splits. A against B and B against A are two
+    estimates of one quantity differing only in which random half landed on which side;
+    `_split_half_matrix` makes the same argument for the same reason.
+
+    IT IS A PESSIMISTIC CEILING AND MUST BE READ AS ONE. Both sides are half-session means, while
+    `raw` scores a noisy session against a reference pooled over ~10 sessions. The ceiling therefore
+    carries noise on both sides where the frozen arm has it on one, and can sit BELOW `raw`
+    pre-stroke. That is the same training-set-size bracketing the matched frozen DECODER arm exposed,
+    where matching flipped the pre-stroke gap from -0.073 to +0.090. Read `ceiling - raw` against its
+    own pre-stroke value, never against zero.
+    """
+    labels = [q for q in CONF_LABELS if q in pat and len(pat[q]) >= 4]
+    if len(labels) < 2:
+        return (np.nan, np.nan, np.nan, {})
+    got = []
+    for _ in range(repeats):
+        halves = {}
+        for q in labels:
+            Z = np.asarray(pat[q])
+            idx = rng.permutation(len(Z))
+            h = len(Z) // 2
+            halves[q] = (Z[idx[:h]].mean(0), Z[idx[h:2 * h]].mean(0))
+        A = {q: v[0] for q, v in halves.items()}
+        B = {q: v[1] for q, v in halves.items()}
+        for m, ref in ((A, B), (B, A)):
+            t = _enc_terms(m, ref)
+            if np.isfinite(t[0]):
+                got.append(t)
+    if not got:
+        return (np.nan, np.nan, np.nan, {})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        per = {q: float(np.nanmean([t[3][q] for t in got if q in t[3]]))
+               for q in labels if any(q in t[3] for t in got)}
+        return (float(np.nanmean([t[0] for t in got])),
+                float(np.nanmean([t[1] for t in got])),
+                float(np.nanmean([t[2] for t in got])), per)
+
+
+@lru_cache(maxsize=6)
+def _enc_ceiling_tables(align, variant, min_trials=10):
+    """{animal: {"PRE"|day: (ceiling, a, gain, per-position)}} -- the within-session encoder ceiling.
+
+    PRE IS PER-SESSION AND THEN AVERAGED, not a ceiling computed on the pooled reference. The ceiling
+    is a statement about ONE session's own repeatability, so pooling ten of them would measure
+    something else and would sit far above anything a single post-stroke session could reach.
+    """
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        rng = np.random.default_rng(_seed(an, align, variant))
+        rec = {}
+        pre = [_enc_ceiling(pat, rng) for pat in pre_by_sess.values()]
+        pre = [t for t in pre if np.isfinite(t[0])]
+        if pre:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                per = {q: float(np.nanmean([t[3][q] for t in pre if q in t[3]]))
+                       for q in CONF_LABELS if any(q in t[3] for t in pre)}
+                rec["PRE"] = (float(np.nanmean([t[0] for t in pre])),
+                              float(np.nanmean([t[1] for t in pre])),
+                              float(np.nanmean([t[2] for t in pre])), per)
+        for d, pat in by_day.items():
+            t = _enc_ceiling(pat, rng)
+            if np.isfinite(t[0]):
+                rec[d] = t
+        if len(rec) > 1:
+            out[an] = rec
+    return out, days
+
+
 @lru_cache(maxsize=6)
 def _enc_tables(align, variant, min_trials=10):
     """{animal: {"PRE"|day: (raw, a, gain, per-position)}} for the encoder figure, plus days.
