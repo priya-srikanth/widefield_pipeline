@@ -3761,12 +3761,25 @@ def _collect_stopped_pooled(align, min_trials=20):
     the question -- does the cortical pattern during the quit period still look like the pre-stroke
     one -- does not need the position axis at all.
 
-    Returns ``({animal: {"REF": v, "PRE_STOPPED": v|None, day: v}}, days)`` where each value is a
-    380-vector: the mean over that session's stopped trials, no position split.
+    Returns ``({animal: {"REF": v, "PRE_BY_SESS": {mmdd: v}, day: v}}, days)`` where each value is
+    a 380-vector: the mean over that session's stopped trials, no position split.
 
-    ``REF`` IS THE PRE-STROKE ENGAGED MEAN, pooled the same way. Both stopped columns are scored
-    against it, so the pre-stroke stopped column measures how far QUITTING ALONE moves the pattern
-    with no lesion involved, and only the difference between the two is attributable to the lesion.
+    TWO REFERENCES, BECAUSE THEY TRADE OFF AND NEITHER IS STRICTLY BETTER:
+
+      REF           the pre-stroke ENGAGED pooled mean. Available for all four animals, but it
+                    compares a QUITTING animal to a WORKING one, so the pre-stroke stopped column
+                    is needed as the "quitting alone" control before anything can be attributed
+                    to the lesion.
+      PRE_BY_SESS   the pre-stroke STOPPED pattern of each pre-stroke session. Priya, 2026-09-11:
+                    "I want to compare post-stroke stopped to pre-stroke stopped" -- state-matched
+                    on both sides, which is the cleaner contrast. But only PS94 (326 trials) and
+                    PS95 (495) can build one; PS92 has 6 and PS93 has 40, because a well-trained
+                    pre-stroke animal barely quits. No amount of pooling fixes that.
+
+    KEPT PER SESSION, NOT POOLED, for the reason `_collect_7` keeps pre-stroke sessions apart: a
+    pre-stroke session scored against a pool that CONTAINS IT is scored partly against itself, and
+    its bar is then too high by construction. The caller builds a leave-one-session-out reference
+    for the pre column and the full pool for post-stroke days.
 
     A HIGHER FLOOR THAN THE PER-POSITION ARM (20 trials, not 5): a session contributes ONE number
     here, so there is no reason to accept a cell built from five trials, and the whole point of
@@ -3780,7 +3793,7 @@ def _collect_stopped_pooled(align, min_trials=20):
             print(f"  !! stopped-pooled {an} {align}: {type(ex).__name__} {str(ex)[:80]}",
                   flush=True)
             continue
-        rec, ref_parts, pre_parts = {}, [], []
+        rec, ref_parts, pre_by_sess, n_pre = {}, [], {}, 0
         for i, lab in enumerate(bd["kept"]):
             mmdd = lab.split("_")[-1]
             stop = [_session_trials(bd, i, q, "stopped") for q in CONF_LABELS]
@@ -3791,7 +3804,12 @@ def _collect_stopped_pooled(align, min_trials=20):
                 if eng:
                     ref_parts.append(np.vstack(eng))
                 if stop:
-                    pre_parts.append(np.vstack(stop))
+                    Z = np.vstack(stop)
+                    n_pre += len(Z)
+                    # PER SESSION and gated on the SESSION's own count, so a leave-one-out
+                    # reference is a real pattern rather than a handful of trials.
+                    if len(Z) >= min_trials:
+                        pre_by_sess[mmdd] = Z.mean(0)
                 continue
             if not stop:
                 continue
@@ -3805,10 +3823,8 @@ def _collect_stopped_pooled(align, min_trials=20):
             all_days.add(day)
         if not ref_parts or not rec:
             continue
-        d = {"REF": np.vstack(ref_parts).mean(0)}
-        pre_all = np.vstack(pre_parts) if pre_parts else np.zeros((0, 1))
-        d["PRE_STOPPED"] = pre_all.mean(0) if len(pre_all) >= min_trials else None
-        d["PRE_STOPPED_N"] = int(len(pre_all))
+        d = {"REF": np.vstack(ref_parts).mean(0), "PRE_BY_SESS": pre_by_sess,
+             "PRE_STOPPED_N": int(n_pre)}
         d.update(rec)
         out[an] = d
     return out, sorted(all_days)

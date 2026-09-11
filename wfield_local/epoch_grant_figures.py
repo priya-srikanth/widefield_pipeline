@@ -1161,52 +1161,81 @@ def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
             return None
         return float(np.corrcoef(a, b)[0, 1])
 
+    VS_ENG = "vs pre-stroke ENGAGED"
+    VS_STOP = "vs pre-stroke STOPPED"
+    KEYS = [VS_STOP, VS_ENG]
+
+    def _mean_of(by_sess, exclude=None):
+        """Pooled pre-stroke stopped pattern, optionally leaving one session out."""
+        v = [x for k, x in by_sess.items() if k != exclude]
+        return np.mean(np.stack(v), axis=0) if v else None
+
     vals, pts, cov = {}, {}, {}
     for e in ef.PANELS:
-        got = []
+        got = {k: [] for k in KEYS}
         for an, rec in sorted(store.items()):
-            ref = rec.get("REF")
+            ref, by_sess = rec.get("REF"), (rec.get("PRE_BY_SESS") or {})
             if ref is None:
                 continue
             if e == "pre":
-                v = rec.get("PRE_STOPPED")
-                r = _corr(v, ref) if v is not None else None
-                if r is not None:
-                    got.append((an, r))
+                # LEAVE-ONE-SESSION-OUT on BOTH arms. A pre-stroke session scored against a pool
+                # containing itself is scored partly against itself, and the whole pre bar -- which
+                # is the control every post-stroke bar is read against -- would be too high.
+                for mmdd, v in by_sess.items():
+                    r = _corr(v, ref)
+                    if r is not None:
+                        got[VS_ENG].append((an, r))
+                    other = _mean_of(by_sess, exclude=mmdd)
+                    if other is not None:
+                        r2 = _corr(v, other)
+                        if r2 is not None:
+                            got[VS_STOP].append((an, r2))
                 continue
+            full = _mean_of(by_sess)
             for day, v in rec.items():
-                if day in ("REF", "PRE_STOPPED", "PRE_STOPPED_N"):
+                if day in ("REF", "PRE_BY_SESS", "PRE_STOPPED_N"):
                     continue
                 if ef.epoch_of_day(an, int(day)) != e:
                     continue
                 r = _corr(v, ref)
                 if r is not None:
-                    got.append((an, r))
-        if got:
-            vals[e] = {"stopped vs pre-stroke engaged": float(np.mean([v for _a, v in got]))}
-            pts[e] = {"stopped vs pre-stroke engaged": got}
-            cov[e] = {a: sum(1 for x, _v in got if x == a) for a in sorted({x for x, _v in got})}
+                    got[VS_ENG].append((an, r))
+                if full is not None:
+                    r2 = _corr(v, full)
+                    if r2 is not None:
+                        got[VS_STOP].append((an, r2))
+        row = {k: float(np.mean([v for _a, v in got[k]])) for k in KEYS if got[k]}
+        if row:
+            vals[e] = row
+            pts[e] = {k: got[k] for k in row}
+            cov[e] = {a: sum(1 for x, _v in got[VS_ENG] if x == a)
+                      for a in sorted({x for x, _v in got[VS_ENG]})}
     if len(vals) < 2:
         return None
 
     excl = [f"{an} {rec.get('PRE_STOPPED_N', 0)}" for an, rec in sorted(store.items())
-            if rec.get("PRE_STOPPED") is None]
+            if not (rec.get("PRE_BY_SESS") or {})]
+    has = sorted(an for an, rec in store.items() if (rec.get("PRE_BY_SESS") or {}))
     return _scalar_figure(
         out_dir, name=f"epoch_12b_stopped_pooled_similarity_{align}",
         title=("STOPPED trials, POOLED over positions: does the quit-period pattern still look "
                f"like pre-stroke cortex? -- {wname}"),
-        ylabel="pattern correlation vs pre-stroke engaged mean",
-        keys=["stopped vs pre-stroke engaged"], values=vals, points=pts,
-        tick_labels=["pooled stopped\npattern"], ylim=(-0.4, 1.05),
+        ylabel="pattern correlation",
+        keys=KEYS, values=vals, points=pts,
+        tick_labels=["vs pre-stroke\nSTOPPED", "vs pre-stroke\nENGAGED"], ylim=(-0.4, 1.05),
         session_counts=cov,
         notes=["ALL of a session's stopped trials pooled into ONE mean pattern -- no position "
                "split, which is what the per-position stopped arm spends its power on",
-               "scored against that animal's PRE-STROKE ENGAGED pooled mean, so the pre bar is the "
-               "no-lesion control: how far QUITTING ALONE moves the pattern",
+               "LEFT BAR is the state-matched contrast Priya asked for: post-stroke stopped against "
+               "pre-stroke STOPPED. Pre column is leave-one-session-out",
+               "RIGHT BAR scores the same patterns against the pre-stroke ENGAGED mean, so its pre "
+               "bar is the 'quitting alone' control -- how far the pattern moves with no lesion",
                "pooled stopped trials: 867 pre, 1,984 acute, 1,935 subacute, 359 chronic -- per "
                "position the chronic cell would be 36-75"]
-        + (["no pre-stroke stopped bar for " + ", ".join(f"{x} trials" for x in excl)
-            + " -- a well-trained pre-stroke animal barely quits"] if excl else []),
+        + ([f"THE LEFT BAR RESTS ON {', '.join(has)} ONLY: "
+            + ", ".join(f"{x} pre-stroke stopped trials" for x in excl)
+            + " is too few to build a reference from, and a well-trained pre-stroke animal barely "
+              "quits, so pooling cannot fix it"] if excl else []),
         delta_name=f"epoch_12bdelta_stopped_pooled_similarity_{align}",
         delta_title="Pooled stopped-trial similarity, change from pre-stroke")
 

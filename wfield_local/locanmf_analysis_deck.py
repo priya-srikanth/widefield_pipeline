@@ -3968,6 +3968,51 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "State decoder recall per class, change from pre-stroke",
          "Quiet is the only class with a visible fall. See the preceding slide for why that is a"
          "result about immobility rather than a weakness of the control."),
+        ("epoch_13c_state_confusion_*.png",
+         "State decoder confusion by epoch -- where do the errors go?",
+         "THE SAME ARGUMENT 5c MAKES FOR THE POSITION DECODER, applied to behavioural state: the"
+         "per-class panel gives the DIAGONAL -- how often each class is recalled -- and says nothing"
+         "about where the errors land, which is the part that names what changed. A quiet segment"
+         "misread as LICKING and one misread as RUNNING are different failures: the first says the"
+         "post-stroke immobile animal looks TASK-ENGAGED to the readout, the second that it looks"
+         "like it is MOVING. Recall cannot tell those apart."
+         "\n\nTop row is the epoch, bottom row is that epoch's change from pre-stroke, placed"
+         "beneath the panel it describes. Panels are row-normalised for display while the stored"
+         "matrices stay raw counts -- which is what makes pooling an epoch a SUM rather than a mean"
+         "of rates. Chance is 1/3. Read each panel against the PRE panel of this figure, never"
+         "against the position decoder's confusion: the two have different class counts, different"
+         "chance levels and different units of observation (1 s segments here, trials there)."),
+        ("epoch_12b_stopped_pooled_similarity_*.png",
+         "STOPPED trials POOLED over positions -- the powered version",
+         "THE SAME QUESTION AS THE PRECEDING SLIDE WITH SIX TIMES THE DATA PER MEASUREMENT. The"
+         "quit period is short by definition and the per-position arm divides it six ways: pooled"
+         "across animals the post-cue stopped sets hold 867 trials pre-stroke, 1,984 acute, 1,935"
+         "subacute and 359 chronic, but split per position the chronic cell falls to 36-75 trials,"
+         "which is not a mean pattern. Here ALL of a session's stopped trials become ONE mean"
+         "pattern -- no position split -- and the question being asked, does the cortical pattern"
+         "during the quit period still resemble the pre-stroke one, never needed the position axis"
+         "(Priya, 2026-09-11: 'I more was thinking about mean pattern similarity for ALL stopped"
+         "trials rather than per position')."
+         "\n\nWHAT IS CORRELATED WITH WHAT: each session's pooled stopped pattern against THAT"
+         "ANIMAL's pre-stroke ENGAGED pooled mean. Both stopped columns use the same reference, so"
+         "the PRE bar is the no-lesion control -- how far QUITTING ALONE moves the pattern, with no"
+         "lesion involved -- and only the difference between it and a post-stroke bar is"
+         "attributable to the lesion. The floor is 20 stopped trials rather than the per-position"
+         "arm's 5: a session contributes ONE number here, so there is no reason to accept a cell"
+         "built from five."
+         "\n\nTHE PRE BAR STILL RESTS ON TWO ANIMALS AND THAT IS NOT FIXABLE BY POOLING. PS92 has"
+         "6 pre-stroke stopped trials and PS93 has 40 -- a well-trained pre-stroke animal barely"
+         "quits, which is the same fact that makes the engagement gate worth having. The subtitle"
+         "names whoever is excluded and their counts."
+         "\n\nWHY THIS IS NOT AN ENCODER FIGURE. 'Explained variance' in the encoder families is"
+         "variance ACROSS POSITIONS: `_enc_terms` centres a 6 x 380 matrix down the position axis"
+         "and the denominator is the between-position sum of squares. Pool the positions away and"
+         "that denominator is zero by construction, so an encoder EV would have nothing left to"
+         "explain. Correlation against a reference pattern is the measure that survives pooling."),
+        ("epoch_12bdelta_stopped_pooled_similarity_*.png",
+         "Pooled stopped-trial similarity, change from pre-stroke",
+         "The same quantity as epoch-minus-pre. Read against the PRE bar of the preceding slide,"
+         "which is the quitting-alone control, and not against zero."),
         ("epoch_12_stopped_pattern_*.png",
          "STOPPED trials: does the position pattern survive the animal quitting?",
          "THE NULL THE WHOLE STOPPED ARM RESTS ON, and the figure to read before any of the"
