@@ -70,7 +70,14 @@ def test_units_never_share_an_output_path():
     assert four and all(v is None for _k, _a, v in four), four
     # and a variant-split figure still gets its variants
     seven_b = [u for u in units if u[0] == "7b"]
-    assert {v for _k, _a, v in seven_b} == {"lick", "working"}
+    # THE PLANNER TAKES ITS VARIANTS FROM `_variants`, so this asserts agreement with that function
+    # rather than a frozen list. It used to hard-code {"lick", "working"} and broke the moment
+    # `stopped` was added -- while the thing actually worth pinning, that the planner and the
+    # collectors use the SAME rule, was not being checked at all.
+    for align in {a for _k, a, _v in seven_b}:
+        got = {v for _k, a, v in seven_b if a == align}
+        assert got == set(G._variants(align)), (align, got)
+    assert "stopped" in {v for _k, _a, v in seven_b}
 
 
 def test_the_expensive_families_are_scheduled_first():

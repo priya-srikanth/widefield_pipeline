@@ -3541,15 +3541,6 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "interval excluding zero means the lesion made MORE information recoverable by refitting"
          "than the design's own handicap accounts for, which is the signature of a displaced code."
          "Marks and correction as in the other contrast panels."),
-        ("epoch_5rm_refit_by_position_*_*.png",
-         "Refit within session, training-set MATCHED",
-         "The refit arm again, now against a frozen decoder trained on a size-matched random"
-         "subset of pre-stroke BLOCKS rather than on all ten pre-stroke sessions. Blocks rather"
-         "than loose trials, so the matched model's training set carries the same within-block"
-         "correlation the refit model's does. Everything else is as the preceding figures."),
-        ("epoch_5rmdelta_refit_by_position_*_*.png",
-         "Refit decoding (matched), change from pre-stroke",
-         "The matched refit arm's epoch-minus-pre contrasts. Marks and correction as elsewhere."),
         ("epoch_5rmgap_frozen_vs_refit_*_*.png",
          "Recoverable information, training-set MATCHED",
          "THE BASELINE DOES NOT GO TO ZERO WHEN THE TRAINING SETS ARE MATCHED -- IT GOES THE OTHER"
@@ -3569,6 +3560,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "than acutely (where it fails regardless), so the acute contrast shrinks from +0.100 to"
          "+0.039 pooled. Per position the ordering is unchanged and far-contralateral is still"
          "the largest, +0.158."),
+        ("epoch_5cr_refit_confusion_*_*.png",
+         "WITHIN-SESSION REFIT decoder, confusion by epoch",
+         "THE SAME PANEL FOR THE REFIT DECODER, and it is read against the frozen one immediately"
+         "before it. The 5r family reduces the refit decoder to a per-position ACCURACY -- the"
+         "diagonal -- and the whole reason the frozen family draws a confusion is that the"
+         "diagonal is not the interesting part: WHERE the errors go is. Three readings. If 5c goes"
+         "off-diagonal and this one restores the diagonal, the code is INTACT and the pre-stroke"
+         "readout is pointing at the wrong place -- displacement. If both go off-diagonal in the"
+         "SAME cells, that position is genuinely confusable with that neighbour and no readout"
+         "recovers it -- degradation. If this one goes off-diagonal in DIFFERENT cells, the"
+         "within-session structure has reorganised rather than weakened. THE TWO FAMILIES ARE NOT"
+         "ON THE SAME FOOTING: the frozen arm trains on ten pre-stroke sessions and this one on"
+         "four fifths of ONE, so its pre panel is already worse with no lesion involved. Read each"
+         "family against ITS OWN pre column -- which is what the delta row beneath does -- and"
+         "never a cell here against a cell there. Sessions the refit could not be fitted on are"
+         "ABSENT rather than zero, so an epoch here can rest on fewer sessions than the same epoch"
+         "in 5c; the per-animal counts are in the panel titles."),
         ("epoch_5c_frozen_confusion_*_*.png",
          "Frozen pre-stroke decoder, confusion by epoch",
          "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each"
@@ -3711,6 +3719,30 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_10cdiagdelta_matrices_best_match_destination_*_*.png",
          "Best match is still the correct position, change from pre-stroke",
          "Far-contralateral falls 0.98 -> 0.06 acutely, a drop of 0.92."),
+        ("epoch_10e_best_match_grid_*_*.png",
+         "Best match, PER ANIMAL and epoch",
+         "The preceding three figures pool four animals; this one does not. Rows are animals,"
+         "columns are epochs, and each cell is the fraction of THAT animal's sessions in THAT"
+         "epoch whose best pre-stroke match was that column. It exists because the pooled panels"
+         "average epochs resting on very unequal session counts -- PS95 contributes ONE acute"
+         "session and PS94 six -- so a pooled off-diagonal cell can be one animal's whole story."
+         "Here it cannot hide: every panel carries its own n, and a panel resting on one session"
+         "looks like one session. FRACTIONS EVERYWHERE INCLUDING PRE, unlike the grant-section"
+         "version which prints counts and has to warn that its two panels' totals differ. The pre"
+         "column is a mean of PER-SESSION one-hots, leave-one-session-out, and is 92-100% rather"
+         "than 100% -- read each post-stroke panel against that animal's own pre panel, never"
+         "against a perfect diagonal. PS94 has no chronic sessions and its panel says so rather"
+         "than being dropped, which would shift the columns and imply it does."),
+        ("epoch_10edelta_best_match_grid_*_*.png",
+         "Where each position's best match MOVED, per animal",
+         "The same grid as a change from that animal's OWN pre-stroke panel, which is the form the"
+         "substitution is legible in. BLUE on the diagonal = the position stopped matching itself;"
+         "RED off the diagonal IN THE SAME ROW names where it went instead; a row that goes blue"
+         "without any red cell scattered rather than substituted. Acutely, post-cue, three of the"
+         "four animals move far-contralateral's best match onto another FAR position -- PS92 and"
+         "PS93 completely (-1.00 on the diagonal, +1.00 onto far-middle and far-ipsilateral"
+         "respectively) and PS94 partially (-0.74, +0.41 onto far-middle). PS95's acute panel"
+         "rests on a single session and should not be read as a fourth replication."),
         ("epoch_8g_geometry_by_position_*_*.png",
          "Geometry preserved, per position",
          "For each position, the correlation between that position's row of the"

@@ -155,8 +155,12 @@ def test_5r_is_an_arm_key_and_a_cli_choice():
     import inspect
 
     src = inspect.getsource(eg.main)
-    assert '"5r"' in src
-    assert 'ARM_KEYS = {"acc", "5c", "5r", "5rm", "mat", "scal"}' in src
+    # MEMBERSHIP, NOT THE LITERAL SET. Pinning the whole line meant every family added afterwards
+    # broke this test for no reason -- 5cr, 10e and 12s each did -- and a test that fails on a
+    # correct change teaches people to edit the test without reading it.
+    for key in ("5r", "5rm"):
+        assert f'"{key}"' in src, f"{key} is not an --only choice"
+        assert f'"{key}"' in src.split("ARM_KEYS")[1][:200], f"{key} is not an ARM_KEY"
     assert '"5rm"' in src, "the training-set-matched arm must be reachable from the CLI too"
 
 

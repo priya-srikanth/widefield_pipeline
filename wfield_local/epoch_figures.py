@@ -1365,6 +1365,106 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
     return q
 
 
+def matrix_grid_by_animal(mats, out, *, name, title, labels, cmap="magma", vmin=0.0, vmax=1.0,
+                          unit="fraction of sessions", subtitle=None, counts=None,
+                          diag_label="match self", diag_fmt="{:.0%}"):
+    """One small matrix per ANIMAL per EPOCH: rows = animals, columns = pre/acute/subacute/chronic.
+
+    THE TRANSPOSE OF `matrix_row`, and it exists because pooling hides which animal a pattern came
+    from. Priya, 2026-09-11, pointing at `grant_10_best_match`: that figure gives each animal its
+    own PRE and POST panel and is the form she reads the substitution off; the epoch families had
+    only the pooled version. Four animals against four epochs is a grid, not a row.
+
+    ``mats`` is ``{animal: {epoch: MxM}}``. A missing (animal, epoch) is drawn as an EMPTY framed
+    panel rather than skipped, so a gap in the grid reads as "this animal has no sessions in that
+    epoch" -- which is a real fact about PS94, who has no chronic sessions -- instead of silently
+    shifting the columns left and implying it does.
+
+    ``counts`` is ``{animal: {epoch: n}}`` and is printed in each panel title. It has to be, because
+    the panels are FRACTIONS: a cell of 1.0 means the same thing over one session and over seven,
+    and without n the grid invites reading a single-session panel as a strong result.
+    """
+    import matplotlib.pyplot as plt
+
+    animals = [a for a in sorted(mats) if any(mats[a].get(e) is not None for e in PANELS)]
+    if not animals:
+        return None
+    order = [e for e in PANELS
+             if any((mats[a].get(e) is not None) for a in animals)]
+    if not order:
+        return None
+    k = len(labels)
+
+    fig_w = QUARTER_IN
+    left_in, gutter_in, pad_in = 0.92, 1.05, 0.16
+    _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    _sub, _slines = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    # THE ROW GAP HOLDS A THREE-LINE PANEL TITLE (epoch / statistic / n) -- see `ttl` below.
+    top_in = 0.96 + 0.15 * _slines + 0.15 * (_tlines - 1)
+    row_gap_in, bottom_in = 0.66, 0.62
+    panel_in = (fig_w - left_in - gutter_in - pad_in * (len(order) - 1)) / len(order)
+    fig_h = top_in + len(animals) * panel_in + (len(animals) - 1) * row_gap_in + bottom_in
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    def _ax(r, c):
+        x0 = (left_in + c * (panel_in + pad_in)) / fig_w
+        y0 = 1.0 - (top_in + (r + 1) * panel_in + r * row_gap_in) / fig_h
+        return fig.add_axes([x0, y0, panel_in / fig_w, panel_in / fig_h])
+
+    im = None
+    for r, an in enumerate(animals):
+        for c, e in enumerate(order):
+            ax = _ax(r, c)
+            M = mats[an].get(e)
+            last_row = (r == len(animals) - 1)
+            if M is None:
+                # FRAMED AND EMPTY, not absent: see the docstring. `set_facecolor` on an axes with
+                # no image keeps the cell's footprint, which is the whole point.
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_facecolor("0.94")
+                ax.text(0.5, 0.5, "no sessions", ha="center", va="center", fontsize=FS_ANNOT - 1.5,
+                        color="0.45", transform=ax.transAxes)
+                if r == 0:
+                    ax.set_title(e, fontsize=FS_ANNOT - 1.5)
+                if c == 0:
+                    ax.set_ylabel(f"{an}\nthis position", fontsize=FS_LABEL - 1, fontweight="bold")
+                continue
+            A = np.asarray(M, float)
+            im = ax.imshow(np.ma.masked_invalid(A), cmap=cmap, vmin=vmin, vmax=vmax)
+            _annotate(ax, A, k)
+            _ticks(ax, k, labels, first=(c == 0), xlabels=last_row)
+            n = ((counts or {}).get(an) or {}).get(e)
+            diag = float(np.nanmean(np.diag(A))) if np.isfinite(np.diag(A)).any() else float("nan")
+            # THREE SHORT LINES, NOT ONE LONG ONE. A panel here is ~1.05in wide and
+            # "100% match self  (n=11)" is half as wide again, so single-line titles OVERPRINT
+            # their neighbours -- the first render of this figure read "100% match self (n=71)1%
+            # match self (n=5)" across the pre/acute boundary, which is not a near-miss but an
+            # unreadable number. matplotlib does not clip or wrap axes titles, so the wrapping has
+            # to be here.
+            ttl = f"{e}\n{diag_fmt.format(diag)} {diag_label}"
+            if n:
+                ttl += f"\nn={n}"
+            ax.set_title(ttl, fontsize=FS_ANNOT - 1.5, linespacing=1.15)
+            if c == 0:
+                ax.set_ylabel(f"{an}\nthis position", fontsize=FS_LABEL - 1, fontweight="bold")
+    if im is None:
+        plt.close(fig)
+        return None
+    cax = fig.add_axes([(fig_w - gutter_in + 0.22) / fig_w,
+                        1.0 - (top_in + panel_in) / fig_h,
+                        0.16 / fig_w, panel_in / fig_h])
+    fig.colorbar(im, cax=cax).set_label(unit, fontsize=FS_ANNOT - 1)
+    cax.tick_params(labelsize=FS_TICK - 2)
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.24 + 0.15 * _tlines) / fig_h, _sub, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    q = pathlib.Path(out) / f"{name}.png"
+    _save_png_svg(fig, q)
+    plt.close(fig)
+    return q
+
+
 #: Where the collapsed pre-stroke baseline sits on a days-since-lesion axis. Left of day 1 with a
 #: visible gap, and its tick reads "pre" rather than a day number, because it is not a day: it is
 #: that animal's whole baseline summed into one point.
@@ -1467,7 +1567,12 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
     return q_
 
 
-def _thin_day_ticks(post, max_ticks=9):
+#: Post-stroke days the follow-up schedule actually visits: 1 2 3 4 5 7 9 11 15 18 22 25, twelve of
+#: them. `_thin_day_ticks` must not bite on a series that size -- see its docstring.
+MAX_DAY_TICKS = 16
+
+
+def _thin_day_ticks(post, max_ticks=MAX_DAY_TICKS):
     """Tick the days that were RECORDED, thinned by index -- never by parity.
 
     This used to be ``[d for d in post if d % 2 == 1]``, which reads as "every other day" and is
@@ -1479,6 +1584,14 @@ def _thin_day_ticks(post, max_ticks=9):
     Thinning by INDEX cannot do that: it keeps a subset of days that exist, spaced evenly in
     sessions rather than in calendar days, and always keeps the LAST one so the axis ends where the
     data ends.
+
+    BUT THE CAP WAS STILL TOO LOW AND REPRODUCED THE SYMPTOM (Priya, 2026-09-11: "the I1 x axis
+    ticks still aren't labeling all the later days, skips from day 15 to day 22"). Twelve days
+    against ``max_ticks=9`` gives ``step=2`` and keeps 1 3 5 9 15 22 25 -- day 18 dropped, and a
+    reader who knows the schedule sees a missing session rather than a thinned axis. The right cap
+    is one the REAL schedule never reaches, so thinning is a guard against a future long series and
+    not a thing that happens on every render. Twelve labels fit: the gap that made thinning look
+    necessary was the parity filter's ragged spacing, not the count.
     """
     post = sorted(post)
     if len(post) <= max_ticks:
@@ -1557,7 +1670,12 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     lo = min(days_all) if days_all else -1
     hi = max(days_all) if days_all else 1
     post = [d for d in days_all if d > 0]
-    ticks = [PRE_X] + [d for d in post if d % 2 == 1]
+    # THE PARITY FILTER AGAIN, and it survived here because the 2026-09-10 fix was applied to
+    # `timecourse_panel` and this is the OTHER timecourse renderer (Priya, 2026-09-11: "the I1 x
+    # axis ticks still aren't labeling all the later days"). `d % 2 == 1` on the real schedule
+    # 1 2 3 4 5 7 9 11 15 18 22 25 keeps 1 3 5 7 9 11 15 25 and drops 18 and 22, so the axis
+    # reads as a gap in the experiment rather than as a thinned axis. Two renderers, one rule.
+    ticks = [PRE_X] + _thin_day_ticks(post)
     first_col, top_right = [], None
     for r, (per_animal, row_label, row_ylim, row_chance) in enumerate(series):
         y0 = bottom_in + (nrow - 1 - r) * (panel_h + row_gap_in)   # row 0 is the TOP row

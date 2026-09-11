@@ -662,11 +662,19 @@ def test_day_ticks_are_thinned_by_index_not_by_parity():
     """
     from wfield_local.epoch_figures import _thin_day_ticks
 
+    from wfield_local.epoch_figures import MAX_DAY_TICKS
+
     sched = [1, 2, 3, 4, 5, 7, 9, 11, 15, 18, 22, 25]
     ticks = _thin_day_ticks(sched)
     assert ticks[-1] == 25, "the last recorded day must be ticked"
     assert set(ticks) <= set(sched), "a tick was placed on a day with no session"
-    assert len(ticks) <= 9
+    # THE REAL SCHEDULE IS LABELLED IN FULL. The earlier version of this test asserted
+    # ``len(ticks) <= 9``, which pinned the CAP rather than the property and let the cap go on
+    # reproducing the very symptom the test is named for: twelve days against nine ticks gives
+    # step 2 and drops day 18, so the axis reads 15 -> 22 (Priya, 2026-09-11). Thinning is a guard
+    # against a future long series, not something that happens on every render.
+    assert ticks == sched, "the twelve-session schedule must be labelled in full"
+    assert len(sched) <= MAX_DAY_TICKS
 
     # a short schedule is ticked in full, not thinned for its own sake
     assert _thin_day_ticks([1, 2, 3, 5, 9]) == [1, 2, 3, 5, 9]

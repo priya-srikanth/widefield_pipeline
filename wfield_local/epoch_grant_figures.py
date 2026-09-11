@@ -25,6 +25,7 @@ Run: ``python -m wfield_local.epoch_grant_figures [--only 1b 5c ...] [--output D
 from __future__ import annotations
 
 import argparse
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -36,18 +37,35 @@ from wfield_local.writeguard import assert_writable
 #: (display name, alignment, trial class). The lick window admits only lick trials -- a trial with
 #: no detected lick has no lick to align to -- which is `grant_figures._variants`' rule, restated
 #: here as data because these figures name the class in their titles.
+#: (display key, alignment, trial class, caption). THE STOPPED ARMS ARE THE COMPLEMENT of the
+#: `working` ones, not a subset: `flag_engagement`'s terminal quit period alone, which every other
+#: arm removes (Priya, 2026-09-11: "the stopped class should basically be another frozen decoder /
+#: encoder analysis set"). No lick-aligned stopped arm exists and none can -- a trial inside the
+#: quit period is a non-response by construction, so there is no lick to align to.
 ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working"),
         ("cue", "cue", "working", "post-cue, lick + miss-while-working"),
-        ("lick", "lick", "lick", "post-lick, lick trials only"))
+        ("lick", "lick", "lick", "post-lick, lick trials only"),
+        ("ENLstop", "precue", "stopped", "ENL (pre-cue), STOPPED trials only"),
+        ("cuestop", "cue", "stopped", "post-cue, STOPPED trials only"))
 
 CHANCE = 1.0 / 6.0
 
 
-def _session_counts():
+def _session_counts(pre_override=None):
     """``{epoch: {animal: sessions}}`` from the epoch assignment itself.
 
     One definition of "how many sessions is this epoch", shared by every figure, rather than each
     one counting whatever it happens to hold.
+
+    ``pre_override`` REPLACES THE PRE COUNT WITH WHAT THE PANEL ACTUALLY HOLDS, and only the pre
+    count. The post-stroke epochs are stated from the assignment on purpose -- a family that drops
+    a thin session should still say how many sessions the epoch HAS, with the drop visible in the
+    block count. The pre panel is different: for the `stopped` class it is not a subset of the
+    pre-stroke sessions but a small minority of them, because a well-trained pre-stroke animal
+    barely quits. The first stopped render claimed "pre 44 (92:11 93:11 94:11 95:11)" over a panel
+    built from FIFTEEN sessions, and the only visible sign was the block count falling from 3,688
+    to 169 (Priya's stopped-class request, 2026-09-11). A count that is wrong by 3x is worse than
+    no count.
     """
     from wfield_local import epochs
     out = {}
@@ -57,6 +75,8 @@ def _session_counts():
             an = lab.split("_")[0]
             per[an] = per.get(an, 0) + 1
         out[e] = per
+    if pre_override:
+        out["pre"] = dict(pre_override)
     return out
 
 
@@ -751,8 +771,9 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
     # panel here is four leave-one-session-out records -- one per animal -- so counting the panel
     # would print "pre 4" beside "acute 16" and imply the baseline rests on four sessions when it
     # rests on forty-four.
-    sub = ef.stats_line(_session_counts(), blocks=ef.block_counts(per_animal), n_boot=N_BOOT,
-                        notes=list(notes))
+    from wfield_local import grant_figures as _G
+    sub = ef.stats_line(_session_counts(_G.pre_session_counts(align, variant)),
+                        blocks=ef.block_counts(per_animal), n_boot=N_BOOT, notes=list(notes))
     made = ef.bar_row(
         values, out_dir, name=name, title=title,
         subtitle=sub, counts=_totals(per_epoch), marks=marks, points=points,
@@ -782,6 +803,19 @@ def _frozen_vs_refit_matched(out_dir, align, variant, wname):
     is "the" answer, which is why both families are drawn and both are read as
     epoch-minus-pre. The headline survives either way -- far-contralateral has the largest
     lesion-attributable recoverable component, +0.196 unmatched and +0.158 matched.
+
+    ONLY THE GAP IS DRAWN HERE. The refit-accuracy pair is 5r's and is identical under matching --
+    see `_frozen_vs_refit`. And matching does not merely shrink the gap, it SHARPENS the
+    dissociation; post-cue acute minus pre, per position:
+
+                        nI       nM       nC       fI       fM       fC
+        5r          +0.027  +0.132*  +0.168**  +0.034   +0.044  +0.196*
+        5rm         +0.093   +0.039  +0.128*  -0.036  -0.132*  +0.158**
+
+    Far-contralateral keeps a significant positive recoverable component once the handicap is
+    removed, while FAR-MIDDLE turns significantly NEGATIVE: refitting buys less there than it bought
+    before the lesion. That is "the code is degraded" as a positive finding rather than as an absent
+    one, and it is invisible in the unmatched family, where far-middle is a flat +0.044.
     """
     return _frozen_vs_refit(out_dir, align, variant, wname, matched=True)
 
@@ -824,18 +858,28 @@ def _frozen_vs_refit(out_dir, align, variant, wname, *, matched=False):
                 ["each session scored by a 5-fold block-CV decoder fitted on ITSELF",
                  "the pre gap is the training-set-size handicap, not an effect"])
     made = []
-    p = _position_bars(
-        per_animal, out_dir, align, variant, wname,
-        name=f"epoch_{key}_refit_by_position_{align}_{variant}",
-        title=f"Per-position accuracy of a WITHIN-SESSION refit decoder{what}, {wname}",
-        delta_name=f"epoch_{key}delta_refit_by_position_{align}_{variant}",
-        delta_title=f"Change from pre-stroke in refit decoding accuracy, {wname}",
-        ylabel="accuracy (refit within session)", delta_ylabel="accuracy - pre",
-        stat_at=_refit_at, value_of=_refit_of, chance=CHANCE, ylim=(0.0, 1.10),
-        notes=note_arm + ["pre panel is one record per pre-stroke session, not a pooled LOSO "
-                          "record"])
-    if p:
-        made.append(p)
+    # THE MATCHED ARM DOES NOT DRAW THE REFIT-ACCURACY PAIR, because it cannot differ from 5r's.
+    # `paired_matched` replaces the FROZEN model only; `_refit_pred` is called with the same X, y
+    # and blocks, and `_seed_for` is keyed on (align, variant, epoch, position) rather than on the
+    # figure name, so the bars, the intervals and the marks are identical by construction. Measured
+    # 2026-09-11, post-cue acute-minus-pre, both families: -0.207* -0.141* -0.145* -0.339**
+    # -0.363** -0.378** -- identical to three decimals AND in every mark. Drawing them twice put two
+    # slides in the deck whose "(training-set MATCHED)" title promised a second analysis that did
+    # not exist, and invited exactly the comparison this comment now forecloses. What matching CAN
+    # move is the GAP, and it moves it a great deal -- see the second call below.
+    if not matched:
+        p = _position_bars(
+            per_animal, out_dir, align, variant, wname,
+            name=f"epoch_{key}_refit_by_position_{align}_{variant}",
+            title=f"Per-position accuracy of a WITHIN-SESSION refit decoder{what}, {wname}",
+            delta_name=f"epoch_{key}delta_refit_by_position_{align}_{variant}",
+            delta_title=f"Change from pre-stroke in refit decoding accuracy, {wname}",
+            ylabel="accuracy (refit within session)", delta_ylabel="accuracy - pre",
+            stat_at=_refit_at, value_of=_refit_of, chance=CHANCE, ylim=(0.0, 1.10),
+            notes=note_arm + ["pre panel is one record per pre-stroke session, not a pooled LOSO "
+                              "record"])
+        if p:
+            made.append(p)
     q = _position_bars(
         per_animal, out_dir, align, variant, wname,
         name=f"epoch_{key}gap_frozen_vs_refit_{align}_{variant}",
@@ -869,6 +913,249 @@ def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
     if p:
         made.append(p)
     return made
+
+
+def _fig_12_stopped(out_dir, align, variant, wname):
+    """12: the trials the engagement gate THROWS AWAY -- does the position code survive quitting?
+
+    Priya, 2026-09-11: "do we already have a post-stroke vs pre-stroke 'stopped' trials pattern
+    similarity analysis?" We did not. `flag_engagement` has only ever been a filter, and every
+    figure in this deck is built on `~not_eng`; this is the complement.
+
+    ``variant`` IS IGNORED AND MUST BE. The stopped set is defined by the gate, not by whether the
+    animal licked -- a trial in the quit period is by construction a non-response -- so there is no
+    lick/working distinction to make and drawing the same figure twice under two class labels would
+    imply one. The figure renders once, on the `working` pass only.
+
+    THREE PANELS PER EPOCH ROW, all correlated against the SAME pre-stroke ENGAGED template:
+
+        PRE (stopped)   the CONTROL: how far stopping alone moves the pattern, with no lesion
+        each epoch      the post-stroke stopped pattern against that same template
+
+    THE CONTROL IS THE POINT. A post-stroke stopped pattern that no longer resembles the template
+    is uninterpretable on its own, because a quitting animal is differently aroused, differently
+    sated and differently postured whether or not it has a lesion. Only the difference between the
+    two stopped columns is attributable to the lesion.
+
+    AND THE CONTROL RESTS ON TWO ANIMALS. Post-cue, pre-stroke stopped trials number 6 (PS92), 40
+    (PS93), 326 (PS94) and 495 (PS95); the first two are one session each and cannot carry a mean
+    pattern. `_collect_stopped` returns None for them rather than a noisy one, and the subtitle
+    names which animals the pre column rests on -- a four-animal-looking panel resting on two is
+    the failure mode this whole section's per-animal counts exist to prevent.
+    """
+    if variant != "working":
+        return None
+    from wfield_local import grant_figures as G
+
+    store, _days = G._collect_stopped(align)
+    if not store:
+        return None
+
+    per_epoch, contributors = {}, {}
+    pre_rows, pre_animals = [], []
+    for an, rec in sorted(store.items()):
+        ref = rec.get("WORK_REF")
+        if not ref:
+            continue
+        if rec.get("PRE_STOPPED"):
+            pre_rows.append(G._corr_matrix(rec["PRE_STOPPED"], ref))
+            pre_animals.append(an)
+        for key, means in rec.items():
+            if key in ("WORK_REF", "PRE_STOPPED"):
+                continue
+            e = ef.epoch_of_day(an, int(key))
+            if not e or e == "pre":
+                continue
+            per_epoch.setdefault(e, []).append(G._corr_matrix(means, ref))
+            contributors.setdefault(e, {}).setdefault(an, 0)
+            contributors[e][an] += 1
+
+    mats = {}
+    if pre_rows:
+        mats["pre"] = G._nanmean_stack(pre_rows)
+    for e, rows in per_epoch.items():
+        mats[e] = G._nanmean_stack(rows)
+    if len([m for m in mats.values() if m is not None]) < 2:
+        return None
+
+    cov = {e: dict(by) for e, by in contributors.items()}
+    if pre_animals:
+        cov["pre"] = {a: 1 for a in pre_animals}
+    n_pre = ", ".join(pre_animals) if pre_animals else "NONE"
+    return ef.matrix_row(
+        mats, out_dir, name=f"epoch_12_stopped_pattern_{align}",
+        title=(f"STOPPED trials: does the position pattern survive the animal quitting? -- "
+               f"{wname}"),
+        labels=_short_labels(), unit="pattern correlation", vmin=-1.0, vmax=1.0,
+        coverage=cov, delta=True, annotate=False,
+        subtitle=("Trials inside the terminal quit period ONLY -- the set every other figure in "
+                  "this section removes. Every panel is correlated against the SAME reference: "
+                  "that animal's pre-stroke ENGAGED mean pattern. The pre column is the CONTROL, "
+                  "pre-stroke stopped trials against that template, and it measures how far "
+                  "QUITTING ALONE moves the pattern with no lesion involved; only the difference "
+                  f"between it and a post-stroke column is attributable to the lesion. It rests on "
+                  f"{n_pre} -- the other animals barely quit before the lesion (6 and 40 trials, "
+                  f"one session each) and contribute no pre column rather than a noisy one. "
+                  f"Cells with fewer than {G.MIN_STOPPED} stopped trials at that position in that "
+                  "session are absent, not zero."))
+
+
+def _fig_10e_best_match_grid(out_dir, align, variant, wname):
+    """10e: which pre-stroke position each position matches best -- PER ANIMAL, PER EPOCH.
+
+    Priya, 2026-09-11, pointing at `grant_10_best_match`: "I want this best-match confusion matrices
+    for epoch data". That grant figure gives each animal a PRE panel and one pooled POST panel; this
+    is the same quantity cut by EPOCH instead, so a substitution can be watched appearing and
+    resolving within an animal rather than only in the four-animal average that 10c draws.
+
+    WHY PER ANIMAL MATTERS HERE SPECIFICALLY. The pooled 10c panel averages four animals whose
+    epochs rest on very unequal session counts -- PS95 contributes one acute session and PS94 six --
+    so a pooled off-diagonal cell can be one animal's whole story. The grid cannot hide that: each
+    panel carries its own n, and a panel resting on one session looks like one session.
+
+    FRACTIONS, NOT COUNTS, in every panel including pre. `grant_10` prints counts and has to warn in
+    its own caption that the two panels' totals differ so only the percentage is comparable; here
+    every cell is the fraction of that animal's sessions in that epoch whose best match was that
+    column, which is the same construction everywhere and directly comparable across the grid.
+
+    THE PRE PANEL IS A MEAN OF PER-SESSION ONE-HOTS, leave-one-session-out -- never the argmax of
+    the averaged correlation matrix, which is a perfect identity for every animal and would draw a
+    clean diagonal as the baseline. That error cost the best-match headline 0.02 when it was found
+    on 2026-09-10; `_matrices_best_match_destination` carries the fix and this figure inherits it.
+    """
+    from wfield_local import grant_figures as G
+
+    mats, _days = G._matrices_best_match_destination(align, variant)
+    if not mats:
+        return None
+    store, _d2 = G._collect_7(align, variant, 10)
+
+    grid, counts = {}, {}
+    for an, by_key in mats.items():
+        per_epoch, n_by = {}, {}
+        if by_key.get("PRE") is not None:
+            per_epoch["pre"] = np.asarray(by_key["PRE"], float)
+            n_by["pre"] = len((store.get(an) or ({}, {}))[0])
+        bucket = {}
+        for key, M in by_key.items():
+            if key == "PRE":
+                continue
+            e = ef.epoch_of_day(an, int(key))
+            if e:
+                bucket.setdefault(e, []).append(np.asarray(M, float))
+        for e, stack in bucket.items():
+            # nanmean over sessions: a row with no finite value in one session must not drag the
+            # other sessions' vote toward zero, and `_matrices_best_match_destination` leaves such
+            # a row NaN rather than one-hotting column 0. An ALL-NaN row across every session of an
+            # epoch is legitimate (that position was never scorable) and numpy warns about it;
+            # the warning is the expected case here, not a symptom.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                per_epoch[e] = np.nanmean(np.stack(stack), axis=0)
+            n_by[e] = len(stack)
+        if per_epoch:
+            grid[an] = per_epoch
+            counts[an] = n_by
+    if not grid:
+        return None
+
+    made = []
+    p = ef.matrix_grid_by_animal(
+        grid, out_dir, name=f"epoch_10e_best_match_grid_{align}_{variant}",
+        title=(f"Which PRE-STROKE position does each position match BEST, by animal and epoch "
+               f"-- {wname}"),
+        labels=_short_labels(),
+        subtitle=("Cell = fraction of that animal's sessions in that epoch whose best pre-stroke "
+                  "match was that column. Rows are the TRUE position, columns the pre-stroke "
+                  "pattern matched. pre is leave-one-session-out and is NOT 100% -- read every "
+                  "post-stroke panel against that animal's own pre panel, never against a perfect "
+                  "diagonal. Argmax is invariant to a monotone change across a row, so the uniform "
+                  "amplitude shifts that dominate the crossnobis families cannot move this."),
+        unit="fraction of sessions", counts=counts, diag_label="self")
+    if p:
+        made.append(p)
+
+    # THE DELTA GRID, as its own figure rather than as extra columns (Priya, 2026-09-11: "make sure
+    # the best match matrices have delta matrices too"). `matrix_row` puts its deltas BENEATH, which
+    # works because it has one row; this grid already spends its four rows on animals, and seven
+    # columns at QUARTER_IN gives 0.6in panels that cannot carry the per-cell annotation the whole
+    # figure is read through. Two figures at full size beats one at half.
+    #
+    # EACH ANIMAL AGAINST ITS OWN PRE, never against a pooled baseline or a perfect diagonal: the
+    # leave-one-session-out pre panel is 92-100% here depending on the animal, and charging PS93 the
+    # 8% its own baseline already misses would attribute it to the lesion.
+    dgrid, dcounts = {}, {}
+    for an, per_epoch in grid.items():
+        base = per_epoch.get("pre")
+        if base is None:
+            continue
+        d = {e: np.asarray(M, float) - np.asarray(base, float)
+             for e, M in per_epoch.items() if e != "pre"}
+        if d:
+            dgrid[an] = d
+            dcounts[an] = {e: n for e, n in counts[an].items() if e != "pre"}
+    if dgrid:
+        lim = max((float(np.nanmax(np.abs(M))) for by in dgrid.values() for M in by.values()
+                   if np.isfinite(M).any()), default=1.0) or 1.0
+        q = ef.matrix_grid_by_animal(
+            dgrid, out_dir, name=f"epoch_10edelta_best_match_grid_{align}_{variant}",
+            title=(f"Where each position's best match MOVED, by animal and epoch -- change from "
+                   f"that animal's own pre-stroke -- {wname}"),
+            labels=_short_labels(), cmap="RdBu_r", vmin=-lim, vmax=lim,
+            subtitle=("Each panel is that epoch minus THAT ANIMAL's own leave-one-session-out pre "
+                      "panel, so a perfect pre-stroke diagonal is not assumed and an animal whose "
+                      "baseline already misses is not charged for it. BLUE on the diagonal = the "
+                      "position stopped matching itself; RED off the diagonal in the SAME ROW names "
+                      "where it went instead. A row that goes blue on the diagonal without any red "
+                      "cell is a position that scattered rather than substituted."),
+            unit="change in fraction of sessions", counts=dcounts,
+            diag_label="self", diag_fmt="{:+.0%}")
+        if q:
+            made.append(q)
+    return made or None
+
+
+def _refit_confusion_rows(out_dir, align, variant, wname):
+    """5cr: the WITHIN-SESSION REFIT decoder's confusion per epoch, and its change from pre.
+
+    Priya, 2026-09-11: "can we add the refit confusion matrices to the deck". The 5r family reduces
+    the refit decoder to a per-position ACCURACY -- the diagonal -- and the whole point of the
+    frozen family's confusion panel is that the diagonal is not the interesting part: WHERE the
+    errors go is. 5c answers that for the frozen decoder and nothing answered it for the refit one.
+
+    WHAT THE PAIR SEPARATES, read against 5c panel for panel:
+
+        5c off-diagonal, 5cr diagonal restored   the code is INTACT and the pre-stroke readout is
+                                                 pointing at the wrong place -- displacement
+        both off-diagonal, and in the SAME cells the code itself is confusable with that neighbour;
+                                                 no readout recovers it -- degradation
+        5cr off-diagonal in DIFFERENT cells      the within-session structure has reorganised rather
+                                                 than simply weakened
+
+    THE TWO PANELS ARE NOT ON THE SAME FOOTING and the difference is not cosmetic: the frozen arm
+    trains on ten pre-stroke sessions and this one on four fifths of one, so its PRE panel is
+    already worse than 5c's with no lesion involved. Read each family against ITS OWN pre column --
+    which is what the delta row beneath does -- and never a 5cr cell against a 5c cell directly.
+
+    SESSIONS THE REFIT COULD NOT BE FITTED ON ARE ABSENT, not zero: `_refit_pred` returns None for a
+    session that cannot carry a 5-fold block split, so a thin epoch here rests on fewer sessions
+    than the same epoch in 5c. The panel titles carry the per-animal session counts for that reason.
+    """
+    from wfield_local import grant_figures as G
+
+    per_animal, _days = G._collect_5c(align, variant, "refit")
+    if not per_animal:
+        return []
+    counts = ef.counts_by_epoch(per_animal)
+    counts = {e: M for e, M in counts.items() if M is not None and np.asarray(M).sum()}
+    if not counts:
+        return []
+    p = ef.confusion_row(
+        counts, out_dir, name=f"epoch_5cr_refit_confusion_{align}_{variant}",
+        title=(f"WITHIN-SESSION REFIT decoder, pooled across animals -- {wname}"),
+        coverage=ef.epoch_coverage(per_animal)["per_epoch"], delta=True, chance=CHANCE,
+        labels=_short_labels())
+    return [p] if p else []
 
 
 
@@ -1608,12 +1895,13 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "5r", "5rm", "mat", "scal"))
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5r", "5rm", "mat", "scal"))
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s",
+                                 "mat", "scal"))
 
     if "1b" in want:
         try:
@@ -1630,7 +1918,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5r", "5rm", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -1661,6 +1949,27 @@ def main(argv=None) -> int:
                     _report(f"5c {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        if "5cr" in want:
+            try:
+                for p in _refit_confusion_rows(out, align, variant, wname):
+                    _report(f"5cr {align}/{variant}", p)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 5cr {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        if "12s" in want:
+            try:
+                _report(f"12s {align}/{variant}",
+                        _fig_12_stopped(out, align, variant, wname))
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 12s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        if "10e" in want:
+            try:
+                for p in (_fig_10e_best_match_grid(out, align, variant, wname) or []):
+                    _report(f"10e {align}/{variant}", p)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 10e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         for _k, _fn in (("5r", _frozen_vs_refit), ("5rm", _frozen_vs_refit_matched)):
             if _k not in want:

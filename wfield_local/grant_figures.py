@@ -237,7 +237,10 @@ def _variants(align):
     That is exactly the shape of duplication `_pooled_bundle` was extracted for -- seventeen copies
     agree today and one of them grows a third class tomorrow.
     """
-    vs = ("lick",) if align == "lick" else ("lick", "working")
+    # `stopped` JOINS THEM FOR THE NON-LICK WINDOWS ONLY, and for the same reason `lick` owns the
+    # lick window alone: a trial inside the quit period is a non-response by construction, so it
+    # has no lick to align to and a "stopped, lick-aligned" panel is undefined rather than empty.
+    vs = ("lick",) if align == "lick" else ("lick", "working", "stopped")
     return tuple(v for v in vs if _ONLY_VARIANT in (None, v))
 
 
@@ -1580,10 +1583,26 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # read against it, which is why pre is drawn rather than assumed to be zero.
             pre_y, pre_p, pre_b, pre_recs = [], [], [], []
             for i in sorted(pre_i):
-                tr, te = e_pre & (GE != i), e_pre & (GE == i)
-                if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                tr = e_pre & (GE != i)
+                # THE TRAINING SET IS ALWAYS THE ENGAGED PRE-STROKE ANIMAL -- that is what "frozen"
+                # means, and it does not depend on the class being SCORED. What the class changes is
+                # the trials the held-out pre-stroke session contributes, and for `stopped` that is
+                # its quit period rather than its licking trials.
+                #
+                # THIS SITE WAS THE ONE `_class_select` DID NOT COVER, and the symptom was a
+                # stopped-arm figure whose pre bars read 0.85-0.92 -- the engaged accuracy -- beside
+                # post-stroke stopped bars near chance, i.e. an enormous apparent effect that was
+                # mostly the two panels being different kinds of trial. Caught 2026-09-11 by the
+                # subtitle reporting 44 pre sessions when only 15 pre-stroke sessions have any
+                # stopped trials at all.
+                me_te, mu_te = _class_select(variant, e_pre & (GE == i),
+                                             (GU == i) if len(GU) else np.zeros(0, bool), not_eng)
+                Xte = np.vstack([XE[me_te]] + ([XU[mu_te]] if mu_te.any() else []))
+                yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
+                bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
+                if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                r = rec(XE[te], YE[te], BE_all[te], _pipe().fit(XE[tr], YE[tr]),
+                r = rec(Xte, yte, bte, _pipe().fit(XE[tr], YE[tr]),
                         pool=(XE[tr], YE[tr], BE_all[tr]))
                 if r is None:
                     continue
@@ -1600,9 +1619,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 if i in pre_i:
                     continue
                 day = _day(an, lab.split("_")[-1])
-                me = (GE == i)
-                mu = ((GU == i) & ~not_eng if (len(GU) and variant == "working")
-                      else np.zeros(len(GU), bool))
+                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng)
                 Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
@@ -1700,8 +1717,7 @@ def _draw_5c(per_animal, days, out_dir, align, wname, variant="working"):
         plt.close(fig)
         return None
     fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="P(predicted | true)")
-    cls = ("LICK trials only" if variant == "lick"
-           else "LICK + MISS-WHILE-WORKING (terminal quit period removed)")
+    cls = _class_note(variant)
     _suptitle(fig, f"Frozen pre-stroke decoder, session by session — {wname} window\n"
                    f"Post-stroke class: {cls}. Columns are DAYS FROM LESION so they mean the same "
                    f"thing in every row; a blank cell is a session that animal does not have.\n"
@@ -1776,11 +1792,9 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                         day = _day(an, lab.split("_")[-1])
                         pat = {}
                         for q in CONF_LABELS:
-                            parts = [XE[(GE == i) & (en == q)]]
-                            if v == "working" and len(un):
-                                m = (GU == i) & (un == q) & ~not_eng
-                                if m.any():
-                                    parts.append(XU[m])
+                            _me, _mu = _class_select(v, (GE == i) & (en == q),
+                                                     (GU == i) & (un == q), not_eng)
+                            parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             Xp = [z for z in parts if len(z)]
                             if Xp:
                                 Z = np.vstack(Xp)
@@ -1851,8 +1865,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="pattern correlation r")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, f"Mean-pattern similarity session by session — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows within a panel = the pattern being "
                          f"described; columns within a panel = the PRE-STROKE reference.\n"
@@ -2059,11 +2072,9 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                     for p in CONF_LABELS:
                         by_sess, tot = [], 0
                         for i in post_ids:
-                            parts = [XE[(GE == i) & (en == p)]]
-                            if v == "working" and len(un):
-                                m = (GU == i) & (un == p) & ~not_eng
-                                if m.any():
-                                    parts.append(XU[m])
+                            _me, _mu = _class_select(v, (GE == i) & (en == p),
+                                                     (GU == i) & (un == p), not_eng)
+                            parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             keep = [q for q in parts if len(q)]
                             if keep:
                                 Z = np.vstack(keep)
@@ -2157,8 +2168,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.025, pad=0.03, label="pattern correlation r")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, f"Mean-pattern similarity, within and across positions — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows = the pattern being described, columns = "
                          f"the PRE-STROKE reference it is correlated with.\n"
@@ -2276,26 +2286,97 @@ def _runs_to_blocks(sess, pos):
     return -(np.cumsum(changed).astype(np.int64) + 1)
 
 
+@lru_cache(maxsize=12)
+def pre_session_counts(align, variant):
+    """``{animal: n}`` -- pre-stroke sessions that have ANY trial of this class.
+
+    NOT the same as "pre-stroke sessions", and the difference is the whole reason this exists. For
+    `lick` and `working` every pre-stroke session qualifies, so it reproduces the epoch assignment.
+    For `stopped` it does not come close: a well-trained pre-stroke animal barely quits, and
+    post-cue the counts are PS92 1, PS93 1, PS94 6, PS95 7 out of eleven sessions each. A subtitle
+    stating 44 over a panel built from 15 is a 3x overstatement of the baseline's footing, and it
+    is invisible on the figure itself.
+    """
+    out = {}
+    for an in ANIMALS:
+        try:
+            bd = _pooled_bundle(an, align)
+        except Exception as ex:                                          # noqa: BLE001
+            # SAID OUT LOUD. A silent skip here understates the pre baseline by one whole animal
+            # and the figure still draws, which is the same class of failure this function exists
+            # to fix.
+            print(f"  !! pre-counts {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            continue
+        n = 0
+        for i in sorted(bd["pre_i"]):
+            if any(len(_session_trials(bd, i, q, variant)) for q in CONF_LABELS):
+                n += 1
+        if n:
+            out[an] = n
+    return out
+
+
+def _class_select(variant, sess_e, sess_u, not_eng):
+    """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
+
+    THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
+    `stopped` were each written inline as ``if v == "working" and len(un)`` at three collector sites
+    plus `_session_trials`, and every one of them included the ENGAGED rows unconditionally -- which
+    is right for the first two classes and catastrophically wrong for `stopped`, where it would
+    silently fold every licking trial of the session into a set defined as "the animal had quit".
+    One function, so that cannot happen at one site and not the others.
+
+        lick     engaged only
+        working  engaged + unengaged OUTSIDE the terminal quit period
+        stopped  the terminal quit period ALONE, and NO engaged rows
+
+    `stopped` and `working` partition the unengaged trials and `stopped` takes none of the engaged
+    ones, so the three classes are not nested: a trial is in `working` or in `stopped`, never both.
+    """
+    import numpy as _np
+    e_none = _np.zeros(len(sess_e), bool)
+    u_none = _np.zeros(len(sess_u), bool)
+    if variant == "stopped":
+        return e_none, (sess_u & not_eng) if len(sess_u) else u_none
+    if variant == "working":
+        return sess_e, (sess_u & ~not_eng) if len(sess_u) else u_none
+    return sess_e, u_none
+
+
+#: How a trial class reads in a figure caption. One place, because fifteen copies of a two-branch
+#: conditional cannot survive a third branch being added -- every one of them captioned `stopped`
+#: as "LICK + miss-while-working", i.e. as its own complement.
+def _class_note(variant):
+    return {"lick": "LICK trials only",
+            "working": "LICK + miss-while-working (quit period removed)",
+            "stopped": "THE TERMINAL QUIT PERIOD ONLY -- no licking trials"}.get(
+                variant, str(variant))
+
+
 def _session_trials(bd, i, q, variant, field="X"):
     """Trials (or their BLOCK IDS) for session ``i`` at position ``q`` under a trial class.
 
     ``lick`` is the engaged (licking) set; ``working`` adds miss-while-working, i.e. everything but
-    the terminal quit period. Returns an empty array rather than None so callers can stack freely.
+    the terminal quit period; ``stopped`` is that quit period ALONE. Returns an empty array rather
+    than None so callers can stack freely.
 
     ``field`` selects what comes back -- "X" the patterns, "blk" the block id of each of those same
     rows. THE MASK IS COMPUTED ONCE HERE for both, so the two cannot drift apart; a bootstrap whose
     block vector did not line up with its data would silently resample the wrong trials.
     """
-    me = (bd["GE"] == i) & (bd["en"] == q)
-    mu = None
-    if variant == "working" and len(bd["un"]):
-        m = (bd["GU"] == i) & (bd["un"] == q) & ~bd["not_eng"]
-        mu = m if m.any() else None
+    # ``stopped`` IS THE COMPLEMENT OF EVERY OTHER CLASS: the terminal quit period ONLY, and no
+    # licking trials at all. Every other class here is `~not_eng` and this is `not_eng`, so a trial
+    # belongs to `stopped` or to `working` and never to both. It exists because "the animal stopped"
+    # is a behavioural state the imaging can be asked about (Priya, 2026-09-11) and the gate has so
+    # far only ever been used to THROW those trials away.
+    me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
+                           (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
+                           else np.zeros(0, bool), bd["not_eng"])
     if field == "blk":
-        parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu is not None else [])
+        parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]
         return np.concatenate(keep) if keep else np.zeros(0, np.int64)
-    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu is not None else [])
+    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 
@@ -2559,8 +2640,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="split-half correlation r")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, 
                 f"WITHIN-session split-half pattern similarity — {wname} window\n"
                 f"Post-stroke class: {cls}.  BOTH HALVES COME FROM THE SAME SESSION: no lesion "
@@ -2845,8 +2925,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
             if not drew:
                 plt.close(fig)
                 continue
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, 
                 f"Is the lost code a MOVED code or a NOISIER one? — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = spout position, columns = days from lesion.\n"
@@ -3159,8 +3238,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
                          label="crossnobis distance -- BRIGHT = unchanged "
                                "(1.0 = mean pre-stroke between-position distance)")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, 
                 f"Cross-validated (crossnobis) distance to the pre-stroke pattern — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = the post-stroke position, columns = the "
@@ -3319,8 +3397,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
             if not drew:
                 plt.close(fig)
                 continue
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig,
                 f"Second-order RSA on crossnobis RDMs — {wname} window\n"
                 f"Post-stroke class: {cls}.  Each session's OWN 6x6 crossnobis RDM correlated "
@@ -3548,6 +3625,87 @@ def _delta_diag_one(mats_fn, pre_x, pre_b, dx, db, rng, n_boot):
                           float(np.median(col)))
         rec["pos"] = pos
     return rec
+
+
+#: Minimum STOPPED trials at one position in one session before that cell contributes a mean
+#: pattern. Lower than the engaged families' 10 by design: the quit period is short by definition
+#: and a 10-trial floor discards most of it. Measured 2026-09-11, post-cue, per (session, position):
+#: the post-stroke stopped sets run 15-369 trials per SESSION spread over six positions, so ~5 is
+#: where most sessions still contribute all six cells.
+MIN_STOPPED = 5
+
+
+@lru_cache(maxsize=6)
+def _collect_stopped(align, min_trials=MIN_STOPPED):
+    """Mean patterns on the trials the engagement gate THROWS AWAY: the terminal quit period.
+
+    Priya, 2026-09-11: "do we already have (or can we add) a post-stroke vs pre-stroke 'stopped'
+    trials pattern similarity analysis? We will probably have to pool pre-stroke trials to get
+    enough n." We did not -- `flag_engagement` has only ever been a filter -- and yes, pre-stroke
+    has to be pooled.
+
+    Returns ``({animal: {"WORK_REF": means, "PRE_STOPPED": means|None, day: means}}, days)``.
+
+    WHAT IS BEING ASKED, and why it needs TWO references rather than one. A post-stroke stopped
+    pattern that no longer resembles the pre-stroke template has two explanations that this design
+    can separate only because the pre-stroke animal ALSO stops:
+
+        post-stopped vs pre-stroke WORKING template   how far the code is from the intact one
+        PRE-stopped  vs the same template             how far STOPPING ALONE moves it, no lesion
+
+    The second is the control, and without it any post-stroke result is a statement about arousal
+    and satiety as much as about the lesion. It is why `WORK_REF` is the engaged pre-stroke
+    reference every other family uses rather than a stopped one: both stopped sets are scored
+    against the SAME template, so their difference is attributable.
+
+    THE PRE-STROKE STOPPED SET IS POOLED ACROSS SESSIONS AND IS THIN, UNEQUALLY. Post-cue, per
+    animal: PS92 6 trials in 1 of 11 sessions, PS93 40 in 1, PS94 326 in 6, PS95 495 in 7. PS92 and
+    PS93 cannot support a control at all -- one trial per position is not a mean pattern -- so the
+    control exists for PS94 and PS95 and the figure must say which animals it rests on rather than
+    drawing four columns and letting two of them be noise. A well-trained pre-stroke animal barely
+    quits, which is the same fact that makes the gate worth having.
+
+    POST-STROKE IS PER SESSION, like every other collector here, so an epoch is a mean over sessions
+    rather than a mean over trials -- otherwise a 369-trial session would outvote a 15-trial one by
+    a factor of 25 within its own epoch.
+    """
+    out, all_days = {}, set()
+    for an in ANIMALS:
+        try:
+            bd = _pooled_bundle(an, align)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! stopped {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            continue
+        rec, pre_pool = {}, {}
+        work = {}
+        for i, lab in enumerate(bd["kept"]):
+            mmdd = lab.split("_")[-1]
+            if i in bd["pre_i"]:
+                for q in CONF_LABELS:
+                    Z = _session_trials(bd, i, q, "lick")
+                    if len(Z):
+                        work.setdefault(q, []).append(Z)
+                    S = _session_trials(bd, i, q, "stopped")
+                    if len(S):
+                        pre_pool.setdefault(q, []).append(S)
+                continue
+            pat = {q: Z for q in CONF_LABELS
+                   if len(Z := _session_trials(bd, i, q, "stopped")) >= min_trials}
+            # TWO POSITIONS IS THE FLOOR for a correlation matrix to mean anything; one position
+            # gives a 1x1 comparison dressed as a 6x6.
+            if len(pat) >= 2:
+                day = _day(an, mmdd)
+                rec[day] = _means(pat)
+                all_days.add(day)
+        if not work:
+            continue
+        d = {"WORK_REF": _means({q: np.vstack(v) for q, v in work.items()})}
+        pre_s = {q: np.vstack(v) for q, v in pre_pool.items()
+                 if sum(len(z) for z in v) >= min_trials}
+        d["PRE_STOPPED"] = _means(pre_s) if len(pre_s) >= 2 else None
+        d.update(rec)
+        out[an] = d
+    return out, sorted(all_days)
 
 
 def _corr_matrix(src_means, ref_means, labels=None):
@@ -4017,8 +4175,7 @@ def fig_pattern_delta(out_dir, min_trials=10):
             if not days or not mats:
                 continue
             cis = _delta_cis(align, v, min_trials, _mats_pattern, "6d")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_6d_pattern_delta_{align}_{v}.png",
                 title=(f"Mean-pattern similarity, CHANGE FROM PRE-STROKE — {wname} window\n"
@@ -4059,8 +4216,7 @@ def fig_splithalf_delta(out_dir, min_trials=10):
             if not days or not mats:
                 continue
             cis = _delta_cis(align, v, min_trials, _mats_splithalf, "7d")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_7d_splithalf_delta_{align}_{v}.png",
                 title=(f"WITHIN-session split-half similarity, CHANGE FROM PRE-STROKE — {wname} "
@@ -4168,8 +4324,7 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
             # the correlation figures; flip the interval back into distance units for display.
             cis = {a2: {d: (-hi, -lo) for d, (lo, hi) in v2.items()}
                    for a2, v2 in _delta_cis(align, v, min_trials, _mats_crossnobis, "8d").items()}
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_8d_crossnobis_delta_{align}_{v}.png",
                 title=(f"Crossnobis distance to the pre-stroke pattern, CHANGE FROM PRE-STROKE — "
@@ -4226,8 +4381,7 @@ def fig_confusion_delta(out_dir):
                     if C is not None and C.sum():
                         d[day] = _norm(C)
                 mats[an] = d
-            cls = ("LICK trials only" if variant == "lick"
-                   else "LICK + MISS-WHILE-WORKING (terminal quit period removed)")
+            cls = _class_note(variant)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_5d_confusion_delta_{align}_{variant}.png",
                 title=(f"Frozen pre-stroke decoder, CHANGE FROM PRE-STROKE — {wname} window\n"
@@ -4333,8 +4487,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 # first render of this figure. This is the only figure in the module carrying both.
                 fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=11, frameon=False,
                            bbox_to_anchor=(0.5, 0.035))
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, 
                 f"Change from pre-stroke over days, with block-bootstrap intervals — {wname} "
                 f"window\n"
@@ -4466,8 +4619,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
                          label="d(post P, pre Q) - d(post Q, pre P)")
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig, 
                 f"Is the distance matrix ASYMMETRIC, and where? -- {wname} window\n"
                 f"Post-stroke class: {cls}.  A[P,Q] = d(post at P, pre at Q) - d(post at Q, pre at "
@@ -4886,8 +5038,7 @@ def fig_geometry_by_position(out_dir, min_trials=10):
             if h:
                 fig.legend(h, lab, loc="lower center", ncol=len(ANIMALS), fontsize=10,
                            frameon=False, bbox_to_anchor=(0.5, 0.035))
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             # LAY THE PANELS OUT INTO WHAT THE HEADER LEFT, not into the full height. `tight_layout`
             # first and `_suptitle` after -- which compresses every axes into [0, top] -- spread the
             # panels over the whole figure and then shrank them away from the header, wasting about
@@ -5072,8 +5223,7 @@ def fig_best_match(out_dir, min_trials=10):
             if im is None:
                 plt.close(fig)
                 continue
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             _suptitle(fig,
                       f"Which PRE-STROKE position does each post-stroke position match BEST? -- "
                       f"{wname} window\n"
@@ -5269,8 +5419,7 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
             if h:
                 fig.legend(h, lb, loc="lower center", ncol=3, fontsize=9.5, frameon=False,
                            bbox_to_anchor=(0.5, 0.012))
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             # LAY THE PANELS OUT INTO WHAT THE HEADER ACTUALLY LEFT. Calling `tight_layout` FIRST
             # and then `_suptitle` -- which compresses every axes into [0, top] afterwards -- left
             # a tenth of the figure blank between the header and the first panel title, because
@@ -5403,8 +5552,7 @@ def fig_best_match_by_session(out_dir, min_trials=10):
             if not drew or im is None:
                 plt.close(fig)
                 continue
-            cls = ("LICK trials only" if v == "lick" else
-                   "LICK + miss-while-working (quit period removed)")
+            cls = _class_note(v)
             top = _suptitle(fig,
                             f"Which pre-stroke position did each one match BEST, SESSION BY "
                             f"SESSION? -- {wname} window\n"
@@ -6137,8 +6285,11 @@ def render_units(want=None):
             if not varianted:
                 units.append((key, align, None))
                 continue
-            vs = ("lick",) if align == "lick" else ("lick", "working")
-            units.extend((key, align, v) for v in vs)
+            # THE SAME RULE AS THE COLLECTORS, from the same function rather than a second copy
+            # of the conditional -- which is how this line came to be missing the `_ONLY_VARIANT`
+            # filter that `_variants` applies, so `--only-variant` narrowed the figures but not the
+            # unit list the scheduler planned.
+            units.extend((key, align, v) for v in _variants(align))
     units.sort(key=lambda u: -_COST_HINT.get(u[0], 0.0))
     return units
 
