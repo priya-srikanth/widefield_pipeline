@@ -21,9 +21,10 @@ import pytest
 from wfield_local import config, epochs
 
 #: Priya's specification, transcribed as {animal: (acute days, first subacute day, first chronic
-#: day or None)}. Chronic added 2026-09-07: PS92 from day 11; the other three have not stabilised.
+#: day or None)}. Chronic added 2026-09-07: PS92 from day 11. PS95 from day 11 (ratified 2026-09-10:
+#: hit plateau d11 @101%, licks plateau d9 @113%). PS93/PS94 have not stabilised.
 SPEC = {"PS92": (range(1, 6), 7, 11), "PS93": (range(1, 5), 5, None),
-        "PS94": (range(1, 8), 9, None), "PS95": (range(1, 2), 2, None)}
+        "PS94": (range(1, 8), 9, None), "PS95": (range(1, 2), 2, 11)}
 
 
 def test_the_stored_spec_is_the_one_priya_gave():
