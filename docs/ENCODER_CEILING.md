@@ -43,66 +43,94 @@ reference pooled over ~10 sessions while the ceiling's reference is half a sessi
 Matching removes the asymmetry, and the inversion goes with it **in all three windows**: ceiling ≥
 matched at pre-stroke everywhere.
 
-## Results
+## Results — SHAPE ONLY (after rescale)
 
-### Post-cue, lick + miss-while-working (new epoch boundaries; chronic = 12 sessions, 3 animals)
+All three arms are scored after rescale, so amplitude is out of every number. Raw scores at these
+amplitudes are dominated by the encoder not being allowed to rescale: with PERFECT shape and only a
+scale mismatch, `R² = 1 − (1−a)²/a²`, which is exactly 0.000 at a = 0.5 and **−2.13** at the
+a = 0.361 observed acutely. A raw ceiling-minus-matched gap therefore reports amplitude and calls it
+template mismatch, because the ceiling's two halves have matched amplitude by construction while the
+matched frozen arm does not.
 
-| epoch | ceiling | frozen (matched) | frozen (all pre) | ceiling − matched | Δ vs pre |
-|---|---|---|---|---|---|
-| pre | 0.660 | 0.343 | 0.557 | 0.317 | — |
-| **acute** | **0.478** | **−0.505** | −0.388 | **0.983** | **+0.666** |
-| subacute | 0.584 | −0.042 | 0.176 | 0.626 | +0.309 |
-| chronic | 0.753 | 0.255 | 0.400 | 0.498 | +0.181 |
+### Post-cue (new boundaries; chronic = 12 sessions, 3 animals)
 
-**THE ACUTE SESSION CAN PREDICT ITSELF.** Ceiling 0.478 against a matched frozen arm of −0.505. The
-post-stroke pattern is not noise: it carries real position structure the pre-stroke template cannot
-reach.
+| epoch | ceiling | matched | gap | Δ vs pre | template captures | amplitude a |
+|---|---|---|---|---|---|---|
+| pre | 0.703 | 0.426 | 0.277 | — | 61% | 0.745 |
+| **acute** | 0.571 | 0.098 | 0.473 | **+0.196** | **17%** | **0.285** |
+| subacute | 0.643 | 0.222 | 0.421 | +0.144 | 35% | 0.517 |
+| chronic | 0.778 | 0.319 | 0.459 | **+0.183** | 41% | 0.741 |
 
-**THE PRE-STROKE GAP IS LARGE AND IS NOT AN EFFECT.** 0.317 at baseline, with no lesion involved —
-the cost of a template coming from other sessions at equal training-set size. Same phenomenon the
-matched frozen DECODER arm exposed, where matching flipped the pre-stroke gap from −0.073 to +0.090.
+**AMPLITUDE RECOVERS; SHAPE DOES NOT.** The fitted scale goes 0.285 → 0.517 → **0.741** against a
+pre-stroke 0.745 — back to baseline. The shape mismatch goes +0.196 → +0.144 → **+0.183** — flat.
+An earlier version of this document reported the mismatch as monotonically recovering (+0.666,
++0.309, +0.181); those were RAW scores and what was recovering in them was the amplitude.
 
-**LESION-ATTRIBUTABLE TEMPLATE MISMATCH RECOVERS MONOTONICALLY AND DOES NOT REACH ZERO:**
-+0.666 acute → +0.309 subacute → +0.181 chronic.
-
-The ceiling itself falls 0.660 → 0.478 acutely, so roughly 28% of the available structure is
-genuinely lost. Both things happen; the mismatch dominates. That is the encoder-side statement of
-the same result the frozen-vs-refit decoder arm gives, reached from a different quantity — and it
-**restores a weaker form of the withdrawn claim on a defensible footing**: the acute failure is not
-"the tuning is gone", because the tuning is measurably there. It is "the pre-stroke tuning no longer
-describes it".
+**THE PRE-STROKE GAP IS 0.277 AND IS NOT AN EFFECT** — the cost of a template coming from other
+sessions at equal training-set size, with no lesion involved. Same phenomenon the matched frozen
+DECODER arm exposed, where matching flipped its pre-stroke gap from −0.073 to +0.090.
 
 ### Post-lick
 
-| epoch | ceiling | matched | ceiling − matched | Δ vs pre |
-|---|---|---|---|---|
-| pre | 0.719 | 0.395 | 0.324 | — |
-| acute | 0.502 | −0.190 | 0.692 | +0.368 |
-| subacute | 0.628 | 0.013 | 0.615 | +0.291 |
-| chronic | 0.798 | 0.323 | 0.475 | +0.151 |
+| epoch | ceiling | matched | gap | Δ vs pre | captures | a |
+|---|---|---|---|---|---|---|
+| pre | 0.749 | 0.467 | 0.282 | — | 62% | 0.775 |
+| acute | 0.608 | 0.231 | 0.377 | +0.095 | 38% | 0.561 |
+| subacute | 0.678 | 0.245 | 0.433 | +0.151 | 36% | 0.559 |
+| chronic | 0.817 | 0.376 | 0.441 | +0.158 | 46% | 0.785 |
 
-Same shape as post-cue, smaller acutely.
+Milder acutely than post-cue, and the same non-recovery of shape with amplitude back at baseline.
 
-### Pre-cue — now self-consistent, still nearly signal-free
+### Pre-cue — self-consistent now, but weak throughout
 
-| epoch | ceiling | matched | ceiling − matched | Δ vs pre |
-|---|---|---|---|---|
-| pre | 0.117 | −0.143 | 0.261 | — |
-| acute | 0.019 | −0.508 | 0.527 | +0.266 |
-| subacute | −0.045 | −0.527 | 0.482 | +0.221 |
-| chronic | 0.105 | −0.437 | 0.542 | +0.281 |
+| epoch | ceiling | matched | gap | Δ vs pre | captures | a |
+|---|---|---|---|---|---|---|
+| pre | 0.363 | 0.168 | 0.194 | — | 46% | 0.437 |
+| acute | 0.309 | 0.059 | 0.250 | +0.056 | 19% | 0.222 |
+| subacute | 0.278 | 0.067 | 0.211 | +0.017 | 24% | 0.223 |
+| chronic | 0.335 | 0.063 | 0.271 | +0.077 | 19% | 0.245 |
 
-The inversion is fixed, but **the ceiling is 0.117 pre-stroke and hovers near zero afterwards**, so
-the gap is a difference between two near-zero quantities. Consistent is not the same as informative.
-Note also that unlike the other two windows the pre-cue mismatch does NOT recover — chronic (+0.281)
-is as high as acute (+0.266). Do not build on that until the arm has signal to divide.
+The inversion is gone — ceiling exceeds matched at every epoch — but the ceiling is 0.363 at its best
+against 0.70–0.75 for the other two windows, and the amplitude factor never recovers (0.245 chronic
+against 0.437 pre-stroke). Contrasts here are small differences between small numbers; treat as
+suggestive only.
+
+## Per position — and this is the finding
+
+Post-cue, shape (after rescale). `ceiling` = what that position's own trials can predict; `match` =
+what the pre-stroke template gets; `frac` = the second over the first.
+
+| position | pre ceil / frac | acute ceil / frac | subacute frac | chronic frac | Δ ceiling acute |
+|---|---|---|---|---|---|
+| near ipsi | 0.741 / 0.67 | 0.585 / 0.22 | 0.41 | 0.33 | −0.156 |
+| near middle | 0.453 / 0.26 | 0.438 / 0.22 | 0.15 | 0.05 | −0.015 |
+| near contra | 0.726 / 0.62 | 0.627 / 0.28 | 0.46 | 0.53 | −0.099 |
+| **far ipsi** | 0.629 / 0.54 | 0.336 / 0.19 | 0.30 | 0.34 | **−0.293** |
+| **far middle** | 0.717 / 0.63 | 0.468 / 0.43 | 0.33 | 0.52 | **−0.249** |
+| **far contra** | 0.613 / 0.57 | **0.613** / **−0.11** | 0.26 | 0.26 | **0.000** |
+
+**FAR-CONTRA LOSES NO STRUCTURE AND LOSES ITS TEMPLATE ENTIRELY.** Ceiling 0.613 acutely, identical
+to its 0.613 pre-stroke — its own trials predict each other exactly as well as before — while the
+pre-stroke template captures nothing. The positions that lose CEILING are the flanking ones: far-ipsi
+−0.293 and far-middle −0.249.
+
+(Per-position values use the session-global scale factor rather than a per-position one, which is
+why far-contra's acute match can be negative where the pooled after-rescale score cannot.)
+
+**This converges with the frozen-vs-refit DECODER arm**, which found refitting recovers 34% of
+far-contra's acute deficit and only 9% / 11% at far-ipsi / far-middle. Two analyses, opposite
+directions of fit, same dissociation: far-contra's code is DISPLACED, its neighbours' codes are
+DEGRADED. The pooled "~28% of structure lost" figure averages those two different things and should
+not be quoted without the split.
+
+Figures: `epoch_11cpos_encoder_ceiling_by_position_*` (the ceiling) and
+`epoch_11cfrac_encoder_captured_by_position_*` (the fraction). The fraction is dropped rather than
+drawn where the ceiling is below 0.10, since a ratio to a near-zero denominator reads as a result.
 
 ## Still to do on this branch
 
-1. **Per-position ceiling.** `_enc_half_scores` already returns the per-position dict and nothing
-   plots it. Far-contra is where the ceiling matters most and it is currently pooled away.
-2. **Deck placement** — no `_EPOCH` entry yet, deliberately: placing it before the numbers are
+1. **Deck placement** — no `_EPOCH` entry yet, deliberately: placing it before the numbers are
    reviewed would put an unreviewed figure in front of readers.
-3. **Intervals on the derived gap.** The bars carry hierarchical-bootstrap intervals; the
+2. **Intervals on the derived gap.** The bars carry hierarchical-bootstrap intervals; the
    `ceiling − matched` difference is computed per epoch from the pooled values and has none.
-4. Rebase before merging — `main` moved on after this branch was cut.
+3. Rebase before merging — `main` moved on after this branch was cut.

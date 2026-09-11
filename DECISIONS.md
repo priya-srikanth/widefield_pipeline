@@ -7573,3 +7573,87 @@ had asserted the opposite model and had to be corrected with it.
 This is the same failure the first-run guard already existed to prevent, arriving through a
 different door: a "boundaries moved" banner that fires when nothing moved teaches the reader to skip
 the one banner that matters on the night something does.
+
+---
+
+## 2026-09-10 — The encoder had no CEILING, and adding one changes what the acute failure is
+
+Priya: "should we do a similar per-session refit with the encoder analysis as we did with the
+decoder?" Yes, and more than for the decoder, because the frozen encoder's score had nothing to be
+read against. `frozen EV` is an R² and acutely it is **−0.388** post-cue: "worse than predicting the
+mean", and mute about what was achievable in that session.
+
+**A refit encoder must be cross-validated or it is 1.0 by construction.** Ridge on a one-hot
+position design reduces to the per-position mean (`_enc_terms`), so predicting a session's own means
+from themselves is an identity. Splitting the trials makes it a prediction — which makes this the
+split-half family scored in the ENCODER's units rather than as a correlation. Deliberately: a
+correlation is gain-blind and `frozen EV` is not, so the two could not otherwise be compared.
+
+Three arms, all scoring the SAME half-session means, computed in one pass so they share their halves
+exactly rather than relying on two seeded passes staying in step:
+
+| arm | reference | holds constant |
+|---|---|---|
+| ceiling | the other half of the same session | — |
+| frozen (matched) | an equally sized draw from the pre-stroke pool | training-set size |
+| frozen (all pre) | the whole pre-stroke pool | nothing; the encoder as actually used |
+
+The subsampling is of the REFERENCE, not of the scored side. For PS92 far_R post-cue the reference
+goes from 661 pooled pre-stroke trials to 33 — the size of one half of that session's 66 trials.
+Matched per position, because post-stroke the animal works the positions very unevenly. For the
+pre-stroke column the pool excludes the session being scored.
+
+### Why matching was required rather than optional
+
+Without it the pre-cue window was uninterpretable: frozen EV **0.330** against a ceiling of
+**0.090** — a frozen arm beating its own ceiling, which is impossible for a real ceiling and is a
+fact about the construction, since the unmatched arm's reference pools ~10 sessions while the
+ceiling's is half of one. Matching removes the asymmetry and the inversion goes with it in all three
+windows.
+
+### NEGATIVE EXPLAINED VARIANCE IS AN AMPLITUDE STATEMENT, and it confounded the first version
+
+`EV = 1 − SSE/SST` with SST the measured pattern's own sum of squares after centring across
+positions, so negative means the template's prediction is FURTHER from the data than predicting zero
+— than assuming no position tuning at all. With PERFECT shape and only a scale mismatch,
+`R² = 1 − (1−a)²/a²`: exactly **0.000 at a = 0.5** and **−2.13 at the a = 0.361 observed acutely**.
+
+That broke the comparison as first built. The ceiling's two halves have matched amplitude BY
+CONSTRUCTION (fitted a 0.75–0.89) while the matched frozen arm scores a shrunken post-stroke pattern
+against a full-amplitude pre-stroke template (a = 0.285 acutely), so a raw gap reports amplitude and
+calls it template mismatch. **All three arms are now scored after rescale** — amplitude-free on both
+sides, and unable to go negative since a = 0 is always available and scores exactly 0.
+
+**It changed the conclusion.** On raw scores the lesion-attributable gap looked monotone and
+recovering (+0.666 acute, +0.309 subacute, +0.181 chronic). On shape it is **+0.196, +0.144, +0.183
+— and does NOT recover.** What was recovering was the AMPLITUDE: a goes 0.285 → 0.517 → 0.741
+against 0.745 pre-stroke. Amplitude returns; shape does not.
+
+### Per position, and this is the finding
+
+Post-cue, shape (after rescale). `ceiling` is what that position's own trials can predict; `match` is
+what the pre-stroke template gets; `frac` is the second over the first.
+
+| position | pre ceil / frac | acute ceil / frac | Δ ceiling acute |
+|---|---|---|---|
+| near ipsi | 0.741 / 0.67 | 0.585 / 0.22 | −0.156 |
+| near middle | 0.453 / 0.26 | 0.438 / 0.22 | −0.015 |
+| near contra | 0.726 / 0.62 | 0.627 / 0.28 | −0.099 |
+| **far ipsi** | 0.629 / 0.54 | 0.336 / 0.19 | **−0.293** |
+| **far middle** | 0.717 / 0.63 | 0.468 / 0.43 | **−0.249** |
+| **far contra** | 0.613 / 0.57 | **0.613** / **−0.11** | **0.000** |
+
+**FAR-CONTRALATERAL LOSES NO STRUCTURE AT ALL AND LOSES ITS TEMPLATE ENTIRELY.** Its ceiling is
+0.613 acutely, identical to its 0.613 pre-stroke — its own trials predict each other exactly as well
+as before — while the pre-stroke template captures nothing (−0.11; per-position values use the
+session-global scale factor, so they can go negative). The positions that lose CEILING are the
+flanking ones, far-ipsi (−0.293) and far-middle (−0.249).
+
+This converges with the frozen-vs-refit DECODER arm from the same day, which found refitting
+recovers 34% of far-contra's acute deficit but only **9% at far-ipsi and 11% at far-middle**. Two
+analyses, opposite directions of fit, same dissociation: **far-contra's code is displaced, its
+neighbours' codes are degraded.** The pooled "~28% of structure lost" figure averages those two
+different things and should not be quoted without the split.
+
+Built on branch `encoder/ceiling`; see `docs/ENCODER_CEILING.md`. Held out of `main` until the
+2026-09-10 re-render completes, so the render is not chasing a moving figure set.

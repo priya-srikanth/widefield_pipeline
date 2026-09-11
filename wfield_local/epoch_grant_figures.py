@@ -1461,8 +1461,98 @@ def _fig_11c(out_dir, align, variant, wname):
         delta_title=f"Encoder ceiling and frozen template, change from pre-stroke -- {wname}")
 
 
+def _fig_11cpos(out_dir, align, variant, wname):
+    """11cpos: the encoder SHAPE ceiling and the frozen template, PER POSITION.
+
+    11c pools the six positions into one number per epoch, which is the wrong shape for the question
+    the lesion poses: far-contralateral is the position the deficit lives at, and a pooled ceiling
+    averages it with five positions that barely moved. This is the same three quantities per
+    position.
+
+    TWO FIGURES. The first is the ceiling alone -- how much SHAPE each position's own trials can
+    predict, which is a statement about that position's data and not about the template. The second
+    is the CAPTURED FRACTION, `matched / ceiling`: of the shape a position's own trials can predict,
+    how much does the pre-stroke template get? A fraction rather than a difference, because the
+    positions do not share a ceiling and a raw gap of 0.2 means something different at a position
+    whose ceiling is 0.3 than at one whose ceiling is 0.8.
+
+    AFTER-RESCALE THROUGHOUT, for the reason `_fig_11c` gives at length: a raw score at these
+    amplitudes is dominated by the encoder not being allowed to rescale, and the ceiling's halves
+    have matched amplitude by construction while the frozen arm's reference does not.
+
+    THE FRACTION IS CLIPPED FOR DISPLAY AND NOT FOR COMPUTATION. Where a ceiling is near zero the
+    ratio is unstable and can exceed 1 or go negative; those cells are dropped rather than drawn,
+    because a 300% "captured" bar is an artefact of a small denominator and reads as a result.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local.grant_figures import CONF_LABELS
+
+    cei_tab, _d1 = G._enc_ceiling_tables(align, variant)
+    mat_tab, _d2 = G._enc_matched_tables(align, variant)
+    if not cei_tab or not mat_tab:
+        return None
+    short = dict(zip(CONF_LABELS, _short_labels()))
+
+    def _per(payload, key):
+        try:
+            per = payload[3] or {}
+        except Exception:                                              # noqa: BLE001
+            return None
+        for q, sh in short.items():
+            if sh == key:
+                v = per.get(q)
+                return None if v is None or not np.isfinite(v) else float(v)
+        return None
+
+    cvals, cpts = ef.scalar_by_epoch(cei_tab, _per, keys=_short_labels())
+    mvals, _mp = ef.scalar_by_epoch(mat_tab, _per, keys=_short_labels())
+    if not cvals:
+        return None
+    made = []
+    p1 = _scalar_figure(
+        out_dir, name=f"epoch_11cpos_encoder_ceiling_by_position_{align}_{variant}",
+        title=f"Encoder SHAPE ceiling per position -- {wname}",
+        ylabel="EV after rescale (shape)", keys=_short_labels(), values=cvals, points=cpts,
+        tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.05),
+        delta_name=f"epoch_11cposdelta_encoder_ceiling_by_position_{align}_{variant}",
+        delta_title=f"Encoder shape ceiling per position, change from pre-stroke -- {wname}")
+    if p1:
+        made.append(p1)
+
+    #: A ceiling below this makes the captured FRACTION a ratio of noise; drop the cell instead.
+    MIN_CEILING = 0.10
+    frac, fpts = {}, {}
+    for e in ef.PANELS:
+        row = {}
+        for k in _short_labels():
+            c = (cvals.get(e) or {}).get(k)
+            m = (mvals.get(e) or {}).get(k)
+            if c is None or m is None:
+                continue
+            cv, mv = ef._value_and_ci(c)[0], ef._value_and_ci(m)[0]
+            if cv is None or mv is None or cv < MIN_CEILING:
+                continue
+            row[k] = max(0.0, min(1.0, mv / cv))
+        if row:
+            frac[e] = row
+            fpts[e] = {k: [] for k in row}
+    if frac:
+        p2 = _scalar_figure(
+            out_dir, name=f"epoch_11cfrac_encoder_captured_by_position_{align}_{variant}",
+            title=(f"Of the shape a position's own trials can predict, how much does the "
+                   f"PRE-STROKE template capture? -- {wname}"),
+            ylabel="matched / ceiling", keys=_short_labels(), values=frac, points=fpts,
+            tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.05),
+            delta_name=f"epoch_11cfracdelta_encoder_captured_by_position_{align}_{variant}",
+            delta_title=f"Captured fraction per position, change from pre-stroke -- {wname}")
+        if p2:
+            made.append(p2)
+    return made or None
+
+
 SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),
-                   ("10b", _fig_10b), ("11", _fig_11), ("11c", _fig_11c))
+                   ("10b", _fig_10b), ("11", _fig_11), ("11c", _fig_11c),
+                   ("11cpos", _fig_11cpos))
 
 
 # ------------------------------------------------------------------------------ the driver
