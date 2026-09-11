@@ -8085,3 +8085,52 @@ a **100 mm ruler** on the sheet for this reason. If that ruler measures 99.4 mm,
 `square_mm` in `board.yaml` and re-solve — no re-recording. Until then every reconstructed distance
 carries a -0.6% systematic, which matters for absolute measurements and cancels in any ratio or
 within-session comparison.
+
+---
+
+## 2026-09-11 (later) — The printed ruler measures 100.8 mm, which corrects the scale and refutes my explanation of it
+
+Priya measured the 100 mm ruler `dlc_board` prints on the sheet: **100.8 mm**. The print is **0.8%
+LARGER** than nominal, not 0.6% smaller as I predicted.
+
+### Two things I had tangled together
+
+**The print scale is a real, uncorrected systematic.** The board's true square is
+`3.71 x 1.008 = 3.740 mm`. Declaring 3.71 makes the solver explain the observed image with a smaller
+board, so it places everything nearer and **every reconstructed distance comes out 0.8% too small**.
+`board.yaml` now carries 3.740 / 2.843 with the ruler measurement in its note, and the recording has
+been re-solved.
+
+**The -0.6% I saw was never the print, and the test I proposed could not have shown it.** That figure
+came from triangulating the board and comparing against `square_mm` — the same number the calibration
+was built from. It is an INTERNAL consistency check and is scale-invariant by construction: after
+correcting to 3.740 mm it reads -0.8% against 3.740 instead of -0.6% against 3.710, i.e. it moved
+with the declared value rather than converging on truth. It measures how well the four cameras agree
+with each other, not whether the board is the size we think.
+
+So the two errors are independent and both are now known: **absolute scale, fixed by the ruler; and a
+~0.5-0.8% inter-camera inconsistency, which is the same thing the 4.7 px reprojection reports.**
+Precision is unchanged at **38 µm SD**, which is what matters for tracking, and the residual bias
+cancels in any within-session comparison.
+
+### ChArUco detection is NOT scale-invariant, which I asserted and then measured
+
+To avoid a ten-minute re-decode on every scale correction I keyed the detection cache on the
+scale-invariant parts of the board — layout, dictionary, marker:square ratio — reasoning that
+detection happens in image space and millimetres only matter later at pose estimation.
+
+**Measured before shipping it: changing 3.71 mm to 3.740 mm moved 8% of detected corner coordinates,
+by up to 8.7 px.** `CharucoBoard.detect_image` goes through `cv2.aruco.CharucoDetector.detectBoard`,
+which interpolates corners via a pose solved against the board's 3D object points; a differently
+scaled board gives a differently scaled pose and the iterative refinement carries it into the
+returned pixel coordinates.
+
+Reverted. The cache key includes the full spec, and a scale correction correctly costs a re-decode.
+The reasoning was clean and wrong, and the only reason it did not ship is that the two cache files
+were compared instead of assumed identical.
+
+### A smaller trap in the same area
+
+The digest hashes whatever dict it is handed. `board_for` builds a five-key spec; the raw
+`board.yaml` also carries a `note`. Hashing the raw YAML produced a filename the module would never
+look for — a cache that silently never hits. Anything computing the key must go through `board_for`.
