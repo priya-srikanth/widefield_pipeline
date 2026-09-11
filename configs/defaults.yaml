@@ -436,6 +436,15 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   of baseline for five sessions -- register as a plateau at day 1.
                               #   Stably impaired is not recovered.
       hit: 0.90               #   Priya's original by-eye bar; also 1.3-2.0 SD for every animal.
-      licks: 0.80             #   looser because licking is noisier; 1.00 would demand full lick
-                              #   recovery and reject PS92 at 97%. Flat is NOT recovered -- PS94's
-                              #   licking is dead flat at 47% of baseline from day 9.
+      licks: 0.70             #   LOWERED from 0.80 on 2026-09-10 (Priya). Looser than the hit bar
+                              #   because licking is noisier, and 1.00 would demand full lick
+                              #   recovery and reject PS92 at 97%. Flat is NOT recovered -- which is
+                              #   why a bar exists at all: PS94's licking is dead flat at ~50% of
+                              #   baseline from day 9.
+                              #   NO EFFECT ON THE CURRENT COHORT, measured: PS94's lick tail mean
+                              #   is 50.1% from day 9 and never exceeds 52.5% from any later start,
+                              #   so it fails 0.70 as it failed 0.80. Its most recent session is
+                              #   74%, which is where "more than 50%" comes from -- but the rule
+                              #   tests the tail MEAN, not the last point. PS92/PS93/PS95 sit at
+                              #   92/124/117% and clear either bar. The change widens the rule for
+                              #   future animals rather than reclassifying a current one.

@@ -48,9 +48,13 @@ def test_a_real_plateau_is_found():
 
 
 def test_flat_but_impaired_is_not_a_plateau():
-    """THE LEVEL CONDITION. PS94's licking is flatter than PS92's from day 9 -- slope -1.5%/session
-    against a tolerance of 17% -- and sits at 47% of baseline throughout. A slope-only rule calls
-    that chronic, which would report an animal with a halved lick vigour as recovered."""
+    """THE LEVEL CONDITION. PS94's licking is flatter than PS92's from day 9 and sits at ~47-50% of
+    baseline throughout. A slope-only rule calls that chronic, which would report an animal with a
+    halved lick vigour as recovered.
+
+    STILL FAILS AT THE 0.70 BAR the licks level was lowered to on 2026-09-10, and by a wide margin:
+    the tail mean never exceeds 52.5% from any candidate start. The bar moved 0.80 -> 0.70 without
+    reclassifying anybody, which is the measurement this test now also pins."""
     assert _plateau(PS94_LICKS, PS94_LICK_SD, "licks") is None
     # and it is the LEVEL that rejects it, not the slope: drop the bar under 47% and it qualifies
     assert epochs._plateau_index(PS94_LICKS, PS94_LICK_SD, 0.30) is not None
