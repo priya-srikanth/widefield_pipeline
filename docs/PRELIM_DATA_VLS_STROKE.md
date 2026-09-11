@@ -420,6 +420,20 @@ refit supplies the ceiling. A refit encoder must be cross-validated or it is 1.0
 ridge on a one-hot design reduces to the per-position mean, so a session predicting its own means
 from themselves is an identity.
 
+> **WHAT "EXPLAINED VARIANCE" IS THE VARIANCE OF, because the name invites the wrong reading.**
+> Priya, 2026-09-10: "if the encoder is literally an average per position, we're asking how much of
+> all the trials the AVERAGE (binned) per-position activity explains?" The first half is right and
+> the second half is not. The encoder IS the per-position average of the binned component activity.
+> But the score is computed MEAN against MEAN: `M` and `P` are both 6 x features matrices of
+> per-position mean patterns, centred across positions, and the denominator is `sum M^2` — the
+> BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
+> number answers "how much of the measured position-to-position pattern does the template's
+> position-to-position pattern reproduce", not "how much of the trial variance is explained"; a
+> trial-level R2 would be far lower, because single-trial noise is large and is excluded here by
+> construction. It also means the CEILING's shortfall from 1.0 is entirely sampling noise in the
+> half-session means — which is why halving the trials lowers it, and why the size-matched arm was
+> needed at all.
+
 **EVERYTHING IS SCORED AFTER RESCALE, i.e. SHAPE.** Negative explained variance here is almost
 entirely an amplitude statement: with PERFECT shape and only a scale mismatch,
 `R^2 = 1 - (1-a)^2/a^2`, which is exactly 0.000 at a = 0.5 and **-2.13** at the a = 0.361 observed

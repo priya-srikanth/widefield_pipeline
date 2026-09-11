@@ -17,6 +17,20 @@ when the rescaled value is HIGH, because a code that is simply gone also recover
 rescaling. That ambiguity forced the withdrawal of the "half amplitude, half shape" reading on
 2026-09-10.
 
+> **WHAT "EXPLAINED VARIANCE" IS THE VARIANCE OF, because the name invites the wrong reading.**
+> Priya, 2026-09-10: "if the encoder is literally an average per position, we're asking how much of
+> all the trials the AVERAGE (binned) per-position activity explains?" The first half is right and
+> the second half is not. The encoder IS the per-position average of the binned component activity.
+> But the score is computed MEAN against MEAN: `M` and `P` are both 6 x features matrices of
+> per-position mean patterns, centred across positions, and the denominator is `sum M^2` — the
+> BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
+> number answers "how much of the measured position-to-position pattern does the template's
+> position-to-position pattern reproduce", not "how much of the trial variance is explained"; a
+> trial-level R2 would be far lower, because single-trial noise is large and is excluded here by
+> construction. It also means the CEILING's shortfall from 1.0 is entirely sampling noise in the
+> half-session means — which is why halving the trials lowers it, and why the size-matched arm was
+> needed at all.
+
 ## Construction
 
 A refit encoder must be **cross-validated or it is 1.0 by construction** — ridge on a one-hot
