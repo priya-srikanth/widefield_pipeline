@@ -101,6 +101,15 @@ code cell on paper, which wants 1200 dpi rather than 600.
 
    (`cam2 px/cell` at the distance the 08-05 board was held. The bar is ~3; that board managed 2.1.)
 
+   > **SUPERSEDED 2026-09-10 — print `charuco_7x7_26mmboard_3.7mmsq.pdf`.** The 40 mm 6x6 was
+   > recorded and measured: `cam2`/`cam3` are fine on it, but `cam1` never exceeds **6** ChArUco
+   > corners and `cam4` **9**, against aniposelib's floor of 9 for intrinsics. cam1's 600 px frame
+   > spans **~20 mm** at its measured 30 px/mm, so the board has to put 4+ squares inside 20 mm.
+   > 7x7 at 26 mm gives cam1 ~16 corners and still leaves the side views 4.6 px/cell (floor ~3);
+   > 6x6 at 26 mm lands cam1 on exactly 9, i.e. the threshold with no margin. Full table in
+   > `DECISIONS.md` "Which board to print". The paragraph below is kept as the reasoning that led to
+   > the 40 mm choice.
+
    **Start with the 40 mm 6x6.** At 40 mm the board is flush with the 30 mm cage plate (38.1 mm), so
    it adds nothing to the rig's footprint — and a smaller board moves its working window CLOSER,
    which is the direction you want when space is tight. Every 40 mm variant still clears the decode
@@ -163,16 +172,105 @@ camera means the size and standoff are right; then do the full sweep.
 3. **Move it constantly**: pause ~0.5 s per pose, then change position AND tilt. Aim for **≥20
    distinct poses per camera** and **≥15 shared per pair**. Holding it steady adds frames, not poses,
    which is exactly the mistake in the 08-05 recording.
+3b. **SWEEP THROUGH DEPTH, and tilt well off parallel.** This is a *separate* requirement from the
+   board size, and the 09-10 recording met the size requirement for `cam2`/`cam3` and failed this
+   one on all four cameras. Every pose sat at a similar depth and tilt, so focal length, principal
+   point and distortion traded off against one another: solved freely, **three of four cameras put
+   their principal point outside their own sensor** while reporting 0.9-1.9 px reprojection error.
+   Move the board **toward and away from each camera** across the full range it stays in focus, and
+   hold it at steep angles (≥ 30° off the image plane), not just face-on. Reprojection error cannot
+   detect the failure this prevents — `dlc_anipose` checks for it explicitly and refuses to write a
+   calibration that shows it.
 4. Work the pairs deliberately: `cam3↔cam1` and `cam3↔cam4` are the thin ones (7 poses each), and
    `cam2↔cam3` has none. `cam2↔cam3` face opposite sides and may share no field of view at all —
    that is fine, the graph only has to be *connected*, not complete.
 5. Save as `Behavior_Cameras/camera_calibration_<YYYYMMDD>/` — `dlc_calibration` picks up the newest
    by the date in the name, with no config edit.
 6. **Write down the board's physical geometry**: squaresX, squaresY, square length mm, marker length
-   mm. Not recoverable from the video, and without it a reconstruction has no metric scale. Put it in
-   `configs/defaults.yaml dlc.board.*` when you have it.
+   mm. Not recoverable from the video, and without it a reconstruction has no metric scale.
+   `dlc_board` writes a `board.yaml` sidecar — drop a copy into the recording folder. This is not a
+   formality: the 08-05 recording's geometry was never written down and **cannot be recovered**
+   (marker ids 0-37 fit a 7x11, a 9x9 and an 8x10 board equally well), which is the single reason it
+   cannot contribute to a pooled solve today.
 7. Re-run step 0 with `--step 5` and confirm `RESULT: pair graph CONNECTED` with every camera at
-   ≥20 poses.
+   ≥20 poses, then `python -m wfield_local.dlc_anipose --gate` for the thresholds the solver
+   actually applies (see step 0c).
+
+---
+
+## Step 0c — the solve, and pooling more than one recording
+
+`dlc_calibration` (step 0) says whether a recording is worth solving. `dlc_anipose` solves it, with
+aniposelib's joint bundle adjustment over all four cameras rather than a chain of pairs.
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_anipose --gate                    # what the SOLVER accepts, no solve
+python -m wfield_local.dlc_anipose                           # newest recording
+python -m wfield_local.dlc_anipose --dir <A> --dir <B>       # pool INTRINSICS across recordings
+python -m wfield_local.dlc_anipose --dir <A> --dir <B> --assume-rig-unmoved   # ... and extrinsics
+```
+
+**Run `--gate` before `--dir`-ing anything together.** aniposelib is stricter than our step-0 gate:
+it initialises intrinsics only from views with **≥9** ChArUco corners and admits a row to the bundle
+adjustment only at **≥8**. `dlc_calibration` screens at 6. A camera can clear step 0 and still be
+dropped by the solver, which is what `--gate` exists to show you first.
+
+Detections are cached beside the recording as `anipose_rows_<digest>.pkl`, keyed by board spec +
+frame step + detector settings. The first run decodes four ~650 MB videos off the share and takes
+tens of minutes; re-solving with different pooling options after that is seconds. `--refresh`
+forces a re-detect.
+
+### What pools and what does not
+
+| | pools across recordings? | assumption |
+|---|---|---|
+| **intrinsics** (f, principal point, distortion) | **yes, freely** — even across different board sizes | nobody refocused or swapped a lens |
+| **extrinsics** (where the cameras are relative to each other) | only behind `--assume-rig-unmoved` | the rig did not move between recordings |
+
+Intrinsics pool because `calibrateCamera` takes object points *per view*, so a 40 mm board and a
+26 mm board sit in one solve. This is the point of pooling: **no single board size works for all
+four cameras** — one big enough for `cam2`/`cam3` to decode overflows the snout views, one small
+enough for `cam1`/`cam4` falls below the decode floor on the side views.
+
+Extrinsics are a fact about where the cameras were *on the day*. `--assume-rig-unmoved` is **tested,
+not trusted**: any pair solvable in both recordings is solved separately in each and compared
+(tolerance 1.0° / 2.0 mm). **If no pair is observed in both, the assumption is untestable and the
+flag is refused** — untestable is not the same as true.
+
+Extrinsics also never pool recordings that used *different boards*: aniposelib indexes object points
+by ChArUco corner id against one geometry, and both our boards are DICT_4X4_50 with overlapping ids,
+so mixing them would read one board's corners against the other's millimetres — silently.
+
+### The check that reprojection error cannot make
+
+`dlc_anipose` refuses a calibration whose **principal point lands outside the frame** (or >0.2 image
+widths off centre), or whose **|k1| > 1**, *regardless of how good the reprojection error looks*.
+On the 09-10 recording three of four cameras failed this at 0.9-1.9 px RMS. The model fits; it is
+not identifiable, because the board never moved through depth. See step 0 item 3b — the fix is at
+the rig, not in the solver.
+
+`--fix-principal-point` pins it to the frame centre and rescues `cam2`/`cam3`. It is an
+**assumption, not a measurement**: these frames are ROIs off a larger sensor, so the optical axis is
+at the ROI centre only if the ROI is centred on the sensor. Use it to get moving, not to ship.
+
+### Can the two recordings we already have be combined? No.
+
+Measured 2026-09-10, full record in `DECISIONS.md`:
+
+- **`camera_calibration_20260805`** — its `board.yaml` is all zeros. The geometry was never written
+  down and is not recoverable (ids 0-37 fit several layouts), so it contributes nothing to a metric
+  solve. Even granting it: `cam2` = 11 frames at 2.1 px/cell, `cam3` = 3 frames, `cam4` = **4
+  distinct poses**. Only `cam1` has a real sweep.
+- **`Widefield_calibration_20260910`** — `cam2`/`cam3` are fine; `cam1` reaches **0** views with ≥6
+  corners (max 5 ever) and `cam4` reaches **4** (max 8). The 40 mm board is too large in the snout
+  views: a fragment carries markers but no interpolated corners.
+- **Together**: `cam4` is covered by neither, and no pair is observed in both, so the rig-unmoved
+  test cannot even run.
+
+The unblocking recording is the **26 mm board, swept through depth**. Its intrinsics then pool with
+09-10's for `cam2`/`cam3`; if it is recorded close enough in time that the rig-unmoved test passes,
+its extrinsics pool too.
 
 ---
 

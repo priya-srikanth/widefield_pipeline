@@ -702,6 +702,30 @@ connected — the criterion, since a camera that sees the board constantly but n
 instant as another cannot be placed relative to it. As of `camera_calibration_20260805` the graph
 has three components (`cam1+cam4`, `cam2`, `cam3`), so 3D needs a re-recorded calibration.
 
+**`dlc_anipose`** (added 2026-09-10) is the SOLVE — aniposelib's joint bundle adjustment over all
+four cameras, and the triangulation downstream. `dlc_calibrate` remains as an independent
+cross-check on a quantity nobody can eyeball; prefer `dlc_anipose` for the product.
+
+It exists to pool **several recordings**, because no single board size works for all four cameras:
+one big enough for the side views to decode overflows the snout views. The two halves pool on
+different terms — **intrinsics freely** (`calibrateCamera` takes object points per view, so a 40 mm
+and a 26 mm board sit in one solve; it only assumes nobody refocused), **extrinsics only behind
+`--assume-rig-unmoved`**, which is *tested* by solving any doubly-observed pair separately per
+recording and comparing (1.0° / 2.0 mm). With no pair observed twice the assumption is untestable
+and the flag is refused.
+
+Two things it checks that nothing else does. **aniposelib's own thresholds** — ≥9 ChArUco corners to
+initialise intrinsics, ≥8 for a row to enter the bundle adjustment, against `dlc_calibration`'s 6 —
+so `--gate` reports the bar that will actually be applied (a test pins these to aniposelib's source).
+And **identifiability**: a principal point outside its own frame, or `|k1| > 1`, is refused however
+good the reprojection error looks. On `Widefield_calibration_20260910` three of four cameras put
+their principal point outside their sensor at 0.9–1.9 px RMS, because the board never swept through
+depth. Detections cache beside the recording, so re-solving with different pooling is seconds.
+
+**The two recordings on the share cannot be combined** (measured 2026-09-10): the 08-05 board's
+geometry was never written down and is not recoverable from the video, and the 09-10 board is too
+large in the snout views (`cam1` never exceeds 5 ChArUco corners). See `DECISIONS.md`.
+
 **`dlc_frames`** builds the labelling set by experimental design rather than by appearance: spout
 position × within-trial phase, using the same `camera_sync` alignment template `behavior_clips` cuts
 with, one session per animal × epoch. It also adds **lick-locked** frames — DAQ lick onsets (the

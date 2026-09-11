@@ -73,7 +73,22 @@ MAX_CALIB_FRAMES = 120
 
 
 def _make_board(spec):
+    """Build the cv2 board, REFUSING an unrecorded geometry with a sentence rather than a SystemError.
+
+    `camera_calibration_20260805`'s sidecar is all zeros -- that board's layout was never written
+    down and is not recoverable from the video (marker ids 0-37 fit a 7x11, a 9x9 and an 8x10 board
+    equally well). Handed those zeros, OpenCV 5 raises `SystemError: returned a result with an
+    exception set` from inside the constructor, which reads as a broken install rather than as the
+    one thing that is actually missing.
+    """
     from cv2 import aruco
+
+    bad = [k for k in ("squares_x", "squares_y", "square_mm", "marker_mm") if not spec.get(k)]
+    if bad or spec["square_mm"] <= spec["marker_mm"] or min(spec["squares_x"], spec["squares_y"]) < 2:
+        raise ValueError(
+            f"board has no usable geometry ({spec}). Zeros in a board.yaml mean the board's "
+            f"dimensions were never recorded: a ChArUco corner is defined only relative to a known "
+            f"square layout, and square_mm is the metric scale of every 3D distance downstream.")
     d = aruco.getPredefinedDictionary(getattr(aruco, spec["dictionary"]))
     return aruco.CharucoBoard((spec["squares_x"], spec["squares_y"]),
                               spec["square_mm"], spec["marker_mm"], d)

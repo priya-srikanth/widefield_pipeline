@@ -7599,3 +7599,187 @@ had asserted the opposite model and had to be corrected with it.
 This is the same failure the first-run guard already existed to prevent, arriving through a
 different door: a "boundaries moved" banner that fires when nothing moved teaches the reader to skip
 the one banner that matters on the night something does.
+
+---
+
+## 2026-09-10 — Pooling calibration recordings: what pools, what does not, and why these two do not
+
+Priya: *"proceed with using multiple recordings — with anipose can we do the calibration with the
+two recordings we have?"*
+
+**Measured answer: no.** Not with aniposelib, and not with `dlc_calibrate` either — the blocker is
+in the recordings, not the solver. The pooling machinery is built anyway (`wfield_local/dlc_anipose.py`)
+because it is what the *next* pair of recordings needs, and because building it is what produced the
+measurements below.
+
+### The two halves pool on completely different terms
+
+This is the distinction the module is organised around, and conflating them is the trap.
+
+**Intrinsics pool freely.** `cv2.calibrateCamera` takes `objectPoints` PER VIEW, so views of a 40 mm
+board and views of a 26 mm board sit in one solve with no special handling. The only assumption is
+that nobody refocused or swapped a lens between recordings. Each camera is solved independently, so
+a recording useless for one camera is simply absent from that camera's list rather than harmful.
+
+**Extrinsics do not pool without asserting THE RIG DID NOT MOVE.** A relative pose is a fact about
+where the cameras were on the day. `cross_recording_agreement()` measures it: solve the same pair
+separately in each recording and compare, in degrees and mm. Tolerance 1.0° / 2.0 mm — a degree at a
+~100 mm working distance is ~1.7 mm of transverse error, already coarser than the precision the 3D
+tracking is for.
+
+**When no pair is observed well in two recordings the assumption is UNTESTABLE, and
+`--assume-rig-unmoved` is refused rather than taken.** Untestable is not the same as true. That is
+exactly the 08-05/09-10 case: the only pair 08-05 offers is cam1–cam4, and cam1 yields no usable
+corners at all on 09-10, so nothing can contradict the assumption — which is precisely why it must
+not be made.
+
+### Why these two recordings cannot be combined
+
+Three independent blockers, any one of them sufficient:
+
+**1. The 2026-08-05 board's geometry was never recorded.** Its `board.yaml` is all zeros. The layout
+is not recoverable from the video either: marker ids 0–37 were observed (36 distinct, 35 and 36
+never seen), which fits a 7×11 board (38 markers exactly), a 9×9 (40), an 8×10 (40) and others
+equally well. Scale is worse than ambiguous — it is an *inference* from the 38.1 mm cage plate the
+card was taped to. `square_mm` is the metric scale of every reconstructed distance downstream, and a
+wrong one is invisible in the output.
+
+**2. Even granting the geometry, 08-05 does not cover the cameras that need covering.** cam2 = 11
+usable frames at 2.1 px per code cell (present, too small to decode); cam3 = 3 frames; cam4 = **4
+distinct poses** out of 1792 usable frames — the board was held in front of it, not swept. Only cam1
+has a real sweep. So the union would be cam1 from 08-05 plus cam2/cam3 from 09-10, and **cam4 is
+covered by neither**.
+
+**3. `Widefield_calibration_20260910` cannot calibrate the snout cameras.** Measured through
+`dlc_anipose --gate`, i.e. with aniposelib's own detector and its own thresholds:
+
+| cam | frame | max corners ever | poses ≥9 corners (intrinsics) | poses ≥8 corners (bundle) | verdict |
+|---|---|---|---|---|---|
+| cam1 | 600×600 | **6** | **0** | **0** | UNUSABLE |
+| cam2 | 600×450 | 24 | 67 | 55 | OK |
+| cam3 | 600×450 | 25 | 52 | 50 | OK |
+| cam4 | 680×680 | **9** | **1** | 2 | WEAK (want 20) |
+
+**aniposelib gets two of the four cameras** out of this recording, and they are the two side views.
+
+aniposelib is *stricter* than we were: `CameraGroup.calibrate_rows` initialises intrinsics only from
+views with `min_corners_intrinsic=9` corners and admits a row to the bundle adjustment only at
+`ids.size >= 8`. `dlc_calibrate` used 6. cam1 tops out at 5 and cam4 at 8, so **aniposelib would
+drop cam1 entirely**. `dlc_anipose.ANIPOSE_MIN_CORNERS_*` mirror those numbers and a test pins them
+to aniposelib's own source, so an upgrade cannot silently move the bar the gate reports.
+
+### The marker-corner fallback does not rescue the snout cameras
+
+Worth recording because it looks like it should work and the failure is quiet. A ChArUco corner
+needs its four surrounding markers; a *decoded marker* carries four image points whose board-frame
+coordinates are known exactly. On cam1 that turns 0 usable views into 99 poses, on cam4 11 into 105.
+
+It still does not calibrate. On cam1 the solve returns **f = 4375 px with the principal point at
+(1354, 402) on a 600×600 frame** — 1.8 image-widths outside its own sensor — at 1.95 px reprojection
+error. Pinning the principal point moves the problem rather than fixing it: **k1 = −4.05**, which is
+not a lens. Two further defects: marker corners are less precise than the checkerboard corners
+ChArUco interpolates, and the marker path **silently accepts ids that are not on the board** —
+DICT_4X4_50 holds 50 patterns, our 6×6 board uses 18, and a stray quad decoded to id 37 on cam3,
+which would have contributed object points from a marker that does not exist.
+
+### The check reprojection error cannot make
+
+The finding that generalises beyond this recording. Solved with a free principal point, **three of
+the four cameras put it outside their own sensor** — including cam2 and cam3, which see the board
+perfectly — while reporting 0.9–1.9 px of reprojection error:
+
+| cam | free pp | k1 | RMS | pp pinned → f, k1, RMS |
+|---|---|---|---|---|
+| cam1 | (1354, 402) of 600×600 | −1.16 | 1.95 | 5099, **−4.05**, 2.08 |
+| cam2 | (−120, 510) of 600×450 | −0.86 | 1.09 | 1519, −0.21, 1.19 |
+| cam3 | (−57, −372) of 600×450 | −0.93 | 0.92 | 1762, −0.40, 1.27 |
+| cam4 | (350, 362) of 680×680 | −0.27 | 1.97 | 4911, −1.97, 2.00 |
+
+The model fits; it is not *identifiable*. Every board pose in the recording sits at a similar depth
+and tilt, so focal length, principal point and distortion trade off along a valley the residual
+cannot see. **A calibration that passes on RMS and fails this triangulates confidently and wrongly**,
+which is worse than no calibration. `intrinsics_quality()` now refuses it (`MAX_PP_OFFSET = 0.2`,
+`MAX_ABS_K1 = 1.0`) and `solve()` raises rather than writing the file.
+
+### Pinning the principal point does not fix it, it relocates it
+
+`--fix-principal-point` exists as a fallback and is documented as an *assumption, not a
+measurement*: these frames are ROIs read off a larger sensor, so the optical axis is at the ROI
+centre only if the ROI is centred on the sensor.
+
+Run with it, the 09-10 recording solves cam2+cam3 to a **0.971 px bundle-adjusted reprojection
+error** — and cam2 comes back at **fx = 1458, fy = 1617**. That is a 9.8% non-square pixel on a
+Blackfly, whose pixels are square. cam3's `k2` came back at **−13.4**. Constrain the principal point
+and the degeneracy reappears in the aspect ratio; constrain that too and it goes to distortion.
+
+So `intrinsics_quality` checks three things, and **the aspect ratio is the sharpest of them because
+it tests against a fact about the sensor rather than a plausible range**: fx and fy are the same
+focal length in the same units and must agree to a fraction of a percent (`MAX_ASPECT_ERROR = 0.05`).
+cam2 fails it at 9.8%; cam3 passes at 2.6%.
+
+There is no solver setting that fixes this. **The fix is at the rig: sweep the board through depth.**
+
+**What the next recording must do that this one did not: sweep the board through DEPTH and tilt it
+well off parallel to each camera.** That is a separate requirement from the board *size* fixed on
+2026-09-09, and the 09-10 recording satisfies the size requirement for the side cameras while
+failing this one on all four.
+
+### Incidental: a zero board.yaml used to read as a broken install
+
+`dlc_calibrate._make_board` handed OpenCV 5 the 08-05 zeros and got `SystemError: <class
+'cv2.aruco.CharucoBoard'> returned a result with an exception set`. Now validated with a sentence
+naming the one thing that is missing.
+
+### Two performance notes on aniposelib's detection, both fixed in `_detect_video`
+
+`CharucoBoard.detect_video` does `ret, frame = cap.read()` for *every* frame and then `continue`s on
+the ones it is skipping — a full decode of ~83,000 frames per video to detect on a tenth of them.
+`grab()` advances the decoder without producing a frame; over the share that is the difference
+between minutes and an hour per recording.
+
+Its `go` counter re-arms a `step/2` run of dense detection after every hit. On a recording where most
+frames carry a board — 80% of cam1's here — the run never expires and it detects on essentially every
+frame regardless of `skip`. Everything downstream selects one row per *pose*, so those dense runs are
+decoded, detected and discarded. Sampling strictly every `step`th frame gives the same poses. The
+first attempt at the gate ran 20 minutes without finishing a single camera; it now does four in a few.
+
+### Which board to print: 7x7 at 26 mm, not the 6x6 I specified on 2026-09-09
+
+The 09-10 measurements make the board choice checkable rather than estimated, and they move it.
+cam1 resolved that board at 25.38 px per code cell; a DICT_4X4 marker is 6 cells and that board's
+marker is 5.07 mm, so **cam1 runs at ~30 px/mm and its 600 px frame spans ~20 mm**. cam4 spans
+~22 mm. The corner yield follows from how many squares fit in that field:
+
+| board | square | cell | cam1 corners | cam4 corners | cam2 px/cell | cam3 px/cell |
+|---|---|---|---|---|---|---|
+| 6x6 @ 40 mm *(recorded)* | 6.67 mm | 0.84 mm | **1** | **4** | 8.2 | 8.3 |
+| 6x6 @ 26 mm *(was specified)* | 4.33 mm | 0.55 mm | **9** | 16 | 5.3 | 5.4 |
+| **7x7 @ 26 mm** | **3.71 mm** | **0.47 mm** | **16** | **25** | **4.6** | **4.6** |
+| 9x9 @ 26 mm | 2.89 mm | 0.37 mm | 25 | 36 | 3.5 | 3.6 |
+
+aniposelib needs **≥9** corners to initialise intrinsics and ≥8 for a bundle row; the decode floor on
+the side views is ~3 px/cell.
+
+**The 6x6 at 26 mm lands cam1 on exactly 9 — the threshold itself, with no margin**, and the estimate
+has real error bars in it (the board is held at varying distance, and a partial view at an angle
+yields fewer). The 7x7 gives cam1 16 while still leaving cam2/cam3 at 4.6 px/cell, half again over
+the floor. The 9x9 buys more corners than anyone needs and pushes the side views to 3.5, which is the
+cliff the 08-05 board fell off.
+
+So: **`charuco_7x7_26mmboard_3.7mmsq.pdf`**, already generated and on the share. Its 0.47 mm code
+cell is ~22 dots at 1200 dpi, which is fine on paper and is exactly where toner spread starts to
+matter — the "check a print under magnification" step is not optional at this size.
+
+This supersedes the 2026-09-09 instruction to print the 6x6; that choice was made from the 08-05
+recording's scale, before cam1's field had been measured against a board of known geometry.
+
+### Status
+
+`dlc_anipose` is wired and tested (24 tests, 4 skipped outside the `dlc` env — aniposelib is not
+installed in `locanmf` and the pre-push hook runs pytest from whichever env is active).
+
+What it needs is one recording with the **7x7 26 mm** board, **swept through depth and tilted well
+off parallel**, which then pools its intrinsics with 09-10's for cam2/cam3 and — if recorded close
+enough in time that the rig-unmoved test passes — its extrinsics too. On the estimates above that
+recording alone should calibrate all four cameras, in which case pooling becomes a refinement rather
+than a necessity — which is the right place for it to sit.
