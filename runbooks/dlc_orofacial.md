@@ -42,6 +42,47 @@ across the whole recording. Two things are wrong with it, and neither is "you di
 2. **`cam4` was held, not swept.** 8,969 usable frames and **four** distinct poses. It looks like the
    best camera in the rig on every frame-based measure and has the least-constrained intrinsics.
 
+### Why "several squares" on the snout cameras is not enough
+
+The solve consumes ChArUco CORNERS, and corners grow as (squares-1)^2:
+
+| squares visible | interior corners | equations | left over for intrinsics |
+|---|---|---|---|
+| 3x3 | 4 | 8 | **2** |
+| 4x4 | 9 | 18 | 12 |
+| 6x6 | 25 | 50 | 44 |
+
+Every view spends **6 of its equations on its own board pose** (3 rotation, 3 translation); only
+what is left constrains the shared intrinsics, which is the entire reason for having many views.
+`cam1`'s best frame ever shows 5 corners — 10 equations, 6 on its own pose, **4 contributing to the
+calibration**. A 25-corner view contributes 44. And a small planar patch is ill-conditioned on top
+of that: focal length and distance trade off against each other unless the board is seen large and
+at varied tilt, and four corners cannot break that ambiguity.
+
+### The board size, not the distance, is the thing to change
+
+Moving the board further back would fix the corner count and introduce two worse problems: the
+cameras are focused on the MOUSE, so a board at twice that distance is out of focus and its corners
+localise badly; and a calibration is most accurate where its data was, so calibrating at a depth the
+animal never occupies extrapolates into the working volume.
+
+There is a board that satisfies every camera AT the working distance. The constraints are
+`marker >= 1.86 mm` (cam2/cam3 decode floor, 9.7 px/mm) and `square <= ~4.5 mm` (cam1's 20 mm field
+must hold 4-5 squares), which leaves a real window:
+
+| file | board | square | marker | cam2 px/cell | cam1 corners | cam4 corners |
+|---|---|---|---|---|---|---|
+| **`charuco_6x6_26mmboard_4.3mmsq.pdf`** | 26 mm | 4.33 mm | 3.29 mm | **5.3** | **9** | 16 |
+| `charuco_7x7_26mmboard_3.7mmsq.pdf` | 26 mm | 3.71 mm | 2.82 mm | 4.6 | 16 | 25 |
+
+**Start with the 6x6 at 26 mm.** Nine corners per view over 20+ views is a sound intrinsics solve
+(12 equations each towards it), and its 0.55 mm per code cell prints more reliably than the 7x7's
+0.47 mm. If your printer holds that detail cleanly, the 7x7 gives cam1 sixteen corners instead of
+nine — check a print under magnification before deciding.
+
+This is now the **printer**, not the cameras, that sets the floor: 3.3 mm markers put 0.55 mm per
+code cell on paper, which wants 1200 dpi rather than 600.
+
 ### Re-recording the calibration
 
 0. **Print the new board.** Ready to print in
