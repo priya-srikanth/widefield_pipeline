@@ -918,6 +918,9 @@ def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
 def _fig_12_stopped(out_dir, align, variant, wname):
     """12: the trials the engagement gate THROWS AWAY -- does the position code survive quitting?
 
+    Answer, measured: no, and it never did. This figure reports a NULL, which is why it sits at the
+    end of the section rather than inside the argument.
+
     Priya, 2026-09-11: "do we already have a post-stroke vs pre-stroke 'stopped' trials pattern
     similarity analysis?" We did not. `flag_engagement` has only ever been a filter, and every
     figure in this deck is built on `~not_eng`; this is the complement.

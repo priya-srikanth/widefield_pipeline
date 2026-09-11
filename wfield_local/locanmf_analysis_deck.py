@@ -3896,7 +3896,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
         ("epoch_12_stopped_pattern_*.png",
          "STOPPED trials: does the position pattern survive the animal quitting?",
-         "THE NEGATIVE CONTROL FOR THE WHOLE STOPPED ARM, and the figure to read before any of the"
+         "THE NULL THE WHOLE STOPPED ARM RESTS ON, and the figure to read before any of the"
          "other stopped-class panels in this section. Trials inside the terminal quit period ONLY"
          "-- the set every other figure here removes -- correlated against that animal's pre-stroke"
          "ENGAGED mean pattern. The pre column is pre-STROKE stopped trials against that same"
