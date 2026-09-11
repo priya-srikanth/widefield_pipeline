@@ -10,6 +10,37 @@ than living in a chat log.
 
 ---
 
+## STATE OF THE EVIDENCE, 2026-09-10 -- READ THIS BEFORE QUOTING ANYTHING BELOW
+
+Two structural things changed today and both invalidate numbers in this document.
+
+**1. THE EPOCH BOUNDARIES MOVED.** The chronic FLAT test is now total drift across the window
+rather than a per-session slope, and the "recovered to X% of baseline" bars are retired. Chronic is
+now **three animals, not one**:
+
+| animal | chronic from | note |
+|---|---|---|
+| PS92 | day 11 | unchanged |
+| PS93 | **day 11** | new; was blocked by licks alone, by 0.001 of tolerance |
+| PS94 | none | hit rate still improving -- day 22 -> 25 jumps 0.732 -> 1.000 |
+| PS95 | **day 15** | MOVED LATER from 11, which was promoted before PS95's day-25 session existed |
+
+Sessions moved between the subacute and chronic panels in both directions, so **every subacute and
+chronic number in this document is stale**. Acute is untouched. Re-render before quoting either.
+
+The `n = 1` caveat that used to head the caveat list is retired: it is now n = 3.
+
+**2. TWO MEASUREMENT ERRORS WERE FOUND AND FIXED**, both of which inflated a headline:
+
+* The best-match baseline was one-hotted from the AVERAGED leave-one-session-out matrix while every
+  post-stroke epoch averages PER-SESSION one-hots. `argmax(mean) != mean(argmax)`, and the averaged
+  form is a perfect identity for every animal, so the pre-stroke baseline was 1.00 by construction.
+  Far-contra's fall is **0.92, not 0.94**.
+* The encoder's acute "half amplitude, half shape" split is NOT SUPPORTED -- see the encoder
+  section below. Explained variance after one best rescale is 0.134 acutely, and
+  `_enc_terms`' own rule says that when that number is low the split is meaningless, because a code
+  that is simply gone also "recovers" a lot under rescaling.
+
 ## The paragraph
 
 > Widefield calcium imaging of dorsal cortex during a six-position mobile-spout licking task,
@@ -340,6 +371,43 @@ Nor is it attenuation. Split-half reliability falls only 0.791 -> 0.724 acutely,
 attenuation can account for is a factor sqrt(0.724 / 0.791) = 0.957: it would take the mean-pattern
 similarity from 0.741 to 0.709, not to the observed **0.350**. That is also what the disattenuated
 third panel of `grant_7b_reliability_*` shows cell by cell.
+
+## THE ENCODER, AND WHY THE "HALF AMPLITUDE, HALF SHAPE" SPLIT IS WITHDRAWN
+
+Measured 2026-09-10. The ridge encoder maps position -> component activity, frozen on pre-stroke.
+For a post-stroke session with measured mean pattern `m` and frozen prediction `p`:
+
+    frozen EV        = 1 - sum|m - p|^2 / sum|m|^2      what it actually achieves
+    amplitude factor = sum m.p / sum p.p                 the single best rescaling, a
+    EV after rescale = 1 - sum|m - a p|^2 / sum|m|^2     the best it could do if amplitude were free
+
+Post-cue:
+
+| epoch | frozen EV | EV after rescale | rescaling buys | amplitude factor a |
+|---|---|---|---|---|
+| pre | 0.557 | 0.580 | 0.023 | 0.943 |
+| **acute** | **-0.388** | **0.134** | **0.521** | **0.361** |
+| subacute | 0.215 | 0.333 | 0.118 | 0.707 |
+| chronic | 0.424 | 0.447 | 0.023 | 1.015 |
+
+**READ `EV after rescale` FIRST.** The acute gap of 0.521 looks like an amplitude story and is not:
+a code that is simply GONE also recovers a lot under rescaling, because the best scale collapses
+toward zero and predicting nothing beats predicting an unrelated pattern. `_enc_terms`' docstring
+states the rule -- "an amplitude change only when `gain` itself is high" -- and acutely it is 0.134.
+So the acute encoder failure is dominated by TUNING, and the paragraph's "roughly half attributable
+to response gain and half to pattern shape" overstates the amplitude half. Withdrawn.
+
+**AMPLITUDE FELL, IT DID NOT RISE.** `a` goes 0.943 -> 0.361 acutely: the position-DIFFERENTIAL
+response (patterns are centred across positions first, so this is tuning depth, not overall
+brightness) collapsed to about a third. This also explains the uniformly red ROWS in the raw
+crossnobis epoch-minus-pre matrices, which are largest in the pre-cue and lick arms at far-middle
+and far-contra: for a response that shrinks while keeping its shape, `d = (1-a)^2 |mu|^2`, so
+SHRINKING pushes a row away from the template exactly as growing would. A red row is "far from the
+pre-stroke template in a position-nonspecific way", not "bigger".
+
+**THE WORD "GAIN" MEANT THREE THINGS** in this family until 2026-09-10 -- the EV after rescaling,
+the amplitude factor, and "the thing removed" -- and the figures have been relabelled accordingly.
+Quote "EV after rescale" and "amplitude factor a"; do not write "gain".
 
 ## Where each number comes from
 
