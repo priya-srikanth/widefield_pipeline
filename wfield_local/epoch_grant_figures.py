@@ -1363,8 +1363,196 @@ def _fig_9(out_dir, align, variant, wname):
 _MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced per session, so a "
               "session is the unit and cannot be re-weighted by its trial count")
 
+def _fig_11c(out_dir, align, variant, wname):
+    """11c: the encoder's CEILING, and how much of its failure is the TEMPLATE being wrong.
+
+    THE NUMBER THIS FIGURE EXISTS TO MAKE READABLE. Figure 11's `frozen EV` is an R^2, and acutely it
+    is -0.388 post-cue: "worse than predicting the mean", and mute about what was achievable in that
+    session. `EV after rescale` frees the AMPLITUDE only, and a large gap between the two is an
+    amplitude story only when the rescaled value is HIGH -- a code that is simply gone also recovers
+    a lot under rescaling. That ambiguity forced the withdrawal of the "half amplitude, half shape"
+    reading on 2026-09-10.
+
+    THREE BARS, ALL DIRECTLY MEASURED, all in the same units, all scoring the SAME half-session:
+
+        ceiling          scored against the OTHER half of the same session -- how much position
+                         structure the session has at all
+        frozen (matched) scored against an equally sized draw from the pre-stroke pool -- the same
+                         estimator and the same number of reference trials, differing only in WHICH
+                         SESSIONS the reference came from
+        frozen (all pre) scored against the whole pre-stroke pool: the encoder as it is actually
+                         used elsewhere in this deck, and the only one of the three that is not
+                         size-matched
+
+    READ `ceiling - frozen (matched)`, NOT `ceiling - frozen (all pre)`. Only the first holds
+    training-set size constant, so only the first isolates "the template came from other sessions".
+    And read it against its own PRE value rather than against zero: at pre-stroke that difference is
+    the cross-session generalisation cost with no lesion involved, and it is large -- 0.317 post-cue.
+
+    WHY THE MATCHED ARM HAD TO BE ADDED. Without it the pre-cue window was uninterpretable: frozen EV
+    0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling, which is impossible for a
+    real ceiling and was a fact about the construction rather than the data. Matching removes the
+    asymmetry and the inversion goes with it, in all three windows.
+
+    THE PRE-CUE WINDOW IS NOW SELF-CONSISTENT BUT STILL NEARLY SIGNAL-FREE: its ceiling is 0.117
+    pre-stroke and hovers near zero afterwards, so the gap there is a ratio of two near-zero
+    quantities. Consistent is not the same as informative.
+    """
+    from wfield_local import grant_figures as G
+
+    raw_tab, _d1 = G._enc_tables(align, variant)
+    cei_tab, _d2 = G._enc_ceiling_tables(align, variant)
+    mat_tab, _d3 = G._enc_matched_tables(align, variant)
+    if not cei_tab or not mat_tab:
+        return None
+
+    def _first(payload, _key):
+        """THE AFTER-RESCALE SCORE, index 2 -- not the raw one. Priya: "what does negative variance
+        explained mean though".
+
+        It means the template's prediction is FURTHER from the data than predicting zero, i.e. than
+        assuming no position tuning at all. And at these amplitudes that is almost entirely an
+        amplitude statement: with PERFECT shape and only a scale mismatch,
+        ``R2 = 1 - (1-a)^2 / a^2``, which is 0.000 at a = 0.5 and -2.13 at the a = 0.361 observed
+        acutely. So a raw comparison between the ceiling and the matched arm is confounded: the
+        ceiling's two halves have matched amplitude BY CONSTRUCTION (a = 0.75-0.89) while the matched
+        frozen arm scores a shrunken post-stroke pattern against a full-amplitude pre-stroke template
+        (a = 0.285 acutely). The raw gap would be reporting amplitude and calling it template
+        mismatch.
+
+        The after-rescale score is amplitude-free on both sides and cannot go negative -- a = 0 is
+        always available, which scores exactly 0 -- so this figure is about SHAPE and nothing else.
+        The amplitude story is figure 11amp's, where it belongs.
+        """
+        try:
+            v = payload[2]
+        except Exception:                                              # noqa: BLE001
+            return None
+        return None if v is None or not np.isfinite(v) else float(v)
+
+    KEYS = ["ceiling", "frozen (matched)", "frozen (all pre)"]
+    got = {}
+    for key, tab in zip(KEYS, (cei_tab, mat_tab, raw_tab)):
+        vals, pts = ef.scalar_by_epoch(tab, _first, keys=[key.split(" ")[0]])
+        got[key] = (vals, pts, key.split(" ")[0])
+
+    values, points = {}, {}
+    for e in ef.PANELS:
+        row, pt = {}, {}
+        for key, (vals, pts, inner) in got.items():
+            v = (vals.get(e) or {}).get(inner)
+            if v is not None:
+                row[key] = v
+                pt[key] = (pts.get(e) or {}).get(inner, [])
+        if row:
+            values[e], points[e] = row, pt
+    if not values:
+        return None
+    return _scalar_figure(
+        out_dir, name=f"epoch_11c_encoder_ceiling_{align}_{variant}",
+        title=(f"Encoder SHAPE ceiling vs the frozen template, training-set matched "
+               f"-- {wname}"),
+        ylabel="EV after rescale (shape only)", keys=KEYS, values=values,
+        points=points, ylim=(0.0, 1.05),
+        # WRAPPED, because "frozen (matched)" and "frozen (all pre)" collide at this axis width and
+        # the collision lands on the two bars a reader most needs to tell apart.
+        tick_labels=["ceiling", "frozen\n(matched)", "frozen\n(all pre)"],
+        delta_name=f"epoch_11cdelta_encoder_ceiling_{align}_{variant}",
+        delta_title=f"Encoder ceiling and frozen template, change from pre-stroke -- {wname}")
+
+
+def _fig_11cpos(out_dir, align, variant, wname):
+    """11cpos: the encoder SHAPE ceiling and the frozen template, PER POSITION.
+
+    11c pools the six positions into one number per epoch, which is the wrong shape for the question
+    the lesion poses: far-contralateral is the position the deficit lives at, and a pooled ceiling
+    averages it with five positions that barely moved. This is the same three quantities per
+    position.
+
+    TWO FIGURES. The first is the ceiling alone -- how much SHAPE each position's own trials can
+    predict, which is a statement about that position's data and not about the template. The second
+    is the CAPTURED FRACTION, `matched / ceiling`: of the shape a position's own trials can predict,
+    how much does the pre-stroke template get? A fraction rather than a difference, because the
+    positions do not share a ceiling and a raw gap of 0.2 means something different at a position
+    whose ceiling is 0.3 than at one whose ceiling is 0.8.
+
+    AFTER-RESCALE THROUGHOUT, for the reason `_fig_11c` gives at length: a raw score at these
+    amplitudes is dominated by the encoder not being allowed to rescale, and the ceiling's halves
+    have matched amplitude by construction while the frozen arm's reference does not.
+
+    THE FRACTION IS CLIPPED FOR DISPLAY AND NOT FOR COMPUTATION. Where a ceiling is near zero the
+    ratio is unstable and can exceed 1 or go negative; those cells are dropped rather than drawn,
+    because a 300% "captured" bar is an artefact of a small denominator and reads as a result.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local.grant_figures import CONF_LABELS
+
+    cei_tab, _d1 = G._enc_ceiling_tables(align, variant)
+    mat_tab, _d2 = G._enc_matched_tables(align, variant)
+    if not cei_tab or not mat_tab:
+        return None
+    short = dict(zip(CONF_LABELS, _short_labels()))
+
+    def _per(payload, key):
+        try:
+            per = payload[3] or {}
+        except Exception:                                              # noqa: BLE001
+            return None
+        for q, sh in short.items():
+            if sh == key:
+                v = per.get(q)
+                return None if v is None or not np.isfinite(v) else float(v)
+        return None
+
+    cvals, cpts = ef.scalar_by_epoch(cei_tab, _per, keys=_short_labels())
+    mvals, _mp = ef.scalar_by_epoch(mat_tab, _per, keys=_short_labels())
+    if not cvals:
+        return None
+    made = []
+    p1 = _scalar_figure(
+        out_dir, name=f"epoch_11cpos_encoder_ceiling_by_position_{align}_{variant}",
+        title=f"Encoder SHAPE ceiling per position -- {wname}",
+        ylabel="EV after rescale (shape)", keys=_short_labels(), values=cvals, points=cpts,
+        tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.05),
+        delta_name=f"epoch_11cposdelta_encoder_ceiling_by_position_{align}_{variant}",
+        delta_title=f"Encoder shape ceiling per position, change from pre-stroke -- {wname}")
+    if p1:
+        made.append(p1)
+
+    #: A ceiling below this makes the captured FRACTION a ratio of noise; drop the cell instead.
+    MIN_CEILING = 0.10
+    frac, fpts = {}, {}
+    for e in ef.PANELS:
+        row = {}
+        for k in _short_labels():
+            c = (cvals.get(e) or {}).get(k)
+            m = (mvals.get(e) or {}).get(k)
+            if c is None or m is None:
+                continue
+            cv, mv = ef._value_and_ci(c)[0], ef._value_and_ci(m)[0]
+            if cv is None or mv is None or cv < MIN_CEILING:
+                continue
+            row[k] = max(0.0, min(1.0, mv / cv))
+        if row:
+            frac[e] = row
+            fpts[e] = {k: [] for k in row}
+    if frac:
+        p2 = _scalar_figure(
+            out_dir, name=f"epoch_11cfrac_encoder_captured_by_position_{align}_{variant}",
+            title=(f"Of the shape a position's own trials can predict, how much does the "
+                   f"PRE-STROKE template capture? -- {wname}"),
+            ylabel="matched / ceiling", keys=_short_labels(), values=frac, points=fpts,
+            tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.05),
+            delta_name=f"epoch_11cfracdelta_encoder_captured_by_position_{align}_{variant}",
+            delta_title=f"Captured fraction per position, change from pre-stroke -- {wname}")
+        if p2:
+            made.append(p2)
+    return made or None
+
+
 SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),
-                   ("10b", _fig_10b), ("11", _fig_11))
+                   ("10b", _fig_10b), ("11", _fig_11), ("11c", _fig_11c),
+                   ("11cpos", _fig_11cpos))
 
 
 # ------------------------------------------------------------------------------ the driver

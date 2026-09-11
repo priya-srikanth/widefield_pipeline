@@ -940,3 +940,43 @@ def test_latency_comes_from_the_trial_table_and_never_outlives_the_response_wind
     # and the config key that was the second window must stay retired
     from wfield_local import config
     assert "latency_max_s" not in (config.defaults().get("behavior") or {})
+
+
+
+# ------------------------------------------------- WORKING vs STOPPED on the engagement timeline
+
+def test_the_engagement_timeline_names_working_and_stopped():
+    """Priya, 2026-09-10: does the figure actually show what is "working" and what is "stopped"?
+
+    The SHADING was already the right gate -- `session_metrics` uses `reference_engagement`, the
+    same gate the analysis figures and the epoch rule use -- but it was an unlabelled grey band.
+    Three things a reader had to know rather than see, and all three are now drawn:
+
+      * which side is which, in the same word the analysis arm uses (`working`)
+      * WHERE it stopped, at the BACKDATED onset rather than where the trailing mean noticed
+      * that the gate judged only the REFERENCE positions, so a run of far-contra misses -- the
+        deficit itself -- can never trip it
+    """
+    import inspect
+
+    from wfield_local import spout_behavior as sb
+
+    src = inspect.getsource(sb._engagement_timeline)
+    assert "STOPPED" in src and "WORKING" in src
+    assert "tail_start" in src, "the backdated onset is not drawn"
+    assert "REFERENCE" in src, "the reference trials are not marked"
+    # and the panel must be HANDED the metrics, or it can only draw the old picture
+    assert "m: dict | None" in src.splitlines()[0]
+
+
+def test_session_metrics_reports_which_arm_stopped_the_animal():
+    """`reference_engagement` is a UNION of a collapse and a terminal tail, and those are different
+    behaviours: quitting mid-session, versus running out of thirst at the end. The figure titles
+    them, so the metrics have to carry them."""
+    import inspect
+
+    from wfield_local import spout_behavior as sb
+
+    src = inspect.getsource(sb.session_metrics)
+    for key in ("n_collapse", "n_tail", "gate"):
+        assert f'"{key}"' in src, f"session_metrics no longer reports {key}"

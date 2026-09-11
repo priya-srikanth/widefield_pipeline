@@ -5492,6 +5492,185 @@ def _enc_scores(src, ref):
     return _enc_terms(_means(src), _means(ref))
 
 
+def _enc_ceiling(pat, rng, repeats=8):
+    """THE CEILING the frozen encoder is failing against: this session predicting ITSELF, held out.
+
+    WHY THE FROZEN ENCODER NEEDS ONE. `raw` is an R^2 and acutely it is -0.388, which says "worse
+    than predicting the mean" and nothing about whether anything could have done better in that
+    session. The existing companion, `gain`, frees the AMPLITUDE only -- and `_enc_terms`' own
+    docstring warns that a large `gain - raw` is an amplitude story only when `gain` itself is high,
+    because a code that is simply GONE also recovers a lot under rescaling. That ambiguity is what
+    forced the withdrawal of the "half amplitude, half shape" reading on 2026-09-10. A ceiling
+    resolves it: `ceiling - raw` is how much of the failure is the TEMPLATE being wrong, and
+    `1 - ceiling` is how much is the session having no position information to predict at all.
+
+    A REFIT ENCODER MUST BE CROSS-VALIDATED OR IT IS 1.0 BY CONSTRUCTION. Ridge on a one-hot
+    position design reduces to the per-position mean (see `_enc_terms`), so "refit within the
+    session", predicting that session's own means from themselves, is an identity. Splitting the
+    trials is what makes it a prediction -- which also makes this the split-half family scored in the
+    ENCODER's units rather than as a correlation. Deliberately: a correlation is gain-blind and `raw`
+    is not, so the two cannot otherwise be read against each other.
+
+    BOTH ORDERINGS, AVERAGED, over `repeats` random splits. A against B and B against A are two
+    estimates of one quantity differing only in which random half landed on which side;
+    `_split_half_matrix` makes the same argument for the same reason.
+
+    IT IS A PESSIMISTIC CEILING AND MUST BE READ AS ONE. Both sides are half-session means, while
+    `raw` scores a noisy session against a reference pooled over ~10 sessions. The ceiling therefore
+    carries noise on both sides where the frozen arm has it on one, and can sit BELOW `raw`
+    pre-stroke. That is the same training-set-size bracketing the matched frozen DECODER arm exposed,
+    where matching flipped the pre-stroke gap from -0.073 to +0.090. Read `ceiling - raw` against its
+    own pre-stroke value, never against zero.
+    """
+    return _enc_half_scores(pat, rng, repeats=repeats)["ceiling"]
+
+
+def _enc_half_scores(pat, rng, repeats=8, ref_pool=None):
+    """``{"ceiling": terms, "matched": terms|None}`` -- both scored on the SAME half-session means.
+
+    THE CEILING AND THE MATCHED FROZEN ARM DIFFER IN ONE THING AND MUST DIFFER IN ONE THING ONLY.
+    Both score half A of this session. The ceiling scores it against half B of the SAME session; the
+    matched arm scores it against an equally sized random draw from the PRE-STROKE pool. Same scored
+    side, same number of reference trials, same estimator -- so the difference is which sessions the
+    reference came from, and nothing else.
+
+    WHY IT IS NEEDED. The unmatched frozen arm scores the full session against a reference pooled
+    over ~10 pre-stroke sessions, which carries far less noise than a half-session reference. On the
+    post-cue window that asymmetry is tolerable; on the PRE-CUE window it inverts the comparison
+    outright -- frozen EV 0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling,
+    which is impossible for a real ceiling and is a fact about the construction rather than the
+    data. Matching removes the asymmetry, at the cost of a noisier reference for both.
+
+    COMPUTED TOGETHER, not in two passes, so the two share `halves` exactly. Two passes with the same
+    seed would coincide only for as long as nobody changed the call order, and the pairing is the
+    whole point.
+    """
+    labels = [q for q in CONF_LABELS if q in pat and len(pat[q]) >= 4]
+    if len(labels) < 2:
+        nan = (np.nan, np.nan, np.nan, {})
+        return {"ceiling": nan, "matched": None if ref_pool is None else nan}
+    got, got_m = [], []
+    for _ in range(repeats):
+        halves = {}
+        for q in labels:
+            Z = np.asarray(pat[q])
+            idx = rng.permutation(len(Z))
+            h = len(Z) // 2
+            halves[q] = (Z[idx[:h]].mean(0), Z[idx[h:2 * h]].mean(0))
+        A = {q: v[0] for q, v in halves.items()}
+        B = {q: v[1] for q, v in halves.items()}
+        for m, ref in ((A, B), (B, A)):
+            t = _enc_terms(m, ref)
+            if np.isfinite(t[0]):
+                got.append(t)
+        if ref_pool is not None:
+            # SAME n PER POSITION as that position's half, drawn without replacement from the pool.
+            # Per position rather than one global n: the halves differ in size between positions
+            # whenever the animal worked them unevenly, which post-stroke it always does.
+            mref = {}
+            for q in labels:
+                R = np.asarray(ref_pool.get(q, []))
+                h = len(np.asarray(pat[q])) // 2
+                if len(R) < 2 or h < 1:
+                    continue
+                take = min(h, len(R))
+                mref[q] = R[rng.permutation(len(R))[:take]].mean(0)
+            if len(mref) >= 2:
+                for m in (A, B):
+                    t = _enc_terms({q: m[q] for q in mref}, mref)
+                    if np.isfinite(t[0]):
+                        got_m.append(t)
+
+    def _pool(ts):
+        if not ts:
+            return (np.nan, np.nan, np.nan, {})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            per = {q: float(np.nanmean([t[3][q] for t in ts if q in t[3]]))
+                   for q in labels if any(q in t[3] for t in ts)}
+            return (float(np.nanmean([t[0] for t in ts])),
+                    float(np.nanmean([t[1] for t in ts])),
+                    float(np.nanmean([t[2] for t in ts])), per)
+
+    return {"ceiling": _pool(got), "matched": (_pool(got_m) if ref_pool is not None else None)}
+
+
+@lru_cache(maxsize=6)
+def _enc_ceiling_tables(align, variant, min_trials=10):
+    """{animal: {"PRE"|day: (ceiling, a, gain, per-position)}} -- the within-session encoder ceiling.
+
+    PRE IS PER-SESSION AND THEN AVERAGED, not a ceiling computed on the pooled reference. The ceiling
+    is a statement about ONE session's own repeatability, so pooling ten of them would measure
+    something else and would sit far above anything a single post-stroke session could reach.
+    """
+    ceil_t, _matched, days = _enc_half_tables(align, variant, min_trials)
+    return ceil_t, days
+
+
+@lru_cache(maxsize=6)
+def _enc_matched_tables(align, variant, min_trials=10):
+    """The SIZE-MATCHED frozen arm: same half-session scored side, reference drawn to the same size.
+
+    Read against `_enc_ceiling_tables` rather than against `_enc_tables`: those two share the scored
+    side and the reference size, so `ceiling - matched` is the cost of the reference coming from
+    OTHER sessions, with training-set size held constant. At pre-stroke that difference is the
+    cross-session generalisation cost and nothing else, which is the baseline every post-stroke epoch
+    has to be read against.
+    """
+    _ceil, matched, days = _enc_half_tables(align, variant, min_trials)
+    return matched, days
+
+
+@lru_cache(maxsize=6)
+def _enc_half_tables(align, variant, min_trials=10):
+    """``(ceiling_tables, matched_tables, days)`` -- one pass, so the two arms share their halves.
+
+    PRE IS PER-SESSION AND THEN AVERAGED, and its reference is LEAVE-ONE-SESSION-OUT: a pre-stroke
+    session must not draw its matched reference from a pool that contains itself, or the matched arm
+    is scored partly against its own trials and the baseline it defines is too easy.
+    """
+    store, days = _collect_7(align, variant, min_trials)
+    out, out_m = {}, {}
+    for an, (pre_by_sess, by_day) in store.items():
+        rng = np.random.default_rng(_seed(an, align, variant))
+        rec, rec_m = {}, {}
+
+        def _avg(ts):
+            ts = [t for t in ts if t is not None and np.isfinite(t[0])]
+            if not ts:
+                return None
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                per = {q: float(np.nanmean([t[3][q] for t in ts if q in t[3]]))
+                       for q in CONF_LABELS if any(q in t[3] for t in ts)}
+                return (float(np.nanmean([t[0] for t in ts])),
+                        float(np.nanmean([t[1] for t in ts])),
+                        float(np.nanmean([t[2] for t in ts])), per)
+
+        pre, pre_m = [], []
+        for sess, pat in pre_by_sess.items():
+            d = _enc_half_scores(pat, rng, ref_pool=_pre_reference(pre_by_sess, exclude=sess))
+            pre.append(d["ceiling"])
+            pre_m.append(d["matched"])
+        if (t := _avg(pre)) is not None:
+            rec["PRE"] = t
+        if (t := _avg(pre_m)) is not None:
+            rec_m["PRE"] = t
+
+        full = _pre_reference(pre_by_sess)
+        for day, pat in by_day.items():
+            d = _enc_half_scores(pat, rng, ref_pool=full)
+            if np.isfinite(d["ceiling"][0]):
+                rec[day] = d["ceiling"]
+            if d["matched"] is not None and np.isfinite(d["matched"][0]):
+                rec_m[day] = d["matched"]
+        if len(rec) > 1:
+            out[an] = rec
+        if len(rec_m) > 1:
+            out_m[an] = rec_m
+    return out, out_m, days
+
+
 @lru_cache(maxsize=6)
 def _enc_tables(align, variant, min_trials=10):
     """{animal: {"PRE"|day: (raw, a, gain, per-position)}} for the encoder figure, plus days.

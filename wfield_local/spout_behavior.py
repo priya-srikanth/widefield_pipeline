@@ -799,6 +799,13 @@ def session_metrics(trials: pd.DataFrame, latency: pd.Series | None, params: dic
         "n_engaged": n_eng_tot,
         "n_disengaged": info["n_disengaged"],
         "tail_start": info["tail_start"],
+        # WHICH ARM FIRED, so the figure can say WHY the animal was called stopped rather than
+        # only that it was. `reference_engagement` is a UNION of a sustained collapse and a
+        # terminal reference tail, and those are different behaviours: quitting mid-session and
+        # never coming back, versus running out of thirst at the end.
+        "n_collapse": info.get("n_collapse", 0),
+        "n_tail": info.get("n_tail", 0),
+        "gate": info.get("gate", "reference_engagement"),
         "hit_rate_engaged": (h_eng_tot / n_eng_tot) if n_eng_tot else np.nan,
         "hit_rate_all": (int(scored["hit"].sum()) / len(scored)) if len(scored) else np.nan,
     }
@@ -833,8 +840,29 @@ def _grid_hit_rate(ax, per_pos: pd.DataFrame, min_eng: int):
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
 
-def _engagement_timeline(ax, scored: pd.DataFrame, eng: dict):
-    """Trial-index raster (hit green / miss red) + trailing rolling response rate; disengaged shaded."""
+def _engagement_timeline(ax, scored: pd.DataFrame, eng: dict, m: dict | None = None):
+    """Trial raster + trailing response rate, with WORKING and STOPPED named on the axes.
+
+    Priya, 2026-09-10: "do the behavior deck figures that plot engagement across each session
+    accurately show what is 'working' and what is 'stopped'?" The shading was already the right
+    gate -- `session_metrics` uses `reference_engagement`, the same gate every analysis figure and
+    the epoch rule use -- but the figure showed it as an unlabelled grey band, which leaves three
+    things a reader has to know rather than see:
+
+    1. **WHICH SIDE IS WHICH.** Unshaded is WORKING: the animal is still trying, and a MISS here is
+       a motor failure, which is the effect being measured. Shaded is STOPPED. The analysis arm
+       named `working` is exactly the unshaded region, so the two now use one word.
+    2. **WHERE IT STOPPED, AND THAT THE BOUNDARY IS BACKDATED.** The gate fires where a trailing
+       mean crosses a threshold, which is always LATE; `reference_engagement` then backdates the
+       boundary to the first miss of the run that tripped it. The line is drawn at that backdated
+       onset, because that is the trial the analysis actually cuts at.
+    3. **THAT THE GATE ONLY LOOKED AT THE REFERENCE POSITIONS.** close_L and close_center, so a run
+       of far-contralateral misses can never trip it -- which is the whole point, since those misses
+       ARE the deficit. The reference trials are now ticked separately, so a reader can see that the
+       decision was made on a subset of what the raster shows.
+
+    ``m`` is `session_metrics`'s return; the annotation degrades to the old picture without it.
+    """
     x = np.arange(len(scored))
     resp = scored["responded"].to_numpy().astype(float)
     w = eng["window_trials"]
@@ -843,28 +871,60 @@ def _engagement_timeline(ax, scored: pd.DataFrame, eng: dict):
     hit = scored["hit"].to_numpy().astype(bool)
     ax.scatter(x[hit], np.full(hit.sum(), 1.06), s=8, c="tab:green", marker="|", label="hit")
     ax.scatter(x[~hit], np.full((~hit).sum(), 1.02), s=8, c="tab:red", marker="|", label="miss")
+
+    # THE TRIALS THE GATE ACTUALLY JUDGED, on their own row. Imported here rather than at module
+    # scope for the same reason `reference_engagement` does it: one definition of "reference
+    # position", owned by the gate, so the figure cannot drift from what was actually judged.
+    from wfield_local.precue_engagement_states import REFERENCE
+
+    if "pos_name" in scored:
+        ref = np.isin(scored["pos_name"].to_numpy(str), np.asarray(REFERENCE, dtype=str))
+        if ref.any():
+            ax.scatter(x[ref], np.full(int(ref.sum()), 0.96), s=6, c="tab:blue", marker="|",
+                       alpha=0.7, label="reference trial (gate judged here)")
+
     ax.plot(x, roll, color="k", lw=1.2, label=f"rolling resp. ({w})")
     ax.axhline(eng["min_response_rate"], color="grey", ls=":", lw=1)
-    # shade contiguous disengaged spans
+
     dis = ~engaged
-    i = 0
-    lab = True
+    i, lab = 0, True
     while i < len(dis):
         if dis[i]:
             j = i
             while j < len(dis) and dis[j]:
                 j += 1
             ax.axvspan(i - 0.5, j - 0.5, color="grey", alpha=0.18,
-                       label="disengaged" if lab else None)
+                       label="STOPPED" if lab else None)
             lab = False
             i = j
         else:
             i += 1
+
+    onset = (m or {}).get("tail_start")
+    if onset is not None and 0 <= onset < len(scored):
+        ax.axvline(onset - 0.5, color="firebrick", lw=1.4, ls="--", zorder=5)
+        ax.text(onset - 0.5, 1.10, " stopped", color="firebrick", fontsize=7,
+                ha="left", va="top")
+    # NAME THE WORKING REGION TOO. A single shaded band invites "shaded = the interesting part";
+    # the unshaded part is where every post-stroke motor failure lives.
+    n_work = int(engaged.sum())
+    if n_work:
+        mid = float(np.median(x[engaged]))
+        ax.text(mid, 0.03, f"WORKING  (n={n_work})", fontsize=7, color="0.25",
+                ha="center", va="bottom")
+
     ax.set_ylim(-0.02, 1.12)
     ax.set_xlabel("trial index")
     ax.set_ylabel("response rate")
-    ax.set_title("engagement over session")
-    ax.legend(loc="lower left", fontsize=7, ncol=2)
+    why = ""
+    if m:
+        arms = [a for a, k in (("collapse", "n_collapse"), ("sated tail", "n_tail")) if m.get(k)]
+        if arms:
+            why = f" — stopped by {' + '.join(arms)}"
+        elif m.get("n_disengaged", 0) == 0:
+            why = " — never stopped"
+    ax.set_title(f"engagement over session{why}")
+    ax.legend(loc="lower left", fontsize=6.5, ncol=2)
 
 
 def _hit_rate_bars(ax, per_pos: pd.DataFrame, min_eng: int):
@@ -1310,7 +1370,7 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
     perf = list(axes[0]) if has_licks else [axes[0][0], axes[0][1], axes[1][0], axes[1][1]]
     _grid_hit_rate(perf[0], m["per_position"], params["engagement"]["min_engaged_trials"])
     _hit_rate_bars(perf[1], m["per_position"], params["engagement"]["min_engaged_trials"])
-    _engagement_timeline(perf[2], m["scored"], params["engagement"])
+    _engagement_timeline(perf[2], m["scored"], params["engagement"], m)
     _latency_by_position(perf[3], m["scored"], latency)
     if has_licks:
         _lick_pos_row(list(axes[1]), micro["per_position"])
