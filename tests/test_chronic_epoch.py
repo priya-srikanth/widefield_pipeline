@@ -268,3 +268,47 @@ def test_the_subacute_floor_is_what_stops_a_never_licking_animal_plateauing():
     flat_at_zero = [0.00, 0.00, 0.00, 0.00, 0.00]
     assert epochs._plateau_index(flat_at_zero, 0.341, None) == 0, "unguarded, it plateaus at day 1"
     assert epochs._plateau_index(flat_at_zero, 0.341, None, days=days, min_day=9) is None,         "the subacute floor did not reject an all-acute window"
+
+
+# ------------------------------------------------------------------ ONE position palette (2026-09-10)
+
+def test_every_module_colours_a_position_the_same_way():
+    """A far_R that is crimson in one figure and purple in the next is a reader's problem.
+
+    Three conventions coexisted until 2026-09-10: hue-by-side (behaviour), hue-by-RING
+    (grant_figures, whose comment claimed it matched the behaviour figures and did not), and six
+    unrelated tab10 colours (locanmf_dff_by_position). All three now resolve through
+    `spout_behavior.position_style`.
+    """
+    from wfield_local import grant_figures as gf
+    from wfield_local import locanmf_dff_by_position as dff
+    from wfield_local.position_coding_directions import _pos_color
+    from wfield_local.spout_behavior import position_style
+
+    for q in ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R"):
+        want = position_style(q)[0]
+        assert gf.pos_style()[q][0] == want, f"grant_figures disagrees on {q}"
+        assert dff.POS_COLOR[q] == want, f"locanmf_dff_by_position disagrees on {q}"
+        assert _pos_color(q) == want, f"position_coding_directions disagrees on {q}"
+
+
+def test_the_palette_is_hue_by_side_and_lightness_by_ring():
+    """The convention Priya picked, pinned so a later 'tidy-up' cannot flip it back to hue-by-ring."""
+    import colorsys
+
+    import matplotlib.colors as mcolors
+
+    from wfield_local.spout_behavior import position_style
+
+    def hls(name):
+        return colorsys.rgb_to_hls(*mcolors.to_rgb(position_style(name)[0]))
+
+    # same SIDE -> same hue, whatever the ring
+    for side in ("L", "center", "R"):
+        assert hls(f"close_{side}")[0] == pytest.approx(hls(f"far_{side}")[0], abs=1e-6), side
+    # same RING -> different hues across sides
+    hues = {hls(f"close_{s}")[0] for s in ("L", "center", "R")}
+    assert len(hues) == 3, "the three sides must be three hues"
+    # far is LIGHTER than close, every side
+    for side in ("L", "center", "R"):
+        assert hls(f"far_{side}")[1] > hls(f"close_{side}")[1], f"far_{side} is not paler"

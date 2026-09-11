@@ -245,7 +245,7 @@ def _fig9_like(legend_y, rect_bottom, n_rows=4, fontsize=11):
             if ri == n_rows - 1:
                 ax.set_xlabel("days from lesion", fontsize=fontsize)
     for q in gf.CONF_LABELS:
-        col, mk, _ls = gf.POS_STYLE[q]
+        col, mk, _ls = gf.pos_style()[q]
         axes[0][1].errorbar([1], [0], yerr=[[0.1], [0.1]], fmt=mk + "-", color=col, ms=4,
                             capsize=2, lw=1.1, label=q)
     h, lab = axes[0][1].get_legend_handles_labels()

@@ -71,16 +71,20 @@ from wfield_local.writeguard import assert_writable
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 POS = ["far_R", "far_center", "far_L", "close_R", "close_center", "close_L"]
-#: colour = ring, marker/linestyle = side -- the convention the behaviour figures already use, so a
-#: reader who has seen those does not have to relearn it here.
-POS_STYLE = {
-    "far_R":        ("#b2182b", "o", "-"),
-    "far_center":   ("#d6604d", "s", "-"),
-    "far_L":        ("#f4a582", "^", "-"),
-    "close_R":      ("#2166ac", "o", "--"),
-    "close_center": ("#4393c3", "s", "--"),
-    "close_L":      ("#92c5de", "^", "--"),
-}
+#: THE COHORT PALETTE, from `spout_behavior.position_style`: hue = SIDE, lightness = RING.
+#:
+#: This dict used to be written out here as colour = RING (far reds, close blues) with a comment
+#: claiming it was "the convention the behaviour figures already use". It was the exact opposite of
+#: what those figures use, and the two sets of figures sit in the same deck. Derived now, so the
+#: claim cannot go stale again (Priya, 2026-09-10).
+#:
+#: LAZY, because `spout_behavior` pulls the behaviour stack and this module is imported by the
+#: parallel render workers; the same reason `position_coding_directions._pos_color` defers it.
+@lru_cache(maxsize=1)
+def pos_style() -> dict:
+    from wfield_local.spout_behavior import position_style
+
+    return {q: position_style(q) for q in POS}
 WINDOWS = (("ENL", "precue", "ENL (pre-cue)"), ("cue", "cue", "post-cue"),
            ("lick", "lick", "post-lick"))
 
@@ -686,7 +690,7 @@ def fig_behaviour(out_dir):
     for k, an in enumerate(ANIMALS):
         ax = axes[0][k]
         for pos in POS:
-            col, mk, ls = POS_STYLE[pos]
+            col, mk, ls = pos_style()[pos]
             pre_x, pre_y, pre_e = [], [], [[], []]
             post_x, post_y, post_e = [], [], [[], []]
             base_h = base_n = 0
@@ -764,7 +768,7 @@ def fig_behaviour_collapsed(out_dir, jitter=0.11):
         imp = _impaired(an)
         post_days = sorted({d for _m, d in _sessions(an, phases=("post",))})
         for pi, pos in enumerate(POS):
-            col, mk, _ls = POS_STYLE[pos]
+            col, mk, _ls = pos_style()[pos]
             off = (pi - (len(POS) - 1) / 2) * jitter
             pre_vals = [m[0] for mmdd, d in _sessions(an, phases=("pre",))
                         if (m := _position_metrics(an, mmdd).get(pos)) and m[3] >= 5]
@@ -4302,7 +4306,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
 
                 ax2 = axes[ri][1]
                 for q in CONF_LABELS:
-                    col, mk, _ls = POS_STYLE[q]
+                    col, mk, _ls = pos_style()[q]
                     qx = [d for d in days if d in rec and q in rec[d]["pos"]]
                     if not qx:
                         continue

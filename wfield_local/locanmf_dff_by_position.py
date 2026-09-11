@@ -33,8 +33,20 @@ from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames, AREAS, ANIMAL_COLOR
 
 POS = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
-POS_COLOR = {"close_L": "#1f77b4", "close_center": "#2ca02c", "close_R": "#d62728",
-             "far_L": "#17becf", "far_center": "#7f7f7f", "far_R": "#9467bd"}
+def _pos_color_map() -> dict:
+    """The cohort palette (hue = side, lightness = ring), not six unrelated tab10 colours.
+
+    What was here before mapped close_L blue, close_center GREEN, close_R red, far_L cyan,
+    far_center GREY and far_R PURPLE -- no systematic relationship to side or ring, and a far_R that
+    is purple here and crimson in every other figure in the deck. Unified 2026-09-10.
+    """
+    from wfield_local.spout_behavior import position_style
+
+    return {q: position_style(q)[0] for q in
+            ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")}
+
+
+POS_COLOR = _pos_color_map()
 
 
 def main() -> int:

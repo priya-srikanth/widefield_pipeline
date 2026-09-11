@@ -103,6 +103,33 @@ def pos_color(pos_idx: int):
     return colorsys.hls_to_rgb(h, min(max(lum, 0.0), 1.0), s)
 
 
+def position_style(name: str):
+    """THE cohort-wide style for one position NAME: ``(colour, marker, linestyle)``.
+
+    ONE PALETTE, and this is it (Priya, 2026-09-10: "can we also make sure we're using the same
+    colour conventions for line plots that include all 6 positions... I think I prefer the former"):
+
+        HUE      = side      L dodger blue, centre purple, R crimson
+        LIGHTNESS= ring      close deeper, far paler -- the same hue, not a different one
+        MARKER   = side      o / D / ^, so the six stay separable in greyscale
+        LINESTYLE= side      solid / dashed / dotted
+
+    There were THREE conventions before today. This one; `grant_figures.POS_STYLE`, which coloured
+    by RING (far reds, close blues) and whose comment claimed it was "the convention the behaviour
+    figures already use" -- it was the opposite of it; and `locanmf_dff_by_position.POS_COLOR`,
+    six unrelated tab10 colours with no mapping at all. A position that is crimson in one figure and
+    blue in the next is a reader's problem, not a palette preference.
+
+    Keyed by NAME because the figure modules think in names; `pos_color` stays keyed by index for
+    the behaviour code that already uses it, and both resolve to the same colour.
+    """
+    idx = next((q["idx"] for q in POSITIONS if q["name"] == name), None)
+    if idx is None:
+        return "tab:grey", "o", "-"
+    side = POS_BY_IDX[idx]["side"]
+    return pos_color(idx), SIDE_MARKER[side], SIDE_LS[side]
+
+
 def _ring_agg_color(ring: str) -> str:
     """Neutral close/far tone for aggregate (non-per-position) panels: deeper close, faded far."""
     return "#333333" if ring == "close" else "#9aa0a6"
