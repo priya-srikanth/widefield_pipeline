@@ -1519,34 +1519,56 @@ def _fig_11cpos(out_dir, align, variant, wname):
     if p1:
         made.append(p1)
 
-    #: A ceiling below this makes the captured FRACTION a ratio of noise; drop the cell instead.
+    #: A per-session ceiling below this makes that session's captured FRACTION a ratio of noise.
+    #: Applied PER SESSION, not to the pooled value: one session whose far-contra ceiling collapsed
+    #: would otherwise drag a pooled ratio that the other fifteen support.
     MIN_CEILING = 0.10
-    frac, fpts = {}, {}
-    for e in ef.PANELS:
-        row = {}
-        for k in _short_labels():
-            c = (cvals.get(e) or {}).get(k)
-            m = (mvals.get(e) or {}).get(k)
-            if c is None or m is None:
+
+    # THE FRACTION IS BUILT PER SESSION AND THEN POOLED, not computed from the pooled ceiling and
+    # the pooled match. Priya, 2026-09-10: "why are there no sem or stats on the per position
+    # fraction explained vs ceiling?" Because the first version divided one pooled number by
+    # another, which has no distribution behind it and therefore no interval and no dots -- the one
+    # bar family in this section that could not be argued with. A per-session ratio has both, and
+    # goes through the same animals -> sessions bootstrap as every other bar here.
+    #
+    # A SYNTHETIC TABLE rather than a new collector: `scalar_by_epoch` wants one table whose payload
+    # it can reduce, and the two arms are already keyed identically by (animal, PRE|day), so the
+    # ratio can be formed session by session and handed back in the same shape. Slots 0-2 are NaN
+    # because nothing reads them here; slot 3 is the per-position dict the accessor expects.
+    frac_tab = {}
+    for an, by_key in cei_tab.items():
+        rec = {}
+        for key, cpay in by_key.items():
+            mpay = (mat_tab.get(an) or {}).get(key)
+            if mpay is None:
                 continue
-            cv, mv = ef._value_and_ci(c)[0], ef._value_and_ci(m)[0]
-            if cv is None or mv is None or cv < MIN_CEILING:
-                continue
-            row[k] = max(0.0, min(1.0, mv / cv))
-        if row:
-            frac[e] = row
-            fpts[e] = {k: [] for k in row}
-    if frac:
-        p2 = _scalar_figure(
-            out_dir, name=f"epoch_11cfrac_encoder_captured_by_position_{align}_{variant}",
-            title=(f"Of the shape a position's own trials can predict, how much does the "
-                   f"PRE-STROKE template capture? -- {wname}"),
-            ylabel="matched / ceiling", keys=_short_labels(), values=frac, points=fpts,
-            tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.05),
-            delta_name=f"epoch_11cfracdelta_encoder_captured_by_position_{align}_{variant}",
-            delta_title=f"Captured fraction per position, change from pre-stroke -- {wname}")
-        if p2:
-            made.append(p2)
+            cper, mper = (cpay[3] or {}), (mpay[3] or {})
+            row = {}
+            for q in CONF_LABELS:
+                c, m = cper.get(q), mper.get(q)
+                if c is None or m is None or not np.isfinite(c) or not np.isfinite(m):
+                    continue
+                if c < MIN_CEILING:
+                    continue
+                row[q] = float(max(0.0, min(1.0, m / c)))
+            if row:
+                rec[key] = (np.nan, np.nan, np.nan, row)
+        if len(rec) > 1:
+            frac_tab[an] = rec
+
+    if frac_tab:
+        fvals, fpts = ef.scalar_by_epoch(frac_tab, _per, keys=_short_labels())
+        if fvals:
+            p2 = _scalar_figure(
+                out_dir, name=f"epoch_11cfrac_encoder_captured_by_position_{align}_{variant}",
+                title=(f"Of the shape a position's own trials can predict, how much does the "
+                       f"PRE-STROKE template capture? -- {wname}"),
+                ylabel="matched / ceiling", keys=_short_labels(), values=fvals, points=fpts,
+                tick_labels=_minor(), groups=_groups(), ylim=(0.0, 1.10),
+                delta_name=f"epoch_11cfracdelta_encoder_captured_by_position_{align}_{variant}",
+                delta_title=f"Captured fraction per position, change from pre-stroke -- {wname}")
+            if p2:
+                made.append(p2)
     return made or None
 
 

@@ -3808,6 +3808,59 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_11posdelta_encoder_shape_*_*.png",
          "Encoder shape r² per position, change from pre-stroke",
          None),
+        ("epoch_11c_encoder_ceiling_*_*.png",
+         "Encoder SHAPE ceiling vs the frozen template",
+         "The frozen encoder's explained variance had nothing to be read against: acutely it is"
+         "-0.388 post-cue, which says 'worse than predicting the mean' and nothing about what was"
+         "ACHIEVABLE in that session. These three bars fix that, all scoring the SAME half-session"
+         "means. CEILING: scored against the other half of the same session -- how much position"
+         "structure the session has at all. FROZEN (MATCHED): scored against an equally sized draw"
+         "from the pre-stroke pool, so the only difference from the ceiling is WHICH SESSIONS the"
+         "template came from. FROZEN (ALL PRE): the whole pool, i.e. the encoder as it is actually"
+         "used elsewhere in this deck, and the only one of the three not size-matched. Read"
+         "ceiling minus MATCHED, and read it against its own pre-stroke value -- that gap is 0.277"
+         "at baseline with no lesion involved, the cost of a template coming from other sessions."
+         "ALL THREE ARE SCORED AFTER RESCALE, i.e. SHAPE only: a raw score at these amplitudes is"
+         "dominated by the encoder not being allowed to rescale (with perfect shape and only a"
+         "scale mismatch R2 = 1 - (1-a)^2/a^2, which is 0.000 at a = 0.5 and -2.13 at the a = 0.361"
+         "observed acutely), and the ceiling's halves have matched amplitude by construction while"
+         "the frozen arm's reference does not."),
+        ("epoch_11cdelta_encoder_ceiling_*_*.png",
+         "Encoder ceiling and frozen template, change from pre-stroke",
+         "AMPLITUDE RECOVERS AND SHAPE DOES NOT, which is the headline and is invisible in raw"
+         "scores. The fitted amplitude factor goes 0.285 acute, 0.517 subacute, 0.741 chronic"
+         "against 0.745 pre-stroke -- back to baseline. The shape mismatch goes +0.196, +0.144,"
+         "+0.183 -- flat. An earlier reading of this family reported the mismatch as recovering"
+         "monotonically; those were raw scores and what was recovering in them was the amplitude."),
+        ("epoch_11cpos_encoder_ceiling_by_position_*_*.png",
+         "Encoder SHAPE ceiling, per position",
+         "The pooled ceiling averages six positions that did very different things, and this is"
+         "where that matters. FAR-CONTRALATERAL LOSES NO STRUCTURE AT ALL: its ceiling is 0.613"
+         "acutely, identical to its 0.613 pre-stroke, so its own trials predict each other exactly"
+         "as well as before the lesion. The positions that lose ceiling are the FLANKING ones,"
+         "far-ipsilateral (-0.293) and far-middle (-0.249). Read with the next figure: far-contra"
+         "keeps its structure and loses its template; its neighbours lose the structure itself."),
+        ("epoch_11cposdelta_encoder_ceiling_by_position_*_*.png",
+         "Encoder shape ceiling per position, change from pre-stroke",
+         "Zero at far-contralateral is the result, not a missing bar."),
+        ("epoch_11cfrac_encoder_captured_by_position_*_*.png",
+         "Of the shape a position can predict, how much does the PRE-STROKE template capture?",
+         "matched / ceiling, per position. A FRACTION rather than a difference because the"
+         "positions do not share a ceiling: a gap of 0.2 means something different at a position"
+         "whose ceiling is 0.3 than at one whose ceiling is 0.8. Computed PER SESSION and then"
+         "pooled, so the bars carry the same animals-then-sessions bootstrap, dots and marks as"
+         "every other bar family here -- an earlier version divided one pooled number by another,"
+         "which has no distribution behind it and so could not be argued with. A session whose"
+         "ceiling at that position falls below 0.10 is dropped rather than contributing a ratio to"
+         "a near-zero denominator. Far-contra falls from 0.57 pre-stroke to 0.01 acutely and"
+         "recovers only to 0.27-0.31."),
+        ("epoch_11cfracdelta_encoder_captured_by_position_*_*.png",
+         "Captured fraction per position, change from pre-stroke",
+         "The contrast that carries the claim. Far-contralateral's template match is essentially"
+         "abolished acutely and does not return to baseline, on a position whose own structure"
+         "never degraded -- which is what DISPLACED rather than LOST means, stated in the"
+         "encoder's units. Converges with the frozen-vs-refit decoder arm, which recovers 34% of"
+         "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "

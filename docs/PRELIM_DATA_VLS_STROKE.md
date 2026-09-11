@@ -409,6 +409,68 @@ pre-stroke template in a position-nonspecific way", not "bigger".
 the amplitude factor, and "the thing removed" -- and the figures have been relabelled accordingly.
 Quote "EV after rescale" and "amplitude factor a"; do not write "gain".
 
+## DISPLACED vs DEGRADED, per position -- the encoder ceiling (figures 11c / 11cpos / 11cfrac)
+
+Added 2026-09-10. This is the finding that reorganises the rest of the document, and it comes from
+giving the frozen encoder something to be read against.
+
+**THE PROBLEM IT FIXES.** `frozen EV` is an R^2 and acutely it is -0.388 post-cue: "worse than
+predicting the mean", and mute about what was ACHIEVABLE in that session. A within-session split-half
+refit supplies the ceiling. A refit encoder must be cross-validated or it is 1.0 by construction --
+ridge on a one-hot design reduces to the per-position mean, so a session predicting its own means
+from themselves is an identity.
+
+**EVERYTHING IS SCORED AFTER RESCALE, i.e. SHAPE.** Negative explained variance here is almost
+entirely an amplitude statement: with PERFECT shape and only a scale mismatch,
+`R^2 = 1 - (1-a)^2/a^2`, which is exactly 0.000 at a = 0.5 and **-2.13** at the a = 0.361 observed
+acutely. The ceiling's two halves have matched amplitude by construction while the frozen arm's
+reference does not, so a raw comparison reports amplitude and calls it template mismatch.
+
+### Pooled: amplitude recovers, shape does not
+
+| epoch | ceiling | frozen (matched) | gap | Δ vs pre | template captures | amplitude a |
+|---|---|---|---|---|---|---|
+| pre | 0.703 | 0.426 | 0.277 | -- | 61% | 0.745 |
+| **acute** | 0.571 | 0.098 | 0.473 | **+0.196** | **17%** | **0.285** |
+| subacute | 0.643 | 0.222 | 0.421 | +0.144 | 35% | 0.517 |
+| chronic | 0.778 | 0.319 | 0.459 | **+0.183** | 41% | 0.741 |
+
+The fitted amplitude returns to baseline (0.285 -> 0.741 against 0.745 pre-stroke). The shape
+mismatch does not (+0.196 -> +0.144 -> +0.183, flat). **The pre-stroke gap of 0.277 is not an
+effect** -- it is the cost of a template coming from other sessions at equal training-set size, the
+same asymmetry the matched frozen DECODER arm exposed.
+
+### Per position: THE DISSOCIATION
+
+| position | pre ceiling / captured | acute ceiling / captured | **Δ ceiling** |
+|---|---|---|---|
+| near ipsi | 0.741 / 0.67 | 0.585 / 0.22 | -0.156 |
+| near middle | 0.453 / 0.26 | 0.438 / 0.22 | -0.015 |
+| near contra | 0.726 / 0.62 | 0.627 / 0.28 | -0.099 |
+| **far ipsi** | 0.629 / 0.54 | 0.336 / 0.19 | **-0.293** |
+| **far middle** | 0.717 / 0.63 | 0.468 / 0.43 | **-0.249** |
+| **far contra** | 0.613 / 0.57 | **0.613** / **0.01** | **0.000** |
+
+**FAR-CONTRALATERAL LOSES NO STRUCTURE AND LOSES ITS TEMPLATE ENTIRELY.** Its ceiling acutely is
+0.613, *identical* to its 0.613 pre-stroke -- its own trials predict each other exactly as well as
+before the lesion -- while the pre-stroke template's capture falls 0.57 -> 0.01 and recovers only to
+0.27-0.31. The positions that lose CEILING are the flanking ones, far-ipsi and far-middle.
+
+**THIS CONVERGES WITH THE DECODER ARM** from the same day: refitting recovers 34% of far-contra's
+acute deficit and only **9% at far-ipsi and 11% at far-middle**. Two analyses, opposite directions of
+fit, entirely different statistics, one dissociation:
+
+> **Far-contra's code is DISPLACED. Its neighbours' codes are DEGRADED.**
+
+Both bar families carry the standard animals-then-sessions bootstrap, per-session dots and
+multiple-comparison marks; the captured fraction is computed PER SESSION and then pooled, so it has a
+distribution behind it rather than being one pooled number divided by another.
+
+**WHAT THIS CHANGES ABOVE.** The earlier pooled statement that "roughly 28% of the available
+structure is lost" averages two opposite things and must not be quoted without the split. And the
+"partly relocated, mostly lost" summary needs the same qualification: at the IMPAIRED position it is
+not mostly lost at all -- nothing measurable is lost there. The loss is at the neighbours.
+
 ## Where each number comes from
 
 | claim | figure | value |
