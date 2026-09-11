@@ -83,10 +83,18 @@ def score(model, X, y, classes=ls.THREE_WAY):
     for j, c in enumerate(model.classes_):
         full[:, int(c)] = P[:, j]
     pred = full.argmax(1)
+    # RAW COUNTS, so epochs can be POOLED BY SUMMING. The same reason `_class_confusions` stores
+    # counts rather than rates: a mean of per-session rates and a rate computed on pooled counts are
+    # different numbers, and only the second is what a confusion panel draws.
+    K = len(classes)
+    conf = np.zeros((K, K), float)
+    for t, q in zip(yi, pred):
+        conf[int(t), int(q)] += 1
     out = {"n": len(yi),
            "balacc": float(balanced_accuracy_score(yi, pred)),
            "per_class": {c: float((pred[y == c] == list(classes).index(c)).mean())
                          for c in present},
+           "confusion": conf,
            "counts": {c: int((y == c).sum()) for c in classes}}
     try:
         # ONE-VS-REST OVER THE CLASSES ACTUALLY PRESENT. Passing all three to `roc_auc_score` when

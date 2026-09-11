@@ -3746,6 +3746,74 @@ def _collect_stopped(align, min_trials=MIN_STOPPED):
     return out, sorted(all_days)
 
 
+@lru_cache(maxsize=6)
+def _collect_stopped_pooled(align, min_trials=20):
+    """POSITION-AGNOSTIC stopped-trial patterns: one mean vector per session, all positions pooled.
+
+    Priya, 2026-09-11: "I more was thinking about mean pattern similarity or encoder similarity for
+    ALL stopped trials (rather than per position)."
+
+    WHY POOLING IS THE RIGHT MOVE HERE, in numbers. The per-position stopped arm divides each
+    session's quit period six ways, and the quit period is short by definition. Pooled across
+    animals the post-cue stopped sets are 867 trials pre-stroke, 1,984 acute, 1,935 subacute and
+    359 chronic; split per position the chronic cell falls to 36-75 trials. Pooling uses all of a
+    session's stopped trials for one measurement instead of a sixth of them for each of six, and
+    the question -- does the cortical pattern during the quit period still look like the pre-stroke
+    one -- does not need the position axis at all.
+
+    Returns ``({animal: {"REF": v, "PRE_STOPPED": v|None, day: v}}, days)`` where each value is a
+    380-vector: the mean over that session's stopped trials, no position split.
+
+    ``REF`` IS THE PRE-STROKE ENGAGED MEAN, pooled the same way. Both stopped columns are scored
+    against it, so the pre-stroke stopped column measures how far QUITTING ALONE moves the pattern
+    with no lesion involved, and only the difference between the two is attributable to the lesion.
+
+    A HIGHER FLOOR THAN THE PER-POSITION ARM (20 trials, not 5): a session contributes ONE number
+    here, so there is no reason to accept a cell built from five trials, and the whole point of
+    pooling is that it does not have to.
+    """
+    out, all_days = {}, set()
+    for an in ANIMALS:
+        try:
+            bd = _pooled_bundle(an, align)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! stopped-pooled {an} {align}: {type(ex).__name__} {str(ex)[:80]}",
+                  flush=True)
+            continue
+        rec, ref_parts, pre_parts = {}, [], []
+        for i, lab in enumerate(bd["kept"]):
+            mmdd = lab.split("_")[-1]
+            stop = [_session_trials(bd, i, q, "stopped") for q in CONF_LABELS]
+            stop = [Z for Z in stop if len(Z)]
+            if i in bd["pre_i"]:
+                eng = [_session_trials(bd, i, q, "lick") for q in CONF_LABELS]
+                eng = [Z for Z in eng if len(Z)]
+                if eng:
+                    ref_parts.append(np.vstack(eng))
+                if stop:
+                    pre_parts.append(np.vstack(stop))
+                continue
+            if not stop:
+                continue
+            Z = np.vstack(stop)
+            if len(Z) < min_trials:
+                continue
+            day = _day(an, mmdd)
+            if day is None:
+                continue
+            rec[day] = Z.mean(0)
+            all_days.add(day)
+        if not ref_parts or not rec:
+            continue
+        d = {"REF": np.vstack(ref_parts).mean(0)}
+        pre_all = np.vstack(pre_parts) if pre_parts else np.zeros((0, 1))
+        d["PRE_STOPPED"] = pre_all.mean(0) if len(pre_all) >= min_trials else None
+        d["PRE_STOPPED_N"] = int(len(pre_all))
+        d.update(rec)
+        out[an] = d
+    return out, sorted(all_days)
+
+
 def _corr_matrix(src_means, ref_means, labels=None):
     """M[i, j] = corr(src pattern at label i, reference pattern at label j)."""
     labels = labels or CONF_LABELS

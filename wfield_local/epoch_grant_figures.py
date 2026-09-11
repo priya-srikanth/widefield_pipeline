@@ -1114,6 +1114,103 @@ def _state_epoch_values(store, field, keys):
     return vals, pts
 
 
+def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
+    """12b: do STOPPED trials still look like pre-stroke cortex? POOLED over positions.
+
+    Priya, 2026-09-11, on why the per-position stopped arm is underpowered: "I more was thinking
+    about mean pattern similarity or encoder similarity for ALL stopped trials (rather than per
+    position)."
+
+    THE POWER ARGUMENT, in numbers. The quit period is short by definition, and the per-position arm
+    divides it six ways. Pooled across animals the post-cue stopped sets hold 867 trials pre-stroke,
+    1,984 acute, 1,935 subacute and 359 chronic; split per position the chronic cell falls to 36-75
+    trials, which is not a mean pattern. This uses ALL of a session's stopped trials for ONE
+    measurement, and the question it asks -- does the cortical pattern during the quit period still
+    resemble the pre-stroke one -- never needed the position axis.
+
+    TWO BARS, and the second is what makes the first readable:
+
+      similarity   corr(this session's pooled stopped pattern, that animal's pre-stroke ENGAGED
+                   pooled pattern). Both stopped columns are scored against the SAME reference, so
+                   the PRE-stroke stopped bar measures how far QUITTING ALONE moves the pattern with
+                   no lesion involved, and only the difference between it and a post-stroke bar is
+                   attributable to the lesion.
+      reliability  the split-half correlation of the session's OWN stopped trials -- the ceiling
+                   this measure can reach. A similarity of 0.4 against a ceiling of 0.45 and the
+                   same 0.4 against a ceiling of 0.9 are opposite results, and the per-position
+                   stopped arm had no ceiling at all.
+
+    WHY IT IS NOT AN ENCODER. "Explained variance" in the encoder families is variance ACROSS
+    POSITIONS -- `_enc_terms` centres a 6 x 380 matrix down the position axis and the denominator is
+    the between-position sum of squares. Pool the positions away and that denominator is zero by
+    construction, so an encoder EV has nothing left to explain. Correlation against a reference
+    pattern is the measure that survives pooling, which is why this is the pattern-similarity family
+    and not the encoder one.
+    """
+    if variant != "working":
+        return None
+    from wfield_local import grant_figures as G
+
+    store, _days = G._collect_stopped_pooled(align)
+    if not store:
+        return None
+
+    def _corr(a, b):
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        if a.size != b.size or not np.std(a) or not np.std(b):
+            return None
+        return float(np.corrcoef(a, b)[0, 1])
+
+    vals, pts, cov = {}, {}, {}
+    for e in ef.PANELS:
+        got = []
+        for an, rec in sorted(store.items()):
+            ref = rec.get("REF")
+            if ref is None:
+                continue
+            if e == "pre":
+                v = rec.get("PRE_STOPPED")
+                r = _corr(v, ref) if v is not None else None
+                if r is not None:
+                    got.append((an, r))
+                continue
+            for day, v in rec.items():
+                if day in ("REF", "PRE_STOPPED", "PRE_STOPPED_N"):
+                    continue
+                if ef.epoch_of_day(an, int(day)) != e:
+                    continue
+                r = _corr(v, ref)
+                if r is not None:
+                    got.append((an, r))
+        if got:
+            vals[e] = {"stopped vs pre-stroke engaged": float(np.mean([v for _a, v in got]))}
+            pts[e] = {"stopped vs pre-stroke engaged": got}
+            cov[e] = {a: sum(1 for x, _v in got if x == a) for a in sorted({x for x, _v in got})}
+    if len(vals) < 2:
+        return None
+
+    excl = [f"{an} {rec.get('PRE_STOPPED_N', 0)}" for an, rec in sorted(store.items())
+            if rec.get("PRE_STOPPED") is None]
+    return _scalar_figure(
+        out_dir, name=f"epoch_12b_stopped_pooled_similarity_{align}",
+        title=("STOPPED trials, POOLED over positions: does the quit-period pattern still look "
+               f"like pre-stroke cortex? -- {wname}"),
+        ylabel="pattern correlation vs pre-stroke engaged mean",
+        keys=["stopped vs pre-stroke engaged"], values=vals, points=pts,
+        tick_labels=["pooled stopped\npattern"], ylim=(-0.4, 1.05),
+        session_counts=cov,
+        notes=["ALL of a session's stopped trials pooled into ONE mean pattern -- no position "
+               "split, which is what the per-position stopped arm spends its power on",
+               "scored against that animal's PRE-STROKE ENGAGED pooled mean, so the pre bar is the "
+               "no-lesion control: how far QUITTING ALONE moves the pattern",
+               "pooled stopped trials: 867 pre, 1,984 acute, 1,935 subacute, 359 chronic -- per "
+               "position the chronic cell would be 36-75"]
+        + (["no pre-stroke stopped bar for " + ", ".join(f"{x} trials" for x in excl)
+            + " -- a well-trained pre-stroke animal barely quits"] if excl else []),
+        delta_name=f"epoch_12bdelta_stopped_pooled_similarity_{align}",
+        delta_title="Pooled stopped-trial similarity, change from pre-stroke")
+
+
 def _fig_13_state(out_dir, align, variant, wname):
     """13: DOES EVERYTHING DEGRADE, OR ONLY THE TARGET? The frozen behavioural-state decoder.
 
@@ -1278,6 +1375,39 @@ def _fig_13_state(out_dir, align, variant, wname):
                     "distribution is on the figures either side of this one"]))
             if q:
                 made.append(q)
+
+    # ---------------------------------------------------------------- confusion, per epoch
+    # Priya, 2026-09-11: "can we add confusion matrices for the state decoder?" The per-class panel
+    # gives the DIAGONAL -- how often each class is recalled -- and says nothing about where the
+    # errors go, which is exactly the argument 5c makes for the position decoder. A quiet segment
+    # misread as LICKING is a different failure from one misread as RUNNING: the first says the
+    # post-stroke immobile animal looks task-engaged to the readout, the second that it looks like
+    # it is moving.
+    from wfield_local import locomotor_state as _ls
+
+    conf = {}
+    for e in ef.PANELS:
+        acc = None
+        for an, rec in sorted(store.items()):
+            src = (rec.get("PRE", []) if e == "pre" else
+                   [r for day, r in rec.items()
+                    if day != "PRE" and ef.epoch_of_day(an, int(day)) == e])
+            for r in src:
+                M = r.get("confusion")
+                if M is None:
+                    continue
+                acc = M.copy() if acc is None else acc + M
+        if acc is not None and acc.sum():
+            conf[e] = acc
+    if len(conf) > 1:
+        c = ef.confusion_row(
+            conf, out_dir, name="epoch_13c_state_confusion_cue",
+            title=("Frozen BEHAVIOURAL-STATE decoder, confusion by epoch -- "
+                   "where do the errors go?"),
+            coverage={e: dict(counts.get(e, {})) for e in conf}, delta=True,
+            chance=1.0 / 3.0, labels=list(_ls.THREE_WAY))
+        if c:
+            made.append(c)
 
     CLS = ["quiet", "running", "licking"]
     pvals, ppts = _state_epoch_values(store, "per_class", CLS)
@@ -2215,12 +2345,12 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s", "mat", "scal"))
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s",
                                  "mat", "scal"))
 
     if "1b" in want:
@@ -2238,7 +2368,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "13s", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -2289,6 +2419,13 @@ def main(argv=None) -> int:
                     _report(f"13s {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 13s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        if "12b" in want:
+            try:
+                _report(f"12b {align}/{variant}",
+                        _fig_12b_stopped_pooled(out, align, variant, wname))
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 12b {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "12s" in want and variant == "working":
             try:
