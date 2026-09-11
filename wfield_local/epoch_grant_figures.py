@@ -952,16 +952,20 @@ def _fig_12_stopped(out_dir, align, variant, wname):
         return None
 
     per_epoch, contributors = {}, {}
-    pre_rows, pre_animals = [], []
+    pre_rows, pre_animals, pre_n, excluded = [], [], {}, []
     for an, rec in sorted(store.items()):
         ref = rec.get("WORK_REF")
         if not ref:
             continue
+        n_tr, n_ss = rec.get("PRE_STOPPED_N", (0, 0))
         if rec.get("PRE_STOPPED"):
             pre_rows.append(G._corr_matrix(rec["PRE_STOPPED"], ref))
             pre_animals.append(an)
+            pre_n[an] = n_ss
+        else:
+            excluded.append(f"{an} {n_tr}")
         for key, means in rec.items():
-            if key in ("WORK_REF", "PRE_STOPPED"):
+            if key in ("WORK_REF", "PRE_STOPPED", "PRE_STOPPED_N"):
                 continue
             e = ef.epoch_of_day(an, int(key))
             if not e or e == "pre":
@@ -980,8 +984,27 @@ def _fig_12_stopped(out_dir, align, variant, wname):
 
     cov = {e: dict(by) for e, by in contributors.items()}
     if pre_animals:
-        cov["pre"] = {a: 1 for a in pre_animals}
+        # SESSIONS, not "1". The pre reference pools an animal's pre-stroke stopped trials into ONE
+        # pattern, and reporting that as one contributing session -- which the first version did --
+        # understates the baseline as badly as the stopped decoder arm's subtitle overstated it.
+        cov["pre"] = dict(pre_n)
     n_pre = ", ".join(pre_animals) if pre_animals else "NONE"
+    n_out = ("; excluded " + ", ".join(f"{x} trials" for x in excluded)) if excluded else ""
+
+    # THE HEADLINE IS THE PRE PANEL, and it has to be stated or the delta row invites a reading it
+    # cannot support. If the diagonal is at zero BEFORE the lesion then stopped trials carry no
+    # recoverable position pattern at all, every post-stroke panel is a second near-zero number,
+    # and their difference is a difference of noise however strongly the diverging colour map
+    # renders it. Measured rather than asserted, so the sentence cannot outlive the result.
+    _pre = mats.get("pre")
+    _d = float(np.nanmean(np.diag(np.asarray(_pre, float)))) if _pre is not None else float("nan")
+    verdict = ("READ THE PRE PANEL FIRST. Its diagonal is %.2f -- at zero before any lesion -- so "
+               "stopped trials carry essentially NO position pattern in the first place, every "
+               "post-stroke panel is a second near-zero number, and the change row below is a "
+               "difference between two of them. Do not read structure into it. This is a NEGATIVE "
+               "result about the quit period and it agrees with the stopped decoder arm, whose "
+               "pre-stroke accuracy is 0.18-0.31 against a chance of 0.167."
+               % _d) if np.isfinite(_d) and abs(_d) < 0.15 else ""
     return ef.matrix_row(
         mats, out_dir, name=f"epoch_12_stopped_pattern_{align}",
         title=(f"STOPPED trials: does the position pattern survive the animal quitting? -- "
@@ -994,10 +1017,12 @@ def _fig_12_stopped(out_dir, align, variant, wname):
                   "pre-stroke stopped trials against that template, and it measures how far "
                   "QUITTING ALONE moves the pattern with no lesion involved; only the difference "
                   f"between it and a post-stroke column is attributable to the lesion. It rests on "
-                  f"{n_pre} -- the other animals barely quit before the lesion (6 and 40 trials, "
-                  f"one session each) and contribute no pre column rather than a noisy one. "
-                  f"Cells with fewer than {G.MIN_STOPPED} stopped trials at that position in that "
-                  "session are absent, not zero."))
+                  f"{n_pre}{n_out} -- an animal needs four of the six positions and "
+                  f"{G.MIN_STOPPED_REF} pre-stroke stopped trials to define the control, because a "
+                  f"well-trained pre-stroke animal barely quits and a baseline built from one "
+                  f"session is noise wearing the word 'control'. Cells with fewer than "
+                  f"{G.MIN_STOPPED} stopped trials at that position in that session are absent, "
+                  f"not zero. {verdict}"))
 
 
 def _fig_10e_best_match_grid(out_dir, align, variant, wname):
@@ -1957,7 +1982,13 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5cr {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
-        if "12s" in want:
+        # 12s IS DISPATCHED ON THE `working` ARMS ONLY, and the guard belongs here rather than
+        # inside the figure. It draws the stopped trials of every arm against the ENGAGED template,
+        # so it is one figure per ALIGNMENT, not one per (alignment, class) -- and returning None
+        # from the other three arms made the renderer print "NO FIGURE" three times a render for a
+        # case that is correct by construction. A warning that always fires is a warning nobody
+        # reads.
+        if "12s" in want and variant == "working":
             try:
                 _report(f"12s {align}/{variant}",
                         _fig_12_stopped(out, align, variant, wname))

@@ -3894,6 +3894,22 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "never degraded -- which is what DISPLACED rather than LOST means, stated in the"
          "encoder's units. Converges with the frozen-vs-refit decoder arm, which recovers 34% of"
          "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
+        ("epoch_12_stopped_pattern_*.png",
+         "STOPPED trials: does the position pattern survive the animal quitting?",
+         "THE NEGATIVE CONTROL FOR THE WHOLE STOPPED ARM, and the figure to read before any of the"
+         "other stopped-class panels in this section. Trials inside the terminal quit period ONLY"
+         "-- the set every other figure here removes -- correlated against that animal's pre-stroke"
+         "ENGAGED mean pattern. The pre column is pre-STROKE stopped trials against that same"
+         "template, i.e. how far quitting alone moves the pattern with no lesion involved."
+         "THE ANSWER IS THAT THERE IS ALMOST NOTHING THERE TO MOVE. The pre diagonal is -0.01 and"
+         "every post-stroke diagonal is within 0.02 of zero, so stopped trials carry essentially no"
+         "position pattern before the lesion either; the change row beneath is a difference between"
+         "two near-zero numbers and its colours should not be read as structure. This agrees with"
+         "the stopped DECODER arm, whose pre-stroke accuracy is 0.18-0.31 against a chance of"
+         "0.167. The control rests on PS94 and PS95: an animal needs four of six positions and 100"
+         "pre-stroke stopped trials to define it, and PS92 has 6 and PS93 has 40 -- one session"
+         "each. A well-trained pre-stroke animal barely quits, which is the same fact that makes"
+         "the engagement gate worth having."),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "

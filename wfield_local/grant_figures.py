@@ -3634,6 +3634,11 @@ def _delta_diag_one(mats_fn, pre_x, pre_b, dx, db, rng, n_boot):
 #: where most sessions still contribute all six cells.
 MIN_STOPPED = 5
 
+#: Total pre-stroke STOPPED trials an animal needs before it may define the no-lesion control, on
+#: top of needing at least four of the six positions. Post-cue the four animals hold 6, 40, 326 and
+#: 495, so this admits PS94 and PS95 and refuses the two whose whole baseline is one session.
+MIN_STOPPED_REF = 100
+
 
 @lru_cache(maxsize=6)
 def _collect_stopped(align, min_trials=MIN_STOPPED):
@@ -3687,7 +3692,7 @@ def _collect_stopped(align, min_trials=MIN_STOPPED):
                         work.setdefault(q, []).append(Z)
                     S = _session_trials(bd, i, q, "stopped")
                     if len(S):
-                        pre_pool.setdefault(q, []).append(S)
+                        pre_pool.setdefault(q, []).append((i, S))
                 continue
             pat = {q: Z for q in CONF_LABELS
                    if len(Z := _session_trials(bd, i, q, "stopped")) >= min_trials}
@@ -3700,9 +3705,22 @@ def _collect_stopped(align, min_trials=MIN_STOPPED):
         if not work:
             continue
         d = {"WORK_REF": _means({q: np.vstack(v) for q, v in work.items()})}
-        pre_s = {q: np.vstack(v) for q, v in pre_pool.items()
-                 if sum(len(z) for z in v) >= min_trials}
-        d["PRE_STOPPED"] = _means(pre_s) if len(pre_s) >= 2 else None
+        pre_s = {q: np.vstack([z for _i, z in v]) for q, v in pre_pool.items()
+                 if sum(len(z) for _i, z in v) >= min_trials}
+        # THE RAW TOTAL, before the per-position floor, because that is what "this animal barely
+        # quits" means and it is what the caption reports. Counting after the floor printed
+        # "PS92 0 trials" for an animal that has six -- true of the surviving cells and false of
+        # the animal.
+        n_pre_tr = sum(len(z) for v in pre_pool.values() for _i, z in v)
+        n_pre_ss = len({i for v in pre_pool.values() for i, _z in v})
+        # A CONTROL NEEDS ALL SIX POSITIONS AND A REAL TRIAL COUNT, not two positions and forty
+        # trials. The first version gated on ">= 2 positions with >= 5 trials", which let PS93's
+        # forty pre-stroke stopped trials -- spread over six positions, from ONE session -- stand as
+        # a no-lesion baseline, while the caption asserted PS93 had been excluded. A control that
+        # thin is indistinguishable from noise and the figure would have shown a delta against it.
+        ok = len(pre_s) >= 4 and n_pre_tr >= MIN_STOPPED_REF
+        d["PRE_STOPPED"] = _means(pre_s) if ok else None
+        d["PRE_STOPPED_N"] = (n_pre_tr, n_pre_ss)
         d.update(rec)
         out[an] = d
     return out, sorted(all_days)
