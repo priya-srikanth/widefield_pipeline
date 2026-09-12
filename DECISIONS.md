@@ -9121,3 +9121,35 @@ No code change is needed: the `ARMS` loop at `epoch_grant_figures.main` wraps EV
 `cuelick` and `ENLlick` render for all of them on any full run. Only `--only 5ro 5rmo` was run here.
 **Re-render the full epoch set and read 8/8rc/8rz, 10/10b/10c/10e and 5c/5cr on the lick arms before
 this claim goes anywhere.**
+
+### WHY the gap WIDENS on lick trials, which is not the obvious direction
+
+Priya: *"it's actually unexpected — when gating on lick trials I would have thought there would be
+higher accuracy of the frozen decoder?"* It IS higher. The asymmetry in HOW MUCH is the result.
+
+Post-cue, matched, raw accuracies:
+
+| | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| frozen, `working` | 0.719 | 0.415 | 0.566 | 0.661 |
+| frozen, `lick` | 0.715 | **0.452** | 0.588 | 0.653 |
+| gain from gating | — | **+0.037** | +0.022 | −0.008 |
+| refit, `working` | 0.813 | 0.552 | 0.741 | 0.830 |
+| refit, `lick` | 0.813 | **0.708** | 0.791 | 0.841 |
+| gain from gating | — | **+0.156** | +0.050 | +0.011 |
+
+Acutely, in deficit terms: **refit on lick trials is only 0.105 below its pre-stroke value, while
+frozen is still 0.263 below its.** On trials the animal completed, the population carries position
+information at close to pre-stroke levels AND THE PRE-STROKE DECODER CAPTURES ALMOST NONE OF THAT
+RECOVERY.
+
+So the gap widens (0.137 → 0.256) for the opposite of the intuitive reason: restricting to good
+trials does not rescue the old readout, it exposes how much the readout is missing. It also explains
+why adding the miss trials destroys the effect — they dilute a population where the information IS
+present but unreadable, pulling both arms down together.
+
+**And it is where the selection caveat bites hardest.** "Information present but relocated on
+completed trials" and "completed trials are the trials where the code happened to survive" predict
+exactly this pattern. The discriminator is whether the SAME relocation appears in the crossnobis and
+best-match families on the lick arms — which is why those must be re-rendered before the claim is
+used.
