@@ -110,6 +110,180 @@ def write_values(values, q, *, points=None, marks=None):
     return main
 
 
+def _axis_labels(n, labels, fallback="i"):
+    """Axis labels of length ``n``, falling back to indices when the caller has none."""
+    if labels is not None and len(labels) >= n:
+        return [str(x) for x in list(labels)[:n]]
+    return [f"{fallback}{i}" for i in range(n)]
+
+
+def write_matrix_values(mats, q, *, labels=None, row_labels=None, col_labels=None,
+                        delta=True, extra=None, extra_name="count"):
+    """Write the CELLS of a matrix figure beside it as ``<name>.csv``.
+
+    `write_values` covers the bar families. This covers `matrix_row`, `confusion_row` and
+    `matrix_grid_by_animal`, which between them carry every confusion, crossnobis and best-match
+    destination number in the deck -- and which, until 2026-09-12, had NO machine-readable route to
+    their values at all. That is the gap that forced a question about family 12b's bars to be
+    answered by reading pixels off a rendered PNG, which is precisely the failure
+    `write_values` exists to prevent. See its docstring: quoting a figure should not be an act of
+    eyesight.
+
+    Columns are ``panel, row, col, value, delta_vs_pre`` (plus ``extra_name`` when given).
+
+    **THE DELTA IS RECOMPUTED HERE, from the same ``mats`` the figure draws**, rather than accepted
+    as an argument. Both `matrix_row` and `confusion_row` draw ``panel - pre``, so deriving it means
+    the sidecar cannot disagree with the picture; a passed-in delta could, and the whole point of
+    the file is to be quotable without re-deriving anything.
+
+    ``extra`` carries the UNNORMALISED matrix where the figure shows a normalised one --
+    `confusion_row` divides each row by its sum, so the fraction is what is plotted and the raw
+    count is what says how much trial data is behind it. A sidecar with only the fraction cannot
+    distinguish 1/1 from 40/40.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        panels = [e for e in PANELS if mats.get(e) is not None]
+        panels += [e for e in mats if e not in panels and mats.get(e) is not None]
+        pre = np.asarray(mats["pre"], float) if (delta and mats.get("pre") is not None) else None
+        head = ["panel", "row", "col", "value"]
+        if extra is not None:
+            head.append(extra_name)
+        head.append("delta_vs_pre")
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(head)
+            for e in panels:
+                M = np.asarray(mats[e], float)
+                if M.ndim != 2:
+                    continue
+                rl = _axis_labels(M.shape[0], row_labels or labels, "r")
+                cl = _axis_labels(M.shape[1], col_labels or labels, "c")
+                X = np.asarray(extra[e], float) if (extra is not None
+                                                    and extra.get(e) is not None) else None
+                for i in range(M.shape[0]):
+                    for j in range(M.shape[1]):
+                        row = [e, rl[i], cl[j], M[i, j]]
+                        if extra is not None:
+                            row.append(X[i, j] if X is not None and X.shape == M.shape else "")
+                        d = ""
+                        if pre is not None and e != "pre" and pre.shape == M.shape:
+                            d = M[i, j] - pre[i, j]
+                        row.append(d)
+                        w.writerow(row)
+    except Exception as ex:                                            # noqa: BLE001
+        # A sidecar must never cost a figure. Warn and carry on, as `_save_png_svg` does for SVG.
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
+
+
+def write_matrix_grid_values(mats, q, *, labels=None, delta=True):
+    """Sidecar for `matrix_grid_by_animal`: ``{animal: {epoch: MxM}}`` in long form.
+
+    Columns are ``animal, panel, row, col, value, delta_vs_pre``, where the delta is against THAT
+    ANIMAL'S OWN pre panel -- which is the only comparison the grid draws, and the reason the grid
+    exists at all: pooling hides which animal a pattern came from.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["animal", "panel", "row", "col", "value", "delta_vs_pre"])
+            for an in sorted(mats):
+                by = mats[an] or {}
+                pre = (np.asarray(by["pre"], float)
+                       if (delta and by.get("pre") is not None) else None)
+                order = [e for e in PANELS if by.get(e) is not None]
+                order += [e for e in by if e not in order and by.get(e) is not None]
+                for e in order:
+                    M = np.asarray(by[e], float)
+                    if M.ndim != 2:
+                        continue
+                    rl = _axis_labels(M.shape[0], labels, "r")
+                    cl = _axis_labels(M.shape[1], labels, "c")
+                    for i in range(M.shape[0]):
+                        for j in range(M.shape[1]):
+                            d = ""
+                            if pre is not None and e != "pre" and pre.shape == M.shape:
+                                d = M[i, j] - pre[i, j]
+                            w.writerow([an, e, rl[i], cl[j], M[i, j], d])
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
+
+
+def write_series_values(per_day, q):
+    """Sidecar for the time-course families: ``{position: {animal: {day: value}}}`` in long form.
+
+    Columns are ``position, animal, day, value``. THIS IS THE ONE FAMILY WHOSE SIDECAR IS ALSO A
+    PRIMARY RECORD rather than a convenience: the epoch boundaries were drawn FROM these traces, so
+    a reader checking whether a boundary falls where the data turns needs the per-day numbers and
+    not a picture of them. Days are days since lesion, per animal, exactly as plotted.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["position", "animal", "day", "value"])
+            for pos, by_an in (per_day or {}).items():
+                for an, by_day in (by_an or {}).items():
+                    for day in sorted(by_day or {}, key=lambda d: (float(d) if str(d).lstrip(
+                            "-").replace(".", "", 1).isdigit() else 0.0)):
+                        w.writerow([pos, an, day, by_day[day]])
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
+
+
+def write_map_summary(cells, q, *, row_labels=None, col_labels=None):
+    """Sidecar for `map_grid`: PER-CELL SUMMARY STATISTICS, deliberately not the pixels.
+
+    The other writers here record exactly what is plotted. This one cannot and should not: a cell
+    is a cortical map of ~10^5 pixels, and a CSV holding every pixel of every panel would be tens
+    of megabytes that nobody reads and that no claim is ever quoted from. What claims ARE made from
+    these figures are about SCALE and SIGN -- "the far_L map gets stronger", "the delta column is
+    symmetric about zero" -- and those are exactly what these columns settle.
+
+    Columns are ``row, col, mean, sd, min, max, abs_max, n_finite``. The maps themselves are
+    already on disk as the arrays the collector cached; this is the auditable digest, not a
+    replacement for them.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["row", "col", "mean", "sd", "min", "max", "abs_max", "n_finite"])
+            for key in sorted((cells or {}), key=lambda k: (str(k[0]), str(k[1]))
+                              if isinstance(k, tuple) else (str(k), "")):
+                A = cells.get(key)
+                if A is None:
+                    continue
+                A = np.asarray(A, float)
+                fin = np.isfinite(A)
+                r, c = key if isinstance(key, tuple) and len(key) == 2 else (key, "")
+                if not fin.any():
+                    w.writerow([r, c, "", "", "", "", "", 0])
+                    continue
+                v = A[fin]
+                w.writerow([r, c, float(v.mean()), float(v.std()), float(v.min()),
+                            float(v.max()), float(np.abs(v).max()), int(fin.sum())])
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
+
+
 #: Placed at a quarter page (~6.2in on a 13.33in slide). Figures are built at this width so type
 #: arrives at ~1:1; see the module docstring.
 QUARTER_IN = 6.2
@@ -499,6 +673,8 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    # SIDECAR: the fractions this figure PLOTS, with the raw counts beside them.
+    write_matrix_values(norm, q, labels=labels, extra=counts, extra_name="count")
     plt.close(fig)
     return q
 
@@ -1506,6 +1682,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_matrix_values(mats, q, labels=labels)
     plt.close(fig)
     return q
 
@@ -1679,6 +1856,7 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_map_summary(cells, q, row_labels=row_labels, col_labels=col_labels)
     plt.close(fig)
     return q
 
@@ -1779,6 +1957,7 @@ def matrix_grid_by_animal(mats, out, *, name, title, labels, cmap="magma", vmin=
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_matrix_grid_values(mats, q, labels=labels)
     plt.close(fig)
     return q
 
@@ -1881,6 +2060,7 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q_)
+    write_series_values(per_day, q_)
     plt.close(fig)
     return q_
 
@@ -2067,6 +2247,7 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q_)
+    write_series_values(per_day, q_)
     plt.close(fig)
     return q_
 
