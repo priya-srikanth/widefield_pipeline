@@ -278,6 +278,15 @@ came from; `STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 
 guards — five of them checks that were themselves broken — which are still in force;
 `STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md)** — START HERE for the ANATOMICAL arm
+("where does the displaced code move"). Carries the one thing that must be read first: the
+one-vs-rest decoder maps make the six positions NON-INDEPENDENT, so four of six rows in figure 14
+cannot be read as written — a position losing drive lowers the shared reference and hands every
+other position an unearned increase. The FALLS survive (far-contra 0.47, far-middle 0.48, converging
+with the encoder's 0.749 → 0.286 → 0.745); the rises do not. The control that fixes it is
+`position_evoked_maps.py`, which aggregates 123 existing per-session npz whose reference is WITHIN
+TRIAL and therefore per position. Science in `docs/WHERE_THE_CODE_MOVES.md`.
+
 **[`docs/BEHAVIOURAL_STATE_CONTROL.md`](docs/BEHAVIOURAL_STATE_CONTROL.md)** — the SPECIFICITY
 control (2026-09-11), and the answer to "does everything degrade after the lesion, or only the
 target?" The lesion is ventrolateral STRIATAL, so no cortex is damaged: same window, same basis,

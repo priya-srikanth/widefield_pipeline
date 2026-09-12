@@ -8304,3 +8304,27 @@ r = 0.86, which is what shows amplitude and reliability are separable and that f
 first (0.93 balanced accuracy pre-stroke). Session SVD rank 100, basis 100 dims, overlap 0.997 --
 the basis is nearly a rotation, not a reduction, and the real truncation is the preprocessing SVD,
 upstream and identical pre/post. Kept in `basis_residual.py` as the record.
+
+
+---
+
+## 2026-09-12 (end of day) — handoff
+
+[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md) is the START HERE for the anatomical arm.
+
+**WITHDRAWN, and they were reported here as findings earlier today:** the acute map-amplitude
+INCREASES — near-middle 1.53 post-cue, 2.82 post-lick, 3.30 pre-cue, far-ipsi 1.09. One-vs-rest
+centres on the mean over all six positions, so a loss at one position hands the other five an
+unearned increase. Read figure 14 as "which positions FALL", never "which positions change".
+
+**STANDS:** far-contra 0.47 and far-middle 0.48 acutely, recovering to 0.91 / 0.83 — the mechanism
+works against a fall being manufactured. Converges with the encoder's fitted amplitude
+(0.749 → 0.286 → 0.745) and with the encoder ceiling's displaced-vs-degraded split.
+
+**CAVEAT ON ALL OF THE ABOVE:** measured BEFORE the engaged-only bug fix (every arm was a lick-trial
+map; far-contra acute had 0 trials, now 105). Re-derive before quoting.
+
+**NEXT IS THE EVOKED-MAP ARM** (`wfield_local/position_evoked_maps.py`, built and verified loading,
+figure not yet written). Per-position `post-cue minus pre-cue` from 123 existing npz — a WITHIN-TRIAL
+reference, so the six positions are independent. It is the control that decides whether four of
+figure 14's rows mean anything.
