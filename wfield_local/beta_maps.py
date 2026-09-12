@@ -496,6 +496,40 @@ def _atlas_names():
 
 
 @lru_cache(maxsize=1)
+def painted_exclusion(key="union"):
+    """The hand-painted occlusion mask, or an all-False mask if none has been painted.
+
+    THE FIBRE GLUE, which no threshold could find. `paint_exclusion` records why three automatic
+    attempts failed; the short version is that brightness in this preparation is dominated by
+    geometry, so the glue is only identifiable by eye. Painted per animal on 2026-09-12.
+
+    ``key="union"`` IS THE RIGHT DEFAULT FOR POOLED FIGURES and the reason is not conservatism for
+    its own sake: a pixel occluded in ANY animal cannot contribute to a cross-animal average, so the
+    pooled mask has to be the union even though that costs the three unaffected animals some cortex.
+    Per-animal panels should pass that animal's own key instead, and lose only its own occlusion.
+
+    WHAT IT COSTS, measured before it was adopted: the union is 40,663 px, 19.6% of the post-MOB
+    mask, taking it to 166,553 px. But it removes only **3-4% of each position's acute effect
+    energy** -- the position code lives in SSp/MO, not in the posterior territory painted out -- and
+    the effect RMS in kept cortex is about 3x that inside the excluded zone. The cut is large in
+    area and nearly free in signal.
+    """
+    try:
+        from wfield_local.paint_exclusion import mask_path
+    except Exception:                                                  # noqa: BLE001
+        return np.zeros(MAP_SHAPE, bool)
+    try:
+        p = mask_path(key)
+        if not p.exists():
+            return np.zeros(MAP_SHAPE, bool)
+        m = np.load(p).astype(bool)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! painted exclusion {key}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
+        return np.zeros(MAP_SHAPE, bool)
+    return m if m.shape == MAP_SHAPE else np.zeros(MAP_SHAPE, bool)
+
+
+@lru_cache(maxsize=1)
 def excluded_mask():
     """Pixels belonging to `EXCLUDE_REGIONS`, as a boolean on the shared grid."""
     atlas, names = _atlas_names()
@@ -578,8 +612,15 @@ def brain_mask():
             # EXCLUDED REGIONS COME OUT HERE, at the single definition, so every consumer --
             # statistics, amplitude ratios, split-half reliability, the edge-enrichment
             # denominator -- inherits the same field of view without each having to remember.
+            # BOTH kinds: named Allen regions (`EXCLUDE_REGIONS`) and the hand-painted fibre-glue
+            # occlusion, which no region name can express.
             ex = excluded_mask()
-            return m & ~ex if ex is not None else m
+            if ex is not None:
+                m = m & ~ex
+            painted = painted_exclusion()
+            if painted is not None and painted.any():
+                m = m & ~painted
+            return m
     return None
 
 

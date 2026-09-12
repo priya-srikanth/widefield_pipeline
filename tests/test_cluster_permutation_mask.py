@@ -450,3 +450,53 @@ def test_BOTH_olfactory_bulbs_are_excluded_not_one():
     xs = np.where(ex)[1]
     assert (xs < mid).any() and (xs > mid).any(), (
         "the exclusion lies entirely on one side of the midline -- it is half a pair")
+
+
+def test_the_painted_occlusion_is_subtracted_and_never_leaks_back():
+    """The fibre glue, which no threshold could find and only a person could trace.
+
+    `paint_exclusion` records why three automatic attempts failed. It is applied at `brain_mask`,
+    the single definition, so statistics, amplitude ratios, split-half reliability and the
+    edge-enrichment denominator all inherit the same field of view.
+
+    MEASURED BEFORE ADOPTION, and the trade is the point: the union is 40,663 px -- 19.6% of the
+    post-MOB mask -- but removes only 3-4% of each position's acute effect energy, because the
+    position code lives in SSp/MO and not in the posterior territory painted out. Large in area,
+    nearly free in signal.
+    """
+    from wfield_local import beta_maps as bm
+
+    painted = bm.painted_exclusion()
+    disp, stat = bm.brain_mask(), bm.stat_mask()
+    assert painted is not None
+    if not painted.any():                      # nothing painted on this machine yet
+        return
+    assert not (painted & disp).any(), "painted pixels are still inside the display mask"
+    assert not (painted & stat).any(), "painted pixels are still inside the statistics mask"
+    # and it must not have eaten the brain
+    assert disp.sum() > 100_000, f"brain mask down to {int(disp.sum()):,} px -- exclusion too large"
+
+
+def test_pooled_analyses_use_the_UNION_across_animals():
+    """A pixel occluded in ANY animal cannot contribute to a cross-animal average.
+
+    The per-animal masks exist so a per-animal panel loses only its own animal's occlusion; the
+    default must still be the union, or a pooled map would average over cortex that three animals
+    have and the fourth does not. Measured: the union is 40,663 px against a per-animal range of
+    24,583-35,779, so the distinction is not academic.
+    """
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+
+    try:
+        from wfield_local.paint_exclusion import load_masks, mask_path
+    except Exception:                                                  # noqa: BLE001
+        return
+    if not mask_path("union").exists():
+        return
+    union = np.load(mask_path("union")).astype(bool)
+    assert np.array_equal(bm.painted_exclusion(), union), "the default is not the union"
+    per = {k: v for k, v in load_masks().items() if k not in ("all",)}
+    for k, m in per.items():
+        assert not (m & ~union).any(), f"{k}'s mask has pixels the union lacks"
