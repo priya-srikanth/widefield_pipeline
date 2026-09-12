@@ -8231,3 +8231,12 @@ interchangeable numbers. No intervals on the retention bars. Licking windows are
 behavioural TRANSITION while running and quiet are sampled from sustained STATES, so a decoder could
 separate them partly on transient-versus-sustained. One alignment only: segments are not trials and
 have no cue to align to.
+
+
+---
+
+## 2026-09-12 - WHERE THE CODE MOVES: the anatomical question
+
+Priya: "I want to start trying to answer *where* the displaced spout position codes move post-stroke." Full write-up, including the control that failed and why it is kept: [`docs/WHERE_THE_CODE_MOVES.md`](docs/WHERE_THE_CODE_MOVES.md).
+
+Headline facts recorded there: the joint basis is 100 dims spanning 99.7% of a 100-dimensional dataset, so it is nearly a ROTATION and not a reduction -- the real truncation is the rank-100 SVD in preprocessing, upstream and identical pre/post. The residual-decode control CANNOT work at that rank and produced a convincing wrong answer (0.93 balanced accuracy pre-stroke) before being caught. Best-match destination and mean patterns cannot localise. The work goes to pixel-space maps and to coding directions rendered through the footprints.
