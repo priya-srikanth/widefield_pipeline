@@ -9153,3 +9153,45 @@ completed trials" and "completed trials are the trials where the code happened t
 exactly this pattern. The discriminator is whether the SAME relocation appears in the crossnobis and
 best-match families on the lick arms — which is why those must be re-rendered before the claim is
 used.
+
+---
+
+## 2026-09-12 — The `stopped` arm's reference is LICK trials, and there is no pre-stroke stopped set
+
+Priya asked whether the stopped-trial analyses (e.g. `epoch_9_delta_trajectory_*_stopped`) compare
+post-stroke stopped trials against a limited pre-stroke stopped set. **They do not.** The pre-stroke
+side is hardcoded to `lick` for every trial class in `_collect_7`; `variant` gates the POST-stroke
+sessions only. So the stopped arm is *post-stroke quit period vs pre-stroke engaged licking*.
+
+The original comment justifying the hardcode is right for two of three classes and wrong for the
+third. Pre-stroke, `lick` and `working` are nearly the same trials — a typical session is 305 lick
+against 312 working, because the pre-stroke animal is not missing — so the choice genuinely "adds
+nothing". But `_class_select` gives `stopped` **no engaged rows at all**: it is the strict
+complement, not a near-empty superset. The arm therefore confounds a change of behavioural state
+with a change of epoch, and the state difference alone would produce a drop.
+
+**A symmetric reference cannot be built.** Sessions clearing `min_trials=10` at all six positions:
+
+| | pre-stroke | post-stroke |
+|---|---|---|
+| 6/6 positions | **3 / 44** | 20 / 48 |
+| ≥1 position | 11 / 44 | 27 / 48 |
+
+The three usable pre-stroke sessions are PS94_0806, PS95_0806 and PS95_0812. PS92 has **6** stopped
+trials in its entire pre-stroke set; PS93 has one session at 1/6. Counts are identical under `cue`
+and `precue`. Two of four animals cannot contribute a pre-stroke stopped reference at all, and with
+83% of squared SE between animals at chronic, an n=2 reference cannot carry a claim.
+
+This is not a gap more analysis closes. Pre-stroke animals rarely quit — which is precisely why the
+class became interesting after stroke.
+
+**What the arm supports.** Not "the stopped-trial code changed after stroke": there is no pre-stroke
+stopped code to have changed from. What it does support is a **difference of differences within a
+post-stroke session** — stopped vs lick, same session, same pre-stroke lick reference — where the
+reference mismatch is common to both terms and cancels. That is buildable today for the 20
+post-stroke sessions at 6/6, and it is the comparison the data actually licenses.
+
+**Fixed now:** `_class_note("stopped")` said only "THE TERMINAL QUIT PERIOD ONLY -- no licking
+trials", describing half a correlation; ~18 caption sites inherited it, so no figure disclosed that
+the other side was lick trials. The note now states the reference explicitly, at the single source.
+Needs a re-render of the stopped arms for the captions to change.

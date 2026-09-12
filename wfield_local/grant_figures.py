@@ -2366,10 +2366,26 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 #: How a trial class reads in a figure caption. One place, because fifteen copies of a two-branch
 #: conditional cannot survive a third branch being added -- every one of them captioned `stopped`
 #: as "LICK + miss-while-working", i.e. as its own complement.
+#:
+#: THE CLASS GATES THE POST-STROKE SIDE ONLY. `_collect_7` hardcodes the pre-stroke reference to
+#: `lick` for every class, so the note has to say so or the caption describes half a correlation.
+#: For `lick` and `working` that is a distinction without a difference -- pre-stroke those two sets
+#: are nearly identical (a typical session is 305 lick against 312 working, because the pre-stroke
+#: animal is not missing). For `stopped` it is the whole comparison: `_class_select` gives `stopped`
+#: NO engaged rows, so the arm scores post-stroke quit-period patterns against pre-stroke ENGAGED
+#: ones and a drop is what two different behavioural states would produce on their own.
+#:
+#: A symmetric reference is not available to fix it with. Only 3 of 44 pre-stroke sessions clear
+#: min_trials=10 at all six positions (PS94_0806, PS95_0806, PS95_0812) against 20 of 48 post; PS92
+#: has 6 stopped trials in its entire pre-stroke set and PS93 has one session at 1/6. Pre-stroke
+#: animals rarely quit, which is exactly why the class is interesting after stroke. Read the arm as
+#: a post-stroke stopped-vs-lick DIFFERENCE OF DIFFERENCES, where the shared reference cancels --
+#: not as evidence that a pre-stroke stopped code moved. There is no such code to have moved.
 def _class_note(variant):
     return {"lick": "LICK trials only",
             "working": "LICK + miss-while-working (quit period removed)",
-            "stopped": "THE TERMINAL QUIT PERIOD ONLY -- no licking trials"}.get(
+            "stopped": ("THE TERMINAL QUIT PERIOD ONLY -- no licking trials; "
+                        "PRE-STROKE REFERENCE IS LICK TRIALS (no pre-stroke stopped set exists)")}.get(
                 variant, str(variant))
 
 
