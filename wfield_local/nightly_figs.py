@@ -756,6 +756,20 @@ def main():
             # It writes its own CSV of every plotted value, which is what makes the chronic
             # numbers quotable without re-reading a bar.
             cli("wfield_local.recovery_trajectory")
+            # A VALUE CSV OLDER THAN ITS FIGURE means another machine rendered here from a checkout
+            # predating write_values: the numbers describe a render nobody is looking at, and a CSV
+            # looks authoritative enough to be quoted. REPORTED, never deleted -- a missing sidecar
+            # is recoverable by re-rendering and a wrongly deleted one is not.
+            try:
+                from wfield_local.epoch_figures import stale_sidecars
+                _stale_csv = stale_sidecars(
+                    Path(config.resolver().root("labcams")) / "grant_figures" / "epoch")
+                if _stale_csv:
+                    log(f"== {len(_stale_csv)} value CSVs are OLDER than their figure -- another "
+                        f"machine rendered from a stale checkout; re-render to refresh: "
+                        + ", ".join(c for _p, c in _stale_csv[:6]) + " ==")
+            except Exception as ex:                                    # noqa: BLE001
+                log(f"== sidecar staleness check failed: {type(ex).__name__} ==")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,

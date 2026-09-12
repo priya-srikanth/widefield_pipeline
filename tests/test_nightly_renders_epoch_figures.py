@@ -98,3 +98,56 @@ def test_the_two_new_pooled_families_are_declared_in_the_CLI_allowlist():
     that tuple cannot be rendered on its own, which is how the first 5ro run died before starting."""
     for key in ("5ro", "5rmo"):
         assert f'"{key}"' in EGF, f"{key} is not in the --only allowlist"
+
+
+# --------------------------------------------------------------- stale sidecars from version skew
+
+def test_a_sidecar_OLDER_than_its_figure_is_reported(tmp_path):
+    """Two machines render into one directory. A checkout predating `write_values` overwrites the
+    PNG and leaves the CSV, so the numbers describe a render nobody is looking at -- and because a
+    CSV looks authoritative, it gets quoted."""
+    import os
+    from wfield_local import epoch_figures as ef
+
+    png, csv_p = tmp_path / "f.png", tmp_path / "f.csv"
+    csv_p.write_text("epoch,position,value\n", encoding="utf-8")
+    png.write_bytes(b"x")
+    os.utime(csv_p, (1, 1))                      # CSV older than the figure
+    assert ef.stale_sidecars(tmp_path) == [("f.png", "f.csv")]
+
+
+def test_a_sidecar_NEWER_than_its_figure_is_LEFT_ALONE(tmp_path):
+    """The normal, correct state: the writer emits the figure first and the values second. A `<=`
+    comparison here would delete every healthy pair in the directory."""
+    import os
+    from wfield_local import epoch_figures as ef
+
+    png, csv_p = tmp_path / "g.png", tmp_path / "g.csv"
+    png.write_bytes(b"x")
+    csv_p.write_text("epoch,position,value\n", encoding="utf-8")
+    os.utime(png, (1, 1))                        # figure older than the CSV
+    assert ef.stale_sidecars(tmp_path) == []
+    assert csv_p.exists()
+
+
+def test_removal_is_OPT_IN_and_reporting_is_the_default(tmp_path):
+    """A missing sidecar is recoverable by re-rendering; a wrongly deleted one is not."""
+    import os
+    from wfield_local import epoch_figures as ef
+
+    png, csv_p = tmp_path / "h.png", tmp_path / "h.csv"
+    csv_p.write_text("x\n", encoding="utf-8")
+    png.write_bytes(b"x")
+    os.utime(csv_p, (1, 1))
+    ef.stale_sidecars(tmp_path)                  # default: report only
+    assert csv_p.exists(), "the default must not delete"
+    ef.stale_sidecars(tmp_path, remove=True)
+    assert not csv_p.exists()
+
+
+def test_a_figure_with_no_sidecar_at_all_is_not_flagged(tmp_path):
+    """Most families have no CSV yet. Absence is not staleness."""
+    from wfield_local import epoch_figures as ef
+
+    (tmp_path / "i.png").write_bytes(b"x")
+    assert ef.stale_sidecars(tmp_path) == []

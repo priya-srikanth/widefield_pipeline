@@ -1358,6 +1358,38 @@ def mean_matrix_by_epoch(mats: dict) -> tuple[dict, dict]:
     return out, cov
 
 
+def stale_sidecars(out_dir, remove=False):
+    """Figures whose value CSV is OLDER than the figure itself. Returns the stale pairs.
+
+    **A SIDECAR OLDER THAN ITS FIGURE IS WORSE THAN NO SIDECAR**, because it looks authoritative and
+    will be quoted. This happens through VERSION SKEW rather than through time: two machines render
+    into one directory, and a checkout predating ``write_values`` overwrites the PNG while leaving
+    the CSV untouched. The numbers then describe a render nobody is looking at.
+
+    **A GUARD INSIDE ``_save_png_svg`` CANNOT FIX THIS, and it is worth saying why.** Old code does
+    not execute new code: the render that causes the damage is precisely the one without the guard.
+    So the only thing that works is an audit running in the CURRENT code, after the fact -- which is
+    sufficient, because the danger is quoting a stale CSV, and this runs before anyone quotes.
+
+    **IT NEVER TOUCHES A CSV NEWER THAN ITS FIGURE** (Priya, 2026-09-12: "only if we prevent
+    overwriting a newer code csv"). A CSV newer than its PNG is the normal, correct state -- the
+    writer emits the figure first and the values second -- so a ``<=`` comparison here would delete
+    every healthy pair. Only a STRICTLY older CSV counts as stale, and even then ``remove`` is
+    opt-in: reporting is the default, because a missing sidecar is recoverable by re-rendering and a
+    wrongly deleted one is not.
+    """
+    out = []
+    for png in sorted(pathlib.Path(out_dir).glob("*.png")):
+        csv_p = png.with_suffix(".csv")
+        if not csv_p.exists():
+            continue
+        if csv_p.stat().st_mtime < png.stat().st_mtime:
+            out.append((png.name, csv_p.name))
+            if remove:
+                csv_p.unlink()
+    return out
+
+
 def _panel_counts(epoch, coverage, pre_sessions=None):
     """The per-animal count under a panel title -- and for PRE, what that number actually counts.
 
