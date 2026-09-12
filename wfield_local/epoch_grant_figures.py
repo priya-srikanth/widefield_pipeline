@@ -2811,7 +2811,15 @@ def _fig_8g(out_dir, align, variant, wname):
         out_dir, name=f"epoch_8g_geometry_by_position_{align}_{variant}",
         title=f"Per-position RDM row correlation with the pre-stroke geometry -- {wname}",
         ylabel="row correlation", keys=_short_labels(), values=values, points=points,
-        tick_labels=_minor(), groups=_groups(), ylim=(-0.2, 1.10),
+        tick_labels=_minor(), groups=_groups(),
+        # THE FULL RANGE OF A CORRELATION, not a floor chosen from the engaged arms. This was
+        # (-0.2, 1.10), and on cue/stopped several chronic bars and most of the acute error bars run
+        # BELOW -0.2 -- they were drawn truncated at the axis, so a bar that reaches -0.45 looked
+        # identical to one that reaches -0.2 and the intervals simply ended in mid-air. A clipped
+        # bar is worse than a compressed one: it misreports the value rather than the emphasis.
+        # MATRIX_FAMILIES already states the rule this follows -- fix the scale only where the
+        # quantity has a natural range, and a correlation does.
+        ylim=(-1.05, 1.10),
         delta_name=f"epoch_8gdelta_geometry_by_position_{align}_{variant}",
         delta_title=f"Change from pre-stroke in per-position row correlation -- {wname}")
 
