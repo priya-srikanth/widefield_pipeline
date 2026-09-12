@@ -9426,3 +9426,180 @@ mostly August, so June sessions are scored by an essentially out-of-block model 
 same number read as a learning curve would be a strong and entirely spurious result.
 
 **Conclusion: closed, no change to the analysis.** The baseline stays all eleven sessions.
+
+---
+
+## 2026-09-12 — Figure provenance: every figure records what it plots AND what it states
+
+Priya, across the session: *"just make sure the code for all the sidecars exists"*, then *"do the
+sidecars carry all information we would need to regenerate the figures (without redoing analysis)?"*,
+then *"yes have notes reference the sidecar"*.
+
+**THE AUDIT HAD STOPPED EARLY AND NOTHING COULD NOTICE.** `write_values` landed for the bar families
+in 7be02de/8aae500 and that was taken as done. It was not: six of the eight figure primitives in
+`epoch_figures` wrote no sidecar at all — `matrix_row`, `confusion_row`, `map_grid`,
+`matrix_grid_by_animal`, `timecourse_panel`, `timecourse_by_animal`. That is every confusion,
+crossnobis, best-match-destination and time-course number in the deck. The gap surfaced because a
+question about family 12b's bars had to be answered by reading values off a rendered PNG, which is
+exactly the failure `write_values` exists to prevent.
+
+**Three layers now, and the distinction between them is the useful part.**
+
+| layer | what it holds | where |
+|---|---|---|
+| VALUES | the numbers the figure plots: per-session dots, both interval pairs, matrix cells with the delta recomputed as drawn | `<name>.csv`, `_sessions.csv`, `_cells.csv` |
+| ANNOTATION | what the figure STATES: per-epoch animal/session counts, the stats line verbatim, chance, the Bonferroni divisor, colour limits | `<name>_meta.csv` |
+| digest only | cortical maps — a per-cell summary, deliberately not 10^5 pixels per panel | `write_map_summary` |
+
+Some of the annotation layer is DATA, not styling, and that is why it needed closing: a redrawn
+figure could carry the right bars and be unable to say *N = 4 animals, n = 40 sessions*, or draw the
+chance line, or tell a reader what `**` was corrected against.
+
+**THE MATRIX DELTA IS RECOMPUTED IN THE WRITER, not passed in.** `matrix_row` and `confusion_row`
+both draw `panel - pre`; deriving it means the sidecar cannot disagree with the picture. A passed-in
+delta could.
+
+**A sidecar must never cost a figure that already rendered.** Every writer warns and continues — the
+rule `_save_png_svg` follows for SVG.
+
+**Guarded structurally, because the six were not a decision — they were an audit that stopped.**
+`tests/test_figure_value_sidecars.py` walks the module's AST and fails if a function calls
+`_save_png_svg` without also calling a value writer AND `write_meta`.
+
+---
+
+## 2026-09-12 — Deck notes may QUOTE a sidecar; 171 statistics were hand-copied prose
+
+**Completeness was automatable, accuracy was not, and stopping at the first was not good enough.**
+`deck_audit` (new) checks that every rendered family has a note and every note has a figure. It
+cannot see whether a note is TRUE. Asked directly — *"you checked accuracy though correct?"* — the
+honest answer was no: two wrong notes had been found incidentally, by editing the code they
+described, not by auditing.
+
+**Measured exposure: 171 decimal statistics hand-copied into 33 deck notes**, plus 11 session/animal
+counts across 8 more; 56 notes are pure method prose. Nothing linked any of them to the figure they
+describe, so a re-render moves the figure and the caption keeps asserting the old value in the same
+confident prose.
+
+**That is not hypothetical.** Changing the state decoder's licking anchor the same day (ea46025)
+invalidated the class balance, the within-session refit ceiling and the session-time control quoted
+across six `epoch_13*` notes. The method sentence was updated; the numbers were not, and nothing
+would have caught it.
+
+**`deck_values` resolves a token at DECK-BUILD time from the CSV beside the figure:**
+
+    "the frozen arm loses {{SELF: epoch=acute, position=frozen -> point:+.3f}} acutely"
+
+`SELF` is the form most notes need: a note is placed by a GLOB and one caption serves all five
+trial-class arms, so a token naming `..._cue_lick` would print that arm's numbers onto the pre-cue
+slide too. Name a stem explicitly only when citing another figure on purpose.
+
+Failures are loud, local and never fatal — a visible `[[? ...]]` marker plus a build-log line,
+because a family not yet re-rendered must not block every other slide. An AMBIGUOUS selector is a
+failure, not a mean: averaging two rows would invent a number that appears in no sidecar. Resolution
+happens BEFORE the methods-block dedup hashes the text, or two notes with identical prose and
+different numbers collapse and point a reader at another slide's values.
+
+**Converted so far: `epoch_5rmodelta` only** — the panel to cite — as the worked example. The rest is
+a conversion backlog, and several sit in families the current render is rewriting.
+
+**STILL HAND-WRITTEN AND KNOWN STALE:** the `epoch_13*` numbers, marked provisional in place
+(6dad598) rather than silently corrected. Writing in numbers that have not been measured would be
+worse than numbers that announce they are stale.
+
+### Three orphan figure families, found by the same audit
+
+Not "missing notes" — figures that should not exist:
+
+* `epoch_5rm`, `epoch_5rmdelta` — UNREACHABLE. `_frozen_vs_refit` gained an `if not matched:` guard
+  because the matched refit accuracy is identical to the unmatched one (matching replaces the FROZEN
+  model only), so those slides "promised a second analysis that did not exist". The guard stopped the
+  render; nothing swept the files, and they sat on the share looking current.
+* `epoch_15sig_cluster_vs_musall.png` — no code in this repository's history has ever produced that
+  name.
+
+**The audit reports rather than deletes, because it cannot tell new work from retired work.** Both
+cases were present simultaneously: `epoch_5rmo`/`5rmodelta` were the opposite — the cleanest
+statement of the headline result, rendering nightly and absent from the deck.
+
+---
+
+## 2026-09-12 — The deck is split into a narrative deck and a per-session appendix
+
+Priya: *"the deck is blowing up"*, then *"go ahead with the split"*.
+
+**BOTH INTUITIONS ABOUT WHERE THE BULK SAT WERE WRONG, INCLUDING MINE.** Counting the builder's
+static filename patterns gives 393 slides, barely half, because the per-session sections build in
+loops. The built file is **744 slides, 262 MB**:
+
+| section | slides | |
+|---|---|---|
+| **G** | **372** | post-stroke, per animal × per session — HALF THE DECK |
+| I | 178 | pooled epoch figures |
+| H | 99 | grant summary set |
+| D | 51 | cross-session frozen decoders/encoders |
+| A–C, E, F | 44 | within-day + cohort summary |
+
+Inside G, two subsections carry a quarter of the entire deck: `G9` (113, per-animal ENL time course)
+and `G9c` (72, per-session cross-position matrices).
+
+**SPLIT, NOT DELETE.** Everything moved is per-session detail that section I now SUPERSEDES — I is
+the pooled, epoch-stratified form of the same quantities, with bootstrap intervals and corrected
+marks that a per-session panel cannot carry. But per-session detail is exactly what is wanted when a
+pooled result looks odd and the question becomes "which session did that?". Deleting it would answer
+the navigability problem by destroying the debugging one.
+
+Measured on the real deck, 14 s: **744 → narrative 407 (131 MB) + appendix 346 (131 MB)**, section G
+going 372 → 35 in the narrative. The full deck is left untouched, so a bad tag list costs a re-split
+and never a re-render.
+
+**NOT YET WIRED INTO THE NIGHTLY.** `nightly_figs` still builds only
+`spout_position_analysis_summary.pptx`; the split is a post-hoc tool run by hand. The full deck
+cannot be retired in any case — the split reads from it.
+
+**A bug the synthetic tests could not see, found by running on the real file.** The first divider
+rule called any bare section-letter TAG a divider. Sections A–F have no numbered subsections, so
+their content slides carry the bare letter by carry-forward, and all 94 were kept in the appendix —
+nothing lost, but the appendix stopped being per-session detail. A divider is now a slide whose OWN
+TITLE is the bare letter.
+
+**Still open:** the narrative is 407, not the ~300 first estimated. The remainder is `H` + `I` + `D`,
+i.e. the argument itself. `D`'s per-session ROI slides cannot be targeted the way `G9`/`G9c` were,
+because every slide in `D` carries the same tag; moving them needs selection by title substring.
+
+---
+
+## 2026-09-12 — Per-cell bootstrap for the matrix families: the off-diagonal was never tested
+
+Priya: *"did we give up on having any bootstrapping of fig 10 best-match matrices?"*
+
+**No — but the bootstrap stopped exactly where the interesting claim starts.** Family 10's scalar
+arms carry the full nested bootstrap (`epoch_10` accuracy and rank, `epoch_10b` per position), and so
+does `epoch_10cdiag`, the DIAGONAL of the destination matrix drawn as bars through `_scalar_figure`.
+So "did position P still match itself, and did that change" was already tested with intervals and
+corrected marks.
+
+**What never carried uncertainty is the OFF-DIAGONAL** — *which* position a lost one moved toward.
+That is the substitution claim, and "acute far-contralateral now best-matches far-middle" was a
+colour, not a test. It is a structural property of `matrix_row`: none of the six matrix families it
+draws had per-cell intervals.
+
+`matrix_bootstrap` (new) is therefore family-agnostic rather than 10c-specific. Resampling is
+ANIMALS then SESSIONS, mirroring `scalar_contrast_draws`, with the animal draw shared across a
+contrast so deltas stay paired — a cell interval is then comparable to a bar interval instead of
+being a second, subtly different bootstrap. `n_comparisons` defaults to the cells actually tested
+(36 on a 6×6), not 1.
+
+**THE REFERENCE DIFFERS BY ROW AND THE CAPTION MUST SAY SO.** On the absolute row a cell is a
+fraction of sessions, so the question is whether it beats the 1/6 a coin gives; on the delta row it
+is the ordinary test against zero. `mark_note()` is the single source for that sentence, so no two
+panels can describe it differently.
+
+New family `10cs`, registered but **NOT YET RENDERED** — it was added after the current render
+launched.
+
+**A SEPARATE QUESTION REMAINS SET ASIDE**, and the two were being conflated: within-session
+resampling to sharpen PER-SESSION best-match estimates. A session's best-match accuracy is a fraction
+over six positions, so it quantises to 1/6. Parked because neither it nor the block-mean alternative
+moves a chronic claim — and the block mean is a non-starter anyway, since blocks are ~6-trial
+POSITION blocks, so a block mean is a single trial.
