@@ -112,13 +112,26 @@ def region_breakdown(mask):
     THE FRACTION IS THE POINT. A shape clipping 8% of VISp is a different fact from one covering
     95% of it: the first says a name-based exclusion would be far too blunt, the second says just
     exclude the region.
+
+    THE DENOMINATOR IS `allen_mask`, NOT `brain_mask`, and that distinction is load-bearing. This
+    used to read ``brain_mask() | excluded_mask()``, which was right while only named regions were
+    subtracted and broke silently once the painted mask was wired into `brain_mask`: the 40,663
+    painted pixels were no longer IN the denominator, every region scored zero, and the function
+    returned an empty list. It raises now rather than returning nothing, because "the glue covers
+    nothing" and "the tool is broken" had looked identical.
     """
     from wfield_local import beta_maps as bm
 
     atlas, names = bm._atlas_names()
     if atlas is None:
         return []
-    full = bm.brain_mask() | bm.excluded_mask()
+    full = bm.allen_mask()
+    if full is None:
+        return []
+    n_in = int((np.asarray(mask, bool) & full).sum())
+    if int(np.asarray(mask, bool).sum()) and not n_in:
+        raise ValueError("region_breakdown: none of the mask falls inside the Allen brain mask -- "
+                         "the mask is on a different grid, or the denominator is wrong")
     mask = np.asarray(mask, bool) & full
     out = []
     for sid, nm in names.items():

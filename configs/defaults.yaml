@@ -170,6 +170,11 @@ segmentation:
     max_gap_s: 0.3
     min_duration_s: 2.0
   quiet:                          # slow + not-near-lick/reward, buffered (F0 baseline candidate)
+    # WHICH MASK VARIANT CONSUMERS READ. "" = the original quiet_<tag> directory; any other value
+    # selects quiet_<tag>_<variant>, written beside it and never over it (see quiet_periods.
+    # quiet_frame_path). Retiring a definition is a change to THIS LINE -- the old masks stay on
+    # disk so a result can still be traced back to the definition that produced it.
+    variant: ""
     speed_mm_s: 1.0
     min_quiet_s: 0.5
     treadmill_buffer_s: [3.0, 3.0]

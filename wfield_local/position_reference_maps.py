@@ -56,9 +56,10 @@ from wfield_local.beta_maps import (
     MAP_SHAPE, MIN_TRIALS_PER_CLASS, _quit_mask, _runs_to_blocks,
 )
 
-#: The references this module can express a position map in. `self` is `position_evoked_maps`'
-#: territory and is named here only so the three can be listed together in one place.
-REFERENCES = ("mean", "quiet")
+#: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
+#: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
+#: `position_evoked_maps`.
+REFERENCES = ("mean", "quiet", "precue")
 
 
 def session_quiet_svt(session, svt):
@@ -67,41 +68,31 @@ def session_quiet_svt(session, svt):
     Returns None rather than raising: a session without `quiet_affine8v1` should cost that
     session's QUIET column and nothing else -- its mean-referenced maps are unaffected.
     """
-    from wfield_local.quiet_periods import quiet_baseline_svt
+    from wfield_local.quiet_periods import quiet_baseline_svt, quiet_frame_path
 
-    qf = glob.glob(f"{session['mc']}/quiet_affine8v1/*quiet_frame.npy")
+    qf = quiet_frame_path(session["mc"])
     if not qf:
         return None
     try:
-        return quiet_baseline_svt(np.asarray(svt), np.load(qf[0]))
+        return quiet_baseline_svt(np.asarray(svt), np.load(qf))
     except Exception as ex:                                            # noqa: BLE001
         print(f"  !! quiet baseline {session['label']}: {type(ex).__name__} {str(ex)[:70]}",
               flush=True)
         return None
 
 
-def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
-    """``({position: map}, {position: n_trials}, quiet_map_or_None, all_trial_mean_map)``.
+def _working_xy(session, align, post_s, variant, baseline, v):
+    """``(X, y)`` for one baseline setting -- figure 14's trial selection, exactly.
 
-    The maps are ABSOLUTE window means -- `U @ mean(SVT over the window)` for that position's
-    trials -- so they are not yet interpretable on their own. `reference_maps` turns them into one
-    of the two referenced forms; keeping the raw form is what lets both be derived from one load.
-
-    NO DECODER, NO CROSS-VALIDATION, NO BALANCING. This is a trial average, and the three things
-    figure 14 needs (a fit, folds, class weights) exist there to answer "what distinguishes the
-    positions". Averaging answers "what happens on this position's trials", which is the question a
-    reference is supposed to make answerable.
+    FACTORED OUT so the no-baseline and pre-cue-baseline loads cannot drift apart. They must agree
+    on the window, the class definition and the no-lick arm, or the reference stops being the only
+    difference between the maps -- which is the entire claim this module makes.
     """
-    from wfield_local import joint_basis
-    from wfield_local.grant_figures import CONF_LABELS
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
     from wfield_local.locanmf_frozen_decoder import _args
     from wfield_local.locanmf_position_decoder import trial_features_cached
 
-    code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
-    u, v = joint_basis._load_session(session["mc"])
     X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
-        session, _args("locanmf", align, post_s), signal=np.asarray(v),
+        session, _args("locanmf", align, post_s, baseline=baseline), signal=np.asarray(v),
         feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
@@ -113,8 +104,63 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
         if keep_n.any():
             X = np.vstack([X, np.asarray(Xn)[keep_n]])
             y = np.concatenate([y, np.asarray(yn)[keep_n]])
+    return X, y
+
+
+def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
+    """``(raw, used, quiet, trial_mean, raw_precue, used_precue)``.
+
+    `raw` are ABSOLUTE window means -- `U @ mean(SVT over the window)` for that position's trials --
+    so they are not interpretable on their own. `reference_maps` turns them into a referenced form;
+    keeping the raw form is what lets every reference come from one load.
+
+    `raw_precue` is the same quantity with each trial's OWN 1.0 s pre-cue mean already subtracted,
+    from a second `trial_features` load at ``baseline="precue"``.
+
+    WHY THE PRE-CUE REFERENCE IS COMPUTED HERE RATHER THAN READ FROM THE NPZ (Priya, 2026-09-12, of
+    the three-reference consistency comparison: "clarify this - we may need to fix it"). It was a
+    real confound and it is now gone. `position_evoked_maps` aggregates the `delta` field of
+    `*_spout_positions_1s_pre_post_delta_maps.npz`, which the imaging box writes as **1 s post minus
+    1 s pre**. The other references here are the deck's own window -- cue-aligned **0 to +2.0 s**,
+    62 frames at 31.23 Hz in 4 averaged bins, no baseline, on figure 14's trial selection (engaged
+    plus miss-while-working, max_rt 3.5 s, a 20-trial floor per position). So "PRECUE vs QUIET" had
+    been comparing
+
+        reference   1 s pre-cue mean   vs  session quiet baseline     <- the intended contrast
+        window      1 s post           vs  2 s post                   <- and three uncontrolled ones
+        trials      preprocessing's    vs  the deck's engaged set
+        pipeline    the imaging box's, at whatever hemo correction that session had
+
+    -- four differences wearing one name, so a gap in between-animal consistency could have been
+    any of them. `trial_features` has supported ``baseline="precue"`` all along
+    (`locanmf_position_decoder`: ``subtract = args.baseline == "precue"``, which removes
+    ``sig[:, c0 - pre_n:c0].mean(1)`` from every bin), so the clean version costs one extra CACHED
+    feature build per session and nothing else.
+
+    THE TRIAL SETS ARE NOT QUITE IDENTICAL, and that is the one residual difference. A trial whose
+    cue sits closer to the recording start than `pre_s` HAS NO PRE-CUE WINDOW and `trial_features`
+    drops it under that baseline only. `used_precue` reports the per-position count so the gap is
+    visible rather than assumed.
+
+    THIS DOES NOT RETIRE `position_evoked_maps`. That module remains the record of what the
+    preprocessing product contains and what figure 15 has always drawn -- and the two can now be
+    compared, which is the only way to find out how much of figure 15 was the WINDOW rather than
+    the reference.
+
+    NO DECODER, NO CROSS-VALIDATION, NO BALANCING. This is a trial average, and the three things
+    figure 14 needs (a fit, folds, class weights) exist there to answer "what distinguishes the
+    positions". Averaging answers "what happens on this position's trials", which is the question a
+    reference is supposed to make answerable.
+    """
+    from wfield_local import joint_basis
+    from wfield_local.grant_figures import CONF_LABELS
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
+    u, v = joint_basis._load_session(session["mc"])
+    X, y = _working_xy(session, align, post_s, variant, "none", v)
     if not len(y):
-        return {}, {}, None, None
+        return {}, {}, None, None, {}, {}
 
     K = u.shape[1]
     if X.shape[1] % K:
@@ -126,19 +172,33 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
         # the window, this is its summary, and they share a spatial basis so averaging is defined.
         return (u @ np.asarray(feat).reshape(n_bins, K).mean(0)).reshape(MAP_SHAPE)
 
-    raw, used = {}, {}
-    for q in CONF_LABELS:
-        c = code_of.get(q)
-        if c is None:
-            continue
-        sel = y == c
-        # SAME FLOOR AS FIGURE 14 (20 trials), for the same reason: below it the map is erratic
-        # rather than merely noisy. A position the animal has stopped attempting loses its OWN
-        # column and takes nothing else with it.
-        if int(sel.sum()) < MIN_TRIALS_PER_CLASS:
-            continue
-        raw[q] = _map(X[sel].mean(0))
-        used[q] = int(sel.sum())
+    def _per_position(Xa, ya):
+        r, n = {}, {}
+        for q in CONF_LABELS:
+            c = code_of.get(q)
+            if c is None:
+                continue
+            sel = np.asarray(ya) == c
+            # SAME FLOOR AS FIGURE 14 (20 trials), for the same reason: below it the map is erratic
+            # rather than merely noisy. A position the animal has stopped attempting loses its OWN
+            # column and takes nothing else with it.
+            if int(sel.sum()) < MIN_TRIALS_PER_CLASS:
+                continue
+            r[q], n[q] = _map(np.asarray(Xa)[sel].mean(0)), int(sel.sum())
+        return r, n
+
+    raw, used = _per_position(X, y)
+
+    # THE SECOND LOAD. A failure costs the PRE-CUE column of this session and nothing else -- the
+    # other two references are already in hand and must not be lost with it.
+    raw_pc, used_pc = {}, {}
+    try:
+        Xp, yp = _working_xy(session, align, post_s, variant, "precue", v)
+        if len(yp) and np.asarray(Xp).shape[1] == X.shape[1]:
+            raw_pc, used_pc = _per_position(Xp, yp)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! precue-referenced maps {session['label']}: "
+              f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
 
     # THE TRIAL MEAN, NOT THE MEAN OF THE SIX MAPS. Figure 14's decoder centres on the mean over
     # TRIALS, so a position with few trials contributes little to the reference -- which is exactly
@@ -148,11 +208,16 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
     trial_mean = _map(X.mean(0))
     qsvt = session_quiet_svt(session, v)
     quiet = None if qsvt is None else (u @ np.asarray(qsvt)).reshape(MAP_SHAPE)
-    return raw, used, quiet, trial_mean
+    return raw, used, quiet, trial_mean, raw_pc, used_pc
 
 
-def reference_maps(raw, quiet, trial_mean, reference):
-    """Turn `session_raw_maps`' absolute window means into one referenced form."""
+def reference_maps(raw, quiet, trial_mean, reference, raw_precue=None):
+    """Turn `session_raw_maps`' window means into one referenced form.
+
+    `precue` arrives ALREADY referenced, and it has to: a pre-cue baseline is per trial, so the
+    subtraction can only happen inside `trial_features`. By the time the trials are averaged the
+    information needed to remove it is gone.
+    """
     if reference == "mean":
         if trial_mean is None:
             return {}
@@ -161,6 +226,8 @@ def reference_maps(raw, quiet, trial_mean, reference):
         if quiet is None:
             return {}
         return {q: m - quiet for q, m in raw.items()}
+    if reference == "precue":
+        return dict(raw_precue or {})
     raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
 
 
@@ -178,7 +245,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
     out, rel, n_out = {}, {}, {}
-    n_noquiet = 0
+    n_noquiet = n_noprecue = 0
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
                 if x.startswith(an)}
@@ -191,8 +258,8 @@ def maps_by_epoch(align, variant, post_s=2.0):
             if e is None:
                 continue
             try:
-                raw, used, quiet, tmean = session_raw_maps(s, align, post_s=post_s,
-                                                           variant=variant)
+                raw, used, quiet, tmean, raw_pc, used_pc = session_raw_maps(
+                    s, align, post_s=post_s, variant=variant)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! ref-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
                 continue
@@ -202,7 +269,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
                 continue
             if quiet is None:
                 n_noquiet += 1
-            byref = {r: reference_maps(raw, quiet, tmean, r) for r in REFERENCES}
+            if not raw_pc:
+                n_noprecue += 1
+            byref = {r: reference_maps(raw, quiet, tmean, r, raw_pc) for r in REFERENCES}
             for q in raw:
                 got = {r: byref[r][q] for r in REFERENCES if q in byref[r]}
                 if got:
@@ -220,6 +289,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
     # so -- which is how a difference between them gets read as biology.
     if n_noquiet:
         print(f"  .. ref-map: {n_noquiet} session(s) have no quiet mask -- MEAN reference only",
+              flush=True)
+    if n_noprecue:
+        print(f"  .. ref-map: {n_noprecue} session(s) produced no pre-cue-referenced maps",
               flush=True)
     return out, rel, n_out
 

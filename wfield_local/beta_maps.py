@@ -594,6 +594,41 @@ def brain_mask():
     Returns None if no session carries one. Unlike `atlas_edges`, whose absence costs only a
     reading aid, a missing mask must STOP the test rather than let it fall back -- see
     `cluster_permutation`, which raises.
+
+    SEE `allen_mask` for the SAME mask with nothing removed. Anything that needs to describe what an
+    exclusion COVERS must use that one, because a pixel this function has already removed is
+    invisible here by construction -- see the bug recorded on `region_breakdown`.
+    """
+    m = allen_mask()
+    if m is None:
+        return None
+    # EXCLUDED REGIONS COME OUT HERE, at the single definition, so every consumer -- statistics,
+    # amplitude ratios, split-half reliability, the edge-enrichment denominator -- inherits the same
+    # field of view without each having to remember. BOTH kinds: named Allen regions
+    # (`EXCLUDE_REGIONS`) and the hand-painted fibre-glue occlusion, which no region name can
+    # express.
+    ex = excluded_mask()
+    if ex is not None:
+        m = m & ~ex
+    painted = painted_exclusion()
+    if painted is not None and painted.any():
+        m = m & ~painted
+    return m
+
+
+def allen_mask():
+    """The raw Allen brain mask, WITH NOTHING EXCLUDED -- 207,213 of 345,600 px.
+
+    SPLIT OUT OF `brain_mask` 2026-09-12, because a QC tool that describes an exclusion cannot use
+    the mask that exclusion has already been applied to. `paint_exclusion.region_breakdown` built
+    its denominator as ``brain_mask() | excluded_mask()``, which was correct while only the named
+    regions were subtracted and became WRONG the moment the painted glue mask was wired in: all
+    40,663 painted pixels fell outside it, every region scored 0 hits, and the function returned an
+    EMPTY LIST -- no error, no warning, and "the glue covers nothing" reads exactly like "there is
+    no glue". The breakdown quoted in `DECISIONS.md` was measured before the wiring and is still
+    right; re-running it afterwards silently produced nothing.
+
+    Use this for DESCRIBING a mask. Use `brain_mask` for anything that MEASURES.
     """
     import glob
 
@@ -610,17 +645,6 @@ def brain_mask():
                   flush=True)
             continue
         if m.shape == MAP_SHAPE and m.any():
-            # EXCLUDED REGIONS COME OUT HERE, at the single definition, so every consumer --
-            # statistics, amplitude ratios, split-half reliability, the edge-enrichment
-            # denominator -- inherits the same field of view without each having to remember.
-            # BOTH kinds: named Allen regions (`EXCLUDE_REGIONS`) and the hand-painted fibre-glue
-            # occlusion, which no region name can express.
-            ex = excluded_mask()
-            if ex is not None:
-                m = m & ~ex
-            painted = painted_exclusion()
-            if painted is not None and painted.any():
-                m = m & ~painted
             return m
     return None
 

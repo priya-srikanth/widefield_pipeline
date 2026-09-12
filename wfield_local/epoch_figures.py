@@ -266,9 +266,16 @@ def save_map_bundle(q, cells, **kw):
     stats rows). `replot_map` takes the pair and reproduces the figure; a tweak to an axis, a
     colormap or a title is then seconds rather than the hours a re-render costs.
 
+    MEASURED, 2026-09-12, on `epoch_15r_position_QUIETref_precue_working` (42 panels, a 20.9 MB
+    bundle): **8.6 s to redraw, against the ~40 min the analysis behind it costs**, and 5.6 s for a
+    redraw with `delta_cmap` overridden. That ratio is the whole argument for the file existing.
+
     NOT A SUBSTITUTE FOR THE ANALYSIS. The bundle is downstream of every decision -- mask, pooling,
     reference, threshold -- so changing any of those still requires the real render. It reproduces
-    a PICTURE, not a result.
+    a PICTURE, not a result. **A STALE BUNDLE REDRAWS ITS STALE SUBTITLE WITHOUT COMPLAINT**: the
+    one measured above still printed "Bonferroni over 3,237 in-mask bins", a correction retired
+    hours earlier, because that string is an argument the bundle faithfully preserved. Check the
+    bundle's mtime against `git log` before reading a number off a redraw.
     """
     import json
 

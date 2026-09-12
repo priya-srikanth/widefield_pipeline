@@ -83,6 +83,65 @@ def set_short_bool_to_low(b: np.ndarray, n: int) -> np.ndarray:
     return b
 
 
+#: Which quiet-mask variant every consumer reads, from `segmentation.quiet.variant`. An empty
+#: string means the original `quiet_<tag>` directory; anything else selects `quiet_<tag>_<variant>`.
+#:
+#: WHY A VARIANT RATHER THAN AN OVERWRITE (2026-09-12). The quiet definition changed -- the 8 s
+#: post-reward buffer was a carryover from the stroke_orofacial pipeline, whose task runs on an 8 s
+#: post-tone window; ours has a 3.5 s response window, and Priya's framing is that quiet should be
+#: "non-running ITI frames", anchored on the CUE rather than on the reward. Rewriting the existing
+#: masks would have made every figure built on them unreproducible and un-diffable at once, across
+#: the QUIET reference, the state decoder, the position encoder and deck sections A-C. So this
+#: follows the rule `docs/PREPROCESSING_DECISION.md` already sets for the hemodynamic variants:
+#: nothing overwrites the original, every alternative gets its own directory beside it, and a
+#: manifest says which definition produced it. Retiring a variant is then a config edit, and the
+#: comparison stays available -- which matters here, because the change moves a lot of results and
+#: "did it move because of this?" has to remain answerable.
+def quiet_variant():
+    """The configured variant string, or "" for the original masks."""
+    return str(config.defaults()["segmentation"]["quiet"].get("variant", "") or "")
+
+
+def quiet_dir(mc, variant=None, tag=None):
+    """Directory holding this session's quiet masks for the selected variant."""
+    if tag is None:
+        tag = config.defaults()["preprocess"]["maps"]["tag"]
+    v = quiet_variant() if variant is None else str(variant or "")
+    return f"{mc}/quiet_{tag}" + (f"_{v}" if v else "")
+
+
+def quiet_frame_path(mc, variant=None, tag=None, fallback=True):
+    """Path to the per-corrected-frame quiet mask, or None.
+
+    RESOLVES IN ONE PLACE. Six modules used to glob `{mc}/quiet_affine8v1/*quiet_frame.npy`
+    independently -- `position_reference_maps`, `locanmf_position_encoder`,
+    `locanmf_cue_lick_analysis`, `preprocess`, `roi_activity` and the lick-aligned pair -- so
+    selecting a different definition would have meant editing six literals and hoping none was
+    missed. With `fallback` the configured variant is preferred and the original is used when it is
+    absent, so a partially recomputed cohort degrades per session rather than per figure.
+
+    A SESSION FALLING BACK IS NOT SILENT: callers that mix variants across sessions would be
+    averaging two definitions of the baseline, so `quiet_variant_used` reports which was taken.
+    """
+    import glob
+
+    for v in ([variant] if variant is not None else [quiet_variant()]) + ([""] if fallback else []):
+        hits = sorted(glob.glob(f"{quiet_dir(mc, v, tag)}/*quiet_frame.npy"))
+        if hits:
+            return hits[0]
+    return None
+
+
+def quiet_variant_used(mc, variant=None, tag=None):
+    """``""`` or the variant name actually found for this session -- None if neither exists."""
+    import glob
+
+    for v in ([variant] if variant is not None else [quiet_variant()]) + [""]:
+        if sorted(glob.glob(f"{quiet_dir(mc, v, tag)}/*quiet_frame.npy")):
+            return v
+    return None
+
+
 def quiet_baseline_svt(svt: np.ndarray, quiet_frame: np.ndarray) -> np.ndarray:
     """Mean SVT (K,) over the quiet frames -> the quiet-period baseline in SVD space.
 
@@ -119,26 +178,40 @@ def main() -> int:
     ap.add_argument("--frame-map", type=Path, default=None)
     ap.add_argument("--cleanpairs-summary", type=Path, default=None)
     ap.add_argument("--offset", type=int, default=None)
-    # treadmill calibration + running (TUNE LATER)
-    ap.add_argument("--tread-channel", default="treadmill")
-    ap.add_argument("--offset-v", type=float, default=1.2587643276652853)
-    ap.add_argument("--volt-sec-per-rot", type=float, default=0.382)
-    ap.add_argument("--mm-per-rot", type=float, default=29.25)
-    ap.add_argument("--smoothing-sigma-s", type=float, default=0.15)
-    ap.add_argument("--quiet-speed", type=float, default=1.0, help="mm/s; below = 'slow' (TUNE)")
-    ap.add_argument("--treadmill-buffer", type=float, nargs=2, default=(3.0, 3.0))
+    # EVERY DEFAULT BELOW COMES FROM configs/defaults.yaml (rule 3, single source of truth).
+    #
+    # THEY USED TO BE LITERALS HERE, and that was a live bug rather than a style problem. This
+    # module writes the per-corrected-frame `*_quiet_frame.npy` that the QUIET reference reads;
+    # `behavior_events` computes the SAME quantity from `segmentation.quiet` in the config, and its
+    # own comment claims the two agree. `preprocess.py` invokes this module passing none of these
+    # flags, so it always used the literals. Editing the config therefore moved the events npz and
+    # left the per-frame masks untouched -- two definitions of "quiet" under one name, differing
+    # silently, with nothing in either output saying which had been used. Found 2026-09-12 while
+    # changing the reward buffer.
+    seg = config.defaults()["segmentation"]
+    tr, qd = seg["treadmill"], seg["quiet"]
+    ap.add_argument("--tread-channel", default=tr["channel"])
+    ap.add_argument("--offset-v", type=float, default=tr["offset_v"])
+    ap.add_argument("--volt-sec-per-rot", type=float, default=tr["volt_sec_per_rot"])
+    ap.add_argument("--mm-per-rot", type=float, default=tr["mm_per_rot"])
+    ap.add_argument("--smoothing-sigma-s", type=float, default=tr["smoothing_sigma_s"])
+    ap.add_argument("--quiet-speed", type=float, default=qd["speed_mm_s"],
+                    help="mm/s; below = 'slow'")
+    ap.add_argument("--treadmill-buffer", type=float, nargs=2,
+                    default=tuple(qd["treadmill_buffer_s"]))
     # licking
     ap.add_argument("--lick-channel", default="lick_analog")
-    ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
+    ld = config.defaults()["lick_detection"]
     ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     ap.add_argument("--refractory-s", type=float, default=0.10)
-    ap.add_argument("--lick-buffer", type=float, nargs=2, default=(1.0, 3.0))
+    ap.add_argument("--lick-buffer", type=float, nargs=2, default=tuple(qd["lick_buffer_s"]))
     # reward
-    ap.add_argument("--reward-channel", default="reward_ttl")
-    ap.add_argument("--reward-thresh-v", type=float, default=2.5)
-    ap.add_argument("--reward-buffer", type=float, nargs=2, default=(0.1, 8.0))
+    ap.add_argument("--reward-channel", default=seg["reward"]["channel"])
+    ap.add_argument("--reward-thresh-v", type=float, default=seg["reward"]["thresh_v"])
+    ap.add_argument("--reward-buffer", type=float, nargs=2,
+                    default=tuple(qd["reward_buffer_s"]))
     # grooming (OFF by default; unreliable with one close spout)
     ap.add_argument("--grooming", action="store_true",
                     help="EXPERIMENTAL: exclude single-spout long-touch as grooming. "
@@ -147,7 +220,7 @@ def main() -> int:
     ap.add_argument("--groom-max-long-s", type=float, default=0.4)
     ap.add_argument("--groom-buffer", type=float, nargs=2, default=(6.0, 6.0))
     # output mask shaping
-    ap.add_argument("--min-quiet-s", type=float, default=0.5,
+    ap.add_argument("--min-quiet-s", type=float, default=qd["min_quiet_s"],
                     help="drop quiet runs shorter than this (stroke rest-bout default was 10 s)")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)

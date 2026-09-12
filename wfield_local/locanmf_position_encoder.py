@@ -97,10 +97,12 @@ def _quiet_baseline_local(s, sig, nbins=24):
     (photobleaching / state). Falls back to a session-constant mean if no quiet mask. This is the stable
     cross-session reference for the pre/post-stroke residual."""
     T = sig.shape[1]
-    qf = glob.glob(f"{s['mc']}/quiet_affine8v1/*quiet_frame.npy")
+    from wfield_local.quiet_periods import quiet_frame_path
+
+    qf = quiet_frame_path(s["mc"])
     if not qf:
         return np.repeat(sig.mean(1, keepdims=True), T, axis=1)
-    q = np.load(qf[0]).astype(bool); L = min(q.shape[0], T); qm = np.zeros(T, bool); qm[:L] = q[:L]
+    q = np.load(qf).astype(bool); L = min(q.shape[0], T); qm = np.zeros(T, bool); qm[:L] = q[:L]
     qi = np.where(qm)[0]
     edges = np.linspace(0, T, nbins + 1); cent = (edges[:-1] + edges[1:]) / 2
     bm = np.full((sig.shape[0], nbins), np.nan)

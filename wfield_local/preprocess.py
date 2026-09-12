@@ -438,7 +438,10 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
     allen = f"{res}/allen_aligned_{tag}"
     cue = f"{mc}/spout_trial_averages_{tag}"
     lick = f"{mc}/lick_aligned_{tag}"
-    quiet = f"{mc}/quiet_{tag}"
+    # THE VARIANT DIRECTORY, so a re-run under a changed definition lands beside the old masks
+    # rather than over them (see `quiet_periods.quiet_frame_path`).
+    from wfield_local.quiet_periods import quiet_dir as _quiet_dir
+    quiet = _quiet_dir(mc, tag=tag)
     running_act = f"{mc}/running_activity_{tag}"
     events_npz = f"{rv.root('behavior_out')}/events/{animal}/{yyyymmdd}.npz"
 

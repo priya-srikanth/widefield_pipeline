@@ -49,7 +49,13 @@ SESSIONS = config.load_sessions()      # session registry (configs/sessions.yaml
 
 def _process(s, args):
     mc = s["mc"]
-    quiet = glob.glob(f"{mc}/quiet_affine8v1/*quiet_frame.npy")[0]
+    from wfield_local.quiet_periods import quiet_frame_path
+
+    # RAISES ON A MISSING MASK, as the old `glob(...)[0]` did. This module z-scores every LocaNMF
+    # trace by quiet-frame mean/SD, so without a mask there is no analysis to degrade gracefully to.
+    quiet = quiet_frame_path(mc)
+    if quiet is None:
+        raise FileNotFoundError(f"no quiet mask for {s['label']} under {mc}")
     C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy")
     regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
