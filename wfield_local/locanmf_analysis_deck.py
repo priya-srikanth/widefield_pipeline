@@ -3567,6 +3567,49 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "than acutely (where it fails regardless), so the acute contrast shrinks from +0.100 to"
          "+0.039 pooled. Per position the ordering is unchanged and far-contralateral is still"
          "the largest, +0.158."),
+        ("epoch_5ro_frozen_refit_overall_*_*.png",
+         "Frozen and refit accuracy POOLED OVER POSITIONS, by epoch",
+         "THE PANEL THE POWER ANALYSIS SAYS TO LEAD WITH, and it exists because the per-position"
+         "family spends five sixths of its trials on a resolution this cohort cannot support at"
+         "chronic. Pooling over positions is what makes the interval narrower than the effect."
+         "Three bars per epoch -- the FROZEN pre-stroke decoder, the WITHIN-SESSION refit, and"
+         "their paired difference -- with one dot per session coloured by animal, and the"
+         "epoch-minus-pre companion beneath. Both arms score the SAME trials, so the gap is paired"
+         "at the trial level and stays paired through every level of the bootstrap."
+         "\n\nSIGN CONVENTION, AND IT DIFFERS FROM THE RECOVERY-TRAJECTORY FIGURES ON PURPOSE. The"
+         "delta panel is epoch MINUS pre, as every other contrast panel in this deck is, so the"
+         "frozen arm goes NEGATIVE when the readout is worse. `recovery_trajectory`'s F is the same"
+         "quantity with the sign flipped so that both of its axes move positive with the lesion."
+         "Its G is this figure's gap arm, unflipped. Two conventions is one more than ideal; the"
+         "alternative was a contrast panel whose bars point the opposite way from every other one."),
+        ("epoch_5rodelta_frozen_refit_overall_*_*.png",
+         "Pooled frozen/refit accuracy, change from pre-stroke",
+         "The same three arms as epoch minus pre. READ THE FROZEN ARM FIRST: it crossing back"
+         "toward zero at chronic is the recovery claim, and it is the one statement in this family"
+         "that survives every version of the training-set argument. The gap arm here still carries"
+         "the unmatched handicap -- the frozen model trains on ten pre-stroke sessions and the"
+         "refit on four fifths of one -- so read it against the MATCHED companion two slides on,"
+         "not against zero."),
+        ("epoch_5rmo_frozen_refit_overall_*_*.png",
+         "Pooled frozen and refit accuracy, training-set MATCHED",
+         "THE SAME POOLED CONTRAST WITH BOTH ARMS GIVEN THE SAME AMOUNT OF TRAINING DATA, and the"
+         "cleanest single statement of the headline result. The frozen arm is now handicapped the"
+         "way the refit arm always was, so the two are comparable and the pre bar means something."
+         "\n\nTHE NO-LESION BASELINE IS BRACKETED, NOT KNOWN, and this family is one of its two"
+         "bounds. Unmatched, refitting COSTS 0.073 pre-stroke because the frozen model has ten"
+         "times the data; matched, refitting is +0.090 BETTER pre-stroke, because a model trained"
+         "inside a session shares that session's own nuisance structure -- alignment,"
+         "haemodynamics, arousal, the LocaNMF projection -- while the matched frozen model must"
+         "generalise across days. Both bounds are real effects and neither is 'the' answer, which"
+         "is why both families are drawn and both are read as epoch-minus-pre."),
+        ("epoch_5rmodelta_frozen_refit_overall_*_*.png",
+         "Pooled frozen/refit accuracy (matched), change from pre-stroke",
+         "THE CONTRAST PANEL TO CITE. It is the pooled, training-set-matched, epoch-minus-pre form"
+         "of the whole frozen-versus-refit argument: the handicap is removed by matching, the"
+         "position axis is removed by pooling, and what remains is the lesion. The frozen arm"
+         "recovering toward zero by chronic is the claim; the gap arm is the recoverable component"
+         "that recovery did not account for. A mark here means the interval excludes zero"
+         "uncorrected, two marks that it survives Bonferroni, exactly as elsewhere."),
         ("epoch_5cr_refit_confusion_*_*.png",
          "WITHIN-SESSION REFIT decoder, confusion by epoch",
          "THE SAME PANEL FOR THE REFIT DECODER, and it is read against the frozen one immediately"
