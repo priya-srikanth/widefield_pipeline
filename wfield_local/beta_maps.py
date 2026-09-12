@@ -169,6 +169,11 @@ MIN_TRIALS_PER_CLASS = 20
 #: variance-regularisation floor in the spirit of SAM's s0 -- it changes nothing for the pixels
 #: that carry a real effect (their `se` is well above it) and removes the ones that are significant
 #: only because their denominator vanished.
+#: Pixels eroded from the brain mask before any statistic is computed. 16 px, which removes the
+#: 12.6% of the mask where the measured edge enrichment lives (see `stat_mask`). Display is
+#: unaffected.
+STAT_ERODE_PX = 16
+
 SE_FLOOR_PCT = 25.0
 
 #: Two-tailed p for the CLUSTER-FORMING threshold, converted to a t against the between-animal df
@@ -428,6 +433,37 @@ def atlas_edges(session=None):
 
 
 @lru_cache(maxsize=1)
+def stat_mask(erode=STAT_ERODE_PX):
+    """The brain mask ERODED -- the pixels a STATISTIC may use, narrower than the display mask.
+
+    Priya, 2026-09-12, of the beta-map contours: "the beta significance does not look right - lots
+    of edge selection (olfactory bulbs etc)." Measured, and she is right. Flagged pixels inside a
+    rim of the mask, against that rim's own share of the brain (6.3% / 12.6% / 24.5% at 8 / 16 /
+    32 px):
+
+        near ipsi      5.5%   12.0%   25.1%     unbiased
+        near MIDDLE   11.6%   24.7%   55.8%     ~2x enriched at the rim
+        near CONTRA   14.1%   27.7%   48.6%     ~2x enriched
+        far contra     7.7%   16.2%   32.0%     mildly enriched
+
+    WHY THE RIM LIES. The outermost pixels of the imaging window are where `U` is smallest and the
+    Allen affine warp is least constrained, so they carry partial-volume mixing and per-session
+    alignment jitter rather than cortex. Those artefacts are SYSTEMATIC -- the same window, the same
+    warp, every session -- so they are CONSISTENT ACROSS ANIMALS, which is precisely what a
+    between-animal denominator rewards. A statistic that asks "do the animals agree" cannot tell a
+    shared biological effect from a shared optical one.
+
+    DISPLAY KEEPS THE FULL MASK. Eroding what is DRAWN would hide data; this narrows only what may
+    be TESTED, so a contour cannot be placed where the measurement is not trustworthy.
+    """
+    from scipy import ndimage
+
+    m = brain_mask()
+    if m is None or not erode:
+        return m
+    return ndimage.binary_erosion(m, iterations=int(erode))
+
+
 def brain_mask():
     """The Allen brain mask on the shared grid -- the pixels a statistic is ALLOWED to exist in.
 
@@ -575,7 +611,7 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
     if not animals:
         return None
     if mask is None:
-        mask = brain_mask()
+        mask = stat_mask()
     # RAISES RATHER THAN FALLING BACK. Running this test on the whole frame is precisely the bug
     # it was written to fix, and a fallback that silently reinstates it would be indistinguishable
     # from the fix working -- the caller prints the exception and the panel simply gets no contour,
@@ -752,7 +788,7 @@ def musall_significance(maps_per_unit, other=None, *, factor=MUSALL_DOWNSAMPLE, 
     if len(d) < 2:
         return None
     if mask is None:
-        mask = brain_mask()
+        mask = stat_mask()
     small = [downsample(x, factor, mask) for x in d]
     sm_mask = small[0][1]
     a = np.stack([x[0] for x in small])
@@ -805,7 +841,7 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
     if len(animals) < 2:
         return None
     if mask is None:
-        mask = brain_mask()
+        mask = stat_mask()
     rng = np.random.default_rng(seed)
 
     # DOWNSAMPLE ONCE, UP FRONT. 2,000 draws x 4 animals x N sessions of full-resolution block

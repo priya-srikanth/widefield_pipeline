@@ -140,3 +140,67 @@ def test_positive_and_negative_clusters_are_labelled_apart():
     assert not keep[250, 334], (
         "the weak adjacent decrease was carried over the threshold by the increase it touches -- "
         "the polarities are being merged")
+
+
+def test_statistics_use_an_ERODED_mask_but_display_does_not():
+    """The rim of the imaging window is where the edge artefact lives, so no test may reach it.
+
+    Priya, 2026-09-12: "the beta significance does not look right - lots of edge selection
+    (olfactory bulbs etc)." Measured on the beta maps, as the fraction of flagged pixels falling
+    inside a rim of the mask against that rim's own share of the brain (6.3% / 12.6% / 24.5% at
+    8 / 16 / 32 px):
+
+        near ipsi      5.5%   12.0%   25.1%     unbiased
+        near MIDDLE   11.6%   24.7%   55.8%     ~2x enriched
+        near CONTRA   14.1%   27.7%   48.6%     ~2x enriched
+
+    The rim is where `U` is smallest and the Allen warp least constrained, so it carries
+    partial-volume mixing and alignment jitter. Those are SYSTEMATIC -- same window, same warp,
+    every session -- hence consistent across animals, which is exactly what a between-animal
+    denominator rewards. A statistic asking "do the animals agree" cannot separate a shared
+    biological effect from a shared optical one.
+
+    DISPLAY MUST KEEP THE FULL MASK: eroding what is drawn would hide data.
+    """
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+
+    disp, stat = bm.brain_mask(), bm.stat_mask()
+    assert disp is not None and stat is not None
+    assert stat.sum() < disp.sum(), "the statistics mask must be strictly smaller"
+    assert not (stat & ~disp).any(), "the statistics mask must be a subset of the display mask"
+    # it removes the rim and nothing central
+    from scipy import ndimage
+    core = ndimage.binary_erosion(disp, iterations=bm.STAT_ERODE_PX + 4)
+    assert (core & ~stat).sum() == 0, "erosion reached past the rim into the core"
+    assert 0.75 < stat.sum() / disp.sum() < 0.95, (
+        f"erosion keeps {100 * stat.sum() / disp.sum():.0f}% -- too little or too much")
+
+
+def test_a_planted_EDGE_effect_is_not_flagged_but_a_central_one_is():
+    """The point of the erosion, as a behaviour rather than a mask-size assertion."""
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    disp = bm.brain_mask()
+    stat = bm.stat_mask()
+    rim = disp & ~stat
+    rng = np.random.default_rng(0)
+
+    def arms(effect):
+        pre = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                         for _ in range(3)] for i in range(4)}
+        post = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                          + effect for _ in range(3)] for i in range(4)}
+        return pre, post
+
+    # a large, perfectly consistent effect confined to the RIM
+    edge = np.zeros(bm.MAP_SHAPE)
+    edge[rim] = 5.0
+    got = bm.hierarchical_bootstrap_significance(*arms(edge), n_boot=300)
+    assert got is not None
+    assert int(got[0].sum()) == 0, (
+        f"{int(got[0].sum())} bins flagged for an effect that lies entirely in the eroded rim")

@@ -1299,9 +1299,9 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
         return None
     rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
     return ef.map_grid(
-        cells, out_dir, name=f"epoch_14pa_beta_maps_by_animal_{align}_{variant}",
-        title=(f"Far-CONTRALATERAL decoder map PER ANIMAL -- does the pattern replicate? "
-               f"{wname}"),
+        cells, out_dir, name=f"epoch_14pa_beta_maps_MEANref_by_animal_{align}_{variant}",
+        title=(f"Far-CONTRALATERAL decoder beta map, MEAN-referenced (positions COUPLED), "
+               f"PER ANIMAL -- does the pattern replicate? {wname}"),
         row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
@@ -1410,7 +1410,8 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
             continue
         rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
         out.append(ef.map_grid(
-            cells, out_dir, name=f"epoch_15rpa_reference_{reference}_by_animal_{align}_{variant}",
+            cells, out_dir,
+            name=f"epoch_15rpa_position_{reference.upper()}ref_by_animal_{align}_{variant}",
             title=(f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- does it replicate? {wname}"),
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges,
@@ -1519,7 +1520,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
         a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
                           for q in CONF_LABELS if q in amp)
         out.append(ef.map_grid(
-            cells, out_dir, name=f"epoch_15r_reference_{reference}_{align}_{variant}",
+            cells, out_dir,
+            name=f"epoch_15r_position_{reference.upper()}ref_{align}_{variant}",
             title=f"{txt['title']} -- {wname}",
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, contours=contours,
@@ -1589,9 +1591,9 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
         return None
     rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
     return ef.map_grid(
-        cells, out_dir, name="epoch_15pa_evoked_maps_by_animal_cue",
-        title="Far-CONTRALATERAL EVOKED map PER ANIMAL (post-cue minus pre-cue) -- does the "
-              "INDEPENDENT measure replicate?",
+        cells, out_dir, name="epoch_15pa_evoked_CUEINCREMENT_PRECUEref_by_animal_cue",
+        title="Far-CONTRALATERAL CUE-EVOKED INCREMENT (post-cue minus PRE-CUE) PER ANIMAL -- "
+              "does it replicate? Subtracts the anticipatory code; see F12",
         row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
@@ -1700,9 +1702,9 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
     a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
                       for q in CONF_LABELS if q in amp)
     return ef.map_grid(
-        cells, out_dir, name="epoch_15_evoked_maps_cue",
-        title=("Per-position EVOKED maps: post-cue minus PRE-CUE, so the six positions are "
-               "INDEPENDENT -- the control for figure 14"),
+        cells, out_dir, name="epoch_15_evoked_CUEINCREMENT_PRECUEref_cue",
+        title=("CUE-EVOKED INCREMENT -- post-cue MINUS PRE-CUE. Positions are independent, but "
+               "this SUBTRACTS the anticipatory code (see F12): not the position map"),
         row_labels=rows,
         col_labels=EPO + [f"{e} - pre" for e in ("acute", "subacute", "chronic")],
         panel_titles=titles,
@@ -1798,6 +1800,12 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     cells, titles, amp, contours = {}, {}, {}, {}
     for q in CONF_LABELS:
         per_epoch = {}
+        # A CELL REFUSED FOR TOO FEW TRIALS MUST SAY SO. Priya, 2026-09-12, of the lick-aligned
+        # arm: "why is there no subacute or chronic far contra delta data?" -- because on that arm
+        # far-contralateral needs actual LICKS at that position, and `MIN_TRIALS_PER_CLASS` refuses
+        # the cell. That refusal IS the deficit, and a silently absent panel reads as a rendering
+        # bug rather than as the finding it is.
+        _refused = []
         for e in EPO:
             # EACH ANIMAL CONTRIBUTES ITS OWN EPOCH MEAN, then those are averaged -- so an animal
             # with more sessions cannot dominate the pooled map, the same rule the bar families use.
@@ -1822,6 +1830,14 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                 # low"), and on the post-lick arm balancing makes exactly that happen acutely.
                 titles[(row, e)] = (f"{e}\n{len(per_animal)} an, {n_s} sess, n={n_tr}"
                                     + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
+            else:
+                # DRAWN AS AN EMPTY PANEL WITH A REASON, not omitted.
+                _refused.append(e)
+                titles[(_long_of(q), e)] = (f"{e}\nREFUSED\nno session reached\n"
+                                            f"{bm.MIN_TRIALS_PER_CLASS} trials")
+        if _refused:
+            print(f"  .. 14m {q}: refused {', '.join(_refused)} "
+                  f"(<{bm.MIN_TRIALS_PER_CLASS} trials at this position)", flush=True)
         if "pre" in per_epoch and "acute" in per_epoch:
             row = _long_of(q)
             cells[(row, DELTA)] = per_epoch["acute"] - per_epoch["pre"]
@@ -1859,9 +1875,9 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
                       for q in CONF_LABELS if q in amp)
     return ef.map_grid(
-        cells, out_dir, name=f"epoch_14_beta_maps_{align}_{variant}",
-        title=(f"WHERE the position code lives, and where it goes -- Haufe-transformed decoder "
-               f"maps, {wname}"),
+        cells, out_dir, name=f"epoch_14_beta_maps_MEANref_{align}_{variant}",
+        title=(f"DECODER BETA MAPS -- referenced to the MEAN OVER ALL TRIALS, so the six "
+               f"positions are COUPLED. {wname}"),
         row_labels=rows,
         col_labels=EPO + [DELTA, "subacute - pre", "chronic - pre"], panel_titles=titles,
         delta_cols=(DELTA, "subacute - pre", "chronic - pre"),
