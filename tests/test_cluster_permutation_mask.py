@@ -204,3 +204,59 @@ def test_a_planted_EDGE_effect_is_not_flagged_but_a_central_one_is():
     assert got is not None
     assert int(got[0].sum()) == 0, (
         f"{int(got[0].sum())} bins flagged for an effect that lies entirely in the eroded rim")
+
+
+def test_an_edge_localised_result_is_SUPPRESSED_not_merely_annotated():
+    """A green contour is read as a result; a caveat in a subtitle is not read at all.
+
+    Priya, 2026-09-12: "the evoked maps weren't clean - the significance was localized at the rim
+    in some figures." Measured on the evoked maps, near-middle CHRONIC had 28.4% of its flagged
+    pixels inside the 8 px rim (4.5x its 6.3% share) and 72.0% inside the 32 px rim (2.9x its
+    24.5% share) -- and after 16 px erosion it was STILL 960 bins with 44% in the outer rim. One
+    erosion radius cannot cover every panel without eating real cortex, so the guard is a
+    per-result property rather than a fixed geometry.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    disp = bm.brain_mask()
+    # calibration: the statistic means what its name says
+    rim = disp & ~ndimage.binary_erosion(disp, iterations=32)
+    assert bm.edge_enrichment(disp) == pytest.approx(1.0, abs=0.01), "whole brain must be 1.0x"
+    assert bm.edge_enrichment(rim) > 3.0, "an all-rim result must be strongly enriched"
+    assert bm.edge_enrichment(ndimage.binary_erosion(disp, iterations=60)) < 0.2
+
+    # behaviour: a planted rim-hugging effect must not come back as a contour
+    rng = np.random.default_rng(7)
+    effect = np.zeros(bm.MAP_SHAPE)
+    effect[rim] = 6.0
+    pre = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                     for _ in range(3)] for i in range(4)}
+    post = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp + effect
+                      for _ in range(3)] for i in range(4)}
+    contour, label = bm.significance_contour(pre, post, n_boot=300, mask=disp)
+    assert contour is None, "an edge-localised result was drawn"
+    assert "SUPPRESSED" in label and "edge enrichment" in label, label
+
+
+def test_a_central_result_still_reports_its_enrichment_and_is_drawn():
+    """The guard must not be bought with blindness -- a real central effect keeps its contour."""
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    disp = bm.brain_mask()
+    core = ndimage.binary_erosion(disp, iterations=60)
+    rng = np.random.default_rng(8)
+    effect = np.zeros(bm.MAP_SHAPE)
+    effect[core] = 6.0
+    pre = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                     for _ in range(3)] for i in range(4)}
+    post = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp + effect
+                      for _ in range(3)] for i in range(4)}
+    contour, label = bm.significance_contour(pre, post, n_boot=300, mask=disp)
+    assert contour is not None and contour.any(), f"a central effect was suppressed: {label}"
+    assert "edge enrichment" in label, label

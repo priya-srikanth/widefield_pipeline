@@ -913,6 +913,45 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
 #: both, which is why the behaviour figures were already built this way.
 PRIMARY_TEST = "nested"
 
+#: A flagged set whose share inside the mask's outer rim exceeds the rim's OWN share of the brain
+#: by more than this factor is treated as EDGE-DRIVEN and not drawn.
+#:
+#: WHY A GUARD AND NOT JUST EROSION. Eroding 16 px (`STAT_ERODE_PX`) fixes the far positions --
+#: their rim occupancy falls from 23% to 12% -- but it does not fix everything. Measured on the
+#: evoked maps, near-middle CHRONIC sits at 28.4% of flagged pixels inside the 8 px rim (4.5x its
+#: 6.3% share) and 72.0% inside the 32 px rim (2.9x its 24.5% share); after erosion it is still
+#: 960 bins with 44% in the outer rim. Priya, 2026-09-12: "the evoked maps weren't clean - the
+#: significance was localized at the rim in some figures." She is right, and a single erosion
+#: radius cannot be tuned to cover every panel without eating real cortex.
+#:
+#: SUPPRESSED RATHER THAN ANNOTATED, deliberately. A green contour is read as a result; a caveat in
+#: a subtitle is not read at all. The label always reports the enrichment so a suppressed panel
+#: says why, and `significance_contour` prints it on every render.
+EDGE_ENRICHMENT_MAX = 2.0
+
+
+def edge_enrichment(flagged, mask=None, rim_px=32):
+    """How concentrated a flagged set is in the mask's outer rim, as a ratio to the rim's own share.
+
+    1.0 means the flagged pixels are distributed exactly as the brain is. Above ~2 means the result
+    lives on the edge of the imaging window, where `U` is smallest and the Allen warp least
+    constrained -- and where the artefact is CONSISTENT across animals, so a between-animal test
+    cannot reject it.
+    """
+    from scipy import ndimage
+
+    if mask is None:
+        mask = brain_mask()
+    if mask is None:
+        return float("nan")
+    flagged = np.asarray(flagged, bool) & mask
+    n = int(flagged.sum())
+    if not n:
+        return 0.0
+    rim = mask & ~ndimage.binary_erosion(mask, iterations=int(rim_px))
+    share = rim.sum() / mask.sum()
+    return float((flagged & rim).sum() / n / share) if share > 0 else float("nan")
+
 
 def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, n_boot=2000,
                          n_perm=500, alpha=0.05, seed=0, mask=None):
@@ -957,13 +996,18 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
         return None, ""
     sig, _lo, _hi, _mk, n_tested = got
     n = int(sig.sum())
-    # SMALL COUNTS ARE NOT FINDINGS and the label says so where it matters. Measured residual:
-    # near-ipsi acute returns ~36 bins where Bonferroni expects ~0.05, from the normal
-    # approximation in a far tail with four animals at the outer level.
-    tag = "" if n == 0 or n >= 50 else "  (below the ~50-bin noise floor -- not a finding)"
-    return (upsample_mask(sig) if n else None,
-            f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
-            f"{n} of {n_tested} bins{tag}")
+    full = upsample_mask(sig) if n else None
+    enr = edge_enrichment(full) if full is not None else 0.0
+    base = (f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
+            f"{n} of {n_tested} bins")
+    if n and np.isfinite(enr) and enr > EDGE_ENRICHMENT_MAX:
+        # SUPPRESSED. See EDGE_ENRICHMENT_MAX -- a contour is read as a result and a caveat is not.
+        return None, (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x "
+                      f"(> {EDGE_ENRICHMENT_MAX:.0f}x): this result lives on the rim")
+    tag = "" if n == 0 or n >= 50 else "  (small -- treat with care)"
+    if n:
+        base += f"; edge enrichment {enr:.2f}x"
+    return full, base + tag
 
 
 def upsample_mask(small, shape=MAP_SHAPE, factor=MUSALL_DOWNSAMPLE):
