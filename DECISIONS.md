@@ -8578,18 +8578,35 @@ hence **consistent across animals**, which is exactly what a between-animal deno
   single erosion radius could not cover every panel — near-middle chronic was still 44% rim after
   erosion.
 
-### 4. OLFACTORY BULBS EXCLUDED
+### 4. OLFACTORY BULBS EXCLUDED — and an atlas bug that nearly deleted primary motor cortex
 
 Priya: *"I'm also inclined to just get rid of the olfactory bulbs, since I don't have them in full
-view."* The field of view agrees: inside the mask **MOB_left is 7,553 px against MOB_right's 389** —
-a 19× asymmetry, so "the bulbs" meant the left one and a bilateral map compared a full region
-against a sliver. `EXCLUDE_REGIONS = ("MOB",)`, applied inside `brain_mask` so every consumer
-inherits it (207,213 → 199,271 px), and `map_grid(blank=…)` leaves them undrawn AND out of the
-colour limits — excluding a region from the mask while still painting it would be the worst of both.
+view and I don't want to really care about olfactory coding."* `EXCLUDE_REGIONS = ("MOB",)`, applied
+inside `brain_mask` so every consumer inherits it, and `map_grid(blank=…)` leaves them undrawn AND
+out of the colour limits — excluding a region from the mask while still painting it would be the
+worst of both. 207,213 → **192,110 px**.
 
-**NOT FRP**, though it shows the same warning sign: FRP_right 17,132 px against FRP_left 8,856
-(1.9×) where SSp-bfd is 6,820 / 6,819. Frontal pole is cortex and was not what was asked for; the
-asymmetry is recorded as the next candidate if the anterior edge keeps causing trouble.
+**THE FIRST VERSION OF THIS WAS WRONG, AND EVERY NUMBER IT PRODUCED WAS SELF-CONSISTENT.**
+`allen_area_names.json` maps an **INDEX** to a `[SIGNED_ID, name]` pair, while the atlas array
+stores the **SIGNED ID**. Keying by the index shifts every name onto the wrong region by an offset
+that grows down the file. It:
+
+* removed background + **MOB_LEFT ONLY**, leaving the right bulb fully in — which is precisely what
+  Priya then saw still on the figure (*"why does this still include olfactory…"*);
+* invented a **19× MOB asymmetry** and a **1.9× FRP asymmetry**, used here as the justification for
+  the exclusion. **Both are withdrawn — MOB is symmetric at 7,553 px per side, FRP at 389.**
+* resolved "FRP" to FRP_left + **MOp_LEFT**, so the proposal put to her to exclude FRP would have
+  deleted **PRIMARY MOTOR CORTEX** from every analysis.
+
+**It was caught only because she asked to see the mask drawn on a brain.** A pixel count cannot
+reveal it. The invariant that would have caught it is now a test: a correctly-mapped cortical
+parcellation is BILATERAL, so every `X_left`/`X_right` pair must have centroids on opposite sides of
+the midline and near-equal counts.
+
+**The exclusion now stands on the stated preference, not on a defect in the data** — it must not be
+argued for on grounds that do not exist. **FRP is NOT excluded and needs no decision**: 389 px per
+side, 0.4% of the mask, a thin border strip. The anterior-midline band visible on the figures is
+not FRP.
 
 ### 5. POOLING: within animal, over the intersection, on each animal's own scale
 
@@ -8721,7 +8738,8 @@ four leave-one-animal-out folds, so any feature map would be unstable — confir
 
 ### The tests that pin all of this
 
-`tests/test_cluster_permutation_mask.py` (13) — off-brain pixels never flagged; pure-null
+`tests/test_cluster_permutation_mask.py` (17) — the atlas lookup maps signed ids and every region
+is bilateral; BOTH bulbs are excluded, not one; off-brain pixels never flagged; pure-null
 calibration; a planted central effect IS found; the zero-variance denominator floor; refusal without
 a mask; the df-derived threshold; polarities labelled apart; statistics use the eroded mask while
 display does not; a planted rim-confined effect is not flagged; an edge-localised result is
@@ -8797,3 +8815,77 @@ would clear zero.
 The decomposition subtracts the sampling term from the observed variance of animal means
 (`var(means) - within/n`), floored at zero, which is the standard unbiased estimator and can return
 zero when the animal-level effect is small relative to session noise. It did not here.
+
+---
+
+## 2026-09-12 (later) — WITHDRAWN: "reorganisation persists into chronic". It is a point estimate, not a result
+
+Priya, reading the rendered `5rmo` delta panel: *"these figures don't suggest a significant
+persistent reorganization though."* Correct. **The claim is withdrawn.** Both entries above this one
+assert it and both are wrong on that point.
+
+### The numbers, from the figure sidecars rather than from a bar
+
+`gap` (= G) as change from pre-stroke, post-cue, lick + miss-while-working, n=92 sessions:
+
+| family | epoch | point | 95% | Bonferroni (÷9) |
+|---|---|---|---|---|
+| unmatched | **acute** | **+0.100** | [0.066, 0.136] | **[0.053, 0.152] EXCLUDES 0** |
+| unmatched | subacute | +0.066 | [0.015, 0.113] | [−0.003, 0.134] crosses |
+| unmatched | chronic | +0.078 | [0.015, 0.131] | [−0.013, 0.152] crosses |
+| matched | acute | +0.043 | [−0.022, 0.100] crosses | crosses |
+| matched | subacute | +0.081 | [0.015, 0.146] | [−0.005, 0.163] crosses |
+| matched | chronic | +0.074 | **[−0.004, 0.162] crosses** | crosses |
+
+**Only ACUTE reorganisation survives correction, and only unmatched.** Matched acute already crosses
+zero. Nothing at subacute or chronic survives, and matched chronic crosses even uncorrected.
+
+### How the wrong claim got made, because the mechanism is repeatable
+
+The "+0.075 [0.020, 0.121], excludes zero" quoted earlier came from a bootstrap **written for that
+question in a scratch script** — animals → sessions, on per-session point estimates, no block level,
+on the unmatched quantity, with no multiple-comparison correction. The deck's machinery resamples
+animals → sessions → **blocks** and corrects over the nine contrasts the figure draws. The scratch
+version was strictly weaker and produced a narrower interval, and it was quoted against the figure
+rather than checked against it.
+
+**The rule: an interval computed outside the deck's own resampling does not overrule one computed
+inside it.** If a scratch bootstrap disagrees with a rendered figure, the figure is the answer and
+the script is the thing to explain.
+
+### What the data DO support
+
+**The frozen decoder recovers, and this is the result.** Chronic frozen change from pre is −0.062
+(unmatched) / −0.058 (matched); both corrected intervals include zero, i.e. chronic accuracy is
+statistically indistinguishable from pre-stroke. That is exactly the discriminating test the
+hypothesis names — a decoder trained on pre-stroke activity recovers only if the original patterns
+return — and it holds under both training-set conventions.
+
+**Acutely the code is displaced, not merely lost** (+0.100 corrected, unmatched): re-fitting reaches
+information the pre-stroke readout cannot.
+
+**Whether a reorganised component PERSISTS is not resolvable with this cohort.** Point estimates stay
+positive and flat (0.100 → 0.066 → 0.078) but every post-acute interval includes zero. That is not
+evidence of absence, and the variance decomposition in the entry above says why: 83% of the chronic
+uncertainty is between animals, the corrected half-width is ~0.08–0.09, and the effect if real is
+~0.075. **The measurement is underpowered by roughly the margin needed to see it.**
+
+### Consequence for the grant
+
+Lead with the clause that holds. State the second as an open question with the power number attached,
+which converts a limitation into an aims justification:
+
+> Recovery re-establishes a representation the original readout can use: a frozen pre-stroke decoder
+> loses 0.36 of its accuracy acutely and returns to within 0.06 of baseline chronically,
+> indistinguishable from pre-stroke. Acutely, a within-session refit reaches information the frozen
+> model cannot (+0.100), showing the code is displaced rather than simply lost. Whether a reorganised
+> component persists into the chronic stage is not resolvable in this cohort — point estimates remain
+> positive (+0.07) with intervals spanning zero, and 83% of that uncertainty is between animals, so
+> ~8 animals reaching chronic would be required rather than more sessions from these four.
+
+### Do not re-derive the withdrawn claim
+
+The point estimates are positive at every epoch and will keep looking like a result. Three separate
+analyses of this cohort have now produced "reorganisation persists" as a point estimate and none has
+produced it as a significant one. Any future version needs either more animals or a pre-registered
+single contrast with the power to see it (see the entry above) — not another bootstrap.
