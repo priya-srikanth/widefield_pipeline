@@ -8418,3 +8418,69 @@ The convergence stands and does not depend on figure 14: the encoder's fitted am
 (0.749 pre -> 0.286 acute -> 0.745 chronic), the encoder ceiling's displaced-vs-degraded split, and
 figure 15's independent amplitudes all name **far-middle and far-contralateral** and all show
 recovery. Three methods sharing almost no machinery.
+
+---
+
+## 2026-09-12 — The recovery TRAJECTORY: neither "retrace" nor "build new", and two statistical errors on the way
+
+`wfield_local/recovery_trajectory.py` re-bins the frozen-vs-refit records by SESSION instead of by
+epoch, to test a claim the epoch figures cannot reach. Three coarse bins describe an endpoint; the
+grant hypothesis — *"recovery proceeds by re-establishing pre-stroke activity patterns rather than by
+building new ones"* — is about the route.
+
+Two axes, both signed so zero is the pre-stroke state:
+
+    F = pre_frozen - frozen     the frozen readout's deficit
+    G = (refit - frozen) - (refit - frozen) pre-stroke, per animal
+                                information the pre-stroke readout CANNOT REACH
+
+### The measurement, nested animals→sessions bootstrap, 48 post-stroke sessions
+
+| | acute | subacute | chronic |
+|---|---|---|---|
+| **F** frozen deficit | +0.339 [0.279, 0.402] | +0.159 [0.108, 0.213] | **+0.038 [0.016, 0.057]** |
+| **G** reorganisation | +0.098 [0.075, 0.125] | +0.065 [0.019, 0.108] | **+0.075 [0.020, 0.121]** |
+
+**Neither account alone.** The frozen readout recovers ~89% of its deficit — the hypothesis's first
+clause holds. But G does NOT decay: flat from subacute to chronic, and positive in every animal at
+every epoch (chronic: PS92 +0.095, PS93 +0.111, PS95 +0.018). A component of position information
+reorganises into a form the pre-stroke decoder cannot access and stays that way.
+
+**Why chronic G "excludes zero" must be read carefully.** n = 3 animals. The interval excludes zero
+because all three are positive, not because three animals give a powerful test. Quote the direction
+and the per-animal values, not the interval alone. F also excludes zero at chronic (+0.038), so
+"returns to baseline" is an approximation even for the first clause.
+
+### ERROR 1 — argmax over all post-stroke sessions hides the signature it was built to detect
+
+The first summary took the peak of G over every post-stroke session. For PS93 the maximum sits on
+day 25 — the LAST session — so it was labelled "the peak", nothing could come after it, and the
+late-resurgence flag reported False. **That is the migrate signature silenced by the statistic meant
+to find it.** The reference is now the ACUTE window, and `late_exceeds_acute` asks whether anything
+later beats it. Pinned by `test_MIGRATE_IS_DETECTED_WHEN_REORGANISATION_PEAKS_LAST`.
+
+### ERROR 2 — a mean of point estimates is not a test, in EITHER direction
+
+Reading the chronic per-position bars, I first said the refit advantage "is gone at five of six
+positions" because each interval crossed zero. Then, seeing their mean was +0.065, I said it was
+"indistinguishable from subacute" and the effect persisted. **Both statements were unjustified: no
+interval on the pooled quantity had been computed.**
+
+Priya caught it: *"how did we go from crossing zero to being significantly different?"* The
+legitimate reason the two views CAN disagree is that each per-position bar uses about a sixth of the
+trials while the pooled estimate uses all of them — but that is a reason to compute the pooled
+interval, not to infer it. Computed, it is the table above.
+
+**The rule: a set of non-significant per-position estimates neither establishes nor refutes a pooled
+effect. Only the pooled interval does.**
+
+### What this does to the grant claim
+
+The first clause survives and is strong. "Rather than building new ones" is not supported — the data
+show both, and the persistent component is the more interesting half because it does not decay.
+
+### Note
+
+`recovery_trajectory.py` and its tests reached main inside commit `8a2631a`, whose message is about
+figures 14/15 — the other window staged them with `git add -A`. The reasoning that would have been in
+their own commit message is here instead, which is where a method decision belongs anyway.
