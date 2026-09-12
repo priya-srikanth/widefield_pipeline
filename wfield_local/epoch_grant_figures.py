@@ -787,6 +787,140 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
     return made
 
 
+#: The three arms of the overall (all-positions) frozen-vs-refit figure, in drawing order.
+#: Named rather than positional because the delta panel's caption has to say which sign means what.
+OVERALL_ARMS = ("frozen", "refit", "gap")
+
+
+def _overall_at(y, p, arm):
+    """One arm's statistic on a POOLED paired trial set, all positions together.
+
+    The per-position family (`_gap_at`, `_refit_at`) exists because the deficit is graded across
+    positions. This is the same reduction with the position index dropped, and it is the quantity
+    with the POWER: a position gets a sixth of the trials, and at chronic that is the difference
+    between an interval of 0.076 and one of 0.056 against an effect of ~0.075 (DECISIONS,
+    2026-09-12 power decomposition).
+
+    Trials the refit arm could not train on are dropped from BOTH arms, exactly as `_gap_at` drops
+    them, so the three arms are computed on one trial set and `gap` is `refit - frozen` on it.
+    """
+    from wfield_local.grant_figures import REFIT_UNAVAILABLE
+
+    y, p = np.asarray(y), np.asarray(p)
+    if p.ndim != 2:
+        return None
+    m = p[:, 1] != REFIT_UNAVAILABLE
+    if m.sum() < 20:
+        return None
+    fz = float((p[m, 0] == y[m]).mean())
+    rf = float((p[m, 1] == y[m]).mean())
+    return {"frozen": fz, "refit": rf, "gap": rf - fz}[arm]
+
+
+def _overall_of(record, arm):
+    """`_overall_at` for one whole record -- one session's dot."""
+    if record is None:
+        return None
+    return _overall_at(record[0], record[1], arm)
+
+
+def _frozen_vs_refit_overall(out_dir, align, variant, wname, *, matched=False):
+    """5ro: the frozen and refit arms POOLED OVER POSITIONS, as bars by epoch plus a delta panel.
+
+    Priya, 2026-09-12: a version of F and G "with pre-stroke and post-stroke epoch binning and dots
+    for sessions color coded for animal (like our other bar graphs) and a delta line graph compared
+    to 0 with stats labels (as for other graph families)".
+
+    **This is the panel the power analysis says to lead with.** `recovery_trajectory` shows the same
+    two quantities per session, which is the right picture of a ROUTE but carries no intervals; the
+    per-position family carries intervals but spends five sixths of its trials on a resolution the
+    cohort cannot support at chronic. Pooling over positions is what makes the interval narrower
+    than the effect.
+
+    **SIGN CONVENTION, because it differs from `recovery_trajectory` on purpose.** The delta panel
+    is ``epoch - pre``, as every other contrast panel in this deck is, so the frozen arm goes
+    NEGATIVE when the readout is worse. `recovery_trajectory`'s ``F`` is the same quantity with the
+    sign flipped (``pre - frozen``) so that both of its axes move positive with the lesion. ``G``
+    there IS the gap arm here, unflipped. Two conventions is one more than ideal; the alternative
+    was a contrast panel whose bars point the opposite way from every other contrast panel.
+    """
+    from wfield_local import grant_figures as G
+
+    per_animal, _days = G._collect_5c(align, variant,
+                                      "paired_matched" if matched else "paired")
+    if not per_animal:
+        return None
+    values, points = {}, {}
+    for e in ef.PANELS:
+        rec = ef.pool_records(per_animal, e)
+        if rec is None:
+            continue
+        values[e], points[e] = {}, {}
+        for arm in OVERALL_ARMS:
+            got = ef.value_draws(
+                per_animal, e, lambda y, pr, a=arm: _overall_at(y, pr, a),
+                rng=np.random.default_rng(_seed_for(align, variant, e, f"overall-{arm}-value")),
+                n_boot=N_BOOT)
+            v = ef.with_ci(got) if got is not None else _overall_of(rec, arm)
+            if v is not None:
+                values[e][arm] = v
+            pts = ef.per_session_values(per_animal, e,
+                                        lambda _an, _d, r, a=arm: _overall_of(r, a))
+            points[e][arm] = [(an, v) for an, v in pts if v is not None]
+    if not values:
+        return None
+
+    post = [e for e in ef.PANELS if e != "pre" and values.get(e)]
+    n_comp = sum(len(values[e]) for e in post)
+    marks, rows = {}, {}
+    for e in post:
+        marks[e], rows[e] = {}, {}
+        for arm in OVERALL_ARMS:
+            if arm not in values[e]:
+                continue
+            got = ef.contrast_draws(
+                per_animal, e, "pre", lambda y, pr, a=arm: _overall_at(y, pr, a),
+                rng=np.random.default_rng(_seed_for(align, variant, e, f"overall-{arm}")),
+                n_boot=N_BOOT)
+            if got is None:
+                continue
+            point, draws = got
+            marks[e][arm] = ef.contrast_marks(draws, n_comparisons=n_comp)
+            lo, hi = np.percentile(draws, [2.5, 97.5])
+            a = 0.05 / max(1, n_comp)
+            clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
+            rows[e][arm] = (point, float(lo), float(hi), float(clo), float(chi))
+
+    key = "5rmo" if matched else "5ro"
+    what = " (training-set MATCHED)" if matched else ""
+    sub = ef.stats_line(_session_counts(G.pre_session_counts(align, variant)),
+                        blocks=ef.block_counts(per_animal), n_boot=N_BOOT,
+                        notes=["pooled over all six positions -- the per-position family spends "
+                               "5/6 of its trials on a resolution this cohort cannot support "
+                               "chronically",
+                               "gap = refit - frozen, paired within trial",
+                               "delta panel is epoch - pre, so the frozen arm goes NEGATIVE when "
+                               "the readout is worse"])
+    made = ef.bar_row(
+        values, out_dir, name=f"epoch_{key}_frozen_refit_overall_{align}_{variant}",
+        title=f"Frozen vs refit decoding, pooled over positions{what}, {wname}",
+        subtitle=sub, counts=None, marks=marks, points=points,
+        ylabel="accuracy (gap: refit - frozen)", positions=list(OVERALL_ARMS),
+        tick_labels=["frozen", "refit", "gap"], chance=None, reference=0.0, ylim=None)
+    if any(rows.values()):
+        ef.contrast_panel(
+            rows, out_dir, name=f"epoch_{key}delta_frozen_refit_overall_{align}_{variant}",
+            title=f"Change from pre-stroke, pooled over positions{what}, {wname}",
+            subtitle=sub, ylabel="epoch - pre", positions=list(OVERALL_ARMS),
+            tick_labels=["frozen", "refit", "gap"], n_comparisons=n_comp)
+    return made
+
+
+def _frozen_vs_refit_overall_matched(out_dir, align, variant, wname):
+    """5rmo: the pooled-over-positions contrast with both arms given the same training-set size."""
+    return _frozen_vs_refit_overall(out_dir, align, variant, wname, matched=True)
+
+
 def _frozen_vs_refit_matched(out_dir, align, variant, wname):
     """5rm: the same contrast with the two arms given the SAME AMOUNT of training data.
 
@@ -3184,13 +3318,13 @@ def main(argv=None) -> int:
     # figure still showing a number the code no longer produced. `extend` appends, which is what
     # repeating a flag reads as.
     ap.add_argument("--only", nargs="+", default=None, action="extend",
-                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b",
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b", "13s", "14m", "15e",
                                  "15r", "mat", "scal"))
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
@@ -3211,7 +3345,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b", "13s", "14m", "15e",
                 "15r", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
@@ -3317,7 +3451,9 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 10e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
-        for _k, _fn in (("5r", _frozen_vs_refit), ("5rm", _frozen_vs_refit_matched)):
+        for _k, _fn in (("5r", _frozen_vs_refit), ("5rm", _frozen_vs_refit_matched),
+                        ("5ro", _frozen_vs_refit_overall),
+                        ("5rmo", _frozen_vs_refit_overall_matched)):
             if _k not in want:
                 continue
             try:

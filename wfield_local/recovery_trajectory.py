@@ -113,7 +113,12 @@ def _session_pair(record):
 
 
 def series(align: str = "cue", variant: str = "working") -> list[dict]:
-    """One row per (animal, post-stroke session): frozen, refit, gap, and both pre-subtracted.
+    """One row per (animal, POST-stroke session): frozen, refit, gap, and both pre-subtracted.
+
+    **Pre-stroke sessions are deliberately absent from the rows.** Both reported axes are differences
+    FROM the pre-stroke baseline, so pre-stroke is the origin rather than a plotted point; including
+    it would draw a cluster at (0, 0) that is the reference scattered by its own noise. The
+    per-animal figure marks the origin so this is visible rather than assumed.
 
     ``F`` and ``G`` are the two axes the accounts differ on -- see the module docstring. Both are
     signed so that ZERO IS THE PRE-STROKE STATE and the lesion moves them positive:
@@ -147,8 +152,47 @@ def series(align: str = "cue", variant: str = "working") -> list[dict]:
                 "pre_frozen": pre_f, "pre_refit": pre_r, "pre_gap": pre_r - pre_f,
                 "F_deficit": pre_f - fz,
                 "G_reorg": (rf - fz) - (pre_r - pre_f),
+                # F - G, algebraically. Carried explicitly because it is the interpretable half:
+                # what NO decoder recovers. See `figure_by_animal`'s unity line.
+                "refit_deficit": pre_r - rf,
             })
     return rows
+
+
+def pre_points(align: str = "cue", variant: str = "working") -> dict:
+    """``{animal: [(F, G), ...]}`` for that animal's PRE-STROKE sessions, on the same two axes.
+
+    **The origin is a point estimate and pre-stroke sessions scatter around it.** Without that
+    scatter drawn, "has the trajectory returned to the origin?" has no scale: a star 0.05 from the
+    origin is either a full return or a residual deficit depending on how far pre-stroke sessions sit
+    from their own mean. This supplies the yardstick.
+
+    The baseline these are measured against is the POOLED pre-stroke value, i.e. the mean of the very
+    sessions plotted, so the cloud is centred near the origin by construction. That is the point --
+    it is a dispersion, not an effect, and it is why the mean dot is drawn with SEM rather than with
+    a confidence interval on a difference.
+    """
+    from wfield_local import grant_figures as G
+
+    per_animal, _days = G._collect_5c(align, variant, "paired")
+    out = {}
+    for an, got in sorted(per_animal.items()):
+        if not got:
+            continue
+        pre_f, pre_r = _pre_pair(got[0])
+        if pre_f is None:
+            continue
+        entry = got[0] if isinstance(got[0], list) else [got[0]]
+        pts = []
+        for rec in entry:
+            sp = _session_pair(rec)
+            if sp is None:
+                continue
+            fz, rf, _n = sp
+            pts.append((pre_f - fz, (rf - fz) - (pre_r - pre_f)))
+        if pts:
+            out[an] = pts
+    return out
 
 
 def summarise(rows: list[dict]) -> dict:
@@ -214,6 +258,31 @@ def summarise(rows: list[dict]) -> dict:
     return out
 
 
+def write_pre_csv(pre, dest: Path) -> Path:
+    """The pre-stroke cloud, so `--from-csv` can redraw it without rebuilding the bundles."""
+    assert_writable(dest.parent)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with open(dest, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["animal", "F_deficit", "G_reorg"])
+        for an, pts in sorted((pre or {}).items()):
+            for f, g in pts:
+                w.writerow([an, f, g])
+    return dest
+
+
+def load_pre_csv(path) -> dict:
+    out = {}
+    pth = Path(path)
+    if not pth.exists():
+        return out
+    with open(pth, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            out.setdefault(row["animal"], []).append(
+                (float(row["F_deficit"]), float(row["G_reorg"])))
+    return out
+
+
 def load_csv(path) -> list[dict]:
     """Re-read a written series, so a summary can be revised without rebuilding the bundles.
 
@@ -222,10 +291,21 @@ def load_csv(path) -> list[dict]:
     not changed.
     """
     num = {"day", "n_trials", "frozen", "refit", "gap", "pre_frozen", "pre_refit", "pre_gap",
-           "F_deficit", "G_reorg"}
+           "F_deficit", "G_reorg", "refit_deficit"}
+    def cast(k, v):
+        if k not in num:
+            return v
+        return float(v) if v not in ("", None) else None
+
     with open(path, newline="", encoding="utf-8") as fh:
-        return [{k: (float(v) if k in num else v) for k, v in row.items()}
-                for row in csv.DictReader(fh)]
+        rows = [{k: cast(k, v) for k, v in row.items()} for row in csv.DictReader(fh)]
+    for r in rows:
+        # SELF-HEALING rather than merely tolerant: refit_deficit is F - G by construction, so a
+        # series written before the column existed can be completed on the way in instead of
+        # carrying a blank that the next writer would propagate.
+        if r.get("refit_deficit") is None and r.get("F_deficit") is not None                 and r.get("G_reorg") is not None:
+            r["refit_deficit"] = r["F_deficit"] - r["G_reorg"]
+    return rows
 
 
 def write_csv(rows, dest: Path) -> Path:
@@ -233,11 +313,13 @@ def write_csv(rows, dest: Path) -> Path:
     assert_writable(dest.parent)
     dest.parent.mkdir(parents=True, exist_ok=True)
     cols = ["animal", "day", "epoch", "n_trials", "frozen", "refit", "gap",
-            "pre_frozen", "pre_refit", "pre_gap", "F_deficit", "G_reorg"]
+            "pre_frozen", "pre_refit", "pre_gap", "F_deficit", "G_reorg", "refit_deficit"]
     with open(dest, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
         w.writeheader()
-        w.writerows({c: r[c] for c in cols} for r in rows)
+        # `.get`, not `[...]`: a series reloaded from a CSV written before a column
+        # existed must round-trip rather than KeyError on the way back out.
+        w.writerows({c: r.get(c, '') for c in cols} for r in rows)
     return dest
 
 
@@ -293,7 +375,7 @@ def figure(rows, summary, out_dir, align, variant) -> list[Path]:
     return _write(fig, out_dir, f"recovery_trajectory_{align}_{variant}")
 
 
-def figure_by_animal(rows, summary, out_dir, align, variant) -> list[Path]:
+def figure_by_animal(rows, summary, out_dir, align, variant, pre=None) -> list[Path]:
     """One (F, G) trajectory per animal, so four paths are not asked to share one axes.
 
     **The reading is the ENDPOINT, not the shape.** Time runs from the acute state -- high F, high G,
@@ -318,8 +400,8 @@ def figure_by_animal(rows, summary, out_dir, align, variant) -> list[Path]:
     by = _by_animal(rows)
     if not by:
         return []
-    fx = [r["F_deficit"] for r in rows]
-    gy = [r["G_reorg"] for r in rows]
+    fx = [r["F_deficit"] for r in rows] + [q[0] for v in (pre or {}).values() for q in v]
+    gy = [r["G_reorg"] for r in rows] + [q[1] for v in (pre or {}).values() for q in v]
     xlim = (min(fx) - 0.04, max(fx) + 0.04)
     ylim = (min(gy) - 0.03, max(gy) + 0.04)
     days = [r["day"] for r in rows]
@@ -333,6 +415,43 @@ def figure_by_animal(rows, summary, out_dir, align, variant) -> list[Path]:
         d = np.array([r["day"] for r in rs])
         ax.axhline(0, color="0.55", lw=0.9, ls="--")
         ax.axvline(0, color="0.55", lw=0.9, ls="--")
+        # THE UNITY LINE F = G, WHICH IS "THE REFIT DECODER IS BACK TO BASELINE".
+        # Algebraically F - G = pre_refit - refit, so the vertical distance from a point DOWN to
+        # this line is the refit arm's own deficit -- the information NO decoder recovers. On the
+        # line, everything is back and the whole frozen deficit is readout mismatch; below it, some
+        # of the code is genuinely gone; above it, the session decodes better than it did before the
+        # lesion. It is the line that separates "displaced" from "lost", which is the distinction
+        # this whole family exists to draw.
+        lim = [max(xlim[0], ylim[0]), min(xlim[1], ylim[1])]
+        if lim[1] > lim[0]:
+            ax.plot(lim, lim, ls=(0, (6, 4)), color="0.45", lw=1.1, zorder=0)
+        # WHAT "BACK TO PRE-STROKE" LOOKS LIKE WHEN NOTHING HAPPENED. Pre-stroke sessions are
+        # plotted faintly with their mean and +/-1 SEM, because the origin alone gives the return
+        # no scale: a star 0.05 away is a full return or a residual deficit depending entirely on
+        # how far pre-stroke sessions sit from their own mean.
+        #
+        # NEITHER AXIS IS ZERO BECAUSE EITHER ARM IS PERFECT. Pre-stroke the frozen decoder runs
+        # 0.79-0.94, not 1.0, and refitting is WORSE than frozen (gap -0.056 to -0.101, the
+        # training-set-size handicap). Both are absorbed into the baseline by construction; the
+        # cloud is the dispersion that survives that subtraction.
+        pp = (pre or {}).get(an) or []
+        if pp:
+            pf = np.array([q[0] for q in pp])
+            pg = np.array([q[1] for q in pp])
+            ax.scatter(pf, pg, s=16, c="0.72", edgecolor="none", zorder=0)
+            n = max(1, len(pf))
+            sf, sg = pf.std(ddof=1) / np.sqrt(n), pg.std(ddof=1) / np.sqrt(n)
+            ax.errorbar(pf.mean(), pg.mean(), xerr=sf, yerr=sg, fmt="o", ms=6.5,
+                        color="0.35", ecolor="0.35", elinewidth=1.6, capsize=3, zorder=6)
+
+        # THE LESION STEP, origin -> first post-stroke session. Without it the square floats
+        # unexplained: it sits far from the origin BECAUSE the lesion put it there, and a reader
+        # seeing only the post-stroke path cannot tell whether the journey began at the plus or at
+        # the square. Drawn dotted and grey so it reads as the event between two states rather than
+        # as another measured transition -- nothing was recorded between pre-stroke and day 1.
+        ax.annotate("", xy=(x[0], y[0]), xytext=(0, 0),
+                    arrowprops={"arrowstyle": "-|>", "color": "0.45", "ls": ":", "lw": 1.1,
+                                "shrinkA": 5, "shrinkB": 6}, zorder=1)
         ax.plot(x, y, "-", color=col.get(an), alpha=0.45, lw=1.3, zorder=1)
         for i in range(len(x) - 1):
             ax.annotate("", xy=(x[i + 1], y[i + 1]), xytext=(x[i], y[i]),
@@ -352,11 +471,14 @@ def figure_by_animal(rows, summary, out_dir, align, variant) -> list[Path]:
         ax.set_xlabel("frozen-readout deficit  F")
         ax.spines[["top", "right"]].set_visible(False)
     axes[0][0].set_ylabel("reorganisation  G")
-    fig.suptitle("Per-animal recovery trajectory -- square = first session, star = last, "
-                 "arrows = time\n"
-                 "ending at the ORIGIN = the pre-stroke code returned; "
-                 "ending UPPER LEFT = the readout recovered but something it cannot reach persists",
-                 fontsize=10.5)
+    fig.suptitle(
+        "Per-animal recovery trajectory. THE ORIGIN IS THAT ANIMAL'S OWN PRE-STROKE STATE -- both "
+        "axes are differences from its baseline.\n"
+        "grey dots = pre-stroke sessions, dark cross = their mean +/-1 SEM (the spread with NO "
+        "lesion);  dotted arrow = the lesion;  square = first post-stroke session, star = last\n"
+        "DASHED DIAGONAL F=G: the refit decoder is back to baseline. Height above zero = the "
+        "DISPLACED part;  distance below the diagonal = the part NO decoder recovers.",
+        fontsize=9.5)
     # SUBPLOTS_ADJUST FIRST, THEN THE COLOURBAR IN ITS OWN AXES. Calling `fig.colorbar(ax=...)`
     # reserves space by shrinking the axes it is given, and a later `subplots_adjust` silently undoes
     # that -- which put the bar on top of the last panel's title and clipped it.
@@ -396,7 +518,12 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
     out_dir = Path(out_dir) if out_dir else (
         Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     made = figure(rows, summary, out_dir, align, variant)
-    made += figure_by_animal(rows, summary, out_dir, align, variant)
+    pre_path = out_dir / f"recovery_trajectory_{align}_{variant}_pre.csv"
+    # Reuse the written cloud when re-summarising; rebuild it only on a real run.
+    pre = load_pre_csv(Path(from_csv).with_name(pre_path.name)) if from_csv else         pre_points(align, variant)
+    if not from_csv:
+        write_pre_csv(pre, pre_path)
+    made += figure_by_animal(rows, summary, out_dir, align, variant, pre=pre)
     csvp = write_csv(rows, out_dir / f"recovery_trajectory_{align}_{variant}.csv")
 
     print(f"\n[recovery_trajectory] {align}/{variant}: {len(rows)} post-stroke sessions",

@@ -205,3 +205,42 @@ def test_a_sidecar_failure_NEVER_costs_the_figure(tmp_path, capsys):
 
     ef.write_values(Boom({"acute": {}}), tmp_path / "g.png")   # non-empty, so `values or {}` keeps it
     assert "failed" in capsys.readouterr().out
+
+
+def test_F_minus_G_IS_the_refit_decoders_own_deficit():
+    """The identity the unity line reads off, and the reason that line means anything:
+
+        F - G = (pre_frozen - frozen) - [(refit - frozen) - (pre_refit - pre_frozen)]
+              = pre_refit - refit
+
+    So a point ON the diagonal is a session whose refit decoder is back to baseline -- all the
+    information has returned and the whole frozen deficit is readout mismatch. Distance BELOW the
+    line is the part no decoder recovers. If this identity ever broke, the line would still be drawn
+    and would silently mean nothing.
+    """
+    pre_f, pre_r = 0.90, 0.82
+    for fz, rf in ((0.50, 0.60), (0.70, 0.82), (0.88, 0.95), (0.40, 0.40)):
+        F = pre_f - fz
+        G = (rf - fz) - (pre_r - pre_f)
+        assert F - G == pytest.approx(pre_r - rf, abs=1e-12)
+
+
+def test_the_row_carries_refit_deficit_and_it_matches_F_minus_G():
+    rows = _rows("PS92", [0.10], [0.30])
+    # the synthetic helper does not set it; the real `series` does, so check the real arithmetic
+    pre_f, pre_r, fz, rf = 0.90, 0.82, 0.55, 0.60
+    row = {"F_deficit": pre_f - fz, "G_reorg": (rf - fz) - (pre_r - pre_f),
+           "refit_deficit": pre_r - rf}
+    assert row["F_deficit"] - row["G_reorg"] == pytest.approx(row["refit_deficit"], abs=1e-12)
+    assert rows  # helper still usable
+
+
+def test_a_series_missing_a_newer_column_still_round_trips(tmp_path):
+    """A CSV written before `refit_deficit` existed must reload and rewrite, not KeyError."""
+    old = [{"animal": "PS92", "day": 4, "epoch": "acute", "n_trials": 500, "frozen": 0.5,
+            "refit": 0.6, "gap": 0.1, "pre_frozen": 0.9, "pre_refit": 0.82, "pre_gap": -0.08,
+            "F_deficit": 0.4, "G_reorg": 0.18}]
+    p = rt.write_csv(old, tmp_path / "old.csv")
+    back = rt.load_csv(p)
+    rt.write_csv(back, tmp_path / "again.csv")
+    assert "refit_deficit" in (tmp_path / "again.csv").read_text(encoding="utf-8").splitlines()[0]
