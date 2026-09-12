@@ -9603,3 +9603,97 @@ resampling to sharpen PER-SESSION best-match estimates. A session's best-match a
 over six positions, so it quantises to 1/6. Parked because neither it nor the block-mean alternative
 moves a chronic claim — and the block mean is a non-starter anyway, since blocks are ~6-trial
 POSITION blocks, so a block mean is a single trial.
+
+---
+
+## 2026-09-12 — 12b: the state-matched stopped contrast is UNTESTABLE with this cohort
+
+Read off the value sidecars the re-render finally produced (0 failures, 318 meta sidecars). The
+design is right and the numbers are real; the cohort cannot fill it.
+
+**THE PRE-STROKE AND POST-STROKE STOPPED SETS BARELY SHARE ANIMALS.** The contrast is paired on the
+animal draw — an animal with no pre-stroke panel cannot supply a change — and the overlap is:
+
+| epoch | animals with stopped data | **paired with pre** |
+|---|---|---|
+| pre | PS94, PS95 | — |
+| acute | PS93, PS94 | **PS94 only (n=1)** |
+| subacute | PS93, PS94, PS95 | PS94, PS95 (n=2) |
+| chronic | PS95 | **PS95 only (n=1)** |
+
+Identical under `cue` and `precue`. Only SUBACUTE has two paired animals, and only subacute has a
+contrast row in the sidecar at all — acute and chronic are absent because the pairing collapses to
+one animal. Its value is **−0.046 [−0.059, +0.059]**, crossing zero.
+
+**THE APPARENT ACUTE DIP IS NOT A PAIRED COMPARISON.** The raw bars read pre 0.841 [0.695, 0.917]
+against acute 0.639 [0.529, 0.732] — intervals that barely overlap and invite exactly the reading
+they cannot support, because *pre* is PS94+PS95 and *acute* is PS93+PS94. The drop is confounded
+with which animals contribute, and the figure gives a reader no way to see that.
+
+**CHRONIC LOOKS THE MOST CONVINCING AND IS THE WEAKEST.** 0.854 [0.836, 0.868] — a strikingly tight
+interval — rests on PS95 alone, three sessions. Resampling one animal always picks that animal, so
+only sessions drive the width. That narrowness is an artefact of n=1 at the animal level, and it is
+the exact property pinned by `test_with_one_animal_the_animal_level_is_a_no_op`.
+
+**Conclusion.** 12b remains the right question and the right design — post-stroke stopped against
+pre-stroke STOPPED, state-matched, leave-one-session-out. It cannot carry a claim here. The root
+cause is the same one that forced the per-position version into a control: a well-trained pre-stroke
+animal barely quits, so only two animals have a pre-stroke stopped baseline at all. No amount of
+re-analysis fixes that; it needs animals that quit before the lesion.
+
+---
+
+## 2026-09-12 — The lick-trial arms CANNOT corroborate the acute far-contralateral result
+
+The `cuelick`/`ENLlick` arms were added (33a3417) as the selection control for the post-lick
+frozen-versus-refit result: hold the trial set fixed, move the window, and see whether the same
+relocation appears in crossnobis and best-match. The re-render has now produced them, and the answer
+at acute is that **the test cannot be run for the position that carries the claim.**
+
+**FAR-CONTRALATERAL, ACUTE, POST-CUE WINDOW:**
+
+| arm | animals | sessions |
+|---|---|---|
+| all trials (`working`) | PS92, PS93, PS94, PS95 | 16 |
+| **lick trials only** | **PS93** | **2** |
+
+Acutely the animals essentially do not lick at far-contralateral, so gating on completed trials
+removes the position almost entirely. The `epoch_8gdelta` contrast for acute fC is absent from the
+lick arm's sidecar for that reason — not a render failure; the raw panel has a value, the PAIRING
+has one animal.
+
+**WHAT SURVIVES LOOKS HEALTHIER, WHICH IS THE SELECTION SIGNATURE, NOT A RESULT.** Crossnobis
+own-position change at acute:
+
+| position | all trials | lick trials |
+|---|---|---|
+| nI | −0.174 [−0.278, −0.091] * | −0.013 [−0.092, +0.041] ns |
+| nC | −0.172 [−0.297, −0.068] * | −0.105 [−0.207, −0.010] * |
+| fI | −0.302 [−0.447, −0.168] * | −0.019 [−0.068, +0.021] ns |
+| fM | −0.100 [−0.155, −0.062] * | −0.043 [−0.103, −0.008] * |
+| **fC** | **−0.427 [−0.659, −0.226] *** | **no contrast (1 animal)** |
+| nM | −0.440 [−0.619, −0.184] * | −0.606 [−0.934, −0.141] * |
+
+Best-match accuracy tells the same story: the acute deficit shrinks from **−0.448 [−0.583, −0.292]**
+on all trials to **−0.318 [−0.488, −0.087]** on lick trials.
+
+So on completed trials the geometry is closer to pre-stroke at four of five testable positions, and
+the fifth cannot be tested. "The code is preserved on trials the animal completed" and "the trials
+the animal completed are the ones where the code survived" predict exactly this, and these arms
+cannot separate them — which is what they were built to do.
+
+**ONE POSITION DOES NOT FIT SELECTION.** Near-middle gets WORSE on lick trials, −0.440 → −0.606,
+with four animals contributing in both arms. Whatever that is, it is not "only the good trials
+remain".
+
+**CHRONIC IS UNAFFECTED AND THE ARMS AGREE THERE** (fC −0.097 all-trials against −0.037 lick;
+nC +0.033 against +0.056, both positive and significant), because by chronic the animals lick at
+every position again and the two trial sets nearly coincide.
+
+**Consequence for the claim.** The post-lick frozen-versus-refit gap result — the only place the gap
+survives training-set matching — still stands on its own arm, but the acute half of it has no
+independent corroboration and cannot get one from this cohort. Cite it at CHRONIC, where the trial
+sets converge and the arms agree, and state the acute selection limit rather than leaving a reader
+to find it. This supersedes the plan recorded on 2026-09-12 (8f7a8ce) to settle the question by
+re-rendering crossnobis and best-match on the lick arms: they have now been rendered, and the answer
+is that the discriminator is not available acutely.
