@@ -23,11 +23,16 @@ carries that the pre-stroke readout cannot reach -- a reorganisation index):
 
     MIGRATE      the code moves to a new arrangement and the animal recovers by using it. G RISES
                  as F recovers -- information returns to a place the old readout cannot see -- and
-                 the (F, G) trajectory is a LOOP with hysteresis: the return path sits above the
-                 outward one.
+                 the trajectory ENDS at the upper left rather than at the origin.
 
 So the discriminating measurements are (a) whether G's maximum precedes F's recovery, (b) the sign
-of G's trend AFTER its peak, and (c) whether any late session exceeds the acute peak of G.
+of G's trend AFTER its acute level, and (c) whether any late session exceeds that acute level.
+
+**THE READING IS THE ENDPOINT, NOT THE SHAPE, and an earlier version of this docstring said
+otherwise.** It described migrate as a LOOP with hysteresis and drew a panel titled that way.
+Separating an outward path from a return path requires them to differ by more than the noise, and
+with ~12 sessions per animal scattering by +/-0.05 in G there is no such separation to find here. The
+claim the data CAN carry is where the trajectory finishes: at the origin, or above it.
 
 **WHAT THIS CANNOT DO, stated here because the figure invites it.** Four animals, ~46 post-stroke
 sessions. A cohort-level p-value on a slope over n=4 animals is not worth printing, and this module
@@ -236,62 +241,147 @@ def write_csv(rows, dest: Path) -> Path:
     return dest
 
 
+def _animal_colours():
+    from wfield_local.grant_figures import ANIMALS
+    return {a: c for a, c in zip(ANIMALS, ("#4C72B0", "#DD8452", "#55A868", "#C44E52"))}
+
+
+def _by_animal(rows):
+    out = {}
+    for r in rows:
+        out.setdefault(r["animal"], []).append(r)
+    return {a: sorted(v, key=lambda r: r["day"]) for a, v in sorted(out.items())}
+
+
 def figure(rows, summary, out_dir, align, variant) -> list[Path]:
-    """Three panels: the two quantities over time, and the trajectory that distinguishes the accounts."""
+    """TWO panels: F over days and G over days. The grant figure.
+
+    Time is on the x axis, which is where it belongs for a claim about a route. An earlier version
+    put F against G in a third panel and titled it "retrace = a line, migrate = a loop"; that
+    over-promised. Separating an outward path from a return path needs them further apart than the
+    noise, and with ~12 sessions per animal scattering by +/-0.05 in G there is no such separation
+    to find. The per-animal trajectory view is drawn SEPARATELY by `figure_by_animal`, where it can
+    be read one animal at a time instead of four crossing paths in one axes.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local.grant_figures import ANIMALS
-
-    col = {a: c for a, c in zip(ANIMALS, ("#4C72B0", "#DD8452", "#55A868", "#C44E52"))}
-    fig, axes = plt.subplots(1, 3, figsize=(15.0, 4.6))
-
-    for an in sorted({r["animal"] for r in rows}):
-        rs = sorted((r for r in rows if r["animal"] == an), key=lambda r: r["day"])
+    col = _animal_colours()
+    by = _by_animal(rows)
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.3))
+    for an, rs in by.items():
         d = [r["day"] for r in rs]
-        axes[0].plot(d, [r["F_deficit"] for r in rs], "o-", color=col.get(an), label=an, ms=4)
-        axes[1].plot(d, [r["G_reorg"] for r in rs], "o-", color=col.get(an), label=an, ms=4)
-        # The trajectory, arrowed in time: a LINE traversed out and back is retrace; a LOOP is not.
-        axes[2].plot([r["F_deficit"] for r in rs], [r["G_reorg"] for r in rs], "-",
-                     color=col.get(an), alpha=0.55, lw=1.2)
-        axes[2].scatter([r["F_deficit"] for r in rs], [r["G_reorg"] for r in rs],
-                        c=d, cmap="viridis", s=26, zorder=3, edgecolor=col.get(an), linewidth=0.7)
-
-    axes[0].set_ylabel("frozen-readout deficit  (pre − frozen)")
-    axes[1].set_ylabel("reorganisation  (gap − pre gap)")
-    for a in axes[:2]:
-        a.axhline(0, color="0.4", lw=0.9, ls="--")
+        axes[0].plot(d, [r["F_deficit"] for r in rs], "o-", color=col.get(an), label=an, ms=4.5,
+                     lw=1.6)
+        axes[1].plot(d, [r["G_reorg"] for r in rs], "o-", color=col.get(an), label=an, ms=4.5,
+                     lw=1.6)
+    for a, lab, ttl in ((axes[0], "frozen-readout deficit  (pre - frozen)",
+                         "A   the pre-stroke readout recovers"),
+                        (axes[1], "reorganisation  (refit gap - pre gap)",
+                         "B   what it cannot reach does not")):
+        a.axhline(0, color="0.35", lw=1.0, ls="--")
         a.set_xlabel("days from lesion")
-        a.legend(fontsize=8, frameon=False)
-    axes[0].set_title("A  does the pre-stroke readout recover?")
-    axes[1].set_title("B  does information sit where it cannot see?")
-    axes[2].axhline(0, color="0.4", lw=0.9, ls="--")
-    axes[2].axvline(0, color="0.4", lw=0.9, ls="--")
-    axes[2].set_xlabel("frozen-readout deficit")
-    axes[2].set_ylabel("reorganisation")
-    axes[2].set_title("C  RETRACE = out and back along a line\nMIGRATE = a loop (colour = day)")
-
+        a.set_ylabel(lab)
+        a.set_title(ttl, fontsize=11)
+        a.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(fontsize=8.5, frameon=False, ncol=2)
     c = summary["_cohort"]
-    fig.suptitle(
-        f"Recovery trajectory, {align}-aligned / {variant} — {c['animals']} animals, {len(rows)} "
-        f"post-stroke sessions\n"
-        f"post-acute reorganisation slope negative in {c['negative_post_slope']}/"
-        f"{c['animals_scored']} scored; reorganisation exceeds its ACUTE level later in "
-        f"{c['late_exceeds_acute']}/{c['animals']} animals",
-        fontsize=10.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.suptitle(f"Recovery trajectory, {align}-aligned / {variant} -- {c['animals']} animals, "
+                 f"{len(rows)} post-stroke sessions", fontsize=11.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    return _write(fig, out_dir, f"recovery_trajectory_{align}_{variant}")
+
+
+def figure_by_animal(rows, summary, out_dir, align, variant) -> list[Path]:
+    """One (F, G) trajectory per animal, so four paths are not asked to share one axes.
+
+    **The reading is the ENDPOINT, not the shape.** Time runs from the acute state -- high F, high G,
+    upper right -- leftwards as the frozen readout recovers. Where the path finishes vertically is
+    the whole question:
+
+        ends at the ORIGIN            the code came back and nothing is left the old readout misses
+        ends at the UPPER LEFT        the readout recovered and something persists beyond it
+
+    Start is an open square, end a filled star, and the connecting segments carry arrowheads, because
+    without a direction marker a scatter of joined points can be read in either temporal order -- and
+    the two accounts differ precisely in direction.
+
+    Axes are SHARED across animals. Per-panel autoscaling would make a mouse whose G never left 0.02
+    look like one whose G sat at 0.2.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    col = _animal_colours()
+    by = _by_animal(rows)
+    if not by:
+        return []
+    fx = [r["F_deficit"] for r in rows]
+    gy = [r["G_reorg"] for r in rows]
+    xlim = (min(fx) - 0.04, max(fx) + 0.04)
+    ylim = (min(gy) - 0.03, max(gy) + 0.04)
+    days = [r["day"] for r in rows]
+
+    n = len(by)
+    fig, axes = plt.subplots(1, n, figsize=(3.5 * n, 3.9), squeeze=False)
+    sc = None
+    for ax, (an, rs) in zip(axes[0], by.items()):
+        x = np.array([r["F_deficit"] for r in rs])
+        y = np.array([r["G_reorg"] for r in rs])
+        d = np.array([r["day"] for r in rs])
+        ax.axhline(0, color="0.55", lw=0.9, ls="--")
+        ax.axvline(0, color="0.55", lw=0.9, ls="--")
+        ax.plot(x, y, "-", color=col.get(an), alpha=0.45, lw=1.3, zorder=1)
+        for i in range(len(x) - 1):
+            ax.annotate("", xy=(x[i + 1], y[i + 1]), xytext=(x[i], y[i]),
+                        arrowprops={"arrowstyle": "-|>", "color": col.get(an), "alpha": 0.55,
+                                    "lw": 0.9, "shrinkA": 3.5, "shrinkB": 3.5}, zorder=2)
+        sc = ax.scatter(x, y, c=d, cmap="viridis", vmin=min(days), vmax=max(days), s=38,
+                        zorder=3, edgecolor="0.25", linewidth=0.6)
+        ax.scatter([x[0]], [y[0]], marker="s", s=95, facecolor="none", edgecolor="0.15",
+                   linewidth=1.4, zorder=4)
+        ax.scatter([x[-1]], [y[-1]], marker="*", s=210, color=col.get(an), edgecolor="0.15",
+                   linewidth=0.8, zorder=5)
+        v = summary.get(an, {})
+        ax.set_title(f"{an}   final F={v.get('final_F', float('nan')):+.3f}  "
+                     f"G={v.get('final_G', float('nan')):+.3f}", fontsize=10)
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_xlabel("frozen-readout deficit  F")
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0][0].set_ylabel("reorganisation  G")
+    fig.suptitle("Per-animal recovery trajectory -- square = first session, star = last, "
+                 "arrows = time\n"
+                 "ending at the ORIGIN = the pre-stroke code returned; "
+                 "ending UPPER LEFT = the readout recovered but something it cannot reach persists",
+                 fontsize=10.5)
+    # SUBPLOTS_ADJUST FIRST, THEN THE COLOURBAR IN ITS OWN AXES. Calling `fig.colorbar(ax=...)`
+    # reserves space by shrinking the axes it is given, and a later `subplots_adjust` silently undoes
+    # that -- which put the bar on top of the last panel's title and clipped it.
+    fig.subplots_adjust(top=0.78, bottom=0.15, left=0.06, right=0.90)
+    if sc is not None:
+        cax = fig.add_axes((0.925, 0.15, 0.012, 0.63))
+        cb = fig.colorbar(sc, cax=cax)
+        cb.set_label("days from lesion", fontsize=9)
+    return _write(fig, out_dir, f"recovery_trajectory_byanimal_{align}_{variant}")
+
+
+def _write(fig, out_dir, stem) -> list[Path]:
+    import matplotlib.pyplot as plt
 
     out_dir = Path(out_dir)
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     made = []
     for ext in ("png", "svg"):
-        p = out_dir / f"recovery_trajectory_{align}_{variant}.{ext}"
+        p = out_dir / f"{stem}.{ext}"
         fig.savefig(p, dpi=180)
         made.append(p)
     plt.close(fig)
     return made
+
 
 
 def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
@@ -306,6 +396,7 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
     out_dir = Path(out_dir) if out_dir else (
         Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     made = figure(rows, summary, out_dir, align, variant)
+    made += figure_by_animal(rows, summary, out_dir, align, variant)
     csvp = write_csv(rows, out_dir / f"recovery_trajectory_{align}_{variant}.csv")
 
     print(f"\n[recovery_trajectory] {align}/{variant}: {len(rows)} post-stroke sessions",
