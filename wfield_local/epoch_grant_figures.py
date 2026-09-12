@@ -1526,7 +1526,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, contours=contours,
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(SAME scale as the maps)",
-            subtitle=(
+            row_scaled=False,
+        subtitle=(
                 f"ONE OF A PAIR ({txt['short']}). Both figures use the SAME trials, the same "
                 f"window, the same class definition and the same 20-trial floor as figure 14; the "
                 f"only thing that differs is what is subtracted, so a difference between them is "
@@ -1712,6 +1713,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         edges=bm.atlas_edges(), contours=contours,
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
+        row_scaled=False,
         subtitle=(
             "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centred on the "
             "mean over all six positions, so a position that loses drive lowers the reference and "
@@ -1809,6 +1811,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         contours=contours,
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
+        row_scaled=False,
         subtitle=(
             "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
             "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
@@ -1983,6 +1986,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
+        row_scaled=False,
         subtitle=(
             "L2 logistic on the rank-100 SVT, beta Haufe-transformed to a PATTERN "
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "

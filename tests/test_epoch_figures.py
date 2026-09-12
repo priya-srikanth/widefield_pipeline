@@ -747,3 +747,45 @@ def test_the_delta_colormap_is_the_one_that_was_chosen_after_seeing_both():
     from wfield_local import epoch_figures as ef
 
     assert inspect.signature(ef.map_grid).parameters["delta_cmap"].default == "seismic"
+
+
+def test_position_row_figures_share_a_scale_and_per_animal_ones_do_not():
+    """Whether rows share a colour scale depends on what the rows ARE.
+
+    Priya, 2026-09-12: "should the scales be the same across positions?" Yes. The six position maps
+    are the same quantity in the same units from the same sessions -- only the trials differ -- and
+    "far falls, near does not" is a BETWEEN-position claim that per-row scaling destroys. Each
+    position's own trajectory is already reported as an amplitude ratio in the subtitle, so per-row
+    scaling gives up the one comparison the figure uniquely carries. It also manufactures the
+    saturated look: a row limited at 0.0021 renders a broad change as a solid slab while a row at
+    0.0066 renders the same change as pale.
+
+    ANIMALS are not commensurable -- their dF/F scale moves with expression and window clarity, so
+    a shared scale would make a dim animal look like a weak effect. Those stay per-row.
+    """
+    import pathlib
+    import re
+
+    src = pathlib.Path("wfield_local/epoch_grant_figures.py").read_text(encoding="utf-8")
+    lines = src.split("\n")
+    scaled = {}
+    for i, l in enumerate(lines):
+        m = re.search(r'name=f?"([\w{}.\[\]_]+)"', l)
+        if not m:
+            continue
+        # the map_grid call body runs to its subtitle=
+        body = "\n".join(lines[i:i + 40])
+        if "row_labels=" not in body:
+            continue
+        scaled[m.group(1)] = "row_scaled=False" not in body
+
+    pos = [k for k in scaled if "by_animal" not in k and
+           any(t in k for t in ("beta_maps_MEANref", "evoked_CUEINCREMENT", "15r_position",
+                                "beta_vs_ZERO"))]
+    animal = [k for k in scaled if "by_animal" in k]
+    assert pos, f"no position-row map figures found in {sorted(scaled)}"
+    assert animal, "no per-animal map figures found"
+    for k in pos:
+        assert scaled[k] is False, f"{k} must use ONE global scale across positions"
+    for k in animal:
+        assert scaled[k] is True, f"{k} must stay per-row -- animals are not commensurable"

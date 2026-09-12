@@ -1372,11 +1372,20 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
              delta_shares_scale=True):
     """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
 
-    THE COLOUR SCALE IS PER ROW, not global, and that is the whole readability of the figure. A
-    position whose code is large pre-stroke and small acutely has to be comparable ACROSS ITS OWN
-    epochs -- that comparison is the result -- while two different positions have no reason to share
-    a scale and forcing one on them makes the weaker position look empty. ``row_scaled=False``
-    forces a single global scale for the rare case where rows ARE commensurable.
+    ``row_scaled`` DECIDES WHETHER ROWS SHARE A SCALE, and which way is right depends on what the
+    rows ARE (Priya, 2026-09-12: "should the scales be the same across positions?").
+
+    POSITIONS ARE COMMENSURABLE -- pass ``row_scaled=False``. The six position maps are the same
+    quantity in the same units from the same sessions; only the trials differ. Per-row scaling
+    destroys the one comparison the figure uniquely carries: "far falls, near does not" is a
+    BETWEEN-position claim, and each position's own trajectory is already reported as an amplitude
+    ratio in the subtitle. Per-row scaling also manufactures the saturated look, because a row whose
+    limit is 0.0021 renders a broad change as a solid slab while a row at 0.0066 renders the same
+    change as pale.
+
+    ANIMALS ARE NOT -- keep ``row_scaled=True``. On the per-animal panels each row is a different
+    mouse, whose dF/F scale moves with expression and window clarity, so forcing one scale would
+    make a dim animal look like a weak effect. There the within-row trajectory IS the comparison.
 
     ``delta_cmap`` is `seismic`, and the route here is worth recording because the first diagnosis
     was wrong. Priya called the mean-referenced delta panels confusing and asked for the
