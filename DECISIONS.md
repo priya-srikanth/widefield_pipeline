@@ -8328,3 +8328,93 @@ map; far-contra acute had 0 trials, now 105). Re-derive before quoting.
 figure not yet written). Per-position `post-cue minus pre-cue` from 123 existing npz — a WITHIN-TRIAL
 reference, so the six positions are independent. It is the control that decides whether four of
 figure 14's rows mean anything.
+
+
+---
+
+## 2026-09-12 (late) — the permutation test was broken; fixing it changed what the maps say
+
+### The test: four bugs, one symptom each way
+
+Priya, of the green contours on figure 14: *"this contour of signfiicance looks like total
+artifact"*, and separately *"the other effects in epoch 14 look much more sconsequential, hard to
+believe nothing else is significant?"* **Both halves were the same bug.** Fixed in `86a48e4` and
+pinned by `tests/test_cluster_permutation_mask.py`.
+
+| what was wrong | evidence it was wrong | fix |
+|---|---|---|
+| `t` computed over the whole frame | 138,387 of 345,600 pixels are not brain; mean ~ 0 AND se ~ 0 there, so `t` unbounded. Contours traced the IMAGE BORDER | `t` identically 0 outside `beta_maps.brain_mask()` |
+| the same thing inside the brain | 1st percentile of in-mask `se` is exactly **0.0** — four animals agreeing by chance | denominator floored at the **25th percentile of in-mask `se`**, recomputed per draw |
+| cluster-forming threshold hard-coded at `t = 2.0` | that is **p = 0.14** at df=3; 18.8% of the brain cleared it for near-ipsi, a position with NO change, against the ~14% a df=3 null predicts | threshold from the df — 3.18 at n=4 |
+| polarities merged under `\|t\|` | an increase and a touching decrease join through a saddle and clear a bar neither would clear alone | labelled apart, one shared null |
+
+**Why the two symptoms were one bug:** the border clusters appeared in every PERMUTED draw too, so
+they inflated the null's cluster-mass threshold past every interior effect. The artefact
+manufactured a false positive and hid the true ones with the same mechanism.
+
+### What the fixed test says — the cleanest result in this family
+
+On figure 15's position-INDEPENDENT evoked maps, significant pixels per panel (of 207,213 in-mask):
+
+| position | acute | subacute | chronic |
+|---|---|---|---|
+| near ipsi / near middle / near contra / far ipsi | — | — | — |
+| **far middle** | **96,138** | — | — |
+| **far CONTRA** | **177,590** | **27,883** | — |
+
+Three things at once: **only the two far positions ever reach significance**; **the four near
+positions never do, in any epoch**; and **recovery is ordered** — far-contra acute AND subacute,
+far-middle acute only, neither chronic. A cluster filling 86% of the mask is an answer, not a
+failure: a position the animal has stopped attempting loses its whole task-evoked response rather
+than a piece of it, and the contrast that carries the claim is against the near positions on the
+same figure, which produce nothing.
+
+### The engaged-only fix changed figure 14's amplitudes enormously, and INVERTED two of them
+
+Re-measured on the fixed `working` class (post-cue), acute amplitude relative to each position's own
+pre-stroke value — the numbers to use in place of every earlier figure-14 table:
+
+| | near ipsi | near middle | near contra | far ipsi | far middle | far contra |
+|---|---|---|---|---|---|---|
+| **fixed `working`** | 1.11 | **3.65** | 0.98 | 0.90 | 0.76 | **2.08** |
+| withdrawn (engaged-only) | 0.67 | 1.53 | 1.04 | 1.09 | 0.48 | 0.47 |
+
+**Far-contra went from 0.47 to 2.08 — the sign of the effect reversed.** That is not a
+contradiction, it is the coupling argument arriving in full force. Adding back the no-lick trials
+means far-contra ACUTE is now dominated by trials where the animal did not respond, and a one-vs-rest
+Haufe pattern on those trials says "cortex is globally quieter than on the average trial" — a large
+map with no position content. The per-animal panels show it plainly: all four animals' acute
+far-contra maps are near-uniformly negative, where their pre-stroke maps are spatially structured.
+
+**CONSEQUENCE, and it is the important line here: figure 14's amplitudes cannot be used as the
+measure of the deficit at all.** Not "read the falls only" — the whole column is a drive/engagement
+statistic once the class is correct. The measure is figure 15's, which uses a within-trial reference
+and keeps the positions independent:
+
+| near ipsi | near middle | near contra | far ipsi | **far middle** | **far CONTRA** |
+|---|---|---|---|---|---|
+| 1.21 | 1.14 | 1.22 | 0.83 | **0.40** | **0.11** |
+
+and those are the numbers the fixed permutation test now backs.
+
+### A caveat that is now dead
+
+**"Far-contra acute split-half reliability is only 0.53"** was an artefact of the engaged-only bug,
+which left that cell with 0–9 trials. On the fixed class it is **r = 0.92** pooled, and 0.92 / 0.94 /
+0.92 for PS92 / PS93 / PS94 individually, against 0.93–0.98 pre-stroke. The acute far-contra map is
+**highly reliable** — it is reliably a near-uniform negative map. Reliability was never the problem;
+what the map MEANS was.
+
+### The per-animal panels replicate (figure 14pa, far-contralateral)
+
+4/4 animals: structured pre-stroke map -> near-uniformly negative acute map -> recovery toward the
+pre-stroke pattern by chronic (PS94 has no chronic epoch; PS95's acute rests on 1 session, n=120).
+The replication is the strongest part of the anatomical arm, and it is replication of the
+ENGAGEMENT collapse, which is a real and biological thing — it is simply not the spatial-code claim.
+
+### Still true, unchanged by any of the above
+
+The convergence stands and does not depend on figure 14: the encoder's fitted amplitude factor
+(0.749 pre -> 0.286 acute -> 0.745 chronic), the encoder ceiling's displaced-vs-degraded split, and
+figure 15's independent amplitudes all name **far-middle and far-contralateral** and all show
+recovery. Three methods sharing almost no machinery.
