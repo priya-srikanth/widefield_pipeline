@@ -9156,7 +9156,7 @@ used.
 
 ---
 
-## 2026-09-12 — The `stopped` arm's reference is LICK trials, and there is no pre-stroke stopped set
+## 2026-09-12 — The generic `stopped` arms use a LICK reference; the state-matched contrast is family 12b
 
 Priya asked whether the stopped-trial analyses (e.g. `epoch_9_delta_trajectory_*_stopped`) compare
 post-stroke stopped trials against a limited pre-stroke stopped set. **They do not.** The pre-stroke
@@ -9170,28 +9170,42 @@ nothing". But `_class_select` gives `stopped` **no engaged rows at all**: it is 
 complement, not a near-empty superset. The arm therefore confounds a change of behavioural state
 with a change of epoch, and the state difference alone would produce a drop.
 
-**A symmetric reference cannot be built.** Sessions clearing `min_trials=10` at all six positions:
+**A symmetric reference cannot be built AT THIS RESOLUTION.** Sessions clearing `min_trials=10`
+at all six positions:
 
 | | pre-stroke | post-stroke |
 |---|---|---|
 | 6/6 positions | **3 / 44** | 20 / 48 |
-| ≥1 position | 11 / 44 | 27 / 48 |
+| >=1 position | 11 / 44 | 27 / 48 |
 
 The three usable pre-stroke sessions are PS94_0806, PS95_0806 and PS95_0812. PS92 has **6** stopped
 trials in its entire pre-stroke set; PS93 has one session at 1/6. Counts are identical under `cue`
-and `precue`. Two of four animals cannot contribute a pre-stroke stopped reference at all, and with
-83% of squared SE between animals at chronic, an n=2 reference cannot carry a claim.
+and `precue`.
 
-This is not a gap more analysis closes. Pre-stroke animals rarely quit — which is precisely why the
-class became interesting after stroke.
+**CORRECTION, same day.** The first version of this entry said a symmetric reference could not be
+built at all, and proposed constructing a difference-of-differences as new work. Both were wrong,
+and Priya caught it: *"didn't we craft a post-stroke stopped vs pre-stroke stopped?"* We did, on
+2026-09-11, and it is already rendering. Pooling the positions away drops the floor to 20 trials per
+SESSION, and PS93, PS94 and PS95 all clear it:
 
-**What the arm supports.** Not "the stopped-trial code changed after stroke": there is no pre-stroke
-stopped code to have changed from. What it does support is a **difference of differences within a
-post-stroke session** — stopped vs lick, same session, same pre-stroke lick reference — where the
-reference mismatch is common to both terms and cancels. That is buildable today for the 20
-post-stroke sessions at 6/6, and it is the comparison the data actually licenses.
+* **Family 12b** (`_collect_stopped_pooled`, `epoch_12b_stopped_pooled_similarity_*`) -- one mean
+  pattern per session, no position split. Its `STOPPED` bar group is post-stroke stopped against
+  pre-stroke STOPPED, **state-matched on both sides**, leave-one-session-out on the pre bar. Its
+  `ENGAGED` group is the same sessions against the pre-stroke engaged mean, retained as the
+  "quitting alone" control rather than as a result.
+* **Family 12** (`_collect_stopped`, `epoch_12_stopped_pattern_*`) -- the per-position version,
+  scoring both stopped sets against a common engaged template so their difference is attributable.
+  That IS the difference-of-differences, already built.
+
+The generic `stopped` arms are therefore not the stopped-trial analysis. They are the engaged-trial
+families with the class switch flipped, and the thing worth caring about lives in 12/12b.
+
+**What the generic arm supports.** Not "the stopped-trial code changed after stroke" -- its two
+sides are different behavioural states, so a drop is what state alone would produce. Read it, if at
+all, as a post-stroke stopped-vs-lick difference of differences where the shared reference cancels.
+The question it appears to ask is answered properly by 12b, which is state-matched on both sides.
 
 **Fixed now:** `_class_note("stopped")` said only "THE TERMINAL QUIT PERIOD ONLY -- no licking
 trials", describing half a correlation; ~18 caption sites inherited it, so no figure disclosed that
-the other side was lick trials. The note now states the reference explicitly, at the single source.
-Needs a re-render of the stopped arms for the captions to change.
+the other side was lick trials. The note now states the reference explicitly AND points at family 12b, at
+the single source. Needs a re-render of the stopped arms for the captions to change.
