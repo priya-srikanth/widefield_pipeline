@@ -49,6 +49,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 from wfield_local import config
+from wfield_local import deck_values
 from wfield_local import epochs as _epochs
 from wfield_local.paths import PathResolver
 
@@ -1577,6 +1578,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     missing_figures = []
     placed_figures = []
 
+    # SIDECAR RESOLVER for `note`. Searched in order: the grant summary sets, the epoch set, then
+    # the working figure dir, which is the same precedence the placement patterns use. A family
+    # whose CSV is absent yields a visible marker in the note and a line in the build log -- never
+    # a stale number and never a failed build.
+    values = deck_values.Resolver([grant_dir, grant_dir / "epoch", src])
+
     slide_order = []
     figs_by_slide = {}
 
@@ -1619,6 +1626,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     def note(s, text, specific=None):
         """Speaker notes: what is specific to THIS slide first, methods once, then provenance.
 
+        SIDECAR TOKENS ARE RESOLVED HERE, BEFORE THE DEDUP HASH. A note may quote a figure's own
+        CSV -- see `deck_values` -- rather than hard-coding a number that a re-render will silently
+        invalidate. Resolving first matters: two notes whose prose is identical but whose numbers
+        differ must stay two methods blocks, or the second is replaced by "same as slide N" and the
+        reader is pointed at another slide's numbers. A wrong cross-reference reads exactly like a
+        right one.
+
         WHY THIS DEDUPES. M_POSTSTROKE is 5823 characters and was written verbatim onto 15 slides;
         37 slides carried a shared block and exactly ONE had a note specific to it. A reader
         scrolling 15 identical walls of text learns nothing from the 15th, and stops reading the
@@ -1627,6 +1641,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         text still exists exactly once and is still reachable from every slide that needs it.
         """
         idx = len(prs.slides)                       # 1-based number of the slide just added
+        # `SELF` in a token means THIS SLIDE'S figure. Most notes are placed by a glob and serve
+        # every trial-class arm, so a hard-coded stem would print one arm's numbers onto all of them.
+        _self = deck_values.stem_of((figs_by_slide.get(id(s._element)) or [None])[0])
+        text = values.resolve(text, self_stem=_self)
+        specific = values.resolve(specific, self_stem=_self)
         parts = []
         if specific:
             parts.append("THIS SLIDE" + chr(10) + specific.strip())
@@ -3609,7 +3628,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "position axis is removed by pooling, and what remains is the lesion. The frozen arm"
          "recovering toward zero by chronic is the claim; the gap arm is the recoverable component"
          "that recovery did not account for. A mark here means the interval excludes zero"
-         "uncorrected, two marks that it survives Bonferroni, exactly as elsewhere."),
+         "uncorrected, two marks that it survives Bonferroni, exactly as elsewhere."
+         # QUOTED FROM THIS SLIDE'S OWN SIDECAR, not typed in. `SELF` is the figure placed here, so
+         # each trial-class arm prints its own numbers from one caption -- and a re-render moves
+         # these with the figure instead of leaving the prose behind. See `deck_values`.
+         "\n\nON THIS ARM: the frozen deficit is"
+         " {{SELF: epoch=acute, position=frozen -> point:+.3f}}"
+         " [{{SELF: epoch=acute, position=frozen -> lo95:+.3f}},"
+         " {{SELF: epoch=acute, position=frozen -> hi95:+.3f}}] acutely and"
+         " {{SELF: epoch=chronic, position=frozen -> point:+.3f}}"
+         " [{{SELF: epoch=chronic, position=frozen -> lo95:+.3f}},"
+         " {{SELF: epoch=chronic, position=frozen -> hi95:+.3f}}] by chronic -- the recovery."
+         " The gap arm is {{SELF: epoch=acute, position=gap -> point:+.3f}} acutely and"
+         " {{SELF: epoch=chronic, position=gap -> point:+.3f}} at chronic."),
         ("epoch_5cr_refit_confusion_*_*.png",
          "WITHIN-SESSION REFIT decoder, confusion by epoch",
          "THE SAME PANEL FOR THE REFIT DECODER, and it is read against the frozen one immediately"
@@ -4560,12 +4591,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     keep_previous(out_path)
     prs.save(str(out_path))
     manifest, stale = _write_manifest(out_path, placed_figures, run_start)
+    # UNRESOLVED SIDECAR TOKENS ARE REPORTED, NOT RAISED. Each one already left a visible marker on
+    # its slide; this makes them findable without opening the deck, which is what a nightly needs.
+    unresolved = values.report()
+    if unresolved:
+        print(f"  [notes] {len(unresolved)} sidecar reference(s) did not resolve:", flush=True)
+        for line in unresolved[:20]:
+            print(f"    {line}", flush=True)
     return {"out": str(out_path), "slides": len(prs.slides),
             "figures_present": placed["present"], "figures_missing": placed["missing"],
             "missing_figures": missing_figures, "tag": tag,
             "manifest": (str(manifest) if manifest else None),
             "stale_figures": [r["figure"] for r in stale],
-            "stale_detail": stale}
+            "stale_detail": stale,
+            "unresolved_values": unresolved}
 
 
 def main(argv=None) -> int:
