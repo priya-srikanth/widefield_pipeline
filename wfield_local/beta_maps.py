@@ -162,6 +162,23 @@ MAP_SHAPE = (540, 640)
 #: five-trial position is more influential rather than less, which argues for the floor not against.
 MIN_TRIALS_PER_CLASS = 20
 
+#: Percentile of the IN-MASK between-animal `se` used to floor the t-statistic's denominator.
+#: Not 5, and the difference is measured rather than chosen (2026-09-12): with four animals the
+#: in-mask `se` distribution has a long thin left tail, and a 5th-percentile floor still lets
+#: pixels where four animals happen to agree produce a t large enough to seed a cluster. 25 is a
+#: variance-regularisation floor in the spirit of SAM's s0 -- it changes nothing for the pixels
+#: that carry a real effect (their `se` is well above it) and removes the ones that are significant
+#: only because their denominator vanished.
+SE_FLOOR_PCT = 25.0
+
+#: Two-tailed p for the CLUSTER-FORMING threshold, converted to a t against the between-animal df
+#: at call time. NOT a hard-coded t (it was 2.0, which at df=3 is p=0.14): measured 2026-09-12 on
+#: the acute-minus-pre evoked maps, t>2 put 18.8% of the brain above threshold for near-ipsi -- a
+#: position with no detectable change -- against the ~14% a df=3 null predicts. The threshold was
+#: admitting noise wholesale and then relying on the cluster step to sort it out. At the df=3 value
+#: (t=3.18) the near positions fall to 1.0-7.1% suprathreshold while far-contra stays at 85.7%.
+CLUSTER_FORMING_P = 0.05
+
 
 def _balanced_index(y, rng):
     """Row indices with every class down-sampled to the rarest. KEPT FOR REFERENCE, NOT USED.
@@ -387,6 +404,47 @@ def atlas_edges(session=None):
     return None
 
 
+@lru_cache(maxsize=1)
+def brain_mask():
+    """The Allen brain mask on the shared grid -- the pixels a statistic is ALLOWED to exist in.
+
+    WHY THIS IS NOT OPTIONAL, and the bug it exists to prevent (found 2026-09-12). The per-pixel
+    statistic is `|mean| / se` where `se` is the between-animal SD over n=4. OUTSIDE THE BRAIN every
+    animal's map is ~0, so the mean is ~0 AND the SD is ~0, and their ratio is whatever the
+    denominator floor allows -- unbounded. `cluster_permutation` duly found enormous "significant"
+    clusters tracing the image border, and because those same clusters appear in every permuted
+    draw they inflated the null's cluster-mass threshold far enough to suppress every real interior
+    effect. One artefact, manufacturing a false positive and hiding the true ones at once.
+
+    `allen_brain_mask_native_grid.npy` sits beside `allen_area_atlas_native_grid.npy` in each
+    session's `allen_aligned_affine8v1` -- 540 x 640 uint8, 207,213 of 345,600 pixels non-zero, i.e.
+    40% of the frame is not brain. ONE MASK SERVES EVERY PANEL for the same reason one atlas does:
+    these maps are all on the shared Allen grid, which is what makes a PS92 map and a PS95 map
+    averageable in the first place.
+
+    Returns None if no session carries one. Unlike `atlas_edges`, whose absence costs only a
+    reading aid, a missing mask must STOP the test rather than let it fall back -- see
+    `cluster_permutation`, which raises.
+    """
+    import glob
+
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+
+    for s in SESSIONS:
+        ad = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1")
+        if not ad:
+            continue
+        try:
+            m = np.load(f"{ad[0]}/allen_brain_mask_native_grid.npy").astype(bool)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! brain mask from {s['label']}: {type(ex).__name__} {str(ex)[:70]}",
+                  flush=True)
+            continue
+        if m.shape == MAP_SHAPE and m.any():
+            return m
+    return None
+
+
 def map_corr(a, b):
     """Pearson r between two pixel maps, over the pixels finite in both."""
     a, b = np.asarray(a).ravel(), np.asarray(b).ravel()
@@ -396,7 +454,8 @@ def map_corr(a, b):
     return float(np.corrcoef(a[ok], b[ok])[0, 1])
 
 
-def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2.0, seed=0):
+def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=None, seed=0,
+                        se_floor_pct=SE_FLOOR_PCT, mask=None):
     """Boolean mask: pixels in a cluster larger than 95% of clusters obtainable by relabelling.
 
     THE TEST THE DIFFERENCE COLUMN NEEDS. 540 x 640 is 345,600 pixels, so an uncorrected per-pixel
@@ -413,26 +472,74 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2
     same one the figure draws -- each animal's epoch mean, then the mean over animals -- so the
     test is testing the picture rather than a convenient relative of it.
 
-    BROKEN AS OF 2026-09-12 -- DO NOT TRUST ITS OUTPUT UNTIL THE MASK FIX LANDS. `t` is
-    `|mean| / (se + 1e-12)` and OUTSIDE THE BRAIN both mean and between-animal SD are ~0, so `t`
-    explodes and clusters form on the image border and mask edge. Those edge clusters also enter
-    the NULL, inflating the cluster-mass threshold so far that real interior effects are suppressed:
-    the artefact both manufactures a false positive and hides the true ones. Fix is to restrict `t`,
-    the labelling and the null to `allen_brain_mask_native_grid.npy`, and to floor the denominator
-    at a percentile of the in-mask `se` rather than 1e-12.
+    EVERYTHING HAPPENS INSIDE THE BRAIN MASK, and that is a FIX rather than a refinement
+    (2026-09-12; Priya, of the first version's output: "this contour of significance looks like
+    total artifact ... hard to believe nothing else is significant?"). The old statistic was
+    `|mean| / (se + 1e-12)`, and outside the brain both the mean and the between-animal SD are ~0,
+    so `t` was unbounded on 138,387 empty pixels. Clusters formed on the image border -- and
+    because they formed in every PERMUTED draw too, they inflated the null's cluster-mass threshold
+    far enough to suppress every interior effect. The artefact manufactured a false positive and
+    hid the true ones with the same mechanism. `t` is now identically zero outside `brain_mask()`,
+    so no cluster can form there, in the observed map or in any null draw.
 
-    NO PARAMETRIC ASSUMPTION IS MADE. With 11 pre-stroke and ~5 acute sessions there are C(16,5) =
-    4,368 distinct relabellings per animal, so 500 draws sample the null honestly.
+    THE DENOMINATOR IS FLOORED AT A PERCENTILE OF THE IN-MASK `se`, not at 1e-12. With four animals
+    an interior pixel where all four happen to agree gets an `se` near zero and the same unbounded
+    `t`, which is the border bug wearing a different hat. The floor is recomputed FOR EACH DRAW
+    from that draw's own `se` distribution, so it is a property of the relabelling rather than a
+    constant imported from the observed data -- which is what keeps the null exchangeable.
+
+    THE CLUSTER-FORMING THRESHOLD COMES FROM THE df, not from habit. `t_thresh=None` resolves to
+    the two-tailed `CLUSTER_FORMING_P` point of a t distribution on (n_animals - 1) df -- 3.18 at
+    n=4. The previous hard-coded 2.0 is p=0.14 there, and it showed: on the acute-minus-pre evoked
+    maps it put 18.8% of the brain above threshold for NEAR-IPSILATERAL, a position with no
+    detectable change, against the ~14% a df=3 null predicts. At 3.18 the near positions drop to
+    1.0-7.1% while far-contralateral holds at 85.7%.
+
+    POSITIVE AND NEGATIVE CLUSTERS ARE LABELLED SEPARATELY. Thresholding `|t|` lets a region that
+    went UP and a region that went DOWN merge into a single cluster wherever they touch, and the
+    merged mass is then compared against a null built the same way -- so a large increase can carry
+    an adjacent decrease over the line with it. Each polarity is labelled on its own and both feed
+    one shared null of maximum cluster mass, which is the standard two-tailed construction.
+
+    A CLUSTER FILLING THE MASK IS AN ANSWER, not a failure of the test. Far-contralateral's acute
+    change is 85.7% of the brain in one cluster, and that is what a position the animal has stopped
+    attempting looks like: the whole task-evoked response goes, rather than a piece of it. The
+    informative comparison is against the near positions on the same figure, whose clusters are
+    focal and small.
+
+    NO PARAMETRIC ASSUMPTION IS MADE about the CLUSTER statistic. With 11 pre-stroke and ~5 acute
+    sessions there are C(16,5) = 4,368 distinct relabellings per animal, so 500 draws sample the
+    null honestly. The t distribution enters only in choosing where to cut, which is a convention
+    every cluster test needs and which the permutation then corrects around.
     """
+    from scipy import stats
     from scipy import ndimage
 
     animals = sorted(set(pre_by_animal) & set(post_by_animal))
     if not animals:
         return None
+    if mask is None:
+        mask = brain_mask()
+    # RAISES RATHER THAN FALLING BACK. Running this test on the whole frame is precisely the bug
+    # it was written to fix, and a fallback that silently reinstates it would be indistinguishable
+    # from the fix working -- the caller prints the exception and the panel simply gets no contour,
+    # which is the honest outcome when the mask is unavailable.
+    if mask is None or np.asarray(mask).shape != MAP_SHAPE or not np.any(mask):
+        raise ValueError("cluster_permutation needs the Allen brain mask "
+                         "(allen_brain_mask_native_grid.npy); refusing to test off-brain pixels")
+    mask = np.asarray(mask, bool)
+    if t_thresh is None:
+        # df = n_animals - 1, and with a single animal there is no between-animal df at all: fall
+        # back to the same number n=2 would give rather than to an unbounded one.
+        t_thresh = float(stats.t.ppf(1 - CLUSTER_FORMING_P / 2, max(len(animals) - 1, 1)))
     rng = np.random.default_rng(seed)
 
     def _stat(assign):
-        """Mean-over-animals of (post mean - pre mean), and its per-pixel t."""
+        """Mean-over-animals of (post mean - pre mean), and its per-pixel t INSIDE THE MASK.
+
+        `t` is identically 0 outside the mask, so `ndimage.label(t > thresh)` cannot form an
+        off-brain cluster and off-brain pixels contribute nothing to any cluster's mass.
+        """
         d = []
         for an in animals:
             allm = list(pre_by_animal[an]) + list(post_by_animal[an])
@@ -443,17 +550,38 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2
         d = np.stack(d)
         m = d.mean(0)
         if len(animals) < 2:
-            return m, np.abs(m) / (np.nanstd(m) + 1e-12)
-        se = d.std(0, ddof=1) / np.sqrt(len(animals))
-        return m, np.abs(m) / (se + 1e-12)
+            # ONE ANIMAL HAS NO BETWEEN-ANIMAL SE, so the spatial SD stands in for it. Still
+            # in-mask: the spatial SD over the whole frame is dominated by the empty 40%.
+            se = np.full(MAP_SHAPE, float(np.nanstd(m[mask])), float)
+        else:
+            se = d.std(0, ddof=1) / np.sqrt(len(animals))
+        t = np.zeros(MAP_SHAPE, float)
+        inm = se[mask]
+        floor = float(np.nanpercentile(inm, se_floor_pct)) if np.isfinite(inm).any() else 0.0
+        if not np.isfinite(floor) or floor <= 0:
+            # Degenerate draw (every animal identical): no evidence of anything, not infinite
+            # evidence of everything.
+            return m, t
+        # SIGNED, so the polarities can be labelled apart below.
+        t[mask] = m[mask] / np.maximum(inm, floor)
+        return m, t
+
+    def _clusters(t):
+        """``[(label_image, index, mass)]`` for each polarity -- masses of every cluster in `t`."""
+        out = []
+        for sgn in (1.0, -1.0):
+            lab, n_lab = ndimage.label((sgn * t) > t_thresh)
+            if n_lab:
+                idx = np.arange(1, n_lab + 1)
+                out.append((lab, idx, ndimage.sum(np.abs(t), lab, index=idx)))
+        return out
 
     true_assign = {an: np.array([False] * len(pre_by_animal[an]) + [True] * len(post_by_animal[an]))
                    for an in animals}
     _m, t = _stat(true_assign)
-    lab, n_lab = ndimage.label(t > t_thresh)
-    if not n_lab:
+    observed = _clusters(t)
+    if not observed:
         return np.zeros(MAP_SHAPE, bool)
-    mass = ndimage.sum(t, lab, index=np.arange(1, n_lab + 1))
 
     null = []
     for _ in range(n_perm):
@@ -465,13 +593,14 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2
             v[rng.choice(n_all, k, replace=False)] = True
             assign[an] = v
         _mm, tt = _stat(assign)
-        ll, nn = ndimage.label(tt > t_thresh)
-        null.append(float(ndimage.sum(tt, ll, index=np.arange(1, nn + 1)).max()) if nn else 0.0)
+        # ONE null over BOTH polarities: the draw's largest cluster whichever way it points.
+        null.append(max((float(np.max(mass)) for _l, _i, mass in _clusters(tt)), default=0.0))
     cut = float(np.percentile(null, 95))
     keep = np.zeros(MAP_SHAPE, bool)
-    for i, mm in enumerate(mass, start=1):
-        if mm > cut:
-            keep |= (lab == i)
+    for lab, idx, mass in observed:
+        for i, mm in zip(idx, mass):
+            if mm > cut:
+                keep |= (lab == i)
     return keep
 
 

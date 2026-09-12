@@ -1307,6 +1307,151 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
                   "warning."))
 
 
+#: How each reference is described on its own figure -- title, what a red pixel means, and the
+#: sentence that says whether the six rows are independent. Kept as data rather than as branches
+#: inside the renderer because the INDEPENDENCE claim is the one a reader must not have to infer.
+_REF_TEXT = {
+    "mean": dict(
+        short="one vs REST",
+        title="Position maps referenced to the MEAN OVER ALL TRIALS -- figure 14's reference, "
+              "with no decoder in the path",
+        cbar="activity minus the mean\nover ALL trials in the window",
+        note=("THE SIX ROWS ARE NOT INDEPENDENT, and that is what this figure is for. The "
+              "subtrahend is the mean over all trials, so a position that loses drive lowers the "
+              "reference and hands every other position an increase it did not earn -- Priya, "
+              "2026-09-12: \"in acute there may be less ss-ul/ll activity in far-center trials, "
+              "which makes the near ipsi acute trial map look as though there is a relative "
+              "*increase* in ss-ul/ll activity compared to pre-stroke.\" This is figure 14's "
+              "reference rendered as a plain trial average, so the coupling can be seen without "
+              "the decoder, the folds and the Haufe transform in the way. READ IT AGAINST THE "
+              "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artefact."),
+    ),
+    "quiet": dict(
+        short="one vs QUIET",
+        title="Position maps referenced to the QUIET BASELINE -- one subtrahend per session, so "
+              "the six positions are INDEPENDENT",
+        cbar="activity minus that session's\nQUIET baseline (no running, no licking)",
+        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend is one map per session -- the mean "
+              "over that session's quiet frames, slow treadmill and no licking and buffered away "
+              "from reward, as `quiet_periods` writes them -- and it is IDENTICAL for all six "
+              "positions, so subtracting it cannot couple them. This answers \"is this "
+              "position's cortex driven at all\", where the mean-referenced figure answers \"is "
+              "it driven more than the others\". It is also the reference that does NOT sit "
+              "inside the trial: figure 15's pre-cue baseline controls drift tightest but is "
+              "blind to a sustained shift already present before the cue, and this one is not."),
+    ),
+}
+
+
+def _fig_15r_reference_maps(out_dir, align, variant, wname):
+    """15r: the SAME position maps under two different references -- the reference IS the claim.
+
+    Priya, 2026-09-12: "does that average across all trials make sense? should we compare it to
+    'quiet' instead?", then "maybe let's trial comparison the one vs rest vs one vs quiet".
+
+    WHAT IS HELD FIXED AND WHAT IS VARIED. Trials, window, class definition and the 20-trial floor
+    are figure 14's, exactly; the ONLY thing that changes between the two figures this returns is
+    what gets subtracted. So a difference between them is the reference and cannot be anything
+    else, which is the only way the comparison answers the question.
+
+    NO DECODER ANYWHERE. These are trial averages. Figure 14 needs a fit, folds and class weights
+    because it asks what DISTINGUISHES the positions; a reference question is about what happens on
+    a position's trials, and a decoder in the path only adds a second thing that could explain a
+    difference.
+
+    THE THREE REFERENCES AND WHERE EACH LIVES:
+
+        mean   here     minus the mean over ALL trials -- figure 14's, positions COUPLED
+        quiet  here     minus the session's quiet baseline -- positions INDEPENDENT
+        self   fig 15   minus that position's own pre-cue window -- positions INDEPENDENT
+
+    Two independent references that disagree would localise the problem to what sits between them,
+    which is the pre-cue window's own content: anticipation and locomotor state.
+    """
+    # SAME THREE ARMS AS FIGURE 14, which is what "the only difference is the reference" requires.
+    # `stopped` is excluded for figure 14's reason: too few trials per position to fill six rows.
+    if not ((variant == "working" and align in ("precue", "cue"))
+            or (variant == "lick" and align == "lick")):
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+    from wfield_local.grant_figures import CONF_LABELS
+
+    store, rel, ntr = prm.maps_by_epoch(align, variant)
+    if not store:
+        return None
+    EPO = list(ef.PANELS)
+    POST = ("acute", "subacute", "chronic")
+    DCOLS = [f"{e} - pre" for e in POST]
+    edges, out = bm.atlas_edges(), []
+
+    for reference in prm.REFERENCES:
+        txt = _REF_TEXT[reference]
+        cells, titles, amp, contours, rows = {}, {}, {}, {}, []
+        for q in CONF_LABELS:
+            row, per = _long_of(q), {}
+            for e in EPO:
+                m, n_an, n_s = prm.pooled(store, reference, q, e)
+                if m is None:
+                    continue
+                per[e] = m
+                cells[(row, e)] = m
+                n_tr = sum(sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
+                           for an in store)
+                rs = [((rel.get(an) or {}).get(e) or {}).get(q, {}).get(reference)
+                      for an in store]
+                rs = [r for r in rs if r is not None and np.isfinite(r)]
+                titles[(row, e)] = (f"{e}\n{n_an} an, {n_s} sess, n={n_tr}"
+                                    + (f"\nr={np.median(rs):.2f}" if rs else ""))
+            if "pre" not in per:
+                continue
+            rows.append(row)
+            base = float(np.sqrt(np.nanmean(per["pre"] ** 2)))
+            if base > 0:
+                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base for e, m in per.items()}
+            pre_by = prm.by_animal(store, reference, q, "pre")
+            for e in POST:
+                if e not in per:
+                    continue
+                cells[(row, f"{e} - pre")] = per[e] - per["pre"]
+                titles[(row, f"{e} - pre")] = f"{e.upper()} - PRE"
+                post_by = prm.by_animal(store, reference, q, e)
+                if not (pre_by and post_by):
+                    continue
+                try:
+                    cm = bm.cluster_permutation(pre_by, post_by)
+                    if cm is not None and np.any(cm):
+                        contours[(row, f"{e} - pre")] = cm
+                except Exception as ex:                                # noqa: BLE001
+                    print(f"  !! 15r perm {reference} {q} {e}: "
+                          f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
+        if not cells:
+            continue
+        a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
+                          for q in CONF_LABELS if q in amp)
+        out.append(ef.map_grid(
+            cells, out_dir, name=f"epoch_15r_reference_{reference}_{align}_{variant}",
+            title=f"{txt['title']} -- {wname}",
+            row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
+            delta_cols=tuple(DCOLS), edges=edges, contours=contours,
+            cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(SAME scale as the maps)",
+            subtitle=(
+                f"ONE OF A PAIR ({txt['short']}). Both figures use the SAME trials, the same "
+                f"window, the same class definition and the same 20-trial floor as figure 14; the "
+                f"only thing that differs is what is subtracted, so a difference between them is "
+                f"the reference and nothing else. These are TRIAL AVERAGES -- no decoder, no "
+                f"folds, no Haufe transform. {txt['note']} "
+                "Colour scale is PER ROW, so a position is comparable across its own epochs and "
+                "rows are not comparable to each other; the difference columns share their row's "
+                "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. GREEN "
+                "contours are clusters surviving a permutation test that shuffles epoch labels "
+                "WITHIN animal (500 draws, cluster mass above the 95th percentile of the null), "
+                "computed INSIDE the Allen brain mask with the cluster-forming threshold set from "
+                "the between-animal df. r = split-half reliability of that epoch's mean map. "
+                f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
+    return [p for p in out if p]
+
+
 def _fig_15_evoked_maps(out_dir, align, variant, wname):
     """15: per-position EVOKED cortical maps -- the position-INDEPENDENT answer to "where".
 
@@ -2730,13 +2875,13 @@ def main(argv=None) -> int:
     # repeating a flag reads as.
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b",
-                             "13s", "14m", "15e", "mat", "scal"))
+                             "13s", "14m", "15e", "15r", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
-                                 "mat", "scal"))
+                                 "15r", "mat", "scal"))
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
     print(f"[epoch] rendering families: {' '.join(sorted(want))}", flush=True)
@@ -2757,7 +2902,7 @@ def main(argv=None) -> int:
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
     ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
-                "mat", "scal"}
+                "15r", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -2802,6 +2947,13 @@ def main(argv=None) -> int:
         # from the other three arms made the renderer print "NO FIGURE" three times a render for a
         # case that is correct by construction. A warning that always fires is a warning nobody
         # reads.
+        if "15r" in want:
+            try:
+                for p in (_fig_15r_reference_maps(out, align, variant, wname) or []):
+                    _report(f"15r {align}/{variant}", p)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 15r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
         if "15e" in want:
             try:
                 _report(f"15e {align}/{variant}",
