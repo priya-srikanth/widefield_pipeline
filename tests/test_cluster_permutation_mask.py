@@ -566,3 +566,70 @@ def test_resel_correction_cannot_make_the_test_more_permissive_than_uncorrected(
     assert z_uncorr < z_resel < z_bins, (
         f"corrected z {z_resel:.2f} not between uncorrected {z_uncorr:.2f} and "
         f"bin-Bonferroni {z_bins:.2f}")
+
+
+def test_the_bootstrap_corrects_its_OWN_multiplicity_via_the_max_statistic():
+    """We are already bootstrapping, so multiplicity needs no analytic correction.
+
+    Priya, 2026-09-12: "but aren't we doing nested bootstrapping?" -- and that is the point. The
+    bootstrap gives the sampling distribution PER BIN; the max-statistic turns it into a FAMILY-WISE
+    threshold with no independence assumption and no smoothness estimate. Correlated bins produce a
+    smaller maximum than independent ones, so the data's own covariance does the correcting
+    (Westfall-Young / Nichols-Holmes).
+
+    MEASURED against the alternatives (significant bins of ~2,022, acute - pre):
+
+        position        bins  resel  MAXSTAT     z_bins  z_resel  z_max
+        far contra     1,655  1,864    1,959       4.22     3.51   2.95
+        far middle       529    912    1,322       4.22     3.59   2.99
+        near ipsi         28     82      125       4.22     3.44   3.08
+
+    The resel estimate was itself still conservative. AND THE SPECIFICITY SURVIVES the honest
+    threshold -- near positions 0.6-6% of bins against the far positions' 65-97% -- so the
+    position-specific result was never a product of over-correction.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    assert bm.CORRECTION == "maxstat"
+    disp = bm.brain_mask()
+    rng = np.random.default_rng(3)
+
+    def arms(eff):
+        pre = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                         for _ in range(3)] for i in range(4)}
+        post = {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                          + eff for _ in range(3)] for i in range(4)}
+        return pre, post
+
+    # CALIBRATED, not merely permissive: a pure null must still flag nothing.
+    null = bm.hierarchical_bootstrap_significance(*arms(np.zeros(bm.MAP_SHAPE)), n_boot=400)
+    assert int(null[0].sum()) == 0, f"{int(null[0].sum())} bins under a pure null"
+
+    core = ndimage.binary_erosion(disp, iterations=60)
+    eff = np.zeros(bm.MAP_SHAPE)
+    eff[core] = 5.0
+    hit = bm.hierarchical_bootstrap_significance(*arms(eff), n_boot=400)
+    assert int(hit[0].sum()) > 300, f"only {int(hit[0].sum())} bins for a large planted effect"
+
+
+def test_the_max_statistic_threshold_is_estimable_unlike_the_quantile_that_broke_before():
+    """The earlier bug was asking 1,000 draws for a 7.7e-6 per-bin quantile that was never sampled.
+
+    The max-statistic needs the 95th percentile of ONE distribution of `n_boot` maxima, which is a
+    routine estimate. Pinned because the distinction is exactly what made one construction invalid
+    and the other sound, and it is not visible from the code alone.
+    """
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    draws = rng.standard_normal((2000, 500))
+    maxima = np.abs(draws).max(1)
+    a = float(np.percentile(maxima, 95))
+    b = float(np.percentile(np.abs(rng.standard_normal((2000, 500))).max(1), 95))
+    assert abs(a - b) / a < 0.05, "the 95th percentile of the max is not stable across resamples"
+    # the per-bin Bonferroni quantile it replaced is NOT estimable from the same draws
+    q = 0.05 / 500 / 2
+    assert q * 2000 < 1, "fixture no longer demonstrates the unsampled-quantile problem"

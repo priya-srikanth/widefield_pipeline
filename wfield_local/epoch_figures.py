@@ -245,6 +245,156 @@ def write_series_values(per_day, q):
     return main
 
 
+#: Cells are stored at float16 in the redraw bundle. Measured: a 42-cell figure is 54 MB at
+#: compressed float32 and 26 MB at float16, for a maximum relative error of 2.9e-04 -- four orders
+#: below anything a colour scale resolves. The bundle exists to REDRAW, not to re-analyse; the
+#: authoritative arrays remain the collectors' own caches.
+BUNDLE_DTYPE = "float16"
+
+
+def save_map_bundle(q, cells, **kw):
+    """Write everything needed to redraw a map figure WITHOUT recomputing it.
+
+    Priya, 2026-09-12: "goal is to be able to use the sidecars to reproduce figures without redoing
+    analysis." The `.csv` digest from `write_map_summary` can AUDIT a claim -- it holds each cell's
+    mean, sd and range -- but it cannot redraw one, because a panel is ~10^5 pixels and the digest
+    is eight numbers. This is the other half: the arrays themselves, plus every argument `map_grid`
+    was called with.
+
+    Two files beside the figure: ``<name>_bundle.npz`` (cell arrays at `BUNDLE_DTYPE`, contour and
+    blank masks bit-packed) and ``<name>_bundle.json`` (labels, titles, colour-scale settings, the
+    stats rows). `replot_map` takes the pair and reproduces the figure; a tweak to an axis, a
+    colormap or a title is then seconds rather than the hours a re-render costs.
+
+    NOT A SUBSTITUTE FOR THE ANALYSIS. The bundle is downstream of every decision -- mask, pooling,
+    reference, threshold -- so changing any of those still requires the real render. It reproduces
+    a PICTURE, not a result.
+    """
+    import json
+
+    q = pathlib.Path(q)
+    arrays, meta_cells = {}, []
+    for i, (key, A) in enumerate(sorted((cells or {}).items(),
+                                        key=lambda kv: (str(kv[0][0]), str(kv[0][1]))
+                                        if isinstance(kv[0], tuple) else (str(kv[0]), ""))):
+        if A is None:
+            continue
+        r, c = key if isinstance(key, tuple) and len(key) == 2 else (key, "")
+        arrays[f"cell{i}"] = np.asarray(A, dtype=BUNDLE_DTYPE)
+        meta_cells.append({"i": i, "row": str(r), "col": str(c)})
+    for nm in ("contours", "blank"):
+        v = kw.get(nm)
+        if isinstance(v, dict):
+            for i, (key, M) in enumerate(sorted(v.items(), key=lambda kv: str(kv[0]))):
+                if M is None:
+                    continue
+                r, c = key if isinstance(key, tuple) and len(key) == 2 else (key, "")
+                arrays[f"{nm}{i}"] = np.packbits(np.asarray(M, bool))
+                meta_cells.append({"i": i, "row": str(r), "col": str(c), "kind": nm})
+        elif v is not None:
+            arrays[nm] = np.packbits(np.asarray(v, bool))
+    shape = None
+    for A in (cells or {}).values():
+        if A is not None:
+            shape = list(np.asarray(A).shape)
+            break
+    meta = {"schema": 1, "shape": shape, "dtype": BUNDLE_DTYPE, "cells": meta_cells,
+            "kw": {k: v for k, v in kw.items()
+                   if k not in ("contours", "blank") and _jsonable(v)}}
+    try:
+        np.savez_compressed(q.with_name(q.stem + "_bundle.npz"), **arrays)
+        q.with_name(q.stem + "_bundle.json").write_text(json.dumps(meta, indent=1),
+                                                        encoding="utf-8")
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! map bundle {q.stem}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
+        return None
+    return q.with_name(q.stem + "_bundle.npz")
+
+
+def _jsonable(v):
+    import json
+
+    try:
+        json.dumps(v)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def replot_map(bundle, out=None, **overrides):
+    """Redraw a map figure from its bundle. ``bundle`` is either ``.npz`` path or the figure stem.
+
+    Any `map_grid` argument can be overridden -- ``replot_map(p, delta_cmap="PuOr_r")`` or
+    ``title=...`` -- which is the point: the expensive part was the analysis, and the bundle makes
+    the picture cheap to revise.
+    """
+    import json
+
+    bundle = pathlib.Path(bundle)
+    if bundle.suffix != ".npz":
+        bundle = bundle.with_name(bundle.stem + "_bundle.npz")
+    meta = json.loads(bundle.with_name(bundle.stem.replace("_bundle", "") + "_bundle.json")
+                      .read_text(encoding="utf-8"))
+    z = np.load(bundle)
+    shape = tuple(meta["shape"])
+    cells, contours = {}, {}
+    for rec in meta["cells"]:
+        kind = rec.get("kind")
+        key = (rec["row"], rec["col"])
+        if kind is None:
+            cells[key] = np.asarray(z[f"cell{rec['i']}"], float)
+        elif kind == "contours":
+            n = int(np.prod(shape))
+            contours[key] = np.unpackbits(z[f"contours{rec['i']}"])[:n].astype(bool).reshape(shape)
+    blank = None
+    if "blank" in z.files:
+        n = int(np.prod(shape))
+        blank = np.unpackbits(z["blank"])[:n].astype(bool).reshape(shape)
+    kw = dict(meta.get("kw") or {})
+    kw.update(contours=contours or None, blank=blank)
+    kw.update(overrides)
+    # NEVER OVERWRITE THE ORIGINAL. The bundle carries the name `map_grid` was called with, so a
+    # naive redraw lands on top of the figure it was made from -- caught the first time this ran.
+    # The caller must ASK for that by passing `name=` explicitly.
+    if "name" not in overrides:
+        kw["name"] = bundle.stem.replace("_bundle", "") + "_replot"
+    return map_grid(cells, out or bundle.parent, **kw)
+
+
+def write_map_stats(rows, q):
+    """Sidecar for a map family's STATISTICS -- the numbers the figure's claims are made from.
+
+    `write_map_summary` records what each panel LOOKS like (mean, sd, range). This records what was
+    CONCLUDED from it: how many bins survived, out of how many, under which correction and at what
+    threshold, how concentrated in the rim, which animals contributed, and the amplitude ratio.
+    Those live nowhere else except the render log, which is not kept -- so a question like "was
+    far-contra acute 1,959 bins or 1,668?" could only be answered by re-running a two-hour render.
+
+    One row per (row, col) that carries a statistic. Columns are stable so the file can be diffed
+    across renders; a panel with no test writes blanks rather than being omitted, because "not
+    tested" and "tested and null" are different facts.
+    """
+    import csv as _csv
+
+    if not rows:
+        return None
+    q = pathlib.Path(q)
+    out = q.with_name(q.stem + "_stats.csv")
+    cols = ["row", "col", "n_animals", "animals", "n_sessions", "n_trials", "reliability",
+            "amplitude_vs_pre", "sig_bins", "n_bins", "correction", "threshold_z",
+            "edge_enrichment", "suppressed", "label"]
+    try:
+        with open(out, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
+            w.writeheader()
+            for r in rows:
+                w.writerow({c: r.get(c, "") for c in cols})
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! map stats sidecar {out.name}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
+        return None
+    return out
+
+
 def write_map_summary(cells, q, *, row_labels=None, col_labels=None):
     """Sidecar for `map_grid`: PER-CELL SUMMARY STATISTICS, deliberately not the pixels.
 
@@ -1701,7 +1851,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
              panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="seismic",
-             row_scaled=True, pct=99.0, edges=None, contours=None, blank=None,
+             row_scaled=True, pct=99.0, edges=None, contours=None, blank=None, stat_rows=None,
              cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
              delta_shares_scale=True):
     """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
@@ -1872,6 +2022,16 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                cbar_label=cbar_label, delta_label=delta_label, pct=pct,
                row_scaled=row_scaled, title=title, subtitle=subtitle)
     write_map_summary(cells, q, row_labels=row_labels, col_labels=col_labels)
+    # THE STATISTICS SIDECAR, separately: the per-cell digest says what a panel looks like, this
+    # says what was concluded from it. See `write_map_stats`.
+    write_map_stats(stat_rows, q)
+    # AND THE ARRAYS, so the figure can be redrawn without recomputing it. See `save_map_bundle`.
+    save_map_bundle(q, cells, name=name, title=title, row_labels=list(rows),
+                    col_labels=list(cols), subtitle=subtitle, panel_titles=panel_titles,
+                    diverging=diverging, delta_cols=list(delta_cols), delta_cmap=delta_cmap,
+                    row_scaled=row_scaled, pct=pct, cbar_label=cbar_label,
+                    delta_label=delta_label, delta_shares_scale=delta_shares_scale,
+                    contours=contours, blank=blank, stat_rows=stat_rows)
     plt.close(fig)
     return q
 

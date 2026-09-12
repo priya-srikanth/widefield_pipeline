@@ -1023,18 +1023,22 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
 
     obs = np.mean([np.mean(post_s[a], 0) - np.mean(pre_s[a], 0) for a in animals], 0)
     se_b = boot.std(0, ddof=1)
-    # CORRECT OVER RESELS, NOT BINS -- see `CORRECT_OVER_RESELS`. The smoothness is estimated on
-    # the FULL-RESOLUTION per-animal differences, so the count does not depend on the grid the test
-    # happens to run on.
-    n_corr = n_tested
-    if CORRECT_OVER_RESELS:
-        d_full = np.stack([np.mean(post_by_animal[a], 0) - np.mean(pre_by_animal[a], 0)
-                           for a in animals])
-        n_corr = resel_count(d_full, mask=mask, n_bins=n_tested)
-    z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
+    ok = sm_mask & (se_b > 0)
+    _d_full = np.stack([np.mean(post_by_animal[a], 0) - np.mean(pre_by_animal[a], 0)
+                        for a in animals])
+    # FAMILY-WISE THRESHOLD FROM THE BOOTSTRAP ITSELF -- see `CORRECTION`.
+    if CORRECTION == "maxstat":
+        zc = np.zeros_like(boot)
+        zc[:, ok] = (boot[:, ok] - obs[ok]) / se_b[ok]
+        md = np.abs(zc[:, ok]).max(1) if ok.any() else np.zeros(1)
+        z = float(np.percentile(md, 100.0 * (1.0 - alpha)))
+    else:
+        n_corr = resel_count(_d_full, mask=mask, n_bins=n_tested) \
+            if CORRECT_OVER_RESELS else n_tested
+        z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
     half = z * se_b
     lo, hi = obs - half, obs + half
-    sig = sm_mask & (se_b > 0) & ((lo > 0) | (hi < 0))
+    sig = ok & ((lo > 0) | (hi < 0))
     return sig, lo, hi, sm_mask, n_tested
 
 
@@ -1074,6 +1078,38 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
 #: RFT construction: the mean map's smoothness is a property of the effect, while the correction
 #: needs the smoothness of the NOISE the effect is being judged against.
 CORRECT_OVER_RESELS = True
+
+#: How the family-wise threshold is obtained. ``"maxstat"`` -- the default and the right one.
+#:
+#: WE ARE ALREADY BOOTSTRAPPING, so the multiplicity does not need an analytic correction at all
+#: (Priya, 2026-09-12: "but aren't we doing nested bootstrapping?"). The bootstrap gives the
+#: sampling distribution PER BIN; the max-statistic construction turns that into a FAMILY-WISE
+#: threshold with no independence assumption and no smoothness estimate:
+#:
+#:     for each draw   centre on the observed, studentise by the bootstrap SE
+#:     take the MAXIMUM |z| over all bins in that draw
+#:     the 95th percentile of those maxima IS the FWER-corrected threshold
+#:
+#: Correlated bins produce a SMALLER maximum than independent ones, so the data's own covariance
+#: performs the correction. This is Westfall-Young / Nichols-Holmes, and it is strictly better than
+#: either Bonferroni variant here.
+#:
+#: MEASURED AGAINST THE ALTERNATIVES (acute - pre, significant bins of ~2,022):
+#:
+#:     position        bins  resel  MAXSTAT      z_bins  z_resel  z_max
+#:     far contra     1,655  1,864    1,959        4.22     3.51   2.95
+#:     far middle       529    912    1,322        4.22     3.59   2.99
+#:     near ipsi         28     82      125        4.22     3.44   3.08
+#:     near middle        0      1       12        4.22     3.43   3.00
+#:
+#: The resel estimate was itself still conservative. AND THE SPECIFICITY SURVIVES THE HONEST
+#: THRESHOLD: near positions reach 0.6-6% of bins where the far positions reach 65-97%, so the
+#: position-specific result was never a product of over-correction.
+#:
+#: IT IS ESTIMABLE, unlike the per-bin Bonferroni quantile that broke an earlier version of this
+#: function: the 95th percentile of ONE distribution of 2,000 maxima is a routine estimate, where
+#: the 7.7e-6 quantile of a per-bin distribution was not.
+CORRECTION = "maxstat"
 
 
 def resel_count(stack, mask=None, n_bins=None):
@@ -1205,14 +1241,24 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     enr = edge_enrichment(full) if full is not None else 0.0
     base = (f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
             f"{n} of {n_tested} bins"
-            + (" [resel-corrected]" if CORRECT_OVER_RESELS else " [Bonferroni over bins]"))
+            + f" [{CORRECTION}]")
     if n and np.isfinite(enr) and enr > EDGE_ENRICHMENT_MAX:
         # SUPPRESSED. See EDGE_ENRICHMENT_MAX -- a contour is read as a result and a caveat is not.
-        return None, (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x "
-                      f"(> {EDGE_ENRICHMENT_MAX:.0f}x): this result lives on the rim")
+        lab = (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x "
+               f"(> {EDGE_ENRICHMENT_MAX:.0f}x): this result lives on the rim")
+        significance_contour.last = {"sig_bins": n, "n_bins": n_tested, "correction": CORRECTION,
+                                     "edge_enrichment": round(float(enr), 3), "suppressed": 1,
+                                     "label": lab}
+        return None, lab
     tag = "" if n == 0 or n >= 50 else "  (small -- treat with care)"
     if n:
         base += f"; edge enrichment {enr:.2f}x"
+    # THE NUMBERS TRAVEL WITH THE RESULT, for the statistics sidecar. Stashed on the function
+    # rather than returned, so every existing two-value call site keeps working -- the alternative
+    # was changing a signature used in five places to carry a dict nobody else reads.
+    significance_contour.last = {"sig_bins": n, "n_bins": n_tested, "correction": CORRECTION,
+                                 "edge_enrichment": round(float(enr), 3), "suppressed": 0,
+                                 "label": base + tag}
     return full, base + tag
 
 
@@ -1348,16 +1394,24 @@ def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, 
     from scipy import stats
 
     se_b = boot.std(0, ddof=1)
-    n_corr = n_tested
-    if CORRECT_OVER_RESELS:
-        d_full = np.stack([np.mean(by_animal[a], 0) for a in animals])
-        n_corr = resel_count(d_full, mask=mask, n_bins=n_tested)
-    z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
-    sig = sm_mask & (se_b > 0) & (np.abs(obs) > z * se_b)
+    ok = sm_mask & (se_b > 0)
+    _d_full = np.stack([np.mean(by_animal[a], 0) for a in animals])
+    # FAMILY-WISE THRESHOLD FROM THE BOOTSTRAP ITSELF -- see `CORRECTION`.
+    if CORRECTION == "maxstat":
+        zc = np.zeros_like(boot)
+        zc[:, ok] = (boot[:, ok] - obs[ok]) / se_b[ok]
+        md = np.abs(zc[:, ok]).max(1) if ok.any() else np.zeros(1)
+        z = float(np.percentile(md, 100.0 * (1.0 - alpha)))
+    else:
+        n_corr = resel_count(_d_full, mask=mask, n_bins=n_tested) \
+            if CORRECT_OVER_RESELS else n_tested
+        z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
+    sig = ok & (np.abs(obs) > z * se_b)
     n = int(sig.sum())
     full = upsample_mask(sig) if n else None
     enr = edge_enrichment(full) if full is not None else 0.0
-    base = f"nested bootstrap vs ZERO, {n_boot:,} draws: {n} of {n_tested} bins"
+    base = (f"nested bootstrap vs ZERO, {n_boot:,} draws: {n} of {n_tested} bins"
+            f" [{CORRECTION}]")
     if n and np.isfinite(enr) and enr > EDGE_ENRICHMENT_MAX:
         return None, (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x")
     return full, base + (f"; edge enrichment {enr:.2f}x" if n else "")

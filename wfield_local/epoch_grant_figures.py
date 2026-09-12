@@ -1649,6 +1649,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     for reference in prm.REFERENCES:
         txt = _REF_TEXT[reference]
         cells, titles, amp, contours, rows = {}, {}, {}, {}, []
+        _stats = []
         for q in CONF_LABELS:
             row = _long_of(q)
             pre_by = prm.by_animal(store, reference, q, "pre")
@@ -1684,6 +1685,12 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 try:
                     cm, lab = bm.significance_contour(pre_by, post_by)
                     print(f"  .. 15r {reference} {q} {e}: {lab}", flush=True)
+                    _stats.append(dict(row=row, col=f"{e} - pre",
+                                       n_animals=len(set(pre_by) & set(post_by)),
+                                       animals=";".join(sorted(set(pre_by) & set(post_by))),
+                                       amplitude_vs_pre=round(amp.get(q, {}).get(e,
+                                                                                float("nan")), 4),
+                                       **getattr(bm.significance_contour, "last", {})))
                     if cm is not None and np.any(cm):
                         contours[(row, f"{e} - pre")] = cm
                 except Exception as ex:                                # noqa: BLE001
@@ -1702,6 +1709,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
             blank=bm.excluded_mask(),
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(SAME scale as the maps)",
             row_scaled=False,
+        stat_rows=_stats,
         subtitle=(
                 f"ONE OF A PAIR ({txt['short']}). Both figures use the SAME trials, the same "
                 f"window, the same class definition and the same 20-trial floor as figure 14; the "
@@ -1828,6 +1836,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         return None
     EPO = list(ef.PANELS)
     cells, titles, amp, contours = {}, {}, {}, {}
+    _stats = []
 
     def _arm(q, e):
         """``{animal: [session maps]}`` for one (position, epoch)."""
@@ -1881,6 +1890,11 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
                 try:
                     cm, lab = bm.significance_contour(pre_by, post_by)
                     print(f"  .. 15e {q} {e}: {lab}", flush=True)
+                    _stats.append(dict(row=_long_of(q), col=f"{e} - pre",
+                                       n_animals=len(set(pre_by) & set(post_by)),
+                                       animals=";".join(sorted(set(pre_by) & set(post_by))),
+                                       amplitude_vs_pre=round(amp.get(q, {}).get(e, float("nan")), 4),
+                                       **getattr(bm.significance_contour, "last", {})))
                     if cm is not None and np.any(cm):
                         contours[(_long_of(q), f"{e} - pre")] = cm
                 except Exception as ex:                                # noqa: BLE001
@@ -1903,6 +1917,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         row_scaled=False,
+        stat_rows=_stats,
         subtitle=(
             "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centred on the "
             "mean over all six positions, so a position that loses drive lowers the reference and "
@@ -1960,6 +1975,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         return None
     EPO = list(ef.PANELS)
     cells, titles, contours, rows = {}, {}, {}, []
+    _stats = []
     for q in CONF_LABELS:
         row = _long_of(q)
         got_any = False
@@ -1977,6 +1993,9 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
             try:
                 cm, lab = bm.vs_zero_contour(by_an)
                 print(f"  .. 14z {q} {e}: {lab}", flush=True)
+                _stats.append(dict(row=row, col=e, n_animals=len(by_an),
+                                   animals=";".join(sorted(by_an)), n_sessions=n_s, n_trials=n_tr,
+                                   label=lab))
                 # Musall's own unit, logged beside ours so the difference is visible rather than
                 # asserted -- sessions give far more significance and are pseudo-replicated.
                 _cm2, lab2 = bm.vs_zero_contour(by_an, method="musall")
@@ -2002,6 +2021,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
         row_scaled=False,
+        stat_rows=_stats,
         subtitle=(
             "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
             "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
@@ -2089,6 +2109,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     EPO = [e for e in ef.PANELS]
     DELTA = "acute - pre"
     cells, titles, amp, contours = {}, {}, {}, {}
+    _stats = []
     def _arm(q, e):
         """``{animal: [session maps]}`` for one (position, epoch)."""
         d = {an: list(((by.get(e) or {}).get(q) or {}).values()) for an, by in store.items()}
@@ -2164,6 +2185,12 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             try:
                 cm, lab = bm.significance_contour(pre_by, post_by)
                 print(f"  .. 14m {q} acute: {lab}", flush=True)
+                _stats.append(dict(row=row, col=DELTA,
+                                   n_animals=len(set(pre_by) & set(post_by)),
+                                   animals=";".join(sorted(set(pre_by) & set(post_by))),
+                                   amplitude_vs_pre=round(amp.get(q, {}).get("acute",
+                                                                            float("nan")), 4),
+                                   **getattr(bm.significance_contour, "last", {})))
                 if cm is not None and np.any(cm):
                     contours[(row, DELTA)] = cm
             except Exception as ex:                                    # noqa: BLE001
@@ -2187,6 +2214,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                     "trials than on the average trial"),
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         row_scaled=False,
+        stat_rows=_stats,
         subtitle=(
             "L2 logistic on the rank-100 SVT, beta Haufe-transformed to a PATTERN "
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "
