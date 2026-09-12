@@ -751,6 +751,11 @@ def main():
                 "over the full-cohort deliverable; deck section I keeps the previous render ==")
         else:
             cli("wfield_local.epoch_grant_figures")
+            # The per-SESSION view of the same records (`recovery_trajectory`). Pools across
+            # animals exactly as the epoch figures do, so it sits inside the same subset guard.
+            # It writes its own CSV of every plotted value, which is what makes the chronic
+            # numbers quotable without re-reading a bar.
+            cli("wfield_local.recovery_trajectory")
 
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,

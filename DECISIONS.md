@@ -8484,3 +8484,316 @@ show both, and the persistent component is the more interesting half because it 
 `recovery_trajectory.py` and its tests reached main inside commit `8a2631a`, whose message is about
 figures 14/15 — the other window staged them with `git add -A`. The reasoning that would have been in
 their own commit message is here instead, which is where a method decision belongs anyway.
+
+
+---
+
+## 2026-09-12 (night) — the map arm, rebuilt: the reference, the unit, the mask, the scale
+
+Everything below was found or decided after the permutation-test entry above. Several of these
+**withdraw claims made earlier the same day**; where that happens it is said plainly.
+
+### 1. THE REFERENCE IS THE CLAIM, and two of three cannot carry the deficit
+
+A position map is always activity MINUS something, and which something decides what a red pixel
+means. Filenames now say which: `_MEANref_`, `_PRECUEref_`, `_QUIETref_`.
+
+| reference | subtrahend | positions | verdict |
+|---|---|---|---|
+| **MEAN** (fig 14 betas, `15r _MEANref_`) | mean over ALL trials | **COUPLED** | not a deficit measure |
+| **PRECUE** (fig 15) | that position's pre-cue window | independent | **violates F12** |
+| **QUIET** (`15r _QUIETref_`) | the session's quiet baseline | independent | **LEAD WITH THIS** |
+
+**PRECUE violates F12**, and Priya caught it: *"i think we decided in the past NOT to substract the
+pre-cue window though right? because pre-cue contains real information?"* F12 is marked
+load-bearing and says a per-trial pre-cue baseline **over-subtracts real anticipatory signal**;
+pre-cue LOSO is **0.510** against post-cue 0.873. So figure 15 measures the **cue-evoked
+INCREMENT**, not the position map, and its far-contra 0.11 is a ratio of increments. **The
+violation was inherited, not chosen** — `framemap_event_maps` writes a `delta = post − pre` field
+into every npz and `position_evoked_maps` aggregates it, so nothing in the analysis layer ever made
+the choice. F13 cuts the same way: the pre-cue window is the deck's MOTOR-INDEPENDENT readout, the
+only one decoding above chance on NO-LICK trials — exactly the post-stroke failed attempt.
+
+**QUIET is the map-space analogue of what F12 endorses**: a session-CONSTANT baseline, which F12
+permits because standardisation removes it for a decoder. Maps are not standardised, so for maps
+that constant is a real choice, and quiet carries no position information.
+
+**QUIET'S OWN CAVEAT.** The quiet baseline drifts: pre −0.006871, acute −0.008024, subacute
+−0.009607, chronic **−0.004285**. At chronic the subtrahend rises +0.0026 against a ~0.005 signal,
+so **across-epoch amplitude ratios carry that confound while between-position contrasts do not**
+(the drift is common to all six positions). **That, not biology, is why the chronic pre-cue column
+looks empty** — raw pre-cue activity actually ROSE, 0.00483 → 0.00514.
+
+### 2. THE UNIT OF ANALYSIS: nested animals → sessions
+
+Priya: *"this is how we quantified behavior too"*, then *"agree with the nested desgin"*, and on
+the pseudo-replication objection: *"but it's biologically meaningful replication! each measurement
+within an epoch is a different sample."* Correct — sessions are different days, different trials,
+independent noise, and they are genuine replicates of the MEASUREMENT. The animal is the required
+unit only for a claim about mice in general.
+
+**AUDITED, not assumed:** every scalar/bar family already used the nested
+animals→sessions→blocks bootstrap — eight inherit it through `_scalar_figure`, two call it directly
+(`_fig_9`, `_position_bars`). **The three map families were the only ones using something else.**
+They now use `beta_maps.significance_contour` (`PRIMARY_TEST = "nested"`), so the imaging and
+behaviour statistics are the same object.
+
+**Musall's own test cannot work at the animal level, and the number says so.** Bonferroni over
+3,237 bins needs p < 1.54e−5; at df=3 that is **t = 52.2**, and far-contra acute — the largest
+effect in the dataset — reaches **37.6**. It returns nothing for any effect, ever. With SESSIONS as
+the unit (n=16) the required t is ~6 and it lights up 3,168 of 3,237 bins. Both are implemented and
+both are printed; only the nested one draws.
+
+**A BUG I INTRODUCED AND CAUGHT.** The first nested bootstrap built its interval from PERCENTILES
+at alpha/n = 7.7e−6. That quantile is **not estimable from 1,000 draws** — `np.percentile` returns
+the extreme order statistic — so the test degenerated into "did any draw cross zero", with a
+false-positive rate set by `n_boot` rather than alpha. It showed: 135–406 significant bins at NEAR
+positions where nothing is visible. Now the interval is `observed ± z·SE_boot`; the SE is a second
+moment and IS estimable. Near positions fell to 0–36 bins.
+
+### 3. THE MASK: erosion, and a per-result edge guard
+
+Priya: *"the beta significance does not look right - lots of edge selection (olfactory bulbs etc)"*,
+then — after I over-generalised from one clean panel — *"the evoked maps weren't clean - the
+significance was localized at the rim in some figures."* Both right.
+
+Flagged pixels inside a rim, against that rim's own share of the brain (6.3% / 12.6% / 24.5% at
+8/16/32 px):
+
+| panel | 8px | 32px | |
+|---|---|---|---|
+| near-middle CHRONIC (evoked) | **28.4%** | **72.0%** | 4.5× / 2.9× — edge |
+| near-middle / near-contra (beta) | 11.6 / 14.1% | 55.8 / 48.6% | ~2× |
+| far-contra, far-middle (either) | 5.6–7.7% | 23.2–23.3% | clean |
+
+**Why the rim lies, and why a between-animal test is the worst place for it:** the outermost pixels
+are where `U` is smallest and the Allen warp least constrained, so they carry partial-volume mixing
+and alignment jitter — and those artefacts are SYSTEMATIC, same window and same warp every session,
+hence **consistent across animals**, which is exactly what a between-animal denominator rewards.
+
+* **`stat_mask()` erodes 16 px** (keeps 87%). Display keeps the full mask — eroding what is DRAWN
+  would hide data.
+* **`EDGE_ENRICHMENT_MAX = 2.0`**: any result more than 2× concentrated in the rim is **SUPPRESSED,
+  not annotated**, because a green contour is read as a result and a subtitle caveat is not. A
+  single erosion radius could not cover every panel — near-middle chronic was still 44% rim after
+  erosion.
+
+### 4. OLFACTORY BULBS EXCLUDED
+
+Priya: *"I'm also inclined to just get rid of the olfactory bulbs, since I don't have them in full
+view."* The field of view agrees: inside the mask **MOB_left is 7,553 px against MOB_right's 389** —
+a 19× asymmetry, so "the bulbs" meant the left one and a bilateral map compared a full region
+against a sliver. `EXCLUDE_REGIONS = ("MOB",)`, applied inside `brain_mask` so every consumer
+inherits it (207,213 → 199,271 px), and `map_grid(blank=…)` leaves them undrawn AND out of the
+colour limits — excluding a region from the mask while still painting it would be the worst of both.
+
+**NOT FRP**, though it shows the same warning sign: FRP_right 17,132 px against FRP_left 8,856
+(1.9×) where SSp-bfd is 6,820 / 6,819. Frontal pole is cortex and was not what was asked for; the
+asymmetry is recorded as the next candidate if the anterior edge keeps causing trouble.
+
+### 5. POOLING: within animal, over the intersection, on each animal's own scale
+
+Priya: *"our post-stroke minus pre-stroke comparisons are all within-animal only right?"* The
+STATISTICS always were. **The displayed maps were not.**
+
+* **THE INTERSECTION BUG.** A delta drawn as `pooled(post) − pooled(pre)` equals the mean of
+  within-animal differences ONLY when both sides have the same animals. **PS94 has no chronic
+  epoch**, so every `chronic − pre` panel was 3-animal chronic minus 4-animal pre. PS94 is also the
+  **dimmest animal** (0.65× the mean), so leaving it on the pre side alone depressed the baseline
+  and inflated every chronic ratio.
+* **BETWEEN-ANIMAL SCALE**, which we had never addressed. Pre-stroke amplitude per animal
+  (far-contra): PS92 0.01602, PS93 0.01380, PS94 0.00854, PS95 0.01429 — a 1.87× spread, **2.44× on
+  average across positions** (up to 3.19×). Animal-first pooling stops a session-rich animal
+  dominating; it does nothing about a BRIGHT one, so the "pooled" map was largely PS92's.
+
+`NORMALISE_BY_PRE` divides each animal by its own pre-stroke RMS, per position.
+
+**THIS IS NOT A Z-SCORE** (Priya asked directly). A z-score centres and divides by a *variability*
+measure. This divides by ONE SCALAR per (animal, position) with no centring and nothing per-pixel.
+That is exactly why it is safe where quiet-SD z-scoring was not: an SD-based normaliser **moves with
+epoch** (1.29× acute) and injects the effect, while this constant is computed only from pre-stroke
+data, cancels identically in every within-animal epoch ratio, and cannot leak epoch information.
+
+**Corrected chronic ratios** (old → new):
+
+| | near ipsi | near mid | near contra | far ipsi | far mid | far contra |
+|---|---|---|---|---|---|---|
+| chronic | 1.57 → **1.27** | 1.46 → **1.24** | 1.48 → **1.22** | 1.38 → 1.42 | 1.70 → **1.45** | 1.26 → **1.11** |
+
+**"Chronic overshoots pre-stroke" was substantially that artefact.** The acute deficit is untouched:
+far-middle 0.40 → 0.39, far-contra 0.11 → 0.11.
+
+### 6. RMS, and why it is not measured on a smoothed map
+
+Priya: *"isn't a pixel for pixel RMS going to be noisier than we want?"* Measured against an 8×
+block-averaged grid and a gaussian-smoothed one: **every ratio identical to two decimals, all 18
+cells.** The reason is structural — the maps are `U @ coef` at **rank 100**, band-limited by
+construction, so there is no pixel-independent noise for averaging to remove. Split-half noise floor
+is 4.6–7.7% of signal and identical full-res and downsampled.
+
+**RMS not mean**, because these maps are signed and roughly zero-centred: a strong map with balanced
+lobes has a mean of ~0 regardless of strength. Computed at FULL resolution inside the mask; the 8×
+downsampling exists only inside the significance tests.
+
+**BUT THE NOISE FLOOR MAKES THE WEAKEST RATIOS UPPER BOUNDS.** `RMS² = signal² + noise²`, so
+far-contra acute at 0.11 against a noise floor of ~0.046–0.076 of pre has a true signal nearer
+**0.08**. The collapse is if anything deeper than quoted. Strong maps are unaffected (noise < 1% of
+their RMS).
+
+### 7. COLOUR SCALE: positions share one, animals do not
+
+Priya: *"should the scales be the same across positions?"* Yes. The six position maps are the same
+quantity in the same units from the same sessions — only the trials differ — and **"far falls, near
+does not" is a BETWEEN-position claim** that per-row scaling destroys, while each position's own
+trajectory is already reported as an amplitude ratio. Per-row scaling was also what made the panels
+look solid: a row limited at 0.0021 draws a broad change as a slab while a row at 0.0066 draws the
+same change as pale.
+
+**Per-ANIMAL figures stay per-row** (14pa, 15pa, 15rpa): a row there is a different mouse, whose
+dF/F scale moves with expression and window clarity, so one scale would make a dim animal look like
+a weak effect.
+
+**SATURATION: measured, nothing to fix.** At most **4%** of any panel reaches its colour limit and
+the uniform component is 0.04–0.23 of it. The one-signed "all blue" acute maps are real — cortex is
+globally quieter on those trials — not clipped.
+
+**DELTA SCALE: expand, never clip.** Sharing the row's data scale exists so a SMALL change looks
+small, but that argument runs one way only: on the mean-referenced figure the deltas were **clipped
+9.5×** into flat slabs. `dlim = max(data, delta)` keeps both properties.
+
+**COLORMAP: `seismic`**, and the route matters. Asked for the orange-blue `PuOr_r`, then on seeing
+it: *"i prefer the quiet reference delta colormap"* — which was `seismic` all along. BOTH figures had
+been `seismic`; what made one unreadable was the 9.5× clip. A palette change would have "fixed" a
+scaling bug by hiding it.
+
+### 8. FIGURE 14z — Musall fig S6's actual question
+
+Priya: *"we still haven't done the Musall-style analysis of comparing each pre/post epoch to zero."*
+Correct — the one-sample machinery existed and had only ever been pointed at DIFFERENCES.
+`epoch_14z_beta_vs_ZERO_*` asks, per epoch and per position, which bins carry a weight differing
+from zero. **It is immune to both confounds the difference figures carry** (elapsed weeks, quiet
+drift), because each panel is tested inside ONE epoch.
+
+**TWO PANELS MUST NOT BE SUBTRACTED.** "Significant in pre, not in acute" is not evidence of change
+— a map that just clears threshold in one epoch and just misses in the next may not differ at all,
+and nothing there puts an error bar on the comparison. Stated on the figure, in the docstring, and
+pinned by a test.
+
+### 9. EPOCH BOUNDARIES: both challenges answered from BEHAVIOUR, not imaging
+
+**PS95 — chronic should NOT move earlier.** Far-contra hit rate as a fraction of its own baseline:
+day 1 **0.01**, day 2 0.83, day 3 0.86, day 4 0.96, day 5 0.83, day 7 0.77, day 9 0.79, day 11 0.91,
+then **day 15 onward 1.03–1.04**. The intuition about fast recovery is right about the ACUTE phase —
+PS95's acute is day 1 alone, the shortest of the four — but stabilisation genuinely takes until day
+15. `epoch_audit` confirms the stored boundaries match what the rule derives.
+
+**The real PS95 finding is a DISSOCIATION**: behaviour returns to 1.04 of baseline while the
+far-contra map stays at 0.66–0.85, and day 4 has the BEST early behaviour (0.96) with the WORST
+early imaging (0.37). Days 2–3 (imaging 1.29–1.30, behaviour 0.83–0.86, r = 0.96 to pre-stroke,
+normal trial counts) remain unexplained and are worth inspecting before that animal's subacute mean
+is quoted.
+
+**PS94 — chronic should NOT be declared.** Days 9–22 drift DOWNWARD (0.91, 0.91, 0.85, 0.85, 0.77)
+and day 25 jumps to **1.06**. The outlier is the last session and it points UP, which is ongoing
+recovery rather than a plateau — exactly what `chronic_from: null` encodes. Note also that citing
+the 15pa maps as support would be circular, since the boundaries determine what those panels
+average.
+
+### 10. WHAT NO TEST CAN REACH, and a null we do not have
+
+**WITHDRAWN: "the pre-cue arm is an empirical null."** Position IS knowable before the cue — the
+spout arrives first. The ~200-bin noise floor derived from it is withdrawn with it.
+
+**Pre-vs-post is perfectly confounded with elapsed weeks** and no relabelling test can separate
+them. What carries the claim is that the near positions never reach significance in any epoch while
+the far ones do, on the same days through the same window. **Read the CONTRAST between rows.**
+
+### 11. PROPOSED, NOT BUILT — the epoch decoder
+
+Priya: *"train a decoder to predict pre-stroke vs acute, subacute, or chronic post-stroke, and ask
+what features it used."* Worth doing in ONE form only: trained on **within-session position
+contrasts**, never on raw activity. Epoch is perfectly confounded with time, and a decoder on
+activity would score near-perfectly off drift — we have already measured two free giveaways (resting
+variance +29%, quiet baseline drift). Using within-session contrasts makes both classes come from
+the same session so global drift cancels by construction. Value is a hypothesis-free confirmation:
+if it independently converges on the far positions that is strong support. Limit: n=4 animals gives
+four leave-one-animal-out folds, so any feature map would be unstable — confirmatory, not primary.
+
+### The tests that pin all of this
+
+`tests/test_cluster_permutation_mask.py` (13) — off-brain pixels never flagged; pure-null
+calibration; a planted central effect IS found; the zero-variance denominator floor; refusal without
+a mask; the df-derived threshold; polarities labelled apart; statistics use the eroded mask while
+display does not; a planted rim-confined effect is not flagged; an edge-localised result is
+SUPPRESSED; a central one is drawn WITH its enrichment; vs-zero finds a real map and not noise; the
+do-not-subtract warning is pinned as text.
+
+`tests/test_epoch_figures.py` (+3) — the delta scale expands rather than clipping; the colormap is
+the one chosen after seeing both; position-row figures share a global scale while per-animal ones do
+not.
+
+---
+
+## 2026-09-12 — CAN we resolve which positions change? A power decomposition, and the answer is no with four animals
+
+Priya: *"but we cannot achieve enough power to see what positions change?"* Correct, and it is worth
+stating as arithmetic rather than as a hedge, because the arithmetic says which fix works and which
+does not.
+
+Variance components of the reorganisation index `G`, from the per-session series
+(`recovery_trajectory_cue_working.csv`):
+
+| epoch | animals | sessions each | between-ANIMAL SD | between-SESSION SD | 95% half-width | share of SE² from the animal level |
+|---|---|---|---|---|---|---|
+| acute | 4 | 4.0 | 0.012 | 0.042 | 0.024 | 25% |
+| subacute | 4 | 4.5 | 0.035 | 0.060 | 0.044 | 60% |
+| **chronic** | **3** | **4.7** | **0.045** | **0.044** | **0.056** | **83%** |
+
+**THE BINDING CONSTRAINT MOVES TO THE ANIMAL LEVEL AS RECOVERY PROCEEDS.** Acutely the lesion does
+much the same thing to every mouse (between-animal SD 0.012) and sessions are the noisy level.
+Chronically the animals have diverged — recovery is animal-specific, as the rest of this document
+says everywhere — and **83% of the squared standard error is between animals**.
+
+### What buying more of each level actually does, at chronic
+
+| | 95% half-width |
+|---|---|
+| now (3 animals × 4.7 sessions) | 0.056 |
+| 2× sessions per animal | 0.054 |
+| **10× sessions per animal** | **0.052** |
+| 8 animals | 0.034 |
+| 16 animals | 0.024 |
+
+**Ten times the sessions buys essentially nothing** (0.056 → 0.052). More sessions shrink a term that
+is already 17% of the total. Only animals move it.
+
+### And per POSITION it is worse by exactly the factor you would guess
+
+A position gets ~1/6 of a session's trials, so its session-level estimate is ~√6 = 2.4× noisier. The
+animal-level term is not divided by anything. At chronic:
+
+    pooled over positions      half-width 0.056     effect ~0.075   -> resolvable
+    one position               half-width 0.076     effect ~0.075   -> NOT resolvable
+
+That is the whole explanation for what the figures show: **the per-position chronic intervals cross
+zero not because the effect is absent but because a single position at n=3 animals cannot resolve an
+effect of this size.** With 8 animals the per-position half-width falls to ~0.047 and a 0.075 effect
+would clear zero.
+
+### Consequences, which are the point of doing this
+
+1. **Do not claim a per-position chronic result from this cohort.** The pooled result is supported;
+   "far-contralateral specifically" at chronic is not. Acute is a different matter — the
+   between-animal SD is 0.012 there and the per-position acute effects are large.
+2. **A power statement for the grant is now available**: resolving which positions reorganise
+   chronically needs roughly **8 animals reaching chronic**, and is NOT achievable by recording more
+   sessions from the four we have. That is a defensible aims-section number rather than a guess.
+3. **Prefer a CONTRAST to six tests.** Six per-position tests spend their power on a question nobody
+   asked. One pre-registered contrast — far-contra versus the mean of the rest, or a near/far
+   gradient — uses all the trials and tests the hypothesis directly. Not yet implemented.
+
+### Method note
+
+The decomposition subtracts the sampling term from the observed variance of animal means
+(`var(means) - within/n`), floored at zero, which is the standard unbiased estimator and can return
+zero when the animal-level effect is small relative to session noise. It did not here.

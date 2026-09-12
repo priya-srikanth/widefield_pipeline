@@ -57,6 +57,59 @@ def _save_png_svg(fig, q, *, dpi=200):
     except Exception as ex:                                            # noqa: BLE001
         print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
 
+def write_values(values, q, *, points=None, marks=None):
+    """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``.
+
+    **A figure whose values exist nowhere else drifts from every text that quotes it, and nothing can
+    notice.** That is not hypothetical: `PRELIM_DATA_VLS_STROKE.md` carried chronic frozen-vs-refit
+    numbers from an older session set for two days after the render moved, because the only
+    machine-readable route to them was re-running a script that takes twenty minutes, and the only
+    other route was someone re-reading a bar. Quoting a figure should not be an act of eyesight.
+
+    Columns are ``epoch, position, value, lo, hi, mark`` -- the point estimate and whatever interval
+    the caller drew, so a reader can check a claim about significance and not just about magnitude.
+    ``lo``/``hi`` are blank where the caller passed a bare number rather than a tuple.
+
+    Per-SESSION dots go to ``<name>_sessions.csv`` when the caller supplies them, because the bar is
+    session-weighted and the epochs are not balanced across animals -- the dots are how that is
+    audited, and they are exactly what a bar hides.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["epoch", "position", "value", "lo", "hi", "mark"])
+            for ep, per_pos in (values or {}).items():
+                for pos, v in (per_pos or {}).items():
+                    if isinstance(v, (tuple, list)):
+                        val = v[0]
+                        lo = v[1] if len(v) > 1 else ""
+                        hi = v[2] if len(v) > 2 else ""
+                    else:
+                        val, lo, hi = v, "", ""
+                    mk = ""
+                    if marks:
+                        mk = (marks.get(ep, {}) or {}).get(pos, "") or ""
+                    w.writerow([ep, pos, val, lo, hi, mk])
+        if points:
+            with open(q.with_name(q.stem + "_sessions.csv"), "w", newline="",
+                      encoding="utf-8") as fh:
+                w = _csv.writer(fh)
+                w.writerow(["epoch", "position", "animal", "value"])
+                for ep, per_pos in points.items():
+                    for pos, lst in (per_pos or {}).items():
+                        for item in lst or []:
+                            an, val = (item if isinstance(item, (tuple, list)) else ("", item))[:2]
+                            w.writerow([ep, pos, an, val])
+    except Exception as ex:                                            # noqa: BLE001
+        # A sidecar must never cost a figure. Warn and carry on, as `_save_png_svg` does for SVG.
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
+
+
 #: Placed at a quarter page (~6.2in on a 13.33in slide). Figures are built at this width so type
 #: arrives at ~1:1; see the module docstring.
 QUARTER_IN = 6.2
@@ -823,6 +876,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_values(values, q, points=points, marks=marks)
     plt.close(fig)
     return q
 
@@ -1165,8 +1219,39 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    # `rows` is {epoch: {position: (point, lo, hi, clo, chi)}} -- the uncorrected AND the
+    # Bonferroni-corrected bounds. write_values keeps the first three; the corrected pair is what
+    # distinguishes "excludes zero" from "excludes zero after correction", which is exactly the
+    # distinction a quoted number gets wrong, so both are written here.
+    write_contrast_values(rows, q)
     plt.close(fig)
     return q
+
+
+def write_contrast_values(rows, q):
+    """Sidecar for a contrast panel: point estimate with BOTH intervals.
+
+    Separate from `write_values` because the shapes differ and collapsing them would drop the
+    corrected bounds. On the frozen-vs-refit family those bounds are the whole argument: the
+    per-position chronic estimates exclude zero uncorrected and cross it after Bonferroni, and a
+    sidecar that recorded only one of the two would let either reading be quoted as the figure's.
+    """
+    import csv as _csv
+
+    q = pathlib.Path(q)
+    main = q.with_suffix(".csv")
+    try:
+        with open(main, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["epoch", "position", "point", "lo95", "hi95", "lo_corrected",
+                        "hi_corrected"])
+            for ep, per_pos in (rows or {}).items():
+                for pos, v in (per_pos or {}).items():
+                    v = list(v) + [""] * (5 - len(v)) if isinstance(v, (tuple, list)) else [v] + [""] * 4
+                    w.writerow([ep, pos, *v[:5]])
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
+    return main
 
 
 def block_counts(per_animal) -> dict:

@@ -150,3 +150,58 @@ def test_a_written_series_reloads_to_the_same_summary(tmp_path):
     p = rt.write_csv(rows, tmp_path / "s.csv")
     back = rt.load_csv(p)
     assert rt.summarise(back)["PS92"] == rt.summarise(rows)["PS92"]
+
+
+# --------------------------------------------------------------- the figure sidecars
+#
+# A figure whose values exist nowhere else drifts from every text that quotes it, and nothing can
+# notice. PRELIM_DATA carried stale chronic numbers for two days for exactly this reason.
+
+
+def test_a_bar_figures_values_are_written_beside_it(tmp_path):
+    from wfield_local import epoch_figures as ef
+
+    values = {"pre": {"near ipsi": (0.95, 0.92, 0.97)}, "chronic": {"near ipsi": 0.71}}
+    marks = {"pre": {"near ipsi": "**"}}
+    p = ef.write_values(values, tmp_path / "fig.png", marks=marks)
+    txt = p.read_text(encoding="utf-8")
+    assert "epoch,position,value,lo,hi,mark" in txt
+    assert "pre,near ipsi,0.95,0.92,0.97,**" in txt
+    assert "chronic,near ipsi,0.71,,," in txt, "a bare number must still be written"
+
+
+def test_a_contrast_panel_keeps_BOTH_intervals(tmp_path):
+    """The corrected pair is the whole argument on this family: the per-position chronic estimates
+    exclude zero uncorrected and cross it after Bonferroni. A sidecar recording one of the two would
+    let either reading be quoted as the figure's."""
+    from wfield_local import epoch_figures as ef
+
+    rows = {"chronic": {"far contra": (-0.12, -0.19, -0.03, -0.26, 0.02)}}
+    p = ef.write_contrast_values(rows, tmp_path / "d.png")
+    txt = p.read_text(encoding="utf-8")
+    assert "point,lo95,hi95,lo_corrected,hi_corrected" in txt
+    assert "-0.12,-0.19,-0.03,-0.26,0.02" in txt
+
+
+def test_the_per_SESSION_dots_are_written_too(tmp_path):
+    """The bar is session-weighted and the epochs are not balanced across animals. The dots are how
+    that is audited, and they are exactly what a bar hides."""
+    from wfield_local import epoch_figures as ef
+
+    ef.write_values({"acute": {"far contra": 0.3}}, tmp_path / "f.png",
+                    points={"acute": {"far contra": [("PS92", 0.28), ("PS93", 0.33)]}})
+    txt = (tmp_path / "f_sessions.csv").read_text(encoding="utf-8")
+    assert "acute,far contra,PS92,0.28" in txt and "PS93,0.33" in txt
+
+
+def test_a_sidecar_failure_NEVER_costs_the_figure(tmp_path, capsys):
+    """Same contract `_save_png_svg` gives the SVG: warn and carry on. A figure lost to a CSV bug
+    would be a strictly worse trade than the drift the CSV prevents."""
+    from wfield_local import epoch_figures as ef
+
+    class Boom(dict):
+        def items(self):
+            raise RuntimeError("bad values")
+
+    ef.write_values(Boom({"acute": {}}), tmp_path / "g.png")   # non-empty, so `values or {}` keeps it
+    assert "failed" in capsys.readouterr().out
