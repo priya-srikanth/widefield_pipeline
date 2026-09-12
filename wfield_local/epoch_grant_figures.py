@@ -1479,33 +1479,35 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
         txt = _REF_TEXT[reference]
         cells, titles, amp, contours, rows = {}, {}, {}, {}, []
         for q in CONF_LABELS:
-            row, per = _long_of(q), {}
-            for e in EPO:
-                m, n_an, n_s = prm.pooled(store, reference, q, e)
-                if m is None:
-                    continue
-                per[e] = m
-                cells[(row, e)] = m
-                n_tr = sum(sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
-                           for an in store)
-                rs = [((rel.get(an) or {}).get(e) or {}).get(q, {}).get(reference)
-                      for an in store]
-                rs = [r for r in rs if r is not None and np.isfinite(r)]
-                titles[(row, e)] = (f"{e}\n{n_an} an, {n_s} sess, n={n_tr}"
-                                    + (f"\nr={np.median(rs):.2f}" if rs else ""))
-            if "pre" not in per:
+            row = _long_of(q)
+            pre_by = prm.by_animal(store, reference, q, "pre")
+            if not pre_by:
                 continue
             rows.append(row)
-            base = float(np.sqrt(np.nanmean(per["pre"] ** 2)))
-            if base > 0:
-                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base for e, m in per.items()}
-            pre_by = prm.by_animal(store, reference, q, "pre")
+            # WITHIN ANIMAL, INTERSECTION ONLY, EACH ANIMAL ON ITS OWN PRE-STROKE SCALE.
+            pre_p, _a, _b, _c, pre_ans = bm.within_animal_pooled(pre_by)
+            cells[(row, "pre")] = pre_p
+            titles[(row, "pre")] = (f"pre\n{len(pre_ans)} an, "
+                                    f"{sum(len(v) for v in pre_by.values())} sess")
+            amp[q] = {"pre": 1.0}
             for e in POST:
-                if e not in per:
-                    continue
-                cells[(row, f"{e} - pre")] = per[e] - per["pre"]
-                titles[(row, f"{e} - pre")] = f"{e.upper()} - PRE"
                 post_by = prm.by_animal(store, reference, q, e)
+                if not post_by:
+                    continue
+                _p, post_p, delta, ratio, ans = bm.within_animal_pooled(pre_by, post_by)
+                if post_p is None:
+                    continue
+                n_s = sum(len(v) for a, v in post_by.items() if a in ans)
+                n_tr = sum(sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
+                           for an in ans)
+                rs = [((rel.get(an) or {}).get(e) or {}).get(q, {}).get(reference) for an in ans]
+                rs = [r for r in rs if r is not None and np.isfinite(r)]
+                cells[(row, e)] = post_p
+                titles[(row, e)] = (f"{e}\n{len(ans)} an, {n_s} sess, n={n_tr}"
+                                    + (f"\nr={np.median(rs):.2f}" if rs else ""))
+                cells[(row, f"{e} - pre")] = delta
+                titles[(row, f"{e} - pre")] = f"{e.upper()} - PRE\n{len(ans)} an, within-animal"
+                amp[q][e] = ratio
                 if not (pre_by and post_by):
                     continue
                 try:
@@ -1655,42 +1657,54 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         return None
     EPO = list(ef.PANELS)
     cells, titles, amp, contours = {}, {}, {}, {}
+
+    def _arm(q, e):
+        """``{animal: [session maps]}`` for one (position, epoch)."""
+        d = {an: list(((by.get(e) or {}).get(q) or {}).values()) for an, by in store.items()}
+        return {a: v for a, v in d.items() if v}
+
     for q in CONF_LABELS:
-        per = {}
-        for e in EPO:
-            # EACH ANIMAL'S OWN EPOCH MEAN FIRST, then the mean over animals -- so an animal with
-            # more sessions cannot dominate, the rule every pooled family here uses.
-            pa, ns = [], 0
-            for an, by_e in store.items():
-                got = (by_e.get(e) or {}).get(q)
-                if got:
-                    pa.append(np.mean(list(got.values()), axis=0))
-                    ns += len(got)
-            if pa:
-                per[e] = np.mean(pa, axis=0)
-                row = _long_of(q)
-                cells[(row, e)] = per[e]
-                titles[(row, e)] = f"{e}\n{len(pa)} an, {ns} sess"
+        row = _long_of(q)
+        pre_arm = _arm(q, "pre")
+        if not pre_arm:
+            continue
+        # POOLED WITHIN ANIMAL AND SCALE-NORMALISED -- see `beta_maps.within_animal_pooled`. Two
+        # things this changed (Priya, 2026-09-12: "our post-stroke minus pre-stroke comparisons are
+        # all within-animal only right?" and "how should we address the between-animal scale
+        # variability"):
+        #   * only animals present in BOTH epochs enter a difference. PS94 has no chronic, so
+        #     `chronic - pre` had been 3-animal chronic minus 4-animal pre -- and PS94 is the
+        #     DIMMEST animal, so leaving it on the pre side alone depressed the baseline and
+        #     inflated every chronic ratio (near-ipsi 1.57 -> 1.27, far-middle 1.70 -> 1.45).
+        #   * each animal is divided by its OWN pre-stroke amplitude, so the pooled map is an
+        #     average of animals rather than of brightness (a 2.44x spread across animals).
+        pre_p, _a, _b, _c, pre_ans = bm.within_animal_pooled(pre_arm)
+        cells[(row, "pre")] = pre_p
+        titles[(row, "pre")] = (f"pre\n{len(pre_ans)} an, "
+                                f"{sum(len(v) for v in pre_arm.values())} sess")
+        amp[q] = {"pre": 1.0}
         for e in ("acute", "subacute", "chronic"):
-            if "pre" in per and e in per:
-                cells[(_long_of(q), f"{e} - pre")] = per[e] - per["pre"]
-                titles[(_long_of(q), f"{e} - pre")] = f"{e.upper()} - PRE"
-        if "pre" in per:
-            base = float(np.sqrt(np.nanmean(per["pre"] ** 2)))
-            if base > 0:
-                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base for e, m in per.items()}
+            arm = _arm(q, e)
+            if not arm:
+                continue
+            _p, post_p, delta, ratio, ans = bm.within_animal_pooled(pre_arm, arm)
+            if post_p is None:
+                continue
+            n_s = sum(len(v) for a, v in arm.items() if a in ans)
+            cells[(row, e)] = post_p
+            titles[(row, e)] = f"{e}\n{len(ans)} an, {n_s} sess"
+            cells[(row, f"{e} - pre")] = delta
+            titles[(row, f"{e} - pre")] = f"{e.upper()} - PRE\n{len(ans)} an, within-animal"
+            amp[q][e] = ratio
+        if True:
             # THE PERMUTATION TEST IS BETTER POSED HERE THAN ON FIGURE 14, because these six maps
             # are INDEPENDENT: the null "this position's epoch label carries no information" is a
             # real null, where on a one-vs-rest map relabelling one position perturbs the reference
             # of the other five. Labels shuffled WITHIN animal; green contour = cluster mass above
             # the 95th percentile of the null.
-            pre_by = {an: list(((by.get("pre") or {}).get(q) or {}).values())
-                      for an, by in store.items()}
-            pre_by = {a: v for a, v in pre_by.items() if v}
+            pre_by = pre_arm
             for e in ("acute", "subacute", "chronic"):
-                post_by = {an: list(((by.get(e) or {}).get(q) or {}).values())
-                           for an, by in store.items()}
-                post_by = {a: v for a, v in post_by.items() if v}
+                post_by = _arm(q, e)
                 if not (pre_by and post_by):
                     continue
                 try:
@@ -1904,65 +1918,78 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     EPO = [e for e in ef.PANELS]
     DELTA = "acute - pre"
     cells, titles, amp, contours = {}, {}, {}, {}
+    def _arm(q, e):
+        """``{animal: [session maps]}`` for one (position, epoch)."""
+        d = {an: list(((by.get(e) or {}).get(q) or {}).values()) for an, by in store.items()}
+        return {a: v for a, v in d.items() if v}
+
+    def _meta(q, e, ans):
+        """``(n_sessions, n_trials, median reliability)`` over the animals actually used."""
+        n_s = n_tr = 0
+        rs = []
+        for an in ans:
+            got = (store.get(an, {}).get(e) or {}).get(q) or {}
+            n_s += len(got)
+            n_tr += sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
+            r = ((rel.get(an) or {}).get(e) or {}).get(q)
+            if r is not None and np.isfinite(r):
+                rs.append(r)
+        return n_s, n_tr, (float(np.median(rs)) if rs else float("nan"))
+
     for q in CONF_LABELS:
-        per_epoch = {}
+        row = _long_of(q)
         # A CELL REFUSED FOR TOO FEW TRIALS MUST SAY SO. Priya, 2026-09-12, of the lick-aligned
         # arm: "why is there no subacute or chronic far contra delta data?" -- because on that arm
         # far-contralateral needs actual LICKS at that position, and `MIN_TRIALS_PER_CLASS` refuses
         # the cell. That refusal IS the deficit, and a silently absent panel reads as a rendering
         # bug rather than as the finding it is.
-        _refused = []
-        for e in EPO:
-            # EACH ANIMAL CONTRIBUTES ITS OWN EPOCH MEAN, then those are averaged -- so an animal
-            # with more sessions cannot dominate the pooled map, the same rule the bar families use.
-            per_animal, n_s, n_tr, rs = [], 0, 0, []
-            for an, by_e in store.items():
-                got = (by_e.get(e) or {}).get(q)
-                if got:
-                    per_animal.append(np.mean(list(got.values()), axis=0))
-                    n_s += len(got)
-                    n_tr += sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
-                    r = ((rel.get(an) or {}).get(e) or {}).get(q)
-                    if r is not None and np.isfinite(r):
-                        rs.append(r)
-            if per_animal:
-                m = np.mean(per_animal, axis=0)
-                per_epoch[e] = m
-                row = _long_of(q)
-                cells[(row, e)] = m
-                rr = float(np.median(rs)) if rs else float("nan")
-                # TRIALS, not just sessions. A cell built from 30 trials cannot be allowed to
-                # look like one built from 521 (Priya: "can you include the n? the far R n may be
-                # low"), and on the post-lick arm balancing makes exactly that happen acutely.
-                titles[(row, e)] = (f"{e}\n{len(per_animal)} an, {n_s} sess, n={n_tr}"
-                                    + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
-            else:
-                # DRAWN AS AN EMPTY PANEL WITH A REASON, not omitted.
-                _refused.append(e)
-                titles[(_long_of(q), e)] = (f"{e}\nREFUSED\nno session reached\n"
-                                            f"{bm.MIN_TRIALS_PER_CLASS} trials")
+        _refused = [e for e in EPO if not _arm(q, e)]
+        for e in _refused:
+            titles[(row, e)] = (f"{e}\nREFUSED\nno session reached\n"
+                                f"{bm.MIN_TRIALS_PER_CLASS} trials")
         if _refused:
             print(f"  .. 14m {q}: refused {', '.join(_refused)} "
                   f"(<{bm.MIN_TRIALS_PER_CLASS} trials at this position)", flush=True)
-        if "pre" in per_epoch and "acute" in per_epoch:
-            row = _long_of(q)
-            cells[(row, DELTA)] = per_epoch["acute"] - per_epoch["pre"]
-            titles[(row, DELTA)] = "ACUTE - PRE\ngreen = cluster p<0.05"
+        pre_arm = _arm(q, "pre")
+        if not pre_arm:
+            continue
+        # POOLED WITHIN ANIMAL AND SCALE-NORMALISED -- `beta_maps.within_animal_pooled`. Only
+        # animals present in BOTH epochs enter a difference (PS94 has no chronic, and it is also the
+        # dimmest animal, so leaving it on the pre side alone inflated every chronic ratio), and
+        # each animal is divided by its own pre-stroke amplitude so the pooled map is an average of
+        # animals rather than of brightness.
+        pre_p, _a, _b, _c, pre_ans = bm.within_animal_pooled(pre_arm)
+        n_s, n_tr, rr = _meta(q, "pre", pre_ans)
+        cells[(row, "pre")] = pre_p
+        # TRIALS, not just sessions. A cell built from 30 trials cannot be allowed to look like one
+        # built from 521 (Priya: "can you include the n? the far R n may be low").
+        titles[(row, "pre")] = (f"pre\n{len(pre_ans)} an, {n_s} sess, n={n_tr}"
+                                + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
+        amp[q] = {"pre": 1.0}
+        per_epoch = {"pre": pre_p}
+        for e in ("acute", "subacute", "chronic"):
+            arm = _arm(q, e)
+            if not arm:
+                continue
+            _p, post_p, delta, ratio, ans = bm.within_animal_pooled(pre_arm, arm)
+            if post_p is None:
+                continue
+            n_s, n_tr, rr = _meta(q, e, ans)
+            per_epoch[e] = post_p
+            cells[(row, e)] = post_p
+            titles[(row, e)] = (f"{e}\n{len(ans)} an, {n_s} sess, n={n_tr}"
+                                + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
             # ONE DELTA COLUMN PER POST-STROKE EPOCH (Priya asked for all three): acute-minus-pre
             # alone shows the hit and not the recovery, and recovery is half this deck's claim.
-            for _e in ("subacute", "chronic"):
-                if _e in per_epoch:
-                    cells[(row, f"{_e} - pre")] = per_epoch[_e] - per_epoch["pre"]
-                    titles[(row, f"{_e} - pre")] = f"{_e.upper()} - PRE"
+            col = DELTA if e == "acute" else f"{e} - pre"
+            cells[(row, col)] = delta
+            titles[(row, col)] = f"{e.upper()} - PRE\n{len(ans)} an, within-animal"
+            amp[q][e] = ratio
+        if "acute" in per_epoch:
             # THE TEST, not the eye. 345,600 pixels makes an uncorrected threshold meaningless;
             # this shuffles epoch labels WITHIN animal and keeps clusters larger than 95% of those
             # obtainable by relabelling. Same statistic the panel draws.
-            pre_by = {an: list(((by.get("pre") or {}).get(q) or {}).values())
-                      for an, by in store.items()}
-            post_by = {an: list(((by.get("acute") or {}).get(q) or {}).values())
-                       for an, by in store.items()}
-            pre_by = {a: v for a, v in pre_by.items() if v}
-            post_by = {a: v for a, v in post_by.items() if v}
+            pre_by, post_by = pre_arm, _arm(q, "acute")
             try:
                 cm, lab = bm.significance_contour(pre_by, post_by)
                 print(f"  .. 14m {q} acute: {lab}", flush=True)
@@ -1970,10 +1997,6 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                     contours[(row, DELTA)] = cm
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 14m sig {q}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-            base = float(np.sqrt(np.nanmean(per_epoch["pre"] ** 2)))
-            if base > 0:
-                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base
-                          for e, m in per_epoch.items()}
     if not cells:
         return None
 
