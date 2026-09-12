@@ -1452,6 +1452,72 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     return [p for p in out if p]
 
 
+def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
+    """15pa: figure 15's per-position evoked maps, PER ANIMAL, at the position that carries it.
+
+    WHY THIS AND NOT ONLY 14pa. Figure 14's per-animal panels replicate beautifully and they
+    replicate the wrong thing: once the `working` class was fixed, its acute far-contralateral map
+    is near-uniformly negative in all four animals, which is the ENGAGEMENT collapse rather than a
+    spatial code (see DECISIONS, 2026-09-12 late). The measure that stands is figure 15's --
+    per-position `post-cue minus pre-cue`, a within-trial reference, positions INDEPENDENT -- so
+    that is the one whose replication matters.
+
+    FOUR ANIMALS IS THE CEILING ON THE PERMUTATION TEST, which is the other reason this exists. The
+    pooled figure averages these rows and the test estimates its between-animal SE from four
+    numbers; neither can show whether a pattern REPLICATES, and at n=4 replication across panels is
+    the stronger evidence. A row that looks unlike the other three is a finding, not noise to be
+    averaged away: PS94 and PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder.
+
+    ONE POSITION PER FIGURE. Six positions x four animals x five epochs is a contact sheet; this
+    draws far-contralateral, where the deficit lives, and the pooled figure carries its neighbours.
+    """
+    if align != "cue" or variant != "working":
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_evoked_maps as pem
+
+    store, _counts = pem.maps_by_epoch()
+    if not store:
+        return None
+    Q, EPO, DELTA = "far_R", list(ef.PANELS), "acute - pre"
+    cells, titles = {}, {}
+    for an, by_e in sorted(store.items()):
+        per = {}
+        for e in EPO:
+            got = (by_e.get(e) or {}).get(Q)
+            if not got:
+                continue
+            per[e] = np.mean(list(got.values()), axis=0)
+            cells[(an, e)] = per[e]
+            titles[(an, e)] = f"{e}\n{len(got)} sess"
+        if "pre" in per and "acute" in per:
+            cells[(an, DELTA)] = per["acute"] - per["pre"]
+            titles[(an, DELTA)] = "ACUTE - PRE"
+    if not cells:
+        return None
+    rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
+    return ef.map_grid(
+        cells, out_dir, name="epoch_15pa_evoked_maps_by_animal_cue",
+        title="Far-CONTRALATERAL EVOKED map PER ANIMAL (post-cue minus pre-cue) -- does the "
+              "INDEPENDENT measure replicate?",
+        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        edges=bm.atlas_edges(),
+        cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
+        delta_label="change vs pre-stroke\n(SAME scale as the maps)",
+        subtitle=(
+            "THE PER-ANIMAL VIEW OF THE MEASURE THAT STANDS. Figure 14pa replicates too, but once "
+            "the `working` class was fixed its acute far-contra map is near-uniformly negative in "
+            "all four animals -- the ENGAGEMENT collapse, not a spatial code. Here each map is "
+            "that position's OWN post-cue minus pre-cue, so the six positions are independent and "
+            "a change cannot be inherited from another position's loss. Four animals is the "
+            "ceiling on the permutation test and the pooled figure averages these rows, so "
+            "neither can show REPLICATION -- which at n=4 is the stronger evidence. Colour scale "
+            "is per ANIMAL: each row is comparable across its own epochs, rows are not comparable "
+            "to each other. PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were "
+            "milder, so a severity-graded difference between rows is a finding and a random one "
+            "is a warning. Maps from `framemap_event_maps`; nothing recomputed."))
+
+
 def _fig_15_evoked_maps(out_dir, align, variant, wname):
     """15: per-position EVOKED cortical maps -- the position-INDEPENDENT answer to "where".
 
@@ -2958,6 +3024,8 @@ def main(argv=None) -> int:
             try:
                 _report(f"15e {align}/{variant}",
                         _fig_15_evoked_maps(out, align, variant, wname))
+                _report(f"15pa {align}/{variant}",
+                        _fig_15pa_evoked_maps_by_animal(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)

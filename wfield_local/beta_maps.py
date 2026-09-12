@@ -507,6 +507,20 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
     informative comparison is against the near positions on the same figure, whose clusters are
     focal and small.
 
+    WHAT THIS TEST CANNOT DO, and it is not a small thing. Shuffling epoch labels within animal
+    tests the null "these sessions' maps are exchangeable between the two epochs". Sessions are
+    ORDERED IN TIME and pre-stroke sessions all come before post-stroke ones, so pre-vs-post is
+    perfectly confounded with elapsed weeks -- window clearing, GCaMP expression, photobleaching,
+    the animal's familiarity with the task. A monotonic drift in any of those produces a genuinely
+    significant result here, and the test has no way to tell it from a lesion effect.
+
+    THE DEFENCE IS POSITION SPECIFICITY, NOT THE p-VALUE. Every one of those confounds acts on all
+    six positions at once; a lesion of ventrolateral striatum does not. So the evidence is that
+    far-middle and far-contralateral reach significance while the four near positions never do, in
+    any epoch, on data collected on the same days through the same window -- and the p-value's job
+    is only to say the far positions' effects are larger than relabelling can produce. Read the
+    CONTRAST between rows. A single row's contour, on its own, is not evidence that a stroke did it.
+
     NO PARAMETRIC ASSUMPTION IS MADE about the CLUSTER statistic. With 11 pre-stroke and ~5 acute
     sessions there are C(16,5) = 4,368 distinct relabellings per animal, so 500 draws sample the
     null honestly. The t distribution enters only in choosing where to cut, which is a convention
