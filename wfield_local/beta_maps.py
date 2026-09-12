@@ -865,6 +865,71 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
     return sig, lo, hi, sm_mask, n_tested
 
 
+#: Which test the map figures draw. "nested" is the deck's own animals -> sessions bootstrap, the
+#: same statistical object every scalar/bar family here uses (`epoch_figures.contrast_draws`, minus
+#: its block level, which a session-mean map does not have). The map families were the ONLY ones
+#: using something else, and that was the inconsistency rather than a considered choice.
+#:
+#: Priya, 2026-09-12, on sessions as the unit: "but it's biologically meaningful replication! each
+#: measurement within an epoch is a different sample" -- correct, and the reason the outer level
+#: stays the ANIMAL is narrower than it first looks: sessions are genuine replicates of the
+#: MEASUREMENT, while the animal is the unit only for a claim about mice in general. Nesting gets
+#: both, which is why the behaviour figures were already built this way.
+PRIMARY_TEST = "nested"
+
+
+def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, n_boot=2000,
+                         n_perm=500, alpha=0.05, seed=0, mask=None):
+    """``(full-resolution boolean mask, one-line label)`` for a difference panel, or ``(None, "")``.
+
+    ONE PLACE, so a figure cannot quietly disagree with another about what its green contour means.
+    Three methods are reachable and they answer the same question with different trade-offs:
+
+        "nested"   animals -> sessions bootstrap on the 8x downsampled grid, Bonferroni over bins.
+                   THE DEFAULT, and the same object the bar families use. Sessions sharpen each
+                   animal's estimate without being counted as independent animals.
+        "cluster"  full-resolution cluster mass against a within-animal relabelling null. Animal is
+                   the unit; pays no Bonferroni price because it borrows strength across space.
+                   Kept as the second line -- it agrees with "nested" on every cell that matters.
+        "musall"   Musall et al. 2023 fig S6 verbatim, sessions as the unit, Welch two-sample.
+
+    THE CONTOUR IS COARSE UNDER "nested" AND THAT IS HONEST: it is drawn on 8x8 bins, so it steps
+    rather than curving. The maps carry no spatial information finer than FWHM ~81 px, so a smooth
+    contour at full resolution would be claiming a precision the data does not have.
+    """
+    if method == "cluster":
+        keep = cluster_permutation(pre_by_animal, post_by_animal, n_perm=n_perm, seed=seed,
+                                   mask=mask)
+        if keep is None or not keep.any():
+            return None, "cluster permutation: nothing survives"
+        return keep, (f"cluster permutation, {n_perm} draws within animal: "
+                      f"{int(keep.sum()):,} px")
+    if method == "musall":
+        pre_flat = [m for v in pre_by_animal.values() for m in v]
+        post_flat = [m for v in post_by_animal.values() for m in v]
+        got = musall_significance(post_flat, pre_flat, alpha=alpha, mask=mask)
+        if got is None:
+            return None, ""
+        sig, _t, _mk, n_tested = got
+        return (upsample_mask(sig) if sig.any() else None,
+                f"Musall t, sessions as unit: {int(sig.sum())} of {n_tested} bins")
+    if method != "nested":
+        raise ValueError(f"unknown significance method {method!r}")
+    got = hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, n_boot=n_boot,
+                                              alpha=alpha, seed=seed, mask=mask)
+    if got is None:
+        return None, ""
+    sig, _lo, _hi, _mk, n_tested = got
+    n = int(sig.sum())
+    # SMALL COUNTS ARE NOT FINDINGS and the label says so where it matters. Measured residual:
+    # near-ipsi acute returns ~36 bins where Bonferroni expects ~0.05, from the normal
+    # approximation in a far tail with four animals at the outer level.
+    tag = "" if n == 0 or n >= 50 else "  (below the ~50-bin noise floor -- not a finding)"
+    return (upsample_mask(sig) if n else None,
+            f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
+            f"{n} of {n_tested} bins{tag}")
+
+
 def upsample_mask(small, shape=MAP_SHAPE, factor=MUSALL_DOWNSAMPLE):
     """Blow a downsampled boolean back up to the full grid, for drawing as a contour."""
     out = np.repeat(np.repeat(np.asarray(small, bool), factor, 0), factor, 1)

@@ -1428,11 +1428,12 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 if not (pre_by and post_by):
                     continue
                 try:
-                    cm = bm.cluster_permutation(pre_by, post_by)
+                    cm, lab = bm.significance_contour(pre_by, post_by)
+                    print(f"  .. 15r {reference} {q} {e}: {lab}", flush=True)
                     if cm is not None and np.any(cm):
                         contours[(row, f"{e} - pre")] = cm
                 except Exception as ex:                                # noqa: BLE001
-                    print(f"  !! 15r perm {reference} {q} {e}: "
+                    print(f"  !! 15r sig {reference} {q} {e}: "
                           f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
         if not cells:
             continue
@@ -1453,10 +1454,10 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 "Colour scale is PER ROW, so a position is comparable across its own epochs and "
                 "rows are not comparable to each other; the difference columns share their row's "
                 "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. GREEN "
-                "contours are clusters surviving a permutation test that shuffles epoch labels "
-                "WITHIN animal (500 draws, cluster mass above the 95th percentile of the null), "
-                "computed INSIDE the Allen brain mask with the cluster-forming threshold set from "
-                "the between-animal df. r = split-half reliability of that epoch's mean map. "
+                "contours are bins significant under the animals-to-sessions bootstrap (2,000 "
+                "draws, Bonferroni over 3,237 in-mask bins of an 8x downsampled grid) -- the same "
+                "statistical object every bar family in this deck uses. "
+                "r = split-half reliability of that epoch's mean map. "
                 f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
     return [p for p in out if p]
 
@@ -1608,11 +1609,12 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
                 if not (pre_by and post_by):
                     continue
                 try:
-                    cm = bm.cluster_permutation(pre_by, post_by)
+                    cm, lab = bm.significance_contour(pre_by, post_by)
+                    print(f"  .. 15e {q} {e}: {lab}", flush=True)
                     if cm is not None and np.any(cm):
                         contours[(_long_of(q), f"{e} - pre")] = cm
                 except Exception as ex:                                # noqa: BLE001
-                    print(f"  !! 15e perm {q} {e}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+                    print(f"  !! 15e sig {q} {e}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
     if not cells:
         return None
     rows = [_long_of(q) for q in CONF_LABELS if any((_long_of(q), e) in cells for e in EPO)]
@@ -1641,9 +1643,12 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "position information; the reverse is a change in TUNING without a change in drive. "
             "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
             "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
-            "BOUNDARIES, not statistics; GREEN contours, where present, are clusters surviving a "
-            "permutation test that shuffles epoch labels within animal (500 draws, cluster mass "
-            "above the 95th percentile of the null). "
+            "BOUNDARIES, not statistics. GREEN contours are bins where the change differs from "
+            "zero under the SAME animals-to-sessions bootstrap the behaviour figures use (2,000 "
+            "draws, resampled with replacement at both levels, Bonferroni over 3,237 in-mask bins "
+            "of an 8x downsampled grid). It STEPS rather than curving because it is drawn on those "
+            "bins: the maps carry no spatial detail finer than FWHM ~81 px, so a smooth "
+            "full-resolution contour would claim a precision the data does not have. "
             f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}."))
 
 
@@ -1758,11 +1763,12 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             pre_by = {a: v for a, v in pre_by.items() if v}
             post_by = {a: v for a, v in post_by.items() if v}
             try:
-                cm = bm.cluster_permutation(pre_by, post_by)
+                cm, lab = bm.significance_contour(pre_by, post_by)
+                print(f"  .. 14m {q} acute: {lab}", flush=True)
                 if cm is not None and np.any(cm):
                     contours[(row, DELTA)] = cm
             except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! 14m cluster perm {q}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+                print(f"  !! 14m sig {q}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
             base = float(np.sqrt(np.nanmean(per_epoch["pre"] ** 2)))
             if base > 0:
                 amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base
@@ -1789,9 +1795,9 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "
             "Read the pattern for WHERE THE SIGNAL IS; the filter, which answers what the decoder "
             "USES, is a different map (they correlate at r = 0.245). "
-            "Allen CCF boundaries overlaid; GREEN outlines on the difference column are "
-            "clusters surviving a permutation test that shuffles epoch labels WITHIN animal "
-            "(500 draws, cluster mass above the 95th percentile of the null). "
+            "Allen CCF boundaries overlaid; GREEN outlines on the difference columns are bins "
+            "significant under the animals-to-sessions bootstrap the behaviour figures use (2,000 "
+            "draws, Bonferroni over 3,237 bins of an 8x downsampled grid). "
             "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
             "are not comparable to each other. "
             "r = split-half reliability of that epoch's mean map, the ceiling a difference can "
