@@ -1304,6 +1304,7 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
                f"PER ANIMAL -- does the pattern replicate? {wname}"),
         row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
+        blank=bm.excluded_mask(),
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
         delta_label="change vs pre-stroke\n(orange-blue; expands if larger)",
@@ -1414,7 +1415,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
             name=f"epoch_15rpa_position_{reference.upper()}ref_by_animal_{align}_{variant}",
             title=(f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- does it replicate? {wname}"),
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
-            delta_cols=tuple(DCOLS), edges=edges,
+            delta_cols=tuple(DCOLS), edges=edges, blank=bm.excluded_mask(),
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(same scale unless larger)",
             subtitle=(
                 f"ONE OF A PAIR ({txt['short']}), at the animal level. The pooled 15r figures "
@@ -1525,6 +1526,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
             title=f"{txt['title']} -- {wname}",
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, contours=contours,
+            blank=bm.excluded_mask(),
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(SAME scale as the maps)",
             row_scaled=False,
         subtitle=(
@@ -1597,6 +1599,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
               "does it replicate? Subtracts the anticipatory code; see F12",
         row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
+        blank=bm.excluded_mask(),
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         subtitle=(
@@ -1711,6 +1714,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         panel_titles=titles,
         delta_cols=tuple(f"{e} - pre" for e in ("acute", "subacute", "chronic")),
         edges=bm.atlas_edges(), contours=contours,
+        blank=bm.excluded_mask(),
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         row_scaled=False,
@@ -1808,6 +1812,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         title=("WHERE the position code IS, epoch by epoch -- decoder weights tested against ZERO "
                f"(Musall et al. 2023 fig. S6). {wname}"),
         row_labels=rows, col_labels=EPO, panel_titles=titles, edges=bm.atlas_edges(),
+        blank=bm.excluded_mask(),
         contours=contours,
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
@@ -1983,6 +1988,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
         col_labels=EPO + [DELTA, "subacute - pre", "chronic - pre"], panel_titles=titles,
         delta_cols=(DELTA, "subacute - pre", "chronic - pre"),
         edges=bm.atlas_edges(), contours=contours,
+        blank=bm.excluded_mask(),
         cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
                     "trials than on the average trial"),
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",

@@ -174,6 +174,25 @@ MIN_TRIALS_PER_CLASS = 20
 #: unaffected.
 STAT_ERODE_PX = 16
 
+#: Allen regions removed from the analysis entirely -- not tested, not drawn, not counted in any
+#: amplitude.
+#:
+#: Priya, 2026-09-12: "I'm also inclined to just get rid of the olfactory bulbs, since I don't have
+#: them in full view and I don't want to really care about olfactory coding."
+#:
+#: THE FIELD OF VIEW BEARS THAT OUT. Inside the brain mask the bulbs are wildly asymmetric --
+#: MOB_left 7,553 px against MOB_right 389 px, a 19x difference. The right bulb is almost entirely
+#: outside the window, so anything computed over "the olfactory bulbs" is really the left one, and
+#: a bilateral map that includes them is comparing a full region against a sliver. That asymmetry
+#: is also why they contribute to the rim artefact `stat_mask` exists for: they sit at the anterior
+#: edge where the Allen warp is least constrained.
+#:
+#: NOT FRP, though it is adjacent and shows the same warning sign (FRP_right 17,132 px against
+#: FRP_left 8,856 px, a 1.9x asymmetry). Frontal pole is cortex and was not what was asked for;
+#: recorded here because the asymmetry says its anterior portion is partly out of view too, and it
+#: is the obvious next candidate if the anterior edge keeps causing trouble.
+EXCLUDE_REGIONS = ("MOB",)
+
 SE_FLOOR_PCT = 25.0
 
 #: Two-tailed p for the CLUSTER-FORMING threshold, converted to a t against the between-animal df
@@ -433,6 +452,50 @@ def atlas_edges(session=None):
 
 
 @lru_cache(maxsize=1)
+@lru_cache(maxsize=1)
+def _atlas_names():
+    """``(atlas, {atlas value: region name})`` on the shared grid, or ``(None, {})``."""
+    import glob
+    import json
+
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+
+    for s in SESSIONS:
+        ad = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1")
+        if not ad:
+            continue
+        try:
+            atlas = np.load(f"{ad[0]}/allen_area_atlas_native_grid.npy")
+            raw = json.loads(open(f"{ad[0]}/allen_area_names.json").read())
+        except Exception:                                              # noqa: BLE001
+            continue
+        # THE FILE'S SHAPE IS NOT OBVIOUS and has bitten this before: it maps the ATLAS VALUE to a
+        # ``[allen_id, name]`` pair, so the name is the LAST element, not the entry itself.
+        out = {}
+        items = raw.items() if isinstance(raw, dict) else enumerate(raw, start=1)
+        for k, v in items:
+            try:
+                key = int(k)
+            except (TypeError, ValueError):
+                continue
+            out[key] = str(v[-1]) if isinstance(v, (list, tuple)) and v else str(v)
+        return atlas, out
+    return None, {}
+
+
+@lru_cache(maxsize=1)
+def excluded_mask():
+    """Pixels belonging to `EXCLUDE_REGIONS`, as a boolean on the shared grid."""
+    atlas, names = _atlas_names()
+    if atlas is None or not EXCLUDE_REGIONS:
+        return np.zeros(MAP_SHAPE, bool)
+    out = np.zeros(MAP_SHAPE, bool)
+    for val, nm in names.items():
+        if any(nm.upper().startswith(r.upper()) for r in EXCLUDE_REGIONS):
+            out |= (atlas == val)
+    return out
+
+
 def stat_mask(erode=STAT_ERODE_PX):
     """The brain mask ERODED -- the pixels a STATISTIC may use, narrower than the display mask.
 
@@ -500,7 +563,11 @@ def brain_mask():
                   flush=True)
             continue
         if m.shape == MAP_SHAPE and m.any():
-            return m
+            # EXCLUDED REGIONS COME OUT HERE, at the single definition, so every consumer --
+            # statistics, amplitude ratios, split-half reliability, the edge-enrichment
+            # denominator -- inherits the same field of view without each having to remember.
+            ex = excluded_mask()
+            return m & ~ex if ex is not None else m
     return None
 
 

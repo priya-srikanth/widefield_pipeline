@@ -307,3 +307,54 @@ def test_vs_zero_carries_the_do_not_subtract_warning_in_its_docstring():
     doc = bm.vs_zero_contour.__doc__ or ""
     assert "DO NOT SUBTRACT" in doc.upper()
     assert "significance_contour" in doc, "must point at the test that DOES answer the difference"
+
+
+def test_the_olfactory_bulbs_are_excluded_everywhere_or_nowhere():
+    """Priya: "get rid of the olfactory bulbs, since I don't have them in full view".
+
+    THE FIELD OF VIEW BEARS IT OUT: inside the mask, MOB_left is 7,553 px against MOB_right's
+    389 px -- a 19x asymmetry, so "the olfactory bulbs" really means the left one, and a bilateral
+    map including them compares a full region against a sliver.
+
+    THE EXCLUSION HAS TO BE AT ONE PLACE. It is applied inside `brain_mask`, so every consumer --
+    the statistics mask, amplitude ratios, split-half reliability, the edge-enrichment denominator
+    -- inherits the same field of view without each having to remember. Pinned because an exclusion
+    honoured by the tests but not by the amplitude numbers would be worse than none.
+    """
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+
+    ex = bm.excluded_mask()
+    assert ex is not None and ex.any(), "no pixels excluded -- the atlas lookup silently failed"
+    assert 0.01 < ex.sum() / bm.MAP_SHAPE[0] / bm.MAP_SHAPE[1] < 0.10, (
+        f"{int(ex.sum())} px excluded -- implausible for the olfactory bulbs")
+    disp, stat = bm.brain_mask(), bm.stat_mask()
+    assert not (disp & ex).any(), "excluded pixels are still inside the display mask"
+    assert not (stat & ex).any(), "excluded pixels are still inside the statistics mask"
+
+
+def test_excluded_regions_are_not_drawn_and_do_not_set_the_colour_scale(tmp_path):
+    """A region no statistic may touch must not be PAINTED as if it were data.
+
+    Excluding it from the mask while still drawing it would be the worst of both: it would look
+    like a result and could even set the row's colour limit, squashing everything real.
+    """
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+    from wfield_local import epoch_figures as ef
+
+    blank = bm.excluded_mask()
+    m = np.zeros(bm.MAP_SHAPE)
+    m[blank] = 1000.0          # an absurd value only inside the excluded region
+    m[~blank] = 0.01
+    lim_with = float(np.percentile(np.abs(m.ravel()), 99.0))
+    masked = np.where(blank, np.nan, m)
+    v = masked.ravel()[np.isfinite(masked.ravel())]
+    lim_without = float(np.percentile(np.abs(v), 99.0))
+    assert lim_without < lim_with, "blanking must keep the excluded region out of the limit"
+
+    p = ef.map_grid({("r", "a"): m}, tmp_path, name="t", title="t",
+                    row_labels=["r"], col_labels=["a"], blank=blank)
+    assert p.exists()

@@ -1367,7 +1367,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
              panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="seismic",
-             row_scaled=True, pct=99.0, edges=None, contours=None,
+             row_scaled=True, pct=99.0, edges=None, contours=None, blank=None,
              cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
              delta_shares_scale=True):
     """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
@@ -1412,6 +1412,11 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     being read by eye. Outlined, NOT masked: masking would hide the magnitude, which is what the
     panel is for.
 
+    ``blank`` is a boolean mask of pixels NOT to draw -- they become NaN and the colormap leaves
+    them empty. Used for regions excluded from the analysis (`beta_maps.EXCLUDE_REGIONS`), so a
+    region that no statistic may touch is not silently rendered as if it were data. Excluding it
+    from the mask but still PAINTING it would be the worst of both.
+
     ``edges`` is an Allen boundary mask from `atlas_overlay.region_edges`, drawn over every panel.
     A cortical map without the CCF outlines is not readable as anatomy -- "it moved to somewhere
     lateral and anterior" is not an answer, and the whole point of this family is to be able to name
@@ -1435,7 +1440,14 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
         # THE EMPTY CASE IS REAL, not defensive padding: a row with no difference cell passes
         # `[] or [None]` here, and `np.concatenate([])` raises "need at least one array to
         # concatenate" -- which killed all three arms of this family on its first full render.
-        keep = [np.asarray(a).ravel() for a in arrs if a is not None]
+        keep = []
+        for a in arrs:
+            if a is None:
+                continue
+            a = np.asarray(a, float)
+            if blank is not None:
+                a = np.where(np.asarray(blank, bool), np.nan, a)
+            keep.append(a.ravel())
         if not keep:
             return 1.0
         v = np.concatenate(keep)
@@ -1474,6 +1486,9 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                                panel / fig_w, panel / fig_h])
             ax.set_axis_off()
             m = cells.get((r, c))
+            if m is not None and blank is not None:
+                m = np.asarray(m, float).copy()
+                m[np.asarray(blank, bool)] = np.nan
             if m is None:
                 ax.text(0.5, 0.5, "no data", ha="center", va="center", fontsize=FS_ANNOT - 2,
                         color="0.55", transform=ax.transAxes)
