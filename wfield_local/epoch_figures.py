@@ -1366,7 +1366,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
-             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="seismic",
+             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
              row_scaled=True, pct=99.0, edges=None, contours=None,
              cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
              delta_shares_scale=True):
@@ -1378,10 +1378,12 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     a scale and forcing one on them makes the weaker position look empty. ``row_scaled=False``
     forces a single global scale for the rare case where rows ARE commensurable.
 
-    ``delta_cmap`` defaults to a SATURATED diverging map. The difference columns share their row's
-    data scale (see `delta_shares_scale`), which is the honest choice and also makes them pale when
-    the change is small relative to the signal -- so the colormap has to carry what little dynamic
-    range is left rather than spending it on pastels.
+    ``delta_cmap`` is ORANGE-BLUE (`PuOr_r`) where the data columns are RED-BLUE, and the contrast
+    is the point (Priya, 2026-09-12: "I liked having a distinct colormap (it's confusing
+    otherwise)"). A difference and an absolute map read at a glance as the same kind of quantity
+    when they share a palette, which is exactly the confusion two colour bars cannot undo. This is
+    the same map the delta pattern-similarity confusion matrices use, so a delta looks like a delta
+    everywhere in the deck.
 
     ``delta_cols`` names columns that hold DIFFERENCES; they get their own diverging map and their
     own symmetric limit, because a difference and an absolute map on one colour bar is a category
@@ -1431,15 +1433,26 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     for ri, r in enumerate(rows):
         lim = glob if glob is not None else _lim(
             [m for (rr, c), m in cells.items() if rr == r and c not in delta_cols] or [None])
-        # THE DELTA SHARES THE DATA'S SCALE, and this is not cosmetic. Scaling a difference to its
-        # OWN 99th percentile stretches a small change across the full colour range, so noise looks
-        # like structure -- which is exactly what the first render did (Priya: "the delta image
-        # above looks very noisy - is this just scaled to low signal?"). Yes, it was. A delta and
-        # the maps it is a difference OF are the same quantity in the same units, so sharing the
-        # limit makes "is this change large relative to the signal" readable at a glance, and a
-        # genuinely small difference correctly looks pale instead of dramatic.
-        dlim = lim if delta_shares_scale else _lim(
-            [m for (rr, c), m in cells.items() if rr == r and c in delta_cols] or [None])
+        # THE DELTA SHARES THE DATA'S SCALE, BUT ONLY WHERE THAT SCALE IS BIG ENOUGH TO HOLD IT.
+        #
+        # Sharing exists so that a SMALL change looks small: scaling a difference to its own 99th
+        # percentile stretches noise across the full colour range and it reads as structure
+        # (Priya: "the delta image above looks very noisy - is this just scaled to low signal?").
+        # That reasoning only works in one direction. When the difference is LARGER than the data
+        # scale -- which is routine on the mean-referenced figure, where the maps are centred and
+        # hug zero -- sharing CLIPS it, and a clipped panel is a flat slab of colour with every
+        # feature inside it destroyed (Priya, 2026-09-12: "the rescaling of the post-pre delta map
+        # was much too severe", of the mean-referenced pre-cue arm, whose row limits run 0.0021 to
+        # 0.007 while its deltas do not).
+        #
+        # `max` keeps both properties at once. A delta smaller than the data scale still shares it
+        # and still looks correctly pale; a delta larger than it gets the room it needs instead of
+        # being cut off. The colour bar always prints the limit actually used, so expansion is
+        # visible rather than silent -- a reader comparing the two bars sees that the delta needed
+        # a wider range, which is itself the finding.
+        dlim = _lim([m for (rr, c), m in cells.items() if rr == r and c in delta_cols] or [None])
+        if delta_shares_scale:
+            dlim = max(lim, dlim)
         for ci, c in enumerate(cols):
             ax = fig.add_axes([(0.75 + ci * panel) / fig_w,
                                1.0 - (top_in + (ri + 1) * panel + ri * gap) / fig_h,

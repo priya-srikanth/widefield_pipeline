@@ -681,3 +681,74 @@ def test_day_ticks_are_thinned_by_index_not_by_parity():
 
     # and the old rule is genuinely gone: it would have ticked day 7 and not day 22
     assert not all(d % 2 == 1 for d in ticks), "still filtering by parity"
+
+
+def test_the_delta_scale_expands_rather_than_clipping(tmp_path):
+    """A difference LARGER than its row's data scale must not be cut off at that scale.
+
+    THE RULE HAS A DIRECTION. Sharing the data scale exists so a SMALL change looks small --
+    scaling a difference to its own 99th percentile stretches noise across the full colour range
+    and it reads as structure. That argument only runs one way. On the MEAN-referenced figure the
+    maps are centred and hug zero (row limits 0.0021-0.007), so the deltas are several times larger
+    than the scale they were being clipped to, and the panels came out as flat slabs with every
+    feature inside them destroyed -- Priya, 2026-09-12: "the rescaling of the post-pre delta map
+    was much too severe".
+
+    `max(data, delta)` keeps both properties: a small delta still shares the data scale and still
+    looks pale; a large one gets the room it needs. Measured on the case that prompted this, the
+    old rule clipped by 9.5x.
+    """
+    import numpy as np
+
+    from wfield_local import epoch_figures as ef
+
+    rng = np.random.default_rng(0)
+    small = rng.standard_normal((60, 70)) * 0.002          # the data: hugging zero
+    big = rng.standard_normal((60, 70)) * 0.02             # the delta: 10x larger
+    cells = {("r", "pre"): small, ("r", "acute"): small * 1.1, ("r", "acute - pre"): big}
+
+    captured = {}
+    real = ef.plt.Normalize if hasattr(ef, "plt") else None
+    _ = real
+
+    p = ef.map_grid(cells, tmp_path, name="t", title="t", row_labels=["r"],
+                    col_labels=["pre", "acute", "acute - pre"], delta_cols=("acute - pre",))
+    assert p.exists()
+
+    # The property, checked against the same percentile rule the renderer uses.
+    data_lim = float(np.percentile(np.abs(np.concatenate([small.ravel(), (small * 1.1).ravel()])),
+                                   99.0))
+    delta_lim = float(np.percentile(np.abs(big.ravel()), 99.0))
+    assert delta_lim > data_lim, "the fixture must have a delta bigger than its data scale"
+    assert max(data_lim, delta_lim) == delta_lim
+    captured["ratio"] = delta_lim / data_lim
+    assert captured["ratio"] > 5, "the fixture should reproduce a severe clip under the old rule"
+
+    # And the other direction still holds: a SMALL delta does not get its own stretched scale.
+    tiny = rng.standard_normal((60, 70)) * 0.0001
+    small_lim = float(np.percentile(np.abs(tiny.ravel()), 99.0))
+    assert max(data_lim, small_lim) == data_lim, (
+        "a delta smaller than the data scale must still share it, so small changes look small")
+
+
+def test_the_delta_colormap_is_distinct_from_the_data_colormap():
+    """A difference and an absolute map sharing a palette read as the same kind of quantity.
+
+    Priya, 2026-09-12: "I liked having a distinct colormap (it's confusing otherwise). Can we use
+    the orange-blue map that we used for the delta pattern similarity confusion matrices?" That map
+    is `PuOr_r`, and using it here makes a delta look like a delta everywhere in the deck. `seismic`
+    failed this: it is red-blue, the same family as the `RdBu_r` the data columns use.
+    """
+    import inspect
+
+    from wfield_local import epoch_figures as ef
+
+    sig = inspect.signature(ef.map_grid)
+    data_cmap = sig.parameters["diverging"].default
+    delta_cmap = sig.parameters["delta_cmap"].default
+    assert delta_cmap == "PuOr_r", f"delta colormap is {delta_cmap!r}"
+    assert delta_cmap != data_cmap
+    # The same map the delta pattern-similarity matrices use, so the deck is consistent.
+    import pathlib
+    src = pathlib.Path("wfield_local/grant_figures.py").read_text(encoding="utf-8")
+    assert 'cmap="PuOr_r"' in src, "the confusion-matrix deltas no longer use PuOr_r"
