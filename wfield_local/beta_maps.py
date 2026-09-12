@@ -178,19 +178,18 @@ STAT_ERODE_PX = 16
 #: amplitude.
 #:
 #: Priya, 2026-09-12: "I'm also inclined to just get rid of the olfactory bulbs, since I don't have
-#: them in full view and I don't want to really care about olfactory coding."
+#: them in full view and I don't want to really care about olfactory coding." That is the whole
+#: reason: they are not the question, and they sit at the anterior edge of the window where the
+#: Allen warp is least constrained.
 #:
-#: THE FIELD OF VIEW BEARS THAT OUT. Inside the brain mask the bulbs are wildly asymmetric --
-#: MOB_left 7,553 px against MOB_right 389 px, a 19x difference. The right bulb is almost entirely
-#: outside the window, so anything computed over "the olfactory bulbs" is really the left one, and
-#: a bilateral map that includes them is comparing a full region against a sliver. That asymmetry
-#: is also why they contribute to the rim artefact `stat_mask` exists for: they sit at the anterior
-#: edge where the Allen warp is least constrained.
+#: AN EARLIER VERSION OF THIS COMMENT JUSTIFIED THE EXCLUSION WITH A 19x LEFT/RIGHT ASYMMETRY, AND
+#: THAT WAS FALSE -- an artefact of the atlas-name bug described in `_atlas_names`. MOB is
+#: symmetric, 7,553 px per side, 15,106 px total. The exclusion stands on the stated preference and
+#: not on a defect in the data; it must not be argued for on grounds that do not exist.
 #:
-#: NOT FRP, though it is adjacent and shows the same warning sign (FRP_right 17,132 px against
-#: FRP_left 8,856 px, a 1.9x asymmetry). Frontal pole is cortex and was not what was asked for;
-#: recorded here because the asymmetry says its anterior portion is partly out of view too, and it
-#: is the obvious next candidate if the anterior edge keeps causing trouble.
+#: FRP IS NOT EXCLUDED, and the earlier case for excluding it was the same artefact: it is 389 px
+#: per side, 0.4% of the mask, not the 13% the broken lookup reported. Nothing anterior is removed
+#: beyond the bulbs.
 EXCLUDE_REGIONS = ("MOB",)
 
 SE_FLOOR_PCT = 25.0
@@ -469,16 +468,29 @@ def _atlas_names():
             raw = json.loads(open(f"{ad[0]}/allen_area_names.json").read())
         except Exception:                                              # noqa: BLE001
             continue
-        # THE FILE'S SHAPE IS NOT OBVIOUS and has bitten this before: it maps the ATLAS VALUE to a
-        # ``[allen_id, name]`` pair, so the name is the LAST element, not the entry itself.
+        # THE FILE'S SHAPE IS NOT OBVIOUS AND I GOT IT WRONG ONCE, with consequences worth
+        # spelling out. It maps an INDEX to a ``[SIGNED_ID, name]`` pair:
+        #
+        #     {"0": [1, "MOB_left"], "1": [-1, "MOB_right"], "2": [2, "FRP_left"], ...}
+        #
+        # and the ATLAS ARRAY STORES THE SIGNED ID, not the index. Keying by the index therefore
+        # shifts every name onto the wrong region, by an offset that grows down the file.
+        #
+        # WHAT THAT COST (2026-09-12). `EXCLUDE_REGIONS = ("MOB",)` matched indices 0 and 1 and so
+        # removed atlas values 0 and 1 -- background plus MOB_LEFT ONLY, leaving the right bulb
+        # entirely in, which is exactly what Priya then saw still on the figure. The same offset
+        # invented a "19x MOB asymmetry" and a "1.9x FRP asymmetry" that DO NOT EXIST (both regions
+        # are symmetric to the pixel), and it made "FRP" resolve to FRP_left + MOp_LEFT -- so the
+        # proposal I put to her to exclude FRP would have deleted PRIMARY MOTOR CORTEX from every
+        # analysis. It was caught only because she asked to see the mask drawn on a brain.
+        #
+        # THE LESSON: a region mask is the one thing here that is cheap to render and impossible to
+        # sanity-check from a pixel count. Draw it.
         out = {}
-        items = raw.items() if isinstance(raw, dict) else enumerate(raw, start=1)
-        for k, v in items:
-            try:
-                key = int(k)
-            except (TypeError, ValueError):
-                continue
-            out[key] = str(v[-1]) if isinstance(v, (list, tuple)) and v else str(v)
+        items = raw.items() if isinstance(raw, dict) else enumerate(raw)
+        for _k, v in items:
+            if isinstance(v, (list, tuple)) and len(v) >= 2:
+                out[int(v[0])] = str(v[-1])
         return atlas, out
     return None, {}
 

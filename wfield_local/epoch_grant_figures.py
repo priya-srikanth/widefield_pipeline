@@ -913,7 +913,13 @@ def _frozen_vs_refit_overall(out_dir, align, variant, wname, *, matched=False):
             title=f"Change from pre-stroke, pooled over positions{what}, {wname}",
             subtitle=sub, ylabel="epoch - pre", positions=list(OVERALL_ARMS),
             tick_labels=["frozen", "refit", "gap"], n_comparisons=n_comp)
-    return made
+    # A LIST, because the render loop does `for q in (fn(...) or [])` and `ef.bar_row`
+    # returns ONE Path. Returning the Path itself raised
+    #     TypeError: 'WindowsPath' object is not iterable
+    # on every align/variant -- AFTER both figures and both sidecars had been written, so
+    # the outputs looked complete on disk while every combination was logged as failed.
+    # `_frozen_vs_refit` returns a list for the same reason; this had to match it.
+    return [made] if made else None
 
 
 def _frozen_vs_refit_overall_matched(out_dir, align, variant, wname):

@@ -1,18 +1,38 @@
-"""The cluster-permutation test must not find structure where there is no brain.
+"""Everything that makes a green contour on a map figure mean what it says.
 
-WHY THIS FILE EXISTS. The first version of `beta_maps.cluster_permutation` computed
-`t = |mean| / (se + 1e-12)` over the whole 540x640 frame. 138,387 of those pixels are outside the
-brain, where every animal's map is ~0, so both the numerator and the denominator vanished and `t`
-was unbounded. Priya, 2026-09-12, looking at the output: "this contour of significance looks like
-total artifact ... hard to believe nothing else is significant?" -- and both halves were the same
-bug, because the enormous edge clusters entered the permutation NULL as well and pushed the
+This file grew one test per bug, and every one of them is a bug that SHIPPED -- each was producing
+a figure that looked finished. Read it as the list of ways a cortical-map statistic can be wrong
+while still rendering.
+
+THE ORIGINAL BUG. `cluster_permutation` computed `t = |mean| / (se + 1e-12)` over the whole
+540x640 frame. 138,387 of those pixels are not brain, and there both the numerator and the
+denominator vanish, so `t` was unbounded. Priya, 2026-09-12: "this contour of significance looks
+like total artifact ... hard to believe nothing else is significant?" -- and both halves were the
+SAME bug, because the enormous edge clusters entered the permutation NULL as well and pushed the
 cluster-mass threshold past every real interior effect.
 
-The three properties pinned here are the three the fix rests on, and each one failed before it:
+WHAT IS PINNED, and why each one exists:
 
-    1. nothing is ever flagged outside the brain mask
-    2. a pure null flags nothing at all -- the test is calibrated, not merely quieter
-    3. a real, localised, in-mask effect IS flagged -- it did not buy (1) and (2) with blindness
+    off-brain pixels          the original artefact -- clusters formed where there is no brain
+    pure-null calibration     the fix had to be CALIBRATED, not merely quieter
+    a planted central effect  ...and not bought with blindness
+    zero-variance floor       the border bug's interior twin: four animals agreeing by chance
+    refuses without a mask    a silent fallback is indistinguishable from the fix working
+    df-derived threshold      t=2.0 is p=0.14 at df=3; it passed 18.8% of a null position's brain
+    polarities apart          an increase must not carry a touching decrease over the line
+    eroded stat mask          the rim is consistent ACROSS animals, which a between-animal test
+                              rewards -- it cannot tell a shared optical artefact from a shared
+                              biological effect
+    rim effect not flagged    the behaviour that erosion is FOR
+    edge result suppressed    one erosion radius cannot cover every panel; the guard is per-result
+    central result drawn      ...and the guard is not satisfied by blindness
+    olfactory bulbs excluded  in the display mask AND the statistics mask -- an exclusion honoured
+                              by the tests but not by the amplitude numbers is worse than none
+    vs-zero finds a map       Musall fig S6's question, and it must still detect something
+    do-not-subtract pinned    two vs-zero panels are NOT a difference, and that caveat is exactly
+                              what a rewrite drops
+
+Full decision record: DECISIONS.md, 2026-09-12 (night).
 """
 import numpy as np
 import pytest
@@ -358,3 +378,75 @@ def test_excluded_regions_are_not_drawn_and_do_not_set_the_colour_scale(tmp_path
     p = ef.map_grid({("r", "a"): m}, tmp_path, name="t", title="t",
                     row_labels=["r"], col_labels=["a"], blank=blank)
     assert p.exists()
+
+
+def test_the_atlas_lookup_maps_SIGNED_IDS_and_every_region_is_bilateral():
+    """The json maps INDEX -> [SIGNED_ID, name]; the atlas array stores the SIGNED ID.
+
+    KEYING BY THE INDEX SHIFTS EVERY NAME ONTO THE WRONG REGION, by an offset that grows down the
+    file, and it shipped (2026-09-12). Consequences, all of which looked plausible at the time:
+
+      * `EXCLUDE_REGIONS = ("MOB",)` removed background + MOB_LEFT ONLY, leaving the right bulb
+        fully in -- which is what Priya saw still on the figure;
+      * it invented a "19x MOB asymmetry" and a "1.9x FRP asymmetry", neither of which exists;
+      * "FRP" resolved to FRP_left + MOp_LEFT, so a proposal to exclude FRP would have deleted
+        PRIMARY MOTOR CORTEX from every analysis.
+
+    It was caught only because she asked to see the mask DRAWN ON A BRAIN -- a pixel count cannot
+    reveal it, and every number it produced was self-consistent.
+
+    THE INVARIANT THAT WOULD HAVE CAUGHT IT: a correctly-mapped cortical parcellation is bilateral.
+    Each `X_left` / `X_right` pair must have centroids on OPPOSITE sides of the image midline and
+    near-equal pixel counts.
+    """
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+
+    atlas, names = bm._atlas_names()
+    assert atlas is not None and names, "atlas or names unavailable"
+    mid = atlas.shape[1] / 2.0
+    pairs = {}
+    for sid, nm in names.items():
+        if "_" not in nm:
+            continue
+        base, side = nm.rsplit("_", 1)
+        if side.lower() in ("left", "right"):
+            pairs.setdefault(base, {})[side.lower()] = sid
+
+    checked = 0
+    for base, sides in pairs.items():
+        if set(sides) != {"left", "right"}:
+            continue
+        ml, mr = atlas == sides["left"], atlas == sides["right"]
+        nl, nr = int(ml.sum()), int(mr.sum())
+        if min(nl, nr) < 200:            # too small for a centroid to be meaningful
+            continue
+        checked += 1
+        cl = float(np.where(ml)[1].mean())
+        cr = float(np.where(mr)[1].mean())
+        assert (cl - mid) * (cr - mid) < 0, (
+            f"{base}: _left centroid {cl:.0f} and _right {cr:.0f} are on the SAME side of the "
+            f"midline {mid:.0f} -- the atlas lookup is keying by index instead of signed id")
+        assert max(nl, nr) / min(nl, nr) < 1.3, (
+            f"{base}: {nl} vs {nr} px, a {max(nl, nr) / min(nl, nr):.1f}x asymmetry")
+    assert checked >= 8, f"only {checked} bilateral pairs checked -- the lookup may be empty"
+
+
+def test_BOTH_olfactory_bulbs_are_excluded_not_one():
+    """The half-exclusion is the specific symptom the atlas bug produced on the figure."""
+    import numpy as np
+
+    from wfield_local import beta_maps as bm
+
+    atlas, names = bm._atlas_names()
+    ex = bm.excluded_mask()
+    mid = atlas.shape[1] / 2.0
+    for sid, nm in names.items():
+        if nm.upper().startswith("MOB"):
+            m = atlas == sid
+            assert m.any(), f"{nm} has no pixels"
+            assert (m & ~ex).sum() == 0, f"{nm} is NOT excluded -- only one bulb was removed"
+    xs = np.where(ex)[1]
+    assert (xs < mid).any() and (xs > mid).any(), (
+        "the exclusion lies entirely on one side of the midline -- it is half a pair")
