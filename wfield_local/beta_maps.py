@@ -850,9 +850,16 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
 
 
 #: Spatial downsampling factor for the Musall-style test. 8 is not arbitrary: it takes the
-#: 540 x 640 frame to 68 x 80, of which 3,234 pixels are in the brain mask -- against the 3,364
-#: Musall et al. (2023, fig. S6) Bonferroni-corrected over. The same resolution, arrived at
-#: independently.
+#: 540 x 640 frame to 68 x 80, of which 3,234 fell in the brain mask AS IT STOOD WHEN THIS WAS
+#: WRITTEN -- against the 3,364 Musall et al. (2023, fig. S6) Bonferroni-corrected over. The same
+#: resolution, arrived at independently.
+#:
+#: THOSE COUNTS ARE NOW HISTORY, NOT PARAMETERS. Excluding the olfactory bulbs and the painted
+#: fibre-glue occlusion, and eroding 16 px for the statistics, took the real numbers to **2,362
+#: bins in the display mask and 2,022 in the eroded statistics mask**. Three figure subtitles went
+#: on quoting 3,237 for hours afterwards -- a 60% overstatement of how many tests were being run.
+#: Nothing should read a bin count off this comment: `epoch_grant_figures._n_stat_bins` computes
+#: it, and `musall_significance` returns it as `n_tested`.
 #:
 #: IT COSTS NOTHING REAL. The maps' effective smoothness is FWHM ~81 px (see `SE_SMOOTH_SIGMA`),
 #: so at full resolution the frame is roughly 100x oversampled relative to the spatial information

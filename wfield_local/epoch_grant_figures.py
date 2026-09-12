@@ -1604,6 +1604,73 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     return [p for p in out if p]
 
 
+#: How each correction reads in a figure's methods line. Keyed by `beta_maps.CORRECTION`.
+_CORRECTION_TEXT = {
+    "maxstat": ("family-wise corrected by the BOOTSTRAP MAX-STATISTIC over {n} in-mask bins of an "
+                "8x downsampled grid -- each draw is centred on the observed and studentised by "
+                "the bootstrap SE, the maximum |z| across bins is taken, and the threshold is the "
+                "95th percentile of those maxima, so THE DATA'S OWN SPATIAL COVARIANCE PERFORMS "
+                "THE CORRECTION and no independence or smoothness is assumed"),
+    "resel": ("Bonferroni over the {n} RESOLUTION ELEMENTS the map actually carries (in-mask area "
+              "/ FWHM^2), not over its bins"),
+    "bonferroni": ("Bonferroni over {n} in-mask bins of an 8x downsampled grid -- CONSERVATIVE, "
+                   "because neighbouring bins are not independent at this smoothness"),
+    "none": "UNCORRECTED across bins",
+}
+
+
+def _n_stat_bins():
+    """In-mask bins of the 8x downsampled statistics grid, computed rather than remembered.
+
+    The count moved when the olfactory bulbs and the painted glue left the mask, and three
+    subtitles went on quoting the old one. Cheap -- it is a mask reduction, not an analysis.
+    """
+    from wfield_local import beta_maps as bm
+
+    m = bm.stat_mask()
+    if m is None:
+        return 0
+    # `downsample` returns (small, small_mask) and the SECOND is the bin count the tests use --
+    # `musall_significance` reads exactly this as `n_tested`. Counting finite values of the tuple
+    # instead gave 10,720, precisely twice the 67x80 grid, because numpy stacked both arrays.
+    return int(bm.downsample(m.astype(float), mask=m)[1].sum())
+
+
+def _stats_sentence(stat_rows):
+    """The significance methods sentence, derived from what the panels REPORTED.
+
+    WRITTEN RATHER THAN TYPED, because the typed version went stale and nothing caught it. Three
+    figure families carried the literal string "Bonferroni over 3,237 in-mask bins" in their
+    subtitle for hours after the correction became the bootstrap max-statistic -- the figures were
+    computing one thing and announcing another, and a reader had no way to tell. A redraw from a
+    saved bundle reproduced the wrong sentence just as faithfully.
+
+    Reads `correction` and `n_bins` off the rows `significance_contour` stashed, so the sentence
+    cannot disagree with the test that produced the contours. Falls back to the module constant
+    when a family drew no contour at all.
+    """
+    from wfield_local import beta_maps as bm
+
+    rows = [r for r in (stat_rows or []) if r.get("correction")]
+    corr = rows[0]["correction"] if rows else bm.CORRECTION
+    n = max((int(r.get("n_bins") or 0) for r in rows), default=0)
+    # THE BIN COUNT IS THE MAXIMUM OVER PANELS, not a constant: it is the in-mask bin count of the
+    # eroded statistics mask, and a panel whose animals intersect differently can test slightly
+    # fewer. Quoting the largest is the honest summary of "up to this many tests".
+    txt = _CORRECTION_TEXT.get(corr, f"corrected by {corr}")
+    txt = txt.format(n=f"{n:,}") if "{n}" in txt else txt
+    tail = ""
+    if any(int(r.get("suppressed") or 0) for r in rows):
+        tail = (" PANELS WHOSE FLAGGED PIXELS WERE MORE THAN "
+                f"{bm.EDGE_ENRICHMENT_MAX:.0f}x CONCENTRATED IN THE MASK RIM ARE SUPPRESSED and "
+                "draw no contour -- that pattern is an imaging-window artefact, and because it is "
+                "the same artefact in every animal a between-animal test cannot reject it.")
+    return ("GREEN contours are bins significant under the NESTED animals->sessions bootstrap "
+            f"(2,000 draws, resampled with replacement at both levels), {txt}. The test runs on "
+            f"the brain mask ERODED {bm.STAT_ERODE_PX} px, with the olfactory bulbs and the "
+            f"hand-painted fibre-glue occlusion removed.{tail}")
+
+
 def _fig_15r_reference_maps(out_dir, align, variant, wname):
     """15r: the SAME position maps under two different references -- the reference IS the claim.
 
@@ -1719,9 +1786,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 "Colour scale is PER ROW, so a position is comparable across its own epochs and "
                 "rows are not comparable to each other; the difference columns share their row's "
                 "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. GREEN "
-                "contours are bins significant under the animals-to-sessions bootstrap (2,000 "
-                "draws, Bonferroni over 3,237 in-mask bins of an 8x downsampled grid) -- the same "
-                "statistical object every bar family in this deck uses. "
+                f"{_stats_sentence(_stats)} This is the same statistical object every bar "
+                "family in this deck uses. "
                 "r = split-half reliability of that epoch's mean map. "
                 f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
     return [p for p in out if p]
@@ -1931,9 +1997,8 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
             "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
             "BOUNDARIES, not statistics. GREEN contours are bins where the change differs from "
-            "zero under the SAME animals-to-sessions bootstrap the behaviour figures use (2,000 "
-            "draws, resampled with replacement at both levels, Bonferroni over 3,237 in-mask bins "
-            "of an 8x downsampled grid). It STEPS rather than curving because it is drawn on those "
+            f"zero. {_stats_sentence(_stats)} "
+            "It STEPS rather than curving because it is drawn on those "
             "bins: the maps carry no spatial detail finer than FWHM ~81 px, so a smooth "
             "full-resolution contour would claim a precision the data does not have. "
             f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}."))
@@ -2032,7 +2097,8 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
             "misses it in the next may not differ at all, and nothing on this figure puts an error "
             "bar on that comparison. The difference question has its own figure and its own test. "
             "METHOD, following Musall et al. 2023 fig S6: maps downsampled 8x to a 67x80 grid "
-            "(3,237 bins inside the Allen mask, against their 3,364), tested per bin against zero, "
+            f"({_n_stat_bins():,} bins inside the eroded statistics mask, against their 3,364), "
+            "tested per bin against zero, "
             "Bonferroni-corrected over those bins. THE UNIT IS THE ANIMAL, through the "
             "animals-to-sessions bootstrap this deck uses everywhere; Musall pooled SESSIONS, which "
             "is far more powerful and treats two sessions from one animal as independent -- that "
@@ -2220,9 +2286,8 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "
             "Read the pattern for WHERE THE SIGNAL IS; the filter, which answers what the decoder "
             "USES, is a different map (they correlate at r = 0.245). "
-            "Allen CCF boundaries overlaid; GREEN outlines on the difference columns are bins "
-            "significant under the animals-to-sessions bootstrap the behaviour figures use (2,000 "
-            "draws, Bonferroni over 3,237 bins of an 8x downsampled grid). "
+            "Allen CCF boundaries overlaid. "
+            f"{_stats_sentence(_stats)} "
             "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
             "are not comparable to each other. "
             "r = split-half reliability of that epoch's mean map, the ceiling a difference can "
