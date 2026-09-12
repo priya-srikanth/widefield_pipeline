@@ -209,3 +209,49 @@ the two are separable.
 * A pattern map says where the signal is, **not** which pixels are necessary for decoding. That
   second claim needs the filter map, which the module can produce (`filter_map=True`) and which
   correlates with the pattern at only r = 0.245.
+
+
+---
+
+## A structural limit of one-vs-rest, found 2026-09-12
+
+Priya: *"in acute there may be less ss-ul/ll activity in far-center trials, which makes the near ipsi
+acute trial map look as though there is a relative **increase** in ss-ul/ll activity compared to
+pre-stroke."*
+
+**Correct, and it is structural.** The Haufe pattern is `cov(pixel, decoder output)` on trial-mean-
+centred data, so the reference is the average over all six positions in that session. If one
+position loses drive the reference falls, and **every other position's map gains an apparent
+increase it did not earn**. The six maps are not independent.
+
+### What this invalidates
+
+The acute amplitude *increases* — near-middle 1.53 post-cue, 2.82 post-lick, 3.30 pre-cue, far-ipsi
+1.09 — **cannot be read as those positions gaining anything.** They are consistent with being the
+shadow of far-middle (0.48) and far-contralateral (0.47) losing amplitude: the same observation
+counted twice, with a sign flip.
+
+### What survives
+
+**The falls.** The mechanism works *against* a position appearing to fall — its own loss raises its
+reference less than it lowers everyone else's — so far-contra and far-middle dropping below half
+their pre-stroke amplitude is not manufactured by the contrast. That, and the convergence with the
+encoder's fitted amplitude (0.749 → 0.286 → 0.745), is the part worth keeping.
+
+### The fix, and it is already on disk
+
+A **per-position reference** makes the six maps independent, and `framemap_event_maps` already
+computes one: per session and per position, `post-cue mean − pre-cue mean` in Allen pixels, with 123
+`*_spout_positions_1s_pre_post_delta_maps.npz` on the share. The reference is **within trial**, so
+far-contra's loss cannot leak into near-ipsi's map.
+
+**This moves the pixel-map arm from last to first in the build order.** It is not a complementary
+view any more — it is the control that decides whether four of the six rows in figure 14 mean
+anything.
+
+### A related check worth running
+
+Compare **one-vs-rest** against **one-vs-quiet** maps for the same position. If they look alike, the
+position code and the task-evoked response are spatially confounded and "where the position code is"
+is weaker than it appears. If they differ, that is evidence the decoder reads position rather than
+licking.

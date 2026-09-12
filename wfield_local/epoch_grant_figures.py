@@ -1402,6 +1402,12 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             row = _long_of(q)
             cells[(row, DELTA)] = per_epoch["acute"] - per_epoch["pre"]
             titles[(row, DELTA)] = "ACUTE - PRE\ngreen = cluster p<0.05"
+            # ONE DELTA COLUMN PER POST-STROKE EPOCH (Priya asked for all three): acute-minus-pre
+            # alone shows the hit and not the recovery, and recovery is half this deck's claim.
+            for _e in ("subacute", "chronic"):
+                if _e in per_epoch:
+                    cells[(row, f"{_e} - pre")] = per_epoch[_e] - per_epoch["pre"]
+                    titles[(row, f"{_e} - pre")] = f"{_e.upper()} - PRE"
             # THE TEST, not the eye. 345,600 pixels makes an uncorrected threshold meaningless;
             # this shuffles epoch labels WITHIN animal and keeps clusters larger than 95% of those
             # obtainable by relabelling. Same statistic the panel draws.
@@ -1431,8 +1437,13 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
         cells, out_dir, name=f"epoch_14_beta_maps_{align}_{variant}",
         title=(f"WHERE the position code lives, and where it goes -- Haufe-transformed decoder "
                f"maps, {wname}"),
-        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        row_labels=rows,
+        col_labels=EPO + [DELTA, "subacute - pre", "chronic - pre"], panel_titles=titles,
+        delta_cols=(DELTA, "subacute - pre", "chronic - pre"),
         edges=bm.atlas_edges(), contours=contours,
+        cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
+                    "trials than on the average trial"),
+        delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         subtitle=(
             "L2 logistic on the rank-100 SVT, beta Haufe-transformed to a PATTERN "
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "

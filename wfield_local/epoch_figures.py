@@ -1367,7 +1367,9 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
              panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
-             row_scaled=True, pct=99.0, edges=None, contours=None):
+             row_scaled=True, pct=99.0, edges=None, contours=None,
+             cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
+             delta_shares_scale=True):
     """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
 
     THE COLOUR SCALE IS PER ROW, not global, and that is the whole readability of the figure. A
@@ -1396,8 +1398,9 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     import matplotlib.pyplot as plt
 
     rows, cols = list(row_labels), list(col_labels)
-    fig_w = min(QUARTER_IN * 2.0, 2.15 * len(cols) + 0.9)
-    panel = (fig_w - 0.9) / len(cols)
+    # +1.05in on the right for the per-row colour bars.
+    fig_w = min(QUARTER_IN * 2.3, 2.15 * len(cols) + 1.95)
+    panel = (fig_w - 1.95) / len(cols)
     _t, _tl = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     _sub, _sl = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
     top_in = 0.52 + 0.15 * _sl + 0.15 * (_tl - 1)
@@ -1422,7 +1425,15 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     for ri, r in enumerate(rows):
         lim = glob if glob is not None else _lim(
             [m for (rr, c), m in cells.items() if rr == r and c not in delta_cols] or [None])
-        dlim = _lim([m for (rr, c), m in cells.items() if rr == r and c in delta_cols] or [None])
+        # THE DELTA SHARES THE DATA'S SCALE, and this is not cosmetic. Scaling a difference to its
+        # OWN 99th percentile stretches a small change across the full colour range, so noise looks
+        # like structure -- which is exactly what the first render did (Priya: "the delta image
+        # above looks very noisy - is this just scaled to low signal?"). Yes, it was. A delta and
+        # the maps it is a difference OF are the same quantity in the same units, so sharing the
+        # limit makes "is this change large relative to the signal" readable at a glance, and a
+        # genuinely small difference correctly looks pale instead of dramatic.
+        dlim = lim if delta_shares_scale else _lim(
+            [m for (rr, c), m in cells.items() if rr == r and c in delta_cols] or [None])
         for ci, c in enumerate(cols):
             ax = fig.add_axes([(0.75 + ci * panel) / fig_w,
                                1.0 - (top_in + (ri + 1) * panel + ri * gap) / fig_h,
@@ -1450,6 +1461,21 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
             if ci == 0:
                 ax.text(-0.10, 0.5, r, transform=ax.transAxes, rotation=90, va="center",
                         ha="center", fontsize=FS_LABEL - 1, fontweight="bold")
+        # A COLOUR BAR PER ROW, because the scale IS per row -- one global bar would be a lie about
+        # what the colours mean. Two bars: the data scale and, if the row has one, the delta scale.
+        y0 = 1.0 - (top_in + (ri + 1) * panel + ri * gap) / fig_h
+        for j, (lm, cmap, lab) in enumerate(
+                [(lim, diverging, cbar_label), (dlim, delta_cmap, delta_label)]
+                if any((r, c) in cells for c in delta_cols) else
+                [(lim, diverging, cbar_label)]):
+            cax = fig.add_axes([(0.75 + len(cols) * panel + 0.10 + j * 0.42) / fig_w,
+                                y0 + 0.12 * panel / fig_h, 0.10 / fig_w, 0.76 * panel / fig_h])
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=-lm, vmax=lm))
+            cb = fig.colorbar(sm, cax=cax)
+            cb.set_ticks([-lm, 0, lm])
+            cb.set_ticklabels([f"-{lm:.2g}", "0", f"{lm:.2g}"])
+            cb.ax.tick_params(labelsize=FS_TICK - 3)
+            cb.set_label(lab, fontsize=FS_ANNOT - 2.5)
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
     if _sub:
         fig.text(0.5, 1.0 - (0.20 + 0.15 * _tl) / fig_h, _sub, ha="center", va="top",

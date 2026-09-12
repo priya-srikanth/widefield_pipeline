@@ -43,6 +43,30 @@ extracted", which IS the anatomical question.
     They are different questions and this module returns the pattern. A pattern map is NOT evidence
     that those pixels are necessary for decoding; that claim needs the filter.
 
+ONE-VS-REST MAKES THE SIX POSITIONS NON-INDEPENDENT, AND THAT LIMITS WHAT A SINGLE ROW MEANS.
+Priya, 2026-09-12: "in acute there may be less ss-ul/ll activity in far-center trials, which makes
+the near ipsi acute trial map look as though there is a relative *increase* in ss-ul/ll activity
+compared to pre-stroke." Correct, and it is structural rather than incidental.
+
+`A[i] = cov(pixel i, decoder output)` is computed on TRIAL-MEAN-CENTRED data, so the reference is
+the average over all six positions in that session. That is not a baseline anyone chose -- it is
+what covariance means -- but it has a consequence: if one position loses drive, THE REFERENCE FALLS,
+and every other position's map gains an apparent increase it did not earn. A loss at one position
+propagates with opposite sign into the other five.
+
+WHAT THAT INVALIDATES HERE. The acute amplitude "increases" -- near middle 1.53 post-cue, 2.82
+post-lick, 3.30 pre-cue, far ipsi 1.09 -- cannot be read as those positions gaining anything. They
+are consistent with being the shadow of far-middle (0.48) and far-contralateral (0.47) losing
+amplitude. The FALLS are the safer half of the figure: the mechanism works against them, not for
+them. Do not quote a row that goes UP.
+
+THE FIX IS A PER-POSITION REFERENCE, which makes the six maps independent, and it is not this
+module's quantity. `framemap_event_maps` already writes, per session and PER POSITION, a
+`post-cue mean - pre-cue mean` map in Allen pixels (123 `*_spout_positions_1s_pre_post_delta_maps.npz`
+on the share). That reference is WITHIN TRIAL, so far-contralateral's loss cannot leak into
+near-ipsilateral's map. Build that arm before drawing conclusions about any position other than the
+two that fall.
+
 RELIABILITY IS PART OF THE RESULT, not a caveat, because it differs sharply by epoch. Split-half of
 the epoch-mean map (PS94 / PS92, far-contralateral, post-cue):
 
