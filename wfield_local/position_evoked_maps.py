@@ -8,6 +8,40 @@ covariance against the mean over ALL SIX positions, so one position losing drive
 reference and hands every other position an increase it did not earn. The six maps are not
 independent, and four of six rows in figure 14 cannot be read as written.
 
+IT CONFLICTS WITH F12, AND THAT CONFLICT WAS INHERITED RATHER THAN CHOSEN (found 2026-09-12,
+Priya: "i think we decided in the past NOT to substract the pre-cue window though right? because
+pre-cue contains real information?"). `DECISIONS.md` F12, marked load-bearing for the stroke
+pre/post comparison:
+
+    "No per-trial baseline -- a session-constant baseline is removed by feature standardization
+     (identical decoding); a per-trial pre-cue baseline OVER-SUBTRACTS real anticipatory signal.
+     The pre-cue window decodes position above chance even under block-CV (0.40-0.56) = genuine
+     anticipatory coding."
+
+This module subtracts exactly that window. Nothing flagged it because the subtraction is not
+performed here: `framemap_event_maps` writes a `delta = post - pre` field into every
+`*_spout_positions_1s_pre_post_delta_maps.npz`, and this module aggregates that pre-existing
+product.
+
+WHAT IT THEREFORE MEASURES, and how it must be labelled: the CUE-EVOKED INCREMENT in
+position-specific activity, not the position representation. Two consequences:
+
+  * an amplitude of 0.11 for far-contralateral acute cannot be read as "the map fell to 11% of
+    pre-stroke" -- it is a ratio of increments;
+  * the two windows have DIFFERENT deficits (pre-cue accuracy delta -0.11 to -0.26 by position,
+    post-cue falls further), so the difference mixes two unequal effects rather than isolating one.
+
+AND THE PRE-CUE WINDOW IS THE ONE F13 MOST WANTS KEPT: it is the MOTOR-INDEPENDENT readout, the
+only one that decodes above chance on NO-LICK trials, which is precisely the post-stroke failed
+attempt. Subtracting it to isolate a motor-selected component discards the signal that works when
+the animal does not move -- and the lick-aligned arm already isolates motor-selected activity
+without that cost.
+
+USE `position_reference_maps` WITH THE QUIET REFERENCE AS THE PRIMARY MAP. A quiet-period baseline
+is SESSION-CONSTANT, which is the kind F12 explicitly permits; maps are not standardized, so for
+maps that constant is a real choice rather than an invisible one, and quiet is the defensible pick.
+This module stays for the increment question, labelled as such.
+
 THE REFERENCE HERE IS WITHIN TRIAL AND PER POSITION: each map is that position's own
 `post-cue mean - pre-cue mean`. Far-contralateral collapsing cannot leak into near-ipsilateral's
 map, because near-ipsilateral's map never looks at far-contralateral's trials.
