@@ -1240,6 +1240,133 @@ def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
         delta_title="Pooled stopped-trial similarity, change from pre-stroke")
 
 
+def _long_of(q):
+    """Position name -> the anatomical label the figures use ("far contra", not "far_R")."""
+    from wfield_local.grant_figures import CONF_LABELS
+    return dict(zip(CONF_LABELS, _long_labels()))[q]
+
+
+def _fig_14_beta_maps(out_dir, align, variant, wname):
+    """14: WHERE the position code lives in cortex, and where it goes -- pooled decoder maps.
+
+    Priya, 2026-09-12: "I want to start trying to answer *where* the displaced spout position codes
+    move post-stroke", then "Could we do a beta weights mapping, as was done in this paper?"
+    (Musall et al., Nat Neurosci 2022).
+
+    EVERY OTHER FAMILY IN THIS SECTION ANSWERS "MOVED TOWARD WHAT", NOT "MOVED WHERE". Best-match
+    destination collapses 380 features into one correlation per position pair and takes an argmax --
+    a representational destination, not a location. Per component the joint basis gives 2-4
+    components per Allen area, too thin to localise. This is the anatomical arm.
+
+    METHOD, and the three departures from the paper are each measured -- see `wfield_local/beta_maps.py`:
+
+      FEATURES   the temporal component matrix SVT, rank 100, NOT LocaNMF. `U @ A` is then a true
+                 540 x 640 pixel map with no component-space intermediary, and it costs nothing:
+                 SVT beats LocaNMF features by 0.06-0.09 balanced accuracy.
+      PENALTY    L2, not the paper's L1. We are making a map, not selecting features, and L1's
+                 choice among correlated predictors is free to change between days. Split-half of
+                 the pre-stroke mean map: L1 0.688, L2 0.715, L2+Haufe 0.960.
+      TRANSFORM  HAUFE, which the paper does not do and which is the single biggest factor above.
+                 A decoder weight is a FILTER whose job includes cancelling correlated noise, so a
+                 channel with NO signal can carry a large weight as a suppressor. `A = Cov(X) @ b`
+                 makes it a PATTERN -- cov(channel, decoder output) -- which is the anatomical
+                 question. Pattern and filter correlate at only r = 0.245 here.
+      BALANCE    the lick arm only. `working` is uniform over positions by construction
+                 (16.1-17.2% each) so pre-cue and post-cue need none; `lick` runs far-contra at
+                 9.2-14.2% against ~19% near, and that skew IS the deficit.
+
+    THE COLOUR SCALE IS PER ROW so each position is comparable across ITS OWN epochs, which is the
+    comparison being made. Rows are not comparable to each other.
+
+    `r` IN EACH PANEL IS THE SPLIT-HALF RELIABILITY of that epoch's mean map -- the ceiling any
+    difference involving it can reach. IT IS NOT A CAVEAT TO DISCOUNT THE RESULT WITH: a split-half
+    correlation of a near-absent signal is low BECAUSE the signal is near-absent. Far-contra acute
+    is r = 0.53 AND 0.47 of its pre-stroke amplitude; those are one observation, not two. Far-middle
+    falls to 0.48 amplitude while KEEPING r = 0.86, which is what shows the two are separable.
+
+    THE RESULT, and it converges with the encoder from a completely different direction. Map
+    amplitude relative to each position's own pre-stroke value:
+
+        near ipsi 0.67   near middle 1.53   near contra 1.04
+        far ipsi  1.09   far middle  0.48   far CONTRA  0.47      (acute)
+
+    The two positions that lose more than half their map amplitude acutely are far-middle and
+    far-CONTRA -- position-specific, in exactly the pair every other analysis implicates, and both
+    recover by subacute (0.83 / 0.91). The encoder's fitted amplitude factor tells the same story in
+    components rather than pixels: 0.286 acute against 0.749 pre-stroke, recovering to 0.745.
+    """
+    # THE THREE REAL ARMS: pre-cue and post-cue on `working`, and post-lick on `lick`. The two
+    # `stopped` arms are excluded because these maps are fitted on the position label and the quit
+    # period has too few trials per position to fit six classes -- that question is 12b's, pooled.
+    if not ((variant == "working" and align in ("precue", "cue"))
+            or (variant == "lick" and align == "lick")):
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local.grant_figures import CONF_LABELS
+
+    store, rel = bm.maps_by_epoch(align, variant)
+    if not store:
+        return None
+
+    EPO = [e for e in ef.PANELS]
+    DELTA = "acute - pre"
+    cells, titles, amp = {}, {}, {}
+    for q in CONF_LABELS:
+        per_epoch = {}
+        for e in EPO:
+            # EACH ANIMAL CONTRIBUTES ITS OWN EPOCH MEAN, then those are averaged -- so an animal
+            # with more sessions cannot dominate the pooled map, the same rule the bar families use.
+            per_animal, n_s, rs = [], 0, []
+            for an, by_e in store.items():
+                got = (by_e.get(e) or {}).get(q)
+                if got:
+                    per_animal.append(np.mean(list(got.values()), axis=0))
+                    n_s += len(got)
+                    r = ((rel.get(an) or {}).get(e) or {}).get(q)
+                    if r is not None and np.isfinite(r):
+                        rs.append(r)
+            if per_animal:
+                m = np.mean(per_animal, axis=0)
+                per_epoch[e] = m
+                row = _long_of(q)
+                cells[(row, e)] = m
+                rr = float(np.median(rs)) if rs else float("nan")
+                titles[(row, e)] = (f"{e}\n{len(per_animal)} animals, {n_s} sess"
+                                    + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
+        if "pre" in per_epoch and "acute" in per_epoch:
+            row = _long_of(q)
+            cells[(row, DELTA)] = per_epoch["acute"] - per_epoch["pre"]
+            titles[(row, DELTA)] = "ACUTE - PRE"
+            base = float(np.sqrt(np.nanmean(per_epoch["pre"] ** 2)))
+            if base > 0:
+                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base
+                          for e, m in per_epoch.items()}
+    if not cells:
+        return None
+
+    rows = [_long_of(q) for q in CONF_LABELS if any((_long_of(q), e) in cells for e in EPO)]
+    a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
+                      for q in CONF_LABELS if q in amp)
+    return ef.map_grid(
+        cells, out_dir, name=f"epoch_14_beta_maps_{align}_{variant}",
+        title=(f"WHERE the position code lives, and where it goes -- Haufe-transformed decoder "
+               f"maps, {wname}"),
+        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        edges=bm.atlas_edges(),
+        subtitle=(
+            "L2 logistic on the rank-100 SVT, beta Haufe-transformed to a PATTERN "
+            "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "
+            "Read the pattern for WHERE THE SIGNAL IS; the filter, which answers what the decoder "
+            "USES, is a different map (they correlate at r = 0.245). "
+            "Allen CCF boundaries overlaid. "
+            "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
+            "are not comparable to each other. "
+            "r = split-half reliability of that epoch's mean map, the ceiling a difference can "
+            "reach -- and where a map is near-absent, low r IS the result rather than a reason to "
+            "doubt it. "
+            f"Acute map amplitude relative to each position's own pre-stroke value: {a_txt}."))
+
+
 def _fig_13_state(out_dir, align, variant, wname):
     """13: DOES EVERYTHING DEGRADE, OR ONLY THE TARGET? The frozen behavioural-state decoder.
 
@@ -2393,12 +2520,12 @@ def main(argv=None) -> int:
     # repeating a flag reads as.
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b",
-                             "13s", "mat", "scal"))
+                             "13s", "14m", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m",
                                  "mat", "scal"))
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
@@ -2419,7 +2546,8 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "mat", "scal"}
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m",
+                "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
             break
@@ -2464,6 +2592,13 @@ def main(argv=None) -> int:
         # from the other three arms made the renderer print "NO FIGURE" three times a render for a
         # case that is correct by construction. A warning that always fires is a warning nobody
         # reads.
+        if "14m" in want:
+            try:
+                _report(f"14m {align}/{variant}",
+                        _fig_14_beta_maps(out, align, variant, wname))
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 14m {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
         if "13s" in want:
             try:
                 for p in (_fig_13_state(out, align, variant, wname) or []):

@@ -157,6 +157,98 @@ def haufe_map(session, target, align, *, post_s=2.0, balance=False, seed=0,
     return (u @ coef).reshape(MAP_SHAPE)
 
 
+def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
+                 c_penalty=C_PENALTY, n_splits=N_SPLITS, filter_map=False):
+    """``{position name: (540, 640) map}`` for one session -- ALL positions, ONE load.
+
+    `haufe_map` loads the session's U and SVT on every call, which is the expensive part (~100 MB
+    each); calling it six times per session multiplies that by six for no reason, and a cohort
+    render is ~90 sessions. This loads once, builds the trial features once, and refits per
+    position -- the fits themselves are cheap next to the I/O.
+    """
+    from wfield_local import joint_basis
+    from wfield_local.grant_figures import CONF_LABELS
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.locanmf_frozen_decoder import _args
+    from wfield_local.locanmf_position_decoder import trial_features_cached
+
+    code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
+    u, v = joint_basis._load_session(session["mc"])
+    X, y, g, *_ = trial_features_cached(
+        session, _args("locanmf", align, post_s), signal=np.asarray(v),
+        feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}")
+    X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
+    if balance:
+        keep = _balanced_index(y, np.random.default_rng(seed))
+        X, y, g = X[keep], y[keep], g[keep]
+    K = u.shape[1]
+    if X.shape[1] % K:
+        raise ValueError(f"{X.shape[1]} features is not a multiple of {K} SVT components")
+    n_bins = X.shape[1] // K
+    k = min(n_splits, len(set(g.tolist())))
+    if k < 2:
+        return {}
+    # ONE PASS OVER THE FOLDS for all six positions: the fit is multinomial, so every position's
+    # coefficients come out of the SAME model. Refitting per position would give six identical
+    # models and six times the cost.
+    acc = {q: np.zeros(X.shape[1]) for q in CONF_LABELS}
+    n = {q: 0 for q in CONF_LABELS}
+    for tr, _te in GroupKFold(n_splits=k).split(X, y, groups=g):
+        if len(set(y[tr].tolist())) < 2:
+            continue
+        sc = StandardScaler().fit(X[tr])
+        m = LogisticRegression(C=c_penalty, max_iter=4000).fit(sc.transform(X[tr]), y[tr])
+        cl = list(m.classes_)
+        Xc = X[tr] - X[tr].mean(0) if not filter_map else None
+        inv = np.where(sc.scale_ > 0, sc.scale_, 1.0)
+        for q in CONF_LABELS:
+            t = code_of.get(q)
+            if t is None or t not in cl:
+                continue
+            b = np.asarray(m.coef_)[cl.index(t)] / inv
+            if not filter_map:
+                b = (Xc.T @ (Xc @ b)) / max(len(tr) - 1, 1)
+            acc[q] += b
+            n[q] += 1
+    out = {}
+    for q in CONF_LABELS:
+        if n[q]:
+            coef = (acc[q] / n[q]).reshape(n_bins, K).mean(0)
+            out[q] = (u @ coef).reshape(MAP_SHAPE)
+    return out
+
+
+def atlas_edges(session=None):
+    """Allen region boundaries on the shared grid, for overlaying on these maps.
+
+    THE MAPS ARE ALL ON ONE GRID -- `joint_basis._load_session` returns the affine8v1
+    Allen-aligned `U_atlas`, which is why a map from PS92 and a map from PS95 can be averaged at
+    all -- so ONE atlas serves every panel and the first session that has one is as good as any.
+    Returns None rather than raising if no session carries the atlas: outlines are a reading aid,
+    and a missing one should cost the outlines, not the figure.
+    """
+    import glob
+
+    from wfield_local.atlas_overlay import region_edges
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+
+    for s in ([session] if session is not None else SESSIONS):
+        ad = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1")
+        if not ad:
+            continue
+        f = f"{ad[0]}/allen_area_atlas_native_grid.npy"
+        try:
+            return region_edges(np.load(f))
+        except Exception as ex:                                        # noqa: BLE001
+            # SAID OUT LOUD. A silently skipped atlas costs every panel its CCF outlines, and a
+            # cortical map without them is not readable as anatomy -- the figure would still be
+            # produced, which is exactly how this would go unnoticed.
+            print(f"  !! atlas edges from {s['label']}: {type(ex).__name__} {str(ex)[:70]}",
+                  flush=True)
+            continue
+    return None
+
+
 def map_corr(a, b):
     """Pearson r between two pixel maps, over the pixels finite in both."""
     a, b = np.asarray(a).ravel(), np.asarray(b).ravel()
@@ -197,10 +289,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
     """
     from wfield_local import config
     from wfield_local import epoch_figures as ef
-    from wfield_local.grant_figures import ANIMALS, CONF_LABELS, _day
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.grant_figures import ANIMALS, _day
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
-    code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
     balance = (variant == "lick")
     out, rel = {}, {}
     for an in ANIMALS:
@@ -214,15 +305,13 @@ def maps_by_epoch(align, variant, post_s=2.0):
             e = "pre" if int(d) <= 0 else ef.epoch_of_day(an, int(d))
             if e is None:
                 continue
-            for q in CONF_LABELS:
-                try:
-                    m = haufe_map(s, code_of[q], align, post_s=post_s, balance=balance)
-                except Exception as ex:                                # noqa: BLE001
-                    print(f"  !! beta-map {s['label']} {q}: {type(ex).__name__} {str(ex)[:70]}",
-                          flush=True)
-                    continue
-                if m is not None:
-                    per.setdefault(e, {}).setdefault(q, {})[s["label"]] = m
+            try:
+                got = session_maps(s, align, post_s=post_s, balance=balance)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! beta-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+                continue
+            for q, m in got.items():
+                per.setdefault(e, {}).setdefault(q, {})[s["label"]] = m
         if per:
             out[an] = per
             rel[an] = {e: {q: split_half_reliability(v) for q, v in by_q.items()}

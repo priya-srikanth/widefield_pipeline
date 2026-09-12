@@ -1365,6 +1365,86 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
     return q
 
 
+def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
+             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
+             row_scaled=True, pct=99.0, edges=None):
+    """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
+
+    THE COLOUR SCALE IS PER ROW, not global, and that is the whole readability of the figure. A
+    position whose code is large pre-stroke and small acutely has to be comparable ACROSS ITS OWN
+    epochs -- that comparison is the result -- while two different positions have no reason to share
+    a scale and forcing one on them makes the weaker position look empty. ``row_scaled=False``
+    forces a single global scale for the rare case where rows ARE commensurable.
+
+    ``delta_cols`` names columns that hold DIFFERENCES; they get their own diverging map and their
+    own symmetric limit, because a difference and an absolute map on one colour bar is a category
+    error that reads as a magnitude claim.
+
+    LIMITS FROM A PERCENTILE, not the max: one saturated pixel at the edge of the window -- and
+    these maps have them, from the mask boundary -- would otherwise flatten every real feature.
+
+    ``edges`` is an Allen boundary mask from `atlas_overlay.region_edges`, drawn over every panel.
+    A cortical map without the CCF outlines is not readable as anatomy -- "it moved to somewhere
+    lateral and anterior" is not an answer, and the whole point of this family is to be able to name
+    the region. Uses the SHARED overlay helper rather than a fifth private copy of it.
+    """
+    import matplotlib.pyplot as plt
+
+    rows, cols = list(row_labels), list(col_labels)
+    fig_w = min(QUARTER_IN * 2.0, 2.15 * len(cols) + 0.9)
+    panel = (fig_w - 0.9) / len(cols)
+    _t, _tl = wrap_title(title, fig_w, FS_ANNOT + 0.5)
+    _sub, _sl = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
+    top_in = 0.52 + 0.15 * _sl + 0.15 * (_tl - 1)
+    gap = 0.34
+    fig_h = top_in + len(rows) * panel + (len(rows) - 1) * gap + 0.2
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    def _lim(arrs):
+        v = np.concatenate([np.asarray(a).ravel() for a in arrs if a is not None])
+        v = v[np.isfinite(v)]
+        return max(float(np.percentile(np.abs(v), pct)), 1e-12) if v.size else 1.0
+
+    glob = None
+    if not row_scaled:
+        glob = _lim([m for (r, c), m in cells.items() if c not in delta_cols])
+    for ri, r in enumerate(rows):
+        lim = glob if glob is not None else _lim(
+            [m for (rr, c), m in cells.items() if rr == r and c not in delta_cols] or [None])
+        dlim = _lim([m for (rr, c), m in cells.items() if rr == r and c in delta_cols] or [None])
+        for ci, c in enumerate(cols):
+            ax = fig.add_axes([(0.75 + ci * panel) / fig_w,
+                               1.0 - (top_in + (ri + 1) * panel + ri * gap) / fig_h,
+                               panel / fig_w, panel / fig_h])
+            ax.set_axis_off()
+            m = cells.get((r, c))
+            if m is None:
+                ax.text(0.5, 0.5, "no data", ha="center", va="center", fontsize=FS_ANNOT - 2,
+                        color="0.55", transform=ax.transAxes)
+            else:
+                is_d = c in delta_cols
+                ax.imshow(np.ma.masked_invalid(np.asarray(m)),
+                          cmap=delta_cmap if is_d else diverging,
+                          vmin=-(dlim if is_d else lim), vmax=(dlim if is_d else lim))
+                if edges is not None:
+                    from wfield_local.atlas_overlay import overlay_regions
+                    overlay_regions(ax, edges)
+            ttl = (panel_titles or {}).get((r, c), c if ri == 0 else "")
+            if ttl:
+                ax.set_title(ttl, fontsize=FS_ANNOT - 1.5, linespacing=1.15)
+            if ci == 0:
+                ax.text(-0.10, 0.5, r, transform=ax.transAxes, rotation=90, va="center",
+                        ha="center", fontsize=FS_LABEL - 1, fontweight="bold")
+    fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
+    if _sub:
+        fig.text(0.5, 1.0 - (0.20 + 0.15 * _tl) / fig_h, _sub, ha="center", va="top",
+                 fontsize=FS_ANNOT - 2.0, color="0.30")
+    q = pathlib.Path(out) / f"{name}.png"
+    _save_png_svg(fig, q)
+    plt.close(fig)
+    return q
+
+
 def matrix_grid_by_animal(mats, out, *, name, title, labels, cmap="magma", vmin=0.0, vmax=1.0,
                           unit="fraction of sessions", subtitle=None, counts=None,
                           diag_label="match self", diag_fmt="{:.0%}"):
