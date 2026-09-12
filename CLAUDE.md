@@ -279,13 +279,31 @@ guards — five of them checks that were themselves broken — which are still i
 `STATUS_2026-08-14.md` the drift-removal decision week.)
 
 **[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md)** — START HERE for the ANATOMICAL arm
-("where does the displaced code move"). Carries the one thing that must be read first: the
-one-vs-rest decoder maps make the six positions NON-INDEPENDENT, so four of six rows in figure 14
-cannot be read as written — a position losing drive lowers the shared reference and hands every
-other position an unearned increase. The FALLS survive (far-contra 0.47, far-middle 0.48, converging
-with the encoder's 0.749 → 0.286 → 0.745); the rises do not. The control that fixes it is
-`position_evoked_maps.py`, which aggregates 123 existing per-session npz whose reference is WITHIN
-TRIAL and therefore per position. Science in `docs/WHERE_THE_CODE_MOVES.md`.
+("where does the displaced code move"). **THE REFERENCE IS THE CLAIM**, and three of them are in
+play; a filename now says which (`_MEANref_`, `_PRECUEref_`, `_QUIETref_`):
+
+* **MEAN** (figure 14's decoder betas, and `15r _MEANref_`) — centred on the mean over all trials,
+  so the six positions are **COUPLED**: one losing drive hands the other five an unearned increase.
+  Its amplitudes also INVERTED once the engaged-only bug was fixed (far-contra 0.47 → **2.08**),
+  because acute far-contra is then dominated by non-responded trials. **Not a deficit measure.**
+* **PRECUE** (figure 15) — post-cue minus pre-cue. **Violates F12**: the pre-cue window carries
+  genuine anticipatory position signal (LOSO 0.510 vs post-cue 0.873), so this subtracts real code
+  and measures the **cue-evoked increment**, not the position map. Inherited from the npz's `delta`
+  field, not chosen. Relabelled, not primary.
+* **QUIET** (`15r _QUIETref_`) — minus the session's quiet baseline. Positions independent, no
+  position information in the subtrahend; the map-space analogue of what F12 endorses. **LEAD WITH
+  THIS.** Caveat: the quiet baseline itself drifts (+0.0026 at chronic against a ~0.005 signal), so
+  across-epoch amplitude ratios carry that confound while between-position contrasts do not.
+
+**What stands:** two independent references give the SAME ordering — near > far ipsi > far middle >
+far contra — and all four animals replicate the acute far-contra drop. Converges with the encoder's
+0.749 → 0.286 → 0.745.
+
+**Statistics:** the nested animals→sessions bootstrap, the same object the bar families use. The
+earlier cluster-permutation test was broken four ways (off-brain pixels, zero-variance denominator,
+a t=2.0 threshold that is p=0.14 at df=3, merged polarities) and is fixed. Contours are drawn on an
+eroded mask and any result more than 2× concentrated in the rim is SUPPRESSED — measured, because
+some panels were pure edge artefact. Science in `docs/WHERE_THE_CODE_MOVES.md`.
 
 **[`docs/BEHAVIOURAL_STATE_CONTROL.md`](docs/BEHAVIOURAL_STATE_CONTROL.md)** — the SPECIFICITY
 control (2026-09-11), and the answer to "does everything degrade after the lesion, or only the
