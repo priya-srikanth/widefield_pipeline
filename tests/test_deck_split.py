@@ -81,3 +81,30 @@ def test_an_unknown_tag_moves_nothing(tmp_path):
 def test_is_divider_only_matches_a_bare_section_letter():
     assert ds.is_divider("G") and not ds.is_divider("G9")
     assert not ds.is_divider("") and not ds.is_divider("G9c")
+
+
+def test_a_section_without_numbered_subsections_stays_out_of_the_appendix(tmp_path):
+    """THE BUG THE SYNTHETIC DECK MISSED, found by running on the real 744-slide file.
+
+    Sections A-F have no numbered subsections, so their CONTENT slides carry the bare section letter
+    by carry-forward. Treating every bare-letter tag as a divider swept all 94 of them into the
+    appendix -- nothing lost, but the appendix stopped being per-session detail, which is its entire
+    purpose. A divider is a slide whose OWN title is the bare letter.
+    """
+    titles = [
+        "A. Per-animal WITHIN-DAY decoding",   # the divider
+        "PS92 0818 decoding",                  # content, inherits "A"
+        "PS93 0818 decoding",                  # content, inherits "A"
+        "G. POST-STROKE",                      # divider
+        "G9. PS92 ENL time course",            # appendix
+    ]
+    r = ds.split(_deck(tmp_path, titles), appendix_tags=("G9",))
+    app = ds.slide_titles(pptx.Presentation(str(r["appendix_path"])))
+    assert "PS92 0818 decoding" not in app, "section-A content must not ride along"
+    assert "A. Per-animal WITHIN-DAY decoding" in app, "its divider still should"
+    assert r["appendix"] == 3                  # two dividers + the one G9 slide
+
+
+def test_divider_indices_uses_the_title_not_the_tag(tmp_path):
+    titles = ["A. Section", "inherits A", "G9. thing"]
+    assert ds.divider_indices(titles) == {0}

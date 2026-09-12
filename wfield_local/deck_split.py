@@ -98,8 +98,26 @@ def _drop(prs, idxs):
         lst.remove(entries[i])
 
 
+#: A divider slide's TITLE is a bare section letter: "G. POST-STROKE -- ...".
+DIVIDER_RE = re.compile(r"^[A-Z]\.\s")
+
+
+def divider_indices(titles):
+    """Indices of the section-divider slides.
+
+    NOT "every slide whose tag is one letter" -- that was the first rule and it was wrong on the
+    real deck. Sections A-F have no numbered subsections, so their CONTENT slides carry the bare
+    section letter by carry-forward and the rule swept all 94 of them into the appendix. A divider
+    is a slide whose OWN TITLE is the bare letter; the slides that merely inherit it are content.
+    """
+    return {i for i, t in enumerate(titles) if DIVIDER_RE.match(t or "")}
+
+
 def is_divider(tag):
-    """A bare section letter ("G") is a divider slide and belongs in BOTH files."""
+    """True for a bare section-letter TAG. Kept for callers reasoning about tags rather than slides.
+
+    Prefer `divider_indices`: a tag alone cannot tell a divider from a slide that inherited it.
+    """
     return bool(tag) and len(tag) == 1 and tag.isalpha()
 
 
@@ -116,9 +134,11 @@ def split(full_path, narrative_out=None, appendix_out=None, appendix_tags=APPEND
     appendix_out = pathlib.Path(appendix_out or full_path.with_name(
         full_path.stem + "_per_session_appendix.pptx"))
 
-    tags = slide_tags(Presentation(str(full_path)))
+    _prs = Presentation(str(full_path))
+    titles = slide_titles(_prs)
+    tags = slide_tags(_prs)
     to_appendix = [i for i, t in enumerate(tags) if t in appendix_tags]
-    keep_in_appendix = set(to_appendix) | {i for i, t in enumerate(tags) if is_divider(t)}
+    keep_in_appendix = set(to_appendix) | divider_indices(titles)
 
     prs = Presentation(str(full_path))
     _drop(prs, to_appendix)
