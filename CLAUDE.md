@@ -278,6 +278,34 @@ came from; `STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 
 guards — five of them checks that were themselves broken — which are still in force;
 `STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/BEHAVIOURAL_STATE_CONTROL.md`](docs/BEHAVIOURAL_STATE_CONTROL.md)** — the SPECIFICITY
+control (2026-09-11), and the answer to "does everything degrade after the lesion, or only the
+target?" The lesion is ventrolateral STRIATAL, so no cortex is damaged: same window, same basis,
+same estimator, same frozen-model discipline, only the LABEL changes. Frozen pre-stroke decoders,
+as the fraction of above-chance performance retained — **position 0.86 → 0.43 acutely (loses 50%),
+behavioural state 0.92 → 0.81 (loses 11%), RUNNING alone 0.98 → 0.95 (loses 3%)**. Read it before
+touching `wfield_local/locomotor_{state,features,decoder}.py`: it records the four measurements that
+set the design (the unit is a 1 s SEGMENT not a trial; the window length is set by quiet's 1.10 s
+median; licking is onset-anchored because its bouts median 0.37 s; PS92 8/12 is excluded as a
+crash+concat artefact), the two confounds checked before anything was plotted, and five stated
+limits. Figures `epoch_12b*` and `epoch_13*`, deck section I.
+
+## Two things that bite when rendering or building the deck
+
+**`--only` TAKES A LIST, AND REPEATING THE FLAG USED TO REPLACE.** `epoch_grant_figures --only acc
+5c 5r` is right; `--only acc --only 5c` silently rendered only the last one until `action="extend"`
+was added 2026-09-11. Five families were asked for, one ran, and the only symptom was a figure
+printing a number the code no longer produced. Every render now PRINTS the family set it resolved —
+read that line.
+
+**THE DECK IS BUILT FROM A LOCAL WORKING DIR THAT CAN LAG THE SHARE.** `build_analysis_deck` reads
+`figures_working` (`E:/cue_lick` on the analysis box), not `labcams/.../cue_analysis`, and its
+completeness guard refuses to publish a deck missing figures. On 2026-09-11 that guard blocked a
+rebuild over eleven 0910 figures that existed on the share and had never reached this box's E: —
+0910 had been analysed on the OTHER machine. "Missing" from the guard means missing FROM THAT
+MACHINE. Either pass `--src` pointing at the share or let that box's nightly catch its working dir
+up.
+
 ## Acquisition incidents
 
 **[`docs/EXPERIMENT_ERRORS.md`](docs/EXPERIMENT_ERRORS.md)** — running log of rig/acquisition
