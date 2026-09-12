@@ -689,6 +689,17 @@ def _per_position_accuracy(per_animal, out_dir, disp, align, variant, wname):
         notes=["pre panel is leave-one-session-out within each animal, pooled across animals"])
 
 
+def _pre_counts(align, variant):
+    """Per-animal PRE-STROKE SESSION counts, for the panel labels.
+
+    The already-reduced families build ONE pre matrix per animal by averaging that animal's
+    pre-stroke sessions leave-one-out, so a panel's own coverage reads 92:1 where the subtitle says
+    92:11. See .
+    """
+    from wfield_local import grant_figures as _G
+    return _G.pre_session_counts(align, variant)
+
+
 def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, delta_name,
                    delta_title, ylabel, delta_ylabel, stat_at, value_of, chance, ylim, notes,
                    reference=None):
@@ -1049,7 +1060,9 @@ def _confusion_rows(per_animal, out_dir, disp, align, variant, wname):
     p = ef.confusion_row(
         counts, out_dir, name=f"epoch_5c_frozen_confusion_{align}_{variant}",
         title=f"Frozen PRE-stroke decoder, pooled across animals -- {wname}",
-        coverage=cov, delta=True, chance=CHANCE, labels=_short_labels())
+        coverage=cov, delta=True, chance=CHANCE, labels=_short_labels(),
+        # PRE is a leave-one-out REFERENCE, not one session -- epoch_figures._panel_counts
+        pre_sessions=_pre_counts(align, variant))
     if p:
         made.append(p)
     return made
@@ -1153,7 +1166,7 @@ def _fig_12_stopped(out_dir, align, variant, wname):
         title=(f"STOPPED trials: does the position pattern survive the animal quitting? -- "
                f"{wname}"),
         labels=_short_labels(), unit="pattern correlation", vmin=-1.0, vmax=1.0,
-        coverage=cov, delta=True, annotate=False,
+        coverage=cov, pre_sessions=_pre_counts(align, variant), delta=True, annotate=False,
         subtitle=("Trials inside the terminal quit period ONLY -- the set every other figure in "
                   "this section removes. Every panel is correlated against the SAME reference: "
                   "that animal's pre-stroke ENGAGED mean pattern. The pre column is the CONTROL, "
@@ -2650,7 +2663,8 @@ def _matrix_family(key, collector, unit, cmap, scale, stem, out_dir, align, vari
     return ef.matrix_row(
         pooled, out_dir, name=f"epoch_{key}_{collector.strip('_')}_{align}_{variant}",
         title=f"{stem} -- {wname}", labels=_short_labels(), cmap=cmap,
-        vmin=vmin, vmax=vmax, unit=unit, coverage=cov, subtitle=sub, delta=True)
+        vmin=vmin, vmax=vmax, unit=unit, coverage=cov, subtitle=sub, delta=True,
+        pre_sessions=_pre_counts(align, variant))
 
 
 

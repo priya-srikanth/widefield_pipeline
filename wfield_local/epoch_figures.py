@@ -363,6 +363,7 @@ def per_session_values(per_animal, epoch, value_of):
 
 
 def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance=None,
+                  pre_sessions=None,
                   annotate=False, cmap="viridis", labels=None):
     """The pooled epoch matrices: pre | acute | subacute, with each epoch's change beneath it.
 
@@ -453,8 +454,9 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
         M = np.asarray(counts[e], float)
         acc = float(np.nansum(np.diag(M)) / M.sum()) if M.sum() else float("nan")
         ttl = f"{e}\nn={int(M.sum())}, acc={acc:.2f}"
-        if coverage and e in coverage:
-            ttl += "\n" + " ".join(f"{a[-2:]}:{n}" for a, n in sorted(coverage[e].items()) if n)
+        line = _panel_counts(e, coverage, pre_sessions)
+        if line:
+            ttl += "\n" + line
         ax.set_title(ttl, fontsize=FS_ANNOT)
         _ticks(ax, k, labels, first=(c == 0), xlabels=True)
         if annotate:
@@ -1356,8 +1358,33 @@ def mean_matrix_by_epoch(mats: dict) -> tuple[dict, dict]:
     return out, cov
 
 
+def _panel_counts(epoch, coverage, pre_sessions=None):
+    """The per-animal count under a panel title -- and for PRE, what that number actually counts.
+
+    **THE PRE PANEL'S UNIT IS NOT A SESSION.** For the already-reduced families the pre entry is ONE
+    matrix per animal, produced inside the collector by averaging that animal's pre-stroke sessions
+    leave-one-session-out (`grant_figures._matrices_crossnobis`). So `coverage['pre']` is
+    ``{PS92: 1, ...}`` -- four matrices -- while the subtitle correctly says ``pre 44 (92:11 ...)``.
+    Printed in the same ``92:1`` form as ``92:5`` for chronic, it reads as "pre rests on one session
+    per animal", which is wrong by a factor of eleven.
+
+    Priya, 2026-09-12: *"why does this figure have n=1 for each animal pre-stroke"* -- because the
+    label could not say otherwise. `_position_bars` already carries the same fix for the bar
+    families (see its `_n_pre`); the matrix and confusion families never got it.
+
+    With ``pre_sessions`` supplied, the pre panel prints the SESSION counts and marks them as a
+    leave-one-out reference rather than as independent panels.
+    """
+    per = (coverage or {}).get(epoch) or {}
+    if epoch == "pre" and pre_sessions:
+        body = " ".join(f"{a[-2:]}:{n}" for a, n in sorted(pre_sessions.items()) if n)
+        return f"{body}  (leave-one-out ref)" if body else ""
+    return " ".join(f"{a[-2:]}:{n}" for a, n in sorted(per.items()) if n)
+
+
 def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vmax=None,
-               unit="correlation", coverage=None, subtitle=None, delta=True, annotate=False):
+               unit="correlation", coverage=None, subtitle=None, delta=True, annotate=False,
+               pre_sessions=None):
     """pre | acute | subacute of an ALREADY-REDUCED matrix, with each epoch's change beneath it.
 
     The sibling of `confusion_row` for the `_matrices_*` family. It does not row-normalise -- these
@@ -1415,8 +1442,9 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
         M = np.asarray(mats[e], float)
         im_a = ax.imshow(np.ma.masked_invalid(M), cmap=cmap, vmin=vmin, vmax=vmax)
         ttl = f"{e}\nmean diag {np.nanmean(np.diag(M)):.2f}"
-        if coverage and e in coverage:
-            ttl += "\n" + " ".join(f"{a[-2:]}:{n}" for a, n in sorted(coverage[e].items()) if n)
+        line = _panel_counts(e, coverage, pre_sessions)
+        if line:
+            ttl += "\n" + line
         ax.set_title(ttl, fontsize=FS_ANNOT)
         _ticks(ax, k, labels, first=(c == 0), xlabels=True)
         if annotate:

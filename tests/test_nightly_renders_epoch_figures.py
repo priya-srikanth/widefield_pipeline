@@ -54,3 +54,47 @@ def test_skip_grant_says_both_sections_go_stale():
     msg = SRC[i:i + 400]
     assert "H and I" in msg or ("H" in msg and "I" in msg), (
         "the --skip-grant message still names only section H")
+
+
+# --------------------------------------------------------------- the render loop's return contract
+#
+# THE SAME FAILURE SHAPE THIS FILE EXISTS FOR: outputs present on disk, nothing able to say they
+# failed. `_frozen_vs_refit_overall` returned the single Path `ef.bar_row` gives instead of a list,
+# so the render loop's `for q in (fn(...) or [])` raised
+#     TypeError: 'WindowsPath' object is not iterable
+# on EVERY align/variant -- after both figures and both sidecars had been written. The files looked
+# complete, the numbers in them were correct, and all ten combinations were logged as failed.
+
+EGF = (pathlib.Path(__file__).resolve().parents[1] / "wfield_local" / "epoch_grant_figures.py"
+       ).read_text(encoding="utf-8")
+
+
+def _registered_family_functions():
+    """Names registered in the render loop's `(key, callable)` tables."""
+    block = EGF[EGF.index("for _k, _fn in ((\"5r\""):]
+    block = block[:block.index("\n        if \"scal\" in want")]
+    return set(re.findall(r"\(\"[0-9a-z]+\", (_[A-Za-z_0-9]+)\)", block))
+
+
+def test_every_family_the_render_loop_ITERATES_returns_a_list():
+    """The loop does `for q in (fn(...) or [])`. A family returning a bare Path type-errors on every
+    combination, which is invisible on disk because the figures are written first."""
+    fns = _registered_family_functions()
+    assert fns, "the render-loop registry moved; this test is no longer reading it"
+    for name in sorted(fns):
+        src = EGF[EGF.index(f"def {name}("):]
+        src = src[:src.index("\ndef ", 1)]
+        returns = re.findall(r"^    return (.+)$", src, re.M)
+        assert returns, f"{name} has no top-level return"
+        for r in returns:
+            assert r == "None" or r.startswith("[") or r.startswith("made or None") \
+                or r.startswith("[made]") or "_frozen_vs_refit(" in r or "_frozen_vs_refit_overall(" in r, (
+                    f"{name} returns {r!r}; the render loop iterates it, so it must be a list "
+                    f"(or None, or a delegation to a family that returns one)")
+
+
+def test_the_two_new_pooled_families_are_declared_in_the_CLI_allowlist():
+    """`--only` validates against an explicit tuple. A family wired into the loop but missing from
+    that tuple cannot be rendered on its own, which is how the first 5ro run died before starting."""
+    for key in ("5ro", "5rmo"):
+        assert f'"{key}"' in EGF, f"{key} is not in the --only allowlist"
