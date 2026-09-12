@@ -8889,3 +8889,69 @@ The point estimates are positive at every epoch and will keep looking like a res
 analyses of this cohort have now produced "reorganisation persists" as a point estimate and none has
 produced it as a significant one. Any future version needs either more animals or a pre-registered
 single contrast with the power to see it (see the entry above) — not another bootstrap.
+
+---
+
+## 2026-09-12 (end of day) — The refit-minus-frozen GAP is a cross-day cost, not a lesion signature
+
+Priya, working through the 5ro/5rmo family: *"but it doesn't survive training set matching?"* — then,
+on the matched raw bars: *"here"*, pointing at a gap that is positive **before any lesion**.
+
+Both readings are right, and together they settle what this measure can carry.
+
+### The raw gap is positive pre-stroke, and excludes zero
+
+Training-set MATCHED, pooled over positions:
+
+| window | **pre** | acute | subacute | chronic |
+|---|---|---|---|---|
+| pre-cue (ENL) | **+0.050 [0.028, 0.074]** | +0.090 | +0.071 | +0.096 |
+| post-cue | **+0.095 [0.064, 0.125]** | +0.137 | +0.176 | +0.169 |
+
+**With matched training sets a within-session refit beats a cross-day frozen model by 0.05–0.10 in a
+HEALTHY mouse.** That is the cost of generalising across days — session-idiosyncratic alignment,
+haemodynamics, arousal, the LocaNMF projection — and it has nothing to do with a lesion. The lesion
+adds something on top, and the cohort cannot distinguish that addition from this baseline.
+
+### Neither family's RAW gap is the lesion, and they disagree in SIGN
+
+| | pre gap | why |
+|---|---|---|
+| unmatched | **−0.073** | the frozen arm trains on ~10 sessions against the refit arm's one |
+| matched | **+0.095** | the frozen arm must generalise across days; the refit arm need not |
+
+Same data, opposite sign. **Only the pre-subtracted delta is interpretable**, which is precisely why
+the analysis subtracts pre — and under matching that delta excludes zero at NO epoch, in EITHER
+window, corrected or not.
+
+### What this costs, beyond the already-withdrawn persistence claim
+
+**The acute "displaced rather than lost" claim rests on the unmatched family alone.** Post-cue acute
+is +0.100 (corrected, excludes zero) unmatched and +0.043 (crosses zero) matched. The pre-cue result
+that looked strongest of all — +0.138 corrected at acute, and significant at all three epochs — is
++0.040 matched and crosses zero everywhere.
+
+`_frozen_vs_refit_matched`'s own docstring already said the two bracket rather than settle:
+*"both bounds are real effects and neither is 'the' answer."* The defensible statement is therefore:
+
+> Reorganisation is supported at one end of a bracket and absent at the other. It is not established.
+
+### THE RULE
+
+1. **Never quote the raw gap.** It is positive pre-stroke under matching and negative under the
+   unmatched design; in both cases it is mostly not about the lesion.
+2. **Never quote the unmatched delta alone.** Quote the matched one, or quote both and say they
+   bracket. Every over-claim made on 2026-09-12 — four of them — came from reading the unmatched
+   family first.
+3. A result that changes sign or significance between the two families is a result about
+   training-set size, not about the brain, until shown otherwise.
+
+### What survives all of it
+
+**The frozen decoder recovers.** Chronic frozen change from pre crosses zero in BOTH families and
+BOTH windows, i.e. accuracy is statistically indistinguishable from pre-stroke. That is the
+discriminating test the hypothesis names — *a decoder trained on pre-stroke activity recovers only if
+the original patterns return* — and it never depended on the gap at all.
+
+The grant paragraph should lead with it, state the reorganisation question as open with the power
+number attached, and cite the MATCHED family wherever the gap appears.
