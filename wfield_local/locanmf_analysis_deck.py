@@ -3586,6 +3586,48 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "than acutely (where it fails regardless), so the acute contrast shrinks from +0.100 to"
          "+0.039 pooled. Per position the ordering is unchanged and far-contralateral is still"
          "the largest, +0.158."),
+        ("recovery_trajectory_*_*.png",
+         "THE ROUTE, not the endpoint: readout deficit against reorganisation",
+         "THE ONE FIGURE IN THIS SECTION THAT IS NOT A BAR CHART, and it asks a different question."
+         "Every other panel asks WHERE a quantity ended up in each epoch; this asks what PATH it"
+         "took between them. Each point is one post-stroke session, on two axes built from the same"
+         "paired frozen/refit record the 5r family uses: F (x) = pre_frozen - frozen, how much the"
+         "PRE-STROKE READOUT lost; G (y) = (refit - frozen) - (pre_refit - pre_frozen), how much of"
+         "that a within-session refit recovers over and above the gap that already existed before"
+         "the lesion. Both are signed so the lesion moves them POSITIVE, which is why they differ"
+         "from the 5ro contrast panels -- those are epoch-minus-pre like every other contrast here,"
+         "so their frozen arm goes negative. Same quantities, opposite convention, said plainly"
+         "because the two figures sit near each other."
+         "\n\nREAD THE DIAGONAL. F - G is algebraically pre_refit - refit, so the vertical distance"
+         "from a point DOWN to the unity line is the REFIT arm's own deficit -- the information no"
+         "decoder recovers. ON the line, the whole frozen deficit is readout mismatch and the code"
+         "is displaced but intact; BELOW it, some of the code is genuinely gone; ABOVE it, the"
+         "session decodes better than it did before the lesion. That line is the displaced/lost"
+         "distinction this family exists to draw, and it is why the figure is a scatter rather than"
+         "two time courses."
+         "\n\nTHE ORIGIN IS A POINT ESTIMATE, NOT A FIXED MARK. Pre-stroke sessions are drawn"
+         "faintly with their mean and +/-1 SEM on both axes, because without that scatter 'has it"
+         "returned?' has no scale: a chronic point 0.05 from the origin is a full return or a"
+         "residual deficit depending entirely on how far pre-stroke sessions sit from their own"
+         "mean."
+         "\n\nTWO FAMILIES, matched and unmatched, for the reason the 5r/5rm pair exists: the"
+         "unmatched frozen arm trains on ten pre-stroke sessions against the refit arm's fraction"
+         "of one, so G carries a training-set handicap at baseline and the matched family removes"
+         "it. Read them together; the route should not depend on which bound is used."
+         "\n\nNO INTERVALS ON THIS FIGURE. A session is a point, not a distribution, and the"
+         "bootstrap every bar panel carries has no meaning on a trajectory. Use 5ro/5rmo for the"
+         "tested statement and this for the shape of the path."),
+        ("recovery_trajectory_byanimal_*_*.png",
+         "The same route, one panel per animal",
+         "THE POOLED SCATTER HIDES WHICH ANIMAL DREW THE PATH, and with four animals that matters:"
+         "83% of the squared standard error at chronic is BETWEEN animals, so a pooled trajectory"
+         "can be a shape no individual animal traced. Each panel carries that animal's own"
+         "pre-stroke cloud, its own unity line and its own day-ordered sequence, so a reader can see"
+         "whether the cohort route is four similar paths or an average of dissimilar ones."
+         "\n\nThe square is the FIRST post-stroke session and the star the last. RETRACE versus"
+         "MIGRATE is read off the shape: a path that returns along its outbound direction"
+         "re-establishes the pre-stroke arrangement, one that returns by a different route arrives"
+         "at similar accuracy through a different code."),
         ("epoch_5ro_frozen_refit_overall_*_*.png",
          "Frozen and refit accuracy POOLED OVER POSITIONS, by epoch",
          "THE PANEL THE POWER ANALYSIS SAYS TO LEAD WITH, and it exists because the per-position"
