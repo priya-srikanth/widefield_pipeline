@@ -1345,7 +1345,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
     if not store:
         return None
     EPO = list(ef.PANELS)
-    cells, titles, amp = {}, {}, {}
+    cells, titles, amp, contours = {}, {}, {}, {}
     for q in CONF_LABELS:
         per = {}
         for e in EPO:
@@ -1370,6 +1370,26 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             base = float(np.sqrt(np.nanmean(per["pre"] ** 2)))
             if base > 0:
                 amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base for e, m in per.items()}
+            # THE PERMUTATION TEST IS BETTER POSED HERE THAN ON FIGURE 14, because these six maps
+            # are INDEPENDENT: the null "this position's epoch label carries no information" is a
+            # real null, where on a one-vs-rest map relabelling one position perturbs the reference
+            # of the other five. Labels shuffled WITHIN animal; green contour = cluster mass above
+            # the 95th percentile of the null.
+            pre_by = {an: list(((by.get("pre") or {}).get(q) or {}).values())
+                      for an, by in store.items()}
+            pre_by = {a: v for a, v in pre_by.items() if v}
+            for e in ("acute", "subacute", "chronic"):
+                post_by = {an: list(((by.get(e) or {}).get(q) or {}).values())
+                           for an, by in store.items()}
+                post_by = {a: v for a, v in post_by.items() if v}
+                if not (pre_by and post_by):
+                    continue
+                try:
+                    cm = bm.cluster_permutation(pre_by, post_by)
+                    if cm is not None and np.any(cm):
+                        contours[(_long_of(q), f"{e} - pre")] = cm
+                except Exception as ex:                                # noqa: BLE001
+                    print(f"  !! 15e perm {q} {e}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
     if not cells:
         return None
     rows = [_long_of(q) for q in CONF_LABELS if any((_long_of(q), e) in cells for e in EPO)]
@@ -1383,7 +1403,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         col_labels=EPO + [f"{e} - pre" for e in ("acute", "subacute", "chronic")],
         panel_titles=titles,
         delta_cols=tuple(f"{e} - pre" for e in ("acute", "subacute", "chronic")),
-        edges=bm.atlas_edges(),
+        edges=bm.atlas_edges(), contours=contours,
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",
         subtitle=(
@@ -1397,7 +1417,10 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "isolates. A change visible here and absent there is a change in DRIVE without "
             "position information; the reverse is a change in TUNING without a change in drive. "
             "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
-            "difference columns share their row's scale. Allen CCF overlaid. "
+            "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
+            "BOUNDARIES, not statistics; GREEN contours, where present, are clusters surviving a "
+            "permutation test that shuffles epoch labels within animal (500 draws, cluster mass "
+            "above the 95th percentile of the null). "
             f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}."))
 
 

@@ -413,6 +413,14 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2
     same one the figure draws -- each animal's epoch mean, then the mean over animals -- so the
     test is testing the picture rather than a convenient relative of it.
 
+    BROKEN AS OF 2026-09-12 -- DO NOT TRUST ITS OUTPUT UNTIL THE MASK FIX LANDS. `t` is
+    `|mean| / (se + 1e-12)` and OUTSIDE THE BRAIN both mean and between-animal SD are ~0, so `t`
+    explodes and clusters form on the image border and mask edge. Those edge clusters also enter
+    the NULL, inflating the cluster-mass threshold so far that real interior effects are suppressed:
+    the artefact both manufactures a false positive and hides the true ones. Fix is to restrict `t`,
+    the labelling and the null to `allen_brain_mask_native_grid.npy`, and to floor the denominator
+    at a percentile of the in-mask `se` rather than 1e-12.
+
     NO PARAMETRIC ASSUMPTION IS MADE. With 11 pre-stroke and ~5 acute sessions there are C(16,5) =
     4,368 distinct relabellings per animal, so 500 draws sample the null honestly.
     """

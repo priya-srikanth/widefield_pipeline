@@ -1366,7 +1366,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
-             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
+             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="seismic",
              row_scaled=True, pct=99.0, edges=None, contours=None,
              cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
              delta_shares_scale=True):
@@ -1377,6 +1377,11 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     epochs -- that comparison is the result -- while two different positions have no reason to share
     a scale and forcing one on them makes the weaker position look empty. ``row_scaled=False``
     forces a single global scale for the rare case where rows ARE commensurable.
+
+    ``delta_cmap`` defaults to a SATURATED diverging map. The difference columns share their row's
+    data scale (see `delta_shares_scale`), which is the honest choice and also makes them pale when
+    the change is small relative to the signal -- so the colormap has to carry what little dynamic
+    range is left rather than spending it on pastels.
 
     ``delta_cols`` names columns that hold DIFFERENCES; they get their own diverging map and their
     own symmetric limit, because a difference and an absolute map on one colour bar is a category
@@ -1399,8 +1404,9 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
 
     rows, cols = list(row_labels), list(col_labels)
     # +1.05in on the right for the per-row colour bars.
-    fig_w = min(QUARTER_IN * 2.3, 2.15 * len(cols) + 1.95)
-    panel = (fig_w - 1.95) / len(cols)
+    # +2.6in on the right for two non-overlapping colour bars and their labels.
+    fig_w = min(QUARTER_IN * 2.6, 2.15 * len(cols) + 2.6)
+    panel = (fig_w - 2.6) / len(cols)
     _t, _tl = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     _sub, _sl = fit_subtitle(subtitle, fig_w, FS_ANNOT - 2.0)
     top_in = 0.52 + 0.15 * _sl + 0.15 * (_tl - 1)
@@ -1468,8 +1474,11 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                 [(lim, diverging, cbar_label), (dlim, delta_cmap, delta_label)]
                 if any((r, c) in cells for c in delta_cols) else
                 [(lim, diverging, cbar_label)]):
-            cax = fig.add_axes([(0.75 + len(cols) * panel + 0.10 + j * 0.42) / fig_w,
-                                y0 + 0.12 * panel / fig_h, 0.10 / fig_w, 0.76 * panel / fig_h])
+            # SPACED SO THE LABELS DO NOT COLLIDE. At 0.42in apart the two bars' rotated labels
+            # overprinted each other (Priya, 2026-09-12: "fix the colormap legend bars so they
+            # don't overlap"); the label is ~0.55in of text, so the pitch has to exceed it.
+            cax = fig.add_axes([(0.75 + len(cols) * panel + 0.16 + j * 0.78) / fig_w,
+                                y0 + 0.12 * panel / fig_h, 0.09 / fig_w, 0.76 * panel / fig_h])
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=-lm, vmax=lm))
             cb = fig.colorbar(sm, cax=cax)
             cb.set_ticks([-lm, 0, lm])
