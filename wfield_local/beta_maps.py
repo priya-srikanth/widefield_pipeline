@@ -55,11 +55,36 @@ code is weakest acutely (frozen balanced accuracy 0.52), so there is less signal
 reflect. PS94's individual acute maps agree at r = 0.161 against PS92's 0.661 at the same n, so it
 is not only sample size. Every figure built on this must print the per-epoch reliability.
 
-BALANCING. The `working` class is uniform over positions by construction -- 16.1-17.2% at every
-position, every animal -- because the scheduler presents positions evenly and `working` recovers the
-full schedule. So pre-cue and post-cue need NO balancing. The `lick` class does: far-contralateral
-runs 9.2-14.2% against ~19% for near positions, and that skew IS the deficit, so an unbalanced
-lick-aligned fit would map how often each spout was attempted rather than what cortex did.
+KNOWN BUG, FOUND 2026-09-12 AND NOT YET FIXED -- READ BEFORE USING ANY NUMBER FROM THIS MODULE.
+
+    EVERY ARM IS FITTED ON LICKING TRIALS ONLY, including the two labelled `working`.
+
+`session_maps` takes `X, y, g` from `trial_features_cached`, and those are the ENGAGED (licking)
+trials: the no-lick trials that make the `working` class uniform come back separately as
+`Xn, yn` (see `_trial_features`'s `base_out`) and are discarded here. So the `variant` argument
+currently selects only whether class weighting is applied, not which trials are used.
+
+WHAT IT COSTS. The reasoning below -- that pre-cue and post-cue need no balancing because `working`
+is uniform at 16.1-17.2% per position -- DOES NOT APPLY to what is actually being fitted. Measured
+far-contralateral trials per session in the pre-cue arm:
+
+    PS92 acute 0-5 (med 4)     PS93 acute 4-12 (med 9)
+    PS94 acute 0-8 (med 1)     PS95 acute 1                against 66-119 at the best position
+
+That is the deficit itself -- the animal does not lick far-contralateral acutely -- and it is why
+`MIN_TRIALS_PER_CLASS` refuses the far-contra acute cell in the pre-cue figure. The refusal is
+correct; the labelling is not.
+
+TO FIX: stack the no-lick arm for `working` the way `_session_trials` does, so that class means what
+it means everywhere else in this deck. Until then, read every panel as a LICK-trial map and treat
+the acute far-contralateral cell as absent by construction rather than as a finding.
+
+BALANCING, as designed (and correct once the above is fixed). The `working` class is uniform over
+positions by construction -- 16.1-17.2% at every position, every animal -- because the scheduler
+presents positions evenly and `working` recovers the full schedule. So pre-cue and post-cue would
+need NO balancing. The `lick` class does: far-contralateral runs 9.2-14.2% against ~19% for near
+positions, and that skew IS the deficit, so an unbalanced lick-aligned fit would map how often each
+spout was attempted rather than what cortex did.
 
 U IS SESSION-SPECIFIC AND BETA IS THEREFORE NOT COMPARABLE ACROSS SESSIONS. Only `U @ A` is -- the
 pixel map, on the shared Allen grid. Every average and every difference in this module happens AFTER
@@ -85,13 +110,47 @@ N_SPLITS = 5
 #: Map shape on the shared Allen grid.
 MAP_SHAPE = (540, 640)
 
+#: Fewest trials a POSITION needs before its own map is drawn. Applied per position, not per
+#: session: a position the animal has stopped attempting should lose ITS map, not everyone else's.
+#:
+#: THE ACUTE LICK ARM IS WHY THIS EXISTS (Priya, 2026-09-12: "the far R n may be low"). Acutely the
+#: animal barely licks far-contralateral -- PS94 and PS92 fall to FIVE far-contra lick trials while
+#: the other positions still have 70 -- and a six-class decoder cannot estimate a pattern for a
+#: class it has seen five times. `Cov(X) @ beta` on that is a near-degenerate covariance and
+#: produces a large smooth low-rank blob: far-contra read 4.31x its pre-stroke amplitude in the
+#: post-lick arm, where the post-cue arm gave 0.47 for the same position. Not biology.
+#:
+#: TWENTY, MEASURED (Priya, 2026-09-12: "what is the right floor in terms of trial n? 3? 5?").
+#: Sub-sampling one position of a pre-stroke session down to n and correlating its map against the
+#: same session's full-data map, median over 5 draws:
+#:
+#:      n            3     5     8    12    15    20    30    50
+#:      PS94_0606  0.66  0.82  0.70  0.86  0.82  0.94  0.94  0.98
+#:      PS94_0607  0.73  0.77  0.86  0.86  0.95  0.96  0.96  0.99
+#:      PS92_0606  0.69 -0.08  0.65  0.79  0.68  0.81  0.94    --
+#:
+#: Below ~20 it is ERRATIC rather than merely noisy -- PS92 at n=5 returns r = -0.08, a map
+#: ANTI-correlated with its own full-data version, because the estimate is dominated by which
+#: particular trials were drawn. Twenty is the first n where all three clear 0.81; thirty is where
+#: they are consistently >= 0.94. And `class_weight="balanced"` UP-weights a rare class, so a
+#: five-trial position is more influential rather than less, which argues for the floor not against.
+MIN_TRIALS_PER_CLASS = 20
+
 
 def _balanced_index(y, rng):
-    """Row indices with every class down-sampled to the rarest -- for the LICK arm only.
+    """Row indices with every class down-sampled to the rarest. KEPT FOR REFERENCE, NOT USED.
 
-    Returns all rows unchanged when the classes are already within 10% of each other, so the
-    pre-cue and post-cue arms (16.1-17.2% per position) are untouched and their numbers do not move
-    for a correction they do not need.
+    THIS IS THE WRONG WAY TO BALANCE HERE and the numbers say so plainly (Priya, 2026-09-12: "why
+    are we decreasing far R to 5 after balancing? seems like we are throwing away valuable data").
+    Down-sampling to the rarest class discards 325 of 355 acute post-lick trials to keep 30, and it
+    punishes every position for one position's scarcity: far-contralateral having 5 trials drops the
+    other five from ~70 each to 5 each, destroying five perfectly good maps to fix one.
+
+    `class_weight="balanced"` achieves the identical thing -- each class contributing equally to the
+    loss, so the fit cannot be pulled by base rates -- while keeping every trial. The paper
+    down-samples because it balances on TWO factors at once (choice AND correctness), which is
+    awkward to express as weights, and because it has >= 250 trials so the cost is small. Neither
+    applies here.
     """
     y = np.asarray(y)
     cls, cnt = np.unique(y, return_counts=True)
@@ -178,16 +237,19 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
         session, _args("locanmf", align, post_s), signal=np.asarray(v),
         feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}")
     X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
-    if balance:
-        keep = _balanced_index(y, np.random.default_rng(seed))
-        X, y, g = X[keep], y[keep], g[keep]
+    # NO DOWN-SAMPLING. `balance` now selects CLASS WEIGHTING, which removes the base-rate pull
+    # without discarding a single trial -- see `_balanced_index` for why the other way is wrong.
+    cw = "balanced" if balance else None
+    _cls, _cnt = np.unique(y, return_counts=True)
+    if len(_cls) < 2:
+        return {}, {}
     K = u.shape[1]
     if X.shape[1] % K:
         raise ValueError(f"{X.shape[1]} features is not a multiple of {K} SVT components")
     n_bins = X.shape[1] // K
     k = min(n_splits, len(set(g.tolist())))
     if k < 2:
-        return {}
+        return {}, {}
     # ONE PASS OVER THE FOLDS for all six positions: the fit is multinomial, so every position's
     # coefficients come out of the SAME model. Refitting per position would give six identical
     # models and six times the cost.
@@ -197,7 +259,8 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
         if len(set(y[tr].tolist())) < 2:
             continue
         sc = StandardScaler().fit(X[tr])
-        m = LogisticRegression(C=c_penalty, max_iter=4000).fit(sc.transform(X[tr]), y[tr])
+        m = LogisticRegression(C=c_penalty, max_iter=4000, class_weight=cw).fit(
+            sc.transform(X[tr]), y[tr])
         cl = list(m.classes_)
         Xc = X[tr] - X[tr].mean(0) if not filter_map else None
         inv = np.where(sc.scale_ > 0, sc.scale_, 1.0)
@@ -210,12 +273,17 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
                 b = (Xc.T @ (Xc @ b)) / max(len(tr) - 1, 1)
             acc[q] += b
             n[q] += 1
-    out = {}
+    out, used = {}, {}
+    by_code = {int(c): q for q in CONF_LABELS if (c := code_of.get(q)) is not None}
+    counts = {by_code[int(c)]: int(v) for c, v in zip(_cls, _cnt) if int(c) in by_code}
     for q in CONF_LABELS:
-        if n[q]:
+        # PER POSITION. A position the animal has stopped attempting loses its OWN map and takes
+        # nothing else with it -- the failure the down-sampling version inflicted on all six.
+        if n[q] and counts.get(q, 0) >= MIN_TRIALS_PER_CLASS:
             coef = (acc[q] / n[q]).reshape(n_bins, K).mean(0)
             out[q] = (u @ coef).reshape(MAP_SHAPE)
-    return out
+            used[q] = counts.get(q, 0)
+    return out, used
 
 
 def atlas_edges(session=None):
@@ -258,6 +326,77 @@ def map_corr(a, b):
     return float(np.corrcoef(a[ok], b[ok])[0, 1])
 
 
+def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=2.0, seed=0):
+    """Boolean mask: pixels in a cluster larger than 95% of clusters obtainable by relabelling.
+
+    THE TEST THE DIFFERENCE COLUMN NEEDS. 540 x 640 is 345,600 pixels, so an uncorrected per-pixel
+    threshold means nothing -- thousands of pixels pass at p<0.05 by construction. The field
+    standard is a cluster-based permutation test and it is what this is: threshold the per-pixel t
+    map, sum |t| within each connected cluster, and compare the largest observed cluster mass
+    against the null distribution of largest cluster masses obtained by SHUFFLING THE EPOCH LABELS.
+
+    LABELS ARE SHUFFLED WITHIN ANIMAL, never across. Each animal has its own baseline map and its
+    own number of sessions; pooling the relabelling would let a between-animal difference stand in
+    for a between-epoch one, which is the difference the test is supposed to be measuring.
+
+    ``pre_by_animal`` / ``post_by_animal`` are ``{animal: [session maps]}``. The statistic is the
+    same one the figure draws -- each animal's epoch mean, then the mean over animals -- so the
+    test is testing the picture rather than a convenient relative of it.
+
+    NO PARAMETRIC ASSUMPTION IS MADE. With 11 pre-stroke and ~5 acute sessions there are C(16,5) =
+    4,368 distinct relabellings per animal, so 500 draws sample the null honestly.
+    """
+    from scipy import ndimage
+
+    animals = sorted(set(pre_by_animal) & set(post_by_animal))
+    if not animals:
+        return None
+    rng = np.random.default_rng(seed)
+
+    def _stat(assign):
+        """Mean-over-animals of (post mean - pre mean), and its per-pixel t."""
+        d = []
+        for an in animals:
+            allm = list(pre_by_animal[an]) + list(post_by_animal[an])
+            idx = assign[an]
+            a = np.mean([allm[i] for i in range(len(allm)) if not idx[i]], axis=0)
+            b = np.mean([allm[i] for i in range(len(allm)) if idx[i]], axis=0)
+            d.append(b - a)
+        d = np.stack(d)
+        m = d.mean(0)
+        if len(animals) < 2:
+            return m, np.abs(m) / (np.nanstd(m) + 1e-12)
+        se = d.std(0, ddof=1) / np.sqrt(len(animals))
+        return m, np.abs(m) / (se + 1e-12)
+
+    true_assign = {an: np.array([False] * len(pre_by_animal[an]) + [True] * len(post_by_animal[an]))
+                   for an in animals}
+    _m, t = _stat(true_assign)
+    lab, n_lab = ndimage.label(t > t_thresh)
+    if not n_lab:
+        return np.zeros(MAP_SHAPE, bool)
+    mass = ndimage.sum(t, lab, index=np.arange(1, n_lab + 1))
+
+    null = []
+    for _ in range(n_perm):
+        assign = {}
+        for an in animals:
+            n_all = len(pre_by_animal[an]) + len(post_by_animal[an])
+            k = len(post_by_animal[an])
+            v = np.zeros(n_all, bool)
+            v[rng.choice(n_all, k, replace=False)] = True
+            assign[an] = v
+        _mm, tt = _stat(assign)
+        ll, nn = ndimage.label(tt > t_thresh)
+        null.append(float(ndimage.sum(tt, ll, index=np.arange(1, nn + 1)).max()) if nn else 0.0)
+    cut = float(np.percentile(null, 95))
+    keep = np.zeros(MAP_SHAPE, bool)
+    for i, mm in enumerate(mass, start=1):
+        if mm > cut:
+            keep |= (lab == i)
+    return keep
+
+
 def split_half_reliability(maps, n_draw=20, seed=0):
     """Median split-half r of a set of session maps -- the CEILING their mean can reach.
 
@@ -293,11 +432,11 @@ def maps_by_epoch(align, variant, post_s=2.0):
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
     balance = (variant == "lick")
-    out, rel = {}, {}
+    out, rel, n_out = {}, {}, {}
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
                 if x.startswith(an)}
-        per = {}
+        per, ntr = {}, {}
         for s in [x for x in SESSIONS if x["label"] in want]:
             d = _day(an, s["label"].split("_")[-1])
             if d is None:
@@ -306,14 +445,20 @@ def maps_by_epoch(align, variant, post_s=2.0):
             if e is None:
                 continue
             try:
-                got = session_maps(s, align, post_s=post_s, balance=balance)
+                got, used = session_maps(s, align, post_s=post_s, balance=balance)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! beta-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
                 continue
+            if not got:
+                print(f"  .. beta-map {s['label']} {e}: no position reached "
+                      f"{MIN_TRIALS_PER_CLASS} trials", flush=True)
+                continue
             for q, m in got.items():
                 per.setdefault(e, {}).setdefault(q, {})[s["label"]] = m
+                ntr.setdefault(e, {}).setdefault(q, {})[s["label"]] = used.get(q, 0)
         if per:
             out[an] = per
+            n_out[an] = ntr
             rel[an] = {e: {q: split_half_reliability(v) for q, v in by_q.items()}
                        for e, by_q in per.items()}
-    return out, rel
+    return out, rel, n_out

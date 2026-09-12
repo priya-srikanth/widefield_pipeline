@@ -1367,7 +1367,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
              panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
-             row_scaled=True, pct=99.0, edges=None):
+             row_scaled=True, pct=99.0, edges=None, contours=None):
     """A grid of CORTICAL MAPS: ``cells[(row, col)] = (H, W) array``, missing cells drawn empty.
 
     THE COLOUR SCALE IS PER ROW, not global, and that is the whole readability of the figure. A
@@ -1382,6 +1382,11 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
 
     LIMITS FROM A PERCENTILE, not the max: one saturated pixel at the edge of the window -- and
     these maps have them, from the mask boundary -- would otherwise flatten every real feature.
+
+    ``contours[(row, col)]`` is a boolean mask outlined in green on that panel -- used for the
+    cluster-permutation result, so a difference panel says which of it survives a test rather than
+    being read by eye. Outlined, NOT masked: masking would hide the magnitude, which is what the
+    panel is for.
 
     ``edges`` is an Allen boundary mask from `atlas_overlay.region_edges`, drawn over every panel.
     A cortical map without the CCF outlines is not readable as anatomy -- "it moved to somewhere
@@ -1401,7 +1406,13 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     fig = plt.figure(figsize=(fig_w, fig_h))
 
     def _lim(arrs):
-        v = np.concatenate([np.asarray(a).ravel() for a in arrs if a is not None])
+        # THE EMPTY CASE IS REAL, not defensive padding: a row with no difference cell passes
+        # `[] or [None]` here, and `np.concatenate([])` raises "need at least one array to
+        # concatenate" -- which killed all three arms of this family on its first full render.
+        keep = [np.asarray(a).ravel() for a in arrs if a is not None]
+        if not keep:
+            return 1.0
+        v = np.concatenate(keep)
         v = v[np.isfinite(v)]
         return max(float(np.percentile(np.abs(v), pct)), 1e-12) if v.size else 1.0
 
@@ -1429,6 +1440,10 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                 if edges is not None:
                     from wfield_local.atlas_overlay import overlay_regions
                     overlay_regions(ax, edges)
+                cm = (contours or {}).get((r, c))
+                if cm is not None and np.any(cm):
+                    ax.contour(np.asarray(cm, float), levels=[0.5], colors="#12a150",
+                               linewidths=1.1)
             ttl = (panel_titles or {}).get((r, c), c if ri == 0 else "")
             if ttl:
                 ax.set_title(ttl, fontsize=FS_ANNOT - 1.5, linespacing=1.15)

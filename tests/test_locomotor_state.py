@@ -199,3 +199,24 @@ def test_a_mark_needs_at_least_two_animals():
     from wfield_local import epoch_grant_figures as eg
     src = inspect.getsource(eg._scalar_figure)
     assert "contrast_animals" in src and "MIN_ANIMALS_FOR_MARK" in src
+
+
+def test_map_grid_survives_a_row_with_no_difference_cell():
+    """`np.concatenate([])` raises, and a row with no delta cell reaches exactly that path.
+
+    This killed all three arms of the beta-map family on its first full render -- the error handler
+    reported it per arm and nothing was drawn, which is the good failure mode but still a failure.
+    The guard is one branch; the test is here because the empty case is REAL (a position that never
+    clears the trial floor acutely has no difference to draw) rather than defensive padding.
+    """
+    import tempfile
+
+    import numpy as np
+
+    from wfield_local import epoch_figures as ef
+
+    out = tempfile.mkdtemp()
+    cells = {("r", "pre"): np.zeros((20, 20))}
+    q = ef.map_grid(cells, out, name="t_nodelta", title="t", row_labels=["r"],
+                    col_labels=["pre", "acute - pre"], delta_cols=("acute - pre",))
+    assert q is not None and q.exists()

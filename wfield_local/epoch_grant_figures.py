@@ -1304,24 +1304,25 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     from wfield_local import beta_maps as bm
     from wfield_local.grant_figures import CONF_LABELS
 
-    store, rel = bm.maps_by_epoch(align, variant)
+    store, rel, ntr = bm.maps_by_epoch(align, variant)
     if not store:
         return None
 
     EPO = [e for e in ef.PANELS]
     DELTA = "acute - pre"
-    cells, titles, amp = {}, {}, {}
+    cells, titles, amp, contours = {}, {}, {}, {}
     for q in CONF_LABELS:
         per_epoch = {}
         for e in EPO:
             # EACH ANIMAL CONTRIBUTES ITS OWN EPOCH MEAN, then those are averaged -- so an animal
             # with more sessions cannot dominate the pooled map, the same rule the bar families use.
-            per_animal, n_s, rs = [], 0, []
+            per_animal, n_s, n_tr, rs = [], 0, 0, []
             for an, by_e in store.items():
                 got = (by_e.get(e) or {}).get(q)
                 if got:
                     per_animal.append(np.mean(list(got.values()), axis=0))
                     n_s += len(got)
+                    n_tr += sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
                     r = ((rel.get(an) or {}).get(e) or {}).get(q)
                     if r is not None and np.isfinite(r):
                         rs.append(r)
@@ -1331,12 +1332,30 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                 row = _long_of(q)
                 cells[(row, e)] = m
                 rr = float(np.median(rs)) if rs else float("nan")
-                titles[(row, e)] = (f"{e}\n{len(per_animal)} animals, {n_s} sess"
+                # TRIALS, not just sessions. A cell built from 30 trials cannot be allowed to
+                # look like one built from 521 (Priya: "can you include the n? the far R n may be
+                # low"), and on the post-lick arm balancing makes exactly that happen acutely.
+                titles[(row, e)] = (f"{e}\n{len(per_animal)} an, {n_s} sess, n={n_tr}"
                                     + (f"\nr={rr:.2f}" if np.isfinite(rr) else ""))
         if "pre" in per_epoch and "acute" in per_epoch:
             row = _long_of(q)
             cells[(row, DELTA)] = per_epoch["acute"] - per_epoch["pre"]
-            titles[(row, DELTA)] = "ACUTE - PRE"
+            titles[(row, DELTA)] = "ACUTE - PRE\ngreen = cluster p<0.05"
+            # THE TEST, not the eye. 345,600 pixels makes an uncorrected threshold meaningless;
+            # this shuffles epoch labels WITHIN animal and keeps clusters larger than 95% of those
+            # obtainable by relabelling. Same statistic the panel draws.
+            pre_by = {an: list(((by.get("pre") or {}).get(q) or {}).values())
+                      for an, by in store.items()}
+            post_by = {an: list(((by.get("acute") or {}).get(q) or {}).values())
+                       for an, by in store.items()}
+            pre_by = {a: v for a, v in pre_by.items() if v}
+            post_by = {a: v for a, v in post_by.items() if v}
+            try:
+                cm = bm.cluster_permutation(pre_by, post_by)
+                if cm is not None and np.any(cm):
+                    contours[(row, DELTA)] = cm
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 14m cluster perm {q}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
             base = float(np.sqrt(np.nanmean(per_epoch["pre"] ** 2)))
             if base > 0:
                 amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base
@@ -1352,13 +1371,15 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
         title=(f"WHERE the position code lives, and where it goes -- Haufe-transformed decoder "
                f"maps, {wname}"),
         row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
-        edges=bm.atlas_edges(),
+        edges=bm.atlas_edges(), contours=contours,
         subtitle=(
             "L2 logistic on the rank-100 SVT, beta Haufe-transformed to a PATTERN "
             "(A = Cov(X) beta) and rendered as U @ A -- full-resolution pixels, not components. "
             "Read the pattern for WHERE THE SIGNAL IS; the filter, which answers what the decoder "
             "USES, is a different map (they correlate at r = 0.245). "
-            "Allen CCF boundaries overlaid. "
+            "Allen CCF boundaries overlaid; GREEN outlines on the difference column are "
+            "clusters surviving a permutation test that shuffles epoch labels WITHIN animal "
+            "(500 draws, cluster mass above the 95th percentile of the null). "
             "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
             "are not comparable to each other. "
             "r = split-half reliability of that epoch's mean map, the ceiling a difference can "

@@ -8252,3 +8252,55 @@ Priya: "I don't think I trust that result. Maybe we should get rid of the licks 
 **What we gave up, and what we kept.** The AND kept licking as an independent "did vigour recover, not just accuracy" gate — a real second dimension (PS94 sits at ~91% hit rate with ~50% licking, which is why averaging the two was rejected). Dropping it from the GATE does not drop it from view: both series are still computed and plotted, and the audit report still prints the licks plateau day beside the hit one. Licking simply no longer sets the boundary.
 
 **Mechanism (config toggle, reversible).** `configs/defaults.yaml epochs.chronic.series` lists which series gate the boundary — default now `[hit]`, restore `[hit, licks]` to bring back the AND. `derive_chronic_boundaries` still computes both series and builds the AND over `CHRONIC_SERIES` only; `epochs.CHRONIC_RULE` is derived from it (so `epoch_boundaries.json` records "far_R hit rate flat …", not a stale hand-written string). `test_configured_series_gate_the_boundary` pins both modes. Committed `8763731`.
+
+
+---
+
+## 2026-09-12 (later) — the beta-map arm: what it shows, and a bug that must be fixed first
+
+Full record: [`docs/WHERE_THE_CODE_MOVES.md`](docs/WHERE_THE_CODE_MOVES.md). Code
+`wfield_local/beta_maps.py`, figure `epoch_14_beta_maps_*`, deck section I.
+
+**THE DESIGN, following Musall et al. 2022 with three departures each MEASURED:** fit on the
+rank-100 SVT rather than LocaNMF (`U @ A` is then a true 540x640 pixel map, and SVT beats LocaNMF by
+0.06-0.09 balanced accuracy); **L2 rather than their L1** (we are making a map, not selecting
+features, and L1's choice among correlated predictors changes between days -- split-half of the
+pre-stroke mean map: L1 0.688, L2 0.715, L2+Haufe 0.960); and **the Haufe transform**, which the
+paper does not use and which is the single biggest factor -- single-session reliability 0.32 -> 0.85.
+A decoder weight is a FILTER whose job includes cancelling correlated noise, so a channel with no
+signal can carry a large weight as a suppressor; `A = Cov(X) @ beta` makes it a PATTERN. Pattern and
+filter correlate at only r = 0.245, so the transform does real work.
+
+**KNOWN BUG, NOT YET FIXED: every arm is fitted on LICKING trials only**, including the two labelled
+`working`. `session_maps` takes the engaged arm out of `trial_features_cached` and discards the
+no-lick trials that make `working` uniform. It surfaced because figure 14 refused the far-contra
+ACUTE cell; chasing that gave far-contra trials per session of 0-5, 4-12, 0-8 and 1 against 66-119
+at the best position -- the deficit itself. Fix before quoting any number from this family.
+
+**BALANCING: class weights, not down-sampling** (Priya: "why are we decreasing far R to 5 after
+balancing? seems like we are throwing away valuable data"). Down-sampling to the rarest class
+discarded 325 of 355 acute post-lick trials AND punished all six positions for one position's
+scarcity. `class_weight="balanced"` removes the base-rate pull while keeping every trial.
+
+**TRIAL FLOOR = 20, MEASURED, PER POSITION.** Sub-sampling one position and correlating against its
+own full-data map: n=3 gives 0.66-0.73, n=5 gives 0.77-0.82 **and one -0.08** (a map anti-correlated
+with itself), n=20 gives 0.81-0.96, n=30 gives >=0.94. Below ~20 it is erratic rather than noisy.
+Applied per position so one position's scarcity does not remove the other five.
+
+**THE RESULT (subject to the bug).** Acute map amplitude relative to each position's own pre-stroke
+value: near ipsi 0.67, near middle 1.53, near contra 1.04, far ipsi 1.09, **far middle 0.48, far
+CONTRA 0.47**, both recovering by subacute. Position-specific, and exactly the pair every other
+analysis implicates. **It converges with the encoder** (fitted amplitude 0.749 pre -> 0.286 acute ->
+0.745 chronic) and with the encoder ceiling's displaced-vs-degraded split, from three methods
+sharing almost no machinery.
+
+**AND A FRAMING ERROR I MADE, corrected by Priya ("the hanging map during acute may be biological
+no?").** I presented the low acute reliability (r = 0.53 at far-contra) as a measurement caveat that
+should temper the result. It is the SAME observation: a split-half correlation of a near-absent
+signal is low BECAUSE the signal is near-absent. Far-middle drops to 0.48 amplitude while KEEPING
+r = 0.86, which is what shows amplitude and reliability are separable and that far-contra loses both.
+
+**THE RESIDUAL-DECODE CONTROL CANNOT WORK AT THIS RANK** and produced a convincing wrong answer
+first (0.93 balanced accuracy pre-stroke). Session SVD rank 100, basis 100 dims, overlap 0.997 --
+the basis is nearly a rotation, not a reduction, and the real truncation is the preprocessing SVD,
+upstream and identical pre/post. Kept in `basis_residual.py` as the record.

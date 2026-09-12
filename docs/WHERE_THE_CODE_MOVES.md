@@ -136,3 +136,76 @@ changed at all, including from the animal simply moving more. The position maps 
 post-cue-minus-pre-cue so common changes largely cancel, but the **contrast between positions**
 (far-contra delta *minus* far-middle delta) is the version that isolates position coding. Both get
 rendered.
+
+
+---
+
+# Status at 2026-09-12 — what is built, what is known-broken, what is pending
+
+## Built and pushed
+
+| | commit | state |
+|---|---|---|
+| `wfield_local/beta_maps.py` — Haufe-transformed L2-on-SVT cortical maps | `946c413` | working |
+| epoch figure 14 + `ef.map_grid` + deck placement with full method notes | `84bbcba` | working |
+| CCF outlines, per-panel trial n, class weighting, floor, permutation contours | uncommitted | working |
+
+## KNOWN BUG — every arm is fitted on LICKING trials only
+
+`session_maps` takes `X, y, g` from `trial_features_cached`; those are the ENGAGED trials. The
+no-lick trials that make the `working` class uniform come back as `Xn, yn` and are **discarded**.
+So `variant` currently selects only whether class weighting is applied, not which trials are used,
+and the two arms labelled `working` are lick-trial maps.
+
+**How it surfaced:** figure 14's pre-cue panel refused the far-contralateral ACUTE cell. Chasing
+that gave far-contra trials per session of 0–5, 4–12, 0–8 and 1 for the four animals, against
+66–119 at the best position — which is the deficit itself, not a bug in the floor.
+
+**Consequence:** the "pre-cue and post-cue need no balancing" argument does not apply to what is
+being fitted, and far-contra acute is thin in *every* arm. **Fix before quoting any number from
+this family.**
+
+## What the figures currently show (subject to the bug above)
+
+Post-cue, map amplitude relative to each position's own pre-stroke value:
+
+| near ipsi | near middle | near contra | far ipsi | **far middle** | **far CONTRA** |
+|---|---|---|---|---|---|
+| 0.67 | 1.53 | 1.04 | 1.09 | **0.48** | **0.47** |
+
+The two positions losing more than half their map amplitude acutely are far-middle and
+far-contralateral — the same pair every other analysis implicates — both recovering by subacute
+(0.83 / 0.91). **This converges with the encoder**, whose fitted amplitude factor goes 0.749
+pre-stroke → 0.286 acute → 0.745 chronic, and with the encoder ceiling's displaced-vs-degraded
+split. Three methods sharing little machinery agreeing is the strongest thing here.
+
+**Priya's reading was right and mine was wrong:** the faint acute maps are biological, not a
+measurement failure. Low split-half *r* at far-contra acute (0.53) and its 0.47 amplitude are ONE
+observation, not two — a split-half correlation of a near-absent signal is low *because* the signal
+is near-absent. Far-middle falls to 0.48 amplitude while **keeping** r = 0.86, which is what shows
+the two are separable.
+
+## Pending
+
+1. **Fix the engaged-only bug** (above). Everything else waits on it.
+2. **Per-animal panels** — asked for, not built. More important than the pooled view given n=4.
+3. **Permutation contours produced nothing visible** on the pre-cue render. With 4 animals the
+   between-animal SE is coarse and the test is probably conservative; report that rather than
+   loosening the threshold until something appears.
+4. **Vessel structure** faintly visible in POST mean maps — rule out residual haemodynamic
+   artefact before this is a headline.
+5. **Pixel-space post−pre position maps** from the 123 existing `*_spout_positions_1s_pre_post_delta_maps.npz`
+   — never built. Complementary to the decoder maps: raw activity change at full resolution, with
+   no decoder and no basis in the path.
+6. **Coding directions rendered through the footprints** — `position_coding_directions.direction()`
+   is a difference of means and already computes the right object, then collapses it to a scalar
+   via `project()`. The anatomy in `w` is discarded.
+
+## To solidify what is here
+
+* Four animals is the ceiling on the permutation test. The per-animal panels are the honest way to
+  show replication.
+* The chronic column rests on 2–3 animals; PS94 has no chronic epoch.
+* A pattern map says where the signal is, **not** which pixels are necessary for decoding. That
+  second claim needs the filter map, which the module can produce (`filter_map=True`) and which
+  correlates with the pattern at only r = 0.245.
