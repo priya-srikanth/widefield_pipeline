@@ -1352,6 +1352,85 @@ _REF_TEXT = {
 }
 
 
+def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
+    """15rpa: the quiet- and mean-referenced position maps PER ANIMAL, at far-contralateral.
+
+    THE THIRD PER-ANIMAL PANEL, and it completes a set that now covers every map family: 14pa for
+    the decoder maps, 15pa for the within-trial evoked maps, and this for the two reference maps.
+    Each pooled figure averages four rows and each significance test estimates its spread from
+    four animals, so none of them can show whether a pattern REPLICATES -- which at n=4 is the
+    stronger evidence.
+
+    BOTH REFERENCES, ONE PER FIGURE, so the pair can be read side by side at the animal level the
+    way the pooled pair is read at the group level. That comparison is the whole point of the 15r
+    family: same trials, same window, same floor, only the subtrahend differs, so a row that looks
+    different between the two figures differs BECAUSE of the reference.
+
+    WHAT TO LOOK FOR. Under the QUIET reference every animal's map should be broadly positive --
+    task activity above rest -- and the epoch differences should be modest and consistent. Under
+    the MEAN reference the common component is subtracted away, so what remains is
+    position-specific and much noisier; a row that is dramatic there and flat under quiet is the
+    one-vs-rest coupling showing itself in a single animal.
+    """
+    if not ((variant == "working" and align in ("precue", "cue"))
+            or (variant == "lick" and align == "lick")):
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+
+    store, rel, ntr = prm.maps_by_epoch(align, variant)
+    if not store:
+        return None
+    Q, EPO = "far_R", list(ef.PANELS)
+    POST = ("acute", "subacute", "chronic")
+    DCOLS = [f"{e} - pre" for e in POST]
+    edges, out = bm.atlas_edges(), []
+
+    for reference in prm.REFERENCES:
+        txt = _REF_TEXT[reference]
+        cells, titles = {}, {}
+        for an, by_e in sorted(store.items()):
+            per = {}
+            for e in EPO:
+                got = {k: d[reference] for k, d in ((by_e.get(e) or {}).get(Q) or {}).items()
+                       if reference in d}
+                if not got:
+                    continue
+                per[e] = np.mean(list(got.values()), axis=0)
+                cells[(an, e)] = per[e]
+                n_tr = sum((((ntr.get(an) or {}).get(e) or {}).get(Q) or {}).values())
+                r = ((rel.get(an) or {}).get(e) or {}).get(Q, {}).get(reference)
+                titles[(an, e)] = (f"{e}\n{len(got)} sess, n={n_tr}"
+                                   + (f"\nr={r:.2f}" if r is not None and np.isfinite(r) else ""))
+            for e in POST:
+                if "pre" in per and e in per:
+                    cells[(an, f"{e} - pre")] = per[e] - per["pre"]
+                    titles[(an, f"{e} - pre")] = f"{e.upper()} - PRE"
+        if not cells:
+            continue
+        rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
+        out.append(ef.map_grid(
+            cells, out_dir, name=f"epoch_15rpa_reference_{reference}_by_animal_{align}_{variant}",
+            title=(f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- does it replicate? {wname}"),
+            row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
+            delta_cols=tuple(DCOLS), edges=edges,
+            cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(same scale unless larger)",
+            subtitle=(
+                f"ONE OF A PAIR ({txt['short']}), at the animal level. The pooled 15r figures "
+                f"average these rows and every significance test here estimates its spread from "
+                f"four animals, so neither can show REPLICATION -- which at n=4 is the stronger "
+                f"evidence. Same trials, window, class definition and 20-trial floor as figure 14; "
+                f"only the subtrahend differs between this figure and its partner, so a row that "
+                f"differs between them differs BECAUSE of the reference. NO significance is drawn "
+                f"here: a per-animal panel has no between-animal spread to test, and a "
+                f"within-animal test would be answering a different question from the pooled "
+                f"figures. Colour scale is per ANIMAL, so each row is comparable across its own "
+                f"epochs and rows are not comparable to each other. PS94 and PS95 took 3 mW and "
+                f"show overt deficits; PS92 and PS93 were milder, so a severity-graded difference "
+                f"between rows is a finding and a random one is a warning. {txt['note']}")))
+    return [p for p in out if p]
+
+
 def _fig_15r_reference_maps(out_dir, align, variant, wname):
     """15r: the SAME position maps under two different references -- the reference IS the claim.
 
@@ -3035,6 +3114,8 @@ def main(argv=None) -> int:
             try:
                 for p in (_fig_15r_reference_maps(out, align, variant, wname) or []):
                     _report(f"15r {align}/{variant}", p)
+                for p in (_fig_15rpa_reference_by_animal(out, align, variant, wname) or []):
+                    _report(f"15rpa {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
