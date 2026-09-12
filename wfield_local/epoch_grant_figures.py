@@ -1246,6 +1246,67 @@ def _long_of(q):
     return dict(zip(CONF_LABELS, _long_labels()))[q]
 
 
+def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
+    """14pa: the same maps PER ANIMAL, for the one position the deficit lives at.
+
+    THE POOLED FIGURE AVERAGES FOUR ANIMALS AND THE PERMUTATION TEST RESTS ON FOUR, so neither can
+    show whether a pattern REPLICATES -- and with n=4 replication across panels is stronger evidence
+    than a p-value from a between-animal SE estimated on four numbers. Priya asked for these
+    alongside the pooled view for exactly that reason.
+
+    ONE POSITION PER FIGURE, far-contralateral by default: six positions x four animals x five
+    epochs is 120 panels, which is a contact sheet rather than a figure. Far-contra is where the
+    deficit is, and its neighbours are on the pooled panel.
+
+    A ROW THAT LOOKS UNLIKE THE OTHER THREE IS THE POINT, not noise to be averaged away: PS94 and
+    PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder, so a severity-graded
+    difference between rows is a finding and a random one is a warning.
+    """
+    if not ((variant == "working" and align in ("precue", "cue"))
+            or (variant == "lick" and align == "lick")):
+        return None
+    from wfield_local import beta_maps as bm
+
+    store, rel, ntr = bm.maps_by_epoch(align, variant)
+    if not store:
+        return None
+    Q = "far_R"
+    EPO = list(ef.PANELS)
+    DELTA = "acute - pre"
+    cells, titles = {}, {}
+    for an, by_e in sorted(store.items()):
+        per = {}
+        for e in EPO:
+            got = (by_e.get(e) or {}).get(Q)
+            if not got:
+                continue
+            per[e] = np.mean(list(got.values()), axis=0)
+            cells[(an, e)] = per[e]
+            n_tr = sum((((ntr.get(an) or {}).get(e) or {}).get(Q) or {}).values())
+            r = ((rel.get(an) or {}).get(e) or {}).get(Q)
+            titles[(an, e)] = (f"{e}\n{len(got)} sess, n={n_tr}"
+                               + (f"\nr={r:.2f}" if r is not None and np.isfinite(r) else ""))
+        if "pre" in per and "acute" in per:
+            cells[(an, DELTA)] = per["acute"] - per["pre"]
+            titles[(an, DELTA)] = "ACUTE - PRE"
+    if not cells:
+        return None
+    rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
+    return ef.map_grid(
+        cells, out_dir, name=f"epoch_14pa_beta_maps_by_animal_{align}_{variant}",
+        title=(f"Far-CONTRALATERAL decoder map PER ANIMAL -- does the pattern replicate? "
+               f"{wname}"),
+        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        edges=bm.atlas_edges(),
+        subtitle=("The pooled figure averages these four rows and the permutation test rests on "
+                  "them, so neither can show REPLICATION -- which at n=4 is the stronger evidence. "
+                  "Method identical to the pooled figure. Colour scale is per ANIMAL, so each row "
+                  "is comparable across its own epochs and rows are not comparable to each other. "
+                  "PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were milder, so a "
+                  "severity-graded difference between rows is a finding and a random one is a "
+                  "warning."))
+
+
 def _fig_14_beta_maps(out_dir, align, variant, wname):
     """14: WHERE the position code lives in cortex, and where it goes -- pooled decoder maps.
 
@@ -2617,6 +2678,8 @@ def main(argv=None) -> int:
             try:
                 _report(f"14m {align}/{variant}",
                         _fig_14_beta_maps(out, align, variant, wname))
+                _report(f"14pa {align}/{variant}",
+                        _fig_14pa_beta_maps_by_animal(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 14m {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)

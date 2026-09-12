@@ -55,9 +55,9 @@ code is weakest acutely (frozen balanced accuracy 0.52), so there is less signal
 reflect. PS94's individual acute maps agree at r = 0.161 against PS92's 0.661 at the same n, so it
 is not only sample size. Every figure built on this must print the per-epoch reliability.
 
-KNOWN BUG, FOUND 2026-09-12 AND NOT YET FIXED -- READ BEFORE USING ANY NUMBER FROM THIS MODULE.
+A BUG FOUND AND FIXED 2026-09-12 -- kept as the record, because the symptom was subtle.
 
-    EVERY ARM IS FITTED ON LICKING TRIALS ONLY, including the two labelled `working`.
+    EVERY ARM WAS FITTED ON LICKING TRIALS ONLY, including the two labelled `working`.
 
 `session_maps` takes `X, y, g` from `trial_features_cached`, and those are the ENGAGED (licking)
 trials: the no-lick trials that make the `working` class uniform come back separately as
@@ -75,9 +75,11 @@ That is the deficit itself -- the animal does not lick far-contralateral acutely
 `MIN_TRIALS_PER_CLASS` refuses the far-contra acute cell in the pre-cue figure. The refusal is
 correct; the labelling is not.
 
-TO FIX: stack the no-lick arm for `working` the way `_session_trials` does, so that class means what
-it means everywhere else in this deck. Until then, read every panel as a LICK-trial map and treat
-the acute far-contralateral cell as absent by construction rather than as a finding.
+FIXED by stacking the no-lick arm (minus the terminal quit period, via the same
+`engagement_gate` the rest of the deck uses) for `working`. The effect is confined to exactly where
+it should be -- pre-stroke far-contra goes 87 -> 91 trials because a pre-stroke animal rarely
+misses, while ACUTE far-contra goes 0 -> 105 and 0 -> 73, recovering a cell the floor had correctly
+refused.
 
 BALANCING, as designed (and correct once the above is fixed). The `working` class is uniform over
 positions by construction -- 16.1-17.2% at every position, every animal -- because the scheduler
@@ -216,7 +218,34 @@ def haufe_map(session, target, align, *, post_s=2.0, balance=False, seed=0,
     return (u @ coef).reshape(MAP_SHAPE)
 
 
-def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
+def _runs_to_blocks(y):
+    """Block ids for the no-lick arm: a new block wherever the position changes."""
+    y = np.asarray(y)
+    return np.concatenate([[0], np.cumsum(y[1:] != y[:-1])]).astype(np.int64) if len(y) else         np.zeros(0, np.int64)
+
+
+def _quit_mask(session, idx_e, idx_n, y, yn):
+    """Which NO-LICK trials fall inside the terminal quit period -- the `working` class excludes them.
+
+    Same gate the rest of the deck uses (`precue_engagement_states.engagement_gate`): a sated
+    animal's late misses are DISENGAGEMENT, not a spatial deficit, and folding them into `working`
+    would put the quit period back into a class defined to exclude it.
+    """
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.precue_engagement_states import engagement_gate
+
+    idx_e, idx_n = np.asarray(idx_e), np.asarray(idx_n)
+    order = np.concatenate([idx_e, idx_n])
+    responded = np.concatenate([np.ones(len(idx_e), bool), np.zeros(len(idx_n), bool)])
+    pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in
+                    np.concatenate([np.asarray(y), np.asarray(yn)])])
+    o = np.argsort(order, kind="stable")
+    ne = engagement_gate(order[o], responded[o], pos[o])
+    by_idx = {int(k): bool(b) for k, b in zip(order[o], ne)}
+    return np.array([by_idx.get(int(k), False) for k in idx_n], bool)
+
+
+def session_maps(session, align, *, post_s=2.0, balance=False, seed=0, variant="lick",
                  c_penalty=C_PENALTY, n_splits=N_SPLITS, filter_map=False):
     """``{position name: (540, 640) map}`` for one session -- ALL positions, ONE load.
 
@@ -233,10 +262,27 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0,
 
     code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
     u, v = joint_basis._load_session(session["mc"])
-    X, y, g, *_ = trial_features_cached(
+    X, y, g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
         session, _args("locanmf", align, post_s), signal=np.asarray(v),
-        feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}")
+        feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}",
+        with_indices=True)
     X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
+    if variant == "working" and len(yn):
+        # THE `working` CLASS IS ENGAGED + MISS-WHILE-WORKING, and leaving the second half out is
+        # the bug this call site had until 2026-09-12: `trial_features_cached` returns the engaged
+        # trials FIRST and the no-lick trials separately, so taking only the first three returns
+        # silently made every arm a LICK-trial map. The symptom was figure 14 refusing the
+        # far-contralateral ACUTE cell -- 0-9 trials a session against 66-119 elsewhere, which is
+        # the deficit, not a defect.
+        keep_n = ~_quit_mask(session, idx_e, idx_n, y, yn)
+        if keep_n.any():
+            Xn = np.asarray(Xn)[keep_n]
+            X = np.vstack([X, Xn])
+            y = np.concatenate([y, np.asarray(yn)[keep_n]])
+            # NO BLOCK IDS FOR THE NO-LICK ARM, by the same rule `_pooled_bundle` uses: a new block
+            # wherever the position changes in that session's trial order. Coarser than the real
+            # blocks, never finer, so the grouped CV cannot become too permissive.
+            g = np.concatenate([g, _runs_to_blocks(np.asarray(yn)[keep_n]) + int(g.max()) + 1])
     # NO DOWN-SAMPLING. `balance` now selects CLASS WEIGHTING, which removes the base-rate pull
     # without discarding a single trial -- see `_balanced_index` for why the other way is wrong.
     cw = "balanced" if balance else None
@@ -445,7 +491,8 @@ def maps_by_epoch(align, variant, post_s=2.0):
             if e is None:
                 continue
             try:
-                got, used = session_maps(s, align, post_s=post_s, balance=balance)
+                got, used = session_maps(s, align, post_s=post_s, balance=balance,
+                                         variant=variant)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! beta-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
                 continue
