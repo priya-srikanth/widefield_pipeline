@@ -244,3 +244,48 @@ def test_a_series_missing_a_newer_column_still_round_trips(tmp_path):
     back = rt.load_csv(p)
     rt.write_csv(back, tmp_path / "again.csv")
     assert "refit_deficit" in (tmp_path / "again.csv").read_text(encoding="utf-8").splitlines()[0]
+
+
+# --------------------------------------------------------------- both families, never one
+
+def test_series_can_be_asked_for_EITHER_family():
+    """The raw gap is positive pre-stroke under matching and negative under the unmatched design, so
+    neither alone is about the lesion (DECISIONS 2026-09-12). A module that could only produce one
+    would put every figure it draws on the wrong side of that rule -- which is where this one sat
+    until the matched arm was added."""
+    import inspect
+
+    sig = inspect.signature(rt.series)
+    assert "matched" in sig.parameters
+    assert sig.parameters["matched"].default is False, "unmatched stays the default for continuity"
+    assert "matched" in inspect.signature(rt.pre_points).parameters
+
+
+def test_run_emits_BOTH_families_under_distinct_names(monkeypatch, tmp_path):
+    """If both wrote to one filename the second would silently overwrite the first, and the figure
+    on disk would be whichever ran last -- the exact failure the bracket exists to prevent."""
+    seen = []
+
+    def fake_series(align, variant, matched=False):
+        seen.append(matched)
+        return _rows("PS92", [0.05, 0.20, 0.15, 0.10, 0.05], [0.5, 0.55, 0.4, 0.2, 0.05])
+
+    monkeypatch.setattr(rt, "series", fake_series)
+    monkeypatch.setattr(rt, "pre_points", lambda *a, **k: {"PS92": [(0.0, 0.0), (0.01, 0.01)]})
+    monkeypatch.setattr(rt, "figure", lambda *a, **k: [])
+    monkeypatch.setattr(rt, "figure_by_animal", lambda *a, **k: [])
+    out = rt.run(out_dir=tmp_path)
+    assert seen == [False, True], "both families must be built, unmatched first"
+    assert set(out) == {"unmatched", "matched"}
+    names = {p.name for p in tmp_path.glob("*.csv")}
+    assert "recovery_trajectory_unmatched_cue_working.csv" in names
+    assert "recovery_trajectory_matched_cue_working.csv" in names
+
+
+def test_the_family_is_recorded_IN_the_rows(tmp_path):
+    """A CSV that did not say which family it came from could be quoted as either."""
+    rows = _rows("PS92", [0.1], [0.3])
+    rows[0]["matched"] = 1
+    p = rt.write_csv(rows, tmp_path / "m.csv")
+    assert "matched" in p.read_text(encoding="utf-8").splitlines()[0]
+    assert rt.load_csv(p)[0]["matched"] == 1

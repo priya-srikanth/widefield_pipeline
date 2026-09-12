@@ -112,7 +112,7 @@ def _session_pair(record):
     return float((p[m, 0] == y[m]).mean()), float((p[m, 1] == y[m]).mean()), int(m.sum())
 
 
-def series(align: str = "cue", variant: str = "working") -> list[dict]:
+def series(align: str = "cue", variant: str = "working", matched: bool = False) -> list[dict]:
     """One row per (animal, POST-stroke session): frozen, refit, gap, and both pre-subtracted.
 
     **Pre-stroke sessions are deliberately absent from the rows.** Both reported axes are differences
@@ -129,7 +129,8 @@ def series(align: str = "cue", variant: str = "working") -> list[dict]:
     from wfield_local import epoch_figures as ef
     from wfield_local import grant_figures as G
 
-    per_animal, _days = G._collect_5c(align, variant, "paired")
+    per_animal, _days = G._collect_5c(align, variant,
+                                      "paired_matched" if matched else "paired")
     rows = []
     for an, got in sorted(per_animal.items()):
         if not got:
@@ -146,6 +147,7 @@ def series(align: str = "cue", variant: str = "working") -> list[dict]:
             fz, rf, n = sp
             rows.append({
                 "animal": an, "day": int(day),
+                "matched": int(bool(matched)),
                 "epoch": ef.epoch_of_day(an, int(day)) or "",
                 "n_trials": n,
                 "frozen": fz, "refit": rf, "gap": rf - fz,
@@ -159,7 +161,7 @@ def series(align: str = "cue", variant: str = "working") -> list[dict]:
     return rows
 
 
-def pre_points(align: str = "cue", variant: str = "working") -> dict:
+def pre_points(align: str = "cue", variant: str = "working", matched: bool = False) -> dict:
     """``{animal: [(F, G), ...]}`` for that animal's PRE-STROKE sessions, on the same two axes.
 
     **The origin is a point estimate and pre-stroke sessions scatter around it.** Without that
@@ -174,7 +176,8 @@ def pre_points(align: str = "cue", variant: str = "working") -> dict:
     """
     from wfield_local import grant_figures as G
 
-    per_animal, _days = G._collect_5c(align, variant, "paired")
+    per_animal, _days = G._collect_5c(align, variant,
+                                      "paired_matched" if matched else "paired")
     out = {}
     for an, got in sorted(per_animal.items()):
         if not got:
@@ -290,7 +293,7 @@ def load_csv(path) -> list[dict]:
     `summarise` would otherwise have cost a full twenty-minute re-derivation of numbers that had
     not changed.
     """
-    num = {"day", "n_trials", "frozen", "refit", "gap", "pre_frozen", "pre_refit", "pre_gap",
+    num = {"day", "matched", "n_trials", "frozen", "refit", "gap", "pre_frozen", "pre_refit", "pre_gap",
            "F_deficit", "G_reorg", "refit_deficit"}
     def cast(k, v):
         if k not in num:
@@ -312,7 +315,7 @@ def write_csv(rows, dest: Path) -> Path:
     """Every plotted value, because a figure whose numbers exist nowhere drifts from its own text."""
     assert_writable(dest.parent)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    cols = ["animal", "day", "epoch", "n_trials", "frozen", "refit", "gap",
+    cols = ["animal", "matched", "day", "epoch", "n_trials", "frozen", "refit", "gap",
             "pre_frozen", "pre_refit", "pre_gap", "F_deficit", "G_reorg", "refit_deficit"]
     with open(dest, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
@@ -335,7 +338,7 @@ def _by_animal(rows):
     return {a: sorted(v, key=lambda r: r["day"]) for a, v in sorted(out.items())}
 
 
-def figure(rows, summary, out_dir, align, variant) -> list[Path]:
+def figure(rows, summary, out_dir, align, variant, tag="unmatched") -> list[Path]:
     """TWO panels: F over days and G over days. The grant figure.
 
     Time is on the x axis, which is where it belongs for a claim about a route. An earlier version
@@ -369,13 +372,15 @@ def figure(rows, summary, out_dir, align, variant) -> list[Path]:
         a.spines[["top", "right"]].set_visible(False)
     axes[0].legend(fontsize=8.5, frameon=False, ncol=2)
     c = summary["_cohort"]
-    fig.suptitle(f"Recovery trajectory, {align}-aligned / {variant} -- {c['animals']} animals, "
+    fig.suptitle(f"Recovery trajectory ({tag.upper()} training sets), {align}-aligned / {variant}\n"
+                 f"{c['animals']} animals, "
                  f"{len(rows)} post-stroke sessions", fontsize=11.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    return _write(fig, out_dir, f"recovery_trajectory_{align}_{variant}")
+    return _write(fig, out_dir, f"recovery_trajectory_{tag}_{align}_{variant}")
 
 
-def figure_by_animal(rows, summary, out_dir, align, variant, pre=None) -> list[Path]:
+def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
+                     tag="unmatched") -> list[Path]:
     """One (F, G) trajectory per animal, so four paths are not asked to share one axes.
 
     **The reading is the ENDPOINT, not the shape.** Time runs from the acute state -- high F, high G,
@@ -487,7 +492,7 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None) -> list[P
         cax = fig.add_axes((0.925, 0.15, 0.012, 0.63))
         cb = fig.colorbar(sc, cax=cax)
         cb.set_label("days from lesion", fontsize=9)
-    return _write(fig, out_dir, f"recovery_trajectory_byanimal_{align}_{variant}")
+    return _write(fig, out_dir, f"recovery_trajectory_byanimal_{tag}_{align}_{variant}")
 
 
 def _write(fig, out_dir, stem) -> list[Path]:
@@ -507,43 +512,49 @@ def _write(fig, out_dir, stem) -> list[Path]:
 
 
 def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
+    """Both families, always. See the module docstring: the raw gap is positive pre-stroke under
+    matching and negative under the unmatched design, so neither alone is about the lesion, and a
+    reader given one family cannot tell which side of the bracket they are on."""
     from wfield_local.paths import PathResolver
 
-    rows = load_csv(from_csv) if from_csv else series(align, variant)
-    if not rows:
-        print("[recovery_trajectory] no paired records", flush=True)
-        return {}
-    summary = summarise(rows)
-    # Same destination as the epoch family it extends (`epoch_grant_figures.main`).
     out_dir = Path(out_dir) if out_dir else (
         Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    made = figure(rows, summary, out_dir, align, variant)
-    pre_path = out_dir / f"recovery_trajectory_{align}_{variant}_pre.csv"
-    # Reuse the written cloud when re-summarising; rebuild it only on a real run.
-    pre = load_pre_csv(Path(from_csv).with_name(pre_path.name)) if from_csv else         pre_points(align, variant)
-    if not from_csv:
-        write_pre_csv(pre, pre_path)
-    made += figure_by_animal(rows, summary, out_dir, align, variant, pre=pre)
-    csvp = write_csv(rows, out_dir / f"recovery_trajectory_{align}_{variant}.csv")
-
-    print(f"\n[recovery_trajectory] {align}/{variant}: {len(rows)} post-stroke sessions",
-          flush=True)
-    print(f"{'animal':8s} {'n':>3s} {'acuteG':>7s} {'day':>4s} {'post':>5s} {'maxPostG':>9s} "
-          f"{'slope/day':>10s} {'corr(F,G)':>10s} {'late>acute':>11s} {'finalF':>7s} "
-          f"{'finalG':>7s}", flush=True)
-    for an, v in summary.items():
-        if an == "_cohort":
+    made, summaries = [], {}
+    for matched in (False, True):
+        tag = "matched" if matched else "unmatched"
+        stem = f"recovery_trajectory_{tag}_{align}_{variant}"
+        rows = (load_csv(Path(from_csv).with_name(stem + ".csv")) if from_csv
+                else series(align, variant, matched=matched))
+        if not rows:
+            print(f"[recovery_trajectory] {tag}: no paired records", flush=True)
             continue
-        print(f"{an:8s} {v['n_sessions']:3d} {v['acute_G']:7.3f} {v['acute_day']:4d} "
-              f"{v['n_post']:5d} {v['max_post_G']:9.3f} {v['post_slope']:10.4f} "
-              f"{v['post_corr_F_G']:10.3f} {v['late_exceeds_acute']!s:>11s} "
-              f"{v['final_F']:7.3f} {v['final_G']:7.3f}", flush=True)
-    c = summary["_cohort"]
-    print(f"\nCOHORT: post-acute slope negative in {c['negative_post_slope']}/"
-          f"{c['animals_scored']} scored; reorganisation EXCEEDS its acute level later in "
-          f"{c['late_exceeds_acute']}/{c['animals']} animals", flush=True)
-    print(f"[recovery_trajectory] -> {made[0]}\n[recovery_trajectory] -> {csvp}", flush=True)
-    return summary
+        summary = summarise(rows)
+        summaries[tag] = summary
+        pre_path = out_dir / f"{stem}_pre.csv"
+        pre = (load_pre_csv(Path(from_csv).with_name(pre_path.name)) if from_csv
+               else pre_points(align, variant, matched=matched))
+        if not from_csv:
+            write_pre_csv(pre, pre_path)
+        made += figure(rows, summary, out_dir, align, variant, tag=tag)
+        made += figure_by_animal(rows, summary, out_dir, align, variant, pre=pre, tag=tag)
+        csvp = write_csv(rows, out_dir / f"{stem}.csv")
+
+        print(f"\n[recovery_trajectory] {align}/{variant} {tag.upper()}: "
+              f"{len(rows)} sessions", flush=True)
+        print(f"{'animal':8s} {'n':>3s} {'acuteG':>7s} {'post':>5s} {'slope/day':>10s} "
+              f"{'late>acute':>11s} {'finalF':>7s} {'finalG':>7s}", flush=True)
+        for an, v in summary.items():
+            if an == "_cohort":
+                continue
+            print(f"{an:8s} {v['n_sessions']:3d} {v['acute_G']:7.3f} {v['n_post']:5d} "
+                  f"{v['post_slope']:10.4f} {v['late_exceeds_acute']!s:>11s} "
+                  f"{v['final_F']:7.3f} {v['final_G']:7.3f}", flush=True)
+        c = summary["_cohort"]
+        print(f"  cohort: post-acute slope negative {c['negative_post_slope']}/"
+              f"{c['animals_scored']}; exceeds acute later {c['late_exceeds_acute']}/"
+              f"{c['animals']}", flush=True)
+        print(f"[recovery_trajectory] -> {csvp}", flush=True)
+    return summaries
 
 
 def main(argv=None) -> int:
