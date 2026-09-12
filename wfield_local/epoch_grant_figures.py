@@ -1220,18 +1220,18 @@ def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
         out_dir, name=f"epoch_12b_stopped_pooled_similarity_{align}",
         title=("STOPPED trials, POOLED over positions: does the quit-period pattern still look "
                f"like pre-stroke cortex? -- {wname}"),
-        ylabel="pattern correlation",
+        ylabel="correlation with that pre-stroke reference",
         keys=KEYS, values=vals, points=pts,
-        tick_labels=["vs pre-stroke\nSTOPPED", "vs pre-stroke\nENGAGED"], ylim=(-0.4, 1.05),
+        # SHORT, because two bar groups leave a narrow axis and "vs pre-stroke STOPPED" overran
+        # into its neighbour. The full reference is named in the notes below, where there is room.
+        tick_labels=["STOPPED", "ENGAGED"], ylim=(-0.4, 1.05),
         session_counts=cov,
-        notes=["ALL of a session's stopped trials pooled into ONE mean pattern -- no position "
-               "split, which is what the per-position stopped arm spends its power on",
-               "LEFT BAR is the state-matched contrast Priya asked for: post-stroke stopped against "
-               "pre-stroke STOPPED. Pre column is leave-one-session-out",
-               "RIGHT BAR scores the same patterns against the pre-stroke ENGAGED mean, so its pre "
-               "bar is the 'quitting alone' control -- how far the pattern moves with no lesion",
-               "pooled stopped trials: 867 pre, 1,984 acute, 1,935 subacute, 359 chronic -- per "
-               "position the chronic cell would be 36-75"]
+        # TWO LINES. The method is in the docstring and the speaker note; a fourteen-line block
+        # left the axes a sixth of the figure.
+        notes=["a session's stopped trials pooled into ONE mean pattern, no position split. "
+               "STOPPED = vs pre-stroke stopped (state-matched); ENGAGED = vs pre-stroke engaged, "
+               "whose pre bar is the 'quitting alone' control. Pre is leave-one-session-out",
+               "867 stopped trials pre, 1,984 acute, 1,935 subacute, 359 chronic"]
         + ([f"THE LEFT BAR RESTS ON {', '.join(has)} ONLY: "
             + ", ".join(f"{x} pre-stroke stopped trials" for x in excl)
             + " is too few to build a reference from, and a well-trained pre-stroke animal barely "
@@ -1786,7 +1786,9 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
             # `ef.contrast_animals`. The BAR and its interval still appear; only the mark is
             # withheld, and the subtitle says how many epochs were affected.
             if ef.contrast_animals(points, e, "pre", k) < ef.MIN_ANIMALS_FOR_MARK:
-                thin_marks.add(e)
+                # PER (epoch, key). Tracking it per EPOCH silenced a sound bar because its
+                # NEIGHBOUR was thin -- 12b's acute ENGAGED arm lost its mark to the STOPPED arm.
+                thin_marks.add(f"{e}/{k}")
                 continue
             got = ef.scalar_contrast_draws(
                 points, e, "pre", k,
@@ -1800,7 +1802,7 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
             clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
             rows[e][k] = (point, float(lo), float(hi), float(clo), float(chi))
     counts = session_counts if session_counts is not None else _session_counts()
-    thin_note = ([f"NO MARK on {', '.join(sorted(thin_marks))}: fewer than "
+    thin_note = ([f"NO MARK on {', '.join(sorted(thin_marks))} (epoch/bar): fewer than "
                   f"{ef.MIN_ANIMALS_FOR_MARK} animals contribute, so the animal level of the "
                   f"bootstrap has no variance and a star would assert more than one animal can "
                   f"support. The bar and its interval are still shown"] if thin_marks else [])
@@ -2469,7 +2471,10 @@ def main(argv=None) -> int:
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 13s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
-        if "12b" in want:
+        # ONE FIGURE PER ALIGNMENT. 12b pools a session's stopped trials whatever class the arm
+        # names, so running it on the stopped arms too printed "NO FIGURE" twice a render for a
+        # case that is correct by construction -- the same guard 12s needed.
+        if "12b" in want and variant == "working":
             try:
                 _report(f"12b {align}/{variant}",
                         _fig_12b_stopped_pooled(out, align, variant, wname))
