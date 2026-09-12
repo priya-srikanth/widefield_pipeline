@@ -3496,9 +3496,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "in each epoch, per spout position and pooled across animals; chance 1/6. Bars pool"
          "over trials -- raw confusion counts sum, so every trial counts once -- while dots are"
          "individual sessions. Intervals and marks as above. One figure per alignment window"
-         "and trial class: the ENL and post-cue windows use lick plus miss-while-working"
-         "trials, and the lick-aligned window admits lick trials only, because a trial with no"
-         "detected lick has no lick to align to."),
+         "and trial class. FIVE ARMS as of 2026-09-12: the ENL (pre-cue) and post-cue windows each"
+         "render twice, once on lick plus miss-while-working and once on LICK TRIALS ONLY, and the"
+         "lick-aligned window admits lick trials only because a trial with no detected lick has no"
+         "lick to align to. The lick-only pre-cue and post-cue arms are the SELECTION CONTROL for"
+         "the post-lick result: they hold the trial set fixed and move only the window, so a"
+         "finding that survives them is not an artefact of which trials the animal completed."
+         "A sixth and seventh arm (the terminal quit period, pre-cue and post-cue) were RETIRED on"
+         "2026-09-12 -- their pre-stroke reference was lick trials, so they compared post-stroke"
+         "quitting against pre-stroke engaged cortex; the state-matched question is asked properly"
+         "by the 12/12b family."),
         ("epoch_accdelta_by_position_*_*.png",
          "Decoding accuracy, change from pre-stroke",
          "Epoch minus pre-stroke at each position, with 95% and corrected intervals as above."

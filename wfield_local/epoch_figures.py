@@ -40,6 +40,7 @@ import pathlib
 import numpy as np
 
 from wfield_local import config, epochs
+from wfield_local.figure_meta import write_meta
 
 #: Panel order, left to right. `epochs.EPOCHS` is the single definition; restated for readability.
 PANELS = epochs.EPOCHS
@@ -673,6 +674,8 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.995)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, chance=chance, coverage=coverage, pre_sessions=pre_sessions,
+               labels=labels, title=title, delta=delta)
     # SIDECAR: the fractions this figure PLOTS, with the raw counts beside them.
     write_matrix_values(norm, q, labels=labels, extra=counts, extra_name="count")
     plt.close(fig)
@@ -1054,6 +1057,9 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, chance=chance, reference=reference, ylim=ylim, counts=counts,
+               positions=positions, tick_labels=tick_labels, groups=groups,
+               title=title, subtitle=subtitle, ylabel=ylabel)
     write_values(values, q, points=points, marks=marks)
     plt.close(fig)
     return q
@@ -1397,6 +1403,9 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
         _group_rule(fig, ax, xs, groups)
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, n_comparisons=n_comparisons, positions=positions,
+               tick_labels=tick_labels, groups=groups, title=title, subtitle=subtitle,
+               ylabel=ylabel)
     # `rows` is {epoch: {position: (point, lo, hi, clo, chi)}} -- the uncorrected AND the
     # Bonferroni-corrected bounds. write_values keeps the first three; the corrected pair is what
     # distinguishes "excludes zero" from "excludes zero after correction", which is exactly the
@@ -1682,6 +1691,9 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, vmin=vmin, vmax=vmax, unit=unit, coverage=coverage,
+               pre_sessions=pre_sessions, labels=labels, title=title, subtitle=subtitle,
+               delta=delta)
     write_matrix_values(mats, q, labels=labels)
     plt.close(fig)
     return q
@@ -1856,6 +1868,9 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, row_labels=row_labels, col_labels=col_labels, delta_cols=delta_cols,
+               cbar_label=cbar_label, delta_label=delta_label, pct=pct,
+               row_scaled=row_scaled, title=title, subtitle=subtitle)
     write_map_summary(cells, q, row_labels=row_labels, col_labels=col_labels)
     plt.close(fig)
     return q
@@ -1957,6 +1972,8 @@ def matrix_grid_by_animal(mats, out, *, name, title, labels, cmap="magma", vmin=
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q)
+    write_meta(q, vmin=vmin, vmax=vmax, unit=unit, counts=counts, labels=labels,
+               title=title, subtitle=subtitle)
     write_matrix_grid_values(mats, q, labels=labels)
     plt.close(fig)
     return q
@@ -2060,6 +2077,8 @@ def timecourse_panel(per_day, out, *, name, title, ylabel, positions, tick_label
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q_)
+    write_meta(q_, chance=chance, ylim=ylim, boundaries=boundaries, positions=positions,
+                tick_labels=tick_labels, title=title, subtitle=subtitle, ylabel=ylabel)
     write_series_values(per_day, q_)
     plt.close(fig)
     return q_
@@ -2247,6 +2266,8 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
                  fontsize=FS_ANNOT - 2.0, color="0.30")
     q_ = pathlib.Path(out) / f"{name}.png"
     _save_png_svg(fig, q_)
+    write_meta(q_, chance=chance, ylim=ylim, boundaries=boundaries, positions=positions,
+                tick_labels=tick_labels, title=title, subtitle=subtitle, ylabel=ylabel)
     write_series_values(per_day, q_)
     plt.close(fig)
     return q_
