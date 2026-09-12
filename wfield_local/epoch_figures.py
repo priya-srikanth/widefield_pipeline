@@ -856,6 +856,25 @@ def _annotate(ax, M, k):
                 ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.0)
 
 
+def _annotate_marks(ax, marks, k):
+    """Overlay per-cell significance marks. `marks` is a k x k array of "", "*" or "**".
+
+    A SEPARATE PASS FROM `_annotate` because the two answer different questions and a figure may
+    want either, both or neither: the value says how big, the mark says whether it is distinguishable
+    from the panel's reference. Drawn slightly high and in white-on-dark-safe bold so it reads over
+    both ends of a diverging map without a halo.
+    """
+    import matplotlib.patheffects as pe
+
+    for i in range(k):
+        for j in range(k):
+            m = marks[i, j] if hasattr(marks, "shape") else marks[i][j]
+            if m:
+                ax.text(j, i - 0.22, str(m), ha="center", va="center", fontsize=6.5,
+                        fontweight="bold", color="w",
+                        path_effects=[pe.withStroke(linewidth=1.2, foreground="0.15")])
+
+
 def _cbar(fig, im, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, row, row_gap_in, label):
     """A slim colour bar in the reserved right gutter, aligned to one row of panels."""
     if im is None:
@@ -1751,7 +1770,7 @@ def _panel_counts(epoch, coverage, pre_sessions=None):
 
 def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vmax=None,
                unit="correlation", coverage=None, subtitle=None, delta=True, annotate=False,
-               pre_sessions=None):
+               pre_sessions=None, cell_marks=None, delta_cell_marks=None):
     """pre | acute | subacute of an ALREADY-REDUCED matrix, with each epoch's change beneath it.
 
     The sibling of `confusion_row` for the `_matrices_*` family. It does not row-normalise -- these
@@ -1816,6 +1835,11 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
         _ticks(ax, k, labels, first=(c == 0), xlabels=True)
         if annotate:
             _annotate(ax, M, k)
+        # PER-CELL SIGNIFICANCE, optional and additive: every existing family passes None and is
+        # drawn exactly as before. See `matrix_bootstrap` for what the marks mean and why the
+        # off-diagonal needed them at all.
+        if cell_marks is not None and e in cell_marks:
+            _annotate_marks(ax, cell_marks[e], k)
         if c == 0:
             ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
     first_delta = min(order.index(e) for e in deltas) if deltas else None
@@ -1828,6 +1852,8 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
         _ticks(ax, k, labels, first=(c == first_delta), xlabels=True)
         if annotate:
             _annotate(ax, D, k)
+        if delta_cell_marks is not None and e in delta_cell_marks:
+            _annotate_marks(ax, delta_cell_marks[e], k)
         if c == first_delta:
             ax.set_ylabel("true position", fontsize=FS_LABEL - 1)
 

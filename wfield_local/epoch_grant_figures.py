@@ -2857,6 +2857,40 @@ def _fig_8g(out_dir, align, variant, wname):
         delta_title=f"Change from pre-stroke in per-position row correlation -- {wname}")
 
 
+
+def _fig_10cs(out_dir, align, variant, wname):
+    """10cs: the best-match DESTINATION matrix with per-cell bootstrap marks.
+
+    Priya, 2026-09-12: "did we give up on having any bootstrapping of fig 10 best-match matrices?"
+
+    WHAT THIS ADDS THAT 10c AND 10cdiag DO NOT. 10c draws the same matrix with no uncertainty at
+    all; 10cdiag tests the DIAGONAL as bars, so "did position P still match itself" is already
+    answered with intervals. Neither touches the OFF-DIAGONAL, which is where the substitution claim
+    lives -- "acute far-contra now best-matches far-middle" was a colour, not a test. Every cell here
+    carries a nested animals->sessions interval from the same bootstrap the bar families use.
+
+    THE REFERENCE IS CHANCE, NOT ZERO, on the absolute row: a cell is the fraction of sessions whose
+    best match landed there, so the question is whether it beats the 1/6 a coin gives. The delta row
+    is against zero in the ordinary way. `matrix_bootstrap.mark_note` states both, once.
+    """
+    from wfield_local import grant_figures as G
+    from wfield_local import matrix_bootstrap as mb
+
+    mats, _days = G._matrices_best_match_destination(align, variant)
+    if not mats:
+        return None
+    _means, cov = ef.mean_matrix_by_epoch(mats)
+    chance = 1.0 / len(_short_labels())
+    return mb.figure(
+        mats, out_dir, name=f"epoch_10cs_best_match_destination_marked_{align}_{variant}",
+        title=f"Where the best match went, with per-cell tests -- {wname}",
+        labels=_short_labels(), unit="fraction of sessions", reference=chance,
+        vmin=0.0, vmax=1.0, coverage=cov, pre_sessions=_pre_counts(align, variant),
+        seed=_seed_for("10cs", align, variant, "cells"),
+        subtitle=(f"Rows are this session's position, columns the pre-stroke pattern it matched "
+                  f"best. {mb.mark_note(chance)}"))
+
+
 def _fig_10(out_dir, align, variant, wname):
     """10 pooled: best-match accuracy and the correct position's rank, by epoch.
 
@@ -3392,13 +3426,13 @@ def main(argv=None) -> int:
     # figure still showing a number the code no longer produced. `extend` appends, which is what
     # repeating a flag reads as.
     ap.add_argument("--only", nargs="+", default=None, action="extend",
-                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b",
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b", "13s", "14m", "15e",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b", "13s", "14m", "15e",
                                  "15r", "mat", "scal"))
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
@@ -3419,7 +3453,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "12s", "12b", "13s", "14m", "15e",
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b", "13s", "14m", "15e",
                 "15r", "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
@@ -3504,6 +3538,12 @@ def main(argv=None) -> int:
         # ONE FIGURE PER ALIGNMENT. 12b pools a session's stopped trials whatever class the arm
         # names, so running it on the stopped arms too printed "NO FIGURE" twice a render for a
         # case that is correct by construction -- the same guard 12s needed.
+        if "10cs" in want:
+            try:
+                _report(f"10cs {align}/{variant}", _fig_10cs(out, align, variant, wname))
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 10cs {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
         if "12b" in want and variant == "working":
             try:
                 _report(f"12b {align}/{variant}",
