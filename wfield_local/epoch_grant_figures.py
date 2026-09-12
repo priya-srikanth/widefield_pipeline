@@ -46,7 +46,20 @@ ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working")
         ("cue", "cue", "working", "post-cue, lick + miss-while-working"),
         ("lick", "lick", "lick", "post-lick, lick trials only"),
         ("ENLstop", "precue", "stopped", "ENL (pre-cue), STOPPED trials only"),
-        ("cuestop", "cue", "stopped", "post-cue, STOPPED trials only"))
+        ("cuestop", "cue", "stopped", "post-cue, STOPPED trials only"),
+        # THE SELECTION CONTROL FOR THE LICK-ALIGNED RESULT (Priya, 2026-09-12). The post-lick arm
+        # is the ONLY place the refit-minus-frozen gap survives training-set matching -- +0.179
+        # acute and +0.112 subacute, both Bonferroni-corrected. But that arm CONDITIONS ON A
+        # DETECTED LICK, so post-stroke its trial population is itself a product of the deficit:
+        # the animal licks less and licks different spouts, and acute far-contralateral is gated
+        # out entirely below MIN_REFIT_SHARE.
+        #
+        # These two hold the TRIAL SET fixed at lick trials and move only the WINDOW. If the effect
+        # is about position coding it should appear post-cue on the same trials; if it is about
+        # executing a completed movement it should not. Neither exists in any other family, which is
+        # why the lick-aligned result could not be interpreted before.
+        ("cuelick", "cue", "lick", "post-cue, LICK TRIALS ONLY"),
+        ("ENLlick", "precue", "lick", "ENL (pre-cue), LICK TRIALS ONLY"))
 
 CHANCE = 1.0 / 6.0
 
