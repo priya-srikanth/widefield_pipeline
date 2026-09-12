@@ -154,3 +154,48 @@ def test_quiet_is_NOT_onset_anchored():
     ev = _ev(quiet_starts=[0], quiet_stops=[6])           # 0.6 s, shorter than the window
     _s, lab, _p, _d = ls.three_way_segments(ev)
     assert (lab == "quiet").sum() == 0
+
+
+def test_repeating_the_only_flag_APPENDS_rather_than_replacing():
+    """`--only acc --only 13s` must render BOTH, not just the last one.
+
+    With plain `nargs="+"` argparse REPLACES on a repeated flag, so that invocation silently
+    resolved to ["13s"] alone. It cost a 40-minute render on 2026-09-11 -- five families were asked
+    for, one ran, and the only symptom was a figure still showing a number the code no longer
+    produced, which is the hardest kind of failure to notice. `action="extend"` appends, which is
+    what repeating a flag reads as.
+    """
+    import argparse
+    import inspect
+
+    from wfield_local import epoch_grant_figures as eg
+
+    src = inspect.getsource(eg.main)
+    assert 'action="extend"' in src, "--only must use action='extend'"
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", nargs="+", default=None, action="extend")
+    assert ap.parse_args(["--only", "acc", "--only", "13s"]).only == ["acc", "13s"]
+
+
+def test_a_mark_needs_at_least_two_animals():
+    """One animal gives the outer bootstrap level no variance, so a star overstates the evidence.
+
+    12b's chronic panel is PS95 alone -- three sessions, the other animals having no chronic stopped
+    data -- and it returned ** against pre-stroke on a difference of 0.01. The bar and its interval
+    are still worth drawing; the mark is not.
+    """
+    from wfield_local import epoch_figures as ef
+
+    pts = {"pre": {"k": [("PS93", 0.8), ("PS94", 0.9), ("PS95", 0.85)]},
+           "chronic": {"k": [("PS95", 0.85), ("PS95", 0.86), ("PS95", 0.84)]},
+           "acute": {"k": [("PS93", 0.6), ("PS94", 0.7)]}}
+    assert ef.contrast_animals(pts, "chronic", "pre", "k") == 1
+    assert ef.contrast_animals(pts, "acute", "pre", "k") == 2
+    assert ef.MIN_ANIMALS_FOR_MARK == 2
+    # and the gate is actually wired into the figure path
+    import inspect
+
+    from wfield_local import epoch_grant_figures as eg
+    src = inspect.getsource(eg._scalar_figure)
+    assert "contrast_animals" in src and "MIN_ANIMALS_FOR_MARK" in src

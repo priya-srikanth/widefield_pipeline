@@ -1775,11 +1775,18 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
             ci = ef.with_ci(got)
             if ci is not None:
                 values[e][k] = ci
-    marks, rows = {}, {}
+    marks, rows, thin_marks = {}, {}, set()
     for e in post:
         marks[e], rows[e] = {}, {}
         for k in keys:
             if k not in values[e]:
+                continue
+            # A MARK NEEDS TWO ANIMALS. With one, the outer bootstrap level has no variance to
+            # draw on and the interval is within-animal scatter wearing a star -- see
+            # `ef.contrast_animals`. The BAR and its interval still appear; only the mark is
+            # withheld, and the subtitle says how many epochs were affected.
+            if ef.contrast_animals(points, e, "pre", k) < ef.MIN_ANIMALS_FOR_MARK:
+                thin_marks.add(e)
                 continue
             got = ef.scalar_contrast_draws(
                 points, e, "pre", k,
@@ -1793,7 +1800,11 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
             clo, chi = np.percentile(draws, [100 * a / 2, 100 * (1 - a / 2)])
             rows[e][k] = (point, float(lo), float(hi), float(clo), float(chi))
     counts = session_counts if session_counts is not None else _session_counts()
-    sub = ef.stats_line(counts, n_boot=N_BOOT, notes=[
+    thin_note = ([f"NO MARK on {', '.join(sorted(thin_marks))}: fewer than "
+                  f"{ef.MIN_ANIMALS_FOR_MARK} animals contribute, so the animal level of the "
+                  f"bootstrap has no variance and a star would assert more than one animal can "
+                  f"support. The bar and its interval are still shown"] if thin_marks else [])
+    sub = ef.stats_line(counts, n_boot=N_BOOT, notes=thin_note + [
         _MEAN_NOTE,
         "bootstrap: animals -> sessions. No block level: these values are one number per session, "
         "so the trial reduction already happened inside the collector"] + list(notes or []))
@@ -2373,14 +2384,23 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, default=None)
-    ap.add_argument("--only", nargs="+", default=None,
-                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "mat", "scal"))
+    # `extend`, NOT the default `store`. With plain nargs="+" a REPEATED flag REPLACES the previous
+    # value: `--only acc --only 13s` silently resolves to ["13s"] alone. That cost a 40-minute
+    # render on 2026-09-11 -- five families were asked for, one ran, and the only symptom was a
+    # figure still showing a number the code no longer produced. `extend` appends, which is what
+    # repeating a flag reads as.
+    ap.add_argument("--only", nargs="+", default=None, action="extend",
+                    choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b",
+                             "13s", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s",
                                  "mat", "scal"))
+    # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
+    # stale figure three hours later.
+    print(f"[epoch] rendering families: {' '.join(sorted(want))}", flush=True)
 
     if "1b" in want:
         try:

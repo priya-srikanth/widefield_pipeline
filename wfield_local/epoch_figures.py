@@ -1791,6 +1791,28 @@ def scalar_by_epoch(by_animal_day, value_of, *, keys=None):
             points.pop(e, None)
     return values, points
 
+def contrast_animals(points, epoch_a, epoch_b, key):
+    """How many ANIMALS contribute to a contrast -- the outer bootstrap level's sample size.
+
+    A MARK NEEDS AT LEAST TWO. `scalar_contrast_draws` resamples animals then sessions, and with a
+    single animal the outer draw always returns that same animal: the interval then reflects
+    within-animal session scatter ONLY, is far too narrow, and the star above the bar asserts a
+    population claim the panel cannot support.
+
+    IT IS NOT HYPOTHETICAL. 12b's chronic panel is PS95 alone -- three sessions, the other three
+    animals having no chronic stopped data -- and it came back `**` against pre-stroke on a
+    difference of 0.01 (Priya's stopped-vs-stopped request, 2026-09-11). The bar and its interval
+    are still worth drawing; what must not appear is the mark.
+    """
+    a = {an for an, _v in ((points.get(epoch_a) or {}).get(key) or [])}
+    b = {an for an, _v in ((points.get(epoch_b) or {}).get(key) or [])}
+    return len(a & b)
+
+
+#: Fewest animals a contrast needs before its mark is drawn. See `contrast_animals`.
+MIN_ANIMALS_FOR_MARK = 2
+
+
 def scalar_contrast_draws(points, epoch_a, epoch_b, key, *, rng, n_boot=2000):
     """``(point, draws)`` for the change in a per-session scalar, epoch_a minus epoch_b.
 
