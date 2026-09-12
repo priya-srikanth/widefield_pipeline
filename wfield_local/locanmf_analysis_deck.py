@@ -4401,9 +4401,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " scale moves with expression and window clarity. NO significance is drawn -- a per-animal"
          " panel has no between-animal spread to test. Carries the same F12 caveat as the pooled"
          " slide: this is the cue-evoked INCREMENT, not the position map."),
-        ("epoch_15r_position_QUIETref_*_*.png",
-         "Position maps vs the QUIET BASELINE -- the PRIMARY map family",
-         "LEAD WITH THIS ONE. Each map is that position's window mean minus the session's QUIET"
+        # MATCHES BOTH BASELINES, because during the migration two of them exist on the share and
+        # the filename is what distinguishes them (`position_reference_maps.reference_tag`).
+        # `RE*ref` catches RESTref and REWARD8ref while excluding MEANref and PRECUEref.
+        ("epoch_15r_position_RE*ref_*_*.png",
+         "Position maps vs the REST BASELINE -- the PRIMARY map family",
+         "LEAD WITH THIS ONE. Each map is that position's window mean minus the session's REST"
          " baseline -- the mean over frames that are slow-treadmill, non-licking and buffered away"
          " from reward, as `behavior_events` defines them. The subtrahend is ONE MAP PER SESSION,"
          " identical for all six positions, so subtracting it CANNOT couple them; and it carries no"
@@ -4414,7 +4417,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " baseline is the map-space analogue of what F12 endorses. It answers whether this"
          " position's cortex is driven AT ALL, where the mean-referenced family answers whether it"
          " is driven more than the others."
-         "\n\nITS OWN CAVEAT, stated rather than buried: the quiet baseline DRIFTS across epochs"
+         "\n\nCHECK THE FILENAME BEFORE READING THE CHRONIC COLUMN. `_REWARD8ref_` is the RETIRED"
+         " baseline: it excluded 8 s after every reward, a buffer carried over from a task whose"
+         " post-tone window was 8 s where ours has a 3.5 s response window. Under it the baseline"
+         " is estimated from 4.4% of frames pre-stroke, 17.1% acutely and a MEDIAN 0.7%"
+         " chronically, and its chronic between-animal agreement is position-INDEPENDENT shared"
+         " offset -- observed r = +0.494 against a null of +0.497, p = 0.21 to 0.97. That column"
+         " carries no information. `_RESTref_` is the replacement: between trials, not running,"
+         " not licking. See docs/REST_BASELINE_MIGRATION.md."
+         "\n\nITS OWN CAVEAT, stated rather than buried: the rest baseline DRIFTS across epochs"
          " (pre -0.0069, acute -0.0080, subacute -0.0096, chronic -0.0043). At chronic the"
          " subtrahend rises by +0.0026 against a signal of about 0.005, so ACROSS-EPOCH amplitude"
          " ratios carry that confound while BETWEEN-POSITION contrasts do not -- the drift is"

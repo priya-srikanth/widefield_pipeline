@@ -1507,19 +1507,27 @@ _REF_TEXT = {
               "the decoder, the folds and the Haufe transform in the way. READ IT AGAINST THE "
               "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artefact."),
     ),
-    "quiet": dict(
-        short="one vs QUIET",
-        title="Position maps referenced to the QUIET BASELINE -- one subtrahend per session, so "
+    "rest": dict(
+        short="one vs REST",
+        title="Position maps referenced to the REST BASELINE -- one subtrahend per session, so "
               "the six positions are INDEPENDENT",
-        cbar="activity minus that session's\nQUIET baseline (no running, no licking)",
-        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend is one map per session -- the mean "
-              "over that session's quiet frames, slow treadmill and no licking and buffered away "
-              "from reward, as `quiet_periods` writes them -- and it is IDENTICAL for all six "
-              "positions, so subtracting it cannot couple them. This answers \"is this "
-              "position's cortex driven at all\", where the mean-referenced figure answers \"is "
-              "it driven more than the others\". It is also the reference that does NOT sit "
-              "inside the trial: figure 15's pre-cue baseline controls drift tightest but is "
-              "blind to a sustained shift already present before the cue, and this one is not."),
+        cbar="activity minus that session's\nREST baseline (between trials, not running)",
+        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend is one map per session and it is "
+              "IDENTICAL for all six positions, so subtracting it cannot couple them. This "
+              "answers \"is this position's cortex driven at all\", where the mean-referenced "
+              "figure answers \"is it driven more than the others\". It is also the reference "
+              "that does NOT sit inside the trial: figure 15's pre-cue baseline controls drift "
+              "tightest but is blind to a sustained shift already present before the cue, and "
+              "this one is not."
+              "\n\nWHICH BASELINE THIS IS, read it off the filename. `_REWARD8ref_` is the "
+              "RETIRED definition -- slow treadmill, no licking, and 8 s excluded after every "
+              "reward, a buffer carried over from a task whose post-tone window was 8 s while "
+              "ours has a 3.5 s response window. Its quiet fraction tracks the deficit (4.4% of "
+              "frames pre-stroke, 17.1% acutely, a median 0.7% chronically), and at chronic its "
+              "between-animal agreement is position-INDEPENDENT shared offset: observed r = +0.494 "
+              "against a null of +0.497. DO NOT READ THE CHRONIC COLUMN OF A `_REWARD8ref_` "
+              "FIGURE. `_RESTref_` is the replacement: between trials, not running, not licking. "
+              "See docs/REST_BASELINE_MIGRATION.md."),
     ),
 }
 
@@ -1583,7 +1591,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
         rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
         out.append(ef.map_grid(
             cells, out_dir,
-            name=f"epoch_15rpa_position_{reference.upper()}ref_by_animal_{align}_{variant}",
+            name=f"epoch_15rpa_position_{prm.reference_tag(reference)}ref_by_animal_{align}_{variant}",
             title=(f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- does it replicate? {wname}"),
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, blank=bm.excluded_mask(),
@@ -1769,7 +1777,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                           for q in CONF_LABELS if q in amp)
         out.append(ef.map_grid(
             cells, out_dir,
-            name=f"epoch_15r_position_{reference.upper()}ref_{align}_{variant}",
+            name=f"epoch_15r_position_{prm.reference_tag(reference)}ref_{align}_{variant}",
             title=f"{txt['title']} -- {wname}",
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, contours=contours,

@@ -59,7 +59,24 @@ from wfield_local.beta_maps import (
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
 #: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
 #: `position_evoked_maps`.
-REFERENCES = ("mean", "quiet", "precue")
+REFERENCES = ("mean", "rest", "precue")
+
+#: How a reference is NAMED IN A FILENAME. `rest` resolves through the mask variant actually in
+#: use, so a figure built on the retired 8 s-post-reward definition is called `_REWARD8ref_` and one
+#: built on the new between-trials/not-running/not-licking definition is called `_RESTref_`.
+#:
+#: THE FILENAME HAS TO CARRY THE BASELINE, for the same reason `hemo_<variant>/` does
+#: (docs/PREPROCESSING_DECISION.md). During this migration two definitions of the same subtrahend
+#: exist side by side on the share, and a figure that says only "rest" would be unreadable a week
+#: later -- exactly the ambiguity that made "quiet" have to be retired as a word. Priya,
+#: 2026-09-12: "i worry that having the older things named quiet will get confusing."
+def reference_tag(reference):
+    """The filename token for a reference -- baseline-explicit for `rest`."""
+    from wfield_local.quiet_periods import quiet_variant
+
+    if reference != "rest":
+        return reference.upper()
+    return "REST" if quiet_variant() else "REWARD8"
 
 
 def session_quiet_svt(session, svt):
@@ -222,7 +239,7 @@ def reference_maps(raw, quiet, trial_mean, reference, raw_precue=None):
         if trial_mean is None:
             return {}
         return {q: m - trial_mean for q, m in raw.items()}
-    if reference == "quiet":
+    if reference == "rest":
         if quiet is None:
             return {}
         return {q: m - quiet for q, m in raw.items()}
