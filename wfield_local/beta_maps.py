@@ -1010,6 +1010,74 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     return full, base + tag
 
 
+#: Scale each animal's maps by that animal's OWN PRE-STROKE amplitude before pooling.
+#:
+#: THE PROBLEM IT SOLVES (Priya, 2026-09-12: "how should we address the between-animal scale
+#: variability -- Z scores?"). Pre-stroke map amplitude per animal, far-contralateral: PS92 0.01602,
+#: PS93 0.01380, PS94 0.00854, PS95 0.01429 -- a 1.87x spread, and 2.44x on average across the six
+#: positions (up to 3.19x). Averaging those unweighted makes the "pooled" map largely the brightest
+#: animal's map. Animal-first pooling already stops a session-rich animal dominating; it does
+#: nothing about a BRIGHT one.
+#:
+#: WHY THIS NORMALISER IS SAFE AND THE QUIET-SD ONE WAS NOT. The quiet SD moves WITH epoch (1.29x
+#: acute), so dividing by it injects the very effect being measured. An animal's pre-stroke RMS is
+#: ONE CONSTANT PER ANIMAL, computed only from pre-stroke data: it cancels exactly in every
+#: within-animal epoch ratio -- the numbers this deck quotes -- and changes only how much each
+#: animal contributes to the pooled average. It also cannot leak epoch information, because no
+#: post-stroke session enters it.
+#:
+#: IT IS PER POSITION as well as per animal, since the positions differ in drive and a single
+#: per-animal constant would re-introduce the imbalance between rows.
+NORMALISE_BY_PRE = True
+
+
+def within_animal_pooled(pre_by_animal, post_by_animal=None, *, normalise=NORMALISE_BY_PRE,
+                         mask=None):
+    """``(pre_pooled, post_pooled, delta, ratio, animals)`` -- pooled WITHIN animal.
+
+    TWO THINGS THIS FIXES, both of which the figures were getting wrong.
+
+    1. THE INTERSECTION. A delta drawn as ``pooled(post) - pooled(pre)`` equals the mean of
+       within-animal differences ONLY when both sides have the same animals. PS94 has no chronic
+       epoch, so every `chronic - pre` panel was a 3-animal chronic minus a 4-animal pre, mixing a
+       BETWEEN-animal difference into a within-animal comparison -- and the quoted chronic amplitude
+       ratio inherited it. Only animals present in BOTH epochs are used here.
+
+    2. THE SCALE. See `NORMALISE_BY_PRE`: each animal is divided by its own pre-stroke RMS, so the
+       pooled map is an average of animals rather than an average weighted by how bright each one
+       happened to be.
+
+    With ``post_by_animal=None`` this just returns the normalised pooled map for one epoch, which is
+    what the vs-zero and data panels need.
+    """
+    if mask is None:
+        mask = brain_mask()
+    animals = sorted(pre_by_animal if post_by_animal is None
+                     else set(pre_by_animal) & set(post_by_animal))
+    animals = [a for a in animals if pre_by_animal.get(a)]
+    if not animals:
+        return None, None, None, float("nan"), []
+
+    def _scale(an):
+        if not normalise:
+            return 1.0
+        m = np.mean(pre_by_animal[an], axis=0)
+        r = float(np.sqrt(np.nanmean(np.asarray(m)[mask] ** 2)))
+        # A DEGENERATE ANIMAL IS NOT RESCALED TO INFINITY: an all-zero pre-stroke map means that
+        # animal has nothing to normalise BY, and dividing would make its noise the loudest voice
+        # in the pooled mean.
+        return r if r > 0 else 1.0
+
+    sc = {a: _scale(a) for a in animals}
+    pre_p = np.mean([np.mean(pre_by_animal[a], axis=0) / sc[a] for a in animals], axis=0)
+    if post_by_animal is None:
+        return pre_p, None, None, float("nan"), animals
+    post_p = np.mean([np.mean(post_by_animal[a], axis=0) / sc[a] for a in animals], axis=0)
+    base = float(np.sqrt(np.nanmean(pre_p[mask] ** 2)))
+    ratio = (float(np.sqrt(np.nanmean(post_p[mask] ** 2))) / base) if base > 0 else float("nan")
+    return pre_p, post_p, post_p - pre_p, ratio, animals
+
+
 def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, seed=0,
                     mask=None):
     """``(full-resolution mask, label)`` -- where this ONE epoch's map differs from ZERO.
