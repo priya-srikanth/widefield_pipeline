@@ -188,6 +188,111 @@ off-diagonal cell. A per-cell interval on the row-centred off-diagonal would set
 Epoch coverage for the tables above is NOT balanced across animals: acute = PS94 6 / PS92 5 /
 PS93 4 / PS95 1; subacute = PS95 10 / PS93 7 / PS94 5 / PS92 2; **chronic = PS92 4, one animal**.
 Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a single-animal claim.
+**SUPERSEDED for the 5r family as of 2026-09-11: chronic is now 12 sessions across PS92/PS93/PS95 —
+see the 2026-09-12 section below. This line still describes the crossnobis tables above it.**
+
+## DOES RECOVERY RESTORE THE PRE-STROKE CODE? The chronic frozen-vs-refit result, 2026-09-12
+
+Priya's hypothesis, stated for a grant: *"recovery proceeds by re-establishing pre-stroke activity
+patterns rather than by building new ones. These accounts are separable: a decoder trained on
+pre-stroke activity recovers only if the original patterns return, whereas a decoder re-trained after
+stroke recovers either way."*
+
+**The framing is right and the data support it for five of six positions.** The discriminating
+evidence is the SECOND clause, not the first, and it is stronger than the first.
+
+> **SOURCE AND PRECISION.** The numbers here are read off the rendered figures of 2026-09-11
+> (`grant_figures/epoch/`), which are the current session set; the session and animal counts are
+> exact (they are printed in each subtitle). **Bar values are figure-read and good to about ±0.01.**
+> For more decimals run `scripts/prelim_numbers_frozen_vs_refit.py`. Everything in the 2026-09-09
+> section below it is the OLD session set for subacute and chronic — acute is unaffected.
+>
+> **WHY A FIGURE HAS TO BE RE-READ AT ALL — an open gap.** The epoch family writes PNG and SVG and
+> NOTHING ELSE: no CSV, no JSON, no run log carrying the plotted values. The only machine-readable
+> path to these numbers is re-running `scripts/prelim_numbers_frozen_vs_refit.py`, whose own
+> docstring says the per-position ratio "is computed here and nowhere in the package". That is the
+> mechanism by which this document drifted from its own figures: the render moved on 2026-09-11, the
+> text did not, and nothing could have flagged the disagreement. **A per-figure sidecar of the
+> plotted values (position x epoch, point estimate + both intervals) would close it** and make every
+> table here checkable against the render instead of against someone's reading of a bar.
+
+Epochs: n=90 sessions, pre 44, acute 16, subacute 18, **chronic 12 (PS92 4, PS93 4, PS95 4)**.
+PS94 never qualifies as chronic. The "chronic is one animal" caveat is retired.
+
+### 1. The frozen decoder returns to baseline (`epoch_acc_by_position_cue_working`)
+
+| position | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| near ipsi | 0.95 | 0.70 | 0.88 | 0.96 |
+| near middle | 0.85 | 0.58 | 0.70 | 0.71 |
+| near contra | 0.92 | 0.61 | 0.87 | 0.93 |
+| far ipsi | 0.87 | 0.49 | 0.71 | 0.80 |
+| far middle | 0.85 | 0.44 | 0.70 | 0.81 |
+| **far contra** | 0.89 | **0.32** | 0.63 | **0.78** |
+
+Pre-subtracted (`epoch_accdelta_by_position_cue_working`), the chronic−pre interval **crosses zero at
+five of six positions**. Far-contra is −0.12, excluding zero at uncorrected 95% but not under the
+Bonferroni-over-18 line the figure also draws.
+
+This is the NECESSARY condition. On its own it is not sufficient: a frozen decoder could in principle
+recover because the readout axes happen to survive a reorganisation.
+
+### 2. The refit advantage DISAPPEARS by chronic — the test that separates the accounts
+
+Acutely, refitting buys real accuracy: far-contra **+0.19** unmatched / **+0.16** matched, near-contra
++0.17 / +0.13. Information is present and misread — that is the "displaced" result.
+
+Chronically that advantage is gone, in BOTH families (`epoch_5rgapdelta_*`, `epoch_5rmgapdelta_*`),
+as change from the pre gap:
+
+| | near I | near M | near C | far I | far M | far C |
+|---|---|---|---|---|---|---|
+| unmatched gap Δ | −0.01 | **+0.22** | +0.03 | +0.02 | +0.05 | +0.08 |
+| matched gap Δ | 0.00 | **+0.27** | −0.03 | −0.03 | +0.04 | +0.07 |
+
+Only near-middle excludes zero, and only at uncorrected 95%.
+
+**Under the "new patterns" account a within-session refit should have KEPT or GROWN its advantage** —
+a reorganised code is legible to a refitted model and invisible to a frozen one. It does not.
+
+**THAT THE TWO FAMILIES AGREE IS THE LOAD-BEARING FACT.** Their baselines are handicapped in opposite
+directions (pre gap −0.073 unmatched, where frozen has ten sessions to refit's one; +0.090 matched,
+where frozen must generalise across days) and they still give the same chronic answer. The result is
+therefore not an artefact of either training-set convention — which is exactly why both were built.
+
+### 3. The exception: near-middle, a SPARED position
+
+Near-middle is the one place both signs point to reorganisation: the frozen decoder is still −0.14
+below pre at chronic, AND the refit gap is the largest in the figure (+0.22 / +0.27). There is
+decodable position information at chronic that the pre-stroke readout cannot reach.
+
+**State this rather than averaging it away.** It is the single positive instance of the alternative
+account in the data set, and it is not at the impaired position.
+
+### What this does NOT license
+
+1. **"Recovery PROCEEDS by…" is a claim about the route; this is an endpoint comparison.** Three
+   post-stroke epochs. Chronic resembling pre-stroke does not establish how it got there.
+2. **The acute state is not purely displaced.** Refitting recovers a third of far-contra's acute
+   deficit and 9–11% at far-ipsi/far-middle. Most of the acute loss is information the population no
+   longer carries linearly. That does not contradict a claim about recovery, but "the patterns
+   returned" must not be read backwards as "the patterns were only hidden".
+3. **Geometry has not fully returned.** Row-centred crossnobis displacement at far-contra is still
+   +0.177 chronically while decoding comes back. "The frozen readout works again" is strictly weaker
+   than "the representation is identical".
+4. **Three animals, and recovery is animal-specific** elsewhere in this document.
+
+### The defensible sentence
+
+> Recovery restores a position representation that the **pre-stroke readout can still read**: a
+> decoder frozen on pre-stroke activity returns to baseline at five of six positions, and the
+> advantage a within-session refit held acutely is gone by chronic under both matched and unmatched
+> training sets. One spared position (near-middle) retains a refit advantage, indicating locally
+> reorganised coding.
+
+That is the operational form of the hypothesis and it is what a frozen decoder can establish. The
+original wording claims more than the design carries on two counts — it is an endpoint result, and
+"rather than building new ones" is contradicted at near-middle.
 
 ## LOST or MISREAD? The frozen-vs-refit arm (figures 5r), 2026-09-09
 
