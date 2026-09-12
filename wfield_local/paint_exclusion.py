@@ -155,20 +155,15 @@ def main(argv=None) -> int:
     ap.add_argument("--brush", type=int, default=14)
     a = ap.parse_args(argv)
 
-    import matplotlib
-    # INTERACTIVE BACKEND, CHOSEN EXPLICITLY. Every other entry point in this package runs headless
-    # and sets Agg; inheriting that here would open a window that never appears and accept no
-    # clicks, which looks like the tool hanging.
-    for backend in ("TkAgg", "QtAgg", "Qt5Agg"):
-        try:
-            matplotlib.use(backend, force=True)
-            break
-        except Exception:                                              # noqa: BLE001
-            continue
-    import matplotlib.pyplot as plt
-
+    # EVERY wfield_local IMPORT FIRST, AND ONLY THEN THE BACKEND. `grant_figures`,
+    # `locanmf_cue_lick_analysis` and several others call `matplotlib.use("Agg")` AT IMPORT TIME,
+    # so selecting an interactive backend before importing them is silently undone -- the window
+    # never appears and matplotlib says only "FigureCanvasAgg is non-interactive" at `show()`.
+    # Import everything, load the data, and switch the backend last.
     from wfield_local import beta_maps as bm
     from wfield_local.atlas_overlay import region_edges
+
+    import matplotlib
 
     atlas, _names = bm._atlas_names()
     full = bm.brain_mask() | bm.excluded_mask()
@@ -185,6 +180,27 @@ def main(argv=None) -> int:
     if a.load and Path(a.load).exists():
         mask = np.load(a.load).astype(bool)
         print(f"loaded {int(mask.sum()):,} px from {a.load}")
+
+    # NOW the backend, with every Agg-setting import already done.
+    chosen = None
+    for backend in ("TkAgg", "QtAgg", "Qt5Agg", "wxAgg"):
+        try:
+            matplotlib.use(backend, force=True)
+            chosen = backend
+            break
+        except Exception:                                              # noqa: BLE001
+            continue
+    if chosen is None or chosen.lower().endswith("agg") and chosen == "Agg":
+        print("no interactive matplotlib backend available -- cannot paint. "
+              "Install tk (conda install tk) or PyQt.")
+        return 2
+    import matplotlib.pyplot as plt
+
+    if not matplotlib.get_backend().lower().startswith(("tk", "qt", "wx")):
+        print(f"backend is {matplotlib.get_backend()!r}, which is not interactive -- "
+              "something re-set it after selection. Cannot paint.")
+        return 2
+    print(f"backend: {matplotlib.get_backend()}")
 
     # CHANNEL 1 (470) IS THE DEFAULT VIEW because it is what every other figure is built from;
     # `f` swaps to the isosbestic, where an optical obstruction shows without activity on top.
