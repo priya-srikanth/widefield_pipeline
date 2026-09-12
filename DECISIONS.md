@@ -8955,3 +8955,89 @@ the original patterns return* — and it never depended on the gap at all.
 
 The grant paragraph should lead with it, state the reorganisation question as open with the power
 number attached, and cite the MATCHED family wherever the gap appears.
+
+---
+
+## 2026-09-12 (handoff) — The state decoder's LICKING class, and the best-match resolution question
+
+Two threads opened late and NOT implemented. Recorded because both are defects in measures that
+existing claims lean on, and neither is visible from the figures.
+
+### 1. The licking class analyses 1 s of a bout that lasts 0.37 s
+
+`locomotor_state.lick_periods` builds bouts with `segment_bouts(onsets, max_ili_s=0.3,
+min_bout_licks=2)` — split at gaps over 0.3 s, keep runs of **≥ 2 licks**.
+
+**There is no minimum bout DURATION.** With `max_ili_s = 0.3` a 2-lick bout spans ≤ 0.3 s, and the
+median bout is **0.37 s**. Licking segments are onset-anchored 1 s windows explicitly allowed to run
+past the bout's end, so **a typical "licking" window is ~60% not-licking** — and because bouts split
+at 0.3 s a window can swallow the next bout, so bouts are not independent and the same licks can
+appear twice.
+
+Priya: *"i think i messed that up, we should have had a minimum bout duration criterion or else done
+the post-cue window."*
+
+**The onset-anchoring was a measured choice, not an oversight** — tiling strictly inside 1 s bouts
+keeps 22% of 101,018 bouts and biases the class toward sustained licking, which `segments()` records.
+The fix is not to reverse it but to stop the window outrunning the data.
+
+**AGREED FIX (not implemented).** Shorten the window for ALL THREE classes, with a matching floor:
+
+* `SEGMENT_S` 1.0 → **0.5 s**. Natural because `segmentation.quiet.min_quiet_s` is already 0.5, so
+  quiet supplies it without redefinition, and running has a 2.0 s floor so it is unaffected.
+* Lick bouts must be **≥ 0.5 s** — given `max_ili_s = 0.3` that is effectively `min_bout_licks = 3`,
+  which should be stated explicitly rather than left implicit in the duration.
+* **Write the lick COVERAGE of each segment** (fraction of the window actually spanned by licks).
+  That is what makes the fix verifiable instead of assumed.
+* **Keep the 1 s version alongside.** If the state result survives with coverage near 1.0 the concern
+  is closed; if it survives only on the old definition, the class was reading something else.
+
+All three classes keep an IDENTICAL window length, so the decoder cannot separate them on window
+length — the failure a variable-length window introduces, and why `segments()` says *"a 0.4 s window
+binned into four is not the same feature as a 1 s one."*
+
+**ALSO AGREED, separately:** a second licking class on the analysis's own **post-cue first-lick 2 s
+window**, reported beside the spontaneous-bout one. `BEHAVIOURAL_STATE_CONTROL.md` specifies the
+control as *same window, same basis, same estimator, only the LABEL changes* — the spontaneous-bout
+segmentation is the deviation from that, not the task-locked version.
+
+**A caveat surviving either fix, to be stated wherever the three-way accuracy is plotted:** running
+and quiet cannot be trial-locked — they are sustained states sampled wherever they occur. So licking
+is locked to a transition and the other two are not, and a decoder could separate them on
+transient-versus-sustained rather than on which behaviour it is.
+
+*(A digression of mine about reward-locked licking being a selection confound is WITHDRAWN: cue and
+reward are simultaneous on this rig, and Priya meant post-cue throughout.)*
+
+### 2. Best-match (`10e`) has one number per session, a proportion out of six
+
+Priya: *"shouldn't we be able to categorize every trial in every session?"*
+
+`_best_match(M)` takes ONE 6×6 matrix per session — each position's MEAN pattern against the six
+pre-stroke references — and returns one argmax per row. Six binary outcomes, so a session's accuracy
+can only be 0, 1/6, 2/6 … 1.
+
+**Per-trial does not work**: a single trial's pattern is far too noisy for an argmax over six
+candidates, and the pre-stroke ceiling collapses toward 1/6 with it. The existing design already
+guards the converse error — argmax over the AVERAGE of the leave-one-out matrices gave 6/6 in every
+animal, *"so the ceiling was 100% by construction and the post-stroke panel was being read against
+perfection."*
+
+**A "block mean" does not work either, and I proposed it before checking.** Blocks are ~6-trial
+POSITION blocks — roughly one visit per position — so a block-mean pattern for position P is a single
+trial. Block-level best-match IS trial-level best-match.
+
+**Two options that would work**, neither implemented:
+
+* **Within-session bootstrap** — resample trials within a session, recompute patterns and argmax,
+  average over draws. Gives a continuous per-session estimate instead of k/6 and, for the first time,
+  error bars on the per-session dots. Requires the pre-stroke ceiling to get IDENTICAL treatment, and
+  note the bootstrap mean is not the plug-in estimate because argmax is nonlinear — they disagree
+  most where the row is flat, which is the "code is gone" case the measure exists for.
+* **Session chunks** — 2–3 groups of consecutive blocks (~30–60 trials each), with a
+  leave-one-CHUNK-out ceiling and chunks nested under session in the bootstrap.
+
+**NEITHER MOVES A CHRONIC CLAIM.** 83% of the chronic squared SE is between ANIMALS; sharpening
+within-session resolution reduces a term that is already small. Do this only for an ACUTE best-match
+claim the current resolution cannot support — acute is where the animal-level SD is 0.012 and session
+noise dominates.
