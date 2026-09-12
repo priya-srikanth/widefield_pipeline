@@ -122,6 +122,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 import numpy as np
+from scipy import ndimage
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
@@ -900,6 +901,14 @@ def musall_significance(maps_per_unit, other=None, *, factor=MUSALL_DOWNSAMPLE, 
     borrows strength across space instead of paying Bonferroni for every bin -- is the primary test
     here. Musall could use this because they pooled sessions, where the df is large.
 
+    BONFERRONI OVER BINS HERE, DELIBERATELY, EVEN THOUGH IT IS THE WRONG DENOMINATOR. Bonferroni
+    assumes independent tests and these maps are smooth at FWHM ~78 px, so 2,022 bins carry only
+    ~21 independent resolution elements -- a 95x over-correction (see `CORRECT_OVER_RESELS`, and
+    `hierarchical_bootstrap_significance` / `vs_zero_contour`, both of which correct over resels).
+    THIS function keeps the paper's own arithmetic because it exists to BE the paper's procedure:
+    a reference number computed a different way is not a reference. Read its output as "what
+    Musall's method would say here", never as this deck's inference.
+
     Bonferroni over the in-mask downsampled pixels, which is what `n_tested` reports.
     """
     from scipy import stats
@@ -1014,7 +1023,15 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
 
     obs = np.mean([np.mean(post_s[a], 0) - np.mean(pre_s[a], 0) for a in animals], 0)
     se_b = boot.std(0, ddof=1)
-    z = float(stats.norm.ppf(1.0 - (alpha / n_tested) / 2.0))
+    # CORRECT OVER RESELS, NOT BINS -- see `CORRECT_OVER_RESELS`. The smoothness is estimated on
+    # the FULL-RESOLUTION per-animal differences, so the count does not depend on the grid the test
+    # happens to run on.
+    n_corr = n_tested
+    if CORRECT_OVER_RESELS:
+        d_full = np.stack([np.mean(post_by_animal[a], 0) - np.mean(pre_by_animal[a], 0)
+                           for a in animals])
+        n_corr = resel_count(d_full, mask=mask, n_bins=n_tested)
+    z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
     half = z * se_b
     lo, hi = obs - half, obs + half
     sig = sm_mask & (se_b > 0) & ((lo > 0) | (hi < 0))
@@ -1031,6 +1048,74 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
 #: stays the ANIMAL is narrower than it first looks: sessions are genuine replicates of the
 #: MEASUREMENT, while the animal is the unit only for a claim about mice in general. Nesting gets
 #: both, which is why the behaviour figures were already built this way.
+#: Correct the multiple-comparison threshold over RESOLUTION ELEMENTS rather than over bins.
+#:
+#: BONFERRONI ASSUMES THE TESTS ARE INDEPENDENT AND THESE ARE NOWHERE NEAR IT. The maps are
+#: `U @ coef` at rank 100 and smooth at FWHM ~78 px, so the 2,022 in-mask bins of the 8x grid carry
+#: only about 21 independent pieces of information. Measured 2026-09-12:
+#:
+#:      in-mask pixels                 129,770
+#:      downsampled bins                 2,022      <- what was being corrected over
+#:      map smoothness (FWHM)             78.1 px
+#:      RESELS = area / FWHM^2              21.3      <- independent tests actually performed
+#:      OVER-CORRECTION                     95x
+#:
+#: which put the threshold at z = 4.22 where z = 3.04 was warranted. Priya, repeatedly and
+#: correctly: "I continue to have a hard time understanding how so little of this is significant
+#: when the effects look so dramatic."
+#:
+#: WHAT IT DOES AND DOES NOT FIX, measured before adoption so the change is not oversold. It
+#: roughly DOUBLES far-middle (506 -> 951 bins) and leaves far-contra nearly unchanged
+#: (1,668 -> 1,864). It does NOT rescue the near positions: relaxing all the way to UNCORRECTED
+#: p<0.05 still leaves them at 1-4% of bins. So the position specificity is not an artefact of the
+#: threshold -- which is the reassuring half of this finding.
+#:
+#: THE SMOOTHNESS IS ESTIMATED FROM THE RESIDUALS, not from the mean map, which is the standard
+#: RFT construction: the mean map's smoothness is a property of the effect, while the correction
+#: needs the smoothness of the NOISE the effect is being judged against.
+CORRECT_OVER_RESELS = True
+
+
+def resel_count(stack, mask=None, n_bins=None):
+    """Effective number of independent resolution elements in a stack of maps.
+
+    ``stack`` is ``(n_units, H, W)`` -- the per-animal maps whose MEAN is being tested. Smoothness
+    comes from the residuals about that mean.
+
+    RESELS = in-mask area / FWHM^2, the standard random-field count. Bounded below by 1 (there is
+    always at least one test) and above by ``n_bins`` (smoothing cannot create independence that
+    the sampling grid does not have), so a degenerate estimate can only ever make the correction
+    more conservative, never less.
+    """
+    if mask is None:
+        mask = stat_mask()
+    if mask is None:
+        return float(n_bins or 1)
+    d = np.asarray(stack, float)
+    if d.ndim != 3 or len(d) < 2:
+        return float(n_bins or 1)
+    res = d - d.mean(0, keepdims=True)
+    inner = ndimage.binary_erosion(mask, iterations=3)
+    if not inner.any():
+        return float(n_bins or 1)
+    vs = []
+    for r in res:
+        sd = float(np.nanstd(r[mask]))
+        if sd <= 0:
+            continue
+        gy, gx = np.gradient(r / sd)
+        v = float(np.nanmean(np.concatenate([gy[inner] ** 2, gx[inner] ** 2])))
+        if np.isfinite(v) and v > 0:
+            vs.append(v)
+    if not vs:
+        return float(n_bins or 1)
+    fwhm = float(np.sqrt(4.0 * np.log(2.0) / np.mean(vs)))
+    if not np.isfinite(fwhm) or fwhm <= 0:
+        return float(n_bins or 1)
+    r = float(mask.sum()) / (fwhm * fwhm)
+    return float(np.clip(r, 1.0, float(n_bins) if n_bins else np.inf))
+
+
 PRIMARY_TEST = "nested"
 
 #: A flagged set whose share inside the mask's outer rim exceeds the rim's OWN share of the brain
@@ -1119,7 +1204,8 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     full = upsample_mask(sig) if n else None
     enr = edge_enrichment(full) if full is not None else 0.0
     base = (f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
-            f"{n} of {n_tested} bins")
+            f"{n} of {n_tested} bins"
+            + (" [resel-corrected]" if CORRECT_OVER_RESELS else " [Bonferroni over bins]"))
     if n and np.isfinite(enr) and enr > EDGE_ENRICHMENT_MAX:
         # SUPPRESSED. See EDGE_ENRICHMENT_MAX -- a contour is read as a result and a caveat is not.
         return None, (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x "
@@ -1262,7 +1348,11 @@ def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, 
     from scipy import stats
 
     se_b = boot.std(0, ddof=1)
-    z = float(stats.norm.ppf(1.0 - (alpha / n_tested) / 2.0))
+    n_corr = n_tested
+    if CORRECT_OVER_RESELS:
+        d_full = np.stack([np.mean(by_animal[a], 0) for a in animals])
+        n_corr = resel_count(d_full, mask=mask, n_bins=n_tested)
+    z = float(stats.norm.ppf(1.0 - (alpha / max(n_corr, 1.0)) / 2.0))
     sig = sm_mask & (se_b > 0) & (np.abs(obs) > z * se_b)
     n = int(sig.sum())
     full = upsample_mask(sig) if n else None

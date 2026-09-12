@@ -500,3 +500,69 @@ def test_pooled_analyses_use_the_UNION_across_animals():
     per = {k: v for k, v in load_masks().items() if k not in ("all",)}
     for k, m in per.items():
         assert not (m & ~union).any(), f"{k}'s mask has pixels the union lacks"
+
+
+def test_the_correction_is_over_RESELS_not_bins_and_is_bounded():
+    """Bonferroni assumes independent tests; these maps are smooth, so bins are not tests.
+
+    Priya, repeatedly and correctly: "I continue to have a hard time understanding how so little of
+    this is significant when the effects look so dramatic." Measured 2026-09-12: 2,022 in-mask bins
+    carry only ~21 independent resolution elements at FWHM 78 px -- a 95x over-correction, putting
+    the threshold at z = 4.22 where 3.04 was warranted.
+
+    BOUNDED IN BOTH DIRECTIONS, so a degenerate smoothness estimate can only make the test more
+    conservative: at least 1 resel (there is always one test) and never more than the number of
+    bins (smoothing cannot manufacture independence the sampling grid does not have). White noise
+    must therefore saturate at the bin count, recovering plain Bonferroni.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    mask = bm.stat_mask()
+    n_bins = int(bm.downsample(np.ones(bm.MAP_SHAPE), 8, mask)[1].sum())
+    rng = np.random.default_rng(0)
+
+    def stack(sigma):
+        return np.stack([ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), sigma) * mask
+                         for _ in range(4)])
+
+    # monotone: smoother -> fewer independent tests
+    counts = [bm.resel_count(stack(s), mask=mask, n_bins=n_bins) for s in (8, 20, 40)]
+    assert counts[0] > counts[1] > counts[2], f"not monotone in smoothness: {counts}"
+
+    # white noise recovers plain Bonferroni rather than exceeding it
+    white = np.stack([rng.standard_normal(bm.MAP_SHAPE) * mask for _ in range(4)])
+    assert bm.resel_count(white, mask=mask, n_bins=n_bins) == n_bins
+
+    # degenerate inputs fall back to the conservative denominator
+    assert bm.resel_count(np.zeros((1,) + bm.MAP_SHAPE), mask=mask, n_bins=n_bins) == n_bins
+    assert bm.resel_count(np.zeros((4,) + bm.MAP_SHAPE), mask=mask, n_bins=n_bins) == n_bins
+
+
+def test_resel_correction_cannot_make_the_test_more_permissive_than_uncorrected():
+    """The whole point is a HONEST denominator, not a looser one.
+
+    Even fully relaxed, the near positions stayed at 1-4% of bins in the real data -- so the
+    position specificity is not an artefact of the threshold. This pins the weaker structural
+    claim: the corrected threshold always sits between uncorrected and Bonferroni-over-bins.
+    """
+    import numpy as np
+    from scipy import stats
+
+    from wfield_local import beta_maps as bm
+
+    mask = bm.stat_mask()
+    n_bins = int(bm.downsample(np.ones(bm.MAP_SHAPE), 8, mask)[1].sum())
+    rng = np.random.default_rng(1)
+    from scipy import ndimage
+    st = np.stack([ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 20) * mask
+                   for _ in range(4)])
+    r = bm.resel_count(st, mask=mask, n_bins=n_bins)
+    z_uncorr = stats.norm.ppf(1 - 0.05 / 2)
+    z_resel = stats.norm.ppf(1 - (0.05 / r) / 2)
+    z_bins = stats.norm.ppf(1 - (0.05 / n_bins) / 2)
+    assert z_uncorr < z_resel < z_bins, (
+        f"corrected z {z_resel:.2f} not between uncorrected {z_uncorr:.2f} and "
+        f"bin-Bonferroni {z_bins:.2f}")
