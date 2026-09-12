@@ -77,7 +77,10 @@ def test_units_never_share_an_output_path():
     for align in {a for _k, a, _v in seven_b}:
         got = {v for _k, a, v in seven_b if a == align}
         assert got == set(G._variants(align)), (align, got)
-    assert "stopped" in {v for _k, _a, v in seven_b}
+    # AND THE PLANNER MUST NOT PLAN A RETIRED ARM. The line above would pass if both sides gained
+    # `stopped` together, which is exactly how the arms would come back unnoticed -- they were
+    # removed 2026-09-12 because their pre-stroke reference is LICK trials (see `_variants`).
+    assert "stopped" not in {v for _k, _a, v in seven_b}
 
 
 def test_the_expensive_families_are_scheduled_first():

@@ -237,10 +237,21 @@ def _variants(align):
     That is exactly the shape of duplication `_pooled_bundle` was extracted for -- seventeen copies
     agree today and one of them grows a third class tomorrow.
     """
-    # `stopped` JOINS THEM FOR THE NON-LICK WINDOWS ONLY, and for the same reason `lick` owns the
-    # lick window alone: a trial inside the quit period is a non-response by construction, so it
-    # has no lick to align to and a "stopped, lick-aligned" panel is undefined rather than empty.
-    vs = ("lick",) if align == "lick" else ("lick", "working", "stopped")
+    # `stopped` IS NOT A CLASS HERE ANY MORE (Priya, 2026-09-12: "I think we can get rid of the
+    # post-stroke stopped vs pre-stroke lick analyses and figures"). It was added as a third class
+    # so every generic family would render a stopped version, but `_collect_7` hardcodes the
+    # PRE-STROKE side to `lick` for every class -- harmless for `lick` and `working`, which are
+    # nearly the same trials before a lesion, and the whole comparison for `stopped`, which by
+    # construction contains no licking trials at all. Those arms therefore scored post-stroke quit
+    # periods against pre-stroke ENGAGED cortex and a drop was what two different behavioural
+    # states would produce on their own.
+    #
+    # THE QUESTION IS STILL ASKED, PROPERLY, BY FAMILIES 12 AND 12b, which is why this deletes arms
+    # and not the class. `_class_select`, `_session_trials(..., "stopped")`, `_collect_stopped` and
+    # `_collect_stopped_pooled` all stay: 12b scores post-stroke stopped against pre-stroke STOPPED
+    # (state-matched, leave-one-session-out) and 12 does the per-position version against a common
+    # engaged template. Both render on the `working` pass, so neither is affected by this.
+    vs = ("lick",) if align == "lick" else ("lick", "working")
     return tuple(v for v in vs if _ONLY_VARIANT in (None, v))
 
 

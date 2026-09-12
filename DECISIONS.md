@@ -9209,3 +9209,28 @@ The question it appears to ask is answered properly by 12b, which is state-match
 trials", describing half a correlation; ~18 caption sites inherited it, so no figure disclosed that
 the other side was lick trials. The note now states the reference explicitly AND points at family 12b, at
 the single source. Needs a re-render of the stopped arms for the captions to change.
+
+**Removed 2026-09-12, same conversation.** Priya: *"I think we can get rid of the post-stroke
+stopped vs pre-stroke lick analyses and figures."* Agreed — they were never the stopped-trial
+analysis, only the engaged-trial families with the class switch flipped, and their pre-stroke
+reference made them uninterpretable. Deleted:
+
+* `grant_figures._variants` — `stopped` dropped from the class tuple, so no generic family renders
+  it on any alignment.
+* `epoch_grant_figures.ARMS` — the `ENLstop` and `cuestop` arms removed.
+
+**KEPT, deliberately:** `_class_select`, `_session_trials(..., "stopped")`, `_collect_stopped`,
+`_collect_stopped_pooled`, families 12/12s/12b and `tests/test_stopped_trial_class.py`. The class
+machinery is what 12b runs on; only the generic arms are gone. 12/12s/12b are gated on
+`variant == "working"`, so they were never on the stopped pass and are unaffected.
+
+Two tests asserted the old behaviour and were inverted rather than deleted —
+`test_stopped_is_no_longer_a_generic_variant_on_any_alignment`, and a new line in
+`test_units_never_share_an_output_path` pinning that the render planner does not plan a retired arm.
+The planner already derives its variants from `_variants`, so the existing agreement assertion would
+have passed if both sides regained `stopped` together; that is exactly how the arms would come back
+unnoticed.
+
+Stale outputs: 300 files match `*_stopped.{png,svg,csv}` (68 in `grant_figures/`, 232 in
+`grant_figures/epoch/`). The suffix pattern does not touch family 12, whose files are
+`*_stopped_pattern_*` and `*_stopped_pooled_*`.

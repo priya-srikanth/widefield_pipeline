@@ -45,8 +45,13 @@ from wfield_local.writeguard import assert_writable
 ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working"),
         ("cue", "cue", "working", "post-cue, lick + miss-while-working"),
         ("lick", "lick", "lick", "post-lick, lick trials only"),
-        ("ENLstop", "precue", "stopped", "ENL (pre-cue), STOPPED trials only"),
-        ("cuestop", "cue", "stopped", "post-cue, STOPPED trials only"),
+        # `ENLstop` and `cuestop` REMOVED 2026-09-12 (Priya: "I think we can get rid of the
+        # post-stroke stopped vs pre-stroke lick analyses and figures"). They ran every generic
+        # family on the quit period, but `_collect_7` hardcodes the pre-stroke side to `lick`, so
+        # they compared post-stroke stopped trials against pre-stroke ENGAGED cortex -- two
+        # different behavioural states, where a drop is the null expectation rather than a result.
+        # Families 12 and 12b ask it properly (12b state-matched against pre-stroke STOPPED) and
+        # render on the `working` pass, so they are untouched. See `grant_figures._variants`.
         # THE SELECTION CONTROL FOR THE LICK-ALIGNED RESULT (Priya, 2026-09-12). The post-lick arm
         # is the ONLY place the refit-minus-frozen gap survives training-set matching -- +0.179
         # acute and +0.112 subacute, both Bonferroni-corrected. But that arm CONDITIONS ON A

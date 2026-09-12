@@ -66,11 +66,21 @@ def test_an_animal_with_no_unengaged_trials_does_not_crash_any_class():
         assert me.any() == (v != "stopped")
 
 
-def test_stopped_is_a_variant_for_cue_and_precue_but_never_for_lick():
-    """A trial inside the quit period is a non-response, so it has no lick to align to."""
-    assert "stopped" in G._variants("cue")
-    assert "stopped" in G._variants("precue")
-    assert "stopped" not in G._variants("lick")
+def test_stopped_is_no_longer_a_generic_variant_on_any_alignment():
+    """RETIRED AS AN ARM, KEPT AS A CLASS (Priya, 2026-09-12).
+
+    This test used to assert the opposite -- that `stopped` WAS a variant for cue and precue. The
+    arms were removed because `_collect_7` hardcodes the pre-stroke side to `lick` for every class,
+    so a generic stopped family scored post-stroke quit periods against pre-stroke ENGAGED cortex.
+    For `lick` and `working` that hardcode is harmless (before a lesion those are nearly the same
+    trials); for `stopped`, which `_class_select` gives no engaged rows at all, it WAS the
+    comparison, and a drop is what two different behavioural states produce on their own.
+
+    The inversion is the point: the class machinery below must keep working, because families 12
+    and 12b still use it.
+    """
+    for align in ("cue", "precue", "lick"):
+        assert "stopped" not in G._variants(align), align
 
 
 def test_the_render_planner_and_the_collectors_agree_on_the_variant_list():
