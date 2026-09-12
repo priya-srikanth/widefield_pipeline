@@ -179,6 +179,29 @@ SE_FLOOR_PCT = 25.0
 #: (t=3.18) the near positions fall to 1.0-7.1% suprathreshold while far-contra stays at 85.7%.
 CLUSTER_FORMING_P = 0.05
 
+#: Sigma, in pixels, for spatially SMOOTHING the between-animal `se` before it becomes a
+#: denominator -- the SnPM "pseudo-t". 8.0, and the number is DERIVED rather than chosen.
+#:
+#: THE RULE: smooth the denominator until it is as smooth as the numerator. Measured on the
+#: acute-minus-pre evoked maps (effective FWHM in pixels, in-mask, RFT gradient estimator):
+#:
+#:      pooled mean difference -- what the panel DRAWS       80.9 px
+#:      between-animal se -- the denominator, unsmoothed     41.0 px
+#:      t map -- what the contour THRESHOLDS                 24.2 px
+#:
+#: The maps are `U @ coef` at rank 100 and are smooth by construction; the `se` is not, because it
+#: is four numbers per pixel. So the contour came out jagged while the effect it traced was smooth
+#: (Priya, 2026-09-12: "our pixel maps don't seem very smooth - lots of jaggy-ness there"). At
+#: sigma 8 the smoothed `se` reaches FWHM 81.0 px, matching the mean map's 80.9, and the t map goes
+#: 24.2 -> 39.1 px.
+#:
+#: IT DOES NOT CHANGE THE ANSWER, which is why it is safe. Far-contra acute across sigma 0/8/16/24:
+#: 177,590 / 178,063 / 177,178 / 174,154 significant pixels -- a 2% spread. This buys legibility
+#: and nothing else, and an earlier version of this comment claimed it fixed the
+#: big-effect-no-contour problem, which was wrong: that is between-animal disagreement, and
+#: `cluster_permutation`'s docstring has the measurement.
+SE_SMOOTH_SIGMA = 8.0
+
 
 def _balanced_index(y, rng):
     """Row indices with every class down-sampled to the rarest. KEPT FOR REFERENCE, NOT USED.
@@ -455,7 +478,8 @@ def map_corr(a, b):
 
 
 def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=None, seed=0,
-                        se_floor_pct=SE_FLOOR_PCT, mask=None):
+                        se_floor_pct=SE_FLOOR_PCT, mask=None,
+                        se_smooth_sigma=SE_SMOOTH_SIGMA):
     """Boolean mask: pixels in a cluster larger than 95% of clusters obtainable by relabelling.
 
     THE TEST THE DIFFERENCE COLUMN NEEDS. 540 x 640 is 345,600 pixels, so an uncorrected per-pixel
@@ -481,6 +505,24 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
     far enough to suppress every interior effect. The artefact manufactured a false positive and
     hid the true ones with the same mechanism. `t` is now identically zero outside `brain_mask()`,
     so no cluster can form there, in the observed map or in any null draw.
+
+    A BIG EFFECT WITH NO CONTOUR MEANS THE ANIMALS DISAGREED, and that is the test working rather
+    than failing (Priya, 2026-09-12: "Big visual effects are not included, and the only
+    significance clusters are wonky"). The panel draws the MEAN over animals; the test asks whether
+    that mean is reproduced IN EACH ANIMAL, because `se` is the between-animal spread. Measured on
+    the acute/subacute/chronic evoked maps, taking the top 5% of pixels by pooled effect and asking
+    what fraction of animals share the pooled sign there:
+
+        far-contra  acute      effect 0.0117   100% agree   ->  178,063 px significant
+        far-middle  acute      effect 0.0074   100% agree   ->   93,397 px significant
+        far-contra  subacute   effect 0.0034    99% agree   ->   24,407 px significant
+        far-middle  CHRONIC    effect 0.0069    69% agree   ->        0 px  <-- big, inconsistent
+        near-middle CHRONIC    effect 0.0039   100% agree   ->        0 px  <-- consistent, small
+
+    Significance needs BOTH, and the two failures fail differently: far-middle chronic has the
+    second-largest effect in the whole table and gets nothing because one or two animals go the
+    other way. At n=4 that is a strict bar and it is the correct one -- a pooled map that is really
+    one animal's effect is exactly what n=4 cannot be allowed to call a result.
 
     THE DENOMINATOR IS FLOORED AT A PERCENTILE OF THE IN-MASK `se`, not at 1e-12. With four animals
     an interior pixel where all four happen to agree gets an `se` near zero and the same unbounded
@@ -569,6 +611,14 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
             se = np.full(MAP_SHAPE, float(np.nanstd(m[mask])), float)
         else:
             se = d.std(0, ddof=1) / np.sqrt(len(animals))
+        if se_smooth_sigma:
+            # MASK-AWARE SMOOTHING. A plain gaussian_filter pulls the empty 40% of the frame into
+            # every edge pixel's denominator and drags it toward zero, which would hand the brain's
+            # rim an unearned t -- the border artefact re-entering by the back door. Dividing the
+            # smoothed masked `se` by the smoothed mask renormalises each pixel by how much BRAIN
+            # its kernel actually saw.
+            w = ndimage.gaussian_filter(mask.astype(float), se_smooth_sigma)
+            se = ndimage.gaussian_filter(se * mask, se_smooth_sigma) / np.maximum(w, 1e-9)
         t = np.zeros(MAP_SHAPE, float)
         inm = se[mask]
         floor = float(np.nanpercentile(inm, se_floor_pct)) if np.isfinite(inm).any() else 0.0
@@ -616,6 +666,212 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
             if mm > cut:
                 keep |= (lab == i)
     return keep
+
+
+#: Spatial downsampling factor for the Musall-style test. 8 is not arbitrary: it takes the
+#: 540 x 640 frame to 68 x 80, of which 3,234 pixels are in the brain mask -- against the 3,364
+#: Musall et al. (2023, fig. S6) Bonferroni-corrected over. The same resolution, arrived at
+#: independently.
+#:
+#: IT COSTS NOTHING REAL. The maps' effective smoothness is FWHM ~81 px (see `SE_SMOOTH_SIGMA`),
+#: so at full resolution the frame is roughly 100x oversampled relative to the spatial information
+#: it actually carries. Binning 8x8 leaves ~10 px FWHM in the downsampled grid, still well sampled.
+MUSALL_DOWNSAMPLE = 8
+
+
+def downsample(img, factor=MUSALL_DOWNSAMPLE, mask=None):
+    """Block-mean an image by ``factor``, ignoring off-mask pixels. Returns (small, small_mask).
+
+    MASK-AWARE, because a plain block mean pulls the empty 40% of the frame into every boundary
+    bin and shrinks it toward zero -- the same mistake the unmasked variance smoothing would make.
+    Each bin is the mean over the BRAIN pixels it contains, and a bin less than half brain is
+    dropped.
+    """
+    from scipy import ndimage
+
+    img = np.asarray(img, float)
+    if mask is None:
+        mask = brain_mask()
+    mask = (np.ones(img.shape, bool) if mask is None else np.asarray(mask, bool))
+    f = int(factor)
+    h, w = (img.shape[0] // f) * f, (img.shape[1] // f) * f
+    a = np.nan_to_num(img[:h, :w] * mask[:h, :w]).reshape(h // f, f, w // f, f).sum((1, 3))
+    n = mask[:h, :w].astype(float).reshape(h // f, f, w // f, f).sum((1, 3))
+    small_mask = n >= (f * f) / 2.0
+    out = np.divide(a, n, out=np.zeros_like(a), where=n > 0)
+    _ = ndimage
+    return out, small_mask
+
+
+def musall_significance(maps_per_unit, other=None, *, factor=MUSALL_DOWNSAMPLE, alpha=0.05,
+                        mask=None, popmean=0.0):
+    """``(significant_small, t_small, small_mask, n_tested)`` -- Musall et al. 2023, fig. S6.
+
+    THEIR TEST, NOT OURS, and the difference is the point of having both. Musall: "we combined
+    spatially downsampled choice maps from all sessions in each PyN type and subsequently performed
+    a t-test in each pixel to determine which decoder weights are significantly different from
+    zero. The resulting maps show significant pixels for different trial periods in white (t-test,
+    p < 0.05, bonferroni-corrected for 3364 pixels)."
+
+    WHAT IT ANSWERS: "where does the code live in THIS epoch" -- a one-sample t against zero, run
+    per epoch. It is NOT a pre-vs-post comparison and cannot be made into one by running it twice:
+    significant in pre and not in acute is not evidence of a change (a map can fall well short of
+    significance in one epoch and just clear it in another without the two differing). For the
+    between-epoch question, pass the per-unit DIFFERENCES as `maps_per_unit` -- then this is a
+    Bonferroni-corrected paired t on the difference, which is a real test of change and a useful
+    conservative counterpart to `cluster_permutation`.
+
+    ``maps_per_unit`` is one map per independent unit. THE UNIT IS THE CHOICE THAT MATTERS: Musall
+    pooled SESSIONS, which buys a great deal of power and treats two sessions from one animal as
+    independent. Here the unit is the ANIMAL (n=4, df=3) wherever this is used for a claim, because
+    four animals is what we have; passing sessions would produce far more significance and would be
+    pseudo-replication. Both are worth LOOKING at; only one is worth quoting.
+
+    ``other``, if given, makes this a TWO-SAMPLE (Welch) test of `maps_per_unit` against it --
+    which is what the between-epoch contrast needs at the session level, because 44 pre-stroke
+    sessions and 16 acute ones cannot be paired. Omit it for Musall's own one-sample-against-zero.
+
+    THE MEASUREMENT THAT DECIDES WHICH UNIT IS USABLE. Bonferroni over 3,237 bins needs
+    p < 1.54e-05, and the t that takes depends entirely on the df:
+
+        unit                     n    df    t required     t achieved (far-contra acute)
+        ANIMALS                  4     3        52.2                 37.6   -> nothing, ever
+        sessions                16    15         6.0                 45.4   -> 3,168 of 3,237 bins
+
+    At n=4 animals this test cannot reach significance for ANY effect: t = 52 at df = 3 means four
+    animals agreeing to within about 1% of the effect size. That is not a strict bar, it is an
+    unreachable one, and it is why `cluster_permutation` -- which keeps the animal as the unit and
+    borrows strength across space instead of paying Bonferroni for every bin -- is the primary test
+    here. Musall could use this because they pooled sessions, where the df is large.
+
+    Bonferroni over the in-mask downsampled pixels, which is what `n_tested` reports.
+    """
+    from scipy import stats
+
+    d = np.stack([np.asarray(m, float) for m in maps_per_unit])
+    if len(d) < 2:
+        return None
+    if mask is None:
+        mask = brain_mask()
+    small = [downsample(x, factor, mask) for x in d]
+    sm_mask = small[0][1]
+    a = np.stack([x[0] for x in small])
+    n_tested = int(sm_mask.sum())
+    if n_tested < 1:
+        return None
+    t = np.zeros(sm_mask.shape)
+    p = np.ones(sm_mask.shape)
+    if other is None:
+        tt, pp = stats.ttest_1samp(a[:, sm_mask], popmean, axis=0)
+    else:
+        b = np.stack([downsample(np.asarray(m, float), factor, mask)[0] for m in other])
+        if len(b) < 2:
+            return None
+        # WELCH, not Student: 44 pre-stroke sessions against 16 acute ones have no reason to share
+        # a variance, and assuming they do would let the larger group's tighter variance set the
+        # denominator for both.
+        tt, pp = stats.ttest_ind(a[:, sm_mask], b[:, sm_mask], axis=0, equal_var=False)
+    t[sm_mask], p[sm_mask] = tt, pp
+    sig = sm_mask & (p < (alpha / n_tested))
+    return sig, t, sm_mask, n_tested
+
+
+def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot=2000,
+                                        factor=MUSALL_DOWNSAMPLE, alpha=0.05, mask=None, seed=0):
+    """``(sig, ci_lo, ci_hi, small_mask, n_tested)`` -- the deck's OWN bootstrap, on the maps.
+
+    THE SAME STATISTICAL OBJECT THE BEHAVIOUR FIGURES USE (Priya, 2026-09-12: "this is how we
+    quantified behavior too"). `epoch_figures` resamples ANIMALS -> SESSIONS -> BLOCKS; there is no
+    block level in a session-mean map, so this is animals -> sessions, which is that bootstrap with
+    its innermost level absent rather than a different method.
+
+    WHY THIS AND NOT A SESSION-LEVEL t-TEST. The two are not the same thing, and the difference is
+    the whole reason the deck's bootstrap is nested. A flat t-test over 16 acute sessions treats
+    PS94's six sessions as six independent observations of the stroke; the nested bootstrap treats
+    them as six looks at ONE animal, so they narrow that animal's estimate without inflating the
+    sample. It recovers most of the session-level power while keeping the animal as the unit of
+    generalisation, which is the claim being made.
+
+    WHY IT BEATS THE ANIMAL-LEVEL t-TEST TOO. `musall_significance` at n=4 needs t = 52.2 to clear
+    Bonferroni over 3,237 bins and cannot reach it for any effect. The bootstrap does not pay that
+    price: it estimates the sampling distribution directly rather than assuming normality on three
+    degrees of freedom, and sessions inside an animal sharpen the per-animal mean.
+
+    Resampling is WITH REPLACEMENT at both levels. A draw that happens to select one animal four
+    times is a legitimate draw and is what makes the interval honest about n=4 -- the between-animal
+    spread is still what limits the answer, which is the correct outcome rather than a defect.
+    """
+    animals = sorted(set(pre_by_animal) & set(post_by_animal))
+    if len(animals) < 2:
+        return None
+    if mask is None:
+        mask = brain_mask()
+    rng = np.random.default_rng(seed)
+
+    # DOWNSAMPLE ONCE, UP FRONT. 2,000 draws x 4 animals x N sessions of full-resolution block
+    # means would dominate the cost, and every draw would produce the same small grid anyway.
+    pre_s, post_s, sm_mask = {}, {}, None
+    for an in animals:
+        pre_s[an] = []
+        for m in pre_by_animal[an]:
+            a, mk = downsample(m, factor, mask)
+            pre_s[an].append(a)
+            sm_mask = mk if sm_mask is None else sm_mask
+        post_s[an] = [downsample(m, factor, mask)[0] for m in post_by_animal[an]]
+    if sm_mask is None or not sm_mask.any():
+        return None
+    n_tested = int(sm_mask.sum())
+
+    def draw(rs):
+        per = []
+        for an in rs:
+            p, q = pre_s[an], post_s[an]
+            a = np.mean([p[i] for i in rng.integers(0, len(p), len(p))], 0)
+            b = np.mean([q[i] for i in rng.integers(0, len(q), len(q))], 0)
+            per.append(b - a)
+        return np.mean(per, 0)
+
+    boot = np.stack([draw([animals[i] for i in rng.integers(0, len(animals), len(animals))])
+                     for _ in range(int(n_boot))])
+
+    # THE INTERVAL IS BUILT FROM THE BOOTSTRAP **SE**, NOT FROM ITS PERCENTILES, and that is a
+    # correctness matter rather than a preference.
+    #
+    # Bonferroni over 3,237 bins puts the two-tailed tail at alpha/n/2 = 7.7e-6. A percentile at
+    # 7.7e-6 cannot be read off 1,000 draws -- or off 100,000 -- because there is no draw out
+    # there; `np.percentile` just returns the extreme order statistic, so the "interval" becomes
+    # the min and max of whatever was sampled and the test degenerates into "did any draw cross
+    # zero". The first version of this function did exactly that and it showed: it reported 229-406
+    # significant bins at NEAR positions, where every other procedure finds nothing and where the
+    # effect is not visible by eye.
+    #
+    # The SE is estimable from 1,000 draws -- it is a second moment, not a tail -- so the interval
+    # is the observed statistic +/- z * SE_boot with z from the Bonferroni-corrected normal. The
+    # normal approximation is on the SAMPLING DISTRIBUTION of a mean of means, which the bootstrap
+    # itself shows to be close to normal here, and it is far less of an assumption than reading a
+    # quantile that was never sampled.
+    #
+    # THE POINT ESTIMATE IS THE REAL DATA, not the bootstrap mean -- the same rule
+    # `epoch_figures.contrast_draws` follows, so the number a panel implies is the number in the
+    # data.
+    from scipy import stats
+
+    obs = np.mean([np.mean(post_s[a], 0) - np.mean(pre_s[a], 0) for a in animals], 0)
+    se_b = boot.std(0, ddof=1)
+    z = float(stats.norm.ppf(1.0 - (alpha / n_tested) / 2.0))
+    half = z * se_b
+    lo, hi = obs - half, obs + half
+    sig = sm_mask & (se_b > 0) & ((lo > 0) | (hi < 0))
+    return sig, lo, hi, sm_mask, n_tested
+
+
+def upsample_mask(small, shape=MAP_SHAPE, factor=MUSALL_DOWNSAMPLE):
+    """Blow a downsampled boolean back up to the full grid, for drawing as a contour."""
+    out = np.repeat(np.repeat(np.asarray(small, bool), factor, 0), factor, 1)
+    full = np.zeros(shape, bool)
+    h, w = min(shape[0], out.shape[0]), min(shape[1], out.shape[1])
+    full[:h, :w] = out[:h, :w]
+    return full
 
 
 def split_half_reliability(maps, n_draw=20, seed=0):

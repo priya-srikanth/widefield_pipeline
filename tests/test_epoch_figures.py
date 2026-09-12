@@ -731,24 +731,19 @@ def test_the_delta_scale_expands_rather_than_clipping(tmp_path):
         "a delta smaller than the data scale must still share it, so small changes look small")
 
 
-def test_the_delta_colormap_is_distinct_from_the_data_colormap():
-    """A difference and an absolute map sharing a palette read as the same kind of quantity.
+def test_the_delta_colormap_is_the_one_that_was_chosen_after_seeing_both():
+    """`seismic`, and the history matters because the first diagnosis was wrong.
 
-    Priya, 2026-09-12: "I liked having a distinct colormap (it's confusing otherwise). Can we use
-    the orange-blue map that we used for the delta pattern similarity confusion matrices?" That map
-    is `PuOr_r`, and using it here makes a delta look like a delta everywhere in the deck. `seismic`
-    failed this: it is red-blue, the same family as the `RdBu_r` the data columns use.
+    Priya called the MEAN-referenced delta panels confusing and asked for the orange-blue `PuOr_r`
+    that the delta pattern-similarity matrices use; on seeing it rendered she preferred the
+    original ("i prefer the quiet reference delta colormap", 2026-09-12 -- that figure was
+    `seismic`). BOTH figures had been `seismic` all along: what made one of them unreadable was a
+    9.5x clip on its delta scale, and a clipped panel is a flat slab whatever palette it wears.
+    Pinned so a future "make the delta distinct" change does not quietly re-fix a scaling bug with
+    a colormap.
     """
     import inspect
 
     from wfield_local import epoch_figures as ef
 
-    sig = inspect.signature(ef.map_grid)
-    data_cmap = sig.parameters["diverging"].default
-    delta_cmap = sig.parameters["delta_cmap"].default
-    assert delta_cmap == "PuOr_r", f"delta colormap is {delta_cmap!r}"
-    assert delta_cmap != data_cmap
-    # The same map the delta pattern-similarity matrices use, so the deck is consistent.
-    import pathlib
-    src = pathlib.Path("wfield_local/grant_figures.py").read_text(encoding="utf-8")
-    assert 'cmap="PuOr_r"' in src, "the confusion-matrix deltas no longer use PuOr_r"
+    assert inspect.signature(ef.map_grid).parameters["delta_cmap"].default == "seismic"

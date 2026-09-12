@@ -1272,7 +1272,12 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
         return None
     Q = "far_R"
     EPO = list(ef.PANELS)
-    DELTA = "acute - pre"
+    # ALL THREE POST-STROKE DELTAS, not just acute (Priya, 2026-09-12: "the pa map should have the
+    # across-epoch deltas"). Acute-minus-pre alone shows the hit and hides the recovery, and
+    # recovery is half of what the per-animal view is for -- a row that recovers and a row that
+    # does not is exactly the between-animal difference this figure exists to expose.
+    POST = ("acute", "subacute", "chronic")
+    DCOLS = [f"{e} - pre" for e in POST]
     cells, titles = {}, {}
     for an, by_e in sorted(store.items()):
         per = {}
@@ -1286,9 +1291,10 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
             r = ((rel.get(an) or {}).get(e) or {}).get(Q)
             titles[(an, e)] = (f"{e}\n{len(got)} sess, n={n_tr}"
                                + (f"\nr={r:.2f}" if r is not None and np.isfinite(r) else ""))
-        if "pre" in per and "acute" in per:
-            cells[(an, DELTA)] = per["acute"] - per["pre"]
-            titles[(an, DELTA)] = "ACUTE - PRE"
+        for e in POST:
+            if "pre" in per and e in per:
+                cells[(an, f"{e} - pre")] = per[e] - per["pre"]
+                titles[(an, f"{e} - pre")] = f"{e.upper()} - PRE"
     if not cells:
         return None
     rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
@@ -1296,8 +1302,11 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
         cells, out_dir, name=f"epoch_14pa_beta_maps_by_animal_{align}_{variant}",
         title=(f"Far-CONTRALATERAL decoder map PER ANIMAL -- does the pattern replicate? "
                f"{wname}"),
-        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
+        cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
+                    "trials than on the average trial"),
+        delta_label="change vs pre-stroke\n(orange-blue; expands if larger)",
         subtitle=("The pooled figure averages these four rows and the permutation test rests on "
                   "them, so neither can show REPLICATION -- which at n=4 is the stronger evidence. "
                   "Method identical to the pooled figure. Colour scale is per ANIMAL, so each row "
@@ -1479,7 +1488,9 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
     store, _counts = pem.maps_by_epoch()
     if not store:
         return None
-    Q, EPO, DELTA = "far_R", list(ef.PANELS), "acute - pre"
+    Q, EPO = "far_R", list(ef.PANELS)
+    POST = ("acute", "subacute", "chronic")
+    DCOLS = [f"{e} - pre" for e in POST]
     cells, titles = {}, {}
     for an, by_e in sorted(store.items()):
         per = {}
@@ -1490,9 +1501,10 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
             per[e] = np.mean(list(got.values()), axis=0)
             cells[(an, e)] = per[e]
             titles[(an, e)] = f"{e}\n{len(got)} sess"
-        if "pre" in per and "acute" in per:
-            cells[(an, DELTA)] = per["acute"] - per["pre"]
-            titles[(an, DELTA)] = "ACUTE - PRE"
+        for e in POST:
+            if "pre" in per and e in per:
+                cells[(an, f"{e} - pre")] = per[e] - per["pre"]
+                titles[(an, f"{e} - pre")] = f"{e.upper()} - PRE"
     if not cells:
         return None
     rows = [a for a in sorted(store) if any((a, e) in cells for e in EPO)]
@@ -1500,7 +1512,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
         cells, out_dir, name="epoch_15pa_evoked_maps_by_animal_cue",
         title="Far-CONTRALATERAL EVOKED map PER ANIMAL (post-cue minus pre-cue) -- does the "
               "INDEPENDENT measure replicate?",
-        row_labels=rows, col_labels=EPO + [DELTA], panel_titles=titles, delta_cols=(DELTA,),
+        row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles, delta_cols=tuple(DCOLS),
         edges=bm.atlas_edges(),
         cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
         delta_label="change vs pre-stroke\n(SAME scale as the maps)",

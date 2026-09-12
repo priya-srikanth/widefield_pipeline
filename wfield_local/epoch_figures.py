@@ -1366,7 +1366,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
 
 
 def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
-             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="PuOr_r",
+             panel_titles=None, diverging="RdBu_r", delta_cols=(), delta_cmap="seismic",
              row_scaled=True, pct=99.0, edges=None, contours=None,
              cbar_label='cov(pixel, decoder output)', delta_label='change vs pre',
              delta_shares_scale=True):
@@ -1378,12 +1378,18 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     a scale and forcing one on them makes the weaker position look empty. ``row_scaled=False``
     forces a single global scale for the rare case where rows ARE commensurable.
 
-    ``delta_cmap`` is ORANGE-BLUE (`PuOr_r`) where the data columns are RED-BLUE, and the contrast
-    is the point (Priya, 2026-09-12: "I liked having a distinct colormap (it's confusing
-    otherwise)"). A difference and an absolute map read at a glance as the same kind of quantity
-    when they share a palette, which is exactly the confusion two colour bars cannot undo. This is
-    the same map the delta pattern-similarity confusion matrices use, so a delta looks like a delta
-    everywhere in the deck.
+    ``delta_cmap`` is `seismic`, and the route here is worth recording because the first diagnosis
+    was wrong. Priya called the mean-referenced delta panels confusing and asked for the
+    orange-blue `PuOr_r` the delta pattern-similarity matrices use; on seeing it she preferred the
+    original after all ("i prefer the quiet reference delta colormap", 2026-09-12, of the
+    quiet-referenced figure, which was `seismic`).
+
+    WHAT WAS ACTUALLY WRONG WAS THE SCALE, NOT THE PALETTE. Both figures used `seismic`; the
+    mean-referenced one clipped its deltas by 9.5x (see the scale rule below) and a clipped panel
+    is a flat slab that reads like a saturated absolute map whatever colormap it is drawn in. Once
+    the clipping was fixed the same palette read correctly. `PuOr_r` remains one argument away if
+    the red-blue family ever does cause confusion -- but it did not, and a palette change would
+    have "fixed" a scaling bug by hiding it.
 
     ``delta_cols`` names columns that hold DIFFERENCES; they get their own diverging map and their
     own symmetric limit, because a difference and an absolute map on one colour bar is a category
