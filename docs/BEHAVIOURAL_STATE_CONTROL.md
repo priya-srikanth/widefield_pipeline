@@ -97,9 +97,28 @@ Lick bouts have a **median of 0.37 s**. Tiling strictly inside them keeps 22% of
 biases the class toward sustained licking — the same failure a 2 s window inflicts on quiet.
 
 Licking is an **EVENT with a defined onset**, unlike the two sustained states. Its window is anchored
-at bout onset and allowed to run past the bout's end. Quiet must **not** be: a window past its end
+at that onset and allowed to run past the event's end. Quiet must **not** be: a window past its end
 sits in the movement or licking the period was buffered away from, which is the one thing the class
 must not contain. Per session this took licking from 72–297 segments to 413–969.
+
+**SUPERSEDED 2026-09-12 — the anchor is now the trial's FIRST LICK AFTER THE CUE**, not the onset of
+a free-running lick bout (Priya: *"for the state decoder - let's do the same post-lick window we use
+for the other decoders throughout analysis"*). The two anchors ask different questions. Bout onset
+asks *is the animal licking*, and answers from whatever the ILI rule grouped; the post-cue first lick
+is the anchor **every position decoder in the deck already uses**, so the licking class and the
+position trials become the same event observed twice rather than two events sharing a word. Cue and
+reward are simultaneous in this task, so the first lick after the cue is also the first lick after
+reward. A trial whose lick never arrives inside the 3.5 s response window contributes nothing — a
+miss has no lick to anchor on.
+
+**The window stays 1 s, and that is a decision rather than an inherited default.** The position
+decoder uses 2 s; matching it here would have made window DURATION a cue the decoder could separate
+the classes on, because a longer window is a smoother binned feature whatever the behaviour. All
+three classes are therefore duration-matched at 1 s and only the ANCHOR is shared with the position
+arm. `locomotor_state.LICK_POSTCUE_S` is pinned equal to `SEGMENT_S` by a test for exactly this
+reason. `lick_mode="bout"` keeps the old behaviour available for comparison; `"postcue"` is the
+default the figures use, and it refuses to run without cue samples rather than falling back — a
+figure captioned "post-cue" built from free-running bouts would be undetectable downstream.
 
 **This asymmetry is a stated limit, not a hidden one.** Licking windows are locked to a behavioural
 *transition* while running and quiet are sampled from inside sustained *states*, so a decoder could

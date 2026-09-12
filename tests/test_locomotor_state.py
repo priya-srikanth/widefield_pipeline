@@ -220,3 +220,80 @@ def test_map_grid_survives_a_row_with_no_difference_cell():
     q = ef.map_grid(cells, out, name="t_nodelta", title="t", row_labels=["r"],
                     col_labels=["pre", "acute - pre"], delta_cols=("acute - pre",))
     assert q is not None and q.exists()
+
+
+# --------------------------------------------------------------- the POST-CUE licking anchor
+#
+# Priya, 2026-09-12: "for the state decoder - let's do the same post-lick window we use for the
+# other decoders throughout analysis (2s after first post-reward lick, binned)", then "we can do a
+# 1s lick window, that's fine".
+#
+# WHAT CHANGED IS THE ANCHOR. `bout` mode asks "is the animal licking" and answers with whatever the
+# ILI rule groups; `postcue` locks the window to the trial's first lick, which is the anchor every
+# position decoder in the deck already uses. The licking class and the position trials then observe
+# THE SAME EVENT rather than two events sharing a word.
+
+
+def _lick_ev(onsets_s, **kw):
+    return _ev(lick_onsets=np.asarray(onsets_s, float) * FS, **kw)
+
+
+def test_the_anchor_is_the_first_lick_after_each_cue():
+    ev = _lick_ev([5.0, 10.4, 10.6, 20.2, 20.3, 30.0])
+    a, b = ls.postcue_lick_periods(ev, np.array([10.0, 20.0]) * FS, window_s=1.0)
+    assert (a / FS).tolist() == [10.4, 20.2]
+    assert np.allclose((b - a) / FS, 1.0)
+
+
+def test_a_trial_with_no_lick_contributes_no_window():
+    """A miss has nothing to anchor on; reaching forward would anchor on the NEXT trial."""
+    ev = _lick_ev([5.0, 30.0])
+    a, _b = ls.postcue_lick_periods(ev, np.array([10.0, 20.0]) * FS, window_s=1.0)
+    assert len(a) == 0
+
+
+def test_a_lick_beyond_the_response_window_does_not_count_as_that_trials_first():
+    """The task's response window is 3500 ms; a later lick belongs to no trial."""
+    ev = _lick_ev([19.0])
+    a, _b = ls.postcue_lick_periods(ev, np.array([10.0]) * FS, window_s=1.0,
+                                    max_latency_s=3.5)
+    assert len(a) == 0
+
+
+def test_two_cues_sharing_one_lick_train_enter_the_window_once():
+    """Otherwise one trial votes as two, and the period ids would not be distinct events."""
+    ev = _lick_ev([10.4, 10.6])
+    a, _b = ls.postcue_lick_periods(ev, np.array([10.0, 10.1]) * FS, window_s=1.0)
+    assert len(a) == 1
+
+
+def test_the_licking_window_is_duration_matched_to_the_other_two_classes():
+    """A longer window is a smoother binned feature WHATEVER the behaviour.
+
+    If licking windows were 2 s and running/quiet 1 s, a decoder could separate the classes on
+    window length rather than on state -- which is the one thing this control must not allow.
+    """
+    assert ls.LICK_POSTCUE_S == ls.SEGMENT_S
+
+
+def test_postcue_mode_refuses_to_fall_back_to_bouts_when_cues_are_missing():
+    """A figure captioned "post-cue" built from free-running bouts is undetectable downstream."""
+    with pytest.raises(ValueError, match="cue_samples"):
+        ls.three_way_segments(_lick_ev([10.4]), lick_mode="postcue")
+
+
+def test_an_unknown_lick_mode_is_rejected_rather_than_ignored():
+    with pytest.raises(ValueError, match="lick_mode"):
+        ls.three_way_segments(_lick_ev([10.4]), lick_mode="nonsense",
+                              cue_samples=np.array([10.0]) * FS)
+
+
+def test_the_two_modes_select_genuinely_different_windows():
+    """Pins that the switch does something: a bout starting well before the cue's first lick."""
+    ev = _lick_ev([8.0, 8.1, 8.2, 10.4, 10.5])
+    cues = np.array([10.0]) * FS
+    bout_s, _l1, _p1, _d1 = ls.three_way_segments(ev, lick_mode="bout")
+    post_s, _l2, _p2, _d2 = ls.three_way_segments(ev, lick_mode="postcue", cue_samples=cues)
+    assert len(post_s) == 1 and post_s[0] / FS == 10.4
+    assert 8.0 in (bout_s / FS).tolist(), "bout mode anchors on the earlier free-running bout"
+    assert 8.0 not in (post_s / FS).tolist()

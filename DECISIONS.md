@@ -9234,3 +9234,150 @@ unnoticed.
 Stale outputs: 300 files match `*_stopped.{png,svg,csv}` (68 in `grant_figures/`, 232 in
 `grant_figures/epoch/`). The suffix pattern does not touch family 12, whose files are
 `*_stopped_pattern_*` and `*_stopped_pooled_*`.
+
+---
+
+## 2026-09-12 — The state decoder's licking class is anchored at the post-cue first lick
+
+Priya: *"for the state decoder - let's do the same post-lick window we use for the other decoders
+throughout analysis (2s after first post-reward lick, binned)"*, then *"we can do a 1s lick window,
+that's fine"*.
+
+**What changed is the ANCHOR, not the length.** The licking class was built from free-running lick
+BOUTS, onset-anchored (`lick_periods`, bouts median 0.37 s). It is now built from the trial's first
+lick at or after the cue (`postcue_lick_periods`) — the same anchor every position decoder in the
+deck uses. The licking class and the position trials therefore observe **the same event twice**
+rather than two different events that share a word. Cue and reward are simultaneous in this task, so
+the first lick after the cue is also the first lick after reward.
+
+Trials whose lick never arrives inside the 3.5 s response window contribute nothing: a miss has no
+lick to anchor on, and reaching forward to the next available lick would silently anchor on the
+FOLLOWING trial. Two cues sharing one lick train enter the window once, or one trial would vote as
+two.
+
+**THE WINDOW STAYS 1 s, AND THAT IS THE DECISION WORTH RECORDING.** The position decoder uses 2 s.
+Matching it here would have put a 2 s licking window beside 1 s running and quiet windows, and
+window DURATION would then have been a cue the decoder could separate the classes on — a longer
+window is a smoother binned feature whatever the behaviour, and this arm exists precisely to ask
+whether cortex still distinguishes the STATES. All three classes are duration-matched at 1 s and
+only the anchor is shared with the position arm. `LICK_POSTCUE_S == SEGMENT_S` is pinned by a test
+so the two cannot drift apart silently.
+
+`lick_mode` selects between them: `"bout"` is the old behaviour, kept for comparison; `"postcue"` is
+the default. **`"postcue"` raises rather than falling back when cue samples are missing** — a figure
+captioned "post-cue" but built from free-running bouts would be undetectable downstream, which is
+the same class of silent-wrong-population failure `_class_select` was extracted to prevent.
+
+Cue samples come from the DAQ loader the frame mapping already uses, never the behaviour log (which
+mislabels position on ~15% of trials); only the cue SAMPLES are read, since position is irrelevant
+to a state decoder by construction.
+
+Updated with it: the `epoch_13_state_decoder_*` deck note and
+`docs/BEHAVIOURAL_STATE_CONTROL.md` §3, which both described the bout anchor as current.
+8 tests in `tests/test_locomotor_state.py`.
+
+
+---
+
+## 2026-09-12 (late night) — the multiple-comparison threshold, in three wrong attempts and one right one
+
+Priya, repeatedly across the session: *"I continue to have a hard time understanding how so little
+of this is significant when the effects look so dramatic."* She was right each time and the answer
+was not the one being given.
+
+### The three attempts
+
+| attempt | denominator | threshold | why it was wrong |
+|---|---|---|---|
+| 1 | Bonferroni over **2,022 bins** | z = 4.22 | assumes 2,022 independent tests |
+| 2 | Bonferroni over **~21 resels** | z = 3.4–3.6 | right idea, still an analytic approximation |
+| 3 | **bootstrap max-statistic** | z = 2.95–3.21 | correct: no assumption at all |
+
+**Attempt 1** was the reflex. Bonferroni is what one reaches for, and nothing about it looks wrong
+until you notice the maps are `U @ coef` at rank 100 and smooth at FWHM ~78 px — so 2,022 bins carry
+about **21** independent pieces of information and the correction was **95× too strict**.
+
+**Attempt 2** fixed the denominator but not the thinking: when the analytic correction was obviously
+wrong, I reached for a *better analytic correction* instead of asking whether an analytic one was
+needed. Resel counting still estimates smoothness and still assumes a random-field model.
+
+**Attempt 3 came from Priya's question, not from me:** *"but aren't we doing nested
+bootstrapping?"* We were. The bootstrap gives the sampling distribution per bin, and the
+**max-statistic** construction turns it into a family-wise threshold with nothing assumed — centre
+each draw on the observed, studentise by the bootstrap SE, take the maximum |z| across bins, and
+threshold at the 95th percentile of those maxima. Correlated bins produce a smaller maximum than
+independent ones, so **the data's own covariance performs the correction**
+(Westfall–Young / Nichols–Holmes).
+
+**WHY I DIDN'T USE IT INITIALLY, since it is the obvious answer in hindsight:** I built the nested
+bootstrap to solve the *sampling-structure* problem (animals vs sessions) and then treated
+multiplicity as a separate, downstream problem to be handled analytically. They are not separate.
+The same resampling that estimates the SE can estimate the null of the maximum. Having built the
+tool, I did not ask what else it was already capable of.
+
+### It is estimable, which the earlier broken version was not
+
+An even earlier attempt read a **percentile** at α/n = 7.7e-6 off 1,000 draws. That quantile was
+never sampled, so `np.percentile` returned the extreme order statistic and the test degenerated into
+"did any draw cross zero" — false-positive rate set by `n_boot` rather than α. The max-statistic
+needs the **95th percentile of one distribution of 2,000 maxima**, which is a routine estimate. The
+distinction is the whole difference between the two constructions and is pinned by a test.
+
+### What it changed, and what it did not
+
+| position | bins | resel | **max-stat** |
+|---|---|---|---|
+| far contra | 1,655 | 1,864 | **1,959** |
+| far middle | 529 | 912 | **1,322** |
+| near ipsi | 28 | 82 | 125 |
+| near middle | 0 | 1 | 12 |
+
+**The specificity was never a product of over-correction** — at the honest threshold the near
+positions still reach only 0.6–6% of bins against the far positions' 65–97%. That is the reassuring
+half: the result did not depend on the mistake.
+
+### Musall did the same thing, and got away with it
+
+The paper Bonferroni-corrects over 3,364 pixels — the same flaw. **Their session-level unit gave
+them the power to absorb it; four animals does not.** `musall_significance` keeps their arithmetic
+deliberately, so the two can be compared; it is annotated and never draws a contour.
+
+### EROSION IS STILL REQUIRED — tested, not assumed
+
+The max-statistic fixes multiplicity. It does **not** fix the rim, because the rim's artefacts are
+*systematic across animals* and a between-animal denominator rewards exactly that. Measured, 32 px
+rim occupancy against the rim's own 27.1% share:
+
+| | no erosion | with erosion |
+|---|---|---|
+| near ipsi | **36.7%** | 23.1% |
+| near middle | **41.8%** | 33.6% |
+| far contra | 25.6% | 14.3% |
+
+Different problem, different fix. It costs real signal (far-contra 2,265 → 1,954 bins) and is worth
+it, because the near-position enrichment is what would otherwise be reported as a finding.
+
+### STATS AUDIT — every test's unit against how the data were built
+
+The data are nested: **animals → sessions → trials**. A test whose unit is flatter treats correlated
+observations as independent.
+
+| function | unit | nested? |
+|---|---|---|
+| `hierarchical_bootstrap_significance` | animals → sessions | **yes** — the primary difference test |
+| `vs_zero_contour` | animals → sessions | **yes** — figure 14z |
+| `significance_contour` | delegates to the above | **yes** — the single entry point every map figure calls |
+| `cluster_permutation` | animal; shuffles within animal | partial — sessions not resampled; second line, not primary |
+| `musall_significance` | sessions, FLAT | **no, deliberately** — reference reproduction, never draws |
+| `split_half_reliability` | sessions within animal | n/a — descriptive ceiling |
+| `within_animal_pooled` | animals (intersection) | n/a — estimator; differences formed within animal |
+
+**Everything that DRAWS a contour is nested.** The one flat-unit test exists to reproduce a paper and
+is annotated as such.
+
+### Deck notes
+
+All eight map families now carry their full methods in the speaker notes — the shared statistics
+block (nested bootstrap, max-statistic, eroded mask, edge suppression, field of view, within-animal
+pooling) plus each family's own reference, caveats and how to read it. The figure-14 note's
+withdrawn amplitudes (0.47 / 0.48, r = 0.53) are gone.

@@ -61,7 +61,7 @@ def sample_to_frame(s, samples):
 
 
 def segment_features(s, signal, events, *, fs_img, seg_s=ls.SEGMENT_S, bins=ls.SEGMENT_BINS,
-                     cap=ls.MAX_SEGMENTS_PER_PERIOD, three_way=True):
+                     cap=ls.MAX_SEGMENTS_PER_PERIOD, three_way=True, lick_mode="postcue"):
     """``(X, y, period)`` for one session's behavioural-state segments.
 
     ``three_way`` (the default) labels quiet / running / LICKING; False gives the binary
@@ -86,7 +86,16 @@ def segment_features(s, signal, events, *, fs_img, seg_s=ls.SEGMENT_S, bins=ls.S
     if s["label"] in ls.EXCLUDE_SESSIONS:
         return (np.zeros((0, signal.shape[0] * bins)), np.zeros(0, object), np.zeros(0, np.int64))
     if three_way:
-        smp, lab, per, _n_drop = ls.three_way_segments(events, seg_s=seg_s, cap=cap)
+        # POST-CUE ANCHORING NEEDS THE SESSION'S CUES, and they come from the DAQ loader the frame
+        # mapping already uses -- not from the behaviour log, which mislabels position on ~15% of
+        # trials (docs/GUI_TRIALS_LOGGING.md). Only the cue SAMPLES are needed here; position is
+        # irrelevant to a state decoder by design.
+        cues = None
+        if lick_mode == "postcue":
+            cues = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
+        smp, lab, per, _n_drop = ls.three_way_segments(
+            events, seg_s=seg_s, cap=cap, lick_mode=lick_mode, cue_samples=cues,
+            lick_window_s=seg_s)
     else:
         smp, lab, per = ls.running_and_quiet_segments(events, seg_s=seg_s, cap=cap)
     if not len(smp):

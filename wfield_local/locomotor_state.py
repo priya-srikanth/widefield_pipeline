@@ -226,6 +226,64 @@ def running_and_quiet_segments(events, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_
 THREE_WAY = ("quiet", "running", "licking")
 
 
+#: The post-cue licking window, in seconds.
+#:
+#: WHAT CHANGED IS THE ANCHOR, NOT THE LENGTH. Priya, 2026-09-12: "for the state decoder -- let's do
+#: the same post-lick window we use for the other decoders throughout analysis (2s after first
+#: post-reward lick, binned)", then "we can do a 1s lick window, that's fine". Cue and reward are
+#: simultaneous in this task, so the first lick after the cue IS the first lick after the reward.
+#:
+#: ONE SECOND, AND THAT IS THE BETTER NUMBER HERE RATHER THAN A COMPROMISE. Running and quiet
+#: segments are `SEGMENT_S` long; a 2 s licking window would have made window DURATION a cue the
+#: decoder could separate the classes on -- a longer window is a smoother binned feature whatever
+#: the behaviour -- and the three-way problem exists to ask whether cortex still distinguishes the
+#: STATES. Matching the length removes that confound outright. The scientific change is the anchor:
+#: the licking class is now locked to the same behavioural event the position decoder uses instead
+#: of to whichever lick happened to open a bout.
+LICK_POSTCUE_S = 1.0
+
+#: How long after a cue a lick may arrive and still count as that trial's first lick. The task's own
+#: response window is 3500 ms (`gui_config.json timing.response_window`); a lick later than that
+#: belongs to no trial and anchoring a window on it would sample the ITI.
+LICK_MAX_LATENCY_S = 3.5
+
+
+def postcue_lick_periods(events, cue_samples, window_s=LICK_POSTCUE_S,
+                         max_latency_s=LICK_MAX_LATENCY_S):
+    """``(starts, stops)`` for the POST-CUE licking window: one per trial that got a lick.
+
+    WHY THIS EXISTS BESIDE `lick_periods`, which segments free-running lick BOUTS. The bout
+    definition asks "is the animal licking", and it answers with whatever the ILI rule happens to
+    group -- bouts median 0.37 s, so most licking segments are one short bout anchored wherever it
+    began. Priya, 2026-09-12: the state decoder should use the window the rest of the deck uses, so
+    that its licking class and the position decoder's trials are THE SAME EVENT observed twice
+    rather than two different events that share a word.
+
+    The anchor is the first lick at or after the cue, which in this task is also the first lick
+    after reward -- cue and reward are simultaneous. Trials with no lick inside ``max_latency_s``
+    contribute nothing: a miss has no lick to anchor on, and stretching to the next available lick
+    would silently anchor on the following trial.
+
+    ONE PERIOD PER TRIAL, never two, because the window is defined by the trial and not by how long
+    the animal went on licking. The 2 s may therefore contain several bouts or run past the end of
+    a short one, which is exactly what the position decoder's window does.
+    """
+    fs = float(events.get("fs", 5000.0))
+    on = np.sort(np.asarray(events.get("lick_onsets", []), np.int64))
+    cues = np.sort(np.asarray(cue_samples if cue_samples is not None else [], np.int64))
+    if not len(on) or not len(cues):
+        return np.zeros(0, np.int64), np.zeros(0, np.int64)
+    idx = np.searchsorted(on, cues, "left")
+    ok = idx < len(on)
+    first = np.where(ok, on[np.clip(idx, 0, len(on) - 1)], -1)
+    within = ok & ((first - cues) <= round(max_latency_s * fs)) & (first >= cues)
+    a = first[within].astype(np.int64)
+    # A CUE CAN SHARE ITS FIRST LICK WITH THE PREVIOUS ONE if two cues fall inside one lick train;
+    # keeping both would enter the same window twice and let one trial vote as two.
+    a = np.unique(a)
+    return a, a + round(window_s * fs)
+
+
 def lick_periods(events, max_ili_s=0.3, min_bout_licks=2):
     """``(starts, stops)`` in DAQ samples for lick BOUTS, from the canonical lick onsets.
 
@@ -248,7 +306,8 @@ def lick_periods(events, max_ili_s=0.3, min_bout_licks=2):
 
 
 def three_way_segments(events, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
-                       max_ili_s=0.3, min_bout_licks=2):
+                       max_ili_s=0.3, min_bout_licks=2, lick_mode="bout",
+                       cue_samples=None, lick_window_s=LICK_POSTCUE_S):
     """``(sample, label, period_id)`` over quiet / running / licking, MUTUALLY EXCLUSIVE.
 
     Priya's rule, 2026-09-11: "running only if not also licking, licking only if not also running,
@@ -269,9 +328,34 @@ def three_way_segments(events, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
     that is a limit on the interpretation, not a bug -- the control asks whether cortex still
     distinguishes behavioural states at all, and it does not need the three to be matched in time
     to answer that. Say it rather than let a reader assume otherwise.
+
+    ``lick_mode`` CHOOSES WHAT A LICKING WINDOW IS ANCHORED TO, and `postcue` is the default the
+    figures use from 2026-09-12:
+
+        bout     the free-running lick BOUT, onset-anchored (`lick_periods`). Asks "is the animal
+                 licking" over whatever the ILI rule groups; bouts median 0.37 s, so a window is
+                 mostly one short bout beginning wherever it began.
+        postcue  the trial's FIRST LICK AFTER THE CUE (`postcue_lick_periods`), which is the same
+                 anchor every position decoder in the deck uses. The licking class and the position
+                 trials then observe THE SAME EVENT rather than two different events sharing a word,
+                 and the cue-locking caveat above stops being a caveat and becomes the definition.
+
+    The window is `lick_window_s` (1.0 s, = `SEGMENT_S`) in both modes, so all three classes are
+    DURATION-MATCHED and no decoder can separate them on window length. See `LICK_POSTCUE_S`.
     """
     fs = float(events.get("fs", 5000.0))
-    ls_, lp = lick_periods(events, max_ili_s, min_bout_licks)
+    if lick_mode == "postcue":
+        # THE ANCHOR IS THE TRIAL'S FIRST LICK, not a bout onset. `cue_samples` is required rather
+        # than optional-with-a-fallback: silently dropping to bout mode because a caller forgot to
+        # pass cues would produce a figure captioned "post-cue" built from free-running bouts, and
+        # nothing downstream could tell.
+        if cue_samples is None:
+            raise ValueError("lick_mode='postcue' needs cue_samples; got None")
+        ls_, lp = postcue_lick_periods(events, cue_samples, window_s=lick_window_s)
+    elif lick_mode == "bout":
+        ls_, lp = lick_periods(events, max_ili_s, min_bout_licks)
+    else:
+        raise ValueError(f"lick_mode must be 'bout' or 'postcue', got {lick_mode!r}")
     rs, rp = np.asarray(events.get("running_starts", []), np.int64), \
         np.asarray(events.get("running_stops", []), np.int64)
     qs, qp = np.asarray(events.get("quiet_starts", []), np.int64), \
