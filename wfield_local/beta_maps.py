@@ -1010,6 +1010,81 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     return full, base + tag
 
 
+def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, seed=0,
+                    mask=None):
+    """``(full-resolution mask, label)`` -- where this ONE epoch's map differs from ZERO.
+
+    MUSALL ET AL. 2023, FIG. S6, WHICH IS A DIFFERENT QUESTION FROM EVERY OTHER TEST HERE: "we
+    combined spatially downsampled choice maps from all sessions in each PyN type and subsequently
+    performed a t-test in each pixel to determine which decoder weights are significantly different
+    from zero." It asks WHERE THE CODE IS IN THIS EPOCH, not where it changed.
+
+    WHY IT IS WORTH HAVING ALONGSIDE THE DIFFERENCE TESTS. Every between-epoch comparison in this
+    family is confounded with elapsed weeks, and the quiet-referenced ones additionally with a
+    baseline that drifts. A vs-zero test on a single epoch has neither problem: it is computed
+    within one epoch and asks only whether the map is there at all. What it CANNOT do is replace the
+    difference test.
+
+    DO NOT SUBTRACT TWO OF THESE. "Significant in pre and not in acute" is NOT evidence of a change:
+    a map that just clears threshold in one epoch and just misses it in the next may not differ at
+    all, and the comparison has no error bar on the difference. That reasoning is the single most
+    common misuse of this kind of figure. The difference question has its own test -- use
+    `significance_contour`.
+
+    ``by_animal`` is ``{animal: [session maps]}`` for ONE epoch. The nested bootstrap resamples
+    animals then sessions, as everywhere else here; `method="musall"` gives their own procedure with
+    SESSIONS as the unit, which is far more powerful and treats two sessions from one animal as
+    independent.
+    """
+    animals = sorted(by_animal)
+    if len(animals) < 2:
+        return None, ""
+    if mask is None:
+        mask = stat_mask()
+    if method == "musall":
+        flat = [m for v in by_animal.values() for m in v]
+        got = musall_significance(flat, alpha=alpha, mask=mask)
+        if got is None:
+            return None, ""
+        sig, _t, _mk, n_tested = got
+        full = upsample_mask(sig) if sig.any() else None
+        return full, (f"Musall t vs zero, {len(flat)} SESSIONS as unit: "
+                      f"{int(sig.sum())} of {n_tested} bins")
+    if method != "nested":
+        raise ValueError(f"unknown method {method!r}")
+
+    rng = np.random.default_rng(seed)
+    small, sm_mask = {}, None
+    for an in animals:
+        small[an] = []
+        for m in by_animal[an]:
+            a, mk = downsample(m, MUSALL_DOWNSAMPLE, mask)
+            small[an].append(a)
+            sm_mask = mk if sm_mask is None else sm_mask
+    if sm_mask is None or not sm_mask.any():
+        return None, ""
+    n_tested = int(sm_mask.sum())
+    obs = np.mean([np.mean(small[an], 0) for an in animals], 0)
+    boot = np.stack([
+        np.mean([np.mean([small[a][i] for i in rng.integers(0, len(small[a]), len(small[a]))], 0)
+                 for a in (animals[k] for k in rng.integers(0, len(animals), len(animals)))], 0)
+        for _ in range(int(n_boot))])
+    # SE-BASED, not a percentile -- see `hierarchical_bootstrap_significance` for why a Bonferroni
+    # quantile cannot be read off 1,000-2,000 draws.
+    from scipy import stats
+
+    se_b = boot.std(0, ddof=1)
+    z = float(stats.norm.ppf(1.0 - (alpha / n_tested) / 2.0))
+    sig = sm_mask & (se_b > 0) & (np.abs(obs) > z * se_b)
+    n = int(sig.sum())
+    full = upsample_mask(sig) if n else None
+    enr = edge_enrichment(full) if full is not None else 0.0
+    base = f"nested bootstrap vs ZERO, {n_boot:,} draws: {n} of {n_tested} bins"
+    if n and np.isfinite(enr) and enr > EDGE_ENRICHMENT_MAX:
+        return None, (f"{base}; SUPPRESSED, edge enrichment {enr:.1f}x")
+    return full, base + (f"; edge enrichment {enr:.2f}x" if n else "")
+
+
 def upsample_mask(small, shape=MAP_SHAPE, factor=MUSALL_DOWNSAMPLE):
     """Blow a downsampled boolean back up to the full grid, for drawing as a contour."""
     out = np.repeat(np.repeat(np.asarray(small, bool), factor, 0), factor, 1)

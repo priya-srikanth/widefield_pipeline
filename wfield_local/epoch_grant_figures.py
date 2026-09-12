@@ -1733,6 +1733,104 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}."))
 
 
+def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
+    """14z: WHERE the position code is, epoch by epoch -- Musall et al. 2023 fig. S6's question.
+
+    Priya, 2026-09-12: "we still haven't done the Musall-style analysis of comparing each pre/post
+    epoch to zero and then comparing which locations are significantly encoding direction, right?"
+    Correct -- `musall_significance` existed but had only ever been pointed at DIFFERENCES. This is
+    their actual figure: per epoch, per position, which downsampled pixels carry a decoder weight
+    that differs from zero.
+
+    A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE, and the reason it earns its place is
+    that it is immune to the two confounds the difference tests carry. Between-epoch comparisons are
+    confounded with elapsed weeks (window clearing, expression, photobleaching), and the
+    quiet-referenced ones additionally with a baseline that drifts +0.0026 by chronic. A vs-zero
+    test lives inside ONE epoch and asks only whether the map is there.
+
+    READ IT AS FOUR SEPARATE STATEMENTS, NEVER AS A DIFFERENCE. "Significant in pre, not in acute"
+    is not evidence of a change: a map that just clears the threshold in one epoch and just misses
+    it in the next may not differ at all, and nothing here puts an error bar on that difference.
+    The difference question has its own figure and its own test.
+
+    THE UNIT IS THE ANIMAL, via the nested animals-to-sessions bootstrap, as everywhere else in this
+    deck. Musall pooled SESSIONS, which is far more powerful and treats two sessions from one animal
+    as independent; that number is printed in the render log for comparison and is not what the
+    contour draws.
+    """
+    if not ((variant == "working" and align in ("precue", "cue"))
+            or (variant == "lick" and align == "lick")):
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local.grant_figures import CONF_LABELS
+
+    store, _rel, ntr = bm.maps_by_epoch(align, variant)
+    if not store:
+        return None
+    EPO = list(ef.PANELS)
+    cells, titles, contours, rows = {}, {}, {}, []
+    for q in CONF_LABELS:
+        row = _long_of(q)
+        got_any = False
+        for e in EPO:
+            by_an = {an: list(((by.get(e) or {}).get(q) or {}).values())
+                     for an, by in store.items()}
+            by_an = {a: v for a, v in by_an.items() if v}
+            if len(by_an) < 2:
+                continue
+            got_any = True
+            cells[(row, e)] = np.mean([np.mean(v, 0) for v in by_an.values()], axis=0)
+            n_s = sum(len(v) for v in by_an.values())
+            n_tr = sum(sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
+                       for an in by_an)
+            try:
+                cm, lab = bm.vs_zero_contour(by_an)
+                print(f"  .. 14z {q} {e}: {lab}", flush=True)
+                # Musall's own unit, logged beside ours so the difference is visible rather than
+                # asserted -- sessions give far more significance and are pseudo-replicated.
+                _cm2, lab2 = bm.vs_zero_contour(by_an, method="musall")
+                print(f"  .. 14z {q} {e}: [reference] {lab2}", flush=True)
+                if cm is not None and np.any(cm):
+                    contours[(row, e)] = cm
+                n_sig = lab.split(":")[-1].strip().split(" of ")[0]
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 14z {q} {e}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+                n_sig = "?"
+            titles[(row, e)] = f"{e}\n{len(by_an)} an, {n_s} sess, n={n_tr}\nsig {n_sig} bins"
+        if got_any:
+            rows.append(row)
+    if not cells:
+        return None
+    return ef.map_grid(
+        cells, out_dir, name=f"epoch_14z_beta_vs_ZERO_{align}_{variant}",
+        title=("WHERE the position code IS, epoch by epoch -- decoder weights tested against ZERO "
+               f"(Musall et al. 2023 fig. S6). {wname}"),
+        row_labels=rows, col_labels=EPO, panel_titles=titles, edges=bm.atlas_edges(),
+        contours=contours,
+        cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
+                    "trials than on the average trial"),
+        subtitle=(
+            "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
+            "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
+            "immune to the two confounds the difference figures carry -- elapsed weeks, and a quiet "
+            "baseline that drifts by chronic. "
+            "DO NOT READ TWO PANELS AS A DIFFERENCE. \"Significant in pre and not in acute\" is "
+            "NOT evidence of a change: a map that just clears the threshold in one epoch and just "
+            "misses it in the next may not differ at all, and nothing on this figure puts an error "
+            "bar on that comparison. The difference question has its own figure and its own test. "
+            "METHOD, following Musall et al. 2023 fig S6: maps downsampled 8x to a 67x80 grid "
+            "(3,237 bins inside the Allen mask, against their 3,364), tested per bin against zero, "
+            "Bonferroni-corrected over those bins. THE UNIT IS THE ANIMAL, through the "
+            "animals-to-sessions bootstrap this deck uses everywhere; Musall pooled SESSIONS, which "
+            "is far more powerful and treats two sessions from one animal as independent -- that "
+            "number is printed in the render log beside ours. Contours are drawn on an ERODED mask "
+            "and any result concentrated more than 2x in the rim is suppressed, because the edge of "
+            "the imaging window produces artefacts that are consistent ACROSS animals and so cannot "
+            "be rejected by a between-animal test. Since the maps are one-vs-rest, a significant "
+            "bin means this position's trials differ from the average trial THERE -- read it with "
+            "the coupling caveat that applies to every mean-referenced figure."))
+
+
 def _fig_14_beta_maps(out_dir, align, variant, wname):
     """14: WHERE the position code lives in cortex, and where it goes -- pooled decoder maps.
 
@@ -3150,6 +3248,8 @@ def main(argv=None) -> int:
                         _fig_14_beta_maps(out, align, variant, wname))
                 _report(f"14pa {align}/{variant}",
                         _fig_14pa_beta_maps_by_animal(out, align, variant, wname))
+                _report(f"14z {align}/{variant}",
+                        _fig_14z_beta_vs_zero(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 14m {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)

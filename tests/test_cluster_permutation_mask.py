@@ -260,3 +260,50 @@ def test_a_central_result_still_reports_its_enrichment_and_is_drawn():
     contour, label = bm.significance_contour(pre, post, n_boot=300, mask=disp)
     assert contour is not None and contour.any(), f"a central effect was suppressed: {label}"
     assert "edge enrichment" in label, label
+
+
+def test_vs_zero_detects_a_map_and_is_silent_when_there_is_none():
+    """Musall fig S6's question: is there a map here at all, tested within ONE epoch.
+
+    Priya, 2026-09-12: "we still haven't done the Musall-style analysis of comparing each pre/post
+    epoch to zero." Correct -- `musall_significance` existed but had only ever been pointed at
+    DIFFERENCES. This pins the vs-zero path: a real map is found, pure noise is not.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    from wfield_local import beta_maps as bm
+
+    disp = bm.brain_mask()
+    core = ndimage.binary_erosion(disp, iterations=60)
+    rng = np.random.default_rng(11)
+
+    def arm(effect):
+        return {f"A{i}": [ndimage.gaussian_filter(rng.standard_normal(bm.MAP_SHAPE), 8) * disp
+                          + effect for _ in range(3)] for i in range(4)}
+
+    # a real, central, consistent map
+    eff = np.zeros(bm.MAP_SHAPE)
+    eff[core] = 6.0
+    got, label = bm.vs_zero_contour(arm(eff), n_boot=300)
+    assert got is not None and got.any(), f"a real map was not detected: {label}"
+    assert "vs ZERO" in label
+
+    # pure noise: nothing
+    got2, label2 = bm.vs_zero_contour(arm(np.zeros(bm.MAP_SHAPE)), n_boot=300)
+    assert got2 is None or int(got2.sum()) == 0, f"noise was called a map: {label2}"
+
+
+def test_vs_zero_carries_the_do_not_subtract_warning_in_its_docstring():
+    """The commonest misuse of a per-epoch vs-zero figure is reading two panels as a difference.
+
+    "Significant in pre and not in acute" is not evidence of change -- a map that just clears the
+    threshold in one epoch and just misses it in the next may not differ at all, and a vs-zero
+    figure puts no error bar on that comparison. Pinned as text because it is the kind of caveat
+    that gets dropped in a rewrite.
+    """
+    from wfield_local import beta_maps as bm
+
+    doc = bm.vs_zero_contour.__doc__ or ""
+    assert "DO NOT SUBTRACT" in doc.upper()
+    assert "significance_contour" in doc, "must point at the test that DOES answer the difference"
