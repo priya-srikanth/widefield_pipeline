@@ -208,6 +208,11 @@ CHRONIC_MIN_TAIL = int(_CHRONIC.get("min_tail", 3))
 #: is what this rule did before 2026-09-10 and is kept so the old boundaries can be reproduced.
 CHRONIC_FLAT_MODE = str(_CHRONIC.get("flat_mode", "rate"))
 CHRONIC_K_DRIFT = float(_CHRONIC.get("k_drift", 1.0))
+#: WHICH SERIES GATE THE BOUNDARY. Both "hit" and "licks" are always COMPUTED and reported (so the
+#: figures keep showing licking), but only the series listed here enter the AND that sets the day.
+#: [hit, licks] is the original two-measure AND; [hit] is accuracy-only (Priya, 2026-09-12: licking
+#: is too noisy to gate -- one short session flipped PS92 and moved PS93). See defaults.yaml.
+CHRONIC_SERIES = [s for s in (_CHRONIC.get("series") or ["hit", "licks"])]
 #: A SERIES MAY OPT OUT with a null: `level_min: {hit: null}` removes the recovered test for hit rate
 #: and leaves the plateau tests alone. Removing it entirely is NOT free -- see the note on
 #: `_plateau_index`, where "stably impaired" becomes indistinguishable from "recovered".
@@ -223,8 +228,11 @@ _FLAT_TXT = (f"|slope| <= {CHRONIC_K_SD:.4g} x pre-stroke SD/session"
              f"total drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD")
 _LEVEL_TXT = " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
                         if CHRONIC_LEVEL_MIN.get(k) is not None)
+_SERIES_LABEL = {"hit": "hit rate", "licks": "licks/trial"}
+_SERIES_TXT = " AND ".join(_SERIES_LABEL.get(s, s) for s in CHRONIC_SERIES)
+_BOTH_TXT = "both " if len(CHRONIC_SERIES) > 1 else ""
 CHRONIC_RULE = (
-    f"{RULE_POSITION} hit rate AND licks/trial both flat ({_FLAT_TXT}), "
+    f"{RULE_POSITION} {_SERIES_TXT} {_BOTH_TXT}flat ({_FLAT_TXT}), "
     + (f"recovered (>= {_LEVEL_TXT} of baseline), " if _LEVEL_TXT else "")
     + f"and settled (residual <= {CHRONIC_K_RES:.4g} x pre-stroke SD) from this session onward, "
       f"on engaged trials; the plateau may not start before that animal's subacute onset")
@@ -708,12 +716,11 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
     """
     out = {}
     for animal, spec in EPOCH_SPEC.items():
-        per_series, days = {}, []
+        per_series = {}
         for name, table in (("hit", hit_by_session), ("licks", licks_by_session)):
             pre, post = _normalised_series(table, animal, position)
             if not pre or len(post) < CHRONIC_MIN_TAIL:
                 per_series[name] = {"day": None, "note": f"no usable {name} series"}
-                days.append(None)
                 continue
             sd = _pstdev(pre)
             # THE FLOOR IS THAT ANIMAL'S OWN SUBACUTE ONSET, not a constant: PS95 leaves acute on
@@ -724,9 +731,11 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
             tail = [v for _d, v in post[idx:]] if idx is not None else []
             per_series[name] = {"day": day, "sd_pre": sd, "n_post": len(post),
                                 "level": (sum(tail) / len(tail)) if tail else None}
-            days.append(day)
-        # AND: chronic begins at the LATER of the two plateaus, and only if BOTH exist.
-        derived = max(days) if all(d is not None for d in days) else None
+        # AND over the CONFIGURED series (CHRONIC_SERIES): chronic begins at the LATER of their
+        # plateaus, and only if ALL of them exist. Series not listed are still computed and reported
+        # above but do not gate the boundary -- accuracy-only ([hit]) ignores the licks plateau here.
+        days = [per_series[s]["day"] for s in CHRONIC_SERIES]
+        derived = max(days) if (days and all(d is not None for d in days)) else None
         stored = spec.get("chronic_from")
         out[animal] = {"agree": derived == stored, "derived_day": derived, "stored_day": stored,
                        **per_series}

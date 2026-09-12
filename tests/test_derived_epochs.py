@@ -105,7 +105,8 @@ def test_the_written_file_records_the_rule_that_produced_it(derived):
     epochs.save_boundaries({"PS92": {"chronic_from": 11}}, derived)
     blob = json.loads(derived.read_text(encoding="utf-8"))
     assert blob["boundaries"]["PS92"]["chronic_from"] == 11
-    assert "hit rate AND licks" in blob["chronic_rule"]
+    assert blob["chronic_rule"] == epochs.CHRONIC_RULE   # records the ACTUAL rule, not a hard-coded copy
+    assert "hit rate" in blob["chronic_rule"]             # hit rate always gates (CHRONIC_SERIES)
     assert blob["constants"]["K_SD"] == pytest.approx(epochs.CHRONIC_K_SD)
     assert blob["constants"]["LEVEL_MIN"] == epochs.CHRONIC_LEVEL_MIN
 

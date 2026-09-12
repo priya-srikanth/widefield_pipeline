@@ -128,10 +128,12 @@ def test_ratios_are_not_capped_at_one():
     assert max(PS95_LICKS) > 1.0, "the fixture no longer overshoots; it cannot test capping"
 
 
-def test_one_measure_plateauing_is_not_enough():
-    """THE AND. PS93's hit rate plateaus at day 11 and PS95's licking at day 2, but neither animal
-    is chronic, because the other measure has not. An OR -- or a weighted composite, which behaves
-    like an OR when one term is quiet -- would call both chronic."""
+def test_configured_series_gate_the_boundary(monkeypatch):
+    """CHRONIC_SERIES selects which measures GATE the day; both are always computed. The hit series
+    plateaus, the lick series climbs forever and never does. Under accuracy-only [hit] (the default
+    from 2026-09-12) the hit plateau alone is chronic; under [hit, licks] (the retired AND) the
+    unplateaued lick blocks it. Priya dropped licks because it is ~3.5x noisier and one short
+    session flipped PS92 out of chronic and moved PS93 to day 18."""
     post = sorted((l for l in config.pooled_labels("PS92") if epochs.epoch_of(l) != "pre"),
                   key=lambda x: x.split("_")[-1])
     pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS92"]
@@ -144,10 +146,16 @@ def test_one_measure_plateauing_is_not_enough():
     for i, l in enumerate(post):
         hit[l] = {"far_R": 0.96 * (PS92_HIT[i] if i < len(PS92_HIT) else 1.02)}
         lick[l] = {"far_R": 1.0 + 0.75 * i}          # climbing forever: never flat
+    # accuracy-only: the hit plateau alone sets the boundary; the unplateaued lick is ignored
+    monkeypatch.setattr(epochs, "CHRONIC_SERIES", ["hit"])
     rep = epochs.derive_chronic_boundaries(hit, lick)["PS92"]
     assert rep["hit"]["day"] is not None, "the hit series was supposed to plateau"
-    assert rep["licks"]["day"] is None, "the lick series was supposed never to plateau"
-    assert rep["derived_day"] is None, "AND requires both"
+    assert rep["licks"]["day"] is None, "the lick series was supposed never to plateau (still computed)"
+    assert rep["derived_day"] == rep["hit"]["day"], "accuracy-only: hit plateau alone is chronic"
+    # the AND returns when licks is configured, and the unplateaued lick blocks the boundary
+    monkeypatch.setattr(epochs, "CHRONIC_SERIES", ["hit", "licks"])
+    rep2 = epochs.derive_chronic_boundaries(hit, lick)["PS92"]
+    assert rep2["derived_day"] is None, "AND requires both when licks is configured"
 
 
 def test_it_reports_rather_than_reassigns():

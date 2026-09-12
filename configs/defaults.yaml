@@ -436,6 +436,14 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               # two measure different things (accuracy vs vigour) and averaging them
                               # hides whichever is worse. Each is tested alone; chronic begins at
                               # the LATER of the two plateaus, and only if both exist.
+    series: [hit]             # which behavioural series GATE the chronic boundary. Was [hit, licks]
+                              #   (the AND). licks/trial DROPPED 2026-09-12 (Priya): it is ~3.5x
+                              #   noisier than hit rate, and one short/low-engagement session
+                              #   (PS92 9/11, 314 trials) flipped PS92 out of chronic and pushed
+                              #   PS93 to day 18 -- results Priya did not trust. Chronic is now the
+                              #   accuracy plateau after the subacute transition. licks/trial is
+                              #   still COMPUTED and plotted for reference; it just no longer gates.
+                              #   Restore [hit, licks] to bring back the AND.
     min_tail: 3               # sessions required from a candidate start; also the shortest window
     flat_mode: drift          # FLAT test. "drift" = total fitted change across the window;
                               #   "rate" = per-session slope (the pre-2026-09-10 behaviour).
