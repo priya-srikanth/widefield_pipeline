@@ -9381,3 +9381,48 @@ All eight map families now carry their full methods in the speaker notes — the
 block (nested bootstrap, max-statistic, eroded mask, edge suppression, field of view, within-animal
 pooling) plus each family's own reference, caveats and how to read it. The figure-14 note's
 withdrawn amplitudes (0.47 / 0.48, r = 0.53) are gone.
+
+---
+
+## 2026-09-12 — CLOSED: the pre-stroke learning confound on G is small, and it is conservative
+
+**The worry.** `G = (refit - frozen) - (pre_refit - pre_frozen)`. Its baseline averages all eleven
+pre-stroke sessions. If the animal were still LEARNING across them, that mean would sit below the
+value reached by the day of the lesion, the post-stroke refit arm would be scored against a baseline
+that is too low, and "recoverable information" would be partly "the animal kept getting better".
+
+**Measured, per animal, per alignment.** Refit accuracy regressed on session order, in two windows,
+because the pre-stroke set is NOT contiguous: 0606-0608 in June, then 0806-0814 in August after a
+two-month gap. A trend across that gap is not a learning curve.
+
+| window | cue | pre-cue |
+|---|---|---|
+| ALL 11 sessions | +0.0008/session, 2/4 animals positive, rho +0.04 | +0.0090/session, 4/4, rho +0.41 |
+| **AUGUST block only** (the 8 before the lesion) | **+0.0124/session, 3/4, rho +0.32** | **+0.0013/session, 2/4, rho +0.02** |
+
+No per-animal trend reaches significance in the August block in either window, and the two windows
+disagree about which direction the weak effect points. **The pre-cue ALL-11 trend that looks
+convincing (4/4 animals, rho +0.41) is a between-block STEP, not a within-block slope** -- June
+scores lower than August and the August block itself is flat.
+
+**What it would cost to use the August block alone as the baseline**, which is the conservative
+choice if learning were the concern:
+
+| | cue | pre-cue |
+|---|---|---|
+| shift in the pre gap | −0.0108 | −0.0069 |
+| **implied change in G** | **+0.0108** | **+0.0069** |
+
+**THE SIGN IS THE POINT. Dropping June makes G LARGER, not smaller.** Including the June block
+raises the pre-stroke gap (it is less negative there), which subtracts MORE from G. So the current
+all-eleven baseline is the conservative one, and the confound cannot be inflating the result --
+it is slightly deflating it. Against the effects G carries (acute pooled gap delta +0.040;
+far-contralateral +0.158 matched, +0.196 unmatched) a 0.007-0.011 shift is well inside the noise.
+
+**A trap this uncovered, worth stating so it is not misread later.** FROZEN accuracy trends steeply
+upward across all eleven pre-stroke sessions -- PS92 pre-cue rho +0.92 (p < 0.001), PS93 +0.84
+(p = 0.001). That is NOT learning. The frozen arm is leave-one-session-out over a pool that is
+mostly August, so June sessions are scored by an essentially out-of-block model and score low. The
+same number read as a learning curve would be a strong and entirely spurious result.
+
+**Conclusion: closed, no change to the analysis.** The baseline stays all eleven sessions.
