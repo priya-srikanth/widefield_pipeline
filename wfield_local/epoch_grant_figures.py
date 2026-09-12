@@ -1307,6 +1307,100 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
                   "warning."))
 
 
+def _fig_15_evoked_maps(out_dir, align, variant, wname):
+    """15: per-position EVOKED cortical maps -- the position-INDEPENDENT answer to "where".
+
+    THE CONTROL THAT GATES FIGURE 14, not a complement to it. Priya, 2026-09-12: "in acute there may
+    be less ss-ul/ll activity in far-center trials, which makes the near ipsi acute trial map look as
+    though there is a relative *increase* in ss-ul/ll activity compared to pre-stroke." Figure 14's
+    Haufe pattern is a covariance against the mean over ALL SIX positions, so one position losing
+    drive lowers the reference and hands every other position an increase it did not earn. Four of
+    its six rows cannot be read as written.
+
+    HERE THE REFERENCE IS WITHIN TRIAL AND PER POSITION: each map is that position's own
+    `post-cue mean - pre-cue mean`. Far-contralateral collapsing cannot leak into near-ipsilateral's
+    map, because near-ipsilateral's map never looks at far-contralateral's trials.
+
+    NOTHING IS RECOMPUTED. `framemap_event_maps` already writes these per session -- 123
+    `*_spout_positions_1s_pre_post_delta_maps.npz` on the share, six positions x {pre, post, delta}
+    as 540 x 640 Allen-aligned maps. This aggregates them by epoch.
+
+    WHAT IT COSTS, so the two figures are not confused. The decoder pattern isolates what
+    DISTINGUISHES positions but couples them; this keeps them independent but shows the WHOLE
+    task-evoked response at that position -- cue, licking, movement, arousal -- not only the part
+    carrying target identity. Disagreement is informative: a change here and not in figure 14 is a
+    change in DRIVE that carries no position information; the reverse is a change in TUNING with no
+    change in drive.
+
+    ONE ALIGNMENT. The source maps are cue-referenced by construction (post-cue minus pre-cue), so
+    there is nothing for a pre-cue or post-lick arm to be.
+    """
+    if align != "cue" or variant != "working":
+        return None
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_evoked_maps as pem
+    from wfield_local.grant_figures import CONF_LABELS
+
+    store, counts = pem.maps_by_epoch()
+    if not store:
+        return None
+    EPO = list(ef.PANELS)
+    cells, titles, amp = {}, {}, {}
+    for q in CONF_LABELS:
+        per = {}
+        for e in EPO:
+            # EACH ANIMAL'S OWN EPOCH MEAN FIRST, then the mean over animals -- so an animal with
+            # more sessions cannot dominate, the rule every pooled family here uses.
+            pa, ns = [], 0
+            for an, by_e in store.items():
+                got = (by_e.get(e) or {}).get(q)
+                if got:
+                    pa.append(np.mean(list(got.values()), axis=0))
+                    ns += len(got)
+            if pa:
+                per[e] = np.mean(pa, axis=0)
+                row = _long_of(q)
+                cells[(row, e)] = per[e]
+                titles[(row, e)] = f"{e}\n{len(pa)} an, {ns} sess"
+        for e in ("acute", "subacute", "chronic"):
+            if "pre" in per and e in per:
+                cells[(_long_of(q), f"{e} - pre")] = per[e] - per["pre"]
+                titles[(_long_of(q), f"{e} - pre")] = f"{e.upper()} - PRE"
+        if "pre" in per:
+            base = float(np.sqrt(np.nanmean(per["pre"] ** 2)))
+            if base > 0:
+                amp[q] = {e: float(np.sqrt(np.nanmean(m ** 2))) / base for e, m in per.items()}
+    if not cells:
+        return None
+    rows = [_long_of(q) for q in CONF_LABELS if any((_long_of(q), e) in cells for e in EPO)]
+    a_txt = ", ".join(f"{_long_of(q)} {amp[q].get('acute', float('nan')):.2f}"
+                      for q in CONF_LABELS if q in amp)
+    return ef.map_grid(
+        cells, out_dir, name="epoch_15_evoked_maps_cue",
+        title=("Per-position EVOKED maps: post-cue minus PRE-CUE, so the six positions are "
+               "INDEPENDENT -- the control for figure 14"),
+        row_labels=rows,
+        col_labels=EPO + [f"{e} - pre" for e in ("acute", "subacute", "chronic")],
+        panel_titles=titles,
+        delta_cols=tuple(f"{e} - pre" for e in ("acute", "subacute", "chronic")),
+        edges=bm.atlas_edges(),
+        cbar_label="post-cue minus pre-cue\n(that position's OWN trials)",
+        delta_label="change vs pre-stroke\n(SAME scale as the maps)",
+        subtitle=(
+            "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centred on the "
+            "mean over all six positions, so a position that loses drive lowers the reference and "
+            "hands every other position an increase it did not earn -- four of its six rows cannot "
+            "be read as written. Here each map is that position's OWN post-cue minus pre-cue, a "
+            "WITHIN-TRIAL reference, so the positions are independent. "
+            "THE COST: this shows the whole task-evoked response -- cue, licking, movement, "
+            "arousal -- not only the part that carries target identity, which is what figure 14 "
+            "isolates. A change visible here and absent there is a change in DRIVE without "
+            "position information; the reverse is a change in TUNING without a change in drive. "
+            "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
+            "difference columns share their row's scale. Allen CCF overlaid. "
+            f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}."))
+
+
 def _fig_14_beta_maps(out_dir, align, variant, wname):
     """14: WHERE the position code lives in cortex, and where it goes -- pooled decoder maps.
 
@@ -2613,12 +2707,12 @@ def main(argv=None) -> int:
     # repeating a flag reads as.
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b",
-                             "13s", "14m", "mat", "scal"))
+                             "13s", "14m", "15e", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m",
+    want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
                                  "mat", "scal"))
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
@@ -2639,7 +2733,7 @@ def main(argv=None) -> int:
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
-    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m",
+    ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "10e", "12s", "12b", "13s", "14m", "15e",
                 "mat", "scal"}
     for disp, align, variant, wname in ARMS:
         if not (want & ARM_KEYS):
@@ -2685,6 +2779,13 @@ def main(argv=None) -> int:
         # from the other three arms made the renderer print "NO FIGURE" three times a render for a
         # case that is correct by construction. A warning that always fires is a warning nobody
         # reads.
+        if "15e" in want:
+            try:
+                _report(f"15e {align}/{variant}",
+                        _fig_15_evoked_maps(out, align, variant, wname))
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 15e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
         if "14m" in want:
             try:
                 _report(f"14m {align}/{variant}",
