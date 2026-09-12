@@ -3946,6 +3946,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
         ("epoch_13_state_decoder_*.png",
          "DOES EVERYTHING DEGRADE? Frozen BEHAVIOURAL-STATE decoder",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "THE SPECIFICITY CONTROL FOR THE WHOLE DECK. The lesion is ventrolateral STRIATAL, so no"
          "cortex is damaged anywhere in the field of view: same window, same LocaNMF basis, same"
          "estimator, same frozen-model discipline, and only the LABEL changes -- spout target, or"
@@ -3992,11 +3999,25 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "baseline than afterwards."),
         ("epoch_13delta_state_decoder_*.png",
          "Frozen state decoder, change from pre-stroke",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "The same quantity as epoch-minus-pre. Read it beside the POSITION decoder's contrast"
          "panel earlier in this section, and read the normalised comparison on the next slide,"
          "which is the one that puts the two on a single axis."),
         ("epoch_13n_state_vs_position_*.png",
          "Of what each readout had ABOVE CHANCE, how much survived?",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "THE COMPARISON ITSELF. (accuracy - chance) / (1 - chance), because chance is 1/6 for the"
          "six-way position decoder and 1/3 for the three-way state decoder, so their raw accuracies"
          "are not comparable and their raw DROPS are not either -- the same absolute fall means"
@@ -4011,6 +4032,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "pooled number, so there is nothing to resample."),
         ("epoch_13pos_state_decoder_by_class_*.png",
          "State decoder recall PER CLASS -- which behavioural state changed?",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: 0.98 / 0.95 / 0.94 / 0.97, flat"
          "at every epoch. LICKING is 0.99 / 0.97 / 0.90 / 0.96. QUIET IS THE ONE THAT MOVES, 0.86"
          "to 0.70 acutely, and that is probably real rather than noise: quiet goes from 3.4% of a"
@@ -4026,10 +4054,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "epochs."),
         ("epoch_13posdelta_state_decoder_by_class_*.png",
          "State decoder recall per class, change from pre-stroke",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "Quiet is the only class with a visible fall. See the preceding slide for why that is a"
          "result about immobility rather than a weakness of the control."),
         ("epoch_13c_state_confusion_*.png",
          "State decoder confusion by epoch -- where do the errors go?",
+         "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
+         "class was computed with the superseded lick-BOUT anchor and has not yet been "
+         "recomputed against the post-cue anchor now in use. That is the class balance, "
+         "the within-session refit ceiling and the session-time control -- not the quiet "
+         "window length, the feature width or the PS92 8/12 exclusion, which do not "
+         "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
+         "lag it. Read them off the value sidecar, not off this caption. "
          "THE SAME ARGUMENT 5c MAKES FOR THE POSITION DECODER, applied to behavioural state: the"
          "per-class panel gives the DIAGONAL -- how often each class is recalled -- and says nothing"
          "about where the errors land, which is the part that names what changed. A quiet segment"
