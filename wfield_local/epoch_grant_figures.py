@@ -1507,6 +1507,30 @@ _REF_TEXT = {
               "the decoder, the folds and the Haufe transform in the way. READ IT AGAINST THE "
               "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artefact."),
     ),
+    # ADDED 2026-09-13. `precue` was put into `position_reference_maps.REFERENCES` when the pre-cue
+    # reference moved onto the deck's own window, and this table was not extended with it -- so
+    # `_fig_15r_reference_maps` raised `KeyError 'precue'` on every arm, AFTER writing the mean- and
+    # rest-referenced figures. The failure was per-arm and non-fatal, so the render reported exit 0
+    # and simply produced two references where three were asked for. Found by counting the files
+    # against the retired set (21 where 39 were expected), not by the exit status.
+    "precue": dict(
+        short="one vs its own PRE-CUE window",
+        title="Position maps referenced to each trial's OWN PRE-CUE window -- the CUE-EVOKED "
+              "INCREMENT, not the position map",
+        cbar="post-cue minus that trial's\nown pre-cue mean",
+        note=("THE SIX ROWS ARE INDEPENDENT -- the subtrahend is per trial, so one position cannot "
+              "leak into another. COMPUTED ON THE DECK'S OWN WINDOW (cue-aligned 0 to +2.0 s, "
+              "figure 14's trial selection, `trial_features` at baseline=\"precue\"), NOT from the "
+              "preprocessing npz's 1 s-pre/1 s-post `delta` field, which figure 15 still uses. That "
+              "distinction is measurable: the old window flips the sign of the near positions' "
+              "between-animal agreement at acute (near-ipsi +0.194 vs -0.086) while leaving "
+              "far-contralateral unchanged to three decimals."
+              "\n\nIT VIOLATES F12 AND THAT IS THE POINT OF HAVING IT. The pre-cue window carries "
+              "genuine anticipatory position signal (LOSO 0.510), so subtracting it removes real "
+              "code and measures the cue-evoked INCREMENT. Read it as a third reference whose "
+              "disagreements with REST localise what the pre-cue window contains, not as the "
+              "position map."),
+    ),
     "rest": dict(
         short="one vs REST",
         title="Position maps referenced to the REST BASELINE -- one subtrahend per session, so "
