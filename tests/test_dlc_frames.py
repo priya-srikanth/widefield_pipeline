@@ -287,12 +287,16 @@ def test_names_are_shared_where_the_views_OVERLAP():
 
     shared = df.shared_bodyparts()
     assert {"jaw", "tongue", "spout"} <= set(shared), "the cohort-wide 3D parts"
-    assert "nose" not in shared, "cam4 only -- it stays 2D, and pretending otherwise hides that"
+    # `nose` JOINED THE SHARED SET 2026-09-12 (Priya). It was cam4-only on the incorrect ground
+    # that the bottom view cannot see it; it can. It is not the IDENTICAL physical point from every
+    # angle -- nor is the spout, whose upper and lower front edges are what cam4 and cam1 actually
+    # see -- but the offset on a rigid part is constant and cancels out of any movement measure.
+    assert "nose" in shared, "all four views now; see configs/defaults.yaml dlc.cameras"
     assert "L_eye" not in shared and "R_eye" not in shared, "one side view each"
 
 
 def test_each_view_declares_only_what_it_can_see():
-    assert df.bodyparts("cam1") == ["jaw", "tongue", "spout"], "bottom view: no nose, no whiskers"
+    assert df.bodyparts("cam1") == ["nose", "jaw", "tongue", "spout"], "bottom view: no whiskers"
     assert "nose" in df.bodyparts("cam4")
     for cam in df.cameras():
         assert df.bodyparts(cam), f"{cam} declares no bodyparts"
