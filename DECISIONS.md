@@ -9934,3 +9934,66 @@ artefact, it survives every candidate definition tested, and the chronic column 
 
 Full record, including the re-render blast radius and what is NOT affected (the position decoder
 never reads the mask): `docs/REST_BASELINE_MIGRATION.md`.
+
+
+---
+
+## 2026-09-13 — a position-graded amplitude change WITHOUT a position-specific pattern
+
+Priya, on the REST null: *"so there's a position-independent amplitude increase in near positions
+and amplitude decrease in far positions? seems like that could reflect real biology."*
+
+**The two results are compatible, and the distinction that makes them so is that the null tests
+SHAPE, NOT AMPLITUDE.** It correlates each animal's `epoch - pre` MAP against the others'. A cell
+where observed ~= null means the four animals' change maps do not resemble each other beyond what
+shared anatomy, warp and optics already supply -- it says nothing about whether the amplitude moved,
+and nothing about whether it moved consistently.
+
+So on the REST baseline, acute:
+
+| position | amplitude (acute/pre) | position-specific shape? | nested bootstrap |
+|---|---|---|---|
+| Near Ipsi | 1.48 | no, p = 0.356 | 413 / 2,022 bins significant |
+| Near Middle | 1.21 | no, p = 0.382 | significant |
+| Near Contra | 1.27 | no, p = 0.714 | significant |
+| Far Ipsi | 1.01 | no, p = 0.294 | — |
+| Far Middle | 0.69 | marginal, p = 0.094 | significant |
+| **Far Contra** | **0.48** | **yes, p = 0.001** | significant |
+
+The reading those support together is **a broad gain change graded by spout position -- near up, far
+down, monotone -- with a spatially SPECIFIC far-contralateral collapse on top of it**. The gradient
+is the striking part: 1.48 at near-ipsilateral falling monotonically to 0.48 at far-contralateral,
+across six positions that were analysed independently.
+
+### WHY THIS IS NOT YET ESTABLISHED, and what would establish it
+
+**1. NOTHING HERE HAS TESTED THE AMPLITUDE GRADIENT ITSELF.** The ratios above are pooled
+within-animal values printed on the figure. The bootstrap tests each position against pre
+SEPARATELY; the null tests map SHAPE. Neither asks whether the near-to-far ORDERING is consistent
+across animals, which is the actual claim. **The test that would: per-animal amplitude ratios for all
+six positions, then the nested animals->sessions bootstrap on the near-minus-far contrast, or simply
+whether all four animals show the same monotone ordering.** That is cheap -- the maps are already
+loaded by `position_reference_maps.maps_by_epoch` -- and it has not been run.
+
+**2. A GLOBAL GAIN CHANGE AND A MOVING BASELINE ARE HARD TO SEPARATE HERE.** These maps are
+`activity - rest`, and the REST baseline is not epoch-invariant: chronic retains only 0.51 of the
+pre-stroke rest fraction, and the lick term alone excludes 73.7% of samples pre-stroke against 82.5%
+at chronic. If the rest baseline itself shifts, `activity - rest` shifts with it, and a
+POSITION-INDEPENDENT amplitude change is exactly the signature that confound would produce. That the
+change is GRADED by position argues against a pure baseline artefact -- a baseline shift should
+affect all six positions equally -- but the gradient has not been tested against that alternative.
+
+**3. THE CHRONIC COLUMN SHOWS SHARED OFFSETS ARE REAL IN THIS DATA.** Under REST, chronic observed
+r runs +0.43 to +0.72 against nulls of +0.50 to +0.51, every p > 0.2 -- position-independent shared
+offset, unchanged from the retired baseline despite estimating chronic from 4.3x more frames. So
+"the animals move together for reasons unrelated to position" is demonstrably a thing that happens
+in this cohort, and it is the null hypothesis the amplitude gradient has to beat.
+
+**4. n = 4.**
+
+### What does NOT depend on any of this
+
+The far-contralateral acute result. It is position-specific under every reference tested
+(MEAN +0.819 / REST +0.812 / PRECUE +0.856, nulls 0.018-0.083, p <= 0.001), it survived the entire
+baseline migration essentially unchanged from the retired definition's +0.769, and the position
+decoder never reads the rest mask at all.
