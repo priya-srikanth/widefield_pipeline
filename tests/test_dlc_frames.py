@@ -319,3 +319,108 @@ def test_the_phase_offsets_sit_inside_the_example_clip_window():
 @pytest.mark.parametrize("key", ["per_session", "seed"])
 def test_the_extraction_parameters_come_from_config(key):
     assert isinstance(getattr(df, key)(), int)
+
+
+# --------------------------------------------------------------- appearance pruning (2026-09-13)
+
+def _feat_rows():
+    """Two licks of four offsets each, plus four cue-locked frames, with known appearances."""
+    rows = []
+    for lick, base in enumerate([0.0, 5.0]):
+        for off in (-0.016, 0.0, 0.032, 0.064):
+            rows.append({"animal": "PS92", "date": "20260606", "cam": "cam4", "epoch": "pre",
+                         "video_stem": "cam4_x", "frame": len(rows), "trial_id": lick,
+                         "position": "far_L", "category": "success", "phase": f"lick{off*1000:+.0f}",
+                         "t_from_cue_s": base + off, "_group": f"{lick}:{base:.4f}",
+                         "image": f"img{len(rows):07d}.png", "_video": "x.avi"})
+    for i, ph in enumerate(("ENL", "Cue", "early", "late")):
+        rows.append({"animal": "PS92", "date": "20260606", "cam": "cam4", "epoch": "pre",
+                     "video_stem": "cam4_x", "frame": 100 + i, "trial_id": 9, "position": "far_L",
+                     "category": "success", "phase": ph, "t_from_cue_s": 0.0,
+                     "_group": f"9:{ph}", "image": f"img{100+i:07d}.png", "_video": "x.avi"})
+    return rows
+
+
+def test_farthest_first_picks_the_extremes_not_the_crowd():
+    """The point of farthest-point sampling over k-means: a dense cluster must not win on count.
+
+    Five near-identical frames and two outliers is exactly the lick set's shape, and a method that
+    returns three members of the crowd has spent the labelling budget on one pose.
+    """
+    F = np.array([[0.0, 0.0], [0.1, 0.0], [0.0, 0.1], [0.1, 0.1], [0.05, 0.05],
+                  [10.0, 0.0], [0.0, 10.0]])
+    picks = set(df.farthest_first(F, 3))
+    assert {5, 6} <= picks, "both outliers must survive; they are the distinct poses"
+
+
+def test_farthest_first_is_deterministic_and_returns_everything_when_k_exceeds_n():
+    F = np.random.default_rng(0).normal(size=(6, 4))
+    assert df.farthest_first(F, 3) == df.farthest_first(F, 3)
+    assert sorted(df.farthest_first(F, 99)) == list(range(6))
+
+
+def test_a_lick_is_kept_or_dropped_WHOLE_never_split(monkeypatch):
+    """Priya, 2026-09-13: consecutive frames of one lick let the labeller see the tongue MOVE, which
+    is what makes "the tip" identifiable rather than a guess. Frame-wise pruning would keep one
+    frame from each of many licks -- best for the network, worst for the human whose consistency
+    bounds everything the network can learn.
+    """
+    rows = _feat_rows()
+    feats = {}
+    for r in rows:                      # lick 0 and lick 1 far apart; offsets within a lick close
+        base = 0.0 if r["_group"].startswith("0:") else 50.0
+        feats[id(r)] = np.full(4096, base + rows.index(r) * 0.01, dtype=np.float32)
+    monkeypatch.setattr(df, "_decode_feats", lambda grp, _f=feats: ({id(r): _f[id(r)] for r in grp},
+                                                                    list(grp)))
+    kept = df.prune_by_appearance(rows, target=8)
+    by_group = {}
+    for r in kept:
+        by_group.setdefault(r["_group"], []).append(r)
+    for g, rs in by_group.items():
+        if g.startswith(("0:", "1:")) and ":" in g and not g.startswith("9:"):
+            assert len(rs) == 4, f"lick {g} was split across the cut: {len(rs)} of 4 frames"
+
+
+def test_lick_frames_cannot_be_out_voted_by_the_resting_ones(monkeypatch):
+    """Pruning globally would let the many, mutually-similar cue-locked frames crowd out the few
+    lick-locked ones. The guarantee that tongue-out frames survive has to be structural.
+    """
+    rows = _feat_rows() + [dict(_feat_rows()[-1], frame=200 + i, _group=f"8:{i}",
+                                phase="ENL", image=f"img{200+i:07d}.png") for i in range(40)]
+    feats = {id(r): np.full(4096, float(i), dtype=np.float32) for i, r in enumerate(rows)}
+    monkeypatch.setattr(df, "_decode_feats", lambda grp, _f=feats: ({id(r): _f[id(r)] for r in grp},
+                                                                    list(grp)))
+    kept = df.prune_by_appearance(rows, target=8)
+    n_lick = sum(1 for r in kept if str(r["phase"]).startswith("lick"))
+    assert n_lick > 0, "the lick pool was eliminated entirely by the resting frames"
+
+
+def test_the_target_comes_from_config_and_zero_means_keep_everything(monkeypatch):
+    rows = _feat_rows()
+    assert df.prune_by_appearance(rows, target=0) is rows
+
+
+def test_two_licks_in_ONE_trial_do_not_both_ride_in_on_a_single_key(monkeypatch):
+    """The anchor copies the lead camera's choice to the side views. Keyed on (trial_id, phase) that
+    copy matched BOTH licks whenever two fell in the same trial, so cam1/2/3 came out larger than
+    the cam4 they were supposed to be mirroring -- which is the one thing the anchor exists to
+    prevent. Caught by the dry run's per-camera counts, not by a unit test, so here is the test.
+    """
+    rows = []
+    for cam in ("cam4", "cam1"):
+        for lick, t in enumerate([1.0, 2.0]):          # SAME trial_id, two different licks
+            for off in (-0.016, 0.0, 0.032, 0.064):
+                rows.append({"animal": "PS92", "date": "20260606", "cam": cam, "epoch": "pre",
+                             "video_stem": f"{cam}_x", "frame": len(rows), "trial_id": 7,
+                             "position": "far_L", "category": "success",
+                             "phase": f"lick{off*1000:+.0f}", "t_from_cue_s": t + off,
+                             "_group": f"7:{t:.4f}", "image": f"img{len(rows):07d}.png",
+                             "_video": f"{cam}.avi"})
+    feats = {id(r): np.full(16, 0.0 if r["_group"].endswith("1.0000") else 9.0, dtype=np.float32)
+             for r in rows}
+    monkeypatch.setattr(df, "_decode_feats",
+                        lambda grp, _f=feats: ({id(r): _f[id(r)] for r in grp}, list(grp)))
+    monkeypatch.setattr(df, "anchor_cam", lambda: "cam4")
+    kept = df.prune_by_appearance(rows, target=4)
+    n = {c: sum(1 for r in kept if r["cam"] == c) for c in ("cam4", "cam1")}
+    assert n["cam1"] == n["cam4"], f"side view did not mirror the anchor: {n}"

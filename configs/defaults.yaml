@@ -340,7 +340,19 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       Cue: 0.05               # within the 100 ms cue pulse
       early: 0.40             # first licks -- where the tongue is out and worth labelling
       late: 1.50              # into the response window; consummatory licking or a failed attempt
-    lick_per_session: 6       # DAQ lick ONSETS sampled per session, one per spout position. Each
+    target_per_session: 32    # FRAMES KEPT per session per camera, after appearance pruning. The
+                              # planner above proposes ~96; this keeps the 32 most visually distinct
+                              # within each (pool x spout position) cell. DLC wants a few hundred
+                              # labelled frames, not a few thousand -- 13 sessions x 32 = ~420 per
+                              # camera, which is where the network is fed and a person is not
+                              # drowned. Set to 0 to keep every candidate.
+    lick_fraction: 0.5        # half the kept budget: 16 frames = FOUR whole licks of four offsets,
+                              # per session, so ~52 distinct licks and ~208 tongue frames across the
+                              # cohort. Far above the tongue's share of wall-clock time --
+                              # tongue's share of wall-clock time, deliberately: it is the hardest
+                              # part to track, the only one ever fully hidden, and the one the
+                              # analysis turns on.
+    lick_per_session: 18      # DAQ lick ONSETS sampled per session, three per spout position. Each
                               # yields one frame per entry of lick_offsets_s below, so the frame
                               # count is lick_per_session x len(lick_offsets_s) = 36.
                               # Fixed cue offsets are the wrong instrument for the tongue: scored
@@ -350,20 +362,37 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # by construction, which is a labelling-set problem and not a network
                               # one. The lick sensor fires on tongue-SPOUT CONTACT, so a frame at a
                               # lick onset is a frame with the tongue out, by measurement.
-    lick_offsets_s:           # WHERE IN THE LICK CYCLE, measured rather than assumed (2026-09-08).
-                              # Rendering PS94 licks at 12 ms steps from -28 to +84 ms shows the
-                              # tongue is still IN for most of the pre-onset half, emerges around
-                              # the onset, is broadest and best separated from the spout at
-                              # +24..+48 ms, and is retracting by +72..+84 ms. A symmetric +/-28 ms
-                              # window (Priya's first suggestion) therefore spends half its frames
-                              # before the tongue appears and stops before the peak.
-      - -0.016                #   tongue still in or just emerging: the negative/edge case, so the
-                              #   network learns when NOT to fire as well as when to
-      - 0.0                   #   contact
-      - 0.016                 #   protruding
-      - 0.032                 #   near peak extension
-      - 0.048                 #   peak, well clear of the spout
-      - 0.064                 #   beginning to retract
+    lick_offsets_s:           # WHERE IN THE LICK CYCLE, measured rather than assumed (2026-09-08),
+                              # then CUT FROM SIX TO THREE on a second measurement (2026-09-13).
+                              # The 2026-09-08 rendering still stands: the tongue is IN for most of
+                              # the pre-onset half, emerges around the onset, is broadest at
+                              # +24..+48 ms and retracting by +72..+84 ms. What is new is that
+                              # sampling that arc SIX times buys almost nothing. Across 2,153
+                              # lick-locked frames, 99-100% of the pairs drawn from one onset's six
+                              # offsets are closer in appearance than the 5th percentile of pairs
+                              # drawn from DIFFERENT onsets (median 16.4 against 46.5). Six offsets
+                              # of one lick are six copies of one pose -- 80 ms of a single
+                              # protrusion at 250 fps. Pose diversity lives BETWEEN licks, so the
+                              # offsets drop to three and `lick_per_session` rises 6 -> 18: the same
+                              # frame budget over three times as many distinct licks.
+                              #
+                              # FOUR, not three. The first cut dropped -0.016 on the argument that
+                              # ENL and Cue frames are tongue-in anyway, and
+                              # test_the_lick_offsets_span_the_tongue_out_epoch caught it. Those are
+                              # EASY negatives -- a resting mouse. -0.016 is the HARD one: the
+                              # animal is committed to a lick and the tongue is not out yet, which
+                              # is precisely the frame that stops the network firing early. An easy
+                              # negative does not substitute for a hard one.
+                              #
+                              # Four also serves the labeller. Priya: "labeling a few consecutive
+                              # frames from one lick is probably helpful for the human to ensure
+                              # they're picking the same part of the tongue." Seeing the tongue MOVE
+                              # is what makes "the tip" identifiable; on an isolated frame it is a
+                              # guess. Pruning therefore keeps or drops a lick WHOLE.
+      - -0.016                #   committed to the lick, tongue still in: the HARD negative
+      - 0.0                   #   contact: emerging at the spout, maximally occluded by it
+      - 0.032                 #   near peak extension, broadest and well clear of the spout
+      - 0.064                 #   beginning to retract -- the limb a protrusion-only set never sees
     seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
                               # rather than quietly growing a second labelling set.
   board:                      # The ChArUco calibration board (wfield_local/dlc_board.py).
