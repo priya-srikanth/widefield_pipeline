@@ -9997,3 +9997,43 @@ The far-contralateral acute result. It is position-specific under every referenc
 (MEAN +0.819 / REST +0.812 / PRECUE +0.856, nulls 0.018-0.083, p <= 0.001), it survived the entire
 baseline migration essentially unchanged from the retired definition's +0.769, and the position
 decoder never reads the rest mask at all.
+
+
+---
+
+## 2026-09-13 — the pre-cue baseline stays 1 s, and an earlier recommendation for 2 s is WITHDRAWN
+
+Priya: *"the other PRECUE normalized plots -- are normalized to the 1s before cue, not 2s? Since
+this is a static measure and we know pre-cue decodability is higher in the 1s before cue than 2s
+before cue, should we change the precue maps to use only 1s?"*
+
+It is already 1 s (`_args` sets `pre_s=1.0`): the feature window is `[align, align+2 s]` and the
+baseline is `[cue - 1 s, cue]` on both the cue and lick arms. It should STAY 1 s, which means
+withdrawing the recommendation made earlier the same night to move it to 2 s.
+
+**THAT RECOMMENDATION WAS AIMED AT THE WRONG OBJECTIVE.** It came from measuring the spout-strobe
+lead -- 100% of trials clear 2.0 s, so a 2 s baseline never reaches back past the spout movement --
+and from F12's logic that a per-trial pre-cue baseline over-subtracts real anticipatory signal. Both
+are true, and both serve a goal this figure does not have.
+
+    minimise F12 over-subtraction (preserve position code)   ->  2 s
+    measure the CUE-EVOKED INCREMENT                         ->  1 s
+
+Position information concentrates in the final second before the cue, so a 2 s mean DILUTES it and
+subtracting removes less real code -- which is why 2 s is right if the aim is to keep the position
+map intact. But figure 15r PRECUEref is not the position map; it is explicitly the increment, which
+is why it carries the F12 conflict notice in the first place. An increment's baseline must be the
+state IMMEDIATELY before the cue, and a 2 s window averages in a second that is not that state.
+
+**THE "STATIC MEASURE" POINT IS WHAT SETTLES IT** (Priya's phrasing). The map is time-averaged, so
+the temporal concentration of information buys nothing -- one number comes out either way, and the
+only question is which interval that number should represent. For an increment, the 1 s.
+
+A consequence worth stating: BECAUSE position information concentrates in the final second,
+subtracting it makes this family MORE purely a cue-evoked increment and LESS a position map --
+exactly what it claims to be. Moving to 2 s would quietly turn it into a hybrid of the two, which is
+worse than either.
+
+`pre_s` is hardcoded in `locanmf_frozen_decoder._args` rather than read from config. Left as is:
+it is now a deliberate choice with a recorded reason, and the roadmap item to move decode params
+into `defaults.yaml` covers it.
