@@ -10111,3 +10111,42 @@ Two better routes also exist and are recorded so they are not forgotten:
 * **Triangulate and reproject** — now unblocked by the anchored frame selection (373cd35). Once cam4
   and cam1 are labelled on matched frames, reconstruct and project into the side views. That is
   geometry rather than guessing, and the calibration supports it at 2.83 px median reprojection.
+
+---
+
+## 2026-09-13 — A browsing hazard: the `_lick` arms look like weakened results and are not
+
+Priya, looking through the re-rendered figures: *"I think some of the matrices look different than they
+did before — eg crossnobis row centered and split-half reliability. The colors are either not as
+dramatic (closer to 0) or scale is different, and some of the patterns seem less clear (fC moving to
+fM/fI post-stroke)."*
+
+**Nothing about the data handling had changed.** Verified three ways before concluding anything:
+
+* every value-computing function byte-identical to the pre-session baseline (`_matrices_crossnobis`,
+  `_matrices_splithalf`, `_collect_7`, `_crossnobis_cross`, `_split_half_matrix`, `_pre_reference`,
+  `_pooled_bundle`, `_session_trials`, `mean_matrix_by_epoch`);
+* `configs/sessions.yaml` and `configs/animals.yaml` unchanged — same sessions, same epoch
+  boundaries. (An earlier guess in the same conversation, that chronic had grown from 3 to 14
+  sessions, was wrong: it was already 14.)
+* `matrix_bootstrap` is imported only inside `_fig_10cs`, and `matrix_row`'s `cell_marks` defaults to
+  `None` for every other family, so the per-cell bootstrap reaches nothing but `10cs`.
+
+**THE CAUSE IS THAT THIS RENDER ADDED ARMS.** `epoch_8rc_..._cue_lick` and `..._precue_lick` did not
+exist before; there are now five files per matrix family where there were three, sorted so the new
+`_lick` arms sit immediately beside the `_working` ones. Opening one and comparing it against memory
+of the other is the natural mistake, and the numbers differ for a real reason:
+
+| arm | acute fC→fC (own) | fC→fM |
+|---|---|---|
+| `cue_working` | −0.166 | **−0.288** (substitution) |
+| `cue_lick` | **−0.462** | −0.204 (own position wins) |
+| `precue_lick` | **−0.402** | +0.222 (reversed) |
+
+On the lick arms the far-contra substitution largely disappears. That is the selection effect
+recorded in 5ca9b11 — acute far-contra on lick trials rests on about two sessions from one animal,
+because the animals barely lick there acutely — and NOT a weakened result.
+
+**Read `_working` for the post-stroke geometry claims.** The `_lick` arms are the selection control
+and are informative only where the two trial sets converge, which is chronic. A figure filename
+ending `_lick` is a different population, not a different rendering of the same one.
