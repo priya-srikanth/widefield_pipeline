@@ -406,11 +406,18 @@ def main() -> int:
         "regime": regime, "n_frames": int(quiet_frame.size),
         "frac_quiet_sample": float(quiet.mean()), "frac_quiet_frame": float(quiet_frame.mean()),
         "n_licks": int(lick_onsets.size), "grooming_used": bool(args.grooming),
+        # THE DEFINITION TRAVELS WITH THE MASK. `reward_buffer` is gone from this list because the
+        # definition no longer has one -- rest is bounded by the TRIAL, and reward is simultaneous
+        # with the cue, so the trial window already contains it. `rest_anchor` records whether the
+        # trial's opening came from `trial_start` or from the strobe fallback, which are different
+        # definitions and must be distinguishable on a mask that is already written.
+        "rest_anchor": rest_note,
         "params": {k: getattr(args, k) for k in (
-            "quiet_speed", "min_quiet_s", "treadmill_buffer", "lick_buffer", "reward_buffer",
+            "quiet_speed", "min_quiet_s", "treadmill_buffer", "lick_buffer",
             "smoothing_sigma_s", "lick_thresh_upper_v", "lick_thresh_lower_v", "refractory_s",
-            "reward_thresh_v", "groom_max_long_s", "groom_buffer")},
-        "tune_later": "running/quiet speed, durations, and lick/reward/treadmill buffers are "
+            "groom_max_long_s", "groom_buffer")},
+        "rest_params": dict(qd),
+        "tune_later": "running/rest speed, durations, and the lick/treadmill buffers are "
                       "starting points (stroke-pipeline defaults); revisit for this rig/task.",
         "grooming_caveat": "single-spout long-touch is an unreliable grooming proxy (a true long "
                            "lick at close spouts also looks long); OFF by default.",
