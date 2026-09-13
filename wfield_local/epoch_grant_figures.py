@@ -3498,6 +3498,22 @@ def main(argv=None) -> int:
     # render on 2026-09-11 -- five families were asked for, one ran, and the only symptom was a
     # figure still showing a number the code no longer produced. `extend` appends, which is what
     # repeating a flag reads as.
+    #: PARALLELISM FOR THIS RENDERER IS PER ARM, and that is a measured choice rather than a
+    #: limitation. The families within one arm SHARE their expensive collectors -- `_epoch_arm` is
+    #: built once and `beta_maps.maps_by_epoch` / `position_reference_maps.maps_by_epoch` are
+    #: lru_cached -- so every family after the first is nearly free. Splitting by FAMILY, the way
+    #: `grant_figures` splits by unit, would rebuild those caches inside each worker and can run
+    #: SLOWER than serial. The three arms genuinely share nothing: different alignment, different
+    #: trial class, different collectors, and figure names carry `_{align}_{variant}` so no two
+    #: arms can write the same file.
+    #: KEYED ON THE DISPLAY NAME, NOT THE ALIGNMENT. `align` is NOT unique -- `cue` names both
+    #: `cue/working` and `cuelick/cue/lick`, and `precue` names both `ENL` and `ENLlick` -- so an
+    #: align-keyed flag silently renders two arms where one was asked for.
+    ap.add_argument("--arm", nargs="+", default=None, action="extend",
+                    choices=tuple(a[0] for a in ARMS),
+                    help="render only these alignment arms (default: all). Use to run the arms as "
+                         "separate concurrent processes; families within an arm share caches and "
+                         "must stay in one process.")
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
@@ -3528,7 +3544,9 @@ def main(argv=None) -> int:
     #: an empty output directory and exit 0.
     ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b", "13s", "14m", "15e",
                 "15r", "mat", "scal"}
-    for disp, align, variant, wname in ARMS:
+    arms = [a for a in ARMS if not args.arm or a[0] in set(args.arm)]
+    print(f"[epoch] arms: {' '.join(a[0] for a in arms)}", flush=True)
+    for disp, align, variant, wname in arms:
         if not (want & ARM_KEYS):
             break
         try:
