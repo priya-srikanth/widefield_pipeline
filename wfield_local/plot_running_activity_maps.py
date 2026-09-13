@@ -37,6 +37,7 @@ import numpy as np
 from wfield_local import config, daq_io
 
 from wfield_local.atlas_overlay import region_edges as _region_edges
+from wfield_local.behavior_events import SCHEMA_VERSION as _EVENTS_SCHEMA
 from wfield_local.behavior_events import load_events
 from wfield_local.framemap_event_maps import _corrected_frame_samples, _offset_from_summary
 
@@ -93,6 +94,23 @@ def main(argv=None) -> int:
     if ev is None:
         raise SystemExit(f"[running_activity] no behavior events at {args.events} "
                          f"(run behavior_events first)")
+    # SCHEMA GATE. This module loads the npz DIRECTLY rather than through
+    # `behavior_events.get_or_compute`, so it does NOT get that function's stale-cache recompute --
+    # and `quiet_starts` KEPT ITS NAME while changing its MEANING at v3 (trial-anchored rest, no
+    # reward buffer). Without this check a stale file would build the rest panel on the RETIRED
+    # definition and say nothing: the figure would render, the maps would look plausible, and the
+    # only clue would be a number that moved for no stated reason. Found 2026-09-12 while asking
+    # whether the preprocessing deck could be rebuilt from the analysis box.
+    _ver = int(ev.get("schema_version", 0)) if hasattr(ev, "get") else 0
+    if _ver < _EVENTS_SCHEMA:
+        raise SystemExit(
+            f"[running_activity] {args.events} is events schema v{_ver}, but this figure assumes "
+            f"v{_EVENTS_SCHEMA}.\n"
+            f"   v3 REDEFINED quiet/rest: it is now bounded by the TRIAL, where v2 excluded 8 s "
+            f"after every reward.\n"
+            f"   The arrays kept their names, so a stale file would silently build the rest panel "
+            f"on the retired definition.\n"
+            f"   Regenerate with:  python -m wfield_local.behavior_events <DATE> --force")
     n = int(ev["n_samples"])
     fs = float(ev["fs"])
     running = _mask_from_edges(ev["running_starts"], ev["running_stops"], n)
