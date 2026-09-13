@@ -9899,3 +9899,107 @@ redraws its stale subtitle without complaint. Check a bundle's mtime against `gi
 reading any number off a redraw. Measured for scale: a 42-panel figure redraws from its bundle in
 **8.6 s** against the ~40 min its analysis costs, so redrawing is cheap and re-reading is where the
 risk sits.
+
+---
+
+## 2026-09-12 — The 3-D calibration: all four cameras solve, and what it actually measures
+
+**CORRECTION TO THE RUNBOOK, which was being read as current.** `runbooks/dlc_orofacial.md` Step 0
+describes the August (`camera_calibration_20260805`) attempt, in which `cam2`/`cam3` failed because
+the board's markers resolved at ~2.1 px per code cell against the ~3 a DICT_4X4 marker needs. That
+text was still steering decisions — it steered me into writing, in a guide for a new student, that
+the side views "cannot be used yet" and that the calibration "has to be re-recorded."
+
+**It was re-recorded, on 2026-09-11, with the 26 mm 7×7 board, and all four cameras pass:**
+
+| camera | max corners in one view | poses (bundle) | verdict |
+|---|---|---|---|
+| cam1 bottom | 23 | 187 | OK |
+| cam2 left | **36** | 86 | OK |
+| cam3 right | **36** | 54 | OK |
+| cam4 front | 29 | 105 | OK |
+
+The bigger board fixed exactly the thing that failed: the side views now resolve **more** corners
+than any other view. Nothing is blocked on calibration. `cam2`/`cam3` are a **priority** decision,
+not a possibility one.
+
+### What the reconstruction is actually good for, measured
+
+Reconstructed on **1,210 frames** seen by two or more cameras, checking the two things the board
+guarantees and the solve never uses — that neighbouring corners are one square apart, and that all
+corners are coplanar:
+
+| quantity | measured | true |
+|---|---|---|
+| square size, per-frame mean | **3.709 mm**, SD across frames **41 µm** | 3.74 mm |
+| scale bias | **−36 µm, −1.0%** | — |
+| planarity (mean abs out-of-plane) | **29 µm** (IQR 14–61) | 0 |
+| reprojection, per-frame median | **2.83 px** (IQR 1.47–5.28) | — |
+
+**The ~40 µm figure quoted elsewhere is the PRECISION, and there is a separate 1% SCALE BIAS.**
+Those are different quantities and conflating them would misstate what the rig can do: relative
+motion is good to tens of microns, while an absolute length carries a percent-level error. A
+single frame is not a measurement of either — the frame with the most corners gave 8.18 px and
+3.625 mm, both unrepresentative, which is why this is computed over the distribution.
+
+---
+
+## 2026-09-12 — No landmark is the exact same physical point from two views
+
+This replaces the rule I wrote into the labelling guide, which did not survive contact with Priya.
+
+**The rule as I first stated it** was that a part should only be labelled in two views if you could
+"point to the same speck of tissue in both", and that `nose` failed this because from below you see
+the ventral surface rather than the tip.
+
+**Both halves were wrong.** Priya: *"the nose is not hidden behind the mouth from below"* — it is
+plainly visible. And then, fatally for the rule itself: *"the lower front edge of the spout isn't
+exactly the same as the upper front edge of the spout (cam1 vs cam4)"*. Correct. The spout is a tube
+with a diameter; the front camera sees its upper front edge and the bottom camera its lower front
+edge, and those are different physical points. The rule as written would have excluded the **spout**
+— the best-defined landmark in the set and one already in every view's list.
+
+**THE PRINCIPLE THAT SURVIVES.** Essentially no landmark with any thickness is the identical point
+from two angles; the discrepancy is roughly the object's diameter. What determines whether that
+matters is whether the offset is **CONSTANT**:
+
+* **Rigid part, fixed cameras** (`spout`) → constant offset. It cancels out of velocity,
+  displacement and timing, and survives only in absolute position. Tolerable, and worth stating
+  rather than hiding.
+* **Deforming part** (`tongue`, `jaw`) → the offset changes with posture, so it does NOT cancel.
+  This is where labelling consistency actually pays, and it is a much better reason to care about
+  the landmark choice than the one in the original guide.
+* **Correspondence failure** (whiskers, below) → not an offset at all, and not correctable.
+
+So the guidance is to label consistently and to know which measurements inherit a bias — not to
+label less.
+
+### Consequence: `nose` added to cam1, cam2 and cam3 (9ac523c)
+
+Priya: *"if worth labeling, add nose and spout to cam1 labeling work and project. and add eyes (R
+for R view, L for L view), nose, jaw, tongue, spout for side view."*
+
+`spout` and the eyes were already right — cam1 had `spout`, cam2 `L_eye`, cam3 `R_eye`. The real
+change is `nose`, now in all four views, so it joins `jaw`/`tongue`/`spout` as a cohort-wide 3-D
+part instead of a cam4-only 2-D one. The config comment that claimed the nose is "not in view at
+all" from below is corrected in place, and three tests that pinned the old design are updated rather
+than deleted.
+
+### OPEN: the whiskers, and why they are a different problem
+
+Priya: *"I'm on the fence about whether to try the whiskers since they will be hard to correlate
+with the front labels (by manual labeling)."*
+
+**That instinct is right, and the whiskers fail in a worse way than anything above.** For every
+other part the cross-view error is an OFFSET. For whiskers it is a **correspondence error**: if
+`L_whiskers_2` in cam4 and `L_whiskers_2` in cam2 are not the same whisker, triangulation confidently
+pairs two different objects. That does not cancel, cannot be corrected downstream, and produces a
+trajectory belonging to neither whisker. A human labelling a frontal view and a profile view has no
+reliable way to verify they picked the same shaft.
+
+**Recommendation, not yet a decision:** treat whiskers as a **per-view 2-D measurement** —
+protraction, amplitude, whisking frequency, left-versus-right asymmetry — which is what PS93's
+right-side phenotype needs and which a profile view measures better than a frontal one anyway. Do
+not build a 3-D whisker claim on manually-corresponded points unless the correspondence can be
+verified independently. The frames are already extracted either way, so this can be decided after
+`cam4`/`cam1` are done, with no rework.
