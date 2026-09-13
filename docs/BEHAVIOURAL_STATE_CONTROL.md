@@ -403,3 +403,54 @@ the only way that question can actually be settled.
 reading slow drift would read it there too. What is ruled out is the version that threatened the
 control: that post-stroke accuracy is held up by the classes having migrated to more separable parts
 of the session.
+
+
+---
+
+## 2026-09-13 — YES, the state decoder falls too. "Preserved" is a RATIO, never "unchanged"
+
+Priya, 2026-09-13: *"does the new decoder show a change in accuracy post-stroke?"* It does, at every
+epoch, and the interval excludes zero even after Bonferroni (`epoch_13delta`, change from pre-stroke
+in balanced accuracy):
+
+| epoch | change | 95% CI | Bonferroni-corrected CI |
+|---|---|---|---|
+| acute | **−0.063** | [−0.121, −0.017] | [−0.130, −0.014] |
+| subacute | **−0.095** | [−0.207, −0.019] | [−0.221, −0.016] |
+| chronic | **−0.029** | [−0.045, −0.012] | [−0.049, −0.010] |
+
+**THE CONTROL HAS NEVER CLAIMED THE STATE READOUT IS UNCHANGED, and a reader who takes
+"preserved" to mean "flat" will misread every panel in section I.** The claim is a RATIO: as a
+fraction of pre-stroke above-chance performance retained (`epoch_13n`),
+
+| | pre | acute | retained |
+|---|---|---|---|
+| POSITION, 6-way | 0.863 | **0.428** | **0.496 — loses 50%** |
+| STATE, 3-way | 0.973 | **0.878** | **0.902 — loses 10%** |
+| RUNNING alone (recall) | 0.990 | 0.956 | loses 3% |
+
+Both fall. Position falls **five times further**, on the same window, the same basis, the same
+estimator and the same frozen-model discipline, with only the LABEL changed. That is the whole
+argument and it does not need the state readout to be flat -- it needs the two to be measured the
+same way, which they are.
+
+**SUBACUTE IS THE STATE DECODER'S WORST EPOCH, not acute** (−0.095 against −0.063), while position's
+worst is acute by a wide margin. The two do not even fall in the same temporal pattern, which is
+further against a common cause.
+
+### The headline numbers moved for STATE and did not move for POSITION
+
+The previously documented triple was *position 0.86 → 0.43 (loses 50%), behavioural state 0.92 →
+0.81 (loses 11%), running alone 0.98 → 0.95 (loses 3%)*. On the REST definition:
+
+* **POSITION is unchanged to three decimals** (0.863 → 0.428). Expected, and a useful check: the
+  position decoder never reads the rest mask (`_build_signal` loads LocaNMF `C` or raw `U`/`SVT`),
+  so the migration could not have touched it. It didn't.
+* **STATE moved** (0.92 → **0.973** pre, 0.81 → **0.878** acute). Expected in the other direction:
+  rest is a CLASS in that decoder, so redefining it redefines a third of the problem. The retained
+  fraction barely moved (0.89 → 0.90), which is why the conclusion is unaffected.
+
+**Both directions are confirmations, not coincidences.** A migration that changed the position
+number would have meant the rest mask was leaking into an analysis that must not see it; one that
+left the state number alone would have meant the class redefinition had no effect on a decoder built
+from it. Neither happened.

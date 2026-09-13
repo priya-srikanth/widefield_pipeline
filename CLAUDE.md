@@ -310,7 +310,14 @@ control (2026-09-11), and the answer to "does everything degrade after the lesio
 target?" The lesion is ventrolateral STRIATAL, so no cortex is damaged: same window, same basis,
 same estimator, same frozen-model discipline, only the LABEL changes. Frozen pre-stroke decoders,
 as the fraction of above-chance performance retained — **position 0.86 → 0.43 acutely (loses 50%),
-behavioural state 0.92 → 0.81 (loses 11%), RUNNING alone 0.98 → 0.95 (loses 3%)**. Read it before
+behavioural state 0.97 → 0.88 (loses 10%), RUNNING alone 0.99 → 0.96 (loses 3%)**.
+**RE-MEASURED 2026-09-13 on the REST definition** (state was 0.92 → 0.81): POSITION is unchanged to
+three decimals because that decoder never reads the rest mask, STATE moved because rest is one of
+its three classes — both directions are confirmations, not coincidences. **ALL THREE FALL**; state
+is −0.063 acute with the interval excluding zero after Bonferroni, and its worst epoch is SUBACUTE
+(−0.095), not acute. The claim is the RATIO — position falls five times further — never that the
+state readout is flat. The session-time confound was tested and is inert (spread 0.008 pre-stroke),
+so the classes are deliberately NOT balanced across time bins. Read it before
 touching `wfield_local/locomotor_{state,features,decoder}.py`: it records the four measurements that
 set the design (the unit is a 1 s SEGMENT not a trial; the window length is set by quiet's 1.10 s
 median; licking is onset-anchored because its bouts median 0.37 s; PS92 8/12 is excluded as a
