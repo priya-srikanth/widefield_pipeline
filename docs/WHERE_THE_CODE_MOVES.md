@@ -255,3 +255,72 @@ Compare **one-vs-rest** against **one-vs-quiet** maps for the same position. If 
 position code and the task-evoked response are spatially confounded and "where the position code is"
 is weaker than it appears. If they differ, that is evidence the decoder reads position rather than
 licking.
+
+
+---
+
+# The between-animal test (2026-09-12) — does the change REPLICATE, in shape?
+
+Every test elsewhere in this arm asks whether a pooled effect differs from zero given the spread
+across four animals. This asks a different and in some ways harder question: **do the animals change
+the same PART of cortex?** It uses no significance machinery at all — just a correlation between
+animals — so it is an independent line of evidence rather than a restatement.
+
+## The statistic and its null
+
+Each animal's own `epoch - pre` map; mean pairwise Pearson r between animals over the 129,770 px of
+`stat_mask`. Scale-free per animal, so the within-animal RMS normalisation cannot affect it.
+
+**A NULL IS MANDATORY HERE**, and the reason is in the data: the PRE-STROKE maps already correlate
+between animals at **r ~= 0.88**. Four mice share gross cortical anatomy, one Allen warp and one
+imaging geometry. A large positive r is the resting state of this statistic.
+
+The null keeps every animal's real delta map but lets each animal draw a DIFFERENT position at that
+epoch. Anatomy, warp, rim and glue survive; only position-specific agreement is destroyed.
+
+## The result
+
+**Acute far-contralateral replicates in shape, under every reference, against a null of ~0:**
+
+| Far Contra, acute - pre | observed | null | p |
+|---|---|---|---|
+| MEAN | +0.819 | +0.018 | 0.001 |
+| QUIET | +0.769 | +0.040 | 0.001 |
+| PRECUE | +0.856 | +0.083 | <0.0005 |
+
+Far MIDDLE acute also clears under the pre-cue reference (+0.440, null +0.086, p = 0.023), which is
+the same near/far ordering the amplitudes give.
+
+**And it identifies a false positive that the amplitudes alone would not have caught.** Near-middle
+acute is +0.655 with p = 0.003 under the MEAN reference and disappears under both uncoupled
+references (QUIET p = 0.243, PRECUE p = 0.190). That is the one-vs-rest coupling documented in the
+section above, now with a number: four animals agreeing on an increase that exists only because the
+shared subtrahend moved. **Under the MEAN reference, high between-animal agreement is what coupling
+PREDICTS, not evidence against it.**
+
+Caveat: 72 cells, uncorrected. Bonferroni would demand p < 0.0007, which only the pre-cue
+far-contralateral cell clears outright; the other far-contra cells sit at 0.07 corrected.
+
+## Why three map families, and what each comparison buys
+
+They differ by exactly one term:
+
+    figure 14 (beta maps)   =  data  +  mean reference  +  decoder/Haufe estimator
+    15r MEANref             =  data  +  mean reference
+    15r REST / PRECUE       =  data
+
+`session_raw_maps` reuses figure 14's window, class definition and trial floor exactly, so:
+
+* **fig 14 vs 15r MEANref** isolates the ESTIMATOR. Figure 14's acute far-contra amplitude inverted
+  (0.47 -> 2.08) when the engaged-only selection bug was fixed — that moved the estimator, not the
+  drive.
+* **15r MEANref vs 15r REST/PRECUE** isolates the REFERENCE. Near-middle acute, above.
+
+**The first comparison cannot diagnose coupling**, because both families share the reference. Their
+agreement rules out the decoder and nothing else. This answers the "related check worth running"
+noted just above: the one-vs-rest versus one-vs-quiet comparison has now been made, and the two do
+NOT look alike at the near positions — which is the evidence that the near-position rises are a
+reference artefact rather than position code.
+
+**Full tables, method, and the retraction of the first null-free version:** `DECISIONS.md`,
+2026-09-12 (night).

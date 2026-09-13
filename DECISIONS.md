@@ -9697,3 +9697,205 @@ sets converge and the arms agree, and state the acute selection limit rather tha
 to find it. This supersedes the plan recorded on 2026-09-12 (8f7a8ce) to settle the question by
 re-rendering crossnobis and best-match on the lick arms: they have now been rendered, and the answer
 is that the discriminator is not available acutely.
+
+---
+
+## 2026-09-12 (night) — a null for the between-animal maps, and what survives it
+
+Priya asked which reference is most stable across animals (*"hm the cue minus precue increment
+actually looks like it might be the most stable across animals"*). The measurement that answers it
+also **retired one claim, rescued another, and exposed a third as an artefact** — so it is recorded
+in full rather than as a headline.
+
+### The statistic, and why a bare correlation was not enough
+
+For each (reference, position, epoch): form each animal's OWN `epoch - pre` map, then take the
+**mean pairwise Pearson r between animals** over the 129,770 px of `stat_mask`. Pearson r is
+invariant to a positive scalar per animal, so `within_animal_pooled`'s division by each animal's
+pre-stroke RMS cannot move any number here — it isolates SHAPE agreement, not size.
+
+**THE FIRST VERSION OF THIS HAD NO NULL, AND I READ A RANKING OFF IT ANYWAY.** That was wrong, and
+the reason is visible in its own output: **the PRE-STROKE maps already correlate between animals at
+r ~= 0.88.** Four mice share gross cortical anatomy, one Allen warp and one imaging geometry, so a
+large positive r is this statistic's resting state, not a finding. Priya: *"What supports this...?"*
+Nothing did.
+
+**THE NULL.** Keep every animal's real delta map, but let each animal independently draw one of the
+six POSITIONS at that epoch. Shared anatomy, warp, rim and glue survive the shuffle intact; only
+"the animals change in the same POSITION-SPECIFIC way" is destroyed. 2,000 draws, `p` = fraction at
+or above the observed. Per cell and uncorrected over 72 cells — a screen, not a verdict; Bonferroni
+would need p < 0.0007.
+
+Computed from a precomputed 24 x 24 Gram matrix (4 animals x 6 positions, z-scored once per epoch),
+because the naive form is ~10^11 multiplies and the draws only ever re-index the same vectors.
+
+### What it establishes
+
+**1. THE ACUTE FAR-CONTRALATERAL RESULT IS REAL AND REFERENCE-INDEPENDENT.**
+
+| Far Contra, acute - pre | observed | null mean | p |
+|---|---|---|---|
+| MEAN | +0.819 | +0.018 | 0.001 |
+| QUIET | +0.769 | +0.040 | 0.001 |
+| **PRECUE (deck window)** | **+0.856** | +0.083 | **<0.0005** |
+| PRECUE (npz window) | +0.859 | +0.069 | 0.001 |
+
+Nulls at zero under every reference. The four animals change far-contralateral cortex in the same
+spatial shape, and that agreement is position-specific rather than anatomical. This is a line of
+evidence independent of the significance machinery — a plain correlation between animals — and it
+converges with the encoder's 0.749 -> 0.286 -> 0.745 and with the per-animal panels.
+
+**2. THE MEAN REFERENCE'S NEAR-POSITION "INCREASES" ARE THE COUPLING ARTEFACT, MEASURED.**
+
+| acute - pre | MEAN | QUIET | PRECUE |
+|---|---|---|---|
+| Near Middle | **+0.655, p=0.003** | +0.091, p=0.243 | +0.174, p=0.190 |
+| Near Ipsi | +0.418, p=0.066 | +0.151, p=0.149 | +0.194, p=0.145 |
+| Far Middle | +0.214, p=0.206 | +0.243, p=0.071 | **+0.440, p=0.023** |
+| Far Contra | +0.819, p=0.001 | +0.769, p=0.001 | +0.856, p<0.0005 |
+
+Near-middle is strongly AND significantly consistent under MEAN and vanishes under both uncoupled
+references. Four animals agreeing on a change that exists only because the shared subtrahend moved
+— exactly the mechanism Priya identified on figure 14, now with a number on it. **A high
+between-animal r under the MEAN reference is not evidence; it is what coupling predicts.**
+
+**3. THE QUIET REFERENCE'S CHRONIC COLUMN CARRIES NO INFORMATION.** Observed +0.494 against a null
+mean of **+0.497**; per position p = 0.213 to 0.974. Position-INDEPENDENT shared offset, consistent
+with a baseline estimated from a median 0.7% of frames at chronic. See
+`docs/REST_BASELINE_MIGRATION.md` (on branch `worktree-rest-baseline`, not yet merged); this is
+one of the two measurements that forced the rest-baseline
+change.
+
+**4. THE PRE-CUE WINDOW CONFOUND WAS WORTH REMOVING, AND IT MOVED THE NEAR POSITIONS ONLY.** Clean
+(deck window) against the preprocessing npz, acute:
+
+| | clean | npz |
+|---|---|---|
+| Near Ipsi | **+0.194** | **-0.086** |
+| Near Middle | **+0.174** | **-0.061** |
+| Near Contra | **+0.145** | **-0.060** |
+| Far Middle | +0.440 | +0.545 |
+| Far Contra | +0.856 | +0.859 |
+
+Near positions FLIP SIGN; far-contralateral is unchanged to three decimals. So the old npz window
+(1 s post minus 1 s pre, the imaging box's trial set and pipeline) was distorting the near positions
+while leaving the headline intact.
+
+**5. AVERAGED OVER POSITIONS**, observed [null]:
+
+| contrast | MEAN | QUIET | PRECUE | PRECUE npz |
+|---|---|---|---|---|
+| pre (baseline) | +0.637 | +0.877 | +0.849 | +0.831 |
+| acute - pre | +0.390 [+0.015] | +0.214 [+0.036] | +0.322 [+0.084] | +0.213 [+0.064] |
+| subacute - pre | +0.167 [-0.000] | +0.100 [+0.058] | +0.256 [+0.171] | +0.166 [+0.090] |
+| chronic - pre | -0.050 [+0.003] | +0.494 [+0.497] | +0.212 [+0.264] | +0.155 [+0.214] |
+
+MEAN's nulls sit at zero throughout because subtracting the trial mean removes shared structure —
+which is the same property that couples the positions. PRECUE's chronic observed (+0.212) is BELOW
+its own null (+0.264): no position-specific agreement at chronic under that reference either.
+
+**PRIYA'S HUNCH HOLDS, once the window confound is removed.** The clean pre-cue increment is the
+only reference where both far positions reach acute significance and no near position does.
+
+---
+
+## 2026-09-12 (night) — how the three map families decompose, and what each comparison isolates
+
+Priya: *"so how does the comparison help us interpret the beta maps?"* The families differ by
+exactly one term each, which is what makes them a controlled set rather than three opinions:
+
+    figure 14 (beta maps)   =  data  +  mean reference  +  decoder/Haufe estimator
+    15r MEANref             =  data  +  mean reference
+    15r REST / PRECUE       =  data
+
+`position_reference_maps.session_raw_maps` deliberately reuses figure 14's window, its `working`
+class definition including the miss-while-working arm, and its 20-trial floor, so the ONLY
+difference between the first two is the estimator.
+
+* **fig 14 vs 15r MEANref** isolates the ESTIMATOR — the fit, the folds, the regularisation, the
+  Haufe transform. Worked example: figure 14's acute far-contra amplitude INVERTED (0.47 -> 2.08)
+  when the engaged-only trial-selection bug was fixed. That moved figure 14 and not the underlying
+  drive.
+* **15r MEANref vs 15r REST/PRECUE** isolates the REFERENCE — the one-vs-rest coupling. Worked
+  example: near-middle acute, item 2 above.
+
+**WHAT THE FIRST COMPARISON CANNOT DO, stated because it is tempting to over-read.** Figure 14 and
+15r MEANref SHARE the reference, so their agreement rules out the decoder and says nothing about
+coupling. For a row that rises in both, an uncoupled reference is still required to decide whether
+the rise was earned.
+
+Reading the disagreements:
+
+| | reading |
+|---|---|
+| in 15r MEANref, not in fig 14 | a real drive difference that does not carry position IDENTITY — shared across positions, or too unreliable for a regularised block-CV fit to keep |
+| in fig 14, not in 15r MEANref | a small but consistent discriminative direction the raw average cannot resolve; about SEPARABILITY, not about how much cortex was driven |
+| in both | the pattern is in the evoked activity; the decoder did not manufacture it |
+
+Figure 14 also has a failure mode 15r does not: it needs a fittable decoder (>=2 classes per
+training fold, >=2 blocks), so a position the animal has largely stopped attempting can drop out of
+figure 14 while still yielding a perfectly good trial average in 15r.
+
+---
+
+## 2026-09-12 (night) — the exclusions are absent from every test, verified by planting effects
+
+Priya: *"we're not including the glue mask or olfactory bulbs in the cluster test right"*. Checked
+two ways rather than by reading the call chain.
+
+**BY CONSTRUCTION.** All four tests default to `stat_mask()` = `brain_mask()` eroded 16 px, and
+`brain_mask` subtracts both exclusions at the single definition:
+
+| | pixels | surviving into stat_mask |
+|---|---|---|
+| olfactory bulbs (MOB, both) | 15,106 | **0** |
+| painted glue (union) | 40,663 | **0** |
+| display mask | 151,447 | — |
+| statistics mask | 129,770 | — |
+
+**EMPIRICALLY.** Planting a 20.0 effect ONLY inside the excluded zones: the cluster test flags 0 px
+and the nested bootstrap flags 0 in three of five seeds, 2 bins in the other two — and NONE of the
+flagged pixels lie in the excluded region (0 of 127). `downsample` averages only in-mask pixels, so
+an excluded pixel contributes nothing to any bin's value; the occasional two bins are the
+max-statistic's own 5% family-wise rate, which controls P(any false positive) per TEST, not per bin.
+
+**ONE COSMETIC CAVEAT, not an inferential one.** `upsample_mask` expands a flagged bin back to 8x8,
+so a contour on a boundary bin can DRAW a few pixels over excluded territory even though the test
+never used them. Bounded at one bin width.
+
+**THE PAINTED GLUE IS BILATERAL BY DESIGN** (Priya, 2026-09-12: *"there was some posterior R
+cortical glue that bleeds into the image, so i did mask it"*). The masks cover AUDp, TEa, VISpor and
+VISpl on the RIGHT at 100% and VISp_right at 31% as well as the left-hemisphere occlusion. That is
+intended, and it means right posterior visual/auditory cortex is untestable — any claim about
+posterior visual cortex is one-sided.
+
+---
+
+## 2026-09-12 (night) — three figure families announced a correction that had been retired
+
+`15r`, `15e` and `14m` carried the literal string *"Bonferroni over 3,237 in-mask bins"* in their
+subtitles for hours after the threshold became the bootstrap max-statistic. **The figures computed
+one thing and told the reader another**, and a redraw from a saved bundle reproduced the wrong
+sentence as faithfully as the right picture.
+
+**THE COUNT WAS WRONG BY MORE THAN THE CORRECTION WAS.** 3,237 predates the olfactory bulbs, the
+painted glue and the 16 px erosion leaving the mask. The live numbers are **2,362 bins in the
+display mask and 2,022 in the eroded statistics mask** — the figures claimed 60% more tests than
+were performed.
+
+Fixed structurally rather than by retyping: `epoch_grant_figures._stats_sentence` BUILDS the
+sentence from the rows `significance_contour` stashes, and `_n_stat_bins` computes the count from
+the mask. A subtitle can no longer disagree with the test that drew the contours. Figure 14z keeps
+its Bonferroni wording — there it is deliberate, reproducing Musall et al. 2023 fig S6 — but its
+count is derived too.
+
+**A BUG FOUND WHILE WRITING THE HELPER, worth recording because the wrong number looked plausible:**
+`downsample` returns `(small, small_mask)`, and counting finite values of the TUPLE gave 10,720 —
+exactly twice the 67x80 grid, because numpy stacked both arrays. The bin count is
+`downsample(...)[1].sum()`, which `musall_significance` already returns as `n_tested`.
+
+**AND THE GENERAL LESSON, which cost a stale figure earlier the same day:** a saved map bundle
+redraws its stale subtitle without complaint. Check a bundle's mtime against `git log` before
+reading any number off a redraw. Measured for scale: a 42-panel figure redraws from its bundle in
+**8.6 s** against the ~40 min its analysis costs, so redrawing is cheap and re-reading is where the
+risk sits.
