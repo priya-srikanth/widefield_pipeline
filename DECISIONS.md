@@ -10307,3 +10307,78 @@ The route needs TWO labelled views, so jaw/tongue/nose in cam2/cam3 follow Priya
 SPOUT does not: it is commanded and stationary within a trial (3.34 px, measured today), so roughly
 one cam1 spout click per position per session triangulates against cam4's donor spout and seeds the
 spout in every cam2/cam3 frame.
+
+---
+
+## 2026-09-13 (later) — The labelling set rebuilt, and what triangulation actually refused
+
+### The prune, and a keep-rule that was wrong in the safe-sounding direction
+
+`extract` only ever ADDS, so the re-extraction left the old unanchored selection beside the new one:
+**4,278 frames on disk against a plan of 960**. Priya: *"keep labelled cam1 frames but otherwise ok
+to prune."*
+
+The first keep-rule was "any frame any CollectedData file places a point on", which sounds like the
+conservative choice and is not. **929 of the 998 frames it protected were cam4 DONOR OUTPUT**, so it
+preserved all 1,099 cam4 frames and defeated the prune entirely — leaving a labeller ~850 stale
+frames to wade through. Machine seeds regenerate in minutes; human labels do not. The rule is now
+mtime against the seeding run, re-checked immediately before deleting rather than trusted from an
+earlier look: **26 files stamped 2026-09-08 (donor), one stamped 2026-09-10 (cam1, Priya)**.
+
+Result: **4,278 -> 1,030 frames**, 15 folders x 16 frames per camera, plus 70 earlier cam1 frames
+kept because they carry Priya's labels. 52 stale donor label files removed as well — after the prune
+they referenced 859 deleted frames, and `dlc_prelabel` refuses to overwrite, so they would have
+blocked re-seeding. Recoverable throughout: the source videos are untouched and extraction is
+deterministic, which is why derived PNGs are not covered by the never-delete rule.
+
+cam4 re-seeded at **81.3%** (1,951 points over 240 frames): nose 95%, jaw 54%, **tongue 29%**,
+whiskers 79-100%, spout 79%. The tongue figure is not a failure — roughly half the frames are
+cue-locked, where the tongue is inside the mouth and a BLANK IS THE CORRECT ANSWER.
+
+### cam1 is NOT the best view of the tongue
+
+Priya: *"the spout often blocks the tongue tip from cam 1, i still think cam4 is best."* I had
+written the opposite into the config and twice into the guide. From below the spout sits between the
+camera and the extended tongue, so the tip — the part the landmark is defined by — is the part most
+often hidden. Labelling order stays **cam4 -> cam1 -> cam2/cam3**.
+
+**The guide also still carried the CONSTANT-OFFSET argument retracted on 2026-09-12.** That
+retraction was made in this file and never propagated, so a document written to teach a new student
+carried a claim already known to be false for a day. Fixed. *Retracting something here is not the
+same as retracting it everywhere it was said.*
+
+### Triangulation seeding: the harness works, the inputs do not
+
+Running the donor on all four views, triangulating, and keeping only what the geometry accepts:
+
+| bodypart | attempts | accepted | accept % | median resid px |
+|---|---|---|---|---|
+| L_whiskers_3 | 240 | 25 | 10.4 | 4.64 |
+| jaw | 179 | 12 | 6.7 | 8.85 |
+| tongue | 151 | 3 | 2.0 | 10.29 |
+| spout | 119 | 1 | 0.8 | 4.00 |
+| nose | 240 | 1 | 0.4 | 4.88 |
+| eyes, R_whiskers_1-3, L_whiskers_1 | — | 0 | 0.0 | — |
+
+**134 seed points in total, and the prediction I made beforehand was wrong.** I expected spout and
+nose to accept HIGH and tongue LOW. Everything failed, including the rigid, high-contrast landmarks
+— which means the failure is NOT about landmark correspondence. The donor simply does not locate
+anything in cam1/cam2/cam3, and the geometry correctly refused all of it. Over 98% rejected is the
+safety mechanism doing its job: trusting the network's own confidence instead would have written
+thousands of confidently-wrong seeds into folders a student is about to open.
+
+**THE WHISKER QUESTION IS THEREFORE STILL OPEN, and the claim that this run would settle it is
+withdrawn.** Testing whether `L_whiskers_1` means the same whisker in cam4 and cam2 requires two
+views that each FIND the whisker. Only cam4 does. `L_whiskers_3` at 10.4% is noise, not evidence in
+either direction.
+
+**A distinction I blurred and am recording so it is not blurred again:** the 4.48 px / 7.71 px
+reprojection measurement validated the GEOMETRY, not the INPUTS. It was scored on ChArUco corners
+whose position is known in all four views, so it shows the calibration can carry a point between
+cameras — and says nothing about whether a network can find that point in a side view. Saying that
+spout seeding for cam2/cam3 was available "almost immediately" conflated the two.
+
+**What stands:** the route is sound and now one command. Once cam1 is hand-labelled, cam4+cam1 are
+two good views and `dlc_seed3d` seeds both side views at the measured accuracy. That makes cam1 the
+gate for three cameras rather than one. The 134 points are NOT written: scattered over 720 frames
+they are worth nearly nothing, and a seed on screen anchors where a human clicks.
