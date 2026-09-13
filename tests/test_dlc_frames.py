@@ -424,3 +424,27 @@ def test_two_licks_in_ONE_trial_do_not_both_ride_in_on_a_single_key(monkeypatch)
     kept = df.prune_by_appearance(rows, target=4)
     n = {c: sum(1 for r in kept if r["cam"] == c) for c in ("cam4", "cam1")}
     assert n["cam1"] == n["cam4"], f"side view did not mirror the anchor: {n}"
+
+
+def test_thinning_to_two_per_epoch_keeps_every_animal_present():
+    """Sorting by name and truncating hands every epoch to the alphabetically-first animals and
+    drops the last one from the labelling set entirely. A network that never saw an animal after its
+    stroke is the failure this module was written to avoid, so the thinning rotates instead.
+    """
+    sessions = [(a, "20260606", "s", ep)
+                for ep in ("acute", "chronic", "pre", "subacute")
+                for a in ("PS92", "PS93", "PS94", "PS95")]
+    kept = df._thin_epochs(sessions, 2)
+    assert len(kept) == 8
+    assert {a for a, *_ in kept} == {"PS92", "PS93", "PS94", "PS95"}, "an animal was dropped"
+    per_epoch = {}
+    for a, _, _, ep in kept:
+        per_epoch.setdefault(ep, []).append(a)
+    assert all(len(v) == 2 and len(set(v)) == 2 for v in per_epoch.values()), \
+        "an epoch got the same animal twice while another animal went unrepresented"
+
+
+def test_thinning_is_deterministic_and_zero_keeps_everything():
+    sessions = [(a, "20260606", "s", ep) for ep in ("pre", "acute") for a in ("PS92", "PS93")]
+    assert df._thin_epochs(sessions, 0) is sessions
+    assert df._thin_epochs(sessions, 1) == df._thin_epochs(sessions, 1)

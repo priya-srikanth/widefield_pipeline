@@ -340,14 +340,30 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       Cue: 0.05               # within the 100 ms cue pulse
       early: 0.40             # first licks -- where the tongue is out and worth labelling
       late: 1.50              # into the response window; consummatory licking or a failed attempt
-    target_per_session: 32    # FRAMES KEPT per session per camera, after appearance pruning. The
-                              # planner above proposes ~96; this keeps the 32 most visually distinct
+    sessions_per_epoch: 0     # 0 = ONE SESSION PER ANIMAL x EPOCH (15 sessions). The mechanism for
+                              # "2 per epoch across animals" is implemented and tested -- set this
+                              # to 2 -- but it is not what the cohort should use, and the reason is
+                              # worth keeping because the totals hide it.
+                              #
+                              # At 2 per epoch the frame counts come out PERFECTLY BALANCED, 256 per
+                              # animal and 256 per epoch, while covering only 8 of the 16 animal x
+                              # epoch cells. PS93 -- the right-orofacial-deficit animal -- landed in
+                              # acute but in neither subacute nor chronic, so the one animal whose
+                              # recovery the tracking has to follow would be labelled nowhere after
+                              # its worst day. Degrading tracking and genuine recovery are then the
+                              # same measurement.
+                              #
+                              # Cutting frames per session instead reaches the SAME budget (15 x 16
+                              # = 240 per camera against 8 x 32 = 256) with every cell intact, so
+                              # the coverage was free. Balanced totals are not coverage.
+    target_per_session: 16    # FRAMES KEPT per session per camera, after appearance pruning. The
+                              # planner above proposes ~96; this keeps the 16 most visually distinct
                               # within each (pool x spout position) cell. DLC wants a few hundred
-                              # labelled frames, not a few thousand -- 13 sessions x 32 = ~420 per
+                              # labelled frames, not a few thousand -- 15 sessions x 16 = 240 per
                               # camera, which is where the network is fed and a person is not
                               # drowned. Set to 0 to keep every candidate.
-    lick_fraction: 0.5        # half the kept budget: 16 frames = FOUR whole licks of four offsets,
-                              # per session, so ~52 distinct licks and ~208 tongue frames across the
+    lick_fraction: 0.5        # half the kept budget: 8 frames = TWO whole licks of four offsets per
+                              # session, so ~30 distinct licks and ~120 tongue frames across the
                               # cohort. Far above the tongue's share of wall-clock time --
                               # tongue's share of wall-clock time, deliberately: it is the hardest
                               # part to track, the only one ever fully hidden, and the one the

@@ -140,6 +140,26 @@ def lick_fraction() -> float:
     return float(_cfg().get("frames", {}).get("lick_fraction", 0.5))
 
 
+def sessions_per_epoch() -> int:
+    """Sessions kept per EPOCH, across animals, or 0 for one per animal x epoch.
+
+    Priya, 2026-09-13: "we shouldnt need to label every session; 2 per epoch, across animals, should
+    be ok." Correct on the frame count -- one session per animal x epoch is 15 sessions and several
+    hundred frames per camera more than DLC needs.
+
+    THE COST IS NOT UNIFORM, and it lands where this module's docstring already says the risk is.
+    At 2 per epoch only 2 of 4 animals appear in each, so some animal is absent from some
+    post-stroke epoch -- and "the 2pRAM cohort saw post-stroke tongue tracking fall apart in its two
+    severe animals" is exactly that failure, a tracking artefact on top of a real deficit and nearly
+    impossible to separate afterwards. So the sessions are chosen to ROTATE animals across epochs
+    rather than taken in name order: every animal still appears, in as many distinct epochs as the
+    quota allows. That mitigates the risk; it does not remove it. Cutting frames per session instead
+    reaches the same total with every animal x epoch cell intact, and is the safer knob if the
+    tracking later looks worse for one animal after its stroke.
+    """
+    return int(_cfg().get("frames", {}).get("sessions_per_epoch", 0))
+
+
 def lick_offsets_s() -> list[float]:
     """Seconds from a lick onset to sample, spanning the tongue-out epoch.
 
@@ -739,7 +759,33 @@ def cohort_sessions(rv=None, animals=None, cams=None) -> list[tuple[str, str, st
                   f"THIS EPOCH WILL NOT BE LABELLED", flush=True)
             continue
         out.append((an, pick[0], pick[1], ep))
-    return out
+    return _thin_epochs(out, sessions_per_epoch())
+
+
+def _thin_epochs(sessions, n_per_epoch: int):
+    """Keep ``n_per_epoch`` sessions per epoch, spreading ANIMALS rather than taking them in order.
+
+    Sorting by name and truncating would hand every epoch to PS92 and PS93 and leave PS95 out of the
+    set entirely. Picking the least-used animal at each step instead keeps all four present and
+    maximises the number of distinct epochs each one appears in -- which is the coverage that
+    matters, since a network that never saw an animal after its stroke is the failure mode this
+    module was written to avoid.
+    """
+    if not n_per_epoch:
+        return sessions
+    used: dict[str, int] = {}
+    kept = []
+    for ep in sorted({e for *_, e in sessions}):
+        pool = sorted((a, d, s, e2) for a, d, s, e2 in sessions if e2 == ep)
+        for _ in range(min(n_per_epoch, len(pool))):
+            a, d, s, e2 = min(pool, key=lambda r: (used.get(r[0], 0), r[0]))
+            pool.remove((a, d, s, e2))
+            used[a] = used.get(a, 0) + 1
+            kept.append((a, d, s, e2))
+    dropped = len(sessions) - len(kept)
+    print(f"[dlc_frames] {n_per_epoch} session(s) per epoch: kept {len(kept)}, dropped {dropped}"
+          f"   animals {dict(sorted(used.items()))}", flush=True)
+    return sorted(kept)
 
 
 def date_sessions(date: str, rv=None, animals=None) -> list[tuple[str, str, str, str]]:
