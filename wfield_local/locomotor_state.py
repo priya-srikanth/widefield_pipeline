@@ -158,12 +158,25 @@ EXCLUDE_SESSIONS = ("PS92_0812",)
 
 
 def segments(starts, stops, fs, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
-             onset_anchored=False):
+             onset_anchored=False, from_end=True):
     """``(seg_start_samples, period_id)`` -- non-overlapping windows tiled inside each period.
 
-    Tiling starts at each period's START rather than centring, so a long bout's segments are
-    deterministic and a re-run cannot shift them; and it drops the remainder rather than stretching
-    the last window, because a 0.4 s window binned into four is not the same feature as a 1 s one.
+    Tiling is deterministic and drops the remainder rather than stretching the last window, because
+    a 0.4 s window binned into four is not the same feature as a 1 s one.
+
+    ``from_end`` (DEFAULT) TILES BACKWARDS FROM THE PERIOD'S STOP. Priya, 2026-09-12: "for the state
+    decoder I would rather use the end of the window than the beginning (avoid leftover incomplete
+    licks)." A rest period OPENS the moment the lick buffer expires, so whatever residual licking or
+    consumption the buffer only just cleared sits at its START; the far end is the part of the
+    interval most surely free of it. With the trial-anchored rest definition a period also CLOSES at
+    the next `trial_start`, which precedes the spout movement, so an end-anchored window ends before
+    anything about the next trial has happened.
+
+    THE COUNTER-CONSIDERATION, stated because it is not nothing: the inter-trial interval is fairly
+    regular (median 2.47 s, p1 1.81, p90 3.07), so an animal could anticipate the next trial, and
+    end-anchored windows sit exactly where such anticipation would be. Start-anchored windows trade
+    that for proximity to the previous trial's licking. Neither end is unimpeachable; this picks the
+    one whose contaminant is bounded by an explicit buffer rather than by the animal's timing.
 
     ``onset_anchored`` KEEPS PERIODS SHORTER THAN THE WINDOW, by emitting one window from the
     period's onset and letting it run past the end. That is right for LICKING and wrong for the
@@ -191,9 +204,14 @@ def segments(starts, stops, fs, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
     for pid, (a, b) in enumerate(zip(np.asarray(starts, np.int64), np.asarray(stops, np.int64))):
         k = min(int((b - a) // n), int(cap))
         if onset_anchored and k == 0:
-            k = 1
+            # A period shorter than the window still emits ONE window from its onset -- see above;
+            # this is the licking case, where the anchor IS the event and `from_end` is meaningless.
+            out_s.append(a)
+            out_p.append(pid)
+            continue
         for j in range(k):
-            out_s.append(a + j * n)
+            # backwards from the stop, or forwards from the start
+            out_s.append(b - (j + 1) * n if (from_end and not onset_anchored) else a + j * n)
             out_p.append(pid)
     return np.asarray(out_s, np.int64), np.asarray(out_p, np.int64)
 

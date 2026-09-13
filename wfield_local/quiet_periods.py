@@ -97,9 +97,114 @@ def set_short_bool_to_low(b: np.ndarray, n: int) -> np.ndarray:
 #: manifest says which definition produced it. Retiring a variant is then a config edit, and the
 #: comparison stays available -- which matters here, because the change moves a lot of results and
 #: "did it move because of this?" has to remain answerable.
+def response_window_s(session_dir=None):
+    """The session's real response window (s), or the configured default.
+
+    READ PER SESSION, because it is a task setting that can be retuned -- `daq_trials` already does
+    this and the two must not disagree. Every session to date ran 3500 ms.
+    """
+    from wfield_local import config as _cfg
+
+    default = float(_cfg.defaults()["decode"]["max_rt_s"])
+    if session_dir is None:
+        return default, "default"
+    try:
+        from wfield_local.daq_trials import response_window_s as _rw
+
+        return _rw(session_dir, default)
+    except Exception:                                                  # noqa: BLE001
+        return default, "default"
+
+
+def trial_exclusion(n, fs, cue_s, trial_start_s, strobe_s, *, params=None, session_dir=None):
+    """Boolean, True where a sample is INSIDE a trial and so may not be rest.
+
+    THE TRIAL, NOT THE REWARD (2026-09-12). The retired definition excluded a fixed 8 s after every
+    reward, which made the category track the animal's PERFORMANCE: a post-stroke mouse that misses
+    more has less of its session buffered out, and "quiet" measured 4.4% of frames pre-stroke
+    against 17.1% acutely. Anchoring on the trial removes that coupling by construction, because the
+    spout moves and the cue plays whether or not the animal succeeds. Measured acute/pre: 3.89 -> 1.10.
+
+    A trial occupies ``[trial_start, cue + response_window + settle]``:
+
+    * IT OPENS AT `trial_start`, NOT AT THE STROBE. Firmware `startTrial` moves the spout and only
+      THEN pulses the strobe, so the strobe fires AFTER the movement -- a window ending at the
+      strobe contains the spout's travel. `trial_start` precedes the strobe on 16,607 of 16,607
+      trials by a median 0.925 s (p1 0.623, p99 1.043), which IS the travel time. Where a session
+      has no `trial_start` bit, the opening falls back to ``strobe - strobe_fallback_s`` and the
+      caller is told, because that is a different definition and must not pass silently.
+    * IT CLOSES AT cue + response_window + settle. See `settle_s` in the config for why 0.5 s: the
+      settle guards nothing else misses -- reward arrives 6 ms after the cue, so the trial window
+      already contains it -- and 0.5 s leaves 2.02 s of rest per trial against 1.52 s at 1.0 s.
+
+    Returns ``(mask, note)``; `note` names the opening actually used.
+    """
+    from wfield_local import config as _cfg
+
+    p = dict(params or _cfg.defaults()["segmentation"]["rest"])
+    rw, _src = response_window_s(session_dir)
+    settle = float(p.get("settle_s", 0.5))
+
+    cue = np.asarray(cue_s, float)
+    ts = np.asarray(trial_start_s if trial_start_s is not None else [], float)
+    if ts.size:
+        opens, note = ts, "trial_start"
+    else:
+        # NO trial_start BIT. Fall back to the strobe pulled back by the measured travel time, and
+        # say so -- this is a DIFFERENT definition and a session using it must be identifiable.
+        opens = np.asarray(strobe_s, float) - float(p.get("strobe_fallback_s", 1.0))
+        note = f"strobe-{float(p.get('strobe_fallback_s', 1.0)):g}s (no trial_start bit)"
+
+    mask = np.zeros(int(n), bool)
+    closes = cue + rw + settle
+    # ALL TIMES ARE SECONDS; samples are seconds * fs. This read `a / sr * fs` with `sr` defaulting
+    # to `fs`, which is algebraically just `a` -- so a time in seconds was used directly as a sample
+    # index and only the first few thousand samples of each session were ever marked in-trial. The
+    # symptom was rest measuring 62% of an acute session, against 36% for the variant that applies
+    # NO trial exclusion at all: an impossible number, which is why the smoke test existed.
+    j = np.searchsorted(opens, cue, side="right") - 1
+    for k in range(cue.size):
+        a = opens[j[k]] if j[k] >= 0 else cue[k] - rw
+        i0 = int(max(0, round(a * fs)))
+        i1 = int(min(n, round(closes[k] * fs)))
+        if i1 > i0:
+            mask[i0:i1] = True
+    return mask, note
+
+
+def rest_mask(n, fs, speed, lick_onsets, cue_s, trial_start_s, strobe_s, *,
+              params=None, session_dir=None):
+    """``(mask, note)`` -- the REST mask. THE SINGLE DEFINITION every consumer resolves to.
+
+    Two modules used to compute this independently -- this one from argparse literals and
+    `behavior_events` from the config -- with a comment in the second claiming they agreed. They
+    could not be made to disagree loudly, only quietly, and editing the config moved one of them.
+    Both now call this.
+
+    REST = inside no trial, AND slow treadmill (buffered), AND away from licking. There is no reward
+    term: reward is simultaneous with the cue, so the trial window already contains it, and a reward
+    term would couple the category to how often the animal earned water.
+    """
+    from wfield_local import config as _cfg
+
+    p = dict(params or _cfg.defaults()["segmentation"]["rest"])
+    in_trial, note = trial_exclusion(n, fs, cue_s, trial_start_s, strobe_s, params=p,
+                                     session_dir=session_dir)
+
+    def wid(b, buf):
+        return widen_bool_sparse(b, int(buf[0] * fs), int(buf[1] * fs))
+
+    slow = np.asarray(speed) < float(p["speed_mm_s"])
+    rest = (~in_trial
+            & ~wid(~slow, p["treadmill_buffer_s"])
+            & ~wid(idx2bool(np.asarray(lick_onsets, np.int64), int(n)), p["lick_buffer_s"]))
+    rest = set_short_bool_to_low(rest, int(float(p["min_rest_s"]) * fs))
+    return rest, note
+
+
 def quiet_variant():
     """The configured variant string, or "" for the original masks."""
-    return str(config.defaults()["segmentation"]["quiet"].get("variant", "") or "")
+    return str(config.defaults()["segmentation"]["rest"].get("variant", "") or "")
 
 
 def quiet_dir(mc, variant=None, tag=None):
@@ -110,18 +215,22 @@ def quiet_dir(mc, variant=None, tag=None):
     return f"{mc}/quiet_{tag}" + (f"_{v}" if v else "")
 
 
-def quiet_frame_path(mc, variant=None, tag=None, fallback=True):
+def quiet_frame_path(mc, variant=None, tag=None, fallback=False):
     """Path to the per-corrected-frame quiet mask, or None.
 
     RESOLVES IN ONE PLACE. Six modules used to glob `{mc}/quiet_affine8v1/*quiet_frame.npy`
     independently -- `position_reference_maps`, `locanmf_position_encoder`,
     `locanmf_cue_lick_analysis`, `preprocess`, `roi_activity` and the lick-aligned pair -- so
     selecting a different definition would have meant editing six literals and hoping none was
-    missed. With `fallback` the configured variant is preferred and the original is used when it is
-    absent, so a partially recomputed cohort degrades per session rather than per figure.
+    missed.
 
-    A SESSION FALLING BACK IS NOT SILENT: callers that mix variants across sessions would be
-    averaging two definitions of the baseline, so `quiet_variant_used` reports which was taken.
+    **`fallback` DEFAULTS TO FALSE, AND THAT IS THE WHOLE POINT.** An earlier version of this
+    defaulted to True, reasoning that a partially recomputed cohort should "degrade per session
+    rather than per figure". That is backwards: falling back means a pooled map averages two
+    DIFFERENT DEFINITIONS of its own subtrahend, with nothing on the figure to say so -- which is
+    precisely the failure the variant directories exist to prevent, reintroduced one level down. A
+    session without the selected variant loses its rest column instead, the same way a session with
+    no mask at all already does, and the count is reported.
     """
     import glob
 
@@ -189,7 +298,7 @@ def main() -> int:
     # silently, with nothing in either output saying which had been used. Found 2026-09-12 while
     # changing the reward buffer.
     seg = config.defaults()["segmentation"]
-    tr, qd = seg["treadmill"], seg["quiet"]
+    tr, qd = seg["treadmill"], seg["rest"]
     ap.add_argument("--tread-channel", default=tr["channel"])
     ap.add_argument("--offset-v", type=float, default=tr["offset_v"])
     ap.add_argument("--volt-sec-per-rot", type=float, default=tr["volt_sec_per_rot"])
@@ -210,8 +319,8 @@ def main() -> int:
     # reward
     ap.add_argument("--reward-channel", default=seg["reward"]["channel"])
     ap.add_argument("--reward-thresh-v", type=float, default=seg["reward"]["thresh_v"])
-    ap.add_argument("--reward-buffer", type=float, nargs=2,
-                    default=tuple(qd["reward_buffer_s"]))
+    # NO reward buffer: rest is now anchored on the TRIAL, and reward is simultaneous
+    # with the cue, so the trial window already contains it.
     # grooming (OFF by default; unreliable with one close spout)
     ap.add_argument("--grooming", action="store_true",
                     help="EXPERIMENTAL: exclude single-spout long-touch as grooming. "
@@ -220,7 +329,7 @@ def main() -> int:
     ap.add_argument("--groom-max-long-s", type=float, default=0.4)
     ap.add_argument("--groom-buffer", type=float, nargs=2, default=(6.0, 6.0))
     # output mask shaping
-    ap.add_argument("--min-quiet-s", type=float, default=qd["min_quiet_s"],
+    ap.add_argument("--min-quiet-s", type=float, default=qd["min_rest_s"],
                     help="drop quiet runs shorter than this (stroke rest-bout default was 10 s)")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -258,17 +367,24 @@ def main() -> int:
     lick_bool = idx2bool(lick_onsets, n)
     reward_bool = idx2bool(_rising(reward_v, args.reward_thresh_v), n)
 
-    quiet = (~wid(~slow, args.treadmill_buffer)
-             & ~wid(lick_bool, args.lick_buffer)
-             & ~wid(reward_bool, args.reward_buffer))
+    # ONE DEFINITION, shared with `behavior_events` -- see `rest_mask`.
+    cue_e = _rising((packed >> di.index("cue")) & 1) if "cue" in di else np.empty(0, int)
+    ts_e = (_rising((packed >> di.index("trial_start")) & 1) if "trial_start" in di
+            else np.empty(0, int))
+    st_e = (_rising((packed >> di.index("spout_strobe")) & 1) if "spout_strobe" in di
+            else np.empty(0, int))
+    quiet, rest_note = rest_mask(n, fs, speed, lick_onsets, cue_e / fs, ts_e / fs, st_e / fs,
+                                 params=qd, session_dir=args.daq_h5.parent)
+    print(f"  .. rest anchored on {rest_note}", flush=True)
 
     groom_bool = np.zeros(n, dtype=bool)
     if args.grooming:
         contact = lick_v < args.groom_contact_thresh_v
         groom_bool = _runs_at_least(contact, int(args.groom_max_long_s * fs))
-        quiet = quiet & ~wid(groom_bool, args.groom_buffer)
+        quiet = set_short_bool_to_low(quiet & ~wid(groom_bool, args.groom_buffer),
+                                      int(args.min_quiet_s * fs))
 
-    quiet = set_short_bool_to_low(quiet, int(args.min_quiet_s * fs))
+
 
     # ---- map to corrected frames ----
     if args.frame_map is not None:

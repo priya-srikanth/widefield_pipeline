@@ -169,17 +169,55 @@ segmentation:
                                   #   sedentary mice -> better activity-map SNR. Quiet stays <1 -> 1-3 gap.
     max_gap_s: 0.3
     min_duration_s: 2.0
-  quiet:                          # slow + not-near-lick/reward, buffered (F0 baseline candidate)
-    # WHICH MASK VARIANT CONSUMERS READ. "" = the original quiet_<tag> directory; any other value
-    # selects quiet_<tag>_<variant>, written beside it and never over it (see quiet_periods.
-    # quiet_frame_path). Retiring a definition is a change to THIS LINE -- the old masks stay on
-    # disk so a result can still be traced back to the definition that produced it.
-    variant: ""
-    speed_mm_s: 1.0
-    min_quiet_s: 0.5
+  # REST = between trials AND not running AND not licking. Renamed from `quiet` on 2026-09-12
+  # because that word briefly meant two different definitions and the retired masks keep the old
+  # meaning on disk (Priya: "i worry that having the older things named quiet will get confusing").
+  # Full record + the re-render blast radius: docs/REST_BASELINE_MIGRATION.md.
+  rest:
+    # WHICH MASK VARIANT CONSUMERS READ. "" = the retired quiet_<tag> masks; any other value selects
+    # quiet_<tag>_<variant>, written BESIDE them and never over them. Retiring a definition is a
+    # change to THIS LINE, so a result can always be traced to the definition that produced it.
+    # THERE IS NO FALLBACK ACROSS DEFINITIONS: a session lacking the selected variant loses its rest
+    # column rather than silently contributing a differently-defined baseline to a pooled map.
+    variant: rest
+    #
+    # ---- the trial anchor. The retired definition excluded 8 s after every REWARD, a buffer
+    # carried over from stroke_orofacial, whose task runs on an 8 s post-tone window; ours has a
+    # 3.5 s response window. Anchoring on reward also made the category track the DEFICIT: quiet was
+    # 4.4% of frames pre-stroke, 17.1% acutely and a median 0.7% chronically (acute/pre = 3.89).
+    # Anchoring on the TRIAL removes that by construction -- the trial happens whether or not the
+    # animal succeeds -- and measures acute/pre = 1.10.
+    #
+    # START = cue + response_window + settle. `response_window` is read PER SESSION from
+    # gui_config.json (3.5 s in every session to date), never from here.
+    settle_s: 0.5                 # MEASURED 2026-09-12. The settle guards nothing the rest of the
+                                  #   definition misses: reward lands 6 ms after the cue (median
+                                  #   0.006 s, max 0.153 s, NONE after the response window closes),
+                                  #   so the trial window already contains every reward with 3.35 s
+                                  #   to spare, and consumption licking is covered far better by
+                                  #   lick_buffer_s. It is pure margin. At 0.5 s, 100% of trials
+                                  #   still admit a 1 s segment and rest per trial is 2.02 s --
+                                  #   33% more than at 1.0 s (1.52 s, and only 94.8% admit 1 s).
+    # END = the next `trial_start`, NOT the next spout strobe. MEASURED: firmware `startTrial` moves
+    # the spout and only THEN pulses the strobe, so the strobe fires AFTER the movement -- ending
+    # rest at the strobe would put the spout's move inside the baseline. `trial_start` precedes the
+    # strobe on 16,607 of 16,607 trials, by a median of 0.925 s (p1 0.623, p99 1.043) -- that gap IS
+    # the spout's travel time. Sessions lacking a `trial_start` bit fall back to
+    # strobe - strobe_fallback_s and SAY SO per session.
+    strobe_fallback_s: 1.0
+    #
+    # ---- behavioural exclusions, unchanged from the retired definition
+    speed_mm_s: 1.0               # below this = slow
     treadmill_buffer_s: [3.0, 3.0]
-    lick_buffer_s: [1.0, 3.0]
-    reward_buffer_s: [0.1, 8.0]
+    lick_buffer_s: [1.0, 3.0]     # THE DOMINANT TERM, and the one that still moves with epoch:
+                                  #   it excludes 73.7% of samples pre-stroke and 82.5% at chronic.
+                                  #   That is real behaviour, not a definition artefact, and it is
+                                  #   why chronic rest stays ~0.5x of pre under EVERY definition.
+    min_rest_s: 0.5               # drop rest runs shorter than this
+    #
+    # NO reward_buffer_s. Reward is simultaneous with the cue (6 ms), so the trial window contains
+    # it; a separate reward term would only re-exclude what is already excluded, while coupling the
+    # category to how often the animal earned water.
   reward:
     channel: reward_ttl
     thresh_v: 2.5

@@ -74,6 +74,16 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
         packed = f["digital/packed_samples"][:, 0]
         sbit = dnames.index("sync") if "sync" in dnames else 0
         sync_col = (packed >> sbit) & 1
+        # TRIAL STRUCTURE, for the REST mask -- rest is defined between trials, so the trial
+        # boundaries have to come off the same file rather than be inferred later.
+        def _edges(nm):
+            if nm not in dnames:
+                return np.empty(0, np.int64)
+            return np.flatnonzero(
+                np.diff(((packed >> dnames.index(nm)) & 1).astype(np.int8), prepend=0) == 1)
+
+        cue_smp, tstart_smp, strobe_smp = (_edges("cue"), _edges("trial_start"),
+                                           _edges("spout_strobe"))
     n = int(lick_v.size)
     sync_samples = np.flatnonzero(np.diff(sync_col.astype(np.int8), prepend=0) == 1).astype(np.int64)
 
@@ -93,16 +103,19 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     running = find_running_bouts(speed, fs, rn["thresh_speed_mm_s"], rn["max_gap_s"], rn["min_duration_s"])
     run_starts, run_stops = bout_edges(running)
 
-    # quiet = slow AND not-near-(running/lick/reward), buffered  (same as quiet_periods.py)
-    q = seg["quiet"]
+    # REST -- ONE IMPLEMENTATION, in `quiet_periods.rest_mask`. This module and that one used to
+    # compute the same quantity independently, with a comment here claiming they agreed; they could
+    # only disagree quietly, and editing the config moved one of them. See its docstring.
+    from wfield_local.quiet_periods import rest_mask
+
+    q = seg["rest"]
 
     def wid(b, buf):
         return widen_bool_sparse(b, int(buf[0] * fs), int(buf[1] * fs))
 
-    slow = speed < q["speed_mm_s"]
-    quiet = (~wid(~slow, q["treadmill_buffer_s"])
-             & ~wid(idx2bool(lick_onsets, n), q["lick_buffer_s"])
-             & ~wid(idx2bool(reward_samples, n), q["reward_buffer_s"]))
+    quiet, rest_note = rest_mask(n, fs, speed, lick_onsets, cue_smp / fs, tstart_smp / fs,
+                                 strobe_smp / fs, params=q,
+                                 session_dir=Path(h5_path).parent)
 
     # grooming (single-spout long contact) — experimental, off by default
     gr = seg["grooming"]
@@ -111,15 +124,19 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
         contact = lick_v < gr["contact_thresh_v"]
         groom_bool = _runs_at_least(contact, int(gr["max_contact_s"] * fs))
         groom_starts, groom_stops = bout_edges(groom_bool)
-        quiet = quiet & ~wid(groom_bool, gr["buffer_s"])
-    quiet = set_short_bool_to_low(quiet, int(q["min_quiet_s"] * fs))
+        quiet = set_short_bool_to_low(quiet & ~wid(groom_bool, gr["buffer_s"]),
+                                      int(float(q["min_rest_s"]) * fs))
     quiet_starts, quiet_stops = bout_edges(quiet)
 
     return {
         "schema_version": SCHEMA_VERSION, "daq_h5": h5_path.name, "fs": fs, "n_samples": n,
         "lick_onsets": lick_onsets, "reward_samples": reward_samples, "sync_samples": sync_samples,
         "running_starts": run_starts, "running_stops": run_stops,
+        # BOTH NAMES. `rest_*` is what the definition is now called; `quiet_*` stays so the many
+        # existing readers and every npz already on disk keep working. They are the same array.
         "quiet_starts": quiet_starts, "quiet_stops": quiet_stops,
+        "rest_starts": quiet_starts, "rest_stops": quiet_stops,
+        "rest_anchor": rest_note,
         "grooming_starts": groom_starts, "grooming_stops": groom_stops,
         "params": json.dumps({"segmentation": seg, "lick_detection": lick}),
     }

@@ -36,7 +36,8 @@ def _ev(**kw):
 def test_a_five_second_bout_yields_five_one_second_segments():
     s, p = ls.segments([0], [50], FS, seg_s=1.0)
     assert len(s) == 5
-    assert s.tolist() == [0, 10, 20, 30, 40]
+    # A bout that divides EVENLY covers the same span from either end, so the set is what matters.
+    assert sorted(s.tolist()) == [0, 10, 20, 30, 40]
     assert set(p.tolist()) == {0}, "every segment must carry its parent period's id"
 
 
@@ -44,6 +45,31 @@ def test_the_remainder_is_dropped_not_stretched():
     """A 0.4 s window binned into four is not the same feature as a 1 s one."""
     s, _p = ls.segments([0], [14], FS, seg_s=1.0)
     assert len(s) == 1
+
+
+def test_tiling_from_the_end_drops_the_START_of_an_uneven_period():
+    """WHICH END THE REMAINDER COMES OFF, which is the whole point of `from_end`.
+
+    Priya, 2026-09-12: "for the state decoder I would rather use the end of the window than the
+    beginning (avoid leftover incomplete licks)." A rest period OPENS the moment the lick buffer
+    expires, so any residual licking sits at its start; the remainder must be dropped from THERE.
+    A 1.4 s period yields one window, and which second it is is the entire question.
+    """
+    end, _p = ls.segments([0], [14], FS, seg_s=1.0)
+    assert end.tolist() == [4], "the window must END at the period's stop, not start at its start"
+    start, _p = ls.segments([0], [14], FS, seg_s=1.0, from_end=False)
+    assert start.tolist() == [0], "from_end=False must restore the original start-anchored tiling"
+
+
+def test_onset_anchored_licking_is_unaffected_by_from_end():
+    """Licking is an EVENT, so its window is locked to the onset whatever `from_end` says.
+
+    A lick bout shorter than the window still emits one window FROM ITS ONSET -- tiling backwards
+    from the end of a 0.37 s median bout would sample mostly the silence after it.
+    """
+    for fe in (True, False):
+        s, _p = ls.segments([100], [104], FS, seg_s=1.0, onset_anchored=True, from_end=fe)
+        assert s.tolist() == [100], "onset-anchored windows must ignore from_end"
 
 
 def test_a_period_shorter_than_the_window_contributes_nothing():
