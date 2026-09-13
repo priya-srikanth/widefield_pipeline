@@ -353,3 +353,53 @@ whose size has not been shown to matter, and would silently drop a third of the 
 within each session-time bin. If accuracy is flat across bins, time is not carrying it. That is one
 pass over the existing features with no refitting, and it is the thing to do before either balancing
 or dismissing this.
+
+
+---
+
+## 2026-09-13 — the state decoder does NOT read session time: the confound is real and inert
+
+The composition confound recorded above is real -- the three classes are not spread alike over
+session time and the imbalance is steeper post-stroke than pre. What it did not establish is whether
+the decoder USES it. Priya, 2026-09-13: *"sure do the frozen decoder scoring within time bin (but we
+have to re run the frozen decoder first right, on the new 'REST' definition?)"* -- yes, and the run
+does both at once (`scripts/rest_migration/state_decoder_by_time.py`, 91 sessions, PS92 8/12
+excluded, frozen on all pre-stroke segments with the pre column leave-one-session-out).
+
+**Score the frozen decoder separately within each fifth of the session, same model, same labels,
+only the subset moves:**
+
+| epoch | overall | bin 1 | bin 2 | bin 3 | bin 4 | bin 5 | **spread** | n |
+|---|---|---|---|---|---|---|---|---|
+| pre | 0.982 | 0.977 | 0.983 | 0.984 | 0.983 | 0.976 | **0.008** | 43 |
+| acute | 0.918 | 0.918 | 0.937 | 0.926 | 0.913 | 0.893 | **0.044** | 16 |
+| subacute | 0.886 | 0.848 | 0.907 | 0.899 | 0.919 | 0.899 | **0.071** | 18 |
+| chronic | 0.952 | 0.948 | 0.925 | 0.931 | 0.951 | 0.967 | **0.042** | 14 |
+
+**THE PROFILE IS FLAT, AND IT IS FLAT WHERE IT MATTERS MOST.** Pre-stroke spread is 0.008 against a
+pre-to-subacute drop of 0.096 -- an order of magnitude smaller than the effect it could have
+explained. In every epoch the per-bin values BRACKET the overall value, so no single fifth is
+carrying the score.
+
+**THE SPREAD DOES NOT TRACK THE COMPOSITION SHIFT**, which is the decisive part. Acute has the
+steepest class-composition drift of any epoch (licking falls 1,131 -> 441 across the session) and
+the second SMALLEST spread, 0.044, with a non-monotone profile that peaks in bin 2. If the decoder
+were reading time, the epoch whose classes separate most strongly in time would be the one whose
+accuracy varied most across bins. It is not.
+
+**CONCLUSION: the confound exists in the data and is inert in the estimator.** The specificity
+control stands as written, and per-session balancing -- which would have cost 65-75% of the segments
+and emptied a class-bin in 30 of 91 sessions -- is correctly not done. This is now the reason,
+rather than the absence of a measurement.
+
+**A SECOND RESULT, unplanned: the existing `epoch_13*` figures are already on the REST definition.**
+This run refits from the events npz on disk, and its overall numbers reproduce the 2026-09-12
+sidecar to four decimals (pre 0.9818, acute 0.9185, subacute 0.8864, chronic 0.9524). The
+straddle-the-events-rebuild worry recorded in STATUS_2026-09-13 does NOT apply to the state
+decoder's cue arm -- verified by re-computation rather than inferred from file timestamps, which is
+the only way that question can actually be settled.
+
+**WHAT THIS DOES NOT SHOW.** Within a fifth of a session there is still a time axis, and a decoder
+reading slow drift would read it there too. What is ruled out is the version that threatened the
+control: that post-stroke accuracy is held up by the classes having migrated to more separable parts
+of the session.

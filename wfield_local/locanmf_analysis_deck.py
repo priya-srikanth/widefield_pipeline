@@ -4210,9 +4210,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "sustained STATES, so a decoder could separate them partly on transient-versus-sustained "
          "rather than on which behaviour it is. SECOND, THE CLASSES ARE NOT SPREAD ALIKE OVER "
          "SESSION TIME and the imbalance is steeper post-stroke than pre -- licking falls ~60% "
-         "from the first fifth of an acute session to the last while rest and running rise -- "
-         "so some of this separation could be the decoder reading WHEN rather than WHAT "
-         "(DECISIONS.md 2026-09-13). This family answers 'does cortex still distinguish "
+         "from the first fifth of an acute session to the last while rest and running rise. "
+         "THAT SECOND ONE WAS TESTED AND IS INERT: scoring the frozen decoder separately within "
+         "each fifth of the session gives a spread of 0.008 pre-stroke against a pre-to-subacute "
+         "drop of 0.096, and the spread does NOT track the composition shift -- acute has the "
+         "steepest drift and the second-smallest spread. The decoder is reading behaviour, not "
+         "clock time, so the classes are deliberately NOT balanced across time bins: doing so "
+         "would cost 65-75% of the segments and empty a class-bin in 30 of 91 sessions to remove "
+         "something measured not to matter (DECISIONS.md 2026-09-13). This family answers 'does "
+         "cortex still distinguish "
          "behavioural state at all', which is what the control needs; it is not a clean three-way "
          "contrast of matched epochs."),
         ("epoch_13posdelta_state_decoder_by_class_*.png",
