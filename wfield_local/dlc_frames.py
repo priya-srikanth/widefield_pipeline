@@ -258,13 +258,49 @@ def out_root(rv=None) -> Path:
     return Path(rv.root("behavior_cameras")) / "dlc"
 
 
+def anchor_cam() -> str | None:
+    """The camera whose trial/lick choice every other camera copies, or None for independent picks.
+
+    **WHY THIS EXISTS.** The selection RNG was seeded per CAMERA, so each view drew its own trials
+    and its own licks. Measured on the 2026-09-12 manifest that left 875 events sampled by cam1
+    alone, 866 by cam4 alone, and **22 by all four** -- out of ~900 each. Nothing was wrong with any
+    individual view, but the four sets of labelled frames were of different MOMENTS.
+
+    That does not hurt training, where each camera learns from its own frames, and it does not hurt
+    3D at inference, where the network predicts every frame of synchronised video. What it costs is
+    the ability to TRIANGULATE THE LABELS THEMSELVES -- label two views, reconstruct in 3D, and
+    reproject to seed the remaining two. With 27 usable cam4+cam1 pairs that was not worth running.
+
+    Seeding on the ANCHOR instead makes every camera choose the same trials and the same lick times.
+    The frame NUMBER still differs per camera -- `frame_of` maps a DAQ time through that camera's own
+    alignment template -- which is the point: same instant, each view's own frame.
+
+    **THE ANCHOR MUST BE THE MOST-LABELLED CAMERA, and it is cam4 (7,642 points over 13 folders).**
+    Seeding on cam4 reproduces cam4's existing selection EXACTLY, so its labels stay valid and only
+    the unlabelled views move. Changing the anchor later would re-pick cam4's frames and orphan that
+    work; treat it as fixed unless you are prepared to re-label.
+    """
+    v = _cfg().get("frames", {}).get("anchor_cam", None)
+    return str(v) if v else None
+
+
 def _rng(animal: str, date: str, cam: str) -> np.random.Generator:
     """A generator whose stream depends only on the session, so cameras and dates are independent.
 
     Seeding once per run and drawing in iteration order would make every session's choice depend on
     which other sessions happened to be processed first -- so adding a date would silently re-pick
     frames for dates already labelled.
+
+    With an `anchor_cam` configured the camera part of the key is replaced by the anchor, so all
+    views share one stream and therefore one set of moments. See `anchor_cam`.
     """
+    a = anchor_cam()
+    if a:
+        # keep any suffix ("_lick") while swapping the camera, so the two streams stay distinct
+        for c in cameras():
+            if cam == c or cam.startswith(c + "_"):
+                cam = a + cam[len(c):]
+                break
     key = f"{animal}_{date}_{cam}_{seed()}".encode()
     return np.random.default_rng(np.frombuffer(key.ljust(32, b"\0")[:32], dtype=np.uint32))
 

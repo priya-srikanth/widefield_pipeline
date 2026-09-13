@@ -314,6 +314,19 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # pipeline, not a result; the replacement is the 3D world frame,
                               # which head fixation makes static without any fiducial at all.
   frames:                     # labelling-set extraction (wfield_local/dlc_frames.py)
+    anchor_cam: cam4          # EVERY CAMERA COPIES THIS ONE'S CHOICE OF TRIALS AND LICKS, so the
+                              # four views are labelled at the SAME MOMENTS. Added 2026-09-12: the
+                              # selection RNG was seeded per camera, and the 2026-09-12 manifest had
+                              # 875 events sampled by cam1 alone, 866 by cam4 alone and only 22 by
+                              # all four. Training and inference were unaffected, but it made it
+                              # impossible to triangulate the LABELS and reproject them as seeds for
+                              # the remaining views (27 usable cam4+cam1 pairs).
+                              #
+                              # cam4 BECAUSE IT IS THE MOST LABELLED (7,642 points, 13 folders):
+                              # seeding on it reproduces its current selection exactly, so its work
+                              # stays valid and only the unlabelled views move. Changing this later
+                              # re-picks cam4's frames and orphans that labelling -- treat it as
+                              # fixed. `null` restores the old per-camera behaviour.
     per_session: 24           # = 6 spout positions x 4 within-trial phases, one frame per cell.
                               # Small per session on purpose: coverage comes from spanning animals
                               # and EPOCHS, not from many frames of one session. A network
