@@ -295,3 +295,61 @@ Two further changes affect this analysis and are recorded here so they are not d
   periods supply 36.6% of all segments"; the trial anchor caps a period at the inter-trial interval,
   so measured capping is 0.000–0.088 of periods. More periods contributing one or two segments each
   is more independent units for a bootstrap clustered by period, not fewer.
+
+
+---
+
+## 2026-09-13 — the state decoder can read TIME, and per-session balancing cannot fix it
+
+**THE CONFOUND.** `locomotor_state` splits a session into licking / running / rest. Those classes are
+not distributed alike over session time — licking is cue-locked, rest fills the ITIs, running drifts
+— while cortex itself drifts: `rest_position_vs_drift` measured the same position's rest early-vs-late
+at **RMS 0.00282**, with no behavioural difference at all. A three-way decoder can therefore separate
+the classes partly on WHEN the window sat. **The time-local baseline that fixes this for the maps does
+not reach here**: rest is a CLASS in this analysis, not a subtrahend, so there is nothing to subtract
+it from.
+
+**THE COMPOSITION IS MEASURED** (`scripts/rest_migration/state_time_bins.py`, 91 sessions, 1 skipped
+— PS92_0812, the crash+concat session — 5 equal bins of each session's imaging span, segments counted
+exactly as `locomotor_features` builds them):
+
+| epoch | licking bin1 → bin5 | rest bin1 → bin5 | running bin1 → bin5 |
+|---|---|---|---|
+| pre | 4,105 → 3,413 | 2,198 → 3,893 | 2,305 → 4,097 (U-shaped) |
+| acute | **1,131 → 441** | 732 → 1,858 | 294 → 1,778 |
+| subacute | **1,802 → 649** | 318 → 1,494 | 821 → 2,593 |
+| chronic | 1,212 → 1,163 | 187 → 903 | 289 → 441 |
+
+**THE SHIFT IS STEEPER POST-STROKE THAN PRE.** Pre-stroke licking is nearly flat across the session
+and the largest class share per bin is 0.36–0.51; acutely and subacutely licking falls by 60–64% from
+first bin to last while rest and running rise, and chronically the largest share reaches **0.79**.
+So the amount of information carried by "when in the session" is itself different pre and post —
+which is exactly the axis `BEHAVIOURAL_STATE_CONTROL.md` reads for preservation. **This is a stated
+limit on that control, not a refutation of it**: the decoder is FROZEN on pre-stroke data, so it
+cannot fit a post-stroke-specific time structure; what it can do is carry a pre-stroke time signal
+into a post-stroke session where the classes sit at different times.
+
+**BALANCING IS POSSIBLE POOLED AND NOT PER SESSION.** Priya, 2026-09-13: *"I don't know that it's
+worth doing the time regression or balancing across time bins, unless it's pretty simple to implement
+and doable (ie there is enough of each class across all time bins)."* Retained fraction under
+`3 x min-over-classes` per bin:
+
+| epoch | pooled | per session |
+|---|---|---|
+| pre | 0.63 | **0.35** |
+| acute | 0.48 | **0.33** |
+| subacute | 0.59 | **0.31** |
+| chronic | 0.36 | **0.25** |
+
+and **30 of 91 sessions have at least one EMPTY class-bin** (11/43 pre, 5/16 acute, 9/18 subacute,
+5/14 chronic), where an empty cell zeroes that bin for all three classes. The worst single session
+would retain **0.02** of its segments. PS94_0606 has **20 running segments in the whole session**.
+
+**DECISION: the simple (unbalanced) state decoder stands, and the composition table above is
+reported as its limit.** Per-session balancing would cost 65–75% of the data to remove a confound
+whose size has not been shown to matter, and would silently drop a third of the sessions' bins.
+
+**THE CHEAP TEST THAT WOULD SIZE IT, and has not been run:** score the frozen decoder separately
+within each session-time bin. If accuracy is flat across bins, time is not carrying it. That is one
+pass over the existing features with no refitting, and it is the thing to do before either balancing
+or dismissing this.

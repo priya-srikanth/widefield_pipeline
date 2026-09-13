@@ -1977,7 +1977,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             continue                      # basis not computed (e.g. no joint basis built yet)
         divider(f"D — {bname} basis", bdesc)
         if bkey == "joint":
-            s = slide()
+            # NO `slide()` HERE. There used to be one, left behind when this block stopped showing a
+            # single basis-health figure and started looping over the three alignments below -- each
+            # of which opens its own slide. The orphan published a completely BLANK slide in every
+            # deck (narrative slide 57 at the 2026-09-12 build) and nothing flagged it, because an
+            # empty slide is not a missing figure: `_exists` counts figures, and this one asked for
+            # none. Priya, 2026-09-13: delete it.
             # THE PRE-CUE FILE, and the slide has to say so: `joint_basis_health_{align}.png` is
             # written per alignment and the span is computed on the ALIGNED window, so the cue
             # figure is a different measurement. Only one is shown, and until 2026-08-24 neither
@@ -2089,7 +2094,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # put them back. Read G9e with one caveat the differencing did not have: the respwin arm uses
     # each SESSION's own response window from gui_config.json, while G9e's boundary is a fixed 2.0 s,
     # so the two populations are close but not identical.
-    _NL_BASES = (("roi", "Allen-ROI, 2.0 s cut"), ("joint", "joint-LocaNMF, 2.0 s cut"))
+    # ONE BASIS, NOT TWO. Priya, 2026-09-13: drop the Allen-ROI arm of D2. The two bases were shown
+    # side by side to demonstrate the result is not an artefact of either one, and they agree -- so
+    # the ROI trio was three slides making a point the joint-LocaNMF trio already makes. The ROI
+    # figures are still written every night and `nolick_basis_agreement.png` (below) still carries
+    # the roi-vs-joint comparison, so the evidence for the agreement stays in the deck; what is gone
+    # is showing the same conclusion twice.
+    _NL_BASES = (("joint", "joint-LocaNMF, 2.0 s cut"),)
     _nl = [(nice, src / f"nolick_reference_{b}.png") for b, nice in _NL_BASES
            if (src / f"nolick_reference_{b}.png").exists()]
     if _nl:
@@ -2115,21 +2126,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s_, M_NOLICK, specific=S_NOLICK_B)
             big(s_, fig_ref.with_name(fig_ref.name.replace("reference", "survival")),
                 top=1.9, width=10.5)
-            # PER SESSION, not only pooled (Priya, 2026-08-28: "is the late rewarded data in the
-            # deck?"). `figure_per_session` has been written every night since it was added and
-            # embedded nowhere -- the computed-and-hidden pattern the lick arm was fixed for on
-            # 2026-08-26. It matters here specifically: the pooled bar says what an animal does on
-            # AVERAGE, while the post-stroke comparison is made one session at a time, so this is
-            # the same quantity resolved to the unit it is actually used at.
-            _ps = fig_ref.with_name(fig_ref.name.replace("reference", "per_session"))
-            if _ps.exists():
-                s_ = slide()
-                title(s_, f"No-detected-lick ({nice}): survival session by session",
-                      "Green = pre-cue, purple = post-cue. OPACITY TRACKS n of the no-detected-lick "
-                      "arm and the count is printed at each bar's base: a survival ratio computed "
-                      "on nine trials should not look as solid as one computed on ninety.")
-                note(s_, M_NOLICK, specific=S_NOLICK_B)
-                big(s_, _ps, top=1.9, width=11.0)
+            # THE PER-SESSION SLIDE IS CUT (Priya, 2026-09-13), and the reason it was added is
+            # recorded here because it has not stopped being true. It went in on 2026-08-28 against
+            # the computed-and-hidden pattern -- `nolick_per_session_*.png` was written nightly and
+            # embedded nowhere -- and the argument was that the pooled bar says what an animal does
+            # on AVERAGE while the post-stroke comparison is made one session at a time. What has
+            # changed is that section I now carries the epoch-stratified per-session form of the
+            # same quantity, with bootstrap intervals this slide never had. THE FIGURE IS STILL
+            # WRITTEN EVERY NIGHT and can be put back by restoring this block; nothing is recomputed.
         if (src / "nolick_basis_agreement.png").exists():
             s_ = slide()
             title(s_, "No-detected-lick: do the two bases agree?",
@@ -2230,6 +2234,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # tests/test_deck_section_g.py pins that this section obeys it.
     _post_labels = list(config.phase_labels("post"))
     _excluded = [f"{a}_0817" for a in animals if config.session_phase(a, "0817") == "excluded"]
+
+    #: Place the SMALL-LESION (failed-laser) slides? Priya, 2026-09-13: no -- cut G2d (6 slides),
+    #: G7, G7b and G7d from the narrative deck. ONE SWITCH FOR ALL FOUR, because they are one
+    #: argument and a deck carrying two of them is worse than one carrying none or all.
+    #:
+    #: WHAT THE DECK LOSES, recorded because the case for showing them is still good and is argued
+    #: at length at each site below: PS92/PS93 on 8/17 are neither pre- nor post-stroke -- lasered
+    #: 8/16 with no deficit, re-lesioned after that session -- which makes them the strongest
+    #: control this design has, a within-animal comparison one day before the effective lesion.
+    #: After this cut the control survives in the deck only as two grey squares inside G2c's grid
+    #: and as G7c in the per-session appendix: the deck ASSERTS the control rather than showing it.
+    #: Every figure is still written nightly by `section_g_figures`; flip this to True to restore.
+    _SHOW_SMALL_LESION = False
     if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
                 f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
@@ -2294,8 +2311,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s, M_POSTSTROKE, specific=S_G1B)
             big(s, _cf, top=1.6, width=12.5)
 
-        # --- G2. position-matched decoding
-        for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
+        # --- G2. position-matched decoding -- CUT 2026-09-13 (Priya).
+        #
+        # SUPERSEDED, NOT WITHDRAWN. G2 was the per-session form of the frozen-decoder result; H5c
+        # and section I now carry it with bootstrap intervals and an epoch break G2 could not express, and
+        # G2c below states the conclusion G2 was read for ("the PLAN survives, EXECUTION does not")
+        # over all four animals in one panel. `section_g_matched_{all,lickonly}.png` is still
+        # written every night, so restoring this block costs nothing but the indentation.
+        for _arm, _armn in ():
             _mf = src / f"section_g_matched_{_arm}.png"
             if not _mf.exists():
                 continue
@@ -2405,8 +2428,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _SMALL = (("grid", "the four-condition grid"),
                   ("similarity", "pattern similarity to the pre-stroke reference"),
                   ("matched", "position-matched frozen decoding"))
+        # CUT 2026-09-13 (Priya), together with G7/G7b/G7d below: six slides of small-lesion detail
+        # collapse to the two grey squares in G2c's grid plus the per-session G7c in the appendix.
+        # WORTH KNOWING WHAT THAT COSTS, since the argument for showing them is still on record
+        # above: after this cut the deck asserts the failed-laser control rather than displaying it,
+        # and the six figures remain on disk, written nightly, shown nowhere. Restore by putting
+        # `_SMALL` back in the comprehension.
         _small_found = [(k, nice, arm, armn, q)
-                        for k, nice in _SMALL
+                        for k, nice in (_SMALL if _SHOW_SMALL_LESION else ())
                         for arm, armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY"))
                         if (q := src / f"section_g_smalllesion_{k}_{arm}.png").exists()]
         if _small_found:
@@ -2549,7 +2578,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # PS92/PS93 8/17 belongs to neither phase, which is exactly what makes it the control. These
         # slides are built from an EXPLICIT label list (poststroke_compare._pooled(post_labels=...)),
         # never from phase_labels("post"), and their JSON carries excluded_from_pooled_summaries.
-        if _excluded and (src / "section_g_smalllesion_matched_all.png").exists():
+        # CUT 2026-09-13 (Priya), with G2d above and G7d below. The three small-lesion slides in the
+        # narrative deck go; G7c (per session) stays in the appendix and the two grey squares in
+        # G2c's grid stay in the narrative. SAME CAVEAT AS G2d: the failed-laser control is then
+        # asserted in prose rather than shown, and the argument for showing it -- recorded three
+        # comment blocks up, and unchanged -- is that a within-animal control one day before the
+        # effective lesion is the strongest control this design has. Flip the `False` to restore.
+        if _SHOW_SMALL_LESION and _excluded and (src / "section_g_smalllesion_matched_all.png").exists():
             s = slide()
             title(s, "G7. SMALL-LESION COMPARISON \u2014 the two animals without an overt deficit",
                   f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
@@ -2605,8 +2640,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if not any(q.exists() for q in _g7d):
             _g7d = [src / f"poststroke_G7d_smalllesion_fits_engaged_{_al}.png"
                     for _al in ("precue", "cue")]
+        # CUT 2026-09-13 (Priya) -- the last of the four small-lesion slides (G2d, G7, G7b, G7d).
         _g7d = [q for q in _g7d if q.exists()]
-        if _g7d:
+        if _SHOW_SMALL_LESION and _g7d:
             s = slide()
             title(s, "G7d. FAILED-LASER CONTROL — do the no-lick trials fit the ENGAGED "
                      "distribution?  LEFT: PRE-cue.  RIGHT: POST-cue.",
@@ -3147,7 +3183,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON in G7 and, more "
+             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two grey squares in G2c's grid, and more "
              "importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same animals' 8/18 "
              "sessions ARE post-stroke and carry the dissociation, while their 8/17 sessions show "
              "nothing outside the band at any alignment. Same animal, same rig, one day apart. That "
@@ -3159,7 +3195,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             ("RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
             "class was never validated, so its result (PS94 \u22120.060) is uninterpretable rather "
             "than negative. G6 asks the same question without an engagement label."),
-            ("DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2\u2013G6, "
+            ("DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2b\u2013G6, "
             "and the independently-trained-decoder similarity analysis. Both need n > 1."),
             ("BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
             "vs never-attempted. Until then every no-lick claim above carries that ambiguity."),
@@ -3226,20 +3262,30 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "definitions, no engagement gate, no alignment inference. Counts summed over held-out "
          "sessions then row-normalised, so a 500-trial session is not weighted like a 200-trial "
          "one. Rows = TRUE position, columns = PREDICTED.")),
-        ("grant_5_confusion_pre_post_*.png",
-         "H5. The frozen decoder before and after the lesion",
-         ("THREE panels, not two, and the middle one is why. Post-stroke the impaired positions are "
-         "almost entirely no-lick trials, so a bare pre-vs-post pair compares pre-stroke LICK rows "
-         "against post-stroke NON-LICK rows and confounds the lesion with the absence of a "
-         "movement. The middle panel -- pre-stroke NO-LICK scored by a decoder trained on the other "
-         "pre-stroke sessions -- differs from the post panel in PHASE ALONE.")),
-        ("grant_5b_confusion_working_*.png",
-         "H5b. The same with the terminal quit period removed",
-         ("Post-stroke trials are lick PLUS miss-while-working. Removing the quit period raises "
-         "accuracy in every animal, and the gain sits at the PRESERVED positions rather than the "
-         "impaired ones -- which is what a global state should do. THE GATE IS NOT VALIDATED as "
-         "satiety rather than a late motor collapse, and dropping trials on a criterion correlated "
-         "with the measure raises accuracy whatever it means. Read beside H4, never instead of it.")),
+        # ------------------------------------------------------------------------------------
+        # CUT FROM THE DECK 2026-09-13 (Priya): H5, H5b, H6, H8d, H8e, H10, H10b.
+        #
+        # THE FIGURES ARE STILL RENDERED. `grant_figures` writes every one of them each night and
+        # nothing here changes that -- these entries only decide what the deck PLACES. Restoring a
+        # family is un-commenting its entry, and the figure it points at is already on disk.
+        #
+        # WHY EACH ONE GOES (all supersession, none withdrawn):
+        #   H5/H5b  the pooled pre-vs-post confusion -- section I's epoch-stratified I4/I5 carry
+        #           the same comparison with bootstrap intervals and a per-epoch break that H5's
+        #           single pre/post split cannot express.
+        #   H6      the mean-pattern similarity matrix. H6b (session by session) is already marked
+        #           PRIMARY OVER H6 in its own blurb, so H6 was the superseded member of its pair.
+        #   H8d     H8's change-from-pre-stroke. H8 stays; the delta is recoverable from it.
+        #   H8e     the asymmetry test, five slides answering a question nothing downstream reads.
+        #   H10/H10b the best-match family -- WHICH pre-stroke position each post-stroke position
+        #           resembles. Superseded by the map-level analyses in `WHERE_THE_CODE_MOVES.md`,
+        #           which answer "where does the displaced code go" in pixels rather than in a
+        #           6x6 index, and with the nested bootstrap these panels never had.
+        # ------------------------------------------------------------------------------------
+        # CUT: ("grant_5_confusion_pre_post_*.png", "H5. The frozen decoder before and after the
+        #       lesion", ...)   -- superseded by I4/I5
+        # CUT: ("grant_5b_confusion_working_*.png", "H5b. The same with the terminal quit period
+        #       removed", ...)  -- superseded by I4/I5
         # `*_*` REQUIRES THE ARM TOKEN. These figures gained a `_lick`/`_working` suffix on
         # 2026-08-28, and the superseded `..._<align>.png` files from 8/26 are still on MICROSCOPE
         # (which is never deleted from). A single `*` globs both, so the deck placed four slides of
@@ -3248,8 +3294,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # bug inverted: that pattern was too tight and dropped twelve slides silently, this one was
         # too loose and added four.
         ("grant_5c_confusion_per_session_*_*.png",
-         "H5c. Session by session",
-         ("The pooled panels average a moving target: PS94 runs 0.39 to 0.76 across six days. "
+         "H5c. The frozen decoder before and after the lesion, session by session",
+         ("ONE PANEL PER SESSION of the frozen pre-stroke decoder applied after the lesion. A pooled pre-versus-post panel would average a moving target: PS94 runs 0.39 to 0.76 across six days. "
          "Columns are DAYS FROM LESION so a column means the same thing in every row even though "
          "the animals were lesioned on different dates.")),
         ("grant_5d_confusion_delta_*_*.png",
@@ -3261,23 +3307,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "cell is recall lost at that position, and the positive cell in the SAME ROW says where "
          "those trials went instead. Two colour bars: column 1 is in probability, the rest in "
          "change of probability.")),
-        ("grant_6_pattern_*.png",
-         "H6. Mean-pattern similarity, within and across positions",
-         ("The model-free counterpart to the coding directions, and it fails differently: a coding "
-         "axis needs a contrast and so breaks at exactly the impaired positions, while a mean "
-         "pattern for far_R is well defined from miss trials with no partner. Conversely THIS is "
-         "sensitive to global gain and the coding directions are not. Agreement between them is "
-         "the claim worth making. ROWS = the post-stroke pattern, COLUMNS = the pre-stroke "
-         "reference -- the opposite convention to the confusion matrices above. Green ring = beats "
-         "a position-label permutation null. Third panel = post minus baseline, differenced draw by "
-         "draw. Bootstrap resamples TRIALS WITHIN SESSIONS and does NOT resample sessions, because "
-         "days are not exchangeable when the animal is recovering. THE BASELINE PANEL SPLITS "
-         "PRE-STROKE SESSIONS, not pre-stroke trials (corrected 2026-08-25): a random trial split "
-         "puts both halves on the SAME DAYS, so it carries no day-to-day drift and is a ceiling no "
-         "across-day comparison can reach.")),
+        # CUT 2026-09-13 (Priya) -- see the cut block above. H6:
+        # ("grant_6_pattern_*.png",
+        # "H6. Mean-pattern similarity, within and across positions",
+        # ("The model-free counterpart to the coding directions, and it fails differently: a coding "
+        # "axis needs a contrast and so breaks at exactly the impaired positions, while a mean "
+        # "pattern for far_R is well defined from miss trials with no partner. Conversely THIS is "
+        # "sensitive to global gain and the coding directions are not. Agreement between them is "
+        # "the claim worth making. ROWS = the post-stroke pattern, COLUMNS = the pre-stroke "
+        # "reference -- the opposite convention to the confusion matrices above. Green ring = beats "
+        # "a position-label permutation null. Third panel = post minus baseline, differenced draw by "
+        # "draw. Bootstrap resamples TRIALS WITHIN SESSIONS and does NOT resample sessions, because "
+        # "days are not exchangeable when the animal is recovering. THE BASELINE PANEL SPLITS "
+        # "PRE-STROKE SESSIONS, not pre-stroke trials (corrected 2026-08-25): a random trial split "
+        # "puts both halves on the SAME DAYS, so it carries no day-to-day drift and is a ceiling no "
+        # "across-day comparison can reach.")),
         ("grant_6b_pattern_per_session_*.png",
-         "H6b. The same, session by session",
-         ("PRIMARY over H6 when sessions move: the trajectory IS the result. Single-session mean "
+         "H6b. Mean-pattern similarity, within and across positions, session by session",
+         ("THE ANCHOR OF THIS FAMILY, and the figure H7, H7b, H8 and H11 are read against. Resolving it per session rather than pooling is the point: when sessions move, the trajectory IS the result. Single-session mean "
          "patterns are noisier, so cells under 10 trials are blank rather than drawn. FIRST COLUMN "
          "IS LEAVE-ONE-SESSION-OUT (corrected 2026-08-25) -- each pre-stroke session against the "
          "pool of the others, averaged, which is one session against other days exactly like every "
@@ -3294,11 +3341,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "r is differenced, NOT r-squared -- squaring would erase the sign the substitution lives "
          "in.")),
         ("grant_7_splithalf_*.png",
-         "H7. WITHIN-session split-half similarity — the ceiling H6 is measured against",
+         "H7. WITHIN-session split-half similarity — the ceiling H6b is measured against",
          ("Both halves come from the SAME session, so no lesion comparison, no pre-stroke "
          "reference and no alignment inference enters this. The diagonal is that session's own "
          "reliability, which is the CEILING any correlation involving its mean pattern can reach. "
-         "H6 cannot distinguish a code that MOVED from one that merely became NOISIER, and a "
+         "H6b cannot distinguish a code that MOVED from one that merely became NOISIER, and a "
          "graded drop at every position is exactly what a global change in repeatability looks "
          "like.")),
         ("grant_7d_splithalf_delta_*.png",
@@ -3307,11 +3354,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "were really a reliability story, the diagonal HERE would fall by a comparable amount at "
          "the same positions on the same days, because both halves come from the same session and "
          "nothing about the lesion enters a single panel. Where H6d falls and this does not, the "
-         "code MOVED. Where both fall together, the code is noisier and H6 cannot tell the "
+         "code MOVED. Where both fall together, the code is noisier and H6b cannot tell the "
          "difference on its own.")),
         ("grant_7b_reliability_*.png",
-         "H7b. Moved code or noisier code? — H6's diagonal, disattenuated",
-         ("THE VERDICT PANEL for H6. Right = middle divided by sqrt(rel_post x rel_pre): what the "
+         "H7b. Moved code or noisier code? — H6b's diagonal, disattenuated",
+         ("THE VERDICT PANEL for H6b. Right = middle divided by sqrt(rel_post x rel_pre): what the "
          "correlation would be if both means were noise-free. A drop that SURVIVES it is a code "
          "that moved; a drop that DISAPPEARS was a code measured less repeatably. Same correction "
          "the coding directions have used since 2026-08-20, which the pattern measure never had. "
@@ -3319,35 +3366,37 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "to print -- and that is worst exactly at the impaired positions, where the question is "
          "sharpest.")),
         ("grant_8_crossnobis_*.png",
-         "H8. H6's matrix rebuilt on cross-validated (crossnobis) distances",
-         ("Same layout as H6 -- rows = post-stroke position, columns = pre-stroke reference -- but "
+         "H8. The mean-pattern similarity matrix rebuilt on cross-validated (crossnobis) distances",
+         ("Same layout as H6b -- rows = post-stroke position, columns = pre-stroke reference -- but "
          "as NOISE-UNBIASED distance rather than correlation, so a noisier session does not read "
          "as a bigger change. LOW on the diagonal = the pattern did not move. Units are the mean "
          "pre-stroke between-position distance for that animal, because raw crossnobis units "
          "depend on the whitener and the dimensionality and are not comparable across animals. "
          "Still NOT gain-invariant: it is a distance between two patterns. H8b is that "
          "companion.")),
-        ("grant_8d_crossnobis_delta_*.png",
-         "H8d. The same, as CHANGE from pre-stroke",
-         ("H8 minus its own first column. POSITIVE = further from the pre-stroke pattern than a "
-         "held-out pre-stroke session is; NEGATIVE = closer. The reference distances are not "
-         "uniform -- close positions sit nearer each other than far ones -- so an absolute cell of "
-         "1.2 means different things in different places. A NEGATIVE OFF-DIAGONAL cell is a "
-         "substitution: that row's trials moved TOWARD the column's pre-stroke pattern.")),
-        ("grant_8e_asymmetry_*.png",
-         "H8e. Is the distance matrix ASYMMETRIC, and where?",
-         ("A[P,Q] = d(post at P, pre at Q) minus d(post at Q, pre at P). Rows and columns index "
-         "genuinely different sets, so symmetry is NOT expected and the gap between the two "
-         "orderings is the substitution: which way a position moved, not merely that it moved. "
-         "Green ring = the 95% block-bootstrap interval excludes zero; the count above each panel "
-         "is rung pairs out of 15. READ THE PRE COLUMN FIRST -- both sides there estimate the same "
-         "patterns, so its asymmetry has expectation zero and its rings are this construction's own "
-         "false-positive rate. Unlike H7 this must NOT be symmetrised: there the two cells "
-         "estimated one quantity and averaging them was strictly better; here they estimate "
-         "different quantities and the difference IS the result.")),
+        # CUT 2026-09-13 (Priya) -- see the cut block above. H8d:
+        # ("grant_8d_crossnobis_delta_*.png",
+        # "H8d. The same, as CHANGE from pre-stroke",
+        # ("H8 minus its own first column. POSITIVE = further from the pre-stroke pattern than a "
+        # "held-out pre-stroke session is; NEGATIVE = closer. The reference distances are not "
+        # "uniform -- close positions sit nearer each other than far ones -- so an absolute cell of "
+        # "1.2 means different things in different places. A NEGATIVE OFF-DIAGONAL cell is a "
+        # "substitution: that row's trials moved TOWARD the column's pre-stroke pattern.")),
+        # CUT 2026-09-13 (Priya) -- see the cut block above. H8e:
+        # ("grant_8e_asymmetry_*.png",
+        # "H8e. Is the distance matrix ASYMMETRIC, and where?",
+        # ("A[P,Q] = d(post at P, pre at Q) minus d(post at Q, pre at P). Rows and columns index "
+        # "genuinely different sets, so symmetry is NOT expected and the gap between the two "
+        # "orderings is the substitution: which way a position moved, not merely that it moved. "
+        # "Green ring = the 95% block-bootstrap interval excludes zero; the count above each panel "
+        # "is rung pairs out of 15. READ THE PRE COLUMN FIRST -- both sides there estimate the same "
+        # "patterns, so its asymmetry has expectation zero and its rings are this construction's own "
+        # "false-positive rate. Unlike H7 this must NOT be symmetrised: there the two cells "
+        # "estimated one quantity and averaging them was strictly better; here they estimate "
+        # "different quantities and the difference IS the result.")),
         ("grant_9_delta_trajectory_*.png",
          "H9. The bootstrap results, plotted — change from pre-stroke over days",
-         ("THE SUMMARY SLIDE OF THE DELTA SET. The intervals in H6d/H7d/H8d sit as text above 6x6 "
+         ("THE SUMMARY SLIDE OF THE DELTA SET. The intervals in H6d and H7d sit as text above 6x6 "
          "matrices, which is the wrong shape for what they answer: whether a position is "
          "recovering, holding or worsening is a TRAJECTORY. Left = mean own-position change per "
          "day with its 95% block-bootstrap interval; right = the same split BY POSITION, which is "
@@ -3360,7 +3409,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "H8b. Second-order RSA — the gain-invariant test",
          ("Each session's OWN 6x6 crossnobis RDM correlated against the pre-stroke RDM. This is "
          "RSA proper, and scaling every distance leaves it unchanged, so a uniform post-stroke "
-         "amplitude change CANNOT move it. That matters because H6's headline (every position "
+         "amplitude change CANNOT move it. That matters because H6b's headline (every position "
          "drops, far_R most) is precisely the signature a global change would leave. Per-position "
          "information survives in a weaker form: each position's ROW is its five distances to the "
          "others, so 'is far_R still arranged the way it was' is answerable and 'did far_R's "
@@ -3376,37 +3425,39 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "missing two positions has EVERY row uncomputable, including the positions the animal "
          "licked normally. That is a property of the estimator, not of the animal, and it is why "
          "whole days vanish for PS94 in the lick class; the `working` class fills most of them.")),
-        ("grant_10_best_match_*.png",
-         "H10. Which pre-stroke position does each post-stroke position match BEST?",
-         ("Every panel above reduces a row of the similarity matrix to its DIAGONAL. That cannot "
-         "separate 'the code is gone' from 'the code moved to far_L': 0.2 against everything and "
-         "0.2 against itself with 0.7 against far_L are the same diagonal and different results. "
-         "This reduces the row to its ARGMAX instead, which uses all six entries and answers "
-         "'moved WHERE'. LEFT is the ceiling, leave-one-session-out -- it is NOT 6/6, and reading "
-         "the middle panel against 100% would overstate everything. RIGHT adds the mean RANK of "
-         "the true position, which degrades gracefully where the fraction is all-or-nothing: "
-         "slipping from first to second is not slipping to sixth. IMMUNE TO THE AMPLITUDE TERM -- "
-         "argmax and rank cannot move under a monotone change across a row, and the uniform row "
-         "shifts that dominate H8/H8d are exactly that. Ties go to the diagonal, so a flat row "
-         "never manufactures a substitution.")),
-        ("grant_10b_best_match_by_session_*.png",
-         "H10b. The true position's RANK, session by session",
-         ("The same rank statistic as the right panel of H10, resolved to one cell per session "
-         "rather than pooled -- so a fraction driven by two bad sessions is visible as two bad "
-         "sessions. Rank 1 means the position's post-stroke pattern still matches its own "
-         "pre-stroke pattern better than any other; rank 6 means five other positions match it "
-         "better. THIS IS THE RANK-BASED, THRESHOLD-FREE READOUT, and it is why an AUROC family "
-         "would add less here than it first appears: rank over the six class prototypes already "
-         "removes any monotone transform of the similarities. What it does NOT measure is "
-         "TRIAL-level discriminability -- it ranks classes for a session's mean pattern, not "
-         "trials within a class -- which is the gap the epoch 5r refit arm fills instead. "
-         "Rendered since 2026-08-27 and unplaced until 2026-09-09; earlier decks show H10's "
-         "pooled version only.")),
+        # CUT 2026-09-13 (Priya) -- see the cut block above. H10:
+        # ("grant_10_best_match_*.png",
+        # "H10. Which pre-stroke position does each post-stroke position match BEST?",
+        # ("Every panel above reduces a row of the similarity matrix to its DIAGONAL. That cannot "
+        # "separate 'the code is gone' from 'the code moved to far_L': 0.2 against everything and "
+        # "0.2 against itself with 0.7 against far_L are the same diagonal and different results. "
+        # "This reduces the row to its ARGMAX instead, which uses all six entries and answers "
+        # "'moved WHERE'. LEFT is the ceiling, leave-one-session-out -- it is NOT 6/6, and reading "
+        # "the middle panel against 100% would overstate everything. RIGHT adds the mean RANK of "
+        # "the true position, which degrades gracefully where the fraction is all-or-nothing: "
+        # "slipping from first to second is not slipping to sixth. IMMUNE TO THE AMPLITUDE TERM -- "
+        # "argmax and rank cannot move under a monotone change across a row, and the uniform row "
+        # "shifts that dominate H8/H8d are exactly that. Ties go to the diagonal, so a flat row "
+        # "never manufactures a substitution.")),
+        # CUT 2026-09-13 (Priya) -- see the cut block above. H10b:
+        # ("grant_10b_best_match_by_session_*.png",
+        # "H10b. The true position's RANK, session by session",
+        # ("The same rank statistic as the right panel of H10, resolved to one cell per session "
+        # "rather than pooled -- so a fraction driven by two bad sessions is visible as two bad "
+        # "sessions. Rank 1 means the position's post-stroke pattern still matches its own "
+        # "pre-stroke pattern better than any other; rank 6 means five other positions match it "
+        # "better. THIS IS THE RANK-BASED, THRESHOLD-FREE READOUT, and it is why an AUROC family "
+        # "would add less here than it first appears: rank over the six class prototypes already "
+        # "removes any monotone transform of the similarities. What it does NOT measure is "
+        # "TRIAL-level discriminability -- it ranks classes for a session's mean pattern, not "
+        # "trials within a class -- which is the gap the epoch 5r refit arm fills instead. "
+        # "Rendered since 2026-08-27 and unplaced until 2026-09-09; earlier decks show H10's "
+        # "pooled version only.")),
         ("grant_11_encoder_gain_shape_*.png",
          "H11. FROZEN ENCODER — did the position code MOVE, or just get SMALLER?",
          ("THE FIRST ENCODER FIGURE IN THE SET, and the only one that answers that question with "
-         "two separately estimated numbers rather than two readings of one: correlations (H6, "
-         "H8b) are blind to amplitude by construction, distances (H8, H8d) are dominated by it. "
+         "two separately estimated numbers rather than two readings of one: correlations (H6b, "
+         "H8b) are blind to amplitude by construction, distances (H8) are dominated by it. "
          "A one-hot position encoder trained on PRE-STROKE SESSIONS ONLY predicts each position's "
          "pre-stroke mean pattern; one gain fitted per session splits its failure. LEFT: transfer "
          "without rescaling and with, the shaded gap being what rescaling recovers. MIDDLE: the "
@@ -3429,9 +3480,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # appended next to the family they relate to, which had already put H7d before H7b and
         # H8e/H9 before H8b -- labels that promise an order the deck did not follow. Sorting on the
         # label here means a future insertion cannot reintroduce that, wherever it is written.
+        #: Families placed out of label order, as (label, sort-key). Priya, 2026-09-13: "move H7d
+        #: after H6d". H7d IS the control for H6d -- the same difference-from-pre-stroke, computed
+        #: within session so no lesion comparison enters it -- and its blurb already says "the pair
+        #: to put side by side". Sorted by label they land twelve slides apart with H7 and H7b in
+        #: between, which is the one arrangement that stops a reader making the comparison the
+        #: figure exists for. THE LABEL DOES NOT CHANGE: it is still H7d on the slide and in every
+        #: document that cites it; only where the deck puts it moves.
+        _HPLACE = {"H7d": (6, "e")}     # immediately after H6d (6, "d")
+
         def _hkey(entry):
             m = re.match(r"H(\d+)([a-z]*)\.", entry[1])
-            return (int(m.group(1)), m.group(2)) if m else (99, "")
+            if not m:
+                return (99, "")
+            return _HPLACE.get(f"H{m.group(1)}{m.group(2)}", (int(m.group(1)), m.group(2)))
 
         # EXCLUDE THE COMPACT VARIANTS. `grant_figures --compact` writes `<stem>_compact.png` beside
         # each dense grid, and every pattern here ends in `_*.png`, so they matched: the 2026-08-27
@@ -4119,19 +4181,40 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "window length, the feature width or the PS92 8/12 exclusion, which do not "
          "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
          "lag it. Read them off the value sidecar, not off this caption. "
-         "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: 0.98 / 0.95 / 0.94 / 0.97, flat"
-         "at every epoch. LICKING is 0.99 / 0.97 / 0.90 / 0.96. QUIET IS THE ONE THAT MOVES, 0.86"
-         "to 0.70 acutely, and that is probably real rather than noise: quiet goes from 3.4% of a"
-         "pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still may be in a"
-         "genuinely different state from a pre-stroke one sitting still. That is a finding about"
-         "IMMOBILITY, not a failure of the control, and it is why this panel exists rather than"
-         "only the pooled bar -- a pooled score averages exactly that away."
-         "\n\nONE LIMIT, easy to miss: licking windows are locked to a behavioural TRANSITION"
-         "(the bout onset) while running and quiet are sampled from inside sustained STATES, so a"
-         "decoder could separate them partly on transient-versus-sustained rather than on which"
-         "behaviour it is. This family answers 'does cortex still distinguish behavioural state at"
-         "all', which is what the control needs; it is not a clean three-way contrast of matched"
-         "epochs."),
+         # QUOTED FROM THIS FIGURE'S OWN SIDECAR (Priya, 2026-09-13: "the notes should now
+         # reference the sidecars"). These four recalls per class were hand-copied, and by the
+         # 2026-09-12 render they no longer matched the figure above them -- the caption said
+         # licking ran 0.99/0.97/0.90/0.96 while the sidecar held 0.98/0.96/0.88/0.98. With
+         # `SELF` each arm prints its own numbers and a re-render moves caption and figure together.
+         "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: "
+         "{{SELF: epoch=pre, position=running -> value:.2f}} / "
+         "{{SELF: epoch=acute, position=running -> value:.2f}} / "
+         "{{SELF: epoch=subacute, position=running -> value:.2f}} / "
+         "{{SELF: epoch=chronic, position=running -> value:.2f}}, flat at every epoch. LICKING is "
+         "{{SELF: epoch=pre, position=licking -> value:.2f}} / "
+         "{{SELF: epoch=acute, position=licking -> value:.2f}} / "
+         "{{SELF: epoch=subacute, position=licking -> value:.2f}} / "
+         "{{SELF: epoch=chronic, position=licking -> value:.2f}}. REST IS THE ONE THAT MOVES, "
+         "{{SELF: epoch=pre, position=quiet -> value:.2f}} pre to "
+         "{{SELF: epoch=acute, position=quiet -> value:.2f}} acutely, and that is probably real "
+         "rather than noise: the REST class is a much larger share of a post-stroke session than a "
+         "pre-stroke one, so a post-stroke animal sitting still may be in a genuinely different "
+         "state from a pre-stroke one sitting still. That is a finding about IMMOBILITY, not a "
+         "failure of the control, and it is why this panel exists rather than only the pooled bar "
+         "-- a pooled score averages exactly that away. (The class-balance PERCENTAGES this "
+         "sentence used to quote -- 3.4% pre, 15.1% acute -- were measured on the RETIRED "
+         "reward-anchored quiet definition and are withdrawn pending re-measurement on REST; the "
+         "direction is unchanged and is visible in the counts.)"
+         "\n\nTWO LIMITS, both easy to miss. FIRST, licking windows are locked to a behavioural "
+         "TRANSITION (the first post-cue lick) while running and rest are sampled from inside "
+         "sustained STATES, so a decoder could separate them partly on transient-versus-sustained "
+         "rather than on which behaviour it is. SECOND, THE CLASSES ARE NOT SPREAD ALIKE OVER "
+         "SESSION TIME and the imbalance is steeper post-stroke than pre -- licking falls ~60% "
+         "from the first fifth of an acute session to the last while rest and running rise -- "
+         "so some of this separation could be the decoder reading WHEN rather than WHAT "
+         "(DECISIONS.md 2026-09-13). This family answers 'does cortex still distinguish "
+         "behavioural state at all', which is what the control needs; it is not a clean three-way "
+         "contrast of matched epochs."),
         ("epoch_13posdelta_state_decoder_by_class_*.png",
          "State decoder recall per class, change from pre-stroke",
          "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "

@@ -10116,3 +10116,111 @@ emptied the intersection, and the loop never ran. Priya caught it on the implaus
 numbers ("how could so few animals share the same positions? there should be dozens of each per
 session"). The verdict now refuses to print a negative when nothing was tested. A control that
 reports "passed" without executing is worse than one that fails.
+
+
+---
+
+## 2026-09-13 — the pre-cue window stays 2 s, and the BINS are not what makes it work
+
+Priya asked the question that had been open since the reference audit: *"the actual precue maps (eg
+precue vs rest and precue vs mean) — are those 1s or 2s? since the last 1s carries the most
+information I would think we want 1s"*, with the reasoning *"the pre-cue decoder is ok to be 2s
+because it's binned. the maps are not."*
+
+That is a testable pair of claims and **both are false.** Four arms, 44 curated pre-stroke sessions,
+production variant (`meegkit_hpfit`, LocaNMF basis), chance 0.167
+(`scripts/rest_migration/precue_window_sweep.py`):
+
+| arm | window | bins | mean acc | vs `mean2.0` | better in |
+|---|---|---|---|---|---|
+| `mean2.0` | 2 s | 1 | **0.417** | — | — |
+| `roll4x0.5` | 2 s | 4 | **0.417** | −0.000 | 19/44 |
+| `mean1.0` | 1 s | 1 | 0.357 | **−0.061** | 2/44 |
+| `roll4x0.25` | 1 s | 4 | 0.340 | −0.077 | 0/44 |
+
+**1. THE LAST SECOND CARRIES LESS, NOT MORE.** Restricting to it costs 0.061 and does so in 42 of 44
+sessions. The pre-cue maps therefore **stay at 2 s** (`precue_post_s: 2.0`); shortening them would
+have discarded real signal to fix a dilution that is not happening.
+
+**THE ONE CONFOUND RUNS AGAINST THE WINNER**, which is what makes this conclusive rather than
+suggestive. `precue_lickfree` must place a lick-free window between the spout strobe and the cue, and
+a 1 s window is easier to place than a 2 s one — so the 1 s arms are scored on MORE retained trials,
+and they still lose. Had the result gone the other way this asymmetry would have had to be removed
+before believing it.
+
+**2. THE BINNING CONTRIBUTES NOTHING HERE.** `roll4x0.5` and `mean2.0` agree to three decimals. What
+makes 2 s better than 1 s is the **window length**, not the time course inside it. So the
+maps-versus-decoder distinction that motivated the question does not exist: a map time-averaging over
+2 s and a decoder binning the same 2 s are reading the same information, and the map is not a
+degraded form of the decoder. **`decode.bins.precue: 4` is not earning its keep** and could be 1
+without measurable loss — noted, NOT changed, because it costs nothing to leave and changing a
+decoder parameter invalidates every cached fit in the deck.
+
+**3. REPLICATES THE 08-13 RE-RUN, ON A DIFFERENT VARIANT.** That run (`strobedetrend`, Allen-ROI, 16
+sessions) found `last1s − whole2s = −0.023`, better in 3/16. This one finds −0.061, better in 2/44.
+Two drift-removal variants, two bases, three times the sessions, same sign — which retires the
+worry recorded on 2026-09-12 that all the pre-cue window evidence was variant-mismatched.
+
+**WHAT IS STILL NOT SETTLED.** The sweep scores DECODING, and a decoding score cannot separate
+position code from lick bleed-through. The 2 s window ending at the cue was chosen as the safest
+interval on that ground (Priya, 2026-09-13: the ENL starts at the last lick violation, so its early
+part can carry licking), and nothing here tests a window placed earlier in the ENL. The claim is
+"2 s beats 1 s over the interval we are willing to use", not "2 s is optimal over all intervals".
+
+
+---
+
+## 2026-09-13 — the state decoder can read TIME, and per-session balancing cannot fix it
+
+**THE CONFOUND.** `locomotor_state` splits a session into licking / running / rest. Those classes are
+not distributed alike over session time — licking is cue-locked, rest fills the ITIs, running drifts
+— while cortex itself drifts: `rest_position_vs_drift` measured the same position's rest early-vs-late
+at **RMS 0.00282**, with no behavioural difference at all. A three-way decoder can therefore separate
+the classes partly on WHEN the window sat. **The time-local baseline that fixes this for the maps does
+not reach here**: rest is a CLASS in this analysis, not a subtrahend, so there is nothing to subtract
+it from.
+
+**THE COMPOSITION IS MEASURED** (`scripts/rest_migration/state_time_bins.py`, 91 sessions, 1 skipped
+— PS92_0812, the crash+concat session — 5 equal bins of each session's imaging span, segments counted
+exactly as `locomotor_features` builds them):
+
+| epoch | licking bin1 → bin5 | rest bin1 → bin5 | running bin1 → bin5 |
+|---|---|---|---|
+| pre | 4,105 → 3,413 | 2,198 → 3,893 | 2,305 → 4,097 (U-shaped) |
+| acute | **1,131 → 441** | 732 → 1,858 | 294 → 1,778 |
+| subacute | **1,802 → 649** | 318 → 1,494 | 821 → 2,593 |
+| chronic | 1,212 → 1,163 | 187 → 903 | 289 → 441 |
+
+**THE SHIFT IS STEEPER POST-STROKE THAN PRE.** Pre-stroke licking is nearly flat across the session
+and the largest class share per bin is 0.36–0.51; acutely and subacutely licking falls by 60–64% from
+first bin to last while rest and running rise, and chronically the largest share reaches **0.79**.
+So the amount of information carried by "when in the session" is itself different pre and post —
+which is exactly the axis `BEHAVIOURAL_STATE_CONTROL.md` reads for preservation. **This is a stated
+limit on that control, not a refutation of it**: the decoder is FROZEN on pre-stroke data, so it
+cannot fit a post-stroke-specific time structure; what it can do is carry a pre-stroke time signal
+into a post-stroke session where the classes sit at different times.
+
+**BALANCING IS POSSIBLE POOLED AND NOT PER SESSION.** Priya, 2026-09-13: *"I don't know that it's
+worth doing the time regression or balancing across time bins, unless it's pretty simple to implement
+and doable (ie there is enough of each class across all time bins)."* Retained fraction under
+`3 x min-over-classes` per bin:
+
+| epoch | pooled | per session |
+|---|---|---|
+| pre | 0.63 | **0.35** |
+| acute | 0.48 | **0.33** |
+| subacute | 0.59 | **0.31** |
+| chronic | 0.36 | **0.25** |
+
+and **30 of 91 sessions have at least one EMPTY class-bin** (11/43 pre, 5/16 acute, 9/18 subacute,
+5/14 chronic), where an empty cell zeroes that bin for all three classes. The worst single session
+would retain **0.02** of its segments. PS94_0606 has **20 running segments in the whole session**.
+
+**DECISION: the simple (unbalanced) state decoder stands, and the composition table above is
+reported as its limit.** Per-session balancing would cost 65–75% of the data to remove a confound
+whose size has not been shown to matter, and would silently drop a third of the sessions' bins.
+
+**THE CHEAP TEST THAT WOULD SIZE IT, and has not been run:** score the frozen decoder separately
+within each session-time bin. If accuracy is flat across bins, time is not carrying it. That is one
+pass over the existing features with no refitting, and it is the thing to do before either balancing
+or dismissing this.
