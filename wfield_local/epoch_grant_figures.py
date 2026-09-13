@@ -1591,6 +1591,18 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     edges, out = bm.atlas_edges(), []
 
     for reference in prm.REFERENCES:
+        # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
+        # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
+        # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
+        # drives half the bins to ~0 by construction and leaves an early-versus-late contrast
+        # inside one window, which is not a position map and must not be rendered as one. The other
+        # two arms are genuine: `cue` gives [cue, cue+2] minus [cue-1, cue] (the cue-evoked
+        # increment), `lick` gives a post-lick window minus a true pre-cue baseline.
+        # Priya, 2026-09-13: "we're normalizing precue to precue??"
+        if reference == "precue" and align == "precue":
+            print("  .. 15r: skipping PRECUEref on the precue arm (baseline is inside the window)",
+                  flush=True)
+            continue
         txt = _REF_TEXT[reference]
         cells, titles = {}, {}
         for an, by_e in sorted(store.items()):
@@ -1746,6 +1758,18 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     edges, out = bm.atlas_edges(), []
 
     for reference in prm.REFERENCES:
+        # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
+        # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
+        # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
+        # drives half the bins to ~0 by construction and leaves an early-versus-late contrast
+        # inside one window, which is not a position map and must not be rendered as one. The other
+        # two arms are genuine: `cue` gives [cue, cue+2] minus [cue-1, cue] (the cue-evoked
+        # increment), `lick` gives a post-lick window minus a true pre-cue baseline.
+        # Priya, 2026-09-13: "we're normalizing precue to precue??"
+        if reference == "precue" and align == "precue":
+            print("  .. 15r: skipping PRECUEref on the precue arm (baseline is inside the window)",
+                  flush=True)
+            continue
         txt = _REF_TEXT[reference]
         cells, titles, amp, contours, rows = {}, {}, {}, {}, []
         _stats = []
