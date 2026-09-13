@@ -77,6 +77,9 @@ took 8–10 h; it takes 1 h 51 m. That estimate was made before the parallel ren
 | grant render, 96 units, parallel | **1 h 51 m** | same run |
 | ONE grant family re-rendered (`--only 7b -j 5`) | **~15 min** | 2026-09-09, 5 units, 24 cores |
 | epoch figures, one family, 3 arms (`--only 5r`) | **~26 min** | 2026-09-09 |
+| **FULL epoch render, 18 families x 5 arms (453 units), no `--only`** | **1 h 58 m** | 2026-09-12, 0 failures |
+| non-epoch `grant_figures -j 5` + `10cs` + `recovery_trajectory` | **42 min** | 2026-09-12 |
+| deck build + `deck_split` | **~1.5 min** | 2026-09-12 (the split alone is 14 s) |
 | one per-day date + cross-session + deck rebuild | **1 h 30 m** | 2026-09-09, `nightly_figs 0908 --skip-grant --skip-poststroke --skip-frozen --skip-nolick` |
 
 So a full stage 2 DOES fit in a night, and `--skip-grant` is no longer the routine choice it was —
@@ -94,6 +97,14 @@ timing from that paragraph; measure it.
 -j <N>` and `python -m wfield_local.epoch_grant_figures --only <key>` both exist, and a unit is one
 (figure, alignment, trial class). Fixing one figure has cost ~15 min since the parallel renderer
 landed; re-running all 96 to fix one of them is the mistake this line exists to prevent.
+
+**DO NOT SCALE THE FULL EPOCH RENDER FROM THE PER-FAMILY NUMBER.** One family costs ~26 min because
+it pays the whole per-(alignment, class) COLLECTION itself; a full run pays that collection five
+times total and amortises it over all eighteen families. Multiplying gives ~13 h against a measured
+**1 h 58 m**. The same trap in the other direction was measured on 2026-09-12: extrapolating from
+the FIRST arm (38 min, which carries the cold collection) predicted 2-3 h, and arms 2-5 came in far
+faster off the cache. Measure at an arm boundary if you need an estimate mid-run, and expect the
+first arm to be the slowest by a wide margin.
 
 **THE COST HINT IS NOT ALIGNMENT-AWARE** (`grant_figures._COST_HINT`): it is keyed by figure only,
 so the scheduler treats a lick-aligned unit as costing the same as a cue-aligned one when lick uses
