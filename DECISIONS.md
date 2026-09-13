@@ -10150,3 +10150,66 @@ because the animals barely lick there acutely — and NOT a weakened result.
 **Read `_working` for the post-stroke geometry claims.** The `_lick` arms are the selection control
 and are informative only where the two trial sets converge, which is chronic. A figure filename
 ending `_lick` is a different population, not a different rendering of the same one.
+
+---
+
+## 2026-09-13 — Can the first pass be placed automatically? Three corrections and one measurement
+
+Priya: *"is it not feasible for you to do a first-pass placement across camera positions in the
+frames due for human labeling, eg for spout, jaw, tongue?"* Checking rather than re-asserting the
+earlier "no" overturned three things I had written down, two of them in this file.
+
+**CORRECTION 1 — the validation plan recorded yesterday is vacuous for the spout.** The entry above
+says to fit the seed detector against "cam1's 109 hand-placed points". Those 109 points are **jaw
+(71 frames) and tongue (38)**. There is **no spout point and no nose point in them**, because both
+parts were added to cam1 on 2026-09-12, two days after the labels were placed. The plan is sound
+for jaw and tongue and tests nothing for the part that actually kept failing.
+
+**CORRECTION 2 — cam4's labels are not ground truth.** `dlc/labeled-data/` and the project's own
+`labeled-data/` were diffed cell by cell: 1,272 co-finite cells, **max absolute difference 0.0**,
+both stamped 2026-09-08. Nothing has been hand-corrected, so the 7,642 cam4 points are raw donor
+predictions. Training a seeding network on them would teach it the donor's mistakes and return them
+wearing the authority of "our network". **Not before cam4 is corrected.**
+
+**CORRECTION 3 — the frames on disk are not the frames due for labelling.** cam4 and cam1 share
+**0 of 72 frame numbers** and **5 of 72 (trial, phase) pairs**; the cameras were sampled
+independently and the cam4 anchor (373cd35) has never been run. Worse, `dlc_frames.extract` skips
+files that already exist and `write_manifest` appends, so re-extraction **adds** rather than
+replaces: cam1/cam2/cam3 would go from 2,474 frames to roughly 4,900, with nothing but the manifest
+distinguishing the matched set from the orphaned one. **Re-extraction blocks all seeding work, and
+needs a pruning decision before it runs.**
+
+### THE SPOUT DOES NOT NEED DETECTING — MEASURED
+
+Priya: *"the spout moves between each trial, but within a group, during the trial period, the spout
+should be stationary (except for when the animal licks so vigorously it moves the spout a bit)."*
+My first test grouped by (session, COMMANDED POSITION), which pools across trials and was wrong.
+
+The first corrected test was also wrong, in a way worth recording: pixel-wise SD over the WHOLE
+FRAME, within-trial against across-trial, returned a ratio near 0.5 on every camera. That looks
+supportive and is confounded — a whole-frame median is dominated by the ANIMAL, which also varies
+less within a trial, so the number is equally consistent with a nailed-down spout and with a
+drifting one. It measures the wrong object.
+
+Measuring the spout itself, using the donor network's cam4 spout predictions as the probe — so the
+figure is TRUE MOTION + PREDICTION NOISE, an **upper bound**, which cannot flatter the hypothesis:
+
+| | |
+|---|---|
+| within one trial, max deviation from that trial's own mean | **3.34 px** median (mean 4.24, p90 7.88) |
+| between the six commanded positions, same session | **91.96 px** median |
+| separation | **27.5x** |
+| trials where the spout wanders >10 px | **5.6%** |
+
+Over 126 trials in 13 sessions. **The stationary-within-a-trial assumption holds**, and the right
+tail is exactly the exception Priya named: 5.6% of trials over 10 px, 1.6% over 20 px.
+
+So the spout is not a detection problem but a **bookkeeping** one. The unit is (session, trial) —
+**881 groups across 3,401 frames**, ~3.9 frames each — and one point per group propagates to the
+rest. That makes the part three threshold detectors failed on the *cheapest* of the three, with
+~6% of trials flagged for a human check rather than all of them.
+
+**Jaw and tongue have no such shortcut.** They move independently every frame, so the only honest
+route is the ordinary DLC loop after cam4 is corrected: train on cam4 + cam1, predict cam2/cam3,
+correct. Sequencing is the same for all of it — **re-extract first**, because seeding the current
+cam1/cam2/cam3 frames is work thrown away.
