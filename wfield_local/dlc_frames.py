@@ -584,28 +584,30 @@ def prune_by_appearance(rows: list[dict], rv=None, target: int | None = None) ->
                 for r in pr:
                     groups.setdefault(r["_group"], []).append(r)
                 size = max(1, round(len(pr) / len(groups)))       # frames per group
-                if pool == "lick":
-                    # NOT stratified by position, and that is not an oversight. The spout sits ~92 px
-                    # apart between commanded positions (measured 2026-09-13) while one lick moves it
-                    # ~3 px, so position IS an appearance difference and farthest-first spreads over
-                    # positions for free. Forcing a per-position quota on top would only override the
-                    # diversity measure with a proxy for it.
-                    keys = sorted(groups)
-                    G = np.stack([np.mean([feats[id(r)] for r in groups[k]], 0) for k in keys])
-                    for i in farthest_first(G, max(1, quota[pool] // size)):
-                        kept += groups[keys[i]]
-                else:
-                    cells: dict[tuple, list] = {}
-                    for k in groups:
-                        cells.setdefault(_stratum(groups[k][0]), []).append(k)
-                    # Remainder spread over the first cells rather than dropped: an integer
-                    # division here quietly under-filled every session by quota % n_cells frames.
-                    n_cell = max(1, len(cells))
-                    base, extra = divmod(quota[pool], n_cell)
-                    for c, (cell, ks) in enumerate(sorted(cells.items())):
-                        G = np.stack([np.mean([feats[id(r)] for r in groups[k]], 0) for k in ks])
-                        for i in farthest_first(G, max(1, base + (1 if c < extra else 0))):
-                            kept += groups[ks[i]]
+                # BOTH POOLS ARE STRATIFIED BY SPOUT POSITION. An earlier version left the lick pool
+                # unstratified, arguing that at ~92 px between commanded positions against ~3 px
+                # within a trial the spout IS an appearance difference, so farthest-first would
+                # spread over positions for free. Measured, it does not: the kept licks came out
+                # 8/8/16/24/24/40 across the six positions while the stratified phase pool sat at
+                # 18-22. The comparison was the wrong one. What matters is the spout's signal
+                # against the ANIMAL's, and at 64x64 a 92 px shift is ~8 px of a thumbnail dominated
+                # by body posture -- so the spout never drove the choice at all.
+                cells: dict[tuple, list] = {}
+                for k in groups:
+                    cells.setdefault(_stratum(groups[k][0]), []).append(k)
+                n_cell = max(1, len(cells))
+                base, extra = divmod(max(1, quota[pool] // size), n_cell)
+                # Remainder ROTATED PER SESSION. Handing it to the first cells every time gave the
+                # alphabetically-first positions an extra frame in all 15 sessions.
+                spin = sum(ord(ch) for ch in stem) % n_cell
+                for c0, (cell, ks) in enumerate(sorted(cells.items())):
+                    c = (c0 - spin) % n_cell
+                    take = base + (1 if c < extra else 0)
+                    if take <= 0:
+                        continue
+                    G = np.stack([np.mean([feats[id(r)] for r in groups[k]], 0) for k in ks])
+                    for i in farthest_first(G, take):
+                        kept += groups[ks[i]]
             out += kept
             if lead and cam == lead:
                 # KEYED ON `_group`, NOT trial_id: two licks inside one trial share a trial_id AND

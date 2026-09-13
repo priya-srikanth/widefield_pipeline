@@ -448,3 +448,51 @@ def test_thinning_is_deterministic_and_zero_keeps_everything():
     sessions = [(a, "20260606", "s", ep) for ep in ("pre", "acute") for a in ("PS92", "PS93")]
     assert df._thin_epochs(sessions, 0) is sessions
     assert df._thin_epochs(sessions, 1) == df._thin_epochs(sessions, 1)
+
+
+def test_the_remainder_does_not_favour_the_same_spout_positions_every_session():
+    """quota % n_cells frames have to go somewhere. Giving them to the first cells each time handed
+    the alphabetically-first positions an extra frame in all 15 sessions -- close_center came out
+    with 23 frames against far_center's 55, a systematic bias on exactly the axis the spout labels
+    exist to span. The rotation is keyed on the session name, so it is deterministic but not
+    aligned across sessions.
+    """
+    seen = set()
+    for stem in (f"cam4_2026-06-0{i}T12_00_00" for i in range(1, 7)):
+        seen.add(sum(ord(ch) for ch in stem) % 6)
+    assert len(seen) > 1, "every session rotated to the same offset; the bias is unchanged"
+
+
+def test_the_lick_pool_is_stratified_by_spout_position_too(monkeypatch):
+    """Leaving the lick pool unstratified on the argument that the spout IS an appearance difference
+    produced 8/8/16/24/24/40 licks across the six positions against the phase pool's 18-22. At 64x64
+    a 92 px spout shift is ~8 px of a thumbnail dominated by body posture, so appearance alone never
+    tracked position. A tongue labelled only where the animal licks best trains a network that finds
+    it only there -- which is the failure this module exists to avoid.
+
+    Checked ACROSS SESSIONS, which is the only place it can hold: eight kept lick-frames per session
+    is two licks against six positions, so no single session can cover them all. The rotation is
+    what makes the aggregate even, and the aggregate is what the network sees.
+    """
+    rows, rng = [], np.random.default_rng(0)
+    for sess in range(12):
+        for pos in ("close_L", "close_R", "close_center", "far_L", "far_R", "far_center"):
+            n = 8 if pos == "far_R" else 3          # far_R dominates the candidate pool everywhere
+            for lick in range(n):
+                for off in (-0.016, 0.0, 0.032, 0.064):
+                    rows.append({"animal": "PS92", "date": f"2026060{sess%9}", "cam": "cam4",
+                                 "epoch": "pre", "video_stem": f"cam4_s{sess}", "frame": len(rows),
+                                 "trial_id": lick, "position": pos, "category": "success",
+                                 "phase": f"lick{off*1000:+.0f}", "t_from_cue_s": float(lick),
+                                 "_group": f"{pos}:{lick}", "image": f"img{len(rows):07d}.png",
+                                 "_video": f"s{sess}.avi"})
+    feats = {id(r): rng.normal(size=32).astype(np.float32) for r in rows}
+    monkeypatch.setattr(df, "_decode_feats",
+                        lambda grp, _f=feats: ({id(r): _f[id(r)] for r in grp}, list(grp)))
+    monkeypatch.setattr(df, "anchor_cam", lambda: None)
+    kept = df.prune_by_appearance(rows, target=16)
+    per_pos = {}
+    for r in kept:
+        per_pos[r["position"]] = per_pos.get(r["position"], 0) + 1
+    assert len(per_pos) == 6, f"a spout position was never sampled in 12 sessions: {per_pos}"
+    assert max(per_pos.values()) <= 3 * min(per_pos.values()),         f"one position dominated the kept licks across sessions: {per_pos}"
