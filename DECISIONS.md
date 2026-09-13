@@ -10325,3 +10325,50 @@ The previously documented triple was *position 0.86 → 0.43 (loses 50%), behavi
 number would have meant the rest mask was leaking into an analysis that must not see it; one that
 left the state number alone would have meant the class redefinition had no effect on a decoder built
 from it. Neither happened.
+
+
+---
+
+## 2026-09-13 — block order is SHUFFLED between sessions, so pooled drift cannot manufacture a gradient
+
+The precondition for reading the position-graded amplitude change, and the one DECISIONS.md recorded
+as "not yet checked" when that gradient was first reported.
+
+**THE LOGIC.** Positions run in ~6-trial BLOCKS, so within a session position is confounded with
+time-within-session -- `rest_position_vs_drift` put POSITION/DRIFT at 1.02, i.e. the confound is as
+large as the effect. That is unavoidable within one session. **Across sessions it only survives if
+block order is SYSTEMATIC.** If position 4 tends to run early and position 1 late in every session,
+each session's drift pushes the same positions the same way and pooling ADDS the artefact. If the
+order shuffles, pooling averages it out and a gradient that survives is not drift.
+
+**THE MEASUREMENT** (`scripts/rest_migration/block_order.py`, all 92 sessions, 0 skipped; each
+trial's normalised index in its session, averaged per position):
+
+| position | mean normalised index | sd over sessions |
+|---|---|---|
+| close_L | 0.502 | 0.025 |
+| close_center | 0.494 | 0.024 |
+| close_R | 0.497 | 0.024 |
+| far_L | 0.503 | 0.028 |
+| far_center | 0.504 | 0.027 |
+| far_R | 0.497 | 0.024 |
+
+**Every position averages 0.50 to within 0.006, with an SD across sessions of 0.025.** No position
+is systematically early or late. A systematic order would put some position at 0.3 or 0.7.
+
+**THE DIRECT TEST**, session against session over the four positions common to all 92 (4,186 pairs):
+mean pairwise Spearman of the per-position mean index = **+0.011**.
+
+**READ THE COMPANION NUMBER AGAINST ITS OWN NULL, NOT AGAINST ZERO.** The fraction of pairs with
+|rho| > 0.6 is 0.40, which looks high until the null is computed: over all 24 permutations of four
+ranks, **P(|rho| > 0.6) = 0.417**. The observed 0.40 is BELOW chance, and the mean of +0.011 against
+a null mean of exactly 0 says the high-|rho| pairs split evenly between positive and negative. With
+only four common positions Spearman is a coarse, discrete statistic and a large |rho| is ordinary;
+quoting that fraction without its null would have invented an artefact.
+
+**WHAT THIS LICENSES, AND WHAT IT DOES NOT.** Drift-through-blocks cannot manufacture a POOLED
+position-graded amplitude effect, so the gradient is worth testing properly. It is still NOT
+established: nothing has yet tested the gradient itself, and the test that would is per-animal
+amplitude ratios with the nested bootstrap on the near-minus-far contrast. **That test must now be
+run on the TIME-LOCAL rest reference**, since the amplitudes it would use were computed against the
+flat session mean this repo replaced on the same day.
