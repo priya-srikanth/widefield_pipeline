@@ -58,7 +58,25 @@ RID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 #:   G9e  12  early vs late rewarded trials, per animal
 #:   G7c  10  small-lesion comparison, per session
 #:   G9b   6  per-animal ENL companion
-APPENDIX_TAGS = ("G9", "G9b", "G9c", "G9e", "G3", "G8d", "G8f", "G1b", "G7c")
+#: G4, G4b and G6 ADDED 2026-09-13 (Priya: "2 - push to appendix"), and for a reason distinct from
+#: every tag above them. The others moved because section I SUPERSEDES them -- a pooled,
+#: epoch-stratified form of the same quantity exists. These three move because they are
+#: ILLEGIBLE ON A SLIDE, and measurably so rather than as an impression:
+#:
+#:     poststroke_G4_identity            2790 x 10979 px   aspect 1:3.94
+#:     section_g_fits_engaged_<align>    3000 x  7350 px   aspect 1:2.45
+#:     poststroke_G6_nolick_readout      3510 x  9360 px   aspect 1:2.67
+#:
+#: Fitted to a 16:9 slide those scale to 14-23%, which renders their fontsize-6.5 annotations at
+#: ~1-1.5 pt. NO FONT CHANGE FIXES THAT; the cause is 48 per-session panels in one file, and the
+#: only real remedies are ~6 panels per slide (≈8 slides per family), per-animal aggregation, or
+#: the appendix. The appendix is where a reader can ZOOM, which is exactly what a 48-panel
+#: per-session grid needs and what a slide cannot give -- and it costs no narrative slides, in a
+#: deck that lost 46 of them the same day.
+#:
+#: THE FIGURES ARE NOT CUT. They are still rendered nightly and still placed; they move file.
+APPENDIX_TAGS = ("G9", "G9b", "G9c", "G9e", "G3", "G8d", "G8f", "G1b", "G7c",
+                 "G4", "G4b", "G6")
 
 
 def slide_titles(prs):
