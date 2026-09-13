@@ -187,6 +187,9 @@ S_ENC_POS = (
     "vs-ceiling panel is the one that compares animals; the raw panel compares sessions within an "
     "animal.")
 
+#: UNUSED SINCE 2026-09-13 and kept deliberately: the pooled FEVE-by-region slide it annotated was
+#: cut, and this is its method note. Deleting it would mean rewriting the method from scratch to put
+#: the slide back, which is the one thing a cut should never cost. Kept, not orphaned by accident.
 S_ENC_FEVE = (
     "POOLED per animal, so this is the anatomy question: WHERE position is encoded, not how much. "
     "Regions with a near-zero ceiling can show wild FEVE for free, so rank the regions and ignore "
@@ -1896,17 +1899,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
         # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
         # session, so a cell in one panel is not the same region-set as the cell beside it and the
-        # panels cannot be read against each other. The POOLED FEVE slide below keeps a fixed
-        # region axis, which is the comparable form of the same measure.
-    s = slide()
-    title(s, "Encoder — explained-variance fraction (FEVE) by region, pooled per animal",
-          "Fraction of EXPLAINABLE variance captured per Allen region, pooled over each animal's curated sessions.",
-          trials=TRIALS_LICK)
-    note(s, M_ENCODE, specific=S_ENC_FEVE)
-    big(s, src / "locanmf_encoder_feve_by_region_pooled.png", top=1.5, width=12.9)
+        # panels cannot be read against each other.
+    # CUT 2026-09-13 (Priya, "it's the pooled FEVE i wanted to get rid of, slide 25"): the POOLED
+    # FEVE-by-region slide, `locanmf_encoder_feve_by_region_pooled.png`.
+    #
+    # THE PER-ANIMAL ENCODER EV SLIDES ABOVE STAY -- they are the four this was easy to confuse with,
+    # and the confusion was real: the edit list named "FEVE pooled" against slide 23, which is PS94's
+    # encoder EV, while the pooled FEVE is slide 25. Deleting on the number alone would have removed
+    # ONE animal's EV panel and left the other three, which is not a coherent deck state and would
+    # have looked deliberate.
+    #
+    # WHY IT GOES, now that the 2026-08-19 note above no longer holds it up: that note kept the
+    # pooled slide as "the comparable form" of the per-session r2 it was cutting. The comparison it
+    # served has since moved to the encoder-CEILING family, which reports the same fraction-of-
+    # explainable-variance question per POSITION and per EPOCH with bootstrap intervals, rather than
+    # per Allen region pooled over a phase. The figure is still written nightly; only the slide goes.
     # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
     # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
-    # read off it. The pooled slide above is retained.
+    # read off it.
 
     if (src / "locanmf_encoder_ev_matrix.png").exists():
         s = slide()
