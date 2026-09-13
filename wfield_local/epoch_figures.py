@@ -1771,7 +1771,11 @@ def _panel_counts(epoch, coverage, pre_sessions=None):
     per = (coverage or {}).get(epoch) or {}
     if epoch == "pre" and pre_sessions:
         body = " ".join(f"{a[-2:]}:{n}" for a, n in sorted(pre_sessions.items()) if n)
-        return f"{body}  (leave-one-out ref)" if body else ""
+        # THE QUALIFIER GOES ON ITS OWN LINE. On one line this is ~44 characters over a panel that
+        # is a quarter of the canvas, and a centred title that long spills BOTH ways: on the 10cs
+        # render the pre counts ran off the left edge and collided with the acute panel's counts,
+        # so neither was readable. Every matrix and confusion family shares this label.
+        return f"{body}\n(leave-one-out ref)" if body else ""
     return " ".join(f"{a[-2:]}:{n}" for a, n in sorted(per.items()) if n)
 
 

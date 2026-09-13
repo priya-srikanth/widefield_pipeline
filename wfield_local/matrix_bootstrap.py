@@ -138,12 +138,21 @@ def cell_ci(draws, alpha=0.05):
     return lo, hi
 
 
-def cell_marks(draws, *, reference=0.0, n_comparisons=None, alpha=0.05):
+def cell_marks(draws, *, reference=0.0, n_comparisons=None, alpha=0.05, one_sided=False):
     """Per-cell ``""`` / ``"*"`` / ``"**"`` against ``reference``.
 
     ``reference`` is 0 for a delta and the CHANCE LEVEL for an absolute panel -- a best-match
     destination cell is a fraction of sessions, and the question there is not "is it non-zero" but
     "is it more than the 1/6 a coin would give".
+
+    ``one_sided`` MARKS ONLY CELLS ABOVE THE REFERENCE, and the absolute row of a
+    fraction-of-sessions panel needs it. Measured on the first render of family 10cs: two-sided
+    against chance marked about thirty of thirty-six cells, because a destination that is never
+    chosen sits at 0.00 with a tight interval and is therefore "significantly below 1/6" -- true,
+    trivial, and true of almost every off-diagonal cell by construction. A mark that appears
+    everywhere carries no information and actively hides the handful of cells that mean something.
+    The substitution claim is "this destination is chosen MORE than chance", so that is what gets
+    marked. The DELTA row stays two-sided: a cell can genuinely rise or fall.
 
     ``n_comparisons`` defaults to the number of cells with a usable interval, which is the honest
     family size: a 6x6 tested everywhere is 36 comparisons, and correcting as though it were one
@@ -157,14 +166,18 @@ def cell_marks(draws, *, reference=0.0, n_comparisons=None, alpha=0.05):
         clo = np.nanpercentile(draws, 100 * a / 2, axis=0)
         chi = np.nanpercentile(draws, 100 * (1 - a / 2), axis=0)
     out = np.full(lo.shape, "", dtype=object)
-    sig = usable & ((lo > reference) | (hi < reference))
+    if one_sided:
+        sig, csig = usable & (lo > reference), clo > reference
+    else:
+        sig = usable & ((lo > reference) | (hi < reference))
+        csig = (clo > reference) | (chi < reference)
     out[sig] = MARK_UNCORRECTED
-    out[sig & ((clo > reference) | (chi < reference))] = MARK_CORRECTED
+    out[sig & csig] = MARK_CORRECTED
     return out
 
 
 def summarise(grouped, *, reference=0.0, delta_reference=0.0, seed=0, n_boot=N_BOOT,
-              base="pre", panels=None):
+              base="pre", panels=None, one_sided=True):
     """Everything a cell-interval figure and its sidecar need, for every epoch.
 
     Returns ``{epoch: {"point", "lo", "hi", "marks", "delta", "dlo", "dhi", "dmarks"}}`` with the
@@ -181,7 +194,10 @@ def summarise(grouped, *, reference=0.0, delta_reference=0.0, seed=0, n_boot=N_B
         point, draws = got
         lo, hi = cell_ci(draws)
         rec = {"point": point, "lo": lo, "hi": hi,
-               "marks": cell_marks(draws, reference=reference)}
+               # ONE-SIDED on the absolute row: see `cell_marks`. Two-sided against chance marked
+               # ~30 of 36 cells, because an unchosen destination sits at 0.00 and is trivially
+               # "below 1/6".
+               "marks": cell_marks(draws, reference=reference, one_sided=one_sided)}
         if e != base:
             d = delta_draws(grouped, e, base, rng=rng, n_boot=n_boot)
             if d is not None:
@@ -232,7 +248,7 @@ def write_cell_values(summary, q, *, labels=None, reference=None):
 
 def figure(mats, out_dir, *, name, title, labels, unit, reference, cmap="viridis",
            vmin=None, vmax=None, subtitle=None, coverage=None, pre_sessions=None,
-           seed=0, n_boot=N_BOOT):
+           seed=0, n_boot=N_BOOT, one_sided=True):
     """Draw a matrix family WITH per-cell marks, and write the interval sidecar beside it.
 
     Returns the figure path, or None when no epoch had enough sessions to resample.
@@ -246,7 +262,7 @@ def figure(mats, out_dir, *, name, title, labels, unit, reference, cmap="viridis
     if not grouped:
         return None
     summary = summarise(grouped, reference=reference, delta_reference=0.0,
-                        seed=seed, n_boot=n_boot)
+                        seed=seed, n_boot=n_boot, one_sided=one_sided)
     if len(summary) < 2:
         return None
     q = ef.matrix_row(
@@ -264,7 +280,10 @@ def figure(mats, out_dir, *, name, title, labels, unit, reference, cmap="viridis
 def mark_note(reference, n_boot=N_BOOT):
     """The sentence every cell-marked panel must carry. One source, so no two can disagree."""
     return (f"PER-CELL marks from a nested animals->sessions bootstrap ({n_boot} draws), the same "
-            f"unit the bar families use. TOP ROW: {MARK_UNCORRECTED} the 95% interval excludes "
-            f"{reference:.3g} (the panel's reference), {MARK_CORRECTED} it still excludes it after "
-            f"Bonferroni across the tested cells. BOTTOM ROW: the same against ZERO, i.e. the cell "
-            f"CHANGED from pre-stroke. A bottom-row mark is not a claim about chance.")
+            f"unit the bar families use. TOP ROW: {MARK_UNCORRECTED} the 95% interval lies ABOVE "
+            f"{reference:.3g} (the panel's reference), {MARK_CORRECTED} it still does after "
+            f"Bonferroni across the tested cells. ONE-SIDED on purpose -- a destination that is "
+            f"never chosen sits at 0.00 and is trivially 'below chance', which would mark almost "
+            f"every off-diagonal cell and hide the few that mean something. BOTTOM ROW: TWO-SIDED "
+            f"against ZERO, i.e. the cell CHANGED from pre-stroke in either direction. A "
+            f"bottom-row mark is not a claim about chance.")

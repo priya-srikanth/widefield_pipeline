@@ -1623,24 +1623,31 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
     seen_methods = {}
 
+    pending_notes = []
+
     def note(s, text, specific=None):
-        """Speaker notes: what is specific to THIS slide first, methods once, then provenance.
+        """Queue this slide's speaker notes. Written for real by `_flush_notes` before the save.
 
-        SIDECAR TOKENS ARE RESOLVED HERE, BEFORE THE DEDUP HASH. A note may quote a figure's own
-        CSV -- see `deck_values` -- rather than hard-coding a number that a re-render will silently
-        invalidate. Resolving first matters: two notes whose prose is identical but whose numbers
-        differ must stay two methods blocks, or the second is replaced by "same as slide N" and the
-        reader is pointed at another slide's numbers. A wrong cross-reference reads exactly like a
-        right one.
+        DEFERRED, AND IT HAS TO BE. A note may quote its own figure's sidecar via a ``SELF`` token
+        (see `deck_values`), and many slides call `note` BEFORE placing the figure -- on the first
+        real build that left `[[? SELF has no figure on this slide]]` on the two converted notes,
+        because `figs_by_slide` was still empty for that slide. Reordering every call site would fix
+        it only until the next one was written in the old order.
 
-        WHY THIS DEDUPES. M_POSTSTROKE is 5823 characters and was written verbatim onto 15 slides;
-        37 slides carried a shared block and exactly ONE had a note specific to it. A reader
-        scrolling 15 identical walls of text learns nothing from the 15th, and stops reading the
-        first -- which is where the caveats live (Priya, 2026-08-22). The block is now written in
-        full the FIRST time it appears and replaced by a pointer to that slide afterwards, so the
-        text still exists exactly once and is still reachable from every slide that needs it.
+        RESOLUTION CANNOT SIMPLY MOVE AFTER THE DEDUP EITHER. The methods block is deduped by
+        hashing its text, and two arms whose prose is identical differ only in their resolved
+        numbers; hashing the RAW text would collapse them and replace the second with "same as slide
+        N", pointing the reader at another arm's numbers. So resolve first, then hash -- which means
+        both must wait until every figure is recorded.
         """
-        idx = len(prs.slides)                       # 1-based number of the slide just added
+        pending_notes.append((s, len(prs.slides), text, specific))
+
+    def _flush_notes():
+        """Resolve every queued note against its slide's figure, dedupe, and write."""
+        for s, idx, text, specific in pending_notes:
+            _write_note(s, idx, text, specific)
+
+    def _write_note(s, idx, text, specific):
         # `SELF` in a token means THIS SLIDE'S figure. Most notes are placed by a glob and serve
         # every trial-class arm, so a hard-coded stem would print one arm's numbers onto all of them.
         _self = deck_values.stem_of((figs_by_slide.get(id(s._element)) or [None])[0])
@@ -4648,6 +4655,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _prov = 0
     _caps = 0
     _years = _session_years()
+    # NOTES FIRST, now that every figure is recorded, so a `SELF` token finds the figure on
+    # its own slide however early that slide's `note` was called. It must also come BEFORE
+    # the caption pass below, which PREPENDS to the note text -- flushing after it silently
+    # overwrote every per-figure caption.
+    _flush_notes()
     for _sl in slide_order:
         _figs = figs_by_slide.get(id(_sl._element), [])
         _cap = figure_caption(_figs, years=_years)

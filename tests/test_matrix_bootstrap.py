@@ -153,3 +153,45 @@ def test_the_mark_note_distinguishes_the_two_rows():
     note = mb.mark_note(1 / 6)
     assert "TOP ROW" in note and "BOTTOM ROW" in note
     assert "not a claim about chance" in note
+
+
+def test_the_absolute_row_is_one_sided_because_two_sided_marks_everything(epochs_stub):
+    """THE FLAW THE FIRST RENDER EXPOSED, and the reason `one_sided` exists.
+
+    A best-match destination cell is a fraction of sessions. A destination that is NEVER chosen sits
+    at 0.00 with a tight interval, so it is "significantly below 1/6" -- true, trivial, and true of
+    almost every off-diagonal cell by construction. On the real 10cs panel that marked about thirty
+    of thirty-six cells and buried the handful that mean something. The substitution claim is that a
+    destination is chosen MORE than chance, so only that is marked.
+    """
+    mats = _mats(cell=(5, 4), value=0.8)
+    for an in mats:                                  # everything else genuinely never chosen
+        for k in mats[an]:
+            M = mats[an][k]
+            keep = M[5, 4]
+            M[:] = 0.0
+            if k != "PRE":
+                M[5, 4] = keep
+    g = mb.by_epoch(mats)
+    _pt, draws = mb.cell_draws(g, "acute", rng=np.random.default_rng(1), n_boot=400)
+    two = int((mb.cell_marks(draws, reference=1 / 6) != "").sum())
+    one = int((mb.cell_marks(draws, reference=1 / 6, one_sided=True) != "").sum())
+    assert two >= K * K - 1, "two-sided marks nearly everything -- that is the problem"
+    assert one <= 2, "one-sided marks only the destination actually chosen above chance"
+
+
+def test_summarise_defaults_the_absolute_row_to_one_sided(epochs_stub):
+    s = _summary(_mats(cell=(5, 4)))
+    assert "marks" in s["acute"] and "dmarks" in s["acute"]
+
+
+def test_the_delta_row_stays_two_sided(epochs_stub):
+    """A cell can genuinely rise OR fall from pre-stroke; one-siding the delta would hide losses."""
+    mats = _mats(cell=(5, 5), value=0.0)             # own-position collapses after the lesion
+    for an in mats:
+        mats[an]["PRE"][5, 5] = 0.9
+    g = mb.by_epoch(mats)
+    d = mb.delta_draws(g, "acute", "pre", rng=np.random.default_rng(2), n_boot=400)
+    assert d is not None
+    marks = mb.cell_marks(d[1], reference=0.0)       # two-sided, as summarise uses for deltas
+    assert marks[5, 5], "a cell that FELL must still mark on the delta row"
