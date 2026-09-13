@@ -267,7 +267,21 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
     cam1:
       role: bottom            # looks UP at the underside of the snout; the spout enters from the
                               # top of frame. The whiskers, while visible, cannot be identified as
-                              # the frontal view's numbered points. Best view of the tongue there is.
+                              # the frontal view's numbered points.
+                              #
+                              # THIS LINE USED TO SAY "best view of the tongue there is". IT IS
+                              # WRONG (Priya, 2026-09-13): "the spout often blocks the tongue tip
+                              # from cam 1, i still think cam4 is best". From below, the spout sits
+                              # between the camera and the extended tongue, so the TIP -- the one
+                              # part the landmark is defined by -- is the part most often hidden.
+                              #
+                              # That has a consequence beyond which camera to label first. A point
+                              # placed on "the tongue" in cam1 when the tip is occluded is not the
+                              # same physical point as the tip in cam4, so triangulating the two
+                              # reproduces the silhouette problem recorded on 2026-09-12 rather than
+                              # solving it. Expect tongue to accept at a LOWER rate than spout or
+                              # jaw in `dlc_seed3d`, and read a low rate as the geometry reporting
+                              # this occlusion rather than as a bug.
                               #
                               # `nose` ADDED 2026-09-12 (Priya). The earlier note here said the nose
                               # was "not in view at all" from below, which is wrong -- it is plainly
