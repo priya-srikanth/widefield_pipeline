@@ -10213,3 +10213,97 @@ rest. That makes the part three threshold detectors failed on the *cheapest* of 
 route is the ordinary DLC loop after cam4 is corrected: train on cam4 + cam1, predict cam2/cam3,
 correct. Sequencing is the same for all of it — **re-extract first**, because seeding the current
 cam1/cam2/cam3 frames is work thrown away.
+
+---
+
+## 2026-09-13 — Rebuilding the labelling set: behaviour AND appearance, and four corrections
+
+Priya: *"we don't want to hand-label 4k frames. ideally per DLC we should only have to labe in the
+hundreds, if we appropriately extract different states"*, and then the mechanism: *"while DLC uses K
+means etc to extract different poses, we can do some combination of that AND using our behavior
+alignment ... For licking especially this is important, because the standard method doesn't extract
+enough frames with the tongue out in different poses."*
+
+**THE MODULE DOCSTRING REJECTED CLUSTERING, AND THAT REJECTION WAS RIGHT ABOUT THE WRONG THING.**
+K-means AS THE SELECTOR does return the resting posture on 1.5 M frames of a head-fixed mouse, and
+the tongue never appears. It does not follow that clustering has no place. The two roles are
+separate claims: **behaviour alignment decides which MOMENTS are eligible**, which is what
+guarantees a tongue-out frame exists at all, and **appearance decides which of the eligible ones are
+worth a person's time**. Neither half works alone.
+
+### The measurement that set the budget
+
+Across 2,153 lick-locked frames, comparing 64x64 z-scored thumbnails:
+
+| | median distance |
+|---|---|
+| WITHIN one onset (its six offsets) | **16.4** |
+| BETWEEN different onsets | **46.5** |
+
+**99-100% of within-onset pairs are closer than the 5th percentile of between-onset pairs.** Six
+offsets spanning -16..+64 ms is 80 ms of one protrusion at 250 fps — six copies of one pose. Pose
+diversity lives BETWEEN licks. Offsets 6 -> 4, `lick_per_session` 6 -> 18.
+
+### Four corrections, three of them mine
+
+**1. A lick is kept or dropped WHOLE.** I wrote frame-wise pruning first. Priya: *"labeling a few
+consecutive frames from one lick is probably helpful for the human to ensure they're picking the
+same part of the tongue."* Frame-wise pruning keeps one frame from each of many licks — optimal for
+the network, worst possible for the labeller, who then never sees the tongue MOVE and has to guess
+at "the tip" on isolated frames. **Label consistency is upstream of everything the network can
+learn.** Pinned by `test_a_lick_is_kept_or_dropped_WHOLE_never_split`.
+
+**2. The -0.016 hard negative.** I dropped it, arguing ENL/Cue frames are tongue-in anyway.
+`test_the_lick_offsets_span_the_tongue_out_epoch` caught it and its reasoning beats mine: those are
+EASY negatives, a resting mouse. -0.016 is the HARD one — the animal is committed to a lick and the
+tongue is not out yet, which is exactly the frame that stops the network firing early.
+
+**3. Thin by FRAMES PER SESSION, not by sessions.** Priya proposed 2 sessions per epoch across
+animals. Implemented and measured, it gives *perfectly balanced totals* — 256 frames per animal,
+256 per epoch — while covering only **8 of the 16 animal x epoch cells**. PS93, the
+right-orofacial-deficit animal, landed in acute but in neither subacute nor chronic, so the one
+animal whose recovery the tracking must follow would be labelled nowhere after its worst day, and
+degrading tracking would be indistinguishable from genuine recovery. **Balanced totals are not
+coverage.** Cutting frames per session reaches the same budget with every cell intact: 15 x 16 =
+240 per camera against 8 x 32 = 256. The coverage was free. `sessions_per_epoch` is kept, tested and
+set to 0.
+
+**4. Appearance does NOT track spout position.** I left the lick pool unstratified and wrote the
+reasoning into a code comment and a commit message: at ~92 px between commanded positions against
+~3 px of within-trial motion, position IS an appearance difference, so farthest-first should spread
+over positions for free. Measured: kept licks came out **8/8/16/24/24/40** across the six positions
+while the stratified phase pool sat at 18-22. The comparison was wrong — what matters is the spout's
+signal against the ANIMAL's, and at 64x64 a 92 px shift is ~8 px of a thumbnail dominated by body
+posture. The spout never drove the choice. Both pools stratify now; spread 8-40 -> 30-54.
+
+**Farthest-point sampling, not k-means**: deterministic without a seed, so a re-run re-picks the
+same frames the way this module promises; and it optimises spread, where k-means optimises
+within-cluster variance and will return two near-identical frames from a dense region.
+
+Final set: **240 frames per camera** (from ~900), 15 sessions x 16, all 15 animal x epoch cells,
+30 distinct licks all keeping their 4 offsets, and 240/240 moments shared across all four cameras.
+
+### Seeding cam2/cam3: the calibration, not the donor
+
+Priya: *"but you have the anipose triangulation"*. Correct, and it beats the donor, which is frontal
+and would be looking at side views ~55 deg off its training distribution — a VIEWPOINT shift, which
+the scale trick that rescued cam4 does nothing for.
+
+**Scored without labels, on the calibration recording**, by running the exact operation a seeder
+would: triangulate a board corner from cam4+cam1 ALONE, project into the side view, compare against
+where that camera actually saw it.
+
+| | median | p90 | control (all four cameras) |
+|---|---|---|---|
+| cam2 | **4.48 px** | 12.35 | 1.92 px |
+| cam3 | **7.71 px** | 21.91 | 4.05 px |
+
+DLC's `dotsize` is 6, so a seed landing 4-8 px out visually overlaps the true point: the labeller
+nudges rather than places from blank. **These are ChArUco corners — ideal, high-contrast,
+non-deforming — so this is a FLOOR, not the expected value.** Real landmarks add human placement
+scatter and the tongue deforms between views.
+
+The route needs TWO labelled views, so jaw/tongue/nose in cam2/cam3 follow Priya's cam1 pass. The
+SPOUT does not: it is commanded and stationary within a trial (3.34 px, measured today), so roughly
+one cam1 spout click per position per session triangulates against cam4's donor spout and seeds the
+spout in every cam2/cam3 frame.
