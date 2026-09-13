@@ -168,19 +168,26 @@ def session_quiet_svt(session, svt):
         return None
 
 
-def _working_xy(session, align, post_s, variant, baseline, v):
+def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None):
     """``(X, y)`` for one baseline setting -- figure 14's trial selection, exactly.
 
     FACTORED OUT so the no-baseline and pre-cue-baseline loads cannot drift apart. They must agree
     on the window, the class definition and the no-lick arm, or the reference stops being the only
     difference between the maps -- which is the entire claim this module makes.
+
+    ``signal_key`` MUST BE OVERRIDDEN WHENEVER ``v`` IS NOT THE SESSION'S PLAIN SVT. The disk cache
+    keys on it and on nothing about the array's contents, so passing a drift-removed signal under
+    the default key would make the cache serve rest-subtracted features to the plain path and back
+    again -- silently, across processes, for as long as the entry survived. That is the exact
+    failure `feature_cache_kind`'s `signal_key` exists to prevent; it only works if callers use it.
     """
     from wfield_local.locanmf_frozen_decoder import _args
     from wfield_local.locanmf_position_decoder import trial_features_cached
 
     X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
         session, _args("locanmf", align, post_s, baseline=baseline), signal=np.asarray(v),
-        feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}",
+        feat_region=np.arange(v.shape[0]),
+        signal_key=signal_key or f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
     if variant == "working" and len(yn):
@@ -293,28 +300,78 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
     # the six maps instead would be a balanced reference and would HIDE the artefact this figure
     # exists to expose.
     trial_mean = _map(X.mean(0))
+
+    # ------------------------------------------------------------------ the REST reference
+    # THE THIRD LOAD, and the reason it is a load rather than one more subtraction at the end.
+    #
+    # Until 2026-09-13 the rest reference was ONE SESSION MEAN subtracted from every position's
+    # map. That is flat, and a flat subtrahend cannot remove DRIFT -- which is exactly what the
+    # rest baseline was then shown to contain: `rest_position_vs_drift` measured the same position's
+    # rest early-vs-late at RMS 0.00282 against 0.00288 between positions at matched time, a ratio
+    # of 1.02. Positions run in ~6-trial BLOCKS, so each position's trials cluster at particular
+    # times and a flat subtrahend leaves every one of them carrying its blocks' share of the drift.
+    #
+    # THE FIX IS APPLIED TO THE SIGNAL, NOT TO THE MAPS, and that is what makes it correct rather
+    # than approximate. Subtracting a time-local baseline from the AVERAGED map would need it
+    # evaluated at those trials' times, which this function does not carry; subtracting it from the
+    # SVT before `trial_features` sees it means every trial's window is referenced to the baseline
+    # AT ITS OWN MOMENT, and the averaging that follows is then over already-referenced trials.
+    # `locanmf_position_encoder._quiet_baseline_local` has always done it this way.
+    #
+    # THE RESULT ARRIVES ALREADY REFERENCED, like `precue` and unlike `mean` -- see `reference_maps`.
+    # A failure costs this session's REST column and nothing else.
+    raw_rest, used_rest = {}, {}
+    base = session_rest_svt_timelocal(session, v)
+    if base is not None:
+        try:
+            Xr, yr = _working_xy(session, align, post_s, variant, "none",
+                                 np.asarray(v) - np.asarray(base),
+                                 signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}")
+            if len(yr) and np.asarray(Xr).shape[1] == X.shape[1]:
+                raw_rest, used_rest = _per_position(Xr, yr)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! rest-referenced maps {session['label']}: "
+                  f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
+
+    # THE FLAT SESSION MEAN IS STILL RETURNED, and it is no longer the rest reference. It is kept
+    # because `_fig_15r_reference_maps` prints the retired form's provenance, and because a reader
+    # comparing the two wants the superseded quantity to still exist rather than be described.
     qsvt = session_quiet_svt(session, v)
     quiet = None if qsvt is None else (u @ np.asarray(qsvt)).reshape(MAP_SHAPE)
-    return raw, used, quiet, trial_mean, raw_pc, used_pc
+    return {"raw": raw, "used": used, "quiet_flat": quiet, "trial_mean": trial_mean,
+            "raw_precue": raw_pc, "used_precue": used_pc,
+            "raw_rest": raw_rest, "used_rest": used_rest}
 
 
-def reference_maps(raw, quiet, trial_mean, reference, raw_precue=None):
-    """Turn `session_raw_maps`' window means into one referenced form.
+def reference_maps(parts, reference):
+    """Turn one `session_raw_maps` result into one referenced form. ``parts`` is its dict.
 
-    `precue` arrives ALREADY referenced, and it has to: a pre-cue baseline is per trial, so the
-    subtraction can only happen inside `trial_features`. By the time the trials are averaged the
-    information needed to remove it is gone.
+    TWO OF THE THREE ARRIVE ALREADY REFERENCED, and for the same reason: their subtrahend is
+    PER TRIAL, so the subtraction can only happen inside `trial_features`, and by the time the
+    trials are averaged the information needed to remove it is gone.
+
+      mean    subtracted HERE. The subtrahend is one map -- the mean over all trials in the window
+              -- so it is a property of the session, not of a trial, and the six positions are
+              COUPLED through it by construction.
+      rest    subtracted from the SVT before the features are built, at each trial's OWN time, so
+              the baseline tracks drift (2026-09-13; see `session_raw_maps`). Until that date this
+              was one flat session mean subtracted here, which could not remove drift at all.
+      precue  subtracted per trial inside `trial_features` at ``baseline="precue"``.
+
+    A DICT RATHER THAN SIX POSITIONAL ARGUMENTS, since 2026-09-13. The tuple form had reached six
+    elements and was about to reach eight, and its two map dicts and two count dicts are
+    interchangeable at the call site with nothing to catch a transposition -- a swap would have
+    produced a complete, plausible, wrong figure.
     """
     if reference == "mean":
-        if trial_mean is None:
+        tm = parts.get("trial_mean")
+        if tm is None:
             return {}
-        return {q: m - trial_mean for q, m in raw.items()}
+        return {q: m - tm for q, m in (parts.get("raw") or {}).items()}
     if reference == "rest":
-        if quiet is None:
-            return {}
-        return {q: m - quiet for q, m in raw.items()}
+        return dict(parts.get("raw_rest") or {})
     if reference == "precue":
-        return dict(raw_precue or {})
+        return dict(parts.get("raw_precue") or {})
     raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
 
 
@@ -345,20 +402,24 @@ def maps_by_epoch(align, variant, post_s=2.0):
             if e is None:
                 continue
             try:
-                raw, used, quiet, tmean, raw_pc, used_pc = session_raw_maps(
-                    s, align, post_s=post_s, variant=variant)
+                parts = session_raw_maps(s, align, post_s=post_s, variant=variant)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! ref-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
                 continue
+            raw, used = parts["raw"], parts["used"]
             if not raw:
                 print(f"  .. ref-map {s['label']} {e}: no position reached "
                       f"{MIN_TRIALS_PER_CLASS} trials", flush=True)
                 continue
-            if quiet is None:
+            # COUNTED ON THE REST MAPS, not on the flat session mean. Since 2026-09-13 the rest
+            # reference comes from its own feature build, so a session can have a quiet MASK and
+            # still contribute no rest column -- the thing the tally has to report is the column
+            # that is missing from the figure, not the input that happened to exist.
+            if not parts["raw_rest"]:
                 n_noquiet += 1
-            if not raw_pc:
+            if not parts["raw_precue"]:
                 n_noprecue += 1
-            byref = {r: reference_maps(raw, quiet, tmean, r, raw_pc) for r in REFERENCES}
+            byref = {r: reference_maps(parts, r) for r in REFERENCES}
             for q in raw:
                 got = {r: byref[r][q] for r in REFERENCES if q in byref[r]}
                 if got:

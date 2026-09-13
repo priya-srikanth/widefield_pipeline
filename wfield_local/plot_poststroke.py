@@ -13,6 +13,7 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -259,11 +260,16 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
         ax = axes[0][k]
         labs = by_animal[an]
         w = 0.8 / max(len(labs), 1)
+        # NO PER-DAY LEGEND ENTRY. Priya, 2026-09-13: "G5 legend over data". Twelve entries at
+        # `loc="lower left"` covered close_L and close_center outright in all four panels -- the
+        # two NEAR positions, which are the preserved ones the far positions are read against. A
+        # legend that hides a third of the data to name a colour that is already ordinal is the
+        # wrong instrument: day is a ranked quantity, so it gets a COLOURBAR (below), and the dates
+        # move into the panel title where they cost nothing.
         for si, lab in enumerate(labs):
             vals = [sim[lab].get(p, {}).get("r", np.nan) for p in POS]
             ax.bar(x + (si - (len(labs) - 1) / 2) * w, vals, w,
-                   label=f"day {si + 1} ({lab.split('_')[1]})", color=colours[si],
-                   edgecolor="k", linewidth=0.4)
+                   color=colours[si], edgecolor="k", linewidth=0.4)
         ax.axhline(0, color="k", lw=1)
         # An empty column reads as r = 0, i.e. "no similarity", when it means "the animal stopped
         # attempting this position so there is no post-stroke pattern to correlate against".
@@ -273,7 +279,12 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
                         rotation=90, color="firebrick", style="italic")
         ax.set_xticks(x)
         ax.set_xticklabels(POS, rotation=30, ha="right", fontsize=7.5)
-        ax.set_title(an, fontsize=10, fontweight="bold")
+        # THE DATES LIVE HERE NOW, since the per-day legend is gone. Animals were not lesioned on
+        # the same date, so "day 1" is what lines up across panels and the DATE is per-animal --
+        # which is precisely why it belongs on the panel and not on a shared colourbar.
+        _dates = [lab.split("_")[1] for lab in labs]
+        ax.set_title(f"{an}  ({_dates[0]}-{_dates[-1]})" if _dates else an,
+                     fontsize=10, fontweight="bold")
         # THE CEILING, PER POSITION, DRAWN AS A GREY BAND (added 2026-08-25). Without it a reader
         # compares these bars with 1.0, and 1.0 is unreachable: two mean patterns measured on
         # DIFFERENT DAYS differ by ordinary day-to-day drift and by however noisily each was
@@ -296,8 +307,13 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
                             solid_capstyle="butt",
                             label="pre-stroke ceiling (leave-1-session-out)"
                                   if (k == 0 and xi == x[0]) else None)
-        ax.legend(fontsize=6.5, loc="lower left", framealpha=0.85)
         ax.set_ylim(-0.6, 1.0)
+    # THE CEILING STILL NEEDS NAMING, and one figure-level entry does it -- a line style, not a
+    # twelve-colour key. Placed ABOVE the axes so it cannot return to covering the bars.
+    _ceil_handle = mlines.Line2D([], [], color="0.35", lw=1.8,
+                                 label="pre-stroke ceiling (leave-1-session-out)")
+    fig.legend(handles=[_ceil_handle], fontsize=8, loc="upper left",
+               bbox_to_anchor=(0.02, 0.92), frameon=False)
     axes[0][0].set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
     fig.suptitle((suptitle or "Per-position correlation between the pre- and post-stroke mean "
                   "activity patterns, one panel per animal, one series per post-stroke day.")

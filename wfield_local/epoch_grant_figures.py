@@ -1584,16 +1584,28 @@ _REF_TEXT = {
     ),
     "rest": dict(
         short="one vs REST",
-        title="Position maps referenced to the REST BASELINE -- one subtrahend per session, so "
-              "the six positions are INDEPENDENT",
-        cbar="activity minus that session's\nREST baseline (between trials, not running)",
-        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend is one map per session and it is "
-              "IDENTICAL for all six positions, so subtracting it cannot couple them. This "
-              "answers \"is this position's cortex driven at all\", where the mean-referenced "
-              "figure answers \"is it driven more than the others\". It is also the reference "
-              "that does NOT sit inside the trial: figure 15's pre-cue baseline controls drift "
-              "tightest but is blind to a sustained shift already present before the cue, and "
-              "this one is not."
+        title="Position maps referenced to the TIME-LOCAL REST BASELINE -- position-independent, "
+              "so the six positions are INDEPENDENT",
+        cbar="activity minus the REST baseline\nat that trial's own time",
+        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend carries no position information, so "
+              "subtracting it cannot couple the positions -- which is what the mean reference "
+              "does by construction. This answers \"is this position's cortex driven at all\", "
+              "where the mean-referenced figure answers \"is it driven more than the others\". It "
+              "is also the reference that does NOT sit inside the trial: figure 15's pre-cue "
+              "baseline controls drift tightest but is blind to a sustained shift already present "
+              "before the cue, and this one is not."
+              "\n\nTIME-LOCAL SINCE 2026-09-13, AND THE PREVIOUS FORM WAS WRONG IN A WAY WORTH "
+              "STATING. This used to subtract ONE SESSION MEAN, which is flat. Rest was then "
+              "measured to differ between positions in 6/6 positions -- but the control that "
+              "explains it is DRIFT, not position coding: the same position's rest early-vs-late "
+              "differs at RMS 0.00282 against 0.00288 between positions at matched time, a ratio "
+              "of 1.02. Positions run in ~6-TRIAL BLOCKS, so each one's trials cluster at "
+              "particular times and a flat subtrahend leaves every position carrying its blocks' "
+              "share of the session's drift. The baseline is now binned over the session, taken "
+              "as the median of rest frames per bin and interpolated to every frame, and it is "
+              "subtracted from the SVT BEFORE the trial features are built -- so each trial is "
+              "referenced to the baseline AT ITS OWN MOMENT. `locanmf_position_encoder` has "
+              "always done it this way; the map reference and the encoder now agree."
               "\n\nWHICH BASELINE THIS IS, read it off the filename. `_REWARD8ref_` is the "
               "RETIRED definition -- slow treadmill, no licking, and 8 s excluded after every "
               "reward, a buffer carried over from a task whose post-tone window was 8 s while "

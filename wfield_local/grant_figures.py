@@ -3269,12 +3269,17 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
                     # `magma` at vmax=2.5 puts the bright end on SMALL distances and leaves the top
                     # of the range distinguishable.
                     im = ax.imshow(np.ma.masked_invalid(D), vmin=0, vmax=2.5, cmap="magma")
-                    for i in range(len(CONF_LABELS)):
-                        for j in range(len(CONF_LABELS)):
-                            if np.isfinite(D[i, j]):
-                                _txt(ax, j, i, f"{D[i, j]:.1f}", ha="center", va="center",
-                                        fontsize=6,
-                                        color="k" if D[i, j] > 1.3 else "w")
+                    # NO IN-CELL NUMBERS. Priya, 2026-09-13: "H8 (drop cell numbers)". This is a
+                    # 4 x 13 grid of 6 x 6 matrices -- 1,872 cells across the figure -- and at
+                    # fontsize 6 on a slide they are illegible clutter that fights the colour map
+                    # doing the actual work. The numbers are not lost: every cell is written to
+                    # this figure's value sidecar, which is where a reader who wants a specific
+                    # distance should get it (and where a deck caption can quote it through
+                    # `deck_values` rather than a reader squinting at a panel).
+                    #
+                    # THE DIAGONAL MEAN STAYS ON THE TITLE, because that one number is the panel's
+                    # headline rather than a lookup: "did this position's pattern move" is read
+                    # off it directly, and a reader should not have to average six cells by eye.
                     ax.set_xticks(range(len(CONF_LABELS)))
                     ax.set_yticks(range(len(CONF_LABELS)))
                     ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
