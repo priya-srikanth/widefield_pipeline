@@ -62,6 +62,38 @@ decode:
   cue_post_s: 2.0
   precue_post_s: 2.0      # pre-cue (ENL) window, motor-independent readout (2 s = the maintained-code
                           # window; a few sessions with a shorter ENL may clip — override per session)
+  # ------------------------------------------------------------------------------------------
+  # THREE DIFFERENT PRE-CUE INTERVALS EXIST AND THEY ARE NOT INTERCHANGEABLE. They were scattered
+  # across a hardcoded literal, this file and a comment, which is how the pre-cue-referenced maps
+  # came to subtract a window that OVERLAPPED their own feature window (Priya, 2026-09-13:
+  # "we're normalizing precue to precue??"). Named here, once, by what each is FOR:
+  #
+  #   precue_post_s      2.0  the pre-cue ANALYSIS window -- the feature window of the `precue`
+  #                           ALIGNMENT, placed to END at the cue. This is the motor-independent
+  #                           readout (F13); it is what the pre-cue decoder decodes FROM.
+  #
+  #   precue_baseline_s  1.0  the pre-cue BASELINE -- what `baseline: precue` SUBTRACTS from a
+  #                           cue- or lick-aligned window. A different quantity from the above and
+  #                           it must stay smaller: position information concentrates in the final
+  #                           second before the cue, so this is the interval whose removal turns a
+  #                           map into a CUE-EVOKED INCREMENT rather than a position map.
+  #                           KEPT AT 1 s deliberately on 2026-09-13. A 2 s baseline would
+  #                           over-subtract less (it dilutes the anticipatory signal) and every
+  #                           trial clears the spout strobe at 2.0 s -- but these maps are
+  #                           time-averaged STATIC measures, so the only question is which interval
+  #                           the single number represents, and for an increment that is the second
+  #                           immediately before the cue. See DECISIONS.md 2026-09-13.
+  #                           IT MUST NEVER BE USED WITH `align: precue`: there the feature window
+  #                           is [cue-2s, cue] and this baseline is its own second half, so the
+  #                           subtraction is self-referential. `epoch_grant_figures` skips that
+  #                           combination outright.
+  #
+  #   precue_lickfree_check_s   the FIXED 2 s window `trial_features` inspects to decide whether a
+  #                           trial's pre-cue period contained licks. A QC gate, not a measurement
+  #                           window, and independent of both intervals above.
+  # ------------------------------------------------------------------------------------------
+  precue_baseline_s: 1.0
+  precue_lickfree_check_s: 2.0
   # Sub-bins per feature window: the decoder sees a TIME COURSE over the window, not one mean.
   # PRE-CUE, RE-MEASURED ON ALL 44 CURATED SESSIONS (2026-08-17): the gain is +0.009, better in
   # 23/44 -- a coin flip, NOT the +0.032 the 16-session pilot reported. roll2x1.0 is nominally best

@@ -57,8 +57,13 @@ def _args(source="locanmf", align="lick", post_s=2.0, baseline="none", max_rt=No
     """
     if max_rt is None:
         max_rt = float(config.defaults()["decode"]["max_rt_s"])
+    # `pre_s` IS THE PRE-CUE BASELINE, not the pre-cue analysis window -- see
+    # `configs/defaults.yaml decode.precue_baseline_s`, which names all three pre-cue intervals and
+    # why they differ. It was a hardcoded 1.0 here while `precue_post_s` lived in the config, which
+    # is how a load-bearing choice ended up invisible to anyone reading the config.
+    pre_s = float(config.defaults()["decode"].get("precue_baseline_s", 1.0))
     return SimpleNamespace(source=source, align=align, baseline=baseline,
-                           pre_s=1.0, post_s=post_s, fs=FS, max_rt=max_rt)
+                           pre_s=pre_s, post_s=post_s, fs=FS, max_rt=max_rt)
 
 
 def _pipe():
