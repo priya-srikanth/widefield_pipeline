@@ -274,3 +274,82 @@ The far-contralateral acute result. It is position-specific under every referenc
 (MEAN +0.819 / REST +0.812 / PRECUE +0.856, nulls 0.018-0.083, p <= 0.001), it survived the entire
 baseline migration essentially unchanged from the retired definition's +0.769, and the position
 decoder never reads the rest mask at all.
+
+
+---
+
+## 2026-09-13 — the REST baseline and the block structure: an alarm, and what it actually was
+
+Priya asked the question the rest reference had never been asked: *"can we test if the REST activity
+shows significant difference between trials of different positions... do rest periods between all 6
+positions look similar to or different from each other?"*
+
+The reference makes two claims. The first -- that the subtrahend is IDENTICAL for all six positions
+-- is true by construction: it is one session mean, so it cannot couple them. The second is
+load-bearing and had never been tested: **that it carries no position information, so subtracting it
+removes nothing real.**
+
+### The alarm
+
+Rest periods labelled by position ONLY where the preceding and following trial share one (so the
+label is unambiguous; positions run in ~6-trial blocks, so this is the common case). Each position's
+rest map minus the animal's own across-position mean, nested animals->sessions bootstrap vs zero,
+eroded stat mask, max-statistic threshold -- the same machinery every map figure uses:
+
+| position | bins significant / 2,022 | edge enrichment |
+|---|---|---|
+| Near Ipsi | 15 | 0.00 |
+| Near Middle | 436 | 0.79 |
+| **Near Contra** | **1,042** | 0.39 |
+| Far Ipsi | 210 | 1.24 |
+| **Far Middle** | **973** | 0.33 |
+| Far Contra | 215 | 0.26 |
+
+6/6 positions significant, low edge enrichment everywhere, between/within-position RMS ratio 1.45.
+Read at face value: the REST reference is subtracting a position-weighted mixture, and the
+position-graded amplitude change (1.48 near -> 0.48 far) might be manufactured by it.
+
+### What it actually was
+
+**POSITIONS ARE PRESENTED IN ~6-TRIAL BLOCKS, so position is confounded with TIME-WITHIN-SESSION.**
+Slow drift -- photobleaching, arousal, the rest baseline's own documented drift -- makes rest during
+block k differ from block j, and blocks carry position labels. Splitting each position's rest frames
+at the session midpoint separates the two in the same units, within animal:
+
+    DRIFT     same position, EARLY half vs LATE half        RMS 0.00282   n = 224
+    POSITION  different positions, MATCHED halves           RMS 0.00288   n = 1,048
+    POSITION / DRIFT                                        **1.02**
+
+**Rest differs between positions by essentially exactly as much as the same position's rest differs
+from itself across a session.** It is drift aliased onto the block structure, not position coding.
+
+### What follows, and what does not
+
+* **The REST reference is NOT conceptually broken.** The first test alone could not have shown that;
+  reported without the drift control it would have read as a fatal objection to the reference this
+  deck just adopted as primary.
+* **The amplitude gradient is not explained away by position-dependent rest.** It could still be
+  touched by drift if block ORDER is systematic across sessions -- worth checking before leaning on
+  the gradient, and not yet checked.
+* **A REAL DEFECT IS EXPOSED, and the fix already existed in this repo.** The map reference
+  subtracts ONE SESSION MEAN, which is flat and cannot remove drift. `locanmf_position_encoder.
+  _quiet_baseline` has always used a TIME-LOCAL baseline -- "bin the session into nbins, take the
+  median of quiet frames per bin, interpolate to every frame -> tracks slow drift". The map
+  reference and the encoder were computing the same quantity two different ways, and the encoder's
+  is the correct one. `position_reference_maps.session_rest_svt_timelocal` now implements it on the
+  map side (12 bins, median per bin, interpolated; measured to carry SD 0.047 of across-time
+  structure that the session mean is blind to by construction).
+* **STILL TO DO: wire it into the subtrahend.** `session_raw_maps` averages over a position's trials
+  and subtracts one map; using a time-local baseline means evaluating it at THOSE TRIALS' times,
+  which needs per-trial frame indices that function does not currently carry. The baseline exists
+  and is verified; the substitution is not yet made, so **every REST-referenced figure on the share
+  still uses the flat session mean.**
+
+### A methodological note worth keeping
+
+The first version of this control printed "no significant position dependence" while testing ZERO
+positions -- it intersected each animal's positions across all its sessions, one thin session
+emptied the intersection, and the loop never ran. Priya caught it on the implausibility of the
+numbers ("how could so few animals share the same positions? there should be dozens of each per
+session"). The verdict now refuses to print a negative when nothing was tested. A control that
+reports "passed" without executing is worse than one that fails.

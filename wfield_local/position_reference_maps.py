@@ -79,6 +79,76 @@ def reference_tag(reference):
     return "REST" if quiet_variant() else "REWARD8"
 
 
+#: Bins the session is split into for the time-local rest baseline. Matches
+#: `locanmf_position_encoder._quiet_baseline`, which has used this shape since it was written.
+REST_BASELINE_BINS = 12
+
+
+def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS):
+    """``(K, T)`` rest baseline that TRACKS DRIFT, or None -- the encoder's construction.
+
+    MEASURED REASON THIS REPLACED A SESSION MEAN (2026-09-13). Rest was found to differ between
+    spout positions in 6/6 positions, up to 1,042 of 2,022 bins. The obvious reading -- that the
+    rest baseline carries position information and so cannot be a valid subtrahend -- turned out to
+    be wrong, and the control that settled it is worth stating: positions are presented in ~6-trial
+    BLOCKS, so position is confounded with TIME-WITHIN-SESSION. Splitting each position's rest at
+    the session midpoint gave
+
+        DRIFT    (same position, early vs late)      RMS 0.00282
+        POSITION (different positions, matched time) RMS 0.00288      ratio 1.02
+
+    i.e. rest differs between positions by EXACTLY as much as the same position's rest differs from
+    itself across the session. It is drift aliased onto the block structure, not position coding.
+
+    A SINGLE SESSION MEAN CANNOT REMOVE THAT, because each position's trials cluster at particular
+    times and the mean is flat. A time-local baseline can, and `locanmf_position_encoder` has used
+    one all along -- "bin the session into nbins, take the median of quiet frames per bin,
+    interpolate to every frame -> tracks slow drift (photobleaching / state)". The map reference and
+    the encoder were computing the same quantity two different ways; this makes them agree, on the
+    encoder's side, which is the correct one.
+
+    MEDIAN PER BIN, not mean: a bin with few rest frames should not be dragged by one outlier, and
+    the encoder uses the median for the same reason. Bins with NO rest frames are interpolated
+    across rather than dropped, so the baseline is defined at every frame.
+    """
+    from wfield_local.quiet_periods import quiet_frame_path
+
+    qf = quiet_frame_path(session["mc"])
+    if not qf:
+        return None
+    try:
+        import numpy as _np
+
+        q = _np.load(qf).astype(bool)
+        V = np.asarray(svt)
+        T = V.shape[1]
+        L = min(q.shape[0], T)
+        qm = np.zeros(T, bool)
+        qm[:L] = q[:L]
+        qi = np.flatnonzero(qm)
+        if qi.size < 2 * nbins:
+            return None
+        edges = np.linspace(0, T, int(nbins) + 1)
+        cent = (edges[:-1] + edges[1:]) / 2.0
+        bm_ = np.full((V.shape[0], int(nbins)), np.nan)
+        for b in range(int(nbins)):
+            sel = qi[(qi >= edges[b]) & (qi < edges[b + 1])]
+            if sel.size:
+                bm_[:, b] = np.median(V[:, sel], axis=1)
+        out = np.empty((V.shape[0], T), dtype=float)
+        x = np.arange(T)
+        for k in range(V.shape[0]):
+            ok = np.isfinite(bm_[k])
+            if not ok.any():
+                return None
+            out[k] = np.interp(x, cent[ok], bm_[k][ok])
+        return out
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
+              flush=True)
+        return None
+
+
 def session_quiet_svt(session, svt):
     """Mean SVT over this session's quiet frames, or None if it has no quiet mask.
 

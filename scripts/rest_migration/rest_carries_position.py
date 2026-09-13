@@ -142,21 +142,32 @@ def main() -> int:
 
     mask = bm.stat_mask()
     # ---- per animal: mean over sessions, then each position minus the across-position mean
+    # PER POSITION, OVER THE SESSIONS THAT HAVE IT -- not the intersection across all sessions.
+    # The first version intersected, so one thin session shrank the whole animal's position set and
+    # `len(common) < 4` then dropped that animal entirely. Every position had fewer than 3 animals
+    # and the bootstrap silently tested NOTHING, printing a "no significant dependence" verdict that
+    # was vacuous rather than negative. Priya: "how could so few animals share the same positions?
+    # there should be dozens of each per session" -- correct, and the loss was aggregation, not data.
     by_pos = {}
     for an, sess in per_animal.items():
-        common = set(CONF_LABELS)
-        for m in sess:
-            common &= set(m)
-        if len(common) < 4:
+        am = {}
+        for q in CONF_LABELS:
+            got = [m[q] for m in sess if q in m]
+            if got:
+                am[q] = np.mean(got, axis=0)
+        if len(am) < 4:
             continue
-        am = {q: np.mean([m[q] for m in sess], axis=0) for q in common}
+        # The grand mean is over the positions THIS animal has, so the contrast is always
+        # "this position minus the animal's own across-position mean".
         grand = np.mean(list(am.values()), axis=0)
-        for q in common:
+        for q in am:
             by_pos.setdefault(q, {})[an] = am[q] - grand
+    print("  positions x animals available: "
+          + ", ".join(f"{q}:{len(by_pos.get(q, {}))}" for q in CONF_LABELS), flush=True)
 
     print("\nDOES REST DIFFER BY POSITION? each position's rest map minus the across-position mean")
     print(f"{'position':<15}{'n animals':>10}   nested bootstrap vs zero")
-    any_sig = False
+    any_sig, n_tested = False, 0
     for q in CONF_LABELS:
         d = by_pos.get(q)
         if not d or len(d) < 3:
@@ -164,24 +175,26 @@ def main() -> int:
         cm, lab_txt = bm.vs_zero_contour({a: [m] for a, m in d.items()}, mask=mask)
         n = 0 if cm is None else int(cm.sum())
         any_sig |= n > 0
+        n_tested += 1
         print(f"{q:<15}{len(d):>10}   {lab_txt}")
 
     # ---- the scalar: between-position RMS against a within-position split-half noise floor
     rng = np.random.default_rng(0)
     betw, within = [], []
     for an, sess in per_animal.items():
-        common = set(CONF_LABELS)
-        for m in sess:
-            common &= set(m)
-        if len(common) < 4 or len(sess) < 2:
+        am = {q: np.mean([m[q] for m in sess if q in m], axis=0)
+              for q in CONF_LABELS if any(q in m for m in sess)}
+        if len(am) < 4 or len(sess) < 2:
             continue
-        am = {q: np.mean([m[q] for m in sess], axis=0) for q in common}
         grand = np.mean(list(am.values()), axis=0)
-        betw += [float(np.sqrt(np.mean((am[q] - grand)[mask] ** 2))) for q in common]
-        for q in common:
-            idx = rng.permutation(len(sess))
-            h1 = np.mean([sess[i][q] for i in idx[: len(sess) // 2]], axis=0)
-            h2 = np.mean([sess[i][q] for i in idx[len(sess) // 2:]], axis=0)
+        betw += [float(np.sqrt(np.mean((am[q] - grand)[mask] ** 2))) for q in am]
+        for q in am:
+            have = [i for i, m in enumerate(sess) if q in m]
+            if len(have) < 2:
+                continue
+            idx = rng.permutation(have)
+            h1 = np.mean([sess[i][q] for i in idx[: len(idx) // 2]], axis=0)
+            h2 = np.mean([sess[i][q] for i in idx[len(idx) // 2:]], axis=0)
             within.append(float(np.sqrt(np.mean(((h1 - h2) / 2)[mask] ** 2))))
     if betw and within:
         b, w = float(np.mean(betw)), float(np.mean(within))
