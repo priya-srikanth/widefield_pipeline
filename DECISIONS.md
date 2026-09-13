@@ -9899,3 +9899,38 @@ redraws its stale subtitle without complaint. Check a bundle's mtime against `gi
 reading any number off a redraw. Measured for scale: a 42-panel figure redraws from its bundle in
 **8.6 s** against the ~40 min its analysis costs, so redrawing is cheap and re-reading is where the
 risk sits.
+
+
+---
+
+## 2026-09-12 (night) — the REST baseline, measured on the rebuilt cohort
+
+The retired `quiet` definition excluded 8 s after every REWARD — a buffer carried from a task whose
+post-tone window was 8 s, where ours has a 3.5 s response window. Anchoring on reward anchors on the
+animal's PERFORMANCE, so the category tracked the deficit. REST is anchored on the TRIAL instead:
+`cue + response_window + 0.5 s` to the next `trial_start`, AND slow treadmill, AND away from
+licking. All 92 sessions rebuilt, `trial_start` anchor on every one.
+
+| | retired | REST |
+|---|---|---|
+| acute / pre rest fraction | **3.89** | **1.11** |
+| chronic median rest | 0.007 | **0.030** |
+| rest bouts, cohort | 14,017 | **26,010** |
+| bouts admitting 1 s | 0.58 | **0.846** |
+| bouts admitting 2 s | 0.17 | 0.194 |
+
+**THE STATE DECODER'S WINDOW STAYS 1 s.** It was derived from this distribution and the derivation
+still holds: 2 s fits 19.4% of rest bouts, against the 17% that rejected it originally. What changed
+is the 1 s window's support — 84.6% against 58%, on nearly double the periods.
+
+**A NUMBER I QUOTED MID-SESSION WAS WRONG AND IS CORRECTED HERE.** I reported that 2 s had become
+viable for ~45% of trials. That came from the raw inter-trial GEOMETRY before the treadmill and lick
+exclusions; the surviving bouts are shorter and the real figure is 19.4%. The geometry bounds the
+answer, it is not the answer.
+
+**WHAT THE CHANGE DOES NOT FIX.** Chronic rest is still 0.51 of pre, and the cause is the LICK term
+— 73.7% of samples excluded pre-stroke against 82.5% at chronic. That is behaviour, not a definition
+artefact, it survives every candidate definition tested, and the chronic column keeps its caveat.
+
+Full record, including the re-render blast radius and what is NOT affected (the position decoder
+never reads the mask): `docs/REST_BASELINE_MIGRATION.md`.

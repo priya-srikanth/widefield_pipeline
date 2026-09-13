@@ -260,3 +260,38 @@ pre, and `test_pre_panel_is_licking_only_for_lick_and_working` pins it.
 Every figure rendered from `_collect_5c` on the `working` / `lick` arms between the two commits
 carries the inflated pre panel — `acc`, `5c`, `5cr`, `5r`, `5rm`. The matrix and scalar families go
 through `_collect_7`, which was not touched, and are unaffected.
+
+
+---
+
+# 2026-09-12 — the quiet class was REDEFINED; every number above is provisional
+
+The class this document calls `quiet` is now `rest`, and its definition changed: it is bounded by the
+TRIAL (`cue + response_window + 0.5 s` to the next `trial_start`) rather than by an 8 s post-reward
+buffer. The old buffer made the class track the animal's performance — 4.4% of frames pre-stroke
+against 17.1% acutely — so **every state-decoder number in this document was computed on a class
+whose size moved with the lesion.** They must be re-measured. See `docs/REST_BASELINE_MIGRATION.md`.
+
+**SECTION 2 IS THE PART TO RE-READ, and its conclusion survives.** The window is 1 s because the
+quiet distribution said so, and on the rebuilt cohort it still does:
+
+| | retired (this doc) | rest |
+|---|---|---|
+| median period | 1.10 s | **1.63 s** |
+| a 1 s window fits | 58% | **84.6%** |
+| a 2 s window fits | 17% | **19.4%** |
+| periods | 14,017 | **26,010** |
+
+So 2 s remains rejected for the same reason, and 1 s is now much better supported. **The window does
+not change, which is what makes the re-measured numbers comparable to the ones above.**
+
+Two further changes affect this analysis and are recorded here so they are not discovered later:
+
+* **Segments now tile from the END of a period**, not the start (Priya: "avoid leftover incomplete
+  licks"). A rest period opens the moment the lick buffer expires, so residual licking sits at its
+  start. Licking stays ONSET-anchored — it is an event, and tiling backwards from the end of a
+  0.37 s median bout would sample the silence after it.
+* **`MAX_SEGMENTS_PER_PERIOD` is now nearly inactive.** It existed because "the top 1% of QUIET
+  periods supply 36.6% of all segments"; the trial anchor caps a period at the inter-trial interval,
+  so measured capping is 0.000–0.088 of periods. More periods contributing one or two segments each
+  is more independent units for a bootstrap clustered by period, not fewer.

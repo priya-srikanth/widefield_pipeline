@@ -1,8 +1,8 @@
 # The REST baseline — retiring "quiet"
 
-**Status: in progress, branch `worktree-rest-baseline`.** Nothing here has been applied to the
-cohort yet. `segmentation.quiet.variant` is still `""`, no variant directory exists on the share,
-and every figure currently on the share was built on the OLD definition.
+**Status: the masks are built.** All 92 sessions have a `quiet_<tag>_rest/` mask, anchored on
+`trial_start`, and `segmentation.rest.variant` is `rest`. The figures have NOT yet been re-rendered;
+the retired QUIETref set has been moved to `grant_figures/epoch/retired_QUIETref/`.
 
 ---
 
@@ -38,7 +38,8 @@ behavioural context, at every epoch — and at chronic from a **median 0.7% of f
 less of the session is buffered out" — was challenged by Priya on the grounds that
 `reward_mode: auto_after_delay` delivers on nearly every trial and holds only after >6 consecutive
 misses. She then noted misses do still reduce the total. Which term actually drives the ratio is
-being measured per term rather than argued; see `scratchpad/quiet_variants.py`.)*
+being measured per term rather than argued. ANSWER: it is the LICK term, which excludes 73.7% of
+samples pre-stroke and 82.5% at chronic; reward is near-universal at a median 0.977 per trial.)*
 
 **2. The QUIET reference's chronic agreement is an artefact, and the null proves it.** Mean pairwise
 between-animal r of each animal's own `chronic − pre` map, against a null that re-pairs animals
@@ -94,10 +95,12 @@ original is never overwritten, every alternative gets its own directory beside i
 records which definition produced it. Flipping back is one config line, which is the point: this
 change moves a lot of results, and "did it move because of this?" has to stay answerable.
 
-`quiet_periods.quiet_frame_path` already resolves the variant in one place, with fallback, so a
-partially recomputed cohort degrades per session rather than per figure — and `quiet_variant_used`
-reports which definition a session actually got, because silently averaging two baselines across
-sessions is the failure the naming rule exists to prevent.
+`quiet_periods.quiet_frame_path` resolves the variant in one place, and it does **NOT fall back
+across definitions** — `fallback=False` is the default. An earlier version defaulted to True on the
+reasoning that a partial cohort should "degrade per session rather than per figure"; that is
+backwards, because falling back means a pooled map averages two different definitions of its own
+subtrahend with nothing on the figure saying so. A session without the selected variant loses its
+rest column instead, and `quiet_variant_used` reports what each session actually got.
 
 ---
 
@@ -119,9 +122,10 @@ Verified by reading each consumer rather than by grep alone.
 | preprocessing deck | `plot_running_activity_maps` quiet / running / running−quiet | preprocessing deck |
 
 **The state decoder's window length is a DERIVED quantity, not a constant.** It is 1 s *because*
-quiet's median bout was 1.10 s. Dropping the 8 s reward buffer will lengthen rest bouts, so that
-derivation has to be re-run — 2 s may become viable, which would change the design and not merely
-the numbers.
+quiet's median bout was 1.10 s, so the derivation had to be re-run. **MEASURED, and it does not
+change: 2 s fits 19.4% of the new rest bouts against the 17% that rejected it originally, while 1 s
+fits 84.6% against 58%.** The window stays 1 s — which is what keeps the re-measured state-decoder
+numbers comparable to the recorded ones. See the cohort result at the end of this document.
 
 ### Does NOT depend on the mask — untouched by this migration
 
@@ -150,3 +154,60 @@ Therefore these stand unchanged:
    `BEHAVIOURAL_STATE_CONTROL.md`.
 
 **Until step 5, this branch changes nothing** — the resolver defaults to the original masks.
+
+
+---
+
+## RESULT — the cohort on the final definition (2026-09-12)
+
+All **92 sessions** rebuilt, **`trial_start` anchor on every one**, none falling back to the strobe
+or cue-only path. The cohort is not mixed.
+
+### Rest fraction of corrected frames
+
+| epoch | n | mean | median | min | max |
+|---|---|---|---|---|---|
+| pre | 44 | 0.082 | 0.065 | 0.011 | 0.185 |
+| acute | 16 | 0.091 | 0.076 | 0.055 | 0.174 |
+| subacute | 18 | 0.064 | 0.057 | 0.008 | 0.145 |
+| chronic | 14 | 0.042 | 0.030 | 0.017 | 0.096 |
+
+**The acute artefact is gone.** Ratio to pre: **acute 1.11** (retired definition: 3.89), subacute
+0.78, chronic 0.51.
+
+**And the chronic baseline is estimated from 4.3x more frames** — median 3.0% against 0.7%. That is
+the specific quantity that made the retired definition's chronic column uninterpretable, where
+between-animal agreement was position-INDEPENDENT shared offset (observed r = +0.494 against a
+cross-position null of +0.497).
+
+**CHRONIC IS STILL 0.51 OF PRE, and that is not the reward buffer.** It is the LICK term, which
+excludes 73.7% of samples pre-stroke and 82.5% at chronic. Real behaviour, not a definition
+artefact, and it survives under every candidate definition tested. The chronic column needs its own
+caveat regardless of the baseline.
+
+### Rest bout duration, and the state decoder's window
+
+| epoch | n bouts | median | p75 | p95 | >=1 s | >=2 s |
+|---|---|---|---|---|---|---|
+| pre | 12,934 | 1.73 | 2.05 | 2.50 | 0.866 | 0.277 |
+| acute | 5,992 | 1.63 | 1.86 | 2.15 | 0.904 | 0.108 |
+| subacute | 4,447 | 1.57 | 1.83 | 2.24 | 0.808 | 0.130 |
+| chronic | 2,637 | 1.34 | 1.73 | 2.11 | 0.681 | 0.088 |
+| **ALL** | **26,010** | **1.63** | 1.92 | 2.37 | **0.846** | **0.194** |
+
+**THE 1 s WINDOW STANDS, AND 2 s IS STILL REJECTED.** `BEHAVIOURAL_STATE_CONTROL.md` chose 1 s
+because a 2 s window fitted only 17% of quiet periods while 1 s fitted 58%. On the new definition
+2 s fits **19.4%** — barely moved — while 1 s fits **84.6%**. So the original rejection of 2 s is
+unchanged and the 1 s choice is now much better supported, on nearly double the periods (26,010
+against 14,017), which also means more independent units for a bootstrap clustered by period.
+
+**A CORRECTION TO AN EARLIER ESTIMATE IN THIS DOCUMENT'S WORKING NOTES.** A subsample suggested 2 s
+would become viable for ~45% of trials at a 0.5 s settle. That figure came from the raw INTER-TRIAL
+GEOMETRY, before the treadmill and lick exclusions were applied; the bouts that actually survive
+those exclusions are shorter, and the real number is 19.4%. The geometry sets an upper bound, not
+the answer.
+
+### What this does not fix
+
+The lick term's epoch-dependence, above. And the chronic sample is still the thinnest: 2,637 bouts
+across 14 sessions, median 1.34 s, with only 68% admitting a 1 s segment against 87% pre-stroke.
