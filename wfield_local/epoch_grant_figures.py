@@ -1285,6 +1285,57 @@ def _state_epoch_values(store, field, keys):
     return vals, pts
 
 
+def _state_class_share(store):
+    """``{epoch: {class: share}}`` -- what fraction of each epoch's SEGMENTS each class supplies.
+
+    MEASURED, NOT ASSERTED, and that is the whole point of this function existing. Until
+    2026-09-13 three captions and one figure subtitle asserted "quiet is 3.4% of a pre session,
+    15.1% acute, 0.7% chronic" as a literal. Those numbers were measured once, by hand, on the
+    RETIRED reward-anchored quiet definition, and survived the REST migration unchanged because a
+    hard-coded string cannot go stale loudly -- a re-render reprinted them onto a figure built from
+    different segments. Priya, 2026-09-13: "fix those at the source."
+
+    THE QUANTITY IS DELIBERATELY NOT THE OLD ONE. "% of a session" was a TIME fraction; this is the
+    share of SEGMENTS, which is what a balanced-accuracy caveat is actually about -- the estimator
+    sees segments, not seconds, and the cap on segments per period means the two are not
+    proportional. Say "of segments" wherever it is printed.
+
+    `score` stores raw per-class counts on every record precisely so this can be summed rather than
+    averaged: a mean of per-session shares and a share computed on pooled counts are different
+    numbers, and only the second describes what the pooled estimator saw.
+    """
+    out = {}
+    for e in ef.PANELS:
+        tot = {}
+        for an, rec in sorted(store.items()):
+            src = (rec.get("PRE", []) if e == "pre" else
+                   [r for day, r in rec.items()
+                    if day != "PRE" and ef.epoch_of_day(an, int(day)) == e])
+            for r in src:
+                for c, n in (r.get("counts") or {}).items():
+                    tot[c] = tot.get(c, 0) + int(n)
+        n = sum(tot.values())
+        if n:
+            out[e] = {c: v / n for c, v in tot.items()}
+    return out
+
+
+def _state_balance_line(store, cls="quiet", label="REST"):
+    """The one-line class-balance caveat, with its numbers measured off ``store``.
+
+    Returns a sentence naming this class's share of segments in each epoch it has one, so a figure
+    subtitle and a deck note can carry the same measured statement instead of two copies of a
+    literal that only one of them will ever remember to update.
+    """
+    share = _state_class_share(store)
+    got = [(e, share[e][cls]) for e in ef.PANELS if e in share and cls in share[e]]
+    if not got:
+        return "BALANCED accuracy: the class balance moves with epoch. Full method in the notes"
+    body = ", ".join(f"{v * 100:.1f}% {e}" for e, v in got)
+    return (f"BALANCED accuracy: the class balance moves with epoch ({label} is {body} of "
+            f"segments). Full method in the speaker notes")
+
+
 def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
     """12b: do STOPPED trials still look like pre-stroke cortex? POOLED over positions.
 
@@ -2376,20 +2427,32 @@ def _fig_13_state(out_dir, align, variant, wname):
     METHOD IN FULL, because nothing else in this deck is built this way:
 
       UNIT      a ONE-SECOND window, not a trial. Trial-level labelling gives ~17 running trials
-                per session, which decodes nothing; tiling the bouts gives 33,060 running and
-                41,549 quiet one-second segments across the cohort. The length is set by QUIET and
-                not chosen: quiet periods have a median of 1.10 s, so the 2 s window every other
-                family here uses fits 17% of them while 1 s fits 58%.
+                per session, which decodes nothing; tiling the bouts gives 22,986 running, 28,324
+                REST and 38,270 licking one-second segments over the 91 sessions this figure uses
+                (inside imaging coverage, PS92 8/12 excluded; `scripts/rest_migration/
+                state_time_bins.py`). The length is set by REST and not chosen: the 2 s window
+                every other family here uses fits 19.4% of rest bouts while 1 s fits 84.6%.
+
+                RE-MEASURED 2026-09-13 ON THE REST DEFINITION. The previous figures -- 33,060
+                running, 41,549 "quiet", 1.10 s median, 17% / 58% -- were measured on the RETIRED
+                reward-anchored quiet definition and are not comparable: that definition excluded
+                8 s after every reward, which in this task's 3.5 s response window removed most of
+                each inter-trial interval AND anchored the category on the animal's PERFORMANCE.
+                The 1 s window survived the re-derivation on its own merits (84.6% against the 58%
+                that chose it); see docs/REST_BASELINE_MIGRATION.md.
       FEATURES  four 0.25 s sub-bins x 95 LocaNMF components = 380 columns, the SAME width as the
                 trial-aligned arms and on the SAME joint basis. No per-segment baseline: a segment
                 inside a running bout has no "before" that is not also running.
-      CLASSES   quiet / running / licking, MUTUALLY EXCLUSIVE per Priya's rule -- running only if
-                not also licking, licking only if not also running, quiet only inside a
-                `behavior_events` quiet period (already buffered away from licks and rewards).
-                Overlapping segments are DROPPED and counted, never assigned.
-      LICKING   anchored at lick-bout ONSET and allowed to run past the bout end, because lick
-                bouts have a median of 0.37 s and tiling strictly inside them would keep 22% of
-                101,018 bouts and bias the class toward sustained licking. Running and quiet are
+      CLASSES   REST / running / licking, MUTUALLY EXCLUSIVE per Priya's rule -- running only if
+                not also licking, licking only if not also running, rest only inside a
+                `behavior_events` REST period: between trials, not running and not licking, from
+                cue + response_window + 0.5 s to the next `trial_start`. Overlapping segments are
+                DROPPED and counted, never assigned.
+      LICKING   anchored at the trial's FIRST POST-CUE LICK (`lick_mode="postcue"`, the default
+                since 2026-09-12), which is the same anchor every position decoder in this deck
+                uses, so the licking class and the position trials observe ONE event rather than
+                two that share a word. The window runs 1 s from that anchor, matching the other
+                two classes so no decoder can separate them on window length. Running and rest are
                 tiled, at most 8 segments per period so no single long period dominates.
       MODEL     multinomial logistic on standardised features, frozen on ALL pre-stroke segments.
                 The pre column is leave-one-session-out, as everywhere else here.
@@ -2437,10 +2500,9 @@ def _fig_13_state(out_dir, align, variant, wname):
     # figure exists to show was the smallest thing on it. Keep what a reader CANNOT infer from the
     # title -- the unit, the class rule, and the fact that the model is frozen.
     NOTES = ["unit is a 1 s SEGMENT, not a trial: 4 x 0.25 s bins x 95 components, joint basis",
-             "quiet / running / licking, mutually exclusive; frozen on ALL pre-stroke segments, "
+             "rest / running / licking, mutually exclusive; frozen on ALL pre-stroke segments, "
              "pre column leave-one-session-out",
-             "BALANCED accuracy: the class balance moves with epoch (quiet is 3.4% of a pre "
-             "session, 15.1% acute, 0.7% chronic). Full method in the speaker notes"]
+             _state_balance_line(store)]
     counts = {e: {a: sum(1 for x, _v in pts[e]["state"] if x == a)
                   for a in sorted({x for x, _v in pts[e]["state"]})} for e in pts}
     made = []
@@ -2553,16 +2615,34 @@ def _fig_13_state(out_dir, align, variant, wname):
     CLS = ["quiet", "running", "licking"]
     pvals, ppts = _state_epoch_values(store, "per_class", CLS)
     if pvals:
+        # SNAPSHOT BEFORE `_scalar_figure` REWRITES `pvals` into (point, lo, hi) tuples -- the same
+        # trap `balacc` is snapshotted for above. Building the note text afterwards would format a
+        # tuple into the caption.
+        _rec = {c: [(e, float(pvals[e][c])) for e in ef.PANELS
+                    if e in pvals and c in pvals[e]] for c in CLS}
+
+        def _line(c):
+            return " / ".join(f"{v:.2f}" for _e, v in _rec[c]) or "--"
+
+        # MEASURED, NOT ASSERTED. These three lines used to be literals: "0.98 / 0.95 / 0.94 / 0.97"
+        # for running and "0.86 -> 0.70 acutely" for rest. By the 2026-09-12 render the figure held
+        # 0.99/0.96/0.89/0.98 and 0.97 -> 0.84 -- the caption had drifted off its own bars and
+        # overstated the fall it was pointing at. A re-render moves both together now.
+        _q = dict(_rec["quiet"])
+        _qmove = (f"({_q.get('pre', float('nan')):.2f} pre -> "
+                  f"{_q.get('acute', float('nan')):.2f} acutely)" if "pre" in _q else "")
         r = _scalar_figure(
             out_dir, name="epoch_13pos_state_decoder_by_class_cue",
             title="Frozen state decoder, RECALL PER CLASS -- which behavioural state changed?",
             ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
             ylim=(0.0, 1.05), session_counts=counts, notes=[
                 NOTES[0],
-                "RUNNING IS THE CLEAN EXAMPLE: 0.98 / 0.95 / 0.94 / 0.97, flat at every epoch",
-                "QUIET IS THE ONE THAT MOVES (0.86 -> 0.70 acutely) -- quiet goes from 3.4% of a "
-                "pre-stroke session to 15.1% acutely, so a post-stroke animal sitting still may be "
-                "in a genuinely different state. A finding about immobility, not a failed control"],
+                f"RUNNING IS THE CLEAN EXAMPLE: {_line('running')}, flat at every epoch "
+                f"(pre / acute / subacute / chronic); LICKING {_line('licking')}",
+                f"REST IS THE ONE THAT MOVES {_qmove} -- and it is also a much larger share of a "
+                f"post-stroke session, so a post-stroke animal sitting still may be in a genuinely "
+                f"different state. A finding about immobility, not a failed control",
+                _state_balance_line(store)],
             delta_name="epoch_13posdelta_state_decoder_by_class_cue",
             delta_title="State decoder recall per class, change from pre-stroke")
         if r:
