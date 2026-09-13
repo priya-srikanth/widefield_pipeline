@@ -23,6 +23,12 @@ def sidecar(tmp_path):
         "acute,gap,0.0397,-0.0144,0.0984\n"
         "chronic,frozen,-0.0608,-0.0539,0.0363\n"
         "pre,frozen,,,\n", encoding="utf-8")
+    (tmp_path / "epoch_x_cue_lick_stats.csv").write_text(
+        "row,col,amplitude_vs_pre,sig_bins,n_bins\n"
+        "Far Contra,acute - pre,2.1771,971,2022\n", encoding="utf-8")
+    (tmp_path / "epoch_x_precue_working_stats.csv").write_text(
+        "row,col,amplitude_vs_pre,sig_bins,n_bins\n"
+        "Far Contra,acute - pre,4.7773,145,2022\n", encoding="utf-8")
     (tmp_path / "epoch_x_precue_working.csv").write_text(
         "epoch,position,point,lo95,hi95\n"
         "acute,frozen,-0.5000,-0.6,-0.4\n", encoding="utf-8")
@@ -104,3 +110,39 @@ def test_each_sidecar_is_read_once_per_build(sidecar):
     for _ in range(5):
         r.resolve("{{epoch_x_cue_lick: epoch=acute, position=gap -> point}}")
     assert list(r._cache) == ["epoch_x_cue_lick"]
+
+
+def test_SELF_reaches_the_figures_OTHER_sidecars(sidecar):
+    """A figure has several sidecars; `SELF_stats` is how a map note quotes its STATISTICS.
+
+    The map families' claims are about how many bins survived and how amplitude moved, which live in
+    `<stem>_stats.csv`, not in the per-panel digest that shares the figure's name. Without the
+    suffix form those notes could not be converted at all and would stay hand-copied.
+    """
+    r = dv.Resolver([sidecar])
+    tok = "{{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f}}"
+    assert r.resolve(tok, self_stem="epoch_x_cue_lick") == "2.18"
+    assert r.resolve(tok, self_stem="epoch_x_precue_working") == "4.78"
+    assert r.report() == []
+
+
+def test_a_hard_coded_constant_could_not_have_served_both_arms(sidecar):
+    """WHY the conversion was needed and not cosmetic.
+
+    The epoch_14 note hard-coded far-contra acute amplitude at 2.08 for a GLOB-placed caption. It had
+    drifted (post-cue is 2.18) and, more importantly, no single constant can be right for a note whose
+    pre-cue arm reads 4.78. One number, two arms, both wrong.
+    """
+    r = dv.Resolver([sidecar])
+    tok = "{{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f}}"
+    vals = {r.resolve(tok, self_stem=s)
+            for s in ("epoch_x_cue_lick", "epoch_x_precue_working")}
+    assert len(vals) == 2, "the arms genuinely differ; that is the point"
+
+
+def test_a_missing_row_in_a_stats_sidecar_marks_rather_than_guesses(sidecar):
+    """Acute far-contra has no row on the lick arm -- the animals did not lick there."""
+    r = dv.Resolver([sidecar])
+    out = r.resolve("{{SELF_stats: row=Far Ipsi, col=acute - pre -> sig_bins}}",
+                    self_stem="epoch_x_cue_lick")
+    assert "has no row" in out

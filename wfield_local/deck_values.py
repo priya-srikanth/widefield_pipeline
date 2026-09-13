@@ -133,11 +133,15 @@ class Resolver:
 
         def one(m):
             stem = m["stem"]
-            if stem == "SELF":
+            if stem == "SELF" or stem.startswith("SELF_"):
                 if not self_stem:
                     self.misses.append("SELF used on a slide with no figure")
                     return "[[? SELF has no figure on this slide]]"
-                stem = self_stem
+                # A FIGURE HAS SEVERAL SIDECARS, not one. `SELF` is the value file; `SELF_stats`,
+                # `SELF_sessions`, `SELF_meta` and `SELF_cells` reach the others, which is how a map
+                # note quotes the STATISTICS its claims are made from rather than the per-panel
+                # digest that happens to share the figure's name.
+                stem = self_stem + stem[len("SELF"):]
             return self.lookup(stem, _parse_where(m["where"]), m["field"], m["spec"])
 
         return TOKEN.sub(one, text)

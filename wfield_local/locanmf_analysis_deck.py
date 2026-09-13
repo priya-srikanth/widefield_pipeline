@@ -4177,7 +4177,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " loses drive lowers the reference and hands every other position an increase it did not"
          " earn. THIS FAMILY CANNOT BE USED AS THE DEFICIT MEASURE. Its amplitudes also INVERTED"
          " once the `working` class was corrected to include non-responded trials: far-contra went"
-         " from 0.47 to 2.08 of pre-stroke, because acute far-contra is then dominated by trials"
+         " from BELOW pre-stroke to"
+         # QUOTED FROM THIS ARM'S OWN STATS SIDECAR. The number was hard-coded at 2.08 until
+         # 2026-09-12 and was wrong twice over: it had drifted to 2.18 post-cue, and one constant
+         # cannot serve a glob-placed note whose PRE-CUE arm reads 4.78. See `deck_values`.
+         " {{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f}}x of pre-stroke"
+         " acutely, because acute far-contra is then dominated by trials"
          " the animal did not attempt and the pattern then says cortex is globally quieter than on"
          " the average trial -- a large map with no position content. Use this family to see WHAT"
          " DISTINGUISHES positions; use the QUIET-referenced family for how much each position is"
