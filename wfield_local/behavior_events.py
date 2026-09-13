@@ -44,7 +44,23 @@ from wfield_local.quiet_periods import (
 )
 from wfield_local.treadmill import bout_edges, calibrate_treadmill, find_running_bouts, smooth_treadmill
 
-SCHEMA_VERSION = 2   # v2 adds sync_samples (DAQ<->GUI-device clock reference)
+#: v3 (2026-09-12) REDEFINES `quiet_starts`/`quiet_stops`, which is why the version had to move.
+#:
+#: THE ARRAYS KEPT THEIR NAMES AND CHANGED THEIR MEANING, and that is the one thing a cache cannot
+#: survive. `get_or_compute` serves any npz whose `schema_version` is at least this, so without the
+#: bump every events file already on disk would have gone on supplying the RETIRED definition --
+#: 8 s excluded after every reward, anchored on the animal's performance -- while the imaging masks
+#: used the new trial-anchored one. Two definitions under one name, which is the exact failure this
+#: migration exists to remove, reintroduced one layer down. Bumping forces a recompute.
+#:
+#: `rest_starts`/`rest_stops` are the same arrays under the name the definition now carries, and
+#: `rest_anchor` records whether the trial opening came from `trial_start` or the strobe fallback.
+#:
+#: THERE IS NO VARIANT MECHANISM HERE, unlike the imaging masks: recomputing OVERWRITES. That is
+#: acceptable because these are derived and reproducible from an archived DAQ `.h5`, and each npz
+#: stores the full `params` block that produced it -- so a file always states its own definition even
+#: though the previous one is not kept beside it.
+SCHEMA_VERSION = 3   # v2 added sync_samples; v3 redefines quiet/rest (see above)
 
 
 def _read_analog(f, name: str) -> np.ndarray:

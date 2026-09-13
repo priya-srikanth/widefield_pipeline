@@ -36,7 +36,7 @@ def _write_daq(path, *, fs=5000.0, dur_s=6.0, lick_times=(1.0, 1.2, 2.0, 3.0), r
 
 
 def test_compute_events_counts(tmp_path):
-    # 30 s session so quiet survives the 8 s post-reward buffer
+    # 30 s session so rest survives the trial windows and the lick buffers
     h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
     ev = be.compute_events(h5)
     assert ev["fs"] == 5000.0 and ev["n_samples"] == 150000
@@ -44,9 +44,55 @@ def test_compute_events_counts(tmp_path):
     assert ev["reward_samples"].size == 2
     assert ev["running_starts"].size == 0           # flat treadmill -> no running
     assert ev["grooming_starts"].size == 0          # grooming off by default
-    assert ev["quiet_starts"].size >= 1             # the quiet tail after the buffers
+    assert ev["quiet_starts"].size >= 1             # the rest tail after the buffers
     assert ev["sync_samples"].size >= 60            # ~0.4 s sync heartbeat over 30 s
-    assert ev["schema_version"] == 2
+    # v3 REDEFINED quiet/rest (trial-anchored, no reward buffer). The bump is what forces every
+    # cached npz to recompute instead of serving the retired definition under the same array names.
+    assert ev["schema_version"] == 3
+
+
+def test_rest_and_quiet_are_the_same_arrays(tmp_path):
+    """`rest_*` is the name the definition now carries; `quiet_*` stays for existing readers."""
+    h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
+    ev = be.compute_events(h5)
+    assert ev["rest_starts"].tolist() == ev["quiet_starts"].tolist()
+    assert ev["rest_stops"].tolist() == ev["quiet_stops"].tolist()
+
+
+def test_rest_records_which_anchor_it_used(tmp_path):
+    """A mask must state its own definition: three anchors are reachable and they differ.
+
+    This fixture has a `cue` bit but no `trial_start` and no `spout_strobe`, which is the degenerate
+    third case -- the trial can only be bounded by its own cue. It is legitimate, and it must be
+    NAMED, because a session anchored this way is not comparable to one anchored on `trial_start`.
+    """
+    h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
+    ev = be.compute_events(h5)
+    assert "no trial_start" in str(ev["rest_anchor"])
+
+
+def test_rest_excludes_trial_time(tmp_path):
+    """The whole point of the redefinition: a sample inside a trial is never rest."""
+    import numpy as np
+
+    from wfield_local.quiet_periods import trial_exclusion
+
+    h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
+    ev = be.compute_events(h5)
+    fs, n = float(ev["fs"]), int(ev["n_samples"])
+    # rebuild the trial mask the same way `rest_mask` does, from the same cue times
+    import h5py
+
+    with h5py.File(h5, "r") as f:
+        dn = [x.decode() for x in f["digital/channel_names"][:]]
+        packed = f["digital/packed_samples"][:, 0]
+    cue_bit = ((packed >> dn.index("cue")) & 1).astype(np.int8)
+    cue_s = np.flatnonzero(np.diff(cue_bit, prepend=0) == 1) / fs
+    in_trial, _note = trial_exclusion(n, fs, cue_s, None, None)
+    rest = np.zeros(n, bool)
+    for a, b in zip(ev["quiet_starts"], ev["quiet_stops"]):
+        rest[int(a):int(b)] = True
+    assert not (rest & in_trial).any(), "no rest sample may fall inside a trial window"
 
 
 def test_min_ili_floor_applied_in_events(tmp_path):

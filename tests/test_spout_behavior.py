@@ -336,7 +336,10 @@ def test_load_licks_daq_primary_via_sync(tmp_path):
             return str(tmp_path / "server")
     rv = _RV()
     # canonical DAQ events (5000 Hz): sync samples == device_ms*5 (identity map), DAQ lick @1.30 s
-    be.save_events({"schema_version": 2, "fs": 5000.0, "n_samples": 30000,
+    # TRACKS THE CONSTANT, not a literal: this test is about DAQ-vs-GUI lick provenance, and a
+    # hand-pinned version silently turned into "the events are stale, fall back to GUI licks" the
+    # moment the schema moved -- which is the cache doing its job, in the wrong test.
+    be.save_events({"schema_version": be.SCHEMA_VERSION, "fs": 5000.0, "n_samples": 30000,
                     "lick_onsets": np.array([6500], np.int64),          # 1.30 s
                     "sync_samples": (np.array(sync_ms) * 5).astype(np.int64),
                     "daq_h5": "x"}, be.events_path(rv, "PS92", "20260806"))

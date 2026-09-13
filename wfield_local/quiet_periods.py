@@ -1,29 +1,39 @@
-"""Quiet-period detection for baseline (F0) selection.
+"""REST-period detection for baseline (F0) selection -- the file still named for its old category.
 
-Builds a per-sample (and per-corrected-frame) "quiet" mask: times when the animal
-is NOT running and NOT licking (and not in a peri-reward window). These frames are a
-behavior-controlled baseline for event-triggered ΔF/F — e.g. intersect with the
-pre-cue ENL window, or pool as an F0, instead of relying on a true inter-trial quiet
-period (which trial-triggered acquisition doesn't record).
+Builds a per-sample (and per-corrected-frame) mask of REST: times the animal is BETWEEN TRIALS and
+not running and not licking. Those frames are the behaviour-controlled baseline an event-triggered
+map is expressed against.
 
-Ported from the stroke_orofacial_pipeline (`spout_behavior/bouts.py::find_quiet_bouts`):
-    quiet = slow-treadmill  AND  not-near-lick  AND  not-near-reward  [AND not grooming]
-with each exclusion widened by a time buffer, then short quiet runs dropped.
+    rest = outside every trial  AND  slow treadmill (buffered)  AND  away from licking (buffered)
+
+REDEFINED 2026-09-12, and the previous definition is worth stating because masks built under it are
+still on disk. It was ported from stroke_orofacial (`spout_behavior/bouts.py::find_quiet_bouts`) as
+
+    quiet = slow-treadmill  AND  not-near-lick  AND  NOT-NEAR-REWARD (8 s)  [AND not grooming]
+
+and the reward term was the problem. Eight seconds is that task's post-tone window; ours has a 3.5 s
+response window. Worse, anchoring on REWARD anchors on the animal's PERFORMANCE -- a post-stroke
+mouse that misses more has less of its session buffered out -- so the category tracked the deficit:
+4.4% of frames pre-stroke, 17.1% acutely, a median 0.7% chronically. Anchoring on the TRIAL removes
+that by construction, because the spout moves and the cue plays whether or not the animal succeeds.
+Measured acute/pre: 3.89 -> 1.10. There is no reward term at all now: reward arrives 6 ms after the
+cue, so the trial window already contains it.
+
+THE WORD "QUIET" IS RETIRED, because it briefly meant both definitions. The arrays and directories
+keep their `quiet_` names for the many existing readers; `rest_` is the same thing under the name the
+definition now carries, and `rest_anchor` records which of the three trial anchors a mask used.
+Full record: docs/REST_BASELINE_MIGRATION.md.
 
 Adapted for THIS rig:
-- ONE spout, so the stroke pipeline's grooming detector (bilateral two-spout
-  conjunction) does not apply. Grooming here would rely only on single-spout
-  "long-touch" contact, but with close spouts a TRUE long lick can produce a long
-  deflection -> long-touch is an unreliable grooming proxy. So grooming is OFF by
-  default; enable with --grooming only as an experiment (see caveat below).
-- The quiet exclusions use running (treadmill) + licking (lick_analog) + reward.
+- ONE spout, so the stroke pipeline's grooming detector (bilateral two-spout conjunction) does not
+  apply. Grooming here would rely only on single-spout "long-touch" contact, but with close spouts a
+  TRUE long lick can produce a long deflection -> an unreliable proxy. OFF by default.
 
-!! TUNE LATER: the defaults below (running/quiet speed, min durations, time buffers,
-lick thresholds) are starting points carried over from the stroke pipeline. Revisit
-"running" speed/duration and the lick/reward/treadmill buffers for this rig and task
-once we have ground-truth (e.g. DLC/FaceRhythm movement) to validate against. The
-stroke `min_quiet_duration` was 10 s (for long rest bouts); here it defaults small so
-the mask is usable as a per-frame baseline cleanliness flag within short ENL windows.
+!! STILL TUNE LATER: the treadmill speed threshold, the durations and the lick/treadmill buffers are
+starting points carried over from the stroke pipeline. The LICK term in particular is the dominant
+one -- it excludes 73.7% of samples pre-stroke and 82.5% at chronic -- and it is the reason rest
+stays epoch-dependent at chronic under every candidate definition. Revisit once DLC/FaceRhythm
+movement gives ground truth.
 
 Vendored boolean helpers (idx2bool / widen_bool_sparse / set_short_bool_to_low) are
 MIT-licensed ports from bnpm (© 2021 RichieHakim) via the stroke pipeline.
@@ -83,20 +93,6 @@ def set_short_bool_to_low(b: np.ndarray, n: int) -> np.ndarray:
     return b
 
 
-#: Which quiet-mask variant every consumer reads, from `segmentation.quiet.variant`. An empty
-#: string means the original `quiet_<tag>` directory; anything else selects `quiet_<tag>_<variant>`.
-#:
-#: WHY A VARIANT RATHER THAN AN OVERWRITE (2026-09-12). The quiet definition changed -- the 8 s
-#: post-reward buffer was a carryover from the stroke_orofacial pipeline, whose task runs on an 8 s
-#: post-tone window; ours has a 3.5 s response window, and Priya's framing is that quiet should be
-#: "non-running ITI frames", anchored on the CUE rather than on the reward. Rewriting the existing
-#: masks would have made every figure built on them unreproducible and un-diffable at once, across
-#: the QUIET reference, the state decoder, the position encoder and deck sections A-C. So this
-#: follows the rule `docs/PREPROCESSING_DECISION.md` already sets for the hemodynamic variants:
-#: nothing overwrites the original, every alternative gets its own directory beside it, and a
-#: manifest says which definition produced it. Retiring a variant is then a config edit, and the
-#: comparison stays available -- which matters here, because the change moves a lot of results and
-#: "did it move because of this?" has to remain answerable.
 def response_window_s(session_dir=None):
     """The session's real response window (s), or the configured default.
 
@@ -147,13 +143,21 @@ def trial_exclusion(n, fs, cue_s, trial_start_s, strobe_s, *, params=None, sessi
 
     cue = np.asarray(cue_s, float)
     ts = np.asarray(trial_start_s if trial_start_s is not None else [], float)
+    back = float(p.get("strobe_fallback_s", 1.0))
+    st = np.asarray(strobe_s if strobe_s is not None else [], float)
     if ts.size:
         opens, note = ts, "trial_start"
-    else:
+    elif st.size:
         # NO trial_start BIT. Fall back to the strobe pulled back by the measured travel time, and
         # say so -- this is a DIFFERENT definition and a session using it must be identifiable.
-        opens = np.asarray(strobe_s, float) - float(p.get("strobe_fallback_s", 1.0))
-        note = f"strobe-{float(p.get('strobe_fallback_s', 1.0)):g}s (no trial_start bit)"
+        opens, note = st - back, f"strobe-{back:g}s (no trial_start bit)"
+    else:
+        # NEITHER. The trial can then only be bounded by its own cue, so it opens one response
+        # window before it. THIS IS A THIRD DEFINITION and it was reachable silently: with `opens`
+        # empty the per-trial lookup fell through to exactly this expression inside the loop, with
+        # nothing naming it. It is the right degenerate behaviour -- a session with a cue but no
+        # trial structure still has a trial -- but it must be visible in the manifest.
+        opens, note = np.empty(0, float), f"cue-{rw:g}s (no trial_start OR strobe bit)"
 
     mask = np.zeros(int(n), bool)
     closes = cue + rw + settle
@@ -203,7 +207,17 @@ def rest_mask(n, fs, speed, lick_onsets, cue_s, trial_start_s, strobe_s, *,
 
 
 def quiet_variant():
-    """The configured variant string, or "" for the original masks."""
+    """The configured variant string, or "" for the RETIRED masks.
+
+    WHY A VARIANT RATHER THAN AN OVERWRITE (2026-09-12). Rewriting the existing masks in place would
+    have made every figure built on them unreproducible and un-diffable at once, across the rest
+    reference, the state decoder, the position encoder and deck sections A-C. This follows the rule
+    `docs/PREPROCESSING_DECISION.md` already sets for the hemodynamic variants: nothing overwrites
+    the original, every alternative gets its own directory beside it, and a manifest says which
+    definition produced it. Retiring a definition is then a config edit and the comparison stays
+    available -- which matters precisely because this change moves a lot of results, so "did it move
+    because of this?" has to remain answerable.
+    """
     return str(config.defaults()["segmentation"]["rest"].get("variant", "") or "")
 
 

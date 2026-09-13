@@ -14,6 +14,12 @@ a 3-panel figure (quiet, running, running−quiet) + maps ``.npz`` + summary, fo
         --events <behavior_summary>/events/PS92/20260806.npz --daq-h5 <...>.h5 \
         --frame-map <...>_cleanpairs_frame_map.npz --cleanpairs-summary <...>_summary.json \
         --output <mc>/running_activity_affine8v1
+
+THE REST PANEL USES THE TRIAL-ANCHORED DEFINITION (2026-09-12), not the retired reward-anchored one.
+`quiet_starts` in the events npz means "between trials, not running, not licking" as of events
+schema v3; the previous meaning excluded 8 s after every reward, which made the category track the
+animal's PERFORMANCE -- 4.4% of frames pre-stroke against 17.1% acutely. A figure built from a
+pre-v3 npz says so in its summary (`rest_anchor`), because the two are not comparable.
 """
 from __future__ import annotations
 
@@ -123,6 +129,9 @@ def main(argv=None) -> int:
         "allen_dir": str(args.allen_dir), "frame_map": str(args.frame_map), "regime": regime,
         "offset": int(offset), "fs": fs, "svt_frames": int(T),
         "quiet_frames": int(frame_quiet.sum()), "running_frames": int(frame_running.sum()),
+        # THE DEFINITION THAT PRODUCED THE REST PANEL, so a figure on the deck can be traced to it.
+        "rest_anchor": str(ev["rest_anchor"]) if "rest_anchor" in ev else "(pre-v3 events npz)",
+        "events_schema_version": int(ev.get("schema_version", 0)),
         "n_running_bouts": int(np.asarray(ev["running_starts"]).size),
         "n_quiet_periods": int(np.asarray(ev["quiet_starts"]).size),
     }
@@ -137,9 +146,9 @@ def main(argv=None) -> int:
 
     lim = _display_limit([quiet_map, running_map, contrast], args.percentile)
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.4), constrained_layout=True)
-    panels = [("quiet", quiet_map, int(frame_quiet.sum()), lim, "RdBu_r"),
+    panels = [("rest", quiet_map, int(frame_quiet.sum()), lim, "RdBu_r"),
               ("running", running_map, int(frame_running.sum()), lim, "RdBu_r"),
-              ("running − quiet", contrast, int(frame_running.sum()), lim, "RdBu_r")]
+              ("running − rest", contrast, int(frame_running.sum()), lim, "RdBu_r")]
     im = None
     for ax, (title, arr, ncnt, vlim, cmap) in zip(axes, panels):
         im = ax.imshow(arr, cmap=cmap, vmin=-vlim, vmax=vlim)
