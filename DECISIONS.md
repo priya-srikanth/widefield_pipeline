@@ -10003,3 +10003,111 @@ right-side phenotype needs and which a profile view measures better than a front
 not build a 3-D whisker claim on manually-corresponded points unless the correspondence can be
 verified independently. The frames are already extracted either way, so this can be decided after
 `cam4`/`cam1` are done, with no rework.
+
+---
+
+## 2026-09-12 — Silhouette labelling and what it does to the 3-D reconstruction
+
+Priya: *"will using co-labeling like that and then doing 3d triangulation cause any issues? eg spout
+diameter will get collapsed; does that introduce warping or other artifacts?"* Yes — and answering
+it properly overturned the rule recorded earlier the same day.
+
+**WHAT I HAD WRITTEN, AND WHY IT WAS WRONG.** The previous entry said a rigid part seen by fixed
+cameras carries a CONSTANT offset, which cancels out of any movement measure. That holds only if the
+object's pose relative to the cameras is fixed. **The spout is the thing that moves.** Across the six
+positions each camera's line of sight to it swings by roughly 10°, which slides the silhouette
+tangent point around the rim. The offset is therefore POSITION-DEPENDENT, which is exactly the case
+where it does not cancel.
+
+**THE GEOMETRY, from `calibration_anipose.toml`.** Camera centres and pairwise angles:
+
+| pair | baseline | angle between optical axes |
+|---|---|---|
+| cam1–cam4 | 140 mm | **55.3°** |
+| cam1–cam2 | 169 mm | 70.4° |
+| cam1–cam3 | 170 mm | 74.4° |
+| cam2–cam3 | 233 mm | 110.5° |
+| cam2–cam4 | 150 mm | 52.4° |
+| cam3–cam4 | 156 mm | 58.2° |
+
+Each camera marks the rim edge FACING IT, so cam1 and cam4 mark points ~55° apart around the
+circumference and triangulation lands *inside* the tube rather than on its surface.
+
+**THREE CONSEQUENCES, ONLY ONE OF WHICH MATTERS.**
+
+1. *Diameter collapse* — benign. The tube's thickness is replaced by a single interior point. Spout
+   thickness was never a measurement.
+2. *Warping* — the real artefact. The interior point's location depends on viewing angle, so as the
+   spout moves the reconstructed position is displaced by a smoothly varying amount, of order
+   **0.1–0.2 × the spout radius**. That is comparable to the calibration's own ~40 µm precision, so
+   it is a genuine systematic and not noise: the six reconstructed spout positions will be slightly
+   distorted relative to the commanded ones.
+3. *Depth conditioning* — not a problem here. 55° is a healthy stereo angle and cam2–cam3 at 110° is
+   better still; this is not the narrow-baseline depth blow-up.
+
+**THE SPOUT ARTEFACT IS MEASURABLE, AND THAT IS THE POINT.** The spout's true positions are
+COMMANDED by the rig and therefore known exactly. Reconstructing it at each of the six and comparing
+against the commanded geometry converts an unknown artefact into a measured, correctable one. It is
+also a far better end-to-end check than reprojection error, which only shows the calibration is
+self-consistent, not that it is right. **Recommended as one of the first things done with the
+finished tracking.**
+
+**THE TONGUE HAS NO SUCH RESCUE.** It moves AND deforms, so the cross-view mismatch varies frame to
+frame with no ground truth to calibrate against. This is the concrete reason for insisting on a
+consistent tongue landmark: with a deforming structure the labelling criterion IS the error term.
+Measuring the tongue RELATIVE TO THE SPOUT in the same frame helps, since both inherit similar error.
+
+**AND THERE IS NO GEOMETRIC ESCAPE HATCH**, which three successive attempts to find one established.
+Priya, on the suggestion that the tube's opening be used instead: *"the cameras DON'T see the actual
+opening though, only the upper or lower bound of the circumference of it"* — correct. A camera sees a
+SILHOUETTE, and a silhouette is a different piece of the object from every viewpoint. The nose tip,
+the spout tip and the tube opening were each proposed as "the same physical point" and each failed
+for the same reason. The honest framing is not "find landmarks that are the same point" but "decide
+whether the discrepancy is constant, and know which measurements inherit it."
+
+---
+
+## 2026-09-12 — Labelling guide for a new student, and the state of auto-seeding
+
+**`docs` note: the guide is an Artifact, not a repo file** —
+<https://claude.ai/code/artifact/dc6077af-49b4-47ae-80d5-cb0578e857ad>. Written for someone with no
+coding or DeepLabCut experience, covering cam4 (revise seeded labels) then cam1 (from scratch), then
+cam2/cam3.
+
+Everything factual in it was read from the project rather than from general documentation: the
+per-camera bodypart lists from `dlc_frames.bodyparts()`, the keyboard shortcuts from
+`napari_deeplabcut.config.keybinds.iter_shortcuts()`, and the three labelling modes from the
+`LabelMode` enum and its click handler. **LOOP mode is the answer to "click tongue on every frame,
+then switch to jaw"** and QUICK mode is the right one for correcting cam4's seeds, since clicking an
+already-placed point MOVES it.
+
+Figures are generated from real data: seeded cam4 frames spanning tongue extension, empty cam1
+frames, and hand-labelled reference frames from the PS46–55 project screened for close-up framing and
+**anatomical plausibility** — that project contains frames with an eye point pinned at the image
+edge, which a teaching figure must not present as correct.
+
+### OPEN: automatic seeding of cam1/cam2/cam3
+
+Priya asked whether labels could be pre-populated for correction. **Attempted, three versions, none
+usable yet** (`scratchpad/seed_cam1.py`, not committed):
+
+1. connected components — the dark spout touches the dark fur, so the component ran off the frame
+   bottom and the "tip" landed at the image edge on 10 of 12 test frames;
+2. width-tracking from row 2 — found nothing: the top rows are ENTIRELY dark (background either side
+   of the rod, one 600 px run), so there is no rod to start from;
+3. start where the rod separates (~y=100, a clean ~45 px run) then track down — 8/12 detections, but
+   landing on the rod's edge and on snout fur rather than tip and tongue.
+
+**The right way to finish it is not more threshold tuning.** cam1 has **109 hand-placed points across
+72 frames** — that is ground truth. Fit the detector against those and report actual pixel error,
+rather than judging by eye. A seed that is confidently wrong is worse than no seed, because the
+labeller's eye is anchored by whatever is already on screen.
+
+Two better routes also exist and are recorded so they are not forgotten:
+
+* **Train on cam4 + cam1, then predict cam2/cam3 and correct.** The standard DLC loop, and the
+  network would at least be trained on these animals, this rig, this lighting — unlike the donor
+  network, which is frontal-view and hallucinates eyes into cam4's empty corners at 0.44–0.79.
+* **Triangulate and reproject** — now unblocked by the anchored frame selection (373cd35). Once cam4
+  and cam1 are labelled on matched frames, reconstruct and project into the side views. That is
+  geometry rather than guessing, and the calibration supports it at 2.83 px median reprojection.
