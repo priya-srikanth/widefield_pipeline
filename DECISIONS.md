@@ -10372,3 +10372,63 @@ established: nothing has yet tested the gradient itself, and the test that would
 amplitude ratios with the nested bootstrap on the near-minus-far contrast. **That test must now be
 run on the TIME-LOCAL rest reference**, since the amplitudes it would use were computed against the
 flat session mean this repo replaced on the same day.
+
+
+---
+
+## 2026-09-13 — the state decoder's post-stroke errors point at LICKING specifically, and DLC can test why
+
+Priya, reading `epoch_13c`: *"quiet is sometimes looking like 'licking' in acute post stroke and
+running like licking > quiet in subacute stroke ... the DLC analysis will help see if 'quiet' in
+those times include incomplete licks"*.
+
+**THE MEASUREMENT** (row = true class, cell = fraction predicted; cue arm, frozen pre-stroke model):
+
+| epoch | quiet→licking | running→licking | licking→quiet |
+|---|---|---|---|
+| pre | 0.015 | 0.006 | 0.013 |
+| **acute** | **0.143  (9.5x pre)** | 0.019 | 0.032 |
+| **subacute** | 0.062 | **0.101  (17x pre)** | **0.137  (10.5x pre)** |
+| chronic | 0.066 | 0.015 | 0.016 |
+
+Both readings hold. Acutely, quiet's errors go to LICKING; subacutely, running's errors go to
+licking (0.101) MORE than to quiet (0.058), and licking↔quiet becomes bidirectional.
+
+**THE ERRORS ARE SPECIFIC, NOT DIFFUSE, AND THAT IS THE ARGUMENT.** If the acute rise were simply
+"post-stroke cortex is less distinguishable", quiet's errors would spread across both other classes.
+They do not: quiet→licking is 0.143 while quiet→running is 0.027, a 5:1 split toward one class.
+A generic degradation does not pick a direction. Something is making quiet windows look
+specifically LICKING-like.
+
+**PRIYA'S HYPOTHESIS, and it would make this a LABELLING error rather than a decoder error.** REST
+is defined as *between trials, not running, and NOT LICKING* — where "not licking" means **no event
+on the DAQ lick sensor**, which requires tongue-to-spout contact. An INCOMPLETE tongue protrusion
+that never reaches the spout produces no sensor event and is therefore filed as REST. Cortex would
+be doing licking-like things inside a window labelled quiet, and the decoder calling it *licking*
+would be RIGHT while the label was wrong.
+
+**AND THE PREDICTED TIMING IS THE DEFICIT ITSELF.** Failed and incomplete protrusions are what a
+ventrolateral-striatal lesion with an orofacial deficit should produce, and should produce MOST
+acutely — which is exactly where quiet→licking peaks. The hypothesis predicts its own time course.
+
+**THE DLC TEST, stated so it can fail.** Score tongue protrusions from the behaviour video
+independently of the lick sensor, then ask, within REST-labelled windows:
+
+* Do windows the decoder calls LICKING contain more DLC protrusions than windows it calls quiet?
+* Is that excess larger ACUTELY than pre-stroke, and does it track the quiet→licking rate by
+  epoch and by animal?
+* Confirmed → the REST class is contaminated by sensor-invisible licking and the confusion is a
+  labelling artefact with a biological cause. Refuted (protrusion rates equal) → the acute
+  quiet↔licking confusion is a genuine change in resting cortical state, which is a different and
+  also interesting result.
+
+**THE KNOCK-ON NOBODY HAS CHECKED: the same sensor defines the REST BASELINE for the maps.**
+`quiet_periods` builds the rest mask from the same DAQ lick events, so if incomplete licks fall
+inside REST then the MAP subtrahend contains licking-related activity too — most acutely, which is
+the epoch every headline map contrast is read at. This does not obviously threaten the far-contra
+result (it would add a position-independent term, and the cross-position null is built to be blind
+to exactly that), but it has not been tested and should be once DLC protrusion times exist.
+
+**RELATED CAVEAT ALREADY ON RECORD**, now with a quantitative prediction attached: section G's G6
+caption has said since 2026-08-18 that *"'no lick detected' is not 'no tongue protrusion' — DLC
+replaces this inference with a measurement"*. This is the same caveat surfacing in a second analysis.
