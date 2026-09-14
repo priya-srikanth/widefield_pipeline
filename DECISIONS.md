@@ -11731,3 +11731,51 @@ add a permanent mixing hazard to fix something not yet shown to matter.
 NEXT: re-run a within-working result (decode accuracy and `restw` map amplitude) on a long-tail
 session under both fits. If it moves, build the working-only variant under the naming rule and measure
 it head-to-head as `meegkit_hpfit` was. If it does not, record the null and keep one product.
+
+---
+
+## 2026-09-14 — `--refit-t` vs `--no-refit-t`, and a tension that was never there
+
+Priya asked why production runs `--no-refit-t`. **It is not skipping the refit -- for the adopted
+variant the saved `T` IS the refit-T answer.**
+
+`meegkit_hpfit` declares `fit_drift: filtfilt`, i.e. "fit the hemodynamic coefficients on 0.1 Hz
+high-passed traces". The stock pipeline already fitted `T` that way, so refitting solves an
+estimation problem whose answer is already on disk: it reproduces the saved `rcoeffs` and `T` to
+**max abs 1.5e-6** (3.5e-5 relative, PS94_0812). `--no-refit-t` therefore saves an 88 MB `U.npy` load
+and a Gram computation per session for a bit-equivalent result. The code says so at the call site and
+**refuses the shortcut when it would not be equivalent** -- a variant declaring any other `fit_drift`
+raises rather than reusing a mismatched `T`. The canonical directory is the unsuffixed
+`hemo_<variant>`; `_refitT` is meaningful only for NON-hybrid variants.
+
+| variant | `--refit-t` vs `--no-refit-t` |
+|---|---|
+| `meegkit_hpfit` (hybrid) | **equivalent**, 1.5e-6 |
+| `detrend_hpfit` (hybrid) | **equivalent** |
+| `zerophase` | ~no-op (refitting on filtered traces reproduces the original) |
+| `strobedetrend` (non-hybrid) | **genuinely different** -- `T` refitted on detrended traces |
+
+### WHY THE BAND MATTERS AT ALL
+
+`rcoeffs` is ONE SCALAR PER PIXEL, so it can only be optimal for whichever band dominates the fit.
+High-passing makes that the 0.1-14 Hz hemodynamic band, where haemodynamics actually live. Detrending
+leaves large slow variance in, so the coefficient is tuned to the wrong band and vasomotion/breathing
+come out corrected WORSE (0.30/0.46 against zerophase's 0.15/0.22). That measurement is the entire
+reason the hybrids exist: keep the high-pass for the FIT, where it belongs, and detrend the OUTPUT,
+which is the part that must not be smeared.
+
+### THE TENSION I RAISED ON 09-14 WAS A MISREADING -- recorded because it was aired
+
+I flagged an apparent contradiction: CLAUDE.md says reusing `T` is *"wrong for a PRODUCT -- it applies
+a high-pass-derived transform to detrended data"*, yet production reuses `T`. From that I speculated
+that uncorrected slow haemodynamics might be leaking through, which would have made the rest baseline
+a downstream patch for an upstream failure.
+
+**That reading was wrong.** The sentence describes the NON-HYBRID case (`strobedetrend`: drift removed
+by detrending, `T` inherited from high-passing -- a real mismatch). The hybrid variants were built
+precisely to make the high-pass-fitted `T` the CORRECT choice rather than a compromise. A general
+statement was read as covering the case designed to escape it.
+
+**There was never a tension, and no leak.** Anyone re-deriving this should start from `fit_drift` in
+`hemo_variants.VARIANTS`, which says which band a variant's `T` is meant to come from -- that field,
+not the flag name, is what determines whether reuse is legitimate.
