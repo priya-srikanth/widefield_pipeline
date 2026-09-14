@@ -129,9 +129,24 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     def wid(b, buf):
         return widen_bool_sparse(b, int(buf[0] * fs), int(buf[1] * fs))
 
+    # POSITION CODES, for the docked term's RECONSTRUCTION path only. The measured path reads the
+    # behaviour log's dock events and needs none of this; reconstruction anchors on the
+    # per-position `dock - cue` p95 and so must know each trial's position. Built here rather than
+    # inside `rest_mask` because this module already holds the packed samples.
+    try:
+        from wfield_local import daq_io
+        from wfield_local.plot_spout_trial_averages import _classify_cues
+        _codes = _classify_cues(cue_smp, strobe_smp,
+                                daq_io.strobe_codes(packed, dnames, strobe_smp))
+    except Exception as _ex:                                           # noqa: BLE001
+        print(f"  .. position codes unavailable ({type(_ex).__name__}) -- the docked term can "
+              f"still use the behaviour log, but cannot be reconstructed without them", flush=True)
+        _codes = None
+
     quiet, rest_note = rest_mask(n, fs, speed, lick_onsets, cue_smp / fs, tstart_smp / fs,
                                  strobe_smp / fs, params=q,
-                                 session_dir=Path(h5_path).parent)
+                                 session_dir=Path(h5_path).parent,
+                                 sync_s=sync_samples / fs, position_codes=_codes)
 
     # grooming (single-spout long contact) — experimental, off by default
     gr = seg["grooming"]

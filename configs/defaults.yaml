@@ -212,6 +212,22 @@ segmentation:
     # THERE IS NO FALLBACK ACROSS DEFINITIONS: a session lacking the selected variant loses its rest
     # column rather than silently contributing a differently-defined baseline to a pooled map.
     variant: rest
+    # ---- the DOCKED term (2026-09-13). Restrict rest to `dock` -> next `trial_start`: the spout
+    # parked, stationary, NO TARGET PRESENT anywhere. MEASURED from the behaviour log over 110
+    # sessions -- dock lands 4.61-4.80 s after the cue while rest currently opens at ~4.0 s, so the
+    # present definition puts ~0.65 s of SPOUT RETRACTION inside the baseline, and retraction
+    # duration is POSITION-SPECIFIC (0.649-0.976 s, across-session sd 0.037-0.039). A subtrahend
+    # meant to be position-neutral therefore carries a position-dependent contaminant.
+    #
+    # NOT YET ON. Turning it on requires regenerating every mask AND every `behavior_events` npz
+    # under a NEW variant name (see `variant` above -- nothing is overwritten), then re-rendering.
+    # Set `variant: restdock` IN THE SAME EDIT, or the docked masks would be written into the
+    # `rest` directory and become indistinguishable from the loose ones.
+    #
+    # A SESSION THAT CANNOT BUILD A DOCKED WINDOW RAISES and drops out; it does NOT fall back to
+    # the loose window. PS93_0606 and PS92_0812 need the reconstructed path (DAQ anchors + the
+    # per-position offset table) and both clear their null on it.
+    docked: false
     #
     # ---- the trial anchor. The retired definition excluded 8 s after every REWARD, a buffer
     # carried over from stroke_orofacial, whose task runs on an 8 s post-tone window; ours has a

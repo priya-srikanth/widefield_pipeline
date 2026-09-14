@@ -208,6 +208,12 @@ def docked_mask_any(session_dir, daq_sync_samples, cue_samples, position_codes,
     m = docked_mask(session_dir, daq_sync_samples, n_samples, fs=fs) if session_dir else None
     if m is not None:
         return m, "log"
+    # RECONSTRUCTION NEEDS THE POSITION CODES -- its anchor is the PER-POSITION `dock - cue` p95.
+    # Without them there is no fallback: a single constant offset would inject up to 0.33 s of
+    # position-dependent error into the window start, manufacturing exactly the position effect
+    # these windows are used to test for. Better to return None and drop the session.
+    if position_codes is None or len(np.asarray(position_codes)) == 0:
+        return None, None
     m = docked_mask_reconstructed(cue_samples, position_codes, trial_start_samples, n_samples,
                                   fs=fs)
     return (m, "reconstructed") if m is not None else (None, None)

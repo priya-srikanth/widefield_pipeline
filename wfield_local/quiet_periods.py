@@ -177,7 +177,7 @@ def trial_exclusion(n, fs, cue_s, trial_start_s, strobe_s, *, params=None, sessi
 
 
 def rest_mask(n, fs, speed, lick_onsets, cue_s, trial_start_s, strobe_s, *,
-              params=None, session_dir=None):
+              params=None, session_dir=None, sync_s=None, position_codes=None):
     """``(mask, note)`` -- the REST mask. THE SINGLE DEFINITION every consumer resolves to.
 
     Two modules used to compute this independently -- this one from argparse literals and
@@ -188,6 +188,26 @@ def rest_mask(n, fs, speed, lick_onsets, cue_s, trial_start_s, strobe_s, *,
     REST = inside no trial, AND slow treadmill (buffered), AND away from licking. There is no reward
     term: reward is simultaneous with the cue, so the trial window already contains it, and a reward
     term would couple the category to how often the animal earned water.
+
+    THE DOCKED TERM (``segmentation.rest.docked``, 2026-09-13). When set, rest is additionally
+    restricted to the interval from each trial's `dock` to the next `trial_start` -- the spout
+    parked, stationary, with NO TARGET PRESENT anywhere.
+
+    WHY IT IS A SEPARATE TERM AND NOT A TIGHTER `settle_s`. The existing anchor opens rest at
+    `cue + response_window + settle`, which is ~0.65 s BEFORE the spout has finished retracting, so
+    the retraction itself sits inside the baseline -- and retraction duration is POSITION-SPECIFIC
+    (0.649-0.976 s by position, across-session sd 0.037-0.039). A constant settle cannot fix that:
+    any single value is early for some positions and late for others, which injects a
+    position-dependent difference into a subtrahend that is supposed to be position-neutral. The
+    dock event is per trial and per position by construction.
+
+    IT CONSTRAINS THE SPOUT, NOT THE ANIMAL, so it is intersected with the behavioural terms rather
+    than replacing them -- an animal can run or lick while the spout is docked.
+
+    RAISES IF DOCKED IS REQUESTED AND CANNOT BE BUILT. A mask that silently skipped the docked term
+    would be written into `quiet_<tag>_restdock/`, be indistinguishable from one that applied it,
+    and pool with the others. That is the exact failure this repo keeps hitting; the session must
+    fail loudly and be excluded, not quietly differ.
     """
     from wfield_local import config as _cfg
 
@@ -202,6 +222,32 @@ def rest_mask(n, fs, speed, lick_onsets, cue_s, trial_start_s, strobe_s, *,
     rest = (~in_trial
             & ~wid(~slow, p["treadmill_buffer_s"])
             & ~wid(idx2bool(np.asarray(lick_onsets, np.int64), int(n)), p["lick_buffer_s"]))
+    if p.get("docked"):
+        from wfield_local.docked_periods import docked_mask_any
+
+        if sync_s is None:
+            raise ValueError(
+                "segmentation.rest.docked is set but rest_mask was called without sync_s -- "
+                "refusing to write a mask that would be named `docked` and not be. Pass it, or "
+                "clear the flag.")
+        dm, source = docked_mask_any(
+            session_dir,
+            np.asarray(sync_s, float) * float(fs),
+            np.asarray(cue_s, float) * float(fs),
+            np.empty(0) if position_codes is None else np.asarray(position_codes),
+            np.asarray(trial_start_s, float) * float(fs),
+            int(n), fs=float(fs))
+        if dm is None:
+            raise ValueError(
+                "segmentation.rest.docked is set but no docked window could be built for this "
+                "session, measured or reconstructed -- it must drop out, not fall back to the "
+                "loose window.")
+        rest = rest & dm[: int(n)]
+        note = f"{note}; DOCKED ({source})"
+    # SHORT-RUN REMOVAL COMES LAST, AFTER the docked intersection. The docked window is ~1.35 s
+    # against the loose window's ~2.0 s, so intersecting it FRAGMENTS rest runs -- applying the
+    # `min_rest_s` floor before the intersection would keep runs that the intersection then cuts
+    # below it, and the mask would contain sub-threshold fragments its own parameter forbids.
     rest = set_short_bool_to_low(rest, int(float(p["min_rest_s"]) * fs))
     return rest, note
 
