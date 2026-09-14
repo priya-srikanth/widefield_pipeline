@@ -60,7 +60,16 @@ from wfield_local.treadmill import bout_edges, calibrate_treadmill, find_running
 #: acceptable because these are derived and reproducible from an archived DAQ `.h5`, and each npz
 #: stores the full `params` block that produced it -- so a file always states its own definition even
 #: though the previous one is not kept beside it.
-SCHEMA_VERSION = 3   # v2 added sync_samples; v3 redefines quiet/rest (see above)
+#: v4 (2026-09-14) ADDS THE DOCKED TERM to rest, for the same reason v3 had to move: `rest_starts`/
+#: `rest_stops` keep their names and change their meaning again. Rest is now additionally restricted
+#: to `dock` -> next `trial_start`, so the ~0.65 s of SPOUT RETRACTION that sat inside the previous
+#: window is gone -- and retraction duration is POSITION-SPECIFIC (0.649-0.976 s), so a subtrahend
+#: meant to be position-neutral was carrying a position-dependent contaminant.
+#:
+#: THIS BUMP MOVES WITH `defaults.yaml segmentation.rest.{variant: restdock, docked: true}`. All
+#: three are one edit: the variant keeps the new imaging masks in their own directory, and the bump
+#: forces every npz to recompute. Leaving any behind puts two definitions under one name.
+SCHEMA_VERSION = 4   # v2 added sync_samples; v3 redefined quiet/rest; v4 adds the docked term
 
 
 def _read_analog(f, name: str) -> np.ndarray:

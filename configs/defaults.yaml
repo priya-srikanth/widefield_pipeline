@@ -211,7 +211,7 @@ segmentation:
     # change to THIS LINE, so a result can always be traced to the definition that produced it.
     # THERE IS NO FALLBACK ACROSS DEFINITIONS: a session lacking the selected variant loses its rest
     # column rather than silently contributing a differently-defined baseline to a pooled map.
-    variant: rest
+    variant: restdock
     # ---- the DOCKED term (2026-09-13). Restrict rest to `dock` -> next `trial_start`: the spout
     # parked, stationary, NO TARGET PRESENT anywhere. MEASURED from the behaviour log over 110
     # sessions -- dock lands 4.61-4.80 s after the cue while rest currently opens at ~4.0 s, so the
@@ -219,15 +219,20 @@ segmentation:
     # duration is POSITION-SPECIFIC (0.649-0.976 s, across-session sd 0.037-0.039). A subtrahend
     # meant to be position-neutral therefore carries a position-dependent contaminant.
     #
-    # NOT YET ON. Turning it on requires regenerating every mask AND every `behavior_events` npz
-    # under a NEW variant name (see `variant` above -- nothing is overwritten), then re-rendering.
-    # Set `variant: restdock` IN THE SAME EDIT, or the docked masks would be written into the
-    # `rest` directory and become indistinguishable from the loose ones.
+    # ON since 2026-09-14, together with `variant: restdock` above and `behavior_events`
+    # SCHEMA_VERSION 4 -- THREE EDITS THAT MUST MOVE AS ONE. The variant name keeps the docked masks
+    # in their own directory beside the loose ones; the schema bump forces every events npz to
+    # recompute, because `rest_starts`/`rest_stops` keep their names and change their meaning, which
+    # is the one thing a cache cannot survive (the same reason v3 had to move). Leaving any one of
+    # the three behind would put two definitions under one name.
+    #
+    # Nothing is overwritten on the imaging side; `quiet_<tag>_rest/` remains the provenance of every
+    # figure produced before this switch. Rolling back is `variant: rest` plus `docked: false`.
     #
     # A SESSION THAT CANNOT BUILD A DOCKED WINDOW RAISES and drops out; it does NOT fall back to
     # the loose window. PS93_0606 and PS92_0812 need the reconstructed path (DAQ anchors + the
     # per-position offset table) and both clear their null on it.
-    docked: false
+    docked: true
     #
     # ---- the trial anchor. The retired definition excluded 8 s after every REWARD, a buffer
     # carried over from stroke_orofacial, whose task runs on an 8 s post-tone window; ours has a

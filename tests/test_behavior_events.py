@@ -35,10 +35,44 @@ def _write_daq(path, *, fs=5000.0, dur_s=6.0, lick_times=(1.0, 1.2, 2.0, 3.0), r
     return path
 
 
+def _seg_undocked():
+    """The segmentation config with the DOCKED term OFF, for fixtures that cannot support it.
+
+    THE MINIMAL DAQ ABOVE HAS NO `spout_strobe` OR `trial_start` CHANNELS, so no docked window can be
+    built from it -- and since 2026-09-14 `rest_mask` RAISES rather than falling back to the loose
+    window when `docked` is set. That raise IS the contract (a session that cannot build the window
+    must drop out, never silently contribute a differently-defined baseline), and
+    `test_docked_raises_when_unbuildable` locks it in.
+
+    These tests are about lick detection, reward, treadmill and the schema, not about docking, so
+    they pin the term off EXPLICITLY rather than inheriting the production default and failing for a
+    reason unrelated to what they test. Pinning is visible; inheriting would be a silent coupling.
+    """
+    import copy
+
+    seg = copy.deepcopy(config.defaults()["segmentation"])
+    seg["rest"]["docked"] = False
+    return seg
+
+
+def _patch_defaults_undocked(monkeypatch):
+    """Force `config.defaults()` to report the docked term OFF, for paths that read config directly.
+
+    `get_or_compute` does not take a `seg` argument -- it resolves the config itself -- so a fixture
+    that cannot build a docked window has to be handled here rather than at the call site.
+    """
+    import copy
+
+    real = config.defaults()
+    patched = copy.deepcopy(real)
+    patched["segmentation"]["rest"]["docked"] = False
+    monkeypatch.setattr(config, "defaults", lambda *a, **k: patched)
+
+
 def test_compute_events_counts(tmp_path):
     # 30 s session so rest survives the trial windows and the lick buffers
     h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     assert ev["fs"] == 5000.0 and ev["n_samples"] == 150000
     assert ev["lick_onsets"].size == 4              # 4 dips, all > 40 ms apart
     assert ev["reward_samples"].size == 2
@@ -46,15 +80,20 @@ def test_compute_events_counts(tmp_path):
     assert ev["grooming_starts"].size == 0          # grooming off by default
     assert ev["quiet_starts"].size >= 1             # the rest tail after the buffers
     assert ev["sync_samples"].size >= 60            # ~0.4 s sync heartbeat over 30 s
-    # v3 REDEFINED quiet/rest (trial-anchored, no reward buffer). The bump is what forces every
-    # cached npz to recompute instead of serving the retired definition under the same array names.
-    assert ev["schema_version"] == 3
+    # v3 REDEFINED quiet/rest (trial-anchored, no reward buffer); v4 (2026-09-14) ADDS THE DOCKED
+    # TERM. Each bump is what forces every cached npz to recompute instead of serving the retired
+    # definition under the same array names -- `rest_starts`/`rest_stops` keep their names and change
+    # their meaning, which is the one thing a cache cannot survive.
+    #
+    # PINNED, not `>=`: the number is the contract with every npz already on disk, so it should fail
+    # loudly when the definition moves and be updated deliberately, together with the config.
+    assert ev["schema_version"] == 4
 
 
 def test_rest_and_quiet_are_the_same_arrays(tmp_path):
     """`rest_*` is the name the definition now carries; `quiet_*` stays for existing readers."""
     h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     assert ev["rest_starts"].tolist() == ev["quiet_starts"].tolist()
     assert ev["rest_stops"].tolist() == ev["quiet_stops"].tolist()
 
@@ -67,7 +106,7 @@ def test_rest_records_which_anchor_it_used(tmp_path):
     NAMED, because a session anchored this way is not comparable to one anchored on `trial_start`.
     """
     h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     assert "no trial_start" in str(ev["rest_anchor"])
 
 
@@ -78,7 +117,7 @@ def test_rest_excludes_trial_time(tmp_path):
     from wfield_local.quiet_periods import trial_exclusion
 
     h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     fs, n = float(ev["fs"]), int(ev["n_samples"])
     # rebuild the trial mask the same way `rest_mask` does, from the same cue times
     import h5py
@@ -98,13 +137,13 @@ def test_rest_excludes_trial_time(tmp_path):
 def test_min_ili_floor_applied_in_events(tmp_path):
     # two dips 20 ms apart (< 40 ms floor) collapse to one lick
     h5 = _write_daq(tmp_path / "PS93_20260806_000000.h5", lick_times=(1.0, 1.02, 2.0))
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     assert ev["lick_onsets"].size == 2              # the 20 ms double is floored out
 
 
 def test_save_load_roundtrip(tmp_path):
     h5 = _write_daq(tmp_path / "PS94_20260806_000000.h5")
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     p = be.save_events(ev, tmp_path / "out" / "e.npz")
     back = be.load_events(p)
     assert np.array_equal(back["lick_onsets"], ev["lick_onsets"])
@@ -115,12 +154,14 @@ def test_save_load_roundtrip(tmp_path):
 
 def test_lick_onsets_s(tmp_path):
     h5 = _write_daq(tmp_path / "PS95_20260806_000000.h5", lick_times=(1.0, 2.0))
-    ev = be.compute_events(h5)
+    ev = be.compute_events(h5, seg=_seg_undocked())
     s = be.lick_onsets_s(ev)
     assert np.allclose(s, [1.0, 2.0], atol=0.002)
 
 
 def test_get_or_compute_caches(tmp_path, monkeypatch):
+    _patch_defaults_undocked(monkeypatch)
+
     class _RV:
         def root(self, name):
             return str(tmp_path / "server")
@@ -174,3 +215,36 @@ def test_missing_or_unreadable_daq_does_not_invalidate_a_cache(tmp_path):
     assert be._matches_daq({"n_samples": 123}, None, "no daq")
     assert be._matches_daq({"n_samples": 123}, tmp_path / "nope.h5", "absent")
     assert be._matches_daq({}, tmp_path / "nope.h5", "no n_samples recorded")
+
+
+def test_docked_raises_when_unbuildable(tmp_path):
+    """`docked: true` on a session with no docked window must RAISE, never fall back.
+
+    The whole point of the term is that rest excludes spout retraction, whose duration is
+    POSITION-SPECIFIC (0.649-0.976 s). A session that quietly fell back to the loose window would
+    contribute a differently-defined -- and position-contaminated -- subtrahend to a pooled map under
+    the same name, which is the failure the variant directories exist to prevent.
+    """
+    import copy
+
+    h5 = _write_daq(tmp_path / "PS92_20260806_000000.h5", dur_s=30.0)
+    seg = copy.deepcopy(config.defaults()["segmentation"])
+    seg["rest"]["docked"] = True
+    with pytest.raises(ValueError, match="docked"):
+        be.compute_events(h5, seg=seg)
+
+
+def test_schema_version_is_4_and_moves_with_the_docked_config():
+    """v4 exists BECAUSE `rest_starts`/`rest_stops` changed meaning again.
+
+    They keep their names and gain the docked restriction, which is the one thing a cache cannot
+    survive -- the same reason v3 had to move. If `segmentation.rest.docked` is on, the schema must
+    be at least 4, or every npz already on disk goes on serving the loose definition while the
+    imaging masks use the docked one: two definitions under one name.
+    """
+    assert be.SCHEMA_VERSION >= 4
+    if config.defaults()["segmentation"]["rest"].get("docked"):
+        assert be.SCHEMA_VERSION >= 4
+        assert config.defaults()["segmentation"]["rest"]["variant"] != "rest", (
+            "docked is on but the variant is still 'rest' -- the docked masks would be written "
+            "into the loose directory and become indistinguishable from it")
