@@ -92,7 +92,22 @@ def strobe_codes(bits, names, strobe_samples) -> np.ndarray:
     hardware said.
     """
     idx = {n: i for i, n in enumerate(names)}
-    b = [bits[:, idx[c]] for c in SPOUT_BIT_CHANNELS]
+    bits = np.asarray(bits)
+    if bits.ndim == 1:
+        # BIT-PACKED INPUT. `digital/packed_samples[:, 0]` packs every line into one integer, and
+        # that is what the DAQ readers in this repo actually hold -- `quiet_periods` and
+        # `behavior_events` both do `packed_samples[:, 0]` and then shift. Indexing that 1-D array as
+        # `bits[:, i]` raises IndexError.
+        #
+        # WHY THIS MATTERS RATHER THAN BEING A CONVENIENCE. `behavior_events` called this with the
+        # packed form inside a `try/except Exception` that set `position_codes = None` and printed a
+        # note -- so the call had NEVER succeeded, and the DOCKED window's reconstruction path was
+        # unreachable from that module. It failed quietly for as long as it existed because the
+        # except swallowed it and the fallback looked like a legitimate "this session lacks codes".
+        # Accepting both forms here fixes every call site at once.
+        b = [((bits >> idx[c]) & 1) for c in SPOUT_BIT_CHANNELS]
+    else:
+        b = [bits[:, idx[c]] for c in SPOUT_BIT_CHANNELS]
     return (b[0][strobe_samples].astype(np.int16)
             + 2 * b[1][strobe_samples].astype(np.int16)
             + 4 * b[2][strobe_samples].astype(np.int16))

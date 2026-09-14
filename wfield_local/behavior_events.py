@@ -152,9 +152,20 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
               f"still use the behaviour log, but cannot be reconstructed without them", flush=True)
         _codes = None
 
+    # THE BEHAVIOUR-LOG DIRECTORY, not the DAQ one -- see `docked_periods.behaviour_session_dir`.
+    # `Path(h5_path).parent` is `DAQ_recorder_output/<date>` and holds no behaviour log, so the
+    # MEASURED docked route was never reachable from here. Derived from the DAQ filename
+    # (`PS92_20260606_122508.h5`), falling back to the old value so non-docked runs are unchanged.
+    try:
+        from wfield_local.docked_periods import behaviour_session_dir
+        _an, _ymd = Path(h5_path).name.split("_")[:2]
+        _sdir = behaviour_session_dir(f"{_an}_{_ymd[4:8]}") or Path(h5_path).parent
+    except Exception:                                                  # noqa: BLE001
+        _sdir = Path(h5_path).parent
+
     quiet, rest_note = rest_mask(n, fs, speed, lick_onsets, cue_smp / fs, tstart_smp / fs,
                                  strobe_smp / fs, params=q,
-                                 session_dir=Path(h5_path).parent,
+                                 session_dir=_sdir,
                                  sync_s=sync_samples / fs, position_codes=_codes)
 
     # grooming (single-spout long contact) — experimental, off by default

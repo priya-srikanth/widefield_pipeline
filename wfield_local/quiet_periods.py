@@ -433,8 +433,35 @@ def main() -> int:
             else np.empty(0, int))
     st_e = (_rising((packed >> di.index("spout_strobe")) & 1) if "spout_strobe" in di
             else np.empty(0, int))
+    # SYNC + POSITION CODES for the DOCKED term. Built here the SAME way `behavior_events` builds
+    # them, because the docked window needs the behaviour log's clock (sync) and, when that log will
+    # not align, a DAQ-only reconstruction from the per-position travel table (codes).
+    #
+    # THIS CALL SITE WAS THE GAP. `rest_mask` gained these kwargs with the docked term and
+    # `behavior_events` was wired, but this CLI -- which `scripts/rest_migration/recompute_masks`
+    # drives, i.e. the path that writes every mask on disk -- was not. Turning `docked: true` on
+    # made it RAISE ("refusing to write a mask that would be named `docked`") rather than write a
+    # loose mask under the docked name. The guard did its job; this closes the hole it exposed.
+    sync_e = _rising((packed >> di.index("sync")) & 1) if "sync" in di else np.empty(0, int)
+    try:
+        from wfield_local import daq_io
+        from wfield_local.plot_spout_trial_averages import _classify_cues
+        _codes = _classify_cues(cue_e, st_e, daq_io.strobe_codes(packed, di, st_e))
+    except Exception as _ex:                                            # noqa: BLE001
+        print(f"  .. position codes unavailable ({type(_ex).__name__}) -- the docked term can "
+              f"still use the behaviour log, but cannot be reconstructed without them", flush=True)
+        _codes = None
+
+    # THE BEHAVIOUR-LOG DIRECTORY, not the DAQ one. `docked_mask` reads dock events out of the log;
+    # `args.daq_h5.parent` is `DAQ_recorder_output/<date>`, which holds no log, so passing it made
+    # the measured route silently unavailable. Falls back to the DAQ parent only so non-docked runs
+    # behave exactly as before.
+    from wfield_local.docked_periods import behaviour_session_dir
+    _sdir = behaviour_session_dir(args.label) or args.daq_h5.parent
+
     quiet, rest_note = rest_mask(n, fs, speed, lick_onsets, cue_e / fs, ts_e / fs, st_e / fs,
-                                 params=qd, session_dir=args.daq_h5.parent)
+                                 params=qd, session_dir=_sdir,
+                                 sync_s=sync_e / fs, position_codes=_codes)
     print(f"  .. rest anchored on {rest_note}", flush=True)
 
     groom_bool = np.zeros(n, dtype=bool)

@@ -217,3 +217,29 @@ def docked_mask_any(session_dir, daq_sync_samples, cue_samples, position_codes,
     m = docked_mask_reconstructed(cue_samples, position_codes, trial_start_samples, n_samples,
                                   fs=fs)
     return (m, "reconstructed") if m is not None else (None, None)
+
+
+def behaviour_session_dir(label):
+    """The BEHAVIOUR-LOG session directory for ``PS92_0606``-style label, or None.
+
+    WHY THIS EXISTS. `docked_mask` reads the dock events out of the behaviour log, so it needs the
+    log's session directory -- `Behavior_logs/Widefield/PS92_20260606_122520`. Both callers were
+    handing it the DAQ `.h5`'s PARENT instead (`DAQ_recorder_output/20260606`), which contains no
+    log, so `docked_mask` always returned None and every session silently fell through to the
+    reconstructed path. Combined with `strobe_codes` failing on bit-packed input -- inside a bare
+    `except` that set `position_codes = None` -- BOTH routes to a docked window were dead, and the
+    only visible symptom was a note saying the session lacked position codes.
+
+    That is why the `docked: true` switch raised on the first session it touched rather than
+    producing a quietly wrong mask: `docked_mask_any` returns None when neither route works, and
+    `rest_mask` refuses to write a mask named `docked` that is not.
+    """
+    from wfield_local import config
+    from wfield_local.spout_behavior import discover_sessions
+
+    try:
+        animal, mmdd = str(label).split("_")[:2]
+        cands = discover_sessions(config.resolver(), f"2026{mmdd}", [animal])
+    except Exception:                                                  # noqa: BLE001
+        return None
+    return cands[0] if cands else None
