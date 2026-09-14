@@ -12137,3 +12137,73 @@ to be redone. The compaction handoff said the definition was "settled and IMPLEM
 the two flags as not-yet-on; I trusted that instead of checking the values against this file. Caught
 by reading the `params` block out of a finished npz, which is the only reason it surfaced before the
 analyses ran on top of it.
+
+---
+
+## 2026-09-14 — IS `restw` OVERCOMPLICATED? Mostly yes, and the real limit is PER-ANIMAL
+
+Priya: *"Are we overcomplicating things with the restw and we could just be using the existing
+hemo-corrected signal?"* and *"I worry normalizing to thin data will do more harm than good."*
+
+### FIRST, A FRAMING CORRECTION
+
+"Just use the hemo-corrected signal" is not a no-reference option. `SVTcorr` is zero-meaned over the
+session, so using it directly IS the **`mean` reference** -- the one already documented as not a
+deficit measure, because it COUPLES the six positions and its amplitudes INVERTED once the
+engaged-only bug was fixed (far-contra 0.47 -> 2.08). The choice is `restw` vs `rest` vs a reference
+we know is wrong.
+
+### THE VARIANCE CONCERN IS REAL IN MECHANISM AND SMALL IN SIZE
+
+`restw` averages six per-position medians EQUALLY, so a position estimated from 200 frames carries
+the weight of one estimated from 3000. And 200 frames is 6.4 s at 31.23 Hz against ~1 s
+autocorrelation -- an effective n nearer 6 than 200, so the frame floor gates the wrong currency.
+
+MEASURED (`restw_reliability.py`, split-half by rest PERIOD, 91 sessions):
+
+| | rest | restw |
+|---|---|---|
+| split-half r (median) | +0.9927 | +0.9934 |
+| relRMS (median) | 0.1551 | 0.1577 |
+| restw less reliable in | -- | 55/91 |
+| relRMS ratio | -- | **1.03x** |
+
+**A 3% effect.** At the thin end (<600 frames, n=14) the ratio is **1.01x** -- no worse than the thick
+end's 1.03x -- and individual thin sessions swing BOTH ways (+56%, +47%, -53%, -29%), which is the
+signature of noise rather than a systematic penalty.
+
+### THE REAL FINDING: BASELINE RELIABILITY IS AN ANIMAL-LEVEL PROPERTY
+
+| animal | n | median relRMS | p90 | >0.3 | median thinnest |
+|---|---|---|---|---|---|
+| **PS92** | 22 | **0.228** | **0.715** | **10/22** | 864 |
+| PS93 | 23 | 0.176 | 0.339 | 3/23 | 1329 |
+| PS94 | 23 | **0.113** | 0.202 | **0/23** | 937 |
+| PS95 | 23 | 0.117 | 0.204 | 1/23 | 2301 |
+
+**IT IS NOT THIN DATA.** PS92 and PS94 have comparable frame counts (864 vs 937) and differ 2x in
+reliability, with 10 bad sessions against 0. PS95 has 2.5x PS94's frames and the same reliability,
+which caps what more data buys. The worst single session, PS92_0904 (relRMS 0.798), has 918 frames --
+well clear of the floor.
+
+**AND IT MATCHES THE KNOWN PER-ANIMAL DECODE ORDERING, RANK FOR RANK.** Corrected pre-cue from the
+hemo adoption: PS92 0.225, PS93 0.349, PS95 0.334, PS94 0.500. Inverse of baseline reliability,
+PS94 best on both and PS92 worst on both. That points at per-animal SNR as a common cause, not at
+anything the rest definition controls.
+
+### WHAT FOLLOWS
+
+* **`restw` is a 3% refinement on top of an animal-level limit of 2x.** It was overcomplicated
+  relative to what actually constrains the reference.
+* **KEEP PLAIN `rest`** unless the outstanding conclusion test says otherwise -- simpler, marginally
+  steadier at the thin end, and its ~17% composition bias is FIXED (stable across epochs) and
+  therefore statable rather than confounding.
+* **REPLACE THE 200-FRAME FLOOR WITH A RELIABILITY GATE.** The floor gates frame count, which is the
+  wrong quantity: 918 frames with relRMS 0.798 passes it. A split-half threshold catches what the
+  count misses.
+* **FLAG PS92 WHEREVER REST-REFERENCED AMPLITUDES ARE REPORTED.** Ten of its 22 sessions have
+  baselines that disagree with themselves by more than 30%.
+
+**STILL OPEN, and it decides whether `restw` survives at all:** does `restw` change any CONCLUSION --
+the near>far ordering, the acute far-contra collapse, the between-animal agreement? That is the test
+that retired time-local, and it has not been run for `rest` vs `restw`.
