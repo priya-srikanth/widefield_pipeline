@@ -72,8 +72,8 @@ def _session_daq(session):
     import h5py
 
     from wfield_local import daq_io, joint_basis  # noqa: F401  (joint_basis kept for parity)
+    from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
 
     qs = sorted(glob.glob(f"{quiet_dir(session['mc'])}/*quiet_sample.npy"))
@@ -87,8 +87,18 @@ def _session_daq(session):
     ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
     sync = daq_io.rising_edges((packed >> dn.index("sync")) & 1)
     cue = _load_cue_events(session["h5"])
-    codes = np.asarray(_classify_cues(cue["cue_samples"], cue["strobe_samples"],
-                                      cue["strobe_codes"]))
+    # THE REPAIRED CLASSIFIER, not the raw one. A dead `spout_bit1` (Aug 2026) reads that bit low, so
+    # the 3-bit code COLLAPSES 6 positions onto 4: 2->0, 3->1, 6->4, 7->5.
+    # `classify_cues_with_backup` detects that and repairs it from the behaviour log; raw
+    # `_classify_cues` reports what the hardware said.
+    #
+    # THIS WAS A BUG, and its symptom looked like a data property. On every 8/06 session
+    # `restw_column_drops` reported "4/6 positions clear the floor" with positions 2 and 3 ABSENT --
+    # readable as an animal that skipped them. Measured: PS92_0806 raw gives [0,1,4,5], repaired
+    # gives [0,1,2,3,4,5]. So rest frames labelled position 0 were a MIXTURE of positions 0 and 2,
+    # and the position-weighted baseline those sessions contributed was built on merged labels --
+    # exactly the position-dependent contamination `restw` exists to remove.
+    codes = np.asarray(classify_cues_with_backup(session, cue, verbose=False))
     cs = np.asarray(cue["cue_samples"], np.int64)
     fs_samp = frame_samples(session["mc"], session.get("fmdir"), session.get("regime"), pco)
     if fs_samp is None:
