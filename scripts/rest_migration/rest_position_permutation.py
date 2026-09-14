@@ -93,6 +93,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--perm", type=int, default=200)
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--docked", action="store_true",
+                    help="restrict rest to the STRICT spout-docked interval (dock -> next "
+                         "trial_start): no target present AND no spout movement. A session whose "
+                         "GUI/DAQ clocks cannot be aligned DROPS OUT rather than falling back.")
     a = ap.parse_args()
 
     rng = np.random.default_rng(0)          # FIXED SEED: a null that moves between runs is not one
@@ -117,6 +121,20 @@ def main() -> int:
             with h5py.File(s["h5"], "r") as f:
                 dn = [x.decode() for x in f["digital/channel_names"][:]]
                 packed = f["digital/packed_samples"][:, 0]
+            if a.docked:
+                # DOCKED IS A SUBSET OF REST, never a replacement: it says where the SPOUT is and
+                # nothing about the animal, so the not-running / not-licking conditions still apply.
+                from wfield_local.docked_periods import docked_mask
+                from wfield_local.spout_behavior import discover_sessions
+                an_, mmdd_ = lab.split("_")[0], lab.split("_")[1]
+                cands = discover_sessions(config.resolver(), f"2026{mmdd_}", [an_])
+                sdir = cands[0] if cands else None
+                dm = None if sdir is None else docked_mask(
+                    sdir, daq_io.rising_edges((packed >> dn.index("sync")) & 1), rest.shape[0])
+                if dm is None:
+                    skipped.append(f"{lab}: no usable docked window (log/clock)")
+                    continue
+                rest = rest & dm[: rest.shape[0]]
             pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
             ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
             cue = _load_cue_events(s["h5"])
