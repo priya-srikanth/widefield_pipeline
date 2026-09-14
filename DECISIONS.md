@@ -11399,3 +11399,94 @@ with epoch. Equal position weighting removes exactly that.
    population, not merely a smaller one, and no weighting fixes that. Detecting it needs the
    surviving ITIs split by trial outcome, which is not run. **This is the residual risk and it
    should be stated wherever the REST reference carries an amplitude claim.**
+
+
+---
+
+## 2026-09-14 - TIME-LOCAL IS DROPPED FOR THE MAPS, and most of a day's machinery goes with it
+
+`scripts/rest_migration/flat_vs_timelocal.py`, full cohort. The decision rule was written into the
+script BEFORE the run: if the two baselines agree at the level of conclusions, the simpler one wins.
+They agree.
+
+### THE MEASUREMENT
+
+Per-position amplitude, acute/pre ratio -- the graded-deficit claim:
+
+| position | flat | time-local |
+|---|---|---|
+| close_L | 1.415 | 1.344 |
+| close_center | 1.115 | 1.059 |
+| close_R | 1.230 | 1.169 |
+| far_L | 0.952 | 0.902 |
+| far_center | 0.636 | 0.598 |
+| **far_R** | **0.483** | **0.445** |
+
+Between-animal agreement at far-contralateral, (epoch - pre) -- the cross-position null's observed
+side, and the strongest anatomical claim in the deck:
+
+| epoch | flat | time-local | difference |
+|---|---|---|---|
+| acute | **0.812** | **0.838** | 0.026 |
+| subacute | 0.079 | 0.053 | -0.026 |
+| chronic | 0.530 | 0.565 | 0.035 |
+
+**SAME ORDERING, SAME MONOTONE NEAR->FAR GRADIENT, SAME FAR-CONTRA COLLAPSE.** Differences are
+~0.04-0.07 in the ratios and ~0.03 in the correlations, against an effect of 0.81 over a null of
+0.07. Time-local is systematically slightly LOWER at every position -- a consistent small bias, not
+noise -- and it moves no conclusion.
+
+### WHAT IS DROPPED, AND WHY THAT IS THE POINT
+
+**SWEEP-BINNING, THE TRAILING-CHUNK CARRY-FORWARD, THE BOUNDED REACH-BACK, AND THE PER-POSITION
+COVERAGE PROBLEM ALL GO.** Every one of them existed to make a PER-POSITION TIME-LOCAL estimate
+possible, and that estimate is what produced the 66% bin coverage (min 17%, fully covered 2/30) in
+the first place. **Per-position FLAT has no coverage problem at all** -- each position holds
+1,000-3,000 rest frames across a session.
+
+**THE TWO CHOICES WERE SEPARABLE AND HAD BEEN TANGLED:**
+
+    temporal      flat vs time-local          -> FLAT, by this measurement
+    composition   frame- vs position-weighted -> POSITION-WEIGHTED, by the survival result
+                                                 (2.3x spread pre-stroke, epoch-dependent)
+
+Only their PRODUCT -- per-position x time-local -- was ill-posed. Neither factor alone is.
+
+### THE ONE PLACE TIME-LOCAL IS KEPT, AND IT MUST NOT BE "FIXED" LATER
+
+**THE ENCODER KEEPS ITS TIME-LOCAL BASELINE.** This deliberately RE-CREATES the map/encoder
+asymmetry that was closed on 2026-09-13, so the reason has to be loud enough to survive a future
+reader deciding it is an inconsistency:
+
+* **A REGRESSION WITH AN INTERCEPT ABSORBS A FLAT BASELINE ERROR ENTIRELY.** It cannot affect the
+  fit. So for the encoder, flat-vs-time-local is not a matter of degree in the direction the map
+  test measured -- a constant error is FREE.
+* **A TIME-VARYING BASELINE ERROR IS NOT ABSORBED.** It becomes structured variance in the response
+  that the position predictors cannot explain, and it DEPRESSES FEVE. If residual drift differs by
+  epoch -- more arousal or movement post-stroke -- **FEVE falls for reasons that have nothing to do
+  with position coding**, and the encoder's "after gain" variance explained is on the summary figure
+  list.
+
+**So the map result does NOT license simplifying the encoder.** The two estimators have different
+invariances and the argument runs the opposite way for each. That is a principled asymmetry, not the
+accidental one that was fixed yesterday. STILL TO RUN: residual drift by epoch, and whether FEVE
+tracks it.
+
+### ROBUSTNESS NOTE
+
+This was measured on the CURRENT rest mask, not the docked one. The docked window yields FEWER and
+more clustered rest frames, which makes a time-local estimate NOISIER, not better -- so the
+conclusion is robust or strengthens under the definition we are moving to. It does not need
+re-running after the redo.
+
+### THE RESULTING DEFINITION, simplified
+
+    REST  = between trials AND spout DOCKED (dock -> next trial_start, excluding travel)
+            AND treadmill < 1 mm/s, buffer [1, 2] AND outside a [1, 2] s lick buffer;
+            runs shorter than 0.5 s dropped, applied AFTER the intersection.
+    rest  = FLAT baseline: median over all rest frames.
+    restw = per-position median over that position's rest frames, averaged over the six EQUALLY.
+
+No bins. No sweeps. No interpolation, carry-forward, or reach-back. The only thing that survives
+from a day of construction is the equal position weighting -- which is the part that was justified
+by an independent measurement rather than by an assumption.
