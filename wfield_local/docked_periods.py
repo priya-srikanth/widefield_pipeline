@@ -184,3 +184,30 @@ def docked_mask_reconstructed(cue_samples, position_codes, trial_start_samples, 
             m[aa:bb] = True
             n_used += 1
     return m if n_used >= 20 else None
+
+
+def docked_mask_any(session_dir, daq_sync_samples, cue_samples, position_codes,
+                    trial_start_samples, n_samples, fs=5000.0):
+    """``(mask, source)`` -- the measured docked window, else the reconstructed one, else None.
+
+    THE SINGLE ENTRY POINT, and the reason it exists. `docked_mask` returns None whenever the GUI
+    and DAQ clocks will not align, and every caller then has to remember to try
+    `docked_mask_reconstructed`, and to remember that a reconstructed session must be REPORTED. Two
+    call sites had already grown their own copy of that dance. The last time one rule had two
+    implementations here -- the flat map baseline against the encoder's time-local one -- they
+    disagreed for months and nothing raised.
+
+    ``source`` is ``"log"`` or ``"reconstructed"``. IT IS NOT DECORATION: a reconstructed window is
+    anchored on the per-position `dock - cue` p95 rather than on the logged dock, so it is
+    conservative by construction and its start carries position-specific error that the measured
+    window does not. Any result built over a mixed set has to be able to say which sessions took
+    which path, and to be re-runnable without the reconstructed ones. `PS93_0606` and `PS92_0812`
+    are the two that need it (2026-09-13); both clear their null on the reconstructed window, so
+    the recovery is not propping up the cohort result.
+    """
+    m = docked_mask(session_dir, daq_sync_samples, n_samples, fs=fs) if session_dir else None
+    if m is not None:
+        return m, "log"
+    m = docked_mask_reconstructed(cue_samples, position_codes, trial_start_samples, n_samples,
+                                  fs=fs)
+    return (m, "reconstructed") if m is not None else (None, None)

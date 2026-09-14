@@ -98,18 +98,15 @@ def _apply_docked(session, rest, cs, codes, ts, sync):
     built that way must be identifiable so a result can be re-run without it.
     """
     from wfield_local import config
-    from wfield_local.docked_periods import docked_mask, docked_mask_reconstructed
+    from wfield_local.docked_periods import docked_mask_any
     from wfield_local.spout_behavior import discover_sessions
 
     an, mmdd = session["label"].split("_")[0], session["label"].split("_")[1]
     cands = discover_sessions(config.resolver(), f"2026{mmdd}", [an])
-    dm = None if not cands else docked_mask(cands[0], sync, rest.shape[0])
-    if dm is not None:
-        return rest & dm[: rest.shape[0]], False
-    dm = docked_mask_reconstructed(cs, codes, ts, rest.shape[0])
+    dm, source = docked_mask_any(cands[0] if cands else None, sync, cs, codes, ts, rest.shape[0])
     if dm is None:
         return None, False
-    return rest & dm[: rest.shape[0]], True
+    return rest & dm[: rest.shape[0]], source == "reconstructed"
 
 
 def rest_frames_by_position(session, n_frames, *, docked=False):
