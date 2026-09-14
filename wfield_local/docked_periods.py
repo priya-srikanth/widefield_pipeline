@@ -42,6 +42,25 @@ from pathlib import Path
 
 import numpy as np
 
+#: dock - cue, 95th percentile, per position index. THE FALLBACK ANCHOR when the GUI/DAQ clocks
+#: cannot be aligned and the docked window has to be reconstructed from DAQ events alone.
+#:
+#: WHY THE 95th PERCENTILE AND NOT THE MEDIAN. The reconstruction has per-trial error -- dock minus
+#: cue has a within-session sd of 0.17-0.40 s, because trial end timing varies -- and the two
+#: directions of that error are NOT symmetric in cost. Starting LATE shortens the window; starting
+#: EARLY puts spout retraction inside a window whose whole purpose is to exclude it, and the
+#: retraction is POSITION-SPECIFIC (0.65-0.98 s by position), so an early start manufactures exactly
+#: the position effect these analyses test for. A conservative anchor is therefore mandatory, not
+#: fastidious: at p95 the reconstructed window opens after the true dock on ~95% of trials.
+#:
+#: MEASURED over 110 sessions, June onward, all four animals (median of per-session p95):
+_DOCK_AFTER_CUE_P95 = {0: 4.703, 1: 4.862, 2: 4.861, 3: 5.092, 4: 5.369, 5: 5.214}
+
+#: dock_start -> dock travel, per position, median over the same 110 sessions (across-session sd
+#: 0.037-0.039 s). Kept because it is the machine constant the reconstruction rests on -- Zaber speed
+#: is fixed, so travel is set by distance and distance is a property of the position.
+_TRAVEL_S = {0: 0.775, 1: 0.975, 2: 0.976, 3: 0.649, 4: 0.949, 5: 0.951}
+
 
 def dock_events(session_dir: Path):
     """``(dock_s, trial_start_s, sync_s)`` on the GUI DEVICE clock, or None.
@@ -108,10 +127,59 @@ def docked_mask(session_dir: Path, daq_sync_samples, n_samples, fs=5000.0):
         j = np.searchsorted(ts_daq, t0, "right")      # the next trial_start AFTER this dock
         if j >= ts_daq.size:
             continue
-        aa, bb = int(round(t0 * fs)), int(round(ts_daq[j] * fs))
+        aa, bb = round(t0 * fs), round(ts_daq[j] * fs)
         if bb <= aa:
             continue
         aa, bb = max(0, aa), min(int(n_samples), bb)
+        if bb > aa:
+            m[aa:bb] = True
+            n_used += 1
+    return m if n_used >= 20 else None
+
+
+def docked_mask_reconstructed(cue_samples, position_codes, trial_start_samples, n_samples,
+                              fs=5000.0):
+    """Docked mask rebuilt from DAQ EVENTS ALONE, for sessions whose clocks will not align.
+
+    Priya, 2026-09-13: *"the spout takes the same amount of time to move from position to dock for
+    each position across sessions (zaber speed is always equal) - so we should be able to
+    reconstruct"*, and this is that reconstruction. Two sessions need it -- PS93 6/6, whose sync fit
+    `_sync_affine` refuses, and PS92 8/12, the crash+concat session whose device clock jumps at the
+    splice -- and dropping them costs a pre-stroke session from an already small cohort.
+
+    WINDOW: ``cue + _DOCK_AFTER_CUE_P95[position]`` to the next ``trial_start``. Both ends come from
+    the DAQ; only the OFFSET is borrowed, and it is borrowed PER POSITION.
+
+    PER POSITION OR NOT AT ALL. One shared constant would inject up to 0.33 s of position-dependent
+    error into the window start, and the retraction it is meant to exclude is itself position-
+    specific -- so a single constant would manufacture precisely the position effect these analyses
+    exist to test. This is the difference between a reconstruction and a fabrication.
+
+    CONSERVATIVE BY CONSTRUCTION: the p95 offset opens the window AFTER the true dock on ~95% of
+    trials, trading window length for the guarantee that matters. See `_DOCK_AFTER_CUE_P95`.
+
+    A TRIAL WHOSE POSITION IS UNKNOWN IS SKIPPED, not given the mean offset -- the mean is exactly
+    the fabrication the per-position rule rejects.
+
+    Returns None if fewer than 20 windows can be formed, so a caller cannot silently analyse a
+    session on three reconstructed intervals.
+    """
+    cue = np.asarray(cue_samples, np.int64)
+    codes = np.asarray(position_codes)
+    ts = np.sort(np.asarray(trial_start_samples, np.int64))
+    if cue.size == 0 or ts.size == 0 or codes.size < cue.size:
+        return None
+    m = np.zeros(int(n_samples), bool)
+    n_used = 0
+    for k in range(cue.size):
+        off = _DOCK_AFTER_CUE_P95.get(int(codes[k])) if codes[k] >= 0 else None
+        if off is None:
+            continue
+        t0 = cue[k] + round(off * fs)
+        j = np.searchsorted(ts, t0, "right")
+        if j >= ts.size:
+            continue
+        aa, bb = max(0, int(t0)), min(int(n_samples), int(ts[j]))
         if bb > aa:
             m[aa:bb] = True
             n_used += 1

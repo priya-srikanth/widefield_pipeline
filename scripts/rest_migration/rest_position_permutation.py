@@ -104,7 +104,7 @@ def main() -> int:
     code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
     want = set(config.phase_labels("pre"))
     t0 = time.time()
-    obs_all, null_all, skipped = [], [], []
+    obs_all, null_all, skipped, rebuilt = [], [], [], []
 
     todo = [x for x in SESSIONS if x["label"] in want and x.get("h5")]
     if a.limit:
@@ -121,6 +121,13 @@ def main() -> int:
             with h5py.File(s["h5"], "r") as f:
                 dn = [x.decode() for x in f["digital/channel_names"][:]]
                 packed = f["digital/packed_samples"][:, 0]
+            pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
+            ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
+            cue = _load_cue_events(s["h5"])
+            codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
+            cs = np.asarray(cue["cue_samples"], np.int64)
+            fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
+            u, v = joint_basis._load_session(s["mc"])
             if a.docked:
                 # DOCKED IS A SUBSET OF REST, never a replacement: it says where the SPOUT is and
                 # nothing about the animal, so the not-running / not-licking conditions still apply.
@@ -132,16 +139,16 @@ def main() -> int:
                 dm = None if sdir is None else docked_mask(
                     sdir, daq_io.rising_edges((packed >> dn.index("sync")) & 1), rest.shape[0])
                 if dm is None:
-                    skipped.append(f"{lab}: no usable docked window (log/clock)")
-                    continue
+                    # RECONSTRUCT rather than drop. The window is rebuilt from DAQ anchors plus the
+                    # PER-POSITION dock offset; sessions that take this path are listed at the end
+                    # so a result can be re-run without them.
+                    from wfield_local.docked_periods import docked_mask_reconstructed
+                    dm = docked_mask_reconstructed(cs, codes, ts, rest.shape[0])
+                    if dm is None:
+                        skipped.append(f"{lab}: no docked window even reconstructed")
+                        continue
+                    rebuilt.append(lab)
                 rest = rest & dm[: rest.shape[0]]
-            pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
-            ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
-            cue = _load_cue_events(s["h5"])
-            codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
-            cs = np.asarray(cue["cue_samples"], np.int64)
-            fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
-            u, v = joint_basis._load_session(s["mc"])
         except Exception as ex:                                        # noqa: BLE001
             skipped.append(f"{lab}: {type(ex).__name__} {str(ex)[:50]}")
             continue
@@ -223,6 +230,8 @@ def main() -> int:
 
     print(f"\n{'=' * 74}\nVERDICT\n{'=' * 74}")
     print(f"tested {len(obs_all)} sessions; {len(skipped)} skipped")
+    if rebuilt:
+        print(f"   RECONSTRUCTED docked window (DAQ anchors + per-position offset): {rebuilt}")
     for x in skipped[:8]:
         print("   skipped:", x)
     if len(obs_all) < 3:
