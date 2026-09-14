@@ -11553,3 +11553,26 @@ and the provenance for a methodological choice, and it should sit near the rest-
 rather than in a QC appendix. `spout_behavior` already computes the engagement timeline per session
 (`flag_engagement`, the rolling response-rate gate plus the terminal sated-tail detector); what is
 missing is the pooled pre-vs-post binned comparison.
+
+
+---
+
+## 2026-09-14 - RECURRENT ISSUE 5, THIRD OCCURRENCE: backticks in `git commit -m`
+
+Commit `b6cb71d` has two words eaten by shell command substitution. It should read *"`_quit_mask`
+binds it as `ne`. Taking it as `engaged` inverted the session"*; the two backticked tokens were
+executed as commands (`ne: command not found`, `engaged: command not found`) and removed from the
+message. **NOT amended** -- the commit is pushed and rule 4 forbids force-pushing. The full, correct
+text is in the DECISIONS.md entry above, which is the durable record; only the commit message is
+damaged.
+
+**THIS IS THE THIRD TIME IN TWO DAYS**, after being written up as recurrent issue 5 on the morning
+of 2026-09-13 and again as recurrent issue 11 that evening. Writing a rule down is demonstrably not
+the same as following it, and the rule has now failed often enough that the mitigation cannot be
+"remember harder".
+
+**THE RULE, RESTATED AS A MECHANIC RATHER THAN AN INTENTION: every commit message goes to a FILE and
+is committed with `git commit -F <file>`, with no exceptions for short messages.** The three
+failures were all cases where the message looked short enough to inline. The scratchpad already
+holds `msg_*.txt` files from the commits that were done correctly; the pattern works whenever it is
+used.
