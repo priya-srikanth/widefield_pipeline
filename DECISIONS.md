@@ -11576,3 +11576,71 @@ is committed with `git commit -F <file>`, with no exceptions for short messages.
 failures were all cases where the message looked short enough to inline. The scratchpad already
 holds `msg_*.txt` files from the commits that were done correctly; the pattern works whenever it is
 used.
+
+
+---
+
+## 2026-09-14 - FULL-COHORT SURVIVAL corrects the 32-session run, and weakens my own argument
+
+`position_survival --limit 90`. The earlier 32-session run sampled every 2nd session and reported
+only pre and acute; this covers all four epochs. **Two numbers I quoted from it are wrong and the
+correction runs against the case I was making.**
+
+| epoch | close_L | close_C | close_R | far_L | far_C | far_R | spread | far-contra vs mean |
+|---|---|---|---|---|---|---|---|---|
+| pre | 42.7% | 40.6% | 46.6% | 50.2% | 54.4% | 58.1% | **17.5%** | +9.4% |
+| acute | 49.6% | 54.6% | 52.0% | 64.5% | 65.3% | 71.0% | **21.4%** | +11.5% |
+| subacute | 28.4% | 31.4% | 30.2% | 45.6% | 48.9% | 45.9% | **20.5%** | +7.5% |
+| chronic | 27.8% | 27.2% | 26.6% | 45.3% | 39.6% | 39.1% | **18.7%** | +4.8% |
+
+### THE CORRECTIONS
+
+1. **The pre-stroke spread is 17.5%, NOT 32.3%.** A 1.43x ratio between the best- and worst-served
+   position, not the 2.3x recorded from the undersampled run.
+2. **IT IS STABLE ACROSS EPOCHS** -- 17.5, 21.4, 20.5, 18.7 -- **not epoch-dependent.** The claim
+   that "an unweighted baseline's composition changes with epoch even though its definition does
+   not" was the STRONGER half of the case for `restw`, and it does not survive proper sampling.
+
+**THIS IS THE PRE-REGISTERED "STATIC IMBALANCE" OUTCOME, and it is the reassuring one.** The rest
+definition is NOT progressively performance-coupled: the imbalance exists, is real, and does not
+grow with the deficit. Position-weighting is therefore SUFFICIENT rather than
+necessary-but-insufficient, and the residual-bias worry is correspondingly smaller.
+
+**`restw` IS STILL JUSTIFIED, on the weaker ground.** A stable 17-21% imbalance still means an
+unweighted rest baseline is composed unevenly across positions, and equal weighting removes that.
+What is withdrawn is the claim that the imbalance TRACKS THE DEFICIT.
+
+### THE STRUCTURE IS NEAR-vs-FAR, NOT LATERALITY
+
+All three FAR positions survive ~15-18 points more than all three NEAR positions, at EVERY epoch.
+That is a difficulty effect, not an anatomical one: near positions are easier, so more hits -> more
+reward -> more consumption licking -> more ITI removed by the lick buffer. Far-contra is the highest
+only because it is the hardest, and its margin over the mean SHRINKS monotonically post-stroke
+(+11.5 acute -> +7.5 subacute -> +4.8 chronic) as performance flattens across positions.
+
+**THE EARLIER FRAMING OF THIS AS A FAR-CONTRALATERAL EFFECT WAS WRONG.** It is a near/far gradient
+that far-contra sits at the end of.
+
+### A DIFFERENT CONCERN THE FULL COHORT EXPOSES: TOTAL rest, not its composition
+
+Mean survival by epoch: **pre ~48%, acute ~60%, subacute ~38%, chronic ~34%**. So the AMOUNT of
+usable rest changes substantially with epoch while its relative composition does not. That is a
+POWER problem, not a bias problem -- chronic baselines rest on ~30% fewer frames than acute ones --
+and it belongs wherever a chronic estimate is reported, alongside the existing chronic caveat
+(chronic rest was already ~0.5x of pre under every candidate definition, for behavioural reasons).
+
+### AND THE LICK BUFFER'S ROLE IS EPOCH-DEPENDENT
+
+Removing the lick buffer collapses the ACUTE spread from 21.4% to 5.6%, but barely moves pre
+(17.5% -> 16.5%) or chronic (18.7% -> 17.0%). So licking is the dominant route to the imbalance
+ACUTELY and not otherwise, which is consistent with acute being where response rates differ most
+sharply between near and far positions. Not acted on; recorded because it would otherwise look like
+an inconsistency next to the 32-session run's simpler story.
+
+### METHOD NOTE
+
+**A SUBSAMPLED RUN OVERSTATED AN EFFECT AND I BUILT AN ARGUMENT ON IT.** The 32-session run took
+every 2nd session, which happened to cover only pre and acute, and its pre-stroke spread was nearly
+double the cohort value. The lesson is the one already in the recurrent list in another costume: a
+number from a partial run is a PRELIMINARY, and quoting it as a finding -- including in a commit
+message and a decisions entry -- makes it durable before it is true.
