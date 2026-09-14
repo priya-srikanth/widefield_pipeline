@@ -61,7 +61,7 @@ from wfield_local.beta_maps import (
 #: `position_evoked_maps`.
 REFERENCES = ("mean", "rest", "restw", "precue")
 
-#: `restw` JOINED REFERENCES ON 2026-09-13, in the same commit as `session_restw_svt_timelocal` and
+#: `restw` JOINED REFERENCES ON 2026-09-13, in the same commit as `session_restw_svt` and
 #: as its `epoch_grant_figures._REF_TEXT` entry. It had been named here weeks earlier and listed in
 #: REFERENCES ahead of its builder, which took down EVERY 15r render for twenty minutes --
 #: `maps_by_epoch` iterates REFERENCES and `reference_maps` raises on an unknown name. THREE things
@@ -212,8 +212,8 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
         return None
 
 
-def session_restw_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, docked=False):
-    """``(baseline, codes_used)`` -- the POSITION-WEIGHTED time-local rest baseline, or ``(None, [])``.
+def session_restw_svt(session, svt, nbins=REST_BASELINE_BINS, docked=False):
+    """``(baseline, codes_used)`` -- the POSITION-WEIGHTED FLAT rest baseline, or ``(None, [])``.
 
     Build each position's OWN time-local rest baseline, then average those with EQUAL WEIGHT. The
     result is still ONE subtrahend, identical for all six positions, so it cannot couple them --
@@ -245,7 +245,8 @@ def session_restw_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, docked=F
     `MIN_POSITIONS_FOR_WEIGHTED` of them the quantity stops being what its name says and the
     session loses this column -- see that constant.
     """
-    from wfield_local.rest_by_position import MIN_POSITIONS_FOR_WEIGHTED, rest_frames_by_position
+    from wfield_local.rest_by_position import (
+        MIN_FRAMES_PER_POSITION, MIN_POSITIONS_FOR_WEIGHTED, rest_frames_by_position)
 
     V = np.asarray(svt)
     T = V.shape[1]
@@ -253,17 +254,43 @@ def session_restw_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, docked=F
     if info.get("error"):
         print(f"  !! restw {session['label']}: {info['error']}", flush=True)
         return None, []
+    # FLAT PER POSITION, NOT TIME-LOCAL, SINCE 2026-09-14 -- and this REPLACED a per-position
+    # time-local construction that was measured and rejected the same week.
+    #
+    # `flat_vs_timelocal` compared the two baselines on the claims the REST reference actually
+    # carries. Acute/pre amplitude ratios: 1.415/1.344, 1.115/1.059, 1.230/1.169, 0.952/0.902,
+    # 0.636/0.598, far_R 0.483/0.445 -- same ordering, same monotone near->far gradient. Between-
+    # animal agreement at far-contra: acute 0.812 vs 0.838, against a null of 0.07. TIME-LOCAL
+    # MOVES NO CONCLUSION, so the simpler estimator wins.
+    #
+    # AND IT REMOVES THE DEFECT THAT MADE THE OTHER VERSION UNSOUND. A per-position TIME-LOCAL
+    # baseline needs each position estimated within each time bin, and positions occupy only
+    # 66% of bins on average (min 17%, fully covered 2/30 position-sessions, 16/30 time-clustered)
+    # -- so a third of the session was INTERPOLATED per position. Flat needs no bins: each position
+    # holds 1,000-3,000 rest frames across a session, pooled over all of it.
+    #
+    # THE TWO CHOICES ARE SEPARABLE AND WERE TANGLED. Temporal (flat) and composition
+    # (position-weighted) are independent; only their PRODUCT was ill-posed. The weighting stays
+    # because it is justified by its own measurement -- per-position ITI survival spans 24.4%-56.7%
+    # PRE-STROKE (2.3x) and the spread is epoch-dependent, so an unweighted baseline's composition
+    # changes with epoch even though its definition does not (`position_survival`).
+    #
+    # MEDIAN, not mean, for the same reason `_timelocal_from_mask` uses one: a position whose rest
+    # contains a few outlier frames should not have its level set by them.
+    #
+    # NOTE `nbins` IS NOW UNUSED and kept only so callers do not break; it is not a silent no-op,
+    # it is recorded here as deliberate.
     bases, used = [], []
     for c in sorted(per):
-        m = np.zeros(T, bool)
-        m[per[c]] = True
-        b = _timelocal_from_mask(V, m, int(nbins))
-        # A POSITION WITH TOO FEW REST FRAMES CONTRIBUTES NOTHING rather than a noisy estimate:
-        # `_timelocal_from_mask` returns None below 2*nbins frames, and averaging a noisy baseline
-        # in with equal weight would be worse than the frame-weighted mean this replaces.
-        if b is not None:
-            bases.append(b)
-            used.append(int(c))
+        idx = np.asarray(per[c])
+        idx = idx[idx < T]
+        # A POSITION WITH TOO FEW REST FRAMES CONTRIBUTES NOTHING rather than a noisy estimate --
+        # averaging a noisy level in with EQUAL weight would be worse than the frame-weighted mean
+        # this replaces, since equal weighting amplifies exactly the thinnest estimates.
+        if idx.size < MIN_FRAMES_PER_POSITION:
+            continue
+        bases.append(np.median(V[:, idx], axis=1)[:, None])
+        used.append(int(c))
     if len(bases) < MIN_POSITIONS_FOR_WEIGHTED:
         print(f"  .. restw {session['label']}: only {len(bases)} positions with a usable rest "
               f"baseline (need {MIN_POSITIONS_FOR_WEIGHTED}) -- no RESTW column", flush=True)
@@ -462,7 +489,7 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
     # the whole reference, which is what makes `rest` vs `restw` a clean comparison.
     # A failure costs this session's RESTW column and nothing else.
     raw_restw, used_restw = {}, {}
-    basew, restw_positions = session_restw_svt_timelocal(session, v)
+    basew, restw_positions = session_restw_svt(session, v)
     if basew is not None:
         try:
             Xw, yw = _working_xy(session, align, post_s, variant, "none",
@@ -473,7 +500,7 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
                                  # count-keyed cache would serve one for the other across
                                  # sessions. Position sets DO differ post-stroke -- that is the
                                  # condition `restw` exists for.
-                                 signal_key=f"svt:rank{v.shape[0]}:restwlocal{REST_BASELINE_BINS}"
+                                 signal_key=f"svt:rank{v.shape[0]}:restwflat"
                                             f":p{'-'.join(str(c) for c in restw_positions)}")
             if len(yw) and np.asarray(Xw).shape[1] == X.shape[1]:
                 raw_restw, used_restw = _per_position(Xw, yw)

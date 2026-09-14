@@ -83,7 +83,7 @@ def main() -> int:
         print(f"  {info['n_periods']} labelled rest periods; frames per position: "
               + ", ".join(f"{c}:{len(f)}" for c, f in sorted(per.items())))
 
-        bw, used = prm.session_restw_svt_timelocal(s, V)
+        bw, used = prm.session_restw_svt(s, V)
         if bw is None:
             print(f"  NO RESTW BASELINE (positions with a usable baseline: {used}) -- "
                   f"this session would lose its RESTW column only")

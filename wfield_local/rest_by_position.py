@@ -33,6 +33,15 @@ import numpy as np
 #: intervention than this reference needs.
 MIN_POSITIONS_FOR_WEIGHTED = 4
 
+#: Rest frames a position needs before it may contribute a level to the weighted baseline.
+#: EQUAL WEIGHTING AMPLIFIES THE THINNEST ESTIMATE, which is the hazard it buys along with the
+#: benefit: a position represented by 30 frames would count as much as one represented by 3,000.
+#: 200 frames is ~6.5 s at 31 Hz, comfortably above the level at which a median is stable, and well
+#: below the 1,000-3,000 a position normally holds -- so it excludes only genuinely starved
+#: positions. Measured context: per-position ITI survival runs 24.4%-56.7% pre-stroke
+#: (`position_survival`), so thin positions are a real occurrence, not a hypothetical.
+MIN_FRAMES_PER_POSITION = 200
+
 
 def frame_samples(mc, fmdir, regime, pco):
     """DAQ sample index of every imaging FRAME, or None.

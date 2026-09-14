@@ -3,7 +3,7 @@
 Priya, 2026-09-13: *"position-weighting will be for only the positions in 'time local'? I just worry
 that that could be skewed for the positions in the block"*.
 
-THE CONCERN, STATED PRECISELY. `session_restw_svt_timelocal` builds each position's OWN time-local
+THE CONCERN, STATED PRECISELY. `session_restw_svt` ONCE built each position's own time-local
 baseline -- bin the session into 12, median that position's rest frames per bin, interpolate. But a
 position only HAS rest frames during its own BLOCKS, which occupy particular stretches of the
 session. So for the bins where that position's blocks did not run, its baseline is not measured at
