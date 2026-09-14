@@ -11659,15 +11659,25 @@ production does) and on the working period alone -- and comparing the two trend 
 working period, as a fraction of the working-period signal RMS
 (`scripts/rest_migration/stopped_tail_contamination.py`):
 
-| stopped tail | sessions | trend-shape difference in the working period |
-|---|---|---|
-| 59 min | PS94_0819 | **32.3%** |
-| 31-39 min | PS95_0910, PS93_0819, PS92_0820, PS94_0823, PS95_0827, PS95_0825, PS93_0822 | **14-21%** |
-| 15-24 min | PS94_0831, PS94_0903, PS92_0818 | 13-21% |
-| 9-11 min | PS92_0821, PS94_0814 | 3-7% |
+**COMPLETED over all 16 comparable stopped sessions: median 16.3%, mean 15.5%, range 3.4-32.3%.**
 
-**A CONTINUUM IN TAIL LENGTH, not a PS94_0819 oddity**, and roughly ten sessions have tails over 30
-min. **PS95_0823 reads 0.62% and is NOT comparable**: its working-signal RMS is 32.4, twenty times
+| stopped tail | n | median contamination |
+|---|---|---|
+| > 30 min | 8 | **17.8%** |
+| 15-30 min | 5 | 12.7-20.6% |
+| < 15 min | 3 | **7.4%** |
+
+Per session, worst first: PS94_0819 32.30 (59 min), PS93_0819 21.40 (37), PS92_0818 20.61 (16),
+PS95_0825 19.72 (31), PS92_0820 18.56 (35), PS95_0910 16.99 (39), PS94_0831 16.74 (24),
+PS94_0823 16.30 (33), PS95_0827 16.28 (32), PS93_0822 14.16 (31), PS94_0903 12.68 (21),
+PS94_0910 11.94 (15), PS95_0831 10.61 (17), PS92_0822 9.35 (10), PS92_0821 7.40 (9),
+PS94_0814 3.41 (11).
+
+**IT SCALES WITH TAIL LENGTH -- Pearson r = 0.86, Spearman 0.79 -- but not tightly enough to predict
+a session from its tail.** PS92_0818 has a 16 min tail and 20.6% contamination, above sessions with
+tails twice as long. So tail length is the mechanism but not a sufficient screen: the useful summary
+is that EVERY stopped session except the three shortest tails shows DOUBLE-DIGIT contamination, with
+a median of 16.3%. This is not a PS94_0819 oddity, and roughly ten sessions have tails over 30 min. **PS95_0823 reads 0.62% and is NOT comparable**: its working-signal RMS is 32.4, twenty times
 every other session, so the ratio's denominator is an outlier. That session needs looking at on its
 own terms rather than being averaged in.
 
