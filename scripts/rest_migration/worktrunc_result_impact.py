@@ -90,6 +90,13 @@ def _detrend(x, mask, k, order=None, variant=None, win_s=None):
     only thing that differs between them is how the trend is estimated.
     """
     v = variant or VARIANT
+    if v == "__rolling__":
+        from scripts.rest_migration.rolling_detrend import rolling_detrend
+        if k is None:
+            return rolling_detrend(x, mask, win_s)
+        trend = x[:, :k] - rolling_detrend(x[:, :k], mask[:k], win_s)
+        pad = np.repeat(trend[:, -1:], x.shape[1] - k, axis=1)
+        return x - np.concatenate([trend, pad], axis=1)
     kw = dict(order=order) if order is not None else {}
     if win_s is not None:
         kw["win_s"] = float(win_s)
@@ -186,11 +193,16 @@ def run(label):
     # pre-stroke tails top out at 23.8 min against 30-59 min post-stroke, because quitting early IS
     # the phenotype. So the comparison was decided on data where the polynomial's weakness could not
     # show. That is what this re-runs.
-    arms = [("PRODUCTION", None, None, "meegkit_hpfit", None)]
-    if k < int(0.97 * n):
-        arms.append(("WORKTRUNC", k, None, "meegkit_hpfit", None))
-    arms.append(("WIN600", None, None, "detrend_hpfit", 600.0))
-    arms.append(("WIN300", None, None, "detrend_hpfit", 300.0))
+    # TRIMMED to the live contrast. WORKTRUNC and WIN600 are already measured and both null
+    # (+0.0055 and -0.0003 on pre-cue), so re-running them buys nothing. What is open is whether
+    # DE-KINKING recovers what WIN300 was losing: `detrend_masked` joins one median per
+    # NON-OVERLAPPING window with LINEAR interpolation, so its trend has a knot every win_s and can
+    # only bend there. ROLL* evaluates the same masked median on a dense grid instead. WIN300 is kept
+    # as the direct comparator -- ROLL300 minus WIN300 is exactly the cost of the kinks.
+    arms = [("PRODUCTION", None, None, "meegkit_hpfit", None),
+            ("WIN300", None, None, "detrend_hpfit", 300.0),
+            ("ROLL300", None, None, "__rolling__", 300.0),
+            ("ROLL600", None, None, "__rolling__", 600.0)]
 
     out = {}
     for tag, kk, oo, vv, ww in arms:

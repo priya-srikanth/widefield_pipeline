@@ -30,7 +30,8 @@ from wfield_local.hemo_variants import FS, FUNC, remove_drift  # noqa: E402
 #: ~110 s cutoff sits inside the 57-121 s position-block band.
 ARMS = (("meegkit order 10", "meegkit_hpfit", None, "black"),
         ("WIN600 (median, ~19 min)", "detrend_hpfit", 600.0, "tab:orange"),
-        ("WIN300 (median, ~9 min)", "detrend_hpfit", 300.0, "tab:green"))
+        ("WIN300 (median, ~9 min)", "detrend_hpfit", 300.0, "tab:green"),
+        ("ROLL300 (rolling median)", "__rolling__", 300.0, "tab:red"))
 
 
 def plot(label, outdir):
@@ -56,8 +57,12 @@ def plot(label, outdir):
     trends, dets = {}, {}
     for name, variant, win, _c in ARMS:
         print(f"  {name} ...", flush=True)
-        kw = {"win_s": win} if win is not None else {}
-        det = remove_drift(a.copy(), variant, mask, **kw)
+        if variant == "__rolling__":
+            from scripts.rest_migration.rolling_detrend import rolling_detrend
+            det = rolling_detrend(a, mask, win)
+        else:
+            kw = {"win_s": win} if win is not None else {}
+            det = remove_drift(a.copy(), variant, mask, **kw)
         dets[name] = u_mean @ det
         trends[name] = raw - dets[name]
 
