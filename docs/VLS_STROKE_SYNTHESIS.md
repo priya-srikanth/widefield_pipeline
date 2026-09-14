@@ -176,3 +176,61 @@ is not position-specific.
 4. Ask whether the between-trial component CHANGES post-stroke. If the position code degrades
    acutely, a between-trial position signal that degrades with it is evidence the two are the same
    representation; one that does not is evidence they are separable.
+
+
+---
+
+## 2026-09-13 (CORRECTION) — THE SPOUT RETRACTS BETWEEN TRIALS, so rest position information has no stimulus to explain it
+
+Priya: *"the spout retracts between trials, so the target is NOT there."*
+
+**THE ENTRY ABOVE GOT THIS WRONG AND ITS MAIN EXPLANATION IS WITHDRAWN.** It argued that rest
+carrying position was expected because `trial_start` precedes the strobe by 0.925 s and the spout
+"is still at the just-completed trial's position" throughout the inter-trial interval. It is not.
+The spout RETRACTS, so during REST there is no target in front of the animal at all. "Sustained
+sensory drive from a present spout" is not available as an explanation, and every sentence above
+that leans on it is void.
+
+**THIS MAKES THE FINDING MORE INTERESTING, NOT LESS.** A position-specific cortical state during an
+interval with NO STIMULUS PRESENT cannot be a sensory response to the target. What remains:
+
+* **PERSISTENCE** — a trace of the target the animal has just been licking at, and
+* **ANTICIPATION** — preparation for the next one, which is available to the animal because
+  positions run in ~6-TRIAL BLOCKS and the next position is therefore predictable from recent
+  history.
+
+**AND IT REMOVES THE CONFOUND THAT FORCED THE CAREFUL WORDING ON THE PRE-CUE RESULT.** CLAUDE.md
+declines to call the pre-cue signal a "maintained motor plan" for a specific reason: the spout
+arrives ~3 s before the cue, so in the PRE-CUE window a sustained sensory response and a held
+intention are temporally coextensive and that design cannot separate them. **During REST the spout
+is absent, so that particular confound does not apply.** Rest is a CLEANER window for a
+maintenance/preparation claim than the pre-cue window is — which is the opposite of how the entry
+above framed it.
+
+**A NEW CONFOUND REPLACES IT, and the data can already resolve it.** Within a block, "persistence of
+the last target" and "anticipation of the next" point at the SAME position, so they are coextensive
+in exactly the way sensory and intention were pre-cue. **The rest periods at BLOCK BOUNDARIES
+separate them**: there the preceding and following trials carry DIFFERENT positions, so
+
+    rest resembles the PRECEDING position   -> persistence / post-movement trace
+    rest resembles the FOLLOWING position   -> anticipation / preparation
+    neither                                 -> the effect is within-block only, and is about
+                                               block context rather than either target
+
+**Those periods already exist in the analysis and are currently DISCARDED.**
+`rest_position_permutation` and `rest_carries_position` both label a rest period only where the
+bracketing trials AGREE, precisely to keep the label unambiguous. Relabelling the boundary periods
+by preceding-vs-following position is the decisive test and needs no new data.
+
+**A MEASUREMENT LIMIT WORTH RECORDING: the pipeline cannot see the retraction.** The DAQ carries
+`trial_start`, `spout_strobe` and `spout_bit0/1/2` — the position code emitted after the move — and
+nothing that marks retraction or advance. So the interval during which no target is present is known
+from the rig, not from the data, and its exact timing is not recoverable from any file this analysis
+reads. Anything that turns on WHEN the spout leaves and returns needs either a firmware line on the
+DAQ or DLC/video scoring of the spout itself.
+
+**WHAT DOES NOT CHANGE.** The permutation result (observed/null 1.32, 5/6 sessions on a first pass)
+stands — it is a measurement, not an interpretation. The recommendation stands too, and for a
+better reason than the one given above: keep the common rest reference AND add a per-position one,
+because the difference between them now isolates a position signal that occurs with NO TARGET
+PRESENT, which is a more specific quantity than "the between-trial component" as described above.
