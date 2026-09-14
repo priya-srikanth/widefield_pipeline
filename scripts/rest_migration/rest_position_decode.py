@@ -90,6 +90,7 @@ def main() -> int:
     import h5py
 
     from wfield_local import config, daq_io, epochs, joint_basis
+    from wfield_local.block_ids import block_ids, block_size_max_for
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS, _load_cue_events
     from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
@@ -144,13 +145,17 @@ def main() -> int:
 
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
-        # BLOCK ID from runs of equal position in the trial sequence -- the CV group.
-        blk = np.zeros(len(codes), np.int64)
-        b = 0
-        for i in range(1, len(codes)):
-            if codes[i] != codes[i - 1]:
-                b += 1
-            blk[i] = b
+        # BLOCK ID FROM `block_ids`, NOT FROM RUNS OF EQUAL POSITION. Priya, 2026-09-13: "at some
+        # point we corrected for the fact that two blocks could occur at one position sequentially".
+        # She is right and this script had the uncorrected rule. The GUI can schedule a far_L block
+        # immediately after another far_L block, and a run-based id merges the two into one --
+        # measured at 118 merges over 4,216 blocks, 2.8%, in `wfield_local/block_ids.py`.
+        #
+        # THE DIRECTION OF THAT ERROR IS CONSERVATIVE HERE, which is why this is a correctness fix
+        # rather than a retraction: merging makes GroupKFold groups LARGER, so more correlated data
+        # is held out together and the CV is if anything stricter. It still has to be the same rule
+        # the rest of the deck uses, or this family's folds are not comparable with any other's.
+        blk = block_ids(np.asarray(codes), block_size_max_for(s))
 
         X, y, g = [], [], []
         for aa, bb in zip(np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)):

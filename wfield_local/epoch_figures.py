@@ -111,6 +111,44 @@ def write_values(values, q, *, points=None, marks=None):
     return main
 
 
+def wrap_ticks(labels, n_slots=None, max_chars=None):
+    """Tick labels wrapped onto SEVERAL LINES so neighbours cannot collide horizontally.
+
+    Priya, 2026-09-13: *"all these figures need the X labels addressed to not overlap (maybe each
+    can be in two rows)"*. The collision this fixes is `"frozen EV"` against `"EV after rescale"` on
+    the two-slot encoder panels, where the second label is long, the axis is narrow and the two run
+    into each other at the bottom of the figure.
+
+    WRAPPING, NOT ROTATING, and the reason is that these labels are CATEGORY NAMES read at a glance
+    while comparing two bars. Rotated text forces the reader to turn their head to answer "which bar
+    is which", which is the one question the axis exists to answer; stacking keeps it horizontal.
+    Rotation stays right for the six SPOUT positions, which are many, short, and read as a set --
+    those are handled elsewhere and are not touched here.
+
+    THE BUDGET SCALES WITH SLOT COUNT, not a fixed character count: with two categories each label
+    may be wide, with six it may not. `n_slots` is how many labels share the axis; `max_chars`
+    overrides it when a caller knows better. A label with no space to break at is returned UNCHANGED
+    rather than hyphenated -- a broken word is harder to read than a slightly wide label, and the
+    long unbroken names here (`close_center`) are the rotation case, not this one.
+
+    IT IS A HEURISTIC ON SLOT COUNT AND NOT A MEASUREMENT, deliberately: tick labels are set before
+    the figure is laid out, so the true slot width in points does not exist yet. The constant is
+    tuned so the known collision wraps -- `"EV after rescale"` at two slots -- without touching the
+    three- and six-category axes, which is checked in `tests/`. A panel far from the standard size
+    can still collide; that would need a post-layout re-measure, which is a bigger change than the
+    problem currently justifies.
+    """
+    import textwrap
+
+    labels = [str(x) for x in labels]
+    n = int(n_slots or len(labels)) or 1
+    budget = int(max_chars or max(8, 30 // max(1, n)))
+    out = []
+    for t in labels:
+        out.append("\n".join(textwrap.wrap(t, budget)) if len(t) > budget and " " in t else t)
+    return out
+
+
 def _axis_labels(n, labels, fallback="i"):
     """Axis labels of length ``n``, falling back to indices when the caller has none."""
     if labels is not None and len(labels) >= n:
@@ -1182,7 +1220,8 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     if reference is not None:
         ax.axhline(reference, color="0.35", lw=0.9, ls="-", zorder=1)
     ax.set_xticks(xs)
-    ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
+    _tl = list(tick_labels or positions)
+    ax.set_xticklabels(wrap_ticks(_tl), fontsize=FS_TICK - 1)
     # The second level is drawn AFTER the layout is set, below -- it has to measure the tick
     # labels, which do not have a position until the figure has been laid out once.
     # THE CHANCE LEVEL GOES IN THE Y-LABEL, not on the line. Annotating the line inside the axes
@@ -1544,7 +1583,8 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
             ax.plot([xs[i] + dx], [pt], marker="o", ms=4.0, color="0.12", zorder=4)
     ax.axhline(0.0, color="0.35", lw=0.9, ls="--", zorder=1)
     ax.set_xticks(xs)
-    ax.set_xticklabels(tick_labels or positions, fontsize=FS_TICK - 1)
+    _tl = list(tick_labels or positions)
+    ax.set_xticklabels(wrap_ticks(_tl), fontsize=FS_TICK - 1)
     _yl, _ylines = wrap_ylabel(ylabel, _axes_h, FS_LABEL - 1)
     ax.set_ylabel(_yl, fontsize=FS_LABEL - 1)
     ax.tick_params(axis="y", labelsize=FS_TICK - 1)
