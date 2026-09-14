@@ -69,6 +69,24 @@ CANDIDATES = ((3.0, 3.0), (2.0, 3.0), (1.0, 3.0), (1.0, 1.0), (0.5, 1.5), (0.25,
 #: ~0.5x of pre. If it can be shortened, the chronic caveat may go with it.
 LICK_CANDIDATES = ((1.0, 3.0), (1.0, 1.5), (0.5, 1.0), (0.25, 0.5), (0.25, 0.25), (0.0, 0.0))
 
+#: THE MISSING ARM, added 2026-09-13 after the first sweep was over-read. Every row of
+#: LICK_CANDIDATES is scored against the incumbent [1,3], so the sweep can only measure what
+#: SHORTENING COSTS. It has no row that could ever say "[1,3] is longer than necessary", and the
+#: absence of such a row is not evidence that the buffer is right -- it is evidence the question
+#: was not asked. Priya proposed [0.5,1] on the strength of two rows scoring alike; both were below
+#: floor, which means both are worse than the incumbent, not that either is good.
+#:
+#: FLIPPING THE REFERENCE ASKS THE OTHER HALF. With a LONGER buffer as the incumbent, the marginal
+#: frames of [1,3] are the 3-5 s post-lick band. If those score AT FLOOR, the lick response has
+#: decayed by 3 s and the buffer is sufficient (and the 5 s version is wasting data). If they are
+#: BELOW floor, the response is still present at 3 s and [1,3] is too SHORT -- which would be the
+#: more uncomfortable answer and is exactly why it has to be asked.
+LICK_LONG = ((2.0, 5.0), (1.5, 4.0), (1.0, 3.0), (1.0, 2.0))
+
+#: Same missing arm for the treadmill buffer. Locomotion's haemodynamic tail is if anything slower
+#: than licking's, so "is [3,3] enough" is as open as "is [3,3] too much".
+TREAD_LONG = ((5.0, 5.0), (4.0, 4.0), (3.0, 3.0), (2.0, 2.0))
+
 
 def _rest_for_buffer(n, fs, speed, lick_onsets, cue_s, ts_s, st_s, params, session_dir, buf,
                      sync_s=None, codes=None, which="treadmill"):
@@ -252,20 +270,41 @@ def main() -> int:
             d = float(np.sqrt(np.mean((em - common_map) ** 2)))
             r0 = float(np.sqrt(np.mean(common_map ** 2)))
             cc = float(np.corrcoef(em, common_map)[0, 1])
+            # THE NOISE FLOOR, and without it this whole statistic is unreadable. A mean map over
+            # a SMALL set of frames is noise-dominated, so it correlates near-randomly with the
+            # baseline and has inflated RMS WHETHER OR NOT those frames are rest. Measured on
+            # PS95_0817: 137 marginal frames gave corr -0.57 and RMS 413% -- which reads as gross
+            # contamination and is in fact what rest itself looks like at that sample size.
+            #
+            # So: draw a subset of the COMMON frames of exactly the marginal set's size, and score
+            # it the same way. That is what "these frames are just rest" predicts. The comparison
+            # is marginal-vs-floor, never marginal in isolation.
+            rs = np.random.default_rng(0)
+            fl_d, fl_c = [], []
+            for _ in range(20):
+                sub = rs.choice(base_fr, size=min(extra.size, base_fr.size), replace=False)
+                sm = V[:, sub].mean(1)
+                fl_d.append(np.sqrt(np.mean((sm - common_map) ** 2)) / max(1e-12, r0))
+                fl_c.append(np.corrcoef(sm, common_map)[0, 1])
+            floor_d, floor_c = float(np.mean(fl_d)), float(np.mean(fl_c))
             # And the quantity that actually matters: does the TIME-LOCAL BASELINE move?
             bl_c = _timelocal_from_mask(V, masks[incumbent][f_of[:T]], REST_BASELINE_BINS)
             bl_b = _timelocal_from_mask(V, masks[b][f_of[:T]], REST_BASELINE_BINS)
             bd = (float(np.sqrt(np.mean((bl_b - bl_c) ** 2))) / max(1e-12,
                   float(np.sqrt(np.mean(bl_c ** 2))))
                   if (bl_c is not None and bl_b is not None) else np.nan)
-            marg[b].append((d / max(1e-12, r0), cc, bd, extra.size, fr.size))
-            print(f"  {str(b):<12} +{extra.size:>6} frames ({100 * fr.size / max(1, base_fr.size) - 100:+5.1f}%)  "
-                  f"marginal-vs-common RMS {100 * d / max(1e-12, r0):5.1f}%  corr {cc:+.4f}  "
-                  f"baseline moves {100 * bd:4.1f}%")
+            marg[b].append((d / max(1e-12, r0), cc, bd, extra.size, fr.size,
+                            floor_d, floor_c))
+            # EXCESS over the floor is the readable quantity. ~0 means the marginal frames are
+            # indistinguishable from rest at that sample size; clearly negative means they are not.
+            print(f"  {str(b):<12} +{extra.size:>6} fr ({100 * fr.size / max(1, base_fr.size) - 100:+5.1f}%)  "
+                  f"RMS {100 * d / max(1e-12, r0):5.1f}% vs floor {100 * floor_d:5.1f}%  "
+                  f"corr {cc:+.3f} vs floor {floor_c:+.3f}  "
+                  f"EXCESS {cc - floor_c:+.3f}  base {100 * bd:4.1f}%")
 
     print(f"\n{'=' * 78}\nTREADMILL BUFFER SWEEP -- is +-3 s earning its cost?\n{'=' * 78}")
-    print(f"{'buffer':<14}{'rest frac':>11}{'vs [3,3]':>11}{'marg RMS':>11}{'marg corr':>11}"
-          f"{'baseline':>11}")
+    print(f"{'buffer':<14}{'rest frac':>11}{'vs base':>10}{'n marg':>9}{'corr':>9}{'floor':>9}"
+          f"{'EXCESS':>9}{'baseline':>10}")
     base = np.nanmean(frac[incumbent]) if frac[incumbent] else np.nan
     for b in cands:
         f_ = np.nanmean(frac[b]) if frac[b] else np.nan
@@ -276,13 +315,21 @@ def main() -> int:
         if not v_:
             print(f"{str(b):<14}{f_:>11.4f}{100 * (f_ / base - 1):>10.1f}%{'n/a':>11}")
             continue
-        print(f"{str(b):<14}{f_:>11.4f}{100 * (f_ / base - 1):>10.1f}%"
-              f"{100 * np.mean([x[0] for x in v_]):>10.1f}%{np.mean([x[1] for x in v_]):>11.4f}"
-              f"{100 * np.nanmean([x[2] for x in v_]):>10.1f}%")
-    print("\nREAD IT LIKE THIS:")
-    print("  marginal RMS small + correlation ~1  ->  the excluded frames look like rest;")
-    print("                                          the wider buffer is removing DATA, not movement")
-    print("  marginal RMS large + correlation low ->  the buffer is doing its job and the cost is the price")
+        # WEIGHTED BY MARGINAL SET SIZE: a session contributing 83 marginal frames must not carry
+        # the same weight as one contributing 6,000, because the small one is mostly noise.
+        w = np.array([x[3] for x in v_], float)
+        cc_ = np.average([x[1] for x in v_], weights=w)
+        fl_ = np.average([x[6] for x in v_], weights=w)
+        print(f"{str(b):<14}{f_:>11.4f}{100 * (f_ / base - 1):>9.1f}%{int(w.sum()):>9}"
+              f"{cc_:>9.3f}{fl_:>9.3f}{cc_ - fl_:>9.3f}"
+              f"{100 * np.nanmean([x[2] for x in v_]):>9.1f}%")
+    print("\nREAD THE *EXCESS* COLUMN, NEVER THE RAW CORRELATION:")
+    print("  EXCESS ~ 0        ->  marginal frames are indistinguishable from rest AT THAT SAMPLE")
+    print("                        SIZE; the wider buffer is removing DATA, not movement")
+    print("  EXCESS clearly <0 ->  the buffer is doing its job and the cost is the price")
+    print("  The floor exists because a mean map over ~100 frames is noise-dominated and scores")
+    print("  badly whether or not those frames are rest -- PS95_0817 gave corr -0.57 on 137")
+    print("  marginal frames, which is simply what REST looks like at n=137.")
     print(f"\n{len(todo)} session(s)  [done in {time.time() - t0:.0f}s]")
     return 0
 
