@@ -31,53 +31,12 @@ from wfield_local.hemo_variants import FS, FUNC, remove_drift
 BINS_MIN = ((0.0, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 5.0), (5.0, 10.0), (10.0, 20.0))
 
 
-def robust_local_linear_trend(X, mask, win_s, stride_s=10.0, min_n=20, iters=2):
-    """Rolling ROBUST LOCAL LINEAR trend -- the boundary-corrected counterpart of a rolling median.
-
-    At each centre, fit value ~ a + b*(t - c) by least squares on the masked samples in the window,
-    with `iters` rounds of MAD-based reweighting so a transient cannot drag the fit (the robustness
-    the median was chosen for). Evaluating the fit AT the centre means that at an edge, where the
-    window is one-sided, the slope carries the estimate to the boundary instead of the level being
-    pinned to the middle of the available half-window.
-    """
-    X = np.asarray(X, float)
-    K, T = X.shape
-    m = np.asarray(mask, bool)
-    m = m[:T] if m.size >= T else np.pad(m, (0, T - m.size))
-    half = max(1, int(round(win_s * FS)) // 2)
-    stride = max(1, int(round(stride_s * FS)))
-
-    cs, vs = [], []
-    for c in range(0, T, stride):
-        a, b = max(0, c - half), min(T, c + half)
-        idx = np.flatnonzero(m[a:b]) + a
-        if idx.size < min_n:
-            continue
-        dt = (idx - c).astype(float) / FS
-        A = np.stack([np.ones_like(dt), dt], 1)
-        Y = X[:, idx]                                     # (K, n)
-        w = np.ones_like(dt)
-        beta = None
-        for _ in range(iters + 1):
-            Aw = A * w[:, None]
-            beta, *_ = np.linalg.lstsq(Aw, (Y * w).T, rcond=None)    # (2, K)
-            resid = Y - (A @ beta).T
-            s = np.median(np.abs(resid - np.median(resid, 1, keepdims=True)), 1, keepdims=True)
-            s = np.maximum(s * 1.4826, 1e-12)
-            w = 1.0 / np.sqrt(1.0 + (np.median(np.abs(resid) / s, 0) / 3.0) ** 2)
-        cs.append(float(c))
-        vs.append(beta[0])                                 # intercept == value AT the centre
-    if len(cs) < 2:
-        return np.zeros_like(X)
-    C = np.asarray(cs, float)
-    V = np.stack(vs, 1)
-    t = np.arange(T, dtype=float)
-    return np.stack([np.interp(t, C, V[k]) for k in range(K)])
 
 
 def run(label):
     from scripts.rest_migration.plot_session_residual import _brain_mean_op
-    from scripts.rest_migration.rolling_detrend import rolling_masked_trend
+    from scripts.rest_migration.rolling_detrend import (
+        robust_local_linear_trend, rolling_masked_trend)
     from scripts.rest_migration.worktrunc_result_impact import _mask_for
 
     s = next(x for x in config.load_sessions() if x["label"] == label)

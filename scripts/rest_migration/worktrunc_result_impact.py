@@ -90,11 +90,12 @@ def _detrend(x, mask, k, order=None, variant=None, win_s=None):
     only thing that differs between them is how the trend is estimated.
     """
     v = variant or VARIANT
-    if v == "__rolling__":
-        from scripts.rest_migration.rolling_detrend import rolling_detrend
+    if v in ("__rolling__", "__linear__"):
+        from scripts.rest_migration.rolling_detrend import local_linear_detrend, rolling_detrend
+        f = rolling_detrend if v == "__rolling__" else local_linear_detrend
         if k is None:
-            return rolling_detrend(x, mask, win_s)
-        trend = x[:, :k] - rolling_detrend(x[:, :k], mask[:k], win_s)
+            return f(x, mask, win_s)
+        trend = x[:, :k] - f(x[:, :k], mask[:k], win_s)
         pad = np.repeat(trend[:, -1:], x.shape[1] - k, axis=1)
         return x - np.concatenate([trend, pad], axis=1)
     kw = dict(order=order) if order is not None else {}
@@ -202,7 +203,13 @@ def run(label):
     arms = [("PRODUCTION", None, None, "meegkit_hpfit", None),
             ("WIN300", None, None, "detrend_hpfit", 300.0),
             ("ROLL300", None, None, "__rolling__", 300.0),
-            ("ROLL600", None, None, "__rolling__", 600.0)]
+            ("ROLL600", None, None, "__rolling__", 600.0),
+            # LOCAL-LINEAR arms. LIN300 vs ROLL300 is the clean contrast -- same window, so it
+            # isolates local-linear against local-constant with kinetics held fixed. LIN600/900
+            # cover the possibility that local-linear is effectively faster at a given win_s.
+            ("LIN300", None, None, "__linear__", 300.0),
+            ("LIN600", None, None, "__linear__", 600.0),
+            ("LIN900", None, None, "__linear__", 900.0)]
 
     out = {}
     for tag, kk, oo, vv, ww in arms:
