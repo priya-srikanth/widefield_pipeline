@@ -10639,3 +10639,61 @@ information with no target present" from "the tail of the retraction".** Until t
    the `sync` heartbeat for exactly this, so the machinery exists.
 3. `segmentation.rest` gains the anchor as a config option rather than a literal, alongside the
    measurements above, per the pattern every other rest parameter follows.
+
+
+---
+
+## 2026-09-13 — spout travel time is POSITION-DEPENDENT and reproducible to 0.04 s: reconstructable, and a mechanism
+
+Priya: *"the spout takes the same amount of time to move from position to dock for each position
+across sessions (zaber speed is always equal) - so we should be able to reconstruct."*
+
+**CONSTANT WITHIN A POSITION ACROSS SESSIONS, DIFFERENT BETWEEN POSITIONS** -- exactly as Priya
+meant it: the Zaber speed is fixed, so travel time is set by distance, and distance is a property of
+the position. Measured over **110 sessions** (June onward, all four animals), `dock_start` -> `dock`
+per position:
+
+| pos_idx | median travel (s) | sd across sessions |
+|---|---|---|
+| 0 | **0.775** | 0.038 |
+| 1 | 0.975 | 0.038 |
+| 2 | 0.976 | 0.037 |
+| 3 | **0.649** | 0.037 |
+| 4 | 0.949 | 0.039 |
+| 5 | 0.951 | 0.037 |
+
+The spread ACROSS positions is 0.33 s; the sd ACROSS SESSIONS within a position is 0.038 s. So the
+between-position difference is nearly **nine times** the between-session variability, and the
+per-position constants reproduce across animals to ~0.01-0.03 s. `trials.csv` also carries
+`pos_dist_mm_before_trial` / `pos_dist_mm_after_trial`, so the distance is recorded directly.
+
+### Consequence 1 — the reconstruction works, PER POSITION and not as one constant
+
+A session whose GUI/DAQ clocks cannot be aligned (PS93 6/6) can have its dock times rebuilt from DAQ
+anchors plus the per-position constant above, instead of dropping out. Using ONE constant would
+inject a position-dependent error of up to 0.33 s into the window start -- which is precisely the
+kind of error that manufactures a position effect in an analysis asking whether rest carries
+position. **The reconstruction must be per position or it is worse than dropping the session.**
+
+### Consequence 2 — this is a REAL mechanism for position information in a loose rest window
+
+The retraction takes between 0.65 s and 0.98 s DEPENDING ON WHERE THE SPOUT IS COMING FROM. The old
+rest window opens ~0.65 s before `dock`, so the amount of retraction it contains is itself
+POSITION-SPECIFIC: a window starting at a fixed offset from the cue captures nearly all of position
+3's short retraction and only part of position 1's long one. That is a concrete, mundane route from
+"rest window" to "position information" with no neural interpretation at all.
+
+**Which is exactly why the docked window had to be tried, and why the result surviving it matters.**
+On the strict `dock` -> next `trial_start` window the permutation still gives observed/null 1.338
+(4/5 sessions, first pass) against 1.429 on the loose one. The mechanism above is real and is now
+excluded.
+
+### TO DO
+
+1. Add the per-position travel constants as the FALLBACK path in `docked_periods`, used only when
+   `_sync_affine` refuses, and label sessions reconstructed that way so a result can be re-run
+   without them.
+2. **Redo every REST analysis on the docked definition once the investigation closes** (Priya:
+   *"we're gonna have to redo all the 'rest' analyses with the new version - after we finish our
+   investigation of it"*). That is the rest baseline for the maps, the state decoder's REST class,
+   `behavior_events` schema v4, and every figure downstream of them.
