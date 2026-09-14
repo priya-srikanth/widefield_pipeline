@@ -11891,3 +11891,44 @@ Eight estimator arms have been tested on ten sessions at se ~ 0.014. Testing arm
 zero eventually succeeds by chance, so the acceptance bar (+0.028, CI excluding zero, no post-cue
 loss, no shadow degradation, no worse onset residual) was **fixed before** the local-linear run rather
 than chosen after seeing it. Anything under it is the same null found twice already.
+
+---
+
+## 2026-09-14 — THE ACCEPTANCE BAR WAS SET TOO LOW, and the derivation I gave for it was decoration
+
+I stated a +0.028 pre-cue bar for replacing `meegkit_hpfit` and justified it as "roughly August's
++0.046 meegkit-over-`detrend_hpfit` margin, discounted for our smaller n". **That justification is
+not a real statistical operation.** Effect sizes do not get discounted for sample size. The number
+came from somewhere else entirely: with se ~ 0.014 at n=10, 1.96 x 0.014 = 0.0274. **The bar was just
+"the 95% CI excludes zero", restated as a mean threshold** -- and the August comparison was attached
+afterwards to make an arbitrary-looking number sound principled.
+
+### WHY THAT MATTERS
+
+**1. "Nearly cleared the bar" is "nearly significant", which is not a finding.** LIN600 landing at
++0.0274 against a 0.0274 threshold is a CI that includes zero, the same as any other fail.
+
+**2. The bar ignored multiplicity.** SIX estimator arms were tested (WIN300, ROLL300, ROLL600,
+LIN300, LIN600, LIN900). At uncorrected 95% per arm the family-wise error rate is **26%** -- roughly
+one chance in four that some arm clears zero on noise alone.
+
+| bar | value | basis |
+|---|---|---|
+| what was used | +0.0274 | 95% CI excludes zero, single arm |
+| multiplicity-corrected | **+0.0369** | Bonferroni across 6 arms, alpha=0.0083, z=2.64 |
+| effect-size | **+0.046** | August's actual meegkit-over-detrend_hpfit margin, independent of n |
+
+**THE CORRECT BAR FOR A CHANGE THIS SIZE IS THE EFFECT-SIZE ONE (+0.046):** a replacement should beat
+production by at least as much as production beat the windowed family in August, on the metric that
+decided it.
+
+### THE ONLY REASON THIS DID NOT DAMAGE THE CONCLUSION
+
+**The bar was wrong in the LENIENT direction and nothing cleared it anyway.** Best arm LIN600 =
++0.0274 (7 sessions), which misses the lenient bar, the corrected bar and the effect-size bar. Had an
+arm landed at +0.030 I would have been obliged to report a pass on a threshold set too low, after
+shopping six arms -- and the pre-registration would have made that *more* credible, not less.
+
+**Pre-registering a threshold is worth nothing if the threshold is derived from the noise you already
+measured on the same sessions.** Fix the criterion from the SCIENCE (what margin would justify the
+change) before the noise level is known, and correct it for the number of arms intended.
