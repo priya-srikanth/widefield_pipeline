@@ -12033,3 +12033,50 @@ transient is NOT common-mode between 470 and 415 and the regression does not rem
 87/100 sessions having their first cue inside 30 s, and a discard cost of 0.33% of trials (172 of
 ~52,000, median 2/session), this is the strongest case for excluding it -- and it is independent of
 which estimator wins.
+
+---
+
+## 2026-09-14 — DECISION: STAY ON THE POLYNOMIAL. Minimal difference; the estimator question is done.
+
+**`meegkit_hpfit` (robust polynomial, order 10) remains the adopted drift removal. Nothing is
+rebuilt.** Six alternatives were tested across ten sessions on pre-cue decode and every one failed
+every acceptance bar (all p > 0.12; best LIN600 +0.0223, p=0.126).
+
+**THE DIFFERENCE IS MINIMAL WHERE IT MATTERS.** In the FINAL corrected signal -- the only thing any
+analysis reads -- the four estimators give an SD spread of **0.2% on a session without a stopped tail**
+(0.01838 / 0.01841 / 0.01837 / 0.01838) and ~8% on the most extreme long-tail session in the cohort.
+There is no meaningful difference to capture on a typical session.
+
+### RECORDED AS A JUDGEMENT CALL, because the data does not forbid the alternative
+
+**LIN300 (rolling robust local-linear) is arguably the better ESTIMATOR** and this is recorded plainly
+rather than buried: it removes the most trend, leaves the least residual before and after subtraction,
+and is the only arm that both captures the bleaching/settling onset (residual +0.006 against a rolling
+median's +0.057) AND tracks local structure the global polynomial arcs through. On PS94_0819 it also
+posted the single largest decode gain of any arm anywhere, +0.1387.
+
+**IT IS NOT ADOPTED, for two reasons that are about cost and evidence, not about it being worse.**
+
+1. **PS94_0819 is the most atypical session in the cohort** -- 59 min tail, 375/600 trials in the quit
+   period, the largest tail contamination measured -- and it drove three separate false starts on
+   2026-09-14. Everything looks good on that session. Across all ten, LIN300 is +0.0148, p=0.386,
+   third worst of six.
+2. **Switching variants is not a re-detrend.** `config.locanmf_dir_name()` keys off the variant, so
+   LocaNMF would need refitting on every session, producing a DIFFERENT BASIS as well as different
+   data, and every downstream result would need re-running. Large, certain cost against an
+   unmeasurable benefit.
+
+**A null is "no evidence of a difference", not "evidence of no difference."** If the estimator is ever
+revisited, LIN300 is the candidate to start from, and `scripts/rest_migration/rolling_detrend.py`
+already implements it.
+
+### WHAT CARRIES FORWARD, unaffected by this decision
+
+* **The first ~30 s settling transient** -- survives the hemodynamic subtraction (first minute swings
+  to -0.075 against +/-0.03 for the rest of the session), is fitted as drift in every session, and
+  costs only 0.33% of trials to exclude. Indexed from START OF RECORDING, not behaviour. **Open.**
+* **PS92_0818 explained**: it abandoned far_R entirely (0 responded of 66 engaged), and the decoder
+  requires all six classes, so it returns NaN by design. **Consequence: decode-based comparisons
+  systematically EXCLUDE the most severely affected sessions.** That is a selection effect on any
+  decode analysis, not just this one.
+* **PS95_0823** working-signal RMS 32.4 against 1.3-2.9 elsewhere -- still unexplained.
