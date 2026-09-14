@@ -10432,3 +10432,88 @@ to exactly that), but it has not been tested and should be once DLC protrusion t
 **RELATED CAVEAT ALREADY ON RECORD**, now with a quantitative prediction attached: section G's G6
 caption has said since 2026-08-18 that *"'no lick detected' is not 'no tongue protrusion' — DLC
 replaces this inference with a measurement"*. This is the same caveat surfacing in a second analysis.
+
+
+---
+
+## 2026-09-13 — REST probably carries position because the animal is STILL ON TASK, and the fix is a second reference, not a better baseline
+
+Priya: *"is there a better 'quiet' we can use?? or should we do quiet per-position? It's possible
+there is motor planning ongoing between trials."*
+
+### First: the earlier control did NOT rule this out, and the new one points the other way
+
+`rest_position_vs_drift` reported DRIFT 0.00282 against POSITION 0.00288, ratio 1.02, and that was
+read as "drift aliased onto blocks, not position coding". **That reading is wrong**, for two
+independent reasons recorded in `scripts/rest_migration/rest_position_permutation.py`: the two
+contrasts are not matched on TIME SEPARATION (drift spans half a session, position spans ~zero,
+because positions are interleaved throughout each half), and a ratio of magnitudes is not a test —
+if both are noise-dominated the ratio is ~1 whatever the truth.
+
+The proper test puts the confound INSIDE the null: circular-shift the position labels over
+time-ordered rest periods, so blocks stay blocks and drift stays drift and only their
+correspondence breaks. First pass, 6 pre-stroke sessions, 100 permutations each:
+**observed/null = 1.32, observed > null in 5/6**. Rest carries position structure that the
+block-time structure does not explain.
+
+### Why that is EXPECTED, and continuous with a result already in the deck
+
+**THE SPOUT IS PHYSICALLY AT THAT POSITION FOR THE WHOLE INTERVAL.** `trial_start` precedes the
+position strobe by a median 0.925 s — the travel time — so a REST period, which runs from
+`cue + response_window + 0.5 s` to the NEXT `trial_start`, sits entirely while the spout is still at
+the JUST-COMPLETED trial's position. The animal has a spatial target in front of it throughout.
+
+And the deck already reports the same phenomenon one step later in the trial: **pre-cue position
+decoding is LOSO 0.510 against post-cue 0.873, chance 0.167** — position is well above chance
+BEFORE the cue. Rest carrying position is that same signal extended earlier in the interval, not a
+new or anomalous finding.
+
+**THE SAME INTERPRETIVE LIMIT APPLIES, UNCHANGED.** CLAUDE.md records that the pre-cue signal is
+deliberately NOT called a "maintained motor plan": the spout arrives ~3 s before the cue, so a
+sustained SENSORY response and a held INTENTION are temporally coextensive and this design cannot
+separate them. Exactly the same is true between trials. "Motor planning ongoing between trials" is
+one of at least two readings, and the others — sustained sensory drive from a visible/whisker-
+detectable spout, or a postural set toward it — are not excluded by anything measured here.
+
+### So: NOT a better baseline. A SECOND reference, and the difference between them is the measurement
+
+**A "better quiet" that removed position would be removing signal**, which is the F12 objection
+appearing in a new place: the pre-cue reference was demoted precisely because subtracting a window
+that carries genuine anticipatory position information measures the cue-evoked INCREMENT rather than
+the position map. A per-position rest baseline does the same thing one interval earlier.
+
+The useful construction is therefore BOTH, kept side by side:
+
+    REST (common)         subtract the session's time-local rest baseline, IDENTICAL for all six
+                          positions. Keeps any sustained between-trial position component IN the
+                          map. This is what is on the deck now.
+    REST (per position)   subtract each position's OWN time-local rest baseline. Removes the
+                          between-trial component; what remains is the cue-evoked increment over
+                          that position's own resting state.
+
+**THE DIFFERENCE BETWEEN THE TWO MAPS IS THE BETWEEN-TRIAL POSITION SIGNAL** — i.e. the quantity
+Priya's question is about, measured rather than assumed. That is a better outcome than either
+reference alone, and it is why this is an addition rather than a replacement.
+
+**BOTH STAY UNCOUPLED**, which is the property that matters against MEAN. Per-position rest gives six
+different subtrahends, so the six maps are no longer on a common scale — but no position's loss can
+raise another position's reference, which is the specific failure the MEAN reference has.
+
+### What this does NOT threaten
+
+The far-contralateral acute result does not rest on the REST reference: it replicates under MEAN
+(+0.819 vs null +0.018) and PRECUE (+0.856 vs +0.083), which are constructed differently and share
+no subtrahend with it. A between-trial position component would have to be far-contra-specific AND
+animal-consistent to produce it, and the cross-position null is built to be blind to anything that
+is not position-specific.
+
+### TO DO
+
+1. Finish the permutation on the full pre-stroke cohort (running; 6 sessions is a first pass).
+2. Implement the per-position rest reference in `position_reference_maps` — mechanically small now
+   that the baseline is time-local and applied to the SVT: build it from that position's rest
+   periods instead of all of them.
+3. Render both and difference them; that difference figure is the between-trial position signal.
+4. Ask whether the between-trial component CHANGES post-stroke. If the position code degrades
+   acutely, a between-trial position signal that degrades with it is evidence the two are the same
+   representation; one that does not is evidence they are separable.
