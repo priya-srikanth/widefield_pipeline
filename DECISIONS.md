@@ -11830,3 +11830,64 @@ the analysis -- which is exactly why this measurement was specified as the decid
   period, +0.098 pre-cue -- and deserves its own look rather than being averaged away.
 * **PS92_0818 returned NaN on every arm and alignment**, so it contributed nothing and the batch is
   effectively n=10 not n=11. Unexplained; not investigated.
+
+---
+
+## 2026-09-14 — THE ROLLING RE-TEST: also a null. And de-kinking made it WORSE.
+
+Priya asked whether the 300 s window could be smoothed, since the drift-estimator overlay showed
+`detrend_masked`'s trend visibly kinked. The kinks are structural: it walks NON-OVERLAPPING windows,
+takes one median per window at its centre, and joins them with LINEAR interpolation, so the trend has
+a knot every `win_s` and can only bend there. `scripts/rest_migration/rolling_detrend.py` evaluates
+the same masked median on a dense grid instead -- same window, same kinetics, no knots.
+
+### RESULT, 10 sessions, PRE-CUE, against the bar fixed before the run (+0.028 with CI excluding zero)
+
+| arm | mean | 95% CI | positive | verdict |
+|---|---|---|---|---|
+| WIN300 | +0.0151 | -0.012 .. +0.043 | 6/10 | fail |
+| **ROLL300** | **+0.0028** | -0.026 .. +0.031 | 4/10 | fail |
+| ROLL600 | +0.0205 | -0.008 .. +0.049 | 7/10 | fail (closest) |
+
+**DE-KINKING DID NOT HELP -- it cost.** Paired on the same sessions, ROLL300 - WIN300 = **-0.0123**
+(CI -0.027..+0.003, p=0.146). So the kinks were not holding WIN300 back, and the smoother, more
+honest estimator performs no better. Paired window effect ROLL600 - ROLL300 = +0.0177 (p=0.214);
+ROLL600 - WIN300 = +0.0055 (p=0.601). **Nothing in this family is distinguishable from anything else
+at n=10.**
+
+### A HYPOTHESIS RAISED AND WITHDRAWN, twice
+
+I proposed that the kinks were usefully STIFFENING the estimator -- a piecewise-linear trend can only
+bend at knots, so it is effectively slower than a rolling median at the same nominal window, and
+de-kinking pushes it toward the 57-121 s block band. It fit two sessions, failed on four
+(PS95_0910 has ROLL300 above WIN300 and ROLL600 worst), and at n=10 the paired direction is right but
+p=0.146. **Direction consistent, not distinguishable: it stays a hypothesis.** Recorded because the
+n=10 mean looked cleaner than the n=4 scatter and nearly earned a revival it had not earned.
+
+### THE ONSET EDGE BIAS IS REAL, EXPLAINED, AND FIXABLE — and separate from all of this
+
+Priya: a rolling window at t=0 can only look forward. Confirmed on two sessions. The raw sits +0.070
+(PS94_0819) and +0.052 (PS94_0810) above the session median in the first 30 s; **ROLL300 leaves
++0.057 and +0.051 of it** -- essentially all. This is O(h) boundary bias in a local-CONSTANT
+estimator: a median over a one-sided half-window reports the middle of it and cannot extrapolate a
+slope. A robust local-LINEAR trend (O(h^2)) leaves +0.006 and +0.003, **more consistent than the
+global polynomial**, which removed 92% on one session and only 56% on the other.
+
+**So the edge weakness belongs to local-CONSTANT estimators, not to windowing, and is not an argument
+for a global fit.** LIN300/600/900 are being tested against the same bar.
+
+### AND SOMETHING NEITHER ESTIMATOR SHOULD BE DOING
+
+All three OVERSHOOT negative across 0.5-2 min (-0.041, -0.027 on PS94_0819) -- a smooth curve that
+reaches up to catch a sharp spike must come back down through the data. **A +0.05-0.07 excursion
+decaying within 30 s, against a session SD of ~0.027, is far too fast for bleach kinetics and looks
+like LED or camera settling.** It is currently being fitted as drift in every session in the cohort.
+Excluding the first ~30 s from the fit AND from analysis would remove the edge bias and the
+compensating overshoot together, and is independent of which estimator wins. **Not yet investigated.**
+
+### METHOD: the arm count is now the risk
+
+Eight estimator arms have been tested on ten sessions at se ~ 0.014. Testing arms until one clears
+zero eventually succeeds by chance, so the acceptance bar (+0.028, CI excluding zero, no post-cue
+loss, no shadow degradation, no worse onset residual) was **fixed before** the local-linear run rather
+than chosen after seeing it. Anything under it is the same null found twice already.
