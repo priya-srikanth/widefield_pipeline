@@ -263,3 +263,25 @@ per-position travel constants; PS92_0812 is not and should not be.
 **WHAT REMAINS AMBIGUOUS, and it is the interesting question rather than a caveat.** Within a block,
 a trace of the target just licked at and preparation for the next one point at the SAME position.
 The rest periods at BLOCK BOUNDARIES separate them and are currently discarded by both scripts.
+
+
+---
+
+## 2026-09-13 — RESULT: both dropped sessions recovered, and the number barely moves
+
+The per-position reconstruction returns PS93_0606 and PS92_0812 to the docked analysis:
+
+| run | sessions | observed/null | above null |
+|---|---|---|---|
+| loose rest | 44 | 1.429 | 41/44 |
+| docked, 2 sessions dropped | 42 | 1.449 | 39/42 |
+| **docked, both reconstructed** | **44** | **1.443** | **41/44** |
+
+**Recovering them moved the ratio by 0.006**, which is the outcome a reconstruction should have: it
+returns the sessions without distorting the result. Both are named in the run output so any result
+can be re-run without them.
+
+**STILL OPEN AND WORTH A LOOK: the three sessions at or below null are ALL PS92** — 0606 (0.88),
+0814 (0.90), 0608 (0.99) — with the next lowest being PS95 at 1.05. That is a per-animal pattern
+rather than a per-session one, and PS92 is also the animal that needed the concat repair. A
+per-animal breakdown should come before the cohort number is leaned on.

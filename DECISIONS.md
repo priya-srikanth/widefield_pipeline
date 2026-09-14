@@ -10726,3 +10726,88 @@ per-position travel constants; PS92_0812 is not and should not be.
 **WHAT REMAINS AMBIGUOUS, and it is the interesting question rather than a caveat.** Within a block,
 a trace of the target just licked at and preparation for the next one point at the SAME position.
 The rest periods at BLOCK BOUNDARIES separate them and are currently discarded by both scripts.
+
+
+---
+
+## 2026-09-13 — why `8rc` shows COLUMN STRIPES and not an X, and the X is real
+
+Priya, looking at `epoch_8rc_matrices_crossnobis_rowcentred_precue_working`: *"I feel like I remember
+this being clearer with a red diagonal making an X with the identity blue diagonal. Now there is a
+lot of red in the nI and nC columns, including fI true positions being dissimilar to nI (not
+expected) - any explanation"*.
+
+### The X is real, and the pre-cue arm is where it is weakest
+
+Correlation between crossnobis distance and spout separation on the **raw** (`epoch_8`) matrix, PRE
+panel, using the true **2 rings x 3 lateral positions** layout:
+
+| arm | city-block separation | lateral only | ring (near/far) only |
+|---|---|---|---|
+| **cue** | **+0.804** | +0.691 | +0.190 |
+| **precue** | **+0.594** | +0.471 | +0.190 |
+
+**THE GEOMETRY IS ALMOST ENTIRELY LATERAL.** Near-vs-far contributes r = +0.19 in both arms. Mean
+crossnobis by lateral separation: 0 steps **1.06-1.17**, 1 step **1.08-1.15**, 2 steps
+**1.83-1.90**. It is a STEP at ipsi-versus-contra, not a gradient — which is why nI and nC stripe:
+they are the two lateral extremes, so each is 2 steps from the far side, and those are the only
+large cells.
+
+**A METHOD NOTE ON THE NUMBER ABOVE.** A first pass reported r = +0.28 / +0.33 using a 1-D position
+ordering (nI, nM, nC, fI, fM, fC), which treats fI as ADJACENT to nC. That is not the rig geometry
+and the number was wrong; on the real 2x3 layout it is +0.594 / +0.804. A separation metric is a
+model of the apparatus, not a formality.
+
+### Why row-centring buries it
+
+Additive decomposition of the off-diagonal structure (pre-cue, PRE panel):
+
+    ROW effect        0.47
+    COLUMN effect     0.31     <-- row-centring CANNOT remove this
+    residual          0.23
+
+Row-centring subtracts row means, so the 47% row effect goes and the 31% column effect stays intact.
+What survives visually is the nI/nC columns rather than the X. The raw matrix is essentially
+SYMMETRIC — row means 1.86 / 0.82 / 1.75 / 1.12 / 1.14 / 1.22 against column means 1.77 / 0.99 /
+1.69 / 1.15 / 1.10 / 1.21 — so this is not an asymmetry artefact. nI and nC genuinely are far from
+everything, in both directions.
+
+### `fI` looking dissimilar to `nI` is a row-centring artefact, and the useful kind to know about
+
+Raw `d(fI, nI) = 1.32`, one of the SMALLER distances in the matrix and well below the
+lateral-separation-2 mean of 1.90. But **fI's own row mean is 1.12**, because fI is close to
+everything — so 1.32 sits ABOVE its own row mean and renders red.
+
+**ROW-CENTRING MAKES A TIGHT ROW SHOW RED WHEREVER IT IS MERELY AVERAGE.** Nothing is wrong with
+fI-nI; the normalisation is doing it. This is the general hazard of the panel and belongs in its
+caption.
+
+### What to read where
+
+* **"Which position did it move TOWARD"** -> `8rc`, within an epoch.
+* **"Is the geometry spatial"** -> the RAW `epoch_8`, and prefer the **cue** arm where the X is
+  strong (r = +0.80) over pre-cue (+0.59).
+* **"Is the direction the same across epochs"** -> `8rz`, which is scale-free and so is not fooled
+  by the acute amplitude collapse.
+
+
+---
+
+## 2026-09-13 — RESULT: both dropped sessions recovered, and the number barely moves
+
+The per-position reconstruction returns PS93_0606 and PS92_0812 to the docked analysis:
+
+| run | sessions | observed/null | above null |
+|---|---|---|---|
+| loose rest | 44 | 1.429 | 41/44 |
+| docked, 2 sessions dropped | 42 | 1.449 | 39/42 |
+| **docked, both reconstructed** | **44** | **1.443** | **41/44** |
+
+**Recovering them moved the ratio by 0.006**, which is the outcome a reconstruction should have: it
+returns the sessions without distorting the result. Both are named in the run output so any result
+can be re-run without them.
+
+**STILL OPEN AND WORTH A LOOK: the three sessions at or below null are ALL PS92** — 0606 (0.88),
+0814 (0.90), 0608 (0.99) — with the next lowest being PS95 at 1.05. That is a per-animal pattern
+rather than a per-session one, and PS92 is also the animal that needed the concat repair. A
+per-animal breakdown should come before the cohort number is leaned on.
