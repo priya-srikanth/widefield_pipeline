@@ -91,11 +91,51 @@ def encode_spatial(label):
     return dict(label=label, r2=r2, B=B, reg=reg, pos=pos, cv_r2=float(np.mean(r2)), ceiling=ceiling)
 
 
+def _restw_baseline(s, sig):
+    """``(baseline, note)`` -- the SETTLED position-weighted flat rest baseline on any ``(ncomp, T)``.
+
+    THIS REPLACED A SECOND, DIVERGENT ESTIMATOR (2026-09-14). `_quiet_baseline_local` below binned the
+    session into 24 windows and took a time-local UNWEIGHTED median of quiet frames. The map figures
+    meanwhile moved to the flat POSITION-WEIGHTED `restw`. Both captioned their output "above rest",
+    so one phrase named two different subtrahends -- the failure `quiet_periods.quiet_frame_path`
+    refuses to allow for the MASK, reintroduced one level up in the ESTIMATOR.
+
+    NOTE THIS IS A DISPLAY REFERENCE ONLY. The encoder's MODEL -- `encode_spatial`, and therefore
+    every CV R^2, EV, noise ceiling and FEVE number in this module -- runs on `_args(baseline="none")`
+    and subtracts NO baseline at all. Changing the reference here cannot move a FEVE result, and a
+    reader reasoning about drift in the encoder's statistics should start from that fact.
+
+    FALLS BACK LOUDLY, never silently: a session that cannot form `restw` (too few positions with
+    enough rest frames) gets the flat UNWEIGHTED rest median and says so in the returned note, which
+    the caller puts in the figure title. Returns ``(None, note)`` if there is no rest mask at all.
+    """
+    from wfield_local.rest_by_position import rest_frames_by_position, restw_from_frames
+
+    T = sig.shape[1]
+    per, info = rest_frames_by_position(s, T, docked=False)
+    if info.get("error"):
+        return None, f"NO REST MASK ({info['error']})"
+    base, used = restw_from_frames(sig, per, label=s["label"])
+    if base is not None:
+        return base, f"position-weighted rest, {len(used)}/6 positions"
+    idx = np.concatenate([np.asarray(v) for v in per.values()]) if per else np.array([], int)
+    idx = idx[idx < T]
+    if idx.size < 1:
+        return None, "NO REST FRAMES"
+    return (np.median(sig[:, idx], axis=1)[:, None],
+            f"FALLBACK unweighted rest ({len(used)}/6 positions usable)")
+
+
 def _quiet_baseline_local(s, sig, nbins=24):
     """TIME-LOCAL quiet (rest) baseline per component, (ncomp, T): bin the session into nbins, take the
     median of quiet (no-lick/no-move) frames per bin, interpolate to every frame -> tracks slow drift
-    (photobleaching / state). Falls back to a session-constant mean if no quiet mask. This is the stable
-    cross-session reference for the pre/post-stroke residual."""
+    (photobleaching / state). Falls back to a session-constant mean if no quiet mask.
+
+    SUPERSEDED 2026-09-14 by :func:`_restw_baseline` and kept only for the drift DIAGNOSTIC figure,
+    whose whole subject is how a time-local estimate moves over a session. Do not reintroduce it as a
+    map reference: a time-local baseline can only remove structure that is locally COHERENT, and the
+    residual's lag-1 autocorrelation across 2.5-5 min bins is -0.065 against a shuffle of -0.081 --
+    so subtracting one removes no trend and injects its own estimation noise."""
     T = sig.shape[1]
     from wfield_local.quiet_periods import quiet_frame_path
 
@@ -132,14 +172,23 @@ def _engaged_frames(s, post_s=2.0):
 
 def fig_predicted_maps(label, out):
     """Predicted per-position pixel-ΔF/F map = A @ C (the TRUE data reconstruction, not the footprint-
-    scaled s*C which reweights components), relative to the TIME-LOCAL quiet (rest) baseline. Diverging
-    colormap so ΔF/F can go negative (blue=below rest). A@C is the cross-session-comparable frame for the
-    pre/post-stroke residual; footprint scaling is a within-session per-component normalization, not used here."""
+    scaled s*C which reweights components), relative to the SETTLED position-weighted flat rest
+    baseline (`_restw_baseline`) -- the SAME subtrahend the `15r` map figures use, since 2026-09-14.
+    Diverging colormap so ΔF/F can go negative (blue=below rest). A@C is the cross-session-comparable
+    frame for the pre/post-stroke residual; footprint scaling is a within-session per-component
+    normalization, not used here.
+
+    The baseline used is named in the figure TITLE, including when it degrades to the unweighted or
+    session-mean fallback -- a map captioned "above rest" has to say which rest."""
     s = _sess(label); e = encode_spatial(label)
     C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
-    base = _quiet_baseline_local(s, C)                                            # time-local rest baseline on raw C
+    base, base_note = _restw_baseline(s, C)              # SETTLED position-weighted FLAT rest baseline
+    if base is None:
+        # NOT a silent substitution: the session mean is not a rest baseline, and the title says so.
+        base, base_note = C.mean(1, keepdims=True), f"NO REST BASELINE -- session mean ({base_note})"
+    b0 = np.asarray(base).reshape(-1)                    # FLAT: one level per component, all trials
     fr, y, post_n = _engaged_frames(s)
-    feats = np.array([C[:, f:f + post_n].mean(1) - base[:, f:f + post_n].mean(1) for f in fr])
+    feats = np.array([C[:, f:f + post_n].mean(1) - b0 for f in fr])
     B = np.stack([feats[y == p].mean(0) for p in DISPLAY_ORDER])                  # 6 x ncomp raw-C activity above rest
     Ar = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_A.npy"); H, Wd = Ar.shape[:2]
     Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
@@ -152,7 +201,7 @@ def fig_predicted_maps(label, out):
         m = maps[p].astype(float); m[~mask] = np.nan
         im = ax.imshow(m[y0:y1, x0:x1], cmap="RdBu_r", vmin=-vmax, vmax=vmax)    # diverging: red=above rest, blue=below
         ax.set_title(POSITION_NAMES[DISPLAY_ORDER[p]], fontsize=11); ax.set_xticks([]); ax.set_yticks([]); fig.colorbar(im, ax=ax, shrink=0.7)
-    fig.suptitle(f"{label}: ENCODER expected activity per intended position (TIME-LOCAL quiet baseline; "
+    fig.suptitle(f"{label}: ENCODER expected activity per intended position ({base_note}; "
                  f"red=above rest, blue=below; single-trial CV R^2={e['cv_r2']:.3f})", fontsize=12)
     fig.tight_layout(); p = out / f"locanmf_encoder_predicted_maps_{label}.png"; fig.savefig(p, dpi=130); plt.close(fig)
     return p

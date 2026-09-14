@@ -245,8 +245,7 @@ def session_restw_svt(session, svt, nbins=REST_BASELINE_BINS, docked=False):
     `MIN_POSITIONS_FOR_WEIGHTED` of them the quantity stops being what its name says and the
     session loses this column -- see that constant.
     """
-    from wfield_local.rest_by_position import (
-        MIN_FRAMES_PER_POSITION, MIN_POSITIONS_FOR_WEIGHTED, rest_frames_by_position)
+    from wfield_local.rest_by_position import rest_frames_by_position, restw_from_frames
 
     V = np.asarray(svt)
     T = V.shape[1]
@@ -280,22 +279,12 @@ def session_restw_svt(session, svt, nbins=REST_BASELINE_BINS, docked=False):
     #
     # NOTE `nbins` IS NOW UNUSED and kept only so callers do not break; it is not a silent no-op,
     # it is recorded here as deliberate.
-    bases, used = [], []
-    for c in sorted(per):
-        idx = np.asarray(per[c])
-        idx = idx[idx < T]
-        # A POSITION WITH TOO FEW REST FRAMES CONTRIBUTES NOTHING rather than a noisy estimate --
-        # averaging a noisy level in with EQUAL weight would be worse than the frame-weighted mean
-        # this replaces, since equal weighting amplifies exactly the thinnest estimates.
-        if idx.size < MIN_FRAMES_PER_POSITION:
-            continue
-        bases.append(np.median(V[:, idx], axis=1)[:, None])
-        used.append(int(c))
-    if len(bases) < MIN_POSITIONS_FOR_WEIGHTED:
-        print(f"  .. restw {session['label']}: only {len(bases)} positions with a usable rest "
-              f"baseline (need {MIN_POSITIONS_FOR_WEIGHTED}) -- no RESTW column", flush=True)
-        return None, used
-    return np.mean(np.stack(bases, 0), axis=0), used
+    #
+    # THE ESTIMATOR ITSELF LIVES IN `rest_by_position.restw_from_frames`, not here, because it is
+    # basis-agnostic and `locanmf_position_encoder` needs the SAME one on the LocaNMF `C`. While it
+    # was duplicated the encoder's copy had drifted into a 24-bin time-local UNWEIGHTED median, so
+    # two figures captioned "above rest" subtracted different quantities (found 2026-09-14).
+    return restw_from_frames(V, per, label=session["label"])
 
 
 def session_quiet_svt(session, svt):

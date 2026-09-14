@@ -240,3 +240,46 @@ def rest_frames_by_position(session, n_frames, *, docked=False, engaged_only=Tru
             out.setdefault(int(codes[prev]), []).append(fr)
             info["n_periods"] += 1
     return {c: np.concatenate(v) for c, v in out.items()}, info
+
+
+def restw_from_frames(signal, per_position, label="", verbose=True):
+    """``(baseline, codes_used)`` -- the POSITION-WEIGHTED FLAT rest baseline of any ``(K, T)`` signal.
+
+    THE ESTIMATOR LIVES HERE, NOT IN A BASIS-SPECIFIC MODULE, because it is basis-agnostic: it needs
+    only a ``(K, T)`` array and the per-position rest frame indices from
+    :func:`rest_frames_by_position`. Two consumers use it on DIFFERENT bases --
+    ``position_reference_maps.session_restw_svt`` on the SVD temporal components, and
+    ``locanmf_position_encoder.fig_predicted_maps`` on the LocaNMF ``C`` -- and both label their
+    output "above rest". While the estimator was duplicated, those two words meant different
+    quantities: the encoder's copy was a 24-bin TIME-LOCAL median that was not position-weighted,
+    against the map reference's flat position-weighted one (found 2026-09-14).
+
+    That is the same failure `quiet_periods.quiet_frame_path` refuses to allow for the MASK -- a
+    pooled figure whose subtrahend is two different definitions with nothing on the figure saying so
+    -- reintroduced one level up, in the ESTIMATOR. One implementation removes it by construction.
+
+    Per position: the MEDIAN over that position's rest frames (not the mean -- a handful of outlier
+    frames should not set a position's level). The surviving positions are then averaged with EQUAL
+    weight, so the result is ONE subtrahend shared by all six and cannot couple them. A position with
+    fewer than `MIN_FRAMES_PER_POSITION` frames contributes NOTHING rather than a noisy level, since
+    equal weighting amplifies exactly the thinnest estimates; with fewer than
+    `MIN_POSITIONS_FOR_WEIGHTED` surviving, the quantity stops being what its name says and the
+    caller loses the column. See `position_reference_maps.session_restw_svt` for why the flat form
+    replaced the time-local one, and for what `restw` is deliberately NOT (a per-position baseline).
+    """
+    V = np.asarray(signal)
+    T = V.shape[1]
+    bases, used = [], []
+    for c in sorted(per_position):
+        idx = np.asarray(per_position[c])
+        idx = idx[idx < T]
+        if idx.size < MIN_FRAMES_PER_POSITION:
+            continue
+        bases.append(np.median(V[:, idx], axis=1)[:, None])
+        used.append(int(c))
+    if len(bases) < MIN_POSITIONS_FOR_WEIGHTED:
+        if verbose:
+            print(f"  .. restw {label}: only {len(bases)} positions with a usable rest baseline "
+                  f"(need {MIN_POSITIONS_FOR_WEIGHTED}) -- no RESTW column", flush=True)
+        return None, used
+    return np.mean(np.stack(bases, 0), axis=0), used
