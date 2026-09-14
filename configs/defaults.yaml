@@ -259,10 +259,23 @@ segmentation:
     # strobe - strobe_fallback_s and SAY SO per session.
     strobe_fallback_s: 1.0
     #
-    # ---- behavioural exclusions, unchanged from the retired definition
+    # ---- behavioural exclusions. SETTLED 2026-09-13/14 (DECISIONS.md); these had been carried
+    # forward "unchanged from the retired definition" and the decision was never applied to this
+    # file, so the first restdock regeneration ran on [3,3] / [1,3] and had to be redone.
     speed_mm_s: 1.0               # below this = slow
-    treadmill_buffer_s: [3.0, 3.0]
-    lick_buffer_s: [1.0, 3.0]     # THE DOMINANT TERM, and the one that still moves with epoch:
+    treadmill_buffer_s: [1.0, 2.0]   # MATCHES lick. Priya: "we can do [1, 2] like lick - unless you
+                                  #   think [0, 0] is defensible". [0,0] was refused: a treadmill
+                                  #   sample at threshold is not a guarantee the animal was still a
+                                  #   moment earlier or later. 1 mm/s is already strict, so the
+                                  #   buffer only has to cover the approach and settle.
+    lick_buffer_s: [1.0, 2.0]     # WAS [1.0, 3.0]. [2, 5] was tested and rejected as not
+                                  #   biologically plausible and too costly in frames; the excess
+                                  #   statistic fell monotonically with no plateau, which means it
+                                  #   was tracking distance-from-trial rather than lick
+                                  #   contamination. Chosen on biology + retention, not on the
+                                  #   statistic.
+                                  #
+                                  #   STILL THE DOMINANT TERM, and the one that moves with epoch:
                                   #   it excludes 73.7% of samples pre-stroke and 82.5% at chronic.
                                   #   That is real behaviour, not a definition artefact, and it is
                                   #   why chronic rest stays ~0.5x of pre under EVERY definition.
