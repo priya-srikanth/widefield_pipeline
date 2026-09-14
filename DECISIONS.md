@@ -11035,7 +11035,8 @@ Four questions were raised in one thread and all four are now measured. The defi
 supersedes the per-position-per-time-bin `restw` committed earlier the same day, which was DEFECTIVE
 for a reason Priya identified before it ever rendered.
 
-### 1. Is the signal already drift-corrected? NO -- and `hpfit` does not mean what it looks like
+### 1. Is the signal HIGH-PASS drift-corrected? NO -- but it IS polynomial-detrended, and
+`hpfit` does not mean what it looks like
 
 Priya: *"do we need time local still? isn't the SVD already locally-corrected"*.
 
