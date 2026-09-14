@@ -12080,3 +12080,60 @@ already implements it.
   systematically EXCLUDE the most severely affected sessions.** That is a selection effect on any
   decode analysis, not just this one.
 * **PS95_0823** working-signal RMS 32.4 against 1.3-2.9 elsewhere -- still unexplained.
+
+---
+
+## 2026-09-14 — THE SETTLED REST DEFINITION IS LIVE, and what it cost
+
+`variant: restdock` + `docked: true` + `behavior_events.SCHEMA_VERSION 4`, with
+`lick_buffer_s`/`treadmill_buffer_s` both `[1.0, 2.0]`. Masks rebuilt cohort-wide: **92/92, 0 failed,
+90 measured from the behaviour log + 2 reconstructed (PS93_0606, PS92_0812 -- exactly the pair
+documented on 09-13).** All 92 manifests verified to record the settled buffers and the docked flag.
+
+### WHAT THE DEFINITION COSTS: one session in 92, and NOT where it was feared
+
+| epoch | n | RESTW | drop | drop % |
+|---|---|---|---|---|
+| pre | 44 | 44 | 0 | 0.0% |
+| acute | 16 | 16 | 0 | 0.0% |
+| subacute | 18 | 17 | **1** | 5.6% |
+| chronic | 14 | 14 | 0 | 0.0% |
+
+**THE DROPS DO NOT CONCENTRATE POST-STROKE.** The stated worry was that the docked + engagement terms
+cut hardest where the animal worked least, so a pooled figure would quietly lose its worst sessions
+and report a deficit measured on the animals least affected by it. Measured: that does not happen.
+Ten further sessions are THIN BUT PASSING (thinnest contributing position 202 frames against the 200
+floor) and are listed by `restw_column_drops` so a fragile session can be identified rather than
+discovered.
+
+**THE SINGLE DROP IS EXPLAINED.** PS92_0826 starves positions 0/1/2 (150, 115, 124 frames) while
+3/4/5 are healthy (947, 1175, 383). Those are ALL THREE NEAR positions, and the animal responded to
+them at 100%, 98% and 100%. That is the near/far mechanism the cohort survival analysis already
+identified -- near is easier, so more hits, more reward, more consumption licking, and more ITI eaten
+by the lick buffer -- at its extreme. A behavioural consequence with a known cause, not a data defect.
+
+### TWO BUGS THE SWITCH EXPOSED, both of which had looked like data properties
+
+1. **BOTH ROUTES TO A DOCKED WINDOW WERE DEAD** (fixed, `bea5e13`). `strobe_codes` indexed `bits[:, i]`
+   while every DAQ reader here holds the bit-packed 1-D form, and that raised inside a bare `except`
+   that set `position_codes = None`; and both callers passed the DAQ `.h5`'s parent instead of the
+   behaviour-log directory. So reconstruction was unreachable and the measured route always returned
+   None. The only symptom was a note saying the session lacked position codes. It surfaced as a hard
+   failure on session one solely because `rest_mask` refuses to write a mask NAMED `docked` that is
+   not one.
+2. **A DEAD `spout_bit1` WAS MISLABELLING `restw`** (fixed, `fe0285d`). `rest_by_position` used the
+   RAW cue classifier; the Aug-2026 dead bit collapses 6 positions onto 4 (2->0, 3->1). The four 8/06
+   sessions reported "4/6 positions clear" -- readable as an animal that skipped two -- and PASSED,
+   contributing a baseline built on MERGED LABELS. Verified by arithmetic: PS92_0806's position 0 held
+   2773 frames and now splits into 0:1330 + 2:1426, while positions 4 and 5 are unchanged, exactly as
+   bit1-low predicts since positions 6/7 do not exist.
+
+### AND ONE OF MINE
+
+**The settled buffers had never been written into `defaults.yaml`.** The block still read "behavioural
+exclusions, unchanged from the retired definition" with `[3,3]` / `[1,3]`, so the FIRST full
+regeneration -- 92 masks and 109 events files, about 2.5 hours -- ran on the wrong definition and had
+to be redone. The compaction handoff said the definition was "settled and IMPLEMENTED" and named only
+the two flags as not-yet-on; I trusted that instead of checking the values against this file. Caught
+by reading the `params` block out of a finished npz, which is the only reason it surfaced before the
+analyses ran on top of it.
