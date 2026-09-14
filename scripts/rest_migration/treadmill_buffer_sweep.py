@@ -145,8 +145,16 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=6)
     ap.add_argument("--docked", action="store_true")
     ap.add_argument("--which", choices=("treadmill", "lick"), default="treadmill")
+    # THE LONGER ARM. Without it the sweep can only measure what SHORTENING costs -- every row is
+    # scored against the incumbent, so no row can ever say the incumbent is longer than necessary.
+    ap.add_argument("--long", action="store_true",
+                    help="flip the reference to a LONGER buffer: asks whether the incumbent is "
+                         "already sufficient, which the default arm structurally cannot")
     a = ap.parse_args()
-    cands = CANDIDATES if a.which == "treadmill" else LICK_CANDIDATES
+    if a.long:
+        cands = TREAD_LONG if a.which == "treadmill" else LICK_LONG
+    else:
+        cands = CANDIDATES if a.which == "treadmill" else LICK_CANDIDATES
     incumbent = cands[0]
     print(f"sweeping {a.which}_buffer_s; incumbent {incumbent}; docked={a.docked}")
 

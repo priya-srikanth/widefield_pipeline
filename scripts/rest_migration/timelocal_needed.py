@@ -86,7 +86,8 @@ def _lag1(bm):
 def main() -> int:
     from wfield_local import config, joint_basis
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    from wfield_local.quiet_periods import quiet_dir, quiet_frame_path, quiet_variant
+    from wfield_local.quiet_periods import quiet_frame_path, quiet_variant
+    from wfield_local.rest_by_position import rest_frames_by_position
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=8)
@@ -147,10 +148,53 @@ def main() -> int:
             sd.append(_interp_to_flatdiff(bm, cent, T, flat))
             sr.append(_lag1(bm))
         shuf_d, shuf_r1 = float(np.mean(sd)), float(np.nanmean(sr))
-        rows.append((lab, real_d, shuf_d, real_r1, shuf_r1, fr.size))
-        print(f"  .. {lab:<12} n={fr.size:>6}  departure-from-flat real {real_d:.5f} vs "
-              f"shuffled {shuf_d:.5f}  ratio {real_d / max(1e-12, shuf_d):5.2f}   "
-              f"lag1 real {real_r1:+.3f} vs shuffled {shuf_r1:+.3f}", flush=True)
+
+        # ---------------------------------------------------------------- POSITION CONTROL
+        # THE SECOND HYPOTHESIS, and the one the lag-1 result points at. The real bin medians vary
+        # 20x more than sampling noise but are NOT SMOOTH -- which is not what photobleaching looks
+        # like. Positions run in ~6-trial BLOCKS and rest CARRIES POSITION (observed/null 1.443,
+        # 4/4 animals), so a bin dominated by one position has a different median for a reason that
+        # has nothing to do with time.
+        #
+        # THE CONTROL: preserve each bin's POSITION COMPOSITION exactly -- for every (bin,
+        # position) pair keep the same count -- but draw those frames from ANYWHERE in the session
+        # that the position occurs. Time locality is destroyed; position mix is not.
+        #
+        #   real ~= position-control  ->  the structure is BLOCK COMPOSITION, not drift, and a
+        #                                 time-local baseline is absorbing position signal
+        #   real >>  position-control ->  genuinely temporal, and time-local earns its cost
+        pos_d = np.nan
+        try:
+            per, pinfo = rest_frames_by_position(s, T)
+            if per and not pinfo.get("error"):
+                of_pos = {}
+                for c_, idx in per.items():
+                    of_pos[c_] = np.asarray(idx)
+                pd_ = []
+                for _ in range(a.perm):
+                    bm = np.full((V.shape[0], a.bins), np.nan)
+                    for b in range(a.bins):
+                        take = []
+                        for c_, idx in of_pos.items():
+                            nb = int(((idx >= edges[b]) & (idx < edges[b + 1])).sum())
+                            if nb:
+                                take.append(rng.choice(idx, size=min(nb, idx.size),
+                                                       replace=False))
+                        if take:
+                            sel = np.concatenate(take)
+                            if sel.size:
+                                bm[:, b] = np.median(V[:, sel], axis=1)
+                    pd_.append(_interp_to_flatdiff(bm, cent, T, flat))
+                pos_d = float(np.mean(pd_))
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"     .. position control unavailable: {type(ex).__name__} {str(ex)[:50]}")
+
+        rows.append((lab, real_d, shuf_d, real_r1, shuf_r1, fr.size, pos_d))
+        print(f"  .. {lab:<12} n={fr.size:>6}  flat-departure real {real_d:.5f}  "
+              f"time-shuffle {shuf_d:.5f} (x{real_d / max(1e-12, shuf_d):.1f})  "
+              f"POSITION-control {pos_d:.5f} "
+              f"(x{real_d / max(1e-12, pos_d):.2f})   "
+              f"lag1 {real_r1:+.3f} vs {shuf_r1:+.3f}", flush=True)
 
     print(f"\n{'=' * 78}\nIS THE TIME-LOCAL REST BASELINE EARNING ITS COST?\n{'=' * 78}")
     if not rows:
@@ -167,6 +211,17 @@ def main() -> int:
     print(f"\nlag-1 autocorrelation of bins    real {np.nanmean(rr):+.3f}   "
           f"shuffled {np.nanmean(sr_):+.3f}")
     print(f"sessions with real > shuffled:   {int((rr > sr_).sum())}/{len(rows)}")
+    pdv = np.array([r[6] for r in rows], float)
+    ok = np.isfinite(pdv)
+    if ok.any():
+        print(f"\nPOSITION CONTROL (bin position-mix preserved, time locality destroyed)")
+        print(f"  real {rd[ok].mean():.5f}   position-control {pdv[ok].mean():.5f}   "
+              f"ratio {rd[ok].mean() / max(1e-12, pdv[ok].mean()):.2f}")
+        print(f"  sessions with real > position-control: {int((rd[ok] > pdv[ok]).sum())}/{int(ok.sum())}")
+        print("  ratio ~1  ->  the across-bin structure IS block/position composition, not drift:")
+        print("                a time-local baseline is then absorbing POSITION signal, which is")
+        print("                the self-subtraction trap that ruled out a per-position baseline")
+        print("  ratio >>1 ->  genuinely temporal structure beyond position composition")
     print("\nHOW TO READ IT:")
     print("  ratio ~1 AND lag1 ~ shuffled  ->  no slow structure survives the 0.1 Hz high-pass;")
     print("                                    the time-local baseline is fitting NOISE and a flat")
