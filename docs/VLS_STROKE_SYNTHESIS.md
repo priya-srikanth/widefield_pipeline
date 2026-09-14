@@ -234,3 +234,32 @@ stands — it is a measurement, not an interpretation. The recommendation stands
 better reason than the one given above: keep the common rest reference AND add a per-position one,
 because the difference between them now isolates a position signal that occurs with NO TARGET
 PRESENT, which is a more specific quantity than "the between-trial component" as described above.
+
+
+---
+
+## 2026-09-13 — RESULT: the docked window makes the position signal CLEANER, not weaker
+
+Full cohort, circular-shift permutation with the block-time structure inside the null:
+
+| window | sessions | observed/null | above null |
+|---|---|---|---|
+| loose rest (`cue + response_window + 0.5 s` -> `trial_start`) | 44 | 1.429 | 41/44 |
+| **strict docked** (`dock` -> next `trial_start`) | 42 | **1.449** | **39/42** |
+
+**The strict window gives a HIGHER ratio than the loose one.** The retraction was not contributing
+to the effect -- if anything it was diluting it, which is what the per-position travel times predict:
+the retraction occupies a different fraction of each position's loose window, so including it adds
+position-dependent variance that is not part of the resting state.
+
+**So the conclusion is not merely "the signal survives the control" but "the control improves it".**
+Cortex carries recoverable position information during an interval in which the spout is at the dock,
+stationary, nowhere near any target, and the animal is neither running nor licking.
+
+Two sessions drop out and neither falls back: PS93_0606 (clock alignment refused) and PS92_0812 (the
+crash+concat session, already excluded from every other family). PS93_0606 is recoverable via the
+per-position travel constants; PS92_0812 is not and should not be.
+
+**WHAT REMAINS AMBIGUOUS, and it is the interesting question rather than a caveat.** Within a block,
+a trace of the target just licked at and preparation for the next one point at the SAME position.
+The rest periods at BLOCK BOUNDARIES separate them and are currently discarded by both scripts.
