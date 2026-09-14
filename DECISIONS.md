@@ -11234,3 +11234,118 @@ surviving frames are a BIASED SAMPLE of its ITIs -- if only the calmest far-cont
 that position's baseline is estimated from an unrepresentative subset no matter how it is weighted.
 
 STILL OPEN: the treadmill buffer value; the per-position survival measurement above.
+
+
+---
+
+## 2026-09-14 - WHAT THE REST DEFINITION ACTUALLY GOVERNS, and what it does not
+
+Priya, after a long thread refining the rest baseline: *"are the current activity maps already
+locally corrected or no? and the activity we based the frozen decoders on? if not - maybe we're
+being too picky here?"* **That question should have been asked, and answered, before any of the
+machinery below was built.** The answer scopes the entire migration.
+
+### THE FROZEN DECODERS SUBTRACT NO BASELINE AT ALL
+
+`trial_features` runs the headline decode with **no per-trial baseline** (DECISIONS.md: "first-lick
+2 s, NO per-trial baseline"), on the polynomial-detrended signal, standardised inside CV folds.
+**0.873 LOSO cue-aligned is obtained without any rest baseline touching it.**
+
+| GOVERNED by the rest definition | NOT governed |
+|---|---|
+| `15r` REST-referenced maps (amplitude) | position decoder: frozen, refit, LOSO, per-position recall |
+| the state decoder's REST **class** | figure 14 beta maps (MEAN reference) |
+| the encoder's quiet baseline | crossnobis RDMs (`8`, `8rc`, `8rz`) |
+| `lick_quietnorm`, `running_vs_quiet` preprocessing maps | **the headline retention triple 0.863 -> 0.428** |
+
+**SO: no existing position-decoder number moves when the rest definition changes.** Anyone reading
+this migration and worrying about the headline decode can stop -- it is untouched by construction.
+
+### WHY "GOOD ENOUGH FOR THE DECODER" DOES NOT IMPLY "GOOD ENOUGH FOR THE BASELINE"
+
+Priya: *"the polynomial detrending is doing the work right"*, then *"but shouldn't that be enough
+for the 'rest' detrend too then?"* The inference is reasonable and it does not carry, for a reason
+worth stating once:
+
+* **A DECODER IS INVARIANT TO DRIFT.** Per-fold standardisation absorbs a shared additive offset,
+  and the output is a DISCRIMINATION, never an amplitude. Drift is nuisance variance it ignores.
+* **A MAP REFERENCE REPORTS AN AMPLITUDE**, so an error in the subtrahend lands in the number
+  directly. And drift is **not common-mode across positions**: each position's trials cluster in its
+  own ~6-trial blocks and therefore sample drift AT ITS OWN TIMES. A flat baseline subtracts one
+  value from all six and leaves each carrying its own block-time residual.
+
+**MEASURED, for the record**: the polynomial detrend (`meegkit_hpfit`, order 10) has a 50% cutoff at
+~43 MINUTES -- deliberately, because position blocks last 57-121 s and must not be filtered.
+Retention is 0.94-1.00 from 60 s to 20 min. So structure on the 2.5-5 min scale passes essentially
+untouched, and `timelocal_needed` measures the residual on the POST-detrend signal at 7.8x a
+size-preserving shuffle and 4.05x a position-composition control.
+
+**ONE HONEST QUALIFICATION ON WHAT THAT RESIDUAL IS.** The position control rules out block
+composition. It does NOT distinguish photobleaching from AROUSAL or slow state fluctuation. Both are
+slow and non-task, and for a position-map claim both are wanted gone -- so the baseline does useful
+work either way, but "drift" is a loose name for it.
+
+### EXISTENCE IS NOT CONSEQUENCE -- and the dependency structure that follows
+
+`timelocal_needed` shows the residual EXISTS. Nothing yet shows it CHANGES A CONCLUSION, and the
+two were being conflated. That matters because almost everything built in this thread rests on
+time-local being necessary:
+
+| component | justified by | independent of time-local? |
+|---|---|---|
+| **position-weighting** | rest carries position (1.443, 4/4 animals); composition tracks the deficit post-stroke | **YES.** Applies to a flat baseline too. Survives regardless. |
+| **time-local** | residual slow structure | **UNTESTED at the level of conclusions** |
+| sweep-binning, trailing-chunk carry-forward, reach-back, the survival analysis | making a per-position time-local estimate possible at all | **NO -- contingent entirely.** If time-local goes, all of it goes. |
+
+**`scripts/rest_migration/flat_vs_timelocal.py` IS THE TEST**, and it is nearly free: a FLAT
+reference is `raw[q] - quiet_flat`, and subtraction commutes with averaging, so both baselines come
+out of ONE `session_raw_maps` call with no second feature build. It compares the two claims the REST
+reference actually carries -- per-position amplitude by epoch (the graded-deficit claim) and
+between-animal agreement at far-contra (the cross-position null's observed side).
+
+**IF THEY AGREE TO THE THIRD DECIMAL, THE SIMPLER DEFINITION WINS**: flat + position-weighted, with
+no bin-coverage problem, no trailing-chunk rule, and the survival concern largely dissolved. That
+would be the right outcome, not a disappointing one.
+
+### DECISIONS TAKEN IN THIS THREAD
+
+* **`lick_buffer_s = [1.0, 2.0]`** -- on BIOLOGY and RETENTION, explicitly NOT on the sweep, which
+  is confounded (it degrades monotonically from 5 s with no plateau, the signature of tracking
+  distance-from-TRIAL rather than distance-from-lick). The sweep is good evidence that shortening
+  below ~1-2 s is harmful (`[0,0]` scores -1.252 excess) and no evidence about the optimum above it.
+* **`treadmill_buffer_s = [1.0, 2.0]`**, matching lick. Priya: *"we can do [1, 2] like lick - unless
+  you think [0, 0] is defensible"*. **`[0,0]` is NOT defensible**: locomotion's haemodynamic tail is
+  at least as slow as licking's, and at a 1 mm/s threshold the crossings are brief transitions --
+  exactly where movement-related activity persists but the threshold has stopped flagging it. The
+  single session showing corr +0.94 at `[0,0]` is one session, and single-session marginal
+  statistics misled this analysis twice in one afternoon. Matching lick also gives the two terms ONE
+  shared rationale instead of two.
+* **THE DOCKED FROZEN DECODER USES THE SETTLED REST DEFINITION**, not the raw docked window
+  (Priya: *"I want that to be whatever we settle on as the 'rest'"*). This resolves the open
+  question in that arm's spec -- it is REST-GATED, not ungated.
+
+  **TWO CONSEQUENCES THAT MUST BE CARRIED INTO THE IMPLEMENTATION.** First, the window becomes
+  VARIABLE LENGTH per trial, since surviving frames differ, so fixed sub-bins do not apply: the
+  natural form is the mean over surviving docked-rest frames with a minimum frame count, trials
+  below it dropped AND COUNTED. At ~1.35 s, and given binning earned nothing pre-cue, losing
+  sub-bins costs little. Second, and more seriously, **this decoder is the FIRST to inherit the rest
+  mask, and therefore its survival bias.** If far-contra trials lose more frames post-stroke, that
+  class gets fewer and less representative samples, which reads as a decoding deficit -- the exact
+  claim the arm exists to make. The per-position survival measurement is therefore a PRECONDITION
+  for this result, not hygiene for a baseline.
+
+* **MISSING POSITIONS IN A SWEEP BIN: substitute from the nearest AVAILABLE neighbouring sweep**
+  (Priya: *"if the last position 5 block was totally excluded, instead include the position 5 block
+  before that"*), with two refinements. MID-SERIES, INTERPOLATE rather than only reaching backward --
+  with data on both sides, using only the earlier one discards half the information and biases the
+  estimate toward the past; nearest-preceding is correct only at the END, where there is no later
+  value. And **BOUND THE REACH**: an unbounded search defeats time-locality, since a value five
+  sweeps back (~10 min) has become the session-wide offset already rejected for that reason. Past
+  ~2-3 sweeps, DROP the position from that bin and weight equally over those remaining, with the
+  drop counted and reported -- a bin averaged over four positions must never be presented as one
+  averaged over six.
+
+  **AND SUBSTITUTION FIXES MISSINGNESS, NOT BIAS.** A position that always has SOME surviving ITIs
+  which are an unrepresentative subset of its ITIs -- if only the calmest far-contra intervals clear
+  the lick criterion post-stroke -- is invisible to any substitution rule, because nothing is ever
+  missing. Only the survival measurement detects that.
