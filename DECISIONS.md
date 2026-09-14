@@ -11932,3 +11932,58 @@ shopping six arms -- and the pre-registration would have made that *more* credib
 **Pre-registering a threshold is worth nothing if the threshold is derived from the noise you already
 measured on the same sessions.** Fix the criterion from the SCIENCE (what margin would justify the
 change) before the noise level is known, and correct it for the number of arms intended.
+
+---
+
+## 2026-09-14 — FINAL: the drift-estimator question is CLOSED. `meegkit_hpfit` stands.
+
+Six alternative estimators, ten sessions, PRE-CUE decode (the column the August adoption decided on),
+shadow-guarded. Bars: lenient 0.0274, Bonferroni-over-6 0.0369, effect-size 0.046.
+
+| arm | mean | 95% CI | p | positive |
+|---|---|---|---|---|
+| LIN600 | +0.0223 | -0.004 .. +0.048 | 0.126 | 7/10 |
+| ROLL600 | +0.0205 | -0.008 .. +0.049 | 0.196 | 7/10 |
+| LIN900 | +0.0157 | -0.009 .. +0.040 | 0.242 | 4/10 |
+| WIN300 | +0.0151 | -0.012 .. +0.043 | 0.310 | 6/10 |
+| LIN300 | +0.0148 | -0.017 .. +0.047 | 0.386 | 5/10 |
+| ROLL300 | +0.0028 | -0.026 .. +0.031 | 0.851 | 4/10 |
+
+**EVERY ARM FAILS EVERY BAR, all p > 0.12.** Nothing is built, nothing is replaced, no second product
+exists, and the piecewise design rules recorded earlier are moot.
+
+### THE MECHANISTIC CONTRAST ALSO FAILED, and that is the strongest part of the null
+
+`LIN300 - ROLL300` is local-LINEAR against local-CONSTANT at the SAME window, so kinetics are held
+fixed and it isolates estimator order. It was predicted in ADVANCE from boundary-bias theory
+(local-constant O(h), local-linear O(h^2)), confirmed on the onset diagnostic (a rolling median leaves
+~97% of the first-30 s excursion, local-linear ~6%), and at n=7 it looked consistent at +0.0179, 6/7.
+
+**At n=10 it is +0.0120, p=0.248, 7/10.** So an effect with a correct, measured, pre-stated mechanism
+still did not survive three more sessions. A real mechanism at the trend level does not imply a
+detectable effect at the result level -- which is the same lesson the 16.3% contamination statistic
+taught, arriving by a different route.
+
+### WHAT ACTUALLY SURVIVES FROM THE WHOLE THREAD
+
+* **The onset edge bias is real and fixable** -- but fixing it does not improve any result.
+* **The first ~30 s carries a +0.05-0.07 excursion decaying too fast to be bleach** (session SD
+  ~0.027), plausibly LED/camera settling, currently fitted as drift in every session. Priya: any
+  discard must be indexed from START OF RECORDING, not start of behaviour, since the cause is
+  hardware. **Not yet investigated; independent of which estimator wins.**
+* **Stopped-tail contamination is real at trend level** (median 16.3%) and does not reliably reach
+  results.
+* **The adopted variant's cutoff varies ~1.6x across the cohort** purely from record length, since a
+  fixed-order polynomial is not a fixed filter. Unintended, still true, no measured consequence.
+
+### FOUR INDEPENDENT NULLS, and a note on how close this came to going the other way
+
+WIN600/WIN300 (first re-test), WORKTRUNC (de-contamination), ROLL300/600 (de-kinking), LIN300/600/900
+(boundary fix). Four angles, four nulls. `WIN600` -- the exact variant August rejected -- came out at
+-0.0003, independently reproducing the August verdict with a different harness on partly different
+sessions. That is the control that says the null is genuine rather than underpowered.
+
+**IT NEARLY WENT THE OTHER WAY THREE TIMES**, each on a real signal that did not replicate: a 32%
+trend-shape statistic, a +0.098 pre-cue gain on PS94_0819, and a 6/7 mechanistic contrast. Each was
+reported with a caveat, and each caveat failed to stop the momentum -- what stopped it, every time,
+was running more sessions.
