@@ -514,3 +514,39 @@ to exactly that), but it has not been tested and should be once DLC protrusion t
 **RELATED CAVEAT ALREADY ON RECORD**, now with a quantitative prediction attached: section G's G6
 caption has said since 2026-08-18 that *"'no lick detected' is not 'no tongue protrusion' — DLC
 replaces this inference with a measurement"*. This is the same caveat surfacing in a second analysis.
+
+
+---
+
+## 2026-09-13 — the STATE DECODER redo is not a re-render, and it moves published numbers
+
+Priya: *"we'll also need to redo the state decoder"*. Yes, and it is worth separating from the map
+redo because the two are different kinds of work.
+
+**FOR THE MAPS, REST IS A SUBTRAHEND.** Changing its window changes what is subtracted.
+
+**FOR THE STATE DECODER, REST IS A CLASS.** Changing its window changes which SEGMENTS EXIST, how
+many there are, and what the other two classes are contrasted against. Nothing downstream is a
+re-plot.
+
+**WHAT MOVES, and all of it is currently published:**
+
+* the class balance and segment counts (`_state_class_share`, now measured rather than asserted)
+* **the retention ratio in the headline triple** — `behavioural state 0.97 → 0.88 (loses 10%)`,
+  against position's 0.86 → 0.43. In `CLAUDE.md`, `BEHAVIOURAL_STATE_CONTROL.md` and the synthesis.
+* the per-class recalls (rest 0.97 → 0.84 acutely) and the `{{SELF:}}` tokens quoting them
+* **the confusion result the DLC hypothesis rests on** — rest→licking 0.143 acute, 9.5× pre, the
+  5:1 split toward licking over running. If that survives the docked window the incomplete-lick
+  hypothesis stands; if it does not, the hypothesis goes with it.
+* `epoch_13*` (6 figures), `epoch_12b*`, and deck section I's state panels
+
+**THE DIRECTION IS PREDICTABLE AND WORTH STATING IN ADVANCE**, so the redo is a test rather than a
+reveal: the docked window is SHORTER and excludes the retraction, so REST segments will be fewer and
+cleaner. Fewer segments widen the intervals; a cleaner class should if anything RAISE rest's recall.
+**If rest's recall instead falls, the retraction was contributing to it** — which would matter,
+because the rest class is the one the specificity control reports as moving.
+
+**ONE THING THAT WILL NOT MOVE:** the 1 s segment window. It was re-derived on the trial-anchored
+REST definition (2 s fits 19.4% of bouts, 1 s fits 84.6%) and the docked window is shorter still, so
+if anything it is more firmly 1 s. Re-measure rather than assume — the bout-duration distribution
+changes with the window.
