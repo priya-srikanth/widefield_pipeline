@@ -285,3 +285,41 @@ can be re-run without them.
 0814 (0.90), 0608 (0.99) — with the next lowest being PS95 at 1.05. That is a per-animal pattern
 rather than a per-session one, and PS92 is also the animal that needed the concat repair. A
 per-animal breakdown should come before the cohort number is leaned on.
+
+
+---
+
+## 2026-09-13 — RESULT: the no-target position signal is PERSISTENCE, not anticipation
+
+The block-boundary test, full pre-stroke cohort, on the STRICT docked window (spout at the dock,
+stationary, no target present; `scripts/rest_migration/rest_block_boundary.py`). **44 sessions, 0
+skipped, 2,087 boundary periods.**
+
+| animal | sessions | boundary periods | r_prev | r_next | **diff** |
+|---|---|---|---|---|---|
+| PS92 | 11 | 293 | 0.504 | 0.374 | **+0.130** |
+| PS93 | 11 | 553 | 0.487 | 0.408 | **+0.079** |
+| PS94 | 11 | 406 | 0.521 | 0.486 | **+0.035** |
+| PS95 | 11 | 835 | 0.365 | 0.307 | **+0.058** |
+
+**mean over animals r_prev − r_next = +0.0754, positive in 4/4 animals.**
+
+**THE INTERVAL RESEMBLES THE POSITION JUST LICKED AT MORE THAN THE ONE COMING NEXT.** With the spout
+retracted and nothing to see, that is a retrospective trace rather than a prepared plan — which is
+the opposite of the reading the pre-cue result invites, and is why the test was worth running.
+
+**READ THE MAGNITUDE HONESTLY.** Both correlations are high (0.31–0.52) and the difference is small.
+That is expected — a boundary rest period genuinely resembles BOTH references, because they are all
+rest — so this is a modest asymmetry on a large common component, not a dissociation. The DIRECTION
+is consistent across every animal; the SIZE is not the headline.
+
+**WHAT IT DOES NOT SETTLE.** Blocks run ~6 trials, so at a boundary the animal has just had ~6
+trials at the previous position and none yet at the next. Persistence and "has not yet updated" are
+the same thing here. A design that changed position unpredictably trial-by-trial would separate them
+and this one cannot.
+
+**METHOD GUARDS.** References are built from WITHIN-BLOCK periods only, so a boundary period can
+never correlate with itself; the animal is the unit; and boundary periods are selected on POSITION
+change, not block id, so a same-position adjacent block pair (2.8% of blocks, `block_ids.py`) can
+never enter the set — if it did, its two references would be the same map and its difference exactly
+zero, biasing toward the null.

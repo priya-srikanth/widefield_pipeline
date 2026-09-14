@@ -10811,3 +10811,87 @@ can be re-run without them.
 0814 (0.90), 0608 (0.99) — with the next lowest being PS95 at 1.05. That is a per-animal pattern
 rather than a per-session one, and PS92 is also the animal that needed the concat repair. A
 per-animal breakdown should come before the cohort number is leaned on.
+
+
+---
+
+## 2026-09-13 — RESULT: the no-target position signal is PERSISTENCE, not anticipation
+
+The block-boundary test, full pre-stroke cohort, on the STRICT docked window (spout at the dock,
+stationary, no target present; `scripts/rest_migration/rest_block_boundary.py`). **44 sessions, 0
+skipped, 2,087 boundary periods.**
+
+| animal | sessions | boundary periods | r_prev | r_next | **diff** |
+|---|---|---|---|---|---|
+| PS92 | 11 | 293 | 0.504 | 0.374 | **+0.130** |
+| PS93 | 11 | 553 | 0.487 | 0.408 | **+0.079** |
+| PS94 | 11 | 406 | 0.521 | 0.486 | **+0.035** |
+| PS95 | 11 | 835 | 0.365 | 0.307 | **+0.058** |
+
+**mean over animals r_prev − r_next = +0.0754, positive in 4/4 animals.**
+
+**THE INTERVAL RESEMBLES THE POSITION JUST LICKED AT MORE THAN THE ONE COMING NEXT.** With the spout
+retracted and nothing to see, that is a retrospective trace rather than a prepared plan — which is
+the opposite of the reading the pre-cue result invites, and is why the test was worth running.
+
+**READ THE MAGNITUDE HONESTLY.** Both correlations are high (0.31–0.52) and the difference is small.
+That is expected — a boundary rest period genuinely resembles BOTH references, because they are all
+rest — so this is a modest asymmetry on a large common component, not a dissociation. The DIRECTION
+is consistent across every animal; the SIZE is not the headline.
+
+**WHAT IT DOES NOT SETTLE.** Blocks run ~6 trials, so at a boundary the animal has just had ~6
+trials at the previous position and none yet at the next. Persistence and "has not yet updated" are
+the same thing here. A design that changed position unpredictably trial-by-trial would separate them
+and this one cannot.
+
+**METHOD GUARDS.** References are built from WITHIN-BLOCK periods only, so a boundary period can
+never correlate with itself; the animal is the unit; and boundary periods are selected on POSITION
+change, not block id, so a same-position adjacent block pair (2.8% of blocks, `block_ids.py`) can
+never enter the set — if it did, its two references would be the same map and its difference exactly
+zero, biasing toward the null.
+
+
+---
+
+## 2026-09-13 — 35 ORPHANED figures retired, and one built-and-withdrawn the same day
+
+An ORPHANED figure has a name NO step writes any more -- usually because a family was renamed. It is
+worse than a stale one: a stale figure comes back on the next render, while an orphan sits at its
+last content for ever while LOOKING like current output. Moved to
+`grant_figures/epoch/retired_ORPHANED_pre_rename_20260913/` with a README naming each replacement.
+
+| retired | superseded by |
+|---|---|
+| `epoch_15r_reference_{quiet,mean}_*` (12) | `epoch_15r_position_{REST,MEAN,PRECUE}ref_*` |
+| `epoch_15rpa_reference_{quiet,mean}_*` (12) | `epoch_15rpa_position_*ref_*` |
+| `recovery_trajectory_[byanimal_]cue_working*` (6) | `recovery_trajectory_{matched,unmatched}_*` |
+| `epoch_recov_pooled_*` (5) | `epoch_5rmodelta_frozen_refit_overall_*` |
+
+**MOVED, NOT DELETED**, so the new output can be compared against them -- two of today's silent bugs
+were caught exactly that way.
+
+**A DETECTOR CAVEAT WORTH KEEPING.** A name-based orphan check initially flagged
+`epoch_15r_position_RESTref` and `recovery_trajectory_matched` as orphans. They are LIVE; their
+names are built by f-string (`f"epoch_15r_position_{tag}ref_..."`), so a literal-stem grep misses
+them. **An automated orphan sweep must resolve f-string construction or it will recommend deleting
+current output.** The retired list above is hand-verified by distinctive token for that reason.
+
+### `epoch_recov_pooled_*` — built and withdrawn the same day
+
+Priya asked for the recovery decomposition pooled by epoch with statistics, then: *"I thought F and G
+already had stats, so we didn't need to build something that did the same thing."* She was right.
+**`epoch_5rmodelta_frozen_refit_overall_*` already is that figure**: its `frozen` arm is `−F_deficit`
+and its `gap` arm is `G_reorg`, with the nested bootstrap and Bonferroni-corrected intervals. Checked
+numerically — F acute +0.30376 against frozen acute −0.30388.
+
+**THE ONE REAL DIFFERENCE, recorded because it may still be wanted.** `recovery_trajectory` references
+each session to **that animal's own** pre-stroke baseline; `5rmodelta` subtracts the **pooled** pre
+bar. That is why the two agree at acute and drift at subacute (+0.175 vs −0.153), where session
+composition across animals is most uneven and PS94 supplies a third of the pool out to day 25. If
+within-animal referencing is wanted it belongs INSIDE `5rmodelta` as a variant, not as a second
+figure with a different sign convention beside it.
+
+**AND `recovery_trajectory` ITSELF HAS NO INFERENTIAL STATISTICS, by design** — `pre_points` draws an
+SEM on a dispersion and its docstring says why ("it is a dispersion, not an effect"), while
+`summarise` returns per-animal descriptive slopes and flags. So "F and G already have stats" is true
+of the QUANTITIES via 5rmodelta, and not of the trajectory figure.
