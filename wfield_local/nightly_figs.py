@@ -23,6 +23,7 @@ location, so it is portable across checkouts.
 """
 from __future__ import annotations
 
+import glob
 import argparse
 import json
 import os
@@ -506,6 +507,37 @@ def main():
     if backfill:
         log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
     per_day = sorted(set(per_day) | set(backfill))
+
+    # PREFLIGHT: DROP DATES WITH NO LocaNMF FIT AT ALL, and say which and why.
+    #
+    # WHAT THIS COSTS WHEN IT IS ABSENT, measured on the 2026-09-13 run. `--dates all` means all
+    # REGISTERED dates, which includes 6/1 and 6/4 -- the noisy early-June sessions that are excluded
+    # from every curated analysis and were therefore never LocaNMF-fitted on the production variant.
+    # `locanmf_position_decoder` was asked for them anyway, raised FileNotFoundError on a `_locanmf_C
+    # .npy` that does not exist and never will, and exited nonzero. That one nonzero exit made the
+    # run "a run with failed steps", and the deck's own guard then REFUSED TO PUBLISH -- correctly,
+    # since it cannot tell an expected absence from a real one. So an 18-hour night produced every
+    # figure and no deck, because of two dates nobody wanted analysed.
+    #
+    # THE GUARD IS RIGHT AND THE INPUT WAS WRONG. Fixing it by publishing anyway
+    # (`allow_failed_steps=True`) would disarm the check that protects every OTHER failure; fixing
+    # it by excluding these dates by NAME would break again the first time another session is
+    # registered before its fit exists. Checking for the input the step needs generalises to both.
+    #
+    # A DATE IS DROPPED ONLY IF NO SESSION ON IT HAS A FIT. A date where some sessions are fitted is
+    # a genuine incremental-processing state, the backfill above exists for exactly that, and
+    # dropping it would hide a real gap.
+    _nofit = {}
+    for _d in list(per_day):
+        _sess = [x for x in SESSIONS if x["label"].endswith(_d)]
+        if _sess and not any(glob.glob(f"{config.locanmf_dir(x['mc'])}/{x['label']}_locanmf_C.npy")
+                             for x in _sess):
+            _nofit[_d] = [x["label"] for x in _sess]
+    if _nofit:
+        per_day = [d for d in per_day if d not in _nofit]
+        log(f"skipping {len(_nofit)} per-day date(s) with NO LocaNMF fit on the configured "
+            f"variant -- these cannot be decoded and asking would fail the run and block the "
+            f"deck: {dict(_nofit)}")
 
     # DERIVE THE EPOCH BOUNDARIES BEFORE ANY FIGURE IS DRAWN. Every epoch-stratified figure reads
     # `epochs.epoch_of`, so this cannot move later without the deck and the boundaries file beside
