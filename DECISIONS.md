@@ -11987,3 +11987,49 @@ sessions. That is the control that says the null is genuine rather than underpow
 trend-shape statistic, a +0.098 pre-cue gain on PS94_0819, and a 6/7 mechanistic contrast. Each was
 reported with a caveat, and each caveat failed to stop the momentum -- what stopped it, every time,
 was running more sessions.
+
+---
+
+## 2026-09-14 — THE FIVE-PANEL FIGURE, and why the estimator comparison was underpowered by construction
+
+`scripts/rest_migration/plot_drift_estimators.py` now draws the whole chain: raw + fitted trends,
+trends alone, BEFORE the hemodynamic subtraction, AFTER it, and a zoom. The after-subtraction panel is
+the one that settles the question, because it is the only signal any analysis actually reads.
+
+**FINAL SIGNAL SD (470 - T*415), brain-masked spatial mean:**
+
+| session | meegkit (prod) | WIN300 | ROLL300 | LIN300 | spread |
+|---|---|---|---|---|---|
+| PS94_0810 (no tail) | 0.01838 | 0.01841 | 0.01837 | 0.01838 | **0.2%** |
+| PS94_0819 (59 min tail) | 0.02146 | 0.01990 | 0.01989 | 0.01984 | meegkit +8% |
+
+**ON A NORMAL SESSION THE ESTIMATOR CHOICE DOES NOT MATTER AT ALL** -- not "the difference is small",
+0.2%, four decimal places. On a long-tail session the polynomial leaves ~8% more and every local
+alternative lands in the same place as every other.
+
+### THIS EXPLAINS WHY THE SIX-ARM COMPARISON COULD NOT SEPARATE ANYTHING
+
+On 6 of the 10 sessions the arms produce near-identical signals, so those sessions contribute only
+noise to the mean. The comparison had real power on roughly FOUR sessions. A null across ten was
+close to guaranteed, and reading it as "no effect exists" would overstate it -- the correct reading is
+that the estimators differ only where there is a long disengaged tail, and not enough there to move a
+decode number.
+
+**A future version of this test should WEIGHT OR SELECT sessions by how much the estimators actually
+differ**, rather than averaging over sessions where they are provably identical.
+
+### AND A CAUTION ABOUT READING TRENDS
+
+Panel B shows local estimators tracking small wiggles the polynomial smooths through -- which is what
+made "rolling looks visually better" compelling. Panel D shows those wiggles make NO difference to the
+output. **Visible structure in the trend is not structure in the result**, and the eye cannot tell
+which is which; only the after-subtraction panel can.
+
+### THE ONSET SURVIVES THE SUBTRACTION
+
+On PS94_0819 panel D, the first minute swings to about -0.075 against +/-0.03 for the rest of the
+session -- roughly 2.5x the session's own range, IN THE FINAL CORRECTED SIGNAL. So the settling
+transient is NOT common-mode between 470 and 415 and the regression does not remove it. Combined with
+87/100 sessions having their first cue inside 30 s, and a discard cost of 0.33% of trials (172 of
+~52,000, median 2/session), this is the strongest case for excluding it -- and it is independent of
+which estimator wins.
