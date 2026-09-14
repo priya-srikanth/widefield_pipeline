@@ -118,7 +118,62 @@ def _apply_docked(session, rest, cs, codes, ts, sync):
     return rest & dm[: rest.shape[0]], source == "reconstructed"
 
 
-def rest_frames_by_position(session, n_frames, *, docked=False):
+def _engaged_trials(session, cue_samples, codes, fs=5000.0):
+    """Boolean per trial: is this trial inside the session's ENGAGED period?
+
+    THE SHARED GATE, not a private one. `precue_engagement_states.engagement_gate` is what
+    `beta_maps._quit_mask` and every `working`-class family use; the rest baseline must not acquire
+    a second definition of engagement, or the frames it averages would come from a different set of
+    trials than the maps it is subtracted from.
+
+    Returns all-True if the scoring cannot be done, and SAYS SO -- silently treating a session as
+    fully engaged is the failure this whole migration exists to remove, so it has to be visible.
+    """
+    import h5py
+
+    from wfield_local.lick_detection import detect_licks
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.precue_engagement_states import engagement_gate
+    from wfield_local.quiet_periods import response_window_s
+    from wfield_local import config
+
+    n = len(cue_samples)
+    try:
+        lk = config.defaults()["lick_detection"]
+        with h5py.File(session["h5"], "r") as f:
+            nm = [x.decode() for x in f["analog/channel_names"][:]]
+            i = nm.index(lk.get("channel", "lick_analog"))
+            if "samples_int16" in f["analog"]:
+                sc = float(f["analog/int16_scale_volts_per_count"][i])
+                of = float(f["analog/int16_offset_volts"][i])
+                lv = f["analog/samples_int16"][:, i].astype(np.float32) * sc + of
+            else:
+                lv = np.asarray(f["analog/samples"][:, i], np.float32)
+        det = detect_licks(lv, fs, thresh_upper=lk["thresh_upper"], thresh_lower=lk["thresh_lower"],
+                           lockout_s=tuple(lk["lockout_falling_edge_s"]),
+                           min_ili_s=lk.get("min_ili_ms", 0) / 1000.0)
+        lo = np.sort(np.asarray(det["lick_onsets"], np.int64))
+        # THE SESSION'S REAL RESPONSE WINDOW, read per session from gui_config.json -- 3500 ms in
+        # every session to date, and NOT the 2.0 s that was once a fallback.
+        rw, _src = response_window_s(session.get("session_dir"))
+        w = int(float(rw) * fs)
+        cs = np.asarray(cue_samples, np.int64)
+        responded = np.array([bool(np.any((lo >= c) & (lo < c + w))) for c in cs], bool)
+        pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
+        # POLARITY: `engagement_gate` returns True for NOT-ENGAGED -- `beta_maps._quit_mask` binds
+        # it as `ne` and returns it as the QUIT mask. Inverting here gives ENGAGED. Getting this
+        # backwards flagged 527/554 trials as quit on PS93_0818 and was caught only because the
+        # count is printed; it would otherwise have silently built every baseline from ~5% of the
+        # session. COUNT WHAT A GATE REMOVES.
+        return ~np.asarray(engagement_gate(np.arange(n), responded, pos), bool)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! engagement gate unavailable for {session.get('label')}: "
+              f"{type(ex).__name__} {str(ex)[:60]} -- treating the WHOLE session as engaged, "
+              f"which will include any sated tail in the baseline", flush=True)
+        return np.ones(n, bool)
+
+
+def rest_frames_by_position(session, n_frames, *, docked=False, engaged_only=True):
     """``({code: frame_index_array}, info)`` -- rest frames grouped by the position they sit at.
 
     ``n_frames`` bounds the result to the signal's length, so the indices are directly usable
@@ -141,6 +196,23 @@ def rest_frames_by_position(session, n_frames, *, docked=False):
         info["error"] = f"{type(ex).__name__} {str(ex)[:70]}"
         return {}, info
 
+    # ENGAGED PERIOD ONLY (Priya, 2026-09-14: *"we do want to use the engaged session time for the
+    # baseline (during working periods)"*). The terminal sated tail is a DIFFERENT BEHAVIOURAL
+    # STATE, and crucially HOW MUCH OF IT THERE IS VARIES WITH EPOCH -- a post-stroke animal
+    # disengages earlier -- so an all-session baseline has its composition track engagement. That is
+    # the same performance-coupling that retired the 8 s post-reward definition, arriving by a third
+    # route. It also concentrates at the END of the session, where drift is largest.
+    #
+    # THE DECODE SCRIPTS ALREADY EXCLUDED IT; THE MASK NEVER DID. `rest_position_decode` drops the
+    # quit period explicitly, so until now the baseline and the analyses built on it disagreed about
+    # which part of the session counted.
+    eng = _engaged_trials(session, cs, codes) if engaged_only else None
+    if eng is not None:
+        n_drop = int((~eng).sum())
+        if n_drop:
+            print(f"  .. {session.get('label')}: {n_drop}/{len(eng)} trials in the terminal quit "
+                  f"period -- their rest excluded from the baseline", flush=True)
+
     pad = np.concatenate([[0], rest.view(np.int8), [0]])
     dif = np.diff(pad)
     f_of = np.clip(fs_samp, 0, rest.shape[0] - 1)
@@ -157,6 +229,10 @@ def rest_frames_by_position(session, n_frames, *, docked=False):
         if nc >= len(codes) or prev >= len(codes):
             continue
         if codes[prev] != codes[nc] or codes[prev] < 0:
+            continue
+        # BOTH bracketing trials must be engaged, not just the labelling one: a rest period whose
+        # FOLLOWING trial is already in the quit period sits on the boundary of the state change.
+        if eng is not None and not (eng[prev] and eng[nc]):
             continue
         fr = np.flatnonzero((f_of >= aa) & (f_of < bb))
         fr = fr[fr < int(n_frames)]

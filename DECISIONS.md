@@ -11490,3 +11490,66 @@ re-running after the redo.
 No bins. No sweeps. No interpolation, carry-forward, or reach-back. The only thing that survives
 from a day of construction is the equal position weighting -- which is the part that was justified
 by an independent measurement rather than by an assumption.
+
+
+---
+
+## 2026-09-14 - The rest baseline is ENGAGED-PERIOD ONLY, and a polarity bug caught by counting
+
+Priya: *"no splitting per outcome for now - but we do want to use the engaged session time for the
+baseline (during working periods)"*.
+
+### WHY, and it is the same failure a third time
+
+The terminal sated tail is a DIFFERENT BEHAVIOURAL STATE, and crucially **how much of it there is
+varies with epoch** -- a post-stroke animal disengages earlier. So an all-session rest baseline has
+its COMPOSITION track engagement, which is the same performance-coupling that retired the 8 s
+post-reward definition (route 1) and that `restw` corrects for position (route 2). This is route 3.
+It also concentrates at the END of the session, where drift is largest.
+
+**THE DECODE SCRIPTS ALREADY EXCLUDED IT; THE MASK NEVER DID.** `rest_position_decode` drops the
+quit period explicitly and says why. So until now the baseline and the analyses built on it
+disagreed about which part of the session counted -- the exact class of silent disagreement this
+migration exists to end.
+
+**IMPLEMENTED WITH THE SHARED GATE**, `precue_engagement_states.engagement_gate`, which is what
+`beta_maps._quit_mask` and every `working`-class family already use. The rest baseline must not
+acquire a second definition of engagement. BOTH bracketing trials of a rest period must be engaged,
+not only the labelling one: a period whose FOLLOWING trial is already in the quit period sits on the
+boundary of the state change.
+
+### THE BUG, worth recording because of HOW it was caught
+
+**`engagement_gate` RETURNS TRUE FOR *NOT*-ENGAGED.** `beta_maps._quit_mask` binds it as `ne` and
+returns it as the QUIT mask. The first implementation here took it as `engaged` and inverted the
+whole session: **527 of 554 trials on PS93_0818 were flagged as quit period**, and every baseline
+would have been built from ~5% of the session -- the thin, late, unrepresentative 5%.
+
+**IT RAISED NOTHING. IT PRODUCED A PLAUSIBLE BASELINE.** `restw` simply reported "only 3 positions
+with a usable rest baseline" and dropped the column, which reads exactly like a thin session. The
+only reason it was caught is that the gate PRINTS WHAT IT REMOVES, and 527/554 is impossible on its
+face. After the fix: 27/554, and all six positions return.
+
+**-> A GATE MUST COUNT WHAT IT REMOVES, OUT LOUD.** This is recurrent issue 1 ("a clean exit is not
+a result") with a new instance, and it is the fourth time in two days that a COUNT, not an
+exception, was the thing that caught a silent inversion.
+
+### CONSEQUENCE FOR THE REDO
+
+Rest frames per session drop by roughly the size of each session's quit period, which is
+epoch-dependent BY CONSTRUCTION -- that is the point. Sessions whose engaged period is short may now
+fall below `MIN_FRAMES_PER_POSITION` (200) at some positions, or below
+`MIN_POSITIONS_FOR_WEIGHTED` (4) entirely, and will lose their RESTW column rather than contribute a
+differently-composed baseline. **Those drops must be counted and reported per epoch**, because a
+post-stroke epoch losing more sessions than pre is itself a result about the data, not a nuisance.
+
+### ADDED TO THE KEY FIGURE LIST: binned engagement, pre vs post epochs
+
+Priya, 2026-09-14: *"add the engagement plots (binned) of pre- vs post-epochs to our key figures
+list"*. Engagement is no longer only a QC gate -- it now determines which part of each session
+enters the rest baseline, and its epoch dependence is the mechanism above. A binned
+engagement-over-session figure, pre against each post epoch, is therefore BOTH a behavioural result
+and the provenance for a methodological choice, and it should sit near the rest-reference figures
+rather than in a QC appendix. `spout_behavior` already computes the engagement timeline per session
+(`flag_engagement`, the rolling response-rate gate plus the terminal sated-tail detector); what is
+missing is the pooled pre-vs-post binned comparison.
