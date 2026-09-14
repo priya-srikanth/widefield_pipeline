@@ -59,7 +59,13 @@ from wfield_local.beta_maps import (
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
 #: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
 #: `position_evoked_maps`.
-REFERENCES = ("mean", "rest", "restw", "precue")
+REFERENCES = ("mean", "rest", "precue")
+
+#: `restw` IS DESIGNED AND DOCUMENTED BELOW BUT NOT YET BUILT, so it is deliberately NOT in
+#: REFERENCES. `maps_by_epoch` iterates REFERENCES and calls `reference_maps` on each, which raises
+#: on an unknown name -- so listing it before the builder exists takes down EVERY 15r render, which
+#: is exactly what it did for the twenty minutes between adding it and this line. Add it here in the
+#: same commit that implements `raw_restw`, and not before.
 
 #: `restw` -- the POSITION-WEIGHTED ITI average (Priya, 2026-09-13: "let's add another possible
 #: 'quiet' - position-weighted ITI average").
