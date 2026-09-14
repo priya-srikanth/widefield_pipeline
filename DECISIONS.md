@@ -10931,3 +10931,97 @@ because the rest class is the one the specificity control reports as moving.
 REST definition (2 s fits 19.4% of bouts, 1 s fits 84.6%) and the docked window is shorter still, so
 if anything it is more firmly 1 s. Re-measure rather than assume — the bout-duration distribution
 changes with the window.
+
+
+---
+
+## 2026-09-13 - `restw` IS BUILT AND REGISTERED, and it moves far-contra amplitude
+
+Priya: *"before we redo the rest analysis - I think we want to use the weighted rest average for
+this right?"* Built, registered and smoke-tested the same hour, so the redo runs once.
+
+**WHAT LANDED, ALL IN ONE COMMIT** (the rule that cost twenty minutes of dead renders when `restw`
+was registered ahead of its builder): `wfield_local/rest_by_position.py` (rest frames grouped by the
+position they sit at, plus the canonical `frame_samples` that five scripts each had a private copy
+of); `position_reference_maps.session_restw_svt_timelocal`; the `raw_restw` load in
+`session_raw_maps`; `restw` in `REFERENCES`; its `_REF_TEXT` caption entry; a missing-column tally;
+and `scripts/rest_migration/restw_smoke.py`.
+
+### The three-way contract a new reference has to satisfy
+
+Builder, `REFERENCES`, and `_REF_TEXT` must land together. Each of the three has already caused a
+silent failure on its own: `restw` in `REFERENCES` without a builder took down every 15r render;
+`precue` in `REFERENCES` without a `_REF_TEXT` entry raised per-arm AFTER writing two references, so
+the render exited 0 having produced 21 figures where 39 were asked for. **`restw_smoke` now asserts
+all three before anything renders.**
+
+### MEASURED: pre-stroke it is nearly a no-op, post-stroke it is not
+
+Baseline RMS difference, `restw` against `rest`, as a fraction of the rest baseline:
+
+| session | epoch | baseline difference | lowest map correlation |
+|---|---|---|---|
+| PS92_0606 | pre | 23.7% | close_R 0.9979 |
+| PS93_0606 | pre | 22.7% | close_L 0.9969 |
+| PS93_0818 | acute | **63.7%** | **far_R 0.9824** |
+| PS94_0820 | acute | **43.5%** | **far_R 0.9908** |
+| PS92_0819 | acute | 22.2% | **far_R 0.9921** |
+
+**THE PATTERN IS THE POINT. far_R -- far CONTRALATERAL, the position with the deficit -- is the
+least-preserved map in 3/3 acute sessions and in NEITHER pre-stroke session.** That is precisely
+the mechanism `restw` was specified to remove: post-stroke the animal stops attempting the far
+positions, their rest contribution shrinks, and the frame-weighted baseline drifts toward the near
+positions' resting state.
+
+### THE CONSEQUENCE THAT NEEDS CHECKING BEFORE IT IS CITED
+
+**`restw` systematically RAISES far-contra amplitude post-stroke.** PS93_0818 far_R goes RMS
+0.00338 -> 0.00441 (+30%); every acute session tested moves the same way. Read plainly: the
+unweighted rest baseline was absorbing part of far-contra's own signal, and removing that weighting
+gives it back.
+
+**This touches a headline result.** The acute far-contralateral amplitude DROP (1.48/1.21/1.27 near
+-> 1.01/0.69/0.48 far) is measured against the rest reference. If `restw` raises far-contra
+post-stroke more than pre-stroke, the gradient shrinks. **THE AMPLITUDE GRADIENT TEST MUST BE RUN ON
+`restw`, NOT ON `rest`**, and the far-contra numbers restated under it.
+
+**WHAT IS NOT AT RISK, and the distinction matters.** The far-contra SHAPE result -- the
+cross-position null, observed +0.812 against null +0.071, four animals changing the same cortex --
+is a between-animal CORRELATION of maps, and map correlations are r >= 0.98 between the two
+references. A 2% shape change cannot move a result of that size. It is the AMPLITUDE family that
+has to be re-derived, not the anatomical one.
+
+**THREE SESSIONS, ONE ARM, ACUTE ONLY.** This is a smoke test that happened to find a real effect,
+not a cohort measurement. Every number above is superseded by the full run.
+
+
+---
+
+## 2026-09-13 - rest-carries-position IS a four-animal result (TO-DO #4 closed)
+
+The three at-or-below-null sessions were all PS92, which left open whether this was a cohort result
+or a 3-of-4-animal one. **It is four of four.** Strict docked window, circular-shift null, 44
+sessions, 0 skipped (PS93_0606 and PS92_0812 return via the reconstructed window), balanced 11 per
+animal:
+
+| animal | n | observed/null | sessions above null |
+|---|---|---|---|
+| PS92 | 11 | **1.286** | 8/11 |
+| PS93 | 11 | **1.639** | 11/11 |
+| PS94 | 11 | **1.467** | 11/11 |
+| PS95 | 11 | **1.466** | 11/11 |
+| **cohort** | 44 | **1.443** | **41/44** |
+
+**Mean over ANIMALS 1.465, animals above null 4/4.** The per-session cohort ratio (1.443) and the
+per-animal mean (1.465) agree, so the pooled number was not being carried by one animal's session
+count.
+
+**PS92 IS GENUINELY THE WEAKEST AND STILL CLEARS ITS NULL.** It supplies all three below-null
+sessions (0606 at 0.88, 0814 at 0.92, 0608 at 0.99) and the lowest per-animal ratio, but at 1.286
+over 11 sessions with 8 above null it is not an exception to the effect. Both RECONSTRUCTED sessions
+came in above null, so the recovery did not prop the result up either.
+
+**THE SCRIPT NOW PRINTS THIS ITSELF.** `rest_position_permutation` reported only the cohort line,
+and a cohort line cannot distinguish "four animals agree" from "three animals and a passenger" --
+which are materially different claims, and the four-animal replication is what the far-contra result
+is sold on. It now prints the per-animal table and says explicitly when the result is NOT 4/4.

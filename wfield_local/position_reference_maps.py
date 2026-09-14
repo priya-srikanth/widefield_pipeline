@@ -59,13 +59,15 @@ from wfield_local.beta_maps import (
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
 #: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
 #: `position_evoked_maps`.
-REFERENCES = ("mean", "rest", "precue")
+REFERENCES = ("mean", "rest", "restw", "precue")
 
-#: `restw` IS DESIGNED AND DOCUMENTED BELOW BUT NOT YET BUILT, so it is deliberately NOT in
-#: REFERENCES. `maps_by_epoch` iterates REFERENCES and calls `reference_maps` on each, which raises
-#: on an unknown name -- so listing it before the builder exists takes down EVERY 15r render, which
-#: is exactly what it did for the twenty minutes between adding it and this line. Add it here in the
-#: same commit that implements `raw_restw`, and not before.
+#: `restw` JOINED REFERENCES ON 2026-09-13, in the same commit as `session_restw_svt_timelocal` and
+#: as its `epoch_grant_figures._REF_TEXT` entry. It had been named here weeks earlier and listed in
+#: REFERENCES ahead of its builder, which took down EVERY 15r render for twenty minutes --
+#: `maps_by_epoch` iterates REFERENCES and `reference_maps` raises on an unknown name. THREE things
+#: have to land together for a new reference: the builder, this tuple, and the caption table (a
+#: missing `_REF_TEXT` key raises per-arm AFTER the earlier references are written, so the render
+#: exits 0 having produced fewer figures than asked -- that is how `precue` was silently lost).
 
 #: `restw` -- the POSITION-WEIGHTED ITI average (Priya, 2026-09-13: "let's add another possible
 #: 'quiet' - position-weighted ITI average").
@@ -208,6 +210,65 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
               flush=True)
         return None
+
+
+def session_restw_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, docked=False):
+    """``(baseline, codes_used)`` -- the POSITION-WEIGHTED time-local rest baseline, or ``(None, [])``.
+
+    Build each position's OWN time-local rest baseline, then average those with EQUAL WEIGHT. The
+    result is still ONE subtrahend, identical for all six positions, so it cannot couple them --
+    the property `mean` lacks and the reason `rest` is the primary reference. What changes is that
+    its COMPOSITION no longer tracks which positions the animal still works.
+
+    THE DEFECT THIS FIXES GETS WORSE AFTER THE LESION, which is what makes it a correctness fix and
+    not a refinement. `rest` averages over rest FRAMES, so a position contributing more rest frames
+    pulls the baseline toward its own resting state. Pre-stroke the six contribute roughly equally.
+    Post-stroke the animal stops attempting the far positions, their blocks shorten or vanish, and
+    the frame-weighted mean drifts toward the NEAR positions' rest -- so the baseline changes WITH
+    the deficit. That is the same failure that retired the 8 s-post-reward definition, arriving by a
+    different route.
+
+    AND IT MATTERS MORE THAN WHEN IT WAS DESIGNED, because of a finding made after. `restw` was
+    specified while rest was believed to be position-neutral. It is not: the circular-shift
+    permutation gives observed/null **1.449 on the strict docked window, 39/42 sessions, and 4/4
+    animals** (PS92 1.282, PS93 1.669, PS94 1.457, PS95 1.474). A frame-weighted rest average
+    therefore CARRIES POSITION, and subtracting it partially cancels the effect under test by an
+    amount that varies session to session with block composition.
+
+    WHAT THIS IS NOT: a per-position baseline. Referencing each position to its OWN rest would
+    remove the between-trial position signal entirely -- that signal is the persistence trace
+    measured at +0.0754 across 4/4 animals -- and report a null. `restw` keeps it. The difference
+    between the two is the measurement of it (Priya raised both on 2026-09-13; this is the one
+    chosen, and the other is the trap).
+
+    RETURNS THE CONTRIBUTING POSITIONS, not just the array, because with fewer than
+    `MIN_POSITIONS_FOR_WEIGHTED` of them the quantity stops being what its name says and the
+    session loses this column -- see that constant.
+    """
+    from wfield_local.rest_by_position import MIN_POSITIONS_FOR_WEIGHTED, rest_frames_by_position
+
+    V = np.asarray(svt)
+    T = V.shape[1]
+    per, info = rest_frames_by_position(session, T, docked=docked)
+    if info.get("error"):
+        print(f"  !! restw {session['label']}: {info['error']}", flush=True)
+        return None, []
+    bases, used = [], []
+    for c in sorted(per):
+        m = np.zeros(T, bool)
+        m[per[c]] = True
+        b = _timelocal_from_mask(V, m, int(nbins))
+        # A POSITION WITH TOO FEW REST FRAMES CONTRIBUTES NOTHING rather than a noisy estimate:
+        # `_timelocal_from_mask` returns None below 2*nbins frames, and averaging a noisy baseline
+        # in with equal weight would be worse than the frame-weighted mean this replaces.
+        if b is not None:
+            bases.append(b)
+            used.append(int(c))
+    if len(bases) < MIN_POSITIONS_FOR_WEIGHTED:
+        print(f"  .. restw {session['label']}: only {len(bases)} positions with a usable rest "
+              f"baseline (need {MIN_POSITIONS_FOR_WEIGHTED}) -- no RESTW column", flush=True)
+        return None, used
+    return np.mean(np.stack(bases, 0), axis=0), used
 
 
 def session_quiet_svt(session, svt):
@@ -394,6 +455,32 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             print(f"  !! rest-referenced maps {session['label']}: "
                   f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
 
+    # ------------------------------------------------------- the POSITION-WEIGHTED REST reference
+    # THE FOURTH LOAD. Same construction as REST above -- subtract from the SVT, not from the maps,
+    # so each trial is referenced at its own moment -- differing ONLY in that the baseline gives
+    # each position equal weight instead of each rest FRAME equal weight. That single difference is
+    # the whole reference, which is what makes `rest` vs `restw` a clean comparison.
+    # A failure costs this session's RESTW column and nothing else.
+    raw_restw, used_restw = {}, {}
+    basew, restw_positions = session_restw_svt_timelocal(session, v)
+    if basew is not None:
+        try:
+            Xw, yw = _working_xy(session, align, post_s, variant, "none",
+                                 np.asarray(v) - np.asarray(basew),
+                                 # THE CONTRIBUTING POSITIONS ARE PART OF THE KEY, not their
+                                 # count: a baseline averaged over {0,1,2,3} and one over
+                                 # {2,3,4,5} are different subtrahends of the same length, and a
+                                 # count-keyed cache would serve one for the other across
+                                 # sessions. Position sets DO differ post-stroke -- that is the
+                                 # condition `restw` exists for.
+                                 signal_key=f"svt:rank{v.shape[0]}:restwlocal{REST_BASELINE_BINS}"
+                                            f":p{'-'.join(str(c) for c in restw_positions)}")
+            if len(yw) and np.asarray(Xw).shape[1] == X.shape[1]:
+                raw_restw, used_restw = _per_position(Xw, yw)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! restw-referenced maps {session['label']}: "
+                  f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
+
     # THE FLAT SESSION MEAN IS STILL RETURNED, and it is no longer the rest reference. It is kept
     # because `_fig_15r_reference_maps` prints the retired form's provenance, and because a reader
     # comparing the two wants the superseded quantity to still exist rather than be described.
@@ -401,7 +488,9 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
     quiet = None if qsvt is None else (u @ np.asarray(qsvt)).reshape(MAP_SHAPE)
     return {"raw": raw, "used": used, "quiet_flat": quiet, "trial_mean": trial_mean,
             "raw_precue": raw_pc, "used_precue": used_pc,
-            "raw_rest": raw_rest, "used_rest": used_rest}
+            "raw_rest": raw_rest, "used_rest": used_rest,
+            "raw_restw": raw_restw, "used_restw": used_restw,
+            "restw_positions": restw_positions}
 
 
 def reference_maps(parts, reference):
@@ -431,6 +520,8 @@ def reference_maps(parts, reference):
         return {q: m - tm for q, m in (parts.get("raw") or {}).items()}
     if reference == "rest":
         return dict(parts.get("raw_rest") or {})
+    if reference == REST_WEIGHTED:
+        return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
     raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
@@ -450,7 +541,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
     out, rel, n_out = {}, {}, {}
-    n_noquiet = n_noprecue = 0
+    n_noquiet = n_noprecue = n_norestw = 0
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
                 if x.startswith(an)}
@@ -478,6 +569,8 @@ def maps_by_epoch(align, variant, post_s=2.0):
             # that is missing from the figure, not the input that happened to exist.
             if not parts["raw_rest"]:
                 n_noquiet += 1
+            if not parts.get("raw_restw"):
+                n_norestw += 1
             if not parts["raw_precue"]:
                 n_noprecue += 1
             byref = {r: reference_maps(parts, r) for r in REFERENCES}
@@ -498,6 +591,15 @@ def maps_by_epoch(align, variant, post_s=2.0):
     # so -- which is how a difference between them gets read as biology.
     if n_noquiet:
         print(f"  .. ref-map: {n_noquiet} session(s) have no quiet mask -- MEAN reference only",
+              flush=True)
+    if n_norestw:
+        # SAID OUT LOUD FOR THE SAME REASON as the two above, and it matters MORE here: a session
+        # drops its RESTW column when fewer than four positions still have a usable rest baseline,
+        # which is a POST-STROKE condition. So the sessions this silently removes are exactly the
+        # most affected ones, and `restw` would then be built on a healthier session set than
+        # `rest` while sitting beside it on the same figure.
+        print(f"  .. ref-map: {n_norestw} session(s) produced no position-weighted rest maps "
+              f"(<4 positions with a usable rest baseline) -- these are dropped from RESTW ONLY",
               flush=True)
     if n_noprecue:
         print(f"  .. ref-map: {n_noprecue} session(s) produced no pre-cue-referenced maps",

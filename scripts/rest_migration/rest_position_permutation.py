@@ -105,6 +105,7 @@ def main() -> int:
     want = set(config.phase_labels("pre"))
     t0 = time.time()
     obs_all, null_all, skipped, rebuilt = [], [], [], []
+    animal_all = []
 
     todo = [x for x in SESSIONS if x["label"] in want and x.get("h5")]
     if a.limit:
@@ -223,6 +224,7 @@ def main() -> int:
             continue
         obs_all.append(obs)
         null_all.append(float(np.mean(nulls)))
+        animal_all.append(lab.split("_")[0])
         p = (1 + sum(1 for x in nulls if x >= obs)) / (1 + len(nulls))
         print(f"  .. {lab}: obs {obs:.5f}  null {np.mean(nulls):.5f}  ratio "
               f"{obs / max(1e-12, np.mean(nulls)):.2f}  p={p:.3f}  ({time.time() - t0:.0f}s)",
@@ -242,6 +244,27 @@ def main() -> int:
     print(f"circular-shift null            mean {nl.mean():.5f}")
     print(f"OBSERVED / NULL                     {o.mean() / max(1e-12, nl.mean()):.3f}")
     print(f"sessions with observed > null:      {int((o > nl).sum())}/{len(o)}")
+
+    # PER-ANIMAL, ALWAYS, NOT ON REQUEST. The first run of this reported only the cohort number,
+    # and its three at-or-below-null sessions were ALL ONE ANIMAL -- which, if that animal had been
+    # below 1 overall, would have made this a 3-of-4-animal result rather than a cohort one. That
+    # is a materially different claim and the cohort line cannot distinguish them. The animal is
+    # the unit everywhere else in this deck (the nested animals->sessions bootstrap); a per-session
+    # mean silently weights an animal by how many sessions it happens to have.
+    an = np.array(animal_all)
+    print(f"\n{'animal':<9}{'n':>4}{'ratio':>9}{'>null':>9}{'mean obs':>11}{'mean null':>11}")
+    per_animal = []
+    for a in sorted(set(animal_all)):
+        m = an == a
+        ra = o[m].mean() / max(1e-12, nl[m].mean())
+        per_animal.append(ra)
+        print(f"{a:<9}{int(m.sum()):>4}{ra:>9.3f}"
+              f"{int((o[m] > nl[m]).sum()):>6}/{int(m.sum()):<2}"
+              f"{o[m].mean():>11.5f}{nl[m].mean():>11.5f}")
+    pa = np.array(per_animal)
+    print(f"\nmean over ANIMALS {pa.mean():.3f}   animals above null {int((pa > 1).sum())}/{len(pa)}")
+    if int((pa > 1).sum()) < len(pa):
+        print("   !! NOT a four-animal result -- state it as N-of-4, not as a cohort effect.")
     print("\n  >> 1  rest carries position information the block-time structure cannot explain;")
     print("        the REST subtrahend is not position-neutral and leaves a contaminant in the maps")
     print("  ~= 1  the structure IS drift aliased onto blocks, as the earlier control claimed")

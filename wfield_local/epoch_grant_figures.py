@@ -32,6 +32,7 @@ import numpy as np
 
 from wfield_local import config, epoch_figures as ef, epochs
 from wfield_local.paths import PathResolver
+from wfield_local.position_reference_maps import REST_WEIGHTED
 from wfield_local.writeguard import assert_writable
 
 #: (display name, alignment, trial class). The lick window admits only lick trials -- a trial with
@@ -1587,25 +1588,40 @@ _REF_TEXT = {
         title="Position maps referenced to the TIME-LOCAL REST BASELINE -- position-independent, "
               "so the six positions are INDEPENDENT",
         cbar="activity minus the REST baseline\nat that trial's own time",
-        note=("THE SIX ROWS ARE INDEPENDENT. The subtrahend carries no position information, so "
-              "subtracting it cannot couple the positions -- which is what the mean reference "
-              "does by construction. This answers \"is this position's cortex driven at all\", "
+        note=("THE SIX ROWS ARE INDEPENDENT -- the subtrahend is IDENTICAL for all six, so "
+              "subtracting it cannot couple them, which is what the mean reference does by "
+              "construction. That is the property this reference is chosen for, and it does NOT "
+              "require the subtrahend to be position-free: see the correction below, it is not. "
+              "This answers \"is this position's cortex driven at all\", "
               "where the mean-referenced figure answers \"is it driven more than the others\". It "
               "is also the reference that does NOT sit inside the trial: figure 15's pre-cue "
               "baseline controls drift tightest but is blind to a sustained shift already present "
               "before the cue, and this one is not."
               "\n\nTIME-LOCAL SINCE 2026-09-13, AND THE PREVIOUS FORM WAS WRONG IN A WAY WORTH "
-              "STATING. This used to subtract ONE SESSION MEAN, which is flat. Rest was then "
-              "measured to differ between positions in 6/6 positions -- but the control that "
-              "explains it is DRIFT, not position coding: the same position's rest early-vs-late "
-              "differs at RMS 0.00282 against 0.00288 between positions at matched time, a ratio "
-              "of 1.02. Positions run in ~6-TRIAL BLOCKS, so each one's trials cluster at "
-              "particular times and a flat subtrahend leaves every position carrying its blocks' "
+              "STATING. This used to subtract ONE SESSION MEAN, which is flat. Positions run in "
+              "~6-TRIAL BLOCKS, so each one's trials cluster at particular times and a flat "
+              "subtrahend leaves every position carrying its blocks' "
               "share of the session's drift. The baseline is now binned over the session, taken "
               "as the median of rest frames per bin and interpolated to every frame, and it is "
               "subtracted from the SVT BEFORE the trial features are built -- so each trial is "
               "referenced to the baseline AT ITS OWN MOMENT. `locanmf_position_encoder` has "
               "always done it this way; the map reference and the encoder now agree."
+              "\n\nCORRECTION, SAME DAY: REST CARRIES POSITION INFORMATION. A claim that stood "
+              "here -- that rest's between-position differences were \"drift aliased onto the "
+              "block structure, not position coding\", from a ratio of 1.02 -- is WITHDRAWN. That "
+              "inference does not hold: its two contrasts were not matched on time separation, "
+              "and a ratio of magnitudes is not a test. A circular-shift permutation, which keeps "
+              "the block-time structure INSIDE the null, gives observed/null 1.443 over 44 "
+              "sessions, above null in 41/44, and 4/4 animals (PS92 1.286, PS93 1.639, PS94 "
+              "1.467, PS95 1.466) -- on the STRICT window with the spout docked and no target "
+              "present. The block-boundary test says the signal is PERSISTENCE: rest resembles "
+              "the position just licked at more than the one coming next (+0.0754, 4/4 animals)."
+              "\n\nWHAT THAT MEANS FOR THIS FIGURE. The subtrahend is not position-NEUTRAL, so it "
+              "leaves a contaminant in these maps -- it still cannot COUPLE the positions, since "
+              "it is one map subtracted from all six, but it is not the blank reference it was "
+              "described as. `_RESTWref_` is the fix: the same construction with each POSITION "
+              "weighted equally instead of each rest FRAME, so the baseline's composition stops "
+              "tracking which positions the animal still works. Read the two together."
               "\n\nWHICH BASELINE THIS IS, read it off the filename. `_REWARD8ref_` is the "
               "RETIRED definition -- slow treadmill, no licking, and 8 s excluded after every "
               "reward, a buffer carried over from a task whose post-tone window was 8 s while "
@@ -1615,6 +1631,42 @@ _REF_TEXT = {
               "against a null of +0.497. DO NOT READ THE CHRONIC COLUMN OF A `_REWARD8ref_` "
               "FIGURE. `_RESTref_` is the replacement: between trials, not running, not licking. "
               "See docs/REST_BASELINE_MIGRATION.md."),
+    ),
+    # ADDED 2026-09-13, IN THE SAME COMMIT AS THE BUILDER. `restw` was named in
+    # `position_reference_maps` weeks before it existed, and putting it in `REFERENCES` ahead of
+    # its builder took down EVERY 15r render for twenty minutes -- `maps_by_epoch` iterates
+    # REFERENCES and `reference_maps` raises on an unknown name. This table is the second half of
+    # that same trap: `_fig_15r_reference_maps` does `_REF_TEXT[reference]`, so a reference
+    # registered without an entry here raises per-arm, AFTER writing the earlier references, and
+    # the render still exits 0 having produced fewer figures than it was asked for. That is
+    # precisely how `precue` was lost. Registry, builder and caption text go in together.
+    REST_WEIGHTED: dict(
+        short="one vs POSITION-WEIGHTED rest",
+        title="Position maps referenced to the POSITION-WEIGHTED rest baseline -- each position "
+              "weighted equally, not each rest frame",
+        cbar="activity minus the position-weighted\ntime-local rest baseline",
+        note=("THE SIX ROWS ARE INDEPENDENT, as with `_RESTref_`: one subtrahend for all six, so "
+              "it cannot couple them. WHAT DIFFERS IS THE BASELINE'S COMPOSITION, and that is the "
+              "whole figure. `_RESTref_` averages over rest FRAMES, so a position contributing "
+              "more rest frames pulls the baseline toward its own resting state. This one builds "
+              "each position's own time-local rest baseline and averages the six EQUALLY."
+              "\n\nWHY IT MATTERS, AND WHY IT MATTERS MORE POST-STROKE. Rest is not "
+              "position-neutral -- observed/null 1.443 over 44 sessions, 41/44, 4/4 animals, on "
+              "the strict docked window -- so a frame-weighted rest average CARRIES POSITION. "
+              "Pre-stroke the six positions contribute roughly equally and this hardly matters. "
+              "After the lesion the animal stops attempting the far positions, their blocks "
+              "shorten or vanish, and the frame-weighted mean drifts toward the NEAR positions' "
+              "rest: the baseline then changes WITH the deficit. That is the same failure that "
+              "retired the 8 s-post-reward definition, arriving by a different route."
+              "\n\nWHAT THIS IS NOT: a per-position baseline. Referencing each position to its "
+              "OWN rest would subtract the between-trial position signal itself -- the "
+              "persistence trace measured at +0.0754 across 4/4 animals -- and report a null. "
+              "This keeps it. The difference between the two is the measurement of it."
+              "\n\nREAD IT AGAINST `_RESTref_`: the two differ ONLY in the weighting, so a change "
+              "between them IS the composition effect, and a cell that moves post-stroke but not "
+              "pre-stroke is the signature this reference exists to remove. A session where fewer "
+              "than four positions have a usable rest baseline has NO `_RESTWref_` column at all, "
+              "rather than a differently-defined baseline under the same name."),
     ),
 }
 
