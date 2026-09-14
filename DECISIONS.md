@@ -11645,3 +11645,79 @@ every 2nd session, which happened to cover only pre and acute, and its pre-strok
 double the cohort value. The lesson is the one already in the recurrent list in another costume: a
 number from a partial run is a PRELIMINARY, and quoting it as a finding -- including in a commit
 message and a decisions entry -- makes it durable before it is true.
+
+---
+
+## 2026-09-14 — STOPPED-TAIL CONTAMINATION of the drift fit, and the rules any fix must obey
+
+### The finding
+
+The order-10 polynomial is a GLOBAL basis, so its coefficients are set by the whole record at once and
+a disengaged tail full of state-driven slow swings pulls the fitted curve backwards into the ENGAGED
+period every analysis reads. Measured by fitting each session twice -- on the full record (what
+production does) and on the working period alone -- and comparing the two trend SHAPES inside the
+working period, as a fraction of the working-period signal RMS
+(`scripts/rest_migration/stopped_tail_contamination.py`):
+
+| stopped tail | sessions | trend-shape difference in the working period |
+|---|---|---|
+| 59 min | PS94_0819 | **32.3%** |
+| 31-39 min | PS95_0910, PS93_0819, PS92_0820, PS94_0823, PS95_0827, PS95_0825, PS93_0822 | **14-21%** |
+| 15-24 min | PS94_0831, PS94_0903, PS92_0818 | 13-21% |
+| 9-11 min | PS92_0821, PS94_0814 | 3-7% |
+
+**A CONTINUUM IN TAIL LENGTH, not a PS94_0819 oddity**, and roughly ten sessions have tails over 30
+min. **PS95_0823 reads 0.62% and is NOT comparable**: its working-signal RMS is 32.4, twenty times
+every other session, so the ratio's denominator is an outlier. That session needs looking at on its
+own terms rather than being averaged in.
+
+### WHY THE ANSWER IS NOT A FASTER POLYNOMIAL -- already measured, twice
+
+1. **A higher order does not buy local flexibility.** Polynomials are global basis functions: at a
+   3000 s period order 10 retains 0.18 and order 40 retains 0.22 (`hemo_variants`). Adding terms adds
+   oscillation everywhere, not resolution locally.
+2. **A windowed median WAS tested and lost.** `detrend_hpfit` (600 s masked median) is in the
+   adoption head-to-head: pre-cue 0.306 / post-cue 0.731 against `meegkit_hpfit`'s 0.352 / 0.759
+   (`docs/PREPROCESSING_DECISION.md`). And the window sweep has its **MINIMUM at 60 s -- the block
+   duration** -- recovering to a plateau at 300-600 s where the median and the polynomial agree to
+   three decimals. Faster estimators remove position signal; that is measured, not feared.
+
+So the decoding question is settled. What the head-to-head never tested is ROBUSTNESS to a
+disengaged tail, which is a different axis and the only live reason to revisit.
+
+### THE RULES A PIECEWISE FIX WOULD HAVE TO OBEY (Priya, 2026-09-14)
+
+**1. SEPARATELY-DETRENDED SEGMENTS CANNOT BE COMPARED TO EACH OTHER.** Each segment is referenced to
+its own fitted trend, so the difference between two of them is not a measurement -- it is the
+arbitrary offset between two independent fits. **Any stop-vs-working contrast must take BOTH arms
+from ONE detrend.** Stopped trials ARE analysed in some arms, so the tail is not discardable.
+
+**2. THEREFORE PIECEWISE IS AN ADDITION, NEVER A REPLACEMENT.** The full-record product stays as the
+comparison-safe one; a working-only product would serve the within-working analyses. Two products
+that must never meet in one figure -- which doubles the surface for exactly the error the
+`hemo_<variant>/` directories exist to prevent.
+
+**3. POLYNOMIAL ORDER MUST SCALE WITH SEGMENT LENGTH.** Order 10 over 150 min gives a ~43 min cutoff;
+order 10 over a 10 min segment gives roughly a ~3 min cutoff, fast enough to approach the 57-121 s
+block band. A piecewise fit reusing order 10 on both segments would over-flatten the short one while
+appearing to use identical settings. Cutoff scales roughly as duration/order, so the order has to be
+chosen per segment to hold it fixed.
+
+**4. MASKING THE TAIL INSTEAD OF SEGMENTING NEEDS THE TREND HELD CONSTANT, NOT EXTRAPOLATED.** An
+earlier version of this note claimed a masked tail costs nothing because the tail is discarded. That
+is WRONG on two counts: stopped trials are analysed (rule 1), and session-level consumers read the
+whole record anyway (`hemispheric_dynamics` takes a temporal SD over the session; `crossday_intensity`
+and the photobleach QC panels plot all of it). An order-10 polynomial extrapolating across a 59 min
+gap would put large garbage in all of them.
+
+### WHAT DECIDES IT, AND WHY NOTHING IS BEING CHANGED YET
+
+**The contamination is measured on the SUBTRACTED TREND, not on any result.** The decoder standardises
+per fold and reads trial-window means, so a smooth slow difference is partly absorbed; map AMPLITUDES
+would feel it more. **Whether it moves a within-working number is UNMEASURED, and that is the only
+thing that justifies a second product.** Building one on the strength of a trend-shape statistic would
+add a permanent mixing hazard to fix something not yet shown to matter.
+
+NEXT: re-run a within-working result (decode accuracy and `restw` map amplitude) on a long-tail
+session under both fits. If it moves, build the working-only variant under the naming rule and measure
+it head-to-head as `meegkit_hpfit` was. If it does not, record the null and keep one product.
