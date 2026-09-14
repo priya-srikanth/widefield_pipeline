@@ -11779,3 +11779,54 @@ statement was read as covering the case designed to escape it.
 **There was never a tension, and no leak.** Anyone re-deriving this should start from `fit_drift` in
 `hemo_variants.VARIANTS`, which says which band a variant's `T` is meant to come from -- that field,
 not the flag name, is what determines whether reuse is legitimate.
+
+---
+
+## 2026-09-14 — THE WINDOWED-ESTIMATOR RE-TEST: a NULL. Nothing changes.
+
+`scripts/rest_migration/worktrunc_result_impact.py`, 10 sessions (4 pre-stroke, 4 long-tail
+post-stroke, 2 short-tail), four arms -- PRODUCTION (meegkit order 10), WORKTRUNC (polynomial fitted
+on the working period, held constant after), WIN600 and WIN300 (masked windowed median) -- each
+guarded by the shadow signature, all three alignments.
+
+### THE RESULT: no reliable gain on PRE-CUE, the column the adoption decided on
+
+| arm | mean delta | 95% CI | positive |
+|---|---|---|---|
+| WIN600 | **-0.0003** | -0.026 .. +0.025 | 4/10 |
+| WIN300 | **+0.0151** | **-0.012 .. +0.043** | 6/10 |
+| WORKTRUNC (stopped sessions) | +0.0055 | -- | 3/6 |
+
+**BOTH INTERVALS INCLUDE ZERO, and the entire apparent case rested on ONE SESSION.** Excluding the
+PS94_0819 pilot, WIN300 falls to **+0.0058 with 5/9 positive**. WIN600 -- the exact variant the August
+head-to-head rejected -- is dead null, which REPRODUCES that verdict rather than overturning it.
+
+**THE AUGUST DECISION STANDS. `meegkit_hpfit` is not replaced, no second product is built, and the
+piecewise design rules recorded earlier today are moot.**
+
+### WHAT SURVIVES, AS A DIRECTION AND NOT A FINDING
+
+The WIN300 gain does track tail length: r = +0.655 over 10 sessions, falling to **+0.392** without the
+pilot. Long tails (>30 min) average **+0.044** against short tails' (<5 min) **+0.003** -- but that is
+**n=4**, and **+0.026 on n=3** without the pilot. Consistent with the contamination mechanism, far too
+thin to act on. Resolving it needs many more long-tail sessions, which only post-stroke recording
+produces.
+
+### THE METHOD LESSON, and it is the one this session keeps re-teaching
+
+**A 32% trend-shape statistic and a +0.098 pre-cue gain on ONE session generated four messages of
+momentum toward rebuilding 106 variant directories.** The one-session caveat was stated every time and
+still did not stop the momentum -- what stopped it was running the other nine. Stating a limit is not
+the same as respecting it.
+
+**AND THE TREND STATISTIC DID NOT PREDICT THE RESULT.** Stopped-tail contamination is real and
+measured (median 16.3% of working-period trend shape, r=0.86 with tail length), and it STILL does not
+reliably move a within-working number. A statistic about the subtracted trend is not a statistic about
+the analysis -- which is exactly why this measurement was specified as the decider before it was run.
+
+### TWO THINGS TO CHASE SEPARATELY
+
+* **PS94_0819 is a genuine outlier** on several axes -- a 59 min tail, 375/600 trials in the quit
+  period, +0.098 pre-cue -- and deserves its own look rather than being averaged away.
+* **PS92_0818 returned NaN on every arm and alignment**, so it contributed nothing and the batch is
+  effectively n=10 not n=11. Unexplained; not investigated.
