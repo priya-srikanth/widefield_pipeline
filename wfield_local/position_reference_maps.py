@@ -59,7 +59,30 @@ from wfield_local.beta_maps import (
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
 #: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
 #: `position_evoked_maps`.
-REFERENCES = ("mean", "rest", "precue")
+REFERENCES = ("mean", "rest", "restw", "precue")
+
+#: `restw` -- the POSITION-WEIGHTED ITI average (Priya, 2026-09-13: "let's add another possible
+#: 'quiet' - position-weighted ITI average").
+#:
+#: THE DEFECT IT FIXES, and it is a real one that gets WORSE post-stroke. `rest` subtracts the
+#: session's rest baseline, which is a mean over rest FRAMES -- so a position contributing more rest
+#: frames pulls the baseline toward its own resting state. Pre-stroke the six positions contribute
+#: roughly equally and this hardly matters. AFTER THE LESION IT MATTERS A LOT: the animal stops
+#: attempting the far positions, those blocks shorten or vanish, and the unweighted mean drifts
+#: toward the NEAR positions' rest. The baseline then changes with the deficit -- which is precisely
+#: the failure that retired the 8 s-post-reward definition, arriving by a different route.
+#:
+#: WHAT IT IS: build each position's own time-local rest baseline, then average the SIX, equally.
+#: The result is still ONE subtrahend, IDENTICAL for all six positions, so it cannot couple them --
+#: the property `mean` lacks and the whole reason `rest` is the primary reference. What changes is
+#: that its composition no longer tracks which positions the animal still works.
+#:
+#: HOW IT DIFFERS FROM A PER-POSITION BASELINE, which is a separate thing and NOT this. Subtracting
+#: each position's OWN rest would remove the between-trial position signal entirely -- and that
+#: signal is now known to exist (`rest_position_permutation`: observed/null 1.429, 41/44 sessions,
+#: with the spout RETRACTED so no target is present). `restw` keeps it; a per-position reference
+#: would delete it. The difference between the two is the measurement of it.
+REST_WEIGHTED = "restw"
 
 #: How a reference is NAMED IN A FILENAME. `rest` resolves through the mask variant actually in
 #: use, so a figure built on the retired 8 s-post-reward definition is called `_REWARD8ref_` and one
@@ -74,9 +97,13 @@ def reference_tag(reference):
     """The filename token for a reference -- baseline-explicit for `rest`."""
     from wfield_local.quiet_periods import quiet_variant
 
-    if reference != "rest":
+    if reference not in ("rest", "restw"):
         return reference.upper()
-    return "REST" if quiet_variant() else "REWARD8"
+    # THE WEIGHTING IS PART OF THE BASELINE'S IDENTITY, so it goes in the filename with it. A
+    # `_RESTWref_` figure and a `_RESTref_` one differ in what was subtracted, not in how it was
+    # drawn, and two files that differ that way must not share a name.
+    base = "REST" if quiet_variant() else "REWARD8"
+    return base + "W" if reference == "restw" else base
 
 
 #: Bins the session is split into for the time-local rest baseline. Matches
@@ -84,21 +111,57 @@ def reference_tag(reference):
 REST_BASELINE_BINS = 12
 
 
-def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS):
+def _timelocal_from_mask(V, qm, nbins):
+    """``(K, T)`` time-local baseline from a boolean frame mask, or None if it cannot be formed.
+
+    THE ONE PLACE THE RULE LIVES: bin the session into `nbins`, take the MEDIAN of the masked frames
+    in each bin, interpolate to every frame. Median and not mean, because a bin with few rest frames
+    should not be dragged by one outlier -- `locanmf_position_encoder._quiet_baseline_local` uses
+    the median for the same reason and this exists so the two constructions cannot diverge.
+
+    Bins with NO masked frame are interpolated ACROSS rather than dropped, so the baseline is defined
+    at every frame. A component with no usable bin at all returns None rather than a guess.
+    """
+    T = V.shape[1]
+    qi = np.flatnonzero(qm[:T])
+    if qi.size < 2 * nbins:
+        return None
+    edges = np.linspace(0, T, int(nbins) + 1)
+    cent = (edges[:-1] + edges[1:]) / 2.0
+    bm_ = np.full((V.shape[0], int(nbins)), np.nan)
+    for b in range(int(nbins)):
+        sel = qi[(qi >= edges[b]) & (qi < edges[b + 1])]
+        if sel.size:
+            bm_[:, b] = np.median(V[:, sel], axis=1)
+    out = np.empty((V.shape[0], T), dtype=float)
+    x = np.arange(T)
+    for k in range(V.shape[0]):
+        ok = np.isfinite(bm_[k])
+        if not ok.any():
+            return None
+        out[k] = np.interp(x, cent[ok], bm_[k][ok])
+    return out
+
+
+def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=None):
     """``(K, T)`` rest baseline that TRACKS DRIFT, or None -- the encoder's construction.
 
-    MEASURED REASON THIS REPLACED A SESSION MEAN (2026-09-13). Rest was found to differ between
-    spout positions in 6/6 positions, up to 1,042 of 2,022 bins. The obvious reading -- that the
-    rest baseline carries position information and so cannot be a valid subtrahend -- turned out to
-    be wrong, and the control that settled it is worth stating: positions are presented in ~6-trial
-    BLOCKS, so position is confounded with TIME-WITHIN-SESSION. Splitting each position's rest at
-    the session midpoint gave
+    MEASURED REASON THIS REPLACED A SESSION MEAN (2026-09-13): the session mean is FLAT and cannot
+    remove drift, while each position's trials cluster at particular times, so a flat subtrahend
+    leaves every position carrying its blocks' share of the session's drift.
 
-        DRIFT    (same position, early vs late)      RMS 0.00282
-        POSITION (different positions, matched time) RMS 0.00288      ratio 1.02
+    A PARAGRAPH THAT STOOD HERE IS WITHDRAWN. It argued, from `rest_position_vs_drift`'s ratio of
+    1.02, that rest's position differences were "drift aliased onto the block structure, not
+    position coding". That inference does not hold -- the two contrasts it compared are not matched
+    on time separation, and a ratio of magnitudes is not a test. A circular-shift permutation that
+    keeps the block-time structure INSIDE the null gives observed/null **1.429 over 44 sessions,
+    above null in 41/44**: REST DOES CARRY POSITION INFORMATION. See
+    `scripts/rest_migration/rest_position_permutation.py` and DECISIONS.md 2026-09-13.
 
-    i.e. rest differs between positions by EXACTLY as much as the same position's rest differs from
-    itself across the session. It is drift aliased onto the block structure, not position coding.
+    THAT DOES NOT INVALIDATE THIS BASELINE -- it is still identical for all six positions and so
+    cannot couple them, which is the property `mean` lacks. It does mean the subtrahend is not
+    position-NEUTRAL, which is what `restw` (position-weighted) and a per-position reference exist
+    to address from two different directions.
 
     A SINGLE SESSION MEAN CANNOT REMOVE THAT, because each position's trials cluster at particular
     times and the mean is flat. A time-local baseline can, and `locanmf_position_encoder` has used
@@ -113,6 +176,15 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS):
     """
     from wfield_local.quiet_periods import quiet_frame_path
 
+    # ``frames`` OVERRIDES THE MASK, for `restw`: the same construction, run on one position's rest
+    # frames instead of all of them. Passed as a boolean array over frames, already aligned to the
+    # signal, so this function stays the single place the binning/median/interpolate rule lives.
+    if frames is not None:
+        try:
+            V = np.asarray(svt)
+            return _timelocal_from_mask(V, np.asarray(frames, bool), int(nbins))
+        except Exception:                                              # noqa: BLE001
+            return None
     qf = quiet_frame_path(session["mc"])
     if not qf:
         return None
@@ -125,24 +197,7 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS):
         L = min(q.shape[0], T)
         qm = np.zeros(T, bool)
         qm[:L] = q[:L]
-        qi = np.flatnonzero(qm)
-        if qi.size < 2 * nbins:
-            return None
-        edges = np.linspace(0, T, int(nbins) + 1)
-        cent = (edges[:-1] + edges[1:]) / 2.0
-        bm_ = np.full((V.shape[0], int(nbins)), np.nan)
-        for b in range(int(nbins)):
-            sel = qi[(qi >= edges[b]) & (qi < edges[b + 1])]
-            if sel.size:
-                bm_[:, b] = np.median(V[:, sel], axis=1)
-        out = np.empty((V.shape[0], T), dtype=float)
-        x = np.arange(T)
-        for k in range(V.shape[0]):
-            ok = np.isfinite(bm_[k])
-            if not ok.any():
-                return None
-            out[k] = np.interp(x, cent[ok], bm_[k][ok])
-        return out
+        return _timelocal_from_mask(V, qm, int(nbins))
     except Exception as ex:                                            # noqa: BLE001
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
               flush=True)

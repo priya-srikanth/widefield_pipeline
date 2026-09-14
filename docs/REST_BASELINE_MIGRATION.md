@@ -353,3 +353,67 @@ emptied the intersection, and the loop never ran. Priya caught it on the implaus
 numbers ("how could so few animals share the same positions? there should be dozens of each per
 session"). The verdict now refuses to print a negative when nothing was tested. A control that
 reports "passed" without executing is worse than one that fails.
+
+
+---
+
+## 2026-09-13 — the behaviour log DOES carry spout dock timing, and REST currently starts ~0.65 s too early
+
+Priya: *"the behavior log should have the spout dock arrival and leave timing."* It does, and the
+limitation recorded in the correction above -- "the pipeline cannot see the retraction" -- is
+**withdrawn**. `events.csv` carries `dock_start` and `dock`, one of each per trial, alongside
+`trial_start`, `position`, `cue` and `reward`.
+
+### The measured trial cycle
+
+Medians relative to the cue, over six sessions spanning 5/19 to 9/08 (91-599 trials each):
+
+| event | median s after cue | what it is |
+|---|---|---|
+| `cue` | 0 | |
+| `reward` | 0.13 | |
+| `dock_start` | **3.68 – 3.88** | the spout BEGINS retracting |
+| `trial_stop_ttl` | +0.01 after dock_start | |
+| `dock` | **4.61 – 4.80** | the spout is AWAY (≈0.92 s of travel) |
+| `trial_start` | 5.88 – 6.11 | next trial opens |
+| `position` | 6.77 – 7.00 | the spout ARRIVES at the next target (≈0.90 s of travel) |
+
+**NO TARGET IS PRESENT FOR ~2.15 s**, from `dock` to the next `position`, and that figure is stable
+to ±0.05 s across sessions (the 5/19 session, an early one, runs 2.58 s).
+
+### What this says about the REST window we are using
+
+REST currently runs `cue + response_window + 0.5 s` → next `trial_start`, i.e. **4.0 s → ~6.0 s**.
+Against the measured cycle:
+
+* **IT STARTS ~0.65 s TOO EARLY.** `dock` is at ~4.65 s, so the first third of every REST window
+  contains the spout PHYSICALLY RETRACTING -- a moving object the animal can see and may track.
+  The 0.5 s settle was derived as a margin after reward; it happens to land mid-retraction.
+* **IT ENDS ~0.9 s EARLY**, at `trial_start`, while the spout does not reach the next target until
+  `position`. That is the right call for a different reason -- see below -- but the interval is
+  available and is currently unused.
+
+**THE PRINCIPLED WINDOW IS `dock` → next `trial_start`**: ~1.35 s in which there is no target AND no
+spout movement. Shorter than the current 2.0 s, and clean rather than nearly clean. The interval
+`trial_start` → `position` (~0.9 s) is a THIRD thing again: no target yet, but the spout is moving
+toward a position the animal can often predict from the block -- which makes it the natural window
+for an anticipation analysis rather than for a baseline.
+
+### Why this matters beyond tidiness
+
+`rest_position_permutation` found rest carries position information across the cohort
+(observed/null **1.429**, above null in **41/44** sessions). A window containing spout retraction
+offers an obvious mundane explanation for part of that: the retraction STARTS at the position the
+spout was at, so early-REST frames contain movement whose trajectory differs by position.
+**Re-running the permutation on a `dock`-anchored window is the control that separates "position
+information with no target present" from "the tail of the retraction".** Until that is run, the
+1.429 stands as measured but its interpretation does not.
+
+### TO DO
+
+1. Add a `dock`-anchored REST variant and re-run `rest_position_permutation` on it. If the ratio
+   survives, the position signal is genuinely target-free.
+2. The device clock needs mapping to DAQ samples; `spout_behavior.load_gui_licks` already extracts
+   the `sync` heartbeat for exactly this, so the machinery exists.
+3. `segmentation.rest` gains the anchor as a config option rather than a literal, alongside the
+   measurements above, per the pattern every other rest parameter follows.
