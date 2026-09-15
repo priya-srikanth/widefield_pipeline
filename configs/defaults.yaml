@@ -211,7 +211,14 @@ segmentation:
     # change to THIS LINE, so a result can always be traced to the definition that produced it.
     # THERE IS NO FALLBACK ACROSS DEFINITIONS: a session lacking the selected variant loses its rest
     # column rather than silently contributing a differently-defined baseline to a pooled map.
-    variant: restdock
+    # 2026-09-14: restdock -> restdock05 WITH the `lick_buffer_s` relaxation to [0.5, 1.0] below.
+    # THE NAME HAD TO MOVE WITH THE BUFFER. `recompute_masks` writes to `quiet_<tag>_<variant>/` and
+    # is RESUMABLE -- it skips a session whose output exists. Relaxing the buffer while leaving the
+    # name at `restdock` would therefore have either silently regenerated NOTHING, or, with --force,
+    # overwritten the [1,2] masks that are the provenance of every figure rendered to date. Two
+    # definitions under one name is the exact failure this line exists to prevent.
+    # Rolling back: `variant: restdock` + `lick_buffer_s: [1.0, 2.0]`. The restdock masks are untouched.
+    variant: restdock05
     # ---- the DOCKED term (2026-09-13). Restrict rest to `dock` -> next `trial_start`: the spout
     # parked, stationary, NO TARGET PRESENT anywhere. MEASURED from the behaviour log over 110
     # sessions -- dock lands 4.61-4.80 s after the cue while rest currently opens at ~4.0 s, so the
@@ -268,7 +275,32 @@ segmentation:
                                   #   sample at threshold is not a guarantee the animal was still a
                                   #   moment earlier or later. 1 mm/s is already strict, so the
                                   #   buffer only has to cover the approach and settle.
-    lick_buffer_s: [1.0, 2.0]     # WAS [1.0, 3.0]. [2, 5] was tested and rejected as not
+    lick_buffer_s: [0.5, 1.0]     # 2026-09-14: RELAXED from [1.0, 2.0], with `variant: restdock05`.
+                                  #   Priya's proposal was to relax the window and pay for it with a
+                                  #   lower percentile. MEASURED as a 2x2 so buffer and estimator
+                                  #   never moved together (19 stratified sessions, all four animals,
+                                  #   pre->chronic): the relaxation is FREE and the percentile is not.
+                                  #     paired B-A spread  -0.0019, 95% CI [-0.0053, +0.0003]
+                                  #     better in 13/19, frames x1.254 (range x1.015-x2.055)
+                                  #     p20 WORSE than the median in 18 of 19 -> not adopted
+                                  #   Read the PAIRED number: the unpaired medians point the other
+                                  #   way (0.1059 vs 0.1041) because a median-of-medians is set by
+                                  #   different sessions in each column.
+                                  #
+                                  #   THE FRAME GAIN LANDS WHERE IT IS NEEDED -- thin sessions gain
+                                  #   most (+62%, +54%, +41%), fat ones ~nothing (+1.5%). PS92_0826,
+                                  #   the one session in 92 with no position-weighted baseline, goes
+                                  #   3/6 -> 6/6 positions, so its planned exclusion may be moot.
+                                  #
+                                  #   POSITION SPREAD CANNOT SEE A UNIFORM SHIFT, so that was
+                                  #   measured separately (`uniform_shift_check`): the baseline moves
+                                  #   by a median 2.9% of the evoked signal (max 15.5%), and
+                                  #   cos(d, evoked) is negative in 12/18 -- mixed, not the shared
+                                  #   direction contamination would produce. The large shifts are the
+                                  #   sessions with the large frame gains, i.e. thin baselines being
+                                  #   estimated better, not lick activity leaking in.
+                                  #
+                                  # WAS [1.0, 3.0] BEFORE THAT. [2, 5] was tested and rejected as not
                                   #   biologically plausible and too costly in frames; the excess
                                   #   statistic fell monotonically with no plateau, which means it
                                   #   was tracking distance-from-trial rather than lick

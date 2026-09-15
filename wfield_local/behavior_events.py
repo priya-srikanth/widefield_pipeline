@@ -69,7 +69,10 @@ from wfield_local.treadmill import bout_edges, calibrate_treadmill, find_running
 #: THIS BUMP MOVES WITH `defaults.yaml segmentation.rest.{variant: restdock, docked: true}`. All
 #: three are one edit: the variant keeps the new imaging masks in their own directory, and the bump
 #: forces every npz to recompute. Leaving any behind puts two definitions under one name.
-SCHEMA_VERSION = 4   # v2 added sync_samples; v3 redefined quiet/rest; v4 adds the docked term
+SCHEMA_VERSION = 5   # v2 added sync_samples; v3 redefined quiet/rest; v4 adds the docked term;
+                     # v5 relaxes lick_buffer_s to [0.5, 1.0] (2026-09-14). Same reason v3 and v4
+                     # had to move: `rest_starts`/`rest_stops` KEEP THEIR NAMES and CHANGE THEIR
+                     # MEANING, which is the one thing a cache cannot survive.
 
 
 def _read_analog(f, name: str) -> np.ndarray:

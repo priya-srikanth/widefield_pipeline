@@ -23,7 +23,11 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 11  # bump when any cached function's computation changes
+CACHE_VERSION = 12  # bump when any cached function's computation changes
+# v12 (2026-09-14): rest `lick_buffer_s` relaxed to [0.5, 1.0] and the mask variant moved to
+# `restdock05`. Every rest-referenced cached quantity is built on those frames, and mtimes do not
+# see a CONFIG change any more than they see a code change -- so without this bump the new masks
+# would sit on disk while the old baselines kept being served from cache.
 # v11 (2026-08-27): `_trial_features` is now cached (kind `tf-<align>-<digest>`), which makes this
 # module's signature load-bearing for the per-session feature matrices every downstream analysis is
 # built from -- not just for the four derived kinds. Bumped rather than relying on the new kind being

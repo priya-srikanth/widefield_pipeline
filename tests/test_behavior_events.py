@@ -87,7 +87,9 @@ def test_compute_events_counts(tmp_path):
     #
     # PINNED, not `>=`: the number is the contract with every npz already on disk, so it should fail
     # loudly when the definition moves and be updated deliberately, together with the config.
-    assert ev["schema_version"] == 4
+    # A LITERAL ON PURPOSE -- `be.SCHEMA_VERSION` here would make the test vacuous and let an
+    # accidental bump through. Moved 4 -> 5 on 2026-09-14 with the lick_buffer_s relaxation.
+    assert ev["schema_version"] == 5
 
 
 def test_rest_and_quiet_are_the_same_arrays(tmp_path):
