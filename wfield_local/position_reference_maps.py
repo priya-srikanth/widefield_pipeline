@@ -87,8 +87,8 @@ REFERENCES = ("mean", "rest", "restw", "precue")
 #:
 #: HOW IT DIFFERS FROM A PER-POSITION BASELINE, which is a separate thing and NOT this. Subtracting
 #: each position's OWN rest would remove the between-trial position signal entirely -- and that
-#: signal is now known to exist (`rest_position_permutation`: observed/null 1.429, 41/44 sessions,
-#: with the spout RETRACTED so no target is present). `restw` keeps it; a per-position reference
+#: signal is now known to exist (`rest_position_permutation` on `restdock05`, 2026-09-15:
+#: observed/null 1.622, 44/44 sessions). `restw` keeps it; a per-position reference
 #: would delete it. The difference between the two is the measurement of it.
 REST_WEIGHTED = "restw"
 
@@ -162,8 +162,9 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
     1.02, that rest's position differences were "drift aliased onto the block structure, not
     position coding". That inference does not hold -- the two contrasts it compared are not matched
     on time separation, and a ratio of magnitudes is not a test. A circular-shift permutation that
-    keeps the block-time structure INSIDE the null gives observed/null **1.429 over 44 sessions,
-    above null in 41/44**: REST DOES CARRY POSITION INFORMATION. See
+    keeps the block-time structure INSIDE the null gives observed/null **1.622 over 44 pre-stroke
+    sessions, above null in 44/44** (`restdock05`, re-measured 2026-09-15; the earlier 1.429 41/44
+    and 1.449 39/42 were on superseded rest definitions): REST DOES CARRY POSITION INFORMATION. See
     `scripts/rest_migration/rest_position_permutation.py` and DECISIONS.md 2026-09-13.
 
     THAT DOES NOT INVALIDATE THIS BASELINE -- it is still identical for all six positions and so
@@ -231,8 +232,11 @@ def session_restw_svt(session, svt, nbins=REST_BASELINE_BINS, docked=False):
 
     AND IT MATTERS MORE THAN WHEN IT WAS DESIGNED, because of a finding made after. `restw` was
     specified while rest was believed to be position-neutral. It is not: the circular-shift
-    permutation gives observed/null **1.449 on the strict docked window, 39/42 sessions, and 4/4
-    animals** (PS92 1.282, PS93 1.669, PS94 1.457, PS95 1.474). A frame-weighted rest average
+    permutation gives observed/null **1.622 on `restdock05`, 44/44 sessions, and 4/4 animals**
+    (PS92 1.444, PS93 1.996, PS94 1.662, PS95 1.500; mean over animals 1.650, 0 sessions skipped).
+    Re-measured 2026-09-15 -- the effect is STRONGER on the current definition than the 1.449
+    (39/42) measured on its predecessor, and every session now clears its own null. A
+    frame-weighted rest average
     therefore CARRIES POSITION, and subtracting it partially cancels the effect under test by an
     amount that varies session to session with block composition.
 
