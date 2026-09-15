@@ -98,15 +98,29 @@ def _rest_mask_with_buffer(s, lick_buffer):
     lk = detect_licks(lick_v, fs, ld["thresh_upper"], ld["thresh_lower"],
                       tuple(ld["lockout_falling_edge_s"]), 0.10,
                       min_ili_s=ld["min_ili_ms"] / 1000.0)
+    # THE REPAIRED CLASSIFIER, exactly as `rest_by_position._gather` uses it. Raw `_classify_cues`
+    # reports what the hardware said, and a dead `spout_bit1` (Aug 2026) reads that bit low, so the
+    # 3-bit code COLLAPSES 6 positions onto 4 (2->0, 3->1, 6->4, 7->5). Production was fixed for this
+    # on 2026-09-14 and THIS SCRIPT WAS THEN WRITTEN WITH THE RAW CLASSIFIER ANYWAY -- so PS95_0806
+    # reported "4 positions" and I read it as an unrecoverable hardware limit. It is recoverable:
+    # `classify_cues_with_backup` repairs it from the behaviour log. (Priya, 2026-09-14.)
+    from wfield_local.behavior_position import classify_cues_with_backup
+    from wfield_local.locanmf_position_decoder import _load_cue_events
+
     try:
+        cue_ev = _load_cue_events(s["h5"])
+        codes = np.asarray(classify_cues_with_backup(s, cue_ev, verbose=False))
+        cs = np.asarray(cue_ev["cue_samples"], np.int64)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! {s['label']}: repaired classifier failed ({type(ex).__name__}), "
+              f"falling back to raw", flush=True)
         codes = np.asarray(_classify_cues(cue, st, daq_io.strobe_codes(packed, dn, st)))
-    except Exception:                                                  # noqa: BLE001
-        codes = None
+        cs = np.asarray(cue, np.int64)
     m, _note = rest_mask(n, fs, speed, np.asarray(lk["lick_onsets"], np.int64),
                          cue / fs, ts / fs, st / fs, params=q,
                          session_dir=behaviour_session_dir(s["label"]),
                          sync_s=sync / fs, position_codes=codes)
-    return m, cue, codes, fs, packed, dn
+    return m, cs, codes, fs, packed, dn
 
 
 def _per_position(s, T, buf):
