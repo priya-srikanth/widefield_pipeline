@@ -155,12 +155,18 @@ def main() -> int:
         print(f"{e:<12}{out['rest']:>12.3f}{out['restw']:>12.3f}"
               f"{out['restw'] - out['rest']:>13.3f}")
 
+    # THIS LEGEND WAS INHERITED FROM `flat_vs_timelocal` AND SAID "time-local" -- it described the
+    # comparison this script was ADAPTED FROM, not the one it runs, so the output mislabelled its own
+    # conclusion. Caught by reading the printed result rather than the numbers above it.
     print("\nHOW TO READ IT:")
-    print("  both columns agree to ~the third decimal  ->  time-local is NOT earning its place.")
-    print("      Drop it, drop sweep-binning, drop the trailing-chunk and reach-back rules, and")
-    print("      keep a FLAT POSITION-WEIGHTED baseline -- whose justification is independent.")
-    print("  amplitude ratios or between-animal r move  ->  time-local is load-bearing and the")
-    print("      machinery built on it is warranted.")
+    print("  ORDER and the acute between-animal r agree  ->  POSITION-WEIGHTING is NOT earning its")
+    print("      place. Drop `restw` for plain `rest`, and the 200-frame floor, the 4-position rule")
+    print("      and the column-drop apparatus go with it.")
+    print("  amplitude ORDER or the acute between-animal r MOVES  ->  position-weighting is")
+    print("      load-bearing and the machinery built on it is warranted.")
+    print("  NB a uniform shift in EVERY ratio is what removing a FIXED composition bias looks like")
+    print("      (the imbalance is 17.5% and stable across epochs). It is not a changed conclusion;")
+    print("      only a change in ORDER or in the between-animal agreement would be.")
     print(f"\n[done in {time.time() - t0:.0f}s]")
     return 0
 

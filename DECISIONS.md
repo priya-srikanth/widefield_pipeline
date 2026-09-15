@@ -12746,3 +12746,63 @@ honest expectation is NO -- a real, measured, explained artefact has failed to r
 times already (stopped-tail contamination, the boundary bias, the kinks). It should still be done,
 because fitting a hardware transient as drift is wrong whether or not it is detectable, but the CLAIM
 must be measured rather than asserted.
+
+---
+
+## 2026-09-14 — DECIDING TEST: `restw` changes NO conclusion. RETIRE IT for plain `rest`.
+
+`scripts/rest_migration/rest_vs_restw.py`, 93 sessions (1 skipped -- PS92_0826, which has no `restw`
+column, correctly excluded from BOTH arms so the comparison cannot be the session set).
+
+### ACUTE/PRE AMPLITUDE -- rank order IDENTICAL
+
+| position | rest | restw |
+|---|---|---|
+| close_L | 1.344 | 1.414 |
+| close_R | 1.169 | 1.234 |
+| close_center | 1.059 | 1.121 |
+| far_L | 0.902 | 0.953 |
+| far_center | 0.598 | 0.636 |
+| **far_R** | **0.445** | **0.481** |
+
+The near>far gradient and the acute far-contralateral collapse are present and identically ordered
+under both. `restw` lifts every ratio ~5% UNIFORMLY, which is exactly what removing a FIXED
+composition bias should do -- the imbalance is 17.5% and stable across epochs -- and is not a changed
+conclusion.
+
+### BETWEEN-ANIMAL AGREEMENT at far-contralateral -- the strongest anatomical claim in the deck
+
+| epoch | rest | restw | difference |
+|---|---|---|---|
+| **acute** | **0.838** | **0.832** | **-0.006** |
+| subacute | 0.008 | 0.052 | +0.044 |
+| chronic | 0.432 | 0.385 | -0.046 |
+
+Acute agrees to the third decimal. Subacute is ~0 under BOTH, so its 0.044 gap is between two nulls
+rather than between two results.
+
+### DECISION: `restw` IS RETIRED
+
+Same verdict `flat_vs_timelocal` returned for the temporal half, reached the same way. **Plain `rest`
+is the reference.** With it go the **200-frame floor**, the **4-position rule**, and the
+**column-drop apparatus** -- and the single session that had no column at all comes back.
+
+**WHY THIS IS THE RIGHT CALL ON THE WHOLE BODY OF EVIDENCE, not just this test:**
+
+* the STRONGER half of the case for `restw` was withdrawn on 2026-09-14 -- the composition imbalance
+  is FIXED (17.5%, stable across epochs), not tracking the deficit;
+* `restw` is ~3% NOISIER by split-half (relRMS 0.1577 vs 0.1551, worse in 55/91), because equal
+  weighting maximises the influence of the thinnest per-position estimates;
+* the real limit is PER-ANIMAL and untouched by either estimator (PS92 median relRMS 0.228 against
+  PS94's 0.113 on comparable frame counts);
+* and now it moves no conclusion.
+
+A fixed bias that is stated is better than a fixed bias removed at the cost of variance, extra
+machinery, and a session.
+
+### A DEFECT IN THE SCRIPT ITSELF, recorded because it nearly mislabelled the answer
+
+The printed "HOW TO READ IT" legend was inherited verbatim from `flat_vs_timelocal` and still said
+**"time-local"** -- it described the comparison the script was ADAPTED FROM rather than the one it
+ran. The numbers were right; the text under them named the wrong variable. Caught by reading the
+printed output rather than only the table above it, and fixed.
