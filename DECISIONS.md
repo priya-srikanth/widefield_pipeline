@@ -12699,3 +12699,50 @@ anything the rest definition controls.
 **STILL OPEN, and it decides whether `restw` survives at all:** does `restw` change any CONCLUSION --
 the near>far ordering, the acute far-contra collapse, the between-animal agreement? That is the test
 that retired time-local, and it has not been run for `rest` vs `restw`.
+
+---
+
+## 2026-09-14 — THE RECORDING-ONSET TRANSIENT, measured: median 2 s, p90 29 s, and a six-session tail
+
+`scripts/rest_migration/settling_transient.py`, 94 sessions, component 0 of the CORRECTED `SVTcorr`,
+2 s bins, settled = first bin after which the trace stays within 4 MADs of the 5-20 min median for a
+sustained 30 s.
+
+| p50 | p75 | p90 | p95 | p99 | max |
+|---|---|---|---|---|---|
+| **2.0 s** | 8.0 s | **29.4 s** | 137 s | 298 s | 302 s |
+
+79% settle within 10 s, **90% within 30 s**, 93% within 60 s. Median onset peak **5.6 MADs**.
+
+**SO "30 s" WAS RIGHT AS A p90 AND WRONG AS A CONSTANT.** It came from the bin width of a two-session
+diagnostic; it turns out to sit at the 90th percentile, which is a better justification than it had.
+But the distribution is heavily skewed -- the TYPICAL session settles in 2 s -- and six sessions take
+over a minute (PS92_0607 302 s, PS94_0820 298 s, PS92_0826 226 s, PS94_0821 156 s, PS94_0831 150 s,
+PS93_0826 130 s). No single constant serves both ends: 30 s over-discards the typical session by
+~28 s AND still leaves nine sessions contaminated.
+
+**THE DESIGN THAT FOLLOWS IS A PER-SESSION SETTLING TIME**, computed and stored beside the data the
+way the mask manifests are, not one number in `defaults.yaml`. The script already produces it, so it
+costs nothing extra, and it avoids choosing between over-discarding the typical session and
+under-discarding the tail.
+
+**PS95_0823 IS RESOLVED and it was not a separate anomaly.** Its long-unexplained working-signal RMS
+of 32.4 is this transient at its most extreme: all 883 samples beyond 10 SD lie in the first 1.6 min,
+in five bursts peaking at 3010 (~117 sigma raw, 11243 MADs here) -- yet it SETTLES IN 44 s. Violent
+but brief, which is what hardware settling looks like and not what any physiological process does.
+
+### TWO WRONG DESIGNS ON THE WAY, both recorded at the call site
+
+1. **Referenced against the RAW 470.** Early bins sat high because of BLEACHING, so the measurement
+   reported when the bleach decline entered the reference band (158-284 s), not when settling ended.
+   Fixed by measuring in the CORRECTED signal -- which is also what every analysis actually reads.
+2. **Required quiet "for the rest of the window".** One burst at 4.9 min then reports 294 s of
+   settling, i.e. the time of the last excursion anywhere in five minutes. The tell was a 0 s/300 s
+   bimodality with nothing between, which is not the shape of a decay. Fixed with a SUSTAINED quiet
+   run.
+
+**STILL OPEN:** whether discarding the settled interval changes any result. On today's evidence the
+honest expectation is NO -- a real, measured, explained artefact has failed to reach the results three
+times already (stopped-tail contamination, the boundary bias, the kinks). It should still be done,
+because fitting a hardware transient as drift is wrong whether or not it is detectable, but the CLAIM
+must be measured rather than asserted.
