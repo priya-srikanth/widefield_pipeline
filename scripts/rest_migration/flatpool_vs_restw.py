@@ -138,7 +138,10 @@ def main() -> int:
           f"{'=' * 78}")
     fc = CONF_LABELS[-1]
     print(f"far-contra label = {fc!r}")
-    print(f"{'epoch':<12}{'rest':>12}{'restw':>12}{'difference':>13}")
+    # THE KEY IS `flatpool`, NOT `rest`. This script was adapted from `flat_vs_timelocal`, whose
+    # store key was "rest"; the rename was missed here and only here, so section 1 printed fine and
+    # section 2 -- the STRONGER claim -- died with a KeyError after 880 s of collection.
+    print(f"{'epoch':<12}{'flatpool':>12}{'restw':>12}{'difference':>13}")
     for e in ("acute", "subacute", "chronic"):
         out = {}
         for kind in ("flatpool", "restw"):
@@ -155,8 +158,8 @@ def main() -> int:
                 if ok.sum() > 50:
                     rs.append(float(np.corrcoef(u[ok], w[ok])[0, 1]))
             out[kind] = float(np.mean(rs)) if rs else np.nan
-        print(f"{e:<12}{out['rest']:>12.3f}{out['restw']:>12.3f}"
-              f"{out['restw'] - out['rest']:>13.3f}")
+        print(f"{e:<12}{out['flatpool']:>12.3f}{out['restw']:>12.3f}"
+              f"{out['restw'] - out['flatpool']:>13.3f}")
 
     # THIS LEGEND WAS INHERITED FROM `flat_vs_timelocal` AND SAID "time-local" -- it described the
     # comparison this script was ADAPTED FROM, not the one it runs, so the output mislabelled its own

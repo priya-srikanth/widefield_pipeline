@@ -31,7 +31,17 @@ earlier today:
 
 Masks are recomputed IN MEMORY, never written, so no second variant lands on disk.
 
-    python -m scripts.rest_migration.relaxed_buffer_percentile [--limit N] [--pct 20]
+THE MASK IS CACHED PER BUFFER (2026-09-14). The first version recomputed it inside the arm loop, so
+each session paid FOUR full DAQ reads for TWO distinct masks -- the estimator is the cheap half. That
+alone was most of the ~10 min/session that limited the first run to four sessions.
+
+ALSO REPORTED, because neutrality is not the only thing at stake: the per-position frame counts and
+how many positions clear the PRODUCTION gate (`rest_by_position.MIN_FRAMES_PER_POSITION`, and the
+six-position requirement). A relaxation that is neutrality-free is only worth taking if it actually
+feeds the starved sessions.
+
+    python -m scripts.rest_migration.relaxed_buffer_percentile [--limit N] [--every K] [--pct 20]
+    python -m scripts.rest_migration.relaxed_buffer_percentile --sessions PS92_0826 PS94_0819
 """
 from __future__ import annotations
 
@@ -41,10 +51,15 @@ import numpy as np
 
 from wfield_local import config
 
-ARMS = (("A median [1,2]", (1.0, 2.0), None),
-        ("B median [.5,1]", (0.5, 1.0), None),
-        ("C p{p} [.5,1]", (0.5, 1.0), "pct"),
-        ("D p{p} [1,2]", (1.0, 2.0), "pct"))
+BUFFERS = ((1.0, 2.0), (0.5, 1.0))
+ESTS = (("median", None), ("p{p}", "pct"))
+MIN_POS_FRAMES = 50          # for the spread estimate itself
+PROD_GATE = 200              # rest_by_position.MIN_FRAMES_PER_POSITION
+PROD_POSITIONS = 6           # rest_by_position.MIN_POSITIONS_FOR_WEIGHTED
+
+
+def _arm_name(est, buf, pct):
+    return f"{est.format(p=pct)} [{buf[0]:g},{buf[1]:g}]"
 
 
 def _rest_mask_with_buffer(s, lick_buffer):
@@ -94,64 +109,90 @@ def _rest_mask_with_buffer(s, lick_buffer):
     return m, cue, codes, fs, packed, dn
 
 
-def run(label, pct):
-    from wfield_local.rest_by_position import frame_samples
+def _per_position(s, T, buf):
+    """Rest FRAMES grouped by the position of the two trials bracketing them, for one buffer."""
     from wfield_local import daq_io
+    from wfield_local.rest_by_position import frame_samples
 
+    m, cue, codes, fs, packed, dn = _rest_mask_with_buffer(s, buf)
+    pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
+    f_of = frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
+    if f_of is None or codes is None:
+        return None
+    f_of = np.asarray(f_of)[:T]
+    rest_fr = np.flatnonzero(m[np.clip(f_of, 0, m.size - 1)])
+    per = {}
+    cs = np.asarray(cue, np.int64)
+    for fr in rest_fr:
+        smp = f_of[fr]
+        prev = np.searchsorted(cs, smp, "right") - 1
+        nxt = prev + 1
+        if prev < 0 or nxt >= len(codes) or codes[prev] != codes[nxt] or codes[prev] < 0:
+            continue
+        per.setdefault(int(codes[prev]), []).append(fr)
+    return {c: np.asarray(v) for c, v in per.items()}
+
+
+def run(label, pct):
     s = next(x for x in config.load_sessions() if x["label"] == label)
     V = np.load(config.svtcorr_path(s["mc"]), mmap_mode="r")
     X = np.asarray(V[:, :], dtype=np.float64)
     T = X.shape[1]
     scale = float(np.sqrt((X ** 2).mean()))
-    out = {}
-    for name, buf, kind in ARMS:
-        nm = name.format(p=pct)
+
+    # ONE mask per buffer, not one per arm.
+    per_buf = {}
+    for buf in BUFFERS:
         try:
-            m, cue, codes, fs, packed, dn = _rest_mask_with_buffer(s, buf)
+            per_buf[buf] = _per_position(s, T, buf)
         except Exception as ex:                                        # noqa: BLE001
-            print(f"  !! {label} {nm}: {type(ex).__name__} {str(ex)[:50]}", flush=True)
+            print(f"  !! {label} buf {buf}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
             return None
-        pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
-        f_of = frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
-        if f_of is None or codes is None:
+        if per_buf[buf] is None:
             return None
-        f_of = np.asarray(f_of)[:T]
-        rest_fr = np.flatnonzero(m[np.clip(f_of, 0, m.size - 1)])
-        # per-position rest frames, labelled by the bracketing trials (same rule as rest_by_position)
-        per = {}
-        cs = np.asarray(cue, np.int64)
-        for fr in rest_fr:
-            smp = f_of[fr]
-            prev = np.searchsorted(cs, smp, "right") - 1
-            nxt = prev + 1
-            if prev < 0 or nxt >= len(codes) or codes[prev] != codes[nxt] or codes[prev] < 0:
-                continue
-            per.setdefault(int(codes[prev]), []).append(fr)
-        per = {c: np.asarray(v) for c, v in per.items() if len(v) >= 50}
-        if len(per) < 4:
-            return None
-        est = (lambda a: np.percentile(a, pct, axis=1)) if kind else (
-            lambda a: np.median(a, axis=1))
-        levels = np.stack([est(X[:, idx]) for c, idx in sorted(per.items())], 0)
-        spread = float(np.sqrt(((levels - levels.mean(0)) ** 2).mean())) / scale
-        frames = int(sum(v.size for v in per.values()))
-        out[nm] = (spread, frames, len(per))
-    line = f"  {label:12s}"
-    for nm, (sp, fr, npos) in out.items():
-        line += f"   {nm}: spread {sp:.4f} ({fr} fr, {npos}pos)"
-    print(line, flush=True)
+
+    out = {}
+    for buf in BUFFERS:
+        raw = per_buf[buf]
+        usable = {c: v for c, v in raw.items() if v.size >= MIN_POS_FRAMES}
+        n_prod = sum(1 for v in raw.values() if v.size >= PROD_GATE)
+        if len(usable) < 4:
+            print(f"  .. {label} buf [{buf[0]:g},{buf[1]:g}]: only {len(usable)} usable positions",
+                  flush=True)
+            continue
+        for est, kind in ESTS:
+            f = ((lambda a: np.percentile(a, pct, axis=1)) if kind
+                 else (lambda a: np.median(a, axis=1)))
+            levels = np.stack([f(X[:, idx]) for c, idx in sorted(usable.items())], 0)
+            spread = float(np.sqrt(((levels - levels.mean(0)) ** 2).mean())) / scale
+            out[_arm_name(est, buf, pct)] = (
+                spread, int(sum(v.size for v in usable.values())), len(usable), n_prod)
+    if not out:
+        return None
+    parts = [f"{nm}: {sp:.4f} ({fr}fr {npos}p {nprod}/{PROD_POSITIONS}prod)"
+             for nm, (sp, fr, npos, nprod) in out.items()]
+    print(f"  {label:12s}  " + "   ".join(parts), flush=True)
     return out
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=12)
+    ap.add_argument("--every", type=int, default=1,
+                    help="take every Kth curated session -- spreads the sample across animals/epochs "
+                         "instead of taking the first N, which are all one date")
+    ap.add_argument("--sessions", nargs="+", default=None)
     ap.add_argument("--pct", type=float, default=20.0)
     a = ap.parse_args()
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
-    labs = [x["label"] for x in config.load_sessions() if x["label"] in want]
-    if a.limit:
-        labs = labs[: a.limit]
+    if a.sessions:
+        labs = list(a.sessions)
+    else:
+        want = set(config.phase_labels("pre") + config.phase_labels("post"))
+        labs = [x["label"] for x in config.load_sessions() if x["label"] in want]
+        labs = labs[:: max(1, a.every)]
+        if a.limit:
+            labs = labs[: a.limit]
+    print(f"{len(labs)} sessions: {', '.join(labs)}\n", flush=True)
     rows = []
     for lab in labs:
         try:
@@ -164,12 +205,33 @@ def main():
     if len(rows) < 4:
         print(f"\nonly {len(rows)} sessions -- a failed run, not a result")
         return
-    keys = list(rows[0].keys())
+    keys = [_arm_name(e, b, a.pct) for b in BUFFERS for e, _ in ESTS]
     print(f"\nPOSITION SPREAD of the baseline ({len(rows)} sessions; lower = more position-neutral)")
     for k in keys:
         v = np.array([r[k][0] for r in rows if k in r])
         f = np.array([r[k][1] for r in rows if k in r], float)
-        print(f"  {k:18s} median spread {np.median(v):.4f}   median frames {np.median(f):7.0f}")
+        print(f"  {k:18s} n={v.size:3d}  median spread {np.median(v):.4f}   "
+              f"median frames {np.median(f):7.0f}")
+
+    # PAIRED, because every arm is measured on the same sessions. A median-of-medians hides a
+    # consistent within-session shift; the paired delta does not.
+    a_med, b_med = _arm_name("median", BUFFERS[0], a.pct), _arm_name("median", BUFFERS[1], a.pct)
+    both = [r for r in rows if a_med in r and b_med in r]
+    if both:
+        d = np.array([r[b_med][0] - r[a_med][0] for r in both])
+        g = np.array([r[b_med][1] / max(1, r[a_med][1]) for r in both])
+        rng = np.random.default_rng(0)
+        bs = np.array([np.median(rng.choice(d, d.size)) for _ in range(5000)])
+        lo, hi = np.percentile(bs, [2.5, 97.5])
+        print(f"\nPAIRED B-A (median estimator, {len(both)} sessions)")
+        print(f"  spread delta   median {np.median(d):+.4f}  95% CI [{lo:+.4f}, {hi:+.4f}]  "
+              f"worse in {int((d > 0).sum())}/{d.size}")
+        print(f"  frame gain     median x{np.median(g):.3f}   range x{g.min():.3f}-x{g.max():.3f}")
+        prod = [(r[a_med][3], r[b_med][3]) for r in both]
+        gained = [p for p in prod if p[1] > p[0]]
+        short_a = [p for p in prod if p[0] < PROD_POSITIONS]
+        print(f"  production gate: {len(short_a)}/{len(prod)} sessions short of {PROD_POSITIONS} "
+              f"positions under A; {len(gained)} gain a position under B")
     print("\nREAD: B vs A = what relaxing the buffer costs in position-neutrality.")
     print("      C vs B = whether the percentile buys it back.")
     print("      D vs A = what the percentile does on its own.")
