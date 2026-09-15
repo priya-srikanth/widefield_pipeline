@@ -79,8 +79,19 @@ def main(argv=None) -> int:
         if not args.force and sorted(out.glob("*_quiet_frame.npy")):
             skipped += 1
             continue
+        # THE LABEL CARRIES THE MAPS TAG, because it becomes the output FILENAME prefix and
+        # `preprocess.py` builds that filename EXPLICITLY rather than globbing:
+        #     lab = f"{animal}_{mmdd}_{tag}"   ->   qf = f"{quiet}/{lab}_quiet_frame.npy"
+        # Passing the bare `s["label"]` writes `PS92_0806_quiet_frame.npy`, which every ANALYSIS
+        # consumer still finds (they glob `*quiet_frame.npy`) and which the imaging box's lick-map
+        # step does NOT -- so that step fails, or silently drops its quiet-normalised panel, on
+        # every session. `fix_mask_names` exists only to repair this after the fact; it had to be
+        # run by hand after the restdock regeneration AND again after restdock05 (2026-09-15,
+        # reported by the imaging box). Emitting the tagged name here retires that band-aid.
+        _tag = config.defaults()["preprocess"]["maps"]["tag"]
         cmd = [sys.executable, "-m", "wfield_local.quiet_periods",
-               "--daq-h5", str(s["h5"]), "--label", s["label"], "--output", str(out)]
+               "--daq-h5", str(s["h5"]), "--label", f"{s['label']}_{_tag}",
+               "--output", str(out)]
         # REGIME B needs the frame map + the chosen exposure offset; regime A is raw//2. Same
         # resolution `locanmf_cue_lick_analysis` uses, so a session cannot be mapped one way here
         # and another way there.

@@ -460,14 +460,14 @@ def main():
                          "capped at 8). Left unset here deliberately -- two defaults for one "
                          "number is how they drift apart.")
     ap.add_argument("--skip-grant", action="store_true",
-                    help="skip the grant-figure render. RE-MEASURED 2026-09-07/09: the grant render "
-                         "is 1 h 51 m (96 units, parallel), NOT the 8-10 h this help text claimed "
-                         "until 2026-09-14 -- that figure predates the parallel renderer and the "
-                         "`_trial_features` memoisation, and a full stage 2 came in at 10 h 26 m "
-                         "with 0 failed steps. The grant render is ~18% of a run, so skipping is no "
-                         "longer the routine choice it was. Skipping leaves deck section H showing "
-                         "the PREVIOUS render -- the deck's manifest reports them as not refreshed, "
-                         "which is the signal to re-run it by hand.")
+                    help="skip the grant-figure render. Leaves deck sections H and I showing the "
+                         "PREVIOUS render -- the deck's manifest reports them as not refreshed, "
+                         "which is the signal to re-run it by hand. RE-MEASURED 2026-09-07/09: the "
+                         "grant render is 1 h 51 m (96 units, parallel), NOT the 8-10 h this help "
+                         "text claimed until 2026-09-14 -- that figure predates the parallel "
+                         "renderer and the `_trial_features` memoisation, and a full stage 2 came "
+                         "in at 10 h 26 m with 0 failed steps. The grant render is ~18% of a run, "
+                         "so skipping is no longer the routine choice it once was.")
     ap.add_argument("--skip-poststroke", action="store_true",
                     help="skip the post-stroke stage (section G + the map-level analyses)")
     ap.add_argument("--skip-frozen", action="store_true",

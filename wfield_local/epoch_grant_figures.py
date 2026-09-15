@@ -1644,12 +1644,23 @@ _REF_TEXT = {
         short="one vs POSITION-WEIGHTED rest",
         title="Position maps referenced to the POSITION-WEIGHTED rest baseline -- each position "
               "weighted equally, not each rest frame",
-        cbar="activity minus the position-weighted\ntime-local rest baseline",
+        cbar="activity minus the position-weighted\nFLAT rest baseline",
         note=("THE SIX ROWS ARE INDEPENDENT, as with `_RESTref_`: one subtrahend for all six, so "
               "it cannot couple them. WHAT DIFFERS IS THE BASELINE'S COMPOSITION, and that is the "
               "whole figure. `_RESTref_` averages over rest FRAMES, so a position contributing "
               "more rest frames pulls the baseline toward its own resting state. This one builds "
-              "each position's own time-local rest baseline and averages the six EQUALLY."
+              "each position's own FLAT rest level -- the median over that position's rest frames, "
+              "one level, NOT binned over session time -- and averages the six EQUALLY."
+              "\n\nFLAT, NOT TIME-LOCAL, AND THIS CAPTION SAID THE OPPOSITE UNTIL 2026-09-15. "
+              "`restw` was SPECIFIED as per-position time-local and IMPLEMENTED that way; the flat "
+              "form replaced it on 2026-09-14 after `flat_vs_timelocal` measured the two and found "
+              "the time-local version moved no conclusion (same acute/pre ordering, same monotone "
+              "near->far gradient, between-animal agreement at far-contra 0.812 vs 0.838 against a "
+              "null of 0.07) while costing the defect that a thin per-position time bin is a noisy "
+              "level and equal weighting amplifies exactly the thinnest estimates. The estimator "
+              "moved; these two words did not, so the COLOURBAR of every `_RESTWref_` figure "
+              "rendered between those dates names a construction the code had already stopped "
+              "using. Read `restw_from_frames`, which is the one implementation, if in doubt."
               "\n\nWHY IT MATTERS, AND WHY IT MATTERS MORE POST-STROKE. Rest is not "
               "position-neutral -- observed/null 1.443 over 44 sessions, 41/44, 4/4 animals, on "
               "the strict docked window -- so a frame-weighted rest average CARRIES POSITION. "

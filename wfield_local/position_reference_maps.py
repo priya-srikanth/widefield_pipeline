@@ -215,7 +215,8 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
 def session_restw_svt(session, svt, nbins=REST_BASELINE_BINS, docked=False):
     """``(baseline, codes_used)`` -- the POSITION-WEIGHTED FLAT rest baseline, or ``(None, [])``.
 
-    Build each position's OWN time-local rest baseline, then average those with EQUAL WEIGHT. The
+    Build each position's OWN FLAT rest level -- the median over that position's rest frames, one
+    number per component, NOT binned over session time -- then average those with EQUAL WEIGHT. The
     result is still ONE subtrahend, identical for all six positions, so it cannot couple them --
     the property `mean` lacks and the reason `rest` is the primary reference. What changes is that
     its COMPOSITION no longer tracks which positions the animal still works.
