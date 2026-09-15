@@ -31,7 +31,17 @@ import numpy as np
 #: under the same name. Four of six is the floor because PS94 has ZERO engaged trials at two
 #: positions in some epochs (G1b), and excluding those sessions entirely would be a stronger
 #: intervention than this reference needs.
-MIN_POSITIONS_FOR_WEIGHTED = 4
+#: RAISED 4 -> 6 on 2026-09-14 (Priya: *"the rest should include all positions"*), and it is a
+#: CORRECTNESS fix rather than a tightening. The whole point of the weighted baseline is to be
+#: POSITION-NEUTRAL; an equal average over a SUBSET is neutral only over that subset, which the
+#: comment above concedes ("still tracks the deficit -- just less"). At four of six the reference
+#: was buying partial neutrality while being named and used as neutral.
+#:
+#: IT COSTS NOTHING ON THIS COHORT, measured before changing it: 91 of 92 sessions already clear the
+#: frame floor at ALL SIX positions, and the one exception (PS92_0826, 3/6) fails at four as well. So
+#: the relaxation was protecting against a case that does not occur session-wise -- PS94's empty
+#: positions arise when trials are POOLED INTO AN EPOCH, not within a single session.
+MIN_POSITIONS_FOR_WEIGHTED = 6
 
 #: Rest frames a position needs before it may contribute a level to the weighted baseline.
 #: EQUAL WEIGHTING AMPLIFIES THE THINNEST ESTIMATE, which is the hazard it buys along with the

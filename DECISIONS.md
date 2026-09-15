@@ -12860,3 +12860,53 @@ I read `parts.get("raw_rest")` and assumed the name meant the flat pooled baseli
 **A NAMING HAZARD WORTH FIXING SEPARATELY:** `raw_rest` gives no hint that it is time-local, while
 `session_restw_svt` was renamed when it became flat and `session_rest_svt_timelocal` was not. Two
 references whose names imply they differ only in weighting actually differ in two ways.
+
+---
+
+## 2026-09-14 — PS92_0826: why it has no rest baseline, and the EXACT scope of its exclusion
+
+**IT IS NOT RUNNING, and that guess was made twice before it was checked.** Decomposing the mask
+term by term (`scripts/rest_migration/why_no_rest.py`):
+
+| cumulative term | PS92_0826 (fails) | PS92_0824 (passes) |
+|---|---|---|
+| between trials | 85.29% | 82.03% |
+| + treadmill | 74.90% | 78.04% |
+| **+ lick buffer** | **3.62%** | 8.82% |
+| + `min_rest_s` 0.5 s | 3.45% | 8.62% |
+| final on disk (+docked, +engagement) | **1.46%** | 3.38% |
+
+**The animal is moving 3.8% of the session** -- the treadmill term is LESS restrictive here than in
+PS92_0824, which passes. **It is licking: 7,151 lick onsets over 121 minutes**, roughly one per
+second sustained, and the lick buffer alone excludes 93.56%.
+
+**NO PARAMETER IS RELAXED TO RECOVER IT.** `min_rest_s` costs only 3.62% -> 3.45%, so lowering it
+recovers nothing. The lick buffer IS the effect, but it was settled on biology, and shortening it for
+one session means either a session-specific parameter -- two definitions under one name, the failure
+this whole migration exists to remove -- or moving it cohort-wide to rescue a single session. 1.46% of
+121 min is **~106 s of rest total**, and a baseline built from that is what the reliability
+measurement calls noise. **A session with no quiet time should lose its rest column, not be given one
+by loosening the definition** -- the same logic as the docked window raising rather than falling back.
+
+### THE EXCLUSION IS NARROW (Priya, 2026-09-14)
+
+EXCLUDE PS92_0826 from:
+* **map-minus-rest comparisons** (the `15r` family and anything referencing rest for AMPLITUDE);
+* **the encoder's `fig_predicted_maps`** -- the same quantity under a different figure name. Excluding
+  it from one and not the other would leave a figure built on a 106 s baseline.
+
+DO NOT exclude it from:
+* **the locomotor state decoder** (`12b`/`13s`) -- it has its OWN guard, `MIN_PER_CLASS = 15`, so it
+  drops itself if the rest CLASS is too thin, and a class is a weaker requirement than a subtrahend.
+  Manual exclusion would double-gate it.
+* **anything with no rest dependency**: every position decoder (frozen, LOSO, per-position recall),
+  the figure-14 beta maps, crossnobis RDMs, the 0.863 -> 0.428 headline triple, and all behavioural
+  analyses.
+
+### ALSO CHANGED: `MIN_POSITIONS_FOR_WEIGHTED` 4 -> 6
+
+Priya: *"the rest should include all positions."* An equal average over a SUBSET is neutral only over
+that subset, which the old comment conceded. **Measured before changing: 91 of 92 sessions already
+clear the frame floor at all six positions, and the one exception fails at four as well** -- so the
+relaxation bought nothing on this cohort while costing the property it was named for. PS94's empty
+positions arise when trials are POOLED INTO AN EPOCH, not within a session.
