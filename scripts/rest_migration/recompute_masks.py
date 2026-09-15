@@ -58,6 +58,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--force", action="store_true", help="rebuild sessions that already have masks")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--sessions", nargs="+", metavar="LABEL", default=None,
+                    help="explicit session labels, bypassing the pre/post phase filter -- for "
+                         "sessions the PREPROCESSING deck shows but no analysis uses")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
 
@@ -67,7 +70,23 @@ def main(argv=None) -> int:
               "write, because this would overwrite the old masks in place.", flush=True)
         return 2
 
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
+    # `--sessions` BUILDS MASKS FOR SESSIONS OUTSIDE THE ANALYSED SET, which the phase filter below
+    # correctly excludes and which the PREPROCESSING deck still shows (it covers every preprocessed
+    # session, not the curated one). Without them that deck puts restdock05 quietnorm panels beside
+    # retired-definition ones with nothing on the slide saying so -- two definitions under one name,
+    # relocated into a QC deck. Raised by the imaging box 2026-09-15 for the four 0805 sessions and
+    # PS92/PS93 0817.
+    #
+    # THIS DOES NOT ADMIT THEM TO ANY ANALYSIS. Selection everywhere downstream is by
+    # `config.phase_labels`, never by mask presence, so an excluded session stays excluded whether
+    # or not a mask exists beside it. 0805 is the wonky 8/5; PS92/PS93 0817 is neither baseline nor
+    # post-stroke because the effective lesion followed that recording (animals.yaml `exclude`).
+    if args.sessions:
+        want = set(args.sessions)
+        print(f"[rest] EXPLICIT session list ({len(want)}) -- bypassing the phase filter. These are "
+              f"for deck uniformity only; they remain excluded from every analysis.", flush=True)
+    else:
+        want = set(config.phase_labels("pre") + config.phase_labels("post"))
     todo = [s for s in SESSIONS if s["label"] in want and s.get("h5")]
     if args.limit:
         todo = todo[: args.limit]

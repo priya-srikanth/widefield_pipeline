@@ -1673,11 +1673,25 @@ _REF_TEXT = {
               "OWN rest would subtract the between-trial position signal itself -- the "
               "persistence trace measured at +0.0754 across 4/4 animals -- and report a null. "
               "This keeps it. The difference between the two is the measurement of it."
-              "\n\nREAD IT AGAINST `_RESTref_`: the two differ ONLY in the weighting, so a change "
-              "between them IS the composition effect, and a cell that moves post-stroke but not "
-              "pre-stroke is the signature this reference exists to remove. A session where fewer "
-              "than four positions have a usable rest baseline has NO `_RESTWref_` column at all, "
-              "rather than a differently-defined baseline under the same name."),
+              "\n\nREAD IT AGAINST `_RESTref_`, BUT THEY DIFFER ON TWO AXES, NOT ONE. This caption "
+              "said \"the two differ ONLY in the weighting\" until 2026-09-15, which was true when "
+              "written and stopped being true on 2026-09-14 when `restw` went flat. The axes are "
+              "COMPOSITION (`_RESTref_` weights rest FRAMES, this weights POSITIONS equally) and "
+              "TEMPORAL (`_RESTref_` is time-local -- 12 bins, median per bin, interpolated, "
+              "subtracted before the trial features; this is FLAT). So a difference between them "
+              "is not purely the composition effect. What licenses still reading it that way is "
+              "that the temporal axis was MEASURED and moves nothing: `flat_vs_timelocal` gives "
+              "the same acute/pre ordering, the same monotone near->far gradient, and "
+              "between-animal agreement at far-contra of 0.812 vs 0.838 against a null of 0.07. "
+              "The composition axis is the one carrying the difference -- but say which claim is "
+              "measured rather than asserting the arms are matched when they are not."
+              "\n\nA cell that moves post-stroke but not pre-stroke is the signature this "
+              "reference exists to remove. A session where fewer than SIX positions have a usable "
+              "rest baseline (>= 200 rest frames each) has NO `_RESTWref_` column at all, rather "
+              "than a differently-defined baseline under the same name. The gate was FOUR until "
+              "2026-09-14 (Priya: \"the rest should include all positions\"); on the `restdock05` "
+              "definition every one of the 94 curated sessions clears six, so no session currently "
+              "loses the column."),
     ),
 }
 

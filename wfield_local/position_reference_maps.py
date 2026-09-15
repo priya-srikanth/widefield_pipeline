@@ -611,13 +611,18 @@ def maps_by_epoch(align, variant, post_s=2.0):
               flush=True)
     if n_norestw:
         # SAID OUT LOUD FOR THE SAME REASON as the two above, and it matters MORE here: a session
-        # drops its RESTW column when fewer than four positions still have a usable rest baseline,
-        # which is a POST-STROKE condition. So the sessions this silently removes are exactly the
-        # most affected ones, and `restw` would then be built on a healthier session set than
-        # `rest` while sitting beside it on the same figure.
+        # drops its RESTW column when fewer than `MIN_POSITIONS_FOR_WEIGHTED` positions still have
+        # a usable rest baseline, which is a POST-STROKE condition. So the sessions this silently
+        # removes are exactly the most affected ones, and `restw` would then be built on a healthier
+        # session set than `rest` while sitting beside it on the same figure.
+        #
+        # THE THRESHOLD IS READ FROM THE CONSTANT, NOT SPELLED OUT. This line said "<4" until
+        # 2026-09-15, five weeks after the gate moved to 6 -- a runtime message stating a threshold
+        # the code no longer applies, which is worse than no message.
+        from wfield_local.rest_by_position import MIN_POSITIONS_FOR_WEIGHTED
         print(f"  .. ref-map: {n_norestw} session(s) produced no position-weighted rest maps "
-              f"(<4 positions with a usable rest baseline) -- these are dropped from RESTW ONLY",
-              flush=True)
+              f"(<{MIN_POSITIONS_FOR_WEIGHTED} positions with a usable rest baseline) -- "
+              f"these are dropped from RESTW ONLY", flush=True)
     if n_noprecue:
         print(f"  .. ref-map: {n_noprecue} session(s) produced no pre-cue-referenced maps",
               flush=True)
