@@ -120,6 +120,46 @@ def lick_per_session() -> int:
     return int(_cfg().get("frames", {}).get("lick_per_session", 0))
 
 
+def target_per_session() -> int:
+    """Frames KEPT per session per camera after appearance pruning, or 0 to keep everything.
+
+    The planner deliberately proposes more than this. Behaviour alignment decides which MOMENTS are
+    eligible -- that is what guarantees a tongue-out frame exists at all, which appearance
+    clustering on its own never does -- and the pruning below decides which of the eligible ones are
+    worth a person's time. Neither half works alone.
+    """
+    return int(_cfg().get("frames", {}).get("target_per_session", 0))
+
+
+def lick_fraction() -> float:
+    """Share of ``target_per_session`` spent on lick-locked frames.
+
+    Held ABOVE the tongue's share of wall-clock time on purpose: the tongue is the hardest part to
+    track, the only one that is ever fully hidden, and the one the analysis actually turns on.
+    """
+    return float(_cfg().get("frames", {}).get("lick_fraction", 0.5))
+
+
+def sessions_per_epoch() -> int:
+    """Sessions kept per EPOCH, across animals, or 0 for one per animal x epoch.
+
+    Priya, 2026-09-13: "we shouldnt need to label every session; 2 per epoch, across animals, should
+    be ok." Correct on the frame count -- one session per animal x epoch is 15 sessions and several
+    hundred frames per camera more than DLC needs.
+
+    THE COST IS NOT UNIFORM, and it lands where this module's docstring already says the risk is.
+    At 2 per epoch only 2 of 4 animals appear in each, so some animal is absent from some
+    post-stroke epoch -- and "the 2pRAM cohort saw post-stroke tongue tracking fall apart in its two
+    severe animals" is exactly that failure, a tracking artefact on top of a real deficit and nearly
+    impossible to separate afterwards. So the sessions are chosen to ROTATE animals across epochs
+    rather than taken in name order: every animal still appears, in as many distinct epochs as the
+    quota allows. That mitigates the risk; it does not remove it. Cutting frames per session instead
+    reaches the same total with every animal x epoch cell intact, and is the safer knob if the
+    tracking later looks worse for one animal after its stroke.
+    """
+    return int(_cfg().get("frames", {}).get("sessions_per_epoch", 0))
+
+
 def lick_offsets_s() -> list[float]:
     """Seconds from a lick onset to sample, spanning the tongue-out epoch.
 
@@ -258,13 +298,49 @@ def out_root(rv=None) -> Path:
     return Path(rv.root("behavior_cameras")) / "dlc"
 
 
+def anchor_cam() -> str | None:
+    """The camera whose trial/lick choice every other camera copies, or None for independent picks.
+
+    **WHY THIS EXISTS.** The selection RNG was seeded per CAMERA, so each view drew its own trials
+    and its own licks. Measured on the 2026-09-12 manifest that left 875 events sampled by cam1
+    alone, 866 by cam4 alone, and **22 by all four** -- out of ~900 each. Nothing was wrong with any
+    individual view, but the four sets of labelled frames were of different MOMENTS.
+
+    That does not hurt training, where each camera learns from its own frames, and it does not hurt
+    3D at inference, where the network predicts every frame of synchronised video. What it costs is
+    the ability to TRIANGULATE THE LABELS THEMSELVES -- label two views, reconstruct in 3D, and
+    reproject to seed the remaining two. With 27 usable cam4+cam1 pairs that was not worth running.
+
+    Seeding on the ANCHOR instead makes every camera choose the same trials and the same lick times.
+    The frame NUMBER still differs per camera -- `frame_of` maps a DAQ time through that camera's own
+    alignment template -- which is the point: same instant, each view's own frame.
+
+    **THE ANCHOR MUST BE THE MOST-LABELLED CAMERA, and it is cam4 (7,642 points over 13 folders).**
+    Seeding on cam4 reproduces cam4's existing selection EXACTLY, so its labels stay valid and only
+    the unlabelled views move. Changing the anchor later would re-pick cam4's frames and orphan that
+    work; treat it as fixed unless you are prepared to re-label.
+    """
+    v = _cfg().get("frames", {}).get("anchor_cam", None)
+    return str(v) if v else None
+
+
 def _rng(animal: str, date: str, cam: str) -> np.random.Generator:
     """A generator whose stream depends only on the session, so cameras and dates are independent.
 
     Seeding once per run and drawing in iteration order would make every session's choice depend on
     which other sessions happened to be processed first -- so adding a date would silently re-pick
     frames for dates already labelled.
+
+    With an `anchor_cam` configured the camera part of the key is replaced by the anchor, so all
+    views share one stream and therefore one set of moments. See `anchor_cam`.
     """
+    a = anchor_cam()
+    if a:
+        # keep any suffix ("_lick") while swapping the camera, so the two streams stay distinct
+        for c in cameras():
+            if cam == c or cam.startswith(c + "_"):
+                cam = a + cam[len(c):]
+                break
     key = f"{animal}_{date}_{cam}_{seed()}".encode()
     return np.random.default_rng(np.frombuffer(key.ljust(32, b"\0")[:32], dtype=np.uint32))
 
@@ -355,6 +431,9 @@ def plan_session(animal, date, sid, epoch, cam, rv=None) -> list[dict]:
                              "video_stem": stem, "frame": f, "trial_id": int(row["trial_id"]),
                              "position": str(row["pos_name"]), "category": str(row["cat"]),
                              "phase": name, "t_from_cue_s": off,
+                             # its own group: cue-locked frames are seconds apart and share no
+                             # posture, so each stands or falls alone.
+                             "_group": f"{int(row['trial_id'])}:{name}",
                              "image": f"img{f:07d}.png", "_video": str(vids[0])})
 
     n_lick = lick_per_session()
@@ -378,8 +457,166 @@ def plan_session(animal, date, sid, epoch, cam, rv=None) -> list[dict]:
                                  # the tongue's appearance is exactly what varies across it.
                                  "phase": f"lick{off * 1000:+.0f}",
                                  "t_from_cue_s": round(t_lick + off - float(row["cue_s"]), 4),
+                                 # ALL OFFSETS OF ONE LICK SHARE A GROUP, and pruning keeps or
+                                 # drops a group whole. Priya, 2026-09-13: "labeling a few
+                                 # consecutive frames from one lick is probably helpful for the
+                                 # human to ensure they're picking the same part of the tongue."
+                                 # Frame-wise pruning would have kept one frame from each of many
+                                 # licks -- best for the network, worst for the labeller, who then
+                                 # never sees the tongue MOVE and has to guess at "the tip" on
+                                 # isolated frames. The consistency of the labels is upstream of
+                                 # everything the network can learn.
+                                 "_group": f"{int(row['trial_id'])}:{t_lick:.4f}",
                                  "image": f"img{f:07d}.png", "_video": str(vids[0])})
     return rows
+
+
+def _thumb(frame) -> np.ndarray:
+    """A 64x64 z-scored greyscale thumbnail -- the space poses are compared in.
+
+    Z-scoring per frame so a session that simply ran brighter does not read as a different posture.
+    Coarse on purpose: the question is "is this a different pose", not "is this a different frame",
+    and at 250 fps full resolution answers the second.
+    """
+    import cv2
+    g = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    v = cv2.resize(g, (64, 64)).astype(np.float32).ravel()
+    return (v - v.mean()) / (v.std() + 1e-6)
+
+
+def farthest_first(F: np.ndarray, k: int) -> list[int]:
+    """Indices of ``k`` rows of ``F`` chosen to be as mutually UNLIKE as possible.
+
+    Farthest-point sampling, not k-means. Three reasons, all of which matter here: it is
+    deterministic without a seed, so a re-run re-picks the same frames the way the rest of this
+    module promises; it has no convergence step to fail quietly on the small n a single stratum
+    gives; and it optimises the thing actually wanted -- spread -- whereas k-means optimises
+    within-cluster variance and will happily return two near-identical frames from a dense region.
+
+    Starts at the MEDOID so the first pick is a typical frame rather than an outlier, which matters
+    when k is small and the set contains a blurred or half-occluded frame.
+    """
+    n = len(F)
+    if k >= n:
+        return list(range(n))
+    D = np.linalg.norm(F[:, None, :] - F[None, :, :], axis=2)
+    picks = [int(np.argmin(D.sum(1)))]
+    while len(picks) < k:
+        picks.append(int(np.argmax(D[:, picks].min(1))))
+    return picks
+
+
+def _stratum(r: dict) -> tuple:
+    """(pool, spout position) -- the cell a candidate is pruned WITHIN, never across.
+
+    Pruning globally would let the resting frames, which are many and mutually similar, out-vote the
+    lick-locked ones, which are few; the guarantee that tongue-out frames survive has to be
+    structural rather than hoped for. Position is in the key for the same reason it is in the
+    planner: a tongue labelled only where the animal licks best trains a network that finds it only
+    there.
+    """
+    return ("lick" if str(r["phase"]).startswith("lick") else "phase", str(r["position"]))
+
+
+def _decode_feats(grp: list[dict]):
+    """``({id(row): thumbnail}, [rows that decoded])`` for one video's candidates.
+
+    Split out as its own function so the pruning logic can be tested without a video file -- the
+    decode is the only part of it that needs one, and the parts worth pinning are the parts that
+    decide what a person ends up labelling.
+    """
+    import cv2
+
+    feats, ok = {}, []
+    cap = cv2.VideoCapture(str(grp[0]["_video"]))
+    try:
+        for r in sorted(grp, key=lambda x: x["frame"]):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, r["frame"])
+            got, fr = cap.read()
+            if got:
+                feats[id(r)] = _thumb(fr)
+                ok.append(r)
+    finally:
+        cap.release()
+    return feats, ok
+
+
+def prune_by_appearance(rows: list[dict], rv=None, target: int | None = None) -> list[dict]:
+    """Keep the most visually DISTINCT ``target`` frames per session, within behaviour strata.
+
+    Measured 2026-09-13, on the set this replaces: of the six offsets sampled around one lick onset,
+    99-100% of the within-onset pairs are closer in appearance than the 5th percentile of pairs
+    drawn from DIFFERENT onsets (median 16.4 against 46.5). Six offsets of one lick are six copies
+    of one pose. Pose diversity lives BETWEEN licks, so the budget belongs there.
+
+    PRUNING IS DECIDED ON THE ANCHOR CAMERA AND COPIED, when one is configured, for the same reason
+    the trial choice is: the views have to stay simultaneous or nothing can be triangulated against
+    a hand label. The cost is real and worth naming -- two poses distinct from the front can be
+    identical from the side, so the side views inherit a selection that is not optimal for them.
+    Matched frames are worth more than that margin.
+    """
+    target = target_per_session() if target is None else target
+    if not target or not rows:
+        return rows
+
+    anchor, keep_keys = anchor_cam(), None
+    lead = anchor if anchor and any(r["cam"] == anchor for r in rows) else None
+
+    out, decided = [], {}
+    for cam in dict.fromkeys(r["cam"] for r in rows):
+        for stem in dict.fromkeys(r["video_stem"] for r in rows if r["cam"] == cam):
+            grp = [r for r in rows if r["cam"] == cam and r["video_stem"] == stem]
+            sess = (grp[0]["animal"], grp[0]["date"])
+            if lead and cam != lead and sess in decided:
+                out += [r for r in grp if (r["_group"], r["phase"]) in decided[sess]]
+                continue
+            feats, ok = _decode_feats(grp)
+            if not ok:
+                continue
+            n_lick = int(round(target * lick_fraction()))
+            quota = {"lick": n_lick, "phase": max(0, target - n_lick)}
+            kept = []
+            for pool in ("lick", "phase"):
+                pr = [r for r in ok if _stratum(r)[0] == pool]
+                if not pr:
+                    continue
+                groups: dict[str, list] = {}
+                for r in pr:
+                    groups.setdefault(r["_group"], []).append(r)
+                size = max(1, round(len(pr) / len(groups)))       # frames per group
+                # BOTH POOLS ARE STRATIFIED BY SPOUT POSITION. An earlier version left the lick pool
+                # unstratified, arguing that at ~92 px between commanded positions against ~3 px
+                # within a trial the spout IS an appearance difference, so farthest-first would
+                # spread over positions for free. Measured, it does not: the kept licks came out
+                # 8/8/16/24/24/40 across the six positions while the stratified phase pool sat at
+                # 18-22. The comparison was the wrong one. What matters is the spout's signal
+                # against the ANIMAL's, and at 64x64 a 92 px shift is ~8 px of a thumbnail dominated
+                # by body posture -- so the spout never drove the choice at all.
+                cells: dict[tuple, list] = {}
+                for k in groups:
+                    cells.setdefault(_stratum(groups[k][0]), []).append(k)
+                n_cell = max(1, len(cells))
+                base, extra = divmod(max(1, quota[pool] // size), n_cell)
+                # Remainder ROTATED PER SESSION. Handing it to the first cells every time gave the
+                # alphabetically-first positions an extra frame in all 15 sessions.
+                spin = sum(ord(ch) for ch in stem) % n_cell
+                for c0, (cell, ks) in enumerate(sorted(cells.items())):
+                    c = (c0 - spin) % n_cell
+                    take = base + (1 if c < extra else 0)
+                    if take <= 0:
+                        continue
+                    G = np.stack([np.mean([feats[id(r)] for r in groups[k]], 0) for k in ks])
+                    for i in farthest_first(G, take):
+                        kept += groups[ks[i]]
+            out += kept
+            if lead and cam == lead:
+                # KEYED ON `_group`, NOT trial_id: two licks inside one trial share a trial_id AND
+                # an offset name, so a (trial_id, phase) key silently matched both and the side
+                # views came out LARGER than the anchor they were supposed to be copying. Caught by
+                # the dry run's per-camera counts, 2026-09-13.
+                decided[sess] = {(r["_group"], r["phase"]) for r in kept}
+            print(f"[dlc_frames] {stem}: {len(grp)} candidates -> {len(kept)} kept", flush=True)
+    return out
 
 
 def extract(rows: list[dict], rv=None) -> int:
@@ -524,7 +761,33 @@ def cohort_sessions(rv=None, animals=None, cams=None) -> list[tuple[str, str, st
                   f"THIS EPOCH WILL NOT BE LABELLED", flush=True)
             continue
         out.append((an, pick[0], pick[1], ep))
-    return out
+    return _thin_epochs(out, sessions_per_epoch())
+
+
+def _thin_epochs(sessions, n_per_epoch: int):
+    """Keep ``n_per_epoch`` sessions per epoch, spreading ANIMALS rather than taking them in order.
+
+    Sorting by name and truncating would hand every epoch to PS92 and PS93 and leave PS95 out of the
+    set entirely. Picking the least-used animal at each step instead keeps all four present and
+    maximises the number of distinct epochs each one appears in -- which is the coverage that
+    matters, since a network that never saw an animal after its stroke is the failure mode this
+    module was written to avoid.
+    """
+    if not n_per_epoch:
+        return sessions
+    used: dict[str, int] = {}
+    kept = []
+    for ep in sorted({e for *_, e in sessions}):
+        pool = sorted((a, d, s, e2) for a, d, s, e2 in sessions if e2 == ep)
+        for _ in range(min(n_per_epoch, len(pool))):
+            a, d, s, e2 = min(pool, key=lambda r: (used.get(r[0], 0), r[0]))
+            pool.remove((a, d, s, e2))
+            used[a] = used.get(a, 0) + 1
+            kept.append((a, d, s, e2))
+    dropped = len(sessions) - len(kept)
+    print(f"[dlc_frames] {n_per_epoch} session(s) per epoch: kept {len(kept)}, dropped {dropped}"
+          f"   animals {dict(sorted(used.items()))}", flush=True)
+    return sorted(kept)
 
 
 def date_sessions(date: str, rv=None, animals=None) -> list[tuple[str, str, str, str]]:
@@ -562,6 +825,11 @@ def run(date=None, cohort=False, cams=None, rv=None, animals=None, dry=False) ->
             rows += plan_session(animal, d, sid, epoch, cam, rv)
     if not rows:
         return rows
+    if target_per_session():
+        before = len(rows)
+        rows = prune_by_appearance(rows, rv)
+        print(f"[dlc_frames] appearance pruning: {before} candidates -> {len(rows)} frames",
+              flush=True)
     span = sorted({(r["animal"], r["epoch"]) for r in rows})
     print(f"[dlc_frames] {len(rows)} frames from {len(sessions)} session(s), "
           f"{len({r['cam'] for r in rows})} camera(s), {len(span)} animal-epoch cell(s)", flush=True)

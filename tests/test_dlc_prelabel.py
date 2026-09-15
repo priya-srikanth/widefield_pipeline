@@ -83,16 +83,18 @@ def test_merging_scale_passes_never_lets_one_overwrite_another():
 
 
 def test_a_camera_only_ever_gets_columns_for_what_it_can_see():
-    """The eyes are out of frame on cam4 yet returned at 0.44-0.79 in its top corners, and cam1
-    looks up from below so has no nose. Anatomy decides the columns -- not a second exclusion list
-    that could disagree with it."""
+    """The eyes are out of frame on cam4 yet returned at 0.44-0.79 in its top corners. Anatomy
+    decides the columns -- not a second exclusion list that could disagree with it.
+
+    `nose` is NO LONGER cam4-only (Priya, 2026-09-12): the bottom and side views see it perfectly
+    well, and the earlier claim that cam1 "has no nose" was simply wrong."""
     cam4 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam4").columns}
     assert "L_eye" not in cam4 and "R_eye" not in cam4
     assert "nose" in cam4
     assert "L_spout" not in cam4 and "R_spout" not in cam4, "the two donor spouts collapse into one"
 
     cam1 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam1").columns}
-    assert "nose" not in cam1, "cam1 is a bottom view -- the nose is not in it"
+    assert "nose" in cam1, "the bottom view sees the nose; it was excluded in error until 2026-09-12"
     assert not any("whisker" in b for b in cam1), "no identifiable whiskers from below"
     assert {"jaw", "tongue", "spout"} <= cam1
 

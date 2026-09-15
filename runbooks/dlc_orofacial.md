@@ -408,17 +408,22 @@ useful yet:
 |---|---|---|---|---|---|---|
 | `cam4` front | 927 | 10 | 9,270 | 7,642 | **1,628** | yes, with cam1 |
 | `cam1` bottom | 926 | 3 | 2,778 | 0 | **2,778** | yes, with cam4 |
-| `cam2` side_left | 774 | 7 | 5,418 | 0 | **5,418** | not until recalibration |
-| `cam3` side_right | 774 | 7 | 5,418 | 0 | **5,418** | not until recalibration |
+| `cam2` side_left | 774 | 8 | 6,192 | 0 | **6,192** | **yes** |
+| `cam3` side_right | 774 | 8 | 6,192 | 0 | **6,192** | **yes** |
 
-**Label `cam4` + `cam1` now.** They are the one pair the existing calibration solves (1225 co-visible
-board frames), and between them they carry `jaw`, `tongue` and `spout` — which is the entire set that
-can be reconstructed in 3D today. 4,406 placements gets you 3D orofacial kinematics.
+**SUPERSEDED 2026-09-12: the "not until recalibration" rows above were true of the AUGUST board and
+are not true now.** The calibration was re-recorded on 2026-09-11 with the 26 mm 7x7 board and ALL
+FOUR cameras solve — `cam2` and `cam3` resolve 36 corners in a single view, more than any other
+camera, against the ~2.1 px/cell failure that blocked them in August. See DECISIONS 2026-09-12 for
+the measured reconstruction precision (square 3.709 mm, SD 41 um across frames, -1.0% scale bias).
+Nothing is blocked on calibration; this table's ordering is a PRIORITY, not a possibility.
 
-**Leave `cam2`/`cam3` until the calibration is re-recorded.** They are 71% of the remaining work and
-none of it converts into 3D yet: the whiskers pair `cam4` with a side view, and `cam4↔cam2` currently
-has 11 co-visible frames. Deferring costs nothing — the frames are extracted and the selection is
-deterministic, so they will be exactly these frames afterwards.
+**Label `cam4` + `cam1` first** — they carry `jaw`, `tongue` and `spout`, the orofacial parts the
+study is about, and `cam4` is already 82% seeded so it is the cheapest place to build an eye for the
+landmarks. **Then `cam2`/`cam3`**, which add the eyes and the whiskers.
+
+**Part counts changed 2026-09-12**: `nose` was added to `cam1`, `cam2` and `cam3` (9ac523c), so the
+side views carry 8 parts rather than 7 and `cam1` carries 4 rather than 3.
 
 **Do not label the side views "just jaw/tongue/spout" as a cheaper first pass.** It halves the
 placements but discards the whiskers, which are the main reason to have side views at all: they are
@@ -427,9 +432,9 @@ and PS93's phenotype includes minimal right whisking (`cam3`). And DLC labels pe
 bodypart later means reopening all 774 frames, so a partial pass is not less work, it is the same
 work split in two with a revisit tax.
 
-`nose`, `L_eye` and `R_eye` are single-view and stay 2D whatever happens. The eyes are still worth
-placing when you do label the side views: one extra point on a frame already open, and the only rigid
-landmark those views have if 3D ever fails.
+`L_eye` and `R_eye` are single-view and stay 2D — one side camera each. They are still worth placing:
+one extra point on a frame already open, and the only rigid landmark those views have if 3D ever
+fails. `nose` is NO LONGER single-view (2026-09-12); it is in all four.
 
 ---
 

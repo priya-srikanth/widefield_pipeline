@@ -358,8 +358,10 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # NAMES ARE SHARED WHERE THE VIEWS OVERLAP, which is what makes 3D
                               # possible: triangulation matches keypoints by name. jaw / tongue /
                               # spout appear in ALL FOUR views, so those are the parts that can be
-                              # reconstructed cohort-wide. Whiskers pair cam4 with one side view;
-                              # `nose` is cam4 only and so stays 2D.
+                              # reconstructed cohort-wide. Whiskers pair cam4 with one side view.
+                              # `nose` JOINED THEM 2026-09-12 and is now in all four views too --
+                              # it was cam4-only on the incorrect ground that it is not visible
+                              # from below.
     cam4:
       role: front             # the nearest analogue of the old `video2`
       bodyparts: [nose, jaw, tongue,
@@ -368,22 +370,56 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                   spout]
     cam1:
       role: bottom            # looks UP at the underside of the snout; the spout enters from the
-                              # top of frame. The nose (dorsal, nostrils) is not in view at all and
-                              # the whiskers, while visible, cannot be identified as the frontal
-                              # view's numbered points. Best view of the tongue there is.
-      bodyparts: [jaw, tongue, spout]
+                              # top of frame. The whiskers, while visible, cannot be identified as
+                              # the frontal view's numbered points.
+                              #
+                              # THIS LINE USED TO SAY "best view of the tongue there is". IT IS
+                              # WRONG (Priya, 2026-09-13): "the spout often blocks the tongue tip
+                              # from cam 1, i still think cam4 is best". From below, the spout sits
+                              # between the camera and the extended tongue, so the TIP -- the one
+                              # part the landmark is defined by -- is the part most often hidden.
+                              #
+                              # That has a consequence beyond which camera to label first. A point
+                              # placed on "the tongue" in cam1 when the tip is occluded is not the
+                              # same physical point as the tip in cam4, so triangulating the two
+                              # reproduces the silhouette problem recorded on 2026-09-12 rather than
+                              # solving it. Expect tongue to accept at a LOWER rate than spout or
+                              # jaw in `dlc_seed3d`, and read a low rate as the geometry reporting
+                              # this occlusion rather than as a bug.
+                              #
+                              # `nose` ADDED 2026-09-12 (Priya). The earlier note here said the nose
+                              # was "not in view at all" from below, which is wrong -- it is plainly
+                              # visible; what is not visible is the dorsal surface. See the
+                              # exact-same-point note below for why a view-dependent offset is
+                              # acceptable here and what it costs.
+      bodyparts: [nose, jaw, tongue, spout]
     cam2:
       role: side_left         # sees the animal's LEFT side (Priya, 2026-09-08)
-      bodyparts: [L_eye, jaw, tongue,
+      bodyparts: [L_eye, nose, jaw, tongue,
                   L_whiskers_1, L_whiskers_2, L_whiskers_3,
                   spout]
     cam3:
       role: side_right        # sees the animal's RIGHT side -- so this is the view that carries
                               # PS93's right orofacial deficit, and the laterality above is not a
                               # cosmetic label.
-      bodyparts: [R_eye, jaw, tongue,
+      bodyparts: [R_eye, nose, jaw, tongue,
                   R_whiskers_1, R_whiskers_2, R_whiskers_3,
                   spout]
+
+                              # NO LANDMARK IS THE EXACT SAME PHYSICAL POINT FROM TWO VIEWS, and
+                              # pretending otherwise is the mistake to avoid. Priya, 2026-09-12:
+                              # "the lower front edge of the spout isn't exactly the same as the
+                              # upper front edge of the spout (cam1 vs cam4)" -- correct, and the
+                              # same is true of the nose tip, the chin and every other part with
+                              # any thickness. The offset is roughly the object's diameter.
+                              #
+                              # WHAT MAKES IT TOLERABLE IS THAT THE OFFSET IS CONSTANT. Rigid parts
+                              # (spout) seen by fixed cameras carry a fixed bias, which cancels out
+                              # of velocity, displacement and timing and survives in absolute
+                              # position only. The parts to be careful with are the DEFORMING ones
+                              # -- tongue, jaw -- where the offset changes with posture and so does
+                              # not cancel. That is an argument for labelling consistently, not for
+                              # labelling less.
 
                               # `spout`: ONE spout that MOVES across 6 positions, vs the old rig's
                               # fixed L_spout/R_spout. NOT split into spout_tip/spout_base -- two
@@ -396,6 +432,19 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # pipeline, not a result; the replacement is the 3D world frame,
                               # which head fixation makes static without any fiducial at all.
   frames:                     # labelling-set extraction (wfield_local/dlc_frames.py)
+    anchor_cam: cam4          # EVERY CAMERA COPIES THIS ONE'S CHOICE OF TRIALS AND LICKS, so the
+                              # four views are labelled at the SAME MOMENTS. Added 2026-09-12: the
+                              # selection RNG was seeded per camera, and the 2026-09-12 manifest had
+                              # 875 events sampled by cam1 alone, 866 by cam4 alone and only 22 by
+                              # all four. Training and inference were unaffected, but it made it
+                              # impossible to triangulate the LABELS and reproject them as seeds for
+                              # the remaining views (27 usable cam4+cam1 pairs).
+                              #
+                              # cam4 BECAUSE IT IS THE MOST LABELLED (7,642 points, 13 folders):
+                              # seeding on it reproduces its current selection exactly, so its work
+                              # stays valid and only the unlabelled views move. Changing this later
+                              # re-picks cam4's frames and orphans that labelling -- treat it as
+                              # fixed. `null` restores the old per-camera behaviour.
     per_session: 24           # = 6 spout positions x 4 within-trial phases, one frame per cell.
                               # Small per session on purpose: coverage comes from spanning animals
                               # and EPOCHS, not from many frames of one session. A network
@@ -409,7 +458,35 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       Cue: 0.05               # within the 100 ms cue pulse
       early: 0.40             # first licks -- where the tongue is out and worth labelling
       late: 1.50              # into the response window; consummatory licking or a failed attempt
-    lick_per_session: 6       # DAQ lick ONSETS sampled per session, one per spout position. Each
+    sessions_per_epoch: 0     # 0 = ONE SESSION PER ANIMAL x EPOCH (15 sessions). The mechanism for
+                              # "2 per epoch across animals" is implemented and tested -- set this
+                              # to 2 -- but it is not what the cohort should use, and the reason is
+                              # worth keeping because the totals hide it.
+                              #
+                              # At 2 per epoch the frame counts come out PERFECTLY BALANCED, 256 per
+                              # animal and 256 per epoch, while covering only 8 of the 16 animal x
+                              # epoch cells. PS93 -- the right-orofacial-deficit animal -- landed in
+                              # acute but in neither subacute nor chronic, so the one animal whose
+                              # recovery the tracking has to follow would be labelled nowhere after
+                              # its worst day. Degrading tracking and genuine recovery are then the
+                              # same measurement.
+                              #
+                              # Cutting frames per session instead reaches the SAME budget (15 x 16
+                              # = 240 per camera against 8 x 32 = 256) with every cell intact, so
+                              # the coverage was free. Balanced totals are not coverage.
+    target_per_session: 16    # FRAMES KEPT per session per camera, after appearance pruning. The
+                              # planner above proposes ~96; this keeps the 16 most visually distinct
+                              # within each (pool x spout position) cell. DLC wants a few hundred
+                              # labelled frames, not a few thousand -- 15 sessions x 16 = 240 per
+                              # camera, which is where the network is fed and a person is not
+                              # drowned. Set to 0 to keep every candidate.
+    lick_fraction: 0.5        # half the kept budget: 8 frames = TWO whole licks of four offsets per
+                              # session, so ~30 distinct licks and ~120 tongue frames across the
+                              # cohort. Far above the tongue's share of wall-clock time --
+                              # tongue's share of wall-clock time, deliberately: it is the hardest
+                              # part to track, the only one ever fully hidden, and the one the
+                              # analysis turns on.
+    lick_per_session: 18      # DAQ lick ONSETS sampled per session, three per spout position. Each
                               # yields one frame per entry of lick_offsets_s below, so the frame
                               # count is lick_per_session x len(lick_offsets_s) = 36.
                               # Fixed cue offsets are the wrong instrument for the tongue: scored
@@ -419,20 +496,37 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # by construction, which is a labelling-set problem and not a network
                               # one. The lick sensor fires on tongue-SPOUT CONTACT, so a frame at a
                               # lick onset is a frame with the tongue out, by measurement.
-    lick_offsets_s:           # WHERE IN THE LICK CYCLE, measured rather than assumed (2026-09-08).
-                              # Rendering PS94 licks at 12 ms steps from -28 to +84 ms shows the
-                              # tongue is still IN for most of the pre-onset half, emerges around
-                              # the onset, is broadest and best separated from the spout at
-                              # +24..+48 ms, and is retracting by +72..+84 ms. A symmetric +/-28 ms
-                              # window (Priya's first suggestion) therefore spends half its frames
-                              # before the tongue appears and stops before the peak.
-      - -0.016                #   tongue still in or just emerging: the negative/edge case, so the
-                              #   network learns when NOT to fire as well as when to
-      - 0.0                   #   contact
-      - 0.016                 #   protruding
-      - 0.032                 #   near peak extension
-      - 0.048                 #   peak, well clear of the spout
-      - 0.064                 #   beginning to retract
+    lick_offsets_s:           # WHERE IN THE LICK CYCLE, measured rather than assumed (2026-09-08),
+                              # then CUT FROM SIX TO THREE on a second measurement (2026-09-13).
+                              # The 2026-09-08 rendering still stands: the tongue is IN for most of
+                              # the pre-onset half, emerges around the onset, is broadest at
+                              # +24..+48 ms and retracting by +72..+84 ms. What is new is that
+                              # sampling that arc SIX times buys almost nothing. Across 2,153
+                              # lick-locked frames, 99-100% of the pairs drawn from one onset's six
+                              # offsets are closer in appearance than the 5th percentile of pairs
+                              # drawn from DIFFERENT onsets (median 16.4 against 46.5). Six offsets
+                              # of one lick are six copies of one pose -- 80 ms of a single
+                              # protrusion at 250 fps. Pose diversity lives BETWEEN licks, so the
+                              # offsets drop to three and `lick_per_session` rises 6 -> 18: the same
+                              # frame budget over three times as many distinct licks.
+                              #
+                              # FOUR, not three. The first cut dropped -0.016 on the argument that
+                              # ENL and Cue frames are tongue-in anyway, and
+                              # test_the_lick_offsets_span_the_tongue_out_epoch caught it. Those are
+                              # EASY negatives -- a resting mouse. -0.016 is the HARD one: the
+                              # animal is committed to a lick and the tongue is not out yet, which
+                              # is precisely the frame that stops the network firing early. An easy
+                              # negative does not substitute for a hard one.
+                              #
+                              # Four also serves the labeller. Priya: "labeling a few consecutive
+                              # frames from one lick is probably helpful for the human to ensure
+                              # they're picking the same part of the tongue." Seeing the tongue MOVE
+                              # is what makes "the tip" identifiable; on an isolated frame it is a
+                              # guess. Pruning therefore keeps or drops a lick WHOLE.
+      - -0.016                #   committed to the lick, tongue still in: the HARD negative
+      - 0.0                   #   contact: emerging at the spout, maximally occluded by it
+      - 0.032                 #   near peak extension, broadest and well clear of the spout
+      - 0.064                 #   beginning to retract -- the limb a protrusion-only set never sees
     seed: 92                  # frame choice is deterministic, so a re-run re-picks the SAME frames
                               # rather than quietly growing a second labelling set.
   board:                      # The ChArUco calibration board (wfield_local/dlc_board.py).

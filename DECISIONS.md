@@ -9903,6 +9903,498 @@ risk sits.
 
 ---
 
+## 2026-09-14 — MERGE NOTE: two parallel streams, kept contiguous rather than interleaved
+
+From here the record carries TWO workstreams that ran in parallel over 2026-09-12 to 09-14 on
+different machines: the DLC calibration / labelling work, and the rest-baseline + drift-estimator
+work. Their dates interleave, but splitting either into date order would break both arguments in
+half, so each is kept CONTIGUOUS -- labelling first (it ends 09-13), then the rest baseline (it ends
+09-14). Read each as a continuous thread rather than as one timeline.
+---
+
+## 2026-09-12 — The 3-D calibration: all four cameras solve, and what it actually measures
+
+**CORRECTION TO THE RUNBOOK, which was being read as current.** `runbooks/dlc_orofacial.md` Step 0
+describes the August (`camera_calibration_20260805`) attempt, in which `cam2`/`cam3` failed because
+the board's markers resolved at ~2.1 px per code cell against the ~3 a DICT_4X4 marker needs. That
+text was still steering decisions — it steered me into writing, in a guide for a new student, that
+the side views "cannot be used yet" and that the calibration "has to be re-recorded."
+
+**It was re-recorded, on 2026-09-11, with the 26 mm 7×7 board, and all four cameras pass:**
+
+| camera | max corners in one view | poses (bundle) | verdict |
+|---|---|---|---|
+| cam1 bottom | 23 | 187 | OK |
+| cam2 left | **36** | 86 | OK |
+| cam3 right | **36** | 54 | OK |
+| cam4 front | 29 | 105 | OK |
+
+The bigger board fixed exactly the thing that failed: the side views now resolve **more** corners
+than any other view. Nothing is blocked on calibration. `cam2`/`cam3` are a **priority** decision,
+not a possibility one.
+
+### What the reconstruction is actually good for, measured
+
+Reconstructed on **1,210 frames** seen by two or more cameras, checking the two things the board
+guarantees and the solve never uses — that neighbouring corners are one square apart, and that all
+corners are coplanar:
+
+| quantity | measured | true |
+|---|---|---|
+| square size, per-frame mean | **3.709 mm**, SD across frames **41 µm** | 3.74 mm |
+| scale bias | **−36 µm, −1.0%** | — |
+| planarity (mean abs out-of-plane) | **29 µm** (IQR 14–61) | 0 |
+| reprojection, per-frame median | **2.83 px** (IQR 1.47–5.28) | — |
+
+**The ~40 µm figure quoted elsewhere is the PRECISION, and there is a separate 1% SCALE BIAS.**
+Those are different quantities and conflating them would misstate what the rig can do: relative
+motion is good to tens of microns, while an absolute length carries a percent-level error. A
+single frame is not a measurement of either — the frame with the most corners gave 8.18 px and
+3.625 mm, both unrepresentative, which is why this is computed over the distribution.
+
+---
+
+## 2026-09-12 — No landmark is the exact same physical point from two views
+
+This replaces the rule I wrote into the labelling guide, which did not survive contact with Priya.
+
+**The rule as I first stated it** was that a part should only be labelled in two views if you could
+"point to the same speck of tissue in both", and that `nose` failed this because from below you see
+the ventral surface rather than the tip.
+
+**Both halves were wrong.** Priya: *"the nose is not hidden behind the mouth from below"* — it is
+plainly visible. And then, fatally for the rule itself: *"the lower front edge of the spout isn't
+exactly the same as the upper front edge of the spout (cam1 vs cam4)"*. Correct. The spout is a tube
+with a diameter; the front camera sees its upper front edge and the bottom camera its lower front
+edge, and those are different physical points. The rule as written would have excluded the **spout**
+— the best-defined landmark in the set and one already in every view's list.
+
+**THE PRINCIPLE THAT SURVIVES.** Essentially no landmark with any thickness is the identical point
+from two angles; the discrepancy is roughly the object's diameter. What determines whether that
+matters is whether the offset is **CONSTANT**:
+
+* **Rigid part, fixed cameras** (`spout`) → constant offset. It cancels out of velocity,
+  displacement and timing, and survives only in absolute position. Tolerable, and worth stating
+  rather than hiding.
+* **Deforming part** (`tongue`, `jaw`) → the offset changes with posture, so it does NOT cancel.
+  This is where labelling consistency actually pays, and it is a much better reason to care about
+  the landmark choice than the one in the original guide.
+* **Correspondence failure** (whiskers, below) → not an offset at all, and not correctable.
+
+So the guidance is to label consistently and to know which measurements inherit a bias — not to
+label less.
+
+### Consequence: `nose` added to cam1, cam2 and cam3 (9ac523c)
+
+Priya: *"if worth labeling, add nose and spout to cam1 labeling work and project. and add eyes (R
+for R view, L for L view), nose, jaw, tongue, spout for side view."*
+
+`spout` and the eyes were already right — cam1 had `spout`, cam2 `L_eye`, cam3 `R_eye`. The real
+change is `nose`, now in all four views, so it joins `jaw`/`tongue`/`spout` as a cohort-wide 3-D
+part instead of a cam4-only 2-D one. The config comment that claimed the nose is "not in view at
+all" from below is corrected in place, and three tests that pinned the old design are updated rather
+than deleted.
+
+### OPEN: the whiskers, and why they are a different problem
+
+Priya: *"I'm on the fence about whether to try the whiskers since they will be hard to correlate
+with the front labels (by manual labeling)."*
+
+**That instinct is right, and the whiskers fail in a worse way than anything above.** For every
+other part the cross-view error is an OFFSET. For whiskers it is a **correspondence error**: if
+`L_whiskers_2` in cam4 and `L_whiskers_2` in cam2 are not the same whisker, triangulation confidently
+pairs two different objects. That does not cancel, cannot be corrected downstream, and produces a
+trajectory belonging to neither whisker. A human labelling a frontal view and a profile view has no
+reliable way to verify they picked the same shaft.
+
+**Recommendation, not yet a decision:** treat whiskers as a **per-view 2-D measurement** —
+protraction, amplitude, whisking frequency, left-versus-right asymmetry — which is what PS93's
+right-side phenotype needs and which a profile view measures better than a frontal one anyway. Do
+not build a 3-D whisker claim on manually-corresponded points unless the correspondence can be
+verified independently. The frames are already extracted either way, so this can be decided after
+`cam4`/`cam1` are done, with no rework.
+
+---
+
+## 2026-09-12 — Silhouette labelling and what it does to the 3-D reconstruction
+
+Priya: *"will using co-labeling like that and then doing 3d triangulation cause any issues? eg spout
+diameter will get collapsed; does that introduce warping or other artifacts?"* Yes — and answering
+it properly overturned the rule recorded earlier the same day.
+
+**WHAT I HAD WRITTEN, AND WHY IT WAS WRONG.** The previous entry said a rigid part seen by fixed
+cameras carries a CONSTANT offset, which cancels out of any movement measure. That holds only if the
+object's pose relative to the cameras is fixed. **The spout is the thing that moves.** Across the six
+positions each camera's line of sight to it swings by roughly 10°, which slides the silhouette
+tangent point around the rim. The offset is therefore POSITION-DEPENDENT, which is exactly the case
+where it does not cancel.
+
+**THE GEOMETRY, from `calibration_anipose.toml`.** Camera centres and pairwise angles:
+
+| pair | baseline | angle between optical axes |
+|---|---|---|
+| cam1–cam4 | 140 mm | **55.3°** |
+| cam1–cam2 | 169 mm | 70.4° |
+| cam1–cam3 | 170 mm | 74.4° |
+| cam2–cam3 | 233 mm | 110.5° |
+| cam2–cam4 | 150 mm | 52.4° |
+| cam3–cam4 | 156 mm | 58.2° |
+
+Each camera marks the rim edge FACING IT, so cam1 and cam4 mark points ~55° apart around the
+circumference and triangulation lands *inside* the tube rather than on its surface.
+
+**THREE CONSEQUENCES, ONLY ONE OF WHICH MATTERS.**
+
+1. *Diameter collapse* — benign. The tube's thickness is replaced by a single interior point. Spout
+   thickness was never a measurement.
+2. *Warping* — the real artefact. The interior point's location depends on viewing angle, so as the
+   spout moves the reconstructed position is displaced by a smoothly varying amount, of order
+   **0.1–0.2 × the spout radius**. That is comparable to the calibration's own ~40 µm precision, so
+   it is a genuine systematic and not noise: the six reconstructed spout positions will be slightly
+   distorted relative to the commanded ones.
+3. *Depth conditioning* — not a problem here. 55° is a healthy stereo angle and cam2–cam3 at 110° is
+   better still; this is not the narrow-baseline depth blow-up.
+
+**THE SPOUT ARTEFACT IS MEASURABLE, AND THAT IS THE POINT.** The spout's true positions are
+COMMANDED by the rig and therefore known exactly. Reconstructing it at each of the six and comparing
+against the commanded geometry converts an unknown artefact into a measured, correctable one. It is
+also a far better end-to-end check than reprojection error, which only shows the calibration is
+self-consistent, not that it is right. **Recommended as one of the first things done with the
+finished tracking.**
+
+**THE TONGUE HAS NO SUCH RESCUE.** It moves AND deforms, so the cross-view mismatch varies frame to
+frame with no ground truth to calibrate against. This is the concrete reason for insisting on a
+consistent tongue landmark: with a deforming structure the labelling criterion IS the error term.
+Measuring the tongue RELATIVE TO THE SPOUT in the same frame helps, since both inherit similar error.
+
+**AND THERE IS NO GEOMETRIC ESCAPE HATCH**, which three successive attempts to find one established.
+Priya, on the suggestion that the tube's opening be used instead: *"the cameras DON'T see the actual
+opening though, only the upper or lower bound of the circumference of it"* — correct. A camera sees a
+SILHOUETTE, and a silhouette is a different piece of the object from every viewpoint. The nose tip,
+the spout tip and the tube opening were each proposed as "the same physical point" and each failed
+for the same reason. The honest framing is not "find landmarks that are the same point" but "decide
+whether the discrepancy is constant, and know which measurements inherit it."
+
+---
+
+## 2026-09-12 — Labelling guide for a new student, and the state of auto-seeding
+
+**`docs` note: the guide is an Artifact, not a repo file** —
+<https://claude.ai/code/artifact/dc6077af-49b4-47ae-80d5-cb0578e857ad>. Written for someone with no
+coding or DeepLabCut experience, covering cam4 (revise seeded labels) then cam1 (from scratch), then
+cam2/cam3.
+
+Everything factual in it was read from the project rather than from general documentation: the
+per-camera bodypart lists from `dlc_frames.bodyparts()`, the keyboard shortcuts from
+`napari_deeplabcut.config.keybinds.iter_shortcuts()`, and the three labelling modes from the
+`LabelMode` enum and its click handler. **LOOP mode is the answer to "click tongue on every frame,
+then switch to jaw"** and QUICK mode is the right one for correcting cam4's seeds, since clicking an
+already-placed point MOVES it.
+
+Figures are generated from real data: seeded cam4 frames spanning tongue extension, empty cam1
+frames, and hand-labelled reference frames from the PS46–55 project screened for close-up framing and
+**anatomical plausibility** — that project contains frames with an eye point pinned at the image
+edge, which a teaching figure must not present as correct.
+
+### OPEN: automatic seeding of cam1/cam2/cam3
+
+Priya asked whether labels could be pre-populated for correction. **Attempted, three versions, none
+usable yet** (`scratchpad/seed_cam1.py`, not committed):
+
+1. connected components — the dark spout touches the dark fur, so the component ran off the frame
+   bottom and the "tip" landed at the image edge on 10 of 12 test frames;
+2. width-tracking from row 2 — found nothing: the top rows are ENTIRELY dark (background either side
+   of the rod, one 600 px run), so there is no rod to start from;
+3. start where the rod separates (~y=100, a clean ~45 px run) then track down — 8/12 detections, but
+   landing on the rod's edge and on snout fur rather than tip and tongue.
+
+**The right way to finish it is not more threshold tuning.** cam1 has **109 hand-placed points across
+72 frames** — that is ground truth. Fit the detector against those and report actual pixel error,
+rather than judging by eye. A seed that is confidently wrong is worse than no seed, because the
+labeller's eye is anchored by whatever is already on screen.
+
+Two better routes also exist and are recorded so they are not forgotten:
+
+* **Train on cam4 + cam1, then predict cam2/cam3 and correct.** The standard DLC loop, and the
+  network would at least be trained on these animals, this rig, this lighting — unlike the donor
+  network, which is frontal-view and hallucinates eyes into cam4's empty corners at 0.44–0.79.
+* **Triangulate and reproject** — now unblocked by the anchored frame selection (373cd35). Once cam4
+  and cam1 are labelled on matched frames, reconstruct and project into the side views. That is
+  geometry rather than guessing, and the calibration supports it at 2.83 px median reprojection.
+
+---
+
+## 2026-09-13 — A browsing hazard: the `_lick` arms look like weakened results and are not
+
+Priya, looking through the re-rendered figures: *"I think some of the matrices look different than they
+did before — eg crossnobis row centered and split-half reliability. The colors are either not as
+dramatic (closer to 0) or scale is different, and some of the patterns seem less clear (fC moving to
+fM/fI post-stroke)."*
+
+**Nothing about the data handling had changed.** Verified three ways before concluding anything:
+
+* every value-computing function byte-identical to the pre-session baseline (`_matrices_crossnobis`,
+  `_matrices_splithalf`, `_collect_7`, `_crossnobis_cross`, `_split_half_matrix`, `_pre_reference`,
+  `_pooled_bundle`, `_session_trials`, `mean_matrix_by_epoch`);
+* `configs/sessions.yaml` and `configs/animals.yaml` unchanged — same sessions, same epoch
+  boundaries. (An earlier guess in the same conversation, that chronic had grown from 3 to 14
+  sessions, was wrong: it was already 14.)
+* `matrix_bootstrap` is imported only inside `_fig_10cs`, and `matrix_row`'s `cell_marks` defaults to
+  `None` for every other family, so the per-cell bootstrap reaches nothing but `10cs`.
+
+**THE CAUSE IS THAT THIS RENDER ADDED ARMS.** `epoch_8rc_..._cue_lick` and `..._precue_lick` did not
+exist before; there are now five files per matrix family where there were three, sorted so the new
+`_lick` arms sit immediately beside the `_working` ones. Opening one and comparing it against memory
+of the other is the natural mistake, and the numbers differ for a real reason:
+
+| arm | acute fC→fC (own) | fC→fM |
+|---|---|---|
+| `cue_working` | −0.166 | **−0.288** (substitution) |
+| `cue_lick` | **−0.462** | −0.204 (own position wins) |
+| `precue_lick` | **−0.402** | +0.222 (reversed) |
+
+On the lick arms the far-contra substitution largely disappears. That is the selection effect
+recorded in 5ca9b11 — acute far-contra on lick trials rests on about two sessions from one animal,
+because the animals barely lick there acutely — and NOT a weakened result.
+
+**Read `_working` for the post-stroke geometry claims.** The `_lick` arms are the selection control
+and are informative only where the two trial sets converge, which is chronic. A figure filename
+ending `_lick` is a different population, not a different rendering of the same one.
+
+---
+
+## 2026-09-13 — Can the first pass be placed automatically? Three corrections and one measurement
+
+Priya: *"is it not feasible for you to do a first-pass placement across camera positions in the
+frames due for human labeling, eg for spout, jaw, tongue?"* Checking rather than re-asserting the
+earlier "no" overturned three things I had written down, two of them in this file.
+
+**CORRECTION 1 — the validation plan recorded yesterday is vacuous for the spout.** The entry above
+says to fit the seed detector against "cam1's 109 hand-placed points". Those 109 points are **jaw
+(71 frames) and tongue (38)**. There is **no spout point and no nose point in them**, because both
+parts were added to cam1 on 2026-09-12, two days after the labels were placed. The plan is sound
+for jaw and tongue and tests nothing for the part that actually kept failing.
+
+**CORRECTION 2 — cam4's labels are not ground truth.** `dlc/labeled-data/` and the project's own
+`labeled-data/` were diffed cell by cell: 1,272 co-finite cells, **max absolute difference 0.0**,
+both stamped 2026-09-08. Nothing has been hand-corrected, so the 7,642 cam4 points are raw donor
+predictions. Training a seeding network on them would teach it the donor's mistakes and return them
+wearing the authority of "our network". **Not before cam4 is corrected.**
+
+**CORRECTION 3 — the frames on disk are not the frames due for labelling.** cam4 and cam1 share
+**0 of 72 frame numbers** and **5 of 72 (trial, phase) pairs**; the cameras were sampled
+independently and the cam4 anchor (373cd35) has never been run. Worse, `dlc_frames.extract` skips
+files that already exist and `write_manifest` appends, so re-extraction **adds** rather than
+replaces: cam1/cam2/cam3 would go from 2,474 frames to roughly 4,900, with nothing but the manifest
+distinguishing the matched set from the orphaned one. **Re-extraction blocks all seeding work, and
+needs a pruning decision before it runs.**
+
+### THE SPOUT DOES NOT NEED DETECTING — MEASURED
+
+Priya: *"the spout moves between each trial, but within a group, during the trial period, the spout
+should be stationary (except for when the animal licks so vigorously it moves the spout a bit)."*
+My first test grouped by (session, COMMANDED POSITION), which pools across trials and was wrong.
+
+The first corrected test was also wrong, in a way worth recording: pixel-wise SD over the WHOLE
+FRAME, within-trial against across-trial, returned a ratio near 0.5 on every camera. That looks
+supportive and is confounded — a whole-frame median is dominated by the ANIMAL, which also varies
+less within a trial, so the number is equally consistent with a nailed-down spout and with a
+drifting one. It measures the wrong object.
+
+Measuring the spout itself, using the donor network's cam4 spout predictions as the probe — so the
+figure is TRUE MOTION + PREDICTION NOISE, an **upper bound**, which cannot flatter the hypothesis:
+
+| | |
+|---|---|
+| within one trial, max deviation from that trial's own mean | **3.34 px** median (mean 4.24, p90 7.88) |
+| between the six commanded positions, same session | **91.96 px** median |
+| separation | **27.5x** |
+| trials where the spout wanders >10 px | **5.6%** |
+
+Over 126 trials in 13 sessions. **The stationary-within-a-trial assumption holds**, and the right
+tail is exactly the exception Priya named: 5.6% of trials over 10 px, 1.6% over 20 px.
+
+So the spout is not a detection problem but a **bookkeeping** one. The unit is (session, trial) —
+**881 groups across 3,401 frames**, ~3.9 frames each — and one point per group propagates to the
+rest. That makes the part three threshold detectors failed on the *cheapest* of the three, with
+~6% of trials flagged for a human check rather than all of them.
+
+**Jaw and tongue have no such shortcut.** They move independently every frame, so the only honest
+route is the ordinary DLC loop after cam4 is corrected: train on cam4 + cam1, predict cam2/cam3,
+correct. Sequencing is the same for all of it — **re-extract first**, because seeding the current
+cam1/cam2/cam3 frames is work thrown away.
+
+---
+
+## 2026-09-13 — Rebuilding the labelling set: behaviour AND appearance, and four corrections
+
+Priya: *"we don't want to hand-label 4k frames. ideally per DLC we should only have to labe in the
+hundreds, if we appropriately extract different states"*, and then the mechanism: *"while DLC uses K
+means etc to extract different poses, we can do some combination of that AND using our behavior
+alignment ... For licking especially this is important, because the standard method doesn't extract
+enough frames with the tongue out in different poses."*
+
+**THE MODULE DOCSTRING REJECTED CLUSTERING, AND THAT REJECTION WAS RIGHT ABOUT THE WRONG THING.**
+K-means AS THE SELECTOR does return the resting posture on 1.5 M frames of a head-fixed mouse, and
+the tongue never appears. It does not follow that clustering has no place. The two roles are
+separate claims: **behaviour alignment decides which MOMENTS are eligible**, which is what
+guarantees a tongue-out frame exists at all, and **appearance decides which of the eligible ones are
+worth a person's time**. Neither half works alone.
+
+### The measurement that set the budget
+
+Across 2,153 lick-locked frames, comparing 64x64 z-scored thumbnails:
+
+| | median distance |
+|---|---|
+| WITHIN one onset (its six offsets) | **16.4** |
+| BETWEEN different onsets | **46.5** |
+
+**99-100% of within-onset pairs are closer than the 5th percentile of between-onset pairs.** Six
+offsets spanning -16..+64 ms is 80 ms of one protrusion at 250 fps — six copies of one pose. Pose
+diversity lives BETWEEN licks. Offsets 6 -> 4, `lick_per_session` 6 -> 18.
+
+### Four corrections, three of them mine
+
+**1. A lick is kept or dropped WHOLE.** I wrote frame-wise pruning first. Priya: *"labeling a few
+consecutive frames from one lick is probably helpful for the human to ensure they're picking the
+same part of the tongue."* Frame-wise pruning keeps one frame from each of many licks — optimal for
+the network, worst possible for the labeller, who then never sees the tongue MOVE and has to guess
+at "the tip" on isolated frames. **Label consistency is upstream of everything the network can
+learn.** Pinned by `test_a_lick_is_kept_or_dropped_WHOLE_never_split`.
+
+**2. The -0.016 hard negative.** I dropped it, arguing ENL/Cue frames are tongue-in anyway.
+`test_the_lick_offsets_span_the_tongue_out_epoch` caught it and its reasoning beats mine: those are
+EASY negatives, a resting mouse. -0.016 is the HARD one — the animal is committed to a lick and the
+tongue is not out yet, which is exactly the frame that stops the network firing early.
+
+**3. Thin by FRAMES PER SESSION, not by sessions.** Priya proposed 2 sessions per epoch across
+animals. Implemented and measured, it gives *perfectly balanced totals* — 256 frames per animal,
+256 per epoch — while covering only **8 of the 16 animal x epoch cells**. PS93, the
+right-orofacial-deficit animal, landed in acute but in neither subacute nor chronic, so the one
+animal whose recovery the tracking must follow would be labelled nowhere after its worst day, and
+degrading tracking would be indistinguishable from genuine recovery. **Balanced totals are not
+coverage.** Cutting frames per session reaches the same budget with every cell intact: 15 x 16 =
+240 per camera against 8 x 32 = 256. The coverage was free. `sessions_per_epoch` is kept, tested and
+set to 0.
+
+**4. Appearance does NOT track spout position.** I left the lick pool unstratified and wrote the
+reasoning into a code comment and a commit message: at ~92 px between commanded positions against
+~3 px of within-trial motion, position IS an appearance difference, so farthest-first should spread
+over positions for free. Measured: kept licks came out **8/8/16/24/24/40** across the six positions
+while the stratified phase pool sat at 18-22. The comparison was wrong — what matters is the spout's
+signal against the ANIMAL's, and at 64x64 a 92 px shift is ~8 px of a thumbnail dominated by body
+posture. The spout never drove the choice. Both pools stratify now; spread 8-40 -> 30-54.
+
+**Farthest-point sampling, not k-means**: deterministic without a seed, so a re-run re-picks the
+same frames the way this module promises; and it optimises spread, where k-means optimises
+within-cluster variance and will return two near-identical frames from a dense region.
+
+Final set: **240 frames per camera** (from ~900), 15 sessions x 16, all 15 animal x epoch cells,
+30 distinct licks all keeping their 4 offsets, and 240/240 moments shared across all four cameras.
+
+### Seeding cam2/cam3: the calibration, not the donor
+
+Priya: *"but you have the anipose triangulation"*. Correct, and it beats the donor, which is frontal
+and would be looking at side views ~55 deg off its training distribution — a VIEWPOINT shift, which
+the scale trick that rescued cam4 does nothing for.
+
+**Scored without labels, on the calibration recording**, by running the exact operation a seeder
+would: triangulate a board corner from cam4+cam1 ALONE, project into the side view, compare against
+where that camera actually saw it.
+
+| | median | p90 | control (all four cameras) |
+|---|---|---|---|
+| cam2 | **4.48 px** | 12.35 | 1.92 px |
+| cam3 | **7.71 px** | 21.91 | 4.05 px |
+
+DLC's `dotsize` is 6, so a seed landing 4-8 px out visually overlaps the true point: the labeller
+nudges rather than places from blank. **These are ChArUco corners — ideal, high-contrast,
+non-deforming — so this is a FLOOR, not the expected value.** Real landmarks add human placement
+scatter and the tongue deforms between views.
+
+The route needs TWO labelled views, so jaw/tongue/nose in cam2/cam3 follow Priya's cam1 pass. The
+SPOUT does not: it is commanded and stationary within a trial (3.34 px, measured today), so roughly
+one cam1 spout click per position per session triangulates against cam4's donor spout and seeds the
+spout in every cam2/cam3 frame.
+
+---
+
+## 2026-09-13 (later) — The labelling set rebuilt, and what triangulation actually refused
+
+### The prune, and a keep-rule that was wrong in the safe-sounding direction
+
+`extract` only ever ADDS, so the re-extraction left the old unanchored selection beside the new one:
+**4,278 frames on disk against a plan of 960**. Priya: *"keep labelled cam1 frames but otherwise ok
+to prune."*
+
+The first keep-rule was "any frame any CollectedData file places a point on", which sounds like the
+conservative choice and is not. **929 of the 998 frames it protected were cam4 DONOR OUTPUT**, so it
+preserved all 1,099 cam4 frames and defeated the prune entirely — leaving a labeller ~850 stale
+frames to wade through. Machine seeds regenerate in minutes; human labels do not. The rule is now
+mtime against the seeding run, re-checked immediately before deleting rather than trusted from an
+earlier look: **26 files stamped 2026-09-08 (donor), one stamped 2026-09-10 (cam1, Priya)**.
+
+Result: **4,278 -> 1,030 frames**, 15 folders x 16 frames per camera, plus 70 earlier cam1 frames
+kept because they carry Priya's labels. 52 stale donor label files removed as well — after the prune
+they referenced 859 deleted frames, and `dlc_prelabel` refuses to overwrite, so they would have
+blocked re-seeding. Recoverable throughout: the source videos are untouched and extraction is
+deterministic, which is why derived PNGs are not covered by the never-delete rule.
+
+cam4 re-seeded at **81.3%** (1,951 points over 240 frames): nose 95%, jaw 54%, **tongue 29%**,
+whiskers 79-100%, spout 79%. The tongue figure is not a failure — roughly half the frames are
+cue-locked, where the tongue is inside the mouth and a BLANK IS THE CORRECT ANSWER.
+
+### cam1 is NOT the best view of the tongue
+
+Priya: *"the spout often blocks the tongue tip from cam 1, i still think cam4 is best."* I had
+written the opposite into the config and twice into the guide. From below the spout sits between the
+camera and the extended tongue, so the tip — the part the landmark is defined by — is the part most
+often hidden. Labelling order stays **cam4 -> cam1 -> cam2/cam3**.
+
+**The guide also still carried the CONSTANT-OFFSET argument retracted on 2026-09-12.** That
+retraction was made in this file and never propagated, so a document written to teach a new student
+carried a claim already known to be false for a day. Fixed. *Retracting something here is not the
+same as retracting it everywhere it was said.*
+
+### Triangulation seeding: the harness works, the inputs do not
+
+Running the donor on all four views, triangulating, and keeping only what the geometry accepts:
+
+| bodypart | attempts | accepted | accept % | median resid px |
+|---|---|---|---|---|
+| L_whiskers_3 | 240 | 25 | 10.4 | 4.64 |
+| jaw | 179 | 12 | 6.7 | 8.85 |
+| tongue | 151 | 3 | 2.0 | 10.29 |
+| spout | 119 | 1 | 0.8 | 4.00 |
+| nose | 240 | 1 | 0.4 | 4.88 |
+| eyes, R_whiskers_1-3, L_whiskers_1 | — | 0 | 0.0 | — |
+
+**134 seed points in total, and the prediction I made beforehand was wrong.** I expected spout and
+nose to accept HIGH and tongue LOW. Everything failed, including the rigid, high-contrast landmarks
+— which means the failure is NOT about landmark correspondence. The donor simply does not locate
+anything in cam1/cam2/cam3, and the geometry correctly refused all of it. Over 98% rejected is the
+safety mechanism doing its job: trusting the network's own confidence instead would have written
+thousands of confidently-wrong seeds into folders a student is about to open.
+
+**THE WHISKER QUESTION IS THEREFORE STILL OPEN, and the claim that this run would settle it is
+withdrawn.** Testing whether `L_whiskers_1` means the same whisker in cam4 and cam2 requires two
+views that each FIND the whisker. Only cam4 does. `L_whiskers_3` at 10.4% is noise, not evidence in
+either direction.
+
+**A distinction I blurred and am recording so it is not blurred again:** the 4.48 px / 7.71 px
+reprojection measurement validated the GEOMETRY, not the INPUTS. It was scored on ChArUco corners
+whose position is known in all four views, so it shows the calibration can carry a point between
+cameras — and says nothing about whether a network can find that point in a side view. Saying that
+spout seeding for cam2/cam3 was available "almost immediately" conflated the two.
+
+**What stands:** the route is sound and now one command. Once cam1 is hand-labelled, cam4+cam1 are
+two good views and `dlc_seed3d` seeds both side views at the measured accuracy. That makes cam1 the
+gate for three cameras rather than one. The 134 points are NOT written: scattered over 720 frames
+they are worth nearly nothing, and a seed on screen anchors where a human clicks.
+
+---
+
 ## 2026-09-12 (night) — the REST baseline, measured on the rebuilt cohort
 
 The retired `quiet` definition excluded 8 s after every REWARD — a buffer carried from a task whose

@@ -150,10 +150,11 @@ animals:
     epochs:                         # days since stroke_date; see the note above
       acute: [1, 1]
       subacute_from: 2
-      chronic_from: 15      # 2026-09-10: MOVED from 11 by the drift rule + the new day-25
-                            #   session. Day 11 was promoted by the behaviour box under the
-                            #   rate test before d25 existed; with it, the d11 tail drifts
-                            #   0.096 (hit) against a 0.072 tolerance and the d15 tail 0.002.
+      chronic_from: 11      # 2026-09-14: back to day 11 under ACCURACY-ONLY (licks arm dropped
+                            #   2026-09-12). With the licks series no longer gating and more flat
+                            #   sessions accrued, the HIT-rate d11 tail is flat within tolerance
+                            #   (101% of baseline). The d15 value was set by the now-retired
+                            #   drift-on-licks rule. All three chronic animals are now day 11.
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero
