@@ -12806,3 +12806,57 @@ The printed "HOW TO READ IT" legend was inherited verbatim from `flat_vs_timeloc
 **"time-local"** -- it described the comparison the script was ADAPTED FROM rather than the one it
 ran. The numbers were right; the text under them named the wrong variable. Caught by reading the
 printed output rather than only the table above it, and fixed.
+
+---
+
+## 2026-09-14 (correction) — THE `rest` vs `restw` TEST WAS CONFOUNDED. The retirement does NOT stand.
+
+Priya asked whether the surviving reference is "a full session position-weighted average". Checking
+the code to answer it showed the test I had just called decisive compares two references that differ
+on **BOTH** axes:
+
+| arm | temporal | composition |
+|---|---|---|
+| `raw_rest` (via `session_rest_svt_timelocal`) | **TIME-LOCAL** — binned, median per bin, interpolated | pooled over all positions |
+| `raw_restw` (via `session_restw_svt`) | **FLAT** — one value per session | position-weighted, six medians averaged equally |
+
+**SO THE NULL DOES NOT ISOLATE POSITION-WEIGHTING.** What it shows is that a time-local pooled
+baseline and a flat position-weighted baseline reach the same conclusions -- reassuring about
+ROBUSTNESS of the near>far ordering and the acute far-contra collapse to quite different subtrahends,
+and genuinely useful as that, but not an answer to "does position-weighting earn its place".
+
+### AND A SECOND THING THE CHECK EXPOSED
+
+**`flat_vs_timelocal`'s verdict was applied to `restw` and NEVER to `rest`.** Time-local was retired
+for the position-weighted reference on 2026-09-14; the POOLED reference that production actually uses
+still bins and interpolates. So "retire `restw`, keep `rest`" would silently RETURN the pipeline to a
+time-local baseline -- the exact construction that measurement retired.
+
+### WHAT IS ACTUALLY ESTABLISHED, AND WHAT IS NOT
+
+ESTABLISHED:
+* time-local vs flat, POSITION-WEIGHTED arm: flat wins, moves no conclusion (`flat_vs_timelocal`).
+* `restw` is ~3% noisier than a median-pooled baseline by split-half, and the real limit is
+  PER-ANIMAL (PS92 2x PS94 on comparable frame counts).
+* the composition imbalance is FIXED at 17.5%, stable across epochs -- not deficit-tracking.
+* two references differing on both axes give the same ordering and the same acute between-animal
+  agreement (0.838 vs 0.832).
+
+NOT ESTABLISHED:
+* **whether position-weighting earns its place**, which needs FLAT-POOLED vs FLAT-POSITION-WEIGHTED
+  with the temporal axis held fixed. That comparison does not exist yet.
+* whether the pooled reference should be time-local or flat -- `flat_vs_timelocal` answered this for
+  the weighted arm only.
+
+**THE RETIREMENT DECISION IS WITHDRAWN PENDING THE UNCONFOUNDED TEST.** Nothing was implemented, so
+nothing has to be undone.
+
+### METHOD, and it is the sixth instance today
+
+I read `parts.get("raw_rest")` and assumed the name meant the flat pooled baseline instead of opening
+`session_rest_svt_timelocal`, whose NAME SAYS TIME-LOCAL. Same failure as the other five: a summary
+(here, a dict key) trusted over the source. The handoff's own checklist would have caught it.
+
+**A NAMING HAZARD WORTH FIXING SEPARATELY:** `raw_rest` gives no hint that it is time-local, while
+`session_restw_svt` was renamed when it became flat and `session_rest_svt_timelocal` was not. Two
+references whose names imply they differ only in weighting actually differ in two ways.
