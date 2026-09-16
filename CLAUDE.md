@@ -323,6 +323,17 @@ a t=2.0 threshold that is p=0.14 at df=3, merged polarities) and is fixed. Conto
 eroded mask and any result more than 2× concentrated in the rim is SUPPRESSED — measured, because
 some panels were pure edge artefact. Science in `docs/WHERE_THE_CODE_MOVES.md`.
 
+**[`docs/REST_ENGAGEMENT_AUDIT.md`](docs/REST_ENGAGEMENT_AUDIT.md)** — **READ BEFORE QUOTING ANY
+REST NUMBER.** Found 2026-09-16: four rest analyses DOCUMENTED an engagement gate and none applied
+one (`rest_position_decode` even prints "(working trials…)" in its own header). The quit period is
+**3.1% of rest frames pre-stroke and 18.7% acute**, so the contaminant tracks the independent
+variable. `_RESTWref_` and the encoder baseline were already gated (2026-09-14) and are CLEAN;
+finding 11's 1.622, the 93/94 per-session decode, `epoch_15x`, `_RESTref_` and `flatpool_vs_restw`
+are NOT and are being re-run. Gating 15f moved acute retained per animal 0.401/0.187/0.134/0.120 →
+0.609/0.277/0.086/**−0.093** — large, and not uniform in sign. The audit table says which consumers
+must be gated, which must NOT (the mask builders, the locomotor state classes, quiet-vs-running),
+and why.
+
 **[`docs/BEHAVIOURAL_STATE_CONTROL.md`](docs/BEHAVIOURAL_STATE_CONTROL.md)** — the SPECIFICITY
 control (2026-09-11), and the answer to "does everything degrade after the lesion, or only the
 target?" The lesion is ventrolateral STRIATAL, so no cortex is damaged: same window, same basis,

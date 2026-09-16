@@ -134,6 +134,19 @@ def _fit_frozen(X, y):
     return m
 
 
+def _epoch_dir():
+    """The shared `grant_figures/epoch` directory every other epoch figure writes to.
+
+    NOT a local scratch path. These outputs were landing in `E:/cue_lick/rest_migration/`, which is
+    this box's disk -- so every rest-arm result was invisible from the other machine and from the
+    deck (Priya, 2026-09-16: "our new rest figures should join all our other figures"). Resolved
+    through `PathResolver` exactly as `rest_position_vs_drift` does for `epoch_15x`, so it is
+    correct on either box rather than correct on the one it was written on.
+    """
+    from wfield_local.paths import PathResolver
+    return Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+
+
 def lick_gap_s(period_start_smp, period_stop_smp, lick_onsets_smp, fs):
     """Seconds from each rest period to the NEAREST DETECTED lick outside it.
 
@@ -289,7 +302,7 @@ def refit_predictions(X, y, g):
     return pred
 
 
-def _collect(session, basis, bins, verbose=True):
+def _collect(session, basis, bins, verbose=True, gate=True):
     """Rest-period features for ONE session in the animal's JOINT basis.
 
     Returns (X, y, order) or None. `order` is the time order of the periods, which the
@@ -333,6 +346,13 @@ def _collect(session, basis, bins, verbose=True):
         # behaviour and imaging halves read, and the rest mask itself was built from these onsets --
         # re-detecting here with different params would make the lick-proximity control disagree
         # with the buffer it is auditing.
+        # THE ENGAGEMENT GATE, aligned to the CUE index the collector uses below.
+        engaged = None
+        if gate:
+            from wfield_local.rest_engagement import engaged_by_cue
+            engaged, gate_note = engaged_by_cue(session, cs, codes)
+            if "UNGATED" in gate_note:
+                print(f"  !! {lab}: {gate_note}", flush=True)
         _an, _mmdd = lab.split("_")[0], lab.split("_")[1]
         _ev = be.get_or_compute(config.resolver(), _an, f"2026{_mmdd}")
         licks = np.asarray(_ev["lick_onsets"], np.int64) if _ev is not None else np.zeros(0, np.int64)
@@ -360,6 +380,13 @@ def _collect(session, basis, bins, verbose=True):
             continue
         if codes[prev] != codes[nc] or codes[prev] < 0:
             continue                       # block-boundary periods are a different question
+        # THE ENGAGEMENT GATE, which this file CLAIMED in prose and did not apply until 2026-09-16.
+        # Both bracketing trials must be WORKING: a sated animal's rest is a different state, it is
+        # most abundant exactly where the animal has stopped working, and the quit period LENGTHENS
+        # post-stroke -- a confound that moves with the independent variable. See
+        # `wfield_local/rest_engagement.py`.
+        if engaged is not None and not (engaged[prev] and engaged[nc]):
+            continue
         fr = np.flatnonzero((f_of >= aa) & (f_of < bb))
         fr = fr[fr < T]
         if fr.size < bins:
@@ -526,6 +553,10 @@ def main() -> int:
                          "longer', which shifts the feature distribution with no position in it")
     ap.add_argument("--duration-pct", type=float, default=10.0,
                     help="percentile trimmed from each tail of the pre duration distribution")
+    ap.add_argument("--no-engagement-gate", action="store_true",
+                    help="keep the pre-2026-09-16 behaviour: do NOT require both "
+                         "bracketing trials to be engaged. For measuring the size "
+                         "of the correction, never for a reported result.")
     ap.add_argument("--match-train", action="store_true",
                     help="ALSO fit the frozen model on a size-matched random subset of pre-stroke "
                          "BLOCKS, the counterpart of the task arm's 5rm family. Without it the "
@@ -550,8 +581,11 @@ def main() -> int:
                          "refit-minus-frozen gap is what separates recovery from replacement")
     ap.add_argument("--tag", default="", help="suffix for the output filenames")
     ap.add_argument("--animals", nargs="*", default=None)
-    ap.add_argument("--out", type=Path, default=Path("E:/cue_lick/rest_migration"))
+    ap.add_argument("--out", type=Path, default=None,
+                    help="output directory; defaults to the shared "
+                         "grant_figures/epoch where every other epoch figure lives")
     a = ap.parse_args()
+    a.out = a.out or _epoch_dir()
 
     from wfield_local.quiet_periods import quiet_variant
     variant = quiet_variant() or "retired"
@@ -559,9 +593,9 @@ def main() -> int:
     # different questions sharing one filename is how a figure comes to disagree with the caption
     # that was written for the other run.
     if a.tag:
-        stem = f"rest_frozen_decoder_{variant}{a.tag}"
+        stem = f"epoch_15f_rest_frozen_{variant}{a.tag}"
     else:
-        stem = (f"rest_frozen_decoder_{variant}"
+        stem = (f"epoch_15f_rest_frozen_{variant}"
                 + ("_durmatched" if a.match_duration else "")
                 + ("_gapmatched" if a.match_lickgap else ""))
     rng = np.random.default_rng(0)
@@ -598,7 +632,7 @@ def main() -> int:
             if ep is None:
                 skipped.append(f"{s['label']}: no epoch")
                 continue
-            got, why = _collect(s, basis, a.bins)
+            got, why = _collect(s, basis, a.bins, gate=not a.no_engagement_gate)
             if got is None:
                 skipped.append(why)
                 continue

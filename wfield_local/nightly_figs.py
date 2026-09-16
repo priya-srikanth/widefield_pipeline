@@ -732,6 +732,25 @@ def main():
     if not args.skip_poststroke:
         cli("scripts.rest_migration.rest_position_vs_drift")
 
+    # THE REST ARM (15f, 15s). Both built 2026-09-16 and both were writing to a LOCAL scratch dir,
+    # so every result they produced was invisible from the other box and from the deck (Priya:
+    # "our new rest figures should join all our other figures"). They now resolve
+    # `grant_figures/epoch` through `PathResolver` like 15x above, and run here so they cannot go
+    # stale the way a hand-run figure does -- the failure section G's comment records.
+    #
+    # 15f = the FROZEN pre-stroke rest decoder (retained fraction, the refit gap, and the confusion
+    # matrices). ~11 min with all four controls on.
+    # 15s = how much of each position's TASK map its own REST already contains, both windows.
+    # ~35 min at 200 permutations.
+    #
+    # SAME DEBT AS 15x, stated: both builders live in `scripts/rest_migration/` rather than
+    # `wfield_local/`, so this is the nightly reaching into migration scripts. Roadmap #3.
+    if not args.skip_poststroke and config.phase_labels("post"):
+        cli("scripts.rest_migration.rest_frozen_decoder", "--perm", "200", "--refit",
+            "--match-train", "--match-duration", "--match-lickgap")
+        cli("scripts.rest_migration.shared_position_projection",
+            "--align", "cue", "precue", "--perm", "200")
+
     if not args.skip_poststroke and config.phase_labels("post"):
         log("== POST-STROKE stage (section G)")
         cli("wfield_local.poststroke_section_g", "--output", out)
