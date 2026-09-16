@@ -13125,3 +13125,52 @@ position are close_L 1097, close_C 1095, close_R 1099, far_L 805, far_C 500, **f
 is the "lick-aligned arm is blind to the acute far-contra deficit by construction" finding, now with
 a hard number. Balancing cannot rescue a class with no trials; `MIN_TRIALS_PER_CLASS` refuses the
 cell, which is the correct behaviour.
+---
+
+## 2026-09-16 — Two trees, three sessions lost, and the rename that ends it
+
+A student labelled 82 corrected keypoints into the wrong copy of the same folder. The work was
+recovered, but the same confusion has now cost three sessions in two days and the cause was
+structural, not human.
+
+**THE SHAPE OF IT.** Extraction stages frames under `<dlc>/labeled-data/<video-stem>/`; `dlc_project`
+copies them into `<dlc>/<project>/labeled-data/<video-stem>/`. **Identical folder names, identical
+images, in sibling trees.** Opening the staging copy in napari SUCCEEDS -- images and seeds load and
+everything looks correct -- and fails only at save, as an "associate with a DLC project?" prompt,
+because the plugin infers a project by walking up for `config.yaml` and there is none above staging.
+The prompt reads as a plugin fault. It is a wrong-folder report.
+
+`napari_deeplabcut.core.project_paths.looks_like_dlc_labeled_folder` returns True for **any** path
+with a `labeled-data` component, so the old name actively advertised staging as a labelling target.
+
+**THE FIX IS THE NAME, NOT THE DOCUMENTATION.** Staging is now `_frame_staging` (`dlc_frames.staging_root`,
+seven call sites). A staging folder with no CollectedData is now declined by the reader outright --
+refused up front rather than accepted and later unsaveable. Four test fixtures failed on the rename
+because they asserted the old path; that they failed is the rename working.
+
+**WHAT THE SESSION ALSO SETTLED, by calling the plugin's own reader rather than guessing:**
+
+| folder | opening it alone yields | so |
+|---|---|---|
+| has `CollectedData` (cam4) | images **and** a points layer | open the FOLDER ONLY |
+| no `CollectedData` (cam1/2/3) | images only | `config.yaml` FIRST, then the folder |
+
+`read_config` returns an EMPTY points layer named `CollectedData_<scorer>`. So on a seeded camera,
+loading the config as well produces a SECOND points layer (`... [1]`), and clicks can land in
+whichever one is selected -- including the one with no provenance. **The guide's blanket "load the
+config first" instruction manufactured the duplicate it was meant to prevent.** The rule is
+conditional on whether the camera has been seeded, and flattening it into one answer was the bug.
+
+`Cmd+S` is napari's own *Save Selected Layer(s)* -- the plugin binds no save shortcut at all -- so it
+only fires when focus is on the canvas or layer list. Hence "sometimes it works". The File menu is
+the reliable route and the guide now says so.
+
+**RECOVERY, for the record.** The staging file was the authoritative one: 82 coordinates moved, 1
+point cleared, 0 added. Merged into the project copy WHOLESALE for the columns it carried, blanks
+included -- a blank in a hand-corrected file is a decision ("not visible in this frame"), and
+merging only non-null values would silently resurrect a point the labeller deliberately removed.
+Verified afterwards at 0 differences; the previous project copy kept as a timestamped `.bak`.
+
+**cam2/cam3 have never had a label file**, which is correct and worth recording because their absence
+looks like loss: the donor is frontal and only ever ran on cam4, and `dlc_seed3d`'s 134 accepted
+points were deliberately not written.
