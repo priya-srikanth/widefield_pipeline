@@ -12910,3 +12910,130 @@ that subset, which the old comment conceded. **Measured before changing: 91 of 9
 clear the frame floor at all six positions, and the one exception fails at four as well** -- so the
 relaxation bought nothing on this cohort while costing the property it was named for. PS94's empty
 positions arise when trials are POOLED INTO AN EPOCH, not within a session.
+
+
+## 2026-09-15 — ADOPTED: `lick_buffer_s [0.5, 1.0]` as variant `restdock05`
+
+Priya proposed relaxing the lick window and paying for it with a lower percentile. Measured as a
+**2x2 so buffer and estimator never moved together** (19 stratified sessions, all four animals,
+pre->chronic). **The relaxation is free; the percentile is not.**
+
+    paired B-A spread  -0.0019, 95% CI [-0.0053, +0.0003], better in 13/19
+    frames             x1.254 median (range x1.015-x2.055)
+    p20                WORSE than the median in 18 of 19 -- rejected
+
+**READ THE PAIRED NUMBER.** The unpaired medians point the other way (0.1059 vs 0.1041) because a
+median-of-medians across sessions is set by different sessions in each column. The first 4-session
+run reported only the unpaired row and would have pointed the wrong way.
+
+**THE FRAME GAIN LANDS WHERE IT IS NEEDED** -- thin sessions gain most (+62%, +54%, +41%), fat ones
+~nothing (+1.5%).
+
+**POSITION SPREAD CANNOT SEE A UNIFORM SHIFT**, so that was measured separately BEFORE touching the
+config (`uniform_shift_check`): the baseline moves by a median **3.1%** of the evoked signal (p90
+0.091, max 0.155), and `cos(d, evoked)` is negative in 12/19 -- mixed, not the shared direction
+contamination would produce. The large shifts are the sessions with the large frame gains, i.e. thin
+baselines being estimated better, not lick activity leaking in.
+
+**FOUR EDITS THAT MOVE AS ONE**, because any one alone is a silent failure:
+`lick_buffer_s` -> `variant: restdock05` -> `behavior_events.SCHEMA_VERSION 5` ->
+`session_cache.CACHE_VERSION 12`. The variant rename is the one that would have cost a night:
+`recompute_masks` is RESUMABLE, so leaving the name alone would have regenerated NOTHING, or with
+`--force` overwritten the `[1,2]` masks that are the provenance of every figure to date.
+Rollback: `variant: restdock` + `lick_buffer_s [1.0, 2.0]`. Nothing was overwritten.
+
+
+## 2026-09-15 (SUPERSEDES 2026-09-14) — `restw` IS **NOT** RETIRED
+
+The 2026-09-14 entry "DECIDING TEST: `restw` changes NO conclusion. RETIRE IT" **does not stand**,
+and neither does the confound-correction that followed it. Final position: **keep `restw`.**
+
+The composition test showed position-weighting does not change the MEASURED OUTCOMES -- rank order
+identical, between-animal agreement 0.810 vs 0.832 acute / 0.030 vs 0.052 subacute / 0.416 vs 0.385
+chronic, **sign flipping at chronic** over 6 animal pairs with no CI. That is a claim about measured
+impact. **Finding 11 is a claim about BIAS IN PRINCIPLE**, and it is the one that decides: rest
+carries position, so a frame-weighted average is dominated by whichever positions are
+over-represented and the subtrahend itself carries position. "The bias does not flip the ordering in
+this dataset" is not grounds for adopting a knowingly biased estimator.
+
+**FINDING 11 RE-MEASURED ON `restdock05` AND IT IS STRONGER:** `rest_position_permutation` gives
+observed/null **1.622** over 44 pre-stroke sessions, above null in **44/44**, 4/4 animals (PS92
+1.444, PS93 1.996, PS94 1.662, PS95 1.500; mean over animals 1.650), **0 skipped**. Superseded
+values were 1.429 (41/44, loose) and 1.449 (39/42, strict docked). `rest_position_decode`, a
+DIFFERENT statistic, gives 93/94 sessions above their own null.
+
+**This also resolves the retirement trap in the safe direction:** production's pooled `rest` being
+TIME-LOCAL stops being load-bearing, because nothing has to change.
+
+
+## 2026-09-15 (SUPERSEDES 2026-09-14) — PS92_0826 IS RESCUED; **DO NOT** IMPLEMENT ITS EXCLUSION
+
+The 2026-09-14 entry scoping PS92_0826's exclusion is **moot**. On `restdock05` its rest fraction
+more than doubles (1.46% -> 3.09%) and it clears all six positions. Confirmed through **production
+`rest_by_position`** (`restw_column_drops`), not a test script's replication of the gate:
+
+    epoch      n  restw  drop %
+    pre       44     44    0.0
+    acute     16     16    0.0
+    subacute  18     18    0.0
+    chronic   16     16    0.0
+
+**No session loses its RESTW column.** Was 1/92.
+
+**FLAG, DO NOT EXCLUDE:** PS92_0826 (weakest position 217 frames) and PS92_0812 (231) clear the 200
+floor but are thin. And the PS92 flag now has independent support -- **the six lowest rest fractions
+in the cohort are all PS92** (0812 1.54%, 0814 2.07%, 0826 3.09%, 0813 3.23%, 0811 3.29%, 0809
+3.84%). That is an animal-level property, not one bad session.
+
+
+## 2026-09-15 — WITHDRAWN: "the rest position signal shows the same acute dip as the task readout"
+
+Reported from the cohort mean (obs-null 0.197 pre -> 0.097 acute -> 0.121 subacute -> 0.245
+chronic). **Plotting the animals killed it:**
+
+    PS92  0.17  0.10  0.18  0.29
+    PS93  0.23  0.05  0.15  0.31
+    PS94  0.24  0.11  0.11   --    (no chronic boundary)
+    PS95  0.15  0.18  0.11  0.15    <- RISES at acute
+
+Three of four dip; the chronic rise is carried by PS92/PS93 with PS95 flat; n=16 at both ends. **The
+far-contra TASK deficit replicates 4/4 -- this does not.**
+
+**METHOD LESSON, the same one twice in three days:** a pooled mean hid a reversal. The composition
+test had already established that between-animal replication beats an amplitude mean, and the
+trajectory was then read straight off a cohort average anyway. **Plot the animals before describing
+a trajectory.** Every rest diagnostic had been text-only until then, which is why nothing caught it
+earlier; `scripts/rest_migration/plot_rest_decode.py` now exists.
+
+**ALSO RECORDED:** these decoders are **PER SESSION** (within-session block-CV, `GroupKFold` by
+~6-trial position block), **not a frozen pre-stroke model**. Each epoch reads how much position
+information that session's OWN rest carries, not how much of the pre-stroke code survives -- so the
+chronic rise could be a DIFFERENT code. Only the pending docked frozen-decoder arm separates them.
+
+
+## 2026-09-16 — `15x` WIRED INTO THE NIGHTLY, and the per-position-rest question scoped
+
+`epoch_15x_REST_by_position_by_animal` -- the visual case for `restw` -- **had no nightly step and
+froze at 09-13 through TWO rest-definition changes**, so the deck showed a superseded-definition
+panel beside current ones with nothing saying so. Same failure the section-G comment in
+`nightly_figs` already records. Now a nightly step, ungated on post-stroke because it is built from
+PRE-STROKE sessions. On `restdock05` the structure is unchanged and amplitudes ROSE in all four
+animals (PS92 0.0063->0.0067, PS93 0.0050->0.0059, PS94 0.0039->0.0047, PS95 0.0033->0.0035),
+consistent with the permutation strengthening.
+
+**`rest_position_vs_drift` was printing a RETIRED verdict** next to that figure. Its POSITION/DRIFT
+ratio read 1.02 on the old definition and was taken as "drift, not position"; on `restdock05` the
+same arithmetic gives 1.09, and the old text would have invited the OPPOSITE conclusion from the
+same broken statistic. The ratio is withdrawn (contrasts unmatched on time separation; a ratio of
+magnitudes cannot separate "both real" from "neither resolvable"). Kept for continuity, labelled
+RETIRED, pointing at the permutation.
+
+**SCOPED, NOT BUILT -- per-position rest referencing (`15s`).** Priya asked whether cue/precue maps
+should be referenced to per-position rest. **As a reference: no.** For pre-cue it subtracts the
+persistence trace (+0.0754, 4/4 animals) from itself and returns ~zero by construction; for post-cue
+it inherits the F12 objection that demoted `_PRECUEref_`. **The algebra decides the design:**
+`(trial_p - restw) - (trial_p - rest_p) = rest_p - restw`, so the map difference does not involve
+the trials at all -- it is exactly what `15x` plots. The NEW quantity is the **projection** (what
+fraction of a position's task map is already present in its own rest), with a **mandatory
+circularity guard**: `rest_p` and `trial_p` share session drift, so they must come from odd/even
+blocks. Null = circular-shift. Named `epoch_15s_shared_position_*`, never a `_ref_` name.

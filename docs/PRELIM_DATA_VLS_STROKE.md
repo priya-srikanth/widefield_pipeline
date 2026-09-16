@@ -10,7 +10,55 @@ than living in a chat log.
 
 ---
 
-## STATE OF THE EVIDENCE, 2026-09-10 -- READ THIS BEFORE QUOTING ANYTHING BELOW
+## STATE OF THE EVIDENCE, **2026-09-16** -- SUPERSEDES EVERY CAVEAT BELOW
+
+**THE SOURCE RUN FOR THIS DOCUMENT (`nightly_figs 20260907`) IS TWO GENERATIONS STALE.** The current
+render is **2026-09-16 06:49**, on the `restdock05` rest definition, 877 slides / 1,333 figures /
+0 missing. Everything in this document predates the entire rest-baseline migration.
+
+**WHAT CHANGED UNDER THE NUMBERS**
+
+1. **The rest baseline is a different quantity.** `restdock05` = docked window (spout parked, no
+   target present) + `lick_buffer_s [0.5, 1.0]` + `treadmill_buffer_s [1.0, 2.0]`. Every
+   rest-referenced amplitude in this document was computed on a retired definition.
+2. **THE EPOCH TABLE BELOW IS ALSO WRONG NOW.** It says PS95 chronic = day 15. The boundaries are
+   DERIVED from behaviour and the 2026-09-16 render's own audit gives **PS92 11, PS93 11, PS94 none,
+   PS95 11**, matching `animals.yaml` on all four animals. PS95 moved 15 -> 11.
+3. **`restw` is NOT retired** (see DECISIONS.md 2026-09-15). Rest carries position: observed/null
+   **1.622**, **44/44** pre-stroke sessions, 4/4 animals, 0 skipped.
+
+**VERIFIED CURRENT NUMBERS — safe to quote, read off the 2026-09-16 render**
+
+Acute amplitude relative to each position's own pre-stroke value, position-weighted flat rest
+reference (`epoch_15r_position_RESTWref_cue_working`):
+
+| position | acute / pre |
+|---|---|
+| Near Ipsi | 1.46 |
+| Near Contra | 1.26 |
+| Near Middle | 1.20 |
+| Far Ipsi | 0.99 |
+| Far Middle | 0.68 |
+| **Far Contra** | **0.47** |
+
+The frame-weighted reference (`_RESTref_`) gives 1.42 / 1.24 / 1.17 / 0.98 / 0.66 / **0.48** --
+**identical ordering, 1-3% apart**, and far-contra is the ONLY position where the two disagree in
+direction, which is exactly where composition bias is predicted. Split-half reliability r = 0.94-0.99
+throughout.
+
+**NOT YET RE-PULLED, DO NOT QUOTE FROM BELOW:** every subacute and chronic number, the frozen-decoder
+fractions, the encoder R^2/FEVE values, and the RSA/crossnobis numbers. They need pulling from the
+2026-09-16 bundles (`labcams/grant_figures/epoch/*_bundle.json`), not reading off the old figures.
+This block was written rather than rewriting the document around numbers nobody had re-checked --
+which is the failure mode that produced the two withdrawals recorded in DECISIONS.md this week.
+
+**Pending work that will move numbers again:** the docked FROZEN decoder arm (the current rest
+decode is PER-SESSION and cannot distinguish chronic recovery from chronic replacement), and `15s`.
+See `docs/STATUS_2026-09-16.md`.
+
+---
+
+## STATE OF THE EVIDENCE, 2026-09-10 -- SUPERSEDED BY THE BLOCK ABOVE
 
 Two structural things changed today and both invalidate numbers in this document.
 
