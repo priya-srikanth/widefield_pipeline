@@ -13120,11 +13120,24 @@ governs only WHOSE trials set that reference, not the fact that they share it. `
 independent, no position information in the subtrahend) remains the one to lead with for
 per-position claims, as `STATUS_2026-09-12` already says.
 
-**WHERE THE SKEW IS REAL: the lick arm, and it is already documented as such.** Acute trials per
-position are close_L 1097, close_C 1095, close_R 1099, far_L 805, far_C 500, **far_R 0**. That zero
-is the "lick-aligned arm is blind to the acute far-contra deficit by construction" finding, now with
-a hard number. Balancing cannot rescue a class with no trials; `MIN_TRIALS_PER_CLASS` refuses the
-cell, which is the correct behaviour.
+**WHERE THE SKEW IS REAL: the lick arm.** Acute trials per position, POST-FLOOR (`used`, i.e. what
+gets a map): close_L 1097, close_C 1095, close_R 1099, far_L 805, far_C 500, far_R **0**.
+
+**THAT ZERO IS A MAP COUNT, NOT A TRIAL COUNT, AND AN EARLIER VERSION OF THIS ENTRY READ IT AS ONE.**
+It said "balancing cannot rescue a class with no trials" -- wrong. `MIN_TRIALS_PER_CLASS` gates which
+MAPS are emitted; `y` is never filtered by it. RAW counts entering the fit
+(`scripts/rest_migration/lick_arm_raw_counts.py`): far_R acute is **64 trials across 13 sessions**
+(1-12 each), far_C **542**. Those trials ARE classes in the multinomial, and under
+`class_weight="balanced"` they are up-weighted **65x to 784x** -- a single far_R trial carries a
+sixth of the loss. They shape the OTHER five positions' coefficients too, because the softmax is
+joint and the Haufe covariance is taken over all training trials.
+
+**WHAT SURVIVES THE CORRECTION.** The far_R acute CELL is still blank, and that blankness is still
+the finding. And the measured cost of all that leverage is still <= 0.035 on any amplitude ratio --
+the comparison bounds exactly this effect, so the conclusion holds while the reasoning behind it
+does not. `beta_maps.MIN_TRIALS_PER_CLASS` had already written the warning this entry needed:
+*"`class_weight='balanced'` UP-weights a rare class, so a five-trial position is more influential
+rather than less, which argues for the floor not against."*
 ---
 
 ## 2026-09-16 — Two trees, three sessions lost, and the rename that ends it

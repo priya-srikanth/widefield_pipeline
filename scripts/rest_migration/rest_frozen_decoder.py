@@ -406,6 +406,37 @@ def _usable(y, min_periods, min_per_class):
     return True, ""
 
 
+def _confusion(conf, order, out, variant, stem, codes):
+    """The frozen rest decoder's CONFUSION per epoch -- the rest-side `epoch_5c_frozen_confusion`.
+
+    Priya, 2026-09-16: *"did you make decoder matrices for the restdock analyses?"* No -- the arm
+    reported balanced accuracy, retained fractions and the refit gap, all of which are SCALARS. A
+    scalar says how much position information survives; it cannot say WHERE it goes, and on the task
+    side that question has had its own figure since figure 5c.
+
+    WHY IT MATTERS HERE SPECIFICALLY. Rest accuracy falls to 0.332 retained acutely. Two very
+    different things produce that number: errors scattering uniformly (the code DEGRADES) or errors
+    collapsing onto particular positions (the code SHIFTS -- e.g. far-contra read as near, which is
+    the spatial signature the task arm's confusions already show). The retained fraction is
+    identical either way.
+
+    RAW COUNTS ARE STORED, row-normalisation is for display only, exactly as `confusion_row`
+    requires -- raw counts stay addable, which is what makes pooling across sessions a sum.
+    """
+    from wfield_local import epoch_figures as ef
+
+    counts = {e: conf[e] for e in order if e in conf and np.asarray(conf[e]).sum()}
+    if not counts:
+        return None
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    labels = [POSITION_NAMES.get(int(c), str(c)) for c in codes]
+    return ef.confusion_row(
+        counts, out, name=f"{stem}_confusion",
+        title=f"Frozen PRE-stroke REST decoder, pooled across animals -- variant {variant}",
+        delta=True, chance=CHANCE, labels=labels)
+
+
 def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     """Three panels, because the cohort mean has hidden a reversal in this family before.
 
@@ -542,6 +573,13 @@ def main() -> int:
           f"bins={a.bins}, min {a.min_periods} periods / {a.min_per_class} per class\n")
 
     rows, per_session, skipped = [], [], []
+    # POOLED CONFUSION COUNTS, raw, one MxM per epoch over a FIXED code order. The order is fixed
+    # up front rather than taken from each session's `np.unique`, because a session missing a
+    # position would otherwise contribute an MxM whose axes mean something different -- matrices
+    # that are summed have to be indexed the same way.
+    CODES = [0, 1, 2, 3, 4, 5]
+    cidx = {c: i for i, c in enumerate(CODES)}
+    conf = {e: np.zeros((len(CODES), len(CODES)), np.int64) for e in epochs.EPOCHS}
     for an in animals:
         todo = [s for s in SESSIONS
                 if s["label"] in want and s["label"].startswith(an) and s.get("h5")]
@@ -656,6 +694,9 @@ def main() -> int:
             acc, ncls = _balanced_accuracy(y[m_test], pred)
             chance = 1.0 / ncls
             yt_test, gt_test = y[m_test], g[m_test]
+            for t_c, p_c in zip(yt_test, pred):
+                if int(t_c) in cidx and int(p_c) in cidx:
+                    conf[ep][cidx[int(t_c)], cidx[int(p_c)]] += 1
             null_stats = {}
             for kind in a.null:
                 draws = [_balanced_accuracy(null_labels(yt_test, gt_test, rng, kind), pred)[0]
@@ -869,6 +910,22 @@ def main() -> int:
     print(f"\nwrote {cp}\nwrote {sp}")
     fp = _plot(rows, per_session, order, a.out, variant, stem, len(skipped))
     print(f"wrote {fp}")
+    cf = _confusion(conf, order, a.out, variant, stem, CODES)
+    print(f"wrote {cf}" if cf else "!! no confusion matrix -- every epoch was empty")
+    # THE RAW COUNTS AS CSV TOO. The figure is row-normalised for display; a reader asking "how many
+    # far-contra rest periods were read as near" needs the integers, and a claim whose only support
+    # is a colour scale is not checkable.
+    if cf:
+        import csv as _c
+        cp2 = a.out / f"{stem}_confusion.csv"
+        with open(cp2, "w", newline="", encoding="utf-8") as fh:
+            w = _c.writer(fh)
+            w.writerow(["epoch", "true", "pred", "count"])
+            for e in order:
+                for i, tc in enumerate(CODES):
+                    for j, pc in enumerate(CODES):
+                        w.writerow([e, tc, pc, int(conf[e][i, j])])
+        print(f"wrote {cp2}")
 
     print(f"\ntested {len(per_session)} sessions; {len(skipped)} skipped")
     for x in skipped[:12]:
