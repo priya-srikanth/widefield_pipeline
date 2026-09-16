@@ -46,11 +46,62 @@ The frame-weighted reference (`_RESTref_`) gives 1.42 / 1.24 / 1.17 / 0.98 / 0.6
 direction, which is exactly where composition bias is predicted. Split-half reliability r = 0.94-0.99
 throughout.
 
-**NOT YET RE-PULLED, DO NOT QUOTE FROM BELOW:** every subacute and chronic number, the frozen-decoder
-fractions, the encoder R^2/FEVE values, and the RSA/crossnobis numbers. They need pulling from the
-2026-09-16 bundles (`labcams/grant_figures/epoch/*_bundle.json`), not reading off the old figures.
-This block was written rather than rewriting the document around numbers nobody had re-checked --
-which is the failure mode that produced the two withdrawals recorded in DECISIONS.md this week.
+### POSITION MAPS vs THE POSITION-WEIGHTED REST BASELINE — EXACT VALUES
+
+Pulled from `kw.stat_rows` in `epoch_15r_position_RESTWref_*_bundle.json` (2026-09-16 render), NOT
+read off the figures. `amplitude_vs_pre` = that cell's amplitude relative to its own pre-stroke
+value; `sig` = bins significant under the nested animals->sessions bootstrap, max-statistic
+corrected, out of 2,022 in-mask bins.
+
+**POST-CUE, working trials — the headline, and a clean monotone gradient**
+
+| position | acute/pre | sig | subacute/pre | sig | chronic/pre | sig |
+|---|---|---|---|---|---|---|
+| Near Ipsi | 1.46 | 394 | 1.26 | 126 | 1.50 | 390 |
+| Near Contra | 1.26 | 237 | 1.19 | 123 | 1.25 | 329 |
+| Near Middle | 1.20 | 67 | 1.15 | 145 | 1.16 | 285 |
+| Far Ipsi | *0.99* | *20* | 1.02 | 0 | 1.24 | 71 |
+| Far Middle | 0.68 | 148 | 0.97 | 1 | 1.13 | 167 |
+| **Far Contra** | **0.47** | **1186** | 0.89 | **0** | 1.08 | 235 |
+
+1. **Acute is monotone near -> far: 1.46, 1.26, 1.20 | 0.99, 0.68, 0.47.** Near positions
+   INCREASE, far positions decrease, far-contra collapses to less than half.
+2. **Far-contra acute is the single largest significant area in the figure — 1,186 of 2,022 bins
+   (59%).** Nothing else approaches it; the next largest is 394.
+3. **Subacute far-contra is 0.89 with ZERO significant bins** — not distinguishable from pre-stroke.
+4. **Chronic far-contra is 1.08 (235 sig)** — at or slightly above baseline.
+5. *Far Ipsi acute (italic) is **SUPPRESSED**: edge_enrichment 2.365, i.e. >2x concentrated in the
+   mask rim. **Do not quote it.*** It is an imaging-window artefact, not a result.
+
+**PRE-CUE — DISSOCIATES FROM POST-CUE, and this is the finding worth chasing**
+
+| position | acute/pre | sig | chronic/pre | sig |
+|---|---|---|---|---|
+| Near Ipsi | 1.90 | 0 | 2.67 | 14 |
+| Near Middle | 0.47 | 46 | 0.69 | 468 |
+| Near Contra | 0.78 | 0 | 1.00 | 45 |
+| Far Ipsi | 1.28 | 40 | 0.79 | 0 |
+| Far Middle | 0.94 | 0 | 0.55 | 740 |
+| **Far Contra** | **1.57** | **310** | *0.72* | *15* |
+
+**Far-contra pre-cue INCREASES acutely (1.57, 310 sig) while far-contra post-cue COLLAPSES (0.47,
+1186 sig), in the same sessions and the same trials.** The pre-cue position signal is not simply
+lost with the motor output. Chronically the pattern inverts again: the largest sustained decreases
+are Far Middle 0.55 (740 sig) and Near Middle 0.69 (468 sig).
+*Two cells SUPPRESSED (do not quote): Near Middle subacute-pre (edge 3.695), Far Contra chronic-pre
+(edge 2.467).*
+
+**LICK-ALIGNED — and the reason it cannot carry the headline**
+
+Acute cells are uniformly elevated (Near Ipsi 1.54, Near Contra 1.38, Far Ipsi 1.43, Far Middle
+1.39, Near Middle 1.32) and **the Far Contra acute cell is ABSENT ENTIRELY.** There are no
+lick-aligned far-contra trials to average acutely, because the animal stops licking there — which IS
+the deficit. **The lick-aligned arm is blind to the acute far-contra effect by construction**, and a
+reader comparing alignments would otherwise read its absence as a null. Far Middle acute carries
+edge_enrichment 1.633 (elevated, below the 2x suppression threshold).
+
+**STILL NOT RE-PULLED:** frozen-decoder fractions, encoder R^2/FEVE, RSA/crossnobis. Those live in
+other bundles/JSON and were not pulled here.
 
 **Pending work that will move numbers again:** the docked FROZEN decoder arm (the current rest
 decode is PER-SESSION and cannot distinguish chronic recovery from chronic replacement), and `15s`.
