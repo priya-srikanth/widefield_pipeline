@@ -461,6 +461,10 @@ def main() -> int:
                          "longer', which shifts the feature distribution with no position in it")
     ap.add_argument("--duration-pct", type=float, default=10.0,
                     help="percentile trimmed from each tail of the pre duration distribution")
+    ap.add_argument("--lick-far-s", type=float, default=3.0,
+                    help="ABSOLUTE gap (s) defining the 'very far from any detected lick' stratum. "
+                         "The median split is animal-relative and too weak on its own: a licky "
+                         "animal's median is ~1 s, which licking bouts outlast.")
     ap.add_argument("--null", nargs="+", default=["blockperm", "shift", "trial"],
                     choices=["blockperm", "shift", "trial"],
                     help="label-side null(s), predictions held fixed. FIRST is the primary. "
@@ -594,12 +598,24 @@ def main() -> int:
             gp = gap[m_test]
             fin = np.isfinite(gp)
             acc_near = acc_far = float("nan")
+            acc_veryfar = float("nan")
+            n_veryfar = 0
             if fin.sum() >= 2 * a.min_per_class:
                 cut = float(np.median(gp[fin]))
                 near, far = fin & (gp <= cut), fin & (gp > cut)
                 if near.sum() >= a.min_periods // 2 and far.sum() >= a.min_periods // 2:
                     acc_near = _balanced_accuracy(yt_test[near], pred[near])[0]
                     acc_far = _balanced_accuracy(yt_test[far], pred[far])[0]
+                # THE MEDIAN SPLIT IS TOO WEAK ON ITS OWN, and saying so is the point of this
+                # second stratum. PS92's median gap is ~1.0 s, so its "far" half is barely far --
+                # licking bouts run well past that, and a confound living at 1-2 s would sit in
+                # BOTH halves and cancel. `--lick-far-s` is an ABSOLUTE floor, so the stratum means
+                # the same thing in every animal regardless of how licky it is, which the median
+                # split by construction does not.
+                vf = fin & (gp >= a.lick_far_s)
+                n_veryfar = int(vf.sum())
+                if n_veryfar >= a.min_periods // 2 and len(np.unique(yt_test[vf])) >= 3:
+                    acc_veryfar = _balanced_accuracy(yt_test[vf], pred[vf])[0]
             per_session.append({"animal": an, "label": lab, "epoch": ep, "n": int(m_test.sum()),
                                 "n_classes": ncls, "acc": acc, "null": nm, "p": p,
                                 "above_chance": (acc - chance) / (1 - chance),
@@ -611,6 +627,7 @@ def main() -> int:
                                 "lick_hz": lick_hz,
                                 "median_lick_gap_s": float(np.median(gp[fin])) if fin.any() else float("nan"),
                                 "acc_near_lick": acc_near, "acc_far_lick": acc_far,
+                                "acc_veryfar_lick": acc_veryfar, "n_veryfar": n_veryfar,
                                 "null_kind": primary, "null_p95": n95,
                                 **{f"null_{k}": v[0] for k, v in null_stats.items()},
                                 **{f"p_{k}": v[1] for k, v in null_stats.items()}})
@@ -682,7 +699,7 @@ def main() -> int:
     print(f"\n{'=' * 88}\nUNDETECTED-LICKING CONTROL -- the spout docks out of reach, so licks at "
           f"nothing are INVISIBLE\n{'=' * 88}")
     print(f"{'animal':<8}{'epoch':<10}{'licks/s':>9}{'lick gap':>10}{'near':>8}{'far':>8}"
-          f"{'far-near':>10}")
+          f"{'far-near':>10}{f'>={a.lick_far_s:g}s':>9}{'n':>7}{'vf-all':>9}")
     for an in sorted({r["animal"] for r in per_session}):
         for e in order:
             v = [r for r in per_session if r["animal"] == an and r["epoch"] == e]
@@ -690,11 +707,17 @@ def main() -> int:
                 continue
             nr = float(np.nanmean([r["acc_near_lick"] for r in v]))
             fr = float(np.nanmean([r["acc_far_lick"] for r in v]))
+            vf = float(np.nanmean([r["acc_veryfar_lick"] for r in v]))
+            allacc = float(np.mean([r["acc"] for r in v]))
             print(f"{an:<8}{e:<10}{np.mean([r['lick_hz'] for r in v]):>9.2f}"
                   f"{np.nanmedian([r['median_lick_gap_s'] for r in v]):>10.2f}"
-                  f"{nr:>8.3f}{fr:>8.3f}{fr - nr:>+10.3f}")
+                  f"{nr:>8.3f}{fr:>8.3f}{fr - nr:>+10.3f}"
+                  f"{vf:>9.3f}{int(np.sum([r['n_veryfar'] for r in v])):>7}{vf - allacc:>+9.3f}")
     print("\nNEAR/FAR = the SAME frozen predictions, split at the session's median gap to the")
-    print("nearest DETECTED lick. If rest position decoding were continuation licking, it would")
+    print(f"nearest DETECTED lick; the >={a.lick_far_s:g}s column is an ABSOLUTE stratum, which means the")
+    print("same thing in every animal where the median split does not. `vf-all` is that stratum")
+    print("against the session's overall accuracy: near zero = the signal does NOT depend on")
+    print("being close to a lick. If rest position decoding were continuation licking, it would")
     print("concentrate NEAR and thin out FAR, i.e. far-near strongly negative. This BOUNDS the")
     print("confound; it cannot measure undetected licks, which no DAQ channel sees. Only tongue")
     print("tracking from the behaviour cameras (DLC, PARKED) settles it -- say so when quoting.")

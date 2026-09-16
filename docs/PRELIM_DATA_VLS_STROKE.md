@@ -228,6 +228,81 @@ stay distinct. **Similarity dips acutely and recovers**: cue 0.841 → 0.639 →
 interval excludes zero is pre-cue chronic (+0.049) — small, and worth a second look before it is
 called anything.
 
+### REST, FROZEN DECODER — does the pre-stroke rest code survive, or is it REPLACED?
+BUILT 2026-09-16. SCRIPT: `scripts/rest_migration/rest_frozen_decoder.py` ·
+DATA: `E:/cue_lick/rest_migration/rest_frozen_decoder_restdock05_final.{csv,png}` +
+`_sessions.csv`. 96 sessions, **0 skipped**, duration-matched, `blockperm` null, 200 permutations.
+
+**THE QUESTION NO EARLIER FIGURE COULD REACH.** `rest_position_decode` fits a decoder WITHIN each
+session, so a chronic session scoring well says only that THAT DAY'S rest carries position — by
+whatever code that day happens to use. Recovery and replacement produce the identical number. This
+arm trains on pre-stroke rest, freezes, and applies across epochs; the refit arm is computed on the
+**same periods, same labels, same block vector**, so the only difference between the two is the
+estimator.
+
+| epoch | frozen acc | frozen retained | refit retained | gap (refit − frozen) | p<0.05 |
+|---|---|---|---|---|---|
+| pre (LOSO) | 0.385 | 1.000 | 1.000 | −0.094 | 44/44 |
+| acute | 0.216 | **0.227** | 0.495 | +0.012 | **8/16** |
+| subacute | 0.237 | 0.322 | 0.565 | −0.000 | 13/18 |
+| chronic | 0.303 | **0.627** | **1.271** | +0.021 | 18/18 |
+
+**THE PRE-STROKE REST CODE IS NOT SIMPLY RESTORED.** Chronically the within-session readout reaches
+**1.27× its own pre-stroke level** while the frozen model reaches **0.627**. Position is present in
+chronic rest and is read by something other than the pre-stroke code — the replacement signature.
+All four animals dip acutely (PS92 0.401, PS93 0.187, PS94 0.134, PS95 0.120); **PS94 has no
+chronic sessions** and **PS92's subacute 0.759 is far out of line** with the other three
+(0.341, 0.229, 0.285), which is the same subacute non-replication flagged elsewhere.
+
+**RETAINED 0.227 ACUTE, against the TASK arm's 0.496 and the state control's 0.902.** Same animals,
+same joint LocaNMF footprints, same estimator, same frozen discipline — only the WINDOW changes.
+
+**ACUTE IS MARGINAL AT THE SESSION LEVEL AND MUST BE QUOTED THAT WAY.** Only **8 of 16** acute
+sessions reach p<0.05 under the block-permutation null; mean acute accuracy 0.216 sits essentially
+at the null's 95th percentile (0.206). An earlier note of "16/16 above null" used `acc > null mean`,
+which is not a test. The epoch-level effect and the 4/4 animal replication stand; the per-session
+claim does not.
+
+**THE BASIS IS THE JOINT LocaNMF ONE, AND IT HAD TO BE.** `rest_position_decode` uses each session's
+OWN SVD components — correct within a session, meaningless frozen, because component *i* is a
+different cortical patch on each day. A model carried across days in that basis returns a low number
+that reads exactly like a lesion effect.
+
+**THE NULL IS `blockperm`, NOT A CIRCULAR SHIFT — and this corrected a repo-wide claim.**
+`rest_position_decode`'s docstring says a circular shift "keeps blocks as blocks". MEASURED: with
+the unequal block lengths real data has, a roll misaligns the boundaries and leaves only **~31%** of
+blocks internally constant, against **100%** for `blockperm` and **~1%** for a trial shuffle. The
+shift therefore gives a null that is too weak. All three are computed: they agree on the null MEAN
+(0.166) and disagree on significance exactly as predicted — acute 8 (blockperm) / 9 (shift) /
+**11 (trial)** of 16. Second trap recorded in the tests: under a trial shuffle the BALANCED-accuracy
+null is ~1/ncls by construction, so a balanced null sitting at 1/6 is NOT evidence the permutation
+is working.
+
+**DURATION CONTROL: INERT.** Median scored rest-period length moves **0.01 s** across epochs, because
+these are docked periods between two same-position trials — the ITI sets their length, not how much
+the animal rests. Retained 0.227 matched vs 0.224 unmatched.
+
+**THE UNDETECTED-LICKING CONTROL (Priya, 2026-09-16).** *"PS92 is VERY licky pre-stroke and during
+recovery so much of the 'rest' probably includes licks without spout contact (due to docked spout
+position)."* The lick channel is threshold-on-CONTACT and the spout docks out of reach, so licking
+at nothing produces no deflection, and `lick_buffer_s` — keyed on detected licks — cannot exclude
+what was never detected. Stratifying the SAME frozen predictions by gap to the nearest detected
+lick: **far − near is negative in 12 of 15 cells, INCLUDING pre-stroke in all four animals**
+(−0.024 to −0.086). So it is a general property of the rest signal, not a post-stroke artefact.
+
+**Three things bound it.** (1) It does not discriminate the confound from the persistent-trace
+account this arm already flags — a period nearer a lick is also nearer in TIME to the trial. (2) Its
+magnitude is −0.02 to −0.095 against a pre signal of 0.385 over a 0.167 null, so at most ~10–25% of
+the effect. (3) **PS92 is not the worst cell** despite being the licky animal (~1 lick/s throughout):
+PS95 is the most consistently negative, and PS92 goes POSITIVE at subacute (+0.114) and chronic
+(+0.053). Its high retained fraction is therefore not explained by lick proximity.
+
+**THIS BOUNDS THE CONFOUND AND CANNOT MEASURE IT.** Undetected licks are invisible to every DAQ
+channel. **Only tongue tracking from the behaviour cameras (DLC, PARKED) settles it** — say so
+wherever this control is quoted. Incidental: acute animals lick LESS (PS94 0.95 → 0.62 licks/s), so
+their rest sits further from licks (median gap 1.00 s pre → 4.06 s acute); the deficit shows up
+inside the control itself.
+
 ### STATE DECODER
 **NOT re-pulled here.** Its numbers live in `docs/BEHAVIOURAL_STATE_CONTROL.md` (frozen pre-stroke
 decoders as fraction of above-chance retained: position 0.86 → 0.43, behavioural state 0.97 → 0.88,

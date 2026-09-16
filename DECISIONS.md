@@ -13037,3 +13037,56 @@ the trials at all -- it is exactly what `15x` plots. The NEW quantity is the **p
 fraction of a position's task map is already present in its own rest), with a **mandatory
 circularity guard**: `rest_p` and `trial_p` share session drift, so they must come from odd/even
 blocks. Null = circular-shift. Named `epoch_15s_shared_position_*`, never a `_ref_` name.
+
+## Rest frozen decoder: the null must match the estimator (2026-09-16)
+
+**DECISION.** `scripts/rest_migration/rest_frozen_decoder.py` reports the **block-permutation**
+null as primary, matching `decode_ci.frozen_ci`, and computes the circular-shift and trial-shuffle
+nulls alongside it. Labels are permuted with the model's PREDICTIONS HELD FIXED, which is the
+repo-wide rule and the only coherent choice for a frozen model.
+
+**WHY, MEASURED.** `rest_position_decode`'s docstring claims a circular shift "keeps blocks as
+blocks". It does so only when every block has the same length. Real blocks do not -- the
+scheduler's size cap and position changes give unequal lengths -- so a roll misaligns the
+boundaries and leaves only **~31%** of blocks internally constant, against **100%** for a block
+permutation and **~1%** for a trial shuffle. The shift therefore sits BETWEEN the two and yields a
+null that is too weak. Guarded in `tests/test_rest_frozen_decoder.py`.
+
+**WHAT IT CHANGES.** The three nulls agree on the null MEAN (0.166) and disagree on significance in
+the predicted direction: acute **8** (blockperm) / 9 (shift) / **11** (trial) of 16 sessions at
+p<0.05. SUPERSEDES the informal "16/16 acute sessions above null", which used `acc > null mean` --
+not a test.
+
+**A SECOND TRAP, RECORDED BECAUSE IT IS INVISIBLE.** Under a trial shuffle the BALANCED-accuracy
+null is ~1/ncls by construction, because balancing removes exactly the class skew the shuffle was
+there to carry. A balanced null sitting at 1/6 is therefore NOT evidence the permutation works.
+
+## Rest frozen decoder: cross-day features require the joint basis (2026-09-16)
+
+**DECISION.** The frozen rest arm builds features from the persisted JOINT LocaNMF basis
+(`joint_locanmf.load`), not from `joint_basis._load_session`'s per-session SVD components.
+
+**WHY.** Component *i* is a different cortical patch on each day. A model frozen in one session's
+basis and applied in another is not a degraded decoder, it is a meaningless one -- and it returns a
+LOW number, which reads exactly like a lesion effect. `rest_position_decode` uses the per-session
+basis and is correct to: a within-session decoder never compares two days. The same choice is wrong
+one function over. This also makes the rest and task frozen arms commensurable: same animal, same
+footprints, same estimator, only the window differs.
+
+## Rest is not explained by undetected licking, within a stated bound (2026-09-16)
+
+**THE CONCERN** (Priya): PS92 is very licky pre-stroke and during recovery, and because the spout
+docks OUT OF REACH, licks at nothing produce no deflection on the contact-thresholded `lick_analog`
+channel. `lick_buffer_s` is keyed on DETECTED licks, so it cannot exclude what was never detected.
+
+**THE MEASUREMENT.** Stratifying the same frozen predictions by gap to the nearest detected lick,
+far-near is negative in 12 of 15 cells -- but INCLUDING pre-stroke in all four animals, so it is a
+general property of the signal rather than a post-stroke artefact. Magnitude -0.02 to -0.095
+against a pre signal of 0.385 over a 0.167 null. **PS92 is not the worst cell** despite being the
+licky animal; PS95 is the most consistently negative and PS92 goes POSITIVE at subacute (+0.114)
+and chronic (+0.053), so PS92's high retained fraction is not lick proximity.
+
+**THE LIMIT, WHICH MUST BE QUOTED WITH THE RESULT.** This BOUNDS the confound and cannot measure
+it: undetected licks are invisible to every DAQ channel. It also does not discriminate the confound
+from the persistent-trace account, since a period nearer a lick is nearer in TIME to the trial.
+**Only DLC tongue tracking from the behaviour cameras settles it, and that is PARKED.**
