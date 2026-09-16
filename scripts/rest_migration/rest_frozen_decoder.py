@@ -86,6 +86,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import sys
 import time
@@ -215,6 +216,39 @@ def null_labels(y, g, rng, kind):
         m = dict(zip(blocks, shuffled))
         return np.array([m[b] for b in g])
     raise ValueError(f"unknown null kind {kind!r}")
+
+
+def matched_frozen(X, y, g, n_target, rng):
+    """The frozen model refitted on a SIZE-MATCHED random subset of pre-stroke BLOCKS.
+
+    THE SAME HANDICAP THE TASK ARM'S `5rm` FAMILY EXISTS TO REMOVE, and the rest arm has it worse.
+    The frozen model trains on every pre-stroke session of the animal (~10,000 rest periods) and
+    the refit on four fifths of one (~300), so the PRE gap is negative -- measured -0.116 here,
+    against the task arm's -0.073 post-cue -- purely from training-set size, with no lesion in it.
+    A raw gap read against that baseline charges the lesion for a handicap the design imposed.
+    Matching leaves WHICH SESSIONS the data came from as the only difference between the arms.
+
+    WHOLE BLOCKS, NOT LOOSE PERIODS -- exactly `grant_figures._matched_frozen`'s rule. Blocks are
+    the unit every other resampling here uses, and sampling loose periods would hand the matched
+    model a training set with LESS within-block correlation than the refit model's: one difference
+    removed, another introduced.
+
+    SEEDED PER SCORED SESSION, not per animal. The task side learned this the hard way -- one seed
+    per animal makes `permutation` return the same block ORDER every time, so every session of that
+    animal is scored by very nearly the same matched model: one draw presented as many, and one
+    unlucky subset biases the whole animal.
+
+    Returns ``(fitted, n_used)`` or None when the subset cannot carry two classes.
+    """
+    g = np.asarray(g)
+    keep = np.zeros(len(y), bool)
+    for b in rng.permutation(np.unique(g)):
+        keep |= (g == b)
+        if keep.sum() >= n_target:
+            break
+    if keep.sum() < 2 or len(np.unique(np.asarray(y)[keep])) < 2:
+        return None
+    return _fit_frozen(X[keep], np.asarray(y)[keep]), int(keep.sum())
 
 
 def refit_predictions(X, y, g):
@@ -461,6 +495,16 @@ def main() -> int:
                          "longer', which shifts the feature distribution with no position in it")
     ap.add_argument("--duration-pct", type=float, default=10.0,
                     help="percentile trimmed from each tail of the pre duration distribution")
+    ap.add_argument("--match-train", action="store_true",
+                    help="ALSO fit the frozen model on a size-matched random subset of pre-stroke "
+                         "BLOCKS, the counterpart of the task arm's 5rm family. Without it the "
+                         "gap carries a training-set-size handicap (~10,000 periods vs ~300) and "
+                         "the pre gap is not zero by construction.")
+    ap.add_argument("--match-lickgap", action="store_true",
+                    help="restrict train AND test to the central range of the PRE-STROKE "
+                         "lick-gap distribution. The control for 'acute animals lick less, so "
+                         "their rest sits further from licks' -- which otherwise confounds "
+                         "composition with code loss, since decoding depends on that gap.")
     ap.add_argument("--lick-far-s", type=float, default=3.0,
                     help="ABSOLUTE gap (s) defining the 'very far from any detected lick' stratum. "
                          "The median split is animal-relative and too weak on its own: a licky "
@@ -483,7 +527,12 @@ def main() -> int:
     # THE DURATION-MATCHED RUN MUST NOT OVERWRITE THE UNMATCHED ONE. Two analyses that answer
     # different questions sharing one filename is how a figure comes to disagree with the caption
     # that was written for the other run.
-    stem = f"rest_frozen_decoder_{variant}" + (a.tag or ("_durmatched" if a.match_duration else ""))
+    if a.tag:
+        stem = f"rest_frozen_decoder_{variant}{a.tag}"
+    else:
+        stem = (f"rest_frozen_decoder_{variant}"
+                + ("_durmatched" if a.match_duration else "")
+                + ("_gapmatched" if a.match_lickgap else ""))
     rng = np.random.default_rng(0)
     t0 = time.time()
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
@@ -549,16 +598,48 @@ def main() -> int:
             print(f"  duration window from PRE: [{lo_s:.2f}, {hi_s:.2f}] s "
                   f"({a.duration_pct}-{100 - a.duration_pct} pct of {len(pre_dur)} pre periods)")
 
+        # THE LICK-PROXIMITY WINDOW -- the control that the >=3s STRATUM showed was needed and that
+        # stratification itself cannot deliver. Measured 2026-09-16: in PS92/PS93/PS94 roughly half
+        # to three quarters of the PRE-STROKE rest position signal sits within 3 s of a detected
+        # lick, and the gap distribution MOVES with epoch (PS93 median 1.21 s pre -> 4.58 s acute,
+        # PS94 1.00 -> 4.06) because acute animals lick less. Decoding that depends on proximity,
+        # measured over epochs whose proximity differs, confounds composition with code loss.
+        #
+        # STRATIFYING AT >=3s does not fix it: for the licky animals that stratum is a 7-19% tail
+        # and the retained fractions computed inside it go unusable (PS92 subacute -1.697). MATCHING
+        # keeps the full sample and equalises the distribution instead, exactly as --match-duration
+        # does for period length.
+        glo = ghi = None
+        if a.match_lickgap:
+            pre_gap = np.concatenate([data[k][5] for k in pre_labs])
+            pre_gap = pre_gap[np.isfinite(pre_gap)]
+            glo, ghi = (float(np.percentile(pre_gap, a.duration_pct)),
+                        float(np.percentile(pre_gap, 100 - a.duration_pct)))
+            print(f"  lick-gap window from PRE: [{glo:.2f}, {ghi:.2f}] s "
+                  f"({a.duration_pct}-{100 - a.duration_pct} pct of {len(pre_gap)} pre periods)")
+
         for lab, (ep, X, y, g, dur, gap, lick_hz) in data.items():
             train = training_pool(pre_labs, lab)
             Xt = np.concatenate([data[k][1] for k in train])
             yt = np.concatenate([data[k][2] for k in train])
+            # BLOCK IDS MADE UNIQUE ACROSS SESSIONS, the same way `_pooled_bundle` does it. They
+            # restart per session, so a sampler that pooled two sessions' block 3 would treat one
+            # id as one block and draw a unit that does not exist.
+            gt_pool = np.concatenate([np.asarray(data[k][3], np.int64) + 1_000_000 * (i + 1)
+                                      for i, k in enumerate(train)])
             keep_test = np.ones(len(y), bool)
             if lo_s is not None:
                 dt = np.concatenate([data[k][4] for k in train])
                 m_tr = (dt >= lo_s) & (dt <= hi_s)
-                Xt, yt = Xt[m_tr], yt[m_tr]
+                Xt, yt, gt_pool = Xt[m_tr], yt[m_tr], gt_pool[m_tr]
                 keep_test = (dur >= lo_s) & (dur <= hi_s)
+            if glo is not None:
+                gt = np.concatenate([data[k][5] for k in train])
+                if lo_s is not None:
+                    gt = gt[m_tr]
+                m_g = (gt >= glo) & (gt <= ghi)
+                Xt, yt, gt_pool = Xt[m_g], yt[m_g], gt_pool[m_g]
+                keep_test &= (gap >= glo) & (gap <= ghi)
             ok, bad = _usable(yt, a.min_periods, a.min_per_class)
             if not ok:
                 skipped.append(f"{lab}: training pool {bad}")
@@ -591,6 +672,22 @@ def main() -> int:
             # tests/test_rest_frozen_decoder.py because this convention was misread once already.
             rf = refit_predictions(X[m_test], y[m_test], g[m_test]) if a.refit else None
             r_acc = _balanced_accuracy(y[m_test], rf)[0] if rf is not None else float("nan")
+            # THE TRAINING-SET-MATCHED FROZEN ARM (`5rm`'s counterpart). The refit model trains on
+            # (k-1)/k of THIS session; give the frozen model the same number of periods, drawn as
+            # whole pre-stroke blocks, and the size handicap stops contaminating the gap.
+            m_acc = float("nan")
+            m_used = 0
+            if a.match_train:
+                k = min(5, int(np.unique(g[m_test]).size))
+                n_target = round(int(m_test.sum()) * max(k - 1, 1) / max(k, 1))
+                # SEEDED PER SCORED SESSION, and NOT with `hash(lab)` -- Python randomises string
+                # hashing per process, so that would make the matched arm irreproducible between
+                # runs while looking deterministic. A stable digest of the label instead.
+                seed = int(hashlib.sha1(lab.encode()).hexdigest()[:8], 16)
+                got = matched_frozen(Xt, yt, gt_pool, n_target, np.random.default_rng(seed))
+                if got is not None:
+                    m_acc = _balanced_accuracy(y[m_test], got[0].predict(X[m_test]))[0]
+                    m_used = got[1]
             # LICK-PROXIMITY STRATIFICATION: the same frozen predictions, split by how long after a
             # detected lick each period sits. Median split within the session, so it is a contrast
             # and not a threshold argument. If the rest position signal is continuation licking, it
@@ -622,6 +719,10 @@ def main() -> int:
                                 "refit_acc": r_acc,
                                 "refit_above_chance": (r_acc - chance) / (1 - chance),
                                 "gap_refit_minus_frozen": r_acc - acc,
+                                "matched_frozen_acc": m_acc, "matched_n_train": m_used,
+                                "matched_above_chance": (m_acc - chance) / (1 - chance),
+                                "gap_refit_minus_matched": r_acc - m_acc,
+                                "n_train_full": len(yt),
                                 "median_dur_s": float(np.median(dur)),
                                 "median_dur_scored_s": float(np.median(dur[m_test])),
                                 "lick_hz": lick_hz,
@@ -663,10 +764,14 @@ def main() -> int:
         md = float(np.median([r["median_dur_scored_s"] for r in v]))
         r_acc = float(np.nanmean([r["refit_acc"] for r in v]))
         r_frac = float(np.nanmean([r["refit_above_chance"] for r in v]))
+        m_acc = float(np.nanmean([r["matched_frozen_acc"] for r in v]))
+        m_frac = float(np.nanmean([r["matched_above_chance"] for r in v]))
         rows.append({"epoch": e, "n_sessions": len(v), "acc": acc, "null": nm,
                      "above_chance": frac, "retained": ret,
                      "refit_acc": r_acc, "refit_above_chance": r_frac,
                      "gap_refit_minus_frozen": r_acc - acc,
+                     "matched_frozen_acc": m_acc, "matched_above_chance": m_frac,
+                     "gap_refit_minus_matched": r_acc - m_acc,
                      "median_dur_s": md, "duration_matched": bool(a.match_duration)})
         print(f"{e:<10}{len(v):>8}{acc:>10.3f}{nm:>9.3f}{frac:>14.3f}{ret:>11.3f}"
               f"{n_above:>9}/{len(v):<3}{md:>12.2f}")
@@ -685,12 +790,19 @@ def main() -> int:
         pre_rf = rows[0]["refit_above_chance"]
         print(f"\n{'=' * 88}\nRECOVERY OR REPLACEMENT -- the same periods, refit WITHIN each "
               f"session (block-CV)\n{'=' * 88}")
-        print(f"{'epoch':<10}{'frozen':>9}{'refit':>9}{'gap':>9}{'froz ret':>11}{'refit ret':>11}")
+        pre_mt = rows[0]["matched_above_chance"]
+        print(f"{'epoch':<10}{'frozen':>9}{'matched':>9}{'refit':>9}{'gap':>9}{'gapM':>9}"
+              f"{'froz ret':>10}{'matchret':>10}{'refit ret':>11}")
         for r in rows:
-            fr_ret = r["retained"]
             rf_ret = (r["refit_above_chance"] / pre_rf) if pre_rf else float("nan")
-            print(f"{r['epoch']:<10}{r['acc']:>9.3f}{r['refit_acc']:>9.3f}"
-                  f"{r['gap_refit_minus_frozen']:>+9.3f}{fr_ret:>11.3f}{rf_ret:>11.3f}")
+            mt_ret = (r["matched_above_chance"] / pre_mt) if pre_mt else float("nan")
+            print(f"{r['epoch']:<10}{r['acc']:>9.3f}{r['matched_frozen_acc']:>9.3f}"
+                  f"{r['refit_acc']:>9.3f}{r['gap_refit_minus_frozen']:>+9.3f}"
+                  f"{r['gap_refit_minus_matched']:>+9.3f}"
+                  f"{r['retained']:>10.3f}{mt_ret:>10.3f}{rf_ret:>11.3f}")
+        print("\n`matched` = frozen fitted on a SIZE-MATCHED subset of pre-stroke BLOCKS, so `gapM`")
+        print("is refit-minus-frozen with the training-set-size handicap removed -- the rest-side")
+        print("counterpart of the task arm's 5rm family. Read `gapM`, not `gap`.")
         print("\nGAP IS REFIT MINUS FROZEN, the task arm's sign convention: POSITIVE = the session's")
         print("own readout finds position the frozen pre-stroke model cannot -- present but")
         print("DISPLACED. Both retained fractions low = the code is genuinely degraded; frozen low")

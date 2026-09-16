@@ -167,6 +167,48 @@ def test_the_circular_shift_only_PARTLY_preserves_blocks_which_is_why_it_is_not_
     assert 0.15 < intact < 0.55, intact
 
 
+def test_matched_frozen_samples_whole_blocks_and_respects_the_target():
+    """Whole blocks, not loose periods -- else the matched model gets LESS within-block
+    correlation than the refit model it is being compared with: one difference removed, another
+    introduced."""
+    y, g = _blocked(seed=3, n=30)
+    X = np.random.default_rng(0).normal(size=(len(y), 6))
+    got = rfd.matched_frozen(X, y, g, n_target=60, rng=np.random.default_rng(0))
+    assert got is not None
+    _model, n_used = got
+    assert n_used >= 60
+    # every contributing block is whole: n_used is a sum of full block sizes
+    sizes = sorted(np.bincount(g))
+    assert any(n_used == s for s in _reachable_sums(np.bincount(g))), (n_used, sizes)
+
+
+def _reachable_sums(counts):
+    """Every total obtainable by adding whole blocks in some order until the target is met."""
+    out = {0}
+    for c in counts:
+        out |= {s + int(c) for s in out}
+    return out
+
+
+def test_matched_frozen_declines_a_single_class_subset():
+    """A subset that cannot carry two classes must return None, not a degenerate model."""
+    y = np.zeros(40, int)
+    g = np.repeat(np.arange(8), 5)
+    X = np.random.default_rng(0).normal(size=(40, 4))
+    assert rfd.matched_frozen(X, y, g, n_target=10, rng=np.random.default_rng(0)) is None
+
+
+def test_the_matched_seed_is_stable_across_processes():
+    """NOT `hash(label)` -- Python randomises string hashing per process, so that would make the
+    matched arm irreproducible between runs while looking deterministic."""
+    src = __import__("inspect").getsource(rfd.main)
+    assert "hashlib.sha1(lab.encode())" in src
+    # CODE ONLY -- the comment above the fix names `hash(lab)` to explain what not to do, and a
+    # naive substring check matches that comment and fails on the corrected file.
+    code = "\n".join(ln.split("#")[0] for ln in src.splitlines())
+    assert "hash(lab)" not in code
+
+
 def test_blockperm_is_the_default_primary_null():
     """The FIRST entry of --null is the primary, and for a frozen decoder it must be blockperm."""
     import argparse

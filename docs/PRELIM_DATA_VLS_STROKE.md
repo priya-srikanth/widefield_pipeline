@@ -243,9 +243,9 @@ estimator.
 | epoch | frozen acc | frozen retained | refit retained | gap (refit − frozen) | p<0.05 |
 |---|---|---|---|---|---|
 | pre (LOSO) | 0.385 | 1.000 | 1.000 | −0.094 | 44/44 |
-| acute | 0.216 | **0.227** | 0.495 | +0.012 | **8/16** |
+| acute | 0.216 | **0.227** → **0.332** proximity-matched | 0.495 → 0.665 | +0.012 | **8/16** |
 | subacute | 0.237 | 0.322 | 0.565 | −0.000 | 13/18 |
-| chronic | 0.303 | **0.627** | **1.271** | +0.021 | 18/18 |
+| chronic | 0.303 | **0.627** → **0.611** proximity-matched | **1.271** → **1.181** | +0.021 | 18/18 |
 
 **THE PRE-STROKE REST CODE IS NOT SIMPLY RESTORED.** Chronically the within-session readout reaches
 **1.27× its own pre-stroke level** while the frozen model reaches **0.627**. Position is present in
@@ -290,19 +290,117 @@ what was never detected. Stratifying the SAME frozen predictions by gap to the n
 lick: **far − near is negative in 12 of 15 cells, INCLUDING pre-stroke in all four animals**
 (−0.024 to −0.086). So it is a general property of the rest signal, not a post-stroke artefact.
 
-**Three things bound it.** (1) It does not discriminate the confound from the persistent-trace
-account this arm already flags — a period nearer a lick is also nearer in TIME to the trial. (2) Its
-magnitude is −0.02 to −0.095 against a pre signal of 0.385 over a 0.167 null, so at most ~10–25% of
-the effect. (3) **PS92 is not the worst cell** despite being the licky animal (~1 lick/s throughout):
-PS95 is the most consistently negative, and PS92 goes POSITIVE at subacute (+0.114) and chronic
-(+0.053). Its high retained fraction is therefore not explained by lick proximity.
+**THE MEDIAN SPLIT WAS TOO WEAK, AND ITS REASSURING ANSWER DID NOT SURVIVE THE PROPER TEST.** An
+earlier version of this section concluded the confound was bounded "at most ~10–25% of the effect"
+from the median split alone. **That figure is WITHDRAWN.** A median split is animal-RELATIVE — PS92's
+"far" half begins at 1.0 s, which licking bouts outlast — so it compares different things in
+different animals, which is precisely wrong when one animal is the licky one. The absolute
+**≥3 s** stratum (`--lick-far-s`, same threshold in every animal) says something much less
+comfortable:
 
-**THIS BOUNDS THE CONFOUND AND CANNOT MEASURE IT.** Undetected licks are invisible to every DAQ
-channel. **Only tongue tracking from the behaviour cameras (DLC, PARKED) settles it** — say so
-wherever this control is quoted. Incidental: acute animals lick LESS (PS94 0.95 → 0.62 licks/s), so
-their rest sits further from licks (median gap 1.00 s pre → 4.06 s acute); the deficit shows up
-inside the control itself.
+| animal | pre above-chance, ALL periods | ≥3 s from any lick | % of periods kept |
+|---|---|---|---|
+| PS92 | 0.224 | **0.057** | 7% |
+| PS93 | 0.284 | **0.131** | 19% |
+| PS94 | 0.325 | **0.165** | 19% |
+| PS95 | 0.213 | 0.191 | 76% |
 
+**In three of four animals roughly half to three-quarters of the PRE-STROKE rest position signal
+sits within 3 s of a detected lick.** That is a far larger proximity dependence than the median
+split implied.
+
+**WHAT SAVES IT FROM BEING FATAL, AND WHAT DOES NOT.** The test is UNDERPOWERED in exactly the
+animals where it matters: for PS92/PS93/PS94 the ≥3 s stratum is a rare 7–19% tail, and the
+retained fractions recomputed inside it are unusable (PS92 subacute −1.697, PS93 acute −0.061 —
+above-chance estimates going negative on thin samples). **PS95 is the one animal where the test IS
+well powered** — 76% of its periods are ≥3 s from a lick — and there the signal is essentially
+intact, 0.213 → 0.191, a 10% loss. So proximity dependence is not universal. But PS95 is also the
+animal with the LOWEST retained fraction (0.120 acute), so it is not the one carrying the
+survival story.
+
+**A SECOND, SHARPER THREAT THIS SURFACED: LICK PROXIMITY ITSELF MOVES WITH EPOCH.** Acute animals
+lick less, so their rest sits further from licks — PS93's median gap goes 1.21 s → 4.58 s, PS94's
+1.00 s → 4.06 s. If decoding depends on proximity AND proximity changes across epochs, part of the
+acute drop is COMPOSITION rather than code loss. Three of four animals are consistent with that
+account: PS92's gap barely moves (1.00 → 1.25) and it has the SMALLEST acute drop (0.401); PS93 and
+PS94 have the large gap shifts and the large drops (0.187, 0.134). **PS95 breaks it** — gap
+essentially static (3.41 → 3.19) with the largest drop of all (0.120).
+
+**RESOLVED BY PROXIMITY MATCHING (`--match-lickgap`), and the confound was REAL BUT PARTIAL.**
+Restricting train and test to the central range of the PRE-STROKE lick-gap distribution — matching,
+not stratifying, so the full sample survives — gives (also duration-matched, `blockperm` null,
+96 sessions, 0 skipped):
+
+| epoch | frozen acc | frozen retained | refit retained | p<0.05 |
+|---|---|---|---|---|
+| pre (LOSO) | 0.402 | 1.000 | 1.000 | 44/44 |
+| acute | 0.259 | **0.332** (was 0.227) | 0.665 | 8/16 |
+| subacute | 0.239 | 0.306 (was 0.322) | 0.575 | 11/18 |
+| chronic | 0.311 | **0.611** (was 0.627) | **1.181** | 17/18 |
+
+**THE ACUTE DROP WAS PARTLY COMPOSITION AND MOSTLY NOT.** Matching lick proximity moves acute
+retained from 0.227 to **0.332** — so a real slice of the acute deficit was "acute animals lick
+less, so their rest sits further from licks", exactly as the gap shift predicted. But two thirds of
+the acute signal is still gone after the control, so the confound inflated the effect rather than
+producing it.
+
+**THE CHRONIC RESULT IS ROBUST TO THE CONTROL**: 0.627 → 0.611 frozen, and the refit arm still
+exceeds its own pre-stroke level (1.271 → **1.181**). The replacement conclusion does not depend on
+lick proximity, which is expected — it is a within-epoch contrast between two estimators on one set
+of periods, and proximity composition cancels.
+
+**WHAT MOVED PER ANIMAL, AND WHY ONE NUMBER SHOULD NOT BE QUOTED.** Acute retained, gap-matched:
+PS92 0.614, PS93 0.270, PS94 0.111, PS95 **0.748**. PS95 swung from 0.120 to 0.748 — **it has
+exactly ONE acute session**, so its acute cell is a single measurement and moves freely under any
+reweighting. PS92 0.401 → 0.614 is the licky animal gaining most from the control, which is the
+predicted direction. **PS94 is stable (0.134 → 0.111)** and is the cleanest acute cell.
+
+**DO NOT COMPARE 0.332 DIRECTLY TO THE TASK ARM'S 0.496.** Only the rest arm has been
+proximity-controlled. The task arm's window is post-cue trials, where licking IS the behaviour
+rather than a contaminant, so the same control does not transfer unmodified — the comparison needs
+either a matched task-side analysis or an explicit statement that one side is controlled and the
+other is not.
+
+**TRAINING-SET MATCHING, the rest-side counterpart of the task arm's `5rm` (Priya asked for it
+2026-09-16).** The frozen rest model trains on every pre-stroke session of the animal (~10,000
+periods) against the refit's four fifths of one (~300) — a size handicap far larger than the task
+arm's, and the raw gap cannot be read against it. `--match-train` refits the frozen model on a
+size-matched random subset of pre-stroke **BLOCKS** (whole blocks, `grant_figures._matched_frozen`'s
+rule: sampling loose periods would remove the size difference while introducing a
+within-block-correlation one), seeded per scored session.
+
+**ALL CONTROLS ON** — duration-matched + lick-gap-matched + training-set-matched, `blockperm` null,
+96 sessions, 0 skipped:
+
+| epoch | frozen | matched frozen | refit | gap | **gapM** | frozen ret | refit ret |
+|---|---|---|---|---|---|---|---|
+| pre | 0.402 | 0.251 | 0.286 | −0.116 | **+0.036** | 1.000 | 1.000 |
+| acute | 0.259 | 0.195 | 0.258 | −0.001 | **+0.063** | 0.332 | 0.665 |
+| subacute | 0.239 | 0.189 | 0.236 | −0.003 | **+0.047** | 0.306 | 0.575 |
+| chronic | 0.311 | 0.225 | 0.308 | −0.003 | **+0.083** | 0.611 | 1.181 |
+
+**MATCHING FLIPS THE PRE GAP, exactly as it does on the task side**: −0.116 → **+0.036**. Unmatched,
+the frozen model wins on data volume; at equal volume the refit wins, because a within-session fit
+shares that session's own nuisance structure while the matched frozen model must generalise across
+days. **So the rest arm's no-lesion baseline is BRACKETED, not known** — the same conclusion `5rm`
+reached for the task arm (−0.073 unmatched / +0.090 matched), and the reason both families are
+drawn there and both numbers are reported here.
+
+**READ `gapM` MINUS ITS PRE VALUE, which is the recoverable component with the handicap removed:**
+acute **+0.027**, subacute **+0.011**, chronic **+0.047**. It is LARGEST AT CHRONIC — the refit arm
+finds position the frozen model cannot, and does so most at the epoch where the frozen arm has
+partly recovered. That is the replacement signature measured without the size confound, and it
+agrees with the refit retained fraction exceeding 1.0 at chronic (1.181).
+
+**THE MATCHED FROZEN ARM IS A NOISIER ESTIMATOR and its own retained fraction should not be quoted
+as the headline**: matched accuracy is 0.251 pre against the full model's 0.402, so matchRet
+(1.000 → 0.167 → 0.265 → 0.695) carries far more sampling variance than frozen retained. Matching
+exists to make the GAP readable, not to replace the frozen arm.
+
+**AND IT STILL DOES NOT DISCRIMINATE THE TWO ACCOUNTS.** A period far from a detected lick is also
+far in TIME from the trial's motor events, so a decaying persistent trace predicts the same
+profile as undetected continuation licking. **Only tongue tracking from the behaviour cameras (DLC,
+PARKED) separates them** — say so wherever this control is quoted.
 ### STATE DECODER
 **NOT re-pulled here.** Its numbers live in `docs/BEHAVIOURAL_STATE_CONTROL.md` (frozen pre-stroke
 decoders as fraction of above-chance retained: position 0.86 → 0.43, behavioural state 0.97 → 0.88,
