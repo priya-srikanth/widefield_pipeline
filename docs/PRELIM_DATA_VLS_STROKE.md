@@ -132,26 +132,84 @@ reader comparing alignments would otherwise read its absence as a null. Far Midd
 edge_enrichment 1.633 (elevated, below the 2x suppression threshold).
 
 ### FROZEN vs REFIT — "reorganisation"
-FIGURE: `epoch_5rgap_frozen_vs_refit_cue_working.png` · DATA: same-named `.csv` (value, lo, hi, mark;
-`*` = interval excludes zero). Sign convention: **frozen minus refit**, so negative = refitting helps.
+FIGURES: `epoch_5rgap_frozen_vs_refit_cue_working.png` (raw gap) ·
+`epoch_5rgapdelta_frozen_vs_refit_cue_working.png` (epoch − pre, the actual claim) ·
+`epoch_5rmgap*` / `epoch_5rmgapdelta*` (the TRAINING-SET-MATCHED family) · DATA: same-named `.csv`.
+
+**SIGN CONVENTION: the plotted quantity is `refit − frozen`** — `_gap_at` in
+`epoch_grant_figures.py` returns `mean(refit correct) − mean(frozen correct)` on the paired record
+whose column 0 is the frozen model and column 1 the within-session refit, and the figure's own
+`ylabel` reads `refit - frozen accuracy`. **POSITIVE = the session's own decoder reads a position
+the frozen pre-stroke model cannot: information PRESENT but DISPLACED. Zero with both arms low = the
+code is genuinely degraded.** An earlier version of this section stated the convention as "frozen
+minus refit" and read every sign backwards; the numbers below are unchanged, the reading is inverted.
+
+**RAW GAP, post-cue working (`5r`)** — `*` = interval excludes zero:
 
 | epoch | nI | nM | nC | fI | fM | fC |
 |---|---|---|---|---|---|---|
 | pre | −0.050 | −0.099 | −0.058 | −0.065 | −0.077 | −0.087 |
-| acute | −0.024 | **+0.033\*** | **+0.109\*** | −0.032 | −0.033 | **+0.109\*** |
-| subacute | −0.026 | **+0.034\*** | −0.080 | +0.019 | −0.008 | **+0.102\*** |
+| acute | −0.024 | **+0.033\*** | **+0.109\*\*** | −0.032 | −0.033 | **+0.109\*** |
+| subacute | −0.026 | **+0.034\*** | −0.080 | +0.019 | −0.008 | **+0.102\*\*** |
 | chronic | −0.058 | **+0.144\*** | −0.032 | −0.009 | +0.007 | −0.003 |
 
-**PRE-STROKE, REFITTING ALWAYS WINS** — all six positions negative, none marked. That is the
-expected baseline: a model fitted to that day beats one carried in.
-**POST-STROKE, THE SIGN FLIPS AT FAR-CONTRA** (+0.109 acute, +0.102 subacute, both marked) and at
-near-middle (+0.033, +0.034, +0.144 chronic). **A frozen pre-stroke decoder beats a same-day refit
-at the affected position.**
-**INTERPRETATION IS NOT SETTLED.** The natural reading is that there is too little same-day signal
-at far-contra acutely for a refit to learn from, so the frozen model's prior wins — which is a
-statement about DATA POVERTY as much as about reorganisation. Distinguishing "the code moved" from
-"the refit had nothing to fit" needs the trial counts alongside, and those are in the `_sessions.csv`
-companions. **Do not present this as evidence of reorganisation without that check.**
+**THE PRE ROW IS THE CONTROL AND IS NOT ZERO BY CONSTRUCTION.** All six pre cells are negative
+because the frozen arm trains on ten pre-stroke sessions (LOSO) and the refit arm on four fifths of
+one — a training-set-SIZE handicap with no lesion in it. The claim is therefore the **delta**, not
+the raw gap.
+
+**DELTA (epoch − pre), post-cue working (`5rgapdelta`)** — point [95% CI] / [Bonferroni-corrected]:
+
+| epoch | nC | fC | nM |
+|---|---|---|---|
+| acute | **+0.168 [0.081, 0.240] / [0.039, 0.269]** | +0.196 [0.034, 0.345] / [−0.039, 0.412] | +0.132 [0.026, 0.225] / [−0.030, 0.268] |
+| subacute | −0.021 | **+0.189 [0.058, 0.300] / [0.005, 0.349]** | +0.133 [0.021, 0.237] / [−0.050, 0.300] |
+| chronic | +0.026 | +0.084 [−0.018, 0.199] | +0.243 [0.024, 0.463] / [−0.088, 0.531] |
+
+Two cells survive Bonferroni: **acute near-contra +0.168** and **subacute far-contra +0.189**. Acute
+far-contra is the largest point estimate (+0.196) but its corrected interval crosses zero.
+
+**THE TRAINING-SET-MATCHED FAMILY (`5rm`) EXISTS FOR EXACTLY THIS QUESTION** and is the reason the
+data-poverty objection can be answered rather than deferred. `paired_matched` replaces the FROZEN
+model only: it is refitted on a size-matched random subset of pre-stroke BLOCKS, drawn under the
+same leave-one-session-out discipline, so both arms get the same amount of training data. What that
+exposes is that the no-lesion baseline does not go to zero — it goes the **other way**: matched pre
+gaps are all POSITIVE (+0.068 to +0.127), because a within-session fit shares that session's own
+nuisance structure while a matched frozen model must generalise across days.
+
+**So the no-lesion baseline is BRACKETED, not known**: −0.073 unmatched (frozen has ~10× the data)
+and +0.090 matched (frozen must cross sessions). Both bounds are real; neither is "the" answer;
+which is why both families are drawn and both are read as epoch-minus-pre.
+
+**MATCHED DELTA (epoch − pre), post-cue working (`5rmgapdelta`), beside the unmatched:**
+
+| | nI | nM | nC | fI | fM | fC |
+|---|---|---|---|---|---|---|
+| `5r` acute | +0.027 | +0.132 | **+0.168\*\*** | +0.034 | +0.044 | +0.196\* |
+| `5rm` acute | +0.093 | +0.039 | +0.128\* | −0.036 | **−0.132\*** | **+0.158\*\*** |
+
+**MATCHING SHARPENS THE DISSOCIATION RATHER THAN SHRINKING IT.** Far-contra keeps a significant
+positive recoverable component once the handicap is removed (**+0.158, corrected interval
+[0.0004, 0.337]**, the only acute cell that survives Bonferroni in the matched family), while
+**FAR-MIDDLE turns negative (−0.132, uncorrected [−0.242, −0.021]; corrected interval crosses
+zero)** — refitting buys *less* there than it bought before the lesion, which is "the code is
+degraded" as a positive finding rather than as an absent one. In the unmatched family far-middle is
+a flat +0.044 and this is invisible.
+
+**WHY THE DATA-POVERTY OBJECTION RUNS THE OTHER WAY.** Too few same-day far-contra trials would give
+the refit arm *less* to learn from and push the gap NEGATIVE. The observed gap is POSITIVE, so trial
+scarcity makes this result harder to obtain, not easier — it is a conservative confound here, and
+the matched family removes the one direction in which training-set size could manufacture the effect.
+
+**WHAT IS ACTUALLY LEFT TO CHECK, and it is small.** Trials whose class a session could not train on
+(`grant_figures.MIN_REFIT_CLASS = 10`, `MIN_REFIT_SHARE = 1/18`) are dropped from BOTH arms
+together, which preserves the pairing but could in principle select sessions.
+**It does not, in this arm:** `epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv` carries
+**all 16 acute sessions at every one of the six positions** (pre 44, acute 16, subacute 18,
+chronic 18 — no position loses a session). The gating DOES bite in the lick-aligned arm, where acute
+far-contra is absent entirely, and that absence is the deficit rather than a null (see the 15r lick
+figure above). Remaining caveat worth stating on a slide: **acute n is 16 sessions and PS95
+contributes only 1** (92:5 93:4 94:6 95:1, from the figure's own subtitle).
 
 ### PATTERN SIMILARITY TO PRE-STROKE (stopped/quit trials)
 FIGURES: `epoch_12b_stopped_pooled_similarity_{cue,precue}.png` · DATA: same-named `.csv`

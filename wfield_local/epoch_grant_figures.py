@@ -724,7 +724,7 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
                    reference=None):
     """ONE path for every per-position bar row built from decoder records.
 
-    Frozen accuracy, refit accuracy and the paired frozen-minus-refit gap differ only in which
+    Frozen accuracy, refit accuracy and the paired refit-minus-frozen gap differ only in which
     statistic reduces a trial set, so the resampling, the marks, the Bonferroni correction across
     the twelve contrasts and the companion interval panel are written once. Three copies would
     agree today and diverge the first time one of them gained a correction -- the same argument

@@ -1429,7 +1429,7 @@ MIN_REFIT_CLASS = 10
 MIN_REFIT_SHARE = 1.0 / 18.0
 
 #: Sentinel written into the refit column for a trial whose class the session could not train on.
-#: Both arms drop these trials together, so the frozen-minus-refit contrast stays paired.
+#: Both arms drop these trials together, so the refit-minus-frozen contrast stays paired.
 REFIT_UNAVAILABLE = -1
 
 
@@ -1508,7 +1508,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
       ``refit``   -- a within-session block-CV decoder fitted on the session being scored
       ``paired``  -- ``y_pred`` is an (n, 2) array: column 0 frozen, column 1 refit
 
-    ``paired`` exists so the frozen-minus-refit contrast is PAIRED at the trial level. Collecting
+    ``paired`` exists so the refit-minus-frozen contrast is PAIRED at the trial level. Collecting
     the two arms separately and subtracting their pooled accuracies would compare two bootstraps
     that resampled different blocks, and the difference of two intervals is not an interval on the
     difference.
