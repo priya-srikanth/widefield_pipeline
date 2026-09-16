@@ -26,6 +26,12 @@ render is **2026-09-16 06:49**, on the `restdock05` rest definition, 877 slides 
    PS95 11**, matching `animals.yaml` on all four animals. PS95 moved 15 -> 11.
 3. **`restw` is NOT retired** (see DECISIONS.md 2026-09-15). Rest carries position: observed/null
    **1.622**, **44/44** pre-stroke sessions, 4/4 animals, 0 skipped.
+   FIGURES: `epoch_15x_REST_by_position_by_animal.png` (the rest baseline's own per-position
+   structure — if rest were position-independent every cell would be noise; it is not), and
+   `E:/cue_lick/rest_migration/rest_position_decode_restdock05.png` (per-session decode, 93/94
+   sessions above their own circular-shift null). **The 1.622 itself has NO figure** — it is
+   printed by `scripts/rest_migration/rest_position_permutation.py`, and 15x is the picture of the
+   same phenomenon measured a different way, not a plot of that number.
 
 **VERIFIED CURRENT NUMBERS — safe to quote, read off the 2026-09-16 render**
 
@@ -53,7 +59,27 @@ read off the figures. `amplitude_vs_pre` = that cell's amplitude relative to its
 value; `sig` = bins significant under the nested animals->sessions bootstrap, max-statistic
 corrected, out of 2,022 in-mask bins.
 
+**ALL FIGURES BELOW ARE IN `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`**, and every
+number is from the matching `*_bundle.json` `kw.stat_rows` or `.csv` in the **2026-09-16 06:49**
+render. Figure and statistic are the SAME quantity by construction, so a claim can be checked
+against its panel.
+
+**PROVENANCE — VERIFIED FILE TIMES, because these paths get overwritten.** Every value below was
+read from files stamped **09-16 03:50–06:58** (the dev-box render 03:38→06:50, plus the 15x
+re-render at 06:58), confirmed at 08:46 as not yet replaced:
+`epoch_5rgap_frozen_vs_refit_cue_working.csv` 05:13 · `epoch_12b_stopped_pooled_similarity_cue.csv`
+05:09 · `..._precue.csv` 03:50 · `epoch_15r_position_RESTWref_cue_working_bundle.json` 04:46 ·
+`epoch_15x_...png` 06:58.
+
+**THE NIGHTLY BOX WRITES TO THESE SAME PATHS.** Its run was landing epoch figures from ~08:45 on
+2026-09-16, and its date list may differ from this render's (which ends at **0914** and excludes the
+9/15 sessions). **Check a file's mtime before assuming a number here still matches what is on
+disk** — a table that silently mixes two runs is the failure this stamp exists to prevent.
+
 **POST-CUE, working trials — the headline, and a clean monotone gradient**
+FIGURE: `epoch_15r_position_RESTWref_cue_working.png`
+· per animal: `epoch_15rpa_position_RESTWref_by_animal_cue_working.png`
+· frame-weighted counterpart (agrees to 1-3%): `epoch_15r_position_RESTref_cue_working.png`
 
 | position | acute/pre | sig | subacute/pre | sig | chronic/pre | sig |
 |---|---|---|---|---|---|---|
@@ -74,6 +100,10 @@ corrected, out of 2,022 in-mask bins.
    mask rim. **Do not quote it.*** It is an imaging-window artefact, not a result.
 
 **PRE-CUE — DISSOCIATES FROM POST-CUE, and this is the finding worth chasing**
+FIGURE: `epoch_15r_position_RESTWref_precue_working.png`
+· per animal: `epoch_15rpa_position_RESTWref_by_animal_precue_working.png`
+· **READ IT BESIDE THE POST-CUE FIGURE ABOVE** — the dissociation is a comparison ACROSS two
+  figures, so neither panel shows it on its own. That is the one claim here no single figure carries.
 
 | position | acute/pre | sig | chronic/pre | sig |
 |---|---|---|---|---|
@@ -92,6 +122,7 @@ are Far Middle 0.55 (740 sig) and Near Middle 0.69 (468 sig).
 (edge 2.467).*
 
 **LICK-ALIGNED — and the reason it cannot carry the headline**
+FIGURE: `epoch_15r_position_RESTWref_lick_lick.png` (the Far Contra / acute-pre cell is BLANK)
 
 Acute cells are uniformly elevated (Near Ipsi 1.54, Near Contra 1.38, Far Ipsi 1.43, Far Middle
 1.39, Near Middle 1.32) and **the Far Contra acute cell is ABSENT ENTIRELY.** There are no
@@ -100,8 +131,54 @@ the deficit. **The lick-aligned arm is blind to the acute far-contra effect by c
 reader comparing alignments would otherwise read its absence as a null. Far Middle acute carries
 edge_enrichment 1.633 (elevated, below the 2x suppression threshold).
 
-**STILL NOT RE-PULLED:** frozen-decoder fractions, encoder R^2/FEVE, RSA/crossnobis. Those live in
-other bundles/JSON and were not pulled here.
+### FROZEN vs REFIT — "reorganisation"
+FIGURE: `epoch_5rgap_frozen_vs_refit_cue_working.png` · DATA: same-named `.csv` (value, lo, hi, mark;
+`*` = interval excludes zero). Sign convention: **frozen minus refit**, so negative = refitting helps.
+
+| epoch | nI | nM | nC | fI | fM | fC |
+|---|---|---|---|---|---|---|
+| pre | −0.050 | −0.099 | −0.058 | −0.065 | −0.077 | −0.087 |
+| acute | −0.024 | **+0.033\*** | **+0.109\*** | −0.032 | −0.033 | **+0.109\*** |
+| subacute | −0.026 | **+0.034\*** | −0.080 | +0.019 | −0.008 | **+0.102\*** |
+| chronic | −0.058 | **+0.144\*** | −0.032 | −0.009 | +0.007 | −0.003 |
+
+**PRE-STROKE, REFITTING ALWAYS WINS** — all six positions negative, none marked. That is the
+expected baseline: a model fitted to that day beats one carried in.
+**POST-STROKE, THE SIGN FLIPS AT FAR-CONTRA** (+0.109 acute, +0.102 subacute, both marked) and at
+near-middle (+0.033, +0.034, +0.144 chronic). **A frozen pre-stroke decoder beats a same-day refit
+at the affected position.**
+**INTERPRETATION IS NOT SETTLED.** The natural reading is that there is too little same-day signal
+at far-contra acutely for a refit to learn from, so the frozen model's prior wins — which is a
+statement about DATA POVERTY as much as about reorganisation. Distinguishing "the code moved" from
+"the refit had nothing to fit" needs the trial counts alongside, and those are in the `_sessions.csv`
+companions. **Do not present this as evidence of reorganisation without that check.**
+
+### PATTERN SIMILARITY TO PRE-STROKE (stopped/quit trials)
+FIGURES: `epoch_12b_stopped_pooled_similarity_{cue,precue}.png` · DATA: same-named `.csv`
+
+| window | comparison | pre | acute | subacute | chronic |
+|---|---|---|---|---|---|
+| cue | vs pre-stroke **STOPPED** | 0.841 | **0.639** | 0.786 | 0.868 |
+| cue | vs pre-stroke ENGAGED | −0.032 | 0.016 | −0.047 | −0.037 |
+| pre-cue | vs pre-stroke **STOPPED** | 0.704 | **0.450** | 0.593 | 0.566 |
+| pre-cue | vs pre-stroke ENGAGED | 0.018 | 0.004 | 0.006 | **0.049** |
+
+**The stopped pattern stays a stopped pattern.** Similarity to pre-stroke STOPPED is high (0.70–0.87)
+while similarity to pre-stroke ENGAGED sits at ~zero in every epoch — the two states are distinct and
+stay distinct. **Similarity dips acutely and recovers**: cue 0.841 → 0.639 → 0.786 → 0.868; pre-cue
+0.704 → 0.450 → 0.593 → 0.566 (pre-cue does NOT return to baseline). The only ENGAGED cell whose
+interval excludes zero is pre-cue chronic (+0.049) — small, and worth a second look before it is
+called anything.
+
+### STATE DECODER
+**NOT re-pulled here.** Its numbers live in `docs/BEHAVIOURAL_STATE_CONTROL.md` (frozen pre-stroke
+decoders as fraction of above-chance retained: position 0.86 → 0.43, behavioural state 0.97 → 0.88,
+running 0.99 → 0.96; re-measured on the REST definition 2026-09-13). Figures `epoch_12b*`,
+`epoch_13*`, deck section I. **That document is the authority; do not re-derive from the deck.**
+
+**STILL NOT RE-PULLED:** encoder R^2/FEVE, RSA/crossnobis (105 `crossnob*` CSVs exist in
+`grant_figures/epoch/`), and the `epoch_10_best_match_acc_*` family. All have `.csv` + `_sessions.csv`
++ `_meta.csv` companions, so this is a bounded pull, not a re-run.
 
 **Pending work that will move numbers again:** the docked FROZEN decoder arm (the current rest
 decode is PER-SESSION and cannot distinguish chronic recovery from chronic replacement), and `15s`.
