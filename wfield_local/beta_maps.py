@@ -749,8 +749,7 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
     null honestly. The t distribution enters only in choosing where to cut, which is a convention
     every cluster test needs and which the permutation then corrects around.
     """
-    from scipy import stats
-    from scipy import ndimage
+    from scipy import ndimage, stats
 
     animals = sorted(set(pre_by_animal) & set(post_by_animal))
     if not animals:
@@ -1480,18 +1479,37 @@ def split_half_reliability(maps, n_draw=20, seed=0):
 
 
 @lru_cache(maxsize=8)
-def maps_by_epoch(align, variant, post_s=2.0):
+def maps_by_epoch(align, variant, post_s=2.0, balance=None):
     """``{animal: {epoch: {position: [per-session maps]}}}`` plus per-epoch reliability.
 
     CACHED because it fits a decoder per (session, position) and loads each session's U and SVT --
     the expensive part -- and every figure built on this reads the same store.
+
+    ``balance=None`` now means ``class_weight="balanced"`` for EVERY arm. Until 2026-09-16 the rule
+    was ``balance = (variant == "lick")``, so the `working` and `lick` panels of figure 14 were
+    fitted by two different estimators and nothing said so. Priya, 2026-09-16: *"I would think we
+    want it to be balanced"*. Made uniform, and the change is FREE -- measured, not assumed, by
+    `scripts/rest_migration/meanref_balance.py`: no amplitude ratio moves as much as 0.10 in either
+    arm, max **+0.007** (working, far_R subacute) and **-0.035** (lick, close_R acute). Pass
+    True/False explicitly to re-measure; it is part of the lru_cache key, so the two never share a
+    store. **Takes effect only on a re-render of families 14 / 15r `_MEANref_`.**
+
+    WHY THE DEFAULT IS NOT UNIFORM, AND WHY THAT MATTERS FOR THE "MEAN" REFERENCE (Priya,
+    2026-09-16: *"for the MEANref maps - is the mean position-weighted?"*). It is NOT. The reference
+    is trial-weighted in two independent places: the multinomial fit is pulled by base rates when
+    ``class_weight`` is None, and the Haufe transform centres on ``X[tr].mean(0)`` with ``Cov(X)``
+    taken over training trials as they come. Post-stroke the trial composition shifts -- a position
+    the animal stops attempting contributes fewer trials -- so the reference moves for a reason that
+    is not the code, and because figure 14's positions are COUPLED, one position losing drive hands
+    the other five an unearned increase. It is the same composition bias that motivated `restw`, one
+    level down.
     """
     from wfield_local import config
     from wfield_local import epoch_figures as ef
     from wfield_local.grant_figures import ANIMALS, _day
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
-    balance = (variant == "lick")
+    balance = True if balance is None else bool(balance)
     out, rel, n_out = {}, {}, {}
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")

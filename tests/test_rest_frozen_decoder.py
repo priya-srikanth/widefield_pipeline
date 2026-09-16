@@ -209,6 +209,32 @@ def test_the_matched_seed_is_stable_across_processes():
     assert "hash(lab)" not in code
 
 
+def test_beta_map_class_weighting_is_uniform_across_arms():
+    """Figure 14's `working` and `lick` panels must be the SAME estimator.
+
+    Until 2026-09-16 `maps_by_epoch` set `balance = (variant == "lick")`, so the two arms were
+    fitted with and without `class_weight="balanced"` and nothing in the figure said so. Made
+    uniform after MEASURING that it is free -- max move 0.007 (working) / 0.035 (lick), from
+    `scripts/rest_migration/meanref_balance.py`. This guards the uniformity, not the value.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from wfield_local import beta_maps as bm
+
+    src = textwrap.dedent(inspect.getsource(bm.maps_by_epoch))
+    assert "balance = True if balance is None else bool(balance)" in src
+    # STRIP THE DOCSTRING BEFORE THE NEGATIVE CHECK. The docstring explains what the rule USED to
+    # be, and naming the old rule there is the point of it -- a substring check over raw source
+    # matches that explanation and fails on the corrected file. Second time this exact shape of
+    # false failure has appeared today; assert over CODE, never over prose about the code.
+    fn = ast.parse(src).body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(n) for n in body)
+    assert '(variant == "lick")' not in code and "variant == 'lick'" not in code
+
+
 def test_blockperm_is_the_default_primary_null():
     """The FIRST entry of --null is the primary, and for a frozen decoder it must be blockperm."""
     import argparse

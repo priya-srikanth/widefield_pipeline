@@ -13090,3 +13090,38 @@ and chronic (+0.053), so PS92's high retained fraction is not lick proximity.
 it: undetected licks are invisible to every DAQ channel. It also does not discriminate the confound
 from the persistent-trace account, since a period nearer a lick is nearer in TIME to the trial.
 **Only DLC tongue tracking from the behaviour cameras settles it, and that is PARKED.**
+
+## Beta-map class weighting made uniform; the MEAN reference is trial-weighted but inertly so (2026-09-16)
+
+**THE QUESTION** (Priya): *"for the MEANref maps - is the mean position-weighted?"*
+
+**THE ANSWER: NO, IT IS TRIAL-WEIGHTED**, in two independent places -- the multinomial fit is pulled
+by base rates when `class_weight` is None, and the Haufe transform centres on `X[tr].mean(0)` with
+`Cov(X)` over training trials as they come. Neither uses a per-position mean.
+
+**BUT IT DOES NOT MATTER, MEASURED** (`scripts/rest_migration/meanref_balance.py`, both arms,
+unbalanced vs balanced): **0 of 18 cells move by >= 0.10 in `working` (max +0.007)** and **0 of 17
+in `lick` (max -0.035)**. The reason is that the scheduler, not the animal, sets trial composition:
+the `working` arm counts ATTEMPTS ("lick + miss-while-working"), so a position the animal fails is
+still presented at the same rate. Per-position counts are near-uniform even acutely --
+min/max **0.95**. The composition bias that motivated `restw` for the REST baseline does not
+transfer here, because rest periods are not scheduler-controlled and trials are.
+
+**DECISION: `balance=None` now means `class_weight="balanced"` for EVERY arm.** The old rule
+`balance = (variant == "lick")` fitted figure 14's `working` and `lick` panels with two different
+estimators and said so nowhere. Uniform is what Priya asked for, it costs <= 0.035 by measurement,
+and it removes an undocumented difference between panels that are read side by side. Guarded by
+`tests/test_rest_frozen_decoder.py::test_beta_map_class_weighting_is_uniform_across_arms`.
+**Takes effect only on a re-render of families 14 / 15r `_MEANref_`.**
+
+**THIS DOES NOT REHABILITATE `MEANref`.** The COUPLING is structural -- six positions share one
+reference, so a position losing drive hands the other five an unearned increase -- and weighting
+governs only WHOSE trials set that reference, not the fact that they share it. `QUIETref` (positions
+independent, no position information in the subtrahend) remains the one to lead with for
+per-position claims, as `STATUS_2026-09-12` already says.
+
+**WHERE THE SKEW IS REAL: the lick arm, and it is already documented as such.** Acute trials per
+position are close_L 1097, close_C 1095, close_R 1099, far_L 805, far_C 500, **far_R 0**. That zero
+is the "lick-aligned arm is blind to the acute far-contra deficit by construction" finding, now with
+a hard number. Balancing cannot rescue a class with no trials; `MIN_TRIALS_PER_CLASS` refuses the
+cell, which is the correct behaviour.
