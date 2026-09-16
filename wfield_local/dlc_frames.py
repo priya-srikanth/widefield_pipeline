@@ -337,6 +337,23 @@ def anchor_cam() -> str | None:
     return str(v) if v else None
 
 
+def staging_root(rv=None) -> Path:
+    """Where EXTRACTION writes, which is NOT where labelling happens.
+
+    Named `_frame_staging` rather than `labeled-data` on purpose. The DLC project has its own
+    `labeled-data/<video-stem>/` holding copies of the same images under the same names, and while
+    both existed a person could open either. Opening the staging one WORKS -- images and seeds load
+    -- and fails only at save, as a "associate with a DLC project?" prompt that reads like a plugin
+    fault. That cost a labelling session on 2026-09-16.
+
+    `napari_deeplabcut` treats any folder with a `labeled-data` component in its path as a labelling
+    target, so the old name actively invited the mistake. This name is not a target, and a staging
+    folder with no CollectedData in it is refused outright by the reader rather than opened and then
+    found unsaveable.
+    """
+    return out_root(rv) / "_frame_staging"
+
+
 def _rng(animal: str, date: str, cam: str) -> np.random.Generator:
     """A generator whose stream depends only on the session, so cameras and dates are independent.
 
@@ -643,7 +660,7 @@ def extract(rows: list[dict], rv=None) -> int:
 
     written = 0
     for video, group in _by_video(rows):
-        dest = out_root(rv) / "labeled-data" / group[0]["video_stem"]
+        dest = staging_root(rv) / group[0]["video_stem"]
         assert_writable(dest)
         dest.mkdir(parents=True, exist_ok=True)
         cap = cv2.VideoCapture(str(video))          # READ-ONLY, always
@@ -683,7 +700,7 @@ def write_manifest(rows: list[dict], rv=None, dest=None) -> Path:
     a camera at a time -- and a manifest rewritten from one run's rows would drop the provenance of
     every frame extracted before it while the images stayed on disk.
     """
-    dest = Path(dest) if dest else out_root(rv) / "labeled-data" / "frame_manifest.csv"
+    dest = Path(dest) if dest else staging_root(rv) / "frame_manifest.csv"
     assert_writable(dest.parent)
     dest.parent.mkdir(parents=True, exist_ok=True)
     existing = []

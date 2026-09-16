@@ -176,10 +176,13 @@ def test_a_donor_bodypart_this_project_does_not_have_is_simply_absent():
 
 def test_existing_labels_are_never_overwritten(tmp_path, monkeypatch):
     """The entire point is to save manual work; a re-run must not discard it."""
-    root = tmp_path / "labeled-data" / "cam4_stem"
+    root = tmp_path / "_frame_staging" / "cam4_stem"
     root.mkdir(parents=True)
     (root / f"CollectedData_{pl.SCORER}.h5").write_bytes(b"corrected by hand")
     monkeypatch.setattr(pl, "out_root", lambda rv=None: tmp_path)
+    # prelabel writes into the STAGING tree, renamed from "labeled-data" on 2026-09-16 so napari
+    # cannot mistake it for the project's own labelling folders.
+    monkeypatch.setattr(pl, "staging_root", lambda rv=None: tmp_path / "_frame_staging")
 
     index = pd.DataFrame({"video_stem": ["cam4_stem"] * 3,
                           "image": [f"img{i}.png" for i in range(3)],
@@ -194,6 +197,9 @@ def test_written_labels_carry_dlcs_three_level_row_index(tmp_path, monkeypatch):
     pytest.importorskip("tables", reason="the .h5 write needs pytables (present in the dlc env)")
     (tmp_path / "labeled-data" / "cam4_stem").mkdir(parents=True)
     monkeypatch.setattr(pl, "out_root", lambda rv=None: tmp_path)
+    # prelabel writes into the STAGING tree, renamed from "labeled-data" on 2026-09-16 so napari
+    # cannot mistake it for the project's own labelling folders.
+    monkeypatch.setattr(pl, "staging_root", lambda rv=None: tmp_path / "_frame_staging")
     index = pd.DataFrame({"video_stem": ["cam4_stem"] * 2,
                           "image": ["img0000001.png", "img0000002.png"], "path": ["", ""]})
     pl.write_labels(pl.to_labels(_pred(n=2), 1.0, 1.0), index, rv=None)
@@ -218,6 +224,9 @@ def test_a_missing_pytables_fails_before_anything_is_written(tmp_path, monkeypat
 
     (tmp_path / "labeled-data" / "cam4_stem").mkdir(parents=True)
     monkeypatch.setattr(pl, "out_root", lambda rv=None: tmp_path)
+    # prelabel writes into the STAGING tree, renamed from "labeled-data" on 2026-09-16 so napari
+    # cannot mistake it for the project's own labelling folders.
+    monkeypatch.setattr(pl, "staging_root", lambda rv=None: tmp_path / "_frame_staging")
     monkeypatch.setattr(builtins, "__import__", no_tables)
     index = pd.DataFrame({"video_stem": ["cam4_stem"], "image": ["img1.png"], "path": [""]})
     with pytest.raises(RuntimeError, match="dlc"):

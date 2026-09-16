@@ -55,7 +55,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
-from wfield_local.dlc_frames import bodyparts, out_root
+from wfield_local.dlc_frames import bodyparts, out_root, staging_root
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -124,7 +124,7 @@ def ensure_local_donor(force: bool = False) -> Path:
 
 def frame_index(cam: str, rv=None) -> pd.DataFrame:
     """Every extracted frame for ``cam``, in a stable order: columns ``video_stem, image, path``."""
-    root = out_root(rv) / "labeled-data"
+    root = staging_root(rv)
     rows = [{"video_stem": d.name, "image": p.name, "path": str(p)}
             for d in sorted(root.iterdir()) if d.is_dir() and d.name.startswith(cam)
             for p in sorted(d.glob("img*.png"))]
@@ -278,7 +278,7 @@ def write_labels(labels: pd.DataFrame, index: pd.DataFrame, rv=None, dry: bool =
     if len(labels) != len(index):
         raise RuntimeError(f"{len(labels)} label rows for {len(index)} frames -- these are paired "
                            f"BY POSITION and a mismatch would label the wrong images.")
-    root = out_root(rv) / "labeled-data"
+    root = staging_root(rv)
     todo = []
     for stem, g in index.groupby("video_stem", sort=True):
         dest_h5 = root / stem / f"CollectedData_{SCORER}.h5"

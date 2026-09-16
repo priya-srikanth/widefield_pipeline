@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
-from wfield_local.dlc_frames import bodyparts, cameras, out_root
+from wfield_local.dlc_frames import bodyparts, cameras, out_root, staging_root
 from wfield_local.paths import PathResolver
 
 SCORER = "Priya"
@@ -80,7 +80,7 @@ def camera_group(rv=None, machine=None):
 
 
 def manifest(rv=None) -> pd.DataFrame:
-    return pd.read_csv(out_root(rv) / "labeled-data" / "frame_manifest.csv")
+    return pd.read_csv(staging_root(rv) / "frame_manifest.csv")
 
 
 def moment_key(df: pd.DataFrame) -> pd.Series:
@@ -241,7 +241,7 @@ def write(seeds: pd.DataFrame, rv=None, dry=False, force=False) -> list[Path]:
     """
     from wfield_local.writeguard import assert_writable
 
-    root = out_root(rv) / "labeled-data"
+    root = staging_root(rv)
     written = []
     for (cam, stem), g in seeds.groupby(["cam", "video_stem"]):
         dest = root / stem

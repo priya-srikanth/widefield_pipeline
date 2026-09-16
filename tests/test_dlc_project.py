@@ -11,7 +11,7 @@ from wfield_local import dlc_project as dp
 def _frames(root, stem, n=3, labelled=False, parts=("nose", "jaw")):
     if labelled:
         pytest.importorskip("tables", reason="the .h5 round-trip needs pytables (in the dlc env)")
-    d = root / "labeled-data" / stem
+    d = root / "_frame_staging" / stem      # the STAGING tree, not the project's labeled-data
     d.mkdir(parents=True, exist_ok=True)
     for i in range(n):
         (d / f"img{i:07d}.png").write_bytes(b"png")
@@ -29,6 +29,9 @@ def _frames(root, stem, n=3, labelled=False, parts=("nose", "jaw")):
 @pytest.fixture
 def share(tmp_path, monkeypatch):
     monkeypatch.setattr(dp, "out_root", lambda rv=None: tmp_path)
+    # frame_dirs reads the STAGING tree, which is a sibling of the project rather than
+    # out_root/"labeled-data" -- renamed 2026-09-16 so napari cannot mistake it for a target.
+    monkeypatch.setattr(dp, "staging_root", lambda rv=None: tmp_path / "_frame_staging")
     return tmp_path
 
 
@@ -120,7 +123,7 @@ def test_a_refresh_preserves_the_training_iteration(share, tmp_path):
 
 
 def test_folders_without_frames_are_not_adopted(share, tmp_path):
-    (share / "labeled-data" / "cam4_empty").mkdir(parents=True)
+    (share / "_frame_staging" / "cam4_empty").mkdir(parents=True)
     _frames(share, "cam4_real")
     assert [p.name for p in dp.frame_dirs()] == ["cam4_real"]
 

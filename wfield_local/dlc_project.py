@@ -32,7 +32,8 @@ import shutil
 from pathlib import Path
 
 from wfield_local import config
-from wfield_local.dlc_frames import bodyparts, cameras, out_root, role
+from wfield_local.dlc_frames import (bodyparts, cameras, out_root, role,
+                                     staging_root)
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -58,7 +59,7 @@ def project_dir(rv=None) -> Path:
 def frame_dirs(rv=None, cams=None) -> list[Path]:
     """Extracted-frame folders, one per source video, for the requested cameras."""
     cams = tuple(cams or cameras())
-    src = out_root(rv) / "labeled-data"
+    src = staging_root(rv)
     return sorted(p for p in src.iterdir()
                   if p.is_dir() and p.name.startswith(cams) and any(p.glob("img*.png")))
 

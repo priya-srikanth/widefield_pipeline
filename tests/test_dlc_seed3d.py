@@ -119,7 +119,7 @@ def test_a_part_a_camera_cannot_see_is_never_written(monkeypatch, tmp_path):
     ])
     monkeypatch.setattr(s3, "bodyparts", lambda cam=None: ["nose", "jaw", "tongue", "spout"])
     written = []
-    monkeypatch.setattr(s3, "out_root", lambda rv=None: tmp_path)
+    monkeypatch.setattr(s3, "staging_root", lambda rv=None: tmp_path / "labeled-data")
     (tmp_path / "labeled-data" / "cam1_x").mkdir(parents=True)
     s3.write(seeds, dry=True)
     # dry run writes nothing; the assertion is that L_eye is filtered before it can be written
@@ -134,7 +134,7 @@ def test_write_refuses_to_clobber_an_existing_label_file(tmp_path, monkeypatch, 
     root = tmp_path / "labeled-data" / "cam1_x"
     root.mkdir(parents=True)
     (root / "CollectedData_Priya.h5").write_bytes(b"not really hdf5, but it EXISTS")
-    monkeypatch.setattr(s3, "out_root", lambda rv=None: tmp_path)
+    monkeypatch.setattr(s3, "staging_root", lambda rv=None: tmp_path / "labeled-data")
     monkeypatch.setattr(s3, "bodyparts", lambda cam=None: ["jaw"])
     seeds = pd.DataFrame([{"cam": "cam1", "video_stem": "cam1_x", "image": "img0.png",
                            "bodypart": "jaw", "x": 1.0, "y": 2.0, "residual": 1.0, "n_views": 2}])
