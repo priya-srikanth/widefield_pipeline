@@ -85,14 +85,17 @@ def main() -> int:
 
     from wfield_local import beta_maps as bm
     from wfield_local import config, daq_io, joint_basis
+    from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS, _load_cue_events
-    from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--perm", type=int, default=200)
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--no-engagement-gate", action="store_true",
+                    help="keep the pre-2026-09-16 ungated behaviour, for measuring the size of "
+                         "the correction only -- never for a reported result")
     ap.add_argument("--docked", action="store_true",
                     help="restrict rest to the STRICT spout-docked interval (dock -> next "
                          "trial_start): no target present AND no spout movement. A session whose "
@@ -125,7 +128,10 @@ def main() -> int:
             pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
             ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
             cue = _load_cue_events(s["h5"])
-            codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
+            # THE REPAIRED CLASSIFIER. Dead `spout_bit1` collapses six positions to four on the 0806
+            # sessions -- ONE PER ANIMAL, ALL PRE-STROKE, 144-192 trials mislabelled each (measured
+            # 2026-09-16). docs/REST_ENGAGEMENT_AUDIT.md; STATUS_2026-09-16 pitfall 6.
+            codes = classify_cues_with_backup(s, cue, verbose=False)
             cs = np.asarray(cue["cue_samples"], np.int64)
             fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
             u, v = joint_basis._load_session(s["mc"])
@@ -158,6 +164,13 @@ def main() -> int:
 
         # REST PERIODS IN TIME ORDER, each with the position of its bracketing trials (only where
         # the preceding and following trial AGREE, so the label is unambiguous).
+        engaged = None
+        if not getattr(a, "no_engagement_gate", False):
+            from wfield_local.rest_engagement import engaged_by_cue
+            engaged, gate_note = engaged_by_cue(s, cs, codes)
+            if "UNGATED" in gate_note:
+                print(f"  !! {lab}: {gate_note}", flush=True)
+
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
         starts, stops = np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)
@@ -169,6 +182,13 @@ def main() -> int:
                 continue
             nc = np.searchsorted(cs, ts[nxt], "left")
             if nc < len(codes) and prev < len(codes) and codes[prev] == codes[nc] >= 0:
+                # THE ENGAGEMENT GATE (2026-09-16). Both bracketing trials must be WORKING. This
+                # file claimed no gate but inherited the same omission as every other rest
+                # analysis: the quit period is 3.1% of rest frames pre-stroke and 18.7% acute, so
+                # including it lets a contaminant that TRACKS THE EPOCH into a position contrast.
+                # See docs/REST_ENGAGEMENT_AUDIT.md.
+                if engaged is not None and not (engaged[prev] and engaged[nc]):
+                    continue
                 periods.append((aa, bb, int(codes[prev])))
         if len(periods) < 30:
             skipped.append(f"{lab}: only {len(periods)} labelled rest periods")

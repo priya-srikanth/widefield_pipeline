@@ -111,6 +111,26 @@ its own null. The prediction that gating would uniformly raise acute (quit-perio
 noisier) was WRONG. The acute cohort figure is no longer a clean 4/4 replication, which **weakens
 the acute claim** rather than rescuing it.
 
+### Finding 11 — RE-RUN, and it SURVIVES both fixes
+
+`rest_position_permutation --docked --perm 200`, with the engagement gate AND the repaired
+classifier:
+
+| | published | gated + repaired |
+|---|---|---|
+| observed/null | 1.622 | **1.634** |
+| sessions above null | 44/44 | **43/44** |
+| mean over animals | 1.650 | **1.662** |
+| PS92 / PS93 / PS94 / PS95 | 1.444 / 1.996 / 1.662 / 1.500 | **1.467 / 1.999 / 1.724 / 1.458** |
+
+The two corrections very nearly cancel. One PS95 session drops below its own null; nothing else
+moves materially. **REST CARRIES POSITION stands.**
+
+**A 4-session smoke test of the same run gave 1.469 and was read here as "the direction is down".
+It was not — the cohort went slightly UP.** Four of forty-four sessions carried no information
+about the total, which is the extrapolation trap `CLAUDE.md` documents for the render timings,
+recurring in a statistic. Do not read a partial cohort as a trend.
+
 **Every rest number produced before 2026-09-16 is provisional** until its analysis is re-run:
 finding 11's 1.622, the 93/94 per-session decode, `epoch_15x`, the `_RESTref_` maps, and the
 `flatpool_vs_restw` composition test. **`_RESTWref_` and the encoder baseline are unaffected.**

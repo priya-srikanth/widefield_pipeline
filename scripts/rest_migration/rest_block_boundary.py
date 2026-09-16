@@ -77,8 +77,8 @@ def main() -> int:
 
     from wfield_local import beta_maps as bm
     from wfield_local import config, daq_io, joint_basis
+    from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS, _load_cue_events
-    from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
 
     ap = argparse.ArgumentParser()
@@ -109,8 +109,10 @@ def main() -> int:
             pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
             ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
             cue = _load_cue_events(s["h5"])
-            codes = np.asarray(_classify_cues(cue["cue_samples"], cue["strobe_samples"],
-                                              cue["strobe_codes"]))
+            # THE REPAIRED CLASSIFIER -- the 0806 sessions (one per animal, all PRE-STROKE)
+            # collapse 6 positions to 4 under the raw one, 144-192 trials each. Measured
+            # 2026-09-16; docs/REST_ENGAGEMENT_AUDIT.md.
+            codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
             cs = np.asarray(cue["cue_samples"], np.int64)
             fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
             u, v = joint_basis._load_session(s["mc"])

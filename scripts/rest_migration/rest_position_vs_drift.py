@@ -55,11 +55,12 @@ def main() -> int:
     import h5py
 
     from wfield_local import beta_maps as bm
-    from wfield_local import config, daq_io, epoch_figures as ef, joint_basis
+    from wfield_local import config, daq_io, joint_basis
+    from wfield_local import epoch_figures as ef
+    from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS, _load_cue_events
     from wfield_local.paths import PathResolver
-    from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
 
     t0 = time.time()
@@ -80,7 +81,10 @@ def main() -> int:
             pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
             ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
             cue = _load_cue_events(s["h5"])
-            codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
+            # THE REPAIRED CLASSIFIER. Dead `spout_bit1` collapses six positions to four on the 0806
+            # sessions -- ONE PER ANIMAL, ALL PRE-STROKE, 144-192 trials mislabelled each (measured
+            # 2026-09-16). docs/REST_ENGAGEMENT_AUDIT.md; STATUS_2026-09-16 pitfall 6.
+            codes = classify_cues_with_backup(s, cue, verbose=False)
             cs = np.asarray(cue["cue_samples"], np.int64)
             fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
             u, v = joint_basis._load_session(s["mc"])
@@ -92,6 +96,15 @@ def main() -> int:
 
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
+        # ALWAYS GATED, with no opt-out flag: this builds the PUBLISHED `epoch_15x` and runs as a
+        # nightly step, and `main()` takes no argparse. An ungated variant of a figure that lands on
+        # the share under one name is exactly the two-definitions-one-name failure the rest variant
+        # directories exist to prevent. Measure the correction with the other scripts' flags.
+        from wfield_local.rest_engagement import engaged_by_cue
+        engaged, _gn = engaged_by_cue(s, cs, codes)
+        if "UNGATED" in _gn:
+            print(f"  !! {s['label']}: {_gn}", flush=True)
+
         lab = np.full(rest.shape[0], -1, np.int8)
         for a, b in zip(np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)):
             prev = np.searchsorted(cs, a, "right") - 1
@@ -100,6 +113,10 @@ def main() -> int:
                 continue
             nc = np.searchsorted(cs, ts[nxt], "left")
             if nc < len(codes) and prev < len(codes) and codes[prev] == codes[nc] >= 0:
+                # ENGAGEMENT GATE (2026-09-16) -- this builds the PUBLISHED `epoch_15x` figure.
+                # docs/REST_ENGAGEMENT_AUDIT.md.
+                if engaged is not None and not (engaged[prev] and engaged[nc]):
+                    continue
                 lab[a:b] = codes[prev]
 
         frame_lab = lab[np.clip(fs_samp, 0, rest.shape[0] - 1)]

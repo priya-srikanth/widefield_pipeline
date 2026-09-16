@@ -90,12 +90,15 @@ def main() -> int:
     import h5py
 
     from wfield_local import config, daq_io, epochs, joint_basis
+    from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.block_ids import block_ids, block_size_max_for
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS, _load_cue_events
-    from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.quiet_periods import quiet_dir
 
     ap = argparse.ArgumentParser()
+    ap.add_argument("--no-engagement-gate", action="store_true",
+                    help="keep the pre-2026-09-16 ungated behaviour, for measuring the "
+                         "size of the correction only -- never for a reported result")
     ap.add_argument("--perm", type=int, default=50)
     ap.add_argument("--bins", type=int, default=4)
     ap.add_argument("--limit", type=int, default=None)
@@ -127,8 +130,10 @@ def main() -> int:
             pco = daq_io.rising_edges((packed >> dn.index("pco_exposure")) & 1)
             ts = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)
             cue = _load_cue_events(s["h5"])
-            codes = np.asarray(_classify_cues(cue["cue_samples"], cue["strobe_samples"],
-                                              cue["strobe_codes"]))
+            # THE REPAIRED CLASSIFIER -- the 0806 sessions (one per animal, all PRE-STROKE)
+            # collapse 6 positions to 4 under the raw one, 144-192 trials each. Measured
+            # 2026-09-16; docs/REST_ENGAGEMENT_AUDIT.md.
+            codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
             cs = np.asarray(cue["cue_samples"], np.int64)
             fs_samp = _frame_samples(s["mc"], s.get("fmdir"), s.get("regime"), pco)
             _u, v = joint_basis._load_session(s["mc"])
@@ -142,6 +147,13 @@ def main() -> int:
         T = min(V.shape[1], rest.shape[0])
         V = V[:, :T]
         f_of = np.clip(fs_samp, 0, rest.shape[0] - 1)
+
+        engaged = None
+        if not getattr(a, "no_engagement_gate", False):
+            from wfield_local.rest_engagement import engaged_by_cue
+            engaged, _gate_note = engaged_by_cue(s, cs, codes)
+            if "UNGATED" in _gate_note:
+                print(f"  !! {s['label']}: {_gate_note}", flush=True)
 
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
@@ -168,6 +180,11 @@ def main() -> int:
                 continue
             if codes[prev] != codes[nc] or codes[prev] < 0:
                 continue                       # boundary periods: the --boundary arm's business
+            # ENGAGEMENT GATE (2026-09-16). THIS FILE'S DOCSTRING CLAIMED IT AND ITS STDOUT HEADER
+            # PRINTED "(working trials, ...)" WHILE NO GATE WAS APPLIED -- see
+            # docs/REST_ENGAGEMENT_AUDIT.md. Both bracketing trials must be working.
+            if engaged is not None and not (engaged[prev] and engaged[nc]):
+                continue
             fr = np.flatnonzero((f_of >= aa) & (f_of < bb))
             fr = fr[fr < T]
             if fr.size < a.bins:
