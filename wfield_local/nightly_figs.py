@@ -711,6 +711,27 @@ def main():
     # from a scratchpad script, which is how twelve deck figures came to be a day stale on a basis
     # that had been corrected, with nothing on the slide to say so. If it is part of the deck it is
     # part of the nightly.
+    # THE REST BASELINE'S OWN FIGURE (`epoch_15x_REST_by_position_by_animal`), which is the
+    # visual case for `restw`: each position's mean rest map minus that animal's across-position
+    # mean, so a position-INDEPENDENT baseline would be all noise. It is not -- see finding 11.
+    #
+    # WIRED IN 2026-09-16 BECAUSE IT HAD NO NIGHTLY STEP AND FROZE. It sat at its 09-13 render
+    # through TWO rest-definition changes (restdock, then restdock05) while every figure around it
+    # moved, so the deck showed a superseded-definition panel beside current ones with nothing
+    # saying so. That is precisely the failure the section-G comment below records ("a slide
+    # reading a figure no nightly step regenerates is frozen at the day it was made"), recurring
+    # in a figure nobody had noticed was hand-built. ~5 min.
+    #
+    # NOT gated on post-stroke sessions: it is built from PRE-STROKE sessions, so gating it behind
+    # `phase_labels("post")` would be wrong even though that branch is currently always taken.
+    #
+    # DEBT, stated: the builder lives in `scripts/rest_migration/`, not `wfield_local/`, so this is
+    # the nightly reaching into a migration script. It works because `cli()` runs with `cwd=REPO`
+    # and `scripts` is an implicit namespace package. Folding it into `wfield_local` is roadmap #3
+    # ("legacy one-off fold-in"), not done here.
+    if not args.skip_poststroke:
+        cli("scripts.rest_migration.rest_position_vs_drift")
+
     if not args.skip_poststroke and config.phase_labels("post"):
         log("== POST-STROKE stage (section G)")
         cli("wfield_local.poststroke_section_g", "--output", out)
