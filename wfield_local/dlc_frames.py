@@ -26,8 +26,8 @@ beside the one somebody has already spent hours annotating.
 
 Layout, which is DLC's own so the project can adopt it without copying::
 
-    <behavior_cameras>/dlc/labeled-data/<video-stem>/img<FRAME>.png
-    <behavior_cameras>/dlc/labeled-data/frame_manifest.csv
+    <dlc>/labeled-data/<video-stem>/img<FRAME>.png
+    <dlc>/labeled-data/frame_manifest.csv
 
 The manifest carries the provenance of every frame -- animal, date, camera, epoch, trial, spout
 position, trial category, phase, seconds from cue. A labelled frame whose provenance is unknown
@@ -293,9 +293,22 @@ def seed() -> int:
 
 
 def out_root(rv=None) -> Path:
-    """``<behavior_cameras>/dlc`` -- beside the recordings, like ``example_clips``."""
+    """The DLC tree: ``Priya/DeepLabCut/Widefield`` (logical root ``dlc``).
+
+    MOVED 2026-09-16 (Priya) out of ``<behavior_cameras>/dlc``. It belongs with the lab's other
+    DeepLabCut work rather than inside the camera recordings, and the labelling set is not a
+    recording -- it is derived from them and has a different lifetime.
+
+    Falls back to the old location when the logical root is absent, so a checkout whose `paths.yaml`
+    predates the move keeps resolving instead of raising somewhere unrelated. The fallback is a
+    transition aid, not a supported second home: two trees is how the project tree and the extraction
+    tree drifted apart on 2026-09-15 and left napari opening folders that were 5/6 stale frames.
+    """
     rv = rv or PathResolver()
-    return Path(rv.root("behavior_cameras")) / "dlc"
+    try:
+        return Path(rv.root("dlc"))
+    except (KeyError, ValueError):
+        return Path(rv.root("behavior_cameras")) / "dlc"
 
 
 def anchor_cam() -> str | None:

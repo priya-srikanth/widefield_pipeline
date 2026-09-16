@@ -41,7 +41,7 @@ SCORER = "Priya"
 
 
 def project_dir(rv=None) -> Path:
-    """``<behavior_cameras>/dlc/<Task>-<scorer>-<date>`` -- beside the frames it labels.
+    """``<dlc>/<Task>-<scorer>-<date>`` -- beside the frames it labels.
 
     On the SHARE rather than a local disk: the labels are the expensive artefact in this pipeline,
     they are produced interactively on whichever box someone is sitting at, and a project on one

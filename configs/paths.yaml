@@ -42,6 +42,23 @@ logical_roots:
       mac:      "/Volumes/Priya/Behavior_logs/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"
 
+  dlc:
+    description: "DeepLabCut orofacial labelling set + project for the WIDEFIELD rig"
+    # MOVED 2026-09-16 (Priya) from Behavior_Cameras/Widefield/dlc. It sits with the lab's other
+    # DeepLabCut work -- DLC_train_config (the 2pRAM donor) and video2-Priya-2025-01-26 -- rather
+    # than inside the camera recordings, and the `Widefield` subdir separates this cohort from the
+    # 2pRAM one exactly as Behavior_logs/Widefield and Behavior_Cameras/Widefield already do.
+    #
+    # The mac mount is a LIST because both forms are in use: the share is mounted either at
+    # .../MICROSCOPE/Priya (appearing as /Volumes/Priya) or at .../Neurobio (appearing as
+    # /Volumes/Neurobio). First existing wins, so neither person has to edit this file.
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/DeepLabCut/Widefield"
+      mac:
+        - "/Volumes/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield"
+        - "/Volumes/Priya/DeepLabCut/Widefield"
+      imaging:  "N:/MICROSCOPE/Priya/DeepLabCut/Widefield"
+
   behavior_cameras:
     description: "Behavior camera recordings (Blackfly/Bonsai) — Widefield SUBDIR (as of 2026-08-06)"
     mounts:
