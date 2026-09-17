@@ -13290,6 +13290,36 @@ Re-binned by post-stroke day with the identical statistic and null
 **The tell is that day-binning HURTS acute while helping subacute.** A biological effect does not
 trade off against the bookkeeping; a binning effect does.
 
+**PER-DAY BINNING IS NOT THE ANSWER, and it was tested rather than assumed** (Priya, 2026-09-17:
+"would per-day binning be better than recovery-based binning?"). It is WORSE where the two can be
+compared and EQUIVALENT where they cannot:
+
+| | epoch (state) | day | verdict |
+|---|---|---|---|
+| acute | **0.822** | 0.583 | epoch wins by 0.24 |
+| chronic | 0.4057 | 0.4057 | identical to **0.000000** |
+
+The reason is that animals recover at radically different rates, so a calendar day is not a state.
+Hit rate as a fraction of each animal's own baseline, by day, MAX-MINUS-MIN across the four animals:
+
+| day | 1 | 2 | 3 | 4 | 5 | 7 | 9 | 11 | 15 | 22 | 29 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| spread | 0.12 | 0.82 | 0.86 | **0.96** | 0.81 | 0.64 | 0.11 | 0.12 | 0.19 | 0.26 | 0.04 |
+
+On day 4, PS95 is at 0.96 of baseline and PS94 at 0.00. Day-binning is harmful exactly while the
+animals diverge (days 2-7) and harmless once they converge (day 9 onward) — which is why the
+chronic control matched to machine precision and acute did not. **So the day-matched subacute
+result is evidence against the RESIDUAL, not evidence for calendar binning.**
+
+**AND A STATE-MATCHED SUBACUTE IS NOT CONSTRUCTIBLE, which is the deeper finding.** Anchoring on
+recovery level instead (first session crossing X of baseline, plus the next) gives balanced n = 2
+windows, but the animals enter at incomparable levels — PS92 at 0.50, PS93 at 0.55, PS95 at 0.83
+and **PS94 at 0.91**. PS94 goes **0.14 on day 7 to 0.91 on day 9**: it jumped the whole
+partial-recovery band between two sessions, so **there is no partially-recovered PS94 session in
+the dataset at any threshold.** That is a SAMPLING gap, not an analysis choice, and it is the real
+reason the subacute bin was incoherent — it stood in for a state that, in one animal, was never
+observed. Denser early sampling (daily through day 10) is what would fix it, prospectively.
+
 **What is NOT decided.** That subacute replicates. A day window matches the CALENDAR, not the
 recovery STATE — day 5 is acute for PS94 and subacute for PS93, and PS95 is at 0.83 of baseline by
 day 2 while PS94 is at 0.14 on day 7. **Neither binning is correct**: epoch bins match state but
