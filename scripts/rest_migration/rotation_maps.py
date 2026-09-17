@@ -308,7 +308,7 @@ def excess_z(real_delta, null_draws):
 MIN_IN_MASK_FRAC = 0.75
 
 
-def in_mask_components(basis, min_frac=MIN_IN_MASK_FRAC):
+def in_mask_components(basis, min_frac=None):
     """Boolean over components: which sit INSIDE `beta_maps.stat_mask`.
 
     THE MASK BELONGS IN THE STATISTICS, NOT ONLY IN THE DISPLAY (Priya, 2026-09-17). The maps were
@@ -324,6 +324,11 @@ def in_mask_components(basis, min_frac=MIN_IN_MASK_FRAC):
     """
     from wfield_local import beta_maps as bm
 
+    # RESOLVED AT CALL TIME, not bound as a default. A default argument is evaluated when the
+    # function is DEFINED, so `--min-in-mask-frac` could never reach it and the two threshold runs
+    # would silently be the same run twice. Reading the module global here makes the flag live.
+    if min_frac is None:
+        min_frac = MIN_IN_MASK_FRAC
     A = np.nan_to_num(np.asarray(basis.A, dtype=np.float32))
     flat = np.abs(A.reshape(-1, basis.ncomp))
     m = np.asarray(bm.stat_mask(), bool)
@@ -496,6 +501,9 @@ def by_region(comp_pattern, basis):
 
 
 def main() -> int:
+    # DECLARED HERE, at the top, because `global` must precede every use of the name in the
+    # function and MIN_IN_MASK_FRAC is read below as the argparse default.
+    global MIN_IN_MASK_FRAC
     from wfield_local import config, joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.locanmf_frozen_decoder import _pipe
@@ -512,6 +520,11 @@ def main() -> int:
                     help="pre-stroke split-half draws building the per-component null the maps "
                          "are scored against; below ~6 the SD is too noisy to divide by")
     ap.add_argument("--animals", nargs="*", default=None)
+    ap.add_argument("--min-in-mask-frac", type=float, default=MIN_IN_MASK_FRAC,
+                    help="fraction of a component's footprint mass that must sit inside "
+                         "stat_mask for it to enter the analysis. Adopted 0.75; pass 0.5 to "
+                         "reproduce the superseded set. ALWAYS pair with --tag, or the two "
+                         "thresholds overwrite each other's figures, CSV and cache.")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--replot", action="store_true",
@@ -539,7 +552,9 @@ def main() -> int:
         print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] replot {time.time() - t0:.0f}s")
         return 0
 
-    print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}\n")
+    MIN_IN_MASK_FRAC = float(a.min_in_mask_frac)
+    print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}")
+    print(f"   MIN_IN_MASK_FRAC = {MIN_IN_MASK_FRAC}  (tag {a.tag!r})\n")
 
     rows, maps, outlines, cache = [], {}, {}, []
     for arm in a.arms:
