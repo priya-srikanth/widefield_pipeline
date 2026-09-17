@@ -13354,3 +13354,51 @@ would move together at any position.
 
 **Consequence.** The previously quoted chronic 0.416 / 0.385 is NOT a partial replication and must
 not be reported as one. Acute (0.822, p < 0.001, four references agreeing at ~0.82) is unaffected.
+
+
+## Never compare two RETAINED values across directions -- the denominators carry the contrast (2026-09-17)
+
+**Decision.** A ratio normalised by the test condition's own ceiling is a fine descriptive quantity
+and a bad contrast. Two such ratios taken in opposite directions have DIFFERENT denominators, so
+their difference is dominated by how the ceilings differ. **Direction contrasts are taken on raw
+above-chance units**, where both share units and no denominator enters.
+
+**What forced it.** `epoch_15g` was built to ask whether the chronic rest code REPLACES the
+pre-stroke one or ADDS to it, with the asymmetry between `retained(pre->chronic)` and
+`retained(chronic->pre)` as the diagnostic. It printed "consistent with ADDITION". It was measuring
+the ceilings:
+
+    retained(chr->pre) - retained(pre->chr) = r * (1/ceil_pre - 1/ceil_chr)   for symmetric raw r
+
+predicts **+0.432 / +0.331 / +0.053** for PS92 / PS93 / PS95 from the denominators alone, against an
+observed **+0.404 / +0.441 / -0.001**. The raw transfer is symmetric in all three animals
+(-0.004 / +0.021 / -0.008). Guarded by
+`tests/test_substitute_code.py::test_symmetric_raw_transfer_still_produces_a_fake_normalised_asymmetry`.
+
+**Generalises beyond this arm.** Any "fraction of X retained" compared against a "fraction of Y
+retained" has the same defect whenever X and Y are not equally decodable -- which includes the
+retained-fraction language used throughout the frozen-decoder work. Those are single-direction
+statements and are fine; it is the CROSS-DIRECTION difference that is not.
+
+## The chronic rest code is a PARTIAL ROTATION WITH NET GAIN (2026-09-17)
+
+**Finding**, cohort in above-chance units, three animals with chronic data:
+
+* shared component **0.078** -- symmetric in both directions, 197/241 off-diagonal cells p < 0.05
+* pre-stroke ceiling **0.125**; chronic ceiling **0.218** -- chronic is **1.74x** pre
+* so the shared part is **63%** of the pre-stroke ceiling and **36%** of chronic's
+
+**Neither "replacement" nor "addition" is the right word.** Pure replacement predicts transfer near
+zero; it is 63% of the pre ceiling. Pure addition predicts a chronic-trained model reading
+pre-stroke rest at its full ceiling (retained ~ 1.0); observed 0.76 / 0.76 / 0.42. Chronic rest
+retains most of the pre-stroke code, carries substantial structure the pre-stroke model cannot read,
+and loses a little pre-specific structure.
+
+**Consequence for wording.** `15f`'s "REPLACEMENT, not recovery" overstates it. The defensible claim
+is that the pre-stroke READOUT captures a shrinking share of what chronic rest contains, because
+chronic contains MORE -- not because the old code went away.
+
+**The between-animal handle is the ceiling gain**: +0.128 / +0.132 / +0.018 (PS92 / PS93 / PS95).
+PS95 barely gained and is the animal that looks flat on every derived contrast. Explaining the gain
+is the next question, and it is a WHERE question -- Haufe patterns through the joint basis, not
+another scalar.
