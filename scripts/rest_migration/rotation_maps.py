@@ -72,11 +72,19 @@ def _patterns_from(fit, X, basis, positions):
     return pats, norms
 
 
-def epoch_patterns(data, basis, pipe_fn, *, min_sessions=2, seed_ns="", log=print):
+def epoch_patterns(data, basis, pipe_fn, *, min_sessions=1, seed_ns="", log=print):
     """``(patterns, norms, ceiling)`` -- per epoch, per position, unit-norm Haufe patterns.
 
     ONE MODEL PER EPOCH, trained on that epoch's pooled sessions at the SAME block-matched size the
     transfer matrix uses, so these are the very models whose transfer was measured.
+
+    ``min_sessions`` IS 1 HERE, NOT 2 (Priya, 2026-09-17: "PS95 should be included in acute data").
+    The transfer matrix uses 2 because an epoch there is a TRAIN SOURCE and a pooled model must not
+    be one session wearing an epoch's name. A PATTERN is a different object: PS95 has exactly one
+    acute session, and its acute pattern is noisier but not invalid. Dropping it silently removed a
+    whole animal from the acute column. Single-session epochs are reported with ``n_sessions`` in
+    the CSV and cannot carry a split-half reliability (that needs >= 4), so their corrected cosine
+    is None -- visible, rather than absent.
 
     ``ceiling`` IS WHAT MAKES THE COSINES READABLE, and the first version of this analysis omitted
     it. Two decoders fit on finite data disagree even when nothing changed, so a cross-epoch cosine
@@ -95,10 +103,10 @@ def epoch_patterns(data, basis, pipe_fn, *, min_sessions=2, seed_ns="", log=prin
     by_ep = {e: [k for k, v in data.items() if v[0] == e] for e in tm.EPOCH_ORDER}
     usable = [e for e in tm.EPOCH_ORDER if len(by_ep[e]) >= min_sessions]
     if "pre" not in usable:
-        return {}, {}, {}
+        return {}, {}, {}, {}, {}      # arity must match the success path -- five, not three
     n_target = int(min(sum(len(data[k][2]) for k in by_ep[e]) for e in usable))
 
-    pats, norms = {}, {}
+    pats, norms, n_sess = {}, {}, {}
     for ep in usable:
         X, y, g = _xyg(data, by_ep[ep])
         seed = int(hashlib.sha1(f"{seed_ns}|{ep}".encode()).hexdigest()[:8], 16)
@@ -108,6 +116,7 @@ def epoch_patterns(data, basis, pipe_fn, *, min_sessions=2, seed_ns="", log=prin
         pp, nn = _patterns_from(got[0], X, basis, sorted(np.unique(y).tolist()))
         if pp:
             pats[ep], norms[ep] = pp, nn
+            n_sess[ep] = len(by_ep[ep])
 
     # RELIABILITY PER EPOCH, not just for pre -- and the first version's pre-only ceiling was
     # actively misleading. It split pre in half, so its models saw 5-6 sessions while the epoch
@@ -148,7 +157,7 @@ def epoch_patterns(data, basis, pipe_fn, *, min_sessions=2, seed_ns="", log=prin
     # the null map and the acute-minus-pre map correlate at r = +0.83 (PS92) and +0.81 (PS93), so
     # the localisation is mostly basis-shaped estimation noise and CANNOT carry a regional claim
     # on its own. Retrosplenial topping every panel was this, not the lesion.
-    return pats, norms, ceiling, reliability
+    return pats, norms, ceiling, reliability, n_sess
 
 
 def null_delta(data, basis, pipe_fn, *, n_draws=12, n_target=None, seed_ns="", log=print):
@@ -281,6 +290,153 @@ def excess_z(real_delta, null_draws):
     return (np.asarray(real_delta) - mu) / sd
 
 
+def in_mask_components(basis, min_frac=0.5):
+    """Boolean over components: which sit INSIDE `beta_maps.stat_mask`.
+
+    THE MASK BELONGS IN THE STATISTICS, NOT ONLY IN THE DISPLAY (Priya, 2026-09-17). The maps were
+    already masked when drawn, but the TEST ran over every component -- including ones whose
+    footprint lies in the olfactory bulbs or on the glue/window edge, where `U` is smallest and the
+    Allen warp least constrained. Those components then (a) could be flagged significant and
+    outlined, and (b) entered the max-statistic family, inflating the threshold for the components
+    that ARE in cortex. Both are wrong, and the second silently costs power everywhere else.
+
+    A component counts as in-mask when at least `min_frac` of its footprint MASS falls inside.
+    Mass, not pixel count, because footprints are graded -- a component whose tail brushes the mask
+    should not qualify on area alone.
+    """
+    from wfield_local import beta_maps as bm
+
+    A = np.nan_to_num(np.asarray(basis.A, dtype=np.float32))
+    flat = np.abs(A.reshape(-1, basis.ncomp))
+    m = np.asarray(bm.stat_mask(), bool)
+    if m.shape != A.shape[:2]:
+        return np.ones(basis.ncomp, bool)
+    inside = flat[m.ravel(), :].sum(0)
+    total = flat.sum(0)
+    return np.divide(inside, np.where(total > 0, total, np.inf)) >= min_frac
+
+
+def bootstrap_cosine_ci(data, basis, pipe_fn, ep, *, n_boot=200, n_target=None,
+                        seed_ns="", alpha=0.05, log=print):
+    """``{position: (lo, hi)}`` -- percentile CI on cos(pre, epoch) by RESAMPLING SESSIONS.
+
+    THE WHISKERS THIS REPLACES WERE NOT A CI. They were the min-max RANGE across three or four
+    animals, which on a bar chart reads as an error bar and is not one (Priya, 2026-09-17: "are
+    these bars really CI? it just looks like animal spread").
+
+    WHY IT NEEDS A REFIT PER RESAMPLE, and why `stats.permutation.bootstrap_ci` in
+    stroke_orofacial cannot be called directly. That helper bootstraps a SAMPLE OF VALUES; the
+    cosine here is ONE number per cell, computed from a model fitted on all of that epoch's
+    sessions. There is no sample to resample without refitting, so each draw resamples SESSIONS
+    with replacement, refits both the pre and the epoch model, and recomputes the cosine. The
+    interval then carries session-level variability, which is the replicate this project's nested
+    bootstrap resamples.
+
+    PERCENTILE, NOT BCa. BCa needs a jackknife acceleration estimate over the same unit; with 4-11
+    sessions per epoch that estimate is itself unstable, and the bias correction would be noise.
+    Percentile is the honest choice at this n.
+
+    WITHIN ANIMAL. This is each animal's own interval, not a cohort CI -- with three animals
+    carrying chronic data a resample-animals interval would be three points wide and would imply
+    a precision the design does not have. The cohort bar stays a mean with its per-animal points.
+    """
+    import hashlib
+
+    from wfield_local import transfer_matrix as tm
+
+    pre_labs = [k for k, v in data.items() if v[0] == "pre"]
+    ep_labs = [k for k, v in data.items() if v[0] == ep]
+    if not pre_labs or not ep_labs:
+        return {}
+    acc = {}
+    for b in range(n_boot):
+        rng = np.random.default_rng(
+            int(hashlib.sha1(f"{seed_ns}|boot|{ep}|{b}".encode()).hexdigest()[:8], 16))
+        got = {}
+        for name, labs in (("pre", pre_labs), (ep, ep_labs)):
+            pick = [labs[i] for i in rng.integers(0, len(labs), len(labs))]
+            X, y, g = _xyg(data, pick)
+            fit = tm._matched(pipe_fn, X, y, g, min(n_target or len(y), len(y)),
+                              np.random.default_rng(31 * b + len(name)))
+            if fit is None:
+                got = {}
+                break
+            got[name] = _patterns_from(fit[0], X, basis, sorted(np.unique(y).tolist()))[0]
+        if len(got) != 2:
+            continue
+        for pos in sorted(set(got["pre"]) & set(got[ep])):
+            acc.setdefault(pos, []).append(float(got["pre"][pos] @ got[ep][pos]))
+    out = {pos: (float(np.percentile(v, 100 * alpha / 2)),
+                 float(np.percentile(v, 100 * (1 - alpha / 2))))
+           for pos, v in acc.items() if len(v) >= 20}
+    log(f"   bootstrap {ep}: {len(out)} positions x "
+        f"{min((len(v) for v in acc.values()), default=0)} resamples")
+    return out
+
+
+def significant_components(real_delta, null_draws, alpha=0.05, keep=None):
+    """Boolean over components: which changed MORE than the family-wise null allows.
+
+    THE COMPONENT IS THE UNIT OF TEST, not the pixel. The pixel map is a PROJECTION of component
+    values through overlapping footprints, so a contour drawn at a z threshold on the projected map
+    is not a significance statement about that pixel -- neighbouring pixels are not independent
+    tests, they are the same components seen through different mixing weights.
+
+    FAMILY-WISE BY MAX-STATISTIC, over the components within this position. Each draw contributes
+    its single most extreme component z; the threshold is the (1-alpha) quantile of those maxima.
+    That respects the coupling between components -- they share the drift and the basis, so their
+    draws are correlated and the max distribution is narrower than independence would imply --
+    and it costs no extra draws, because it reuses the ones already computed. Bonferroni over ~90
+    components would be far more conservative for no gain.
+    """
+    if null_draws is None or len(null_draws) < 10:
+        return None
+    mu, sd = null_draws.mean(0), null_draws.std(0)
+    pos_sd = sd[sd > 1e-12]
+    floor = float(np.percentile(pos_sd, 25)) if pos_sd.size else np.inf
+    sd = np.where(sd > 1e-12, np.maximum(sd, floor), np.inf)
+    z_null = (null_draws - mu) / sd                      # (n_draws, ncomp)
+    # OUT-OF-MASK COMPONENTS ARE EXCLUDED FROM THE FAMILY, not merely hidden afterwards. Leaving
+    # them in lets an olfactory-bulb or glue-edge component set the per-draw maximum and raise the
+    # threshold for every cortical component -- a power loss paid by the components we care about.
+    keep = np.ones(z_null.shape[1], bool) if keep is None else np.asarray(keep, bool)
+    if not keep.any():
+        return None
+    thresh = float(np.percentile(np.nanmax(z_null[:, keep], axis=1), 100 * (1 - alpha)))
+    z_obs = (np.asarray(real_delta) - mu) / sd
+    return (z_obs > thresh) & keep
+
+
+def component_outline(sig, basis, frac=0.35, mask=True):
+    """Pixel mask of the significant components' territory, for contouring.
+
+    A component's footprint is graded, so "its territory" needs a cut: `frac` of that component's
+    own peak. Per component rather than global, because footprint mass spans 67x and a global cut
+    would erase the small ones entirely.
+    """
+    if sig is None or not np.any(sig):
+        return None
+    A = np.nan_to_num(np.asarray(basis.A, dtype=np.float32))
+    H, W = A.shape[0], A.shape[1]
+    flat = A.reshape(-1, basis.ncomp)
+    out = np.zeros(H * W, bool)
+    for c in np.flatnonzero(np.asarray(sig)):
+        col = np.abs(flat[:, c])
+        pk = col.max()
+        if pk > 0:
+            out |= col >= frac * pk
+    out = out.reshape(H, W)
+    if mask:
+        # INTERSECT WITH THE BRAIN MASK. A kept component can still have a tail reaching into the
+        # bulbs or the window edge, and an outline there reads as a finding in tissue the analysis
+        # has already declared unusable.
+        from wfield_local import beta_maps as bm
+        m = np.asarray(bm.stat_mask(), bool)
+        if m.shape == out.shape:
+            out &= m
+    return out
+
+
 def to_pixels(comp_pattern, basis, mask=True):
     """Component-space pattern -> ``(H, W)`` cortical map through the SHARED footprints.
 
@@ -323,6 +479,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--arms", nargs="+", default=["ENL", "cue", "lick"], choices=list(ARMS))
     ap.add_argument("--bins", type=int, default=4, help="rest arm only")
+    ap.add_argument("--boot", type=int, default=0,
+                    help="session-resample bootstrap draws for the cosine CI (0 = off). Each draw "
+                         "REFITS both models, so this roughly doubles runtime at --boot == "
+                         "--null-draws.")
     ap.add_argument("--null-draws", type=int, default=12,
                     help="pre-stroke split-half draws building the per-component null the maps "
                          "are scored against; below ~6 the SD is too noisy to divide by")
@@ -337,7 +497,7 @@ def main() -> int:
     t0 = time.time()
     print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}\n")
 
-    rows, maps = [], {}
+    rows, maps, outlines = [], {}, {}
     for arm in a.arms:
         align, variant = ARMS[arm]
         print(f"\n== ARM {arm}")
@@ -352,10 +512,20 @@ def main() -> int:
             if not data:
                 continue
             print(f"   {an}:", flush=True)
-            pats, norms, ceiling, reliability = epoch_patterns(
+            keep_comp = in_mask_components(basis)
+            print(f"   {int(keep_comp.sum())}/{basis.ncomp} components inside the brain mask "
+                  f"(olfactory bulbs + glue edge excluded from the TEST family)", flush=True)
+            pats, norms, ceiling, reliability, n_sess = epoch_patterns(
                 data, basis, _pipe, seed_ns=f"{arm}|{an}", log=lambda m: print(m, flush=True))
             if "pre" not in pats:
                 continue
+            boots = {}
+            if a.boot:
+                for _ep in ("acute", "subacute", "chronic"):
+                    if _ep in pats:
+                        boots[_ep] = bootstrap_cosine_ci(
+                            data, basis, _pipe, _ep, n_boot=a.boot, seed_ns=f"{arm}|{an}",
+                            log=lambda m: print(m, flush=True))
             nulls, cos_nulls, gain_nulls = null_delta(
                 data, basis, _pipe, n_draws=a.null_draws, seed_ns=f"{arm}|{an}",
                 log=lambda m: print(m, flush=True))
@@ -374,8 +544,9 @@ def main() -> int:
                     # the class coding, and a flipped sign would register as a total rotation.
                     d = np.abs((a_ep if cos >= 0 else -a_ep) - a_pre)
                     z = excess_z(d, nulls.get(pos))
+                    sig = significant_components(d, nulls.get(pos), keep=keep_comp)
                     if z is not None:
-                        zmaps.append((pos, z))
+                        zmaps.append((pos, z, component_outline(sig, basis)))
                     rel_a = reliability.get("pre", {}).get(pos)
                     rel_b = reliability.get(ep, {}).get(pos)
                     # CORRECTED FOR ATTENUATION IN BOTH EPOCHS. None when either reliability is
@@ -412,14 +583,22 @@ def main() -> int:
                                      "cos_p_vs_noise": (round(pv, 4) if pv else None),
                                      "gain_epoch_over_pre": (round(gain, 4) if gain else None),
                                      "gain_resid_p": (round(gp, 4) if gp else None),
+                                     "cos_ci_lo": (round(boots[ep][pos][0], 4)
+                                                   if ep in boots and pos in boots[ep] else None),
+                                     "cos_ci_hi": (round(boots[ep][pos][1], 4)
+                                                   if ep in boots and pos in boots[ep] else None),
+                                     "n_sessions_epoch": n_sess.get(ep),
+                                     "n_sessions_pre": n_sess.get("pre"),
                                      "noise_ceiling_cos": (round(ceiling[pos], 4)
                                                            if pos in ceiling else None),
                                      "norm_pre": round(norms["pre"][pos], 4),
                                      "norm_epoch": round(norms[ep][pos], 4)})
                 # PER POSITION, not averaged over them. A mean over the six would have hidden the
                 # cue arm's far-contralateral cosine of -0.042 among five values near +0.6.
-                for pos, z in zmaps:
+                for pos, z, outline in zmaps:
                     maps.setdefault((arm, f"{ep} - pre", pos), []).append(to_pixels(z, basis))
+                    if outline is not None:
+                        outlines.setdefault((arm, f"{ep} - pre", pos), []).append(outline)
                 cb = np.mean([ceiling[p] for p in shared if p in ceiling]) if ceiling else np.nan
                 print(f"      {ep}-pre: mean cos {np.mean(cosines):+.3f} "
                       f"(noise ceiling {cb:+.3f}) over {len(shared)} pos", flush=True)
@@ -448,7 +627,7 @@ def main() -> int:
                 cells.append(f"{np.mean(list(v.values())):>10.3f}" if v else f"{'--':>10}")
             print(f"{arm:<7}{ep + ' - pre':<18}" + "".join(cells))
 
-    fig = _figure(maps, rows, out_dir, a.tag)
+    fig = _figure(maps, rows, out_dir, a.tag, outlines=outlines)
     plane = _gain_rotation_figure(rows, out_dir, a.tag)
     print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] {time.time() - t0:.0f}s")
     return 0
@@ -516,6 +695,10 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
     HEAD_IN, FOOT_IN = 2.0, 1.45
     body_in = 3.2 * len(arms)
     fig_h = body_in + HEAD_IN + FOOT_IN
+    gains = [v[0] for v in seen.values() if v[0] and np.isfinite(v[0]) and v[0] > 0]
+    xlo = min(gains) / 1.6 if gains else 0.08
+    xhi = max(gains) * 1.6 if gains else 3.0
+
     fig, axes = plt.subplots(len(arms), len(cons),
                              figsize=(3.5 * len(cons) + 1.6, fig_h),
                              squeeze=False)
@@ -566,7 +749,10 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
                         va=va, color="0.35", fontweight="bold", zorder=1)
             del lo
             ax.set_xscale("log")
-            ax.set_xlim(0.08, 3.0)
+            # LIMITS FROM THE DATA. Hard-coded at (0.08, 3.0) these clipped real points off the
+            # edge -- a figure that silently drops observations is worse than one that looks
+            # untidy. A decade-and-a-bit of padding either side keeps the 1.0 reference centred.
+            ax.set_xlim(xlo, xhi)
             # ROOM FOR THE QUADRANT LABELS OUTSIDE THE DATA. A cosine is bounded to
             # [-1, 1], so the margin beyond +-1 can never hold a point -- putting the
             # labels there makes "does the label cover a datum" impossible rather than
@@ -598,31 +784,39 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
     shape_h = [Line2D([], [], color="0.35", marker=MARKERS[i], linestyle="none",
                       markersize=7, label=pos_name[c])
                for i, c in enumerate(pos_keys)]
-    leg1 = fig.legend(uniq.values(), uniq.keys(), fontsize=11, frameon=False,
-                      ncol=max(len(uniq), 1), loc="lower center",
-                      bbox_to_anchor=(0.28, 0.10 / fig_h), title="animal")
+    # ALL-OPEN IN THE ANIMAL KEY. Handles harvested from the axes inherit whichever fill state the
+    # first plotted point happened to have, so an animal read as "significant" purely because its
+    # first cell was. Fill carries MEANING here (p < 0.05) and must not be spent on identity.
+    animal_h = [Line2D([], [], marker="o", linestyle="none", markersize=8,
+                       markerfacecolor="none", markeredgecolor=colors.get(a, "0.4"),
+                       markeredgewidth=1.4, label=a)
+                for a in sorted(uniq)]
+    leg1 = fig.legend(handles=animal_h, fontsize=11, frameon=False,
+                      ncol=max(len(animal_h), 1), loc="lower center",
+                      bbox_to_anchor=(0.28, 0.10 / fig_h), title="animal (fill = p < 0.05)")
     leg1.get_title().set_fontsize(10)
     leg2 = fig.legend(handles=shape_h, fontsize=10, frameon=False, ncol=3,
                       loc="lower center", bbox_to_anchor=(0.72, 0.04 / fig_h),
-                      title="spout position (filled = p < 0.05)")
+                      title="spout position")
     leg2.get_title().set_fontsize(10)
     fig.add_artist(leg1)
     fig.text(0.5, 1 - 0.22 / fig_h, "ROTATION vs GAIN -- the two halves of 'the code changed'",
              ha="center", va="top", fontsize=15, fontweight="bold")
     fig.text(0.5, 1 - 0.62 / fig_h,
-             "One point per animal x spout position. X = amplitude of the epoch's Haufe pattern "
-             "relative to pre-stroke (1.0 = unchanged, dotted). Y = cosine between the two "
-             "patterns (1.0 = no rotation).\n"
+             # WRAPPED SHORT, ~105 characters a line. These ran wider than the panels they
+             # describe, so the figure was being sized by its caption rather than by its data.
+             "One point per animal x spout position. X = the epoch's Haufe-pattern amplitude "
+             "relative to pre-stroke\n"
+             "(1.0 = unchanged, dotted). Y = cosine between the two patterns (1.0 = no rotation). "
+             "FILL = p < 0.05 vs the split-half null.\n"
              "Gain ABOVE 1.0 is STRONGER than pre-stroke, not merely preserved -- the chronic "
-             "panels sit there. LOW-LEFT 'weakened AND turned'; LOW-RIGHT 'turned at preserved or "
-             "INCREASED strength'; HIGH-LEFT 'weakened but kept its shape'.\n"
-             "GAIN HERE IS THE DECODER PATTERN'S NORM, NOT AN EVOKED RESPONSE AMPLITUDE, and it "
-             "is NOT the deficit measure. A position can become more SEPARABLE while its response "
-             "collapses: acute far-contra is dominated by trials the animal did not attempt, the "
-             "same mechanism that inverts epoch_14 MEANref. For the deficit read the "
-             "QUIET-referenced maps and the encoder.\n"
-             "Colours are ANIMALS, from configs/animals.yaml -- the same mapping every other "
-             "figure uses. Open circles are p >= 0.05 against the split-half null.",
+             "panels sit there.\n"
+             "GAIN IS THE DECODER PATTERN'S NORM, NOT AN EVOKED RESPONSE, and NOT the deficit "
+             "measure: a position can become more\n"
+             "SEPARABLE while its response collapses (acute far-contra is dominated by "
+             "unattempted trials -- the epoch_14 MEANref inversion).\n"
+             "For the deficit read the REST-referenced maps and the encoder. Colours are ANIMALS, "
+             "from configs/animals.yaml.",
              ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15h_gain_vs_rotation{tag}.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")
@@ -630,7 +824,7 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
     return out.name
 
 
-def _figure(maps, rows, out_dir, tag=""):
+def _figure(maps, rows, out_dir, tag="", outlines=None):
     """ONE FIGURE PER ARM: rows = spout position, columns = epoch contrast, cells = the z-map.
 
     PER POSITION, because averaging over positions is what hid the cue arm's far-contralateral
@@ -645,10 +839,13 @@ def _figure(maps, rows, out_dir, tag=""):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import epoch_figures as ef
     from wfield_local import transfer_matrix as tm
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    colors = config.animal_color()
 
     # THE CANONICAL ORDER AND NAMES, not a numeric sort. Every other position figure in this
     # project reads Near Ipsi -> Far Contra (`CONF_LABELS` order, `anatomical_labels` naming), and
@@ -697,6 +894,15 @@ def _figure(maps, rows, out_dir, tag=""):
                 cm.set_bad("white")
                 im = ax.imshow(np.nanmean(np.asarray(v), axis=0), cmap=cm,
                                vmin=-vmax, vmax=vmax)
+                # CONTOUR THE COMPONENTS THAT CLEAR THE FAMILY-WISE NULL, not a threshold on the
+                # projected z -- the pixel map mixes components, so a contour on it would outline
+                # the basis rather than the result. Drawn where a MAJORITY of animals agree, so a
+                # single animal cannot put a ring on the cohort figure.
+                ol = (outlines or {}).get((arm, con, pos))
+                if ol:
+                    frac = np.mean(np.asarray(ol, float), axis=0)
+                    if np.any(frac > 0.5):
+                        ax.contour(frac, levels=[0.5], colors="k", linewidths=0.9)
                 if i == 0:
                     ax.set_title(con, fontsize=12, fontweight="bold")
                 if j == 0:
@@ -712,15 +918,54 @@ def _figure(maps, rows, out_dir, tag=""):
         # right: the cosine per position, against the noise ceiling
         ax = fig.add_subplot(gs[:, len(cons) + 3])
         w = 0.82 / len(cons)
+        # PER-ANIMAL SPREAD AND PER-CELL SIGNIFICANCE ON THE BARS. The bar is a cohort mean over
+        # three or four animals and, drawn bare, carries no uncertainty at all -- which is how a
+        # mean of three becomes "the result". Each animal's own value is overlaid as a dot, FILLED
+        # when that animal's cosine beats its split-half null at p < 0.05 and OPEN when it does
+        # not, and the range across animals is drawn as a whisker.
+        #
+        # NO CI BAR ON PURPOSE. With n = 3-4 animals a parametric interval would imply a precision
+        # the design does not have; the individual points ARE the honest display, and they are the
+        # unit this project's nested bootstrap resamples.
         for j, con in enumerate(cons):
-            ys = []
+            ys, spread, per_an, ci = [], [], [], []
             for pos in poss:
-                sel = [r["cosine_pre_vs_epoch"] for r in rows
+                sel = [r for r in rows
                        if r["arm"] == arm and r["contrast"] == con and r["position"] == pos]
-                ys.append(float(np.mean(sel)) if sel else np.nan)
-            ax.barh(np.arange(len(poss)) - (j - (len(cons) - 1) / 2) * w, ys, height=w,
-                    label=con.replace(" - pre", ""),
-                    color=tm.epoch_color(con.replace(" - pre", "")))
+                vals = [(r["animal"], float(r["cosine_pre_vs_epoch"]),
+                         (float(r["cos_p_vs_noise"])
+                          if r.get("cos_p_vs_noise") not in (None, "") else None))
+                        for r in sel]
+                # one row per REGION per cell, so collapse to one value per animal
+                uniq = {a: (c, pv) for a, c, pv in vals}
+                ys.append(float(np.mean([c for c, _ in uniq.values()])) if uniq else np.nan)
+                spread.append((min((c for c, _ in uniq.values()), default=np.nan),
+                               max((c for c, _ in uniq.values()), default=np.nan)))
+                per_an.append(uniq)
+                # cohort CI = the mean of the per-animal bootstrap bounds, kept only when EVERY
+                # contributing animal has one; a partial mean would mix intervals with points.
+                los = [float(r["cos_ci_lo"]) for r in sel if r.get("cos_ci_lo") not in (None, "")]
+                his = [float(r["cos_ci_hi"]) for r in sel if r.get("cos_ci_hi") not in (None, "")]
+                ci.append((float(np.mean(los)), float(np.mean(his)))
+                          if los and his and len(los) == len(his) else None)
+            yy = np.arange(len(poss)) - (j - (len(cons) - 1) / 2) * w
+            ax.barh(yy, ys, height=w, label=con.replace(" - pre", ""),
+                    color=tm.epoch_color(con.replace(" - pre", "")), zorder=2)
+            for k, (loh, uniq) in enumerate(zip(spread, per_an)):
+                # THE WHISKER IS A BOOTSTRAP CI WHEN ONE EXISTS, and the ANIMAL RANGE otherwise --
+                # never silently one dressed as the other. The range is the min-max over three or
+                # four animals; on a bar chart that reads as an error bar and is not one.
+                if ci[k] is not None:
+                    ax.plot(list(ci[k]), [yy[k], yy[k]], color="0.15", lw=1.6, zorder=3,
+                            solid_capstyle="butt")
+                elif np.isfinite(loh[0]):
+                    ax.plot([loh[0], loh[1]], [yy[k], yy[k]], color="0.55", lw=0.9, zorder=3,
+                            ls=":")
+                for an_, (c, pv) in sorted(uniq.items()):
+                    sig = pv is not None and pv < 0.05
+                    ax.scatter(c, yy[k], s=16, zorder=4,
+                               color=colors.get(an_, "0.4") if sig else "none",
+                               edgecolor=colors.get(an_, "0.4"), linewidth=0.8)
         ceil = [r["noise_ceiling_cos"] for r in rows
                 if r["arm"] == arm and r["noise_ceiling_cos"] not in (None, "")]
         if ceil:
@@ -743,6 +988,10 @@ def _figure(maps, rows, out_dir, tag=""):
                  "Haufe patterns (A = Cov(X)b) from one block-matched decoder per epoch, in the "
                  "shared joint LocaNMF basis; unit-normalised per position, so this is SHAPE, not "
                  "gain.\n"
+                 "BLACK OUTLINES = components clearing a family-wise max-statistic null at "
+                 "p < 0.05, in a majority of animals. The test is per COMPONENT, not per pixel: "
+                 "the map mixes components, so a\n"
+                 "threshold on it would outline the basis.\n"
                  "MAPS ARE EXCESS OVER NOISE: each component is scored against its own "
                  "pre-stroke split-half null, because the RAW change map correlates with that null "
                  "at r = 0.83 and localises the basis, not the lesion.\n"

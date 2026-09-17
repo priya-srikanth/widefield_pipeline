@@ -166,10 +166,21 @@ def _matched(pipe_fn, X, y, g, n_target, rng):
     return pipe_fn().fit(X[keep], y[keep]), int(keep.sum())
 
 
-def build(data, pipe_fn, *, n_perm=200, seed_ns="", min_sessions=2, rng=None, log=print):
+def build(data, pipe_fn, *, n_perm=200, seed_ns="", min_sessions=1, rng=None, log=print):
     """One arm's transfer matrix.
 
     ``data`` maps ``session_label -> (epoch, X, y, blocks)``. Returns a list of per-cell rows.
+
+    ``min_sessions`` IS 1 (Priya, 2026-09-17). At 2 an epoch holding ONE session could not be
+    a TRAIN source, which silently removed PS95's acute row -- PS95 has exactly one acute
+    session -- while still letting that session be a TEST target, so the animal appeared in
+    the acute column and not the acute row. `epoch_15h` makes the same choice for the same
+    reason, and the two arms must agree about which cells exist.
+
+    THE DIAGONAL STILL PROTECTS ITSELF: it holds its own test session out, so a single-session
+    epoch leaves an EMPTY pool and its diagonal cell is skipped regardless of this threshold.
+    `retained` then refuses for that epoch because its ceiling is missing -- the guard that
+    matters is downstream of the count, not the count itself.
     """
     rng = rng or np.random.default_rng(0)
     by_ep = {e: [k for k, v in data.items() if v[0] == e] for e in EPOCH_ORDER}
@@ -218,6 +229,7 @@ def build(data, pipe_fn, *, n_perm=200, seed_ns="", min_sessions=2, rng=None, lo
             draws = [balanced_accuracy(block_permute(yte, gte, rng), pred)[0]
                      for _ in range(n_perm)]
             rows.append({"train_epoch": tr_ep, "test_epoch": te_ep, "test_session": te_lab,
+                         "n_train_sessions": len(pool),
                          "n_test": len(yte), "n_classes": ncls, "n_train_matched": n_used,
                          "acc": round(acc, 4), "null": round(float(np.mean(draws)), 4),
                          "p": round(float(np.mean([d >= acc for d in draws])), 4),

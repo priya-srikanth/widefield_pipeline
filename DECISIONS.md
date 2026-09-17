@@ -13524,3 +13524,51 @@ median 3.1% of the evoked signal** (p90 0.091, `cos(d, evoked)` negative in 12/1
 shared direction contamination would give). **3.1%, not 52%: `_RESTref_` IS usable for framing (1).**
 Scope caveat: that script measured sensitivity to a DEFINITIONAL change (the lick buffer), not the
 across-epoch drift; the epoch-wise version is still unmeasured and is cheap.
+
+
+---
+
+## The statistics of every 15g / 15h panel — what test, why, and what it cannot say (2026-09-17)
+
+Priya: *"ensure the rationale and decision about each plot / analysis's statistics is clear and
+documented."* One row per panel. **A quantity with no test is marked as such rather than left to
+look tested.**
+
+| panel | quantity | test | unit resampled | why THAT test |
+|---|---|---|---|---|
+| `15g` transfer matrix cells | balanced accuracy | **block permutation** of position labels, predictions fixed | position BLOCK | positions run in ~6-trial blocks, so trials are not independent and the analytic 1/6 is the wrong reference. Matches `decode_ci.frozen_ci`. |
+| `15g` direction asymmetry | `chronic->pre` minus `pre->chronic`, RAW above-chance | materiality bar at 25% of that animal's own transfer + per-animal replication | animal | **NOT a p-test.** With 3 animals a p would be theatre; the claim is that ADDITION predicts a LARGE POSITIVE asymmetry and none is material in either direction. |
+| `15g` ceiling gain | chronic minus pre own-epoch ceiling | per-animal replication count (9/9) | animal | same reason. The practice confound is handled by MEASUREMENT (pre-stroke slope −0.009/30 d), not by a test. |
+| `15h` cosine bars | cos(pre pattern, epoch pattern) | `cos_p_vs_noise`, one-sided, vs the split-half null | pre-stroke session halves | the hypothesis is that the readout ROTATED, which can only push the cosine DOWN relative to two noise-separated estimates of an unchanged code. |
+| `15h` cosine bars, whisker | — | **95% percentile bootstrap**, sessions resampled with replacement, BOTH models refit per draw | SESSION | the cosine is one number per cell computed from a model fit on all sessions; there is no sample to resample without refitting. Percentile not BCa: the jackknife acceleration over 4-11 sessions is itself unstable. |
+| `15h` map outlines | per-component change vs its own null | **max-statistic FWE across components**, alpha 0.05 | pre-stroke session halves | components share drift and basis, so they are correlated; a max-statistic respects that and costs no extra draws. Bonferroni over ~90 coupled components would be far more conservative for no gain. |
+| `15h` gain axis | `\|A\|_epoch / \|A\|_pre` | `gain_resid_p`, two-sided, on the RESIDUAL log-gain | pre-stroke session halves | raw gain is ~half epoch-wide `Cov(X)` scale (common factor 1.11x the position-specific spread), so a raw test would report the epoch's loudness. The residual cancels it. |
+| `15h` gain-rotation plane, fill | — | reuses `cos_p_vs_noise` | — | fill carries MEANING (p < 0.05) and is therefore not spent on identity; the animal key is all-open. |
+
+### Three rules these panels are built on
+
+**1. THE TEST UNIT IS NEVER THE PIXEL.** The pixel map is a PROJECTION of component values through
+overlapping footprints, so neighbouring pixels are not independent tests — they are the same
+components seen through different mixing weights. Everything is tested per COMPONENT and the
+outline is drawn from the significant components' footprints.
+
+**2. THE BRAIN MASK BELONGS IN THE STATISTICS, NOT ONLY IN THE DISPLAY.** Measured 2026-09-17:
+**only 49 of 87 components (PS93) sit inside `beta_maps.stat_mask`.** The other 44% are olfactory
+bulb and glue/window edge, where `U` is smallest and the Allen warp least constrained. Before the
+fix they could be flagged and outlined, AND they entered the max-statistic family — so a bulb
+component setting a draw's maximum raised the threshold for every cortical component. Out-of-mask
+components are now excluded from the family, and the outline is intersected with the mask.
+
+**3. A RANGE IS NOT AN INTERVAL.** The 15h whiskers were the min-max across three or four animals
+and read as error bars. They are now a bootstrap CI when `--boot` is on (solid) and an explicitly
+dotted animal range when it is not, with the caption saying which.
+
+### What is still NOT tested
+
+* **No across-animal (cohort) statistic.** Every p above is per cell, counted by animal. The
+  project's nested animals->sessions bootstrap has NOT been applied to the cosines.
+* **No family-wise correction across the 72-cell (window x contrast x position) family.** The
+  max-statistic runs WITHIN a position, across components. At 200 draws the empirical floor is
+  `1/201 = 0.00498`, above Bonferroni's 0.00069 for 72 -- ~1,440 draws would be needed.
+* **`15g`'s asymmetry and ceiling-gain panels carry no p at all**, by choice, and are reported as
+  per-animal replication counts.

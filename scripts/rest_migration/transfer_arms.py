@@ -254,7 +254,7 @@ def _figure(summary, out_dir, tag=""):
     # lower-left panel half again as wide as the lower-right one.
     gs_top = fig.add_gridspec(1, len(arms) + 3,
                               width_ratios=[1] * len(arms) + [0.07, 0.42, 1.45],
-                              top=0.845, bottom=0.46, wspace=0.14)
+                              top=0.795, bottom=0.46, wspace=0.14)
     gs_bot = fig.add_gridspec(1, 2, top=0.36, bottom=0.06, wspace=0.26)
 
     # ---- row 1: the transfer matrices, one per arm, in above-chance units -------------------
@@ -308,7 +308,11 @@ def _figure(summary, out_dir, tag=""):
     ax.set_ylabel("own-epoch ceiling (acc - null)", fontsize=10)
     ax.set_title("EVERY WINDOW ENDS ABOVE ITS\nPRE-STROKE CEILING", fontsize=12, fontweight="bold")
     ax.axhline(0, color="k", lw=0.6)
-    ax.legend(fontsize=8, frameon=False, loc="lower right")
+    # OUTSIDE THE AXES, one row. In-axes it sat lower-right and the rising `rest` line ran through
+    # its bottom entry; nudging it UP only moves it into cue and lick. There is no free corner in a
+    # panel whose four lines span most of the height, so the legend leaves the data area entirely.
+    ax.legend(fontsize=10, frameon=False, ncol=len(arms), loc="upper center",
+              bbox_to_anchor=(0.5, -0.13))
     ax.grid(alpha=0.25)
     ax.tick_params(labelsize=10)
 
@@ -345,9 +349,9 @@ def _figure(summary, out_dir, tag=""):
         ax.grid(axis="y", alpha=0.25)
         ax.tick_params(labelsize=10)
 
-    fig.text(0.5, 0.985, "Cross-epoch decoder TRANSFER by window: is the chronic code a rotation, "
+    fig.text(0.5, 0.995, "Cross-epoch decoder TRANSFER by window: is the chronic code a rotation, "
              "or an addition?", ha="center", va="top", fontsize=15, fontweight="bold")
-    fig.text(0.5, 0.945,
+    fig.text(0.5, 0.955,
              "Train on one epoch, score on another, in the shared joint LocaNMF basis. Training "
              "size block-matched in every cell; block-permutation null; animals weighted equally.\n"
              "THE TOP ROW is what the existing frozen decoder already reports; rows 2-4 -- and "
