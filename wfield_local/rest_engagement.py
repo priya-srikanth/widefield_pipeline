@@ -11,7 +11,7 @@ docstring says in terms:
 
 and its own stdout header prints "(working trials, block-CV, circular-shift null)". The only filter
 it actually applied was that the two bracketing trials AGREE ON POSITION. `rest_position_permutation`
-(finding 11, observed/null 1.622), `rest_frozen_decoder` (15f) and `shared_position_projection`
+(finding 11, observed/null 1.634), `rest_frozen_decoder` (15f) and `shared_position_projection`
 (15s) all inherited the same claim and the same omission -- 15f by being written from
 `rest_position_decode` as a template, copying the prose along with the structure.
 

@@ -171,14 +171,14 @@ def main() -> int:
         # `restdock05` the same arithmetic gives ~1.09. NEITHER number licenses a conclusion, and
         # the old verdict text printed here would have invited the opposite reading from the same
         # broken statistic. `rest_position_permutation` is the test: it keeps the block-time
-        # structure INSIDE the null and gives observed/null 1.622 over 44 pre-stroke sessions,
-        # above null in 44/44, 4/4 animals (restdock05, 2026-09-15).
+        # structure INSIDE the null and gives observed/null 1.634 over 44 pre-stroke sessions,
+        # above null in 43/44, 4/4 animals (restdock05, 2026-09-15).
         print(f"\nPOSITION / DRIFT = {p / d if d else float('nan'):.2f}   [RETIRED STATISTIC -- "
               f"NOT a verdict]")
         print("  This ratio does NOT decide drift vs position: its two contrasts are unmatched on")
         print("  time separation, and a ratio of magnitudes cannot separate 'both real' from")
         print("  'neither resolvable'. Use `rest_position_permutation` (circular-shift null):")
-        print("  observed/null 1.622, 44/44 sessions, 4/4 animals -- REST CARRIES POSITION.")
+        print("  observed/null 1.634, 43/44 sessions, 4/4 animals -- REST CARRIES POSITION.")
 
     # ------------------------------------------------------------------ the figure
     out = None

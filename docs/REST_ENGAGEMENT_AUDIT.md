@@ -111,6 +111,34 @@ its own null. The prediction that gating would uniformly raise acute (quit-perio
 noisier) was WRONG. The acute cohort figure is no longer a clean 4/4 replication, which **weakens
 the acute claim** rather than rescuing it.
 
+### IS THE GATE ACTUALLY BITING? Verified against an independent measurement
+
+Priya, 2026-09-16: *"is 15f correct?"* In the fully-matched 15f run the gate removed only **4.2%**
+of acute periods, against a quit-period share of **18.7%** of acute rest FRAMES. Two readings with
+opposite consequences: the other filters had already removed them, or the gate is mis-indexed.
+
+Settled by calling `_collect` with `gate=True/False` and NOTHING else changed — no duration, lick-gap
+or training-set matching, no fitting:
+
+| epoch | ungated periods | gated | dropped | expected (frame share) |
+|---|---|---|---|---|
+| pre | 15,843 | 15,294 | **3.5%** | 3.1% |
+| acute | 6,646 | 5,411 | **18.6%** | **18.7%** |
+| subacute | 5,809 | 4,807 | **17.2%** | 17.7% |
+| chronic | 5,884 | 5,598 | **4.9%** | 4.7% |
+
+**Every epoch lands on its predicted share: the gate is correct.** The small effect in the matched
+run is `--match-lickgap` having already excluded quit-period rest — it sits far from any detected
+lick, so the pre-stroke gap window drops it before the gate sees it. **Two controls doing
+overlapping work**, which is worth knowing when reading either of them as independent.
+
+**BUT 15f'S ACUTE CELL IS FRAGILE, AND THAT IS A SEPARATE FACT FROM CORRECTNESS.** Removing that 4%
+moved acute retained per animal from 0.401/0.187/0.134/0.120 to 0.609/0.277/0.086/**−0.093**. That
+much movement from that little data says the estimate is underpowered, not that it is wrong: acute
+is 16 sessions and **PS95 contributes ONE**, so its cell moves freely under any reweighting. Quote
+15f's CHRONIC result (0.611 frozen vs 1.181 refit, stable across every control); treat acute as
+underpowered.
+
 ### Finding 11 — RE-RUN, and it SURVIVES both fixes
 
 `rest_position_permutation --docked --perm 200`, with the engagement gate AND the repaired
