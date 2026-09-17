@@ -13572,3 +13572,50 @@ dotted animal range when it is not, with the caption saying which.
   `1/201 = 0.00498`, above Bonferroni's 0.00069 for 72 -- ~1,440 draws would be needed.
 * **`15g`'s asymmetry and ceiling-gain panels carry no p at all**, by choice, and are reported as
   per-animal replication counts.
+---
+
+## 2026-09-17 — The clip decks have never played, and the check that was missing
+
+Priya, assembling a lab meeting: *"those are links from where? When i try to play now, i see 'cannot
+play media'"*.
+
+**NOT LINKS, AND NOT BROKEN.** `python-pptx.add_movie` embeds the bytes, and every clip was present
+and intact in every deck. They were simply UNDECODABLE: `_shrink` wrote MPEG-4 Part 2 (fourcc
+`mp4v`) into a `.avi` and declared it `video/x-msvideo`. PowerPoint ships no decoder for that
+pairing on either platform. **This is as old as the module** — not a regression, and every deck ever
+built was affected.
+
+Now **H.264 + yuv420p + MP4**, and all three parts are load-bearing: H.264 in `yuv444p` is valid
+video that PowerPoint still refuses, and the container and declared MIME type must agree with the
+stream. Encoding goes through **ffmpeg**, because the pinned `opencv-python` has no H.264 encoder at
+all — `avc1`, `H264` and `X264` all fail to open a writer, leaving `mp4v` as the only option, which
+is the codec that caused this. `imageio-ffmpeg` is now a declared dependency rather than something
+that happened to be installed in one env.
+
+Side effect worth knowing: PS92 went **363 MB -> 120 MB**. H.264 is far more efficient than what it
+replaced, so the decks get smaller as well as playable.
+
+### The part worth generalising
+
+**Every check the module made was passing.** Slide count right, clips-per-position right, poster
+frames showing the right mouse at the right moment, file size plausible, exit code 0. The one
+question nobody asked was whether the bytes could be PLAYED — which is the only thing a clip deck is
+for.
+
+`verify_playable()` now opens the built `.pptx` as a zip, extracts a sample of `ppt/media/` and
+probes it with ffmpeg, and the build prints `verified N embedded clip(s): H.264 / yuv420p` or names
+what is wrong. Its test does not check that it passes on a good deck; it builds one with the OLD
+encoder and asserts the verifier REJECTS it.
+
+**This is the third instance of one pattern in three days**, and the pattern is worth naming because
+it is not about codecs:
+
+* the labelling guide was published from the TEMPLATE, with four blank figure panels, because the
+  build step was something to remember rather than something to run;
+* a re-seed was verified against the EXTRACTION tree while napari opens the PROJECT tree, so 240
+  correct seeds sat in a folder nobody would open;
+* the clip decks were verified as BUILT rather than as PLAYABLE.
+
+In each case the artifact I produced was checked and the artifact the user consumes was not. The
+fix that works is to make the check operate on the consumed thing — publish from the built file,
+count labels in the tree napari opens, probe the stream inside the .pptx.
