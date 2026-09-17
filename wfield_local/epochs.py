@@ -182,11 +182,18 @@ ACUTE_RULE = (f"{RULE_POSITION} accuracy < {ACUTE_FRACTION:.0%} of that animal's
 #     implements it: |fitted change from the first to the last session of the tail| <= k_drift x
 #     pre-stroke SD.
 #
-#     IT IS NOT THE DEFAULT YET, and that is deliberate. Switching to it moves PS93 to chronic from
-#     day 11, taking the chronic epoch from ONE animal to two -- which changes every epoch figure and
-#     the "chronic is n = 1" caveat that the preliminary-data document is built around. That is a
-#     scientific call, so the code ships the mode and the measurement and leaves the flip to a
-#     one-key edit in `configs/defaults.yaml`.
+#     IT IS NOW THE DEFAULT -- `configs/defaults.yaml epochs.chronic.flat_mode: drift`, and
+#     `CHRONIC_FLAT_MODE` reads `drift` at runtime. This paragraph said "NOT THE DEFAULT YET" until
+#     2026-09-17, describing a world two switches back: it predicted that flipping would take
+#     chronic "from ONE animal to two", and chronic now has THREE (PS92, PS93, PS95 -- all at day
+#     11). A stale comment that denies the active mode is worse than no comment, because the reader
+#     who checks the rule against the prose concludes the RULE is wrong.
+#
+#     WHAT REMAINS TRUE is the rejection above it: per-day was measured and turned down, so the
+#     test is deliberately insensitive to how far apart the tail sessions sit. Anyone asking "is
+#     the slope adjusted for days elapsed?" should read the answer as: no, and on purpose -- total
+#     drift across the window is the quantity, and spacing-independence is the property that made
+#     it preferable to both alternatives.
 #   * PS94'S LICK BASELINE IS A POOR YARDSTICK. Its pre-stroke licks/trial scatter by 34% of
 #     baseline, 2-4x every other animal, which is why the level bar is a fixed fraction rather than
 #     SD-scaled: `1 - 2*SD` would put PS94's threshold at 32% of baseline and pass its clearly

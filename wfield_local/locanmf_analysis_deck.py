@@ -4283,12 +4283,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " loses drive lowers the reference and hands every other position an increase it did not"
          " earn. THIS FAMILY CANNOT BE USED AS THE DEFICIT MEASURE. Its amplitudes also INVERTED"
          " once the `working` class was corrected to include non-responded trials: far-contra went"
-         " from BELOW pre-stroke to"
+         " from BELOW pre-stroke to above it. Acute far-contra amplitude on THIS arm, as a"
+         " multiple of pre-stroke:"
          # QUOTED FROM THIS ARM'S OWN STATS SIDECAR. The number was hard-coded at 2.08 until
          # 2026-09-12 and was wrong twice over: it had drifted to 2.18 post-cue, and one constant
          # cannot serve a glob-placed note whose PRE-CUE arm reads 4.78. See `deck_values`.
-         " {{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f}}x of pre-stroke"
-         " acutely, because acute far-contra is then dominated by trials"
+         #
+         # THE `||` FALLBACK IS LOAD-BEARING ON THE LICK ARM, added 2026-09-17, and the sentence
+         # was restructured around it. This note is glob-placed across cue/precue/lick; the first
+         # two resolve, and the LICK arm has NO `Far Contra / acute - pre` row at all because the
+         # 20-trial floor refuses that cell -- the animal does not lick far-contralateral acutely,
+         # which IS the deficit and is stated two paragraphs below. Until the fallback existed
+         # this printed a `[[? ...]]` marker on the published slide and reported the same
+         # unresolved sidecar on every build. The token now ENDS its clause: the old wording put
+         # "x of pre-stroke" after it, which reads correctly after a number and is garbled after
+         # any fallback text.
+         " {{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f"
+         " || REFUSED on this arm -- under the 20-trial floor}}."
+         " It inverts because acute far-contra is then dominated by trials"
          " the animal did not attempt and the pattern then says cortex is globally quieter than on"
          " the average trial -- a large map with no position content. Use this family to see WHAT"
          " DISTINGUISHES positions; use the QUIET-referenced family for how much each position is"

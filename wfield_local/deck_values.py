@@ -37,6 +37,20 @@ family that has not been re-rendered yet must not block publishing every other s
 the point: a caption that cannot find its number should say so on the slide rather than quietly keep
 the last one that worked.
 
+AN ABSENCE THE AUTHOR EXPECTED IS NOT A FAILURE. Append ``|| text`` and that text is used when the
+ROW is missing, with nothing counted:
+
+    "far-contra acute is {{SELF_stats: row=Far Contra, col=acute - pre -> amplitude_vs_pre:.2f}}x"
+    "far-contra acute is {{SELF_stats: ... -> amplitude_vs_pre:.2f || REFUSED (<20 trials)}}"
+
+The second form exists because some cells are refused BY DESIGN -- the lick arm's far-contralateral
+acute cell falls under the 20-trial floor because the animal does not lick there, and that refusal
+IS the deficit. A glob-placed note shared by three arms resolves on two of them and cannot resolve
+on the third, so without a fallback the published slide carries a ``[[? ...]]`` marker and every
+build reports the same miss forever. A warning that fires on correct behaviour trains its reader to
+ignore warnings. It is scoped to a missing ROW: a missing FILE or COLUMN is a schema failure and
+stays loud regardless, because no author can legitimately anticipate those.
+
 THE TOKEN IS RESOLVED BEFORE THE METHODS-BLOCK DEDUP HASHES IT, so two notes whose prose is
 identical but whose numbers differ stay two blocks rather than the second being replaced by "same as
 slide N". Hashing first would point a reader at another slide's numbers, and a wrong
@@ -51,7 +65,15 @@ import re
 #: ``{{<figure stem>: <col>=<value>, ... -> <field>[:<format spec>]}}``
 TOKEN = re.compile(
     r"\{\{\s*(?P<stem>[A-Za-z0-9_.\-]+)\s*:\s*(?P<where>[^}]*?)\s*->\s*"
-    r"(?P<field>[A-Za-z0-9_]+)\s*(?::(?P<spec>[^}]+?))?\s*\}\}")
+    r"(?P<field>[A-Za-z0-9_]+)\s*(?::(?P<spec>[^}|]+?))?"
+    # `|| text` -- AN ANTICIPATED ABSENCE. Some cells are refused BY DESIGN: the lick arm's
+    # far-contralateral acute cell falls under the 20-trial floor because the animal does not lick
+    # there, which IS the deficit, so the row is legitimately not in the sidecar. Without this a
+    # glob-placed note quoting that cell prints a `[[? ...]]` marker on the published slide and
+    # reports a miss on every build forever -- a permanent warning for correct behaviour, which is
+    # how real warnings get ignored. Scoped to a missing ROW only: a missing FILE or COLUMN is a
+    # schema failure and stays loud no matter what the author anticipated.
+    r"(?:\s*\|\|\s*(?P<els>[^}]*?))?\s*\}\}")
 
 
 def _parse_where(text):
@@ -93,8 +115,12 @@ class Resolver:
                     break
         return self._cache[stem]
 
-    def lookup(self, stem, where, field, spec=None):
-        """One formatted value, or a visible marker. Never raises."""
+    def lookup(self, stem, where, field, spec=None, els=None):
+        """One formatted value, or a visible marker. Never raises.
+
+        ``els`` is the token's ``|| text`` fallback, used ONLY when the row is absent and the
+        author said in the token that it might be. Then it is not a miss.
+        """
         rows = self.rows(stem)
         if rows is None:
             self.misses.append(f"{stem}.csv not found")
@@ -102,6 +128,10 @@ class Resolver:
         hit = [r for r in rows
                if all(str(r.get(k, "")).strip() == v for k, v in where.items())]
         if not hit:
+            if els is not None:
+                # DECLARED IN THE TOKEN, so it is documented at the point of use rather than in a
+                # build log nobody reads. Deliberately NOT recorded as a miss.
+                return els
             self.misses.append(f"{stem}: no row for {where}")
             return f"[[? {stem} has no row {where}]]"
         if field not in hit[0]:
@@ -142,7 +172,7 @@ class Resolver:
                 # note quotes the STATISTICS its claims are made from rather than the per-panel
                 # digest that happens to share the figure's name.
                 stem = self_stem + stem[len("SELF"):]
-            return self.lookup(stem, _parse_where(m["where"]), m["field"], m["spec"])
+            return self.lookup(stem, _parse_where(m["where"]), m["field"], m["spec"], m["els"])
 
         return TOKEN.sub(one, text)
 

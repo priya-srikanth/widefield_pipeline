@@ -13261,3 +13261,66 @@ two jobs it is doing** — per-session map reliability (a trial-count question) 
 representativeness (an ANIMAL-count question, for which `epoch_figures.MIN_ANIMALS_FOR_MARK = 2` is
 the existing precedent).
 
+
+
+---
+
+## Epoch bins: NEVER compare the RESIDUAL subacute bin between animals (2026-09-17)
+
+**Decision.** A between-animal comparison may use `acute` (aligned: every animal starts at day 1)
+and `chronic` (a per-animal behavioural plateau). It may **not** use `subacute`, which is defined as
+the RESIDUAL between them and therefore means a different thing in each animal. A subacute claim
+must either use a **balanced day window, stated explicitly**, or be made **per animal**.
+
+**What forced it.** "Subacute between-animal agreement is ~0 (0.030 flatpool / 0.052 restw) against
+acute 0.810" was carried for four days as a science-open blocker on every subacute claim. It is
+mostly bookkeeping. Median subacute day is 8 / 7 / **18** / **4.5** for PS92 / PS93 / PS94 / PS95 —
+PS94's subacute IS the other animals' chronic day set, and PS95's begins on day 2, inside the
+others' acute range. The bins are also wildly unbalanced (2/3/7/6 sessions) where a day window is
+not (3/3/3/3).
+
+Re-binned by post-stroke day with the identical statistic and null
+(`scripts/rest_migration/subacute_daymatched.py`), far-contralateral `restw`:
+
+| binning | acute | subacute |
+|---|---|---|
+| epoch | 0.822, p < 0.001 | 0.087, p = 0.48 |
+| day-matched, balanced | 0.583, p = 0.0015 | **0.389, p = 0.034** |
+
+**The tell is that day-binning HURTS acute while helping subacute.** A biological effect does not
+trade off against the bookkeeping; a binning effect does.
+
+**What is NOT decided.** That subacute replicates. A day window matches the CALENDAR, not the
+recovery STATE — day 5 is acute for PS94 and subacute for PS93, and PS95 is at 0.83 of baseline by
+day 2 while PS94 is at 0.14 on day 7. **Neither binning is correct**: epoch bins match state but
+make subacute a residual; day bins are balanced but mix states. The decision above is the one that
+follows from that symmetry, and it is deliberately a rule about REPORTING rather than a new
+boundary definition.
+
+## PS94 has no chronic epoch because it has not plateaued, not because the rule failed (2026-09-17)
+
+**Finding.** PS94 fails the chronic plateau test on **DRIFT, not residual**: across every candidate
+tail the residual passes (0.074–0.084 against a 0.091 tolerance) while the fitted change does not.
+The points sit tightly around a line and the line is still RISING. PS92, PS93 and PS95 all plateaued
+at day 11; PS94 is still recovering through day 29.
+
+**Its plateau would start at day 25**, not later. The last two sessions are its first at baseline
+(1.06, 1.02), but that tail holds n = 2 against `min_tail = 3`. **One more session at ≥ 0.996 of
+pre-stroke baseline sets `chronic_from = 25`**; at ≤ 0.98 it stays None. The DATE of that session is
+irrelevant — day 32, 35, 40, 50 and 60 all return 25, because `flat_mode: drift` tests total change
+across the window and is deliberately insensitive to spacing.
+
+**Consequence.** PS94 must NOT be folded into a day-binned chronic window. Doing so puts a
+still-recovering animal in the plateau bin — the subacute error moved one bin over. Guarded by
+`tests/test_subacute_daymatched.py::test_PS94_is_excluded_from_the_day_binned_chronic_window`.
+
+## Chronic between-animal agreement is at its own null and is not evidence of a shared change (2026-09-17)
+
+**Finding.** In the gated `rest_null`, every `rest`/`restw` cell at chronic sits AT OR BELOW its
+position-shuffle null, at all six positions (far-contra `restw` 0.406 against a null of 0.432; the
+nulls are ~0.44 at chronic against ~0.10 at acute). That is the position-INDEPENDENT shared-offset
+case `rest_null`'s docstring already calls uninterpretable — the animals move together, but they
+would move together at any position.
+
+**Consequence.** The previously quoted chronic 0.416 / 0.385 is NOT a partial replication and must
+not be reported as one. Acute (0.822, p < 0.001, four references agreeing at ~0.82) is unaffected.
