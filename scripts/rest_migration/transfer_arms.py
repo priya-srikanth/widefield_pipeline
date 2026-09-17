@@ -289,28 +289,28 @@ def _figure(summary, out_dir, tag=""):
                 if np.isfinite(M[i, k]):
                     ax.text(k, i, f"{M[i, k]:.2f}", ha="center", va="center", fontsize=8,
                             color="w" if M[i, k] < 0.55 * vmax else "k")
-        ax.set_xticks(range(len(eps)), [short[e] for e in eps], fontsize=8)
+        ax.set_xticks(range(len(eps)), [short[e] for e in eps], fontsize=10)
         ax.set_yticks(range(len(eps)), [short[e] for e in eps] if j == 0 else [""] * len(eps),
-                      fontsize=8)
-        ax.set_title(arm, fontsize=11, fontweight="bold")
+                      fontsize=10)
+        ax.set_title(arm, fontsize=12, fontweight="bold")
         if j == 0:
-            ax.set_ylabel("TRAIN epoch", fontsize=9)
-        ax.set_xlabel("TEST epoch", fontsize=9)
+            ax.set_ylabel("TRAIN epoch", fontsize=11)
+        ax.set_xlabel("TEST epoch", fontsize=11)
     cax = fig.add_subplot(gs_top[0, len(arms)])
-    fig.colorbar(im, cax=cax).set_label("accuracy - null  (shared scale)", fontsize=8)
+    fig.colorbar(im, cax=cax).set_label("accuracy - null  (shared scale)", fontsize=10)
 
     # ---- row 1 right: the diagonal (each epoch's own ceiling) -------------------------------
     ax = fig.add_subplot(gs_top[0, len(arms) + 2])
     for arm in arms:
         d = [mats[arm][i, i] for i in range(len(eps))]
         ax.plot(range(len(eps)), d, "o-", label=arm, lw=2, color=tm.arm_color(arm))
-    ax.set_xticks(range(len(eps)), [short[e] for e in eps], fontsize=8)
-    ax.set_ylabel("own-epoch ceiling (acc - null)", fontsize=8)
-    ax.set_title("EVERY WINDOW ENDS ABOVE ITS\nPRE-STROKE CEILING", fontsize=9, fontweight="bold")
+    ax.set_xticks(range(len(eps)), [short[e] for e in eps], fontsize=10)
+    ax.set_ylabel("own-epoch ceiling (acc - null)", fontsize=10)
+    ax.set_title("EVERY WINDOW ENDS ABOVE ITS\nPRE-STROKE CEILING", fontsize=12, fontweight="bold")
     ax.axhline(0, color="k", lw=0.6)
     ax.legend(fontsize=8, frameon=False, loc="lower right")
     ax.grid(alpha=0.25)
-    ax.tick_params(labelsize=8)
+    ax.tick_params(labelsize=10)
 
     # ---- row 2: direction symmetry and the ceiling gain, split evenly ----------------------
     # WIDTH SCALES WITH THE ARM COUNT. Hard-coded at 0.26 this fits three arms (0.78 of the unit
@@ -334,19 +334,19 @@ def _figure(summary, out_dir, tag=""):
         for j, (arm, _v, _pa) in enumerate(summary):
             xs = np.arange(len(ref)) + (j - (len(arms) - 1) / 2) * w
             ax.bar(xs, vals[j], width=w, label=arm, color=tm.arm_color(arm))
-        ax.set_xticks(range(len(ref)), ref, fontsize=9)
+        ax.set_xticks(range(len(ref)), ref, fontsize=11)
         ax.axhline(0, color="k", lw=0.8)
-        ax.set_ylabel(ylab, fontsize=8)
-        ax.set_title(title, fontsize=9, fontweight="bold")
+        ax.set_ylabel(ylab, fontsize=10)
+        ax.set_title(title, fontsize=12, fontweight="bold")
         # LEGEND BELOW THE AXES, not inside: with four arms the in-axes legend sat
         # on top of the bars it was labelling.
         ax.legend(fontsize=8, frameon=False, ncol=len(arms),
                   loc="upper center", bbox_to_anchor=(0.5, -0.12))
         ax.grid(axis="y", alpha=0.25)
-        ax.tick_params(labelsize=8)
+        ax.tick_params(labelsize=10)
 
     fig.text(0.5, 0.985, "Cross-epoch decoder TRANSFER by window: is the chronic code a rotation, "
-             "or an addition?", ha="center", va="top", fontsize=13, fontweight="bold")
+             "or an addition?", ha="center", va="top", fontsize=15, fontweight="bold")
     fig.text(0.5, 0.945,
              "Train on one epoch, score on another, in the shared joint LocaNMF basis. Training "
              "size block-matched in every cell; block-permutation null; animals weighted equally.\n"
@@ -360,7 +360,7 @@ def _figure(summary, out_dir, tag=""):
              "this magnitude the sign is not interpretable. Continued practice is ruled out -- "
              "across the 70-day pre-stroke span decodability does not rise with day "
              "(mean slope -0.009 / 30 d).",
-             ha="center", va="top", fontsize=8.5)
+             ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15g_transfer_by_window{tag}.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     fig.savefig(str(out).replace(".png", ".svg"), bbox_inches="tight")

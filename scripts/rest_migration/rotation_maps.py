@@ -177,13 +177,13 @@ def null_delta(data, basis, pipe_fn, *, n_draws=12, n_target=None, seed_ns="", l
     if len(pre_labs) < 4:
         log("   null: NOT COMPUTABLE (<4 pre sessions)")
         return {}
-    out = {}
+    out, cos_out, gain_out = {}, {}, {}
     for d in range(n_draws):
         rng = np.random.default_rng(
             int(hashlib.sha1(f"{seed_ns}|null{d}".encode()).hexdigest()[:8], 16))
         shuf = [str(x) for x in rng.permutation(pre_labs)]
         halves, ok = [shuf[: len(shuf) // 2], shuf[len(shuf) // 2:]], True
-        pats = []
+        pats, half_norms = [], []
         for hi, labs in enumerate(halves):
             X, y, g = _xyg(data, labs)
             tgt = min(n_target or len(y), len(y))
@@ -191,16 +191,72 @@ def null_delta(data, basis, pipe_fn, *, n_draws=12, n_target=None, seed_ns="", l
             if got is None:
                 ok = False
                 break
-            pats.append(_patterns_from(got[0], X, basis, sorted(np.unique(y).tolist()))[0])
+            pp, nn = _patterns_from(got[0], X, basis, sorted(np.unique(y).tolist()))
+            pats.append(pp)
+            half_norms.append(nn)
         if not ok:
             continue
+        # RESIDUAL LOG-GAIN between the two halves: log(n1/n0) per position, MINUS the mean across
+        # positions. The subtraction removes the epoch-wide scale factor, and that is the whole
+        # point: measured 2026-09-17, the common factor is 1.11x the position-specific spread, so
+        # a test on RAW gain would mostly be testing how loud the epoch was rather than whether
+        # this position's pattern changed relative to its neighbours.
+        shared_n = sorted(set(half_norms[0]) & set(half_norms[1]))
+        if len(shared_n) >= 2:
+            lg = {q: float(np.log(half_norms[1][q] / half_norms[0][q])) for q in shared_n}
+            mu = float(np.mean(list(lg.values())))
+            for q, v in lg.items():
+                gain_out.setdefault(q, []).append(v - mu)
         for pos in sorted(set(pats[0]) & set(pats[1])):
             c = float(pats[0][pos] @ pats[1][pos])
             dd = np.abs((pats[1][pos] if c >= 0 else -pats[1][pos]) - pats[0][pos])
             out.setdefault(pos, []).append(dd)
+            # THE COSINE IS KEPT, not just the difference map. These draws ARE the null for "two
+            # models of the SAME code, differing only by estimation noise", so the distribution of
+            # their cosines is exactly what an observed cross-epoch cosine has to be tested
+            # against. The first version computed them and threw them away, which is why the
+            # rotation numbers were point estimates with no p attached.
+            cos_out.setdefault(pos, []).append(c)
     res = {p: np.asarray(v) for p, v in out.items() if len(v) >= 3}
+    cos_res = {p: np.asarray(v) for p, v in cos_out.items() if len(v) >= 3}
+    gain_res = {p: np.asarray(v) for p, v in gain_out.items() if len(v) >= 3}
     log(f"   null: {len(res)} positions x {min((len(v) for v in out.values()), default=0)} draws")
-    return res
+    return res, cos_res, gain_res
+
+
+def gain_p(observed_resid, null_resid):
+    """TWO-SIDED p on a position's amplitude change RELATIVE TO ITS NEIGHBOURS.
+
+    ``observed_resid`` is log(gain) minus the mean log(gain) over the six positions, so the
+    epoch-wide scale is already divided out; the null is the same residual measured between two
+    halves of the PRE-STROKE data, where no epoch difference exists. Two-sided because a position
+    may grow or shrink relative to the others and both are findings.
+
+    THE RESIDUAL FORM IS NOT OPTIONAL. Raw gain is ~half epoch-wide scale (the common factor is
+    1.11x the position-specific spread), so a test against a raw-gain null would report the
+    epoch's loudness as a position effect.
+    """
+    if null_resid is None or len(null_resid) < 3:
+        return None
+    n = len(null_resid)
+    return (1 + int(np.sum(np.abs(np.asarray(null_resid)) >= abs(observed_resid)))) / (1 + n)
+
+
+def cosine_p(observed, null_cos):
+    """One-sided p that a cosine this LOW arises from estimation noise alone.
+
+    ``(1 + #{null <= observed}) / (1 + n)`` -- the add-one form, so p is never 0 and the floor is
+    an honest function of how many draws were run. With 12 draws nothing can beat p = 0.077, which
+    is why the reported run uses far more.
+
+    ONE-SIDED AND DOWNWARD BY DESIGN: the hypothesis is that the readout ROTATED, which can only
+    push the cosine DOWN relative to two noise-separated estimates of an unchanged code. A cosine
+    ABOVE the null is not evidence of anti-rotation, it is a lucky draw.
+    """
+    if null_cos is None or len(null_cos) < 3:
+        return None
+    n = len(null_cos)
+    return (1 + int(np.sum(np.asarray(null_cos) <= observed))) / (1 + n)
 
 
 def excess_z(real_delta, null_draws):
@@ -300,8 +356,9 @@ def main() -> int:
                 data, basis, _pipe, seed_ns=f"{arm}|{an}", log=lambda m: print(m, flush=True))
             if "pre" not in pats:
                 continue
-            nulls = null_delta(data, basis, _pipe, n_draws=a.null_draws,
-                               seed_ns=f"{arm}|{an}", log=lambda m: print(m, flush=True))
+            nulls, cos_nulls, gain_nulls = null_delta(
+                data, basis, _pipe, n_draws=a.null_draws, seed_ns=f"{arm}|{an}",
+                log=lambda m: print(m, flush=True))
             for ep in ("acute", "subacute", "chronic"):
                 if ep not in pats:
                     continue
@@ -327,6 +384,23 @@ def main() -> int:
                     corr = None
                     if rel_a and rel_b and rel_a > 0 and rel_b > 0:
                         corr = round(cos / float(np.sqrt(rel_a * rel_b)), 4)
+                    pv = cosine_p(cos, cos_nulls.get(pos))
+                    # RESIDUAL log-gain: this position's amplitude change relative to the mean
+                    # change across positions, so the epoch-wide scale cancels.
+                    gp = None
+                    if norms.get("pre", {}).get(pos) and norms.get(ep, {}).get(pos):
+                        allp = sorted(set(norms["pre"]) & set(norms[ep]))
+                        lgs = [float(np.log(norms[ep][q] / norms["pre"][q])) for q in allp]
+                        resid = float(np.log(norms[ep][pos] / norms["pre"][pos])) - float(
+                            np.mean(lgs))
+                        gp = gain_p(resid, gain_nulls.get(pos))
+                    # GAIN, the other half of the answer. The cosine is SHAPE with the global
+                    # scale divided out, so a position that merely weakened scores no rotation --
+                    # correctly, but that is not the whole story. Amplitude and rotation are
+                    # dissociable here: PS93 acute far_center loses 82% of its amplitude at a
+                    # cosine of 0.37, while far_R keeps 76% of its amplitude at a cosine of -0.29.
+                    gain = (norms[ep][pos] / norms["pre"][pos]
+                            if norms.get("pre", {}).get(pos) else None)
                     for reg, v in by_region(d, basis).items():
                         rows.append({"arm": arm, "animal": an, "contrast": f"{ep} - pre",
                                      "position": int(pos), "region": reg,
@@ -335,6 +409,9 @@ def main() -> int:
                                      "rel_pre": (round(rel_a, 4) if rel_a else None),
                                      "rel_epoch": (round(rel_b, 4) if rel_b else None),
                                      "cos_attenuation_corrected": corr,
+                                     "cos_p_vs_noise": (round(pv, 4) if pv else None),
+                                     "gain_epoch_over_pre": (round(gain, 4) if gain else None),
+                                     "gain_resid_p": (round(gp, 4) if gp else None),
                                      "noise_ceiling_cos": (round(ceiling[pos], 4)
                                                            if pos in ceiling else None),
                                      "norm_pre": round(norms["pre"][pos], 4),
@@ -372,8 +449,185 @@ def main() -> int:
             print(f"{arm:<7}{ep + ' - pre':<18}" + "".join(cells))
 
     fig = _figure(maps, rows, out_dir, a.tag)
-    print(f"\n[15h] wrote {fig}\n[15h] {time.time() - t0:.0f}s")
+    plane = _gain_rotation_figure(rows, out_dir, a.tag)
+    print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] {time.time() - t0:.0f}s")
     return 0
+
+
+def _gain_rotation_figure(rows, out_dir, tag=""):
+    """ROTATION against GAIN, one point per (animal, position), panelled by arm and epoch.
+
+    THE TWO ARE DISSOCIABLE AND BOTH MATTER (Priya, 2026-09-17: "but amplitude is also important
+    -- how can we assess both?"). The cosine is SHAPE with the global scale divided out, so a
+    position that merely weakened scores no rotation; the gain is that missing half. Measured on
+    PS93 acute: far_center keeps 18% of its pre-stroke amplitude at a cosine of 0.37, while far_R
+    keeps 76% at a cosine of -0.29. One collapsed, the other turned -- and a single number cannot
+    tell those apart.
+
+    THE PLANE MAKES THE FOUR OUTCOMES READABLE:
+
+        gain ~ 1, cosine ~ ceiling   nothing happened
+        gain LOW, cosine ~ ceiling   the code WEAKENED but kept its shape
+        gain ~ 1, cosine LOW         the code ROTATED at preserved strength
+        gain LOW, cosine LOW         both
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import config
+    from wfield_local import epoch_figures as ef
+    from wfield_local.grant_figures import CONF_LABELS
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+
+    # POSITION BY MARKER, animal by colour. The whole result is position-specific -- far-contra
+    # turns most acutely, near-middle chronically -- and with colour already spent on animals a
+    # reader could not tell which point was which (Priya, 2026-09-17). Marker-for-one-factor,
+    # colour-for-another is the convention `spout_behavior` already uses for its six positions.
+    MARKERS = ["o", "s", "^", "v", "D", "P"]
+    _pretty = dict(zip(CONF_LABELS, [x.title() for x in ef.anatomical_labels(CONF_LABELS,
+                                                                            short=False)]))
+    _rank = {lab: i for i, lab in enumerate(CONF_LABELS)}
+    pos_rank = {c: _rank.get(POSITION_NAMES.get(c, ""), 99) for c in range(6)}
+    pos_name = {c: _pretty.get(POSITION_NAMES.get(c, ""), str(c)) for c in range(6)}
+
+    cons = ["acute - pre", "subacute - pre", "chronic - pre"]
+    arms = [x for x in ARMS if any(r["arm"] == x for r in rows)]
+    colors = config.animal_color()
+    seen = {}
+    for r in rows:                       # collapse the region axis
+        g, c = r.get("gain_epoch_over_pre"), r.get("cosine_pre_vs_epoch")
+        if g in (None, "") or c in (None, ""):
+            continue
+        pv = r.get("cos_p_vs_noise")
+        seen[(r["arm"], r["contrast"], r["animal"], int(r["position"]))] = (
+            float(g), float(c), (float(pv) if pv not in (None, "") else None))
+
+    ceils = {}
+    for arm in arms:
+        v = [float(r["noise_ceiling_cos"]) for r in rows
+             if r["arm"] == arm and r.get("noise_ceiling_cos") not in (None, "")]
+        ceils[arm] = float(np.mean(v)) if v else None
+
+    # THE HEADER IS A FIXED HEIGHT IN INCHES, not a fraction of the figure. As a fraction it
+    # collapses when few arms are drawn: at one arm `top=0.90` left about half an inch for a
+    # five-line caption, which then sat on the panel titles. Reserving inches makes the band the
+    # same physical size whether one arm is plotted or four.
+    HEAD_IN, FOOT_IN = 2.0, 1.45
+    body_in = 3.2 * len(arms)
+    fig_h = body_in + HEAD_IN + FOOT_IN
+    fig, axes = plt.subplots(len(arms), len(cons),
+                             figsize=(3.5 * len(cons) + 1.6, fig_h),
+                             squeeze=False)
+    # HEADER AND FOOTER BANDS RESERVED. `bbox_inches="tight"` crops to the artists and does
+    # not separate them, so a three-line caption at 0.945 lands on panel titles sitting at
+    # 0.86, and a legend at the figure bottom lands on the x-labels.
+    fig.subplots_adjust(top=1 - HEAD_IN / fig_h, bottom=FOOT_IN / fig_h,
+                        hspace=0.34, wspace=0.24)
+    for i, arm in enumerate(arms):
+        for j, con in enumerate(cons):
+            ax = axes[i][j]
+            pts = {k: v for k, v in seen.items() if k[0] == arm and k[1] == con}
+            for (_a, _c, an, _pos), (g, c, pv) in pts.items():
+                mk = MARKERS[pos_rank.get(_pos, 0) % len(MARKERS)]
+                # ANIMAL COLOURS from the config, because that is what they already mean.
+                # FILLED = the rotation beats the split-half null at p < 0.05; OPEN = it does not,
+                # so the point is a measurement without a claim attached. Drawing them alike would
+                # let an untested point read as a result.
+                sig = pv is not None and pv < 0.05
+                ax.scatter(g, c, s=44, marker=mk, label=an,
+                           color=colors.get(an, "0.4") if sig else "none",
+                           edgecolor=colors.get(an, "0.4"),
+                           linewidth=0.8 if sig else 1.4, alpha=0.9)
+            # THE QUADRANT DIVIDERS. Vertical at gain = 1 (weakened | strengthened). Horizontal
+            # at THIS ARM's mean split-half reliability, not at zero or some round number:
+            # "rotated" has to mean "turned further than estimation noise alone would turn it",
+            # and that floor differs by arm (rest is far noisier than lick).
+            ceil_arm = ceils.get(arm)
+            ax.axvline(1.0, color="k", lw=0.7, ls=":")
+            if ceil_arm is not None:
+                ax.axhline(ceil_arm, color="k", lw=0.9, ls="--")
+                ax.axhspan(-1.0, ceil_arm, color="0.85", alpha=0.35, lw=0, zorder=0)
+                if j == 0:
+                    ax.text(0.09, ceil_arm + 0.03, "noise ceiling", fontsize=8.5,
+                            style="italic", va="bottom")
+            else:
+                ax.axhline(0, color="k", lw=0.7)
+            # CORNER LABELS, drawn once per panel so a reader never has to reconstruct the axes.
+            lo = ceil_arm if ceil_arm is not None else 0.0
+            for (xx, yy, ha, va, txt) in (
+                    (0.30, 1.30, "center", "top", "WEAKENED|shape kept"),
+                    (1.75, 1.30, "center", "top", "STRONGER|shape kept"),
+                    (0.30, -1.30, "center", "bottom", "WEAKENED|+ ROTATED"),
+                    (1.75, -1.30, "center", "bottom", "STRONGER|+ ROTATED")):
+                # the pipe is a line break; a literal newline inside these tuples does not
+                # survive the editing round-trip, so it is substituted at draw time
+                ax.text(xx, yy, txt.replace("|", chr(10)), fontsize=8.5, ha=ha,
+                        va=va, color="0.35", fontweight="bold", zorder=1)
+            del lo
+            ax.set_xscale("log")
+            ax.set_xlim(0.08, 3.0)
+            # ROOM FOR THE QUADRANT LABELS OUTSIDE THE DATA. A cosine is bounded to
+            # [-1, 1], so the margin beyond +-1 can never hold a point -- putting the
+            # labels there makes "does the label cover a datum" impossible rather than
+            # unlikely, which corner placement only achieved by luck.
+            ax.set_ylim(-1.34, 1.34)
+            ax.set_yticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+            ax.grid(alpha=0.22)
+            if i == 0:
+                ax.set_title(con, fontsize=12, fontweight="bold")
+            if j == 0:
+                ax.set_ylabel(f"{arm}\ncos(pre, epoch)", fontsize=11, fontweight="bold")
+            if i == len(arms) - 1:
+                ax.set_xlabel("gain  |epoch| / |pre|   (log)", fontsize=11)
+            ax.tick_params(labelsize=10)
+    # HANDLES FROM EVERY PANEL, not just the first. Built from `axes[0][0]` the legend listed
+    # PS92-94 and omitted PS95, whose points are plainly in the lower panels -- that first panel is
+    # ENL/acute, and PS95 contributes ONE acute session so it is absent there. A legend that omits
+    # a plotted animal is worse than no legend.
+    uniq = {}
+    for row in axes:
+        for ax_ in row:
+            for hh, ll in zip(*ax_.get_legend_handles_labels()):
+                uniq.setdefault(ll, hh)
+    uniq = {k: uniq[k] for k in sorted(uniq)}
+    # TWO LEGENDS, because two factors are encoded: COLOUR is the animal, SHAPE is the spout
+    # position. One combined legend would need 4 x 6 entries to say what two of 4 and 6 do.
+    from matplotlib.lines import Line2D
+    pos_keys = sorted(pos_rank, key=lambda c: pos_rank[c])[: len(MARKERS)]
+    shape_h = [Line2D([], [], color="0.35", marker=MARKERS[i], linestyle="none",
+                      markersize=7, label=pos_name[c])
+               for i, c in enumerate(pos_keys)]
+    leg1 = fig.legend(uniq.values(), uniq.keys(), fontsize=11, frameon=False,
+                      ncol=max(len(uniq), 1), loc="lower center",
+                      bbox_to_anchor=(0.28, 0.10 / fig_h), title="animal")
+    leg1.get_title().set_fontsize(10)
+    leg2 = fig.legend(handles=shape_h, fontsize=10, frameon=False, ncol=3,
+                      loc="lower center", bbox_to_anchor=(0.72, 0.04 / fig_h),
+                      title="spout position (filled = p < 0.05)")
+    leg2.get_title().set_fontsize(10)
+    fig.add_artist(leg1)
+    fig.text(0.5, 1 - 0.22 / fig_h, "ROTATION vs GAIN -- the two halves of 'the code changed'",
+             ha="center", va="top", fontsize=15, fontweight="bold")
+    fig.text(0.5, 1 - 0.62 / fig_h,
+             "One point per animal x spout position. X = amplitude of the epoch's Haufe pattern "
+             "relative to pre-stroke (1.0 = unchanged, dotted). Y = cosine between the two "
+             "patterns (1.0 = no rotation).\n"
+             "Gain ABOVE 1.0 is STRONGER than pre-stroke, not merely preserved -- the chronic "
+             "panels sit there. LOW-LEFT 'weakened AND turned'; LOW-RIGHT 'turned at preserved or "
+             "INCREASED strength'; HIGH-LEFT 'weakened but kept its shape'.\n"
+             "GAIN HERE IS THE DECODER PATTERN'S NORM, NOT AN EVOKED RESPONSE AMPLITUDE, and it "
+             "is NOT the deficit measure. A position can become more SEPARABLE while its response "
+             "collapses: acute far-contra is dominated by trials the animal did not attempt, the "
+             "same mechanism that inverts epoch_14 MEANref. For the deficit read the "
+             "QUIET-referenced maps and the encoder.\n"
+             "Colours are ANIMALS, from configs/animals.yaml -- the same mapping every other "
+             "figure uses. Open circles are p >= 0.05 against the split-half null.",
+             ha="center", va="top", fontsize=10)
+    out = out_dir / f"epoch_15h_gain_vs_rotation{tag}.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out.name
 
 
 def _figure(maps, rows, out_dir, tag=""):
@@ -420,8 +674,10 @@ def _figure(maps, rows, out_dir, tag=""):
         # A SPACER COLUMN between the colorbar and the bar panel. Without it the bar panel's
         # position tick-labels land on top of the colorbar's ticks -- one `wspace` serves every
         # gap, and it has to stay small to keep the map columns adjacent.
-        gs = fig.add_gridspec(len(poss), len(cons) + 3,
-                              width_ratios=[1] * len(cons) + [0.07, 0.55, 2.0],
+        # WIDER GUTTERS EITHER SIDE OF THE COLORBAR. Its label sat hard against the bar panel's
+        # y-axis label; one `wspace` serves every gap, so the room has to come from spacer columns.
+        gs = fig.add_gridspec(len(poss), len(cons) + 4,
+                              width_ratios=[1] * len(cons) + [0.16, 0.07, 0.95, 2.0],
                               top=0.855, bottom=0.05, hspace=0.12, wspace=0.10)
         vals = [np.nanmean(np.asarray(v), axis=0) for k, v in maps.items() if k[0] == arm]
         flat = np.concatenate([v.ravel() for v in vals])
@@ -442,16 +698,19 @@ def _figure(maps, rows, out_dir, tag=""):
                 im = ax.imshow(np.nanmean(np.asarray(v), axis=0), cmap=cm,
                                vmin=-vmax, vmax=vmax)
                 if i == 0:
-                    ax.set_title(con, fontsize=10, fontweight="bold")
+                    ax.set_title(con, fontsize=12, fontweight="bold")
                 if j == 0:
-                    ax.set_ylabel(_name(pos), fontsize=9, fontweight="bold")
+                    ax.set_ylabel(_name(pos), fontsize=11, fontweight="bold")
         if im is not None:
-            cax = fig.add_subplot(gs[:, len(cons)])
+            # SHORTER THAN THE COLUMN: a full-height bar on a six-row figure is a metre of
+            # gradient for a scale that needs an inch. Centred on the middle rows.
+            lo = max(0, len(poss) // 2 - 1)
+            cax = fig.add_subplot(gs[lo:lo + 2, len(cons) + 1])
             fig.colorbar(im, cax=cax).set_label(
-                "change in readout pattern, z vs its own pre-stroke split-half null", fontsize=8)
+                "change in readout pattern, z vs its own pre-stroke split-half null", fontsize=10)
 
         # right: the cosine per position, against the noise ceiling
-        ax = fig.add_subplot(gs[:, len(cons) + 2])
+        ax = fig.add_subplot(gs[:, len(cons) + 3])
         w = 0.82 / len(cons)
         for j, con in enumerate(cons):
             ys = []
@@ -467,11 +726,11 @@ def _figure(maps, rows, out_dir, tag=""):
         if ceil:
             ax.axvline(float(np.mean([float(c) for c in ceil])), color="k", ls="--", lw=1.4,
                        label="noise ceiling")
-        ax.set_yticks(range(len(poss)), [_name(p) for p in poss], fontsize=9)
+        ax.set_yticks(range(len(poss)), [_name(p) for p in poss], fontsize=11)
         ax.invert_yaxis()
-        ax.set_xlabel("cosine(pre pattern, epoch pattern)", fontsize=9)
+        ax.set_xlabel("cosine(pre pattern, epoch pattern)", fontsize=11)
         ax.set_title("HOW FAR THE READOUT TURNED\n(read against the dashed ceiling, not 1.0)",
-                     fontsize=9, fontweight="bold")
+                     fontsize=11, fontweight="bold")
         ax.axvline(0, color="k", lw=0.8)
         # BELOW THE AXES so it cannot sit on the bars or collide with the title.
         ax.legend(fontsize=8, frameon=False, ncol=2, loc="upper center",
@@ -479,7 +738,7 @@ def _figure(maps, rows, out_dir, tag=""):
         ax.grid(axis="x", alpha=0.25)
 
         fig.text(0.5, 0.985, f"WHERE the position readout changes -- {arm} window",
-                 ha="center", va="top", fontsize=13, fontweight="bold")
+                 ha="center", va="top", fontsize=15, fontweight="bold")
         fig.text(0.5, 0.945,
                  "Haufe patterns (A = Cov(X)b) from one block-matched decoder per epoch, in the "
                  "shared joint LocaNMF basis; unit-normalised per position, so this is SHAPE, not "
@@ -488,8 +747,15 @@ def _figure(maps, rows, out_dir, tag=""):
                  "pre-stroke split-half null, because the RAW change map correlates with that null "
                  "at r = 0.83 and localises the basis, not the lesion.\n"
                  "A decoder WEIGHT is a filter, not a pattern (r = 0.245 here). Cohort mean; "
-                 "three animals carry chronic data.",
-                 ha="center", va="top", fontsize=8.5)
+                 "three animals carry chronic data.\n"
+                 "THE MAP AND THE COSINE ARE NOT THE SAME QUANTITY: the map is scale-FREE (each "
+                 "component against its own noise), the cosine is scale-WEIGHTED. A position can "
+                 "look dramatic and barely turn.\n"
+                 "Measured on PS93 cue acute -- far_center has "
+                 "mean |z| 11.1 with only 20% of its change in the top-weight components and a "
+                 "cosine of 0.37, while far_R has mean |z| 3.7, 37% in the top weights, and a "
+                 "cosine of -0.29. Judge rotation by the BARS, not by brightness.",
+                 ha="center", va="top", fontsize=10)
         out = out_dir / f"epoch_15h_rotation_maps_{arm}{tag}.png"
         fig.savefig(out, dpi=150, bbox_inches="tight")
         plt.close(fig)

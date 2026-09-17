@@ -281,7 +281,16 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
-**[`docs/STATUS_2026-09-16.md`](docs/STATUS_2026-09-16.md)** — **START HERE FIRST.** The
+**[`docs/STATUS_2026-09-17.md`](docs/STATUS_2026-09-17.md)** — **START HERE FIRST.** The
+TRANSFER / ROTATION arm (`epoch_15g`, `epoch_15h`) and **four corrections to things this repo
+believed**: the adopted filter (`meegkit_hpfit`) does NOT smear — the ~0.21 pre-cue inflation is the
+retired `zerophase` product's; QUIET is a RETIRED category, not a synonym for REST; the QUIET-era
+baseline-drift figure (~52% of signal) is superseded by `uniform_shift_check`'s **3.1%** on
+restdock05; and `PREPROCESSING_DECISION.md`'s "nothing re-run yet" line was five weeks stale. It
+also records **framing (1) vs (2)** — 15g/15h are entirely RELATIVE-to-other-positions and are blind
+to a change that hits all six equally.
+
+**[`docs/STATUS_2026-09-16.md`](docs/STATUS_2026-09-16.md)** — the rest-arm audit and migration. The
 `restdock05` rest-baseline migration, complete and verified: what is true now, the nine pitfalls
 that cost time getting there, and the pending science (the DOCKED FROZEN DECODER arm, then `15s`).
 Rest is `restdock05` — docked, `lick_buffer_s [0.5, 1.0]`, `SCHEMA_VERSION 5`, `CACHE_VERSION 12`,

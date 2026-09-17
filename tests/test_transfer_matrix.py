@@ -197,7 +197,8 @@ def test_summarise_retained_is_a_mean_of_per_animal_ratios():
         rows.append({"animal": an, "train_epoch": "chronic", "test_epoch": "chronic",
                      "acc": ceil, "null": 0.0})
     agg = tm.summarise(rows)
-    cellv = [x for x in agg if x["train_epoch"] == "pre" and x["test_epoch"] == "chronic"][0]
+    cellv = next(x for x in agg
+                 if x["train_epoch"] == "pre" and x["test_epoch"] == "chronic")
     assert cellv["retained_vs_own_ceiling"] == pytest.approx((0.30 / 0.50 + 0.30 / 0.90) / 2, abs=1e-4)
     assert cellv["retained_vs_own_ceiling"] != pytest.approx(0.30 / 0.70, abs=1e-4)
 

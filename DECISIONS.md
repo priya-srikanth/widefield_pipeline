@@ -13443,3 +13443,84 @@ already uses it.
 **LIMITS.** Three animals carry chronic data; PS94 has none because it has not plateaued. The lick
 arm conditions on a detected lick, so its post-stroke population is itself shaped by the deficit.
 ENL is a SPLIT (2 of 3 material), not a clean verdict.
+
+
+---
+
+## Framing (1) vs framing (2): what 15g/15h can and cannot answer (2026-09-17)
+
+**Priya's distinction, and it is the clarifying one for this whole arm:** *"there are two ways to
+approach this analysis: (1) comparing each position's response across epochs and (2) comparing a
+position's response RELATIVE TO OTHER POSITIONS' across epochs."*
+
+**`epoch_15g` and `epoch_15h` are entirely framing (2).** `LogisticRegression` is multinomial, so
+`coef_[p]` is the direction separating position *p* from the other five; `A = Cov(X)·β_p` inherits
+that; the cosine compares that CONTRAST's direction across epochs; the residual gain explicitly
+subtracts the cross-position mean.
+
+**THE BLIND SPOT: a change affecting all six positions equally is INVISIBLE to 15g/15h.** If the
+lesion halved every position's response uniformly, the discriminative directions could be untouched
+— cosine at ceiling, residual gain zero — while framing (1) reported a 50% loss. This is the same
+blind spot `uniform_shift_check` was written for on the baseline side, and the same one that makes
+MEANref unusable as a deficit measure ("one losing drive hands the other five an unearned
+increase").
+
+**Framing (1) lives in the ENCODER and the map families**, not here. Neither replaces the other;
+the encoder cannot say WHERE, and 15g/15h cannot say whether a position's own response changed.
+
+### GAIN IS NOT AN EVOKED AMPLITUDE — measured, r = +0.039
+
+`gain = ||A||_epoch / ||A||_pre` correlated against the evoked family's amplitude ratio over 60
+(animal × position × epoch) cells of the cue arm: **r = +0.039**. Unrelated, for structural reasons:
+evoked amplitude is FIRST-moment against a baseline while `||Cov(X)·β||` is SECOND-moment; `β` is
+one-vs-rest so gain asks how *p* differs FROM THE OTHER FIVE; and gain carries the epoch-wide
+`Cov(X)` scale.
+
+**Decomposition:** splitting each epoch's six gains into a common factor and a position-specific
+residual gives mean |common| **0.397** against mean sd(residual) **0.356** — the epoch-wide factor
+is **1.11×** the position-specific spread. **Roughly half of any gain number is how loud the epoch
+was. Read gain against the other five positions in the same epoch, never against 1.0**, which is
+why `gain_resid_p` tests the RESIDUAL log-gain and not the raw ratio.
+
+**Consequence for wording:** "low gain" means LESS DISTINCTIVE FROM THE OTHER POSITIONS, not
+"responded less". Those are different claims and the evoked families own the second one.
+
+## The adopted filter does NOT smear — `meegkit_hpfit`, not `zerophase` (2026-09-17 correction)
+
+**`config.hemo_variant()` returns `meegkit_hpfit`** and `config.svtcorr_path()` routes every
+analysis to `hemo_meegkit_hpfit/SVTcorr.npy`. The bare `SVTcorr.npy` IS the zerophase product and is
+no longer read — `svtcorr_path` exists precisely because five modules had it hardcoded and "would
+have gone on silently reading the superseded data".
+
+`meegkit_hpfit` (order 10) fits drift on a mask EXCLUDING strobe−0.25 s → cue+4 s, so the fit never
+sees the measured window and **nothing is smeared in time**. The "~0.21 pre-cue inflation from
+backward smearing" belongs to `zerophase` ONLY, and was asserted on 09-17 as though it applied to
+current data. It does not.
+
+**`docs/PREPROCESSING_DECISION.md` still opens with "Nothing downstream has been re-run yet ... the
+re-run is the next step."** That line is STALE — the flip happened 2026-08-14 and `joint_locanmf`
+records it. Anyone reading that doc top-down will draw the wrong conclusion.
+
+## QUIET is a RETIRED category, not a synonym for REST (2026-09-17)
+
+`quiet_periods.py` opens: *"REST-period detection ... the file still named for its old category."*
+
+* **QUIET** — `slow-treadmill AND not-near-lick AND NOT-NEAR-REWARD (8 s)`. **RETIRED.** Anchored on
+  the animal's PERFORMANCE, so the category tracked the deficit: 4.4% of frames pre-stroke, **17.1%
+  acutely**, 0.7% chronically.
+* **REST** — `outside every trial AND slow treadmill AND away from licking`. Anchored on the TRIAL,
+  which happens whether or not the animal succeeds.
+* **restdock05** — the current REST *variant* (docked, `lick_buffer_s [0.5, 1.0]`, settle 0.5 s).
+* **rest** / **restw** — baseline ESTIMATORS built from rest frames: time-local, vs
+  position-weighted flat.
+
+`quiet_variant()`, `quiet_starts`, `_quiet_zscore` are LEGACY NAMES FOR REST. `_QUIETref_` figures
+are `_RESTref_` now (`REST_BASELINE_MIGRATION.md`; the old set is in `retired_QUIETref/`).
+
+**THE DRIFT NUMBERS FOLLOW THE NAME.** "The quiet baseline drifts +0.0026 against a ~0.005 signal"
+(~52%) is a QUIET-era measurement and was used on 09-17 to argue `_RESTref_` cannot carry an
+across-epoch amplitude claim. **`uniform_shift_check` already measured the restdock05 baseline at a
+median 3.1% of the evoked signal** (p90 0.091, `cos(d, evoked)` negative in 12/19 — mixed, not the
+shared direction contamination would give). **3.1%, not 52%: `_RESTref_` IS usable for framing (1).**
+Scope caveat: that script measured sensitivity to a DEFINITIONAL change (the lick buffer), not the
+across-epoch drift; the epoch-wise version is still unmeasured and is cheap.

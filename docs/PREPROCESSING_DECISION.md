@@ -1,8 +1,20 @@
 # Drift removal and hemodynamic correction — the decision record
 
-**Status: ADOPTED 2026-08-13 — `meegkit_hpfit`, polynomial order 10.** Nothing downstream has been
-re-run yet, and `SVTcorr.npy` on MICROSCOPE is still the original `zerophase` product; the re-run is
-the next step.
+**Status: ADOPTED 2026-08-13 — `meegkit_hpfit`, polynomial order 10. IN USE since 2026-08-14.**
+
+*(Corrected 2026-09-17. This block used to end "Nothing downstream has been re-run yet ... the
+re-run is the next step", which stayed here for five weeks after it stopped being true and was read
+top-down on 09-17 as though it still were.)*
+
+`config.hemo_variant()` returns `meegkit_hpfit` and `config.svtcorr_path()` routes every analysis to
+`hemo_<variant>/SVTcorr.npy`. The bare `SVTcorr.npy` beside it IS the zerophase product and is no
+longer read by anything — `svtcorr_path` exists precisely because five modules had that path
+hardcoded. `joint_locanmf` records the 2026-08-14 flip plus the LocaNMF refit that followed it.
+
+**CONSEQUENCE FOR ANY SMEARING CLAIM.** The backward-smearing signature below, and the ~0.21 pre-cue
+inflation it causes, are properties of `zerophase` ONLY. `meegkit_hpfit` fits drift on a mask that
+excludes the whole trial (strobe−0.25 s → cue+4 s), so the fit never sees the measured window.
+**Current data is not smeared.** Do not carry the zerophase number forward.
 
 ## THE DECISION (36 curated sessions, refit-T, adopted settings)
 

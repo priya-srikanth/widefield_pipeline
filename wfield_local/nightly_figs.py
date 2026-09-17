@@ -759,7 +759,13 @@ def main():
         # ~2.5 min for three arms x four animals at 200 permutations, against ~11 min for 15f.
         # That is why it runs unconditionally here rather than behind another skip flag.
         cli("scripts.rest_migration.transfer_arms",
-            "--arms", "ENL", "cue", "lick", "--perm", "200")
+            "--arms", "ENL", "cue", "lick", "rest", "--perm", "200")
+        # 15h = WHERE the readout turns -- Haufe patterns in the same joint basis, per spout
+        # position, against a measured noise floor. The matrix says HOW MUCH rotated; this says
+        # which cortex and which positions, and pairs the rotation with the AMPLITUDE change so
+        # "weakened" and "turned" can be told apart. ~3 min for four arms.
+        cli("scripts.rest_migration.rotation_maps",
+            "--arms", "ENL", "cue", "lick", "rest", "--null-draws", "12")
 
     if not args.skip_poststroke and config.phase_labels("post"):
         log("== POST-STROKE stage (section G)")
