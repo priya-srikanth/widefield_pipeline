@@ -305,11 +305,45 @@ def excess_z(real_delta, null_draws):
 #: THE COST, measured: components admitted go 55/49/52/48 -> 48/43/45/44 (PS92/93/94/95), about 12%.
 #: 0.90 would cost 33% (37/34/30/32) and start dropping genuinely cortical components whose
 #: footprints simply reach the mask edge, which is why it was not taken further.
-MIN_IN_MASK_FRAC = 0.75
+MIN_IN_MASK_FRAC = 0.85
+
+#: SECOND, INDEPENDENT CRITERION: how much of a component's mass must fall in the ERODED
+#: `stat_mask` -- the trustworthy interior -- for it to be TESTABLE at all.
+#:
+#: TWO CRITERIA BECAUSE THERE ARE TWO FAILURE MODES, and one threshold on one mask cannot separate
+#: them. `MIN_IN_MASK_FRAC` on `brain_mask` asks IS THIS CORTEX (bulbs and painted glue are already
+#: out of that mask). This asks IS ENOUGH OF IT AWAY FROM THE WINDOW RIM, where `U` is smallest,
+#: the Allen warp least constrained, and the artefact CONSISTENT ACROSS ANIMALS -- which a
+#: between-animal denominator rewards rather than rejects.
+#:
+#: WHY NOT JUST GATE ON `stat_mask`, WHICH IS WHAT THE FIRST VERSION DID (2026-09-17, superseded
+#: the same evening): the erosion is 16 px and it removes 30% of the SSp-m ATLAS REGION, so a gate
+#: built on it selects against LATERAL cortex per se. PS93's SSp-m_left components are 97.5% inside
+#: `brain_mask` and were excluded at 0.75 purely because 27-29% of their mass lies in that rim --
+#: and because the `15k` vocabulary is an INTERSECTION over animals, that removed ipsilesional
+#: mouth cortex for all four, in a cohort whose deficit is orofacial.
+#:
+#: MEASURED ON THE EIGHT REGIONS THE RELAXATION ADMITS (Priya, 2026-09-17: "I think FRP, RSP, VIS
+#: are probably not real", "VIS right in particular is tough to interpret bc the glue covers
+#: VISl"). She is right, and the two criteria say so for three different reasons:
+#:
+#:     SSp-m_left    brain 0.975-0.989   stat 0.688-0.808   glue 0.011-0.026   ADMITTED
+#:     RSPagl_left   brain 0.923-0.957   stat 0.621-0.865   glue 0.043-0.077   admitted
+#:     VISal_right   brain 0.961-0.987   stat 0.623-0.682   glue 0.013-0.039   admitted
+#:     PL_*          brain 0.891-1.000   stat 0.410-0.679   glue 0            REJECTED, half rim
+#:     FRP_*         brain 0.798-1.000   stat 0.000-0.165   glue 0            REJECTED, ALL rim
+#:     VISp_right    brain 0.758-0.847   stat 0.541-0.701   glue 0.153-0.242   REJECTED, glue
+#:
+#: FRP's entire ATLAS FOOTPRINT is inside the rim -- 389 px per side, 0 of them in `stat_mask` --
+#: so it is not a region this window can test at any threshold. VISp_right loses 31.3% of its
+#: footprint to the painted glue, which is why its components cannot reach 0.85 on `brain_mask`:
+#: the glue is already subtracted there, so occlusion shows up as missing mass. Both are caught by
+#: criteria that state what is wrong rather than by a number tuned until the list looked right.
+MIN_IN_STAT_FRAC = 0.50
 
 
-def in_mask_components(basis, min_frac=None):
-    """Boolean over components: which sit INSIDE `beta_maps.stat_mask`.
+def in_mask_components(basis, min_frac=None, eroded=False):
+    """Boolean over components: which sit INSIDE `beta_maps.brain_mask`.
 
     THE MASK BELONGS IN THE STATISTICS, NOT ONLY IN THE DISPLAY (Priya, 2026-09-17). The maps were
     already masked when drawn, but the TEST ran over every component -- including ones whose
@@ -321,6 +355,31 @@ def in_mask_components(basis, min_frac=None):
     A component counts as in-mask when at least `min_frac` of its footprint MASS falls inside.
     Mass, not pixel count, because footprints are graded -- a component whose tail brushes the mask
     should not qualify on area alone.
+
+    THE MASK IS `brain_mask`, NOT `stat_mask`, AND THAT WAS A BUG UNTIL 2026-09-17 EVENING. It
+    gated on `stat_mask`, which is `brain_mask` ERODED BY 16 px -- an erosion that exists for a
+    different purpose entirely: it stops PIXEL-LEVEL contours being drawn in the window rim, where
+    edge enrichment was measured at ~2x (see `beta_maps.stat_mask`). Applied to a COMPONENT it
+    asks a question it was never built to answer, and it penalises a region for being LATERAL
+    rather than for being untrustworthy.
+
+    WHAT IT COST, measured on PS93's SSp-m_left: **97.5% of that component's mass is inside
+    `brain_mask`** -- only 2.5% is genuinely off-brain -- but **27-29% lies in the 16 px rim**, so
+    it scored 0.69-0.71 and failed a 0.75 gate. Since the `15k` vocabulary is an INTERSECTION over
+    animals, one animal's failure removed SSp-m_left for all four, and SSp-m_left is ipsilesional
+    mouth cortex in the cohort whose deficit is orofacial. The systematic version: the SSp-m ATLAS
+    REGION loses 30% of its pixels to the erosion, and every SSp-m component in every animal loses
+    17-29% of its mass -- so the gate was selecting against lateral cortex per se.
+
+    `brain_mask` STILL EXCLUDES EVERYTHING THE GATE WAS BUILT FOR: it is `allen_mask` minus
+    `EXCLUDE_REGIONS` (the olfactory bulbs) minus the hand-painted fibre-glue occlusion. Only the
+    16 px rim comes back. Pass ``eroded=True`` to reproduce the superseded behaviour.
+
+    BUT THE RIM STILL HAS TO BE ACCOUNTED FOR, so a SECOND criterion does it explicitly:
+    `MIN_IN_STAT_FRAC` of the mass must fall in the eroded interior. Relaxing the first criterion
+    alone admitted FRP -- whose entire 389 px atlas footprint lies in the rim, 0 px in `stat_mask`
+    -- which is a region this window cannot test at any threshold, not a region the old gate was
+    unfairly excluding. Two failure modes, two criteria, each saying what is actually wrong.
     """
     from wfield_local import beta_maps as bm
 
@@ -331,7 +390,8 @@ def in_mask_components(basis, min_frac=None):
         min_frac = MIN_IN_MASK_FRAC
     A = np.nan_to_num(np.asarray(basis.A, dtype=np.float32))
     flat = np.abs(A.reshape(-1, basis.ncomp))
-    m = np.asarray(bm.stat_mask(), bool)
+    m = np.asarray(bm.stat_mask() if eroded else bm.brain_mask(), bool)
+    interior = None if eroded else np.asarray(bm.stat_mask(), bool)
     if m.shape != A.shape[:2]:
         # LOUD, NEVER SILENT. Returning all-True here removes the mask from the statistics
         # entirely -- every bulb and glue-edge component re-enters the max-statistic family and
@@ -341,9 +401,14 @@ def in_mask_components(basis, min_frac=None):
         print(f"   !! GRID MISMATCH: stat_mask {m.shape} vs basis {A.shape[:2]} -- "
               f"THE MASK IS NOT IN THE STATISTICS FOR THIS ANIMAL", flush=True)
         return np.ones(basis.ncomp, bool)
-    inside = flat[m.ravel(), :].sum(0)
-    total = flat.sum(0)
-    return np.divide(inside, np.where(total > 0, total, np.inf)) >= min_frac
+    total = np.where(flat.sum(0) > 0, flat.sum(0), np.inf)
+    keep = np.divide(flat[m.ravel(), :].sum(0), total) >= min_frac
+    if interior is not None and interior.shape == A.shape[:2]:
+        # THE SECOND CRITERION. Without it, relaxing the first admits components that are
+        # essentially ALL RIM -- FRP scores 0.80-1.00 on `brain_mask` and 0.00-0.17 on
+        # `stat_mask`, because its whole atlas footprint lies inside the eroded band.
+        keep &= np.divide(flat[interior.ravel(), :].sum(0), total) >= MIN_IN_STAT_FRAC
+    return keep
 
 
 def bootstrap_cosine_ci(data, basis, pipe_fn, ep, *, n_boot=200, n_target=None,
@@ -503,7 +568,7 @@ def by_region(comp_pattern, basis):
 def main() -> int:
     # DECLARED HERE, at the top, because `global` must precede every use of the name in the
     # function and MIN_IN_MASK_FRAC is read below as the argparse default.
-    global MIN_IN_MASK_FRAC
+    global MIN_IN_MASK_FRAC, MIN_IN_STAT_FRAC
     from wfield_local import config, joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.locanmf_frozen_decoder import _pipe
@@ -522,9 +587,16 @@ def main() -> int:
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--min-in-mask-frac", type=float, default=MIN_IN_MASK_FRAC,
                     help="fraction of a component's footprint mass that must sit inside "
-                         "stat_mask for it to enter the analysis. Adopted 0.75; pass 0.5 to "
-                         "reproduce the superseded set. ALWAYS pair with --tag, or the two "
-                         "thresholds overwrite each other's figures, CSV and cache.")
+                         "BRAIN_MASK (bulbs and painted glue already removed). Adopted 0.85, "
+                         "paired with --min-in-stat-frac. ALWAYS pair with --tag, or two "
+                         "settings overwrite each other's figures, CSV and cache.")
+    ap.add_argument("--min-in-stat-frac", type=float, default=MIN_IN_STAT_FRAC,
+                    help="SECOND criterion: fraction of the mass that must sit in the ERODED "
+                         "stat_mask, so a component that is essentially all window-rim (FRP) is "
+                         "excluded even though it is entirely on brain. Adopted 0.50.")
+    ap.add_argument("--eroded-gate", action="store_true",
+                    help="reproduce the SUPERSEDED single-criterion gate on stat_mask, which "
+                         "excluded SSp-m_left by penalising lateral cortex for being lateral.")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--replot", action="store_true",
@@ -553,11 +625,17 @@ def main() -> int:
         return 0
 
     MIN_IN_MASK_FRAC = float(a.min_in_mask_frac)
+    MIN_IN_STAT_FRAC = float(a.min_in_stat_frac)
     # STAMPED NOW, NOT WHEN THE CACHE IS WRITTEN. A commit made DURING a two-hour run would
     # otherwise be recorded as the code that produced the result; see `git_sha`.
     sha0 = git_sha()
     print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}  git {sha0}")
-    print(f"   MIN_IN_MASK_FRAC = {MIN_IN_MASK_FRAC}  (tag {a.tag!r})\n")
+    # THE GATE IDENTITY GOES IN THE HEADER, not just its threshold. Two different masks have now
+    # been used here, and a run stamped only with a number is indistinguishable from the other one.
+    print(f"   GATE: mass in {'stat_mask (SUPERSEDED, eroded)' if a.eroded_gate else 'brain_mask'}"
+          f" >= {MIN_IN_MASK_FRAC}"
+          + ("" if a.eroded_gate else f" AND mass in stat_mask >= {MIN_IN_STAT_FRAC}")
+          + f"   (tag {a.tag!r})\n")
 
     rows, maps, outlines, cache = [], {}, {}, []
     for arm in a.arms:
@@ -574,7 +652,7 @@ def main() -> int:
             if not data:
                 continue
             print(f"   {an}:", flush=True)
-            keep_comp = in_mask_components(basis)
+            keep_comp = in_mask_components(basis, eroded=a.eroded_gate)
             print(f"   {int(keep_comp.sum())}/{basis.ncomp} components inside the brain mask "
                   f"(olfactory bulbs + glue edge excluded from the TEST family)", flush=True)
             pats, norms, ceiling, reliability, n_sess = epoch_patterns(
