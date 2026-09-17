@@ -34,6 +34,18 @@ FAMILIES = ("raw", "precue", "restw")
 EPOCHS = ("acute", "subacute", "chronic")
 
 
+def families_in(rows):
+    """The families actually PRESENT, in canonical order.
+
+    NOT the `FAMILIES` constant. The pre-cue ALIGNMENT runs on two families, because the `precue`
+    REFERENCE would there subtract the feature window from itself -- so a figure that assumed
+    three would draw an empty column and, worse, would count "all three agree" out of three when
+    only two exist.
+    """
+    got = {r["family"] for r in rows}
+    return tuple([f for f in FAMILIES if f in got] + sorted(got - set(FAMILIES)))
+
+
 def load_cohort(out_dir, align="cue", tag=""):
     """Rows of `epoch_15k_cohort_<align><tag>.csv`, typed. ``None`` if it does not exist."""
     p = Path(out_dir) / f"epoch_15k_cohort_{align}{tag}.csv"
@@ -295,7 +307,8 @@ def _figure(rows, out_dir, align="cue", tag=""):
     short = dict(zip(CONF_LABELS, ef.anatomical_labels(CONF_LABELS, short=True)))
     xt = [short.get(q, q) for q in positions]
 
-    nrow, ncol = len(EPOCHS), len(FAMILIES) + 1
+    fams = families_in(rows)
+    nrow, ncol = len(EPOCHS), len(fams) + 1
     fig_h = 1.15 + 0.148 * len(regions) * nrow
     fig, axes = plt.subplots(nrow, ncol, figsize=(3.05 * ncol + 1.2, fig_h), squeeze=False,
                              gridspec_kw={"wspace": 0.12, "hspace": 0.16})
@@ -308,7 +321,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
     # against another epoch (the comparison this figure is for) but a family cannot be read
     # against another family (the comparison it cannot support).
     vmax = {}
-    for fam in FAMILIES:
+    for fam in fams:
         v = np.abs(np.asarray([r["cohort_delta"] for r in rows
                                if r["family"] == fam and np.isfinite(r["cohort_delta"])]))
         vmax[fam] = float(np.nanpercentile(v, 99)) if v.size else 1.0
@@ -322,8 +335,8 @@ def _figure(rows, out_dir, align="cue", tag=""):
     ag_norm = BoundaryNorm([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5], ag_cmap.N)
 
     for i, ep in enumerate(EPOCHS):
-        ag = agreement(rows, ep, regions, positions)
-        for j, fam in enumerate(FAMILIES):
+        ag = agreement(rows, ep, regions, positions, fams)
+        for j, fam in enumerate(fams):
             ax = axes[i][j]
             d, s, _n = grid(rows, fam, ep, regions, positions)
             cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
@@ -332,8 +345,9 @@ def _figure(rows, out_dir, align="cue", tag=""):
                            aspect="auto", interpolation="nearest")
             yy, xx = np.where(s)
             ax.plot(xx, yy, "o", ms=2.6, mfc="k", mec="none", ls="none")
-            # A RING WHERE ALL THREE AGREE: the cell no single subtrahend's failure explains.
-            yy3, xx3 = np.where(ag >= 3)
+            # A RING WHERE EVERY FAMILY AGREES: the cell no single subtrahend's failure
+            # explains. `len(fams)`, not 3 -- the pre-cue alignment runs on two.
+            yy3, xx3 = np.where(ag >= len(fams))
             ax.plot(xx3, yy3, "o", ms=7.5, mfc="none", mec="k", mew=1.0, ls="none")
             # SAY WHY A COLUMN IS EMPTY. The lick arm has no acute far-contra cell in ANY animal
             # -- acutely they do not lick at that spout -- and unlabelled grey reads as a
@@ -356,7 +370,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
                 cb.set_label(f"cohort delta, {fam} scale", fontsize=7)
 
         ax = axes[i][ncol - 1]
-        sag, mixed = signed_agreement(rows, ep, regions, positions)
+        sag, mixed = signed_agreement(rows, ep, regions, positions, fams)
         ax.imshow(sag, cmap=ag_cmap, norm=ag_norm, aspect="auto", interpolation="nearest")
         ym, xm = np.where(mixed)
         if ym.size:
@@ -571,20 +585,24 @@ def main() -> int:
               f"   first. REFUSING to recompute: that is a ~35 min pass and this module draws.")
         return 1
     n_reg = len({r["region"] for r in rows})
+    fams = families_in(rows)
     print(f"[15k] {len(rows)} cohort cells over {n_reg} regions from {p.name}")
+    print(f"[15k] families present: {list(fams)}"
+          + ("   (the precue REFERENCE is absent by design under the precue ALIGNMENT -- its "
+             "baseline lies inside the feature window)" if "precue" not in fams else ""))
     for ep in EPOCHS:
         by = {}
         for r in rows:
             if r["epoch"] == ep and r["ci_excludes_zero"]:
                 by.setdefault((r["region"], r["position"]), set()).add(r["family"])
-        allf = sum(1 for v in by.values() if len(v) == len(FAMILIES))
+        allf = sum(1 for v in by.values() if len(v) == len(fams))
         # A SIGN DISAGREEMENT BETWEEN REFERENCES IS THE ONE OUTCOME THIS DESIGN CANNOT ABSORB, so
         # it is counted out loud rather than left to be noticed on the figure.
         rg = sorted({r["region"] for r in rows})
         pp = sorted({r["position"] for r in rows})
-        _sg, mixed = signed_agreement(rows, ep, rg, pp)
+        _sg, mixed = signed_agreement(rows, ep, rg, pp, fams)
         print(f"   {ep:<9} {len(by):>4} region-positions with any family clear of 0, "
-              f"{allf:>3} clear in ALL THREE, {int(mixed.sum()):>3} with references "
+              f"{allf:>3} clear in ALL {len(fams)}, {int(mixed.sum()):>3} with references "
               f"DISAGREEING in sign")
 
     # IS THERE A "WHERE" AT ALL? Printed on every draw, because a table of significant regions
@@ -596,7 +614,7 @@ def main() -> int:
     print("\n   GLOBAL vs REGIONAL -- how much of the change is a per-position shift common to "
           "every region")
     for ep in EPOCHS:
-        for fam in FAMILIES:
+        for fam in fams:
             frac, ranked = global_vs_regional(rows, fam, ep, regions, positions)
             if not np.isfinite(frac):
                 continue

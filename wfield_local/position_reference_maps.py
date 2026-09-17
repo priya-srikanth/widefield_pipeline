@@ -445,13 +445,24 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
     # THE SECOND LOAD. A failure costs the PRE-CUE column of this session and nothing else -- the
     # other two references are already in hand and must not be lost with it.
     raw_pc, used_pc = {}, {}
-    try:
-        Xp, yp = _working_xy(session, align, post_s, variant, "precue", v)
-        if len(yp) and np.asarray(Xp).shape[1] == X.shape[1]:
-            raw_pc, used_pc = _per_position(Xp, yp)
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  !! precue-referenced maps {session['label']}: "
-              f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
+    # NEVER FOR THE PRE-CUE ALIGNMENT. There the feature window is [cue - precue_post_s, cue] and
+    # `precue_baseline_s` is its own final second, so the subtraction is SELF-REFERENTIAL --
+    # `configs/defaults.yaml decode` spells this out and `epoch_grant_figures` already skips the
+    # combination, but nothing stopped THIS function from producing the numbers anyway. It would
+    # have returned a perfectly plausible map built by subtracting a window from itself, which is
+    # the failure mode that leaves no trace (Priya, 2026-09-13: "we're normalizing precue to
+    # precue??" -- caught there, still reachable here until 2026-09-17).
+    if align == "precue":
+        print(f"  .. {session['label']}: NO precue reference for the precue ALIGNMENT -- the "
+              f"baseline lies inside the feature window", flush=True)
+    else:
+        try:
+            Xp, yp = _working_xy(session, align, post_s, variant, "precue", v)
+            if len(yp) and np.asarray(Xp).shape[1] == X.shape[1]:
+                raw_pc, used_pc = _per_position(Xp, yp)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! precue-referenced maps {session['label']}: "
+                  f"{type(ex).__name__} {str(ex)[:70]}", flush=True)
 
     # THE TRIAL MEAN, NOT THE MEAN OF THE SIX MAPS. Figure 14's decoder centres on the mean over
     # TRIALS, so a position with few trials contributes little to the reference -- which is exactly

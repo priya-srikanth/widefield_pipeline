@@ -251,8 +251,11 @@ def main() -> int:
     from wfield_local.position_reference_maps import maps_by_epoch
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--align", default="cue", choices=["cue", "lick"])
-    ap.add_argument("--variant", default=None, help="default: working for cue, lick for lick")
+    ap.add_argument("--align", default="cue", choices=["cue", "lick", "precue"],
+                    help="`precue` is the ENL window [cue - 2 s, cue] -- the motor-independent "
+                         "readout. It runs on TWO families, not three: see below.")
+    ap.add_argument("--variant", default=None,
+                    help="default: working for cue and precue, lick for lick")
     ap.add_argument("--families", nargs="+", default=list(FAMILIES))
     ap.add_argument("--perm", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=20260917)
@@ -260,7 +263,17 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
-    variant = a.variant or ("working" if a.align == "cue" else "lick")
+    variant = a.variant or ("lick" if a.align == "lick" else "working")
+    # THE PRE-CUE ARM HAS TWO FAMILIES, NOT THREE, AND THE MISSING ONE IS NOT AN OVERSIGHT. With
+    # `align=precue` the feature window is [cue - 2 s, cue] and the precue BASELINE is its own
+    # final second, so that reference would subtract the window from itself. Dropped loudly here
+    # as well as in `session_raw_maps`, because a silently two-family run would still print an
+    # "ALL THREE families" table -- with three meaning two.
+    if a.align == "precue" and "precue" in a.families:
+        a.families = [f for f in a.families if f != "precue"]
+        print("!! PRECUE ALIGNMENT: dropping the `precue` FAMILY -- its baseline lies inside the "
+              f"feature window. Families are {a.families}, and 'all families agree' below means "
+              f"ALL {len(a.families)}, not three.")
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
 
     by_epoch, _rel, _n = maps_by_epoch(a.align, variant)
