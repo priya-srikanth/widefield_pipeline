@@ -4700,6 +4700,130 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "pre-stroke stopped trials to define it, and PS92 has 6 and PS93 has 40 -- one session"
          "each. A well-trained pre-stroke animal barely quits, which is the same fact that makes"
          "the engagement gate worth having."),
+        # ---------------------------------------------------------------- THE REST ARM (15x/f/s/d)
+        #
+        # ADDED 2026-09-17. These four were on the share and three were regenerated nightly, and
+        # NO SLIDE REFERENCED ANY OF THEM -- the inverse of the stale-figure failure this section's
+        # header warns about. There a slide read a figure no nightly step regenerated; here the
+        # nightly regenerated figures no slide read, so the work was invisible to a deck reader.
+        # The completeness guard cannot catch this: it reports figures it EXPECTS and is silent
+        # about ones it was never told about, which is the same blind spot that left 33 of 75
+        # figures unreferenced before the numbering was moved out of the data.
+        #
+        # EVERY NUMBER IN THESE LEGENDS IS POST-AUDIT (docs/REST_ENGAGEMENT_AUDIT.md, 2026-09-16):
+        # the engagement gate is applied and the repaired classifier is used. Pre-audit values
+        # differ and must not be quoted.
+        ("epoch_15x_REST_by_position_by_animal.png",
+         "REST carries position information -- per animal, per position",
+         "Each cell is one animal's mean REST map for one spout position, minus that animal's own"
+         " across-position mean. Rest is the inter-trial interval on the `restdock05` definition:"
+         " the spout DOCKED and out of reach, no target present anywhere, the animal not running"
+         " and away from licking, with the terminal quit period excluded."
+         "\n\nWHAT IT SHOWS. Rest is not position-neutral. A circular-shift permutation that keeps"
+         " the block-time structure INSIDE the null -- shifting the position labels over"
+         " time-ordered rest periods, so `drift aliased onto blocks` is fully present in the null --"
+         " gives observed/null 1.634 over 44 pre-stroke sessions, above null in 43/44 and in 4/4"
+         " animals (PS92 1.467, PS93 1.999, PS94 1.724, PS95 1.458). At the map level the"
+         " between-position RMS is 1.97x the WITHIN-position split-half RMS, with up to 1,468 of"
+         " 2,022 in-mask bins significant."
+         "\n\nWHY IT MATTERS FOR EVERY OTHER MAP IN THIS DECK. The rest baseline is subtracted from"
+         " the position maps. A subtrahend that itself carries position leaves that difference IN"
+         " the maps, looking exactly like position coding -- which is why the baseline is"
+         " POSITION-WEIGHTED (`restw`, six per-position medians averaged equally) rather than"
+         " pooled over rest frames."),
+        ("epoch_15d_delta_rest_flatpool_minus_restw.png",
+         "Why the rest baseline is position-weighted -- and the bias GROWS after the lesion",
+         "Frame-weighted rest baseline MINUS position-weighted rest baseline. Both arms are FLAT,"
+         " so the only thing differing is COMPOSITION: `flatpool` weights every rest frame equally"
+         " and therefore each position by however many rest frames it happened to supply, while"
+         " `restw` weights the six positions equally. Rows are animals over a cohort row; columns"
+         " are epochs."
+         "\n\nONE MAP PER EPOCH, NOT SIX, and the algebra is why: flatpool_q - restw_q ="
+         " (raw_q - quiet_flat) - (raw_q - restw) = restw - quiet_flat. The position's own data"
+         " CANCELS, so the delta does not depend on position. It is the same cancellation that"
+         " makes `reference each position to its own rest, then compare the maps` reduce to the"
+         " 15x figure above."
+         "\n\nTHIS IS NOT production-`rest` minus `restw`. That difference moves on the TEMPORAL"
+         " axis as well (production rest is time-local, restw is flat), and a null across two"
+         " changed variables says only that two different subtrahends agree."
+         "\n\nWHAT IT SHOWS. The bias is 2.56x larger chronically than pre-stroke (cohort 0.00056"
+         " -> 0.00145), larger in 3 of 3 animals with chronic data. Post-stroke the animal supplies"
+         " fewer rest frames at the far positions, so a frame-weighted baseline drifts toward the"
+         " near positions` rest -- the baseline changes WITH the deficit it is subtracted from."
+         " Position-weighting is therefore load-bearing, not overhead: had the delta been flat, the"
+         " honest verdict would have been correct-but-inert."),
+        ("epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png",
+         "Does the PRE-STROKE rest code survive, or is it REPLACED?",
+         "A decoder is trained on PRE-STROKE rest periods, FROZEN, and applied across epochs"
+         " (black); a second decoder is refit WITHIN each session on the SAME rest periods, with"
+         " block-CV (grey, right panel). Both read the shared joint LocaNMF basis, so component i"
+         " is the same cortical patch on every day -- a model frozen in one session`s own SVD basis"
+         " and applied in another is not a degraded decoder but a meaningless one. Scored as"
+         " BALANCED accuracy (mean of the six row recalls) and reported as the FRACTION OF"
+         " ABOVE-CHANCE PERFORMANCE RETAINED, the normalisation that lets a 6-way problem be"
+         " compared with the 3-way behavioural-state control."
+         "\n\nWHAT THE PAIR SEPARATES. Frozen low with refit high means the information is PRESENT"
+         " and the pre-stroke readout no longer points at it -- REPLACEMENT. Both low means the"
+         " code is genuinely degraded. A per-session decoder alone cannot tell these apart, because"
+         " recovery and replacement give it the same number."
+         "\n\nWHAT IT SHOWS. Chronically the within-session refit reaches 1.181 of its own"
+         " pre-stroke level while the frozen model reaches 0.611: position is in chronic rest, read"
+         " by something other than the pre-stroke code. The task-side encoder says the same thing"
+         " -- a refit ceiling of 0.783 against a pre-stroke 0.706, with the frozen model at 0.410."
+         "\n\nCONTROLS, all four applied here: duration-matched (rest periods are not fixed"
+         " length), lick-gap-matched, training-set-matched, and a BLOCK-PERMUTATION null rather"
+         " than the analytic 1/6 -- positions come in ~6-trial blocks, so periods are not"
+         " independent and 1/6 is the wrong reference."
+         "\n\nDO NOT QUOTE THE ACUTE CELL. It is 16 sessions with PS95 contributing ONE, and"
+         " removing 4% of periods moves it per animal by up to 0.21 (0.609 / 0.277 / 0.086 /"
+         " -0.093). It is not a 4/4 replication. The CHRONIC result is the one that is stable"
+         " across every control."),
+        ("epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_confusion.png",
+         "Where the frozen rest decoder`s errors GO",
+         "Confusion of the frozen pre-stroke rest decoder, pooled across animals, one panel per"
+         " epoch with that epoch`s change from pre-stroke beneath it. Rows are the true position,"
+         " panels are row-normalised for display while the stored matrices stay RAW COUNTS -- which"
+         " is what makes pooling an epoch a sum rather than a mean of rates."
+         "\n\nWHY IT EXISTS. A retained fraction is a scalar: it says how much position"
+         " information survives and cannot say WHERE it goes. Errors scattering uniformly means the"
+         " code DEGRADES; errors collapsing onto particular positions means it SHIFTS. The scalar"
+         " is identical either way."
+         "\n\nWHAT IT SHOWS. Acute errors COLLAPSE rather than scatter -- predictions pile onto"
+         " near-contralateral in every row, and errors from the far rows move toward the near"
+         " columns (0.56 of far-row error mass pre-stroke, 0.67 acutely)."
+         "\n\nAND REST DISSOCIATES FROM TASK AT THE LESIONED POSITION. Far-contralateral is the"
+         " BEST-decoded position in rest pre-stroke (0.50 diagonal) and it HOLDS UP (0.38 acute,"
+         " 0.39 chronic) -- the opposite of far-contralateral in the task, which collapses from"
+         " 1.46 to 0.47 of its pre-stroke amplitude. Rest and task carry position in largely"
+         " different codes."),
+        ("epoch_15s_shared_position_restdock05.png",
+         "How much of the TASK map is already present in that position`s own REST?",
+         "A regression coefficient per position, window and session: <rest_p - restw, trial_p -"
+         " restw> / ||trial_p - restw||^2. One = the task map adds nothing its own rest did not"
+         " already have; zero = they are orthogonal. Top row is the pre-cue window, bottom the"
+         " post-cue. Shaded band is the circular-shift null (5th-95th percentile); dots are"
+         " per-animal means."
+         "\n\nTHE CIRCULARITY GUARD IS THE WHOLE DESIGN. `rest_p` and `trial_p` are disjoint"
+         " frames but share the session`s slow drift, and shared drift alone produces a positive"
+         " projection. So rest is taken from ODD position-blocks and trials from EVEN ones, drawn"
+         " from interleaved and non-adjacent stretches of the session. The trial map is referenced"
+         " to `restw`, never to the position`s own rest, which would make the projection circular"
+         " by construction."
+         "\n\nWHAT IT SHOWS, AND HOW SMALL IT IS. Post-cue is FLAT against its null at every"
+         " epoch. Pre-cue is consistently positive -- +0.060 pre-stroke and +0.188 acute,"
+         " null-corrected, 4/4 animals both times. But the effect is small: the COSINE between a"
+         " position`s task map and its own rest map is 0.09 post-cue and 0.16 pre-cue, close to"
+         " unrelated, and that is not a magnitude artefact (the amplitude ratio is 0.605 pre-cue,"
+         " so a strong shape match would have shown). The useful reading is that rest carries"
+         " position in a largely DIFFERENT spatial code from the task."
+         "\n\nWHICH WAY THE SHARED COMPONENT POINTS -- this figure cannot say, and the"
+         " block-boundary analysis can. Within a block the position just licked and the one coming"
+         " next are the same; only at a boundary do they separate, and there rest resembles the"
+         " position JUST LICKED AT (r_prev - r_next = +0.0772, 4/4 animals, 2,983 boundary"
+         " periods). So the pre-cue window`s shared component is a trace of the LAST target, not"
+         " preparation for the next -- a constraint on reading the pre-cue signal as anticipatory."
+         "\n\nEXCLUDE SUBACUTE: it is PS92 alone (-0.639 against +0.212, +0.044, +0.027), and"
+         " PS92 is the cohort`s SNR floor -- the six lowest rest fractions all belong to it."),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "
