@@ -173,8 +173,126 @@ def main() -> int:
     print("  NB a uniform shift in EVERY ratio is what removing a FIXED composition bias looks like")
     print("      (the imbalance is 17.5% and stable across epochs). It is not a changed conclusion;")
     print("      only a change in ORDER or in the between-animal agreement would be.")
+    _delta_rest_figure(store, pooled, order, mask)
     print(f"\n[done in {time.time() - t0:.0f}s]")
     return 0
+
+
+def _delta_rest_figure(store, pooled, order, mask):
+    """`epoch_15d` — THE DELTA-REST FIGURE: `flatpool − restw`, per position and epoch.
+
+    Priya asked for a "delta rest figure" on 2026-09-16. **It must be FLAT-POOLED minus RESTW, and
+    NOT production-`rest` minus `restw`.** Production `rest` is TIME-LOCAL and `restw` is FLAT, so
+    the naive difference moves on BOTH axes at once — composition AND temporal — which is exactly
+    the confound that got `rest_vs_restw` withdrawn on 2026-09-14. Both arms here are flat, so the
+    only thing that differs is COMPOSITION, which is what the figure is about.
+
+    WHAT IT SHOWS. `flatpool` weights each rest FRAME equally, so each POSITION by however many rest
+    frames it happened to supply; `restw` weights the six positions equally. Their difference is
+    therefore the composition bias itself, drawn as a map.
+
+    **THE PREDICTION UNDER TEST: the delta should GROW post-stroke.** Post-stroke the animal stops
+    attempting the far positions, so their share of rest frames falls and a frame-weighted baseline
+    drifts toward the NEAR positions' rest — the bias should track the deficit. If it does NOT grow,
+    the correctness argument for `restw` is sound but INERT, and that is worth knowing explicitly
+    rather than assuming the machinery earns its keep.
+    """
+    import numpy as _np
+
+    from wfield_local import beta_maps as bm
+    from wfield_local import epoch_figures as ef
+    from wfield_local.grant_figures import CONF_LABELS
+    from wfield_local.paths import PathResolver
+
+    # THE DELTA IS ONE MAP PER EPOCH, NOT SIX. The algebra decides this and a first version of this
+    # function got it wrong, drawing a 6 x 4 grid whose rows were identical by construction:
+    #
+    #     flatpool_q - restw_q = (raw_q - quiet_flat) - (raw_q - restw) = restw - quiet_flat
+    #
+    # The position's own data cancels -- both arms subtract a SESSION-LEVEL baseline from the same
+    # `raw_q`, so their difference does not involve `q` at all. It is the same cancellation that
+    # makes "reference each position to its own rest, then compare maps" reduce to `15x`. The smoke
+    # test showed all six positions at an identical 0.00071 and that is CORRECT, not a bug; the
+    # per-position grid was the error.
+    #
+    # ROWS ARE ANIMALS, so the pooled mean cannot hide one animal carrying the effect -- the failure
+    # that produced the withdrawn acute dip.
+    per_animal_cells, amps = {}, {}
+    animals = sorted(set(store["flatpool"]) | set(store["restw"]))
+
+    def _one(kind, an, e):
+        """That animal's epoch-mean baseline-referenced map, averaged over positions present."""
+        ms = [_np.mean(v, axis=0) for q in CONF_LABELS
+              if (v := ((store[kind].get(an, {}).get(e) or {}).get(q) or []))]
+        return _np.mean(ms, axis=0) if ms else None
+
+    for an in animals:
+        for e in order:
+            a, b = _one("flatpool", an, e), _one("restw", an, e)
+            if a is None or b is None:
+                continue
+            per_animal_cells[(an, e)] = _np.asarray(a) - _np.asarray(b)
+
+    cells, amps = {}, {}
+    for e in order:
+        ds = [per_animal_cells[(an, e)] for an in animals if (an, e) in per_animal_cells]
+        if not ds:
+            continue
+        d = _np.mean(ds, axis=0)
+        cells[("cohort", e)] = d
+        v = d[mask]
+        amps[e] = float(_np.sqrt(_np.mean(v[_np.isfinite(v)] ** 2)))
+    for an in animals:
+        for e in order:
+            if (an, e) in per_animal_cells:
+                cells[(an, e)] = per_animal_cells[(an, e)]
+
+    if not cells:
+        print("\n!! delta-rest figure: nothing pooled, no figure written")
+        return None
+
+    print(f"\n{'=' * 78}\n3. DELTA-REST (restw - flatpool baseline) -- does the composition bias "
+          f"GROW post-stroke?\n{'=' * 78}")
+    print("ONE map per epoch, not six: the position's own data CANCELS between the two arms")
+    print("(flatpool_q - restw_q = restw - quiet_flat), so the delta does not depend on q.\n")
+    print(f"{'':<12}" + "".join(f"{e:>12}" for e in order) + f"{'chronic/pre':>13}")
+    print(f"{'cohort':<12}" + "".join(f"{amps.get(e, float('nan')):>12.5f}" for e in order)
+          + f"{(amps.get('chronic', float('nan')) / amps['pre']) if amps.get('pre') else float('nan'):>13.3f}")
+    grew = 0
+    for an in animals:
+        row = {}
+        for e in order:
+            if (an, e) not in per_animal_cells:
+                continue
+            v = per_animal_cells[(an, e)][mask]
+            row[e] = float(_np.sqrt(_np.mean(v[_np.isfinite(v)] ** 2)))
+        if not row:
+            continue
+        r = (row.get("chronic", float("nan")) / row["pre"]) if row.get("pre") else float("nan")
+        grew += int(_np.isfinite(r) and r > 1.0)
+        print(f"{an:<12}" + "".join(f"{row.get(e, float('nan')):>12.5f}" for e in order)
+              + f"{r:>13.3f}")
+    print(f"\n{grew}/{len(animals)} animals have a LARGER delta chronically than pre-stroke.")
+    print("  PREDICTION was that it GROWS -- post-stroke the far positions supply fewer rest")
+    print("  frames, so a frame-weighted baseline drifts toward the near positions' rest.")
+    print("  If it does NOT grow, `restw` is correct-but-INERT and that is the honest verdict.")
+
+    d = __import__("pathlib").Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    out = ef.map_grid(
+        cells, d, name="epoch_15d_delta_rest_flatpool_minus_restw",
+        title="DELTA-REST: frame-weighted (flatpool) MINUS position-weighted (restw) baseline",
+        row_labels=["cohort"] + list(animals),
+        col_labels=list(order), edges=bm.atlas_edges(), blank=bm.excluded_mask(),
+        cbar_label="flatpool - restw",
+        subtitle=(
+            "BOTH ARMS ARE FLAT, so the only thing differing is COMPOSITION -- `flatpool` weights "
+            "each rest FRAME equally (hence each position by how many frames it supplied), `restw` "
+            "weights the six positions equally. This is NOT production-`rest` minus `restw`: that "
+            "difference moves on the temporal axis too, which is what got `rest_vs_restw` "
+            "withdrawn. PREDICTION: the bias should GROW post-stroke as the animal stops "
+            "attempting the far positions."))
+    print(f"\nfigure: {out}")
+    return out
 
 
 if __name__ == "__main__":
