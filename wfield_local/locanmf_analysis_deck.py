@@ -2205,9 +2205,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # the reference a post-stroke asymmetry has to be read against. Put in G it would look like a
     # result about the stroke.
     #
-    # BOTH lesions are LEFT-sided, and PS93 has a RIGHT orofacial deficit, so its LEFT hemisphere is
-    # the contralesional one. That mapping is stated on the slide because getting it backwards
-    # inverts the interpretation of every panel.
+    # EVERY lesion in this cohort is LEFT-sided (`configs/animals.yaml stroke_laterality`), and
+    # PS93's orofacial deficit is on the RIGHT -- crossed, as expected. So the LEFT hemisphere is
+    # the IPSILESIONAL one, and it is also the hemisphere that REPRESENTS the impaired right side.
+    # Read the left panel for the deficit.
+    #
+    # THIS COMMENT AND THE SLIDE BOTH SAID "CONTRALESIONAL" UNTIL 2026-09-17, which is the exact
+    # inversion they warn about. The ADVICE was right -- read the left panel -- so the error was
+    # invisible from the figure; only the stated reason was wrong, which is how a wrong reason
+    # survives to be quoted somewhere the advice does not come with it.
+    #
+    # AND THE LABELS THEMSELVES WERE VERIFIED, not assumed, because an image-space flip would have
+    # made the correct word the wrong one. Pre-stroke, family `restw`, six independent area pairs:
+    # a RIGHT-side spout drives every `_left` region harder and every `_right` region less
+    # (laterality index SSp-n +0.34/-0.35, MOp +0.23/-0.14, SSp-un +0.18/-0.17, SSp-bfd, SSp-ul
+    # all the same sign pattern). Somatosensation is crossed, so `_left` IS the animal's left.
     for _hk, _htitle, _hsub in (
         ("rdms", "per-animal RDMs, split by hemisphere",
          "Top row = LEFT-hemisphere components, bottom = RIGHT, same 6 positions and the same "
@@ -2218,9 +2230,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("summary", "animal x animal RDM similarity, per hemisphere",
          "Is the geometry shared ACROSS animals within a hemisphere? Left and right are scored "
          "separately, so a value that is high in one panel and low in the other says the shared "
-         "structure is hemisphere-specific. BOTH LESIONS ARE LEFT-SIDED and PS93's orofacial "
-         "deficit is on the RIGHT, so PS93's LEFT hemisphere is the CONTRALESIONAL one \u2014 read "
-         "the left panel for it, not the right."),
+         "structure is hemisphere-specific. EVERY LESION IN THIS COHORT IS LEFT-SIDED and PS93's "
+         "orofacial deficit is on the RIGHT, so the LEFT hemisphere is the IPSILESIONAL one and "
+         "also the one representing the impaired side \u2014 read the left panel for it, not the "
+         "right. Atlas '_left' is the animal's left: pre-stroke, right-side spouts drive every "
+         "_left area harder and every _right area less, across six area pairs."),
     ):
         _hp = src / f"locanmf_rsa_hemisphere_{_hk}_{tag}.png"
         if not _hp.exists():

@@ -553,7 +553,10 @@ def main() -> int:
         return 0
 
     MIN_IN_MASK_FRAC = float(a.min_in_mask_frac)
-    print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}")
+    # STAMPED NOW, NOT WHEN THE CACHE IS WRITTEN. A commit made DURING a two-hour run would
+    # otherwise be recorded as the code that produced the result; see `git_sha`.
+    sha0 = git_sha()
+    print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}  git {sha0}")
     print(f"   MIN_IN_MASK_FRAC = {MIN_IN_MASK_FRAC}  (tag {a.tag!r})\n")
 
     rows, maps, outlines, cache = [], {}, {}, []
@@ -671,14 +674,19 @@ def main() -> int:
                 print(f"      {ep}-pre: mean cos {np.mean(cosines):+.3f} "
                       f"(noise ceiling {cb:+.3f}) over {len(shared)} pos", flush=True)
 
+        # CHECKPOINT AFTER EVERY ARM. A four-arm run is ~2.5 h and the cache used to be written
+        # only at the very end, so a crash in arm 4 discarded arms 1-3 AND the cache that exists
+        # to make a redraw free. Each arm now persists everything computed so far, and --replot
+        # after an interrupted run draws the arms that finished.
+        if rows:
+            save_cache(cache, rows, out_dir, a.tag, args=a, sha=sha0)
+            print(f"[15h] checkpoint after arm {arm}: {write_csv(rows, out_dir, a.tag)}",
+                  flush=True)
+
     if not rows:
         print("no patterns computed")
         return 1
-    p = out_dir / f"epoch_15h_rotation_regions{a.tag}.csv"
-    with open(p, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        w.writeheader()
-        w.writerows(rows)
+    p = write_csv(rows, out_dir, a.tag)
     print(f"\n[15h] wrote {p}")
 
     print("\nROTATION (cosine between the pre-stroke and the epoch pattern, 1.0 = no turn)")
@@ -695,14 +703,48 @@ def main() -> int:
                 cells.append(f"{np.mean(list(v.values())):>10.3f}" if v else f"{'--':>10}")
             print(f"{arm:<7}{ep + ' - pre':<18}" + "".join(cells))
 
-    save_cache(cache, rows, out_dir, a.tag, args=a)
+    save_cache(cache, rows, out_dir, a.tag, args=a, sha=sha0)
     fig = _figure(maps, rows, out_dir, a.tag, outlines=outlines)
     plane = _gain_rotation_figure(rows, out_dir, a.tag)
     print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] {time.time() - t0:.0f}s")
     return 0
 
 
-def save_cache(cache, rows, out_dir, tag="", args=None):
+def git_sha() -> str:
+    """Short HEAD sha, ``-dirty`` when the tree has uncommitted changes.
+
+    CALL THIS AT STARTUP, NOT AT SAVE TIME. `save_cache` used to read it when it wrote, hours
+    after the run began -- so a commit made DURING a two-hour run got stamped onto results the
+    commit had no part in, which is the provenance lie the stamp exists to prevent (2026-09-17:
+    the cache claimed 568d935, a commit made mid-run; the code that ran was bc6d055).
+    """
+    import subprocess
+
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                             text=True, timeout=10, check=False).stdout.strip() or "unknown"
+        # "-dirty" IS THE WHOLE POINT. With uncommitted changes the HEAD sha names code that is
+        # NOT what ran, which is the same lie the missing stamp told on 2026-09-17 -- a figure
+        # claiming provenance it does not have is worse than one claiming none.
+        if subprocess.run(["git", "status", "--porcelain"], capture_output=True,
+                          text=True, timeout=10, check=False).stdout.strip():
+            sha += "-dirty"
+        return sha
+    except Exception:                                                  # noqa: BLE001
+        return "unknown"
+
+
+def write_csv(rows, out_dir, tag=""):
+    """The per-cell table. Split out of `main` so a per-arm checkpoint writes the same file."""
+    p = out_dir / f"epoch_15h_rotation_regions{tag}.csv"
+    with open(p, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return p
+
+
+def save_cache(cache, rows, out_dir, tag="", args=None, sha=None):
     """Write the COMPONENT-space results so the figures can be redrawn without recomputing.
 
     THIS EXISTS BECAUSE THE FIGURE COST THREE FULL PASSES IN ONE DAY, two of them purely to change
@@ -720,22 +762,11 @@ def save_cache(cache, rows, out_dir, tag="", args=None):
     nothing on the figure said which code drew it.
     """
     import json
-    import subprocess
 
     if not cache:
         return None
-    sha = "unknown"
-    try:
-        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
-                             text=True, timeout=10).stdout.strip() or "unknown"
-        # "-dirty" IS THE WHOLE POINT. With uncommitted changes the HEAD sha names code that is
-        # NOT what ran, which is the same lie the missing stamp told on 2026-09-17 -- a figure
-        # claiming provenance it does not have is worse than one claiming none.
-        if subprocess.run(["git", "status", "--porcelain"], capture_output=True,
-                          text=True, timeout=10).stdout.strip():
-            sha += "-dirty"
-    except Exception:                                                  # noqa: BLE001
-        pass
+    # `sha` COMES FROM THE CALLER, captured when the run STARTED -- see `git_sha`.
+    sha = sha or git_sha()
     meta = [{k: c[k] for k in ("arm", "contrast", "position", "animal")} for c in cache]
     blobs = {}
     for i, c in enumerate(cache):

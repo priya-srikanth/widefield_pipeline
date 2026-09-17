@@ -13818,9 +13818,10 @@ corrected across the ANIMAL axis**, so with four animals the per-cell false-posi
 ~1 - 0.95^4 = **18%, not 5%** — and "significant in all three families" could be three DIFFERENT
 animals. That is a replication count wearing a cohort test's clothes.
 
-**Until `cohort_delta` is wired, read `15k`'s agreement table as "which regions are worth looking at
-in `15r`", not as a cohort result.** The first run's counts (acute 16 / subacute 3 / chronic 8
-all-three) are inflated for this reason.
+**`cohort_delta` IS NOW WIRED** (2026-09-17 evening), so the agreement table IS a cohort result:
+the nested animals -> sessions bootstrap, CI per cell. The first run's counts (acute 16 / subacute
+3 / chronic 8 all-three) came from the any-animal rule AND pixel weighting and are superseded --
+do not quote them.
 
 ### AND WHY THE COHORT CLAIM IS AN INTERVAL, NEVER A p
 
@@ -13835,3 +13836,48 @@ count; here it is the cohort size). A bootstrap CI has no such floor, so `cohort
 Do `15k`'s all-three regions sit under `15r`'s outlined blobs? Agreement across two different test
 UNITS and two different correction FAMILIES is much stronger evidence than either alone, and
 disagreement is diagnostic rather than merely awkward — see the dilution rule above.
+
+## Atlas `_left` IS the animal's left hemisphere — MEASURED, 2026-09-17
+
+Every lesion in this cohort is LEFT-sided (`configs/animals.yaml stroke_laterality`), so the
+hemisphere suffix on an Allen region decides whether a regional result reads as IPSILESIONAL or
+CONTRALESIONAL. **`locanmf_analysis_deck` asserted the inverse** — that a LEFT lesion makes the
+LEFT hemisphere the *contralesional* one — in a comment and on a slide, immediately after warning
+that getting it backwards "inverts the interpretation of every panel".
+
+**THE ADVICE ATTACHED TO IT WAS CORRECT** ("read the left panel for PS93's deficit"), which is
+exactly why it survived: no figure ever looked wrong. Only the stated reason was wrong. A wrong
+reason travels to places the advice does not.
+
+**IT WAS VERIFIED RATHER THAN ARGUED**, because an image-space flip anywhere in the Allen warp
+would have made the corrected word wrong again, silently. The test uses the one relation that
+cannot flip: somatosensation is crossed, so a spout on the animal's RIGHT must drive the LEFT
+cortex harder. The spout half of the mapping is already fixed elsewhere — `anatomical_labels`
+calls `close_R`/`far_R` 'near/far contra', and contra is the right side for a left lesion.
+
+Pre-stroke only, family `restw`, laterality index `(R - L)/(|R| + |L|)`:
+
+| area | `_left` | `_right` |
+|---|---|---|
+| SSp-n | **+0.339** | **-0.348** |
+| MOp | +0.228 | -0.144 |
+| SSp-un | +0.179 | -0.168 |
+| SSp-bfd | +0.162 | -0.079 |
+| SSp-ul | +0.126 | -0.060 |
+| SSp-m | (no left partner) | -0.205 |
+
+**11 of 11 areas match**, every `_left` positive and every `_right` negative, across six
+independent area pairs. So `_left` is the animal's left, the LEFT hemisphere is IPSILESIONAL, and
+it is ALSO the hemisphere representing the impaired RIGHT side — both facts point the same way,
+which is the coincidence that let the wrong word go unnoticed.
+
+Re-runnable in seconds, off the saved `15k` vectors, no recomputation:
+
+```bash
+python -m scripts.rest_migration.reference_family_figure --align lick --hemisphere-check
+```
+
+**CAVEAT THAT MUST TRAVEL WITH ANY `SSp-m` LATERALITY CLAIM:** the 30-region shared vocabulary
+contains `SSp-m_right` and NOT `SSp-m_left` — no in-mask component carried that label in all four
+animals. It is the strongest chronic region in `15k`, and it has nothing on the other side to be
+contrasted against.

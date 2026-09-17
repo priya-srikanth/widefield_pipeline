@@ -79,10 +79,10 @@ def shared_regions(animals):
     Measured 2026-09-17: all four animals carry the same 64 sids, and every component has a known
     one, so the intersection costs nothing here. It is a guard, not a filter.
     """
+    from scripts.rest_migration.rotation_maps import in_mask_components
     from wfield_local import beta_maps as bm
     from wfield_local import joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    from scripts.rest_migration.rotation_maps import in_mask_components
 
     _atlas, names = bm._atlas_names()
     if not names:
@@ -179,9 +179,9 @@ def component_weights(animal, region_labels):
     Only components passing `in_mask_components` contribute: the rest are olfactory bulb and
     glue/window edge.
     """
+    from scripts.rest_migration.rotation_maps import in_mask_components
     from wfield_local import joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    from scripts.rest_migration.rotation_maps import in_mask_components
 
     basis = joint_locanmf.load(animal, sessions=SESSIONS)
     keep = in_mask_components(basis)
@@ -247,7 +247,6 @@ def maxstat_p(real, null_draws):
 def main() -> int:
     from pathlib import Path
 
-
     from wfield_local.paths import PathResolver
     from wfield_local.position_reference_maps import maps_by_epoch
 
@@ -267,7 +266,13 @@ def main() -> int:
     by_epoch, _rel, _n = maps_by_epoch(a.align, variant)
     animals = sorted(by_epoch)
     sids, labels, mask = shared_regions(animals)
+    # THE THRESHOLD AND THE SHA GO IN THE HEADER. On 2026-09-17 the only way to tell which
+    # MIN_IN_MASK_FRAC a finished run had used was to count its regions (30 = 0.75, 34 = 0.5) --
+    # `shared_regions` imports `in_mask_components` lazily, so the run's START time does not
+    # settle it. An artefact should say what produced it.
+    from scripts.rest_migration.rotation_maps import MIN_IN_MASK_FRAC, git_sha
     print(f"REFERENCE FAMILIES BY Basis.regions -- {a.align}/{variant}, families {a.families}")
+    print(f"   MIN_IN_MASK_FRAC = {MIN_IN_MASK_FRAC}   git {git_sha()}")
     print(f"{len(sids)} Allen regions carrying an in-mask COMPONENT in all {len(animals)} animals "
           f"(the correction family)\n{'=' * 78}", flush=True)
     wts = {}
