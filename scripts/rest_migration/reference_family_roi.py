@@ -283,9 +283,10 @@ def main() -> int:
     # MIN_IN_MASK_FRAC a finished run had used was to count its regions (30 = 0.75, 34 = 0.5) --
     # `shared_regions` imports `in_mask_components` lazily, so the run's START time does not
     # settle it. An artefact should say what produced it.
-    from scripts.rest_migration.rotation_maps import MIN_IN_MASK_FRAC, git_sha
+    from scripts.rest_migration.rotation_maps import MIN_IN_MASK_FRAC, MIN_IN_STAT_FRAC, git_sha
     print(f"REFERENCE FAMILIES BY Basis.regions -- {a.align}/{variant}, families {a.families}")
-    print(f"   MIN_IN_MASK_FRAC = {MIN_IN_MASK_FRAC}   git {git_sha()}")
+    print(f"   GATE: mass in brain_mask >= {MIN_IN_MASK_FRAC} AND mass in stat_mask >= "
+          f"{MIN_IN_STAT_FRAC}   git {git_sha()}")
     print(f"{len(sids)} Allen regions carrying an in-mask COMPONENT in all {len(animals)} animals "
           f"(the correction family)\n{'=' * 78}", flush=True)
     wts = {}
