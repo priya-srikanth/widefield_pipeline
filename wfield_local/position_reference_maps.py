@@ -206,6 +206,22 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
         L = min(q.shape[0], T)
         qm = np.zeros(T, bool)
         qm[:L] = q[:L]
+        # THE ENGAGEMENT GATE (2026-09-16). `restw` has excluded the terminal quit period since
+        # 2026-09-14 via `rest_frames_by_position(engaged_only=True)`; THIS builder -- the
+        # `_RESTref_` time-local baseline -- did not, so the two references drawn in the SAME
+        # figure family disagreed about which part of the session counts. The quit period is 3.1%
+        # of rest frames pre-stroke and 18.7% acute, so an ungated baseline changes composition
+        # WITH the deficit it is being subtracted from. docs/REST_ENGAGEMENT_AUDIT.md.
+        from wfield_local.rest_engagement import engaged_frame_mask
+        eng, note = engaged_frame_mask(session, T)
+        if "UNGATED" in note:
+            print(f"  !! time-local rest {session['label']}: {note}", flush=True)
+        qm &= eng
+        if not qm.any():
+            # A SESSION LOSES ITS REST COLUMN rather than silently contributing an ungated one --
+            # the same rule `quiet_frame_path` applies across rest variants.
+            print(f"  !! time-local rest {session['label']}: no engaged rest frames", flush=True)
+            return None
         return _timelocal_from_mask(V, qm, int(nbins))
     except Exception as ex:                                            # noqa: BLE001
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",

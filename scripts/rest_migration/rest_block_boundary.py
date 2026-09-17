@@ -82,6 +82,9 @@ def main() -> int:
     from wfield_local.quiet_periods import quiet_dir
 
     ap = argparse.ArgumentParser()
+    ap.add_argument("--no-engagement-gate", action="store_true",
+                    help="keep the pre-2026-09-16 ungated behaviour, for measuring the "
+                         "size of the correction only -- never for a reported result")
     ap.add_argument("--docked", action="store_true", default=True)
     ap.add_argument("--loose", dest="docked", action="store_false",
                     help="use the loose rest window instead of the strict docked one")
@@ -141,6 +144,13 @@ def main() -> int:
         V = V[:, :T]
         f_of = np.clip(fs_samp, 0, rest.shape[0] - 1)
 
+        engaged = None
+        if not getattr(a, "no_engagement_gate", False):
+            from wfield_local.rest_engagement import engaged_by_cue
+            engaged, _gn = engaged_by_cue(s, cs, codes)
+            if "UNGATED" in _gn:
+                print(f"  !! {s['label']}: {_gn}", flush=True)
+
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
         within, boundary = {}, []                 # within[pos] -> [frame arrays]; boundary -> recs
@@ -151,6 +161,12 @@ def main() -> int:
                 continue
             nc = np.searchsorted(cs, ts[nxt], "left")
             if nc >= len(codes) or prev >= len(codes) or codes[prev] < 0 or codes[nc] < 0:
+                continue
+            # ENGAGEMENT GATE (2026-09-16). BOTH bracketing trials must be working -- and here that
+            # matters twice over: a boundary period whose FOLLOWING trial is already in the quit
+            # period is not a position CHANGE, it is a state change, and would be scored as
+            # anticipation of a position the animal never went on to work.
+            if engaged is not None and not (engaged[prev] and engaged[nc]):
                 continue
             fr = np.flatnonzero((f_of >= aa) & (f_of < bb))
             fr = fr[fr < T]

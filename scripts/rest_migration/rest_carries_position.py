@@ -104,6 +104,16 @@ def main() -> int:
             continue
 
         # ---- label every rest BOUT by its bracketing trials, keeping only unambiguous ones
+        # ALWAYS GATED, no opt-out: `main()` here takes no argparse, and the patch that added this
+        # originally wrote `getattr(a, ...)` where `a` is the rest-bout LOOP VARIABLE further down --
+        # undefined on the first session, a stale sample index afterwards. Caught by ruff F821
+        # before it ran. Copying a snippet between scripts whose argument names differ is the same
+        # templating failure that spread the missing gate itself.
+        from wfield_local.rest_engagement import engaged_by_cue
+        engaged, _gn = engaged_by_cue(s, cs, codes)
+        if "UNGATED" in _gn:
+            print(f"  !! {s['label']}: {_gn}", flush=True)
+
         pad = np.concatenate([[0], rest.view(np.int8), [0]])
         dif = np.diff(pad)
         starts, stops = np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)
@@ -118,6 +128,9 @@ def main() -> int:
             if nxt_cue >= len(codes) or prev >= len(codes):
                 continue
             if codes[prev] == codes[nxt_cue] and codes[prev] >= 0:
+                # ENGAGEMENT GATE (2026-09-16). docs/REST_ENGAGEMENT_AUDIT.md.
+                if engaged is not None and not (engaged[prev] and engaged[nxt_cue]):
+                    continue
                 lab[a:b] = codes[prev]
                 n_bouts_kept += 1
 

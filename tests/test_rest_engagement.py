@@ -69,6 +69,46 @@ def test_no_cues_is_not_a_crash():
     assert "no cues" in note
 
 
+#: EVERY rest analysis that makes a POSITION or ACROSS-EPOCH contrast. Enumerated here rather than
+#: discovered, because the failure this guards against is a script being added -- or patched for one
+#: defect and not the other -- and nobody noticing. On 2026-09-16 `rest_block_boundary` and
+#: `rest_carries_position` received the classifier fix and NOT the gate, and were described as
+#: "patched for both" until a count of call sites said otherwise.
+EXPOSED = [
+    "scripts.rest_migration.rest_position_permutation",     # finding 11
+    "scripts.rest_migration.rest_position_decode",          # the per-session trajectory
+    "scripts.rest_migration.rest_position_vs_drift",        # epoch_15x, published + in the nightly
+    "scripts.rest_migration.rest_carries_position",
+    "scripts.rest_migration.rest_block_boundary",
+    "scripts.rest_migration.rest_frozen_decoder",           # 15f
+    "scripts.rest_migration.shared_position_projection",    # 15s
+]
+
+
+@pytest.mark.parametrize("mod", EXPOSED)
+def test_every_exposed_rest_analysis_builds_the_gate(mod):
+    """The gate must be BUILT in each one. See docs/REST_ENGAGEMENT_AUDIT.md section B."""
+    import inspect
+
+    m = pytest.importorskip(mod)
+    src = inspect.getsource(m)
+    code = "\n".join(ln.split("#")[0] for ln in src.splitlines())
+    assert "engaged_by_cue" in code, f"{mod} does not build the engagement gate"
+
+
+@pytest.mark.parametrize("mod", EXPOSED)
+def test_every_exposed_rest_analysis_uses_the_repaired_classifier(mod):
+    """The 0806 sessions -- one PRE-STROKE session per animal -- collapse 6 positions to 4 under
+    raw `_classify_cues`, 144-192 trials each. Fourth recorded occurrence of this defect."""
+    import inspect
+
+    m = pytest.importorskip(mod)
+    code = "\n".join(ln.split("#")[0] for ln in inspect.getsource(m).splitlines())
+    assert "classify_cues_with_backup" in code, f"{mod} does not use the repaired classifier"
+    bare = code.replace("classify_cues_with_backup", "")
+    assert "_classify_cues(" not in bare, f"{mod} still calls the RAW classifier somewhere"
+
+
 def test_the_rest_collectors_actually_apply_the_gate():
     """The whole point: the filter must be in the CODE, not only in the docstring.
 

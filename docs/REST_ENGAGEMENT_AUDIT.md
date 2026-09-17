@@ -159,6 +159,50 @@ It was not — the cohort went slightly UP.** Four of forty-four sessions carrie
 about the total, which is the extrapolation trap `CLAUDE.md` documents for the render timings,
 recurring in a statistic. Do not read a partial cohort as a trend.
 
+### The other two re-runs — both SURVIVE
+
+**Block boundary (persistence vs anticipation)**, gated + repaired classifier, `--docked`:
+`r_prev - r_next = +0.0772`, **4/4 animals positive**, 2,983 boundary periods, 0 sessions skipped
+(PS92 +0.105, PS93 +0.089, PS94 +0.044, PS95 +0.071). The published value is **+0.0754** — the two
+fixes moved it by 0.002.
+
+**THIS IS THE ANALYSIS `15s` COULD NOT DO.** Within a block the position just licked and the one
+coming next are the same, so nothing separates persistence from anticipation. At a BOUNDARY they
+differ, and rest resembles **the position just licked at**. So `15s`'s finding that the PRE-CUE
+window shares more with rest than post-cue does is a shared component pointing BACKWARDS — a trace
+of the last target, not preparation for the next. That is a real constraint on reading the pre-cue
+signal as anticipatory, and it is consistent with this project's standing refusal to call it "a
+maintained motor plan".
+
+**Per-session decode**, gated + repaired: **94 of 96 sessions above their own null** (pre 44/44,
+acute 15/16, subacute 17/18, chronic 18/18), against the published 93/94.
+
+| epoch | obs | null | obs − null |
+|---|---|---|---|
+| pre | 0.372 | 0.167 | 0.205 |
+| acute | 0.300 | 0.173 | 0.126 |
+| subacute | 0.310 | 0.171 | 0.139 |
+| chronic | 0.430 | 0.168 | 0.262 |
+
+**Do NOT read a trajectory off that column.** It is a cohort mean, and the acute-dip claim derived
+from exactly this quantity was WITHDRAWN on 2026-09-15 because PS95 rises. Plot the animals first.
+
+### A THIRD templating failure, caught by the linter
+
+The patch that added the gate to `rest_carries_position` wrote
+`getattr(a, "no_engagement_gate", False)` — but `a` there is the rest-bout LOOP VARIABLE, not an
+argument namespace; that file has no argparse. Undefined on the first session, a stale sample index
+afterwards. `ruff F821` caught it before it ran. Copying a snippet between scripts whose argument
+names differ is the same mechanism that spread the missing gate and the raw classifier.
+
+**The guard is now an ENUMERATED list.** `tests/test_rest_engagement.py::EXPOSED` names all seven
+rest analyses that make a position or across-epoch contrast, and parametrised tests assert each one
+builds the gate AND uses the repaired classifier, with no surviving raw `_classify_cues(` call.
+Written out rather than discovered, because the failure is a script being added — or patched for one
+defect and not the other — and nobody noticing. On 2026-09-16 `rest_block_boundary` and
+`rest_carries_position` were described here as "patched for both" when they had only the classifier
+fix; a count of call sites said otherwise.
+
 **Every rest number produced before 2026-09-16 is provisional** until its analysis is re-run:
 finding 11's 1.622, the 93/94 per-session decode, `epoch_15x`, the `_RESTref_` maps, and the
 `flatpool_vs_restw` composition test. **`_RESTWref_` and the encoder baseline are unaffected.**
