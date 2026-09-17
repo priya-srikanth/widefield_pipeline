@@ -79,6 +79,101 @@ def agreement(rows, epoch, regions, positions, families=FAMILIES):
     return out
 
 
+def signed_agreement(rows, epoch, regions, positions, families=FAMILIES):
+    """``(signed, mixed)`` -- agreement count carrying the DIRECTION, -3..+3.
+
+    Priya, 2026-09-17: *"can that be color-coded red shades or blue shades for increase or
+    decrease?"* -- a count alone says three references agree that SOMETHING changed without saying
+    which way, and the direction is the whole content of the cell.
+
+    A CELL WHOSE SIGNIFICANT FAMILIES DISAGREE IN SIGN IS NOT AVERAGED INTO ONE. It returns 0 and
+    is flagged in `mixed`, because two references pointing opposite ways is a fact about the
+    references, not a weaker version of agreement -- averaging would hide exactly the disagreement
+    this three-family design was built to surface.
+    """
+    n = np.zeros((len(regions), len(positions)))
+    pos_n = np.zeros_like(n)
+    neg_n = np.zeros_like(n)
+    for fam in families:
+        d, s, _ = grid(rows, fam, epoch, regions, positions)
+        n += s.astype(float)
+        pos_n += (s & (d > 0)).astype(float)
+        neg_n += (s & (d < 0)).astype(float)
+    mixed = (pos_n > 0) & (neg_n > 0)
+    signed = np.where(pos_n >= neg_n, pos_n, -neg_n)
+    signed[mixed] = 0.0
+    return signed, mixed
+
+
+def global_shift_test(out_dir, align="cue", tag="", families=FAMILIES, n_boot=2000, seed=7,
+                      log=print):
+    """Is the ALL-REGION per-position shift itself significant? The largest effect nothing tested.
+
+    `global_vs_regional` showed that ~75% of the cue arm's acute change is a shift common to every
+    region -- near positions up, far positions down, the same sign in all 30. Every statistic in
+    `15k` is per REGION, so that component was measured and then left untested while the residual
+    quarter got all the inference. This is the test it was missing.
+
+    THE UNIT IS ONE SESSION'S MEAN OVER THE 30 REGIONS -- the same unweighted mean
+    `global_vs_regional` subtracts -- and the estimator is the project's nested animals -> sessions
+    bootstrap, so it reports an INTERVAL, never a p (four animals: an animal-level permutation
+    floors at 1/16 = 0.0625).
+
+    IT IS FRAMING (1) AND ONLY FRAMING (1). `15g`/`15h` score a position RELATIVE to the other
+    five, so a shift that raises all six equally is invisible to them by construction. This one is
+    NOT uniform across positions -- it reverses sign between near and far -- so the two framings
+    should agree here, and that agreement is worth checking rather than assuming.
+
+    Returns ``{(family, epoch, position): (delta, lo, hi, n_animals, n_same_sign)}``.
+    """
+    import json
+
+    from scripts.rest_migration.reference_family_roi import _ordered, cohort_delta
+
+    p = Path(out_dir) / f"epoch_15k_region_vectors_{align}{tag}.npz"
+    if not p.exists():
+        log(f"!! no vectors at {p}")
+        return {}
+    with np.load(p, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        V = np.asarray(f["V"])
+    # ONE SCALAR PER SESSION: the mean over regions. Kept 2-D so `cohort_delta` -- which expects a
+    # vector per session -- takes it unchanged rather than through a second code path.
+    g = np.nanmean(V, axis=1)[:, None]
+
+    animals = sorted({m["animal"] for m in meta})
+    out = {}
+    log(f"\n   THE GLOBAL PER-POSITION SHIFT ITSELF ({align}), nested animals->sessions bootstrap")
+    log(f"   {'family':<8}{'epoch':<10}{'position':<15}{'delta':>10}{'95% CI':>22}   animals")
+    for fam in families:
+        for ep in EPOCHS:
+            poss = _ordered({m["position"] for m in meta if m["epoch"] == ep})
+            for pos in poss:
+                pa = {}
+                for an in animals:
+                    pre_i = [k for k, m in enumerate(meta) if m["family"] == fam
+                             and m["animal"] == an and m["epoch"] == "pre"
+                             and m["position"] == pos]
+                    ep_i = [k for k, m in enumerate(meta) if m["family"] == fam
+                            and m["animal"] == an and m["epoch"] == ep
+                            and m["position"] == pos]
+                    if pre_i and ep_i:
+                        pa[an] = (g[pre_i], g[ep_i])
+                got = cohort_delta(pa, n_boot=n_boot, seed=seed)
+                if got is None:
+                    continue
+                real, lo, hi, n_an, rep = got
+                out[(fam, ep, pos)] = (float(real[0]), float(lo[0]), float(hi[0]), n_an,
+                                       int(rep[0]))
+                star = "*" if (lo[0] > 0 or hi[0] < 0) else " "
+                log(f"   {fam:<8}{ep:<10}{pos:<15}{real[0]:>+10.5f}"
+                    f"  [{lo[0]:>+8.5f},{hi[0]:>+8.5f}]{star}  {rep[0]}/{n_an}")
+    n_sig = sum(1 for v in out.values() if v[1] > 0 or v[2] < 0)
+    log(f"   -> {n_sig}/{len(out)} cells with the interval clear of zero "
+        f"(* marks them; per cell, uncorrected)")
+    return out
+
+
 def hemisphere_check(out_dir, align="lick", tag="", family="restw", log=print):
     """Does atlas `_left` mean the ANIMAL'S left hemisphere? Measured, not assumed.
 
@@ -218,8 +313,13 @@ def _figure(rows, out_dir, align="cue", tag=""):
                                if r["family"] == fam and np.isfinite(r["cohort_delta"])]))
         vmax[fam] = float(np.nanpercentile(v, 99)) if v.size else 1.0
 
-    ag_cmap = ListedColormap(["0.93", "#c6dbef", "#6baed6", "#08519c"])
-    ag_norm = BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5], ag_cmap.N)
+    # SIGNED, so the panel says which WAY. Blue shades = decrease, red = increase, darkness = how
+    # many references agree. Grey is the middle because 0 means "no reference cleared zero" -- and
+    # a sign DISAGREEMENT between references also lands there, hatched, rather than being averaged
+    # into a direction it does not have.
+    ag_cmap = ListedColormap(["#08519c", "#6baed6", "#c6dbef", "0.93",
+                              "#fcbba1", "#fb6a4a", "#a50f15"])
+    ag_norm = BoundaryNorm([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5], ag_cmap.N)
 
     for i, ep in enumerate(EPOCHS):
         ag = agreement(rows, ep, regions, positions)
@@ -256,20 +356,24 @@ def _figure(rows, out_dir, align="cue", tag=""):
                 cb.set_label(f"cohort delta, {fam} scale", fontsize=7)
 
         ax = axes[i][ncol - 1]
-        ax.imshow(ag, cmap=ag_cmap, norm=ag_norm, aspect="auto", interpolation="nearest")
+        sag, mixed = signed_agreement(rows, ep, regions, positions)
+        ax.imshow(sag, cmap=ag_cmap, norm=ag_norm, aspect="auto", interpolation="nearest")
+        ym, xm = np.where(mixed)
+        if ym.size:
+            ax.plot(xm, ym, "x", ms=4, color="k", mew=1.0, ls="none")
         ax.set_xticks(range(len(positions)))
         ax.set_xticklabels(xt, fontsize=7)
         ax.set_yticks(range(len(regions)))
         ax.set_yticklabels([], fontsize=5.4)
         ax.tick_params(length=1.5, pad=1)
         if i == 0:
-            ax.set_title("families agreeing", fontsize=11, fontweight="bold")
+            ax.set_title("families agreeing, SIGNED", fontsize=11, fontweight="bold")
         if i == nrow - 1:
             cb = fig.colorbar(plt.cm.ScalarMappable(norm=ag_norm, cmap=ag_cmap), ax=ax,
                               orientation="horizontal", fraction=0.032, pad=0.10,
-                              ticks=[0, 1, 2, 3])
+                              ticks=[-3, -2, -1, 0, 1, 2, 3])
             cb.ax.tick_params(labelsize=6.5)
-            cb.set_label("n families with CI clear of 0", fontsize=7)
+            cb.set_label("n families clear of 0 (blue = decrease, red = increase)", fontsize=7)
 
     fig.text(0.5, 1 - 0.30 / fig_h,
              f"epoch_15k -- WHERE the {align} position map changes, three references "
@@ -280,6 +384,8 @@ def _figure(rows, out_dir, align="cue", tag=""):
              "region x spout position, nested animals->sessions bootstrap.\n"
              "DOT = that bootstrap CI excludes zero (per cell, UNCORRECTED across regions). RING = "
              "all three references agree -- the cell no single subtrahend explains.\n"
+             "LAST COLUMN: blue = decrease, red = increase, darker = more references agreeing; "
+             "x = the significant references DISAGREE in sign.\n"
              "COLOUR SCALES DIFFER BETWEEN COLUMNS ON PURPOSE: raw has no subtrahend, precue is "
              "an increment over the per-trial pre-cue window, restw is activity above rest.\n"
              "Epochs within a column ARE comparable. The unit is a LocaNMF COMPONENT grouped by "
@@ -296,6 +402,145 @@ def _figure(rows, out_dir, align="cue", tag=""):
     return out
 
 
+def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=3):
+    """The all-three-families cells PAINTED ON THE ALLEN CCF. Rows = epoch, columns = position.
+
+    Priya, 2026-09-17: *"can we make a version of the agree in all 3 that is on the Allen CCF
+    picture?"* A 30-row region list is a table of names; the same result on a brain is an
+    anatomical claim you can read at a glance, and the two SSp subdivisions that dominate every
+    chronic list are neighbours -- which the alphabetical row order actively hides.
+
+    ONE FAMILY SUPPLIES THE COLOUR (`restw` by default) AND THE OTHER TWO SUPPLY THE GATE. Only
+    cells whose CI clears zero in ALL THREE are painted, so the map is the agreed set; the number
+    shown is one reference's, because the three are not in the same units and averaging them would
+    invent a quantity none of them measures.
+
+    A PAINTED REGION IS A LocaNMF-COMPONENT MEAN SPREAD OVER ITS ALLEN FOOTPRINT -- it is NOT a
+    pixel map, and the flat colour inside a region is the point rather than a rendering shortcut.
+    The sharp edges are the parcellation's, not the data's.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import beta_maps as bm
+    from wfield_local import epoch_figures as ef
+    from wfield_local import transfer_matrix as tm
+    from wfield_local.atlas_overlay import overlay_regions
+    from wfield_local.grant_figures import CONF_LABELS
+
+    atlas, names = bm._atlas_names()
+    if atlas is None or not names:
+        print("!! no Allen atlas available -- skipping the CCF figure")
+        return None
+    inv = {v: k for k, v in names.items()}
+    try:
+        smask = np.asarray(bm.stat_mask(), bool)
+    except Exception:                                                  # noqa: BLE001
+        smask = None
+    edges = bm.atlas_edges()
+
+    rank = {q: i for i, q in enumerate(CONF_LABELS)}
+    positions = sorted({r["position"] for r in rows}, key=lambda q: (rank.get(q, 99), q))
+    pretty = dict(zip(CONF_LABELS, [x.title()
+                                    for x in ef.anatomical_labels(CONF_LABELS, short=False)]))
+
+    # WHICH CELLS ARE AGREED, and the value one reference gives them.
+    agreed = {}
+    for r in rows:
+        if r["ci_excludes_zero"]:
+            agreed.setdefault((r["epoch"], r["position"], r["region"]), set()).add(r["family"])
+    val = {(r["epoch"], r["position"], r["region"]): r["cohort_delta"]
+           for r in rows if r["family"] == family}
+
+    # "0 regions" IS TWO DIFFERENT FACTS and they must not share a label: no cell AGREED, versus
+    # no cell EXISTED. The lick arm has no acute far-contra data at all, and an unqualified zero
+    # there reads as a null result when it is the deficit.
+    have_data = {(r["epoch"], r["position"]) for r in rows}
+
+    imgs, painted = {}, []
+    for ep in EPOCHS:
+        for pos in positions:
+            img = np.full(atlas.shape, np.nan, float)
+            hit = 0
+            for (e, q, reg), fams in agreed.items():
+                if e != ep or q != pos or len(fams) < n_families:
+                    continue
+                sid = inv.get(reg)
+                v = val.get((ep, pos, reg))
+                if sid is None or v is None:
+                    continue
+                m = np.rint(atlas).astype(np.int32) == int(sid)
+                if not m.any():
+                    continue
+                img[m] = v
+                painted.append(v)
+                hit += 1
+            imgs[(ep, pos)] = (img, hit)
+    if not painted:
+        print("!! no cell agreed in all three families -- nothing to paint")
+        return None
+    vmax = float(np.nanpercentile(np.abs(painted), 99))
+
+    nrow, ncol = len(EPOCHS), len(positions)
+    fig_h = 1.95 + 2.25 * nrow
+    fig, axes = plt.subplots(nrow, ncol, figsize=(2.25 * ncol + 0.9, fig_h), squeeze=False,
+                             gridspec_kw={"wspace": 0.03, "hspace": 0.05})
+    fig.subplots_adjust(top=1 - 1.55 / fig_h, bottom=0.075)
+    cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
+    cm.set_bad("0.955")            # AGREED-ON-NOTHING, and pale so it cannot read as a zero value
+
+    for i, ep in enumerate(EPOCHS):
+        for j, pos in enumerate(positions):
+            ax = axes[i][j]
+            img, hit = imgs[(ep, pos)]
+            ax.imshow(np.ma.masked_invalid(img), cmap=cm, vmin=-vmax, vmax=vmax,
+                      interpolation="nearest")
+            if edges is not None:
+                overlay_regions(ax, edges)
+            if smask is not None and smask.shape == atlas.shape:
+                ax.contour(smask.astype(float), levels=[0.5], colors="k",
+                           linewidths=0.7, linestyles="--")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+            lab = (f"{hit} region{'' if hit == 1 else 's'}" if (ep, pos) in have_data
+                   else "NO TRIALS IN ANY ANIMAL")
+            ax.text(0.02, 0.02, lab, transform=ax.transAxes,
+                    fontsize=7, color="0.25", ha="left", va="bottom",
+                    bbox={"fc": "white", "ec": "none", "alpha": 0.8, "pad": 1.2})
+            if i == 0:
+                ax.set_title(pretty.get(pos, pos), fontsize=10, fontweight="bold")
+            if j == 0:
+                ax.set_ylabel(ep, fontsize=12, fontweight="bold")
+
+    cax = fig.add_axes([0.35, 0.035, 0.30, 0.012])
+    cb = fig.colorbar(plt.cm.ScalarMappable(
+        norm=plt.Normalize(-vmax, vmax), cmap=cm), cax=cax, orientation="horizontal")
+    cb.ax.tick_params(labelsize=7)
+    cb.set_label(f"cohort delta (epoch - pre), {family} reference", fontsize=8)
+
+    fig.text(0.5, 1 - 0.30 / fig_h,
+             f"epoch_15k -- {align} position map: the regions ALL THREE references agree on",
+             ha="center", va="top", fontsize=15, fontweight="bold")
+    fig.text(0.5, 1 - 0.70 / fig_h,
+             "Painted only where the cohort CI excludes zero in raw AND precue AND restw -- the "
+             "change no single subtrahend's failure mode explains. Colour is the restw value.\n"
+             "FLAT COLOUR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT: the unit is a "
+             "LocaNMF component mean, spread over its Allen footprint. The edges are the "
+             "parcellation's.\n"
+             "Dashed line = the analysed mask (olfactory bulbs and the glue/window edge "
+             "excluded). Pale grey = agreed on nothing there.\n"
+             "'_left' IS THE ANIMAL'S LEFT and every lesion is left-sided, so left = "
+             "IPSILESIONAL, and it is also the hemisphere representing the impaired right side.",
+             ha="center", va="top", fontsize=8.5)
+    out = Path(out_dir) / f"epoch_15k_agreed_ccf_{align}{tag}.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def main() -> int:
     from wfield_local.paths import PathResolver
 
@@ -303,6 +548,11 @@ def main() -> int:
     ap.add_argument("--align", default="cue", choices=["cue", "lick"])
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--global-test", action="store_true",
+                    help="test the ALL-REGION per-position shift itself -- ~75%% of the cue "
+                         "arm's acute change, and nothing else tests it. Reads the saved "
+                         "vectors; costs nothing.")
+    ap.add_argument("--boot", type=int, default=2000)
     ap.add_argument("--hemisphere-check", action="store_true",
                     help="verify that atlas '_left' is the ANIMAL'S left and exit. Reads the "
                          "saved vectors; costs nothing.")
@@ -311,6 +561,8 @@ def main() -> int:
 
     if a.hemisphere_check:
         return 0 if hemisphere_check(out_dir, a.align, a.tag) else 1
+    if a.global_test:
+        return 0 if global_shift_test(out_dir, a.align, a.tag, n_boot=a.boot) else 1
 
     rows, p = load_cohort(out_dir, a.align, a.tag)
     if rows is None:
@@ -326,8 +578,14 @@ def main() -> int:
             if r["epoch"] == ep and r["ci_excludes_zero"]:
                 by.setdefault((r["region"], r["position"]), set()).add(r["family"])
         allf = sum(1 for v in by.values() if len(v) == len(FAMILIES))
+        # A SIGN DISAGREEMENT BETWEEN REFERENCES IS THE ONE OUTCOME THIS DESIGN CANNOT ABSORB, so
+        # it is counted out loud rather than left to be noticed on the figure.
+        rg = sorted({r["region"] for r in rows})
+        pp = sorted({r["position"] for r in rows})
+        _sg, mixed = signed_agreement(rows, ep, rg, pp)
         print(f"   {ep:<9} {len(by):>4} region-positions with any family clear of 0, "
-              f"{allf:>3} clear in ALL THREE")
+              f"{allf:>3} clear in ALL THREE, {int(mixed.sum()):>3} with references "
+              f"DISAGREEING in sign")
 
     # IS THERE A "WHERE" AT ALL? Printed on every draw, because a table of significant regions
     # reads as a localisation even when the same shift hits every region equally.
@@ -346,6 +604,9 @@ def main() -> int:
                   f"most-departing: {', '.join(ranked[:4])}")
     out = _figure(rows, out_dir, a.align, a.tag)
     print(f"[15k] wrote {out}")
+    ccf = _ccf_figure(rows, out_dir, a.align, a.tag)
+    if ccf is not None:
+        print(f"[15k] wrote {ccf}")
     return 0
 
 
