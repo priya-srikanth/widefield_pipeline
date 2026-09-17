@@ -31,16 +31,19 @@ analysis on the unit `epoch_15h` already tests, so a disagreement between them i
 
 COMPONENTS DO NOT CORRESPOND ACROSS ANIMALS (PS92 95, PS93 87, PS94 90, PS95 95) but their ALLEN
 LABELS do, and that label is what keeps a cohort test possible. The vocabulary is the INTERSECTION
-across animals -- 34 regions carrying an in-mask component in all four -- so no region's cohort mean
-silently rests on a different subset of animals.
+across animals -- 33 regions carrying an in-mask component in all four -- so no region's cohort mean
+silently rests on a different subset of animals. (30 under the SUPERSEDED eroded gate; see
+`in_mask_components` and DECISIONS. That gate cost `SSp-m_left` on one animal's window alone.)
 
 A component's value is its FOOTPRINT-WEIGHTED mean of the map, `sum(|A_c|*map)/sum(|A_c|)`; the
 region is then the MEAN over its components, NEVER a sum. A sum would rank regions by how many
 components they happen to hold, which is the retrosplenial artefact in a third guise (footprint mass
 spans 67x).
 
-MASKED FIRST with `beta_maps.stat_mask` via `in_mask_components`: olfactory bulbs and the
-glue/window edge, where `U` is smallest and the Allen warp least constrained.
+MASKED FIRST via `in_mask_components`, which is TWO criteria: at least 0.85 of a component's
+footprint mass inside `beta_maps.brain_mask` (bulbs and painted glue already removed) AND at least
+0.50 inside the eroded `stat_mask`. Gating on the eroded mask ALONE, as this did until 2026-09-17
+evening, penalises a region for being lateral -- see `in_mask_components` for what that cost.
 
 TWO STATISTICS, AND THEY ANSWER DIFFERENT QUESTIONS. The PER-ANIMAL max-statistic corrects across
 regions within an animal. The COHORT delta (`cohort_delta`) resamples ANIMALS -> SESSIONS and is the

@@ -13881,3 +13881,53 @@ python -m scripts.rest_migration.reference_family_figure --align lick --hemisphe
 contains `SSp-m_right` and NOT `SSp-m_left` — no in-mask component carried that label in all four
 animals. It is the strongest chronic region in `15k`, and it has nothing on the other side to be
 contrasted against.
+
+## The component mask gate: `brain_mask >= 0.85` AND `stat_mask >= 0.50` (2026-09-17)
+
+**A MASK BUILT FOR PIXEL CONTOURS IS NOT A MASK FOR COMPONENT MEMBERSHIP, and using one as the
+other cost this project ipsilesional mouth cortex for a full day.**
+
+`in_mask_components` gated on `beta_maps.stat_mask`, which is `brain_mask` **eroded by 16 px**. That
+erosion exists for exactly one reason — stopping PIXEL-LEVEL contours being drawn in the window rim,
+where edge enrichment was measured at ~2x and where the artefact is CONSISTENT ACROSS ANIMALS, so a
+between-animal denominator rewards it. Applied to a COMPONENT it penalises a region for being
+LATERAL rather than for being untrustworthy.
+
+**MEASURED COST.** PS93's `SSp-m_left` components are 97.5% inside `brain_mask` — 2.5% genuinely
+off-brain — but 27-29% of their mass falls in that rim, so they scored 0.688/0.705 and failed a 0.75
+gate. Because the `15k` vocabulary is an INTERSECTION over animals, one animal's window removed
+`SSp-m_left` for all four. That is the contralateral partner of `SSp-m_right`, which tops every
+chronic region list, in a cohort whose deficit is orofacial — so the one comparison a laterality
+claim about mouth cortex needs was structurally unavailable. The `SSp-m` atlas region loses 30% of
+its pixels to the erosion; every `SSp-m` component in every animal loses 17-29% of its mass.
+
+**TWO CRITERIA, BECAUSE THERE ARE TWO FAILURE MODES.** Relaxing to `brain_mask` alone admits eight
+regions, five of them wrongly:
+
+    mass in brain_mask >= 0.85   IS THIS CORTEX (bulbs and painted glue are already out of it)
+    mass in stat_mask  >= 0.50   IS ENOUGH OF IT AWAY FROM THE RIM TO BE TESTABLE
+
+`FRP`'s entire 389 px atlas footprint lies inside the rim — **0 px in `stat_mask`**, components
+scoring 0.00-0.17 — so it is not a region this window can test at any threshold, which is a
+different statement from "the old gate was unfair to it". `PL` sits at 0.41-0.68, half rim.
+`VISp_right` loses **31.3% of its footprint to the painted glue**, and because the glue is already
+subtracted from `brain_mask`, occlusion shows up as MISSING MASS (0.758-0.847) and it fails the
+first criterion. Neither threshold alone separates these.
+
+**IT IS THRESHOLD-INSENSITIVE, WHICH IS THE POINT.** 33 regions at 0.80, 0.85 and 0.90 alike,
+against 34 at 0.5 and 30 at 0.75 on the eroded gate. The earlier sensitivity WAS the bug — a gate
+slicing through lateral cortex — not a real degree of freedom. This retires the plan to publish both
+thresholds; the comparison worth keeping is eroded-gate vs corrected-gate, and both sets exist
+(`*_erodedgate.*` on the share).
+
+**THE EROSION ITSELF IS UNCHANGED** at 16 px for pixel contours, where it belongs — and where the
+repo already knows it is insufficient on its own (`EDGE_ENRICHMENT_MAX = 2.0` exists because "a
+single erosion radius cannot be tuned to cover every panel without eating real cortex"). **If the
+radius is ever re-derived, measure PER ANNULUS**, not cumulatively: the cumulative table it was set
+from, differenced, suggests near-middle's enrichment PEAKS at 16-32 px — just inside where the
+erosion draws its boundary — but that is arithmetic on an old table and must be measured before it
+is acted on.
+
+**WHETHER A REGION SURVIVES IS FOR THE AGREEMENT TEST, NOT THE GATE.** The gate decides what can be
+asked about; `15k`'s three-reference agreement decides what is real. RSP and VIS entering the
+vocabulary is not a claim that they carry position code.
