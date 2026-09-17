@@ -1,1145 +1,605 @@
 # Preliminary data: what VLS stroke does to cortical position coding
 
-**Status: DRAFT for a career-development grant. Numbers are POINT ESTIMATES READ OFF THE POOLED
-EPOCH FIGURES, not pulled from the underlying JSON. Pull exact values and intervals before
-submission.** Source run: `nightly_figs 20260907`, completed 2026-09-08 15:13, 0 failed steps,
-96/96 grant units. Figures under `labcams/grant_figures/epoch/`.
+**Rewritten clean on 2026-09-17.** Earlier versions carried four stacked "SUPERSEDED" strata
+(2026-09-09, 09-10, 09-12, 09-16), numbers read off renders that no longer exist, and one whole
+section whose sign convention was inverted. Priya, 2026-09-17: *"make the prelim data doc accurate
+(can remove incorrect information from prior iterations)."* **Everything below is current; nothing
+is retained for history** — `DECISIONS.md` and the STATUS docs hold that.
 
-Written 2026-09-09 at Priya's request, so the reasoning behind the paragraph is recoverable rather
-than living in a chat log.
+**PROVENANCE.** Figures and their `.csv` companions in
+`N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`, 2026-09-16 render set, `restdock05`
+rest definition. **Every number here is read from the `.csv` beside its figure or from
+`kw.stat_rows` in its `*_bundle.json`, never off a heatmap** — so each claim can be checked against
+the panel that drew it. Session set throughout: **N=4 animals, n=96 sessions — pre 44 (11 each),
+acute 16 (92:5 93:4 94:6 95:1), subacute 18, chronic 18 (PS94 has none)**.
+
+`*` = interval excludes zero · `**` = survives Bonferroni correction.
+
+**READ `docs/REST_ENGAGEMENT_AUDIT.md` BEFORE QUOTING ANY REST NUMBER.** Two silent defects were
+found on 2026-09-16 across seven rest analyses; everything in §6 is post-fix.
 
 ---
 
-## STATE OF THE EVIDENCE, **2026-09-16** -- SUPERSEDES EVERY CAVEAT BELOW
+## 1. THE BEHAVIOURAL DEFICIT — what the animal actually does
 
-**THE SOURCE RUN FOR THIS DOCUMENT (`nightly_figs 20260907`) IS TWO GENERATIONS STALE.** The current
-render is **2026-09-16 06:49**, on the `restdock05` rest definition, 877 slides / 1,333 figures /
-0 missing. Everything in this document predates the entire rest-baseline migration.
+`epoch_1b_behaviour_by_position` · response rate (lick within the session's real 3.5 s window).
 
-**WHAT CHANGED UNDER THE NUMBERS**
-
-1. **The rest baseline is a different quantity.** `restdock05` = docked window (spout parked, no
-   target present) + `lick_buffer_s [0.5, 1.0]` + `treadmill_buffer_s [1.0, 2.0]`. Every
-   rest-referenced amplitude in this document was computed on a retired definition.
-2. **THE EPOCH TABLE BELOW IS ALSO WRONG NOW.** It says PS95 chronic = day 15. The boundaries are
-   DERIVED from behaviour and the 2026-09-16 render's own audit gives **PS92 11, PS93 11, PS94 none,
-   PS95 11**, matching `animals.yaml` on all four animals. PS95 moved 15 -> 11.
-3. **`restw` is NOT retired** (see DECISIONS.md 2026-09-15). Rest carries position: observed/null
-   **1.622**, **44/44** pre-stroke sessions, 4/4 animals, 0 skipped.
-   FIGURES: `epoch_15x_REST_by_position_by_animal.png` (the rest baseline's own per-position
-   structure — if rest were position-independent every cell would be noise; it is not), and
-   `E:/cue_lick/rest_migration/rest_position_decode_restdock05.png` (per-session decode, 93/94
-   sessions above their own circular-shift null). **The 1.622 itself has NO figure** — it is
-   printed by `scripts/rest_migration/rest_position_permutation.py`, and 15x is the picture of the
-   same phenomenon measured a different way, not a plot of that number.
-
-**VERIFIED CURRENT NUMBERS — safe to quote, read off the 2026-09-16 render**
-
-Acute amplitude relative to each position's own pre-stroke value, position-weighted flat rest
-reference (`epoch_15r_position_RESTWref_cue_working`):
-
-| position | acute / pre |
-|---|---|
-| Near Ipsi | 1.46 |
-| Near Contra | 1.26 |
-| Near Middle | 1.20 |
-| Far Ipsi | 0.99 |
-| Far Middle | 0.68 |
-| **Far Contra** | **0.47** |
-
-The frame-weighted reference (`_RESTref_`) gives 1.42 / 1.24 / 1.17 / 0.98 / 0.66 / **0.48** --
-**identical ordering, 1-3% apart**, and far-contra is the ONLY position where the two disagree in
-direction, which is exactly where composition bias is predicted. Split-half reliability r = 0.94-0.99
-throughout.
-
-### POSITION MAPS vs THE POSITION-WEIGHTED REST BASELINE — EXACT VALUES
-
-Pulled from `kw.stat_rows` in `epoch_15r_position_RESTWref_*_bundle.json` (2026-09-16 render), NOT
-read off the figures. `amplitude_vs_pre` = that cell's amplitude relative to its own pre-stroke
-value; `sig` = bins significant under the nested animals->sessions bootstrap, max-statistic
-corrected, out of 2,022 in-mask bins.
-
-**ALL FIGURES BELOW ARE IN `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`**, and every
-number is from the matching `*_bundle.json` `kw.stat_rows` or `.csv` in the **2026-09-16 06:49**
-render. Figure and statistic are the SAME quantity by construction, so a claim can be checked
-against its panel.
-
-**PROVENANCE — VERIFIED FILE TIMES, because these paths get overwritten.** Every value below was
-read from files stamped **09-16 03:50–06:58** (the dev-box render 03:38→06:50, plus the 15x
-re-render at 06:58), confirmed at 08:46 as not yet replaced:
-`epoch_5rgap_frozen_vs_refit_cue_working.csv` 05:13 · `epoch_12b_stopped_pooled_similarity_cue.csv`
-05:09 · `..._precue.csv` 03:50 · `epoch_15r_position_RESTWref_cue_working_bundle.json` 04:46 ·
-`epoch_15x_...png` 06:58.
-
-**THE NIGHTLY BOX WRITES TO THESE SAME PATHS.** Its run was landing epoch figures from ~08:45 on
-2026-09-16, and its date list may differ from this render's (which ends at **0914** and excludes the
-9/15 sessions). **Check a file's mtime before assuming a number here still matches what is on
-disk** — a table that silently mixes two runs is the failure this stamp exists to prevent.
-
-**POST-CUE, working trials — the headline, and a clean monotone gradient**
-FIGURE: `epoch_15r_position_RESTWref_cue_working.png`
-· per animal: `epoch_15rpa_position_RESTWref_by_animal_cue_working.png`
-· frame-weighted counterpart (agrees to 1-3%): `epoch_15r_position_RESTref_cue_working.png`
-
-| position | acute/pre | sig | subacute/pre | sig | chronic/pre | sig |
+| epoch | Near Ipsi | Near Mid | Near Contra | Far Ipsi | Far Mid | **Far Contra** |
 |---|---|---|---|---|---|---|
-| Near Ipsi | 1.46 | 394 | 1.26 | 126 | 1.50 | 390 |
-| Near Contra | 1.26 | 237 | 1.19 | 123 | 1.25 | 329 |
-| Near Middle | 1.20 | 67 | 1.15 | 145 | 1.16 | 285 |
-| Far Ipsi | *0.99* | *20* | 1.02 | 0 | 1.24 | 71 |
-| Far Middle | 0.68 | 148 | 0.97 | 1 | 1.13 | 167 |
-| **Far Contra** | **0.47** | **1186** | 0.89 | **0** | 1.08 | 235 |
+| pre | 0.969 | 0.970 | 0.970 | 0.887 | 0.930 | **0.935** |
+| **acute** | 0.897 | 0.888 * | 0.869 ** | 0.647 ** | 0.452 ** | **0.052** ** |
+| subacute | 0.967 | 0.967 | 0.959 | 0.913 | 0.901 | 0.797 ** |
+| chronic | 0.988 | 0.987 | 0.982 | 0.947 | — | — |
 
-1. **Acute is monotone near -> far: 1.46, 1.26, 1.20 | 0.99, 0.68, 0.47.** Near positions
-   INCREASE, far positions decrease, far-contra collapses to less than half.
-2. **Far-contra acute is the single largest significant area in the figure — 1,186 of 2,022 bins
-   (59%).** Nothing else approaches it; the next largest is 394.
-3. **Subacute far-contra is 0.89 with ZERO significant bins** — not distinguishable from pre-stroke.
-4. **Chronic far-contra is 1.08 (235 sig)** — at or slightly above baseline.
-5. *Far Ipsi acute (italic) is **SUPPRESSED**: edge_enrichment 2.365, i.e. >2x concentrated in the
-   mask rim. **Do not quote it.*** It is an imaging-window artefact, not a result.
+**Acutely the animal essentially stops attempting far-contralateral — a response rate of 0.052,
+down from 0.935.** The deficit is graded near→far and ipsi→contra, and it recovers to 0.797 by
+subacute. This is the behavioural anchor for everything below, and the reason the lick-aligned
+imaging arm is blind to acute far-contra (§5).
 
-**PRE-CUE — DISSOCIATES FROM POST-CUE, and this is the finding worth chasing**
-FIGURE: `epoch_15r_position_RESTWref_precue_working.png`
-· per animal: `epoch_15rpa_position_RESTWref_by_animal_precue_working.png`
-· **READ IT BESIDE THE POST-CUE FIGURE ABOVE** — the dissociation is a comparison ACROSS two
-  figures, so neither panel shows it on its own. That is the one claim here no single figure carries.
+---
 
-| position | acute/pre | sig | chronic/pre | sig |
+## 2. THE POSITION READOUT — a frozen pre-stroke decoder
+
+`epoch_acc_by_position_cue_working` / `epoch_accdelta_by_position_cue_working`, post-cue, lick +
+miss-while-working. Chance 1/6.
+
+| epoch | nI | nM | nC | fI | fM | **fC** |
+|---|---|---|---|---|---|---|
+| pre | 0.934 | 0.846 | 0.923 | 0.867 | 0.847 | **0.896** |
+| **acute** | 0.700 * | 0.575 ** | 0.610 ** | 0.494 ** | 0.440 ** | **0.321** ** |
+| subacute | 0.885 | 0.685 ** | 0.882 | 0.724 ** | 0.699 * | 0.615 ** |
+| chronic | 0.963 | 0.691 * | 0.941 | 0.770 | 0.790 | 0.795 ** |
+
+Acute change from pre, Bonferroni-corrected: nI −0.234 (crosses zero), nM −0.271, nC −0.313,
+fI −0.373, fM −0.407, **fC −0.575 [−0.738, −0.394]**. **A monotone near→far gradient with
+far-contra worst**, five of six surviving correction.
+
+**By chronic only far-contra remains significantly below pre** (−0.101, corrected
+[−0.204, −0.0007]). Everything else has recovered.
+
+---
+
+## 3. IS THE CODE LOST, OR PRESENT AND MISREAD? — frozen vs refit
+
+`epoch_5rgap_*` (raw gap) · `epoch_5rgapdelta_*` (the claim) · `epoch_5rm*` (training-set matched).
+
+**SIGN CONVENTION: the plotted quantity is `refit − frozen`** — `_gap_at` returns
+`mean(refit correct) − mean(frozen correct)`, and the figure's own `_meta.csv` `ylabel` reads
+`refit - frozen accuracy`. **POSITIVE = the session's own decoder reads a position the frozen
+pre-stroke model cannot: information PRESENT but DISPLACED.**
+
+**THE PRE ROW IS NOT ZERO BY CONSTRUCTION.** The frozen arm trains on ten pre-stroke sessions and
+the refit on four fifths of one, so pre carries a training-set-SIZE handicap with no lesion in it.
+The claim is therefore the **delta**, not the raw gap.
+
+**THE MATCHED FAMILY (`epoch_5rmgapdelta_*`) IS THE AUTHORITATIVE TEST; the unmatched one
+(`epoch_5rgapdelta_*`) is reported only as a bracket.** Unmatched, the frozen arm trains on ten
+pre-stroke sessions against the refit's four fifths of one, so its pre gap (−0.116) is a
+training-set-SIZE handicap with no lesion in it. Matching the frozen model to the refit's training
+size — drawn as whole pre-stroke BLOCKS, seeded per scored session — flips the pre gap to **+0.036**:
+at equal data a within-session fit wins, because it shares that session's own nuisance structure
+while a matched frozen model must generalise across days. **So the no-lesion baseline is BRACKETED
+(−0.116 unmatched / +0.036 matched), not known**, which is why both are drawn and both read as
+epoch-minus-pre.
+
+**MATCHED acute delta (epoch − pre), Bonferroni-corrected — the number to quote:**
+
+| position | point | 95% CI | corrected | |
 |---|---|---|---|---|
-| Near Ipsi | 1.90 | 0 | 2.67 | 14 |
-| Near Middle | 0.47 | 46 | 0.69 | 468 |
-| Near Contra | 0.78 | 0 | 1.00 | 45 |
-| Far Ipsi | 1.28 | 40 | 0.79 | 0 |
-| Far Middle | 0.94 | 0 | 0.55 | 740 |
-| **Far Contra** | **1.57** | **310** | *0.72* | *15* |
+| **far-contra** | **+0.158** | [0.046, 0.284] | **[0.0004, 0.337]** | the only acute cell surviving |
+| near-contra | +0.128 | [0.004, 0.235] | [−0.060, 0.290] | |
+| **far-middle** | **−0.132** | **[−0.242, −0.021]** | [−0.291, 0.035] | |
+| near-ipsi | +0.093 | [−0.069, 0.228] | — | |
 
-**Far-contra pre-cue INCREASES acutely (1.57, 310 sig) while far-contra post-cue COLLAPSES (0.47,
-1186 sig), in the same sessions and the same trials.** The pre-cue position signal is not simply
-lost with the motor output. Chronically the pattern inverts again: the largest sustained decreases
-are Far Middle 0.55 (740 sig) and Near Middle 0.69 (468 sig).
-*Two cells SUPPRESSED (do not quote): Near Middle subacute-pre (edge 3.695), Far Contra chronic-pre
-(edge 2.467).*
+**Matching SHARPENS the dissociation rather than shrinking it.** Far-contra keeps a significant
+positive recoverable component once the handicap is removed, while **far-middle turns NEGATIVE** —
+refitting buys *less* there than before the lesion, which is degradation as a positive finding
+rather than an absent one. **Both are invisible unmatched**, where far-middle is a flat +0.044 and
+far-contra's +0.196 does not survive correction.
 
-**LICK-ALIGNED — and the reason it cannot carry the headline**
-FIGURE: `epoch_15r_position_RESTWref_lick_lick.png` (the Far Contra / acute-pre cell is BLANK)
+For reference, the unmatched family's two Bonferroni survivors are acute near-contra **+0.168**
+[0.039, 0.269] and subacute far-contra **+0.189** [0.005, 0.349].
 
-Acute cells are uniformly elevated (Near Ipsi 1.54, Near Contra 1.38, Far Ipsi 1.43, Far Middle
-1.39, Near Middle 1.32) and **the Far Contra acute cell is ABSENT ENTIRELY.** There are no
-lick-aligned far-contra trials to average acutely, because the animal stops licking there — which IS
-the deficit. **The lick-aligned arm is blind to the acute far-contra effect by construction**, and a
-reader comparing alignments would otherwise read its absence as a null. Far Middle acute carries
-edge_enrichment 1.633 (elevated, below the 2x suppression threshold).
+**THE DATA-POVERTY OBJECTION RUNS THE OTHER WAY.** Too few same-day far-contra trials would give the
+refit arm less to learn from and push the gap NEGATIVE. The observed gap is POSITIVE, so scarcity
+makes this harder to obtain, not easier. Selection was checked rather than asserted: the
+`_sessions.csv` carries **all 16 acute sessions at every one of the six positions**.
 
-### FROZEN vs REFIT — "reorganisation"
-FIGURES: `epoch_5rgap_frozen_vs_refit_cue_working.png` (raw gap) ·
-`epoch_5rgapdelta_frozen_vs_refit_cue_working.png` (epoch − pre, the actual claim) ·
-`epoch_5rmgap*` / `epoch_5rmgapdelta*` (the TRAINING-SET-MATCHED family) · DATA: same-named `.csv`.
+---
 
-**SIGN CONVENTION: the plotted quantity is `refit − frozen`** — `_gap_at` in
-`epoch_grant_figures.py` returns `mean(refit correct) − mean(frozen correct)` on the paired record
-whose column 0 is the frozen model and column 1 the within-session refit, and the figure's own
-`ylabel` reads `refit - frozen accuracy`. **POSITIVE = the session's own decoder reads a position
-the frozen pre-stroke model cannot: information PRESENT but DISPLACED. Zero with both arms low = the
-code is genuinely degraded.** An earlier version of this section stated the convention as "frozen
-minus refit" and read every sign backwards; the numbers below are unchanged, the reading is inverted.
+## 4. THE ENCODER — gain acutely, shape chronically
 
-**RAW GAP, post-cue working (`5r`)** — `*` = interval excludes zero:
+`epoch_11amp_encoder_amplitude_cue_working` · `epoch_11_encoder_gain_shape_cue_working` ·
+`epoch_11c_encoder_ceiling_cue_working`.
 
-| epoch | nI | nM | nC | fI | fM | fC |
-|---|---|---|---|---|---|---|
-| pre | −0.050 | −0.099 | −0.058 | −0.065 | −0.077 | −0.087 |
-| acute | −0.024 | **+0.033\*** | **+0.109\*\*** | −0.032 | −0.033 | **+0.109\*** |
-| subacute | −0.026 | **+0.034\*** | −0.080 | +0.019 | −0.008 | **+0.102\*\*** |
-| chronic | −0.058 | **+0.144\*** | −0.032 | −0.009 | +0.007 | −0.003 |
+**Fitted gain:** 0.943 pre → **0.361** ** acute → 0.687 ** subacute → **0.939** chronic (unmarked —
+back to baseline).
 
-**THE PRE ROW IS THE CONTROL AND IS NOT ZERO BY CONSTRUCTION.** All six pre cells are negative
-because the frozen arm trains on ten pre-stroke sessions (LOSO) and the refit arm on four fifths of
-one — a training-set-SIZE handicap with no lesion in it. The claim is therefore the **delta**, not
-the raw gap.
-
-**DELTA (epoch − pre), post-cue working (`5rgapdelta`)** — point [95% CI] / [Bonferroni-corrected]:
-
-| epoch | nC | fC | nM |
+| epoch | frozen EV | EV after rescale | ceiling (refit, cross-validated) |
 |---|---|---|---|
-| acute | **+0.168 [0.081, 0.240] / [0.039, 0.269]** | +0.196 [0.034, 0.345] / [−0.039, 0.412] | +0.132 [0.026, 0.225] / [−0.030, 0.268] |
-| subacute | −0.021 | **+0.189 [0.058, 0.300] / [0.005, 0.349]** | +0.133 [0.021, 0.237] / [−0.050, 0.300] |
-| chronic | +0.026 | +0.084 [−0.018, 0.199] | +0.243 [0.024, 0.463] / [−0.088, 0.531] |
-
-Two cells survive Bonferroni: **acute near-contra +0.168** and **subacute far-contra +0.189**. Acute
-far-contra is the largest point estimate (+0.196) but its corrected interval crosses zero.
-
-**THE TRAINING-SET-MATCHED FAMILY (`5rm`) EXISTS FOR EXACTLY THIS QUESTION** and is the reason the
-data-poverty objection can be answered rather than deferred. `paired_matched` replaces the FROZEN
-model only: it is refitted on a size-matched random subset of pre-stroke BLOCKS, drawn under the
-same leave-one-session-out discipline, so both arms get the same amount of training data. What that
-exposes is that the no-lesion baseline does not go to zero — it goes the **other way**: matched pre
-gaps are all POSITIVE (+0.068 to +0.127), because a within-session fit shares that session's own
-nuisance structure while a matched frozen model must generalise across days.
-
-**So the no-lesion baseline is BRACKETED, not known**: −0.073 unmatched (frozen has ~10× the data)
-and +0.090 matched (frozen must cross sessions). Both bounds are real; neither is "the" answer;
-which is why both families are drawn and both are read as epoch-minus-pre.
-
-**MATCHED DELTA (epoch − pre), post-cue working (`5rmgapdelta`), beside the unmatched:**
-
-| | nI | nM | nC | fI | fM | fC |
-|---|---|---|---|---|---|---|
-| `5r` acute | +0.027 | +0.132 | **+0.168\*\*** | +0.034 | +0.044 | +0.196\* |
-| `5rm` acute | +0.093 | +0.039 | +0.128\* | −0.036 | **−0.132\*** | **+0.158\*\*** |
-
-**MATCHING SHARPENS THE DISSOCIATION RATHER THAN SHRINKING IT.** Far-contra keeps a significant
-positive recoverable component once the handicap is removed (**+0.158, corrected interval
-[0.0004, 0.337]**, the only acute cell that survives Bonferroni in the matched family), while
-**FAR-MIDDLE turns negative (−0.132, uncorrected [−0.242, −0.021]; corrected interval crosses
-zero)** — refitting buys *less* there than it bought before the lesion, which is "the code is
-degraded" as a positive finding rather than as an absent one. In the unmatched family far-middle is
-a flat +0.044 and this is invisible.
-
-**WHY THE DATA-POVERTY OBJECTION RUNS THE OTHER WAY.** Too few same-day far-contra trials would give
-the refit arm *less* to learn from and push the gap NEGATIVE. The observed gap is POSITIVE, so trial
-scarcity makes this result harder to obtain, not easier — it is a conservative confound here, and
-the matched family removes the one direction in which training-set size could manufacture the effect.
-
-**WHAT IS ACTUALLY LEFT TO CHECK, and it is small.** Trials whose class a session could not train on
-(`grant_figures.MIN_REFIT_CLASS = 10`, `MIN_REFIT_SHARE = 1/18`) are dropped from BOTH arms
-together, which preserves the pairing but could in principle select sessions.
-**It does not, in this arm:** `epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv` carries
-**all 16 acute sessions at every one of the six positions** (pre 44, acute 16, subacute 18,
-chronic 18 — no position loses a session). The gating DOES bite in the lick-aligned arm, where acute
-far-contra is absent entirely, and that absence is the deficit rather than a null (see the 15r lick
-figure above). Remaining caveat worth stating on a slide: **acute n is 16 sessions and PS95
-contributes only 1** (92:5 93:4 94:6 95:1, from the figure's own subtitle).
-
-### PATTERN SIMILARITY TO PRE-STROKE (stopped/quit trials)
-FIGURES: `epoch_12b_stopped_pooled_similarity_{cue,precue}.png` · DATA: same-named `.csv`
-
-| window | comparison | pre | acute | subacute | chronic |
-|---|---|---|---|---|---|
-| cue | vs pre-stroke **STOPPED** | 0.841 | **0.639** | 0.786 | 0.868 |
-| cue | vs pre-stroke ENGAGED | −0.032 | 0.016 | −0.047 | −0.037 |
-| pre-cue | vs pre-stroke **STOPPED** | 0.704 | **0.450** | 0.593 | 0.566 |
-| pre-cue | vs pre-stroke ENGAGED | 0.018 | 0.004 | 0.006 | **0.049** |
-
-**The stopped pattern stays a stopped pattern.** Similarity to pre-stroke STOPPED is high (0.70–0.87)
-while similarity to pre-stroke ENGAGED sits at ~zero in every epoch — the two states are distinct and
-stay distinct. **Similarity dips acutely and recovers**: cue 0.841 → 0.639 → 0.786 → 0.868; pre-cue
-0.704 → 0.450 → 0.593 → 0.566 (pre-cue does NOT return to baseline). The only ENGAGED cell whose
-interval excludes zero is pre-cue chronic (+0.049) — small, and worth a second look before it is
-called anything.
-
-### ENCODER, BEST-MATCH AND CROSSNOBIS — the bounded pull (2026-09-16)
-
-Read from the `.csv` beside each figure, so every number here is the number its panel drew.
-**PROVENANCE:** files stamped 09-16 09:09–10:01, written by the OTHER box's nightly, not by this
-box's render. Their subtitle reports the SAME session set this box used —
-`N=4 animals, n=96 sessions, pre 44 (92:11 93:11 94:11 95:11), acute 16 (92:5 93:4 94:6 95:1)` —
-so they are comparable with everything else in this document. `*` = interval excludes zero,
-`**` = survives Bonferroni.
-
-**ENCODER AMPLITUDE (gain), post-cue working** — `epoch_11amp_encoder_amplitude_cue_working`
-
-| epoch | gain | 95% CI | |
-|---|---|---|---|
-| pre | 0.943 | [0.924, 0.961] | |
-| acute | **0.361** | [0.141, 0.653] | ** |
-| subacute | 0.687 | [0.555, 0.795] | ** |
-| chronic | **0.939** | [0.731, 1.216] | — |
-
-**The encoder's fitted gain returns to baseline chronically (0.939 vs a pre of 0.943, unmarked).**
-Note this supersedes the "0.749 → 0.286 → 0.745" triple quoted in `CLAUDE.md`, which came from an
-earlier render; the shape of the story is the same, the values are not.
-
-**GAIN vs SHAPE — the decomposition that says WHAT changed** —
-`epoch_11_encoder_gain_shape_cue_working`
-
-| epoch | frozen EV | EV after rescale |
-|---|---|---|
-| pre | 0.557 | 0.580 |
-| acute | **−0.388** ** | **0.134** ** |
-| subacute | 0.186 ** | 0.320 ** |
-| chronic | 0.383 ** | 0.410 ** |
+| pre | 0.557 | 0.580 | 0.706 |
+| acute | **−0.388** ** | 0.134 ** | 0.568 |
+| subacute | 0.186 ** | 0.320 ** | 0.642 |
+| chronic | 0.383 ** | 0.410 ** | **0.783** |
 
 **ACUTELY THE FROZEN ENCODER IS WORSE THAN PREDICTING THE MEAN (−0.388), AND A PURE RESCALE
-RECOVERS MOST OF IT (0.134).** So a large part of the acute deficit is a GAIN change rather than a
-change of spatial pattern — the encoder's version of the decoder's "present but misread". Chronic
-frozen EV 0.383 against a rescaled 0.410: by chronic, rescaling buys almost nothing, so what remains
-is a SHAPE change. Gain acutely, shape chronically.
+RECOVERS MOST OF WHAT IT LOST (0.134).** The acute deficit is largely a **GAIN** change — the
+encoder's version of "present but misread". **Chronically rescaling buys almost nothing** (0.383 →
+0.410), so what remains is a **SHAPE** change.
 
-**BEST-MATCH — does a position's map still match its own pre-stroke template?**
+**THE CEILING TELLS THE SAME STORY AS THE REST DECODER.** A refit, cross-validated encoder reaches
+**0.783 chronically — above the 0.706 it reached pre-stroke** — while the frozen one reaches only
+0.410. Chronic cortex is *more* predictable than pre-stroke cortex, just not by the pre-stroke
+model. **That is replacement, measured on the task side.**
 
-| arm | pre | acute | subacute | chronic |
-|---|---|---|---|---|
-| post-cue (`epoch_10_best_match_acc_cue_working`) | 1.000 | **0.552** ** | 0.796 ** | **0.889** ** |
-| pre-cue (`epoch_10_best_match_acc_precue_working`) | 1.000 | **0.438** ** | 0.583 ** | **0.583** ** |
-| rank of correct position, post-cue | 1.000 | 1.958 ** | 1.333 ** | 1.296 ** |
+---
 
-**ANOTHER PRE-CUE / POST-CUE DISSOCIATION, and it points the same way as `15r`'s.** Post-cue
-best-match recovers to 0.889 chronically; **pre-cue does NOT recover at all** — 0.583 subacute and
-0.583 chronic, flat. The pre-cue code does not come back.
+## 5. WHERE THE CODE IS, AND WHERE IT GOES
 
-**CROSSNOBIS — how far each position has moved from its own pre-stroke template**
-(`epoch_8diag` / `epoch_8diagdelta`, cue/working; delta = epoch − pre with Bonferroni-corrected
-intervals)
+### Position maps against the position-weighted rest baseline
+`epoch_15r_position_RESTWref_cue_working`, from `kw.stat_rows`. Amplitude relative to each
+position's own pre-stroke value.
 
-| epoch | nI | nM | nC | fI | fM | fC |
+| | Near Ipsi | Near Contra | Near Mid | Far Ipsi | Far Mid | **Far Contra** |
+|---|---|---|---|---|---|---|
+| acute / pre | 1.46 | 1.26 | 1.20 | 0.99 | 0.68 | **0.47** |
+
+**Monotone near→far, and far-contra collapses to less than half** — the largest significant area in
+the figure, **1,186 of 2,022 in-mask bins** (next largest 394). Subacute far-contra 0.89 with
+**ZERO** significant bins; chronic 1.08. The frame-weighted reference (`_RESTref_`) gives
+1.42 / 1.24 / 1.17 / 0.98 / 0.66 / **0.48** — identical ordering, 1–3% apart. Split-half reliability
+r = 0.94–0.99.
+
+**ALWAYS CHECK `suppressed` BEFORE QUOTING A CELL.** Rim-concentrated panels (>2× edge enrichment)
+are suppressed as imaging-window artefacts. Currently suppressed: cue Far Ipsi acute−pre (2.365);
+pre-cue Near Middle subacute−pre (3.695) and Far Contra chronic−pre (2.467).
+
+### The pre-cue / post-cue dissociation — the finding worth chasing
+**Far-contra pre-cue INCREASES acutely (1.57, 310 significant bins) while far-contra post-cue
+collapses (0.47, 1,186 bins) — in the same sessions and the same trials.** The pre-cue position
+signal is not simply lost with the motor output.
+→ read `epoch_15r_position_RESTWref_precue_working.png` **beside** the cue figure; **no single panel
+carries this claim.**
+
+The same dissociation appears in best-match (`epoch_10_best_match_acc_*`): post-cue recovers to
+**0.889** chronically while pre-cue stays at **0.583** subacute and chronic. **But that is a POOLED
+figure — see §5b**, where the per-position breakdown shows the positions failing to recover at ENL
+are near-middle, far-ipsi and far-middle, NOT far-contralateral (0.889).
+
+### The lick-aligned arm is blind to the acute deficit BY CONSTRUCTION
+Its Far Contra acute cell is **absent entirely** — there are no lick-aligned far-contra trials
+acutely, because the animal stops licking there, which IS the deficit (§1: response rate 0.052).
+Raw counts confirm it: far_R acute is **64 trials across 13 sessions** against ~1,100 at each near
+position. **Do not read that absence as a null.**
+
+### Geometry — acute is focal, chronic is diffuse
+`epoch_8diagdelta_matrices_crossnobis_cue_working`, distance from each position's own pre-stroke
+template (Bonferroni-corrected):
+
+| epoch | nI | nM | nC | fI | fM | **fC** |
 |---|---|---|---|---|---|---|
 | acute Δ | +0.211 ** | +0.008 | +0.245 ** | +0.304 ** | +0.319 | **+1.017** ** |
-| subacute Δ | +0.429 ** | +0.276 ** | +0.394 ** | +0.285 ** | +0.326 | +0.386 ** |
 | chronic Δ | **+0.927** ** | +0.526 ** | +0.660 ** | +0.281 ** | +0.693 ** | +0.447 ** |
 
-**ACUTE DISPLACEMENT IS POSITION-SPECIFIC; CHRONIC DISPLACEMENT IS DIFFUSE.** Acutely far-contra
-moves **+1.017**, more than three times the next largest, and near-middle does not move at all
-(+0.008) — exactly the position the decoder, the encoder and `15r` all implicate. By chronic every
-position has moved (+0.28 to +0.93) and the LARGEST is near-ipsi, not far-contra.
+**Acute displacement is POSITION-SPECIFIC** — far-contra +1.017, more than three times the next
+largest, with near-middle unmoved (+0.008). **Chronic displacement is DIFFUSE** — every position has
+moved and the largest is near-IPSI, not far-contra. A diffuse chronic displacement is what
+replacement looks like in geometry, agreeing with the encoder ceiling (§4) and the rest decoder (§6).
 
-**THAT CONVERGES WITH `15f`.** A diffuse chronic displacement is what "the code was replaced" looks
-like in geometry: the chronic frozen decoder retains only 0.611 while a within-session refit reaches
-1.181, i.e. position is still there but not where the pre-stroke model looks for it. Three
-independent estimators — decoder, encoder and RDM geometry — say acute = a gain loss concentrated at
-far-contra, chronic = a shape change spread over all six positions.
+---
 
-### THE REST ARM — post-audit values (2026-09-16)
+## 5b. THE FOUR WINDOWS — REST, ENL, CUE, LICK
 
-**READ `docs/REST_ENGAGEMENT_AUDIT.md` FIRST.** Every number in this section is from a run with the
-engagement gate applied AND the repaired classifier. The pre-audit values that stood here were
-produced without either; see the audit for what moved and by how much.
+Every trial-aligned family renders on three arms, and rest is the fourth window with no
+trial alignment. The windows are **not interchangeable**, and reading a conclusion from one of them
+as if it applied to the code generally is the commonest error this section exists to prevent.
 
-FIGURES, all in `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`:
-`epoch_15f_rest_frozen_restdock05_gated.png` (+ `_confusion.png`) ·
-`epoch_15s_shared_position_restdock05.png` · `epoch_15x_REST_by_position_by_animal.png`.
+| window | what it is | family |
+|---|---|---|
+| **REST** | inter-trial, spout DOCKED and out of reach, no target present | `epoch_15f/15s/15x/15d` |
+| **ENL (pre-cue)** | after the spout arrives, before the cue — the anticipatory window | `*_precue_working` |
+| **CUE (post-cue)** | 0 to +2 s from the cue — the evoked window | `*_cue_working` |
+| **LICK (post-lick)** | aligned to the first lick — the execution window | `*_lick_lick` |
 
-#### REST CARRIES POSITION — the solid one
+### Pre-stroke, information increases toward movement
+Frozen-decoder accuracy, far-contralateral (`epoch_acc_by_position_*.csv`, chance 0.167):
+**ENL 0.507 · CUE 0.896 · LICK 0.952.** The ENL window carries real but much weaker position
+information — near-middle and far-middle sit at 0.453 and 0.413, barely above chance. **Any ENL
+claim starts from a low baseline and should be stated as such.**
 
-Circular-shift permutation, `restdock05`, docked, 200 permutations:
-**observed/null 1.634, 43/44 pre-stroke sessions, 4/4 animals** (PS92 1.467, PS93 1.999, PS94 1.724,
-PS95 1.458; mean over animals 1.662). The published pre-audit value was 1.622 / 44/44 — the gate and
-the classifier repair very nearly cancel.
+### Acute: far-contralateral, fraction of above-chance performance retained
 
-Per-session decode, same fixes: **94 of 96 sessions above their own circular-shift null**
-(pre 44/44, acute 15/16, subacute 17/18, chronic 18/18).
+| window | pre | acute | retained |
+|---|---|---|---|
+| ENL | 0.507 | 0.250 ** | **0.24** |
+| CUE | 0.896 | 0.321 ** | **0.21** |
+| LICK | 0.952 | 0.500 ** | **0.42** |
 
-> **DO NOT read a trajectory off the per-epoch obs−null column** (0.205 / 0.126 / 0.139 / 0.262).
-> It is a cohort mean, and the acute-dip claim derived from exactly this quantity was WITHDRAWN on
-> 2026-09-15 because PS95 rises. Plot the animals first.
+**THE LICK WINDOW'S APPARENT RESILIENCE IS SELECTION, NOT PRESERVATION.** It conditions on a
+detected lick, and acutely the animal barely licks far-contralateral — **64 trials across 13
+sessions, against ~1,100 at each near position**. What survives there is the subset of trials the
+animal did attempt, so 0.42 is "when the animal managed it, the code was better preserved", which is
+a different statement from "the code was better preserved". The lick arm cannot be used for an acute
+far-contra claim; in the map families its far-contra acute cell is **refused entirely** by the
+20-trial floor.
 
-#### 15f — THE PRE-STROKE REST CODE IS PARTLY REPLACED, NOT RECOVERED
+### Chronic: the windows recover differently
+Best-match to each position's own pre-stroke template (`epoch_10b_best_match_by_position_*.csv`):
 
-Frozen pre-stroke rest decoder, all four controls (duration-matched, lick-gap-matched,
-training-set-matched, `blockperm` null), LOSO pre baseline, 96 sessions, 0 skipped.
+| window | nI | nM | nC | fI | fM | fC |
+|---|---|---|---|---|---|---|
+| ENL chronic | 0.667 * | **0.111** ** | 0.944 | **0.444** ** | **0.444** ** | 0.889 |
+| CUE chronic | 1.000 | 0.556 | 1.000 | 0.889 | 0.889 | **1.000** |
+| LICK chronic | 1.000 | 0.556 | 1.000 | 1.000 | 0.889 | 1.000 |
+
+**CUE and LICK recover their template match almost completely. ENL does not** — and the failure is
+**position-specific**: near-middle collapses to 0.111 and the far-ipsi/far-middle pair to 0.444,
+while **far-contralateral ENL recovers to 0.889**.
+
+> **A CORRECTION.** An earlier version of this document said "pre-cue does not recover at all
+> (0.583)". That number is the POOLED average across positions
+> (`epoch_10_best_match_acc_precue_working.csv`) and it is correct as a pooled figure, but read as a
+> statement about the pre-cue code it is too coarse: the positions that fail to recover are
+> **near-middle, far-ipsi and far-middle — not far-contralateral**, which is the position the lesion
+> targets. The pooled number and the per-position breakdown answer different questions.
+
+**So the position whose ENL representation never returns is not the one with the behavioural
+deficit.** That is the same pattern the chronic crossnobis shows (§5: largest displacement at
+near-**ipsi**), and it is the strongest evidence here that chronic reorganisation is not confined to
+the impaired representation.
+
+### The matched frozen-vs-refit gap, by window
+`epoch_5rmgapdelta_frozen_vs_refit_*.csv`, acute, far-contralateral: **ENL +0.006 · CUE +0.158 ·
+LICK —** (refused). **The displaced-but-present signature is a POST-CUE phenomenon.** At ENL the
+matched gap is essentially zero at every position acutely (+0.088 to −0.012), meaning a same-day
+refit recovers nothing the frozen model missed — consistent with there being little ENL position
+information to recover in the first place.
+
+### Rest, for comparison
+Rest is the only window measurable when the animal does not attempt the task, and it carries
+position robustly (1.634 observed/null, 43/44 sessions). But it is **a different code** — cosine to
+the task map 0.09 post-cue and 0.16 pre-cue (§6) — and its far-contralateral representation
+**holds up acutely** (0.50 → 0.38) where the task's collapses. **Rest is a complementary readout,
+not a proxy for any of the three trial windows.**
+
+---
+
+## 6. THE REST ARM — post-audit values
+
+All values from runs with the engagement gate applied AND the repaired classifier. Figures:
+`epoch_15f_rest_frozen_restdock05*`, `epoch_15s_shared_position_restdock05`,
+`epoch_15x_REST_by_position_by_animal`, `epoch_15d_delta_rest_flatpool_minus_restw`.
+
+### Rest carries position — the solid one
+Circular-shift permutation, docked, 200 permutations: **observed/null 1.634, 43/44 pre-stroke
+sessions, 4/4 animals** (PS92 1.467, PS93 1.999, PS94 1.724, PS95 1.458). Per-session decode:
+**94 of 96 sessions above their own null.** Map-level: between/within-position RMS ratio **1.97**,
+largest significant area 1,468 of 2,022 bins, 6/6 positions in 4/4 animals.
+
+> **Do NOT read a trajectory off the per-epoch obs−null column.** It is a cohort mean, and the
+> acute-dip claim derived from exactly that quantity was WITHDRAWN on 2026-09-15 because PS95 rises.
+
+### 15d — the composition bias GROWS post-stroke, so `restw` is load-bearing
+`epoch_15d_delta_rest_flatpool_minus_restw.{png,csv}`. The delta is `flatpool − restw`, both arms
+FLAT so only COMPOSITION differs (production `rest` is time-local, so `rest − restw` would move on
+two axes at once — the confound that withdrew `rest_vs_restw`). **One map per epoch, not six: the
+position's own data cancels**, `flatpool_q − restw_q = restw − quiet_flat`.
+
+| | pre | acute | subacute | chronic | chronic/pre |
+|---|---|---|---|---|---|
+| cohort | 0.00056 | 0.00059 | 0.00071 | 0.00145 | **2.56** |
+| PS92 | 0.00081 | 0.00154 | 0.00369 | 0.00205 | 2.51 |
+| PS93 | 0.00061 | 0.00052 | 0.00055 | 0.00106 | 1.74 |
+| PS95 | 0.00062 | 0.00227 | 0.00179 | 0.00132 | 2.14 |
+
+**PREDICTION CONFIRMED: the bias is ~2.6× larger chronically than pre-stroke, in 3/3 animals with
+chronic data** (PS94 has none). A frame-weighted rest baseline drifts with the deficit, exactly as
+`restw` was designed to prevent. **`restw` is correct AND load-bearing, not correct-but-inert** —
+so the 200-frame floor, the 4-of-6 rule and the column-drop apparatus are warranted.
+
+### 15f — the pre-stroke rest code is partly REPLACED, not recovered
+Frozen pre-stroke rest decoder, all four controls (duration-, lick-gap- and training-set-matched,
+`blockperm` null), LOSO pre baseline.
 
 | epoch | frozen retained | refit retained |
 |---|---|---|
-| pre (LOSO) | 1.000 | 1.000 |
-| acute | see caveat | — |
+| pre | 1.000 | 1.000 |
 | subacute | 0.306 | 0.575 |
 | **chronic** | **0.611** | **1.181** |
 
-**QUOTE THE CHRONIC RESULT.** The within-session refit reaches **1.181 of its own pre-stroke level**
-while the frozen pre-stroke model reaches **0.611**: position is in chronic rest, read by something
-other than the pre-stroke code. Both arms are computed on the SAME periods, so the only difference
-between them is the estimator.
+**Chronically the within-session refit reaches 1.181 of its own pre-stroke level while the frozen
+model reaches 0.611** — position is in chronic rest, read by something other than the pre-stroke
+code. Both arms use the SAME periods, so the only difference is the estimator.
 
-> **ACUTE IS UNDERPOWERED — do not quote it.** Gated per animal it is 0.609 / 0.277 / 0.086 /
-> **−0.093**, against 0.401 / 0.187 / 0.134 / 0.120 ungated. Removing ~4% of periods moved it that
-> far because **acute is 16 sessions and PS95 contributes ONE**. It is no longer a 4/4 replication.
+> **ACUTE IS UNDERPOWERED — do not quote it.** Gated per animal: 0.609 / 0.277 / 0.086 / **−0.093**.
+> Removing ~4% of periods moved it that far because **acute is 16 sessions and PS95 contributes
+> ONE**. It is not a 4/4 replication.
 
-**CONFUSIONS — acute errors COLLAPSE, they do not scatter** (`..._confusion.png`, raw counts in the
-companion `.csv`). Acute predictions pile onto near-contra in every row, and far-row errors shift
-toward near columns (0.56 → 0.67). **Far-contra REST is the best-decoded position pre-stroke (0.50)
-and holds up (0.38 acute, 0.39 chronic) — the OPPOSITE of far-contra TASK, which collapses
-1.46 → 0.47.** Rest and task dissociate at exactly the position the lesion targets.
+**CONFUSIONS — acute errors COLLAPSE, they do not scatter.** Acute predictions pile onto near-contra
+in every row and far-row errors shift toward near columns (0.56 → 0.67). **Far-contra REST is the
+best-decoded position pre-stroke (0.50) and holds up (0.38 acute, 0.39 chronic) — the OPPOSITE of
+far-contra TASK, which collapses 1.46 → 0.47.** Rest and task dissociate at the lesioned position.
 
-#### 15s — THE REST CODE IS NOT THE TASK CODE, AND THE PRE-CUE TRACE POINTS BACKWARDS
-
+### 15s — the rest code is NOT the task code, and the pre-cue trace points BACKWARDS
 `shared_p = <rest_p − restw, trial_p − restw> / ||trial_p − restw||²`, rest from ODD position-blocks
-and trials from EVEN so shared drift cannot manufacture it, circular-shift null.
+and trials from EVEN so shared drift cannot manufacture it, circular-shift null. Null-corrected,
+animal as unit:
 
-Null-corrected, animal as the unit:
+| window | pre | acute | chronic |
+|---|---|---|---|
+| pre-cue | **+0.060** (4/4) | **+0.188** (4/4) | +0.077 (3/3) |
+| post-cue | −0.002 | +0.005 | +0.000 |
 
-| window | pre | acute | subacute | chronic |
-|---|---|---|---|---|
-| pre-cue | **+0.060** (4/4) | **+0.188** (4/4) | −0.130 (PS92 alone) | +0.077 (3/3) |
-| post-cue | −0.002 | +0.005 | −0.041 | +0.000 |
+**Post-cue is flat against its null at every epoch; pre-cue is consistently positive.**
 
-**POST-CUE IS FLAT AGAINST ITS NULL AT EVERY EPOCH.** Pre-cue is consistently positive.
+**BUT THE EFFECT IS SMALL.** The cosine between a position's task map and its own rest map is
+**0.09 post-cue, 0.16 pre-cue** — close to unrelated, and not a magnitude artefact (the amplitude
+ratio is 0.605 pre-cue, so a strong shape match would have shown). **Rest carries position in a
+largely DIFFERENT spatial code from the task**, consistent with the 15f confusions above.
 
-**BUT THE EFFECT IS SMALL AND MUST BE STATED AS SUCH.** The cosine between a position's task map and
-its own rest map is **0.09 post-cue and 0.16 pre-cue** — the patterns are close to unrelated, and
-the small coefficient is NOT a magnitude artefact (the amplitude ratio is 0.605 pre-cue, so a strong
-shape match would have shown up). **Rest carries position in a largely DIFFERENT spatial code from
-the task**, which is the useful reading and is consistent with the 15f confusions above.
+**WHICH WAY THE SHARED COMPONENT POINTS.** Within a block the position just licked and the one
+coming next are identical; only at a block BOUNDARY do they separate. Gated:
+**r_prev − r_next = +0.0772, 4/4 animals**, 2,983 boundary periods. **Rest resembles the position
+JUST LICKED AT.** So the pre-cue window's shared component is a trace of the LAST target, not
+preparation for the next — **a real constraint on reading the pre-cue signal as anticipatory**, and
+consistent with this project's standing refusal to call it "a maintained motor plan".
 
-**WHICH WAY THE SHARED COMPONENT POINTS — the block-boundary test answers what 15s cannot.** Within
-a block the position just licked and the one coming next are identical; only at a BOUNDARY do they
-separate. Gated + repaired: **r_prev − r_next = +0.0772, 4/4 animals positive**, 2,983 boundary
-periods (PS92 +0.105, PS93 +0.089, PS94 +0.044, PS95 +0.071; published pre-audit +0.0754). **Rest
-resembles the position JUST LICKED AT.** So the pre-cue window's shared component is a trace of the
-LAST target, not preparation for the next — **a real constraint on reading the pre-cue signal as
-anticipatory**, and consistent with this project's standing refusal to call it "a maintained motor
-plan".
-
-> **EXCLUDE 15s SUBACUTE.** −0.130 is PS92 alone (−0.639) against +0.212, +0.044, +0.027. PS92 is
-> also the cohort's SNR floor — the six lowest rest fractions are all PS92.
-
-### STATE DECODER
-**NOT re-pulled here.** Its numbers live in `docs/BEHAVIOURAL_STATE_CONTROL.md` (frozen pre-stroke
-decoders as fraction of above-chance retained: position 0.86 → 0.43, behavioural state 0.97 → 0.88,
-running 0.99 → 0.96; re-measured on the REST definition 2026-09-13). Figures `epoch_12b*`,
-`epoch_13*`, deck section I. **That document is the authority; do not re-derive from the deck.**
-
-**PULLED 2026-09-16** — encoder amplitude + gain/shape, best-match, and crossnobis are in the section above.
-
-**Pending work that will move numbers again:** the docked FROZEN decoder arm (the current rest
-decode is PER-SESSION and cannot distinguish chronic recovery from chronic replacement), and `15s`.
-See `docs/STATUS_2026-09-16.md`.
+> **EXCLUDE 15s SUBACUTE** — it is PS92 alone (−0.639 against +0.212, +0.044, +0.027), and PS92 is
+> the cohort's SNR floor (the six lowest rest fractions are all PS92).
 
 ---
 
-## STATE OF THE EVIDENCE, 2026-09-10 -- SUPERSEDED BY THE BLOCK ABOVE
+## 7. THE SPECIFICITY CONTROL — does everything degrade, or only the target?
 
-Two structural things changed today and both invalidate numbers in this document.
+The lesion is ventrolateral STRIATAL, so no cortex is damaged. Same window, same basis, same
+estimator, same frozen-model discipline — **only the LABEL changes**
+(`epoch_13n_state_vs_position_cue`; full record in `docs/BEHAVIOURAL_STATE_CONTROL.md`).
 
-**1. THE EPOCH BOUNDARIES MOVED.** The chronic FLAT test is now total drift across the window
-rather than a per-session slope, and the "recovered to X% of baseline" bars are retired. Chronic is
-now **three animals, not one**:
+As a fraction of above-chance performance retained, acute vs pre:
 
-| animal | chronic from | note |
-|---|---|---|
-| PS92 | day 11 | unchanged |
-| PS93 | **day 11** | new; was blocked by licks alone, by 0.001 of tolerance |
-| PS94 | none | hit rate still improving -- day 22 -> 25 jumps 0.732 -> 1.000 |
-| PS95 | **day 15** | MOVED LATER from 11, which was promoted before PS95's day-25 session existed |
-
-Sessions moved between the subacute and chronic panels in both directions, so **every subacute and
-chronic number in this document is stale**. Acute is untouched. Re-render before quoting either.
-
-The `n = 1` caveat that used to head the caveat list is retired: it is now n = 3.
-
-**2. TWO MEASUREMENT ERRORS WERE FOUND AND FIXED**, both of which inflated a headline:
-
-* The best-match baseline was one-hotted from the AVERAGED leave-one-session-out matrix while every
-  post-stroke epoch averages PER-SESSION one-hots. `argmax(mean) != mean(argmax)`, and the averaged
-  form is a perfect identity for every animal, so the pre-stroke baseline was 1.00 by construction.
-  Far-contra's fall is **0.92, not 0.94**.
-* The encoder's acute "half amplitude, half shape" split is NOT SUPPORTED -- see the encoder
-  section below. Explained variance after one best rescale is 0.134 acutely, and
-  `_enc_terms`' own rule says that when that number is low the split is meaningless, because a code
-  that is simply gone also "recovers" a lot under rescaling.
-
-## The paragraph
-
-> Widefield calcium imaging of dorsal cortex during a six-position mobile-spout licking task,
-> decomposed into localised components by LocaNMF, shows that unilateral left ventrolateral striatal
-> (VLS) stroke degrades the cortical representation of reach target by collapsing its spatial
-> specificity rather than abolishing it. An L2-regularised multinomial logistic-regression decoder
-> (C = 0.5) trained on z-scored component time courses and frozen on each animal's pre-stroke
-> sessions falls from 0.89 to 0.52 accuracy acutely (chance 0.167; N = 4 animals, 7,354 acute vs
-> 21,017 pre-stroke trials), with a spatial gradient that tracks the behavioural deficit: -0.24 at
-> the near-ipsilateral spout versus -0.58 at the far-contralateral spout. Critically, the resulting
-> errors are structured rather than random -- far-contralateral trials are preferentially
-> misclassified as OTHER FAR TARGETS (far-ipsilateral, far-middle) rather than as near targets, so
-> the acute deficit is a loss of discriminability within the far-target subspace rather than a
-> uniform degradation. Three measures indicate that the affected code is PARTLY relocated rather than
-> simply lost (a within-session refit recovers a third of the far-contralateral deficit and under
-> an eighth of the far-ipsilateral one -- see the frozen-vs-refit section below before quoting
-> "relocated" unqualified).
-> Within-session split-half pattern reliability is preserved at the most impaired position (+0.12 at
-> far-contralateral, interval excluding zero), so the post-stroke representation remains as
-> internally repeatable as the pre-stroke one even as the frozen decoder fails on it; a similarity
-> drop that reliability cannot explain is a moved code, not a noisier one. Cross-validated crossnobis
-> distance between each position's post-stroke pattern and its own pre-stroke pattern -- normalised
-> so 1.0 equals the separation between two DIFFERENT pre-stroke positions -- rises acutely to +1.02
-> at far-contralateral, and the fraction of sessions in which that position's pattern still
-> best-matches its own pre-stroke pattern falls by 0.92. A ridge encoder mapping position to
-> component activity loses 0.94 of its pre-stroke explained variance acutely, roughly half
-> attributable to response gain and half to pattern shape, indicating that the change is not simple
-> amplitude scaling. The deficit is also non-uniform across the trial: pre-cue (ENL) decoding falls
-> far less than post-cue decoding and does so evenly across positions (-0.11 to -0.26 versus -0.24 to
-> -0.58), and on post-stroke trials with no detected lick the pre-cue code survives above chance
-> while the post-cue code does not. Decoding recovers substantially by the subacute period (0.77) and
-> approaches baseline chronically (0.87), yet the geometric displacement persists. Together these
-> data support a model in which VLS stroke spares target selection while disrupting the
-> transformation from selected target to executed movement, and in which behavioural recovery
-> proceeds on a reorganised rather than a restored cortical code.
-
-## HOW the code changed -- the mechanistic claim and its evidence
-
-Measured post-cue, lick + miss-while-working, 2026-09-09. **Exact values, not heatmap readings.**
-
-### Crossnobis own-position diagonal, RAW vs ROW-CENTRED
-
-Row-centring subtracts each row's own mean. It matters because
-`d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2` has a first term depending
-ONLY on P: a change in the magnitude of P's post-stroke response shifts its distance to every
-pre-stroke position equally. Raw therefore mixes "moved" with "got bigger/smaller"; row-centred
-isolates the within-row contrast, which is where a substitution lives.
-
-| position | ROW-CENTRED acute-pre | ROW-CENTRED chronic-pre | RAW acute-pre | RAW chronic-pre |
-|---|---|---|---|---|
-| near ipsi   | +0.463 | **-0.032** | +0.211 | **+0.862** |
-| near middle | +0.188 | +0.107 | +0.008 | +0.400 |
-| near contra | +0.455 | **-0.063** | +0.245 | **+0.776** |
-| far ipsi    | +0.421 | +0.061 | +0.304 | +0.220 |
-| far middle  | +0.272 | **+0.010** | +0.319 | **+0.845** |
-| **far contra** | **+0.665** | **+0.177** | **+1.017** | +0.264 |
-
-Three readings, in order of confidence:
-
-1. **ACUTELY THE PATTERN GENUINELY MOVES, most at the impaired position.** Row-centred far-contra
-   +0.665 against +0.188 to +0.463 elsewhere; raw far-contra +1.017, i.e. as far from its own
-   baseline as two DIFFERENT pre-stroke positions are from each other.
-2. **CHRONICALLY THE PATTERN RESOLVES EVERYWHERE EXCEPT THE IMPAIRED POSITION.** Row-centred
-   returns to ~0 at near-ipsi (-0.032), near-contra (-0.063) and far-middle (+0.010), but far-contra
-   remains +0.177 (95% interval excludes zero on `epoch_8rcdiagdelta_...`).
-3. **THE LARGE CHRONIC RAW VALUES ARE AMPLITUDE, NOT REORGANISATION.** Raw is most elevated
-   chronically at SPARED positions -- near-ipsi +0.862, far-middle +0.845, near-contra +0.776 --
-   exactly where row-centred is ~0. A global gain change moves every row; only row-centring
-   separates it. This is also why the deck's old claim that crossnobis is "immune to uniform
-   amplitude change" was wrong and has been corrected.
-
-### GAIN vs MOVE: the two are separated in TIME, not mixed
-
-Measured 2026-09-09 from `_matrices_crossnobis` / `_matrices_crossnobis_rowcentred`, post-cue,
-lick + miss-while-working, pooled as a mean over sessions.
-
-Row-centring is an EXACT decomposition, not an approximation. Because
-`rowcentred[i,j] = raw[i,j] - mean_j raw[i,:]`, the own-position distance splits into two terms
-that sum back to it:
-
-    raw_diag[i]  =  rowmean[i]         +  rc_diag[i]
-                    ^GAIN               ^MOVE
-                    position-NONspecific  position-SPECIFIC
-                    (shifts the whole row) (which column it moved toward)
-
-Verified numerically: max |raw_diag - rowmean - rc_diag| = 5.6e-16 in every epoch.
-
-Change from pre-stroke in each term:
-
-| position | acute ΔGAIN | acute ΔMOVE | subacute ΔGAIN | subacute ΔMOVE | chronic ΔGAIN | chronic ΔMOVE |
-|---|---|---|---|---|---|---|
-| near ipsi   | **-0.252** | +0.463 | +0.540 | +0.056 | **+0.894** | **-0.032** |
-| near middle | -0.180 | +0.188 | +0.239 | +0.127 | +0.293 | +0.107 |
-| near contra | **-0.211** | +0.455 | +0.334 | +0.098 | **+0.839** | **-0.063** |
-| far ipsi    | -0.117 | +0.421 | +0.112 | +0.163 | +0.159 | +0.061 |
-| far middle  | +0.047 | +0.272 | +0.309 | +0.099 | **+0.835** | **+0.010** |
-| **far contra** | +0.352 | **+0.665** | +0.117 | **+0.296** | +0.087 | **+0.177** |
-
-**ACUTE IS A MOVE, NOT A GAIN CHANGE.** ΔMOVE is positive at all six positions (+0.19 to +0.67)
-while ΔGAIN is NEGATIVE at four of six. Whatever the acute lesion does, it is not turning the
-response volume down uniformly -- if anything the non-specific term shrinks.
-
-**CHRONIC IS A GAIN CHANGE, NOT A MOVE.** The sign flips: ΔGAIN reaches +0.89 / +0.84 / +0.84 at
-near-ipsi, near-contra and far-middle while ΔMOVE at those same positions is -0.03 / -0.06 / +0.01.
-This is the whole reason the RAW chronic diagonal looks alarming at SPARED positions -- it is
-reading a global amplitude change as though it were reorganisation.
-
-**SUBACUTE IS THE CROSSOVER**, with both terms present and neither dominant.
-
-**FAR-CONTRA IS THE EXCEPTION IN BOTH DIRECTIONS.** It is the only position whose ΔGAIN stays small
-throughout (+0.35 / +0.12 / +0.09) and the only one whose ΔMOVE never returns to zero
-(+0.665 -> +0.296 -> +0.177). The impaired target's deficit is position-specific at every epoch;
-the spared positions' chronic change is not position-specific at all.
-
-Equivalently, in terms of the OWN-POSITION ADVANTAGE (`rc_diag`, negative = closer to its own
-pre-stroke pattern than to the average pre-stroke pattern), far-contra runs
-pre **-0.831** -> acute **-0.166** -> subacute **-0.535** -> chronic **-0.654**: acutely the
-advantage is all but abolished, and it never fully returns.
-
-### Direction of the acute move
-
-`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre panel. Exact far-contra row,
-acute minus pre (negative = moved TOWARD that pre-stroke position):
-
-| toward | nI | nM | nC | fI | fM | fC (own) |
-|---|---|---|---|---|---|---|
-| acute    | **-0.410** | -0.062 | +0.350 | **-0.466** | -0.076 | **+0.665** |
-| subacute | -0.052 | -0.039 | +0.088 | -0.215 | -0.078 | +0.296 |
-| chronic  | -0.157 | -0.040 | -0.038 | +0.052 | +0.006 | +0.177 |
-
-The two columns it moves toward acutely are both IPSILESIONAL-side targets (far-ipsi -0.466,
-near-ipsi -0.410); it moves AWAY from near-contra (+0.350) and from its own pre-stroke pattern
-(+0.665). By chronic only the near-ipsi pull survives (-0.157). Consistent with the decoder
-confusions, which send far-contra's lost recall to far-ipsi and far-middle
-(`epoch_5c_frozen_confusion_cue_working`, acute-pre panel), and with best-match fraction falling
-0.94 (`epoch_10bdelta_best_match_by_position_cue_working`).
-
-### What this does NOT establish
-
-The off-diagonal values above are exact point estimates, but they carry NO per-cell interval. The
-claim "toward ipsilateral" is supported by three measures pointing the same way (row-centred
-off-diagonal, decoder confusions, best-match fraction) and by no significance test on any
-off-diagonal cell. A per-cell interval on the row-centred off-diagonal would settle it.
-
-Epoch coverage for the tables above is NOT balanced across animals: acute = PS94 6 / PS92 5 /
-PS93 4 / PS95 1; subacute = PS95 10 / PS93 7 / PS94 5 / PS92 2; **chronic = PS92 4, one animal**.
-Pooling is a mean over sessions, so subacute leans on PS95 and chronic is a single-animal claim.
-**SUPERSEDED for the 5r family as of 2026-09-11: chronic is now 12 sessions across PS92/PS93/PS95 —
-see the 2026-09-12 section below. This line still describes the crossnobis tables above it.**
-
-## DOES RECOVERY RESTORE THE PRE-STROKE CODE? The chronic frozen-vs-refit result, 2026-09-12
-
-Priya's hypothesis, stated for a grant: *"recovery proceeds by re-establishing pre-stroke activity
-patterns rather than by building new ones. These accounts are separable: a decoder trained on
-pre-stroke activity recovers only if the original patterns return, whereas a decoder re-trained after
-stroke recovers either way."*
-
-**The framing is right and the data support it for five of six positions.** The discriminating
-evidence is the SECOND clause, not the first, and it is stronger than the first.
-
-> **SOURCE AND PRECISION.** The numbers here are read off the rendered figures of 2026-09-11
-> (`grant_figures/epoch/`), which are the current session set; the session and animal counts are
-> exact (they are printed in each subtitle). **Bar values are figure-read and good to about ±0.01.**
-> For more decimals run `scripts/prelim_numbers_frozen_vs_refit.py`. Everything in the 2026-09-09
-> section below it is the OLD session set for subacute and chronic — acute is unaffected.
->
-> **WHY A FIGURE HAS TO BE RE-READ AT ALL — an open gap.** The epoch family writes PNG and SVG and
-> NOTHING ELSE: no CSV, no JSON, no run log carrying the plotted values. The only machine-readable
-> path to these numbers is re-running `scripts/prelim_numbers_frozen_vs_refit.py`, whose own
-> docstring says the per-position ratio "is computed here and nowhere in the package". That is the
-> mechanism by which this document drifted from its own figures: the render moved on 2026-09-11, the
-> text did not, and nothing could have flagged the disagreement. **A per-figure sidecar of the
-> plotted values (position x epoch, point estimate + both intervals) would close it** and make every
-> table here checkable against the render instead of against someone's reading of a bar.
-
-Epochs: n=90 sessions, pre 44, acute 16, subacute 18, **chronic 12 (PS92 4, PS93 4, PS95 4)**.
-PS94 never qualifies as chronic. The "chronic is one animal" caveat is retired.
-
-### 1. The frozen decoder returns to baseline (`epoch_acc_by_position_cue_working`)
-
-| position | pre | acute | subacute | chronic |
-|---|---|---|---|---|
-| near ipsi | 0.95 | 0.70 | 0.88 | 0.96 |
-| near middle | 0.85 | 0.58 | 0.70 | 0.71 |
-| near contra | 0.92 | 0.61 | 0.87 | 0.93 |
-| far ipsi | 0.87 | 0.49 | 0.71 | 0.80 |
-| far middle | 0.85 | 0.44 | 0.70 | 0.81 |
-| **far contra** | 0.89 | **0.32** | 0.63 | **0.78** |
-
-Pre-subtracted (`epoch_accdelta_by_position_cue_working`), the chronic−pre interval **crosses zero at
-five of six positions**. Far-contra is −0.12, excluding zero at uncorrected 95% but not under the
-Bonferroni-over-18 line the figure also draws.
-
-This is the NECESSARY condition. On its own it is not sufficient: a frozen decoder could in principle
-recover because the readout axes happen to survive a reorganisation.
-
-### 2. The refit advantage DISAPPEARS by chronic — the test that separates the accounts
-
-Acutely, refitting buys real accuracy: far-contra **+0.19** unmatched / **+0.16** matched, near-contra
-+0.17 / +0.13. Information is present and misread — that is the "displaced" result.
-
-Chronically that advantage is gone, in BOTH families (`epoch_5rgapdelta_*`, `epoch_5rmgapdelta_*`),
-as change from the pre gap:
-
-| | near I | near M | near C | far I | far M | far C |
-|---|---|---|---|---|---|---|
-| unmatched gap Δ | −0.01 | **+0.22** | +0.03 | +0.02 | +0.05 | +0.08 |
-| matched gap Δ | 0.00 | **+0.27** | −0.03 | −0.03 | +0.04 | +0.07 |
-
-Only near-middle excludes zero, and only at uncorrected 95%.
-
-**Under the "new patterns" account a within-session refit should have KEPT or GROWN its advantage** —
-a reorganised code is legible to a refitted model and invisible to a frozen one. It does not.
-
-**THAT THE TWO FAMILIES AGREE IS THE LOAD-BEARING FACT.** Their baselines are handicapped in opposite
-directions (pre gap −0.073 unmatched, where frozen has ten sessions to refit's one; +0.090 matched,
-where frozen must generalise across days) and they still give the same chronic answer. The result is
-therefore not an artefact of either training-set convention — which is exactly why both were built.
-
-### 3. The exception: near-middle, a SPARED position
-
-Near-middle is the one place both signs point to reorganisation: the frozen decoder is still −0.14
-below pre at chronic, AND the refit gap is the largest in the figure (+0.22 / +0.27). There is
-decodable position information at chronic that the pre-stroke readout cannot reach.
-
-**State this rather than averaging it away.** It is the single positive instance of the alternative
-account in the data set, and it is not at the impaired position.
-
-### What this does NOT license
-
-1. **"Recovery PROCEEDS by…" is a claim about the route; this is an endpoint comparison.** Three
-   post-stroke epochs. Chronic resembling pre-stroke does not establish how it got there.
-2. **The acute state is not purely displaced.** Refitting recovers a third of far-contra's acute
-   deficit and 9–11% at far-ipsi/far-middle. Most of the acute loss is information the population no
-   longer carries linearly. That does not contradict a claim about recovery, but "the patterns
-   returned" must not be read backwards as "the patterns were only hidden".
-3. **Geometry has not fully returned.** Row-centred crossnobis displacement at far-contra is still
-   +0.177 chronically while decoding comes back. "The frozen readout works again" is strictly weaker
-   than "the representation is identical".
-4. **Three animals, and recovery is animal-specific** elsewhere in this document.
-
-### The defensible sentence
-
-> Recovery restores a position representation that the **pre-stroke readout can still read**: a
-> decoder frozen on pre-stroke activity returns to baseline at five of six positions, and the
-> advantage a within-session refit held acutely is gone by chronic under both matched and unmatched
-> training sets. One spared position (near-middle) retains a refit advantage, indicating locally
-> reorganised coding.
-
-That is the operational form of the hypothesis and it is what a frozen decoder can establish. The
-original wording claims more than the design carries on two counts — it is an endpoint result, and
-"rather than building new ones" is contradicted at near-middle.
-
-## LOST or MISREAD? The frozen-vs-refit arm (figures 5r), 2026-09-09
-
-> **SESSION-SET CAVEAT, added 2026-09-09 late.** Every table below, and the crossnobis tables above,
-> were computed on the 0606-0907 session set. `PS92_0908` (day 22, CHRONIC) and `PS93_0908` (day 22,
-> SUBACUTE) were registered by the poller and analysed afterwards, and they are now in the pooled
-> bundle. The ACUTE numbers are unaffected -- neither session is acute -- but subacute and chronic
-> have shifted in the third decimal (post-cue far-contra recovery subacute +0.130 -> +0.136, pooled
-> subacute refit 0.764 -> 0.767). Regenerate with `scripts/prelim_numbers_frozen_vs_refit.py` and
-> `scripts/prelim_numbers_crossnobis.py` before quoting a subacute or chronic value, and re-render
-> the epoch figures so the deck agrees with the text.
-
-
-The "relocated rather than lost" claim above rested on three INDIRECT measures -- split-half
-reliability, crossnobis displacement, best-match fraction. `epoch_5rgap_frozen_vs_refit_*` tests it
-directly: refit a decoder WITHIN each session on the SAME trials, same estimator, same block
-grouping, and ask whether the position becomes decodable again. Post-cue, lick + miss-while-working.
-
-    gap ~ 0, both arms low  ->  the code is degraded; no model recovers it
-    gap > 0                 ->  the code is present and DISPLACED; only the frozen readout fails
-
-**THE PRE PANEL IS NOT ZERO AND IS NOT AN EFFECT.** The frozen arm trains on ten pre-stroke sessions
-and the refit arm on one, so refitting COSTS 0.073 accuracy at baseline (frozen 0.886 vs refit
-0.813). Every number below is the gap at that epoch MINUS the pre gap.
-
-| epoch | frozen | refit | gap | gap - pre gap |
-|---|---|---|---|---|
-| pre | 0.886 | 0.813 | -0.073 | -- |
-| acute | 0.525 | 0.552 | **+0.027** | **+0.100** |
-| subacute | 0.772 | 0.764 | -0.008 | +0.065 |
-| chronic | 0.846 | 0.841 | -0.005 | +0.068 |
-
-The sign of the gap FLIPS acutely: post-stroke, refitting stops costing accuracy and starts buying
-it. Per position, acute (gap minus pre gap), against each position's own frozen deficit:
-
-| position | frozen deficit (acute - pre) | recovered by refitting | fraction recovered |
+| | pre | acute | retained |
 |---|---|---|---|
-| near ipsi   | -0.234 | +0.027 | 12% |
-| near middle | -0.273 | +0.132 | 48% |
-| near contra | -0.313 | +0.168 | 54% |
-| far ipsi    | -0.373 | +0.034 | **9%** |
-| far middle  | -0.408 | +0.044 | **11%** |
-| **far contra** | **-0.573** | **+0.196** | 34% |
+| POSITION (6-way) | 0.863 | **0.428** | **0.496 — loses 50%** |
+| STATE (3-way) | 0.976 | **0.873** | **0.894 — loses 11%** |
 
-**THIS QUALIFIES THE "MOVED NOT LOST" CLAIM RATHER THAN CONFIRMING IT.** Three readings:
+**Both fall. Position falls roughly five times further.** The claim is the RATIO, never that the
+state readout is flat — and its worst epoch is SUBACUTE (0.771), not acute, so the two do not even
+share a temporal pattern.
 
-1. **The displaced component is REAL and largest in absolute terms at the impaired position**
-   (+0.196 at far-contra, the largest of the six), which is where crossnobis displacement is also
-   largest. Two independent methods agree on where the code moved.
-2. **It is a MINORITY of the deficit.** A third of far-contra's acute drop is recovered by
-   refitting; two thirds is not. The paragraph's "relocated rather than lost" overstates it --
-   the defensible claim is "partly relocated, mostly lost, and the relocated part is
-   position-specific."
-3. **The far ipsilateral and far middle positions lose information OUTRIGHT** -- 9% and 11%
-   recovered, the two smallest fractions. Their deficits are not a readout problem at all. So the
-   acute lesion does two different things at once, and which one dominates depends on the position.
+---
+---
 
-The gap remains positive subacutely (+0.065) and chronically (+0.068) even as frozen accuracy
-returns to 0.846, so a residual readout mismatch outlives the behavioural recovery -- consistent
-with the chronic row-centred far-contra displacement of +0.177.
+## 9. WHAT WE CAN AND CANNOT CONCLUDE — by hypothesis
 
-### The cell that is NOT drawn, and why
-
-Acute far-contralateral is GATED OUT of the lick-aligned arm. That arm conditions on a detected
-lick, and acutely far-contra is the spout the animal does not lick: every acute session holds it at
-0.0-4.3% of trials against a pre-stroke 16.5%. A within-session refit will not predict a class at
-4% prior in a six-way problem, so the cell read -0.42 -- the mouse not licking, presented as the
-code being gone, in the direction that would have flattered the "lost" reading. Gated by
-`grant_figures.MIN_REFIT_SHARE` (a third of uniform); the gate fires on 78 of 37,562 trials, 0.21%,
-all of them that one cell, and never in the cue or pre-cue arms. A count-only floor did NOT catch it
-and made it worse -- see the constant's own note.
-
-## THE POSITIONS STOP BEING DIFFERENT FROM EACH OTHER (split-half off-diagonal), 2026-09-10
-
-Priya, reading the deck: "after stroke, split-half similarity suggests significantly more similarity
-between R/L/center spout position brain activity compared to pre-stroke, when these were more
-different than each other." That reading is correct, and it is the most direct statement of the
-effect in the whole figure set.
-
-`_split_half_matrix` splits each position's trials into halves WITHIN one session. The diagonal is
-that position's own reliability -- corr(half A at P, half B at P) -- and the OFF-diagonal is how
-similar two DIFFERENT positions look, measured on independent halves so no cell is a mean correlated
-with itself. Post-cue, lick + miss-while-working:
-
-| epoch | own-position (diagonal) | between-position (off-diagonal) | separation |
-|---|---|---|---|
-| pre | 0.791 | **-0.169** | 0.959 |
-| **acute** | 0.724 | **+0.091** | **0.632** |
-| subacute | 0.785 | -0.133 | 0.918 |
-| chronic | 0.858 | -0.180 | 1.038 |
-
-**EACH POSITION STAYS ABOUT AS REPEATABLE AS BEFORE WHILE THE POSITIONS STOP BEING DISTINGUISHABLE
-FROM EACH OTHER.** The diagonal moves 0.791 -> 0.724, a 0.067 drop. The off-diagonal moves -0.169 ->
-+0.091, a swing of +0.260 -- four times larger, and in the direction that says different targets now
-evoke the same pattern. A code that had gone NOISY would show the opposite: diagonal collapsing,
-off-diagonal unchanged.
-
-The far-contralateral row is where it happens. Its correlation with the other far positions, acute
-minus pre: far-ipsi -0.24 -> **+0.58**, far-middle +0.15 -> **+0.63**. The impaired target's pattern
-does not become noise; it becomes the OTHER far positions' pattern.
-
-**FOUR MEASURES, ONE EVENT -- and "independent" needs qualifying.** The split-half off-diagonal
-(patterns merge), the frozen decoder's confusions (far-contra misread as far-ipsi/far-middle), the
-row-centred crossnobis (far-contra moves toward ipsilesional targets) and the best-match fraction
-(its nearest pre-stroke neighbour stops being itself) are four DIFFERENT quantities and they agree.
-They are analytically independent -- different metric, different reference frame -- but NOT
-statistically independent: all four are computed from the same per-trial joint-LocaNMF features, the
-same engagement gate and the same trial sets, so a fault in those would move all four together. The
-convergence rules out four different analysis choices, not one bad feature matrix.
-
-It reverses by subacute: off-diagonal back to -0.133, and to -0.180 chronically, slightly BELOW its
-own pre-stroke value.
-
-### Split-half off-diagonal vs row-centred crossnobis: related, not redundant
-
-Priya, 2026-09-10: "are these essentially the same?" No -- they agree on the acute event and
-disagree in ways that identify what each one measures.
-
-| epoch | Spearman rho, 30 off-diagonal cells | mean delta, split-half | mean delta, row-centred crossnobis |
-|---|---|---|---|
-| acute | **+0.711** | **+0.260** | **+0.082** |
-| subacute | +0.472 | +0.036 | +0.028 |
-| chronic | -0.115 | -0.012 | +0.009 |
-
-Three differences, and each one is the reason to keep both:
-
-1. **REFERENCE FRAME.** Split-half lives entirely inside ONE session: both halves come from the same
-   session, so it asks "are these positions distinguishable right now". The crossnobis matrices are
-   POST x PRE, so every cell carries the pre-stroke geometry and asks "which position did this one
-   move TOWARD". A code that scrambled into a brand-new configuration would show up in the first and
-   not the second.
-2. **WHAT ROW-CENTRING REMOVES.** Row-centring subtracts each row's mean, which removes anything
-   that shifted the whole row -- including the amplitude term. Split-half has no such term to
-   remove.
-
-   **CORRECTION, 2026-09-10.** An earlier version of this section said the +0.260 vs +0.082
-   difference meant "roughly two thirds of the merging is a COMMON shift and one third is the
-   differential substitution". That was wrong and should not be quoted. The two numbers are a
-   CORRELATION change and a NORMALISED DISTANCE change: different units, no reason for their
-   magnitudes to be commensurate, and no ratio to take between them. Priya caught it by asking the
-   right question -- split-half is a Pearson correlation, so it is already fully blind to gain,
-   global or per position, and cannot contain an amplitude component for row-centring to be
-   removing. The defensible comparison between the two measures is their RANK agreement, not their
-   magnitudes.
-
-   **AND ROW-CENTRED CROSSNOBIS IS NOT FULLY GAIN-BLIND EITHER.** Writing the row out,
-
-       d(P,Q) - mean_Q d(P,.) = -2 mu_postP . (mu_preQ - mean mu_pre) + (|mu_preQ|^2 - mean |mu_pre|^2)
-
-   the first term scales LINEARLY with |mu_postP| and the second does not depend on P at all. So
-   row-centring removes gain from the row's OFFSET but leaves it multiplying the row's SHAPE: double
-   P's response and the whole row-centred profile doubles. Row-centred values are therefore
-   comparable in SIGN and in RANK across epochs but not in MAGNITUDE when amplitude has changed --
-   and the encoder says it changed a lot (fitted gain a: 0.94 pre to 0.36 acute, post-cue). Dividing
-   each row by its own SD across columns would make it scale-free as well; that is not currently
-   done.
-3. **METRIC.** Pearson correlation is gain-blind by construction; crossnobis is a noise-normalised
-   distance and is gain-SENSITIVE, which is the whole reason the row-centred family had to be built.
-
-They dissociate exactly where that matters. Far-contra against NEAR-contra, acute minus pre:
-split-half **+0.152** (slightly more alike) but row-centred crossnobis **-0.350** (moved AWAY).
-Same trials, opposite sign, because one is absolute similarity within the session and the other is
-similarity relative to that row's own mean.
-
-Where they DO agree they agree completely: the far-contra row's five off-diagonal columns come out in
-IDENTICAL rank order under both measures (rho = +1.000) -- far-ipsi > near-ipsi > far-middle >
-near-middle > near-contra. That is the substitution claim, made twice from different arithmetic.
-
-
-
-### Why a gain change cannot explain the similarity drop
-
-`_corr_matrix` uses `np.corrcoef`, i.e. Pearson, which centres and scales each pattern vector. A
-uniform gain change on all components leaves *r* exactly unchanged -- so a drop in mean-pattern
-similarity is a change in the SHAPE of the pattern across components, never its size. The inverse is
-the one to watch: a LINEAR DECODER is sensitive to gain (fixed hyperplane, fixed intercepts), so
-amplitude can break decoding while correlation holds. Anyone reasoning "the components still decode,
-so the pattern must be intact" has it backwards.
-
-Nor is it attenuation. Split-half reliability falls only 0.791 -> 0.724 acutely, so the most
-attenuation can account for is a factor sqrt(0.724 / 0.791) = 0.957: it would take the mean-pattern
-similarity from 0.741 to 0.709, not to the observed **0.350**. That is also what the disattenuated
-third panel of `grant_7b_reliability_*` shows cell by cell.
-
-## THE ENCODER, AND WHY THE "HALF AMPLITUDE, HALF SHAPE" SPLIT IS WITHDRAWN
-
-Measured 2026-09-10. The ridge encoder maps position -> component activity, frozen on pre-stroke.
-For a post-stroke session with measured mean pattern `m` and frozen prediction `p`:
-
-    frozen EV        = 1 - sum|m - p|^2 / sum|m|^2      what it actually achieves
-    amplitude factor = sum m.p / sum p.p                 the single best rescaling, a
-    EV after rescale = 1 - sum|m - a p|^2 / sum|m|^2     the best it could do if amplitude were free
-
-Post-cue:
-
-| epoch | frozen EV | EV after rescale | rescaling buys | amplitude factor a |
-|---|---|---|---|---|
-| pre | 0.557 | 0.580 | 0.023 | 0.943 |
-| **acute** | **-0.388** | **0.134** | **0.521** | **0.361** |
-| subacute | 0.215 | 0.333 | 0.118 | 0.707 |
-| chronic | 0.424 | 0.447 | 0.023 | 1.015 |
-
-**READ `EV after rescale` FIRST.** The acute gap of 0.521 looks like an amplitude story and is not:
-a code that is simply GONE also recovers a lot under rescaling, because the best scale collapses
-toward zero and predicting nothing beats predicting an unrelated pattern. `_enc_terms`' docstring
-states the rule -- "an amplitude change only when `gain` itself is high" -- and acutely it is 0.134.
-So the acute encoder failure is dominated by TUNING, and the paragraph's "roughly half attributable
-to response gain and half to pattern shape" overstates the amplitude half. Withdrawn.
-
-**AMPLITUDE FELL, IT DID NOT RISE.** `a` goes 0.943 -> 0.361 acutely: the position-DIFFERENTIAL
-response (patterns are centred across positions first, so this is tuning depth, not overall
-brightness) collapsed to about a third. This also explains the uniformly red ROWS in the raw
-crossnobis epoch-minus-pre matrices, which are largest in the pre-cue and lick arms at far-middle
-and far-contra: for a response that shrinks while keeping its shape, `d = (1-a)^2 |mu|^2`, so
-SHRINKING pushes a row away from the template exactly as growing would. A red row is "far from the
-pre-stroke template in a position-nonspecific way", not "bigger".
-
-**THE WORD "GAIN" MEANT THREE THINGS** in this family until 2026-09-10 -- the EV after rescaling,
-the amplitude factor, and "the thing removed" -- and the figures have been relabelled accordingly.
-Quote "EV after rescale" and "amplitude factor a"; do not write "gain".
-
-## DISPLACED vs DEGRADED, per position -- the encoder ceiling (figures 11c / 11cpos / 11cfrac)
-
-Added 2026-09-10. This is the finding that reorganises the rest of the document, and it comes from
-giving the frozen encoder something to be read against.
-
-**THE PROBLEM IT FIXES.** `frozen EV` is an R^2 and acutely it is -0.388 post-cue: "worse than
-predicting the mean", and mute about what was ACHIEVABLE in that session. A within-session split-half
-refit supplies the ceiling. A refit encoder must be cross-validated or it is 1.0 by construction --
-ridge on a one-hot design reduces to the per-position mean, so a session predicting its own means
-from themselves is an identity.
-
-### What is actually being measured, and on which trials
-
-**THE "ENCODER" IS THE PER-POSITION MEAN PATTERN.** Six vectors, one per spout position, each the
-average over that position's trials of the z-scored LocaNMF component time courses in sub-bins (4
-for cue/pre-cue, 8 for lick). Nothing is fitted. Earlier notes described it as "ridge on a one-hot
-position design", which is what it is EQUIVALENT to and not what the code does: with a one-hot design
-the least-squares solution for each column IS that position's mean, and ridge only shrinks each
-toward zero by `n_q / (n_q + alpha)`. An actual `Ridge(alpha=1.0)` on a one-hot design is fitted
-elsewhere -- `locanmf_cross_mouse._per_session_compute`, a different figure -- but not here.
-
-**THE VARIANCE IS THE VARIANCE OF THE MEANS, NOT OF THE TRIALS.** `M` and `P` are both 6 x features
-matrices of per-position means, centred across positions, and the denominator is `sum M^2`: the
-BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
-score answers "how much of the measured position-to-position pattern does the template's
-position-to-position pattern reproduce", NOT "how much of the trial variance is explained" -- a
-trial-level R^2 would be far lower, because single-trial noise is large and is excluded here by
-construction.
-
-**CENTRING ACROSS POSITIONS** is the line `M = M - M.mean(0)`. `M` is 6 positions x features;
-`M.mean(0)` averages down the POSITION axis, giving one grand-mean pattern -- what the cortex does on
-an average trial regardless of where the spout was. Subtracting it leaves each position as its
-DEVIATION from that average, so anything common to all six is gone and only what DIFFERS between
-positions survives. A session that is 20% dimmer overall, or has a different F0 or SNR or arousal
-level, moves all six rows together and vanishes under this operation. The encoder is not being asked
-to predict the average trial, so it is neither charged nor credited for it. The denominator
-`sum M^2` is therefore the size of the position-DIFFERENTIAL signal, which is also why a session with
-strong overall activity but no position tuning collapses it (guarded: `tot <= 1e-12` returns NaN).
-
-Not to be confused with the ROW-centring in the crossnobis matrices, which subtracts each row's mean
-across the reference-position COLUMNS. Same spirit -- remove what is common, keep what discriminates
--- but a different axis of a different matrix.
-
-It also means the CEILING's shortfall from 1.0 is entirely sampling noise in the half-session means,
-which is why halving the trials lowers it and why the size-matched arm was needed at all.
-
-**ENGAGED TRIALS ONLY, AND NOT SYMMETRICALLY.** The terminal quit period is excluded everywhere
-(`~not_eng`, the reference-restricted backdated gate). But the two sides are not the same trial
-class:
-
-* the PRE-STROKE reference is built from LICK trials only;
-* the post-stroke set is `working` = lick PLUS miss-while-working.
-
-That is deliberate -- a pre-stroke animal is not missing, so `working` would add almost nothing and
-would make the reference a different KIND of trial from itself -- but it does mean **the template is
-made of successful trials and is scored against a set that includes failures.** At far-contralateral
-acutely that set is mostly failures, which is exactly the population the deficit lives in. It is the
-right comparison for "does the old template describe what the animal is doing now", and it is not a
-like-for-like comparison of two trial classes.
-
-### Pooled: amplitude recovers, shape does not
-
-| epoch | ceiling | frozen (matched) | gap | Δ vs pre | template captures | amplitude a |
-|---|---|---|---|---|---|---|
-| pre | 0.706 | 0.429 | 0.276 | -- | 61% | 0.749 |
-| **acute** | 0.568 | 0.100 | 0.468 | **+0.192** | **18%** | **0.286** |
-| subacute | 0.631 | 0.226 | 0.405 | +0.128 | 36% | 0.527 |
-| chronic | 0.778 | 0.315 | 0.463 | **+0.186** | 41% | 0.745 |
-
-The fitted amplitude returns to baseline (0.286 -> 0.745 against 0.749 pre-stroke). The shape
-mismatch does not (+0.192 -> +0.128 -> +0.186, flat, and no better at chronic than acute). **The
-pre-stroke gap of 0.276 is not an effect** -- it is the cost of a template coming from other sessions
-at equal training-set size, the same asymmetry the matched frozen DECODER arm exposed.
-
-`amplitude a` is the factor the MATCHED arm fits. The unmatched, as-actually-used frozen arm fits a
-larger one (0.943 / 0.361 / 0.677 / 0.947); that is the number behind the `R² = 1 - (1-a)²/a² =
--2.13` statement about raw EV, and the two have been confused once.
-
-None of the `Δ vs pre` values carries an interval -- they are differences of pooled point estimates
--- so "flat" is a reading of three numbers without error bars, not a test.
-
-### Per position: THE DISSOCIATION
-
-| position | pre ceiling / captured | acute ceiling / captured | **Δ ceiling** |
-|---|---|---|---|
-| near ipsi | 0.740 / 0.67 | 0.584 / 0.28 | -0.156 |
-| near middle | 0.462 / 0.31 | 0.455 / 0.22 | -0.007 |
-| near contra | 0.731 / 0.63 | 0.616 / 0.27 | -0.115 |
-| **far ipsi** | 0.629 / 0.56 | 0.306 / 0.22 | **-0.323** |
-| **far middle** | 0.721 / 0.63 | 0.451 / 0.42 | **-0.270** |
-| **far contra** | 0.628 / 0.55 | **0.626** / **0.01** | **-0.002** |
-
-**FAR-CONTRALATERAL LOSES NO STRUCTURE AND LOSES ITS TEMPLATE ENTIRELY.** Its ceiling acutely is
-0.626 against 0.628 pre-stroke, a change of -0.002 -- its own trials predict each other exactly as
-well as before the lesion -- while the pre-stroke template's capture falls 0.55 -> 0.01 and recovers
-only to 0.28-0.34. The positions that lose CEILING are the flanking ones, far-ipsi (-0.323) and
-far-middle (-0.270).
-
-The captured fraction is clipped to [0, 1]. At far-contra acutely that clip hides a sign: the
-underlying matched EV is **-0.060**, i.e. the pre-stroke template is further from that position's
-measured pattern than predicting zero would be. Per-position scores use the session-GLOBAL scale
-factor, which at a position whose amplitude has collapsed is the wrong one. Quote the fraction.
-
-**THIS CONVERGES WITH THE DECODER ARM** from the same day: refitting recovers 34% of far-contra's
-acute deficit and only **9% at far-ipsi and 11% at far-middle**. Two analyses, opposite directions of
-fit, entirely different statistics, one dissociation:
-
-> **Far-contra's code is DISPLACED. Its neighbours' codes are DEGRADED.**
-
-Both bar families carry the standard animals-then-sessions bootstrap, per-session dots and
-multiple-comparison marks; the captured fraction is computed PER SESSION and then pooled, so it has a
-distribution behind it rather than being one pooled number divided by another.
-
-**WHAT THIS CHANGES ABOVE.** The earlier pooled statement that "roughly 28% of the available
-structure is lost" averages two opposite things and must not be quoted without the split. And the
-"partly relocated, mostly lost" summary needs the same qualification: at the IMPAIRED position it is
-not mostly lost at all -- nothing measurable is lost there. The loss is at the neighbours.
-
-## Where each number comes from
-
-| claim | figure | value |
-|---|---|---|
-| post-cue decoder Δ, acute | `epoch_accdelta_by_position_cue_working` | nI −0.24, nM −0.28, nC −0.31, fI −0.38, fM −0.41, **fC −0.58** |
-| post-cue decoder Δ, subacute | same | nI −0.03, nM −0.15, nC −0.03, fI −0.13, fM −0.12, fC −0.22 |
-| post-cue decoder Δ, chronic | same | nI +0.07, nM −0.01, nC +0.03, fI −0.06, fM −0.02, fC −0.13 |
-| pre-cue decoder Δ, acute | `epoch_accdelta_by_position_precue_working` | nI −0.23, nM −0.11, nC −0.23, fI −0.16, fM −0.13, fC −0.26 |
-| encoder Δ (variance, gain) | `epoch_11delta_encoder_gain_shape_cue_working` | acute −0.94 / −0.45; subacute −0.34 / −0.26; chronic −0.05 / −0.03 |
-| within-session reliability Δ | `epoch_7diagdelta_matrices_splithalf_cue_working` | acute nI −0.12, nM −0.33, nC −0.07, fI +0.01, fM −0.03, **fC +0.12** |
-| crossnobis displacement | `epoch_8diagdelta_matrices_crossnobis_cue_working` | acute fC **+1.02**; chronic nI +0.98, nC +0.86, fM +1.01 |
-| best-match DESTINATION, acute fC | `epoch_10c_matrices_best_match_destination_cue_working` | fM 0.50, fI 0.25, nI 0.12, nC 0.06, itself 0.06 |
-| best-match fraction fC, pre -> acute | `epoch_10cdiagdelta_...` | 0.98 -> 0.06 (a drop of **0.92**, not 0.94 -- see below) |
-| recoverable, MATCHED training sets | `epoch_5rmgapdelta_frozen_vs_refit_cue_working` | pre gap **+0.090**; acute fC **+0.158**, nC +0.128, nI +0.093 |
-| pre-stroke frozen decoder accuracy | run log, `frozen decoder [.]` | cue .87/.78/.93/.92; precue .47/.46/.66/.45; lick .92/.88/.95/.93 |
-| no-lick dissociation | run log, `=>` verdicts | PS95 pre-cue 0.36 vs post-cue 0.09 |
-| refit-minus-frozen gap | `epoch_5rgapdelta_frozen_vs_refit_cue_working` | pre -0.073; acute +0.027, subacute -0.008, chronic -0.005 |
-| refit recovery by position, acute | same | nI +0.03, nM +0.13, nC +0.17, fI +0.03, fM +0.04, **fC +0.20** |
-
-Epoch n: pre 44 sessions, acute 16, subacute 23, **chronic 3** -- as of the 2026-09-07 run, i.e.
-BEFORE the 2026-09-10 boundary change and before the 0908/0910 sessions. Recount after re-rendering.
-
-## Sign conventions that are easy to get wrong
-
-* **`_matrices_crossnobis` returns RAW distances** normalised to pre-stroke units, so on the epoch
-  figures **larger = further from baseline = more changed**.
-* **`_mats_crossnobis` (figure 8d) NEGATES them** (`sign=-1`) so that "larger diagonal = more
-  preserved", matching the correlation figures. The two are one letter apart in the name and carry
-  opposite signs. Check which one a figure used before describing its direction.
-* The matrices are **post x pre cross-matrices**, so the diagonal is position *i* post against
-  position *i* pre -- not a within-session RDM.
-
-## Caveats that must survive into any submitted version
-
-1. **THE CHRONIC EPOCH IS NO LONGER ONE ANIMAL, as of 2026-09-10** -- and every chronic number in
-   this document predates that. It was PS92 alone; under `flat_mode: drift` it is PS92 from day 11,
-   PS93 from day 11 and PS95 from day 15, with PS94 still not qualifying. PS95 also MOVED LATER,
-   from a day-11 boundary the behaviour box had promoted under the old per-session rate test before
-   PS95's day-25 session existed.
-
-   **CONSEQUENCE: EVERY CHRONIC AND SUBACUTE NUMBER BELOW IS STALE**, because sessions moved between
-   the two panels in both directions. The acute numbers are untouched. Re-render and re-read before
-   quoting anything from those two epochs. The upside is that the caveat this entry used to carry --
-   "the most quotable claim is the least supported, n = 1" -- is retired: three animals now reach
-   chronic.
-2. **Pre-cue is not "spared".** Its baseline is only ~0.45-0.66, so −0.26 at far-contra leaves it
-   near chance (0.167). The defensible claim is about the *shape* of the loss (flat across positions
-   vs graded), not its absence.
-3. **Reliability preservation is not uniform.** It holds at far-contra (+0.12) but near-middle
-   drops −0.33 acutely. The "moved not lost" argument is strongest exactly at the impaired position,
-   which is convenient -- and therefore worth stating precisely rather than generalising.
-4. **The no-lick dissociation is basis-dependent.** It holds under both the Allen-ROI and joint
-   LocaNMF bases for PS92 and PS95; PS93 and PS94 flip to "no clear dissociation" depending on basis
-   and RT cut. The run flags `BASES DISAGREE`. Quote it as a per-animal result, not a cohort one.
-5. **Several intervals cross zero** (subacute near-ipsi and near-contra decoder). The paragraph reads
-   as more uniform than the intervals support.
-6. **"Relocated rather than lost" is now QUALIFIED by the refit arm.** A within-session refit
-   recovers about a third of the acute far-contralateral deficit and under an eighth of the
-   far-ipsilateral and far-middle ones. The displacement is real, position-specific and agrees with
-   the crossnobis geometry on WHERE, but most of the acute deficit is information the population no
-   longer carries linearly. Do not quote "relocated" without it.
-7. **Seven placed figures were stale at deck build** (`section_g_smalllesion_*`,
-   `poststroke_G7d_smalllesion_*`, `coding_rtdrift`; 17-21 days old, predating both engagement-gate
-   changes). None are cited above, but do not cite them until re-run.
-
-## Engagement gate
-
-All post-stroke numbers above use the reference-restricted, backdated gate
-(`precue_engagement_states.engagement_gate`): judged only at close_L / close_center, requiring a
-non-recovering collapse, backdated to the start of the run of misses that trips it. This matters
-because the previous position-blind gate discarded far-position motor failures as "disengagement" --
-i.e. deleted the effect as the confound. See `docs/STATUS_2026-09-07.md` and
-`tests/test_one_engagement_gate.py`.
+Each hypothesis names **the best available test**, the number, and the verdict. Where a matched and
+an unmatched version of a test exist, **the matched one is authoritative** and the unmatched one is
+reported only as a bracket. File paths are relative to
+`N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`; every figure has a same-named `.csv`.
 
 ---
 
-# A manipulation hypothesis these data motivate
+### H1 — "The lesion degrades cortical position coding."
+**SUPPORTED, with a graded spatial signature.**
 
-Priya, 2026-09-09: "what might be a reasonable hypothesis to test how we can manipulate
-post-stroke recovery? eg DREADD- or optogenetic manipulation of activity in contralateral striatum
-vs ipsi/contra orofacial motor cortex in subacute post-stroke?" Recorded as a FRAMING to argue
-with, not a recommendation -- the design choices are the lab's.
+*Best test:* frozen pre-stroke decoder, per position, on engaged + miss-while-working trials so
+non-responses are not silently dropped — `epoch_acc_by_position_cue_working.{png,csv}` and
+`epoch_accdelta_by_position_cue_working.csv`.
 
-## The question the data poses
+Acute change from pre, Bonferroni-corrected: **far-contra −0.575 [−0.738, −0.394]**, far-middle
+−0.407, far-ipsi −0.373, near-contra −0.313, near-middle −0.271; near-ipsi −0.234 does not survive
+correction. **Five of six positions significant, monotone near→far and ipsi→contra**, matching the
+behavioural gradient (§1) position for position.
 
-The impaired target's pattern moves TOWARD ipsilateral target representations
-(`epoch_8rc_matrices_crossnobis_rowcentred_cue_working`, acute-minus-pre). Two readings make
-OPPOSITE predictions, which is what makes it worth an experiment:
+*Cannot conclude:* that cortex is the site of the deficit. The lesion is striatal; these are
+downstream cortical consequences.
 
-* **MALADAPTIVE CAPTURE.** The intact contralesional hemisphere captures the impaired target's
-  code and the drift IMPEDES recovery. Rodent analogue of the interhemispheric-rivalry rationale
-  behind contralesional low-frequency rTMS in human stroke.
-* **COMPENSATORY.** The drift IS the recovery -- the intact circuit takes the target over.
+---
 
-## What the data already says, and how weakly
+### H2 — "The deficit is specific to position, not a general cortical failure."
+**SUPPORTED, and this is the control that makes H1 interpretable.**
 
-PS92 -- the only animal to reach chronic -- recovered to 378/378 hits while retaining a residual
-far-contra row-centred displacement of +0.177. A displaced-but-functional code is what the
-COMPENSATORY account predicts. This is n = 1 and cannot separate "the displacement is the
-mechanism" from "the displacement is a harmless scar".
+*Best test:* the same window, basis, estimator and frozen-model discipline with **only the label
+changed** — `epoch_13n_state_vs_position_cue.{png,csv}`, full record in
+`docs/BEHAVIOURAL_STATE_CONTROL.md`.
 
-## Predictions by target, subacute window
+As fraction of above-chance performance retained, acute vs pre: **position 0.496** (0.863 → 0.428),
+**behavioural state 0.894** (0.976 → 0.873). **Position falls roughly five times further.**
 
-| target | if MALADAPTIVE | if COMPENSATORY |
-|---|---|---|
-| contralesional (R) orofacial M1, inhibit | far-contra displacement falls, hit rate rises | displacement rises, recovery stalls |
-| perilesional (L) orofacial M1, excite | contra-specific drive restored; displacement falls | little effect, or gain-only change |
-| contralesional (R) VLS, inhibit | as R-M1 but slower onset | recovery blocked if the striatal route carries it |
+*Cannot conclude:* that the state readout is unaffected. It falls too, and its worst epoch is
+**subacute (0.771), not acute** — so the two do not share a temporal pattern, which is further
+evidence against a common cause. **The claim is the RATIO.**
 
-## Two design points the preliminary data adds
+---
 
-1. **USE THE IMAGING READOUT AS THE DEPENDENT VARIABLE, NOT HIT RATE.** Behaviour saturates: PS92
-   hit 378/378 while its representation was still displaced. The row-centred far-contra
-   displacement is unsaturated and position-specific, so it can detect an effect hit rate cannot.
-2. **PREDICT A DISSOCIATION, NOT A GLOBAL EFFECT.** The deficit is post-cue and execution-side;
-   pre-cue selection is comparatively preserved (LOSO 0.510 vs 0.873 post-cue) and the plan
-   survives on failed trials. A manipulation of motor-output circuits should move the POST-cue code
-   and leave the PRE-cue code alone. One that moved both would argue for arousal or engagement
-   rather than the transformation -- and the engagement gate and no-lick arm already exist to catch
-   exactly that confound.
+### H3 — "Acutely the code is LOST." vs "It is PRESENT but the pre-stroke readout can no longer see it."
+**PARTIALLY SUPPORTED for displacement, and the honest answer is position-dependent.**
 
-## Timing
+*Best test:* **the training-set-MATCHED frozen-vs-refit family**,
+`epoch_5rmgapdelta_frozen_vs_refit_cue_working.csv` — **not** the unmatched `5rgapdelta`. The
+unmatched frozen arm trains on ten pre-stroke sessions against the refit's four fifths of one, so
+its pre row carries a size handicap with no lesion in it. Matching removes that and **flips the pre
+gap from −0.116 to +0.036**, which also shows the no-lesion baseline is *bracketed rather than
+known*.
 
-Row-centred far-contra displacement runs +0.665 acute -> +0.30 subacute -> +0.177 chronic, so the
-trajectory is set during subacute. That supports subacute as the intervention window.
+Matched acute delta (epoch − pre), Bonferroni-corrected:
+
+| position | point | corrected interval | |
+|---|---|---|---|
+| **far-contra** | **+0.158** | **[0.0004, 0.337]** | the only acute cell surviving |
+| near-contra | +0.128 | [−0.060, 0.290] | |
+| **far-middle** | **−0.132** | [−0.291, 0.035] | uncorrected [−0.242, −0.021] |
+
+**At far-contralateral the information is PRESENT and DISPLACED** — a same-day refit reads a
+position the frozen model cannot. **At far-middle the gap goes NEGATIVE**: refitting buys *less*
+there than before the lesion, which is degradation as a positive finding rather than an absent one.
+Both are invisible in the unmatched family, where far-middle is a flat +0.044.
+
+*Cannot conclude:* a single verdict for "the code". Two adjacent positions behave oppositely.
+*Cannot conclude:* that scarcity explains it — too few far-contra trials would push the gap
+**negative**, so it makes a positive gap harder to obtain. All 16 acute sessions contribute at all
+six positions (`epoch_5rgap_..._sessions.csv`).
+
+---
+
+### H4 — "The acute change is a change of GAIN, not of spatial pattern."
+**SUPPORTED acutely; REVERSED chronically.**
+
+*Best test:* the encoder's gain/shape decomposition, which asks whether a pure rescale of the
+frozen model recovers what it lost — `epoch_11_encoder_gain_shape_cue_working.{png,csv}`.
+
+| epoch | frozen EV | EV after rescale | interpretation |
+|---|---|---|---|
+| acute | **−0.388** ** | **0.134** ** | worse than predicting the mean; a rescale recovers most → **GAIN** |
+| chronic | 0.383 ** | 0.410 ** | rescaling buys almost nothing → **SHAPE** |
+
+Corroborated independently by geometry — `epoch_8diagdelta_matrices_crossnobis_cue_working.csv`:
+**acute displacement is FOCAL** (far-contra +1.017, >3× the next largest; near-middle +0.008, i.e.
+unmoved) while **chronic displacement is DIFFUSE** (all six positions +0.28 to +0.93, largest at
+near-**ipsi**).
+
+*Cannot conclude:* that the acute gain change is purely neural. Acutely the animal barely attempts
+far-contralateral (response rate 0.052), so attempt-related drive is genuinely absent — a real
+biological contributor to reduced gain, not an artefact, but it means "gain" here is not
+necessarily synaptic.
+
+---
+
+### H5 — "Recovery restores the pre-stroke code."
+**NOT SUPPORTED. This is the central negative result, and three independent estimators agree.**
+
+*Best test:* any frozen-vs-refit contrast at chronic, because a restored code would be readable by
+the pre-stroke model while a replaced one is readable only within session.
+
+| estimator | frozen (pre-stroke model) | refit (same-day) | file |
+|---|---|---|---|
+| **task encoder** (matched) | 0.307, i.e. **0.715 of pre** | ceiling **0.783 = 1.109 of pre** | `epoch_11c_encoder_ceiling_cue_working.csv` |
+| **rest decoder** | **0.611** retained | **1.181** retained | `epoch_15f_rest_frozen_restdock05*.csv` |
+| **best-match, pre-cue** | **0.583**, flat from subacute | — | `epoch_10_best_match_acc_precue_working.csv` |
+
+**A refit encoder reaches 0.783 chronically — ABOVE its pre-stroke 0.706 — while the frozen one
+reaches 0.410.** Chronic cortex is *more* predictable than pre-stroke cortex, just not by the
+pre-stroke model. Meanwhile behaviour (0.988/0.987/0.982 near, 0.947 far-ipsi) and per-position
+decoding (only far-contra still below pre) have largely recovered.
+
+**Behaviour recovers; the readout does not.** Recovery is reorganisation, not restitution.
+
+*Cannot conclude:* **what** the new code is. "Replacement" is inferred from the divergence between a
+frozen and a refit model, not from identifying the substitute representation.
+*Cannot conclude:* that the new code *causes* the recovered behaviour. This is correlational; no
+causal manipulation was performed.
+*Cannot conclude:* chronic claims for PS94, which has **no chronic sessions**.
+
+---
+
+### H6 — "The preparatory (pre-cue) signal follows the same trajectory as the execution (post-cue) signal."
+**NOT SUPPORTED — they dissociate, in two independent measures.**
+
+*Best test:* the same analysis run on both windows.
+
+* `epoch_15r_position_RESTWref_precue_working.png` vs `..._cue_working.png` — **far-contra pre-cue
+  INCREASES acutely (1.57, 310 significant bins) while far-contra post-cue COLLAPSES (0.47, 1,186
+  bins), in the same sessions and the same trials.** **No single panel carries this claim**; it
+  requires both.
+* `epoch_10_best_match_acc_precue_working.csv` vs `..._cue_working.csv` — post-cue best-match
+  recovers to **0.889** chronically; **pre-cue does not recover at all, 0.583 → 0.583.**
+
+**AND THE WINDOWS RECOVER DIFFERENTLY (§5b).** Best-match chronically: CUE and LICK return to
+~1.000 at almost every position; **ENL does not, and the failure is position-specific** —
+near-middle 0.111, far-ipsi 0.444, far-middle 0.444, while **far-contralateral ENL recovers to
+0.889**. So the position whose anticipatory representation never returns is **not** the one with the
+behavioural deficit.
+
+*Cannot conclude:* that the LICK window is more resilient. Its acute far-contra retention (0.42
+against CUE's 0.21) is **SELECTION** — it conditions on a detected lick, and acutely there are only
+**64 far-contra lick trials across 13 sessions** against ~1,100 at each near position. In the map
+families that cell is refused outright by the 20-trial floor.
+
+*Cannot conclude:* that the pre-cue signal is a motor plan or an intention. The spout arrives ~3 s
+before the cue, so a sustained sensory response and a held intention are temporally coextensive and
+**this design cannot separate them**. §6's boundary result tightens this further: the component
+pre-cue shares with rest points **backwards**, toward the last target.
+
+---
+
+### H7 — "Resting activity carries the position code, and tracks the same trajectory."
+**FIRST HALF SUPPORTED; SECOND HALF NOT — rest carries position in a largely DIFFERENT code.**
+
+*Best test:* circular-shift permutation that keeps block-time structure inside the null, plus a
+frozen/refit split on the same rest periods.
+
+* **Rest carries position:** observed/null **1.634**, 43/44 pre-stroke sessions, 4/4 animals;
+  94/96 sessions decode above their own null
+  (`epoch_15x_REST_by_position_by_animal.csv`, `docs/REST_ENGAGEMENT_AUDIT.md`).
+* **But it is not the task code:** cosine between a position's task map and its own rest map is
+  **0.09 post-cue, 0.16 pre-cue** — close to unrelated, and not a magnitude artefact
+  (`epoch_15s_shared_position_restdock05.csv`).
+* **And it dissociates from task at the lesioned position:** far-contra REST is the best-decoded
+  position pre-stroke (0.50) and **holds up** (0.38 acute, 0.39 chronic), while far-contra TASK
+  collapses 1.46 → 0.47 (`epoch_15f_..._confusion.csv`).
+
+*Cannot conclude:* anything from 15f's **acute** cell — 16 sessions with PS95 contributing one, and
+a 4% data change moves it by up to 0.21.
+*Cannot conclude:* that rest is free of undetected orofacial movement. The lick sensor is
+contact-thresholded and the spout docks out of reach, so licking at nothing is invisible; the
+stratified control **bounds** this but cannot measure it. **DLC tongue tracking is the only thing
+that would settle it, and it is not built.**
+
+---
+
+## 10. WHAT THIS CHANGES ABOUT HOW WE THINK ABOUT STROKE RECOVERY
+
+### The measurement that was not previously available
+Recovery is almost always scored on **behaviour**: does the animal, or the patient, do the task
+again? That measurement is blind by construction to *how* the nervous system is doing it. What this
+dataset adds is a **frozen-model readout** — a decoder and an encoder fixed on the pre-injury code
+and never refitted — run beside a same-day refit on identical trials. The pair separates two things
+a behavioural score conflates:
+
+* **restitution** — the pre-injury representation returns, so a frozen model recovers with behaviour;
+* **substitution** — a different representation supports the same behaviour, so behaviour recovers
+  while the frozen model does not.
+
+**Here it is substitution.** Behaviour returns to 0.95–0.99 and per-position decoding to within
+noise of pre-stroke at five of six positions, yet the pre-stroke encoder recovers only to 0.715 of
+its matched baseline while a same-day refit exceeds pre-stroke performance outright (1.109). The
+information is there in greater quantity than before; the old readout cannot see it.
+
+### Recovery is at least two processes, not one
+The acute and chronic deficits are different in kind, and each is characterised by its own best test:
+
+* **Acute = a focal GAIN loss.** A rescale of the frozen encoder recovers most of what it lost
+  (−0.388 → 0.134), and displacement is concentrated at far-contralateral (+1.017) with near-middle
+  untouched (+0.008).
+* **Chronic = a diffuse SHAPE change.** Rescaling recovers almost nothing (0.383 → 0.410), and every
+  position has moved, the largest being near-**ipsi** — a position with no acute deficit at all.
+
+**The chronic reorganisation is not confined to the impaired representation.** Positions that were
+never behaviourally affected have moved the most by chronic. That is hard to reconcile with a
+purely local repair account and easier to read as a network-wide re-solution of the task.
+
+### Practical consequences
+1. **A fixed decoder calibrated pre-injury will fail chronically even in a behaviourally recovered
+   subject** — 0.715 of baseline for the encoder, 0.611 for the rest decoder. Neuroprosthetic and
+   BCI approaches that assume representational stability across a lesion need recalibration on a
+   timescale this dataset can now quantify.
+2. **Interventions should be timed to the mechanism.** Anything aimed at restoring gain addresses
+   the acute phase; anything aimed at the chronic phase is addressing a changed spatial pattern, and
+   the two are not the same target.
+3. **Resting activity gives a task-free readout.** A severely impaired subject cannot perform the
+   task, so task-based measures are confounded by inability to attempt — precisely the trap that
+   makes the lick-aligned arm blind to acute far-contralateral (64 trials against ~1,100). Rest
+   carries position robustly (1.634, 43/44) and requires no attempt, so it remains measurable
+   exactly when the task-based readout fails. **But it is a different code** (cosine 0.09–0.16), so
+   it is a complementary readout, not a substitute for the task one.
+4. **"Recovered" needs to be stated at a level.** Behaviourally recovered, representationally
+   reorganised, and readout-incompatible are three different states, and this cohort is all three at
+   once.
+
+### What would move this from suggestive to established
+* **Identify the substitute code**, rather than inferring it from frozen/refit divergence.
+* **A causal test** — does perturbing the new representation disrupt the recovered behaviour?
+* **More animals, and chronic data for PS94**; n=4 with one animal missing the chronic epoch and
+  another contributing a single acute session is the main limit on every chronic claim here.
+* **DLC tongue tracking**, to close the undetected-movement gap in the rest arm.
+* **A second lesion model or task**, since everything here is one striatal lesion and one
+  six-position licking task.
