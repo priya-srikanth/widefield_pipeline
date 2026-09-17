@@ -13402,3 +13402,44 @@ chronic contains MORE -- not because the old code went away.
 PS95 barely gained and is the animal that looks flat on every derived contrast. Explaining the gain
 is the next question, and it is a WHERE question -- Haufe patterns through the joint basis, not
 another scalar.
+
+
+## The chronic code is a partial ROTATION in every window, and ends ABOVE its pre-stroke ceiling (2026-09-17)
+
+**Decision / finding.** The cross-epoch transfer matrix now runs on all four windows -- ENL, post-cue,
+post-lick and rest (`wfield_local/transfer_matrix.py`, driven by
+`scripts/rest_migration/transfer_arms.py`, in the nightly). Two results hold across every one:
+
+1. **ADDITION IS REJECTED.** It predicts a POSITIVE raw asymmetry (`chronic->pre` minus
+   `pre->chronic`), because a chronic-trained model that had merely ADDED dimensions would still
+   read pre-stroke data at nearly its full ceiling. Observed, in raw above-chance units: ENL
+   −0.061 / −0.004 / −0.079, cue −0.095 / −0.088 / −0.021, lick −0.050 / −0.020 / −0.007, rest
+   −0.004 / +0.021 / −0.008 for PS92 / PS93 / PS95. **Eleven of twelve are negative and none is
+   positive-and-material.** The codes share a partial, direction-independent overlap.
+2. **EVERY WINDOW ENDS ABOVE ITS PRE-STROKE CEILING.** Own-epoch above-chance accuracy dips at
+   acute and ends higher than pre: ENL 0.29 → 0.25 → 0.29 → **0.33**; cue 0.62 → 0.39 → 0.59 →
+   **0.70**; lick 0.71 → 0.57 → 0.67 → **0.74**. The per-animal gain is positive in **9 of 9**
+   arm-animal pairs.
+
+**THE PRACTICE CONFOUND WAS MEASURED, NOT ASSUMED.** The animals train throughout, so a rising
+chronic ceiling could be continued learning. Across the ~70-day PRE-STROKE span -- same practice, no
+lesion -- decodability does not rise with day: mean slope **−0.009 per 30 days** (cue −0.010 /
+−0.049 / +0.005; lick +0.023 / −0.010 / −0.011). Practice predicts a slight DECLINE over the
+stroke-to-chronic interval, against observed gains of +0.02 to +0.20.
+
+**CONSEQUENCE FOR HOW THE FROZEN-DECODER RESULT IS WORDED.** "The pre-stroke decoder fails
+chronically" is true and has been read as the code being lost or replaced. It is neither: the
+information is MORE decodable chronically than it ever was pre-stroke, and the frozen model fails
+because the readout is obsolete, not because the code is gone. Behaviour recovers, the readout does
+not transfer, and the content increases -- reorganisation with net gain.
+
+**WHAT THE TOP ROW IS.** `train pre -> test post` duplicates what the existing frozen-decoder
+families already report; rows 2-4 are the new content, and `chronic -> pre` is the only cell that
+separates the two hypotheses. Differences from the published families in the shared row: training
+size is block-matched in EVERY cell (as `5rm`, not `5r`), and scoring is pooled balanced accuracy
+rather than per-position. The block-permutation null is NOT a difference -- `decode_ci.frozen_ci`
+already uses it.
+
+**LIMITS.** Three animals carry chronic data; PS94 has none because it has not plateaued. The lick
+arm conditions on a detected lick, so its post-stroke population is itself shaped by the deficit.
+ENL is a SPLIT (2 of 3 material), not a clean verdict.

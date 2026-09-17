@@ -750,6 +750,16 @@ def main():
             "--match-train", "--match-duration", "--match-lickgap")
         cli("scripts.rest_migration.shared_position_projection",
             "--align", "cue", "precue", "--perm", "200")
+        # 15g = the CROSS-EPOCH TRANSFER MATRIX on the three trial windows (added 2026-09-17).
+        # `15f` fills only the `pre -> *` row, which cannot separate a rotated code from one that
+        # was added to; the reverse cell can. Runs on ENL / cue / lick because that is where the
+        # motor representation lives -- the rest arm's own matrix is `substitute_code`.
+        #
+        # CHEAP, because it reads the SHARED pooled bundle every other task figure already built:
+        # ~2.5 min for three arms x four animals at 200 permutations, against ~11 min for 15f.
+        # That is why it runs unconditionally here rather than behind another skip flag.
+        cli("scripts.rest_migration.transfer_arms",
+            "--arms", "ENL", "cue", "lick", "--perm", "200")
 
     if not args.skip_poststroke and config.phase_labels("post"):
         log("== POST-STROKE stage (section G)")
