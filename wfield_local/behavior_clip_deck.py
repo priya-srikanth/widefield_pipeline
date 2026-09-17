@@ -17,9 +17,14 @@ a position with no working misses is a position the animal was not failing at, w
 CELLS ARE SQUARE BECAUSE THE CLIPS ARE. cam4 is 680x680; a 4.05 x 2.75in placeholder stretched every
 frame by 1.47x horizontally, and on a mouse's face that reads as anatomy rather than as layout.
 
-EMBEDDED AT 240 px. python-pptx embeds the bytes, so the deck carries every clip it shows: at the
-library's 480 px a per-animal deck runs ~2.1 GB, at 240 px ~210 MB. Re-encoding for the deck is the
-only reason to re-encode at all -- the on-disk clips stay full size.
+EMBEDDED AT 240 px, AS H.264/MP4. python-pptx embeds the bytes, so the deck carries every clip it
+shows: at the library's 480 px a per-animal deck runs ~2.1 GB, at 240 px ~210 MB. Re-encoding for
+the deck is the only reason to re-encode at all -- the on-disk clips stay full size.
+
+THE CODEC IS NOT A DETAIL. Until 2026-09-17 this wrote MPEG-4 Part 2 into a `.avi` and declared it
+`video/x-msvideo`; the bytes were embedded correctly and PowerPoint could not decode a single one of
+them, so every deck ever built showed "cannot play media". H.264 + yuv420p + MP4 is the combination
+PowerPoint plays on both Windows and Mac, and all three parts are load-bearing.
 """
 from __future__ import annotations
 
@@ -71,32 +76,81 @@ def parse(p):
     return (m.group(1), m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)))
 
 
+def _ffmpeg() -> str | None:
+    """Path to an ffmpeg binary, or None.
+
+    Preferred over OpenCV's writer because OpenCV is built here WITHOUT an H.264 encoder -- `avc1`,
+    `H264` and `X264` all fail to open, leaving `mp4v` (MPEG-4 Part 2) as the only option, and that
+    is precisely the codec PowerPoint will not decode.
+    """
+    import shutil
+
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    try:                                   # ships with imageio-ffmpeg, which the dlc env has
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
 def _shrink(src, dst):
-    """Re-encode one clip to DECK_PX square and write a poster frame beside it."""
+    """Re-encode one clip to DECK_PX square and write a poster frame beside it.
+
+    H.264 IN AN MP4, NOT MPEG-4 PART 2 IN AN AVI. The deck previously wrote `mp4v` into a `.avi` and
+    declared it `video/x-msvideo`; PowerPoint ships no decoder for that pairing and every clip in
+    every deck failed with "cannot play media" (Priya, 2026-09-17). The clips were EMBEDDED and
+    intact the whole time -- python-pptx carries the bytes -- so this was never a broken link, only
+    an unplayable stream.
+
+    `-pix_fmt yuv420p` matters as much as the codec: H.264 in yuv444p is valid and PowerPoint still
+    refuses it. `-movflags +faststart` puts the index first so playback can begin without reading
+    the whole file.
+
+    Falls back to OpenCV's `mp4v` when no ffmpeg is present, and SAYS SO, because a deck that
+    silently reverts to the unplayable encoding is the failure this function exists to end.
+    """
+    import subprocess
+
     import cv2
 
     cap = cv2.VideoCapture(str(src))
-    vw, poster, last, i = None, None, None, 0
+    frames = []
     while True:
         ok, fr = cap.read()
         if not ok:
             break
-        f2 = cv2.resize(fr, (DECK_PX, DECK_PX), interpolation=cv2.INTER_AREA)
-        if vw is None:
-            vw = cv2.VideoWriter(str(dst), cv2.VideoWriter_fourcc(*"mp4v"), 30.0,
-                                 (DECK_PX, DECK_PX))
-        vw.write(f2)
-        last = f2
-        if i == POSTER_FRAME:
-            poster = dst.with_suffix(".png")
-            cv2.imwrite(str(poster), f2)
-        i += 1
+        frames.append(cv2.resize(fr, (DECK_PX, DECK_PX), interpolation=cv2.INTER_AREA))
     cap.release()
-    if vw is not None:
+    if not frames:
+        return None
+
+    poster_frame = frames[POSTER_FRAME] if len(frames) > POSTER_FRAME else frames[-1]
+    poster = dst.with_suffix(".png")
+    cv2.imwrite(str(poster), poster_frame)
+
+    exe = _ffmpeg()
+    if exe is None:
+        print("[clip_deck] NO FFMPEG -- falling back to mp4v, which PowerPoint cannot play",
+              flush=True)
+        vw = cv2.VideoWriter(str(dst), cv2.VideoWriter_fourcc(*"mp4v"), 30.0, (DECK_PX, DECK_PX))
+        for fr in frames:
+            vw.write(fr)
         vw.release()
-    if poster is None and last is not None:
-        poster = dst.with_suffix(".png")
-        cv2.imwrite(str(poster), last)
+        return poster
+
+    proc = subprocess.run(
+        [exe, "-y", "-loglevel", "error",
+         "-f", "rawvideo", "-pix_fmt", "bgr24",
+         "-s", f"{DECK_PX}x{DECK_PX}", "-r", "30", "-i", "-",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+         "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(dst)],
+        input=b"".join(fr.tobytes() for fr in frames),
+        capture_output=True,
+    )
+    if proc.returncode != 0 or not dst.exists():
+        raise RuntimeError(f"ffmpeg failed on {src}: {proc.stderr.decode()[:400]}")
     return poster
 
 
@@ -202,11 +256,11 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
                     tid, f = shown[pos]
                     # UNIQUE per slide: a name reused across example index would leave every slide
                     # embedding whichever version was written last.
-                    small = tmp / ("%s_%s_%s_%d_t%d.avi" % (date, cat, pos, k, tid))
+                    small = tmp / ("%s_%s_%s_%d_t%d.mp4" % (date, cat, pos, k, tid))
                     poster = _shrink(f, small)
                     s.shapes.add_movie(str(small), left, top, cell, cell,
                                        poster_frame_image=str(poster) if poster else None,
-                                       mime_type="video/x-msvideo")
+                                       mime_type="video/mp4")
                     n = parse(f)
                     lr.text = "%s (%s)  %d of %d" % (NICE[pos], pos, n[2], n[3])
                     lr.font.size, lr.font.color.rgb = Pt(10), grey
