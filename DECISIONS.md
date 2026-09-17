@@ -13714,3 +13714,124 @@ on 2 sessions and should be read with that in mind; chronic is 6 sessions at ~4x
 replicates it means the restdock05 baseline DOES move across epochs, and across-epoch `_RESTref_`
 AMPLITUDE comparisons carry that movement — between-position contrasts within an epoch share the
 subtrahend and do not.
+
+## `15r` (outlined pixel maps) vs `15k` (Allen ROIs) — what each answers, and how to read a disagreement (2026-09-17)
+
+Priya asked how the ROI family compares to the map family whose significance is drawn as outlined
+regions. **They are not a coarse and a fine version of one analysis. They test different units,
+correct over different families, and fail in different ways**, and the table below is the thing to
+re-read before quoting either against the other.
+
+| | `15h` — rotation maps | `15r` — outlined pixel maps | `15k` — `reference_family_roi` |
+|---|---|---|---|
+| **what it measures** | **the DECODER READOUT direction** (Haufe pattern `A = Cov(X)b`) | the TRIAL-AVERAGE map | the trial-average map, ROI-averaged |
+| **framing** | **(2) — position RELATIVE to the other five** | **(1) — each position's own response** | **(1)** |
+| test unit | LocaNMF COMPONENT (49–55 in-mask of 87–95) | pixel BIN (~2,022) | Allen region (**37** inside `stat_mask`) |
+| correction | `maxstat` over components, WITHIN a position | `maxstat` over bins | `maxstat` over regions |
+| resampled unit | per-component split-half null; session bootstrap CI (`--boot`) | **nested animals -> sessions** | per-animal max-stat; cohort via `cohort_delta` |
+| **pools across animals?** | **NO — the basis is PER ANIMAL and components do not correspond** | yes, shared pixel grid | yes, shared ROI labels |
+| localisation | component footprint | FOCAL — can outline part of a region | region MEAN only |
+| rim / edge artefact | masked component family | needs `edge_enrichment` + `suppressed` | sidesteps it — a region is not a ring |
+| across references | n/a — no subtrahend, it reads the decoder | renders each family separately | **COMPARES them; the agreement table is what is new** |
+
+### `15h` IS NOT A THIRD PARCELLATION OF THE SAME QUESTION — IT ASKS A DIFFERENT ONE
+
+The row that matters most is **framing**. `15h` is entirely framing (2): `LogisticRegression` is
+multinomial, so `coef_[p]` separates position *p* FROM THE OTHER FIVE and everything downstream
+inherits it. **A change hitting all six positions equally is INVISIBLE to `15h`** and fully visible
+to `15r`/`15k`. Conversely a pure re-ranking among positions with no amplitude change is visible to
+`15h` and can vanish from the map families. They are not more and less sensitive versions of one
+measurement; **disagreement between `15h` and `15r`/`15k` is expected and is itself the information**
+(see the framing (1) vs (2) entry above).
+
+**AND `15h` CANNOT PRODUCE A COHORT MAP.** `joint_locanmf.load(animal, ...)` fits footprints once
+per ANIMAL over that animal's curated sessions, so component *j* is the same footprint on every DAY
+but means nothing across animals — PS92 has 95 components, PS93 87, PS94 90, PS95 95, with no
+correspondence. That is exactly why `15k` is ALLEN-ROI based: ROI labels are the only vocabulary the
+four animals share. It is a constraint, not a preference, and it is the same fact `joint_xsession`
+records for its frozen decoders (264 ROI features vs 380 joint components — "there is no mapping to
+reuse"). `15h`'s defensible cohort summary is therefore PER-ANIMAL REPLICATION, never a pooled map.
+
+### ADOPTED 2026-09-17: `15k` AGGREGATES BY `Basis.regions`, NOT BY PIXEL ROI
+
+Priya: *"let's abandon ROI for the basis.regions"*. The first `15k` averaged PIXELS inside each
+Allen area. It now averages COMPONENTS, grouped by the Allen label `joint_locanmf.Basis.regions`
+gives each one.
+
+**WHY IT IS BETTER, AND IT IS THE DILUTION PROBLEM SOLVED RATHER THAN NOTED.** A pixel mean over
+MOs — **15,613 px**, certainly not one functional unit — swamps a focal change in a small part of it.
+Averaging components instead gives each functional parcel one vote, so a small component counts
+equally with a large one and a real change in one of them survives the average. It is also the unit
+the rest of this arm already tests in: `15h` scores per component, so the two now share a
+denominator and a disagreement between them is about FRAMING (1 vs 2) rather than about
+parcellation.
+
+**IT STILL POOLS ACROSS ANIMALS, which is the constraint that ruled out raw component space.**
+Components do not correspond across animals (PS92 95, PS93 87, PS94 90, PS95 95), but their ALLEN
+LABELS do — so the component→label→region path keeps the shared vocabulary that makes a cohort test
+possible while dropping the pixel-area weighting that caused the dilution.
+
+**HOW A COMPONENT'S VALUE IS TAKEN FROM A PIXEL MAP:** the footprint-weighted mean,
+`sum(|A_c| * map) / sum(|A_c|)` over in-mask pixels, using only components that pass
+`in_mask_components`. Then the region value is the MEAN over that region's components — **never a
+sum**: footprint mass spans 67x and regions hold differing component counts, and a sum would rank
+regions by how many components they happen to contain, reproducing the retrosplenial artefact in a
+third guise.
+
+**THE PIXEL-ROI RESULTS FROM THE FIRST RUN ARE SUPERSEDED**, not merely re-expressed — different
+weighting, different answer. Do not mix numbers from the two.
+
+### THE DILUTION TRADE IS THE MAIN DIFFERENCE
+
+`15k` averages the whole region, and **MOs is 15,613 px**. A focal blob covering 5% of MOs — exactly
+what `15r` exists to outline — is diluted ~20x in the ROI mean and **can be invisible in `15k`**.
+
+So `15k` UNDER-REPORTS FOCAL EFFECTS. It is not a finer-grained `15r`; it is a coarser,
+better-powered test of a DIFFERENT question — "did this anatomical area move on average" rather than
+"which pixels moved". Conversely its family is **55x smaller**, so a region-wide effect too weak to
+clear a 2,022-bin threshold can clear a 37-region one. That is the power it buys.
+
+**WHERE THEY DISAGREE, CHECK DILUTION FIRST.** A `15r` blob with no `15k` region is the expected
+signature of a focal change, not a contradiction. A `15k` region with no `15r` blob is a diffuse
+region-wide shift that no single bin carried.
+
+### WHAT `15k` ADDS THAT `15r` DOES NOT
+
+The CROSS-REFERENCE agreement table. `15r` renders `mean` / `precue` / `restw` / `raw` as separate
+figures; nobody was comparing them cell by cell. `15k` reports, per epoch, which (region, position)
+cells clear in ALL THREE of `raw` / `precue` / `restw` versus only some — and since those three have
+**different failure modes** (see `reference_family_roi.__doc__`), an all-three cell is not a property
+of any one subtrahend and an only-one cell names the subtrahend to suspect.
+
+That machinery immediately earned itself: **retrosplenial (RSPd, RSPagl) recurs in the only-`raw`
+column at every epoch and never replicates in a referenced family** — the signature of `raw`'s own
+named failure mode (cross-day multiplicative scaling, worst at the midline), NOT a retrosplenial
+change. It is the same artefact `null_delta` was built to kill in component space, caught here by a
+different route.
+
+### THE STATISTICS ARE NOT YET EQUALLY RIGOROUS — `15r` IS AHEAD
+
+`15r` already resamples **animals -> sessions**. `15k` as first run used a per-animal max-statistic
+with an **ANY-ANIMAL pooling rule**: a cell counted as significant in a family if ANY ONE animal
+cleared p < 0.05 there. The max-stat corrects across REGIONS within an animal and **nothing
+corrected across the ANIMAL axis**, so with four animals the per-cell false-positive rate is
+~1 - 0.95^4 = **18%, not 5%** — and "significant in all three families" could be three DIFFERENT
+animals. That is a replication count wearing a cohort test's clothes.
+
+**Until `cohort_delta` is wired, read `15k`'s agreement table as "which regions are worth looking at
+in `15r`", not as a cohort result.** The first run's counts (acute 16 / subacute 3 / chronic 8
+all-three) are inflated for this reason.
+
+### AND WHY THE COHORT CLAIM IS AN INTERVAL, NEVER A p
+
+With FOUR animals an animal-level sign-flip permutation has 2^4 = 16 assignments, so its smallest
+attainable p is **1/16 = 0.0625 — no cell can reach 0.05 at any effect size.** This is the same
+floor that made "nothing survived Bonferroni" meaningless in the 15h arm (there it was the draw
+count; here it is the cohort size). A bootstrap CI has no such floor, so `cohort_delta` reports
+**"the interval excludes zero"** and the per-animal sign agreement beside it, and never a p-value.
+
+### THE CROSS-CHECK WORTH RUNNING
+
+Do `15k`'s all-three regions sit under `15r`'s outlined blobs? Agreement across two different test
+UNITS and two different correction FAMILIES is much stronger evidence than either alone, and
+disagreement is diagnostic rather than merely awkward — see the dilution rule above.

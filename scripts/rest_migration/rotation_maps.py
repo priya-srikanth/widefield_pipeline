@@ -290,7 +290,25 @@ def excess_z(real_delta, null_draws):
     return (np.asarray(real_delta) - mu) / sd
 
 
-def in_mask_components(basis, min_frac=0.5):
+#: Fraction of a component's footprint MASS that must fall inside `beta_maps.stat_mask` for it to
+#: enter the analysis at all. Raised 0.5 -> 0.75 on 2026-09-17 (Priya: *"we should exclude non-map,
+#: olfactory, and glue masked pixels. These should also be excluded from statistical analysis"*,
+#: then *"sure we can tighten to 0.75"*).
+#:
+#: WHY 0.5 WAS TOO LOOSE. Out-of-mask PIXELS were already excluded from every average, so a
+#: half-outside component could not import bulb signal directly. What it could do is carry a full
+#: vote on HALF the evidence: its value was estimated from only its surviving pixels, making it
+#: noisier than an interior component while weighing the same in its region's mean and in the
+#: max-statistic family. A noisy unit with a full vote is how a threshold gets set by the component
+#: that deserves it least.
+#:
+#: THE COST, measured: components admitted go 55/49/52/48 -> 48/43/45/44 (PS92/93/94/95), about 12%.
+#: 0.90 would cost 33% (37/34/30/32) and start dropping genuinely cortical components whose
+#: footprints simply reach the mask edge, which is why it was not taken further.
+MIN_IN_MASK_FRAC = 0.75
+
+
+def in_mask_components(basis, min_frac=MIN_IN_MASK_FRAC):
     """Boolean over components: which sit INSIDE `beta_maps.stat_mask`.
 
     THE MASK BELONGS IN THE STATISTICS, NOT ONLY IN THE DISPLAY (Priya, 2026-09-17). The maps were

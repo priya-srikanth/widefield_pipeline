@@ -1565,6 +1565,30 @@ _REF_TEXT = {
     # rest-referenced figures. The failure was per-arm and non-fatal, so the render reported exit 0
     # and simply produced two references where three were asked for. Found by counting the files
     # against the retired set (21 where 39 were expected), not by the exit status.
+    # ADDED 2026-09-17, together with the `reference_maps` branch and the REFERENCES entry -- the
+    # three that must land in one commit, per the note on that tuple.
+    "raw": dict(
+        short="NO subtrahend",
+        title="Position maps with NO REFERENCE SUBTRACTED -- the drift-removed signal as it stands",
+        cbar="post-cue activity\n(drift-removed, no subtrahend)",
+        note=("THE FAMILY WITH NO SUBTRAHEND THAT CAN DRIFT, which is the whole reason to read it "
+              "beside the other two. Every other reference here subtracts something that moves "
+              "between epochs: `mean` couples the six positions (a position losing drive hands the "
+              "other five an unearned rise), and the rest baseline MOVES across epochs -- measured "
+              "at 7-43% of the evoked signal, significant in 6 of 11 animal-epoch cells "
+              "(`rest_baseline_epoch_drift`, 2026-09-17). An across-epoch amplitude read off those "
+              "inherits the movement. This one cannot, because there is nothing to move.\n"
+              "WHAT IT TRADES: cross-day MULTIPLICATIVE scaling -- expression, bleaching, window "
+              "clarity -- which no subtraction removes either, so it is the confound left standing "
+              "rather than one this family adds. `crossday_intensity` owns it.\n"
+              "AND IT IS NOT 'UNREFERENCED': the signal is high-passed, so it is implicitly "
+              "referenced to its own temporal surround. Under `meegkit_hpfit` the drift fit "
+              "EXCLUDES strobe-0.25s -> cue+4s, so the fit never sees the measured window -- which "
+              "is why this is meaningful now and was not under the retired `zerophase` product.\n"
+              "READ THE THREE TOGETHER. Their failure modes are DIFFERENT, so a regional effect "
+              "present in all three is not a property of any one subtrahend; one that appears in "
+              "only one IS."),
+    ),
     "precue": dict(
         short="one vs its own PRE-CUE window",
         title="Position maps referenced to each trial's OWN PRE-CUE window -- the CUE-EVOKED "

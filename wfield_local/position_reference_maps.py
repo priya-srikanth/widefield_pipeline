@@ -59,7 +59,7 @@ from wfield_local.beta_maps import (
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
 #: 2026-09-12, which is the whole point -- see `session_raw_maps` on why `precue` moved in from
 #: `position_evoked_maps`.
-REFERENCES = ("mean", "rest", "restw", "precue")
+REFERENCES = ("mean", "rest", "restw", "precue", "raw")
 
 #: `restw` JOINED REFERENCES ON 2026-09-13, in the same commit as `session_restw_svt` and
 #: as its `epoch_grant_figures._REF_TEXT` entry. It had been named here weeks earlier and listed in
@@ -561,6 +561,25 @@ def reference_maps(parts, reference):
         return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
+    if reference == "raw":
+        # NO SUBTRAHEND AT ALL -- the position's own trial average, as the drift-removed signal
+        # leaves it. THE POINT IS THE FAILURE MODE IT DOES NOT HAVE: every other reference here
+        # subtracts something that can itself move between epochs (the trial mean couples the six
+        # positions; the rest baseline drifts -- MEASURED at 7-43% of the evoked signal across
+        # animals, `rest_baseline_epoch_drift`), and an across-epoch amplitude claim inherits that
+        # movement. `raw` cannot, because there is nothing to move.
+        #
+        # WHAT IT TRADES FOR THAT: cross-day MULTIPLICATIVE scaling -- expression, bleaching,
+        # window clarity -- which NO subtraction removes either, so it is not a cost unique to
+        # `raw`; it is simply the confound left standing once the subtrahend is gone.
+        # `crossday_intensity` owns it and should be checked before amplitudes are compared.
+        #
+        # AND "RAW" IS NOT "UNREFERENCED": the signal is already high-passed, so this is
+        # implicitly referenced to its own temporal surround. Under `meegkit_hpfit` the drift fit
+        # EXCLUDES strobe-0.25s -> cue+4s, so the fit never sees the measured window and the
+        # evoked response survives relative to it. That is why `raw` is meaningful here and was
+        # not under the retired `zerophase` product.
+        return dict(parts.get("raw") or {})
     raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
 
 
