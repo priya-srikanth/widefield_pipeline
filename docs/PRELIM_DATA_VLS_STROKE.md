@@ -228,6 +228,15 @@ stay distinct. **Similarity dips acutely and recovers**: cue 0.841 → 0.639 →
 interval excludes zero is pre-cue chronic (+0.049) — small, and worth a second look before it is
 called anything.
 
+> **⚠ PRE-AUDIT NUMBERS — 2026-09-16.** The 15f and 15s sections below were written from the
+> UNGATED runs, before the engagement-gate audit, and 15s additionally from a doubly-docked
+> baseline. **Do not quote them.** `docs/REST_ENGAGEMENT_AUDIT.md` carries the re-run values:
+> finding 11 **1.634 (43/44)**, persistence **+0.0772 (4/4)**, per-session decode **94/96**, 15f
+> acute retained **0.609 / 0.277 / 0.086 / −0.093** per animal (underpowered — PS95 contributes ONE
+> acute session; quote 15f's CHRONIC 0.611 frozen vs 1.181 refit instead), 15s null-corrected
+> **+0.060 pre / +0.188 acute** pre-cue with post-cue flat. Rewriting this section is the first
+> pending item in `docs/STATUS_2026-09-16.md` §4.
+
 ### REST, FROZEN DECODER — does the pre-stroke rest code survive, or is it REPLACED?
 BUILT 2026-09-16. SCRIPT: `scripts/rest_migration/rest_frozen_decoder.py` ·
 DATA: `E:/cue_lick/rest_migration/rest_frozen_decoder_restdock05_final.{csv,png}` +

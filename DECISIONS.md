@@ -13187,3 +13187,77 @@ Verified afterwards at 0 differences; the previous project copy kept as a timest
 **cam2/cam3 have never had a label file**, which is correct and worth recording because their absence
 looks like loss: the donor is frontal and only ever ran on cam4, and `dlc_seed3d`'s 134 accepted
 points were deliberately not written.
+
+## The rest arm's engagement gate lives at CONSUMPTION, not in the mask (2026-09-16)
+
+**DECISION.** Rest analyses exclude the terminal quit period by filtering where rest periods are
+CONSUMED (`wfield_local/rest_engagement.py`), not by adding an engagement term to
+`quiet_periods.rest_mask`.
+
+**WHY.** "The animal is at rest" is TRUE during the quit period — the mask is a statement about the
+animal, and it is correct. Engagement is an INCLUSION CRITERION for a particular analysis, which is
+exactly how the trial side already treats it (`beta_maps._quit_mask` inside `_working_xy`, not a
+rebuild of trial data). Putting it in the mask would also have forced the whole
+`recompute_masks` + `SCHEMA_VERSION` + `CACHE_VERSION` + republish cascade — days of work — for
+something that belongs one level up.
+
+**THE GATE IS `precue_engagement_states.engagement_gate`**, the one `beta_maps._quit_mask` and
+`grant_figures._gate_all` already use, so the rest arm's "working" means what "working" means
+everywhere else. A fourth re-derivation would agree today and diverge later — the failure
+`quiet_periods.rest_mask` records having already happened once.
+
+**SCOPE, measured rather than assumed** (`docs/REST_ENGAGEMENT_AUDIT.md`). GATE: the seven analyses
+making a POSITION or ACROSS-EPOCH contrast. DO NOT GATE: the mask builders; quiet-vs-running in
+preprocessing (a locomotor question, no position or epoch contrast — the imaging box needed no
+re-run); `locomotor_state`, where rest is a CLASS being decoded and gating would redefine it.
+
+**COST.** The quit period is 3.1% of rest FRAMES pre-stroke and 18.7% acute, so it tracked the
+independent variable. Finding 11 went 1.622 → **1.634** (43/44), persistence +0.0754 → **+0.0772**
+(4/4), per-session decode 93/94 → **94/96**. Only 15f's acute cell moved materially, and that is
+underpowering (PS95 contributes ONE acute session), not error.
+
+## Controls are asserted in CODE, and the exposed list is ENUMERATED (2026-09-16)
+
+**DECISION.** `tests/test_rest_engagement.py::EXPOSED` names all seven rest analyses that make a
+position or across-epoch contrast, and parametrised tests assert each one BUILDS the gate and USES
+`classify_cues_with_backup`, with no surviving raw `_classify_cues(` call.
+
+**WHY ENUMERATED RATHER THAN DISCOVERED.** The failure is a script being added, or patched for one
+defect and not the other, and nobody noticing. That happened twice on the day the list was written:
+four analyses documented a gate none applied (one printing "(working trials…)" in its own stdout),
+and two were described as fixed for both defects when they carried only the classifier fix.
+
+**WHY IT IS A CODE ASSERTION.** The defect was invisible in every other way — the docstrings said the
+right thing, the output said the right thing, and the numbers were plausible. Only a call-site count
+distinguished a claimed control from an applied one.
+
+## Beta-map class weighting is uniform; the trial floor stays at 20 (2026-09-16)
+
+**WEIGHTING.** `maps_by_epoch(balance=None)` now means `class_weight="balanced"` for EVERY arm. The
+old rule `balance = (variant == "lick")` fitted figure 14's `working` and `lick` panels with two
+different estimators and said so nowhere. Uniform is what Priya asked for and it is FREE: measured
+by `scripts/rest_migration/meanref_balance.py`, no amplitude ratio moves as much as 0.10 in either
+arm — max **+0.007** (working) and **−0.035** (lick).
+
+**WHY IT DOES NOT MATTER.** The scheduler, not the animal, sets trial composition: the `working` arm
+counts ATTEMPTS ("lick + miss-while-working"), so a position the animal FAILS is still presented at
+the same rate. Per-position counts are near-uniform even acutely, min/max **0.95**. The composition
+bias that motivated `restw` does not transfer, because rest periods are not scheduler-controlled and
+trials are.
+
+**THE MEAN IS STILL TRIAL-WEIGHTED** — in the multinomial fit and in the Haufe transform's
+`X[tr].mean(0)`. It is inert here, and it does NOT rehabilitate `MEANref`: the COUPLING is structural
+(six positions share one reference), and weighting governs only whose trials set it. `QUIETref`
+remains the one to lead with for per-position claims.
+
+**FLOOR.** `MIN_TRIALS_PER_CLASS` stays **20**. A floor of 10 was measured
+(`scripts/rest_migration/trial_floor_sweep.py`): in the lick arm it changes exactly two cells —
+acute far-centre gains one ANIMAL (3→4), a real improvement, and acute far-contra goes from blank to
+a ONE-ANIMAL cell wearing a cohort caption, which is worse than blank because blankness is legible
+and IS the finding. The reliability table has n = 3, 5, 8, 12, 15, 20, 30, 50 and NOT 10, and is
+non-monotone below 20 (PS92 returns r = −0.08 at n=5, a map ANTI-correlated with its own full-data
+version), so a value for 10 cannot be interpolated. **If the floor is ever revisited, separate the
+two jobs it is doing** — per-session map reliability (a trial-count question) and per-cell cohort
+representativeness (an ANIMAL-count question, for which `epoch_figures.MIN_ANIMALS_FOR_MARK = 2` is
+the existing precedent).
+
