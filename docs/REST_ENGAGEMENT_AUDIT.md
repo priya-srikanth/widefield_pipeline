@@ -84,11 +84,29 @@ too coarse: `position_reference_maps` contains a gated builder AND an ungated on
 
 ### D. FLAGGED, NOT YET DECIDED
 
-1. **`locanmf_cue_lick_analysis._quiet_zscore`** z-scores every LocaNMF trace by quiet-frame
-   mean/SD, and that composition moves with epoch. A per-feature affine transform is absorbed by the
-   `StandardScaler` inside each within-session decoder, so within-session results should be
-   indifferent — but the **FROZEN cross-session decoder** may not be, because the normalisation is
-   what makes sessions commensurable in the first place. **Measure before assuming either way.**
+1. **`_quiet_zscore` — RESOLVED 2026-09-16, no action.** It z-scores every LocaNMF trace by
+   quiet-frame mean/SD, and the quit period's share of those frames moves with epoch. Measured,
+   gated vs ungated, median over components then over sessions:
+
+   | epoch | \|Δmean\|/σ | SD ratio | frames dropped (median session) |
+   |---|---|---|---|
+   | pre | 0.0000 | 1.0000 | 0.0% |
+   | acute | **0.0333** | 1.0000 | 15.7% |
+   | subacute | 0.0340 | 1.0000 | 16.5% |
+   | chronic | 0.0000 | 1.0000 | 0.0% |
+
+   **The SD does not move at all** (1.0000 everywhere), so the scaling half is untouched. The MEAN
+   shifts 0.033 σ, and only in acute/subacute — so it does track the epoch. It is absorbed
+   regardless: a per-component affine shift is removed by the `StandardScaler` inside every
+   per-session decoder, and any baseline-subtracting analysis cancels it.
+
+   **The frozen cross-session decoder never reads this path** — `grant_figures._pooled_bundle` goes
+   through `joint_locanmf`, which carries no quiet normalisation. That was the exposure worth
+   worrying about and it does not exist. `_quiet_zscore` reaches only
+   `locanmf_cue_lick_analysis`, `locanmf_cue_auc` and `locanmf_lick_aligned`.
+
+   Incidental: the median PRE and CHRONIC session has NO terminal quit period at all — those rows
+   are exactly zero because the animals worked to the end.
 2. **A `docked=` inconsistency**, found during this audit. `session_restw_svt` defaults
    `docked=False` and `position_reference_maps` line 486 calls it that way — correct, because the
    `restdock05` MASK is already docked and the term must not be applied twice. `15s` was passing
