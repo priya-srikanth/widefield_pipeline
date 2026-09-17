@@ -416,7 +416,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
     return out
 
 
-def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=3):
+def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=None):
     """The all-three-families cells PAINTED ON THE ALLEN CCF. Rows = epoch, columns = position.
 
     Priya, 2026-09-17: *"can we make a version of the agree in all 3 that is on the Allen CCF
@@ -442,6 +442,13 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=3
     from wfield_local import transfer_matrix as tm
     from wfield_local.atlas_overlay import overlay_regions
     from wfield_local.grant_figures import CONF_LABELS
+
+    # DERIVED, NEVER A LITERAL 3. The pre-cue alignment carries TWO families, and the hardcoded 3
+    # painted nothing there while the console line above it reported 13 cells agreeing in all 2 --
+    # a figure disagreeing with its own summary, with only the figure visible.
+    present = families_in(rows)
+    if n_families is None:
+        n_families = len(present)
 
     atlas, names = bm._atlas_names()
     if atlas is None or not names:
@@ -536,11 +543,14 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=3
     cb.set_label(f"cohort delta (epoch - pre), {family} reference", fontsize=8)
 
     fig.text(0.5, 1 - 0.30 / fig_h,
-             f"epoch_15k -- {align} position map: the regions ALL THREE references agree on",
+             f"epoch_15k -- {align} position map: the regions ALL "
+             f"{'TWO' if n_families == 2 else 'THREE' if n_families == 3 else n_families} "
+             f"references agree on",
              ha="center", va="top", fontsize=15, fontweight="bold")
     fig.text(0.5, 1 - 0.70 / fig_h,
-             "Painted only where the cohort CI excludes zero in raw AND precue AND restw -- the "
-             "change no single subtrahend's failure mode explains. Colour is the restw value.\n"
+             f"Painted only where the cohort CI excludes zero in ALL {n_families} references "
+             f"({' AND '.join(present)}) -- the change no single subtrahend's failure mode "
+             f"explains. Colour is the {family} value.\n"
              "FLAT COLOUR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT: the unit is a "
              "LocaNMF component mean, spread over its Allen footprint. The edges are the "
              "parcellation's.\n"
@@ -559,7 +569,10 @@ def main() -> int:
     from wfield_local.paths import PathResolver
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--align", default="cue", choices=["cue", "lick"])
+    ap.add_argument("--align", default="cue", choices=["cue", "lick", "precue"],
+                    help="`precue` is the ENL window and carries TWO families -- the precue "
+                         "REFERENCE is excluded there because its baseline lies inside the "
+                         "feature window.")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--global-test", action="store_true",
