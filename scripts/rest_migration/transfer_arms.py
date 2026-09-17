@@ -83,21 +83,46 @@ def collect_task(an, align, variant):
     return out
 
 
+def _rest_variant():
+    """The rest definition's name, e.g. `restdock05`. See `stem` in `main`."""
+    from wfield_local.quiet_periods import quiet_variant
+    return quiet_variant() or "retired"
+
+
 def collect_rest(an, bins, gate=True):
-    """``{session_label: (epoch, X, y, blocks)}`` for the rest arm, via `15f`'s own collector."""
+    """``{session_label: (epoch, X, y, blocks)}`` for the rest arm, via `15f`'s own collector.
+
+    MEMOIZED TO DISK, per session, because this arm was the only one paying full collection on
+    every run: the three task arms read `trial_features_cached` and finish in ~40 s each, while
+    rest re-read every session's mask, DAQ and SVT and took ~5 MINUTES PER ANIMAL (Priya,
+    2026-09-17: "the rest arm should be able to read the cached bundle too"). That made an 11-min
+    arm gate a figure the other three already supported.
+
+    THE KEY CARRIES EVERYTHING THAT CHANGES THE ANSWER -- the joint basis id, the bin count, the
+    gate flag and the rest VARIANT. `session_signature` covers the session's own inputs; these do
+    not come from the session, so a run under a different basis or a different rest definition
+    would otherwise read a stale entry. `CACHE_VERSION` covers changes to `_collect` itself.
+    """
     from scripts.rest_migration.rest_frozen_decoder import _collect, _usable
     from wfield_local import config, epochs, joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    from wfield_local.session_cache import cached
 
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     basis = joint_locanmf.load(an, sessions=SESSIONS)
+    variant = _rest_variant()
     out = {}
     for s in [x for x in SESSIONS
               if x["label"] in want and x["label"].startswith(an) and x.get("h5")]:
         ep = epochs.epoch_of(s["label"])
         if ep is None:
             continue
-        got, _why = _collect(s, basis, bins, verbose=False, gate=gate)
+        kind = f"restxfer-{variant}-{basis.basis_id}-b{int(bins)}-g{int(bool(gate))}"
+        got = cached(s, kind,
+                     lambda s=s: _collect(s, basis, bins, verbose=False, gate=gate)[0],
+                     params={"variant": variant, "basis": basis.basis_id,
+                             "bins": int(bins), "gate": bool(gate)},
+                     verbose=False)
         if got is None:
             continue
         X, y, g = got[0], got[1], got[2]
@@ -159,7 +184,12 @@ def main() -> int:
             print(f"   !! arm {arm}: no cells")
             continue
 
-        stem = f"epoch_15g_transfer_{arm}{a.tag}"
+        # THE REST ARM KEEPS ITS VARIANT TAG. The rest DEFINITION is a live choice (restdock05
+        # vs its predecessors), so a bare `rest` filename would let two definitions overwrite each
+        # other silently -- the same provenance trap that produced two 15f figures under different
+        # names, one of them stale. The task arms need no tag: their window is the arm name.
+        stem = (f"epoch_15g_transfer_{_rest_variant()}{a.tag}" if arm == "rest"
+                else f"epoch_15g_transfer_{arm}{a.tag}")
         with open(out_dir / f"{stem}_sessions.csv", "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()
@@ -236,7 +266,8 @@ def _figure(summary, out_dir, tag=""):
     # movement, PRELIM_DATA 5b), so a shared scale is the honest one: ENL SHOULD look dimmer.
     mats = {}
     for arm in arms:
-        f = out_dir / f"epoch_15g_transfer_{arm}{tag}_matrix.csv"
+        nm = _rest_variant() if arm == "rest" else arm
+        f = out_dir / f"epoch_15g_transfer_{nm}{tag}_matrix.csv"
         with open(f, newline="", encoding="utf-8") as fh:
             rs = list(_csv.DictReader(fh))
         g = {(r["train_epoch"], r["test_epoch"]): float(r["above_chance"]) for r in rs}
@@ -252,7 +283,7 @@ def _figure(summary, out_dir, tag=""):
     for j, arm in enumerate(arms):
         M = mats[arm]
         ax = fig.add_subplot(gs_top[0, j])
-        im = ax.imshow(M, cmap="viridis", vmin=0, vmax=vmax)
+        im = ax.imshow(M, cmap=tm.CMAP_LEVEL, vmin=0, vmax=vmax)
         for i in range(len(eps)):
             for k in range(len(eps)):
                 if np.isfinite(M[i, k]):
@@ -272,34 +303,45 @@ def _figure(summary, out_dir, tag=""):
     ax = fig.add_subplot(gs_top[0, len(arms) + 2])
     for arm in arms:
         d = [mats[arm][i, i] for i in range(len(eps))]
-        ax.plot(range(len(eps)), d, "o-", label=arm, lw=2)
+        ax.plot(range(len(eps)), d, "o-", label=arm, lw=2, color=tm.arm_color(arm))
     ax.set_xticks(range(len(eps)), [short[e] for e in eps], fontsize=8)
     ax.set_ylabel("own-epoch ceiling (acc - null)", fontsize=8)
     ax.set_title("EVERY WINDOW ENDS ABOVE ITS\nPRE-STROKE CEILING", fontsize=9, fontweight="bold")
     ax.axhline(0, color="k", lw=0.6)
-    ax.legend(fontsize=8, frameon=False)
+    ax.legend(fontsize=8, frameon=False, loc="lower right")
     ax.grid(alpha=0.25)
     ax.tick_params(labelsize=8)
 
     # ---- row 2: direction symmetry and the ceiling gain, split evenly ----------------------
-    w = 0.26
+    # WIDTH SCALES WITH THE ARM COUNT. Hard-coded at 0.26 this fits three arms (0.78 of the unit
+    # spacing) and OVERFLOWS at four (1.04), so the rest bars overlapped their neighbours -- caught
+    # on the published figure once rest was added. 0.82 leaves a visible gutter at any count.
+    w = 0.82 / max(len(arms), 1)
     ref = [an for an, *_ in summary[0][2]]
     for col, (vals, ylab, title) in enumerate((
             ([[r - f for _a, f, r, _rf, _rr, _g in s[2]] for s in summary],
              "chronic$\\rightarrow$pre  minus  pre$\\rightarrow$chronic\n(raw above-chance)",
-             "DIRECTION SYMMETRY -- every bar NEGATIVE, so NOT 'addition'"),
+             # THE TITLE STATED "every bar is NEGATIVE", which was true of ENL/cue/lick and FALSE
+             # of rest (+0.002 / +0.021 / +0.015). Caught on the published figure, 2026-09-17.
+             # The claim that matters was never the sign anyway: ADDITION predicts a LARGE
+             # POSITIVE asymmetry, and what rejects it is that no bar is MATERIAL in either
+             # direction -- so the title now says that instead of a sign that can flip.
+             "DIRECTION SYMMETRY -- no bar is material; ADDITION needs a large POSITIVE"),
             ([[g for *_r, g in s[2]] for s in summary],
              "chronic ceiling - pre ceiling\n(above chance)",
              "CEILING GAIN -- positive in every arm and animal"))):
         ax = fig.add_subplot(gs_bot[0, col])
         for j, (arm, _v, _pa) in enumerate(summary):
             xs = np.arange(len(ref)) + (j - (len(arms) - 1) / 2) * w
-            ax.bar(xs, vals[j], width=w, label=arm)
+            ax.bar(xs, vals[j], width=w, label=arm, color=tm.arm_color(arm))
         ax.set_xticks(range(len(ref)), ref, fontsize=9)
         ax.axhline(0, color="k", lw=0.8)
         ax.set_ylabel(ylab, fontsize=8)
         ax.set_title(title, fontsize=9, fontweight="bold")
-        ax.legend(fontsize=8, frameon=False, ncol=len(arms))
+        # LEGEND BELOW THE AXES, not inside: with four arms the in-axes legend sat
+        # on top of the bars it was labelling.
+        ax.legend(fontsize=8, frameon=False, ncol=len(arms),
+                  loc="upper center", bbox_to_anchor=(0.5, -0.12))
         ax.grid(axis="y", alpha=0.25)
         ax.tick_params(labelsize=8)
 
@@ -311,9 +353,13 @@ def _figure(summary, out_dir, tag=""):
              "THE TOP ROW is what the existing frozen decoder already reports; rows 2-4 -- and "
              "chronic$\\rightarrow$pre in particular -- are what separates a ROTATED code from an "
              "ADDED-TO one.\n"
-             "ADDITION predicts a POSITIVE asymmetry: none is observed in any arm. Continued "
-             "practice is ruled out -- across the 70-day pre-stroke span decodability does not "
-             "rise with day (mean slope -0.009 / 30 d).",
+             "ADDITION predicts a LARGE POSITIVE asymmetry; every bar is far below the "
+             "materiality bar (25% of that animal's own transfer), so it is rejected in all four "
+             "windows.\n"
+             "The task arms lean slightly negative and rest slightly positive, but at "
+             "this magnitude the sign is not interpretable. Continued practice is ruled out -- "
+             "across the 70-day pre-stroke span decodability does not rise with day "
+             "(mean slope -0.009 / 30 d).",
              ha="center", va="top", fontsize=8.5)
     out = out_dir / f"epoch_15g_transfer_by_window{tag}.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")

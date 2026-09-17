@@ -65,6 +65,44 @@ MATERIAL_FRACTION = 0.25
 #: manufacturing a ratio of 5 or 50 out of a near-zero divisor.
 MIN_CEILING = 0.02
 
+# ---------------------------------------------------------------- RESERVED COLOUR SEMANTICS
+#
+# THREE DIFFERENT THINGS WERE BEING DRAWN IN THE SAME FOUR COLOURS (Priya, 2026-09-17: "please
+# don't reuse the same plotting colors across figures to mean different things"). `tab:blue`,
+# `tab:red`, `tab:orange` and `tab:green` ALREADY MEAN PS92, PS93, PS94 and PS95 -- that is not a
+# convention this module invented, it is `configs/animals.yaml` and `config.animal_color()`. A
+# figure that also uses them for trial windows teaches the reader a mapping that the next figure
+# contradicts.
+#
+# So: ANIMALS keep the config palette and are never re-used here. TRIAL WINDOWS get a categorical
+# palette drawn from the other end of the tab10 set. STROKE EPOCHS get a SEQUENTIAL ramp, because
+# unlike the other two they are ORDERED and a categorical palette would hide that.
+# THREE DISTINCT FAMILIES, chosen so no two meanings share a hue:
+#   animals  tab:blue / tab:red / tab:orange / tab:green   (fixed by configs/animals.yaml)
+#   windows  BROWN + TEAL + OLIVE + grey
+#   epochs   a PURPLE ramp, because epochs are ORDERED and a categorical set hides that
+ARM_COLOR = {"ENL": "tab:brown", "cue": "tab:cyan", "lick": "#8c8c00", "rest": "0.45"}
+#: DELEGATED to `epoch_figures.EPOCH_GREY`, which already owns this and for the same reason: the
+#: dots spend the colour budget on animal identity, so epochs get a grey RAMP that also reads as
+#: the ordering they are. Defining a second epoch palette here would have put two systems in one
+#: deck (Priya, 2026-09-17: "use the same shades of grey ... as in all the decoder graphs").
+EPOCH_COLOR = None
+#: Diverging map for signed pattern CHANGE; distinct from the sequential map used for accuracy so
+#: "more" and "different" never look alike.
+CMAP_CHANGE = "RdBu_r"
+CMAP_LEVEL = "viridis"
+
+
+def arm_color(arm):
+    """Colour for a trial window. Never an animal colour -- see the block above."""
+    return ARM_COLOR.get(arm, "0.3")
+
+
+def epoch_color(epoch):
+    """Colour for a stroke epoch -- the project's existing grey ramp, never a new palette."""
+    from wfield_local.epoch_figures import EPOCH_GREY
+    return EPOCH_GREY.get(epoch, "#8a8a8a")
+
 
 def retained(acc, null, ceiling_acc, ceiling_null):
     """``(acc - null) / (ceiling - ceiling_null)``, or None when the ceiling is not above chance.
@@ -295,3 +333,44 @@ def report(rows, agg, a_ep="pre", b_ep="chronic", log=print):
         log("   per-animal values rather than the cohort mean.")
     log("=" * 78)
     return verdict, per_animal
+
+
+def haufe_pattern(fit, X, target):
+    """Feature-space Haufe PATTERN for one class: ``A = Cov(X) @ beta``. None if absent.
+
+    A DECODER WEIGHT IS A FILTER, NOT A PATTERN (Haufe et al. 2014). A logistic regression can put
+    large weight on a channel carrying NO signal, purely to cancel correlated noise in one that
+    does -- a suppressor. So the weight map answers "what does the readout multiply?" and the
+    Haufe pattern answers "which channels actually co-vary with the decoder's output", which is
+    the anatomical question. In this dataset the two correlate at only r = 0.245.
+
+    THE SCALER IS UNDONE FIRST. The pipeline standardises, so `coef_` lives in standardised units;
+    the basis multiplies FEATURE-space coefficients, and a pattern built from standardised ones is
+    scaled by 1/sd per component. Mirrors `beta_maps.haufe_map`, which is the established
+    implementation -- this one exists only because that one refits per session in the SESSION's own
+    basis, and the transfer question needs the SHARED joint basis.
+    """
+    clf = fit[-1] if hasattr(fit, "__getitem__") else fit
+    classes = list(getattr(clf, "classes_", []))
+    if target not in classes:
+        return None
+    b = np.asarray(clf.coef_)[classes.index(target)]
+    scaler = fit[0] if hasattr(fit, "__getitem__") else None
+    scale = getattr(scaler, "scale_", None)
+    if scale is not None:
+        b = b / np.where(np.asarray(scale) > 0, scale, 1.0)
+    Xc = np.asarray(X) - np.asarray(X).mean(0)
+    return (Xc.T @ (Xc @ b)) / max(len(Xc) - 1, 1)
+
+
+def fold_bins(pattern, ncomp):
+    """Feature-space pattern (ncomp * n_bins,) -> per-component (ncomp,), summed over time bins.
+
+    The features are each component's activity in `n_bins` successive slices of the window, so a
+    component's total contribution is the sum across its bins. Raises rather than guessing when the
+    length is not a multiple of `ncomp` -- a silent reshape would scramble components into bins.
+    """
+    pattern = np.asarray(pattern)
+    if pattern.size % ncomp:
+        raise ValueError(f"{pattern.size} features is not a multiple of {ncomp} components")
+    return pattern.reshape(-1, ncomp).sum(0)
