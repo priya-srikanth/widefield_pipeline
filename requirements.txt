@@ -18,3 +18,4 @@ PyYAML>=6
 # torch==2.6.0+cu124   # pip install torch --index-url https://download.pytorch.org/whl/cu124
 # wfield==0.6.0
 # LocaNMF (localnmf) + cuhals   # custom Windows build; see docs/archive/GPU_LOCANMF_KICKOFF.md + wfield_local/*.patch
+imageio-ffmpeg>=0.4

@@ -274,6 +274,13 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
     print("[clip_deck] %s: %d sessions, %d slides, %d clips, %d empty-class, %.0f MB -> %s"
           % (animal, len(sessions), len(prs.slides._sldIdLst), made, made_empty, mb,
              dest), flush=True)
+    n_vid, problems = verify_playable(dest)
+    if problems:
+        print("[clip_deck] !! %d embedded clip(s) may NOT PLAY in PowerPoint:" % n_vid, flush=True)
+        for p_ in problems:
+            print("[clip_deck]    %s" % p_, flush=True)
+    else:
+        print("[clip_deck] verified %d embedded clip(s): H.264 / yuv420p" % n_vid, flush=True)
     return dest
 
 
@@ -282,6 +289,53 @@ def run(rv=None, animals=None, dates=None):
     rv = rv or PathResolver()
     want = config.normalize_animals(animals) or sorted(config.animals())
     return [p for p in (build(a, rv=rv, dates=dates) for a in want) if p]
+
+
+def verify_playable(deck: Path, sample: int = 3) -> tuple[int, list[str]]:
+    """``(n_videos, [problems])`` -- check what a .pptx actually CONTAINS, not that it was written.
+
+    THIS IS THE CHECK THAT WAS MISSING FOR THE LIFE OF THE MODULE. Every deck built before
+    2026-09-17 embedded MPEG-4 Part 2 in an AVI, which PowerPoint cannot decode, and every existing
+    check passed anyway: the slide count was right, the clip count was right, the poster frames
+    showed the right mouse, the file size was plausible. What none of them asked was whether the
+    bytes could be PLAYED, which is the only thing the deck is for.
+
+    A .pptx is a zip; the embedded media sit under ``ppt/media/``. Probing a sample with ffmpeg is
+    the cheapest question that would have caught it.
+    """
+    import subprocess
+    import tempfile
+    import zipfile
+
+    problems: list[str] = []
+    with zipfile.ZipFile(deck) as z:
+        vids = [n for n in z.namelist()
+                if n.startswith("ppt/media/") and Path(n).suffix.lower() in (".mp4", ".avi")]
+        if not vids:
+            return 0, ["no video embedded at all"]
+        bad_ext = [n for n in vids if not n.lower().endswith(".mp4")]
+        if bad_ext:
+            problems.append(f"{len(bad_ext)} clip(s) are not .mp4, e.g. {Path(bad_ext[0]).name}")
+
+        exe = _ffmpeg()
+        if exe is None:
+            problems.append("ffmpeg unavailable -- codec NOT verified")
+            return len(vids), problems
+
+        step = max(1, len(vids) // max(1, sample))
+        for name in vids[::step][:sample]:
+            with tempfile.TemporaryDirectory() as td:
+                p = Path(td) / "probe.mp4"
+                p.write_bytes(z.read(name))
+                out = subprocess.run([exe, "-i", str(p)], capture_output=True).stderr.decode(
+                    "utf-8", "replace")
+            if "Video: h264" not in out:
+                codec = next((ln.strip() for ln in out.splitlines() if "Video:" in ln), "?")
+                problems.append(f"{Path(name).name} is not H.264 -- {codec}")
+            elif "yuv420p" not in out:
+                problems.append(f"{Path(name).name} is H.264 but not yuv420p -- PowerPoint "
+                                f"refuses that")
+    return len(vids), problems
 
 
 def main(argv=None) -> int:
