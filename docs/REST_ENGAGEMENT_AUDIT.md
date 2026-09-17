@@ -205,6 +205,21 @@ acute 15/16, subacute 17/18, chronic 18/18), against the published 93/94.
 **Do NOT read a trajectory off that column.** It is a cohort mean, and the acute-dip claim derived
 from exactly this quantity was WITHDRAWN on 2026-09-15 because PS95 rises. Plot the animals first.
 
+### `rest_carries_position` — re-run gated, and it came out STRONGER
+
+| | pre-audit | gated + repaired |
+|---|---|---|
+| between/within-position RMS ratio | 1.45 | **1.97** |
+| largest significant area | 1,042 / 2,022 bins | **1,468 / 2,022** |
+
+6/6 positions in 4/4 animals; 15,458 of 19,131 rest bouts carried unambiguous labels. Verdict
+unchanged: REST CARRIES POSITION INFORMATION.
+
+**The gate RAISED this statistic, and the direction is informative.** The ratio's denominator is
+WITHIN-position split-half noise; the quit period is a different behavioural state sitting where
+drift is largest, so removing it cuts that denominator. A contaminant that had been INFLATING the
+effect would have moved it the other way. Same direction as finding 11 holding at 1.634.
+
 ### A THIRD templating failure, caught by the linter
 
 The patch that added the gate to `rest_carries_position` wrote

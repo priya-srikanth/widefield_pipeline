@@ -228,197 +228,167 @@ stay distinct. **Similarity dips acutely and recovers**: cue 0.841 → 0.639 →
 interval excludes zero is pre-cue chronic (+0.049) — small, and worth a second look before it is
 called anything.
 
-> **⚠ PRE-AUDIT NUMBERS — 2026-09-16.** The 15f and 15s sections below were written from the
-> UNGATED runs, before the engagement-gate audit, and 15s additionally from a doubly-docked
-> baseline. **Do not quote them.** `docs/REST_ENGAGEMENT_AUDIT.md` carries the re-run values:
-> finding 11 **1.634 (43/44)**, persistence **+0.0772 (4/4)**, per-session decode **94/96**, 15f
-> acute retained **0.609 / 0.277 / 0.086 / −0.093** per animal (underpowered — PS95 contributes ONE
-> acute session; quote 15f's CHRONIC 0.611 frozen vs 1.181 refit instead), 15s null-corrected
-> **+0.060 pre / +0.188 acute** pre-cue with post-cue flat. Rewriting this section is the first
-> pending item in `docs/STATUS_2026-09-16.md` §4.
+### ENCODER, BEST-MATCH AND CROSSNOBIS — the bounded pull (2026-09-16)
 
-### REST, FROZEN DECODER — does the pre-stroke rest code survive, or is it REPLACED?
-BUILT 2026-09-16. SCRIPT: `scripts/rest_migration/rest_frozen_decoder.py` ·
-DATA: `E:/cue_lick/rest_migration/rest_frozen_decoder_restdock05_final.{csv,png}` +
-`_sessions.csv`. 96 sessions, **0 skipped**, duration-matched, `blockperm` null, 200 permutations.
+Read from the `.csv` beside each figure, so every number here is the number its panel drew.
+**PROVENANCE:** files stamped 09-16 09:09–10:01, written by the OTHER box's nightly, not by this
+box's render. Their subtitle reports the SAME session set this box used —
+`N=4 animals, n=96 sessions, pre 44 (92:11 93:11 94:11 95:11), acute 16 (92:5 93:4 94:6 95:1)` —
+so they are comparable with everything else in this document. `*` = interval excludes zero,
+`**` = survives Bonferroni.
 
-**THE QUESTION NO EARLIER FIGURE COULD REACH.** `rest_position_decode` fits a decoder WITHIN each
-session, so a chronic session scoring well says only that THAT DAY'S rest carries position — by
-whatever code that day happens to use. Recovery and replacement produce the identical number. This
-arm trains on pre-stroke rest, freezes, and applies across epochs; the refit arm is computed on the
-**same periods, same labels, same block vector**, so the only difference between the two is the
-estimator.
+**ENCODER AMPLITUDE (gain), post-cue working** — `epoch_11amp_encoder_amplitude_cue_working`
 
-| epoch | frozen acc | frozen retained | refit retained | gap (refit − frozen) | p<0.05 |
-|---|---|---|---|---|---|
-| pre (LOSO) | 0.385 | 1.000 | 1.000 | −0.094 | 44/44 |
-| acute | 0.216 | **0.227** → **0.332** proximity-matched | 0.495 → 0.665 | +0.012 | **8/16** |
-| subacute | 0.237 | 0.322 | 0.565 | −0.000 | 13/18 |
-| chronic | 0.303 | **0.627** → **0.611** proximity-matched | **1.271** → **1.181** | +0.021 | 18/18 |
-
-**THE PRE-STROKE REST CODE IS NOT SIMPLY RESTORED.** Chronically the within-session readout reaches
-**1.27× its own pre-stroke level** while the frozen model reaches **0.627**. Position is present in
-chronic rest and is read by something other than the pre-stroke code — the replacement signature.
-All four animals dip acutely (PS92 0.401, PS93 0.187, PS94 0.134, PS95 0.120); **PS94 has no
-chronic sessions** and **PS92's subacute 0.759 is far out of line** with the other three
-(0.341, 0.229, 0.285), which is the same subacute non-replication flagged elsewhere.
-
-**RETAINED 0.227 ACUTE, against the TASK arm's 0.496 and the state control's 0.902.** Same animals,
-same joint LocaNMF footprints, same estimator, same frozen discipline — only the WINDOW changes.
-
-**ACUTE IS MARGINAL AT THE SESSION LEVEL AND MUST BE QUOTED THAT WAY.** Only **8 of 16** acute
-sessions reach p<0.05 under the block-permutation null; mean acute accuracy 0.216 sits essentially
-at the null's 95th percentile (0.206). An earlier note of "16/16 above null" used `acc > null mean`,
-which is not a test. The epoch-level effect and the 4/4 animal replication stand; the per-session
-claim does not.
-
-**THE BASIS IS THE JOINT LocaNMF ONE, AND IT HAD TO BE.** `rest_position_decode` uses each session's
-OWN SVD components — correct within a session, meaningless frozen, because component *i* is a
-different cortical patch on each day. A model carried across days in that basis returns a low number
-that reads exactly like a lesion effect.
-
-**THE NULL IS `blockperm`, NOT A CIRCULAR SHIFT — and this corrected a repo-wide claim.**
-`rest_position_decode`'s docstring says a circular shift "keeps blocks as blocks". MEASURED: with
-the unequal block lengths real data has, a roll misaligns the boundaries and leaves only **~31%** of
-blocks internally constant, against **100%** for `blockperm` and **~1%** for a trial shuffle. The
-shift therefore gives a null that is too weak. All three are computed: they agree on the null MEAN
-(0.166) and disagree on significance exactly as predicted — acute 8 (blockperm) / 9 (shift) /
-**11 (trial)** of 16. Second trap recorded in the tests: under a trial shuffle the BALANCED-accuracy
-null is ~1/ncls by construction, so a balanced null sitting at 1/6 is NOT evidence the permutation
-is working.
-
-**DURATION CONTROL: INERT.** Median scored rest-period length moves **0.01 s** across epochs, because
-these are docked periods between two same-position trials — the ITI sets their length, not how much
-the animal rests. Retained 0.227 matched vs 0.224 unmatched.
-
-**THE UNDETECTED-LICKING CONTROL (Priya, 2026-09-16).** *"PS92 is VERY licky pre-stroke and during
-recovery so much of the 'rest' probably includes licks without spout contact (due to docked spout
-position)."* The lick channel is threshold-on-CONTACT and the spout docks out of reach, so licking
-at nothing produces no deflection, and `lick_buffer_s` — keyed on detected licks — cannot exclude
-what was never detected. Stratifying the SAME frozen predictions by gap to the nearest detected
-lick: **far − near is negative in 12 of 15 cells, INCLUDING pre-stroke in all four animals**
-(−0.024 to −0.086). So it is a general property of the rest signal, not a post-stroke artefact.
-
-**THE MEDIAN SPLIT WAS TOO WEAK, AND ITS REASSURING ANSWER DID NOT SURVIVE THE PROPER TEST.** An
-earlier version of this section concluded the confound was bounded "at most ~10–25% of the effect"
-from the median split alone. **That figure is WITHDRAWN.** A median split is animal-RELATIVE — PS92's
-"far" half begins at 1.0 s, which licking bouts outlast — so it compares different things in
-different animals, which is precisely wrong when one animal is the licky one. The absolute
-**≥3 s** stratum (`--lick-far-s`, same threshold in every animal) says something much less
-comfortable:
-
-| animal | pre above-chance, ALL periods | ≥3 s from any lick | % of periods kept |
+| epoch | gain | 95% CI | |
 |---|---|---|---|
-| PS92 | 0.224 | **0.057** | 7% |
-| PS93 | 0.284 | **0.131** | 19% |
-| PS94 | 0.325 | **0.165** | 19% |
-| PS95 | 0.213 | 0.191 | 76% |
+| pre | 0.943 | [0.924, 0.961] | |
+| acute | **0.361** | [0.141, 0.653] | ** |
+| subacute | 0.687 | [0.555, 0.795] | ** |
+| chronic | **0.939** | [0.731, 1.216] | — |
 
-**In three of four animals roughly half to three-quarters of the PRE-STROKE rest position signal
-sits within 3 s of a detected lick.** That is a far larger proximity dependence than the median
-split implied.
+**The encoder's fitted gain returns to baseline chronically (0.939 vs a pre of 0.943, unmarked).**
+Note this supersedes the "0.749 → 0.286 → 0.745" triple quoted in `CLAUDE.md`, which came from an
+earlier render; the shape of the story is the same, the values are not.
 
-**WHAT SAVES IT FROM BEING FATAL, AND WHAT DOES NOT.** The test is UNDERPOWERED in exactly the
-animals where it matters: for PS92/PS93/PS94 the ≥3 s stratum is a rare 7–19% tail, and the
-retained fractions recomputed inside it are unusable (PS92 subacute −1.697, PS93 acute −0.061 —
-above-chance estimates going negative on thin samples). **PS95 is the one animal where the test IS
-well powered** — 76% of its periods are ≥3 s from a lick — and there the signal is essentially
-intact, 0.213 → 0.191, a 10% loss. So proximity dependence is not universal. But PS95 is also the
-animal with the LOWEST retained fraction (0.120 acute), so it is not the one carrying the
-survival story.
+**GAIN vs SHAPE — the decomposition that says WHAT changed** —
+`epoch_11_encoder_gain_shape_cue_working`
 
-**A SECOND, SHARPER THREAT THIS SURFACED: LICK PROXIMITY ITSELF MOVES WITH EPOCH.** Acute animals
-lick less, so their rest sits further from licks — PS93's median gap goes 1.21 s → 4.58 s, PS94's
-1.00 s → 4.06 s. If decoding depends on proximity AND proximity changes across epochs, part of the
-acute drop is COMPOSITION rather than code loss. Three of four animals are consistent with that
-account: PS92's gap barely moves (1.00 → 1.25) and it has the SMALLEST acute drop (0.401); PS93 and
-PS94 have the large gap shifts and the large drops (0.187, 0.134). **PS95 breaks it** — gap
-essentially static (3.41 → 3.19) with the largest drop of all (0.120).
+| epoch | frozen EV | EV after rescale |
+|---|---|---|
+| pre | 0.557 | 0.580 |
+| acute | **−0.388** ** | **0.134** ** |
+| subacute | 0.186 ** | 0.320 ** |
+| chronic | 0.383 ** | 0.410 ** |
 
-**RESOLVED BY PROXIMITY MATCHING (`--match-lickgap`), and the confound was REAL BUT PARTIAL.**
-Restricting train and test to the central range of the PRE-STROKE lick-gap distribution — matching,
-not stratifying, so the full sample survives — gives (also duration-matched, `blockperm` null,
-96 sessions, 0 skipped):
+**ACUTELY THE FROZEN ENCODER IS WORSE THAN PREDICTING THE MEAN (−0.388), AND A PURE RESCALE
+RECOVERS MOST OF IT (0.134).** So a large part of the acute deficit is a GAIN change rather than a
+change of spatial pattern — the encoder's version of the decoder's "present but misread". Chronic
+frozen EV 0.383 against a rescaled 0.410: by chronic, rescaling buys almost nothing, so what remains
+is a SHAPE change. Gain acutely, shape chronically.
 
-| epoch | frozen acc | frozen retained | refit retained | p<0.05 |
+**BEST-MATCH — does a position's map still match its own pre-stroke template?**
+
+| arm | pre | acute | subacute | chronic |
 |---|---|---|---|---|
-| pre (LOSO) | 0.402 | 1.000 | 1.000 | 44/44 |
-| acute | 0.259 | **0.332** (was 0.227) | 0.665 | 8/16 |
-| subacute | 0.239 | 0.306 (was 0.322) | 0.575 | 11/18 |
-| chronic | 0.311 | **0.611** (was 0.627) | **1.181** | 17/18 |
+| post-cue (`epoch_10_best_match_acc_cue_working`) | 1.000 | **0.552** ** | 0.796 ** | **0.889** ** |
+| pre-cue (`epoch_10_best_match_acc_precue_working`) | 1.000 | **0.438** ** | 0.583 ** | **0.583** ** |
+| rank of correct position, post-cue | 1.000 | 1.958 ** | 1.333 ** | 1.296 ** |
 
-**THE ACUTE DROP WAS PARTLY COMPOSITION AND MOSTLY NOT.** Matching lick proximity moves acute
-retained from 0.227 to **0.332** — so a real slice of the acute deficit was "acute animals lick
-less, so their rest sits further from licks", exactly as the gap shift predicted. But two thirds of
-the acute signal is still gone after the control, so the confound inflated the effect rather than
-producing it.
+**ANOTHER PRE-CUE / POST-CUE DISSOCIATION, and it points the same way as `15r`'s.** Post-cue
+best-match recovers to 0.889 chronically; **pre-cue does NOT recover at all** — 0.583 subacute and
+0.583 chronic, flat. The pre-cue code does not come back.
 
-**THE CHRONIC RESULT IS ROBUST TO THE CONTROL**: 0.627 → 0.611 frozen, and the refit arm still
-exceeds its own pre-stroke level (1.271 → **1.181**). The replacement conclusion does not depend on
-lick proximity, which is expected — it is a within-epoch contrast between two estimators on one set
-of periods, and proximity composition cancels.
+**CROSSNOBIS — how far each position has moved from its own pre-stroke template**
+(`epoch_8diag` / `epoch_8diagdelta`, cue/working; delta = epoch − pre with Bonferroni-corrected
+intervals)
 
-**WHAT MOVED PER ANIMAL, AND WHY ONE NUMBER SHOULD NOT BE QUOTED.** Acute retained, gap-matched:
-PS92 0.614, PS93 0.270, PS94 0.111, PS95 **0.748**. PS95 swung from 0.120 to 0.748 — **it has
-exactly ONE acute session**, so its acute cell is a single measurement and moves freely under any
-reweighting. PS92 0.401 → 0.614 is the licky animal gaining most from the control, which is the
-predicted direction. **PS94 is stable (0.134 → 0.111)** and is the cleanest acute cell.
+| epoch | nI | nM | nC | fI | fM | fC |
+|---|---|---|---|---|---|---|
+| acute Δ | +0.211 ** | +0.008 | +0.245 ** | +0.304 ** | +0.319 | **+1.017** ** |
+| subacute Δ | +0.429 ** | +0.276 ** | +0.394 ** | +0.285 ** | +0.326 | +0.386 ** |
+| chronic Δ | **+0.927** ** | +0.526 ** | +0.660 ** | +0.281 ** | +0.693 ** | +0.447 ** |
 
-**DO NOT COMPARE 0.332 DIRECTLY TO THE TASK ARM'S 0.496.** Only the rest arm has been
-proximity-controlled. The task arm's window is post-cue trials, where licking IS the behaviour
-rather than a contaminant, so the same control does not transfer unmodified — the comparison needs
-either a matched task-side analysis or an explicit statement that one side is controlled and the
-other is not.
+**ACUTE DISPLACEMENT IS POSITION-SPECIFIC; CHRONIC DISPLACEMENT IS DIFFUSE.** Acutely far-contra
+moves **+1.017**, more than three times the next largest, and near-middle does not move at all
+(+0.008) — exactly the position the decoder, the encoder and `15r` all implicate. By chronic every
+position has moved (+0.28 to +0.93) and the LARGEST is near-ipsi, not far-contra.
 
-**TRAINING-SET MATCHING, the rest-side counterpart of the task arm's `5rm` (Priya asked for it
-2026-09-16).** The frozen rest model trains on every pre-stroke session of the animal (~10,000
-periods) against the refit's four fifths of one (~300) — a size handicap far larger than the task
-arm's, and the raw gap cannot be read against it. `--match-train` refits the frozen model on a
-size-matched random subset of pre-stroke **BLOCKS** (whole blocks, `grant_figures._matched_frozen`'s
-rule: sampling loose periods would remove the size difference while introducing a
-within-block-correlation one), seeded per scored session.
+**THAT CONVERGES WITH `15f`.** A diffuse chronic displacement is what "the code was replaced" looks
+like in geometry: the chronic frozen decoder retains only 0.611 while a within-session refit reaches
+1.181, i.e. position is still there but not where the pre-stroke model looks for it. Three
+independent estimators — decoder, encoder and RDM geometry — say acute = a gain loss concentrated at
+far-contra, chronic = a shape change spread over all six positions.
 
-**ALL CONTROLS ON** — duration-matched + lick-gap-matched + training-set-matched, `blockperm` null,
-96 sessions, 0 skipped:
+### THE REST ARM — post-audit values (2026-09-16)
 
-| epoch | frozen | matched frozen | refit | gap | **gapM** | frozen ret | refit ret |
-|---|---|---|---|---|---|---|---|
-| pre | 0.402 | 0.251 | 0.286 | −0.116 | **+0.036** | 1.000 | 1.000 |
-| acute | 0.259 | 0.195 | 0.258 | −0.001 | **+0.063** | 0.332 | 0.665 |
-| subacute | 0.239 | 0.189 | 0.236 | −0.003 | **+0.047** | 0.306 | 0.575 |
-| chronic | 0.311 | 0.225 | 0.308 | −0.003 | **+0.083** | 0.611 | 1.181 |
+**READ `docs/REST_ENGAGEMENT_AUDIT.md` FIRST.** Every number in this section is from a run with the
+engagement gate applied AND the repaired classifier. The pre-audit values that stood here were
+produced without either; see the audit for what moved and by how much.
 
-**MATCHING FLIPS THE PRE GAP, exactly as it does on the task side**: −0.116 → **+0.036**. Unmatched,
-the frozen model wins on data volume; at equal volume the refit wins, because a within-session fit
-shares that session's own nuisance structure while the matched frozen model must generalise across
-days. **So the rest arm's no-lesion baseline is BRACKETED, not known** — the same conclusion `5rm`
-reached for the task arm (−0.073 unmatched / +0.090 matched), and the reason both families are
-drawn there and both numbers are reported here.
+FIGURES, all in `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`:
+`epoch_15f_rest_frozen_restdock05_gated.png` (+ `_confusion.png`) ·
+`epoch_15s_shared_position_restdock05.png` · `epoch_15x_REST_by_position_by_animal.png`.
 
-**READ `gapM` MINUS ITS PRE VALUE, which is the recoverable component with the handicap removed:**
-acute **+0.027**, subacute **+0.011**, chronic **+0.047**. It is LARGEST AT CHRONIC — the refit arm
-finds position the frozen model cannot, and does so most at the epoch where the frozen arm has
-partly recovered. That is the replacement signature measured without the size confound, and it
-agrees with the refit retained fraction exceeding 1.0 at chronic (1.181).
+#### REST CARRIES POSITION — the solid one
 
-**THE MATCHED FROZEN ARM IS A NOISIER ESTIMATOR and its own retained fraction should not be quoted
-as the headline**: matched accuracy is 0.251 pre against the full model's 0.402, so matchRet
-(1.000 → 0.167 → 0.265 → 0.695) carries far more sampling variance than frozen retained. Matching
-exists to make the GAP readable, not to replace the frozen arm.
+Circular-shift permutation, `restdock05`, docked, 200 permutations:
+**observed/null 1.634, 43/44 pre-stroke sessions, 4/4 animals** (PS92 1.467, PS93 1.999, PS94 1.724,
+PS95 1.458; mean over animals 1.662). The published pre-audit value was 1.622 / 44/44 — the gate and
+the classifier repair very nearly cancel.
 
-**AND IT STILL DOES NOT DISCRIMINATE THE TWO ACCOUNTS.** A period far from a detected lick is also
-far in TIME from the trial's motor events, so a decaying persistent trace predicts the same
-profile as undetected continuation licking. **Only tongue tracking from the behaviour cameras (DLC,
-PARKED) separates them** — say so wherever this control is quoted.
+Per-session decode, same fixes: **94 of 96 sessions above their own circular-shift null**
+(pre 44/44, acute 15/16, subacute 17/18, chronic 18/18).
+
+> **DO NOT read a trajectory off the per-epoch obs−null column** (0.205 / 0.126 / 0.139 / 0.262).
+> It is a cohort mean, and the acute-dip claim derived from exactly this quantity was WITHDRAWN on
+> 2026-09-15 because PS95 rises. Plot the animals first.
+
+#### 15f — THE PRE-STROKE REST CODE IS PARTLY REPLACED, NOT RECOVERED
+
+Frozen pre-stroke rest decoder, all four controls (duration-matched, lick-gap-matched,
+training-set-matched, `blockperm` null), LOSO pre baseline, 96 sessions, 0 skipped.
+
+| epoch | frozen retained | refit retained |
+|---|---|---|
+| pre (LOSO) | 1.000 | 1.000 |
+| acute | see caveat | — |
+| subacute | 0.306 | 0.575 |
+| **chronic** | **0.611** | **1.181** |
+
+**QUOTE THE CHRONIC RESULT.** The within-session refit reaches **1.181 of its own pre-stroke level**
+while the frozen pre-stroke model reaches **0.611**: position is in chronic rest, read by something
+other than the pre-stroke code. Both arms are computed on the SAME periods, so the only difference
+between them is the estimator.
+
+> **ACUTE IS UNDERPOWERED — do not quote it.** Gated per animal it is 0.609 / 0.277 / 0.086 /
+> **−0.093**, against 0.401 / 0.187 / 0.134 / 0.120 ungated. Removing ~4% of periods moved it that
+> far because **acute is 16 sessions and PS95 contributes ONE**. It is no longer a 4/4 replication.
+
+**CONFUSIONS — acute errors COLLAPSE, they do not scatter** (`..._confusion.png`, raw counts in the
+companion `.csv`). Acute predictions pile onto near-contra in every row, and far-row errors shift
+toward near columns (0.56 → 0.67). **Far-contra REST is the best-decoded position pre-stroke (0.50)
+and holds up (0.38 acute, 0.39 chronic) — the OPPOSITE of far-contra TASK, which collapses
+1.46 → 0.47.** Rest and task dissociate at exactly the position the lesion targets.
+
+#### 15s — THE REST CODE IS NOT THE TASK CODE, AND THE PRE-CUE TRACE POINTS BACKWARDS
+
+`shared_p = <rest_p − restw, trial_p − restw> / ||trial_p − restw||²`, rest from ODD position-blocks
+and trials from EVEN so shared drift cannot manufacture it, circular-shift null.
+
+Null-corrected, animal as the unit:
+
+| window | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| pre-cue | **+0.060** (4/4) | **+0.188** (4/4) | −0.130 (PS92 alone) | +0.077 (3/3) |
+| post-cue | −0.002 | +0.005 | −0.041 | +0.000 |
+
+**POST-CUE IS FLAT AGAINST ITS NULL AT EVERY EPOCH.** Pre-cue is consistently positive.
+
+**BUT THE EFFECT IS SMALL AND MUST BE STATED AS SUCH.** The cosine between a position's task map and
+its own rest map is **0.09 post-cue and 0.16 pre-cue** — the patterns are close to unrelated, and
+the small coefficient is NOT a magnitude artefact (the amplitude ratio is 0.605 pre-cue, so a strong
+shape match would have shown up). **Rest carries position in a largely DIFFERENT spatial code from
+the task**, which is the useful reading and is consistent with the 15f confusions above.
+
+**WHICH WAY THE SHARED COMPONENT POINTS — the block-boundary test answers what 15s cannot.** Within
+a block the position just licked and the one coming next are identical; only at a BOUNDARY do they
+separate. Gated + repaired: **r_prev − r_next = +0.0772, 4/4 animals positive**, 2,983 boundary
+periods (PS92 +0.105, PS93 +0.089, PS94 +0.044, PS95 +0.071; published pre-audit +0.0754). **Rest
+resembles the position JUST LICKED AT.** So the pre-cue window's shared component is a trace of the
+LAST target, not preparation for the next — **a real constraint on reading the pre-cue signal as
+anticipatory**, and consistent with this project's standing refusal to call it "a maintained motor
+plan".
+
+> **EXCLUDE 15s SUBACUTE.** −0.130 is PS92 alone (−0.639) against +0.212, +0.044, +0.027. PS92 is
+> also the cohort's SNR floor — the six lowest rest fractions are all PS92.
+
 ### STATE DECODER
 **NOT re-pulled here.** Its numbers live in `docs/BEHAVIOURAL_STATE_CONTROL.md` (frozen pre-stroke
 decoders as fraction of above-chance retained: position 0.86 → 0.43, behavioural state 0.97 → 0.88,
 running 0.99 → 0.96; re-measured on the REST definition 2026-09-13). Figures `epoch_12b*`,
 `epoch_13*`, deck section I. **That document is the authority; do not re-derive from the deck.**
 
-**STILL NOT RE-PULLED:** encoder R^2/FEVE, RSA/crossnobis (105 `crossnob*` CSVs exist in
-`grant_figures/epoch/`), and the `epoch_10_best_match_acc_*` family. All have `.csv` + `_sessions.csv`
-+ `_meta.csv` companions, so this is a bounded pull, not a re-run.
+**PULLED 2026-09-16** — encoder amplitude + gain/shape, best-match, and crossnobis are in the section above.
 
 **Pending work that will move numbers again:** the docked FROZEN decoder arm (the current rest
 decode is PER-SESSION and cannot distinguish chronic recovery from chronic replacement), and `15s`.
