@@ -110,7 +110,7 @@ def test_build_recovers_transfer_when_the_code_is_shared():
     rows = tm.build(data, _pipe, n_perm=30, seed_ns="t", log=lambda *_a: None)
     off = [r for r in rows if r["train_epoch"] == "pre" and r["test_epoch"] == "chronic"]
     assert off, "the pre->chronic cell should exist"
-    assert np.mean([r["above_chance"] for r in off]) > 0.3
+    assert np.mean([r["acc_minus_null"] for r in off]) > 0.3
 
 
 def test_build_finds_no_transfer_when_the_code_is_scrambled():
@@ -122,7 +122,7 @@ def test_build_finds_no_transfer_when_the_code_is_scrambled():
     chron = {k: (e, X, rng.permutation(y), g) for k, (e, X, y, g) in chron.items()}
     rows = tm.build({**pre, **chron}, _pipe, n_perm=30, seed_ns="t", log=lambda *_a: None)
     off = [r for r in rows if r["train_epoch"] == "pre" and r["test_epoch"] == "chronic"]
-    assert np.mean([r["above_chance"] for r in off]) < 0.12
+    assert np.mean([r["acc_minus_null"] for r in off]) < 0.12
 
 
 def test_the_diagonal_holds_out_its_own_test_session():

@@ -233,7 +233,7 @@ def build(data, pipe_fn, *, n_perm=200, seed_ns="", min_sessions=1, rng=None, lo
                          "n_test": len(yte), "n_classes": ncls, "n_train_matched": n_used,
                          "acc": round(acc, 4), "null": round(float(np.mean(draws)), 4),
                          "p": round(float(np.mean([d >= acc for d in draws])), 4),
-                         "above_chance": round(acc - float(np.mean(draws)), 4)})
+                         "acc_minus_null": round(acc - float(np.mean(draws)), 4)})
     return rows
 
 
@@ -273,7 +273,7 @@ def summarise(rows):
                     if v is not None:
                         ratios.append(v)
             agg.append({"train_epoch": tr, "test_epoch": te, "acc": round(c[0], 4),
-                        "null": round(c[1], 4), "above_chance": round(c[0] - c[1], 4),
+                        "null": round(c[1], 4), "acc_minus_null": round(c[0] - c[1], 4),
                         "retained_vs_own_ceiling": (round(float(np.mean(ratios)), 4)
                                                     if ratios else None),
                         "retained_n_animals": len(ratios),

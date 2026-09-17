@@ -13619,3 +13619,98 @@ it is not about codecs:
 In each case the artifact I produced was checked and the artifact the user consumes was not. The
 fix that works is to make the check operate on the consumed thing — publish from the built file,
 count labels in the tree napari opens, probe the stream inside the .pptx.
+
+## A LONG-RUNNING PROCESS CANNOT SEE A FIX COMMITTED AFTER IT STARTED (2026-09-17)
+
+**The published `epoch_15h` contours were unmasked, and every check I ran said the mask was
+applied.** Priya, looking at `epoch_15h_rotation_maps_lick.png`: *"here are outlines outside the
+brain!"* — and she was right, with whole lobes of contour outside the cortical mask.
+
+**The mask fix went in at commit `fc02bf4`, 13:51. The run that drew those figures started at
+13:39.** Python binds a module at import, so that process executed pre-fix code for its entire life
+and then wrote figures whose filenames are indistinguishable from correct ones.
+
+**THE DIAGNOSTIC MISTAKE IS THE PART WORTH REMEMBERING.** Asked whether the outlines leaked, I
+tested `component_outline` **in the current working tree**, got 0 pixels outside the mask, and
+concluded the figure was fine — then produced a confident and wrong explanation (that white-on-white
+colormap ambiguity made near-zero cortex look like outside-the-brain). *Testing the code on disk
+answers a different question from what the running process did.* A published artefact is evidence
+about the code that was LOADED, not the code that is there now.
+
+**What settled it was measuring the artefact itself**: crop the panel out of the PNG by detecting
+its axes frame, resize `beta_maps.stat_mask` onto it, overlay the true edge. The map filled the mask
+exactly; the contours did not. That takes a minute and outranks any amount of reasoning about what
+the code should do.
+
+**AND THE BLAST RADIUS WAS NOT ONLY COSMETIC.** The same process wrote
+`epoch_15h_rotation_regions.csv`, so bulb and glue components were also in the max-statistic family
+— the FWE thresholds in that file are inflated. A stale import contaminates the statistics, not just
+the picture.
+
+**GUARDS ADDED:**
+1. **The git SHA is stamped into the cache and printed on load**, with a `-dirty` suffix when the
+   tree has uncommitted changes — a stamp that names the wrong code is worse than no stamp.
+2. **Re-intersection at DRAW time**, printing a count of any pixel it clips. An upstream fix a
+   running process cannot see is exactly what happened; clipping at the point of ink is immune.
+3. **`in_mask_components` is LOUD on a grid mismatch.** It returned all-True silently, which
+   removes the mask from the statistics with no error — the shape the U / U_atlas 460x480 vs
+   540x640 mismatch takes.
+
+**THE RULE:** a figure written by a process that started before the last relevant commit is
+UNTRUSTED until verified against the artefact. Date the process against `git log` before believing
+its output.
+
+## `epoch_15h` caches COMPONENT-space results so redrawing costs seconds, not a re-run (2026-09-17)
+
+The rotation figure cost THREE full ~30-minute passes in one day, two purely to change how something
+was DRAWN. That cost is why a known-wrong figure stayed published: re-rendering the unmasked
+contours meant paying the whole permutation null again.
+
+`save_cache` / `load_cache` / `rebuild` + `--replot`. **Measured: 5 s against ~30 min.**
+
+**IT CACHES THE RESULT, NOT THE RENDER.** Per cell it stores `z` (excess-over-noise, one value per
+component, ~90 floats) and `sig` (the boolean significance vector) — kilobytes against hundreds of
+megabytes for pixel maps — and `--replot` re-projects through the SAME `to_pixels` /
+`component_outline` the live path uses. A cached *render* could drift from a live one; a cached
+*result* cannot. The npz also holds the actual findings in a form another analysis can read.
+
+`--replot` REFUSES when no cache is present rather than silently recomputing: a flag that quietly
+costs half an hour is worse than one that errors.
+
+**WHAT IT DOES NOT COVER:** the statistics. A wrong p or a wrong FWE family still costs a full pass.
+The cache buys back display iteration only.
+
+## The across-epoch rest-baseline cosine is biased POSITIVE and carries no p (2026-09-17)
+
+`scripts/rest_migration/rest_baseline_epoch_drift.py` measures whether the `restw` baseline on
+`restdock05` moves between epochs — the question `uniform_shift_check` does NOT answer, since that
+measured sensitivity to a DEFINITIONAL change (the lick buffer, median 3.1% of evoked) rather than
+drift across epochs. STATUS_2026-09-17 §0b flags the two as distinct and the second as unmeasured.
+
+**THE MAGNITUDE TEST IS SOUND.** `d_E = mean_E(b/k) - mean_pre(b/k)`, each session normalised by its
+OWN evoked norm so cross-day MULTIPLICATIVE scaling cancels (no subtraction removes a gain term),
+read against a null that splits PRE into two groups. Conservative: the null's second group holds
+`n_pre - n_E` sessions against the observed `n_pre`, so its differences run large.
+
+**THE COSINE IS NOT, AND NO NULL IN THIS DESIGN FIXES IT.** `d` carries `-mean_pre(bn)` and
+`e_ref = mean_pre(post/k) - mean_pre(bn)` carries the same vector with the same sign, so the raw
+cosine runs positive before any drift exists. Two nulls were tried and the ALGEBRA defeats both:
+
+* `mean_ga - mean_gb` over disjoint halves of pre — no `-mean_pre` term at all
+* `mean_ga - mean_pre` with `ga` a subset of pre — the term CANCELS: with 4 of 20,
+  `mean_pre = 0.2*mean_ga + 0.8*mean_gb`, so `d = 0.8*(mean_ga - mean_gb)`
+
+The asymmetry is structural — the epoch is DISJOINT from pre and keeps the term in full, while
+anything resampled WITHIN pre has it cancel — so a pre-drawn null is ANTI-CONSERVATIVE, worse than
+reporting nothing. The column ships as `cos_with_evoked_biased` with **no p**. Removing the bias
+needs `e_ref` built from pre sessions held OUT of `d`; PS92 has 11 pre sessions against 6 acute,
+which does not leave room. **Caught by the guard, not by inspection** — the first version claimed
+the null cancelled the bias, and `test_the_cosine_is_biased_positive_on_exchangeable_data` disproved
+it on driftless synthetic data.
+
+**FIRST RESULT (PS92, the magnitude column):** shift 0.139 acute (p 0.17), **0.279 subacute
+(p 0.033)**, **0.342 chronic (p 0.000)** against null medians 0.085 / 0.117 / 0.086. Subacute rests
+on 2 sessions and should be read with that in mind; chronic is 6 sessions at ~4x its null. If this
+replicates it means the restdock05 baseline DOES move across epochs, and across-epoch `_RESTref_`
+AMPLITUDE comparisons carry that movement — between-position contrasts within an epoch share the
+subtrahend and do not.

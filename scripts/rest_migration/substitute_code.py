@@ -247,7 +247,7 @@ def main() -> int:
                              "test_session": te_lab, "n_test": len(yte), "n_classes": ncls,
                              "n_train_matched": n_used, "acc": round(acc, 4),
                              "null": round(nul, 4), "p": round(p, 4),
-                             "above_chance": round(acc - nul, 4)})
+                             "acc_minus_null": round(acc - nul, 4)})
         print(f"   .. {len([r for r in rows if r['animal'] == an])} cells "
               f"({time.time() - t0:.0f}s)", flush=True)
 
@@ -301,7 +301,7 @@ def main() -> int:
             ratios = [x for x in ratios if x is not None]
             r = float(np.mean(ratios)) if ratios else None
             agg.append({"train_epoch": tr, "test_epoch": te, "acc": round(c[0], 4),
-                        "null": round(c[1], 4), "above_chance": round(c[0] - c[1], 4),
+                        "null": round(c[1], 4), "acc_minus_null": round(c[0] - c[1], 4),
                         "retained_vs_own_ceiling": (None if r is None else round(r, 4)),
                         "retained_n_animals": len(ratios),
                         "retained_per_animal": "|".join(f"{x:+.3f}" for x in ratios),

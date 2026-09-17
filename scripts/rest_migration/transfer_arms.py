@@ -270,7 +270,7 @@ def _figure(summary, out_dir, tag=""):
         f = out_dir / f"epoch_15g_transfer_{nm}{tag}_matrix.csv"
         with open(f, newline="", encoding="utf-8") as fh:
             rs = list(_csv.DictReader(fh))
-        g = {(r["train_epoch"], r["test_epoch"]): float(r["above_chance"]) for r in rs}
+        g = {(r["train_epoch"], r["test_epoch"]): float(r["acc_minus_null"]) for r in rs}
         M = np.full((len(eps), len(eps)), np.nan)
         for i, tr in enumerate(eps):
             for k, te in enumerate(eps):

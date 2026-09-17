@@ -496,13 +496,13 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
 
     # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim
     for an in animals:
-        pf = [r["above_chance"] for r in per_session
+        pf = [r["above_chance_frac"] for r in per_session
               if r["animal"] == an and r["epoch"] == "pre"]
         if not pf:
             continue
         ys = []
         for e in order:
-            v = [r["above_chance"] for r in per_session
+            v = [r["above_chance_frac"] for r in per_session
                  if r["animal"] == an and r["epoch"] == e]
             ys.append(np.mean(v) / np.mean(pf) if v else np.nan)
         ax[1].plot(x, ys, "o-", color=colors.get(an, "0.4"), lw=1.8, label=an)
@@ -790,7 +790,7 @@ def main() -> int:
                     acc_veryfar = _balanced_accuracy(yt_test[vf], pred[vf])[0]
             per_session.append({"animal": an, "label": lab, "epoch": ep, "n": int(m_test.sum()),
                                 "n_classes": ncls, "acc": acc, "null": nm, "p": p,
-                                "above_chance": (acc - chance) / (1 - chance),
+                                "above_chance_frac": (acc - chance) / (1 - chance),
                                 "refit_acc": r_acc,
                                 "refit_above_chance": (r_acc - chance) / (1 - chance),
                                 "gap_refit_minus_frozen": r_acc - acc,
@@ -831,7 +831,7 @@ def main() -> int:
         v = [r for r in per_session if r["epoch"] == e]
         acc = float(np.mean([r["acc"] for r in v]))
         nm = float(np.mean([r["null"] for r in v]))
-        frac = float(np.mean([r["above_chance"] for r in v]))
+        frac = float(np.mean([r["above_chance_frac"] for r in v]))
         if e == "pre":
             pre_frac = frac
         ret = (frac / pre_frac) if pre_frac else float("nan")
@@ -842,7 +842,7 @@ def main() -> int:
         m_acc = float(np.nanmean([r["matched_frozen_acc"] for r in v]))
         m_frac = float(np.nanmean([r["matched_above_chance"] for r in v]))
         rows.append({"epoch": e, "n_sessions": len(v), "acc": acc, "null": nm,
-                     "above_chance": frac, "retained": ret,
+                     "above_chance_frac": frac, "retained": ret,
                      "refit_acc": r_acc, "refit_above_chance": r_frac,
                      "gap_refit_minus_frozen": r_acc - acc,
                      "matched_frozen_acc": m_acc, "matched_above_chance": m_frac,
@@ -918,10 +918,10 @@ def main() -> int:
     # ---- per animal, because a cohort mean has hidden a reversal in this family before ----------
     print(f"\n{'animal':<8}" + "".join(f"{e:>12}" for e in order) + "   (retained)")
     for an in sorted({r["animal"] for r in per_session}):
-        pf = [r["above_chance"] for r in per_session if r["animal"] == an and r["epoch"] == "pre"]
+        pf = [r["above_chance_frac"] for r in per_session if r["animal"] == an and r["epoch"] == "pre"]
         line = f"{an:<8}"
         for e in order:
-            v = [r["above_chance"] for r in per_session
+            v = [r["above_chance_frac"] for r in per_session
                  if r["animal"] == an and r["epoch"] == e]
             if not v or not pf:
                 line += f"{'--':>12}"

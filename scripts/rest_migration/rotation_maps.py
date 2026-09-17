@@ -310,6 +310,13 @@ def in_mask_components(basis, min_frac=0.5):
     flat = np.abs(A.reshape(-1, basis.ncomp))
     m = np.asarray(bm.stat_mask(), bool)
     if m.shape != A.shape[:2]:
+        # LOUD, NEVER SILENT. Returning all-True here removes the mask from the statistics
+        # entirely -- every bulb and glue-edge component re-enters the max-statistic family and
+        # the threshold rises for the components that matter. This repo has already been bitten
+        # once by the U / U_atlas grid mismatch (460x480 vs 540x640), and that failure looks
+        # exactly like a run that worked.
+        print(f"   !! GRID MISMATCH: stat_mask {m.shape} vs basis {A.shape[:2]} -- "
+              f"THE MASK IS NOT IN THE STATISTICS FOR THIS ANIMAL", flush=True)
         return np.ones(basis.ncomp, bool)
     inside = flat[m.ravel(), :].sum(0)
     total = flat.sum(0)
@@ -489,15 +496,34 @@ def main() -> int:
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--replot", action="store_true",
+                    help="REDRAW from epoch_15h_rotation_cache<tag>.npz without recomputing. "
+                         "Seconds instead of ~30 min; use for any change to how the result is "
+                         "DRAWN. Refuses if the cache is absent -- it will not silently recompute "
+                         "and charge you half an hour for a colour change.")
     a = ap.parse_args()
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
 
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     animals = a.animals or sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"] in want})
     t0 = time.time()
+
+    if a.replot:
+        cache, rows, sha = load_cache(out_dir, a.tag)
+        if cache is None:
+            print(f"!! no cache at {out_dir}/epoch_15h_rotation_cache{a.tag}.npz -- run once "
+                  f"WITHOUT --replot first. Refusing to recompute silently.")
+            return 1
+        print(f"REPLOT from cache: {len(cache)} cells computed by git {sha}\n")
+        maps, outlines = rebuild(cache, log=lambda m: print(m, flush=True))
+        fig = _figure(maps, rows, out_dir, a.tag, outlines=outlines)
+        plane = _gain_rotation_figure(rows, out_dir, a.tag)
+        print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] replot {time.time() - t0:.0f}s")
+        return 0
+
     print(f"ROTATION MAPS -- Haufe patterns in the joint basis, arms {a.arms}\n")
 
-    rows, maps, outlines = [], {}, {}
+    rows, maps, outlines, cache = [], {}, {}, []
     for arm in a.arms:
         align, variant = ARMS[arm]
         print(f"\n== ARM {arm}")
@@ -547,6 +573,15 @@ def main() -> int:
                     sig = significant_components(d, nulls.get(pos), keep=keep_comp)
                     if z is not None:
                         zmaps.append((pos, z, component_outline(sig, basis)))
+                        # THE REPLOT CACHE, in COMPONENT space. Stored as `z` and `sig` rather
+                        # than the rendered pixel maps: two orders of magnitude smaller, and it is
+                        # the actual RESULT rather than a picture of one. `to_pixels` and
+                        # `component_outline` rebuild the pixels at replot from the same basis,
+                        # so a cached render cannot drift from a live one.
+                        cache.append({"arm": arm, "contrast": f"{ep} - pre", "position": int(pos),
+                                      "animal": an, "z": np.asarray(z, np.float32),
+                                      "sig": (np.zeros(0, bool) if sig is None
+                                              else np.asarray(sig, bool))})
                     rel_a = reliability.get("pre", {}).get(pos)
                     rel_b = reliability.get(ep, {}).get(pos)
                     # CORRECTED FOR ATTENUATION IN BOTH EPOCHS. None when either reliability is
@@ -627,10 +662,98 @@ def main() -> int:
                 cells.append(f"{np.mean(list(v.values())):>10.3f}" if v else f"{'--':>10}")
             print(f"{arm:<7}{ep + ' - pre':<18}" + "".join(cells))
 
+    save_cache(cache, rows, out_dir, a.tag, args=a)
     fig = _figure(maps, rows, out_dir, a.tag, outlines=outlines)
     plane = _gain_rotation_figure(rows, out_dir, a.tag)
     print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] {time.time() - t0:.0f}s")
     return 0
+
+
+def save_cache(cache, rows, out_dir, tag="", args=None):
+    """Write the COMPONENT-space results so the figures can be redrawn without recomputing.
+
+    THIS EXISTS BECAUSE THE FIGURE COST THREE FULL PASSES IN ONE DAY, two of them purely to change
+    how something was DRAWN. A ~30-minute recomputation to move a colour is the kind of cost that
+    makes a known-wrong figure stay published, which is exactly what happened on 2026-09-17: the
+    mask fix landed at 13:51 and the run that wrote the figures had imported the module at 13:39,
+    so the published contours were unmasked and re-rendering them meant paying the whole null again.
+
+    COMPONENT SPACE, NOT PIXELS. `z` is one value per component (~90 floats) against 540x640
+    per pixel map -- the cache is kilobytes instead of hundreds of megabytes -- and it is the
+    result itself, so `--replot` re-projects through the SAME `to_pixels` / `component_outline`
+    the live path uses. A cached render could drift from a live one; a cached result cannot.
+
+    THE GIT SHA IS STAMPED IN, because the failure above was invisible precisely for want of it:
+    nothing on the figure said which code drew it.
+    """
+    import json
+    import subprocess
+
+    if not cache:
+        return None
+    sha = "unknown"
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                             text=True, timeout=10).stdout.strip() or "unknown"
+        # "-dirty" IS THE WHOLE POINT. With uncommitted changes the HEAD sha names code that is
+        # NOT what ran, which is the same lie the missing stamp told on 2026-09-17 -- a figure
+        # claiming provenance it does not have is worse than one claiming none.
+        if subprocess.run(["git", "status", "--porcelain"], capture_output=True,
+                          text=True, timeout=10).stdout.strip():
+            sha += "-dirty"
+    except Exception:                                                  # noqa: BLE001
+        pass
+    meta = [{k: c[k] for k in ("arm", "contrast", "position", "animal")} for c in cache]
+    blobs = {}
+    for i, c in enumerate(cache):
+        blobs[f"z{i}"] = c["z"]
+        blobs[f"sig{i}"] = c["sig"]
+    p = out_dir / f"epoch_15h_rotation_cache{tag}.npz"
+    np.savez_compressed(p, meta=json.dumps(meta), rows=json.dumps(rows, default=str),
+                        git_sha=sha, args=json.dumps(vars(args) if args else {}, default=str),
+                        n=len(cache), **blobs)
+    print(f"[15h] wrote {p}  ({len(cache)} cells, git {sha}) -- redraw with --replot", flush=True)
+    return p
+
+
+def load_cache(out_dir, tag=""):
+    """``(cache, rows, sha)`` from `save_cache`, or ``(None, None, None)``."""
+    import json
+
+    p = out_dir / f"epoch_15h_rotation_cache{tag}.npz"
+    if not p.exists():
+        return None, None, None
+    with np.load(p, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        rows = json.loads(str(f["rows"]))
+        sha = str(f["git_sha"])
+        cache = [{**m, "z": f[f"z{i}"], "sig": f[f"sig{i}"]} for i, m in enumerate(meta)]
+    return cache, rows, sha
+
+
+def rebuild(cache, log=print):
+    """``(maps, outlines)`` re-projected from the cached component-space results.
+
+    One basis load per animal -- seconds, against the ~30 minutes the null costs.
+    """
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+
+    maps, outlines, bases = {}, {}, {}
+    for c in cache:
+        an = c["animal"]
+        if an not in bases:
+            bases[an] = joint_locanmf.load(an, sessions=SESSIONS)
+            log(f"   basis {an}: {bases[an].ncomp} components")
+        basis = bases[an]
+        key = (c["arm"], c["contrast"], int(c["position"]))
+        maps.setdefault(key, []).append(to_pixels(c["z"], basis))
+        sig = c["sig"]
+        if sig.size:
+            ol = component_outline(sig, basis)
+            if ol is not None:
+                outlines.setdefault(key, []).append(ol)
+    return maps, outlines
 
 
 def _gain_rotation_figure(rows, out_dir, tag=""):
@@ -839,10 +962,23 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import beta_maps as _bm
     from wfield_local import config
     from wfield_local import epoch_figures as ef
     from wfield_local import transfer_matrix as tm
     from wfield_local.grant_figures import CONF_LABELS
+
+    # THE ANALYSED REGION, loaded once and drawn on every panel. `None` only if the grid does not
+    # match, which is itself worth seeing rather than silently skipping -- the shape guards in
+    # `to_pixels` / `component_outline` / `in_mask_components` all fall back to NO MASKING when the
+    # grids disagree, so a mismatch would remove the mask from the statistics without an error.
+    try:
+        _SM = np.asarray(_bm.stat_mask(), bool)
+    except Exception:                                                  # noqa: BLE001
+        _SM = None
+    if _SM is None:
+        print("   !! stat_mask unavailable -- panels drawn WITHOUT the analysed-region edge",
+              flush=True)
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
 
     colors = config.animal_color()
@@ -891,9 +1027,20 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                     ax.text(0.5, 0.5, "n/a", ha="center", va="center", fontsize=8, color="0.6")
                     continue
                 cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
-                cm.set_bad("white")
+                # OUTSIDE-THE-MASK MUST NOT LOOK LIKE ZERO-CHANGE. `set_bad("white")` on a
+                # diverging map whose MIDPOINT is also white made the two indistinguishable, so
+                # the apparent "brain silhouette" was the non-zero region rather than the analysed
+                # region -- and every contour sitting over near-zero cortex read as a contour
+                # outside the brain (Priya, 2026-09-17). Grey is outside the analysis; white is
+                # inside it and unchanged.
+                cm.set_bad("0.90")
                 im = ax.imshow(np.nanmean(np.asarray(v), axis=0), cmap=cm,
                                vmin=-vmax, vmax=vmax)
+                # AND DRAW THE ANALYSED REGION'S EDGE, so "is that contour inside the mask" is a
+                # question the figure answers instead of one a reader has to trust.
+                if _SM is not None:
+                    ax.contour(_SM.astype(float), levels=[0.5], colors="0.55",
+                               linewidths=0.6, linestyles="--")
                 # CONTOUR THE COMPONENTS THAT CLEAR THE FAMILY-WISE NULL, not a threshold on the
                 # projected z -- the pixel map mixes components, so a contour on it would outline
                 # the basis rather than the result. Drawn where a MAJORITY of animals agree, so a
@@ -901,6 +1048,15 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                 ol = (outlines or {}).get((arm, con, pos))
                 if ol:
                     frac = np.mean(np.asarray(ol, float), axis=0)
+                    # BELT AND BRACES: re-intersect at DRAW time. The per-animal outlines are
+                    # already masked, but this is the last point before ink, and a leak here is
+                    # the one failure a reader cannot audit from the figure.
+                    if _SM is not None and frac.shape == _SM.shape:
+                        leaked = int(((frac > 0.5) & ~_SM).sum())
+                        if leaked:
+                            print(f"   !! {arm} {con} pos {pos}: {leaked} outline px OUTSIDE "
+                                  f"stat_mask -- clipped at draw time", flush=True)
+                        frac = np.where(_SM, frac, 0.0)
                     if np.any(frac > 0.5):
                         ax.contour(frac, levels=[0.5], colors="k", linewidths=0.9)
                 if i == 0:
