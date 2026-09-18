@@ -72,6 +72,11 @@ def plot(label, outdir):
     T = np.load(res / "T.npy").astype(np.float64)
     u_mean, npix = _brain_mean_op(s["mc"])
     raw = u_mean @ a0
+    # THE ISOSBESTIC, PROJECTED THE SAME WAY. It was loaded for the correction and never drawn,
+    # so panel A showed the functional channel alone -- and the whole premise of the correction is
+    # that the two channels share the slow component, which a reader cannot check without seeing
+    # both. Same operator as the 470 so the comparison is like-for-like.
+    raw_415 = u_mean @ b0
     _rf, last_min, _tm = _behaviour_marks(s, n)
     print(f"=== {label} ===  {t[-1]:.1f} min, mask keeps {100*mask.mean():.1f}%"
           + (f", last engaged {last_min:.1f} min" if last_min else ""), flush=True)
@@ -97,14 +102,21 @@ def plot(label, outdir):
             ax.axvline(last_min, color="crimson", lw=1.2, ls="--", zorder=5)
 
     ax = axes[0]
-    ax.plot(t, raw, lw=0.25, color="0.6", alpha=0.8, label="raw 470")
+    ax.plot(t, raw, lw=0.25, color="0.6", alpha=0.8, label="raw 470 (functional)")
+    # BOTH CHANNELS ON ONE AXIS, not a twin. They are in the same units through the same operator,
+    # and the point of drawing them together is that the SLOW COMPONENT IS SHARED -- which is the
+    # premise the hemodynamic regression rests on. A twin axis would rescale one of them and make
+    # a shared drift look like two unrelated curves.
+    ax.plot(t, raw_415, lw=0.25, color="tab:purple", alpha=0.7, label="raw 415 (isosbestic)")
     for name, _v, _w, col in ARMS:
         ax.plot(t, trends[name], lw=2.0, color=col, label=name)
     ax.set_ylabel("spatial-mean SVD units")
-    ax.set_title(f"{label}  A. RAW 470 and the trend each estimator SUBTRACTS  "
+    ax.set_title(f"{label}  A. RAW 470 + 415 and the trend each estimator SUBTRACTS  "
                  f"(fit mask keeps {100*mask.mean():.1f}% of frames, {npix} px)", fontsize=10)
     ax.legend(fontsize=7, ncol=3, loc="upper right")
     marks(ax)
+    print(f"  raw SD: 470 {np.std(raw):.5f}   415 {np.std(raw_415):.5f}   "
+          f"corr(470,415) {np.corrcoef(raw, raw_415)[0, 1]:+.3f}", flush=True)
 
     ax = axes[1]
     for name, _v, _w, col in ARMS:
