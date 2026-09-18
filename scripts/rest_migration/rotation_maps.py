@@ -1192,6 +1192,16 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
         _SM = np.asarray(_bm.stat_mask(), bool)
     except Exception:                                                  # noqa: BLE001
         _SM = None
+    # THE ALLEN BOUNDARIES, loaded once for the whole figure. `atlas_edges` takes no arguments and
+    # returns the parcellation on the SHARED grid these maps live on. A missing atlas costs the
+    # outlines, never the figure -- the same contract `beta_maps` states for it.
+    from wfield_local.atlas_overlay import overlay_regions as _overlay_regions
+    try:
+        _EDGES = _bm.atlas_edges()
+    except Exception:                                                  # noqa: BLE001
+        _EDGES = None
+    if _EDGES is None:
+        print("   !! atlas edges unavailable -- panels drawn WITHOUT Allen boundaries", flush=True)
     if _SM is None:
         print("   !! stat_mask unavailable -- panels drawn WITHOUT the analysed-region edge",
               flush=True)
@@ -1252,6 +1262,14 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                 cm.set_bad("0.90")
                 im = ax.imshow(np.nanmean(np.asarray(v), axis=0), cmap=cm,
                                vmin=-vmax, vmax=vmax)
+                # THE ALLEN PARCELLATION, as every other map family in this deck draws it. This
+                # arm never had it (no commit on any branch ever referenced `atlas_edges` here),
+                # which is why a significant blob could only be located by eye against a
+                # neighbouring figure. Priya, 2026-09-18. Drawn UNDER the significance contours
+                # and the mask edge so it can never be mistaken for either: these are ANATOMY,
+                # not statistics, and the two must stay visually separable.
+                if _EDGES is not None:
+                    _overlay_regions(ax, _EDGES)
                 # AND DRAW THE ANALYSED REGION'S EDGE, so "is that contour inside the mask" is a
                 # question the figure answers instead of one a reader has to trust.
                 if _SM is not None:
