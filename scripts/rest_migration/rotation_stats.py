@@ -1,9 +1,23 @@
 """15h post-hoc statistics: the COHORT cosine and the FAMILY-WISE threshold.
 
 Reads `epoch_15h_rotation_draws<tag>.npz` and writes `epoch_15h_rotation_cohort<tag>.csv`.
-REFUSES if the draws are absent rather than recomputing them -- the same discipline as
-`rotation_maps --replot` and `reference_family_figure`, and for the same reason: silently
-repaying a two-hour refit to answer a question about a statistic is how an afternoon goes.
+NEVER RECOMPUTES the draws -- the same discipline as `rotation_maps --replot` and
+`reference_family_figure`, and for the same reason: silently repaying a two-hour refit to answer
+a question about a statistic is how an afternoon goes.
+
+IF THE DRAWS ARE ABSENT IT DEGRADES RATHER THAN REFUSING, and the two statistics degrade
+differently -- which is the whole reason this distinction is worth stating. A run that predates
+`save_draws` still wrote `epoch_15h_rotation_regions.csv`, and that table holds each animal's
+cosine AND its session-bootstrap CI. So:
+
+  * the COHORT CI is recoverable from it, approximately -- the outer (animal) level is a real
+    resample and only the inner one is approximated. Marked `inner="gaussian"` in the output.
+  * the MAX-STATISTIC is NOT recoverable and is not attempted. It needs every cell's value
+    within ONE draw because its entire claim is that it captures how the cells co-vary; a
+    marginal p per cell carries no joint information, and a max-statistic built from marginals
+    is an independence assumption wearing a permutation test's clothes.
+
+So an old run gets a cohort interval tonight and waits for its correction.
 
 WHAT WAS MISSING, AND WHY IT IS NOT MERELY A GAP. `epoch_15h_rotation_regions.csv` carries three
 statistics per cell -- `cos_p_vs_noise`, `gain_resid_p`, and a bootstrap CI -- and all three are
@@ -83,8 +97,53 @@ def cell_z(cos_obs, cos_null):
     return (mu - float(cos_obs)) / sd, mu, sd
 
 
+def cells_from_regions_csv(path, alpha=0.05):
+    """Reconstruct per-animal cells from `epoch_15h_rotation_regions.csv` when no draws exist.
+
+    THE RUN SAVES ITS RESULTS BUT NOT ITS DRAWS, and the two statistics differ in whether that
+    is enough. This is the half that IS recoverable. Each row carries the animal's observed
+    cosine AND `cos_ci_lo`/`cos_ci_hi`, the percentiles of its own SESSION bootstrap -- a point
+    estimate and a spread per animal, which is everything the outer (animal) level of the nested
+    bootstrap needs.
+
+    WHAT IT COSTS, stated so the approximate number is never mistaken for the exact one. Two
+    percentiles do not pin the SHAPE between them, so the inner level is resampled as Gaussian
+    with `sd = (hi - lo) / (2 * 1.96)` instead of from the real session draws. With four animals
+    the OUTER level dominates the interval's width, so the approximation is cheap -- but it IS an
+    approximation, every consumer marks it `inner="gaussian"`, and it becomes CHECKABLE the
+    moment a run with `save_draws` lands. Verify it then rather than trusting this paragraph.
+
+    THE MAX-STATISTIC CANNOT BE RECOVERED THE SAME WAY and deliberately is not attempted here.
+    It needs a value for every cell within a single draw, because the whole claim is that it
+    captures how the cells CO-VARY; `cos_p_vs_noise` is a marginal rank and carries no joint
+    information. A max-statistic built from marginals is an independence assumption wearing a
+    permutation test's clothes, which is the thing it exists to replace.
+    """
+    z = 1.959963984540054  # two-sided 95% normal quantile; the CI these bounds came from
+    by_cell = defaultdict(dict)
+    with open(path, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            key = (r["arm"], r["contrast"], int(r["position"]))
+            an = r["animal"]
+            if an in by_cell[key]:
+                continue  # one row per REGION; the cosine is per cell, identical across them
+            try:
+                obs = float(r["cosine_pre_vs_epoch"])
+            except (TypeError, ValueError):
+                continue
+            lo, hi = r.get("cos_ci_lo") or "", r.get("cos_ci_hi") or ""
+            sd = ((float(hi) - float(lo)) / (2 * z)) if (lo and hi) else None
+            by_cell[key][an] = {"animal": an, "cos_obs": obs, "cos_sd": sd,
+                                "cos_boot": np.zeros(0), "cos_null": np.zeros(0), "_z": None}
+    return {k: list(v.values()) for k, v in by_cell.items()}
+
+
 def cohort_cosine(cells, n_boot=2000, seed=7, alpha=0.05):
-    """``(mean, lo, hi, n_animals, n_below_ceiling)`` for one (arm, contrast, position) cell.
+    """``(mean, lo, hi, n_animals, n_rotated, inner)`` for one (arm, contrast, position) cell.
+
+    `inner` names how the within-animal level was resampled -- "draws" (exact), "gaussian"
+    (approximated from a saved CI) or "point" -- and travels into the output table, because an
+    approximate interval must never be readable as an exact one.
 
     THE NESTED BOOTSTRAP, with the inner level already paid for. `cells` is one entry per animal,
     each carrying `cos_boot` -- that animal's own SESSION resamples, computed during the run. A
@@ -100,19 +159,41 @@ def cohort_cosine(cells, n_boot=2000, seed=7, alpha=0.05):
     if not cells:
         return None
     rng = np.random.default_rng(seed)
-    pools = [np.asarray(c["cos_boot"], float) if np.size(c["cos_boot"]) >= MIN_DRAWS
-             else np.asarray([c["cos_obs"]], float) for c in cells]
+    # THE INNER LEVEL, in preference order: the animal's real session draws; else a Gaussian from
+    # its saved CI (see `cells_from_regions_csv`); else its point estimate, which contributes no
+    # within-animal variance rather than dropping the animal and changing the cohort composition.
+    pools, inner = [], "draws"
+    for c in cells:
+        boot = np.asarray(c.get("cos_boot", ()), float)
+        if boot.size >= MIN_DRAWS:
+            pools.append(("draws", boot))
+        elif c.get("cos_sd"):
+            pools.append(("gaussian", (float(c["cos_obs"]), float(c["cos_sd"]))))
+            inner = "gaussian"
+        else:
+            pools.append(("point", float(c["cos_obs"])))
+            inner = "gaussian" if inner == "gaussian" else "point"
     n_an = len(pools)
     idx = rng.integers(0, n_an, (n_boot, n_an))
     means = np.empty(n_boot)
     for b in range(n_boot):
-        means[b] = np.mean([pools[j][rng.integers(0, pools[j].size)] for j in idx[b]])
+        vals = []
+        for j in idx[b]:
+            kind, p = pools[j]
+            if kind == "draws":
+                vals.append(p[rng.integers(0, p.size)])
+            elif kind == "gaussian":
+                vals.append(rng.normal(p[0], p[1]))
+            else:
+                vals.append(p)
+        means[b] = np.mean(vals)
     obs = float(np.mean([c["cos_obs"] for c in cells]))
     return (obs,
             float(np.percentile(means, 100 * alpha / 2)),
             float(np.percentile(means, 100 * (1 - alpha / 2))),
             n_an,
-            int(sum(1 for c in cells if c.get("_z") is not None and c["_z"] > 0)))
+            int(sum(1 for c in cells if c.get("_z") is not None and c["_z"] > 0)),
+            inner)
 
 
 def maxstat_threshold(by_cell, alpha=0.05):
@@ -176,21 +257,33 @@ def main(argv=None) -> int:
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
 
     draws = load_draws(out_dir, a.tag)
-    if not draws:
-        print(f"!! no draws at {out_dir}/epoch_15h_rotation_draws{a.tag}.npz -- run "
-              f"`rotation_maps` once with this tag first. REFUSING to recompute them here.")
-        return 1
-    print(f"15h COHORT STATISTICS -- {len(draws)} animal-cells from "
-          f"epoch_15h_rotation_draws{a.tag}.npz")
+    if draws:
+        print(f"15h COHORT STATISTICS -- {len(draws)} animal-cells from "
+              f"epoch_15h_rotation_draws{a.tag}.npz (EXACT: real draws)")
+        for d in draws:
+            d["_z"], d["_mu"], d["_sd"] = cell_z(d["cos_obs"], d["cos_null"])
+        by_cell = defaultdict(list)
+        for d in draws:
+            by_cell[(d["arm"], d["contrast"], int(d["position"]))].append(d)
+    else:
+        # FALL BACK TO THE REDUCED TABLE, and say so loudly. The cohort CI is recoverable from
+        # the saved per-animal cosines and their CIs; the MAX-STATISTIC is not, because it needs
+        # every cell within one draw and the table holds only marginals.
+        regions = out_dir / f"epoch_15h_rotation_regions{a.tag}.csv"
+        if not regions.exists():
+            print(f"!! neither epoch_15h_rotation_draws{a.tag}.npz nor {regions.name} exists -- "
+                  f"run `rotation_maps` first. REFUSING to recompute either here.")
+            return 1
+        by_cell = cells_from_regions_csv(regions, alpha=a.alpha)
+        print(f"15h COHORT STATISTICS -- {sum(len(v) for v in by_cell.values())} animal-cells "
+              f"from {regions.name}")
+        print("   !! NO DRAWS FILE. The cohort CI is APPROXIMATE (inner level Gaussian from each")
+        print("      animal`s saved CI) and the FAMILY-WISE THRESHOLD IS NOT COMPUTED AT ALL --")
+        print("      a max-statistic needs every cell within one draw and this table has only")
+        print("      marginals. Re-run `rotation_maps` (it now saves draws) for both, exactly.")
 
-    for d in draws:
-        d["_z"], d["_mu"], d["_sd"] = cell_z(d["cos_obs"], d["cos_null"])
-
-    by_cell = defaultdict(list)
-    for d in draws:
-        by_cell[(d["arm"], d["contrast"], int(d["position"]))].append(d)
-
-    thresh, n_draws, n_cells = maxstat_threshold(by_cell, alpha=a.alpha)
+    thresh, n_draws, n_cells = (maxstat_threshold(by_cell, alpha=a.alpha) if draws
+                                else (None, 0, len(by_cell)))
     print(f"   FAMILY: {n_cells} cells (window x contrast x position), {n_draws} draws")
     print(f"   max-statistic FWE threshold at alpha={a.alpha}: z = "
           + (f"{thresh:.3f}" if thresh is not None else "NOT COMPUTABLE"))
@@ -203,7 +296,7 @@ def main(argv=None) -> int:
         coh = cohort_cosine(cells, n_boot=a.boot, seed=7, alpha=a.alpha)
         if coh is None:
             continue
-        mean, lo, hi, n_an, n_rot = coh
+        mean, lo, hi, n_an, n_rot, inner = coh
         zs = [c["_z"] for c in cells if c["_z"] is not None]
         zc = float(np.mean(zs)) if zs else None
         sig = bool(zc is not None and thresh is not None and zc > thresh)
@@ -215,6 +308,8 @@ def main(argv=None) -> int:
             "ci_excludes_zero": bool(lo > 0 or hi < 0),
             "n_animals": n_an,
             "n_animals_rotated": n_rot,
+            "inner_resample": inner,
+            "ci_is_exact": inner == "draws",
             "cohort_z_vs_noise": (round(zc, 3) if zc is not None else None),
             "maxstat_threshold": (round(thresh, 3) if thresh is not None else None),
             "fwe_significant": sig,

@@ -455,9 +455,24 @@ def _confusion(conf, order, out, variant, stem, codes):
     counts = {e: conf[e] for e in order if e in conf and np.asarray(conf[e]).sum()}
     if not counts:
         return None
+    from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
 
-    labels = [POSITION_NAMES.get(int(c), str(c)) for c in codes]
+    # PERMUTE INTO THE CANONICAL ORDER, do not merely relabel. The matrices are built on
+    # `CODES = [0..5]`, and `POSITION_NAMES` puts close_CENTER at 0 -- so an axis in code order is
+    # TRANSPOSED against `CONF_LABELS`, which is what every neighbouring figure in this deck uses.
+    # Relabelling without permuting would put correct-looking names on the wrong rows, and a
+    # confusion matrix read one row out is worse than no confusion matrix: the off-diagonal IS the
+    # claim here ("far-contra read as near"), so a transposed axis invents a substitution.
+    rank = {q: i for i, q in enumerate(CONF_LABELS)}
+    idx = sorted(range(len(codes)),
+                 key=lambda i: rank.get(POSITION_NAMES.get(int(codes[i]), ""), 99))
+    counts = {e: np.asarray(m)[np.ix_(idx, idx)] for e, m in counts.items()}
+    # SHORT ANATOMICAL LABELS, as the task-side frozen figures use. `anatomical_labels` derives
+    # ipsi/contra from `stroke_laterality` rather than hardcoding it, so this cannot silently go
+    # backwards for a right-lesioned animal -- it raises instead.
+    labels = ef.anatomical_labels(
+        [POSITION_NAMES.get(int(codes[i]), str(codes[i])) for i in idx], short=True)
     return ef.confusion_row(
         counts, out, name=f"{stem}_confusion",
         title=f"Frozen PRE-stroke REST decoder, pooled across animals -- variant {variant}",
@@ -479,8 +494,13 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
 
     colors = _cfg.animal_color()
     animals = sorted({r["animal"] for r in per_session})
-    fig, ax = plt.subplots(1, 3, figsize=(15.5, 4.6))
+    # TALLER THAN IT WAS, because the legends now sit BELOW the axes rather than inside them.
+    # In-axes legends on these three panels collided with the data they described -- panel 3 draws
+    # two horizontal reference lines across the full width, so there is no empty corner for a
+    # legend to occupy and matplotlib's "best" placement lands it on top of a line every time.
+    fig, ax = plt.subplots(1, 3, figsize=(15.5, 5.6))
     x = np.arange(len(order))
+    LEG = {"fontsize": 10, "frameon": False, "loc": "upper center", "borderaxespad": 0.0}
 
     # 1. balanced accuracy against the circular-shift null
     ax[0].plot(x, [r["acc"] for r in rows], "o-", color="k", lw=2, label="frozen decoder")
@@ -490,9 +510,9 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
         v = [s["acc"] for s in per_session if s["epoch"] == r["epoch"]]
         ax[0].scatter([i] * len(v), v, s=14, color="0.7", zorder=1)
     ax[0].axhline(CHANCE, color="r", ls=":", lw=1, label="chance (1/6)")
-    ax[0].set_ylabel("balanced accuracy")
-    ax[0].set_title("Frozen pre-stroke rest decoder")
-    ax[0].legend(fontsize=8, frameon=False)
+    ax[0].set_ylabel("balanced accuracy", fontsize=11)
+    ax[0].set_title("Frozen pre-stroke rest decoder", fontsize=12, fontweight="bold")
+    ax[0].legend(bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
     # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim
     for an in animals:
@@ -507,31 +527,34 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
             ys.append(np.mean(v) / np.mean(pf) if v else np.nan)
         ax[1].plot(x, ys, "o-", color=colors.get(an, "0.4"), lw=1.8, label=an)
     ax[1].axhline(1.0, color="0.6", ls=":", lw=1)
-    ax[1].set_ylabel("above-chance fraction retained (vs own pre)")
-    ax[1].set_title("Per animal -- read this before any trajectory")
-    ax[1].legend(fontsize=8, frameon=False)
+    ax[1].set_ylabel("above-chance fraction retained (vs own pre)", fontsize=11)
+    ax[1].set_title("Per animal -- read this before any trajectory",
+                    fontsize=12, fontweight="bold")
+    ax[1].legend(bbox_to_anchor=(0.5, -0.13), ncol=len(animals) or 1, **LEG)
 
     # 3. the cohort retained fraction beside the TASK arm, the comparison the number is for
     ax[2].plot(x, [r["retained"] for r in rows], "o-", color="k", lw=2, label="REST (this arm)")
     ax[2].axhline(1.0, color="0.6", ls=":", lw=1)
-    ax[2].set_ylabel("above-chance fraction retained")
-    ax[2].set_title("Rest vs the task and state arms")
+    ax[2].set_ylabel("above-chance fraction retained", fontsize=11)
+    ax[2].set_title("Rest vs the task and state arms", fontsize=12, fontweight="bold")
     # REFERENCE VALUES, NOT RE-MEASURED HERE -- they are BEHAVIOURAL_STATE_CONTROL.md's, quoted so
     # the rest number is read against something. Marked as quoted on the figure itself so nobody
     # takes them for output of this script.
     for nm, val, col in (("task position (quoted)", 0.496, "#b2182b"),
                          ("state (quoted)", 0.902, "#2166ac")):
         ax[2].axhline(val, color=col, ls="--", lw=1.2, label=nm)
-    ax[2].legend(fontsize=8, frameon=False)
+    ax[2].legend(bbox_to_anchor=(0.5, -0.13), ncol=1, **LEG)
 
     for a_ in ax:
         a_.set_xticks(x)
-        a_.set_xticklabels(order)
+        a_.set_xticklabels(order, fontsize=10)
+        a_.tick_params(axis="y", labelsize=10)
         a_.spines[["top", "right"]].set_visible(False)
     ns = ", ".join(f"{r['epoch']} {r['n_sessions']}" for r in rows)
     fig.suptitle(f"Position decoded from REST by a FROZEN pre-stroke model "
                  f"(variant {variant}) -- sessions: {ns}; {n_skipped} skipped", fontsize=11)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.93))
+    # ROOM AT THE BOTTOM FOR THE LEGENDS, which are now outside the axes.
+    fig.tight_layout(rect=(0, 0.10, 1, 0.93))
     p = out / f"{stem}.png"
     fig.savefig(p, dpi=150)
     plt.close(fig)

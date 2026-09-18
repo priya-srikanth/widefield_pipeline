@@ -1276,9 +1276,12 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                     if np.any(frac > 0.5):
                         ax.contour(frac, levels=[0.5], colors="k", linewidths=0.9)
                 if i == 0:
-                    ax.set_title(con, fontsize=12, fontweight="bold")
+                    # MAIN LABELS AT THE MAP FAMILIES' SIZE. Epoch across the top, spout
+                    # position down the side; these two are read before anything else in the
+                    # panel, and they sat smaller than the annotations around them.
+                    ax.set_title(con, fontsize=12.5, fontweight="bold")
                 if j == 0:
-                    ax.set_ylabel(_name(pos), fontsize=11, fontweight="bold")
+                    ax.set_ylabel(_name(pos), fontsize=12.5, fontweight="bold")
         if im is not None:
             # SHORTER THAN THE COLUMN: a full-height bar on a six-row figure is a metre of
             # gradient for a scale that needs an inch. Centred on the middle rows.

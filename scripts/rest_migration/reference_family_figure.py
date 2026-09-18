@@ -356,14 +356,14 @@ def _figure(rows, out_dir, align="cue", tag=""):
                 ax.text(j2, len(regions) / 2, "no trials in any animal", rotation=90,
                         ha="center", va="center", fontsize=6.5, color="0.35")
             ax.set_xticks(range(len(positions)))
-            ax.set_xticklabels(xt, fontsize=7)
+            ax.set_xticklabels(xt, fontsize=9.5)
             ax.set_yticks(range(len(regions)))
             ax.set_yticklabels(regions if j == 0 else [], fontsize=5.4)
             ax.tick_params(length=1.5, pad=1)
             if i == 0:
-                ax.set_title(fam, fontsize=11, fontweight="bold")
+                ax.set_title(fam, fontsize=12.5, fontweight="bold")
             if j == 0:
-                ax.set_ylabel(ep, fontsize=11, fontweight="bold")
+                ax.set_ylabel(ep, fontsize=12.5, fontweight="bold")
             if i == nrow - 1:
                 cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.032, pad=0.10)
                 cb.ax.tick_params(labelsize=6.5)
@@ -376,7 +376,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
         if ym.size:
             ax.plot(xm, ym, "x", ms=4, color="k", mew=1.0, ls="none")
         ax.set_xticks(range(len(positions)))
-        ax.set_xticklabels(xt, fontsize=7)
+        ax.set_xticklabels(xt, fontsize=9.5)
         ax.set_yticks(range(len(regions)))
         ax.set_yticklabels([], fontsize=5.4)
         ax.tick_params(length=1.5, pad=1)

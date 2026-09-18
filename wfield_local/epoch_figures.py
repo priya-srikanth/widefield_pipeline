@@ -2065,12 +2065,23 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                 if cm is not None and np.any(cm):
                     ax.contour(np.asarray(cm, float), levels=[0.5], colors="#12a150",
                                linewidths=1.1)
-            ttl = (panel_titles or {}).get((r, c), c if ri == 0 else "")
+            # THE MAIN LABELS ARE THE COLUMN (epoch) AND THE ROW (spout position), and they are now
+            # sized as LABELS rather than as annotations. They shared a size with the per-panel
+            # STATS titles, which left the epoch header at 7.0 pt and the position at 9.0 pt -- the
+            # two labels a reader needs before anything else in the panel means anything. The stats
+            # titles deliberately stay small: they are long, often multi-line, reference text.
+            pt = (panel_titles or {}).get((r, c))
+            ttl = pt if pt is not None else (c if ri == 0 else "")
             if ttl:
-                ax.set_title(ttl, fontsize=FS_ANNOT - 1.5, linespacing=1.15)
+                header = pt is None
+                ax.set_title(ttl,
+                             fontsize=(FS_LABEL + 2.5) if header else (FS_ANNOT - 1.5),
+                             fontweight="bold" if header else "normal", linespacing=1.15)
             if ci == 0:
-                ax.text(-0.10, 0.5, r, transform=ax.transAxes, rotation=90, va="center",
-                        ha="center", fontsize=FS_LABEL - 1, fontweight="bold")
+                # -0.13 rather than -0.10: the label is ROTATED, so a larger font grows sideways
+                # into the panel and clips at the old offset.
+                ax.text(-0.13, 0.5, r, transform=ax.transAxes, rotation=90, va="center",
+                        ha="center", fontsize=FS_LABEL + 2.5, fontweight="bold")
         # A COLOUR BAR PER ROW, because the scale IS per row -- one global bar would be a lie about
         # what the colours mean. Two bars: the data scale and, if the row has one, the delta scale.
         y0 = 1.0 - (top_in + (ri + 1) * panel + ri * gap) / fig_h
