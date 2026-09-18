@@ -179,7 +179,7 @@ def epoch_row(bn, e_ref, idx, pre, n_perm, rng):
         draws.append(_stat(bn, ga, gb, e_ref)[0])
     draws = np.asarray(draws)
     p = float(np.mean(draws >= ratio)) if draws.size else np.nan
-    return {"n_sessions": int(len(idx)), "n_pre": int(len(pre)),
+    return {"n_sessions": len(idx), "n_pre": len(pre),
             "shift_frac_of_evoked": round(ratio, 4),
             "null_median": round(float(np.median(draws)), 4) if draws.size else None,
             "null_p95": round(float(np.percentile(draws, 95)), 4) if draws.size else None,
@@ -248,7 +248,27 @@ def main() -> int:
     ap.add_argument("--perm", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=20260917)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--replot", action="store_true",
+                    help="REDRAW from the existing CSV without recomputing. The permutation pass "
+                         "is the whole cost here and it buys nothing when only the drawing "
+                         "changes. Refuses if the CSV is absent rather than silently recomputing.")
     a = ap.parse_args()
+
+    if a.replot:
+        from pathlib import Path
+
+        from wfield_local.paths import PathResolver
+        p = Path(a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+                           / "epoch_15j_rest_baseline_epoch_drift.csv"))
+        if not p.exists():
+            print(f"!! no table at {p} -- run once WITHOUT --replot first.")
+            return 1
+        with open(p, newline="", encoding="utf-8") as fh:
+            rows = [{k: (None if v == "" else v) for k, v in r.items()}
+                    for r in csv.DictReader(fh)]
+        print(f"REPLOT from {p.name}: {len(rows)} animal-epoch cells")
+        print(f"wrote {_figure(rows, p.parent)}")
+        return 0
 
     animals = a.animals or sorted({x["label"].split("_")[0] for x in config.load_sessions()})
     rng = np.random.default_rng(a.seed)
@@ -301,7 +321,80 @@ def main() -> int:
     print("  sign. No null resampled WITHIN pre reproduces it -- the term cancels there, while the")
     print("  observed epoch is DISJOINT from pre and keeps it in full -- so it is DESCRIPTIVE")
     print("  only. Read the SHIFT column for the claim; use the cosine's SIGN at most.")
+
+    fig = _figure(rows, out.parent)
+    if fig is not None:
+        print(f"\nwrote {fig}", flush=True)
     return 0
+
+
+def _figure(rows, out_dir):
+    """The drift as a figure, so it can go ON A SLIDE instead of staying in a CSV.
+
+    IT EXISTED ONLY AS A TABLE UNTIL 2026-09-17 EVENING, which is how a result stays unread: the
+    deck places FIGURES, and a family with no PNG is invisible to the deck's completeness check as
+    well -- that check reports figures it EXPECTS and is silent about ones it was never told about.
+
+    EACH SHIFT IS DRAWN AGAINST ITS OWN NULL, never against zero. The null is the ordinary
+    session-to-session spread of this animal's pre-stroke baselines, so a bar shorter than its
+    marker means the epoch moved no more than pre-stroke days move among themselves.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import config
+
+    colors = config.animal_color()
+    animals = sorted({r["animal"] for r in rows})
+    fig, axes = plt.subplots(1, len(EPOCHS), figsize=(3.4 * len(EPOCHS) + 0.6, 4.1),
+                             squeeze=False, sharey=True)
+    fig.subplots_adjust(top=0.70, bottom=0.14)
+    for j, ep in enumerate(EPOCHS):
+        ax = axes[0][j]
+        xs, seen = [], []
+        for i, an in enumerate(animals):
+            v = [r for r in rows if r["animal"] == an and r["epoch"] == ep]
+            if not v:
+                continue
+            r = v[0]
+            sh = float(r["shift_frac_of_evoked"])
+            p = r["p"]
+            sig = p is not None and float(p) < 0.05
+            ax.bar(i, sh, width=0.62, color=colors.get(an, "0.5"),
+                   edgecolor="k" if sig else "none", linewidth=1.6 if sig else 0,
+                   alpha=1.0 if sig else 0.55)
+            # THE NULL, AS A MARKER ON THE BAR. Drawn per animal because it is per animal: it is
+            # that animal's own pre-stroke session-to-session spread, not a shared threshold.
+            if r["null_p95"] is not None:
+                ax.plot([i - 0.38, i + 0.38], [float(r["null_p95"])] * 2, "-", color="k", lw=1.4)
+            if r["null_median"] is not None:
+                ax.plot([i - 0.30, i + 0.30], [float(r["null_median"])] * 2, ":", color="0.35",
+                        lw=1.2)
+            xs.append(i)
+            seen.append(an)
+        ax.set_xticks(xs)
+        ax.set_xticklabels(seen, fontsize=9)
+        ax.set_title(ep, fontsize=12, fontweight="bold")
+        ax.spines[["top", "right"]].set_visible(False)
+        if j == 0:
+            ax.set_ylabel("baseline shift, fraction of the evoked signal", fontsize=9)
+    fig.text(0.5, 0.985, "epoch_15j -- does the REST BASELINE itself move across epochs?",
+             ha="center", va="top", fontsize=14, fontweight="bold")
+    fig.text(0.5, 0.925,
+             "Bar: || mean_epoch(b/k) - mean_pre(b/k) ||, each session's restw baseline divided by "
+             "its OWN evoked norm k, which is what cancels cross-day multiplicative scaling.\n"
+             "SOLID line = that animal's null 95th percentile, dotted = its null median -- the "
+             "spread of its own pre-stroke baselines. A bar below the solid line moved no more "
+             "than pre-stroke days move among themselves.\n"
+             "Outlined + opaque = p < 0.05 against that null. IT IS AN UPPER BOUND on the "
+             "amplitude bias, attained only if the shift aligns with the evoked pattern; an "
+             "orthogonal shift costs ~r^2/2, so 0.15 means between ~1% and ~15%.",
+             ha="center", va="top", fontsize=8.5)
+    out = out_dir / "epoch_15j_rest_baseline_epoch_drift.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out
 
 
 if __name__ == "__main__":

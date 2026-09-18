@@ -3568,6 +3568,78 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # magnitudes; the companion carries the effect SIZE and what the multiple-comparison correction
     # costs. A mark says only "not zero", which is the half of the result that travels worst.
     _epoch = _grant / "epoch"
+    #: Shared legends for the rotation arm. ONE COPY, formatted per arm -- the four `15h` slides
+    #: and the three `15k` slides differ by a sentence each, and four hand-copied legends is how
+    #: two of them end up describing different methods.
+    _ROT_LEGEND = (
+        "Haufe patterns for the {arm} window: `A = Cov(X) . beta`, the activity pattern the"
+        " decoder`s weights actually read, which is interpretable as anatomy where the raw weights"
+        " are not. Rows are spout position, columns the epoch contrast, and each cell is scored"
+        " against that component`s OWN split-half null."
+        "\n\nEXCESS-OVER-NOISE, NOT RAW CHANGE. The raw |change| map correlates with its own"
+        " pre-stroke null at r = +0.83, so it localises the BASIS rather than the lesion."
+        "\n\nPATTERNS ARE UNIT-NORMALISED PER POSITION before comparison, so these maps are SHAPE"
+        " ONLY -- gain is divided out by construction and lives in the gain-vs-rotation slide."
+        "\n\nTHE TEST FAMILY IS MASKED. A component enters only if >= 0.85 of its footprint mass"
+        " lies inside `brain_mask` (olfactory bulbs and the painted fibre-glue already removed) AND"
+        " >= 0.50 inside the eroded `stat_mask`. Two criteria because there are two failure modes:"
+        " the first asks whether it is cortex, the second whether enough of it sits away from the"
+        " window rim to be testable. Gating on the eroded mask ALONE -- as every artefact before"
+        " 2026-09-17 evening did -- penalises a region for being LATERAL and cost ipsilesional"
+        " mouth cortex entirely."
+        "\n\nPER POSITION, NEVER AVERAGED OVER THEM. {note}"
+        "\n\nPer-cell cosines, gains, intervals and noise ceilings are in"
+        " `epoch_15h_rotation_regions.csv`; the figures redraw from a component-space cache in"
+        " seconds via `--replot`."
+    )
+    _REF_LEGEND = (
+        "Rows are epoch, columns are the reference. Each cell is the COHORT delta (epoch minus"
+        " pre-stroke) for one Allen region x spout position, from the nested animals -> sessions"
+        " bootstrap. DOT = that interval excludes zero, per cell and UNCORRECTED across regions."
+        " RING = every reference agrees. Last column is that agreement SIGNED: blue = decrease,"
+        " red = increase, darker = more references; an x marks the rare cell whose significant"
+        " references disagree in DIRECTION, which is never averaged into a direction it lacks."
+        "\n\nTHE ARGUMENT IS THE DISAGREEMENT. Each reference is wrong in its own way and the"
+        " ways do not overlap. `raw` has no subtrahend, so nothing in it can drift between epochs"
+        " -- it carries cross-day multiplicative scaling instead, which no subtraction removes"
+        " either. `precue` subtracts a PER-TRIAL baseline so it cannot drift, but it violates F12:"
+        " the pre-cue window carries real anticipatory position signal, so it measures the"
+        " cue-evoked INCREMENT rather than the position map. `restw` keeps positions independent"
+        " but its baseline MOVES across epochs, by the amount `epoch_15j` measures. An effect in"
+        " ALL of them is not a property of any one subtrahend; an effect in ONE names the"
+        " subtrahend to suspect."
+        "\n\nCOLOUR SCALES DIFFER BETWEEN COLUMNS ON PURPOSE, because the three are not in the"
+        " same units. Epochs WITHIN a column are comparable; amplitudes ACROSS columns are not."
+        "\n\nTHE UNIT IS A LocaNMF COMPONENT GROUPED BY ITS ALLEN LABEL, never a pixel mean over"
+        " the area -- MOs is 15,613 px and a focal change in part of it is swamped by the rest."
+        " Components do not correspond across animals (95/87/90/95) but their Allen labels do, and"
+        " the vocabulary is the INTERSECTION, so no region`s cohort mean rests on a different"
+        " subset of animals than its neighbour`s."
+        "\n\nTHE CLAIM IS AN INTERVAL, NEVER A p. With four animals an animal-level permutation"
+        " has 2^4 = 16 assignments and a floor of 0.0625, so no cell could reach 0.05 at any"
+        " effect size. The guard is agreement across references, not a threshold."
+        "\n\nThis arm is {arm}."
+    )
+    _CCF_LEGEND = (
+        "The same result as the preceding matrix, painted on the brain: rows are epoch, columns"
+        " are spout position, and a region is coloured only where the cohort interval excludes"
+        " zero in EVERY reference. Colour is the `restw` value -- one reference supplies the"
+        " number because the references are not in the same units and averaging them would invent"
+        " a quantity none of them measures."
+        "\n\nTHE FLAT COLOUR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT. The unit"
+        " is a LocaNMF component mean spread over its Allen footprint, so the sharp edges are the"
+        " parcellation`s, not the data`s. Read it beside `epoch_15r`, whose blobs are pixel-level"
+        " and whose edges ARE data -- agreement between two different test units and two different"
+        " correction families is much stronger than either alone."
+        "\n\nDashed line is the analysed mask. Pale grey means the references agreed on nothing"
+        " there; a column labelled NO TRIALS IN ANY ANIMAL is a different fact entirely and is"
+        " labelled rather than left as anonymous grey."
+        "\n\n`_left` IS THE ANIMAL`S LEFT, verified rather than assumed: pre-stroke, a"
+        " right-side spout drives every `_left` area harder and every `_right` area less, across"
+        " six independent area pairs (11 of 11). Every lesion in this cohort is LEFT-sided, so"
+        " LEFT is the IPSILESIONAL hemisphere AND the one representing the impaired right side."
+        "\n\nThis arm is {arm}-aligned."
+    )
     _EPOCH = (
         ("epoch_1c_behaviour_timecourse.png",
          "Behavioural deficit and recovery, and where the epochs come from",
@@ -4850,6 +4922,132 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " preparation for the next -- a constraint on reading the pre-cue signal as anticipatory."
          "\n\nEXCLUDE SUBACUTE: it is PS92 alone (-0.639 against +0.212, +0.044, +0.027), and"
          " PS92 is the cohort`s SNR floor -- the six lowest rest fractions all belong to it."),
+        # ---------------------------------------------------------------- THE ROTATION ARM
+        # PLACED 2026-09-17. These twelve figures had been rendered for a week and referenced
+        # NOWHERE -- the same failure as `locanmf_rsa`'s hemisphere panels, which ran every night
+        # and were read by nobody until they were placed. The deck's completeness check cannot
+        # catch it: it reports figures it EXPECTS and is silent about ones it was never told about.
+        #
+        # EXPLICIT FILENAMES, NOT A GLOB, and that is deliberate. `epoch_15h_rotation_maps_*.png`
+        # would also match the `_mf075` and `_erodedgate` variants kept for comparison, and the
+        # deck would show three versions of every arm with nothing on the slide saying which gate
+        # produced which.
+        ("epoch_15g_transfer_by_window.png",
+         "Does the pre-stroke code still READ the post-stroke brain?",
+         "A decoder is trained on PRE-STROKE sessions, FROZEN, and applied to each epoch, in all"
+         " four windows: ENL (pre-cue), cue, lick, and rest. Accuracy minus the block-permutation"
+         " null, so 0 is chance for that window`s own trial structure rather than an analytic 1/6"
+         " -- positions run in ~6-trial blocks and are not independent."
+         "\n\nWHAT THE FOUR WINDOWS BUY. A single window cannot separate `the code changed` from"
+         " `the animal stopped doing the task`. ENL carries no movement, lick is movement-locked,"
+         " and rest has no task at all; a change common to all four is not about the reach."
+         "\n\nWHAT IT SHOWS. The fall is a PARTIAL ROTATION, not an erasure -- and every window"
+         " ends CHRONICALLY ABOVE its own pre-stroke level. ADDITION was tested and rejected:"
+         " re-fitting on post-stroke data does not simply add a new axis to the old one."
+         "\n\nFRAMING (2), AND THAT IS A LIMIT. Every cell scores a position RELATIVE to the"
+         " other five, so a change that hits all six equally is INVISIBLE here by construction."
+         " `epoch_15k` is the framing-(1) companion that can see it. Per-cell numbers are in"
+         " `epoch_15g_transfer_<window>_matrix.csv`."),
+        ("epoch_15h_rotation_maps_ENL.png",
+         "WHERE the ENL (pre-cue) position code turns",
+         _ROT_LEGEND.format(arm="ENL / pre-cue", note=(
+             "The pre-cue window carries real anticipatory position signal (LOSO 0.510), so this"
+             " is a position map in its own right and not a baseline.")) ),
+        ("epoch_15h_rotation_maps_cue.png",
+         "WHERE the cue-evoked position code turns",
+         _ROT_LEGEND.format(arm="cue", note=(
+             "READ THE FAR-CONTRALATERAL ROW SEPARATELY. Averaging over the six positions is what"
+             " hid this arm`s far-contra cosine of -0.042 among five values near +0.6, and"
+             " far-contra is the lesion-relevant position.")) ),
+        ("epoch_15h_rotation_maps_lick.png",
+         "WHERE the lick-aligned position code turns",
+         _ROT_LEGEND.format(arm="lick", note=(
+             "CONDITIONED ON TRIALS THE ANIMAL LICKED, so each cell is the map of the attempts"
+             " that HAPPENED -- a selection that changes across epochs. This arm is the most"
+             " preserved of the four, which is consistent with it being the arm whose trials are"
+             " selected for success.")) ),
+        ("epoch_15h_rotation_maps_rest.png",
+         "WHERE the RESTING position code turns",
+         _ROT_LEGEND.format(arm="rest", note=(
+             "The LEAST preserved of the four arms, and against the lowest noise ceiling -- rest"
+             " maps are the noisiest, so a low cosine here is partly a measurement limit. Read it"
+             " against its ceiling line, never against 1.0.")) ),
+        ("epoch_15h_gain_vs_rotation.png",
+         "ROTATION vs GAIN -- the two halves of `the code changed`",
+         "One point per animal x spout position. X = the epoch`s Haufe-pattern amplitude relative"
+         " to pre-stroke (1.0 = unchanged). Y = cosine between the epoch and pre-stroke patterns"
+         " (1.0 = no rotation). Fill = p < 0.05 against the split-half null."
+         "\n\nTHE TWO AXES ARE NEAR-ORTHOGONAL and all four quadrants are populated. If rotation"
+         " and weakening were one phenomenon the diagonal quadrants would be empty; they are not."
+         " Gain is >= 1 almost everywhere and RISES INTO CHRONIC, so the answer to `did the lesion"
+         " degrade the code or move it` is MOVED, AND AMPLIFIED -- most in rest, least in lick."
+         "\n\nGAIN IS NOT AN EVOKED RESPONSE AND IS NOT THE DEFICIT MEASURE. It is the DECODER"
+         " pattern`s norm: second-moment, one-vs-rest, carrying the epoch-wide Cov(X) scale, and"
+         " correlated with evoked amplitude at only r = +0.039. Roughly HALF of any gain number is"
+         " how loud the epoch was. A position can become more SEPARABLE while its response"
+         " collapses -- acute far-contra is dominated by unattempted trials. For the deficit read"
+         " the rest-referenced maps and the encoder."
+         "\n\nA CELL AT OR ABOVE ITS NOISE CEILING CARRIES NO ROTATION CLAIM IN EITHER"
+         " DIRECTION. A cosine above the ceiling means the epoch pattern matches pre BETTER than"
+         " two halves of pre match each other, which is only possible by chance -- such cells are"
+         " UNMEASURABLE, not preserved. About a quarter of cells sit there, evenly spread across"
+         " arms and epochs, which marks the resolution limit rather than a mis-estimated ceiling."
+         " The result rests on the cells well below it, which is why `cos_attenuation_corrected`"
+         " and `cos_p_vs_noise` are in `epoch_15h_rotation_regions.csv` and the raw cosine alone"
+         " is not the statistic."),
+        ("epoch_15j_rest_baseline_epoch_drift.png",
+         "Does the REST BASELINE itself move across epochs?",
+         "The subtrahend under every `_RESTWref_` map, measured as a quantity in its own right."
+         " Each session`s `restw` baseline is divided by its OWN evoked norm before averaging,"
+         " which is what cancels the cross-day MULTIPLICATIVE scaling no subtraction touches;"
+         " without it this would largely report how bright the window was."
+         "\n\nREAD AGAINST THE NULL, NEVER AGAINST ZERO. Baselines differ session to session for"
+         " reasons unrelated to any lesion, so the shift is nonzero for ANY two groups of"
+         " sessions. The null splits the PRE sessions into a group of the epoch`s size and the"
+         " remainder and computes the identical statistic -- so the bar is read against that"
+         " animal`s ordinary session-to-session spread. The null is conservative by construction"
+         " (its second group is smaller, so its differences run slightly large): it can hide a"
+         " real shift, it cannot manufacture one."
+         "\n\nWHAT IT SHOWS, AND WHY IT QUALIFIES RATHER THAN RETIRES `restw`. The baseline DOES"
+         " move in about half the animal-epoch cells. It is a whole-map vector norm and therefore"
+         " an UPPER BOUND on the amplitude bias -- attained only if the shift aligns with the"
+         " evoked pattern, while an orthogonal shift costs ~r^2/2. So a shift of 0.15 means"
+         " between ~1% and ~15%. ACUTE is the LEAST affected epoch despite carrying the largest"
+         " deficit, so this does not simply track the lesion."
+         "\n\nBETWEEN-POSITION contrasts are unaffected either way -- the same subtrahend is"
+         " removed from all six. It is ACROSS-EPOCH AMPLITUDE comparisons that carry this, which"
+         " is precisely why `epoch_15k` runs `restw` beside two references that cannot drift."
+         "\n\nTHE COSINE IN THE CSV CARRIES NO p AND MUST NOT BE READ AGAINST ZERO: it is biased"
+         " positive by construction, and no null available in this design removes the bias."),
+        ("epoch_15k_reference_families_cue.png",
+         "WHERE the CUE position map changes -- three references, three failure modes",
+         _REF_LEGEND.format(arm="cue-aligned, so every trial contributes whether or not the animal"
+                                " responded")),
+        ("epoch_15k_agreed_ccf_cue.png",
+         "The CUE regions ALL THREE references agree on, on the Allen CCF",
+         _CCF_LEGEND.format(arm="cue")),
+        ("epoch_15k_reference_families_lick.png",
+         "WHERE the LICK position map changes -- three references, three failure modes",
+         _REF_LEGEND.format(arm="conditioned on trials the animal LICKED, so a cell is the map of"
+                                " the attempts that HAPPENED -- acute far-contra has no cell at"
+                                " all because there were none")),
+        ("epoch_15k_agreed_ccf_lick.png",
+         "The LICK regions ALL THREE references agree on, on the Allen CCF",
+         _CCF_LEGEND.format(arm="lick")),
+        ("epoch_15k_reference_families_precue.png",
+         "WHERE the PRE-CUE position map changes -- TWO references, not three",
+         _REF_LEGEND.format(arm="the ENL window [cue - 2 s, cue]")
+         + "\n\nTWO FAMILIES HERE, AND THE MISSING ONE IS THE POINT. Under the PRE-CUE alignment"
+           " the `precue` REFERENCE would subtract the feature window from its own final second --"
+           " self-referential -- so it is dropped at source. The two that remain, `raw` and"
+           " `restw`, are the pair correlated at r = +0.95, so AGREEMENT HERE IS CLOSE TO ONE"
+           " REFERENCE SAYING SO. Read these panels as one reference with a consistency check,"
+           " not as two independent ones."),
+        ("epoch_15k_agreed_ccf_precue.png",
+         "The PRE-CUE regions BOTH references agree on, on the Allen CCF",
+         _CCF_LEGEND.format(arm="pre-cue")
+         + "\n\nTWO references here, not three -- see the preceding slide for why, and for why"
+           " that makes this arm`s agreement gate much weaker than the cue and lick arms`."),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "

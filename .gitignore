@@ -37,3 +37,6 @@ _xall_*.json
 
 # git worktrees created by parallel Claude Code sessions: never part of the repo
 .claude/worktrees/
+
+# Machine-local permission grants; never shared, never committed.
+.claude/settings.local.json
