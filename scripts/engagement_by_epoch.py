@@ -22,6 +22,13 @@ chronic 0.945 here against 0.959 / 0.782 / 0.814 / 0.931 there, over 96 sessions
 three decimals. The small differences are weighting: that figure is trial-weighted within
 position, this one is the session mean.
 
+ALSO DRAWS THE PER-ANIMAL TIMECOURSE (`epoch_1g`), for the same reason the bar figure exists:
+the deck's `epoch_1e` is produced by code that is not in this repository, so it can be neither
+audited nor regenerated here. The epoch BINS are animal-specific -- acute is a fraction of each
+animal's post-stroke days and chronic starts when THAT animal's hit rate flattens -- so a
+pooled bar averages bins that do not mean the same thing across animals. This panel shows what
+was averaged.
+
     python -m scripts.engagement_by_epoch [--out DIR]
 """
 from __future__ import annotations
@@ -75,6 +82,78 @@ def sessions_by_epoch():
     return values, points, counts, n
 
 
+def timecourse(out_dir):
+    """`epoch_1g`: engaged fraction against days since that animal's OWN lesion, one line each.
+
+    THE POOLED BARS AVERAGE ANIMAL-SPECIFIC BINS. Acute is a fraction of each animal's post-stroke
+    days and chronic starts when that animal's hit rate flattens, so PS94's subacute runs to day 29
+    while PS92's is days 7-9. A pooled number is therefore an average over bins that do not mean
+    the same thing across animals; this shows the sessions behind it.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import config, epochs
+
+    _v, points, _c, _n = sessions_by_epoch()
+    per = {}
+    for ep, by in points.items():
+        for an, frac in by[KEY]:
+            per.setdefault(an, []).append((ep, frac))
+    # RE-DERIVE THE DAY from the label rather than the epoch, because the epoch is the thing this
+    # figure exists to unpack.
+    import pandas as pd
+
+    from wfield_local import epoch_audit as ea
+    df = pd.read_csv(ea._cohort_path())
+    df = df.sort_values("n_engaged").drop_duplicates(["animal", "date"], keep="last")
+    want = set(config.phase_labels("pre") + config.phase_labels("post"))
+    rows = []
+    for _i, r in df.iterrows():
+        lab = f"{r['animal']}_{str(int(r['date']))[4:]}"
+        if lab not in want:
+            continue
+        tot = float(r["n_engaged"]) + float(r["n_disengaged"])
+        if not np.isfinite(tot) or tot <= 0:
+            continue
+        d = epochs.days_since_stroke(lab)
+        rows.append((r["animal"], -1 if d is None else int(d), float(r["n_engaged"]) / tot))
+
+    colors = config.animal_color()
+    animals = sorted({a for a, _d, _f in rows})
+    fig, axes = plt.subplots(1, len(animals), figsize=(4.0 * len(animals), 3.8), sharey=True)
+    axes = np.atleast_1d(axes)
+    for ax, an in zip(axes, animals):
+        pre = sorted(f for a, d, f in rows if a == an and d < 0)
+        post = sorted((d, f) for a, d, f in rows if a == an and d >= 0)
+        c = colors.get(an, "0.4")
+        if pre:
+            # PRE AS ONE POINT AT x=0 PLUS ITS SPREAD -- a pre-stroke session has no meaningful
+            # "day since lesion", and scattering them over negative days would invent an axis.
+            ax.errorbar([0], [float(np.mean(pre))],
+                        yerr=[[float(np.mean(pre) - min(pre))], [float(max(pre) - np.mean(pre))]],
+                        fmt="s", color=c, ms=7, capsize=3, lw=1.2, label="pre (mean, range)")
+        if post:
+            ax.plot([d for d, _f in post], [f for _d, f in post], "o-", color=c, lw=1.6, ms=5,
+                    label="post-stroke sessions")
+        ax.axhline(1.0, color="0.85", lw=0.8, zorder=0)
+        ax.set_title(an, fontsize=12.5, fontweight="bold")
+        ax.set_xlabel("days since that animal`s lesion", fontsize=10)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(labelsize=9)
+    axes[0].set_ylabel("fraction of trials working", fontsize=11)
+    axes[0].set_ylim(0.0, 1.06)
+    axes[0].legend(fontsize=8, frameon=False, loc="lower right")
+    fig.suptitle("Engagement over days from lesion, per animal -- the sessions behind the pooled "
+                 "bars", fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    q = Path(out_dir) / "epoch_1g_engagement_timecourse.png"
+    fig.savefig(q, dpi=150)
+    plt.close(fig)
+    return q
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -120,6 +199,7 @@ def main(argv=None) -> int:
         subtitle=sub, counts={e: counts[e][KEY] for e in counts}, marks=marks, points=points,
         ylabel="fraction of trials working", positions=[KEY], ylim=(0.0, 1.06))
     print(f"[1f] wrote {made}")
+    print(f"[1g] wrote {timecourse(out_dir)}")
     return 0
 
 

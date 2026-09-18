@@ -3724,16 +3724,22 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " `n_disengaged`), the same gate the epoch rule uses, so this cannot disagree with the other"
          " behaviour figures about what working means. Bars, session means; dots, individual sessions"
          " coloured by animal; intervals from the nested animals->sessions bootstrap."),
-        ("epoch_1e_engagement_timecourse.png",
+        ("epoch_1g_engagement_timecourse.png",
          "Engagement over days from lesion, one panel per animal",
-         "The same quantity against days since that animal's OWN lesion, unpooled. Colour"
-         " identifies the spout position; the per-animal epoch boundaries are drawn, so a session"
-         " can be read against the bin it was assigned to. Unpooling matters here because the"
-         " epoch bins are animal-specific -- acute is a fraction of each animal's post-stroke days"
-         " and chronic starts when THAT animal's hit rate flattens, which is why PS94's subacute"
-         " runs to day 29 where PS92's is days 7-9. A pooled engagement number therefore averages"
-         " bins that do not mean the same thing across animals; this panel shows what was"
-         " averaged."),
+         "The sessions behind the pooled bars, unpooled, against days since that animal`s OWN lesion."
+         " Square, the pre-stroke mean with its range; line, the post-stroke sessions."
+         "\n\nWHY UNPOOLED. The epoch BINS are animal-specific -- acute is a fraction of each animal`s"
+         " post-stroke days and chronic starts when THAT animal`s hit rate flattens -- so PS94`s"
+         " subacute runs to day 29 where PS92`s is days 7-9. A pooled engagement number therefore"
+         " averages bins that do not mean the same thing across animals, and this panel shows what was"
+         " averaged."
+         "\n\nWHAT IT SHOWS THAT THE BARS CANNOT. Recovery is not uniform. PS92 and PS93 dip hard early"
+         " (0.59 and 0.53 around day 3) and are back at ceiling by day 7-9. PS94 never settles --"
+         " it oscillates between 0.37 and 1.0 through day 25, which is the same non-plateau that leaves"
+         " it with NO chronic epoch. PS95 recovers and then drops again at day 25. An animal-level"
+         " reading of the subacute bin should start here rather than at the bar."
+         "\n\nBuilt by `scripts/engagement_by_epoch.py` from the behaviour pipeline`s own"
+         " `cohort_session_metrics.csv`, the same gate the epoch rule uses."),
         ("epoch_acc_by_position_*_*.png",
          "Position decoding by epoch",
          "Accuracy of a decoder trained ONLY on pre-stroke trials, applied to held-out trials"
