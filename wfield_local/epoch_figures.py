@@ -380,7 +380,7 @@ def _jsonable(v):
         return False
 
 
-def replot_map(bundle, out=None, **overrides):
+def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **overrides):
     """Redraw a map figure from its bundle. ``bundle`` is either ``.npz`` path or the figure stem.
 
     Any `map_grid` argument can be overridden -- ``replot_map(p, delta_cmap="PuOr_r")`` or
@@ -424,6 +424,30 @@ def replot_map(bundle, out=None, **overrides):
     kw = dict(meta.get("kw") or {})
     kw.update(contours=contours or None, blank=blank, edges=edges)
     kw.update(overrides)
+    # RENAMING AN AXIS MUST RENAME THE CELL KEYS TOO, and this is why it is a parameter rather
+    # than something a caller does by overriding `row_labels`/`col_labels`. `cells` is keyed by
+    # (row label, col label); relabelling only the axis leaves every key unmatched and `map_grid`
+    # draws a grid of empty panels. That is exactly what happened on 2026-09-17 when 15x's raw
+    # position names were mapped to the anatomical ones -- 0 of 24 cells matched and the figure
+    # came out blank, with nothing in the output to say so.
+    rr = dict(relabel_rows or {})
+    cc = dict(relabel_cols or {})
+    if rr or cc:
+        cells = {(rr.get(r, r), cc.get(c, c)): v for (r, c), v in cells.items()}
+        contours = {(rr.get(r, r), cc.get(c, c)): v for (r, c), v in contours.items()}
+        kw["contours"] = contours or None
+        for axis, mp in (("row_labels", rr), ("col_labels", cc)):
+            if kw.get(axis):
+                kw[axis] = [mp.get(x, x) for x in kw[axis]]
+    # AND THE GUARD, because the failure above was SILENT. A bundle with cells none of which land
+    # on the label grid is a programming error every time -- there is no legitimate reason to draw
+    # a grid whose every panel is empty -- so say so loudly rather than writing a blank figure.
+    want = {(r, c) for r in (kw.get("row_labels") or []) for c in (kw.get("col_labels") or [])}
+    if cells and want and not (set(cells) & want):
+        print(f"  !! replot {bundle.stem}: NONE of {len(cells)} cells match the label grid "
+              f"-- every panel would be empty. Rows/cols were probably renamed without "
+              f"`relabel_rows=` / `relabel_cols=`. REFUSING.", flush=True)
+        return None
     # NEVER OVERWRITE THE ORIGINAL. The bundle carries the name `map_grid` was called with, so a
     # naive redraw lands on top of the figure it was made from -- caught the first time this ran.
     # The caller must ASK for that by passing `name=` explicitly.
@@ -2105,12 +2129,23 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
             # two labels a reader needs before anything else in the panel means anything. The stats
             # titles deliberately stay small: they are long, often multi-line, reference text.
             pt = (panel_titles or {}).get((r, c))
-            ttl = pt if pt is not None else (c if ri == 0 else "")
-            if ttl:
-                header = pt is None
-                ax.set_title(ttl,
-                             fontsize=(FS_LABEL + 2.5) if header else (FS_ANNOT - 1.5),
-                             fontweight="bold" if header else "normal", linespacing=1.15)
+            if pt is not None:
+                ax.set_title(pt, fontsize=FS_ANNOT - 1.5, linespacing=1.15)
+            elif ri == 0 and c:
+                # THE HEADER IS ALWAYS ONE LINE. An "(no data)" suffix was tried here and removed:
+                # every empty panel ALREADY prints "no data" in its middle, so the suffix only
+                # duplicated it -- and a two-line header pushes its first line up, which is the
+                # column-to-column misalignment it was supposed to help with.
+                # ONE BASELINE FOR EVERY COLUMN HEADER, and that is why this is an `ax.text` and
+                # not a `set_title`. `set_title` anchors the BOTTOM of the title block, so a
+                # header that wraps to two lines climbs upward while a one-line header does not,
+                # and on a row where some columns wrap and others do not the headers sit at
+                # visibly different heights (Priya, 2026-09-17, on 15rpa PRECUEref lick_lick:
+                # "acute" and "acute - pre" higher than the others). Anchoring at a fixed offset
+                # in AXES coordinates with `va="bottom"` puts every header on the same line
+                # whatever its length, its wrap or its font.
+                ax.text(0.5, 1.03, c, transform=ax.transAxes, ha="center", va="bottom",
+                        fontsize=FS_LABEL + 2.5, fontweight="bold", linespacing=1.15)
             if ci == 0:
                 # -0.13 rather than -0.10: the label is ROTATED, so a larger font grows sideways
                 # into the panel and clips at the old offset.

@@ -86,11 +86,21 @@ def main(argv=None) -> int:
                                .read_text(encoding="utf-8"))
             kw = meta.get("kw") or {}
             over = {"name": stem}
-            for axis in ("row_labels", "col_labels"):
-                new = _relabel(kw.get(axis))
-                if new:
-                    over[axis] = new
-                    print(f"   .. {stem}: {axis} -> anatomical", flush=True)
+            # RELABEL VIA THE MAPPING, never by overriding the label list. `cells` is keyed by
+            # (row label, col label), so renaming only the axis unmatches every key and the
+            # figure comes out blank -- which is exactly what happened to 15x on the first pass.
+            # THE MAPPING IS DERIVED FROM THE CELL KEYS, not from the label list, and the
+            # difference is not academic. A bundle whose labels were rewritten without its keys
+            # is INTERNALLY INCONSISTENT -- anatomical on the axis, raw in the cells -- and
+            # reading the mapping off the labels would find nothing to do and leave it broken.
+            # The keys are the ground truth: they are what `cells` is indexed by.
+            keys = {"row": {str(c["row"]) for c in meta.get("cells", [])},
+                    "col": {str(c["col"]) for c in meta.get("cells", [])}}
+            for which, param in (("row", "relabel_rows"), ("col", "relabel_cols")):
+                mp = {k: anat[k] for k in keys[which] if k in anat}
+                if mp:
+                    over[param] = mp
+                    print(f"   .. {stem}: {which} keys -> anatomical", flush=True)
             # THE SUBTITLE NAMES THE CONTOUR COLOUR, and the contours are now black. A bundle is
             # replayed as it was written, so without this the caption would say GREEN over a black
             # line -- a figure disagreeing with its own caption, which is worse than either.
