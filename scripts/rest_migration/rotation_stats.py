@@ -32,12 +32,27 @@ different animals. The same argument applies here, so this module gives 15h the 
        assignments, so 0.0625 is the smallest attainable p and NO cell could reach 0.05 at any
        effect size. A CI has no such floor -- it can exclude zero.
 
-    2. A FAMILY-WISE threshold from the PERMUTATION MAX-STATISTIC, not Bonferroni. The six
-       positions within a window are not independent: `LogisticRegression` is multinomial, so
-       the class coefficients are identified only up to a constant shift across classes and the
-       six patterns are coupled by construction. Bonferroni assumes independence and is
-       conservative here by an unknown amount. The max-statistic lets the data's own covariance
-       perform the correction.
+    2. A FAMILY-WISE threshold from the PERMUTATION MAX-STATISTIC, not Bonferroni, because it
+       assumes nothing about the dependence between cells -- it measures it. The construction is
+       calibrated by definition and measured to be so: 5.0% of null draw-maxima sit above the
+       threshold it returns.
+
+       THE RATIONALE I FIRST GAVE FOR IT WAS WRONG, and the correction belongs here rather than
+       in a footnote. I argued that the six positions are strongly coupled -- multinomial class
+       coefficients are identified only up to a constant shift, so Bonferroni would be badly
+       conservative. MEASURED over the 72-cell family, the mean pairwise correlation between
+       cells' per-draw statistics is **+0.077**. The cells are very nearly INDEPENDENT, so that
+       argument does not hold and the max-statistic is not buying the power I claimed for it. It
+       is still the right choice -- it needs no independence assumption and no smoothness
+       estimate, and it is exact by construction -- but it is a safeguard here, not a rescue.
+
+       AND READ THE z MAGNITUDES WITH THAT IN MIND. The null is the cosine between two PRE-STROKE
+       HALVES, which is high and very tightly clustered, so a cross-epoch cosine that differs at
+       all lands many null-SDs away: the observed cohort z runs to +47. That is arithmetically
+       right and scientifically uninformative. It says the readout direction changes by more than
+       split-half estimation noise -- which `15h` already showed by every panel mean sitting below
+       its noise ceiling. The DISCRIMINATING content is the cosine MAGNITUDE and its ordering
+       (lick > cue > ENL > rest), never the p.
 
 THE FAMILY IS window x contrast x position = 72. ANIMALS ARE NOT IN IT. They are replicates of
 one hypothesis, not separate hypotheses; correcting across them asks "does far-contra rotate
