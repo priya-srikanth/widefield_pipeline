@@ -3674,6 +3674,40 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "corrected interval necessarily contains the uncorrected one. Zero is drawn: the"
          "comparison that matters is each epoch against no change, not the epochs against each"
          "other."),
+        ("epoch_1d_engagement_by_position.png",
+         "Was the animal still working? Engagement by position and epoch",
+         "The DENOMINATOR behind every behavioural number in this section, plotted in its own"
+         " right. WORKING is the behaviour gate's `engaged` flag, and the flag is judged ONLY at"
+         " the reference positions the lesion spares (near ipsi, near middle), so a run of misses"
+         " at an impaired position can never lower it. That asymmetry is deliberate: reward is"
+         " auto-held after a miss run, so a sated animal's late misses are disengagement, while an"
+         " impaired animal's far-position misses are the effect being measured -- and a gate judged"
+         " on all six positions would file the second as the first. Bars, session-weighted means;"
+         " dots, individual sessions coloured by animal. Intervals from the hierarchical bootstrap"
+         " resampling animals, then sessions within animal, then the scheduler's position blocks"
+         " within session, 2,000 draws."
+         "\n\nWHY IT BELONGS BESIDE THE ACCURACY FIGURES. Response rate confounds two things --"
+         " whether the animal attempted the trial and whether the attempt succeeded. This family"
+         " separates the first, which is what makes the cue-vs-lick dissociation later in the"
+         " section readable: the lick-aligned arm is conditioned on trials the animal actually"
+         " licked, so its trial set moves with engagement across epochs."),
+        ("epoch_1ddelta_engagement_by_position.png",
+         "Engagement, change from pre-stroke",
+         "The preceding contrasts as differences from the pre-stroke baseline. Point, the"
+         " difference in the data; thick bar, 95% interval; thin bar, the Bonferroni-corrected"
+         " interval, both from one set of bootstrap draws so the corrected interval necessarily"
+         " contains the uncorrected one. Zero is drawn: the comparison is each epoch against no"
+         " change, not the epochs against each other."),
+        ("epoch_1e_engagement_timecourse.png",
+         "Engagement over days from lesion, one panel per animal",
+         "The same quantity against days since that animal's OWN lesion, unpooled. Colour"
+         " identifies the spout position; the per-animal epoch boundaries are drawn, so a session"
+         " can be read against the bin it was assigned to. Unpooling matters here because the"
+         " epoch bins are animal-specific -- acute is a fraction of each animal's post-stroke days"
+         " and chronic starts when THAT animal's hit rate flattens, which is why PS94's subacute"
+         " runs to day 29 where PS92's is days 7-9. A pooled engagement number therefore averages"
+         " bins that do not mean the same thing across animals; this panel shows what was"
+         " averaged."),
         ("epoch_acc_by_position_*_*.png",
          "Position decoding by epoch",
          "Accuracy of a decoder trained ONLY on pre-stroke trials, applied to held-out trials"
@@ -4007,6 +4041,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         ("epoch_10cdiagdelta_matrices_best_match_destination_*_*.png",
          "Best match is still the correct position, change from pre-stroke",
          "Far-contralateral falls 0.98 -> 0.06 acutely, a drop of 0.92."),
+        ("epoch_10cs_best_match_destination_marked_*_*.png",
+         "Where the best match went, with a test on every cell",
+         "The destination matrix again, with each cell carrying a nested animals->sessions"
+         " bootstrap interval from the same draws the bar families use. THIS IS THE ONE THAT TESTS"
+         " THE SUBSTITUTION CLAIM. 10c draws the matrix with no uncertainty at all, and 10cdiag"
+         " tests only the DIAGONAL -- so `far-contra now best-matches far-middle` was, until this"
+         " figure, a colour rather than a result. The off-diagonal is where that claim lives and"
+         " this is where it is measured."
+         "\n\nTHE REFERENCE IS CHANCE, NOT ZERO, on the absolute row. A cell is the fraction of"
+         " sessions whose best match landed there, so the question a mark answers is whether it"
+         " beats the 1/6 a coin would give; the delta row is against zero in the ordinary way."
+         " Both are stated on the figure by `matrix_bootstrap.mark_note`, so the panel does not"
+         " depend on this legend to be read correctly."),
         ("epoch_10e_best_match_grid_*_*.png",
          "Best match, PER ANIMAL and epoch",
          "The preceding three figures pool four animals; this one does not. Rows are animals,"
@@ -4389,7 +4436,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " It inverts because acute far-contra is then dominated by trials"
          " the animal did not attempt and the pattern then says cortex is globally quieter than on"
          " the average trial -- a large map with no position content. Use this family to see WHAT"
-         " DISTINGUISHES positions; use the QUIET-referenced family for how much each position is"
+         " DISTINGUISHES positions; use the REST-referenced family for how much each position is"
          " driven."
          "\n\nBALANCING on the post-lick arm only. `working` is uniform over positions by"
          " construction (16.1-17.2% each) so pre-cue and post-cue need none; `lick` runs"
@@ -4547,7 +4594,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " cuts the same way: the pre-cue window is the deck's MOTOR-INDEPENDENT readout, the only"
          " one decoding above chance on NO-LICK trials, i.e. exactly the post-stroke failed"
          " attempt."
-         "\n\nUSE THE QUIET-REFERENCED FAMILY AS THE PRIMARY MAP. This one stays because the"
+         "\n\nUSE THE REST-REFERENCED FAMILY AS THE PRIMARY MAP. This one stays because the"
          " increment is a real quantity worth seeing, and because it is the most SENSITIVE of the"
          " three references -- it removes the most common signal, so the position-specific part is"
          " least diluted."
@@ -4610,7 +4657,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " position information, so nothing real is removed."
          "\n\nWHY THIS IS THE RIGHT REFERENCE. Decision F12 permits a SESSION-CONSTANT baseline"
          " (it is invisible to a standardised decoder) while rejecting a per-trial pre-cue one."
-         " Maps are not standardised, so for maps that constant is a real choice -- and the quiet"
+         " Maps are not standardised, so for maps that constant is a real choice -- and the rest"
          " baseline is the map-space analogue of what F12 endorses. It answers whether this"
          " position's cortex is driven AT ALL, where the mean-referenced family answers whether it"
          " is driven more than the others."
@@ -4622,12 +4669,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " offset -- observed r = +0.494 against a null of +0.497, p = 0.21 to 0.97. That column"
          " carries no information. `_RESTref_` is the replacement: between trials, not running,"
          " not licking. See docs/REST_BASELINE_MIGRATION.md."
-         "\n\nITS OWN CAVEAT, stated rather than buried: the rest baseline DRIFTS across epochs"
-         " (pre -0.0069, acute -0.0080, subacute -0.0096, chronic -0.0043). At chronic the"
-         " subtrahend rises by +0.0026 against a signal of about 0.005, so ACROSS-EPOCH amplitude"
-         " ratios carry that confound while BETWEEN-POSITION contrasts do not -- the drift is"
-         " common to all six. A faint chronic column is that drift, not an absence of activity:"
-         " raw pre-cue activity actually ROSE, 0.00483 to 0.00514."
+         "\n\nITS OWN CAVEAT, stated rather than buried: the rest baseline DRIFTS across epochs,"
+         " so ACROSS-EPOCH amplitude ratios carry that confound while BETWEEN-POSITION contrasts"
+         " do not -- a shift common to all six positions cancels in a contrast between them."
+         " MEASURED DIRECTLY, and read the size from the drift figure later in this section rather"
+         " than from this caption: 6 of 11 animal-epoch cells shift detectably, by 7-43% of the"
+         " evoked signal, and that is an UPPER BOUND -- it is attained only if the shift aligns"
+         " with the evoked pattern, where an orthogonal one costs roughly r-squared/2. Acute is the"
+         " LEAST affected epoch despite carrying the largest deficit, so the drift does not simply"
+         " track the lesion."
+         "\n\nAN EARLIER VERSION OF THIS CAPTION PUT THE DRIFT AT ABOUT HALF THE SIGNAL. That"
+         " number described the RETIRED `quiet` baseline, which was anchored on the animal's"
+         " PERFORMANCE and so tracked the deficit by construction (4.4% of frames pre-stroke, 17.1%"
+         " acutely, 0.7% chronically). The current baseline is anchored on the TRIAL, which happens"
+         " whether or not the animal succeeds. Do not re-derive an argument from the old figure."
          "\n\nTHE TRIAL SELECTION IS THE BETA MAPS' -- same window, same class definitions"
          " including the no-lick arm, same 20-trial floor -- so a difference between this family"
          " and the beta maps is the REFERENCE and nothing else."
@@ -4671,14 +4726,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " animal's."),
         ("epoch_15r_position_MEANref_*_*.png",
          "Position maps vs the MEAN OVER ALL TRIALS -- the coupled reference, for comparison",
-         "THE SAME TRIALS AND WINDOW AS ITS QUIET-REFERENCED PARTNER, with only the subtrahend"
+         "THE SAME TRIALS AND WINDOW AS ITS REST-REFERENCED PARTNER, with only the subtrahend"
          " changed: here it is the mean over ALL trials in the window, which is what the beta-map"
          " decoder centres on. IT EXISTS TO BE COMPARED AGAINST, not to be read alone."
          "\n\nTHE SIX ROWS ARE NOT INDEPENDENT. A position that loses drive lowers the shared"
          " reference and hands every other position an increase it did not earn. This family shows"
          " that coupling as a PLAIN TRIAL AVERAGE -- no decoder, no folds, no Haufe transform -- so"
          " the artefact can be seen without three other things in the way. A rise that appears here"
-         " and NOT under the quiet reference is the artefact."
+         " and NOT under the rest reference is the artefact."
          "\n\nTHE THREE FAMILIES DECOMPOSE, which is what makes this a controlled set rather"
          " than three opinions. Figure 14 is data + mean reference + decoder/Haufe estimator; this"
          " family is data + mean reference; the REST and PRECUE families are data. So FIG 14 vs"
@@ -4697,7 +4752,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "\n\nIT IS ALSO THE NOISIER REFERENCE, by construction: subtracting the mean removes the"
          " large common task response and leaves a small position-specific residual, so split-half"
          " reliability falls -- as low as r = -0.02 on the pre-cue arm, against 0.93-0.98 for the"
-         " quiet reference. Dramatic-looking difference panels on this family are frequently that"
+         " rest reference. Dramatic-looking difference panels on this family are frequently that"
          " residual noise rendered on a shared colour scale."
          "\n\nSTATISTICS, shared by every map family in this section. THE UNIT IS THE ANIMAL"
          " and the estimator is the NESTED ANIMALS-to-SESSIONS BOOTSTRAP -- the same object every"
@@ -4737,6 +4792,27 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
          " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
          " animal's."),
+        ("epoch_15r_position_PRECUEref_*_*.png",
+         "Position maps vs each trial's OWN PRE-CUE window -- the third reference",
+         "BESIDE THE REST FAMILY, NOT INSTEAD OF IT. Same trials, same window, same estimator;"
+         " the subtrahend is each trial's own pre-cue second, so what is drawn is the CUE-EVOKED"
+         " INCREMENT rather than the position map."
+         "\n\nITS OBJECTION, STATED FIRST. This violates F12. The pre-cue window carries genuine"
+         " anticipatory position information -- LOSO 0.510 against post-cue 0.873, chance 0.167 --"
+         " so subtracting it removes real position code, and an increment is not an amplitude."
+         " That is why this family is not the primary one and why figure 15's `delta` was"
+         " RELABELLED to name its reference rather than left to look like the position map."
+         "\n\nWHY IT IS ON THE DECK ANYWAY, AND IT IS NOT A CONSOLATION. Its subtrahend is"
+         " PER-TRIAL, so it cannot drift across epochs -- and across-epoch drift is precisely the"
+         " weakness of the rest reference, measured at 7-43% of the evoked signal by the rest"
+         " baseline drift figure later in this section. The two references fail in DIFFERENT"
+         " directions, which is the whole logic of carrying more than one: an effect present under"
+         " both is not a property of either subtrahend, and an effect in only one names the"
+         " subtrahend to suspect. Read the three references as a set, and read a disagreement as"
+         " information rather than as noise."
+         "\n\nWHAT IT SHARES WITH THE REST FAMILY: the positions stay UNCOUPLED. No position's"
+         " loss can raise another position's reference, which is the specific failure of the"
+         " mean-referenced family above."),
         ("epoch_15rpa_position_*ref_by_animal_*_*.png",
          "Reference maps PER ANIMAL -- both references, at the animal level",
          "COMPLETES THE PER-ANIMAL SET (14pa for the decoder maps, 15pa for the increment, this for"
@@ -4745,9 +4821,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "\n\nBOTH REFERENCES, ONE PER FIGURE, so the pair reads side by side at the animal level"
          " the way the pooled pair reads at the group level. Same trials, window, class definition"
          " and floor; only the subtrahend differs, so a row that differs between the two differs"
-         " BECAUSE of the reference. Under QUIET every animal should be broadly positive -- task"
+         " BECAUSE of the reference. Under REST every animal should be broadly positive -- task"
          " activity above rest; under MEAN the common component is gone and what remains is"
-         " position-specific and much noisier, so a row dramatic there and flat under quiet is the"
+         " position-specific and much noisier, so a row dramatic there and flat under rest is the"
          " one-vs-rest coupling showing itself in a single animal."
          "\n\nCOLOUR SCALE IS PER ANIMAL and NO significance is drawn, for the reasons given on"
          " the other per-animal slides."),
@@ -4837,7 +4913,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " `restw` weights the six positions equally. Rows are animals over a cohort row; columns"
          " are epochs."
          "\n\nONE MAP PER EPOCH, NOT SIX, and the algebra is why: flatpool_q - restw_q ="
-         " (raw_q - quiet_flat) - (raw_q - restw) = restw - quiet_flat. The position's own data"
+         " (raw_q - flatpool) - (raw_q - restw) = restw - flatpool. The position's own data"
          " CANCELS, so the delta does not depend on position. It is the same cancellation that"
          " makes `reference each position to its own rest, then compare the maps` reduce to the"
          " 15x figure above."
