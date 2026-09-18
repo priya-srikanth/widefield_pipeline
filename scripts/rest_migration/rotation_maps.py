@@ -1274,7 +1274,13 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                                   f"stat_mask -- clipped at draw time", flush=True)
                         frac = np.where(_SM, frac, 0.0)
                     if np.any(frac > 0.5):
-                        ax.contour(frac, levels=[0.5], colors="k", linewidths=0.9)
+                        # SAME TREATMENT AS THE POSITION MAPS: a white underlay carries the edge
+                        # across the saturated ends of the diverging ramp, black carries it across
+                        # the pale middle. 0.9 pt of plain black read well over white and was
+                        # close to invisible inside a deep red or deep blue blob -- which is
+                        # exactly where a significant component tends to sit.
+                        ax.contour(frac, levels=[0.5], colors="white", linewidths=2.6, alpha=0.85)
+                        ax.contour(frac, levels=[0.5], colors="black", linewidths=1.5)
                 if i == 0:
                     # MAIN LABELS AT THE MAP FAMILIES' SIZE. Epoch across the top, spout
                     # position down the side; these two are read before anything else in the

@@ -2132,20 +2132,22 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
             if pt is not None:
                 ax.set_title(pt, fontsize=FS_ANNOT - 1.5, linespacing=1.15)
             elif ri == 0 and c:
-                # THE HEADER IS ALWAYS ONE LINE. An "(no data)" suffix was tried here and removed:
-                # every empty panel ALREADY prints "no data" in its middle, so the suffix only
-                # duplicated it -- and a two-line header pushes its first line up, which is the
-                # column-to-column misalignment it was supposed to help with.
-                # ONE BASELINE FOR EVERY COLUMN HEADER, and that is why this is an `ax.text` and
-                # not a `set_title`. `set_title` anchors the BOTTOM of the title block, so a
-                # header that wraps to two lines climbs upward while a one-line header does not,
-                # and on a row where some columns wrap and others do not the headers sit at
-                # visibly different heights (Priya, 2026-09-17, on 15rpa PRECUEref lick_lick:
-                # "acute" and "acute - pre" higher than the others). Anchoring at a fixed offset
-                # in AXES coordinates with `va="bottom"` puts every header on the same line
-                # whatever its length, its wrap or its font.
-                ax.text(0.5, 1.03, c, transform=ax.transAxes, ha="center", va="bottom",
-                        fontsize=FS_LABEL + 2.5, fontweight="bold", linespacing=1.15)
+                # HEADERS GO IN FIGURE COORDINATES AT ONE CONSTANT y, and axes coordinates are
+                # specifically wrong here. `imshow` defaults to `aspect="equal"`, so matplotlib
+                # SHRINKS a populated panel's box to the image's aspect ratio and its visual top
+                # edge drops, while an EMPTY panel keeps the full allocated box. Anchoring at
+                # `transAxes` therefore rides each panel's own box and lifts the headers of empty
+                # columns above the rest -- which is what "acute" and "acute - pre" kept doing on
+                # the far-contralateral lick figures. The first attempt at this fix moved from
+                # `set_title` to `ax.text(va="bottom")` and did NOT help, because both are in axes
+                # coordinates; the anchor was never the problem, the box was.
+                #
+                # The allocated top of row 0 is `1 - top_in/fig_h` by construction of `add_axes`
+                # above and does not depend on what the panel contains, so every header now sits
+                # on one line whether its column has data or not.
+                fig.text((0.75 + ci * panel + panel / 2) / fig_w,
+                         1.0 - (top_in - 0.06) / fig_h, c, ha="center", va="bottom",
+                         fontsize=FS_LABEL + 2.5, fontweight="bold", linespacing=1.15)
             if ci == 0:
                 # -0.13 rather than -0.10: the label is ROTATED, so a larger font grows sideways
                 # into the panel and clips at the old offset.
