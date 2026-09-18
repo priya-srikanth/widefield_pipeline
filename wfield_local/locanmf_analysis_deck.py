@@ -3697,30 +3697,33 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          "corrected interval necessarily contains the uncorrected one. Zero is drawn: the"
          "comparison that matters is each epoch against no change, not the epochs against each"
          "other."),
-        ("epoch_1d_engagement_by_position.png",
-         "Was the animal still working? Engagement by position and epoch",
+        ("epoch_1f_engagement_by_epoch.png",
+         "Was the animal still working? Engagement by epoch",
          "The DENOMINATOR behind every behavioural number in this section, plotted in its own"
-         " right. WORKING is the behaviour gate's `engaged` flag, and the flag is judged ONLY at"
-         " the reference positions the lesion spares (near ipsi, near middle), so a run of misses"
-         " at an impaired position can never lower it. That asymmetry is deliberate: reward is"
-         " auto-held after a miss run, so a sated animal's late misses are disengagement, while an"
-         " impaired animal's far-position misses are the effect being measured -- and a gate judged"
-         " on all six positions would file the second as the first. Bars, session-weighted means;"
-         " dots, individual sessions coloured by animal. Intervals from the hierarchical bootstrap"
-         " resampling animals, then sessions within animal, then the scheduler's position blocks"
-         " within session, 2,000 draws."
-         "\n\nWHY IT BELONGS BESIDE THE ACCURACY FIGURES. Response rate confounds two things --"
-         " whether the animal attempted the trial and whether the attempt succeeded. This family"
-         " separates the first, which is what makes the cue-vs-lick dissociation later in the"
-         " section readable: the lick-aligned arm is conditioned on trials the animal actually"
-         " licked, so its trial set moves with engagement across epochs."),
-        ("epoch_1ddelta_engagement_by_position.png",
-         "Engagement, change from pre-stroke",
-         "The preceding contrasts as differences from the pre-stroke baseline. Point, the"
-         " difference in the data; thick bar, 95% interval; thin bar, the Bonferroni-corrected"
-         " interval, both from one set of bootstrap draws so the corrected interval necessarily"
-         " contains the uncorrected one. Zero is drawn: the comparison is each epoch against no"
-         " change, not the epochs against each other."),
+         " right. WORKING is the behaviour gate`s `engaged` flag, judged ONLY at the reference"
+         " positions the lesion spares (near ipsi, near middle), so a run of misses at an impaired"
+         " position can never lower it. That asymmetry is deliberate: reward is auto-held after a"
+         " miss run, so a sated animal`s late misses are disengagement, while an impaired animal`s"
+         " far-position misses are the effect being measured."
+         "\n\nTHERE IS NO POSITION AXIS, AND ITS ABSENCE IS THE POINT. Because the gate reads only the"
+         " spared positions, engagement is a SESSION-level property applied to every trial in that"
+         " session; positions run in ~6-trial blocks, so a terminal stopped tail truncates all six"
+         " about equally. The per-position panel this replaces was flat BY CONSTRUCTION -- measured,"
+         " an acute spread of 0.031 across the six against an epoch effect of 0.18 -- and six bars"
+         " invite a spatial reading the design cannot produce."
+         "\n\nWHAT IT SHOWS. Stopped fraction 0.041 pre, 0.218 acute, 0.186 subacute, 0.069 chronic:"
+         " post-stroke animals quit far earlier, about 5x pre acutely. Corroborated a completely"
+         " different way -- the quit period is 3.1% of REST FRAMES pre-stroke and 18.7% acutely"
+         " (docs/REST_ENGAGEMENT_AUDIT.md) -- and the worst sessions are severe (PS94 day 3, 62%)."
+         "\n\nTHE DISSOCIATION WORTH NOTICING. Subacute recovers on ACCURACY (near-position response"
+         " rates 0.96-0.97, near baseline) while engagement is still close to its acute value. Since"
+         " accuracy is engagement-GATED, both describe the same trials: subacute animals are accurate"
+         " WHEN WORKING and still stop working early. Carry the standing subacute caveat -- that bin"
+         " is a RESIDUAL rather than a fixed interval, and it is PS94-weighted, 7 sessions to PS92`s 2."
+         "\n\nSource is the behaviour pipeline`s own `cohort_session_metrics.csv` (`n_engaged` /"
+         " `n_disengaged`), the same gate the epoch rule uses, so this cannot disagree with the other"
+         " behaviour figures about what working means. Bars, session means; dots, individual sessions"
+         " coloured by animal; intervals from the nested animals->sessions bootstrap."),
         ("epoch_1e_engagement_timecourse.png",
          "Engagement over days from lesion, one panel per animal",
          "The same quantity against days since that animal's OWN lesion, unpooled. Colour"
