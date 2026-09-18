@@ -1049,6 +1049,27 @@ def hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, *, n_boot
     # THE POINT ESTIMATE IS THE REAL DATA, not the bootstrap mean -- the same rule
     # `epoch_figures.contrast_draws` follows, so the number a panel implies is the number in the
     # data.
+    #
+    # THE `maxstat` BRANCH BELOW DOES NOT CONTRADICT THE PARAGRAPH ABOVE, and this note exists
+    # because it reads a percentile a few lines after that paragraph argues against reading one.
+    # They are different quantiles, and the distinction IS the trick a max-statistic turns:
+    #
+    #   REJECTED above   a PER-BIN quantile at the Bonferroni tail, alpha/n/2 = 7.7e-6 --
+    #                    unsampled at 2,000 draws and still unsampled at 100,000, so
+    #                    `np.percentile` degenerates to the extreme order statistic.
+    #   USED below       a quantile of the MAX distribution at alpha = 0.05, the 95th percentile,
+    #                    with roughly 100 of the 2,000 draws above it. Densely sampled.
+    #
+    # A max-statistic converts a family-wise problem into ONE alpha-level quantile of a DIFFERENT
+    # distribution, so it never needs an extreme tail. That is exactly why it is usable where a
+    # per-bin Bonferroni percentile is not. The objection above is to the TAIL DEPTH, not to
+    # percentiles as such.
+    #
+    # WHAT NEITHER BRANCH FIXES IS n = 4. The outer resample draws four animals with replacement,
+    # so 1.6% of draws are one animal repeated four times and the SE is itself estimated from four
+    # units. Multiplicity is handled well here; that is a separate question from whether four
+    # animals support the interval, and the max-statistic should not be read as answering the
+    # second.
     from scipy import stats
 
     obs = np.mean([np.mean(post_s[a], 0) - np.mean(pre_s[a], 0) for a in animals], 0)

@@ -33,11 +33,27 @@ from pathlib import Path
 import yaml
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
-MACHINES = ("analysis", "imaging", "mac")
+MACHINES = ("analysis", "imaging", "mac", "analysis_desktop")
 
 # Signature mounts used to auto-detect the machine when WIDEFIELD_MACHINE is unset.
+#
+# `analysis_desktop` IS A THIRD BOX, AND IT USED TO MASQUERADE AS `imaging`. It has the imaging
+# profile's SHARE mounts (N: = MICROSCOPE, M: = standby already at the Priya depth) but does
+# ANALYSIS work and has no rig hardware -- the box `figures_working` below already describes as
+# "the helper box added 2026-08-11". It was only ever detected as `imaging` because a local E:
+# existed carrying `E:/labcams_data`. When that volume disappeared on 2026-09-18 detection fell
+# through to the DEFAULT `analysis`, which points every root at `M:/MICROSCOPE/Priya` -- a path
+# that does not exist here. Thirteen tests began failing and any run would have resolved to a
+# phantom root. A profile it actually matches is the fix; the E: signature was a coincidence
+# standing in for one.
+#
+# THE ORDER IS DELIBERATE. `imaging` first, because `E:/labcams_data` is unique to the rig;
+# `analysis` second, because M: = MICROSCOPE is unique to that box; `analysis_desktop` third,
+# catching a machine that reaches the share over N: with neither of the above. That also makes
+# the failure mode safe: should the RIG ever lose its E:, it now lands on `analysis_desktop` and
+# still resolves the share correctly over N:, rather than on `analysis` and a drive it lacks.
 _SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis", "M:/MICROSCOPE/Priya"),
-              ("mac", "/Volumes/Priya"))
+              ("analysis_desktop", "N:/MICROSCOPE/Priya"), ("mac", "/Volumes/Priya"))
 
 
 def detect_machine() -> str:
