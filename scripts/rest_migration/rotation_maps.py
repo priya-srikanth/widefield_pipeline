@@ -412,7 +412,7 @@ def in_mask_components(basis, min_frac=None, eroded=False):
 
 
 def bootstrap_cosine_ci(data, basis, pipe_fn, ep, *, n_boot=200, n_target=None,
-                        seed_ns="", alpha=0.05, log=print):
+                        seed_ns="", alpha=0.05, log=print, return_draws=False):
     """``{position: (lo, hi)}`` -- percentile CI on cos(pre, epoch) by RESAMPLING SESSIONS.
 
     THE WHISKERS THIS REPLACES WERE NOT A CI. They were the min-max RANGE across three or four
@@ -434,6 +434,17 @@ def bootstrap_cosine_ci(data, basis, pipe_fn, ep, *, n_boot=200, n_target=None,
     WITHIN ANIMAL. This is each animal's own interval, not a cohort CI -- with three animals
     carrying chronic data a resample-animals interval would be three points wide and would imply
     a precision the design does not have. The cohort bar stays a mean with its per-animal points.
+
+    THAT LAST SENTENCE IS NO LONGER THE WHOLE STORY, and the reason is worth stating here rather
+    than only in the new module. "A mean with its per-animal points" is what `15k` already
+    rejected for itself: `cohort_delta` was added there precisely because counting how many
+    animals clear a threshold is "a replication count wearing a cohort test's clothes", with a
+    per-cell false-positive rate of ~1 - 0.95^4 = 18% under an any-animal rule. The same argument
+    applies to this arm. `rotation_stats.py` builds the cohort statistic from the draws this
+    function returns under `return_draws`, as a CI and never a p -- with four animals an
+    animal-level sign-flip null has 2^4 = 16 assignments, so 0.0625 is its floor and no cell
+    could reach 0.05 at any effect size. The narrowness objection above stands and is the reason
+    the cohort number is reported as an interval with its n_animals beside it.
     """
     import hashlib
 
@@ -466,6 +477,12 @@ def bootstrap_cosine_ci(data, basis, pipe_fn, ep, *, n_boot=200, n_target=None,
            for pos, v in acc.items() if len(v) >= 20}
     log(f"   bootstrap {ep}: {len(out)} positions x "
         f"{min((len(v) for v in acc.values()), default=0)} resamples")
+    if return_draws:
+        # THE DRAWS, NOT JUST THEIR PERCENTILES. A cohort statistic resamples ANIMALS and then
+        # sessions within animal; these are already the session-level resamples, so keeping them
+        # makes the animal level a re-read rather than a second two-hour refit. Same reasoning as
+        # `epoch_15k_region_vectors_*.npz` -- "any later statistic is a re-read, not another pass".
+        return out, {pos: np.asarray(v, np.float32) for pos, v in acc.items() if len(v) >= 20}
     return out
 
 
@@ -637,7 +654,7 @@ def main() -> int:
           + ("" if a.eroded_gate else f" AND mass in stat_mask >= {MIN_IN_STAT_FRAC}")
           + f"   (tag {a.tag!r})\n")
 
-    rows, maps, outlines, cache = [], {}, {}, []
+    rows, maps, outlines, cache, draws = [], {}, {}, [], []
     for arm in a.arms:
         align, variant = ARMS[arm]
         print(f"\n== ARM {arm}")
@@ -659,13 +676,13 @@ def main() -> int:
                 data, basis, _pipe, seed_ns=f"{arm}|{an}", log=lambda m: print(m, flush=True))
             if "pre" not in pats:
                 continue
-            boots = {}
+            boots, boot_draws = {}, {}
             if a.boot:
                 for _ep in ("acute", "subacute", "chronic"):
                     if _ep in pats:
-                        boots[_ep] = bootstrap_cosine_ci(
+                        boots[_ep], boot_draws[_ep] = bootstrap_cosine_ci(
                             data, basis, _pipe, _ep, n_boot=a.boot, seed_ns=f"{arm}|{an}",
-                            log=lambda m: print(m, flush=True))
+                            log=lambda m: print(m, flush=True), return_draws=True)
             nulls, cos_nulls, gain_nulls = null_delta(
                 data, basis, _pipe, n_draws=a.null_draws, seed_ns=f"{arm}|{an}",
                 log=lambda m: print(m, flush=True))
@@ -721,6 +738,19 @@ def main() -> int:
                     # cosine of 0.37, while far_R keeps 76% of its amplitude at a cosine of -0.29.
                     gain = (norms[ep][pos] / norms["pre"][pos]
                             if norms.get("pre", {}).get(pos) else None)
+                    # THE DRAWS BEHIND THE TWO p VALUES AND THE CI, kept so the COHORT statistic
+                    # and the family-wise threshold are a re-read rather than a second run. Both
+                    # need per-draw values across cells and neither can be recovered from the
+                    # reduced z/sig in the replot cache. `cos_null` is per (arm, animal, position)
+                    # and shared across contrasts -- it is a pre-vs-pre null, so it does not
+                    # depend on the epoch -- and it is stored per row so the draw ORDER, which is
+                    # what makes positions comparable within a draw, survives the round trip.
+                    draws.append({
+                        "arm": arm, "animal": an, "contrast": f"{ep} - pre", "position": int(pos),
+                        "cos_obs": float(cos),
+                        "cos_null": np.asarray(cos_nulls.get(pos, []), np.float32),
+                        "cos_boot": np.asarray(boot_draws.get(ep, {}).get(pos, []), np.float32),
+                    })
                     for reg, v in by_region(d, basis).items():
                         rows.append({"arm": arm, "animal": an, "contrast": f"{ep} - pre",
                                      "position": int(pos), "region": reg,
@@ -758,6 +788,7 @@ def main() -> int:
         # after an interrupted run draws the arms that finished.
         if rows:
             save_cache(cache, rows, out_dir, a.tag, args=a, sha=sha0)
+            save_draws(draws, out_dir, a.tag)
             print(f"[15h] checkpoint after arm {arm}: {write_csv(rows, out_dir, a.tag)}",
                   flush=True)
 
@@ -782,6 +813,7 @@ def main() -> int:
             print(f"{arm:<7}{ep + ' - pre':<18}" + "".join(cells))
 
     save_cache(cache, rows, out_dir, a.tag, args=a, sha=sha0)
+    save_draws(draws, out_dir, a.tag)
     fig = _figure(maps, rows, out_dir, a.tag, outlines=outlines)
     plane = _gain_rotation_figure(rows, out_dir, a.tag)
     print(f"\n[15h] wrote {fig}\n[15h] wrote {plane}\n[15h] {time.time() - t0:.0f}s")
@@ -856,6 +888,48 @@ def save_cache(cache, rows, out_dir, tag="", args=None, sha=None):
                         n=len(cache), **blobs)
     print(f"[15h] wrote {p}  ({len(cache)} cells, git {sha}) -- redraw with --replot", flush=True)
     return p
+
+
+def save_draws(draws, out_dir, tag=""):
+    """Persist the per-cell null and bootstrap draws to ``epoch_15h_rotation_draws<tag>.npz``.
+
+    WHY A SEPARATE FILE FROM THE REPLOT CACHE. The cache holds the REDUCED result -- `z` and
+    `sig` per cell -- which is all a redraw needs and is two orders of magnitude smaller. The
+    cohort CI and the family-wise threshold need the DRAWS, and neither is recoverable from a
+    reduction. Keeping them apart is what lets `--replot` stay a 5 s operation.
+
+    RAGGED BY CONSTRUCTION, and stored ragged rather than padded: a cell's null and bootstrap
+    counts differ (`--null-draws` vs `--boot`), draws that failed to fit are dropped per cell,
+    and a cell with no bootstrap gets an empty array. Padding would let a short cell be read as
+    a full one with zeros in it, and a zero cosine is a meaningful value here.
+    """
+    import json
+
+    if not draws:
+        return None
+    out, meta = {"n": len(draws)}, []
+    for i, d in enumerate(draws):
+        meta.append({k: (int(d[k]) if k == "position" else d[k])
+                     for k in ("arm", "animal", "contrast", "position", "cos_obs")})
+        out[f"null{i}"] = np.asarray(d["cos_null"], np.float32)
+        out[f"boot{i}"] = np.asarray(d["cos_boot"], np.float32)
+    p = out_dir / f"epoch_15h_rotation_draws{tag}.npz"
+    np.savez_compressed(p, meta=json.dumps(meta), **out)
+    print(f"[15h] wrote {p}  ({len(draws)} cells of draws)", flush=True)
+    return p
+
+
+def load_draws(out_dir, tag=""):
+    """``[{arm, animal, contrast, position, cos_obs, cos_null, cos_boot}]``, or ``[]``."""
+    import json
+
+    p = Path(out_dir) / f"epoch_15h_rotation_draws{tag}.npz"
+    if not p.exists():
+        return []
+    with np.load(p, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        return [{**m, "cos_null": f[f"null{i}"], "cos_boot": f[f"boot{i}"]}
+                for i, m in enumerate(meta)]
 
 
 def load_cache(out_dir, tag=""):
