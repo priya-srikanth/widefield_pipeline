@@ -160,10 +160,24 @@ def plot(label, outdir):
 
 
 def main():
+    global ARMS
     ap = argparse.ArgumentParser()
     ap.add_argument("--sessions", nargs="+", default=["PS94_0819", "PS94_0810"])
     ap.add_argument("--out", required=True)
+    ap.add_argument("--arms", nargs="+", default=None, metavar="ARM",
+                    choices=[x[0].split()[0] for x in ARMS],
+                    help="which estimators to draw, by first word (meegkit WIN300 ROLL300 "
+                         "LIN300); default all four. `--arms meegkit` gives the PRODUCTION chain "
+                         "alone. That is a different question from the comparison: the four-arm "
+                         "figure asks whether the estimator CHOICE matters, this one asks what "
+                         "the pipeline actually does to a session, and the overlaid trends make "
+                         "the second harder to read. The filename carries the arm set, so the "
+                         "two can never overwrite each other.")
     a = ap.parse_args()
+    if a.arms:
+        keep = set(a.arms)
+        ARMS = tuple(x for x in ARMS if x[0].split()[0] in keep)
+        print(f"arms: {', '.join(x[0] for x in ARMS)}")
     Path(a.out).mkdir(parents=True, exist_ok=True)
     for lab in a.sessions:
         try:
