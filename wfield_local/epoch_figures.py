@@ -327,7 +327,12 @@ def save_map_bundle(q, cells, **kw):
         r, c = key if isinstance(key, tuple) and len(key) == 2 else (key, "")
         arrays[f"cell{i}"] = np.asarray(A, dtype=BUNDLE_DTYPE)
         meta_cells.append({"i": i, "row": str(r), "col": str(c)})
-    for nm in ("contours", "blank"):
+    # `edges` BELONGS HERE AND WAS MISSING, which is not a cosmetic omission. It is a numpy array,
+    # so `_jsonable` rejected it and it was dropped from `kw` WITHOUT A WORD -- a bundle therefore
+    # rebuilt every map faithfully and silently lost the Allen CCF overlay on all of them. Caught
+    # 2026-09-17 (Priya: "why did we get rid of the CCF region overlay"), after a bulk redraw put
+    # 35 overlay-less figures on the share under their canonical names. Bit-packed like the others.
+    for nm in ("contours", "blank", "edges"):
         v = kw.get(nm)
         if isinstance(v, dict):
             for i, (key, M) in enumerate(sorted(v.items(), key=lambda kv: str(kv[0]))):
@@ -343,9 +348,18 @@ def save_map_bundle(q, cells, **kw):
         if A is not None:
             shape = list(np.asarray(A).shape)
             break
-    meta = {"schema": 1, "shape": shape, "dtype": BUNDLE_DTYPE, "cells": meta_cells,
+    dropped = sorted(k for k, v in kw.items()
+                     if k not in ("contours", "blank", "edges") and not _jsonable(v))
+    if dropped:
+        # SAY WHAT IS BEING LOST. Silent dropping is what cost the CCF overlay: a bundle that
+        # quietly discards an argument produces a redraw that differs from the original with
+        # nothing anywhere to say so.
+        print(f"  !! map bundle {q.stem}: NOT serialisable, will be absent from any replot: "
+              f"{', '.join(dropped)}", flush=True)
+    meta = {"schema": 2, "shape": shape, "dtype": BUNDLE_DTYPE, "cells": meta_cells,
+            "dropped_kw": dropped,
             "kw": {k: v for k, v in kw.items()
-                   if k not in ("contours", "blank") and _jsonable(v)}}
+                   if k not in ("contours", "blank", "edges") and _jsonable(v)}}
     try:
         np.savez_compressed(q.with_name(q.stem + "_bundle.npz"), **arrays)
         q.with_name(q.stem + "_bundle.json").write_text(json.dumps(meta, indent=1),
@@ -395,8 +409,20 @@ def replot_map(bundle, out=None, **overrides):
     if "blank" in z.files:
         n = int(np.prod(shape))
         blank = np.unpackbits(z["blank"])[:n].astype(bool).reshape(shape)
+    # THE ALLEN OVERLAY. Bundles written before schema 2 do not carry it (it was being dropped as
+    # unserialisable), so fall back to rebuilding it: `atlas_edges` takes no arguments and returns
+    # the boundaries on the SHARED grid every one of these maps lives on, which is exactly what
+    # every `map_grid` caller passed. It returns None if no session carries an atlas, and a
+    # missing overlay should cost the outlines rather than the figure.
+    edges = None
+    if "edges" in z.files:
+        n = int(np.prod(shape))
+        edges = np.unpackbits(z["edges"])[:n].astype(bool).reshape(shape)
+    elif "edges" not in overrides:
+        from wfield_local.beta_maps import atlas_edges
+        edges = atlas_edges()
     kw = dict(meta.get("kw") or {})
-    kw.update(contours=contours or None, blank=blank)
+    kw.update(contours=contours or None, blank=blank, edges=edges)
     kw.update(overrides)
     # NEVER OVERWRITE THE ORIGINAL. The bundle carries the name `map_grid` was called with, so a
     # naive redraw lands on top of the figure it was made from -- caught the first time this ran.
@@ -1968,7 +1994,7 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     LIMITS FROM A PERCENTILE, not the max: one saturated pixel at the edge of the window -- and
     these maps have them, from the mask boundary -- would otherwise flatten every real feature.
 
-    ``contours[(row, col)]`` is a boolean mask outlined in green on that panel -- used for the
+    ``contours[(row, col)]`` is a boolean mask outlined in black on that panel -- used for the
     cluster-permutation result, so a difference panel says which of it survives a test rather than
     being read by eye. Outlined, NOT masked: masking would hide the magnitude, which is what the
     panel is for.
@@ -2063,8 +2089,16 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
                     overlay_regions(ax, edges)
                 cm = (contours or {}).get((r, c))
                 if cm is not None and np.any(cm):
-                    ax.contour(np.asarray(cm, float), levels=[0.5], colors="#12a150",
-                               linewidths=1.1)
+                    # BLACK, HALOED, AND THICKER (Priya, 2026-09-17). The 1.1 pt green line was
+                    # hard to see: it sat on a red/blue diverging ramp, and green is a mid
+                    # LUMINANCE colour, so over saturated red or deep blue there was almost no
+                    # contrast to carry the edge. Black maximises luminance contrast against the
+                    # pale middle of the ramp, and the white underlay carries it across the dark
+                    # ends -- one colour cannot do both on a diverging map, which is why this is
+                    # two strokes rather than a recolour.
+                    _c = np.asarray(cm, float)
+                    ax.contour(_c, levels=[0.5], colors="white", linewidths=2.8, alpha=0.85)
+                    ax.contour(_c, levels=[0.5], colors="black", linewidths=1.6)
             # THE MAIN LABELS ARE THE COLUMN (epoch) AND THE ROW (spout position), and they are now
             # sized as LABELS rather than as annotations. They shared a size with the per-panel
             # STATS titles, which left the epoch header at 7.0 pt and the position at 9.0 pt -- the
@@ -2702,15 +2736,60 @@ def wrap_title(text, fig_w_in, fontsize, *, margin_in=0.12):
     The counterpart of `wrap_ylabel` for the other axis. A suptitle is centred, and matplotlib does
     not clip it -- it runs off BOTH edges, which is how a 2.58in figure ended up with a title
     written for a 6.2in one. Priya, 2026-08-28.
+
+    THE 0.5-EM ESTIMATE THIS USED TO MAKE WAS WRONG FOR THIS PROJECT'S TEXT, and the error was
+    one-sided. `per_char = 0.5 * fontsize` is about right for lower-case prose; the captions here
+    SHOUT their key phrases, and capitals in DejaVu Sans run 0.65-0.72 em. A caption that is half
+    upper-case therefore overflowed by ~30% -- and because a centred `fig.text` is not clipped but
+    runs off BOTH edges, the symptom was paragraphs starting mid-word with no error anywhere.
+    Priya, 2026-09-17, reading it off a rendered panel.
+
+    SO THE WIDTH IS MEASURED, NOT ASSUMED. `TextPath` gives the true advance width in points for
+    the actual glyph string at the actual size, with no renderer and no canvas. One measurement
+    sets the average for the wrap, and every resulting line is then CHECKED and split again if it
+    still measures over -- an average cannot protect a line that happens to be all capitals.
     """
     import textwrap
 
-    per_char = 0.5 * fontsize / 72.0
-    fits = max(12, int((fig_w_in - 2 * margin_in) / per_char))
-    if len(text) <= fits:
+    per_char = _avg_char_width_in(text, fontsize) or (0.5 * fontsize / 72.0)
+    avail = fig_w_in - 2 * margin_in
+    fits = max(12, int(avail / per_char))
+    if len(text) <= fits and _text_width_in(text, fontsize) <= avail:
         return text, 1
-    lines = textwrap.wrap(text, width=fits) or [text]
+    lines = []
+    for ln in (textwrap.wrap(text, width=fits) or [text]):
+        # VERIFY EACH LINE. The average is an average; a line of solid capitals beats it.
+        while _text_width_in(ln, fontsize) > avail and " " in ln:
+            keep = ln
+            while _text_width_in(keep, fontsize) > avail and " " in keep:
+                keep = keep.rsplit(" ", 1)[0]
+            lines.append(keep)
+            ln = ln[len(keep):].lstrip()
+        lines.append(ln)
+    lines = [x for x in lines if x]
     return chr(10).join(lines), len(lines)
+
+
+def _text_width_in(text, fontsize):
+    """Rendered advance width of `text` in INCHES, measured rather than estimated."""
+    if not text:
+        return 0.0
+    try:
+        from matplotlib.font_manager import FontProperties
+        from matplotlib.textpath import TextPath
+        return TextPath((0, 0), str(text), prop=FontProperties(size=fontsize),
+                        usetex=False).get_extents().width / 72.0
+    except Exception:                                                    # noqa: BLE001
+        # A MISSING MEASUREMENT MUST NOT COST THE FIGURE. Fall back to the old estimate; the
+        # caller treats 0.0 as "unknown" and keeps its character-count wrap.
+        return 0.0
+
+
+def _avg_char_width_in(text, fontsize, sample=600):
+    """Mean glyph advance in inches for THIS string, so the wrap adapts to its own case mix."""
+    s = str(text)[:sample]
+    w = _text_width_in(s, fontsize)
+    return (w / len(s)) if (w and s) else 0.0
 
 
 def fit_subtitle(text, fig_w_in, fontsize):

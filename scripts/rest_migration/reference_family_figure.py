@@ -336,11 +336,20 @@ def _figure(rows, out_dir, align="cue", tag=""):
 
     for i, ep in enumerate(EPOCHS):
         ag = agreement(rows, ep, regions, positions, fams)
+        # WHICH POSITIONS HAVE ANY DATA AT ALL, accumulated across the families so the agreement
+        # panel can tell "no family agrees" from "there was nothing to agree about". Those are
+        # different facts and the agreement colourmap renders both as its neutral grey.
+        have = np.zeros(len(positions), bool)
         for j, fam in enumerate(fams):
             ax = axes[i][j]
             d, s, _n = grid(rows, fam, ep, regions, positions)
             cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
-            cm.set_bad("0.90")                     # ABSENT, and grey so it cannot read as zero
+            # ABSENT CELLS ARE LEFT EMPTY (Priya, 2026-09-17). A grey block still reads as a
+            # rendered value -- it has an edge, a shape and a place on the colour ramp -- and
+            # on the lick arm a whole acute column of it looked like a result. White is the
+            # absence of a cell rather than a pale one; the column is named on its tick label
+            # instead, which is outside the data area and cannot be read as data.
+            cm.set_bad("white")
             im = ax.imshow(np.ma.masked_invalid(d), cmap=cm, vmin=-vmax[fam], vmax=vmax[fam],
                            aspect="auto", interpolation="nearest")
             yy, xx = np.where(s)
@@ -352,11 +361,16 @@ def _figure(rows, out_dir, align="cue", tag=""):
             # SAY WHY A COLUMN IS EMPTY. The lick arm has no acute far-contra cell in ANY animal
             # -- acutely they do not lick at that spout -- and unlabelled grey reads as a
             # pipeline failure when it is the deficit itself.
-            for j2 in np.flatnonzero(~np.isfinite(d).any(axis=0)):
-                ax.text(j2, len(regions) / 2, "no trials in any animal", rotation=90,
-                        ha="center", va="center", fontsize=6.5, color="0.35")
+            # SAY WHY A COLUMN IS EMPTY, ON THE TICK AND NOT IN THE CELL. The lick arm has no
+            # acute far-contra cell in ANY animal -- acutely they do not lick at that spout -- and
+            # that is the deficit itself rather than a pipeline failure, so it must be stated. It
+            # is stated OUTSIDE the panel so the cell can stay genuinely empty.
+            col_has = np.isfinite(d).any(axis=0)
+            have |= col_has
+            empty = set(np.flatnonzero(~col_has).tolist())
             ax.set_xticks(range(len(positions)))
-            ax.set_xticklabels(xt, fontsize=9.5)
+            ax.set_xticklabels([(t + chr(10) + "(none)") if k in empty else t
+                                for k, t in enumerate(xt)], fontsize=9.5)
             ax.set_yticks(range(len(regions)))
             ax.set_yticklabels(regions if j == 0 else [], fontsize=5.4)
             ax.tick_params(length=1.5, pad=1)
@@ -371,12 +385,21 @@ def _figure(rows, out_dir, align="cue", tag=""):
 
         ax = axes[i][ncol - 1]
         sag, mixed = signed_agreement(rows, ep, regions, positions, fams)
-        ax.imshow(sag, cmap=ag_cmap, norm=ag_norm, aspect="auto", interpolation="nearest")
+        # A POSITION WITH NO DATA IS EMPTY HERE TOO, not neutral grey. `signed_agreement` returns
+        # 0 for "no family clears zero", and 0 is also what a column with no cells produces -- so
+        # without this the acute far-contra lick column would read as a measured null instead of
+        # an absence. Masked, and the tick says why, exactly as the family panels do.
+        _ag = np.where(have[None, :], np.asarray(sag, float), np.nan)
+        _agc = ag_cmap.copy()
+        _agc.set_bad("white")
+        ax.imshow(np.ma.masked_invalid(_ag), cmap=_agc, norm=ag_norm, aspect="auto",
+                  interpolation="nearest")
         ym, xm = np.where(mixed)
         if ym.size:
             ax.plot(xm, ym, "x", ms=4, color="k", mew=1.0, ls="none")
         ax.set_xticks(range(len(positions)))
-        ax.set_xticklabels(xt, fontsize=9.5)
+        ax.set_xticklabels([(t + chr(10) + "(none)") if not have[k] else t
+                            for k, t in enumerate(xt)], fontsize=9.5)
         ax.set_yticks(range(len(regions)))
         ax.set_yticklabels([], fontsize=5.4)
         ax.tick_params(length=1.5, pad=1)
@@ -509,7 +532,9 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=N
                              gridspec_kw={"wspace": 0.03, "hspace": 0.05})
     fig.subplots_adjust(top=1 - 1.55 / fig_h, bottom=0.075)
     cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
-    cm.set_bad("0.955")            # AGREED-ON-NOTHING, and pale so it cannot read as a zero value
+    # EMPTY, NOT PALE GREY -- same reasoning as the matrix panels: a filled cell reads as a
+    # rendered value whatever its shade. The per-panel label below still names the reason.
+    cm.set_bad("white")
 
     for i, ep in enumerate(EPOCHS):
         for j, pos in enumerate(positions):

@@ -1195,7 +1195,7 @@ PRIMARY_TEST = "nested"
 #: significance was localized at the rim in some figures." She is right, and a single erosion
 #: radius cannot be tuned to cover every panel without eating real cortex.
 #:
-#: SUPPRESSED RATHER THAN ANNOTATED, deliberately. A green contour is read as a result; a caveat in
+#: SUPPRESSED RATHER THAN ANNOTATED, deliberately. A drawn contour is read as a result; a caveat in
 #: a subtitle is not read at all. The label always reports the enrichment so a suppressed panel
 #: says why, and `significance_contour` prints it on every render.
 EDGE_ENRICHMENT_MAX = 2.0
@@ -1228,7 +1228,7 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
                          n_perm=500, alpha=0.05, seed=0, mask=None):
     """``(full-resolution boolean mask, one-line label)`` for a difference panel, or ``(None, "")``.
 
-    ONE PLACE, so a figure cannot quietly disagree with another about what its green contour means.
+    ONE PLACE, so a figure cannot quietly disagree with another about what its drawn contour means.
     Three methods are reachable and they answer the same question with different trade-offs:
 
         "nested"   animals -> sessions bootstrap on the 8x downsampled grid, Bonferroni over bins.

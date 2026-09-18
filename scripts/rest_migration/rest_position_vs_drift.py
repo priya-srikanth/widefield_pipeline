@@ -200,7 +200,12 @@ def main() -> int:
         out = ef.map_grid(
             cells, d, name="epoch_15x_REST_by_position_by_animal",
             title="REST activity by spout position, per animal -- does the baseline carry position?",
-            row_labels=rows, col_labels=[q for q in CONF_LABELS],
+            row_labels=rows,
+            # ANATOMICAL NAMES, as every other position axis in this deck uses. The raw
+            # CONF_LABELS (close_L / far_R ...) name the RIG; near/far x ipsi/contra name
+            # the lesion, which is the thing the figure is about, and `anatomical_labels`
+            # derives the mapping from stroke_laterality rather than hardcoding it.
+            col_labels=[x.title() for x in ef.anatomical_labels(CONF_LABELS, short=False)],
             edges=bm.atlas_edges(), blank=bm.excluded_mask(), row_scaled=True,
             cbar_label="rest activity minus that\nanimal's across-position mean",
             subtitle=(

@@ -1879,7 +1879,7 @@ def _stats_sentence(stat_rows):
                 f"{bm.EDGE_ENRICHMENT_MAX:.0f}x CONCENTRATED IN THE MASK RIM ARE SUPPRESSED and "
                 "draw no contour -- that pattern is an imaging-window artefact, and because it is "
                 "the same artefact in every animal a between-animal test cannot reject it.")
-    return ("GREEN contours are bins significant under the NESTED animals->sessions bootstrap "
+    return ("BLACK contours are bins significant under the NESTED animals->sessions bootstrap "
             f"(2,000 draws, resampled with replacement at both levels), {txt}. The test runs on "
             f"the brain mask ERODED {bm.STAT_ERODE_PX} px, with the olfactory bulbs and the "
             f"hand-painted fibre-glue occlusion removed.{tail}")
@@ -2011,7 +2011,10 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 f"folds, no Haufe transform. {txt['note']} "
                 "Colour scale is PER ROW, so a position is comparable across its own epochs and "
                 "rows are not comparable to each other; the difference columns share their row's "
-                "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. GREEN "
+                # NO COLOUR WORD HERE -- `_stats_sentence` supplies it. This line used to add
+                # its own, so the caption read "GREEN GREEN contours" on every panel of this
+                # family, and naming the colour in two places is how they come to disagree.
+                "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. "
                 f"{_stats_sentence(_stats)} This is the same statistical object every bar "
                 "family in this deck uses. "
                 "r = split-half reliability of that epoch's mean map. "
@@ -2172,7 +2175,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             # THE PERMUTATION TEST IS BETTER POSED HERE THAN ON FIGURE 14, because these six maps
             # are INDEPENDENT: the null "this position's epoch label carries no information" is a
             # real null, where on a one-vs-rest map relabelling one position perturbs the reference
-            # of the other five. Labels shuffled WITHIN animal; green contour = cluster mass above
+            # of the other five. Labels shuffled WITHIN animal; black contour = cluster mass above
             # the 95th percentile of the null.
             pre_by = pre_arm
             for e in ("acute", "subacute", "chronic"):
@@ -2222,7 +2225,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "position information; the reverse is a change in TUNING without a change in drive. "
             "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
             "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
-            "BOUNDARIES, not statistics. GREEN contours are bins where the change differs from "
+            "BOUNDARIES, not statistics. BLACK contours are bins where the change differs from "
             f"zero. {_stats_sentence(_stats)} "
             "It STEPS rather than curving because it is drawn on those "
             "bins: the maps carry no spatial detail finer than FWHM ~81 px, so a smooth "
