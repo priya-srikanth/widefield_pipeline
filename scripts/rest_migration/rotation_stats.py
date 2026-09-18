@@ -312,7 +312,11 @@ def main(argv=None) -> int:
             "ci_is_exact": inner == "draws",
             "cohort_z_vs_noise": (round(zc, 3) if zc is not None else None),
             "maxstat_threshold": (round(thresh, 3) if thresh is not None else None),
-            "fwe_significant": sig,
+            # EMPTY, NOT False, WHEN THERE WAS NO THRESHOLD. `False` in this column means "tested
+            # and did not clear"; a blank means "not tested". Writing False for an uncomputed test
+            # would let anyone filtering the column conclude that 72 cells were checked and none
+            # survived -- the same false null the console line above exists to prevent.
+            "fwe_significant": (sig if thresh is not None else None),
             "correction": "maxstat",
             "family_n_cells": n_cells,
             "n_null_draws": n_draws,
@@ -323,7 +327,15 @@ def main(argv=None) -> int:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    print(f"   {n_sig}/{len(rows)} cells clear the family-wise threshold")
+    # NEVER PRINT "0 of N CLEARED" WHEN THERE WAS NO THRESHOLD TO CLEAR. Zero-out-of-seventy-two
+    # reads as "nothing survived correction", and that sentence has already been wrong once in
+    # this arm -- it was the draw count, not the effect sizes. A statistic that was not computed
+    # must not be reported as a statistic that came out null.
+    if thresh is None:
+        print("   family-wise threshold NOT COMPUTED (no draws) -- this is not a null result, "
+              "and no cell can be called corrected-significant either way")
+    else:
+        print(f"   {n_sig}/{len(rows)} cells clear the family-wise threshold")
     print(f"   {sum(r['ci_excludes_zero'] for r in rows)}/{len(rows)} cohort CIs exclude zero")
     print(f"[15h] wrote {p}")
     (out_dir / f"epoch_15h_rotation_cohort{a.tag}_meta.json").write_text(
