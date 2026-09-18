@@ -40,7 +40,8 @@ def sessions_by_epoch():
     """``(values, points, counts, n)`` -- engaged fraction per session, grouped by epoch."""
     import pandas as pd
 
-    from wfield_local import config, epoch_audit as ea, epochs
+    from wfield_local import config, epochs
+    from wfield_local import epoch_audit as ea
 
     df = pd.read_csv(ea._cohort_path())
     # SAME DEDUPE RULE AS `load_far_position_tables`: two sessions were recorded on one date for
@@ -105,13 +106,13 @@ def main(argv=None) -> int:
 
     sub = ef.stats_line(
         counts, n_boot=N_BOOT,
-        notes=["bootstrap: animals -> sessions (a session is one number here, so there is no "
-               "block level)",
-               "WORKING is judged ONLY at the spared reference positions, so a run of misses at "
-               "an impaired position counts as the deficit rather than as disengagement",
-               "NO POSITION AXIS: the gate is a SESSION-level property, so the per-position "
-               "panel it replaces was flat by construction (acute spread 0.031 across six "
-               "positions against an epoch effect of 0.18)"])
+        notes=[("bootstrap: animals -> sessions (a session is one number here, so there is no "
+                "block level)"),
+               ("WORKING is judged ONLY at the spared reference positions, so a run of misses at "
+                "an impaired position counts as the deficit rather than as disengagement"),
+               ("NO POSITION AXIS: the gate is a SESSION-level property, so the per-position "
+                "panel it replaces was flat by construction (acute spread 0.031 across six "
+                "positions against an epoch effect of 0.18)")])
     made = ef.bar_row(
         values, out_dir, name="epoch_1f_engagement_by_epoch",
         title="Engagement: fraction of trials the animal was still working, by epoch "
