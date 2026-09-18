@@ -458,12 +458,18 @@ def _confusion(conf, order, out, variant, stem, codes):
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
 
-    # PERMUTE INTO THE CANONICAL ORDER, do not merely relabel. The matrices are built on
-    # `CODES = [0..5]`, and `POSITION_NAMES` puts close_CENTER at 0 -- so an axis in code order is
-    # TRANSPOSED against `CONF_LABELS`, which is what every neighbouring figure in this deck uses.
-    # Relabelling without permuting would put correct-looking names on the wrong rows, and a
-    # confusion matrix read one row out is worse than no confusion matrix: the off-diagonal IS the
-    # claim here ("far-contra read as near"), so a transposed axis invents a substitution.
+    # PERMUTE INTO THE CANONICAL ORDER. The matrices are accumulated on `CODES = [0..5]` and
+    # `POSITION_NAMES` puts close_center at 0, so the axes ran
+    #     Near Middle, Near Ipsi, Near Contra, Far Middle, Far Ipsi, Far Contra
+    # while every other position axis in this deck runs Near Ipsi -> Far Contra. The permutation
+    # between the two is [1, 0, 2, 4, 3, 5].
+    #
+    # WHAT THIS IS NOT, and an earlier version of this comment claimed otherwise: the old figure
+    # was NOT mislabelled. Each row carried its own correct name, so the matrix was internally
+    # consistent and no cell was wrong. The defect is CROSS-FIGURE. Read beside the task-side `5c`
+    # confusion matrix, row 1 means Near Ipsi there and Near Middle here, and both are captioned
+    # "position" -- and side-by-side reading is the entire reason both figures exist. Ordering
+    # them alike is what makes "where did far-contra's code go" the same question in both.
     rank = {q: i for i, q in enumerate(CONF_LABELS)}
     idx = sorted(range(len(codes)),
                  key=lambda i: rank.get(POSITION_NAMES.get(int(codes[i]), ""), 99))

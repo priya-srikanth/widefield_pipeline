@@ -13931,3 +13931,42 @@ is acted on.
 **WHETHER A REGION SURVIVES IS FOR THE AGREEMENT TEST, NOT THE GATE.** The gate decides what can be
 asked about; `15k`'s three-reference agreement decides what is real. RSP and VIS entering the
 vocabulary is not a claim that they carry position code.
+
+---
+
+## CORRECTION: the rest confusion matrix was mis-ORDERED, not mislabelled (2026-09-18)
+
+**A claim I made in commit `d232197` was too strong, and this entry is the retraction.** That
+commit said `rest_frozen_decoder`'s confusion matrix was "read one row out" and that a transposed
+axis "invents a substitution that did not happen". Both sentences overstate it.
+
+**WHAT WAS ACTUALLY TRUE.** The matrices are accumulated on `CODES = [0..5]` and labelled with
+`POSITION_NAMES.get(code)`. `POSITION_NAMES` maps 0 -> close_center, 1 -> close_L, 2 -> close_R,
+3 -> far_center, 4 -> far_L, 5 -> far_R, so label *i* correctly names code *i*. **Every row carried
+its own correct name. No cell was mislabelled and the figure was internally consistent.** What was
+wrong is the ORDER: the axes ran
+
+    Near Middle, Near Ipsi, Near Contra, Far Middle, Far Ipsi, Far Contra
+
+against the canonical `CONF_LABELS` order Near Ipsi -> Far Contra that every other position axis in
+the deck uses. The permutation between them is `[1, 0, 2, 4, 3, 5]` -- the first two and the middle
+two swapped.
+
+**SO THE DEFECT IS CROSS-FIGURE, AND IT IS STILL WORTH FIXING.** Laid beside the task-side `5c`
+confusion matrix, row 1 means Near Ipsi in one and Near Middle in the other while both are
+captioned "position" -- and reading the rest matrix against the task matrix is the whole reason the
+rest one was built (2026-09-16: a scalar says how much position information survives, not where it
+goes). The fix permutes both axes into canonical order and adopts the short `nI/nM/nC/fI/fM/fC`
+labels.
+
+**NO NUMBER MOVES.** Balanced accuracy and the retained fractions are computed from `y_true` /
+`y_pred` in `_balanced_accuracy`, never from the labelled matrix, so nothing scalar in the
+rest-frozen arm changes. Only the drawn matrix is affected.
+
+**HOW THE OVERSTATEMENT HAPPENED, because it is the reusable part.** I inferred the mislabelling
+from the code pattern -- "matrix built on codes, labels taken from a code->name map whose order is
+not canonical" -- which is the shape of a real mislabelling bug, and wrote the consequence without
+printing `POSITION_NAMES`. One line of output would have shown that the map is self-consistent and
+that only the order was off. **Reading a dict's ORDER off its construction is not reading its
+CONTENTS**, and a severity claim needs the contents.
+
