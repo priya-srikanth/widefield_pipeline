@@ -133,7 +133,13 @@ animals:
     epochs:                         # days since stroke_date; see the note above
       acute: [1, 7]
       subacute_from: 9
-      chronic_from: null    # has not stabilised
+      chronic_from: 25      # 2026-09-19: PS94 plateaus at day 25 under the tightened settled test
+                            #   (k_res 0.5) + one-sided trend. Its hit rate recovers by day 9 (~91%
+                            #   of baseline) but WOBBLES -- dips to 77% (d22) then rebounds to 106%
+                            #   (d25) -- so it never "stops changing" until its final band settles at
+                            #   day 25 (106->102->93, tight scatter, downward = terminal not
+                            #   improving). Was null ("never plateaus") under the pre-2026-09-19
+                            #   symmetric/loose-residual rule. See DECISIONS.md.
     exclude: []
 
   PS95:
@@ -150,11 +156,14 @@ animals:
     epochs:                         # days since stroke_date; see the note above
       acute: [1, 1]
       subacute_from: 2
-      chronic_from: 11      # 2026-09-14: back to day 11 under ACCURACY-ONLY (licks arm dropped
-                            #   2026-09-12). With the licks series no longer gating and more flat
-                            #   sessions accrued, the HIT-rate d11 tail is flat within tolerance
-                            #   (101% of baseline). The d15 value was set by the now-retired
-                            #   drift-on-licks rule. All three chronic animals are now day 11.
+      chronic_from: 15      # 2026-09-19: day 15 under the tightened settled test (k_res 0.5). PS95
+                            #   crosses baseline early but keeps CLIMBING through day 11 (91 -> 104%);
+                            #   its day-11 tail is not yet a tight band (residual/SD 0.54). The band
+                            #   locks in at day 15 (104/103/104/104/100, residual/SD 0.13). The old
+                            #   loose residual (k_res 1.5) accepted the still-rising d11 window; the
+                            #   tightened test matches the by-eye plateau. (It was briefly d11 under
+                            #   accuracy-only + loose residual, and d15 long ago under drift-on-licks
+                            #   -- same number, different reason.) See DECISIONS.md.
     exclude: []
 
 # Cohort-level date policy (baseline days). MMDD dates are QUOTED strings — unquoted leading-zero

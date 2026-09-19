@@ -109,9 +109,12 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 #: not this.
 #:
 #: ``chronic_from: null`` is an ASSERTION, not an omission: that animal was tested against
-#: `CHRONIC_RULE` and has not stabilised. Three of the four have not, for three different reasons --
-#: PS93's licking overshot baseline and is still coming back down, PS94 is DECLINING, PS95's hit
-#: rate is still climbing. Written explicitly so a reader cannot mistake it for a gap.
+#: `CHRONIC_RULE` and has not stabilised. As of 2026-09-19 all four HAVE a chronic boundary
+#: (PS92 11, PS93 11, PS94 25, PS95 15) under the tightened settled test (k_res 0.5) + one-sided
+#: trend; a null would still read as "tested and not yet plateaued", not a gap. (History: PS94 read
+#: null for a while because its hit rate recovers then WOBBLES -- the old symmetric/loose-residual
+#: rule never saw it "stop changing"; the one-sided + tight-residual rule locks its final band at
+#: day 25. See DECISIONS.md 2026-09-19.)
 EPOCH_SPEC = config.epoch_spec()
 
 _EP = config.defaults().get("epochs") or {}
@@ -215,6 +218,12 @@ CHRONIC_MIN_TAIL = int(_CHRONIC.get("min_tail", 3))
 #: is what this rule did before 2026-09-10 and is kept so the old boundaries can be reproduced.
 CHRONIC_FLAT_MODE = str(_CHRONIC.get("flat_mode", "rate"))
 CHRONIC_K_DRIFT = float(_CHRONIC.get("k_drift", 1.0))
+#: ONE-SIDED trend test (2026-09-19). When True the FLAT arm rejects only a still-RISING series
+#: (drift > k_drift x SD); a downward drift never disqualifies, because chronic is TERMINAL -- a
+#: recovered animal that wobbles or eases down does not return to subacute. What must not pass is a
+#: series still climbing (still recovering). Lets PS94's settled-but-declining final band count while
+#: PS95's still-rising day-11 window does not; the residual (settled) test guards the downward side.
+CHRONIC_ONESIDED = bool(_CHRONIC.get("flat_onesided", False))
 #: WHICH SERIES GATE THE BOUNDARY. Both "hit" and "licks" are always COMPUTED and reported (so the
 #: figures keep showing licking), but only the series listed here enter the AND that sets the day.
 #: [hit, licks] is the original two-measure AND; [hit] is accuracy-only (Priya, 2026-09-12: licking
@@ -232,7 +241,9 @@ CHRONIC_LEVEL_MIN = {k: (None if v is None else float(v)) for k, v in
 #: YAML, and would then be asserting something false in a published deck.
 _FLAT_TXT = (f"|slope| <= {CHRONIC_K_SD:.4g} x pre-stroke SD/session"
              if CHRONIC_FLAT_MODE == "rate" else
-             f"total drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD")
+             (f"upward drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD "
+              f"(not still rising)" if CHRONIC_ONESIDED else
+              f"total drift across the window <= {CHRONIC_K_DRIFT:.4g} x pre-stroke SD"))
 _LEVEL_TXT = " / ".join(f"{100 * CHRONIC_LEVEL_MIN[k]:.0f}%" for k in ("hit", "licks")
                         if CHRONIC_LEVEL_MIN.get(k) is not None)
 _SERIES_LABEL = {"hit": "hit rate", "licks": "licks/trial"}
@@ -573,7 +584,12 @@ def _is_flat(tail, sd_pre):
     slope, resid = _fit_line(tail)
     if CHRONIC_FLAT_MODE == "rate":
         return abs(slope) <= CHRONIC_K_SD * sd_pre, slope, resid
-    return abs(slope * (len(tail) - 1)) <= CHRONIC_K_DRIFT * sd_pre, slope, resid
+    drift = slope * (len(tail) - 1)
+    # ONE-SIDED (default from 2026-09-19): only a still-RISING series fails the trend arm; a downward
+    # drift is tolerated and left for the residual (settled) test to judge. See CHRONIC_ONESIDED.
+    if CHRONIC_ONESIDED:
+        return drift <= CHRONIC_K_DRIFT * sd_pre, slope, resid
+    return abs(drift) <= CHRONIC_K_DRIFT * sd_pre, slope, resid
 
 
 def _plateau_index(series, sd_pre, level_min, *, days=None, min_day=None):

@@ -79,7 +79,7 @@ def test_a_flat_fit_through_scattered_points_is_not_a_plateau():
     assert epochs._plateau_index(scattered, sd, epochs.CHRONIC_LEVEL_MIN.get("hit")) is None
 
 
-def test_the_plateau_must_persist():
+def test_the_plateau_must_persist(monkeypatch):
     """THE PERSISTENCE REQUIREMENT, on the real series that forced it.
 
     PS95's hit rate satisfies all three conditions at index 1 (day 2) and at NO OTHER index -- the
@@ -88,7 +88,15 @@ def test_the_plateau_must_persist():
     is plainly still climbing. Requiring every later start to pass as well reports nothing.
 
     Tested at the 0.80 level bar rather than hit rate's real 0.90, deliberately: at 0.90 the level
-    condition also rejects index 1, which would mask whether persistence works at all."""
+    condition also rejects index 1, which would mask whether persistence works at all.
+
+    UNDER THE RATE FLAT TEST, deliberately (monkeypatched). This is the regime where the lucky-window
+    pathology bites: the production ONE-SIDED drift test (2026-09-19) already rejects PS95's
+    still-RISING day-2 window on the trend arm, so no lucky window survives to need persistence
+    there. But the persistence LOGIC in `_plateau_index` must still be correct for the regimes where
+    a lucky window can occur, which is what this pins."""
+    monkeypatch.setattr(epochs, "CHRONIC_FLAT_MODE", "rate")
+    monkeypatch.setattr(epochs, "CHRONIC_K_RES", 1.5)
     def passes(i):
         tail = PS95_HIT[i:]
         slope, resid = epochs._fit_line(tail)
@@ -176,15 +184,23 @@ def test_it_reports_rather_than_reassigns():
     rep = epochs.derive_chronic_boundaries(hit, lick)["PS94"]
     assert rep["derived_day"] is not None, "the fixture was supposed to look recovered"
     assert rep["agree"] is False, "a derived/stored mismatch must be REPORTED"
-    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None, "the rule reassigned the stored spec"
-    assert epochs.epoch_of(post[-1]) == "subacute", "the rule moved a session"
+    # REPORTED, NOT APPLIED: the fixture "looks recovered from day 1", but the derive call must not
+    # mutate the stored spec (PS94's ratified chronic is day 25), and session labelling must still
+    # follow the stored boundary -- PS94's day-12 session stays subacute (12 < 25), not chronic.
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] == 25, "the rule reassigned the stored spec"
+    assert epochs.epoch_of("PS94_0827") == "subacute", "the rule moved a session"
 
 
-def test_a_missing_series_is_reported_not_guessed():
+def test_a_missing_series_is_reported_not_guessed(monkeypatch):
+    # Every animal now has a stored chronic boundary, so to exercise the "both None -> agree" arm we
+    # give one animal a None seed: absent data must not be guessed into a boundary, and None derived
+    # against a None seed is agreement, not a silent disagreement.
+    monkeypatch.setitem(epochs.EPOCH_SPEC, "PS94",
+                        {**epochs.EPOCH_SPEC["PS94"], "chronic_from": None})
     rep = epochs.derive_chronic_boundaries({}, {})
     assert all(r["derived_day"] is None for r in rep.values())
-    assert rep["PS92"]["agree"] is False          # PS92 HAS a stored boundary; absent data != None
-    assert rep["PS94"]["agree"] is True           # PS94 has none, and none was derived
+    assert rep["PS92"]["agree"] is False          # PS92 HAS a stored boundary; absent data != stored
+    assert rep["PS94"]["agree"] is True           # None seed, and None derived
 
 
 @pytest.mark.parametrize("label", [l for l in config.pooled_labels()])

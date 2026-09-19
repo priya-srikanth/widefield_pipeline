@@ -91,8 +91,9 @@ def test_a_disagreement_names_the_animal_and_the_boundary(tmp_path):
     # must never read as agreement (`test_a_missing_series_is_reported_not_guessed` in the epoch
     # tests pins the same contract one level down).
     assert any("PS92" in b for b in bad), bad
-    # REPORTED, NOT APPLIED
-    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None
+    # REPORTED, NOT APPLIED: the disagreement is surfaced but the stored spec is not mutated
+    # (PS94's ratified chronic is day 25; the fixture's recovered-look does not overwrite it).
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] == 25
 
 
 def test_the_cli_exits_zero_even_when_behaviour_has_moved(monkeypatch, capsys):

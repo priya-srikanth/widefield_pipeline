@@ -23,15 +23,19 @@ from wfield_local import config, epochs
 #: Priya's specification, transcribed as {animal: (acute days, first subacute day, first chronic
 #: day or None)}.
 #:
-#: CHRONIC, under ACCURACY-ONLY (the licks/trial arm was dropped 2026-09-12; see DECISIONS.md):
-#:   PS92 day 11  -- hit-rate plateau, unchanged.
-#:   PS93 day 11  -- hit-rate plateau.
-#:   PS94 None    -- hit rate never plateaus. Genuinely not recovered.
-#:   PS95 day 11  -- BACK to day 11 (2026-09-14). It was day 15 only under the retired drift-on-LICKS
-#:                   rule; with licks no longer gating and more flat sessions accrued, PS95's HIT-rate
-#:                   day-11 tail is flat within tolerance (101% of baseline). All three are day 11.
+#: CHRONIC, under ACCURACY-ONLY (licks arm dropped 2026-09-12) + the tightened SETTLED test
+#: (k_res 1.5 -> 0.5) and ONE-SIDED trend (2026-09-19; see DECISIONS.md). Chronic = "settled into a
+#: tight band and no longer rising" -- the by-eye plateau, on hit rate alone:
+#:   PS92 day 11  -- unchanged; tail locks at 102% of baseline.
+#:   PS93 day 11  -- unchanged.
+#:   PS94 day 25  -- was None. Recovers by d9 (~91%) but WOBBLES (77% at d22, 106% at d25); its final
+#:                   band settles at day 25. The one-sided trend lets that declining-but-tight band
+#:                   count; a symmetric drift test rejected it. Biologically sensible (~3.5 weeks).
+#:   PS95 day 15  -- was 11. Crosses baseline early but keeps CLIMBING through d11 (91 -> 104%); the
+#:                   tight band starts at day 15. The old loose residual accepted the still-rising
+#:                   d11 window.
 SPEC = {"PS92": (range(1, 6), 7, 11), "PS93": (range(1, 5), 5, 11),
-        "PS94": (range(1, 8), 9, None), "PS95": (range(1, 2), 2, 11)}
+        "PS94": (range(1, 8), 9, 25), "PS95": (range(1, 2), 2, 15)}
 
 
 def test_the_stored_spec_is_the_one_priya_gave():

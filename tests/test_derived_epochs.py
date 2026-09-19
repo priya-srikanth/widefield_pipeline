@@ -30,8 +30,8 @@ def derived(monkeypatch, tmp_path):
 def test_a_derived_boundary_reassigns_sessions(derived):
     """The point of the whole change: deriving a boundary must actually move sessions between
     epochs, not merely be recorded somewhere."""
-    lab = "PS94_0828"                                   # day 12, subacute under the stored spec
-    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None
+    lab = "PS94_0827"                                   # day 11, subacute under the stored spec (25)
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] == 25
     epochs.clear_resolved()
     assert epochs.epoch_of(lab) == "subacute"
     epochs.save_boundaries({"PS94": {"chronic_from": 11}}, derived)
@@ -209,7 +209,14 @@ def test_the_rule_text_is_built_from_the_constants():
         if v is None:
             assert "recovered (" not in epochs.CHRONIC_RULE,                 "the rule still claims a recovered test that is switched off"
     assert "subacute onset" in epochs.CHRONIC_RULE
-    assert ("total drift" in epochs.CHRONIC_RULE) == (epochs.CHRONIC_FLAT_MODE == "drift")
+    # The drift arm appears only in "drift" mode, and its wording tracks whether the test is
+    # one-sided (2026-09-19: "upward drift ... (not still rising)") or symmetric ("total drift").
+    if epochs.CHRONIC_FLAT_MODE == "drift":
+        assert "drift" in epochs.CHRONIC_RULE
+        assert ("upward drift" in epochs.CHRONIC_RULE) == epochs.CHRONIC_ONESIDED
+        assert ("total drift" in epochs.CHRONIC_RULE) == (not epochs.CHRONIC_ONESIDED)
+    else:
+        assert "drift" not in epochs.CHRONIC_RULE
 
 
 def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
@@ -247,8 +254,8 @@ def test_the_fallback_precedence(derived, monkeypatch):
     hand-declared seed. Reverting would mean a mount failure silently restaged every pooled panel
     to whatever was last promoted, which could be months old.
     """
-    lab = "PS94_0828"
-    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] is None      # the declared seed
+    lab = "PS94_0828"                                             # day 12: subacute under seed 25
+    assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] == 25        # the declared seed
 
     # no artifact -> animals.yaml
     epochs.clear_resolved()

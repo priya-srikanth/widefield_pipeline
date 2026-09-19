@@ -680,6 +680,17 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   still COMPUTED and plotted for reference; it just no longer gates.
                               #   Restore [hit, licks] to bring back the AND.
     min_tail: 3               # sessions required from a candidate start; also the shortest window
+    flat_onesided: true       # ONE-SIDED trend test (2026-09-19, Priya). The FLAT arm rejects only
+                              #   a series that is still RISING (drift > k_drift x SD); a downward
+                              #   drift never disqualifies. Chronic is a TERMINAL state -- an animal
+                              #   that has recovered and then wobbles or eases down is still chronic,
+                              #   and we would not send it back to subacute. What must NOT count as a
+                              #   plateau is a series still climbing (still recovering): that is the
+                              #   "still improving" case. This is what lets PS94's settled final band
+                              #   (day 25: 106->102->93, a downward drift) count while PS95's day-11
+                              #   window (91->104, still rising) does not. The residual (settled) test
+                              #   below is the guard on the downward side. Set false for the old
+                              #   symmetric |drift| test.
     flat_mode: drift          # FLAT test. "drift" = total fitted change across the window;
                               #   "rate" = per-session slope (the pre-2026-09-10 behaviour).
                               #   CHANGED 2026-09-10: the rate test fits against SESSION INDEX while
@@ -710,9 +721,19 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   PS93 from failing by 55% of tolerance to failing by 3.6% -- one
                               #   session from flipping an animal, on a cohort that gains a session
                               #   most nights.
-    k_res: 1.5                # SETTLED: residual scatter about the fit <= k_res x pre-stroke SD.
+    k_res: 0.5                # SETTLED: residual scatter about the fit <= k_res x pre-stroke SD.
                               #   A flat FIT through scattered points is a noisy climb: PS95's hit
                               #   rate trends shallowly from day 2 while swinging 72-105%.
+                              #   TIGHTENED 1.5 -> 0.5 (2026-09-19, Priya). This -- not the drift arm
+                              #   -- is the discriminator that matches the by-eye plateau on all four
+                              #   animals: at each animal's true plateau day the residual/SD is
+                              #   0.13-0.24, and at every too-early candidate it is >= 0.54, a clean
+                              #   gap. 0.5 sits in the middle (holds for 0.4-0.5; PS95 slips back to
+                              #   day 11 at >= 0.6). "Settled into a tight band" is the operational
+                              #   meaning of plateau. With this + the one-sided trend the derived
+                              #   boundaries are PS92 11, PS93 11, PS94 25, PS95 15 -- Priya's eye,
+                              #   and biologically sensible (mice recover within ~3-5 weeks; the old
+                              #   "PS94 never plateaus" was implausible). See DECISIONS.md.
     level_min:                # RECOVERED: tail mean, as a fraction of that animal's own baseline.
                               #   SET A SERIES TO null TO DROP ITS BAR. Measured 2026-09-10:
                               #   dropping BOTH bars moves no derived boundary on this cohort (every

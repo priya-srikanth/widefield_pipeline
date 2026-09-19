@@ -14932,3 +14932,21 @@ It is an amplitude ratio and a spatial correlation between two MIXTURES (`470 = 
 entry. It is interpretable as an epoch CONTRAST only while `a`, `b`, `T` stay stable across epochs.
 And the 415 channel's own within-session drift is still unattributed between bleaching and LED
 output drift, so the numerator contains a component of unknown composition.
+
+---
+
+## 2026-09-19 — CHRONIC plateau: a TIGHTER settled test + a ONE-SIDED trend, matched to the by-eye plateau
+
+Priya, reviewing PS94: "PS94 STILL not chronic epoch?" and then "I'm assessing when does it plateau." By eye, across the four animals, the plateaus are **PS92 day 11, PS93 day 11, PS94 day 25, PS95 day 15.** The derived rule at the time gave PS92 11 ✓, PS93 11 ✓, but **PS94 None** and **PS95 11** — too strict on one, too early on the other.
+
+**Why the level idea was rejected.** We first considered "chronic = hit rate ≥ 75% of baseline" (an explicit cutoff, as in `stroke_orofacial_pipeline`'s C1 = N consecutive sessions above threshold). It fixes PS94 (its tail is ≥77%), but Priya: PS94 "may just bounce around forever … if in a month it came back below 75 we wouldn't make it subacute again." **Chronic is a TERMINAL state, so a reversible level bar is the wrong shape.** A level rule also cannot separate PS94 from PS95 — both bottom out at exactly 77% — so any bar that admits PS94 at day 9 admits PS95 at day 2 (while it is still climbing 83→104). Dropped.
+
+**What the by-eye labels actually key on.** Two changes to the existing flat/settled plateau detector reproduce all four labels exactly, and it is the SETTLED (residual) arm that does the work, not the drift arm:
+1. **`k_res` 1.5 → 0.5** — "settled into a tight band." At each animal's true plateau day the residual/SD is 0.13–0.24; at every too-early candidate it is ≥ 0.54, a clean gap. 0.5 sits in the middle (holds for 0.4–0.5; PS95 slips back to day 11 at ≥ 0.6). This is what moves PS95 11 → 15: its day-11 tail is still rising (91→104) and not yet tight; the band locks at day 15.
+2. **One-sided trend (`flat_onesided: true`)** — the FLAT arm now rejects only a still-RISING series (drift > `k_drift`×SD); a downward drift never disqualifies. This is what lets PS94's settled final band at day 25 (106→102→93, a downward drift of 2.05×SD) count as a plateau, while still rejecting PS95's still-climbing day-11 window. It also encodes the terminal-state point: a recovered animal that eases down does not return to subacute; only "still improving" blocks chronic.
+
+**Why not combine hit rate with engagement (or licks).** Considered and measured. Engagement (`n_engaged/(n_engaged+n_disengaged)`) never settles for the two animals that matter — PS94 swings 40→106% and PS95 50→109% through the last session — so an AND with engagement makes **both PS94 and PS95 never chronic**, the opposite of the labels. This is the identical failure that retired the licks/trial arm on 09-12: a second series ~3× noisier than hit rate, ANDed, just reports its own noise and flips animals out of chronic. Engagement (and licks) stay COMPUTED and plotted as diagnostics; they do not gate. No per-session quality filter was added (Priya: "don't use the quality filter at this point").
+
+**Biology.** Mice typically recover within ~3–5 weeks. The new labels (days 11, 11, 25, 15 = 1.5–3.5 weeks) all sit in that window; PS94 plateauing at 3.5 weeks is textbook, and the old "PS94 never plateaus" was biologically implausible.
+
+**Boundaries moved (ratified by Priya, this account): PS94 null → 25, PS95 11 → 15;** PS92 and PS93 unchanged at 11. Updated in `configs/animals.yaml` and `tests/test_epochs.py` (SPEC). `configs/defaults.yaml epochs.chronic`: `k_res 0.5`, `flat_onesided: true`. `epochs.CHRONIC_RULE` now reads "… upward drift across the window ≤ 1 × pre-stroke SD (not still rising) … settled (residual ≤ 0.5 × pre-stroke SD) …", derived from the constants and stamped into `epoch_boundaries.json`. Every epoch figure restages: the chronic epoch is now FOUR animals (PS92 11, PS93 11, PS94 25, PS95 15).
