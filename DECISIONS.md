@@ -14886,3 +14886,49 @@ survive, but its amplitude columns must not be quoted.**
   Nothing replaces it: if 415 carries calcium, `T` is contaminated under every regression scheme.
 - **Lerner-style dF/F (divide by the fitted isosbestic) against our subtraction.** Untested, and NOT
   killed by the objection above, since it changes the normalisation rather than the coefficient fit.
+
+---
+
+## 415/470 COUPLING ACROSS EPOCHS: no increase, a hint of a subacute DECREASE, and the artefact that had to be removed first (2026-09-19)
+
+`scripts/rest_migration/channel_position_maps.py --epochs --per-epoch 999`, 96 sessions, 6 spout
+positions, both arms, zero errors. Per-trial pre-cue baselines, in-trial licks only, engaged trials
+only, first post-cue lick as the lick event.
+
+### THE CONTRAST, which is the test -- paired animals->sessions bootstrap of the DIFFERENCE from pre
+
+| arm | epoch | d coupling gain | d spatial match |
+|---|---|---|---|
+| cue | acute | -0.028 [-0.108, +0.033] | -0.039 [-0.216, +0.126] |
+| cue | subacute | **-0.031 [-0.058, -0.005]** | -0.024 [-0.197, +0.129] |
+| cue | chronic | +0.013 [-0.004, +0.029] | +0.074 [-0.032, +0.177] |
+| lick | acute | -0.059 [-0.163, +0.033] | -0.109 [-0.332, +0.127] |
+| lick | subacute | **-0.038 [-0.072, -0.006]** | -0.032 [-0.207, +0.120] |
+| lick | chronic | +0.007 [-0.013, +0.026] | +0.064 [-0.033, +0.156] |
+
+**NO EVIDENCE OF INCREASED COUPLING. WEAK EVIDENCE OF A SMALL DECREASE AT SUBACUTE**, amplitude only,
+in both arms. Every acute and subacute change is negative; spatial match moves nowhere, every CI
+spanning zero. Two of twelve tests clear an UNCORRECTED threshold, both in the same direction and
+the same epoch -- suggestive, not established, and it should be described that way.
+
+**PER-EPOCH VALUES, for the record:** cue gain 0.340 / 0.326 / 0.358 / 0.284 and lick gain
+0.355 / 0.306 / 0.369 / 0.295 across pre / acute / subacute / chronic; r(415, 470) 0.508 / 0.462 /
+0.508 / 0.492 (cue) and 0.471 / 0.375 / 0.477 / 0.430 (lick).
+
+### THE ARTEFACT THIS REPLACED, AND ITS SIZE
+
+The same pipeline WITHOUT per-trial baselines gave a lick-arm gain of 0.575 / 0.700 / 0.800 / 0.577
+-- roughly DOUBLE, and apparently RISING acutely and subacutely. That was drift interacting with
+uneven sampling in time (see the entry on the 415 nm day, section 2): gated trials sit 0.132 of a
+session early acutely against 0.025 pre, and 415 drifts -11.6% within a session against 470's -4.8%,
+so the acute offset lands harder on the numerator. **The apparent acute INCREASE and the true small
+subacute DECREASE have opposite signs**, which is the clearest possible demonstration that the
+artefact was not a rescaling but a reversal.
+
+### WHAT THIS MEASURE STILL CANNOT DO
+
+It is an amplitude ratio and a spatial correlation between two MIXTURES (`470 = C + H`,
+`415 = aC + bH + autofluorescence + scatter`), with no latency and no causality -- see the naming
+entry. It is interpretable as an epoch CONTRAST only while `a`, `b`, `T` stay stable across epochs.
+And the 415 channel's own within-session drift is still unattributed between bleaching and LED
+output drift, so the numerator contains a component of unknown composition.
