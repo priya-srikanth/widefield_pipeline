@@ -8,6 +8,39 @@ Newest first. Each entry: what happened → what it costs → what we do → wha
 
 ---
 
+## 2026-09-17 — PS95: 12:40 session acquired under the wrong prefix `PS94` (relabeled; inert)
+
+**What happened.** PS95's 12:40 session on 2026-09-17 was started in the acquisition GUI with the
+recording **prefix `PS94`** (the mouse actually on the rig was PS95). The session folder was manually
+relabeled to `PS95_20260917_124034`, and the DAQ `.h5` is fully clean — filename
+`PS95_20260917_124030.h5` **and** its internal `file_prefix=PS95`. But the **behavior-log files inside
+the folder still carry the acquisition prefix**: `gui_config.json` / `gui_config_end.json`
+(`"prefix": "PS94"`), `session_manifest.json` (`"prefix": "PS94"`, `"session_id":
+"PS94_20260917_124034"`, `"session_dir": "...\\PS94_20260917_124034"`), `summary_end.json`
+(`"session_id": "PS94_..."`), and two `PS94` rows in `config_changes.csv`. The truth field
+`mouse_profile_name` is correctly `PS95` in both `gui_config.json` and `session_manifest.json`. The
+real PS94 9/17 session (`PS94_20260917_101340`) is cleanly all-PS94 and is unaffected.
+
+**What it costs.** **Nothing.** The pipeline never reads any of the mislabeled fields. Session/animal
+identity is derived from the **folder name** via `_animal_of()`/`ANIMAL_RE` (spout_behavior.py:1395),
+which yields PS95; the DAQ `.h5` is found by the `{animal}_{date}_*.h5` glob (line 561) and is itself
+correctly named + attributed PS95. A grep of `wfield_local/*.py` for any read of `session_id`,
+`prefix`, or `mouse_profile_name` from the JSON/manifest returns **zero hits** — those strings are
+inert provenance. So this session is processed as PS95 throughout (QC, behavior, align, LocaNMF,
+figures), and cross-contamination with the real PS94 session is not possible.
+
+**What we do.** **Leave the raw files unmodified** (Rule 0/1: never edit original acquisition data),
+and record the mislabel here. Editing the internal strings was considered and rejected: it would gain
+nothing (nothing reads them), it violates the source-data rule, and it would change the files' sha256
+mid-upload and break the nightly byte-verify (D: vs MICROSCOPE). The correct animal for this session is
+**PS95** wherever the internal `prefix`/`session_id` says otherwise.
+
+**Still open.** None. If a future consumer is ever added that reads `session_id`/`prefix` from the
+behavior-log JSON, it must derive animal from the folder name (or `mouse_profile_name`), not the
+recording prefix, or this session will be mislabeled.
+
+---
+
 ## 2026-09-08 — PS92: camera frame drops after a mid-session cliff (~9–12% overall; cameras only)
 
 **What happened.** PS92's 13:36 session recorded a large fraction of dropped frames — cam1 155,602
