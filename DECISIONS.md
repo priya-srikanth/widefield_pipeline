@@ -2151,7 +2151,7 @@ control for 470: only the ratio of ratios is GCaMP-specific.
 >
 > The 415 signal **rises** with activation in every animal, tracking the blue at about a third of its
 > amplitude. A simple absorption account predicts a dip. Why it rises is open: 415 nm is not exactly
-> GCaMP's isosbestic (~410 nm) so calcium can leak in; near the Soret band HbO and HbR absorb very
+> GCaMP's isosbestic so calcium can leak in (see the wavelength correction below); near the Soret band HbO and HbR absorb very
 > differently, so an HbO rise with an HbR fall need not raise total absorption; and flavoprotein
 > autofluorescence sits in this range.
 >
@@ -14069,4 +14069,118 @@ dropped the `return rows` from the `pre.size < 4` guard, so it logged "skipped" 
 straight on into `en[pre].mean()`. No animal in this cohort trips it, so nothing was wrong in the
 output -- but a log line describing control flow the code does not take is worse than no log line.
 Restored.
+
+
+---
+
+## 415 nm IS NOT ISOSBESTIC, AND THE SIGN RUNS THE OTHER WAY (2026-09-19)
+
+Priya: *"the isosbestic point for GCaMP is actually quite a bit higher... may be closer to 430-440"*,
+with **Barnett, Hughes & Drobizhev 2017, PMC5300113** ("Deciphering the molecular mechanism
+responsible for GCaMP6m's Ca2+-dependent change in fluorescence").
+
+**WHAT THE PAPER SAYS.** There is NO true isosbestic point for GCaMP6m. The spectra cross around
+**440-450 nm**, and the crossing smears because the mechanism is not a simple dim-to-bright
+chromophore transition but a shift in the equilibrium between neutral and anionic forms. Decisively
+for us:
+
+    410 nm excitation   fluorescence DECREASES with increasing Ca2+
+    480 nm excitation   fluorescence INCREASES with increasing Ca2+
+
+**SO OUR 415 nm SITS BELOW THE CROSSING, AND CARRIES A NEGATIVE CALCIUM TERM.** This cohort is
+Thy1-GCaMP6s GP4.3 and the paper is on 6m, so the exact crossing may differ by variant -- but the
+repo's previous figure of "~410 nm" was wrong in the direction that matters, and every statement
+built on "415 is calcium-free" needs re-reading.
+
+**THREE CONSEQUENCES, and the third is the reassuring one.**
+
+**1. The +0.5 to +2.0% task-evoked rise in raw 415 is a LOWER BOUND on the non-calcium component.**
+Calcium pushes 415 DOWN during activation, so whatever raises it is doing so against that. The
+haemodynamic (or other) contribution is larger than the measured rise, not equal to it.
+
+**2. "Calcium leaking into 415 inflates it" is BACKWARDS for this geometry.** Leak deflates it. The
+conventional photometry worry does not transfer.
+
+**3. THE CORRECTION IS SCALED, NOT CONTAMINATED -- which is why no existing result moves.** Write
+`470 = C + H` and `415 = -aC + bH` with `a, b > 0`. Then
+
+    470 - T*415 = C(1 + T*a) + H(1 - T*b)
+
+`T` is fitted to null the haemodynamic term, so the output is `C * (1 + a/b)`: a GAIN on calcium,
+not an admixture of blood. Every relative measure in this project -- decoding, encoding, RSA, the
+map contrasts, all of which compare conditions within a session or normalise per session -- is
+invariant to a common gain. What it would touch is an ABSOLUTE dF/F claim, and the deck makes none.
+
+**THE CAVEAT ON THAT, stated rather than buried:** `a` and `b` are pixel-dependent (haemoglobin
+concentration and path length vary across the window), so the gain `1 + a/b` is a SPATIAL FIELD
+rather than a scalar. Within-session spatial contrasts -- which the position maps are -- inherit it.
+It is common to all six positions and therefore cancels in a between-position contrast; it does not
+cancel in a between-REGION one. `crossday_intensity` owns the cross-day version of the same problem.
+
+**AND THE SIGN JUSTIFICATION IN `hemo_map_control` WAS WRONG, corrected in place.** It read the
+negative r(corrected, 415) as "activity raises blood volume, which LOWERS 415 fluorescence". The raw
+415 RISES with activation in all four animals, so that premise is false. The negative correlation is
+still a fact and the control still works -- a negative calcium term in 415 makes r MORE negative,
+never less, so the test's failure direction (r rising toward +1) is unaffected. Only the story
+attached to the sign was wrong.
+
+
+---
+
+## `15j` HELD-OUT COSINE: what it cost in comparability, and what it changes (2026-09-19)
+
+Amends the 2026-09-18 entry. Priya: *"each animal's activity is not necessarily comparable to the
+other animals. So we mixing all animals pre and all animals acute etc?"*
+
+**WHAT IS AND IS NOT POOLED.** `d` is untouched -- the drift is computed WITHIN one animal and
+epochs are never pooled across animals. Only `e_ref` became cross-animal. But that silently changes
+the question from "is this animal's drift aligned with ITS OWN evoked pattern" to "...with the
+COHORT-TYPICAL one", and if animals differ the cosine is ATTENUATED -- which would make a null
+result partly a statement about power.
+
+**MEASURED, since the whole point is not to assume it.** Mean PRE evoked pattern, unit-normalised
+per session so this is SHAPE and the 2.44x amplitude spread is already divided out:
+
+| animal | r(own, mean of the other three) |
+|---|---|
+| PS92 | +0.940 |
+| PS93 | **+0.860** |
+| PS94 | +0.909 |
+| PS95 | +0.923 |
+
+Mean pairwise r = +0.868, which independently reproduces the r ~ 0.88 this repo already records for
+between-animal pre-stroke map similarity in a DIFFERENT map family. So the substitution costs
+**6-14%**, worst for PS93.
+
+**WHAT SURVIVES UNCHANGED:** the calibration. Held-out 0.060 against self-referenced 0.160 at
+alpha = 0.05 is a property of the null and the observed sharing ONE reference, whatever that
+reference is. The anti-conservatism fix does not depend on comparability at all.
+
+**WHAT MUST BE RESTATED:** the null result. ~10% attenuation can HIDE a weak alignment; it cannot
+manufacture an absent one. So the honest form is *no evidence of alignment, on a test attenuated
+~10% by using a cohort-typical rather than animal-specific reference* -- not the flat "no alignment"
+the first entry implied. PS93 is the animal to watch: lowest comparability AND the only animal with
+a first-week 415 anomaly, which may share a cause.
+
+### WHICH ANALYSIS THIS TEST ACTUALLY AFFECTS, and how the conclusion moves
+
+`15j` exists to police the `_RESTref_` / `_RESTWref_` MAP FAMILIES (`15r`, `15rpa`, and `15k`'s
+restw arm). Those maps subtract a rest baseline, so a baseline that MOVES across epochs is a
+confound on any ACROSS-EPOCH amplitude claim built on them -- including the headline eccentricity
+gradient (acute/pre 1.46 / 1.26 / 1.20 / 0.99 / 0.68 / **0.47**).
+
+The magnitude arm already measured the drift: 6 of 11 animal-epoch cells significant, 7-43% of the
+evoked signal. But that is an **UPPER BOUND**, attained only if the shift is ALIGNED with the evoked
+pattern; an orthogonal shift costs only ~r^2/2. **The cosine is precisely the quantity that decides
+which end of that range you are at**, and without a p it was unknown, so the caveat had to assume
+the worst case: "0.15 means between ~1% and ~15%".
+
+With the p: no evidence of alignment. So the realistic across-epoch amplitude bias sits toward the
+**LOW** end of that range rather than the high one, and the caveat on every RESTWref across-epoch
+amplitude claim gets correspondingly smaller.
+
+**WHAT IT DOES NOT CHANGE, and this is the larger part of the claim.** A shift common to all six
+positions CANCELS in a between-position contrast. The ordering -- monotone near->far, far-contra
+worst -- and every between-position statement were never exposed to this confound. What moves is
+only the confidence attached to across-epoch amplitude MAGNITUDES.
 

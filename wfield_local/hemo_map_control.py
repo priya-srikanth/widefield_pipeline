@@ -6,7 +6,19 @@ altered perfusion, altered vasomotion, a window that ages. If some of the post-s
 residual blood volume rather than calcium, then "the far-contralateral map collapses" could in
 principle be a statement about vessels. This module tries to falsify that.
 
-THE DECISIVE CHECK IS THE ISOSBESTIC CHANNEL. At 415 nm GCaMP fluorescence does not depend on
+THE DECISIVE CHECK IS THE 415 CHANNEL -- and it is NOT isosbestic, which changes what the
+check means rather than whether it works. Barnett, Hughes & Drobizhev 2017 (PMC5300113)
+find NO true isosbestic point for GCaMP6m: the spectra cross around 440-450 nm, and at
+410 nm excitation fluorescence DECREASES with calcium while at 480 nm it INCREASES. At
+415 nm this cohort therefore sits BELOW the crossing, so the 415 series carries a
+NEGATIVE calcium term, not a calcium-free one. See DECISIONS.md 2026-09-19.
+
+THE CONTROL SURVIVES THAT. A negative calcium term makes r(corrected, 415) MORE negative,
+never less, so the test's failure direction -- r RISING toward +1, structure shared
+between the corrected map and the haemodynamic one -- is unaffected. What it does mean is
+that the observed negative r must not be explained as "activity lowers 415" (it does not;
+the raw 415 RISES with activation in 4/4 animals). At 415 nm GCaMP fluorescence does not
+depend on
 calcium, so that channel carries haemodynamics and noise and nothing else. Build the SAME position
 map from the 415 series -- same trials, same window, same basis, same code path, with only the
 signal swapped -- and correlate it against the corrected map:

@@ -365,6 +365,32 @@ def main() -> int:
     # session with this animal's `d`, which kills the positive bias at source and makes the
     # cosine's null legitimate. Splitting the animal's OWN pre was the fix first proposed, and its
     # counts cannot afford it -- PS92 has 11 pre against 6 acute.
+    # HOW COMPARABLE ARE THE ANIMALS? The held-out reference is only legitimate to the extent
+    # that one animal's mean pre evoked pattern stands in for another's. If they diverge, the
+    # cosine is ATTENUATED -- it scores the drift against a partly-wrong target -- and a null
+    # result becomes partly a statement about power. Measured and printed, never assumed.
+    pre_mean = {an: g[1][g[2] == "pre"].mean(axis=0) for an, g in got.items()
+                if (g[2] == "pre").any()}
+    names = sorted(pre_mean)
+    if len(names) > 1:
+        print("\nCROSS-ANIMAL COMPARABILITY of the mean PRE evoked pattern (unit-normalised "
+              "per session before averaging, so this is SHAPE, not amplitude):", flush=True)
+        rs = []
+        for i, a1 in enumerate(names):
+            for a2 in names[i + 1:]:
+                v1, v2 = pre_mean[a1], pre_mean[a2]
+                r = float(np.corrcoef(v1, v2)[0, 1])
+                rs.append(r)
+                print(f"   r({a1}, {a2}) = {r:+.3f}", flush=True)
+        print(f"   mean pairwise r = {np.mean(rs):+.3f}   "
+              f"-> attenuation of a held-out cosine is roughly this factor", flush=True)
+        for an in names:
+            others = [pre_mean[o] for o in names if o != an]
+            if others:
+                r = float(np.corrcoef(pre_mean[an], np.mean(others, axis=0))[0, 1])
+                print(f"   r({an}, mean of OTHERS) = {r:+.3f}   "
+                      f"<- the substitution this animal actually pays", flush=True)
+
     rows = []
     for an, (bn, en, eps) in got.items():
         pool = [g[1][g[2] == "pre"] for g_an, g in got.items() if g_an != an]

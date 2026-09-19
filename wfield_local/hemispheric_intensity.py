@@ -72,6 +72,14 @@ REGION_GROUPS = {
     "SSp": ("SSp",),                      # primary somatosensory -- the parietal hunch
     "MO": ("MOp", "MOs"),                 # motor, for contrast
     "VIS": ("VISp", "VISa", "VISal", "VISam", "VISl", "VISpm", "VISrl"),
+    # PRIMARY + SECONDARY SENSORIMOTOR TOGETHER (Priya, 2026-09-19). `SSp` and `MO` above split
+    # sensory from motor; this is the union, which is the territory the spout task actually
+    # engages and the one an orofacial deficit would be expected to show in. Kept ALONGSIDE the
+    # two halves rather than replacing them -- a change visible in the union but in neither half
+    # is a different fact from one carried by a single half, and pooling first would hide it.
+    # `SSp` is a PREFIX match, so it takes every SSp subfield (SSp-m, SSp-n, SSp-bfd, ...);
+    # `SSs` is the secondary somatosensory area and is a separate Allen label, not an SSp subfield.
+    "SM": ("SSp", "SSs", "MOp", "MOs"),
 }
 
 CHANNELS = {0: 415, 1: 470}               # frames_average.npy channel order (crossday_intensity)
