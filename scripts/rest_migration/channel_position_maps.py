@@ -50,6 +50,20 @@ import numpy as np
 
 FS = 31.23
 CUE_PRE_S, CUE_POST_S = 2.0, 2.0
+
+#: Offset of the measurement window from the event, in seconds. 0.0 is the original 0-2 s window.
+#:
+#: **`--late` SETS THIS TO 1.0 AND IT IS THE TEST OF WHETHER THIS MODULE MEASURES WHAT IT CLAIMS.**
+#: `channel_evoked_sign` and `channel_vessel_sign` (2026-09-19) showed the 415 cue response is
+#: BIPHASIC: a fast calcium BLEED-THROUGH peaking at 0.26-0.29 s -- before the 470 peak, and a
+#: diluted copy of the 470 map even at the vessels -- then a slower HAEMODYNAMIC component from
+#: ~1 s. A 0-2 s window sums both, so the "coupling gain" it reports may be mostly bleed-through.
+#: Starting at 1.0 s skips the calcium transient and leaves the window haemodynamically dominated.
+#:
+#: IF THE EPOCH CONTRAST HOLDS ON THE LATE WINDOW the result keeps its content and can honestly be
+#: called neurovascular; if it does not, the headline coupling entry needs rewriting.
+WIN_START_S = 0.0
+LATE_START_S = 1.0
 LICK_POST_S = 2.0                   # 2 s from the first post-cue in-trial lick, matching the cue arm
 DEFAULT_N = 4
 
@@ -413,7 +427,8 @@ def epoch_summary(stats, out_dir, seed):
     print("    contributing to BOTH epochs enter the contrast.")
 
     if rows:
-        q = out_dir / "channel_position_maps_by_epoch.csv"
+        q = out_dir / (f"channel_position_maps_by_epoch"
+                       f"{'_late' if WIN_START_S else ''}.csv")
         with open(q, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()
@@ -459,11 +474,13 @@ def _win_avg_base(S, ev, bl, w, pre_n):
     so a uniform offset already cancels there -- `_quantify`'s r columns are unaffected either way.
     """
     acc = np.zeros(S.shape[0], np.float64)
+    a = int(round(WIN_START_S * FS))
     n = 0
     for e, b in zip(ev, bl):
-        if b - pre_n < 0 or e + w > S.shape[1]:
+        if b - pre_n < 0 or e + a < 0 or e + a + w > S.shape[1]:
             continue
-        acc += np.asarray(S[:, e:e + w]).mean(1) - np.asarray(S[:, b - pre_n:b]).mean(1)
+        acc += (np.asarray(S[:, e + a:e + a + w]).mean(1)
+                - np.asarray(S[:, b - pre_n:b]).mean(1))
         n += 1
     return acc / max(n, 1)
 
@@ -884,7 +901,19 @@ def main(argv=None) -> int:
                          "comparison does not read them")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--late", action="store_true",
+                    help=f"measure from {LATE_START_S} s instead of 0 s, skipping the calcium "
+                         f"bleed-through and leaving the window haemodynamically dominated. "
+                         f"Writes *_late.csv so it cannot clobber the 0 s result.")
     a = ap.parse_args(argv)
+    if a.late:
+        # A MODULE GLOBAL rather than a threaded parameter because the window is consumed four
+        # call levels down, inside `_win_avg_base`, and threading it would touch every signature
+        # between here and there for one diagnostic run.
+        global WIN_START_S
+        WIN_START_S = LATE_START_S
+        print(f"LATE WINDOW: measuring {WIN_START_S:.1f} to "
+              f"{WIN_START_S + CUE_POST_S:.1f} s from each event, baseline unchanged.")
 
     from wfield_local import config
     from wfield_local.paths import PathResolver
@@ -958,7 +987,7 @@ def main(argv=None) -> int:
     if not stats:
         return 0
     import csv
-    q = out_dir / "channel_position_maps_stats.csv"
+    q = out_dir / f"channel_position_maps_stats{'_late' if WIN_START_S else ''}.csv"
     with open(q, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(stats[0]))
         w.writeheader()
