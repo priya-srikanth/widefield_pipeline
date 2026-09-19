@@ -219,12 +219,51 @@ def _boot(by_animal, rng, n_boot=N_BOOT):
     return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
 
 
+def _boot_diff(post_by_animal, pre_by_animal, rng, n_boot=N_BOOT):
+    """Paired animals->sessions bootstrap of ``post - pre``.
+
+    **THE ANIMALS ARE RESAMPLED ONCE AND REUSED FOR BOTH ARMS**, which is what makes it paired:
+    each animal serves as its own pre-stroke control, so between-animal variance -- the binding
+    constraint at n=4 -- cancels instead of being counted twice.
+    """
+    animals = sorted(set(post_by_animal) & set(pre_by_animal))
+    if not animals:
+        return None
+    obs = float(np.mean([float(np.mean(post_by_animal[x])) - float(np.mean(pre_by_animal[x]))
+                         for x in animals]))
+    o = []
+    for _ in range(n_boot):
+        d = []
+        for x in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
+            pa, qa = post_by_animal[x], pre_by_animal[x]
+            d.append(float(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))]))
+                     - float(np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))])))
+        o.append(float(np.mean(d)))
+    o = np.asarray(o)
+    return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
+
+
+def _contrast_by_animal(rows, epoch, key):
+    """Per-session ipsilesional-minus-contralesional value for `key`, grouped by animal."""
+    d = defaultdict(list)
+    for lab in {r["label"] for r in rows if r["epoch"] == epoch}:
+        got = {r["side"]: r for r in rows if r["label"] == lab}
+        if "ipsi" in got and "contra" in got:
+            v = float(got["ipsi"][key]) - float(got["contra"][key])
+            if np.isfinite(v):
+                d[got["ipsi"]["animal"]].append(v)
+    return d
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive the tables from epoch_19_rest_coupling.csv without reloading "
+                         "any SVD -- one file read instead of an hour")
     a = ap.parse_args(argv)
 
     from wfield_local import config, epochs
@@ -232,8 +271,9 @@ def main(argv=None) -> int:
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
+    q = out_dir / "epoch_19_rest_coupling.csv"
     rows = []
-    for s in config.load_sessions():
+    for s in ([] if a.from_csv else config.load_sessions()):
         lab = s["label"]
         if lab not in want or (a.animals and config.animal_of(lab) not in a.animals):
             continue
@@ -256,15 +296,22 @@ def main(argv=None) -> int:
               + "  ".join(f"{k} r={v['r_zero_lag']:+.2f} lag={v['lag_s']:+.2f}s"
                           for k, v in w.items() if k in ("ipsi", "contra")), flush=True)
 
+    if a.from_csv:
+        # SUMMARY-ONLY PATH. Every table below is a function of the CSV alone, so re-deriving
+        # them is one file read rather than 96 SVD loads.
+        with open(q, newline="", encoding="utf-8") as fh:
+            rows = [{k: (v if k in ("label", "side", "animal", "epoch") else float(v))
+                     for k, v in r.items()} for r in csv.DictReader(fh)]
+        print(f"read {q}  ({len(rows)} rows)")
     if not rows:
         print("no sessions -- a failed run, not a result")
         return 1
-    q = out_dir / "epoch_19_rest_coupling.csv"
-    with open(q, "w", newline="", encoding="utf-8") as fh:
-        wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        wr.writeheader()
-        wr.writerows(rows)
-    print(f"\nwrote {q}")
+    if not a.from_csv:
+        with open(q, "w", newline="", encoding="utf-8") as fh:
+            wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            wr.writeheader()
+            wr.writerows(rows)
+        print(f"\nwrote {q}")
 
     rng = np.random.default_rng(a.seed)
     eps = [e for e in ("pre", "acute", "subacute", "chronic") if any(r["epoch"] == e for r in rows)]
@@ -295,20 +342,32 @@ def main(argv=None) -> int:
     print(f"\n{bar}\nIPSILESIONAL minus CONTRALESIONAL, paired within session\n{bar}")
     print(f"  {'epoch':<10}{'d r(415,470)':>24}{'d amp ratio':>24}{'d lag (s)':>24}"
           f"{'d raw tilt':>24}")
+    keys = ("r_zero_lag", "amp_ratio", "lag_s", "asym_470_415")
     for e in eps:
         line = f"  {e:<10}"
-        for key in ("r_zero_lag", "amp_ratio", "lag_s", "asym_470_415"):
-            d = defaultdict(list)
-            for lab in {r["label"] for r in rows if r["epoch"] == e}:
-                got = {r["side"]: r for r in rows if r["label"] == lab}
-                if "ipsi" in got and "contra" in got:
-                    v = float(got["ipsi"][key]) - float(got["contra"][key])
-                    if np.isfinite(v):
-                        d[got["ipsi"]["animal"]].append(v)
-            g = _boot(d, rng)
+        for key in keys:
+            g = _boot(_contrast_by_animal(rows, e, key), rng)
             star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
             line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g else f"{'--':>24}")
         print(line)
+    # THE ACTUAL TEST. The table above asks whether the ipsi-contra contrast differs from zero in
+    # each epoch SEPARATELY, which is not the question -- `r_zero_lag` is already ipsi < contra
+    # PRE-STROKE, so a starred post-stroke cell can just be restating a BASELINE asymmetry. What a
+    # focal lesion predicts is that the contrast CHANGES, and that is a difference of differences.
+    print(f"\n{bar}\nCHANGE FROM PRE in the ipsi-minus-contra contrast (the test the table above "
+          f"does NOT do)\n{bar}")
+    print(f"  {'epoch':<10}" + "".join(f"{k:>24}" for k in keys))
+    for e in [x for x in eps if x != "pre"]:
+        line = f"  {e:<10}"
+        for key in keys:
+            g = _boot_diff(_contrast_by_animal(rows, e, key),
+                           _contrast_by_animal(rows, "pre", key), rng)
+            star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
+            line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g else f"{'--':>24}")
+        print(line)
+    print("\n  Each animal is its own pre-stroke control, so this survives n=4 in a way the")
+    print("  per-epoch tables do not. UNCORRECTED across 4 measures x 3 epochs.")
+
     print("\n  * = 95% CI excludes zero. Every animal is lesioned on the LEFT, so ipsi = left.")
     print("  A focal lesion should move the IPSI side more. Both sides moving together is")
     print("  systemic or instrumental, not a consequence of the infarct.")

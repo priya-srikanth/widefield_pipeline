@@ -14964,12 +14964,30 @@ in the two channels and the cross-correlation MUST peak at zero. The haemodynami
 NEURAL ACTIVITY and BLOOD, not between two optical channels that both report blood. So the pair
 became `SVTcorr` (calcium, hemo nulled) against 415.
 
-### v2: A PHYSIOLOGICALLY IMPOSSIBLE RESULT THAT LOOKED LIKE A MEASUREMENT
+### v2: A RESULT THAT LOOKED LIKE A MEASUREMENT
 
 v2 kept `argmax` and returned **-0.26 to -0.48 s in every PS93 session** -- 415 LEADING calcium by
-roughly half a second. No haemodynamic response can do that. It was reproducible, tight across
-sessions, and on the right timescale, which is exactly what makes it dangerous: it had every
-surface property of a real measurement except a possible mechanism.
+roughly half a second. It was reproducible, tight across sessions, and on the right timescale,
+which is exactly what makes it dangerous.
+
+**I FIRST WROTE THAT NO HAEMODYNAMIC RESPONSE CAN DO THAT, AND THAT IS WRONG.** Priya: *"why
+couldn't hemodynamics precede calcium?"* There are at least five routes. ANTICIPATORY haemodynamics
+(Sirotin & Das 2009 reported V1 vascular signals timed to an EXPECTED stimulus, present even when
+it was omitted and dissociable from local spiking -- contested, but real data, and a cued task is
+the setting it was reported in). CONDUCTED vasodilation propagating retrogradely up the arteriolar
+tree, so the pixel that dilates is not the pixel that generated the demand. VASOMOTION, an
+intrinsic ~0.1 Hz smooth-muscle oscillation not driven by local calcium at all and most prominent
+AT REST, which is this module's entire window. NEUROMODULATORY drive from LC-noradrenaline or
+basal-forebrain ACh acting on vessels directly. And SYSTEMIC heart rate, blood pressure and
+respiration, which are not driven by local calcium in any sense.
+
+**LEAVING THE OVERSTATEMENT IN WOULD HAVE BEEN THE MORE EXPENSIVE ERROR**, because it teaches a
+future reader to DISMISS a negative lag rather than investigate one -- and a negative lag here
+would be interesting rather than impossible.
+
+The argument that actually holds is narrower: it is not the sign of the LAG, it is which lobe
+corresponds to blood INCREASING. Anticipatory dilation would appear as a TROUGH AT NEGATIVE LAG,
+and `_hrf_lag` searches the whole +/- 4 s window, so it could have returned one. It did not.
 
 **PLOTTING THE WHOLE CURVE INSTEAD OF ITS ARGMAX SETTLED IT IN ONE LOOK.** `r(SVTcorr, 415)` is
 BIPHASIC:
@@ -15029,3 +15047,193 @@ heuristic earlier in the day (`DECISIONS`, the 415 nm day): a weak or unprincipl
 does not announce itself, it returns a plausible number. The cheap defence is the same in both
 cases -- **look at the whole object before reducing it to one number.** One printed curve was
 enough.
+
+---
+
+## WHAT IS THE 415 CHANNEL ACTUALLY MEASURING? The sign, settled spatially, and two of my claims retired (2026-09-19)
+
+`scripts/rest_migration/channel_evoked_sign.py` and `channel_vessel_sign.py`. This began as a
+correction from Priya and ended by NARROWING, not confirming, the basis for `rest_coupling`.
+
+### THE CHALLENGE
+
+I had argued that blood ABSORBS, so it must enter both dF/F traces negatively, and that this is
+why `_hrf_lag` reads the TROUGH. Priya: *"we're not measuring the Hgb absorbance, we're measuring
+the Ca-independent (ish) fluorescence of GCaMP ... which will increase with increased blood"*, and
+then the observation that actually mattered: *"I can clearly see the cortical veins and sinuses as
+increased in 415 nm aligned to cue"*.
+
+**THE SPECTRA MAKE THAT OBSERVATION HARDER TO EXPLAIN, NOT EASIER, WHICH IS WHY IT WAS WORTH
+CHASING.** HbO2's Soret peak is at ~415 nm and deoxyhaemoglobin's at ~430 nm, so at 415 oxygenated
+blood absorbs MORE. During functional hyperaemia HbR washes out and HbO2 rises, so at 415 the
+volume term AND the oxygenation term should both darken a vein. Textbook optics predicts veins go
+DOUBLY NEGATIVE. **IF THE EFFECTIVE EXCITATION IS NEARER 430 THAN 415 THE SIGN INVERTS** -- HbR
+dominates there, venous washout REDUCES absorption, and veins brighten. Worth pinning down what
+the violet LED and its filter actually pass; 430 is also suspiciously adjacent to GCaMP6's true
+isosbestic at 420-430 nm.
+
+### WHAT THE TIME COURSE SHOWED, AND WHY IT COULD NOT DECIDE
+
+Cue-aligned brain-mean dF/F, 3 pre-stroke sessions per animal. Every animal has a large FAST
+POSITIVE 415 component; at frame resolution it peaks at 0.26-0.29 s against 470's 0.38 s, far too
+early for a vascular response.
+
+**THE LATE DEFLECTION DISAGREES ACROSS ANIMALS.** PS93 goes clearly negative (-0.57% at 1.1-1.4 s
+while 470 is +0.79%). PS95 barely dips. PS92 reaches only -0.20%. **PS94 NEVER GOES NEGATIVE AT
+ALL**, holding +0.9% out to 3 s. Same cohort, same preparation. So the time course does not
+establish a single sign, and a caveat applies to the late window in any case: cues recur every few
+seconds, so a pre-cue baseline carries the previous trial's tail.
+
+### THE SPATIAL TEST, WHICH DOES -- AND THE MASK BUG THAT NEARLY SANK IT
+
+Calcium bleed-through is PARENCHYMA-shaped; haemodynamics is VESSEL-shaped, at least early. Priya's
+qualifier is the reason for "at least early": *"blood flow will also ultimately look parenchymal as
+it flows into the capillary beds"*, so the discriminator is only valid before the capillary bed
+fills. Vessels are defined from the STATIC mean image, which does not assume the dynamic answer.
+
+**THE FIRST MASK WAS MEASURING THE DIM ANTERIOR EDGE.** Thresholding raw intensity at the darkest
+decile gave a mask at row 183 +/- 198 with mean intensity 2046 against the brain's 13048 -- six
+times darker than the brain, only 49% overlapping real vasculature. It reported a flat vessel
+compartment while the maps plainly showed the sinus moving, and Priya's *"there are clearly veins
+there"* is what forced the re-check. `_vesselness` compares each pixel to a smoothed copy of its
+own neighbourhood so the illumination gradient cancels; that mask lands at column 316 +/- 71
+against a brain centred at 319 +/- 136 -- tight on the midline, i.e. the sagittal sinus.
+
+**LESSON, AND IT IS THE SECOND TIME IN ONE DAY:** a threshold on an ABSOLUTE quantity silently
+selects whatever the largest nuisance gradient is. The vessel mask and the colour-scale bug are
+the same error. **Threshold on LOCAL contrast, and look at where the mask landed before trusting
+it.**
+
+### THE ANSWER
+
+| | | 0.2 s | 0.4 s | 0.9 s | 1.2 s | 2.0 s |
+|---|---|---|---|---|---|---|
+| PS93 | 415 vessel | +0.60 | +0.64 | +0.07 | **-0.11** | +0.01 |
+| | 415 parenchyma | +1.36 | +1.42 | -0.31 | **-0.84** | -0.22 |
+| | 470 vessel | +1.39 | +1.79 | +0.65 | +0.21 | +0.08 |
+| | 470 parenchyma | +3.10 | +4.36 | +1.78 | +0.67 | +0.22 |
+| PS92 | 415 vessel | +0.40 | +0.50 | +0.33 | +0.23 | +0.07 |
+| | 415 parenchyma | +0.94 | +1.25 | +0.86 | +0.49 | **-0.15** |
+
+**EARLY, BOTH CHANNELS AT THE VESSELS ARE A DILUTED COPY OF THE PARENCHYMA, BY THE SAME FACTOR.**
+Vessel/parenchyma at 0.4 s is 0.41 in 470 against 0.45 in 415 (PS93), and 0.40 against 0.43 (PS92).
+A surface vein carries no GCaMP, so what the camera collects there is scattered light from the
+cortex beside and beneath it, diluted by the vein's own non-responsive baseline -- whatever the
+parenchyma does, the vein reports ~40% of it in BOTH channels. **THAT MATCHED RATIO IS THE
+CLEANEST SINGLE PIECE OF EVIDENCE THAT THE EARLY 415 COMPONENT IS SCALED CALCIUM**, since a
+vascular signal has no reason to dilute by exactly the factor the calcium signal does.
+
+So Priya's follow-up -- *"why does 470 nm signal increase in veins with cue? or is it similarly
+that it stays constant and parenchymal fluorescence decreases"* -- resolves as BOTH, at different
+times. Early the veins genuinely increase in 470 (+1.79%), as a diluted calcium transient. Late
+the parenchyma acquires the negative haemodynamic term while the diluted vein signal sits near
+zero, so the vein reads bright RELATIVE to its surroundings: PS93 at 2.5 s is vessel +0.05 against
+parenchyma -0.04.
+
+**SO THE VEINS ARE NOT INCREASING LATE -- THEY ARE NOT CHANGING, WHILE EVERYTHING AROUND THEM
+DECREASES.** On a diverging colormap a flat vein against -0.84% parenchyma renders as a bright red
+streak. The observation is real; the interpretation is relative. And the late divergence itself is
+solid: PS93 at 1.2 s has 415 parenchyma at -0.84% while 470 is still +0.67%, which no common-mode
+term can produce.
+
+### WHAT THIS DOES TO `rest_coupling`
+
+The trough reading SURVIVES, but on **narrower grounds than I claimed**. Not "blood absorbs,
+therefore negative", but "the parenchymal 415 signal measurably goes negative at hyperaemic
+latency while 470 stays positive, in 2 of 3 animals" -- and the hemisphere-mean trace `_hrf_lag`
+operates on is >90% parenchyma. **PS94 IS AN UNEXPLAINED HOLDOUT** and is the reason this is not
+called settled.
+
+### TWO CLAIMS OF MINE RETIRED, BOTH LOAD-BEARING WHEN MADE
+
+1. **"No haemodynamic response can precede calcium"** -- false; see the lag entry above.
+2. **"`asym_470_415` independently supports the trough"** -- it is independent of `T`, NOT of the
+   sign convention. Mapping "tilt negative" onto "blood follows calcium" uses the very assumption
+   under dispute. What it establishes assumption-free is only that a DELAYED component exists.
+
+### THE COUPLING GAIN MAY NOT BE MEASURING COUPLING
+
+The evoked 415/470 peak ratio is 0.28-0.42, sitting right on top of the "coupling gain" of ~0.34
+reported across epochs. Since the early 415 component is calcium bleed-through, **a 0-2 s window
+gain may be dominated by bleed-through rather than by neurovascular coupling.** Not yet checked.
+The epoch CONTRAST may still be fine -- a bleed-through fraction stable across epochs cancels --
+but the measure must not be DESCRIBED as neurovascular until someone checks.
+
+### SO CAN WE MEASURE NEUROVASCULAR COUPLING AT ALL? YES, BUT BY LATENCY, NOT BY AMPLITUDE
+
+Priya, on reading the above: *"ok so....basically we can't look at neurovascular coupling"*. The
+honest answer is narrower than that, and the reason is the single most useful structural fact to
+come out of this day:
+
+**CALCIUM BLEED-THROUGH INTO 415 IS INSTANTANEOUS. THE HAEMODYNAMIC TERM IS DELAYED.** The
+contamination and the signal of interest live at DIFFERENT LAGS. So:
+
+- **AMPLITUDE measures are broken by it.** `SD(415)/SD(470)`, the spatial `r(415, 470)`, the
+  "coupling gain" -- all sum the two components at lag zero and cannot separate them. This is the
+  day's headline negative, and it stands.
+- **LATENCY measures are IMMUNE to it.** A zero-lag term contributes a symmetric component centred
+  on zero; it cannot create a trough at +0.45 s. `_hrf_lag` and `asym_470_415` are therefore
+  measuring the delayed component SPECIFICALLY, whatever fraction of 415 is calcium.
+
+**THAT IS WHY THE LAG IS THE ONE NVC MEASURE THIS PREPARATION SUPPORTS**, and it is not a
+consolation prize -- latency is the more mechanistically interpretable half of an HRF anyway. It
+comes with the standing caveats: the ABSOLUTE value is biased by the regression notch, PS94 is an
+unexplained holdout on the sign, and the L/R contrast came back null once properly tested.
+
+**THE CLEAN FIX IS HARDWARE, NOT ANALYSIS.** A green REFLECTANCE channel near 530 nm (a
+haemoglobin isosbestic) measures blood volume directly, with no GCaMP in it at all, which is what
+the widefield literature does when it wants haemodynamics rather than a correction reference. No
+amount of reprocessing 470/415 gets there, because the information is not in the data.
+
+---
+
+## REST-PERIOD 415/470 COUPLING BY HEMISPHERE: the L/R contrast, and why the obvious table is the wrong test (2026-09-19)
+
+`scripts/rest_migration/rest_coupling.py`, 96 sessions, rest frames only, written to
+`epoch_19_rest_coupling.csv`. Re-derive any table with `--from-csv` rather than reloading 96 SVDs.
+
+### THE ABSOLUTE LAG LENGTHENS AFTER STROKE, IN BOTH HEMISPHERES
+
+Pre 0.309 / 0.333 s (ipsi / contra), acute 0.472 / 0.450, subacute 0.418 / 0.381, chronic
+0.407 / 0.400. Pre [0.18, 0.40] against acute [0.40, 0.55], and it does not recover by chronic.
+**Both hemispheres move together, which by this module's own logic is systemic or instrumental
+rather than a consequence of a focal infarct.**
+
+### THE IPSI-MINUS-CONTRA TABLE, AND WHY IT OVERSTATES
+
+| epoch | d lag (s) | d raw tilt |
+|---|---|---|
+| pre | -0.024 [-0.14, +0.02] | -0.006 [-0.02, +0.00] |
+| acute | **+0.022 [+0.00, +0.04]** | **-0.027 [-0.04, -0.01]** |
+| subacute | **+0.037 [+0.02, +0.07]** | **-0.010 [-0.02, -0.00]** |
+| chronic | +0.007 [-0.01, +0.02] | **-0.014 [-0.02, -0.01]** |
+
+**THIS IS NOT THE TEST, AND READING IT AS ONE WOULD HAVE BEEN A MISTAKE.** It asks whether the
+contrast differs from zero in each epoch SEPARATELY. But `r_zero_lag` is already ipsi < contra
+PRE-STROKE (-0.036 [-0.06, -0.01]), so a starred post-stroke cell can simply be restating a
+BASELINE asymmetry. A focal lesion predicts the contrast CHANGES -- a difference of differences.
+
+### THE ACTUAL TEST: CHANGE FROM PRE IN THE CONTRAST, paired within animal
+
+| epoch | d r(415,470) | d amp ratio | d lag (s) | d raw tilt |
+|---|---|---|---|---|
+| acute | +0.009 [-0.02, +0.05] | +0.020 [-0.00, +0.05] | +0.041 [-0.01, +0.15] | **-0.023 [-0.03, -0.01]** |
+| subacute | +0.018 [-0.01, +0.06] | +0.014 [-0.01, +0.04] | **+0.067 [+0.00, +0.18]** | -0.008 [-0.02, +0.01] |
+| chronic | **+0.024 [+0.01, +0.04]** | +0.002 [-0.00, +0.01] | +0.048 [-0.02, +0.20] | -0.005 [-0.02, +0.01] |
+
+**THE EFFECT LARGELY DOES NOT SURVIVE.** The acute lag contrast, starred in the per-epoch table,
+is +0.041 [-0.01, +0.15] once referenced to the animal's own pre -- not significant, and its CI is
+three times wider because differencing adds variance. Subacute clears with a lower bound of +0.00,
+which is not a claim. Three of twelve cells star, uncorrected, in three different measures and
+three different epochs, which is close to what chance produces.
+
+**WHAT TO SAY:** a hint that the ipsilesional haemodynamic lag lengthens relative to
+contralesional at subacute, not established. **WHAT NOT TO SAY:** that the per-epoch table showed
+an acute and subacute ipsilesional slowing.
+
+### THE DESIGN SURVIVES EVEN THOUGH THE RESULT DID NOT
+
+The contrast is WITHIN animal and WITHIN session, so it escapes the n=4 bottleneck that limits
+every other measure here. That is why it was worth running and it remains the right shape for this
+cohort -- a null from a well-posed test is worth more than a star from an ill-posed one. Rest is
+only 2-15 min/session, less than assumed.
