@@ -14452,3 +14452,41 @@ event-aligned average"), not a window mean.
 where the animal does NOT lick — the no-lick class already exists in this pipeline. That removes the
 movement-locked neutral term by design rather than by argument, which is the only way this gets
 resolved.
+
+---
+
+## THE DECK CANNOT BE BUILT FROM `figures_working` ON `analysis_desktop` — use `--src` (2026-09-19)
+
+Rebuilding the deck after the `15j` legend change failed here, and the guard is the only reason it
+failed loudly:
+
+    DeckIncomplete: refusing to overwrite spout_position_analysis_summary.pptx with a deck
+    missing 311 figure(s) (383 MB already there)
+
+**WHY.** `build_analysis_deck` takes figures from two places: `grant_dir` (= `labcams/grant_figures`,
+on the share) and `src` (= the `figures_working` root). On `analysis_desktop` that root is
+`C:/Users/SabatiniLab/cue_lick`, which holds **3 PNGs** — this box has never run `nightly_figs` and
+so has never produced the ~330 per-session decoder figures locally. They exist, on the share, in
+`cue_analysis_out`; they were simply never in this box's local working dir.
+
+**THE FIX IS ONE FLAG, AND NOT A `paths.yaml` EDIT.**
+
+    python -m wfield_local.locanmf_analysis_deck \
+        --src "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
+
+    -> 908 slides, 1370 figures placed, 0 missing
+
+**DO NOT REPOINT `figures_working` AT THE SHARE TO "FIX" THIS.** That root is a WRITE target --
+`nightly_figs` builds into it and then copies to `cue_analysis_out` -- so aiming it at the published
+mirror would have figure generation writing into the published directory. `--src` reads; the root
+writes. They are different jobs that happen to usually name the same directory.
+
+**THE GUARD EARNED ITS KEEP.** A 383 MB deck with 311 missing figures would have looked like a
+successful rebuild; `_refuse_incomplete_overwrite` is the descendant of the 2026-08-11 incident
+(80 slides, 287 missing, exit code 0) and it caught the same class of failure from a new cause. The
+publish also kept the previous deck as `spout_position_analysis_summary__20260918_2016.pptx`.
+
+**AND I MASKED THE FAILURE FROM MYSELF FOR ONE ROUND, THE SAME WAY AS ON 2026-09-17.** The first
+attempt ran as `... 2>&1 | tail -20`, so the reported exit code was **`tail`'s, not Python's** —
+exit 0 on a run that raised. I relayed "deck is rebuilding" on the strength of it. **Never pipe a
+run whose exit code you intend to trust**; capture to a file and read the file.
