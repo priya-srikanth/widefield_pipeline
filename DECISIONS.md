@@ -14950,3 +14950,82 @@ Priya, reviewing PS94: "PS94 STILL not chronic epoch?" and then "I'm assessing w
 **Biology.** Mice typically recover within ~3–5 weeks. The new labels (days 11, 11, 25, 15 = 1.5–3.5 weeks) all sit in that window; PS94 plateauing at 3.5 weeks is textbook, and the old "PS94 never plateaus" was biologically implausible.
 
 **Boundaries moved (ratified by Priya, this account): PS94 null → 25, PS95 11 → 15;** PS92 and PS93 unchanged at 11. Updated in `configs/animals.yaml` and `tests/test_epochs.py` (SPEC). `configs/defaults.yaml epochs.chronic`: `k_res 0.5`, `flat_onesided: true`. `epochs.CHRONIC_RULE` now reads "… upward drift across the window ≤ 1 × pre-stroke SD (not still rising) … settled (residual ≤ 0.5 × pre-stroke SD) …", derived from the constants and stamped into `epoch_boundaries.json`. Every epoch figure restages: the chronic epoch is now FOUR animals (PS92 11, PS93 11, PS94 25, PS95 15).
+## THE HAEMODYNAMIC LAG AT REST: blood follows calcium by ~0.45 s, and `argmax` had the sign backwards (2026-09-19)
+
+`scripts/rest_migration/rest_coupling.py`. This entry is about HOW the number was got, because the
+measure was wrong twice and the second error is the instructive one.
+
+### v1: THE RIGHT ANSWER TO THE WRONG QUESTION
+
+v1 cross-correlated 470 against 415 and returned -0.06 to 0.00 s -- zero to two frames -- in every
+session. That is not a broken measurement. **415 and 470 BOTH SEE THE SAME BLOOD AT THE SAME
+INSTANT**: the absorbing haemoglobin is one physical quantity, so its contribution is simultaneous
+in the two channels and the cross-correlation MUST peak at zero. The haemodynamic lag is between
+NEURAL ACTIVITY and BLOOD, not between two optical channels that both report blood. So the pair
+became `SVTcorr` (calcium, hemo nulled) against 415.
+
+### v2: A PHYSIOLOGICALLY IMPOSSIBLE RESULT THAT LOOKED LIKE A MEASUREMENT
+
+v2 kept `argmax` and returned **-0.26 to -0.48 s in every PS93 session** -- 415 LEADING calcium by
+roughly half a second. No haemodynamic response can do that. It was reproducible, tight across
+sessions, and on the right timescale, which is exactly what makes it dangerous: it had every
+surface property of a real measurement except a possible mechanism.
+
+**PLOTTING THE WHOLE CURVE INSTEAD OF ITS ARGMAX SETTLED IT IN ONE LOOK.** `r(SVTcorr, 415)` is
+BIPHASIC:
+
+| lag (s) | -0.8 | -0.6 | **-0.4** | -0.2 | 0.0 | +0.2 | **+0.4** | +0.6 | +0.8 |
+|---|---|---|---|---|---|---|---|---|---|
+| r | +0.098 | +0.144 | **+0.161** | +0.101 | -0.043 | -0.180 | **-0.253** | -0.242 | -0.181 |
+
+A positive lobe near -0.45 s and a DEEPER negative lobe near +0.48 s. `argmax` was reading the
+wrong one.
+
+### WHY THE TROUGH IS THE HRF, AND WHY NOTHING EARLIER CAUGHT IT
+
+**BLOOD ABSORBS.** More haemoglobin means less emitted light, so blood volume enters a dF/F
+fluorescence trace with a NEGATIVE sign -- in BOTH channels, which is precisely why subtracting a
+scaled 415 removes it. The haemodynamic response to a calcium transient therefore appears in
+`r(SVTcorr, 415)` as a NEGATIVE lobe at POSITIVE lag. Read the trough and the answer is
+**+0.45 s, blood follows calcium, which is an HRF of entirely ordinary latency.**
+
+**A COMMON SIGN FLIP ON BOTH CHANNELS IS INVISIBLE TO EVERY ZERO-LAG CORRELATION WE HAD COMPUTED.**
+`r(470, 415)` is positive whether hemo enters both traces positively or both negatively, so no
+amount of staring at the correlation tables could have surfaced this. It only becomes visible once
+a LAG is involved, because the lag breaks the symmetry between the two channels.
+
+### THE TROUGH IS ALSO THE STABLE LOBE, WHICH IS INDEPENDENT CONFIRMATION
+
+Across PS92_0828, PS93_0607 and PS94_0820, both hemispheres:
+
+| | ipsi / contra trough | ipsi / contra peak (what `argmax` read) |
+|---|---|---|
+| PS92_0828 | +0.48 / +0.45 s | -0.19 / -0.19 s |
+| PS93_0607 | +0.48 / +0.48 s | -0.45 / -0.42 s |
+| PS94_0820 | +0.58 / +0.54 s | -0.42 / -0.45 s |
+
+**The trough spans 0.13 s across three animals; the peak wanders over 0.26 s.** The physically
+motivated lobe is also the reproducible one. Full-run values are +0.16 to +0.54 s per session.
+
+### `asym_470_415`: THE SAME PHYSICS WITH NO `T` IN IT
+
+`SVTcorr` is orthogonal to 415 at lag zero BY CONSTRUCTION, so the notch that splits the curve into
+two lobes is put there by the regression, and **both lobe positions are part signal and part
+fitting artefact**. The absolute latency is therefore not quotable -- only a CHANGE across epochs
+is, the same argument that licenses every other biased-but-stable measure here.
+
+So the module also reports a statistic with no free parameter: `r(470, 415)` at +0.5 s minus the
+same at -0.5 s, on the RAW pair, which has no notch. With `470 = C - H` and `415 = -kH` the calcium
+term enters with a minus sign at the haemodynamic delay, so an HRF tilts the raw cross-correlation
+LEFT and this difference goes negative. Measured **-0.20 to -0.34 in all six hemispheres.** Same
+conclusion, independent of the correction.
+
+### THE GENERAL LESSON
+
+**`argmax` IS NOT A SUMMARY OF A BIPHASIC FUNCTION, IT IS A CHOICE BETWEEN TWO LOBES -- AND A
+CHOICE MADE BY WHICHEVER HAPPENS TO BE LARGER IS NOT A CHOICE AT ALL.** The extremum has to be
+picked by the physics of the signal. This is the same failure mode as the channel-derivation
+heuristic earlier in the day (`DECISIONS`, the 415 nm day): a weak or unprincipled discriminator
+does not announce itself, it returns a plausible number. The cheap defence is the same in both
+cases -- **look at the whole object before reducing it to one number.** One printed curve was
+enough.
