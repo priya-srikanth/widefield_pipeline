@@ -60,8 +60,42 @@ def session_quit(s, rows, resp_s=2.0):
     responded = np.array([bool(r["hit"]) for r in rows])
     pos = np.array([POSITION_NAMES.get(r["pos"], str(r["pos"])) for r in rows])
     ne = np.asarray(engagement_gate(order, responded, pos), bool)
+    dur = float(rows[-1]["elapsed_s"])
+
+    # RIGHT-CENSORED, NOT ABSENT (Priya, 2026-09-19: *"count the full session time if there is no
+    # disengaged tail"*). **THE QUIT-DETECTION RATE IS CONFOUNDED BY SESSION-TERMINATION POLICY**:
+    # pre-stroke Priya ran "up to 2 hrs or until they stopped licking", so a pre-stroke session
+    # often ENDED AT THE QUIT and leaves no tail for a gate that requires a sustained non-recovering
+    # run. Post-stroke was a strict 120 min / 100 trials per position, so the tail is always there.
+    #
+    # THE POLICY CHANGE IS VISIBLE IN THE DURATIONS: pre spans 74-167 min (IQR 89-143) against
+    # acute's 100-126 (IQR 104-121). Comparing DETECTION RATES across that is comparing how long
+    # the experimenter kept recording, and the 0.34-pre against 0.75-acute this module first
+    # reported is mostly that.
+    #
+    # SO THE OUTCOME IS TIME ENGAGED, WITH CENSORING. No detected quit -> time engaged is the WHOLE
+    # SESSION and the observation is RIGHT-CENSORED: **IF THE ANIMAL NEVER QUIT, it would have gone
+    # on longer, so the recorded value is a LOWER BOUND on true engagement.**
+    #
+    # THIS COMMENT FIRST SAID UPPER BOUND, WHICH WAS BACKWARDS (Priya: *"isn't the pre-time engaged
+    # a LOWER bound... if the animal never quit"*). Right-censoring means the event has not happened
+    # yet, so the observation bounds the truth from BELOW. The upper-bound reasoning applied only to
+    # the OTHER subpopulation -- sessions the animal DID quit, stopped so promptly that no tail
+    # survives for the gate, where the recorded duration is approximately the true quit time.
+    # Pre-stroke "no detected quit" is a MIXTURE of the two, and both are <= the truth.
+    #
+    # THE CONSERVATISM SURVIVES BY THE OPPOSITE ARGUMENT, and it is what licenses any claim here:
+    # pre is ~66% censored (29/44) against acute's ~25% (4/16), so measured pre UNDERSTATES true pre
+    # engagement more than measured acute understates acute. A measured pre > acute therefore
+    # UNDERSTATES the true gap. A post-stroke SHORTFALL is trustworthy; a post-stroke EXCESS could be
+    # differential censoring alone and means nothing.
     if not ne.any():
-        return None
+        return dict(quit_trial=-1, n_trials=len(rows), quit_frac=float("nan"),
+                    quit_elapsed_s=float("nan"), quit_cum_licks=float("nan"),
+                    quit_cum_rewards=float("nan"), hit_before=float("nan"),
+                    hit_after=float("nan"), step_sharpness=float("nan"),
+                    session_dur_s=dur, time_engaged_s=dur, censored=True,
+                    frac_engaged=1.0)
     # THE QUIT POINT IS THE FIRST TRIAL OF THE TERMINAL RUN. `engagement_gate` already requires
     # non-recovery, so scanning back from the end to the first False is the start of that run.
     k = len(ne)
@@ -92,7 +126,9 @@ def session_quit(s, rows, resp_s=2.0):
                 hit_after=float(np.mean([r["hit"] for r in rows[k:]])),
                 # STEP SHARPNESS: how much of the total drop happens in the 20 trials around the
                 # quit. Near 1 = a genuine step. Near the fraction of trials spanned = a ramp.
-                step_sharpness=_sharpness(rows, k))
+                step_sharpness=_sharpness(rows, k),
+                session_dur_s=dur, time_engaged_s=float(rows[k]["elapsed_s"]),
+                censored=False, frac_engaged=float(rows[k]["elapsed_s"] / dur) if dur else 1.0)
 
 
 def _sharpness(rows, k, w=10):
@@ -163,11 +199,14 @@ def main(argv=None) -> int:
         n_seen[ep] += 1
         q = session_quit(s, tr)
         if q is None:
-            print(f"   {lab:14s} {ep:9s} no terminal quit", flush=True)
             continue
-        n_quit[ep] += 1
         q.update(label=lab, animal=config.animal_of(lab), epoch=ep)
         rows_out.append(q)
+        if q["censored"]:
+            print(f"   {lab:14s} {ep:9s} still engaged at session end -- CENSORED at "
+                  f"{q['session_dur_s'] / 60:.0f} min", flush=True)
+            continue
+        n_quit[ep] += 1
         # QUIT-ALIGNED hit rate, NEAR spouts only -- the alignment is the whole point, since
         # averaging unaligned steps manufactures a ramp.
         k = q["quit_trial"]
@@ -182,7 +221,7 @@ def main(argv=None) -> int:
               f"{q['quit_cum_licks']:.0f} licks", flush=True)
 
     if not rows_out:
-        print("no quits detected -- a failed run, not a result")
+        print("no sessions scored -- a failed run, not a result")
         return 1
     p = out_dir / "epoch_18_quit_point.csv"
     with open(p, "w", newline="", encoding="utf-8") as fh:
@@ -195,10 +234,46 @@ def main(argv=None) -> int:
     eps = [e for e in ("pre", "acute", "subacute", "chronic") if n_quit.get(e)]
     bar = "=" * 96
 
-    print(f"\n{bar}\nDOES THE ANIMAL QUIT AT ALL?\n{bar}")
-    print(f"  {'epoch':<10}{'sessions':>10}{'with a terminal quit':>24}{'fraction':>12}")
+    # TIME ENGAGED, THE POLICY-ROBUST OUTCOME. The detection RATE below it is reported only so the
+    # censoring is visible -- it is NOT a result, because pre-stroke sessions were stopped when the
+    # animal stopped and therefore cannot show a tail.
+    print(f"\n{bar}\nTIME ENGAGED (min) -- censored sessions counted as engaged THROUGHOUT\n{bar}")
+    print(f"  {'epoch':<10}{'n':>4}{'time engaged':>24}{'session duration':>24}"
+          f"{'frac of session':>18}{'censored':>11}")
+    for e in eps:
+        v = [r for r in rows_out if r["epoch"] == e]
+        if not v:
+            continue
+        line = f"  {e:<10}{len(v):>4}"
+        for key, scale in (("time_engaged_s", 1 / 60.0), ("session_dur_s", 1 / 60.0),
+                           ("frac_engaged", 1.0)):
+            d = defaultdict(list)
+            for r in v:
+                if np.isfinite(r[key]):
+                    d[r["animal"]].append(float(r[key]) * scale)
+            g = _boot(d, rng)
+            wdt = 24 if key.endswith("_s") else 18
+            fmt = ".0f" if key.endswith("_s") else ".2f"
+            line += (f"{g[0]:{fmt}} [{g[1]:{fmt}},{g[2]:{fmt}}]".rjust(wdt) if g
+                     else "--".rjust(wdt))
+        line += f"{np.mean([r['censored'] for r in v]):>11.2f}"
+        print(line)
+    print("\n  CENSORED = no detected quit, so time engaged is the WHOLE session. If the animal")
+    print("  NEVER QUIT it would have gone on longer, so that is a LOWER BOUND on true engagement.")
+    print("  PRE-STROKE IS THE MOST CENSORED, so measured pre understates true pre engagement more")
+    print("  than measured acute understates acute -- a measured pre > acute UNDERSTATES the gap.")
+    print("  A post-stroke SHORTFALL is trustworthy; a post-stroke EXCESS could be differential")
+    print("  censoring alone and means nothing.")
+
+    print(f"\n{bar}\nDETECTION RATE -- NOT A RESULT, shown so the censoring above is visible\n{bar}")
+    print(f"  {'epoch':<10}{'sessions':>10}{'with a detected quit':>24}{'fraction':>12}")
     for e in eps:
         print(f"  {e:<10}{n_seen[e]:>10}{n_quit[e]:>24}{n_quit[e] / max(n_seen[e], 1):>12.2f}")
+    print("\n  PRE-STROKE SESSIONS RAN 'UP TO 2 HRS OR UNTIL THEY STOPPED LICKING' (Priya) -- so a")
+    print("  pre session often ENDED AT THE QUIT and leaves no tail for a gate that needs a")
+    print("  sustained non-recovering run. Post-stroke ran to a fixed 120 min / 100 trials. The")
+    print("  durations show it: pre spans 74-167 min, acute 100-126. Comparing these fractions")
+    print("  compares recording policy, not the animal.")
 
     print(f"\n{bar}\nWHAT HAS ACCUMULATED AT THE QUIT POINT\n{bar}")
     print(f"  {'epoch':<10}{'elapsed min':>22}{'cumulative licks':>26}{'cumulative rewards':>26}")
