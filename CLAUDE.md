@@ -417,6 +417,37 @@ reproduces it). `wfield_local/hemo_variants.py` builds alternatives.
 **Consequence for readers:** a bare `SVTcorr.npy` is the original by construction, and any result built
 on a variant must carry the variant string so two of them can never be silently mixed.
 
+### THE 470 SLOT IS PER SESSION — `hemo_variants.functional_channel(session)`, never `FUNC`
+
+`FUNC = 1` is the **cohort** default. `PS92_0828` is **0** (labcams saved a normal alternating session
+mislabelled single-channel; the rescue relabel locked exposure offset 1 — see
+`configs/session_overrides.yaml`), and it is in the curated post set.
+
+**Production honours this end to end** — override → `local_wfield_summary.json` →
+`hemo_<variant>/manifest.json` all read 0 — so `SVTcorr`, and every figure built on it, is correct.
+**The trap is code that slices RAW `SVT` by the module constant.** A 2026-09-19 audit found ten such
+call sites, including `hemo_map_control._iso_slice`, whose own comment explains that getting this
+backwards *"would compare the map against itself and return a reassuring r = 1.0 as evidence of
+cleanliness"* — and which was reading the constant. All ten now call `functional_channel(session)`.
+
+**Do not try to DERIVE the slot by correlating a half against `SVTcorr`.** It looks principled and it
+is unsound: `SVTcorr = blue − T @ other`, so wherever the haemodynamic term dominates component 0 the
+corrected trace resembles the **control** half more. Measured margins ran from 0.030 (a coin flip that
+landed wrong) to a confident 0.071-vs-0.370 disagreement. The answer is in the config; read it.
+
+### 415 vs 470 vs corrected, by spout position — `scripts/rest_migration/channel_position_maps.py`
+
+Six positions × three channels, one shared colour scale, Allen overlay, plus `r(415, raw)`,
+`r(415, corr)` and the amplitude ratios per position. `--epochs` runs the across-epoch
+neurovascular-coupling contrast. Output: `labcams/channel_comparison/`.
+
+Its ancestor `_compare_415_470_corr.py` was a repo-root one-off deleted 2026-08-08 as dead scratch,
+and the figures it left behind outlived the code that made them — which is why this one is a module
+with a docstring rather than scratch. **Two bugs in the rebuild (a colour scale set by pixels outside
+the brain, and a swapped channel assignment) are written up in `DECISIONS.md`, 2026-09-19. Read them
+before trusting a figure of this kind; both produced output that was wrong AND plausible.** Neither
+reaches the deck's results path — that was checked, not assumed.
+
 ## Reference
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
