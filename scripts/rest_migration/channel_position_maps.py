@@ -101,6 +101,49 @@ def _signals(res: Path, allen: Path):
             ("470 nm (hemo-corrected)", np.asarray(corr))], ev
 
 
+def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
+    """Bool per cue: True = inside the TERMINAL QUIT PERIOD, i.e. not engaged.
+
+    Wraps `precue_engagement_states.engagement_gate`, the gate `beta_maps._quit_mask` uses, so this
+    module excludes the same trials the rest of the deck does rather than inventing a second
+    definition. Non-recovery is what that gate requires -- a mid-session dip the animal comes back
+    from is not disengagement, and PS94_0817 is the session that makes the distinction concrete.
+
+    Returns all-False (nothing excluded) if the gate cannot be built, and SAYS SO -- silently
+    falling back to "everything is engaged" is how a gate stops existing without anyone noticing.
+    """
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.precue_engagement_states import engagement_gate
+
+    cue_s = np.asarray(cue_s, float)
+    n = cue_s.size
+    try:
+        lk = np.asarray(lick_s, float)
+        lo = np.searchsorted(lk, cue_s, side="left")
+        hi = np.searchsorted(lk, cue_s + resp_s * _daq_rate(s), side="right")
+        responded = (hi - lo) > 0
+        order = np.arange(n)
+        pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
+        ne = np.asarray(engagement_gate(order, responded, pos), bool)
+        if ne.shape != (n,):
+            raise ValueError(f"gate returned {ne.shape}, expected {(n,)}")
+        if ne.any():
+            print(f"      {s['label']}: quit period excludes {int(ne.sum())}/{n} trials",
+                  flush=True)
+        return ne
+    except Exception as ex:                                          # noqa: BLE001
+        print(f"      !! {s['label']}: engagement gate unavailable ({type(ex).__name__} "
+              f"{str(ex)[:60]}) -- NOTHING excluded, epoch composition is unguarded", flush=True)
+        return np.zeros(n, bool)
+
+
+def _daq_rate(s):
+    """DAQ sample rate, so a seconds-valued response window can be compared against samples."""
+    import h5py
+    with h5py.File(s["h5"], "r") as f:
+        return float(f.attrs["sample_rate_hz"])
+
+
 def _epoch_of(label):
     from wfield_local import epochs
     return epochs.epoch_of(label) or ""
@@ -590,17 +633,57 @@ def run_session(s, out_dir, stats, figures=True):
     codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
     cue_f = np.searchsorted(f_of, np.asarray(cs))
 
+    from wfield_local.framemap_event_maps import in_trial_mask, trial_end_samples
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
     lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
-    lick_f = np.searchsorted(f_of, np.asarray(lk["lick_samples"]))
+    lick_s = np.asarray(lk["lick_samples"])
+    lick_f = np.searchsorted(f_of, lick_s)
     # A LICK INHERITS THE POSITION OF THE CUE IT FOLLOWS. Anything before the first cue has none.
-    j = np.searchsorted(np.asarray(cs), np.asarray(lk["lick_samples"]), side="right") - 1
+    j = np.searchsorted(np.asarray(cs), lick_s, side="right") - 1
     lick_codes = np.where(j >= 0, codes[np.clip(j, 0, None)], -1)
+
+    # IN-TRIAL LICKS ONLY, and this module shipped WITHOUT it for a few hours (2026-09-19). Priya:
+    # *"what is this run gated on? engaged-only trials?"* -- it was gated on nothing, which
+    # reproduced exactly the artefact `framemap_event_maps.in_trial_mask` exists to remove and whose
+    # severity this repo has already measured:
+    #
+    #     PS94 8/17 far_center and far_R had ZERO responses yet contributed 93 and 83 licks to
+    #     their maps, at a median of 7.2 and 7.6 s after the cue -- by which time the NEXT spout
+    #     had moved into place. 18% of licks pre-stroke at every position, against
+    #     28/47/50/100/100% post-stroke.
+    #
+    # **THE CONTAMINATION IS GRADED BY SEVERITY, SO IT TRACKS THE VERY DEFICIT IT WOULD BE READ AS
+    # EVIDENCE FOR** -- which makes it disqualifying for the `--epochs` arm specifically, not merely
+    # untidy. The deck's own lick maps are titled "in-trial licks only" for this reason.
+    #
+    # Reward-consumption licks are KEPT: `trial_end` lands after the response window.
+    te = trial_end_samples(s["h5"])
+    n_all = int(lick_codes.size)
+    if te is None or not len(te):
+        print(f"      !! {s['label']}: no trial_end channel -- lick arm would be UNGATED, skipping "
+              f"it rather than shipping the contaminated version", flush=True)
+        in_trial = np.zeros(lick_s.shape, bool)
+    else:
+        in_trial = in_trial_mask(lick_s, np.asarray(cs), np.asarray(te))
+    kept = int((in_trial & (lick_codes >= 0)).sum())
+    print(f"      {s['label']}: in-trial licks {kept}/{n_all} "
+          f"({100.0 * kept / max(n_all, 1):.0f}%)", flush=True)
+
+    # THE TERMINAL QUIT PERIOD IS EXCLUDED FROM BOTH ARMS, using the same
+    # `precue_engagement_states.engagement_gate` the rest of the deck uses via
+    # `beta_maps._quit_mask`. A cue presented after the animal has stopped working is a real
+    # stimulus, so this is not a labelling error the way an out-of-trial lick is -- but the quit
+    # period is 3.1% of frames pre-stroke and 18.7% acutely (`docs/REST_ENGAGEMENT_AUDIT.md`), so an
+    # UNGATED epoch comparison has its composition track the independent variable. That is the one
+    # thing an epoch contrast cannot tolerate.
+    not_engaged = _quit_trials(s, cs, codes, lick_s)
 
     pre_n, post_n = int(round(CUE_PRE_S * FS)), int(round(CUE_POST_S * FS))
     lpost = max(1, int(round(LICK_POST_S * FS)))
-    cue_ok = (codes >= 0) & (cue_f >= pre_n) & (cue_f + post_n <= T)
-    lick_ok = (lick_codes >= 0) & (lick_f >= 0) & (lick_f + lpost <= T)
+    cue_ok = (codes >= 0) & (cue_f >= pre_n) & (cue_f + post_n <= T) & ~not_engaged
+    # a lick inherits its cue's engagement state
+    lick_ne = np.where(j >= 0, not_engaged[np.clip(j, 0, None)], True)
+    lick_ok = in_trial & (lick_codes >= 0) & (lick_f >= 0) & (lick_f + lpost <= T) & ~lick_ne
 
     order = DISPLAY_ORDER
     raw = [POSITION_NAMES[c] for c in order]

@@ -14651,3 +14651,71 @@ are stale and should be read as of that date.**
 **THE HABIT WORTH KEEPING FROM THIS:** a dated STATUS document records what was true when it was
 written, and a QC number in one is not a fixed constant of the dataset. The chronic row growing
 14 -> 18 sessions is the visible half of that; the gating change is the invisible half.
+
+---
+
+## THE ACUTE RISE IN r(415, 470) IS GLOBALNESS, NOT COUPLING — and the run that found it was ungated until Priya asked (2026-09-19)
+
+### THE GATING DEFECT, found by a question rather than by a test
+
+Priya: *"what is this run gated on? engaged-only trials?"* **It was gated on nothing.** Two
+consequences, and the first is disqualifying rather than untidy:
+
+**1. EVERY LICK CARRIED THE POSITION OF THE MOST RECENT CUE, HOWEVER LONG AFTER IT FELL.** This
+reproduced exactly the artefact `framemap_event_maps.in_trial_mask` was written to remove, whose
+severity this repo had already measured: PS94 8/17 far_center and far_R had **zero responses yet
+contributed 93 and 83 licks**, at a median 7.2 and 7.6 s post-cue, by which time the next spout had
+moved in. 18% of licks contaminated pre-stroke against **28/47/50/100/100% post-stroke**.
+
+**THE CONTAMINATION IS GRADED BY SEVERITY, SO IT TRACKS THE VERY DEFICIT IT WOULD BE READ AS
+EVIDENCE FOR.** For a per-session QC figure that is a blemish; for an EPOCH CONTRAST it invalidates
+the result. The deck's own lick maps have been titled "in-trial licks only" since August; this
+module simply failed to carry that over from the ancestor script.
+
+Measured after the fix on the named session: `PS94_0817` keeps **1253/2006 licks (62%)**, and far
+middle / far contra correctly drop to **ZERO in-trial licks** rather than receiving maps built from
+phantom ones.
+
+**2. THE TERMINAL QUIT PERIOD WAS INCLUDED.** Priya: *"we should probably just do engaged trials
+right"*. Now gated by `precue_engagement_states.engagement_gate`, the same gate `beta_maps._quit_mask`
+uses, so this module excludes the same trials as the rest of the deck rather than inventing a second
+definition. It fires on 4 of 6 spot-checked sessions (141/551, 198/595, 185/600, 98/600) and
+correctly does NOT fire on `PS94_0817` -- the session that gate's docstring singles out as recovering
+mid-session. A gate that distinguishes that case is the right gate.
+
+This matters specifically because the quit period is **3.1% of frames pre-stroke and 18.7% acutely**
+(`docs/REST_ENGAGEMENT_AUDIT.md`), so an ungated epoch comparison has its composition tracking the
+independent variable.
+
+### THE RESULT, 96 sessions, 1147 position-cells, both gates on
+
+| arm | epoch | r(diagonal) | r(off-diagonal) | **specific** |
+|---|---|---|---|---|
+| lick | pre | +0.428 | +0.346 | **+0.082** |
+| lick | acute | **+0.657** | **+0.548** | **+0.110** |
+| lick | subacute | +0.502 | +0.397 | **+0.104** |
+| lick | chronic | +0.379 | +0.271 | **+0.108** |
+| cue | pre | +0.508 | +0.505 | +0.003 |
+| cue | acute | +0.462 | +0.353 | +0.109 |
+| cue | subacute | +0.508 | +0.477 | +0.031 |
+| cue | chronic | +0.492 | +0.497 | -0.005 |
+
+**THE APPARENT ACUTE RISE IS ENTIRELY GLOBALNESS.** The lick-arm correlation jumps +0.428 -> +0.657,
+which reads as stronger neurovascular coupling. The OFF-DIAGONAL -- 415 at one position against 470
+at the OTHERS -- jumps +0.346 -> +0.548, in step. **The position-specific component is flat at
+0.08-0.11 in every epoch.** This is the artefact `15k` predicted by measuring the cue acute panel at
+~75% global, arriving exactly where it was expected to.
+
+**SO: NO EVIDENCE OF CHANGED NEUROVASCULAR COUPLING**, on the measure that asked the question
+directly. And the control was built BEFORE the number was read, which is the only reason the first
+reading did not get written down as a finding.
+
+**A SECOND RESULT FALLS OUT.** The CUE arm has essentially NO position-specific coupling at all
+(+0.003 pre, -0.005 chronic) while the LICK arm holds a consistent ~+0.1 throughout. The haemodynamic
+map tracks the neural map GLOBALLY (r ~ 0.5) and adds almost nothing position-tuned at this spatial
+scale and window.
+
+**THE OFF-DIAGONAL NULL IS CONSERVATIVE, and row 5 is therefore a LOWER BOUND.** The six position
+maps within a session are genuinely similar -- same animal, same task, overlapping cortex -- so the
+off-diagonal contains some real position-specific signal and subtracting it removes a little of what
+is being measured. It cannot manufacture an absent effect; it can shrink a present one.
