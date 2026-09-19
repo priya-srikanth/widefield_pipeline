@@ -14019,3 +14019,54 @@ there is none.
 concordance there is close to uninformative. The lick arm is 11-31% global and gives the LARGER
 effect (+0.564). That is why it was run first.
 
+
+---
+
+## `15j`'s COSINE GETS A p — held-out reference, and the fix is not the one predicted (2026-09-18)
+
+The open item from `STATUS_2026-09-17` §A2. `scripts/rest_migration/rest_baseline_epoch_drift.py`.
+
+**THE FIX.** `e_ref` is now built LEAVE-ONE-ANIMAL-OUT, from the other three animals' pre sessions
+(36 of them). That is available because `b_s` and `e_s` are atlas PIXELS on the shared grid, so
+another animal's pre is the same space. The recorded objection -- "12 pre vs 6 acute does not leave
+room" -- was correct about splitting an animal's OWN pre, and it was the per-animal split rather
+than the idea that the counts could not afford.
+
+**WHAT IT FIXES, AND IT IS NOT WHAT I PREDICTED.** I said the diagnostic would be the null cosine
+centring on zero. **It does not.** |null median| is **0.212 held out against 0.233 self-referenced**
+-- barely moved. The nonzero centre was never mainly the shared `-mean_pre(bn)` term: under the null
+`d` is a difference between two random groups of pre BASELINES, and those are not isotropic. They
+occupy a low-dimensional, cortically structured subspace that overlaps the evoked pattern, and that
+geometry survives any choice of reference. It is also exactly why the cosine must be read against
+ITS OWN NULL rather than against zero.
+
+**WHAT IT DOES FIX IS THE THING THAT WAS ACTUALLY BROKEN: the null is now STRUCTURALLY MATCHED.**
+Self-referenced, the observed shared `-mean_pre(bn)` with `e_ref` in FULL while a within-pre null
+shared it only partly, so the null understated the bias and the p ran anti-conservative. Measured on
+exchangeable data with no drift planted, false-positive rate at alpha = 0.05:
+
+| reference | false-positive rate |
+|---|---|
+| **held out** | **0.060** (nominal 0.05) |
+| self-referenced | **0.160** (3.2x nominal) |
+
+That is the anti-conservatism the old code declined to ship a p against, quantified rather than
+argued, and it is pinned by `test_a_held_out_reference_makes_the_cosine_p_CALIBRATED` -- which
+asserts the RATE, because asserting that a `cos_p` key exists would pass for a p that is wrong.
+
+**THE RESULT: 1 of 11 cells at p < 0.05, against ~0.6 expected by chance.** There is NO EVIDENCE
+that the baseline drift is preferentially aligned with the evoked pattern. This matters for how the
+magnitude is read: the shift is an UPPER BOUND on amplitude bias, attained only under alignment,
+with orthogonal shifts costing ~r^2/2. So the realistic bias sits toward the LOW end of the stated
+1-15% range. **State it as absence of evidence** -- 11 cells, one test each, no correction.
+
+**THE MAGNITUDE ARM IS UNCHANGED AND REPRODUCES EXACTLY**: 6 of 11 cells significant, PS92
+0.139 / 0.279 / 0.342 across acute / subacute / chronic, matching the 09-17 run. The refactor that
+split `collect()` from `run()` did not move it.
+
+**A BUG THE REFACTOR INTRODUCED AND THE COST OF MECHANICAL SPLITS.** Extracting the loading half
+dropped the `return rows` from the `pre.size < 4` guard, so it logged "skipped" and then carried
+straight on into `en[pre].mean()`. No animal in this cohort trips it, so nothing was wrong in the
+output -- but a log line describing control flow the code does not take is worse than no log line.
+Restored.
+

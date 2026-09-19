@@ -16,7 +16,9 @@ import numpy as np
 import pytest
 
 from scripts.rest_migration.rest_baseline_epoch_drift import (
-    _stat, epoch_row, normalise,
+    _stat,
+    epoch_row,
+    normalise,
 )
 
 
@@ -118,26 +120,55 @@ def test_the_cosine_is_biased_positive_on_exchangeable_data():
         bn = r_.normal(size=(n, k)) * 0.5
         pre = np.arange(4, n)
         e_ref = r_.normal(size=k) * 0.5 - bn[pre].mean(axis=0)   # the construction `run` uses
-        cos.append(epoch_row(bn, e_ref, np.arange(4), pre, 5, r_)["cos_with_evoked_biased"])
+        cos.append(epoch_row(bn, e_ref, np.arange(4), pre, 5, r_)["cos_with_evoked"])
     # Exchangeable data, no drift planted: an UNBIASED cosine would centre on zero. The MEAN is the
     # test -- the sign fraction is a weaker statement and would need far more draws to pin tightly.
     assert np.mean(cos) > 0.05, np.mean(cos)
     assert np.mean([c > 0 for c in cos]) > 0.55, np.mean([c > 0 for c in cos])
 
 
-def test_no_cosine_p_is_reported():
-    """A GUARD AGAINST IT COMING BACK. Two nulls were tried and neither reproduces the bias (any
-    group resampled within pre has the shared term cancel), so a p here would be
-    anti-conservative. If a future change reinstates one, this fails and sends the reader to the
-    algebra in `epoch_row` before they trust it."""
+def test_a_held_out_reference_makes_the_cosine_p_CALIBRATED():
+    """THE FIX, PINNED BY ITS CALIBRATION RATHER THAN BY ITS EXISTENCE.
+
+    The cosine carried no p because the null was not structurally matched: self-referenced, the
+    observed shares `-mean_pre(bn)` with `e_ref` in FULL while a within-pre null shares it only
+    partly, so the null understated the bias and the p ran anti-conservative. A HELD-OUT `e_ref`
+    (built in production from the other animals' pre sessions) shares nothing with either, so the
+    same disjoint-halves null is matched.
+
+    The test is the FALSE-POSITIVE RATE on exchangeable data with no drift planted. Held out it
+    must sit near nominal; self-referenced it must be materially worse. Asserting only that a
+    `cos_p` key exists would pass for a p that is wrong.
+    """
+    n, k, alpha = 24, 60, 0.05
+    held, self_ = [], []
+    for t in range(150):
+        r_ = np.random.default_rng(900 + t)
+        bn = r_.normal(size=(n, k)) * 0.5
+        pre = np.arange(4, n)
+        evoked = r_.normal(size=k) * 0.5
+        # HELD OUT: shares no session with `bn`, as leave-one-animal-out gives in production.
+        held.append(epoch_row(bn, evoked, np.arange(4), pre, 100, r_)["cos_p"])
+        # SELF-REFERENCED: the construction `run` used to use.
+        self_.append(epoch_row(bn, evoked - bn[pre].mean(axis=0),
+                               np.arange(4), pre, 100, r_)["cos_p"])
+    fp_held = float(np.mean([x is not None and x < alpha for x in held]))
+    fp_self = float(np.mean([x is not None and x < alpha for x in self_]))
+    assert fp_held < 0.15, f"held-out false-positive rate {fp_held:.3f} at alpha {alpha}"
+    assert fp_self > fp_held, (fp_self, fp_held)
+
+
+def test_the_cosine_null_is_reported_beside_it():
+    """THE NULL MEDIAN SHIPS WITH THE COSINE, because it is not zero and the cosine must be read
+    against it. Baseline differences are not isotropic -- they occupy a low-dimensional,
+    cortically structured subspace that overlaps the evoked pattern -- so a nonzero centre is a
+    property of the data, not a leftover artefact, and a reader who assumes zero is wrong."""
     rng = np.random.default_rng(12)
     r = epoch_row(rng.normal(size=(20, 30)), rng.normal(size=30),
                   np.arange(4), np.arange(4, 20), 100, np.random.default_rng(13))
-    assert "cos_p" not in r
-    assert "cos_null_median" not in r
-    assert "cos_with_evoked_biased" in r
-
-
+    assert r["cos_p"] is not None
+    assert r["cos_null_median"] is not None
+    assert "cos_with_evoked" in r
 def test_a_degenerate_pre_group_does_not_crash():
     """One pre session left over after the split leaves `gb` tiny but non-empty; two epochs the
     size of pre leave it empty and those draws are skipped rather than dividing by zero."""

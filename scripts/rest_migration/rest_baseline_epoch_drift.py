@@ -53,14 +53,33 @@ sign. That shared additive component correlates the two before any drift exists,
 cosine is the null expectation, not a finding. Found on the first PS92 run, where the raw chronic
 cosine of +0.77 looked like a clean alignment result and was partly construction.
 
-NO VALID NULL FOR IT EXISTS IN THIS DESIGN. `epoch_row` records the two that were tried and the
-algebra that defeats each: any group resampled WITHIN pre has the shared term partly cancel, while
-the observed epoch is DISJOINT from pre and keeps it in full. Attaching such a null's p to the
-observed cosine would be ANTI-CONSERVATIVE -- worse than reporting none. The cosine is therefore
-reported DESCRIPTIVELY as `cos_with_evoked_biased` and carries NO p; removing the bias at source
-needs `e_ref` built from pre sessions held OUT of `d`, which this cohort's pre counts cannot afford.
-The MAGNITUDE never had this problem (it is a difference of two group means either way) and is the
-column the claim rests on.
+FIXED 2026-09-18 -- THE COSINE NOW CARRIES A p, and the fix is not the one this file predicted.
+`e_ref` is built LEAVE-ONE-ANIMAL-OUT, from the other three animals' pre sessions. That is possible
+because `b_s` and `e_s` are atlas PIXELS on the shared grid, so another animal's pre is the same
+space; it gives 36 sessions rather than the thin half that splitting one animal's own 11 would, and
+it was the per-animal split -- not the idea -- that the counts could not afford.
+
+WHAT IT FIXES: the null becomes STRUCTURALLY MATCHED. Self-referenced, the observed shared
+`-mean_pre(bn)` with `e_ref` in FULL while a within-pre null shared it only partly, so the null
+understated the bias and its p was anti-conservative. Held out, neither shares anything with
+`e_ref`, so the same disjoint-halves null is matched and the p is legitimate.
+
+WHAT IT DOES NOT FIX, MEASURED: it does not centre the null cosine at zero. |null median| is 0.212
+held out against 0.233 self-referenced -- barely moved. The nonzero centre was never mainly the
+shared term: under the null `d` is a difference between two random groups of pre BASELINES, and
+those are not isotropic -- they occupy a low-dimensional, cortically structured subspace that
+overlaps the evoked pattern. That is a property of the data and survives any reference. It is also
+exactly why the cosine must be read against ITS OWN NULL and never against zero, which is what the
+p now does.
+
+THE RESULT: 1 of 11 cells at p < 0.05 against ~0.6 expected by chance. There is NO EVIDENCE the
+baseline drift is preferentially aligned with the evoked pattern. That matters for the magnitude's
+caveat -- the shift is an UPPER bound on amplitude bias, attained only under alignment, with
+orthogonal shifts costing ~r^2/2 -- so the realistic bias sits toward the LOW end of the stated
+range. State it as absence of evidence: 11 cells, one test each, no correction.
+
+The MAGNITUDE never had this problem (it is a difference of two group means either way) and is
+still the column the claim rests on.
 
     python -m scripts.rest_migration.rest_baseline_epoch_drift [--animals PS92 ...] [--perm 2000]
 """
@@ -170,28 +189,46 @@ def epoch_row(bn, e_ref, idx, pre, n_perm, rng):
     # nothing is shared. PS92 has 11 pre sessions and acute has 6, which leaves no room to split
     # pre into a reference half and a comparison half and still match the epoch's size. So the
     # cosine is reported DESCRIPTIVELY, its bias is stated, and the magnitude carries the claim.
-    draws = []
+    # THE COSINE NOW GETS A NULL TOO, and only because `e_ref` is held out. With a self-referenced
+    # `e_ref` the observed shares `-mean_pre(bn)` with it in FULL while a within-pre null shares it
+    # only partly, so the null understated the bias and its p was anti-conservative. A held-out
+    # reference shares nothing with EITHER, so the same disjoint-halves null is now structurally
+    # matched to the observed and the p is legitimate.
+    draws, cos_draws = [], []
     for _ in range(n_perm):
         perm = rng.permutation(pre)
         ga, gb = perm[: len(idx)], perm[len(idx):]
         if gb.size == 0:
             continue
-        draws.append(_stat(bn, ga, gb, e_ref)[0])
+        dr, cr = _stat(bn, ga, gb, e_ref)
+        draws.append(dr)
+        cos_draws.append(cr)
     draws = np.asarray(draws)
+    cos_draws = np.asarray([c for c in cos_draws if np.isfinite(c)])
     p = float(np.mean(draws >= ratio)) if draws.size else np.nan
     return {"n_sessions": len(idx), "n_pre": len(pre),
             "shift_frac_of_evoked": round(ratio, 4),
             "null_median": round(float(np.median(draws)), 4) if draws.size else None,
             "null_p95": round(float(np.percentile(draws, 95)), 4) if draws.size else None,
             "p": round(p, 4) if np.isfinite(p) else None,
-            # DESCRIPTIVE ONLY -- biased positive, no valid null available. See above.
-            "cos_with_evoked_biased": round(cos, 4) if np.isfinite(cos) else None}
+            "cos_with_evoked": round(cos, 4) if np.isfinite(cos) else None,
+            "cos_null_median": (round(float(np.median(cos_draws)), 4)
+                                if cos_draws.size else None),
+            # TWO-SIDED on |cos|: an anti-aligned drift biases amplitude just as much as an
+            # aligned one, only downward, so a one-sided test would miss half the failure mode.
+            "cos_p": (round((1 + int((np.abs(cos_draws) >= abs(cos)).sum()))
+                            / (1 + cos_draws.size), 4)
+                      if cos_draws.size and np.isfinite(cos) else None)}
 
 
-def run(animal, align, post_s, variant, n_perm, rng, log=print):
+def collect(animal, align, post_s, variant, log=print):
+    """``(bn, en, eps)`` for one animal -- the loading half of what `run` used to do.
+
+    SPLIT OUT so `main` can build each animal`s evoked reference from the OTHER animals` pre
+    sessions without paying the session load twice.
+    """
     from wfield_local import config, epochs
 
-    rows = []
     bn, en, eps, labs = [], [], [], []
     for s in config.load_sessions():
         if not s["label"].startswith(f"{animal}_"):
@@ -215,25 +252,64 @@ def run(animal, align, post_s, variant, n_perm, rng, log=print):
         log(f"   {s['label']:14s} {ep:9s} trials {ntr:4d}  restw positions {npos}/6")
 
     if not bn:
-        return rows
-    bn = np.asarray(bn)
-    en = np.asarray(en)
-    eps = np.asarray(eps)
+        return None
+    return np.asarray(bn), np.asarray(en), np.asarray(eps)
+
+
+def run(animal, bn, en, eps, n_perm, rng, log=print, e_held=None):
+    rows = []
     pre = np.flatnonzero(eps == "pre")
     if pre.size < 4:
+        # THE `return` HERE WAS LOST IN THE collect()/run() SPLIT, so this logged
+        # "skipped" and then carried straight on into `en[pre].mean()`. A message that
+        # describes control flow the code does not take is worse than no message.
         log(f"   !! {animal}: {pre.size} pre sessions -- cannot form a null, skipped")
         return rows
-    e_ref = en[pre].mean(axis=0)
+    e_self = en[pre].mean(axis=0)
+    # HELD-OUT REFERENCE, AND IT HAD TO COME FROM OTHER ANIMALS. `b_s` and `e_s` are ATLAS PIXELS
+    # on the shared grid, so a reference built from a DIFFERENT animal's pre sessions is in the
+    # same space and shares not one session with this animal's `d`. Splitting THIS animal's own
+    # pre was the fix first proposed and its counts do not allow it -- PS92 has 11 pre against 6
+    # acute. Leave-one-animal-out has 36 pre sessions behind it instead of a thin half.
+    #
+    # WHAT IT FIXES, AND WHAT IT DOES NOT -- measured 2026-09-18, because the prediction I made
+    # for it was wrong and the correction is the useful part.
+    #
+    #   IT DOES NOT centre the null cosine at zero. Predicted it would; it does not.
+    #   |null median| is 0.212 held-out against 0.233 self-referenced -- barely moved. The
+    #   nonzero centre was never mainly the shared `-mean_pre(bn)` term: under the null `d` is a
+    #   difference between two random groups of pre BASELINES, and those are not isotropic --
+    #   they live in a low-dimensional, cortically structured subspace that overlaps the evoked
+    #   pattern. That geometry is a property of the data and survives any choice of reference.
+    #
+    #   IT DOES make the null STRUCTURALLY MATCHED to the observed, which was the actual defect.
+    #   Self-referenced, the observed shared `-mean_pre(bn)` with `e_ref` in FULL while a
+    #   within-pre null shared it only partly, so the null understated the observed's bias and
+    #   its p was ANTI-CONSERVATIVE. Held out, neither shares anything with `e_ref`, so the same
+    #   disjoint-halves null is matched and the p is legitimate. That is what was blocking a p,
+    #   and it is what is now unblocked.
+    e_ref = e_self if e_held is None else e_held
+    if e_held is None:
+        log(f"   !! {animal}: no held-out reference -- cosine is the BIASED self-referenced one")
 
     for ep in EPOCHS:
         idx = np.flatnonzero(eps == ep)
         if idx.size == 0:
             continue
         r = epoch_row(bn, e_ref, idx, pre, n_perm, rng)
+        # THE BIASED ONE IS KEPT BESIDE IT, not replaced, because the size of the bias is itself
+        # the evidence that the held-out reference was necessary.
+        r_self = epoch_row(bn, e_self, idx, pre, n_perm, rng)
+        r["cos_with_evoked_selfref_biased"] = r_self["cos_with_evoked"]
+        r["cos_null_median_selfref"] = r_self["cos_null_median"]
+        r["eref"] = "held_out_animals" if e_held is not None else "self_BIASED"
         rows.append({"animal": animal, "epoch": ep, **r})
         log(f"   {animal} {ep:9s} shift {r['shift_frac_of_evoked']:6.3f} of evoked   "
             f"null median {r['null_median']:6.3f} p95 {r['null_p95']:6.3f}   "
-            f"p {r['p']:.3f}   cos {r['cos_with_evoked_biased']:+.3f} (biased +, no p)")
+            f"p {r['p']:.3f}   cos {r['cos_with_evoked']:+.3f} "
+            f"(null {r['cos_null_median']:+.3f}, p {r['cos_p']:.3f})   "
+            f"selfref {r['cos_with_evoked_selfref_biased']:+.3f} "
+            f"(null {r['cos_null_median_selfref']:+.3f})")
     return rows
 
 
@@ -276,11 +352,29 @@ def main() -> int:
           f"align={a.align} post={a.post}s variant={a.variant} perm={a.perm}\n"
           f"{'=' * 78}", flush=True)
 
-    rows = []
+    # PASS 1 -- load every animal once.
+    got = {}
     for an in animals:
         print(f"\n{an}", flush=True)
-        rows += run(an, a.align, a.post, a.variant, a.perm, rng,
-                    log=lambda m: print(m, flush=True))
+        c = collect(an, a.align, a.post, a.variant, log=lambda m: print(m, flush=True))
+        if c is not None:
+            got[an] = c
+
+    # PASS 2 -- each animal's evoked reference comes from the OTHER animals' PRE sessions.
+    # `b_s` and `e_s` are atlas pixels on the shared grid, so this is the same space; it shares no
+    # session with this animal's `d`, which kills the positive bias at source and makes the
+    # cosine's null legitimate. Splitting the animal's OWN pre was the fix first proposed, and its
+    # counts cannot afford it -- PS92 has 11 pre against 6 acute.
+    rows = []
+    for an, (bn, en, eps) in got.items():
+        pool = [g[1][g[2] == "pre"] for g_an, g in got.items() if g_an != an]
+        pool = [x for x in pool if len(x)]
+        e_held = np.concatenate(pool, axis=0).mean(axis=0) if pool else None
+        n_held = sum(len(x) for x in pool)
+        print(f"\n{an}: held-out reference from {n_held} pre sessions of "
+              f"{len(pool)} other animals", flush=True)
+        rows += run(an, bn, en, eps, a.perm, rng,
+                    log=lambda m: print(m, flush=True), e_held=e_held)
 
     if not rows:
         print("\nno rows -- a failed run, not a result")
@@ -306,7 +400,7 @@ def main() -> int:
             continue
         sh = np.array([r["shift_frac_of_evoked"] for r in v])
         nu = np.array([r["null_median"] for r in v], dtype=float)
-        co = np.array([r["cos_with_evoked_biased"] for r in v], dtype=float)
+        co = np.array([r["cos_with_evoked"] for r in v], dtype=float)
         sig = sum(1 for r in v if r["p"] is not None and r["p"] < 0.05)
         print(f"{ep:<10}{len(v):>4}{np.median(sh):>9.3f}{np.nanmedian(nu):>8.3f}"
               f"{sig:>5}/{len(v):<2}{np.nanmedian(co):>+17.3f}")
