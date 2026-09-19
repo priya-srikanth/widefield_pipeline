@@ -14490,3 +14490,46 @@ publish also kept the previous deck as `spout_position_analysis_summary__2026091
 attempt ran as `... 2>&1 | tail -20`, so the reported exit code was **`tail`'s, not Python's** —
 exit 0 on a run that raised. I relayed "deck is rebuilding" on the strength of it. **Never pipe a
 run whose exit code you intend to trust**; capture to a file and read the file.
+
+### ADDENDUM, same day: A COLOUR SCALE SET BY PIXELS OUTSIDE THE BRAIN
+
+Priya, on the first `channel_position_maps` output: *"this doesn't seem right - is there really so
+little lick aligned activity in this session? ... Does this session just have an extraordinarily
+high response to lick near_ipsi?"*
+
+**No. The colour limit was being set by the registered edge of `U_atlas`, outside cortex.** The
+limit was a 99th percentile over the whole 540x640 frame; `_quantify` already restricted itself to
+the brain mask, but the DISPLAY did not. PS93_0606, lick arm:
+
+| position | limit, all pixels | limit, in mask | inflation |
+|---|---|---|---|
+| near ipsi | 0.0393 | 0.0394 | **x1.00** |
+| near middle | 0.1705 | 0.0365 | x4.67 |
+| near contra | 0.1586 | 0.0331 | x4.79 |
+| far ipsi | 0.1581 | 0.0489 | x3.24 |
+| far middle | 0.1069 | 0.0685 | x1.56 |
+| far contra | 0.0989 | 0.0459 | x2.16 |
+
+Five rows washed out by up to 4.8x and the sixth untouched. **That does not read as a rendering
+fault -- it reads as one position with an enormous response and five with almost none.** In-mask the
+six limits span 0.033 to 0.069: under 2x, no outlier at all.
+
+**TWO FIXES, and the second is a design change rather than a bug fix.** Non-brain pixels are NaN-ed
+so the artefact cannot be drawn; and the limit is now computed ONCE for the whole figure rather than
+per row. A per-row limit makes the three CHANNELS comparable and the six POSITIONS not -- and "does
+this position respond more than that one" is a question any reader asks of a six-row figure, whether
+or not the layout was designed to answer it. Six identical colourbars then became noise, so there is
+one.
+
+**THE PATTERN, since it is now twice in one module:** both bugs produced output that was WRONG AND
+PLAUSIBLE. A swapped channel looked like an animal whose correction was failing; an inflated colour
+limit looked like a position-specific response. Neither looked like an error. What caught both was
+someone reading the figure against what they already knew about the data -- which is an argument for
+putting the numbers ON the figure, where they can be checked, rather than only in the CSV.
+
+**AND THE CROSS-CHECK FIRES AGAIN, WITH A LARGE MARGIN.** `PS92_0824`: r(SVTcorr, blue) = 0.071
+against r(SVTcorr, 415) = 0.370. That is not a coin flip, it is a confident disagreement in the
+wrong direction, and there is a mechanism: `SVTcorr = blue - T @ other`, so when the haemodynamic
+term dominates component 0 the corrected trace can genuinely resemble the CONTROL half more than the
+functional one. The heuristic is structurally unsound, not merely noisy -- which retires it for good
+as anything but a warning.
