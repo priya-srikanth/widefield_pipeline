@@ -14719,3 +14719,170 @@ scale and window.
 maps within a session are genuinely similar -- same animal, same task, overlapping cortex -- so the
 off-diagonal contains some real position-specific signal and subtracting it removes a little of what
 is being measured. It cannot manufacture an absent effect; it can shrink a present one.
+
+---
+
+# 2026-09-19, THE 415 nm DAY: the distinctions that survived, and four of my own claims that did not
+
+Written at Priya's request: *"please commit the conclusions from our back and forth today (important
+distinctions and clarifications)"*. Ordered by how load-bearing each is, not chronologically.
+
+## 1. THE WITHIN-SESSION DRIFT IS ~2.4x WORSE IN 415, AND IT IS A CLOCK, NOT BLOOD
+
+Priya: *"how should we interpret the significantly worse 415 downward drift vs 470 drift over the
+course of a session? photobleaching should similarly affect both right?"*
+
+**MEASURED, 113 sessions** (`labcams/*/photobleach/*.json`):
+
+| | 415 | 470 |
+|---|---|---|
+| median within-session drop | **-11.60%** | **-4.78%** |
+| IQR | [-15.6, -8.0] | [-9.2, -1.5] |
+
+415 falls further in **111 of 113 sessions**; paired excess **-5.65%** [IQR -7.6, -4.3]. Regressing
+415's drop on 470's gives **slope +0.75, intercept -7.3%, r = +0.84** -- not a scaled version of the
+same process but a roughly CONSTANT extra loss with its own decay.
+
+**THE INTUITION IS RIGHT FOR ONE MECHANISM, AND THAT IS WHY THE RESULT IS INFORMATIVE.** If the
+drift were GCaMP destruction, both channels read out the SAME MOLECULE POOL and would fall by the
+same FRACTION. A differential fractional drop therefore proves the 415 channel is not reading the
+same thing 470 is.
+
+**BLEACHING vs HAEMOGLOBIN ABSORPTION, decided by a partial correlation.** 415 sits on haemoglobin's
+Soret band, so a slow rise in blood volume would attenuate it far more than 470 and would look
+identical start-to-end. But absorption must track blood volume, which tracks behaviour; bleaching is
+a clock. Per-minute binned 415/470 ratio against lick rate and elapsed time:
+
+| session | r(ratio, lick) | r(ratio, TIME) | partial r(ratio, lick given time) |
+|---|---|---|---|
+| PS92_0813 | +0.030 | **-0.794** | +0.146 |
+| PS94_0817 | +0.204 | **-0.803** | +0.095 |
+| PS95_0827 | +0.682 | **-0.870** | -0.236 |
+
+**Time explains it; the lick dependence collapses once time is partialled out.** PS95_0827's raw
++0.68 is confounding, not causation. Three sessions for this test, 113 for the magnitudes.
+
+**WHICH CLOCK IS STILL OPEN, and I over-claimed.** I argued autofluorescence from the raw count
+ratio (415 = 27,824 vs 470 = 29,953 counts, "so most of 415 cannot be GCaMP"). **Priya: *"you can't
+compare counts, they are 2 different LEDs that may be at different intensities."* Correct, and it
+retires the argument** -- LED powers are set to use the camera's range, so the ratio says nothing
+about composition. Three candidates remain unseparated: autofluorescence bleaching,
+excitation-wavelength-dependent GCaMP bleaching or photoconversion, and **LED thermal output
+drift**, which is purely instrumental and which I had under-weighted.
+
+**THE TEST THAT WOULD SEPARATE THEM: brain vs BACKGROUND pixels.** LED drift dims the whole field;
+fluorophore bleaching is confined to fluorescent tissue. I recorded that raw `.dat` was unavailable
+-- **wrong, and Priya corrected it: the raw is on the STANDBY drive** (`M:/Widefield/labcams`, 124
+files), so the test is runnable on one session. Cheaper long-term fix: add a background ROI to the
+nightly `photobleach` step, which already computes ROI medians.
+
+## 2. THE DRIFT BITES THROUGH UNEVEN SAMPLING IN TIME, and the baseline had to go back in
+
+Priya: *"is that an argument in favor of subtracting something from cue and lick (eg pre-cue)?"*
+**Yes, and the mechanism is sharper than "there is drift".**
+
+Earlier the same day the baseline was removed, on the reasoning that the maps are ALREADY dF/F --
+`approximate_svd` divides by `frames_average` -- so the session mean image IS the baseline. **That
+is right about the CONSTANT and wrong about the DRIFT away from it**:
+
+- because F0 is the SESSION MEAN, the mean of dF/F over the whole session is ~0 by construction
+- so a trial set spread EVENLY over the session picks up no offset, and a baseline IS redundant
+- **but the gating makes the sampling uneven.** Engagement declines within a session, so surviving
+  trials sit EARLY, where a decaying trace is still above its session mean
+
+**MEASURED** -- mean position-in-session (0 = start, 1 = end), all cues against trials with a first
+in-trial lick:
+
+| epoch | all cues | licked trials | shift |
+|---|---|---|---|
+| pre | 0.521 | 0.496 | **-0.025** |
+| acute | 0.541 | 0.410 | **-0.132** |
+
+**The sampling bias is 5x larger acutely.** Times the drift: ~0.132 x 11.6% = **~1.5% dF/F offset in
+415** acutely against ~0.3% pre, and ~0.6% vs ~0.1% in 470. Map amplitudes are 1.2-4.4% dF/F, so
+**the acute offset is comparable to the whole signal and is larger in 415 than 470** -- inflating
+`||415||/||470||` acutely. That is very likely the entire "lick-arm coupling gain rises acutely"
+observation, and it would have been reported as biology.
+
+**FIXED:** per-trial pre-cue baseline on both arms. The lick arm baselines to its trial's PRE-CUE
+window, not pre-lick -- two seconds before a first post-cue lick sits inside the cue response. A
+shared baseline also makes the two arms comparable for the first time.
+
+**ONLY THE AMPLITUDE TERMS NEEDED IT.** The correlations spatially mean-remove before correlating,
+so a uniform offset already cancels there.
+
+## 3. "RMS" WAS THE SPATIAL SD, AND THE NAME HID THREE QUARTERS OF THE SIGNAL
+
+Priya: *"is rms the sd?"* **Yes -- because `_quantify` mean-removes first**, so `||v||/sqrt(n)` is
+exactly `np.std(ddof=0)`. In general they differ: `RMS^2 = mean^2 + SD^2`.
+
+Not a naming quibble. On PS94_0817's cue map the **global (mean) term is ~75% of `mean^2 + SD^2`**
+in both channels (470: mean 0.0228, SD 0.0130). The mean-removal was never a decision -- it was
+inherited from the correlation code, which requires centring -- so the amplitude columns silently
+measured **the structured quarter of a signal whose haemodynamics is mostly global**. A stroke that
+changed the uniform haemodynamic response would have left the ratio flat. Now three columns
+(`sd_*`, `mean_*`, `rms_*`), with the RMS ratio as the headline.
+
+Also retired: that RMS-over-norm bought cross-session comparability. **The brain mask is 207,213
+pixels in every session** (unique count = 1 over 40 checked), so sqrt(n) is constant and the
+conversion was cosmetic -- the ratio was identical either way.
+
+## 4. "NVC" WAS THE WRONG WORD FOR WHAT IS MEASURED
+
+Priya: *"should we be clear about how we're defining NVC here? a correlation of the spatial response
+in 415 and 470 i think?"* -- yes, and the honest definition is weaker than the label.
+
+    470 = C + H            calcium AND haemodynamics
+    415 = aC + bH + other  haemodynamics, a calcium term of unknown sign, autofluorescence, scatter
+
+So `r(415, 470) = r(aC + bH, C + H)`. **Even with a = 0, H is on both sides** -- inflated by a shared
+term, not an estimate of neural-drives-vascular. Correlating against `SVTcorr` instead is circular
+(`SVTcorr = 470 - T*415`). There is also **no latency** (NVC is a transfer function; this is static
+overlap in one window) and **no causality** (a symmetric correlation between two mixtures cannot
+separate "vasculature follows activity" from "both follow arousal").
+
+**RENAMED to what they are:** `415/470 amplitude ratio`, `415/470 spatial correlation`. Usable as
+RELATIVE measures across epochs **only if the mixing coefficients a, b, T are stable across
+epochs** -- the same argument that lets `15j` read a biased cosine against its own null, with the
+same failure mode. A real NVC measure needs a haemodynamic estimate not derived from the calcium
+channel: a third wavelength, which is Priya's own earlier point.
+
+## 5. GLOBALNESS IS A CANDIDATE FINDING, NOT ONLY A NUISANCE
+
+I presented the acute rise in `r(415, 470)` as "globalness, not coupling" and subtracted it as an
+artefact. **Priya: *"wouldn't increased non-position-specific coupling after stroke be interesting
+too?"* Yes -- a diffuse haemodynamic response is what a damaged neurovascular unit looks like, and
+subtracting it as a nuisance assumed the answer.** Decomposed, 96 sessions:
+
+| arm | epoch | neural globalness | vascular globalness | EXCESS | cross-off | specific |
+|---|---|---|---|---|---|---|
+| lick | pre | +0.700 | +0.685 | -0.015 | +0.346 | +0.082 |
+| lick | acute | **+0.770** | **+0.761** | **-0.008** | **+0.548** | +0.110 |
+| lick | subacute | +0.682 | +0.714 | +0.032 | +0.397 | +0.104 |
+| lick | chronic | +0.653 | +0.621 | -0.032 | +0.271 | +0.108 |
+
+**Both channels' own across-position similarity rises together acutely and the EXCESS stays ~0** --
+the vasculature is faithfully tracking a signal that itself became diffuse. Two supports: cue and
+lick arms move in OPPOSITE directions (cue cross-off falls 0.505 -> 0.353 while lick rises), and
+excess holds still through that reversal.
+
+Caveats: within-channel globalness runs 0.65-0.92, so excess is a difference near a ceiling with
+much less power in the cue arm (0.87-0.92) than the lick arm. These columns are **plain cell means,
+not the nested bootstrap** -- 6 positions per session are not independent. **AND THIS RUN PREDATES
+THE BASELINE FIX (section 2): its correlation columns are unaffected by a uniform offset and should
+survive, but its amplitude columns must not be quoted.**
+
+## 6. WHAT THE DAY DID NOT SETTLE
+
+- **Where GCaMP's neutral/anionic crossing sits.** Three published estimates (405-415 folk practice,
+  420-430 Simpson 2024, 440-450 Barnett 2017), two of three above our 415. The no-lick test had no
+  power: removing licking trials collapsed BOTH channels ~14x, so a CI of [-0.009, +0.145] on a
+  quantity expected to be a fraction of 0.073 is an absent measurement, not a null.
+- **Whether coupling changed.** Every number so far is per-epoch with overlapping CIs, which is not
+  a test. A paired animals->sessions bootstrap of the DIFFERENCE from pre is now implemented and
+  has not yet been read.
+- **IRLS / masking the coefficient fit.** Proposed, then withdrawn on Priya's objection that the
+  trial window holds real trial-aligned haemodynamics, which is exactly what `T` must estimate.
+  Nothing replaces it: if 415 carries calcium, `T` is contaminated under every regression scheme.
+- **Lerner-style dF/F (divide by the fitted isosbestic) against our subtraction.** Untested, and NOT
+  killed by the objection above, since it changes the normalisation rather than the coefficient fit.

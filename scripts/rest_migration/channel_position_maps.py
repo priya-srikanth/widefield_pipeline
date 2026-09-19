@@ -50,7 +50,7 @@ import numpy as np
 
 FS = 31.23
 CUE_PRE_S, CUE_POST_S = 2.0, 2.0
-LICK_POST_S = 0.15                 # matches the preprocessing deck's lick-aligned maps
+LICK_POST_S = 2.0                   # 2 s from the first post-cue in-trial lick, matching the cue arm
 DEFAULT_N = 4
 
 
@@ -175,13 +175,25 @@ def _boot_ci(by_animal, rng, n_boot=4000):
 _POSITION_ORDER = ("Near Ipsi", "Near Middle", "Near Contra",
                    "Far Ipsi", "Far Middle", "Far Contra")
 
-#: Row order of the per-position figure. `rms_raw` and `rms_415` come FIRST and the ratio after,
-#: because the ratio is only readable once you can see which of its two terms moved.
-_PANELS = (("rms_raw", "470 raw\nRMS of the map"),
-           ("rms_415", "415 control\nRMS of the map"),
-           ("amp_415_over_raw", "COUPLING GAIN\n||415|| / ||470raw||"),
-           ("r_415_raw", "SPATIAL MATCH\nr(415, 470raw)"),
-           ("r_415_specific", "POSITION-SPECIFIC\nr(diagonal) - r(off-diagonal)"))
+#: Row order. AMPLITUDE TERMS FIRST AND SPLIT INTO THEIR PARTS, because a ratio is only readable
+#: once you can see which term moved -- and because the SD-only version silently measured the
+#: structured quarter of a signal that is ~75% global.
+#: THE TWO HEADLINE ROWS ARE 3 AND 4 (Priya, 2026-09-19: *"I'm not sure I care about the position
+#: specificity of the neurovascular coupling. increased / decreased coupling at all positions would
+#: be of interest if it bears out"*). So the coupling GAIN and the spatial MATCH come first, with
+#: their two inputs above them; the specificity and globalness decomposition is demoted to the
+#: bottom as supporting material rather than the answer.
+_PANELS = (("rms_raw", "470 raw AMPLITUDE\nRMS = sqrt(mean^2 + SD^2)"),
+           ("rms_415", "415 AMPLITUDE\nRMS"),
+           ("amp_415_over_raw_rms", "*** COUPLING GAIN ***\nRMS ratio, includes the global term"),
+           ("r_415_raw", "*** SPATIAL MATCH ***\nr(415, 470raw)"),
+           ("mean_raw", "470 GLOBAL term\nspatial mean"),
+           ("sd_raw", "470 STRUCTURE term\nspatial SD"),
+           ("amp_415_over_raw", "gain, SD only\n(structure, ignores global)"),
+           ("r_415_specific", "position-specific\nr(diag) - r(off-diag)"),
+           ("within_470_offdiag", "neural globalness\nmean r(470_i, 470_j)"),
+           ("within_415_offdiag", "vascular globalness\nmean r(415_i, 415_j)"),
+           ("excess_415_globalness", "excess vascular\nwithin415 - within470"))
 
 
 def position_epoch_figure(stats, out_dir, arm):
@@ -341,7 +353,7 @@ def epoch_summary(stats, out_dir, seed):
             if not v:
                 continue
             got = {}
-            for key in ("amp_415_over_raw", "r_415_raw"):
+            for key in ("amp_415_over_raw_rms", "r_415_raw"):
                 d = defaultdict(list)
                 for x in v:
                     if np.isfinite(x[key]):
@@ -349,7 +361,7 @@ def epoch_summary(stats, out_dir, seed):
                 got[key] = _boot_ci(d, rng)
             if any(g is None for g in got.values()):
                 continue
-            a_, r_ = got["amp_415_over_raw"], got["r_415_raw"]
+            a_, r_ = got["amp_415_over_raw_rms"], got["r_415_raw"]
             print(f"  {arm:<7}{e:<10}{len(v):>4}"
                   f"{a_[0]:>16.3f} [{a_[1]:.3f},{a_[2]:.3f}]"
                   f"{r_[0]:>16.3f} [{r_[1]:.3f},{r_[2]:.3f}]")
@@ -357,6 +369,49 @@ def epoch_summary(stats, out_dir, seed):
                              amp_ratio=round(a_[0], 4), amp_lo=round(a_[1], 4),
                              amp_hi=round(a_[2], 4), r_415_raw=round(r_[0], 4),
                              r_lo=round(r_[1], 4), r_hi=round(r_[2], 4)))
+    # THE CONTRAST, WHICH IS WHAT "DID COUPLING CHANGE" ACTUALLY ASKS. Per-epoch CIs that overlap
+    # are not a test, and reading two overlapping intervals as "no difference" is a known way to be
+    # wrong. Priya, 2026-09-19: *"increased / decreased coupling at all positions would be of
+    # interest if it bears out"* -- "bears out" is a contrast with an interval on it.
+    #
+    # PAIRED WITHIN ANIMAL, resampling animals and then sessions within animal on BOTH sides of the
+    # difference together, so an animal that contributes many sessions to one epoch and few to the
+    # other cannot drive the contrast through its own mean.
+    print(f"\n{bar}\nCHANGE FROM PRE -- nested animals->sessions bootstrap of the DIFFERENCE\n{bar}")
+    print(f"  {'arm':<7}{'epoch':<10}{'d coupling gain':>28}{'d spatial match':>28}")
+    for arm in ("cue", "lick"):
+        for e in [x for x in eps if x != "pre"]:
+            line = f"  {arm:<7}{e:<10}"
+            for key in ("amp_415_over_raw_rms", "r_415_raw"):
+                a_pre, a_ep = defaultdict(list), defaultdict(list)
+                for x in stats:
+                    if x["arm"] != arm or not np.isfinite(x[key]):
+                        continue
+                    if x["epoch"] == "pre":
+                        a_pre[x["animal"]].append(float(x[key]))
+                    elif x["epoch"] == e:
+                        a_ep[x["animal"]].append(float(x[key]))
+                shared = sorted(set(a_pre) & set(a_ep))
+                if not shared:
+                    line += f"{'--':>28}"
+                    continue
+                obs = float(np.mean([np.mean(a_ep[an]) - np.mean(a_pre[an]) for an in shared]))
+                draws = []
+                for _ in range(4000):
+                    pick = [shared[i] for i in rng.integers(0, len(shared), len(shared))]
+                    d = []
+                    for an in pick:
+                        p, q_ = a_pre[an], a_ep[an]
+                        d.append(np.mean([q_[i] for i in rng.integers(0, len(q_), len(q_))])
+                                 - np.mean([p[i] for i in rng.integers(0, len(p), len(p))]))
+                    draws.append(float(np.mean(d)))
+                lo, hi = np.percentile(draws, [2.5, 97.5])
+                star = " *" if (lo > 0 or hi < 0) else "  "
+                line += f"{obs:>+14.3f} [{lo:+.3f},{hi:+.3f}]{star}"
+            print(line)
+    print("\n  * = 95% CI of the DIFFERENCE excludes zero. Paired within animal; only animals")
+    print("    contributing to BOTH epochs enter the contrast.")
+
     if rows:
         q = out_dir / "channel_position_maps_by_epoch.csv"
         with open(q, "w", newline="", encoding="utf-8") as fh:
@@ -372,6 +427,45 @@ def epoch_summary(stats, out_dir, seed):
     print("  NEITHER MOVES -> no detectable change in coupling at this resolution. Check the")
     print("      event counts before believing it; acute far-contra is thin in both channels.")
     return rows
+
+
+def _win_avg_base(S, ev, bl, w, pre_n):
+    """Per-event ``mean(ev -> ev+w) - mean(bl-pre_n -> bl)``, averaged over events.
+
+    **THE BASELINE IS THE PRE-CUE WINDOW OF THE SAME TRIAL, FOR BOTH ARMS**, and it went back in
+    on 2026-09-19 after being dropped earlier the same day. The reasoning for dropping it was that
+    the maps are ALREADY dF/F -- `approximate_svd` divides by `frames_average` -- so the session
+    mean image is the baseline and a second one is redundant. That is right about the CONSTANT and
+    wrong about the DRIFT away from it.
+
+    WHY THE DRIFT BITES, and it is not simply "there is drift". Because F0 is the session mean, the
+    mean of dF/F over the WHOLE session is ~0 by construction, so a trial set spread evenly over
+    the session picks up no offset at all. **THE EXPOSURE IS UNEVEN SAMPLING IN TIME.** Engagement
+    declines within a session, so the trials that survive gating sit EARLY, where a decaying trace
+    is still above its session mean -- a positive offset. Measured over 113 sessions, 415 falls
+    -11.6% within a session against 470's -4.8% (415 falls further in 111/113), so the offset is
+    **2.4x larger in 415 than in 470**. And engagement collapses sooner after the stroke, so the
+    bias is EPOCH-DEPENDENT: exactly the shape that manufactures an epoch effect from nothing.
+
+    A pre-cue window cancels it because the drift is an exponential with a tens-of-minutes time
+    constant and the trial window is ~4 s, over which it is flat.
+
+    THE LICK ARM BASELINES TO ITS TRIAL'S PRE-CUE WINDOW, NOT TO PRE-LICK. Two seconds before a
+    first post-cue lick sits inside the cue response, so it is not a baseline. Using the ITI window
+    also makes the two arms share a baseline and therefore become comparable, which they were not
+    when cue was a difference and lick an absolute window.
+
+    ONLY THE AMPLITUDE TERMS NEED THIS. The correlations spatially mean-remove before correlating,
+    so a uniform offset already cancels there -- `_quantify`'s r columns are unaffected either way.
+    """
+    acc = np.zeros(S.shape[0], np.float64)
+    n = 0
+    for e, b in zip(ev, bl):
+        if b - pre_n < 0 or e + w > S.shape[1]:
+            continue
+        acc += np.asarray(S[:, e:e + w]).mean(1) - np.asarray(S[:, b - pre_n:b]).mean(1)
+        n += 1
+    return acc / max(n, 1)
 
 
 def _win_avg(S, frames, a, b):
@@ -410,15 +504,25 @@ def _quantify(maps, mask):
     is the check that caught the PS93 channel swap, since a swapped session fails it loudly.
     """
     m = np.asarray(mask, bool)
-    v = [np.asarray(x)[m].astype(np.float64) for x in maps]
-    v = [x - x.mean() for x in v]
+    raw_v = [np.asarray(x)[m].astype(np.float64) for x in maps]
+    v = [x - x.mean() for x in raw_v]
 
     def r(i, j):
         d = np.linalg.norm(v[i]) * np.linalg.norm(v[j])
         return float(v[i] @ v[j] / d) if d > 0 else float("nan")
 
-    # RMS, not the raw norm, so the number does not depend on how many pixels the mask holds.
+    # SPATIAL SD AND SPATIAL MEAN, SEPARATELY -- and the naming matters (Priya, 2026-09-19: *"is rms
+    # the sd?"*). Yes: `||v||/sqrt(n)` on a MEAN-REMOVED vector IS the population SD, and the column
+    # was called `rms_*` while measuring only the structured part. True RMS is `mean^2 + sd^2`, and
+    # **THE MEAN TERM IS ~75% OF IT** (measured PS94_0817: 470 raw mean 0.0228 against SD 0.0130).
+    #
+    # That is not a naming quibble for the coupling question. The haemodynamic response is largely
+    # GLOBAL -- within-channel globalness runs 0.65-0.92 -- so a gain ratio built on SD alone is
+    # computed on the quarter of the signal where haemodynamics is least represented, and a stroke
+    # that changed the uniform response would leave it flat. All three are now reported.
+    mu = [float(x.mean()) for x in raw_v]
     n415, n470, ncorr = (float(np.linalg.norm(x)) / np.sqrt(max(x.size, 1)) for x in v)
+    rms = [float(np.sqrt(m * m + sd * sd)) for m, sd in zip(mu, (n415, n470, ncorr))]
     return dict(r_415_raw=round(r(0, 1), 4), r_415_corr=round(r(0, 2), 4),
                 r_raw_corr=round(r(1, 2), 4),
                 # THE NUMERATOR AND DENOMINATOR SEPARATELY, because a RATIO CAN RISE BY LOSING ITS
@@ -430,7 +534,10 @@ def _quantify(maps, mask):
                 # THEY CARRY THE CROSS-DAY SCALING CONFOUND THE RATIO WAS BUILT TO CANCEL
                 # (expression, bleaching, window clarity -- `crossday_intensity` owns it), so they
                 # are DIAGNOSTIC for reading the ratio, not a measurement in their own right.
-                rms_415=round(n415, 6), rms_raw=round(n470, 6), rms_corr=round(ncorr, 6),
+                sd_415=round(n415, 6), sd_raw=round(n470, 6), sd_corr=round(ncorr, 6),
+                mean_415=round(mu[0], 6), mean_raw=round(mu[1], 6), mean_corr=round(mu[2], 6),
+                rms_415=round(rms[0], 6), rms_raw=round(rms[1], 6), rms_corr=round(rms[2], 6),
+                amp_415_over_raw_rms=(round(rms[0] / rms[1], 4) if rms[1] > 0 else float("nan")),
                 amp_415_over_raw=round(n415 / n470, 4) if n470 > 0 else float("nan"),
                 amp_corr_over_raw=round(ncorr / n470, 4) if n470 > 0 else float("nan"),
                 # slope of 470 on 415 across PIXELS: how much of the raw map a scaled 415 accounts
@@ -462,19 +569,36 @@ def _offdiag_r(built, mask):
         a = np.asarray(maps[0])[m].astype(np.float64)
         b = np.asarray(maps[1])[m].astype(np.float64)
         vec[code] = (a - a.mean(), b - b.mean())
+    def _mean_r(u, others):
+        nu = np.linalg.norm(u)
+        rs = []
+        for w in others:
+            d = nu * np.linalg.norm(w)
+            if d > 0:
+                rs.append(float(u @ w / d))
+        return float(np.mean(rs)) if rs else float("nan")
+
     out = {}
     for code in built:
-        a = vec[code][0]
-        na = np.linalg.norm(a)
-        rs = []
-        for other in built:
-            if other == code:
-                continue
-            b = vec[other][1]
-            d = na * np.linalg.norm(b)
-            if d > 0:
-                rs.append(float(a @ b / d))
-        out[code] = float(np.mean(rs)) if rs else float("nan")
+        a415, a470 = vec[code]
+        oth = [c for c in built if c != code]
+        out[code] = dict(
+            # CROSS-channel off-diagonal: the globalness null for r(415, 470).
+            cross=_mean_r(a415, [vec[c][1] for c in oth]),
+            # WITHIN-channel off-diagonals: how alike this channel's own six position maps are.
+            # THESE EXIST BECAUSE THE CROSS TERM RISING IS NOT SELF-EXPLANATORY (Priya, 2026-09-19:
+            # *"wouldn't increased non-position-specific coupling after stroke be interesting
+            # too?"* -- yes, and treating it only as a nuisance assumed the answer).
+            #
+            #     within_470 rises      the ACTIVITY became more global. 15k measures the cue
+            #                           acute panel at ~75% global, so this is expected.
+            #     within_415 rises MORE the VASCULAR response lost specificity beyond what the
+            #                           neural change explains -- a damaged neurovascular unit,
+            #                           and the interesting outcome.
+            #     both rise together    the vasculature is still faithfully tracking a signal that
+            #                           itself became diffuse. No NVC change.
+            within_470=_mean_r(a470, [vec[c][1] for c in oth]),
+            within_415=_mean_r(a415, [vec[c][0] for c in oth]))
     return out
 
 
@@ -521,7 +645,7 @@ def _row(axrow, maps, titles, edges, lim, mask):
 
 
 def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges, U, note, mask,
-                   stats, figures=True):
+                   stats, figures=True, base_by_code=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -542,13 +666,17 @@ def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges
         fr = ev_frames_by_code.get(code, np.array([], int))
         if fr.size == 0:
             continue
-        if arm == "cue":
-            built[code] = [_weighted_map(U, (_win_avg(S, fr, 0, post_n)
-                                             - _win_avg(S, fr, -pre_n, 0)).astype(np.float32))
-                           for _n, S in sig]
-        else:
-            built[code] = [_weighted_map(U, _win_avg(S, fr, 0, lpost).astype(np.float32))
-                           for _n, S in sig]
+        # BOTH ARMS: 2 s from their own event, MINUS that trial's pre-cue window. See
+        # `_win_avg_base` for why the baseline went back in after being dropped earlier today --
+        # the short version is that dF/F's F0 is the session mean, so only UNEVEN SAMPLING IN TIME
+        # produces an offset, and the gating makes the sampling uneven in an epoch-dependent way.
+        w = post_n if arm == "cue" else lpost
+        bl = (base_by_code or {}).get(code)
+        if bl is None or len(bl) != len(fr):
+            raise ValueError(f"{s[chr(39)+chr(108)+chr(97)+chr(98)+chr(101)+chr(108)+chr(39)]}: "
+                             f"baseline frames missing for {code}")
+        built[code] = [_weighted_map(U, _win_avg_base(S, fr, bl, w, pre_n).astype(np.float32))
+                       for _n, S in sig]
     lim = _limit([m for ms in built.values() for m in ms], mask) if built else 1e-6
     offd = _offdiag_r(built, mask) if len(built) > 1 else {}
 
@@ -565,12 +693,22 @@ def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges
             continue
         maps = built[code]
         q = _quantify(maps, mask)
-        od = offd.get(code, float("nan"))
+        o = offd.get(code) or {}
+        od = o.get("cross", float("nan"))
         q["r_415_raw_offdiag"] = round(od, 4) if np.isfinite(od) else float("nan")
         # POSITION-SPECIFIC COUPLING: the diagonal minus the globalness null. See `_offdiag_r`.
         q["r_415_specific"] = (round(q["r_415_raw"] - od, 4)
                                if np.isfinite(od) and np.isfinite(q["r_415_raw"])
                                else float("nan"))
+        w470, w415 = o.get("within_470", float("nan")), o.get("within_415", float("nan"))
+        q["within_470_offdiag"] = round(w470, 4) if np.isfinite(w470) else float("nan")
+        q["within_415_offdiag"] = round(w415, 4) if np.isfinite(w415) else float("nan")
+        # EXCESS VASCULAR GLOBALNESS: how much more alike the 415 maps are across positions than
+        # the 470 maps are. > 0 and RISING after the stroke is loss of vascular spatial
+        # specificity that the neural change does not account for.
+        q["excess_415_globalness"] = (round(w415 - w470, 4)
+                                      if np.isfinite(w415) and np.isfinite(w470)
+                                      else float("nan"))
         stats.append(dict(label=s["label"], animal=s["label"].split("_")[0],
                           epoch=_epoch_of(s["label"]), arm=arm,
                           position=labels[r], n_events=int(fr.size), **q))
@@ -681,9 +819,25 @@ def run_session(s, out_dir, stats, figures=True):
     pre_n, post_n = int(round(CUE_PRE_S * FS)), int(round(CUE_POST_S * FS))
     lpost = max(1, int(round(LICK_POST_S * FS)))
     cue_ok = (codes >= 0) & (cue_f >= pre_n) & (cue_f + post_n <= T) & ~not_engaged
-    # a lick inherits its cue's engagement state
-    lick_ne = np.where(j >= 0, not_engaged[np.clip(j, 0, None)], True)
-    lick_ok = in_trial & (lick_codes >= 0) & (lick_f >= 0) & (lick_f + lpost <= T) & ~lick_ne
+
+    # ONE EVENT PER TRIAL: THE FIRST POST-CUE IN-TRIAL LICK (Priya, 2026-09-19). Averaging over
+    # EVERY lick in a bout weights a trial by how much the animal licked, which is itself the
+    # dependent variable -- a trial with 20 licks counted 20 times and a single-lick trial once.
+    ok_l = in_trial & (lick_codes >= 0) & (lick_f >= 0) & (lick_f + lpost <= T)
+    first_f, first_code, first_trial = [], [], []
+    seen = set()
+    for idx in np.flatnonzero(ok_l):                 # lick_s is sorted, so the first hit wins
+        t = int(j[idx])
+        if t in seen or not_engaged[t]:
+            continue
+        seen.add(t)
+        first_f.append(int(lick_f[idx]))
+        first_code.append(int(lick_codes[idx]))
+        first_trial.append(t)
+    first_f = np.asarray(first_f, np.int64)
+    first_code = np.asarray(first_code, np.int64)
+    first_trial = np.asarray(first_trial, np.int64)
+
 
     order = DISPLAY_ORDER
     raw = [POSITION_NAMES[c] for c in order]
@@ -696,11 +850,17 @@ def run_session(s, out_dir, stats, figures=True):
             + ". Positions from the REPAIRED classifier.")
 
     out = []
-    for arm, frames, valid, cds in (("cue", cue_f, cue_ok, codes),
-                                    ("lick", lick_f, lick_ok, lick_codes)):
+    # EACH EVENT'S BASELINE IS ITS OWN TRIAL'S PRE-CUE WINDOW. For the cue arm the event IS the
+    # cue; for the lick arm the event is the first post-cue lick and the baseline is still that
+    # trial's pre-cue window -- pre-LICK would sit inside the cue response. See `_win_avg_base`.
+    first_cue_f = cue_f[first_trial]
+    for arm, frames, valid, cds, base in (
+            ("cue", cue_f, cue_ok, codes, cue_f),
+            ("lick", first_f, np.ones(first_f.shape, bool), first_code, first_cue_f)):
         by = {c: frames[valid & (cds == c)] for c in order}
+        bb = {c: base[valid & (cds == c)] for c in order}
         p = session_figure(s, out_dir, arm, by, order, labels, sig, edges, U, note, mask, stats,
-                           figures=figures)
+                           figures=figures, base_by_code=bb)
         if p is not None:
             out.append(p)
         print(f"   {s['label']:14s} {arm:4s} "
@@ -784,6 +944,7 @@ def main(argv=None) -> int:
     for s in pick:
         try:
             paths, _ev = run_session(s, out_dir, stats, figures=not a.no_figures)
+
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {s['label']}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
             continue
