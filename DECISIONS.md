@@ -13970,3 +13970,52 @@ printing `POSITION_NAMES`. One line of output would have shown that the map is s
 that only the order was off. **Reading a dict's ORDER off its construction is not reading its
 CONTENTS**, and a severity claim needs the contents.
 
+
+---
+
+## `15k` AND `15r` LOCALISE TO THE SAME CORTEX — the spatial cross-check (2026-09-18)
+
+The item STATUS_2026-09-17 §A5 left open ("do `15k`'s all-three-families regions sit under `15r`'s
+outlined blobs?"), run at last. `scripts/rest_migration/cross_15k_15r.py`, sidecar
+`epoch_15kr_cross_check.csv`.
+
+**PANEL-LEVEL CONCORDANCE FIRST, AND IT IS NOT THE ANSWER.** Counting 15k agreed-regions against
+15r significant-bins per panel gives Spearman **+0.810** (lick, 17 panels, p = 0.0001) and
+**+0.916** (cue, 18 panels). Of the 9 panels where 15k finds no all-family region, 7 are panels
+where 15r flags < 100 bins. That says the two families agree about which POSITIONS and EPOCHS carry
+an effect. It says nothing about WHERE INSIDE THE BRAIN, and agreeing on the panel while differing
+on the place is exactly the failure worth catching.
+
+**THE SPATIAL TEST.** Per panel, 15r's significant-bin mask comes from its figure bundle's stored
+`contours`, each region's footprint from the Allen atlas, both on the same 540x640 grid. Score every
+region in 15k's vocabulary by the fraction of its footprint inside 15r's bins, then compare the
+regions 15k called agreed-in-all-families against the rest.
+
+| arm | agreed | not agreed | within-panel difference | permutation p |
+|---|---|---|---|---|
+| **lick** | **0.523** (n=75) | 0.045 (n=453) | **+0.564** over 14 panels | 0.0001 |
+| **cue** | **0.522** (n=87) | 0.031 (n=408) | **+0.506** over 12 panels | 0.0001 |
+
+A region flagged by all three references has about HALF its Allen footprint inside 15r's
+significant bins; a region not flagged has 3-5%. A factor of 11-17, on all 33 regions, in both arms.
+
+**THE NULL SHUFFLES WITHIN PANEL, AND THAT IS THE DESIGN.** Panels differ enormously in how much
+cortex 15r flags -- cue acute far-contra is 1,186 bins against 20 for far-ipsi -- so a global
+shuffle would only rediscover that agreed regions live in loud panels, which the Spearman already
+showed. Shuffling inside a panel holds the blob size AND the number of agreed regions fixed, so
+LOCATION is the only thing left that can produce a difference. p = 0.0001 is the empirical floor at
+10,000 draws, not a measured tail.
+
+**WHY IT IS WORTH MORE THAN EITHER FAMILY ALONE.** They share the trial data and the rest baseline
+and nothing else: 15r tests ~2,022 PIXEL bins with a bootstrap max-statistic over bins; 15k tests 33
+ALLEN REGIONS built from footprint-weighted LocaNMF components, with a nested animals->sessions CI
+gated on agreement across three references whose failure modes differ. Different unit, different
+estimator, different multiplicity treatment. Convergence is not automatic, and this retires the
+dilution worry in the `15h`/`15r`/`15k` contrast -- disagreement would have been diagnostic and
+there is none.
+
+**READ THE LICK ARM AS THE LOAD-BEARING ONE.** `global_vs_regional` puts the cue acute panel at
+~75% GLOBAL, and a whole-cortex shift agrees with any anatomical claim you care to make, so
+concordance there is close to uninformative. The lick arm is 11-31% global and gives the LARGER
+effect (+0.564). That is why it was run first.
+
