@@ -14604,3 +14604,50 @@ percentile — safe by construction. The preprocessing-deck builders (`framemap_
 uniform washout keeps positions comparable; it cannot produce the differential 1.0x-against-4.8x
 spread that made my figure misreadable. So: cosmetic there, not a correctness problem, and not the
 same bug. My version was worse specifically because it scaled PER ROW.
+
+---
+
+## `hemo_map_control` RE-CHECKED AFTER THE CHANNEL FIX: the claim stands, but the LEVELS have drifted for an unrelated reason (2026-09-19)
+
+The one written claim the channel audit could have touched. `docs/STATUS_2026-09-12.md` records
+`hemo_map_control` over 92 sessions, and `_iso_slice` was reading the cohort constant, so
+`PS92_0828`'s isosbestic came from the wrong slot. Re-run with `functional_channel(session)`:
+
+| epoch | recorded 2026-09-12 | now | sessions then -> now |
+|---|---|---|---|
+| pre | **-0.414** | **-0.543** | 44 -> 44 |
+| acute | **-0.222** | **-0.405** | 16 -> 16 |
+| subacute | **-0.338** | **-0.483** | 18 -> 18 |
+| chronic | **-0.370** | **-0.609** | **14 -> 18** |
+
+**THE CHANNEL FIX IS NOT THE CAUSE, AND THE ARGUMENT IS DECISIVE RATHER THAN STATISTICAL.**
+`PS92_0828` is a **chronic** session. The pre, acute and subacute rows therefore contain ZERO
+affected sessions — and their session counts are identical, 44/16/18 — yet every one of them moved
+by 0.13 to 0.18 in the same direction. A fix confined to the chronic epoch cannot move three
+epochs it does not touch. **So the audit's answer for this claim is the same as everywhere else:
+the channel bug did not reach it.**
+
+**WHAT DID MOVE IT IS UPSTREAM AND NOT YET PINNED.** The shift is systematic (all four rows more
+negative by a similar amount), which points at a change to the trial sets rather than to the
+correlation. Candidates, all of them documented improvements landed after the recorded run:
+
+    07c6513  2026-09-12  the ENGAGED-ONLY bug -- every arm had been fitted on licking trials only;
+                         stacking the no-lick arm took acute far-contra from 0 to 105 trials
+    8b61694 / 0a1b10e    the rest definition switched to `restdock05`, changing the engagement gate
+                         that `beta_maps._quit_mask` -- which this module imports -- depends on
+
+The engaged-only fix is the same date as the STATUS document, so the recorded run plausibly predates
+it by hours. **Not pinned, and deliberately left unpinned**: attributing it exactly costs another
+40-minute pass and the conclusion does not depend on which of the two it was.
+
+**THE CONCLUSION IS UNCHANGED AND SLIGHTLY STRONGER.** The claim was never about the level -- the
+module's own console output says *"READ THE CHANGE, NOT THE LEVEL"* -- it was that haemodynamic
+coupling does NOT rise after the stroke. It still falls: |r| 0.543 pre against 0.405 acute, the same
+direction as 0.414 against 0.222. The correlation is still negative in every epoch, and the vessel
+correlation of the corrected map still does not converge on that of the 415 map (-0.032 to -0.059
+against +0.043 to -0.117). **Nothing in `STATUS_2026-09-12`'s reading needs revising; its NUMBERS
+are stale and should be read as of that date.**
+
+**THE HABIT WORTH KEEPING FROM THIS:** a dated STATUS document records what was true when it was
+written, and a QC number in one is not a fixed constant of the dataset. The chronic row growing
+14 -> 18 sessions is the visible half of that; the gating change is the invisible half.

@@ -126,6 +126,133 @@ def _boot_ci(by_animal, rng, n_boot=4000):
     return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
 
 
+#: Canonical position order, near->far x ipsi/middle/contra, matching `DISPLAY_ORDER` under
+#: `anatomical_labels`. Written out rather than derived so the figure does not silently reorder if
+#: a caller passes positions in another order.
+_POSITION_ORDER = ("Near Ipsi", "Near Middle", "Near Contra",
+                   "Far Ipsi", "Far Middle", "Far Contra")
+
+#: Row order of the per-position figure. `rms_raw` and `rms_415` come FIRST and the ratio after,
+#: because the ratio is only readable once you can see which of its two terms moved.
+_PANELS = (("rms_raw", "470 raw\nRMS of the map"),
+           ("rms_415", "415 control\nRMS of the map"),
+           ("amp_415_over_raw", "COUPLING GAIN\n||415|| / ||470raw||"),
+           ("r_415_raw", "SPATIAL MATCH\nr(415, 470raw)"),
+           ("r_415_specific", "POSITION-SPECIFIC\nr(diagonal) - r(off-diagonal)"))
+
+
+def position_epoch_figure(stats, out_dir, arm):
+    """Per POSITION and epoch: session dots coloured by animal, with mean +/- SEM.
+
+    Priya, 2026-09-19: *"can we do this per-position and plot the results with mean +- SEM and dots
+    per session, across animals?"*
+
+    **THE DOTS ARE THE POINT, NOT DECORATION.** Four animals contribute unequal numbers of sessions
+    to each epoch, and one animal can carry a cell on its own -- acute far-contra is thin in event
+    count for every animal and absent for some. A mean with an error bar hides that; a mean with
+    the sessions drawn under it does not, and the reader can see immediately whether a "difference"
+    is four animals agreeing or one animal with six sessions.
+
+    **SEM ACROSS SESSIONS, STATED PLAINLY AS THE WRONG ERROR BAR FOR A COHORT CLAIM.** Sessions
+    within an animal are not independent, so this SEM is narrower than an animals->sessions
+    bootstrap CI and must not be read as one. The bootstrap is what `epoch_summary` prints and what
+    any claim should cite; this figure exists to show the DISTRIBUTION, and an SEM is the
+    conventional companion to a dot plot. Both are on the page so neither can be mistaken.
+
+    **READ THE ROWS IN ORDER.** Row 3 is the coupling gain and it is the one people will look at
+    first; rows 1 and 2 are there because a ratio can rise by losing its denominator, which after a
+    stroke is exactly what one would expect the 470 response to do.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import config
+
+    rows = [x for x in stats if x["arm"] == arm]
+    if not rows:
+        return None
+    eps = [e for e in ("pre", "acute", "subacute", "chronic")
+           if any(x["epoch"] == e for x in rows)]
+    poss = [p for p in _POSITION_ORDER if any(x["position"] == p for x in rows)]
+    if not eps or not poss:
+        return None
+    colors = config.animal_color()
+    animals = sorted({x["animal"] for x in rows})
+    rng = np.random.default_rng(0)
+
+    fig, axes = plt.subplots(len(_PANELS), len(poss),
+                             figsize=(2.55 * len(poss) + 1.6, 2.9 * len(_PANELS) + 1.9),
+                             squeeze=False, sharex=True, sharey="row")
+    fig.subplots_adjust(top=0.80, bottom=0.07, hspace=0.30, wspace=0.16)
+    for ci, pos in enumerate(poss):
+        for ri, (key, ylab) in enumerate(_PANELS):
+            ax = axes[ri][ci]
+            for xi, e in enumerate(eps):
+                v = [x for x in rows if x["position"] == pos and x["epoch"] == e
+                     and np.isfinite(x[key])]
+                if not v:
+                    continue
+                y = np.array([float(x[key]) for x in v])
+                # JITTER IS SEEDED so the same session lands in the same place in every panel and
+                # a reader can follow it down the column.
+                jx = xi + (rng.random(y.size) - 0.5) * 0.30
+                for an in animals:
+                    k = [i for i, x in enumerate(v) if x["animal"] == an]
+                    if k:
+                        ax.scatter(jx[k], y[k], s=13, alpha=0.55, linewidths=0,
+                                   color=colors.get(an, "0.5"),
+                                   label=an if (ri == 0 and ci == 0 and xi == 0) else None)
+                m = float(np.mean(y))
+                se = float(np.std(y, ddof=1) / np.sqrt(y.size)) if y.size > 1 else 0.0
+                ax.errorbar(xi, m, yerr=se, fmt="_", color="k", ms=22, lw=1.8,
+                            capsize=5, zorder=5)
+                ax.text(xi, ax.get_ylim()[0], f"{y.size}", ha="center", va="bottom",
+                        fontsize=6.5, color="0.45")
+            ax.set_xticks(range(len(eps)))
+            ax.set_xticklabels(eps, fontsize=8, rotation=30, ha="right")
+            ax.spines[["top", "right"]].set_visible(False)
+            if key.startswith("r_415"):
+                ax.axhline(0, color="0.6", lw=0.7)
+            if ri == 0:
+                ax.set_title(pos, fontsize=11, fontweight="bold")
+            if ci == 0:
+                ax.set_ylabel(ylab, fontsize=8.5)
+    h, lab = axes[0][0].get_legend_handles_labels()
+    if h:
+        fig.legend(h, lab, loc="upper right", frameon=False, fontsize=9, ncol=len(h),
+                   bbox_to_anchor=(0.995, 0.845))
+    fig.text(0.5, 0.995, f"415 vs 470 by SPOUT POSITION and EPOCH -- {arm}-aligned. "
+             f"Dots = sessions, coloured by animal; bar = mean +/- SEM; small number = n sessions.",
+             ha="center", va="top", fontsize=13, fontweight="bold")
+    import textwrap
+    cap = ("ROW 3 IS THE COUPLING MEASURE AND ROWS 1-2 ARE WHY IT CANNOT BE READ ALONE. "
+             "||415||/||470raw|| is haemodynamic response per unit neural response -- but a ratio "
+             "RISES WHEN ITS DENOMINATOR FALLS, and a stroke is expected to lower the 470 response. "
+             "If row 3 goes up while row 1 goes down and row 2 holds, that is a shrinking "
+             "denominator, not better coupling.\n"
+             "ROWS 1 AND 2 CARRY THE CROSS-DAY SCALING CONFOUND (expression, bleaching, window "
+             "clarity) that the ratio exists to cancel -- `crossday_intensity` owns it -- so read "
+             "them as diagnostics for row 3, never as amplitudes in their own right.\n"
+             "THE SEM IS ACROSS SESSIONS AND IS THE WRONG ERROR BAR FOR A COHORT CLAIM: sessions "
+             "within an animal are not independent, so it runs narrower than the "
+             "animals->sessions bootstrap CI that `epoch_summary` prints. Cite the bootstrap; read "
+             "the dots for whether four animals agree or one animal carries the cell.\n"
+             "ROW 5 IS THE CONTROL FOR ROW 4. r(415, 470) rising acutely looks like stronger "
+             "coupling, but acute maps are also more GLOBAL (15k puts the cue acute panel at ~75% "
+             "global) and two broad blobs correlate for reasons unrelated to coupling. Row 5 "
+             "subtracts r(415 here, 470 at the OTHER positions): if the rise survives it is "
+             "position-specific; if row 5 is flat at zero the rise was globalness.")
+    # WRAPPED TO THE FIGURE, not left to run off it. At six position columns the caption ran off
+    # both edges at a size nobody can read.
+    wrapped = "\n".join("\n".join(textwrap.wrap(p, 155)) for p in cap.split("\n"))
+    fig.text(0.5, 0.962, wrapped, ha="center", va="top", fontsize=8.6)
+    out = out_dir / f"channel_position_epoch_{arm}.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def epoch_summary(stats, out_dir, seed):
     """IS NEUROVASCULAR COUPLING WEAKER AFTER THE STROKE? The epoch contrast, per arm.
 
@@ -247,15 +374,65 @@ def _quantify(maps, mask):
         d = np.linalg.norm(v[i]) * np.linalg.norm(v[j])
         return float(v[i] @ v[j] / d) if d > 0 else float("nan")
 
-    n415, n470, ncorr = (float(np.linalg.norm(x)) for x in v)
+    # RMS, not the raw norm, so the number does not depend on how many pixels the mask holds.
+    n415, n470, ncorr = (float(np.linalg.norm(x)) / np.sqrt(max(x.size, 1)) for x in v)
     return dict(r_415_raw=round(r(0, 1), 4), r_415_corr=round(r(0, 2), 4),
                 r_raw_corr=round(r(1, 2), 4),
+                # THE NUMERATOR AND DENOMINATOR SEPARATELY, because a RATIO CAN RISE BY LOSING ITS
+                # DENOMINATOR. After the stroke the 470 response falls, so `amp_415_over_raw` going
+                # up is equally consistent with "more vascular response per unit neural response"
+                # and with "the same vascular response against less neural response" -- opposite
+                # readings of the same number. Only these two columns separate them.
+                #
+                # THEY CARRY THE CROSS-DAY SCALING CONFOUND THE RATIO WAS BUILT TO CANCEL
+                # (expression, bleaching, window clarity -- `crossday_intensity` owns it), so they
+                # are DIAGNOSTIC for reading the ratio, not a measurement in their own right.
+                rms_415=round(n415, 6), rms_raw=round(n470, 6), rms_corr=round(ncorr, 6),
                 amp_415_over_raw=round(n415 / n470, 4) if n470 > 0 else float("nan"),
                 amp_corr_over_raw=round(ncorr / n470, 4) if n470 > 0 else float("nan"),
                 # slope of 470 on 415 across PIXELS: how much of the raw map a scaled 415 accounts
                 # for. Paired with r_415_raw because a slope without a fit quality means nothing.
                 beta_415_on_raw=round(float(v[0] @ v[1] / (v[0] @ v[0])), 4)
                 if v[0] @ v[0] > 0 else float("nan"))
+
+
+def _offdiag_r(built, mask):
+    """``{code: mean r(415 at this position, 470 at the OTHER positions)}`` -- the globalness null.
+
+    **THE CONTROL FOR THE READING I COULD NOT OTHERWISE EXCLUDE.** `r(415, 470)` rises acutely at
+    several positions, which looks like stronger neurovascular coupling. But acutely the maps also
+    become more GLOBAL -- `15k` measures the cue acute panel at ~75% global -- and two broad, smooth
+    maps correlate highly for reasons that have nothing to do with coupling. Mean-centring removes a
+    DC offset; it does not remove a shared low-spatial-frequency pattern.
+
+    THE MISMATCHED PAIR IS THE NULL. If 415 and 470 agree because the vasculature tracks activity
+    AT THAT POSITION, the diagonal `r(415_i, 470_i)` beats the off-diagonal `r(415_i, 470_j)`. If
+    they agree because both maps are the same broad blob, the two are EQUAL and the difference is
+    zero. So `r_415_raw - r_415_raw_offdiag` is position-specific coupling with globalness
+    differenced out, and it costs one extra correlation per pair rather than a new analysis.
+
+    Cheap because every position's maps are already built for this session.
+    """
+    m = np.asarray(mask, bool)
+    vec = {}
+    for code, maps in built.items():
+        a = np.asarray(maps[0])[m].astype(np.float64)
+        b = np.asarray(maps[1])[m].astype(np.float64)
+        vec[code] = (a - a.mean(), b - b.mean())
+    out = {}
+    for code in built:
+        a = vec[code][0]
+        na = np.linalg.norm(a)
+        rs = []
+        for other in built:
+            if other == code:
+                continue
+            b = vec[other][1]
+            d = na * np.linalg.norm(b)
+            if d > 0:
+                rs.append(float(a @ b / d))
+        out[code] = float(np.mean(rs)) if rs else float("nan")
+    return out
 
 
 def _limit(maps, mask):
@@ -330,6 +507,7 @@ def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges
             built[code] = [_weighted_map(U, _win_avg(S, fr, 0, lpost).astype(np.float32))
                            for _n, S in sig]
     lim = _limit([m for ms in built.values() for m in ms], mask) if built else 1e-6
+    offd = _offdiag_r(built, mask) if len(built) > 1 else {}
 
     fig, axes = plt.subplots(len(order), 3, figsize=(13, 3.55 * len(order) + 1.4),
                              squeeze=False, constrained_layout=True)
@@ -344,6 +522,12 @@ def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges
             continue
         maps = built[code]
         q = _quantify(maps, mask)
+        od = offd.get(code, float("nan"))
+        q["r_415_raw_offdiag"] = round(od, 4) if np.isfinite(od) else float("nan")
+        # POSITION-SPECIFIC COUPLING: the diagonal minus the globalness null. See `_offdiag_r`.
+        q["r_415_specific"] = (round(q["r_415_raw"] - od, 4)
+                               if np.isfinite(od) and np.isfinite(q["r_415_raw"])
+                               else float("nan"))
         stats.append(dict(label=s["label"], animal=s["label"].split("_")[0],
                           epoch=_epoch_of(s["label"]), arm=arm,
                           position=labels[r], n_events=int(fr.size), **q))
@@ -473,19 +657,31 @@ def main(argv=None) -> int:
     elif a.epochs:
         # BALANCED OVER ANIMAL x EPOCH. Taking the first k of a date-sorted list gives all pre and
         # no chronic, and the whole question here is the epoch contrast.
+        # PRE TAKES THE **LAST** SESSIONS, EVERY OTHER EPOCH THE FIRST, and that asymmetry is the
+        # whole point. Taking the first of each put PRE at 6-7 JUNE against ACUTE at 17-19 AUGUST,
+        # a ten-week gap -- while the pre-stroke set runs through 14 AUGUST, three days before the
+        # acute sessions. The first run showed the 470 map RMS TRIPLING from pre to acute, which
+        # would be a startling result and is almost certainly the CROSS-DAY MULTIPLICATIVE SCALING
+        # this project already documents (expression, bleaching, window clarity;
+        # `crossday_intensity` owns it) reading as physiology across a ten-week baseline gap.
+        #
+        # Every epoch should sit as close to the lesion as its definition allows: pre from the
+        # end of its window, post epochs from the start of theirs.
         from wfield_local import epochs as ep_mod
         want = set(config.phase_labels("pre") + config.phase_labels("post"))
-        seen, pick = {}, []
+        by_key = {}
         for x in config.load_sessions():
             if x["label"] not in want:
                 continue
             e = ep_mod.epoch_of(x["label"])
             if not e:
                 continue
-            k = (config.animal_of(x["label"]), e)
-            if seen.get(k, 0) < a.per_epoch:
-                seen[k] = seen.get(k, 0) + 1
-                pick.append(x)
+            by_key.setdefault((config.animal_of(x["label"]), e), []).append(x)
+        pick = []
+        for (_an, e), xs in by_key.items():
+            xs = sorted(xs, key=lambda y: y["label"])
+            pick += xs[-a.per_epoch:] if e == "pre" else xs[: a.per_epoch]
+        pick.sort(key=lambda y: y["label"])
     else:
         # ONE PER ANIMAL, not the first n overall -- n=4 taken off the front would be four PS92
         # sessions, which answers a question about PS92 rather than about the correction.
@@ -559,6 +755,10 @@ def main(argv=None) -> int:
     print("        A correct correction blunts the map too, because `raw = C + H` and H is real.")
     if a.epochs:
         epoch_summary(stats, out_dir, a.seed)
+        for arm in ("cue", "lick"):
+            p = position_epoch_figure(stats, out_dir, arm)
+            if p is not None:
+                print(f"  wrote {p}")
     return 0
 
 
