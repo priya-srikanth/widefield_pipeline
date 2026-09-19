@@ -170,6 +170,9 @@ def epoch_row(bn, e_ref, idx, pre, n_perm, rng):
     # matches the observed statistic's structure and is conservative -- `gb` holds `n_pre - n_E`
     # sessions against the observed `n_pre`, so its mean is noisier and its differences run large.
     #
+    # SUPERSEDED 2026-09-18 -- KEPT BECAUSE THE REASONING IS STILL CORRECT AND THE CONCLUSION IS
+    # NOT. Read it as the record of WHY a self-referenced cosine cannot carry a p; the block that
+    # follows it supplies the held-out reference that fixes exactly this.
     # THE COSINE GETS NO p, AND THAT IS A RESULT ABOUT THE METHOD, NOT AN OVERSIGHT.
     # `d_obs = mean_E(bn) - mean_pre(bn)` and `e_ref = mean_pre(post/k) - mean_pre(bn)` share the
     # vector `-mean_pre(bn)` with the same sign, so the raw cosine is biased POSITIVE before any
@@ -188,7 +191,11 @@ def epoch_row(bn, e_ref, idx, pre, n_perm, rng):
     # THE FIX NEEDS DATA WE DO NOT HAVE: build `e_ref` from pre sessions held OUT of `d`, so
     # nothing is shared. PS92 has 11 pre sessions and acute has 6, which leaves no room to split
     # pre into a reference half and a comparison half and still match the epoch's size. So the
-    # cosine is reported DESCRIPTIVELY, its bias is stated, and the magnitude carries the claim.
+    # cosine WAS reported DESCRIPTIVELY, its bias stated, and the magnitude carried the claim.
+    # THAT LAST SENTENCE IS THE PART THAT WAS WRONG: the split does not have to be within ONE
+    # animal. `b_s` and `e_s` are atlas PIXELS on a shared grid, so the other three animals' pre
+    # sessions are the same space and there are 36 of them.
+    #
     # THE COSINE NOW GETS A NULL TOO, and only because `e_ref` is held out. With a self-referenced
     # `e_ref` the observed shares `-mean_pre(bn)` with it in FULL while a within-pre null shares it
     # only partly, so the null understated the bias and its p was anti-conservative. A held-out
@@ -419,7 +426,8 @@ def main() -> int:
 
     print(f"\n{'=' * 78}\nSUMMARY -- the baseline shift as a FRACTION of the evoked signal\n"
           f"{'=' * 78}")
-    print(f"{'epoch':<10}{'n':>4}{'shift':>9}{'null':>8}{'p<.05':>8}{'cos (biased +)':>17}")
+    print(f"{'epoch':<10}{'n':>4}{'shift':>9}{'null':>8}{'p<.05':>8}{'cos':>9}"
+          f"{'cosnull':>9}{'cos p<.05':>11}")
     for ep in EPOCHS:
         v = [r for r in rows if r["epoch"] == ep]
         if not v:
@@ -427,20 +435,28 @@ def main() -> int:
         sh = np.array([r["shift_frac_of_evoked"] for r in v])
         nu = np.array([r["null_median"] for r in v], dtype=float)
         co = np.array([r["cos_with_evoked"] for r in v], dtype=float)
+        cn = np.array([r["cos_null_median"] for r in v], dtype=float)
         sig = sum(1 for r in v if r["p"] is not None and r["p"] < 0.05)
+        csig = sum(1 for r in v if r.get("cos_p") is not None and float(r["cos_p"]) < 0.05)
         print(f"{ep:<10}{len(v):>4}{np.median(sh):>9.3f}{np.nanmedian(nu):>8.3f}"
-              f"{sig:>5}/{len(v):<2}{np.nanmedian(co):>+17.3f}")
+              f"{sig:>5}/{len(v):<2}{np.nanmedian(co):>+9.3f}{np.nanmedian(cn):>+9.3f}"
+              f"{csig:>8}/{len(v):<2}")
 
     print("\nHOW TO READ IT -- THE SHIFT AGAINST ITS NULL, NEVER AGAINST ZERO:")
     print("  shift <= null, p large        ->  the baseline does NOT drift beyond ordinary")
     print("      session-to-session spread. `_RESTref_` carries an across-epoch amplitude claim.")
     print("  shift > null                  ->  the baseline MOVES more than ordinary session")
     print("      spread, and across-epoch `map - restw` amplitudes carry that movement.")
-    print("\n  THE COSINE IS BIASED POSITIVE AND CARRIES NO p. `d` holds `-mean_pre(bn)` and")
-    print("  `e_ref` is `mean_pre(post/k) - mean_pre(bn)`, so both carry that vector with the same")
-    print("  sign. No null resampled WITHIN pre reproduces it -- the term cancels there, while the")
-    print("  observed epoch is DISJOINT from pre and keeps it in full -- so it is DESCRIPTIVE")
-    print("  only. Read the SHIFT column for the claim; use the cosine's SIGN at most.")
+    print("\n  THE COSINE HAS ITS OWN p SINCE 2026-09-18, and the two arms are DIFFERENT QUESTIONS:")
+    print("      SHIFT column  -- does the baseline MOVE?   6/11 cells: yes, it does.")
+    print("      COS column    -- does the movement MATTER? Only the component ALONG the evoked")
+    print("          pattern biases a `map - restw` amplitude; an orthogonal shift costs ~r^2/2.")
+    print("          1/11 at p < 0.05 against ~0.6 expected -> no evidence of alignment, so the")
+    print("          SHIFT column is an upper bound that is rarely attained.")
+    print("  READ THE COSINE AGAINST ITS OWN NULL (~0.21), NEVER AGAINST ZERO: pre baselines are")
+    print("  not isotropic, so +0.4 is BELOW chance. The held-out reference is what makes the p")
+    print("  legitimate -- self-referenced it ran 0.160 at alpha 0.05, held out it runs 0.060.")
+    print("  SIGN: cos > 0 SHRINKS the measured amplitude, cos < 0 INFLATES it.")
 
     fig = _figure(rows, out.parent)
     if fig is not None:
@@ -455,9 +471,30 @@ def _figure(rows, out_dir):
     deck places FIGURES, and a family with no PNG is invisible to the deck's completeness check as
     well -- that check reports figures it EXPECTS and is silent about ones it was never told about.
 
-    EACH SHIFT IS DRAWN AGAINST ITS OWN NULL, never against zero. The null is the ordinary
-    session-to-session spread of this animal's pre-stroke baselines, so a bar shorter than its
-    marker means the epoch moved no more than pre-stroke days move among themselves.
+    TWO ROWS, BECAUSE THE TWO ARMS ANSWER DIFFERENT QUESTIONS AND ONE ROW INVITED THEM TO BE READ
+    AS ONE (2026-09-19, Priya: *"so the cosine analysis suggests that there is NOT significant
+    epoch-related changes in baseline?"*). It does not, and the single-row figure was why that
+    reading was available -- the cosine's p landed in the CSV on 09-18 and never reached the PNG,
+    so the only arm on a slide was the magnitude one and its caption still carried the pre-p
+    caveat.
+
+        ROW 1  DOES THE BASELINE MOVE?      || d ||, against that animal's own pre-stroke spread.
+                                            6 of 11 cells significant. The answer is YES.
+        ROW 2  DOES THE MOVEMENT MATTER?    cos(d, evoked), against its own null. 1 of 11 against
+                                            ~0.6 expected. No evidence of alignment.
+
+    Only the component of `d` ALONG the evoked pattern biases a `map - restw` amplitude; the
+    orthogonal part is estimation noise and costs ~r^2/2. So row 1 is an UPPER BOUND and row 2 is
+    the test of whether it is attained.
+
+    THE SIGN IN ROW 2 IS NOT DECORATION. `map = post - (b_pre + d)`, so a shift ALIGNED with the
+    evoked pattern (cos > 0) SHRINKS the measured amplitude and an ANTI-aligned one (cos < 0)
+    INFLATES it. The one cell that clears p < 0.05 -- PS94 subacute, cos = -0.913 -- is in the
+    inflating direction, and is also the largest shift in the table.
+
+    EACH ARM IS DRAWN AGAINST ITS OWN NULL, never against zero, and for the cosine that is
+    load-bearing: its null median is 0.212 and NOT 0 (pre baselines are not isotropic), so a bar
+    of +0.4 read against zero would look like alignment when it is below chance.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -465,52 +502,82 @@ def _figure(rows, out_dir):
 
     from wfield_local import config
 
+    def _f(v):
+        return None if v in (None, "") else float(v)
+
     colors = config.animal_color()
     animals = sorted({r["animal"] for r in rows})
-    fig, axes = plt.subplots(1, len(EPOCHS), figsize=(3.4 * len(EPOCHS) + 0.6, 4.1),
-                             squeeze=False, sharey=True)
-    fig.subplots_adjust(top=0.70, bottom=0.14)
+    fig, axes = plt.subplots(2, len(EPOCHS), figsize=(3.4 * len(EPOCHS) + 0.6, 7.4),
+                            squeeze=False, sharey="row")
+    fig.subplots_adjust(top=0.78, bottom=0.10, hspace=0.42)
     for j, ep in enumerate(EPOCHS):
-        ax = axes[0][j]
+        top, bot = axes[0][j], axes[1][j]
         xs, seen = [], []
         for i, an in enumerate(animals):
             v = [r for r in rows if r["animal"] == an and r["epoch"] == ep]
             if not v:
                 continue
             r = v[0]
-            sh = float(r["shift_frac_of_evoked"])
-            p = r["p"]
-            sig = p is not None and float(p) < 0.05
-            ax.bar(i, sh, width=0.62, color=colors.get(an, "0.5"),
-                   edgecolor="k" if sig else "none", linewidth=1.6 if sig else 0,
-                   alpha=1.0 if sig else 0.55)
+            c = colors.get(an, "0.5")
+            sh, p = _f(r["shift_frac_of_evoked"]), _f(r.get("p"))
+            sig = p is not None and p < 0.05
+            top.bar(i, sh, width=0.62, color=c, edgecolor="k" if sig else "none",
+                    linewidth=1.6 if sig else 0, alpha=1.0 if sig else 0.55)
             # THE NULL, AS A MARKER ON THE BAR. Drawn per animal because it is per animal: it is
             # that animal's own pre-stroke session-to-session spread, not a shared threshold.
-            if r["null_p95"] is not None:
-                ax.plot([i - 0.38, i + 0.38], [float(r["null_p95"])] * 2, "-", color="k", lw=1.4)
-            if r["null_median"] is not None:
-                ax.plot([i - 0.30, i + 0.30], [float(r["null_median"])] * 2, ":", color="0.35",
-                        lw=1.2)
+            if _f(r.get("null_p95")) is not None:
+                top.plot([i - 0.38, i + 0.38], [_f(r["null_p95"])] * 2, "-", color="k", lw=1.4)
+            if _f(r.get("null_median")) is not None:
+                top.plot([i - 0.30, i + 0.30], [_f(r["null_median"])] * 2, ":", color="0.35",
+                         lw=1.2)
+
+            co, cp, cn = _f(r.get("cos_with_evoked")), _f(r.get("cos_p")), \
+                _f(r.get("cos_null_median"))
+            if co is not None:
+                csig = cp is not None and cp < 0.05
+                bot.bar(i, co, width=0.62, color=c, edgecolor="k" if csig else "none",
+                        linewidth=1.8 if csig else 0, alpha=1.0 if csig else 0.45)
+                if cn is not None:
+                    bot.plot([i - 0.30, i + 0.30], [cn] * 2, ":", color="0.35", lw=1.2)
+                # The DERIVED quantity -- shift x cos is the signed component of the drift along
+                # the evoked pattern, i.e. the actual amplitude bias, and it is what the two rows
+                # are for. Labelled rather than plotted: the CALIBRATED p belongs to the cosine.
+                if sh is not None:
+                    # PINNED TO THE FLOOR OF THE PANEL, not beside the bar. Placed next to the
+                    # bar it landed on the dotted null marker for any cell whose cosine was near
+                    # zero -- exactly the cells where the number matters most.
+                    bot.text(i, -1.28, f"{sh * co:+.2f}", ha="center", va="bottom",
+                             fontsize=7.5, color="0.25")
             xs.append(i)
             seen.append(an)
-        ax.set_xticks(xs)
-        ax.set_xticklabels(seen, fontsize=9)
-        ax.set_title(ep, fontsize=12, fontweight="bold")
-        ax.spines[["top", "right"]].set_visible(False)
+        for ax in (top, bot):
+            ax.set_xticks(xs)
+            ax.set_xticklabels(seen, fontsize=9)
+            ax.spines[["top", "right"]].set_visible(False)
+        top.set_title(ep, fontsize=12, fontweight="bold")
+        bot.axhline(0, color="k", lw=0.8)
+        bot.set_ylim(-1.32, 1.05)
+        bot.set_yticks([-1.0, -0.5, 0.0, 0.5, 1.0])
         if j == 0:
-            ax.set_ylabel("baseline shift, fraction of the evoked signal", fontsize=9)
-    fig.text(0.5, 0.985, "epoch_15j -- does the REST BASELINE itself move across epochs?",
+            top.set_ylabel("MOVEMENT\n|| shift ||, fraction of evoked signal", fontsize=9)
+            bot.set_ylabel("ALIGNMENT\ncos(shift, evoked pattern)", fontsize=9)
+    fig.text(0.5, 0.995, "epoch_15j -- does the REST BASELINE move across epochs, and does it matter?",
              ha="center", va="top", fontsize=14, fontweight="bold")
-    fig.text(0.5, 0.925,
-             "Bar: || mean_epoch(b/k) - mean_pre(b/k) ||, each session's restw baseline divided by "
-             "its OWN evoked norm k, which is what cancels cross-day multiplicative scaling.\n"
-             "SOLID line = that animal's null 95th percentile, dotted = its null median -- the "
-             "spread of its own pre-stroke baselines. A bar below the solid line moved no more "
-             "than pre-stroke days move among themselves.\n"
-             "Outlined + opaque = p < 0.05 against that null. IT IS AN UPPER BOUND on the "
-             "amplitude bias, attained only if the shift aligns with the evoked pattern; an "
-             "orthogonal shift costs ~r^2/2, so 0.15 means between ~1% and ~15%.",
-             ha="center", va="top", fontsize=8.5)
+    fig.text(0.5, 0.955,
+             "TOP -- DOES IT MOVE? Bar: || mean_epoch(b/k) - mean_pre(b/k) ||, each session's restw "
+             "baseline divided by its OWN evoked norm k, which cancels cross-day multiplicative "
+             "scaling.\nSOLID line = that animal's null 95th percentile, dotted = its null median: "
+             "the spread of its own pre-stroke baselines. Outlined + opaque = p < 0.05. "
+             "6 of 11 cells: THE BASELINE DOES MOVE.\n"
+             "BOTTOM -- DOES IT MATTER? Only the component ALONG the evoked pattern biases a "
+             "map - restw amplitude; an orthogonal shift costs ~r^2/2. Dotted = the cosine's OWN "
+             "null median, which is ~0.2 and NOT 0, so never read this against zero.\n"
+             "1 of 11 cells at p < 0.05 against ~0.6 expected: NO EVIDENCE OF ALIGNMENT, so the top "
+             "row is an upper bound that is rarely attained. Held-out reference; false-positive "
+             "rate 0.060 at alpha 0.05.\n"
+             "Small number = shift x cos, the SIGNED bias. cos > 0 SHRINKS the measured amplitude, "
+             "cos < 0 INFLATES it. The one significant cell (PS94 subacute, -0.91) is inflating.",
+             ha="center", va="top", fontsize=8.2)
     out = out_dir / "epoch_15j_rest_baseline_epoch_drift.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)

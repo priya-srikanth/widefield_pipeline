@@ -16,7 +16,9 @@ way, and the ways do not overlap:
   restw    activity above the resting state, positions kept independent. Its baseline MOVES across
            epochs -- measured 2026-09-17 at 7-43% of the evoked signal, significant in 6 of 11
            animal-epoch cells (`rest_baseline_epoch_drift`), which BOUNDS the distortion it can
-           impose on an across-epoch amplitude.
+           impose on an across-epoch amplitude. That bound is an UPPER one and 2026-09-18 showed
+           it is rarely attained: only the component ALONG the evoked pattern subtracts signal,
+           and the alignment cosine clears p < 0.05 in 1 of 11 cells against ~0.6 expected.
 
 A regional effect present in ALL THREE is not a property of any one subtrahend. One present in only
 one IS, and the table says which. That is the same logic the repo already applies when it reports

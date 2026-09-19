@@ -14184,3 +14184,271 @@ positions CANCELS in a between-position contrast. The ordering -- monotone near-
 worst -- and every between-position statement were never exposed to this confound. What moves is
 only the confidence attached to across-epoch amplitude MAGNITUDES.
 
+
+---
+
+## CORRECTION: where GCaMP's crossing sits is CONTESTED, and I stated it as settled (2026-09-19)
+
+The entry above ("415 nm IS NOT ISOSBESTIC") took Barnett/Drobizhev 2017 at face value and wrote a
+negative calcium term into 415 as established. **That was too strong.** Two accounts are in play and
+they disagree on the one number that matters.
+
+**WHAT BOTH AGREE ON -- the mechanism.** The GCaMP chromophore sits in a protonated/NEUTRAL state
+peaking ~395-405 nm and a deprotonated/ANIONIC state peaking ~470-490 nm. Calcium binding shifts the
+pKa and drives the population toward anionic. So BELOW the crossing calcium DECREASES fluorescence
+and above it INCREASES. Not in dispute.
+
+**WHAT THEY DISPUTE -- where the crossing is.**
+
+| source | crossing | our 415 |
+|---|---|---|
+| Barnett, Hughes & Drobizhev 2017 (PMC5300113), GCaMP6m | ~440-450, and "no true isosbestic point" | BELOW -> carries negative calcium |
+| conventional photometry practice | 410-415 is where neutral loss balances anionic gain | AT -> flat, a clean control |
+
+The second is the standard assumption the first paper exists to challenge. It is also variant
+dependent (6m vs 6s vs 8), and this cohort is **Thy1-GCaMP6s GP4.3** while the paper is on 6m.
+
+**SO DO NOT RESOLVE THIS FROM THE LITERATURE -- MEASURE IT HERE. The discriminator is TIMING, not
+amplitude**, and it is decisive:
+
+    calcium        fast, hundreds of ms
+    haemodynamics  slow, peaks 1-2 s, lasts seconds
+
+If 415 sits below the crossing it carries negative calcium, so the cue-evoked raw 415 trace must
+show an EARLY NEGATIVE deflection followed by the SLOW POSITIVE haemodynamic one. If 415 is flat,
+there is no early dip -- only the slow rise.
+
+**THE EXISTING NUMBERS CANNOT SETTLE IT.** The +0.54% to +1.96% cue-evoked 415 rises are WINDOW
+AVERAGES over the whole post-cue period, which would average an early dip away completely. That is
+why they looked like a clean positive haemodynamic response.
+
+**WHAT STANDS REGARDLESS OF THE OUTCOME.** The gain algebra: with `470 = C + H` and
+`415 = -aC + bH`, nulling H leaves `C*(1 + a/b)`. If `a = 0` (415 truly flat) the gain is exactly 1
+and nothing changes at all; if `a > 0` the output is a scaled calcium signal, and every relative
+measure in this project is invariant to a common gain either way. The correction is not
+contaminated with blood under EITHER account -- only its scale is at stake. And the
+`hemo_map_control` sign correction stands independently: the raw 415 RISES with activation in 4/4
+animals, so "activity lowers 415" was wrong whatever the crossing turns out to be.
+
+### A THIRD ESTIMATE, AND IT LANDS BETWEEN THE OTHER TWO (Priya, 2026-09-19)
+
+**Simpson, Akam, Patriarchi, Blanco-Pozo, Burgeño, Mohebi, Cragg & Walton (2024), "Lights, fiber,
+action! A primer on in vivo fiber photometry", *Neuron* 112(5):718-739, doi 10.1016/j.neuron.2023.11.016
+(open at PMC10939905).** Priya reads its Table 2 as **420-430 nm for GCaMP6**.
+
+So all three sources now on the table:
+
+| source | crossing for GCaMP | our 415 sits |
+|---|---|---|
+| conventional photometry practice | 405-415 | AT it -> flat |
+| Simpson et al. 2024 Table 2 | 420-430 | BELOW |
+| Barnett/Drobizhev 2017, GCaMP6m | 440-450, and no true isosbestic point | WELL below |
+
+**EVERY CREDIBLE SOURCE EXCEPT THE FOLK PRACTICE PUTS THE CROSSING ABOVE 415**, so a negative calcium
+term at 415 is now the majority view rather than one paper's claim. But the three disagree about
+HOW FAR above, and that is exactly the magnitude of the leak: 420-430 implies a **smaller** `a` in
+`415 = -aC + bH` than 440-450 does, hence a **smaller** expected dip.
+
+**THE PRIMER ALSO SETTLES THE PRACTICAL QUESTION EMPIRICALLY, WHICH THE SPECTRA CANNOT.** Its
+Figure 3 shows a GCaMP6f recording beside a 405 nm control, and the legend states outright:
+
+> "the isosbestic control signal has significant negative bleed-through of the GCaMP signal, due to
+> 405 nm excitation not exactly matching the isosbestic point for GCaMP6f. **This is evident as a
+> negative peak in the event-aligned average** and results in a strong negative correlation between
+> the control and GCaMP channel."
+
+That is the prediction `nvc_evoked` was built to test, described by someone who observed it — and it
+names the SAME observable (a negative peak in the event-aligned average, not a window mean) for the
+same reason. It is 405 rather than our 415, so it is an upper bound on the leak we should expect.
+
+**AND IT NAMES THE FAILURE MODE THAT MATTERS MORE THAN THE SIGN:** *"As movement artifacts or other
+confounding signals are typically small relative to sensor fluorescence changes, even a small amount
+of bleed-through from sensor to control channels can end up dominating variation in the control
+channel."* In photometry that is fatal to the control. In widefield it is weaker — the hemodynamic
+term in 415 is large, not small — but it is the reason `a` cannot be waved away as second order.
+
+**WHAT THIS DOES NOT CHANGE:** the gain algebra above. `470 - T*415` yields `C*(1 + a/b)` under every
+one of the three accounts; only the scalar differs, and every relative measure in this project is
+invariant to it.
+
+
+---
+
+## `15j`: "THE BASELINE DOESN'T CHANGE" IS THE WRONG READ — two arms, two questions (2026-09-19)
+
+Priya: *"so the cosine analysis suggests that there is NOT significant epoch-related changes in
+baseline? Is there an updated figure with this result?"*
+
+**No on both counts, and the second no is why the first question was available to ask.** The cosine
+p landed in the CSV on 09-18 and never reached the PNG, so the only arm on a slide was the magnitude
+one — carrying a caption that still said the cosine had no p.
+
+### THE TWO ARMS ANSWER DIFFERENT QUESTIONS
+
+    MAGNITUDE  || d ||       DOES THE BASELINE MOVE?      6 of 11 cells p < 0.05.   YES, IT MOVES.
+    COSINE     cos(d, e)     DOES THE MOVEMENT MATTER?    1 of 11 cells p < 0.05.   NO EVIDENCE.
+
+`map = post - (b_pre + d)`. Only the component of `d` **along** the evoked pattern subtracts signal;
+the orthogonal part is estimation noise and costs ~r²/2. So the magnitude is an **upper bound** on
+the amplitude bias and the cosine tests whether it is attained. Reading the second as a retraction
+of the first is the specific error this entry exists to prevent: **the baseline does move; the
+movement is not pointed at the signal.**
+
+### THE FULL TABLE (`epoch_15j_rest_baseline_epoch_drift.csv`)
+
+| animal | epoch | shift | p | cos | cos p | bias = shift·cos |
+|---|---|---|---|---|---|---|
+| PS92 | acute | 0.139 | 0.24 | −0.640 | 0.53 | −0.09 |
+| PS92 | subacute | 0.279 | **0.04** | +0.763 | 0.25 | +0.21 |
+| PS92 | chronic | 0.342 | **0.00** | +0.686 | 0.45 | +0.23 |
+| PS93 | acute | 0.148 | **0.00** | −0.276 | 0.84 | −0.04 |
+| PS93 | subacute | 0.126 | **0.00** | −0.456 | 0.53 | −0.06 |
+| PS93 | chronic | 0.166 | **0.00** | +0.225 | 0.80 | +0.04 |
+| PS94 | acute | 0.165 | 0.24 | +0.533 | 0.71 | +0.09 |
+| PS94 | subacute | 0.432 | **0.00** | **−0.913** | **0.039** | **−0.39** |
+| PS95 | acute | 0.144 | 0.18 | −0.492 | 0.57 | −0.07 |
+| PS95 | subacute | 0.074 | 0.20 | +0.377 | 0.76 | +0.03 |
+| PS95 | chronic | 0.074 | 0.16 | −0.576 | 0.55 | −0.04 |
+
+Median |bias| = **0.07** against a median shift of 0.148 — the aligned component is about half the
+norm, and it is signed both ways rather than systematically eroding the signal.
+
+### THE SIGN IS NOT DECORATION, AND THE ONE SIGNIFICANT CELL RUNS THE "WRONG" WAY
+
+`cos > 0` means the drift is aligned, so subtracting it **SHRINKS** the measured amplitude.
+`cos < 0` means it is anti-aligned, so subtraction **INFLATES** it. The only cell clearing p < 0.05
+is **PS94 subacute, cos = −0.913**, which is also the **largest shift in the table (0.432)**. If it
+is real rather than the one false positive 11 uncorrected tests predict at α = 0.05, PS94's subacute
+amplitude is **overstated by ~39%, not understated**. Worth saying plainly because the reflex when a
+baseline drifts is to assume signal is being eaten, and here the one measurable case is the opposite.
+
+### AND THE COSINE IS NEVER READ AGAINST ZERO
+
+Its own null median is **~0.21**, because pre baselines are not isotropic — they occupy a
+low-dimensional, cortically structured subspace that overlaps the evoked pattern, and that geometry
+survives any choice of reference. PS92 chronic's +0.686 looks like strong alignment and is p = 0.45.
+
+### WHAT WAS ACTUALLY STALE, and it was four places, not one
+
+1. `epoch_15j_...png` — **one row**. Now two: movement on top, alignment below, with `shift·cos`
+   printed under each cell. Regenerated via `--replot` (the permutation pass is the whole cost and
+   buys nothing when only the drawing changes).
+2. The **deck legend** ended `"THE COSINE IN THE CSV CARRIES NO p AND MUST NOT BE READ AGAINST ZERO:
+   it is biased positive by construction, and no null available in this design removes the bias."`
+   Flatly wrong since 09-18 — and it is the sentence a reader would have trusted.
+3. The **console summary** printed the same claim, plus a `cos (biased +)` column header. Replaced,
+   and the table now carries `cosnull` and `cos p<.05` columns.
+4. The **module's own comment block** asserted "THE FIX NEEDS DATA WE DO NOT HAVE" immediately above
+   the code implementing the fix. Marked SUPERSEDED rather than deleted — the reasoning about why a
+   *self-referenced* cosine cannot carry a p is still correct and still worth reading; only the
+   conclusion that no split was affordable was wrong, and it was wrong because it assumed the split
+   had to be **within one animal**.
+
+Three downstream files (`reference_family_roi`, `epoch_grant_figures`, `position_reference_maps`)
+quoted the 7–43% / 6-of-11 magnitude result accurately but predated the alignment arm; each now says
+the bound is an upper one and rarely attained.
+
+**THE GENERAL LESSON, and it is the same one as the CCF-overlay loss: A RESULT THAT LANDS ONLY IN A
+CSV HAS NOT LANDED.** The deck places figures. An arm added to the table without being added to the
+PNG is invisible to the reader *and* to the deck's completeness check, which reports figures it
+EXPECTS and is silent about content it was never told to look for.
+
+**WHAT DOES NOT CHANGE.** Between-position contrasts were never exposed to this — the same
+subtrahend is removed from all six positions, so it cancels. The eccentricity ordering
+(near→far monotone, far-contra worst) stands independently of everything above.
+
+---
+
+## OUR ITERATIVE REWEIGHTING IS ON THE DRIFT FIT, NOT THE ISOSBESTIC FIT (2026-09-19)
+
+Priya, on Ruggiero et al., *"Obtaining artifact-corrected signals in fiber photometry via isosbestic
+signals, robust regression, and dF/F calculations"* (PMC11957252): *"our version is iterative in
+meegkit right?"*
+
+**Yes — but at a different stage than the paper's, and the stage the paper is about is the one where
+we use plain OLS.** The two fits are easy to conflate because both are "fit the artifact".
+
+| stage | what it fits | ours | the paper's |
+|---|---|---|---|
+| DRIFT removal, per channel | slow bleaching/baseline | `meegkit.detrend`, de Cheveigné robust polynomial, **order 10, iteratively reweighted**, on the `strobedetrend` mask | low-pass filter |
+| 415 -> 470 coefficient | the hemodynamic/artifact scale | `rcoeff = Σ(a·b)/Σ(b·b)`, **plain per-pixel OLS through the origin** (`hemo_variants.refit_T`) | **IRLS with Tukey bisquare** |
+
+So the answer to the literal question is yes, and the answer to the useful one is that **the paper's
+recommendation is not implemented here.**
+
+**WE ALREADY SOLVE THE PAPER'S CONCERN FOR THE DRIFT FIT, BY A DIFFERENT MECHANISM.** IRLS exists to
+stop neural transients from levering an artifact fit. `strobedetrend` masks `strobe - 0.25 s` to
+`cue + 4 s` out of the drift fit entirely — a **hard** exclusion where IRLS applies a **soft**
+downweight. Same purpose; ours is stricter and does not need to discover the outliers, because we
+know when they are.
+
+**BUT THE COEFFICIENT FIT HAS NO SUCH PROTECTION, AND IT IS WHERE THE LEVERAGE ACTUALLY IS.** Under
+`meegkit_hpfit`, `rcoeffs` is fitted on 0.1 Hz **high-passed** traces precisely so the coefficient is
+optimal in the haemodynamic band — but a 0.1 Hz high-pass passes calcium transients (0.1-5 Hz) too.
+Those transients are the **largest** excursions in both channels, so they dominate an OLS fit through
+sheer leverage, and if 415 carries a calcium term at all (see the crossing entry above) they are
+CORRELATED across the two channels rather than independent noise. That is the textbook setting for
+robust regression, and it is exactly the case Simpson et al. warn about.
+
+**FEASIBILITY, AND IT TURNS ON ONE DETAIL.** `refit_T` is fast only because the time axis contracts
+into two (K, K) Gram matrices, `a @ b.T` and `b @ b.T`, so the (npix, T) movie — ~276 GB here — is
+never formed. **A per-PIXEL weight destroys that**: `Σ_t w_t(i)·a_i(t)·b_i(t)` no longer factors
+through a shared Gram. **A per-SAMPLE weight shared across pixels does NOT**: `a @ (w * b).T` is
+still (K, K), so a globally weighted IRLS costs one extra (K,T)x(T,K) product per iteration and
+nothing else. Any robust version of this fit should therefore use a **shared** weight vector — e.g.
+Tukey bisquare on the brain-mean residual — and that is cheap enough to simply try.
+
+**NOT DONE, AND DELIBERATELY NOT DONE TODAY.** Changing `rcoeffs` changes `SVTcorr`, which changes
+the LocaNMF basis, which changes every downstream result in the deck. `PREPROCESSING_DECISION.md`
+records the measured criteria the current variant won on (pre-cue signal retained, post-cue decoding,
+residual 415 correlation); a robust-fit variant is a new entry in `hemo_variants.VARIANTS` scored on
+the same bench, not a patch. **Logged as an open item, with the shared-weight trick recorded so the
+next attempt does not rediscover the 276 GB wall.**
+
+---
+
+## MOTION CORRECTION DOES NOT CLEAR THE FAST-415 CONFOUND (2026-09-19)
+
+Priya, on my reading that a fast shared component in `nvc_evoked` is "most likely licking/movement":
+*"our data are motion-corrected"*.
+
+**True, and it does not do what the objection needs it to do.** Registration removes **in-plane
+translation of the image**. The optical "movement artifact" the photometry literature means is
+mostly the part that survives registration:
+
+1. **AXIAL (z) motion.** Head-fixed body movement and brain pulsation shift tissue relative to the
+   focal plane. Out-of-focus tissue returns less light. No in-plane registration touches this, it is
+   **fast** (locked to the movement), and it is **spectrally neutral** — it scales 415 and 470 by the
+   same factor.
+2. **Tissue tilt and illumination geometry.** Same character: broadband, fast, invisible to x/y
+   registration.
+3. **Movement- and arousal-driven blood volume.** A real optical change, not a registration problem
+   at all. Slow (>= 300-500 ms), so not the fast component — but it is the reason a "no movement"
+   claim cannot be made from the registration step.
+4. **Resampling from the correction itself.** Interpolating a large shift changes local means.
+
+The whole isosbestic-control apparatus exists in preparations with **no image to register**, which
+is the clearest statement of the point: registration and artifact correction address different
+things.
+
+**BUT THE DATA ALREADY ARGUE AGAINST A PURELY NEUTRAL EXPLANATION, AND THAT IS WORTH MORE THAN EITHER
+ARGUMENT.** From PS94's cue-aligned run, early window [0, 0.4] s, brain mean:
+
+    470 early  +2.248 %        415 early  +1.075 %        ratio  0.478
+
+A spectrally neutral mechanism (z-motion, tilt, focus) predicts a fractional ratio of **~1.0**. It is
+**0.48**. So the early response decomposes as `470 = C + N` and `415 ~ N` with `N ~ 1.08` and
+`C ~ 1.17` — a neutral term that is real and roughly half the 470 rise, plus a genuine calcium term.
+Compare **PS93's first post-stroke week, where the same ratio IS ~1.0 in sensorimotor cortex** —
+which is what a scattering/geometry anomaly looks like, and why that one was read as non-calcium.
+
+**WHAT NEITHER ARGUMENT SETTLES: whether 415 carries a NEGATIVE calcium term on top of `N`.** The
+amplitude decomposition above cannot separate `N` from `N - a*C`; only **timing** can, and the
+window averages destroy it — a ~300 ms dip inside a [0, 0.4] s mean that also contains the rising
+neutral term is invisible. Simpson et al. 2024 name the same observable ("a negative peak in the
+event-aligned average"), not a window mean.
+
+**SO THE NEXT MEASUREMENT IS THE TRACE, NOT A THIRD WINDOW**, and specifically the trace on trials
+where the animal does NOT lick — the no-lick class already exists in this pipeline. That removes the
+movement-locked neutral term by design rather than by argument, which is the only way this gets
+resolved.

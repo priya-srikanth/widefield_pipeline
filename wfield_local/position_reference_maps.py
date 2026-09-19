@@ -578,7 +578,9 @@ def reference_maps(parts, reference):
         # subtracts something that can itself move between epochs (the trial mean couples the six
         # positions; the rest baseline drifts -- MEASURED at 7-43% of the evoked signal across
         # animals, `rest_baseline_epoch_drift`), and an across-epoch amplitude claim inherits that
-        # movement. `raw` cannot, because there is nothing to move.
+        # movement -- an UPPER bound, since only the component ALONG the evoked pattern subtracts
+        # signal and the alignment arm finds no evidence of that (1/11 cells, ~0.6 expected).
+        # `raw` cannot inherit it at all, because there is nothing to move.
         #
         # WHAT IT TRADES FOR THAT: cross-day MULTIPLICATIVE scaling -- expression, bleaching,
         # window clarity -- which NO subtraction removes either, so it is not a cost unique to
