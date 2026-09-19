@@ -68,8 +68,12 @@ EARLY_S = (0.0, 0.4)              # calcium timescale
 LATE_S = (1.0, 3.0)               # haemodynamic timescale
 
 
+MIN_TRIALS = 8                    # below this a session mean is noise, not a small sample
+LICK_RESP_S = 2.0                 # a lick this soon after the cue makes the trial a LICK trial
+
+
 def session_traces(s):
-    """``(t, pct470, pct415, cue_frames)`` -- brain-mean % traces and the cue frame indices."""
+    """``(t, pct470, pct415, cue_frames, lick_frames)`` -- brain-mean % traces and event frames."""
     from wfield_local.hemo_variants import FS, FUNC
     from scripts.rest_migration.plot_session_residual import _brain_mean_op
 
@@ -107,8 +111,39 @@ def session_traces(s):
     cue_frames = np.searchsorted(f_of, np.asarray(cs))
     cue_frames = cue_frames[(cue_frames > int(PRE_S * FS) + 1)
                             & (cue_frames < n - int(POST_S * FS) - 1)]
+    # LICKS ON THE SAME FRAME CLOCK, by the same searchsorted, with the pipeline's canonical
+    # detector parameters (`nolick_decoder` calls it with exactly these).
+    from wfield_local.plot_lick_aligned_averages import _load_daq_events
+    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lick_frames = np.searchsorted(f_of, np.asarray(lk["lick_samples"]))
     t = (np.arange(-int(PRE_S * FS), int(POST_S * FS)) / FS)
-    return t, pct470, pct415, cue_frames
+    return t, pct470, pct415, cue_frames, lick_frames
+
+
+def split_by_licking(cue_frames, lick_frames):
+    """``(lick_trials, nolick_trials)`` cue frames.
+
+    THE TWO CLASSES ARE NOT COMPLEMENTS, DELIBERATELY. `nolick` requires ZERO licks anywhere in
+    the WHOLE analysis window [-1, +4] s, not merely none in the response window, because the
+    point of the class is to remove the movement-locked component from the trace -- a lick at
+    +3 s contaminates the late window just as effectively as one at +0.3 s contaminates the
+    early one. Trials that lick only late are therefore in NEITHER class, and that is correct:
+    they are neither clean nor comparable.
+
+    `nolick` also excludes trials with a PRE-CUE lick, since the baseline window is [-1, -0.2].
+    """
+    from wfield_local.hemo_variants import FS
+
+    lf = np.sort(np.asarray(lick_frames, np.int64))
+    lo, hi = int(PRE_S * FS), int(POST_S * FS)
+    resp = int(LICK_RESP_S * FS)
+    licked, clean = [], []
+    for f in cue_frames:
+        if np.searchsorted(lf, f + resp) - np.searchsorted(lf, f) > 0:
+            licked.append(f)
+        elif np.searchsorted(lf, f + hi) - np.searchsorted(lf, f - lo) == 0:
+            clean.append(f)
+    return np.asarray(licked, np.int64), np.asarray(clean, np.int64)
 
 
 def evoked(trace, cue_frames, t):
@@ -127,11 +162,32 @@ def evoked(trace, cue_frames, t):
     return (np.mean(seg, axis=0), len(seg)) if seg else (None, 0)
 
 
+def _boot_ci(by_animal, rng, n_boot=4000):
+    """Nested animals -> sessions bootstrap CI of the mean. `by_animal` is {animal: [values]}."""
+    animals = sorted(by_animal)
+    if not animals:
+        return None
+    flat = [v for an in animals for v in by_animal[an]]
+    out = []
+    for _ in range(n_boot):
+        vals = []
+        for an in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
+            sa = by_animal[an]
+            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
+        if vals:
+            out.append(float(np.mean(vals)))
+    if len(out) < n_boot // 4:
+        return None
+    o = np.asarray(out)
+    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--seed", type=int, default=20260919)
     a = ap.parse_args(argv)
 
     from wfield_local import config, epochs
@@ -141,7 +197,7 @@ def main(argv=None) -> int:
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
 
-    rows, curves = [], defaultdict(list)
+    rows, curves, tvec = [], defaultdict(list), None
     for s in config.load_sessions():
         lab = s["label"]
         if lab not in want or config.animal_of(lab) not in animals:
@@ -150,27 +206,30 @@ def main(argv=None) -> int:
         if not ep:
             continue
         try:
-            got = session_traces(s)
+            t, p470, p415, cf, lf = session_traces(s)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
             continue
-        if got is None:
-            print(f"  .. {lab}: no channel means -- skipped", flush=True)
-            continue
-        t, p470, p415, cf = got
-        e470, n1 = evoked(p470, cf, t)
-        e415, n2 = evoked(p415, cf, t)
-        if e470 is None or e415 is None:
-            continue
+        tvec = t
+        licked, clean = split_by_licking(cf, lf)
+        an = config.animal_of(lab)
         w = lambda e, lo, hi: float(np.mean(e[(t >= lo) & (t < hi)]))   # noqa: E731
-        r = dict(label=lab, animal=config.animal_of(lab), epoch=ep, n_trials=n1,
-                 e470_early=round(w(e470, *EARLY_S), 4), e470_late=round(w(e470, *LATE_S), 4),
-                 e415_early=round(w(e415, *EARLY_S), 4), e415_late=round(w(e415, *LATE_S), 4))
+        r = dict(label=lab, animal=an, epoch=ep, n_lick=int(licked.size), n_nolick=int(clean.size))
+        for cls, frames in (("lick", licked), ("nolick", clean)):
+            e470, n1 = evoked(p470, frames, t)
+            e415, _n2 = evoked(p415, frames, t)
+            if e470 is None or e415 is None or n1 < MIN_TRIALS:
+                for k in ("470_early", "470_late", "415_early", "415_late"):
+                    r[f"{cls}_{k}"] = ""
+                continue
+            curves[(cls, ep)].append((an, e470, e415))
+            r[f"{cls}_470_early"] = round(w(e470, *EARLY_S), 4)
+            r[f"{cls}_470_late"] = round(w(e470, *LATE_S), 4)
+            r[f"{cls}_415_early"] = round(w(e415, *EARLY_S), 4)
+            r[f"{cls}_415_late"] = round(w(e415, *LATE_S), 4)
         rows.append(r)
-        curves[(config.animal_of(lab), ep)].append((e470, e415))
-        print(f"   {lab:14s} {ep:9s} n={n1:4d}  470 early {r['e470_early']:+.3f} "
-              f"late {r['e470_late']:+.3f}   415 early {r['e415_early']:+.3f} "
-              f"late {r['e415_late']:+.3f}", flush=True)
+        print(f"   {lab:14s} {ep:9s} lick n={r['n_lick']:4d}  nolick n={r['n_nolick']:4d}   "
+              f"nolick 415 early {r.get('nolick_415_early', '--')}", flush=True)
 
     if not rows:
         print("no sessions -- a failed run, not a result")
@@ -182,19 +241,137 @@ def main(argv=None) -> int:
         wr.writerows(rows)
     print(f"\nwrote {q}")
 
-    print(f"\n{'=' * 78}\nBY EPOCH -- session means (the isosbestic test is 415 EARLY)\n{'=' * 78}")
-    print(f"  {'epoch':<10}{'n':>4}{'470 early':>11}{'470 late':>10}"
-          f"{'415 early':>11}{'415 late':>10}")
-    for ep in ("pre", "acute", "subacute", "chronic"):
-        v = [r for r in rows if r["epoch"] == ep]
-        if not v:
-            continue
-        f = lambda k: np.mean([r[k] for r in v])                       # noqa: E731
-        print(f"  {ep:<10}{len(v):>4}{f('e470_early'):>+11.3f}{f('e470_late'):>+10.3f}"
-              f"{f('e415_early'):>+11.3f}{f('e415_late'):>+10.3f}")
-    print("\n415 EARLY < 0 and 415 LATE > 0  ->  415 sits BELOW the crossing (carries -Ca)")
-    print("415 EARLY ~ 0 and 415 LATE > 0  ->  415 is flat; the rise is purely haemodynamic")
+    # THE TEST IS THE NO-LICK EARLY 415 ALONE. On LICK trials a fast movement-locked term rides on
+    # both channels and can bury a smaller negative calcium term; removing those trials is the
+    # whole point, so the lick rows are shown for contrast and are not the statistic.
+    rng = np.random.default_rng(a.seed)
+    print(f"\n{'=' * 92}\nIS 415 ISOSBESTIC HERE? -- nested animals->sessions CI, "
+          f"{EARLY_S[0]:.1f}-{EARLY_S[1]:.1f} s\n{'=' * 92}")
+    print(f"  {'class':<8}{'epoch':<10}{'n':>4}{'470 early':>27}{'415 early':>27}{'ratio':>8}")
+    stats = []
+    for cls in ("lick", "nolick"):
+        for ep in ("pre", "acute", "subacute", "chronic"):
+            v = [r for r in rows if r["epoch"] == ep and r.get(f"{cls}_415_early", "") != ""]
+            if not v:
+                continue
+
+            def grp(k, v=v, cls=cls):
+                d = defaultdict(list)
+                for r in v:
+                    d[r["animal"]].append(float(r[f"{cls}_{k}"]))
+                return _boot_ci(d, rng)
+
+            c470, c415 = grp("470_early"), grp("415_early")
+            if c470 is None or c415 is None:
+                continue
+            ratio = c415[0] / c470[0] if abs(c470[0]) > 1e-9 else float("nan")
+            print(f"  {cls:<8}{ep:<10}{len(v):>4}"
+                  f"{c470[0]:>+12.3f} [{c470[1]:+.3f},{c470[2]:+.3f}]"
+                  f"{c415[0]:>+12.3f} [{c415[1]:+.3f},{c415[2]:+.3f}]{ratio:>8.2f}")
+            stats.append(dict(cls=cls, epoch=ep, n_sessions=len(v),
+                              e470=round(c470[0], 4), e470_lo=round(c470[1], 4),
+                              e470_hi=round(c470[2], 4), e415=round(c415[0], 4),
+                              e415_lo=round(c415[1], 4), e415_hi=round(c415[2], 4),
+                              ratio=round(ratio, 4),
+                              e415_ci_excludes_zero=bool(c415[1] > 0 or c415[2] < 0)))
+    if stats:
+        qs = out_dir / "epoch_16_nvc_evoked_stats.csv"
+        with open(qs, "w", newline="", encoding="utf-8") as fh:
+            wr = csv.DictWriter(fh, fieldnames=list(stats[0]))
+            wr.writeheader()
+            wr.writerows(stats)
+        print(f"\nwrote {qs}")
+
+    print("\nHOW TO READ THE NO-LICK ROWS, AND ONLY THOSE:")
+    print("  415 early CI BELOW 0   ->  415 sits BELOW the crossing: it carries -Ca. A dip.")
+    print("  415 early CI ABOVE 0   ->  a positive fast term remains; NOT a demonstration that")
+    print("      415 is isosbestic, because a neutral (scattering/focus) term also lands here.")
+    print("      THE RATIO DISCRIMINATES: ~1.0 is spectrally neutral, well under 1 is not.")
+    print("  415 early CI SPANS 0   ->  no fast 415 term resolvable. Read the trace AND the trial")
+    print("      counts -- this is the outcome low power also produces.")
+    print("\nAND GCaMP6s KINETICS BLUR THE WINDOWS (Priya, 2026-09-19): rise 200-500 ms,")
+    print("  half-decay 1-2 s, so a calcium dip is NOT confined to [0, 0.4] and the haemodynamic")
+    print("  rise is not confined to [1, 3]. The figure's TRACE is the primary object here; the")
+    print("  windows summarise it, they do not replace it.")
+
+    fig = _figure(curves, tvec, out_dir)
+    if fig is not None:
+        print(f"\nwrote {fig}")
     return 0
+
+
+def _figure(curves, t, out_dir):
+    """The TRACES, because a pair of windows cannot show a dip and a trace can.
+
+    Simpson et al. 2024 name the observable as "a negative peak in the EVENT-ALIGNED AVERAGE" --
+    a SHAPE, not a number. Two window averages are exactly what hid it here for a day.
+    """
+    if t is None or not curves:
+        return None
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    eps = [e for e in ("pre", "acute", "subacute", "chronic") if any(k[1] == e for k in curves)]
+    if not eps:
+        return None
+    fig, axes = plt.subplots(2, len(eps), figsize=(3.3 * len(eps) + 0.6, 6.8),
+                             squeeze=False, sharex=True, sharey="row")
+    fig.subplots_adjust(top=0.74, bottom=0.09, hspace=0.22)
+    style = {"lick": ("0.55", "--", "licked"), "nolick": ("#1b5e9c", "-", "NO lick in [-1, +4] s")}
+    for j, ep in enumerate(eps):
+        for chan in (0, 1):
+            ax = axes[chan][j]
+            for cls, (col, ls, lab) in style.items():
+                v = curves.get((cls, ep)) or []
+                if not v:
+                    continue
+                arr = np.asarray([x[1 + chan] for x in v])
+                m = arr.mean(axis=0)
+                ax.plot(t, m, ls, color=col, lw=1.8, label=f"{lab} (n={len(v)} sess)")
+                # SEM ACROSS SESSIONS, not trials -- sessions are the unit the CI above resamples,
+                # and a trial-wise band would be several times narrower for no added truth.
+                if len(v) > 1:
+                    se = arr.std(axis=0, ddof=1) / np.sqrt(len(v))
+                    ax.fill_between(t, m - se, m + se, color=col, alpha=0.18, lw=0)
+            ax.axhline(0, color="k", lw=0.7)
+            ax.axvline(0, color="k", lw=0.7, ls=":")
+            ax.axvspan(*EARLY_S, color="#c8102e", alpha=0.07, lw=0)
+            ax.spines[["top", "right"]].set_visible(False)
+            if chan == 0:
+                ax.set_title(ep, fontsize=12, fontweight="bold")
+            else:
+                ax.set_xlabel("time from cue (s)", fontsize=9)
+            if j == 0:
+                ax.set_ylabel(("470 nm (GCaMP)" if chan == 0 else "415 nm (control)")
+                              + "\n% dF/F, per-trial baselined", fontsize=9)
+            if chan == 1 and j == len(eps) - 1:
+                ax.legend(fontsize=7.5, frameon=False, loc="lower right")
+    fig.text(0.5, 0.995, "epoch_16 -- is 415 nm isosbestic HERE? The cue-evoked trace, "
+             "with and without licking", ha="center", va="top", fontsize=14, fontweight="bold")
+    fig.text(0.5, 0.958,
+             "THE QUESTION. Below GCaMP`s neutral/anionic crossing calcium DECREASES fluorescence; "
+             "above it, increases. Three published estimates of where that crossing sits -- 405-415 "
+             "(folk practice), 420-430 (Simpson 2024), 440-450 (Barnett 2017) -- and two of the "
+             "three put our 415 BELOW it.\n"
+             "TIMING SETTLES IT AND AMPLITUDE CANNOT. A negative calcium term appears as an EARLY "
+             "DIP (shaded) before the slow haemodynamic rise. A window average over the whole "
+             "post-cue period averages a dip away completely, which is why the +0.5 to +2.0% "
+             "figures already on record could not answer this.\n"
+             "WHY THE NO-LICK CLASS. A FAST component in 415 cannot be haemodynamic (latency "
+             ">= 300-500 ms), so on licking trials a movement-locked term could bury a smaller "
+             "calcium dip -- and motion correction does not remove it, being z-motion, tilt and "
+             "focus rather than in-plane translation. No-lick trials have ZERO licks anywhere in "
+             "[-1, +4] s.\n"
+             "READ THE 415 ROW ON THE SOLID TRACE. A dip means 415 carries -Ca, so the correction "
+             "has a GAIN rather than a contamination. NO dip is not proof of isosbesticity: "
+             "GCaMP6s kinetics (rise 200-500 ms, half-decay 1-2 s) smear the separation, and a "
+             "spectrally neutral term (ratio ~1.0 against 470) also lands early.",
+             ha="center", va="top", fontsize=8.2)
+    out = out_dir / "epoch_16_nvc_evoked.png"
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out
 
 
 if __name__ == "__main__":
