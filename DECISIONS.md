@@ -15224,15 +15224,29 @@ BASELINE asymmetry. A focal lesion predicts the contrast CHANGES -- a difference
 | subacute | +0.018 [-0.01, +0.06] | +0.014 [-0.01, +0.04] | **+0.067 [+0.00, +0.18]** | -0.008 [-0.02, +0.01] |
 | chronic | **+0.024 [+0.01, +0.04]** | +0.002 [-0.00, +0.01] | +0.048 [-0.02, +0.20] | -0.005 [-0.02, +0.01] |
 
-**THE EFFECT LARGELY DOES NOT SURVIVE.** The acute lag contrast, starred in the per-epoch table,
-is +0.041 [-0.01, +0.15] once referenced to the animal's own pre -- not significant, and its CI is
-three times wider because differencing adds variance. Subacute clears with a lower bound of +0.00,
-which is not a claim. Three of twelve cells star, uncorrected, in three different measures and
-three different epochs, which is close to what chance produces.
+**THE EFFECT MOSTLY DOES NOT REACH SIGNIFICANCE.** The acute lag contrast, starred in the
+per-epoch table, is +0.041 [-0.01, +0.15] once referenced to the animal's own pre -- not
+significant, and its CI is three times wider because differencing adds variance. Subacute clears
+with a lower bound of +0.00, which is not a claim.
 
-**WHAT TO SAY:** a hint that the ipsilesional haemodynamic lag lengthens relative to
-contralesional at subacute, not established. **WHAT NOT TO SAY:** that the per-epoch table showed
-an acute and subacute ipsilesional slowing.
+**BUT "CLOSE TO CHANCE" WOULD BE THE WRONG SUMMARY, AND I WROTE IT FIRST.** Two things argue
+against dismissing it. Three of twelve cells star, which EXCEEDS the ~0.6 expected from twelve
+independent tests at 5% -- though they are not independent, since all three epochs share the same
+pre arm and the four measures are correlated, so no clean multiplicity calculation applies in
+either direction. And more importantly there is a DIRECTIONAL CONSISTENCY: d lag is POSITIVE in
+all three post epochs (+0.041, +0.067, +0.048) and d raw tilt NEGATIVE in all three (-0.023,
+-0.008, -0.005), decaying with time since stroke. Two measures, coherent signs, and the tilt
+ordering is largest-when-most-acute, which is the predicted shape.
+
+**WHAT TO SAY:** suggestive but UNDERPOWERED -- a consistent but non-significant tendency for the
+ipsilesional haemodynamic lag to lengthen relative to contralesional, largest acutely. **WHAT NOT
+TO SAY:** that the per-epoch table established an acute and subacute ipsilesional slowing, or that
+the proper test returned a null.
+
+**THE ONE CELL TO DISTRUST** is chronic  (+0.024 [+0.01, +0.04]). It has the tightest
+CI in the table but sits in the epoch where recovery should have occurred, it is the measure with
+the strongest PRE-STROKE asymmetry, and chronic is the only epoch with three animals rather than
+four.
 
 ### THE DESIGN SURVIVES EVEN THOUGH THE RESULT DID NOT
 
