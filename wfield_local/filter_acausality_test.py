@@ -193,10 +193,14 @@ def _lp(X):
     return filtfilt(b, a, X, padlen=50)
 
 
-def svtcorr(svt, T, mode, mask=None, win_s=DETREND_WIN_S):
-    """Rebuild SVTcorr with the chosen drift removal, reusing the saved transform T."""
-    a = _hp(svt[:, FUNC::2].astype(np.float64), mode)
-    b = _hp(svt[:, (FUNC + 1) % 2::2].astype(np.float64), mode)
+def svtcorr(svt, T, mode, mask=None, win_s=DETREND_WIN_S, func=FUNC):
+    """Rebuild SVTcorr with the chosen drift removal, reusing the saved transform T.
+
+    `func` is the 470 slot. It defaults to the cohort `FUNC` because this takes a bare `svt` array
+    with no session to look up -- so THE CALLER MUST PASS IT, via `hemo_variants.functional_channel`
+    (PS92_0828 is 0, not 1). See that function for the 2026-09-19 audit."""
+    a = _hp(svt[:, func::2].astype(np.float64), mode)
+    b = _hp(svt[:, (func + 1) % 2::2].astype(np.float64), mode)
     if mode in ("quietdetrend", "taskdetrend", "strobedetrend"):
         if mask is None:
             raise ValueError("quietdetrend needs a fit mask (see fit_mask)")
@@ -307,6 +311,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
 
     from wfield_local import hemo_variants as hv
 
+    _fc = hv.functional_channel(s)     # NOT the module constant -- PS92_0828 is 0. See that function.
     masks, fracs = {}, {}
     need = [m for m in modes if m in MASK_SPEC]
     if need:
@@ -317,7 +322,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
             modes = [m for m in modes if m not in MASK_SPEC]
         else:
             for m in need:
-                masks[m], d = fit_mask(s, svt[:, FUNC::2].shape[1], csmp, cue, **MASK_SPEC[m])
+                masks[m], d = fit_mask(s, svt[:, _fc::2].shape[1], csmp, cue, **MASK_SPEC[m])
                 fracs[m] = d["frac_final"]
             print("  {:12s} mask eligible: ".format(lab)
                   + "  ".join("{} {:.1f}%".format(m, 100 * fracs[m]) for m in need), flush=True)
@@ -329,7 +334,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
             # (below) is right for isolating the filter and wrong for anything we would adopt.
             svtc, _T, _rc, _meta = hv.compute(s_sess, mode, refit_t=True, win_s=win_s, verbose=False)
         else:
-            svtc = svtcorr(svt, T, mode, mask=masks.get(mode), win_s=win_s)
+            svtc = svtcorr(svt, T, mode, mask=masks.get(mode), win_s=win_s, func=_fc)
         sig, regs = roi_signal(ad[0], svtc)
         r, lvl = patterns(s, sig)
         out[mode] = {"precue": decode(s, sig, regs, "precue"),

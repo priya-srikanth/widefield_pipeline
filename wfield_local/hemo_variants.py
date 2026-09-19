@@ -46,6 +46,30 @@ from scipy.signal import butter, filtfilt, lfilter
 
 FS, HP, LP, FUNC = 31.23, 0.1, 14.0, 1          # configs/defaults.yaml svd.*
 
+
+def functional_channel(session) -> int:
+    """The 470 slot for THIS session. **Use this, not the `FUNC` constant, when slicing raw `SVT`.**
+
+    `FUNC = 1` is the COHORT default and it is wrong for `PS92_0828`, where labcams saved a normal
+    alternating session mislabelled single-channel and the rescue relabel locked exposure offset 1,
+    swapping the slots. `configs/session_overrides.yaml` records `functional_channel: 0` for it and
+    THE PRODUCTION CHAIN HONOURS THAT END TO END -- config override -> `local_wfield_summary.json`
+    -> `hemo_meegkit_hpfit/manifest.json` all read 0, so every figure built on `SVTcorr` is correct.
+
+    THE EXPOSURE IS IN CODE THAT SLICES **RAW** `SVT` BY THE CONSTANT (2026-09-19 audit). Ten call
+    sites did, across the drift/QC diagnostics and `scripts/rest_migration/`, and each reads that
+    one session's 415 as its 470 and vice versa. Nothing in the deck's RESULTS path is affected --
+    those go through `SVTcorr` -- but a diagnostic that silently swaps channels on one session is
+    exactly the kind of output that later gets read as biology. See `channel_position_maps._signals`
+    for the near miss that prompted this audit.
+
+    `session` may be a session dict or a label string.
+    """
+    from wfield_local import config
+    lab = session["label"] if isinstance(session, dict) else str(session)
+    return int(config.defaults(session=lab)["preprocess"]["svd"]["functional_channel"])
+
+
 # Drift removal per variant. `mask` names the fit_mask spec in filter_acausality_test (None = no mask).
 VARIANTS = {
     "zerophase":     dict(drift="filtfilt", mask=None,

@@ -28,7 +28,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from wfield_local import config  # noqa: E402
-from wfield_local.hemo_variants import FS, FUNC, VARIANTS, remove_drift  # noqa: E402
+from wfield_local.hemo_variants import FS, functional_channel, VARIANTS, remove_drift  # noqa: E402
 
 VARIANT = "meegkit_hpfit"
 
@@ -103,8 +103,8 @@ def plot_session(label, outdir):
 
     u_mean, npix = _brain_mean_op(s["mc"])
     svt = np.load(res / "SVT.npy")
-    a = svt[:, FUNC::2].astype(np.float64)
-    b = svt[:, (FUNC + 1) % 2::2].astype(np.float64)
+    a = svt[:, functional_channel(s)::2].astype(np.float64)
+    b = svt[:, (functional_channel(s) + 1) % 2::2].astype(np.float64)
     n = a.shape[1]
     t = np.arange(n) / FS / 60.0
     print(f"  {n} frames ({t[-1]:.1f} min), brain mask {npix} px", flush=True)

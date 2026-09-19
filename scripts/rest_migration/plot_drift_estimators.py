@@ -33,7 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from wfield_local import config  # noqa: E402
-from wfield_local.hemo_variants import FS, FUNC, remove_drift  # noqa: E402
+from wfield_local.hemo_variants import FS, functional_channel, remove_drift  # noqa: E402
 
 #: (label, variant, window, colour). `__rolling__`/`__linear__` dispatch to the local estimators.
 #: 60 s is deliberately absent -- measured as the worst available, its ~110 s cutoff sitting inside
@@ -61,8 +61,8 @@ def plot(label, outdir):
     s = next(x for x in config.load_sessions() if x["label"] == label)
     res = Path(s["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
-    a0 = svt[:, FUNC::2].astype(np.float64)
-    b0 = svt[:, (FUNC + 1) % 2::2].astype(np.float64)
+    a0 = svt[:, functional_channel(s)::2].astype(np.float64)
+    b0 = svt[:, (functional_channel(s) + 1) % 2::2].astype(np.float64)
     n = a0.shape[1]
     t = np.arange(n) / FS / 60.0
     mask = _mask_for(s, n)

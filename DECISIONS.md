@@ -14533,3 +14533,74 @@ wrong direction, and there is a mechanism: `SVTcorr = blue - T @ other`, so when
 term dominates component 0 the corrected trace can genuinely resemble the CONTROL half more than the
 functional one. The heuristic is structurally unsound, not merely noisy -- which retires it for good
 as anything but a warning.
+
+---
+
+## THE CHANNEL-SWAP AUDIT: production was already right, TEN DIAGNOSTICS WERE NOT (2026-09-19)
+
+Priya, after the `channel_position_maps` swap: *"just checking that the errors you found were just
+in this code, and not in the pipeline code"*, and then *"i'm pretty sure we corrected the channel
+swap bugs for our figures"*. **Both correct. Verified rather than assumed, and the audit found a
+separate live exposure alongside.**
+
+### PRODUCTION IS CORRECT, END TO END
+
+`FUNC = 1` is the cohort default. **Two sessions are not 1**, and `PS92_0828` is in the curated post
+set (`PS92_0602` is not analysed). Its provenance chain:
+
+    configs/session_overrides.yaml   functional_channel: 0
+    -> preprocess.py passes it per session
+    -> local_wfield_summary.json     functional_channel = 0
+    -> hemo_meegkit_hpfit/manifest.json  functional_channel = 0
+
+So `SVTcorr` on disk is right, and **every figure in the deck is built on `SVTcorr`**. Nothing in the
+results path was ever wrong. The cause is on record in the override file: labcams saved a normal
+alternating session mislabelled single-channel, and the rescue relabel locked exposure offset 1.
+
+### THE EXPOSURE WAS IN CODE THAT SLICES **RAW** `SVT` BY THE MODULE CONSTANT
+
+Ten call sites, all reading `svt[:, FUNC::2]` as 470 — correct for 113 sessions, backwards for
+`PS92_0828`:
+
+    wfield_local/filter_acausality_test.py   (the drift-mode comparison + its mask sizing)
+    wfield_local/hemo_residual_check.py      (raw 470 / raw 415 global traces)
+    wfield_local/hemo_map_control.py         (`_iso_slice`, the isosbestic control itself)
+    scripts/rest_migration/                  plot_drift_estimators, plot_session_residual,
+                                             onset_edge_bias, stopped_tail_contamination,
+                                             cutoff_scaling, worktrunc_result_impact,
+                                             find_stopped_sessions, nvc_evoked
+
+**`hemo_map_control` is the one that stings**, because its own comment says the slot is *"taken from
+`hemo_variants` rather than written down again, because getting it backwards would compare the map
+against itself and return a reassuring r = 1.0 as evidence of cleanliness"* — the right instinct,
+pointed at a constant that is not per-session.
+
+**THE FIX IS A FUNCTION, NOT A CONSTANT.** `hemo_variants.functional_channel(session)` reads the
+per-session config; all ten sites now call it. `filter_acausality_test.svtcorr` takes a bare array
+with no session available, so it gained an explicit `func=` argument that its caller passes.
+
+### WHAT IT WOULD HAVE COST, kept in proportion
+
+One session of 113, in DIAGNOSTICS rather than results. No published number moves. But these
+modules exist to adjudicate preprocessing choices — `PREPROCESSING_DECISION.md` was settled on
+`filter_acausality_test` and `hemo_residual_check` output — and a QC module that silently swaps
+channels on one session produces exactly the kind of outlier that later acquires an explanation.
+Which is not hypothetical: it is what happened this afternoon in `channel_position_maps`, where the
+swapped session became "PS93's correction is misbehaving" before the margin was checked.
+
+### AND THE COLOUR-LIMIT BUG DOES **NOT** REACH THE PIPELINE, measured rather than reasoned
+
+The main results path (`epoch_figures.map_grid._lim`) applies its `blank` mask before taking the
+percentile — safe by construction. The preprocessing-deck builders (`framemap_event_maps`,
+`plot_lick_aligned_averages._shared_limit`, `plot_lick_vs_cue_spout_maps._robust_limit`,
+`plot_spout_trial_averages`) do ravel the full frame, so they share the *exposure*. Measured on real
+`U_atlas @ SVTcorr` maps, all-pixel against in-mask 99th percentile:
+
+    PS92_0608   0.140 / 0.146   x0.96
+    PS93_0606   0.038 / 0.028   x1.38
+    PS94_0606   0.036 / 0.038   x0.96
+
+**Up to ~1.4x, and — decisively — those modules compute ONE limit across all six positions.** A
+uniform washout keeps positions comparable; it cannot produce the differential 1.0x-against-4.8x
+spread that made my figure misreadable. So: cosmetic there, not a correctness problem, and not the
+same bug. My version was worse specifically because it scaled PER ROW.

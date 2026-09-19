@@ -61,8 +61,8 @@ def check(lab, variants, verbose=True):
     U = np.load(ad[0] + "/U_atlas.npy")
     mask = np.load(ad[0] + "/allen_brain_mask_native_grid.npy").astype(bool).reshape(-1)
     svt = np.load(res + "/SVT.npy")
-    raw470 = _global_trace(U, mask, svt[:, hv.FUNC::2].astype(np.float64))
-    raw415 = _global_trace(U, mask, svt[:, (hv.FUNC + 1) % 2::2].astype(np.float64))
+    raw470 = _global_trace(U, mask, svt[:, hv.functional_channel(s)::2].astype(np.float64))
+    raw415 = _global_trace(U, mask, svt[:, (hv.functional_channel(s) + 1) % 2::2].astype(np.float64))
     n = min(raw470.size, raw415.size)
     raw470, raw415 = raw470[:n], raw415[:n]
 

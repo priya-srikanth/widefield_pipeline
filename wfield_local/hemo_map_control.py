@@ -50,13 +50,14 @@ import numpy as np
 
 from wfield_local.beta_maps import MAP_SHAPE, MIN_TRIALS_PER_CLASS, _quit_mask, brain_mask, map_corr
 
-#: Which half of the interleaved raw `SVT.npy` is the isosbestic (calcium-free) channel. `FUNC` is
-#: the functional (470) index, so the other one is 415 -- taken from `hemo_variants` rather than
-#: written down again, because getting it backwards would compare the map against itself and return
-#: a reassuring r = 1.0 as evidence of cleanliness.
-def _iso_slice():
+#: Which half of the interleaved raw `SVT.npy` is the isosbestic (calcium-free) channel. The
+#: functional (470) index is PER SESSION -- `hemo_variants.functional_channel`, not the cohort
+#: constant, because PS92_0828 is 0 (2026-09-19 audit) -- so the other slot is 415. Taken from
+#: there rather than written down again, because getting it backwards would compare the map against
+#: itself and return a reassuring r = 1.0 as evidence of cleanliness.
+def _iso_slice(session):
     from wfield_local import hemo_variants as hv
-    return slice((hv.FUNC + 1) % 2, None, 2)
+    return slice((hv.functional_channel(session) + 1) % 2, None, 2)
 
 
 def vessel_template(session, sigma=12.0):
@@ -102,7 +103,7 @@ def session_control(session, align, *, post_s=2.0, variant="working"):
     code_of = {nm: int(c) for c, nm in POSITION_NAMES.items()}
     u, v = joint_basis._load_session(session["mc"])
     raw = np.load(f"{session['mc']}/wfield_local_results/SVT.npy", mmap_mode="r")
-    iso = np.asarray(raw[:, _iso_slice()], np.float32)
+    iso = np.asarray(raw[:, _iso_slice(session)], np.float32)
     # THE TWO SERIES MUST BE THE SAME LENGTH or the frame indices mean different times in each.
     # The raw file holds 2T interleaved samples against SVTcorr's T, but a repaired or truncated
     # session can be off by one pair, and silently trimming the WRONG one would shift every trial.

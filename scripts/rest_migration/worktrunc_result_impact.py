@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 
 from wfield_local import config
-from wfield_local.hemo_variants import FS, FUNC, VARIANTS, remove_drift
+from wfield_local.hemo_variants import FS, functional_channel, VARIANTS, remove_drift
 
 VARIANT = "meegkit_hpfit"
 
@@ -111,8 +111,8 @@ def _detrend(x, mask, k, order=None, variant=None, win_s=None):
 def build(s, svt, mask, T, k, order=None, variant=None, win_s=None):
     from wfield_local.filter_acausality_test import LP, _lp
 
-    a = _detrend(svt[:, FUNC::2].astype(np.float64), mask, k, order, variant, win_s)
-    b = _detrend(svt[:, (FUNC + 1) % 2::2].astype(np.float64), mask, k, order, variant, win_s)
+    a = _detrend(svt[:, functional_channel(s)::2].astype(np.float64), mask, k, order, variant, win_s)
+    b = _detrend(svt[:, (functional_channel(s) + 1) % 2::2].astype(np.float64), mask, k, order, variant, win_s)
     if LP < FS / 2:
         b = _lp(b)
     a = (a.T - np.nanmean(a, 1)).T
@@ -156,7 +156,7 @@ def run(label):
     res = Path(s["mc"]) / "wfield_local_results"
     allen = glob.glob(f"{res}/allen_aligned_affine8v1")[0]
     svt = np.load(res / "SVT.npy")
-    n = svt[:, FUNC::2].shape[1]
+    n = svt[:, functional_channel(s)::2].shape[1]
     k = _last_engaged_frame(label, n)
     mask = _mask_for(s, n)
     if k is None or mask is None:

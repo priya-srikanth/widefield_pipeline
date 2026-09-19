@@ -74,23 +74,23 @@ LICK_RESP_S = 2.0                 # a lick this soon after the cue makes the tri
 
 def session_traces(s):
     """``(t, pct470, pct415, cue_frames, lick_frames)`` -- brain-mean % traces and event frames."""
-    from wfield_local.hemo_variants import FS, FUNC
+    from wfield_local.hemo_variants import FS, functional_channel
     from scripts.rest_migration.plot_session_residual import _brain_mean_op
 
     res = Path(s["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
-    a0 = svt[:, FUNC::2].astype(np.float64)              # functional (blue) by convention
-    b0 = svt[:, (FUNC + 1) % 2::2].astype(np.float64)    # the other one
-    # DERIVE which is blue rather than trusting FUNC: SVTcorr IS the corrected blue channel.
-    try:
-        sc = np.load(res / "SVTcorr.npy").astype(np.float64)
-        n = min(sc.shape[1], a0.shape[1], b0.shape[1])
-        ra = abs(np.corrcoef(sc[0, :n], a0[0, :n])[0, 1])
-        rb = abs(np.corrcoef(sc[0, :n], b0[0, :n])[0, 1])
-        if rb > ra:
-            a0, b0 = b0, a0
-    except Exception:                                    # noqa: BLE001
-        pass
+    # PER-SESSION, NOT THE COHORT CONSTANT: PS92_0828 is 0, and it is in the curated post set.
+    #
+    # AND NOT THE CORRELATION HEURISTIC THIS MODULE USED UNTIL 2026-09-19, which picked blue as
+    # whichever half `SVTcorr` component 0 tracked. That is unsound, not merely noisy:
+    # `SVTcorr = blue - T @ other`, so where the haemodynamic term dominates component 0 the
+    # corrected trace genuinely resembles the CONTROL half more. Measured margins ran from 0.030
+    # (a coin flip, PS93_0606) to a confident 0.071-vs-0.370 disagreement (PS92_0824), and in
+    # `channel_position_maps` it swapped a session's channels and produced a figure that looked
+    # like a finding rather than a fault.
+    fc = functional_channel(s)
+    a0 = svt[:, fc::2].astype(np.float64)                # functional (470)
+    b0 = svt[:, (fc + 1) % 2::2].astype(np.float64)      # the 415 control
 
     u_mean, _npix = _brain_mean_op(s["mc"])
     d470 = u_mean @ a0

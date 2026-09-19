@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 
 from wfield_local import config
-from wfield_local.hemo_variants import FS, FUNC
+from wfield_local.hemo_variants import FS, functional_channel
 
 
 def _last_engaged_s(label):
@@ -66,7 +66,7 @@ def main():
         if last_s is None:
             continue
         try:
-            f = np.asarray(np.load(svt_p, mmap_mode="r")[0, FUNC::2], dtype=np.float64)
+            f = np.asarray(np.load(svt_p, mmap_mode="r")[0, functional_channel(s)::2], dtype=np.float64)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {s['label']}: {type(ex).__name__} {str(ex)[:50]}", flush=True)
             continue

@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 
 from wfield_local import config
-from wfield_local.hemo_variants import FS, FUNC, remove_drift
+from wfield_local.hemo_variants import FS, functional_channel, remove_drift
 
 BINS_MIN = ((0.0, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 5.0), (5.0, 10.0), (10.0, 20.0))
 
@@ -42,7 +42,7 @@ def run(label):
     s = next(x for x in config.load_sessions() if x["label"] == label)
     res = Path(s["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
-    a = svt[:, FUNC::2].astype(np.float64)
+    a = svt[:, functional_channel(s)::2].astype(np.float64)
     n = a.shape[1]
     mask = _mask_for(s, n)
     if mask is None:
