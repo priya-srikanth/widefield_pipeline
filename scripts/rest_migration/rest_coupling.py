@@ -10,7 +10,9 @@ uneven-sampling-in-time correction, and a far-contralateral acute cell holding *
 **BUT NOT FOR THE REASON I FIRST GAVE, and the correction matters for how much to expect.** I said
 the task analysis was trial-limited at ~100 trials per position. It is not -- those are POOLED, and
 pre-stroke runs ~3,650 trials per position per arm. **THE BINDING CONSTRAINT IS FOUR ANIMALS**
-(three in chronic; PS94 has none), because the bootstrap resamples animals first. More samples per
+(three in chronic: PS94 contributes no chronic REST session even under the revised 09-19
+boundary of day 25, re-checked against the new rule and no epoch label in this dataset moved),
+because the bootstrap resamples animals first. More samples per
 session therefore do NOT narrow an animal-limited CI much. Rest buys cleaner cells and removes the
 behavioural confounds; it does not buy power against between-animal variance.
 

@@ -14950,6 +14950,9 @@ Priya, reviewing PS94: "PS94 STILL not chronic epoch?" and then "I'm assessing w
 **Biology.** Mice typically recover within ~3–5 weeks. The new labels (days 11, 11, 25, 15 = 1.5–3.5 weeks) all sit in that window; PS94 plateauing at 3.5 weeks is textbook, and the old "PS94 never plateaus" was biologically implausible.
 
 **Boundaries moved (ratified by Priya, this account): PS94 null → 25, PS95 11 → 15;** PS92 and PS93 unchanged at 11. Updated in `configs/animals.yaml` and `tests/test_epochs.py` (SPEC). `configs/defaults.yaml epochs.chronic`: `k_res 0.5`, `flat_onesided: true`. `epochs.CHRONIC_RULE` now reads "… upward drift across the window ≤ 1 × pre-stroke SD (not still rising) … settled (residual ≤ 0.5 × pre-stroke SD) …", derived from the constants and stamped into `epoch_boundaries.json`. Every epoch figure restages: the chronic epoch is now FOUR animals (PS92 11, PS93 11, PS94 25, PS95 15).
+
+---
+
 ## THE HAEMODYNAMIC LAG AT REST: blood follows calcium by ~0.45 s, and `argmax` had the sign backwards (2026-09-19)
 
 `scripts/rest_migration/rest_coupling.py`. This entry is about HOW the number was got, because the
