@@ -5240,6 +5240,28 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          " mask selected the dim anterior edge (row 183 +/- 198, mean intensity 2046 against the"
          " brain`s 13048) and only 49% of it overlapped real vasculature."),
 
+        ("epoch_16_nvc_evoked.png",
+         "CUE-EVOKED RAW 415 AND 470 at frame resolution -- is 415 isosbestic HERE?",
+         "TIMING SETTLES WHAT AMPLITUDE CANNOT. Calcium is fast (hundreds of ms), haemodynamics"
+         " slow (peaks 1-2 s). If 415 sits BELOW GCaMP`s neutral/anionic crossing there is an"
+         " EARLY NEGATIVE deflection before the slow positive one; if 415 were truly isosbestic"
+         " there is no early dip at all. The +0.54% to +1.96% cue-evoked 415 rises quoted"
+         " elsewhere are WINDOW AVERAGES over the whole post-cue period, which average an early"
+         " dip away completely -- which is exactly why they looked like a clean positive"
+         " haemodynamic response."
+         "\n\nTHE LITERATURE DISAGREES ON WHERE THE CROSSING SITS, and two of three estimates"
+         " put our 415 BELOW it: conventional photometry practice 405-415; Simpson et al. 2024"
+         " (Neuron primer) 420-430 for GCaMP6; Barnett/Drobizhev 2017 440-450 for GCaMP6m with NO"
+         " true isosbestic point. Simpson also names this observable directly, from a 405 nm"
+         " control against GCaMP6f: significant negative bleed-through `evident as a NEGATIVE PEAK"
+         " IN THE EVENT-ALIGNED AVERAGE`."
+         "\n\nREAD WITH `epoch_20` AND `epoch_21`, which reach the same conclusion from the"
+         " time course and from the vessel/parenchyma dilution ratio."
+         "\n\nNOT NORMALISED, DELIBERATELY. `U @ SVT` reconstructs the DEVIATION from each"
+         " channel`s mean, so the reconstructed means are ZERO and dividing by them is division by"
+         " ~0 -- a trap already paid here once (+692% and -2881% evoked responses). It is ALREADY"
+         " fractional; the fix is not a different denominator, it is NO denominator."),
+
         # ---- ENGAGEMENT: the quit, and what declines within a session (2026-09-20) ------------
         ("epoch_23_quit_prodrome_gated_h90.png",
          "IS THE QUIT A STEP OR AN ACCUMULATION? Lick rate across the session",
