@@ -202,6 +202,25 @@ def session_rest_coupling(s):
     return out or None
 
 
+def session_rows(lab):
+    """Rows for one session, or ``None``. MODULE-LEVEL for `parallel.fan_out` (ground rule 6).
+
+    Spawn pickles the worker BY NAME and re-imports this module in each child, so nothing may be
+    passed through a runtime global. The label is enough: the session record is looked up inside.
+    """
+    from wfield_local import config, epochs
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return None
+    got = session_rest_coupling(s)
+    if not got:
+        return None
+    for r in got:
+        r.update(animal=config.animal_of(lab), epoch=epochs.epoch_of(lab))
+    return got
+
+
 def _boot(by_animal, rng, n_boot=N_BOOT):
     animals = sorted(by_animal)
     if not animals:
@@ -262,41 +281,43 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes; default `parallel.default_jobs()` (cores-2, cap 8)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--from-csv", action="store_true",
                     help="re-derive the tables from epoch_19_rest_coupling.csv without reloading "
                          "any SVD -- one file read instead of an hour")
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs
+    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     q = out_dir / "epoch_19_rest_coupling.csv"
     rows = []
-    for s in ([] if a.from_csv else config.load_sessions()):
-        lab = s["label"]
-        if lab not in want or (a.animals and config.animal_of(lab) not in a.animals):
-            continue
-        ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
-        try:
-            got = session_rest_coupling(s)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-            continue
-        if not got:
-            print(f"  .. {lab}: too little rest -- skipped", flush=True)
-            continue
-        for r in got:
-            r.update(animal=config.animal_of(lab), epoch=ep)
-        rows += got
-        w = {r["side"]: r for r in got}
-        print(f"   {lab:14s} {ep:9s} rest {got[0]['n_rest_s'] / 60:.0f} min   "
-              + "  ".join(f"{k} r={v['r_zero_lag']:+.2f} lag={v['lag_s']:+.2f}s"
-                          for k, v in w.items() if k in ("ipsi", "contra")), flush=True)
+    if not a.from_csv:
+        labels = [s["label"] for s in config.load_sessions()
+                  if s["label"] in want and epochs.epoch_of(s["label"])
+                  and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
+        res, fail = parallel.fan_out(labels, session_rows, jobs=a.jobs, label="session")
+        # SORTED, NOT COMPLETION ORDER. Every bootstrap pool below is built by iterating `rows`,
+        # and a seeded RNG drawing indices over a differently-ordered list gives different draws --
+        # measured on `quit_prodrome`, where completion order moved a CI from [-22.9,-13.7] to
+        # [-23.1,-13.6] while leaving the point estimate exact.
+        for _lab, got in sorted((x for x in res if x[1]), key=lambda kv: kv[0]):
+            rows += got
+            w = {r["side"]: r for r in got}
+            print(f"   {got[0]['label']:14s} {got[0]['epoch']:9s} "
+                  f"rest {got[0]['n_rest_s'] / 60:.0f} min   "
+                  + "  ".join(f"{k} r={v['r_zero_lag']:+.2f} lag={v['lag_s']:+.2f}s"
+                              for k, v in w.items() if k in ("ipsi", "contra")), flush=True)
+        n_none = sum(1 for x in res if not x[1])
+        if n_none:
+            print(f"  .. {n_none} session(s) had too little rest -- skipped", flush=True)
+        if fail:
+            print(f"  !! {len(fail)} session(s) failed: "
+                  + ", ".join(f"{x[0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
 
     if a.from_csv:
         # SUMMARY-ONLY PATH. Every table below is a function of the CSV alone, so re-deriving

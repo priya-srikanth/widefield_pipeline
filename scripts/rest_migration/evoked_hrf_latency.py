@@ -112,6 +112,24 @@ def session_latency(s):
                 dip_at_edge=bool(abs(t[k415] - DIP_WIN[1]) < 1.5 / FS))
 
 
+def session_latency_row(lab):
+    """One row for `lab`, or ``None``. MODULE-LEVEL for `parallel.fan_out` (ground rule 6).
+
+    Spawn pickles the worker BY NAME and re-imports this module in each child, so the label is
+    passed and the session record looked up inside rather than shipped across.
+    """
+    from wfield_local import config, epochs
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return None
+    r = session_latency(s)
+    if r is None:
+        return None
+    r.update(animal=config.animal_of(lab), epoch=epochs.epoch_of(lab))
+    return r
+
+
 def _boot(by_animal, rng, n_boot=N_BOOT):
     animals = sorted(by_animal)
     if not animals:
@@ -155,36 +173,36 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes; default `parallel.default_jobs()` (cores-2, cap 8)")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs
+    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
-    rows = []
-    for s in config.load_sessions():
-        lab = s["label"]
-        if lab not in want or (a.animals and config.animal_of(lab) not in a.animals):
-            continue
-        ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
-        try:
-            r = session_latency(s)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-            continue
-        if r is None:
-            print(f"  .. {lab}: too few engaged cues -- skipped", flush=True)
-            continue
-        r.update(animal=config.animal_of(lab), epoch=ep)
-        rows.append(r)
-        print(f"   {lab:14s} {ep:9s} {r['n_cue']:4d} cues  470 peak {r['t_peak_470']:+.2f}s "
-              f"({r['amp_peak_470']:+.2f}%)  415 dip {r['t_dip_415']:+.2f}s "
-              f"({r['amp_dip_415']:+.2f}%)  latency {r['latency']:+.2f}s"
+    labels = [s["label"] for s in config.load_sessions()
+              if s["label"] in want and epochs.epoch_of(s["label"])
+              and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
+    res, fail = parallel.fan_out(labels, session_latency_row, jobs=a.jobs, label="session")
+    # SORTED, NOT COMPLETION ORDER -- every bootstrap pool is built by iterating `rows`, and a
+    # seeded RNG over a differently-ordered list gives different draws (measured on
+    # `quit_prodrome`: the CI moved while the point estimate stayed exact).
+    rows = [r for _lab, r in sorted((x for x in res if x[1]), key=lambda kv: kv[0])]
+    for r in rows:
+        print(f"   {r['label']:14s} {r['epoch']:9s} {r['n_cue']:4d} cues  "
+              f"470 peak {r['t_peak_470']:+.2f}s ({r['amp_peak_470']:+.2f}%)  "
+              f"415 dip {r['t_dip_415']:+.2f}s ({r['amp_dip_415']:+.2f}%)  "
+              f"latency {r['latency']:+.2f}s"
               + ("" if r["dip_is_negative"] else "   NO NEGATIVE DIP"), flush=True)
+    n_none = sum(1 for x in res if not x[1])
+    if n_none:
+        print(f"  .. {n_none} session(s) had too few engaged cues -- skipped", flush=True)
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
 
     if not rows:
         print("no sessions -- a failed run, not a result")

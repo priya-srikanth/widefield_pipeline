@@ -474,62 +474,68 @@ def main(argv=None) -> int:
                             n_near=len(nn), n_far=len(ff)))
     print(f"\n  wrote {qa}")
 
-    # ---- FIRST 25% vs LAST 25% OF THE SESSION (Priya, 2026-09-20) -----------------------------
-    # **THE WITHIN-SESSION CHANGE AS ONE NUMBER PER CELL**, which the curves cannot give: a curve
-    # shows the shape but the eye cannot integrate it, and the late bins are the thinnest. Read on
-    # TRIAL ORDER so a long session and a short one contribute the same way.
-    Q = 0.25
+    # ---- SESSION QUINTILES (Priya, 2026-09-20: *"would quintile be better than quartile?"*) ----
+    # **YES, AND THE REASON IS COMPARABILITY RATHER THAN RESOLUTION.** `engagement_decomposition`
+    # already reports acute near-spout HIT RATE by session quintile as
+    # 0.972 / 0.937 / 0.792 / 0.457 / 0.282. Putting licks-per-trial and ILI on the SAME bins makes
+    # one sentence possible -- "across the quintiles where hit rate collapses from 0.97 to 0.28,
+    # ILI does not move" -- which on a different binning would be hand-waving.
+    #
+    # Two lesser reasons: Q1 and Q5 are further apart than the first and last QUARTER, so a
+    # monotonic decline shows a larger difference; and five bins separate a STEADY decline from a
+    # LATE COLLAPSE, which no two-point summary can.
+    NQ = 5
     fl = {}
     for key, src in (("rate", "per_pos"), ("ili", "per_ili")):
         for grp in ("near", "far"):
-            for half, sel in (("first", lambda f: f < Q), ("last", lambda f: f > 1 - Q)):
+            for b in range(NQ):
+                lo_f, hi_f = b / NQ, (b + 1) / NQ
                 d = defaultdict(list)
                 for v in sess.values():
                     vals = [x[1] for x in v.get(src, {}).get(grp, [])
-                            if len(x) > 2 and sel(x[2])]
+                            if len(x) > 2 and lo_f <= x[2] < hi_f + (1e-9 if b == NQ - 1 else 0)]
                     if len(vals) >= 5:
                         d[(v["epoch"], v["animal"])].append(float(np.median(vals)))
-                fl[(key, grp, half)] = d
+                fl[(key, grp, b)] = d
+
+    def _by_animal(key, grp, b, e):
+        out = defaultdict(list)
+        for (ee, an), vv in fl[(key, grp, b)].items():
+            if ee == e:
+                out[an] += vv
+        return out
 
     for key, unit, title in (("rate", "licks/trial", "LICKS PER TRIAL"),
                              ("ili", "ms", "MEDIAN INTER-LICK INTERVAL")):
-        print(f"\n{bar}\nFIRST 25% vs LAST 25% OF THE SESSION -- {title} ({unit})\n{bar}")
-        print(f"  {'epoch':<10}{'spouts':<7}{'first 25%':>20}{'last 25%':>20}"
-              f"{'last - first (paired)':>30}")
+        print(f"\n{bar}\nSESSION QUINTILES -- {title} ({unit})\n{bar}")
+        print(f"  {'epoch':<10}{'spouts':<7}" + "".join(f"{'Q' + str(i + 1):>11}" for i in range(NQ))
+              + f"{'Q5 - Q1 (paired)':>28}")
         for e in EPS:
             for grp in ("near", "far"):
-                bya = defaultdict(list)
-                byb = defaultdict(list)
-                for (ee, an), vv in fl[(key, grp, "first")].items():
-                    if ee == e:
-                        bya[an] += vv
-                for (ee, an), vv in fl[(key, grp, "last")].items():
-                    if ee == e:
-                        byb[an] += vv
-                g1, g2 = _boot(bya, rng), _boot(byb, rng)
-                shared = sorted(set(bya) & set(byb))
-                gd = None
+                line = f"  {e:<10}{grp:<7}"
+                for b in range(NQ):
+                    g = _boot(_by_animal(key, grp, b, e), rng)
+                    line += f"{g[0]:>11.1f}" if g else f"{'--':>11}"
+                a1, a5 = _by_animal(key, grp, 0, e), _by_animal(key, grp, NQ - 1, e)
+                shared = sorted(set(a1) & set(a5))
                 if shared:
-                    obs = float(np.mean([np.mean(byb[x]) - np.mean(bya[x]) for x in shared]))
+                    obs = float(np.mean([np.mean(a5[x]) - np.mean(a1[x]) for x in shared]))
                     draws = []
                     for _ in range(N_BOOT):
                         dd = []
                         for x in (shared[i] for i in rng.integers(0, len(shared), len(shared))):
-                            pa, qa = byb[x], bya[x]
+                            pa, qa = a5[x], a1[x]
                             dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
                                       - np.mean([qa[i] for i in rng.integers(0, len(qa),
                                                                              len(qa))]))
                         draws.append(float(np.mean(dd)))
                     lo, hi = np.percentile(draws, [2.5, 97.5])
-                    gd = (obs, float(lo), float(hi), len(shared))
-                line = f"  {e:<10}{grp:<7}"
-                line += (f"{g1[0]:>11.1f} [{g1[1]:.0f},{g1[2]:.0f}]" if g1 else f"{'--':>20}")
-                line += (f"{g2[0]:>11.1f} [{g2[1]:.0f},{g2[2]:.0f}]" if g2 else f"{'--':>20}")
-                if gd:
-                    star = " *" if (gd[1] > 0 or gd[2] < 0) else "  "
-                    line += f"{gd[0]:>+16.1f} [{gd[1]:+.1f},{gd[2]:+.1f}]{star}({gd[3]})"
+                    star = " *" if (lo > 0 or hi < 0) else "  "
+                    line += f"{obs:>+14.1f} [{lo:+.1f},{hi:+.1f}]{star}({len(shared)})"
                 print(line)
-        print("  paired = within animal, only animals with BOTH halves. * = CI excludes zero.")
+        print("  paired = within animal, only animals with BOTH Q1 and Q5. * = CI excludes zero.")
+    print(f"\n  COMPARE against the hit-rate quintiles in `engagement_decomposition`:")
+    print("    acute NEAR hit rate 0.972 / 0.937 / 0.792 / 0.457 / 0.282 over these same bins.")
 
     fig2, ax2 = plt.subplots(2, 4, figsize=(17.5, 8.0))
     for i_k, (key, ylab) in enumerate((("rate", "licks per trial"),
@@ -538,25 +544,20 @@ def main(argv=None) -> int:
             axx = ax2[i_k][j]
             for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
                 xs, ys, los, his = [], [], [], []
-                for h_i, half in enumerate(("first", "last")):
-                    bya = defaultdict(list)
-                    for (ee, an), vv in fl[(key, grp, half)].items():
-                        if ee == e:
-                            bya[an] += vv
-                    g = _boot(bya, rng)
+                for b in range(NQ):
+                    g = _boot(_by_animal(key, grp, b, e), rng)
                     if g:
-                        xs.append(h_i)
+                        xs.append(b + 1)
                         ys.append(g[0])
                         los.append(g[1])
                         his.append(g[2])
-                if len(xs) == 2:
-                    axx.errorbar(xs, ys, yerr=[np.array(ys) - np.array(los),
-                                               np.array(his) - np.array(ys)],
-                                 marker="o", ms=6, lw=2, capsize=4, color=cc, label=grp)
-            axx.set_xticks([0, 1])
-            axx.set_xticklabels(["first 25%", "last 25%"])
-            axx.set_xlim(-0.35, 1.35)
+                if len(xs) >= 3:
+                    axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
+                    axx.fill_between(xs, los, his, color=cc, alpha=0.15, lw=0)
+            axx.set_xticks(range(1, NQ + 1))
+            axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
             axx.set_title(e, fontsize=10)
+            axx.set_xlabel("session quintile")
             if j == 0:
                 axx.set_ylabel(ylab)
                 axx.legend(fontsize=8, frameon=False)
@@ -567,12 +568,12 @@ def main(argv=None) -> int:
             hi = max(x.get_ylim()[1] for x in used)
             for x in used:
                 x.set_ylim(lo, hi)
-    fig2.suptitle("FIRST 25% vs LAST 25% of the session, by epoch and spout group. "
-                  "Y axes shared within each row.\n"
+    fig2.suptitle("SESSION QUINTILES by epoch and spout group -- the same bins as the hit-rate "
+                  "quintiles in `engagement_decomposition`.\n"
                   "TOP licks per trial = engagement + motor. BOTTOM inter-lick interval = MOTOR "
-                  "ONLY.", fontsize=10)
+                  "ONLY. Y axes shared within each row.", fontsize=10)
     fig2.tight_layout(rect=(0, 0, 1, 0.91))
-    p2 = out_dir / f"epoch_24_first_last_quartile{tag}.png"
+    p2 = out_dir / f"epoch_24_session_quintiles{tag}.png"
     fig2.savefig(p2, dpi=170)
     print(f"\n  wrote {p2}")
 
