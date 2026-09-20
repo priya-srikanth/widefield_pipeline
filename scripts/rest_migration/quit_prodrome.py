@@ -112,90 +112,112 @@ def _boot(by, rng, n_boot=N_BOOT):
     return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--animals", nargs="+", default=None)
-    ap.add_argument("--seed", type=int, default=20260919)
-    ap.add_argument("--out", type=Path, default=None)
-    a = ap.parse_args(argv)
+def session_row(lab):
+    """All per-session work for `lab`, or ``None`` if the session cannot contribute.
 
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    **MODULE-LEVEL BECAUSE `parallel.fan_out` SPAWNS AND SPAWN PICKLES BY NAME** (CLAUDE.md ground
+    rule 6). Measured on six curated sessions: 52.3 s serial against 16.2 s over six workers, a
+    x3.2 speed-up with byte-identical results. The loop is ~100% I/O -- `session_trials` and the
+    lick/cue reads come off MICROSCOPE -- so the gain is from overlapping waits, not from cores,
+    and it will not scale linearly however many workers are thrown at it.
+    """
+    import numpy as np
     from wfield_local import config, epochs
-    from wfield_local.paths import PathResolver
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
     from scripts.rest_migration.channel_position_maps import _daq_rate
     from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
     from scripts.rest_migration.quit_point import session_quit
 
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return None
+    tr = session_trials(s, 2.0)
+    if len(tr) < 60:
+        return None
+    q = session_quit(s, tr)
+    if q is None:
+        return None
+    t, c = _cum(tr)
+
+    # PER-TRIAL LICKS BY POSITION. `cum_licks` is the running count at each cue, so the difference
+    # between consecutive cues is the licks belonging to that trial, and the position is the
+    # EARLIER trial's. The last trial has no successor and is dropped.
+    tt = sorted(tr, key=lambda r: float(r["elapsed_s"]))
+    near = near_codes()
+    per_pos = {"near": [], "far": []}
+    for i in range(len(tt) - 1):
+        dl = float(tt[i + 1]["cum_licks"]) - float(tt[i]["cum_licks"])
+        if dl < 0:
+            continue
+        per_pos["near" if int(tt[i]["pos"]) in near else "far"].append(
+            (float(tt[i]["elapsed_s"]), dl))
+
+    # PER-TRIAL MEDIAN INTER-LICK INTERVAL, the motor-only measure. Needs the actual lick TIMES,
+    # which `session_trials` does not return -- it stores a running COUNT.
+    per_ili = {"near": [], "far": []}
+    cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
+    lick_s = np.asarray(_load_daq_events(s["h5"], "lick_analog", 2.5, 1.0,
+                                         (0.001, 0.020), 0.10)["lick_samples"], np.int64)
+    sr = float(_daq_rate(s))
+    for r in tt:
+        k = int(r["order"])
+        if k + 1 >= cs.size:
+            continue
+        seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
+        if seg.size < MIN_LICKS:
+            continue
+        iv = np.diff(seg) / sr
+        iv = iv[iv <= BOUT_MAX_S]                   # within-bout only
+        if iv.size < MIN_LICKS - 1:
+            continue
+        per_ili["near" if int(r["pos"]) in near else "far"].append(
+            (float(r["elapsed_s"]), float(np.median(iv)) * 1000.0))
+
+    return dict(label=lab, animal=config.animal_of(lab), epoch=epochs.epoch_of(lab),
+                t=t, c=c, per_pos=per_pos, per_ili=per_ili,
+                quit_s=(float("nan") if q["censored"] else float(q["quit_elapsed_s"])),
+                censored=bool(q["censored"]), end_s=float(t[-1]))
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--seed", type=int, default=20260919)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes; default `parallel.default_jobs()` (cores-2, cap 8)")
+    ap.add_argument("--out", type=Path, default=None)
+    a = ap.parse_args(argv)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import config, epochs, parallel
+    from wfield_local.paths import PathResolver
+
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
 
-    sess = {}
-    for s in config.load_sessions():
-        lab = s["label"]
-        if lab not in want or (a.animals and config.animal_of(lab) not in a.animals):
-            continue
-        ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
-        try:
-            tr = session_trials(s, 2.0)
-            if len(tr) < 60:
-                continue
-            q = session_quit(s, tr)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-            continue
-        if q is None:
-            continue
-        t, c = _cum(tr)
-        # PER-TRIAL LICKS BY POSITION. `cum_licks` is the running count at each cue, so the
-        # difference between consecutive cues is the licks belonging to that trial, and the
-        # position is the EARLIER trial's. The last trial has no successor and is dropped.
-        tt = sorted(tr, key=lambda r: float(r["elapsed_s"]))
-        near = near_codes()
-        per_pos = {"near": [], "far": []}
-        for i in range(len(tt) - 1):
-            dl = float(tt[i + 1]["cum_licks"]) - float(tt[i]["cum_licks"])
-            if dl < 0:
-                continue
-            per_pos["near" if int(tt[i]["pos"]) in near else "far"].append(
-                (float(tt[i]["elapsed_s"]), dl))
-
-        # PER-TRIAL MEDIAN INTER-LICK INTERVAL, the motor-only measure. Needs the actual lick
-        # TIMES, which `session_trials` does not return -- it stores a running COUNT.
-        per_ili = {"near": [], "far": []}
-        try:
-            cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
-            lick_s = np.asarray(_load_daq_events(s["h5"], "lick_analog", 2.5, 1.0,
-                                                 (0.001, 0.020), 0.10)["lick_samples"], np.int64)
-            sr = float(_daq_rate(s))
-            for r in tt:
-                k = int(r["order"])
-                if k + 1 >= cs.size:
-                    continue
-                seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
-                if seg.size < MIN_LICKS:
-                    continue
-                iv = np.diff(seg) / sr
-                iv = iv[iv <= BOUT_MAX_S]           # within-bout only
-                if iv.size < MIN_LICKS - 1:
-                    continue
-                per_ili["near" if int(r["pos"]) in near else "far"].append(
-                    (float(r["elapsed_s"]), float(np.median(iv)) * 1000.0))
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"      .. {lab}: no ILI ({type(ex).__name__})", flush=True)
-        sess[lab] = dict(animal=config.animal_of(lab), epoch=ep, t=t, c=c, per_pos=per_pos,
-                         per_ili=per_ili,
-                         quit_s=(float("nan") if q["censored"] else float(q["quit_elapsed_s"])),
-                         censored=bool(q["censored"]), end_s=float(t[-1]))
-        print(f"   {lab:14s} {ep:9s} "
-              + ("CENSORED" if q["censored"] else f"quit {q['quit_elapsed_s'] / 60:.0f} min")
-              + f"   ends {t[-1] / 60:.0f} min", flush=True)
+    labels = [s["label"] for s in config.load_sessions()
+              if s["label"] in want and epochs.epoch_of(s["label"])
+              and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
+    res, fail = parallel.fan_out(labels, session_row, jobs=a.jobs, label="session")
+    # **SORTED, NOT COMPLETION ORDER.** Keying by label is not enough: dict insertion order is
+    # completion order, every bootstrap pool is built by iterating `sess`, and a seeded RNG drawing
+    # indices over a differently-ordered list gives different draws. The first parallel run
+    # reproduced the point estimate exactly (-18.7) and moved the CI ([-22.9,-13.7] -> [-23.1,
+    # -13.6]) -- small, but a CI that changes run to run is not reproducible.
+    sess = {lab: r for lab, r in sorted(((r["label"], r) for _l, r in res if r is not None),
+                                        key=lambda kv: kv[0])}
+    for lab in sorted(sess):
+        v = sess[lab]
+        print(f"   {lab:14s} {v['epoch']:9s} "
+              + ("CENSORED" if v["censored"] else f"quit {v['quit_s'] / 60:.0f} min")
+              + f"   ends {v['end_s'] / 60:.0f} min", flush=True)
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
 
     if not sess:
         print("no sessions -- a failed run, not a result")
@@ -260,7 +282,13 @@ def main(argv=None) -> int:
             n_matched_controls=len(ctrl),
             rate_pre_quit=rate_in(v["t"], v["c"], tq + PRE_WIN[0], tq + PRE_WIN[1]),
             rate_ctrl=(float(np.nanmean([rate_in(w["t"], w["c"], tq + PRE_WIN[0], tq + PRE_WIN[1])
-                                         for w in ctrl])) if ctrl else float("nan"))))
+                                         for w in ctrl])) if ctrl else float("nan")),
+            # ILI GOES IN THE CSV so the per-animal check is a file read next time, not an
+            # hour of re-loading. It was not here the first time and that cost a whole re-run.
+            ili_near_ms=(float(np.median([x[1] for x in v["per_ili"]["near"]]))
+                         if v["per_ili"]["near"] else float("nan")),
+            ili_far_ms=(float(np.median([x[1] for x in v["per_ili"]["far"]]))
+                        if v["per_ili"]["far"] else float("nan"))))
 
     print(f"\n{bar}\nQUIT-ALIGNED, against TIME-MATCHED controls "
           f"({len(quitters)} quitters, {n_pairs} pairings)\n{bar}")
@@ -347,6 +375,64 @@ def main(argv=None) -> int:
     print("\n  A mouse licks at ~7 Hz, so ~140 ms is normal. ILI RISING across a session = the")
     print("  tongue slowing = MOTOR FATIGUE. ILI FLAT while licks-per-trial falls = the animal")
     print("  is choosing to stop, not losing the ability. This is the measure that separates them.")
+
+    # ---- PER-ANIMAL ILI, because a cohort mean at n=4 is not a result (ground rule 8) ---------
+    print(f"\n{bar}\nMEDIAN ILI (ms) PER ANIMAL, NEAR SPOUTS -- the check the cohort table "
+          f"cannot do\n{bar}")
+    print(f"  {'animal':<8}" + "".join(f"{e:>22}" for e in EPS))
+    ili_by = defaultdict(lambda: defaultdict(list))
+    for v in sess.values():
+        vals = [x[1] for x in v.get("per_ili", {}).get("near", [])]
+        if vals:
+            ili_by[v["animal"]][v["epoch"]].append(float(np.median(vals)))
+    for an in sorted(ili_by):
+        line = f"  {an:<8}"
+        for e in EPS:
+            vv = ili_by[an].get(e, [])
+            line += (f"{np.mean(vv):>14.0f} (n={len(vv):>2d})" if vv else f"{'--':>22}")
+        print(line)
+    print("\n  A cohort-level acute increase carried by fewer than three animals is not a result.")
+
+    # PAIRED WITHIN ANIMAL, the test the level table cannot do -- pre baselines run 151 to 173 ms
+    # across animals, so between-animal variance swamps a ~10 ms epoch effect unless it cancels.
+    print(f"\n  CHANGE FROM PRE in median near-spout ILI (ms), paired within animal")
+    for e in [x for x in EPS if x != "pre"]:
+        P = {k: v for k, v in ((an, ili_by[an].get(e, [])) for an in ili_by) if v}
+        Q = {k: v for k, v in ((an, ili_by[an].get("pre", [])) for an in ili_by) if v}
+        shared = sorted(set(P) & set(Q))
+        if not shared:
+            continue
+        obs = float(np.mean([np.mean(P[x]) - np.mean(Q[x]) for x in shared]))
+        draws = []
+        for _ in range(N_BOOT):
+            dd = []
+            for x in (shared[i] for i in rng.integers(0, len(shared), len(shared))):
+                pa, qa = P[x], Q[x]
+                dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
+                          - np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))]))
+            draws.append(float(np.mean(dd)))
+        lo, hi = np.percentile(draws, [2.5, 97.5])
+        star = " *" if (lo > 0 or hi < 0) else "  "
+        print(f"    {e:<10} {len(shared)} animals  {obs:>+7.1f} ms [{lo:+.1f}, {hi:+.1f}]{star}")
+    print("    A LONGER interval is SLOWER licking. This is a motor deficit if it holds.")
+
+    # ALL-SESSION ILI TO CSV. The per-quitter file below covers only 45 of 96 sessions, so the
+    # per-animal check could not be redone from it -- which is what forced a whole re-run.
+    qa = out_dir / "epoch_23_session_ili.csv"
+    with open(qa, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=["label", "animal", "epoch", "censored",
+                                           "ili_near_ms", "ili_far_ms", "n_near", "n_far"])
+        w.writeheader()
+        for lab in sorted(sess):
+            v = sess[lab]
+            nn = [x[1] for x in v["per_ili"]["near"]]
+            ff = [x[1] for x in v["per_ili"]["far"]]
+            w.writerow(dict(label=lab, animal=v["animal"], epoch=v["epoch"],
+                            censored=v["censored"],
+                            ili_near_ms=(float(np.median(nn)) if nn else ""),
+                            ili_far_ms=(float(np.median(ff)) if ff else ""),
+                            n_near=len(nn), n_far=len(ff)))
+    print(f"\n  wrote {qa}")
 
     # ---- FIGURE --------------------------------------------------------------------------------
     col = {"pre": "#4c72b0", "acute": "#c44e52", "subacute": "#dd8452", "chronic": "#55a868"}
