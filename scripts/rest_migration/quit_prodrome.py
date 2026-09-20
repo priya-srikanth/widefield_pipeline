@@ -11,8 +11,22 @@ Panel A is the literal request: lick rate against absolute session time, by epoc
 plot for "does the animal slow down as the session goes on", and it is the WRONG plot for "is the
 quit an accumulation or a step" -- **averaging step functions whose steps fall at different times
 manufactures a smooth ramp** whatever the underlying shape (`DECISIONS`, 2026-09-19). Panel A is
-therefore drawn twice: over all sessions, and over CENSORED sessions only (those with no detected
-quit at all), where no step can be hiding in the average.
+therefore drawn twice: over all sessions, and over CENSORED sessions only.
+
+**AND THE CENSORED PANEL IS NOT THE CLEAN CONTROL THIS DOCSTRING FIRST CLAIMED IT WAS.** It said
+"no step can be hiding in the average", which confuses NO QUIT with NO DETECTED QUIT. Priya spotted
+the difference on the figure (2026-09-20: *"in 23 quit prodrome gated, top row acute 'sessions with
+NO quit' still looks like there's a step off in lick number"*). `engagement_gate` needs a sustained
+non-recovering run to confirm a quit, so an animal that stops near the END of a session leaves too
+little tail and the session is labelled censored -- and post-stroke sessions run to a fixed ~120
+min, so a quit at 110 min has ten minutes to prove itself. The TERMINAL DROP table measures how
+often that happens instead of assuming it does not.
+
+**MEASURED, AND THE ACUTE CENSORED PANEL IS NOT USABLE.** Final 10 min against the session's own
+mid-session rate: pre 0.77 (29 sessions, 21% below half), chronic 0.86 (18, 6%), subacute 0.67
+(4, 25%) -- and **ACUTE 0.48 from FOUR sessions, THREE of which fall below half**. So the acute
+"no quit" curve is about one clean session plus three quits the gate could not confirm, which is
+exactly the step Priya saw in it. Read the pre and chronic censored curves; do not read acute.
 
 Panel B is the artefact-free version. Each quitter is aligned to ITS OWN quit, and compared with
 sessions from the SAME ANIMAL that were still engaged at that same absolute session time, read in
@@ -474,6 +488,33 @@ def main(argv=None) -> int:
                             n_near=len(nn), n_far=len(ff)))
     print(f"\n  wrote {qa}")
 
+    # ---- ARE THERE UNDETECTED QUITS IN THE "CENSORED" SESSIONS? ---------------------------
+    # A censored session is one the DETECTOR found no quit in, which is not the same as one
+    # the animal did not quit. Compare each censored session's final 10 min against its own
+    # mid-session rate: a deep terminal drop with NO detected quit is a MISSED quit, and it
+    # would put a step into the very panel that exists to be step-free.
+    print(f"\n{bar}\nTERMINAL DROP IN CENSORED SESSIONS -- missed late quits?\n{bar}")
+    print(f"  {'epoch':<10}{'censored n':>12}{'median last10/mid':>20}"
+          f"{'frac < 0.5':>13}{'frac < 0.25':>14}")
+    for e in EPS:
+        rat = []
+        for v in sess.values():
+            if v["epoch"] != e or not v["censored"]:
+                continue
+            end = v["end_s"]
+            mid = rate_in(v["t"], v["c"], 0.40 * end, 0.60 * end)
+            last = rate_in(v["t"], v["c"], end - 600.0, end)
+            if np.isfinite(mid) and np.isfinite(last) and mid > 1.0:
+                rat.append(last / mid)
+        if not rat:
+            continue
+        rat = np.asarray(rat)
+        print(f"  {e:<10}{len(rat):>12}{np.median(rat):>20.2f}"
+              f"{float((rat < 0.5).mean()):>13.2f}{float((rat < 0.25).mean()):>14.2f}")
+    print("\n  Near 1 = the session really did run to the end engaged. Well below"
+          " 0.5 with NO detected quit is a quit the gate could not confirm for want of a"
+          " tail, and those sessions are what put a step into the 'no quit' panel.")
+
     # ---- SESSION QUINTILES (Priya, 2026-09-20: *"would quintile be better than quartile?"*) ----
     # **YES, AND THE REASON IS COMPARABILITY RATHER THAN RESOLUTION.** `engagement_decomposition`
     # already reports acute near-spout HIT RATE by session quintile as
@@ -508,7 +549,8 @@ def main(argv=None) -> int:
     for key, unit, title in (("rate", "licks/trial", "LICKS PER TRIAL"),
                              ("ili", "ms", "MEDIAN INTER-LICK INTERVAL")):
         print(f"\n{bar}\nSESSION QUINTILES -- {title} ({unit})\n{bar}")
-        print(f"  {'epoch':<10}{'spouts':<7}" + "".join(f"{'Q' + str(i + 1):>11}" for i in range(NQ))
+        print(f"  {'epoch':<10}{'spouts':<7}"
+              + "".join(f"{'Q' + str(i + 1):>11}" for i in range(NQ))
               + f"{'Q5 - Q1 (paired)':>28}")
         for e in EPS:
             for grp in ("near", "far"):
@@ -576,6 +618,104 @@ def main(argv=None) -> int:
     p2 = out_dir / f"epoch_24_session_quintiles{tag}.png"
     fig2.savefig(p2, dpi=170)
     print(f"\n  wrote {p2}")
+
+    # ---- WITHIN-ANIMAL DELTA FROM PRE (Priya, 2026-09-20) --------------------------------------
+    # **THE LEVELS ARE NOT COMPARABLE ACROSS ANIMALS AND THE DIFFERENCES ARE.**
+    # Pre-stroke near-spout
+    # ILI runs 151 ms (PS95) to 173 ms (PS93), and pre licks-per-trial differs by more than the
+    # epoch effect being looked for -- so a cohort mean of LEVELS is dominated by which animals
+    # happen to be in each cell, which at n=4 with unequal session counts is most of the variance.
+    # Subtracting each animal's OWN pre profile, quintile by quintile, removes it exactly.
+    #
+    # The bootstrap resamples ANIMALS ONCE and uses the same draw for both arms, so the pairing is
+    # preserved; resampling the two arms independently would put the between-animal variance back.
+    def _delta(key, grp, b, e):
+        """Per-animal (epoch minus that animal's own pre) for one quintile."""
+        pre_by, ep_by = defaultdict(list), defaultdict(list)
+        for (ee, an), vv in fl[(key, grp, b)].items():
+            if ee == "pre":
+                pre_by[an] += vv
+            elif ee == e:
+                ep_by[an] += vv
+        return {an: (ep_by[an], pre_by[an]) for an in sorted(set(ep_by) & set(pre_by))}
+
+    def _boot_delta(pairs, n_boot=N_BOOT):
+        ans = sorted(pairs)
+        if not ans:
+            return None
+        obs = float(np.mean([np.mean(pairs[a][0]) - np.mean(pairs[a][1]) for a in ans]))
+        o = []
+        for _ in range(n_boot):
+            dd = []
+            for a in (ans[i] for i in rng.integers(0, len(ans), len(ans))):
+                pa, qa = pairs[a]
+                dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
+                          - np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))]))
+            o.append(float(np.mean(dd)))
+        o = np.asarray(o)
+        return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5)), len(ans)
+
+    POST = [e for e in EPS if e != "pre"]
+    for key, unit, title in (("rate", "licks/trial", "LICKS PER TRIAL"),
+                             ("ili", "ms", "MEDIAN INTER-LICK INTERVAL")):
+        print(f"\n{bar}")
+        print(f"WITHIN-ANIMAL DELTA FROM PRE, BY QUINTILE -- {title} ({unit})")
+        print(f"{bar}")
+        print(f"  {'epoch':<10}{'spouts':<7}"
+              + "".join(f"{'Q' + str(i + 1):>16}" for i in range(NQ)))
+        for e in POST:
+            for grp in ("near", "far"):
+                line = f"  {e:<10}{grp:<7}"
+                for b in range(NQ):
+                    g = _boot_delta(_delta(key, grp, b, e))
+                    if g:
+                        star = "*" if (g[1] > 0 or g[2] < 0) else " "
+                        line += f"{g[0]:>+11.1f}{star}({g[3]})"
+                    else:
+                        line += f"{'--':>16}"
+                print(line)
+        print("  each animal minus its OWN pre profile. * = 95% CI excludes zero. (n) = animals.")
+
+    fig3, ax3 = plt.subplots(2, len(POST), figsize=(4.6 * len(POST), 8.0), squeeze=False)
+    for i_k, (key, ylab) in enumerate((("rate", "delta licks per trial"),
+                                       ("ili", "delta inter-lick interval (ms)"))):
+        for j, e in enumerate(POST):
+            axx = ax3[i_k][j]
+            for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
+                xs, ys, los, his = [], [], [], []
+                for b in range(NQ):
+                    g = _boot_delta(_delta(key, grp, b, e))
+                    if g:
+                        xs.append(b + 1)
+                        ys.append(g[0])
+                        los.append(g[1])
+                        his.append(g[2])
+                if len(xs) >= 3:
+                    axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
+                    axx.fill_between(xs, los, his, color=cc, alpha=0.15, lw=0)
+            axx.axhline(0, color="0.35", lw=1.0, ls="--")
+            axx.set_xticks(range(1, NQ + 1))
+            axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
+            axx.set_title(f"{e} - pre", fontsize=10)
+            axx.set_xlabel("session quintile")
+            if j == 0:
+                axx.set_ylabel(ylab)
+                axx.legend(fontsize=8, frameon=False)
+    for row in ax3:
+        used = [x for x in row if x.has_data()]
+        if len(used) > 1:
+            lo = min(x.get_ylim()[0] for x in used)
+            hi = max(x.get_ylim()[1] for x in used)
+            for x in used:
+                x.set_ylim(lo, hi)
+    fig3.suptitle("WITHIN-ANIMAL DELTA FROM PRE, by session quintile. Each animal minus its own "
+                  "pre-stroke profile,\nso between-animal baseline spread (near ILI runs "
+                  "151-173 ms across animals) cannot drive it. Dashed line = no change.",
+                  fontsize=10)
+    fig3.tight_layout(rect=(0, 0, 1, 0.90))
+    p3 = out_dir / f"epoch_25_quintiles_delta_from_pre{tag}.png"
+    fig3.savefig(p3, dpi=170)
+    print(f"\n  wrote {p3}")
 
     # ---- FIGURE --------------------------------------------------------------------------------
     col = {"pre": "#4c72b0", "acute": "#c44e52", "subacute": "#dd8452", "chronic": "#55a868"}

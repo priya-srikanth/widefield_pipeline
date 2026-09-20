@@ -15520,3 +15520,90 @@ the per-animal table should be printed BEFORE the bootstrap rather than after it
 specific traps both fired today: a cell carried by ONE animal (subacute here, PS95), and an animal
 with a SINGLE baseline session, where the bootstrap has nothing to resample and its uncertainty
 never enters the CI (licks-at-quit, PS92 and PS93).
+
+---
+
+## FANNING THE ANALYSIS LOOPS OVER CORES, AND THE THREE THINGS IT CHANGED (2026-09-20)
+
+Priya: *"we should add to the repo default instructions to try to take advantage of parallelization
+of jobs on the cpu"*, then *"do the fan out work"*. Now CLAUDE.md ground rule 6.
+
+**THE NIGHTLY PIPELINE WAS NEVER THE PROBLEM.** `nightly_figs` already fans out at the stage level
+and `epoch_grant_figures` uses `parallel` too. The gap was entirely in `scripts/rest_migration/`:
+eleven per-session loops, none of them using the helper that has been in `wfield_local/parallel.py`
+since August. The channel-swap fixes of 2026-09-19 touched `wfield_local` but added no loops, so
+nothing that runs nightly was affected.
+
+### MEASURED, NOT ASSUMED
+
+A six-session pilot said x3.2 and the loop is ~100% I/O -- `session_trials` and the SVD reads come
+off MICROSCOPE, so the gain is overlapped waits, not cores. The real runs did better, because the
+pilot gave every worker exactly one session and pool startup dominated:
+
+| module | serial | fanned out | |
+|---|---|---|---|
+| `quit_prodrome` | 36 min | 6 min | x6 |
+| `rest_coupling` | ~85 min | 9 min 43 s | **x8.7** |
+| `evoked_hrf_latency` | ~90 min | ~12 min | x7.5 |
+
+Both were verified by diffing the per-session output against the serial run: **zero measurement
+differences across all 96 and all 98 shared sessions respectively.** (Each run also picked up
+newly registered sessions, which is why the totals grew to 100 -- new data, not a discrepancy.)
+
+### THE BUG THE CONVERSION INTRODUCED, WHICH IS THE ONE TO REMEMBER
+
+`fan_out` returns results in COMPLETION order. Keying them by label is not enough, because dict
+insertion order is then completion order, every bootstrap pool is built by iterating that dict, and
+a seeded RNG drawing indices over a differently-ordered list gives DIFFERENT DRAWS. Measured on
+`quit_prodrome`: the point estimate stayed exact at -18.7 licks/min while the CI moved from
+[-22.9, -13.7] to [-23.1, -13.6]. Small, and a CI that changes between runs is not reproducible.
+**All three converted modules now collect in sorted label order.**
+
+A second spawn trap, avoided rather than hit: **a runtime module global does not reach the
+workers.** `fan_out` uses the spawn start method, so each child re-imports the module fresh. A gate
+flag set that way would have silently done nothing in every worker while working perfectly in a
+serial run. Options travel inside the item.
+
+### AND RE-RUNNING ON CURRENT DATA RETIRED A STAR
+
+The re-run picked up four newly registered sessions and the revised chronic boundaries (72db2c9),
+giving 100 sessions rather than 96. **The chronic `r(415, 470)` ipsi-contra cell went from
++0.024 [+0.01, +0.04] to +0.008 [-0.03, +0.03]** -- it was the cell flagged the day before as the
+one to distrust (tightest CI in the table, but in the recovery epoch, on the measure with the
+strongest pre-stroke asymmetry, and the only epoch then having three animals). Adding PS94's
+chronic sessions killed it. The ipsi-contra table now stars 2 of 12, both in epochs where a lesion
+effect is plausible. The headline is unchanged: acute lag +0.156 [+0.04, +0.32] ipsi.
+
+**THE GENERAL POINT: CHEAP RE-RUNS ARE AN EPISTEMIC TOOL, NOT JUST A CONVENIENCE.** At 85 minutes
+a re-run needs justifying and marginal results sit unchallenged; at 10 minutes the suspect cell
+gets tested and retires itself.
+
+---
+
+## THE "SESSIONS WITH NO QUIT" PANEL IS NOT A CLEAN CONTROL (2026-09-20)
+
+Priya, reading the figure: *"in 23 quit prodrome gated, top row acute 'sessions with NO quit' still
+looks like there's a step off in lick number"*.
+
+That panel exists so a decline can be read without unaligned steps averaging into a ramp, and its
+docstring claimed "no step can be hiding in the average". **That confuses NO QUIT with NO DETECTED
+QUIT.** `engagement_gate` needs a sustained non-recovering run, so an animal that stops near the end
+of a session leaves too little tail and the session is labelled censored.
+
+Each censored session's final 10 min against its own mid-session rate:
+
+| epoch | censored n | median last10/mid | frac < 0.5 |
+|---|---|---|---|
+| pre | 29 | 0.77 | 0.21 |
+| **acute** | **4** | **0.48** | **0.75** |
+| subacute | 4 | 0.67 | 0.25 |
+| chronic | 18 | 0.86 | 0.06 |
+
+**THE ACUTE PANEL IS FOUR SESSIONS, THREE OF THEM SHOWING A DEEP TERMINAL DROP** -- roughly one
+clean session plus three unconfirmed quits. The step is real and it is an artefact. The mechanism is
+selection: acute sessions mostly DO have a detected quit, so the censored remainder is small and
+enriched for exactly the late quitters the gate cannot confirm.
+
+**Read the pre and chronic censored curves. Do not read acute.** And the general form of the error
+is worth keeping: a control defined by the ABSENCE of a detection inherits every limitation of the
+detector, so its purity has to be measured rather than assumed.
