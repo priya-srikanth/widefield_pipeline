@@ -514,11 +514,30 @@ def main(argv=None) -> int:
             axx.set_ylabel("inter-lick interval (ms)")
             axx.legend(fontsize=8, frameon=False)
 
+    # SHARED Y WITHIN EACH FAMILY (Priya, 2026-09-20). **PER-PANEL AUTOSCALING MAKES FOUR EPOCHS
+    # LOOK DIFFERENT WHEN THEY ARE NOT** -- matplotlib fits each axis to its own data, so a flat
+    # ILI series spanning 157-177 ms and one spanning 168-190 ms both fill the panel and read as
+    # the same picture. It is the colour-scale bug (DECISIONS, 2026-09-19) one dimension down, and
+    # it bites hardest exactly where the answer is "nothing changes across the session", because a
+    # rescaled flat line looks like structure.
+    #
+    # ROW-WISE rather than figure-wise: licks/min, licks/trial and milliseconds are three different
+    # quantities and forcing one scale across them would be the opposite error.
+    for row in axes:
+        used = [x for x in row if x.has_data()]
+        if len(used) < 2:
+            continue
+        lo = min(x.get_ylim()[0] for x in used)
+        hi = max(x.get_ylim()[1] for x in used)
+        for x in used:
+            x.set_ylim(lo, hi)
+
     fig.suptitle("Lick rate across the session. LEFT and MIDDLE answer 'is there a drop-off'; "
                  "only the RIGHT panel can say whether a quit is a step or an accumulation, "
                  "because unaligned steps average into a ramp.\n"
                  "ROW 2 licks per trial = engagement + motor. ROW 3 inter-lick interval = MOTOR "
-                 "ONLY: rising ILI is a slowing tongue, flat ILI with falling licks is a choice.",
+                 "ONLY: rising ILI is a slowing tongue, flat ILI with falling licks is a choice.\n"
+                 "Y AXES ARE SHARED WITHIN EACH ROW, so panels in a row are directly comparable.",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     p = out_dir / "epoch_23_quit_prodrome.png"
