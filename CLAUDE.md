@@ -332,6 +332,14 @@ came from; `STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 
 guards — five of them checks that were themselves broken — which are still in force;
 `STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/STATUS_2026-09-21_ENGINEERING.md`](docs/STATUS_2026-09-21_ENGINEERING.md)** — **START
+HERE if you are working on the CODE rather than the science.** Priya's current focus: efficient,
+modular, readable, editable. Holds the measured inventory (9 duplicate bootstrap helpers, 70
+repeats of the session filter, 8 of 11 loops still serial, `build_analysis_deck` at ~3,900 lines
+in one function, 25 unregistered figures) and a dependency-ordered plan. **Refactors must carry
+the reasoning forward** — most long comments in this repo name a bug a simplification would
+reintroduce.
+
 **[`docs/STATUS_2026-09-20.md`](docs/STATUS_2026-09-20.md)** — **START HERE for the HAEMODYNAMIC
 and ENGAGEMENT arms.** Haemodynamics is CLOSED with a negative answer: four routes through 470/415
 each fail differently, the information is not in the data, and the 530 nm reflectance fix is
