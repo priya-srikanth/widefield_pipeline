@@ -182,6 +182,12 @@ def main() -> int:
 
     # ------------------------------------------------------------------ the figure
     out = None
+    # The COLUMN KEY MUST BE THE ANATOMICAL LABEL, because `col_labels` below is anatomical
+    # (near/far x ipsi/contra) and `map_grid` places a cell by matching (row, col) against those
+    # labels. Keying by the raw CONF_LABELS (close_L / far_R ...) leaves every cell unmatched and the
+    # grid renders "no data" in every panel while the per-row colour scale still computes -- exactly
+    # the blank figure b01f6a2 produced when it relabelled the columns without relabelling the keys.
+    anat = dict(zip(CONF_LABELS, [x.title() for x in ef.anatomical_labels(CONF_LABELS, short=False)]))
     cells, rows = {}, []
     for an in sorted(per_animal):
         am = {}
@@ -194,7 +200,7 @@ def main() -> int:
         grand = np.mean(list(am.values()), axis=0)
         rows.append(an)
         for q in am:
-            cells[(an, q)] = am[q] - grand
+            cells[(an, anat[q])] = am[q] - grand
     if cells:
         d = __import__("pathlib").Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
         out = ef.map_grid(
