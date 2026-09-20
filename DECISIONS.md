@@ -14906,6 +14906,12 @@ only, first post-cue lick as the lick event.
 | lick | subacute | **-0.038 [-0.072, -0.006]** | -0.032 [-0.207, +0.120] |
 | lick | chronic | +0.007 [-0.013, +0.026] | +0.064 [-0.033, +0.156] |
 
+> **SUPERSEDED 2026-09-19, LATER THE SAME DAY. THE SUBACUTE DECREASE DOES NOT SURVIVE A WINDOW
+> THAT EXCLUDES THE CALCIUM BLEED-THROUGH** -- see "DOES THE COUPLING GAIN SURVIVE A LATE WINDOW"
+> at the end of this file. The 0-2 s window used below sums a fast calcium component and a slow
+> haemodynamic one. **Do not quote the subacute decrease, and do not call any of this
+> neurovascular coupling.** The NO-INCREASE half of the headline does survive.
+
 **NO EVIDENCE OF INCREASED COUPLING. WEAK EVIDENCE OF A SMALL DECREASE AT SUBACUTE**, amplitude only,
 in both arms. Every acute and subacute change is negative; spatial match moves nowhere, every CI
 spanning zero. Two of twelve tests clear an UNCORRECTED threshold, both in the same direction and
@@ -15158,9 +15164,8 @@ called settled.
 
 The evoked 415/470 peak ratio is 0.28-0.42, sitting right on top of the "coupling gain" of ~0.34
 reported across epochs. Since the early 415 component is calcium bleed-through, **a 0-2 s window
-gain may be dominated by bleed-through rather than by neurovascular coupling.** Not yet checked.
-The epoch CONTRAST may still be fine -- a bleed-through fraction stable across epochs cancels --
-but the measure must not be DESCRIBED as neurovascular until someone checks.
+gain may be dominated by bleed-through rather than by neurovascular coupling.** **CHECKED, AND IT
+DOES NOT SURVIVE** -- see the late-window entry at the end of this file.
 
 ### SO CAN WE MEASURE NEUROVASCULAR COUPLING AT ALL? YES, BUT BY LATENCY, NOT BY AMPLITUDE
 
@@ -15254,3 +15259,60 @@ The contrast is WITHIN animal and WITHIN session, so it escapes the n=4 bottlene
 every other measure here. That is why it was worth running and it remains the right shape for this
 cohort -- a null from a well-posed test is worth more than a star from an ill-posed one. Rest is
 only 2-15 min/session, less than assumed.
+
+---
+
+## DOES THE COUPLING GAIN SURVIVE A LATE WINDOW? No -- and the late window has its own confound (2026-09-19)
+
+`channel_position_maps --epochs --per-epoch 999 --late`, 97 sessions, measuring **1.0-3.0 s** from
+each event instead of 0-2.0 s, baseline unchanged (still each trial's own pre-cue window, so the
+uneven-sampling drift correction is intact). Written to `channel_position_maps_by_epoch_late.csv`.
+
+**THE POINT OF THE TEST.** The 415 cue response is biphasic: calcium bleed-through peaking at
+0.26-0.29 s, haemodynamics from ~1 s. A 0-2 s window sums both. Starting at 1.0 s skips the
+calcium transient, so if the epoch contrast holds the result is neurovascular and keeps its name.
+
+### IT DOES NOT HOLD
+
+| arm | epoch | d gain, 0-2 s | d gain, 1-3 s |
+|---|---|---|---|
+| cue | subacute | **-0.031 [-0.058, -0.005]** | +0.005 [-0.053, +0.077] |
+| lick | subacute | **-0.038 [-0.072, -0.006]** | +0.024 [-0.061, +0.131] |
+
+**BOTH SUBACUTE CELLS LOSE SIGNIFICANCE AND BOTH FLIP SIGN**, to point estimates indistinguishable
+from zero. The CIs are ~2.5x wider, exactly as predicted from the smaller late deflection, so this
+does NOT formally separate "it was an artefact" from "underpowered" -- the old estimate still sits
+inside the new interval. **But the best estimate is now zero, and a result that only exists in the
+window contaminated by calcium must not be reported as neurovascular coupling.**
+
+The gain LEVEL rises as expected when the calcium transient is excluded: cue 0.546 / 0.570 / 0.599
+/ 0.548 and lick 0.589 / 0.721 / 0.625 / 0.633 across pre / acute / subacute / chronic, against
+~0.34 on the 0-2 s window. That is the signature of a relatively more haemodynamic window, and is
+the one thing here behaving as designed.
+
+### TWO NEW CELLS APPEAR, AND NEITHER SHOULD BE PROMOTED
+
+`lick acute d gain +0.190 [+0.043, +0.356]` and a chronic decline in spatial match in both arms
+(cue -0.177 [-0.275, -0.066], lick -0.211 [-0.308, -0.116]).
+
+**DO NOT TRADE THE RETIRED RESULT FOR THESE.** The late gain is a RATIO with `||470raw||` in the
+denominator over 1-3 s, and the 470 decay rate is itself epoch-dependent and animal-dependent --
+PS93's cue response is down to +0.47% by 1.6 s while PS92's is still +2.02%. **A faster acute decay
+shrinks the denominator and inflates the ratio with no change in coupling whatsoever**, which is
+the most likely reading of the acute lick cell. And the chronic spatial-match cells sit where
+`r(415, 470raw)` is 0.222 [-0.016, 0.454] and 0.234 [-0.015, 0.498] -- CIs touching zero, i.e. the
+late maps are barely correlated at all, so a "decline" there is a decline into the noise floor.
+
+### THE CONCLUSION, WHICH IS THE SAME ONE FROM THE OTHER DIRECTION
+
+**THE AMPLITUDE-BASED COUPLING MEASURE IS NOT SALVAGEABLE BY WINDOWING.** Early it is contaminated
+by calcium; late it is contaminated by the denominator's own epoch-dependent decay and has too
+little signal left. This is the third independent route to the same place: **latency is the only
+NVC measure this preparation supports**, because bleed-through is instantaneous and haemodynamics
+is delayed, so a lag is immune to exactly what breaks every amplitude.
+
+**WHAT SURVIVES OF THE ORIGINAL ENTRY:** the NEGATIVE half. There is no evidence of INCREASED
+415/470 coupling after the stroke on either window. That was always the more robust claim, because
+a bleed-through fraction stable across epochs cancels in a contrast and cannot manufacture a null.
+
+**WHAT DOES NOT:** the weak subacute decrease. Retired.
