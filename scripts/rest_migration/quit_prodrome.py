@@ -112,8 +112,13 @@ def _boot(by, rng, n_boot=N_BOOT):
     return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
 
 
-def session_row(lab):
-    """All per-session work for `lab`, or ``None`` if the session cannot contribute.
+def session_row(item):
+    """All per-session work for one session, or ``None`` if it cannot contribute.
+
+    **THE OPTIONS TRAVEL IN THE ITEM, NOT IN A MODULE GLOBAL.** `fan_out` uses the SPAWN start
+    method, so a child re-imports this module fresh and never sees a global the parent assigned at
+    runtime -- a gate set that way would silently do nothing in every worker while appearing to
+    work in a serial run.
 
     **MODULE-LEVEL BECAUSE `parallel.fan_out` SPAWNS AND SPAWN PICKLES BY NAME** (CLAUDE.md ground
     rule 6). Measured on six curated sessions: 52.3 s serial against 16.2 s over six workers, a
@@ -129,6 +134,7 @@ def session_row(lab):
     from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
     from scripts.rest_migration.quit_point import session_quit
 
+    lab, gate, horizon_min = item
     s = next((x for x in config.load_sessions() if x["label"] == lab), None)
     if s is None:
         return None
@@ -144,14 +150,35 @@ def session_row(lab):
     # between consecutive cues is the licks belonging to that trial, and the position is the
     # EARLIER trial's. The last trial has no successor and is dropped.
     tt = sorted(tr, key=lambda r: float(r["elapsed_s"]))
+
+    # ENGAGEMENT GATE AND COMMON HORIZON, both applied to the PER-TRIAL series only -- the
+    # licks-per-minute curves and the quit alignment deliberately keep every trial, because the
+    # quit itself is what they are measuring.
+    #
+    # WHY THE GATE MATTERS AND THE FIGURE WAS WRONG WITHOUT IT: trials inside the terminal quit
+    # period have ~zero licks, and they are 0.040 of pre-stroke trials against 0.217 acutely --
+    # a 5x epoch-dependent difference concentrated in the late bins. An ungated licks-per-trial
+    # curve therefore has its composition track the independent variable, which is the one thing
+    # an epoch contrast cannot tolerate (see `channel_position_maps`).
+    if gate and not q["censored"]:
+        tt = [r for r in tt if float(r["elapsed_s"]) < float(q["quit_elapsed_s"])]
+    if horizon_min:
+        tt = [r for r in tt if float(r["elapsed_s"]) <= horizon_min * 60.0]
+    if len(tt) < 30:
+        return None
     near = near_codes()
+    # THE THIRD ELEMENT IS THE TRIAL-ORDER FRACTION, appended rather than inserted so every
+    # existing consumer of (time, value) keeps working. Quartiles are defined on TRIAL ORDER, not
+    # on wall-clock, to match the session-quintile convention in `engagement_decomposition` and
+    # because trial count is what a session is actually made of.
     per_pos = {"near": [], "far": []}
+    nt = max(len(tt) - 2, 1)
     for i in range(len(tt) - 1):
         dl = float(tt[i + 1]["cum_licks"]) - float(tt[i]["cum_licks"])
         if dl < 0:
             continue
         per_pos["near" if int(tt[i]["pos"]) in near else "far"].append(
-            (float(tt[i]["elapsed_s"]), dl))
+            (float(tt[i]["elapsed_s"]), dl, i / nt))
 
     # PER-TRIAL MEDIAN INTER-LICK INTERVAL, the motor-only measure. Needs the actual lick TIMES,
     # which `session_trials` does not return -- it stores a running COUNT.
@@ -160,7 +187,7 @@ def session_row(lab):
     lick_s = np.asarray(_load_daq_events(s["h5"], "lick_analog", 2.5, 1.0,
                                          (0.001, 0.020), 0.10)["lick_samples"], np.int64)
     sr = float(_daq_rate(s))
-    for r in tt:
+    for i_r, r in enumerate(tt):
         k = int(r["order"])
         if k + 1 >= cs.size:
             continue
@@ -172,7 +199,8 @@ def session_row(lab):
         if iv.size < MIN_LICKS - 1:
             continue
         per_ili["near" if int(r["pos"]) in near else "far"].append(
-            (float(r["elapsed_s"]), float(np.median(iv)) * 1000.0))
+            (float(r["elapsed_s"]), float(np.median(iv)) * 1000.0,
+             i_r / max(len(tt) - 1, 1)))
 
     return dict(label=lab, animal=config.animal_of(lab), epoch=epochs.epoch_of(lab),
                 t=t, c=c, per_pos=per_pos, per_ili=per_ili,
@@ -185,6 +213,13 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
+    ap.add_argument("--gate", action="store_true",
+                    help="drop trials inside the terminal quit period from the PER-TRIAL panels "
+                         "(licks/trial and ILI). They are 0.040 of pre trials against 0.217 "
+                         "acutely, so ungated those panels track the recording, not the animal.")
+    ap.add_argument("--horizon-min", type=float, default=None, metavar="T",
+                    help="also drop per-trial data after T minutes. All epochs are complete to "
+                         "60 min; pre falls to 33/44 by 90 and everything thins past 100.")
     ap.add_argument("--jobs", type=int, default=None,
                     help="worker processes; default `parallel.default_jobs()` (cores-2, cap 8)")
     ap.add_argument("--out", type=Path, default=None)
@@ -202,7 +237,11 @@ def main(argv=None) -> int:
     labels = [s["label"] for s in config.load_sessions()
               if s["label"] in want and epochs.epoch_of(s["label"])
               and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
-    res, fail = parallel.fan_out(labels, session_row, jobs=a.jobs, label="session")
+    items = [(lab, a.gate, a.horizon_min) for lab in labels]
+    if a.gate or a.horizon_min:
+        print(f"PER-TRIAL PANELS: gate={a.gate} horizon={a.horizon_min} "
+              f"(licks/min and quit-alignment panels are UNAFFECTED by design)")
+    res, fail = parallel.fan_out(items, session_row, jobs=a.jobs, label="session")
     # **SORTED, NOT COMPLETION ORDER.** Keying by label is not enough: dict insertion order is
     # completion order, every bootstrap pool is built by iterating `sess`, and a seeded RNG drawing
     # indices over a differently-ordered list gives different draws. The first parallel run
@@ -224,6 +263,7 @@ def main(argv=None) -> int:
         return 1
     rng = np.random.default_rng(a.seed)
     bar = "=" * 96
+    tag = ("_gated" if a.gate else "") + (f"_h{int(a.horizon_min)}" if a.horizon_min else "")
 
     # ---- PANEL A: lick rate against ABSOLUTE session time -------------------------------------
     sedges = np.arange(0.0, SESS_MAX_S + 1e-9, SESS_BIN_S)
@@ -313,7 +353,7 @@ def main(argv=None) -> int:
     print("    NEGATIVE with a CI excluding zero = PRODROME. Spanning zero = STEP.")
 
     if rows_out:
-        q = out_dir / "epoch_23_quit_prodrome.csv"
+        q = out_dir / f"epoch_23_quit_prodrome{tag}.csv"
         with open(q, "w", newline="", encoding="utf-8") as fh:
             wr = csv.DictWriter(fh, fieldnames=list(rows_out[0]))
             wr.writeheader()
@@ -418,7 +458,7 @@ def main(argv=None) -> int:
 
     # ALL-SESSION ILI TO CSV. The per-quitter file below covers only 45 of 96 sessions, so the
     # per-animal check could not be redone from it -- which is what forced a whole re-run.
-    qa = out_dir / "epoch_23_session_ili.csv"
+    qa = out_dir / f"epoch_23_session_ili{tag}.csv"
     with open(qa, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["label", "animal", "epoch", "censored",
                                            "ili_near_ms", "ili_far_ms", "n_near", "n_far"])
@@ -433,6 +473,108 @@ def main(argv=None) -> int:
                             ili_far_ms=(float(np.median(ff)) if ff else ""),
                             n_near=len(nn), n_far=len(ff)))
     print(f"\n  wrote {qa}")
+
+    # ---- FIRST 25% vs LAST 25% OF THE SESSION (Priya, 2026-09-20) -----------------------------
+    # **THE WITHIN-SESSION CHANGE AS ONE NUMBER PER CELL**, which the curves cannot give: a curve
+    # shows the shape but the eye cannot integrate it, and the late bins are the thinnest. Read on
+    # TRIAL ORDER so a long session and a short one contribute the same way.
+    Q = 0.25
+    fl = {}
+    for key, src in (("rate", "per_pos"), ("ili", "per_ili")):
+        for grp in ("near", "far"):
+            for half, sel in (("first", lambda f: f < Q), ("last", lambda f: f > 1 - Q)):
+                d = defaultdict(list)
+                for v in sess.values():
+                    vals = [x[1] for x in v.get(src, {}).get(grp, [])
+                            if len(x) > 2 and sel(x[2])]
+                    if len(vals) >= 5:
+                        d[(v["epoch"], v["animal"])].append(float(np.median(vals)))
+                fl[(key, grp, half)] = d
+
+    for key, unit, title in (("rate", "licks/trial", "LICKS PER TRIAL"),
+                             ("ili", "ms", "MEDIAN INTER-LICK INTERVAL")):
+        print(f"\n{bar}\nFIRST 25% vs LAST 25% OF THE SESSION -- {title} ({unit})\n{bar}")
+        print(f"  {'epoch':<10}{'spouts':<7}{'first 25%':>20}{'last 25%':>20}"
+              f"{'last - first (paired)':>30}")
+        for e in EPS:
+            for grp in ("near", "far"):
+                bya = defaultdict(list)
+                byb = defaultdict(list)
+                for (ee, an), vv in fl[(key, grp, "first")].items():
+                    if ee == e:
+                        bya[an] += vv
+                for (ee, an), vv in fl[(key, grp, "last")].items():
+                    if ee == e:
+                        byb[an] += vv
+                g1, g2 = _boot(bya, rng), _boot(byb, rng)
+                shared = sorted(set(bya) & set(byb))
+                gd = None
+                if shared:
+                    obs = float(np.mean([np.mean(byb[x]) - np.mean(bya[x]) for x in shared]))
+                    draws = []
+                    for _ in range(N_BOOT):
+                        dd = []
+                        for x in (shared[i] for i in rng.integers(0, len(shared), len(shared))):
+                            pa, qa = byb[x], bya[x]
+                            dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
+                                      - np.mean([qa[i] for i in rng.integers(0, len(qa),
+                                                                             len(qa))]))
+                        draws.append(float(np.mean(dd)))
+                    lo, hi = np.percentile(draws, [2.5, 97.5])
+                    gd = (obs, float(lo), float(hi), len(shared))
+                line = f"  {e:<10}{grp:<7}"
+                line += (f"{g1[0]:>11.1f} [{g1[1]:.0f},{g1[2]:.0f}]" if g1 else f"{'--':>20}")
+                line += (f"{g2[0]:>11.1f} [{g2[1]:.0f},{g2[2]:.0f}]" if g2 else f"{'--':>20}")
+                if gd:
+                    star = " *" if (gd[1] > 0 or gd[2] < 0) else "  "
+                    line += f"{gd[0]:>+16.1f} [{gd[1]:+.1f},{gd[2]:+.1f}]{star}({gd[3]})"
+                print(line)
+        print("  paired = within animal, only animals with BOTH halves. * = CI excludes zero.")
+
+    fig2, ax2 = plt.subplots(2, 4, figsize=(17.5, 8.0))
+    for i_k, (key, ylab) in enumerate((("rate", "licks per trial"),
+                                       ("ili", "inter-lick interval (ms)"))):
+        for j, e in enumerate(EPS):
+            axx = ax2[i_k][j]
+            for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
+                xs, ys, los, his = [], [], [], []
+                for h_i, half in enumerate(("first", "last")):
+                    bya = defaultdict(list)
+                    for (ee, an), vv in fl[(key, grp, half)].items():
+                        if ee == e:
+                            bya[an] += vv
+                    g = _boot(bya, rng)
+                    if g:
+                        xs.append(h_i)
+                        ys.append(g[0])
+                        los.append(g[1])
+                        his.append(g[2])
+                if len(xs) == 2:
+                    axx.errorbar(xs, ys, yerr=[np.array(ys) - np.array(los),
+                                               np.array(his) - np.array(ys)],
+                                 marker="o", ms=6, lw=2, capsize=4, color=cc, label=grp)
+            axx.set_xticks([0, 1])
+            axx.set_xticklabels(["first 25%", "last 25%"])
+            axx.set_xlim(-0.35, 1.35)
+            axx.set_title(e, fontsize=10)
+            if j == 0:
+                axx.set_ylabel(ylab)
+                axx.legend(fontsize=8, frameon=False)
+    for row in ax2:
+        used = [x for x in row if x.has_data()]
+        if len(used) > 1:
+            lo = min(x.get_ylim()[0] for x in used)
+            hi = max(x.get_ylim()[1] for x in used)
+            for x in used:
+                x.set_ylim(lo, hi)
+    fig2.suptitle("FIRST 25% vs LAST 25% of the session, by epoch and spout group. "
+                  "Y axes shared within each row.\n"
+                  "TOP licks per trial = engagement + motor. BOTTOM inter-lick interval = MOTOR "
+                  "ONLY.", fontsize=10)
+    fig2.tight_layout(rect=(0, 0, 1, 0.91))
+    p2 = out_dir / f"epoch_24_first_last_quartile{tag}.png"
+    fig2.savefig(p2, dpi=170)
+    print(f"\n  wrote {p2}")
 
     # ---- FIGURE --------------------------------------------------------------------------------
     col = {"pre": "#4c72b0", "acute": "#c44e52", "subacute": "#dd8452", "chronic": "#55a868"}
@@ -540,7 +682,7 @@ def main(argv=None) -> int:
                  "Y AXES ARE SHARED WITHIN EACH ROW, so panels in a row are directly comparable.",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    p = out_dir / "epoch_23_quit_prodrome.png"
+    p = out_dir / f"epoch_23_quit_prodrome{tag}.png"
     fig.savefig(p, dpi=170)
     print(f"  wrote {p}")
     return 0
