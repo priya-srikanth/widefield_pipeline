@@ -15662,9 +15662,18 @@ analysis effort extracting coupling from 470/415 -- that ground is covered.**
    within animal, 4/4 animals positive, ~7.5% slower on a ~165 ms baseline, recovered by subacute
    (+1.5 [-4.9, +7.7]). Per-quintile it is a FLAT +12-13 ms offset, significant in 4 of 5 bins and
    **already present in Q1** -- carried into the session, not developed during it.
-2. **NO WITHIN-SESSION MOTOR FATIGUE, ANYWHERE.** ILI never rises in any of sixteen epoch x position
-   cells; every change is flat or slightly faster. Across the quintiles where acute near-spout HIT
-   RATE falls 0.972 -> 0.457, ILI moves 180.7 -> 178.3.
+2. **THE LICK RHYTHM DOES NOT SLOW WITHIN A SESSION.** ILI never rises in any of sixteen epoch x
+   position cells; across the quintiles where acute near-spout HIT RATE falls 0.972 -> 0.457, ILI
+   moves 180.7 -> 178.3.
+   **THIS WAS FIRST WRITTEN AS "NO WITHIN-SESSION MOTOR FATIGUE" AND THAT IS TOO STRONG** (Priya,
+   2026-09-20: *"the ILI is more gated by a CPG, so decreased effort might just manifest as
+   decreasing licks per trial rather than change in ILI"*). **ILI MEASURES THE PERIOD OF THE
+   RHYTHM, NOT THE DURATION OF ITS EXPRESSION.** The brainstem CPG runs a stereotyped ~7 Hz cycle
+   once engaged, so fatigue can terminate BOUTS earlier without touching the cycle period -- a
+   runner who tires holds cadence and stops sooner. Flat ILI licenses "the rhythm generator's
+   output rate is intact", nothing more. `lick_bout_structure` runs the three tests that can
+   discriminate: within-bout ILI slope, licks-versus-time pacing of the decline, and the
+   bouts-per-trial / licks-per-bout decomposition.
 3. **A WITHIN-SESSION ENGAGEMENT DECLINE THAT IS NOT THE QUIT TAIL.** It survives engagement gating
    (licks per trial, Q5-Q1: pre -3.8, acute -8.3, subacute -10.7, chronic -3.5). Within-animal it
    separates into an OFFSET and a DIVERGENCE: acute FAR is a flat -6 at every quintile, a constant
@@ -15699,3 +15708,96 @@ resample); `r_hit_licks` (endogenous).
   sessions, three with unconfirmed quits.
 * **DLC tongue tracking is still the blocker** for separating "did not try" from "tried and
   missed", and it would fix the far-spout ILI problem too.
+
+---
+
+## THE WITHIN-SESSION DECLINE IS PARTLY FATIGUE AFTER ALL, AND THE MEDIAN ILI HID A PERSISTENT MOTOR DEFICIT (2026-09-20)
+
+`scripts/rest_migration/lick_bout_structure.py`, 100 sessions, gated, 90 min horizon.
+
+**THIS ENTRY REVISES THE ONE ABOVE IT.** Priya: *"number of licks per trial decline could also be
+fatigue right? the ILI is more gated by a CPG, so decreased effort might just manifest as decreasing
+licks per trial rather than change in ILI"*. Correct, and the consequences are larger than a
+hedge.
+
+### WHY FLAT MEDIAN ILI WAS NEVER ENOUGH
+
+**ILI MEASURES THE PERIOD OF THE RHYTHM, NOT THE DURATION OF ITS EXPRESSION.** The brainstem CPG
+runs a stereotyped ~7 Hz cycle once engaged, so fatigue can terminate BOUTS earlier, or slow the
+END of a bout, without touching the median cycle period -- a runner who tires holds cadence and
+stops sooner. The per-trial MEDIAN is additionally the one statistic that averages end-of-bout
+slowing away.
+
+### TEST 1 -- WITHIN-BOUT DECELERATION, THE FINDING THE MEDIAN HID
+
+Last third of a bout's intervals minus its first third, as a WITHIN-ANIMAL delta from pre (ms):
+
+| epoch | Q1 | Q2 | Q3 | Q4 | Q5 | Q5-Q1 vs pre |
+|---|---|---|---|---|---|---|
+| acute near | +14.7 | **+16.5*** | **+20.4*** | **+22.3*** | **+20.7*** | **+10.1 [+0.9, +19.1]*** |
+| subacute near | **+17.2*** | **+19.3*** | **+22.7*** | **+22.0*** | **+19.3*** | +6.1 [-5.8, +15.1] |
+| chronic near | **+15.8*** | **+17.5*** | **+20.8*** | **+19.3*** | **+17.5*** | +5.7 [-1.5, +13.5] |
+
+**POST-STROKE BOUTS DECELERATE 15-25 ms MORE WITHIN A BOUT THAN PRE, AT EVERY EPOCH INCLUDING
+CHRONIC, AT EVERY QUINTILE, IN ALL FOUR ANIMALS.** And acute additionally STEEPENS across the
+session (+10.1, CI excluding zero), which is the fatigue signature proper.
+
+**THE DISSOCIATION BETWEEN THE TWO MOTOR MEASURES IS THE POINT.** Median ILI is elevated acutely
+(+12.5 ms) and RECOVERS by subacute (+1.5 [-4.9, +7.7]); within-bout deceleration is elevated at
+every epoch and does NOT recover. The average cycle period comes back; the ability to sustain a
+bout without slowing does not.
+
+**THE MISS ARTEFACT DOES NOT EXPLAIN IT.** Contact-based detection turns a missed lick into a
+doubled interval, so elevated misses inflate this measure -- a real worry, and the same limitation
+that makes far-spout ILI unreadable. But **CHRONIC HIT RATE HAS RECOVERED TO NEAR PRE-STROKE WHILE
+CHRONIC WITHIN-BOUT SLOPE IS STILL +15.8 to +20.8 AND SIGNIFICANT IN ALL FIVE QUINTILES.** If
+misses drove it, chronic would have recovered with the behaviour.
+
+### TEST 3 -- AND THIS RETIRES A READING MADE FROM POINT ESTIMATES
+
+Q5-Q1 change from pre, within animal:
+
+| | bouts per trial | licks per bout |
+|---|---|---|
+| acute near | -1.42 [-3.62, +0.22] | -0.10 [-0.94, +0.66] |
+| subacute near | -2.78 [-6.79, +0.06] | **-1.31 [-2.80, -0.04]*** |
+| chronic near | +0.95 [-0.07, +2.31] | **-1.36 [-2.53, -0.20]*** |
+
+**READ WITHOUT CIs THIS LOOKED LIKE "THE ACUTE DECLINE IS ENTIRELY FEWER BOUTS", AND IT IS NOT.**
+The bouts-per-trial change clears zero NOWHERE. What clears is BOUT SHORTENING at subacute and
+chronic near -- the fatigue-compatible direction. At acute, bout length is a well-constrained null
+(-0.10 [-0.94, +0.66]) while bout count is unconstrained, so initiation remains the better guess
+there, but it is a guess. **I reported the point estimates before the bootstrap finished, which is
+the failure ground rule 8 exists to prevent, committed by the person who wrote it.**
+
+### TEST 2 -- THE PACING IS INTERMEDIATE, AND DIFFERENT FROM THE QUIT
+
+With lambda = +0.98 (early rate predicts overall rate almost perfectly, so a sound instrument):
+
+| | slope on log(early rate) | fatigue predicts | clock predicts |
+|---|---|---|---|
+| crossing TIME | **-0.48 [-0.83, -0.17]** | -0.98 | 0 |
+| crossing LICKS | **+0.50 [+0.10, +0.83]** | 0 | +0.98 |
+
+Both sit almost exactly halfway. **The within-session decline is paced ABOUT EQUALLY by accumulated
+licks and by elapsed time**, which is materially different from the QUIT (-0.13 / +0.72, ~85%
+clock). Two processes, two pacings, consistent with the ramp-then-step shape.
+
+### THE REVISED SYNTHESIS
+
+**"A MOTOR DEFICIT PLUS A SEPARATELY MOTIVATIONAL DECLINE" WAS TOO CLEAN.** What the data support:
+
+1. A **persistent motor deficit in bout maintenance** -- within-bout deceleration up 15-25 ms at
+   every epoch including chronic, not recovering, distinct from the median cycle period which does.
+2. A **genuine within-session fatigue component** -- that deceleration steepens across the session
+   acutely, bouts shorten across the session at subacute and chronic, and the decline's pacing is
+   half lick-paced.
+3. A **motivational component that still holds** -- the QUIT itself is time-paced (+0.72 on licks,
+   where a lick budget requires exactly 0), and it arrives as a step after a 20-30 min ramp.
+
+Fatigue is ruled out as the SESSION TERMINATOR and is NOT ruled out -- is now positively supported
+-- as a contributor to the within-session decline. Priya's original framing (tired / unwell /
+orofacial fatigue) was closer to the data than the synthesis that displaced it.
+
+**STILL BLOCKED ON DLC.** Every within-bout measure is contaminated by contact-based detection to
+some degree; chronic's recovered behaviour is an argument, not a control.
