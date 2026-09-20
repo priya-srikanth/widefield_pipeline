@@ -38,9 +38,36 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    rejected. Both machines push `main`, so always fetch/rebase first.
 5. **Cross-day caching:** per-session results are memoized (`wfield_local/session_cache.py`). **Bump
    `CACHE_VERSION` whenever you change a cached function's logic** (mtimes don't see code changes).
-6. **Per-machine envs differ by design** (README "Per-machine environments"): imaging box = `wfield` env,
+6. **FAN A PER-SESSION LOOP OVER CORES. `wfield_local/parallel.py` ALREADY EXISTS — USE IT.**
+   (Priya, 2026-09-20: *"we should add to the repo default instructions to try to take advantage of
+   parallelization of jobs on the cpu"*.) `parallel.fan_out(items, worker, jobs=...)` spawns a
+   process pool, `default_jobs()` picks the worker count (`cpu_count - 2`, capped at 8; this box has
+   24 logical CPUs), and `pin_blas()` fixes BLAS threading so a figure does not depend on how many
+   cores drew it. Eight modules in `wfield_local/` use it.
+   **ZERO of the eleven per-session loops in `scripts/rest_migration/` do**, and on 2026-09-19 that
+   cost about five hours: `rest_coupling` 96 sessions at ~53 s each, `evoked_hrf_latency` 98,
+   `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each — every one a serial
+   `for s in config.load_sessions()` over independent sessions.
+   - **The unit is the CALLER'S judgement, not a mechanical one** (see the module docstring). For
+     these scripts it is the SESSION; for `poststroke_section_g` it is the animal, because tags
+     share a frozen-decoder spec.
+   - `worker` must be **module-level** — spawn pickles by name, so a closure or a local function
+     fails at submit time, not at import.
+   - **Results come back in COMPLETION order.** Sort if the caller needs input order; a summary
+     table built by appending will otherwise reorder between runs.
+   - **Watch RSS, not just cores.** A session holding `SVT` (~150 MB) plus `U_atlas` (~135 MB) is
+     ~300 MB+ per worker, so the cap of 8 matters. Grant workers measured ~1.4 GB each.
+   - **Do not expect a linear speed-up**: these loops read `SVT.npy`/`.h5` off MICROSCOPE, so they
+     are part I/O-bound. Overlapping the waits still helps; 8 workers is not 8x.
+7. **Per-machine envs differ by design** (README "Per-machine environments"): imaging box = `wfield` env,
    numba + numpy<2.1; this box = `locanmf` env, numpy 2.2.6, no numba. Deps are lower-bounds-only so
    `pip install -e .` never force-upgrades a working stack.
+8. **At n=4, print the PER-ANIMAL table before the bootstrap, not after it fails.** Four striking
+   numbers died this way on 2026-09-19 (subacute coupling decrease, ipsi-contra lag contrast,
+   licks-at-quit, quit rate). Two traps, both of which fired: a cell carried by ONE animal, and an
+   animal with a SINGLE baseline session, where the bootstrap has nothing to resample so its
+   uncertainty never enters the CI. **Anything not visible in at least three animals individually
+   will not survive the paired test.**
 
 ## The three commands (end of day)
 
