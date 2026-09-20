@@ -15316,3 +15316,77 @@ is delayed, so a lag is immune to exactly what breaks every amplitude.
 a bleed-through fraction stable across epochs cancels in a contrast and cannot manufacture a null.
 
 **WHAT DOES NOT:** the weak subacute decrease. Retired.
+
+---
+
+## IS THERE DECREASED NEUROVASCULAR COUPLING AFTER THE STROKE? YES -- THE HRF SLOWS BY ~50% (2026-09-19)
+
+`rest_coupling --from-csv`, 96 rest sessions. Priya: *"is there evidence of decreased coupling?
+that's actually what my hypothesis was"* -- and the test that answers it had not been run. Every
+earlier table either reported a LEVEL per epoch (between-animal variance inside every CI, which at
+n=4 swamps the epoch difference) or tested the IPSI-CONTRA CONTRAST. Neither asks whether coupling
+changed.
+
+### THE RESULT: d lag from pre, paired within animal
+
+| epoch | ipsi | contra |
+|---|---|---|
+| acute | **+0.156 [+0.04, +0.31]** | **+0.115 [+0.04, +0.20]** |
+| subacute | **+0.135 [+0.04, +0.25]** | **+0.068 [+0.01, +0.14]** |
+| chronic | +0.075 [-0.02, +0.23] | +0.027 [-0.04, +0.10] |
+
+**THE HAEMODYNAMIC RESPONSE BECOMES SLUGGISH: +156 ms acutely on a pre-stroke baseline of 309 ms,
+roughly 50% slower.** All four acute and subacute cells clear zero, with a dose-response -- largest
+acute, smaller subacute, non-significant by chronic. That trajectory was not imposed by the
+analysis.
+
+**SO THE HYPOTHESIS IS SUPPORTED, BUT AS A SLOWING RATHER THAN A WEAKENING**, and by a different
+measure from the one the project set out to use. The amplitude route died three times over (see
+the late-window entry); this is the survivor.
+
+### WHY THIS IS THE MOST TRUSTWORTHY NUMBER OF THE DAY
+
+1. **It is in the only domain calcium bleed-through cannot touch.** Contamination is
+   instantaneous; a lag is immune. Three independent arguments converged on latency, and this is
+   the measurement they were pointing at.
+2. **THE REST-DURATION CONFOUND RUNS THE WRONG WAY TO HELP.** More rest gives a LONGER lag
+   (r = +0.293 over 96 sessions; +0.372 within pre alone, where short-rest sessions average 0.242 s
+   against long-rest 0.377 s). Acute has 0.6 min more rest than pre, worth ~0.016 s at that slope
+   -- about a tenth of the effect. **And subacute and chronic have LESS rest than pre (7.8 against
+   9.6 min), which should have SHORTENED their lags**, so the confound makes the subacute result
+   conservative rather than inflating it.
+3. **It is not one animal.** Acute: PS92 +0.315, PS93 +0.108, PS94 +0.183, PS95 +0.017. Subacute:
+   +0.180, +0.234, +0.059, +0.065. Four of four positive in both epochs -- though PS92 carries
+   about twice the average and PS95 contributes almost nothing acutely.
+
+### THE HONEST PROBLEM: IT IS BILATERAL
+
+Contralesional slows nearly as much as ipsilesional, and the ipsi-minus-contra contrast change is
+NOT significant. By this module's own stated logic, both sides moving together is systemic or
+instrumental rather than a consequence of a focal infarct. Candidates: global physiological
+sequelae (systemic haemodynamics, arousal, a sick animal), diaschisis, or something that changed at
+surgery.
+
+**WHAT ARGUES AGAINST AN INSTRUMENTAL READING:** optical and window-quality changes move
+AMPLITUDES, not LATENCIES. Shifting a peak by 150 ms requires an actual temporal change in the
+system, which a dimmer window or a scarred dura does not produce. This is the same asymmetry that
+makes latency the robust measure against bleed-through, applied to a different nuisance.
+
+### SECONDARY, SAME DIRECTION, WEAKER DOMAIN
+
+The rest amplitude ratio also falls acutely: contra -0.045 [-0.08, -0.01], ipsi
+-0.025 [-0.06, +0.01]. Consistent with decreased coupling, but `SD(415)/SD(470)` is an amplitude
+and therefore carries the bleed-through contamination.
+
+### MULTIPLICITY
+
+24 cells, uncorrected. But the lag column is 4 of 6 with coherent signs and a recovery trajectory,
+which is a different object from stars scattered across unrelated measures and epochs -- contrast
+the ipsi-contra contrast table, where 3 of 12 starred in three different measures and three
+different epochs.
+
+### WHAT WOULD STRENGTHEN IT
+
+A second, independent lag measurement from TASK-EVOKED data -- the rest and evoked estimates share
+no trials. And resolving the PS94 sign holdout (`channel_vessel_sign`), which is the remaining
+threat to reading the trough at all, and therefore to this entire result.

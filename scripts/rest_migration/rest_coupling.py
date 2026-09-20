@@ -352,6 +352,36 @@ def main(argv=None) -> int:
             star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
             line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g else f"{'--':>24}")
         print(line)
+    # THE DIRECT TEST OF THE STANDING HYPOTHESIS, which the per-epoch tables do NOT do either.
+    # Priya's hypothesis was DECREASED coupling after the stroke. The epoch table above reports a
+    # level per epoch with a CI built across animals, so between-animal variance -- the binding
+    # constraint at n=4 -- sits inside every interval and swamps the epoch difference. Paired
+    # against each animal's own pre, it does not.
+    print(f"\n{bar}\nCHANGE FROM PRE, each side separately, paired within animal\n{bar}")
+    print(f"  {'epoch':<10}{'side':<8}" + "".join(f"{k:>24}" for k in
+                                                  ("r_zero_lag", "amp_ratio", "lag_s",
+                                                   "asym_470_415")))
+    for e in [x for x in eps if x != "pre"]:
+        for s_ in ("ipsi", "contra"):
+            line = f"  {e:<10}{s_:<8}"
+            for key in ("r_zero_lag", "amp_ratio", "lag_s", "asym_470_415"):
+                post, pre_ = defaultdict(list), defaultdict(list)
+                for r in rows:
+                    if r["side"] != s_ or not np.isfinite(float(r[key])):
+                        continue
+                    if r["epoch"] == e:
+                        post[r["animal"]].append(float(r[key]))
+                    elif r["epoch"] == "pre":
+                        pre_[r["animal"]].append(float(r[key]))
+                g = _boot_diff(post, pre_, rng)
+                star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
+                line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g
+                         else f"{'--':>24}")
+            print(line)
+    print("\n  A LONGER lag is a SLUGGISH haemodynamic response -- impaired coupling in the")
+    print("  latency domain, which is the only domain calcium bleed-through does not touch.")
+    print("  Both sides moving together is systemic or instrumental, not focal.")
+
     # THE ACTUAL TEST. The table above asks whether the ipsi-contra contrast differs from zero in
     # each epoch SEPARATELY, which is not the question -- `r_zero_lag` is already ipsi < contra
     # PRE-STROKE, so a starred post-stroke cell can just be restating a BASELINE asymmetry. What a
