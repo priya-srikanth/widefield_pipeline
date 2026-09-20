@@ -15452,3 +15452,71 @@ measures blood volume directly with no GCaMP in it, and would give a dip with an
 taking an argmin over. Every route through 470/415 alone has now been tried: amplitude early
 (calcium-contaminated), amplitude late (denominator-confounded), rest lag (biased absolute value),
 evoked dip (too shallow to resolve).
+
+---
+
+## A COMMON OBSERVATION HORIZON MAKES THE QUIT RATE INTERPRETABLE -- AND IT IS THEN UNDERPOWERED (2026-09-19)
+
+`quit_point --horizon-min 80`, `epoch_18_quit_point_h80.csv`. Priya: *"is there a time we can
+select that will include most sessions, eg 80 minutes, and compare quitting only within that
+window (to avoid the variable length issue pre-stroke)"*.
+
+**THIS IS THE FIX FOR THE CONFOUND THAT RETIRED THE QUIT RATE.** Pre-stroke sessions ran "up to 2
+hrs or until they stopped licking" and span 74-167 min; post-stroke ran a fixed 120 min / 100
+trials and span 95-125. A longer session has more opportunity to contain a quit AND more tail in
+which to confirm one, so the raw rate measured recording policy. Administrative censoring removes
+it: observe every session for exactly T minutes, drop the shorter ones, and **RE-RUN THE DETECTOR
+ON THE TRUNCATED RECORD** so a late quit is equally unconfirmable everywhere. Looking the quit up
+from the full session would have kept the confound in the detection step.
+
+T = 80 keeps 92 of 96 sessions -- pre 40, acute 16, subacute 17, chronic 21, all four animals --
+losing four pre-stroke sessions. 80 is near optimal: T = 90 costs 7 more pre sessions, T = 100
+costs 27% of everything.
+
+### THE RATE, BEFORE AND AFTER
+
+| epoch | full-length (NOT comparable) | 80 min horizon |
+|---|---|---|
+| pre | 15/44 = 0.34 | 2/40 = 0.05 |
+| acute | 12/16 = 0.75 | 6/16 = 0.38 |
+| subacute | 13/17 = 0.76 | 5/17 = 0.29 |
+| chronic | 5/21 = 0.24 | 1/21 = 0.05 |
+
+### AND THEN IT DOES NOT SURVIVE THE PAIRED TEST
+
+| epoch | d P(quit within 80 min), paired within animal |
+|---|---|
+| acute | +0.247 [-0.028, +0.562] |
+| subacute | +0.126 [-0.111, +0.464] |
+| chronic | -0.011 [-0.136, +0.125] |
+
+**NONE CLEARS ZERO**, and the per-animal table shows why the summary flattered it:
+
+| animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 0/10 | 1/5 | 0/2 | 0/6 |
+| PS93 | 0/11 | 2/4 | 0/3 | 0/6 |
+| PS94 | 1/9 | 3/6 | 0/5 | 0/3 |
+| PS95 | 1/10 | 0/1 | **5/7** | 1/6 |
+
+**SUBACUTE IS ENTIRELY PS95.** All five subacute quits are one animal; the other three contribute
+0 of 10 between them. That cell must not be reported. Acute is better -- three of four animals
+contribute (1/5, 2/4, 3/6) and PS95's 0/1 is a single session -- but it still does not reach
+significance.
+
+### WHAT WAS GAINED ANYWAY
+
+An UNINTERPRETABLE number became an interpretable one. 0.34 against 0.75 was measuring the
+experimenter; +0.247 [-0.028, +0.562] is measuring the animal and saying the cohort is too small.
+Those are different states of knowledge and only the second one can be built on. The acute
+direction also agrees with `frac_engaged` under the same horizon (0.99 / 0.94 / 0.93 / 0.99).
+
+### THE PATTERN OF THE DAY, WORTH STATING ONCE
+
+**FOUR SEPARATE STRIKING NUMBERS SHRANK WHEN TESTED AGAINST EACH ANIMAL'S OWN BASELINE**: the
+subacute coupling decrease, the ipsi-contra lag contrast, licks-at-quit, and now the quit rate.
+With n = 4, **anything not visible in at least three animals individually will not survive**, and
+the per-animal table should be printed BEFORE the bootstrap rather than after it fails. The two
+specific traps both fired today: a cell carried by ONE animal (subacute here, PS95), and an animal
+with a SINGLE baseline session, where the bootstrap has nothing to resample and its uncertainty
+never enters the CI (licks-at-quit, PS92 and PS93).
