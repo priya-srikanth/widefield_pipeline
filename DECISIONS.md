@@ -15607,3 +15607,95 @@ enriched for exactly the late quitters the gate cannot confirm.
 **Read the pre and chronic censored curves. Do not read acute.** And the general form of the error
 is worth keeping: a control defined by the ABSENCE of a detection inherits every limitation of the
 detector, so its purity has to be measured rather than assumed.
+
+---
+
+## WHERE THE TWO THREADS LANDED: haemodynamics CLOSED, engagement STANDING (2026-09-20)
+
+Consolidation of 2026-09-19 and 2026-09-20. The individual entries above hold the reasoning and the
+failures; this is what a reader should take away, and what they should not.
+
+### THREAD 1 -- NEUROVASCULAR COUPLING: CLOSED, AND THE ANSWER IS THAT THE DATA CANNOT ANSWER IT
+
+**FOUR ROUTES THROUGH 470/415 WERE TRIED AND EACH FAILS FOR A DIFFERENT REASON:**
+
+| route | why it fails |
+|---|---|
+| amplitude, 0-2 s window | dominated by CALCIUM BLEED-THROUGH |
+| amplitude, 1-3 s window | the `\|\|470raw\|\|` denominator's own epoch-dependent decay |
+| rest cross-correlation lag | absolute value biased by the regression notch |
+| evoked dip latency | the trough is 0.2-1.1% deep, too shallow to resolve |
+
+**WHAT 415 ACTUALLY IS**, measured rather than assumed (`channel_evoked_sign`,
+`channel_vessel_sign`). Early, it is a SCALED COPY OF 470 including at the vessels -- the
+vessel/parenchyma dilution ratio is 0.41 in the 470 map against 0.43 in 415, and a vascular signal
+has no reason to dilute by exactly the factor the calcium signal does. Late, the parenchymal 415
+signal goes negative while 470 stays positive, which is the hyperaemia. **So 415 carries a large
+fast CALCIUM component and a smaller slow HAEMODYNAMIC one, and PS94 shows no late negative at
+all.**
+
+**THE STRUCTURAL FACT WORTH REMEMBERING: BLEED-THROUGH IS INSTANTANEOUS, HAEMODYNAMICS IS DELAYED.**
+That is why every AMPLITUDE measure is broken by it and LATENCY is immune -- a zero-lag term cannot
+create a trough at +0.45 s. Latency is the only NVC measure this preparation supports.
+
+**WHAT SURVIVES, AND IT IS THE NEGATIVE HALF:** no evidence of INCREASED 415/470 coupling after the
+stroke, on either window. That is robust because a bleed-through fraction stable across epochs
+cancels in a contrast and cannot manufacture a null. **RETIRED:** the weak subacute DECREASE
+(cue -0.031, lick -0.038 on 0-2 s) -- it loses significance and flips sign on a window that
+excludes the calcium transient.
+
+**THE LATENCY RESULT, STATED AT ITS TRUE STRENGTH:** the rest-period HRF lag lengthens after the
+stroke, +0.156 s [+0.04, +0.32] ipsilesional and +0.115 [+0.04, +0.20] contralesional acutely,
+paired within animal, 4/4 animals positive, recovering by chronic. **It is BILATERAL, so it is not
+cleanly attributable to a focal infarct**, and the independent evoked-dip check came back NULL on
+both variants. Treat it as a single-measure result. The ipsi-minus-contra contrast mostly does not
+survive the difference-from-pre test, and its one chronic star retired itself when four newly
+registered sessions arrived.
+
+**DEFERRED BY PRIYA (2026-09-20): the 530 nm reflectance channel**, which measures blood volume
+directly with no GCaMP in it. It is the only route left and it is HARDWARE. **Do not spend further
+analysis effort extracting coupling from 470/415 -- that ground is covered.**
+
+### THREAD 2 -- ENGAGEMENT: FOUR FINDINGS THAT EACH SURVIVED A TEST BUILT TO KILL THEM
+
+1. **AN ACUTE OROFACIAL MOTOR DEFICIT.** Median inter-lick interval +12.5 ms [+4.6, +19.9] paired
+   within animal, 4/4 animals positive, ~7.5% slower on a ~165 ms baseline, recovered by subacute
+   (+1.5 [-4.9, +7.7]). Per-quintile it is a FLAT +12-13 ms offset, significant in 4 of 5 bins and
+   **already present in Q1** -- carried into the session, not developed during it.
+2. **NO WITHIN-SESSION MOTOR FATIGUE, ANYWHERE.** ILI never rises in any of sixteen epoch x position
+   cells; every change is flat or slightly faster. Across the quintiles where acute near-spout HIT
+   RATE falls 0.972 -> 0.457, ILI moves 180.7 -> 178.3.
+3. **A WITHIN-SESSION ENGAGEMENT DECLINE THAT IS NOT THE QUIT TAIL.** It survives engagement gating
+   (licks per trial, Q5-Q1: pre -3.8, acute -8.3, subacute -10.7, chronic -3.5). Within-animal it
+   separates into an OFFSET and a DIVERGENCE: acute FAR is a flat -6 at every quintile, a constant
+   deficit; acute NEAR starts at its own pre level and crosses below by Q3. The STEEPENING relative
+   to each animal's own baseline decline is significant at SUBACUTE (-6.8 near, -5.8 far), not
+   acute.
+4. **QUITTING IS TIME-DRIVEN, NOT LICK-BUDGET-DRIVEN.** Against an independent early-window lick
+   rate, log(quit licks) on log(rate) is +0.72 [+0.36, +1.06] and log(quit time) is
+   -0.13 [-0.43, +0.12]; a fixed lick budget requires the first to be exactly 0. And the quit has a
+   PRODROME: -18.7 licks/min [-22.9, -13.7] in the ten minutes before, against time-matched
+   controls from the same animal. **A RAMP AND THEN A STEP** -- a 20-30 min decline, then an abrupt
+   collapse.
+
+**THE SYNTHESIS:** the stroke imposes an orofacial motor deficit the animal carries throughout a
+session, and SEPARATELY accelerates a motivational decline that ends it. Those were conflated for
+most of two days, including by me. Fatigue is ruled out as the session-terminator; it is not ruled
+out as a description of the far-spout deficit, which is sensorimotor and constant.
+
+**RETIRED FROM THIS THREAD:** the quit DETECTION RATE (recording-policy confound; fixed by
+`--horizon-min 80`, and then underpowered at +0.247 [-0.028, +0.562]); LICKS AT QUIT (the -1270
+acutely rested on PS92 and PS93 having ONE pre session each, so the bootstrap had nothing to
+resample); `r_hit_licks` (endogenous).
+
+### CAVEATS THAT MUST TRAVEL WITH THESE NUMBERS
+
+* **Far-spout ILI is unreliable post-stroke.** Contact-based detection scores a MISSED lick as a
+  long interval, and misses are exactly what is elevated there. Quote the near columns.
+* **Q5 ILI is survivorship-contaminated.** ILI needs >=4 licks/trial and acute Q5 averages 7.9, so
+  the survivors are the high-lick trials and the exclusion rate is epoch-dependent. Q1-Q4 is the
+  trustworthy span.
+* **The "sessions with NO quit" panel is not a clean control** -- see its own entry. Acute is four
+  sessions, three with unconfirmed quits.
+* **DLC tongue tracking is still the blocker** for separating "did not try" from "tried and
+  missed", and it would fix the far-spout ILI problem too.

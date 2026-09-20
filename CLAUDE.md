@@ -332,6 +332,15 @@ came from; `STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 
 guards — five of them checks that were themselves broken — which are still in force;
 `STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/STATUS_2026-09-20.md`](docs/STATUS_2026-09-20.md)** — **START HERE for the HAEMODYNAMIC
+and ENGAGEMENT arms.** Haemodynamics is CLOSED with a negative answer: four routes through 470/415
+each fail differently, the information is not in the data, and the 530 nm reflectance fix is
+DEFERRED hardware — do not spend analysis effort there. Engagement has four findings that survived:
+an acute orofacial motor deficit (ILI +12.5 ms, flat across the session, recovered by subacute), NO
+within-session motor fatigue, a within-session engagement decline that is not the quit tail, and
+quitting that is time-driven rather than lick-budget-driven. Consolidated reasoning is the last
+entry in `DECISIONS.md`.
+
 **[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md)** — START HERE for the ANATOMICAL arm
 ("where does the displaced code move"). **THE REFERENCE IS THE CLAIM**, and three of them are in
 play; a filename now says which (`_MEANref_`, `_PRECUEref_`, `_QUIETref_`):
