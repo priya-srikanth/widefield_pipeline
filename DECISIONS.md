@@ -15344,7 +15344,12 @@ analysis.
 measure from the one the project set out to use. The amplitude route died three times over (see
 the late-window entry); this is the survivor.
 
-### WHY THIS IS THE MOST TRUSTWORTHY NUMBER OF THE DAY
+> **DOWNGRADED THE SAME DAY. THE INDEPENDENT CHECK CAME BACK NULL** -- see "THE EVOKED DIP DOES
+> NOT CONFIRM THE REST LAG" at the end of this file. The acute point estimates agree in sign, but
+> the evoked measure does not exclude zero on either variant, so this is a SINGLE-MEASURE result
+> whose absolute value is biased. Do not call it replicated.
+
+### WHY THIS LOOKED LIKE THE MOST TRUSTWORTHY NUMBER OF THE DAY
 
 1. **It is in the only domain calcium bleed-through cannot touch.** Contamination is
    instantaneous; a lag is immune. Three independent arguments converged on latency, and this is
@@ -15390,3 +15395,60 @@ different epochs.
 A second, independent lag measurement from TASK-EVOKED data -- the rest and evoked estimates share
 no trials. And resolving the PS94 sign holdout (`channel_vessel_sign`), which is the remaining
 threat to reading the trough at all, and therefore to this entire result.
+
+---
+
+## THE EVOKED DIP DOES NOT CONFIRM THE REST LAG (2026-09-19)
+
+`scripts/rest_migration/evoked_hrf_latency.py`, 98 sessions, `epoch_22_evoked_hrf_latency.csv`.
+
+Priya: *"why does the lag relate to the neurovascular coupling - i thought the vascular part was
+the later dip"*. It does, and that question produced the right experiment. `rest_coupling` reads a
+cross-correlation trough on REST frames whose absolute value is distorted by the regression notch;
+the DIP is the interpretable version -- 470 rises with calcium, 415 falls as blood absorbs, and
+the gap between them is a latency that can be checked against the literature. It also shares NO
+TRIALS with the rest estimate, since rest is by definition outside every trial.
+
+**THE ABSOLUTE NUMBERS ARE SENSIBLE, WHICH IS THE ONE CLEAR WIN.** 470 calcium peak ~0.44 s, 415
+haemodynamic trough ~1.97 s, latency ~1.5 s -- in the published range for awake mouse cortex, and
+a useful check on `rest_coupling`'s 0.31 s, which was always implausibly fast for a time-to-peak.
+
+### BUT THE EPOCH EFFECT DOES NOT REPLICATE
+
+| epoch | d latency, ALL (n=98) | d latency, NEGATIVE-DIP ONLY (n=70) |
+|---|---|---|
+| acute | +0.142 [-0.29, +0.51] | +0.403 [-0.01, +0.69] |
+| subacute | -0.167 [-0.80, +0.26] | +0.222 [-0.03, +0.47] |
+| chronic | -0.091 [-0.83, +0.45] | +0.332 [-0.01, +0.60] |
+
+**NOTHING CLEARS ZERO ON EITHER VARIANT, AND THE TWO VARIANTS DISAGREE IN SIGN** at subacute and
+chronic.
+
+**THE DISAGREEMENT HAS A NAME: 21 OF THE 28 EXCLUDED SESSIONS ARE PS94**, the animal with no
+negative 415 deflection at any latency (`channel_evoked_sign`). So "sessions with a genuine
+negative dip" is not a quality filter -- it is mostly a filter that DELETES ONE ANIMAL and changes
+the cohort. Neither variant is the right answer; the disagreement between them is the finding.
+
+### WHAT THIS DOES TO THE DECREASED-COUPLING RESULT
+
+The acute estimates agree in SIGN across the two methods (rest +0.156, evoked +0.142 or +0.403),
+so they are not contradictory. But the evoked CIs are three to five times wider and none excludes
+zero. **THE REST-BASED SLOWING IS THEREFORE A SINGLE-MEASURE RESULT, UNREPLICATED**, and it was
+described in this file as "the most trustworthy number of the day" before the check was run. That
+framing is withdrawn.
+
+**WHY THE EVOKED MEASURE IS SO NOISY**, and it is not mysterious: the dip is 0.2-1.1% deep, and
+`argmin` over a shallow trough is unstable. This is the SAME failure mode as the rest lag's
+`argmax` -- except there the two lobes had opposite physical meanings so the right one could be
+chosen, and here there is only one shallow extremum and nothing to choose.
+
+**ONE SIGNIFICANT CELL, not leaned on:** chronic 470 peak -0.111 s [-0.22, -0.05], i.e. the
+CALCIUM peak arrives earlier chronically. One of eighteen uncorrected cells.
+
+### WHAT WOULD ACTUALLY SETTLE IT
+
+Not another latency estimator on the same two channels. A GREEN REFLECTANCE CHANNEL near 530 nm
+measures blood volume directly with no GCaMP in it, and would give a dip with an amplitude worth
+taking an argmin over. Every route through 470/415 alone has now been tried: amplitude early
+(calcium-contaminated), amplitude late (denominator-confounded), rest lag (biased absolute value),
+evoked dip (too shallow to resolve).

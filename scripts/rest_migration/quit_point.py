@@ -32,6 +32,27 @@ requires a NON-RECOVERING collapse, which Priya confirms matches the phenomenon 
 gate's assumption and the biology agree, and the quit point is the first trial of its terminal run.
 
     python -m scripts.rest_migration.quit_point [--animals PS92 ...]
+
+THE QUIT RATE IS NOT COMPARABLE ACROSS EPOCHS WITHOUT A COMMON HORIZON, and `--horizon-min` is the
+fix (Priya, 2026-09-19: *"is there a time we can select that will include most sessions, eg 80
+minutes, and compare quitting only within that window (to avoid the variable length issue
+pre-stroke)"*).
+
+Pre-stroke sessions ran "up to 2 hrs or until they stopped licking" and span 74-167 min; post-
+stroke ran a strict 120 min / 100 trials per position and span 95-125. A longer session has more
+opportunity to contain a quit AND more tail in which to confirm one, so the raw detection rate
+tracks the RECORDING POLICY rather than the animal. It measured 0.34 pre against 0.75 acute, which
+is why that number was retired.
+
+Administrative censoring removes it by construction: observe EVERY session for exactly T minutes,
+drop those shorter than T, and re-run the detector on the truncated record so a late quit is
+equally unconfirmable everywhere. **T = 80 keeps 92 of 96 sessions** (pre 40, acute 16, subacute
+17, chronic 19, all four animals), losing only four pre-stroke sessions.
+
+**AND THIS ALSO REPAIRS EVERYTHING MEASURED *AT* THE QUIT POINT**, which inherited the same
+selection. Licks-at-quit looked like a result (-1270 acutely) until the per-animal table showed
+PS92 and PS93 each had exactly ONE pre-stroke session with a detected quit, so the bootstrap had
+nothing to resample within them and their uncertainty never entered the CI.
 """
 from __future__ import annotations
 
@@ -44,6 +65,33 @@ import numpy as np
 
 HALF_WIN = 60          # trials either side of the quit point for the aligned average
 N_BOOT = 4000
+
+
+EARLY_S = 600.0          # s; the fixed early window the independent lick rate is measured over
+
+
+def _early_rate(rows, early_s=EARLY_S):
+    """``(licks/min over the first `early_s`, licks/trial over those trials, n_trials)``.
+
+    **THE POINT OF THIS COLUMN IS THAT IT IS NOT DERIVED FROM THE QUIT POINT**, which makes it the
+    only non-circular predictor available for the fatigue question.
+
+    `quit_cum_licks / quit_elapsed_s` looks like a lick rate and must never be used as one: it is
+    `L / T`, so regressing it on `T` is guaranteed negative and on `L` guaranteed positive, for
+    arithmetic rather than biological reasons. A FIXED early window is independent of when the quit
+    occurs, so the two competing predictions become testable and OPPOSITE:
+
+        MOTOR FATIGUE, quit at a fixed LICK COUNT  ->  quit TIME  ~ 1/rate, log-log slope -1
+                                                       quit LICKS ~ const,  log-log slope  0
+        TIME-DRIVEN, quit at a fixed TIME          ->  quit TIME  ~ const,  log-log slope  0
+                                                       quit LICKS ~ rate,   log-log slope +1
+    """
+    early = [r for r in rows if float(r["elapsed_s"]) <= early_s]
+    if len(early) < 5:
+        return float("nan"), float("nan"), len(early)
+    span = max(float(early[-1]["elapsed_s"]), 1.0) / 60.0
+    licks = float(early[-1]["cum_licks"]) - float(early[0]["cum_licks"])
+    return licks / span, licks / max(len(early) - 1, 1), len(early)
 
 
 def session_quit(s, rows, resp_s=2.0):
@@ -61,6 +109,7 @@ def session_quit(s, rows, resp_s=2.0):
     pos = np.array([POSITION_NAMES.get(r["pos"], str(r["pos"])) for r in rows])
     ne = np.asarray(engagement_gate(order, responded, pos), bool)
     dur = float(rows[-1]["elapsed_s"])
+    er, el, en = _early_rate(rows)
 
     # RIGHT-CENSORED, NOT ABSENT (Priya, 2026-09-19: *"count the full session time if there is no
     # disengaged tail"*). **THE QUIT-DETECTION RATE IS CONFOUNDED BY SESSION-TERMINATION POLICY**:
@@ -95,7 +144,7 @@ def session_quit(s, rows, resp_s=2.0):
                     quit_cum_rewards=float("nan"), hit_before=float("nan"),
                     hit_after=float("nan"), step_sharpness=float("nan"),
                     session_dur_s=dur, time_engaged_s=dur, censored=True,
-                    frac_engaged=1.0)
+                    frac_engaged=1.0, early_lpm=er, early_lpt=el, early_n=en)
     # THE QUIT POINT IS THE FIRST TRIAL OF THE TERMINAL RUN. `engagement_gate` already requires
     # non-recovery, so scanning back from the end to the first False is the start of that run.
     k = len(ne)
@@ -127,6 +176,7 @@ def session_quit(s, rows, resp_s=2.0):
                 # STEP SHARPNESS: how much of the total drop happens in the 20 trials around the
                 # quit. Near 1 = a genuine step. Near the fraction of trials spanned = a ramp.
                 step_sharpness=_sharpness(rows, k),
+                early_lpm=er, early_lpt=el, early_n=en,
                 session_dur_s=dur, time_engaged_s=float(rows[k]["elapsed_s"]),
                 censored=False, frac_engaged=float(rows[k]["elapsed_s"] / dur) if dur else 1.0)
 
@@ -166,6 +216,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
+    ap.add_argument("--horizon-min", type=float, default=None, metavar="T",
+                    help="ADMINISTRATIVE CENSORING: observe every session for exactly T minutes "
+                         "and drop sessions shorter than T. Makes the quit RATE comparable across "
+                         "epochs, which it is not otherwise -- see the module docstring. T=80 "
+                         "keeps 92 of 96 sessions (pre 40, acute 16, subacute 17, chronic 19).")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
@@ -177,6 +232,9 @@ def main(argv=None) -> int:
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     near = near_codes()
+    if a.horizon_min is not None:
+        print(f"COMMON HORIZON {a.horizon_min:.0f} min: sessions shorter than this are DROPPED "
+              f"and the rest are TRUNCATED, so every session contributes equal observation time.")
 
     rows_out, aligned = [], defaultdict(list)
     n_seen, n_quit = defaultdict(int), defaultdict(int)
@@ -196,6 +254,19 @@ def main(argv=None) -> int:
             continue
         if len(tr) < 60:
             continue
+        if a.horizon_min is not None:
+            # EVERY SESSION IS OBSERVED FOR EXACTLY THE SAME LENGTH OF TIME, and the detector is
+            # re-run on the truncated record rather than the quit being looked up from the full
+            # one. A quit at 78 min is then UNCONFIRMABLE under an 80 min horizon for every
+            # session equally, which is what makes the rate comparable.
+            h = a.horizon_min * 60.0
+            if float(tr[-1]["elapsed_s"]) < h:
+                print(f"   .. {lab:14s} shorter than the {a.horizon_min:.0f} min horizon "
+                      f"({float(tr[-1]['elapsed_s']) / 60:.0f} min) -- dropped", flush=True)
+                continue
+            tr = [r for r in tr if float(r["elapsed_s"]) <= h]
+            if len(tr) < 60:
+                continue
         n_seen[ep] += 1
         q = session_quit(s, tr)
         if q is None:
@@ -223,7 +294,8 @@ def main(argv=None) -> int:
     if not rows_out:
         print("no sessions scored -- a failed run, not a result")
         return 1
-    p = out_dir / "epoch_18_quit_point.csv"
+    p = out_dir / (f"epoch_18_quit_point"
+                   f"{'_h%d' % a.horizon_min if a.horizon_min else ''}.csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows_out[0]))
         w.writeheader()
