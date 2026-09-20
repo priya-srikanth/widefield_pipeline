@@ -655,6 +655,37 @@ def main(argv=None) -> int:
         o = np.asarray(o)
         return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5)), len(ans)
 
+    def _gap_by_session(key, grp):
+        """``{(epoch, animal): [Q5 - Q1, one per session]}``.
+
+        **Q1 AND Q5 COME FROM THE SAME SESSION**, so the within-session pairing is preserved. That
+        is not the same as differencing the two endpoint MEANS of the delta curve, because a
+        session can clear the 5-value floor in one quintile and not the other, and then the two
+        endpoints are averaging over different session sets.
+        """
+        src = "per_pos" if key == "rate" else "per_ili"
+        out = defaultdict(list)
+        for v in sess.values():
+            pts = v.get(src, {}).get(grp, [])
+            q1 = [x[1] for x in pts if len(x) > 2 and x[2] < 1.0 / NQ]
+            q5 = [x[1] for x in pts if len(x) > 2 and x[2] >= (NQ - 1.0) / NQ]
+            if len(q1) >= 5 and len(q5) >= 5:
+                out[(v["epoch"], v["animal"])].append(
+                    float(np.median(q5)) - float(np.median(q1)))
+        return out
+
+    def _gap_change(key, grp, e):
+        """Change from pre in the Q5-Q1 gap: a DIFFERENCE OF DIFFERENCES.
+
+        Each animal's own within-session decline is subtracted, so this asks whether the session
+        gets STEEPER after the stroke rather than whether it declines at all -- every epoch
+        declines, including pre.
+        """
+        g = _gap_by_session(key, grp)
+        pre_by = {an: v for (ee, an), v in g.items() if ee == "pre"}
+        ep_by = {an: v for (ee, an), v in g.items() if ee == e}
+        return {an: (ep_by[an], pre_by[an]) for an in sorted(set(ep_by) & set(pre_by))}
+
     POST = [e for e in EPS if e != "pre"]
     for key, unit, title in (("rate", "licks/trial", "LICKS PER TRIAL"),
                              ("ili", "ms", "MEDIAN INTER-LICK INTERVAL")):
@@ -675,8 +706,22 @@ def main(argv=None) -> int:
                         line += f"{'--':>16}"
                 print(line)
         print("  each animal minus its OWN pre profile. * = 95% CI excludes zero. (n) = animals.")
+        print(f"  {'':<17}{'Q5 - Q1 GAP, change from pre (difference of differences)':>0}")
+        for e in POST:
+            line = f"  {e:<10}"
+            for grp in ("near", "far"):
+                g = _boot_delta(_gap_change(key, grp, e))
+                if g:
+                    star = " *" if (g[1] > 0 or g[2] < 0) else "  "
+                    line += f"{grp:>7} {g[0]:>+7.1f} [{g[1]:+.1f},{g[2]:+.1f}]{star}({g[3]})"
+                else:
+                    line += f"{grp:>7} {'--':>22}"
+            print(line)
+        print("    NEGATIVE = the session STEEPENS after the stroke, beyond that animal's own"
+              " baseline decline.")
 
-    fig3, ax3 = plt.subplots(2, len(POST), figsize=(4.6 * len(POST), 8.0), squeeze=False)
+    fig3, ax3 = plt.subplots(2, len(POST) + 1, figsize=(4.6 * (len(POST) + 1), 8.0),
+                             squeeze=False)
     for i_k, (key, ylab) in enumerate((("rate", "delta licks per trial"),
                                        ("ili", "delta inter-lick interval (ms)"))):
         for j, e in enumerate(POST):
@@ -701,8 +746,35 @@ def main(argv=None) -> int:
             if j == 0:
                 axx.set_ylabel(ylab)
                 axx.legend(fontsize=8, frameon=False)
+    # LAST COLUMN: the Q5-Q1 GAP CHANGE, which is the tilt of each curve to its left, summarised.
+    # **ON ITS OWN Y SCALE**, because it is a difference of differences and not a delta -- forcing
+    # it onto the same axis as the per-quintile deltas would compress both.
+    for i_k, key in enumerate(("rate", "ili")):
+        axx = ax3[i_k][len(POST)]
+        for grp, cc, off in (("near", "#2ca02c", -0.09), ("far", "#9467bd", +0.09)):
+            xs, ys, lo_, hi_ = [], [], [], []
+            for j, e in enumerate(POST):
+                g = _boot_delta(_gap_change(key, grp, e))
+                if g:
+                    xs.append(j + off)
+                    ys.append(g[0])
+                    lo_.append(g[1])
+                    hi_.append(g[2])
+            if xs:
+                axx.errorbar(xs, ys, yerr=[np.array(ys) - np.array(lo_),
+                                           np.array(hi_) - np.array(ys)],
+                             fmt="o", ms=6, lw=1.8, capsize=4, color=cc, label=grp)
+        axx.axhline(0, color="0.35", lw=1.0, ls="--")
+        axx.set_xticks(range(len(POST)))
+        axx.set_xticklabels(POST, fontsize=8)
+        axx.set_xlim(-0.5, len(POST) - 0.5)
+        axx.set_title("change in the Q5-Q1 GAP", fontsize=10)
+        axx.set_ylabel("(Q5-Q1) minus pre's (Q5-Q1)", fontsize=8)
+        if i_k == 0:
+            axx.legend(fontsize=8, frameon=False)
+
     for row in ax3:
-        used = [x for x in row if x.has_data()]
+        used = [x for x in row[:len(POST)] if x.has_data()]
         if len(used) > 1:
             lo = min(x.get_ylim()[0] for x in used)
             hi = max(x.get_ylim()[1] for x in used)
@@ -710,8 +782,9 @@ def main(argv=None) -> int:
                 x.set_ylim(lo, hi)
     fig3.suptitle("WITHIN-ANIMAL DELTA FROM PRE, by session quintile. Each animal minus its own "
                   "pre-stroke profile,\nso between-animal baseline spread (near ILI runs "
-                  "151-173 ms across animals) cannot drive it. Dashed line = no change.",
-                  fontsize=10)
+                  "151-173 ms across animals) cannot drive it. Dashed line = no change.\n"
+                  "LAST COLUMN: change in the Q5-Q1 gap -- does the session STEEPEN beyond that "
+                  "animal's own baseline decline? (own y scale)", fontsize=10)
     fig3.tight_layout(rect=(0, 0, 1, 0.90))
     p3 = out_dir / f"epoch_25_quintiles_delta_from_pre{tag}.png"
     fig3.savefig(p3, dpi=170)
