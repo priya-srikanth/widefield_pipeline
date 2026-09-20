@@ -15801,3 +15801,20 @@ orofacial fatigue) was closer to the data than the synthesis that displaced it.
 
 **STILL BLOCKED ON DLC.** Every within-bout measure is contaminated by contact-based detection to
 some degree; chronic's recovered behaviour is an argument, not a control.
+
+### FIGURES
+
+`epoch_26_within_bout_deceleration.png` is the one to look at -- it was TABLE-ONLY in the first
+version, which left this module's headline finding with no figure while a secondary measure had
+one. Three per measure, all on the same three-view layout:
+
+| file | measure |
+|---|---|
+| `epoch_26_within_bout_deceleration.png` | last third of a bout minus its first third |
+| `epoch_26_bouts_per_trial.png` | how many bouts are INITIATED |
+| `epoch_26_licks_per_bout.png` | whether a bout is CUT SHORT |
+
+Each has RAW by quintile (top), WITHIN-ANIMAL DELTA FROM PRE (bottom), and the Q5-Q1 GAP CHANGE.
+**Read the delta row, not the raw row** -- the raw levels are cohort means over different animal
+sets, and chronic near sits at 3.36 bouts against far's 8.41 where no other epoch splits that way,
+which is composition rather than biology.

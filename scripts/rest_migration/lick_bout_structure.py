@@ -386,93 +386,108 @@ def main(argv=None) -> int:
     else:
         print("  too few sessions reach the crossing -- not run")
 
-    # ---- FIGURE: bouts per trial, three views (Priya, 2026-09-20) -----------------------------
-    # RAW / DELTA-FROM-PRE / GAP-CHANGE, because each answers a different question and the first
-    # alone is misleading: the raw levels are cohort means over DIFFERENT ANIMAL SETS, and chronic
-    # near sits at 3.36 bouts against far's 8.41 where no other epoch splits that way -- which is
-    # animal composition, not biology, and the delta panels remove it by construction.
+    # ---- FIGURES: three views of one per-trial measure ----------------------------------------
+    # RAW / DELTA-FROM-PRE / GAP-CHANGE, because each answers a different question and the raw
+    # panel alone misleads: the levels are cohort means over DIFFERENT ANIMAL SETS, and chronic
+    # near sits at 3.36 bouts against far's 8.41 where no other epoch splits that way -- animal
+    # composition, not biology. The delta panels remove it by construction.
+    #
+    # FACTORED rather than written twice: the within-bout deceleration was table-only in the first
+    # version, which left the headline finding of this module with no figure at all.
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    KEY = "n_bouts"
-    fig, ax = plt.subplots(2, 4, figsize=(18.5, 8.4))
-    for j, e in enumerate(EPS):
-        axx = ax[0][j]
-        for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
-            xs, ys, lo_, hi_ = [], [], [], []
-            for b in range(NQ):
-                g = _boot(per_session_q(KEY, grp, b, e), rng)
-                if g:
-                    xs.append(b + 1)
-                    ys.append(g[0])
-                    lo_.append(g[1])
-                    hi_.append(g[2])
-            if len(xs) >= 3:
-                axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
-                axx.fill_between(xs, lo_, hi_, color=cc, alpha=0.15, lw=0)
-        axx.set_xticks(range(1, NQ + 1))
-        axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
-        axx.set_title(f"{e} -- RAW", fontsize=10)
-        if j == 0:
-            axx.set_ylabel("bouts per trial")
-            axx.legend(fontsize=8, frameon=False)
-    for j, e in enumerate(POST):
-        axx = ax[1][j]
-        for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
-            xs, ys, lo_, hi_ = [], [], [], []
-            for b in range(NQ):
-                g = _boot_delta(delta_pairs(KEY, grp, b, e), rng)
-                if g:
-                    xs.append(b + 1)
-                    ys.append(g[0])
-                    lo_.append(g[1])
-                    hi_.append(g[2])
-            if len(xs) >= 3:
-                axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
-                axx.fill_between(xs, lo_, hi_, color=cc, alpha=0.15, lw=0)
-        axx.axhline(0, color="0.35", lw=1.0, ls="--")
-        axx.set_xticks(range(1, NQ + 1))
-        axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
-        axx.set_title(f"{e} - pre (within animal)", fontsize=10)
-        if j == 0:
-            axx.set_ylabel("delta bouts per trial")
-    gx = ax[1][3]
-    for grp, cc, off in (("near", "#2ca02c", -0.09), ("far", "#9467bd", +0.09)):
-        xs, ys, lo_, hi_ = [], [], [], []
+    def three_view(key, ylab, fname, title):
+        fig, ax = plt.subplots(2, 4, figsize=(18.5, 8.4))
+        for j, e in enumerate(EPS):
+            axx = ax[0][j]
+            for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
+                xs, ys, lo_, hi_ = [], [], [], []
+                for b in range(NQ):
+                    g = _boot(per_session_q(key, grp, b, e), rng)
+                    if g:
+                        xs.append(b + 1)
+                        ys.append(g[0])
+                        lo_.append(g[1])
+                        hi_.append(g[2])
+                if len(xs) >= 3:
+                    axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
+                    axx.fill_between(xs, lo_, hi_, color=cc, alpha=0.15, lw=0)
+            axx.set_xticks(range(1, NQ + 1))
+            axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
+            axx.set_title(f"{e} -- RAW", fontsize=10)
+            if j == 0:
+                axx.set_ylabel(ylab)
+                axx.legend(fontsize=8, frameon=False)
         for j, e in enumerate(POST):
-            g = _boot_delta(gap_pairs(KEY, grp, e), rng)
-            if g:
-                xs.append(j + off)
-                ys.append(g[0])
-                lo_.append(g[1])
-                hi_.append(g[2])
-        if xs:
-            gx.errorbar(xs, ys, yerr=[np.array(ys) - np.array(lo_),
-                                      np.array(hi_) - np.array(ys)],
-                        fmt="o", ms=6, lw=1.8, capsize=4, color=cc, label=grp)
-    gx.axhline(0, color="0.35", lw=1.0, ls="--")
-    gx.set_xticks(range(len(POST)))
-    gx.set_xticklabels(POST, fontsize=8)
-    gx.set_xlim(-0.5, len(POST) - 0.5)
-    gx.set_title("change in the Q5-Q1 GAP", fontsize=10)
-    gx.set_ylabel("(Q5-Q1) minus pre's (Q5-Q1)", fontsize=8)
-    gx.legend(fontsize=8, frameon=False)
-    for row, cols in ((ax[0], range(4)), (ax[1], range(3))):
-        used = [row[i] for i in cols if row[i].has_data()]
-        if len(used) > 1:
-            lo = min(x.get_ylim()[0] for x in used)
-            hi = max(x.get_ylim()[1] for x in used)
-            for x in used:
-                x.set_ylim(lo, hi)
-    fig.suptitle("BOUTS PER TRIAL across session quintiles. TOP raw (cohort means over different "
-                 "animal sets -- read with care).\nBOTTOM within-animal delta from pre, and the "
-                 "change in the Q5-Q1 gap. Y shared within each row; the gap panel has its own.",
-                 fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.91))
-    pf = out_dir / "epoch_26_bouts_per_trial.png"
-    fig.savefig(pf, dpi=170)
-    print(f"\n  wrote {pf}")
+            axx = ax[1][j]
+            for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
+                xs, ys, lo_, hi_ = [], [], [], []
+                for b in range(NQ):
+                    g = _boot_delta(delta_pairs(key, grp, b, e), rng)
+                    if g:
+                        xs.append(b + 1)
+                        ys.append(g[0])
+                        lo_.append(g[1])
+                        hi_.append(g[2])
+                if len(xs) >= 3:
+                    axx.plot(xs, ys, "-o", ms=5, lw=1.8, color=cc, label=grp)
+                    axx.fill_between(xs, lo_, hi_, color=cc, alpha=0.15, lw=0)
+            axx.axhline(0, color="0.35", lw=1.0, ls="--")
+            axx.set_xticks(range(1, NQ + 1))
+            axx.set_xticklabels([f"Q{i}" for i in range(1, NQ + 1)])
+            axx.set_title(f"{e} - pre (within animal)", fontsize=10)
+            if j == 0:
+                axx.set_ylabel(f"delta {ylab}")
+        gx = ax[1][3]
+        for grp, cc, off in (("near", "#2ca02c", -0.09), ("far", "#9467bd", +0.09)):
+            xs, ys, lo_, hi_ = [], [], [], []
+            for j, e in enumerate(POST):
+                g = _boot_delta(gap_pairs(key, grp, e), rng)
+                if g:
+                    xs.append(j + off)
+                    ys.append(g[0])
+                    lo_.append(g[1])
+                    hi_.append(g[2])
+            if xs:
+                gx.errorbar(xs, ys, yerr=[np.array(ys) - np.array(lo_),
+                                          np.array(hi_) - np.array(ys)],
+                            fmt="o", ms=6, lw=1.8, capsize=4, color=cc, label=grp)
+        gx.axhline(0, color="0.35", lw=1.0, ls="--")
+        gx.set_xticks(range(len(POST)))
+        gx.set_xticklabels(POST, fontsize=8)
+        gx.set_xlim(-0.5, len(POST) - 0.5)
+        gx.set_title("change in the Q5-Q1 GAP", fontsize=10)
+        gx.set_ylabel("(Q5-Q1) minus pre's (Q5-Q1)", fontsize=8)
+        gx.legend(fontsize=8, frameon=False)
+        for row, cols in ((ax[0], range(4)), (ax[1], range(3))):
+            used = [row[i] for i in cols if row[i].has_data()]
+            if len(used) > 1:
+                lo = min(x.get_ylim()[0] for x in used)
+                hi = max(x.get_ylim()[1] for x in used)
+                for x in used:
+                    x.set_ylim(lo, hi)
+        fig.suptitle(title, fontsize=10)
+        fig.tight_layout(rect=(0, 0, 1, 0.91))
+        pf = out_dir / fname
+        fig.savefig(pf, dpi=170)
+        plt.close(fig)
+        print(f"  wrote {pf}")
+
+    three_view("n_bouts", "bouts per trial", "epoch_26_bouts_per_trial.png",
+               "BOUTS PER TRIAL across session quintiles. TOP raw (cohort means over different "
+               "animal sets -- read with care).\nBOTTOM within-animal delta from pre, and the "
+               "change in the Q5-Q1 gap. Y shared within each row; the gap panel has its own.")
+    three_view("licks_per_bout", "licks per bout", "epoch_26_licks_per_bout.png",
+               "LICKS PER BOUT across session quintiles -- does a bout get CUT SHORT as the "
+               "session wears on?\nTOP raw, BOTTOM within-animal delta from pre and the "
+               "Q5-Q1 gap change.")
+    three_view("ili_slope", "within-bout deceleration (ms)",
+               "epoch_26_within_bout_deceleration.png",
+               "WITHIN-BOUT DECELERATION: the LAST THIRD of a bout's intervals minus its FIRST "
+               "THIRD.\nThe per-trial MEDIAN ILI averages this away, which is why it looked "
+               "like there was no motor change. POSITIVE = the tongue slows as the bout runs on.")
 
     q = out_dir / "epoch_26_lick_bout_structure.csv"
     with open(q, "w", newline="", encoding="utf-8") as fh:
