@@ -5211,6 +5211,110 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
          _CCF_LEGEND.format(arm="pre-cue")
          + "\n\nTWO references here, not three -- see the preceding slide for why, and for why"
            " that makes this arm`s agreement gate much weaker than the cue and lick arms`."),
+
+        # ---- THE 415 nm AUDIT (2026-09-19) ----------------------------------------------------
+        ("epoch_20_channel_evoked_sign.png",
+         "WHAT THE 415 nm CHANNEL ACTUALLY CARRIES -- cue-aligned, by animal",
+         "415 IS BIPHASIC. A large FAST component peaking at 0.26-0.29 s, BEFORE the 470 calcium"
+         " peak at 0.38 s and far too early for any vascular response, then a slower component"
+         " from ~1 s."
+         "\n\nTHE LATE DEFLECTION DISAGREES ACROSS ANIMALS, which is why no single sign can be"
+         " quoted: PS93 goes clearly negative (-0.57% while 470 is still +0.79%), PS95 barely"
+         " dips, PS92 reaches only -0.20%, and PS94 NEVER GOES NEGATIVE, holding +0.9% out to 3 s."
+         "\n\nCues recur every few seconds, so a pre-cue baseline carries the previous trial`s"
+         " tail and PS94`s 470 does not return to baseline within 3 s either -- part of the late"
+         " plateau may be trial structure rather than physiology."),
+        ("epoch_21_channel_vessel_sign.png",
+         "IS THE 415 RESPONSE VESSEL-SHAPED OR PARENCHYMA-SHAPED?",
+         "THE EARLY COMPONENT IS CALCIUM BLEED-THROUGH, and the cleanest evidence is a matched"
+         " RATIO: at 0.4 s the vessel/parenchyma dilution is 0.41 in the 470 map against 0.43 in"
+         " the 415 map (PS93; 0.40 against 0.43 for PS92). A vascular signal has no reason to"
+         " dilute by exactly the factor the calcium signal does. A surface vein carries no GCaMP,"
+         " so what the camera collects there is scattered light from the cortex beside and beneath"
+         " it."
+         "\n\nLATE, THE PARENCHYMA GOES NEGATIVE WHILE THE VESSELS GO FLAT -- PS93 at 1.2 s is"
+         " -0.84% in parenchyma against 470`s +0.67%. So the VEINS ARE NOT INCREASING, they are"
+         " NOT CHANGING while everything around them decreases, which on a diverging colormap"
+         " renders as a bright streak. The observation is real; the reading is relative."
+         "\n\nTHE VESSEL MASK IS LOCAL-CONTRAST, not an intensity threshold. A darkest-decile"
+         " mask selected the dim anterior edge (row 183 +/- 198, mean intensity 2046 against the"
+         " brain`s 13048) and only 49% of it overlapped real vasculature."),
+
+        # ---- ENGAGEMENT: the quit, and what declines within a session (2026-09-20) ------------
+        ("epoch_23_quit_prodrome_gated_h90.png",
+         "IS THE QUIT A STEP OR AN ACCUMULATION? Lick rate across the session",
+         "A RAMP AND THEN A STEP. Against TIME-MATCHED controls from the SAME ANIMAL -- sessions"
+         " still engaged at that same absolute session time -- lick rate in the ten minutes before"
+         " a quit is -18.7 licks/min [-22.9, -13.7] (45 quitters, 705 pairings). The decline"
+         " starts 20-30 min out and collapses at the quit itself (24 -> 6 licks/min)."
+         "\n\nTHE CONTROL IS THE WHOLE POINT. Lick rate declines in EVERY session, so a"
+         " quit-aligned average on its own always shows a ramp and proves nothing."
+         "\n\nDO NOT READ THE ACUTE `sessions with NO quit` PANEL. Censored means no DETECTED"
+         " quit, and `engagement_gate` needs a sustained non-recovering run, so an animal stopping"
+         " near the end leaves too little tail. Measured as each censored session`s final 10 min"
+         " over its own mid-session rate: pre 0.77 (29 sessions), chronic 0.86 (18), and ACUTE"
+         " 0.48 from FOUR sessions THREE of which fall below half."),
+        ("epoch_24_session_quintiles_gated_h90.png",
+         "LICKS PER TRIAL and INTER-LICK INTERVAL by session quintile",
+         "THE SAME BINS AS THE HIT-RATE QUINTILES in `engagement_decomposition`, which is the"
+         " point: across the quintiles where acute near-spout HIT RATE falls 0.972 / 0.937 / 0.792"
+         " / 0.457, the INTER-LICK INTERVAL moves 180.7 / 180.1 / 179.3 / 178.3. A threefold"
+         " collapse in performance against a 1.3% change in motor speed."
+         "\n\nTOP licks per trial = engagement AND motor. BOTTOM inter-lick interval = the"
+         " rhythm`s PERIOD only."
+         "\n\nQ5 ILI IS SURVIVORSHIP-CONTAMINATED: ILI needs >= 4 licks/trial and acute Q5"
+         " averages 7.9, so the survivors are the high-lick trials and the exclusion rate is"
+         " epoch-dependent. Q1-Q4 is the trustworthy span. FAR-spout ILI is separately unreliable"
+         " post-stroke, because contact-based detection scores a MISSED lick as a long interval."),
+        ("epoch_25_quintiles_delta_from_pre_gated_h90.png",
+         "WITHIN-ANIMAL DELTA FROM PRE, by quintile -- offset versus divergence",
+         "THE LEVELS ARE NOT COMPARABLE ACROSS ANIMALS AND THE DIFFERENCES ARE. Pre-stroke"
+         " near-spout ILI runs 151 ms (PS95) to 173 ms (PS93), so a cohort mean of levels is"
+         " mostly determined by which animals land in each cell."
+         "\n\nIT SEPARATES AN OFFSET FROM A DIVERGENCE. Acute FAR is a flat -6 licks/trial at"
+         " every quintile -- a constant deficit. Acute NEAR starts at its own pre level and"
+         " crosses below by Q3 -- a within-session divergence. Acute ILI is a flat +12-13 ms"
+         " offset, significant in 4 of 5 quintiles and ALREADY PRESENT IN Q1."
+         "\n\nIT ALSO CORRECTS A READING: in raw levels subacute near ran 20.9 -> 11.5, the"
+         " steepest-looking decline of any epoch. Against each animal`s own baseline it is ABOVE"
+         " pre at every quintile. The apparent collapse was baseline spread."
+         "\n\nLAST COLUMN: change in the Q5-Q1 gap. The session steepens significantly at"
+         " SUBACUTE (-6.8 near, -5.8 far), not acute."),
+
+        # ---- IS THE DECLINE FATIGUE? The bout decomposition (2026-09-20) ----------------------
+        ("epoch_26_within_bout_deceleration.png",
+         "WITHIN-BOUT DECELERATION -- the motor deficit the median ILI hid",
+         "READ THE BOTTOM (DELTA) ROW. The last third of a bout`s intervals minus its first third,"
+         " as a WITHIN-ANIMAL delta from pre: +15 to +25 ms at EVERY EPOCH INCLUDING CHRONIC, at"
+         " every quintile, in all four animals -- and it does NOT recover."
+         "\n\nTHE DISSOCIATION IS THE FINDING. Median ILI is elevated acutely (+12.5 ms) and"
+         " RECOVERS by subacute (+1.5 [-4.9, +7.7]); this does not. The average cycle period comes"
+         " back; the ability to sustain a bout without slowing does not. The per-trial MEDIAN is"
+         " exactly the statistic that averages end-of-bout slowing away, which is why this went"
+         " unseen (Priya: the ILI is gated by a CPG, so effort may shorten bouts rather than slow"
+         " the rhythm)."
+         "\n\nACUTE ADDITIONALLY STEEPENS ACROSS THE SESSION, +10.1 [+0.9, +19.1] -- the fatigue"
+         " signature proper."
+         "\n\nTHE MISS ARTEFACT DOES NOT EXPLAIN IT. Contact-based detection turns a missed lick"
+         " into a doubled interval, but CHRONIC HIT RATE HAS RECOVERED while chronic slope is"
+         " still +15.8 to +20.8 and significant in all five quintiles. That is an argument, not a"
+         " control -- DLC tongue tracking would make it one."),
+        ("epoch_26_bouts_per_trial.png",
+         "BOUTS PER TRIAL -- how many bouts are INITIATED",
+         "READ THE BOTTOM (DELTA) ROW; the raw levels are cohort means over DIFFERENT ANIMAL SETS,"
+         " and chronic near sits at 3.36 bouts against far`s 8.41 where no other epoch splits that"
+         " way -- composition, not biology."
+         "\n\nTHE Q5-Q1 CHANGE CLEARS ZERO NOWHERE (acute near -1.42 [-3.62, +0.22]). Read"
+         " without intervals this looked like `the acute decline is entirely fewer bouts`, and it"
+         " is not. At acute, bout LENGTH is a well-constrained null (-0.10 [-0.94, +0.66]) while"
+         " bout COUNT is unconstrained, so initiation remains the better guess -- a guess."),
+        ("epoch_26_licks_per_bout.png",
+         "LICKS PER BOUT -- is a bout CUT SHORT as the session wears on?",
+         "THE FATIGUE-COMPATIBLE DIRECTION, and the only place in this decomposition that clears"
+         " zero: Q5-Q1 change from pre is -1.31 [-2.80, -0.04] at subacute near and"
+         " -1.36 [-2.53, -0.20] at chronic near. Acute and all FAR cells are null."
+         "\n\nREAD WITH `epoch_26_within_bout_deceleration`, not alone: bouts shortening AND"
+         " decelerating is a fatigue account; either on its own is weaker."),
     )
     #: Legend for the interval companions, which share one form and should not repeat it.
     _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "
