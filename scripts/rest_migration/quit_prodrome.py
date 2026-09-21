@@ -84,6 +84,13 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 BOUT_MAX_S = 0.5                    # s; a longer gap is a new bout, not a slow lick
 MIN_LICKS = 4                       # per trial, so the median is over >= 3 intervals
 BIN_S = 150.0                       # 2.5 min bins, quit-aligned
@@ -91,7 +98,7 @@ SESS_BIN_S = 300.0                  # 5 min bins, absolute session time
 SESS_MAX_S = 7200.0
 WIN = (-1800.0, 600.0)              # -30 to +10 min around the quit
 PRE_WIN = (-600.0, 0.0)             # the "just before the quit" window the headline number uses
-N_BOOT = 4000
+N_BOOT = ak.N_BOOT        # the two hand-rolled draws below stay in step with the kit
 EPS = ("pre", "acute", "subacute", "chronic")
 
 
@@ -110,22 +117,6 @@ def rate_in(t, c, t0, t1):
     return float((np.interp(t1, t, c) - np.interp(t0, t, c)) / ((t1 - t0) / 60.0))
 
 
-def _boot(by, rng, n_boot=N_BOOT):
-    A = sorted(by)
-    if not A:
-        return None
-    flat = [x for k in A for x in by[k]]
-    o = []
-    for _ in range(n_boot):
-        vals = []
-        for k in (A[i] for i in rng.integers(0, len(A), len(A))):
-            sa = by[k]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        o.append(float(np.mean(vals)))
-    o = np.asarray(o)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def session_row(item):
     """All per-session work for one session, or ``None`` if it cannot contribute.
 
@@ -142,45 +133,20 @@ def session_row(item):
     """
     import numpy as np
     from wfield_local import config, epochs
-    from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    from scripts.rest_migration.channel_position_maps import _daq_rate
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
-    from scripts.rest_migration.quit_point import session_quit
 
     lab, gate, horizon_min = item
-    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
-    if s is None:
+    # ONE LOADER FOR THE WHOLE PER-SESSION INCANTATION -- trials, quit, gate, horizon, cue and
+    # lick samples, DAQ rate, near codes. It was character-identical here and in
+    # `lick_bout_structure`; `analysis_kit.Behavior` carries the reasoning, including WHY THE
+    # UNGATED TRIALS ARE STILL RETURNED: the licks-per-minute curves and the quit alignment below
+    # deliberately keep every trial, because the quit is what they measure, while a PER-TRIAL
+    # average must not include the terminal quit period.
+    bh = ak.session_behavior(lab, gate=gate, horizon_min=horizon_min)
+    if bh is None:
         return None
-    tr = session_trials(s, 2.0)
-    if len(tr) < 60:
-        return None
-    q = session_quit(s, tr)
-    if q is None:
-        return None
-    t, c = _cum(tr)
-
-    # PER-TRIAL LICKS BY POSITION. `cum_licks` is the running count at each cue, so the difference
-    # between consecutive cues is the licks belonging to that trial, and the position is the
-    # EARLIER trial's. The last trial has no successor and is dropped.
-    tt = sorted(tr, key=lambda r: float(r["elapsed_s"]))
-
-    # ENGAGEMENT GATE AND COMMON HORIZON, both applied to the PER-TRIAL series only -- the
-    # licks-per-minute curves and the quit alignment deliberately keep every trial, because the
-    # quit itself is what they are measuring.
-    #
-    # WHY THE GATE MATTERS AND THE FIGURE WAS WRONG WITHOUT IT: trials inside the terminal quit
-    # period have ~zero licks, and they are 0.040 of pre-stroke trials against 0.217 acutely --
-    # a 5x epoch-dependent difference concentrated in the late bins. An ungated licks-per-trial
-    # curve therefore has its composition track the independent variable, which is the one thing
-    # an epoch contrast cannot tolerate (see `channel_position_maps`).
-    if gate and not q["censored"]:
-        tt = [r for r in tt if float(r["elapsed_s"]) < float(q["quit_elapsed_s"])]
-    if horizon_min:
-        tt = [r for r in tt if float(r["elapsed_s"]) <= horizon_min * 60.0]
-    if len(tt) < 30:
-        return None
-    near = near_codes()
+    tt, q = bh.gated, bh.quit
+    t, c = _cum(bh.trials)
+    near = bh.near
     # THE THIRD ELEMENT IS THE TRIAL-ORDER FRACTION, appended rather than inserted so every
     # existing consumer of (time, value) keeps working. Quartiles are defined on TRIAL ORDER, not
     # on wall-clock, to match the session-quintile convention in `engagement_decomposition` and
@@ -197,10 +163,7 @@ def session_row(item):
     # PER-TRIAL MEDIAN INTER-LICK INTERVAL, the motor-only measure. Needs the actual lick TIMES,
     # which `session_trials` does not return -- it stores a running COUNT.
     per_ili = {"near": [], "far": []}
-    cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
-    lick_s = np.asarray(_load_daq_events(s["h5"], "lick_analog", 2.5, 1.0,
-                                         (0.001, 0.020), 0.10)["lick_samples"], np.int64)
-    sr = float(_daq_rate(s))
+    cs, lick_s, sr = bh.cue_samples, bh.lick_samples, bh.sample_rate
     for i_r, r in enumerate(tt):
         k = int(r["order"])
         if k + 1 >= cs.size:
@@ -242,27 +205,25 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
-
-    labels = [s["label"] for s in config.load_sessions()
-              if s["label"] in want and epochs.epoch_of(s["label"])
-              and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    labels = ak.curated_labels(a.animals)
     items = [(lab, a.gate, a.horizon_min) for lab in labels]
     if a.gate or a.horizon_min:
         print(f"PER-TRIAL PANELS: gate={a.gate} horizon={a.horizon_min} "
               f"(licks/min and quit-alignment panels are UNAFFECTED by design)")
-    res, fail = parallel.fan_out(items, session_row, jobs=a.jobs, label="session")
-    # **SORTED, NOT COMPLETION ORDER.** Keying by label is not enough: dict insertion order is
-    # completion order, every bootstrap pool is built by iterating `sess`, and a seeded RNG drawing
-    # indices over a differently-ordered list gives different draws. The first parallel run
-    # reproduced the point estimate exactly (-18.7) and moved the CI ([-22.9,-13.7] -> [-23.1,
-    # -13.6]) -- small, but a CI that changes run to run is not reproducible.
-    sess = {lab: r for lab, r in sorted(((r["label"], r) for _l, r in res if r is not None),
-                                        key=lambda kv: kv[0])}
+    # `fan_sessions` IS `fan_out` PLUS THE SORT -- see `analysis_kit`. `fan_out`
+    # returns COMPLETION order; every bootstrap pool below is built by iterating this
+    # collection, and a seeded RNG over a differently-ordered list gives different
+    # draws (measured on `quit_prodrome`: the CI moved from [-22.9,-13.7] to
+    # [-23.1,-13.6] while the point estimate stayed exact). No longer forgettable.
+    # Keying by label was never enough on its own: dict insertion order is then completion order.
+    res, fail = ak.fan_sessions(items, session_row, jobs=a.jobs)
+    sess = {r["label"]: r for _it, r in res if r is not None}
     for lab in sorted(sess):
         v = sess[lab]
         print(f"   {lab:14s} {v['epoch']:9s} "
@@ -298,7 +259,7 @@ def main(argv=None) -> int:
     show = [i for i in range(sctr.size) if sctr[i] <= 6600]
     print(f"  {'epoch':<10}" + "".join(f"{sctr[i] / 60:>8.0f}" for i in show))
     for e in EPS:
-        g = [_boot(sess_curves["all"][e][i], rng) for i in show]
+        g = [ak.boot_ci(sess_curves["all"][e][i], rng) for i in show]
         n = max((len(sess_curves["all"][e][i]) for i in show), default=0)
         if not any(g):
             continue
@@ -349,7 +310,7 @@ def main(argv=None) -> int:
     print(f"  {'t from quit (min)':<20}{'QUITTERS':>20}{'MATCHED CONTROLS':>22}{'difference':>14}")
     qm, cm = [], []
     for i in range(ctrs.size):
-        g, h = _boot(curves["quit"][i], rng), _boot(curves["ctrl"][i], rng)
+        g, h = ak.boot_ci(curves["quit"][i], rng), ak.boot_ci(curves["ctrl"][i], rng)
         qm.append(g)
         cm.append(h)
         if g and h:
@@ -360,7 +321,7 @@ def main(argv=None) -> int:
     for r in rows_out:
         if np.isfinite(r["rate_pre_quit"]) and np.isfinite(r["rate_ctrl"]):
             d[r["animal"]].append(r["rate_pre_quit"] - r["rate_ctrl"])
-    g = _boot(d, rng)
+    g = ak.boot_ci(d, rng)
     print("\n  10 MIN BEFORE THE QUIT, quitter minus its OWN animal's time-matched controls:")
     print(f"    {g[0]:+.1f} licks/min [{g[1]:+.1f}, {g[2]:+.1f}]   ({len(d)} animals, "
           f"{sum(len(v) for v in d.values())} quitters)" if g else "    --")
@@ -392,7 +353,7 @@ def main(argv=None) -> int:
     print(f"  {'epoch':<10}{'spouts':<7}" + "".join(f"{sctr[i] / 60:>8.0f}" for i in show))
     for e in EPS:
         for grp in ("near", "far"):
-            gg = [_boot(pos_curves[(e, grp)][i], rng) for i in show]
+            gg = [ak.boot_ci(pos_curves[(e, grp)][i], rng) for i in show]
             if not any(gg):
                 continue
             print(f"  {e:<10}{grp:<7}"
@@ -421,7 +382,7 @@ def main(argv=None) -> int:
     print(f"  {'epoch':<10}{'spouts':<7}" + "".join(f"{sctr[i] / 60:>8.0f}" for i in show))
     for e in EPS:
         for grp in ("near", "far"):
-            gg = [_boot(ili_curves[(e, grp)][i], rng) for i in show]
+            gg = [ak.boot_ci(ili_curves[(e, grp)][i], rng) for i in show]
             if not any(gg):
                 continue
             print(f"  {e:<10}{grp:<7}"
@@ -556,7 +517,7 @@ def main(argv=None) -> int:
             for grp in ("near", "far"):
                 line = f"  {e:<10}{grp:<7}"
                 for b in range(NQ):
-                    g = _boot(_by_animal(key, grp, b, e), rng)
+                    g = ak.boot_ci(_by_animal(key, grp, b, e), rng)
                     line += f"{g[0]:>11.1f}" if g else f"{'--':>11}"
                 a1, a5 = _by_animal(key, grp, 0, e), _by_animal(key, grp, NQ - 1, e)
                 shared = sorted(set(a1) & set(a5))
@@ -587,7 +548,7 @@ def main(argv=None) -> int:
             for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
                 xs, ys, los, his = [], [], [], []
                 for b in range(NQ):
-                    g = _boot(_by_animal(key, grp, b, e), rng)
+                    g = ak.boot_ci(_by_animal(key, grp, b, e), rng)
                     if g:
                         xs.append(b + 1)
                         ys.append(g[0])
@@ -639,21 +600,15 @@ def main(argv=None) -> int:
                 ep_by[an] += vv
         return {an: (ep_by[an], pre_by[an]) for an in sorted(set(ep_by) & set(pre_by))}
 
-    def _boot_delta(pairs, n_boot=N_BOOT):
-        ans = sorted(pairs)
-        if not ans:
-            return None
-        obs = float(np.mean([np.mean(pairs[a][0]) - np.mean(pairs[a][1]) for a in ans]))
-        o = []
-        for _ in range(n_boot):
-            dd = []
-            for a in (ans[i] for i in rng.integers(0, len(ans), len(ans))):
-                pa, qa = pairs[a]
-                dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
-                          - np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))]))
-            o.append(float(np.mean(dd)))
-        o = np.asarray(o)
-        return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5)), len(ans)
+    def _boot_delta(pairs):
+        """`analysis_kit.boot_delta_pairs` with this figure's shared `rng` bound.
+
+        A CLOSURE RATHER THAN A RENAME at the four call sites below, because the alternative is
+        threading `rng` through a nested call at each one and the shared generator is precisely
+        the thing that must not be forgotten -- every interval in this figure has to be drawn
+        from the same stream or they stop being comparable.
+        """
+        return ak.boot_delta_pairs(pairs, rng)
 
     def _gap_by_session(key, grp):
         """``{(epoch, animal): [Q5 - Q1, one per session]}``.
@@ -798,7 +753,7 @@ def main(argv=None) -> int:
     for j, (subset, ttl) in enumerate((("all", "ALL sessions"),
                                        ("censored", "sessions with NO quit (no step to hide)"))):
         for e in EPS:
-            gg = [_boot(sess_curves[subset][e][i], rng) for i in range(sctr.size)]
+            gg = [ak.boot_ci(sess_curves[subset][e][i], rng) for i in range(sctr.size)]
             ok = [i for i in range(sctr.size) if gg[i] and len(sess_curves[subset][e][i]) >= 2]
             if len(ok) < 3:
                 continue
@@ -832,7 +787,7 @@ def main(argv=None) -> int:
     for j, e in enumerate(EPS):
         axx = axes[1][j]
         for grp, c, ls in (("near", "#2ca02c", "-"), ("far", "#9467bd", "--")):
-            gg = [_boot(pos_curves[(e, grp)][i], rng) for i in range(sctr.size)]
+            gg = [ak.boot_ci(pos_curves[(e, grp)][i], rng) for i in range(sctr.size)]
             ok = [i for i in range(sctr.size)
                   if gg[i] and len(pos_curves[(e, grp)][i]) >= 2]
             if len(ok) < 3:
@@ -853,7 +808,7 @@ def main(argv=None) -> int:
     for j, e in enumerate(EPS):
         axx = axes[2][j]
         for grp, c, ls in (("near", "#2ca02c", "-"), ("far", "#9467bd", "--")):
-            gg = [_boot(ili_curves[(e, grp)][i], rng) for i in range(sctr.size)]
+            gg = [ak.boot_ci(ili_curves[(e, grp)][i], rng) for i in range(sctr.size)]
             ok = [i for i in range(sctr.size)
                   if gg[i] and len(ili_curves[(e, grp)][i]) >= 2]
             if len(ok) < 3:

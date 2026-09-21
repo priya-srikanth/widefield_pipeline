@@ -62,6 +62,13 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 PRE_S, POST_S = 1.0, 4.0          # window around the event
 BASE_S = (-1.0, -0.2)             # per-trial baseline, ending before any response
 EARLY_S = (0.0, 0.4)              # calcium timescale
@@ -162,26 +169,6 @@ def evoked(trace, cue_frames, t):
     return (np.mean(seg, axis=0), len(seg)) if seg else (None, 0)
 
 
-def _boot_ci(by_animal, rng, n_boot=4000):
-    """Nested animals -> sessions bootstrap CI of the mean. `by_animal` is {animal: [values]}."""
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for an in animals for v in by_animal[an]]
-    out = []
-    for _ in range(n_boot):
-        vals = []
-        for an in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[an]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        if vals:
-            out.append(float(np.mean(vals)))
-    if len(out) < n_boot // 4:
-        return None
-    o = np.asarray(out)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -195,16 +182,13 @@ def main(argv=None) -> int:
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
-
     rows, curves, tvec = [], defaultdict(list), None
-    for s in config.load_sessions():
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    for s in ak.curated_sessions(animals):
         lab = s["label"]
-        if lab not in want or config.animal_of(lab) not in animals:
-            continue
         ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
         try:
             t, p470, p415, cf, lf = session_traces(s)
         except Exception as ex:                                      # noqa: BLE001
@@ -259,7 +243,7 @@ def main(argv=None) -> int:
                 d = defaultdict(list)
                 for r in v:
                     d[r["animal"]].append(float(r[f"{cls}_{k}"]))
-                return _boot_ci(d, rng)
+                return ak.boot_ci(d, rng)
 
             c470, c415 = grp("470_early"), grp("415_early")
             if c470 is None or c415 is None:

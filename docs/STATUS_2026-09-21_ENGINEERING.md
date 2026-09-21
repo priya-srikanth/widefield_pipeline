@@ -38,10 +38,10 @@ Counts taken 2026-09-20, not estimated:
 | `wfield_local/locanmf_analysis_deck.py` | **5,468 lines**; `build_analysis_deck()` alone spans 1550→5440 |
 | `wfield_local/epoch_grant_figures.py` | **3,942 lines** |
 | `scripts/rest_migration/` | **74 modules, 19,208 lines** |
-| modules defining their own `_boot*` helper | **9** (two of them define two each) |
-| modules repeating the `phase_labels("pre")` filter | **70** |
-| modules loading licks via `_load_daq_events` directly | **37** |
-| per-session loops NOT fanned out | **8 of 11** in `rest_migration` |
+| modules defining their own `_boot*` helper | ~~**9**~~ → **0** (2026-09-21, see 2.1) |
+| modules repeating the `phase_labels("pre")` filter | ~~**70**~~ → **62** (8 migrated) |
+| modules loading licks via `_load_daq_events` directly | ~~**37**~~ → **~35** |
+| per-session loops NOT fanned out | **7 of 11** in `rest_migration` |
 | epoch figures on disk but unregistered in the deck | **25 of 390** |
 
 **THE REPO ALREADY KNOWS DUPLICATION IS ITS FAILURE MODE.** `rest_by_position`'s docstring: *"The
@@ -54,24 +54,39 @@ it did not"*. The nine `_boot` copies are the same pattern, unresolved.
 
 ## 2. THE WORK, IN DEPENDENCY ORDER
 
-### 2.1 Extract a shared analysis toolkit (highest value, lowest risk)
+### 2.1 Extract a shared analysis toolkit — **DONE 2026-09-21**
 
-Create `scripts/rest_migration/_common.py` (or better, `wfield_local/analysis_kit.py` if the
-pipeline should use it too) holding the four things every module re-implements:
+`wfield_local/analysis_kit.py` + `tests/test_analysis_kit.py`; eight modules migrated, 393 lines
+deleted against 179 added. `DECISIONS.md` → *"THE SHARED ANALYSIS TOOLKIT, AND THE THIRD ORDERING
+BUG IT TURNED UP"* has the full account. What landed:
 
-1. **`boot_ci(by_animal, rng)` and `boot_delta(pairs, rng)`** — the nested animals→sessions
-   bootstrap and its paired difference-of-differences form. **Nine copies today.** They are not
-   all identical, which is the danger: `rest_coupling` returns the mean of the FLAT pool as its
-   point estimate while some others return the mean of animal means. **Pick one, document which,
-   and state it in the docstring** — the distinction changed a reported number today (pooled
-   4496/4338 against paired −1270).
-2. **`curated_sessions(animals=None, epochs=True)`** — the `want`-set filter repeated in 70
-   modules.
-3. **`session_behavior(s)`** — cue samples, lick samples, DAQ rate, trials, engagement gate. The
-   four-import incantation in `quit_prodrome`, `lick_bout_structure`, `evoked_hrf_latency` and
-   `channel_position_maps` is character-identical.
-4. **`fan_sessions(labels, worker, jobs)`** — `fan_out` plus **sorted collection**, so the
-   completion-order trap is impossible to re-introduce rather than merely documented.
+1. **`boot_ci(by_animal, rng)` / `boot_delta(post, pre, rng)` / `boot_delta_pairs(pairs, rng)`** —
+   nine copies collapsed to one. **The warning below was WRONG and is kept for the record:** all
+   seven CI copies took the flat-pool mean, `rest_coupling` included. The real differences were an
+   empty-pool guard missing from two of them, and one copy returning the animal count as a fourth
+   element (now `Interval.n_animals`). ~~`rest_coupling` returns the mean of the FLAT pool as its
+   point estimate while some others return the mean of animal means.~~ The two conventions that DO
+   differ are `boot_ci` (flat pool, for LEVELS) and `boot_delta` (animal-weighted, for CHANGES);
+   both docstrings now say which and why, because that distinction is what retracted the
+   4496/4338 number.
+2. **`curated_sessions` / `curated_labels`** — the 70-module filter, calling `config.pooled_labels`
+   rather than re-deriving it. **Defaults to `load_sessions` order, NOT sorted**, because that
+   list is unsorted and the pools are iterated into a seeded RNG.
+3. **`session_behavior(lab, gate=…, horizon_min=…)`** plus `daq_rate` and `lick_samples` — the
+   character-identical block from `quit_prodrome` and `lick_bout_structure`, including both trial
+   floors. It also removes two scripts importing a third script's private `_daq_rate`.
+4. **`fan_sessions(items, worker, jobs=…)`** — `fan_out` plus sorted collection, so the
+   completion-order trap is now unrepresentable rather than merely documented.
+
+**A THIRD ORDERING BUG FELL OUT OF VERIFYING IT.** `rest_coupling --from-csv` was nondeterministic
+run to run — `for lab in {set comprehension}` iterating in `PYTHONHASHSEED` order into a seeded
+RNG. Fixed with `sorted()`. The general rule is now CLAUDE.md ground rule 9: **any container that
+feeds a bootstrap pool must have a defined order.**
+
+**STILL OPEN FROM 2.1:** the `_load_daq_events(…, "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)`
+incantation is still written out in ~35 places, most of them in `wfield_local/` core modules that
+want the whole returned dict rather than just `lick_samples`. `analysis_kit.lick_samples` exists;
+sweeping the call sites is a separate change, and several of them are on the nightly path.
 
 ### 2.2 Finish the parallelisation (mechanical, measured payoff)
 
@@ -113,9 +128,11 @@ while everything else writes to `grant_figures/epoch/`.
 
 ## 3. SUGGESTED SEQUENCE
 
-1. `_common.py` with the four helpers + tests that pin the bootstrap convention (**2.1**)
-2. Migrate the three already-parallel modules onto it, verify byte-identical output
-3. Convert the remaining 8 loops (**2.2**)
+1. ~~`_common.py` with the four helpers + tests that pin the bootstrap convention (**2.1**)~~
+   **DONE** — `wfield_local/analysis_kit.py`
+2. ~~Migrate the already-parallel modules onto it, verify byte-identical output~~ **DONE** — all
+   four, plus `quit_point`, `nvc_evoked`, `engagement_decomposition`, `channel_position_maps`
+3. Convert the remaining 7 loops (**2.2**) — **start here**, using `analysis_kit.fan_sessions`
 4. Registry to module scope + a coverage test (**2.3**)
 5. `--from-csv` everywhere + unify output dirs (**2.5**)
 6. Split the deck module (**2.4**)
@@ -137,6 +154,18 @@ diff the per-session lines, ignoring order
 That caught a CI moving from [−22.9, −13.7] to [−23.1, −13.6] while the point estimate stayed
 exact — a real reproducibility bug no assertion in the suite would have flagged. **Numbers are the
 test.**
+
+**TWO REFINEMENTS FROM DOING IT (2026-09-21).**
+
+- **Run the BEFORE twice.** `rest_coupling --from-csv` disagreed with itself between two runs of
+  identical code, which made the first before/after diff meaningless and hid a real bug for an
+  hour. A baseline you have not shown to be reproducible is not a baseline. `git worktree add
+  <tmp> HEAD` gives you the old code to run beside the new one without stashing.
+- **For a pure function, PIN it instead.** `tests/test_analysis_kit.py` checks in literal copies of
+  the pre-extraction sources and asserts EXACT equality of the draws — milliseconds instead of
+  ninety minutes, and stronger, because it covers inputs the real data does not contain. Use
+  `==`, never a tolerance: the CI shift above is well inside any sane `rtol`. **Those frozen
+  copies must never be tidied to match the extracted version.**
 
 ---
 

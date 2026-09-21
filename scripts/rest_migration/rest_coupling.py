@@ -76,11 +76,17 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 BAND = (0.05, 2.0)          # Hz, zero-phase; isolates the haemodynamic band from drift and noise
 MAX_LAG_S = 4.0
 ASYM_S = 0.5              # s; where the raw-pair asymmetry is read, near the measured trough
 MIN_REST_S = 60.0
-N_BOOT = 4000
 
 
 def _bandpass(x, fs):
@@ -221,53 +227,16 @@ def session_rows(lab):
     return got
 
 
-def _boot(by_animal, rng, n_boot=N_BOOT):
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for a in animals for v in by_animal[a]]
-    o = []
-    for _ in range(n_boot):
-        vals = []
-        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[a]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        if vals:
-            o.append(float(np.mean(vals)))
-    if len(o) < n_boot // 4:
-        return None
-    o = np.asarray(o)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
-def _boot_diff(post_by_animal, pre_by_animal, rng, n_boot=N_BOOT):
-    """Paired animals->sessions bootstrap of ``post - pre``.
-
-    **THE ANIMALS ARE RESAMPLED ONCE AND REUSED FOR BOTH ARMS**, which is what makes it paired:
-    each animal serves as its own pre-stroke control, so between-animal variance -- the binding
-    constraint at n=4 -- cancels instead of being counted twice.
-    """
-    animals = sorted(set(post_by_animal) & set(pre_by_animal))
-    if not animals:
-        return None
-    obs = float(np.mean([float(np.mean(post_by_animal[x])) - float(np.mean(pre_by_animal[x]))
-                         for x in animals]))
-    o = []
-    for _ in range(n_boot):
-        d = []
-        for x in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            pa, qa = post_by_animal[x], pre_by_animal[x]
-            d.append(float(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))]))
-                     - float(np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))])))
-        o.append(float(np.mean(d)))
-    o = np.asarray(o)
-    return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def _contrast_by_animal(rows, epoch, key):
     """Per-session ipsilesional-minus-contralesional value for `key`, grouped by animal."""
     d = defaultdict(list)
-    for lab in {r["label"] for r in rows if r["epoch"] == epoch}:
+    # **SORTED, BECAUSE A SET OF STRINGS DOES NOT ITERATE IN A STABLE ORDER.** Python randomises
+    # string hashing per process, so this comprehension handed the pools below to a seeded RNG in
+    # a different order on every run and the ipsi-contra CIs moved between identical invocations
+    # (measured 2026-09-21: subacute lag [-0.02,+0.01] against [-0.03,+0.01], point estimates
+    # exact). Same failure as the fan_out completion-order bug, from a different direction --
+    # ANY container feeding a bootstrap pool has to have a defined order.
+    for lab in sorted({r["label"] for r in rows if r["epoch"] == epoch}):
         got = {r["side"]: r for r in rows if r["label"] == lab}
         if "ipsi" in got and "contra" in got:
             v = float(got["ipsi"][key]) - float(got["contra"][key])
@@ -289,23 +258,21 @@ def main(argv=None) -> int:
                          "any SVD -- one file read instead of an hour")
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
     q = out_dir / "epoch_19_rest_coupling.csv"
     rows = []
     if not a.from_csv:
-        labels = [s["label"] for s in config.load_sessions()
-                  if s["label"] in want and epochs.epoch_of(s["label"])
-                  and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
-        res, fail = parallel.fan_out(labels, session_rows, jobs=a.jobs, label="session")
-        # SORTED, NOT COMPLETION ORDER. Every bootstrap pool below is built by iterating `rows`,
-        # and a seeded RNG drawing indices over a differently-ordered list gives different draws --
-        # measured on `quit_prodrome`, where completion order moved a CI from [-22.9,-13.7] to
-        # [-23.1,-13.6] while leaving the point estimate exact.
-        for _lab, got in sorted((x for x in res if x[1]), key=lambda kv: kv[0]):
+        # ORDER IS LOAD-BEARING TWICE OVER HERE, and both halves now come from `analysis_kit`:
+        # `curated_labels` keeps `load_sessions` order (that list is NOT sorted) and
+        # `fan_sessions` re-sorts the fan-out result out of COMPLETION order. Every bootstrap
+        # pool below is built by iterating `rows`, and a seeded RNG over a differently-ordered
+        # list gives different draws -- measured on `quit_prodrome`, where it moved a CI from
+        # [-22.9,-13.7] to [-23.1,-13.6] while leaving the point estimate exact.
+        labels = ak.curated_labels(a.animals)
+        res, fail = ak.fan_sessions(labels, session_rows, jobs=a.jobs)
+        for _lab, got in (x for x in res if x[1]):
             rows += got
             w = {r["side"]: r for r in got}
             print(f"   {got[0]['label']:14s} {got[0]['epoch']:9s} "
@@ -357,7 +324,7 @@ def main(argv=None) -> int:
                 for r in rows:
                     if r["epoch"] == e and r["side"] == s_ and np.isfinite(r[key]):
                         d[r["animal"]].append(float(r[key]))
-                g = _boot(d, rng)
+                g = ak.boot_ci(d, rng)
                 line += f"{g[0]:>11.3f} [{g[1]:+.2f},{g[2]:+.2f}]" if g else f"{'--':>22}"
             print(line)
 
@@ -369,7 +336,7 @@ def main(argv=None) -> int:
     for e in eps:
         line = f"  {e:<10}"
         for key in keys:
-            g = _boot(_contrast_by_animal(rows, e, key), rng)
+            g = ak.boot_ci(_contrast_by_animal(rows, e, key), rng)
             star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
             line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g else f"{'--':>24}")
         print(line)
@@ -394,7 +361,7 @@ def main(argv=None) -> int:
                         post[r["animal"]].append(float(r[key]))
                     elif r["epoch"] == "pre":
                         pre_[r["animal"]].append(float(r[key]))
-                g = _boot_diff(post, pre_, rng)
+                g = ak.boot_delta(post, pre_, rng)
                 star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
                 line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g
                          else f"{'--':>24}")
@@ -413,7 +380,7 @@ def main(argv=None) -> int:
     for e in [x for x in eps if x != "pre"]:
         line = f"  {e:<10}"
         for key in keys:
-            g = _boot_diff(_contrast_by_animal(rows, e, key),
+            g = ak.boot_delta(_contrast_by_animal(rows, e, key),
                            _contrast_by_animal(rows, "pre", key), rng)
             star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
             line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g else f"{'--':>24}")

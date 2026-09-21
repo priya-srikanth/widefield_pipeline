@@ -48,6 +48,13 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 FS = 31.23
 CUE_PRE_S, CUE_POST_S = 2.0, 2.0
 
@@ -134,7 +141,7 @@ def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
     try:
         lk = np.asarray(lick_s, float)
         lo = np.searchsorted(lk, cue_s, side="left")
-        hi = np.searchsorted(lk, cue_s + resp_s * _daq_rate(s), side="right")
+        hi = np.searchsorted(lk, cue_s + resp_s * ak.daq_rate(s), side="right")
         responded = (hi - lo) > 0
         order = np.arange(n)
         pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
@@ -151,36 +158,9 @@ def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
         return np.zeros(n, bool)
 
 
-def _daq_rate(s):
-    """DAQ sample rate, so a seconds-valued response window can be compared against samples."""
-    import h5py
-    with h5py.File(s["h5"], "r") as f:
-        return float(f.attrs["sample_rate_hz"])
-
-
 def _epoch_of(label):
     from wfield_local import epochs
     return epochs.epoch_of(label) or ""
-
-
-def _boot_ci(by_animal, rng, n_boot=4000):
-    """Nested animals -> sessions bootstrap CI of the mean, as `epoch_figures` does it."""
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for an in animals for v in by_animal[an]]
-    out = []
-    for _ in range(n_boot):
-        vals = []
-        for an in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[an]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        if vals:
-            out.append(float(np.mean(vals)))
-    if len(out) < n_boot // 4:
-        return None
-    o = np.asarray(out)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
 
 
 #: Canonical position order, near->far x ipsi/middle/contra, matching `DISPLAY_ORDER` under
@@ -372,7 +352,7 @@ def epoch_summary(stats, out_dir, seed):
                 for x in v:
                     if np.isfinite(x[key]):
                         d[x["animal"]].append(float(x[key]))
-                got[key] = _boot_ci(d, rng)
+                got[key] = ak.boot_ci(d, rng)
             if any(g is None for g in got.values()):
                 continue
             a_, r_ = got["amp_415_over_raw_rms"], got["r_415_raw"]
@@ -940,14 +920,10 @@ def main(argv=None) -> int:
         # Every epoch should sit as close to the lesion as its definition allows: pre from the
         # end of its window, post epochs from the start of theirs.
         from wfield_local import epochs as ep_mod
-        want = set(config.phase_labels("pre") + config.phase_labels("post"))
         by_key = {}
-        for x in config.load_sessions():
-            if x["label"] not in want:
-                continue
+        # `analysis_kit.curated_sessions` is this filter, once; it preserves `load_sessions` order.
+        for x in ak.curated_sessions():
             e = ep_mod.epoch_of(x["label"])
-            if not e:
-                continue
             by_key.setdefault((config.animal_of(x["label"]), e), []).append(x)
         pick = []
         for (_an, e), xs in by_key.items():

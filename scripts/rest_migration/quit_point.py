@@ -63,8 +63,14 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 HALF_WIN = 60          # trials either side of the quit point for the aligned average
-N_BOOT = 4000
 
 
 EARLY_S = 600.0          # s; the fixed early window the independent lick rate is measured over
@@ -193,25 +199,6 @@ def _sharpness(rows, k, w=10):
     return float(local / total)
 
 
-def _boot(by_animal, rng, n_boot=N_BOOT):
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for a in animals for v in by_animal[a]]
-    out = []
-    for _ in range(n_boot):
-        vals = []
-        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[a]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        if vals:
-            out.append(float(np.mean(vals)))
-    if len(out) < n_boot // 4:
-        return None
-    o = np.asarray(out)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -230,7 +217,6 @@ def main(argv=None) -> int:
     from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
     near = near_codes()
     if a.horizon_min is not None:
         print(f"COMMON HORIZON {a.horizon_min:.0f} min: sessions shorter than this are DROPPED "
@@ -238,15 +224,12 @@ def main(argv=None) -> int:
 
     rows_out, aligned = [], defaultdict(list)
     n_seen, n_quit = defaultdict(int), defaultdict(int)
-    for s in config.load_sessions():
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    for s in ak.curated_sessions(a.animals):
         lab = s["label"]
-        if lab not in want:
-            continue
-        if a.animals and config.animal_of(lab) not in a.animals:
-            continue
         ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
         try:
             tr = session_trials(s, 2.0)
         except Exception as ex:                                      # noqa: BLE001
@@ -323,7 +306,7 @@ def main(argv=None) -> int:
             for r in v:
                 if np.isfinite(r[key]):
                     d[r["animal"]].append(float(r[key]) * scale)
-            g = _boot(d, rng)
+            g = ak.boot_ci(d, rng)
             wdt = 24 if key.endswith("_s") else 18
             fmt = ".0f" if key.endswith("_s") else ".2f"
             line += (f"{g[0]:{fmt}} [{g[1]:{fmt}},{g[2]:{fmt}}]".rjust(wdt) if g
@@ -357,7 +340,7 @@ def main(argv=None) -> int:
             for r in rows_out:
                 if r["epoch"] == e and np.isfinite(r[key]):
                     d[r["animal"]].append(float(r[key]) * scale)
-            g = _boot(d, rng)
+            g = ak.boot_ci(d, rng)
             wdt = 22 if key == "quit_elapsed_s" else 26
             line += (f"{g[0]:>{wdt - 14}.0f} [{g[1]:.0f},{g[2]:.0f}]".rjust(wdt)
                      if g else "--".rjust(wdt))
@@ -375,7 +358,7 @@ def main(argv=None) -> int:
             for r in rows_out:
                 if r["epoch"] == e and np.isfinite(r[key]):
                     d[r["animal"]].append(float(r[key]))
-            g = _boot(d, rng)
+            g = ak.boot_ci(d, rng)
             wdt = 20 if key != "step_sharpness" else 22
             line += (f"{g[0]:>{wdt - 13}.2f} [{g[1]:.2f},{g[2]:.2f}]".rjust(wdt)
                      if g else "--".rjust(wdt))

@@ -45,11 +45,17 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 PRE_S, POST_S = 2.0, 3.5
 BASE = (-1.0, -0.2)
 PEAK_WIN = (0.0, 1.5)        # s; where the 470 calcium peak is looked for
 DIP_WIN = (0.4, 3.0)         # s; where the 415 haemodynamic trough is looked for
-N_BOOT = 4000
 
 
 def session_latency(s):
@@ -130,44 +136,6 @@ def session_latency_row(lab):
     return r
 
 
-def _boot(by_animal, rng, n_boot=N_BOOT):
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for x in animals for v in by_animal[x]]
-    o = []
-    for _ in range(n_boot):
-        vals = []
-        for x in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[x]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        o.append(float(np.mean(vals)))
-    o = np.asarray(o)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
-def _boot_diff(post, pre, rng, n_boot=N_BOOT):
-    """Paired animals->sessions bootstrap of ``post - pre``.
-
-    Animals are resampled ONCE and reused for both arms, so each animal is its own pre-stroke
-    control and between-animal variance -- the binding constraint at n=4 -- cancels.
-    """
-    animals = sorted(set(post) & set(pre))
-    if not animals:
-        return None
-    obs = float(np.mean([float(np.mean(post[x])) - float(np.mean(pre[x])) for x in animals]))
-    o = []
-    for _ in range(n_boot):
-        d = []
-        for x in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            pa, qa = post[x], pre[x]
-            d.append(float(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))]))
-                     - float(np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))])))
-        o.append(float(np.mean(d)))
-    o = np.asarray(o)
-    return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -178,19 +146,20 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
-    labels = [s["label"] for s in config.load_sessions()
-              if s["label"] in want and epochs.epoch_of(s["label"])
-              and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
-    res, fail = parallel.fan_out(labels, session_latency_row, jobs=a.jobs, label="session")
-    # SORTED, NOT COMPLETION ORDER -- every bootstrap pool is built by iterating `rows`, and a
-    # seeded RNG over a differently-ordered list gives different draws (measured on
-    # `quit_prodrome`: the CI moved while the point estimate stayed exact).
-    rows = [r for _lab, r in sorted((x for x in res if x[1]), key=lambda kv: kv[0])]
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    labels = ak.curated_labels(a.animals)
+    # `fan_sessions` IS `fan_out` PLUS THE SORT -- see `analysis_kit`. `fan_out`
+    # returns COMPLETION order; every bootstrap pool below is built by iterating this
+    # collection, and a seeded RNG over a differently-ordered list gives different
+    # draws (measured on `quit_prodrome`: the CI moved from [-22.9,-13.7] to
+    # [-23.1,-13.6] while the point estimate stayed exact). No longer forgettable.
+    res, fail = ak.fan_sessions(labels, session_latency_row, jobs=a.jobs)
+    rows = [r for _lab, r in res if r]
     for r in rows:
         print(f"   {r['label']:14s} {r['epoch']:9s} {r['n_cue']:4d} cues  "
               f"470 peak {r['t_peak_470']:+.2f}s ({r['amp_peak_470']:+.2f}%)  "
@@ -230,7 +199,7 @@ def main(argv=None) -> int:
                 for r in use:
                     if r["epoch"] == e:
                         d[r["animal"]].append(float(r[key]))
-                g = _boot(d, rng)
+                g = ak.boot_ci(d, rng)
                 line += f"{g[0]:>11.3f} [{g[1]:+.2f},{g[2]:+.2f}]" if g else f"{'--':>24}"
             print(line)
 
@@ -242,7 +211,7 @@ def main(argv=None) -> int:
                 for r in use:
                     (post if r["epoch"] == e else pre_)[r["animal"]].append(float(r[key])) \
                         if r["epoch"] in (e, "pre") else None
-                g = _boot_diff(post, pre_, rng)
+                g = ak.boot_delta(post, pre_, rng)
                 star = " *" if g and (g[1] > 0 or g[2] < 0) else "  "
                 line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g
                          else f"{'--':>24}")

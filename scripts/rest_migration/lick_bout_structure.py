@@ -48,12 +48,18 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 BOUT_GAP_S = 0.5            # longer than this starts a new bout, matching `quit_prodrome`
 MIN_BOUT_LICKS = 6          # to split a bout into thirds and still have >= 2 intervals each side
 CROSS_FRAC = 0.70           # the crossing point: licks/trial below this fraction of the early level
 EARLY_FRAC = 0.20           # "early level" = the first this-much of the session, by trial order
 NQ = 5
-N_BOOT = 4000
 EPS = ("pre", "acute", "subacute", "chronic")
 
 
@@ -73,34 +79,14 @@ def session_bouts(item):
     """
     lab, gate, horizon_min = item
     from wfield_local import config, epochs
-    from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    from scripts.rest_migration.channel_position_maps import _daq_rate
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
-    from scripts.rest_migration.quit_point import session_quit
 
-    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
-    if s is None:
+    # SAME LOADER AS `quit_prodrome.session_row` -- this block was character-identical in both
+    # modules, down to the 60-trial and 30-gated-trial floors. See `analysis_kit.session_behavior`.
+    bh = ak.session_behavior(lab, gate=gate, horizon_min=horizon_min)
+    if bh is None:
         return None
-    tr = session_trials(s, 2.0)
-    if len(tr) < 60:
-        return None
-    q = session_quit(s, tr)
-    if q is None:
-        return None
-    tt = sorted(tr, key=lambda r: float(r["elapsed_s"]))
-    if gate and not q["censored"]:
-        tt = [r for r in tt if float(r["elapsed_s"]) < float(q["quit_elapsed_s"])]
-    if horizon_min:
-        tt = [r for r in tt if float(r["elapsed_s"]) <= horizon_min * 60.0]
-    if len(tt) < 30:
-        return None
-
-    cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
-    lick_s = np.asarray(_load_daq_events(s["h5"], "lick_analog", 2.5, 1.0,
-                                         (0.001, 0.020), 0.10)["lick_samples"], np.int64)
-    sr = float(_daq_rate(s))
-    near = near_codes()
+    tt = bh.gated
+    cs, lick_s, sr, near = bh.cue_samples, bh.lick_samples, bh.sample_rate, bh.near
 
     rows, n = [], max(len(tt) - 1, 1)
     for i, r in enumerate(tt):
@@ -156,39 +142,6 @@ def session_bouts(item):
                 cross_time_s=cross_t, cross_licks=cross_l)
 
 
-def _boot(by, rng, n_boot=N_BOOT):
-    A = sorted(by)
-    if not A:
-        return None
-    flat = [x for k in A for x in by[k]]
-    o = []
-    for _ in range(n_boot):
-        vals = []
-        for k in (A[i] for i in rng.integers(0, len(A), len(A))):
-            sa = by[k]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        o.append(float(np.mean(vals)))
-    o = np.asarray(o)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
-def _boot_delta(pairs, rng, n_boot=N_BOOT):
-    ans = sorted(pairs)
-    if not ans:
-        return None
-    obs = float(np.mean([np.mean(pairs[a][0]) - np.mean(pairs[a][1]) for a in ans]))
-    o = []
-    for _ in range(n_boot):
-        dd = []
-        for a in (ans[i] for i in rng.integers(0, len(ans), len(ans))):
-            pa, qa = pairs[a]
-            dd.append(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))])
-                      - np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))]))
-        o.append(float(np.mean(dd)))
-    o = np.asarray(o)
-    return obs, float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5)), len(ans)
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -200,18 +153,22 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs, parallel
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
-    labels = [s["label"] for s in config.load_sessions()
-              if s["label"] in want and epochs.epoch_of(s["label"])
-              and not (a.animals and config.animal_of(s["label"]) not in a.animals)]
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    labels = ak.curated_labels(a.animals)
     items = [(lab, a.gate, a.horizon_min) for lab in labels]
-    res, fail = parallel.fan_out(items, session_bouts, jobs=a.jobs, label="session")
-    sess = {r["label"]: r for r in (x[1] for x in res) if r is not None}
-    sess = {k: sess[k] for k in sorted(sess)}          # SORTED, never completion order
+    # `fan_sessions` IS `fan_out` PLUS THE SORT -- see `analysis_kit`. `fan_out`
+    # returns COMPLETION order; every bootstrap pool below is built by iterating this
+    # collection, and a seeded RNG over a differently-ordered list gives different
+    # draws (measured on `quit_prodrome`: the CI moved from [-22.9,-13.7] to
+    # [-23.1,-13.6] while the point estimate stayed exact). No longer forgettable.
+    # Sorting by the ITEM is sorting by the label, since the label is the tuple's first element.
+    res, fail = ak.fan_sessions(items, session_bouts, jobs=a.jobs)
+    sess = {r["label"]: r for _it, r in res if r is not None}
     if fail:
         print(f"  !! {len(fail)} failed: " + ", ".join(f"{x[0]}" for x in fail[:4]), flush=True)
     if not sess:
@@ -289,10 +246,10 @@ def main(argv=None) -> int:
             for grp in ("near", "far"):
                 line = f"    {e:<10}{grp:<7}"
                 for b in range(NQ):
-                    g = _boot(quint(key, grp, b, e), rng)
+                    g = ak.boot_ci(quint(key, grp, b, e), rng)
                     line += f"{g[0]:>9.2f}" if g else f"{'--':>9}"
                 if e != "pre":
-                    g = _boot_delta(gap_pairs(key, grp, e), rng)
+                    g = ak.boot_delta_pairs(gap_pairs(key, grp, e), rng)
                     if g:
                         star = " *" if (g[1] > 0 or g[2] < 0) else "  "
                         line += f"{g[0]:>+10.2f} [{g[1]:+.2f},{g[2]:+.2f}]{star}"
@@ -309,7 +266,7 @@ def main(argv=None) -> int:
         for grp in ("near", "far"):
             line = f"    {e:<10}{grp:<7}"
             for b in range(NQ):
-                g = _boot(quint("ili_slope", grp, b, e), rng)
+                g = ak.boot_ci(quint("ili_slope", grp, b, e), rng)
                 line += f"{g[0]:>10.1f}" if g else f"{'--':>10}"
             print(line)
     print("\n  POSITIVE and GROWING across quintiles = the tongue slows at the end of a bout, and")
@@ -322,13 +279,13 @@ def main(argv=None) -> int:
         for grp in ("near", "far"):
             line = f"    {e:<10}{grp:<7}"
             for b in range(NQ):
-                g = _boot_delta(delta_pairs("ili_slope", grp, b, e), rng)
+                g = ak.boot_delta_pairs(delta_pairs("ili_slope", grp, b, e), rng)
                 if g:
                     star = "*" if (g[1] > 0 or g[2] < 0) else " "
                     line += f"{g[0]:>+12.1f}{star}({g[3]})"
                 else:
                     line += f"{'--':>17}"
-            g = _boot_delta(gap_pairs("ili_slope", grp, e), rng)
+            g = ak.boot_delta_pairs(gap_pairs("ili_slope", grp, e), rng)
             if g:
                 star = " *" if (g[1] > 0 or g[2] < 0) else "  "
                 line += f"{g[0]:>+10.1f} [{g[1]:+.1f},{g[2]:+.1f}]{star}"
@@ -405,7 +362,7 @@ def main(argv=None) -> int:
             for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
                 xs, ys, lo_, hi_ = [], [], [], []
                 for b in range(NQ):
-                    g = _boot(per_session_q(key, grp, b, e), rng)
+                    g = ak.boot_ci(per_session_q(key, grp, b, e), rng)
                     if g:
                         xs.append(b + 1)
                         ys.append(g[0])
@@ -425,7 +382,7 @@ def main(argv=None) -> int:
             for grp, cc in (("near", "#2ca02c"), ("far", "#9467bd")):
                 xs, ys, lo_, hi_ = [], [], [], []
                 for b in range(NQ):
-                    g = _boot_delta(delta_pairs(key, grp, b, e), rng)
+                    g = ak.boot_delta_pairs(delta_pairs(key, grp, b, e), rng)
                     if g:
                         xs.append(b + 1)
                         ys.append(g[0])
@@ -444,7 +401,7 @@ def main(argv=None) -> int:
         for grp, cc, off in (("near", "#2ca02c", -0.09), ("far", "#9467bd", +0.09)):
             xs, ys, lo_, hi_ = [], [], [], []
             for j, e in enumerate(POST):
-                g = _boot_delta(gap_pairs(key, grp, e), rng)
+                g = ak.boot_delta_pairs(gap_pairs(key, grp, e), rng)
                 if g:
                     xs.append(j + off)
                     ys.append(g[0])

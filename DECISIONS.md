@@ -15818,3 +15818,112 @@ Each has RAW by quintile (top), WITHIN-ANIMAL DELTA FROM PRE (bottom), and the Q
 **Read the delta row, not the raw row** -- the raw levels are cohort means over different animal
 sets, and chronic near sits at 3.36 bouts against far's 8.41 where no other epoch splits that way,
 which is composition rather than biology.
+
+---
+
+## THE SHARED ANALYSIS TOOLKIT, AND THE THIRD ORDERING BUG IT TURNED UP (2026-09-21)
+
+`wfield_local/analysis_kit.py`, `tests/test_analysis_kit.py`. Priya: *"i want to focus on making
+the codebase efficient and modular, as well as readable and editable, as a claude engineer would
+do"* -- section 2.1 of `docs/STATUS_2026-09-21_ENGINEERING.md`.
+
+**WHAT WAS DUPLICATED.** Nine copies of the nested animals->sessions bootstrap, seventy repeats of
+the curated-session filter, thirty-seven direct lick loads, and the `fan_out`-plus-sort idiom
+written by hand in each of the four converted modules. Eight modules now import one definition of
+each; 393 lines deleted against 179 added.
+
+### THE COPIES HAD NOT DIVERGED, AND THE HANDOFF WAS WRONG ABOUT THAT
+
+`STATUS_2026-09-21` warned that *"`rest_coupling` returns the mean of the FLAT pool as its point
+estimate while some others return the mean of animal means"*. **It does not.** All seven CI copies
+take the flat-pool mean and all three paired copies resample animals once for both arms; checked
+line by line before extracting. The real differences were smaller and worth recording: two of the
+seven omitted the empty-pool guard (`if vals:` plus the `len(out) < n_boot // 4` rescue), and
+`lick_bout_structure` returned the animal count as a fourth element. **The extraction adopted the
+guarded form.** It was not wrong on today's data -- no animal is empty -- but a `defaultdict(list)`
+creates a key on READ, so one thin epoch away the unguarded copies would have returned a table of
+NaNs, which reads as "no data" rather than as a bug.
+
+### THE TWO WEIGHTING CONVENTIONS DISAGREE ON PURPOSE, AND ARE NOW WRITTEN DOWN
+
+- `boot_ci` point estimate = mean of the **FLAT POOL**. An animal with fifteen sessions outweighs
+  one with three. For **LEVELS**.
+- `boot_delta` point estimate = mean over animals of each animal's difference of means. Animals
+  **weighted equally**. For **CHANGES**.
+
+This is not a tidy-up detail. It is exactly the distinction that retracted `licks at quit` on
+2026-09-20: a pooled 4496 against 4338 read as a change, where the paired within-animal difference
+said otherwise, because PS95 supplies 7 of 15 pre-stroke sessions. The docstrings now say which is
+which and why, so the next person choosing between them is choosing rather than guessing.
+
+### THE THIRD ORDERING BUG: A SET COMPREHENSION FEEDING A SEEDED RNG
+
+Found while trying to verify the refactor, not by looking for it. `rest_coupling --from-csv` was
+run twice against the SAME code and the SAME data and the ipsi-contra tables did not agree:
+
+```
+subacute   +0.040 [+0.02,+0.08] *   -0.012 [-0.02,-0.00] *
+subacute   +0.040 [+0.02,+0.08] *   -0.012 [-0.03,-0.00] *     <- same code, same CSV, second run
+```
+
+Point estimates exact, CIs moving at the second decimal -- **the signature this repo has now seen
+three times.** The cause was `rest_coupling.py`'s `_contrast_by_animal`:
+
+```python
+for lab in {r["label"] for r in rows if r["epoch"] == epoch}:
+```
+
+Python randomises string hashing per process, so that set iterates in a different order every run,
+the per-animal pools are built in a different order, and a seeded RNG drawing indices over a
+differently-ordered list gives different draws. Confirmed by pinning `PYTHONHASHSEED=0`, under
+which the module is deterministic. **Fixed with `sorted()`.**
+
+**THE GENERAL RULE, NOW GROUND RULE 9: ANY CONTAINER THAT FEEDS A BOOTSTRAP POOL MUST HAVE A
+DEFINED ORDER.** Three instances so far, each arriving from a different direction --
+`fan_out` completion order (2026-09-20), a set comprehension's hash order (here), and
+`load_sessions()`, which is **NOT sorted** and whose order seventy hand-written filters preserve
+by accident. That last one is why `curated_sessions` defaults to `order="file"`: switching it to
+sorted is a one-line edit that would quietly move every published CI, so it needs a re-run and an
+entry here, not a tidy-up.
+
+### HOW IT WAS VERIFIED, AND WHY PINNING BEATS DIFFING HERE
+
+`STATUS_2026-09-21` sets the bar at "run before, run after, diff the per-session output". For the
+bootstrap specifically there is something **stronger and about ten thousand times cheaper**:
+`tests/test_analysis_kit.py` checks in literal copies of the pre-extraction sources and asserts
+**exact** equality of the draws, with no tolerance -- a tolerance would pass the very bug this
+guards against, since the completion-order shift was 0.2 licks/min on a -18.7 estimate. Those
+frozen copies must never be "tidied" to match the kit; then the test would assert the kit equals
+itself.
+
+Three checks, all passed:
+
+| check | result |
+|---|---|
+| 16 unit tests, incl. bit-for-bit against both frozen `_boot` variants and the frozen `_boot_diff` | pass |
+| `rest_coupling --from-csv`, pre-refactor against post-refactor (both with the `sorted()` fix) | **identical** |
+| `quit_prodrome --gate --horizon-min 90`, full 100-session run, HEAD worktree against refactor | **identical** |
+
+The full suite still passes (1969 passed, 52 skipped), and `ruff` on the eight touched modules
+reports 46 findings against 47 before -- all pre-existing categories.
+
+**THE `quit_prodrome` DIFF IS WORTH LOOKING AT, BECAUSE OF WHAT DID DIFFER.** Of 375 output lines,
+275 measurement lines matched exactly and both written CSVs are byte-identical. The only lines that
+moved were `fan_out`'s own progress log --
+
+```
+  [11/100] session ('PS92_0608', True, 90.0): ok        <- HEAD
+  [11/100] session ('PS94_0806', True, 90.0): ok        <- refactor
+```
+
+-- which is COMPLETION order, genuinely nondeterministic, and exactly the order the collection is
+no longer allowed to inherit. The bug and its fix are visible in the same diff.
+
+### ONE WART RECORDED RATHER THAN HIDDEN
+
+`analysis_kit.session_behavior` reaches UP into `scripts/rest_migration/` for `session_trials`,
+`session_quit` and `near_codes` -- a library importing from the scripts tree, which is backwards.
+It is done inside the function so there is no cycle, and it is not new coupling (the two worker
+functions it replaces each imported those same three names across the tree). Fixing it properly
+means moving those definitions down into `wfield_local`, which is a separate change with its own
+verification.

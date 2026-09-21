@@ -44,17 +44,19 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    process pool, `default_jobs()` picks the worker count (`cpu_count - 2`, capped at 8; this box has
    24 logical CPUs), and `pin_blas()` fixes BLAS threading so a figure does not depend on how many
    cores drew it. Eight modules in `wfield_local/` use it.
-   **ZERO of the eleven per-session loops in `scripts/rest_migration/` do**, and on 2026-09-19 that
-   cost about five hours: `rest_coupling` 96 sessions at ~53 s each, `evoked_hrf_latency` 98,
-   `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each — every one a serial
-   `for s in config.load_sessions()` over independent sessions.
+   **Prefer `analysis_kit.fan_sessions`, which is `fan_out` PLUS the sort** (rule 9). Four of the
+   eleven per-session loops in `scripts/rest_migration/` are converted; the other seven are still
+   serial, and on 2026-09-19 that cost about five hours: `rest_coupling` 96 sessions at ~53 s each,
+   `evoked_hrf_latency` 98, `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each —
+   every one a serial `for s in config.load_sessions()` over independent sessions.
    - **The unit is the CALLER'S judgement, not a mechanical one** (see the module docstring). For
      these scripts it is the SESSION; for `poststroke_section_g` it is the animal, because tags
      share a frozen-decoder spec.
    - `worker` must be **module-level** — spawn pickles by name, so a closure or a local function
      fails at submit time, not at import.
-   - **Results come back in COMPLETION order.** Sort if the caller needs input order; a summary
-     table built by appending will otherwise reorder between runs.
+   - **Results come back in COMPLETION order.** Use `analysis_kit.fan_sessions`, which sorts; a
+     summary table built by appending will otherwise reorder between runs, and a bootstrap pool
+     iterated in that order gives DIFFERENT DRAWS under the same seed.
    - **Watch RSS, not just cores.** A session holding `SVT` (~150 MB) plus `U_atlas` (~135 MB) is
      ~300 MB+ per worker, so the cap of 8 matters. Grant workers measured ~1.4 GB each.
    - **Do not expect a linear speed-up**: these loops read `SVT.npy`/`.h5` off MICROSCOPE, so they
@@ -68,6 +70,23 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    animal with a SINGLE baseline session, where the bootstrap has nothing to resample so its
    uncertainty never enters the CI. **Anything not visible in at least three animals individually
    will not survive the paired test.**
+
+9. **ONE DEFINITION PER QUANTITY — `wfield_local/analysis_kit.py` holds the shared analysis
+   primitives, so do not write a ninth bootstrap.** (2026-09-21.) `boot_ci` / `boot_delta` (the
+   nested animals→sessions draw), `curated_sessions` / `curated_labels` (the pre+post session
+   filter), `session_behavior` (trials, quit, gate, horizon, cue and lick samples, DAQ rate),
+   `fan_sessions` (rule 6 with the sort built in). Before this there were nine copies of the
+   bootstrap, seventy of the filter and thirty-seven direct lick loads.
+   - **`boot_ci` is for LEVELS and `boot_delta` is for CHANGES**, and they weight differently on
+     purpose: flat-pool mean against animal-weighted. Mixing them up retracted a result on
+     2026-09-20 (`licks at quit`, pooled 4496/4338 against a paired −1270).
+   - **ANY container that feeds a bootstrap pool must have a defined order.** Three separate bugs
+     now: `fan_out` completion order, a `for lab in {set comprehension}` whose iteration order
+     moves with `PYTHONHASHSEED`, and `load_sessions()` order (which is NOT sorted — so
+     `curated_sessions` preserves it rather than "tidying" it and moving every published CI).
+   - **Verify a change to a draw by pinning it, not by eyeballing it.** `tests/test_analysis_kit.py`
+     keeps frozen copies of the pre-extraction sources and asserts EXACT equality; a tolerance
+     would pass the very bug this guards against.
 
 ## The three commands (end of day)
 

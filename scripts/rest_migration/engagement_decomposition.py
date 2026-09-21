@@ -57,8 +57,14 @@ from pathlib import Path
 
 import numpy as np
 
+#: THE BOOTSTRAP LIVES IN ONE PLACE NOW. `analysis_kit` holds the nested animals->sessions
+#: draw this module used to define for itself, bit-for-bit -- `tests/test_analysis_kit.py`
+#: pins it against the pre-extraction source. Read that module before touching a draw: the
+#: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
+#: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
+from wfield_local import analysis_kit as ak
+
 DEFAULT_RESP_S = 2.0
-N_BOOT = 4000
 
 
 def session_trials(s, resp_s):
@@ -173,25 +179,6 @@ def licks_vs_time(rows, only=None):
     return r_lick, r_time, collin
 
 
-def _boot(by_animal, rng, n_boot=N_BOOT):
-    animals = sorted(by_animal)
-    if not animals:
-        return None
-    flat = [v for a in animals for v in by_animal[a]]
-    out = []
-    for _ in range(n_boot):
-        vals = []
-        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
-            sa = by_animal[a]
-            vals += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-        if vals:
-            out.append(float(np.mean(vals)))
-    if len(out) < n_boot // 4:
-        return None
-    o = np.asarray(out)
-    return float(np.mean(flat)), float(np.percentile(o, 2.5)), float(np.percentile(o, 97.5))
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -207,7 +194,6 @@ def main(argv=None) -> int:
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    want = set(config.phase_labels("pre") + config.phase_labels("post"))
     animals = a.animals
     raw = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     lab_of = dict(zip(DISPLAY_ORDER,
@@ -215,15 +201,12 @@ def main(argv=None) -> int:
                       if set(raw) <= set(CONF_LABELS) else raw))
 
     per = []                     # one row per session x position
-    for s in config.load_sessions():
+    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
+    # seeded RNG, so quietly sorting here would move published CIs.
+    for s in ak.curated_sessions(animals):
         lab = s["label"]
-        if lab not in want:
-            continue
-        if animals and config.animal_of(lab) not in animals:
-            continue
         ep = epochs.epoch_of(lab)
-        if not ep:
-            continue
         try:
             rows = session_trials(s, a.resp_s)
         except Exception as ex:                                      # noqa: BLE001
@@ -300,7 +283,7 @@ def main(argv=None) -> int:
                 continue
             if np.isfinite(x[key]):
                 d[x["animal"]].append(float(x[key]))
-        return _boot(d, rng)
+        return ak.boot_ci(d, rng)
 
     bar = "=" * 92
     for key, title, why in (
