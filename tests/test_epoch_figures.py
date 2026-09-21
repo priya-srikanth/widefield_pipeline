@@ -766,8 +766,14 @@ def test_position_row_figures_share_a_scale_and_per_animal_ones_do_not():
     import pathlib
     import re
 
-    src = pathlib.Path("wfield_local/epoch_grant_figures.py").read_text(encoding="utf-8")
-    lines = src.split("\n")
+    # EVERY epoch module. The `map_grid` calls moved out of the driver into the family
+    # modules on 2026-09-21, so reading the driver alone finds no `name=` at all -- and the
+    # assertion here is "there ARE position-row figures and they share a scale", which an
+    # empty set fails loudly on the first half while silently skipping the per-animal half.
+    from conftest import epoch_source_files
+
+    src = chr(10).join(f.read_text(encoding="utf-8") for f in epoch_source_files())
+    lines = src.split(chr(10))
     scaled = {}
     for i, l in enumerate(lines):
         m = re.search(r'name=f?"([\w{}.\[\]_]+)"', l)

@@ -56,6 +56,19 @@ DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry", "deck_lay
 GRANT_MODULES = ("grant_figures", "grant_kit", "grant_behaviour", "grant_confusion",
                  "grant_similarity", "grant_geometry", "grant_matching", "grant_encoder")
 
+#: And the POOLED EPOCH renderer is six, since 2026-09-21. `epoch_grant_figures` kept the driver
+#: and the family registry; the figure functions -- and every `name=` template they build by
+#: f-string -- moved into the five family modules and `epoch_kit`.
+EPOCH_MODULES = ("epoch_grant_figures", "epoch_kit", "epoch_behaviour", "epoch_accuracy",
+                 "epoch_matching", "epoch_state", "epoch_maps")
+
+
+def epoch_source_files():
+    """Paths of every module the pooled epoch renderer is built from."""
+    root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+    return [root / f"{m}.py" for m in EPOCH_MODULES]
+
+
 
 def grant_source() -> str:
     """The concatenated source of every module the grant renderer is built from."""

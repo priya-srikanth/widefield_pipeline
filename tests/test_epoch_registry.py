@@ -25,7 +25,14 @@ import pytest
 from wfield_local.locanmf_analysis_deck import EPOCH_FIGURES
 
 ROOT = Path(__file__).resolve().parents[1]
-RENDERER = ROOT / "wfield_local" / "epoch_grant_figures.py"
+#: EVERY epoch module. The figure functions -- and every `name=` template -- moved out of
+#: `epoch_grant_figures` into the five family modules on 2026-09-21. Reading the driver alone
+#: finds zero templates, and this file's whole job is to compare that set against the registry:
+#: zero templates compares clean and reports nothing, which is the failure mode it exists to
+#: prevent in the first place.
+from conftest import epoch_source_files
+
+RENDERERS = epoch_source_files()
 
 
 def _renderer_name_templates():
@@ -35,9 +42,9 @@ def _renderer_name_templates():
     the suffix. Reading the keyword is therefore the only way to know what it emits without
     running it.
     """
-    tree = ast.parse(RENDERER.read_text(encoding="utf-8"))
     out = set()
-    for n in ast.walk(tree):
+    nodes = [n for f in RENDERERS for n in ast.walk(ast.parse(f.read_text(encoding="utf-8")))]
+    for n in nodes:
         if not (isinstance(n, ast.keyword) and n.arg == "name"):
             continue
         v = n.value

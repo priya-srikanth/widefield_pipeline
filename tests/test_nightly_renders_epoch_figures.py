@@ -65,8 +65,15 @@ def test_skip_grant_says_both_sections_go_stale():
 # on EVERY align/variant -- after both figures and both sidecars had been written. The files looked
 # complete, the numbers in them were correct, and all ten combinations were logged as failed.
 
+# THE TABLE AND THE BODIES ARE IN DIFFERENT FILES SINCE 2026-09-21. The render loop's
+# `(key, callable)` registry stayed in the driver; the functions it names moved to the five
+# family modules. Read the driver for the table and every module for the bodies -- reading one
+# file for both finds the table, then finds no function to check, and passes.
+from conftest import epoch_source_files
+
 EGF = (pathlib.Path(__file__).resolve().parents[1] / "wfield_local" / "epoch_grant_figures.py"
        ).read_text(encoding="utf-8")
+EGF_ALL = chr(10).join(f.read_text(encoding="utf-8") for f in epoch_source_files())
 
 
 def _registered_family_functions():
@@ -82,7 +89,8 @@ def test_every_family_the_render_loop_ITERATES_returns_a_list():
     fns = _registered_family_functions()
     assert fns, "the render-loop registry moved; this test is no longer reading it"
     for name in sorted(fns):
-        src = EGF[EGF.index(f"def {name}("):]
+        assert f"def {name}(" in EGF_ALL, f"{name} is registered but defined nowhere"
+        src = EGF_ALL[EGF_ALL.index(f"def {name}("):]
         src = src[:src.index("\ndef ", 1)]
         returns = re.findall(r"^    return (.+)$", src, re.M)
         assert returns, f"{name} has no top-level return"
