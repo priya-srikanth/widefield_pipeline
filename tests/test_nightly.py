@@ -85,6 +85,35 @@ def test_publish_figs_incremental_pngs_only(tmp_path):
     assert nf._publish_figs(str(src), _RV()) == 1
 
 
+def test_publish_figs_follows_the_svg_and_data_subdirectories(tmp_path):
+    """The mirror must walk the shape `figure_layout` gives a figure directory.
+
+    WHY THIS EXISTS. Vectors moved to `svg/` on 2026-09-21. The publish step globbed one level, so
+    it would have gone on succeeding while silently copying no SVG at all -- and it reports only a
+    COUNT, so the evidence would have been a smaller number with nothing to attribute it to. The
+    recursive version then hit the OTHER half of the same bug: `shutil.copy2` into `dst/svg/` when
+    `dst/svg` does not exist raises, which takes the whole nightly step down.
+
+    Sidecars are deliberately NOT mirrored -- the mirror is for figures, and `data/` is 988 files
+    of CSV that the deck reads from the grant tree directly.
+    """
+    from wfield_local import nightly_figs as nf
+    src = tmp_path / "out"; (src / "svg").mkdir(parents=True); (src / "data").mkdir()
+    (src / "a.png").write_bytes(b"aaaa")
+    (src / "svg" / "a.svg").write_bytes(b"<svg/>")
+    (src / "data" / "a.csv").write_bytes(b"x,y\n1,2\n")
+    dst = tmp_path / "dst"
+
+    class _RV:
+        def root(self, k): return str(dst)
+
+    assert nf._publish_figs(str(src), _RV()) == 2, "the PNG and the SVG one level down"
+    assert (dst / "a.png").exists()
+    assert (dst / "svg" / "a.svg").exists(), "the svg/ subdirectory was not created or not walked"
+    assert not (dst / "data" / "a.csv").exists(), "sidecars are not the mirror's job"
+    assert nf._publish_figs(str(src), _RV()) == 0, "second run must be a no-op"
+
+
 def test_analysis_await_locanmf_hands_off_to_poller(monkeypatch):
     cmds = _capture(monkeypatch)
     nightly.main(["20261225", "--machine", "analysis", "--await-locanmf", "--dry-run"])

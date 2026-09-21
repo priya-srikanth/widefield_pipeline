@@ -361,6 +361,10 @@ def _publish_figs(out, rv) -> int:
     for p in sorted(q for ext in ("*.png", "*.svg") for q in Path(out).rglob(ext)):
         d = dst / p.relative_to(Path(out))
         if (not d.exists()) or p.stat().st_size != d.stat().st_size or p.stat().st_mtime > d.stat().st_mtime + 2:
+            # MKDIR PER FILE, because the destination now has subdirectories. `dst.mkdir` above
+            # makes only the root; the first `svg/<name>.svg` would have raised FileNotFoundError
+            # and taken the whole publish step down with it.
+            d.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(p, d)
             n += 1
     return n
