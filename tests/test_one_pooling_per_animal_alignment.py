@@ -26,7 +26,11 @@ a change, extend `_pooled_bundle` and its key; do not add the call back.
 import ast
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "wfield_local" / "grant_figures.py"
+#: BOTH grant modules. `_pooled_bundle` itself moved to `grant_kit` on 2026-09-21, and the
+#: figures that must go through it stayed in `grant_figures` -- so a check that reads one
+#: file sees either the rule or the callers, never both.
+SRCS = [Path(__file__).resolve().parent.parent / "wfield_local" / f"{m}.py"
+        for m in ("grant_figures", "grant_kit")]
 ALLOWED = {"_pooled_bundle"}
 
 
@@ -55,9 +59,12 @@ def _calls_to(tree, func_name):
 
 
 def test_pool_sessions_is_called_only_by_the_bundle():
-    tree = ast.parse(SRC.read_text(encoding="utf-8"))
-    owner = _enclosing_function(tree)
-    sites = [(owner.get(ln, "<module>"), ln) for ln in _calls_to(tree, "pool_sessions")]
+    sites = []
+    for src in SRCS:
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        owner = _enclosing_function(tree)
+        sites += [(owner.get(ln, "<module>"), f"{src.stem}:{ln}")
+                  for ln in _calls_to(tree, "pool_sessions")]
     offenders = sorted((fn, ln) for fn, ln in sites if fn not in ALLOWED)
     assert not offenders, (
         "these call pool_sessions directly instead of using _pooled_bundle: "
@@ -72,9 +79,11 @@ def test_the_four_migrated_figures_go_through_the_bundle():
     A blanket "nobody calls pool_sessions" would also pass if these functions were deleted or
     stopped pooling altogether, which is not the property being pinned.
     """
-    tree = ast.parse(SRC.read_text(encoding="utf-8"))
-    owner = _enclosing_function(tree)
-    users = {owner.get(ln) for ln in _calls_to(tree, "_pooled_bundle")}
+    users = set()
+    for src in SRCS:
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        owner = _enclosing_function(tree)
+        users |= {owner.get(ln) for ln in _calls_to(tree, "_pooled_bundle")}
     for fn in ("fig_confusion_pre_post_working", "_collect_5c",
                "fig_pattern_similarity_per_session", "fig_pattern_similarity", "_collect_7"):
         assert fn in users, f"{fn} no longer obtains its trials from _pooled_bundle"
@@ -89,8 +98,7 @@ def test_the_bundle_carries_the_numeric_labels_the_decoders_fit_on():
     """
     from wfield_local import grant_figures
 
-    src = ast.parse(SRC.read_text(encoding="utf-8"))
-    fn = next(n for n in ast.walk(src)
+    fn = next(n for src in SRCS for n in ast.walk(ast.parse(src.read_text(encoding="utf-8")))
               if isinstance(n, ast.FunctionDef) and n.name == "_pooled_bundle")
     keys = {k.value for n in ast.walk(fn) if isinstance(n, ast.Dict)
             for k in n.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)}

@@ -49,6 +49,18 @@ _WRITE_MODES = set("wxa+")
 #: So the list lives HERE, once. A future split adds a line to it and every guard follows.
 DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry", "deck_layout")
 
+#: And the GRANT RENDERER is two, since 2026-09-21. Same reason, same failure if a guard reads
+#: only one of them: `_delta_diag_ci` and `_pooled_bundle` live in `grant_kit` now, and a
+#: source-level assertion pointed at `grant_figures` alone either raises ValueError on a missing
+#: index or -- worse -- quietly finds nothing to object to.
+GRANT_MODULES = ("grant_figures", "grant_kit")
+
+
+def grant_source() -> str:
+    """The concatenated source of every module the grant renderer is built from."""
+    root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+    return "\n".join((root / f"{m}.py").read_text(encoding="utf-8") for m in GRANT_MODULES)
+
 
 def deck_source() -> str:
     """The concatenated source of every module the analysis deck is built from.

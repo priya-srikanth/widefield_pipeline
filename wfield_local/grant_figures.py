@@ -68,60 +68,19 @@ from wfield_local.console import use_utf8_stdout
 # nothing outside themselves and that forty-five functions here call into. Imported by name
 # so an unused one is visible; re-exported because tests and sibling scripts read some of
 # them off this module.
-from wfield_local.grant_kit import (  # noqa: F401  (the shared machinery, plus the helpers
-    #  reached from more than one figure group)
-    ANIMALS,
-    BOOT_CACHE_VERSION,
-    CONF_LABELS,
-    N_BOOT_DELTA,
-    POS,
-    WINDOWS,
-    _anchor,
-    _best_match,
-    _block_boot,
-    _boot_cached,
-    _cd_labels,
-    _class_note,
-    _class_select,
-    _collect_7,
-    _colw,
-    _corr_matrix,
-    _day,
-    _delta_cis,
-    _delta_grid,
-    _diag,
-    _digest,
-    _excludes_zero,
-    _feed,
-    _fig_root,
-    _fit_bottom,
-    _fit_header,
-    _footer,
-    _impaired,
-    _matrices_pattern,
-    _mats_pattern,
-    _means,
-    _nanmean_stack,
-    _out,
-    _overlaps,
-    _pct3,
-    _pooled_bundle,
-    _position_metrics,
-    _pre_reference,
-    _save,
-    _seed,
-    _session_trials,
-    _sessions,
-    _sg_labels,
-    _short,
-    _suptitle,
-    _twinned,
-    _txt,
-    _variants,
-    _windows,
-    coverage_note,
-    pos_style,
-    set_only,
+# EVERY NAME THAT MOVED IS RE-EXPORTED, not only the ones still called from this module.
+# `_runs_to_blocks`, `_delta_diag_ci` and `_delta_diag_one` are now used only by their kit
+# siblings, so a list built from 'what does grant_figures still reference' dropped them --
+# and three test modules that read them off `grant_figures` broke. `tests/test_grant_kit.py`
+# now asserts this list stays complete against the pre-split revision.
+from wfield_local.grant_kit import (  # noqa: F401
+    ANIMALS, BOOT_CACHE_VERSION, CONF_LABELS, N_BOOT_DELTA, POS, POS_SHORT, WINDOWS, _BUNDLE_CACHE, _anchor,
+    _best_match, _block_boot, _block_index, _boot_cached, _cd_labels, _class_note, _class_select, _collect_7,
+    _colw, _corr_matrix, _day, _delta_cis, _delta_diag_ci, _delta_diag_one, _delta_grid, _diag, _digest,
+    _excludes_zero, _feed, _fig_root, _fit_bottom, _fit_header, _footer, _impaired, _matrices_pattern,
+    _mats_pattern, _means, _nanmean_stack, _out, _overlaps, _pct3, _pooled_bundle, _position_metrics,
+    _pre_reference, _runs_to_blocks, _save, _seed, _session_trials, _sessions, _sg_labels, _short, _suptitle,
+    _twinned, _txt, _variants, _windows, coverage_note, only, pos_style, set_only,
 )
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable

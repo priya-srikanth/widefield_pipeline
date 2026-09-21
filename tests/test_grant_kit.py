@@ -95,3 +95,51 @@ def test_the_kit_does_not_reach_back_into_grant_figures():
             imported.add(n.module or "")
     assert not any("grant_figures" in m for m in imported), (
         f"grant_kit must not depend on grant_figures; it imports {sorted(imported)}")
+
+
+def test_every_name_that_moved_is_still_reachable_on_grant_figures():
+    """The re-export must not shrink to "what grant_figures still calls".
+
+    THAT IS EXACTLY HOW IT BROKE. The list was first built from the names `grant_figures` still
+    references, which dropped `_runs_to_blocks`, `_delta_diag_ci` and `_delta_diag_one` -- used
+    only by their kit siblings now -- and three test modules that read them off `grant_figures`
+    failed. Tests and sibling scripts address these by their historical home, so moving one is a
+    rename of a public-ish name whether or not it starts with an underscore.
+
+    Pinned against the PRE-SPLIT revision, so the property is "nothing became unreachable", not a
+    hand-maintained list that drifts.
+    """
+    import ast
+    import subprocess
+
+    from wfield_local import grant_figures
+
+    old = subprocess.run(["git", "show", "ae7b70a:wfield_local/grant_figures.py"],
+                         capture_output=True, text=True, check=False,
+                         cwd=Path(__file__).resolve().parents[1])
+    if old.returncode != 0:
+        import pytest
+        pytest.skip("pre-split revision not in this checkout")
+    tree = ast.parse(old.stdout)
+    was = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    for n in tree.body:
+        if isinstance(n, ast.Assign):
+            was |= {x.id for x in n.targets if isinstance(x, ast.Name)}
+        elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name):
+            was.add(n.target.id)
+
+    # THE TWO RESTRICTION GLOBALS ARE EXEMPT, AND MUST STAY EXEMPT. Re-exporting them would bind
+    # `grant_figures._ONLY_WINDOW` to whatever the kit held at import time and then never update
+    # it -- a stale copy that reads like the real thing, which is the precise bug the setter
+    # exists to prevent. Reach them through `grant_kit.only()`.
+    EXEMPT = {"_ONLY_WINDOW", "_ONLY_VARIANT"}
+    gone = sorted(n for n in was
+                  if not hasattr(grant_figures, n) and not n.startswith("__") and n not in EXEMPT)
+    assert not gone, (
+        f"{gone} were defined in grant_figures before the split and are now reachable from "
+        f"neither it nor its kit re-export")
+    for n in EXEMPT:
+        assert not hasattr(grant_figures, n), (
+            f"{n} is re-exported onto grant_figures: that is a SNAPSHOT taken at import time, "
+            f"not a view of the kit's value, and it will silently go stale the moment "
+            f"set_only() is called. Use grant_kit.only().")

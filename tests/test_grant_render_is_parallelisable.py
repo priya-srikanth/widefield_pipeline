@@ -31,7 +31,6 @@ import pytest
 
 from wfield_local import grant_figures as G
 
-
 # --------------------------------------------------------------------------- stable seeds
 
 def test_the_seed_is_the_same_in_a_different_process():
@@ -213,7 +212,11 @@ def test_the_delta_driver_seeds_per_day_not_per_animal():
     That dependence is what made the old shared stream uncacheable, and it also meant rendering a
     subset of days silently changed the days that remained.
     """
-    src = open((G.__file__ or "").replace(".pyc", ".py"), encoding="utf-8").read()
-    body = src[src.index("def _delta_diag_ci("):src.index("def _delta_diag_one(")]
+    # `_delta_diag_ci` moved to `grant_kit` on 2026-09-21; read both modules.
+    import inspect
+
+    from wfield_local import grant_kit
+
+    body = inspect.getsource(grant_kit._delta_diag_ci)
     assert "_seed(*seed_parts, d)" in body, "the delta bootstrap is not seeded per day"
     assert "_boot_cached(" in body, "the delta bootstrap is not cached per day"
