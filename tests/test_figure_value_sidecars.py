@@ -45,7 +45,7 @@ def _mats(seed=0, panels=("pre", "acute", "subacute", "chronic")):
 def test_a_matrix_sidecar_holds_every_cell_of_every_panel(tmp_path):
     mats = _mats()
     ef.write_matrix_values(mats, tmp_path / "m.png", labels=LABELS)
-    rows = _rows(tmp_path / "m.csv")
+    rows = _rows(tmp_path / "data" / "m.csv")
     assert len(rows) == 4 * 36
     assert {r["panel"] for r in rows} == set(mats)
     assert {r["row"] for r in rows} == set(LABELS)
@@ -55,7 +55,7 @@ def test_the_matrix_delta_is_the_one_the_figure_draws(tmp_path):
     """`matrix_row` draws ``panel - pre``. Deriving it here is what stops the two disagreeing."""
     mats = _mats()
     ef.write_matrix_values(mats, tmp_path / "m.png", labels=LABELS)
-    got = {(r["panel"], r["row"], r["col"]): r["delta_vs_pre"] for r in _rows(tmp_path / "m.csv")}
+    got = {(r["panel"], r["row"], r["col"]): r["delta_vs_pre"] for r in _rows(tmp_path / "data" / "m.csv")}
     for i, rl in enumerate(LABELS):
         for j, cl in enumerate(LABELS):
             assert got[("pre", rl, cl)] == "", "pre has no delta against itself"
@@ -70,7 +70,7 @@ def test_a_confusion_sidecar_keeps_the_raw_count_beside_the_fraction(tmp_path):
     norm = {e: M / M.sum(1, keepdims=True) for e, M in counts.items()}
     ef.write_matrix_values(norm, tmp_path / "c.png", labels=LABELS,
                            extra=counts, extra_name="count")
-    rows = _rows(tmp_path / "c.csv")
+    rows = _rows(tmp_path / "data" / "c.csv")
     assert "count" in rows[0]
     r = [x for x in rows if x["panel"] == "pre" and x["row"] == "nI" and x["col"] == "nM"][0]
     assert float(r["count"]) == counts["pre"][0, 1]
@@ -79,7 +79,7 @@ def test_a_confusion_sidecar_keeps_the_raw_count_beside_the_fraction(tmp_path):
 
 def test_missing_labels_fall_back_to_indices_rather_than_crashing(tmp_path):
     ef.write_matrix_values({"pre": np.zeros((3, 3))}, tmp_path / "m.png", labels=None)
-    assert {r["row"] for r in _rows(tmp_path / "m.csv")} == {"r0", "r1", "r2"}
+    assert {r["row"] for r in _rows(tmp_path / "data" / "m.csv")} == {"r0", "r1", "r2"}
 
 
 def test_the_per_animal_grid_deltas_against_that_animals_own_pre(tmp_path):
@@ -88,7 +88,7 @@ def test_the_per_animal_grid_deltas_against_that_animals_own_pre(tmp_path):
     grid = {"PS94": {e: rng.random((6, 6)) for e in ("pre", "acute")},
             "PS95": {e: rng.random((6, 6)) for e in ("pre", "acute")}}
     ef.write_matrix_grid_values(grid, tmp_path / "g.png", labels=LABELS)
-    rows = _rows(tmp_path / "g.csv")
+    rows = _rows(tmp_path / "data" / "g.csv")
     assert {r["animal"] for r in rows} == {"PS94", "PS95"}
     r = [x for x in rows if x["animal"] == "PS95" and x["panel"] == "acute"
          and x["row"] == "nI" and x["col"] == "nI"][0]
@@ -99,7 +99,7 @@ def test_the_per_animal_grid_deltas_against_that_animals_own_pre(tmp_path):
 def test_an_animal_with_no_pre_panel_still_writes_its_values(tmp_path):
     grid = {"PS92": {"acute": np.ones((2, 2))}}
     ef.write_matrix_grid_values(grid, tmp_path / "g.png", labels=["a", "b"])
-    rows = _rows(tmp_path / "g.csv")
+    rows = _rows(tmp_path / "data" / "g.csv")
     assert len(rows) == 4 and all(r["delta_vs_pre"] == "" for r in rows)
 
 
@@ -109,7 +109,7 @@ def test_an_animal_with_no_pre_panel_still_writes_its_values(tmp_path):
 def test_a_time_course_sidecar_is_one_row_per_position_animal_day(tmp_path):
     per_day = {"nI": {"PS94": {0: 0.5, 3: 0.6}, "PS95": {1: 0.4}}, "fC": {"PS94": {0: 0.2}}}
     ef.write_series_values(per_day, tmp_path / "s.png")
-    rows = _rows(tmp_path / "s.csv")
+    rows = _rows(tmp_path / "data" / "s.csv")
     assert len(rows) == 4
     assert {(r["position"], r["animal"], r["day"]) for r in rows} == {
         ("nI", "PS94", "0"), ("nI", "PS94", "3"), ("nI", "PS95", "1"), ("fC", "PS94", "0")}
@@ -119,7 +119,7 @@ def test_days_are_written_in_order_within_an_animal(tmp_path):
     """These traces are what the epoch boundaries were drawn FROM; out-of-order days obscure that."""
     per_day = {"nI": {"PS94": {10: 0.1, -2: 0.9, 3: 0.5}}}
     ef.write_series_values(per_day, tmp_path / "s.png")
-    assert [r["day"] for r in _rows(tmp_path / "s.csv")] == ["-2", "3", "10"]
+    assert [r["day"] for r in _rows(tmp_path / "data" / "s.csv")] == ["-2", "3", "10"]
 
 
 # --------------------------------------------------------------------------- maps
@@ -130,7 +130,7 @@ def test_a_map_sidecar_digests_each_cell_rather_than_dumping_pixels(tmp_path):
     rng = np.random.default_rng(3)
     cells = {("far_L", "pre"): rng.random((8, 9)), ("far_L", "acute"): np.full((8, 9), np.nan)}
     ef.write_map_summary(cells, tmp_path / "mp.png")
-    rows = _rows(tmp_path / "mp.csv")
+    rows = _rows(tmp_path / "data" / "mp.csv")
     pre = [r for r in rows if r["col"] == "pre"][0]
     assert int(pre["n_finite"]) == 72
     assert float(pre["max"]) <= 1.0 and float(pre["min"]) >= 0.0
@@ -210,8 +210,11 @@ def test_a_bar_figure_writes_values_sessions_and_meta_together(tmp_path):
     pts = {e: {p: [("PS94", 0.5)] for p in labels} for e in ("pre", "acute")}
     ef.bar_row(vals, str(tmp_path), name="b", title="T", ylabel="acc", positions=labels,
                points=pts, chance=1 / 6, counts={"acute": {"PS94": 6}})
-    got = {p.name for p in tmp_path.glob("b*")}
-    assert {"b.png", "b.csv", "b_sessions.csv", "b_meta.csv"} <= got
+    # THE FIGURE STAYS PUT AND ITS SIDECARS GO DOWN ONE LEVEL (`figure_layout`, 2026-09-21).
+    # Asserted as two sets rather than one recursive glob, because "the PNG is still at the top"
+    # is the half that keeps the deck working: the registry names figures by bare filename.
+    assert {p.name for p in tmp_path.glob("b*")} == {"b.png"}
+    assert {"b.csv", "b_sessions.csv", "b_meta.csv"} <= {p.name for p in (tmp_path / "data").glob("b*")}
 
 
 def test_the_correction_divisor_behind_a_star_is_recorded():

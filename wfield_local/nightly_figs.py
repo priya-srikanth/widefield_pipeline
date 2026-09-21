@@ -354,8 +354,12 @@ def _publish_figs(out, rv) -> int:
     writeguard.assert_writable(dst)
     dst.mkdir(parents=True, exist_ok=True)
     n = 0
-    for p in sorted(q for ext in ("*.png", "*.svg") for q in Path(out).glob(ext)):
-        d = dst / p.name
+    # RECURSIVE, AND THE DESTINATION KEEPS THE SHAPE. `figure_layout` put vectors under `svg/`
+    # and sidecars under `data/` on 2026-09-21; a non-recursive glob would have silently stopped
+    # publishing every SVG the moment that landed, and the mirror reports a COUNT, so the number
+    # would simply have got smaller with nobody able to say why.
+    for p in sorted(q for ext in ("*.png", "*.svg") for q in Path(out).rglob(ext)):
+        d = dst / p.relative_to(Path(out))
         if (not d.exists()) or p.stat().st_size != d.stat().st_size or p.stat().st_mtime > d.stat().st_mtime + 2:
             shutil.copy2(p, d)
             n += 1
@@ -413,7 +417,7 @@ def _publish_json(out, rv, log=print) -> dict:
     import shutil
 
     from wfield_local import writeguard
-    root = Path(rv.root("cue_analysis_out")) / "analysis_json"
+    root = Path(rv.root("cue_analysis_out")) / "json"
     writeguard.assert_writable(root)
     res = {"copied": 0, "skipped": 0, "frozen_conflicts": []}
     for p in sorted(Path(out).glob("*.json")):

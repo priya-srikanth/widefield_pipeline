@@ -56,18 +56,18 @@ def test_json_is_published_and_grouped(dirs):
     res = nf._publish_json(src, rv, log=lambda *_: None)
 
     assert res["copied"] == 3
-    assert (dst / "analysis_json" / "coding_directions" / "coding_direction.json").exists()
-    assert (dst / "analysis_json" / "spatial" / "spatial_reorganisation_cue_all.json").exists()
+    assert (dst / "json" / "coding_directions" / "coding_direction.json").exists()
+    assert (dst / "json" / "spatial" / "spatial_reorganisation_cue_all.json").exists()
     # An unrecognised artifact must be FILED, never dropped -- silently skipping the one file nobody
     # thought to route is how an artifact goes missing without any count changing.
-    assert (dst / "analysis_json" / "other" / "something_unrecognised.json").exists()
-    assert not (dst / "analysis_json" / "other" / "a_figure.png").exists()
+    assert (dst / "json" / "other" / "something_unrecognised.json").exists()
+    assert not (dst / "json" / "other" / "a_figure.png").exists()
 
 
 def test_a_frozen_reference_is_never_overwritten(dirs):
     """The whole point. Two boxes, two different frozen references, and the published one wins."""
     src, dst, rv = dirs
-    published = dst / "analysis_json" / "references" / "nolick_reference_prestroke.json"
+    published = dst / "json" / "references" / "nolick_reference_prestroke.json"
     published.parent.mkdir(parents=True)
     _write(published, {"frozen": "FIRST BOX", "computed": "2026-08-19"})
 
@@ -86,7 +86,7 @@ def test_an_identical_frozen_reference_is_a_quiet_skip(dirs):
     gets ignored, which is how the joint-basis rank check briefly became worthless."""
     src, dst, rv = dirs
     payload = {"frozen": "same on both boxes"}
-    published = dst / "analysis_json" / "references" / "nolick_reference_prestroke.json"
+    published = dst / "json" / "references" / "nolick_reference_prestroke.json"
     published.parent.mkdir(parents=True)
     _write(published, payload)
     _write(src / "nolick_reference_prestroke.json", payload)
@@ -103,13 +103,13 @@ def test_a_frozen_reference_is_created_when_absent(dirs):
     _write(src / "nolick_reference_prestroke.json", {"frozen": "first"})
     res = nf._publish_json(src, rv, log=lambda *_: None)
     assert res["copied"] == 1
-    assert (dst / "analysis_json" / "references" / "nolick_reference_prestroke.json").exists()
+    assert (dst / "json" / "references" / "nolick_reference_prestroke.json").exists()
 
 
 def test_ordinary_json_still_updates(dirs):
     """Only the frozen set is protected -- coding_direction.json legitimately changes every night."""
     src, dst, rv = dirs
-    d = dst / "analysis_json" / "coding_directions" / "coding_direction.json"
+    d = dst / "json" / "coding_directions" / "coding_direction.json"
     d.parent.mkdir(parents=True)
     _write(d, {"old": True})
     _write(src / "coding_direction.json", {"new": True, "padding": "x" * 50})

@@ -190,7 +190,7 @@ def test_the_per_SESSION_dots_are_written_too(tmp_path):
 
     ef.write_values({"acute": {"far contra": 0.3}}, tmp_path / "f.png",
                     points={"acute": {"far contra": [("PS92", 0.28), ("PS93", 0.33)]}})
-    txt = (tmp_path / "f_sessions.csv").read_text(encoding="utf-8")
+    txt = (tmp_path / "data" / "f_sessions.csv").read_text(encoding="utf-8")
     assert "acute,far contra,PS92,0.28" in txt and "PS93,0.33" in txt
 
 

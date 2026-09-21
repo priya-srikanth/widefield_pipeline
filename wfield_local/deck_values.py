@@ -95,7 +95,12 @@ class Resolver:
     """
 
     def __init__(self, dirs):
-        self.dirs = [pathlib.Path(d) for d in dirs]
+        # EACH ROOT PLUS ITS `data/`. The sidecars moved down one level on 2026-09-21 (see
+        # `figure_layout`), and OLD IS SEARCHED FIRST so an unmigrated tree -- a colleague's copy,
+        # or anything written before that date -- still resolves. A resolver that stopped finding
+        # a CSV would not fail: it would print `[[? ... sidecar missing]]` onto a published slide.
+        from wfield_local.figure_layout import data_dirs
+        self.dirs = data_dirs(*dirs)
         self.misses = []
         self._cache = {}
 

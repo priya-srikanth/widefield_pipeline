@@ -100,15 +100,18 @@ logical_roots:
       analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
 
   cue_analysis_out:
-    description: "Analysis component-figure (PNG) store on MICROSCOPE: nightly_figs._publish_figs mirrors the
-      local cue_lick PNGs here each run (durable + accessible, matching how preprocessing figs persist under
-      labcams/<date>/). The CURRENT deck is spout_position_analysis_summary.pptx at the labcams top level;
-      the LEGACY_*.pptx (+ legacy SVG/JSON) here are retired."
+    description: "Analysis component-figure store on MICROSCOPE: nightly_figs._publish_figs mirrors the
+      local cue_lick PNGs and SVGs here each run (durable + accessible, matching how preprocessing figs
+      persist under labcams/<date>/), preserving the svg/ and data/ shape figure_layout defines. Routed
+      JSON lands in json/. The CURRENT deck is spout_position_analysis_summary.pptx at the labcams top
+      level. RENAMED 2026-09-21 from labcams/locanmf_lick_pooled/cue_analysis: this is the live mirror of
+      every analysis figure and it was sitting inside a directory named after an abandoned June 2026
+      pooling experiment, whose own output now sits in labcams/retired/locanmf_lick_pooled_202606."
     mounts:
-      analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
-      mac:      "/Volumes/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
-      imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/labcams/locanmf_lick_pooled/cue_analysis"
+      analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
+      mac:      "/Volumes/Priya/Widefield/labcams/analysis_figures"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
+      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
 
   xday_qc:
     description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"

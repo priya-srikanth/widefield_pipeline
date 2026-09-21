@@ -40,6 +40,7 @@ import pathlib
 import numpy as np
 
 from wfield_local import config, epochs
+from wfield_local.figure_layout import find_sidecar, sidecar, svg_path
 from wfield_local.figure_meta import write_meta
 
 #: Panel order, left to right. `epochs.EPOCHS` is the single definition; restated for readability.
@@ -54,7 +55,7 @@ def _save_png_svg(fig, q, *, dpi=200):
     q = pathlib.Path(q)
     fig.savefig(q, dpi=dpi)
     try:
-        fig.savefig(q.with_suffix(".svg"))
+        fig.savefig(svg_path(q))
     except Exception as ex:                                            # noqa: BLE001
         print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
 
@@ -78,7 +79,7 @@ def write_values(values, q, *, points=None, marks=None):
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = _csv.writer(fh)
@@ -96,7 +97,7 @@ def write_values(values, q, *, points=None, marks=None):
                         mk = (marks.get(ep, {}) or {}).get(pos, "") or ""
                     w.writerow([ep, pos, val, lo, hi, mk])
         if points:
-            with open(q.with_name(q.stem + "_sessions.csv"), "w", newline="",
+            with open(sidecar(q, "_sessions.csv"), "w", newline="",
                       encoding="utf-8") as fh:
                 w = _csv.writer(fh)
                 w.writerow(["epoch", "position", "animal", "value"])
@@ -183,7 +184,7 @@ def write_matrix_values(mats, q, *, labels=None, row_labels=None, col_labels=Non
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         panels = [e for e in PANELS if mats.get(e) is not None]
         panels += [e for e in mats if e not in panels and mats.get(e) is not None]
@@ -229,7 +230,7 @@ def write_matrix_grid_values(mats, q, *, labels=None, delta=True):
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = _csv.writer(fh)
@@ -268,7 +269,7 @@ def write_series_values(per_day, q):
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = _csv.writer(fh)
@@ -361,13 +362,13 @@ def save_map_bundle(q, cells, **kw):
             "kw": {k: v for k, v in kw.items()
                    if k not in ("contours", "blank", "edges") and _jsonable(v)}}
     try:
-        np.savez_compressed(q.with_name(q.stem + "_bundle.npz"), **arrays)
-        q.with_name(q.stem + "_bundle.json").write_text(json.dumps(meta, indent=1),
+        np.savez_compressed(sidecar(q, "_bundle.npz"), **arrays)
+        sidecar(q, "_bundle.json").write_text(json.dumps(meta, indent=1),
                                                         encoding="utf-8")
     except Exception as ex:                                            # noqa: BLE001
         print(f"  !! map bundle {q.stem}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
         return None
-    return q.with_name(q.stem + "_bundle.npz")
+    return sidecar(q, "_bundle.npz")
 
 
 def _jsonable(v):
@@ -391,9 +392,15 @@ def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **over
 
     bundle = pathlib.Path(bundle)
     if bundle.suffix != ".npz":
-        bundle = bundle.with_name(bundle.stem + "_bundle.npz")
-    meta = json.loads(bundle.with_name(bundle.stem.replace("_bundle", "") + "_bundle.json")
-                      .read_text(encoding="utf-8"))
+        bundle = sidecar(bundle, "_bundle.npz")
+    # THE BUNDLE MAY BE IN EITHER LAYOUT. `find_sidecar` prefers `data/` and falls back to the flat
+    # directory, so a tree written before 2026-09-21 -- or a colleague's unmigrated copy -- still
+    # reads. Its stem drops the `_bundle` the npz carries, which is why this is not a plain suffix
+    # swap.
+    _stem_png = bundle.parent.parent / (bundle.stem.replace("_bundle", "") + ".png")
+    _mj = find_sidecar(_stem_png, "_bundle.json") or bundle.with_name(
+        bundle.stem.replace("_bundle", "") + "_bundle.json")
+    meta = json.loads(_mj.read_text(encoding="utf-8"))
     z = np.load(bundle)
     shape = tuple(meta["shape"])
     cells, contours = {}, {}
@@ -474,7 +481,7 @@ def write_map_stats(rows, q):
     if not rows:
         return None
     q = pathlib.Path(q)
-    out = q.with_name(q.stem + "_stats.csv")
+    out = sidecar(q, "_stats.csv")
     cols = ["row", "col", "n_animals", "animals", "n_sessions", "n_trials", "reliability",
             "amplitude_vs_pre", "sig_bins", "n_bins", "correction", "threshold_z",
             "edge_enrichment", "suppressed", "label"]
@@ -506,7 +513,7 @@ def write_map_summary(cells, q, *, row_labels=None, col_labels=None):
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = _csv.writer(fh)
@@ -1692,7 +1699,7 @@ def write_contrast_values(rows, q):
     import csv as _csv
 
     q = pathlib.Path(q)
-    main = q.with_suffix(".csv")
+    main = sidecar(q, ".csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = _csv.writer(fh)
@@ -1831,8 +1838,8 @@ def stale_sidecars(out_dir, remove=False):
     """
     out = []
     for png in sorted(pathlib.Path(out_dir).glob("*.png")):
-        csv_p = png.with_suffix(".csv")
-        if not csv_p.exists():
+        csv_p = find_sidecar(png, ".csv")
+        if csv_p is None:
             continue
         if csv_p.stat().st_mtime < png.stat().st_mtime:
             out.append((png.name, csv_p.name))

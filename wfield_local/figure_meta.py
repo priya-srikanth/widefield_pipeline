@@ -43,6 +43,8 @@ from __future__ import annotations
 import csv
 import pathlib
 
+from wfield_local import figure_layout as _layout
+
 
 def _flatten(kind, value):
     """``(kind, key, value)`` rows for one field, whatever shape it arrived in."""
@@ -80,7 +82,7 @@ def write_meta(q, **fields):
     if not rows:
         return None
     q = pathlib.Path(q)
-    out = q.with_name(q.stem + "_meta.csv")
+    out = _layout.sidecar(q, "_meta.csv")
     try:
         with open(out, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)

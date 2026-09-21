@@ -66,6 +66,7 @@ from matplotlib.figure import Figure
 
 from wfield_local import config
 from wfield_local.console import use_utf8_stdout
+from wfield_local.figure_layout import svg_path as _svg_path
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -602,7 +603,7 @@ def _save(fig, path, **kw):
     _p = Path(path)
     if _p.suffix.lower() == ".png":
         try:
-            Figure.savefig(fig, _p.with_suffix(".svg"),
+            Figure.savefig(fig, _svg_path(_p),
                            **{k: v for k, v in kw.items() if k != "dpi"})   # dpi is a no-op for vector
         except Exception as ex:                                            # noqa: BLE001
             print(f"  [svg] {_p.name}: failed ({type(ex).__name__})", flush=True)
