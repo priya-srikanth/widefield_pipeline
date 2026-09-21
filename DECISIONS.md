@@ -16544,3 +16544,73 @@ registered and curated. MICROSCOPE does not retain a `.dat` for ANY other sessio
 to standby -- so what is quarantined is a known-corrupt copy of a file that does not belong there.
 **Not deleted here:** ground rule 1 is never delete on the server, and a 648 GB irreversible
 action belongs to Priya.
+
+### THE GRANT RENDERER'S SHARED MACHINERY IS `grant_kit` (2026-09-21)
+
+`grant_figures.py` 6,599 -> 6,040, plus a 656-line `grant_kit`. Twenty functions -- layout,
+saving, seeding, caching, labelling -- chosen BY CALL GRAPH rather than by eye: they call nothing
+outside themselves and forty-five functions across every figure family call into them.
+
+**THE REST OF THE SPLIT IS MEASURED AND WAITING.** 68 functions are shared by more than one family
+(1,894 lines), 47 are private to a single family (3,335 lines), and no family has more than 438
+lines of its own. So the remaining work is ~6 family modules over `grant_kit`, and nothing about
+it is a judgement call any more.
+
+**THE ONE THING THE MOVE HAD TO GET RIGHT, and it is a general trap.** `_ONLY_WINDOW` /
+`_ONLY_VARIANT` gate which alignment and trial class a worker renders. They are READ by
+`_windows`/`_variants`, which moved; they were ASSIGNED with `global` from `main` and
+`_render_unit`, which did not. **A module global assigned in one module and read in another is two
+different variables.** The readers would have seen a value nobody ever set, every worker would
+have rendered EVERY alignment instead of the single unit it was handed, and nothing would have
+raised -- the output would just have been wrong, three times slower, and `_run_parallel`'s
+collision check would have surfaced it as a mystery somewhere else entirely. They are set through
+`grant_kit.set_only()` now, and `tests/test_grant_kit.py` asserts by AST that no `global _ONLY_*`
+returns.
+
+This is the same shape as ground rule 6's "options travel in the ITEM because spawn does not
+inherit globals". **Module state and a module boundary do not mix; when one moves, look for the
+other.**
+
+### SVG BYTE-COMPARISON IS NOT A VERIFICATION METHOD
+
+The `grant_kit` move was verified by rendering before and after: 96/96 units both times, 0
+failures, and **90 of 90 PNGs byte-identical**. Every one of the 90 SVGs "differed".
+
+They were all identical. Matplotlib SVG is not byte-reproducible: each file carries a `<dc:date>`
+render timestamp and randomly-generated element ids (`url(#pcaa7354399)`, `id="image7439f35545"`).
+The embedded image payloads matched exactly and the file sizes were equal to the byte.
+
+A check that reports a difference whatever you did tells you nothing, in the same way a check that
+reports success whatever you did tells you nothing. `scripts/compare_svg_renders.py` normalises
+the two varying things away and compares the drawing -- and refuses to report success when it has
+compared ZERO files, which it did once against an unset shell variable, printing
+"identical=0 differing=0" and exiting 0. That is the third time this session a verification tool
+passed on an empty measurement; it is the failure mode to expect from anything that counts.
+
+**THE COLD/WARM ASYMMETRY IS THE ARGUMENT FOR DOING THE REST SOON.** The baseline render took ~2 h
+with an empty bootstrap cache; the verification re-render took minutes, because the first one
+filled it. Anyone continuing the family split inherits that cache.
+
+### THE 2026-08-20 QUARANTINE IS GONE (2026-09-21)
+
+648 GB, 111 files, deleted at Priya's explicit direction. Its README recorded a conditional
+authorisation from 2026-08-21 -- deletable "once the re-upload is verified and reprocessed" -- and
+every part of that condition now holds:
+
+- standby holds the good raw for both sessions (190 GB / 157 GB, written 08-22, AFTER the
+  re-upload), and MICROSCOPE retains no `.dat` for ANY session: raw movies live on standby by
+  policy, which is why the quarantined copy was anomalous in the first place;
+- both sessions reprocessed 08-21/22 to healthy `frames_average` -- 10,804 and 12,524, against the
+  degenerate 6,295 and 994, beside PS93's untouched 13,647;
+- all four 0820 sessions are registered and curated.
+
+**AND ONE CHECK NOBODY HAD RUN.** The corrupted file had the CORRECT BYTE COUNT -- that is the
+whole reason a sync tool called it up to date and the reason size and mtime could not detect it.
+So size comparison could not clear standby either. Sampling the actual bytes at the offsets where
+the quarantined copy goes blank settled it:
+
+    PS92 frame 203685   quarantine mean=0.0 nonzero=0.0%   standby mean=12262.5 nonzero=100%
+    PS95 frame  23219   quarantine mean=0.0 nonzero=0.0%   standby mean=15453.1 nonzero=100%
+
+**WHEN A FILE'S FAILURE MODE IS "RIGHT SIZE, WRONG CONTENT", ONLY CONTENT CLEARS IT.** The README
+is preserved outside the deleted tree; `wfield_local/archive_day.py` owns the standby policy.

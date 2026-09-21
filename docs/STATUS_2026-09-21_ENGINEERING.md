@@ -121,11 +121,27 @@ tree from the last nightly's manifest and sections A–G are exercised too. The 
 mutation-tested first. `DECISIONS.md` → *"SECTION 2.4 FINISHED"* has the account, including the
 five tests and two audit scripts that went half-blind and the numbers that measured it.
 
-**STILL OPEN: `grant_figures.py`, 6,599 lines** — the largest module in the tree and never in this
-plan. It is ~130 functions with almost no data to lift, so it needs a partition by figure family
-rather than a data/machinery split, and its verification is a before/after render byte-compared
-over 98 PNGs (~2 h cold; the bootstrap cache makes the second run cheap). `epoch_grant_figures.py`
+**`grant_figures.py` 6,599 → 6,040**, with `grant_kit.py` (656) taking the twenty shared helpers —
+chosen by call graph, not by eye: they call nothing outside themselves and 45 functions call into
+them. Verified by a full render both sides: 96/96 units, **90 of 90 PNGs byte-identical**.
+
+**THE REMAINING FAMILY SPLIT IS MEASURED AND WAITING**, so it needs no survey:
+
+| | functions | lines |
+|---|---:|---:|
+| shared by >1 family (already in `grant_kit` or candidates for it) | 68 | 1,894 |
+| private to ONE family | 47 | 3,335 |
+| largest single family (`fig_encoder_gain_shape`) | — | 438 |
+
+So it is ~6 family modules over `grant_kit`. **Do it while the bootstrap cache is warm:** the cold
+baseline render took ~2 h, the verification re-render took minutes. `epoch_grant_figures.py`
 (3,942) is the same shape and the same argument.
+
+Two method notes for whoever does it. **SVG byte-comparison is not a verification method** —
+matplotlib writes a `<dc:date>` and random element ids, so all 90 SVGs "differ" on every run; use
+`scripts/compare_svg_renders.py`. And **module state does not survive a module boundary**:
+`_ONLY_WINDOW`/`_ONLY_VARIANT` had to become `grant_kit.set_only()`, because a global assigned in
+one module and read in another is two variables and the failure is silent.
 
 ### 2.5 Standardise intermediates so re-runs are cheap
 
