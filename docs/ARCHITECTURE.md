@@ -56,7 +56,8 @@ flowchart TB
     subgraph FIG["4 · FIGURES"]
         direction LR
         GK["grant_kit<br/><i>shared machinery</i>"]
-        GF["grant_figures<br/><i>26 families</i>"]
+        GFAM["grant_behaviour · grant_confusion<br/>grant_similarity · grant_geometry<br/>grant_matching · grant_encoder"]
+        GF["grant_figures<br/><i>registry + driver</i>"]
         EGF["epoch_grant_figures<br/>epoch_figures"]
         FL["figure_layout<br/>figure_meta"]
     end
@@ -84,7 +85,7 @@ flowchart TB
     ORC -.drives.-> FIG
     ORC -.drives.-> DK
     FL -.defines sidecar paths.-> DV
-    GK --> GF
+    GK --> GFAM --> GF
     DR --> AD
     DL --> AD
     DV --> AD
@@ -130,15 +131,33 @@ text that quotes it and nothing can notice.*
 
 ### 4 · Figures
 
-- [`grant_kit`](../wfield_local/grant_kit.py) — shared machinery: layout, saving, seeding, caching,
-  labels. Split out 2026-09-21 by call graph: it calls nothing above it, and most of
-  `grant_figures` calls into it.
-- [`grant_figures`](../wfield_local/grant_figures.py) — 26 figure families, rendered in parallel,
-  one process per `(figure, alignment, trial class)` unit.
-- [`figure_layout`](../wfield_local/figure_layout.py) — **the one definition of where a figure's
-  companion files go**: `<name>.png`, `svg/<name>.svg`, `data/<name>.csv`. Every writer goes
-  through it. A writer that builds its own path puts a file back in the flat directory and nothing
-  will report it.
+The grant renderer was **6,599 lines in one file** until 2026-09-21. It is now eight modules, and
+the division is from the call graph rather than from the names: every function in a family module
+is reached from that family's entry points and from no other.
+
+| module | lines | what it draws |
+|---|---:|---|
+| [`grant_figures`](../wfield_local/grant_figures.py) | 1,271 | **registry and driver only** — `JOBS`, the unit decomposition, the process pool, the CLI |
+| [`grant_kit`](../wfield_local/grant_kit.py) | 1,428 | shared machinery: layout, saving, seeding, caching, labels |
+| [`grant_geometry`](../wfield_local/grant_geometry.py) | 1,241 | crossnobis, asymmetry, position structure, recovery trajectory |
+| [`grant_similarity`](../wfield_local/grant_similarity.py) | 1,090 | pattern similarity and split-half reliability |
+| [`grant_confusion`](../wfield_local/grant_confusion.py) | 878 | the confusion families |
+| [`grant_encoder`](../wfield_local/grant_encoder.py) | 713 | gain versus shape, coding retained, frozen vs within |
+| [`grant_matching`](../wfield_local/grant_matching.py) | 361 | best-match destination |
+| [`grant_behaviour`](../wfield_local/grant_behaviour.py) | 347 | licking accuracy, pre-stroke decoding |
+
+Rendered in parallel, one process per `(figure, alignment, trial class)` unit. **76 names are
+re-exported on `grant_figures`** because 31 of them are addressed from outside these modules —
+`epoch_grant_figures` and `epoch_figures` import a dozen between them.
+
+[`epoch_grant_figures`](../wfield_local/epoch_grant_figures.py) (3,942 lines) and
+[`epoch_figures`](../wfield_local/epoch_figures.py) render the pooled per-epoch set the deck
+places as Section I. They are the same shape as the grant renderer was and have not been split.
+
+[`figure_layout`](../wfield_local/figure_layout.py) is **the one definition of where a figure's
+companion files go**: `<name>.png`, `svg/<name>.svg`, `data/<name>.csv`. Every writer goes through
+it. A writer that builds its own path puts a file back in the flat directory and nothing will
+report it.
 
 ### 5 · Decks
 
@@ -172,12 +191,22 @@ the figure-coverage scrape from 208 patterns to 80. The fix is one list, not sev
 and `GRANT_MODULES` in [`tests/conftest.py`](../tests/conftest.py). **When you split a module, grep
 for anything that opens it by name.**
 
-**2 · Module state does not survive a module boundary.** A global assigned in one module and read
-in another is two different variables, and nothing raises. `_ONLY_WINDOW` / `_ONLY_VARIANT` gate
-which alignment a render worker produces; moving the readers into `grant_kit` while the writers
-stayed would have made every worker render every alignment — wrong output, three times slower, no
-error. They go through `grant_kit.set_only()` now. This is the same lesson as ground rule 6's
-"options travel in the ITEM".
+**2 · Nothing survives a module boundary by itself — not state, and not name resolution.** Three
+forms of this, all silent:
+
+- A global assigned in one module and read in another is **two variables**. `_ONLY_WINDOW` /
+  `_ONLY_VARIANT` gate which alignment a worker renders; moving the readers into `grant_kit` while
+  the writers stayed would have made every worker render every alignment — wrong output, three
+  times slower, no error. They go through `grant_kit.set_only()` now.
+- **A function resolves a global in the module where it was DEFINED**, so `monkeypatch.setattr` on
+  a re-export lands nowhere. `test_rdm_ci` patched `grant_figures._collect_7`; `_rdm_ci` had moved
+  to `grant_geometry` and went on calling the real collector, which hung the suite for sixteen
+  minutes of CPU. It could as easily have passed while exercising nothing. Use `patch_grant` in
+  `tests/conftest.py`, which patches every module that has the name and refuses when none does.
+- Re-exporting a name keeps `hasattr` true and **does not** fix either of the above.
+
+This is ground rule 6's "options travel in the ITEM because spawn does not inherit globals",
+arriving from three different directions.
 
 **3 · A verification tool that cannot fail is decoration.** Three times in one day a check reported
 success having measured nothing: two empty fingerprint files comparing equal, and an SVG comparison
