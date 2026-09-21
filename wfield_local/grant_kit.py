@@ -31,15 +31,18 @@ days. Both were fixed before the cache was added. See `_boot_cached`.
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import textwrap
+import warnings
 from functools import lru_cache
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
@@ -654,3 +657,758 @@ def set_only(window=None, variant=None):
 def only() -> tuple:
     """(window, variant) currently in force. For tests and for the driver's own logging."""
     return _ONLY_WINDOW, _ONLY_VARIANT
+
+
+# ============================================================================================
+# SHARED ACROSS FIGURE GROUPS (moved up 2026-09-21, ahead of the family split)
+#
+# Each of these is reached from MORE THAN ONE of the six figure families. A helper used by one
+# family travels with it; one used across families has to live above all of them, or importing
+# any family would drag in a sibling and the split would be a cycle wearing a different name.
+# Which is which was computed from the call graph, not chosen by reading the names.
+#
+# `_BUNDLE_CACHE` travels with `_pooled_bundle`, its only user. A module-level cache separated
+# from the function that fills it is two caches, and the one nobody writes to always misses.
+# ============================================================================================
+# ------------------------------------------------------------------ 1. behaviour
+def _position_metrics(animal, mmdd):
+    """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behaviour per-session CSV."""
+    root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / f"2026{mmdd}"
+    if not root.exists():
+        return {}
+    files = sorted(root.glob("*position_metrics.csv"))
+    if not files:
+        return {}
+    out = {}
+    with files[-1].open(newline="", encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            try:
+                out[r["pos_name"]] = (float(r["hit_rate"]), float(r["ci_lo"]), float(r["ci_hi"]),
+                                      int(r["trials_engaged"]))
+            except (ValueError, KeyError):
+                continue
+    return out
+#: The confusion matrices are stored in DISPLAY_ORDER -- the spatial layout of the spouts
+#: (left-to-right, close row then far row), not the raw position codes. Labelling them in code order
+#: would transpose the picture into nonsense while still looking like a plausible matrix.
+CONF_LABELS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+#: Two-character position labels for dense axes. A 6-column matrix panel is ~2.05in wide, so a cell
+#: is ~0.34in; "close_center" is twelve characters and cannot be enlarged without collision, while
+#: "cC" can. The full names stay in every header, legend and speaker note, and the key is one line:
+#: c = close, f = far; L / C / R = left / centre / right.
+POS_SHORT = {"close_L": "cL", "close_center": "cC", "close_R": "cR",
+             "far_L": "fL", "far_center": "fC", "far_R": "fR"}
+def _colw(full=1.80):
+    """Inches per matrix column.
+
+    MEASURED, not chosen. Six rotated two-character tick labels set the floor: at 1.45 the
+    panels come out 0.911in and the labels crowd -- by a hairline, but a hairline closes
+    completely when the figure is reproduced small. The value has been raised twice as
+    post-stroke days accumulated, because the per-column width shrinks as columns are added:
+    the additive margin constant in each grid's figsize is diluted by matplotlib's
+    FRACTIONAL default margins, so more sessions means less width each.
+
+    THE COMPACT VARIANT IS GONE (2026-08-28) and this is why. It was built on the assumption
+    that the in-cell numbers forced the panels wide; measuring said otherwise -- the TICK
+    LABELS set the floor and are present in both variants, so compact reached 13.2in against
+    full's 13.6in, a 3% saving for a second full render pass. Priya: "just get rid of
+    compact grant figures."
+    """
+    return full
+def _txt(ax, *args, **kw):
+    """`ax.text`, kept as a seam.
+
+    It existed so a `--compact` render could drop every in-cell number from one place
+    rather than from eight call sites. That variant is gone (2026-08-28: measured at 3%
+    narrower for a second full render pass), but the indirection stays: eight call sites
+    routed through one function is how the next global change to in-cell text stays a
+    one-line change instead of a sweep that misses one.
+    """
+    return ax.text(*args, **kw)
+def _out(out_dir, stem):
+    """Output path for a figure stem."""
+    return Path(out_dir) / f"{stem}.png"
+def _short(labels):
+    """Position labels shortened for an axis. Anything unrecognised passes through unchanged."""
+    return [POS_SHORT.get(str(q), str(q)) for q in labels]
+#: One bundle per (animal, alignment), reused across every figure that needs it.
+#:
+#: MEASURED 2026-08-26: `_collect_7` appears 14 times in this module and loops over 4 animals, so a
+#: full render built this bundle 56 times -- while only 4 animals x 3 alignments = 12 are distinct.
+#: Each build loads the joint basis, PROJECTS every one of ~18 sessions onto it, and re-derives the
+#: engagement gate. That is the dominant cost of figures 6, 6b, 6d, 7, 7b, 7d, 8, 8b, 8d, 8e, and it
+#: is the same work every time: nothing between two calls can change it within one process.
+#:
+#: In-process rather than on disk, deliberately. The bundle holds the pooled feature matrices for
+#: every session, so persisting it would write hundreds of MB per (animal, align) and invite exactly
+#: the staleness question this session has spent all day on. A render is one process, so an
+#: in-process memo captures the entire duplication with none of that.
+_BUNDLE_CACHE: dict = {}
+def _pooled_bundle(an, align):
+    """The shared load behind figures 6, 6b, 7 and 8: joint basis, pooled sessions, engagement gate.
+
+    Extracted because it was character-identical in `fig_pattern_similarity` and
+    `fig_pattern_similarity_per_session`, and a third and fourth copy is how two figures that claim
+    to describe the same trials quietly stop doing so. Memoized per (animal, alignment) for the same
+    reason it was extracted: two figures that claim to describe the same trials should not be able to
+    disagree, and now they cannot even in principle -- they hold the same object.
+    """
+    key = (an, align)
+    if key in _BUNDLE_CACHE:
+        return _BUNDLE_CACHE[key]
+    from wfield_local import joint_locanmf
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
+    from wfield_local.locanmf_frozen_decoder import pool_sessions
+    from wfield_local.position_coding_directions import _gate_all
+    from wfield_local.precue_engagement_states import features_with_indices
+
+    pre = [x for x in config.phase_labels("pre") if x.startswith(an)]
+    post = [x for x in config.phase_labels("post") if x.startswith(an)]
+    basis = joint_locanmf.load(an, sessions=SESSIONS)
+    feat = features_with_indices(basis, nolick_ref="cue")
+    XE, YE, GE, BE, XU, YU, kept, _c, GU = pool_sessions(
+        pre + post, source="locanmf", align=align, post_s=2.0, features=feat)
+    g = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU)
+    not_eng = g[0] if g else np.zeros(len(YU), bool)
+    pre_i = {i for i, lab in enumerate(kept) if lab in set(pre)}
+    GU = np.asarray(GU)
+    en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
+    un = (np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU])
+          if len(YU) else np.zeros(0, str))
+    # BLOCK IDS, for the block bootstrap. `pool_sessions` returns BE as a LIST of per-session
+    # vectors in the same order it stacks XE, so concatenating aligns them row for row. A block is
+    # a run of trials at ONE position, ended by a position change or the scheduler's block_size_max
+    # (locanmf_position_decoder, audited against the firmware's own block_number to 2.8%).
+    BE_all = np.concatenate([np.asarray(b) for b in BE]) if len(BE) else np.zeros(0, int)
+    # Make ids unique ACROSS sessions -- they restart per session and a bootstrap that pooled two
+    # sessions' block 3 would resample a unit that does not exist.
+    BE_all = np.asarray(GE, dtype=np.int64) * 1_000_000 + BE_all.astype(np.int64)
+    # THE NO-LICK ARM HAS NO BLOCK IDS: pool_sessions does not return them for XU. They are
+    # reconstructed by the same rule minus the size cap -- a new block wherever the position
+    # changes in that session's trial order. Coarser than the real blocks, never finer, so it
+    # cannot make the intervals too narrow.
+    BU_all = _runs_to_blocks(np.asarray(GU), un) if len(YU) else np.zeros(0, np.int64)
+    bundle = {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+              # The NUMERIC labels as well as the names. `pool_sessions` returns them and
+              # this used to discard them, which is the only reason two callers could not
+              # adopt the bundle: they fit and score on the integer codes, not the names.
+              "YE": YE, "YU": YU,
+              "BE": BE_all, "BU": BU_all,
+              "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    _BUNDLE_CACHE[key] = bundle
+    return bundle
+def _runs_to_blocks(sess, pos):
+    """Block ids from runs of the same (session, position), for trials that carry none of their own.
+
+    Coarser than the scheduler's real blocks -- it misses the size cap that splits a long run in two
+    -- and never finer. A too-coarse block resamples larger correlated chunks, which WIDENS a
+    bootstrap interval; a too-fine one would narrow it. Erring wide is the safe direction.
+    """
+    sess, pos = np.asarray(sess), np.asarray(pos)
+    if not len(sess):
+        return np.zeros(0, np.int64)
+    changed = np.ones(len(sess), bool)
+    changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
+    # negative ids so they can never collide with the real BE ids, which are non-negative
+    return -(np.cumsum(changed).astype(np.int64) + 1)
+def _class_select(variant, sess_e, sess_u, not_eng):
+    """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
+
+    THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
+    `stopped` were each written inline as ``if v == "working" and len(un)`` at three collector sites
+    plus `_session_trials`, and every one of them included the ENGAGED rows unconditionally -- which
+    is right for the first two classes and catastrophically wrong for `stopped`, where it would
+    silently fold every licking trial of the session into a set defined as "the animal had quit".
+    One function, so that cannot happen at one site and not the others.
+
+        lick     engaged only
+        working  engaged + unengaged OUTSIDE the terminal quit period
+        stopped  the terminal quit period ALONE, and NO engaged rows
+
+    `stopped` and `working` partition the unengaged trials and `stopped` takes none of the engaged
+    ones, so the three classes are not nested: a trial is in `working` or in `stopped`, never both.
+    """
+    import numpy as _np
+    e_none = _np.zeros(len(sess_e), bool)
+    u_none = _np.zeros(len(sess_u), bool)
+    if variant == "stopped":
+        return e_none, (sess_u & not_eng) if len(sess_u) else u_none
+    if variant == "working":
+        return sess_e, (sess_u & ~not_eng) if len(sess_u) else u_none
+    return sess_e, u_none
+#: How a trial class reads in a figure caption. One place, because fifteen copies of a two-branch
+#: conditional cannot survive a third branch being added -- every one of them captioned `stopped`
+#: as "LICK + miss-while-working", i.e. as its own complement.
+#:
+#: THE CLASS GATES THE POST-STROKE SIDE ONLY. `_collect_7` hardcodes the pre-stroke reference to
+#: `lick` for every class, so the note has to say so or the caption describes half a correlation.
+#: For `lick` and `working` that is a distinction without a difference -- pre-stroke those two sets
+#: are nearly identical (a typical session is 305 lick against 312 working, because the pre-stroke
+#: animal is not missing). For `stopped` it is the whole comparison: `_class_select` gives `stopped`
+#: NO engaged rows, so the arm scores post-stroke quit-period patterns against pre-stroke ENGAGED
+#: ones and a drop is what two different behavioural states would produce on their own.
+#:
+#: A symmetric reference is not available AT THIS RESOLUTION. Only 3 of 44 pre-stroke sessions clear
+#: min_trials=10 at all six positions (PS94_0806, PS95_0806, PS95_0812) against 20 of 48 post; PS92
+#: has 6 stopped trials in its entire pre-stroke set and PS93 has one session at 1/6. Pre-stroke
+#: animals rarely quit, which is exactly why the class is interesting after stroke.
+#:
+#: THE STATE-MATCHED CONTRAST EXISTS -- IT IS JUST NOT HERE. Pooling the positions away drops the
+#: floor to 20 trials per SESSION and PS93, PS94 and PS95 all clear it, which is what
+#: `_collect_stopped_pooled` and family 12b are for: post-stroke stopped against pre-stroke STOPPED,
+#: state-matched on both sides, leave-one-session-out on the pre bar. Family 12 is the per-position
+#: version with the pre-stroke stopped column as an explicit "quitting alone" control. So do not
+#: read these generic class arms as the stopped-trial ANALYSIS -- they are the engaged-trial
+#: families with the class switch flipped, and 12/12b are the purpose-built ones.
+def _class_note(variant):
+    return {"lick": "LICK trials only",
+            "working": "LICK + miss-while-working (quit period removed)",
+            "stopped": ("THE TERMINAL QUIT PERIOD ONLY -- no licking trials; PRE-STROKE REFERENCE "
+                        "IS LICK TRIALS -- for the state-matched contrast see family 12b")}.get(
+                variant, str(variant))
+def _session_trials(bd, i, q, variant, field="X"):
+    """Trials (or their BLOCK IDS) for session ``i`` at position ``q`` under a trial class.
+
+    ``lick`` is the engaged (licking) set; ``working`` adds miss-while-working, i.e. everything but
+    the terminal quit period; ``stopped`` is that quit period ALONE. Returns an empty array rather
+    than None so callers can stack freely.
+
+    ``field`` selects what comes back -- "X" the patterns, "blk" the block id of each of those same
+    rows. THE MASK IS COMPUTED ONCE HERE for both, so the two cannot drift apart; a bootstrap whose
+    block vector did not line up with its data would silently resample the wrong trials.
+    """
+    # ``stopped`` IS THE COMPLEMENT OF EVERY OTHER CLASS: the terminal quit period ONLY, and no
+    # licking trials at all. Every other class here is `~not_eng` and this is `not_eng`, so a trial
+    # belongs to `stopped` or to `working` and never to both. It exists because "the animal stopped"
+    # is a behavioural state the imaging can be asked about (Priya, 2026-09-11) and the gate has so
+    # far only ever been used to THROW those trials away.
+    me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
+                           (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
+                           else np.zeros(0, bool), bd["not_eng"])
+    if field == "blk":
+        parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
+        keep = [z for z in parts if len(z)]
+        return np.concatenate(keep) if keep else np.zeros(0, np.int64)
+    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
+    keep = [z for z in parts if len(z)]
+    return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
+#: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means
+#: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
+#: so a full render loads each one once instead of four times. The features are LocaNMF components,
+#: not pixels, so the whole cache is ~100 MB.
+@lru_cache(maxsize=12)
+def _collect_7(align, variant, min_trials, field="X"):
+    """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
+
+    CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
+    figure in the same process.
+
+    PRE-STROKE SESSIONS ARE KEPT SEPARATE, not pooled, and that is the whole point of this
+    collector. The first render of figure 7 compared the split-half reliability of the POOLED
+    pre-stroke set (six sessions) against one post-stroke session at a time and showed 0.72-0.92
+    against 0.14-0.67. Split-half reliability rises with trial count, so most of that gap was six
+    times the trials -- and it is exactly the comparison the figure invites and exactly the question
+    ("is the lost code just a noisier one?") it exists to answer. Keeping the sessions apart lets
+    every caller build a LEAVE-ONE-SESSION-OUT reference that is both trial-count-matched and
+    disjoint from the session being scored.
+    """
+    out, all_days = {}, set()
+    for an in ANIMALS:
+        try:
+            bd = _pooled_bundle(an, align)
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! 7 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+            continue
+        pre_by_sess, by_day = {}, {}
+        for i, lab in enumerate(bd["kept"]):
+            mmdd = lab.split("_")[-1]
+            if i in bd["pre_i"]:
+                # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
+                # not missing, so "working" would add nothing and would silently make the reference
+                # a different kind of trial from itself.
+                pat = {q: _session_trials(bd, i, q, "lick", field) for q in CONF_LABELS
+                       if len(_session_trials(bd, i, q, "lick")) >= min_trials}
+                if pat:
+                    pre_by_sess[mmdd] = pat
+                continue
+            day = _day(an, mmdd)
+            # THE GATE IS ALWAYS ON THE TRIAL COUNT, never on the length of `field`, so the "blk"
+            # collection contains exactly the same (session, position) cells as the "X" one.
+            pat = {q: _session_trials(bd, i, q, variant, field) for q in CONF_LABELS
+                   if len(_session_trials(bd, i, q, variant)) >= min_trials}
+            if pat:
+                by_day[day] = pat
+                all_days.add(day)
+        out[an] = (pre_by_sess, by_day)
+    return out, sorted(all_days)
+def _pre_reference(pre_by_sess, exclude=None):
+    """Pooled pre-stroke trials per position, optionally leaving one session out.
+
+    Leaving the scored session out is what keeps a pre-stroke column from being circular: a session
+    correlated against a pool it is itself part of is scored partly against itself.
+    """
+    ref = {}
+    for s, pat in pre_by_sess.items():
+        if s == exclude:
+            continue
+        for q, Z in pat.items():
+            ref.setdefault(q, []).append(Z)
+    return {q: np.vstack(v) for q, v in ref.items()}
+#: Resamples for the delta intervals. Fewer than the pattern figures' 400 because each draw here
+#: rebuilds a full 6x6 from scratch for every animal-day; 200 is ample for a 95% percentile interval.
+N_BOOT_DELTA = 200
+def _block_index(blk):
+    """{block id -> row indices} for one (session, position) trial set."""
+    out = {}
+    for j, b in enumerate(np.asarray(blk)):
+        out.setdefault(int(b), []).append(j)
+    return {k: np.asarray(v) for k, v in out.items()}
+def _block_boot(pat_x, pat_blk, rng, min_trials=4):
+    """One block-bootstrap draw of a whole session: {position -> resampled trials}.
+
+    The session's blocks are pooled ACROSS positions and drawn once with replacement, so every
+    position moves together in a single draw exactly as they do in a real session. A position whose
+    draw leaves it under ``min_trials`` is dropped from that replicate rather than estimated from
+    two trials -- it then shows as a wider interval, which is the honest consequence.
+    """
+    idx = {q: _block_index(pat_blk[q]) for q in pat_x if q in pat_blk}
+    blocks = [(q, b) for q, m in idx.items() for b in m]
+    if not blocks:
+        return {}
+    pick = rng.integers(0, len(blocks), size=len(blocks))
+    take = {}
+    for k in pick:
+        q, b = blocks[k]
+        take.setdefault(q, []).append(idx[q][b])
+    out = {}
+    for q, parts in take.items():
+        rows = np.concatenate(parts)
+        if len(rows) >= min_trials:
+            out[q] = pat_x[q][rows]
+    return out
+def _delta_diag_ci(mats_for, x_store, blk_store, an, days, seed_parts, n_boot=N_BOOT_DELTA):
+    """95% interval on (day diagonal - PRE diagonal), block-bootstrapped, ONE DAY AT A TIME.
+
+    ``mats_for(animal, rng)`` returns the matrix builder; it is called per day so the builder and
+    the draws share that day's generator. The PRE reference is resampled in the SAME draw as the
+    day, so the two are correlated exactly as they are in the data and the difference is taken draw
+    by draw -- differencing two independently published intervals would overstate the spread.
+
+    EACH DAY IS SEEDED AND CACHED SEPARATELY. Previously every day of an animal came off one shared
+    stream, which had two costs: a day's interval depended on how many days preceded it in that
+    run, and no day could be stored and replayed. Priya, 2026-08-28 -- store the bootstraps so a
+    nightly run recomputes only the sessions that changed. This family is 49% of a full render
+    (6d, 7d, 8d and 9 all come through here), so on a night with one new session it is most of the
+    saving.
+    """
+    pre_x, day_x = x_store
+    pre_b, day_b = blk_store
+    # Taken once: a re-preprocessed PRE-stroke session must invalidate every day of this animal.
+    pre_key = _digest(pre_x, pre_b)
+    out = {}
+    for d in days:
+        if d not in day_x:
+            continue
+        rng = np.random.default_rng(_seed(*seed_parts, d))
+        mats_fn = mats_for(an, rng)
+        rec = _boot_cached(
+            f"delta_{seed_parts[-1]}",
+            (pre_key, day_x[d], day_b[d], tuple(str(p) for p in seed_parts), n_boot),
+            lambda mats_fn=mats_fn, rng=rng, d=d: _delta_diag_one(
+                mats_fn, pre_x, pre_b, day_x[d], day_b[d], rng, n_boot))
+        if rec and rec.get("mean"):
+            out[d] = rec
+    return out
+def _delta_diag_one(mats_fn, pre_x, pre_b, dx, db, rng, n_boot):
+    """One day's delta record: ``{"mean": (lo, hi, med), "pos": {position: (lo, hi, med)}}``.
+
+    Extracted from `_delta_diag_ci` so a single day is the unit that gets cached. The arithmetic is
+    unchanged, including the leave-one-session-out baseline the synthetic test was built to catch.
+    """
+    deltas = []
+    for _ in range(n_boot):
+        # Resample every pre-stroke session ONCE per draw, then reuse those same resampled
+        # sessions for both the baseline and the day's reference, so the two share their noise
+        # and the difference below is taken draw by draw.
+        pre_r = {s: _block_boot(pre_x[s], pre_b[s], rng) for s in pre_x}
+        pre_r = {s: v for s, v in pre_r.items() if v}
+        day_r = _block_boot(dx, db, rng)
+        if not pre_r or not day_r:
+            continue
+
+        def _pool(exclude=None, pre_r=pre_r):
+            acc = {}
+            for s, Z in pre_r.items():
+                if s == exclude:
+                    continue
+                for q, z in Z.items():
+                    acc.setdefault(q, []).append(z)
+            return {q: np.vstack(v) for q, v in acc.items()}
+
+        # THE BASELINE IS LEAVE-ONE-SESSION-OUT, not the reference against itself. Scoring the
+        # resampled reference on itself gives a diagonal of exactly 1.0 -- a mean correlated
+        # with its own mean -- so every delta came out at about -1 regardless of the data. The
+        # synthetic test caught it; on real data it would have looked like a catastrophic and
+        # perfectly uniform loss at every position in every animal.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            # PER-POSITION VECTORS, averaged across held-out sessions as VECTORS. Averaging the
+            # scalar mean-diagonal per session first and differencing that would give the same
+            # overall number but no per-position breakdown -- and the per-position trajectory is
+            # what the deficit is actually about.
+            bases = []
+            for s, held in pre_r.items():
+                rest = _pool(exclude=s)
+                if held and rest:
+                    bases.append(np.diag(mats_fn(held, rest)).copy())
+            full = _pool()
+            if not bases or not full:
+                continue
+            base_vec = np.nanmean(np.stack(bases), axis=0)
+            cur_vec = np.diag(mats_fn(day_r, full)).copy()
+            deltas.append(cur_vec - base_vec)
+    if len(deltas) < n_boot // 4:
+        return {}
+    D = np.stack(deltas)                                   # draws x positions
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        m = np.nanmean(D, axis=1)                          # per draw, mean over positions
+        m = m[np.isfinite(m)]
+        rec = {}
+        if len(m):
+            rec["mean"] = (float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5)),
+                           float(np.median(m)))
+        pos = {}
+        for k, q in enumerate(CONF_LABELS):
+            col = D[:, k]
+            col = col[np.isfinite(col)]
+            if len(col) >= n_boot // 4:
+                pos[q] = (float(np.percentile(col, 2.5)), float(np.percentile(col, 97.5)),
+                          float(np.median(col)))
+        rec["pos"] = pos
+    return rec
+def _corr_matrix(src_means, ref_means, labels=None):
+    """M[i, j] = corr(src pattern at label i, reference pattern at label j)."""
+    labels = labels or CONF_LABELS
+    M = np.full((len(labels), len(labels)), np.nan)
+    for i, p in enumerate(labels):
+        for j, q in enumerate(labels):
+            a, b = src_means.get(p), ref_means.get(q)
+            if a is None or b is None or not np.std(a) or not np.std(b):
+                continue
+            M[i, j] = float(np.corrcoef(a, b)[0, 1])
+    return M
+def _means(pat):
+    return {q: Z.mean(0) for q, Z in pat.items()}
+def _nanmean_stack(Ms):
+    if not Ms:
+        return None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)          # positions absent in every entry
+        return np.nanmean(np.stack(Ms), axis=0)
+@lru_cache(maxsize=6)
+def _matrices_pattern(align, variant, min_trials=10):
+    """{animal: {"PRE": M, day: M, ...}} of mean-pattern correlation matrices (figures 6b / 6d)."""
+    store, days = _collect_7(align, variant, min_trials)
+    out = {}
+    for an, (pre_by_sess, by_day) in store.items():
+        ref_m = _means(_pre_reference(pre_by_sess))
+        loo = [_corr_matrix(_means(pat), _means(_pre_reference(pre_by_sess, exclude=s)))
+               for s, pat in pre_by_sess.items()]
+        d = {}
+        base = _nanmean_stack(loo)
+        if base is not None:
+            d["PRE"] = base
+        for day, pat in by_day.items():
+            d[day] = _corr_matrix(_means(pat), ref_m)
+        if d:
+            out[an] = d
+    return out, days
+def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
+                vmin, vmax, cmap, dmax, summary, ylab, figh=9.5, cis=None,
+                higher_is_better=True):
+    """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
+    the reference, on a diverging scale centred at zero.
+
+    TWO COLOURBARS, DELIBERATELY. One shared scale would either compress the deltas into the middle
+    of an absolute ramp or draw the reference on a diverging map centred somewhere meaningless. The
+    two columns groups are different quantities and are scaled as such.
+    """
+    # A DEDICATED SPACER COLUMN FOR THE REFERENCE COLOUR BAR. Attaching it to `ax=axes[:, 0]` puts
+    # it against the RIGHT EDGE of column 1's bounding box -- i.e. in the narrow gap between the
+    # reference panel and the first delta panel, where it overlapped the day-1 matrices (Priya,
+    # 2026-08-25). Reserving a real column and drawing into an explicit `cax` inside it is
+    # deterministic; shrinking `fraction` would only have made the overlap thinner.
+    ncol = 1 + len(days)
+    # HSPACE 0.60 AT HEIGHT 9.5, the combination verified clean across 6, 9 and 12
+    # post-stroke days. This grid set no hspace at all, so it ran at matplotlib's default
+    # 0.2 while every sibling matrix grid had already moved to 0.60 -- the per-day titles
+    # sat on the row above.
+    #
+    # THE WIDTH IS DERIVED FROM THE RATIOS, not from `ncol`, and that is the fix rather than the
+    # tidiness. The figure was sized `_colw() * ncol` while the grid divided that space among
+    # `ncol + SPACER` units -- the colour-bar spacer is a real column and was taking its share
+    # from panels the width had not paid for. Every panel therefore came out narrower than
+    # `_colw()` promises, by a fraction that GROWS with the day count.
+    #
+    # It went unnoticed while the slack absorbed it. Registering 0827 took the delta grids to
+    # EIGHT post-stroke days, and driving the real function with fabricated data (two-line 9.5pt
+    # titles, which is what `cis` produces -- an earlier probe passed cis=None, got one-line
+    # 7.5pt titles, and reported clean while the shipped figure was not) gives 8 title-vs-title
+    # overlaps at 8 days and 0 once the spacer is paid for. `hspace` cannot help: the collision
+    # is horizontal.
+    #
+    # ABSOLUTE INCH MARGINS (2026-08-28), which is the durable fix the note above promised and
+    # the same root cause as `_colw`'s two raises.
+    #
+    # `subplots_adjust` and `gridspec_kw` take FRACTIONS. The old figsize was
+    # `_colw() * sum(ratios) + 2.0`, and matplotlib's default left=0.125/right=0.9 then took
+    # 22.5% of whatever that came to -- so at eight post-stroke days each panel arrived 1.56in
+    # wide against the 1.80in `_colw()` promises, and the shortfall GREW with every session
+    # registered. That is why the width constant had to be raised twice and why the crowding came
+    # back on schedule at the eleventh day: an additive margin diluted by a fractional one is not
+    # a margin, it is a slowly closing gap.
+    #
+    # Deriving the width from the margins instead of the margins from the width gives every panel
+    # a column exactly `_colw()` inches wide at any day count.
+    #
+    # MEASURED, and it corrects what `_colw` believes about itself: the DRAWN axes is 1.216in, not
+    # 1.80, at every day count both before and after this change. `imshow` fixes a square aspect,
+    # and four rows inside figh=9.5 leave about 1.2in of height each -- so the panels are HEIGHT
+    # limited, and the column width has never been what sets their size. What the extra width buys
+    # is space BETWEEN panels, and that is precisely what the titles were colliding for. Driven at
+    # 6, 8, 11 and 14 post-stroke days: 16 title-vs-title overlaps at 14 days before, 0 after, and
+    # 0 at every count in between.
+    #
+    # So `_colw()`'s docstring is half right. Six rotated tick labels do set a floor, but raising
+    # it twice worked by widening the gaps, not by widening the panels. Anyone wanting genuinely
+    # larger panels has to raise `figh`.
+    #
+    # HORIZONTAL ONLY, deliberately. The collision this fixes is horizontal, and the vertical
+    # layout (hspace 0.60 at figh 9.5) was measured clean across 6, 9 and 12 days -- rewriting it
+    # here would put a verified layout back at risk for nothing.
+    LEFT_IN, RIGHT_IN, GAP_IN = 1.15, 0.95, 0.14      # row labels; colour bars; between panels
+    ratios = [1, 0.62] + [1] * len(days)
+    panel_in = _colw()
+    fig_w = (LEFT_IN + RIGHT_IN + panel_in * sum(ratios) + GAP_IN * (len(ratios) - 1))
+    fig, grid = plt.subplots(len(ANIMALS), ncol + 1,
+                             figsize=(fig_w, figh),
+                             squeeze=False,
+                             gridspec_kw={"hspace": 0.60, "width_ratios": ratios,
+                                          "left": LEFT_IN / fig_w,
+                                          "right": 1.0 - RIGHT_IN / fig_w,
+                                          # wspace is a fraction of the MEAN panel width
+                                          "wspace": GAP_IN / panel_in})
+    spacer = grid[:, 1]
+    for ax in spacer:
+        ax.axis("off")
+    axes = np.delete(np.asarray(grid, dtype=object), 1, axis=1)
+    im_abs = im_del = None
+    for ri, an in enumerate(ANIMALS):
+        d = mats.get(an) or {}
+        base = d.get("PRE")
+        for ci in range(ncol):
+            ax = axes[ri][ci]
+            M = base if ci == 0 else d.get(days[ci - 1])
+            if M is None or base is None or not np.isfinite(M).any():
+                ax.axis("off")
+                continue
+            # THE WHOLE ROW, NOT ONLY ITS DIAGONAL (Priya, 2026-08-26). A diagonal of 0.2 cannot
+            # separate "the code is gone" from "the code moved to far_L" -- 0.2 against everything,
+            # and 0.2 against itself with 0.7 elsewhere, are the same number. `self n/6` counts the
+            # positions whose BEST match is still themselves: it uses all six entries and is
+            # invariant to any monotone change across a row, so the uniform row shifts that dominate
+            # the distance panels -- amplitude rather than resemblance -- cannot move it.
+            _bm, _rk = _best_match(M, higher_is_better=higher_is_better)
+            _self = int(sum(i == j for i, j in enumerate(_bm) if j >= 0))
+            _nrow = int(sum(1 for j in _bm if j >= 0))
+            if ci == 0:
+                im_abs = ax.imshow(np.ma.masked_invalid(M), vmin=vmin, vmax=vmax, cmap=cmap)
+                # "PRE", not "PRE (reference)": the header already says column 1 is the
+                # reference, and the longer title reached right far enough to collide with the
+                # colour bar's rotated label.
+                head = "PRE"
+                stat = summary(M)
+            else:
+                D = M - base
+                im_del = ax.imshow(np.ma.masked_invalid(D), vmin=-dmax, vmax=dmax, cmap="PuOr_r")
+                head = f"day {days[ci - 1]}"
+                stat = summary(M) - summary(base)
+            ax.set_xticks(range(len(CONF_LABELS)))
+            ax.set_yticks(range(len(CONF_LABELS)))
+            ax.set_xticklabels(_short(CONF_LABELS) if ri == len(ANIMALS) - 1 else [],
+                               rotation=90, fontsize=9)
+            ax.set_yticklabels(_short(CONF_LABELS) if ci == 0 else [], fontsize=9)
+            # THE INTERVAL GOES WHERE THE NUMBER IS. The change in mean diagonal is the claim each
+            # panel makes, so a bare point estimate there is the one place an interval is most
+            # needed. Blank when the bootstrap could not resolve that cell -- never an interval
+            # silently omitted from a panel that has one everywhere else.
+            band = (cis or {}).get(an, {}).get(days[ci - 1]) if ci else None
+            _sm = f"  self {_self}/{_nrow}" if _nrow else ""
+            if ci == 0:
+                lab = f"{head}  {stat:.2f}{_sm}"
+            elif band:
+                lab = f"{head}  {stat:+.2f}{_sm}\n[{band[0]:+.2f}, {band[1]:+.2f}]"
+            else:
+                lab = f"{head}  {stat:+.2f}{_sm}"
+            ax.set_title(lab, fontsize=9.5 if band else 7.5,
+                         fontweight="bold" if ci == 0 else "normal")
+            if ci == 0:
+                ax.set_ylabel(f"{an}\n{ylab}", fontsize=11, fontweight="bold")
+    if im_abs is None or im_del is None:
+        plt.close(fig)
+        return None
+    # WRAP LONG TITLE LINES. `bbox_inches="tight"` sizes the saved canvas around EVERYTHING it
+    # contains, so one over-long suptitle line stretches the whole image and squashes the panels
+    # into a fraction of it -- which is what a 420-character line did to 6d the moment the bootstrap
+    # interval was described in the header. Explicit newlines the caller wrote are preserved; only
+    # over-long lines are broken, so this cannot silently reflow a deliberate layout.
+    title = "\n".join(textwrap.fill(ln, width=150) if len(ln) > 150 else ln
+                      for ln in title.split("\n"))
+    fig.colorbar(im_del, ax=axes[:, 1:].ravel().tolist(), fraction=0.012, pad=0.02,
+                 label=delta_label)
+    # Explicit cax INSIDE the reserved spacer column, computed after the delta bar has taken its
+    # own space (it shrinks only the day columns, never the spacer).
+    #
+    # TICKS AND LABEL ON THE **LEFT** OF THE BAR. Matplotlib puts both on the right by default, so
+    # even with the bar itself safely inside the spacer the rotated label was drawn past the
+    # spacer's right edge and over the day-1 matrices (Priya, 2026-08-25 -- the second report of
+    # this, the first having been the bar itself). Everything now extends LEFT, toward the gap
+    # beside the reference panel, which carries no labels of its own.
+    top, bot = spacer[0].get_position(), spacer[-1].get_position()
+    # The bar sits in the RIGHT part of the spacer and its ticks and label extend LEFT into the
+    # rest of it. The spacer therefore has to hold three things, not one: label, tick labels, bar.
+    # At 0.42 it did not, and the rotated label reached back over the reference column's panel
+    # TITLES -- the same colour bar intruding on a third neighbour, caught this time by measurement
+    # rather than by eye.
+    cax = fig.add_axes([top.x0 + 0.70 * top.width, bot.y0,
+                        0.16 * top.width, top.y1 - bot.y0])
+    cb = fig.colorbar(im_abs, cax=cax)
+    cax.yaxis.set_ticks_position("left")
+    cax.yaxis.set_label_position("left")
+    cax.tick_params(labelsize=7)
+    cb.set_label(abs_label, fontsize=11)
+    _suptitle(fig, title, fontsize=9.5)
+    _footer(fig)
+    p = _out(out_dir, fname.removesuffix(".png"))
+    _save(fig, p, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return p
+def _diag(M):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        return float(np.nanmean(np.diag(M)))
+def _delta_cis(align, variant, min_trials, mats_for, tag, n_boot=N_BOOT_DELTA, full=False):
+    """{animal: {day: (lo, hi)}} on the change in mean diagonal, block-bootstrapped.
+
+    ``mats_for(animal, rng)`` returns the matrix builder for one animal. It is a hook rather than a
+    fixed function because the crossnobis figure needs a whitener held FIXED across resamples --
+    re-estimating it per draw would make the cross-validated product depend on the resample and stop
+    being unbiased, the same reason the estimator wants a whitener independent of the data it
+    whitens.
+
+    ONE DRIVER FOR EVERY DELTA FIGURE, so they cannot drift apart in what they resample.
+    """
+    x_store, days = _collect_7(align, variant, min_trials)
+    b_store, _ = _collect_7(align, variant, min_trials, "blk")
+    out = {}
+    for an in ANIMALS:
+        if an not in x_store or an not in b_store:
+            continue
+        (pre_x, day_x), (pre_b, day_b) = x_store[an], b_store[an]
+        try:
+            rich = _delta_diag_ci(mats_for, (pre_x, day_x), (pre_b, day_b), an, days,
+                                  (an, align, variant, tag), n_boot=n_boot)
+            # `_delta_grid` prints only the mean's (lo, hi); figure 9 plots the whole record.
+            out[an] = rich if full else {d: r["mean"][:2] for d, r in rich.items()}
+        except Exception as ex:                                          # noqa: BLE001
+            print(f"  !! {tag} CI {an} {align}/{variant}: {type(ex).__name__} {str(ex)[:80]}",
+                  flush=True)
+    return out
+def _mats_pattern(_an, _rng):
+    return lambda pat, ref: _corr_matrix(_means(pat), _means(ref))
+def _pct3(v):
+    return (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)), float(np.median(v)))
+def _anchor(iv, theta, lo=None, hi=None):
+    """Move a percentile interval so it contains the estimate the figure actually plots.
+
+    A block bootstrap of a CORRELATION or an R^2 is biased LOW, and not subtly. Resampling blocks
+    with replacement leaves only ~63% of a session's distinct trials in a draw, so every resampled
+    mean is noisier than the observed one, and two noisier means agree less. It showed the first
+    time this was run on real data: several encoder point estimates sat at or ABOVE the upper limit
+    of their own percentile interval (PS92 PRE +0.57 against [+0.32, +0.56]). That is the same
+    "interval that does not contain its own estimate" failure figure 8d announced itself with.
+
+    THE SPREAD IS STILL RIGHT; only the location is wrong. Shifting by (estimate - bootstrap median)
+    keeps the width and the asymmetry and guarantees the band contains the point drawn on top of it.
+    A pivotal interval (2*theta - hi, 2*theta - lo) corrects the same bias but REFLECTS the
+    asymmetry, and where the bias exceeds half the width it returns a band lying entirely to one
+    side of the estimate -- true to the arithmetic and unreadable on a figure.
+
+    FOR THE DELTAS THE BIAS LARGELY CANCELS: the day and the ceiling are resampled in the SAME draw
+    and both are pulled down together, so the shift there comes out small. That is a check on this
+    correction rather than a use of it.
+    """
+    if not iv or theta is None or not np.isfinite(theta):
+        return iv
+    d = float(theta) - iv[2]
+    lo_, hi_ = iv[0] + d, iv[1] + d
+    # CLIPPED TO THE PARAMETER SPACE. Shifting a band that already sits near a bound pushes it past
+    # one: a row correlation of 0.98 acquires an upper limit of 1.08, which no correlation can take.
+    # The bound is a fact about the quantity, not a cosmetic trim.
+    if lo is not None:
+        lo_ = max(lo_, lo)
+    if hi is not None:
+        hi_ = min(hi_, hi)
+    return (lo_, hi_, float(theta))
+def _excludes_zero(iv):
+    """True when a (lo, hi, med) interval lies wholly on one side of zero."""
+    return bool(iv) and (iv[0] > 0 or iv[1] < 0)
+def _best_match(M, higher_is_better=True):
+    """Per row: (index of the best-matching column, rank of the diagonal, 1..n).
+
+    USES THE WHOLE ROW, which is the point. The diagonal alone cannot separate "the code is gone"
+    from "the code moved to a specific other position" -- 0.2 against every position and 0.2 against
+    its own with 0.7 against far_L are the same diagonal and different results.
+
+    ARGMAX AND RANK ARE INVARIANT to any monotone transform applied ACROSS a row, so the uniform
+    row shifts that dominate the distance figures -- which are amplitude, not resemblance -- cannot
+    move them. That is precisely where the diagonal is weakest.
+    """
+    n = M.shape[0]
+    best = np.full(n, -1)
+    rank = np.full(n, np.nan)
+    for i in range(n):
+        row = M[i].astype(float)
+        ok = np.isfinite(row)
+        if ok.sum() < 2 or not np.isfinite(row[i]):
+            continue
+        v = row.copy()
+        if not higher_is_better:
+            v = -v
+        # TIES GO TO THE DIAGONAL. A row that is flat -- the code is gone, with no particular
+        # substitute -- has every entry equal, and a bare argmax then returns whichever position
+        # happens to come first in DISPLAY_ORDER, reporting a substitution that does not exist. It
+        # would also disagree with `rank`, which correctly calls the diagonal tied-best. Preferring
+        # the diagonal on a tie is the conservative direction: it never invents a move.
+        vmax = np.nanmax(np.where(ok, v, -np.inf))
+        best[i] = i if v[i] >= vmax else int(np.nanargmax(np.where(ok, v, -np.inf)))
+        # rank of the diagonal among the usable entries, 1 = best match is itself
+        rank[i] = 1 + int((v[ok] > v[i]).sum())
+    return best, rank
+def _impaired(an, thresh=0.5, min_n=10):
+    """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
+
+    THE WORST SESSION, not the pooled rate. Pooling across every post-stroke day averages a
+    recovery away: PS95's far_R goes 0.00 on day 1 to 0.87 by day 2, which pools to 0.48-0.55 and
+    reported that animal as having NO impaired position at all -- in the animal whose day-1 far_R
+    collapse is the cleanest in the cohort. "Positions with a licking deficit" means positions that
+    HAD one.
+    """
+    worst = {}
+    for mmdd, _day_ in _sessions(an, phases=("post",)):
+        for pos, (hr, _lo, _hi, n) in _position_metrics(an, mmdd).items():
+            if n >= min_n:
+                worst[pos] = min(worst.get(pos, 1.0), hr)
+    return {p for p, v in worst.items() if v < thresh}
