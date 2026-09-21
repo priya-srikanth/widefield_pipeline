@@ -1743,6 +1743,48 @@ EPOCH_FIGURES = (
      " channel`s mean, so the reconstructed means are ZERO and dividing by them is division by"
      " ~0 -- a trap already paid here once (+692% and -2881% evoked responses). It is ALREADY"
      " fractional; the fix is not a different denominator, it is NO denominator."),
+    # THE POOLED HALF OF `channel_position_maps`, REGISTERED 2026-09-21. These two have existed
+    # since 2026-09-19 and had never been on a slide, because the module wrote them to
+    # `labcams/channel_comparison` -- the directory its 2026-07-08 ancestor used -- and no deck
+    # reads it. They now go to `grant_figures/epoch` like everything else in this family. The
+    # SIXTEEN per-session maps stay in `channel_comparison`: they are channel-identity
+    # diagnostics, not deck material, and moving them here would hand the coverage report sixteen
+    # unregistered files in exchange for the one figure that was actually missing.
+    ("channel_position_epoch_cue.png",
+     "415 vs 470 BY SPOUT POSITION AND EPOCH -- cue-aligned",
+     "ROW 3 IS THE COUPLING MEASURE AND ROWS 1-2 ARE WHY IT CANNOT BE READ ALONE."
+     " ||415||/||470raw|| is haemodynamic response per unit neural response -- but A RATIO"
+     " RISES WHEN ITS DENOMINATOR FALLS, and a stroke is expected to lower the 470 response."
+     " Row 3 up while row 1 is down and row 2 holds is a shrinking denominator, not better"
+     " coupling. Rows 1 and 2 carry the cross-day scaling confound (expression, bleaching,"
+     " window clarity) that the ratio exists to cancel -- `crossday_intensity` owns that --"
+     " so read them as diagnostics for row 3, never as amplitudes in their own right."
+     "\n\nROW 5 IS THE CONTROL FOR ROW 4. r(415, 470) rising acutely looks like stronger"
+     " coupling, but acute maps are also more GLOBAL (`epoch_15k` puts the cue acute panel at"
+     " ~75% global) and two broad blobs correlate for reasons unrelated to coupling. Row 5"
+     " subtracts r(415 here, 470 at the OTHER positions): if the rise survives it is"
+     " position-specific; if row 5 is flat at zero the rise was globalness."
+     "\n\nTHE DOTS ARE THE POINT, NOT DECORATION -- one per session, coloured by animal, so a"
+     " cell carried by one animal with six sessions cannot read as four animals agreeing."
+     " Acute far-contra is thin in event count for every animal and absent for some."
+     "\n\nTHE SEM IS ACROSS SESSIONS AND IS THE WRONG ERROR BAR FOR A COHORT CLAIM: sessions"
+     " within an animal are not independent, so it runs narrower than the animals->sessions"
+     " bootstrap CI that `epoch_summary` prints. CITE THE BOOTSTRAP; read the dots for who"
+     " carries the cell. Both are on the page so neither can be mistaken for the other."
+     "\n\nWHAT THIS FIGURE CANNOT DO, and the module says so before it says anything else: it"
+     " does NOT adjudicate whether 415 carries calcium. A 415 map resembling the 470 map is the"
+     " EXPECTED result under a correction that is working perfectly -- `a spatial pattern of"
+     " correlation is what we would expect with neurovascular coupling` (Priya, 2026-09-19)."
+     " Both accounts, scaled calcium and NVC that scales with calcium, predict a positive"
+     " spatial correlation AND an amplitude-invariant ratio. ONLY LATENCY SEPARATES THEM --"
+     " see `epoch_16`. Source: scripts/rest_migration/channel_position_maps.py --epochs."),
+    ("channel_position_epoch_lick.png",
+     "415 vs 470 BY SPOUT POSITION AND EPOCH -- lick-aligned",
+     "THE LICK-ALIGNED ARM of the panel above; read its legend for what each row is and for"
+     " what this measurement cannot settle. The two are registered together because a coupling"
+     " change that appears in ONE alignment and not the other is about the movement rather than"
+     " the vasculature -- the comparison IS the result."
+     " Source: scripts/rest_migration/channel_position_maps.py --epochs."),
 
     # ---- ENGAGEMENT: the quit, and what declines within a session (2026-09-20) ------------
     ("epoch_23_quit_prodrome_gated_h90.png",

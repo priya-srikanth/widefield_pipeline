@@ -40,6 +40,19 @@ whole point of the layout and it is why the columns are not individually normali
 includes "how big is 415 compared to 470", and per-panel scaling would answer a different one.
 
     python -m scripts.rest_migration.channel_position_maps [--sessions PS92_0608 ...] [--n 4]
+
+WHERE THE OUTPUT GOES, and it is two places on purpose (2026-09-21):
+
+    labcams/grant_figures/epoch     channel_position_epoch_{cue,lick}.png + the by-epoch CSV --
+                                    the POOLED result, which is deck material and is registered
+                                    in `deck_registry.EPOCH_FIGURES`. (No slide number here: the
+                                    registry is numbered BY POSITION, so quoting one would go
+                                    stale the next time a family is inserted above it.)
+    labcams/channel_comparison      the per-session 415/470/corrected maps and the stats CSV --
+                                    channel-identity DIAGNOSTICS, not deck material.
+
+The pooled pair used to land in `channel_comparison` too, which is why they had never been on a
+slide: no deck reads that directory. `--out` alone still sends both to one place.
 """
 from __future__ import annotations
 
@@ -921,7 +934,12 @@ def main(argv=None) -> int:
                          "which are not in the stats, and this says so rather than leaving "
                          "whatever is on disk and reporting success.")
     ap.add_argument("--seed", type=int, default=20260919)
-    ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="per-session figures and the stats CSV (default labcams/channel_comparison)")
+    ap.add_argument("--epoch-out", type=Path, default=None,
+                    help="the two POOLED epoch figures and the by-epoch CSV (default "
+                         "labcams/grant_figures/epoch, where the deck reads them). Passing --out "
+                         "without this one sends both here, so a hermetic run stays in one place.")
     ap.add_argument("--late", action="store_true",
                     help=f"measure from {LATE_START_S} s instead of 0 s, skipping the calcium "
                          f"bleed-through and leaving the window haemodynamically dominated. "
@@ -939,8 +957,29 @@ def main(argv=None) -> int:
     from wfield_local import config
     from wfield_local.paths import PathResolver
 
+    # TWO ROOTS, AND THE SPLIT IS BY AUDIENCE, NOT BY TIDINESS (2026-09-21, Priya's call).
+    #
+    # Everything else in this family writes to `grant_figures/epoch`, which is where the deck
+    # looks and what `deck_figure_coverage` scans; this module wrote to `channel_comparison`
+    # because it began as the successor to a 2026-07-08 one-off that lived there. The result was
+    # two POOLED epoch figures -- the only deck material this module produces -- sitting in a
+    # directory no deck reads, so they were never on a slide.
+    #
+    # THE PER-SESSION PNGs STAY WHERE THEY ARE. Sixteen channel-identity diagnostics are not deck
+    # material, and moving them into the epoch directory would land sixteen files that the
+    # coverage report counts as unregistered -- trading one invisible figure for sixteen false
+    # alarms. `channel_comparison` is now deliberately the DIAGNOSTIC directory.
+    #
+    # NOTHING ON THE SHARE IS MOVED OR DELETED (ground rule 0/1). The existing copies under
+    # `channel_comparison` stay as the historical record; new runs simply also write the pooled
+    # pair where the deck can see it.
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "channel_comparison")
     out_dir.mkdir(parents=True, exist_ok=True)
+    # `--out` ALONE STILL SENDS BOTH TO ONE PLACE, so every existing hermetic invocation -- tests,
+    # a scratch run -- behaves exactly as before. Only the DEFAULT changed.
+    epoch_dir = a.epoch_out or a.out or (Path(PathResolver().root("labcams"))
+                                         / "grant_figures" / "epoch")
+    epoch_dir.mkdir(parents=True, exist_ok=True)
     sessions = {x["label"]: x for x in config.load_sessions()}
     if a.sessions:
         pick = [sessions[lab] for lab in a.sessions if lab in sessions]
@@ -1067,11 +1106,15 @@ def main(argv=None) -> int:
     print("    ||corr||/||raw|| is how much amplitude went, NOT how much of what went was signal.")
     print("        A correct correction blunts the map too, because `raw = C + H` and H is real.")
     if a.epochs:
-        epoch_summary(stats, out_dir, a.seed)
+        # POOLED -> `epoch_dir`; per-session -> `out_dir`. See the comment where they are resolved.
+        epoch_summary(stats, epoch_dir, a.seed)
         for arm in ("cue", "lick"):
-            p = position_epoch_figure(stats, out_dir, arm)
+            p = position_epoch_figure(stats, epoch_dir, arm)
             if p is not None:
                 print(f"  wrote {p}")
+        if epoch_dir != out_dir:
+            print(f"\n[channel maps] pooled epoch artefacts -> {epoch_dir}"
+                  f"\n[channel maps] per-session diagnostics  -> {out_dir}")
     return 0
 
 
