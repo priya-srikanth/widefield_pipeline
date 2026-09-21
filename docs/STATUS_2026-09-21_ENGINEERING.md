@@ -142,7 +142,15 @@ while everything else writes to `grant_figures/epoch/`.
 4. ~~Registry to module scope + a coverage test (**2.3**)~~ **DONE 2026-09-21** —
    `EPOCH_FIGURES` (109 entries) is importable; `build_analysis_deck` 3,892 → 2,116 lines;
    `tests/test_epoch_registry.py` asserts every `name=` the renderer emits has an entry
-5. `--from-csv` everywhere + unify output dirs (**2.5**)
+5. **2.5 PARTLY DONE 2026-09-21.** `--from-csv` added to `engagement_decomposition`
+   (4 m 50 s → **10.7 s**) and `channel_position_maps` (3 m 32 s → **23.6 s**), both verified to
+   reproduce their full run's tables exactly; `analysis_kit.read_rows` is the shared reader.
+   `quit_point`, `nvc_evoked`, `quit_prodrome` and `lick_bout_structure` still lack one and each
+   needs a SECOND artefact written first (quit-aligned hits, pooled curves, nested per-session
+   records) — a `--from-csv` rebuilding only the table half would break the rule it serves.
+   **The output-dir unification is NOT done and needs a decision**: it relocates published
+   artefacts on MICROSCOPE and lands two PNGs in a directory whose coverage report would then
+   count them unregistered
 6. Split the deck module (**2.4**)
 
 ---

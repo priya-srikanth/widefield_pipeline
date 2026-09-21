@@ -145,9 +145,42 @@ def report(figdir, pats):
     return used
 
 
-pats = [q for d in DECKS if d.exists() for q in png_patterns(d)]
-print(f"{len(pats)} filename patterns across {len([d for d in DECKS if d.exists()])} deck builders; "
+def imported_patterns():
+    """The epoch registry, IMPORTED rather than scraped -- and a measurement of the scrape itself.
+
+    `EPOCH_FIGURES` moved to module scope on 2026-09-21 precisely so this file would not have to
+    guess. Importing it is authoritative: it is the literal object the deck iterates, so it cannot
+    drift from what the deck places the way a regex over source can.
+
+    IT ALSO TURNS THE SCRAPE'S BLIND SPOT INTO A NUMBER INSTEAD OF A CAVEAT. Any registry entry the
+    scrape failed to find is printed below. Silence means the scrape is currently complete for the
+    analysis deck's epoch family -- worth knowing, and NOT the same as the scrape being reliable in
+    general: `preprocess_deck` and `behavior_deck` are still scraped and have nothing importable,
+    and it is exactly the f-string-built names that a regex cannot see.
+    """
+    try:
+        from wfield_local.locanmf_analysis_deck import EPOCH_FIGURES
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! could not import EPOCH_FIGURES ({type(ex).__name__}): the epoch family is "
+              f"SCRAPED, not imported", file=sys.stderr)
+        return []
+    return [(e[0], re.compile("^" + re.escape(e[0]).replace(r"\*", ".*") + "$"))
+            for e in EPOCH_FIGURES]
+
+
+scraped = [q for d in DECKS if d.exists() for q in png_patterns(d)]
+imported = imported_patterns()
+_scraped_src = {src for src, _rx in scraped}
+missed = [src for src, _rx in imported if src not in _scraped_src]
+pats = scraped + [q for q in imported if q[0] in set(missed)]
+print(f"{len(scraped)} patterns scraped from "
+      f"{len([d for d in DECKS if d.exists()])} deck builder(s), plus {len(imported)} IMPORTED "
+      f"from locanmf_analysis_deck.EPOCH_FIGURES; "
       f"{len(ROOTS)} root(s): {', '.join(str(r) for r in ROOTS)}")
+if missed:
+    print(f"  !! the scrape MISSED {len(missed)} registry entr(ies) -- the blind spot, measured:")
+    for _m in missed[:10]:
+        print(f"       {_m}")
 
 used = set()
 for root in ROOTS:

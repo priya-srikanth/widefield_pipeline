@@ -260,6 +260,11 @@ def main(argv=None) -> int:
     ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S)
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive every table from epoch_17_engagement_decomposition.csv "
+                         "without touching a session -- seconds instead of five minutes. That CSV "
+                         "holds one row per session x position, which is exactly what the tables "
+                         "below consume, so this is the whole analysis and not a subset.")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
@@ -277,16 +282,23 @@ def main(argv=None) -> int:
                       if set(raw) <= set(CONF_LABELS) else raw))
 
     per = []                     # one row per session x position
+    q = out_dir / "epoch_17_engagement_decomposition.csv"
+    if a.from_csv:
+        # EVERY NUMBER BELOW COMES FROM THIS FILE, so re-deriving from it is the whole analysis
+        # and not a shortcut. `analysis_kit.read_rows` explains why the float round-trip is exact.
+        per = ak.read_rows(q)
+        print(f"FROM CSV: {len(per)} rows from {q} -- no session was read")
     # `analysis_kit.curated_labels` is the session filter, once. IT PRESERVES `load_sessions`
     # ORDER on purpose -- that list is NOT sorted.
-    labels = ak.curated_labels(animals)
+    labels = [] if a.from_csv else ak.curated_labels(animals)
 
     # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `cell` below builds its
     # bootstrap pools by iterating `per`, so collecting the fan-out in sorted order would move
     # every CI while leaving the point estimates exact. Restoring the input order makes this
     # conversion diff-identical to the serial run, which is how it was verified.
-    res, fail = ak.fan_sessions([(lab, a.resp_s, lab_of) for lab in labels], session_rows,
-                                jobs=a.jobs, key=ak.input_order(labels))
+    res, fail = ((), []) if a.from_csv else ak.fan_sessions(
+        [(lab, a.resp_s, lab_of) for lab in labels], session_rows,
+        jobs=a.jobs, key=ak.input_order(labels))
     if fail:
         print(f"  !! {len(fail)} session(s) failed: "
               + ", ".join(f"{x[0][0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
@@ -300,12 +312,12 @@ def main(argv=None) -> int:
     if not per:
         print("no sessions -- a failed run, not a result")
         return 1
-    q = out_dir / "epoch_17_engagement_decomposition.csv"
-    with open(q, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(per[0]))
-        w.writeheader()
-        w.writerows(per)
-    print(f"\nwrote {q}")
+    if not a.from_csv:
+        with open(q, "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(per[0]))
+            w.writeheader()
+            w.writerows(per)
+        print(f"\nwrote {q}")
 
     rng = np.random.default_rng(a.seed)
     eps = [e for e in ("pre", "acute", "subacute", "chronic")

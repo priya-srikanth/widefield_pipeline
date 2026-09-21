@@ -913,6 +913,13 @@ def main(argv=None) -> int:
                          "comparison does not read them")
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive the console tables and the epoch figures from "
+                         "channel_position_maps_stats[_late].csv without reading a session -- "
+                         "seconds instead of ten minutes. Respects --late, which selects WHICH "
+                         "csv. Per-session PNGs are NOT re-rendered: they come from the maps, "
+                         "which are not in the stats, and this says so rather than leaving "
+                         "whatever is on disk and reporting success.")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--late", action="store_true",
@@ -978,45 +985,54 @@ def main(argv=None) -> int:
     if not pick:
         print("no sessions -- a failed run, not a result")
         return 1
-    print(f"[channel maps] {len(pick)} session(s) -> {out_dir}")
     wrote, stats = 0, []
-    labels = [x["label"] for x in pick]
+    _csv_path = out_dir / f"channel_position_maps_stats{'_late' if WIN_START_S else ''}.csv"
+    if a.from_csv:
+        # THE EPOCH TABLES AND FIGURES BELOW READ `stats` AND NOTHING ELSE, so this rebuilds all
+        # of them exactly -- see `analysis_kit.read_rows` for why the float round-trip is exact.
+        stats = ak.read_rows(_csv_path)
+        print(f"FROM CSV: {len(stats)} rows from {_csv_path} -- no session was read, and no "
+              f"per-session figure was re-rendered")
+    else:
+        print(f"[channel maps] {len(pick)} session(s) -> {out_dir}")
+        labels = [x["label"] for x in pick]
 
-    # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `epoch_summary` builds its
-    # bootstrap pools by iterating `stats`, so collecting the fan-out in sorted order would move
-    # every CI while leaving the point estimates exact. `pick` is already label-sorted in the
-    # --epochs path, so for that path the two orders coincide; this keeps them coinciding for
-    # --sessions too, where the caller's order is the one that was asked for.
-    #
-    # `WIN_START_S` TRAVELS IN THE ITEM. See `session_maps` -- a module global set by `--late`
-    # does not survive spawn, and the failure is silent.
-    res, fail = ak.fan_sessions(
-        [(lab, str(out_dir), not a.no_figures, WIN_START_S) for lab in labels],
-        session_maps, jobs=a.jobs, key=ak.input_order(labels))
-    if fail:
-        print(f"  !! {len(fail)} session(s) failed: "
-              + ", ".join(f"{x[0][0]} ({x[1][:60]})" for x in fail[:4]), flush=True)
-    for _item, (paths, rows, msg) in res:
-        if msg:
-            print(msg, flush=True)
-            continue
-        stats += rows
-        for p in paths:
-            print(f"      wrote {Path(p).name}", flush=True)
-        wrote += len(paths)
-    if not wrote and not a.no_figures:
-        print("wrote nothing -- a failed run, not a result")
-        return 1
-    print(f"\n[channel maps] {wrote} figure(s) in {out_dir}")
+        # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `epoch_summary` builds its
+        # bootstrap pools by iterating `stats`, so collecting the fan-out in sorted order would move
+        # every CI while leaving the point estimates exact. `pick` is already label-sorted in the
+        # --epochs path, so for that path the two orders coincide; this keeps them coinciding for
+        # --sessions too, where the caller's order is the one that was asked for.
+        #
+        # `WIN_START_S` TRAVELS IN THE ITEM. See `session_maps` -- a module global set by `--late`
+        # does not survive spawn, and the failure is silent.
+        res, fail = ak.fan_sessions(
+            [(lab, str(out_dir), not a.no_figures, WIN_START_S) for lab in labels],
+            session_maps, jobs=a.jobs, key=ak.input_order(labels))
+        if fail:
+            print(f"  !! {len(fail)} session(s) failed: "
+                  + ", ".join(f"{x[0][0]} ({x[1][:60]})" for x in fail[:4]), flush=True)
+        for _item, (paths, rows, msg) in res:
+            if msg:
+                print(msg, flush=True)
+                continue
+            stats += rows
+            for p in paths:
+                print(f"      wrote {Path(p).name}", flush=True)
+            wrote += len(paths)
+    if not a.from_csv:
+        if not wrote and not a.no_figures:
+            print("wrote nothing -- a failed run, not a result")
+            return 1
+        print(f"\n[channel maps] {wrote} figure(s) in {out_dir}")
     if not stats:
         return 0
-    import csv
-    q = out_dir / f"channel_position_maps_stats{'_late' if WIN_START_S else ''}.csv"
-    with open(q, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(stats[0]))
-        w.writeheader()
-        w.writerows(stats)
-    print(f"[channel maps] wrote {q}")
+    if not a.from_csv:
+        import csv
+        with open(_csv_path, "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(stats[0]))
+            w.writeheader()
+            w.writerows(stats)
+        print(f"[channel maps] wrote {_csv_path}")
 
     # THE QUESTION THE AMPLITUDE CANNOT ANSWER, answered on the console. Printed rather than left
     # in the CSV, because "the corrected map looks blunted" is the observation that prompted this

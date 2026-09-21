@@ -353,6 +353,56 @@ def fan_sessions(items, worker, *, jobs=None, key=None, label="session", log=pri
     return sorted(res, key=lambda kv: (key or (lambda x: x))(kv[0])), fail
 
 
+# ---------------------------------------------------------------------------------------------
+# 5. RE-DERIVING A TABLE WITHOUT RE-READING THE DATA
+# ---------------------------------------------------------------------------------------------
+
+#: Column names that must stay STRINGS however numeric they look. A label like `PS92_0806` never
+#: parses as a float so it is safe either way, but `epoch` and `position` are categorical and a
+#: future value of `"2"` would silently become a number and stop matching its own filter.
+TEXT_COLUMNS = frozenset({"label", "animal", "epoch", "position", "side", "arm", "grp", "group"})
+
+
+def read_rows(path, text_columns=TEXT_COLUMNS):
+    """Read a per-session CSV back into the ``list[dict]`` the summary tables consume.
+
+    **WHY THIS EXISTS.** `rest_coupling --from-csv` re-derives every table in seconds instead of
+    an hour, and on 2026-09-20 it was the only module with one -- the absence cost two full
+    re-runs in a day, one of them because a quantity was not written to CSV at all. The rule
+    adopted in `STATUS_2026-09-21_ENGINEERING` §2.5: **any number that appears in a summary table
+    must be reconstructible from a written CSV.**
+
+    **THE FLOAT ROUND-TRIP IS EXACT AND THAT IS NOT LUCK.** `csv.DictWriter` writes a float via
+    `str()`, which since Python 3.1 is the shortest representation that round-trips, so
+    `float(str(x)) == x` bit for bit. A table re-derived from CSV is therefore the same table, not
+    a rounded one -- worth stating because a `--from-csv` path that quietly rounded would be worse
+    than none: it would look like a cheap re-run and disagree in the last digit.
+
+    Empty cells become NaN rather than 0.0 or an empty string, because a missing measurement is
+    what they are, and `np.isfinite` is how every caller filters.
+    """
+    import csv
+
+    out = []
+    with open(path, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            rec = {}
+            for k, v in row.items():
+                if k in text_columns:
+                    rec[k] = v
+                elif v == "":
+                    rec[k] = float("nan")
+                elif v in ("True", "False"):
+                    rec[k] = v == "True"
+                else:
+                    try:
+                        rec[k] = float(v)
+                    except ValueError:
+                        rec[k] = v
+            out.append(rec)
+    return out
+
+
 def input_order(labels):
     """A `fan_sessions` sort key that restores the ORIGINAL input order, not alphabetical order.
 

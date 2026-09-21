@@ -16268,3 +16268,76 @@ Two self-inflicted problems, both from not letting a check finish:
 2. **Three deck tests "failed" in a suite run that was reading the module while it was being
    edited.** They passed in isolation and the panic was wasted. **Do not edit the tree while the
    suite is running**; the 8-minute run is not a background task you can work around.
+
+---
+
+## SECTION 2.5: CHEAP RE-RUNS, AND WHAT A `--from-csv` PATH HAS TO PROMISE (2026-09-21)
+
+`rest_coupling --from-csv` was the only one, and on 2026-09-20 its absence elsewhere cost two full
+re-runs in a day. Two more modules have one now, verified against their own full runs:
+
+| module | full run | `--from-csv` | output |
+|---|---|---|---|
+| `engagement_decomposition` | 4 m 50 s | **10.7 s** | every table line identical |
+| `channel_position_maps --epochs` | 3 m 32 s (9 m 30 s serial) | **23.6 s** | every table line identical, and both epoch PNGs plus `by_epoch.csv` BYTE-IDENTICAL |
+
+**THE POINT IS NOT THE SPEED, IT IS WHAT BECOMES POSSIBLE AT THAT SPEED.** `DECISIONS.md` already
+records it from the parallelisation: *"at 85 minutes a re-run needs justifying and marginal results
+sit unchallenged; at 10 minutes the suspect cell gets tested and retires itself."* Ten seconds is a
+different regime again -- a table can be re-derived while reading it.
+
+### WHAT MADE IT SAFE TO CLAIM "THE SAME TABLE, NOT A ROUNDED ONE"
+
+`csv.DictWriter` writes a float through `str()`, which since Python 3.1 is the shortest
+representation that ROUND-TRIPS, so `float(str(x)) == x` bit for bit. `analysis_kit.read_rows`
+says so in its docstring, because **a `--from-csv` path that quietly rounded would be worse than
+none**: it would look like a cheap re-run and disagree in the last digit, which is exactly the
+class of discrepancy this repo has spent two days chasing from other causes.
+
+Empty cells read back as NaN rather than 0.0 or `""` -- a missing measurement is what they are,
+and `np.isfinite` is how every caller filters. Categorical columns are pinned in `TEXT_COLUMNS` so
+a future `epoch` value of `"2"` cannot silently become a float and stop matching its own filter.
+
+### AND IT HAS TO BE HONEST ABOUT WHAT IT CANNOT REBUILD
+
+`channel_position_maps --from-csv` rebuilds the console tables and the two epoch figures, and
+**does NOT re-render the per-session PNGs** -- those come from the maps, which are not in the
+stats. It says so on stdout rather than leaving whatever is on disk and reporting success. A
+partial rebuild that does not announce itself is how a stale figure ends up in a deck beside fresh
+numbers.
+
+**STILL WITHOUT ONE, and why each is more than a copy-paste:** `quit_point` (the quit-aligned hit
+rate `aligned` is not in the CSV), `nvc_evoked` (the pooled epoch CURVES are arrays, not rows),
+`quit_prodrome` and `lick_bout_structure` (their per-session records are nested, not flat). Each
+needs a second artefact written before a `--from-csv` would be complete, and a `--from-csv` that
+silently rebuilt only the table half would violate the rule it exists to serve.
+
+### THE OUTPUT DIRECTORY IS NOT UNIFIED, DELIBERATELY -- IT NEEDS A DECISION
+
+§2.5 also asks that `channel_position_maps` stop writing to `labcams/channel_comparison` while
+everything else writes to `grant_figures/epoch`. Nothing in the tree references the old path but
+the analysis module itself, so the code change is one line. **It is not taken here** because it
+moves published artefacts on MICROSCOPE: the old copies would remain (nothing gets deleted without
+Priya's say-so), the two epoch PNGs would arrive in a directory where the coverage report counts
+unregistered files, and registering them means writing captions for analyses I have not read
+closely. Worth doing; worth doing as its own decision.
+
+### THE DECK COVERAGE TOOL NOW IMPORTS THE REGISTRY
+
+Priya: *"deck figure coverage can import epoch figures"*. `scripts/deck_figure_coverage.py` reads
+`EPOCH_FIGURES` directly instead of only regex-scraping the deck source, **and prints any registry
+entry the scrape missed.** That turns the tool's known blind spot into a measured quantity rather
+than a caveat in its docstring. Today it misses none, which says the scrape is currently complete
+for the analysis deck's epoch family -- and is NOT the same as the scrape being reliable: the other
+two decks have nothing importable, and it is precisely the f-string-built names that a regex cannot
+see.
+
+### A PROCESS NOTE: STOP PUTTING BACKSLASH ESCAPES THROUGH A HEREDOC
+
+Three anchor failures in one session, all the same cause: a `\n` inside a `python - <<'EOF'`
+heredoc is collapsed to a real newline before Python sees the string, so any patch anchor
+containing one cannot match. This trap is already in this file's history. **Write the patch script
+to a file and run it**, or splice by line index; do not pipe source containing escapes through a
+heredoc. A related one cost a wrong conclusion earlier the same day: `subprocess.run(..., text=True)`
+decodes with the LOCALE encoding, which is cp1252 here, so `git show` came back with every em dash
+turned into two characters and a file compared unequal to itself.
