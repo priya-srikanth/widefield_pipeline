@@ -167,6 +167,36 @@ result changes") was stated before the end-to-end check came back. Run the real 
 
 ---
 
+## 5b. WHICH MODELS ARE THE PUBLISHED RESULTS ACTUALLY STANDING ON? (checked 2026-09-21)
+
+The question §5 provokes and does not answer. Checked rather than assumed, because a first pass
+at it got the answer wrong.
+
+**THE CURRENT FROZEN RESULTS ARE `cue_analysis/analysis_json/locanmf/locanmf_frozen_*_loso_roi_
+{cue,lick,precue}.json`, written 2026-09-20, and ALL 24 (4 animals x 6 files) REPORT
+`frozen-hit`.** Not one was refitted. All 24 distinct `frozen_model_id`s are present on MICROSCOPE
+today, and all 24 are also in the analysis desktop's orphaned store.
+
+Which store served them? On 2026-09-20 the desktop's `local_dir()` had been dead for two days and
+MICROSCOPE held only two models, so the only store that could have supplied 24 hits is **the
+behavior box's** — the same set published on 2026-09-21. So:
+
+- **The published numbers came from the canonical models, consistently, and a re-run on any box
+  now reproduces them**, because those exact ids resolve from the server.
+- **The 0.3 pp divergence measured in §5 is between the behavior box's models and the DESKTOP's
+  orphaned copies — and the desktop's copies never produced a published number.** The divergence
+  is real and it is off to the side of everything that has been reported.
+
+### A trap for the next reader: there are two files with the same name
+
+`cue_analysis/locanmf_frozen_decoder_loso_roi_cue.json` (the parent directory) is dated
+**2026-08-12**, predates the freeze mechanism entirely, and carries `frozen_model_id: null`.
+The live one is a directory deeper, in `analysis_json/locanmf/`. **Opening the shallower path
+gives six-week-old numbers that look current**, and only the `frozen_model_id` field distinguishes
+them. Nothing has been deleted; check the path and check for a non-null id.
+
+---
+
 ## 6. IF YOU ARE ADDING A MACHINE OR CHANGING `paths.yaml`
 
 1. `python -c "from wfield_local import frozen_models as m; print(m.local_dir(), m.local_dir().exists())"`

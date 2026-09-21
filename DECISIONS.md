@@ -16341,3 +16341,36 @@ to a file and run it**, or splice by line index; do not pipe source containing e
 heredoc. A related one cost a wrong conclusion earlier the same day: `subprocess.run(..., text=True)`
 decodes with the LOCALE encoding, which is cp1252 here, so `git show` came back with every em dash
 turned into two characters and a file compared unequal to itself.
+
+---
+
+## WHICH MODELS DID THE PUBLISHED FROZEN RESULTS USE? (2026-09-21)
+
+Priya, on being told the published frozen JSONs predated the store: *"what do you mean 'never
+touched either store'"*. **The claim was wrong and the correction is the better answer.**
+
+I had looked in `locanmf_lick_pooled/cue_analysis/` and found four `locanmf_frozen_*_loso_roi_*`
+files dated 2026-08-12 with `frozen_model_id: null`, and concluded the deck's frozen numbers came
+from inline fits. **There are SIX more, one directory deeper in `analysis_json/locanmf/`, written
+2026-09-20, and they carry ids.** The shallow files are stale duplicates at an older path -- a
+real trap, since opening the wrong one gives six-week-old numbers that look current, and only the
+null id gives it away.
+
+**ALL 24 RECORDS (4 animals x 6 files) REPORT `frozen-hit`.** Not one refit. All 24 distinct ids
+are on MICROSCOPE now and all 24 are also in the desktop's orphaned store. On 2026-09-20 the
+desktop's store had been dead two days and the server held two models, so the only store that
+could have served 24 hits is the behavior box's -- which is the set published on 2026-09-21.
+
+So the reassurance is stronger than the one first offered, and rests on provenance rather than on
+a magnitude:
+
+- The published numbers stand on the canonical models, and **a re-run on any box now reproduces
+  them**, because those exact ids resolve from the server.
+- **The 0.3 pp divergence is between the behavior box's models and the DESKTOP's orphaned copies,
+  and the desktop's copies never produced a published number.** It is real, and it is off to the
+  side of everything reported.
+
+**THE METHOD POINT, AGAIN.** The first answer came from listing one directory and reading mtimes.
+`frozen_status` and `frozen_model_id` exist precisely so this question has a recorded answer
+rather than an inferred one -- the provenance fields were right there and were not read until
+Priya pushed back. When an artefact carries its own provenance, read the provenance.
