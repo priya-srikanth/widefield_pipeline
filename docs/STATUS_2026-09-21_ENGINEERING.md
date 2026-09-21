@@ -133,8 +133,9 @@ while everything else writes to `grant_figures/epoch/`.
 2. ~~Migrate the already-parallel modules onto it, verify byte-identical output~~ **DONE** — all
    four, plus `quit_point`, `nvc_evoked`, `engagement_decomposition`, `channel_position_maps`
 3. ~~Convert the remaining 7 loops (**2.2**)~~ **FOUR DONE 2026-09-21** — `quit_point`,
-   `engagement_decomposition`, `nvc_evoked`, `channel_position_maps`; the first three verified
-   diff-identical, the fourth's data run pending. Use `analysis_kit.input_order`, not the default
+   `engagement_decomposition`, `nvc_evoked`, `channel_position_maps`; **all four verified** against
+   a `git worktree` at HEAD -- the first three diff-identical, `channel_position_maps`
+   order-insensitively identical with all four written artefacts byte-identical. Use `analysis_kit.input_order`, not the default
    alphabetical collection, or the CIs move. Remaining serial loops are the small diagnostics
    (`channel_evoked_sign`, `channel_vessel_sign`, `cutoff_scaling`, `onset_edge_bias`,
    `restw_reliability`, …) — none on the nightly path

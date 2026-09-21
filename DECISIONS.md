@@ -16202,11 +16202,26 @@ Verified by running each module from a `git worktree` at HEAD and diffing:
 | `quit_point` | **identical** (172/172) | -- | 5 m 06 s |
 | `engagement_decomposition` | **identical** (179/179) | byte-identical | 4 m 50 s |
 | `nvc_evoked` | **identical** (132/132) | byte-identical | 8 m 49 s |
-| `channel_position_maps` | **NOT YET VERIFIED** -- converted and committed, data run pending | | |
+| `channel_position_maps` | order-insensitively **identical** | **all four artefacts byte-identical** | 3 m 32 s (against 9 m 30 s serial) |
 
-**NO SPEED-UP FIGURE IS QUOTED, DELIBERATELY.** The three serial baselines were run concurrently
-with each other and with other work, so their wall-clock is contended and any ratio computed from
-it would be a number with no meaning. The parallel times above were measured on a quiet box.
+`channel_position_maps` is the one whose CONSOLE output genuinely reorders, and it is worth saying
+why rather than waving it away: its per-session lines are printed from inside `run_session` and
+`session_figure`, four call levels down, so unlike the other three they could not be moved to the
+parent without changing those signatures. Sorted as a multiset the two runs' output is line-for-
+line identical, and all four written artefacts -- `channel_position_maps_stats.csv`,
+`channel_position_maps_by_epoch.csv` and both epoch PNGs -- are byte-identical.
+
+**THE PNGs BEING BYTE-IDENTICAL IS A RESULT, NOT A GIVEN.** `fan_out` calls `pin_blas()`, and this
+module's serial path never did, so the summary figures are now drawn at 2 BLAS threads where they
+previously used whatever the default was -- and `tests/test_render_is_machine_independent` exists
+because that difference once moved a rendered file from 289,032 B to 288,642 B. It did not move
+these. One fewer thing to caveat, checked rather than assumed.
+
+**THE SPEED-UPS ARE MOSTLY NOT QUOTABLE, DELIBERATELY.** The first three serial baselines ran
+CONCURRENTLY with each other, so their wall-clock is contended and any ratio from it would be a
+number with no meaning; only the parallel times are reported. `channel_position_maps` is the one
+pair measured close to cleanly -- 9 m 30 s serial against 3 m 32 s, about x2.7 -- and even that
+baseline overlapped a test-suite run for part of its life, so read it as a floor.
 
 Two differences in the diffs are worth naming because they look like failures and are not:
 
