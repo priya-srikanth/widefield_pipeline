@@ -16384,3 +16384,163 @@ Registering the 2026-09-21 session (PS95 day 36) moved PS95's DERIVED chronic fr
 **Why it moved.** PS95's far_R hit rate is d11 = 91% (a RISING point) then d15-d36 all ~103-106%. The day-11 window's residual/SD had been 0.54 on 2026-09-19 (failed the 0.5 settled test, so chronic was day 15). As more flat sessions accrued at the plateau, that residual fell to **0.49** by 2026-09-21 — crossing the 0.5 cutoff — and its drift/SD is **0.97** (just under the 1.0 one-sided cap). So day 11 began to pass both arms and, by persistence, became the boundary. This is the exact borderline the 2026-09-19 note flagged ("PS95 slips to day 11 at k_res >= 0.6"); with a session most nights it was one datum from flipping at 0.5 too.
 
 **Decision (Priya).** By eye the plateau is still day 15 — d11 (91%) is the last approach point below the ~104% band, not part of it. Tightened `epochs.chronic.k_res` **0.5 -> 0.4**, which restores PS95 = 15 with margin (d11 residual 0.49 > 0.4) and leaves PS92 11 / PS93 11 / PS94 25 unchanged (their plateau residuals are 0.15-0.25, well clear of 0.4). The stored spec (`animals.yaml`, `test_epochs.SPEC`) is UNCHANGED at 15 — the retune brings the derivation back to it rather than promoting a boundary nobody ratified. Alternatives rejected: promoting PS95 -> 11 (contradicts the 2026-09-19 by-eye ratification and calls a rising approach a plateau). Standing risk noted: PS95's d11 is inherently marginal; if it recurs at 0.4 the durable fix is hysteresis or requiring the boundary session itself to sit inside the band, not another threshold nudge.
+
+## SECTION 2.4 FINISHED, AND THE OUTPUT TREE RESTRUCTURED (2026-09-21, afternoon)
+
+### THE DECK IS FOUR MODULES NOW, AND THE SPLIT WAS PROVED TWICE
+
+`locanmf_analysis_deck.py` 5,484 -> 2,134; `build_analysis_deck` 3,892 (this morning) -> 1,679.
+
+    locanmf_analysis_deck  2,134   orchestration, gates, provenance, captions
+    deck_registry          2,163   EPOCH_FIGURES, GRANT_FIGURES, ALIGNS, BASES, NOLICK_BASES
+    deck_text              1,187   TRIALS_* / S_* / M_* -- the slide prose
+    deck_layout              243   SlideCanvas
+
+Four registries that were still LOCALS came out with the data half, cleared the way `_EPOCH` was:
+every `Name` each assignment's value loads was checked by AST to resolve to a module-level name or
+a builtin BEFORE anything moved. The layout half turned eleven closures sharing eleven mutable
+locals into one class -- a closure over eleven variables is a class that has not admitted it.
+
+**THE BUILDER BINDS THE METHODS AS LOCAL NAMES** (`slide, title, note, big, ... = canvas.slide,
+...`) rather than writing `canvas.title(...)` at ~250 call sites. The second reason is the better
+one: the split moved the definitions WITHOUT EDITING THE BODY, so the fingerprint below tested the
+move rather than testing a rewrite.
+
+### THE VERIFICATION, WHICH IS THE PART WORTH COPYING
+
+Two independent methods, because either alone has a hole.
+
+- **87 module constants hashed before and after.** Exact equality, no tolerance. Covers constants
+  no particular build happens to reach.
+- **A 531-slide deck fingerprinted shape-for-shape** (`scripts/deck_fingerprint.py`): one line per
+  shape, text with its run sizes and colours, pictures as position/size/image-sha1, and each
+  slide's RESOLVED speaker notes. Byte comparison of a .pptx is useless (zip timestamps) and slide
+  COUNT is far too coarse -- it would pass a refactor that swapped two slides' notes, which is
+  exactly what a careless registry move does.
+
+**531 SLIDES, NOT 475.** A local build reaches only the grant and epoch sets, because
+`figures_working` on this box has three PNGs. The last nightly's manifest names all 1,385 figures
+it actually placed, so `deck_fingerprint.py stub-tree` builds a stub tree from it and sections A-G
+are exercised too. A baseline that cannot reach two thirds of the code proves two thirds of
+nothing.
+
+**AND THE FINGERPRINT WAS MUTATION-TESTED BEFORE IT WAS TRUSTED.** Swapping two `EPOCH_FIGURES`
+entries moves 60 lines; changing three characters inside one speaker note moves 2. A verification
+tool nobody has shown can fail is decoration -- the same lesson as the empty-file pass the tool now
+refuses (`print` rejects a fingerprint under 100 lines, after piping to a cp1252 console produced
+two EMPTY files that compared equal and reported success).
+
+### WHAT THE SPLIT BROKE, MEASURED RATHER THAN SUPPOSED
+
+Five tests and two audit scripts read the deck BY PATH and would have gone on passing over the
+fragment left behind. This is the repo's recurring failure and it is worth the numbers:
+
+| | before the fix |
+|---|---|
+| `deck_claim_audit` | 332 notes / 810 values -> **132 / 113** |
+| `deck_figure_coverage` | 208 patterns -> **80** |
+
+The coverage script caught its own half, because it cross-checks the scrape against the IMPORTED
+registry and prints what the scrape missed -- that guard paid for itself. Nothing caught the audit.
+Both now read all four deck modules; the five tests go through one `DECK_MODULES` list in
+`tests/conftest.py`, which was itself mutation-tested (point it at one module, those five fail).
+
+`test_the_dedup_key_is_not_a_prefix` deserves its own line: it asserted both that the methods-dedup
+key is NOT a prefix and that it IS a sha1. `_write_note` moved to `deck_layout`, so the first half
+would have gone on passing over a function that no longer contains the dedup at all. Had the second
+half not been there, the prefix key could have come back and nothing would have said so.
+
+The claim audit also stopped counting MODULE DOCSTRINGS as speaker notes -- one stray row while the
+deck was one file, three after the split. 331 notes / 809 values now, the dropped value being the
+"swing up to 0.36" in the deck's own docstring; every remaining note text is identical.
+
+### THE OUTPUT TREE: 1,747 FILES IN ONE DIRECTORY, 54% OF THEM NOT FIGURES
+
+`grant_figures/epoch` held 402 PNG, 352 SVG, 894 CSV and 42 JSON flat, and `ls` could not answer
+the only question anyone asks of a figure directory. Every renderer built its own sidecar path
+with `with_suffix(".csv")`, so there was no single place to change the layout even once.
+
+`wfield_local/figure_layout.py` is now that place -- `svg_path`, `sidecar`, `find_sidecar`,
+`data_dirs`:
+
+    <dir>/<name>.png       the figure
+    <dir>/svg/<name>.svg   the vector deliverable
+    <dir>/data/<name>.csv  the numbers, plus _sessions / _meta / _stats / _bundle.{json,npz}
+
+**THE PNG DELIBERATELY DOES NOT MOVE.** `deck_registry` names figures by bare filename and the deck
+globs for them, so leaving PNGs in place means 111 registry entries, the placement loop and the
+completeness gate are untouched. What moved is exactly what nothing addresses by path.
+
+**READS FALL BACK TO THE FLAT LAYOUT AND THAT IS NOT DEAD CODE.** MICROSCOPE keeps originals, so
+pre-2026-09-21 sidecars still sit beside their figures, as does any tree nobody has migrated. The
+failure this avoids is specific: `deck_values.Resolver` does not raise on a missing CSV, it prints
+`[[? <stem> sidecar missing]]` ONTO A PUBLISHED SLIDE.
+
+`scripts/restructure_output_tree.py` moved 1,671 files across two passes. Nothing deleted; every
+operation a MOVE, idempotent, dry-run by default.
+
+**THE SECOND PASS IS THE INSTRUCTIVE ONE.** The first swept `*.csv` and `*.json` and missed 52
+`_bundle.npz`. The WRITER had already moved to `data/` and the READER prefers the new path, so that
+family was split across two layouts and those 52 files would simply have stopped being read with
+nothing to report it. The general rule: **when a writer's path changes, sweep every extension that
+writer produces, not the ones you remembered.**
+
+Verified against the migrated share, which is the only test that counts: the deck rebuilds
+byte-identical, 0 figures missing, **0 unresolved sidecar markers**.
+
+### THE MIRROR HAD THE WRONG NAME FOR THREE MONTHS
+
+`cue_analysis_out` resolved to `labcams/locanmf_lick_pooled/cue_analysis`. That is the LIVE nightly
+mirror of every analysis figure, 3,378 files, and it was sitting inside a directory named after an
+abandoned June 2026 pooling experiment whose own ten figures were in the parent. It is
+`labcams/analysis_figures` now, with `analysis_json/` -> `json/`, and the June one-off is in
+`labcams/retired/locanmf_lick_pooled_202606/`.
+
+`_publish_figs` had to become recursive with it. A non-recursive glob would have silently stopped
+publishing every SVG the moment `svg/` appeared -- and since the step reports only a COUNT, the
+number would just have got smaller with nobody able to say why.
+
+### 74 REST_MIGRATION MODULES -> 43 LIVE + 31 ARCHIVED, NOTHING DELETED
+
+Priya: a prior test that guided the analysis is archived as evidence; a cosmetic one can go, since
+git keeps it. Nothing was deleted, because the cost of keeping a 100-line probe is a directory
+entry and the cost of deleting one that mattered is a re-derivation nobody knows is needed.
+
+**THREE WRONG CUTS BEFORE THE RIGHT ONE, and the first is the one to remember:**
+
+- **IMPORTED IS NOT THE SAME AS LIVE.** `reference_family_figure` is imported by nothing and
+  RENDERS `epoch_15k`, which the deck places. Archiving it would have taken away the nightly's
+  ability to regenerate a published figure with every test still green. The criterion is now what
+  a module WRITES, checked against `deck_registry`.
+- **A PROBE IS NOT A TOOL.** `publish_cache` is how the nightly box inherits a warm session cache;
+  the `regen_*` trio and `fix_mask_names` are run by hand. Five working utilities restored.
+- **THE ARCHIVE MUST BE IMPORT-CLOSED.** Three live modules imported archived ones; pulled back and
+  iterated to a fixed point. And 25 archived modules imported each other by the old path, which
+  stopped resolving the moment they moved together -- repointed, because evidence you cannot
+  execute is a screenshot. All 74 modules were then imported one by one: zero failures.
+
+### THE POOLED CHANNEL FIGURES HAD NEVER BEEN ON A SLIDE
+
+The decision Section 2.5 left open. `channel_position_maps` wrote everything to
+`labcams/channel_comparison`, the directory its 2026-07-08 ancestor used, and no deck reads that
+directory -- so the two POOLED epoch figures, the only deck material the module produces, had been
+invisible since they were built on 09-19. They now go to `grant_figures/epoch` and are registered
+(109 -> 111 entries). The sixteen PER-SESSION maps stay: moving them would hand the coverage report
+sixteen unregistered files in exchange for the one figure that was actually missing, which was the
+objection recorded when this was deferred.
+
+Noticed in passing, and it is the case for doing it: the published copies under
+`channel_comparison` were dated 09-19 and predated three commits to that module. They were stale
+and nothing reported it, because no manifest covers that directory.
+
+### THE QUARANTINE'S PRECONDITION IS MET (not acted on)
+
+`Widefield/quarantine/20260820_incomplete_upload`, 648 GB, carries a README recording Priya's
+conditional authorisation to delete "once the re-upload is verified and reprocessed". The evidence
+now satisfies it: standby holds the good raw for both sessions (190 GB / 157 GB, written 08-22,
+AFTER the re-upload), both reprocessed 08-21/22 to healthy `frames_average` (10,804 and 12,524
+against the degenerate 6,295 and 994, beside PS93's good 13,647), and all four 0820 sessions are
+registered and curated. MICROSCOPE does not retain a `.dat` for ANY other session -- raw movies go
+to standby -- so what is quarantined is a known-corrupt copy of a file that does not belong there.
+**Not deleted here:** ground rule 1 is never delete on the server, and a 648 GB irreversible
+action belongs to Priya.

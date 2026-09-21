@@ -106,12 +106,26 @@ f-string, which `DECISIONS` already records as reporting live figures as orphans
 *33 of 75 figures unreferenced*, and 25 are unregistered right now — the deck's completeness check
 "reports figures it EXPECTS and is silent about ones it was never told about".
 
-### 2.4 Split the two giant modules
+### 2.4 Split the two giant modules — **DONE 2026-09-21 (the deck; `grant_figures` still open)**
 
-`build_analysis_deck()` is ~3,900 lines in one function. The figure registries are data and should
-be `deck_registry.py`; the slide-construction helpers are machinery and should be `deck_layout.py`;
-what remains is orchestration. Do this **after** 2.3, since moving the registries out is most of
-it.
+    locanmf_analysis_deck  5,484 -> 2,134   orchestration, gates, provenance, captions
+    deck_registry                  2,163   EPOCH_FIGURES, GRANT_FIGURES, ALIGNS, BASES, legends
+    deck_text                      1,187   TRIALS_* / S_* / M_* -- the slide prose
+    deck_layout                      243   SlideCanvas
+    build_analysis_deck    3,892 -> 1,679
+
+Verified two ways: 87 module constants hashed exactly before/after, and a **531-slide** deck
+fingerprinted shape-for-shape (`scripts/deck_fingerprint.py`, new). The 531 matters — a local build
+reaches only 475 slides because `figures_working` here has three PNGs, so the tool builds a stub
+tree from the last nightly's manifest and sections A–G are exercised too. The fingerprint was
+mutation-tested first. `DECISIONS.md` → *"SECTION 2.4 FINISHED"* has the account, including the
+five tests and two audit scripts that went half-blind and the numbers that measured it.
+
+**STILL OPEN: `grant_figures.py`, 6,599 lines** — the largest module in the tree and never in this
+plan. It is ~130 functions with almost no data to lift, so it needs a partition by figure family
+rather than a data/machinery split, and its verification is a before/after render byte-compared
+over 98 PNGs (~2 h cold; the bootstrap cache makes the second run cheap). `epoch_grant_figures.py`
+(3,942) is the same shape and the same argument.
 
 ### 2.5 Standardise intermediates so re-runs are cheap
 
@@ -148,10 +162,28 @@ while everything else writes to `grant_figures/epoch/`.
    `quit_point`, `nvc_evoked`, `quit_prodrome` and `lick_bout_structure` still lack one and each
    needs a SECOND artefact written first (quit-aligned hits, pooled curves, nested per-session
    records) — a `--from-csv` rebuilding only the table half would break the rule it serves.
-   **The output-dir unification is NOT done and needs a decision**: it relocates published
-   artefacts on MICROSCOPE and lands two PNGs in a directory whose coverage report would then
-   count them unregistered
-6. Split the deck module (**2.4**)
+   ~~The output-dir unification is NOT done and needs a decision~~ **DONE 2026-09-21**:
+   the two POOLED figures go to `grant_figures/epoch` and ARE registered (109 → 111 entries); the
+   sixteen per-session maps stay in `channel_comparison` as diagnostics. Nothing on the share was
+   moved or deleted. Verified byte-identical to HEAD via `--from-csv`
+6. ~~Split the deck module (**2.4**)~~ **DONE 2026-09-21** — four modules, verified by a
+   531-slide fingerprint; `grant_figures.py` is the remaining giant
+
+**ADDED AND DONE 2026-09-21, at Priya's direction:**
+
+7. **The output tree.** `grant_figures/epoch` was 1,747 files flat, 54% of them not figures.
+   `wfield_local/figure_layout.py` now defines one layout (`<name>.png`, `svg/`, `data/`) and
+   `scripts/restructure_output_tree.py` moved 1,671 files to match — nothing deleted, idempotent,
+   dry-run by default. The nightly mirror was renamed from
+   `labcams/locanmf_lick_pooled/cue_analysis` to `labcams/analysis_figures`: it is the live mirror
+   of every analysis figure and it had been sitting inside a directory named after an abandoned
+   June 2026 pooling experiment.
+8. **`scripts/rest_migration` 74 → 43 live + 31 archived**, nothing deleted, with a README indexing
+   what each probe asked. Three wrong cuts first — see `DECISIONS.md`; the one to remember is that
+   *imported* is not the same as *live*, because `reference_family_figure` is imported by nothing
+   and renders a figure the deck places.
+9. **The `channel_position_maps` output decision** (§2.5's open item) — taken: pooled figures to
+   `grant_figures/epoch` and registered, per-session diagnostics stay put.
 
 ---
 
