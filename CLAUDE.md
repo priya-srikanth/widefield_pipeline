@@ -88,6 +88,23 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
      keeps frozen copies of the pre-extraction sources and asserts EXACT equality; a tolerance
      would pass the very bug this guards against.
 
+10. **FROZEN MODELS ARE REFERENCES, NOT CACHES — read `docs/FROZEN_MODELS.md` before touching
+   `frozen_models.py`, adding a machine profile, or editing `paths.yaml`.** (2026-09-21.) A decoder
+   keyed on a pre-stroke training set cannot be regenerated once that set has grown, so it is the
+   frame every post-stroke number was scored in.
+   - **`local_dir()` is DERIVED from `figures_working`, so a config change can MOVE it.** That
+     happened on 2026-09-18 (889c5e0) and went unnoticed for two weeks: 48 models were orphaned at
+     `C:/wf_local/frozen_models`, every lookup missed, every model was refitted, and — the part
+     that matters — `SPEC-CHANGED` could not fire, because `siblings()` had nothing to compare a
+     training set against. After any `paths.yaml` edit, run
+     `python -c "from wfield_local import frozen_models as m; print(m.local_dir(), m.local_dir().exists())"`.
+   - **An ABSENT store and an EMPTY store are different facts.** `warn_if_store_moved` now says so.
+   - **`spec_id` hashes the INPUTS, not the fitted model.** Bitwise reproducible within a machine;
+     across machines only to the optimiser's tolerance (measured: 0.54% of the largest coefficient,
+     `n_iter_` 589 vs 620, and no change to any prediction on real trials). So **publish from ONE
+     box** — a second box's upload reports MISMATCH and is right to — and **delete neither local
+     store**; publishing copies, it does not move.
+
 ## The three commands (end of day)
 
 Everything below is orchestrated; these are the only lines that need typing.

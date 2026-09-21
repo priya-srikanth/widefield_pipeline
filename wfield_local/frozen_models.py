@@ -156,11 +156,73 @@ def _roots():
     return [(local_dir(), "local"), (server_dir(), "server")]
 
 
+#: A store the PREVIOUS derivation of `local_dir` would have used. `joint_locanmf._basis_dir`
+#: falls back to this literal when `figures_working` is not set for the machine, so any box that
+#: fitted models while its profile was incomplete put them here.
+_LEGACY_LOCAL = Path("C:/wf_local/frozen_models")
+
+_ANNOUNCED: set[str] = set()
+
+
+def warn_if_store_moved(log=print) -> bool:
+    """Say so, once per process, when `local_dir()` does not exist. Returns True if it warned.
+
+    **A MISS AND A MOVED STORE LOOK IDENTICAL TO `load_or_fit`, AND THIS COST TWO WEEKS.** On
+    2026-09-18, commit 889c5e0 gave the analysis desktop its own machine profile and set
+    `figures_working` for it. `local_dir()` is derived from that root, so it moved from
+    `C:/wf_local/frozen_models` -- where 48 models had been fitted on 2026-08-28 -- to a path that
+    did not exist. `find()` started returning None, `load_or_fit` did exactly what it is supposed
+    to do on a miss (refit and store), and nothing anywhere said a word. Every night rebuilt the
+    models it already had, and the SPEC-CHANGED warning could not fire for a set of models the
+    code could no longer see, so a change to the pre-stroke training set would have gone
+    unannounced too.
+
+    Deriving the store path from config is still right -- a drive-letter literal is only correct
+    on the machine it was written on. What was missing is that a DERIVED path can move, and an
+    absent root is categorically different from an empty one: an empty store means "nothing frozen
+    yet", an absent one means "you are not looking where the models are".
+    """
+    root = local_dir()
+    if root.exists() or "moved" in _ANNOUNCED:
+        return False
+    _ANNOUNCED.add("moved")
+    log(f"[frozen] !! the local model store {root} DOES NOT EXIST. Every lookup will miss and "
+        f"every model will be refitted -- and a changed training set cannot be reported, because "
+        f"`siblings` has nothing to compare against.")
+    if _LEGACY_LOCAL.exists() and _LEGACY_LOCAL != root:
+        n = len(list(_LEGACY_LOCAL.rglob("manifest.json")))
+        log(f"[frozen]    {n} model(s) are sitting in {_LEGACY_LOCAL}, the path this box used "
+            f"before its machine profile set `figures_working`. Publish them "
+            f"(`WIDEFIELD_FROZEN_MODEL_DIR={_LEGACY_LOCAL} python -m wfield_local.publish_basis "
+            f"--what frozen`) or point at them with that variable. Do NOT delete them: they are "
+            f"the reference whatever was scored before the move was scored against.")
+    return True
+
+
 def find(spec):
     """``(dir, origin)`` for a model matching this EXACT spec, or ``(None, None)``.
 
-    Local is preferred when both have it: a spec_id is a hash of the spec, so two directories with
-    the same id hold the same model, and the local one is not read over SMB.
+    Local is preferred when both have it, because the local one is not read over SMB.
+
+    **A SPEC_ID IS A HASH OF THE INPUTS, NOT OF THE FITTED MODEL, AND THE DIFFERENCE IS MEASURABLE
+    ACROSS MACHINES.** This docstring used to say "two directories with the same id hold the same
+    model". They hold a model fitted from the same inputs, which is not the same claim. Measured
+    2026-09-21 over all 48 models, comparing the analysis desktop's 2026-08-28 fits against the
+    behavior box's: coefficients agree to a cosine of 0.99997 but differ by up to 0.54% of the
+    largest coefficient, and two `LogisticRegression` pipelines for one spec disagreed on 0.7% of
+    random probes. `lbfgs` stops at ``tol=1e-4``, and a different BLAS build reaches that tolerance
+    by a different path -- 589 iterations against 620 for the same spec.
+
+    Consequences worth keeping straight:
+
+    - **Within a machine the fit IS bitwise reproducible** (`tests/test_parallel_results_are_
+      ordered.py` pins it across BLAS thread counts), so a re-run reproduces a re-run.
+    - **Across machines it is reproducible only to the optimiser's tolerance.** Preferring local
+      over server therefore means two boxes can legitimately be using slightly different models
+      for the same spec. Publishing so that every box reads ONE store is what removes that, and is
+      why the whole set was published on 2026-09-21.
+    - `publish_tree`'s MISMATCH is therefore a REAL signal, not pickle noise: publishing the same
+      spec from a second machine would report it, and it would be right to.
     """
     want = _slug(spec)
     for root, origin in _roots():
@@ -234,6 +296,9 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
     by name. Passing ``refreeze='<reason>'`` retires the existing model deliberately.
     """
     d, origin = find(spec)
+    if d is None:
+        # A MISS MAY MEAN THE STORE MOVED RATHER THAN "NEW SPEC". See `warn_if_store_moved`.
+        warn_if_store_moved(log)
     if d is not None and not refreeze:
         try:
             payload = _read(d)

@@ -16007,3 +16007,150 @@ fix and watching exactly that site fail.
 VALUES WERE RIGHT -- the completion-order bug left the point estimate exact at -18.7 and moved only
 the CI, and these three moved nothing at all. A test that checks numbers cannot see any of them.
 The invariant that was actually violated is structural, so that is what is asserted.
+
+---
+
+## THE FROZEN MODEL STORE MOVED ON 2026-09-18 AND NOTHING SAID SO (2026-09-21)
+
+Priya, reading the determinism audit: *"wait the frozen models shoudl ALL me on microscope"*, then
+*"the point was to avoid recomputing each night and also to ensure they were the same models used
+across days and analyses"*. Both purposes had been quietly defeated on ONE of the three boxes.
+
+### WHAT THE AUDIT GOT WRONG FIRST
+
+The audit above reports "only two models are published, so most `--loso` runs REFIT". **That was
+true of the analysis desktop and false as a general statement**, and the difference matters: the
+behavior box has a complete local store and has been getting cache hits all along. The freeze has
+been working. It was working on one machine.
+
+### THE THREE STORES
+
+| box (profile) | `local_dir()` | contents |
+|---|---|---|
+| behavior box (`analysis`) | `C:/Users/sabatini/source/frozen_models` | **46**, all four animals -- what its analyses read |
+| analysis desktop (`analysis_desktop`) | `C:/Users/SabatiniLab/frozen_models` | **absent** |
+| ...its models, orphaned | `C:/wf_local/frozen_models` | **48**, all four animals, all 2026-08-28 |
+| MICROSCOPE | `labcams/frozen_models` | **2** (PS92 cue, joint basis, decoder + encoder) |
+
+**COMMIT 889c5e0 (2026-09-18), "Give the analysis desktop its own machine profile, instead of a
+masquerade", IS WHAT MOVED IT.** `local_dir()` is derived from `figures_working`; before that
+commit the desktop had none, `joint_locanmf._basis_dir` fell through to its `C:/wf_local` literal,
+and the 48 models fitted on 2026-08-28 went there. Setting
+`analysis_desktop: "C:/Users/SabatiniLab/cue_lick"` moved the derived path onto a directory that
+does not exist. `find()` began returning None, `load_or_fit` did exactly what it is designed to do
+on a miss, and no line of output changed.
+
+### THE MODELS ARE FINE, WHICH IS WHY NOTHING LOOKED WRONG
+
+Checked against today for PS92's ROI cue decoder: the same 11 pre-stroke training labels, all 11
+input signatures (`U_atlas` + `SVTcorr` stat sigs) UNCHANGED, `freeze_version` unchanged, and the
+recomputed `spec_id` is `12fb93bf5158`, which is the directory's own name. They would be exact
+hits today if anything were looking for them. The two on MICROSCOPE are byte-identical to this
+box's copies of them.
+
+### AND THE PS92 "GAP" ON THE BEHAVIOR BOX IS THE MECHANISM WORKING
+
+The behavior box has 46 rather than 48, missing `decoder_cue_joint76d884` and
+`encoder_cue_joint76d884` for PS92 -- **exactly the two models that are on MICROSCOPE**.
+`load_or_fit` consults local then server, and on a hit it reads the stored model and returns
+`frozen-hit` WITHOUT writing a local copy. So that box was served those two from the share and
+correctly did not refit them; every other spec missed both roots and was fitted and stored. 46 + 2
+= the full 48. Nothing is missing and no spec has changed.
+
+### THE SECOND CONSEQUENCE IS WORSE THAN THE RECOMPUTE
+
+Wasted nightly compute is the obvious cost. The one that matters is that **`siblings()` had
+nothing to compare against, so SPEC-CHANGED could not fire on that box.** That warning is the only
+thing standing between "the pre-stroke training set grew" and "the reference silently moved" -- it
+is why `load_or_fit` has three statuses instead of two. With the store invisible, a changed
+training set would have been reported as a first run. It happens that nothing changed; that is
+luck, not the safety net.
+
+### THE FIX, AND THE GENERAL RULE
+
+`frozen_models.warn_if_store_moved` now says so, once per process, when the local root is ABSENT,
+and names the legacy directory and the publish command when one is sitting there.
+`tests/test_frozen_store_move_is_loud.py` pins it, including that `load_or_fit` actually calls it.
+
+**AN EMPTY STORE AND AN ABSENT STORE ARE DIFFERENT FACTS AND MUST NOT PRODUCE THE SAME SILENCE.**
+Empty means "nothing frozen yet" and is the normal first run. Absent means "you are not looking
+where the models are". Deriving the path from config remains right -- a drive-letter literal is
+only correct on the machine it was written on, which is why `_basis_dir`, `session_cache` and
+`local_dir` were all changed to derive. What was missing is that **a derived path can MOVE**, and
+the code that consumes it has to be able to notice.
+
+The durable answer to Priya's actual question is to publish: once the behavior box's 46 join the
+2 already on MICROSCOPE, every box finds all 48 through the server fallback, and "the same models
+across days and analyses" stops depending on which disk a run happened to start from. Publish from
+ONE box -- two independent fits of the same spec are numerically identical but their joblib
+pickles need not be byte-identical, and `publish_tree` reads a digest mismatch under an unchanged
+directory name as corruption, correctly.
+
+**AND DO NOT DELETE THE ORPHANED STORE.** 16 MB, and it is the reference everything scored on that
+box before 2026-09-18 was scored against.
+
+**THE WHOLE INVESTIGATION IS WRITTEN UP AS `docs/FROZEN_MODELS.md`** -- where the models live, how
+`spec_id` is built and what it does and does not promise, both failure modes, and the checklist to
+run when adding a machine profile or editing `paths.yaml`. Start there; this entry is the
+chronology.
+
+### PUBLISHED 2026-09-21, AND IT EXPOSED WHAT `spec_id` DOES NOT PROMISE
+
+Priya published the behavior box's set the same day. MICROSCOPE now holds **48 models, 12 per
+animal**, and all 48 of the analysis desktop's known specs resolve -- `origin='server'` for every
+one. A published model loads cleanly here (sklearn 1.7.2, no warnings), carries its 11 LOSO
+sub-models, reports `n_features=264` matching its spec, and predicts. The desktop will stop
+refitting.
+
+**BUT 46 OF THE 48 DIFFER IN BYTES FROM THIS BOX'S OWN FITS OF THE SAME SPECS, AND NOT ONLY IN
+PICKLE METADATA.** Coefficients differ. For the worst case (`PS95/decoder_precue_roi_d57cc33c6485`):
+
+| | |
+|---|---|
+| cosine between the two coefficient matrices | 0.9999723784 |
+| max abs difference | 1.42e-02 = **0.54% of the largest coefficient** |
+| `n_iter_` | **589 here against 620 there** |
+
+**DOES IT CHANGE A RESULT? NO -- AND THE FIRST TEST I RAN WAS THE WRONG TEST.** I first reported
+99.275% prediction agreement over 20,000 random Gaussian probes. **Do not cite that number.**
+Random probes land nowhere near where ROI activity lives, and two solutions separated by 0.5% of a
+coefficient disagree only close to a boundary; the question is whether the data ever goes there.
+On real trials the two models agree exactly:
+
+| input | trials | agreement | max accuracy difference |
+|---|---|---|---|
+| 20,000 random Gaussian probes | -- | 99.275% | -- |
+| PS95 precue roi (the WORST pair), real trials | 1,696 | **100.000%** | 0.00000 |
+| PS95 cue roi, real trials | 1,705 | **100.000%** | 0.00000 |
+| PS93 cue roi, real trials | 2,016 | **100.000%** | 0.00000 |
+
+Zero disagreements in 5,417 trials puts the real-data rate below ~0.2% at 95%. **That test is
+itself imperfect and says so:** accuracy came out near chance (~0.17 on six classes) because a raw
+per-session feature matrix is not the ALIGNED POOLED feature space `_aligned` builds, so it
+exercises a function the pipeline is not actually deployed with. The end-to-end check -- running
+`pooled_frozen_loso` for one animal against each store in turn and comparing the per-session
+accuracies it reports -- is the one that settles it.
+
+**THE TRANSFERABLE LESSON IS BIGGER THAN THE NUMBER: A MODEL COMPARISON IS ONLY AS GOOD AS THE
+INPUT DISTRIBUTION IT IS RUN ON.** A coefficient norm overstates the disagreement, a probe drawn
+from the wrong distribution overstates it differently, and a feature matrix the pipeline never
+receives understates it by testing the wrong function.
+
+`lbfgs` stops at `tol=1e-4`; a different BLAS build reaches that tolerance along a different path.
+**A `spec_id` is a hash of the INPUTS, not of the fitted model.** Within a machine the fit is
+bitwise reproducible -- pinned across BLAS thread counts in
+`tests/test_parallel_results_are_ordered.py` -- but across machines it is reproducible only to the
+optimiser's tolerance. `find`'s docstring claimed "two directories with the same id hold the same
+model"; corrected.
+
+Two things follow:
+
+1. **PUBLISHING FROM ONE BOX WAS THE RIGHT CALL FOR A BETTER REASON THAN THE ONE GIVEN.** I said a
+   second box's upload would risk a *spurious* MISMATCH from joblib metadata. Wrong: it would have
+   been a REAL mismatch in the coefficients, and `publish_tree` would have been telling the truth.
+2. **THE ORPHANED STORE IS NOT REDUNDANT WITH THE SERVER COPY.** It is the only record of what this
+   box's results between 2026-08-28 and 2026-09-18 were scored against, and the server copy does
+   not reproduce those models exactly. Keep it. Likewise the behavior box's local store is the
+   ORIGINAL the server copy was made from, and `find` prefers local precisely to avoid the SMB
+   read -- deleting it would slow every lookup and leave the network copy as the only extant one.
+   Publishing is a copy, not a move, for that reason.
