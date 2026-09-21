@@ -16374,3 +16374,13 @@ a magnitude:
 `frozen_status` and `frozen_model_id` exist precisely so this question has a recorded answer
 rather than an inferred one -- the provenance fields were right there and were not read until
 Priya pushed back. When an artefact carries its own provenance, read the provenance.
+
+---
+
+## 2026-09-21 — CHRONIC settled threshold k_res 0.5 -> 0.4: hold PS95 at the by-eye plateau
+
+Registering the 2026-09-21 session (PS95 day 36) moved PS95's DERIVED chronic from 15 to 11, tripping the pre-push epoch guards (`test_the_live_derivation_still_matches_the_stored_spec`, `test_against_the_real_cohort_table_the_stored_spec_agrees`: "PS95 chronic: behaviour says 11, spec says 15").
+
+**Why it moved.** PS95's far_R hit rate is d11 = 91% (a RISING point) then d15-d36 all ~103-106%. The day-11 window's residual/SD had been 0.54 on 2026-09-19 (failed the 0.5 settled test, so chronic was day 15). As more flat sessions accrued at the plateau, that residual fell to **0.49** by 2026-09-21 — crossing the 0.5 cutoff — and its drift/SD is **0.97** (just under the 1.0 one-sided cap). So day 11 began to pass both arms and, by persistence, became the boundary. This is the exact borderline the 2026-09-19 note flagged ("PS95 slips to day 11 at k_res >= 0.6"); with a session most nights it was one datum from flipping at 0.5 too.
+
+**Decision (Priya).** By eye the plateau is still day 15 — d11 (91%) is the last approach point below the ~104% band, not part of it. Tightened `epochs.chronic.k_res` **0.5 -> 0.4**, which restores PS95 = 15 with margin (d11 residual 0.49 > 0.4) and leaves PS92 11 / PS93 11 / PS94 25 unchanged (their plateau residuals are 0.15-0.25, well clear of 0.4). The stored spec (`animals.yaml`, `test_epochs.SPEC`) is UNCHANGED at 15 — the retune brings the derivation back to it rather than promoting a boundary nobody ratified. Alternatives rejected: promoting PS95 -> 11 (contradicts the 2026-09-19 by-eye ratification and calls a rising approach a plateau). Standing risk noted: PS95's d11 is inherently marginal; if it recurs at 0.4 the durable fix is hysteresis or requiring the boundary session itself to sit inside the band, not another threshold nudge.
