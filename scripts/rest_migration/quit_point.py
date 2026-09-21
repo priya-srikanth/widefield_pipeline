@@ -199,6 +199,77 @@ def _sharpness(rows, k, w=10):
     return float(local / total)
 
 
+def session_row(item):
+    """One session's quit record and its quit-aligned NEAR hits, or ``None``. Module level, so
+    `parallel.fan_out` can pickle it by name (CLAUDE.md ground rule 6).
+
+    **IT RETURNS DATA AND MESSAGES; IT ACCUMULATES NOTHING AND PRINTS NOTHING.** `n_seen`, `n_quit`,
+    `rows_out` and `aligned` are all built by the parent, in `input_order`, so the pools that feed
+    the bootstrap are in exactly the order the serial loop built them and the console output is in
+    exactly the order it was in before. A worker that appended to a shared structure would be both
+    wrong under spawn and non-reproducible.
+
+    **THE OPTIONS TRAVEL IN THE ITEM** -- spawn re-imports this module, so a runtime global set by
+    the parent never reaches a child.
+
+    **IT DOES NOT USE `analysis_kit.session_behavior`, DELIBERATELY.** That loader applies the
+    horizon AFTER running the quit detector; this module re-runs the detector ON THE TRUNCATED
+    RECORD, which is the whole point of the common horizon -- a quit at 78 min has to be
+    unconfirmable under an 80 min horizon for every session equally, or the rate is not comparable.
+    Same-looking code, different question.
+    """
+    lab, horizon_min = item
+    from wfield_local import config, epochs
+    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return None
+    ep = epochs.epoch_of(lab)
+    try:
+        tr = session_trials(s, 2.0)
+    except Exception as ex:                                          # noqa: BLE001
+        return {"label": lab, "epoch": ep, "seen": False, "q": None, "aligned": [],
+                "msg": f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"}
+    if len(tr) < 60:
+        return None
+    if horizon_min is not None:
+        # EVERY SESSION IS OBSERVED FOR EXACTLY THE SAME LENGTH OF TIME, and the detector is
+        # re-run on the truncated record rather than the quit being looked up from the full
+        # one. A quit at 78 min is then UNCONFIRMABLE under an 80 min horizon for every
+        # session equally, which is what makes the rate comparable.
+        h = horizon_min * 60.0
+        if float(tr[-1]["elapsed_s"]) < h:
+            return {"label": lab, "epoch": ep, "seen": False, "q": None, "aligned": [],
+                    "msg": (f"   .. {lab:14s} shorter than the {horizon_min:.0f} min horizon "
+                            f"({float(tr[-1]['elapsed_s']) / 60:.0f} min) -- dropped")}
+        tr = [r for r in tr if float(r["elapsed_s"]) <= h]
+        if len(tr) < 60:
+            return None
+
+    q = session_quit(s, tr)
+    if q is None:
+        return {"label": lab, "epoch": ep, "seen": True, "q": None, "aligned": [], "msg": None}
+    q.update(label=lab, animal=config.animal_of(lab), epoch=ep)
+    if q["censored"]:
+        return {"label": lab, "epoch": ep, "seen": True, "q": q, "aligned": [],
+                "msg": (f"   {lab:14s} {ep:9s} still engaged at session end -- CENSORED at "
+                        f"{q['session_dur_s'] / 60:.0f} min")}
+
+    # QUIT-ALIGNED hit rate, NEAR spouts only -- the alignment is the whole point, since
+    # averaging unaligned steps manufactures a ramp.
+    near = near_codes()
+    k = q["quit_trial"]
+    idx = {id(r): i for i, r in enumerate(tr)}
+    aligned = [((ep, (idx[id(r)] - k) // 10), r["hit"])
+               for r in tr if r["pos"] in near
+               and -HALF_WIN <= idx[id(r)] - k < HALF_WIN]
+    return {"label": lab, "epoch": ep, "seen": True, "q": q, "aligned": aligned,
+            "msg": (f"   {lab:14s} {ep:9s} quit at trial {k}/{len(tr)} "
+                    f"({q['quit_frac']:.2f}), {q['quit_elapsed_s'] / 60:.0f} min, "
+                    f"{q['quit_cum_licks']:.0f} licks")}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -208,16 +279,15 @@ def main(argv=None) -> int:
                          "and drop sessions shorter than T. Makes the quit RATE comparable across "
                          "epochs, which it is not otherwise -- see the module docstring. T=80 "
                          "keeps 92 of 96 sessions (pre 40, acute 16, subacute 17, chronic 19).")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    near = near_codes()
     if a.horizon_min is not None:
         print(f"COMMON HORIZON {a.horizon_min:.0f} min: sessions shorter than this are DROPPED "
               f"and the rest are TRUNCATED, so every session contributes equal observation time.")
@@ -227,52 +297,37 @@ def main(argv=None) -> int:
     # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
     # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
     # seeded RNG, so quietly sorting here would move published CIs.
-    for s in ak.curated_sessions(a.animals):
-        lab = s["label"]
-        ep = epochs.epoch_of(lab)
-        try:
-            tr = session_trials(s, 2.0)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+    labels = ak.curated_labels(a.animals)
+
+    # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). Collecting a fan-out in sorted
+    # order would reorder `rows_out` and `aligned` relative to the serial loop, and the seeded RNG
+    # below draws indices over those lists -- the CIs would move while every point estimate stayed
+    # exact. Restoring the input order makes this conversion diff-identical to the serial run,
+    # which is how it was verified. Adopting sorted order may be the better long-run choice; it is
+    # a separate decision, not a side effect of parallelising.
+    res, fail = ak.fan_sessions([(lab, a.horizon_min) for lab in labels], session_row,
+                                jobs=a.jobs, key=ak.input_order(labels))
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0][0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
+
+    # THE PARENT ACCUMULATES AND THE PARENT PRINTS, in input order -- see `session_row`.
+    for _item, r in res:
+        if r is None:
             continue
-        if len(tr) < 60:
-            continue
-        if a.horizon_min is not None:
-            # EVERY SESSION IS OBSERVED FOR EXACTLY THE SAME LENGTH OF TIME, and the detector is
-            # re-run on the truncated record rather than the quit being looked up from the full
-            # one. A quit at 78 min is then UNCONFIRMABLE under an 80 min horizon for every
-            # session equally, which is what makes the rate comparable.
-            h = a.horizon_min * 60.0
-            if float(tr[-1]["elapsed_s"]) < h:
-                print(f"   .. {lab:14s} shorter than the {a.horizon_min:.0f} min horizon "
-                      f"({float(tr[-1]['elapsed_s']) / 60:.0f} min) -- dropped", flush=True)
-                continue
-            tr = [r for r in tr if float(r["elapsed_s"]) <= h]
-            if len(tr) < 60:
-                continue
-        n_seen[ep] += 1
-        q = session_quit(s, tr)
+        if r["msg"]:
+            print(r["msg"], flush=True)
+        if r["seen"]:
+            n_seen[r["epoch"]] += 1
+        q = r["q"]
         if q is None:
             continue
-        q.update(label=lab, animal=config.animal_of(lab), epoch=ep)
         rows_out.append(q)
         if q["censored"]:
-            print(f"   {lab:14s} {ep:9s} still engaged at session end -- CENSORED at "
-                  f"{q['session_dur_s'] / 60:.0f} min", flush=True)
             continue
-        n_quit[ep] += 1
-        # QUIT-ALIGNED hit rate, NEAR spouts only -- the alignment is the whole point, since
-        # averaging unaligned steps manufactures a ramp.
-        k = q["quit_trial"]
-        nr = [r for r in tr if r["pos"] in near]
-        idx = {id(r): i for i, r in enumerate(tr)}
-        for r in nr:
-            d = idx[id(r)] - k
-            if -HALF_WIN <= d < HALF_WIN:
-                aligned[(ep, d // 10)].append(r["hit"])
-        print(f"   {lab:14s} {ep:9s} quit at trial {k}/{len(tr)} "
-              f"({q['quit_frac']:.2f}), {q['quit_elapsed_s'] / 60:.0f} min, "
-              f"{q['quit_cum_licks']:.0f} licks", flush=True)
+        n_quit[r["epoch"]] += 1
+        for kbin, hit in r["aligned"]:
+            aligned[kbin].append(hit)
 
     if not rows_out:
         print("no sessions scored -- a failed run, not a result")

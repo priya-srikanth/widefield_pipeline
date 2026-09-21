@@ -124,20 +124,37 @@ not only in pickle metadata — the coefficients differ.** Worst pair,
   (pinned in `tests/test_parallel_results_are_ordered.py`).
 - **Across machines it is reproducible only to the optimiser's tolerance.**
 
-### Does it change any result?
+### Does it change any result? YES — SLIGHTLY. Two proxy tests said no and both were wrong.
 
-**No, measured** — but note *how* it was measured, because the first attempt was a bad test.
+Run `pooled_frozen_loso` for PS95 (roi, cue) against each store in turn. Same `spec_id`
+(`5e19afa87323`), `frozen-hit` from both, so this is one spec served from two places:
 
-| test | agreement | verdict |
+| quantity | sessions differing | max | mean | level |
+|---|---|---|---|---|
+| `per_session` (the FROZEN model's score) | **7 of 25** | **0.002976** | 0.00056 | 0.9036 |
+| `within_session` (the same-day refit ceiling) | 0 of 25 | 0.000000 | — | 0.8408 |
+
+Up to **0.3 percentage points** on a per-session frozen accuracy — roughly one or two trials in
+six hundred. The within-day ceiling is untouched, as it must be: it is refitted each run and never
+comes from the store.
+
+**Against the effects this study reports** (near-spout hit rate falling 0.972 → 0.457 across
+session quintiles) that is immaterial. **Against a quoted three-decimal accuracy, or a marginal
+comparison, it is not** — those are not reproducible across stores, and numbers computed on the
+desktop between 28 Aug and 18 Sept will not re-derive exactly now that it reads the server.
+
+### The two tests that got this wrong, and why
+
+| test | said | why it was wrong |
 |---|---|---|
-| 20,000 random Gaussian probes | 99.275% | **do not cite this.** Random probes land nowhere near where ROI activity lives |
-| raw per-session feature matrices, 3 model pairs, 5,417 trials | 100.000% | suggestive, but accuracy came out near chance (~0.17 on 6 classes), so those columns are **not** the aligned pooled feature space the model was fitted in |
-| `pooled_frozen_loso` end to end, same spec from each store | see `DECISIONS.md` | the deployed quantity |
+| 20,000 random Gaussian probes | 99.275% agreement | probes land nowhere near where ROI activity lives; **overstates** the disagreement |
+| raw per-session feature matrices, 3 pairs, 5,417 trials | 100.000% agreement | accuracy came out ~0.17 on six classes, i.e. **chance** — those columns are not the aligned pooled feature space `_aligned` builds, so it exercised a function the pipeline never runs. **Understates** it |
+| `pooled_frozen_loso` end to end | 7/25 sessions differ | the deployed quantity, at its real ~0.90 accuracy |
 
-The lesson is worth more than the number: **a model comparison is only as good as the input
-distribution it is run on.** A coefficient norm, and a probe drawn from the wrong distribution,
-both overstate the disagreement; a feature matrix that the pipeline does not actually receive
-understates it by exercising the wrong function.
+**A MODEL COMPARISON IS ONLY AS GOOD AS THE INPUT DISTRIBUTION IT IS RUN ON — and "the accuracy
+came out near chance" was the tell that should have stopped the second test being reported at
+all.** It was flagged as a caveat and then under-weighted, and the conclusion drawn from it ("no
+result changes") was stated before the end-to-end check came back. Run the real entry point.
 
 ### Consequences
 

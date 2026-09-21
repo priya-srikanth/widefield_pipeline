@@ -17,6 +17,8 @@ from pathlib import Path
 
 from wfield_local import frozen_models as fm
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def _fresh():
     fm._ANNOUNCED.clear()
@@ -61,7 +63,8 @@ def test_it_points_at_the_legacy_store_when_one_is_there(tmp_path, monkeypatch):
     legacy.mkdir(parents=True)
     (legacy / "manifest.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(fm, "local_dir", lambda: tmp_path / "nope")
-    monkeypatch.setattr(fm, "_LEGACY_LOCAL", tmp_path / "wf_local" / "frozen_models")
+    monkeypatch.setattr(fm, "legacy_local_dir",
+                        lambda: tmp_path / "wf_local" / "frozen_models")
     said = []
     fm.warn_if_store_moved(said.append)
     joined = "\n".join(said)
@@ -84,12 +87,18 @@ def test_load_or_fit_calls_it_on_a_miss(tmp_path, monkeypatch):
     assert any("DOES NOT EXIST" in s for s in said)
 
 
-def test_the_legacy_path_is_the_one_joint_locanmf_falls_back_to():
-    """If `_basis_dir`'s fallback literal changes, this pointer goes stale and stops helping."""
-    import inspect
+def test_the_legacy_path_is_derived_from_the_basis_fallback_not_repeated():
+    """One literal, in the one module `test_no_hardcoded_machine_paths` sanctions for it.
 
+    Writing `C:/wf_local/frozen_models` here a second time both tripped that guard and created a
+    pointer that would go stale the moment `_basis_dir`'s fallback moved. Deriving it means the
+    two cannot disagree.
+    """
     from wfield_local import joint_locanmf
 
-    src = inspect.getsource(joint_locanmf._basis_dir)
-    assert "C:/wf_local/joint_bases" in src
-    assert fm._LEGACY_LOCAL == Path("C:/wf_local/frozen_models")
+    assert fm.legacy_local_dir() == joint_locanmf.FALLBACK_BASIS_DIR.parent / "frozen_models"
+    assert fm.legacy_local_dir().name == "frozen_models"
+    # That the literal itself stays out of executable code is `test_no_hardcoded_machine_paths`'s
+    # job, and it owns the docstring-vs-code distinction. A crude `"wf_local" not in source` check
+    # here failed on the INCIDENT NARRATIVE in `warn_if_store_moved`'s docstring -- which is
+    # documentation, and exactly what that guard is careful to exempt. One fact, one test.

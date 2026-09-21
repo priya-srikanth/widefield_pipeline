@@ -40,15 +40,23 @@ ALLOWED: dict[str, str] = {}
 
 
 def _fan_out_sites():
-    """``(path, lineno, source_window)`` for every `parallel.fan_out(` call in the tree."""
+    """``(path, lineno, source_window)`` for every fan-out call in the tree.
+
+    BOTH SPELLINGS. `fan_sessions` is `fan_out` plus the sort, and matching only the raw
+    `fan_out(` made this file quietly stop covering every module converted onto the kit -- which
+    is how a guard turns into decoration. It showed up as the runtime-global test reporting
+    SKIPPED rather than passing: **an empty parametrize list is not a pass.** `parallel.py` and
+    `analysis_kit.py` are excluded because they DEFINE the two wrappers.
+    """
     out = []
     for p in sorted(list((ROOT / "wfield_local").rglob("*.py"))
                     + list((ROOT / "scripts").rglob("*.py"))):
-        if "__pycache__" in p.parts or p.name == "parallel.py":
+        if "__pycache__" in p.parts or p.name in ("parallel.py", "analysis_kit.py"):
             continue
         lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
         for i, ln in enumerate(lines):
-            if re.search(r"\bfan_out\s*\(", ln) and not ln.lstrip().startswith("#"):
+            if (re.search(r"\b(fan_out|fan_sessions)\s*\(", ln)
+                    and not ln.lstrip().startswith("#")):
                 out.append((p.relative_to(ROOT).as_posix(), i + 1,
                             "\n".join(lines[i:i + WINDOW])))
     return out
@@ -56,7 +64,7 @@ def _fan_out_sites():
 
 def test_there_are_fan_out_sites_to_check():
     """A guard on the guard: a rename of `fan_out` would otherwise make this file vacuously pass."""
-    assert len(_fan_out_sites()) >= 6
+    assert len(_fan_out_sites()) >= 12
 
 
 @pytest.mark.parametrize("site", _fan_out_sites(), ids=lambda s: f"{s[0]}:{s[1]}")
@@ -65,7 +73,9 @@ def test_every_fan_out_result_is_ordered_before_use(site):
     key = f"{path}:{lineno}"
     if key in ALLOWED:
         pytest.skip(ALLOWED[key])
-    assert "sorted(" in window, (
+    # `fan_sessions` sorts internally (and `input_order` is a sort key), so either the call
+    # goes through the kit or the caller sorts for itself.
+    assert "sorted(" in window or "fan_sessions(" in window, (
         f"{key} consumes a `fan_out` result without sorting it within {WINDOW} lines.\n"
         "`fan_out` returns units in COMPLETION order, so whatever is built here is built in a "
         "different order on every run. If it feeds a seeded RNG the numbers move; if it feeds a "
@@ -148,3 +158,53 @@ def test_the_frozen_estimators_are_deterministic_across_blas_threads():
         seen.add((clf[-1].coef_.tobytes(), Ridge(alpha=1.0).fit(P, X).coef_.tobytes()))
     parallel.pin_blas()
     assert len(seen) == 1, "the frozen estimators changed with the BLAS thread count"
+
+
+# --------------------------------------------------------------------------------------------
+# The OTHER spawn trap: a module global set at runtime does not reach a worker
+# --------------------------------------------------------------------------------------------
+
+def _modules_that_fan_out_and_mutate_a_global():
+    """``(path, {global names assigned inside main})`` for every module that does both."""
+    out = []
+    for path, _lineno, _win in _fan_out_sites():
+        src = (ROOT / path).read_text(encoding="utf-8", errors="replace")
+        tree = ast.parse(src)
+        main = next((f for f in tree.body
+                     if isinstance(f, ast.FunctionDef) and f.name == "main"), None)
+        if main is None:
+            continue
+        names = {n for g in ast.walk(main) if isinstance(g, ast.Global) for n in g.names}
+        if names:
+            out.append((path, names, tree))
+    return out
+
+
+@pytest.mark.parametrize("case", _modules_that_fan_out_and_mutate_a_global(),
+                         ids=lambda c: c[0])
+def test_a_runtime_global_reaches_the_workers(case):
+    """A global that `main` sets is invisible to every spawned worker, and the failure is SILENT.
+
+    `channel_position_maps --late` is the live example: it sets `WIN_START_S = LATE_START_S` as a
+    module global, deliberately, because the window is consumed four call levels down inside
+    `_win_avg_base`. `fan_out` spawns, so each child re-imports the module with `WIN_START_S` back
+    at 0.0 -- fanning that loop out without re-applying it in the worker would have written
+    EARLY-window numbers into `*_late.csv`. No error, no warning, a plausible table, the wrong
+    answer.
+
+    The rule from CLAUDE.md ground rule 6 is that OPTIONS TRAVEL IN THE ITEM. This checks the
+    observable consequence: any global `main` assigns must also be assigned by some other
+    module-level function, i.e. by the worker, from what it was handed.
+    """
+    path, names, tree = case
+    reassigned = {n
+                  for f in tree.body
+                  if isinstance(f, ast.FunctionDef) and f.name != "main"
+                  for g in ast.walk(f) if isinstance(g, ast.Global)
+                  for n in g.names}
+    missed = sorted(names - reassigned)
+    assert not missed, (
+        f"{path}: main() sets the module global(s) {missed} at runtime and the module fans work "
+        "out over spawned processes, which re-import the module and never see them. Pass the "
+        "value in the ITEM and re-apply it at the top of the worker, the way "
+        "`channel_position_maps.session_maps` does with WIN_START_S.")

@@ -169,51 +169,86 @@ def evoked(trace, cue_frames, t):
     return (np.mean(seg, axis=0), len(seg)) if seg else (None, 0)
 
 
+def session_row(item):
+    """One session's evoked table row and its two epoch-pooled curves. Module level, so
+    `parallel.fan_out` can pickle it by name (CLAUDE.md ground rule 6).
+
+    **RETURNS ``(row, curves, tvec, message)``; IT NEITHER ACCUMULATES NOR PRINTS.** The parent
+    extends `rows` and `curves` and prints in `input_order`, so both the CSV and the pooled curves
+    are in exactly the order the serial loop produced them -- and the bootstrap below draws over
+    those lists, so any other order moves the CIs while leaving the point estimates exact.
+    """
+    lab = item
+    from wfield_local import config, epochs
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return None, [], None, None
+    ep = epochs.epoch_of(lab)
+    try:
+        t, p470, p415, cf, lf = session_traces(s)
+    except Exception as ex:                                          # noqa: BLE001
+        return None, [], None, f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"
+    licked, clean = split_by_licking(cf, lf)
+    an = config.animal_of(lab)
+    w = lambda e, lo, hi: float(np.mean(e[(t >= lo) & (t < hi)]))   # noqa: E731
+    r = dict(label=lab, animal=an, epoch=ep, n_lick=int(licked.size), n_nolick=int(clean.size))
+    got = []
+    for cls, frames in (("lick", licked), ("nolick", clean)):
+        e470, n1 = evoked(p470, frames, t)
+        e415, _n2 = evoked(p415, frames, t)
+        if e470 is None or e415 is None or n1 < MIN_TRIALS:
+            for k in ("470_early", "470_late", "415_early", "415_late"):
+                r[f"{cls}_{k}"] = ""
+            continue
+        got.append(((cls, ep), (an, e470, e415)))
+        r[f"{cls}_470_early"] = round(w(e470, *EARLY_S), 4)
+        r[f"{cls}_470_late"] = round(w(e470, *LATE_S), 4)
+        r[f"{cls}_415_early"] = round(w(e415, *EARLY_S), 4)
+        r[f"{cls}_415_late"] = round(w(e415, *LATE_S), 4)
+    return r, got, t, (f"   {lab:14s} {ep:9s} lick n={r['n_lick']:4d}  "
+                       f"nolick n={r['n_nolick']:4d}   "
+                       f"nolick 415 early {r.get('nolick_415_early', '--')}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--seed", type=int, default=20260919)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     rows, curves, tvec = [], defaultdict(list), None
-    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
-    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
-    # seeded RNG, so quietly sorting here would move published CIs.
-    for s in ak.curated_sessions(animals):
-        lab = s["label"]
-        ep = epochs.epoch_of(lab)
-        try:
-            t, p470, p415, cf, lf = session_traces(s)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+    # `analysis_kit.curated_labels` is the session filter, once; it preserves `load_sessions`
+    # order, which is NOT sorted.
+    labels = ak.curated_labels(animals)
+
+    # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `rows` and `curves` are
+    # iterated into a seeded RNG below, so collecting the fan-out in sorted order would move every
+    # CI while leaving the point estimates exact. Restoring the input order makes this conversion
+    # diff-identical to the serial run.
+    res, fail = ak.fan_sessions(labels, session_row, jobs=a.jobs,
+                                key=ak.input_order(labels))
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
+    # THE PARENT ACCUMULATES AND THE PARENT PRINTS, in input order -- see `session_row`.
+    for _lab, (r, got, tv, msg) in res:
+        if msg:
+            print(msg, flush=True)
+        if r is None:
             continue
-        tvec = t
-        licked, clean = split_by_licking(cf, lf)
-        an = config.animal_of(lab)
-        w = lambda e, lo, hi: float(np.mean(e[(t >= lo) & (t < hi)]))   # noqa: E731
-        r = dict(label=lab, animal=an, epoch=ep, n_lick=int(licked.size), n_nolick=int(clean.size))
-        for cls, frames in (("lick", licked), ("nolick", clean)):
-            e470, n1 = evoked(p470, frames, t)
-            e415, _n2 = evoked(p415, frames, t)
-            if e470 is None or e415 is None or n1 < MIN_TRIALS:
-                for k in ("470_early", "470_late", "415_early", "415_late"):
-                    r[f"{cls}_{k}"] = ""
-                continue
-            curves[(cls, ep)].append((an, e470, e415))
-            r[f"{cls}_470_early"] = round(w(e470, *EARLY_S), 4)
-            r[f"{cls}_470_late"] = round(w(e470, *LATE_S), 4)
-            r[f"{cls}_415_early"] = round(w(e415, *EARLY_S), 4)
-            r[f"{cls}_415_late"] = round(w(e415, *LATE_S), 4)
+        tvec = tv
+        for key, entry in got:
+            curves[key].append(entry)
         rows.append(r)
-        print(f"   {lab:14s} {ep:9s} lick n={r['n_lick']:4d}  nolick n={r['n_nolick']:4d}   "
-              f"nolick 415 early {r.get('nolick_415_early', '--')}", flush=True)
 
     if not rows:
         print("no sessions -- a failed run, not a result")

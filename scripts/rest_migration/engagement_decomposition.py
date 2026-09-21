@@ -179,16 +179,92 @@ def licks_vs_time(rows, only=None):
     return r_lick, r_time, collin
 
 
+def session_rows(item):
+    """Every ``session x position`` row for one session, plus the line to print. Module level, so
+    `parallel.fan_out` can pickle it by name (CLAUDE.md ground rule 6).
+
+    **RETURNS ``(rows, message)``; IT NEITHER ACCUMULATES NOR PRINTS.** The parent extends `per`
+    and prints in `input_order`, so the CSV rows and the bootstrap pools are in exactly the order
+    the serial loop produced them, and the console reads the same.
+
+    **`lab_of` AND `resp_s` TRAVEL IN THE ITEM.** `lab_of` is derived in `main` from
+    `anatomical_labels`; spawn re-imports this module without any of the parent's runtime state, so
+    a module global would be empty in every worker while working perfectly in a serial run.
+    """
+    lab, resp_s, lab_of = item
+    from wfield_local import config, epochs
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return [], None
+    ep = epochs.epoch_of(lab)
+    try:
+        rows = session_trials(s, resp_s)
+    except Exception as ex:                                          # noqa: BLE001
+        return [], f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"
+    if len(rows) < 30:
+        return [], f"  .. {lab}: {len(rows)} scorable trials -- skipped"
+    per = []
+
+    lvt = licks_vs_time(rows, only=near_codes())        # NEAR ONLY -- see `licks_vs_time`
+    lvt_all = licks_vs_time(rows)
+    for c in DISPLAY_ORDER:
+        v = [r for r in rows if r["pos"] == c]
+        if len(v) < 10:
+            continue
+        miss = [r for r in v if not r["hit"]]
+        # FIVE BINS, NOT THREE (Priya, 2026-09-19). Thirds give one number -- a first-to-last
+        # difference -- which cannot tell a STEADY decline from a LATE COLLAPSE, and those are
+        # different hypotheses: effort accumulating smoothly against an animal that works
+        # normally and then quits. Five quintiles show the shape, and the endpoints still give
+        # the same difference, so nothing is lost.
+        q = [[r for r in v if i / 5 <= r["frac"] < (i + 1) / 5 or
+              (i == 4 and r["frac"] >= 1.0)] for i in range(5)]
+        qhit = [float(np.mean([r["hit"] for r in b])) if b else float("nan") for b in q]
+        early, late = q[0], q[4]
+        per.append(dict(
+            label=lab, animal=config.animal_of(lab), epoch=ep, position=lab_of[c],
+            n_trials=len(v),
+            hit_rate=float(np.mean([r["hit"] for r in v])),
+            # THE HEADLINE: did the animal anticipate on trials it then MISSED?
+            antic_on_miss=(float(np.mean([r["anticipated"] for r in miss]))
+                           if miss else float("nan")),
+            antic_rate=float(np.mean([r["anticipated"] for r in v])),
+            mean_licks_pre=float(np.mean([r["n_licks_pre"] for r in v])),
+            median_latency_s=float(np.nanmedian([r["latency_s"] for r in v])),
+            hit_early=(float(np.mean([r["hit"] for r in early])) if early else float("nan")),
+            hit_late=(float(np.mean([r["hit"] for r in late])) if late else float("nan")),
+            # FLOOR-GUARDED: a cell whose EARLY hit rate is already near zero cannot drop, so
+            # its within_drop reads ~0 and looks like preservation. PS94 acute far-contra:
+            # hit 0.017, within_drop 0.015 -- not "spared", unmeasurable.
+            within_drop_valid=bool(early and late
+                                   and float(np.mean([r["hit"] for r in early])) >= 0.15),
+            within_drop=((float(np.mean([r["hit"] for r in early]))
+                          - float(np.mean([r["hit"] for r in late])))
+                         if early and late else float("nan")),
+            q1=qhit[0], q2=qhit[1], q3=qhit[2], q4=qhit[3], q5=qhit[4],
+            n_miss=len(miss),
+            r_hit_licks=(lvt[0] if lvt else float("nan")),
+            r_hit_time=(lvt[1] if lvt else float("nan")),
+            collinearity=(lvt[2] if lvt else float("nan")),
+            r_hit_licks_allpos=(lvt_all[0] if lvt_all else float("nan")),
+            r_hit_time_allpos=(lvt_all[1] if lvt_all else float("nan"))))
+    return per, f"   {lab:14s} {ep:9s} {len(rows)} trials"
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
-    from wfield_local import config, epoch_figures as ef, epochs
+    from wfield_local import epoch_figures as ef
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.paths import PathResolver
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
@@ -201,64 +277,25 @@ def main(argv=None) -> int:
                       if set(raw) <= set(CONF_LABELS) else raw))
 
     per = []                     # one row per session x position
-    # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
-    # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
-    # seeded RNG, so quietly sorting here would move published CIs.
-    for s in ak.curated_sessions(animals):
-        lab = s["label"]
-        ep = epochs.epoch_of(lab)
-        try:
-            rows = session_trials(s, a.resp_s)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-            continue
-        if len(rows) < 30:
-            print(f"  .. {lab}: {len(rows)} scorable trials -- skipped", flush=True)
-            continue
-        lvt = licks_vs_time(rows, only=near_codes())        # NEAR ONLY -- see `licks_vs_time`
-        lvt_all = licks_vs_time(rows)
-        for c in DISPLAY_ORDER:
-            v = [r for r in rows if r["pos"] == c]
-            if len(v) < 10:
-                continue
-            miss = [r for r in v if not r["hit"]]
-            # FIVE BINS, NOT THREE (Priya, 2026-09-19). Thirds give one number -- a first-to-last
-            # difference -- which cannot tell a STEADY decline from a LATE COLLAPSE, and those are
-            # different hypotheses: effort accumulating smoothly against an animal that works
-            # normally and then quits. Five quintiles show the shape, and the endpoints still give
-            # the same difference, so nothing is lost.
-            q = [[r for r in v if i / 5 <= r["frac"] < (i + 1) / 5 or
-                  (i == 4 and r["frac"] >= 1.0)] for i in range(5)]
-            qhit = [float(np.mean([r["hit"] for r in b])) if b else float("nan") for b in q]
-            early, late = q[0], q[4]
-            per.append(dict(
-                label=lab, animal=config.animal_of(lab), epoch=ep, position=lab_of[c],
-                n_trials=len(v),
-                hit_rate=float(np.mean([r["hit"] for r in v])),
-                # THE HEADLINE: did the animal anticipate on trials it then MISSED?
-                antic_on_miss=(float(np.mean([r["anticipated"] for r in miss]))
-                               if miss else float("nan")),
-                antic_rate=float(np.mean([r["anticipated"] for r in v])),
-                mean_licks_pre=float(np.mean([r["n_licks_pre"] for r in v])),
-                median_latency_s=float(np.nanmedian([r["latency_s"] for r in v])),
-                hit_early=(float(np.mean([r["hit"] for r in early])) if early else float("nan")),
-                hit_late=(float(np.mean([r["hit"] for r in late])) if late else float("nan")),
-                # FLOOR-GUARDED: a cell whose EARLY hit rate is already near zero cannot drop, so
-                # its within_drop reads ~0 and looks like preservation. PS94 acute far-contra:
-                # hit 0.017, within_drop 0.015 -- not "spared", unmeasurable.
-                within_drop_valid=bool(early and late
-                                       and float(np.mean([r["hit"] for r in early])) >= 0.15),
-                within_drop=((float(np.mean([r["hit"] for r in early]))
-                              - float(np.mean([r["hit"] for r in late])))
-                             if early and late else float("nan")),
-                q1=qhit[0], q2=qhit[1], q3=qhit[2], q4=qhit[3], q5=qhit[4],
-                n_miss=len(miss),
-                r_hit_licks=(lvt[0] if lvt else float("nan")),
-                r_hit_time=(lvt[1] if lvt else float("nan")),
-                collinearity=(lvt[2] if lvt else float("nan")),
-                r_hit_licks_allpos=(lvt_all[0] if lvt_all else float("nan")),
-                r_hit_time_allpos=(lvt_all[1] if lvt_all else float("nan"))))
-        print(f"   {lab:14s} {ep:9s} {len(rows)} trials", flush=True)
+    # `analysis_kit.curated_labels` is the session filter, once. IT PRESERVES `load_sessions`
+    # ORDER on purpose -- that list is NOT sorted.
+    labels = ak.curated_labels(animals)
+
+    # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `cell` below builds its
+    # bootstrap pools by iterating `per`, so collecting the fan-out in sorted order would move
+    # every CI while leaving the point estimates exact. Restoring the input order makes this
+    # conversion diff-identical to the serial run, which is how it was verified.
+    res, fail = ak.fan_sessions([(lab, a.resp_s, lab_of) for lab in labels], session_rows,
+                                jobs=a.jobs, key=ak.input_order(labels))
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0][0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
+    # THE PARENT ACCUMULATES AND THE PARENT PRINTS, in input order -- see `session_rows`.
+    for _item, (rows, msg) in res:
+        per += rows
+        if msg:
+            print(msg, flush=True)
+
 
     if not per:
         print("no sessions -- a failed run, not a result")

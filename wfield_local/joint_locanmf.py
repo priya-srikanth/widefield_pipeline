@@ -54,8 +54,14 @@ def _basis_dir() -> Path:
         from wfield_local import config
         return Path(config.resolver().root("figures_working")).parent / "joint_bases"
     except Exception:                              # noqa: BLE001
-        return Path("C:/wf_local/joint_bases")
+        return FALLBACK_BASIS_DIR
 
+
+#: Where bases land when the machine profile has no `figures_working`. NAMED, not inlined, because
+#: any box that fitted while its profile was incomplete has artifacts HERE and nowhere the derived
+#: path points -- `frozen_models` derives its own legacy store from this rather than repeating the
+#: literal, so the pointer cannot go stale. See `docs/FROZEN_MODELS.md` §4.
+FALLBACK_BASIS_DIR = Path("C:/wf_local/joint_bases")
 
 BASIS_DIR = _basis_dir()
 SEED = 0

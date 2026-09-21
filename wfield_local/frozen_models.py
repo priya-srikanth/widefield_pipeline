@@ -156,12 +156,23 @@ def _roots():
     return [(local_dir(), "local"), (server_dir(), "server")]
 
 
-#: A store the PREVIOUS derivation of `local_dir` would have used. `joint_locanmf._basis_dir`
-#: falls back to this literal when `figures_working` is not set for the machine, so any box that
-#: fitted models while its profile was incomplete put them here.
-_LEGACY_LOCAL = Path("C:/wf_local/frozen_models")
-
 _ANNOUNCED: set[str] = set()
+
+
+def legacy_local_dir() -> Path:
+    """The store a PREVIOUS derivation of `local_dir` would have used.
+
+    DERIVED FROM `joint_locanmf.FALLBACK_BASIS_DIR`, NOT REPEATED AS A LITERAL. `local_dir` is that
+    directory's sibling, so any box that fitted models while its machine profile had no
+    `figures_working` put them there -- and deriving it means the pointer follows if that fallback
+    ever moves. (It also keeps the drive-letter literal in the one module
+    `tests/test_no_hardcoded_machine_paths.py` sanctions for it, which is not an accident: that
+    test exists because a literal is only correct on the machine it was written on, and this whole
+    incident was a derived path moving out from under a store.)
+    """
+    from wfield_local import joint_locanmf
+
+    return Path(joint_locanmf.FALLBACK_BASIS_DIR).parent / "frozen_models"
 
 
 def warn_if_store_moved(log=print) -> bool:
@@ -189,11 +200,12 @@ def warn_if_store_moved(log=print) -> bool:
     log(f"[frozen] !! the local model store {root} DOES NOT EXIST. Every lookup will miss and "
         f"every model will be refitted -- and a changed training set cannot be reported, because "
         f"`siblings` has nothing to compare against.")
-    if _LEGACY_LOCAL.exists() and _LEGACY_LOCAL != root:
-        n = len(list(_LEGACY_LOCAL.rglob("manifest.json")))
-        log(f"[frozen]    {n} model(s) are sitting in {_LEGACY_LOCAL}, the path this box used "
+    legacy = legacy_local_dir()
+    if legacy.exists() and legacy != root:
+        n = len(list(legacy.rglob("manifest.json")))
+        log(f"[frozen]    {n} model(s) are sitting in {legacy}, the path this box used "
             f"before its machine profile set `figures_working`. Publish them "
-            f"(`WIDEFIELD_FROZEN_MODEL_DIR={_LEGACY_LOCAL} python -m wfield_local.publish_basis "
+            f"(`WIDEFIELD_FROZEN_MODEL_DIR={legacy} python -m wfield_local.publish_basis "
             f"--what frozen`) or point at them with that variable. Do NOT delete them: they are "
             f"the reference whatever was scored before the move was scored against.")
     return True

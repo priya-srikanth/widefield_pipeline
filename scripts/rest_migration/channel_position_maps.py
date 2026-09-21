@@ -865,6 +865,38 @@ def run_session(s, out_dir, stats, figures=True):
     return out, ev
 
 
+def session_maps(item):
+    """Both arms for one session, fanned out. Module level, so `parallel.fan_out` can pickle it by
+    name (CLAUDE.md ground rule 6). Returns ``(paths, stats_rows, message)``.
+
+    **`WIN_START_S` IS RE-APPLIED HERE, AND THIS IS THE ONE THAT WOULD HAVE BEEN SILENT.** `--late`
+    sets a MODULE GLOBAL in `main` -- deliberately, because the window is consumed four call levels
+    down in `_win_avg_base` -- and `fan_out` uses the SPAWN start method, so every worker
+    re-imports this module with `WIN_START_S` back at its 0.0 default. Fanning the loop out without
+    this line would have produced EARLY-window numbers written to `*_late.csv`: no error, no
+    warning, a plausible table, and the wrong answer. That is precisely the trap ground rule 6
+    records, hit for real.
+
+    The stats rows are returned rather than appended to a shared list. Under spawn a worker's
+    append goes into its own copy of the process memory and is simply lost.
+    """
+    lab, out_dir, figures, win_start_s = item
+    global WIN_START_S
+    WIN_START_S = float(win_start_s)
+
+    from wfield_local import config
+
+    s = next((x for x in config.load_sessions() if x["label"] == lab), None)
+    if s is None:
+        return [], [], None
+    stats = []
+    try:
+        paths, _ev = run_session(s, Path(out_dir), stats, figures=figures)
+    except Exception as ex:                                          # noqa: BLE001
+        return [], [], f"  !! {lab}: {type(ex).__name__} {str(ex)[:90]}"
+    return [str(p) for p in paths], stats, None
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -879,6 +911,8 @@ def main(argv=None) -> int:
     ap.add_argument("--no-figures", action="store_true",
                     help="stats only; the per-session PNGs are the slow part and the epoch "
                          "comparison does not read them")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--late", action="store_true",
@@ -946,15 +980,29 @@ def main(argv=None) -> int:
         return 1
     print(f"[channel maps] {len(pick)} session(s) -> {out_dir}")
     wrote, stats = 0, []
-    for s in pick:
-        try:
-            paths, _ev = run_session(s, out_dir, stats, figures=not a.no_figures)
+    labels = [x["label"] for x in pick]
 
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {s['label']}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
+    # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `epoch_summary` builds its
+    # bootstrap pools by iterating `stats`, so collecting the fan-out in sorted order would move
+    # every CI while leaving the point estimates exact. `pick` is already label-sorted in the
+    # --epochs path, so for that path the two orders coincide; this keeps them coinciding for
+    # --sessions too, where the caller's order is the one that was asked for.
+    #
+    # `WIN_START_S` TRAVELS IN THE ITEM. See `session_maps` -- a module global set by `--late`
+    # does not survive spawn, and the failure is silent.
+    res, fail = ak.fan_sessions(
+        [(lab, str(out_dir), not a.no_figures, WIN_START_S) for lab in labels],
+        session_maps, jobs=a.jobs, key=ak.input_order(labels))
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0][0]} ({x[1][:60]})" for x in fail[:4]), flush=True)
+    for _item, (paths, rows, msg) in res:
+        if msg:
+            print(msg, flush=True)
             continue
+        stats += rows
         for p in paths:
-            print(f"      wrote {p.name}", flush=True)
+            print(f"      wrote {Path(p).name}", flush=True)
         wrote += len(paths)
     if not wrote and not a.no_figures:
         print("wrote nothing -- a failed run, not a result")

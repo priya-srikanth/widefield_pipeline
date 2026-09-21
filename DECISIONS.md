@@ -16111,7 +16111,15 @@ PICKLE METADATA.** Coefficients differ. For the worst case (`PS95/decoder_precue
 | max abs difference | 1.42e-02 = **0.54% of the largest coefficient** |
 | `n_iter_` | **589 here against 620 there** |
 
-**DOES IT CHANGE A RESULT? NO -- AND THE FIRST TEST I RAN WAS THE WRONG TEST.** I first reported
+**DOES IT CHANGE A RESULT? YES, SLIGHTLY -- AND BOTH PROXY TESTS SAID NO.** Running
+`pooled_frozen_loso` for PS95 (roi, cue) against each store -- same `spec_id` `5e19afa87323`,
+`frozen-hit` from both -- **7 of 25 per-session accuracies differ, by up to 0.002976** (mean
+0.00056) on a level of 0.9036. The `within_session` ceiling is identical in all 25, correctly: it
+is refitted each run and never comes from the store. Immaterial against a hit rate falling
+0.972 -> 0.457; NOT immaterial for a quoted three-decimal accuracy, and numbers computed on the
+desktop between 28 Aug and 18 Sept will not re-derive exactly now that it reads the server.
+
+**THE TWO PROXY TESTS AND WHY EACH WAS WRONG.** I first reported
 99.275% prediction agreement over 20,000 random Gaussian probes. **Do not cite that number.**
 Random probes land nowhere near where ROI activity lives, and two solutions separated by 0.5% of a
 coefficient disagree only close to a boundary; the question is whether the data ever goes there.
@@ -16124,12 +16132,12 @@ On real trials the two models agree exactly:
 | PS95 cue roi, real trials | 1,705 | **100.000%** | 0.00000 |
 | PS93 cue roi, real trials | 2,016 | **100.000%** | 0.00000 |
 
-Zero disagreements in 5,417 trials puts the real-data rate below ~0.2% at 95%. **That test is
-itself imperfect and says so:** accuracy came out near chance (~0.17 on six classes) because a raw
-per-session feature matrix is not the ALIGNED POOLED feature space `_aligned` builds, so it
-exercises a function the pipeline is not actually deployed with. The end-to-end check -- running
-`pooled_frozen_loso` for one animal against each store in turn and comparing the per-session
-accuracies it reports -- is the one that settles it.
+Zero disagreements in 5,417 trials -- **and the test was invalid.** Accuracy came out near chance
+(~0.17 on six classes) because a raw per-session feature matrix is not the ALIGNED POOLED feature
+space `_aligned` builds, so it exercised a function the pipeline never runs. At the real 0.90, the
+models do differ. **"The accuracy came out near chance" was the tell, and I reported the 100%
+agreement anyway, before the end-to-end check came back.** Flagging a caveat is not the same as
+letting it stop a conclusion.
 
 **THE TRANSFERABLE LESSON IS BIGGER THAN THE NUMBER: A MODEL COMPARISON IS ONLY AS GOOD AS THE
 INPUT DISTRIBUTION IT IS RUN ON.** A coefficient norm overstates the disagreement, a probe drawn
@@ -16154,3 +16162,94 @@ Two things follow:
    ORIGINAL the server copy was made from, and `find` prefers local precisely to avoid the SMB
    read -- deleting it would slow every lookup and leave the network copy as the only extant one.
    Publishing is a copy, not a move, for that reason.
+
+---
+
+## SECTION 2.2 AND 2.3: FANNING THE REST OF THE LOOPS, AND GETTING THE DECK REGISTRY OUT OF A
+## FUNCTION BODY (2026-09-21)
+
+`docs/STATUS_2026-09-21_ENGINEERING.md` sections 2.2 and 2.3, Priya: *"when appropriate, you can
+start on the sequence 2.2"*, then *"can you start 2.3 while waiting on 2.2"* -- which was the right
+call: 2.2 is `scripts/rest_migration/`, 2.3 is `wfield_local/locanmf_analysis_deck.py`, and the 2.2
+verification is hours of I/O-bound background runs.
+
+### 2.2 -- THE CONVERSION THAT WOULD HAVE BEEN WRONG, AND THE KEY THAT MADE THE REST PROVABLE
+
+**`channel_position_maps --late` SETS A MODULE GLOBAL, AND SPAWN DOES NOT CARRY IT.** `WIN_START_S`
+is assigned in `main` -- deliberately, because the window is consumed four call levels down inside
+`_win_avg_base` and threading it would touch every signature between. `fan_out` uses the spawn
+start method, so each worker re-imports the module with `WIN_START_S` back at its 0.0 default.
+Fanning that loop out naively produces **EARLY-window numbers written to `*_late.csv`**: no error,
+no warning, a plausible table, the wrong answer. This is the trap ground rule 6 has described in
+the abstract since 2026-09-20, hit for real. The worker now re-applies it from the item, and
+`tests/test_parallel_results_are_ordered.py` fails any module that sets a global in `main` and
+fans out without some other module-level function reassigning it.
+
+**`analysis_kit.input_order` IS WHAT MAKES A CONVERSION PROVABLE RATHER THAN PLAUSIBLE.** A serial
+`for s in curated_sessions()` accumulates in `load_sessions` order, which is NOT sorted. Collecting
+the fan-out alphabetically -- the obvious thing, and what `fan_sessions` does by default -- reorders
+every pool the loop builds, and a seeded RNG over a differently-ordered list gives different draws.
+The CIs would move while every point estimate stayed exact: the same signature as the three
+ordering bugs already in this file, and just as invisible in review. Sorting back to INPUT order
+makes before/after diffable, which is how all three were verified. **Adopting alphabetical order
+may well be better long-run -- it does not depend on the order of a YAML file -- but that is a
+separate decision needing a re-run and an entry here, not a side effect of parallelising.**
+
+Verified by running each module from a `git worktree` at HEAD and diffing:
+
+| module | measurement lines | written CSV | parallel wall-clock |
+|---|---|---|---|
+| `quit_point` | **identical** (172/172) | -- | 5 m 06 s |
+| `engagement_decomposition` | **identical** (179/179) | byte-identical | 4 m 50 s |
+| `nvc_evoked` | **identical** (132/132) | byte-identical | 8 m 49 s |
+| `channel_position_maps` | **NOT YET VERIFIED** -- converted and committed, data run pending | | |
+
+**NO SPEED-UP FIGURE IS QUOTED, DELIBERATELY.** The three serial baselines were run concurrently
+with each other and with other work, so their wall-clock is contended and any ratio computed from
+it would be a number with no meaning. The parallel times above were measured on a quiet box.
+
+Two differences in the diffs are worth naming because they look like failures and are not:
+
+- **`fan_out`'s own progress log** (`[11/100] session ... ok`) is in COMPLETION order and
+  genuinely varies run to run. It is the only thing that differs in the `quit_prodrome` output,
+  which is a pleasing way to see both the bug and its fix in one diff.
+- **A `RuntimeWarning` printed three times instead of once.** Python's warning registry is
+  per-process, so a warning deduplicated once in a serial run is deduplicated once PER WORKER.
+  Same warning, same cause, nothing to fix.
+
+### 2.3 -- THE EPOCH REGISTRY IS IMPORTABLE
+
+`_EPOCH` was a LOCAL inside `build_analysis_deck`, so nothing could import it and
+`scripts/deck_figure_coverage.py` had to regex-scrape the source -- which cannot see a pattern
+built by f-string, and `epoch_grant_figures` builds every one of its names that way
+(`name=f"epoch_{key}_frozen_refit_overall_{align}_{variant}"`).
+
+Lifted to module scope as **`EPOCH_FIGURES`** (109 entries), with the three shared legends and
+`_CI_LEGEND` that travel with it. `build_analysis_deck` goes from **3,892 to 2,116 lines**, which
+is most of what section 2.4 (splitting the module) needs.
+
+**THE LIFT WAS AST-VERIFIED, NOT EYEBALLED.** Before moving anything, an AST pass confirmed the
+block needs NOTHING from the enclosing scope -- the runtime locals it sits beside (`_grant`,
+`_epoch`, both per-run paths) stay in the function. After moving, each of the five assignments was
+`ast.unparse`d from HEAD and from the new module scope and compared as strings: all five identical,
+and none still defined inside the function. That is a stronger check than a passing test suite for
+a pure data move, and it took a second.
+
+**STILL OPEN:** `deck_figure_coverage.py` should now IMPORT `EPOCH_FIGURES` instead of scraping,
+and the coverage assertion the handoff asks for -- every figure `epoch_grant_figures` renders is
+registered -- needs the renderer side too. Its names are f-string templates, so that check will be
+pattern-against-pattern with an explicit allow-list for the 25 known-unregistered
+`_erodedgate`/`_mf075` sensitivity variants. Not attempted yet.
+
+### AND A PROCESS NOTE WORTH MORE THAN EITHER
+
+Two self-inflicted problems, both from not letting a check finish:
+
+1. **A test failure was committed** (`88397d8`). `_LEGACY_LOCAL = Path("C:/wf_local/frozen_models")`
+   trips `test_no_hardcoded_machine_paths`, which exists precisely because a drive-letter literal
+   is only correct on the machine it was written on. Committed without re-running the suite after
+   the last edit. Fixed by deriving it from a new `joint_locanmf.FALLBACK_BASIS_DIR` -- one
+   literal, in the one module that guard sanctions.
+2. **Three deck tests "failed" in a suite run that was reading the module while it was being
+   edited.** They passed in isolation and the panic was wasted. **Do not edit the tree while the
+   suite is running**; the 8-minute run is not a background task you can work around.
