@@ -451,7 +451,7 @@ printing a number the code no longer produced. Every render now PRINTS the famil
 read that line.
 
 **THE DECK IS BUILT FROM A LOCAL WORKING DIR THAT CAN LAG THE SHARE.** `build_analysis_deck` reads
-`figures_working` (`E:/cue_lick` on the analysis box), not `labcams/.../cue_analysis`, and its
+`figures_working` (`E:/cue_lick` on the analysis box), not `labcams/analysis_figures`, and its
 completeness guard refuses to publish a deck missing figures. On 2026-09-11 that guard blocked a
 rebuild over eleven 0910 figures that existed on the share and had never reached this box's E: —
 0910 had been analysed on the OTHER machine. "Missing" from the guard means missing FROM THAT
@@ -519,7 +519,13 @@ landed wrong) to a confident 0.071-vs-0.370 disagreement. The answer is in the c
 
 Six positions × three channels, one shared colour scale, Allen overlay, plus `r(415, raw)`,
 `r(415, corr)` and the amplitude ratios per position. `--epochs` runs the across-epoch
-neurovascular-coupling contrast. Output: `labcams/channel_comparison/`.
+neurovascular-coupling contrast.
+
+**OUTPUT IS SPLIT BY AUDIENCE (2026-09-21).** The two POOLED epoch figures go to
+`labcams/grant_figures/epoch/` and are registered in `deck_registry.EPOCH_FIGURES`; the sixteen
+PER-SESSION maps stay in `labcams/channel_comparison/` as channel-identity diagnostics. They were
+all in `channel_comparison` before, which is why the pooled pair had never been on a slide -- no
+deck reads that directory. `--out` alone still sends both to one place.
 
 Its ancestor `_compare_415_470_corr.py` was a repo-root one-off deleted 2026-08-08 as dead scratch,
 and the figures it left behind outlived the code that made them — which is why this one is a module
@@ -540,7 +546,9 @@ reaches the deck's results path — that was checked, not assumed.
   (`config.curated_dates()` = registered minus `cross_session_exclude`) — the static
   `date_policy.cross_session` list was deleted 2026-08-13 because it lagged five nights and silently
   shrank hand-run decks;
-  analysis PNGs land in `…\labcams\locanmf_lick_pooled\cue_analysis\`. The superseded
+  analysis PNGs land in `…\labcamsnalysis_figures\` (RENAMED 2026-09-21 from
+  `locanmf_lick_pooled\cue_analysis` -- the live mirror of every analysis figure had been sitting
+  inside a directory named after an abandoned June 2026 pooling experiment). The superseded
   `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py` builders were DELETED on 2026-08-13 (707 lines,
   reachable only via a `--ppt` flag the nightly never passed; recover from git history if ever needed).
   Their spec lives on in `docs/archive/LOCANMF_XSESSION_DECK_SPEC.md`, marked retired.

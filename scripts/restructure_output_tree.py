@@ -177,11 +177,21 @@ def main(argv=None) -> int:
         for f in sorted(d.glob("*.svg")):
             p.move(f, d / "svg" / f.name)
     if epoch.exists():
-        for ext in ("*.csv", "*.json"):
+        # `.npz` TOO. The `epoch_14` beta-map bundles are sidecars like any other, and leaving
+        # 52 of them at the top while the writer had already moved to `data/` would have split one
+        # family across two layouts -- the reader finds the new path first, so the old files would
+        # simply have stopped being read with nothing to say so.
+        for ext in ("*.csv", "*.json", "*.npz"):
             for f in sorted(epoch.glob(ext)):
                 p.move(f, epoch / "data" / f.name)
-        for f in sorted(grant.glob("*.csv")) + sorted(grant.glob("*.json")):
-            p.move(f, grant / "data" / f.name)
+        for ext in ("*.csv", "*.json", "*.npz"):
+            for f in sorted(grant.glob(ext)):
+                p.move(f, grant / "data" / f.name)
+    # Windows thumbnail caches. Not data; they reappear whenever the folder is browsed, which is
+    # why they are swept rather than fought.
+    for d in (grant, epoch, lab / "analysis_figures"):
+        for f in sorted(d.glob("Thumbs.db")) if d.exists() else []:
+            p.move(f, d / "retired" / "Thumbs.db")
 
     # 4/5/6. the mirror, and the June one-off it was hiding inside
     pooled = lab / "locanmf_lick_pooled"

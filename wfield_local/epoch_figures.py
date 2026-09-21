@@ -392,15 +392,14 @@ def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **over
 
     bundle = pathlib.Path(bundle)
     if bundle.suffix != ".npz":
-        bundle = sidecar(bundle, "_bundle.npz")
-    # THE BUNDLE MAY BE IN EITHER LAYOUT. `find_sidecar` prefers `data/` and falls back to the flat
-    # directory, so a tree written before 2026-09-21 -- or a colleague's unmigrated copy -- still
-    # reads. Its stem drops the `_bundle` the npz carries, which is why this is not a plain suffix
-    # swap.
-    _stem_png = bundle.parent.parent / (bundle.stem.replace("_bundle", "") + ".png")
-    _mj = find_sidecar(_stem_png, "_bundle.json") or bundle.with_name(
-        bundle.stem.replace("_bundle", "") + "_bundle.json")
-    meta = json.loads(_mj.read_text(encoding="utf-8"))
+        # `bundle` is the FIGURE path. EITHER LAYOUT: `find_sidecar` prefers `data/` and falls back
+        # to the flat directory, so a tree written before 2026-09-21 -- or a colleague's unmigrated
+        # copy -- still reads. `sidecar` is the last resort so the error names the new path.
+        bundle = find_sidecar(bundle, "_bundle.npz") or sidecar(bundle, "_bundle.npz")
+    # The JSON always sits BESIDE its npz, so once the npz is located the layout question is
+    # already answered and this must not ask it again.
+    meta = json.loads(bundle.with_name(bundle.stem.replace("_bundle", "") + "_bundle.json")
+                      .read_text(encoding="utf-8"))
     z = np.load(bundle)
     shape = tuple(meta["shape"])
     cells, contours = {}, {}
