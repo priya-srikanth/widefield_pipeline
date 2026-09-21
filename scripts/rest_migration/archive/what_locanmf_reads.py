@@ -3,7 +3,7 @@
 Not a reasoning exercise: resolves `config.svtcorr_path` and `config.locanmf_dir` for real sessions,
 checks the files exist, and prints the variant manifest that records how each product was built.
 
-    python -m scripts.rest_migration.what_locanmf_reads [--limit N]
+    python -m scripts.rest_migration.archive.what_locanmf_reads [--limit N]
 """
 from __future__ import annotations
 

@@ -28,7 +28,7 @@ WHAT THIS REPORTS, per session and per position: how many of the 12 bins actuall
 position's rest frames, the frames-per-occupied-bin, and the mean NORMALISED SESSION TIME of that
 position's rest frames (0.5 = evenly spread; far from 0.5 = clustered early or late).
 
-RUN:  python -m scripts.rest_migration.restw_bin_coverage [--limit 6] [--bins 12]
+RUN:  python -m scripts.rest_migration.archive.restw_bin_coverage [--limit 6] [--bins 12]
 """
 from __future__ import annotations
 

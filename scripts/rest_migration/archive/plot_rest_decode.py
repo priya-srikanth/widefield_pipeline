@@ -28,7 +28,7 @@ therefore reads how much position information THAT SESSION'S OWN rest carries, n
 pre-stroke code survives, so the chronic rise could be a DIFFERENT code. Only a frozen decoder
 separates those (Priya, 2026-09-15).
 
-    python -m scripts.rest_migration.plot_rest_decode --log <path> [--out <dir>]
+    python -m scripts.rest_migration.archive.plot_rest_decode --log <path> [--out <dir>]
 """
 from __future__ import annotations
 

@@ -18,7 +18,7 @@ tail is already excluded from every rest baseline. If the slow residual is confi
 correction is adequate everywhere the analyses actually look -- and that is a claim worth checking
 rather than assuming.
 
-    python -m scripts.rest_migration.residual_working_vs_stopped
+    python -m scripts.rest_migration.archive.residual_working_vs_stopped
 """
 from __future__ import annotations
 

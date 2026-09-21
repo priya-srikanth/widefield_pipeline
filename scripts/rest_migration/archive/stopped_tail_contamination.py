@@ -15,7 +15,7 @@ period and the drift removal needs a local estimator rather than a faster global
 NOTE THIS IS NOT ANSWERABLE BY RAISING THE POLYNOMIAL ORDER. Order 40 retains 0.22 at a 3000 s period
 against order 10's 0.18 (hemo_variants) -- a global basis does not become local when you add terms.
 
-    python -m scripts.rest_migration.stopped_tail_contamination --sessions PS94_0819 PS92_0821
+    python -m scripts.rest_migration.archive.stopped_tail_contamination --sessions PS94_0819 PS92_0821
 """
 from __future__ import annotations
 

@@ -27,7 +27,7 @@ the other five — an argument AGAINST the uniform weighting adopted 2026-09-16,
     1-19 trials        -> those trials are in the fit and balancing amplifies them ~200x. The
                           uniform change needs revisiting for this arm.
 
-RUN:  python -m scripts.rest_migration.lick_arm_raw_counts [--align lick] [--variant lick]
+RUN:  python -m scripts.rest_migration.archive.lick_arm_raw_counts [--align lick] [--variant lick]
 """
 from __future__ import annotations
 

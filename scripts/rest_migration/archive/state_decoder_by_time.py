@@ -36,7 +36,7 @@ REST DEFINITION: whatever `behavior_events` holds on disk, which is schema v3 (t
 since 2026-09-12. `by_animal_day` is `lru_cache`d IN-PROCESS ONLY, so a fresh run always re-reads
 the events npz -- there is no disk cache here that could serve the retired definition.
 
-RUN:  python -m scripts.rest_migration.state_decoder_by_time [--bins 5]
+RUN:  python -m scripts.rest_migration.archive.state_decoder_by_time [--bins 5]
 """
 from __future__ import annotations
 

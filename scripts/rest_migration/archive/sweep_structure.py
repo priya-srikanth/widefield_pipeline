@@ -24,7 +24,7 @@ starts on a sweep boundary, and a session joined mid-sweep would be misaligned t
 accumulate blocks until all six positions have been seen, close the sweep, restart. That is the
 natural parse of a permuted-sweep sequence and it self-synchronises after at most one partial sweep.
 
-RUN:  python -m scripts.rest_migration.sweep_structure [--limit 8]
+RUN:  python -m scripts.rest_migration.archive.sweep_structure [--limit 8]
 """
 from __future__ import annotations
 

@@ -29,7 +29,7 @@ READ IT AS: if both comparisons are unchanged beyond rounding, `restw` is not ea
 plain `rest` is the better definition -- fewer moving parts, marginally steadier at the thin end, and
 a bias that is fixed and therefore statable.
 
-RUN:  python -m scripts.rest_migration.rest_vs_restw [--align cue] [--limit 0]
+RUN:  python -m scripts.rest_migration.archive.rest_vs_restw [--align cue] [--limit 0]
 """
 from __future__ import annotations
 

@@ -17,7 +17,7 @@ ALSO CHECKS THE ONE THING A NUMBER CANNOT: that the positions still differ from 
 time-local baseline were subtracting a per-trial mean it would flatten the between-position
 structure, and the between/within ratio is what would show it.
 
-RUN:  python -m scripts.rest_migration.timelocal_smoke [--n 3]
+RUN:  python -m scripts.rest_migration.archive.timelocal_smoke [--n 3]
 """
 from __future__ import annotations
 

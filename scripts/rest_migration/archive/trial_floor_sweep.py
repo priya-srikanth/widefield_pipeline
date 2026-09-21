@@ -36,7 +36,7 @@ any coefficient -- it only changes which maps are drawn from coefficients that w
 Measured consequence of that weighting: <= 0.035 on any amplitude ratio
 (`scripts/rest_migration/meanref_balance.py`).
 
-RUN:  python -m scripts.rest_migration.trial_floor_sweep [--floors 10 20] [--reliability]
+RUN:  python -m scripts.rest_migration.archive.trial_floor_sweep [--floors 10 20] [--reliability]
       `--reliability` re-measures the sub-sample curve INCLUDING n=10 (slow, a few sessions).
 """
 from __future__ import annotations

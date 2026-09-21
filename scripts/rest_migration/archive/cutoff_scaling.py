@@ -16,7 +16,7 @@ of known period and amplitude, detrend with and without it, and recover the surv
 operator slightly non-linear and projecting the detrended sum directly would confound the drift with
 the probe. Retention is the ratio of quadrature projections at that period.
 
-    python -m scripts.rest_migration.cutoff_scaling --session PS92_0813
+    python -m scripts.rest_migration.archive.cutoff_scaling --session PS92_0813
 """
 from __future__ import annotations
 
@@ -75,8 +75,8 @@ def main():
     ap.add_argument("--fracs", type=float, nargs="+", default=[1.0, 0.66, 0.5])
     a = ap.parse_args()
 
+    from scripts.rest_migration.archive.worktrunc_result_impact import _mask_for
     from scripts.rest_migration.plot_session_residual import _brain_mean_op
-    from scripts.rest_migration.worktrunc_result_impact import _mask_for
 
     s = next(x for x in config.load_sessions() if x["label"] == a.session)
     res = Path(s["mc"]) / "wfield_local_results"

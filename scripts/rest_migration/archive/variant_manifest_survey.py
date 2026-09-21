@@ -5,7 +5,7 @@ allowed to see. The `strobedetrend` mask removes whole trials, so what survives 
 ITI. A low and UNIFORM fraction is fine (11 free parameters against thousands of well-spread
 samples); a low and CLUSTERED one would let the polynomial extrapolate through masked stretches.
 
-    python -m scripts.rest_migration.variant_manifest_survey
+    python -m scripts.rest_migration.archive.variant_manifest_survey
 """
 from __future__ import annotations
 

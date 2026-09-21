@@ -15,7 +15,7 @@ TERMS, in the order `rest_mask` applies them:
 Reported as the fraction of samples surviving each cumulative step, and then per position, so a
 starved position can be attributed to a term rather than to a hunch.
 
-    python -m scripts.rest_migration.why_no_rest --sessions PS92_0826 [PS92_0824 ...]
+    python -m scripts.rest_migration.archive.why_no_rest --sessions PS92_0826 [PS92_0824 ...]
 """
 from __future__ import annotations
 
@@ -111,6 +111,7 @@ def run(label):
     print(f"\n  FINAL mask on disk for comparison:", flush=True)
     try:
         import glob
+
         from wfield_local.quiet_periods import quiet_dir
         p = sorted(glob.glob(f"{quiet_dir(s['mc'])}/*quiet_sample.npy"))
         if p:

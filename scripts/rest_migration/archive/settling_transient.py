@@ -29,7 +29,7 @@ INDEXED FROM START OF RECORDING, not from the first trial (Priya, 2026-09-14): t
 so it is anchored to acquisition start. Behaviour begins inside it -- median first cue 12.8 s, and
 87/100 sessions have their first cue inside 30 s -- so any discard costs trials (0.33% at 30 s).
 
-    python -m scripts.rest_migration.settling_transient [--bin-s 2] [--k 4]
+    python -m scripts.rest_migration.archive.settling_transient [--bin-s 2] [--k 4]
 """
 from __future__ import annotations
 

@@ -19,7 +19,7 @@ rather than detrending the already-projected trace. meegkit reweights per channe
 the same operation and the cheap one would flatter the polynomial. `T` is the stock high-pass-fitted
 transform, which for these hybrid variants IS the refit-T answer (equivalent to 1.5e-6).
 
-    python -m scripts.rest_migration.plot_drift_estimators --sessions PS94_0819 PS94_0810 --out DIR
+    python -m scripts.rest_migration.archive.plot_drift_estimators --sessions PS94_0819 PS94_0810 --out DIR
 """
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ ARMS = (("meegkit order 10 (production)", "meegkit_hpfit", None, "black"),
 
 def _detrend(X, mask, variant, win):
     if variant in ("__rolling__", "__linear__"):
-        from scripts.rest_migration.rolling_detrend import local_linear_detrend, rolling_detrend
+        from scripts.rest_migration.archive.rolling_detrend import local_linear_detrend, rolling_detrend
         f = rolling_detrend if variant == "__rolling__" else local_linear_detrend
         return f(X, mask, win)
     kw = {"win_s": win} if win is not None else {}
@@ -54,8 +54,8 @@ def _detrend(X, mask, variant, win):
 
 
 def plot(label, outdir):
+    from scripts.rest_migration.archive.worktrunc_result_impact import _mask_for
     from scripts.rest_migration.plot_session_residual import _behaviour_marks, _brain_mean_op
-    from scripts.rest_migration.worktrunc_result_impact import _mask_for
     from wfield_local.filter_acausality_test import LP, _lp
 
     s = next(x for x in config.load_sessions() if x["label"] == label)

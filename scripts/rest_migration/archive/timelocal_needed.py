@@ -32,7 +32,7 @@ correlated; noise is white, so shuffled bins should not be. Lag-1 autocorrelatio
 medians separates those even where the magnitudes are similar, and it cannot be faked by sample
 size. Both are reported because either alone can mislead.
 
-RUN:  python -m scripts.rest_migration.timelocal_needed [--limit 8] [--bins 12]
+RUN:  python -m scripts.rest_migration.archive.timelocal_needed [--limit 8] [--bins 12]
 """
 from __future__ import annotations
 

@@ -19,7 +19,7 @@ the data does not have.
 Reported per session: split-half correlation and relative RMS difference for both baselines, plus the
 thinnest contributing position, so reliability can be read against how thin the session actually is.
 
-    python -m scripts.rest_migration.restw_reliability [--limit N]
+    python -m scripts.rest_migration.archive.restw_reliability [--limit N]
 """
 from __future__ import annotations
 
@@ -29,7 +29,11 @@ import numpy as np
 
 from wfield_local import config, epochs
 from wfield_local.rest_by_position import (
-    MIN_FRAMES_PER_POSITION, MIN_POSITIONS_FOR_WEIGHTED, _session_daq, frame_samples)
+    MIN_FRAMES_PER_POSITION,
+    MIN_POSITIONS_FOR_WEIGHTED,
+    _session_daq,
+    frame_samples,
+)
 
 
 def _periods_by_position(session, n_frames):

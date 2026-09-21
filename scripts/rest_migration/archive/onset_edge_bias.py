@@ -16,7 +16,7 @@ minutes, which throws away trials.
 MEASURED HERE: the detrended residual's level in early bins, relative to the session's own median. A
 good estimator leaves the early bins near zero; one that under-fits the onset leaves them high.
 
-    python -m scripts.rest_migration.onset_edge_bias --sessions PS94_0819 PS94_0810
+    python -m scripts.rest_migration.archive.onset_edge_bias --sessions PS94_0819 PS94_0810
 """
 from __future__ import annotations
 
@@ -34,10 +34,9 @@ BINS_MIN = ((0.0, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 5.0), (5.0, 10.0), (10.0, 
 
 
 def run(label):
+    from scripts.rest_migration.archive.rolling_detrend import robust_local_linear_trend, rolling_masked_trend
+    from scripts.rest_migration.archive.worktrunc_result_impact import _mask_for
     from scripts.rest_migration.plot_session_residual import _brain_mean_op
-    from scripts.rest_migration.rolling_detrend import (
-        robust_local_linear_trend, rolling_masked_trend)
-    from scripts.rest_migration.worktrunc_result_impact import _mask_for
 
     s = next(x for x in config.load_sessions() if x["label"] == label)
     res = Path(s["mc"]) / "wfield_local_results"

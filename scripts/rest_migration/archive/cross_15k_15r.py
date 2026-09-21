@@ -34,7 +34,7 @@ close to uninformative. The lick arm is 11-31% global and gives the LARGER effec
 ATLAS KEYING IS BY SIGNED ID, NOT INDEX (`beta_maps._atlas_names`) -- getting that wrong once
 silently mapped "FRP" onto primary motor cortex.
 
-    python -m scripts.rest_migration.cross_15k_15r [--perm 10000] [--out DIR]
+    python -m scripts.rest_migration.archive.cross_15k_15r [--perm 10000] [--out DIR]
 """
 from __future__ import annotations
 

@@ -17,7 +17,7 @@ THE THREE THINGS CHECKED, in order of what would be worst to get wrong:
 3. THE MAPS COME OUT, per position, with trial counts matching the REST column's -- the two
    references must be built on the SAME trials, or a difference between them is the trial set.
 
-RUN:  python -m scripts.rest_migration.restw_smoke [--limit 3] [--align cue]
+RUN:  python -m scripts.rest_migration.archive.restw_smoke [--limit 3] [--align cue]
 """
 from __future__ import annotations
 

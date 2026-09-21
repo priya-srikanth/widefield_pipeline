@@ -21,7 +21,7 @@ the basis as well as the data and confound the comparison.
 Reported per session: position decode accuracy (cue- and lick-aligned) and the per-position map
 amplitude above the `restw` baseline.
 
-    python -m scripts.rest_migration.worktrunc_result_impact --sessions PS94_0819 PS93_0819
+    python -m scripts.rest_migration.archive.worktrunc_result_impact --sessions PS94_0819 PS93_0819
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 
 from wfield_local import config
-from wfield_local.hemo_variants import FS, functional_channel, VARIANTS, remove_drift
+from wfield_local.hemo_variants import FS, VARIANTS, functional_channel, remove_drift
 
 VARIANT = "meegkit_hpfit"
 
@@ -91,7 +91,7 @@ def _detrend(x, mask, k, order=None, variant=None, win_s=None):
     """
     v = variant or VARIANT
     if v in ("__rolling__", "__linear__"):
-        from scripts.rest_migration.rolling_detrend import local_linear_detrend, rolling_detrend
+        from scripts.rest_migration.archive.rolling_detrend import local_linear_detrend, rolling_detrend
         f = rolling_detrend if v == "__rolling__" else local_linear_detrend
         if k is None:
             return f(x, mask, win_s)

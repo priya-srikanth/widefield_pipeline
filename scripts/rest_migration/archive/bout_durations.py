@@ -28,12 +28,17 @@ import time
 import h5py
 import numpy as np
 
-from wfield_local import config, epoch_figures as ef
+from wfield_local import config
+from wfield_local import epoch_figures as ef
 from wfield_local.daq_io import rising_edges
 from wfield_local.grant_figures import _day
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, _load_cue_events
 from wfield_local.quiet_periods import (
-    calibrate_treadmill, detect_licks, idx2bool, set_short_bool_to_low, smooth_treadmill,
+    calibrate_treadmill,
+    detect_licks,
+    idx2bool,
+    set_short_bool_to_low,
+    smooth_treadmill,
     widen_bool_sparse,
 )
 

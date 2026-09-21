@@ -14,7 +14,7 @@ shared gate the rest definition uses) and the fluorescence change is measured AC
 Reads row 0 of `SVT.npy` via mmap -- the dominant global component, enough to RANK. The plotting
 script computes the proper brain-masked spatial mean for whichever session is picked.
 
-    python -m scripts.rest_migration.find_stopped_sessions
+    python -m scripts.rest_migration.archive.find_stopped_sessions
 """
 from __future__ import annotations
 

@@ -31,7 +31,7 @@ WHY THE ANSWER MATTERS NOW RATHER THAN LATER. Changing this buffer changes the r
 a subtrahend for the maps AND a CLASS for the state decoder -- the same blast radius as the docked
 redefinition. Deciding it before the redo costs one re-render instead of two.
 
-RUN:  python -m scripts.rest_migration.treadmill_buffer_sweep [--limit 6] [--docked]
+RUN:  python -m scripts.rest_migration.archive.treadmill_buffer_sweep [--limit 6] [--docked]
 """
 from __future__ import annotations
 
@@ -137,7 +137,6 @@ def main() -> int:
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS, _load_cue_events
     from wfield_local.plot_spout_trial_averages import _classify_cues
     from wfield_local.position_reference_maps import REST_BASELINE_BINS, _timelocal_from_mask
-
     from wfield_local.rest_by_position import frame_samples
     from wfield_local.treadmill import calibrate_treadmill, smooth_treadmill
 

@@ -6,10 +6,11 @@ import sys
 import h5py
 import numpy as np
 
-from wfield_local import config, daq_io, epoch_figures as ef
+from wfield_local import config, daq_io
+from wfield_local import epoch_figures as ef
 from wfield_local.grant_figures import _day
-from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.lick_detection import detect_licks
+from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locomotor_state import MAX_SEGMENTS_PER_PERIOD, SEGMENT_S, segments
 from wfield_local.quiet_periods import calibrate_treadmill, rest_mask, smooth_treadmill
 from wfield_local.treadmill import bout_edges

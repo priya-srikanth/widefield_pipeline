@@ -25,7 +25,7 @@ A NEGATIVE RESULT HERE IS THE USEFUL ONE, and it must be distinguishable from a 
 nothing -- so the session count is printed before the verdict and "nothing was tested" is its own
 outcome.
 
-RUN:  python -m scripts.rest_migration.block_order
+RUN:  python -m scripts.rest_migration.archive.block_order
 """
 from __future__ import annotations
 

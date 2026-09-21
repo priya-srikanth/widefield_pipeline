@@ -23,7 +23,8 @@ import time
 
 import numpy as np
 
-from wfield_local import config, daq_io, epoch_figures as ef
+from wfield_local import config, daq_io
+from wfield_local import epoch_figures as ef
 from wfield_local.grant_figures import _day
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
