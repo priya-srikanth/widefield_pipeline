@@ -102,8 +102,11 @@ def test_the_dedup_key_is_not_a_prefix():
     """Source-level, because the failure is silent and only shows up as a wrong slide number."""
     import inspect
 
-    from wfield_local import locanmf_analysis_deck as deck
+    # THE DEDUP MOVED WITH `_write_note` into `deck_layout.SlideCanvas` on 2026-09-21. Pointed at
+    # `build_analysis_deck` this assertion would have kept passing its first half and silently
+    # stopped checking the second -- the prefix key could come back and nothing would say so.
+    from wfield_local import deck_layout
 
-    src = inspect.getsource(deck.build_analysis_deck)
+    src = inspect.getsource(deck_layout.SlideCanvas._write_note)
     assert 'key = (text or "")[:80]' not in src, "the dedup key is a prefix again"
     assert "hashlib.sha1" in src

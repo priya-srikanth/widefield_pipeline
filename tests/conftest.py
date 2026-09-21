@@ -47,7 +47,7 @@ _WRITE_MODES = set("wxa+")
 #: just stops saying anything.
 #:
 #: So the list lives HERE, once. A future split adds a line to it and every guard follows.
-DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry")
+DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry", "deck_layout")
 
 
 def deck_source() -> str:

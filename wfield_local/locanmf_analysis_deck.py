@@ -41,6 +41,8 @@ WHERE THE DECK'S CODE LIVES (split 2026-09-21; it was 5,484 lines in this file a
                             methodology blurbs. Pure data, ~1,155 lines.
     deck_registry           the FIGURE REGISTRIES: EPOCH_FIGURES, GRANT_FIGURES, ALIGNS, BASES,
                             NOLICK_BASES and the shared legends. Pure data, ~2,120 lines.
+    deck_layout             the DRAWING SURFACE: `SlideCanvas`, which owns the presentation and
+                            the placed/missing bookkeeping the completeness gate reads.
 
 Both are re-exported here, so `from wfield_local.locanmf_analysis_deck import EPOCH_FIGURES` and
 every existing caller still work. THE SPLIT WAS VERIFIED, not assumed: 87 module constants hashed
@@ -53,45 +55,40 @@ otherwise have gone on passing over the fragment left behind -- see `tests/conft
 from __future__ import annotations
 
 import argparse
-import hashlib
 import re
 import shutil
 import time
 from datetime import date
 from pathlib import Path
 
-from PIL import Image
-from pptx import Presentation
-from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
-from wfield_local import config
-from wfield_local import deck_values
+from wfield_local import config, deck_layout, deck_values
 from wfield_local import epochs as _epochs
-from wfield_local.paths import PathResolver
-# The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
-# `import *` so that what the builder uses is greppable and ruff can see an unused one.
+
 # The figure REGISTRIES live in `deck_registry` (see its docstring): what the deck knows
-# about, as data. This module decides what of it EXISTS on disk and where it goes.
-from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage script
-                                           #  and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, EPOCH_FIGURES, GRANT_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND,
-    _ROT_LEGEND,
+# about, as data. This module decides which of it EXISTS on disk, and where it goes.
+from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
+                                            #  script and tests import EPOCH_FIGURES from here)
+    ALIGNS, BASES, EPOCH_FIGURES, GRANT_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
-from wfield_local.deck_text import (          # noqa: F401  (re-exported: the audit scripts
-                                              #  and tests read these off this module)
+# The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
+# `import *` so what the builder uses stays greppable and ruff can still see an unused one.
+from wfield_local.deck_text import (   # noqa: F401  (re-exported: the audit
+                                        #  scripts and tests read these off this module)
     M_CODING_DIR, M_COMMON, M_DECODE, M_ENCODE, M_EVOKED, M_FIXEDSCALE, M_FROZEN, M_FROZEN_ENC, M_GATE, M_HEMI,
     M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
     M_SPATIAL, M_VESSEL, S_DEC_CUE, S_DEC_LICK, S_DEC_PRECUE, S_DEC_ROLL, S_DRIFT, S_ENC_FEVE, S_ENC_MATRIX,
-    S_ENC_POS, S_FROZEN_ALL, S_FROZEN_ENC, S_FROZEN_SESS, S_G0, S_G1, S_G1B, S_G2, S_G2B, S_G2C, S_G3, S_G4, S_G4B,
-    S_G5, S_G6, S_G7, S_G7B, S_G7C, S_G7D, S_G8, S_G8B, S_G8C, S_G8D, S_G8E, S_G8F, S_G9, S_G9B, S_G9C, S_G9E,
-    S_GEXCL, S_JOINT, S_LICKFREE, S_NOLICK_A, S_NOLICK_B, S_NOLICK_C, S_RSA_A, S_RSA_B, S_RSA_C, S_XCONSIST,
-    S_XMOUSE, TRIALS_BEHAVIOUR, TRIALS_LICK, TRIALS_NOLICK, TRIALS_WORKING, _M_LICK_UNIT, _NL2,
+    S_ENC_POS, S_FROZEN_ALL, S_FROZEN_ENC, S_FROZEN_SESS, S_G0, S_G1, S_G1B, S_G2, S_G2B, S_G2C, S_G3, S_G4,
+    S_G4B, S_G5, S_G6, S_G7, S_G7B, S_G7C, S_G7D, S_G8, S_G8B, S_G8C, S_G8D, S_G8E, S_G8F, S_G9, S_G9B, S_G9C,
+    S_G9E, S_GEXCL, S_JOINT, S_LICKFREE, S_NOLICK_A, S_NOLICK_B, S_NOLICK_C, S_RSA_A, S_RSA_B, S_RSA_C,
+    S_XCONSIST, S_XMOUSE, TRIALS_BEHAVIOUR, TRIALS_LICK, TRIALS_NOLICK, TRIALS_WORKING, _M_LICK_UNIT, _NL2,
 )
+from wfield_local.paths import PathResolver
 
-NAVY = RGBColor(0x1F, 0x33, 0x55)
-GREY = RGBColor(0x55, 0x55, 0x55)
-SLATE = RGBColor(0x44, 0x55, 0x77)
+#: Re-exported from `deck_layout`, which owns them now: several tests and the
+#: provenance footer below still reach for them on this module.
+NAVY, GREY, SLATE = deck_layout.NAVY, deck_layout.GREY, deck_layout.SLATE
 
 
 
@@ -455,188 +452,32 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     tag = tag or f"{dates[0]}-{dates[-1]}"
     date_labels = [(d, _mmdd_label(d)) for d in dates]
 
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    BLANK = prs.slide_layouts[6]
-    SW, SH = prs.slide_width, prs.slide_height
-    placed = {"present": 0, "missing": 0}
-    missing_figures = []
-    placed_figures = []
+    # THE DRAWING SURFACE lives in `deck_layout` (see its docstring): the presentation, the
+    # placed/missing counters, the figure manifest rows and the methods-dedup table, which were
+    # eleven closures sharing eleven locals here until 2026-09-21.
+    #
+    # SIDECAR RESOLVER for the canvas's `note`. Searched in order: the grant summary sets, the
+    # epoch set, then the working figure dir, which is the same precedence the placement patterns
+    # below use -- which is why the ROOTS are chosen here and not in the canvas. A family whose CSV
+    # is absent yields a visible marker in the note and a line in the build log -- never a stale
+    # number and never a failed build.
+    canvas = deck_layout.SlideCanvas(deck_values.Resolver([grant_dir, grant_dir / "epoch", src]))
 
-    # SIDECAR RESOLVER for `note`. Searched in order: the grant summary sets, the epoch set, then
-    # the working figure dir, which is the same precedence the placement patterns use. A family
-    # whose CSV is absent yields a visible marker in the note and a line in the build log -- never
-    # a stale number and never a failed build.
-    values = deck_values.Resolver([grant_dir, grant_dir / "epoch", src])
-
-    slide_order = []
-    figs_by_slide = {}
-
-    def slide():
-        sl = prs.slides.add_slide(BLANK)
-        slide_order.append(sl)
-        return sl
-
-    def _record(sl, p):
-        figs_by_slide.setdefault(id(sl._element), []).append(Path(p).name)
-
-    def title(s, text, sub=None, trials=None):
-        """Slide title, an optional subtitle, and an optional TRIAL POPULATION line.
-
-        The population is its own line rather than a clause in the subtitle because it is the one
-        fact a reader needs before comparing two slides, and subtitles here are already long enough
-        that it would be buried in the middle of one.
-        """
-        tf = s.shapes.add_textbox(Inches(0.4), Inches(0.16), Inches(12.6), Inches(1.15)).text_frame
-        tf.word_wrap = True
-        r = tf.paragraphs[0].add_run()
-        r.text = text
-        r.font.size = Pt(24)
-        r.font.bold = True
-        r.font.color.rgb = NAVY
-        if sub:
-            r2 = tf.add_paragraph().add_run()
-            r2.text = sub
-            r2.font.size = Pt(12.5)
-            r2.font.color.rgb = GREY
-        if trials:
-            r3 = tf.add_paragraph().add_run()
-            r3.text = trials
-            r3.font.size = Pt(10)
-            r3.font.italic = True
-            r3.font.color.rgb = SLATE
-
-    seen_methods = {}
-
-    pending_notes = []
-
-    def note(s, text, specific=None):
-        """Queue this slide's speaker notes. Written for real by `_flush_notes` before the save.
-
-        DEFERRED, AND IT HAS TO BE. A note may quote its own figure's sidecar via a ``SELF`` token
-        (see `deck_values`), and many slides call `note` BEFORE placing the figure -- on the first
-        real build that left `[[? SELF has no figure on this slide]]` on the two converted notes,
-        because `figs_by_slide` was still empty for that slide. Reordering every call site would fix
-        it only until the next one was written in the old order.
-
-        RESOLUTION CANNOT SIMPLY MOVE AFTER THE DEDUP EITHER. The methods block is deduped by
-        hashing its text, and two arms whose prose is identical differ only in their resolved
-        numbers; hashing the RAW text would collapse them and replace the second with "same as slide
-        N", pointing the reader at another arm's numbers. So resolve first, then hash -- which means
-        both must wait until every figure is recorded.
-        """
-        pending_notes.append((s, len(prs.slides), text, specific))
-
-    def _flush_notes():
-        """Resolve every queued note against its slide's figure, dedupe, and write."""
-        for s, idx, text, specific in pending_notes:
-            _write_note(s, idx, text, specific)
-
-    def _write_note(s, idx, text, specific):
-        # `SELF` in a token means THIS SLIDE'S figure. Most notes are placed by a glob and serve
-        # every trial-class arm, so a hard-coded stem would print one arm's numbers onto all of them.
-        _self = deck_values.stem_of((figs_by_slide.get(id(s._element)) or [None])[0])
-        text = values.resolve(text, self_stem=_self)
-        specific = values.resolve(specific, self_stem=_self)
-        parts = []
-        if specific:
-            parts.append("THIS SLIDE" + chr(10) + specific.strip())
-        # HASH THE WHOLE TEXT, not a prefix. This keyed on text[:80] until 2026-08-23, when
-        # _M_LICK_UNIT was PREPENDED to M_FIXEDSCALE, M_GATE and M_POSTSTROKE -- three unrelated
-        # methods blocks that then shared their first 80 characters. The dedup would have called the
-        # second and third "same as slide N" and pointed each at the FIRST one's methods: a wrong
-        # cross-reference reads exactly like a right one, which is worse than the repetition this
-        # replaced.
-        key = hashlib.sha1((text or "").encode("utf-8")).hexdigest()
-        if not text:
-            pass
-        elif key in seen_methods:
-            parts.append(f"METHODS -- same as slide {seen_methods[key]}; "
-                         f"not repeated here.")
-        else:
-            seen_methods[key] = idx
-            parts.append("METHODS" + chr(10) + text.strip())
-        s.notes_slide.notes_text_frame.text = (chr(10) + chr(10)).join(parts)
-
-    def _exists(p):
-        ok = Path(p).exists()
-        placed["present" if ok else "missing"] += 1
-        if not ok:
-            missing_figures.append(Path(p).name)   # NAME the gap: a count alone cannot be acted on
-        else:
-            placed_figures.append((Path(p).name, Path(p).stat().st_mtime))
-        return ok
-
-    def big(s, p, top=1.4, width=12.7, bottom=0.15):
-        _record(s, p)
-        """Place one figure, scaled to fit the slide in BOTH dimensions.
-
-        Scaling by width alone overflows the bottom of the slide whenever a figure is taller than
-        (13.333 - margins) : (7.5 - top), which is most multi-row figures -- the picture simply ran
-        off the deck and the axis labels at the foot of it were never visible. Height is now capped
-        at the space actually available and the width follows from the image's own aspect ratio, so
-        a figure is never cropped and its fonts shrink proportionally rather than disappearing.
-        """
-        if not _exists(p):
-            return
-        from PIL import Image
-
-        with Image.open(str(p)) as im:
-            iw, ih = im.size
-        avail_h = float(SH.inches) - top - bottom
-        w_in = min(float(width), avail_h * (iw / ih))
-        w = Inches(w_in)
-        s.shapes.add_picture(str(p), (SW - w) / 2, Inches(top), width=w)
-
-    def grid(s, paths, cols=2, top=1.25, side=0.25, gap=0.18, bottom=0.25):
-        paths = [Path(p) for p in paths]
-        for _p in paths:
-            _record(s, _p)
-        present = [p for p in paths if _exists(p)]
-        if not present:
-            return
-        rows = (len(present) + cols - 1) // cols
-        cell_w = (SW - Inches(side) * 2 - Inches(gap) * (cols - 1)) / cols
-        cell_h = (SH - Inches(top) - Inches(bottom) - Inches(gap) * (rows - 1)) / rows
-        for i, p in enumerate(present):
-            r, c = divmod(i, cols)
-            iw, ih = Image.open(str(p)).size
-            scale = min(cell_w / iw, cell_h / ih)
-            w, h = int(iw * scale), int(ih * scale)
-            left = Inches(side) + c * (cell_w + Inches(gap)) + (cell_w - w) / 2
-            t = Inches(top) + r * (cell_h + Inches(gap)) + (cell_h - h) / 2
-            s.shapes.add_picture(str(p), left, t, width=w, height=h)
-
-    def bullets(s, items, top=1.5, size=13.5, width=12.4):
-        """A text-only slide body. Sections A-F are all figures, but the post-stroke section has to
-        state what is comparable to what BEFORE showing a number -- that argument has no figure, and
-        burying it in the speaker notes is how the first version of this analysis shipped a headline
-        that was mostly trial composition."""
-        tf = s.shapes.add_textbox(Inches(0.45), Inches(top), Inches(width),
-                                  SH - Inches(top) - Inches(0.3)).text_frame
-        tf.word_wrap = True
-        for i, it in enumerate(items):
-            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-            r = para.add_run()
-            r.text = "\u2022  " + it
-            r.font.size = Pt(size)
-            para.space_after = Pt(9)
-
-    def divider(text, sub=None):
-        s = slide()
-        tf = s.shapes.add_textbox(Inches(0.8), Inches(2.9), Inches(11.7), Inches(1.9)).text_frame
-        tf.word_wrap = True
-        r = tf.paragraphs[0].add_run()
-        r.text = text
-        r.font.size = Pt(34)
-        r.font.bold = True
-        r.font.color.rgb = NAVY
-        if sub:
-            r2 = tf.add_paragraph().add_run()
-            r2.text = sub
-            r2.font.size = Pt(15)
-            r2.font.color.rgb = GREY
+    # BOUND AS LOCAL NAMES so the ~250 section call sites below read as the narrative they are --
+    # `title(s, ...)`, `big(s, fig)` -- rather than repeating the same receiver on every line. It
+    # also meant the 2026-09-21 split moved the definitions without editing the body, so the
+    # 531-slide fingerprint that proved the deck byte-for-byte unchanged tested the MOVE.
+    prs = canvas.prs
+    slide, title, note, big, grid, bullets, divider = (
+        canvas.slide, canvas.title, canvas.note, canvas.big, canvas.grid, canvas.bullets,
+        canvas.divider)
+    _exists = canvas.exists
+    placed = canvas.placed
+    missing_figures = canvas.missing_figures
+    placed_figures = canvas.placed_figures
+    slide_order = canvas.slide_order
+    figs_by_slide = canvas.figs_by_slide
+    values = canvas.values
 
     # A SESSION THAT DOES NOT EXIST IS NOT A MISSING FIGURE.
     # The per-session slides iterate animals x dates, which assumes every animal ran every night.
@@ -2231,7 +2072,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # its own slide however early that slide's `note` was called. It must also come BEFORE
     # the caption pass below, which PREPENDS to the note text -- flushing after it silently
     # overwrote every per-figure caption.
-    _flush_notes()
+    canvas.flush_notes()
     for _sl in slide_order:
         _figs = figs_by_slide.get(id(_sl._element), [])
         _cap = figure_caption(_figs, years=_years)

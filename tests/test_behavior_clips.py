@@ -90,7 +90,9 @@ def test_the_analysis_deck_states_its_trial_population():
     assert "ENGAGEMENT GATE" in src, "the working label must name the gate"
     # the ambiguous families are the ones that must carry it
     assert src.count("trials=TRIALS_LICK") >= 12
-    assert "def title(s, text, sub=None, trials=None):" in src
+    # `title` became a `SlideCanvas` method on 2026-09-21, hence the `self`. The assertion is
+    # about the TRIALS PARAMETER existing at all -- that every slide can state its population.
+    assert "def title(self, s, text, sub=None, trials=None):" in src
 
 
 def test_the_clip_deck_keeps_every_position_in_its_own_slot():
