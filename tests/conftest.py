@@ -53,13 +53,40 @@ DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry", "deck_lay
 #: only one of them: `_delta_diag_ci` and `_pooled_bundle` live in `grant_kit` now, and a
 #: source-level assertion pointed at `grant_figures` alone either raises ValueError on a missing
 #: index or -- worse -- quietly finds nothing to object to.
-GRANT_MODULES = ("grant_figures", "grant_kit")
+GRANT_MODULES = ("grant_figures", "grant_kit", "grant_behaviour", "grant_confusion",
+                 "grant_similarity", "grant_geometry", "grant_matching", "grant_encoder")
 
 
 def grant_source() -> str:
     """The concatenated source of every module the grant renderer is built from."""
     root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
     return "\n".join((root / f"{m}.py").read_text(encoding="utf-8") for m in GRANT_MODULES)
+
+
+def patch_grant(monkeypatch, name, value):
+    """Replace `name` in EVERY grant module that has it, and fail if it has none.
+
+    WHY THIS IS NOT `monkeypatch.setattr(grant_figures, name, value)`. A function resolves a
+    global in the module where it was DEFINED, not where it was imported. After the 2026-09-21
+    split, `_rdm_ci` lives in `grant_geometry` and calls `_collect_7`, which `grant_geometry`
+    imported from `grant_kit` -- so patching `grant_figures._collect_7` rebinds a name nothing
+    reads. Re-exporting keeps `hasattr` true and does NOT make the patch land.
+
+    THE SYMPTOM WAS NOT A FAILURE. `test_rdm_ci` fell through its synthetic collector into the
+    real one and HUNG the suite for sixteen minutes of CPU; the same shape could as easily have
+    produced a test that passed while exercising nothing. So this patches every module the name
+    is visible in, and REFUSES when it is visible in none -- a patch that lands nowhere is the bug.
+    """
+    import importlib
+
+    hit = []
+    for m in GRANT_MODULES:
+        mod = importlib.import_module(f"wfield_local.{m}")
+        if hasattr(mod, name):
+            monkeypatch.setattr(mod, name, value)
+            hit.append(m)
+    assert hit, f"{name!r} is in none of {GRANT_MODULES}; the patch would land nowhere"
+    return hit
 
 
 def deck_source() -> str:

@@ -26,11 +26,14 @@ a change, extend `_pooled_bundle` and its key; do not add the call back.
 import ast
 from pathlib import Path
 
-#: BOTH grant modules. `_pooled_bundle` itself moved to `grant_kit` on 2026-09-21, and the
-#: figures that must go through it stayed in `grant_figures` -- so a check that reads one
-#: file sees either the rule or the callers, never both.
+#: EVERY grant module, from the one list in conftest. `_pooled_bundle` moved to `grant_kit` on
+#: 2026-09-21 and its callers went to the six FAMILY modules, so a check that reads any subset of
+#: them sees either the rule or the callers, never both -- and passes, because what it is looking
+#: for is simply absent.
+from conftest import GRANT_MODULES
+
 SRCS = [Path(__file__).resolve().parent.parent / "wfield_local" / f"{m}.py"
-        for m in ("grant_figures", "grant_kit")]
+        for m in GRANT_MODULES]
 ALLOWED = {"_pooled_bundle"}
 
 

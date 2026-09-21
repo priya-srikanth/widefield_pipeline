@@ -53,7 +53,13 @@ def test_cache_is_a_module_level_dict():
 def test_the_duplication_this_removes_is_real():
     """Pins the CONDITION, so the test keeps its meaning: many _collect_7 call sites against few
     distinct bundles is what makes the memo worth having."""
-    src = inspect.getsource(g)
+    # ACROSS EVERY GRANT MODULE. The call sites went to the six family modules on 2026-09-21
+    # while `_collect_7` itself went to `grant_kit`, so counting them in `grant_figures` alone
+    # returns 0 -- and this test would read that as "the duplication is gone, drop the memo",
+    # which is the opposite of what happened.
+    from conftest import grant_source
+
+    src = grant_source()
     calls = src.count("_collect_7(")
     assert calls >= 8, (
         f"_collect_7 is called only {calls} times; if the module was restructured, re-measure "

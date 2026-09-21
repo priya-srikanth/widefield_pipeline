@@ -143,3 +143,43 @@ def test_every_name_that_moved_is_still_reachable_on_grant_figures():
             f"{n} is re-exported onto grant_figures: that is a SNAPSHOT taken at import time, "
             f"not a view of the kit's value, and it will silently go stale the moment "
             f"set_only() is called. Use grant_kit.only().")
+
+
+def test_patching_the_re_export_alone_would_not_reach_the_caller(monkeypatch):
+    """The hazard `patch_grant` exists for, pinned so nobody reverts to the simpler call.
+
+    A function resolves a global in the module where it was DEFINED. `_collect_7` is defined in
+    `grant_kit` and imported by several family modules, so each of those has its OWN binding, and
+    `grant_figures` has a third from the re-export. Patching one rebinds one.
+
+    This is not hypothetical: `test_rdm_ci` patched `grant_figures._collect_7`, `_rdm_ci` (in
+    `grant_geometry`) went on calling the real one, and the suite HUNG for sixteen minutes of CPU
+    instead of failing. A patch that lands nowhere is indistinguishable from a passing test.
+    """
+    from conftest import GRANT_MODULES, patch_grant
+
+    hit = patch_grant(monkeypatch, "_collect_7", lambda *a, **k: "sentinel")
+    assert len(hit) > 1, (
+        f"_collect_7 is visible in only {hit}; if that is genuinely true now, patching one module "
+        f"is enough -- but check it is the module the CALLER resolves from, not the re-export")
+    assert "grant_figures" in hit, "the re-export is gone; tests that patch it will land nowhere"
+
+    import importlib
+    for m in GRANT_MODULES:
+        mod = importlib.import_module(f"wfield_local.{m}")
+        if hasattr(mod, "_collect_7"):
+            assert mod._collect_7() == "sentinel", f"{m} kept its own unpatched binding"
+
+
+def test_patch_grant_refuses_a_name_that_is_nowhere():
+    """Because landing nowhere is the failure it exists to prevent, it must not do so silently."""
+    import pytest as _pytest
+
+    from conftest import patch_grant
+
+    mp = _pytest.MonkeyPatch()
+    try:
+        with _pytest.raises(AssertionError, match="lands nowhere|is in none"):
+            patch_grant(mp, "_no_such_helper_anywhere", object())
+    finally:
+        mp.undo()

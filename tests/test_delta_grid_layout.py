@@ -144,7 +144,12 @@ def test_txt_is_still_the_single_seam_for_in_cell_numbers():
     assert len(ax.texts) == 1
     plt.close(fig)
 
-    src = inspect.getsource(gf)
+    # ACROSS EVERY GRANT MODULE. `_txt` moved to `grant_kit` on 2026-09-21 and its eight
+    # call sites went to the six family modules, so counting them in `grant_figures` alone
+    # now returns 0 -- which this test would have read as "the seam has been inlined away".
+    from conftest import grant_source
+
+    src = grant_source()
     assert src.count("_txt(") >= 8, "in-cell numbers have been inlined past the seam"
     assert not hasattr(gf, "COMPACT"), "the compact flag is back without its machinery"
 

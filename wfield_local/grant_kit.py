@@ -1412,3 +1412,17 @@ def _impaired(an, thresh=0.5, min_n=10):
             if n >= min_n:
                 worst[pos] = min(worst.get(pos, 1.0), hr)
     return {p for p, v in worst.items() if v < thresh}
+
+
+# Read by BOTH the encoder and geometry families (2026-09-21).
+#: draws for the RDM bootstrap. Matches `N_BOOT_DELTA`; kept separate so the RDM figures can be
+#: retuned without touching the delta grids.
+N_BOOT_RDM = 200
+#: held-out pre-stroke sessions scored per draw when building the leave-one-out ceiling. With 11
+#: pre-stroke sessions a full pass costs 22 RDMs a draw and dominates the run; subsampling four
+#: keeps the ceiling UNBIASED (every session is still held out ~70 times over 200 draws) at the cost
+#: of a little Monte-Carlo variance, which would WIDEN the delta interval.
+#: MEASURED, not assumed: on PS93 at 4 / 8 / 11 the delta widths are 0.80 / 0.73 / 0.71 (day 1) and
+#: 0.82 / 0.95 / 0.97 (day 3) -- indistinguishable, and half the run time. The width is dominated by
+#: the post-stroke session's own trial noise, not by the ceiling.
+N_LOO_DRAW = 4

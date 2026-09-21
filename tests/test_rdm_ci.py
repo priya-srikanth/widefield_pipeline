@@ -52,7 +52,13 @@ def _install(monkeypatch, pre_specs, day_specs, seed=0):
         s = (pre_b, day_b) if field == "blk" else (pre_x, day_x)
         return {an: s}, days
 
-    monkeypatch.setattr(gf, "_collect_7", fake)
+    # EVERY grant module that has it, not just `grant_figures`. `_rdm_ci` resolves
+    # `_collect_7` from `grant_geometry`'s globals, so patching the re-export rebinds a
+    # name nothing reads -- and this test then fell through into the REAL collector and
+    # hung the suite rather than failing. See `patch_grant`.
+    from conftest import patch_grant
+
+    patch_grant(monkeypatch, "_collect_7", fake)
     _clear_caches()
     return an, mus, days
 
