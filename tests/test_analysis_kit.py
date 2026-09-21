@@ -287,3 +287,29 @@ def test_curated_sessions_drops_labels_with_no_epoch(monkeypatch):
 
     assert ak.curated_labels() == ["PS92_0812"]
     assert ak.curated_labels(require_epoch=False) == ["PS92_0812", "PS93_0820"]
+
+
+def test_input_order_restores_the_serial_loops_order_not_alphabetical(monkeypatch):
+    """The key that makes a serial->parallel conversion provably behaviour-preserving.
+
+    `load_sessions` order is not sorted, so collecting a fan-out alphabetically reorders every
+    pool the loop builds and moves the CIs while leaving the point estimates exact -- invisible in
+    review, and the same signature as the three ordering bugs in `DECISIONS.md`.
+    """
+    from wfield_local import parallel
+
+    labels = ["PS95_0903", "PS92_0812", "PS94_0827", "PS93_0820"]   # deliberately unsorted
+    monkeypatch.setattr(parallel, "fan_out",
+                        lambda it, w, **kw: ([(x, w(x)) for x in reversed(list(it))], []))
+
+    res, _ = ak.fan_sessions(labels, str, key=ak.input_order(labels), log=lambda *a, **k: None)
+    assert [it for it, _v in res] == labels
+
+    items = [(lab, True, 90.0) for lab in labels]
+    res, _ = ak.fan_sessions(items, lambda x: x[0], key=ak.input_order(labels),
+                             log=lambda *a, **k: None)
+    assert [it[0] for it, _v in res] == labels
+
+    # and without it, the default is alphabetical -- which is the thing to be deliberate about
+    res, _ = ak.fan_sessions(labels, str, log=lambda *a, **k: None)
+    assert [it for it, _v in res] == sorted(labels) != labels

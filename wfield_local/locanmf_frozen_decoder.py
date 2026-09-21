@@ -697,7 +697,7 @@ def write_session_confusions(results, out, basis="roi"):
 
 def _encoder_fig(results, out, align="cue", basis="roi"):
     """Frozen ENCODER: per-day EV vs same-day ceiling, ceiling-normalised FEVE, and transfer cost."""
-    animals = list(results)
+    animals = sorted(results)                    # see `_loso_fig`
     bname = BASIS_NAME.get(basis, basis)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
     off = 0; ticks, tlabs = [], []
@@ -753,7 +753,10 @@ def _encoder_fig(results, out, align="cue", basis="roi"):
 
 def _loso_fig(results, out, align="cue", basis="roi"):
     """Three panels: per-session LOSO vs within-day ceiling, the transfer cost, and the OOD control."""
-    animals = list(results)
+    # SORTED, so the left-to-right order of the animal groups is a property of the cohort and not
+    # of which worker finished first. `main` already collects in order; this makes the figure
+    # correct for any caller.
+    animals = sorted(results)
     bname = BASIS_NAME.get(basis, basis)
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 5.0))
     # (1) per-session LOSO vs within
@@ -945,10 +948,16 @@ def main() -> int:
         # `poststroke_section_g`. Measured 2026-08-28: the three alignments took 53 min serially,
         # every minute of it on one core.
         results = {}
+        # **SORTED, NOT COMPLETION ORDER** (CLAUDE.md ground rule 9). `fan_out` returns units as
+        # they finish, so this dict was keyed in a different order on every run: the LOSO figure's
+        # animal groups came out in a different left-to-right order, and the JSON below was written
+        # with its keys permuted. Neither changes a number -- and a figure that is not
+        # byte-reproducible cannot be diffed against last week's, which is the whole point of a
+        # FROZEN model.
         _dec, _fail = parallel.fan_out(
             animals, functools.partial(_loso_one, align=args.align, dates=dates),
             jobs=args.jobs, label="animal")
-        for _an, _r in _dec:
+        for _an, _r in sorted(_dec, key=lambda kv: kv[0]):
             if _r:
                 results[_an] = _r
         if _fail:
@@ -965,7 +974,7 @@ def main() -> int:
         _e, _efail = parallel.fan_out(
             animals, functools.partial(_encoder_one, align=args.align, dates=dates),
             jobs=args.jobs, label="animal")
-        for _an, _r in _e:
+        for _an, _r in sorted(_e, key=lambda kv: kv[0]):        # sorted; see above
             if _r:
                 enc[_an] = _r
         if _efail:

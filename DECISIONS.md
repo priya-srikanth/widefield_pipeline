@@ -15927,3 +15927,83 @@ It is done inside the function so there is no cycle, and it is not new coupling 
 functions it replaces each imported those same three names across the tree). Fixing it properly
 means moving those definitions down into `wfield_local`, which is a separate change with its own
 verification.
+
+---
+
+## ARE THE FROZEN MODELS SAFE, AND IS THE PARALLEL PATH REPRODUCIBLE? AN AUDIT (2026-09-21)
+
+Priya, after the `analysis_kit` extraction: *"i want to ensure our frozen decoders (and other
+'frozen' models) are NOT affected, and that parallelization is the same in that it will produce
+identical results each time it is run"*. Two separate questions; both answered below, the second
+with two fixes.
+
+### 1. THE REFACTOR CANNOT REACH THE FROZEN MODELS
+
+The dependency arrow points ONE WAY: `scripts/rest_migration/*` imports `wfield_local.analysis_kit`,
+and **nothing in `wfield_local/` imports `analysis_kit` at all.** A reverse-dependency sweep of the
+eight changed scripts finds them imported only by each other and by the kit --
+`evoked_hrf_latency` <- `channel_position_maps`, `quit_point` <- `engagement_decomposition`, and
+the kit's own two. No frozen-model module (`frozen_models`, `locanmf_frozen_decoder`,
+`rest_frozen_decoder`, `joint_xsession`, `poststroke_section_g`) imports any file the commit
+touched. `channel_position_maps._daq_rate` was deleted, and its only two importers were the two
+scripts migrated in the same commit.
+
+### 2. A FROZEN MODEL'S IDENTITY IS ALREADY HASH-STABLE, AND THAT IS WHY IT WAS SAFE
+
+`make_spec` sorts `train_labels` and `spec_id` is `sha1(json.dumps(spec, sort_keys=True))`.
+Measured: the same `spec_id` (`d6ce9813143e`) under `PYTHONHASHSEED` 0, 1 and 12345, and identical
+whether the training set is handed over as a list, the same list REVERSED, or a set. `_loso_one`
+builds its labels from `config.pooled_labels(an)` (sorted) and uses the date set only for
+membership; `pooled_frozen_loso` iterates lists throughout. **The one design decision doing the
+work here is `sort_keys=True`** -- without it, a pooled fit whose labels arrived in a different
+order would miss the store, refit, and publish a SECOND frozen reference for the same data.
+
+**THE FITS THEMSELVES ARE BITWISE DETERMINISTIC.** The decoder is
+`LogisticRegression(max_iter=3000, C=0.5)` (lbfgs) and the encoder is `Ridge(alpha=1.0)`
+(cholesky/svd) -- neither uses a random draw. Measured: identical coefficient bytes and identical
+`n_iter_` at 1, 2, 4 and 8 BLAS threads, and across repeated runs. `pin_blas` matters for map
+RENDERING (`test_render_is_machine_independent`: 289,032 B against 288,642 B) and is not
+load-bearing for these fits.
+
+**THAT MATTERS MORE THAN THE CACHE DOES, BECAUSE THE CACHE IS NEARLY EMPTY.** `local_dir()` on the
+analysis box resolves to `C:/Users/SabatiniLab/frozen_models`, **which does not exist**, and
+MICROSCOPE holds exactly **two** published models (PS92 decoder + encoder, cue, locanmf). So the
+`frozen-hit` path is rarely taken and most `--loso` runs REFIT. Reproducibility currently rests on
+the fit being deterministic -- which it is -- rather than on the model being loaded verbatim.
+Worth knowing before anyone cites "it is frozen" as the reason two runs agree.
+
+**NO UNSEEDED RNG EXISTS** in `wfield_local/` or `scripts/`: `decode_ci.bootstrap_recall` takes
+`seed=0`, `locanmf_position_decoder` uses `StratifiedKFold(..., random_state=0)`, the one
+permutation control is `np.random.RandomState(0)`, and `joint_locanmf._seed_everything` seeds both
+the numpy global RNG and torch -- with an honest docstring that **CUDA reductions are not bitwise
+deterministic**, so a LocaNMF rebuild can differ in the last digits though not in component
+identity. That remains the only genuinely stochastic step in the tree.
+
+### 3. WHAT THE AUDIT DID FIND: THREE COMPLETION-ORDER CONSUMERS
+
+Not numbers -- figures and file bytes. All three predate today's work.
+
+| site | what moved between runs |
+|---|---|
+| `locanmf_frozen_decoder._loso_fig` / `_encoder_fig`, `animals = list(results)` | the LEFT-TO-RIGHT ORDER of the animal groups on the frozen LOSO and encoder summary figures |
+| `poststroke_section_g.collect`, `out[rec["label"]] = rec` | the key order of `section_g.json` |
+| `position_coding_directions`, `everything.setdefault(disp, {})[an] = r` | the key order of `coding_direction.json` |
+
+All are now sorted at collection, and the two figure functions sort defensively at the point of use
+as well. **No number changes**, and that is checked rather than assumed: every consumer that
+COMPUTES something already re-sorted on read (`section_g_figures` line 43, both cohort figures in
+`position_coding_directions`, and `coverage_note`, which set-ifies its input). What changes is that
+a rebuilt figure now diffs cleanly against last week's -- which is the entire point of freezing a
+model. `joint_xsession` and `precue_lickfree` already sorted and were left alone.
+
+### 4. THE GUARD, BECAUSE THIS IS THE THIRD TIME
+
+`tests/test_parallel_results_are_ordered.py` walks EVERY `parallel.fan_out(` call site in the tree
+and fails any whose consuming lines do not sort; it also pins the frozen-model identity properties
+and the BLAS-independence of the two estimators. Verified to catch a regression by reverting one
+fix and watching exactly that site fail.
+
+**WHY A SOURCE-LEVEL GUARD RATHER THAN A VALUE TEST.** In two of the three historical instances the
+VALUES WERE RIGHT -- the completion-order bug left the point estimate exact at -18.7 and moved only
+the CI, and these three moved nothing at all. A test that checks numbers cannot see any of them.
+The invariant that was actually violated is structural, so that is what is asserted.

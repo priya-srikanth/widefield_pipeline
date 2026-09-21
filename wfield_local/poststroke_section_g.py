@@ -299,8 +299,12 @@ def collect(animals=None, include_excluded=True, jobs=None):
     if failures:
         raise RuntimeError(f"section G failed for {[u for u, _ in failures]}: {failures[0][1]} "
                            f"-- refusing to write a partial section_g.json")
+    # **SORTED, NOT COMPLETION ORDER** (CLAUDE.md ground rule 9). `section_g_figures` re-sorts on
+    # read so no panel depends on this, but the dict is dumped straight to `section_g.json` and
+    # completion order permuted that file's keys on every run -- a nightly artefact that diffs
+    # against itself is a nightly artefact nobody can check.
     out = {}
-    for _u, rec in results:
+    for _u, rec in sorted(results, key=lambda kv: kv[0]):
         if rec:
             out[rec["label"]] = rec
     return out

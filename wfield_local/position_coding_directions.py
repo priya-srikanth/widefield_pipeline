@@ -1897,8 +1897,11 @@ def main(argv=None) -> int:
     for (an, _al, disp), err in failures:
         print(f"  !! {an} [{disp}]: {err}", flush=True)
 
+    # **SORTED, NOT COMPLETION ORDER** (CLAUDE.md ground rule 9). Every figure below re-sorts, so
+    # no number and no panel depends on this -- but `coding_direction.json` is dumped from this
+    # dict and its keys were permuted on every run.
     everything = {}
-    for (an, _al, disp), r in got:
+    for (an, _al, disp), r in sorted(got, key=lambda kv: kv[0]):
         everything.setdefault(disp, {})[an] = r
     for _al, disp in ALIGNS:
         if disp in want:

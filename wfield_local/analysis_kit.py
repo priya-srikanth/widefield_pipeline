@@ -351,3 +351,33 @@ def fan_sessions(items, worker, *, jobs=None, key=None, label="session", log=pri
     items = list(items)
     res, fail = parallel.fan_out(items, worker, jobs=jobs, label=label, log=log)
     return sorted(res, key=lambda kv: (key or (lambda x: x))(kv[0])), fail
+
+
+def input_order(labels):
+    """A `fan_sessions` sort key that restores the ORIGINAL input order, not alphabetical order.
+
+    **USE THIS WHEN CONVERTING AN EXISTING SERIAL LOOP, AND READ WHY BEFORE DECIDING NOT TO.**
+
+    A serial `for s in curated_sessions(): ...` accumulates in `load_sessions` order, which is NOT
+    sorted. Fanning the loop out and collecting alphabetically therefore changes the order of every
+    pool the loop builds -- and a seeded RNG drawing indices over a differently-ordered list gives
+    different draws. **The conversion would silently move published CIs**, with the point estimates
+    staying exact, which is the same signature as the three ordering bugs in `DECISIONS.md` and is
+    just as invisible in review.
+
+    Sorting back to input order makes the conversion provably behaviour-preserving: run the module
+    before and after and diff, and the numbers are identical rather than merely plausible. Adopting
+    alphabetical order instead may well be the better long-run choice -- it does not depend on the
+    order of a YAML file -- but that is a SEPARATE decision that needs a re-run and a `DECISIONS`
+    entry, not a side effect of a parallelisation.
+
+    Accepts either a bare label or a ``(label, ...)`` item tuple, since options travel in the item
+    for any worker that needs them.
+    """
+    pos = {lab: i for i, lab in enumerate(labels)}
+
+    def key(item):
+        lab = item[0] if isinstance(item, tuple) else item
+        return pos[lab]
+
+    return key
