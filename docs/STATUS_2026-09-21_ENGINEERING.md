@@ -42,7 +42,7 @@ Counts taken 2026-09-20, not estimated:
 | modules repeating the `phase_labels("pre")` filter | ~~**70**~~ → **62** (8 migrated) |
 | modules loading licks via `_load_daq_events` directly | ~~**37**~~ → **~35** |
 | per-session loops NOT fanned out | **7 of 11** in `rest_migration` |
-| epoch figures on disk but unregistered in the deck | **25 of 390** |
+| epoch figures on disk but unregistered in the deck | ~~**25 of 390**~~ → **33 of 402** (recounted 2026-09-21; see below) |
 
 **THE REPO ALREADY KNOWS DUPLICATION IS ITS FAILURE MODE.** `rest_by_position`'s docstring: *"The
 last time one quantity had two implementations in this repo -- the flat map baseline against the
@@ -132,8 +132,15 @@ while everything else writes to `grant_figures/epoch/`.
    **DONE** — `wfield_local/analysis_kit.py`
 2. ~~Migrate the already-parallel modules onto it, verify byte-identical output~~ **DONE** — all
    four, plus `quit_point`, `nvc_evoked`, `engagement_decomposition`, `channel_position_maps`
-3. Convert the remaining 7 loops (**2.2**) — **start here**, using `analysis_kit.fan_sessions`
-4. Registry to module scope + a coverage test (**2.3**)
+3. ~~Convert the remaining 7 loops (**2.2**)~~ **FOUR DONE 2026-09-21** — `quit_point`,
+   `engagement_decomposition`, `nvc_evoked`, `channel_position_maps`; the first three verified
+   diff-identical, the fourth's data run pending. Use `analysis_kit.input_order`, not the default
+   alphabetical collection, or the CIs move. Remaining serial loops are the small diagnostics
+   (`channel_evoked_sign`, `channel_vessel_sign`, `cutoff_scaling`, `onset_edge_bias`,
+   `restw_reliability`, …) — none on the nightly path
+4. ~~Registry to module scope + a coverage test (**2.3**)~~ **DONE 2026-09-21** —
+   `EPOCH_FIGURES` (109 entries) is importable; `build_analysis_deck` 3,892 → 2,116 lines;
+   `tests/test_epoch_registry.py` asserts every `name=` the renderer emits has an entry
 5. `--from-csv` everywhere + unify output dirs (**2.5**)
 6. Split the deck module (**2.4**)
 
@@ -176,6 +183,19 @@ test.**
 - **DLC tongue tracking** — the blocker for "did not try" vs "tried and missed", and the only
   thing that would turn the within-bout deceleration argument into a control.
 - **530 nm reflectance** — DEFERRED hardware. Do not spend analysis effort on 470/415 coupling.
-- **25 unregistered epoch figures** — mostly `_erodedgate`/`_mf075` sensitivity variants of the
-  rotation and reference-family threads. I did not caption them because I have not read those
-  analyses closely enough to do it honestly; someone who has should.
+- **33 unregistered epoch figures** (recounted 2026-09-21: 402 files, 109 registered, and **0
+  dead registry entries** — nothing registered has stopped rendering). The renderer emits nothing
+  the registry has never heard of — all 39 of its `name=` templates are covered, and
+  `tests/test_epoch_registry.py` now enforces that — so these 33 arrive by other paths:
+
+  | group | n | what it is |
+  |---|---|---|
+  | `_erodedgate` / `_mf075` | 18 | sensitivity variants of the `15h` rotation and `15k` reference-family threads |
+  | `_QC_*` / `_mask_*` | 8 | ad-hoc QC images dropped in this folder; **not deck material** |
+  | `epoch_15r_position_RAWref_*` | 3 | a reference-family variant |
+  | `epoch_1d*` / `epoch_1e_engagement*` | 3 | probably superseded by the `1b` family |
+  | `epoch_23_quit_prodrome.png` | 1 | the UNGATED version; the gated `_gated_h90` one IS registered |
+  | `epoch_24_first_last_quartile_gated_h90.png` | 1 | superseded by the quintile version |
+
+  Only the first group needs captions written by someone who has read those analyses. The QC
+  images should move out of the epoch directory rather than be registered.
