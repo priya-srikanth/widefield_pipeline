@@ -9,7 +9,6 @@ section-G figures on a superseded basis in August.
 import inspect
 import re
 
-from wfield_local import locanmf_analysis_deck as ad
 from wfield_local import nightly_figs
 
 
@@ -32,8 +31,14 @@ def test_grant_figures_runs_before_the_deck_is_built():
 def test_section_h_still_places_grant_figures():
     """If section H ever stops placing them, the nightly step above becomes dead weight and this
     test is the reminder to reconsider it -- rather than leaving an hours-long step nothing reads."""
-    src = inspect.getsource(ad)
-    assert src.count('("grant_') > 10, "section H no longer places grant figures; revisit the nightly step"
+    # THE REGISTRY, NOT THE SOURCE. `GRANT_FIGURES` left `build_analysis_deck` on 2026-09-21, and
+    # counting `("grant_` in the builder's text now returns 0 -- which this test would have read as
+    # "section H stopped placing grant figures" had it not been pointed at the object itself.
+    # Importing it is also stronger than the count was: it is the literal tuple the deck iterates.
+    from wfield_local.deck_registry import GRANT_FIGURES
+
+    assert len(GRANT_FIGURES) > 10, "section H no longer places grant figures; revisit the nightly step"
+    assert all(p.startswith("grant_") for p, _t, _b in GRANT_FIGURES)
 
 
 def test_grant_step_can_be_skipped():

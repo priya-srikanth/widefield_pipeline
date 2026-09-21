@@ -91,11 +91,9 @@ def test_a_token_without_a_fallback_still_marks_and_counts(sidecar):
 def test_the_epoch_14_note_actually_carries_a_fallback():
     """The fix must be WIRED, not merely available -- the defect this file closes was a real
     unresolved reference reported by the 2026-09-17 deck build, not a hypothetical."""
-    import inspect
+    from conftest import deck_source
 
-    from wfield_local import locanmf_analysis_deck as deck
-
-    src = inspect.getsource(deck)
+    src = deck_source()          # the epoch_14 legend moved to deck_registry on 2026-09-21
     i = src.find("row=Far Contra, col=acute - pre")
     assert i > 0, "the epoch_14 token is gone; this guard needs rewriting"
     assert "||" in src[i:i + 400], "the epoch_14 far-contra token lost its fallback"

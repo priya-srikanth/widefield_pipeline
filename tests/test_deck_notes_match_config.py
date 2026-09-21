@@ -89,8 +89,12 @@ def test_every_note_is_attached_to_at_least_one_slide():
 
     Guards against a note constant surviving the deletion of the section that used it.
     """
-    import inspect
-    src = inspect.getsource(deck)
+    from conftest import deck_source
+
+    # ACROSS ALL THREE DECK MODULES. The notes are DEFINED in `deck_text` and USED in the builder,
+    # so reading either alone makes this assertion trivially true or trivially false rather than
+    # the thing it is for -- which is that a note constant did not outlive its section.
+    src = deck_source()
     for name in ALL_NOTES:
         if name in ("M_COMMON",):        # composed into the others rather than used directly
             continue

@@ -346,10 +346,10 @@ def test_superseded_grant_confusion_names_are_not_placed():
     """
     import fnmatch
     import re
-    from pathlib import Path
 
-    src = (Path(__file__).resolve().parent.parent
-           / "wfield_local" / "locanmf_analysis_deck.py").read_text(encoding="utf-8")
+    from conftest import deck_source
+
+    src = deck_source()          # the grant patterns moved to deck_registry on 2026-09-21
     pats = re.findall(r'"(grant_5[cd]_[a-z_]*\*[^"]*\.png)"', src)
     assert pats, "could not find the section H grant_5c/5d patterns"
 

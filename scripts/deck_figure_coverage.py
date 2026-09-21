@@ -33,7 +33,13 @@ from pathlib import Path
 #: "THE DECK" IS THREE DECKS. The analysis deck alone reports 700+ unreferenced files, almost
 #: all of which the PREPROCESSING deck places -- per-date decoder/encoder/component panels are
 #: its whole job. Checking one builder in isolation produces a scary number and no signal.
+#: AND THE DECK'S DATA IS NOT ALL IN ITS BUILDER (2026-09-21). The analysis deck's registries
+#: moved to `deck_registry`; scraping only the builder after that split found 80 patterns where
+#: it had found 208, and every Section H grant pattern went invisible. A scraper that names its
+#: sources by path has to be updated whenever they move -- which is why the registry half below
+#: is IMPORTED instead, and why what is left here is only what has nothing importable.
 DECKS = [Path("wfield_local/locanmf_analysis_deck.py"),
+         Path("wfield_local/deck_registry.py"),
          Path("wfield_local/preprocess_deck.py"),
          Path("wfield_local/behavior_deck.py")]
 
@@ -148,8 +154,8 @@ def report(figdir, pats):
 def imported_patterns():
     """The epoch registry, IMPORTED rather than scraped -- and a measurement of the scrape itself.
 
-    `EPOCH_FIGURES` moved to module scope on 2026-09-21 precisely so this file would not have to
-    guess. Importing it is authoritative: it is the literal object the deck iterates, so it cannot
+    `EPOCH_FIGURES` moved to module scope on 2026-09-21, and `GRANT_FIGURES` followed it out of
+    `build_analysis_deck` the same day, precisely so this file would not have to guess. Importing it is authoritative: it is the literal object the deck iterates, so it cannot
     drift from what the deck places the way a regex over source can.
 
     IT ALSO TURNS THE SCRAPE'S BLIND SPOT INTO A NUMBER INSTEAD OF A CAVEAT. Any registry entry the
@@ -159,13 +165,13 @@ def imported_patterns():
     and it is exactly the f-string-built names that a regex cannot see.
     """
     try:
-        from wfield_local.locanmf_analysis_deck import EPOCH_FIGURES
+        from wfield_local.deck_registry import EPOCH_FIGURES, GRANT_FIGURES
     except Exception as ex:                                            # noqa: BLE001
-        print(f"  !! could not import EPOCH_FIGURES ({type(ex).__name__}): the epoch family is "
-              f"SCRAPED, not imported", file=sys.stderr)
+        print(f"  !! could not import the deck registries ({type(ex).__name__}): the epoch and "
+              f"grant families are SCRAPED, not imported", file=sys.stderr)
         return []
     return [(e[0], re.compile("^" + re.escape(e[0]).replace(r"\*", ".*") + "$"))
-            for e in EPOCH_FIGURES]
+            for e in tuple(EPOCH_FIGURES) + tuple(GRANT_FIGURES)]
 
 
 scraped = [q for d in DECKS if d.exists() for q in png_patterns(d)]
@@ -175,7 +181,7 @@ missed = [src for src, _rx in imported if src not in _scraped_src]
 pats = scraped + [q for q in imported if q[0] in set(missed)]
 print(f"{len(scraped)} patterns scraped from "
       f"{len([d for d in DECKS if d.exists()])} deck builder(s), plus {len(imported)} IMPORTED "
-      f"from locanmf_analysis_deck.EPOCH_FIGURES; "
+      f"from deck_registry (EPOCH_FIGURES + GRANT_FIGURES); "
       f"{len(ROOTS)} root(s): {', '.join(str(r) for r in ROOTS)}")
 if missed:
     print(f"  !! the scrape MISSED {len(missed)} registry entr(ies) -- the blind spot, measured:")

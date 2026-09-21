@@ -33,7 +33,14 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-SRC = Path("wfield_local/locanmf_analysis_deck.py")
+#: THE NOTES ARE NOT ALL IN THE BUILDER ANY MORE. The deck's prose moved to `deck_text` and its
+#: registries (whose legends are speaker notes) to `deck_registry` on 2026-09-21. Auditing the
+#: builder alone after that split found 132 notes and 113 decimal values where it had found 332
+#: and 810 -- an audit that silently stops seeing 86% of the numbers it exists to list reads
+#: exactly like an audit that found nothing to flag.
+SOURCES = [Path("wfield_local/locanmf_analysis_deck.py"),
+           Path("wfield_local/deck_text.py"),
+           Path("wfield_local/deck_registry.py")]
 
 ANIMAL = re.compile(r"PS9[2345]")
 PERF = re.compile(r"\b(accurac|decod|encod|chance|FEVE|recall|AUC|confusion|coding direction|"
@@ -43,12 +50,31 @@ ORDERING = re.compile(r"\b(highest|lowest|worst|best|exceeds?|larger than|smalle
 NUMVAL = re.compile(r"[-+]?\d*\.\d+")
 
 
-def notes(path):
-    """(lineno, joined text) for every string constant long enough to be a speaker note."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    found = [(n.lineno, " ".join(n.value.split()))
-             for n in ast.walk(tree)
-             if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value) > 80]
+def notes(paths):
+    """(location, joined text) for every string constant long enough to be a speaker note.
+
+    DEDUPED ACROSS FILES, not within each. The same blurb can be reached from more than one
+    module, and listing it twice would put one claim on the checklist under two line numbers --
+    the reader re-measures it, finds it already ticked, and stops trusting the ticks.
+    """
+    found = []
+    for path in paths:
+        if not path.exists():
+            print(f"  !! {path} is missing; its notes are NOT in this audit", file=sys.stderr)
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # A MODULE DOCSTRING IS NOT A SPEAKER NOTE. It is not on a slide, so it cannot be
+        # re-measured, and listing it puts an un-actionable row at the head of the checklist.
+        # This was one stray row while the deck was one file; the 2026-09-21 split made it three,
+        # which is what made it worth excluding. Cost: 332 -> 331 notes and 810 -> 809 values,
+        # the dropped value being the "swing up to 0.36" in the deck's own docstring.
+        doc = tree.body[0].value if (tree.body and isinstance(tree.body[0], ast.Expr)
+                                     and isinstance(getattr(tree.body[0], "value", None), ast.Constant)
+                                     and isinstance(tree.body[0].value.value, str)) else None
+        found += [(f"{path.stem}:{n.lineno}", " ".join(n.value.split()))
+                  for n in ast.walk(tree)
+                  if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value) > 80
+                  and n is not doc]
     seen, out = set(), []
     for ln, t in sorted(found):
         if t not in seen:
@@ -68,7 +94,7 @@ def classify(t):
 
 
 buckets = defaultdict(list)
-for ln, t in notes(SRC):
+for ln, t in notes(SOURCES):
     buckets[classify(t)].append((ln, t, len(NUMVAL.findall(t)), bool(ORDERING.search(t))))
 
 HEADER = ("and why the deck's existing blanket staleness disclaimer is not a substitute for "
@@ -90,7 +116,7 @@ for k in ("PERF", "ANIMAL", "OTHER"):
     out += ["", f"## {k} ({len(b)} notes)", ""]
     for ln, t, v, order in sorted(b):
         flag = "  **[ORDERING -- check in `dom_orth` AND `lr`]**" if order else ""
-        out.append(f"- [ ] **L{ln}** ({v} values){flag}")
+        out.append(f"- [ ] **{ln}** ({v} values){flag}")
         out.append(f"      {t[:400]}")
         out.append("")
 

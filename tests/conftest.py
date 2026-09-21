@@ -37,6 +37,30 @@ SHARE_MARKS = ("N:/", "M:/", "//RESEARCH.FILES", "//STANDBY.FILES", "/MICROSCOPE
 _WRITE_MODES = set("wxa+")
 
 
+#: The analysis deck is THREE MODULES, and a source-level guard has to read all of them.
+#:
+#: `locanmf_analysis_deck` was one 5,484-line file until 2026-09-21, so a guard that wanted to
+#: check the deck's prose or its figure patterns read that one path. The split moved the prose to
+#: `deck_text` and the registries to `deck_registry` and five such guards went quietly half-blind
+#: -- they still found the file, still parsed it, and still passed on the fragment that was left.
+#: That is the failure mode this repo keeps meeting: a check that stops checking does not fail, it
+#: just stops saying anything.
+#:
+#: So the list lives HERE, once. A future split adds a line to it and every guard follows.
+DECK_MODULES = ("locanmf_analysis_deck", "deck_text", "deck_registry")
+
+
+def deck_source() -> str:
+    """The concatenated source of every module the analysis deck is built from.
+
+    Use this in place of `inspect.getsource(locanmf_analysis_deck)` for any assertion about text
+    that could live in the prose or the registries rather than the builder.
+    """
+    root = pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
+    return "\n".join((root / f"{m}.py").read_text(encoding="utf-8") for m in DECK_MODULES)
+
+
+
 def _is_share(path) -> bool:
     try:
         p = os.fspath(path)

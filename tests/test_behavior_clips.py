@@ -82,10 +82,9 @@ def test_the_analysis_deck_states_its_trial_population():
     split the no-lick trials with the ENGAGEMENT GATE. A reader comparing a frozen-decoder curve
     against a section-G contrast is comparing two trial SETS, not two results.
     """
-    import pathlib
+    from conftest import deck_source
 
-    src = (pathlib.Path(__file__).resolve().parents[1] / "wfield_local"
-           / "locanmf_analysis_deck.py").read_text(encoding="utf-8")
+    src = deck_source()          # the TRIALS_* prose moved to deck_text on 2026-09-21
     assert "TRIALS_LICK" in src and "TRIALS_NOLICK" in src
     assert "max_rt 3.5 s" in src, "the lick label must name the actual window"
     assert "ENGAGEMENT GATE" in src, "the working label must name the gate"
