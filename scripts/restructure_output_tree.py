@@ -25,7 +25,7 @@ WHAT CHANGES, AND WHY EACH ONE
   3. `grant_figures/epoch/retired/` -- the four existing `retired_<reason>/` directories, which
      already carried READMEs, consolidated under one parent with an index. Plus `QC_scratch/` for
      the eight `_QC_*` / `_mask_*` images: ad-hoc pictures dropped into the epoch directory, named
-     in `STATUS_2026-09-21_ENGINEERING.md` as "not deck material", and the oldest files there.
+     in `docs/status/STATUS_2026-09-21_ENGINEERING.md` as "not deck material", and the oldest files there.
 
   4. `labcams/analysis_figures/`    -- was `labcams/locanmf_lick_pooled/cue_analysis`. THE NAME WAS
      THE PROBLEM: this is the live nightly mirror of every analysis figure, 3,378 files, and it sat

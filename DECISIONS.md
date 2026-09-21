@@ -1482,7 +1482,7 @@ The orofacial DLC work is the next thing to bring over, and the survey below is 
 | spouts           | two, FIXED (L and R)                | **one, MOVING** across 6 positions              |
 | framing          | whole head; both eyes in frame      | cam4 = **snout only**                           |
 
-`cam4` is the front-facing camera (`docs/STATUS_2026-09-07.md`) and is the nearest analogue of the
+`cam4` is the front-facing camera (`docs/status/STATUS_2026-09-07.md`) and is the nearest analogue of the
 old `video2`. `cam1` is the under-snout view (spout enters from the top of frame); `cam2`/`cam3` are
 opposing side views showing the whole animal, forepaws, and treadmill.
 
@@ -2627,7 +2627,7 @@ asymmetry is the caveat, not a footnote to it.
 
 The single place to look before touching deck builders. It replaces a blanket ban in this file and
 another in `runbooks/helper_box_setup.md`, both of which described code that stopped existing on
-2026-08-14 and disagreed with `docs/STATUS_2026-08-14.md`.
+2026-08-14 and disagreed with `docs/status/STATUS_2026-08-14.md`.
 
 Three failure modes, three guards, each at the point where the damage would happen:
 
@@ -5053,7 +5053,7 @@ section-G deck slide -- stop at 8/22 for PS92/PS93. The cohort-coverage footer r
 `config.phase_labels("post")` and therefore reports 6/6/6/6 on those figures too, which is true of
 the CONFIG and not of the JSON they were built from. Re-running `poststroke_section_g` and
 `position_coding_directions` is left to the nightly (Priya, 2026-08-25) and remains item 0 in
-`docs/STATUS_2026-08-23.md`.
+`docs/status/STATUS_2026-08-23.md`.
 
 ---
 
@@ -8310,7 +8310,7 @@ upstream and identical pre/post. Kept in `basis_residual.py` as the record.
 
 ## 2026-09-12 (end of day) — handoff
 
-[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md) is the START HERE for the anatomical arm.
+[`docs/status/STATUS_2026-09-12.md`](docs/status/STATUS_2026-09-12.md) is the START HERE for the anatomical arm.
 
 **WITHDRAWN, and they were reported here as findings earlier today:** the acute map-amplitude
 INCREASES — near-middle 1.53 post-cue, 2.82 post-lick, 3.30 pre-cue, far-ipsi 1.09. One-vs-rest
@@ -14609,7 +14609,7 @@ same bug. My version was worse specifically because it scaled PER ROW.
 
 ## `hemo_map_control` RE-CHECKED AFTER THE CHANNEL FIX: the claim stands, but the LEVELS have drifted for an unrelated reason (2026-09-19)
 
-The one written claim the channel audit could have touched. `docs/STATUS_2026-09-12.md` records
+The one written claim the channel audit could have touched. `docs/status/STATUS_2026-09-12.md` records
 `hemo_map_control` over 92 sessions, and `_iso_slice` was reading the cohort constant, so
 `PS92_0828`'s isosbestic came from the wrong slot. Re-run with `functional_channel(session)`:
 
@@ -15825,7 +15825,7 @@ which is composition rather than biology.
 
 `wfield_local/analysis_kit.py`, `tests/test_analysis_kit.py`. Priya: *"i want to focus on making
 the codebase efficient and modular, as well as readable and editable, as a claude engineer would
-do"* -- section 2.1 of `docs/STATUS_2026-09-21_ENGINEERING.md`.
+do"* -- section 2.1 of `docs/status/STATUS_2026-09-21_ENGINEERING.md`.
 
 **WHAT WAS DUPLICATED.** Nine copies of the nested animals->sessions bootstrap, seventy repeats of
 the curated-session filter, thirty-seven direct lick loads, and the `fan_out`-plus-sort idiom
@@ -16168,7 +16168,7 @@ Two things follow:
 ## SECTION 2.2 AND 2.3: FANNING THE REST OF THE LOOPS, AND GETTING THE DECK REGISTRY OUT OF A
 ## FUNCTION BODY (2026-09-21)
 
-`docs/STATUS_2026-09-21_ENGINEERING.md` sections 2.2 and 2.3, Priya: *"when appropriate, you can
+`docs/status/STATUS_2026-09-21_ENGINEERING.md` sections 2.2 and 2.3, Priya: *"when appropriate, you can
 start on the sequence 2.2"*, then *"can you start 2.3 while waiting on 2.2"* -- which was the right
 call: 2.2 is `scripts/rest_migration/`, 2.3 is `wfield_local/locanmf_analysis_deck.py`, and the 2.2
 verification is hours of I/O-bound background runs.

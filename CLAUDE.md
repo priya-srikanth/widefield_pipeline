@@ -344,7 +344,7 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
-**[`docs/STATUS_2026-09-17.md`](docs/STATUS_2026-09-17.md)** — **START HERE FIRST.** The
+**[`docs/status/STATUS_2026-09-17.md`](docs/status/STATUS_2026-09-17.md)** — **START HERE FIRST.** The
 TRANSFER / ROTATION arm (`epoch_15g`, `epoch_15h`) and **four corrections to things this repo
 believed**: the adopted filter (`meegkit_hpfit`) does NOT smear — the ~0.21 pre-cue inflation is the
 retired `zerophase` product's; QUIET is a RETIRED category, not a synonym for REST; the QUIET-era
@@ -353,22 +353,22 @@ restdock05; and `PREPROCESSING_DECISION.md`'s "nothing re-run yet" line was five
 also records **framing (1) vs (2)** — 15g/15h are entirely RELATIVE-to-other-positions and are blind
 to a change that hits all six equally.
 
-**[`docs/STATUS_2026-09-16.md`](docs/STATUS_2026-09-16.md)** — the rest-arm audit and migration. The
+**[`docs/status/STATUS_2026-09-16.md`](docs/status/STATUS_2026-09-16.md)** — the rest-arm audit and migration. The
 `restdock05` rest-baseline migration, complete and verified: what is true now, the nine pitfalls
 that cost time getting there, and the pending science (the DOCKED FROZEN DECODER arm, then `15s`).
 Rest is `restdock05` — docked, `lick_buffer_s [0.5, 1.0]`, `SCHEMA_VERSION 5`, `CACHE_VERSION 12`,
 and **`restw` is NOT retired** (finding 11 re-measured at 1.622, 44/44).
-`docs/STATUS_2026-09-13.md` is the long-form record behind it.
+`docs/status/STATUS_2026-09-13.md` is the long-form record behind it.
 
-**[`docs/STATUS_2026-08-26.md`](docs/STATUS_2026-08-26.md)** — START HERE after a break. The grant
+**[`docs/status/STATUS_2026-08-26.md`](docs/status/STATUS_2026-08-26.md)** — START HERE after a break. The grant
 figure set and what it shows, the method decisions that must not be silently reverted, what is
 pending, and who owns which files across the two windows and three machines.
-(`STATUS_2026-08-23.md` remains the record of what the post-stroke readout asks and where its nulls
-came from; `STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 15-17 Aug and their
+(`docs/status/STATUS_2026-08-23.md` remains the record of what the post-stroke readout asks and where its nulls
+came from; `docs/status/STATUS_2026-08-17.md` the record of the SEVENTEEN silent bugs found 15-17 Aug and their
 guards — five of them checks that were themselves broken — which are still in force;
-`STATUS_2026-08-14.md` the drift-removal decision week.)
+`docs/status/STATUS_2026-08-14.md` the drift-removal decision week.)
 
-**[`docs/STATUS_2026-09-21_ENGINEERING.md`](docs/STATUS_2026-09-21_ENGINEERING.md)** — **START
+**[`docs/status/STATUS_2026-09-21_ENGINEERING.md`](docs/status/STATUS_2026-09-21_ENGINEERING.md)** — **START
 HERE if you are working on the CODE rather than the science.** Priya's current focus: efficient,
 modular, readable, editable. Holds the measured inventory (9 duplicate bootstrap helpers, 70
 repeats of the session filter, 8 of 11 loops still serial, `build_analysis_deck` at ~3,900 lines
@@ -376,7 +376,7 @@ in one function, 25 unregistered figures) and a dependency-ordered plan. **Refac
 the reasoning forward** — most long comments in this repo name a bug a simplification would
 reintroduce.
 
-**[`docs/STATUS_2026-09-20.md`](docs/STATUS_2026-09-20.md)** — **START HERE for the HAEMODYNAMIC
+**[`docs/status/STATUS_2026-09-20.md`](docs/status/STATUS_2026-09-20.md)** — **START HERE for the HAEMODYNAMIC
 and ENGAGEMENT arms.** Haemodynamics is CLOSED with a negative answer: four routes through 470/415
 each fail differently, the information is not in the data, and the 530 nm reflectance fix is
 DEFERRED hardware — do not spend analysis effort there. Engagement has four findings that survived:
@@ -385,7 +385,7 @@ within-session motor fatigue, a within-session engagement decline that is not th
 quitting that is time-driven rather than lick-budget-driven. Consolidated reasoning is the last
 entry in `DECISIONS.md`.
 
-**[`docs/STATUS_2026-09-12.md`](docs/STATUS_2026-09-12.md)** — START HERE for the ANATOMICAL arm
+**[`docs/status/STATUS_2026-09-12.md`](docs/status/STATUS_2026-09-12.md)** — START HERE for the ANATOMICAL arm
 ("where does the displaced code move"). **THE REFERENCE IS THE CLAIM**, and three of them are in
 play; a filename now says which (`_MEANref_`, `_PRECUEref_`, `_QUIETref_`):
 

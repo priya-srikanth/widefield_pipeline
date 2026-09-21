@@ -56,7 +56,7 @@ section H would regress against the copy already there until the render lands.
    per worker re-pays every shared collection and raises total CPU. See DECISIONS for the full set
    of caveats (Agg, processes not threads, `session_cache` write races, `OMP_NUM_THREADS`).
 
-Full scope and reuse map: [`docs/EPOCH_FIGURES_PLAN.md`](EPOCH_FIGURES_PLAN.md).
+Full scope and reuse map: [`docs/EPOCH_FIGURES_PLAN.md`](../EPOCH_FIGURES_PLAN.md).
 
 ## Still open from earlier
 

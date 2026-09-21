@@ -4,7 +4,7 @@ THE CLAIM THIS TESTS. `15f` reports that chronically the within-session refit re
 own pre-stroke level while the frozen pre-stroke model reaches 0.611, and the arm concludes
 "position is in chronic rest, read by something other than the pre-stroke code -- REPLACEMENT".
 That conclusion is an INFERENCE FROM A DIVERGENCE, not an identification: it says the pre-stroke
-readout stopped working, and says nothing about what the new one is. `docs/STATUS_2026-09-16.md`
+readout stopped working, and says nothing about what the new one is. `docs/status/STATUS_2026-09-16.md`
 lists "identify the substitute code" as the central open question for exactly this reason.
 
 WHY ONE MORE CELL SETTLES THE FRAMING. `15f` fills only the `pre -> *` ROW of what is really a

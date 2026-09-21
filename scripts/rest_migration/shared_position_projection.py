@@ -1,6 +1,6 @@
 """`15s` — HOW MUCH OF A POSITION'S TASK MAP IS ALREADY PRESENT IN ITS OWN REST?
 
-Scoped in `docs/STATUS_2026-09-13.md` ("SCOPED, NOT BUILT"), built 2026-09-16 after the docked
+Scoped in `docs/status/STATUS_2026-09-13.md` ("SCOPED, NOT BUILT"), built 2026-09-16 after the docked
 frozen decoder arm, which is the order that scope specifies: the frozen arm establishes whether the
 pre-stroke rest code survives at all, and this measurement assumes a position on that.
 

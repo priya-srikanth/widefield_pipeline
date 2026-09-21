@@ -73,7 +73,7 @@ def test_positions_come_from_the_REPAIRED_classifier():
     """Dead `spout_bit1` (8/05-8/06) collapses six positions to four.
 
     A script using raw `_classify_cues` has now reported a phantom "4 positions" animal three times
-    in this project (`STATUS_2026-09-16.md` pitfall 6). This asserts the import, because the symptom
+    in this project (`docs/status/STATUS_2026-09-16.md` pitfall 6). This asserts the import, because the symptom
     downstream is a plausible number rather than a crash.
     """
     src = __import__("inspect").getsource(rfd)

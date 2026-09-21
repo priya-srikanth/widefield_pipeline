@@ -489,7 +489,7 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     """Three panels, because the cohort mean has hidden a reversal in this family before.
 
     The withdrawn "rest follows the same acute dip" claim came from reading a trajectory off a
-    pooled average while PS95 was going the other way (`STATUS_2026-09-16.md` pitfall 5). Panel 2
+    pooled average while PS95 was going the other way (`docs/status/STATUS_2026-09-16.md` pitfall 5). Panel 2
     therefore draws every animal separately and is not optional decoration.
     """
     import matplotlib

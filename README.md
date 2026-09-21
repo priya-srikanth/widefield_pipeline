@@ -96,6 +96,13 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 
 ## Key docs
 
+- **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — what the code is, in layers, with a diagram:
+  162 modules, 109 of them runnable, grouped by pipeline stage. Read this before the module list
+  below. It also names the three seams that keep causing bugs here.
+- **[`runbooks/first_full_analysis.md`](runbooks/first_full_analysis.md)** — a first run from raw
+  sessions to the deck, for someone who has not done it before. The other runbooks assume you have.
+- **[`docs/status/`](docs/status)** — sixteen dated handoffs, with an index of what each settled.
+
 - [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md) — analysis-box nightly runbook (source of truth)
 - [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) — imaging-computer preprocessing runbook (source of truth)
 - [`DECISIONS.md`](DECISIONS.md) — analysis decisions + findings F1–F17 (decode/encode/RSA) + stroke plan + server layout/regimes

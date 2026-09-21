@@ -7,7 +7,7 @@ been used to argue `_RESTref_` cannot carry an across-epoch amplitude claim.
 
 BUT 3.1% IS NOT THE QUANTITY AN ACROSS-EPOCH CLAIM RESTS ON. Sensitivity-to-a-definitional-change
 and drift-between-pre-and-chronic are different numbers, and only the second one bears on reading
-`map - restw` amplitudes across epochs. `docs/STATUS_2026-09-17.md` §0b says so explicitly and calls
+`map - restw` amplitudes across epochs. `docs/status/STATUS_2026-09-17.md` §0b says so explicitly and calls
 the epoch-wise version cheap and unmeasured. This is it.
 
 WHAT IS MEASURED, and it is deliberately THE EXACT SUBTRAHEND THE MAPS USE -- `session_restw_svt`,
