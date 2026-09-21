@@ -213,6 +213,13 @@ def main(argv=None) -> int:
                 continue
             p.move(f, lab_retired / "locanmf_lick_pooled_202606" / f.name)
 
+    # 6b. diagnostic output from a probe that is now archived. `plot_drift_estimators` moved to
+    # `scripts/rest_migration/archive/` on 2026-09-21; its nine figures were sitting inside the
+    # GRANT deliverable directory, which is for the summary set and nothing else.
+    de = grant / "drift_estimators"
+    if de.exists():
+        p.move(de, lab_retired / "drift_estimators")
+
     # 7. the retired 415-vs-470 one-off
     chan = lab / "channel_comparison"
     if chan.exists():
