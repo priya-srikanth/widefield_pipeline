@@ -136,6 +136,49 @@ def _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing=0):
         missing_figures)
 
 
+class DeckUnresolved(RuntimeError):
+    """Raised when notes quote sidecar values this build could not find."""
+
+    def __init__(self, msg, unresolved):
+        super().__init__(msg)
+        self.unresolved = list(unresolved)
+
+
+def _refuse_unresolved_overwrite(out_path, unresolved, allow_unresolved=0):
+    """Refuse to replace an EXISTING deck with one whose notes print `[[? ... missing]]`.
+
+    THE SAME SHAPE AS `_refuse_incomplete_overwrite`, and it exists because that one does not
+    cover this. A missing FIGURE leaves a hole the guard counts; a missing SIDECAR leaves the deck
+    complete and the NUMBERS replaced by a marker, on a slide, in a published deliverable. Until
+    2026-09-21 that was reported to the build log and published anyway.
+
+    MEASURED, WHICH IS WHY IT IS NOW A REFUSAL. The output-tree restructure that day moved 894
+    sidecars into `data/`. Running the PREVIOUS revision of this module against the new tree
+    produces nine unresolved references -- `epoch_14_beta_maps_*_stats.csv`,
+    `epoch_5rmodelta_*`, `epoch_13pos_*` -- and publishes a 531-slide deck carrying nine
+    `[[? ... sidecar missing]]` markers, with a zero missing-figure count and no other complaint.
+    A stale checkout on the nightly box is exactly how that happens.
+
+    THIS CANNOT PROTECT A BOX RUNNING OLD CODE -- a guard added here is not in the revision that
+    needs it. What it does is make the NEXT occurrence loud, whatever causes it: a renderer that
+    stops writing a CSV, a token whose stem is misspelt, a tree half-migrated by a run that
+    crashed. `allow_unresolved=N` is the escape, matching `allow_missing`.
+    """
+    if not unresolved or len(unresolved) <= allow_unresolved:
+        return
+    if not Path(out_path).exists():
+        return                      # a deck that does not exist yet cannot be made worse
+    shown = "\n  ".join(str(u) for u in unresolved[:20])
+    more = f"\n  ... and {len(unresolved) - 20} more" if len(unresolved) > 20 else ""
+    raise DeckUnresolved(
+        f"refusing to overwrite {out_path}: {len(unresolved)} note(s) quote a sidecar value this "
+        f"build could not find, so the published slides would read `[[? ... sidecar missing]]` "
+        f"instead of numbers. If the figure tree was restructured, this checkout may be stale -- "
+        f"pull and rerun. Otherwise fix the step that owns the CSV, or pass "
+        f"allow_unresolved={len(unresolved)}. Unresolved:\n  {shown}{more}",
+        unresolved)
+
+
 class DeckFromFailedRun(RuntimeError):
     """Raised when a rebuild would publish a deck assembled from a run that had failing steps.
     Carries ``failed_steps`` so the caller can name them."""
@@ -428,6 +471,7 @@ def keep_previous(out_path) -> Path | None:
 
 
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
+                        allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
                         grant_dir=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
@@ -2089,16 +2133,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     print(f"[analysis_deck] per-figure captions written to {_caps} slide(s)", flush=True)
     print(f"[analysis_deck] window/binning provenance written to {_prov} slide(s)",
           flush=True)
-    keep_previous(out_path)
-    prs.save(str(out_path))
-    manifest, stale = _write_manifest(out_path, placed_figures, run_start)
-    # UNRESOLVED SIDECAR TOKENS ARE REPORTED, NOT RAISED. Each one already left a visible marker on
-    # its slide; this makes them findable without opening the deck, which is what a nightly needs.
+    # UNRESOLVED SIDECAR TOKENS: reported, and CHECKED BEFORE THE SAVE. Each one already left a
+    # visible marker on its slide, so this both makes them findable without opening the deck and
+    # stops a deck full of markers replacing a good one -- see `_refuse_unresolved_overwrite`.
+    # The check has to sit above `keep_previous`/`save`: resolution happens in `flush_notes`
+    # above, and once the file is written the damage is published.
     unresolved = values.report()
     if unresolved:
         print(f"  [notes] {len(unresolved)} sidecar reference(s) did not resolve:", flush=True)
         for line in unresolved[:20]:
             print(f"    {line}", flush=True)
+    _refuse_unresolved_overwrite(out_path, unresolved, allow_unresolved)
+    keep_previous(out_path)
+    prs.save(str(out_path))
+    manifest, stale = _write_manifest(out_path, placed_figures, run_start)
     return {"out": str(out_path), "slides": len(prs.slides),
             "figures_present": placed["present"], "figures_missing": placed["missing"],
             "missing_figures": missing_figures, "tag": tag,

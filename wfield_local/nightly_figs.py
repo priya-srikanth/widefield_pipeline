@@ -878,6 +878,7 @@ def main():
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,
             DeckIncomplete,
+            DeckUnresolved,
             build_analysis_deck,
         )
         # FAILURES and RUN_START are what let the deck judge its own inputs: a failed step means
@@ -905,6 +906,17 @@ def main():
         for f_ in sorted(set(ex.failed_steps)):
             log(f"       failed step: {f_}")
         log("     fix them and rerun, or rebuild with allow_failed_steps=True to publish anyway")
+    except DeckUnresolved as ex:
+        # NOT published, same reasoning as DeckIncomplete below: a deck whose notes print
+        # `[[? ... sidecar missing]]` instead of numbers is worse than the one already there.
+        # The commonest cause is a STALE CHECKOUT after the figure tree was restructured.
+        FAILURES.append("analysis deck (unresolved note values -- NOT published)")
+        log(f"  !! analysis deck NOT PUBLISHED: {len(ex.unresolved)} note(s) could not resolve "
+            f"their sidecar values, existing deck left untouched")
+        for u in ex.unresolved[:20]:
+            log(f"       unresolved: {u}")
+        log("     if the figure tree moved, this checkout may be stale -- git pull and rerun; "
+            f"otherwise fix the step that owns the CSV, or --allow-unresolved {len(ex.unresolved)}")
     except DeckIncomplete as ex:
         # NOT published: the previous deck is still in place. Name every gap -- the generic handler
         # below truncates to 80 chars, which is exactly the detail needed to fix the upstream step.

@@ -92,6 +92,18 @@ figs stage then waits for the imaging box's LocaNMF push.
    (`locanmf_analysis_deck.py`; A–C within-day per animal→type→date, D cross-session per basis→
    alignment→animal, E–F cohort summaries). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20) must already
    have run on the pushed inputs before this stage.
+> **PULL BEFORE THE RUN, and this is not boilerplate (2026-09-21).** The figure tree was
+> restructured: sidecars moved to `<dir>/data/`, vectors to `<dir>/svg/`, and `cue_analysis_out`
+> was renamed from `labcams/locanmf_lick_pooled/cue_analysis` to `labcams/analysis_figures`. A
+> checkout from before that commit resolves 801 of 810 note values against the new tree and
+> publishes a deck carrying nine `[[? ... sidecar missing]]` markers, with a zero missing-figure
+> count and no other complaint. `DeckUnresolved` now refuses that, but only for a checkout that
+> HAS the guard -- which is the argument for pulling rather than relying on it.
+>
+> If the nightly box should inherit this box's warm bootstrap cache, also
+> `set WIDEFIELD_SESSION_CACHE=N:/MICROSCOPE/Priya/Widefield/session_cache_v12`; there is no
+> automatic pull, and a cold cache costs about two hours on the grant render.
+
 10. **Publish the component PNGs** to MICROSCOPE (`cue_analysis_out`) so the individual figures persist
     on the server beside the deck. Incremental; never deletes.
 

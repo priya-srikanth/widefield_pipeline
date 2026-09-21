@@ -368,3 +368,86 @@ def test_superseded_grant_confusion_names_are_not_placed():
     for name in current:
         assert any(fnmatch.fnmatch(name, p) for p in pats), (
             f"{name} is a current figure and must still be placed")
+
+
+# --------------------------------------------------------------------------------------------
+# UNRESOLVED SIDECAR VALUES. The sibling of the missing-figure guard above, and it exists because
+# that one does not cover this: a missing FIGURE leaves a hole the guard counts, a missing SIDECAR
+# leaves the deck complete and the NUMBERS replaced by `[[? ... sidecar missing]]` on a slide.
+# Until 2026-09-21 that was printed to the build log and published anyway.
+# --------------------------------------------------------------------------------------------
+def test_a_deck_full_of_unresolved_markers_does_not_replace_a_good_one(tmp_path):
+    """MEASURED, which is why this is a refusal and not a warning.
+
+    The 2026-09-21 output-tree restructure moved 894 sidecars into `data/`. Running the PREVIOUS
+    revision of the deck module against the new tree resolves 801 of 810 values and publishes a
+    531-slide deck carrying NINE `[[? ... sidecar missing]]` markers -- with a zero missing-figure
+    count and no other complaint. A stale checkout on the nightly box is exactly how that happens.
+    """
+    import pytest
+
+    from wfield_local.locanmf_analysis_deck import DeckUnresolved, _refuse_unresolved_overwrite
+
+    p = tmp_path / "spout_position_analysis_summary.pptx"
+    p.write_bytes(b"x" * 4096)
+    with pytest.raises(DeckUnresolved, match="2 note"):
+        _refuse_unresolved_overwrite(p, ["epoch_14_beta_maps_MEANref_cue_working_stats.csv not found",
+                                         "epoch_5rmodelta_frozen_refit_overall_cue_lick.csv not found"])
+
+
+def test_the_blocked_deck_names_every_unresolved_reference(tmp_path):
+    """A count alone cannot be acted on, and the message truncates at 20."""
+    import pytest
+
+    from wfield_local.locanmf_analysis_deck import DeckUnresolved, _refuse_unresolved_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    un = [f"epoch_{i}_thing.csv not found" for i in range(25)]
+    with pytest.raises(DeckUnresolved) as ei:
+        _refuse_unresolved_overwrite(p, un)
+    assert ei.value.unresolved == un
+    assert "... and 5 more" in str(ei.value)
+    assert "stale" in str(ei.value), "the message must name the commonest cause"
+
+
+def test_a_fully_resolved_rebuild_publishes(tmp_path):
+    from wfield_local.locanmf_analysis_deck import _refuse_unresolved_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    _refuse_unresolved_overwrite(p, [])
+
+
+def test_allow_unresolved_is_the_escape(tmp_path):
+    from wfield_local.locanmf_analysis_deck import _refuse_unresolved_overwrite
+
+    p = tmp_path / "deck.pptx"
+    p.write_bytes(b"x" * 4096)
+    _refuse_unresolved_overwrite(p, ["one.csv not found"], allow_unresolved=1)
+
+
+def test_a_brand_new_deck_may_carry_markers(tmp_path):
+    """Same reasoning as the missing-figure guard: there is no good deck to destroy yet, and a
+    first build against a tree still filling up is a real case."""
+    from wfield_local.locanmf_analysis_deck import _refuse_unresolved_overwrite
+
+    _refuse_unresolved_overwrite(tmp_path / "does_not_exist.pptx", ["a.csv not found"] * 5)
+
+
+def test_the_guard_runs_before_the_save_not_after(tmp_path):
+    """Source-level: once `prs.save` has run the bad deck is already published.
+
+    The check was originally written after the save, because that is where `values.report()` was
+    called. Resolution happens in `flush_notes`, which is earlier, so the report can move up -- and
+    it has to.
+    """
+    import inspect
+
+    from wfield_local import locanmf_analysis_deck as deck
+
+    src = inspect.getsource(deck.build_analysis_deck)
+    assert src.index("_refuse_unresolved_overwrite(") < src.index("prs.save("), (
+        "the unresolved guard must run BEFORE the deck is written, or it guards nothing")
+    assert src.index("canvas.flush_notes()") < src.index("_refuse_unresolved_overwrite("), (
+        "notes must be resolved before the guard reads the miss list")
