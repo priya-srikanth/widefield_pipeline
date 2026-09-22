@@ -15,25 +15,20 @@
 # Enable once per clone:  bash scripts/setup-hooks.sh
 # Bypass once (emergency): git push --no-verify
 set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+. .githooks/_find_python.sh
 
-# Interpreter: prefer the active conda env. A bare `python` in Git Bash can resolve to the Windows
-# App Store shim (no pytest) — the known failure mode is a silently-refused push. If we cannot find
-# a python with pytest, BLOCK with a clear hint rather than skip the tests (export CONDA_PREFIX).
-PY="python"
-if [ -n "${CONDA_PREFIX:-}" ] && [ -x "$CONDA_PREFIX/python.exe" ]; then
-  PY="$CONDA_PREFIX/python.exe"
-fi
-
-if ! "$PY" -c "import pytest" >/dev/null 2>&1; then
+# Interpreter search is shared with pre-commit; see `.githooks/_find_python.sh` for why a bare
+# `python` is not trusted. If nothing with pytest is found, BLOCK rather than skip the tests.
+if ! find_python pytest; then
   cat >&2 <<EOF
-pre-push: no usable python with pytest ('$PY').
-  Activate the env or export CONDA_PREFIX first, e.g.:
+pre-push: no python with pytest found (tried CONDA_PREFIX, .venv, the locanmf env, PATH).
+  Activate the env, or export CONDA_PREFIX, e.g.:
     export CONDA_PREFIX=C:/Users/sabatini/.conda/envs/locanmf   # analysis box
-  (a bare 'python' in Git Bash may be the App Store shim). Emergency bypass: git push --no-verify
+  Emergency bypass: git push --no-verify
 EOF
   exit 1
 fi
 
-echo "pre-push: pytest -q…" >&2
-cd "$(git rev-parse --show-toplevel)"
+echo "pre-push: pytest -q [$PY] — about 2.5 minutes…" >&2
 "$PY" -m pytest -q
