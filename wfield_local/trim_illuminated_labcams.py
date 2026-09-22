@@ -114,9 +114,15 @@ def load_daq_labels(
     candidate_offsets = [offset] if offset is not None else [0, 1]
     best = None
     for off in candidate_offsets:
-        if off < 0 or off + physical_frame_count > len(labels_all):
+        if off < 0 or off >= len(labels_all):
             continue
-        labels = labels_all[off : off + physical_frame_count]
+        # The DAQ must cover the DAT from this offset, but the camera can keep writing a
+        # few trailing frames AFTER the DAQ recorder stops (DAQ duration < camera duration).
+        # Those tail frames carry no exposure TTL, so clip to the DAQ-covered span and drop
+        # them rather than failing the whole session (labels[j] is the label for DAT
+        # physical frame j, so the covered span is len(labels)).
+        end = min(off + physical_frame_count, len(labels_all))
+        labels = labels_all[off:end]
         illum = labels[labels != 0]
         same_adjacent = int(np.sum(illum[1:] == illum[:-1])) if len(illum) > 1 else 0
         both = int(np.sum(illum == 3))
@@ -127,10 +133,24 @@ def load_daq_labels(
         raise ValueError("No valid DAQ exposure-label offset for DAT frame count")
     _, chosen_offset, labels = best
 
+    # DAT physical frames past the DAQ-covered span (camera outran the DAQ recorder).
+    dat_tail_dropped = int(physical_frame_count - len(labels))
+    if dat_tail_dropped > 0:
+        frac = dat_tail_dropped / max(int(physical_frame_count), 1)
+        print(f"[relabel] DAT has {dat_tail_dropped} physical frame(s) "
+              f"({100*frac:.3f}%) beyond the DAQ exposure record "
+              f"(DAQ recorder stopped before labcams); dropping the unmonitored tail.",
+              flush=True)
+        if frac > 0.01:
+            print(f"[relabel] WARNING: dropped tail is {100*frac:.2f}% of frames (> 1%). "
+                  f"Expected only a few seconds of camera overrun -- verify the DAQ file "
+                  f"matches this session and was not truncated.", flush=True)
+
     meta = {
         "sample_rate_hz": fs,
         "daq_pco_exposure_count": int(len(labels_all)),
         "dat_physical_frame_count": int(physical_frame_count),
+        "dat_tail_dropped_beyond_daq": dat_tail_dropped,
         "chosen_exposure_offset": int(chosen_offset),
         "led415_threshold_v": thr415,
         "led470_threshold_v": thr470,
