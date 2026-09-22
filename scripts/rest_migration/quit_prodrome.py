@@ -410,7 +410,7 @@ def main(argv=None) -> int:
 
     # PAIRED WITHIN ANIMAL, the test the level table cannot do -- pre baselines run 151 to 173 ms
     # across animals, so between-animal variance swamps a ~10 ms epoch effect unless it cancels.
-    print(f"\n  CHANGE FROM PRE in median near-spout ILI (ms), paired within animal")
+    print("\n  CHANGE FROM PRE in median near-spout ILI (ms), paired within animal")
     for e in [x for x in EPS if x != "pre"]:
         P = {k: v for k, v in ((an, ili_by[an].get(e, [])) for an in ili_by) if v}
         Q = {k: v for k, v in ((an, ili_by[an].get("pre", [])) for an in ili_by) if v}
@@ -537,7 +537,7 @@ def main(argv=None) -> int:
                     line += f"{obs:>+14.1f} [{lo:+.1f},{hi:+.1f}]{star}({len(shared)})"
                 print(line)
         print("  paired = within animal, only animals with BOTH Q1 and Q5. * = CI excludes zero.")
-    print(f"\n  COMPARE against the hit-rate quintiles in `engagement_decomposition`:")
+    print("\n  COMPARE against the hit-rate quintiles in `engagement_decomposition`:")
     print("    acute NEAR hit rate 0.972 / 0.937 / 0.792 / 0.457 / 0.282 over these same bins.")
 
     fig2, ax2 = plt.subplots(2, 4, figsize=(17.5, 8.0))

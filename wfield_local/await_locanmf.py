@@ -128,8 +128,8 @@ def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
         whole, why = raw_is_whole(sdir)
         if not whole:
             log(f"  !! {animal} {yyyymmdd}: REFUSING -- {why}")
-            log(f"     SVTcorr and U_atlas exist but were computed from an incomplete upload. "
-                f"Re-upload the raw and re-run preprocessing; do NOT delete the acquisition copy.")
+            log("     SVTcorr and U_atlas exist but were computed from an incomplete upload. "
+                "Re-upload the raw and re-run preprocessing; do NOT delete the acquisition copy.")
             continue
         frame_map = bool(glob.glob(str(mc / "*cleanpairs_frame_map.npz")))
         locanmf_out = Path(config.locanmf_dir(mc))

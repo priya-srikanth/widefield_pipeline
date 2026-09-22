@@ -1,6 +1,6 @@
 # Status and handoff docs — what each one settled
 
-Sixteen dated snapshots, 7,215 lines, written at the end of a working day or before a context
+Seventeen dated snapshots, 7,303 lines, written at the end of a working day or before a context
 compaction. **They are the project's memory, and none of them has been deleted.** Several record
 a number that was later withdrawn, or a plan that turned out wrong; those are kept unedited,
 because knowing what was believed that week is how a stale figure in a document gets traced back
@@ -16,6 +16,7 @@ bottom of this table and walk up only as far as you need.
 | date | lines | what it settled | superseded by |
 |---|---:|---|---|
 | [08-14](STATUS_2026-08-14.md) | 219 | the drift-removal decision week. **Carries two withdrawn claims**, marked in the file: the +0.032 pre-cue sub-binning gain did not replicate (+0.009, 23/44) | 08-17 |
+| [08-09 tasks](STATUS_2026-08-09_TASKS.md) | 88 | **the open-items list, retired 2026-09-22** — it had stopped being open. Kept as the record of what was outstanding in August; its header says where each live fact went | — |
 | [08-17](STATUS_2026-08-17.md) | 299 | **the seventeen silent bugs found 15–17 Aug** and the guards put in for each. Those guards are still in force | 08-23 |
 | [08-23](STATUS_2026-08-23.md) | 140 | the post-stroke readout's design and the nulls behind it | 08-26 |
 | [08-26](STATUS_2026-08-26.md) | 198 | cohort state after the lesion series | 08-28 |

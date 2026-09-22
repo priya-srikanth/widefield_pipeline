@@ -4,7 +4,7 @@ The durable choices and results behind the widefield analysis pipeline, so futur
 and the per-decision rationale is explicit. Merged 2026-08-09 from the former `DECISIONS.md`
 (pipeline/preprocessing) and `LOCANMF_LICK_CUE_ANALYSIS.md` (behavioral analysis + findings F1–F17).
 
-**Companions:** open/actionable items → `TASKS.md`; how to run the nightly → `runbooks/`; step-level
+**Companions:** what is open → the newest file in `docs/status/`; how to run the nightly → `runbooks/`; step-level
 commands → `wfield_local/README.md`; dated incident/status records pruned from here →
 `docs/archive/ANALYSIS_HISTORY.md`; dead-strobe-bit recovery → `STROBE_BIT1_RECOVERY.md`.
 
@@ -193,7 +193,7 @@ pooled as F0 (`quiet_periods.py` → `*_quiet_frame.npy`; ported from stroke_oro
 Two rig-specific decisions: (1) **grooming OFF by default** — the stroke detector needs two spouts;
 single-spout long-touch is unreliable (a true long close-spout lick also looks long). (2) **thresholds are
 provisional** — running/quiet speed, min durations, lick/reward/treadmill buffers are stroke defaults; tune
-per rig, ideally validated against DLC/FaceRhythm movement (see `TASKS.md`).
+per rig, ideally validated against DLC/FaceRhythm movement (see `runbooks/dlc_orofacial.md`).
 - **Quiet-normalized lick activity**: pass `--quiet-frame` to the lick plotter to emit both the raw
   post-lick map and a `*_quietnorm*` map (post-lick − mean quiet baseline = lick-evoked relative to the
   not-running/not-licking state).
@@ -494,7 +494,7 @@ changes materially (e.g. a switch to pooled ROI features or a different window).
   cross-day component correspondence); also apply each session's decoder to its own no-lick trials.
   (2) **Frozen pre-stroke decoder (confirmatory)** — needs a common basis: fixed pre-stroke `A`, refit `C`
   (`C_new = pinv(A_ref)·U_new·SVTcorr_new`; valid because the stroke is subcortical) or Allen-ROI features.
-- **Prerequisites** (open — see `TASKS.md`): cross-day vasculature registration (`cross_day_align.py`);
+- **Prerequisites** (were open in Aug 2026 — see `docs/status/STATUS_2026-08-09_TASKS.md`): cross-day vasculature registration (`cross_day_align.py`);
   DLC/facerhythm movement regressors time-synced to widefield+DAQ (to separate "cortex codes position
   differently" from "the movement just changed"); the packaged frozen pre-stroke model + baseline noise floor.
 
@@ -2035,7 +2035,7 @@ Key analysis modules (`wfield_local/`): `run_locanmf.py` (LocaNMF/sNMF on the GP
 accuracy + per-position recall + confusion) · `locanmf_position_encoder.py` (per-position EV / FEVE /
 predicted maps) · `locanmf_cross_mouse.py` (cross-mouse + within-animal consistency) · `locanmf_rsa.py` (RSA
 + noise ceiling + hemisphere-resolved + crossnobis) · `locanmf_decoder_weights.py` (rolling/temporal figs) ·
-`nolick_analysis.py` + `nolick_decoder.py` + `plot_nolick_reference.py` (the no-detected-lick arm and its frozen pre-stroke reference) · `lick_bout_events.py` + `lick_bout_decoder.py` (bout-onset motor event set) · `roi_activity.py` (CPU Allen-area ROI traces) · `quiet_periods.py` (quiet-frame mask) · `atlas_overlay.py`
+`nolick_analysis.py` + `nolick_decoder.py` + `plot_nolick_reference.py` (the no-detected-lick arm and its frozen pre-stroke reference) · `lick_bout_events.py` + `scripts/archive/lick_bout_decoder.py` (bout-onset motor event set) · `roi_activity.py` (CPU Allen-area ROI traces) · `quiet_periods.py` (quiet-frame mask) · `atlas_overlay.py`
 (shared region outlines) · `framemap_event_maps.py` (regime-B cue/lick maps) · `qc_motion_correction.py` ·
 `cross_day_align.py`. The nightly orchestrators are `preprocess.py` (imaging) and `nightly_figs.py`
 (analysis). Figures/tables on MICROSCOPE under `labcams/locanmf_lick_pooled/…/cue_analysis/`; per-session
@@ -3953,7 +3953,7 @@ has NOT been tested.
 The outcome-blind arm is what finally gives far_R usable cells, and in it every far_R pair reads
 CHANGED. That is either the result or it is arithmetic: post-stroke far_R is nearly all misses while
 its partners are nearly all licks, and the pre-stroke reference is mostly licks, so the two sides of
-the contrast are drawn from different outcome mixtures. `scripts/axis_composition_null.py` builds
+the contrast are drawn from different outcome mixtures. `scripts/archive/axis_composition_null.py` builds
 that same asymmetry BY HAND inside pre-stroke, where there is no lesion -- position `a` from no-lick
 trials, position `b` from lick trials -- and measures how far it moves the outcome-blind axis.
 
@@ -4060,7 +4060,7 @@ low when its contrasts against the others have moved, whatever the partner. Outc
 (`poststroke_all_working`), 2-session blocks, cells gated as everywhere else (both reliabilities
 >= 0.5, ratios > 1 dropped as at-ceiling). A BLANK IS "NOT MEASURABLE", NOT "UNCHANGED" -- the pre-cue
 window loses whole blocks this way and the lick window loses none, which is a power difference, not
-a result. Regenerate with `scripts/position_by_position.py`.
+a result. Regenerate with `scripts/archive/position_by_position.py`.
 
 ### Pooled over post-stroke sessions
 
@@ -4170,7 +4170,7 @@ both references and show them side by side. For now: **the cue window is the sou
 outcome-blind arm** -- there BOTH arms are cue-referenced, so no misalignment exists at all -- and
 the lick column should be read as a power-boosted repeat of it, not as corroboration.
 
-Regenerate the fractions with `scripts/nolick_fraction.py`.
+Regenerate the fractions with `scripts/archive/nolick_fraction.py`.
 
 ---
 
@@ -4323,7 +4323,7 @@ was that the orthogonalised arms must systematically understate position effects
 both forms to be reported. `position_axes` now computes every arm TWICE in one pass -- `pooled` /
 `sessions` (projected) and `pooled_raw` / `sessions_raw` (not) -- **and both nulls**
 (`prestroke_null`, `prestroke_null_raw`), because a raw cosine judged against an orthogonalised null
-compares two different measurements. `scripts/orth_vs_raw.py` reads them side by side.
+compares two different measurements. `scripts/archive/orth_vs_raw.py` reads them side by side.
 
 ### The obvious conclusion was wrong
 
@@ -6921,7 +6921,7 @@ across a session while every one of those trials stays "engaged", because `MIN_R
 exists to excise sated tails, not to hold the animal to a criterion — but it means "engaged" spans a
 0.2 range of reference performance, and any analysis treating engaged trials as homogeneous within a
 session is averaging over it. `tests/` does not pin this; the probe is
-`docs/gate_bias_probe.py`.
+`scripts/archive/gate_bias_probe.py`.
 
 ## 2026-08-28 (late) — figure dimensions, and a cache that memoised its own failures
 
@@ -8303,7 +8303,7 @@ r = 0.86, which is what shows amplitude and reliability are separable and that f
 **THE RESIDUAL-DECODE CONTROL CANNOT WORK AT THIS RANK** and produced a convincing wrong answer
 first (0.93 balanced accuracy pre-stroke). Session SVD rank 100, basis 100 dims, overlap 0.997 --
 the basis is nearly a rotation, not a reduction, and the real truncation is the preprocessing SVD,
-upstream and identical pre/post. Kept in `basis_residual.py` as the record.
+upstream and identical pre/post. Kept in `scripts/archive/basis_residual.py` as the record.
 
 
 ---
@@ -16716,3 +16716,49 @@ fix. The behaviour box was rendering the epoch figures and had imported `matrix_
 the edit; everything else that run wrote landed correctly. This is the same failure `save_cache`'s
 docstring already records from 2026-09-17 — mask fix at 13:51, module imported at 13:39 — so:
 **after changing a writer, re-run the audit once the render in flight has finished, not before.**
+
+### THE QUALITY GATES WERE WRITTEN IN AUGUST AND HAVE NEVER RUN (2026-09-22)
+
+`.githooks/pre-commit` (ruff on staged files) and `.githooks/pre-push` (the suite) are good hooks,
+documented in `CLAUDE.md`, installed by `scripts/setup-hooks.sh` — and `core.hooksPath` was unset
+on this box, so **not one of the 21 commits made this week ran either of them.** A hook that
+requires a per-clone opt-in is off by default, and nothing anywhere reports that it is off. Now
+enabled here; the other box must run `bash scripts/setup-hooks.sh` itself, because `core.hooksPath`
+is local config and cannot be committed.
+
+Two things had to be fixed first, and both were cases of a gate quietly not meaning what it said.
+
+**THE RULE SET WAS NEVER CHOSEN.** `[tool.ruff]` set `line-length` and nothing else, so the
+effective rules were whatever the installed ruff defaulted to — 1,156 findings on 0.16.2, **a
+number that changes when ruff updates**. Turning the hook on would have blocked commits on rules
+nobody picked, and a different ruff on the other box would block different ones. The set is now
+explicit and justified in `pyproject.toml`: `F, B, W605, PLE, E9`, which is 154 findings. The test
+for inclusion was "would a violation be a BUG". `E702` alone is 1,208 hits on `a = 1; b = 2`, a
+house style that is not wrong, and `I001` is 153 — and `ruff --fix I001` already destroyed the
+hand-written comments in the import blocks once, on 2026-09-21.
+
+**THE PRE-PUSH HOOK ADVERTISED ITSELF AS "~2 s". IT IS 154 s.** True in August, never rechecked.
+A gate whose cost is understated is one people learn to pass with `--no-verify`, so the real number
+is now in the comment along with where it goes (about 60% is five cluster-permutation tests and one
+deck test) — deselect those by name if it ever stops being worth the wait, rather than trimming the
+suite blindly.
+
+**AND THE THING I GOT WRONG: `ruff --fix` FOR F401 IS NOT SAFE IN THIS REPO.** Run across 394
+files, it removed 94 "unused" imports. The suite went to 27 collection errors. Fixed the cause,
+re-ran, and it went to 2 failures with a *different* cause. An import here looks unused for three
+reasons and only the first can be seen statically:
+
+1. **Re-export** — `locanmf_lick_aligned.coverage_mask` is imported out of that module by two
+   files. An AST pass over `ImportFrom` finds these. My first attempt used a regex instead and
+   missed a second importer of the very name it was checking, because the import was
+   parenthesised across two lines.
+2. **Attribute access** — `module.name` from elsewhere. An import-graph pass does not see it.
+3. **A monkeypatch target** — `monkeypatch.setattr(pl, "out_root", ...)` names it as a **string**.
+   No static analysis of any kind can see this, and `dlc_prelabel.out_root` is exactly it.
+
+So the 94 removals were reverted and only the 21 semantics-free fixes (`W605`, `F541`) kept. F401
+stays SELECTED, because on a file somebody is already editing it is a fair question the author can
+answer; it is not a thing to sweep. **The general form: a rule that is safe to enforce is not
+necessarily safe to auto-apply, and "the tests pass" is not the same evidence as "the tests pass
+and I know why each change was safe".** Twice here the suite caught it; the third mechanism it
+would only have caught by luck, since most of these scripts have no test at all.

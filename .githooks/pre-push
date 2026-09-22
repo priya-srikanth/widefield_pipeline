@@ -2,7 +2,15 @@
 # widefield_pipeline pre-push — run the test suite before a push reaches main.
 #
 # Both machines push main directly and rebase (CLAUDE.md rule 4), so a broken push blocks the
-# OTHER machine's rebase — the test suite is fast (~2 s), so gate on it here.
+# OTHER machine's rebase — that is what this gate is for, and it is why it runs the WHOLE
+# suite rather than a fast subset.
+#
+# IT TAKES ~2.5 MINUTES (2,400 tests, measured 2026-09-22). This comment said "~2 s" until
+# then, which was true when the hook was written in August and had not been rechecked since.
+# The number is stated here because a gate whose cost is understated is a gate people learn
+# to pass with --no-verify. Roughly 60% of it is five cluster-permutation tests and one deck
+# test; if the wait ever stops being worth it, deselect THOSE by name rather than trimming
+# the suite blindly.
 #
 # Enable once per clone:  bash scripts/setup-hooks.sh
 # Bypass once (emergency): git push --no-verify

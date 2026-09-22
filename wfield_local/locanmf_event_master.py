@@ -96,7 +96,7 @@ def main() -> int:
             if r == 0:
                 ax.set_title(f"{ev}-triggered", fontsize=12)
             if r == nrow - 1:
-                ax.set_xlabel(f"time from event (s)")
+                ax.set_xlabel("time from event (s)")
             ax.legend(fontsize=5, loc="upper right")
     fig.suptitle("LocaNMF event-triggered traces by Allen area, per animal (lick vs cue; individual components faint)",
                  fontsize=13)

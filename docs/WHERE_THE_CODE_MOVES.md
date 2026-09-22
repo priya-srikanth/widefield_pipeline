@@ -48,7 +48,7 @@ Two things gave it away: the residual eigenvalue spectrum is **isotropic** (0.02
 0.028, 0.028, 0.027 — a noise floor, not a coding subspace), and restoring the correct
 singular-value scaling changed the decode **not at all**, because the scaler undoes it.
 
-Recorded in `wfield_local/basis_residual.py`, which is kept for that reason rather than deleted.
+Recorded in `scripts/archive/basis_residual.py`, which is kept for that reason rather than deleted.
 **Testing what the preprocessing SVD discards needs the pre-SVD movie and is a separate undertaking.**
 
 ---

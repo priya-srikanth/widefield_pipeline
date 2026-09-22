@@ -241,7 +241,7 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
    after `xall` in `preprocess`; `preprocess_deck` consumes its PNG). Earlier:
    `_nightly_*`/`_mc_svd_*`/`_maps_*`/`_photobleach_*`→`preprocess`; `_xall_refresh`→`preprocess.refresh_xall`;
    deck→`preprocess_deck`; standby transfer→`archive_day`. `_build_xsession_deck`/`_redo_motion_all` retired;
-   `_qc_from_standby` moved to `scripts/`. No root `_*_run.py` drivers remain.
+   `_qc_from_standby` moved to `scripts/`, and on 2026-09-22 to `scripts/archive/` — the E: cleanup it was written for is done. No root `_*_run.py` drivers remain.
 4. **Optional `src/` layout** — move `wfield_local/` under `src/` and/or split into submodules like their
    `src/pkg/{alignment,figures,stats,…}`. KEEP the `wfield_local` import name (both machines + docs depend
    on `python -m wfield_local.*`).

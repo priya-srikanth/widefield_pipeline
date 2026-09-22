@@ -10,7 +10,7 @@ functional-subnetwork analysis.
 It consumes exactly what our alignment step already produces, so no re-preprocessing:
   --allen-dir   <...\allen_aligned_*>   with  U_atlas.npy,
                 allen_area_atlas_native_grid.npy, allen_brain_mask_native_grid.npy
-  --svt         SVTcorr.npy             (defaults to <allen-dir>\..\..\SVTcorr.npy)
+  --svt         SVTcorr.npy             (defaults to <allen-dir>\\..\\..\\SVTcorr.npy)
 
 Calls wfield.local_nmf.compute_locaNMF(U, V, atlas, brain_mask, ...) and saves
 A (H,W,ncomp), C (ncomp,T), regions, a summary, and a component montage.
@@ -43,10 +43,10 @@ LocaNMF needs the `locanmf` package (PyTorch + a compiled C++/CUDA extension) an
    ! There is currently no newer-Python prebuilt package; (b) compiles from source.
 ==============================================================================
 
-Run (after data is on N:\MICROSCOPE\Priya\Widefield\labcams\...):
+Run (after data is on N:\\MICROSCOPE\\Priya\\Widefield\\labcams\\...):
   python -m wfield_local.run_locanmf \
-    --allen-dir "N:\...\motion_corrected\wfield_local_results\allen_aligned_affine8v1" \
-    --label PS94_0603 --output "N:\...\motion_corrected\locanmf_affine8v1" \
+    --allen-dir "N:\\...\\motion_corrected\\wfield_local_results\allen_aligned_affine8v1" \
+    --label PS94_0603 --output "N:\\...\\motion_corrected\\locanmf_affine8v1" \
     --maxrank 20 --loc-thresh 70 --r2-thresh 0.99 --device auto
 """
 

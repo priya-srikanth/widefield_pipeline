@@ -41,7 +41,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from wfield_local import config
-from wfield_local.framemap_event_maps import (  # one implementation
+# RE-EXPORT, not an unused import: `coverage_mask` is unused HERE, but
+# `locanmf_crossanimal_dff` and `tests/test_joint_xsession` import it FROM this module.
+# `ruff --fix F401` removed it on 2026-09-22 and broke both; see pyproject's lint note.
+from wfield_local.framemap_event_maps import (  # one implementation  # noqa: F401
     _corrected_frame_samples, _nearest_corrected_frame, coverage_mask)
 # h5py/numpy-only helpers (these modules do NOT import wfield)
 from wfield_local.plot_lick_aligned_averages import (
@@ -185,7 +188,6 @@ def _quicklook(args, out, regions, counts):
     """Overlay the 6 spout-position trial-averaged traces for the most lick-responsive
     component in each orofacial area (post-lick |mean| peak), as a sanity figure."""
     tax = out["time"]
-    pre_mask = tax < 0
     post_mask = (tax >= 0) & (tax <= 0.5)
     areas = [(lab, nm) for lab, nm in OROFACIAL.items()] + [(-lab, nm) for lab, nm in OROFACIAL.items()]
     fig, axes = plt.subplots(2, 4, figsize=(18, 8), squeeze=False)

@@ -48,3 +48,58 @@ include = ["wfield_local*"]
 
 [tool.ruff]
 line-length = 120
+
+# ARCHIVED CODE IS EVIDENCE, NOT SOURCE. `scripts/rest_migration/archive` holds the tests that
+# guided decisions already recorded in DECISIONS.md, kept so a number can be traced to the run
+# that produced it. Linting it would invite edits that make it no longer what actually ran.
+# `force-exclude` so the pre-commit hook, which passes staged paths EXPLICITLY, honours it too --
+# an explicit path overrides `exclude` otherwise.
+extend-exclude = ["scripts/rest_migration/archive", "scripts/archive"]
+force-exclude = true
+
+[tool.ruff.lint]
+# CHOSEN DELIBERATELY, 2026-09-22. Until now this table set only `line-length`, so the effective
+# rule set was whatever the installed ruff defaulted to -- 1,156 findings on 0.16.2, a number that
+# MOVES WHEN RUFF UPDATES and that nobody here picked. `.githooks/pre-commit` lints staged files
+# against this list, so leaving it accidental means blocking commits on rules no-one chose.
+#
+# The test for inclusion is "would a violation be a BUG", not "is this tidier":
+#
+#   F     undefined names, unused imports and variables, empty f-strings. F821 is the one that
+#         matters; the rest stop dead references accumulating as code moves between modules.
+#
+#         NEVER BULK-RUN `ruff --fix` FOR F401 IN THIS REPO. Tried 2026-09-22 across 394 files:
+#         94 "unused" imports removed, and the suite went from green to 27 collection errors and
+#         then to 2 failures, in two separate rounds. An import here is unused-looking for three
+#         reasons, and only the first is statically visible:
+#           1. RE-EXPORT via `from other import name` -- `locanmf_lick_aligned.coverage_mask` is
+#              imported out of it by two files. An AST pass over ImportFrom finds these.
+#           2. ATTRIBUTE ACCESS `module.name` from elsewhere. An import-graph pass misses it.
+#           3. A MONKEYPATCH TARGET: `monkeypatch.setattr(pl, "out_root", ...)` names it as a
+#              STRING, so no analysis of any kind can see it. `dlc_prelabel.out_root` is exactly
+#              this, and removing the import turns the patch into an AttributeError.
+#         F401 stays selected because on a file someone is ALREADY editing it is a fair question
+#         and the author can answer it. It is not a thing to sweep.
+#   B     flake8-bugbear. B023 -- a closure capturing the loop variable -- is why this is selected
+#         at all: 26 live instances, and it is the same shape as the deferred-note bug in
+#         `deck_layout`, where what a closure read was not what it was written next to.
+#   W605  an invalid escape in a string literal is a typo Python will eventually make an error.
+#   PLE   pylint's ERROR class only, not its opinions.
+#   E9    syntax and IO errors.
+#
+# DELIBERATELY NOT SELECTED. Each fires in the hundreds on a house style that is not wrong, and a
+# gate that cries wolf is a gate people learn to pass with --no-verify:
+#
+#   E702   1,208 hits. `a = 1; b = 2` is used throughout and reads well in numeric setup lines.
+#   E741   145 hits. `l` and `I` as locals in array code.
+#   I001   153 hits, AND FIXING IT HAS ALREADY DONE DAMAGE HERE: `ruff --fix I001` reordered the
+#          import blocks on 2026-09-21 and destroyed the hand-written comments inside them. The
+#          import groups in this repo carry prose and are maintained by hand.
+#   RUF100 would flag all 322 `# noqa` comments written for rules this list does not select.
+#   C408, RUF046, ISC004, RUF059, BLE001, UP031, SIM115 -- style, not defects. BLE001 in
+#          particular: broad `except Exception` around a per-session step is deliberate here, so
+#          one bad session cannot end a cohort run.
+select = ["F", "B", "W605", "PLE", "E9"]
+
+# B905: passing `strict=` to `zip` is a 3.10+ API preference, not a defect. 195 call sites.
+ignore = ["B905"]

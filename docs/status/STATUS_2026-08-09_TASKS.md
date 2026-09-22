@@ -1,4 +1,27 @@
-# Ongoing tasks & decisions (widefield pipeline)
+# Ongoing tasks & decisions (widefield pipeline) — RETIRED 2026-09-22
+
+> **This was the open-items list, and it stopped being one.** Last substantive edit 2026-08-09;
+> `README.md` still billed it as "open/actionable items" six weeks later, while most of what is
+> below had been done. A stale to-do list is worse than none — it is read as current.
+>
+> **It is kept, unedited below, because it is a true record of what was outstanding in August**,
+> and because two of its sections are the reason a decision later went the way it did. Nothing in
+> it is unique any more; each live fact now has an authoritative home:
+>
+> | what was here | where it lives now |
+> |---|---|
+> | per-animal 6/6 reference landmark version | `configs/animals.yaml` → `reference_landmarks`, machine-readable |
+> | `allen_aligned_affine8v1` naming rule | [`runbooks/imaging_computer_nightly.md`](../../runbooks/imaging_computer_nightly.md) |
+> | M: standby vs N: MICROSCOPE split | [`CLAUDE.md`](../../CLAUDE.md) rules 0–1 |
+> | quiet-period thresholds | [`DECISIONS.md`](../../DECISIONS.md) "Quiet-period baseline" |
+> | motion sign-bug, redo scope, LocaNMF re-run | done; recorded in `DECISIONS.md` and `docs/archive/MOTION_CORRECTION_SIGN_BUG.md` |
+> | post-stroke prerequisites | built — frozen decoder, `cross_day_align.py`, DLC arm in [`runbooks/dlc_orofacial.md`](../../runbooks/dlc_orofacial.md) |
+>
+> For what is actually open, read the newest entry in [`docs/status/`](README.md) and the tail of
+> `DECISIONS.md`.
+
+---
+
 
 ## Standing nightly pipeline
 The per-night runbook lives in **`runbooks/imaging_computer_nightly.md`** (source of truth); it is now driven by the

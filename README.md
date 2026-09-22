@@ -29,7 +29,7 @@ configs/               single source of truth (mirrors stroke_orofacial_pipeline
   paths.yaml           MICROSCOPE + labcams + DAQ + behavior mounts (logical roots -> platform paths)
   defaults.yaml        analysis params (LocaNMF r2/loc/maxrank, decode windows/CV, sync, lick detection)
 runbooks/              the per-machine nightly runbooks (source of truth: imaging_computer_nightly / analysis_computer_nightly)
-docs (*.md at root)    DECISIONS (analysis decisions + findings), STROBE_BIT1_RECOVERY, TASKS, CLAUDE; docs/archive/ = retired one-offs
+docs (*.md at root)    DECISIONS (analysis decisions + findings), STROBE_BIT1_RECOVERY, CLAUDE; docs/archive/ = retired one-offs
 _*.py / _*.json        legacy per-session drivers + state (to be folded into the config-driven flow — see "Roadmap")
 ```
 
@@ -109,7 +109,6 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 - [`STROBE_BIT1_RECOVERY.md`](STROBE_BIT1_RECOVERY.md) — dead-strobe-bit position recovery (behavior-log + cam1)
 - [`docs/GUI_TRIALS_LOGGING.md`](docs/GUI_TRIALS_LOGGING.md) — the GUI `trials.csv` `pos_idx` bug and why
   behavior trials are sourced from the DAQ recorder `.h5` (DAQ primary, behavior log fallback)
-- [`TASKS.md`](TASKS.md) — open/actionable items + post-stroke prerequisites
 
 ## Roadmap
 

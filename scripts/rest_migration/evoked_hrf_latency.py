@@ -203,7 +203,7 @@ def main(argv=None) -> int:
                 line += f"{g[0]:>11.3f} [{g[1]:+.2f},{g[2]:+.2f}]" if g else f"{'--':>24}"
             print(line)
 
-        print(f"\n  CHANGE FROM PRE, paired within animal")
+        print("\n  CHANGE FROM PRE, paired within animal")
         for e in [x for x in eps if x != "pre"]:
             line = f"  {e:<10}{'':>4}"
             for key in ("t_peak_470", "t_dip_415", "latency"):

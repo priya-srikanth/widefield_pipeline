@@ -130,7 +130,7 @@ def main(argv=None) -> int:
         print(f"{an:8s}" + "".join(
             f"{np.nanmean([x[w]['acc'] for x in rr if w in x]):>10.3f}" for w in a.windows))
 
-    print(f"\n=== PER-POSITION recall — does a longer window rescue the LATE positions? ===")
+    print("\n=== PER-POSITION recall — does a longer window rescue the LATE positions? ===")
     for an in sorted({l[:4] for l in rows}):
         rr = [v for l, v in rows.items() if l.startswith(an)]
         print(f"  {an}")
