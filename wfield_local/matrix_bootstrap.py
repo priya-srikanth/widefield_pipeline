@@ -219,8 +219,10 @@ def write_cell_values(summary, q, *, labels=None, reference=None):
     import csv
     import pathlib
 
+    from wfield_local import figure_layout as fl
+
     q = pathlib.Path(q)
-    main = q.with_name(q.stem + "_cells.csv")
+    main = fl.sidecar(q, "_cells.csv")
     try:
         with open(main, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)

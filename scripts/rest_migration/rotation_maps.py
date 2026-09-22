@@ -631,7 +631,7 @@ def main() -> int:
     if a.replot:
         cache, rows, sha = load_cache(out_dir, a.tag)
         if cache is None:
-            print(f"!! no cache at {out_dir}/epoch_15h_rotation_cache{a.tag}.npz -- run once "
+            print(f"!! no cache at {out_dir}/data/epoch_15h_rotation_cache{a.tag}.npz -- run once "
                   f"WITHOUT --replot first. Refusing to recompute silently.")
             return 1
         print(f"REPLOT from cache: {len(cache)} cells computed by git {sha}\n")
@@ -846,7 +846,8 @@ def git_sha() -> str:
 
 def write_csv(rows, out_dir, tag=""):
     """The per-cell table. Split out of `main` so a per-arm checkpoint writes the same file."""
-    p = out_dir / f"epoch_15h_rotation_regions{tag}.csv"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out_dir, f"epoch_15h_rotation_regions{tag}", ".csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
@@ -882,7 +883,8 @@ def save_cache(cache, rows, out_dir, tag="", args=None, sha=None):
     for i, c in enumerate(cache):
         blobs[f"z{i}"] = c["z"]
         blobs[f"sig{i}"] = c["sig"]
-    p = out_dir / f"epoch_15h_rotation_cache{tag}.npz"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out_dir, f"epoch_15h_rotation_cache{tag}", ".npz")
     np.savez_compressed(p, meta=json.dumps(meta), rows=json.dumps(rows, default=str),
                         git_sha=sha, args=json.dumps(vars(args) if args else {}, default=str),
                         n=len(cache), **blobs)
@@ -913,7 +915,8 @@ def save_draws(draws, out_dir, tag=""):
                      for k in ("arm", "animal", "contrast", "position", "cos_obs")})
         out[f"null{i}"] = np.asarray(d["cos_null"], np.float32)
         out[f"boot{i}"] = np.asarray(d["cos_boot"], np.float32)
-    p = out_dir / f"epoch_15h_rotation_draws{tag}.npz"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out_dir, f"epoch_15h_rotation_draws{tag}", ".npz")
     np.savez_compressed(p, meta=json.dumps(meta), **out)
     print(f"[15h] wrote {p}  ({len(draws)} cells of draws)", flush=True)
     return p
@@ -923,8 +926,9 @@ def load_draws(out_dir, tag=""):
     """``[{arm, animal, contrast, position, cos_obs, cos_null, cos_boot}]``, or ``[]``."""
     import json
 
-    p = Path(out_dir) / f"epoch_15h_rotation_draws{tag}.npz"
-    if not p.exists():
+    from wfield_local import figure_layout as fl
+    p = fl.find_sidecar_for(out_dir, f"epoch_15h_rotation_draws{tag}", ".npz")
+    if p is None:
         return []
     with np.load(p, allow_pickle=False) as f:
         meta = json.loads(str(f["meta"]))
@@ -936,8 +940,9 @@ def load_cache(out_dir, tag=""):
     """``(cache, rows, sha)`` from `save_cache`, or ``(None, None, None)``."""
     import json
 
-    p = out_dir / f"epoch_15h_rotation_cache{tag}.npz"
-    if not p.exists():
+    from wfield_local import figure_layout as fl
+    p = fl.find_sidecar_for(out_dir, f"epoch_15h_rotation_cache{tag}", ".npz")
+    if p is None:
         return None, None, None
     with np.load(p, allow_pickle=False) as f:
         meta = json.loads(str(f["meta"]))

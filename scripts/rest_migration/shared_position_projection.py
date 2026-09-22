@@ -209,8 +209,9 @@ def _plot(rows, out, variant_name, aligns):
         "dots = per-animal means", fontsize=10)
     fig.tight_layout(rect=(0, 0.01, 1, 0.93))
     p = out / f"epoch_15s_shared_position_{variant_name}.png"
+    from wfield_local import figure_layout as fl
     fig.savefig(p, dpi=150)
-    fig.savefig(p.with_suffix(".svg"))
+    fig.savefig(fl.svg_path(p))
     plt.close(fig)
     return p
 
@@ -372,6 +373,7 @@ def _qv():
 
 def main() -> int:
     from wfield_local import config, epochs
+    from wfield_local import figure_layout as _fl
     from wfield_local.grant_figures import CONF_LABELS
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.quiet_periods import quiet_variant
@@ -398,7 +400,8 @@ def main() -> int:
     # postponing. The CSV is the measurement of record, so replotting from it cannot disagree with
     # the numbers -- it reads the same file a reader would check.
     if a.replot:
-        src = a.out / f"epoch_15s_shared_position_{(_qv() or 'retired')}.csv"
+        src = _fl.find_sidecar_for(a.out, f"epoch_15s_shared_position_{(_qv() or 'retired')}",
+                                   ".csv")
         if not src.exists():
             print(f"!! --replot: {src} does not exist; run the measurement first")
             return 1
@@ -464,7 +467,7 @@ def main() -> int:
         return 1
 
     a.out.mkdir(parents=True, exist_ok=True)
-    cp = a.out / f"epoch_15s_shared_position_{variant_name}.csv"
+    cp = _fl.sidecar_for(a.out, f"epoch_15s_shared_position_{variant_name}", ".csv")
     with open(cp, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()

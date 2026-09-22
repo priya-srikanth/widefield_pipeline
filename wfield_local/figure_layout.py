@@ -50,10 +50,23 @@ def sidecar(png, suffix: str, *, mkdir: bool = True) -> pathlib.Path:
     ``suffix`` carries its own separator: ``".csv"``, ``"_sessions.csv"``, ``"_bundle.json"``.
     """
     png = pathlib.Path(png)
-    d = png.parent / DATA_DIR
+    return sidecar_for(png.parent, png.stem, suffix, mkdir=mkdir)
+
+
+def sidecar_for(out_dir, stem: str, suffix: str, *, mkdir: bool = True) -> pathlib.Path:
+    """Same rule as `sidecar`, for a writer that has a DIRECTORY AND A STEM but no figure path.
+
+    Most renderers hold the PNG they just saved. The `scripts/rest_migration` statistics writers
+    do not -- they build ``out_dir / f"{stem}_sessions.csv"`` directly, and several of them write
+    the CSV in a different function from the one that draws the figure. Before this existed they
+    each reimplemented the join, and on 2026-09-22 all five were still writing FLAT while
+    `find_sidecar` had already moved to ``data/``: the fresh numbers landed where nothing reads
+    them and every reader kept resolving a two-day-old copy. Neither side errored.
+    """
+    d = pathlib.Path(out_dir) / DATA_DIR
     if mkdir:
         d.mkdir(parents=True, exist_ok=True)
-    return d / (png.stem + suffix)
+    return d / (stem + suffix)
 
 
 def find_sidecar(png, suffix: str) -> pathlib.Path | None:
@@ -65,10 +78,16 @@ def find_sidecar(png, suffix: str) -> pathlib.Path | None:
     report "no data" for them, which reads exactly like a figure that never had any.
     """
     png = pathlib.Path(png)
-    new = png.parent / DATA_DIR / (png.stem + suffix)
+    return find_sidecar_for(png.parent, png.stem, suffix)
+
+
+def find_sidecar_for(out_dir, stem: str, suffix: str) -> pathlib.Path | None:
+    """Read side of `sidecar_for`: the new location, falling back to the old flat one."""
+    out_dir = pathlib.Path(out_dir)
+    new = out_dir / DATA_DIR / (stem + suffix)
     if new.exists():
         return new
-    old = png.parent / (png.stem + suffix)
+    old = out_dir / (stem + suffix)
     return old if old.exists() else None
 
 

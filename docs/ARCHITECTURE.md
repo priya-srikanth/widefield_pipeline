@@ -208,12 +208,21 @@ forms of this, all silent:
 This is ground rule 6's "options travel in the ITEM because spawn does not inherit globals",
 arriving from three different directions.
 
-**3 · A verification tool that cannot fail is decoration.** Three times in one day a check reported
+**3 · A verification tool that cannot fail is decoration.** Five times now a check has reported
 success having measured nothing: two empty fingerprint files comparing equal, and an SVG comparison
 run against an unset shell variable reporting `identical=0 differing=0`. Both now refuse an empty
 measurement. Relatedly, **matplotlib SVG is not byte-reproducible** — every file carries a render
 timestamp and random element ids — so byte-comparing SVGs reports a difference whatever you did.
 Use [`scripts/compare_svg_renders.py`](../scripts/compare_svg_renders.py).
+
+**4 · A writer and its reader must be moved together, and a round trip will not prove it.**
+`figure_layout` moved sidecars into `data/` and `find_sidecar` with them, but six writers in
+`scripts/rest_migration` and `matrix_bootstrap` kept building the flat path; for a day the
+fresh numbers landed where nothing looked while every reader resolved a two-day-old copy,
+both files present, nothing raising. A writer/reader round-trip test does **not** catch it —
+the read-side fallback finds whatever the writer just wrote, so the pair agrees while both
+are wrong. Assert the *location* as well as the round trip, and see
+[`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) for the on-disk check.
 
 ---
 
@@ -227,6 +236,7 @@ Numbers are the test. The suite does not cover the analysis scripts, and it is n
 | figure renderers | render before and after, byte-compare the PNGs. Use `--output` to a scratch directory, never the share. |
 | pure functions | pin them: check a frozen copy of the pre-extraction source into a test and assert EXACT equality of the draws. Milliseconds instead of hours, and stronger. |
 | module constants | hash every one before and after and compare exactly. Covers constants no particular run reaches. |
+| where artefacts LAND | [`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) — scans the output tree for sidecars sitting flat beside a figure. Empirical, because a source scan cannot see a file a third-party script dropped there. `--fix` repairs, move-only. |
 
 Two rules learned the hard way, both of which have already caught real bugs:
 

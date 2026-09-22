@@ -960,12 +960,14 @@ def main() -> int:
 
     a.out.mkdir(parents=True, exist_ok=True)
     import csv as _csv
-    cp = a.out / f"{stem}.csv"
+
+    from wfield_local import figure_layout as fl
+    cp = fl.sidecar_for(a.out, stem, ".csv")
     with open(cp, "w", newline="", encoding="utf-8") as fh:
         w = _csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    sp = a.out / f"{stem}_sessions.csv"
+    sp = fl.sidecar_for(a.out, stem, "_sessions.csv")
     with open(sp, "w", newline="", encoding="utf-8") as fh:
         w = _csv.DictWriter(fh, fieldnames=list(per_session[0]))
         w.writeheader()
@@ -980,7 +982,7 @@ def main() -> int:
     # is a colour scale is not checkable.
     if cf:
         import csv as _c
-        cp2 = a.out / f"{stem}_confusion.csv"
+        cp2 = fl.sidecar_for(a.out, stem, "_confusion.csv")
         with open(cp2, "w", newline="", encoding="utf-8") as fh:
             w = _c.writer(fh)
             w.writerow(["epoch", "true", "pred", "count"])

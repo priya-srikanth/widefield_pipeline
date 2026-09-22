@@ -420,8 +420,9 @@ def epoch_summary(stats, out_dir, seed):
     print("    contributing to BOTH epochs enter the contrast.")
 
     if rows:
-        q = out_dir / (f"channel_position_maps_by_epoch"
-                       f"{'_late' if WIN_START_S else ''}.csv")
+        from wfield_local import figure_layout as _fl
+        q = _fl.sidecar_for(out_dir, "channel_position_maps_by_epoch"
+                            f"{'_late' if WIN_START_S else ''}", ".csv")
         with open(q, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()
@@ -1025,7 +1026,11 @@ def main(argv=None) -> int:
         print("no sessions -- a failed run, not a result")
         return 1
     wrote, stats = 0, []
-    _csv_path = out_dir / f"channel_position_maps_stats{'_late' if WIN_START_S else ''}.csv"
+    from wfield_local import figure_layout as _fl2
+    _csv_stem = f"channel_position_maps_stats{'_late' if WIN_START_S else ''}"
+    _csv_path = _fl2.sidecar_for(out_dir, _csv_stem, ".csv")
+    if a.from_csv:
+        _csv_path = _fl2.find_sidecar_for(out_dir, _csv_stem, ".csv") or _csv_path
     if a.from_csv:
         # THE EPOCH TABLES AND FIGURES BELOW READ `stats` AND NOTHING ELSE, so this rebuilds all
         # of them exactly -- see `analysis_kit.read_rows` for why the float round-trip is exact.

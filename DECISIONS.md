@@ -16659,3 +16659,60 @@ pin the derived strings too, or rebuild them.
 **WHAT THE EVIDENCE FOR THIS SPLIT ACTUALLY IS**, in the order it was obtained: 72/73 definitions
 unparse identically (the one being an import alphabetised by `ruff --fix`); 2,146 tests pass;
 338/339 figures byte-identical with the 339th explained and its data identical.
+
+### THE MIGRATION MOVED THE READERS AND LEFT SIX WRITERS BEHIND (2026-09-22)
+
+A day after `figure_layout` moved every sidecar into `data/`, an audit of the output tree found
+**29 files sitting flat beside their figures, and 19 of them NEWER than the copy in `data/`**.
+`find_sidecar` prefers `data/`. So for a day the pipeline wrote fresh numbers where nothing looked
+and served every reader a copy from 2026-09-20 — 15f, 15g, 15h, 15s and 10cs all affected.
+
+**NOTHING COULD HAVE NOTICED, AND THAT IS THE POINT.** Both files existed, so nothing was missing.
+Both parsed, so nothing raised. The figure was correct — it is drawn from the in-memory result, not
+from the sidecar — so the *picture* and the *numbers behind it* disagreed while looking fine
+separately. `figure_layout`'s own docstring had predicted exactly this — *"the coverage tool counts
+PNGs, and a stray CSV is invisible to every check in this repo"* — and then no check was written.
+**A hazard written down in a docstring is not a guard.**
+
+**THE CAUSE IS A HALF-MIGRATION, AND HALF IS THE WORST AMOUNT.** Moving both sides is correct;
+moving neither is correct. Moving only the READ side is worse than doing nothing, because the
+fallback that makes the migration gentle — `find_sidecar` still accepts a flat file — is precisely
+what stops a stale one from ever surfacing. The migration was done by walking the figure modules;
+these six writers live in `scripts/rest_migration` and in `matrix_bootstrap`, and were never in
+the walk. **Migrate by asking who WRITES the artefact, not by walking the directory you think owns
+it.**
+
+**THE CHECK IS EMPIRICAL, NOT A SOURCE SCAN** — [`scripts/check_figure_layout.py`](scripts/check_figure_layout.py),
+`--fix` to repair (move-only; the superseded copy is retired, never overwritten). A scan for
+`with_suffix(".csv")` goes blind the moment somebody spells the join differently, and it cannot
+see a file a third-party script dropped in the directory. What is on disk cannot be evaded by
+phrasing. It reports STALE-SHADOW — flat and newer than the twin — separately from a plain stray,
+because only the first means the pipeline is actively serving old numbers.
+
+**TWO THINGS THE TEST DESIGN GOT RIGHT ONLY BECAUSE THEY WERE MUTATION-TESTED.**
+
+1. **A writer/reader round trip does NOT catch this.** Reverting `save_cache` to the flat path and
+   re-running `tests/test_sidecar_writer_reader_pairs.py`: the round trip still passed, because
+   `find_sidecar_for` falls back to flat and dutifully found what the writer had just put there.
+   The only assertion that failed was the explicit `p.parent.name == fl.DATA_DIR`. **A round trip
+   proves the two halves agree with each other, not that either is right** — when a fallback
+   exists, agreement is exactly what a broken pair will also show.
+2. **Not every loose file is a stray, and structure cannot tell you which.**
+   `exclusion_mask_painted_PS92.npy` and `epoch_15g_transfer_ENL_matrix.csv` are both "a non-PNG
+   whose stem no figure owns"; the first is placed deliberately by `paint_exclusion.mask_dir()`
+   and glob-read by `beta_maps`, and moving it would break the mask cohort-wide. A prefix
+   heuristic that exempted it also exempted eleven real strays. The exemption is therefore a
+   **list with a reason**, and a test asserts each entry still earns its place.
+
+**A TOOL CAN ONLY CATCH THIS IF IT REFUSES AN EMPTY MEASUREMENT** — the fourth time this session.
+Pointed at a directory with no PNG, the first version printed `0 problems`; and a scope checker
+written the same hour reported `ok` for a path that did not exist. Both now exit 2. The guidance in
+`docs/ARCHITECTURE.md` — *a verification tool that cannot fail is decoration* — was written about
+three earlier instances and did not prevent two more, so it is repeated here: **write the failing
+case first, and run it.**
+
+**A RUNNING PROCESS KEEPS THE OLD CODE.** Mid-audit a fresh flat `_cells.csv` appeared, after the
+fix. The behaviour box was rendering the epoch figures and had imported `matrix_bootstrap` before
+the edit; everything else that run wrote landed correctly. This is the same failure `save_cache`'s
+docstring already records from 2026-09-17 — mask fix at 13:51, module imported at 13:39 — so:
+**after changing a writer, re-run the audit once the render in flight has finished, not before.**

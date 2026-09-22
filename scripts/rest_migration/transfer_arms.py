@@ -134,6 +134,7 @@ def collect_rest(an, bins, gate=True):
 
 def main() -> int:
     from wfield_local import config
+    from wfield_local import figure_layout as fl
     from wfield_local import transfer_matrix as tm
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.locanmf_frozen_decoder import _pipe
@@ -190,14 +191,16 @@ def main() -> int:
         # names, one of them stale. The task arms need no tag: their window is the arm name.
         stem = (f"epoch_15g_transfer_{_rest_variant()}{a.tag}" if arm == "rest"
                 else f"epoch_15g_transfer_{arm}{a.tag}")
-        with open(out_dir / f"{stem}_sessions.csv", "w", newline="", encoding="utf-8") as fh:
+        with open(fl.sidecar_for(out_dir, stem, "_sessions.csv"), "w", newline="",
+                  encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()
             w.writerows(rows)
         agg = tm.summarise(rows)
         for r in agg:
             r["arm"] = arm
-        with open(out_dir / f"{stem}_matrix.csv", "w", newline="", encoding="utf-8") as fh:
+        with open(fl.sidecar_for(out_dir, stem, "_matrix.csv"), "w", newline="",
+                  encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(agg[0]))
             w.writeheader()
             w.writerows(agg)
@@ -235,6 +238,7 @@ def _figure(summary, out_dir, tag=""):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import figure_layout as fl
     from wfield_local import transfer_matrix as tm
 
     arms = [s[0] for s in summary]
@@ -267,7 +271,9 @@ def _figure(summary, out_dir, tag=""):
     mats = {}
     for arm in arms:
         nm = _rest_variant() if arm == "rest" else arm
-        f = out_dir / f"epoch_15g_transfer_{nm}{tag}_matrix.csv"
+        f = fl.find_sidecar_for(out_dir, f"epoch_15g_transfer_{nm}{tag}", "_matrix.csv")
+        if f is None:
+            raise SystemExit(f"[15g] no matrix CSV for arm {arm!r} -- run the arm first")
         with open(f, newline="", encoding="utf-8") as fh:
             rs = list(_csv.DictReader(fh))
         g = {(r["train_epoch"], r["test_epoch"]): float(r["acc_minus_null"]) for r in rs}
@@ -367,7 +373,7 @@ def _figure(summary, out_dir, tag=""):
              ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15g_transfer_by_window{tag}.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")
-    fig.savefig(str(out).replace(".png", ".svg"), bbox_inches="tight")
+    fig.savefig(fl.svg_path(out), bbox_inches="tight")
     plt.close(fig)
     return out
 
