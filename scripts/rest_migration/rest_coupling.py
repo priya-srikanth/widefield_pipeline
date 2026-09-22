@@ -261,7 +261,11 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
-    q = out_dir / "epoch_19_rest_coupling.csv"
+    from wfield_local import figure_layout as fl
+    _stem = "epoch_19_rest_coupling"
+    q = fl.sidecar_for(out_dir, _stem, ".csv")
+    if a.from_csv:
+        q = fl.find_sidecar_for(out_dir, _stem, ".csv") or q
     rows = []
     if not a.from_csv:
         # ORDER IS LOAD-BEARING TWICE OVER HERE, and both halves now come from `analysis_kit`:

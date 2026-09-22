@@ -256,7 +256,8 @@ def main() -> int:
         return 1
 
     out = Path(a.out)
-    p = out / f"{stem}_sessions.csv"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out, stem, "_sessions.csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
@@ -306,7 +307,8 @@ def main() -> int:
                         "retained_n_animals": len(ratios),
                         "retained_per_animal": "|".join(f"{x:+.3f}" for x in ratios),
                         "n_animals": c[2], "animals": "|".join(c[3]), "n_sessions": c[4]})
-    p2 = out / f"{stem}_matrix.csv"
+    from wfield_local import figure_layout as fl
+    p2 = fl.sidecar_for(out, stem, "_matrix.csv")
     with open(p2, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(agg[0]))
         w.writeheader()

@@ -277,9 +277,13 @@ def test_run_emits_BOTH_families_under_distinct_names(monkeypatch, tmp_path):
     out = rt.run(out_dir=tmp_path)
     assert seen == [False, True], "both families must be built, unmatched first"
     assert set(out) == {"unmatched", "matched"}
-    names = {p.name for p in tmp_path.glob("*.csv")}
+    # `figure_layout` puts sidecars under `data/` (2026-09-22); glob RECURSIVELY so this asserts
+    # the two names are distinct rather than asserting where the layout happens to put them --
+    # the layout itself is `tests/test_sidecar_writer_reader_pairs.py`'s job.
+    names = {p.name for p in tmp_path.rglob("*.csv")}
     assert "recovery_trajectory_unmatched_cue_working.csv" in names
     assert "recovery_trajectory_matched_cue_working.csv" in names
+    assert not list(tmp_path.glob("*.csv")), "a sidecar must not be written flat beside the figure"
 
 
 def test_the_family_is_recorded_IN_the_rows(tmp_path):

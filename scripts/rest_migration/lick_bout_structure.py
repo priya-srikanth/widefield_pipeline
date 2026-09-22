@@ -446,7 +446,8 @@ def main(argv=None) -> int:
                "THIRD.\nThe per-trial MEDIAN ILI averages this away, which is why it looked "
                "like there was no motor change. POSITIVE = the tongue slows as the bout runs on.")
 
-    q = out_dir / "epoch_26_lick_bout_structure.csv"
+    from wfield_local import figure_layout as fl
+    q = fl.sidecar_for(out_dir, "epoch_26_lick_bout_structure", ".csv")
     with open(q, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["label", "animal", "epoch", "early_lpm", "base_licks",
                                            "cross_time_s", "cross_licks", "n_trials"])

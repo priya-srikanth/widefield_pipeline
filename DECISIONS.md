@@ -16762,3 +16762,42 @@ answer; it is not a thing to sweep. **The general form: a rule that is safe to e
 necessarily safe to auto-apply, and "the tests pass" is not the same evidence as "the tests pass
 and I know why each change was safe".** Twice here the suite caught it; the third mechanism it
 would only have caught by luck, since most of these scripts have no test at all.
+
+### AN OUTPUT-TREE AUDIT IS BLIND TO CODE THAT HAS NOT RUN (2026-09-22, later)
+
+`scripts/check_figure_layout.py` found six writers putting sidecars flat, they were fixed, both
+roots verified clean, and the finding was written up as closed. **Four hours later the same tool
+reported eleven new stale shadows.** Eight were `recovery_trajectory`, which had simply not run
+since the migration; a static scan prompted by that then found three more in
+`reference_family_roi` that had not run at all. The final count of bypassing writers is **twenty**,
+not six.
+
+**THE TOOL WAS NOT WRONG, AND THAT IS THE POINT.** It reads the output tree, which is the
+strongest evidence available — what is on disk cannot be evaded by phrasing — and it was telling
+the truth about the tree every time. It simply cannot see a writer that has not executed, and
+nothing about a clean report distinguishes "no bypassing writers" from "no bypassing writer has
+run yet". **An empirical check is bounded by what has happened, and that bound is invisible from
+inside the check.**
+
+So the guard is now two halves, and the write-up says plainly that neither is sufficient:
+
+* `scripts/check_figure_layout.py` — the tree. Catches anything, however spelled, including files
+  a third-party script dropped there. Blind to code that has not run.
+* `tests/test_no_writer_bypasses_figure_layout.py` — the source. Sees writers before they run.
+  Blind the moment somebody spells the join a new way.
+
+**THE STATIC RULE HAD TO BE NARROW TO BE WORTH HAVING.** The obvious pattern — a sidecar
+extension joined onto a directory — matched 69 lines, and nearly all were session artefacts in
+session directories (`U_atlas.npy`, `events.csv`, `gui_config.json`). Requiring the filename to
+follow the figure naming convention as well takes it to 7, of which 6 were real. The one false
+positive, `dlc_calibration`, is exempted by name with its reason, because structure cannot
+separate it from a real hit — the same conclusion reached for `exclusion_mask_painted` earlier in
+the day, and the same remedy: a list with a reason, and a test that each entry still earns it.
+
+**A NOTE ON HOW THE FIX ITSELF WENT WRONG.** The first attempt at the ten `rest_migration` writers
+replaced source by matching a four-space-indented line. Python does not care where a match starts:
+the pattern matched *inside* an eight-space line in `quit_prodrome`, producing an `IndentationError`
+that only appeared at `py_compile`. Ten files were reverted and redone with a replacement anchored
+newline-to-newline on the stripped text, preserving each site's own indentation. **A substring
+match on indented source is not a line match**, and an `assert count == 1` does not save you — the
+count was 1, on the wrong line.

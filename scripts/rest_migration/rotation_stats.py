@@ -284,7 +284,9 @@ def main(argv=None) -> int:
         # FALL BACK TO THE REDUCED TABLE, and say so loudly. The cohort CI is recoverable from
         # the saved per-animal cosines and their CIs; the MAX-STATISTIC is not, because it needs
         # every cell within one draw and the table holds only marginals.
-        regions = out_dir / f"epoch_15h_rotation_regions{a.tag}.csv"
+        from wfield_local import figure_layout as fl
+        regions = (fl.find_sidecar_for(out_dir, f"epoch_15h_rotation_regions{a.tag}", ".csv")
+                   or out_dir / f"epoch_15h_rotation_regions{a.tag}.csv")
         if not regions.exists():
             print(f"!! neither epoch_15h_rotation_draws{a.tag}.npz nor {regions.name} exists -- "
                   f"run `rotation_maps` first. REFUSING to recompute either here.")
@@ -337,7 +339,8 @@ def main(argv=None) -> int:
             "n_null_draws": n_draws,
         })
 
-    p = out_dir / f"epoch_15h_rotation_cohort{a.tag}.csv"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out_dir, f"epoch_15h_rotation_cohort{a.tag}", ".csv")
     with open(p, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
@@ -353,7 +356,9 @@ def main(argv=None) -> int:
         print(f"   {n_sig}/{len(rows)} cells clear the family-wise threshold")
     print(f"   {sum(r['ci_excludes_zero'] for r in rows)}/{len(rows)} cohort CIs exclude zero")
     print(f"[15h] wrote {p}")
-    (out_dir / f"epoch_15h_rotation_cohort{a.tag}_meta.json").write_text(
+    from wfield_local import figure_layout as fl
+    fl.sidecar_for(out_dir, f"epoch_15h_rotation_cohort{a.tag}",
+                   "_meta.json").write_text(
         json.dumps({"alpha": a.alpha, "n_boot": a.boot, "family_n_cells": n_cells,
                     "n_null_draws": n_draws, "correction": "maxstat",
                     "family": "window x contrast x position; animals are replicates"}, indent=2),

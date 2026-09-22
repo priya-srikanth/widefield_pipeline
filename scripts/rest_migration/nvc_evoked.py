@@ -253,7 +253,8 @@ def main(argv=None) -> int:
     if not rows:
         print("no sessions -- a failed run, not a result")
         return 1
-    q = out_dir / "epoch_16_nvc_evoked.csv"
+    from wfield_local import figure_layout as fl
+    q = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", ".csv")
     with open(q, "w", newline="", encoding="utf-8") as fh:
         wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
         wr.writeheader()
@@ -294,7 +295,8 @@ def main(argv=None) -> int:
                               ratio=round(ratio, 4),
                               e415_ci_excludes_zero=bool(c415[1] > 0 or c415[2] < 0)))
     if stats:
-        qs = out_dir / "epoch_16_nvc_evoked_stats.csv"
+        from wfield_local import figure_layout as fl
+        qs = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", "_stats.csv")
         with open(qs, "w", newline="", encoding="utf-8") as fh:
             wr = csv.DictWriter(fh, fieldnames=list(stats[0]))
             wr.writeheader()

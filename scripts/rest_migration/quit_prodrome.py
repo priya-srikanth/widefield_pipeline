@@ -328,7 +328,8 @@ def main(argv=None) -> int:
     print("    NEGATIVE with a CI excluding zero = PRODROME. Spanning zero = STEP.")
 
     if rows_out:
-        q = out_dir / f"epoch_23_quit_prodrome{tag}.csv"
+        from wfield_local import figure_layout as fl
+        q = fl.sidecar_for(out_dir, f"epoch_23_quit_prodrome{tag}", ".csv")
         with open(q, "w", newline="", encoding="utf-8") as fh:
             wr = csv.DictWriter(fh, fieldnames=list(rows_out[0]))
             wr.writeheader()
@@ -433,7 +434,8 @@ def main(argv=None) -> int:
 
     # ALL-SESSION ILI TO CSV. The per-quitter file below covers only 45 of 96 sessions, so the
     # per-animal check could not be redone from it -- which is what forced a whole re-run.
-    qa = out_dir / f"epoch_23_session_ili{tag}.csv"
+    from wfield_local import figure_layout as fl
+    qa = fl.sidecar_for(out_dir, f"epoch_23_session_ili{tag}", ".csv")
     with open(qa, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["label", "animal", "epoch", "censored",
                                            "ili_near_ms", "ili_far_ms", "n_near", "n_far"])

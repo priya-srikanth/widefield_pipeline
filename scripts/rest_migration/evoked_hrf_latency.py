@@ -176,7 +176,8 @@ def main(argv=None) -> int:
     if not rows:
         print("no sessions -- a failed run, not a result")
         return 1
-    q = out_dir / "epoch_22_evoked_hrf_latency.csv"
+    from wfield_local import figure_layout as fl
+    q = fl.sidecar_for(out_dir, "epoch_22_evoked_hrf_latency", ".csv")
     with open(q, "w", newline="", encoding="utf-8") as fh:
         wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
         wr.writeheader()

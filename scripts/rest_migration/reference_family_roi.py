@@ -375,8 +375,9 @@ def main() -> int:
     import json
     meta = [{k: d[k] for k in ("family", "animal", "epoch", "position", "session")}
             for d in vectors]
+    from wfield_local import figure_layout as fl
     np.savez_compressed(
-        out_dir / f"epoch_15k_region_vectors_{a.align}{a.tag}.npz",
+        fl.sidecar_for(out_dir, f"epoch_15k_region_vectors_{a.align}{a.tag}", ".npz"),
         meta=json.dumps(meta), regions=json.dumps([str(x) for x in labels]),
         sids=np.asarray(sids), V=np.asarray([d["v"] for d in vectors], dtype=np.float32))
     print(f"\nwrote per-session vectors: {len(vectors)} rows x {len(sids)} regions", flush=True)
@@ -410,7 +411,7 @@ def main() -> int:
                                 "ci_excludes_zero": excl,
                                 "n_animals_same_sign": int(rep[i])})
     if coh:
-        pc = out_dir / f"epoch_15k_cohort_{a.align}{a.tag}.csv"
+        pc = fl.sidecar_for(out_dir, f"epoch_15k_cohort_{a.align}{a.tag}", ".csv")
         with open(pc, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(coh[0]))
             w.writeheader()
@@ -434,7 +435,7 @@ def main() -> int:
         print("\n  NOTE the CI is per cell and NOT corrected across regions. With 4 animals an")
         print("  animal-level permutation cannot reach p<0.05 (2^4=16, floor 0.0625), so the")
         print("  interval is the claim and the all-three-families agreement is the guard.")
-    p_out = out_dir / f"epoch_15k_reference_family_roi_{a.align}{a.tag}.csv"
+    p_out = fl.sidecar_for(out_dir, f"epoch_15k_reference_family_roi_{a.align}{a.tag}", ".csv")
     with open(p_out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()

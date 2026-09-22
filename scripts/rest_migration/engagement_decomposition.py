@@ -282,7 +282,12 @@ def main(argv=None) -> int:
                       if set(raw) <= set(CONF_LABELS) else raw))
 
     per = []                     # one row per session x position
-    q = out_dir / "epoch_17_engagement_decomposition.csv"
+    from wfield_local import figure_layout as fl
+    _stem = "epoch_17_engagement_decomposition"
+    q = fl.sidecar_for(out_dir, _stem, ".csv")
+    if a.from_csv:
+        # a table exported before the 2026-09-21 move still sits flat
+        q = fl.find_sidecar_for(out_dir, _stem, ".csv") or q
     if a.from_csv:
         # EVERY NUMBER BELOW COMES FROM THIS FILE, so re-deriving from it is the whole analysis
         # and not a shortcut. `analysis_kit.read_rows` explains why the float round-trip is exact.

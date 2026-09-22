@@ -128,7 +128,8 @@ def main() -> int:
         print(f"  .. {ref} done ({time.time() - t0:.0f}s)", flush=True)
 
     out = pathlib.Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
-    p = out / "epoch_15x_between_animal_null_RESTref.csv"
+    from wfield_local import figure_layout as fl
+    p = fl.sidecar_for(out, "epoch_15x_between_animal_null_RESTref", ".csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()

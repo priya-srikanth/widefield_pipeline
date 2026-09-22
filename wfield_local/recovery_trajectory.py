@@ -59,6 +59,7 @@ from pathlib import Path
 
 import numpy as np
 
+from wfield_local import figure_layout as fl
 from wfield_local.writeguard import assert_writable
 
 #: Sessions an animal must contribute AFTER its peak before its post-peak slope is reported. Two
@@ -502,8 +503,7 @@ def _write(fig, out_dir, stem) -> list[Path]:
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     made = []
-    for ext in ("png", "svg"):
-        p = out_dir / f"{stem}.{ext}"
+    for p in (out_dir / f"{stem}.png", fl.svg_path(out_dir / f"{stem}.png")):
         fig.savefig(p, dpi=180)
         made.append(p)
     plt.close(fig)
@@ -523,21 +523,23 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
     for matched in (False, True):
         tag = "matched" if matched else "unmatched"
         stem = f"recovery_trajectory_{tag}_{align}_{variant}"
-        rows = (load_csv(Path(from_csv).with_name(stem + ".csv")) if from_csv
+        rows = (load_csv(fl.find_sidecar_for(Path(from_csv).parent, stem, ".csv")
+                         or Path(from_csv).with_name(stem + ".csv")) if from_csv
                 else series(align, variant, matched=matched))
         if not rows:
             print(f"[recovery_trajectory] {tag}: no paired records", flush=True)
             continue
         summary = summarise(rows)
         summaries[tag] = summary
-        pre_path = out_dir / f"{stem}_pre.csv"
-        pre = (load_pre_csv(Path(from_csv).with_name(pre_path.name)) if from_csv
+        pre_path = fl.sidecar_for(out_dir, stem, "_pre.csv")
+        pre = (load_pre_csv(fl.find_sidecar_for(Path(from_csv).parent, stem, "_pre.csv")
+                            or Path(from_csv).with_name(pre_path.name)) if from_csv
                else pre_points(align, variant, matched=matched))
         if not from_csv:
             write_pre_csv(pre, pre_path)
         made += figure(rows, summary, out_dir, align, variant, tag=tag)
         made += figure_by_animal(rows, summary, out_dir, align, variant, pre=pre, tag=tag)
-        csvp = write_csv(rows, out_dir / f"{stem}.csv")
+        csvp = write_csv(rows, fl.sidecar_for(out_dir, stem, ".csv"))
 
         print(f"\n[recovery_trajectory] {align}/{variant} {tag.upper()}: "
               f"{len(rows)} sessions", flush=True)
