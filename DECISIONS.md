@@ -16614,3 +16614,48 @@ the quarantined copy goes blank settled it:
 
 **WHEN A FILE'S FAILURE MODE IS "RIGHT SIZE, WRONG CONTENT", ONLY CONTENT CLEARS IT.** The README
 is preserved outside the deleted tree; `wfield_local/archive_day.py` owns the standby policy.
+
+### THE EPOCH SPLIT IS VERIFIED — AND THE VERIFICATION IS THE INTERESTING PART (2026-09-22)
+
+`epoch_grant_figures` 3,942 -> 545 plus six modules. The full render comparison finished:
+**338 of 339 PNGs byte-identical**, and the 339th differs by 107 pixels — one glyph in a caption —
+for a reason that is not the split. Its data sidecar is byte-identical.
+
+Getting to that number took three attempts, and the two failures are both traps worth knowing.
+
+**1. A BEFORE/AFTER RENDER IS ONLY VALID IF THE INPUTS HOLD STILL, AND ON A SHARED REPO THEY DO
+NOT.** The first comparison reported **339 of 339 differing**. Nothing was wrong with the code. The
+nightly on the other box had moved two inputs while the four-hour baseline was running, and a
+rebase pulled them into the working tree between the two runs:
+
+    16:10   baseline render starts          119 sessions, k_res 0.5
+    16:23   PS94_0921 auto-registered
+    18:37   PS95_0921 auto-registered
+    19:44   epochs k_res 0.5 -> 0.4
+    20:35   after render                    121 sessions, k_res 0.4   -> everything differs
+
+`load_sessions` is read once per process and `CHRONIC_K_RES` at import, so **each run was
+internally consistent and neither could detect that the other had different data.** A uniform
+difference is the signature: a code regression spares the families it does not touch, so *all of
+them differing* points away from the code, not towards it. Re-running with both inputs pinned to
+the baseline's values gave 338/339.
+
+The tell that settled it early was a partial render taken at 17:13, before the rebase: same 119
+sessions, and 7 of 7 families byte-identical. **When a comparison disagrees with a static proof,
+suspect the harness before the code** — AST comparison already said 72 of 73 definitions were
+unchanged.
+
+**2. PINNING A CONSTANT DOES NOT REBUILD WHAT WAS DERIVED FROM IT.** The one remaining difference
+is the caption `residual <= 0.5 x pre-stroke SD` becoming `0.4`. `CHRONIC_RULE` is an f-string
+built AT IMPORT from `CHRONIC_K_RES`; setting the constant afterwards changed every number the
+figure computes and left the sentence describing them untouched. So the pinned run drew
+baseline-identical data under a caption quoting the live config — the difference is an artefact of
+the control, not of the thing under test.
+
+This is the same shape as the module-boundary bugs from the day before: **a value and the thing
+derived from it part company the moment one of them is captured.** If a pin has to be believed,
+pin the derived strings too, or rebuild them.
+
+**WHAT THE EVIDENCE FOR THIS SPLIT ACTUALLY IS**, in the order it was obtained: 72/73 definitions
+unparse identically (the one being an import alphabetised by `ruff --fix`); 2,146 tests pass;
+338/339 figures byte-identical with the 339th explained and its data identical.
