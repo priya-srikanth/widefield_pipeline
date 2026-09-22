@@ -211,6 +211,78 @@ def session_row(item):
                        f"nolick 415 early {r.get('nolick_415_early', '--')}")
 
 
+def _present(x) -> bool:
+    """Is this cell a real measurement?
+
+    A missing window is written as an EMPTY CELL, which `analysis_kit.read_rows` turns into NaN.
+    So the live path sees ``""`` and the `--from-csv` path sees ``nan`` for the same session, and
+    the original test -- ``r.get(k, "") != ""`` -- is TRUE for NaN. Re-deriving with it would have
+    pooled exactly the sessions the live run excludes: every CI moved, a larger `n` reported, and
+    both runs looking healthy. Neither form is a measurement; say so once, here.
+    """
+    if x is None or x == "":
+        return False
+    try:
+        return bool(np.isfinite(float(x)))
+    except (TypeError, ValueError):
+        return False
+
+
+def _save_curves(curves, t, out_dir):
+    """Persist the per-session TRACES the figure is drawn from.
+
+    THE CSV IS NOT ENOUGH FOR THIS MODULE, which is why `--from-csv` needed a second artefact
+    before it could exist. `epoch_16_nvc_evoked.csv` holds four window AVERAGES per session, and
+    this module's own docstring says the trace is the primary object and the windows only
+    summarise it -- Simpson et al. name the observable as a SHAPE, and two window averages are
+    what hid it here for a day. A `--from-csv` that re-derived the tables and left the figure to a
+    live run would re-derive the part that was never expensive.
+
+    One file rather than one per curve: every trace shares `t`, so they stack.
+    """
+    import json
+
+    from wfield_local import figure_layout as fl
+
+    if t is None or not curves:
+        return None
+    meta, e470, e415 = [], [], []
+    for (cls, ep), entries in curves.items():
+        for an, a470, a415 in entries:
+            meta.append({"cls": cls, "epoch": ep, "animal": an})
+            e470.append(np.asarray(a470, np.float64))
+            e415.append(np.asarray(a415, np.float64))
+    q = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", "_curves.npz")
+    np.savez_compressed(q, t=np.asarray(t, np.float64), meta=json.dumps(meta),
+                        e470=np.asarray(e470), e415=np.asarray(e415))
+    return q
+
+
+def _load_curves(out_dir):
+    """``(curves, t)`` from `_save_curves`, or ``(None, None)`` if it was never written.
+
+    ORDER IS PRESERVED -- rebuilt by appending in the stored order, which is the `input_order` the
+    live run accumulated in. The figure's per-animal means are unweighted so order does not move
+    them, but keeping it makes the two paths diff-identical rather than merely equivalent, and
+    that is what makes a byte comparison a usable test instead of an approximate one.
+    """
+    import json
+    from collections import defaultdict
+
+    from wfield_local import figure_layout as fl
+
+    q = fl.find_sidecar_for(out_dir, "epoch_16_nvc_evoked", "_curves.npz")
+    if q is None:
+        return None, None
+    with np.load(q, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        t, e470, e415 = f["t"], f["e470"], f["e415"]
+        out = defaultdict(list)
+        for i, m in enumerate(meta):
+            out[(m["cls"], m["epoch"])].append((m["animal"], e470[i], e415[i]))
+    return out, t
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -218,24 +290,50 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive the tables AND the figure from epoch_16_nvc_evoked.csv plus "
+                         "epoch_16_nvc_evoked_curves.npz, without opening a session. The CSV "
+                         "alone is NOT enough here: it holds four window averages per session and "
+                         "the figure is drawn from the traces, which the .npz carries. With the "
+                         ".npz absent the tables are still re-derived and the figure is LEFT "
+                         "ALONE rather than redrawn from less than it was built with.")
     ap.add_argument("--seed", type=int, default=20260919)
     a = ap.parse_args(argv)
 
+    from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     rows, curves, tvec = [], defaultdict(list), None
+
+    if a.from_csv:
+        # EVERY NUMBER BELOW COMES FROM THESE TWO FILES. `read_rows` round-trips the floats
+        # exactly (shortest-repr), so the tables are the same tables and not rounded ones.
+        q_in = fl.find_sidecar_for(out_dir, "epoch_16_nvc_evoked", ".csv")
+        if q_in is None:
+            print("!! no epoch_16_nvc_evoked.csv -- run once WITHOUT --from-csv first. "
+                  "REFUSING to recompute silently.")
+            return 1
+        rows = ak.read_rows(q_in)
+        curves, tvec = _load_curves(out_dir)
+        print(f"FROM CSV: {len(rows)} session rows from {q_in} -- no session was read")
+        if curves is None:
+            print("   .. no _curves.npz alongside it: the TABLES are re-derived and the FIGURE "
+                  "IS NOT REDRAWN.")
+            print("      It was built from traces this CSV does not carry, and redrawing it from "
+                  "window averages")
+            print("      would replace a published figure with a worse one and say nothing.")
     # `analysis_kit.curated_labels` is the session filter, once; it preserves `load_sessions`
     # order, which is NOT sorted.
-    labels = ak.curated_labels(animals)
+    labels = [] if a.from_csv else ak.curated_labels(animals)
 
     # **`input_order`, NOT ALPHABETICAL** (CLAUDE.md ground rule 9). `rows` and `curves` are
     # iterated into a seeded RNG below, so collecting the fan-out in sorted order would move every
     # CI while leaving the point estimates exact. Restoring the input order makes this conversion
     # diff-identical to the serial run.
-    res, fail = ak.fan_sessions(labels, session_row, jobs=a.jobs,
-                                key=ak.input_order(labels))
+    res, fail = ((), []) if a.from_csv else ak.fan_sessions(
+        labels, session_row, jobs=a.jobs, key=ak.input_order(labels))
     if fail:
         print(f"  !! {len(fail)} session(s) failed: "
               + ", ".join(f"{x[0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
@@ -253,13 +351,19 @@ def main(argv=None) -> int:
     if not rows:
         print("no sessions -- a failed run, not a result")
         return 1
-    from wfield_local import figure_layout as fl
-    q = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", ".csv")
-    with open(q, "w", newline="", encoding="utf-8") as fh:
-        wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        wr.writeheader()
-        wr.writerows(rows)
-    print(f"\nwrote {q}")
+    if not a.from_csv:
+        # DO NOT REWRITE THE INPUTS ON A --from-csv RUN. Re-emitting the CSV from rows just read
+        # out of it is a no-op at best; at worst it launders a partial read into the file every
+        # later run trusts.
+        q = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", ".csv")
+        with open(q, "w", newline="", encoding="utf-8") as fh:
+            wr = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            wr.writeheader()
+            wr.writerows(rows)
+        print(f"\nwrote {q}")
+        cq = _save_curves(curves, tvec, out_dir)
+        if cq is not None:
+            print(f"wrote {cq}  -- the traces the figure is drawn from; --from-csv needs this")
 
     # THE TEST IS THE NO-LICK EARLY 415 ALONE. On LICK trials a fast movement-locked term rides on
     # both channels and can bury a smaller negative calcium term; removing those trials is the
@@ -271,7 +375,7 @@ def main(argv=None) -> int:
     stats = []
     for cls in ("lick", "nolick"):
         for ep in ("pre", "acute", "subacute", "chronic"):
-            v = [r for r in rows if r["epoch"] == ep and r.get(f"{cls}_415_early", "") != ""]
+            v = [r for r in rows if r["epoch"] == ep and _present(r.get(f"{cls}_415_early"))]
             if not v:
                 continue
 
@@ -295,7 +399,6 @@ def main(argv=None) -> int:
                               ratio=round(ratio, 4),
                               e415_ci_excludes_zero=bool(c415[1] > 0 or c415[2] < 0)))
     if stats:
-        from wfield_local import figure_layout as fl
         qs = fl.sidecar_for(out_dir, "epoch_16_nvc_evoked", "_stats.csv")
         with open(qs, "w", newline="", encoding="utf-8") as fh:
             wr = csv.DictWriter(fh, fieldnames=list(stats[0]))
@@ -315,7 +418,7 @@ def main(argv=None) -> int:
     print("  rise is not confined to [1, 3]. The figure's TRACE is the primary object here; the")
     print("  windows summarise it, they do not replace it.")
 
-    fig = _figure(curves, tvec, out_dir)
+    fig = _figure(curves, tvec, out_dir) if curves else None
     if fig is not None:
         print(f"\nwrote {fig}")
     return 0

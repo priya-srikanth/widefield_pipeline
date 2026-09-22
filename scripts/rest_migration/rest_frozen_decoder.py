@@ -567,11 +567,83 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     return p
 
 
+def _read_conf(path, order, codes):
+    """Rebuild ``{epoch: MxM int matrix}`` from the raw-count CSV `_confusion.csv` writes.
+
+    THE AXES MUST BE INDEXED THE SAME WAY THEY WERE SUMMED. The live path fixes the code order up
+    front (`CODES`) rather than taking it from each session's `np.unique`, precisely so matrices
+    that are added together mean the same thing; reading them back by POSITION would throw that
+    away and silently transpose a row. So each cell is placed by looking its true/pred codes up in
+    `codes`, and a code the file carries that this run does not know about is an error, not a
+    round-down.
+    """
+    import csv as _csv
+
+    cidx = {str(c): i for i, c in enumerate(codes)}
+    out = {e: np.zeros((len(codes), len(codes)), np.int64) for e in order}
+    with open(path, newline="", encoding="utf-8") as fh:
+        for r in _csv.DictReader(fh):
+            e = r["epoch"]
+            if e not in out:
+                continue
+            ti, pi = cidx.get(r["true"]), cidx.get(r["pred"])
+            if ti is None or pi is None:
+                raise SystemExit(f"{path}: code {r['true']}/{r['pred']} is not in {codes}")
+            out[e][ti, pi] = int(r["count"])
+    return out
+
+
+def _meta_path(out_dir, stem):
+    from wfield_local import figure_layout as fl
+    return fl.sidecar_for(out_dir, stem, "_meta.csv")
+
+
+def _save_meta(out_dir, stem, n_skipped):
+    """The one number the figure uses that no other CSV carries.
+
+    `n_skipped` is in the suptitle -- "sessions: ...; N skipped" -- so without it a re-derived
+    figure differs from the live one by exactly one glyph, which is the difference between a byte
+    comparison being a test and being a formality. (The same shape as `CHRONIC_RULE` on
+    2026-09-22: a caption quoting a number the re-run did not have.)
+    """
+    import csv as _csv
+
+    q = _meta_path(out_dir, stem)
+    with open(q, "w", newline="", encoding="utf-8") as fh:
+        w = _csv.writer(fh)
+        w.writerow(["key", "value"])
+        w.writerow(["n_skipped", int(n_skipped)])
+    return q
+
+
+def _load_meta(out_dir, stem):
+    """``n_skipped``, or None when the run predates `_save_meta`."""
+    import csv as _csv
+
+    from wfield_local import figure_layout as fl
+
+    q = fl.find_sidecar_for(out_dir, stem, "_meta.csv")
+    if q is None:
+        return None
+    with open(q, newline="", encoding="utf-8") as fh:
+        for r in _csv.DictReader(fh):
+            if r.get("key") == "n_skipped":
+                return int(float(r["value"]))
+    return None
+
+
 def main() -> int:
     from wfield_local import config, epochs, joint_locanmf
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
     ap = argparse.ArgumentParser()
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive the cohort table, the three-panel figure and the confusion "
+                         "figure from the CSVs a previous run wrote, WITHOUT scoring a session. "
+                         "Everything the figures consume is already written: `_plot` takes rows "
+                         "and per-session, `_confusion` takes the raw counts. Seconds instead of "
+                         "a full decode, which is what makes it affordable to change how "
+                         "something is DRAWN.")
     ap.add_argument("--perm", type=int, default=50)
     ap.add_argument("--bins", type=int, default=4)
     ap.add_argument("--min-periods", type=int, default=40)
@@ -643,7 +715,38 @@ def main() -> int:
     CODES = [0, 1, 2, 3, 4, 5]
     cidx = {c: i for i, c in enumerate(CODES)}
     conf = {e: np.zeros((len(CODES), len(CODES)), np.int64) for e in epochs.EPOCHS}
-    for an in animals:
+    n_skipped = 0
+
+    if a.from_csv:
+        from wfield_local import analysis_kit as ak
+        from wfield_local import figure_layout as fl
+        # ONLY THE PER-SESSION TABLE IS AN INPUT. The cohort `rows` are DERIVED from it a few
+        # lines below -- means, the retained fraction, the refit gaps -- so loading them too gave
+        # eight epoch rows where the figure expects four, and matplotlib caught it only because
+        # the x axis happened to disagree. The cohort CSV is an OUTPUT of this module, not a
+        # second source of truth, and re-deriving it here is also a free check on that layer.
+        _s = fl.find_sidecar_for(a.out, stem, "_sessions.csv")
+        if _s is None:
+            print(f"!! no {stem}_sessions.csv under {a.out} -- run once WITHOUT --from-csv "
+                  f"first. REFUSING to recompute silently.")
+            return 1
+        per_session = ak.read_rows(_s)
+        _cf = fl.find_sidecar_for(a.out, stem, "_confusion.csv")
+        _order = [e for e in epochs.EPOCHS if any(r["epoch"] == e for r in per_session)]
+        conf = _read_conf(_cf, _order, CODES) if _cf else {}
+        _n = _load_meta(a.out, stem)
+        if _n is None:
+            # SAY SO RATHER THAN GUESS. Zero would put a wrong number in the suptitle and the
+            # figure would look entirely healthy carrying it.
+            print("   .. no _meta.csv: the skipped-session count is not recoverable from a run "
+                  "that predates it.")
+            print("      The figure is redrawn with '0 skipped' in its title; re-run live once "
+                  "to restore the real count.")
+        n_skipped = _n or 0
+        print(f"FROM CSV: {len(per_session)} scored sessions from {_s} "
+              f"-- no session was scored")
+
+    for an in ([] if a.from_csv else animals):
         todo = [s for s in SESSIONS
                 if s["label"] in want and s["label"].startswith(an) and s.get("h5")]
         try:
@@ -962,24 +1065,37 @@ def main() -> int:
     import csv as _csv
 
     from wfield_local import figure_layout as fl
-    cp = fl.sidecar_for(a.out, stem, ".csv")
-    with open(cp, "w", newline="", encoding="utf-8") as fh:
-        w = _csv.DictWriter(fh, fieldnames=list(rows[0]))
-        w.writeheader()
-        w.writerows(rows)
-    sp = fl.sidecar_for(a.out, stem, "_sessions.csv")
-    with open(sp, "w", newline="", encoding="utf-8") as fh:
-        w = _csv.DictWriter(fh, fieldnames=list(per_session[0]))
-        w.writeheader()
-        w.writerows(per_session)
-    print(f"\nwrote {cp}\nwrote {sp}")
-    fp = _plot(rows, per_session, order, a.out, variant, stem, len(skipped))
+    if not a.from_csv:
+        # NEVER REWRITE THE INPUTS ON A --from-csv RUN: re-emitting a table from rows just read
+        # out of it can only lose information, and would launder a partial read into the file
+        # every later run trusts.
+        n_skipped = len(skipped)
+        cp = fl.sidecar_for(a.out, stem, ".csv")
+        with open(cp, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.DictWriter(fh, fieldnames=list(rows[0]))
+            w.writeheader()
+            w.writerows(rows)
+        sp = fl.sidecar_for(a.out, stem, "_sessions.csv")
+        with open(sp, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.DictWriter(fh, fieldnames=list(per_session[0]))
+            w.writeheader()
+            w.writerows(per_session)
+        print(f"\nwrote {cp}\nwrote {sp}")
+        print(f"wrote {_save_meta(a.out, stem, n_skipped)}")
+    fp = _plot(rows, per_session, order, a.out, variant, stem, n_skipped)
     print(f"wrote {fp}")
     cf = _confusion(conf, order, a.out, variant, stem, CODES)
     print(f"wrote {cf}" if cf else "!! no confusion matrix -- every epoch was empty")
     # THE RAW COUNTS AS CSV TOO. The figure is row-normalised for display; a reader asking "how many
     # far-contra rest periods were read as near" needs the integers, and a claim whose only support
     # is a colour scale is not checkable.
+    # WRITTEN ON A --from-csv RUN TOO, and that is not a "rewriting the inputs" exception -- it
+    # REPAIRS one. `_confusion` returns `ef.confusion_row`, which writes the standard per-figure
+    # sidecar under the SAME NAME as this block, in a different schema (panel,row,col,...). In a
+    # live run this block overwrites it a moment later so the raw counts always win; when
+    # --from-csv skipped it, `ef`'s panel table was left in place and the NEXT --from-csv run
+    # could not parse its own input (KeyError: 'epoch'). What is written here is an exact
+    # round-trip of what was read, so the file ends identical either way.
     if cf:
         import csv as _c
         cp2 = fl.sidecar_for(a.out, stem, "_confusion.csv")
@@ -992,7 +1108,7 @@ def main() -> int:
                         w.writerow([e, tc, pc, int(conf[e][i, j])])
         print(f"wrote {cp2}")
 
-    print(f"\ntested {len(per_session)} sessions; {len(skipped)} skipped")
+    print(f"\ntested {len(per_session)} sessions; {n_skipped} skipped")
     for x in skipped[:12]:
         print("   skipped:", x)
     print(f"[done in {time.time() - t0:.0f}s]", flush=True)

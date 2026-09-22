@@ -16992,3 +16992,62 @@ that only appeared at `py_compile`. Ten files were reverted and redone with a re
 newline-to-newline on the stripped text, preserving each site's own indentation. **A substring
 match on indented source is not a line match**, and an `assert count == 1` does not save you — the
 count was 1, on the wrong line.
+
+### `--from-csv` FOR THE TWO EXPENSIVE ARMS, AND WHAT EACH ONE NEEDED FIRST (2026-09-22)
+
+`rest_frozen_decoder` and `nvc_evoked` can now re-derive their tables AND their figures without
+opening a session. Both were verified the only way worth doing: **byte-compare the outputs of a
+live run against the re-derived ones.**
+
+| arm | what came back byte-identical |
+|---|---|
+| `rest_frozen_decoder` | the three-panel figure, the confusion figure, and the confusion CSV, across three consecutive re-derivations |
+| `nvc_evoked` | the figure, the stats CSV, the session CSV and the curves — and, separately, the 2026-09-19 stats table reproduced exactly from the CSV that run wrote |
+
+`nvc_evoked --from-csv` takes **2 seconds** against a full session pass. That is the whole point:
+`rotation_maps`' docstring already records the figure costing three full passes in one day, *two of
+them purely to change how something was drawn*.
+
+**THE TWO ARMS NEEDED OPPOSITE THINGS, AND NEITHER WAS OBVIOUS FROM OUTSIDE.**
+
+*`nvc_evoked` needed a NEW artefact.* Its CSV holds four window averages per session, and its
+figure is drawn from the TRACES -- the module says so itself: Simpson et al. name the observable
+as a shape, and "two window averages are exactly what hid it here for a day". So `--from-csv`
+without `_curves.npz` would have re-derived only the part that was never expensive. The npz is
+written on live runs; absent, the tables are re-derived and **the figure is deliberately left
+alone** rather than redrawn from less than it was built with.
+
+*`rest_frozen_decoder` needed FEWER inputs than I first gave it.* I loaded both the cohort CSV and
+the per-session CSV. The cohort rows are DERIVED from the per-session ones a few lines later, so
+`rows` ended up with eight epoch entries instead of four. **A derived artefact is not a second
+source of truth.** It was caught only because matplotlib complained that x and y had different
+lengths -- luck, since the two had to disagree in LENGTH for anything to notice at all. Had the
+cohort CSV held four rows for a *different* session set, the figure would have drawn eight points
+of a silently mixed table.
+
+**THE MISSING-VALUE TRAP, WHICH IS THE ONE TO REMEMBER.** A window that could not be measured is
+written as an EMPTY CELL and read back by `read_rows` as **NaN**. So the live path sees `""` and
+the re-derived path sees `nan` for the same session, and `nvc_evoked`'s filter was
+`r.get(k, "") != ""` -- which is TRUE for NaN. Measured against the real table:
+
+    nolick pre       34 real rows  ->  44 pooled
+    nolick subacute  16            ->  18
+    nolick chronic    7            ->  18      (11 of 18 are NaN)
+
+and this module's own prose says **the no-lick early 415 alone is the test**. The cheap re-run
+would have rewritten the headline from eleven missing measurements, reported a larger `n`, and
+looked healthy doing it. `_present()` now rejects both spellings, and
+`test_nvc_evoked_from_csv.py` drives it through `main` so the guard cannot become decoration.
+
+**A `--from-csv` RUN MUST NOT CORRUPT ITS OWN INPUT.** Skipping the confusion-CSV write left in
+place the sidecar `epoch_figures.confusion_row` writes under the SAME FILENAME in a different
+schema, and the *next* `--from-csv` run could not parse it (`KeyError: 'epoch'`). Only the second
+run failed; the first looked fine. The write is now unconditional because it is an exact
+round-trip of what was read.
+
+**A COLLISION FOUND ON THE WAY, not fixed here.** `ef.confusion_row` and `rest_frozen_decoder`
+both write `<stem>_confusion.csv`, in `panel,row,col,value` and `epoch,true,pred,count`
+respectively, and the raw counts win because they are written second. So that figure has no
+standard sidecar at all. Harmless today -- nothing reads it, and no deck note quotes it -- but the
+repo's rule is that every figure's values are written beside it, and the next person to add a note
+token for this one will silently get the wrong schema.
