@@ -757,6 +757,64 @@ python -m wfield_local.dlc_prelabel --cam cam4 --dry-run
 python -m wfield_local.dlc_prelabel --cam cam4
 ```
 
+**`dlc_train`** (also the **`dlc`** env) is DLC's own refine-and-retrain loop —
+`create_training_dataset`, `train_network`, `evaluate_network`, `WeightInitialization`, `iteration` as
+the round counter — restricted to the bodyparts **a human has actually placed**. That distinction is
+the module's reason to exist: `dlc_prelabel` seeds ten parts on cam4 and a seed is a *prediction*, so
+`dlc.train.bodyparts` is `[nose, jaw, tongue, spout]` while the six whisker columns are still raw donor
+output (measured: refined parts moved on 14–16/16 frames, whiskers on 1/16 at median 0.00 px). Nothing
+in code can tell a seed from a label, so that list is a contract and the module prints the on-disk
+counts beside it every run.
+
+Three things it does that DLC does not do for you:
+
+* **Trains in a separate project** (`training/<labelling project>-orofacial`), because `config.yaml` holds ONE
+  bodypart list and `dlc_project.write_config` rewrites it to the union on every run — so an in-place
+  four-part edit is silently reverted the next time anyone opens the GUI, and a training set rebuilt
+  after that pulls the whisker seeds back in *without erroring*. Labels are copied **forward** into it
+  and overwritten, the opposite of `dlc_project`'s rule, because here the human edit is upstream.
+* **Holds out whole SESSIONS**, not random frames. Four lick offsets are four views of one ~80 ms
+  protrusion (99–100% of within-onset pairs closer than the 5th percentile of between-onset pairs), so
+  DLC's uniform split puts near-duplicates on both sides and reports a test RMSE that is optimistic
+  about the only thing the number is for. Sessions are drawn one per **epoch** in a seeded round-robin.
+* **Reports error per epoch, split by train/test** — "a network that tracks a healthy mouse well and a
+  hemiparetic one badly reads as a deficit and is not one" is a per-epoch contrast, not a scalar, and
+  pooling train with test would make each epoch's error depend on how much of it was held out.
+
+The donor supplies weights only: the conversion table shrinks to `nose→nose, jaw→jaw, tongue→tongue,
+spout→R_spout` = head channels `[0, 1, 2, 12]`, and `create_training_dataset` builds a fresh
+`pytorch_config.yaml` from DLC's templates — whose default `affine.scaling` is already two-sided
+`[0.5, 1.25]`, so the donor's one-sided augmentation is not inherited and needs no repair.
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_train --dry-run     # stage + audit + print the split; train nothing
+python -m wfield_local.dlc_train               # stage, create the training set, train, evaluate
+python -m wfield_local.dlc_train --evaluate    # re-evaluate the newest snapshot + per-epoch table
+python -m wfield_local.dlc_train --evaluate --worst 20   # the frames to re-open in refine_labels
+```
+
+First result (2026-09-21): **spout 2.19, nose 4.17, jaw 4.70, tongue 10.27 px** test RMSE on held-out
+sessions. The tongue's number is **six frames** — median over all 93 labelled tongues is 1.91 px — and
+`--worst` found why: one misclick at 266 px (tongue at x=619 on a 680 px frame, likelihood 0.012, on a
+TRAIN frame) plus two whole licks labelled at a different landmark. That report has no DLC equivalent:
+`extract_outlier_frames` needs analysed videos and looks for temporal jumps, not wrong labels.
+
+`--review` takes it further and says what to DO with each frame — `DELETE` / `REPLACE` / `DECIDE` /
+`ADD`, from the network's CONFIDENCE rather than the error size — rolls faults up to whole **licks**
+(a fault repeating across one protrusion is a landmark fault), and writes an annotated crop per frame
+to `<project>/review/` (red cross = label, cyan circle = network). `ADD` is the category no error
+metric can reach: `evaluate_network` scores only what was labelled, so a missed part is invisible to
+it. Fix the frames in the **labelling** project (`dlc_project --label --folder <stem>`) — the training
+copy is overwritten on the next run.
+
+`--guide` goes one step further and writes **`CORRECTION_GUIDE.html`** onto the share beside the
+hand-written `LABELLING_GUIDE.html` (`wfield_local/dlc_review_guide.py`): the page whoever is doing
+the labelling actually works from, with the `--folder` command per session, every flagged frame's
+crop embedded, and the action for each in the vocabulary that guide already taught. Generated, never
+edited — the list changes every round, and a stale copy would tell someone to move a point that has
+already been moved.
+
 Not yet built: the O2 batch deployment (`dlc.o2.*` holds its parameters and the measured ~86 fps
 throughput; local inference on the RTX 5060 measures 217 fps at 320×320).
 

@@ -2,7 +2,7 @@
 ``dropframe_check_all.py``, now in-repo).
 
 Each Bonsai CSV is three unlabeled columns — ``frame_id, timestamp_ns, gpio`` — one row per frame
-(4 cameras per session, ~250 fps ⇒ ~4.003 ms/frame). A dropped frame shows up as a gap in the
+(4 cameras per session, ~250 fps => ~4.003 ms/frame). A dropped frame shows up as a gap in the
 monotonic ``frame_id`` sequence (and/or an over-long timestamp delta). For each cam recording this
 reports rows, id-span, dropped count/%, gap events, and the timestamp-delta stats, and writes
 ``dropped_frames_summary_<DATE>.csv`` (machine-readable, one row per cam) + ``.txt`` (human table)

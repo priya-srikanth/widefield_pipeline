@@ -425,12 +425,28 @@ landmarks. **Then `cam2`/`cam3`**, which add the eyes and the whiskers.
 **Part counts changed 2026-09-12**: `nose` was added to `cam1`, `cam2` and `cam3` (9ac523c), so the
 side views carry 8 parts rather than 7 and `cam1` carries 4 rather than 3.
 
-**Do not label the side views "just jaw/tongue/spout" as a cheaper first pass.** It halves the
-placements but discards the whiskers, which are the main reason to have side views at all: they are
-triangulatable once calibration is fixed, a profile is the better view of whisking than a frontal one,
-and PS93's phenotype includes minimal right whisking (`cam3`). And DLC labels per FRAME — adding a
-bodypart later means reopening all 774 frames, so a partial pass is not less work, it is the same
-work split in two with a revisit tax.
+**SUPERSEDED 2026-09-22 — the whiskers are DEFERRED, so the side views ARE now "just
+nose/jaw/tongue/spout" plus one eye each.** `dlc.cameras.*.bodyparts` dropped from twelve names to
+six. The paragraph below is kept because its reasoning is still correct and is the thing to re-read
+when the whiskers come back.
+
+> **Do not label the side views "just jaw/tongue/spout" as a cheaper first pass.** It halves the
+> placements but discards the whiskers, which are the main reason to have side views at all: they are
+> triangulatable once calibration is fixed, a profile is the better view of whisking than a frontal one,
+> and PS93's phenotype includes minimal right whisking (`cam3`). And DLC labels per FRAME — adding a
+> bodypart later means reopening all 774 frames, so a partial pass is not less work, it is the same
+> work split in two with a revisit tax.
+
+**What changed is the ORDER, not the verdict.** Six points per frame over 774 frames per side view is
+the largest single labelling cost in the project, on the parts whose landmark is least well defined —
+a numbered whisker has to be the *same* whisker frame to frame — and for an analysis nobody has
+written yet. The orofacial four are what the study turns on, and they were the bottleneck: the tongue
+had 71 training frames against the nose's 192.
+
+**The revisit tax above is real and is being accepted knowingly.** Coming back to whiskers means
+reopening those frames. Against that: nothing is lost in the meantime — the donor's seeded whisker
+values are still in the label files, the side-view frames are already extracted, and the columns are
+inert rather than deleted. Add the names back to `dlc.cameras.<cam>.bodyparts` to resume.
 
 `L_eye` and `R_eye` are single-view and stay 2D — one side camera each. They are still worth placing:
 one extra point on a frame already open, and the only rigid landmark those views have if 3D ever
@@ -511,29 +527,276 @@ import deeplabcut as d
 d.check_labels(cfg)      # renders your labels onto the frames for a visual audit
 ```
 
-## Step 3 — train, starting from the 2pRAM snapshot
+## Step 3 — train on the REFINED labels, starting from the 2pRAM snapshot
 
-The donor is
-`DeepLabCut/DLC_train_config/dlc-models-pytorch/iteration-5/video2Jan26-trainset80shuffle5/train/snapshot-best-060.pt`
-(ResNet-50 group-norm, HeatmapHead, bottom-up). DLC 3.x initialises from a custom snapshot with a
-bodypart conversion table; the head is re-initialised for the new keypoint set either way, so the
-conversion table only carries the parts that survive:
-
-```
-nose -> nose,  jaw -> jaw,  tongue -> tongue,
-L_whiskers_{1,2,3} -> L_whiskers_{1,2,3},  R_whiskers_{1,2,3} -> R_whiskers_{1,2,3},
-L_spout -> spout
-(R_spout, L_eye, R_eye: dropped)
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_train --dry-run     # stage + audit + print the split; train nothing
+python -m wfield_local.dlc_train               # stage, create the training set, train, evaluate
 ```
 
-**Add scale augmentation.** The donor trained with `affine.scaling: [1.0, 1.0]` and
-`ResizeFromDataSizeCollate(min_scale=0.4, max_scale=1.0)` — it saw its own scale and smaller, never
-larger, and the new view is larger. Leaving that unchanged wastes the main advantage of starting from
-these weights.
+`wfield_local/dlc_train.py` is DLC's own refine-and-retrain loop — `create_training_dataset`,
+`train_network`, `evaluate_network`, `WeightInitialization`, and `iteration` as the round counter.
+Nothing in it reimplements a step DeepLabCut has.
 
-Judge the result on `test rmse`, and separately on the **post-stroke** frames: the failure mode that
-matters is a network that tracks a healthy mouse well and a hemiparetic one badly, which reads as a
-deficit and is not one.
+### It trains the parts a HUMAN placed, which is not the same as the parts that have values
+
+`dlc.train.bodyparts` = `[nose, jaw, tongue, spout]` as of 2026-09-21. `dlc_prelabel` seeds **ten**
+bodyparts on `cam4`, and a seed is a *prediction*: the refinement pass covered those four across all
+15 folders and left the six whisker columns as the donor wrote them. Measured against the one
+surviving pre-refinement backup (`cam4_2026-06-06T12_25_18/…h5.bak-20260916-161730`):
+
+| part | frames moved > 0.5 px | median displacement |
+|---|---|---|
+| `nose` | 16/16 | 3.42 px |
+| `spout` | 14/16 | 0.91 px |
+| `jaw` | 8/12 | 0.66 px |
+| `tongue` | 4/4 | 3.37 px |
+| `L/R_whiskers_1..3` | **1/16 each** | **0.00 px** |
+
+Training the union would fit six head channels to the donor's guesses about a view 2.5x more zoomed
+than the one it learned. **Nothing in code can tell a seed from a label** — both are just coordinates
+— so that config list is the contract, and `dlc_train` prints the on-disk counts beside it every run.
+**Widen it when the labelling widens, not before.**
+
+Dropping the whiskers makes the transfer *better*, not worse: the conversion table shrinks to
+
+```
+nose -> nose,  jaw -> jaw,  tongue -> tongue,  spout -> R_spout      = head channels [0, 1, 2, 12]
+```
+
+and every channel that survives is one whose supervision is a human label rather than a re-fit of the
+donor's own output. (R, not L: it clears 0.6 on 53% of frames against L's 23%.) The head is
+re-initialised for any part without a donor counterpart either way.
+
+### Fill counts, and how to read the tongue's
+
+```
+nose    240 / 240      jaw    197 / 240
+spout   235 / 240      tongue  93 / 240
+```
+
+DLC masks NaN keypoints out of the loss, so a part is learned only from the frames where it is placed
+— **a blank is not taught as absence.** That makes 93 tongues *complete*, not 39% done:
+`dlc.frames.lick_fraction` 0.5 with one tongue-in offset of four puts ~90 of 240 frames in the
+tongue-out set. `jaw` at 197 is the part with real room left, for the reason Step 2 gives — the chin
+point is occluded once the mouth is open at the spout.
+
+### It trains in a SEPARATE project, and the copy direction is the opposite of Step 2's
+
+The training project is `training/widefield-Priya-2026-09-08-orofacial`, in a **subdirectory** beside
+the labelling one. Not an edit in place, for three reasons that are all about the other views:
+
+* `config.yaml` holds **one** bodypart list, so cutting the live one to four would make `cam2`/`cam3`
+  — 8 parts each, including the eyes, not yet labelled at all — impossible to label.
+* **`dlc_project.write_config` rewrites `bodyparts` to the union on EVERY run.** An in-place edit is
+  silently reverted the next time anyone opens the GUI, and a training set rebuilt after that would
+  quietly pull the whisker seeds back in *without erroring*. This is the trap.
+* `iteration` is project-wide, so bumping it for a cam4 round would re-version the unlabelled work.
+
+**Labels are copied FORWARD into it every run and overwritten** — the opposite of Step 2's rule,
+because there the human edit is downstream of the copy and here it is upstream. Do not label in the
+training project.
+
+### The split holds out whole SESSIONS
+
+DLC's default split is uniform over frames, which on this set measures the wrong thing:
+`dlc.frames.lick_offsets_s` samples four points of one ~80 ms protrusion, and 99–100% of within-onset
+frame pairs are closer in appearance than the 5th percentile of between-onset pairs. A uniform split
+puts near-duplicates on both sides and reports a test RMSE that is optimistic about the only thing
+the number is for — a session the network has not seen.
+
+Sessions are held out whole, one per epoch in a seeded round-robin. At 0.8 that is 3 of 15:
+
+```
+cam4_2026-08-20T16_31_02  [acute]     cam4_2026-09-07T17_08_48  [chronic]
+cam4_2026-06-06T18_02_39  [pre]       train 192 frames from 12 sessions
+```
+
+**`subacute` gets no held-out session at 20%** — three sessions do not cover four epochs — so it is
+untested rather than fine. Lower `dlc.train.training_fraction` to reach it.
+
+### Judge it on the per-epoch table, not the scalar
+
+```powershell
+python -m wfield_local.dlc_train --evaluate     # re-evaluate the newest snapshot, no training
+```
+
+`evaluate_network` runs with `per_keypoint_evaluation=True` (one RMSE over four parts hides the tongue
+and the jaw, which are the two that matter), and `per_epoch_error` then answers the question this
+study actually turns on:
+
+> the failure mode that matters is a network that tracks a healthy mouse well and a hemiparetic one
+> badly, which reads as a deficit and is not one
+
+That is a per-**epoch** contrast, and not a number DLC produces. It is reported **split by train/test**
+because `evaluate_network` predicts on every labelled image: pooling them makes each epoch's error
+depend on what share of that epoch's sessions happened to be held out — an artefact of the split
+reported as a property of the epoch, which is the same mistake the table exists to catch. Read the
+`test` rows.
+
+### CORRECTED: you do not have to add scale augmentation by hand
+
+This step used to say to add it, because the donor trained with `affine.scaling: [1.0, 1.0]` and
+`ResizeFromDataSizeCollate(min_scale=0.4, max_scale=1.0)` — its own scale and smaller, never larger,
+against a new view that is larger. True of the donor's config, and **not inherited**:
+`create_training_dataset` builds a *fresh* `pytorch_config.yaml` from DLC 3.0.1's own templates, whose
+default is already `affine.scaling: [0.5, 1.25]` — two-sided — with 448×448 `crop_sampling` instead of
+the collate. Only the snapshot's **weights** come across. `dlc.train.scaling` states that value
+explicitly rather than inheriting it silently, and is the knob if you want to reach further *down*
+toward the donor's apparent size (~0.4x cam4's).
+
+### First result (2026-09-21), and how to read it
+
+`snapshot_best-90`, scored on the three held-out sessions:
+
+| part | test RMSE | | part | test RMSE |
+|---|---|---|---|---|
+| `spout` | **2.19 px** | | `jaw` | **4.70 px** |
+| `nose` | **4.17 px** | | `tongue` | 10.27 px |
+
+**The tongue's 10.27 px is six frames, not a tongue problem.** Median error over all 93 labelled
+tongues is **1.91 px**; exactly 6 frames exceed 20 px. `--worst` ranks them:
+
+```
+bodypart  err_px  likelihood split    epoch                  session          image
+  tongue  266.56        0.01 train subacute cam4_2026-08-26T12_25_41 img1796416.png
+  tongue   33.40        0.61  test  chronic cam4_2026-09-07T17_08_48 img0674392.png
+  tongue   25.59        0.63  test      pre cam4_2026-06-06T18_02_39 img0389083.png
+```
+
+* **The 266 px one is a misclick.** The tongue is at x=619 on a 680 px frame while every other tongue
+  in that session sits at x=338–373 and that frame's own nose/jaw/spout are at x=244–323. It is a
+  TRAIN frame at likelihood 0.012 — the network had every chance to fit it and refused, so the label
+  is the thing that is wrong. It alone produces the `subacute` train tongue RMSE of 53 px.
+* **Four more are two whole licks** (`img0389079/083/091`, `img0674384/392/400`) at likelihood
+  0.46–0.63, i.e. unsure rather than confidently wrong. This is "decide the tongue landmark before you
+  start" cashing out: one lick labelled at a different point of the tongue reads as error, and pruning
+  keeps a lick whole so they arrive in threes.
+
+**`spout` and `nose` are flat across epochs** (2.30/2.35/2.99 and 4.69/4.91/3.82 for acute/chronic/pre)
+— no sign of the false-deficit failure mode. `jaw` is *better* acute (3.36) than pre/chronic
+(6.40/7.43), the opposite direction. The tongue cannot be read at 5–9 test frames per epoch until
+those six frames are resolved. Full table in `DECISIONS.md`.
+
+**Next is a refine round, not more epochs.** Train loss kept falling (0.0052 → 0.0003) while test RMSE
+plateaued by ~epoch 20.
+
+### Which frames to relabel, and how
+
+```powershell
+python -m wfield_local.dlc_train --evaluate --review
+```
+
+Classifies every frame over tolerance by **what is wrong**, and writes an annotated crop per frame to
+`<training project>/review/` — **red cross = your label, cyan circle = the network**. The verdict comes
+from the network's CONFIDENCE, not the error size, because the same 20 px error means different things:
+
+| verdict | error | network | what it means | action |
+|---|---|---|---|---|
+| `DELETE` | big | says nothing is there (`p < 0.05`) | a point placed where the part is not | remove the point |
+| `REPLACE` | big | **confident** elsewhere (`p > 0.7`) | the label departs from your own convention | move it |
+| `DECIDE` | big | unsure (`0.05–0.7`) | genuinely ambiguous landmark | pick one and hold it |
+| `ADD` | — | confident, nothing labelled | a visible part nobody placed | add a point |
+
+**`REPLACE` reads the network as your own consensus.** It learned the landmark from the other ~190
+frames, so where it is confident and disagrees, that frame is the odd one out — not the network.
+
+**Do NOT use label position as the test.** A tongue 100 px from its session's median is a long
+protrusion, not a mistake; a distance-from-median rule flags 13 cam4 frames of which 12 are fine.
+
+**A fault that repeats across a lick's frames is a LANDMARK fault.** `lick_offsets_s` samples four
+points of one protrusion and pruning keeps a lick whole, so `--review` rolls those up: re-place such a
+lick **together**, because seeing the tongue move is what makes "the tip" identifiable at all.
+
+### Handing the list to whoever is labelling
+
+```powershell
+python -m wfield_local.dlc_train --evaluate --guide
+```
+
+Writes **`CORRECTION_GUIDE.html`** next to `LABELLING_GUIDE.html` on the share — the page the
+labeller actually works from. Every flagged frame appears with its **crop embedded** (red cross =
+their label, cyan circle = the network) and what to do to it in the vocabulary
+`LABELLING_GUIDE.html` already taught (the `+` tool, the select arrow, `Delete`,
+`File -> Save Selected Layer(s)...`).
+
+**It is written for a MacBook, because that is where the labelling happens.** On her own laptop she
+has `napari` + `napari-deeplabcut` and NOT DeepLabCut and NOT this repo, so
+`python -m wfield_local.dlc_project --label` is not a command she can run at all. The Mac route is
+`conda activate label` -> `napari` -> *File -> Open Folder...*, which means what the page has to give
+her per session is a **path to paste** into `Cmd+Shift+G`, not a command line — so each session block
+carries its full `/Volumes/Neurobio/.../labeled-data/<stem>`, and the rig `--folder` command is kept
+in a collapsed note for whoever is at the rig instead. It also repeats the two mount traps the main
+guide documents: `_frame_staging` holds identical images under identical names and only fails at SAVE
+time, and a doubled `Neurobio-1` mount is the usual cause of "that path does not exist".
+
+**It is generated, never edited.** The list changes every refinement round, so a hand-maintained copy
+would go stale in the worst way — telling someone to move a point that has already been moved. Rerun
+the command after each retrain; the page rebuilds from the network's own output. A round with nothing
+to fix renders as "Nothing to fix" rather than as the previous round's list.
+
+Two things it tells the labeller that nothing else does:
+
+* **Do not work in the `training/` copy.** `dlc_train.stage()` overwrites its labels from the
+  labelling project on every run, so a correction made there is destroyed by the next retrain and
+  nothing warns you. The commands in the guide always open the real project.
+* **Do not settle the tongue landmark alone.** `DECIDE` frames are flagged precisely because it is
+  not obvious; that choice defines the kinematic variable for the whole study.
+
+`LABELLING_GUIDE.html` has a pointer section to it (*After the first pass: fixing the flagged
+labels*), so the permanent instructions and the per-round list stay separate — the first is
+hand-written and stable, the second is regenerated and disposable.
+
+### Fix them in the LABELLING project, never the training copy
+
+```powershell
+python -m wfield_local.dlc_project --label --folder cam4_2026-09-07T17_08_48
+```
+
+The training project is overwritten by the next `dlc_train` run — anything corrected there is lost.
+`dlc_project` opens the real one. Then re-run `dlc_train`, which re-stages the corrected labels
+forward automatically.
+
+### The 2026-09-21 review list (23 frames, 4 sessions)
+
+**1 to DELETE.** `cam4_2026-08-26T12_25_41/img1796416.png` — tongue at x=619 on a 680 px frame,
+`p=0.012`. The crop is bare fur and whiskers: no mouth, no tongue. A misclick on the cheek. This one
+frame produces the entire `subacute` train tongue RMSE of 53 px.
+
+**3 whole licks to re-place**, each wrong on 3+ of its frames:
+
+| lick | part | what it looks like |
+|---|---|---|
+| `cam4_2026-09-07T17_08_48#674384` | tongue | 8–33 px, `p=0.34–0.61`. Label sits on the tongue body/tip; the network puts it at the tongue–spout CONTACT. This is the landmark question, unresolved. |
+| `cam4_2026-06-06T18_02_39#389083` | tongue | 22–26 px, `p=0.46–0.63`. The x-offset **flips sign** between consecutive frames of one protrusion — the label is not tracking one point. |
+| `cam4_2026-09-07T17_08_48#1253168` | jaw | 5–14 px at `p=0.78–0.96`, offset **growing monotonically** through the lick (−4.5 → −6.8 → −10.2 → −13.1 px). The label follows the chin contour as the mouth opens instead of holding the landmark. Its `lick+0` frame is also the missing tongue below — re-do this lick whole. |
+
+**3 to ADD** (`img1253168` tongue `p=0.73`, `img0811162` tongue `p=0.72`, `img0233849` jaw `p=0.65`).
+`evaluate_network` scores only what was labelled, so a MISSED part is invisible to it — this is the one
+category no error metric can surface.
+
+**Also worth a spot-check:** `lick-16` carries a tongue label on **53%** of its frames, the same rate as
+`lick+0`, although `dlc.frames.lick_offsets_s` designed `−16 ms` as the tongue-IN hard negative
+("committed to the lick, tongue still in"). Either the tongue really is emerging by then — plausible,
+the sensor fires on contact — or some `lick-16` frames carry a tongue that is not out. Two of the
+flagged frames are `lick-16`. Worth deciding once, since it sets what the hard negative teaches.
+
+### The next refinement round
+
+DLC's loop, and `dlc_train` prints these on completion:
+
+```python
+import deeplabcut as d
+cfg = ".../dlc/Widefield/training/widefield-Priya-2026-09-08-orofacial/config.yaml"
+d.analyze_videos(cfg, [video]);  d.extract_outlier_frames(cfg, [video], outlieralgorithm="jump")
+d.refine_labels(cfg)        # fix the network's own worst frames
+d.merge_datasets(cfg)       # merges + BUMPS `iteration`
+# then: python -m wfield_local.dlc_train      (re-stages at the new iteration and retrains)
+```
+
+`iteration` is the round counter, so each round's training set and model folder are separate and an
+earlier network stays reproducible.
 
 ---
 

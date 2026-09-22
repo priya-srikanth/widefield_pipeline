@@ -390,16 +390,37 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # NAMES ARE SHARED WHERE THE VIEWS OVERLAP, which is what makes 3D
                               # possible: triangulation matches keypoints by name. jaw / tongue /
                               # spout appear in ALL FOUR views, so those are the parts that can be
-                              # reconstructed cohort-wide. Whiskers pair cam4 with one side view.
+                              # reconstructed cohort-wide.
                               # `nose` JOINED THEM 2026-09-12 and is now in all four views too --
                               # it was cam4-only on the incorrect ground that it is not visible
                               # from below.
+                              #
+                              # WHISKERS DEFERRED, NOT ABANDONED (Priya, 2026-09-22). They were six
+                              # of cam4's ten parts and three of each side view's eight, and NOT ONE
+                              # of them was ever placed by a person: every whisker value in the
+                              # project is `dlc_prelabel` output from the 2pRAM donor, measured
+                              # unmoved at median 0.00 px across the refinement pass while the four
+                              # orofacial parts moved on 14-16 of 16 frames. Training on them was
+                              # already excluded (`dlc.train.bodyparts`); taking them out here stops
+                              # anyone being ASKED to label them, which is the other half.
+                              #
+                              # DEFERRED is the word, and it is not a euphemism. The argument in
+                              # DECISIONS and the runbook -- that whiskers are "the main reason to
+                              # have side views at all", and that PS93's minimal right whisking is a
+                              # cam3 measurement -- still stands. What changed is the ORDER: six
+                              # points per frame over 774 frames per side view is the largest single
+                              # labelling cost in the project, on parts whose landmark is the least
+                              # well defined (a numbered whisker has to be the SAME whisker frame to
+                              # frame) and for an analysis nobody has written yet. The orofacial
+                              # four are what the study turns on, so they go first.
+                              #
+                              # TO COME BACK TO THEM: add the names here. Nothing is lost in the
+                              # meantime -- the donor's seeded values are still in the label files,
+                              # the side-view frames are already extracted, and the whisker columns
+                              # are inert rather than deleted.
     cam4:
       role: front             # the nearest analogue of the old `video2`
-      bodyparts: [nose, jaw, tongue,
-                  L_whiskers_1, L_whiskers_2, L_whiskers_3,
-                  R_whiskers_1, R_whiskers_2, R_whiskers_3,
-                  spout]
+      bodyparts: [nose, jaw, tongue, spout]
     cam1:
       role: bottom            # looks UP at the underside of the snout; the spout enters from the
                               # top of frame. The whiskers, while visible, cannot be identified as
@@ -427,16 +448,12 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       bodyparts: [nose, jaw, tongue, spout]
     cam2:
       role: side_left         # sees the animal's LEFT side (Priya, 2026-09-08)
-      bodyparts: [L_eye, nose, jaw, tongue,
-                  L_whiskers_1, L_whiskers_2, L_whiskers_3,
-                  spout]
+      bodyparts: [L_eye, nose, jaw, tongue, spout]
     cam3:
       role: side_right        # sees the animal's RIGHT side -- so this is the view that carries
                               # PS93's right orofacial deficit, and the laterality above is not a
                               # cosmetic label.
-      bodyparts: [R_eye, nose, jaw, tongue,
-                  R_whiskers_1, R_whiskers_2, R_whiskers_3,
-                  spout]
+      bodyparts: [R_eye, nose, jaw, tongue, spout]
 
                               # NO LANDMARK IS THE EXACT SAME PHYSICAL POINT FROM TWO VIEWS, and
                               # pretending otherwise is the mistake to avoid. Priya, 2026-09-12:
@@ -649,6 +666,107 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # far_R/close_R/far_center/close_center/close_L/far_L -- i.e. it
                               # tracks the actual position -- while the nose holds 336-341 px
                               # throughout, as head fixation says it must. 75% of frames >0.6.
+
+  train:                      # RETRAIN ON THE REFINED LABELS ONLY (wfield_local/dlc_train.py).
+                              # DLC's own refine-and-retrain loop: label -> create_training_dataset
+                              # -> train_network -> analyze -> extract_outlier_frames ->
+                              # refine_labels -> merge_datasets (bumps `iteration`) -> again.
+    bodyparts: [nose, jaw, tongue, spout]
+                              # THE PARTS A HUMAN HAS ACTUALLY PLACED, which is NOT the same as the
+                              # parts that have values. `dlc_prelabel` seeds ten bodyparts on cam4
+                              # from the donor, and a seed is a PREDICTION. Priya's refinement pass
+                              # (2026-09-16 -> 2026-09-21, all 15 cam4 folders) covered these four;
+                              # the six whisker columns are still raw donor output. Measured against
+                              # the one surviving pre-refinement backup
+                              # (cam4_2026-06-06T12_25_18/...h5.bak-20260916-161730):
+                              #   nose   moved on 16/16 frames, median 3.42 px
+                              #   spout  moved on 14/16 frames, median 0.91 px
+                              #   jaw    moved on  8/12 frames, median 0.66 px
+                              #   tongue moved on  4/4  frames, median 3.37 px
+                              #   L/R_whiskers_1..3  1/16 frames each, median 0.00 px
+                              # Training the union would fit six head channels to the donor's own
+                              # guesses about a view 2.5x more zoomed than the one it learned --
+                              # the same hallucination `dlc.cameras.<cam>.bodyparts` exists to
+                              # prevent, arriving by a different door.
+                              #
+                              # NOTHING IN CODE CAN TELL A SEED FROM A LABEL (both are just
+                              # coordinates), so this list is the contract and `dlc_train.audit()`
+                              # prints the on-disk counts beside it. WIDEN IT WHEN THE LABELLING
+                              # WIDENS, NOT BEFORE. Adding a whisker here is a claim that someone
+                              # checked 240 frames of it.
+                              #
+                              # Dropping the whiskers makes the donor transfer BETTER, not worse:
+                              # the conversion table shrinks to nose->nose, jaw->jaw,
+                              # tongue->tongue, spout->R_spout = head channels [0, 1, 2, 12], and
+                              # every channel that survives is one whose supervision is a human
+                              # label.
+    cam: cam4                 # THE ONLY VIEW WITH A COMPLETE LABEL SET as of 2026-09-21. cam2 and
+                              # cam3 have no CollectedData file at all. cam1 has exactly ONE
+                              # partly-labelled session -- cam1_2026-06-06T12_25_18, written
+                              # 2026-09-10: jaw 71/72 rows, tongue 38/72, nose and spout empty --
+                              # which is real hand work (`dlc_prelabel` seeds cam4 only) but is one
+                              # session of two parts, so it cannot train a second view and is not
+                              # folded in silently. Set `cam: cam1` to train on it deliberately.
+    tag: orofacial            # the training project is `training/<labelling project>-<tag>`, a
+                              # SEPARATE DLC project in a SUBDIRECTORY beside the labels. The
+                              # subdirectory is load-bearing: `dlc_project.project_dir` globs
+                              # `widefield-Priya-*` and takes the LAST match, so a sibling named
+                              # `...-2026-09-08-orofacial` sorts after the real project and becomes
+                              # the labelling target -- `dlc_project --label` then opens the GUI on
+                              # this disposable four-part copy and the labels placed there die on the
+                              # next retrain. Hit on 2026-09-21, first real run. `project_dir` now
+                              # also matches the DATE SHAPE rather than `*`; both guards stay.
+                              # Three reasons it is separate at all, all about the other views:
+                              # (1) config.yaml holds ONE bodypart list, so cutting the live one to
+                              # four would make cam2/cam3 (8 parts each, incl. the eyes) impossible
+                              # to label; (2) `dlc_project.write_config` rewrites `bodyparts` to the
+                              # union on EVERY run, so an in-place edit is silently reverted the next
+                              # time anyone opens the GUI -- and a training set rebuilt after that
+                              # would quietly pull the whisker seeds back in without erroring;
+                              # (3) `iteration` is project-wide, so bumping it for a cam4 refinement
+                              # round would re-version the other views' work too, including cam1's
+                              # one partly-labelled session.
+                              # LABELS ARE COPIED FORWARD INTO IT EVERY RUN AND OVERWRITTEN -- the
+                              # opposite of dlc_project's rule, because here the human edit is
+                              # UPSTREAM. Do not label in the training project.
+    training_fraction: 0.8    # WHOLE SESSIONS are held out, not random frames, and the achieved
+                              # fraction is written back to the project's TrainingFraction (DLC looks
+                              # the derived value up in that list). DLC's default split is uniform
+                              # over frames, which on THIS set measures the wrong thing:
+                              # `frames.lick_offsets_s` samples four points of one ~80 ms
+                              # protrusion, and the 2026-09-13 pruning measurement found 99-100% of
+                              # within-onset frame pairs closer in appearance than the 5th
+                              # percentile of between-onset pairs. A uniform split therefore puts
+                              # near-duplicates on both sides and reports a test RMSE that is
+                              # optimistic about the only thing the number is for -- a session the
+                              # network has not seen. Sessions are drawn one per EPOCH in a seeded
+                              # order so the per-epoch table has post-stroke frames in it.
+    seed: 42                  # the session hold-out is deterministic: a re-run trains on the same
+                              # split rather than quietly scoring against a different test set.
+    epochs: 200               # DLC's own default for a new project, and 192 training frames at
+                              # batch 8 is ~24 iters/epoch. Fine-tuning a good donor does not need
+                              # more; raise it only with the per-epoch table as evidence.
+    save_epochs: 25
+    batch_size: 8
+    pcutoff: 0.6              # the donor's own evaluation cutoff, and `prelabel.min_likelihood`
+    net_type: resnet_50       # matches the donor (ResNet-50 group-norm, HeatmapHead, bottom-up), so
+                              # the snapshot's backbone loads rather than being discarded
+    scaling: [0.5, 1.25]      # DLC 3.0.1's OWN default (config/base/aug_default.yaml), stated here
+                              # rather than inherited silently. The runbook's "add scale
+                              # augmentation" is about the DONOR's config -- affine.scaling
+                              # [1.0, 1.0] plus ResizeFromDataSizeCollate(min_scale 0.4,
+                              # max_scale 1.0), its own scale and smaller, never larger. That is not
+                              # inherited: `create_training_dataset` builds a FRESH
+                              # pytorch_config.yaml from DLC's templates, whose default is already
+                              # two-sided, with 448x448 crop_sampling instead of the collate. Only
+                              # the snapshot's WEIGHTS come across. Reaching further DOWN is the one
+                              # principled change left -- the donor's features live at ~0.4x cam4's
+                              # apparent size -- so this is the knob for it.
+    dataloader_workers: null  # null = DLC's default (0, synchronous). The frames live on SMB rather
+                              # than a local disk, which is the only reason to raise it; on Windows
+                              # the workers are SPAWNED, so a non-zero value changes the failure
+                              # modes and stays opt-in.
+    eval_interval: null       # null = DLC's default (10)
 
   o2:                         # HMS O2 batch inference, ported from the 2pRAM notebook
                               # DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb

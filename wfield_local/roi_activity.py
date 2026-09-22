@@ -7,7 +7,7 @@ by spout position. Runs in the wfield CPU env (numpy + h5py; no torch/locanmf/GP
 The region-averaged trace is cheap because averaging commutes with U @ SVTcorr:
     trace_r(t) = mean_{pixels in r}( U_atlas @ SVTcorr )[pixel, t]
                = ( mean of U_atlas over region r ) @ SVTcorr
-so we never reconstruct the pixel movie. Units match the maps: hemo-corrected ΔF/F
+so we never reconstruct the pixel movie. Units match the maps: hemo-corrected dF/F
 relative to the session mean (high-pass filtered).
 
 This is the simple "ROI signal" (one trace per area); LocaNMF gives a denoised,
@@ -25,7 +25,7 @@ Examples:
   # + cue/lick event-aligned per-region responses by spout position (regime B)
   python -m wfield_local.roi_activity --allen-dir <...> --label PS94_0603 --output <...> \
       --daq-h5 <session.h5> --what both \
-      --frame-map <...\*_cleanpairs_frame_map.npz> --cleanpairs-summary <...\*_cleanpairs_summary.json>
+      --frame-map <...\\*_cleanpairs_frame_map.npz> --cleanpairs-summary <...\\*_cleanpairs_summary.json>
 """
 
 from __future__ import annotations
@@ -273,7 +273,7 @@ def main() -> int:
     ax[0].imshow(overlay, interpolation="nearest"); ax[0].set_axis_off()
     ax[0].set_title("selected ROI locations")
     tt = np.arange(min(traces.shape[1], int(60 * args.fs))) / args.fs
-    for i, ((k, idx), col) in enumerate(zip(sel, colors)):
+    for i, ((k, _idx), col) in enumerate(zip(sel, colors)):
         ax[1].plot(tt, traces[key2row[k], :len(tt)] + i * 0.04, lw=0.8, color=col, label=k)
     ax[1].set_xlabel("s"); ax[1].set_ylabel("ΔF/F (offset per ROI)"); ax[1].legend(fontsize=8)
     ax[1].set_title("selected ROI traces (first 60 s)")

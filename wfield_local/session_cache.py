@@ -8,7 +8,7 @@ instantly.
 Cache key (per session, per `kind`): the mtime+size of the session's LocaNMF component file
 (`{label}_locanmf_C.npy` — rewritten whenever LocaNMF is re-run, e.g. the PS93 8/5 recovered-positions
 rerun), the DAQ h5, the optional `behavior_trials` override CSV, plus a repr of the analysis params and
-CACHE_VERSION. Any of those changing → automatic invalidation.
+CACHE_VERSION. Any of those changing -> automatic invalidation.
 
 IMPORTANT: mtimes do NOT capture changes to the COMPUTE CODE. **Bump CACHE_VERSION whenever you change the
 logic of a cached function** (per_session / rdm / crossnobis / hemisphere), so stale results are discarded.

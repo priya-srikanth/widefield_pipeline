@@ -589,7 +589,7 @@ def prune_by_appearance(rows: list[dict], rv=None, target: int | None = None) ->
     if not target or not rows:
         return rows
 
-    anchor, keep_keys = anchor_cam(), None
+    anchor = anchor_cam()
     lead = anchor if anchor and any(r["cam"] == anchor for r in rows) else None
 
     out, decided = [], {}
@@ -630,7 +630,7 @@ def prune_by_appearance(rows: list[dict], rv=None, target: int | None = None) ->
                 # Remainder ROTATED PER SESSION. Handing it to the first cells every time gave the
                 # alphabetically-first positions an extra frame in all 15 sessions.
                 spin = sum(ord(ch) for ch in stem) % n_cell
-                for c0, (cell, ks) in enumerate(sorted(cells.items())):
+                for c0, (_cell, ks) in enumerate(sorted(cells.items())):
                     c = (c0 - spin) % n_cell
                     take = base + (1 if c < extra else 0)
                     if take <= 0:
@@ -841,11 +841,59 @@ def date_sessions(date: str, rv=None, animals=None) -> list[tuple[str, str, str,
     return out
 
 
-def run(date=None, cohort=False, cams=None, rv=None, animals=None, dry=False) -> list[dict]:
+def labelled_sessions(rv=None) -> set:
+    """``{(animal, date)}`` already in the labelling set, from the manifest that recorded them.
+
+    THE SESSION CHOICE DRIFTS, and that is the expensive kind of surprise. `cohort_sessions` takes
+    the MIDDLE session of each animal x epoch, so it moves as sessions accumulate -- and the epoch
+    boundaries move underneath it too (DECISIONS 2026-09-19 and 2026-09-21 both retuned
+    `epochs.chronic`; the second shifted PS95's chronic start from day 15 to 11). Measured
+    2026-09-22: re-running `--cohort` today plans 16 sessions of which only 11 are the ones already
+    labelled, and would additionally extract five sessions nobody has opened.
+
+    Nothing is LOST by that -- `extract` only writes new images and `write_manifest` appends,
+    de-duplicated -- so the cost is scope, not data. But "add a few more frames to what she is
+    already labelling" is a different request from "re-decide which sessions the cohort uses", and
+    only this flag expresses the first. `dlc.frames.seed` keeps the choice WITHIN a session stable;
+    this keeps the choice OF sessions stable, which is the part the seed cannot protect.
+    """
+    import csv
+
+    man = staging_root(rv) / "frame_manifest.csv"
+    if not man.is_file():
+        raise SystemExit(f"No manifest at {man} -- nothing has been extracted yet, so there is no "
+                         f"labelling set to grow. Run without --only-labelled.")
+    with open(man, newline="", encoding="utf-8") as fh:
+        return {(r["animal"], r["date"]) for r in csv.DictReader(fh)}
+
+
+def run(date=None, cohort=False, cams=None, rv=None, animals=None, dry=False,
+        only_labelled=False) -> list[dict]:
     rv = rv or PathResolver()
     cams = list(cams or cameras())
     sessions = (cohort_sessions(rv, animals, cams) if cohort
                 else date_sessions(date, rv, animals))
+    if only_labelled:
+        # REPLACE the session list rather than intersecting with it. Intersecting sounds safer and
+        # is worse: today's cohort pick and the labelled set overlap on only 11 of 15 sessions
+        # (2026-09-22), so an intersection grows 11 folders and leaves 4 behind -- one per animal,
+        # all late-epoch -- quietly skewing the additions away from chronic.
+        keep = labelled_sessions(rv)
+        by_pair = {(x[0], x[1]): x for x in sessions}
+        planned = set(by_pair)
+        for an, d in sorted(keep - planned):
+            found = [x for x in date_sessions(d, rv, [an]) if x[0] == an]
+            if len(found) == 1:
+                by_pair[(an, d)] = found[0]
+            else:
+                print(f"    WARNING {an} {d} is in the labelling set but resolves to "
+                      f"{len(found)} sessions -- skipped; add it by date instead", flush=True)
+        dropped = sorted(planned - keep)
+        sessions = [by_pair[k] for k in sorted(keep) if k in by_pair]
+        print(f"[dlc_frames] --only-labelled: {len(sessions)} session(s) pinned to the existing "
+              f"labelling set; {len(dropped)} newly-selected session(s) skipped", flush=True)
+        for an, d in dropped:
+            print(f"    skip (not in the labelling set): {an} {d}", flush=True)
     if not sessions:
         print("[dlc_frames] no sessions matched", flush=True)
         return []
@@ -885,13 +933,17 @@ def main(argv=None) -> int:
     ap.add_argument("--cam", action="append", default=None,
                     help="camera to extract (repeatable; default: dlc.cameras from defaults.yaml)")
     ap.add_argument("--animals", default=None)
+    ap.add_argument("--only-labelled", action="store_true",
+                    help="restrict to sessions already in the manifest: GROW the existing "
+                         "labelling set instead of re-deciding which sessions to use")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)
     if not args.cohort and not args.date:
         ap.error("give a date or --cohort")
     rv = PathResolver(machine=args.machine)
-    run(args.date, args.cohort, args.cam, rv, args.animals, args.dry_run)
+    run(args.date, args.cohort, args.cam, rv, args.animals, args.dry_run,
+        args.only_labelled)
     return 0
 
 

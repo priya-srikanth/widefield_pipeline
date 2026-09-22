@@ -7,7 +7,7 @@ pipeline shares — so this map is consistent with the behavior figures rather t
 
 Corrected imaging frames are mapped to DAQ samples via the cleanpairs ``frame_map`` (same mapping the
 cue/lick maps use); a frame is "quiet"/"running" if its DAQ sample falls in a quiet/running bout. Emits
-a 3-panel figure (quiet, running, running−quiet) + maps ``.npz`` + summary, for the preprocessing deck.
+a 3-panel figure (quiet, running, running-quiet) + maps ``.npz`` + summary, for the preprocessing deck.
 
     python -m wfield_local.plot_running_activity_maps --label PS92_0806_affine8v1 \
         --wfield-results <mc>/wfield_local_results --allen-dir <...>/allen_aligned_affine8v1 \

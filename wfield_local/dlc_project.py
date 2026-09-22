@@ -28,6 +28,7 @@ CLI (from the ``dlc`` env)::
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 from pathlib import Path
 
@@ -41,15 +42,28 @@ TASK = "widefield"
 SCORER = "Priya"
 
 
+#: A DLC project directory is ``<Task>-<scorer>-<YYYY-MM-DD>`` and NOTHING ELSE. The date shape is
+#: matched rather than globbed on `*` because `dlc_train` builds DERIVED projects from this one, and
+#: a `*` glob sorts a derived name (`…-2026-09-08-orofacial`) AFTER the real project and returns it
+#: as the labelling target — which would open the GUI on a disposable four-bodypart copy and put
+#: hand-placed labels somewhere that gets overwritten on the next retrain. Found 2026-09-21, by
+#: doing exactly that. `dlc_train` also keeps its projects in a subdirectory, so this is the second
+#: of two independent guards on the same mistake.
+_PROJECT_RE = re.compile(rf"^{re.escape(TASK)}-{re.escape(SCORER)}-\d{{4}}-\d{{2}}-\d{{2}}$")
+
+
 def project_dir(rv=None) -> Path:
     """``<dlc>/<Task>-<scorer>-<date>`` -- beside the frames it labels.
 
     On the SHARE rather than a local disk: the labels are the expensive artefact in this pipeline,
     they are produced interactively on whichever box someone is sitting at, and a project on one
     box's C: drive is invisible to the other and to any backup.
+
+    Only date-named projects count -- see `_PROJECT_RE`.
     """
     root = out_root(rv)
-    existing = sorted(p for p in root.glob(f"{TASK}-{SCORER}-*") if p.is_dir())
+    existing = sorted(p for p in root.glob(f"{TASK}-{SCORER}-*")
+                      if p.is_dir() and _PROJECT_RE.match(p.name))
     if existing:
         return existing[-1]
     date = (config.defaults().get("dlc") or {}).get("project_date", "2026-09-08")
