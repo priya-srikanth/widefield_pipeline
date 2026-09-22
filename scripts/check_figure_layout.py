@@ -4,6 +4,21 @@
     python scripts/check_figure_layout.py <dir> --fix --dry-run  # show the moves
     python scripts/check_figure_layout.py <dir> --fix            # make them (MOVE ONLY)
 
+WHICH TREES THIS APPLIES TO. `figure_layout` was adopted for `grant_figures` (and its `epoch/`
+subdirectory), which is where the problem was -- 1,747 files in one directory, 54% of them not
+figures. The invocations that mean something here:
+
+    ... labcams/grant_figures                                   # the tree the layout is for
+    ... labcams/channel_comparison
+    ... labcams/analysis_figures --ignore '*.json' --ignore '*.svg'
+
+`analysis_figures` HAS NOT ADOPTED THE LAYOUT and does not need to: it has no `svg/` or `data/`
+subdirectory, 20 SVGs against 3,395 PNGs, and its top-level JSONs are the SOURCE of the publish
+step (`nightly_figs._publish_figs` globs `*.json` there -- tidying them away would make that glob
+match nothing and the nightly would report `copied: 0` without failing). Run it there without
+those two ignores and it reports 20 strays that are not strays. Quote the globs: an unquoted
+`*.json` is expanded by the shell before the tool sees it.
+
 WHY THIS EXISTS. `wfield_local/figure_layout` moved every sidecar to ``<dir>/data/`` and every
 vector copy to ``<dir>/svg/`` on 2026-09-21, and `find_sidecar` PREFERS the new location. A writer
 that still builds ``out_dir / f"{stem}.csv"`` by hand therefore produces the worst possible
