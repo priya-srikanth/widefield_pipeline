@@ -185,9 +185,98 @@ def session_row(item):
                 censored=bool(q["censored"]), end_s=float(t[-1]))
 
 
+#: The per-trial lists, as (session field, group) pairs. Both hold ``(elapsed_s, value, frac)``.
+_TRIPLES = (("per_pos", "near"), ("per_pos", "far"), ("per_ili", "near"), ("per_ili", "far"))
+
+
+def save_state(sess, out_dir, tag=""):
+    """Everything the three figures read, which is not what either CSV holds.
+
+    `epoch_23_quit_prodrome.csv` is a per-session summary and `epoch_23_session_ili.csv` a second
+    one; every panel here is built from the cumulative-lick SERIES and the per-trial triples, so
+    neither can redraw anything. Stored FLAT with per-session counts rather than padded: the
+    lists are ragged by construction (a session contributes a near triple only when it had one),
+    and padding would let a short session read as a long one with zeros in it.
+    """
+    import json
+
+    from wfield_local import figure_layout as _fl
+
+    if not sess:
+        return None
+    meta, T, C, trip = [], [], [], {k: [] for k in _TRIPLES}
+    for lab, v in sess.items():
+        m = {"label": lab, "animal": v["animal"], "epoch": v["epoch"],
+             "quit_s": float(v["quit_s"]), "censored": bool(v["censored"]),
+             "end_s": float(v["end_s"]), "n_t": int(len(v["t"]))}
+        T.append(np.asarray(v["t"], np.float64))
+        C.append(np.asarray(v["c"], np.float64))
+        for key, grp in _TRIPLES:
+            rows = list(v.get(key, {}).get(grp, []))
+            m[f"n_{key}_{grp}"] = len(rows)
+            trip[(key, grp)].append(np.asarray(rows, np.float64).reshape(len(rows), 3))
+        meta.append(m)
+    payload = {"meta": json.dumps(meta),
+               "t": np.concatenate(T) if T else np.zeros(0),
+               "c": np.concatenate(C) if C else np.zeros(0)}
+    for key, grp in _TRIPLES:
+        blocks = trip[(key, grp)]
+        payload[f"{key}_{grp}"] = (np.concatenate(blocks) if any(b.size for b in blocks)
+                                   else np.zeros((0, 3)))
+    q = _fl.sidecar_for(out_dir, f"epoch_23_quit_prodrome{tag}", "_state.npz")
+    np.savez_compressed(q, **payload)
+    return q
+
+
+def load_state(out_dir, tag=""):
+    """Rebuild ``sess`` from `save_state`, or ``None``.
+
+    ORDER IS PRESERVED. `sess` is iterated into seeded bootstraps throughout `main`, and this
+    module is the one where that was MEASURED to matter: collecting the fan-out in completion
+    order rather than input order moved a CI from [-22.9,-13.7] to [-23.1,-13.6] while leaving
+    the point estimate exact. The npz stores sessions in `sess` order and they are rebuilt in it.
+    """
+    import json
+
+    from wfield_local import figure_layout as _fl
+
+    q = _fl.find_sidecar_for(out_dir, f"epoch_23_quit_prodrome{tag}", "_state.npz")
+    if q is None:
+        return None
+    with np.load(q, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        t_all, c_all = f["t"], f["c"]
+        trip = {k: f[f"{k[0]}_{k[1]}"] for k in _TRIPLES}
+    sess, off, toff = {}, 0, {k: 0 for k in _TRIPLES}
+    for m in meta:
+        n = int(m["n_t"])
+        v = {"label": m["label"], "animal": m["animal"], "epoch": m["epoch"],
+             "quit_s": float(m["quit_s"]), "censored": bool(m["censored"]),
+             "end_s": float(m["end_s"]),
+             "t": t_all[off:off + n], "c": c_all[off:off + n],
+             "per_pos": {}, "per_ili": {}}
+        off += n
+        for key, grp in _TRIPLES:
+            k = int(m[f"n_{key}_{grp}"])
+            block = trip[(key, grp)][toff[(key, grp)]:toff[(key, grp)] + k]
+            toff[(key, grp)] += k
+            v[key][grp] = [tuple(r) for r in block]
+        sess[m["label"]] = v
+    if off != len(t_all):
+        raise SystemExit(f"{q}: consumed {off} of {len(t_all)} series points -- the counts and "
+                         f"the arrays disagree, so the sessions would be mis-sliced")
+    return sess
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive every table and all three figures from "
+                         "epoch_23_quit_prodrome<tag>_state.npz, without reading a session. "
+                         "Neither CSV is enough: both are per-session summaries, and every panel "
+                         "is built from the cumulative-lick series and the per-trial triples, "
+                         "which the npz carries.")
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--gate", action="store_true",
@@ -222,8 +311,22 @@ def main(argv=None) -> int:
     # draws (measured on `quit_prodrome`: the CI moved from [-22.9,-13.7] to
     # [-23.1,-13.6] while the point estimate stayed exact). No longer forgettable.
     # Keying by label was never enough on its own: dict insertion order is then completion order.
-    res, fail = ak.fan_sessions(items, session_row, jobs=a.jobs)
-    sess = {r["label"]: r for _it, r in res if r is not None}
+    # COMPUTED BEFORE THE BRANCH: it names the state npz, so --from-csv needs it
+    # here rather than where the CSV writes used it.
+    tag = ("_gated" if a.gate else "") + (f"_h{int(a.horizon_min)}" if a.horizon_min else "")
+
+    if a.from_csv:
+        sess = load_state(out_dir, tag)
+        if sess is None:
+            print(f"!! no epoch_23_quit_prodrome{tag}_state.npz under {out_dir} -- run once "
+                  f"WITHOUT --from-csv first. REFUSING to recompute silently.")
+            return 1
+        res, fail = (), []
+        print(f"FROM NPZ: {len(sess)} sessions, "
+              f"{sum(len(v['t']) for v in sess.values())} trial points -- no session was read")
+    else:
+        res, fail = ak.fan_sessions(items, session_row, jobs=a.jobs)
+        sess = {r["label"]: r for _it, r in res if r is not None}
     for lab in sorted(sess):
         v = sess[lab]
         print(f"   {lab:14s} {v['epoch']:9s} "
@@ -238,7 +341,6 @@ def main(argv=None) -> int:
         return 1
     rng = np.random.default_rng(a.seed)
     bar = "=" * 96
-    tag = ("_gated" if a.gate else "") + (f"_h{int(a.horizon_min)}" if a.horizon_min else "")
 
     # ---- PANEL A: lick rate against ABSOLUTE session time -------------------------------------
     sedges = np.arange(0.0, SESS_MAX_S + 1e-9, SESS_BIN_S)
@@ -328,13 +430,19 @@ def main(argv=None) -> int:
     print("    NEGATIVE with a CI excluding zero = PRODROME. Spanning zero = STEP.")
 
     if rows_out:
-        from wfield_local import figure_layout as fl
-        q = fl.sidecar_for(out_dir, f"epoch_23_quit_prodrome{tag}", ".csv")
+        # `_fl`, NOT `fl`: this function rebinds `fl` to a dict of quintile pools further
+        # down (`fl = {}`), so the module alias only survives until then. It works today
+        # purely because both sidecar writes happen above that line -- which is not a
+        # property worth relying on.
+        from wfield_local import figure_layout as _fl
+        q = _fl.sidecar_for(out_dir, f"epoch_23_quit_prodrome{tag}", ".csv")
         with open(q, "w", newline="", encoding="utf-8") as fh:
             wr = csv.DictWriter(fh, fieldnames=list(rows_out[0]))
             wr.writeheader()
             wr.writerows(rows_out)
         print(f"\n  wrote {q}")
+        print(f"  wrote {save_state(sess, out_dir, tag)}  -- the series and per-trial "
+              f"triples the three figures need")
 
     # ---- PANEL C: LICKS PER TRIAL by NEAR/FAR against absolute session time --------------------
     pos_curves = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
@@ -434,8 +542,8 @@ def main(argv=None) -> int:
 
     # ALL-SESSION ILI TO CSV. The per-quitter file below covers only 45 of 96 sessions, so the
     # per-animal check could not be redone from it -- which is what forced a whole re-run.
-    from wfield_local import figure_layout as fl
-    qa = fl.sidecar_for(out_dir, f"epoch_23_session_ili{tag}", ".csv")
+    from wfield_local import figure_layout as _fl
+    qa = _fl.sidecar_for(out_dir, f"epoch_23_session_ili{tag}", ".csv")
     with open(qa, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["label", "animal", "epoch", "censored",
                                            "ili_near_ms", "ili_far_ms", "n_near", "n_far"])

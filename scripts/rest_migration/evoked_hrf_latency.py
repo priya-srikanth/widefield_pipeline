@@ -139,6 +139,11 @@ def session_latency_row(lab):
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive every table from epoch_22_evoked_hrf_latency.csv without "
+                         "opening a session. This module draws no figure, so that CSV is the "
+                         "whole input: one row per session, and every table below is a pooled "
+                         "statistic over those rows.")
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--seed", type=int, default=20260919)
     ap.add_argument("--jobs", type=int, default=None,
@@ -146,9 +151,20 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
 
+    from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+
+    if a.from_csv:
+        q_in = fl.find_sidecar_for(out_dir, "epoch_22_evoked_hrf_latency", ".csv")
+        if q_in is None:
+            print("!! no epoch_22_evoked_hrf_latency.csv -- run once WITHOUT --from-csv first. "
+                  "REFUSING to recompute silently.")
+            return 1
+        rows = ak.read_rows(q_in)
+        print(f"FROM CSV: {len(rows)} session rows from {q_in} -- no session was read")
+        return _tables(rows, a.seed)
     # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
     # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
     # seeded RNG, so quietly sorting here would move published CIs.
@@ -184,7 +200,17 @@ def main(argv=None) -> int:
         wr.writerows(rows)
     print(f"\nwrote {q}")
 
-    rng = np.random.default_rng(a.seed)
+    return _tables(rows, a.seed)
+
+
+def _tables(rows, seed) -> int:
+    """Every summary table, from `rows` alone.
+
+    SPLIT OUT SO BOTH PATHS RUN THE SAME CODE rather than two copies that agree today. The live
+    path and `--from-csv` differ only in where `rows` came from, and that is the whole claim
+    `--from-csv` makes; a second implementation of the tables would quietly make it false.
+    """
+    rng = np.random.default_rng(seed)
     eps = [e for e in ("pre", "acute", "subacute", "chronic") if any(r["epoch"] == e for r in rows)]
     bar = "=" * 96
 

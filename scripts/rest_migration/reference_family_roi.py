@@ -249,6 +249,36 @@ def maxstat_p(real, null_draws):
                      for r in real])
 
 
+def load_vectors(out_dir, align, tag=""):
+    """``(vectors, sids, labels)`` from `epoch_15k_region_vectors_<align><tag>.npz`, or Nones.
+
+    The npz is written by the live path as "any later statistic is a re-read, not another pass"
+    (`rotation_maps` states the same discipline). This is that re-read: every per-animal cell and
+    the cohort delta are functions of these vectors alone, so nothing here needs a pixel map.
+
+    ORDER IS PRESERVED, and it matters. `cohort_delta` and the sign-flip null both draw from a
+    seeded RNG over lists built by iterating these vectors, and `fan`-collected order is already
+    fixed upstream; rebuilding in stored order keeps a re-derivation diff-identical to the run
+    that produced the file rather than merely equivalent to it.
+    """
+    import json
+
+    from wfield_local import figure_layout as fl
+
+    q = fl.find_sidecar_for(out_dir, f"epoch_15k_region_vectors_{align}{tag}", ".npz")
+    if q is None:
+        return None, None, None
+    with np.load(q, allow_pickle=False) as f:
+        meta = json.loads(str(f["meta"]))
+        labels = json.loads(str(f["regions"]))
+        sids = f["sids"]
+        V = f["V"]
+    if len(meta) != len(V):
+        raise SystemExit(f"{q}: {len(meta)} meta rows against {len(V)} vectors -- refusing "
+                         f"to pair them by position")
+    return [{**m, "v": V[i].astype(np.float64)} for i, m in enumerate(meta)], sids, labels
+
+
 def main() -> int:
     from pathlib import Path
 
@@ -265,6 +295,12 @@ def main() -> int:
     ap.add_argument("--perm", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=20260917)
 
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive the per-animal cells AND the cohort delta from "
+                         "epoch_15k_region_vectors_<align><tag>.npz, without loading a single "
+                         "pixel map. That npz is written by every live run and holds the region "
+                         "vectors both statistics are functions of; `maps_by_epoch` and "
+                         "`component_weights` are the entire cost and are skipped.")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
@@ -281,9 +317,21 @@ def main() -> int:
               f"ALL {len(a.families)}, not three.")
     out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
 
-    by_epoch, _rel, _n = maps_by_epoch(a.align, variant)
-    animals = sorted(by_epoch)
-    sids, labels, mask = shared_regions(animals)
+    stored = None
+    if a.from_csv:
+        stored, sids, labels = load_vectors(out_dir, a.align, a.tag)
+        if stored is None:
+            print(f"!! no epoch_15k_region_vectors_{a.align}{a.tag}.npz under {out_dir} -- run "
+                  f"once WITHOUT --from-csv first. REFUSING to recompute silently.")
+            return 1
+        by_epoch, mask = {}, None
+        animals = sorted({d["animal"] for d in stored})
+        print(f"FROM NPZ: {len(stored)} per-session region vectors over {len(sids)} regions, "
+              f"{len(animals)} animals -- no pixel map was loaded")
+    else:
+        by_epoch, _rel, _n = maps_by_epoch(a.align, variant)
+        animals = sorted(by_epoch)
+        sids, labels, mask = shared_regions(animals)
     # THE THRESHOLD AND THE SHA GO IN THE HEADER. On 2026-09-17 the only way to tell which
     # MIN_IN_MASK_FRAC a finished run had used was to count its regions (30 = 0.75, 34 = 0.5) --
     # `shared_regions` imports `in_mask_components` lazily, so the run's START time does not
@@ -295,7 +343,7 @@ def main() -> int:
     print(f"{len(sids)} Allen regions carrying an in-mask COMPONENT in all {len(animals)} animals "
           f"(the correction family)\n{'=' * 78}", flush=True)
     wts = {}
-    for an in animals:
+    for an in ([] if a.from_csv else animals):
         W, rid = component_weights(an, sids)
         if W is None:
             print(f"   !! {an}: no in-mask components map to a shared region -- EXCLUDED",
@@ -315,11 +363,20 @@ def main() -> int:
     for fam in a.families:
         print(f"\n== FAMILY {fam}", flush=True)
         for an in animals:
-            if an not in wts:
+            if not a.from_csv and an not in wts:
                 continue
-            W, rid = wts[an]
             per = {}
-            for ep, positions in by_epoch[an].items():
+            if a.from_csv:
+                # `per` is exactly what the stored vectors are: one region vector per SESSION,
+                # grouped by (epoch, position). Rebuilt in stored order so the sign-flip null
+                # below -- which draws over `per[...]` with a seeded RNG -- sees the same pool in
+                # the same order as the run that wrote the file.
+                for d in stored:
+                    if d["family"] != fam or d["animal"] != an:
+                        continue
+                    per.setdefault((d["epoch"], d["position"]), []).append(d["v"])
+                    vectors.append(d)
+            for ep, positions in ({} if a.from_csv else by_epoch[an]).items():
                 if ep not in ("pre",) + EPOCHS:
                     continue
                 for pos, labmaps in positions.items():
@@ -329,6 +386,7 @@ def main() -> int:
                         mp = refs.get(fam)
                         if mp is None:
                             continue
+                        W, rid = wts[an]
                         vec = region_means(mp, W, rid, len(sids), mask)
                         per.setdefault((ep, pos), []).append(vec)
                         vectors.append({"family": fam, "animal": an, "epoch": ep,
@@ -376,11 +434,16 @@ def main() -> int:
     meta = [{k: d[k] for k in ("family", "animal", "epoch", "position", "session")}
             for d in vectors]
     from wfield_local import figure_layout as fl
-    np.savez_compressed(
-        fl.sidecar_for(out_dir, f"epoch_15k_region_vectors_{a.align}{a.tag}", ".npz"),
-        meta=json.dumps(meta), regions=json.dumps([str(x) for x in labels]),
-        sids=np.asarray(sids), V=np.asarray([d["v"] for d in vectors], dtype=np.float32))
-    print(f"\nwrote per-session vectors: {len(vectors)} rows x {len(sids)} regions", flush=True)
+    if not a.from_csv:
+        # NOT REWRITTEN ON A RE-DERIVATION. `V` is stored as float32 and read back widened to
+        # float64; writing it out again would narrow values that have already been through one
+        # narrowing, and a second pass is not a round trip.
+        np.savez_compressed(
+            fl.sidecar_for(out_dir, f"epoch_15k_region_vectors_{a.align}{a.tag}", ".npz"),
+            meta=json.dumps(meta), regions=json.dumps([str(x) for x in labels]),
+            sids=np.asarray(sids), V=np.asarray([d["v"] for d in vectors], dtype=np.float32))
+        print(f"\nwrote per-session vectors: {len(vectors)} rows x {len(sids)} regions",
+              flush=True)
 
     # ---- THE COHORT DELTA, the statistic the per-animal cells cannot provide -----------------
     print(f"\n{'=' * 78}\nCOHORT delta (epoch - pre), nested animals->sessions bootstrap\n"

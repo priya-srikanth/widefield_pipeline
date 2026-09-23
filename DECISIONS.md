@@ -17051,3 +17051,52 @@ respectively, and the raw counts win because they are written second. So that fi
 standard sidecar at all. Harmless today -- nothing reads it, and no deck note quotes it -- but the
 repo's rule is that every figure's values are written beside it, and the next person to add a note
 token for this one will silently get the wrong schema.
+
+### THE REMAINING FOUR `--from-csv` ARMS, AND THE QUESTION THAT DECIDED EACH (2026-09-23)
+
+`evoked_hrf_latency`, `reference_family_roi`, `lick_bout_structure` and `quit_prodrome` can now
+re-derive everything they produce without opening a session. All four were verified by
+byte-comparing against a live run:
+
+| arm | byte-identical |
+|---|---|
+| `reference_family_roi` | both CSVs, across **all six** align x tag combinations (12 files), re-derived from npz files written on 2026-09-17 |
+| `lick_bout_structure` | all three figures and both CSVs |
+| `quit_prodrome` | all three figures, both CSVs and the state npz |
+| `evoked_hrf_latency` | all 28 lines of table output (it draws no figure) |
+
+**THE QUESTION IS NOT "IS THERE A CSV", IT IS "IS EVERY NUMBER THE FIGURES USE IN IT".** For three
+of these four the honest answer was no, and the four needed quite different things:
+
+* `evoked_hrf_latency` — nothing new. It draws no figure, so its per-session CSV already is the
+  whole input.
+* `reference_family_roi` — nothing new either, but for a different reason: it already persisted
+  `epoch_15k_region_vectors_*.npz` under its own rule that *"any later statistic is a re-read,
+  not another pass"*. The work was to stop calling `maps_by_epoch` and `component_weights`, which
+  are the entire cost. Both the per-animal sign-flip nulls and the cohort bootstrap came back
+  exact from vectors six days old.
+* `lick_bout_structure` — needed a PER-TRIAL table (~46,000 rows, 4.9 MB). Its CSV is an
+  eight-column session summary and every panel is a per-quintile mean over trials.
+* `quit_prodrome` — needed the cumulative-lick SERIES and the per-trial triples. It writes two
+  CSVs and neither can redraw a panel, which is the trap: the presence of a CSV says nothing
+  about whether it holds what the figure was drawn from.
+
+**AN INTEGER MUST COME BACK AN INTEGER.** `read_rows` turned every numeric cell into a float, so
+`evoked_hrf_latency`'s per-session line -- `{r['n_cue']:4d}` -- raised `ValueError: Unknown format
+code 'd' for object of type 'float'` on the first row. That is the GOOD case; the bad one is the
+same drift somewhere it only changes a count in a caption. Fixed in `read_rows` rather than per
+caller, and it is exact rather than a heuristic: `csv.DictWriter` writes `int` 304 as `"304"` and
+`float` 304.0 as `"304.0"`, so the text already distinguishes them. The two arms shipped the day
+before were re-verified byte-identical afterwards, because a shared reader had changed underneath
+them.
+
+**TWO THINGS FOUND IN PASSING.**
+
+`quit_prodrome` binds `fl` to a dict of quintile pools, and the `figure_layout as fl` import added
+to that file on 2026-09-22 SHADOWED IT. It worked only because both sidecar writes happen above
+`fl = {}`, which is not a property worth relying on -- and the `--from-csv` work would have added
+a use below it. Renamed to `_fl`.
+
+`lick_bout_structure` defined `per_session_q` as a byte-for-byte copy of `quint` (same body, same
+md5). That filter decides which sessions enter a quintile, so two copies are two places for a
+published CI to drift apart. Now one name for one function.

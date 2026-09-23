@@ -380,6 +380,13 @@ def read_rows(path, text_columns=TEXT_COLUMNS):
 
     Empty cells become NaN rather than 0.0 or an empty string, because a missing measurement is
     what they are, and `np.isfinite` is how every caller filters.
+
+    **AND A MISSING CELL READS AS NaN, NOT AS ``""``.** Worth stating because it is the one thing
+    that differs in shape between the live path and the re-derived one, and it has already cost a
+    number: `nvc_evoked` filtered its pooling with ``r.get(k, "") != ""``, which is TRUE for NaN,
+    so the re-derived table would have pooled 18 rows where the live run pooled 7 -- eleven of
+    them missing measurements -- in exactly the comparison that module calls "the test". Filter on
+    `np.isfinite`, never on the empty string.
     """
     import csv
 
@@ -395,10 +402,23 @@ def read_rows(path, text_columns=TEXT_COLUMNS):
                 elif v in ("True", "False"):
                     rec[k] = v == "True"
                 else:
+                    # AN INTEGER COMES BACK AS AN INTEGER, and this is exact rather than a
+                    # heuristic: `csv.DictWriter` writes `int` 304 as "304" and `float` 304.0 as
+                    # "304.0" via `str()`, so the text already distinguishes them and reading it
+                    # this way makes `read_rows` a true inverse of the writer for both.
+                    #
+                    # IT IS NOT COSMETIC. `evoked_hrf_latency` prints its per-session line with
+                    # `{r['n_cue']:4d}`, and a `--from-csv` run that handed it 304.0 raised
+                    # `ValueError: Unknown format code 'd' for object of type 'float'` -- a crash
+                    # on the FIRST row, which is the good case. The bad case is the same drift
+                    # somewhere it only changes a count in a caption.
                     try:
-                        rec[k] = float(v)
+                        rec[k] = int(v)
                     except ValueError:
-                        rec[k] = v
+                        try:
+                            rec[k] = float(v)
+                        except ValueError:
+                            rec[k] = v
             out.append(rec)
     return out
 

@@ -142,9 +142,71 @@ def session_bouts(item):
                 cross_time_s=cross_t, cross_licks=cross_l)
 
 
+#: Every per-trial field the figures and the quintile tables read. Written out in full because
+#: the eight-column session summary cannot reconstruct any of them.
+TRIAL_COLS = ("label", "order", "pos", "grp", "frac", "elapsed_s", "cum_licks", "n_licks",
+              "n_bouts", "licks_per_bout", "ili_first", "ili_last", "ili_slope")
+
+
+def _save_trials(sess, out_dir):
+    """The per-TRIAL table the three figures are actually drawn from.
+
+    `epoch_26_lick_bout_structure.csv` is a session SUMMARY -- eight columns, one row per session
+    -- and every panel here is a per-quintile mean over trials inside a session. So the summary
+    can no more redraw these figures than a pair of window averages could redraw `nvc_evoked`'s
+    trace. ~37,000 rows, a few MB, and it is the difference between a redraw costing seconds and
+    costing a full pass over every session's licks.
+    """
+    import csv as _csv
+
+    from wfield_local import figure_layout as fl
+
+    q = fl.sidecar_for(out_dir, "epoch_26_lick_bout", "_trials.csv")
+    with open(q, "w", newline="", encoding="utf-8") as fh:
+        w = _csv.DictWriter(fh, fieldnames=list(TRIAL_COLS))
+        w.writeheader()
+        for lab, v in sess.items():
+            for r in v["rows"]:
+                w.writerow({k: (lab if k == "label" else r.get(k, "")) for k in TRIAL_COLS})
+    return q
+
+
+def _load_sess(out_dir):
+    """Rebuild ``sess`` from the summary CSV plus the per-trial CSV, or ``None``.
+
+    ORDER IS LOAD-BEARING AND IS TAKEN FROM THE SUMMARY. `sess` is a dict built from the
+    `fan_sessions` result, every bootstrap pool below is built by iterating it, and a seeded RNG
+    over a differently-ordered list gives different draws -- measured on `quit_prodrome`, where it
+    moved a CI while leaving the point estimate exact. The summary CSV was written by iterating
+    `sess`, so its ROW ORDER is that order; rebuilding in file order restores it exactly.
+    """
+    from wfield_local import figure_layout as fl
+
+    qs = fl.find_sidecar_for(out_dir, "epoch_26_lick_bout_structure", ".csv")
+    qt = fl.find_sidecar_for(out_dir, "epoch_26_lick_bout", "_trials.csv")
+    if qs is None or qt is None:
+        return None
+    sess = {}
+    for r in ak.read_rows(qs):
+        sess[r["label"]] = {"label": r["label"], "animal": r["animal"], "epoch": r["epoch"],
+                            "early_lpm": r["early_lpm"], "base_licks": r["base_licks"],
+                            "cross_time_s": r["cross_time_s"], "cross_licks": r["cross_licks"],
+                            "rows": []}
+    for r in ak.read_rows(qt, text_columns=frozenset({"label", "grp"})):
+        v = sess.get(r["label"])
+        if v is not None:
+            v["rows"].append(r)
+    return sess
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--from-csv", action="store_true",
+                    help="re-derive every table and all three figures from "
+                         "epoch_26_lick_bout_structure.csv plus epoch_26_lick_bout_trials.csv, "
+                         "without reading a session. The summary alone is NOT enough: every "
+                         "panel is a per-quintile mean over TRIALS, which the trials CSV carries.")
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--gate", action="store_true")
     ap.add_argument("--horizon-min", type=float, default=None)
@@ -167,8 +229,19 @@ def main(argv=None) -> int:
     # draws (measured on `quit_prodrome`: the CI moved from [-22.9,-13.7] to
     # [-23.1,-13.6] while the point estimate stayed exact). No longer forgettable.
     # Sorting by the ITEM is sorting by the label, since the label is the tuple's first element.
-    res, fail = ak.fan_sessions(items, session_bouts, jobs=a.jobs)
-    sess = {r["label"]: r for _it, r in res if r is not None}
+    if a.from_csv:
+        sess = _load_sess(out_dir)
+        if sess is None:
+            print("!! need BOTH epoch_26_lick_bout_structure.csv and "
+                  "epoch_26_lick_bout_trials.csv -- run once WITHOUT --from-csv first. "
+                  "REFUSING to recompute silently.")
+            return 1
+        res, fail = (), []
+        print(f"FROM CSV: {len(sess)} sessions, "
+              f"{sum(len(v['rows']) for v in sess.values())} trials -- no session was read")
+    else:
+        res, fail = ak.fan_sessions(items, session_bouts, jobs=a.jobs)
+        sess = {r["label"]: r for _it, r in res if r is not None}
     if fail:
         print(f"  !! {len(fail)} failed: " + ", ".join(f"{x[0]}" for x in fail[:4]), flush=True)
     if not sess:
@@ -192,18 +265,10 @@ def main(argv=None) -> int:
                 d[v["animal"]].append(float(np.mean(vals)))
         return d
 
-    def per_session_q(key, grp, b, e):
-        """``{animal: [per-session mean of `key` in quintile `b`]}`` for epoch `e`."""
-        d = defaultdict(list)
-        for v in sess.values():
-            if v["epoch"] != e:
-                continue
-            vals = [r[key] for r in v["rows"]
-                    if r["grp"] == grp and b / NQ <= r["frac"] < (b + 1) / NQ
-                    and np.isfinite(r[key])]
-            if len(vals) >= 5:
-                d[v["animal"]].append(float(np.mean(vals)))
-        return d
+    #: `per_session_q` WAS A BYTE-FOR-BYTE COPY of `quint` (same body, same md5). Two names for
+    #: one function is two places for a filter to drift apart -- and the filter here is what
+    #: decides which sessions enter a quintile, so a drift would move a published CI silently.
+    per_session_q = quint
 
     def delta_pairs(key, grp, b, e):
         """``{animal: (epoch values, that animal's own pre values)}`` for one quintile."""
@@ -446,6 +511,11 @@ def main(argv=None) -> int:
                "THIRD.\nThe per-trial MEDIAN ILI averages this away, which is why it looked "
                "like there was no motor change. POSITIVE = the tongue slows as the bout runs on.")
 
+    if a.from_csv:
+        # NEVER REWRITE THE INPUTS on a re-derivation: what is read back is what was written, so
+        # rewriting can only lose, and a partial read would be laundered into the file every
+        # later run trusts.
+        return 0
     from wfield_local import figure_layout as fl
     q = fl.sidecar_for(out_dir, "epoch_26_lick_bout_structure", ".csv")
     with open(q, "w", newline="", encoding="utf-8") as fh:
@@ -459,6 +529,7 @@ def main(argv=None) -> int:
                             cross_time_s=v["cross_time_s"], cross_licks=v["cross_licks"],
                             n_trials=len(v["rows"])))
     print(f"\n  wrote {q}")
+    print(f"  wrote {_save_trials(sess, out_dir)}  -- the per-trial rows the figures need")
     return 0
 
 
