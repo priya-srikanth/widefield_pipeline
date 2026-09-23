@@ -128,6 +128,10 @@ MEEGKIT_ORDER = 10
 #: the two must be able to differ while a rebuild is partway through the session set.
 ADOPTED = "meegkit_hpfit"
 
+#: Set True by remove_drift when it has to fall back to per-component meegkit detrending (see there).
+#: compute() resets it per session and records the outcome in the manifest for provenance.
+_MEEGKIT_FELL_BACK = False
+
 
 def _butter(mode):
     return butter(2, HP / (FS / 2), btype="highpass")
@@ -158,8 +162,28 @@ def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
         # meegkit works on (n_samples, n_channels) and wants weights of the SAME shape; masked
         # samples get weight 0 so the polynomial is fitted only where the mask allows.
         w = np.repeat(m.astype(float)[:, None], X.shape[0], axis=1)
-        y, _w, _r = detrend(X.T.astype(np.float64), order=order, w=w)
-        return np.asarray(y).T
+        try:
+            y, _w, _r = detrend(X.T.astype(np.float64), order=order, w=w)
+            return np.asarray(y).T
+        except UnboundLocalError:
+            # meegkit's robust reweighting flags outliers against a GLOBAL std across all
+            # components, so the dominant SVD component (~10x the amplitude of the rest) can
+            # have EVERY sample flagged, driving its weight column to all-zero; meegkit.regress
+            # then references an unset `V` (UnboundLocalError). Detrend each component on its own
+            # -- identical method, but the outlier std is per-component so there is no cross-scale
+            # contamination and no collapse. Only reached when the batch call raises, so every
+            # session that already succeeds is bit-for-bit unchanged. First seen on PS92 20260922.
+            global _MEEGKIT_FELL_BACK
+            _MEEGKIT_FELL_BACK = True
+            w1 = m.astype(float)[:, None]
+            out = np.empty_like(X, dtype=np.float64)
+            for k in range(X.shape[0]):
+                yk, _wk, _rk = detrend(X[k][:, None].astype(np.float64), order=order, w=w1)
+                out[k] = np.asarray(yk)[:, 0]
+            print(f"[hemo] meegkit batch detrend hit its all-zero-weight bug; fell back to "
+                  f"per-component detrend for {X.shape[0]} components (result recorded in manifest).",
+                  flush=True)
+            return out
     raise ValueError(f"unknown drift removal {d!r}")
 
 
@@ -207,6 +231,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
+    global _MEEGKIT_FELL_BACK
+    _MEEGKIT_FELL_BACK = False
     res = Path(session["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
     a = svt[:, func::2].astype(np.float64)
@@ -272,6 +298,7 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
+            "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
         print(f"  {session['label']:12s} {variant}{'_refitT' if refit_t else ''}: SVTcorr{c.shape}"
