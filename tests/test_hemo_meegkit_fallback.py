@@ -8,8 +8,16 @@ untouched, so every session that already succeeds is bit-for-bit unchanged.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import wfield_local.hemo_variants as H
+
+# meegkit lives in the IMAGING box's `wfield` env, not this analysis box's `locanmf` env (ground
+# rule 7: per-machine envs differ by design -- this box READS the meegkit-computed SVTcorr, it never
+# runs the detrend, so meegkit is deliberately not installed here). Skip the module where it is
+# absent rather than fail collection with ModuleNotFoundError -- which was blocking every push from
+# the analysis box, including LocaNMF session registrations.
+pytest.importorskip("meegkit")
 
 
 def _patch_meegkit(monkeypatch, fail_batch):
