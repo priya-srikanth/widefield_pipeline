@@ -137,7 +137,24 @@ LICK_ALIGNED_CLASSES = ("success",)
 #: AVERAGE OVER THE FITTING WINDOW, not the value at every instant. The check is therefore that the
 #: pre-stroke success trace averages ~1 over [-2, 0), reported as `anchor` on every result.
 #: Demanding it instantaneously is what forced the wide window.
-SMOOTH_S = 0.4
+#:
+#: 0.2 s IS MEASURED (Priya, 2026-09-24: *"should we try narrower than 0.4s centered?"*). Peak
+#: amplitude and latency of PS95's lick-aligned trial-averaged traces, against NO smoothing:
+#:
+#:     width   close_center       far_center            worst-case amplitude cost
+#:     0.00     2.61 @ +1.99      2.72 @ +0.38          --
+#:     0.10     2.60 @ +1.99      2.66 @ +0.38          -2%
+#:     0.20     2.59 @ +1.99      2.61 @ +0.32          -4%
+#:     0.40     2.58 @ +1.99      2.50 @ +0.38          -8%
+#:     0.80     2.53 @ +1.99      2.12 @ +0.42         -22%
+#:     1.60     2.38 @ +1.99      1.32 @ +0.70         -51%, and latency shifts +0.32 -> +0.70
+#:
+#: The cost is NOT uniform: the slow close-position peaks (latency +1.4 to +2.0 s) lose under 1% even
+#: at 0.4 s, while the FAST far-position transients (+0.32 to +0.51 s) lose 4-8% because the boxcar
+#: is comparable to their width. 0.2 s halves that and costs nothing visible, since the band is the
+#: CI of the mean at n = 400-1000. Below 0.2 s there is no return -- 0.10 and 0.00 sit within 1% of
+#: it everywhere, which is the 1-2 s haemodynamic kernel asserting itself.
+SMOOTH_S = 0.2
 
 #: Centred, not trailing. A trailing window lags every feature by half its width, which for a
 #: trajectory is a timing artefact in the one axis the figure is about. v2 used trailing so t = 0
@@ -158,7 +175,7 @@ TRAILING = False
 #:
 #:   1  first version: 0.5 s centred boxcar, 25-75 band
 #:   2  trailing window of the FEATURE WIDTH (off-by-one fixed), components z-scored, CI of median
-COURSE_VERSION = 3
+COURSE_VERSION = 4
 
 #: Trials are aggregated by MEAN, with a 95% CI of the mean.
 #:
@@ -258,7 +275,65 @@ def window_means(sig, ref0s, post_n):
     return out
 
 
-def fit_directions(X, y, labels, method="dom", stats=None):
+#: Baseline interval for the condition-independent mode, seconds relative to the alignment event.
+#: Far enough back that the event response has not begun.
+CIM_BASELINE = (-3.0, -2.0)
+
+
+def _event_average(sig, at, pre_n, post_n):
+    """``(mean (ncomp, T) over trials, n)`` -- the event-triggered average, or None."""
+    sig = np.asarray(sig)
+    keep = [sig[:, int(f) - pre_n:int(f) + post_n] for f in at
+            if np.isfinite(f) and int(f) - pre_n >= 0 and int(f) + post_n <= sig.shape[1]]
+    if not keep:
+        return None
+    return np.mean(np.stack(keep), 0).astype(np.float32), len(keep)
+
+
+def condition_independent_mode(G, t, baseline=CIM_BASELINE):
+    """The direction the GRAND-MEAN response travels, as a unit vector. ``None`` if it is flat.
+
+    WHY THIS EXISTS. The per-position directions are ONE-VS-REST, ``w_P = mean(P) - mean(not-P)``,
+    so across the six they very nearly cancel -- MEASURED on PS95's lick-aligned set, the six unit
+    vectors sum to a vector of length **0.289**, where six aligned ones would give 6.0. A signal
+    common to every trial therefore CANNOT load positively on all six: the geometry forces it
+    positive on some and negative on others.
+
+    The lick response is exactly such a signal, and it is large. Decomposing PS95's lick-aligned
+    traces into a SHARED part (the grand mean -- the same signal for every position, differing only
+    in which direction it is projected onto) and a position-specific residual:
+
+        position       observed    SHARED   POS-SPEC
+        close_L          +1.21     +0.82      +0.39
+        close_center     -0.91     -1.76      +0.84
+        close_R          +1.07     +0.69      +0.38
+        far_L            -0.23     -0.44      +0.20
+        far_center       -0.34     -0.60      +0.26
+        far_R            -0.27     -0.44      +0.17
+
+    **The position-specific component is POSITIVE at all six.** Every negative value, including
+    close_center's dip, lives in the shared term. So the up-for-close / down-for-far sign pattern is
+    the common lick response leaking onto axes that cancel, not position coding (Priya, 2026-09-24:
+    *"are the downward deflections in close locations artifact?"* -- yes, largely).
+
+    Defined as the grand mean at its point of maximum excursion from its own pre-event baseline, so
+    no interval has to be hand-picked. Orthogonalising against it is the same move
+    `position_coding_directions` already makes for the engagement axis, and carries the cost stated
+    there: "any position information lying along e goes with it, so the projection answers the
+    narrower question". Which is why BOTH versions are rendered rather than one replacing the other.
+    """
+    G = np.asarray(G, float)
+    t = np.asarray(t, float)
+    base = (t >= baseline[0]) & (t < baseline[1])
+    if not base.any():
+        base = t < (t.min() + 0.5)
+    dev = G - G[:, base].mean(1)[:, None]
+    v = dev[:, int(np.argmax(np.linalg.norm(dev, axis=0)))]
+    n = float(np.linalg.norm(v))
+    return (v / n) if n > 0 else None
+
+
+def fit_directions(X, y, labels, method="dom", stats=None, cim=None):
     """``{position: (w, p0, p1)}`` from PRE-STROKE successful-lick trials, P against not-P.
 
     `pcd.direction` and `pcd.poles` unchanged -- they are basis-agnostic, so handing them a
@@ -277,6 +352,11 @@ def fit_directions(X, y, labels, method="dom", stats=None):
         if m.sum() < MIN_TRIALS or (~m).sum() < MIN_TRIALS:
             continue
         w = pcd.direction(X[m], X[~m], method=method)
+        if cim is not None:
+            w = pcd.orthogonalise(w, cim)
+        # POLES AFTER, NOT BEFORE: they are means of X @ w, so a rotated w has different
+        # poles. Reusing the old ones would put the 0/1 anchor on the wrong axis, and the
+        # anchor check would (correctly) stop reading 1.00.
         p0, p1 = pcd.poles(X[m], X[~m], w)
         out[int(p)] = (w, p0, p1)
     return out
@@ -456,7 +536,8 @@ def session_arms(s, args, basis, align):
     return out
 
 
-def analyse_animal(animal, align="precue", *, method="dom", post_s=None, verbose=True):
+def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
+                   verbose=True):
     """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
 
     TWO PASSES OVER THE SESSIONS, and the projection is deferred in both.
@@ -505,7 +586,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, verbose
                   + " ".join(f"{c}={len(arms[c]['y'])}" for c in CLASSES), flush=True)
 
     # ---- PASS 1: the direction, from PRE-STROKE SUCCESS only, window means, P vs not-P ----------
-    Xf, yf = [], []
+    Xf, yf, Gs, Gn = [], [], [], []
     for s, ep, arms in book:
         if ep != "pre" or not arms["success"]["y"]:
             continue
@@ -516,12 +597,34 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, verbose
             verbose=False)
         Xf.append(feats)
         yf.append(np.asarray(arms["success"]["y"]))
+        if orth:
+            # The EVENT-TRIGGERED AVERAGE over this session's pre-stroke success trials,
+            # pooled over positions. Accumulated HERE because pass 1 already holds the
+            # signal; computing it in pass 2 would be circular, since pass 2 needs the
+            # directions that the CIM helps define.
+            gm = session_cache.cached(
+                s, f"cdgm-{align}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
+                lambda src=src, arms=arms: _event_average(src.signal()[0],
+                                                          arms["success"]["at"],
+                                                          pre_n, post_frames),
+                verbose=False)
+            if gm is not None:
+                Gs.append(gm[0])
+                Gn.append(gm[1])
     if not Xf:
         return {"animal": animal, "align": align, "skipped": "no pre-stroke success trials",
                 "errors": errs}
     Xall = np.vstack(Xf)
     stats = component_stats(Xall) if STANDARDISE else None
-    dirs = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method, stats=stats)
+    cim = None
+    if orth and Gs:
+        wts = np.asarray(Gn, float)
+        G = np.tensordot(wts / wts.sum(), np.stack(Gs), axes=(0, 0))   # n-weighted grand mean
+        if stats is not None:
+            G = (G - stats[0][:, None]) / stats[1][:, None]
+        cim = condition_independent_mode(G, np.arange(-pre_n, post_frames) / args.fs)
+    dirs = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
+                          stats=stats, cim=cim)
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",
                 "errors": errs}
@@ -555,7 +658,8 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, verbose
            "fs": float(args.fs), "span": SPAN[align], "pre_n": pre_n, "post_n": post_frames,
            "positions": sorted(dirs), "n_sessions": len(book), "errors": errs,
            "win_s": float(args.post_s), "standardised": bool(STANDARDISE),
-           "smooth_s": float(SMOOTH_S), "drawn_classes": list(draw), "traces": {}}
+           "smooth_s": float(SMOOTH_S), "orth": bool(orth and cim is not None),
+           "drawn_classes": list(draw), "traces": {}}
     for key, chunks in acc.items():
         A = np.vstack(chunks)
         n = int(np.isfinite(A).any(1).sum())
@@ -645,7 +749,8 @@ def figure(res, out):
         f"direction, frame by frame\n"
         f"direction fitted on PRE-STROKE SUCCESS (window mean, time-INVARIANT"
         + (", components Z-SCORED in a frozen pre-stroke frame" if res.get("standardised") else
-           ", components NOT standardised") + ") · "
+           ", components NOT standardised")
+        + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "") + ") · "
         f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · basis {str(res['basis_id'])[:12]} "
         f"{res['ncomp']}c\n"
         f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
@@ -672,6 +777,14 @@ def main(argv=None) -> int:
     ap.add_argument("--align", nargs="+", default=["precue"],
                     choices=("precue", "cue", "lick"))
     ap.add_argument("--method", default="dom", choices=("dom", "lr"))
+    ap.add_argument("--orth", action="store_true",
+                    help="project the CONDITION-INDEPENDENT MODE out of every direction. The "
+                         "one-vs-rest directions nearly cancel (their sum is 0.289 of a possible "
+                         "6.0), so the shared lick response is forced positive on some positions "
+                         "and negative on others -- which is what the close-position dips are. "
+                         "Renders to a separate _orth file; neither version replaces the other, "
+                         "because orthogonalising also removes any real position information "
+                         "lying along that mode.")
     ap.add_argument("--post-s", type=float, default=None,
                     help="override decode.{align}_post_s; default reads it per alignment")
     ap.add_argument("--out", default=None)
@@ -685,14 +798,16 @@ def main(argv=None) -> int:
     for animal in (args.animal or ["PS92", "PS93", "PS94", "PS95"]):
         for align in args.align:
             try:
-                res = analyse_animal(animal, align, method=args.method, post_s=args.post_s)
+                res = analyse_animal(animal, align, method=args.method, post_s=args.post_s,
+                                     orth=args.orth)
             except Exception as exc:
                 print(f"[cd_traj] {animal} {align}: {type(exc).__name__}: {exc}", flush=True)
                 continue
             if res.get("skipped"):
                 print(f"[cd_traj] {animal} {align}: SKIPPED {res['skipped']}", flush=True)
                 continue
-            p = figure(res, out / f"cd_traj_{animal}_{align}_{args.method}.png")
+            tag = f"{args.method}" + ("_orth" if args.orth else "")
+            p = figure(res, out / f"cd_traj_{animal}_{align}_{tag}.png")
             print(f"[cd_traj] -> {p}", flush=True)
     return 0
 
