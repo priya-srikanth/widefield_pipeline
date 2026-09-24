@@ -149,7 +149,9 @@ So 0.61 is **~30× chance**. Both readings are true and they answer different qu
   in the trace, i.e. **~1× to 6× the position-specific signal, worst at close_center.**
 
 **Only the second licenses discounting a post-stroke panel.** Per position, residual =
-0.62 × |SHARED|, against the position-specific signal that survives orthogonalisation:
+0.62 × |SHARED|, against the position-specific signal that survives orthogonalisation.
+**THE TABLE BELOW IS ~35% TOO OPTIMISTIC** — it assumes the shared amplitude is unchanged
+post-stroke, and `cim_scale` has since measured it GROWING (see below). Multiply by ~1.35.
 
 | position | \|SHARED\| | residual | signal | ratio |
 |---|---|---|---|---|
@@ -170,7 +172,20 @@ overlap is SCALE-INVARIANT, so a response that keeps its orientation and halves 
 For a lesion study that is a blind spot on the most likely effect.
 
 `cim_scale` now reports the magnitude beside it (Frobenius norm of the grand-mean deviation, as a
-ratio to pre). The two DISSOCIATE, and the dissociation is the point:
+ratio to pre). **MEASURED, PS95 pre-cue: 1.00 / 1.51 / 1.35 / 1.32** — the shared response is a
+third to a half LARGER after the lesion.
+
+Two consequences, and the first is a finding in its own right:
+
+* **The condition-independent mode GROWS post-stroke.** A cosine-only analysis would have reported
+  "overlap 0.61, mostly conserved" and missed this completely. It is exactly the dissociation the
+  pairing exists to expose.
+* **Every residual figure above is ~35% too optimistic.** The unremoved amplitude is
+  `sqrt(1 − overlap) × ||shared|| × scale`: acute 0.57 × 1.51 = **0.85**, subacute 0.62 × 1.35 =
+  **0.84**, chronic 0.58 × 1.32 = **0.77**, against the 0.62 the table assumes. close_center's 9×
+  is closer to **12×**.
+
+The two DISSOCIATE, and the dissociation is the point:
 
 | overlap | scale | reading |
 |---|---|---|
@@ -195,6 +210,45 @@ The correction is total at pre and almost nothing by chronic — degrading in pr
 from the epoch it was fitted on.
 
 ---
+
+## THE close_center FIX: SCALE BY THE ORIGINAL GAP, NOT THE COLLAPSED ONE
+
+Priya: *"the residual after orthogonalizing is so small that the small denominator blows everything
+up"* — confirmed, and it is TWO problems compounding. PS95 pre-cue, K=2:
+
+| position | gap plain | \|w·CIM\| | gap orth | surviving |
+|---|---|---|---|---|
+| far_R | 1.761 | 0.75 | 1.156 | 65.6% |
+| close_L | 1.565 | 0.47 | 1.383 | 88.4% |
+| close_R | 1.291 | 0.47 | 1.141 | 88.4% |
+| far_center | 1.072 | 0.44 | 0.964 | 89.9% |
+| far_L | 0.932 | 0.37 | 0.867 | 93.0% |
+| **close_center** | **0.737** (smallest) | **0.80** (largest) | **0.448** | **60.7%** |
+
+close_center is worst on BOTH counts at once — the weakest separation to begin with AND the most of
+it inside the shared subspace — so its recomputed denominator is **3.1× smaller** than close_L's and
+everything divided by it is inflated 3.1×. **far_R is the control that proves it is the gap and not
+the alignment**: nearly the same overlap (0.75) and loss (66%), but it started largest and lands
+fine.
+
+**THE CAUSE WAS RECOMPUTING THE POLES AFTER ROTATING**, which rescales whatever residual survives
+back up to 1 and manufactures the inflation. Now scaled by the UNROTATED gap, so the axis means
+"fraction of the ORIGINAL position-P signature" and a barely-surviving direction draws SMALL, which
+is the truth. `surviving` is recorded per position and printed on each panel, red below 70%.
+
+**Effect on real data** (PS95 pre-cue, peak over [0.2, 1.5] s):
+
+| position | survives | peak BEFORE (renormalised) | peak AFTER |
+|---|---|---|---|
+| close_center | 60.7% | **+14.08** | **2.32** |
+| close_L | 88.4% | +4.05 | 2.01 |
+| close_R | 88.4% | +6.11 | 1.75 |
+| far_center | 89.9% | −6.43 | 2.10 |
+| far_R | 65.6% | −3.64 | 1.77 |
+| far_L | 93.0% | −4.71 | **0.29** |
+
+close_center falls into line with everything else, and far_L's genuinely small excursion (0.29,
+despite surviving 93% intact) becomes visible where the old scaling hid it.
 
 ## WHAT IS BUILT
 
@@ -223,6 +277,10 @@ from the epoch it was fitted on.
 4. **The miss-while-working-on-cue-and-lick-CDs figure** Priya asked to keep separate from these is
    not built.
 5. **The overlap has no matched null.** See below — this is the most important open item.
+6. **Figure data is not persisted**, so every re-plot recomputes. Priya asked for this explicitly.
+7. **`cim_scale` has been run only on PS95 pre-cue.** The 1.51/1.35/1.32 growth is one animal, one
+   alignment. It rewrites the residual arithmetic, so it should be measured across animals before
+   being leaned on.
 
 ---
 
@@ -252,6 +310,30 @@ space. To be trustworthy it needs: the chance level always shown; **principal an
 mean** (which dimensions rotate is the finding); and the matched null above.
 
 ---
+
+## STATE AT COMPACTION (2026-09-24)
+
+**Committed as `eed1731`. NOT PUSHED** — the push was interrupted; run it. 2547 tests green.
+
+### DO THESE IN ORDER
+
+1. **Verify `restw`.** It has never completed a run. `python -m wfield_local.cd_trajectories
+   --animal PS95 --align precue --reference restw --orth on --layout epochs`. Both previous attempts
+   died because the module was edited mid-run — see the process note below.
+2. **Re-render everything.** All 24 figures on the share predate the reference flag, top-K, the
+   chance level, `cim_scale`, the original-gap scaling and the shared y-axis. One command, parallel
+   over animals:
+   `--align precue cue lick --layout epochs cross --gate lick lick_or_working --reference contrast
+   restw --orth on --out "N:/MICROSCOPE/Priya/Claude outputs/enl_cd_20260924"`
+3. **Persist the figure data** (Priya, 2026-09-24: *"don't re-compute things multiple times, store
+   caches where able, and store the numbers needed for each figure so we can re-plot without having
+   to recompute"*). `analyse_animal` returns everything a figure needs; dump it per
+   (animal, align, gate, reference, orth) and let the layouts read from disk. **NOT STARTED.**
+4. **The overlap figure.** The numbers are in every title; Priya asked for a dedicated one. With (3)
+   done it is a small script over the dumps, like `enl_decode_figure` over `enl_decode`'s JSON.
+5. **The subspace-overlap null** — see below. Without it, 0.61 has no scale beyond K/n.
+6. **miss-while-working projected onto the cue and lick CDs**, which Priya asked to keep OUT of
+   these figures (*"separately (to not clutter these figures)"*).
 
 ## PROCESS NOTE — two background jobs were lost to this
 
