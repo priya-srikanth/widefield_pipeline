@@ -94,6 +94,20 @@ decode:
   # ------------------------------------------------------------------------------------------
   precue_baseline_s: 1.0
   precue_lickfree_check_s: 2.0
+  #   prewindow_lick_lead_s  1.0  the interval BEFORE the pre-cue window that
+  #                           `nolick_decoder.session_features` inspects for licks, reported per
+  #                           trial as `lead_lick`. NOT a filter and NOT a window: nothing is
+  #                           dropped or shifted for it, it only labels a trial so an analysis can
+  #                           split on it (Priya, 2026-09-24).
+  #                           WHY IT EXISTS: `precue_lickfree` protects the pre-cue window itself,
+  #                           and nothing protects the interval just before it -- which sits right
+  #                           after the spout strobe, where licking is not suppressed the same way.
+  #                           Widefield hemodynamics are slow enough for a lick there to reach into
+  #                           the window, so a "lick-free" window can still be movement-contaminated.
+  #                           Measured from each trial's OWN window start, not from the cue: a slid
+  #                           window makes those two different intervals on exactly the trials that
+  #                           licked.
+  prewindow_lick_lead_s: 1.0
   # Sub-bins per feature window: the decoder sees a TIME COURSE over the window, not one mean.
   # PRE-CUE, RE-MEASURED ON ALL 44 CURATED SESSIONS (2026-08-17): the gain is +0.009, better in
   # 23/44 -- a coin flip, NOT the +0.032 the 16-session pilot reported. roll2x1.0 is nominally best

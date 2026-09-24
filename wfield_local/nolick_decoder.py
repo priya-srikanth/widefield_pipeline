@@ -29,7 +29,6 @@ where this is known to apply, so a later DLC pass can target them rather than re
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -41,12 +40,14 @@ from wfield_local import config, nolick_analysis as na
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+from wfield_local.block_ids import block_ids, block_size_max_for
 from wfield_local.locanmf_position_decoder import (
     _bins_for,
     _build_signal,
     _load_cue_events,
     _window_feature,
     is_engaged,
+    precue_window_start,
 )
 from wfield_local.locanmf_frozen_decoder import _pipe
 from wfield_local.plot_lick_aligned_averages import (
@@ -166,7 +167,7 @@ def category_for_rt(rt_s, max_rt_s, response_window_s):
     return "undetected"
 
 
-def categorize(s, args):
+def categorize(s, args, with_licks=False):
     """Per-cue category, position code and block id -- no imaging touched.
 
     Returns (codes, cat, blk, rt_s, cue_f) with `cat` one of CATEGORIES or "" for cues with no
@@ -188,15 +189,20 @@ def categorize(s, args):
     cue_f, lick_f, _csmp = _frames(s, cue, lk)
     codes = classify_cues_with_backup(s, cue)
 
-    blk = np.full(cue_f.size, -1, int)
-    b, prev = -1, None
-    for k in range(cue_f.size):
-        if codes[k] < 0:
-            continue
-        if prev is None or codes[k] != prev:
-            b += 1
-        blk[k] = b
-        prev = int(codes[k])
+    # BLOCK ID -- the AUDITED rule, shared with `locanmf_position_decoder._trial_features`.
+    #
+    # This function used to key on position change alone, so two adjacent blocks at the SAME
+    # position merged into one. `block_ids` also ends a block at the session's scheduler
+    # `block_size_max`, because a longer run cannot be one block; it was audited against the
+    # firmware's own block_number and the old rule disagrees on 118/4216 = 2.8% of blocks
+    # (Priya, 2026-08-18, see `wfield_local/block_ids.py`).
+    #
+    # It matters HERE more than the 2.8% suggests: these ids are the `GroupKFold` groups that
+    # `enl_decode`'s shared-decoder hold-out rests on, so a merged block is a slightly coarser
+    # hold-out. Merging made the CV CONSERVATIVE rather than inflated, so nothing measured under the
+    # old rule was flattered -- but two definitions of one quantity feeding one analysis is the
+    # thing rule 9 exists to stop. Aligned 2026-09-24.
+    blk = block_ids(np.asarray(codes), block_size_max_for(s))
 
     ls = np.sort(lick_f)
     j = np.searchsorted(ls, cue_f, side="right")
@@ -205,8 +211,9 @@ def categorize(s, args):
     rt_s = np.where(first > 0, rt_n / args.fs, np.nan)
 
     rw_s = getattr(args, "response_window_s", None) or response_window_for(s)
-    maxrt_n = int(round(min(args.max_rt, rw_s) * args.fs))   # the cut can never exceed the window
-    rw_n = int(round(rw_s * args.fs))
+    # `category_for_rt` takes `args.max_rt` and `rw_s` in SECONDS and applies the "the cut can never
+    # exceed the response window" rule itself. The frame-count locals computed here were left behind
+    # by that refactor and were dead. Removed 2026-09-24 while touching this function.
     cat = np.full(cue_f.size, "", dtype=object)
     for k in range(cue_f.size):
         if codes[k] < 0 or cue_f[k] < 0:
@@ -248,11 +255,40 @@ def categorize(s, args):
         print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
               flush=True)
         sess_eng = np.ones(cue_f.size, bool)
-    return codes, cat, blk, rt_s, cue_f, np.asarray(sess_eng, bool)
+    base = (codes, cat, blk, rt_s, cue_f, np.asarray(sess_eng, bool))
+    if not with_licks:
+        return base
+    # APPENDED, never inserted: `poststroke_compare` unpacks this positionally in two places.
+    #
+    # Returned from here rather than recomputed by the caller for the reason
+    # `locanmf_position_decoder` states about `precue_lick` and `idx_eng`: `ls` and the cue events
+    # are already in hand, and rebuilding a per-trial mask outside the function that defines the
+    # trial set is the shape of that module's bugs 15, 16 and 17 -- one such mask came out 633 long
+    # against 575 kept trials.
+    #
+    # The spout-strobe frame bounds how far `precue_window_start` may slide a window earlier; a
+    # cue with no preceding strobe gets NaN, which that function treats as no bound.
+    cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
+    sr = float(cue["sample_rate_hz"])
+    jj = np.searchsorted(ss, cs, side="right") - 1
+    lead_to_strobe = np.where(jj >= 0, (cs - ss[np.clip(jj, 0, len(ss) - 1)]) / sr, np.nan)
+    return base + (ls, cue_f - lead_to_strobe * args.fs)
 
 
-def session_features(s, args, signal=None, feat_region=None):
+def session_features(s, args, signal=None, feat_region=None, lead_s=None):
     """Feature matrix per category, using the decoder's own window builder.
+
+    **PRE-CUE WINDOWS ARE LICK-FREE**, by the same `precue_window_start` the headline decoder uses:
+    a trial with a clean fixed window keeps it, a trial with a lick in it slides to the latest clean
+    gap, and a trial with no clean gap anywhere is DROPPED. Aligned 2026-09-24; before that this
+    function took a fixed window and applied no gate, which made it a second definition of "the
+    pre-cue window" (rule 9) and left every ENL analysis resting on the task contingency alone.
+
+    Each arm also carries two per-trial flags, aligned to its own rows:
+
+        ``lead_lick``  a lick in the ``lead_s`` before THIS TRIAL'S window start -- the interval the
+                       gate does not protect, and the split Priya asked for on 2026-09-24
+        ``shifted``    the fixed window was dirty and the window had to slide
 
     Every category is windowed CUE-referenced (or pre-cue referenced), never lick-referenced --
     trials without a detected lick have no lick to align to, so a lick-aligned comparison between
@@ -269,16 +305,35 @@ def session_features(s, args, signal=None, feat_region=None):
     else:
         sig, feat_reg = _build_signal(s, args.source)
     nfeat, T = sig.shape
-    codes, cat, blk, rt_s, cue_f, sess_eng = categorize(s, args)
+    if lead_s is None:
+        lead_s = float(config.defaults()["decode"].get("prewindow_lick_lead_s", 1.0))
+    codes, cat, blk, rt_s, cue_f, sess_eng, ls, strobe_f = categorize(s, args, with_licks=True)
     bins = _bins_for(args)
     post_n = int(round(args.post_s * args.fs))
+    lead_n = int(round(lead_s * args.fs))
+    # THE STRICT PRE-CUE GATE, shared with `locanmf_position_decoder._trial_features`
+    # (Priya, 2026-09-24: "we should keep the consistent strict no lick in ENL gate for ENL
+    # analyses"). This function previously took a FIXED [cue - post_s, cue] window and applied no
+    # lick gate at all, so the ENL analyses resting on it relied on the task contingency to keep the
+    # window quiet -- which it does 90.8-99.5% of the time per session, but PS93 8/9 falls to 76%.
+    # That is the very measurement that put the gate on the HEADLINE pre-cue number on 2026-08-17,
+    # and the two paths then disagreed about what "the pre-cue window" means (rule 9).
+    lickfree = bool(config.defaults()["decode"].get("precue_lickfree", True)) and args.align == "precue"
+    n_dropped_dirty = 0
 
-    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": []} for c in CATEGORIES}
+    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": [], "lead_lick": [], "shifted": []}
+           for c in CATEGORIES}
     for k in range(cue_f.size):
         if not cat[k]:
             continue
         c0 = int(cue_f[k])
-        ref0 = c0 - post_n if args.align == "precue" else c0
+        if args.align == "precue":
+            ref0 = precue_window_start(c0, strobe_f[k], ls, post_n, lickfree=lickfree)
+            if ref0 is None:                      # no lick-free window exists anywhere -> drop
+                n_dropped_dirty += 1
+                continue
+        else:
+            ref0 = c0
         if ref0 < 0 or ref0 + post_n > T:
             continue
         d = out[cat[k]]
@@ -287,7 +342,18 @@ def session_features(s, args, signal=None, feat_region=None):
         d["g"].append(int(blk[k]))
         d["rt"].append(float(rt_s[k]))
         d["sess_eng"].append(bool(sess_eng[k]))
+        # PRIYA'S CONTAMINATION CONTROL (2026-09-24). The gate above protects the window; nothing
+        # protects the interval BEFORE it, which sits just after the spout strobe where licking is
+        # not suppressed the same way -- and widefield hemodynamics are slow enough for a lick there
+        # to reach in. Measured from THIS TRIAL'S OWN window start, because a slid window means
+        # "1 s before the cue" and "1 s before the window" are different intervals on exactly the
+        # trials that licked.
+        d["lead_lick"].append(bool(np.any((ls >= ref0 - lead_n) & (ls < ref0))))
+        d["shifted"].append(bool(ref0 != c0 - post_n))     # the fixed window was dirty
     del sig
+    if n_dropped_dirty:
+        print(f"  [precue lick-free] {s['label']}: dropped {n_dropped_dirty} trial(s) with no "
+              f"lick-free {args.post_s:g}s window between the spout strobe and the cue", flush=True)
     if bins > 1:
         feat_reg = np.tile(feat_reg, bins)
     for c in CATEGORIES:
@@ -295,6 +361,8 @@ def session_features(s, args, signal=None, feat_region=None):
         d["X"] = np.array(d["X"]); d["y"] = np.array(d["y"], int)
         d["g"] = np.array(d["g"], int); d["rt"] = np.array(d["rt"], float)
         d["sess_eng"] = np.array(d["sess_eng"], bool)
+        d["lead_lick"] = np.array(d["lead_lick"], bool)
+        d["shifted"] = np.array(d["shifted"], bool)
     return out, feat_reg
 
 
