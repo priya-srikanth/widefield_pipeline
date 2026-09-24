@@ -78,6 +78,23 @@ def test_trajectory_marks_a_trial_too_close_to_an_edge():
     assert np.isfinite(tr[1]).all()
 
 
+def test_the_trailing_window_ENDS_at_the_sample_it_is_plotted_at():
+    """THE BUG THIS PINS. The first version took `full[n-1:]`, which is the window ending at
+    i+n-1 -- a LEADING window, the whole trace shifted one window early, so the t=0 point showed
+    the POST-cue response instead of the ENL. A step input localises it exactly.
+    """
+    fs, w = 10.0, 2.0                       # 20-sample window
+    v = np.concatenate([np.zeros(100), np.ones(100)])
+    out = cdt.smooth(v, fs, w, trailing=True)
+    # the sample where the step occurs (index 100) sees a window of [81..100]: 1 of 20 samples high
+    assert out[100] == pytest.approx(1 / 20, abs=1e-9)
+    # one full window later it is entirely inside the step
+    assert out[119] == pytest.approx(1.0, abs=1e-9)
+    # and BEFORE the step nothing has leaked backwards -- this is what the bug violated
+    assert out[99] == pytest.approx(0.0, abs=1e-12)
+    assert out[80] == pytest.approx(0.0, abs=1e-12)
+
+
 def test_smoothing_preserves_the_level_and_shrinks_the_edges_rather_than_padding():
     v = np.ones(500) * 3.0
     out = cdt.smooth(v, fs=31.23, seconds=0.5)
