@@ -122,6 +122,152 @@ null moves when the PREDICTOR is biased.
 
 ---
 
+## READOUT 4 — the ratio, rebuilt so it CAN be computed
+
+Readout 2 (`ratio`) fits a **separate** decoder on each arm and divides. On PS95 pre-stroke neither
+fit cleared its own null, so it returned `undefined`. That was the correct answer for that statistic
+and the wrong answer to the question: the within-arm nulls say a six-way fit needs more than 495
+trials, not that stopped trials lack position information — and the transfer, reading those same 495
+trials, shows they carry it.
+
+**Readout 4 (`shared_decoder`) trains ONCE on `success` and scores every arm with the same fitted
+model.** Training set, hyperparameters and feature space are identical across arms, so the only thing
+differing between numerator and denominator is *which trials are being read*.
+
+**Blocks are held out across ALL arms at once, not just the training one.** A stopped trial and a
+success trial from the same block share a spout position and sit seconds apart, so scoring a stopped
+trial with a fold that trained on success trials from its own block would report memorisation. Every
+trial in every arm is predicted by exactly the fold in which its block was held out — which also
+makes the `success` number a genuine cross-validated score rather than a training fit, and therefore
+comparable to the others. `coverage` reports the fraction of an arm that fell in a held-out block, so
+an arm scored on a subset is visible rather than silent.
+
+Two ratios, and **the outcome-matched one is primary**:
+
+| ratio | denominator | what it is |
+|---|---|---|
+| `clean_ratio_vs_working` | `miss_working` | both arms are no-lick trials — outcome, reward and movement matched, **only engagement differs**. This is the sensory-vs-plan fraction. |
+| `clean_ratio_vs_success` | held-out `success` | the ceiling: what this basis and window give when position information is present AND a plan formed AND reward followed. A scale reference, not a contrast. |
+
+Both numerator and denominator are still measured **above their own permutation null**, and the
+`above_null_balanced` guard still applies to the denominator.
+
+**Verified on synthetic data:** signal in `stopped` → clean ratio **0.971** (vs working), coverage
+1.00; noise in `stopped` → **0.022**, flagged *"stopped arm is NOT above its own null"*. The leakage
+test in `tests/test_enl_decode.py` makes the label a function of the BLOCK with block-identity
+features, so any fold that trained on a trial's own block would score it perfectly — all three arms
+are required to sit below 0.45.
+
+### What readout 4 still does not license
+
+A ratio of above-null balanced accuracies is **not** a ratio of information, so "X% of the ENL signal
+is sensory" stays unsupportable. What it supports is: *"the position code read by one success-trained
+decoder survives on stopped trials at X× its strength on outcome-matched working trials, both above
+their own nulls."* And attention rides with engagement, so a reduced-but-present code may be
+attenuated sensory rather than sensory-minus-plan.
+
+---
+
+## RESULT — all four animals, pre-stroke (2026-09-24)
+
+`python -m wfield_local.enl_decode --epoch pre --transfer --out <json>`
+`python -m scripts.enl_decode_figure --json <json>` -> **`enl_decode_pre.png`**
+11 sessions each, positions pooled, per-animal frozen joint basis. Readout 4 throughout.
+
+| animal | stopped n | `success` | `miss_working` | `stopped` | miss/succ | stop/miss |
+|---|---|---|---|---|---|---|
+| PS92 | **6** | 0.554 | 0.280 | 0.111 *at null* | 0.33 [-0.03, 0.78] | — |
+| PS93 | **40** | 0.510 | 0.337 | 0.126 *at null* | 0.50 [0.26, 0.91] | — |
+| PS94 | 326 | 0.711 | 0.338 | **0.239** | 0.32 [0.13, 0.49] | **0.42 [0.13, 1.15]** |
+| PS95 | 495 | 0.492 | 0.327 | **0.295** | 0.50 [0.28, 0.73] | **0.80 [0.46, 1.52]** |
+
+All nulls ~0.166 except PS92, restricted to 3/6 positions (null 0.234). Brackets are paired
+block-bootstrap 95% CIs. PS92's `success` is scored on 1955 of 3911 trials because the position
+restriction applies to every arm alike.
+
+### THE LADDER IS NOT EVENLY SPACED, AND THAT IS THE RESULT
+
+Arm-vs-arm tests, which nothing before the bootstrap had done -- every earlier p was an arm against
+its OWN null, which says whether a code is present and nothing about whether two arms differ:
+
+* **`success` > `miss_working` in 4/4 animals** (p = 0.0010, 0.0070, 0.0000, 0.0000; every CI
+  excludes zero). The big, reliable drop is losing EXECUTION AND REWARD.
+* **`miss_working` > `stopped` in only 1/4** -- and the one is PS93, whose stopped arm is at null
+  with n=40. In both animals with a usable stopped arm the two are **not distinguishable**
+  (PS94 p=0.093, PS95 p=0.434), and both stop/miss CIs include **1.0**.
+
+So removing the plan-and-execution component costs a lot; removing ENGAGEMENT on top of that costs
+nothing this design can resolve. That is the shape of the sensory answer, and it is stronger than a
+point estimate: the outcome-matched rung is the one where the two arms are hardest to tell apart.
+
+**"Not distinguishable" is NOT "equal."** PS94's stop/miss CI spans 0.125 to 1.149 -- ninefold. The
+"could not test" vs "tested and found nothing" distinction applies here as everywhere else.
+
+**A between-animal spread that was over-read and is withdrawn.** stop/miss of 0.42 vs 0.80 was first
+reported as "a factor of two apart". The CIs overlap heavily; that spread is not resolvable.
+
+### `success` IS THE TRAINING ARM — every ratio against it is a LOWER BOUND
+
+Block hold-out makes `success` a genuine cross-validated score, but the decoder is still FIT TO
+SUCCESS-TRIAL STATISTICS and the other arms are scored out of distribution. Any shift between arms
+-- activity level, noise, hemodynamics -- costs accuracy on its own, so **miss/succ and stop/succ are
+biased downward**.
+
+This is the argument for **stop/miss being the primary readout**: numerator and denominator are BOTH
+out of distribution, so the domain-shift cost largely cancels. It also explains why stop/succ (0.135,
+0.396) sits so far below stop/miss (0.42, 0.80) in the same animal, and **that gap must not be read
+as biology**.
+
+### THE FEASIBILITY TABLE OVERSTATED THE DATA — the pooling decision rested on it
+
+| animal | behaviour table | actual decode |
+|---|---|---|
+| PS92 | 10 | **6** |
+| PS93 | 67 | **40** |
+| PS95 | ~509 | 495 |
+
+`enl_state_counts` gates on the behaviour table; `enl_decode` gates on `sess_eng` in the IMAGING
+universe, and coverage exclusions remove more. **Which of the two dominates has not been verified.**
+If it is a gate-boundary difference rather than coverage, that is two definitions of one quantity
+(rule 9) and should be fixed; `enl_stopped_sparsity.png` is drawn from the behaviour-table cache and
+overstates every cell until it is.
+
+Consequence: pooling positions was justified by PS93/94/95 all clearing the bar, and **PS93 does
+not**. So `stopped` is **n=2**, below rule 8's three-animal bar. The `miss_working` rung is **n=4**
+and does clear it.
+
+### What is and is not supportable
+
+**Supportable.** Position is decodable from pre-cue activity on trials in the terminal quit period,
+in both animals with enough of them (PS94, PS95), corroborated independently by the transfer readout
+(0.242 and 0.291 above null). Against CLAUDE.md's standing limit -- a sustained sensory response and
+a held intention are inseparable by TIMING -- this is evidence the pre-cue code is **not only** a
+held plan. The position code on engaged-but-not-moving trials is ~1/3 to ~1/2 of the success-trial
+code (n=4, and a lower bound).
+
+**Not supportable.** A cohort claim about `stopped` (n=2). A percentage of "how much ENL is sensory"
+-- accuracy is not linear in information. Any reading of stop/miss ~ 1.0 as "the code is fully
+intact without engagement"; the CI merely fails to exclude it.
+
+**Still unaddressed.** Attention rides with engagement, so a preserved code could be attenuated
+sensory rather than sensory-minus-plan. And see the lick-contamination control below.
+
+### PRE-CUE WINDOWS ARE ALREADY LICK-FREE — and only INSIDE the window
+
+`decode.precue_lickfree: true`, applied in `locanmf_position_decoder._trial_features`: each pre-cue
+window is SHIFTED to a clean interval bounded at the spout strobe, and a trial with no clean window
+is **dropped, not flagged**. Two things follow.
+
+1. No number above has a "contained a lick" arm -- those trials are already gone. Recovering them
+   means running with the gate OFF, which is a different dataset rather than a split of this one.
+2. The gate checks only INSIDE the window. **A lick in the second BEFORE the window is not checked**,
+   and widefield hemodynamics are slow enough for its tail to reach in. Priya asked for exactly this
+   split (2026-09-24), for `success` and `miss_working`, pre and post.
+
+Because the window is shifted per trial, "1 s before the decoding window" MUST be measured from each
+trial's own window start. Measured from the cue it would silently mean different things on different
+trials.
+
 ## What is built
 
 | file | state |
@@ -129,7 +275,7 @@ null moves when the PREDICTOR is biased.
 | `scripts/enl_state_counts.py` | **done**, cached, fanned over cores |
 | `scripts/enl_sparsity_figure.py` | **done**, renders from the cache |
 | `wfield_local/enl_states.py` | classes + `adjacent_window` + `time_gap` + witness stamping. **Driver NOT wired** (raises a clear message) |
-| `wfield_local/enl_decode.py` | all three readouts + `pool_arms` + `arms_for_session`. **Session loop NOT wired** |
+| `wfield_local/enl_decode.py` | **done and run** -- three readouts, frozen joint basis, session loop wired |
 | `wfield_local/position_reference_maps.py` | extended with `miss_working` / `stopped` variants, reusing `_quit_mask` |
 
 **Verified on synthetic data** (`enl_decode`): signal → stopped 0.637 vs null 0.166 (above), ratio
