@@ -186,8 +186,89 @@ def trajectory(sig, align_f, w, p0, p1, pre_n, post_n, fs=None):
     return out
 
 
+def arms_cache_kind(args, align):
+    """Cache kind for `session_arms`, which touches NO imaging -- only the DAQ.
+
+    Added after timing the course cache: cold 212 s, warm 143 s for PS95. The projection WAS being
+    skipped; what remained was `categorize` re-reading cue and lick events from every session's h5
+    on the server, once per run and once per alignment. The bookkeeping it returns is a few thousand
+    ints, so caching it is nearly free and removes the DAQ read entirely on a warm pass.
+
+    `lickfree` and the response window are in the key for the reason
+    `nolick_decoder.session_features_cache_kind` gives: both change which trials survive and neither
+    moves any mtime `session_cache.session_signature` stats.
+    """
+    import hashlib
+
+    from wfield_local import config
+
+    spec = {k: getattr(args, k, None)
+            for k in ("align", "post_s", "pre_s", "fs", "max_rt", "response_window_s")}
+    spec["align_event"] = align
+    spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
+    digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
+    return f"cdarms-{align}-{digest}"
+
+
+def courses_cache_kind(align, method, basis_key, dirs):
+    """Cache kind for one session's per-position CD TIME COURSES.
+
+    WHY CACHE THIS AND NOT THE SIGNAL. The projection is the expensive step -- a U/SVT load and a
+    ~100 MB result over the network -- but the result is far too big to memoise per session. The CD
+    time courses derived from it are ``n_positions x T`` floats, ~7 MB for a session, so caching
+    THEM makes a warm re-run skip the projection entirely. That is the same trade
+    `joint_locanmf.BasisSource` is built for: "deferring it behind a callable means a warm cache
+    never touches the basis at all".
+
+    THE DIRECTIONS MUST BE IN THE KEY. They are fitted from data, so a course computed under one
+    set of weights is simply a different quantity from one computed under another -- and nothing
+    `session_cache.session_signature` stats would change when the fit does. Hashing (w, p0, p1) per
+    position makes a refit miss the cache instead of silently reusing the old projection.
+
+    `SMOOTH_S` is in too: it is applied before the courses are stored, so a cached course carries
+    whatever smoothing was configured when it was written.
+    """
+    import hashlib
+
+    h = hashlib.sha1()
+    h.update(f"{align}|{method}|{basis_key}|{SMOOTH_S}".encode())
+    for p in sorted(dirs):
+        w, p0, p1 = dirs[p]
+        h.update(np.asarray(w, float).tobytes())
+        h.update(f"{p}|{p0!r}|{p1!r}".encode())
+    return f"cdcourse-{align}-{h.hexdigest()[:12]}"
+
+
+def cd_courses(sig, dirs, fs):
+    """``{position: (T,)}`` -- the pole-normalised, smoothed CD time course for each position.
+
+    One matvec per position over the whole session. Slicing trials out of these is then free, which
+    is why this and not a per-trial projection: overlapping windows would repeat the same multiply.
+    """
+    out = {}
+    for p, (w, p0, p1) in dirs.items():
+        v = np.asarray(w) @ np.asarray(sig)
+        v = smooth(v, fs)
+        d = p1 - p0
+        out[int(p)] = ((v - p0) / d if abs(d) > 1e-12 else v - p0).astype(np.float32)
+    return out
+
+
+def slice_trials(course, align_f, pre_n, post_n):
+    """``(n_trials, pre_n + post_n)`` from an already-projected course. NaN where a trial overruns."""
+    out = np.full((len(align_f), pre_n + post_n), np.nan, np.float32)
+    for i, f in enumerate(align_f):
+        if f is None or not np.isfinite(f):
+            continue
+        a, b = int(f) - pre_n, int(f) + post_n
+        if a < 0 or b > course.size:
+            continue
+        out[i] = course[a:b]
+    return out
+
+
 def session_arms(s, args, basis, align):
-    """``(sig, {class: {"fit": ref0s, "at": align_frames, "y": codes}})`` for one session.
+    """``{class: {"fit": ref0s, "at": align_frames, "y": codes}}`` for one session -- DAQ only.
 
     THE TRIAL SET COMES FROM `nolick_decoder.categorize`, not from a classification written here.
     That function already defines `engaged` / `late_rewarded` / `undetected` and the per-session
@@ -207,11 +288,12 @@ def session_arms(s, args, basis, align):
     drawn against the cue and differ only in that.
     """
     from wfield_local.locanmf_position_decoder import precue_window_start
-    from wfield_local.nolick_decoder import _joint_signal, categorize
+    from wfield_local.nolick_decoder import categorize
 
-    sig = _joint_signal(basis, s)[0] if basis is not None else None
-    if sig is None:
-        raise ValueError("cd_trajectories requires the per-animal frozen joint basis")
+    # NO SIGNAL IS TOUCHED HERE. This is pure trial bookkeeping off the DAQ, and separating it from
+    # the projection is what lets a warm cache skip the projection entirely -- the reason
+    # `joint_locanmf.BasisSource` exists. It also stops the caller holding every session's ~120 MB
+    # signal at once, which the first version did.
     codes, cat, _blk, _rt_s, cue_f, sess_eng, ls, strobe_f = categorize(s, args, with_licks=True)
     post_n = int(round(args.post_s * args.fs))
     lickfree = bool(args.align == "precue")
@@ -242,69 +324,94 @@ def session_arms(s, args, basis, align):
         out[cls]["fit"].append(ref0)
         out[cls]["at"].append(at)
         out[cls]["y"].append(int(codes[k]))
-    return sig, out
+    return out
 
 
 def analyse_animal(animal, align="precue", *, method="dom", post_s=2.0, verbose=True):
-    """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch."""
+    """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
+
+    TWO PASSES OVER THE SESSIONS, and the projection is deferred in both.
+
+    Pass 1 needs only a ``bins=1`` window mean per trial to fit the directions; pass 2 needs the
+    per-position CD time courses. Neither needs the ~120 MB signal kept afterwards, and the first
+    version of this function held EVERY session's signal at once -- ~3 GB for an animal -- purely
+    because it computed both passes from one list.
+
+    `joint_locanmf.BasisSource` supplies the signal lazily and carries the `basis:{id}` key that
+    makes caching safe, and `courses_cache_kind` memoises the courses, so a re-run projects nothing.
+    """
     from wfield_local import analysis_kit as ak
-    from wfield_local import epochs, joint_locanmf
+    from wfield_local import epochs, joint_locanmf, session_cache
     from wfield_local.locanmf_frozen_decoder import _args
 
     basis = joint_locanmf.load(animal)
     args = _args(source="roi", align=align, post_s=post_s)
+    win_n = int(round(args.post_s * args.fs))
     pre_n, post_frames = span_frames(align, args.fs)
     # THE CURATED SET, in `load_sessions()` ORDER -- the same source `enl_decode.sessions_for` uses.
-    # Iterating `config.load_sessions()` directly picks up sessions with no SVTcorr on disk, and
-    # more importantly is a second definition of "which sessions this cohort is" (rule 9). Order is
-    # preserved, not sorted: `curated_sessions` keeps it deliberately.
+    # Iterating `config.load_sessions()` directly picks up sessions with no SVTcorr on disk, and is
+    # a second definition of "which sessions this cohort is" (rule 9). Order is preserved.
     sess = [s for s in ak.curated_sessions() if s["label"].startswith(animal)]
 
-    per, errs = [], []
+    book, errs = [], []
+    akind = arms_cache_kind(args, align)
     for s in sess:
-        lab = s["label"]
         try:
-            sig, arms = session_arms(s, args, basis, align)
+            arms = session_cache.cached(
+                s, akind, lambda s=s: session_arms(s, args, basis, align), verbose=False)
+            book.append((s, epochs.epoch_of(s["label"]), arms))
         except Exception as exc:
-            errs.append(f"{lab}: {type(exc).__name__}: {exc}"[:140])
-            continue
-        per.append((lab, epochs.epoch_of(lab), sig, arms))
-        if verbose:
-            print(f"  {lab} [{epochs.epoch_of(lab)}] "
+            errs.append(f"{s['label']}: {type(exc).__name__}: {exc}"[:140])
+    if verbose:
+        for s, ep, arms in book:
+            print(f"  {s['label']} [{ep}] "
                   + " ".join(f"{c}={len(arms[c]['y'])}" for c in CLASSES), flush=True)
 
-    # ---- the direction: PRE-STROKE SUCCESS only, window means, P vs not-P ----------------------
+    # ---- PASS 1: the direction, from PRE-STROKE SUCCESS only, window means, P vs not-P ----------
     Xf, yf = [], []
-    for _lab, ep, sig, arms in per:
+    for s, ep, arms in book:
         if ep != "pre" or not arms["success"]["y"]:
             continue
-        Xf.append(window_means(sig, arms["success"]["fit"], int(round(args.post_s * args.fs))))
+        src = joint_locanmf.BasisSource(basis, s)
+        feats = session_cache.cached(
+            s, f"cdfit-{align}-{basis.basis_id[:8]}-{win_n}",
+            lambda src=src, arms=arms: window_means(src.signal()[0], arms["success"]["fit"], win_n),
+            verbose=False)
+        Xf.append(feats)
         yf.append(np.asarray(arms["success"]["y"]))
     if not Xf:
         return {"animal": animal, "align": align, "skipped": "no pre-stroke success trials",
                 "errors": errs}
     dirs = fit_directions(np.vstack(Xf), np.concatenate(yf), DISPLAY_ORDER, method=method)
+    if not dirs:
+        return {"animal": animal, "align": align, "skipped": "no position could be fitted",
+                "errors": errs}
 
-    # ---- the trajectories -----------------------------------------------------------------------
+    # ---- PASS 2: the trajectories, from CACHED per-position CD time courses ----------------------
+    kind = courses_cache_kind(align, method, f"basis:{basis.basis_id}", dirs)
     draw = LICK_ALIGNED_CLASSES if align == "lick" else CLASSES
     acc = {}
-    for _lab, ep, sig, arms in per:
+    for s, ep, arms in book:
+        if not any(arms[c]["y"] for c in draw):
+            continue
+        src = joint_locanmf.BasisSource(basis, s)
+        courses = session_cache.cached(
+            s, kind, lambda src=src: cd_courses(src.signal()[0], dirs, args.fs), verbose=False)
         for cls in draw:
             ys = np.asarray(arms[cls]["y"])
             if not ys.size:
                 continue
-            for p, (w, p0, p1) in dirs.items():
+            at = np.asarray(arms[cls]["at"])
+            for p, course in courses.items():
                 m = ys == p
-                if not m.any():
-                    continue
-                tr = trajectory(sig, np.asarray(arms[cls]["at"])[m], w, p0, p1,
-                                pre_n, post_frames, fs=args.fs)
-                acc.setdefault((ep, cls, p), []).append(tr)
+                if m.any():
+                    acc.setdefault((ep, cls, p), []).append(
+                        slice_trials(course, at[m], pre_n, post_frames))
 
     out = {"animal": animal, "align": align, "method": method,
            "basis_id": basis.basis_id, "ncomp": int(basis.ncomp),
            "fs": float(args.fs), "span": SPAN[align], "pre_n": pre_n, "post_n": post_frames,
-           "positions": sorted(dirs), "n_sessions": len(per), "errors": errs,
+           "positions": sorted(dirs), "n_sessions": len(book), "errors": errs,
            "drawn_classes": list(draw), "traces": {}}
     for key, chunks in acc.items():
         A = np.vstack(chunks)
