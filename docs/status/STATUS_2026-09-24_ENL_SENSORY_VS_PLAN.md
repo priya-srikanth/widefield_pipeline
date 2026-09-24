@@ -50,17 +50,20 @@ same construct the miss-vs-stopped split rests on throughout". Nothing here filt
 `scripts/enl_state_counts.py`, 104 curated sessions, cached to CSV.
 Figure: `scripts/enl_sparsity_figure.py` → `enl_stopped_sparsity.png`.
 
-**STOPPED trials per position, pre-stroke:**
+**STOPPED trials per position, pre-stroke.** CORRECTED 2026-09-24 — an earlier version of this table
+was inflated by a 2.0 s hit window where the task's is 3.5 s; see "the feasibility table agreed all
+along" below. These now match the decode's own counts exactly.
 
-| animal | close_L | close_R | close_ctr | far_L | far_R | far_ctr |
-|---|---|---|---|---|---|---|
-| PS92 | 5 | 0 | 0 | 3 | 2 | 0 |
-| PS93 | 10 | 12 | 7 | 16 | 10 | 12 |
-| PS94 | 59 | 40 | 59 | 60 | 55 | 54 |
-| PS95 | 74 | 74 | 98 | 90 | 77 | 96 |
+| animal | close_L | close_ctr | close_R | far_L | far_ctr | far_R | total |
+|---|---|---|---|---|---|---|---|
+| PS92 | 1 | 0 | 0 | 3 | 0 | 2 | **6** |
+| PS93 | 5 | 6 | 11 | 8 | 6 | 4 | **40** |
+| PS94 | 59 | 59 | 40 | 60 | 53 | 55 | **326** |
+| PS95 | 69 | 92 | 73 | 90 | 96 | 75 | **495** |
 
-Animals clearing ≥10 stopped per position: **pre 2** (PS94, PS95) · **acute 3** (PS92/93/94, PS95 has
-none) · **subacute 3** (PS93/94/95) · **chronic 2** (PS94, PS95).
+Animals clearing ≥10 stopped per position, pre-stroke: **2** (PS94, PS95). **PS93 no longer clears
+it** — it did on the inflated counts, at 10-16 per position, and that is what the pooling decision
+below was originally justified by.
 
 ### The bind this creates
 
@@ -73,9 +76,18 @@ proves the terminal run is satiety rather than a late motor collapse."*
 Not a coincidence: a well-trained animal does not quit, a lesioned one does. The thing that creates
 the data is the thing that makes it ambiguous.
 
-**DECISION (Priya, 2026-09-24): pool positions pre-stroke.** Pooled, PS93/94/95 all clear — three
-animals, rule 8's bar. Pooling means not reporting per-position effect sizes; the position LABELS
-still drive the decoder, so the sensory question is untouched.
+**DECISION (Priya, 2026-09-24): pool positions pre-stroke.** Pooling means not reporting per-position
+effect sizes; the position LABELS still drive the decoder, so the sensory question is untouched.
+
+**Its stated justification no longer holds, and the decision stands anyway.** It was taken because
+pooled, PS93/94/95 would all clear rule 8's three-animal bar. On the corrected counts PS93 has 40
+stopped trials pre-stroke, not 67, and **`stopped` is n=2**. Pooling is still right — per-position
+cells of 4-11 trials cannot be reported either way — but it no longer buys the third animal, and
+nothing downstream should be read as if it does.
+
+**"Pooled across positions" does NOT mean positions are merged.** The decoder is six-way throughout
+and the position label is what it predicts; balanced accuracy IS the six per-position recalls
+averaged. Panel C of `enl_decode_pre.png` shows the recalls the headline number is the mean of.
 
 ---
 
@@ -315,21 +327,70 @@ vs null 0.171, p=0.72, flagged**. Readout 4: signal → clean ratio 0.971; **noi
 `enl_lick_control`: a clean/lead difference is detected when present and the clean-at-null case is
 stated in words. The negative controls are the ones that matter.
 
-### THE FEASIBILITY TABLE OVERSTATES THE DATA
+### THE FEASIBILITY TABLE AGREED ALL ALONG — one script had a second response window
 
-| animal | behaviour table | actual decode |
-|---|---|---|
-| PS92 | 10 | **6** |
-| PS93 | 67 | **40** |
-| PS95 | ~509 | 495 |
+**RESOLVED 2026-09-24. An earlier version of this document recorded the behaviour-table counts as
+an unexplained overstatement of the imaging set and left "which dominates has NOT been verified"
+open. That was wrong, and the answer was not a universe difference.**
 
-`enl_state_counts` gates on the behaviour table; `enl_decode` gates on `sess_eng` in the IMAGING
-universe, and coverage exclusions remove more. **Which dominates has NOT been verified.** If it is a
-gate-boundary difference rather than coverage, that is a third instance of the rule 9 problem fixed
-above and should be closed the same way. Until then `enl_stopped_sparsity.png` overstates every cell.
+`scripts/enl_state_counts` called `session_trials` with `analysis_kit.RESP_S` = **2.0 s** while
+`decode.max_rt_s` is **3.5 s** and the task's own response window is 3.5 s. `hit` was capped at 2.0,
+`success = hit & (lat <= 3.5)` collapsed to just `hit`, and **a lick at 2.5 s was not a hit at all
+there** — it fell through to `stopped`. The decode calls that same trial `success`.
 
-Consequence: pooling positions was justified by PS93/94/95 all clearing the bar, and **PS93 does
-not**. `stopped` is **n=2**; the miss/succ rung is **n=3**.
+| STOPPED, pre-stroke | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| behaviour, before | 10 | 67 | 327 | 509 |
+| behaviour, after `response_window_for(s)` | **6** | **40** | **326** | **495** |
+| decode | 6 | 40 | 326 | 495 |
+
+Exact agreement. PS94/PS95 barely moved because their licks are fast; PS93 and PS92 have the most
+trials in the 2.0–3.5 s band the cap discarded, which is why only they appeared to diverge.
+
+Diagnosed wrong twice before the per-position counts were put side by side: first as
+`late_rewarded` swept into `stopped` (right in spirit, wrong mechanism — and the patch was a no-op
+because `hit` was already capped BELOW the threshold it tested), then retracted on the false premise
+that `RESP_S` equalled `max_rt`. Priya: *"you should be using modules and functions already defined
+by the pipeline where possible (to minimize potential errors like this)."* Acted on: `strobe_frames`
+was extracted from four copies at the same time.
+
+**The conclusion it supported is unchanged.** PS93 still has 40 stopped trials pre-stroke, so
+`stopped` is still **n=2** and the miss/succ rung **n=3**. `enl_stopped_sparsity.png` now takes
+`--decode-json` and plots the decode's own counts.
+
+### WHERE THE STOPPED TRIALS ACTUALLY ARE — and why the witness is the bottleneck
+
+| STOPPED | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 6 | **585** | 0 | 0 |
+| PS93 | 40 | **518** | 218 | 0 |
+| PS94 | 326 | **881** | 445 | 208 |
+| PS95 | 495 | 0 | **1177** | 359 |
+| animals ≥ `MIN_TRIALS` (500) | **0** | **3** | 1 | 0 |
+
+**Pre-stroke, NO animal clears the power floor.** That is the binding constraint on every confidence
+interval in this document — it is why stop/miss comes out as 0.58 [0.20, 2.02] and 0.86 [0.50, 1.41]
+rather than as a number. ACUTE has three animals over the bar.
+
+So the data that could answer *"how much of the ENL code is sensory"* quantitatively is post-stroke,
+and post-stroke is DESCRIPTIVE ONLY until `precue_engagement_states`' discriminator has been run and
+read. **The witness is not a side quest; it is the gate on the only cells with enough trials.**
+
+### THE WITNESS IS NOT WIRED, AND WHAT IS MISSING IS A CRITERION
+
+`enl_states.witness_verdict` reads `separates` from a JSON at `_cfg()["witness_json"]`. Two gaps:
+
+1. **`witness_json` is set in no config file**, so the lookup always misses and the verdict is
+   permanently `"not run"`.
+2. **`precue_engagement_states` never emits a `separates` key.** It emits `discriminator` with
+   per-state P(disengaged), `train_auc_loso`, and two drift controls.
+
+So the analysis runs today; what does not exist is the rule turning its output into a boolean. The
+principled one is already in that output: `drift_control_pre_lick` measures early-vs-late
+P(disengaged) among pre-stroke LICK trials, which are all engaged, so any separation there is TIME
+rather than state. Proposed criterion, **awaiting Priya's sign-off**: post-stroke
+stopped-minus-working must exceed that drift gap, with `train_auc_loso` clearing a floor so the
+discriminator demonstrably works at all.
 
 ### Not built
 - the ENL maps themselves (`raw` and `rest` references, per epoch, n annotated)

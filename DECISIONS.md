@@ -2210,7 +2210,21 @@ block rule instead of the audited `block_ids`, which disagrees with the firmware
 2.8% of blocks. Those ids are the `GroupKFold` groups `enl_decode`'s hold-out rests on. Merging made
 that CV conservative rather than inflated, so nothing was flattered.
 
-**Cost: 0.2-2.1% of pre-stroke trials, <=0.34% post.** The result held — `success` > `miss_working`
+**Cost: 0.2-2.1% of pre-stroke trials, <=0.34% post.**
+
+### AND A THIRD DEFINITION, FOUND THE SAME DAY (corrected 2026-09-24)
+
+`scripts/enl_state_counts` called `session_trials` with `analysis_kit.RESP_S` = 2.0 s while
+`decode.max_rt_s` is 3.5 s and the task's window is 3.5 s, so a lick at 2.5 s was NOT A HIT there
+and fell into `stopped`, while the decode calls it `success`. Behaviour counts went
+10/67/327/509 -> **6/40/326/495**, which is EXACT agreement with the decode.
+
+This had been recorded as an unexplained behaviour-vs-imaging universe difference. It was neither
+universe. Priya: *"you should be using modules and functions already defined by the pipeline where
+possible (to minimize potential errors like this)."* `strobe_frames` was extracted from four copies
+at the same time, for the same reason.
+
+**The conclusion is unchanged**: PS93 still has 40 stopped trials pre-stroke, so `stopped` is n=2. The result held — `success` > `miss_working`
 stayed 4/4, `miss_working` > `stopped` stayed 1/4, and the numbers that moved moved slightly UP.
 
 ### THE MEASUREMENT THAT MATTERS MORE (scripts/enl_lick_rates.py, 104 sessions)
