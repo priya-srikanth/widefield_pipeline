@@ -504,6 +504,11 @@ sessions:
       h5: "20260921/PS94_20260921_100104.h5"
       regime: B
       fmdir: null
+    "0924":
+      mc: "20260924/PS94_20260924_094248/motion_corrected"
+      h5: "20260924/PS94_20260924_101250.h5"
+      regime: B
+      fmdir: null
 
   PS95:
     "0601":
