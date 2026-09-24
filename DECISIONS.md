@@ -2198,6 +2198,36 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## ENL analyses use the STRICT lick-free pre-cue window (Priya, 2026-09-24)
+
+`nolick_decoder.session_features` built a FIXED `[cue-2s, cue]` window and applied no lick gate,
+while `locanmf_position_decoder._trial_features` slid the window to a clean gap and dropped a trial
+with none. Two definitions of "the pre-cue window", both feeding ENL analyses. Priya: *"we should
+keep the consistent strict no lick in ENL gate for ENL analyses."* Aligned to the strict builder.
+
+Found in the same function and fixed with it: `categorize` used the superseded position-change-only
+block rule instead of the audited `block_ids`, which disagrees with the firmware's own count on
+2.8% of blocks. Those ids are the `GroupKFold` groups `enl_decode`'s hold-out rests on. Merging made
+that CV conservative rather than inflated, so nothing was flattered.
+
+**Cost: 0.2-2.1% of pre-stroke trials, <=0.34% post.** The result held — `success` > `miss_working`
+stayed 4/4, `miss_working` > `stopped` stayed 1/4, and the numbers that moved moved slightly UP.
+
+### THE MEASUREMENT THAT MATTERS MORE (scripts/enl_lick_rates.py, 104 sessions)
+
+    lick INSIDE the window        0.1 - 8.3%    gated since 2026-08-17
+    lick in the second BEFORE    13.7 - 90.9%   GATED BY NOTHING
+
+The window is `[cue-2s, cue]` and the spout arrives ~3 s before the cue, so the second before the
+window IS the first second after spout arrival. That is spout-arrival licking, and it is on the
+MAJORITY of trials in three of four animals.
+
+**It is a confound rather than noise because the lick is DIRECTED AT THE SPOUT and therefore carries
+position** — the contaminating signal is correlated with the label being decoded, and an HRF peaking
+1-2 s later lands inside the window. A window that is lick-free by construction can still hold a
+position-informative motor signal. `wfield_local/enl_lick_control.py` tests it, WITHIN each arm,
+training on lick-free `success` trials only.
+
 ## ENL sensory-vs-plan: working vs stopped pre-cue activity (Priya, 2026-09-24)
 
 Full handoff: [`docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md).

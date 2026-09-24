@@ -168,57 +168,154 @@ attenuated sensory rather than sensory-minus-plan.
 
 ---
 
-## RESULT — all four animals, pre-stroke (2026-09-24)
+## RESULT — all four animals, pre-stroke, STRICT LICK-FREE GATE (2026-09-24)
 
 `python -m wfield_local.enl_decode --epoch pre --transfer --out <json>`
 `python -m scripts.enl_decode_figure --json <json>` -> **`enl_decode_pre.png`**
-11 sessions each, positions pooled, per-animal frozen joint basis. Readout 4 throughout.
+11 sessions each, positions pooled, per-animal frozen joint basis, readout 4.
 
-| animal | stopped n | `success` | `miss_working` | `stopped` | miss/succ | stop/miss |
-|---|---|---|---|---|---|---|
-| PS92 | **6** | 0.554 | 0.280 | 0.111 *at null* | 0.33 [-0.03, 0.78] | — |
-| PS93 | **40** | 0.510 | 0.337 | 0.126 *at null* | 0.50 [0.26, 0.91] | — |
-| PS94 | 326 | 0.711 | 0.338 | **0.239** | 0.32 [0.13, 0.49] | **0.42 [0.13, 1.15]** |
-| PS95 | 495 | 0.492 | 0.327 | **0.295** | 0.50 [0.28, 0.73] | **0.80 [0.46, 1.52]** |
+| animal | `success` | `miss_working` | `stopped` | miss/succ | stop/miss |
+|---|---|---|---|---|---|
+| PS92 | 0.565 | 0.227 *at null* | 0.111 *at null* | — | — |
+| PS93 | 0.513 | **0.302** | 0.089 *at null* | 0.392 [0.18, 0.77] | — |
+| PS94 | 0.712 | **0.314** | **0.251** | 0.269 [0.07, 0.44] | 0.584 [0.20, 2.02] |
+| PS95 | 0.485 | **0.328** | **0.304** | 0.505 [0.33, 0.73] | 0.856 [0.50, 1.41] |
 
-All nulls ~0.166 except PS92, restricted to 3/6 positions (null 0.234). Brackets are paired
-block-bootstrap 95% CIs. PS92's `success` is scored on 1955 of 3911 trials because the position
-restriction applies to every arm alike.
+Nulls ~0.166 except PS92, restricted by `common_positions` to 3/6 (null 0.236). Brackets are paired
+block-bootstrap 95% CIs. Bold = above its own permutation null.
 
-### THE LADDER IS NOT EVENLY SPACED, AND THAT IS THE RESULT
+### THE LADDER IS NOT EVENLY SPACED — that is the result
 
-Arm-vs-arm tests, which nothing before the bootstrap had done -- every earlier p was an arm against
-its OWN null, which says whether a code is present and nothing about whether two arms differ:
+Arm-vs-arm tests. Nothing before the bootstrap did this: every earlier p was an arm against its OWN
+null, which says whether a code is present and nothing about whether two arms differ.
 
-* **`success` > `miss_working` in 4/4 animals** (p = 0.0010, 0.0070, 0.0000, 0.0000; every CI
-  excludes zero). The big, reliable drop is losing EXECUTION AND REWARD.
-* **`miss_working` > `stopped` in only 1/4** -- and the one is PS93, whose stopped arm is at null
+* **`success` > `miss_working` in 4/4** (all p < 0.0001, every CI excludes zero). The large,
+  reliable drop is losing EXECUTION AND REWARD.
+* **`miss_working` > `stopped` in only 1/4** — and that one is PS93, whose stopped arm is at null
   with n=40. In both animals with a usable stopped arm the two are **not distinguishable**
-  (PS94 p=0.093, PS95 p=0.434), and both stop/miss CIs include **1.0**.
+  (PS94 p=0.275, PS95 p=0.521), and both stop/miss CIs include **1.0**.
 
-So removing the plan-and-execution component costs a lot; removing ENGAGEMENT on top of that costs
-nothing this design can resolve. That is the shape of the sensory answer, and it is stronger than a
-point estimate: the outcome-matched rung is the one where the two arms are hardest to tell apart.
+Removing the plan-and-execution component costs a lot. Removing ENGAGEMENT on top of that costs
+nothing this design can resolve. The outcome-matched rung is the one where the arms are hardest to
+tell apart — which is a stronger form of the sensory answer than a point estimate would be.
 
-**"Not distinguishable" is NOT "equal."** PS94's stop/miss CI spans 0.125 to 1.149 -- ninefold. The
-"could not test" vs "tested and found nothing" distinction applies here as everywhere else.
+**"Not distinguishable" is NOT "equal."** PS94's stop/miss CI spans 0.203 to 2.017. The "could not
+test" vs "tested and found nothing" distinction applies here as everywhere else.
 
-**A between-animal spread that was over-read and is withdrawn.** stop/miss of 0.42 vs 0.80 was first
-reported as "a factor of two apart". The CIs overlap heavily; that spread is not resolvable.
+**Withdrawn:** a stop/miss spread of 0.42 vs 0.80 was first called "a factor of two apart". The CIs
+overlap heavily; that spread is not resolvable and the claim is retracted.
 
 ### `success` IS THE TRAINING ARM — every ratio against it is a LOWER BOUND
 
-Block hold-out makes `success` a genuine cross-validated score, but the decoder is still FIT TO
-SUCCESS-TRIAL STATISTICS and the other arms are scored out of distribution. Any shift between arms
--- activity level, noise, hemodynamics -- costs accuracy on its own, so **miss/succ and stop/succ are
+Block hold-out makes `success` a genuine cross-validated score, but the decoder is FIT TO
+SUCCESS-TRIAL STATISTICS and the other arms are scored out of distribution. Any shift between arms —
+activity level, noise, hemodynamics — costs accuracy on its own, so **miss/succ and stop/succ are
 biased downward**.
 
-This is the argument for **stop/miss being the primary readout**: numerator and denominator are BOTH
-out of distribution, so the domain-shift cost largely cancels. It also explains why stop/succ (0.135,
-0.396) sits so far below stop/miss (0.42, 0.80) in the same animal, and **that gap must not be read
-as biology**.
+That is the argument for **stop/miss as the primary readout**: numerator and denominator are BOTH
+out of distribution, so the domain-shift cost largely cancels. It also explains why stop/succ (0.157,
+0.432) sits far below stop/miss (0.584, 0.856) in the same animal, and **that gap is not biology**.
 
-### THE FEASIBILITY TABLE OVERSTATED THE DATA — the pooling decision rested on it
+---
+
+## THE LICK-FREE GATE, AND THE NUMBER NOBODY HAD MEASURED
+
+`enl_decode` reaches features through `nolick_decoder.session_features`, which **built a fixed
+`[cue-2s, cue]` window and applied no lick gate at all** — a second definition of "the pre-cue
+window" against `locanmf_position_decoder._trial_features`, which slides to a clean gap and DROPS a
+trial with none (rule 9). Priya, 2026-09-24: *"we should keep the consistent strict no lick in ENL
+gate for ENL analyses."* Aligned, along with a second divergence found in the same function:
+`categorize` used the superseded position-change-only block rule rather than the audited
+`block_ids`, and those ids are the `GroupKFold` groups readout 4's hold-out rests on.
+
+**`scripts/enl_lick_rates.py`, 104 curated sessions:**
+
+| | range | what happens to it |
+|---|---|---|
+| lick INSIDE the window | 0.1 – 8.3% (worst session 26.4%) | window SLIDES to a clean gap |
+| no clean window anywhere | 0.2 – 2.1% pre, ≤0.34% post | trial is DROPPED — the only rate that costs data |
+| **lick in the second BEFORE** | **13.7 – 90.9%** | **nothing — unguarded** |
+
+The in-window figure replicates the measurement that justified the 2026-08-17 gate (PS93_0809 is
+76.3% clean, the "PS93 8/9 falls to 76%" on record). The gate was correctly sized.
+
+**The lead window is a different universe.** The window is `[cue-2s, cue]` and the spout arrives
+~3 s before the cue, so the second before the window IS the first second after spout arrival. This
+is spout-arrival licking, and in three of four animals it is on the MAJORITY of trials.
+
+**It is a confound, not noise: the lick is DIRECTED AT THE SPOUT, so it carries position.** The
+contaminating signal is correlated with the label being decoded. An HRF peaking 1–2 s later lands
+inside the window, so a window that is lick-free by construction can still contain a
+position-informative MOTOR signal. If the ENL code were largely that, "the pre-cue code is not only
+a held plan" would be true for the wrong reason.
+
+### Effect of the gate on the result: it HELD
+
+| | before | after |
+|---|---|---|
+| PS92 `miss_working` | 0.280 ABOVE | **0.227 at null** (n=69 scored; 85% lead rate) |
+| PS93 `miss_working` | 0.337 ABOVE | 0.302 ABOVE |
+| PS94 `stopped` | 0.239 (p=0.0015) | **0.251 (p=0.0005)** |
+| PS95 `stopped` | 0.295 | **0.304** |
+
+`success` > `miss_working` stayed 4/4; `miss_working` > `stopped` stayed 1/4. Numbers moved slightly
+UP where they moved, which is the direction flagged in advance: the gate removes contaminated
+windows and the block fix gives a finer hold-out. Only PS92's `miss_working` was lost, and at 69
+scored trials it was never solid. The miss/succ rung is therefore **n=3**, still at rule 8's bar.
+
+---
+
+## THE CONTAMINATION CONTROL — `wfield_local/enl_lick_control.py`
+
+Priya, 2026-09-24: *"the pre-ENL-lick vs no-pre-ENL-lick can be on the hit and working trials. The
+success vs miss while working ENL decoding is a SEPARATE question."*
+
+So the split is **WITHIN** each arm, and this module deliberately does not re-report the cross-arm
+ladder — mixing them would let a cross-arm difference read as a contamination effect.
+
+    train    `success` trials with NO lead lick, blocks held out across every group
+    score    success_clean (held out) · success_lead · miss_working_clean · miss_working_lead
+    compare  clean vs lead, WITHIN each arm
+    reverse  `transfer_lead_to_clean` — does a LICK-TRAINED decoder read LICK-FREE trials?
+
+Training on clean trials forces the decoder onto information available without a preceding lick.
+
+| outcome | reading |
+|---|---|
+| clean ≈ lead | the lick is not what the decoder reads. Control passes. |
+| lead >> clean | the lick ADDS position information — confound real and sized. |
+| **clean at null** | the code is present only when a lick preceded it. **Worst case.** |
+
+`stopped` is NOT split: at 6/40/326/495 trials, halving it leaves nothing to test either half with.
+
+**Power, from the measured lead rates.** PS95 (13.7% lead) is the animal that can answer this —
+~86% clean. PS92 (85%) has ~19 clean `miss_working` trials and will report "could not test".
+`success` (3.8k–6k) splits comfortably everywhere; `miss_working` is reportable in PS95, marginal
+elsewhere.
+
+`test_clean_at_null_is_stated_outright` builds the bad answer and requires the verdict to say so in
+words. A control that cannot report its own failure is not a control.
+
+## What is built
+
+| file | state |
+|---|---|
+| `scripts/enl_state_counts.py` | **done**, cached, fanned over cores. Counts the BEHAVIOUR table — see the caveat below |
+| `scripts/enl_sparsity_figure.py` | **done**. Drawn from that cache, so it OVERSTATES every cell |
+| `scripts/enl_lick_rates.py` | **done and run**, 104 sessions — the in-window / lead / no-clean rates |
+| `scripts/enl_decode_figure.py` | **done and run** → `enl_decode_pre.png` (3 panels, bootstrap CIs) |
+| `wfield_local/enl_states.py` | classes + `adjacent_window` + `time_gap` + witness stamping. **Driver NOT wired** (raises a clear message) |
+| `wfield_local/enl_decode.py` | **done and run** — four readouts, strict gate, frozen joint basis, paired bootstrap |
+| `wfield_local/enl_lick_control.py` | **built and unit-tested, NOT YET RUN ON DATA** |
+| `wfield_local/nolick_decoder.py` | strict pre-cue gate + audited `block_ids` + `lead_lick`/`shifted` flags |
+| `wfield_local/position_reference_maps.py` | extended with `miss_working` / `stopped` variants, reusing `_quit_mask` |
+
+**Verified on synthetic data.** `enl_decode`: signal → stopped 0.637 vs null 0.166; **noise → 0.152
+vs null 0.171, p=0.72, flagged**. Readout 4: signal → clean ratio 0.971; **noise → 0.022, flagged**.
+`enl_lick_control`: a clean/lead difference is detected when present and the clean-at-null case is
+stated in words. The negative controls are the ones that matter.
+
+### THE FEASIBILITY TABLE OVERSTATES THE DATA
 
 | animal | behaviour table | actual decode |
 |---|---|---|
@@ -227,64 +324,18 @@ as biology**.
 | PS95 | ~509 | 495 |
 
 `enl_state_counts` gates on the behaviour table; `enl_decode` gates on `sess_eng` in the IMAGING
-universe, and coverage exclusions remove more. **Which of the two dominates has not been verified.**
-If it is a gate-boundary difference rather than coverage, that is two definitions of one quantity
-(rule 9) and should be fixed; `enl_stopped_sparsity.png` is drawn from the behaviour-table cache and
-overstates every cell until it is.
+universe, and coverage exclusions remove more. **Which dominates has NOT been verified.** If it is a
+gate-boundary difference rather than coverage, that is a third instance of the rule 9 problem fixed
+above and should be closed the same way. Until then `enl_stopped_sparsity.png` overstates every cell.
 
 Consequence: pooling positions was justified by PS93/94/95 all clearing the bar, and **PS93 does
-not**. So `stopped` is **n=2**, below rule 8's three-animal bar. The `miss_working` rung is **n=4**
-and does clear it.
-
-### What is and is not supportable
-
-**Supportable.** Position is decodable from pre-cue activity on trials in the terminal quit period,
-in both animals with enough of them (PS94, PS95), corroborated independently by the transfer readout
-(0.242 and 0.291 above null). Against CLAUDE.md's standing limit -- a sustained sensory response and
-a held intention are inseparable by TIMING -- this is evidence the pre-cue code is **not only** a
-held plan. The position code on engaged-but-not-moving trials is ~1/3 to ~1/2 of the success-trial
-code (n=4, and a lower bound).
-
-**Not supportable.** A cohort claim about `stopped` (n=2). A percentage of "how much ENL is sensory"
--- accuracy is not linear in information. Any reading of stop/miss ~ 1.0 as "the code is fully
-intact without engagement"; the CI merely fails to exclude it.
-
-**Still unaddressed.** Attention rides with engagement, so a preserved code could be attenuated
-sensory rather than sensory-minus-plan. And see the lick-contamination control below.
-
-### PRE-CUE WINDOWS ARE ALREADY LICK-FREE — and only INSIDE the window
-
-`decode.precue_lickfree: true`, applied in `locanmf_position_decoder._trial_features`: each pre-cue
-window is SHIFTED to a clean interval bounded at the spout strobe, and a trial with no clean window
-is **dropped, not flagged**. Two things follow.
-
-1. No number above has a "contained a lick" arm -- those trials are already gone. Recovering them
-   means running with the gate OFF, which is a different dataset rather than a split of this one.
-2. The gate checks only INSIDE the window. **A lick in the second BEFORE the window is not checked**,
-   and widefield hemodynamics are slow enough for its tail to reach in. Priya asked for exactly this
-   split (2026-09-24), for `success` and `miss_working`, pre and post.
-
-Because the window is shifted per trial, "1 s before the decoding window" MUST be measured from each
-trial's own window start. Measured from the cue it would silently mean different things on different
-trials.
-
-## What is built
-
-| file | state |
-|---|---|
-| `scripts/enl_state_counts.py` | **done**, cached, fanned over cores |
-| `scripts/enl_sparsity_figure.py` | **done**, renders from the cache |
-| `wfield_local/enl_states.py` | classes + `adjacent_window` + `time_gap` + witness stamping. **Driver NOT wired** (raises a clear message) |
-| `wfield_local/enl_decode.py` | **done and run** -- three readouts, frozen joint basis, session loop wired |
-| `wfield_local/position_reference_maps.py` | extended with `miss_working` / `stopped` variants, reusing `_quit_mask` |
-
-**Verified on synthetic data** (`enl_decode`): signal → stopped 0.637 vs null 0.166 (above), ratio
-0.858, transfer 0.703. **Noise → stopped 0.152 vs null 0.171, p=0.72, not above; ratio flagged.**
-The negative control is the one that matters.
+not**. `stopped` is **n=2**; the miss/succ rung is **n=3**.
 
 ### Not built
-- the session-loading loop for `enl_decode.analyse` and `enl_states`
 - the ENL maps themselves (`raw` and `rest` references, per epoch, n annotated)
+- the `enl_states` amplitude-contrast driver
+- the `precue_engagement_states` witness — **must run before interpreting any post-stroke cell**
+- `enl_lick_control` across all four epochs (built; Priya asked for pre + acute + subacute + chronic)
 
 ---
 

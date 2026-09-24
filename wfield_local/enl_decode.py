@@ -238,8 +238,14 @@ def arms_for_session(s, align=ALIGN, source=POOLED_SOURCE, post_s=2.0, basis=Non
     for arm, m in (("miss_working", u["sess_eng"]), ("stopped", ~u["sess_eng"])):
         out[arm] = {"X": u["X"][m] if u["y"].size else u["X"],
                     "y": u["y"][m] if u["y"].size else u["y"],
-                    "g": u["g"][m] if u["y"].size else u["g"]}
-    out["success"] = {"X": F["engaged"]["X"], "y": F["engaged"]["y"], "g": F["engaged"]["g"]}
+                    "g": u["g"][m] if u["y"].size else u["g"],
+                    # carried through so `enl_lick_control` splits on the SAME per-trial flag the
+                    # window builder computed, rather than rebuilding one alongside it (rule 9, and
+                    # the failure mode `locanmf_position_decoder` records for externally rebuilt
+                    # masks: one came out 633 long against 575 kept trials)
+                    "lead_lick": u["lead_lick"][m] if u["y"].size else u["lead_lick"]}
+    out["success"] = {"X": F["engaged"]["X"], "y": F["engaged"]["y"], "g": F["engaged"]["g"],
+                      "lead_lick": F["engaged"]["lead_lick"]}
     return out
 
 
@@ -253,15 +259,18 @@ def pool_arms(per_session):
     """
     out = {}
     for arm in ("miss_working", "stopped", "success"):
-        Xs, ys, gs, off = [], [], [], 0
+        Xs, ys, gs, ll, off = [], [], [], [], 0
         for d in per_session:
             a = d.get(arm)
             if a is None or not len(a["y"]):
                 continue
             Xs.append(a["X"]); ys.append(a["y"]); gs.append(np.asarray(a["g"]) + off)
+            ll.append(np.asarray(a.get("lead_lick", np.zeros(len(a["y"]), bool)), bool))
             off += int(np.asarray(a["g"]).max()) + 1
-        out[arm] = ({"X": np.concatenate(Xs), "y": np.concatenate(ys), "g": np.concatenate(gs)}
-                    if Xs else {"X": np.empty((0, 0)), "y": np.array([], int), "g": np.array([], int)})
+        out[arm] = ({"X": np.concatenate(Xs), "y": np.concatenate(ys), "g": np.concatenate(gs),
+                     "lead_lick": np.concatenate(ll)}
+                    if Xs else {"X": np.empty((0, 0)), "y": np.array([], int),
+                                "g": np.array([], int), "lead_lick": np.array([], bool)})
     return out
 
 
@@ -415,7 +424,7 @@ def _score_shared(sc, target_frac, n_perm, labels):
     return out
 
 
-def bootstrap_arms(scored, nulls, labels, n_boot=2000, seed=0, alpha=0.05):
+def bootstrap_arms(scored, nulls, labels, n_boot=2000, seed=0, alpha=0.05, pairs=None):
     """PAIRED cluster bootstrap over blocks -- CIs on each arm, and on the DIFFERENCES between arms.
 
     Everything reported before this was an arm against its OWN permutation null, which answers "is
@@ -442,9 +451,14 @@ def bootstrap_arms(scored, nulls, labels, n_boot=2000, seed=0, alpha=0.05):
     ratio; `frac_undefined` reports how often that happened. A ratio whose interval rests on a
     denominator that keeps collapsing is not a measurement, and that has to be visible.
     """
-    names = [k for k in ("success", "miss_working", "stopped") if scored.get(k) is not None]
+    # Generic over arm names so `enl_lick_control` can pass its clean/lead arms. Insertion order is
+    # kept, and for the canonical {success, miss_working, stopped} the derived pairs are exactly the
+    # three this used to hardcode.
+    names = [k for k, v in scored.items() if v is not None]
     if len(names) < 2:
         return {"skipped": "fewer than two scorable arms"}
+    if pairs is None:
+        pairs = [(a, b) for i, a in enumerate(names) for b in names[i + 1:]]
     units = np.unique(np.concatenate([scored[k]["g"] for k in names]))
     idx = {k: {u: np.flatnonzero(scored[k]["g"] == u) for u in units} for k in names}
     rng = np.random.default_rng(seed)
@@ -463,8 +477,7 @@ def bootstrap_arms(scored, nulls, labels, n_boot=2000, seed=0, alpha=0.05):
                                float(np.nanpercentile(bal[k], hi))]} for k in names}}
 
     out["differences"], out["ratios"] = {}, {}
-    for a, b_ in (("success", "miss_working"), ("success", "stopped"),
-                  ("miss_working", "stopped")):
+    for a, b_ in pairs:
         if a not in names or b_ not in names:
             continue
         d = bal[a] - bal[b_]                                  # positive => the first arm is higher
