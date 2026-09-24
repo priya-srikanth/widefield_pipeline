@@ -2198,6 +2198,77 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## CD trajectories, and subspace geometry as a readout (Priya, 2026-09-24)
+
+Full handoff: [`docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md).
+
+`wfield_local/cd_trajectories.py` projects the per-position coding direction FRAME BY FRAME, which
+`position_coding_directions` cannot: it fits in (component x time sub-bin) space, so its vector
+cannot be applied to a single frame. A trajectory needs a TIME-INVARIANT direction, so this fits on
+the window mean and lets the time structure live in the projection.
+
+### THE POSITION DIFFERENCES IN A ONE-VS-REST CD FIGURE ARE LARGELY AN ARTIFACT
+
+`w_P = mean(P) - mean(not-P)`, so across six positions the unit vectors **sum to a vector of length
+0.289** where six aligned ones would give 6.0. A signal common to every trial therefore CANNOT load
+positively on all six -- the geometry FORCES it positive on some and negative on others. The lick
+response is such a signal and it is large. Decomposed on PS95 pre-cue:
+
+    position       observed    SHARED   POS-SPEC
+    close_center    +14.08    +14.32      -0.24
+    far_center       -6.43     -5.56      -0.87
+    close_R          +6.11     +5.01      +1.10
+
+The position-specific component is ~1-2 EVERYWHERE. The spectacular +14 and the -6 dips are the
+shared term; the apparent position selectivity in the raw traces is the cancellation geometry, not
+the code. `--orth` projects the condition-independent subspace out; after it, every position rises.
+
+### LOCANMF COMPONENTS MUST BE STANDARDISED BEFORE A CD
+
+Priya: *"this should be similar to using a single-cell population for CD."* Per-component sd spans
+**107x** on PS95's 95-component basis and the **top five components hold 82% of the variance**, so
+an unstandardised difference-of-means direction is set by about five components on amplitude alone.
+Z-scored in a FROZEN pre-stroke frame -- per session would erase real between-session differences,
+per epoch would normalise away the post-stroke change being measured.
+
+### SUBSPACE OVERLAP AS A GEOMETRY READOUT -- AND ITS TWO BLIND SPOTS
+
+K=1 is not enough: a subspace rotates where a single vector appears not to (PS95 K=1 cosines
+0.88/0.95/0.88 against K=2 subspace overlaps 0.68/0.61/0.66). Now the top-K components by variance
+explained.
+
+**IT MUST BE READ AGAINST CHANCE.** Two unrelated K-dim subspaces of an n-dim space overlap at K/n,
+here 2/95 = **0.021** -- so 0.61 is ~30x chance and the mode is strongly CONSERVED. Reporting it as
+"a third rotated away" is wrong. Separately, the ~39% of POWER left unremoved is sqrt(1-0.61) = 0.62
+of the AMPLITUDE, which against a shared component 2.6-14.3 leaves a residual of 1-9x the
+position-specific signal depending on position -- worst at close_center, benign at close_L. Only
+that second reading licenses discounting a post-stroke panel.
+
+**AND IT CANNOT SEE AMPLITUDE.** Priya: *"the cosine will not read out amplitude changes though,
+right"* -- right. Overlap is scale-invariant, so a response that keeps its orientation and halves in
+size scores 1.00, which for a lesion study is a blind spot on the most likely effect. `cim_scale`
+reports magnitude beside it. The two dissociate, and that is the value of the method: same
+subspace + smaller scale is "weaker drive", rotated subspace + same scale is REORGANISATION, and a
+decoder score conflates them because both lower accuracy.
+
+**THE NULL IS NOT BUILT.** Two subspaces estimated from different SESSIONS do not fully overlap even
+when nothing changed. The construction to copy is
+`scripts/rest_migration/rest_baseline_epoch_drift.py` -- split PRE into two groups, one holding n_E
+sessions. Our case is cleaner than theirs: their cosine is biased positive because `d` and `e_ref`
+share a `-mean_pre` term, while our subspaces come from DISJOINT session sets.
+
+### MEASURED PARAMETERS, not inherited
+
+  * FITTING WINDOW 2 s. d' at 0.5/1.0/2.0/3.0 s = 0.255/0.255/0.353/0.411 (PS92). Tighter is WORSE
+    monotonically -- 1 s costs 28% of d'. Wider scores better and is refused: PS92 keeps 458 of 3911
+    trials at 3 s, and a 3 s window swallows the spout-arrival transient.
+  * DISPLAY SMOOTHING 0.2 s centred. Costs 4% of peak against no smoothing where 0.4 s costs 8%, and
+    the cost is not uniform -- fast far-position transients (+0.32 s) lose 4-8% where slow
+    close-position peaks (+1.99 s) lose under 1%. Below 0.2 s there is no return; that is the
+    haemodynamic kernel.
+  * MEAN, not median. The poles define 1 as a MEAN and the per-trial projection is strongly skewed:
+    PS92's medians read 2.13/1.48/1.07/-0.03/-0.63/1.48 where the means are 1.000 exactly.
+
 ## ENL analyses use the STRICT lick-free pre-cue window (Priya, 2026-09-24)
 
 `nolick_decoder.session_features` built a FIXED `[cue-2s, cue]` window and applied no lick gate,

@@ -104,17 +104,35 @@ from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
 #: should show the code appearing, not start after it has.
 SPAN = {"precue": (-3.0, 4.0), "cue": (-3.0, 4.0), "lick": (-3.0, 4.0)}
 
-#: Classes drawn per panel. `stopped` is included but is the scarce one everywhere
-#: (pre-stroke 6/40/326/495), so `min_trials` marks rather than drops it.
+#: Every class the trial bookkeeping knows about. What actually gets FITTED and PLOTTED is set by
+#: the GATE below -- `stopped` is never in a gate, being the scarce one everywhere (pre-stroke
+#: 6/40/326/495).
 CLASSES = ("success", "miss_working", "stopped")
+
+#: THE GATE: which trials the direction is fitted on AND which trials the trace is built from.
+#: Priya, 2026-09-24: *"let's do a 'lick' gated version and a 'lick or working' gated version (will
+#: actually be interested to see if miss-while-working looks like lick)"*, and on scope: *"traces
+#: should be the same trials its trained on"*.
+#:
+#: So the two versions are self-contained analyses, not one axis with two sets of traces. If
+#: `lick_or_working` looks like `lick`, miss-while-working trials carry the same position code as
+#: licks -- and `cos(w_lick, w_lick_or_working)` per position, reported as `gate_cos`, is that
+#: statement as a number rather than an impression from two figures.
+#:
+#: THE CLASSES ARE POOLED AT THE TRIAL LEVEL, not averaged separately and combined: the two have
+#: very different n (pre-stroke success is 4-6k against 130-500 miss_working), so averaging the
+#: class means would silently weight a 130-trial class equally with a 6000-trial one.
+GATES = {"lick": ("success",), "lick_or_working": ("success", "miss_working")}
 
 #: A class with fewer than this many trials in a cell is drawn DASHED and labelled, never omitted --
 #: "could not test" and "tested and found nothing" are different facts (the rule this whole ENL arm
 #: follows).
 MIN_TRIALS = 10
 
-#: Lick-aligned no-lick classes are not drawn at all. See the module docstring: their alignment time
-#: is an inference, and a trajectory through an inferred time has a guessed x-axis.
+#: LICK ALIGNMENT FORCES THE GATE BACK TO SUCCESS, whatever was asked for. A no-lick trial has no
+#: lick to align to; the static module can place it at an inferred time (cue + that session's median
+#: RT at that position) but a TRAJECTORY through an inferred time has a guessed x-axis that grows
+#: with the latency, and post-stroke the latency is long and variable.
 LICK_ALIGNED_CLASSES = ("success",)
 
 #: Width of the boxcar the projected course is smoothed with, in seconds, and CENTRED.
@@ -290,37 +308,49 @@ def _event_average(sig, at, pre_n, post_n):
     return np.mean(np.stack(keep), 0).astype(np.float32), len(keep)
 
 
-def condition_independent_mode(G, t, baseline=CIM_BASELINE):
-    """The direction the GRAND-MEAN response travels, as a unit vector. ``None`` if it is flat.
+#: Fraction of the grand-mean trajectory's variance the projected-out subspace must capture.
+#:
+#: K = 1 WAS NOT ENOUGH, and the measurement says so directly. Decomposing PS95's pre-cue traces
+#: into a shared part and a position-specific one, AFTER orthogonalising against a single mode, the
+#: shared column still ran -0.47 to +1.83 against a position-specific signal of +1.0 to +1.9 -- the
+#: same order as the thing being measured. The shared response is a TIME COURSE occupying several
+#: dimensions; removing one direction removes one of them.
+#:
+#: It matters more post-stroke. The mode also ROTATES: PS93's per-epoch cosine against pre is 0.86
+#: acute / 0.84 subacute, and a cosine of 0.86 leaves sin = 0.51 of the shared magnitude. Against a
+#: shared component ~10x the position-specific one, half of it is still several times the signal --
+#: which is why PS93's dips survived K=1 orthogonalisation post-stroke.
+#:
+#: 0.90 rather than 0.95 or 0.99: each extra dimension removed also takes any position information
+#: lying along it, the cost `position_coding_directions.orthogonalise` states for its own use of
+#: this move. `cim_k` is reported on every result so the number is visible rather than assumed.
+CIM_VAR = 0.90
 
-    WHY THIS EXISTS. The per-position directions are ONE-VS-REST, ``w_P = mean(P) - mean(not-P)``,
-    so across the six they very nearly cancel -- MEASURED on PS95's lick-aligned set, the six unit
-    vectors sum to a vector of length **0.289**, where six aligned ones would give 6.0. A signal
-    common to every trial therefore CANNOT load positively on all six: the geometry forces it
-    positive on some and negative on others.
+#: Hard ceiling on K regardless of variance, so a flat spectrum cannot eat the whole space.
+CIM_KMAX = 8
 
-    The lick response is exactly such a signal, and it is large. Decomposing PS95's lick-aligned
-    traces into a SHARED part (the grand mean -- the same signal for every position, differing only
-    in which direction it is projected onto) and a position-specific residual:
+
+def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=CIM_KMAX):
+    """``(ncomp, K)`` orthonormal basis for the grand-mean response. ``None`` if it is flat.
+
+    WHY A SUBSPACE AND NOT A DIRECTION. The per-position directions are ONE-VS-REST,
+    ``w_P = mean(P) - mean(not-P)``, so across the six they very nearly cancel -- MEASURED on PS95,
+    the six unit vectors sum to a vector of length **0.289** where six aligned ones would give 6.0.
+    A signal common to every trial therefore CANNOT load positively on all six: the geometry forces
+    it positive on some and negative on others. That is what the close-position dips and the
+    far-position negative deflections are. Decomposed on PS95 pre-cue, before any orthogonalisation:
 
         position       observed    SHARED   POS-SPEC
-        close_L          +1.21     +0.82      +0.39
-        close_center     -0.91     -1.76      +0.84
-        close_R          +1.07     +0.69      +0.38
-        far_L            -0.23     -0.44      +0.20
-        far_center       -0.34     -0.60      +0.26
-        far_R            -0.27     -0.44      +0.17
+        close_center    +14.08    +14.32      -0.24
+        far_center       -6.43     -5.56      -0.87
+        close_R          +6.11     +5.01      +1.10
 
-    **The position-specific component is POSITIVE at all six.** Every negative value, including
-    close_center's dip, lives in the shared term. So the up-for-close / down-for-far sign pattern is
-    the common lick response leaking onto axes that cancel, not position coding (Priya, 2026-09-24:
-    *"are the downward deflections in close locations artifact?"* -- yes, largely).
+    -- the dramatic position differences are the shared term; the position-specific one is ~1-2
+    everywhere. Projecting out the K leading components of that shared time course, rather than just
+    its single largest, is what leaves the position-specific part behind.
 
-    Defined as the grand mean at its point of maximum excursion from its own pre-event baseline, so
-    no interval has to be hand-picked. Orthogonalising against it is the same move
-    `position_coding_directions` already makes for the engagement axis, and carries the cost stated
-    there: "any position information lying along e goes with it, so the projection answers the
-    narrower question". Which is why BOTH versions are rendered rather than one replacing the other.
+    K is chosen by variance explained (`CIM_VAR`) and capped (`CIM_KMAX`), from the SVD of the grand
+    mean's deviation from its own pre-event baseline, so no interval or rank is hand-picked.
     """
     G = np.asarray(G, float)
     t = np.asarray(t, float)
@@ -328,19 +358,186 @@ def condition_independent_mode(G, t, baseline=CIM_BASELINE):
     if not base.any():
         base = t < (t.min() + 0.5)
     dev = G - G[:, base].mean(1)[:, None]
-    v = dev[:, int(np.argmax(np.linalg.norm(dev, axis=0)))]
-    n = float(np.linalg.norm(v))
-    return (v / n) if n > 0 else None
+    if not np.isfinite(dev).all() or not dev.any():
+        return None
+    U, sv, _ = np.linalg.svd(dev, full_matrices=False)
+    power = sv ** 2
+    if power.sum() <= 0:
+        return None
+    k = int(np.searchsorted(np.cumsum(power) / power.sum(), var) + 1)
+    return U[:, :max(1, min(k, kmax, U.shape[1]))]
 
 
-def fit_directions(X, y, labels, method="dom", stats=None, cim=None):
+def subspace_chance(ncomp, k):
+    """Expected `subspace_overlap` for two UNRELATED K-dim subspaces of an n-dim space: K/n.
+
+    WITHOUT THIS THE METRIC IS UNREADABLE, and it was briefly misread here. Two random 2-dimensional
+    subspaces of the 95-dimensional joint basis overlap at **0.021**, not 0 -- so a measured 0.61 is
+    thirty times chance, i.e. the shared mode is strongly CONSERVED across epochs, not "a third of
+    it rotated away". The residual-leak reading and the conservation reading are both true and they
+    answer different questions:
+
+      * biologically -- 0.61 against 0.021 says the global mode survives the lesion nearly intact;
+      * for the ARTIFACT correction -- ~39% of the subspace's power is still unremoved, and against
+        a shared component ~10x the position-specific signal, that is several times the signal.
+
+    Only the second licenses discounting a post-stroke panel. The first must not be read as a
+    deficit.
+    """
+    return float(k) / float(max(ncomp, 1))
+
+
+def subspace_overlap(A, B):
+    """Mean squared cosine of the principal angles between two orthonormal bases, in [0, 1].
+
+    The subspace generalisation of the single-vector cosine: 1 means the epoch's shared-response
+    subspace is the one that was projected out, and `subspace_chance` -- NOT zero -- is what
+    "unrelated" looks like. Reported per epoch as `cim_cos`, beside `cim_chance`.
+
+    A SUBSPACE ROTATES WHERE A SINGLE VECTOR APPEARS NOT TO. Measured on PS95 pre-cue, the K=1
+    cosines ran 0.88/0.95/0.88 across the post-stroke epochs while the K=2 subspace overlap ran
+    0.68/0.61/0.66 -- one vector can stay well aligned while the plane it lies in turns. That is why
+    the diagnostic moved to subspaces when K did.
+    """
+    if A is None or B is None:
+        return None
+    M = np.asarray(A).T @ np.asarray(B)
+    return float((M ** 2).sum() / max(A.shape[1], 1))
+
+
+
+#: How the direction's SUBTRAHEND is chosen -- what position P is contrasted AGAINST.
+#:
+#: Priya, 2026-09-24: *"is there no way to do CD relative to rest instead of relative to the other
+#: positions?"*
+#:
+#:   ``contrast``  w_P = mean(P) - mean(NOT-P). Position-specific by construction, and the default
+#:                 everywhere else in the project. Its failure mode is the one this module spent the
+#:                 day chasing: the six directions SUM TO ~ZERO (measured 0.289 of a possible 6.0),
+#:                 so any condition-independent signal is FORCED positive on some positions and
+#:                 negative on others. That is what the close-position dips and the far-position
+#:                 negative deflections are -- decomposed on PS95, close_center reads +14.08 of
+#:                 which +14.32 is shared and -0.24 position-specific.
+#:
+#:   ``rest``      w_P = mean(P) - the TIME-LOCAL rest baseline, identical for all six positions.
+#:                 The six directions no longer cancel, so nothing is forced to split sign and the
+#:                 artifact cannot arise. The cost is the mirror image: the shared response is now
+#:                 ADDED to every position rather than cancelled across them, so the traces are
+#:                 dominated by what is common and are LESS position-specific.
+#:
+#:   ``restw``     the same with each position referenced to ITS OWN rest frames
+#:                 (`rest_by_position.rest_frames_by_position`). Removes position differences in the
+#:                 baseline -- but `position_reference_maps` records that REST ITSELF CARRIES
+#:                 POSITION INFORMATION (observed/null 1.634 over 44 pre-stroke sessions, above null
+#:                 in 43/44), so this subtrahend can remove part of the signal being measured. Use
+#:                 it as a conservative bound, not as the headline.
+#:
+#: BASELINE DRIFT IS NOT THE OBJECTION. `rest_baseline_epoch_drift` measures `restw` moving between
+#: epochs at 0.074-0.432 of the evoked norm, but the component ALIGNED with the signal has median
+#: |bias| 0.07 and is signed both ways, with 1 of 11 cells significant and running the "wrong" way.
+#: DECISIONS.md: "the baseline does move; the movement is not pointed at the signal."
+REFERENCES = ("contrast", "rest", "restw")
+
+#: Bins the session is split into for the time-local rest baseline. Matches
+#: `position_reference_maps.REST_BASELINE_BINS` and `locanmf_position_encoder._quiet_baseline`;
+#: imported rather than redefined would be better still, but that module pulls in matplotlib.
+REST_BINS = 12
+
+
+def rest_baseline(session, sig, reference, nbins=REST_BINS):
+    """``{code: (ncomp,) baseline}`` or ``{None: (ncomp,)}`` for the flat one. ``None`` if absent.
+
+    REUSES `position_reference_maps._timelocal_from_mask`, which is basis-agnostic -- it bins the
+    session, takes the MEDIAN of rest frames per bin and interpolates, and it does that on whatever
+    ``(nfeat, T)`` array it is handed. Passing the joint-basis signal keeps the binning rule in the
+    one place it already lives rather than making a second copy of it here (rule 9).
+
+    The mask is the pipeline's own: `quiet_periods.quiet_frame_path` for rest frames, ANDed with
+    `rest_engagement.engaged_frame_mask` so the terminal quit period is excluded -- 3.1% of rest
+    frames pre-stroke but 18.7% acute, so an ungated baseline would change composition WITH the
+    deficit it is subtracted from.
+    """
+    import numpy as _np
+
+    from wfield_local.position_reference_maps import _timelocal_from_mask
+    from wfield_local.quiet_periods import quiet_frame_path
+    from wfield_local.rest_engagement import engaged_frame_mask
+
+    T = int(_np.asarray(sig).shape[1])
+    eng, _note = engaged_frame_mask(session, T)
+
+    if reference == "restw":
+        from wfield_local.rest_by_position import rest_frames_by_position
+
+        per, _info = rest_frames_by_position(session, T, engaged_only=True)
+        out = {}
+        for code, idx in (per or {}).items():
+            m = _np.zeros(T, bool)
+            m[_np.asarray(idx, int)] = True
+            m &= eng
+            if m.sum() < nbins:
+                continue
+            b = _timelocal_from_mask(_np.asarray(sig), m, nbins)
+            if b is not None:
+                out[int(code)] = _np.asarray(b).mean(1)      # flat over the session
+        return out or None
+
+    qf = quiet_frame_path(session["mc"])
+    if not qf:
+        return None
+    q = _np.load(qf).astype(bool)
+    m = _np.zeros(T, bool)
+    L = min(q.shape[0], T)
+    m[:L] = q[:L]
+    m &= eng
+    if not m.any():
+        return None
+    b = _timelocal_from_mask(_np.asarray(sig), m, nbins)
+    return None if b is None else {None: _np.asarray(b).mean(1)}
+
+
+def directions_vs_rest(X, y, base, labels, stats=None, cim=None):
+    """``{position: (w, p0, p1)}`` with the SUBTRAHEND a rest baseline, not the other positions.
+
+    ``base`` is ``{None: v}`` for the flat reference or ``{code: v}`` for the per-position one.
+    Poles keep their meaning -- 0 is the subtrahend, 1 is pre-stroke lick at P -- so the axis label
+    on every figure stays true and the anchor check still applies.
+    """
+    labels = list(labels)
+    X, y = np.asarray(X, float), np.asarray(y)
+    ok = np.isfinite(X).all(1)
+    X, y = X[ok], y[ok]
+    if stats is not None:
+        X = (X - stats[0]) / stats[1]
+    out = {}
+    for p in labels:
+        m = y == p
+        if m.sum() < MIN_TRIALS:
+            continue
+        b = base.get(int(p), base.get(None))
+        if b is None:
+            continue
+        b = (np.asarray(b) - stats[0]) / stats[1] if stats is not None else np.asarray(b)
+        w = np.asarray(X[m].mean(0)) - b
+        n = float(np.linalg.norm(w))
+        if n <= 0:
+            continue
+        w = w / n
+        if cim is not None:
+            for e_ in np.asarray(cim).T:
+                w = pcd.orthogonalise(w, e_)
+        out[int(p)] = (w, float(b @ w), float(X[m].mean(0) @ w))
+    return out
+
+
+def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviving=False):
     """``{position: (w, p0, p1)}`` from PRE-STROKE successful-lick trials, P against not-P.
 
     `pcd.direction` and `pcd.poles` unchanged -- they are basis-agnostic, so handing them a
     ``bins=1`` feature gives a weight per COMPONENT rather than per (component, sub-bin), which is
     the whole point. Positions with too few trials on either side are omitted and reported.
     """
-    out = {}
+    out, surviving = {}, {}
     X, y = np.asarray(X, float), np.asarray(y)
     ok = np.isfinite(X).all(1)
     X, y = X[ok], y[ok]
@@ -352,14 +549,41 @@ def fit_directions(X, y, labels, method="dom", stats=None, cim=None):
         if m.sum() < MIN_TRIALS or (~m).sum() < MIN_TRIALS:
             continue
         w = pcd.direction(X[m], X[~m], method=method)
-        if cim is not None:
-            w = pcd.orthogonalise(w, cim)
-        # POLES AFTER, NOT BEFORE: they are means of X @ w, so a rotated w has different
-        # poles. Reusing the old ones would put the 0/1 anchor on the wrong axis, and the
-        # anchor check would (correctly) stop reading 1.00.
+        if cim is None:
+            p0, p1 = pcd.poles(X[m], X[~m], w)
+            out[int(p)] = (w, p0, p1)
+            continue
+        # THE SCALE STAYS THE UNROTATED GAP. Rotating shrinks the separation, and recomputing the
+        # poles on the residual RESCALES WHATEVER SURVIVES BACK UP TO 1 -- which manufactures the
+        # inflation Priya spotted: "the residual after orthogonalizing is so small that the small
+        # denominator blows everything up".
+        #
+        # MEASURED on PS95 pre-cue (K=2), gap before -> after, and how much of the original
+        # direction lay in the shared subspace:
+        #
+        #     close_L        1.565 -> 1.383  (88%)   |w.CIM| 0.47
+        #     far_R          1.761 -> 1.156  (66%)   |w.CIM| 0.75
+        #     close_center   0.737 -> 0.448  (61%)   |w.CIM| 0.80
+        #
+        # close_center is worst on BOTH counts at once -- the smallest separation to begin with and
+        # the most of it inside the shared subspace -- so its recomputed denominator is 3.1x smaller
+        # than close_L's and everything divided by it is inflated 3.1x. far_R is the control: nearly
+        # the same alignment and loss, but it started large, so it lands fine.
+        #
+        # Dividing by the ORIGINAL gap instead makes the axis "fraction of the original position-P
+        # signature", so a direction that barely survives draws SMALL, which is the truth. The
+        # per-position anchor then reads the SURVIVING FRACTION (close_center 0.607) rather than a
+        # meaningless 1.00, and `surviving` records it.
+        _q0, _q1 = pcd.poles(X[m], X[~m], w)      # unpacked, not np.diff: that returns a 1-element
+        g_plain = float(_q1) - float(_q0)         # array and float() on one is deprecated
+        for e_ in np.asarray(cim).T:          # sequential Gram-Schmidt over the whole subspace
+            w = pcd.orthogonalise(w, e_)
         p0, p1 = pcd.poles(X[m], X[~m], w)
-        out[int(p)] = (w, p0, p1)
-    return out
+        surviving[int(p)] = (p1 - p0) / g_plain if g_plain else float("nan")
+        out[int(p)] = (w, p0, p0 + g_plain)
+    # EXPLICIT SECOND RETURN, not a key in `out`. Every caller iterates `dirs.items()` unpacking a
+    # 3-tuple, so smuggling a dict in under a reserved key would crash them at a distance.
+    return (out, surviving) if with_surviving else out
 
 
 def trajectory(sig, align_f, w, p0, p1, pre_n, post_n, fs=None):
@@ -536,8 +760,96 @@ def session_arms(s, args, basis, align):
     return out
 
 
+class _OnceSignal:
+    """Load a session's projection AT MOST ONCE, however many cached products ask for it.
+
+    Pass 2 wants two things per session -- the CD courses and the event-triggered average for the
+    per-epoch CIM cosine -- and each is cached under its own kind. Calling `BasisSource.signal()`
+    twice would re-project a ~100 MB array over the network for the second; on a warm cache neither
+    call should happen at all. This defers and shares.
+    """
+
+    def __init__(self, src):
+        self.src = src
+        self._v = None
+
+    def __call__(self):
+        if self._v is None:
+            self._v = self.src.signal()[0]
+        return self._v
+
+
+def cim_scale(by_epoch, t, baseline=CIM_BASELINE):
+    """``{epoch: ||grand-mean deviation|| / pre}`` -- the MAGNITUDE the cosine cannot see.
+
+    Priya, 2026-09-24: *"the cosine will not read out amplitude changes though, right"* -- right,
+    and that is a blind spot worth naming rather than a detail. Subspace overlap is SCALE-INVARIANT:
+    a response that keeps its orientation exactly and halves in size scores 1.00, which for a lesion
+    study reports "unchanged" about the very thing most likely to change.
+
+    So orientation and magnitude are reported side by side, and they DISSOCIATE in informative ways:
+
+        overlap ~1, scale ~1     nothing moved
+        overlap ~1, scale < 1    same geometry, weaker drive
+        overlap < 1, scale ~1    REORGANISATION -- the code went somewhere else
+        both < 1                 mixed, and neither number alone would have said so
+
+    A decoder score conflates all four, because every one of them lowers accuracy. This is the main
+    thing the subspace view adds over "can position still be read out".
+
+    It also repairs the residual-leak estimate. The unremoved shared amplitude is
+    ``sqrt(1 - overlap) * ||shared||`` -- the second factor is THIS, and using the pre-stroke value
+    for a post-stroke epoch (as the first estimate did) is only right if the scale is 1.
+
+    Frobenius norm of the deviation from the pre-event baseline, divided by pre's, so it is a pure
+    ratio and the arbitrary units of the z-scored basis cancel.
+    """
+    out, ref = {}, None
+    t = np.asarray(t, float)
+    base = (t >= baseline[0]) & (t < baseline[1])
+    if not base.any():
+        base = t < (t.min() + 0.5)
+    for ep, G in by_epoch.items():
+        G = np.asarray(G, float)
+        out[ep] = float(np.linalg.norm(G - G[:, base].mean(1)[:, None]))
+    ref = out.get("pre")
+    if not ref:
+        return {}
+    return {ep: v / ref for ep, v in out.items()}
+
+
+def cim_rotation(by_epoch, t):
+    """``{epoch: cos(CIM_epoch, CIM_pre)}`` -- how far the condition-independent mode turns.
+
+    WHY THIS IS REPORTED RATHER THAN ASSUMED. `--orth` projects out ONE mode, fitted on PRE-STROKE
+    sessions and applied to every epoch, because a per-epoch mode would be a moving reference frame
+    that subtracts away the post-stroke change being measured (rule 10). The cost is that the
+    removal is exact pre-stroke by construction and only approximate afterwards: if the common mode
+    ROTATES after the lesion, the post-stroke panels keep a residual share of it.
+
+    MEASURED, and it is not hypothetical. PS93 pre-cue, minimum of the success trace over [0, 4] s,
+    plain -> orthogonalised:
+
+        close_center   pre -3.64 -> +0.22    acute -5.56 -> -1.82
+                       subacute -7.14 -> -5.13   chronic -6.85 -> -6.45
+
+    The correction is total at pre, most of the way at acute, and almost nothing by chronic --
+    degrading exactly in proportion to distance from the epoch it was fitted on. This cosine is the
+    diagnostic for that: near 1 means the projection still removes what it removed pre-stroke; well
+    below 1 means residual leak, and the panel is weaker evidence than its pre-stroke counterpart.
+    """
+    pre = by_epoch.get("pre")
+    if pre is None:
+        return {}
+    c0 = condition_independent_modes(pre, t)
+    if c0 is None:
+        return {}
+    return {ep: subspace_overlap(c0, condition_independent_modes(G, t))
+            for ep, G in by_epoch.items()}
+
+
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
-                   verbose=True):
+                   gate="lick", reference="contrast", verbose=True):
     """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
 
     TWO PASSES OVER THE SESSIONS, and the projection is deferred in both.
@@ -586,27 +898,45 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
                   + " ".join(f"{c}={len(arms[c]['y'])}" for c in CLASSES), flush=True)
 
     # ---- PASS 1: the direction, from PRE-STROKE SUCCESS only, window means, P vs not-P ----------
-    Xf, yf, Gs, Gn = [], [], [], []
+    # LICK ALIGNMENT OVERRIDES THE GATE -- see LICK_ALIGNED_CLASSES.
+    use = LICK_ALIGNED_CLASSES if align == "lick" else GATES[gate]
+    Xf, yf, Gs, Gn, Rb = [], [], [], [], {}
     for s, ep, arms in book:
-        if ep != "pre" or not arms["success"]["y"]:
+        if ep != "pre" or not any(arms[c]["y"] for c in use):
             continue
-        src = joint_locanmf.BasisSource(basis, s)
+        get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
+        # THE GATE IS IN THE CACHE KEY: it changes which trials the features are built from, and
+        # `session_signature` has no way to see it.
+        fit_at = [f for c in use for f in arms[c]["fit"]]
+        fit_y = [v for c in use for v in arms[c]["y"]]
         feats = session_cache.cached(
-            s, f"cdfit-{align}-{basis.basis_id[:8]}-{win_n}",
-            lambda src=src, arms=arms: window_means(src.signal()[0], arms["success"]["fit"], win_n),
+            s, f"cdfit-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{win_n}",
+            lambda get=get, fit_at=fit_at: window_means(get(), fit_at, win_n),
             verbose=False)
         Xf.append(feats)
-        yf.append(np.asarray(arms["success"]["y"]))
+        yf.append(np.asarray(fit_y))
+        if reference != "contrast":
+            # Cached per session: the mask work and the per-bin median are not free, and the
+            # signal is already in hand here.
+            rb = session_cache.cached(
+                s, f"cdrest-{reference}-{basis.basis_id[:8]}-{REST_BINS}",
+                lambda get=get, s=s: rest_baseline(s, get(), reference),
+                verbose=False)
+            if rb:
+                for k_, v_ in rb.items():
+                    Rb.setdefault(k_, []).append(np.asarray(v_, float))
         if orth:
             # The EVENT-TRIGGERED AVERAGE over this session's pre-stroke success trials,
             # pooled over positions. Accumulated HERE because pass 1 already holds the
             # signal; computing it in pass 2 would be circular, since pass 2 needs the
             # directions that the CIM helps define.
+            # THE SAME TRIALS THE TRACE USES, so the mode being projected out is the shared
+            # response of what is actually plotted.
+            gate_at = [f for c in use for f in arms[c]["at"]]
             gm = session_cache.cached(
-                s, f"cdgm-{align}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
-                lambda src=src, arms=arms: _event_average(src.signal()[0],
-                                                          arms["success"]["at"],
-                                                          pre_n, post_frames),
+                s, f"cdgm-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
+                lambda get=get, gate_at=gate_at: _event_average(get(), gate_at,
+                                                                pre_n, post_frames),
                 verbose=False)
             if gm is not None:
                 Gs.append(gm[0])
@@ -622,36 +952,67 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         G = np.tensordot(wts / wts.sum(), np.stack(Gs), axes=(0, 0))   # n-weighted grand mean
         if stats is not None:
             G = (G - stats[0][:, None]) / stats[1][:, None]
-        cim = condition_independent_mode(G, np.arange(-pre_n, post_frames) / args.fs)
-    dirs = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
-                          stats=stats, cim=cim)
+        cim = condition_independent_modes(G, np.arange(-pre_n, post_frames) / args.fs)
+    if reference == "contrast":
+        dirs, surviving = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
+                                         stats=stats, cim=cim, with_surviving=True)
+    elif not Rb:
+        return {"animal": animal, "align": align,
+                "skipped": f"no {reference} baseline on any pre-stroke session",
+                "errors": errs}
+    else:
+        # SESSION-AVERAGED, matching how `Xall` pools sessions. A per-session subtrahend would
+        # be a different reference frame per day, which is what the frozen basis exists to
+        # avoid (rule 10).
+        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
+        dirs = directions_vs_rest(Xall, np.concatenate(yf), base, DISPLAY_ORDER,
+                                  stats=stats, cim=cim)
+        surviving = {}      # the rest references do not renormalise, so nothing collapses
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",
                 "errors": errs}
 
     # ---- PASS 2: the trajectories, from CACHED per-position CD time courses ----------------------
-    kind = courses_cache_kind(align, method, f"basis:{basis.basis_id}", dirs, args.post_s,
-                              stats=stats)
-    draw = LICK_ALIGNED_CLASSES if align == "lick" else CLASSES
-    acc = {}
+    kind = courses_cache_kind(align, f"{method}-{reference}", f"basis:{basis.basis_id}",
+                              dirs, args.post_s, stats=stats)
+    draw = use
+    acc, Ge = {}, {}
     for s, ep, arms in book:
         if not any(arms[c]["y"] for c in draw):
             continue
-        src = joint_locanmf.BasisSource(basis, s)
+        get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
         courses = session_cache.cached(
             s, kind,
-            lambda src=src: cd_courses(src.signal()[0], dirs, args.fs, args.post_s, stats=stats),
+            lambda get=get: cd_courses(get(), dirs, args.fs, args.post_s, stats=stats),
             verbose=False)
+        if orth and arms["success"]["y"]:
+            # THE SAME TRIALS THE TRACE USES, so the mode being projected out is the shared
+            # response of what is actually plotted.
+            gate_at = [f for c in use for f in arms[c]["at"]]
+            gm = session_cache.cached(
+                s, f"cdgm-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
+                lambda get=get, arms=arms: _event_average(get(), arms["success"]["at"],
+                                                          pre_n, post_frames),
+                verbose=False)
+            if gm is not None:
+                Ge.setdefault(ep, []).append(gm)
         for cls in draw:
             ys = np.asarray(arms[cls]["y"])
             if not ys.size:
                 continue
             at = np.asarray(arms[cls]["at"])
-            for p, course in courses.items():
-                m = ys == p
-                if m.any():
-                    acc.setdefault((ep, cls, p), []).append(
-                        slice_trials(course, at[m], pre_n, post_frames))
+            # POOLED ACROSS THE GATE'S CLASSES, at the TRIAL level -- one bucket, not one per class.
+            #
+            # THE FULL CROSS: every position's trials on every position's CD. The courses are
+            # already computed for all six directions over the whole session, so slicing trials of
+            # ANY position out of ANY course is free. The diagonal is the per-position trace; the
+            # off-diagonal is the selectivity the `cross` layout draws.
+            for cd_p, course in courses.items():
+                for tr_p in np.unique(ys):
+                    m = ys == tr_p
+                    if m.any():
+                        acc.setdefault((ep, int(cd_p), int(tr_p)), []).append(
+                            slice_trials(course, at[m], pre_n, post_frames))
 
     out = {"animal": animal, "align": align, "method": method,
            "basis_id": basis.basis_id, "ncomp": int(basis.ncomp),
@@ -659,7 +1020,13 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
            "positions": sorted(dirs), "n_sessions": len(book), "errors": errs,
            "win_s": float(args.post_s), "standardised": bool(STANDARDISE),
            "smooth_s": float(SMOOTH_S), "orth": bool(orth and cim is not None),
-           "drawn_classes": list(draw), "traces": {}}
+           "gate": gate, "reference": reference, "fit_on": list(use),
+           "cim_k": (None if cim is None else int(np.asarray(cim).shape[1])),
+           # How much of each position's ORIGINAL separation survived the projection. The traces are
+           # scaled by the unrotated gap, so a low value means the panel is genuinely small, not
+           # that it was rescaled -- and it is the per-position anchor under `--orth`.
+           "surviving": {int(k): float(v) for k, v in (surviving or {}).items()},
+           "traces": {}}
     for key, chunks in acc.items():
         A = np.vstack(chunks)
         n = int(np.isfinite(A).any(1).sum())
@@ -670,6 +1037,19 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             out["traces"][key] = {"mean": m, "n": n, "iqr": iqr,
                                   "lo": m - BAND_Z * se, "hi": m + BAND_Z * se}
     out["anchor"] = _anchor(out, args.post_s)
+    if Ge:
+        tt = np.arange(-pre_n, post_frames) / args.fs
+        by_ep = {}
+        for ep_, chunks in Ge.items():
+            wq = np.asarray([c[1] for c in chunks], float)
+            Gq = np.tensordot(wq / wq.sum(), np.stack([c[0] for c in chunks]), axes=(0, 0))
+            by_ep[ep_] = ((Gq - stats[0][:, None]) / stats[1][:, None]
+                          if stats is not None else Gq)
+        out["cim_cos"] = cim_rotation(by_ep, tt)
+        out["cim_chance"] = subspace_chance(int(basis.ncomp), int(out["cim_k"] or 1))
+        # ORIENTATION AND MAGNITUDE TOGETHER -- the cosine is scale-invariant and would score a
+        # halved-but-unrotated response as unchanged.
+        out["cim_scale"] = cim_scale(by_ep, tt)
     return out
 
 
@@ -689,18 +1069,131 @@ def _anchor(res, win_s):
     # Checked against [-2,0) for `lick` the anchor read 0.22 and nothing was wrong with the data.
     m = ((t >= -win_s) & (t < 0.0)) if res["align"] == "precue" else ((t >= 0.0) & (t < win_s))
     vals = [np.nanmean(d["mean"][m]) for k, d in res["traces"].items()
-            if k[0] == "pre" and k[1] == "success"]
+            if k[0] == "pre" and k[1] == k[2]]
     return float(np.nanmean(vals)) if vals else float("nan")
 
 
-STYLE = {"success": ("tab:blue", "success (lick)"),
-         "miss_working": ("tab:orange", "miss while working"),
-         "stopped": ("tab:red", "stopped")}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
+#: Epoch colours for the OVERLAY layout. Sequential rather than categorical: the four epochs are
+#: ordered in time, and a categorical palette would hide that.
+EPOCH_COLOR = {"pre": "#111111", "acute": "#D95F02", "subacute": "#7570B3", "chronic": "#1B9E77"}
 
-def figure(res, out):
-    """Positions down, epochs across; one trace per class. x = 0 is the ALIGNMENT EVENT."""
+#: Position colours for the CROSS layout, where six traces share a panel. The point of that panel
+#: is which ONE of the six rises, so the on-diagonal trace is drawn heavy and the rest light.
+POS_COLOR = {1: "#4C72B0", 0: "#DD8452", 2: "#55A868", 4: "#C44E52", 3: "#8172B3", 5: "#937860"}
+
+
+def _axis_furniture(ax, res, t):
+    """The 0/1 poles and the event line. Shared by every layout so they cannot drift apart."""
+    ax.axhline(0, color="0.55", lw=0.8)
+    ax.axhline(1, color="0.55", lw=0.8, ls=":")
+    ax.axvline(0, color="0.4", lw=0.8)
+    ax.set_xlim(t[0], t[-1])
+    ax.tick_params(labelsize=7)
+
+
+def _suptitle(res, extra=""):
+    zero = {"precue": "cue", "cue": "cue", "lick": "first lick"}[res["align"]]
+    cos = res.get("cim_cos") or {}
+    cos_s = ("" if not cos else f"  ·  CIM K={res.get('cim_k')} overlap vs pre: "
+             + " ".join(f"{e[:3]}={cos[e]:.2f}" for e in EPOCHS if cos.get(e) is not None)
+             + f" (chance {res.get('cim_chance', float('nan')):.3f})")
+    win = ("[-%g,0)" % res["win_s"]) if res["align"] == "precue" else ("[0,%g)" % res["win_s"])
+    return (
+        f"{res['animal']} — per-position {res['align'].upper()} coding direction, projected frame "
+        f"by frame{extra}\n"
+        f"fitted on PRE-STROKE {'+'.join(res['fit_on']).upper()} vs "
+        f"{{'contrast': 'OTHER POSITIONS', 'rest': 'REST (flat, time-local)', 'restw': 'ITS OWN REST'}}[res.get('reference', 'contrast')]"
+        f" (window mean, time-INVARIANT, "
+        f"components Z-SCORED in a frozen pre-stroke frame"
+        + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "")
+        + f") · basis {str(res['basis_id'])[:12]} {res['ncomp']}c\n"
+        f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
+        f"OF THE MEAN · anchor: {res.get('anchor', float('nan')):.2f} over {win}{cos_s}\n"
+        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · x = 0 is the {zero} · HAEMODYNAMICS ARE "
+        f"SLOW — read amplitude and gross time course, NOT onset or ordering")
+
+
+def figure_epochs(res, out):
+    """LAYOUT 1: one panel per spout position, the four epochs OVERLAID.
+
+    Priya, 2026-09-24: *"plot each spout position with overlaid pre-stroke and post-stroke epochs
+    (so color coded with appropriate alpha to see overlay, one per position)"*.
+
+    The previous layout put epochs in columns, which makes "did this position's code change after
+    the lesion" a comparison across four separate axes. Overlaid, it is one.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
+
+    pos = res["positions"]
+    t = np.arange(-res["pre_n"], res["post_n"]) / res["fs"]
+    nc = 3
+    nr = int(np.ceil(len(pos) / nc))
+    # ONE Y-AXIS ACROSS ALL SIX PANELS (Priya, 2026-09-24: "can we keep y axis the same in the
+    # comparison plots"). This layout exists to compare epochs, and the pole normalisation already
+    # makes the positions commensurable -- 1 means the same thing in every panel -- so a per-panel
+    # scale would make two positions with different amplitudes look alike. The cost is that a
+    # low-amplitude position is drawn small rather than filled to its own axis; that is the correct
+    # impression here, unlike in the cross layout where the question is within-panel selectivity.
+    fig, axes = plt.subplots(nr, nc, figsize=(4.4 * nc, 2.9 * nr), squeeze=False,
+                             sharex=True, sharey=True, constrained_layout=True)
+    for k, p in enumerate(pos):
+        ax = axes[k // nc][k % nc]
+        _axis_furniture(ax, res, t)
+        for ep in EPOCHS:
+            d = res["traces"].get((ep, p, p))
+            if d is None:
+                continue
+            thin = d["n"] < MIN_TRIALS
+            ax.plot(t, d["mean"], color=EPOCH_COLOR[ep], lw=1.5, alpha=0.85,
+                    ls="--" if thin else "-",
+                    label=f"{ep} (n={d['n']})" + (" THIN" if thin else ""))
+            if not thin:
+                # alpha low enough that four overlapping bands stay separable
+                ax.fill_between(t, d["lo"], d["hi"], color=EPOCH_COLOR[ep], alpha=0.16, lw=0)
+        # The surviving fraction goes ON THE PANEL, because a position whose direction barely
+        # survived the projection draws small for a reason the reader cannot otherwise see.
+        sv = (res.get("surviving") or {}).get(p)
+        ax.set_title(POSITION_NAMES.get(p, str(p))
+                     + ("" if sv is None else f"   (survives orth: {sv:.0%})"),
+                     fontsize=9,
+                     color="tab:red" if (sv is not None and sv < 0.7) else "black")
+        ax.legend(fontsize=6.5, frameon=False, loc="upper left")
+    for k in range(len(pos), nr * nc):
+        axes[k // nc][k % nc].set_axis_off()
+    for ax in axes[-1]:
+        ax.set_xlabel("s", fontsize=8)
+    for r in range(nr):
+        axes[r][0].set_ylabel("projection", fontsize=8)
+    fig.suptitle(_suptitle(res, " — EPOCHS OVERLAID"), fontsize=8.5)
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+def figure_cross(res, out):
+    """LAYOUT 2: the full 6x6 -- every position's trials projected onto every position's CD.
+
+    Priya, 2026-09-24: *"project each position's activity onto each position's CD (so per epoch 6
+    plots, one per position CD, with overlaid 6 projections of the 6 trial types)"*.
+
+    Rows are epochs, columns are the CD being projected onto, and each panel overlays the six spout
+    positions' trials. **The diagonal trace is the one the panel is named for** and is drawn heavy;
+    the other five are the comparison. A selective direction shows one trace rising and five flat --
+    which is the claim "this is a position code" made visible, rather than inferred from a decoder
+    score.
+
+    It costs nothing extra to compute: the courses already exist for all six directions over the
+    whole session, so slicing any position's trials out of any course is free.
+    """
     import matplotlib
 
     matplotlib.use("Agg")
@@ -710,64 +1203,90 @@ def figure(res, out):
 
     pos = res["positions"]
     eps = [e for e in EPOCHS if any(k[0] == e for k in res["traces"])]
-    if not pos or not eps:
-        raise SystemExit("[cd_traj] nothing to draw")
-    t = (np.arange(-res["pre_n"], res["post_n"]) / res["fs"])
-    fig, axes = plt.subplots(len(pos), len(eps), figsize=(3.0 * len(eps), 1.9 * len(pos)),
+    t = np.arange(-res["pre_n"], res["post_n"]) / res["fs"]
+    fig, axes = plt.subplots(len(eps), len(pos), figsize=(2.9 * len(pos), 2.5 * len(eps)),
                              squeeze=False, sharex=True, sharey="row", constrained_layout=True)
-    for i, p in enumerate(pos):
-        for j, ep in enumerate(eps):
+    for i, ep in enumerate(eps):
+        for j, cd_p in enumerate(pos):
             ax = axes[i][j]
-            # THE POLES ARE THE CROSS-ROW CALIBRATION, so they are drawn darker than before: with
-            # sharey="row" each position has its own scale, and these two lines are what keeps the
-            # panels comparable by eye. 0 = pre-stroke not-P, 1 = pre-stroke lick at P.
-            ax.axhline(0, color="0.55", lw=0.8)
-            ax.axhline(1, color="0.55", lw=0.8, ls=":")
-            ax.axvline(0, color="0.4", lw=0.8)
-            for cls in res["drawn_classes"]:
-                d = res["traces"].get((ep, cls, p))
+            _axis_furniture(ax, res, t)
+            for tr_p in pos:
+                d = res["traces"].get((ep, cd_p, tr_p))
                 if d is None:
                     continue
-                col, lab = STYLE[cls]
-                # THIN CELLS ARE DASHED AND LABELLED, NEVER DROPPED
-                thin = d["n"] < MIN_TRIALS
-                ax.plot(t, d["mean"], color=col, lw=1.3, ls="--" if thin else "-",
-                        label=f"{lab} (n={d['n']})" + (" THIN" if thin else ""))
-                if not thin:
-                    ax.fill_between(t, d["lo"], d["hi"], color=col, alpha=0.18, linewidth=0)
+                on = tr_p == cd_p
+                ax.plot(t, d["mean"], color=POS_COLOR.get(tr_p, "0.5"),
+                        lw=2.0 if on else 1.0, alpha=1.0 if on else 0.65,
+                        ls="-" if d["n"] >= MIN_TRIALS else "--",
+                        label=(POSITION_NAMES.get(tr_p, str(tr_p))
+                               + (" (own)" if on else "") + f" n={d['n']}"))
+                if on and d["n"] >= MIN_TRIALS:
+                    ax.fill_between(t, d["lo"], d["hi"], color=POS_COLOR.get(tr_p, "0.5"),
+                                    alpha=0.18, lw=0)
             if i == 0:
-                ax.set_title(ep, fontsize=9)
+                sv = (res.get("surviving") or {}).get(cd_p)
+                ax.set_title("CD: " + POSITION_NAMES.get(cd_p, str(cd_p))
+                             + ("" if sv is None else f"\n(survives orth: {sv:.0%})"),
+                             fontsize=8.5,
+                             color="tab:red" if (sv is not None and sv < 0.7) else "black")
             if j == 0:
-                ax.set_ylabel(POSITION_NAMES.get(p, str(p)), fontsize=8)
-            ax.legend(fontsize=5.5, frameon=False, loc="upper left")
-            ax.tick_params(labelsize=7)
-    zero = {"precue": "cue", "cue": "cue", "lick": "first lick"}[res["align"]]
+                ax.set_ylabel(ep, fontsize=9)
+            if i == 0 and j == len(pos) - 1:
+                ax.legend(fontsize=5.5, frameon=False, loc="upper left", ncol=1)
     for ax in axes[-1]:
-        ax.set_xlabel(f"s from {zero}", fontsize=8)
-    fig.suptitle(
-        f"{res['animal']} — projection onto the per-position {res['align'].upper()} coding "
-        f"direction, frame by frame\n"
-        f"direction fitted on PRE-STROKE SUCCESS (window mean, time-INVARIANT"
-        + (", components Z-SCORED in a frozen pre-stroke frame" if res.get("standardised") else
-           ", components NOT standardised")
-        + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "") + ") · "
-        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · basis {str(res['basis_id'])[:12]} "
-        f"{res['ncomp']}c\n"
-        f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
-        f"OF THE MEAN (not trial spread) · anchor: pre-stroke success averages "
-        f"{res.get('anchor', float('nan')):.2f} over "
-        f"{'[-%g,0)' % res['win_s'] if res['align'] == 'precue' else '[0,%g)' % res['win_s']}\n"
-        f"Y SCALED PER ROW (positions differ up to ~4x: close_R spans 3.5 units, far_L 11) — the "
-        f"0 and 1 lines are the shared calibration\n"
-        f"HAEMODYNAMICS ARE SLOW — read amplitude and gross time course, NOT onset or ordering"
-        + ("" if res["align"] != "lick" else
-           " · no-lick classes omitted: their alignment time would be inferred"),
-        fontsize=8.5)
+        ax.set_xlabel("s", fontsize=8)
+    fig.suptitle(_suptitle(res, " — 6x6 CROSS-PROJECTION (heavy = the CD's own position)"),
+                 fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+#: The layouts `--layout` can ask for.
+LAYOUTS = {"epochs": figure_epochs, "cross": figure_cross}
+
+
+def _render_animal(item):
+    """Every figure for ONE animal. Module level so spawn can pickle it by name (rule 6).
+
+    THE ANIMAL IS THE PARALLEL UNIT, and the loops inside it stay serial deliberately. Each animal
+    has its OWN frozen joint basis -- a shared object served from MICROSCOPE -- so animals are
+    independent and fan out cleanly, while the alignments, gates and layouts within an animal reuse
+    that one basis and the caches it warms. Fanning over the inner combinations instead would reload
+    the same ~100 MB basis once per combination and throw away every warm `cdarms-`/`cdfit-`/
+    `cdcourse-` entry the previous combination just wrote.
+    """
+    from pathlib import Path as _P
+
+    from wfield_local import cd_trajectories as cdt
+
+    out, made, errs = _P(item["out"]), [], []
+    for align in item["aligns"]:
+        for gate in item["gates"]:
+            for orth in item["orths"]:
+                try:
+                    res = cdt.analyse_animal(item["animal"], align, method=item["method"],
+                                             post_s=item["post_s"], orth=orth, gate=gate,
+                                             reference=item["reference"], verbose=False)
+                except Exception as exc:
+                    errs.append(f"{item['animal']} {align} {gate} orth={orth}: "
+                                f"{type(exc).__name__}: {exc}"[:160])
+                    continue
+                if res.get("skipped"):
+                    errs.append(f"{item['animal']} {align} {gate}: SKIPPED {res['skipped']}")
+                    continue
+                tag = "_".join([item["method"], item["reference"], gate]
+                               + (["orth"] if orth else []))
+                for lay in item["layouts"]:
+                    try:
+                        made.append(str(cdt.LAYOUTS[lay](
+                            res, out / f"cd_{lay}_{item['animal']}_{align}_{tag}.png")))
+                    except Exception as exc:
+                        errs.append(f"{item['animal']} {align} {lay}: "
+                                    f"{type(exc).__name__}: {exc}"[:160])
+    return {"made": made, "errors": errs}
 
 
 def main(argv=None) -> int:
@@ -776,17 +1295,28 @@ def main(argv=None) -> int:
     ap.add_argument("--animal", action="append", default=None)
     ap.add_argument("--align", nargs="+", default=["precue"],
                     choices=("precue", "cue", "lick"))
+    ap.add_argument("--layout", nargs="+", default=["epochs", "cross"],
+                    choices=tuple(LAYOUTS),
+                    help="epochs = one panel per position with the four epochs OVERLAID; "
+                         "cross = the full 6x6, every position's trials on every position's CD")
+    ap.add_argument("--gate", nargs="+", default=["lick"], choices=tuple(GATES),
+                    help="which trials the direction is fitted on AND the trace is built from. "
+                         "`lick` = success only; `lick_or_working` = success + miss-while-working "
+                         "pooled at the trial level. Run both to see whether miss-while-working "
+                         "carries the same position code as licks.")
     ap.add_argument("--method", default="dom", choices=("dom", "lr"))
-    ap.add_argument("--orth", action="store_true",
+    ap.add_argument("--reference", nargs="+", default=["contrast"], choices=REFERENCES,
+                    help="what position P is contrasted AGAINST. `contrast` = the other five positions (the default everywhere else, and the one whose directions sum to ~0 and so force a shared signal to split sign). `rest` = the flat time-local rest baseline, identical for all six, so nothing cancels. `restw` = each position against ITS OWN rest frames -- conservative, since rest itself carries position information.")
+    ap.add_argument("--orth", nargs="+", default=["off"], choices=("off", "on"),
                     help="project the CONDITION-INDEPENDENT MODE out of every direction. The "
                          "one-vs-rest directions nearly cancel (their sum is 0.289 of a possible "
-                         "6.0), so the shared lick response is forced positive on some positions "
-                         "and negative on others -- which is what the close-position dips are. "
-                         "Renders to a separate _orth file; neither version replaces the other, "
-                         "because orthogonalising also removes any real position information "
-                         "lying along that mode.")
+                         "6.0), so the shared response is forced positive on some positions and "
+                         "negative on others -- which is what the close-position dips are. Give "
+                         "both to render both; neither replaces the other, because orthogonalising "
+                         "also removes any real position information lying along that mode.")
     ap.add_argument("--post-s", type=float, default=None,
                     help="override decode.{align}_post_s; default reads it per alignment")
+    ap.add_argument("--jobs", type=int, default=None, help="parallel animals (default: cores-2)")
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
 
@@ -795,20 +1325,37 @@ def main(argv=None) -> int:
     else:
         from wfield_local.paths import PathResolver
         out = Path(PathResolver().root("figures_working"))
-    for animal in (args.animal or ["PS92", "PS93", "PS94", "PS95"]):
-        for align in args.align:
-            try:
-                res = analyse_animal(animal, align, method=args.method, post_s=args.post_s,
-                                     orth=args.orth)
-            except Exception as exc:
-                print(f"[cd_traj] {animal} {align}: {type(exc).__name__}: {exc}", flush=True)
-                continue
-            if res.get("skipped"):
-                print(f"[cd_traj] {animal} {align}: SKIPPED {res['skipped']}", flush=True)
-                continue
-            tag = f"{args.method}" + ("_orth" if args.orth else "")
-            p = figure(res, out / f"cd_traj_{animal}_{align}_{tag}.png")
-            print(f"[cd_traj] -> {p}", flush=True)
+    Path(out).mkdir(parents=True, exist_ok=True)
+
+    animals = args.animal or ["PS92", "PS93", "PS94", "PS95"]
+    items = [{"animal": a, "aligns": list(args.align), "layouts": list(args.layout),
+              "gates": list(args.gate), "orths": [o == "on" for o in args.orth],
+              "method": args.method, "reference": r, "post_s": args.post_s,
+              "out": str(out)}
+             for a in animals for r in args.reference]
+    n = len(items) * len(args.align) * len(args.gate) * len(args.orth) * len(args.layout)
+    # KEY ON (animal, reference): the same animal under two references is two independent
+    # jobs, but they share the basis and every `cdarms-`/`cdfit-` entry, so the sort keeps
+    # them adjacent rather than interleaved with other animals.
+    print(f"[cd_traj] {len(items)} animal(s) -> {n} figure(s)", flush=True)
+
+    from wfield_local import analysis_kit as ak
+
+    # `fan_sessions` sorts by the ITEM and a dict is not orderable, so the key is required -- and
+    # the sort is not optional: completion order would reorder the log between identical runs.
+    res, fail = ak.fan_sessions(items, _render_animal, jobs=args.jobs,
+                                key=lambda it: (it["animal"], it["reference"]),
+                                label="animal")
+    made, errs = [], [f"{f}" for f in fail]
+    for _it, val in res:
+        if isinstance(val, dict):
+            made += val["made"]
+            errs += val["errors"]
+    for m in made:
+        print(f"[cd_traj] -> {m}", flush=True)
+    for e in errs:
+        print(f"[cd_traj] !! {e}", flush=True)
+    print(f"[cd_traj] {len(made)} figure(s), {len(errs)} problem(s)", flush=True)
     return 0
 
 

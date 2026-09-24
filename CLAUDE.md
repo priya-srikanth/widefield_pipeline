@@ -368,6 +368,15 @@ came from; `docs/status/STATUS_2026-08-17.md` the record of the SEVENTEEN silent
 guards — five of them checks that were themselves broken — which are still in force;
 `docs/status/STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md)**
+— **START HERE for CD trajectories.** Per-position coding directions projected frame by frame, and
+the finding that the position differences in a one-vs-rest CD figure are largely an ARTIFACT: the
+six directions sum to ~0, so any shared signal is forced to split sign across positions. Holds the
+measured fitting window and smoothing width, the four construction bugs the anchor check caught, and
+subspace overlap as a geometry readout — with its two blind spots, that it must be read against a
+chance of K/n and that it cannot see amplitude at all. **`rest`/`restw` are unverified and every
+figure on the share is stale.**
+
 **[`docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md)**
 — **START HERE for the ENL sensory-vs-plan arm.** Does the pre-cue position code survive on trials
 where the animal has STOPPED? This is the first design in the project that can separate a sustained
