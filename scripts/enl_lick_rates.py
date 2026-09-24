@@ -64,6 +64,7 @@ def _worker(item):
         _load_daq_events,
         classify_cues_with_backup,
         lickfree_window,
+        strobe_frames,
     )
 
     lab = item["label"]
@@ -82,13 +83,9 @@ def _worker(item):
     lead_n = int(round(item["lead_s"] * FS))
     ls = np.sort(np.asarray(lick_f))
 
-    # the per-trial spout-strobe frame, exactly as `_trial_features` derives it -- the strict
-    # builder will not slide a window earlier than the strobe, so `no_clean` depends on it
-    cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
-    sr = float(cue["sample_rate_hz"])
-    jj = np.searchsorted(ss, cs, side="right") - 1
-    lead_to_strobe = np.where(jj >= 0, (cs - ss[np.clip(jj, 0, len(ss) - 1)]) / sr, np.nan)
-    strobe_f = cue_f - lead_to_strobe * FS
+    # the per-trial spout-strobe frame -- the strict builder will not slide a window earlier than
+    # this, so `no_clean` depends on it. SHARED with the builder rather than re-derived.
+    strobe_f = strobe_frames(cue, cue_f, FS)
 
     rows = []
     for k in range(cue_f.size):

@@ -43,7 +43,7 @@ from wfield_local import nolick_analysis as na
 from wfield_local import session_cache
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import _load_daq_events, POSITION_NAMES, DISPLAY_ORDER
-from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
+from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.block_ids import block_ids, block_size_max_for
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames
@@ -183,6 +183,32 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
     if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
         return fixed                                          # already clean; keep it cue-aligned
     return lickfree_window(c0, strobe_f, licks_sorted, win_n)
+
+
+def strobe_frames(cue, cue_f, fs):
+    """Per-trial SPOUT-STROBE frame -- the earliest a pre-cue window may be slid back to.
+
+    EXTRACTED 2026-09-24 because this expression had been copied into four modules
+    (`_trial_features`, `precue_lickfree`, `nolick_decoder.categorize`, `scripts.enl_lick_rates`),
+    and `precue_window_start` refuses to slide a window earlier than what it returns -- so a copy
+    that drifted would change which trials are DROPPED for having no lick-free window, silently and
+    in one module only.
+
+    That is not hypothetical in this area. `scripts.enl_state_counts` hardcoded a 2.0 s response
+    window where `nolick_decoder.categorize` used the session's own 3.5 s one, and the two reported
+    different numbers of stopped trials for weeks -- PS93 67 against 40 -- until they were put side
+    by side. Same shape: a quantity the pipeline already defines, redefined locally.
+
+    ``nan`` where a cue has no preceding strobe, which `precue_window_start` reads as "no bound".
+    `filter_acausality_test` deliberately does NOT use this: it wants a lead in SECONDS with a 0.0
+    fallback for a drop window, which is a different quantity with a different missing-value rule.
+    """
+    cs = np.asarray(cue["cue_samples"])
+    ss = np.asarray(cue["strobe_samples"])
+    sr = float(cue["sample_rate_hz"])
+    j = np.searchsorted(ss, cs, side="right") - 1
+    lead_s = np.where(j >= 0, (cs - ss[np.clip(j, 0, len(ss) - 1)]) / sr, np.nan)
+    return np.asarray(cue_f) - lead_s * fs
 
 
 def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
@@ -408,11 +434,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     lickfree = bool(config.defaults()["decode"].get("precue_lickfree", True)) and args.align == "precue"
     ls_sorted = np.sort(np.asarray(lick_f))
     if lickfree:
-        cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
-        sr = float(cue["sample_rate_hz"])
-        jj = np.searchsorted(ss, cs, side="right") - 1
-        lead_s = np.where(jj >= 0, (cs - ss[np.clip(jj, 0, len(ss) - 1)]) / sr, np.nan)
-        strobe_f = cue_f - lead_s * args.fs
+        strobe_f = strobe_frames(cue, cue_f, args.fs)
     else:
         strobe_f = np.full(cue_f.shape, np.nan)
     n_dropped_dirty = 0

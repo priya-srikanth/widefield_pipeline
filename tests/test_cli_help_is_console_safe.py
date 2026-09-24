@@ -44,3 +44,75 @@ def _encodable(c: str) -> bool:
         return True
     except UnicodeEncodeError:
         return False
+
+
+# ------------------------------------------------------------------------------------------
+# The SECOND way `--help` dies, and the reason it is here rather than in a file of its own: it is
+# the same failure -- a module that is otherwise fine, whose `--help` raises for someone trying to
+# find out what it does.
+#
+# argparse %-EXPANDS every `help=` string (`_expand_help` does `help % params`), so a lone `%` in
+# one is a format specification. `nightly_figs` carried "the grant render is ~18% of a run"; `% o`
+# is a space-flagged octal conversion, and `nightly_figs --help` raised
+# `TypeError: %o format: an integer is required, not dict` -- for every argument, not just that one,
+# because formatting happens over the whole help text at once.
+#
+# It had been broken for as long as that sentence existed. The docstring test above could not catch
+# it: the docstring encoded fine, and the break is in an ARGUMENT's help, expanded at render time.
+# Found 2026-09-24 while adding `--skip-enl`.
+#
+# STATIC, not by rendering. Building a real parser means calling each module's `main()`, which
+# parses `sys.argv` and in several modules touches the network on import of its dependencies. The
+# AST pass reads the literal that argparse will be handed, which is where the bug lives.
+# ------------------------------------------------------------------------------------------
+
+def _help_literals(tree):
+    """Every string literal passed as ``help=`` to an ``add_argument`` call."""
+    out = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "add_argument"):
+            continue
+        for kw in node.keywords:
+            if kw.arg == "help" and isinstance(kw.value, ast.Constant) \
+                    and isinstance(kw.value.value, str):
+                out.append((node.lineno, kw.value.value))
+    return out
+
+
+def _bad_percent(text: str):
+    """Positions of a `%` argparse would treat as a conversion. `%%` and `%(name)s` are fine."""
+    bad, i = [], 0
+    while i < len(text):
+        if text[i] != "%":
+            i += 1
+            continue
+        if text[i + 1:i + 2] == "%":            # an escaped literal percent
+            i += 2
+            continue
+        if text[i + 1:i + 2] == "(":            # argparse's own %(default)s style
+            i += 2
+            continue
+        bad.append(i)
+        i += 1
+    return bad
+
+
+@pytest.mark.parametrize("path", MODULES, ids=lambda p: p.stem)
+def test_argument_help_has_no_unescaped_percent(path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    bad = [(ln, t) for ln, t in _help_literals(tree) if _bad_percent(t)]
+    assert not bad, "\n".join(
+        f"{path.name}:{ln} help= has an unescaped '%': {t[:90]!r}" for ln, t in bad) + (
+        "\n\nargparse %-expands help strings, so a lone '%' is a format spec and `--help` raises "
+        "TypeError for the WHOLE parser. Write '%%' for a literal percent sign.")
+
+
+def test_the_percent_check_catches_the_bug_it_was_written_for():
+    """`~18% of a run` is the literal that broke `nightly_figs --help`."""
+    assert _bad_percent("the grant render is ~18% of a run")
+    assert not _bad_percent("the grant render is ~18%% of a run")
+    assert not _bad_percent("defaults to %(default)s")
+    assert not _bad_percent("no percent here at all")

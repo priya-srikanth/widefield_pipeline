@@ -78,7 +78,7 @@ ENL_LICKFREE_WARN = 0.85   # below this, say so: the ENL assumption is the pre-c
 #: The rule that gates the HEADLINE pre-cue number, so it lives beside the
 #: production decoder rather than in this module, which used to be its only
 #: consumer. Re-exported here because callers and DECISIONS.md name it here.
-from wfield_local.locanmf_position_decoder import lickfree_window
+from wfield_local.locanmf_position_decoder import lickfree_window, strobe_frames
 
 
 def trial_table(session, source="roi", pre_s=PRE_S):
@@ -100,12 +100,9 @@ def trial_table(session, source="roi", pre_s=PRE_S):
         blk[k] = b
         prev = int(codes[k])
 
-    # spout arrival, to bound the search (see lickfree_window)
-    cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
-    sr = float(cue["sample_rate_hz"])
-    j = np.searchsorted(ss, cs, side="right") - 1
-    lead_s = np.where(j >= 0, (cs - ss[np.clip(j, 0, len(ss) - 1)]) / sr, np.nan)
-    strobe_f = cue_f - lead_s * FS
+    # spout arrival, to bound the search (see lickfree_window). SHARED with `_trial_features` and
+    # `nolick_decoder` since 2026-09-24 -- four copies of this expression bounded the same search.
+    strobe_f = strobe_frames(cue, cue_f, FS)
 
     X, y, g, nl, off = [], [], [], [], []
     for k in range(cue_f.size):

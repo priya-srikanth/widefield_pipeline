@@ -27,7 +27,6 @@ import pandas as pd
 
 from wfield_local import analysis_kit as ak
 from wfield_local import config, enl_states
-from wfield_local.analysis_kit import RESP_S
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 
 
@@ -35,6 +34,7 @@ def _worker(item):
     """One session -> per-trial state rows. Module-level: spawn pickles by name (rule 6)."""
     from scripts.rest_migration.engagement_decomposition import session_trials
     from wfield_local import epochs
+    from wfield_local.nolick_decoder import response_window_for
     from wfield_local.precue_engagement_states import engagement_gate
 
     lab = item["label"]
@@ -42,7 +42,7 @@ def _worker(item):
     if s is None:
         return []
     try:
-        tr = session_trials(s, RESP_S)
+        tr = session_trials(s, response_window_for(s))
     except Exception as exc:                       # a session without a rest mask, etc.
         return [{"label": lab, "error": str(exc)[:60]}]
     if len(tr) < 60:
@@ -54,9 +54,24 @@ def _worker(item):
     pos = np.array([POSITION_NAMES.get(int(t["pos"]), str(t["pos"])) for t in tr])
 
     max_rt = float(config.defaults()["decode"].get("max_rt_s", 2.0))
-    # `success` is the DECODER's rule (lick within max_rt), not the task's 3.5 s window -- see the
-    # module docstring for why that makes these counts an upper bound on `success` and a lower
-    # bound on working+stopped.
+    # A HIT IS A LICK ANYWHERE IN THE TRIAL WINDOW (Priya, 2026-09-24). Fixed here; it was the whole
+    # of the behaviour-vs-decode gap.
+    #
+    # `session_trials` was called with `analysis_kit.RESP_S` = **2.0 s**, while `decode.max_rt_s` is
+    # **3.5 s** and the task's own response window (`gui_config.json`) is 3.5 s. So `hit` was capped
+    # at 2.0, `success = hit & (lat <= 3.5)` collapsed to just `hit`, and **a lick at 2.5 s was not
+    # a hit at all here** -- it fell through to `stopped` or `working`. The decode calls that same
+    # trial `success`, because `categorize` uses max_rt = 3.5.
+    #
+    # MEASURED, and this is what it cost: PS94 327 vs 326 and PS95 509 vs 495 -- agreeing per
+    # position -- while PS93 read 67 against the decode's 40 and PS92 10 against 6. The two animals
+    # that diverged are the two with the slowest licks, i.e. the most trials landing in the
+    # 2.0-3.5 s band this cap discarded. The handoff had recorded that gap as a behaviour-vs-imaging
+    # UNIVERSE difference; it was not, it was this.
+    #
+    # The window comes from `response_window_for`, the same per-session `gui_config.json` value
+    # `nolick_decoder.categorize` uses, so the two cannot drift apart again (rule 9). `RESP_S` is
+    # left alone: `analysis_kit.session_behavior` defaults to it and that is a separate question.
     success = hit & np.isfinite(lat) & (lat <= max_rt)
     not_eng = engagement_gate(order, hit, pos)
     state = np.where(success, "success", np.where(not_eng, "stopped", "working"))

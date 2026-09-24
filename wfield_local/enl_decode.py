@@ -220,7 +220,7 @@ def arms_for_session(s, align=ALIGN, source=POOLED_SOURCE, post_s=2.0, basis=Non
         stopped        undetected + not engaged  the same, inside the terminal collapse
     """
     from wfield_local.locanmf_frozen_decoder import _args
-    from wfield_local.nolick_decoder import _joint_signal, session_features
+    from wfield_local.nolick_decoder import _joint_signal, session_features_cached
 
     args = _args(source=(FALLBACK_SOURCE if source == "joint" else source),
                  align=align, post_s=post_s)
@@ -229,10 +229,15 @@ def arms_for_session(s, align=ALIGN, source=POOLED_SOURCE, post_s=2.0, basis=Non
         # own time courses and projects any other, and never refits. `session_features` takes the
         # injected signal by the same route `locanmf_position_decoder._trial_features` does, so
         # everything downstream is identical by construction and the basis is the only difference.
-        sig, regs, _vc = _joint_signal(basis, s)
-        F, _feat = session_features(s, args, signal=sig, feat_region=regs)
+        #
+        # PASSED AS `signal_fn`, NOT `signal`: building it is a U/SVT load and a ~100 MB projection
+        # over the network, and it is the expensive half. Deferring it means a cache HIT never
+        # builds it at all, which is the whole saving on this path.
+        F, _feat = session_features_cached(
+            s, args, signal_fn=lambda: _joint_signal(basis, s)[:2],
+            signal_key=f"joint:{getattr(basis, 'basis_id', '?')}")
     else:
-        F, _feat = session_features(s, args)
+        F, _feat = session_features_cached(s, args)
     u = F["undetected"]
     out = {}
     for arm, m in (("miss_working", u["sess_eng"]), ("stopped", ~u["sess_eng"])):

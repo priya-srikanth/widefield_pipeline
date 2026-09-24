@@ -474,13 +474,20 @@ def main():
                          "grant render is 1 h 51 m (96 units, parallel), NOT the 8-10 h this help "
                          "text claimed until 2026-09-14 -- that figure predates the parallel "
                          "renderer and the `_trial_features` memoisation, and a full stage 2 came "
-                         "in at 10 h 26 m with 0 failed steps. The grant render is ~18% of a run, "
+                         # `%%`: argparse %-expands help text, so a lone `%` here is a format
+                         # spec. `~18% of` parsed as a space-flagged octal conversion and made
+                         # `nightly_figs --help` raise TypeError outright. Found 2026-09-24.
+                         "in at 10 h 26 m with 0 failed steps. The grant render is ~18%% of a run, "
                          "so skipping is no longer the routine choice it once was.")
     ap.add_argument("--skip-poststroke", action="store_true",
                     help="skip the post-stroke stage (section G + the map-level analyses)")
     ap.add_argument("--skip-frozen", action="store_true",
                     help="skip the frozen cross-day decoder/encoder step (Allen-ROI, leave-one-session-out). "
                          "It adds ~30-40 min; skipping leaves those deck slides blank.")
+    ap.add_argument("--skip-enl", action="store_true",
+                    help="skip the ENL sensory-vs-plan stage (working vs stopped position decoding "
+                         "plus the lead-lick contamination control). ~10 min per epoch COLD; near "
+                         "free once `nolick_decoder.session_features_cached` is warm.")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL",
                     help="restrict analysis to these animals (e.g. PS93), or 'all'; scopes the decode/"
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
@@ -796,6 +803,46 @@ def main():
         # reads coding_direction.json, so it must follow the line above. Seconds, not
         # minutes: nothing is recomputed, the values are already stored per session.
         cli("wfield_local.miss_vs_stopped", "--output", out)
+
+    # ---------------------------------------------------------------------------------------
+    # ENL SENSORY-VS-PLAN (Priya, 2026-09-24).
+    # docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md
+    #
+    # NOT inside the post-stroke stage, and that is deliberate: PRE-STROKE is the epoch where the
+    # inference is valid -- `stopped` there is the sated state, whereas post-stroke it may be a
+    # late motor collapse with an intact plan. Gating this on `phase_labels("post")` would make
+    # the one interpretable cell depend on the existence of the ambiguous ones.
+    #
+    # ORDER IS LOAD-BEARING. The two count/rate passes come first because they decide whether the
+    # decode output is readable at all, and both figures READ the decode JSONs, so they come last.
+    # ---------------------------------------------------------------------------------------
+    if not args.skip_enl:
+        log("== ENL sensory-vs-plan stage (working vs stopped, + lead-lick control)")
+        enl = Path(out) / "enl"
+        enl.mkdir(parents=True, exist_ok=True)
+        counts = str(enl / "enl_state_counts.csv")
+        # QC first. `enl_lick_rates` is the one that decides how much of the rest is readable: the
+        # second BEFORE the pre-cue window carries a lick on 13.7-90.9% of trials depending on the
+        # animal, and nothing gates it. Tracked nightly so a shift in that rate is visible.
+        cli("scripts.enl_lick_rates", "--cache", str(enl / "enl_lick_rates.csv"))
+        cli("scripts.enl_state_counts", "--by-position", "--cache", counts)
+        jsons = []
+        for _ep in ("pre", "acute", "subacute", "chronic"):
+            j = str(enl / f"enl_decode_{_ep}.json")
+            cli("wfield_local.enl_decode", "--epoch", _ep, "--transfer", "--out", j)
+            jsons.append(j)
+            cli("wfield_local.enl_lick_control", "--epoch", _ep,
+                "--out", str(enl / f"enl_lick_control_{_ep}.json"))
+        for _ep, _j in zip(("pre", "acute", "subacute", "chronic"), jsons):
+            cli("scripts.enl_decode_figure", "--json", _j,
+                "--out", str(Path(out) / f"enl_decode_{_ep}.png"))
+        # PASSED EVERY DECODE JSON, and this is the fix for a figure that was wrong until
+        # 2026-09-24: without them it falls back to BEHAVIOUR-TABLE counts, which overstate the
+        # imaging set (PS93 pre-stroke: 67 vs 40) and are hatched against a floor of 10 -- so the
+        # overstatement lands exactly on the judgement the figure exists to support.
+        cli("scripts.enl_sparsity_figure", "--cache", counts,
+            *[a for j in jsons for a in ("--decode-json", j)],
+            "--out", str(Path(out) / "enl_stopped_sparsity.png"))
 
     # GRANT FIGURES -- deck section H places 19 of these patterns, so by the rule this file already
     # follows for the post-stroke stage ("if it is part of the deck it is part of the nightly") they

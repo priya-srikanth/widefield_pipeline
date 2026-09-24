@@ -29,6 +29,7 @@ where this is known to apply, so a later DLC pass can target them rather than re
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,7 +37,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GroupKFold, cross_val_predict
 
-from wfield_local import config, nolick_analysis as na
+from wfield_local import config, nolick_analysis as na, session_cache
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -48,6 +49,7 @@ from wfield_local.locanmf_position_decoder import (
     _window_feature,
     is_engaged,
     precue_window_start,
+    strobe_frames,
 )
 from wfield_local.locanmf_frozen_decoder import _pipe
 from wfield_local.plot_lick_aligned_averages import (
@@ -268,11 +270,88 @@ def categorize(s, args, with_licks=False):
     #
     # The spout-strobe frame bounds how far `precue_window_start` may slide a window earlier; a
     # cue with no preceding strobe gets NaN, which that function treats as no bound.
-    cs = np.asarray(cue["cue_samples"]); ss = np.asarray(cue["strobe_samples"])
-    sr = float(cue["sample_rate_hz"])
-    jj = np.searchsorted(ss, cs, side="right") - 1
-    lead_to_strobe = np.where(jj >= 0, (cs - ss[np.clip(jj, 0, len(ss) - 1)]) / sr, np.nan)
-    return base + (ls, cue_f - lead_to_strobe * args.fs)
+    return base + (ls, strobe_frames(cue, cue_f, args.fs))
+
+
+#: Every `args` attribute `session_features` reads. Mirrors
+#: `locanmf_position_decoder._FEATURE_ARGS` plus `response_window_s`, which `categorize` takes from
+#: args when present and only otherwise derives from the session.
+_SF_ARGS = ("align", "post_s", "pre_s", "fs", "max_rt", "baseline", "source", "response_window_s")
+
+
+def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
+    """Cache kind for one `session_features` call: every result-changing input, hashed.
+
+    Modelled on `locanmf_position_decoder.feature_cache_kind`, and it inherits that function's
+    central warning: `session_cache` stats DATA files, so anything that lives in `defaults.yaml`
+    changes the result while moving no mtime the signature looks at. Two such keys here, both of
+    which arrived on 2026-09-24 and both of which would otherwise let a stale entry serve features
+    built under the OLD rules:
+
+    * ``lickfree`` RESOLVED -- `decode.precue_lickfree`. This function applied no lick gate at all
+      until 2026-09-24; an entry written before that holds fixed-window features, and serving one
+      afterwards would silently undo the gate.
+    * ``lead_s`` RESOLVED -- `decode.prewindow_lick_lead_s`. It sets the `lead_lick` flag, so a
+      cached arm carries a split computed at whatever interval was configured when it was written.
+
+    ``signal_key`` is the PROVENANCE of an injected signal, for the reason the sibling gives: the
+    same session and args give completely different features from a per-session LocaNMF fit than
+    from a projection onto a shared joint basis, and the signature stats neither.
+
+    CACHE_VERSION IS NOT BUMPED. This is a NEW kind -- no entry under it has ever been written, so
+    there is nothing stale to invalidate, and a bump would discard every OTHER cached kind (RSA,
+    spatial reorganisation, the engagement tables) for a change none of them can see. That is the
+    same reasoning `feature_cache_kind` records for `with_rt`.
+    """
+    spec = {k: getattr(args, k, None) for k in _SF_ARGS}
+    spec["bins"] = _bins_for(args)
+    spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
+    spec["lead_s"] = float(lead_s)
+    spec["signal_key"] = signal_key
+    digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
+    return f"sf-{spec['align']}-{digest}"
+
+
+def session_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=None,
+                            signal_key=None, lead_s=None, verbose=False):
+    """`session_features`, memoised to disk. Computes rather than guesses when it cannot key safely.
+
+    Added 2026-09-24 because `enl_decode` and `enl_lick_control` rebuild these features from scratch
+    on every run -- ~10 min for four animals at ONE epoch, and Priya wants four epochs nightly. The
+    per-session loop is serial by design (the frozen joint basis is one shared object served from
+    MICROSCOPE; fanning it out would pickle and re-read it per worker), so caching is the only place
+    the time can come from.
+
+    TWO REFUSALS, both fail-safe, both copied from `trial_features_cached` because the failure they
+    prevent is the same one: a wrong key here is wrong numbers in every ENL readout at once, not a
+    failed render.
+
+    * AN INJECTED SIGNAL WITH NO ``signal_key`` -- the array cannot go in a key (hashing ~100 MB
+      would cost more than the rebuild), so a caller that injects without saying where it came from
+      gets a correct uncached answer rather than a fast possibly-wrong one.
+    * ``source`` OTHER THAN ``locanmf`` WITHOUT AN INJECTED SIGNAL -- `_build_signal` then reads
+      files `session_signature` does not stat, so a re-preprocess would not invalidate the entry.
+
+    ``signal_fn`` is the injection DEFERRED: a zero-arg callable returning ``(signal, regions)``,
+    invoked only on a miss. That is where the saving actually is for the joint-basis path, where
+    building the signal costs far more than the features derived from it.
+    """
+    if lead_s is None:
+        lead_s = float(config.defaults()["decode"].get("prewindow_lick_lead_s", 1.0))
+
+    def _compute():
+        sig, reg = (signal, feat_region)
+        if signal_fn is not None:
+            sig, reg = signal_fn()
+        return session_features(s, args, signal=sig, feat_region=reg, lead_s=lead_s)
+
+    injected = signal is not None or signal_fn is not None
+    if injected and not signal_key:
+        return _compute()
+    if not injected and getattr(args, "source", "locanmf") != "locanmf":
+        return _compute()
+    kind = session_features_cache_kind(args, signal_key=signal_key or "own", lead_s=lead_s)
+    return session_cache.cached(s, kind, _compute, verbose=verbose)
 
 
 def session_features(s, args, signal=None, feat_region=None, lead_s=None):
