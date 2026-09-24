@@ -2198,6 +2198,91 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## ENL sensory-vs-plan: working vs stopped pre-cue activity (Priya, 2026-09-24)
+
+Full handoff: [`docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md).
+
+**The question.** The spout is in position during the ENL of every trial, so sensory information
+about WHERE it is should be present whether or not the animal is going to move. Comparing trials the
+animal is still working against trials from the terminal quit period uses the animal's own behaviour
+as the switch: remove the intention, leave the stimulus.
+
+**Why it is worth doing.** CLAUDE.md records that the pre-cue readout is "deliberately NOT called a
+maintained motor plan: the spout arrives ~3 s before the cue, so a sustained sensory response and a
+held intention are temporally coextensive and this design cannot separate them." Timing cannot
+separate them; behaviour can. **Position decodable from STOPPED ENL is the first direct evidence
+this project can offer that the pre-cue code is not only a held plan.**
+
+### The counts decide the design (measured, 104 curated sessions)
+
+STOPPED trials per position, pre-stroke: **PS92 has TEN in total** with three positions at zero;
+PS93 ~10 per position; PS94 40-60; PS95 74-98. Animals clearing >=10 per position: **pre 2, acute 3,
+subacute 3, chronic 2**.
+
+**The epoch where the inference is VALID has the least data, and the epochs with data are the ones
+where it is not underwritten.** Pre-stroke `stopped` is genuinely the sated state; post-stroke it may
+be a late motor collapse with an intact plan (`grant_confusion`: "nothing in the spout data proves
+the terminal run is satiety rather than a late motor collapse"). This is structural, not bad luck: a
+well-trained animal does not quit and a lesioned one does, so the thing that creates the data is the
+thing that makes it ambiguous.
+
+**DECIDED: pool positions pre-stroke** -- PS93/94/95 then all clear, which is rule 8's three-animal
+bar. Pooling drops per-position effect sizes; the position LABELS still drive the decoder, so the
+sensory question is untouched.
+
+### THE CLAIM LIVES IN THE DECODE, NOT THE SUBTRACTION
+
+A global state change -- satiety, drowsiness, less fidgeting -- moves total ENL amplitude and cannot
+be told from a lost motor plan. It CANNOT produce above-chance position decoding: being sleepier
+lowers all six positions, it does not make far_L distinguishable from close_R. Position-specificity
+is the property that survives the confound.
+
+That matters more than it first appears, because of the next entry.
+
+### The two classes are TEMPORALLY DISJOINT BY CONSTRUCTION
+
+`engagement_gate` marks ONE terminal run, so `miss_working` exists only BEFORE the onset and
+`stopped` only AFTER -- working always precedes stopped, in every session. The obvious control
+(`precue_engagement_states` draws both classes from the same late window) therefore leaves **ZERO
+working trials**, which a smoke test caught before this ran on data. `adjacent_window` takes working
+trials from a same-length window ending at the onset and `time_gap` reports the residual, but **a
+working-minus-stopped amplitude difference is always partly a late-session difference**. The decode
+compares nothing across classes and inherits none of it.
+
+### Three further errors caught before they reached data
+
+  * **`late_rewarded` was scored as `working`.** A lick after `max_rt` but inside the response window
+    is a HIT -- movement happened, reward arrived -- so scoring it `working` puts a rewarded,
+    executed trial in the class whose purpose is to be outcome-matched to `stopped`.
+    `nolick_decoder` already separates it and `enl_decode` uses that split.
+  * **Block groups restart per session.** Pooling them unchanged lets `GroupKFold` mix block 3 of one
+    session with block 3 of another -- session leakage, and the session is the level this must
+    generalise across. `pool_arms` offsets them.
+  * **The ratio was measured against UNIFORM CHANCE**, the comparison `nolick_analysis` exists to
+    retire, and returned **100** for an arm sitting at chance because `0.167 - 1/6` is a tiny
+    positive rather than zero. Both arms are now measured above their own permutation null, guarded
+    on `above_null_balanced`. (Measured while fixing it: under label skew alone the BALANCED null
+    stays at ~1/6 -- macro-recall is robust to imbalance -- and the 0.211-vs-0.167 figure is the RAW
+    null. The balanced null moves when the PREDICTOR is biased.)
+
+### Standing rules for this analysis
+
+  * `align = "precue"` always; a cue-aligned window contains the response being excluded.
+  * References are **`raw`** and **`rest`** only. `defaults.yaml` states the pre-cue baseline "MUST
+    NEVER BE USED WITH `align: precue`" (self-referential); `mean` couples the six positions.
+  * **Nothing is dropped for sparsity -- it is marked.** "Could not test" and "tested and found
+    nothing" are different facts, and only one is evidence of absence.
+  * Post-stroke is computed and reported but **never** supports "no plan was formed" until
+    `precue_engagement_states`' discriminator shows the gate separates in cortex.
+    `enl_states.witness_verdict` defaults to DESCRIPTIVE ONLY rather than the favourable reading.
+
+### What a positive result will not license
+
+Accuracy is not linear in information, so "40% of the ENL signal is sensory" is not supportable;
+"the position code survives at X% of its working-trial accuracy, both above null" is. And attention
+rides with engagement -- a stopped animal may attend the spout less -- so a reduced-but-present code
+could be attenuated sensory rather than sensory-minus-plan.
+
 ## Lick BOUT ONSETS as the motor event set (decided 2026-08-17)
 
 The lick-aligned decoder uses ONE lick per trial and discards 80–93% of lick events. `lick_bout_events`

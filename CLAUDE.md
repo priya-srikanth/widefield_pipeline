@@ -368,6 +368,15 @@ came from; `docs/status/STATUS_2026-08-17.md` the record of the SEVENTEEN silent
 guards — five of them checks that were themselves broken — which are still in force;
 `docs/status/STATUS_2026-08-14.md` the drift-removal decision week.)
 
+**[`docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](docs/status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md)**
+— **START HERE for the ENL sensory-vs-plan arm.** Does the pre-cue position code survive on trials
+where the animal has STOPPED? This is the first design in the project that can separate a sustained
+sensory response from a held intention, which CLAUDE.md otherwise records as inseparable. Holds the
+measured trial counts (pre-stroke PS92 has TEN stopped trials in total), the decision to pool
+positions pre-stroke, and four errors caught before they reached data — including two classes that
+are temporally disjoint by construction and a ratio that returned 100 for an arm at chance.
+`enl_states` / `enl_decode` are built and unit-tested; their session loops are not yet wired.
+
 **[`docs/status/STATUS_2026-09-21_ENGINEERING.md`](docs/status/STATUS_2026-09-21_ENGINEERING.md)** — **START
 HERE if you are working on the CODE rather than the science.** Priya's current focus: efficient,
 modular, readable, editable. Holds the measured inventory (9 duplicate bootstrap helpers, 70

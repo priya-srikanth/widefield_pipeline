@@ -47,13 +47,12 @@ way the comparison answers anything.
 """
 from __future__ import annotations
 
-import glob
 from functools import lru_cache
 
 import numpy as np
 
 from wfield_local.beta_maps import (
-    MAP_SHAPE, MIN_TRIALS_PER_CLASS, _quit_mask, _runs_to_blocks,
+    MAP_SHAPE, MIN_TRIALS_PER_CLASS, _quit_mask,
 )
 
 #: The references this module can express a position map in. ALL THREE ARE COMPUTED HERE as of
@@ -357,6 +356,26 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         if keep_n.any():
             X = np.vstack([X, np.asarray(Xn)[keep_n]])
             y = np.concatenate([y, np.asarray(yn)[keep_n]])
+    elif variant in ("miss_working", "stopped"):
+        # THE ENL SENSORY-vs-PLAN CONTRAST (Priya, 2026-09-24; `enl_states`). `working` above pools
+        # engaged trials WITH miss-while-working, which is right for a position map and wrong for
+        # this question: the spout is in position on every trial, so the comparison that isolates
+        # the motor plan has to hold OUTCOME fixed and vary only whether the animal was still
+        # working. Both of these classes are therefore NO-LICK trials, split by the same
+        # `_quit_mask` the `working` arm uses -- one gate, complementary sides, so a trial cannot
+        # be in both or in neither.
+        #
+        #     miss_working   no lick, before the terminal collapse   -- a plan was plausibly formed
+        #     stopped        no lick, inside the terminal collapse   -- pre-stroke, no plan
+        #
+        # The engaged (`X`, `y`) rows are dropped outright rather than being another class: a
+        # success trial differs from both in reward and in movement, which is exactly the confound
+        # the pairing removes. `enl_states --with-success` re-adds it as a sensitivity arm.
+        if not len(yn):
+            return np.empty((0, X.shape[1])), np.empty(0)
+        q = _quit_mask(session, idx_e, idx_n, y, yn)
+        sel = q if variant == "stopped" else ~q
+        X, y = np.asarray(Xn)[sel], np.asarray(yn)[sel]
     return X, y
 
 
