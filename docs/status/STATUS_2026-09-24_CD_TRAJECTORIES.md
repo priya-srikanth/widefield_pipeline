@@ -150,8 +150,12 @@ So 0.61 is **~30× chance**. Both readings are true and they answer different qu
 
 **Only the second licenses discounting a post-stroke panel.** Per position, residual =
 0.62 × |SHARED|, against the position-specific signal that survives orthogonalisation.
-**THE TABLE BELOW IS ~35% TOO OPTIMISTIC** — it assumes the shared amplitude is unchanged
-post-stroke, and `cim_scale` has since measured it GROWING (see below). Multiply by ~1.35.
+**THE TABLE BELOW IS OPTIMISTIC BY A FACTOR THAT IS NOW MEASURED AND IS NOT UNIFORM.** It assumes
+the shared amplitude is unchanged post-stroke; `cim_scale` measures it GROWING in 12 of 12 cells.
+Leak = `sqrt(1 − overlap) × scale` runs **0.68 to 1.46, mean 0.89**, against the 0.62 assumed here —
+so between 10% and 130% worse, not a flat 35%. **PS94 chronic exceeds 1.0 in all three alignments**
+(1.40–1.46): more unremoved shared amplitude than the whole pre-stroke shared response, against a
+position-specific signal of ~1–2. That panel is not readable at any scaling.
 
 | position | \|SHARED\| | residual | signal | ratio |
 |---|---|---|---|---|
@@ -172,8 +176,30 @@ overlap is SCALE-INVARIANT, so a response that keeps its orientation and halves 
 For a lesion study that is a blind spot on the most likely effect.
 
 `cim_scale` now reports the magnitude beside it (Frobenius norm of the grand-mean deviation, as a
-ratio to pre). **MEASURED, PS95 pre-cue: 1.00 / 1.51 / 1.35 / 1.32** — the shared response is a
-third to a half LARGER after the lesion.
+ratio to pre). **MEASURED ACROSS ALL FOUR ANIMALS AND ALL THREE ALIGNMENTS** (2026-09-24 evening;
+the PS95-only figure that used to stand here was 1.00 / 1.51 / 1.35 / 1.32 and it generalises):
+
+| magnitude / pre | acute | subacute | chronic | overlap range |
+|---|---|---|---|---|
+| PS92 | 1.10 | **1.61** | 1.28 | 0.60–0.63 |
+| PS93 | 1.32 | 1.49 | **1.75** | 0.57–0.72 |
+| PS94 | 1.17 | 1.21 | **1.74** | **0.33**–0.64 |
+| PS95 | **1.51** | 1.35 | 1.32 | 0.61–0.68 |
+
+**Above 1.0 in 12 of 12 cells, mean 1.41.** The TIME COURSE differs per animal — PS93 and PS94 climb
+to chronic, PS92 peaks subacute, PS95 acute — so only the SIGN is claimed, and that is unanimous
+(rule 8: present in all four individually).
+
+**CUE IS NOT AN INDEPENDENT REPLICATION OF PRE-CUE.** `session_arms` centres BOTH on the cue
+(`at = c0`); the align token only chooses which window the DIRECTION is fitted on, and these two
+quantities come from the grand mean alone. So the two agree by construction and differ only in the
+trial set (pre-cue drops trials with no lick-free window; PS93 shows the difference is real but
+small, K=2 vs 3). **LICK is the independent alignment** and gives 12/12 above 1.0, mean 1.43.
+**Effective n is 12 cells, not 24.**
+
+**PS94 CHRONIC IS THE ONLY CELL IN THE REORGANISATION CORNER** — lowest overlap (0.332–0.338) AND
+largest amplitude (1.72–1.79), consistent across all three alignments. Overlap down with scale up is
+the only combination that means the code went somewhere else rather than got stronger or weaker.
 
 Two consequences, and the first is a finding in its own right:
 
@@ -267,6 +293,9 @@ despite surviving 93% intact) becomes visible where the old scaling hid it.
 
 ## NOT DONE / NOT VERIFIED — read this before trusting anything on the share
 
+0. **SUPERSEDED IN PART — read "STATE AT 2026-09-24 EVENING" below first.** Items 3 (persistence),
+   5 (the null, now built but not run) and the overlap figure are done; item 2's re-render is done for
+   `contrast`/`lick`/`orth on`.
 1. **`rest` / `restw` HAVE NEVER COMPLETED A RUN.** The code is written and unit-tested against
    synthetic data; the one real-data attempt died before producing a result. **Verify before using.**
 2. **Every figure currently on the share is STALE** —
@@ -313,7 +342,8 @@ mean** (which dimensions rotate is the finding); and the matched null above.
 
 ## STATE AT COMPACTION (2026-09-24)
 
-**Committed as `eed1731`. NOT PUSHED** — the push was interrupted; run it. 2547 tests green.
+**`eed1731` and `a11a136` are PUSHED** (`origin/main`, verified in sync). The evening's work is
+NOT yet committed.
 
 ### DO THESE IN ORDER
 
@@ -334,6 +364,82 @@ mean** (which dimensions rotate is the finding); and the matched null above.
 5. **The subspace-overlap null** — see below. Without it, 0.61 has no scale beyond K/n.
 6. **miss-while-working projected onto the cue and lick CDs**, which Priya asked to keep OUT of
    these figures (*"separately (to not clutter these figures)"*).
+
+## STATE AT 2026-09-24 EVENING — what changed since the morning handoff
+
+### DONE
+
+1. **Figure data PERSISTS** (was item 3, Priya's explicit ask). `save_result` / `load_result` /
+   `result_tag` on top of `wfield_local/results_store.py` — the repo's existing store, not a new one
+   (rule 9). `--replot` redraws from `<out>/results/` and computes nothing. `RESULT_GUARD` **refuses**
+   a dump made under different constants rather than redrawing it under today's title, which is the
+   `COURSE_VERSION` lesson applied to the dump: a saved result is a cache too.
+2. **All 24 figures + 12 dumps re-rendered** for `contrast`/`lick`/`--orth on`, all animals, all
+   three alignments. 0 problems.
+3. **`cim_scale` measured across animals** — see above. This was the open item the morning handoff
+   flagged as resting on one animal.
+4. **The overlap figure exists**: `scripts/cd_geometry_figure.py`, three rows — overlap against its
+   K/n chance BAND, magnitude, and `sqrt(1−overlap) × scale` with a dashed line marking what the
+   residual table assumed. Reads the dumps, computes nothing, so it cannot drift from the panels.
+5. **The trial-matched pre-to-pre null is built**: `wfield_local/cd_overlap_null.py` (+ 10 tests).
+   See DECISIONS.md for the construction, why it is TRIALS not sessions, and the two bugs found.
+6. **`wfield_local/component_exclusion.py`** — which components sit under the painted glue or in a
+   bulb, and `cd_trajectories --mask-occluded` to drop them. See DECISIONS.md: about a quarter of
+   every basis, no preferential loading by the CD, and dropping them costs no more than dropping a
+   random quarter.
+
+### BUGS FIXED (both were live and both were silent)
+
+* **The two passes disagreed about which trials the grand mean is over** while writing ONE cache key.
+  Pass 1 averaged every class in the gate, pass 2 `success` only, so under `--gate lick_or_working`
+  whichever session ran first won the key: a two-class pre-stroke mean against one-class post-stroke
+  ones, i.e. a trial-composition change arriving as an amplitude change **in `cim_scale`, which
+  exists to measure amplitude changes**. Identical under `--gate lick`, which is why the default path
+  was correct and this stayed invisible. The accumulation is now ONE function, `grand_means`, and the
+  cache token is `cdgm2-` because the old entries cannot be told apart from correct ones by key.
+* **Every figure title named no reference at all.** `f"{{'contrast': …}}[res.get('reference')]"` —
+  doubled braces make the dict a literal and the subscript plain text, so the title printed the
+  source of the lookup instead of its answer. Now `REFERENCE_LABEL`.
+
+### STILL OPEN, in order
+
+1. **Run the matched null on real data** and report `observed − null` per cell. Until then the 0.59
+   overlap and the 1.41 scale have no scale beyond K/n — *"the right comparison [is] the amplitude
+   and cosine similarity of pre to pre vs pre to post stroke"* (Priya).
+2. **Fold subsampling for the trial match** (Priya: *"can we do subsampling of each session for
+   trial matching"*). K disjoint trial-fold means per session instead of one; see DECISIONS.md for
+   why this also gives the split-half debias for free. PS93 acute/subacute need it (6.9%/10.6%
+   mismatch on whole sessions).
+3. **`restw` is STILL unverified** — it has never completed a run on real data.
+4. **DONE — outputs are on the server** (Priya, 2026-09-24: *"outputs should go to the widefield
+   directory on the server when appropriate"*) at
+   `N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures/cd_trajectories`: 26 current PNGs plus the
+   geometry figure, dumps in `results/`, and the **62 superseded pre-fix figures MOVED to `retired/`
+   rather than deleted** (rule 1 — never delete on MICROSCOPE; `retired/` is already a recognised
+   layout dir). `cd_trajectories.default_out()` now resolves `cue_analysis_out` and
+   `cd_overlap_null` shares it, so there is ONE answer to where this arm writes.
+   `check_figure_layout` reports 0 strays. Two things that constrain the location and are easy to
+   trip over: `nightly_figs._publish_figs` globs `*.json` at the TOP level of that root as publish
+   inputs (hence the `results/` subdir), and the root has NOT adopted `figure_layout`. The old
+   `Claude outputs/enl_cd_20260924` copy is still in place and can be removed once Priya confirms.
+5. **`locanmf_decoder_weights` maps weights to anatomy through the RAW mask** (lines 227, 473) with
+   no glue or bulb subtraction. This is the one place the exclusion is a genuine defect rather than a
+   scope difference — see DECISIONS.md.
+6. **miss-while-working projected onto the cue and lick CDs**, which Priya asked to keep OUT of these
+   figures.
+7. **The gate comparison** (`lick` vs `lick_or_working`) has never been rendered since the `cdgm2-`
+   fix, and that fix only changes anything for `lick_or_working`.
+8. **A SELECTIVITY GATE on components** is the most promising open idea and it is not built. See
+   DECISIONS.md: it is the 2p-faithful answer to equal-variance weighting, and it would subsume the
+   glue question by dropping components for WHAT THEY CARRY rather than where they sit.
+9. **`--method lr` as a third arm.** It cuts the occluded components' weight share to 15-20% in three
+   of four animals. Never rendered.
+10. **DONE — the decoder mask test says no.** Median change −0.9% over 15 (animal, epoch) cells,
+   improving in 5 of them; see DECISIONS.md. No published decoder number needs revisiting.
+11. **Post-stroke CD panels are mask-sensitive** (DECISIONS.md, 2026-09-24): pre-stroke is robust
+   (median r 0.885-0.910) but individual post-stroke cells move and one reverses sign, and the cells
+   that move are the low-`surviving` ones. Any post-stroke claim needs the `--mask-occluded` arm
+   beside it; only PS94 and PS95 pre-cue have been run.
 
 ## PROCESS NOTE — two background jobs were lost to this
 

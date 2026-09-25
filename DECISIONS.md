@@ -2198,6 +2198,260 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## THE DECODERS DO NOT NEED REDOING WITH THE MASK -- measured, all four animals (2026-09-24)
+
+Priya: *"and bigger blast radius (2) should we have done this for ALL the decoder analyses??"* and
+*"are you running (or have you run) the analyses to test whether we need to redo decoders with
+masks"*. Run: `scripts/component_exclusion_audit.py --arm decoder`. Six-way balanced accuracy with the
+pipeline's estimator family, grouped by SESSION (stricter than the production block CV), scored above
+its own permutation null with predictions held fixed.
+
+    animal  epoch      all   clean   change   occluded ALONE (above null)
+    PS92    pre       0.239   0.229   -4.2%        0.066
+    PS92    acute     0.248   0.246   -0.8%        0.096
+    PS92    subacute  0.147   0.136   -7.5%        0.036
+    PS92    chronic   0.318   0.312   -1.9%        0.133
+    PS93    pre       0.286   0.283   -1.0%        0.115
+    PS93    acute     0.163   0.182  +11.7%        0.048
+    PS93    subacute  0.126   0.111  -11.9%        0.006
+    PS93    chronic   0.378   0.370   -2.1%        0.140
+    PS94    pre       0.472   0.478   +1.3%        0.108
+    PS94    acute     0.275   0.279   +1.5%        0.076
+    PS94    subacute  0.448   0.444   -0.9%        0.112
+    PS94    chronic   0.507   0.513   +1.2%        0.118
+    PS95    pre       0.291   0.289   -0.7%        0.101
+    PS95    subacute  0.304   0.310   +2.0%        0.098
+    PS95    chronic   0.406   0.389   -4.2%        0.128
+
+**MEDIAN CHANGE -0.9%, AND MASKING IMPROVES THE READOUT IN 5 OF 15 CELLS.** The two +-12% extremes are
+PS93 acute and subacute, its smallest epochs (n = 1150, 1231), where the estimate is noisiest -- and
+they run in OPPOSITE directions. There is no systematic cost, so **no published decoder number needs
+revisiting on these grounds** (which matters, because re-masking the input would change `spec_id` and
+invalidate every frozen model -- rule 10).
+
+**THE OCCLUDED COMPONENTS DO CARRY POSITION INFORMATION** -- above their own null in 14 of 15 cells,
+median 0.101 -- but it is REDUNDANT, which is why removing them costs nothing. That is what light
+scattering through glue predicts: a blurred report of nearby cortical activity, genuine as signal and
+useless as localisation. It also means "there is nothing under the glue" would be the wrong reason to
+mask; the right one is that nothing is LOST by masking.
+
+**PS95 ACUTE IS ABSENT BY CONSTRUCTION**, not by failure: it is a single session, and the audit needs
+at least two groups to hold one out. A one-session epoch cannot be cross-validated across sessions.
+
+## DECIDED: the CD DROPS the glue/bulb components (Priya, 2026-09-24)
+
+Priya, after the measurements below: *"i think for the CD analyses we should drop the masked
+components"*. So `cd_trajectories --occluded` defaults to `drop`, and `analyse_animal`'s
+`mask_occluded` defaults to True. `keep` stays reachable, because it is the arm every figure on the
+share before today was, and the comparison should remain runnable rather than becoming archaeology.
+
+**THE DECISION RESTS ON AN ASYMMETRY, not on the components being contaminated.** Dropping them is
+CHEAP -- 9-14% of the pole gap, which is what dropping any random quarter costs, and 1-7% of the
+decoder's above-null signal (PS94: dropping slightly IMPROVES it). Keeping them is EXPENSIVE in a way
+that only shows up post-stroke: the post-stroke panels are sensitive to the choice, and PS95 acute
+close_center reverses sign depending on it. A robustness caveat on every post-stroke panel costs more
+than 10% of a gap.
+
+**THE TAG STILL SAYS `cortexonly`.** Dropping the qualifier from the new default would have the masked
+figures overwrite the unmasked ones under identical filenames -- a silent substitution, with 12
+unmasked dumps already on the server. The files say what they are.
+
+**WHAT THIS DOES NOT DECIDE.** The decoders are unchanged: `spec_id` hashes the inputs, so re-masking
+them would invalidate every frozen model and every post-stroke retained fraction scored in it (rule
+10), and the measurement says the readout does not need it. The one genuine defect stands --
+`locanmf_decoder_weights` maps weights to anatomy through the RAW mask.
+
+## EQUAL-VARIANCE WEIGHTING: the noise floor of the CD, measured (Priya, 2026-09-24)
+
+Priya: *"isn't their weighting equally to all other components (unique to cd analysis) something we
+wouldn't want?"* -- the objection is correct in principle and it is SPECIFIC to `method="dom"`. After
+z-scoring, `w = mean(P) - mean(not-P)` gives every component a weight equal to its standardised mean
+difference and NOTHING penalises a component whose difference is sampling noise. The decoders
+standardise too, but `LogisticRegression(C=0.5)`'s L2 penalty shrinks an uninformative coefficient;
+a difference of means has no such mechanism.
+
+**MEASURED by fitting the same direction on labels shuffled WITHIN SESSION**, where every weight is
+noise by construction (pre-cue, pre-stroke):
+
+    animal    n     ||w_shuf||/||w_real||   noise share of POWER   occluded share: real / shuffled / lr
+    PS92    3829          0.311                    9.6%                 23.5% / 29.5% / 23.7%
+    PS93    5293          0.168                    2.8%                 25.5% / 25.7% / 19.5%
+    PS94    5691          0.167                    2.8%                 22.6% / 27.7% / 15.3%
+    PS95    5958          0.273                    7.5%                 29.8% / 30.7% / 16.6%
+
+**Two conclusions, and the second corrects an earlier reading in this file.**
+
+  * EQUAL WEIGHTING IS NOT FLOODING THE DIRECTION WITH NOISE: 2.8-9.6% of its power is what shuffled
+    labels produce. The concern is real and the magnitude is small here.
+  * "THE OCCLUDED SHARE EQUALS THEIR SHARE BY COUNT" IS THE NULL EXPECTATION, NOT REASSURANCE. Under
+    shuffled labels the occluded components take 25.7-30.7%, i.e. their count share -- which is
+    exactly what a component with no signal gets under equal weighting. The real fit gives them
+    22.6-29.8%, **at or BELOW that**, and clearly below it in PS92 (23.5 vs 29.5) and PS94 (22.6 vs
+    27.7). So the signal is preferentially in the CLEAN components. The correct statement is "at or
+    under the noise floor", not "no preferential loading".
+
+`method="lr"` -- the regularised discriminant already in `pcd.direction` -- cuts the occluded share
+to 15.3-19.5% in three of four animals (PS92 unchanged at 23.7%), so shrinkage does concentrate
+weight on informative components. Worth a third arm, NOT a silent default change: z-scored
+difference-of-means is the faithful port of the 2p convention Priya asked for, where the noise problem
+is handled by SELECTING SELECTIVE CELLS rather than by changing the weighting. **The 2p-faithful fix
+is therefore a SELECTIVITY GATE** -- include a component only if its position information exceeds its
+own noise floor -- and that gate would subsume the glue question entirely, since an uninformative
+occluded component fails it automatically. It drops components for WHAT THEY CARRY rather than WHERE
+THEY SIT, which is the right criterion for a readout as against a map.
+
+## THE MASK DOES NOT MOVE THE PRE-STROKE CD AND DOES MOVE THE POST-STROKE PANELS (2026-09-24)
+
+Priya: *"can we do a limited test to see if the CDs look different with masked locanmf basis"*. Run on
+PS94 and PS95, pre-cue, `--orth on`, comparing the persisted dumps cell by cell (peak at the SAME time
+point, and the correlation of the two time courses):
+
+    animal   median r   median peak ratio   worst post-stroke cells
+    PS94       0.910         0.99           acute far_R r=0.081, acute far_center 0.490, far_L 0.579
+    PS95       0.885         0.91           acute close_center +3.90 -> -1.13 (SIGN FLIP), r=0.333
+
+**PRE-STROKE IS ROBUST** (PS94 r = 0.74-0.998, PS95 0.81-0.99), consistent with the separation test:
+dropping those components costs about what dropping any quarter costs. **POST-STROKE IS NOT.** Several
+panels change substantially and one reverses sign.
+
+**AND THE CELLS THAT MOVE ARE THE ONES WITH LOW SURVIVING FRACTIONS** -- PS95 close_center 61%/58%,
+PS94 far_R 69%/67% -- the same panels the original-gap scaling already prints in red. Two independent
+diagnostics selecting the same weak cells is reassuring about both and damning about those panels.
+
+**SO THE EARLIER "NOTHING TO CORRECT" WAS SCOPED TOO WIDELY.** It holds for the pre-stroke fit and its
+separation. It does NOT license a post-stroke trajectory: any claim read off a post-stroke panel needs
+the masked arm beside it, especially below ~70% surviving.
+
+## The glue/bulb exclusion is a SCOPE difference, not a bug in the decoders (Priya, 2026-09-24)
+
+Priya: *"for the map analyses we do in this repo, we masked the area covered by glue and some rim
+regions. (1) should we apply that before doing CD on the locaNMF components? and bigger blast radius
+(2) should we have done this for ALL the decoder analyses??"*
+
+**THE FACT IS REAL AND WAS NOT KNOWN.** `beta_maps.brain_mask()` subtracts the olfactory bulbs and
+the hand-painted fibre glue, and every MAP analysis goes through it. LocaNMF and every decoder load
+the RAW `allen_brain_mask_native_grid.npy`. Measured per animal at a 0.5 mass threshold
+(`wfield_local/component_exclusion.py`):
+
+    animal  ncomp  >50% under glue  >50% in a bulb   basis mass under glue
+    PS92      95         24               4                 11.0%
+    PS93      87         19               3                 10.7%
+    PS94      90         20               4                 11.2%
+    PS95      95         24               4                 12.6%
+
+About a QUARTER of every animal's basis, several components 100% inside the painted glue.
+
+**THE PRINCIPLE: MASK WHERE LOCATION IS THE CLAIM.** Glue scatters light, so a map asserting "this
+signal is in VISp" is false where glue sits -- hence the mask. A decoder or a coding direction claims
+that position is linearly readable from cortical activity and asserts nothing about where, so a
+smeared-but-real signal costs spatial precision, not validity.
+
+**AND IT IS NOT CONTAMINATION, MEASURED THREE WAYS.**
+
+  * NO PREFERENTIAL LOADING. The pre-cue CD's share of |w| on occluded components is 22.6-29.8%
+    against their share BY COUNT of 25.3-29.5%, in all four animals. An artefact channel tracking
+    spout position would be ENRICHED; it is not.
+  * THE COST OF DROPPING THEM IS THE COST OF DROPPING ANY QUARTER. Separation kept 85.8-91.0%,
+    against 83.1-86.3% for 30 random subsets of the same size -- and in PS92 the occluded quarter was
+    the LEAST costly of all 30 draws.
+  * Independently, `painted_exclusion` recorded before adoption that the union is 19.6% of the
+    post-MOB mask but holds only 3-4% of each position's acute effect energy, with effect RMS in kept
+    cortex ~3x that inside the excluded zone. The position code lives in SSp/MO.
+
+**THE ONE PLACE IT IS A DEFECT.** Wherever a component's weight is drawn on the brain or attributed
+to a region, the reasoning above stops applying. `locanmf_decoder_weights` loads the raw mask at both
+of its map sites (lines 227 and 473) with no glue or bulb subtraction, so a weight map there can put
+decoder weight on occluded cortex and name the region. DECISIONS.md already records bulb and glue
+components reaching the max-statistic family in `epoch_15h_rotation_regions` -- the same failure.
+
+**Z-SCORING MADE IT MORE PRESSING, THE SAME DAY, FOR AN UNRELATED REASON.** `cd_trajectories` now
+standardises the components before fitting (per-component sd spans 107x; the top five hold 82% of the
+variance). That was right on its own terms and it removed the amplitude protection that had been
+implicitly down-weighting a dim, mostly-occluded component: after standardising, such a component is
+scaled to unit variance and competes on equal terms.
+
+**WHY THIS IS AN OPTION AND NOT A NEW DEFAULT.** `spec_id` hashes the INPUTS, so changing the
+component set changes every frozen model's spec: every post-stroke retained-fraction number is scored
+in a frame that would cease to exist, and all of them would need refitting from a new frozen
+pre-stroke model (rule 10, `docs/FROZEN_MODELS.md`). Dropping COLUMNS of an existing basis is
+reversible and comparable; refitting LocaNMF on masked data is neither. So
+`cd_trajectories --mask-occluded` exists as a robustness arm and the default is unchanged.
+
+## cim_scale ACROSS ANIMALS: the shared response GROWS after stroke, 12/12 (Priya, 2026-09-24)
+
+The handoff had this on PS95 pre-cue alone and flagged that it rewrote the residual arithmetic. Now
+all four animals and all three alignments:
+
+    magnitude / pre        acute  subacute  chronic        overlap with pre (chance 0.021-0.034)
+    PS92                    1.10    1.61      1.28         0.60-0.63
+    PS93                    1.32    1.49      1.75         0.57-0.72
+    PS94                    1.17    1.21      1.74         0.33-0.64
+    PS95                    1.51    1.35      1.32         0.61-0.68
+
+**ABOVE 1.0 IN 12 OF 12 CELLS, mean 1.41.** The time course differs per animal -- PS93 and PS94 climb
+to chronic, PS92 peaks subacute, PS95 acute -- so only the SIGN is claimed, and that is unanimous
+(rule 8: visible in all four individually).
+
+**CUE IS NOT AN INDEPENDENT REPLICATION OF PRE-CUE, and the near-identical numbers must not be read
+as one.** `session_arms` centres BOTH on the cue (`at = c0`); the align token only chooses which
+window the DIRECTION is fitted on. Since `cim_cos` and `cim_scale` come from the grand mean alone,
+the two alignments measure nearly the same thing and differ only in the trial set (pre-cue drops
+trials with no lick-free window). PS93 shows the difference is real but small (K=2 vs 3, chronic
+overlap 0.583 vs 0.696). **LICK alignment is the independent one** -- centred on first lick -- and it
+gives 12/12 above 1.0 with mean 1.43. So the effective n is 12 cells, not 24.
+
+**THE RESIDUAL LEAK IS WORSE AND LESS UNIFORM THAN THE "~35%" THE HANDOFF ESTIMATED.** Leak is
+`sqrt(1 - overlap) x scale`; measured across all cells it runs **0.68 to 1.46, mean 0.89**, against
+the 0.62 the first residual table assumed. **PS94 chronic exceeds 1.0 in all three alignments**
+(1.40-1.46) -- more unremoved shared amplitude than the entire pre-stroke shared response, against a
+position-specific signal of ~1-2. That panel is not readable.
+
+**PS94 CHRONIC IS THE ONE CELL IN THE REORGANISATION CORNER**: lowest overlap (0.332-0.338) AND
+largest amplitude (1.72-1.79), consistently across all three alignments. Overlap down with scale up
+is the only combination that says the code went somewhere else rather than got stronger or weaker.
+
+## The overlap null must be TRIAL-matched, and two ways of getting it wrong (Priya, 2026-09-24)
+
+Priya: *"if we're arguing anything about changing direction isn't the right comparison the amplitude
+and cosine similarity of pre to pre vs pre to post stroke?"* -- yes. 0.59 and 1.43 say nothing on
+their own; the quantity is the PAIRED DIFFERENCE against a pre-to-pre value computed the same way.
+`wfield_local/cd_overlap_null.py` builds it: disjoint pre-stroke groups A and B, null is
+`overlap(CIM(A), CIM(B))` and `||dev(B)||/||dev(A)||`, observed is the same against the SAME A, so
+only the second group's identity differs.
+
+**TRIALS, NOT SESSIONS** (Priya: *"trial-matched?"*). `rest_baseline_epoch_drift` matches on session
+count, which is right for BETWEEN-session drift. The bias here is WITHIN-session estimation noise:
+`dev_norm` is a norm, so a noisier grand mean is a larger one, and post-stroke sessions have fewer
+trials -- **the bias points the same way as the finding**. A session-count match leaves it in place.
+
+**TWO BUGS, ONE STRUCTURAL.** (1) Climbing to the single best subset made every draw return the SAME
+split -- all 200 identical, so the null had zero width and its interval was a point. It now stops at
+a tolerance (`MATCH_TOL = 0.05`), which samples the space of adequately matched splits instead of
+optimising. (2) Whole sessions are the only unit available from the cached per-session means, so B's
+total moves in steps of one session; where an epoch's total falls below the smallest pre-stroke
+session, no subset can reach it at all.
+
+**FEASIBLE ON THIS COHORT, with two exceptions.** Best achievable match, as a fraction of the
+epoch's trial total:
+
+    animal   acute  subacute  chronic
+    PS92      0.0%    1.1%     0.0%
+    PS93      6.9%   10.6%     0.1%      <- pre-stroke sessions unusually uniform (453-565 trials)
+    PS94      0.0%    0.0%     0.0%
+    PS95      0.7%    0.0%     0.0%
+
+PS93 acute and subacute are matched as well as the data allows and the achieved gap is reported per
+cell. **PS95 acute is a SINGLE session** (454 trials), so that epoch has no session-level variability
+at all.
+
+**THE FIX FOR THE GRANULARITY IS FOLD SUBSAMPLING** (Priya: *"can we do subsampling of each session
+for trial matching"*): cache K disjoint trial-fold means per session instead of one mean. At K=8 the
+unit drops from a whole session (374-675 trials) to 47-84, taking PS93's worst mismatch to ~1%; a
+mean over j folds is a mean over real disjoint trials, so its noise is exactly right; the split-half
+noise estimate for debiasing `dev_norm` falls out of the same product; and the n-weighted average of
+all K folds reproduces the current mean exactly, so nothing already computed changes. 0.7 MB per
+session against the 42 MB storing every trial would need.
+
 ## CD trajectories, and subspace geometry as a readout (Priya, 2026-09-24)
 
 Full handoff: [`docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md).

@@ -6,6 +6,8 @@ for an ENL window -- and such a vector cannot be applied to a single frame. If t
 inherits that shape, every trajectory becomes a projection of frame t through weights fitted for a
 different moment, which is not a coherent readout and would not raise.
 """
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -284,3 +286,95 @@ def test_surviving_is_absent_when_not_orthogonalising():
     X = rng.normal(size=(400, 10))
     _dirs, surviving = cdt.fit_directions(X, y, list(range(6)), with_surviving=True)
     assert surviving == {}
+
+
+# ------------------------------------------------------------------ persisted figure data
+
+
+def _fake_result(**over):
+    """A result with the SHAPE `analyse_animal` returns -- tuple trace keys, int surviving keys."""
+    t = 7
+    res = {"animal": "PS99", "align": "precue", "method": "dom", "basis_id": "deadbeefcafe",
+           "ncomp": 12, "fs": 10.0, "span": (-3.0, 4.0), "pre_n": 3, "post_n": 4,
+           "positions": [0, 1], "n_sessions": 2, "errors": [], "win_s": 2.0,
+           "standardised": True, "smooth_s": cdt.SMOOTH_S, "orth": True, "gate": "lick",
+           "reference": "contrast", "fit_on": ["success"], "cim_k": 2,
+           "surviving": {0: 0.61, 1: 0.88}, "anchor": 1.0,
+           "cim_cos": {"pre": 1.0, "acute": 0.68}, "cim_chance": 0.021,
+           "cim_scale": {"pre": 1.0, "acute": 1.51}, "traces": {}}
+    for ep in ("pre", "acute"):
+        for cd in (0, 1):
+            for tr in (0, 1):
+                res["traces"][(ep, cd, tr)] = {
+                    "mean": np.linspace(0, 1, t) + cd, "n": 40 + tr,
+                    "iqr": np.ones(t), "lo": np.zeros(t), "hi": np.full(t, 2.0)}
+    res.update(over)
+    return res
+
+
+def test_a_saved_result_round_trips_with_TUPLE_trace_keys_and_INT_position_keys(tmp_path):
+    """The one thing JSON cannot hold. `res["traces"][(ep, p, p)]` is how every layout reads a
+    trace, and a dict whose keys came back as the strings `"pre|0|0"` would not raise -- it would
+    draw six empty panels and look like an animal with no data.
+    """
+    res = _fake_result()
+    cdt.save_result(res, tmp_path)
+    got = cdt.load_result(tmp_path, "PS99", "precue", orth=True)
+
+    assert set(got["traces"]) == set(res["traces"])
+    assert ("pre", 0, 0) in got["traces"]
+    for key, d in res["traces"].items():
+        np.testing.assert_allclose(got["traces"][key]["mean"], d["mean"])
+        assert got["traces"][key]["n"] == d["n"]
+    assert got["surviving"] == res["surviving"]          # int keys, not "0"/"1"
+    assert got["positions"] == [0, 1]
+    assert got["cim_scale"]["acute"] == pytest.approx(1.51)
+
+
+def test_a_saved_result_is_enough_to_DRAW_without_recomputing(tmp_path):
+    """The point of the dump: a layout must accept it with nothing else on hand."""
+    cdt.save_result(_fake_result(), tmp_path)
+    got = cdt.load_result(tmp_path, "PS99", "precue", orth=True)
+    png = cdt.figure_epochs(got, tmp_path / "replot.png")
+    assert Path(png).exists() and Path(png).stat().st_size > 5000
+
+
+def test_a_STALE_dump_raises_rather_than_being_redrawn(tmp_path):
+    """The `COURSE_VERSION` lesson applied to the dump. A dump written under a different smoothing
+    width would otherwise be redrawn beneath a title quoting the CURRENT one -- the single failure
+    mode persistence adds over recomputing.
+    """
+    cdt.save_result(_fake_result(), tmp_path)
+    old = cdt.SMOOTH_S
+    try:
+        cdt.SMOOTH_S = old + 0.1
+        with pytest.raises(ValueError, match="STALE"):
+            cdt.load_result(tmp_path, "PS99", "precue", orth=True)
+    finally:
+        cdt.SMOOTH_S = old
+    assert cdt.load_result(tmp_path, "PS99", "precue", orth=True) is not None
+
+
+def test_load_result_is_None_when_nothing_was_ever_saved(tmp_path):
+    """Absent and stale are DIFFERENT facts -- None means "never rendered", the raise means "do not
+    trust this one". `warn_if_store_moved` learned the same distinction the hard way (rule 10)."""
+    assert cdt.load_result(tmp_path, "PS99", "precue") is None
+
+
+def test_orth_and_gate_do_not_collide_in_the_saved_name(tmp_path):
+    """Four analyses share an output directory; one tag per (animal, align, method, reference,
+    gate, orth) or the last one written wins and the figures silently pair up wrongly."""
+    tags = {cdt.result_tag("PS95", a, "dom", r, g, o)
+            for a in ("precue", "cue") for r in cdt.REFERENCES
+            for g in cdt.GATES for o in (False, True)}
+    assert len(tags) == 2 * len(cdt.REFERENCES) * len(cdt.GATES) * 2
+
+
+def test_the_reference_label_is_the_LOOKUP_not_its_source_text():
+    """The inlined `f"{{...}}[res.get(...)]"` printed the dict literal plus the subscript as plain
+    text, so every title on the share named no reference at all."""
+    for ref, want in (("contrast", "OTHER POSITIONS"), ("restw", "ITS OWN REST")):
+        title = cdt._suptitle(_fake_result(reference=ref))
+        assert want in title
+        assert "res.get(" not in title
+        assert "'restw':" not in title

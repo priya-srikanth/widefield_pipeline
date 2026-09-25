@@ -330,7 +330,8 @@ CIM_VAR = 0.90
 CIM_KMAX = 8
 
 
-def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=CIM_KMAX):
+def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=CIM_KMAX,
+                                k=None):
     """``(ncomp, K)`` orthonormal basis for the grand-mean response. ``None`` if it is flat.
 
     WHY A SUBSPACE AND NOT A DIRECTION. The per-position directions are ONE-VS-REST,
@@ -351,21 +352,24 @@ def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=C
 
     K is chosen by variance explained (`CIM_VAR`) and capped (`CIM_KMAX`), from the SVD of the grand
     mean's deviation from its own pre-event baseline, so no interval or rank is hand-picked.
+
+    `k` OVERRIDES that choice, and the matched null requires it. `subspace_overlap` normalises by
+    the first basis's dimension and `subspace_chance` is K/n, so two groups that each picked their
+    own K would be compared at different dimensions AND against different chance levels -- the null
+    would then differ from the observation in two ways at once, only one of them intended.
     """
     G = np.asarray(G, float)
-    t = np.asarray(t, float)
-    base = (t >= baseline[0]) & (t < baseline[1])
-    if not base.any():
-        base = t < (t.min() + 0.5)
-    dev = G - G[:, base].mean(1)[:, None]
+    dev = G - G[:, baseline_mask(t, baseline)].mean(1)[:, None]
     if not np.isfinite(dev).all() or not dev.any():
         return None
     U, sv, _ = np.linalg.svd(dev, full_matrices=False)
     power = sv ** 2
     if power.sum() <= 0:
         return None
-    k = int(np.searchsorted(np.cumsum(power) / power.sum(), var) + 1)
-    return U[:, :max(1, min(k, kmax, U.shape[1]))]
+    if k is None:
+        k = int(np.searchsorted(np.cumsum(power) / power.sum(), var) + 1)
+        k = min(k, kmax)
+    return U[:, :max(1, min(int(k), U.shape[1]))]
 
 
 def subspace_chance(ncomp, k):
@@ -496,7 +500,7 @@ def rest_baseline(session, sig, reference, nbins=REST_BINS):
     return None if b is None else {None: _np.asarray(b).mean(1)}
 
 
-def directions_vs_rest(X, y, base, labels, stats=None, cim=None):
+def directions_vs_rest(X, y, base, labels, stats=None, cim=None, drop=None):
     """``{position: (w, p0, p1)}`` with the SUBTRAHEND a rest baseline, not the other positions.
 
     ``base`` is ``{None: v}`` for the flat reference or ``{code: v}`` for the per-position one.
@@ -509,6 +513,8 @@ def directions_vs_rest(X, y, base, labels, stats=None, cim=None):
     X, y = X[ok], y[ok]
     if stats is not None:
         X = (X - stats[0]) / stats[1]
+    X = _apply_drop(X, drop)
+    dropm = None if drop is None else np.asarray(drop, bool)
     out = {}
     for p in labels:
         m = y == p
@@ -518,6 +524,12 @@ def directions_vs_rest(X, y, base, labels, stats=None, cim=None):
         if b is None:
             continue
         b = (np.asarray(b) - stats[0]) / stats[1] if stats is not None else np.asarray(b)
+        # BOTH SIDES OF THE SUBTRACTION. Zeroing only `X` would leave the baseline's value on a
+        # dropped component standing, and `mean(P) - base` would then carry a nonzero weight there
+        # -- dropping a component by removing only half of what defines it.
+        if dropm is not None:
+            b = np.asarray(b, float).copy()
+            b[dropm] = 0.0
         w = np.asarray(X[m].mean(0)) - b
         n = float(np.linalg.norm(w))
         if n <= 0:
@@ -530,7 +542,26 @@ def directions_vs_rest(X, y, base, labels, stats=None, cim=None):
     return out
 
 
-def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviving=False):
+def _apply_drop(X, drop):
+    """Zero the dropped components AFTER standardising, so the direction is exactly 0 on them.
+
+    ZEROING RATHER THAN DELETING keeps every downstream array the same width -- `cd_courses`
+    projects the full signal with `w @ sig`, so a zero weight contributes nothing and no index has
+    to be remapped. Deleting columns would make `w` a different length from the signal's component
+    axis, which is a silent shape bug waiting for the first caller that forgets.
+    """
+    if drop is None:
+        return X
+    drop = np.asarray(drop, bool)
+    if drop.shape[0] != X.shape[1]:
+        raise ValueError(f"drop mask has {drop.shape[0]} entries for {X.shape[1]} components")
+    X = X.copy()
+    X[:, drop] = 0.0
+    return X
+
+
+def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviving=False,
+                   drop=None):
     """``{position: (w, p0, p1)}`` from PRE-STROKE successful-lick trials, P against not-P.
 
     `pcd.direction` and `pcd.poles` unchanged -- they are basis-agnostic, so handing them a
@@ -544,6 +575,10 @@ def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviv
     if stats is not None:                      # z-score in the FROZEN pre-stroke reference frame
         mu, sd = stats
         X = (X - mu) / sd
+    # AFTER the z-scoring, deliberately: standardising a column of zeros would divide by its own
+    # zero sd. See `component_exclusion` for what `drop` is and why it is an option rather than a
+    # default -- and for the measurement that it costs no more than dropping a random quarter.
+    X = _apply_drop(X, drop)
     for p in labels:
         m = y == p
         if m.sum() < MIN_TRIALS or (~m).sum() < MIN_TRIALS:
@@ -779,6 +814,79 @@ class _OnceSignal:
         return self._v
 
 
+def grand_means(book, use, basis, align, pre_n, post_n):
+    """``{epoch: [(G, n), ...]}`` -- the event-triggered average per session, over the GATE's trials.
+
+    ONE ACCUMULATION, and it exists because there were two. `analyse_animal` built this inline in
+    both of its passes -- pass 1 for the pre-stroke sessions the condition-independent mode is
+    fitted on, pass 2 for every epoch's rotation and scale -- and the two copies DISAGREED about
+    which trials the average was over while writing the same cache key. Whichever session ran first
+    won it, so under `--gate lick_or_working` the pre-stroke mean was over success + miss-while-
+    working and the post-stroke ones over success alone: a trial-composition change arriving as an
+    amplitude change, in `cim_scale`, which exists to measure amplitude changes.
+
+    It is also the entry point the overlap NULL needs -- split PRE into two disjoint session groups
+    and this returns each group's means with no second definition of what a grand mean is.
+    """
+    from wfield_local import joint_locanmf, session_cache
+
+    out = {}
+    for s, ep, arms in book:
+        if not any(arms[c]["y"] for c in use):
+            continue
+        get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
+        at = [f for c in use for f in arms[c]["at"]]
+        gm = session_cache.cached(
+            s, f"cdgm2-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_n}",
+            lambda get=get, at=at: _event_average(get(), at, pre_n, post_n),
+            verbose=False)
+        if gm is not None:
+            out.setdefault(ep, []).append(gm)
+    return out
+
+
+def pooled_mean(chunks, stats=None):
+    """n-weighted grand mean of ``[(G, n), ...]``, z-scored in the frozen frame when given.
+
+    n-WEIGHTED, NOT A MEAN OF MEANS: a 40-trial session and a 600-trial one contribute what they
+    know, which is the same rule `enl_decode` pools arms under.
+    """
+    if not chunks:
+        return None
+    w = np.asarray([c[1] for c in chunks], float)
+    G = np.tensordot(w / w.sum(), np.stack([c[0] for c in chunks]), axes=(0, 0))
+    return G if stats is None else (G - stats[0][:, None]) / stats[1][:, None]
+
+
+def baseline_mask(t, baseline=CIM_BASELINE):
+    """The pre-event samples every magnitude and every mode is measured RELATIVE TO.
+
+    One definition, used by `condition_independent_modes`, `dev_norm` and the matched null. It had
+    three copies, and the fallback matters: a span shorter than the baseline window would otherwise
+    give an all-False mask, a mean over nothing, and a silent NaN through everything downstream.
+    """
+    t = np.asarray(t, float)
+    base = (t >= baseline[0]) & (t < baseline[1])
+    return base if base.any() else (t < (t.min() + 0.5))
+
+
+def dev_norm(G, t, baseline=CIM_BASELINE):
+    """Frobenius norm of the grand mean's deviation from its own pre-event baseline.
+
+    THE MAGNITUDE THE COSINE CANNOT SEE, as a function rather than three lines inside `cim_scale`:
+    the trial-matched null takes this same ratio between two PRE-STROKE session groups, and a
+    second copy of "deviation from baseline" is exactly how two numbers that must be comparable
+    stop being comparable.
+
+    IT IS BIASED UPWARD BY ESTIMATION NOISE. A noisier grand mean has a larger norm, and a
+    post-stroke epoch has fewer trials per session, so this ratio is inflated in the direction of
+    the effect it reports. That is what the trial-matched null is for -- it pays the same bias.
+    """
+    G = np.asarray(G, float)
+    base = baseline_mask(t, baseline)
+    return float(np.linalg.norm(G - G[:, base].mean(1)[:, None]))
+
+
 def cim_scale(by_epoch, t, baseline=CIM_BASELINE):
     """``{epoch: ||grand-mean deviation|| / pre}`` -- the MAGNITUDE the cosine cannot see.
 
@@ -804,14 +912,7 @@ def cim_scale(by_epoch, t, baseline=CIM_BASELINE):
     Frobenius norm of the deviation from the pre-event baseline, divided by pre's, so it is a pure
     ratio and the arbitrary units of the z-scored basis cancel.
     """
-    out, ref = {}, None
-    t = np.asarray(t, float)
-    base = (t >= baseline[0]) & (t < baseline[1])
-    if not base.any():
-        base = t < (t.min() + 0.5)
-    for ep, G in by_epoch.items():
-        G = np.asarray(G, float)
-        out[ep] = float(np.linalg.norm(G - G[:, base].mean(1)[:, None]))
+    out = {ep: dev_norm(G, t, baseline) for ep, G in by_epoch.items()}
     ref = out.get("pre")
     if not ref:
         return {}
@@ -849,7 +950,7 @@ def cim_rotation(by_epoch, t):
 
 
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
-                   gate="lick", reference="contrast", verbose=True):
+                   gate="lick", reference="contrast", mask_occluded=True, verbose=True):
     """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
 
     TWO PASSES OVER THE SESSIONS, and the projection is deferred in both.
@@ -900,7 +1001,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # ---- PASS 1: the direction, from PRE-STROKE SUCCESS only, window means, P vs not-P ----------
     # LICK ALIGNMENT OVERRIDES THE GATE -- see LICK_ALIGNED_CLASSES.
     use = LICK_ALIGNED_CLASSES if align == "lick" else GATES[gate]
-    Xf, yf, Gs, Gn, Rb = [], [], [], [], {}
+    Xf, yf, Rb = [], [], {}
     for s, ep, arms in book:
         if ep != "pre" or not any(arms[c]["y"] for c in use):
             continue
@@ -925,37 +1026,42 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             if rb:
                 for k_, v_ in rb.items():
                     Rb.setdefault(k_, []).append(np.asarray(v_, float))
-        if orth:
-            # The EVENT-TRIGGERED AVERAGE over this session's pre-stroke success trials,
-            # pooled over positions. Accumulated HERE because pass 1 already holds the
-            # signal; computing it in pass 2 would be circular, since pass 2 needs the
-            # directions that the CIM helps define.
-            # THE SAME TRIALS THE TRACE USES, so the mode being projected out is the shared
-            # response of what is actually plotted.
-            gate_at = [f for c in use for f in arms[c]["at"]]
-            gm = session_cache.cached(
-                s, f"cdgm-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
-                lambda get=get, gate_at=gate_at: _event_average(get(), gate_at,
-                                                                pre_n, post_frames),
-                verbose=False)
-            if gm is not None:
-                Gs.append(gm[0])
-                Gn.append(gm[1])
     if not Xf:
         return {"animal": animal, "align": align, "skipped": "no pre-stroke success trials",
                 "errors": errs}
     Xall = np.vstack(Xf)
     stats = component_stats(Xall) if STANDARDISE else None
+    # THE OCCLUDED COMPONENTS ARE DROPPED BY DEFAULT (Priya, 2026-09-24: *"i think for the CD
+    # analyses we should drop the masked components"*). `component_exclusion` holds the measurement.
+    # The decision rests on an ASYMMETRY: dropping them costs little (9-14% of the pole gap, which is
+    # what dropping any random quarter costs, and 1-7% of the decoder's above-null signal), while
+    # KEEPING them leaves the post-stroke panels sensitive to a choice the map analyses have already
+    # made -- measured on PS94/PS95 pre-cue, individual post-stroke cells move and PS95 acute
+    # close_center reverses sign. Cheap to drop, and expensive to have to caveat.
+    drop = None
+    if mask_occluded:
+        from wfield_local import component_exclusion as cex
+
+        drop = cex.occluded(basis, animal)
+        if verbose:
+            print(f"  {cex.summarise(basis, animal)}", flush=True)
+    # THE GRAND MEANS, ONCE, FOR EVERY EPOCH. The mode is fitted on PRE alone (rule 10 -- a
+    # per-epoch mode would subtract away the change being measured) and the other epochs are what
+    # `cim_rotation` and `cim_scale` read. Same trials, same cache entry, one definition.
+    Ge = grand_means(book, use, basis, align, pre_n, post_frames) if orth else {}
     cim = None
-    if orth and Gs:
-        wts = np.asarray(Gn, float)
-        G = np.tensordot(wts / wts.sum(), np.stack(Gs), axes=(0, 0))   # n-weighted grand mean
-        if stats is not None:
-            G = (G - stats[0][:, None]) / stats[1][:, None]
-        cim = condition_independent_modes(G, np.arange(-pre_n, post_frames) / args.fs)
+    if Ge.get("pre"):
+        Gpre = pooled_mean(Ge["pre"], stats)
+        if drop is not None:
+            # THE SHARED MODE IS FITTED IN THE SAME SUBSPACE THE DIRECTIONS LIVE IN. A mode with
+            # weight on a dropped component could not be orthogonalised out of a direction that has
+            # none, so the two would be describing different spaces.
+            Gpre = np.asarray(Gpre, float).copy()
+            Gpre[np.asarray(drop, bool)] = 0.0
+        cim = condition_independent_modes(Gpre, np.arange(-pre_n, post_frames) / args.fs)
     if reference == "contrast":
         dirs, surviving = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
-                                         stats=stats, cim=cim, with_surviving=True)
+                                         stats=stats, cim=cim, with_surviving=True, drop=drop)
     elif not Rb:
         return {"animal": animal, "align": align,
                 "skipped": f"no {reference} baseline on any pre-stroke session",
@@ -966,7 +1072,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         # avoid (rule 10).
         base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
         dirs = directions_vs_rest(Xall, np.concatenate(yf), base, DISPLAY_ORDER,
-                                  stats=stats, cim=cim)
+                                  stats=stats, cim=cim, drop=drop)
         surviving = {}      # the rest references do not renormalise, so nothing collapses
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",
@@ -976,7 +1082,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     kind = courses_cache_kind(align, f"{method}-{reference}", f"basis:{basis.basis_id}",
                               dirs, args.post_s, stats=stats)
     draw = use
-    acc, Ge = {}, {}
+    acc = {}
     for s, ep, arms in book:
         if not any(arms[c]["y"] for c in draw):
             continue
@@ -985,17 +1091,6 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             s, kind,
             lambda get=get: cd_courses(get(), dirs, args.fs, args.post_s, stats=stats),
             verbose=False)
-        if orth and arms["success"]["y"]:
-            # THE SAME TRIALS THE TRACE USES, so the mode being projected out is the shared
-            # response of what is actually plotted.
-            gate_at = [f for c in use for f in arms[c]["at"]]
-            gm = session_cache.cached(
-                s, f"cdgm-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_frames}",
-                lambda get=get, arms=arms: _event_average(get(), arms["success"]["at"],
-                                                          pre_n, post_frames),
-                verbose=False)
-            if gm is not None:
-                Ge.setdefault(ep, []).append(gm)
         for cls in draw:
             ys = np.asarray(arms[cls]["y"])
             if not ys.size:
@@ -1021,6 +1116,8 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
            "win_s": float(args.post_s), "standardised": bool(STANDARDISE),
            "smooth_s": float(SMOOTH_S), "orth": bool(orth and cim is not None),
            "gate": gate, "reference": reference, "fit_on": list(use),
+           "mask_occluded": bool(mask_occluded),
+           "n_dropped": (0 if drop is None else int(np.asarray(drop).sum())),
            "cim_k": (None if cim is None else int(np.asarray(cim).shape[1])),
            # How much of each position's ORIGINAL separation survived the projection. The traces are
            # scaled by the unrotated gap, so a low value means the panel is genuinely small, not
@@ -1039,12 +1136,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     out["anchor"] = _anchor(out, args.post_s)
     if Ge:
         tt = np.arange(-pre_n, post_frames) / args.fs
-        by_ep = {}
-        for ep_, chunks in Ge.items():
-            wq = np.asarray([c[1] for c in chunks], float)
-            Gq = np.tensordot(wq / wq.sum(), np.stack([c[0] for c in chunks]), axes=(0, 0))
-            by_ep[ep_] = ((Gq - stats[0][:, None]) / stats[1][:, None]
-                          if stats is not None else Gq)
+        by_ep = {ep_: pooled_mean(chunks, stats) for ep_, chunks in Ge.items()}
         out["cim_cos"] = cim_rotation(by_ep, tt)
         out["cim_chance"] = subspace_chance(int(basis.ncomp), int(out["cim_k"] or 1))
         # ORIENTATION AND MAGNITUDE TOGETHER -- the cosine is scale-invariant and would score a
@@ -1073,6 +1165,124 @@ def _anchor(res, win_s):
     return float(np.nanmean(vals)) if vals else float("nan")
 
 
+# ---------------------------------------------------------------------------------------------
+# PERSISTENCE: the numbers behind every figure, so a re-plot never recomputes
+# ---------------------------------------------------------------------------------------------
+#: Priya, 2026-09-24: *"in the code, try to minimize redundancy and ensure figure reproducibility.
+#: don't re-compute things multiple times, store caches where able, and store the numbers needed
+#: for each figure so we can re-plot without having to recompute"*.
+#:
+#: `wfield_local/results_store.py` ALREADY DOES THIS for the rest of the pipeline and is what these
+#: three functions wrap -- JSON for the scalars, an `.npz` sidecar for the arrays, a `_meta` block
+#: carrying the params (rule 9; a second store would be the tenth bootstrap all over again).
+#:
+#: ONLY TWO THINGS ARE OURS TO DO. `res["traces"]` is keyed by the TUPLE `(epoch, cd_position,
+#: trial_position)` and JSON has no tuple keys, so the key is flattened to `"pre|3|3"` and parsed
+#: back; and JSON silently stringifies the INT keys of `surviving`, so those are restored too. Both
+#: are round-trip tested -- a figure reads `res["traces"][(ep, p, p)]`, and a dict whose keys came
+#: back as strings would not raise, it would just draw six empty panels.
+RESULT_NAME = "cd_traj"
+
+#: Fields that must MATCH for a saved result to be re-plottable. Not a courtesy check: the
+#: `COURSE_VERSION` story in this module is precisely a cache that served stale numbers to twelve
+#: significant figures because its key hashed inputs that had not moved. A dump is a cache too, and
+#: this is the guard that version lesson earned -- a mismatch RAISES, so `--replot` after a
+#: parameter change fails loudly instead of redrawing yesterday's arithmetic under today's title.
+RESULT_GUARD = ("course_version", "smooth_s", "win_s", "span", "standardised", "basis_id",
+                "align", "gate", "reference", "orth", "method", "cim_var", "cim_kmax",
+                "mask_occluded")
+
+
+def result_tag(animal, align, method="dom", reference="contrast", gate="lick", orth=False,
+               mask_occluded=False):
+    """The ONE name a result is written and looked up under. Mirrors the figure filename's tag.
+
+    `mask_occluded` IS IN THE NAME because a masked run and an unmasked one are two analyses of the
+    same animal and alignment. Left out, the second would overwrite the first and the comparison the
+    masked arm exists to make would be unavailable from the dumps.
+    """
+    return "_".join([animal, align, method, reference, gate]
+                    + (["orth"] if orth else []) + (["cortexonly"] if mask_occluded else []))
+
+
+def save_result(res, out_dir, orth=None, mask_occluded=None):
+    """Persist `analyse_animal`'s return under `<out_dir>/results/`. Returns the json path.
+
+    `orth` OVERRIDES what the result achieved with what the RUN ASKED FOR, and the caller should
+    pass it. `res["orth"]` is `orth and cim is not None`, so a run launched `--orth on` whose
+    condition-independent mode could not be fitted reports False -- and would then be written under
+    the `--orth off` tag and overwrite a legitimate one, while its figure still carried `orth` in
+    the filename. The dump and the PNG must name the same analysis.
+    """
+    from wfield_local import results_store as rs
+
+    payload = {k: v for k, v in res.items() if k != "traces"}
+    payload["traces"] = {f"{ep}|{int(cd)}|{int(tr)}": v
+                         for (ep, cd, tr), v in res["traces"].items()}
+    meta = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
+            "smooth_s": SMOOTH_S, "trailing": bool(TRAILING),
+            # the REQUESTED setting, matching the tag -- `RESULT_GUARD` compares against what the
+            # caller asks for, and a lookup can only ask for what it wants, not what was achieved
+            "orth_achieved": bool(res.get("orth")),
+            **{k: res.get(k) for k in ("animal", "align", "gate", "reference", "method",
+                                       "win_s", "span", "standardised", "basis_id", "ncomp",
+                                       "n_sessions", "anchor")},
+            "orth": bool(res.get("orth") if orth is None else orth),
+            "mask_occluded": bool(res.get("mask_occluded") if mask_occluded is None
+                                  else mask_occluded),
+            "n_dropped": int(res.get("n_dropped") or 0)}
+    return rs.save(out_dir, RESULT_NAME,
+                   result_tag(res["animal"], res["align"], res.get("method", "dom"),
+                              res.get("reference", "contrast"), res.get("gate", "lick"),
+                              bool(res.get("orth") if orth is None else orth),
+                              bool(res.get("mask_occluded") if mask_occluded is None
+                                   else mask_occluded)),
+                   payload, meta=meta)
+
+
+def load_result(out_dir, animal, align, method="dom", reference="contrast", gate="lick",
+                orth=False, mask_occluded=False):
+    """A saved result, ready to hand straight to a layout. None when it was never written.
+
+    RAISES ValueError when the dump was made under different parameters -- see `RESULT_GUARD`. The
+    figure would otherwise render the stored traces beneath a title describing the CURRENT
+    constants, which is the one failure mode a dump adds over recomputing.
+    """
+    from wfield_local import results_store as rs
+
+    body = rs.load(out_dir, RESULT_NAME,
+                   result_tag(animal, align, method, reference, gate, orth, mask_occluded))
+    if body is None:
+        return None
+    want = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
+            "smooth_s": SMOOTH_S, "align": align, "gate": gate, "reference": reference,
+            "orth": bool(orth), "method": method, "mask_occluded": bool(mask_occluded)}
+    meta = body.get("_meta") or {}
+    bad = [f"{k}: saved {meta.get(k)!r} != now {want[k]!r}" for k in RESULT_GUARD
+           if k in want and _differs(meta.get(k), want[k])]
+    if bad:
+        raise ValueError(f"saved result for {animal} {align} is STALE -- " + "; ".join(bad))
+    res = {k: v for k, v in body.items() if k != "_meta"}
+    traces = {}
+    for key, val in (res.get("traces") or {}).items():
+        ep, cd, tr = key.split("|")
+        traces[(ep, int(cd), int(tr))] = val
+    res["traces"] = traces
+    res["surviving"] = {int(k): float(v) for k, v in (res.get("surviving") or {}).items()}
+    res["positions"] = [int(q) for q in res.get("positions") or []]
+    res["span"] = tuple(res.get("span") or SPAN[align])
+    return res
+
+
+def _differs(a, b):
+    """Equality that survives a JSON round trip -- 0.2 reread as 0.2, True as True, 2 as 2.0."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return bool(a) != bool(b)
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return not np.isclose(float(a), float(b), rtol=0, atol=1e-12)
+    return a != b
+
+
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 #: Epoch colours for the OVERLAY layout. Sequential rather than categorical: the four epochs are
@@ -1093,6 +1303,18 @@ def _axis_furniture(ax, res, t):
     ax.tick_params(labelsize=7)
 
 
+#: What `--reference` means, spelled out for the figure title.
+#:
+#: A MODULE-LEVEL DICT BECAUSE THE FIRST VERSION INLINED IT IN THE f-STRING and the inline form did
+#: not work: `f"{{'contrast': ...}}[res.get('reference')]"` has DOUBLED braces, so the dict is a
+#: literal and the subscript is plain text. Every title rendered to the share printed the source of
+#: the lookup instead of its answer. Nothing else in the figure was wrong, which is why it survived
+#: a day of reading the figures.
+REFERENCE_LABEL = {"contrast": "OTHER POSITIONS",
+                   "rest": "REST (flat, time-local)",
+                   "restw": "ITS OWN REST"}
+
+
 def _suptitle(res, extra=""):
     zero = {"precue": "cue", "cue": "cue", "lick": "first lick"}[res["align"]]
     cos = res.get("cim_cos") or {}
@@ -1104,9 +1326,11 @@ def _suptitle(res, extra=""):
         f"{res['animal']} — per-position {res['align'].upper()} coding direction, projected frame "
         f"by frame{extra}\n"
         f"fitted on PRE-STROKE {'+'.join(res['fit_on']).upper()} vs "
-        f"{{'contrast': 'OTHER POSITIONS', 'rest': 'REST (flat, time-local)', 'restw': 'ITS OWN REST'}}[res.get('reference', 'contrast')]"
+        f"{REFERENCE_LABEL.get(res.get('reference', 'contrast'), '?')}"
         f" (window mean, time-INVARIANT, "
         f"components Z-SCORED in a frozen pre-stroke frame"
+        + (", {} GLUE/BULB COMPONENTS DROPPED".format(res.get("n_dropped"))
+           if res.get("mask_occluded") else "")
         + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "")
         + f") · basis {str(res['basis_id'])[:12]} {res['ncomp']}c\n"
         f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
@@ -1267,9 +1491,21 @@ def _render_animal(item):
         for gate in item["gates"]:
             for orth in item["orths"]:
                 try:
-                    res = cdt.analyse_animal(item["animal"], align, method=item["method"],
-                                             post_s=item["post_s"], orth=orth, gate=gate,
-                                             reference=item["reference"], verbose=False)
+                    if item.get("replot"):
+                        # RE-PLOT ONLY. Missing is an ERROR, not a reason to recompute: the whole
+                        # point of `--replot` is that it cannot quietly cost an hour.
+                        res = cdt.load_result(out, item["animal"], align, item["method"],
+                                              item["reference"], gate, orth,
+                                              item.get("mask_occluded", True))
+                        if res is None:
+                            errs.append(f"{item['animal']} {align} {gate} orth={orth}: no saved "
+                                        f"result under {out / 'results'} -- run without --replot")
+                            continue
+                    else:
+                        res = cdt.analyse_animal(
+                            item["animal"], align, method=item["method"], post_s=item["post_s"],
+                            orth=orth, gate=gate, reference=item["reference"],
+                            mask_occluded=item.get("mask_occluded", True), verbose=False)
                 except Exception as exc:
                     errs.append(f"{item['animal']} {align} {gate} orth={orth}: "
                                 f"{type(exc).__name__}: {exc}"[:160])
@@ -1277,8 +1513,20 @@ def _render_animal(item):
                 if res.get("skipped"):
                     errs.append(f"{item['animal']} {align} {gate}: SKIPPED {res['skipped']}")
                     continue
+                if not item.get("replot"):
+                    # SAVED BEFORE ANY FIGURE IS DRAWN, so a layout that raises does not throw away
+                    # the computation that fed it -- which is how the first render of this module
+                    # lost 140 s of projection to a matplotlib keyword error.
+                    try:
+                        made.append(cdt.save_result(
+                            res, out, orth=orth,
+                            mask_occluded=item.get("mask_occluded", True)))
+                    except Exception as exc:
+                        errs.append(f"{item['animal']} {align} save_result: "
+                                    f"{type(exc).__name__}: {exc}"[:160])
                 tag = "_".join([item["method"], item["reference"], gate]
-                               + (["orth"] if orth else []))
+                               + (["orth"] if orth else [])
+                               + (["cortexonly"] if item.get("mask_occluded") else []))
                 for lay in item["layouts"]:
                     try:
                         made.append(str(cdt.LAYOUTS[lay](
@@ -1287,6 +1535,28 @@ def _render_animal(item):
                         errs.append(f"{item['animal']} {align} {lay}: "
                                     f"{type(exc).__name__}: {exc}"[:160])
     return {"made": made, "errors": errs}
+
+
+#: Subdirectory of the server analysis-figure root that this module owns.
+OUT_SUBDIR = "cd_trajectories"
+
+
+def default_out():
+    """Where figures and dumps go when `--out` is not given: the SERVER widefield tree.
+
+    Priya, 2026-09-24: *"outputs should go to the widefield directory on the server when
+    appropriate"*. `cue_analysis_out` is the configured analysis-figure root
+    (`.../Widefield/labcams/analysis_figures`); the previous default was `figures_working`, a LOCAL
+    scratch root that the nightly mirrors afterwards -- so a hand run left its output where only this
+    machine could see it.
+
+    IN AN OWN SUBDIRECTORY, for two reasons. `nightly_figs._publish_figs` globs `*.json` at the TOP
+    level of that root and copies them as publish inputs, so dumps must not land beside them; and
+    `scripts/check_figure_layout.py` reads the root as a flat figure directory.
+    """
+    from wfield_local.paths import PathResolver
+
+    return Path(PathResolver().root("cue_analysis_out")) / OUT_SUBDIR
 
 
 def main(argv=None) -> int:
@@ -1316,28 +1586,42 @@ def main(argv=None) -> int:
                          "also removes any real position information lying along that mode.")
     ap.add_argument("--post-s", type=float, default=None,
                     help="override decode.{align}_post_s; default reads it per alignment")
+    ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
+                    help="what to do with the components that sit mostly under the painted fibre "
+                         "glue or in an olfactory bulb -- about a quarter of every animal's basis "
+                         "(see wfield_local.component_exclusion). DROP is the default: the map "
+                         "analyses already exclude that territory, dropping costs about what "
+                         "dropping any random quarter costs, and KEEPING leaves the post-stroke "
+                         "panels sensitive to the choice (one sign reversal measured). `keep` "
+                         "reproduces the pre-2026-09-24 arm for comparison.")
+    ap.add_argument("--replot", action="store_true",
+                    help="re-draw from the SAVED numbers under <out>/results/ and compute nothing. "
+                         "Every run without it persists what each figure needs, so an axis or "
+                         "colour change costs seconds instead of re-projecting the basis. A dump "
+                         "made under different constants is REFUSED rather than redrawn.")
     ap.add_argument("--jobs", type=int, default=None, help="parallel animals (default: cores-2)")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--out", default=None,
+                    help=f"default: the server analysis-figure root / {OUT_SUBDIR}")
     args = ap.parse_args(argv)
 
-    if args.out:
-        out = Path(args.out)
-    else:
-        from wfield_local.paths import PathResolver
-        out = Path(PathResolver().root("figures_working"))
+    out = Path(args.out) if args.out else default_out()
     Path(out).mkdir(parents=True, exist_ok=True)
 
     animals = args.animal or ["PS92", "PS93", "PS94", "PS95"]
     items = [{"animal": a, "aligns": list(args.align), "layouts": list(args.layout),
               "gates": list(args.gate), "orths": [o == "on" for o in args.orth],
               "method": args.method, "reference": r, "post_s": args.post_s,
+              "replot": bool(args.replot), "mask_occluded": args.occluded == "drop",
               "out": str(out)}
              for a in animals for r in args.reference]
     n = len(items) * len(args.align) * len(args.gate) * len(args.orth) * len(args.layout)
     # KEY ON (animal, reference): the same animal under two references is two independent
     # jobs, but they share the basis and every `cdarms-`/`cdfit-` entry, so the sort keeps
     # them adjacent rather than interleaved with other animals.
-    print(f"[cd_traj] {len(items)} animal(s) -> {n} figure(s)", flush=True)
+    print(f"[cd_traj] {len(items)} animal(s) -> {n} figure(s)"
+          + (f"  (occluded components: {args.occluded.upper()})")
+          + ("  (REPLOT: from saved numbers, computing nothing)" if args.replot else ""),
+          flush=True)
 
     from wfield_local import analysis_kit as ak
 
