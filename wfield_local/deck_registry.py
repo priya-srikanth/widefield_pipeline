@@ -265,6 +265,46 @@ CD_FIGURES = (
     ("cd_cross_*_lick_dom_contrast_lick_orth_cortexonly.png",
      "Lick-aligned CROSS-projection", "As above, centred on the first lick. " + _CD_ORTH + " "
      + _CD_METHOD + " " + _CD_MASK),
+    ("cd_xanimal_perposition_*.png",
+     "Cross-animal change from each animal's own pre-stroke trajectory, by position",
+     "Pooled across animals, one panel per spout position, the three post-stroke epochs overlaid. "
+     "THE SUBTRACTION IS WITHIN ANIMAL and the pooling is across them: each animal is its own "
+     "pre-stroke control, which is what makes the difference paired and cancels between-animal "
+     "variance instead of counting it twice. The pole normalisation is what allows the pooling at "
+     "all -- every animal's axis is scaled so 0 is its own pre-stroke not-P and 1 its own pre-stroke "
+     "lick at P, so a difference from pre is commensurable across animals in a way the raw traces "
+     "are not. Thin lines, individual animals in the cohort colours; heavy line, their mean, DASHED "
+     "where fewer than three animals contribute. EPOCHS ARE THE GREY RAMP and animals are the "
+     "colours, one palette each, so the two can never be confused. **Pre-stroke is zero BY "
+     "CONSTRUCTION and carries no band**: the reference is exact by definition, while the difference "
+     "inherits the estimation noise of both epochs, so a Δ near zero means 'no resolvable change' "
+     "and never 'identical'. Intervals on the accompanying table come from "
+     "`analysis_kit.boot_delta`, resampling animals and then sessions within each animal, paired "
+     "against that animal's own pre-stroke sessions; the point estimate is animal-weighted because "
+     "a CHANGE must be -- a session-pooled mean for a change is what retracted a result on "
+     "2026-09-20."),
+    ("cd_xanimal_cross_*.png",
+     "Cross-animal change, full 6x6 cross-projection",
+     "As the per-position figure, but every position's trials on every position's direction: rows "
+     "are epochs, columns the direction projected onto, and the heavy trace is the panel's own "
+     "position. A change confined to one position shows one trace moving and five flat, which is "
+     "what distinguishes 'this position's code changed' from 'everything moved'."),
+    ("cd_migration_*.png",
+     "Where a position's trajectory MOVED TO",
+     "M[i, j] is position i's trials projected onto position j's coding direction, averaged over the "
+     "response window. The pole normalisation makes the COLUMNS COMPARABLE -- 1.0 means 'looks like "
+     "pre-stroke position j' in every column -- so a row is a profile of what those trials now "
+     "resemble. BOLD IS THE DIAGONAL, a position's own trials on its own direction: the anchor, "
+     "~1.0 pre-stroke, and its fall is that position losing its own identity. A BOXED cell is the "
+     "strong claim, that those trials score higher on the column's direction than that column's OWN "
+     "trials do -- a comparison between two different rows, drawn because a heatmap is bad at it. A "
+     "HATCHED diagonal has lost more than half its pre-stroke value, so being beaten on it says more "
+     "about the collapse than about the winner; the two are separated for that reason. **THE SIX "
+     "DIRECTIONS ARE NOT ORTHOGONAL TO EACH OTHER** (measured: mean |cos| 0.33-0.43 after the "
+     "condition-independent mode is removed, pairs reaching 0.78) and neighbouring positions "
+     "genuinely resemble one another, so off-diagonal mass is not migration on its own -- read the "
+     "BOTTOM row, the within-animal change from pre. Top row is the LEVEL and bottom the CHANGE, on "
+     "deliberately different colour maps so 'more' and 'different' never look alike."),
     ("cd_cim_geometry_*.png",
      "The condition-independent mode after stroke: orientation, magnitude, and what orthogonalising leaves behind",
      "Three rows, and the third is the only one that licenses a claim about a post-stroke panel. "

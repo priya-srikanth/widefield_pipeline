@@ -814,6 +814,69 @@ class _OnceSignal:
         return self._v
 
 
+#: Disjoint trial folds cached per session for the matched null's trial subsampling.
+#:
+#: 8 IS SET BY WHAT IT HAS TO ACHIEVE. Pre-stroke sessions run 221-675 trials, so a fold is 28-84
+#: trials and B's total can be trimmed in steps of that -- against steps of a WHOLE SESSION before,
+#: which left PS93 acute matched to +18% and several nulls degenerate. Going finer buys little: the
+#: remaining mismatch is already under a fold, and each fold's own mean gets noisier, which matters
+#: because `_event_average_folds` is also what a split-half noise estimate would be built from.
+#:
+#: Storage is 8 x ncomp x T x 4 bytes, about 0.7 MB per session, against the 42 MB that caching every
+#: trial's snippet would cost.
+FOLDS = 8
+
+
+def _event_average_folds(sig, at, pre_n, post_n, k=FOLDS):
+    """``[(mean, n), ...]`` -- `k` DISJOINT trial folds of the event-triggered average, or None.
+
+    TRIALS ARE INTERLEAVED, not blocked: fold i takes every k-th trial. A session drifts (engagement
+    declines, and the quit tail is at the end), so contiguous blocks would make fold 0 the early
+    session and fold 7 the late one -- and a null that trimmed folds off B would then be changing WHEN
+    in the session B was sampled as well as how much. Interleaving makes every fold span the session.
+
+    The n-weighted mean over all k folds equals `_event_average`'s single mean exactly, which
+    `tests/test_cd_overlap_null.py` pins -- so this is a finer-grained view of the same quantity, not
+    a second definition of it (rule 9).
+    """
+    sig = np.asarray(sig)
+    keep = [int(f) for f in at
+            if np.isfinite(f) and int(f) - pre_n >= 0 and int(f) + post_n <= sig.shape[1]]
+    if not keep:
+        return None
+    out = []
+    for i in range(int(k)):
+        sel = keep[i::int(k)]
+        if not sel:
+            continue
+        out.append((np.mean(np.stack([sig[:, f - pre_n:f + post_n] for f in sel]), 0)
+                    .astype(np.float32), len(sel)))
+    return out or None
+
+
+def grand_means_folds(book, use, basis, align, pre_n, post_n, k=FOLDS):
+    """``{epoch: [(label, [(G, n), ...]), ...]}`` -- per session, per FOLD.
+
+    The fold-resolved counterpart of `grand_means`, for the trial-matched null. Same cache discipline
+    and the same trial set; the token carries `k` because changing it changes what is stored.
+    """
+    from wfield_local import joint_locanmf, session_cache
+
+    out = {}
+    for s, ep, arms in book:
+        if not any(arms[c]["y"] for c in use):
+            continue
+        get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
+        at = [f for c in use for f in arms[c]["at"]]
+        fm = session_cache.cached(
+            s, f"cdgmf{int(k)}-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_n}",
+            lambda get=get, at=at: _event_average_folds(get(), at, pre_n, post_n, k),
+            verbose=False)
+        if fm:
+            out.setdefault(ep, []).append((s["label"], [(np.asarray(g), int(n)) for g, n in fm]))
+    return out
+
+
 def grand_means(book, use, basis, align, pre_n, post_n):
     """``{epoch: [(G, n), ...]}`` -- the event-triggered average per session, over the GATE's trials.
 
@@ -1082,7 +1145,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     kind = courses_cache_kind(align, f"{method}-{reference}", f"basis:{basis.basis_id}",
                               dirs, args.post_s, stats=stats)
     draw = use
-    acc = {}
+    acc, sess = {}, {}
     for s, ep, arms in book:
         if not any(arms[c]["y"] for c in draw):
             continue
@@ -1105,9 +1168,17 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             for cd_p, course in courses.items():
                 for tr_p in np.unique(ys):
                     m = ys == tr_p
-                    if m.any():
-                        acc.setdefault((ep, int(cd_p), int(tr_p)), []).append(
-                            slice_trials(course, at[m], pre_n, post_frames))
+                    if not m.any():
+                        continue
+                    sl = slice_trials(course, at[m], pre_n, post_frames)
+                    acc.setdefault((ep, int(cd_p), int(tr_p)), []).append(sl)
+                    # THE DIAGONAL, KEPT PER SESSION. Everything else is only ever read as an epoch
+                    # mean, but the diagonal feeds `boot_delta`, whose nested animals -> sessions
+                    # draw needs the sessions to still exist (Priya, 2026-09-25: "should we have an
+                    # n of session count pooled?"). Pooled here, the inner draw has nothing to
+                    # resample and the interval falls back to four animals with one value each.
+                    if int(cd_p) == int(tr_p):
+                        sess.setdefault((s["label"], ep, int(cd_p)), []).append(sl)
 
     out = {"animal": animal, "align": align, "method": method,
            "basis_id": basis.basis_id, "ncomp": int(basis.ncomp),
@@ -1133,6 +1204,17 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             se = np.nanstd(A, 0) / max(np.sqrt(n), 1.0)
             out["traces"][key] = {"mean": m, "n": n, "iqr": iqr,
                                   "lo": m - BAND_Z * se, "hi": m + BAND_Z * se}
+    # PER-SESSION DIAGONALS, reduced the same way the pooled traces are so the two are comparable:
+    # a session's value is the MEAN over its trials, and the n travels with it because `boot_delta`
+    # resamples sessions, not trials -- a 40-trial session and a 600-trial one are one draw each.
+    out["session_traces"] = {}
+    for key, chunks in sess.items():
+        A = np.vstack(chunks)
+        n = int(np.isfinite(A).any(1).sum())
+        if not n:
+            continue
+        with np.errstate(invalid="ignore"):
+            out["session_traces"][key] = {"mean": np.nanmean(A, 0), "n": n}
     out["anchor"] = _anchor(out, args.post_s)
     if Ge:
         tt = np.arange(-pre_n, post_frames) / args.fs
@@ -1234,9 +1316,13 @@ def save_result(res, out_dir, orth=None, mask_occluded=None):
     """
     from wfield_local import results_store as rs
 
-    payload = {k: v for k, v in res.items() if k != "traces"}
+    payload = {k: v for k, v in res.items() if k not in ("traces", "session_traces")}
     payload["traces"] = {f"{ep}|{int(cd)}|{int(tr)}": v
                          for (ep, cd, tr), v in res["traces"].items()}
+    # SAME FLATTENING, different arity. A session label can contain no "|" -- they are `PS95_0912`
+    # -- so the separator stays unambiguous.
+    payload["session_traces"] = {f"{lab}|{ep}|{int(p_)}": v
+                                 for (lab, ep, p_), v in (res.get("session_traces") or {}).items()}
     meta = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
             "smooth_s": SMOOTH_S, "trailing": bool(TRAILING),
             # the REQUESTED setting, matching the tag -- `RESULT_GUARD` compares against what the
@@ -1286,6 +1372,11 @@ def load_result(out_dir, animal, align, method="dom", reference="contrast", gate
         ep, cd, tr = key.split("|")
         traces[(ep, int(cd), int(tr))] = val
     res["traces"] = traces
+    st = {}
+    for key, val in (res.get("session_traces") or {}).items():
+        lab, ep, p_ = key.rsplit("|", 2)
+        st[(lab, ep, int(p_))] = val
+    res["session_traces"] = st
     res["surviving"] = {int(k): float(v) for k, v in (res.get("surviving") or {}).items()}
     res["positions"] = [int(q) for q in res.get("positions") or []]
     res["span"] = tuple(res.get("span") or SPAN[align])
@@ -1303,13 +1394,39 @@ def _differs(a, b):
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
-#: Epoch colours for the OVERLAY layout. Sequential rather than categorical: the four epochs are
-#: ordered in time, and a categorical palette would hide that.
-EPOCH_COLOR = {"pre": "#111111", "acute": "#D95F02", "subacute": "#7570B3", "chronic": "#1B9E77"}
+def _epoch_color():
+    """The project's GREY RAMP for epochs -- `epoch_figures.EPOCH_GREY`, never a new palette.
 
-#: Position colours for the CROSS layout, where six traces share a panel. The point of that panel
-#: is which ONE of the six rises, so the on-diagonal trace is drawn heavy and the rest light.
-POS_COLOR = {1: "#4C72B0", 0: "#DD8452", 2: "#55A868", 4: "#C44E52", 3: "#8172B3", 5: "#937860"}
+    THIS MODULE DEFINED ITS OWN AND THE COLLISION WAS THE POINT OF THE FIX (Priya, 2026-09-25:
+    "right now similar colors are being used for epoch and animals"). It was a Dark2 set -- acute
+    orange, subacute purple, chronic green -- against animal colours of tab:orange, tab:red,
+    tab:green and tab:blue, so two of the four epochs wore an animal's colour in a deck that shows
+    both. The grey ramp exists precisely so it cannot: `transfer_matrix.epoch_color` already
+    delegates here, citing Priya 2026-09-17, "use the same shades of grey as in all the decoder
+    graphs". Grey also READS as the ordering the epochs are, which a categorical palette hides.
+    """
+    from wfield_local.epoch_figures import EPOCH_GREY
+
+    return dict(EPOCH_GREY)
+
+
+def _pos_color():
+    """The cohort position palette -- hue = SIDE, lightness = RING -- keyed by position CODE.
+
+    `spout_behavior.position_style` is the single definition, unified 2026-09-10 after three
+    competing conventions were found in one deck. What was here before was six seaborn-deep colours
+    with no mapping to side or ring at all, which is the scheme that unification retired.
+    """
+    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES as _PN
+    from wfield_local.spout_behavior import position_style
+
+    return {int(c): position_style(_PN[c])[0] for c in _PN}
+
+
+#: Epoch colours for the OVERLAY layout, and position colours for the CROSS layout. Both are looked
+#: up lazily at import and both come from the project's existing definitions -- see the functions.
+EPOCH_COLOR = _epoch_color()
+POS_COLOR = _pos_color()
 
 
 def _axis_furniture(ax, res, t):
@@ -1369,6 +1486,7 @@ def figure_epochs(res, out):
     import matplotlib
 
     matplotlib.use("Agg")
+    import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
 
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -1393,7 +1511,10 @@ def figure_epochs(res, out):
             if d is None:
                 continue
             thin = d["n"] < MIN_TRIALS
-            ax.plot(t, d["mean"], color=EPOCH_COLOR[ep], lw=1.5, alpha=0.85,
+            # PATH EFFECT ON THE LIGHT END OF THE RAMP: `pre` is #c9c9c9 and vanishes against a
+            # white panel, which a categorical palette never had to worry about.
+            ax.plot(t, d["mean"], color=EPOCH_COLOR[ep], lw=1.8, alpha=0.95,
+                    path_effects=[pe.Stroke(linewidth=2.8, foreground="white"), pe.Normal()],
                     ls="--" if thin else "-",
                     label=f"{ep} (n={d['n']})" + (" THIN" if thin else ""))
             if not thin:
@@ -1598,7 +1719,10 @@ def main(argv=None) -> int:
     ap.add_argument("--reference", nargs="+", default=["contrast"], choices=REFERENCES,
                     help="what position P is contrasted AGAINST. `contrast` = the other five positions (the default everywhere else, and the one whose directions sum to ~0 and so force a shared signal to split sign). `rest` = the flat time-local rest baseline, identical for all six, so nothing cancels. `restw` = each position against ITS OWN rest frames -- conservative, since rest itself carries position information.")
     ap.add_argument("--orth", nargs="+", default=["off"], choices=("off", "on"),
-                    help="project the CONDITION-INDEPENDENT MODE out of every direction. The "
+                    help="project the CONDITION-INDEPENDENT MODE out of every direction -- NOT the "
+                         "directions out of each other, which is a different operation and is not "
+                         "done: measured after this flag, the six remain correlated at mean |cos| "
+                         "0.33-0.43 with pairs reaching 0.78. The "
                          "one-vs-rest directions nearly cancel (their sum is 0.289 of a possible "
                          "6.0), so the shared response is forced positive on some positions and "
                          "negative on others -- which is what the close-position dips are. Give "

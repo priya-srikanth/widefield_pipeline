@@ -195,10 +195,127 @@ def test_an_UNMATCHABLE_epoch_is_visible_in_the_reported_counts(_ncomp=20, _T=60
     ep = [_session(rng, _ncomp, _T, n, b, t=t) for n in (90, 80, 100)]
     r = con.epoch_null(pre, ep, t, k=1, n_draw=10, rng=np.random.default_rng(9))
     assert r is not None
-    assert np.median(r["n_B"]) > 3 * r["n_target"]            # the mismatch is large ...
+    # THE MISMATCH IS LARGE AND ITS SIZE IS THE POINT. Dropping the session-count constraint when it
+    # blocks the trial match improved this case from +496% (|B| forced to 3 sessions = 1610 trials)
+    # to +85% (one session = 500), which is why the bound here is not tighter -- the remaining gap is
+    # the granularity of a whole session and only fold subsampling removes it.
+    off = abs(np.median(r["n_B"]) - r["n_target"]) / r["n_target"]
+    assert off > 0.5, off
     out = {"animal": "PS99", "align": "precue", "gate": "lick", "k": 1, "ncomp": _ncomp,
            "chance": 1 / _ncomp, "n_pre_sessions": len(pre),
            "n_pre_trials": sum(c[1] for c in pre), "epochs": {"acute": r}}
     txt = con.report(out)
     assert f"{r['n_target']:.0f}" in txt                     # ... and both numbers are printed
     assert f"{np.median(r['n_B']):.0f}" in txt
+
+
+# ------------------------------------------------------------------ fold subsampling
+
+
+def _fold_sessions(rng, ncomp, T, per_session, basis, t, k=4, scale=1.0):
+    """``[(label, [(G, n) folds])]`` -- k folds per session, each a real mean over its own trials."""
+    out = []
+    for si, n in enumerate(per_session):
+        folds = []
+        base = n // k
+        for i in range(k):
+            nf = base + (1 if i < n - base * k else 0)
+            folds.append(_session(rng, ncomp, T, nf, basis, scale=scale, t=t))
+        out.append((f"S{si}", folds))
+    return out
+
+
+def test_the_n_weighted_mean_of_ALL_FOLDS_equals_the_single_session_mean():
+    """The folds must be a finer-grained view of ONE quantity, not a second definition of it (rule 9).
+    If this drifts, every number computed from folds stops being comparable to one computed without.
+    """
+    rng = np.random.default_rng(41)
+    ncomp = 6
+    sig = rng.normal(size=(ncomp, 400)).astype(np.float32)
+    at = list(range(30, 330, 7))
+    whole = cdt._event_average(sig, at, 4, 8)
+    folds = cdt._event_average_folds(sig, at, 4, 8, k=8)
+    assert whole is not None and folds is not None
+    assert sum(f[1] for f in folds) == whole[1]
+    np.testing.assert_allclose(cdt.pooled_mean(folds), whole[0], rtol=1e-5, atol=1e-6)
+
+
+def test_folds_are_INTERLEAVED_so_each_one_spans_the_session():
+    """A session drifts -- engagement declines and the quit tail is at the end -- so contiguous
+    blocks would make fold 0 the early session and the last fold the late one. Trimming folds off B
+    would then change WHEN in the session B was sampled as well as how much.
+    """
+    ncomp = 3
+    # a signal that ramps with trial index, so a blocked split would give folds with different means
+    sig = np.zeros((ncomp, 400), np.float32)
+    at = list(range(20, 380, 10))
+    for j, f in enumerate(at):
+        sig[:, f - 2:f + 3] = float(j)
+    folds = cdt._event_average_folds(sig, at, 2, 3, k=4)
+    means = [float(np.mean(g)) for g, _n in folds]
+    assert len(folds) == 4
+
+    # THE CLAIM IS RELATIVE, so the comparison is against the alternative rather than a bare
+    # threshold: contiguous BLOCKS on this ramp put fold 0 at the start of the session and the last
+    # fold at the end. Interleaved folds still differ by k-1 (fold i starts one trial later), which
+    # is the floor for any partition, not a defect.
+    per = len(at) // 4
+    blocked = [float(np.mean(np.stack([sig[:, f - 2:f + 3] for f in at[i * per:(i + 1) * per]])))
+               for i in range(4)]
+    assert max(means) - min(means) < 0.2 * (max(blocked) - min(blocked))
+
+
+def test_fold_trimming_matches_a_target_WHOLE_SESSIONS_CANNOT_REACH():
+    """The measured failure: pre-stroke sessions of 453-565 trials against an epoch total of 1150 gave
+    a best whole-session match of +18%. With folds, B is trimmed in steps of about n/K instead."""
+    rng = np.random.default_rng(42)
+    ncomp, T = 8, 20
+    t = np.linspace(-3.0, 4.0, T)
+    b = rng.normal(size=ncomp)
+    sess = _fold_sessions(rng, ncomp, T, (453, 454, 462, 483, 506, 565), b, t, k=8)
+    counts = [sum(c[1] for c in f) for _lab, f in sess]
+
+    whole = min(abs(sum(counts[i] for i in comb) - 1150)
+                for r in range(1, len(counts))
+                for comb in __import__("itertools").combinations(range(len(counts)), r))
+    offs = []
+    for seed in range(8):
+        got = con.fold_matched_split(sess, 1150.0, rng=np.random.default_rng(seed))
+        assert got is not None
+        offs.append(abs(got[2] - 1150))
+    assert np.median(offs) < whole, (np.median(offs), whole)
+    assert np.median(offs) / 1150 < 0.05
+
+
+def test_fold_trimming_keeps_A_and_B_DISJOINT_AT_SESSION_LEVEL():
+    """A session in both groups would correlate them and inflate the null overlap -- the bias that
+    makes `rest_baseline_epoch_drift`'s cosine positive by construction."""
+    rng = np.random.default_rng(43)
+    ncomp, T = 8, 20
+    t = np.linspace(-3.0, 4.0, T)
+    b = rng.normal(size=ncomp)
+    sess = _fold_sessions(rng, ncomp, T, (400, 420, 440, 460, 480), b, t, k=4)
+    ids = {id(c) for _lab, f in sess for c in f}
+    for seed in range(6):
+        B, A, _n, _k = con.fold_matched_split(sess, 500.0, rng=np.random.default_rng(seed))
+        # no chunk object appears on both sides, and every chunk came from the pool
+        assert not ({id(c) for c in B} & {id(c) for c in A})
+        assert {id(c) for c in B} <= ids and {id(c) for c in A} <= ids
+        # and A is whole sessions: its chunk count is a multiple of the fold count
+        assert len(A) % 4 == 0
+
+
+def test_fold_draws_VARY_so_the_null_is_not_degenerate():
+    """The symptom that motivated this: four cells came back with an interval collapsed to a point
+    because the greedy search had a unique answer and every draw returned it."""
+    rng = np.random.default_rng(44)
+    ncomp, T = 10, 24
+    t = np.linspace(-3.0, 4.0, T)
+    b = rng.normal(size=ncomp)
+    b /= np.linalg.norm(b)
+    sess = _fold_sessions(rng, ncomp, T, (453, 454, 462, 483, 506, 565), b, t, k=8)
+    ep = [_session(rng, ncomp, T, n, b, t=t) for n in (280, 290, 300, 280)]
+    r = con.epoch_null_folds(sess, ep, t, k=1, n_draw=40, rng=np.random.default_rng(3))
+    assert r is not None and r["unit"] == "fold"
+    assert np.ptp(r["null_cos"]) > 1e-6, "the null collapsed to a point again"
+    assert abs(np.median(r["n_B"]) - r["n_target"]) / r["n_target"] < 0.06

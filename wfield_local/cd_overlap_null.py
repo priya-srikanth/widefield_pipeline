@@ -136,16 +136,123 @@ def trial_matched_split(counts, n_target, k_sessions=None, rng=None, n_swap=N_SW
     return np.asarray(B, int), np.asarray(A, int)
 
 
-def _cim_and_norm(chunks, t, stats, k):
-    """``(basis, ||dev||)`` for a set of ``(G, n)`` session means, at a FIXED rank."""
+def fold_matched_split(sessions, n_target, rng=None, tol=MATCH_TOL):
+    """``(B_chunks, A_chunks, n_B, k_B)`` -- B trimmed to `n_target` trials by DROPPING FOLDS.
+
+    `sessions` is ``[(label, [(G, n) folds]), ...]``. B is a set of whole SESSIONS, chosen at random
+    until it can cover the target, then folds are dropped from it until the total matches. A is every
+    remaining session, all folds.
+
+    DISJOINT AT SESSION LEVEL, and that is the load-bearing property: a session appearing in both
+    groups would correlate them and inflate the null overlap, which is the bias that makes
+    `rest_baseline_epoch_drift`'s cosine positive by construction. Trimming only B keeps A the full
+    reference the observation is also measured against.
+
+    THE DROP ORDER IS RANDOM PER DRAW, so two draws with the same session set still differ -- the
+    other half of the fix for degenerate intervals (see `MATCH_TOL`).
+    """
+    rng = np.random.default_rng() if rng is None else rng
+    n = len(sessions)
+    if n < 2:
+        return None
+    order = list(rng.permutation(n))
+    B, run = [], 0.0
+    for j in order:
+        B.append(j)
+        run += sum(c[1] for c in sessions[j][1])
+        if run >= n_target and len(B) < n:
+            break
+    A = [j for j in order if j not in set(B)]
+    if not A or not B:
+        return None
+    # every fold of every B session, then drop them one at a time while that helps
+    chunks = [(j, i) for j in B for i in range(len(sessions[j][1]))]
+    rng.shuffle(chunks)
+    keep = list(chunks)
+    total = float(sum(sessions[j][1][i][1] for j, i in keep))
+    for j, i in chunks:
+        if len(keep) <= 1:
+            break
+        cand = total - sessions[j][1][i][1]
+        # DROP ONLY WHILE IT IMPROVES THE MATCH, so B never falls below the target by more than a
+        # fold: overshooting downward would make B noisier than E, which biases the other way.
+        if abs(cand - n_target) < abs(total - n_target):
+            keep.remove((j, i))
+            total = cand
+    B_chunks = [sessions[j][1][i] for j, i in keep]
+    A_chunks = [c for j in A for c in sessions[j][1]]
+    return B_chunks, A_chunks, total, len({j for j, _i in keep})
+
+
+def _cim_and_norm(chunks, t, stats, k, drop=None):
+    """``(basis, ||dev||)`` for a set of ``(G, n)`` session means, at a FIXED rank.
+
+    `drop` ZEROES the excluded components, and it is not optional book-keeping: the CD drops them by
+    default (Priya, 2026-09-24), so a null computed over all 95 would calibrate a different space
+    from the one the observation lives in. The same mismatch was caught in `cd_trajectories` itself,
+    where the per-epoch grand means were unmasked and the geometry numbers came out identical to the
+    unmasked arm under a title saying otherwise.
+    """
     G = cdt.pooled_mean(chunks, stats)
     if G is None:
         return None, float("nan")
+    if drop is not None:
+        G = np.asarray(G, float).copy()
+        G[np.asarray(drop, bool)] = 0.0
     return cdt.condition_independent_modes(G, t, k=k), cdt.dev_norm(G, t)
 
 
+def epoch_null_folds(pre_sessions, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
+                     drop=None):
+    """`epoch_null` with FOLD-level trimming of B. Same outputs, finer match.
+
+    `pre_sessions` is `grand_means_folds`' per-session fold list. Everything else -- the paired
+    difference, what is and is not claimed -- is identical to `epoch_null`; only the matching unit
+    changes, from a whole session to a fold.
+    """
+    rng = np.random.default_rng(0) if rng is None else rng
+    n_target = float(sum(int(c[1]) for c in ep_chunks))
+    if len(pre_sessions) < 2 or not ep_chunks:
+        return None
+    cimE, devE = _cim_and_norm(ep_chunks, t, stats, k, drop)
+    out = {"obs_cos": [], "null_cos": [], "obs_scale": [], "null_scale": [],
+           "n_B": [], "n_A": [], "k_B": []}
+    for _ in range(n_draw):
+        got = fold_matched_split(pre_sessions, n_target, rng=rng)
+        if got is None:
+            continue
+        B_chunks, A_chunks, n_B, k_B = got
+        cimB, devB = _cim_and_norm(B_chunks, t, stats, k, drop)
+        cimA, devA = _cim_and_norm(A_chunks, t, stats, k, drop)
+        if cimA is None or cimB is None or cimE is None or not devA:
+            continue
+        out["obs_cos"].append(subspace_overlap_or_nan(cimA, cimE))
+        out["null_cos"].append(subspace_overlap_or_nan(cimA, cimB))
+        out["obs_scale"].append(devE / devA)
+        out["null_scale"].append(devB / devA)
+        out["n_B"].append(n_B)
+        out["n_A"].append(sum(c[1] for c in A_chunks))
+        out["k_B"].append(k_B)
+    if not out["obs_cos"]:
+        return None
+    res = {k_: np.asarray(v, float) for k_, v in out.items()}
+    res.update({"n_target": n_target, "k_target": len(ep_chunks), "k": int(k) if k else None,
+                "unit": "fold"})
+    res["d_cos"] = res["obs_cos"] - res["null_cos"]
+    res["d_scale"] = res["obs_scale"] - res["null_scale"]
+    res["p_not_worse_cos"] = float(np.mean(res["d_cos"] >= 0))
+    res["p_not_bigger_scale"] = float(np.mean(res["d_scale"] <= 0))
+    return res
+
+
+def subspace_overlap_or_nan(A, B):
+    """`cdt.subspace_overlap`, with None mapped to NaN so an array stays numeric."""
+    v = cdt.subspace_overlap(A, B)
+    return float("nan") if v is None else float(v)
+
+
 def epoch_null(pre, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
-               match_sessions=True):
+               match_sessions=True, drop=None):
     """Observed and matched-null overlap/scale for ONE epoch, over `n_draw` trial-matched splits.
 
     Returns a dict of arrays over draws plus the achieved match, so the mismatch is auditable.
@@ -153,11 +260,32 @@ def epoch_null(pre, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
     rng = np.random.default_rng(0) if rng is None else rng
     counts = [int(c[1]) for c in pre]
     n_target = float(sum(int(c[1]) for c in ep_chunks))
-    k_sessions = len(ep_chunks) if match_sessions else None
     if len(pre) < 2 or not ep_chunks:
         return None
+    # SESSION COUNT IS A PREFERENCE AND TRIALS WIN -- which is what this function's docstring always
+    # claimed and what the code did NOT do. Clipping |B| to the epoch's session count made the
+    # session match HARD, and because pre-stroke sessions are larger than post-stroke ones, B then
+    # overshot the trial target badly: measured on the first real run, PS93 acute matched 1823
+    # trials against a target of 1150 (+59%) and PS94 acute 2537 against 1651 (+54%). A B group with
+    # MORE trials than E is QUIETER than E, so the null overlap comes out too HIGH and the null
+    # scale too LOW -- both biases flatter the observation, which is the one direction that must not
+    # be left in. It also made the draws degenerate: with |B| fixed and the target unreachable the
+    # greedy search has a unique answer, so every draw returned it and the interval collapsed to a
+    # point ([0.952, 0.952]).
+    #
+    # So: try with the session count fixed, and if that cannot reach the tolerance, DROP the
+    # constraint and match trials. `k_target` is still reported, so the session mismatch is visible.
+    k_sessions = len(ep_chunks) if match_sessions else None
+    if k_sessions is not None:
+        counts0 = [int(c[1]) for c in pre]
+        probe = trial_matched_split(counts0, n_target, k_sessions,
+                                    rng=np.random.default_rng(0))
+        if probe is not None:
+            got_n = sum(counts0[i] for i in probe[0])
+            if abs(got_n - n_target) > MATCH_TOL * n_target:
+                k_sessions = None
 
-    cimE, devE = _cim_and_norm(ep_chunks, t, stats, k)
+    cimE, devE = _cim_and_norm(ep_chunks, t, stats, k, drop)
     out = {"obs_cos": [], "null_cos": [], "obs_scale": [], "null_scale": [],
            "n_B": [], "n_A": [], "k_B": []}
     for _ in range(n_draw):
@@ -170,8 +298,8 @@ def epoch_null(pre, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
         # otherwise contribute draws matched on neither.
         if not len(iB) or not len(iA):
             continue
-        cimB, devB = _cim_and_norm([pre[i] for i in iB], t, stats, k)
-        cimA, devA = _cim_and_norm([pre[i] for i in iA], t, stats, k)
+        cimB, devB = _cim_and_norm([pre[i] for i in iB], t, stats, k, drop)
+        cimA, devA = _cim_and_norm([pre[i] for i in iA], t, stats, k, drop)
         if cimA is None or cimB is None or cimE is None or not devA:
             continue
         out["obs_cos"].append(cdt.subspace_overlap(cimA, cimE))
@@ -199,7 +327,8 @@ def epoch_null(pre, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
     return res
 
 
-def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbose=True):
+def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbose=True,
+               mask_occluded=True, use_folds=True):
     """Every post-stroke epoch's matched null for one animal, off the CACHED per-session means.
 
     NOTHING IS PROJECTED HERE when `cd_trajectories` has been run for this (animal, align, gate):
@@ -242,25 +371,45 @@ def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbo
         return None
     stats = cdt.component_stats(np.vstack(Xf)) if cdt.STANDARDISE else None
 
+    # THE SAME COMPONENT SET THE CD USES, by default -- see `_cim_and_norm`.
+    drop = None
+    if mask_occluded:
+        from wfield_local import component_exclusion as cex
+
+        drop = cex.occluded(basis, animal)
     gm = cdt.grand_means(book, use, basis, align, pre_n, post_frames)
     if not gm.get("pre"):
         return None
+    # FOLD-RESOLVED PRE-STROKE SESSIONS, for the trial trimming. Falls back to the whole-session
+    # matcher when they are unavailable, so an animal whose folds have not been computed still gets a
+    # null -- with its coarser match visible in the reported percentage rather than assumed away.
+    gmf = (cdt.grand_means_folds(book, use, basis, align, pre_n, post_frames)
+           if use_folds else {})
     t = np.arange(-pre_n, post_frames) / args.fs
     # K FROM THE FULL PRE-STROKE SET, then held fixed everywhere (see the module docstring).
-    cim_pre = cdt.condition_independent_modes(cdt.pooled_mean(gm["pre"], stats), t)
+    cim_pre = _cim_and_norm(gm["pre"], t, stats, None, drop)[0]
     if cim_pre is None:
         return None
     k = int(cim_pre.shape[1])
 
-    out = {"animal": animal, "align": align, "gate": gate, "k": k,
-           "ncomp": int(basis.ncomp), "chance": cdt.subspace_chance(int(basis.ncomp), k),
+    # CHANCE IS K OVER THE SPACE ACTUALLY IN PLAY. Dropping a quarter of the components RAISES it,
+    # 2/67 against 2/95, so quoting the basis size would understate chance by a third.
+    n_eff = int(basis.ncomp) - (0 if drop is None else int(np.asarray(drop).sum()))
+    out = {"animal": animal, "align": align, "gate": gate, "k": k, "n_eff": n_eff,
+           "mask_occluded": bool(mask_occluded),
+           "ncomp": int(basis.ncomp), "chance": cdt.subspace_chance(n_eff, k),
            "n_pre_sessions": len(gm["pre"]),
            "n_pre_trials": int(sum(c[1] for c in gm["pre"])), "epochs": {}}
     rng = np.random.default_rng(seed)
     for ep in ("acute", "subacute", "chronic"):
         if not gm.get(ep):
             continue
-        r = epoch_null(gm["pre"], gm[ep], t, stats=stats, k=k, n_draw=n_draw, rng=rng)
+        if gmf.get("pre"):
+            r = epoch_null_folds(gmf["pre"], gm[ep], t, stats=stats, k=k, n_draw=n_draw,
+                                 rng=rng, drop=drop)
+        else:
+            r = epoch_null(gm["pre"], gm[ep], t, stats=stats, k=k, n_draw=n_draw, rng=rng,
+                           drop=drop)
         if r is not None:
             out["epochs"][ep] = r
     if verbose:
@@ -282,8 +431,10 @@ def report(out):
     for ep, r in out["epochs"].items():
         oc, nc = _q(r["obs_cos"]), _q(r["null_cos"])
         os_, ns = _q(r["obs_scale"]), _q(r["null_scale"])
-        match = (f"{np.median(r['n_B']):.0f}/{r['n_target']:.0f}, "
-                 f"{np.median(r['k_B']):.0f}/{r['k_target']:.0f}")
+        _off = abs(np.median(r["n_B"]) - r["n_target"]) / max(r["n_target"], 1)
+        match = (f"{np.median(r['n_B']):.0f}/{r['n_target']:.0f} ({_off:+.0%}), "
+                 f"{np.median(r['k_B']):.0f}/{r['k_target']:.0f}s"
+                 f"{'' if r.get('unit') != 'fold' else ' F'}")
         L.append(f"  {ep:9s} {match:26s} {oc[0]:12.3f} "
                  f"{f'{nc[0]:.3f} [{nc[1]:.3f},{nc[2]:.3f}]':>22s} {os_[0]:10.3f} "
                  f"{f'{ns[0]:.3f} [{ns[1]:.3f},{ns[2]:.3f}]':>22s} "
@@ -311,7 +462,9 @@ def _one(item):
     from wfield_local import cd_overlap_null as m
 
     out = m.run_animal(item["animal"], item["align"], item["gate"], n_draw=item["n_draw"],
-                       seed=item["seed"], verbose=False)
+                       seed=item["seed"], verbose=False,
+                       mask_occluded=item.get("mask_occluded", True),
+                       use_folds=item.get("use_folds", True))
     if out is None:
         return None
     if item.get("out"):
@@ -327,6 +480,13 @@ def main(argv=None) -> int:
     ap.add_argument("--gate", default="lick", choices=tuple(cdt.GATES))
     ap.add_argument("--draws", type=int, default=N_DRAW)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-folds", action="store_true",
+                    help="match on WHOLE SESSIONS instead of subsampling folds within them. The "
+                         "coarse arm, kept for comparison: it left PS93 acute matched to +18% and "
+                         "four cells with a degenerate interval.")
+    ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
+                    help="must MATCH the CD render, or the null calibrates a different space from "
+                         "the observation. Default `drop`, as the render's is.")
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--out", default=None,
                     help="directory to persist into (its results/ subdir); default is the "
@@ -339,7 +499,8 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     items = [{"animal": a, "align": al, "gate": args.gate, "n_draw": args.draws,
-              "seed": args.seed, "out": str(out)}
+              "seed": args.seed, "out": str(out),
+              "mask_occluded": args.occluded == "drop", "use_folds": not args.no_folds}
              for a in (args.animal or ["PS92", "PS93", "PS94", "PS95"]) for al in args.align]
 
     from wfield_local import analysis_kit as ak

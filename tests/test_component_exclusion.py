@@ -222,7 +222,13 @@ def test_no_CD_deck_pattern_is_dead():
     emitted = [f"cd_{lay}_{an}_{al}_{tag}.png"
                for lay in cdt.LAYOUTS for al in ("precue", "cue", "lick")
                for an in ("PS92", "PS93", "PS94", "PS95")]
-    emitted += ["cd_cim_geometry_lick.png", "cd_cim_geometry_lick_or_working.png"]
+    emitted += ["cd_cim_geometry_lick.png", "cd_cim_geometry_lick_cortexonly.png",
+                "cd_cim_geometry_lick_cortexonly_vs_ceiling.png"]
+    # the POOLED families, which are one figure per alignment rather than per animal
+    emitted += [f"cd_xanimal_{lay}_{al}_contrast_lick_cortexonly.png"
+                for lay in ("perposition", "cross") for al in ("precue", "cue", "lick")]
+    emitted += [f"cd_migration_{al}_contrast_lick_cortexonly.png"
+                for al in ("precue", "cue", "lick")]
     for pat, _t, _l in reg.CD_FIGURES:
         assert any(fnmatch.fnmatch(n, pat) for n in emitted), pat
 
@@ -232,8 +238,11 @@ def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
     reading of a one-vs-rest CD panel is wrong, so every trajectory slide's note has to say so."""
     from wfield_local import deck_registry as reg
 
+    # SCOPED TO THE TRAJECTORY PANELS. The derived families (pooled delta, migration) are checked
+    # separately below for THEIR OWN caveats -- requiring the trajectory caveat verbatim on a
+    # migration matrix would be cargo-culting the string rather than the reasoning.
     for pat, _ttl, legend in reg.CD_FIGURES:
-        if "geometry" in pat:
+        if not (pat.startswith("cd_epochs_") or pat.startswith("cd_cross_")):
             continue
         assert "0.289" in legend, pat                 # the measured near-cancellation
         assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat
@@ -251,3 +260,28 @@ def test_the_geometry_note_states_the_CHANCE_LEVEL_and_the_MISSING_NULL():
     assert "K/n" in leg and "chance" in leg.lower()
     assert "NO MATCHED NULL" in leg.upper()
     assert "SCALE-INVARIANT" in leg.upper()           # why row B exists at all
+
+
+def test_the_DERIVED_families_carry_THEIR_OWN_caveats():
+    """Each derived figure has one way it can be misread, and its note has to close that one.
+
+    A pooled delta invites "the band includes zero so nothing happened", when pre-stroke is zero BY
+    CONSTRUCTION and the difference carries both epochs' noise. A migration matrix invites reading
+    off-diagonal mass as movement, when the six directions are not orthogonal and neighbouring
+    positions resemble each other already. Neither caveat is the trajectory panels' caveat, so they
+    are asserted separately rather than by requiring one string everywhere.
+    """
+    from wfield_local import deck_registry as reg
+
+    notes = dict((pat, leg) for pat, _t, leg in reg.CD_FIGURES)
+    xa = notes["cd_xanimal_perposition_*.png"]
+    assert "WITHIN ANIMAL" in xa
+    assert "BY CONSTRUCTION" in xa            # pre-stroke is zero by definition, not measurement
+    assert "boot_delta" in xa and "sessions within each animal" in xa
+    assert "2026-09-20" in xa                 # why the point estimate is animal-weighted
+
+    mig = notes["cd_migration_*.png"]
+    assert "NOT ORTHOGONAL" in mig
+    assert "BOLD IS THE DIAGONAL" in mig      # Priya had to ask what bold meant
+    assert "BOXED" in mig and "HATCHED" in mig
+    assert "0.33-0.43" in mig                 # the measured residual correlation, not an assertion

@@ -489,8 +489,9 @@ def main():
                          "plus the lead-lick contamination control). ~10 min per epoch COLD; near "
                          "free once `nolick_decoder.session_features_cached` is warm.")
     ap.add_argument("--skip-cd", action="store_true",
-                    help="skip the CD trajectory stage (per-position coding directions projected "
-                         "frame by frame, plus the condition-independent-mode geometry figure). "
+                    help="skip the CD trajectory stage: the per-position coding directions "
+                         "projected frame by frame, the trial-matched pre-to-pre null, and the "
+                         "geometry, cross-animal delta and migration figures built from them. "
                          "~90 min COLD for all four animals over three alignments, since every "
                          "session's projection has to be read off MICROSCOPE; minutes once the "
                          "`cdarms-`/`cdfit-`/`cdcourse-`/`cdgm2-` caches are warm.")
@@ -876,9 +877,16 @@ def main():
         cli("wfield_local.cd_trajectories", "--align", "precue", "cue", "lick",
             "--layout", "epochs", "cross", "--gate", "lick", "--reference", "contrast",
             "--orth", "on", "--occluded", "drop")
-        # READS THE DUMPS THE STEP ABOVE JUST WROTE, so it computes nothing and cannot disagree
-        # with the panels. It must therefore come second.
+        # THE TRIAL-MATCHED PRE-TO-PRE CEILING, and it must come BEFORE the geometry figure, which
+        # draws it. Without it that figure loses its reference line and an overlap has no scale
+        # beyond K/n -- which is the reading error the ceiling exists to prevent, so a silently
+        # missing ceiling is worse than a missing figure.
+        cli("wfield_local.cd_overlap_null", "--align", "precue", "cue", "lick")
+        # EVERYTHING BELOW READS THE DUMPS THE STEPS ABOVE WROTE and computes nothing, so none of it
+        # can disagree with the panels, and all of it is seconds rather than minutes.
         cli("scripts.cd_geometry_figure", "--dir", str(_cddir))
+        cli("scripts.cd_cross_animal_figure", "--dir", str(_cddir))
+        cli("scripts.cd_migration", "--dir", str(_cddir))
 
     # GRANT FIGURES -- deck section H places 19 of these patterns, so by the rule this file already
     # follows for the post-stroke stage ("if it is part of the deck it is part of the nightly") they
