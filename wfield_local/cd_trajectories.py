@@ -1136,9 +1136,27 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     out["anchor"] = _anchor(out, args.post_s)
     if Ge:
         tt = np.arange(-pre_n, post_frames) / args.fs
-        by_ep = {ep_: pooled_mean(chunks, stats) for ep_, chunks in Ge.items()}
+        # THE SAME SUBSPACE THE DIRECTIONS LIVE IN. `drop` was already applied to the pre-stroke
+        # grand mean that defines the projected-out mode; applying it here too is what makes
+        # `cim_cos` and `cim_scale` describe the space the panels are drawn in. Without it the
+        # geometry numbers came out IDENTICAL to the unmasked arm -- which is how this was caught,
+        # because a figure titled "28 glue/bulb components dropped" was reporting an overlap
+        # computed over all 95.
+        by_ep = {}
+        for ep_, chunks in Ge.items():
+            Gq = pooled_mean(chunks, stats)
+            if Gq is not None and drop is not None:
+                Gq = np.asarray(Gq, float).copy()
+                Gq[np.asarray(drop, bool)] = 0.0
+            by_ep[ep_] = Gq
         out["cim_cos"] = cim_rotation(by_ep, tt)
-        out["cim_chance"] = subspace_chance(int(basis.ncomp), int(out["cim_k"] or 1))
+        # K/n WHERE n IS THE SURVIVING COMPONENT COUNT, not the basis size. Chance overlap between
+        # two unrelated K-dim subspaces is K/n of the space they live in, and dropping a quarter of
+        # the components RAISES it -- 2/67 = 0.030 against 2/95 = 0.021. Quoting the basis size
+        # would understate chance by a third and so overstate how far above it an overlap sits.
+        n_eff = int(basis.ncomp) - (0 if drop is None else int(np.asarray(drop).sum()))
+        out["cim_chance"] = subspace_chance(n_eff, int(out["cim_k"] or 1))
+        out["n_eff"] = n_eff
         # ORIENTATION AND MAGNITUDE TOGETHER -- the cosine is scale-invariant and would score a
         # halved-but-unrotated response as unchanged.
         out["cim_scale"] = cim_scale(by_ep, tt)
@@ -1537,26 +1555,28 @@ def _render_animal(item):
     return {"made": made, "errors": errs}
 
 
-#: Subdirectory of the server analysis-figure root that this module owns.
-OUT_SUBDIR = "cd_trajectories"
-
-
 def default_out():
-    """Where figures and dumps go when `--out` is not given: the SERVER widefield tree.
+    """Where figures and dumps go when `--out` is not given: **the EPOCH figure directory**.
 
     Priya, 2026-09-24: *"outputs should go to the widefield directory on the server when
-    appropriate"*. `cue_analysis_out` is the configured analysis-figure root
-    (`.../Widefield/labcams/analysis_figures`); the previous default was `figures_working`, a LOCAL
-    scratch root that the nightly mirrors afterwards -- so a hand run left its output where only this
-    machine could see it.
+    appropriate"*, then *"can we just move to that dir?"* -- so ONE location, and it is the one deck
+    section J reads (`<labcams>/grant_figures/epoch`).
 
-    IN AN OWN SUBDIRECTORY, for two reasons. `nightly_figs._publish_figs` globs `*.json` at the TOP
-    level of that root and copies them as publish inputs, so dumps must not land beside them; and
-    `scripts/check_figure_layout.py` reads the root as a flat figure directory.
+    THE DEFAULT IS THE PLACE THE DECK READS, deliberately. Two earlier candidates were worse in the
+    same way: `figures_working` is a LOCAL scratch root the nightly mirrors afterwards, so a hand run
+    left its figures where only that machine could see them -- the failure CLAUDE.md records as
+    blocking a deck rebuild over eleven figures that existed on the share and had never reached the
+    analysis box; and a private `analysis_figures/cd_trajectories` subdir meant the nightly had to
+    pass `--out` for the deck to find anything, i.e. a hand run silently produced figures no slide
+    would ever show.
+
+    THE SIDECARS ARE SAFE HERE, checked rather than assumed: `check_figure_layout` governs this tree,
+    but it only inspects directories that DIRECTLY contain a PNG, so the `results/` subdir of JSON
+    and NPZ is invisible to it and the tree reports 0 strays.
     """
     from wfield_local.paths import PathResolver
 
-    return Path(PathResolver().root("cue_analysis_out")) / OUT_SUBDIR
+    return Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
 
 
 def main(argv=None) -> int:
@@ -1601,7 +1621,8 @@ def main(argv=None) -> int:
                          "made under different constants is REFUSED rather than redrawn.")
     ap.add_argument("--jobs", type=int, default=None, help="parallel animals (default: cores-2)")
     ap.add_argument("--out", default=None,
-                    help=f"default: the server analysis-figure root / {OUT_SUBDIR}")
+                    help="default: <labcams>/grant_figures/epoch, which is where deck section J "
+                         "reads them from")
     args = ap.parse_args(argv)
 
     out = Path(args.out) if args.out else default_out()

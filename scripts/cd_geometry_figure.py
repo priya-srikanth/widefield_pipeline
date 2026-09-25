@@ -58,19 +58,25 @@ POST = ("acute", "subacute", "chronic")
 
 
 def collect(dirpath, animals=ANIMALS, aligns=ALIGNS, gate="lick", reference="contrast",
-            method="dom"):
+            method="dom", mask_occluded=True):
     """`{(animal, align): res}` for every dump that exists, plus the reasons the others do not.
 
     A STALE DUMP RAISES inside `load_result` and is recorded as a problem rather than drawn -- see
     `cd_trajectories.RESULT_GUARD`. Missing and stale are different facts and both are reported,
     because "this animal has no CIM" and "this animal's CIM was measured under other constants"
     lead to opposite next actions.
+
+    `mask_occluded` DEFAULTS TO TRUE because the render's does (Priya, 2026-09-24: *"i think for the
+    CD analyses we should drop the masked components"*), and the tag differs between the two arms --
+    so a default of False here would silently find nothing and report every animal as missing. It
+    did, once: the first run after the default flipped reported "no saved result" for all four.
     """
     got, problems = {}, []
     for a in animals:
         for al in aligns:
             try:
-                res = cdt.load_result(dirpath, a, al, method, reference, gate, orth=True)
+                res = cdt.load_result(dirpath, a, al, method, reference, gate, orth=True,
+                                      mask_occluded=mask_occluded)
             except ValueError as exc:
                 problems.append(f"{a} {al}: {exc}")
                 continue
@@ -203,17 +209,23 @@ def main(argv=None) -> int:
     ap.add_argument("--gate", default="lick", choices=tuple(cdt.GATES))
     ap.add_argument("--reference", default="contrast", choices=cdt.REFERENCES)
     ap.add_argument("--align", nargs="+", default=list(ALIGNS), choices=ALIGNS)
+    ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
+                    help="which arm's dumps to read -- must MATCH the render, since the two are "
+                         "stored under different tags. Default `drop`, as the render's is.")
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
 
     got, problems = collect(Path(args.dir), aligns=tuple(args.align), gate=args.gate,
-                            reference=args.reference)
+                            reference=args.reference,
+                            mask_occluded=args.occluded == "drop")
     print(table(got))
     for p in problems:
         print(f"!! {p}")
     if not got:
         return 1
-    out = Path(args.out) if args.out else Path(args.dir) / f"cd_cim_geometry_{args.gate}.png"
+    # THE ARM IS IN THE FILENAME, for the same reason it is in the dump tag: two arms, two figures.
+    out = (Path(args.out) if args.out else Path(args.dir)
+           / f"cd_cim_geometry_{args.gate}{'_cortexonly' if args.occluded == 'drop' else ''}.png")
     print(f"-> {figure(got, out)}")
     return 0
 

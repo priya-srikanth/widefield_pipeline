@@ -187,3 +187,67 @@ def test_a_masked_dump_is_not_served_to_an_unmasked_lookup(tmp_path):
     assert cdt.load_result(tmp_path, "PS95", "precue", orth=True) is None
     got = cdt.load_result(tmp_path, "PS95", "precue", orth=True, mask_occluded=True)
     assert got is not None
+
+
+# ------------------------------------------------------------------ the deck knows about them
+
+
+def test_every_CD_figure_the_module_can_emit_HAS_A_DECK_ENTRY():
+    """`deck_figure_coverage` cannot see a family the registry was never told about -- it reports
+    figures the deck EXPECTS and is silent about ones it does not know exist. That is how 33 of 75
+    figures ended up unreferenced. So the pairing is asserted here instead: build the filename the
+    way `_render_animal` builds it, for every (layout, align) the nightly renders, and require a
+    `CD_FIGURES` pattern to match it.
+    """
+    import fnmatch
+
+    from wfield_local import deck_registry as reg
+
+    tag = "_".join(["dom", "contrast", "lick", "orth", "cortexonly"])
+    emitted = [f"cd_{lay}_PS95_{al}_{tag}.png"
+               for lay in cdt.LAYOUTS for al in ("precue", "cue", "lick")]
+    emitted.append("cd_cim_geometry_lick.png")
+    for name in emitted:
+        assert any(fnmatch.fnmatch(name, pat) for pat, _t, _l in reg.CD_FIGURES), name
+
+
+def test_no_CD_deck_pattern_is_dead():
+    """The other direction: a pattern matching nothing the module emits is a slide that will never
+    appear, and it would sit there looking like coverage."""
+    import fnmatch
+
+    from wfield_local import deck_registry as reg
+
+    tag = "_".join(["dom", "contrast", "lick", "orth", "cortexonly"])
+    emitted = [f"cd_{lay}_{an}_{al}_{tag}.png"
+               for lay in cdt.LAYOUTS for al in ("precue", "cue", "lick")
+               for an in ("PS92", "PS93", "PS94", "PS95")]
+    emitted += ["cd_cim_geometry_lick.png", "cd_cim_geometry_lick_or_working.png"]
+    for pat, _t, _l in reg.CD_FIGURES:
+        assert any(fnmatch.fnmatch(n, pat) for n in emitted), pat
+
+
+def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
+    """A caveat that lives only in a status document does not travel with the figure. The naive
+    reading of a one-vs-rest CD panel is wrong, so every trajectory slide's note has to say so."""
+    from wfield_local import deck_registry as reg
+
+    for pat, _ttl, legend in reg.CD_FIGURES:
+        if "geometry" in pat:
+            continue
+        assert "0.289" in legend, pat                 # the measured near-cancellation
+        assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat
+        assert "surviving fraction" in legend or "survived" in legend, pat
+        assert "Z-SCORED" in legend, pat              # the standardisation, measured
+        assert "HAEMODYNAMICS ARE SLOW" in legend, pat
+
+
+def test_the_geometry_note_states_the_CHANCE_LEVEL_and_the_MISSING_NULL():
+    """0.6 against 1.0 reads as a deficit; against K/n it is ~30x chance. And the matched null has
+    not run, so the note must say the number has no scale beyond chance yet."""
+    from wfield_local import deck_registry as reg
+
+    leg = next(le for pat, _t, le in reg.CD_FIGURES if "geometry" in pat)
+    assert "K/n" in leg and "chance" in leg.lower()
+    assert "NO MATCHED NULL" in leg.upper()
+    assert "SCALE-INVARIANT" in leg.upper()           # why row B exists at all

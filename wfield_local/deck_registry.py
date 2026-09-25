@@ -167,6 +167,129 @@ _CCF_LEGEND = (
     " LEFT is the IPSILESIONAL hemisphere AND the one representing the impaired right side."
     "\n\nThis arm is {arm}-aligned."
 )
+#: Section J -- the CD TRAJECTORIES, per animal (`wfield_local.cd_trajectories`).
+#:
+#: ONE ENTRY PER (layout, alignment), with `*` standing for the animal, so a new animal needs no
+#: registry edit. The builder pulls the animal out of the filename for the slide title.
+#:
+#: THE NOTES ARE WRITTEN AS STANDALONE FIGURE LEGENDS, the rule section I already follows: a reader
+#: should be able to lift one into a proposal and have it stand alone. For this family that matters
+#: more than usual, because **the naive reading of a one-vs-rest CD figure is wrong** -- the six
+#: directions nearly cancel, so a signal common to every trial is FORCED to split sign across
+#: positions, and the dramatic position differences in an unorthogonalised panel are that geometry
+#: rather than the code. A caveat that lives only in the deck does not travel with the figure.
+_CD_METHOD = (
+    "METHOD. For each spout position P a coding direction is fitted on PRE-STROKE successful-lick "
+    "trials as w_P = mean(P) - mean(not-P) in the animal's frozen joint-LocaNMF component space, "
+    "using the WINDOW MEAN over a 2 s feature window (measured optimum: a 1 s window costs 28% of "
+    "d' in PS92, and 3 s keeps only 458 of 3911 trials because the lick-free gate has no slack). "
+    "The direction is therefore TIME-INVARIANT, which is what lets the signal be projected onto it "
+    "frame by frame to give a trajectory; `position_coding_directions` fits in (component x "
+    "sub-bin) space and its vector cannot be applied to a single frame. Components are Z-SCORED in "
+    "a frozen pre-stroke frame -- per-component sd spans 107x and the top five hold 82% of the "
+    "variance, so an unstandardised difference of means is set by about five components on "
+    "amplitude alone. Trials are averaged by MEAN and the band is the 95% CI OF THE MEAN, not the "
+    "trial spread; the per-trial projection is strongly skewed, so a median reads below zero at "
+    "three of six positions for pre-stroke success alone. Display smoothing is a 0.2 s CENTRED "
+    "boxcar (costs 4% of peak; 0.4 s costs 8%, and the cost falls on the fast far-position "
+    "transients, not the slow close ones). Axis: 0 = pre-stroke not-P, 1 = pre-stroke lick at P. "
+    "HAEMODYNAMICS ARE SLOW -- read amplitude and gross time course, never onset or ordering.")
+
+_CD_ORTH = (
+    "WHY THE CONDITION-INDEPENDENT MODE IS PROJECTED OUT. The directions are one-vs-rest, so across "
+    "six positions the unit vectors SUM TO A VECTOR OF LENGTH 0.289 where six aligned ones would "
+    "give 6.0. A signal common to every trial therefore cannot load positively on all six: the "
+    "geometry FORCES it positive on some and negative on others. The lick response is such a signal "
+    "and it is large -- decomposed on PS95 pre-cue, close_center reads +14.08 of which +14.32 is "
+    "the shared term and -0.24 is position-specific, and the position-specific part is ~1-2 at "
+    "EVERY position. So the striking position differences in an unorthogonalised panel are an "
+    "artefact of the cancellation geometry. The top-K components of the pre-stroke grand-mean "
+    "trajectory are projected out (K by variance explained, 2-3 here); K=1 is not enough because a "
+    "SUBSPACE rotates where a single vector appears not to (K=1 cosines 0.88/0.95/0.88 against K=2 "
+    "subspace overlaps 0.68/0.61/0.66). The mode is fitted on PRE-STROKE sessions and applied to "
+    "every epoch -- a per-epoch mode would subtract away the change being measured. "
+    "TRACES ARE SCALED BY THE UNROTATED GAP, so a direction that barely survives the projection "
+    "draws SMALL rather than being renormalised back to 1; each panel prints its surviving "
+    "fraction, RED below 70%, and a panel below that should not be read.")
+
+_CD_MASK = (
+    "COMPONENT SELECTION. Components whose spatial mass is more than half inside that animal's "
+    "hand-painted fibre-glue mask or an olfactory bulb are DROPPED -- about a quarter of every "
+    "basis (19-24 of 87-95). The map analyses already exclude that territory and LocaNMF does not. "
+    "Measured before adopting it: the direction loads on those components at their share BY COUNT, "
+    "which is the null expectation under equal-variance weighting, and the real fit comes in at or "
+    "below it; dropping them costs 9-14% of the pole gap, which is what dropping any random quarter "
+    "costs. The reason to drop is not contamination but that KEEPING them leaves the post-stroke "
+    "panels sensitive to the choice -- PS95 acute close_center reverses sign. `--occluded keep` "
+    "reproduces the earlier arm.")
+
+CD_FIGURES = (
+    ("cd_epochs_*_precue_dom_contrast_lick_orth_cortexonly.png",
+     "Pre-cue coding direction, four epochs overlaid",
+     "Projection of pre-cue population activity onto each spout position's own coding direction, "
+     "one panel per position, with the four recovery epochs OVERLAID so 'did this position's code "
+     "change after the lesion' is one comparison rather than four. Trials are successful licks; "
+     "x = 0 is the CUE and the direction is fitted on the 2 s BEFORE it, i.e. the enforced-no-lick "
+     "period, on trials with no lick anywhere in that window. A dashed trace is a cell with fewer "
+     "than 10 trials -- drawn rather than omitted, because 'could not test' and 'tested and found "
+     "nothing' are different facts. Y-AXIS SHARED ACROSS PANELS: the pole normalisation makes the "
+     "six commensurable, so a per-panel scale would make positions of different amplitude look "
+     "alike. " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_epochs_*_cue_dom_contrast_lick_orth_cortexonly.png",
+     "Cue-aligned coding direction, four epochs overlaid",
+     "As the pre-cue panel, with the direction fitted on the 2 s AFTER the cue instead of before "
+     "it. NOTE that both are drawn against the cue -- the alignment token selects which window the "
+     "DIRECTION is fitted on, not where the trace is centred -- so this is not an independent "
+     "replication of the pre-cue figure, and the two agreeing is expected. " + _CD_ORTH + " "
+     + _CD_METHOD + " " + _CD_MASK),
+    ("cd_epochs_*_lick_dom_contrast_lick_orth_cortexonly.png",
+     "Lick-aligned coding direction, four epochs overlaid",
+     "As above, centred on the FIRST LICK and fitted on the 2 s after it. This is the independent "
+     "alignment: no-lick trials have no lick to align to, so the gate is forced back to successful "
+     "trials whatever was asked for -- a trajectory through an inferred lick time would have an "
+     "x-axis that stretches with the latency, and post-stroke the latency is long and variable. "
+     + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cross_*_precue_dom_contrast_lick_orth_cortexonly.png",
+     "Pre-cue CROSS-projection: every position's trials on every position's direction",
+     "Rows are recovery epochs, columns are the coding direction being projected onto, and each "
+     "panel overlays all six spout positions' trials. THE HEAVY TRACE IS THE PANEL'S OWN POSITION; "
+     "the other five are the comparison, so a selective direction shows one trace rising and five "
+     "flat. That is the claim 'this is a position code' made visible rather than inferred from a "
+     "decoder score. Y is shared WITHIN a row, since the question here is within-panel "
+     "selectivity. It costs nothing extra to compute: the courses already exist for all six "
+     "directions over the whole session, so slicing any position's trials out of any course is "
+     "free. " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cross_*_cue_dom_contrast_lick_orth_cortexonly.png",
+     "Cue-aligned CROSS-projection", "As the pre-cue cross-projection, direction fitted after the "
+     "cue. " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cross_*_lick_dom_contrast_lick_orth_cortexonly.png",
+     "Lick-aligned CROSS-projection", "As above, centred on the first lick. " + _CD_ORTH + " "
+     + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cim_geometry_*.png",
+     "The condition-independent mode after stroke: orientation, magnitude, and what orthogonalising leaves behind",
+     "Three rows, and the third is the only one that licenses a claim about a post-stroke panel. "
+     "(A) SUBSPACE OVERLAP of each epoch's condition-independent subspace with the pre-stroke one, "
+     "drawn against its CHANCE LEVEL of K/n -- about 0.02 on a 95-component basis, shaded. An "
+     "overlap of 0.6 is therefore ~30x chance and the mode is strongly CONSERVED; reading it "
+     "against 1.0 instead, as 'a third rotated away', is wrong. (B) MAGNITUDE of the same mode as a "
+     "ratio to pre-stroke, because overlap is SCALE-INVARIANT: a response that keeps its "
+     "orientation exactly and halves in size scores 1.00, which for a lesion study is a blind spot "
+     "on the most likely effect. MEASURED, the shared response is LARGER after the lesion in 12 of "
+     "12 (animal, epoch) cells, mean 1.41, and it replicates on the lick alignment. (C) the "
+     "UNREMOVED shared amplitude, sqrt(1 - overlap) x scale, in units of the pre-stroke shared "
+     "response; the dashed line is the same quantity with the scale assumed to be 1.0, i.e. what "
+     "row B corrects. Read A and B TOGETHER or neither: same subspace with a smaller scale is "
+     "weaker drive, a rotated subspace at the same scale is REORGANISATION, and a decoder score "
+     "conflates them because both lower accuracy. PS94 chronic is the only cell with overlap DOWN "
+     "and scale UP in all three alignments, and its row-C value exceeds 1.0 -- more unremoved "
+     "shared signal than the whole pre-stroke shared response, against a position-specific signal "
+     "of ~1-2, so that panel is not readable. THE OVERLAP HAS NO MATCHED NULL YET: two subspaces "
+     "estimated from different sessions do not fully overlap even when nothing changed, and "
+     "`wfield_local.cd_overlap_null` builds the trial-matched pre-to-pre comparison that gives "
+     "these numbers a scale. Until it has run, read A against K/n only."),
+)
+
+
 EPOCH_FIGURES = (
     ("epoch_1c_behaviour_timecourse.png",
      "Behavioural deficit and recovery, and where the epochs come from",

@@ -70,7 +70,7 @@ from wfield_local import epochs as _epochs
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, EPOCH_FIGURES, GRANT_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
@@ -2097,6 +2097,56 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 # subtitle this section does not pass (`title(_sl, ..., "")`); the title box ends
                 # at 1.11in, so the deck's own 1.40 default clears it and buys back 0.55in.
                 big(_sl, _ef, top=1.40, width=12.6)
+
+    # ---------------------------------------------------------------------------------------
+    # J. CD TRAJECTORIES (Priya, 2026-09-24: *"ensure they go to the deck too, with proper notes
+    # documentation of methods"*). docs/status/STATUS_2026-09-24_CD_TRAJECTORIES.md
+    #
+    # PER ANIMAL, not pooled, and that is what makes this section different from I: a coding
+    # direction is fitted in ONE animal's frozen joint-LocaNMF basis, so there is no cross-animal
+    # object to average. The animal comes out of the filename.
+    #
+    # NOTHING IS ADDED TO `missing_figures`. A deck built before the first CD render should be a
+    # deck without section J, not a refused write -- unlike section I, whose absence means a step
+    # that should have run did not.
+    #
+    # THE NOTES CARRY THE ARTEFACT WARNING, not just the method. The naive reading of a one-vs-rest
+    # CD figure is wrong (the six directions nearly cancel, so a shared signal is forced to split
+    # sign across positions), and a caveat that lives only in a status document does not travel
+    # with the figure onto a slide.
+    # ---------------------------------------------------------------------------------------
+    _cd = _grant / "epoch"
+    _cd_found = [(_n, _pat, _ttl, _legend, _f)
+                 for _n, (_pat, _ttl, _legend) in enumerate(CD_FIGURES, 1)
+                 for _f in sorted(_cd.glob(_pat))]
+    if _cd_found:
+        divider("J. CD TRAJECTORIES — per-position coding directions projected frame by frame",
+                "Built by `python -m wfield_local.cd_trajectories` into "
+                "<labcams>/grant_figures/epoch. PER ANIMAL: a direction is fitted in that animal's "
+                "own frozen joint-LocaNMF basis, so unlike section I nothing here is pooled. The "
+                "scalar per-position coding direction this project already had is fitted on a "
+                "window MEAN here, which makes it time-invariant and therefore projectable frame "
+                "by frame — the trajectory is the projection, not a second fit.\n\n"
+                "READ THE SPEAKER NOTES BEFORE THE PANELS. The one-vs-rest directions nearly "
+                "cancel across the six positions, so any signal common to every trial is FORCED "
+                "positive on some positions and negative on others; the dramatic position "
+                "differences that appear without orthogonalisation are that geometry rather than "
+                "the position code. Every panel here has the condition-independent subspace "
+                "projected out and prints the fraction of each direction that survived it.")
+        for _n, _pat, _ttl, _legend, _f in _cd_found:
+            _sl = slide()
+            # THE ANIMAL FROM THE FILENAME, so adding a fifth animal needs no registry entry. The
+            # token is the first PS\d\d in the stem; falling back to the stem keeps a renamed
+            # figure on a slide with a findable title rather than silently dropping it.
+            _an = next((t for t in _f.stem.split("_") if t.startswith("PS") and t[2:].isdigit()),
+                       _f.stem)
+            title(_sl, f"J{_n}. {_ttl} — {_an}", "")
+            note(_sl, _legend + "\n\nSource: wfield_local.cd_trajectories "
+                 "(--reference contrast --orth on --occluded drop --gate lick). The numbers behind "
+                 "every panel are persisted beside the figure under results/, so this can be "
+                 "re-plotted with `--replot` without recomputing; a dump made under different "
+                 "constants is REFUSED rather than redrawn under the current title.")
+            big(_sl, _f, top=1.40, width=12.6)
 
     out_path = Path(out_path)
     _refuse_incomplete_overwrite(out_path, missing_figures, allow_missing)

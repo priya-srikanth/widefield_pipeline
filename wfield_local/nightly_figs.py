@@ -488,6 +488,12 @@ def main():
                     help="skip the ENL sensory-vs-plan stage (working vs stopped position decoding "
                          "plus the lead-lick contamination control). ~10 min per epoch COLD; near "
                          "free once `nolick_decoder.session_features_cached` is warm.")
+    ap.add_argument("--skip-cd", action="store_true",
+                    help="skip the CD trajectory stage (per-position coding directions projected "
+                         "frame by frame, plus the condition-independent-mode geometry figure). "
+                         "~90 min COLD for all four animals over three alignments, since every "
+                         "session's projection has to be read off MICROSCOPE; minutes once the "
+                         "`cdarms-`/`cdfit-`/`cdcourse-`/`cdgm2-` caches are warm.")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL",
                     help="restrict analysis to these animals (e.g. PS93), or 'all'; scopes the decode/"
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
@@ -843,6 +849,36 @@ def main():
         cli("scripts.enl_sparsity_figure", "--cache", counts,
             *[a for j in jsons for a in ("--decode-json", j)],
             "--out", str(Path(out) / "enl_stopped_sparsity.png"))
+
+    # ---------------------------------------------------------------------------------------
+    # CD TRAJECTORIES (Priya, 2026-09-24). Deck section J places these, so by this file's own rule
+    # -- "if it is part of the deck it is part of the nightly" -- they cannot be left to a hand-run
+    # command. That rule exists because section H was built for weeks from whatever happened to be
+    # on disk.
+    #
+    # INTO THE EPOCH FIGURE DIRECTORY, which is where the deck reads them from, rather than the
+    # module's own default. The dumps land in a `results/` subdir there; `check_figure_layout` only
+    # inspects directories that DIRECTLY contain a PNG, so a sidecar directory of JSON and NPZ is
+    # invisible to it and reports no strays (verified, not assumed).
+    #
+    # NOT GATED ON `--only`, unlike the pooled epoch figures: these are PER ANIMAL, so a subset run
+    # renders a subset of slides rather than overwriting a four-animal deliverable with a one-animal
+    # figure carrying the same filename.
+    # ---------------------------------------------------------------------------------------
+    if not args.skip_cd:
+        log("== CD trajectory stage (per-position coding directions, frame by frame)")
+        # NO `--out`: the module's own default IS this directory now, so the nightly and a hand
+        # run cannot disagree about where the figures go. Resolved here only to pass to the figure
+        # step below, from the same helper the module uses.
+        from wfield_local.cd_trajectories import default_out as _cd_default
+
+        _cddir = _cd_default()
+        cli("wfield_local.cd_trajectories", "--align", "precue", "cue", "lick",
+            "--layout", "epochs", "cross", "--gate", "lick", "--reference", "contrast",
+            "--orth", "on", "--occluded", "drop")
+        # READS THE DUMPS THE STEP ABOVE JUST WROTE, so it computes nothing and cannot disagree
+        # with the panels. It must therefore come second.
+        cli("scripts.cd_geometry_figure", "--dir", str(_cddir))
 
     # GRANT FIGURES -- deck section H places 19 of these patterns, so by the rule this file already
     # follows for the post-stroke stage ("if it is part of the deck it is part of the nightly") they

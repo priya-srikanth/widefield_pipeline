@@ -23,6 +23,9 @@ def _result(animal="PS95", align="precue", **over):
            "positions": [0, 1], "n_sessions": 3, "errors": [], "win_s": 2.0,
            "standardised": True, "smooth_s": cdt.SMOOTH_S, "orth": True, "gate": "lick",
            "reference": "contrast", "fit_on": ["success"], "cim_k": 2,
+           # THE MASKED ARM IS THE DEFAULT, so the fixture has to be one -- `collect` looks up the
+           # `cortexonly` tag now and an unmasked fixture would read as "no saved result".
+           "mask_occluded": True, "n_dropped": 28,
            "surviving": {0: 0.61, 1: 0.88}, "anchor": 1.0,
            "cim_cos": {"pre": 1.0, "acute": 0.68, "subacute": 0.61, "chronic": 0.66},
            "cim_chance": 2.0 / 95.0,
@@ -82,7 +85,8 @@ def test_collect_refuses_a_STALE_dump_and_says_which(tmp_path):
 def test_a_result_rendered_WITHOUT_orth_does_not_answer_an_orth_lookup(tmp_path):
     """`--orth off` and `--orth on` are separate tags, so a non-orth dump must not be picked up and
     drawn as though it carried a projected-out mode. It reads as absent, which is what it is."""
-    cdt.save_result(_result("PS95", orth=False, cim_cos={}, cim_scale={}), tmp_path)
+    cdt.save_result(_result("PS95", orth=False, cim_cos={}, cim_scale={}), tmp_path,
+                    mask_occluded=True)
     got, problems = cg.collect(tmp_path, animals=("PS95",), aligns=("precue",))
     assert got == {}
     assert "no saved result" in problems[0]
