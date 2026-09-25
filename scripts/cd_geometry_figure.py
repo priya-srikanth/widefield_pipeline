@@ -269,7 +269,8 @@ def figure(got, out, nulls=None, normalise=False):
         for a, v in cos.items():
             cl = [ceiling(nulls, a, al, ep, "cos")[0] for ep in POST]
             vv = _norm(v, cl) if normalise else v
-            ax.plot(x, vv, "o-", color=colors.get(a, "0.4"), lw=1.6, ms=5, label=a)
+            ax.plot(x, vv, "o-", color=colors.get(a, "0.4"), lw=1.2, ms=4, alpha=0.85,
+                    label=a)
             # THE CEILING ITSELF, dashed in the animal's own colour: the pre-to-pre value this
             # observation has to be read against. Drawn per animal because it is per animal -- it
             # depends on that animal's session count and trial totals.
@@ -291,7 +292,7 @@ def figure(got, out, nulls=None, normalise=False):
         for a, v in scale.items():
             cl = [ceiling(nulls, a, al, ep, "scale")[0] for ep in POST]
             ax.plot(x, _norm(v, cl) if normalise else v, "s-", color=colors.get(a, "0.4"),
-                    lw=1.6, ms=5)
+                    lw=1.2, ms=4, alpha=0.85)
             if not normalise and any(c is not None for c in cl):
                 ax.plot(x, [np.nan if c is None else c for c in cl], ls="--", lw=1.0,
                         color=colors.get(a, "0.4"), alpha=0.75)
@@ -313,9 +314,10 @@ def figure(got, out, nulls=None, normalise=False):
                 # different from the two above it.
                 cl = [leak(ceiling(nulls, a, al, ep, "cos")[0],
                            ceiling(nulls, a, al, ep, "scale")[0]) for ep in POST]
-                ax.plot(x, _norm(obs_leak, cl), "^-", color=colors.get(a, "0.4"), lw=1.6, ms=5)
+                ax.plot(x, _norm(obs_leak, cl), "^-", color=colors.get(a, "0.4"), lw=1.2, ms=4,
+                        alpha=0.85)
                 continue
-            ax.plot(x, obs_leak, "^-", color=colors.get(a, "0.4"), lw=1.6, ms=5)
+            ax.plot(x, obs_leak, "^-", color=colors.get(a, "0.4"), lw=1.2, ms=4, alpha=0.85)
             # DASHED IS THE CEILING HERE TOO. It used to be `sqrt(1 - overlap)` with the scale
             # assumed 1.0 -- the residual estimate this figure exists to replace -- which meant the
             # same dashes meant one thing in rows A and B and another here. That belongs in

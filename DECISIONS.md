@@ -2198,6 +2198,100 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## TRAJECTORY MIGRATION: the object, and the claim it did NOT support (Priya, 2026-09-25)
+
+Priya: *"is there a clean way to look at where a lick's trajectory MOVED to another trajectory (eg did
+post-stroke far R end up looking more like far center than far center does)?"* -- yes, and
+`scripts/cd_migration.py` is it. **The answer to the example is NO, on this cohort, and the way that
+was established is the part worth keeping.**
+
+**THE OBJECT.** `M[i, j]` = position i's trials projected onto position j's coding direction, averaged
+over the response window. The POLE NORMALISATION is what makes it readable: every direction is scaled
+so 0 is that animal's pre-stroke not-P and 1 its pre-stroke lick at P, so an entry of 1.0 means "looks
+like pre-stroke position j" IN THE SAME UNITS IN EVERY COLUMN. A row is then a profile of what those
+trials resemble, and the question becomes a comparison of two numbers. It costs nothing: the courses
+already exist for all six directions over each session, so slicing any position's trials out of any
+course is free, and `cd_trajectories` already persists them.
+
+**TWO STATES, AND CONFLATING THEM IS THE FIRST TRAP.** `M[i, j] > M[j, j]` is satisfied two ways:
+
+  USURPED  j still holds its own direction and i outscores it anyway -- the claim.
+  VACATED  j's own diagonal has COLLAPSED, so almost anything beats it. Acute far_R holds +0.07 of
+           its own trials against a pre-stroke +1.23, and five of the first run's six "usurpations"
+           were other positions clearing that floor. Ranked by margin they sat at the TOP of the list
+           looking like the finding.
+
+**AND THE SECOND TRAP IS RULE 8, WHICH CAUGHT A CLAIM ALREADY STATED.** Pooled over four animals the
+acute matrix gives far_R +1.79 on far_center's direction against far_center's own +1.13 -- clean, and
+exactly the example asked about. Per animal:
+
+    animal   far_R on far_center   far_center's own   verdict
+    PS92           +0.92                +1.62           no
+    PS93           +0.32                +0.33           no
+    PS94           +0.56                +0.60           no
+    PS95           +5.35                +1.96           USURPED
+
+**ONE of four**, and that one is PS95, whose acute epoch is a SINGLE SESSION -- the same cell that
+produces the animal-vs-session weighting sign flip recorded above. `close_L -> close_center` is two of
+four, and not cleanly: PS94's margin is +0.05 and PS93 satisfies the inequality only because
+close_center collapsed there, which is the vacated case.
+
+**WHY A POOLED MATRIX IS ESPECIALLY UNSAFE HERE, stated as the general lesson: "does i beat j" is a
+THRESHOLD statement, and a mean over four animals can cross a threshold that no individual animal
+crosses.** Reading an average trace off a pooled panel does not have this property; reading an
+inequality off one does. The prose caveat was already in the module docstring when the error was made,
+so the fix is structural -- `per_animal_support` computes the count, the report prints the breakdown
+under every claim and labels it NOT SUPPORTED below 3/4, and the figure draws a DASHED box with the
+count for a pooled-only hit.
+
+**WHAT SURVIVES.** The migration figures for all three windows, the level/change matrices, and one
+suggestive pattern that is explicitly not yet a result: the usurpation margins are 0.66-0.72 in the
+ENL window against 0.03-0.07 at cue and lick, so whatever is happening is confined to the pre-cue
+period -- which is where the held position signal lives. That is a hypothesis with a per-animal check
+still outstanding, not a finding.
+
+**STILL UNVERIFIED and worth doing next:** far_R's own diagonal collapse (+1.23 -> +0.07 pooled) has
+only been read off the pooled matrix. It is a per-cell quantity rather than a threshold crossing
+between two rows, so it has a better chance of surviving -- but it has not been checked per animal and
+must not be quoted until it is.
+
+## WEIGHTING A CHANGE: animal vs session, and where it actually matters (Priya, 2026-09-25)
+
+Priya: *"i don't really get why we can't use session-pooled (within-animal delta) mean?"* -- and the
+objection was right. The 2026-09-20 retraction that this file cites against session pooling was an
+UNPAIRED comparison: pooled post 4496 against pooled pre 4338, two pools with different animal mixes,
+so the baseline confound drove it. A delta taken WITHIN animal and then pooled over sessions does not
+inherit that failure, and citing it as though it did was wrong.
+
+**WHAT IS ACTUALLY AT STAKE is the estimand, not correctness.** Animal-weighted answers "the change in
+a typical ANIMAL"; session-weighted answers "the change in a typical SESSION". They differ only when
+session counts are unequal. MEASURED, pre-cue, both paired within animal first:
+
+    position      epoch      animal-wt  session-wt    diff   sessions per animal
+    far_center    acute        +0.616     -0.079    -0.696        5/4/5/1     <-- SIGN FLIP
+    far_center    subacute     -0.914     -1.808    -0.895        2/3/5/7
+    close_center  subacute     -1.790     -1.270    +0.520        2/3/5/7
+    (median |difference| over 18 cells = 0.158, max 0.895)
+
+Chronic is 8/8/4/7 and the two never differ by more than 0.27 there. The divergence is entirely in the
+imbalanced cells.
+
+**AND THE SIGN FLIP CUTS AGAINST THE ANIMAL-WEIGHTED DEFAULT.** `far_center` acute is driven by PS95's
+SINGLE acute session at +4.02. Animal-weighting gives that one session 25% of the cohort answer;
+session-weighting gives it 6%. Animal-weighting assumes every animal's mean is equally precise, and at
+1 session against 6 it is not -- so session-weighting is arguably the better estimate in exactly the
+cell where the two disagree most.
+
+**THE DECISION.** Animal-weighted stays PRIMARY: animals are the biological replicates, sessions
+within an animal are not independent, and it is what every other change in this project uses, so the
+numbers stay comparable across arms (rule 9). Session-weighted is reported beside it, and cells where
+the two disagree materially are FLAGGED -- that disagreement is itself the diagnostic, marking a claim
+that rests on an imbalanced design. `far_center` acute carries that flag permanently and should.
+
+Precision-weighting with shrinkage is the principled middle and is deliberately NOT adopted: it would
+introduce an estimator nothing else in the repo uses, and quantities that stop being comparable across
+analyses have cost this project real time.
+
 ## THE DECODERS DO NOT NEED REDOING WITH THE MASK -- measured, all four animals (2026-09-24)
 
 Priya: *"and bigger blast radius (2) should we have done this for ALL the decoder analyses??"* and

@@ -441,6 +441,43 @@ NOT yet committed.
    that move are the low-`surviving` ones. Any post-stroke claim needs the `--mask-occluded` arm
    beside it; only PS94 and PS95 pre-cue have been run.
 
+## STATE AT 2026-09-25 — the pooled/derived layer, and one retraction
+
+### DONE SINCE THE 09-24 ENTRY
+
+1. **The trial-matched pre-to-pre null RAN**, first time on real data, and both readings survive it:
+   observed overlap is below its ceiling in 12/12 cells (ceiling 0.79-0.97, not 1.0) and the
+   magnitude is above its ceiling in 11/12. **FOLD SUBSAMPLING was needed and changed a conclusion**:
+   whole-session matching left PS93 acute at +18% and four cells with an interval collapsed to a
+   point, and it put PS95 acute's scale ceiling at 1.42 against an observed 1.53 -- nearly explaining
+   the effect. Trial-matched to +0% it is 1.04, so the growth is clear. The coarse match was
+   flattering the NULL, not the observation.
+2. **`scripts/cd_cross_animal_figure.py`** — the pooled delta from each animal's own pre-stroke
+   trajectory, both layouts, all three windows.
+3. **`scripts/cd_migration.py`** — where a trajectory moved to. See DECISIONS.md, including the claim
+   it retracted.
+4. **Per-session diagonal traces are persisted**, so `boot_delta` runs its real nested draw. THREE
+   CELLS MOVED FROM EXCLUDING ZERO TO SPANNING IT; the four-animal interval had been too narrow.
+5. **Wired into the nightly** (`--skip-cd`) in dependency order, and three new families registered in
+   the deck with their own caveats.
+6. **Colours reconciled** to `epoch_figures.EPOCH_GREY` and `spout_behavior.position_style`; line
+   weights and alphas centralised.
+
+### THE RETRACTION, because it is the most important thing on this page
+
+**`far_R -> far_center` is ONE animal of four**, and that animal's acute epoch is a single session. It
+was stated as a cohort finding before the per-animal check was run. Rule 8 is now enforced
+structurally in `cd_migration` rather than by a docstring caveat -- the caveat was already there.
+
+### OPEN, in order
+
+1. **Add the session-weighted column and the disagreement flag** (decided in DECISIONS.md, not built).
+2. **far_R's diagonal collapse, per animal** — the other half of the migration claim, still only read
+   off the pooled matrix.
+3. **`restw` REMAINS UNVERIFIED.** Carried from 09-24 and still never run on real data.
+4. The `lick_or_working` gate comparison, never rendered since the `cdgm2-` fix.
+5. **miss-while-working on the cue and lick CDs**, still not built.
+
 ## PROCESS NOTE — two background jobs were lost to this
 
 **Do not edit `cd_trajectories.py` while a render is running.** Workers re-import the module per

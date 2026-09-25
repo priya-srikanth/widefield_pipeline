@@ -1423,6 +1423,23 @@ def _pos_color():
     return {int(c): position_style(_PN[c])[0] for c in _PN}
 
 
+#: LINE WEIGHTS AND ALPHAS FOR THE OVERLAY FIGURES, in one place.
+#:
+#: Priya, 2026-09-25: *"the trace lines themselves are a bit too thick and there is not enough alpha
+#: for overlay"*. Every layout here is an overlay -- four epochs per panel, six positions per panel,
+#: four animals behind a pooled mean -- so an opaque heavy line does not merely look heavy, it HIDES
+#: the traces beneath it and makes draw order decide what the reader sees.
+#:
+#: The emphasis that used to come from weight now comes from alpha and from the white stroke behind
+#: the foreground trace, which separates overlapping lines without needing either to be thick.
+LW_MAIN = 1.2          #: the trace a panel is about
+LW_SECONDARY = 0.8     #: the comparison traces overlaid with it
+LW_PER_ANIMAL = 0.6    #: individual animals behind a pooled mean
+ALPHA_MAIN = 0.80
+ALPHA_SECONDARY = 0.45
+ALPHA_PER_ANIMAL = 0.35
+ALPHA_BAND = 0.11      #: confidence bands, which stack four deep in the epoch overlay
+
 #: Epoch colours for the OVERLAY layout, and position colours for the CROSS layout. Both are looked
 #: up lazily at import and both come from the project's existing definitions -- see the functions.
 EPOCH_COLOR = _epoch_color()
@@ -1513,13 +1530,16 @@ def figure_epochs(res, out):
             thin = d["n"] < MIN_TRIALS
             # PATH EFFECT ON THE LIGHT END OF THE RAMP: `pre` is #c9c9c9 and vanishes against a
             # white panel, which a categorical palette never had to worry about.
-            ax.plot(t, d["mean"], color=EPOCH_COLOR[ep], lw=1.8, alpha=0.95,
-                    path_effects=[pe.Stroke(linewidth=2.8, foreground="white"), pe.Normal()],
+            ax.plot(t, d["mean"], color=EPOCH_COLOR[ep], lw=LW_MAIN, alpha=ALPHA_MAIN,
+                    path_effects=[pe.Stroke(linewidth=LW_MAIN + 1.0, foreground="white"),
+                                  pe.Normal()],
                     ls="--" if thin else "-",
                     label=f"{ep} (n={d['n']})" + (" THIN" if thin else ""))
             if not thin:
-                # alpha low enough that four overlapping bands stay separable
-                ax.fill_between(t, d["lo"], d["hi"], color=EPOCH_COLOR[ep], alpha=0.16, lw=0)
+                # FOUR BANDS STACK IN THIS PANEL, so the alpha has to survive being multiplied by
+                # four: at 0.16 the overlap regions read as a solid block and the individual bands
+                # are no longer separable, which is the opposite of what an overlay is for.
+                ax.fill_between(t, d["lo"], d["hi"], color=EPOCH_COLOR[ep], alpha=ALPHA_BAND, lw=0)
         # The surviving fraction goes ON THE PANEL, because a position whose direction barely
         # survived the projection draws small for a reason the reader cannot otherwise see.
         sv = (res.get("surviving") or {}).get(p)
@@ -1560,6 +1580,7 @@ def figure_cross(res, out):
     import matplotlib
 
     matplotlib.use("Agg")
+    import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
 
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -1578,14 +1599,20 @@ def figure_cross(res, out):
                 if d is None:
                     continue
                 on = tr_p == cd_p
+                # THE DIAGONAL IS THE POINT OF THE PANEL, and it is now marked by a white stroke
+                # and opacity rather than by weight -- six traces at lw 2.0 obscure each other
+                # wherever they cross, which in this layout is everywhere.
                 ax.plot(t, d["mean"], color=POS_COLOR.get(tr_p, "0.5"),
-                        lw=2.0 if on else 1.0, alpha=1.0 if on else 0.65,
+                        lw=LW_MAIN if on else LW_SECONDARY,
+                        alpha=ALPHA_MAIN if on else ALPHA_SECONDARY,
+                        path_effects=([pe.Stroke(linewidth=LW_MAIN + 1.0, foreground="white"),
+                                       pe.Normal()] if on else None),
                         ls="-" if d["n"] >= MIN_TRIALS else "--",
                         label=(POSITION_NAMES.get(tr_p, str(tr_p))
                                + (" (own)" if on else "") + f" n={d['n']}"))
                 if on and d["n"] >= MIN_TRIALS:
                     ax.fill_between(t, d["lo"], d["hi"], color=POS_COLOR.get(tr_p, "0.5"),
-                                    alpha=0.18, lw=0)
+                                    alpha=ALPHA_BAND + 0.04, lw=0)
             if i == 0:
                 sv = (res.get("surviving") or {}).get(cd_p)
                 ax.set_title("CD: " + POSITION_NAMES.get(cd_p, str(cd_p))

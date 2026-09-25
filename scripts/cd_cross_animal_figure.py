@@ -221,14 +221,18 @@ def _draw_cell(ax, per_animal, t, colors, color=None, label=None):
     # ANIMALS ALWAYS IN THEIR OWN COLOUR, never in the epoch's: an animal is an identity and an
     # epoch is an ordering, and giving them one palette is what made this unreadable.
     for a in sorted(per_animal):
-        ax.plot(t, per_animal[a], lw=0.7, alpha=0.45, color=colors.get(a, "0.6"))
+        ax.plot(t, per_animal[a], lw=cdt.LW_PER_ANIMAL, alpha=cdt.ALPHA_PER_ANIMAL,
+                color=colors.get(a, "0.6"))
     m, lo, hi = pooled(per_animal)
     grey = "#111111" if color is None else color
     if lo is not None:
-        ax.fill_between(t, lo, hi, color=grey, alpha=0.18, lw=0)
-    ax.plot(t, m, lw=2.4, color=grey,
+        ax.fill_between(t, lo, hi, color=grey, alpha=cdt.ALPHA_BAND, lw=0)
+    # WEIGHTS FROM `cd_trajectories`, so the pooled figure and the per-animal panels it summarises
+    # are drawn at the same weights. They had drifted -- 2.4 here against 1.8 there.
+    ax.plot(t, m, lw=cdt.LW_MAIN + 0.2, color=grey,
             ls="-" if len(per_animal) >= MIN_ANIMALS else "--",
-            path_effects=[_pe.Stroke(linewidth=3.4, foreground="white"), _pe.Normal()],
+            path_effects=[_pe.Stroke(linewidth=cdt.LW_MAIN + 1.4, foreground="white"),
+                          _pe.Normal()],
             label=(label or "") + f" (n={len(per_animal)})")
     return m
 
@@ -328,8 +332,13 @@ def figure_cross(got, out, align="precue"):
                 m, lo, hi = pooled(per)
                 if on and lo is not None:
                     ax.fill_between(t, lo, hi, color=cdt.POS_COLOR.get(tr_p, "0.5"),
-                                    alpha=0.16, lw=0)
-                ax.plot(t, m, lw=2.0 if on else 1.0, alpha=1.0 if on else 0.6,
+                                    alpha=cdt.ALPHA_BAND, lw=0)
+                ax.plot(t, m,
+                        lw=cdt.LW_MAIN if on else cdt.LW_SECONDARY,
+                        alpha=cdt.ALPHA_MAIN if on else cdt.ALPHA_SECONDARY,
+                        path_effects=([_pe.Stroke(linewidth=cdt.LW_MAIN + 1.0,
+                                                  foreground="white"), _pe.Normal()]
+                                      if on else None),
                         color=cdt.POS_COLOR.get(tr_p, "0.5"),
                         label=(POSITION_NAMES.get(tr_p, str(tr_p)) + (" (own)" if on else "")))
             if i == 0:

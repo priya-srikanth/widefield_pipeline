@@ -160,6 +160,39 @@ def usurpation(M, M_pre, pos):
     return sorted(usurped, key=key, reverse=True), sorted(vacated, key=key, reverse=True)
 
 
+def per_animal_support(got, i_code, j_code, ep, window=WINDOW):
+    """``(n_usurped, n_animals, rows)`` -- does each animal INDIVIDUALLY show i beating j on j's CD?
+
+    RULE 8 MADE STRUCTURAL. A pooled matrix can satisfy `M[i, j] > M[j, j]` while no single animal
+    does, because a mean over four can cross a threshold none of them crosses -- and "does i beat j"
+    is a threshold statement. Measured on the first real run: the pooled acute `far_R -> far_center`
+    hit was ONE animal, PS95, whose acute epoch is a single session; and `close_L -> close_center`
+    was two, one of them with a margin of +0.05 and one that was actually the vacated case.
+
+    So no claim is printed without this beside it.
+    """
+    rows, n_yes = [], 0
+    for a in sorted(got):
+        mats = matrices(got[a], window)
+        if ep not in mats or "pre" not in mats:
+            continue
+        M, pos = mats[ep]
+        if i_code not in pos or j_code not in pos:
+            continue
+        ii, jj = pos.index(i_code), pos.index(j_code)
+        val, own, own_pre = float(M[ii, jj]), float(M[jj, jj]), float(mats["pre"][0][jj, jj])
+        intact = own >= VACATED_FRAC * own_pre if own_pre > 0 else False
+        yes = val > own and intact
+        n_yes += bool(yes)
+        rows.append((a, val, own, own_pre,
+                     "USURPED" if yes else ("vacated" if val > own else "no")))
+    return n_yes, len(rows), rows
+
+
+#: Animals that must show a claim INDIVIDUALLY before it is presented as a cohort result (rule 8).
+MIN_ANIMALS_SUPPORT = 3
+
+
 def report(got, window=WINDOW):
     pooled = pooled_matrices(got, window)
     L = []
@@ -198,11 +231,18 @@ def report(got, window=WINDOW):
         us, vac = usurpation(M, M_pre, pos)
         if us:
             L.append("  USURPED -- the incumbent STILL HOLDS its direction and is outscored on it "
-                     "anyway. This is the strong claim:")
+                     "anyway. This is the strong claim, and it is NOT a cohort result unless the "
+                     f"per-animal count below reaches {MIN_ANIMALS_SUPPORT}/4 (rule 8):")
             for i, j, a, b, pre_own in us[:6]:
+                n_yes, n_tot, rows = per_animal_support(got, pos[i], pos[j], ep, window)
+                verdict = ("SUPPORTED" if n_yes >= MIN_ANIMALS_SUPPORT
+                           else f"NOT SUPPORTED -- {n_yes} of {n_tot} animals")
                 L.append(f"    {POSITION_NAMES.get(pos[i], pos[i]):13s} on "
                          f"{POSITION_NAMES.get(pos[j], pos[j]):13s} CD: {a:+.2f} vs its own "
-                         f"{b:+.2f} (was {pre_own:+.2f})  margin {a - b:+.2f}")
+                         f"{b:+.2f} (was {pre_own:+.2f})  margin {a - b:+.2f}"
+                         f"   [{n_yes}/{n_tot} animals: {verdict}]")
+                for an, val, own, _op, v in rows:
+                    L.append(f"        {an:6s} {val:+6.2f} vs own {own:+6.2f}   {v}")
         else:
             L.append("  USURPED: none, once vacated directions are separated out.")
         if vac:
@@ -241,7 +281,8 @@ def figure(got, out, align, window=WINDOW):
         _ticks(ax, names, k == 0)
         _annot(ax, M)
         if ep != "pre":
-            _mark(ax, M, pooled["pre"][0] if "pre" in pooled else None, pos)
+            _mark(ax, M, pooled["pre"][0] if "pre" in pooled else None, pos,
+                  support=(lambda ic, jc, _e=ep: per_animal_support(got, ic, jc, _e, window)[0]))
         if k == len(eps) - 1:
             fig.colorbar(im, ax=ax, fraction=0.046)
         ax2 = axes[1][k]
@@ -260,6 +301,9 @@ def figure(got, out, align, window=WINDOW):
     axes[0][0].legend(
         handles=[Patch(facecolor="none", edgecolor="#111111", lw=2.0,
                        label="USURPED: beats that column's own diagonal,\nwhich is still intact"),
+                 Patch(facecolor="none", edgecolor="#111111", lw=2.0, linestyle=(0, (2, 1.4)),
+                       label="dashed box: POOLED ONLY — fewer than\n"
+                             f"{MIN_ANIMALS_SUPPORT}/4 animals show it individually (rule 8)"),
                  Patch(facecolor="none", edgecolor="0.25", hatch="////",
                        label="VACATED: this diagonal lost >50% of its\npre-stroke value")],
         fontsize=5.5, frameon=False, loc="upper left", bbox_to_anchor=(0.0, -0.32))
@@ -291,7 +335,7 @@ def _ticks(ax, names, ylab):
     ax.set_yticklabels(names if ylab else [""] * len(names), fontsize=6.5)
 
 
-def _mark(ax, M, M_pre, pos):
+def _mark(ax, M, M_pre, pos, support=None):
     """Box the USURPED cells and hatch the VACATED diagonals -- the two states, drawn.
 
     The figure used to leave the reader to compare an off-diagonal cell against a diagonal one in a
@@ -302,8 +346,19 @@ def _mark(ax, M, M_pre, pos):
 
     usurped, vacated = usurpation(M, M_pre, pos)
     for i, j, _a, _b, _pre in usurped:
+        # THE BOX IS SOLID ONLY WHEN THE ANIMALS INDIVIDUALLY AGREE. A dashed box is a pooled-only
+        # hit, which a mean over four can produce with no animal crossing the threshold -- exactly
+        # what happened to `far_R -> far_center` (1 of 4, and that one a single-session epoch).
+        n_yes = None
+        if support is not None:
+            n_yes = support(pos[i], pos[j])
+        solid = n_yes is None or n_yes >= MIN_ANIMALS_SUPPORT
         ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, lw=2.0,
+                               linestyle="-" if solid else (0, (2, 1.4)),
                                edgecolor="#111111", zorder=5))
+        if n_yes is not None:
+            ax.text(j + 0.44, i - 0.40, f"{n_yes}/4", ha="right", va="top", fontsize=5.2,
+                    color="#111111", zorder=6)
     for _i, j, _a, _b, _pre in vacated:
         ax.add_patch(Rectangle((j - 0.5, j - 0.5), 1, 1, fill=False, lw=1.4, hatch="////",
                                edgecolor="0.25", zorder=4))

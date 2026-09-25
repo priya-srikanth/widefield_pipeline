@@ -482,7 +482,7 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-folds", action="store_true",
                     help="match on WHOLE SESSIONS instead of subsampling folds within them. The "
-                         "coarse arm, kept for comparison: it left PS93 acute matched to +18% and "
+                         "coarse arm, kept for comparison: it left PS93 acute matched to +18%% and "
                          "four cells with a degenerate interval.")
     ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
                     help="must MATCH the CD render, or the null calibrates a different space from "
