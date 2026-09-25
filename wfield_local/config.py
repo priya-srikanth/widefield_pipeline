@@ -265,7 +265,14 @@ def epoch_spec(animal: str | None = None):
                              f"got {cf!r}")
         out[an] = {"acute": (int(acute[0]), int(acute[1])),
                    "subacute_from": int(spec["subacute_from"]),
-                   "chronic_from": cf}
+                   "chronic_from": cf,
+                   # MANUAL RATIFICATION of the chronic boundary (2026-09-25). When true, the derived
+                   # chronic is treated as advisory and `chronic_from` is authoritative: the guard
+                   # stops flagging it and the pipeline keeps using it. For an animal that recovered
+                   # but WOBBLES (PS94: every post-day-25 session in 92-106% of baseline, but too
+                   # loose a band to re-derive as a plateau), the terminal-state rule says a chronic
+                   # once reached should stick -- see epochs.derive_chronic_boundaries + DECISIONS.md.
+                   "chronic_pinned": bool(spec.get("chronic_pinned", False))}
     return out.get(animal) if animal else out
 
 

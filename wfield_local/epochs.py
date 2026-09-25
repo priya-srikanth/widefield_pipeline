@@ -511,7 +511,7 @@ def verify_against_behaviour(accuracy_by_session, *, position=RULE_POSITION,
     time would move published epoch boundaries the moment a session was registered.
     """
     out = {}
-    for animal, spec in EPOCH_SPEC.items():
+    for animal in EPOCH_SPEC:
         pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == animal]
         base = [accuracy_by_session[l].get(position) for l in pre
                 if l in accuracy_by_session and accuracy_by_session[l].get(position) is not None]
@@ -760,6 +760,21 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
         days = [per_series[s]["day"] for s in CHRONIC_SERIES]
         derived = max(days) if (days and all(d is not None for d in days)) else None
         stored = spec.get("chronic_from")
-        out[animal] = {"agree": derived == stored, "derived_day": derived, "stored_day": stored,
-                       **per_series}
+        entry = {"derived_day": derived, "stored_day": stored, **per_series}
+        if spec.get("chronic_pinned"):
+            # MANUALLY RATIFIED (Priya, 2026-09-25): the stored chronic is authoritative and the
+            # derivation is advisory. PS94 recovered -- every post-day-25 session sits at 92-106% of
+            # baseline -- but WOBBLES, so its band never re-derives as a tight plateau and the rule
+            # keeps un-declaring a chronic that the terminal-state principle (2026-09-21) says should
+            # stick once reached. A pinned entry AGREES by construction and publishes the ratified
+            # value (so `epoch_boundaries.json` and every figure use it); `derived_day_raw` keeps the
+            # honest derivation for the audit log, and the audit prints the pin so nobody mistakes it
+            # for a coincidence. Unpin by dropping `chronic_pinned` from animals.yaml.
+            entry["derived_day_raw"] = derived
+            entry["pinned"] = True
+            entry["derived_day"] = stored
+            entry["agree"] = True
+        else:
+            entry["agree"] = derived == stored
+        out[animal] = entry
     return out

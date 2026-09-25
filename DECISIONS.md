@@ -17648,3 +17648,15 @@ a use below it. Renamed to `_fl`.
 `lick_bout_structure` defined `per_session_q` as a byte-for-byte copy of `quint` (same body, same
 md5). That filter decides which sessions enter a quintile, so two copies are two places for a
 published CI to drift apart. Now one name for one function.
+
+---
+
+## 2026-09-25 — PS94 chronic is PINNED at day 25 (manual ratification; terminal state)
+
+Registering the 2026-09-24 session (PS94 day 39) re-derived PS94's chronic from 25 back to **None**, tripping the pre-push epoch guards for the third time on this animal.
+
+**Why it flipped.** PS94's far_R hit rate is fully RECOVERED -- every post-day-25 session sits at 92-106% of baseline (d25/29/32/36/39 = 106/102/93/92/105) -- but it WOBBLES. The day-25-onward band swings ~14% (residual 0.91 x pre-stroke SD against the 0.4 settled bar), so the tight-plateau rule finds no window that is both flat and settled and returns None. This is not a k_res artefact (it is None at 0.5 too); PS94's band is genuinely loose. It is the "94 may just bounce around forever" animal Priya named on 2026-09-21.
+
+**Why that is wrong to act on.** The terminal-state principle (2026-09-21, the reason the level rule was rejected): chronic is a state an animal does not leave unless it REGRESSES. PS94 has not regressed -- it is recovered, just noisy -- so the derivation un-declaring its chronic each time a recovered-but-wobbly session lands violates that principle. A boundary that flips to None on noise is exactly what the terminal rule forbids.
+
+**Decision (Priya).** PIN PS94 chronic at 25. `configs/animals.yaml PS94.epochs.chronic_pinned: true`. A pinned chronic is authoritative: `derive_chronic_boundaries` still runs and keeps the honest derivation in `derived_day_raw` (so the audit prints what behaviour now says), but the entry AGREES by construction and publishes the ratified 25 -- `epoch_boundaries.json` and every figure use it, and the guard stops flagging it. `config.epoch_spec` carries the flag; the two guard tests that used PS94 as their unpinned example now unpin it locally, and `test_a_pinned_chronic_agrees_and_keeps_the_advisory` pins the new behaviour. Drop the flag to let PS94's chronic float with behaviour again. Alternatives rejected: promoting PS94 -> None (reverts the 2026-09-19 by-eye ratification and calls a recovered animal not-chronic on noise); loosening k_res to catch PS94's 0.91 band (would need >= 0.91, breaking every other animal's boundary).

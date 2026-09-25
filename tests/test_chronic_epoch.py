@@ -10,7 +10,7 @@ the animal's own numbers rather than an abstract counterexample.
 """
 import pytest
 
-from wfield_local import config, epochs
+from wfield_local import config, epoch_audit, epochs
 from wfield_local import epoch_figures as ef
 
 #: PS94 far_R licks/trial as a fraction of its pre-stroke baseline, days 1-18 (engaged trials).
@@ -166,11 +166,16 @@ def test_configured_series_gate_the_boundary(monkeypatch):
     assert rep2["derived_day"] is None, "AND requires both when licks is configured"
 
 
-def test_it_reports_rather_than_reassigns():
+def test_it_reports_rather_than_reassigns(monkeypatch):
     """Same contract as `verify_against_behaviour`, and it matters MORE here: chronic sits at the
     END of the series, where every new session lands. PS93 and PS95 are both close enough to
     qualifying that a few more sessions could flip them, and they must flip by someone editing
     EPOCH_SPEC, not by a nightly run quietly redrawing a published panel."""
+    # PS94's chronic is PINNED in the live config (2026-09-25), which is a DIFFERENT contract -- a
+    # pinned boundary agrees by construction. This test is about the UNPINNED reporting path, so
+    # unpin PS94 for it; `test_a_pinned_chronic_agrees_and_keeps_the_advisory` covers the pin.
+    monkeypatch.setitem(epochs.EPOCH_SPEC, "PS94",
+                        {**epochs.EPOCH_SPEC["PS94"], "chronic_pinned": False})
     pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS94"]
     post = sorted((l for l in config.pooled_labels("PS94") if epochs.epoch_of(l) != "pre"),
                   key=lambda x: x.split("_")[-1])
@@ -178,7 +183,7 @@ def test_it_reports_rather_than_reassigns():
     # The baseline scatters (see the note in the AND test): a flat baseline zeroes every tolerance.
     hit = {l: {"far_R": 0.95 + 0.02 * (i % 2)} for i, l in enumerate(pre)}
     lick = {l: {"far_R": 5.0 + 0.2 * (i % 2)} for i, l in enumerate(pre)}
-    for i, l in enumerate(post):
+    for l in post:
         hit[l] = {"far_R": 0.96}
         lick[l] = {"far_R": 5.1}
     rep = epochs.derive_chronic_boundaries(hit, lick)["PS94"]
@@ -189,6 +194,35 @@ def test_it_reports_rather_than_reassigns():
     # follow the stored boundary -- PS94's day-12 session stays subacute (12 < 25), not chronic.
     assert epochs.EPOCH_SPEC["PS94"]["chronic_from"] == 25, "the rule reassigned the stored spec"
     assert epochs.epoch_of("PS94_0827") == "subacute", "the rule moved a session"
+
+
+def test_a_pinned_chronic_agrees_and_keeps_the_advisory():
+    """A MANUALLY RATIFIED chronic (animals.yaml `chronic_pinned: true`) is authoritative: the
+    derivation still runs but the stored value wins, so the guard never flags it. PS94 is pinned at
+    day 25 (2026-09-25) because it recovered but wobbles too much to re-derive as a tight plateau,
+    and the terminal-state rule says a chronic once reached should not revert on noise.
+
+    The honest derivation is kept in `derived_day_raw` so the audit can still print what behaviour
+    now says -- the pin hides the disagreement from the GUARD, not from the reader."""
+    pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS94"]
+    post = sorted((l for l in config.pooled_labels("PS94") if epochs.epoch_of(l) != "pre"),
+                  key=lambda x: x.split("_")[-1])
+    # a table where PS94's far_R never plateaus (swings hard every session), so the RAW derivation
+    # is None -- and the pin must publish 25 regardless.
+    hit = {l: {"far_R": 0.95 + 0.03 * (i % 2)} for i, l in enumerate(pre)}
+    lick = {l: {"far_R": 5.0} for l in pre}
+    for i, l in enumerate(post):
+        hit[l] = {"far_R": 0.6 if i % 2 else 1.1}          # 60% / 110%, alternating: never settles
+        lick[l] = {"far_R": 5.0}
+    assert epochs.EPOCH_SPEC["PS94"].get("chronic_pinned") is True, "PS94 should be pinned in config"
+    rep = epochs.derive_chronic_boundaries(hit, lick)["PS94"]
+    assert rep["pinned"] is True
+    assert rep["agree"] is True, "a pinned boundary agrees by construction"
+    assert rep["derived_day"] == 25, "the pinned value is what the pipeline publishes"
+    assert rep["derived_day_raw"] is None, "the honest derivation is kept for the audit log"
+    # and the guard does not flag a pinned animal
+    assert not any("PS94" in b for b in epoch_audit.disagreements(
+        {"available": True, "acute": {}, "chronic": {"PS94": rep}}))
 
 
 def test_a_missing_series_is_reported_not_guessed(monkeypatch):

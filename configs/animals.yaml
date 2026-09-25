@@ -140,6 +140,15 @@ animals:
                             #   day 25 (106->102->93, tight scatter, downward = terminal not
                             #   improving). Was null ("never plateaus") under the pre-2026-09-19
                             #   symmetric/loose-residual rule. See DECISIONS.md.
+      chronic_pinned: true  # 2026-09-25 (Priya): MANUALLY RATIFIED at day 25 and no longer derived.
+                            #   Adding the 0924 session (day 39) re-derived PS94 chronic back to None:
+                            #   every post-day-25 session sits at 92-106% of baseline (recovered) but
+                            #   the band swings ~14% (residual 0.91 SD vs the 0.4 bar), so the tight-
+                            #   plateau rule keeps un-declaring a chronic the terminal-state principle
+                            #   (2026-09-21: once chronic, does not revert unless it regresses) says
+                            #   should stick. PS94 is the "may bounce around forever" animal; pin it.
+                            #   The derivation still runs and the audit prints the advisory value.
+                            #   Drop this flag to let PS94's chronic float with behaviour again.
     exclude: []
 
   PS95:
