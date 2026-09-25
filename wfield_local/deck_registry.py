@@ -223,6 +223,10 @@ _CD_MASK = (
     "panels sensitive to the choice -- PS95 acute close_center reverses sign. `--occluded keep` "
     "reproduces the earlier arm.")
 
+_GATE = (
+    'THE GATE. These panels are fitted on, and built from, PRE-STROKE SUCCESS **plus MISS-WHILE-WORKING** trials -- the animal was engaged and attempting but did not lick in the response window. The trials are pooled at the TRIAL level, not averaged per class and combined: pre-stroke success runs 4-6k trials against 130-500 miss-while-working, so averaging class means would weight a 130-trial class equally with a 6000-trial one. Read against the success-only panels, this asks whether a trial the animal worked at but did not complete carries the same position code as one it licked at. THERE IS NO LICK-ALIGNED VERSION and there cannot be: a no-lick trial has no lick to align to, and placing it at an inferred time gives an x-axis that stretches with the latency -- worst exactly post-stroke, where latencies are long and variable.'
+)
+
 CD_FIGURES = (
     ("cd_epochs_*_precue_dom_contrast_lick_orth_cortexonly.png",
      "Pre-cue coding direction, four epochs overlaid",
@@ -265,6 +269,18 @@ CD_FIGURES = (
     ("cd_cross_*_lick_dom_contrast_lick_orth_cortexonly.png",
      "Lick-aligned CROSS-projection", "As above, centred on the first lick. " + _CD_ORTH + " "
      + _CD_METHOD + " " + _CD_MASK),
+    ("cd_epochs_*_precue_dom_contrast_lick_or_working_orth_cortexonly.png",
+     "Pre-cue coding direction, SUCCESS + MISS-WHILE-WORKING, four epochs overlaid",
+     _GATE + " " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_epochs_*_cue_dom_contrast_lick_or_working_orth_cortexonly.png",
+     "Cue-aligned coding direction, SUCCESS + MISS-WHILE-WORKING, four epochs overlaid",
+     _GATE + " " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cross_*_precue_dom_contrast_lick_or_working_orth_cortexonly.png",
+     "Pre-cue CROSS-projection, SUCCESS + MISS-WHILE-WORKING",
+     _GATE + " " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
+    ("cd_cross_*_cue_dom_contrast_lick_or_working_orth_cortexonly.png",
+     "Cue-aligned CROSS-projection, SUCCESS + MISS-WHILE-WORKING",
+     _GATE + " " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
     ("cd_xanimal_perposition_*.png",
      "Cross-animal change from each animal's own pre-stroke trajectory, by position",
      "Pooled across animals, one panel per spout position, the three post-stroke epochs overlaid. "

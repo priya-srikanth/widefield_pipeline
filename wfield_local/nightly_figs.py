@@ -492,9 +492,11 @@ def main():
                     help="skip the CD trajectory stage: the per-position coding directions "
                          "projected frame by frame, the trial-matched pre-to-pre null, and the "
                          "geometry, cross-animal delta and migration figures built from them. "
+                         "Covers BOTH gates: success only, and success + miss-while-working "
+                         "(pre-cue and cue; the lick alignment cannot take the second gate). "
                          "~90 min COLD for all four animals over three alignments, since every "
                          "session's projection has to be read off MICROSCOPE; minutes once the "
-                         "`cdarms-`/`cdfit-`/`cdcourse-`/`cdgm2-` caches are warm.")
+                         "`cdarms-`/`cdfit2-`/`cdcourse-`/`cdgm2-`/`cdgmf8v2-` caches are warm.")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL",
                     help="restrict analysis to these animals (e.g. PS93), or 'all'; scopes the decode/"
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
@@ -887,6 +889,22 @@ def main():
         cli("scripts.cd_geometry_figure", "--dir", str(_cddir))
         cli("scripts.cd_cross_animal_figure", "--dir", str(_cddir))
         cli("scripts.cd_migration", "--dir", str(_cddir))
+        # ---- THE SECOND GATE: success + miss-while-working (Priya, 2026-09-25) ----------------
+        # PRE-CUE AND CUE ONLY. `LICK_ALIGNED_CLASSES` forces the gate back to `success` for the
+        # lick alignment -- a no-lick trial has no lick to align to, and an inferred alignment time
+        # gives an x-axis that stretches with the latency, worst exactly post-stroke.
+        #
+        # RENDERED BY THE NIGHTLY RATHER THAN BY HAND, by the same rule as everything else here: a
+        # deck input no nightly step regenerates is frozen at the day somebody last ran it.
+        cli("wfield_local.cd_trajectories", "--align", "precue", "cue",
+            "--layout", "epochs", "cross", "--gate", "lick_or_working",
+            "--reference", "contrast", "--orth", "on", "--occluded", "drop")
+        cli("wfield_local.cd_overlap_null", "--align", "precue", "cue",
+            "--gate", "lick_or_working")
+        for _script in ("scripts.cd_geometry_figure", "scripts.cd_cross_animal_figure",
+                        "scripts.cd_migration"):
+            cli(_script, "--dir", str(_cddir), "--gate", "lick_or_working",
+                "--align", "precue", "cue")
 
     # GRANT FIGURES -- deck section H places 19 of these patterns, so by the rule this file already
     # follows for the post-stroke stage ("if it is part of the deck it is part of the nightly") they

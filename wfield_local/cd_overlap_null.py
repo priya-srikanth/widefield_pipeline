@@ -363,7 +363,7 @@ def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbo
             continue
         fit_at = [f for c in use for f in arms[c]["fit"]]
         Xf.append(session_cache.cached(
-            s, f"cdfit-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{win_n}",
+            s, cdt.fit_cache_kind(align, use, basis, win_n),
             lambda s=s, arms=arms, fit_at=fit_at: cdt.window_means(
                 cdt._OnceSignal(joint_locanmf.BasisSource(basis, s))(), fit_at, win_n),
             verbose=False))

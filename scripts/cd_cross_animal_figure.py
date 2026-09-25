@@ -13,15 +13,15 @@ for -- so this figure cannot disagree with the per-animal panels it summarises.
 THREE THINGS THIS FIGURE HAS TO BE HONEST ABOUT, and each is visible on it rather than in a caption:
 
   * **PRE-STROKE IS ZERO BY CONSTRUCTION, AND THAT IS NOT A MEASUREMENT.** The reference has no band
-    of its own, but the difference carries the estimation noise of BOTH epochs -- so a Δ near zero
+    of its own, but the difference carries the estimation noise of BOTH epochs -- so a delta near zero
     means "no resolvable change", never "identical". The spread drawn is therefore the spread of the
-    per-animal Δ, which inherits both.
+    per-animal delta, which inherits both.
   * **n = 4.** Every animal is drawn individually, thin, behind the mean (rule 8: anything not
     visible in at least three animals individually will not survive the paired test). A cell where
     one animal carries the mean is meant to look like one.
   * **THE CELLS ARE NOT EQUALLY RELIABLE.** Each (animal, position) has its own surviving fraction
     from the orthogonalisation, and a position whose direction barely survived in one animal
-    contributes a noisier Δ. The worst surviving fraction contributing to each panel is printed, and
+    contributes a noisier delta. The worst surviving fraction contributing to each panel is printed, and
     panels below `SURVIVING_MIN` are flagged.
 
     python -m scripts.cd_cross_animal_figure --dir <epoch figure dir> --layout perposition cross
@@ -112,6 +112,54 @@ def _time(got):
 N_BOOT_BAND = 4000
 
 
+def pooled_nested(post, pre, n_boot=N_BOOT_BAND, seed=0):
+    """``(mean, lo, hi)`` per time point from the NESTED animals -> sessions draw.
+
+    `post` and `pre` are ``{animal: [per-session trace]}``. Animals are resampled once and then
+    sessions within each drawn animal, for BOTH arms under that same draw -- which is what makes it
+    paired, so between-animal variance cancels rather than being counted twice. It is
+    `analysis_kit.boot_delta`'s draw, vectorised over time; the canonical call costs 291 ms and a
+    trace has 219 points.
+
+    THE ANIMAL-ONLY VERSION IT REPLACES had four values and 35 distinct resamples, so its band was
+    coarse and told the reader almost nothing about within-animal variability -- which is the term
+    that moved three cells through zero when it was added to the scalar table.
+    """
+    animals = sorted(set(post) & set(pre))
+    if not animals:
+        return None, None, None
+    obs = np.nanmean([np.nanmean(np.vstack(post[a]), 0) - np.nanmean(np.vstack(pre[a]), 0)
+                      for a in animals], axis=0)
+    if len(animals) < 2:
+        return obs, None, None
+    rng = np.random.default_rng(seed)
+    draws = []
+    for _ in range(n_boot):
+        vals = []
+        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
+            pa, qa = np.vstack(post[a]), np.vstack(pre[a])
+            vals.append(np.nanmean(pa[rng.integers(0, pa.shape[0], pa.shape[0])], 0)
+                        - np.nanmean(qa[rng.integers(0, qa.shape[0], qa.shape[0])], 0))
+        draws.append(np.nanmean(vals, axis=0))
+    D = np.vstack(draws)
+    return obs, np.nanpercentile(D, 2.5, axis=0), np.nanpercentile(D, 97.5, axis=0)
+
+
+def session_traces(got, cd_p, tr_p):
+    """``({animal: [post traces]}, {animal: [pre traces]})`` per epoch, for one cell.
+
+    Returns ``{}`` for a dump that predates per-cell session traces, so the caller can fall back to
+    the animal-level band and SAY SO rather than silently reporting a narrower one.
+    """
+    out = {}
+    for a, res in got.items():
+        for (_lab, ep, cd_, tr_), d in (res.get("session_traces") or {}).items():
+            if cd_ != cd_p or tr_ != tr_p:
+                continue
+            out.setdefault(ep, {}).setdefault(a, []).append(np.asarray(d["mean"], float))
+    return out
+
+
 def pooled(per_animal, n_boot=N_BOOT_BAND, seed=0):
     """``(mean, lo, hi)`` over animals at every time point -- the POOLED delta and its band.
 
@@ -162,8 +210,8 @@ def session_values(got, p, ep, j):
     post, pre = {}, {}
     for a, res in got.items():
         st = res.get("session_traces") or {}
-        for (_lab, e, pos_), d in st.items():
-            if pos_ != p:
+        for (_lab, e, cd_, tr_), d in st.items():
+            if cd_ != p or tr_ != p:          # the diagonal: this position on its own direction
                 continue
             v = float(np.asarray(d["mean"])[j])
             if e == ep:
@@ -214,8 +262,12 @@ def peak_delta(per_animal, mask, got=None, p=None, ep=None):
     return ak.boot_delta(post, {a: [0.0] for a in post}, np.random.default_rng(0)), j, "animals"
 
 
-def _draw_cell(ax, per_animal, t, colors, color=None, label=None):
-    """Every animal thin, the POOLED mean heavy with its band."""
+def _draw_cell(ax, per_animal, t, colors, color=None, label=None, sess=None):
+    """Every animal thin, the POOLED mean heavy with its band.
+
+    `sess` is ``(post, pre)`` per-session traces; given, the band is the NESTED animals -> sessions
+    draw rather than four animals with one value each.
+    """
     if not per_animal:
         return None
     # ANIMALS ALWAYS IN THEIR OWN COLOUR, never in the epoch's: an animal is an identity and an
@@ -223,7 +275,10 @@ def _draw_cell(ax, per_animal, t, colors, color=None, label=None):
     for a in sorted(per_animal):
         ax.plot(t, per_animal[a], lw=cdt.LW_PER_ANIMAL, alpha=cdt.ALPHA_PER_ANIMAL,
                 color=colors.get(a, "0.6"))
-    m, lo, hi = pooled(per_animal)
+    if sess and sess[0] and sess[1]:
+        m, lo, hi = pooled_nested(sess[0], sess[1])
+    else:
+        m, lo, hi = pooled(per_animal)
     grey = "#111111" if color is None else color
     if lo is not None:
         ax.fill_between(t, lo, hi, color=grey, alpha=cdt.ALPHA_BAND, lw=0)
@@ -252,7 +307,8 @@ def _suptitle(got, align, extra):
     return (
         f"CROSS-ANIMAL {align.upper()} coding direction — CHANGE FROM EACH ANIMAL'S OWN PRE-STROKE "
         f"TRAJECTORY{extra}\n"
-        f"N = {n} animals. EPOCHS ARE THE GREY RAMP (light = early), ANIMALS ARE THE COHORT "
+        f"N = {n} animals; BANDS ARE THE NESTED animals -> sessions bootstrap, not four animals "
+        f"with one value each. EPOCHS ARE THE GREY RAMP (light = early), ANIMALS ARE THE COHORT "
         f"COLOURS — one palette each, so the two never collide. "
         f"Thin lines, individual animals; heavy line, their mean (DASHED where "
         f"fewer than {MIN_ANIMALS} animals contribute). 0 = that animal's pre-stroke trajectory, so "
@@ -281,10 +337,12 @@ def figure_perposition(got, out, align="precue"):
         # EPOCHS IN GREY, ANIMALS IN COLOUR -- the two systems cannot collide, which is the whole
         # reason the project made epochs a ramp. Heavy grey is the pooled epoch mean; the thin
         # coloured lines behind it are the individual animals, so both readings survive in one panel.
+        st = session_traces(got, p, p)
         for ep, col in zip(POST, [cdt.EPOCH_COLOR[e] for e in POST]):
             per, w = deltas(got, p, p, ep)
             worst = min(worst, w)
-            _draw_cell(ax, per, t, colors, color=col, label=ep)
+            _draw_cell(ax, per, t, colors, color=col, label=ep,
+                       sess=(st.get(ep), st.get("pre")))
         ax.set_title(POSITION_NAMES.get(p, str(p))
                      + (f"   (worst surviving {worst:.0%})" if worst < 1.0 else ""),
                      fontsize=9, color="tab:red" if worst < SURVIVING_MIN else "black")

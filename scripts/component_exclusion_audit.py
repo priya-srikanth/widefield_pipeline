@@ -76,7 +76,7 @@ def _features(animal, align, basis, only_pre=True):
             continue
         got = cdt._OnceSignal(joint_locanmf.BasisSource(basis, s))
         X.append(session_cache.cached(
-            s, f"cdfit-{align}-success-{basis.basis_id[:8]}-{win_n}",
+            s, cdt.fit_cache_kind(align, ("success",), basis, win_n),
             lambda got=got, arms=arms: cdt.window_means(got(), arms["success"]["fit"], win_n),
             verbose=False))
         y.append(np.asarray(arms["success"]["y"]))

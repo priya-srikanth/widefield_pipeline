@@ -378,3 +378,146 @@ def test_the_reference_label_is_the_LOOKUP_not_its_source_text():
         assert want in title
         assert "res.get(" not in title
         assert "'restw':" not in title
+
+
+# ------------------------------------------------------------------ the three windows
+
+
+def test_the_FIT_WINDOW_is_the_one_each_alignment_names():
+    """Priya, 2026-09-25: *"make sure the windows are -2 to 0 for pre-cue, 0-2 cue-aligned for cue,
+    0-2 lick-aligned for lick"*.
+
+    `fit_window_mask` is the single definition and both `_anchor` and `cd_migration` read it. Pinned
+    here because getting it wrong does not raise -- it silently measures the post-cue period on a
+    pre-cue direction, which is exactly what `cd_migration` did until 2026-09-25.
+    """
+    fs = 10.0
+    t = np.arange(-30, 40) / fs
+    pre = cdt.fit_window_mask(t, "precue", 2.0)
+    assert t[pre].min() == pytest.approx(-2.0) and t[pre].max() < 0.0
+    for al in ("cue", "lick"):
+        m = cdt.fit_window_mask(t, al, 2.0)
+        assert t[m].min() == pytest.approx(0.0), al
+        assert t[m].max() < 2.0, al
+
+
+def test_the_LICK_direction_is_fitted_on_the_LICK_not_the_cue(monkeypatch):
+    """THE DEFECT THIS PINS, measured 2026-09-25: `cos(w_cue, w_lick)` was 1.000000 at every
+    position in two animals because `session_arms` set `ref0 = c0` for everything but `precue` -- so
+    the lick arm was the cue arm replotted. `fit` must be the FIRST LICK for `lick`, and it must
+    equal `at`, since the window starts where the trace is centred.
+    """
+    import types
+
+    cue = np.array([100, 200, 300], int)
+    licks = np.array([120, 232, 355], int)          # one lick after each cue
+    codes = np.array([0, 1, 2], int)
+
+    def fake_categorize(_s, _args=None, with_licks=True):
+        cat = ["engaged"] * 3
+        return (codes, cat, None, None, cue, np.array([True] * 3), licks,
+                cue - 30)
+
+    monkeypatch.setattr("wfield_local.nolick_decoder.categorize", fake_categorize)
+    args = types.SimpleNamespace(post_s=2.0, fs=10.0, align="lick")
+    basis = types.SimpleNamespace(basis_id="x", ncomp=4)
+    arms = cdt.session_arms({"label": "PS99_0101"}, args, basis, "lick")
+    assert arms["success"]["fit"] == arms["success"]["at"], (
+        "the lick window must START at the lick it is centred on")
+    assert list(arms["success"]["at"]) == list(licks)
+
+    arms_cue = cdt.session_arms({"label": "PS99_0101"}, args, basis, "cue")
+    assert list(arms_cue["success"]["fit"]) == list(cue)
+    assert arms_cue["success"]["fit"] != arms["success"]["fit"], (
+        "cue and lick must not fit the same window -- that was the bug")
+
+
+def test_the_arms_cache_key_MOVES_when_session_arms_changes_meaning():
+    """The key names the alignment and the args, and neither moves when `fit` changes underneath --
+    the same failure `COURSE_VERSION` exists for. `ARMS_VERSION` has to reach the digest."""
+    from wfield_local.locanmf_frozen_decoder import _args
+
+    a = _args(source="roi", align="lick", post_s=2.0)
+    k1 = cdt.arms_cache_kind(a, "lick")
+    old = cdt.ARMS_VERSION
+    try:
+        cdt.ARMS_VERSION = old + 1
+        k2 = cdt.arms_cache_kind(a, "lick")
+    finally:
+        cdt.ARMS_VERSION = old
+    assert k1 != k2, "ARMS_VERSION is defined but never reaches the cache key"
+
+
+def test_the_FEATURES_cache_key_moves_with_ARMS_VERSION():
+    """THE FIX THAT DID NOT TAKE. `session_arms` was corrected so the lick window starts at the lick,
+    `ARMS_VERSION` was bumped, the re-render ran clean -- and every lick anchor came back identical to
+    two decimals, because the WINDOW MEANS live under their own key which names the alignment and the
+    window LENGTH but nothing about where the window STARTS.
+
+    Three layers of this arm have now each served stale numbers that looked plausible: the courses
+    (`COURSE_VERSION`), the arms (`ARMS_VERSION`), and the features between them.
+    """
+    import types
+
+    basis = types.SimpleNamespace(basis_id="abcdef123456")
+    k1 = cdt.fit_cache_kind("lick", ("success",), basis, 62)
+    old = cdt.ARMS_VERSION
+    try:
+        cdt.ARMS_VERSION = old + 1
+        k2 = cdt.fit_cache_kind("lick", ("success",), basis, 62)
+    finally:
+        cdt.ARMS_VERSION = old
+    assert k1 != k2
+
+
+def test_every_module_builds_the_features_key_the_SAME_way():
+    """It was an f-string in three modules, so a version bumped in one would move one reader and
+    leave two on the old entries -- which is worse than not bumping it at all, because the three
+    would then disagree about what the same session's features are."""
+    import pathlib
+
+    root = pathlib.Path(cdt.__file__).parent.parent
+    offenders = []
+    for py in [*(root / "wfield_local").glob("*.py"), *(root / "scripts").rglob("*.py")]:
+        if py.name == "cd_trajectories.py":
+            continue                      # the DEFINITION lives here; everyone else must call it
+        if 'f"cdfit' in py.read_text(encoding="utf-8"):
+            offenders.append(py.name)
+    assert not offenders, (
+        f"these build the features cache key by hand instead of calling `fit_cache_kind`: "
+        f"{offenders}")
+
+
+def test_the_window_rule_is_the_DECODERS_and_matches_them_on_every_alignment():
+    """Priya, 2026-09-25: *"minimize redundancy by using the same or similar gates as the decoders,
+    and use the same module/function"*.
+
+    `session_arms` no longer restates where a window starts; it calls
+    `locanmf_position_decoder.window_start`. This pins the rule itself, since the copy that used to
+    live in `session_arms` is exactly what diverged: it agreed for `precue` and `cue` and put `lick`
+    at the cue, making the lick coding direction identical to the cue one.
+    """
+    from wfield_local.locanmf_position_decoder import window_start
+
+    ls = np.array([50, 130, 250], float)
+    # cue: the cue itself
+    assert window_start("cue", 100, 130, 70, ls, 20) == 100
+    # lick: the FIRST LICK, never the cue
+    assert window_start("lick", 100, 130, 70, ls, 20) == 130
+    # lick with no lick recorded: dropped, not placed at a guess
+    assert window_start("lick", 100, -1, 70, ls, 20) is None
+    # a cue outside imaging coverage is dropped whatever the alignment
+    for al in ("precue", "cue", "lick"):
+        assert window_start(al, -1, 130, 70, ls, 20) is None
+
+
+def test_session_arms_does_not_restate_the_window_rule():
+    """Two copies of a rule always agree at first. This repo has collapsed six copies of a decoder
+    recipe, three of a lick discriminator and two of an engaged cut; this is the seventh."""
+    import inspect
+
+    src = inspect.getsource(cdt.session_arms)
+    assert "window_start(" in src
+    assert "precue_window_start(" not in src, (
+        "session_arms is applying the pre-cue rule itself again instead of going through "
+        "`window_start`")

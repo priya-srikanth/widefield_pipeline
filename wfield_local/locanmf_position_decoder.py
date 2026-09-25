@@ -379,6 +379,35 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
     return session_cache.cached(s, kind, _compute, verbose=verbose)
 
 
+def window_start(align, cue_f, first_lick_f, strobe_f, lick_samples, post_n, lickfree=True):
+    """Where a trial's feature window STARTS, for one trial. ``None`` means drop the trial.
+
+    THE ONE DEFINITION, because there were two and they disagreed. `_trial_features` computes this
+    for the decoders and `cd_trajectories.session_arms` computed it again for the coding-direction
+    trajectories; they matched for `precue` and `cue` and diverged for `lick`, where the decoder
+    started at the FIRST LICK and the CD arm started at the cue. The result was a "lick-aligned"
+    coding direction identical to the cue one -- cos = 1.000000 at every position in two animals
+    (2026-09-25).
+
+      precue   the `post_n` window ENDING at the cue, slid earlier if a lick falls inside it;
+               None when no clean window exists anywhere, and that trial is dropped.
+      cue      the cue.
+      lick     the FIRST LICK. None when the trial has none, which is why no-lick trials cannot
+               take part in a lick-aligned analysis at all rather than being placed at a guess.
+
+    Frames in, frame out; no signal is touched, so a caller that only needs bookkeeping stays cheap.
+    """
+    c0 = int(cue_f)
+    if c0 < 0:
+        return None
+    if align == "precue":
+        return precue_window_start(c0, strobe_f, lick_samples, post_n, lickfree=lickfree)
+    if align == "lick":
+        f = int(first_lick_f)
+        return f if f > 0 else None
+    return c0
+
+
 def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=False,
                     with_indices=False, with_rt=False, nolick_ref="cue"):
     """Trial-averaged features for one session.

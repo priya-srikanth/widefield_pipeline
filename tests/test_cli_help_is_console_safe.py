@@ -16,9 +16,15 @@ import pytest
 
 import wfield_local
 
+#: EVERY module with an argparse CLI, in BOTH trees. `scripts/` was missing and the gap was real:
+#: `scripts.cd_migration --help` and `scripts.cd_cross_animal_figure --help` both raised
+#: UnicodeEncodeError on 2026-09-25 because their module docstrings carried a Greek delta, and this
+#: test -- which exists for exactly that failure -- could not see them. A guard that covers one of
+#: two directories is a guard that will be trusted and be wrong.
+_ROOTS = (Path(wfield_local.__file__).parent, Path(wfield_local.__file__).parent.parent / "scripts")
 MODULES = sorted(
-    p for p in Path(wfield_local.__file__).parent.glob("*.py")
-    if "argparse" in p.read_text(encoding="utf-8")
+    p for root in _ROOTS for p in root.rglob("*.py")
+    if root.exists() and "argparse" in p.read_text(encoding="utf-8")
 )
 
 

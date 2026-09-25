@@ -644,6 +644,29 @@ def trajectory(sig, align_f, w, p0, p1, pre_n, post_n, fs=None):
     return out
 
 
+#: BUMP WHEN `session_arms` CHANGES WHAT IT RETURNS for an unchanged (args, align).
+#:
+#:   2  `lick` fits on the FIRST LICK rather than the cue (2026-09-25). The key names the alignment
+#:      and the args and neither moved, so every cached `lick` arm would otherwise have been served
+#:      with the cue-locked `fit` inside it -- the same shape of failure `COURSE_VERSION` exists for.
+ARMS_VERSION = 2
+
+
+def fit_cache_kind(align, use, basis, win_n):
+    """Cache key for the WINDOW MEANS a direction is fitted on. One definition, three callers.
+
+    IT CARRIES `ARMS_VERSION`, and that is the whole reason it exists as a function. The key names
+    the alignment and the window LENGTH but nothing about where the window STARTS, so when
+    `session_arms` was corrected to start the `lick` window at the lick, the features under this key
+    were still the cue-locked ones -- the re-render reported 36 figures and 0 problems and returned
+    anchors identical to two decimal places.
+
+    `cd_overlap_null` and `scripts/component_exclusion_audit` built the same f-string by hand, so a
+    version bumped in one module would have moved one reader and left two on the old entries.
+    """
+    return f"cdfit{ARMS_VERSION}-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{int(win_n)}"
+
+
 def arms_cache_kind(args, align):
     """Cache kind for `session_arms`, which touches NO imaging -- only the DAQ.
 
@@ -664,6 +687,10 @@ def arms_cache_kind(args, align):
             for k in ("align", "post_s", "pre_s", "fs", "max_rt", "response_window_s")}
     spec["align_event"] = align
     spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
+    # IN THE DIGEST, not merely defined: the whole point of the version is that neither `align` nor
+    # the args move when `session_arms` changes what it puts in `fit`, so a constant that does not
+    # reach the key changes nothing and every stale entry is served exactly as before.
+    spec["arms_version"] = ARMS_VERSION
     digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
     return f"cdarms-{align}-{digest}"
 
@@ -747,15 +774,21 @@ def session_arms(s, args, basis, align):
     TWO FRAME SETS PER TRIAL, and they are different things:
 
       ``fit``  where the direction's feature window STARTS -- `precue_window_start` for the ENL
-               (slid to a lick-free gap, or None meaning drop), the cue otherwise.
+               (slid to a lick-free gap, or None meaning drop), the FIRST LICK for `lick`, the cue
+               for `cue`.
       ``at``   where the trajectory is CENTRED. Always a real observed event: the CUE for `precue`
                and `cue`, the FIRST LICK for `lick`. A slid feature window does not move it, so
                panels stay on a common x-axis.
 
     So the align token chooses WHICH WINDOW THE DIRECTION IS FITTED ON; `precue` and `cue` are both
     drawn against the cue and differ only in that.
+
+    `lick` USED TO FIT ON THE CUE TOO, which made its direction identical to `cue`'s -- measured
+    cos = 1.000000 at every position in two animals, on identical fit anchors (2026-09-25). The arm
+    was the cue analysis replotted, not a lick-locked code, and every lick number in this module
+    predating that fix inherits it.
     """
-    from wfield_local.locanmf_position_decoder import precue_window_start
+    from wfield_local.locanmf_position_decoder import window_start
     from wfield_local.nolick_decoder import categorize
 
     # NO SIGNAL IS TOUCHED HERE. This is pure trial bookkeeping off the DAQ, and separating it from
@@ -780,13 +813,13 @@ def session_arms(s, args, basis, align):
         else:
             continue                                   # late_rewarded: a HIT, excluded as elsewhere
         c0 = int(cue_f[k])
-        if align == "precue":
-            ref0 = precue_window_start(c0, strobe_f[k], ls, post_n, lickfree=lickfree)
-            if ref0 is None:
-                continue                               # no lick-free window exists -> drop
-        else:
-            ref0 = c0
+        # THE SHARED RULE, not a local restatement of it. `window_start` is the decoders' own, in
+        # `locanmf_position_decoder` beside `precue_window_start`; restating it here is what made
+        # the lick direction identical to the cue direction (Priya, 2026-09-25).
         at = c0 if align in ("precue", "cue") else (int(first[k]) if first[k] > 0 else None)
+        ref0 = window_start(align, c0, first[k], strobe_f[k], ls, post_n, lickfree=lickfree)
+        if ref0 is None:
+            continue                                   # no clean window / no lick -> drop
         if at is None:
             continue
         out[cls]["fit"].append(ref0)
@@ -869,7 +902,8 @@ def grand_means_folds(book, use, basis, align, pre_n, post_n, k=FOLDS):
         get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
         at = [f for c in use for f in arms[c]["at"]]
         fm = session_cache.cached(
-            s, f"cdgmf{int(k)}-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_n}",
+            s, f"cdgmf{int(k)}v{ARMS_VERSION}-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-"
+            f"{pre_n}-{post_n}",
             lambda get=get, at=at: _event_average_folds(get(), at, pre_n, post_n, k),
             verbose=False)
         if fm:
@@ -900,7 +934,7 @@ def grand_means(book, use, basis, align, pre_n, post_n):
         get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
         at = [f for c in use for f in arms[c]["at"]]
         gm = session_cache.cached(
-            s, f"cdgm2-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_n}",
+            s, f"cdgm{ARMS_VERSION}-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{pre_n}-{post_n}",
             lambda get=get, at=at: _event_average(get(), at, pre_n, post_n),
             verbose=False)
         if gm is not None:
@@ -1074,7 +1108,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         fit_at = [f for c in use for f in arms[c]["fit"]]
         fit_y = [v for c in use for v in arms[c]["y"]]
         feats = session_cache.cached(
-            s, f"cdfit-{align}-{'+'.join(use)}-{basis.basis_id[:8]}-{win_n}",
+            s, fit_cache_kind(align, use, basis, win_n),
             lambda get=get, fit_at=fit_at: window_means(get(), fit_at, win_n),
             verbose=False)
         Xf.append(feats)
@@ -1172,13 +1206,13 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
                         continue
                     sl = slice_trials(course, at[m], pre_n, post_frames)
                     acc.setdefault((ep, int(cd_p), int(tr_p)), []).append(sl)
-                    # THE DIAGONAL, KEPT PER SESSION. Everything else is only ever read as an epoch
-                    # mean, but the diagonal feeds `boot_delta`, whose nested animals -> sessions
-                    # draw needs the sessions to still exist (Priya, 2026-09-25: "should we have an
-                    # n of session count pooled?"). Pooled here, the inner draw has nothing to
-                    # resample and the interval falls back to four animals with one value each.
-                    if int(cd_p) == int(tr_p):
-                        sess.setdefault((s["label"], ep, int(cd_p)), []).append(sl)
+                    # EVERY CELL KEEPS ITS SESSIONS (Priya, 2026-09-25: "we should have all per
+                    # session traces for all cells"). It was the diagonal only, which left the
+                    # off-diagonal cells testable at n=4 animals alone -- and an exact animal-level
+                    # permutation cannot reach p < 0.05 with four animals, since 2^4 = 16
+                    # arrangements put the smallest two-sided p at 0.125. With sessions the
+                    # exchangeable unit is the ~44 sessions instead.
+                    sess.setdefault((s["label"], ep, int(cd_p), int(tr_p)), []).append(sl)
 
     out = {"animal": animal, "align": align, "method": method,
            "basis_id": basis.basis_id, "ncomp": int(basis.ncomp),
@@ -1214,7 +1248,9 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         if not n:
             continue
         with np.errstate(invalid="ignore"):
-            out["session_traces"][key] = {"mean": np.nanmean(A, 0), "n": n}
+            # float32: 44 sessions x 36 cells x ~220 frames is ~14 MB per (animal, alignment) at
+            # float64 and half that here, which is the price of making every cell testable.
+            out["session_traces"][key] = {"mean": np.nanmean(A, 0).astype(np.float32), "n": n}
     out["anchor"] = _anchor(out, args.post_s)
     if Ge:
         tt = np.arange(-pre_n, post_frames) / args.fs
@@ -1245,6 +1281,23 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     return out
 
 
+def fit_window_mask(t, align, win_s):
+    """Boolean mask over `t` for the window the direction was FITTED on.
+
+    WHERE IT SITS DEPENDS ON THE ALIGNMENT and getting it wrong makes a correct figure look broken:
+    the pre-cue window ENDS at the cue, so it is [-win, 0), while the cue and lick windows START at
+    their event, so they are [0, +win). Checked against [-2, 0) for `lick`, the anchor read 0.22 and
+    nothing was wrong with the data.
+
+    THIS WAS A COMMENT INSIDE `_anchor` AND NOT A FUNCTION, which is how `cd_migration` came to
+    average over [0, 2] s for every alignment -- measuring the POST-cue period on a pre-cue direction,
+    so its diagonal read 1.52/1.39/1.41 pre-stroke where the poles define 1.0, under a docstring
+    calling that diagonal the anchor.
+    """
+    t = np.asarray(t, float)
+    return ((t >= -win_s) & (t < 0.0)) if align == "precue" else ((t >= 0.0) & (t < win_s))
+
+
 def _anchor(res, win_s):
     """Pre-stroke SUCCESS averaged over the FITTING window, pooled over positions -- must be ~1.
 
@@ -1259,7 +1312,7 @@ def _anchor(res, win_s):
     # wrong makes a correct figure look broken: the pre-cue window ENDS at the cue, so it is
     # [-win, 0), while the cue and lick windows START at their event, so they are [0, +win).
     # Checked against [-2,0) for `lick` the anchor read 0.22 and nothing was wrong with the data.
-    m = ((t >= -win_s) & (t < 0.0)) if res["align"] == "precue" else ((t >= 0.0) & (t < win_s))
+    m = fit_window_mask(t, res["align"], win_s)
     vals = [np.nanmean(d["mean"][m]) for k, d in res["traces"].items()
             if k[0] == "pre" and k[1] == k[2]]
     return float(np.nanmean(vals)) if vals else float("nan")
@@ -1321,8 +1374,9 @@ def save_result(res, out_dir, orth=None, mask_occluded=None):
                          for (ep, cd, tr), v in res["traces"].items()}
     # SAME FLATTENING, different arity. A session label can contain no "|" -- they are `PS95_0912`
     # -- so the separator stays unambiguous.
-    payload["session_traces"] = {f"{lab}|{ep}|{int(p_)}": v
-                                 for (lab, ep, p_), v in (res.get("session_traces") or {}).items()}
+    payload["session_traces"] = {f"{lab}|{ep}|{int(cd)}|{int(tr)}": v
+                                 for (lab, ep, cd, tr), v in
+                                 (res.get("session_traces") or {}).items()}
     meta = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
             "smooth_s": SMOOTH_S, "trailing": bool(TRAILING),
             # the REQUESTED setting, matching the tag -- `RESULT_GUARD` compares against what the
@@ -1374,8 +1428,14 @@ def load_result(out_dir, animal, align, method="dom", reference="contrast", gate
     res["traces"] = traces
     st = {}
     for key, val in (res.get("session_traces") or {}).items():
-        lab, ep, p_ = key.rsplit("|", 2)
-        st[(lab, ep, int(p_))] = val
+        parts = key.rsplit("|", 3)
+        # A DUMP FROM BEFORE 2026-09-25 HAS A 3-PART KEY (diagonal only) and is simply skipped
+        # rather than crashing the reader: `RESULT_GUARD` already refuses a stale dump on its
+        # parameters, and a partial read here would be a silent downgrade to the old arm.
+        if len(parts) != 4:
+            continue
+        lab, ep, cd, tr = parts
+        st[(lab, ep, int(cd), int(tr))] = val
     res["session_traces"] = st
     res["surviving"] = {int(k): float(v) for k, v in (res.get("surviving") or {}).items()}
     res["positions"] = [int(q) for q in res.get("positions") or []]

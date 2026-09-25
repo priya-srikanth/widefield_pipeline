@@ -206,6 +206,10 @@ def test_every_CD_figure_the_module_can_emit_HAS_A_DECK_ENTRY():
     tag = "_".join(["dom", "contrast", "lick", "orth", "cortexonly"])
     emitted = [f"cd_{lay}_PS95_{al}_{tag}.png"
                for lay in cdt.LAYOUTS for al in ("precue", "cue", "lick")]
+    # THE SECOND GATE, pre-cue and cue only -- the lick alignment cannot take it.
+    wtag = "_".join(["dom", "contrast", "lick_or_working", "orth", "cortexonly"])
+    emitted += [f"cd_{lay}_PS95_{al}_{wtag}.png"
+                for lay in cdt.LAYOUTS for al in ("precue", "cue")]
     emitted.append("cd_cim_geometry_lick.png")
     for name in emitted:
         assert any(fnmatch.fnmatch(name, pat) for pat, _t, _l in reg.CD_FIGURES), name
@@ -227,8 +231,12 @@ def test_no_CD_deck_pattern_is_dead():
     # the POOLED families, which are one figure per alignment rather than per animal
     emitted += [f"cd_xanimal_{lay}_{al}_contrast_lick_cortexonly.png"
                 for lay in ("perposition", "cross") for al in ("precue", "cue", "lick")]
-    emitted += [f"cd_migration_{al}_contrast_lick_cortexonly.png"
-                for al in ("precue", "cue", "lick")]
+    emitted += [f"cd_migration_{al}_contrast_{g}_cortexonly.png"
+                for al in ("precue", "cue", "lick") for g in ("lick", "lick_or_working")]
+    emitted += [f"cd_{lay}_PS95_{al}_dom_contrast_lick_or_working_orth_cortexonly.png"
+                for lay in cdt.LAYOUTS for al in ("precue", "cue")]
+    emitted += [f"cd_cim_geometry_{g}_cortexonly{sfx}.png"
+                for g in ("lick", "lick_or_working") for sfx in ("", "_vs_ceiling")]
     for pat, _t, _l in reg.CD_FIGURES:
         assert any(fnmatch.fnmatch(n, pat) for n in emitted), pat
 
@@ -244,6 +252,11 @@ def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
     for pat, _ttl, legend in reg.CD_FIGURES:
         if not (pat.startswith("cd_epochs_") or pat.startswith("cd_cross_")):
             continue
+        if "lick_or_working" in pat:
+            # the second gate's panels must say WHAT THE GATE IS, since that is the only thing
+            # distinguishing them from the success-only panels beside them on the deck
+            assert "MISS-WHILE-WORKING" in legend, pat
+            assert "NO LICK-ALIGNED VERSION" in legend, pat
         assert "0.289" in legend, pat                 # the measured near-cancellation
         assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat
         assert "surviving fraction" in legend or "survived" in legend, pat

@@ -32,7 +32,7 @@ TWO THINGS THAT WOULD MAKE IT LIE, AND WHAT IS DONE ABOUT THEM.
     The structure is anatomically sensible, which is precisely why it is a trap: close positions
     correlate positively with each other, far positions likewise, and close-vs-far pairs run
     negative. That is the ring, so off-diagonal mass in M is partly "these two were always similar".
-    **Hence the readout is ΔM = M_post − M_pre, within animal** -- pre-stroke M carries the geometry
+    **Hence the readout is deltaM = M_post - M_pre, within animal** -- pre-stroke M carries the geometry
     and subtracting each animal's own removes it.
 
     Mutually orthogonalising the six WOULD make the columns independent and the migration claim
@@ -70,10 +70,15 @@ ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 POST = ("acute", "subacute", "chronic")
 
-#: Window the projection is averaged over, in seconds from the alignment event. The response window
-#: the directions were fitted on, so a diagonal entry is the quantity the poles define and should read
-#: ~1.0 pre-stroke -- which is the anchor check, and it is printed so a broken matrix is visible.
-WINDOW = (0.0, 2.0)
+#: `None` means USE THE FITTING WINDOW, resolved per alignment by
+#: `cd_trajectories.fit_window_mask` -- [-win, 0) before the cue, [0, +win) after the cue or the
+#: lick. A tuple overrides it.
+#:
+#: IT WAS (0.0, 2.0) FOR EVERY ALIGNMENT, and for `precue` that is the wrong window: the direction is
+#: fitted on the 2 s BEFORE the cue, so the matrix was measuring the post-cue period on a pre-cue
+#: direction and the diagonal read 1.52/1.39/1.41 pre-stroke where the poles define 1.0 -- under a
+#: docstring calling that diagonal the anchor.
+WINDOW = None
 
 #: M is a signed LEVEL, ΔM is a signed CHANGE, and the project keeps the two maps distinct so that
 #: "more" and "different" never look alike (`transfer_matrix.CMAP_CHANGE` / `CMAP_LEVEL`). The change
@@ -85,7 +90,8 @@ CMAP_DELTA = "RdBu_r"
 def matrices(res, window=WINDOW):
     """``{epoch: (M, present)}`` -- M[i, j], rows = trial position, cols = the CD projected onto."""
     t = np.arange(-res["pre_n"], res["post_n"]) / float(res["fs"])
-    m = (t >= window[0]) & (t < window[1])
+    m = (cdt.fit_window_mask(t, res["align"], float(res["win_s"])) if window is None
+         else (t >= window[0]) & (t < window[1]))
     pos = [p for p in DISPLAY_ORDER if p in res["positions"]]
     out = {}
     for ep in EPOCHS:
@@ -128,6 +134,140 @@ def pooled_matrices(got, window=WINDOW):
 #: rather than been out-competed on it. 0.5 is blunt and the two cases are reported separately rather
 #: than thresholded into one number, so the cut only decides which list an entry appears in.
 VACATED_FRAC = 0.5
+
+
+#: Draws for the cell-wise and family-wise tests. Matches `analysis_kit.N_BOOT`.
+N_BOOT_CELL = 4000
+
+
+def _cell_values(got, pos, window):
+    """``{animal: {epoch: [per-session (n, n) matrices]}}`` -- every cell, every session.
+
+    From the per-session traces `cd_trajectories` persists for all 36 cells. Returns ``{}`` when a
+    dump predates them, and the caller falls back to the animal-level test AND SAYS SO.
+    """
+    out = {}
+    for a, res in got.items():
+        st = res.get("session_traces") or {}
+        if not st:
+            continue
+        t = np.arange(-res["pre_n"], res["post_n"]) / float(res["fs"])
+        m = (cdt.fit_window_mask(t, res["align"], float(res["win_s"])) if window is None
+             else (t >= window[0]) & (t < window[1]))
+        idx = {p_: i for i, p_ in enumerate(pos)}
+        per = {}
+        for (lab, ep_, cd_, tr_), d in st.items():
+            if cd_ not in idx or tr_ not in idx:
+                continue
+            per.setdefault(ep_, {}).setdefault(lab, np.full((len(pos), len(pos)), np.nan))
+            per[ep_][lab][idx[tr_], idx[cd_]] = float(np.nanmean(np.asarray(d["mean"])[m]))
+        out[a] = {e: list(v.values()) for e, v in per.items()}
+    return out
+
+
+def permutation_significance(got, ep, pos, window=WINDOW, n_perm=2000, seed=0):
+    """``(obs, p_cell, p_fwer, n_sessions)`` from a WITHIN-ANIMAL session-label permutation.
+
+    See the module docstring for the design. The statistic is the animal-weighted pooled delta, the
+    same point estimate the figure draws; only the null changes.
+
+    Returns ``None`` when the dumps carry no per-session traces, so the caller can fall back rather
+    than silently reporting an animal-level test as a session-level one.
+    """
+    vals = _cell_values(got, pos, window)
+    animals = [a for a, v in vals.items() if v.get("pre") and v.get(ep)]
+    if len(animals) < 2:
+        return None
+
+    def pooled_delta(assign):
+        """assign: {animal: (post_list, pre_list)} -> animal-weighted mean of post - pre."""
+        per = []
+        for a in animals:
+            po, pr = assign[a]
+            if not len(po) or not len(pr):
+                continue
+            per.append(np.nanmean(np.stack(po), 0) - np.nanmean(np.stack(pr), 0))
+        return np.nanmean(np.stack(per), 0) if per else None
+
+    obs = pooled_delta({a: (vals[a][ep], vals[a]["pre"]) for a in animals})
+    rng = np.random.default_rng(seed)
+    n_post = {a: len(vals[a][ep]) for a in animals}
+    pool = {a: vals[a][ep] + vals[a]["pre"] for a in animals}
+    null_cells, null_max = [], []
+    for _ in range(n_perm):
+        assign = {}
+        for a in animals:
+            order = rng.permutation(len(pool[a]))
+            k = n_post[a]
+            assign[a] = ([pool[a][i] for i in order[:k]], [pool[a][i] for i in order[k:]])
+        d = pooled_delta(assign)
+        if d is None:
+            continue
+        null_cells.append(np.abs(d))
+        null_max.append(np.nanmax(np.abs(d)))
+    if not null_cells:
+        return None
+    N = np.stack(null_cells)
+    # +1 IN NUMERATOR AND DENOMINATOR: with a finite number of shuffles a p of exactly 0 is not a
+    # value the test can produce, and reporting one invites it to be read as certainty. Same
+    # convention as `nolick_analysis.permutation_null`.
+    p_cell = (1.0 + np.sum(N >= np.abs(obs)[None], axis=0)) / (1.0 + N.shape[0])
+    nm = np.asarray(null_max)
+    p_fwer = np.array([[(1.0 + np.sum(nm >= abs(obs[i, j]))) / (1.0 + nm.size)
+                        for j in range(obs.shape[1])] for i in range(obs.shape[0])])
+    n_sess = {a: (len(vals[a]["pre"]), len(vals[a][ep])) for a in animals}
+    return obs, p_cell, p_fwer, n_sess
+
+
+def delta_significance(got, ep, pos, window=WINDOW, n_boot=N_BOOT_CELL, seed=0):
+    """``(obs, lo, hi, sig_cell, sig_fwer, n_agree)`` per cell of ΔM, each an ``(n, n)`` array.
+
+    THE UNIT IS THE ANIMAL and the draw is `boot_delta`'s -- resample animals with replacement, take
+    the mean of their within-animal deltas. With one value per animal per cell `boot_delta` reduces
+    to exactly that, so this is that draw vectorised over 36 cells, not a second definition.
+
+    OFF-DIAGONAL CELLS CANNOT USE SESSIONS. `cd_trajectories` persists per-session traces for the
+    DIAGONAL only, so the nested animals -> sessions draw is unavailable here and these intervals are
+    animal-level. That makes them NARROWER than the diagonal's nested ones -- three of those crossed
+    zero when session variability was added -- so an off-diagonal mark is the more optimistic of the
+    two and should be read that way.
+
+    `sig_fwer` uses a BOOTSTRAP MAX-STATISTIC over the whole panel: under each resample the largest
+    absolute centred deviation across all cells forms the null, and a cell must beat its 95th
+    percentile. At 36 cells a nominal 5% would decorate about five of them in a null matrix.
+
+    `n_agree` is how many animals share the pooled sign -- printed because an interval at n=4 can
+    exclude zero on one animal's strength, which is how the usurpation claim on this same figure
+    survived until it was checked.
+    """
+    per = []
+    for _a, res in sorted(got.items()):
+        mats = matrices(res, window)
+        if ep not in mats or "pre" not in mats:
+            continue
+        M, pos_a = mats[ep]
+        if pos_a != pos:
+            continue
+        per.append(M - mats["pre"][0])
+    if len(per) < 2:
+        n = len(pos)
+        nan = np.full((n, n), np.nan)
+        return nan, nan, nan, np.zeros((n, n), bool), np.zeros((n, n), bool), np.zeros((n, n), int)
+    A = np.stack(per)                                   # (animals, n, n)
+    obs = np.nanmean(A, 0)
+    rng = np.random.default_rng(seed)
+    draws = rng.integers(0, A.shape[0], (n_boot, A.shape[0]))
+    boot = np.nanmean(A[draws], axis=1)                 # (n_boot, n, n)
+    lo = np.nanpercentile(boot, 2.5, axis=0)
+    hi = np.nanpercentile(boot, 97.5, axis=0)
+    sig_cell = (lo > 0) | (hi < 0)
+    # FAMILY-WISE: the largest absolute CENTRED deviation anywhere in the panel, per draw.
+    centred = np.abs(boot - obs[None, :, :])
+    null_max = np.nanmax(centred.reshape(n_boot, -1), axis=1)
+    thresh = float(np.nanpercentile(null_max, 95))
+    sig_fwer = np.abs(obs) > thresh
+    n_agree = np.sum(np.sign(A) == np.sign(obs)[None, :, :], axis=0)
+    return obs, lo, hi, sig_cell, sig_fwer, n_agree
 
 
 def usurpation(M, M_pre, pos):
@@ -227,6 +367,41 @@ def report(got, window=WINDOW):
             L.append(f"    {POSITION_NAMES.get(p, p):13s} best = "
                      f"{POSITION_NAMES.get(pos[j], pos[j]):13s} ({M[i, j]:+.2f}), "
                      f"own = {M[i, i]:+.2f}{flag}")
+        perm = permutation_significance(got, ep, pos, window)
+        _o, _l, _h, sig_cell, sig_fwer, n_ag = delta_significance(got, ep, pos, window)
+        if perm is not None:
+            _o, p_cell, p_fwer, n_sess = perm
+            sig_cell, sig_fwer = p_cell < 0.05, p_fwer < 0.05
+            L.append("  TEST: within-animal permutation of the epoch label across SESSIONS "
+                     f"({', '.join(f'{a} {v[0]}pre/{v[1]}post' for a, v in sorted(n_sess.items()))}"
+                     "), family-wise by max-statistic over the panel from the same shuffles. The "
+                     "animal-level bootstrap this replaces could not reach p<0.05 at any effect "
+                     "size: 4 animals give 16 sign-flips, smallest two-sided p 0.125.")
+        else:
+            L.append("  TEST: ANIMAL-level bootstrap (n=4) -- the dumps carry no per-session "
+                     "traces, so a session permutation is unavailable. Re-render to enable it.")
+        # ASCII IN PRINTED OUTPUT, for the third time this session: the console is cp1252 and a
+        # Greek delta raises UnicodeEncodeError there, which KILLS the step rather than mangling a
+        # character. `tests/test_report_text_is_console_safe.py` now guards it.
+        # THE CAVEAT HAS TO MATCH THE TEST THAT RAN. This line used to say the intervals were
+        # animal-level whatever happened, which was true when written and false the moment the
+        # permutation path landed -- a figure describing a test it did not perform is the same
+        # failure as the subtitles that announced a retired correction for hours.
+        L.append(f"  significant deltaM cells: {int(sig_fwer.sum())} family-wise "
+                 f"(max-statistic over {sig_cell.size} cells), {int(sig_cell.sum())} "
+                 f"uncorrected -- of which about {0.05 * sig_cell.size:.0f} are what chance gives "
+                 f"at this panel size."
+                 + ("" if perm is not None else
+                    " Intervals are ANIMAL-level (n=4) because the dumps carry no per-session "
+                    "traces."))
+        for i in range(sig_cell.shape[0]):
+            for j in range(sig_cell.shape[1]):
+                if not sig_fwer[i, j]:
+                    continue
+                L.append(f"    {POSITION_NAMES.get(pos[i], pos[i]):13s} on "
+                         f"{POSITION_NAMES.get(pos[j], pos[j]):13s}: {_o[i, j]:+.2f} "
+                         f"[{_l[i, j]:+.2f},{_h[i, j]:+.2f}]  {int(n_ag[i, j])}/4 animals agree "
+                         f"on the sign")
         M_pre = pooled["pre"][0] if "pre" in pooled else None
         us, vac = usurpation(M, M_pre, pos)
         if us:
@@ -290,12 +465,29 @@ def figure(got, out, align, window=WINDOW):
             ax2.set_axis_off()
             continue
         im2 = ax2.imshow(D, cmap=CMAP_DELTA, vmin=-dmax, vmax=dmax)
+        _obs, _lo, _hi, sig_cell, sig_fwer, n_agree = delta_significance(got, ep, pos, window)
+        _perm = permutation_significance(got, ep, pos, window)
+        if _perm is not None:
+            _obs, _pc, _pf, _ns = _perm
+            sig_cell, sig_fwer = _pc < 0.05, _pf < 0.05
+        for i in range(D.shape[0]):
+            for j in range(D.shape[1]):
+                if not sig_cell[i, j]:
+                    continue
+                # FILLED = family-wise (max-statistic over the 36 cells); HOLLOW = per-cell only,
+                # which in a panel this size is roughly what chance produces.
+                ax2.plot(j, i - 0.33, marker="o", ms=3.4,
+                         mfc=("#111111" if sig_fwer[i, j] else "none"),
+                         mec="#111111", mew=0.8, zorder=6)
+                ax2.text(j - 0.44, i - 0.30, f"{int(n_agree[i, j])}", fontsize=4.6,
+                         ha="left", va="center", color="0.25", zorder=6)
         if k == 0:
             ax2.set_ylabel("ΔM — change from pre\n(within animal, then pooled)", fontsize=8)
         _ticks(ax2, names, k == 0)
         _annot(ax2, D, sign=True)
         if k == len(eps) - 1:
             fig.colorbar(im2, ax=ax2, fraction=0.046)
+    from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
 
     axes[0][0].legend(
@@ -305,12 +497,18 @@ def figure(got, out, align, window=WINDOW):
                        label="dashed box: POOLED ONLY — fewer than\n"
                              f"{MIN_ANIMALS_SUPPORT}/4 animals show it individually (rule 8)"),
                  Patch(facecolor="none", edgecolor="0.25", hatch="////",
-                       label="VACATED: this diagonal lost >50% of its\npre-stroke value")],
+                       label="VACATED: this diagonal lost >50% of its\npre-stroke value"),
+                 Line2D([], [], marker="o", ls="none", ms=3.4, mfc="#111111", mec="#111111",
+                        label="ΔM cell significant FAMILY-WISE\n(max-statistic over the panel)"),
+                 Line2D([], [], marker="o", ls="none", ms=3.4, mfc="none", mec="#111111",
+                        label="per-cell interval only — at 36 cells\nthis is about what chance gives"),
+                 Line2D([], [], ls="none",
+                        label="small number = animals sharing the sign")],
         fontsize=5.5, frameon=False, loc="upper left", bbox_to_anchor=(0.0, -0.32))
     fig.suptitle(
         f"WHERE A POSITION'S TRAJECTORY MOVED — {align.upper()}, pooled over {pooled[eps[0]][2]} "
         f"animals\nM[i, j] = position i's trials projected onto position j's coding direction, "
-        f"averaged over [{window[0]:g}, {window[1]:g}] s. Pole-normalised, so 1.0 means 'looks like "
+        f"averaged over the FITTING window. Pole-normalised, so 1.0 means 'looks like "
         f"PRE-STROKE position j' and COLUMNS ARE COMPARABLE.\nThe diagonal is the anchor (~1.0 "
         f"pre-stroke). THE DIRECTIONS ARE NOT ORTHOGONAL — neighbouring positions resemble each "
         f"other already — so read the BOTTOM row, the change from pre, for migration.\n"

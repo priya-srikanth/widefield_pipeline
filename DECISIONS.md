@@ -2198,6 +2198,85 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## SESSIONS AS THE STATISTICAL UNIT: the band and the cell test (Priya, 2026-09-25)
+
+Priya: *"we should do some session based permutation. maybe even nested with blocks"* and *"did we
+resolve the statistics issue so we aren't just using n=4"* -- only in the scalar table, until now.
+
+**THE OLD TEST COULD NOT PRODUCE A SIGNIFICANT RESULT AT ANY EFFECT SIZE.** Four animals with one
+value per cell admit 35 distinct bootstrap resamples, and an exact animal-level permutation --
+sign-flipping each animal's delta -- has 2^4 = 16 arrangements, so the smallest attainable two-sided
+p is **0.125**. "Zero cells survive the family-wise correction" was a property of the test, and it was
+reported as though it were a property of the data.
+
+**TWO TOOLS, TWO JOBS.** The BAND is `boot_delta`'s nested draw: animals resampled, then SESSIONS
+within each animal, for both arms under the same draw, which is what makes it paired. The P-VALUE is
+a WITHIN-ANIMAL PERMUTATION of the epoch label across that animal's sessions -- under the null the
+label carries no information, so a session is exchangeable between pre and post within an animal.
+With 11 pre-stroke and 4-8 post-stroke sessions per animal the arrangements run to millions against
+sixteen. Family-wise comes from the SAME shuffles by max-statistic over the 36 cells, so the
+correction costs no extra assumption.
+
+STRATIFIED BY ANIMAL, never pooled: animals differ in baseline and session count, so a pooled shuffle
+would let a between-animal difference masquerade as an epoch effect -- the 2026-09-20 confound again.
+
+**IT CHANGES THE ANSWER.** Pre-cue, family-wise significant cells went 0/0/0 under the animal
+bootstrap to **1 acute, 0 subacute, 5 chronic** under the permutation. The acute survivor is
+`far_R` on `far_center`, +1.19 [+0.08, +2.72], with 4/4 animals agreeing on the sign -- the migration
+originally asked about, now as a significant CHANGE, which is a weaker and better-posed claim than the
+"usurpation" threshold that remains 1/4 and unsupported. Chronic's five are mostly far_R as a TARGET.
+
+**WHAT IT ASSUMES, and it is not free:** that a session is exchangeable across the lesion within an
+animal. A monotonic DRIFT unrelated to the lesion would inflate the test, since permuting destroys
+time order. `scripts/rest_migration/rest_baseline_epoch_drift.py` tracks exactly this for the rest
+baseline and is the first thing to check before believing the chronic five.
+
+**BLOCKS ARE NOT NESTED INTO THE PERMUTATION**, though Priya raised them. The epoch label is a
+property of a SESSION, so permuting it is a session-level operation and trial blocks add nothing to
+the NULL. They belong in the INTERVAL as a third bootstrap level -- animals, sessions, blocks -- which
+is a real refinement and a separate change.
+
+## THE LICK-ALIGNED CD WAS THE CUE CD (Priya, 2026-09-25)
+
+Priya: *"ensure the cue and lick analyses are analyzing the correct intervals"*, then *"make sure the
+windows are -2 to 0 for pre-cue, 0-2 cue-aligned for cue, 0-2 lick-aligned for lick"*.
+
+**MEASURED: `cos(w_cue, w_lick) = 1.000000` at every position in PS92 and PS95**, on
+element-for-element identical fit anchors. `cd_trajectories.session_arms` set `ref0 = c0` for every
+alignment except `precue`, so the `lick` arm's feature window was [cue, cue + 2 s) -- the same window,
+the same trials, the same weights as `cue`. Only `at`, where the trace is CENTRED, differed. The arm
+labelled "lick-aligned coding direction" was the cue direction replotted against a different event,
+and every lick-alignment number in this module before 2026-09-25 answers the cue question twice.
+
+    alignment   direction fitted on                     was        now
+    precue      [-2, 0) cue-aligned, lick-free gated    correct    unchanged
+    cue         [0, +2) cue-aligned                     correct    unchanged
+    lick        [0, +2) LICK-aligned                    WRONG      fixed
+
+**THE PRODUCTION DECODER WAS NEVER AFFECTED.** `locanmf_position_decoder._trial_features` states in
+its own docstring that with `align == "lick"` a lick trial's window starts at its FIRST LICK, and
+`nolick_ref` governs only where a NO-LICK trial's window starts. No published decoder or CD number
+moves.
+
+**WHICH IS THE LESSON.** `session_arms` re-derives trial bookkeeping that `_trial_features` already
+does, and diverged from it -- the same species as `enl_state_counts` hardcoding a 2.0 s response
+window against the decoder's 3.5 s, and the reason for the standing instruction to use the pipeline's
+existing functions. `session_arms` has a real reason to exist (it touches NO signal, which is what
+lets a warm cache skip the projection entirely) but it should have taken its alignment rule from the
+canonical place rather than restating it.
+
+**THE CACHE WOULD HAVE HIDDEN THE FIX.** `arms_cache_kind` hashes the alignment token and the args,
+and neither moves when the MEANING of `fit` changes underneath them, so every cached `lick` arm would
+have been served with the cue-locked window inside it. `ARMS_VERSION` now enters the digest and
+`tests/test_cd_trajectories.py` asserts that it reaches the key rather than merely being defined --
+the same guard `COURSE_VERSION` exists for, one layer down.
+
+**AND `cd_migration` HAD THE MATCHING BUG IN THE READ-OUT WINDOW**: it averaged [0, 2] s for every
+alignment, so for `precue` it measured the post-cue period on a pre-cue direction and its diagonal
+read 1.52/1.39/1.41 pre-stroke where the poles define 1.0 -- under a docstring calling that diagonal
+the anchor. The rule existed only as a COMMENT inside `_anchor`; it is `fit_window_mask` now, shared
+by both callers and pinned by test.
+
 ## TRAJECTORY MIGRATION: the object, and the claim it did NOT support (Priya, 2026-09-25)
 
 Priya: *"is there a clean way to look at where a lick's trajectory MOVED to another trajectory (eg did
