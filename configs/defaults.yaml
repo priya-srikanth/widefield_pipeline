@@ -432,6 +432,27 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # meantime -- the donor's seeded values are still in the label files,
                               # the side-view frames are already extracted, and the whisker columns
                               # are inert rather than deleted.
+
+                              # THE EYES ARE DEFERRED TOO (Priya, 2026-09-25: "we aren't using the
+                              # whisker or eye points for now"), on the same terms and by the same
+                              # mechanism -- `L_eye` off cam2, `R_eye` off cam3, and no other view
+                              # ever had one. Cheap to reverse: cam2 and cam3 have NO
+                              # `CollectedData` file at all as of today, so not one eye has ever
+                              # been placed and there is nothing to strand. cam4's eye columns,
+                              # which DO exist in its 15 files, were always meant to be blank --
+                              # the eyes are outside its field of view and the donor's 0.44-0.79
+                              # returns in its empty top corners are the hallucination that
+                              # `dlc_prelabel` refuses to seed.
+                              #
+                              # The eyes are cheaper than the whiskers (one point on a frame that
+                              # is open anyway, and a rigid landmark rather than a numbered
+                              # whisker), so this is NOT the same cost argument. It is the
+                              # consequence of one: with the whiskers gone, a side-view frame is
+                              # nose/jaw/tongue/spout plus one eye, and the eye is then the only
+                              # part of that frame no other view shares -- it cannot triangulate,
+                              # it is not orofacial, and nothing downstream reads it. It earns its
+                              # place back the moment something does, or alongside the whiskers
+                              # when the side views are opened for real.
     cam4:
       role: front             # the nearest analogue of the old `video2`
       bodyparts: [nose, jaw, tongue, spout]
@@ -462,12 +483,12 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
       bodyparts: [nose, jaw, tongue, spout]
     cam2:
       role: side_left         # sees the animal's LEFT side (Priya, 2026-09-08)
-      bodyparts: [L_eye, nose, jaw, tongue, spout]
+      bodyparts: [nose, jaw, tongue, spout]
     cam3:
       role: side_right        # sees the animal's RIGHT side -- so this is the view that carries
                               # PS93's right orofacial deficit, and the laterality above is not a
                               # cosmetic label.
-      bodyparts: [R_eye, nose, jaw, tongue, spout]
+      bodyparts: [nose, jaw, tongue, spout]
 
                               # NO LANDMARK IS THE EXACT SAME PHYSICAL POINT FROM TWO VIEWS, and
                               # pretending otherwise is the mistake to avoid. Priya, 2026-09-12:
@@ -743,7 +764,7 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # LABELS ARE COPIED FORWARD INTO IT EVERY RUN AND OVERWRITTEN -- the
                               # opposite of dlc_project's rule, because here the human edit is
                               # UPSTREAM. Do not label in the training project.
-    training_fraction: 0.8    # WHOLE SESSIONS are held out, not random frames, and the achieved
+    training_fraction: 0.74   # WHOLE SESSIONS are held out, not random frames, and the achieved
                               # fraction is written back to the project's TrainingFraction (DLC looks
                               # the derived value up in that list). DLC's default split is uniform
                               # over frames, which on THIS set measures the wrong thing:
@@ -755,6 +776,33 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # optimistic about the only thing the number is for -- a session the
                               # network has not seen. Sessions are drawn one per EPOCH in a seeded
                               # order so the per-epoch table has post-stroke frames in it.
+                              #
+                              # 0.8 -> 0.73 ON 2026-09-25, because the ROUND-2 LABELLING MADE IT
+                              # AFFORDABLE. The number is chosen to buy a FOURTH held-out session,
+                              # not for its own sake: the round-robin takes one session per epoch,
+                              # and at 0.8 the 20% target was reached after three -- so `subacute`,
+                              # a POST-STROKE epoch, had no test frames at all and its per-epoch row
+                              # was silent rather than reassuring. That is the exact gap the table
+                              # exists to close, since "tracks a healthy mouse well and a
+                              # hemiparetic one badly" is a claim about the post-stroke epochs.
+                              # Round 2 took the set from 240 to 360 frames (16 -> 24 per session,
+                              # `frames.per_session`), so 4 sessions is now 96 frames / 27% and
+                              # leaves 264 to train on -- still 37% MORE than round 1's 192. Before
+                              # the expansion the same choice would have cost training data it could
+                              # not spare. If the set grows again, raise this back toward 0.8: what
+                              # matters is the SESSION COUNT reaching every epoch, and the fraction
+                              # is only the dial that gets there.
+                              #
+                              # 0.74 AND NOT 0.73, and the difference is a whole extra session.
+                              # `split` accumulates held-out FRAMES until it reaches
+                              # `len(df) * (1 - fraction)` and only then stops, so the target has to
+                              # land at or BELOW the frame count of the session set you want. Four
+                              # 24-frame sessions is 96 frames; 0.73 asks for 97.2, misses by 1.2
+                              # frames, and takes a FIFTH session (120 frames, 33%, only 240 left to
+                              # train on -- and the fifth is a second `acute`, so it buys no epoch
+                              # coverage at all). 0.74 asks for 93.6 and stops at four. Measured, not
+                              # reasoned: run `--dry-run` and read the held-out list before trusting
+                              # any value here. The usable band for 4 sessions is 0.734-0.766.
     seed: 42                  # the session hold-out is deterministic: a re-run trains on the same
                               # split rather than quietly scoring against a different test set.
     epochs: 200               # DLC's own default for a new project, and 192 training frames at

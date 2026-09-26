@@ -469,8 +469,10 @@ That refreshes the project (adds any new frames, repoints `project_path` to this
 letter, never touches a label you have edited), prints the per-view bodypart list, and opens DLC's
 labelling GUI. Without `--label` it does everything except open the GUI.
 
-The project is `Behavior_Cameras/Widefield/dlc/widefield-Priya-2026-09-08/` — **26 folders,
-1853 images**, 13 of them cam4 with ~82% of points already placed.
+The project is `Behavior_Cameras/Widefield/dlc/widefield-Priya-2026-09-08/` — **60 folders,
+1150 images** (measured 2026-09-25): 15 per camera, `cam4` 360 images and fully labelled on all four
+parts, `cam1` 310 with ONE folder partly done, `cam2`/`cam3` 240 each with no `CollectedData` file at
+all. The earlier "26 folders, 1853 images, 13 of them cam4" counted a different extraction.
 
 ### If the GUI does not stay open
 
@@ -495,14 +497,27 @@ shows all twelve on every frame and **cannot enforce the per-view subset** — t
 
 | view | folders | place these | leave EMPTY |
 |---|---|---|---|
-| `cam4` front | 13 | nose, jaw, tongue, L/R_whiskers_1-3, spout | **L_eye, R_eye** |
-| `cam1` bottom | 13 | jaw, tongue, spout | nose, all whiskers, both eyes |
+| `cam4` front | 15 | nose, jaw, tongue, spout | everything else |
+| `cam1` bottom | 15 | nose, jaw, tongue, spout | everything else |
+| `cam2` side_left | 15 | nose, jaw, tongue, spout | everything else |
+| `cam3` side_right | 15 | nose, jaw, tongue, spout | everything else |
+
+**UPDATED 2026-09-25 — EVERY VIEW IS THE SAME FOUR PARTS NOW.** This table used to send the labeller
+to six whiskers on `cam4` and to leave `nose` empty on `cam1`, and both instructions were already
+wrong when read: `nose` joined all four views on 2026-09-12, the whiskers were deferred on
+2026-09-22, and the eyes on 2026-09-25 (Priya: *"we aren't using the whisker or eye points for
+now"*). The live project's `config.yaml` carries six names today and will carry four after the next
+`dlc_project` run. **A runbook that asks for a part the config no longer lists is worse than a stale
+one** — the GUI would happily accept those points and `dlc.train.bodyparts` would then be a claim
+nobody checked.
 
 **Why the eyes are empty on cam4:** they are outside its field of view — sampled at four separated
-timepoints in PS94 and one in PS95, never in frame. The columns exist so the file is well-formed for
-DLC, not as an invitation; they get filled on `cam2` (L_eye) and `cam3` (R_eye), the views that
-actually see one. The donor network does return them at 0.44–0.79 in cam4's empty top corners, which
-is a hallucination and exactly why they are not seeded.
+timepoints in PS94 and one in PS95, never in frame. The donor network does return them at 0.44–0.79
+in cam4's empty top corners, which is a hallucination and exactly why they are not seeded.
+~~they get filled on `cam2` (L_eye) and `cam3` (R_eye)~~ — **not any more.** The eyes were deferred
+on 2026-09-25 along with the whiskers, so no view asks for one. Nothing was stranded: `cam2` and
+`cam3` had never been labelled at all, so not a single eye had been placed. See
+`dlc.cameras` in `configs/defaults.yaml` for the reasoning and for how to bring them back.
 
 A point placed for a part a camera cannot see is invented data, and a network trained on invented
 points learns to hallucinate.
@@ -512,8 +527,10 @@ points learns to hallucinate.
 * **cam4** — mostly CHECKING; ~82% is placed. The **jaw** needs the most attention: it falls to 13%
   on lick frames because the chin point the donor learned is occluded once the mouth is open at the
   spout. Fill the missing tongues and nudge the seeded ones to your chosen landmark.
-* **cam1** — from scratch, but only three parts: jaw, tongue, spout. It is the best tongue view on
-  the rig.
+* **cam1** — from scratch, and FOUR parts, not three: `nose` joined it on 2026-09-12. ~~It is the
+  best tongue view on the rig~~ — corrected 2026-09-13, the spout occludes the tongue TIP from below
+  and `cam4` is the better tongue view; see `dlc.cameras.cam1` for why that changes what a cam1
+  tongue label means for triangulation.
 
 **Decide the tongue landmark before you start.** The seeds land at the tongue–spout CONTACT (where
 the donor's own label sat), not the tip or centroid. Consistent bias is easy to correct — but pick
@@ -648,6 +665,11 @@ toward the donor's apparent size (~0.4x cam4's).
 
 ### First result (2026-09-21), and how to read it
 
+> **SUPERSEDED 2026-09-25 by round 2 — see "Second result" below.** Kept because the way it is READ
+> is still how to read the next one, and because the round-1 numbers are the baseline the round-2
+> table is measured against. The network it describes is still on disk at `iteration-0`.
+
+
 `snapshot_best-90`, scored on the three held-out sessions:
 
 | part | test RMSE | | part | test RMSE |
@@ -781,6 +803,62 @@ category no error metric can surface.
 ("committed to the lick, tongue still in"). Either the tongue really is emerging by then — plausible,
 the sensor fires on contact — or some `lick-16` frames carry a tongue that is not out. Two of the
 flagged frames are `lick-16`. Worth deciding once, since it sets what the hard negative teaches.
+
+### Second result (2026-09-25) — round 2, and the one new hazard
+
+`snapshot_best-60`, `iteration-1`, trained on 264 frames from 11 sessions after the second labelling
+round took the set from **240 to 360 frames** and corrected 84 points on frames that already existed.
+Every part improved on the SAME three sessions round 1 was scored on:
+
+| part | round 1 | round 2 (same 3) | | part | round 1 | round 2 (same 3) |
+|---|---|---|---|---|---|---|
+| `spout` | 2.19 px | **1.79** | | `jaw` | 4.70 px | **4.01** |
+| `nose` | 4.17 px | **3.29** | | `tongue` | 10.27 px | **6.94** |
+
+**`subacute` is tested for the first time** (`dlc.train.training_fraction` 0.8 -> 0.74 buys a fourth
+held-out session; see the config comment for why 0.73 does not), and the per-epoch TEST table answers
+the question the study turns on:
+
+| part | acute | subacute | chronic | pre | | part | acute | subacute | chronic | pre |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `jaw` | **2.65** | 3.75 | 4.53 | 8.90 | | `spout` | **1.57** | 2.30 | 1.71 | 2.80 |
+| `nose` | 3.51 | 3.44 | 5.02 | **2.82** | | `tongue` | **4.97** | 10.62 | 12.68 | 9.86 |
+
+**`acute` is the BEST epoch on three of four parts.** The false-deficit failure mode — a network that
+tracks a healthy mouse well and a hemiparetic one badly — is absent, and this is the first round in
+which `subacute` could be asked at all.
+
+**THE TWO TABLES `dlc_train` PRINTS ARE IN DIFFERENT UNITS.** DLC's per-keypoint block reports MEAN
+euclidean error despite calling it `rmse`; `per_epoch_error` reports true RMSE. The comparison table
+above is in DLC's units because that is what the round-1 table was. Do not read one against the
+other — on this run that alone is the difference between a `jaw` of 3.77 and one of 5.61.
+
+**The tongue is still a TAIL, not a level.** Test RMSE 9.70 px, test MEDIAN 5.80, and 6.96 with the
+worst five frames removed; over all 160 labelled tongues the median is 2.81 px and just 2 exceed
+20 px.
+
+#### The hazard that is new this round: the review list has moved onto the TEST set
+
+Round 2's list is **1 `DELETE`, 15 `REPLACE`, 5 `DECIDE` — every one a held-out frame** — plus 21
+`ADD` (15 train, 7 test). That is what a fitted network does: it agrees with the frames it learned,
+so disagreement concentrates where it did not. The trap is what happens next.
+
+**Correcting a TEST label toward a confident prediction and then re-scoring the same split measures
+how well the labels were moved onto the network.** `REPLACE`'s justification — the network learned
+the landmark from the other ~190 frames, so a confident disagreement means that frame is the odd one
+out — is sound for a TRAIN frame and circular for a test one.
+
+**Make the corrections anyway; move the measurement.** Before scoring round 3 either change
+`dlc.train.seed` so those frames land in train, where the corrections are ordinary supervision, or
+keep the split and report the number knowing what is in it. What must not happen is round 3's test
+error being quoted as a clean generalisation estimate without either.
+
+#### Still unresolved: the tongue landmark
+
+`cam4_2026-06-06T18_02_39#389083` and `cam4_2026-09-07T17_08_48#674384` were flagged in round 1,
+touched in round 2, and are flagged **again**. They are not drifting labels — they are a convention
+nobody has settled. `DECIDE` is 5 frames and it is the only category retraining cannot clear. Two
+whole licks in the newly held-out `subacute` session (`#346227`, `#526451`) join them.
 
 ### The next refinement round
 

@@ -17819,3 +17819,81 @@ Registering the 2026-09-24 session (PS94 day 39) re-derived PS94's chronic from 
 **Why that is wrong to act on.** The terminal-state principle (2026-09-21, the reason the level rule was rejected): chronic is a state an animal does not leave unless it REGRESSES. PS94 has not regressed -- it is recovered, just noisy -- so the derivation un-declaring its chronic each time a recovered-but-wobbly session lands violates that principle. A boundary that flips to None on noise is exactly what the terminal rule forbids.
 
 **Decision (Priya).** PIN PS94 chronic at 25. `configs/animals.yaml PS94.epochs.chronic_pinned: true`. A pinned chronic is authoritative: `derive_chronic_boundaries` still runs and keeps the honest derivation in `derived_day_raw` (so the audit prints what behaviour now says), but the entry AGREES by construction and publishes the ratified 25 -- `epoch_boundaries.json` and every figure use it, and the guard stops flagging it. `config.epoch_spec` carries the flag; the two guard tests that used PS94 as their unpinned example now unpin it locally, and `test_a_pinned_chronic_agrees_and_keeps_the_advisory` pins the new behaviour. Drop the flag to let PS94's chronic float with behaviour again. Alternatives rejected: promoting PS94 -> None (reverts the 2026-09-19 by-eye ratification and calls a recovered animal not-chronic on noise); loosening k_res to catch PS94's 0.91 band (would need >= 0.91, breaking every other animal's boundary).
+
+
+## 2026-09-25 — cam4 DLC round 2: every part improved, the false-deficit mode is ABSENT, and the review list has moved onto the TEST set
+
+**The second labelling round was two changes, not one.** 240 -> 360 frames (16 -> 24 per session
+across all 15 cam4 sessions, i.e. the rest of `dlc.frames.per_session`), PLUS 84 corrected points on
+frames that already existed (`spout` 31 at median 1.3 px, `tongue` 26 at 2.6 px, `jaw` 23 at 2.8 px,
+`nose` 4). Both halves matter and the counts are the only record of which is which -- the diff was
+taken against the round-1 copy staged into `training/` on 2026-09-21, because `dlc_train.stage()`
+overwrites that copy on the next run and there is no other snapshot of the pre-round-2 labels. **Take
+that diff BEFORE re-staging**; only one folder in the labelling project has ever kept a `.bak`.
+
+**The 2026-09-21 review list was resolved except for two `ADD`s.** The 266 px misclick
+(`cam4_2026-08-26T12_25_41/img1796416.png`) is deleted; all three flagged licks were re-placed as
+licks. `img1253168` tongue and `img0233849` jaw were NOT added, and both re-appear in the round-2
+list -- which is the loop working, not a lapse: `evaluate_network` scores only what was labelled, so
+a missed part is invisible to every error metric and `ADD` is the one verdict that can surface it.
+
+**Split changed 0.8 -> 0.74 so `subacute` finally has a held-out session.** Not for the fraction's
+sake: `split` accumulates held-out FRAMES until it reaches `len(df) * (1 - fraction)`, so the target
+has to land at or below the frame count of the session set you want. Four 24-frame sessions is 96;
+0.73 asks for 97.2, misses by 1.2 frames and takes a FIFTH session -- and the fifth is a second
+`acute`, so it costs 24 training frames and buys no epoch coverage at all. 0.74 asks for 93.6 and
+stops at four. The usable band is 0.734-0.766. Round 2 trains on 264 frames, still 37% more than
+round 1's 192, and keeps all three round-1 hold-outs so the comparison below is matched.
+
+**Result: `snapshot_best-60`, iteration-1, every part better on the SAME three sessions.** In DLC's
+per-keypoint units (which are MEAN euclidean error despite being labelled `rmse` -- `per_epoch_error`
+reports true RMSE, so the two tables `dlc_train` prints are NOT in the same unit and must not be read
+against each other):
+
+| part | round 1 (best-90) | round 2, same 3 sessions | round 2, all 4 |
+|---|---|---|---|
+| `nose` | 4.17 px | **3.29** | 3.21 |
+| `jaw` | 4.70 px | **4.01** | 3.77 |
+| `tongue` | 10.27 px | **6.94** | 7.48 |
+| `spout` | 2.19 px | **1.79** | 1.85 |
+
+**THE FAILURE MODE THIS PROJECT EXISTS TO RULE OUT IS ABSENT, and in the opposite direction.** The
+per-epoch TEST table (RMSE px) now covers all four epochs:
+
+| part | acute | subacute | chronic | pre |
+|---|---|---|---|---|
+| `jaw` | **2.65** | 3.75 | 4.53 | 8.90 |
+| `nose` | 3.51 | 3.44 | 5.02 | **2.82** |
+| `spout` | **1.57** | 2.30 | 1.71 | 2.80 |
+| `tongue` | **4.97** | 10.62 | 12.68 | 9.86 |
+
+`acute` is the BEST epoch on three of four parts and `pre` the worst on two. So "tracks a healthy
+mouse well and a hemiparetic one badly" -- the artefact that would read as a deficit and is not one
+-- does not describe this network. That is the acceptance criterion, and it is the first round in
+which it could be asked of `subacute` at all.
+
+**The tongue is still the weak part, and still a TAIL rather than a level.** Test RMSE 9.70 px
+against a test MEDIAN of 5.80, and 6.96 with the worst five frames removed; median over all 160
+labelled tongues is 2.81 px with 2 frames over 20 px. Do not read the scalar.
+
+**THE NEW THING, AND THE ONE TO BE CAREFUL WITH: all 21 error-based verdicts are on HELD-OUT
+FRAMES.** Round 2's list is 1 `DELETE`, 15 `REPLACE`, 5 `DECIDE` -- every one of them a test frame --
+plus 21 `ADD` (15 train, 7 test). That is expected and it is a trap. The network fits its training
+frames, so disagreement necessarily concentrates where it did not learn; but correcting a test label
+toward a confident prediction and then re-scoring the SAME split makes the next test error partly a
+measure of how well the labels were moved onto the network. `REPLACE`'s justification -- "the network
+learned the landmark from the other ~190 frames, so where it is confident and disagrees, that frame
+is the odd one out" -- is sound for a TRAIN frame and circular for a test one.
+
+**So do not read round 3's test numbers as a clean generalisation estimate if round 2's test labels
+were corrected against round 2's predictions.** Either re-draw the split (`dlc.train.seed`) before
+scoring round 3, in which case those frames move into train where the corrections are legitimate
+supervision, or keep the split and report the number knowing what it now contains. The corrections
+themselves are still worth making -- a label that disagrees with a confident, well-supervised network
+is usually wrong -- it is the MEASUREMENT that has to move, not the labelling.
+
+**Unresolved, and it is the same thing it was on 2026-09-21: the tongue landmark.**
+`cam4_2026-06-06T18_02_39#389083` and `cam4_2026-09-07T17_08_48#674384` were both flagged in round 1,
+were both touched in round 2 (by 0-15 px and 1.7-4.4 px), and are both flagged AGAIN. They are not
+drifting labels; they are a convention that has not been decided. `DECIDE` is 5 frames and it is the
+only category here that no amount of retraining will clear.

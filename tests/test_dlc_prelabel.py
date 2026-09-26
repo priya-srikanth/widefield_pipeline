@@ -99,19 +99,34 @@ def test_a_camera_only_ever_gets_columns_for_what_it_can_see():
     assert {"jaw", "tongue", "spout"} <= cam1
 
     cam2 = {c[1] for c in pl.to_labels(_pred(), 1.0, 1.0, cam="cam2").columns}
-    assert "L_eye" in cam2 and "R_eye" not in cam2, "a side view sees ONE eye"
     assert not any(b.startswith("R_whisker") for b in cam2)
+    # THE EYE IS DEFERRED, NOT UNSEEN (2026-09-25). This used to read
+    # `"L_eye" in cam2 and "R_eye" not in cam2, "a side view sees ONE eye"`, and the anatomy behind
+    # it is unchanged -- cam2 does see the left eye and does not see the right. What changed is that
+    # nothing asks for either. Asserting the absence of `L_eye` here would pin the DEFERRAL as
+    # though it were anatomy, and the two are separate facts that come back apart: the eye returns
+    # when something downstream reads it, the anatomy never moves.
+    assert "R_eye" not in cam2, "cam2 cannot see the right eye, deferral or no deferral"
 
 
 def test_the_side_views_carry_opposite_laterality():
-    """PS93's deficit is on the RIGHT, so which camera holds which side is not a cosmetic label."""
+    """PS93's deficit is on the RIGHT, so which camera holds which side is not a cosmetic label.
+
+    **AS OF 2026-09-25 `role` IS THE ONLY THING CARRYING THIS.** The eyes and whiskers were the
+    laterality in the bodypart lists, and both are deferred, so cam2 and cam3 now request an
+    IDENTICAL four parts and no name in either list says left or right. That makes a silent swap of
+    the two cameras undetectable from the part lists alone — which is precisely why the `role`
+    assertion is the load-bearing one here and not scene-setting. The conditional rules below are
+    kept live so they bite again the moment a lateral part comes back, rather than being deleted and
+    rewritten from memory then.
+    """
     from wfield_local.dlc_frames import bodyparts, role
 
     assert role("cam2") == "side_left" and role("cam3") == "side_right"
     left, right = set(bodyparts("cam2")), set(bodyparts("cam3"))
-    assert "L_eye" in left and "R_eye" in right
-    assert all(b.startswith("L_") for b in left if "whisker" in b)
-    assert all(b.startswith("R_") for b in right if "whisker" in b)
+    assert all(b.startswith("L_") for b in left if "whisker" in b or "eye" in b)
+    assert all(b.startswith("R_") for b in right if "whisker" in b or "eye" in b)
+    assert "R_eye" not in left and "L_eye" not in right, "a side view never gets the FAR eye"
 
 
 def test_low_confidence_points_are_left_blank_rather_than_placed():
