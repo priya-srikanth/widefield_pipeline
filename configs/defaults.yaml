@@ -830,6 +830,59 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # modes and stays opt-in.
     eval_interval: null       # null = DLC's default (10)
 
+  prior:                      # PER-BODYPART SPATIAL PRIORS at inference (wfield_local/dlc_prior.py).
+                              # Masks each part's heatmap to a plausible box BEFORE the argmax, so a
+                              # confident peak in an impossible place loses to the real one.
+                              #
+                              # THE FAILURE IT CATCHES IS A CONFIDENT WRONG ANSWER. Measured
+                              # 2026-09-26 on a 20 s PS93 clip: NINE frames put `spout` at x~105 on
+                              # bare fur at likelihood 0.69-0.83, while the real spout sat at x~370.
+                              # `pcutoff` 0.6 passes all nine. With the prior all nine recover to
+                              # (345-374, 481-486) -- the spout. MASKING, NOT REJECTING, is what
+                              # makes that a recovery instead of nine dropped frames: suppressing
+                              # the spurious peak lets the second peak win.
+                              #
+                              # IT IS INERT ON GOOD FRAMES AND THAT IS THE DESIGN. Per-part error on
+                              # the 96 held-out labelled frames is IDENTICAL with and without it, at
+                              # every padding down to +/-10 px (nose 3.21, jaw 3.77, tongue 7.48,
+                              # spout 1.85). It is insurance, not an accuracy tool -- an unchanged
+                              # RMSE is the expected result, not evidence it is off.
+    enabled: false            # OFF until a full-session run has confirmed no real point is ever
+                              # masked. A prior that is too tight deletes true detections and looks
+                              # exactly like the part being absent, which is the one failure mode
+                              # worse than the one it fixes.
+    pad: 60                   # px added on every side of the LABELLED envelope, for cross-animal
+                              # and cross-session head position and for 24 frames per session being
+                              # a thin sample of the extremes. At 60 px every labelled point sits
+                              # >= 78 px from a box edge while the x~105 fur hallucination is still
+                              # excluded by ~50 px.
+                              #
+                              # THE SPOUT'S TRANSIT IS *NOT* WHY THIS PADDING EXISTS, and that was
+                              # worth measuring rather than assuming. Priya raised it (2026-09-26):
+                              # "the spout DURING TRIALS occupies 6 positions, but keep in mind that
+                              # it moves between trials" -- and every labelled frame IS trial-locked
+                              # (`frames.phases`), so no labelled frame sits in the interval where
+                              # it travels. The concern was exactly right about the sampling gap.
+                              # Measured over 400 s per animal (12,500 frames, PS93 + PS95, spanning
+                              # many trials and ITIs), the spout's 0.5-99.5 percentile is x 279-416
+                              # against a labelled envelope of 215-440: THE TRANSIT NEVER LEAVES THE
+                              # BOX. 0.10% of frames fall outside and they are hallucinations, not
+                              # travel. So the gap in the labelling is real and the consequence
+                              # feared from it is not.
+                              #
+                              # WHAT THE SAME MEASUREMENT DID FIND is that `tongue` is the part that
+                              # needs this most: 1.96% of its CONFIDENT detections are outside
+                              # anatomical range, worst at x=14 on a 680 px frame at p=0.66 --
+                              # roughly 35 impossible points per 400 s, on the part the study turns
+                              # on. `spout` (0.10%) and `jaw` (0.08%) are an order of magnitude
+                              # cleaner; `nose` never leaves the box at all (0 of 12,500).
+                              #
+                              # BOXES COME FROM THE LABELS, NEVER FROM PREDICTIONS. The first
+                              # attempt at this took the extent of high-confidence predictions over
+                              # 10,000 frames and got a spout left edge of x=103 -- i.e. it was set
+                              # by the very hallucination the prior exists to exclude. The labelled
+                              # points are human-verified; the predictions are the thing under test.
+
   o2:                         # HMS O2 batch inference, ported from the 2pRAM notebook
                               # DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb
     partition: gpu
