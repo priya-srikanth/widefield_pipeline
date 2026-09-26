@@ -23,7 +23,16 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 12  # bump when any cached function's computation changes
+CACHE_VERSION = 13  # bump when any cached function's computation changes
+# v13 (2026-09-26): BLOCK IDS now split an over-long run EVENLY instead of chunking from the left at
+# block_size_max. Left-chunking made a run of 9 into 8+1, and with `timing.block_size_min` of 4 a
+# one-trial block is not something the scheduler can produce -- 286 of 491 over-long runs (58.2%)
+# across the 177 balanced_block_cycles sessions had an impossible decomposition. It was harmless
+# while blocks were only GroupKFold groups, which is what `block_ids` was written for; it stopped
+# being harmless when blocks became the exchangeable unit of the block-label permutation nulls,
+# where a one-trial unit is trial-level shuffling and UNDERSTATES the null. Unlike v9 this error ran
+# in the UNSAFE direction (toward false positives), though it touches only ~3.2% of trials.
+# Every cached kind takes `g` from _trial_features, so no entry can be salvaged.
 # v12 (2026-09-14): rest `lick_buffer_s` relaxed to [0.5, 1.0] and the mask variant moved to
 # `restdock05`. Every rest-referenced cached quantity is built on those frames, and mtimes do not
 # see a CONFIG change any more than they see a code change -- so without this bump the new masks

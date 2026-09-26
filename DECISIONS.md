@@ -18142,3 +18142,74 @@ Linux x86_64 with GPUs, where DALI installs normally, and where the cohort infer
 anyway (`dlc.o2.*` and the sbatch/rsync scaffolding already exist from the DLC inference port). The
 converted project, the clips and the config all transfer unchanged — nothing built today is
 Windows-specific except the env itself.
+
+## 2026-09-26 — block splitting: an over-long run is divided EVENLY, because blocks stopped being only CV groups
+
+Priya asked whether the permutation tests account for the task's cycle structure: the scheduler
+presents the six spout positions in a random order, then re-randomises and starts again
+(`gui_config.json timing.scheduling_mode: balanced_block_cycles`, `stop_mode: end_of_balanced_cycle`),
+so two adjacent blocks can share a position where one cycle ends and the next begins.
+
+### The answer to the question as asked: no, and it does not matter much
+
+No null in this repo is cycle-aware; "cycle" in that sense appears nowhere in the analysis code.
+Every block-level null permutes the block->position map WITHIN SESSION over all ~20 cycles at once
+(`precue_significance.permute_block_labels`, `decode_ci.frozen_ci`, `rest_frozen_decoder`'s
+`blockperm`). That is a strictly LARGER exchangeability group than the design's own randomisation,
+so the tests are VALID and CONSERVATIVE, not wrong.
+
+Measured on real block sequences against surrogate predictions carrying a controlled drift
+timescale tau (in blocks); constraining the permutation to within-cycle would give:
+
+| tau | null mean (session -> cycle) | null SD | null p95 | SD ratio |
+|---|---|---|---|---|
+| 0  | 0.1664 -> 0.1666 | 0.0493 -> 0.0495 | 0.2506 -> 0.2515 | 1.00 |
+| 15 | 0.1666 -> 0.1647 | 0.0441 -> 0.0352 | 0.2413 -> 0.2238 | 0.80 |
+| 60 | 0.1664 -> 0.1652 | 0.0426 -> 0.0307 | 0.2384 -> 0.2162 | 0.72 |
+
+The chance LEVEL barely moves -- it is set by the marginals, which both schemes preserve -- and only
+the width changes, so the gain is power and nothing else. Against a headline of 0.500 on an
+empirical null of 0.137-0.147 that is irrelevant. **Cycle-aware permutation is NOT implemented**, and
+should only be revisited if a per-session verdict is found sitting near p = 0.05. Note the table is
+from a SURROGATE predictor (hence its 1/6 mean, where the real decoder's skew gives 0.137-0.147); it
+isolates the drift effect and is not a measurement of the real nulls.
+
+### What the question DID surface, and what changed
+
+`block_ids` chunked an over-long run from the LEFT at `block_size_max`, so a run of 9 became **8+1**.
+With `timing.block_size_min` of 4, a one-trial block is not something the scheduler can produce. Over
+the 177 `balanced_block_cycles` sessions, **286 of 491 over-long runs (58.2%)** got an impossible
+decomposition -- essentially every run of 9, 10 and 11.
+
+That was harmless under the assumption the module was written with, which its own docstring stated:
+"blocks are only ever used as CV GROUPS, so the placement affects which trials are held out together
+and not what is measured". **That stopped being true when blocks became the exchangeable unit of the
+permutation nulls**, where the size of a unit is exactly what is measured. A one-trial permutation
+unit is trial-level shuffling for that trial -- the error `decode_ci` names in terms, destroying
+within-block correlation and UNDERSTATING the null.
+
+**DIRECTION OF THE ERROR: unlike the 2026-08-18 merge fix, this one ran toward FALSE POSITIVES.**
+It touches ~3.2% of trials, and it partially cancelled the conservatism of ignoring cycles -- which
+is a further reason not to have fixed both at once.
+
+`split_lengths(n, bmax)` now returns the fewest blocks that can hold the run, as evenly as possible.
+That is optimal against `block_size_min` WITHOUT KNOWING IT: the largest achievable minimum piece is
+floor(n/k), k is as small as the maximum allows, and an even split attains it. Verified on the real
+logs: impossible decompositions 286 -> 0. The 8 remaining over-long runs have no legal
+decomposition at any placement (a run of 9 where min is 5), which means the run is longer than two
+maximal blocks and cannot be a merge at all; `audit` now reports those through `undersized_blocks`
+rather than the splitter silently absorbing them. `CACHE_VERSION` 12 -> 13.
+
+### Two things about the behaviour logs worth not rediscovering
+
+* **`trials.csv` REWRITES each trial's row** -- 718 rows for 210 trials in PS92_20260506. It is the
+  same open-row behaviour behind the `pos_idx` mislabel in `docs/GUI_TRIALS_LOGGING.md`. Read it with
+  `drop_duplicates(subset="trial_id", keep="last")`. `spout_behavior._read_trials` is already safe
+  because its `hit XOR miss` filter removes the open rows exactly (208 unique, 0 duplicates) -- that
+  was checked, not assumed. Analysis done without the dedup makes run lengths reach 60 and the cycle
+  structure vanish; that is an artefact.
+* **The cycle structure is real and reconstructible.** Run lengths concentrate on 4-8 (94.2% of
+  13,459 runs), with 3.59% longer -- close to the 2.8% merge rate the 2026-08-18 firmware audit
+  measured by a completely independent route. Greedily closing a cycle when all six positions have
+  been seen recovers **exactly six blocks in 95.1% of cycles**. Chunking into fixed groups of six
+  does NOT work (53.7%): the first merge shifts the phase and everything after it looks broken.

@@ -24,9 +24,29 @@ hidden:
   * 4+4 merges land at run-length exactly `block_size_max` and are indistinguishable from one genuine
     maximal block. About 10 of the 118 are of this kind and stay merged.
   * The PLACEMENT of a split inside an over-long run is a choice: a run of 11 could have been 4+7,
-    5+6, 6+5 or 7+4. Chunking from the left at `block_size_max` picks one. Since blocks are only ever
-    used as CV GROUPS, the placement affects which trials are held out together and not what is
-    measured, so a defensible arbitrary choice is enough.
+    5+6, 6+5 or 7+4. This module splits EVENLY (6+5), which is not arbitrary — see below.
+
+WHY THE SPLIT IS EVEN AND NOT LEFT-CHUNKED (2026-09-26). It used to chunk from the left at
+`block_size_max`, on the argument that "blocks are only ever used as CV GROUPS, so the placement
+affects which trials are held out together and not what is measured". That argument was sound when
+it was written and is no longer true: blocks are ALSO the exchangeable unit of the block-label
+permutation nulls (`precue_significance.permute_block_labels`, `decode_ci.frozen_ci`,
+`rest_frozen_decoder`'s `blockperm`), where the SIZE of a unit is exactly what is measured.
+
+Left-chunking produced decompositions the scheduler could not have generated. With
+`block_size_min: 4`, a run of 9 became **8+1** when the only legal splits are 4+5 and 5+4; measured
+over the 177 `balanced_block_cycles` sessions, **286 of 491 over-long runs (58.2%)** came out
+illegal — essentially every run of 9, 10 and 11. A one-trial permutation unit is trial-level
+shuffling for that trial, which is the error `decode_ci` names in terms: it destroys within-block
+correlation and UNDERSTATES the null. So the old placement erred toward FALSE POSITIVES, unlike
+every other limit recorded here.
+
+Splitting a run of n into ceil(n / block_size_max) pieces as evenly as possible is optimal against
+`block_size_min` and needs no knowledge of it: the largest achievable minimum piece is floor(n / k),
+k is as small as the maximum allows, and an even split attains it. Where no legal decomposition
+exists (a run of 6 with min=max=5, which the scheduler cannot have produced either) this still
+returns the best available rather than raising — the run is already evidence of a damaged session,
+and `audit` is the place that says so.
 
 DIRECTION OF THE ERROR THIS CORRECTS. Merging made GroupKFold groups LARGER, holding more correlated
 data out together, so the pre-fix numbers were CONSERVATIVE rather than inflated. Measured over the
@@ -46,6 +66,7 @@ import numpy as np
 from wfield_local import config
 
 DEFAULT_BLOCK_SIZE_MAX = 8          # gui_config timing.block_size_max on every session recorded so far
+DEFAULT_BLOCK_SIZE_MIN = 4          # timing.block_size_min; 4 on all but a handful of sessions, which use 5
 
 
 def _behavior_dir(s):
@@ -86,6 +107,24 @@ def block_size_max_for(s, default=DEFAULT_BLOCK_SIZE_MAX):
         return int(default)
 
 
+def block_size_min_for(s, default=DEFAULT_BLOCK_SIZE_MIN):
+    """This session's scheduler `block_size_min`, from its own gui_config.json.
+
+    `block_ids` does NOT take this — an even split satisfies it automatically wherever anything can
+    (see the module docstring). It is here so `audit` can report a run whose pieces fall outside the
+    scheduler's own bounds, which means the run is longer than two maximal blocks and the session's
+    position labels are suspect rather than merely merged.
+    """
+    d = _behavior_dir(s)
+    if d is None:
+        return int(default)
+    try:
+        cfg = _json.load(open(d / "gui_config.json"))
+        return int(cfg.get("timing", {}).get("block_size_min", default))
+    except Exception:                                                  # noqa: BLE001
+        return int(default)
+
+
 def firmware_block_count(s):
     """The scheduler's own block count from device_snapshot_end.json, or None.
 
@@ -103,23 +142,46 @@ def firmware_block_count(s):
         return None
 
 
+def split_lengths(n, block_size_max=DEFAULT_BLOCK_SIZE_MAX):
+    """Lengths of the blocks a run of `n` same-position trials is made of.
+
+    The fewest blocks that can hold the run, as EVENLY as possible — which is the split that keeps
+    every piece furthest from `block_size_min`. Exposed for the tests and the audit; `block_ids` is
+    the caller that matters.
+    """
+    if n <= block_size_max:
+        return [n]
+    k = -(-n // block_size_max)                 # ceil: fewest maximal blocks that can cover the run
+    base, rem = divmod(n, k)
+    return [base + 1] * rem + [base] * (k - rem)
+
+
 def block_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX):
     """Block id per trial from a per-trial position `codes` array (-1 = unusable trial).
 
-    A new block starts when the position changes OR when the current run reaches `block_size_max`,
-    because a run longer than that cannot be one block.
+    A new block starts when the position changes, and a run too long to be one block is divided
+    evenly (see `split_lengths` and the module docstring on why evenly and not from the left).
+
+    Unusable trials get no block and do NOT break the surrounding run: a `-1` in the middle of a
+    far_L run is a position we could not resolve, not a change of position, and treating it as a
+    boundary would invent a block the scheduler never ran.
     """
+    codes = np.asarray(codes)
     out = np.full(len(codes), -1, dtype=int)
-    b, prev, run = -1, None, 0
-    for k, c in enumerate(codes):
-        if c < 0:
-            continue
-        if prev is None or c != prev or run >= block_size_max:
+    usable = np.flatnonzero(codes >= 0)
+    if not usable.size:
+        return out
+    c = codes[usable]
+    # run boundaries over the USABLE trials only, so a -1 gap cannot split a run
+    starts = np.flatnonzero(np.r_[True, c[1:] != c[:-1]])
+    b = -1
+    for i, st in enumerate(starts):
+        stop = starts[i + 1] if i + 1 < len(starts) else len(c)
+        at = st
+        for ln in split_lengths(stop - st, block_size_max):
             b += 1
-            run = 0
-        out[k] = b
-        run += 1
-        prev = int(c)
+            out[usable[at:at + ln]] = b
+            at += ln
     return out
 
 
@@ -138,6 +200,13 @@ def audit(s, codes, block_size_max=None, verbose=True):
     n_rec = int(len({int(i) for i in ids if i >= 0}))
     n_fw = firmware_block_count(s)
     out = {"label": s["label"], "block_size_max": bmax, "reconstructed": n_rec, "firmware": n_fw}
+    # A piece under `block_size_min` means the run was too long for the blocks it was split into --
+    # i.e. longer than two maximal blocks -- which merging alone cannot produce. Same class of
+    # evidence as `reconstructed > firmware` below, and it fires on the same damaged sessions.
+    bmin = block_size_min_for(s)
+    sizes = np.bincount(ids[ids >= 0]) if n_rec else np.zeros(0, dtype=int)
+    out["block_size_min"] = bmin
+    out["undersized_blocks"] = int((sizes < bmin).sum())
     if n_fw is None:
         out["status"] = "no firmware count"
         return out
