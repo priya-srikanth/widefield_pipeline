@@ -1,5 +1,4 @@
 """Tests for the Blackfly/Bonsai dropped-frame QC (wfield_local.dropframe_qc)."""
-import numpy as np
 import pytest
 
 from wfield_local import dropframe_qc as dq
