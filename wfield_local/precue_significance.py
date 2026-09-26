@@ -29,13 +29,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GroupKFold, cross_val_predict
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
-from wfield_local import config, hemo_variants as hv
+from wfield_local import analysis_kit as ak, config, hemo_variants as hv
 from wfield_local.decode_ci import bootstrap_recall
 from wfield_local.filter_acausality_test import roi_signal
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -118,6 +115,27 @@ def analyse(lab, variant="strobedetrend", align="precue", n_perm=200, seed=0, ve
     return out
 
 
+def session_row(item):
+    """One session, for `parallel.fan_out`. MODULE-LEVEL because spawn pickles the worker by name.
+
+    Options travel IN THE ITEM rather than in a closure, for the same reason: a `functools.partial`
+    over a local would fail at submit time, not at import.
+
+    `verbose=False` and THE PARENT PRINTS. Eight workers writing the per-session line to a shared
+    stdout interleave, and this module's line is the thing a reader scans for a marginal p -- a
+    garbled one is worse than a late one. `fan_out` still logs `[i/n] session X: ok` for progress.
+    """
+    lab, variant, align, n_perm = item
+    return analyse(lab, variant, align, n_perm, verbose=False)
+
+
+def _print_row(r):
+    """The per-session line `analyse` prints when serial, printed by the parent when fanned out."""
+    print(f"  {r['label']:12s} acc {r['accuracy']:.3f}  CI[{r['ci_lo']:.3f},{r['ci_hi']:.3f}]  "
+          f"null {r['null_mean']:.3f} (p95 {r['null_p95']:.3f})  p={r['p_perm']:.4f}  "
+          f"n={r['n_trials']} in {r['n_blocks']} blocks", flush=True)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -127,6 +145,8 @@ def main(argv=None) -> int:
     ap.add_argument("--from", dest="from_dates", default=None)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--output", default=None)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes (default: parallel.default_jobs(), cpu_count-2 cap 8)")
     a = ap.parse_args(argv)
 
     dates = (set(config.expand_dates(a.from_dates, width=4)) if a.from_dates
@@ -136,15 +156,26 @@ def main(argv=None) -> int:
     print(f"[significance] {len(labs)} sessions, {a.n_perm} block-label permutations each, "
           f"variant={a.variant} align={a.align} chance={CHANCE:.3f}", flush=True)
 
+    # FANNED OUT OVER CORES (CLAUDE.md ground rule 6). Each session re-reads its own SVT off the
+    # share and re-runs the drift removal -- `hemo_variants.compute` is "reads only, writes nothing",
+    # so there is no cache to warm and the ~4.3 min per session is paid every run. Measured serial
+    # 2026-09-26: 44 sessions at ~4.9 min each, about three hours. The 1000 permutations are only
+    # ~36 s of that, so n_perm is NOT the term to economise on -- the fixed per-session cost is.
+    #
+    # `input_order` rather than alphabetical: this module's values do not depend on loop order (each
+    # `analyse` seeds its own RNG per session), so only the ORDER of `rows` changes -- but keeping it
+    # makes the conversion diff-identical to the serial run, which is how it was checked. See
+    # `analysis_kit.input_order` for the three ordering bugs that rule exists for.
+    items = [(lab, a.variant, a.align, a.n_perm) for lab in labs]
+    res, fail = ak.fan_sessions(items, session_row, jobs=a.jobs, key=ak.input_order(labs))
+    if fail:
+        print(f"  !! {len(fail)} session(s) failed: "
+              + ", ".join(f"{x[0][0]} ({x[1][:40]})" for x in fail[:4]), flush=True)
     rows = []
-    for lab in labs:
-        try:
-            r = analyse(lab, a.variant, a.align, a.n_perm)
-        except Exception as ex:                                      # noqa: BLE001
-            print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:80]}", flush=True)
-            continue
+    for _item, r in res:            # the parent prints, in input order -- see `session_row`
         if r:
             rows.append(r)
+            _print_row(r)
     if not rows:
         return 1
 
