@@ -1343,7 +1343,55 @@ RESULT_NAME = "cd_traj"
 #: parameter change fails loudly instead of redrawing yesterday's arithmetic under today's title.
 RESULT_GUARD = ("course_version", "smooth_s", "win_s", "span", "standardised", "basis_id",
                 "align", "gate", "reference", "orth", "method", "cim_var", "cim_kmax",
-                "mask_occluded")
+                "mask_occluded", "cohort", "epoch_spec")
+
+
+def cohort_digest(animal):
+    """``"<n>:<hash>"`` for the curated sessions of one animal -- WHICH DATA went into a result.
+
+    A COUNT IN THE CLEAR AND A HASH BEHIND IT. The commonest change is "a session was registered",
+    which the count alone answers without decoding anything; the hash catches the rarer cases a count
+    cannot see -- a session removed and another added, or the date policy re-drawing the curated set.
+
+    THIS IS IN `RESULT_GUARD` BECAUSE THE COHORT MOVED UNDER A LIVE RESULT (2026-09-25). Three
+    sessions were registered by the other machine while the CD arm was being computed, taking three
+    of four animals from 26 sessions to 27 and adding a chronic session to each -- and chronic is
+    where the permutation found five of its six significant cells. Nothing in the dumps could say so;
+    the only symptom was a rejected push.
+    """
+    import hashlib
+
+    from wfield_local import analysis_kit as ak
+
+    try:
+        labs = [x["label"] for x in ak.curated_sessions() if x["label"].startswith(animal)]
+    except Exception:                                                  # noqa: BLE001
+        return "nocohort"
+    h = hashlib.sha1("|".join(labs).encode()).hexdigest()[:10]
+    return f"{len(labs)}:{h}"
+
+
+def epoch_spec_digest(animal):
+    """``"<hash>"`` for the epoch boundaries this animal's sessions were stratified by.
+
+    SEPARATE FROM THE COHORT, because they move independently and for different reasons. Registering
+    a session re-derived PS94's `chronic_from` from 25 to None on 2026-09-25; it was then PINNED back
+    to 25, so the analyses happened to use the right boundary -- by timing, not because anything
+    checked. An hour either way and one animal would have had no chronic epoch at all, with four
+    animals' worth of chronic results quietly built from three.
+    """
+    import hashlib
+
+    from wfield_local import epochs
+
+    # AN ANIMAL WITH NO SPEC GETS A STABLE SENTINEL, not a crash. `spec_for` returns None for an
+    # unregistered animal, and a guard that raises on one would make the dump layer refuse to
+    # function for any cohort it does not recognise -- including test fixtures. "no spec" is itself
+    # a state the digest can describe, and two dumps that both have none still compare equal.
+    spec = epochs.spec_for(animal)
+    if not spec:
+        return "nospec"
+    return hashlib.sha1(repr(sorted(spec.items())).encode()).hexdigest()[:10]
 
 
 def result_tag(animal, align, method="dom", reference="contrast", gate="lick", orth=False,
@@ -1379,6 +1427,8 @@ def save_result(res, out_dir, orth=None, mask_occluded=None):
                                  (res.get("session_traces") or {}).items()}
     meta = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
             "smooth_s": SMOOTH_S, "trailing": bool(TRAILING),
+            "cohort": cohort_digest(res["animal"]),
+            "epoch_spec": epoch_spec_digest(res["animal"]),
             # the REQUESTED setting, matching the tag -- `RESULT_GUARD` compares against what the
             # caller asks for, and a lookup can only ask for what it wants, not what was achieved
             "orth_achieved": bool(res.get("orth")),
@@ -1414,8 +1464,12 @@ def load_result(out_dir, animal, align, method="dom", reference="contrast", gate
         return None
     want = {"course_version": COURSE_VERSION, "cim_var": CIM_VAR, "cim_kmax": CIM_KMAX,
             "smooth_s": SMOOTH_S, "align": align, "gate": gate, "reference": reference,
-            "orth": bool(orth), "method": method, "mask_occluded": bool(mask_occluded)}
+            "orth": bool(orth), "method": method, "mask_occluded": bool(mask_occluded),
+            "cohort": cohort_digest(animal), "epoch_spec": epoch_spec_digest(animal)}
     meta = body.get("_meta") or {}
+    # A DUMP PREDATING A GUARD FIELD HAS NONE, and `None != "27:abc"` -- so it is refused rather
+    # than accepted by omission. That is deliberate: the pre-2026-09-25 dumps genuinely describe an
+    # unknown cohort, and "we cannot tell" has to read as stale, not as fine.
     bad = [f"{k}: saved {meta.get(k)!r} != now {want[k]!r}" for k in RESULT_GUARD
            if k in want and _differs(meta.get(k), want[k])]
     if bad:

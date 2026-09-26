@@ -2198,6 +2198,41 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## THE DUMPS NOW RECORD WHICH COHORT THEY DESCRIBE (Priya, 2026-09-25)
+
+A result dump carried `basis_id`, the window, the smoothing width, the gate and the masking, so a
+PARAMETER change could not be redrawn silently. It did not carry WHICH SESSIONS went in, or WHICH
+EPOCH each was called -- and both moved underneath a live result the same afternoon.
+
+**WHAT HAPPENED.** The imaging box registered three sessions (PS94_0924, PS95_0924, PS92_0925) while
+the CD arm was being computed. Three of four animals went from 26 curated sessions to 27, each gaining
+a CHRONIC session; separately, that registration re-derived PS94's `chronic_from` from 25 to None
+before it was pinned back. Chronic is where the session permutation found five of its six significant
+cells. Every figure rendered, every number was quoted, and **the only symptom was a rejected `git
+push` an hour later.**
+
+`RESULT_GUARD` now carries `cohort` and `epoch_spec`:
+
+    PS92  cohort=27:895c701b52   epoch_spec=8fa6645e52
+    PS93  cohort=26:869f4982d9   epoch_spec=326633cac0
+    PS94  cohort=27:e4c4de24ac   epoch_spec=eca65c2a19
+    PS95  cohort=27:829d26f13e   epoch_spec=443386e43e
+
+THREE CHOICES IN IT, each earned:
+
+  * **COUNT IN THE CLEAR, HASH BEHIND IT.** The commonest change is "a session was registered", and
+    26 -> 27 says that without decoding anything; the hash catches what a count cannot -- a session
+    swapped, or the date policy redrawing the curated set.
+  * **TWO FIELDS, NOT ONE.** The cohort and the epoch spec move independently, and on 2026-09-25 they
+    moved in opposite directions within the hour.
+  * **ABSENT READS AS STALE.** A dump predating the field has none, and `None != "27:..."`, so it is
+    refused rather than accepted by omission -- those dumps genuinely describe an unknown cohort, and
+    "we cannot tell" must not pass as a match.
+
+**IT FIRED ON REAL DATA IMMEDIATELY**, eight times in the next chain, naming both fields and both
+values: `PS94 cue is STALE -- cohort: saved None != now '27:e4c4de24ac'`. Before this, that figure
+would have been drawn from the dump without comment.
+
 ## SESSIONS AS THE STATISTICAL UNIT: the band and the cell test (Priya, 2026-09-25)
 
 Priya: *"we should do some session based permutation. maybe even nested with blocks"* and *"did we

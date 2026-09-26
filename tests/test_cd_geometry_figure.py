@@ -118,3 +118,58 @@ def test_the_figure_draws_from_the_dumps_alone(tmp_path):
     got, _ = cg.collect(tmp_path, aligns=("precue",))
     png = cg.figure(got, tmp_path / "geom.png")
     assert Path(png).exists() and Path(png).stat().st_size > 10000
+
+
+# ------------------------------------------------------------------ the cohort guard
+
+
+def test_a_dump_from_a_DIFFERENT_COHORT_is_refused(tmp_path, monkeypatch):
+    """THE FAILURE THIS EXISTS FOR, 2026-09-25. Three sessions were registered by the other machine
+    while the CD arm was being computed -- three of four animals went from 26 curated sessions to 27,
+    each gaining a CHRONIC session, and chronic is where the permutation found five of its six
+    significant cells. Every figure rendered, every number was quoted, and the only symptom was a
+    rejected `git push` an hour later.
+
+    The dumps recorded the basis, the window, the smoothing and the gate, so a PARAMETER change could
+    not be redrawn silently. They did not record WHICH SESSIONS went in.
+    """
+    monkeypatch.setattr(cdt, "cohort_digest", lambda _a: "26:aaaaaaaaaa")
+    cdt.save_result(_result(), tmp_path, mask_occluded=True)
+    monkeypatch.setattr(cdt, "cohort_digest", lambda _a: "27:bbbbbbbbbb")
+    with pytest.raises(ValueError, match="STALE"):
+        cdt.load_result(tmp_path, "PS95", "precue", orth=True, mask_occluded=True)
+
+
+def test_a_dump_from_a_DIFFERENT_EPOCH_SPEC_is_refused(tmp_path, monkeypatch):
+    """Separate from the cohort because they move independently. Registering a session re-derived
+    PS94's `chronic_from` from 25 to None on 2026-09-25 before it was pinned back -- an hour either
+    way and one animal would have had no chronic epoch, with four animals' worth of chronic results
+    quietly built from three."""
+    monkeypatch.setattr(cdt, "epoch_spec_digest", lambda _a: "aaaa111111")
+    cdt.save_result(_result(), tmp_path, mask_occluded=True)
+    monkeypatch.setattr(cdt, "epoch_spec_digest", lambda _a: "bbbb222222")
+    with pytest.raises(ValueError, match="STALE"):
+        cdt.load_result(tmp_path, "PS95", "precue", orth=True, mask_occluded=True)
+
+
+def test_a_dump_predating_the_guard_reads_as_STALE_not_as_fine(tmp_path, monkeypatch):
+    """Absent is not equal. A pre-2026-09-25 dump has no cohort field at all, and it genuinely
+    describes an unknown cohort -- so "we cannot tell" must read as stale rather than as a match."""
+    from wfield_local import results_store as rs
+
+    cdt.save_result(_result(), tmp_path, mask_occluded=True)
+    tag = cdt.result_tag("PS95", "precue", orth=True, mask_occluded=True)
+    body = rs.load(tmp_path, cdt.RESULT_NAME, tag)
+    body["_meta"].pop("cohort")
+    payload = {k: v for k, v in body.items() if k != "_meta"}
+    rs.save(tmp_path, cdt.RESULT_NAME, tag, payload,
+            meta={k: v for k, v in body["_meta"].items() if k not in ("schema", "name", "tag")})
+    with pytest.raises(ValueError, match="STALE"):
+        cdt.load_result(tmp_path, "PS95", "precue", orth=True, mask_occluded=True)
+
+
+def test_the_cohort_digest_carries_the_COUNT_in_the_clear():
+    """The commonest change is "a session was registered", and a reader should see that without
+    decoding a hash -- 26 vs 27 is the whole story most of the time."""
+    d = cdt.cohort_digest("PS95")
+    assert ":" in d and d.split(":")[0].isdigit()
