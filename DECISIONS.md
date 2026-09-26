@@ -17897,3 +17897,161 @@ is usually wrong -- it is the MEASUREMENT that has to move, not the labelling.
 were both touched in round 2 (by 0-15 px and 1.7-4.4 px), and are both flagged AGAIN. They are not
 drifting labels; they are a convention that has not been decided. `DECIDE` is 5 frames and it is the
 only category here that no amount of retraining will clear.
+
+## 2026-09-26 — cam4 inference: what the round-2 network does on VIDEO, and why the next step is Lightning Pose rather than more cam4 labels
+
+Round 2's per-frame error said the network was better. Running it on video said something the
+labelled-frame metrics structurally cannot: **the failures are dropouts and confident-wrong points,
+and `evaluate_network` scores neither.** It scores error on frames a human labelled, so a part that
+is never detected, or detected confidently in an impossible place, is invisible to it.
+
+### The functional check that matters, and it passes
+
+`P(tongue detected)` aligned to DAQ lick onsets, on a HELD-OUT session and on one with no labelled
+frames at all: peak **0.80 / 0.95 at +20 ms**, trough **0.01 / 0.03** between licks, and the PSTH
+oscillates at the animal's own measured inter-lick interval (peaks at 0, ±160, ±320 ms against a
+160 ms ILI). The DAQ lick sensor and the video tongue channel are independent measurements and they
+agree cycle by cycle. The tongue's 25% detection rate is the DUTY CYCLE, not a miss.
+
+### Throughput: the bottleneck is pixel count, and nothing else moves it
+
+Measured on the RTX 5060. Batch size 1→64: **no effect** (62.3 → 57.9 frames/s; 1 is fastest, which
+is what Priya remembered independently). fp16/bf16 autocast: **worse** (0.86x). channels_last:
+**worse** (0.62x). `cudnn.benchmark`: none. TF32: none, already on. Video decode is not involved —
+775 frames/s standalone and **763 off the N: share**, so staging to local disk buys nothing here.
+
+An ablation settles what IS the cost: GroupNorm → Identity gives 1.34x, GroupNorm → BatchNorm 1.12x,
+ReLU → Identity 1.07x. So **~73% is the ResNet-50 convolutions**, and normalisation is a ~25% tax of
+which a perfect kernel recovers half. An earlier reading blaming GroupNorm for ~46% came from a
+profile where **CUPTI failed to initialise**, leaving only CPU-side times. It was wrong.
+
+Throughput then tracks 1/pixels almost exactly (680→544 = 1.48x, →480 = 1.88x), and **odd dimensions
+cost 38%**: 385x514 runs 107.5 frames/s against 384x512's 147.0 for the same pixel count. Any crop
+should be a multiple of 64.
+
+### CROPPING WAS EVALUATED AND REJECTED, and the reason is not the RMSE
+
+A 384x512 crop of the orofacial region (the four parts occupy 21% of the frame) gives 2.2x on the
+forward pass, 1.4–1.7x end to end. Per-part error on the 96 held-out frames: tongue 7.48 → 6.18 px
+(BETTER), jaw 3.77 → 5.46 (worse), nose and spout flat. On that basis it was accepted.
+
+**It was then withdrawn on a measurement that should have been taken first: detection RATE.**
+
+    jaw detected (p > 0.6)      PS93   PS95
+      full frame                 77%    93%
+      crop 384x512               60%    91%
+
+Cropping costs PS93 **17 points** and PS95 **2**. PS93 is the animal with the right orofacial
+deficit. A processing choice that degrades jaw tracking four times more in the deficit animal
+manufactures a jaw difference that is not biology — the false-deficit failure mode, arriving through
+a door `per_epoch_error` does not watch, because that table scores error on labelled frames and not
+detection. Two animals and one 20 s clip each, so this is a warning rather than a finding; it is
+still enough not to adopt the crop.
+
+Isolating the cause: cropping the SIDES costs the jaw 0.90 px, the TOP 1.53 px, both 1.69 px. A "the
+jaw is anchored to the headplate bar at the top of frame" hypothesis was proposed and **disproved by
+its own control** — blacking out the top 20/40 px costs the jaw ~1.0 px but 80 px does not, which is
+not a dose-response and means the black-out introduces its own artificial edge. **The mechanism is
+unexplained.** Adding vertical extent back does not rescue it: jaw is flat at ~5.4 px from y0=40 to
+y0=168, and only recovers at y0=0.
+
+### The three things that look wrong on the video are ONE thing: `pcutoff`
+
+* **Jaw missing on still frames** — the crop, not the prior. Crop-with-prior and crop-without-prior
+  are byte-identical; the full frame finds the jaw at the same position ~0.3 higher confidence.
+* **Spout missing at clip start** — found at the right place at **p=0.58**, 0.02 under the cutoff.
+* **Jaw "jumping" on most lick cycles** — it is not jumping. Between confident frames the median
+  step is 0.54 px. `dy` swings ~35 px through the lick (the mouth genuinely opening) while `p`
+  collapses 0.90 → 0.28 AT MAXIMUM OPENING, so the trajectory is censored mid-way and the 5-frame
+  trail reconnects across the gap. 149 of 150 split trails fall within ±100 ms of a lick onset, 0%
+  elsewhere.
+
+`dlc.train.pcutoff` 0.6 is the DONOR's value and has never been tuned for this rig. Dropping it to
+0.4 takes jaw detection 77% → 88% on positions that are already correct.
+
+**A claim of mine that did not survive its own check:** the jaw was reported as bimodal, flipping
+between two candidate chin points either side of the spout. That analysis used the SPOUT as the
+reference, and the spout moves across six positions. Relative to the NOSE the predicted distribution
+is unimodal and TIGHTER than the labels (SD 9.9–10.9 px against the labels' 20.2). There is no flip.
+
+### `wfield_local/dlc_prior.py` — spatial priors, and what they can and cannot do
+
+Masks each part's heatmap to a plausible box BEFORE the argmax. Nine frames on one clip put `spout`
+at x≈105 on bare fur at p 0.69–0.83; all nine recover to the real spout at x≈370. **Masking rather
+than rejecting is the whole point** — suppressing the spurious peak lets the second peak win, so the
+frames are recovered instead of dropped. Inert on good frames by design: per-part error on the 96
+held-out frames is identical with and without it, at every padding down to ±10 px.
+
+**Its limits, both measured.** A FRAME-coordinate box cannot catch a point that is inside the box but
+wrong relative to the ANIMAL — the 1.19% of confident jaw frames sitting at dx=74 from the nose
+against a normal 10–20. A NOSE-relative version does catch those, but only for parts attached to the
+animal: applied to `spout` it flags **10.9%** of PS95's frames, because the spout is apparatus and
+its nose-relative position varies by design across the six positions. So anatomy gets an anatomical
+prior and apparatus gets a spatial one. Default `enabled: false` until a full session confirms
+nothing real is ever masked.
+
+### Between-trial spout frames (`SPOUT_FRAMES_GUIDE.html`)
+
+Priya, 2026-09-26: *"the spout DURING TRIALS occupies 6 positions, but keep in mind that it moves
+between trials"*. Every labelled frame is trial-locked, so no labelled frame sits in the interval
+where it travels. Measured over 400 s per animal: the spout's 0.5–99.5 percentile is x 279–416
+against a labelled envelope of 215–440 — **the transit never leaves the box**, so the sampling gap is
+real and the positional consequence feared from it is not. What the gap DOES cost is confidence,
+which is the p=0.58 dropout above.
+
+47 frames in **two folders only** (Priya: *"so she doesn't have to open a ton of folders"*), chosen by
+scanning every position-change ITI at ~21 Hz and keeping the largest jump in spout x and the
+lowest-confidence frame, stratified over all six positions. The guide draws **no predictions** on
+them, unlike `CORRECTION_GUIDE.html`: these frames were selected where the network is unreliable, so
+showing its guess would anchor the labeller to the error being fixed.
+
+### WHY LIGHTNING POSE, AND WHY NOT MORE cam4 LABELS
+
+The decisive measurement: on labelled frames, where a human left the jaw BLANK the network is also
+unsure **88%** of the time (tongue 94%). Human and network agree those parts are not visible. And
+because **blanks are masked out of the loss**, the network never learned them either way — so its low
+confidence there is independent evidence, not a fitted echo of the labels. Asking for labels on those
+frames is asking someone to guess where an occluded chin is.
+
+**More cam4 labels therefore cannot fix the jaw.** The failure is occlusion at maximum mouth opening,
+and no amount of labelling a view that cannot see the part will resolve it. What can:
+
+* **Lightning Pose's temporal and pose-PCA losses**, which act DURING training and on unlabelled
+  frames, so the network learns to stay coherent through the occluded interval rather than having it
+  patched afterwards. A post-hoc version was built and measured first, and is strictly weaker:
+  interpolating the lick-locked gap would systematically FLATTEN the jaw-opening amplitude — the
+  kinematic variable of interest, biased towards "less movement", on post-stroke animals. That is a
+  good reason not to ship the cheap version. (Hold-out interpolation error: PS93 jaw 0.46 px at a
+  20-frame gap, PS95 jaw 10.05 px — and that estimate is OPTIMISTIC, because it holds out frames the
+  network was confident about while the real gaps are where it was not.)
+* **cam1**, which looks up at the underside of the snout. Its one partly-labelled session has jaw at
+  **71/72 rows**, the highest fill of any part in that view: cam1 sees the jaw precisely when cam4
+  cannot.
+
+**The multi-view door is already open in the data.** `dlc.frames.anchor_cam` is `cam4`, so every
+camera's frames are sampled at the SAME DAQ INSTANT through its own alignment template — and **241
+frames already exist in both cam1 and cam4 at the same (trial, phase)**. That same-instant
+correspondence is exactly what Lightning Pose's multi-view path needs. `pca_multiview` needs no
+calibration at all (it learns the subspace from the labels), and `heatmap_tracker_multiview`
+additionally accepts intrinsics/extrinsics/distortions, which the 2026-09-11 four-camera solve
+already provides. cam1 is unlabelled apart from that one session, so that is the prerequisite — not
+a blocker.
+
+Carry the repo's own caveat forward before treating a triangulated jaw as one 3D point: no landmark
+is the same physical point from two views, and for DEFORMING parts the offset changes with posture so
+it does not cancel. Using cam1 to FILL cam4's occluded frames is sound; calling the result a 3D jaw
+is a separate claim needing its own check.
+
+### The `lp` env
+
+New conda env, python 3.10, **torch installed FIRST from the cu128 index** (the RTX 5060 is Blackwell
+`sm_120`; a cu124 build has no kernels for it), then `lightning-pose` 2.4.2 on top — verified not to
+disturb the pre-existing torch, because it declares `torch <3.0.0` rather than pinning. Separate from
+`dlc` on a measurement, not a precaution: the `dlc` env has no `lightning` at all, so installing
+there would add ~60 packages including lightning 2.5.6, transformers and jax onto a working
+DeepLabCut 3.0.1 stack. README "Per-machine environments" carries the table and the install order.
+
+Lightning Pose reads a CONVERTED copy of the labelling project; the DLC project on the share stays
+the single source of truth for labels, the same rule `dlc_train.stage()` follows for its own copy.
+Nothing in `wfield_local` imports `lightning_pose` at module scope, so the `dlc` and `locanmf` envs
+keep working without it.

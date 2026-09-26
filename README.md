@@ -72,6 +72,45 @@ one. Different machines / use-cases legitimately run **different package combina
 | numba | **required** (motion correction); numba 0.60 caps numpy `< 2.1` | **not installed / not needed** (nothing on the analysis path uses it) |
 | GPU/custom | wfield | torch (CUDA, cu124) + wfield + LocaNMF/localnmf + cuhals |
 
+**Two more envs on the analysis box, for the orofacial keypoint work.** Neither is on the nightly
+path; both are entered by hand for a DLC round. They are SEPARATE FROM `locanmf` AND FROM EACH OTHER,
+and the reason is measured rather than cautious — see below.
+
+| | **`dlc`** | **`lp`** (added 2026-09-26) |
+|---|---|---|
+| Runs | DeepLabCut 3.0.1 — `wfield_local.dlc_*` (project, frames, prelabel, train, prior, guides) | Lightning Pose 2.4.2 — temporal / pose-PCA / multi-view losses |
+| python | 3.10.20 | 3.10.20 |
+| numpy | 2.2.6 | 2.2.6 |
+| torch | **2.11.0+cu128** | **2.11.0+cu128** |
+| also | aniposelib (calibration) | lightning 2.5.6, transformers, jax, kornia, aniposelib |
+
+**`torch` must be cu128 on this box and that is not optional.** The GPU is an RTX 5060 (Blackwell,
+`sm_120`, 8 GiB). A cu124 build does not have kernels for it. Install torch FIRST, from the cu128
+index, and let the framework install on top — both DeepLabCut and Lightning Pose declare `torch`
+loosely enough (`torch <3.0.0`) that they keep whatever is already there. Verified 2026-09-26:
+`lightning-pose` installed over a pre-existing cu128 torch without touching it.
+
+```powershell
+conda create -n lp python=3.10 -y
+conda activate lp
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # FIRST
+pip install lightning-pose
+pip install -e . --no-deps          # makes this repo importable; --no-deps per the rule above
+python -c "import torch; print(torch.__version__, torch.cuda.get_device_name(0))"
+```
+
+**Why `lp` is not just installed into `dlc`.** Measured, not assumed: the `dlc` env has no
+`lightning` at all, so `pip install lightning-pose` there would add lightning 2.5.6,
+pytorch-lightning, transformers, jax/jaxlib, kornia and ~60 other packages on top of a working
+DeepLabCut 3.0.1 stack. That is precisely the "must not force-upgrade a working stack" case this
+section exists for. The two frameworks also disagree about who owns the training loop, so sharing an
+env buys nothing.
+
+**They share data, not code.** Lightning Pose reads a CONVERTED copy of the DLC labelling project;
+the DLC project on the share stays the single source of truth for labels, exactly as
+`dlc_train.stage()` treats its own training copy. Nothing in `wfield_local` imports
+`lightning_pose` at module scope, so the `dlc` and `locanmf` envs keep working without it.
+
 Key rule: **`numba` self-pins the numpy upper bound**, so do not raise the numpy floor here. If a machine
 needs numba on a newer numpy, install a numba build that supports it (≥ 0.61) rather than downgrading numpy.
 If an `import` breaks after an install, check for **user-site shadows** (`AppData\Roaming\Python\...\site-packages`)
