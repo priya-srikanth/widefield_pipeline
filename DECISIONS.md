@@ -18055,3 +18055,90 @@ Lightning Pose reads a CONVERTED copy of the labelling project; the DLC project 
 the single source of truth for labels, the same rule `dlc_train.stage()` follows for its own copy.
 Nothing in `wfield_local` imports `lightning_pose` at module scope, so the `dlc` and `locanmf` envs
 keep working without it.
+
+## 2026-09-26 (evening) — Lightning Pose: set up, and BLOCKED ON WINDOWS by a DALI dependency
+
+Decision (Priya): *"let's try using lightning pose, keeping open the ability to incorporate the
+additional cameras"*. The reasoning for choosing it over more cam4 labelling is in the entry above;
+this records what was built, and the wall it hit.
+
+### What is built and works
+
+* **`lp` conda env** — python 3.10, **torch installed FIRST from the cu128 index** (RTX 5060 is
+  Blackwell `sm_120`; a cu124 build has no kernels for it), then `lightning-pose` 2.4.2 on top.
+  Verified it does not disturb the pre-existing torch: LP declares `torch <3.0.0` rather than
+  pinning. Separate from `dlc` on a measurement, not a precaution — the `dlc` env has no
+  `lightning` at all, so installing there would add ~60 packages including lightning 2.5.6,
+  transformers and jax onto a working DeepLabCut stack.
+* **No converter needed.** Lightning Pose ships one: `litpose convert <dlc project> --lp_dir <out>`,
+  which reads `labeled-data/<video>/CollectedData*.{csv,h5}` — exactly our layout. Pointed at the
+  DLC **training** copy (already cam4-only and already cut to the four human-placed parts) rather
+  than the labelling project, which would have dragged in all 60 folders. Output verified: 360 rows,
+  4 bodyparts, fill counts identical to `dlc_train`'s (nose 360, jaw 293, tongue 160, spout 350).
+* **15 unlabelled clips**, 7,500 frames each (112,500 total, 0.59 GB), one per labelled session so
+  the unlabelled distribution matches the supervised one. Each is cut from a CUE so it spans ENL →
+  cue → the 3.5 s response window with its licking → the ITI where the spout moves. The earlier
+  throughput clips were cut at lick-dense windows; training a temporal loss on those alone would
+  never show it the interval where the spout dropout happens.
+* **A validated config**, checked in at `configs/lightning_pose_cam4.yaml`.
+
+### THE BLOCKER: semi-supervised training requires DALI, and DALI is linux x86_64 only
+
+`lightning_pose.utils.device.require_cuda_for_semi_supervised` refuses to build the data module
+unless `nvidia.dali` imports. It branches on `check_if_semi_supervised(losses_to_use)`, so it fires
+for **any** unsupervised loss — **both** `temporal` and `pca_singleview`. There is no partial win; a
+Windows run can only be supervised-only, which removes the entire reason for using Lightning Pose.
+
+Verified independently of the error message: `nvidia-dali-cuda110` / `-cuda120` on PyPI are stubs
+that fetch the real wheel from NVIDIA's index, and a download on this machine fails with
+`RuntimeError: Didn't find wheel for ...`. There is no win_amd64 wheel.
+
+**A mistake worth recording, because the docstring invites it.**
+`lightning_pose/data/video/factory.py` documents a `pynvvc -> dali -> opencv` fallback chain and
+calls opencv the "most portable last" rung, with `opencv-python-headless` an unconditional
+dependency. I read that and concluded semi-supervised training would work without DALI. **It will
+not** — that chain is the video reader used for PREDICTION. The training data module has its own
+hard gate. Two independent code paths, one of which I never opened.
+
+### Config traps found the slow way, all now in the checked-in file
+
+* `data.image_resize_dims` height and width **must be multiples of 128** (LP's own validator). 680
+  therefore becomes 640, which is the least rescaling available.
+* `_validate_steps_vs_epochs` branches on whether a KEY EXISTS, not on its value. Writing
+  `max_steps: null` silently selects step mode and then fails because `min_epochs` is present. The
+  step fields must be **absent**, not null.
+* The validator does not catch every key the trainer reads — `training.num_gpus` passes validation
+  and then raises `ConfigAttributeError` deep in omegaconf. The full key set is recoverable with
+  `grep -rhoE "cfg\.(data|model|training|losses|eval)\.[a-z_0-9]+"` over the package.
+* `losses_to_use` entries are validated against loss classes, but a camera-dependent loss
+  (`supervised_reprojection_heatmap_mse`, `supervised_pairwise_projections`) additionally needs
+  `model_type: heatmap_multiview_transformer`, `imgaug: dlc` and `imgaug_3d: true`, or it is
+  silently never added.
+
+### WSL2 attempt (2026-09-26, same evening)
+
+Priya chose WSL2 over O2 as the first try. State reached: `wsl --install` run from an elevated shell
+(this session is NOT elevated — `MNB-SABA-N40713\SabatiniLab` cannot even query the feature state),
+WSL 2.7.14.0 and kernel 6.18.33.2 present, Ubuntu-24.04 staged with `--no-launch`. **Blocked pending
+a reboot**: the Virtual Machine Platform driver only loads at boot.
+
+**Firmware virtualization is NOT a problem here, despite what the CIM properties say.**
+`Win32_Processor.VirtualizationFirmwareEnabled` and `VMMonitorModeExtensions` both read `False`,
+which looks like a BIOS trip is needed. It is a reporting artifact: a hypervisor is already running
+(`Win32_ComputerSystem.HypervisorPresent: True`, DeviceGuard VBS status 2, Credential Guard among
+`SecurityServicesRunning`), and Windows cannot see the raw CPU flags from inside it. Firmware
+virtualization must be on for VBS to be running at all. Do not send anyone into the BIOS on the
+strength of those two `False`s.
+
+Driver 610.88 is far newer than WSL GPU passthrough requires. The LP project is 738 MB, so the plan
+is to COPY it into WSL's ext4 rather than mount the SMB share — faster for training, and it avoids
+`drvfs` credentials entirely. **Do not install a CUDA driver inside WSL**; the Windows driver is
+passed through and a guest driver breaks it. Only the toolkit goes inside, and DALI's wheel bundles
+what it needs.
+
+### If WSL is blocked by IT policy, the fallback is O2
+
+Linux x86_64 with GPUs, where DALI installs normally, and where the cohort inference has to go
+anyway (`dlc.o2.*` and the sbatch/rsync scaffolding already exist from the DLC inference port). The
+converted project, the clips and the config all transfer unchanged — nothing built today is
+Windows-specific except the env itself.

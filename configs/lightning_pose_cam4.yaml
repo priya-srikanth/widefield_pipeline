@@ -1,0 +1,151 @@
+# Lightning Pose — cam4 orofacial, semi-supervised. REFERENCE COPY, version-controlled.
+#
+# The live copy is written into the LP project directory
+# (`<dlc root>/lightning-pose/cam4-<date>/config.yaml`) because `litpose train` takes a path to a
+# config and resolves `data.data_dir` from it. This copy exists so the reasoning below is in git
+# rather than only on the share, per CLAUDE.md rule 3 ("configs are the single source of truth").
+# The two absolute paths differ per machine; everything else should be kept in step.
+#
+# HOW THE PROJECT IS BUILT (no converter to write — Lightning Pose ships one):
+#
+#     conda activate dlc      # or any env; the converter is pure pandas + shutil
+#     litpose convert <dlc root>/training/widefield-Priya-2026-09-08-orofacial \
+#                     --lp_dir <dlc root>/lightning-pose/cam4-<date>
+#
+# The source is the DLC TRAINING copy, which is already cam4-only and already cut to the four
+# human-placed bodyparts by `dlc_train.stage()`. Converting the LABELLING project instead would drag
+# in cam1/cam2/cam3 and the whole 60-folder tree. Verified 2026-09-26: 360 rows, 4 bodyparts, fill
+# counts identical to what `dlc_train` reports (nose 360, jaw 293, tongue 160, spout 350).
+#
+# WHY THIS EXISTS AT ALL: DeepLabCut round 2 tracks well on average but loses the jaw at maximum
+# mouth opening (confidence 0.90 -> 0.28 across a lick), and more cam4 labelling cannot fix it --
+# where a human left the jaw blank the network is also unsure 88% of the time, so human and network
+# agree the part is occluded. Lightning Pose's temporal and pose-PCA losses act DURING training and
+# on UNLABELLED frames, so the network can learn to stay coherent through the occlusion instead of
+# having it patched afterwards. Full reasoning: DECISIONS.md 2026-09-26.
+#
+# ############################################################################################
+# THIS CANNOT RUN ON WINDOWS. `lightning_pose.utils.device.require_cuda_for_semi_supervised`
+# refuses any unsupervised loss unless `nvidia.dali` imports, and DALI ships prebuilt wheels for
+# linux x86_64 ONLY (verified 2026-09-26: the PyPI entries are stubs that fetch from NVIDIA's index
+# and fail with "Didn't find wheel"). The gate fires for BOTH `temporal` and `pca_singleview`, so
+# there is no partial win -- a Windows run can only be supervised-only, which removes the entire
+# reason for using Lightning Pose. Run it under WSL2 or on O2.
+#
+# The `pynvvc -> dali -> opencv` fallback chain in `lightning_pose/data/video/factory.py` is for
+# PREDICTION and does not apply here; the training data module has its own hard gate. Do not read
+# that docstring and conclude otherwise, as I did.
+# ############################################################################################
+
+data:
+  image_orig_dims: {height: 680, width: 680}
+  # MUST be a multiple of 128 (LP's own validator). 640 is the closest to the native 680, i.e. the
+  # least rescaling available -- 0.94x. Do not drop to 512 for speed without re-measuring: the DLC
+  # work showed this network's cost is pixel count and its accuracy follows apparent part size.
+  image_resize_dims: {height: 640, width: 640}
+  data_dir: N:/MICROSCOPE/Priya/DeepLabCut/Widefield/lightning-pose/cam4-2026-09-26
+  video_dir: N:/MICROSCOPE/Priya/DeepLabCut/Widefield/lightning-pose/cam4-2026-09-26/videos
+  csv_file: CollectedData.csv
+  num_keypoints: 4
+  num_targets: 8          # 2 * num_keypoints; LP reads both
+  keypoint_names: [nose, jaw, tongue, spout]
+  header_rows: [0, 1, 2]  # scorer / bodyparts / coords, as `litpose convert` wrote it
+  bbox_file: null
+
+  # THE SPOUT IS EXCLUDED FROM THE SINGLE-VIEW PCA (indices 0,1,2 = nose, jaw, tongue).
+  # Measured 2026-09-26, and it is the same fact that broke a nose-relative prior for the spout: the
+  # spout is APPARATUS, not anatomy. Its position relative to the animal varies BY DESIGN across the
+  # six trial positions (SD 54.8 px against the jaw's 20.2), so a pose subspace fitted with it in
+  # would treat legitimate spout moves as pose violations. A nose-relative constraint applied to the
+  # spout flagged 10.9% of one session's frames. Three keypoints is thin for a PCA; that is a reason
+  # to watch `components_to_keep`, not a reason to add a part that is not part of the pose.
+  columns_for_singleview_pca: [0, 1, 2]
+
+  # MULTI-VIEW IS NOT ON YET, and this is where it switches on. The DATA side is already ready:
+  # `dlc.frames.anchor_cam` is cam4, so every camera samples the SAME DAQ INSTANT through its own
+  # alignment template, and 241 frames already exist in both cam1 and cam4 at the same
+  # (trial, phase). What is missing is cam1 LABELS -- one partly-labelled session so far, though its
+  # jaw fill is 71/72, which is the whole argument for cam1: it sees the jaw when cam4 cannot.
+  #   view_names: [cam4, cam1]
+  #   csv_file: [CollectedData_cam4.csv, CollectedData_cam1.csv]   # same length as view_names
+  #   mirrored_column_matches: ...   # for pca_multiview; needs NO camera calibration
+  #   camera_params_file: ...        # optional, enables the reprojection losses; the 2026-09-11
+  #                                  # four-camera solve already provides intrinsics/extrinsics
+  # `heatmap_multiview_transformer` + the reprojection losses additionally require
+  # `training.imgaug: dlc` (silently promoted to `dlc-mv`) and `training.imgaug_3d: true`.
+  view_names: null
+  camera_params_file: null
+  mirrored_column_matches: null
+  downsample_factor: 2
+
+training:
+  train_prob: 0.8
+  val_prob: 0.1          # test is the remainder, 0.1
+  train_batch_size: 8    # matches dlc.train.batch_size, and the 8 GiB card
+  val_batch_size: 16
+  test_batch_size: 16
+  min_epochs: 50
+  max_epochs: 300
+  check_val_every_n_epoch: 5
+  ckpt_every_n_epochs: null
+  log_every_n_steps: 10
+  imgaug: dlc            # DLC-like augmentation; `dlc-mv` is the 3D-safe promotion for multiview
+  # THE DLC SPLIT IS NOT REPRODUCED HERE and the two test errors are NOT comparable. DLC holds out
+  # whole SESSIONS (`dlc_train.split`, because four frames of one lick are four views of one pose);
+  # LP splits uniformly over frames via these probabilities. An LP test error will therefore look
+  # better than DLC's for the reason `dlc_train`'s docstring spells out -- near-duplicate frames on
+  # both sides of the split. Compare the two on VIDEO (detection rate, dropout at the lick, the
+  # tongue-vs-DAQ PSTH), not on their respective test scalars.
+  rng_seed_data_pt: 42
+  rng_seed_model_pt: 42
+  lr_scheduler: multisteplr
+  lr_scheduler_params:
+    multisteplr: {milestones: [150, 200, 250], gamma: 0.5}
+  unfreezing_epoch: 20
+  num_workers: 4
+  num_gpus: 1
+  early_stop_patience: 20
+  # EPOCH-BASED, so `min_steps`/`max_steps`/`unfreezing_step`/`milestone_steps` must be ABSENT --
+  # not null. `_validate_steps_vs_epochs` branches on whether the KEY EXISTS, so writing
+  # `max_steps: null` selects step mode and then fails because `min_epochs` is also present.
+  train_frames: 1         # every training frame; a fraction here would silently shrink the set
+  imgaug_3d: false        # only for the camera-dependent multiview losses, which are not on yet
+  patch_mask: null
+
+model:
+  model_type: heatmap
+  backbone: resnet50     # plain ImageNet resnet50, to keep the only deliberate differences from the
+                         # DLC baseline the LOSSES and the framework. `resnet50_animal_ap10k` is
+                         # available and plausibly better on a mouse face -- try it as a SECOND run,
+                         # not as a confound in the first.
+  heatmap_loss_type: mse
+  model_name: cam4-orofacial
+  losses_to_use: [temporal, pca_singleview]
+  checkpoint: null
+
+losses:
+  temporal:
+    log_weight: 5.0
+    # Frames closer than this are not penalised. The jaw genuinely travels ~35 px through a lick at
+    # 250 fps, so too small an epsilon would penalise the real movement this model exists to track.
+    # Measured: median step between confident frames 0.54 px, 99th percentile 10.5 px.
+    epsilon: 10.0
+    prob_threshold: 0.05
+  pca_singleview:
+    log_weight: 5.0
+    components_to_keep: 0.95
+    empirical_epsilon_percentile: 1.00
+
+dali:
+  base:
+    train: {sequence_length: 8}
+    predict: {sequence_length: 96}
+  context:
+    train: {batch_size: 8}
+    predict: {sequence_length: 96}
+
+eval:
+  predict_vids_after_training: false   # the DLC comparison is run separately and deliberately
+  save_vids_after_training: false
+  confidence_thresh_for_vid: 0.6       # dlc.train.pcutoff, so the two are read on the same bar
+  test_videos_directory: N:/MICROSCOPE/Priya/DeepLabCut/Widefield/lightning-pose/cam4-2026-09-26/videos
