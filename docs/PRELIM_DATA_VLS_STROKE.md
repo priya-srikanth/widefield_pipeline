@@ -10,8 +10,15 @@ is retained for history** — `DECISIONS.md` and the STATUS docs hold that.
 `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`, 2026-09-16 render set, `restdock05`
 rest definition. **Every number here is read from the `.csv` beside its figure or from
 `kw.stat_rows` in its `*_bundle.json`, never off a heatmap** — so each claim can be checked against
-the panel that drew it. Session set throughout: **N=4 animals, n=96 sessions — pre 44 (11 each),
+the panel that drew it. Session set for sections 1-5b: **N=4 animals, n=96 sessions — pre 44 (11 each),
 acute 16 (92:5 93:4 94:6 95:1), subacute 18, chronic 18 (PS94 has none)**.
+
+**THE COHORT HAS SINCE GROWN AND PS94 NOW HAS A CHRONIC EPOCH.** On 2026-09-25 three sessions were
+registered (PS94_0924, PS95_0924, PS92_0925) and PS94's `chronic_from` was PINNED at day 25 after a
+registration re-derived it to None. The current curated set is **PS92 27, PS93 26, PS94 27, PS95 27**,
+with chronic **9 / 8 / 5 / 8**. Section 5c is computed on that set; sections 1-5b and 6-10 are not and
+are marked with their own render date. Result dumps now carry a `cohort` digest and are REFUSED rather
+than redrawn when it moves, so this particular drift cannot recur silently.
 
 `*` = interval excludes zero · `**` = survives Bonferroni correction.
 
@@ -261,6 +268,99 @@ position robustly (1.634 observed/null, 43/44 sessions). But it is **a different
 the task map 0.09 post-cue and 0.16 pre-cue (§6) — and its far-contralateral representation
 **holds up acutely** (0.50 → 0.38) where the task's collapses. **Rest is a complementary readout,
 not a proxy for any of the three trial windows.**
+
+---
+
+## 5c. CODING-DIRECTION TRAJECTORIES — does the geometry move, and where to?
+
+`cd_*` figures in the same directory, **2026-09-25 render set**. A per-position coding direction
+`w_P = mean(P) - mean(not-P)` is fitted on the window MEAN in each animal's frozen joint-LocaNMF
+basis, which makes it TIME-INVARIANT and so projectable frame by frame; the trajectory is the
+projection, not a second fit. Windows: **[-2, 0) before the cue for ENL, [0, +2) after the cue for
+cue, [0, +2) after the FIRST LICK for lick**. Components are z-scored in a frozen pre-stroke frame,
+the ~25% of each basis lying under the painted fibre glue or in an olfactory bulb is dropped, and the
+condition-independent mode is projected out. Axis: 0 = that animal's pre-stroke not-P, 1 = its
+pre-stroke lick at P.
+
+**READ `DECISIONS.md` 2026-09-24/25 BEFORE QUOTING ANY OF THIS.** Five defects were found and fixed
+in this arm on 25 September, none of them visible in a figure: the lick-aligned direction was the CUE
+direction (cos = 1.000000), the migration matrix read out over the wrong window for ENL, two cache
+layers served the corrected numbers' predecessors, and the cell statistics could not reach p < 0.05 at
+any effect size.
+
+### THE HEADLINE IS AN ARTEFACT WARNING, not a result
+
+The six one-vs-rest directions nearly cancel — **their unit vectors sum to a vector of length 0.289
+where six aligned ones would give 6.0** — so a signal common to every trial CANNOT load positively on
+all six; the geometry forces it positive on some and negative on others. The lick response is such a
+signal and it is large. Decomposed on PS95 pre-cue, close_center reads **+14.08, of which +14.32 is
+the shared term and −0.24 is position-specific**. The dramatic position differences in an
+unorthogonalised CD figure are that cancellation, not the position code.
+
+### THE CONDITION-INDEPENDENT MODE ROTATES *AND* GROWS
+
+Both read against a **trial-matched pre-stroke-vs-pre-stroke ceiling** — two subspaces estimated from
+different sessions do not fully overlap even when nothing changed, and a grand mean over fewer trials
+has a larger norm, so the ceiling is what these quantities read at NO CHANGE and it is **not 1.0**
+(measured 0.79–0.96 for overlap, 0.87–1.06 for magnitude). Matched on TRIALS by subsampling folds
+within session, to +0% in 11 of 12 cells.
+
+| | below / above its own ceiling | range as a fraction of ceiling |
+|---|---|---|
+| subspace overlap with pre | **36/36 cells below** ** | 0.56–0.98 |
+| magnitude relative to pre | **34/36 cells above** ** | 0.97–1.80 |
+
+36 cells = 4 animals × 3 alignments × 3 post-stroke epochs. The two exceptions are PS92 acute, both
+*at* ceiling (0.99, 0.97). **The mode is simultaneously rotated and amplified**, and a decoder score
+conflates the two because both lower accuracy — which is the main thing this view adds over "can
+position still be read out". Chance for the overlap is K/n = 0.030–0.046, so against CHANCE the mode
+is strongly conserved; against its CEILING it has moved. Both readings are true and they answer
+different questions.
+
+### WHERE A TRAJECTORY MOVED TO — supported weakly, and one claim RETRACTED
+
+`M[i, j]` = position i's trials projected onto position j's direction, pole-normalised so columns are
+comparable. The readout is **ΔM = M_post − M_pre within animal**, because the directions are NOT
+orthogonal to each other (measured mean |cos| 0.33–0.43 after the shared mode is removed, pairs
+reaching 0.78) and neighbouring positions resemble each other already.
+
+Tested by a **within-animal permutation of the epoch label across sessions** (11 pre against 4–8 post
+per animal), family-wise by max-statistic over the 36 cells. Family-wise significant cells:
+
+| alignment | acute | subacute | chronic |
+|---|---|---|---|
+| ENL | 1 | 0 | 5 |
+| cue | 1 | 1 | 7 |
+| lick | 4 | 0 | 2 |
+
+The acute ENL survivor is **far_R on far_center, +1.19 [+0.08, +2.72], 4/4 animals agreeing on the
+sign** — post-stroke far-contralateral trials move toward the far-centre direction, in the window
+where the held position signal lives.
+
+**RETRACTED: the stronger "usurpation" claim.** Pooled, acute far_R scores higher on far_center's
+direction than far_center's own trials do — exactly the migration hypothesis. Per animal it is
+**1 of 4** (PS95, whose acute epoch is a SINGLE session); close_L → close_center is 2 of 4, one with a
+margin of +0.05 and one that is actually the incumbent collapsing. `"does i beat j"` is a THRESHOLD
+statement and a mean over four animals can cross a threshold no individual animal crosses. Rule 8 is
+now enforced in the code: no usurpation claim prints without its per-animal count, and a pooled-only
+hit is drawn with a DASHED box.
+
+**THE UNCORRECTED CELL COUNTS ARE NOT INTERPRETABLE.** An EARLY-vs-LATE split of the pre-stroke
+sessions — no lesion between them — yields **5–9 of 36 uncorrected cells** by the same test, against
+the ~2 a nominal 5% suggests. Session-to-session drift produces that. **The family-wise count is
+clean: the same null split gives 0 in all three alignments**, which is what licenses the table above.
+
+### WHAT LIMITS THIS ARM
+
+* **`--orth` does not remove the shared mode cleanly post-stroke.** The unremoved amplitude is
+  `sqrt(1 − overlap) × scale`, measured **0.49–1.19** of the pre-stroke shared response against a
+  position-specific signal of ~1–2. Panels whose direction barely survives the projection print the
+  surviving fraction in red below 70%.
+* **n = 4, and PS95 contributes a single acute session** — which is why per-animal columns precede
+  every pooled one here, and why the animal-weighted and session-weighted estimates disagree in sign
+  for far_center acute (+0.62 vs −0.08).
+* **The permutation assumes a session is exchangeable across the lesion within an animal.** The drift
+  check above bounds the violation for the family-wise test; it does not eliminate it.
 
 ---
 

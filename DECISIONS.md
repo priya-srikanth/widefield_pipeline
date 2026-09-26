@@ -2198,6 +2198,51 @@ upload, a YAML include/exclude selection per animal, and `--skip_if_exists`.
 which cameras, which trials, and whether inference runs on cue-aligned windows rather than whole
 recordings.
 
+## THE PERMUTATION'S ASSUMPTION, CHECKED: drift breaks the uncorrected count, not the corrected one
+
+Priya, 2026-09-25: *"check permutation assumption"*. The within-animal session permutation assumes a
+session is exchangeable across the lesion within an animal. A monotonic DRIFT unrelated to the lesion
+would break that, since permuting destroys time order.
+
+**THE TEST IS THE SAME MACHINERY ON A CONTRAST THAT MUST BE NULL**: split each animal's PRE-STROKE
+sessions into early and late halves and run "late" as the pseudo-epoch. No lesion intervenes, so
+anything it flags is the drift the real test inherits.
+
+    alignment   family-wise   uncorrected (of 36)
+    precue           0                6
+    cue              0                9
+    lick             0                5
+
+**THE FAMILY-WISE TEST IS CLEAN** -- zero cells in all three windows on a contrast with no lesion in
+it. That is what licenses the corrected counts (ENL 1/0/5, cue 1/1/7, lick 4/0/2 across
+acute/subacute/chronic).
+
+**AND THE UNCORRECTED COUNT IS NOT INTERPRETABLE, which corrects a reading made earlier the same
+day.** I wrote that 17 uncorrected cells "against ~2 expected by chance" meant there was more than
+chance present. The measured baseline is 5-9, not 2, because drift produces that on its own -- so the
+uncorrected excess is largely drift and the report now says so instead of quoting the nominal 5%.
+
+WHAT THIS DOES NOT DO: it bounds the violation, it does not eliminate it. A drift concentrated at the
+lesion boundary rather than spread across the pre-stroke period would not show up in an
+early-vs-late pre-stroke split.
+
+## THE CD GEOMETRY SURVIVED EVERY CORRECTION (2026-09-25, final render)
+
+Re-measured after the lick-window fix, the migration read-out fix, the three cache-layer fixes and
+the cohort growing to 27 sessions for three of four animals:
+
+    overlap below its trial-matched pre-to-pre ceiling   36/36 cells   0.56-0.98 of ceiling
+    magnitude above its ceiling                          34/36 cells   0.97-1.80 of ceiling
+
+36 cells = 4 animals x 3 alignments x 3 post-stroke epochs; the two exceptions are PS92 acute, both
+AT ceiling. The condition-independent mode is therefore both ROTATED and AMPLIFIED after the lesion,
+and a decoder score conflates the two because each lowers accuracy on its own.
+
+**AGAINST CHANCE IT IS CONSERVED; AGAINST ITS CEILING IT HAS MOVED.** K/n is 0.030-0.046, so an
+overlap of 0.6 is fifteen to twenty times chance. Both readings are true and they answer different
+questions -- the deficit reading requires the CEILING, which is why the matched null had to be built
+before any of this could be stated.
+
 ## THE DUMPS NOW RECORD WHICH COHORT THEY DESCRIBE (Priya, 2026-09-25)
 
 A result dump carried `basis_id`, the window, the smoothing width, the gate and the masking, so a

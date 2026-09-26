@@ -441,6 +441,53 @@ NOT yet committed.
    that move are the low-`surviving` ones. Any post-stroke claim needs the `--mask-occluded` arm
    beside it; only PS94 and PS95 pre-cue have been run.
 
+## STATE AT 2026-09-25 EVENING — FINAL for the day. Read this before anything above.
+
+**Everything above this line predates five defects found on 25 September.** All are fixed, everything
+is re-rendered on the current cohort, and `DECISIONS.md` 09-24/09-25 holds the reasoning. The
+preliminary-data document now carries this arm as **section 5c**.
+
+### THE RESULTS THAT STAND
+
+* **The condition-independent mode ROTATES and GROWS.** Against a trial-matched pre-stroke-vs-
+  pre-stroke ceiling: overlap below it in **36/36** cells (0.56–0.98 of ceiling), magnitude above it
+  in **34/36** (0.97–1.80). Both exceptions are PS92 acute, at ceiling. Against CHANCE (K/n =
+  0.030–0.046) the mode is strongly conserved — both readings are true and answer different questions.
+* **ΔM family-wise cells** under the within-animal session permutation: ENL 1/0/5, cue 1/1/7,
+  lick 4/0/2 (acute/subacute/chronic). The acute ENL survivor is far_R on far_center,
+  +1.19 [+0.08, +2.72], 4/4 animals agreeing on sign.
+* **The drift check passes for the corrected test**: an early-vs-late split of PRE-STROKE sessions
+  gives 0 family-wise cells in all three windows.
+
+### THE CLAIMS THAT DID NOT SURVIVE
+
+* **"far_R ends up looking more like far_center than far_center does" is 1 of 4 animals** and that
+  animal's acute epoch is a single session. Retracted; rule 8 now enforced in code.
+* **Uncorrected cell counts mean nothing here.** Drift alone gives 5–9 of 36; the nominal ~2 was the
+  wrong baseline and was quoted as evidence.
+
+### THE FIVE DEFECTS, none of which was visible in a figure
+
+1. The lick-aligned direction WAS the cue direction (cos = 1.000000).
+2. `cd_migration` read out over [0,2] s for every alignment, so ENL measured the post-cue period.
+3. `cdarms-` did not move when `session_arms` changed meaning.
+4. `cdfit-` did not either — so the lick fix produced byte-identical numbers and a clean render report.
+5. The cell statistics could not reach p < 0.05 at any effect size (4 animals, 16 sign-flips).
+
+Caught by, respectively: a cosine of exactly 1, a diagonal that was not 1.0, an anchor that did not
+move, the same anchor again, and arithmetic on 2^4. **Not one was caught by looking at a panel.**
+
+### OPEN, in order
+
+1. **Session-weighted column with a disagreement flag** — decided in DECISIONS.md, not built.
+2. **far_R's diagonal collapse per animal** — the other half of the migration claim, still only read
+   off the pooled matrix; its companion was retracted for exactly this.
+3. **`restw` REMAINS UNVERIFIED** — carried from 09-24, now two days.
+4. **Blocks as a third bootstrap level** (animals → sessions → blocks). Priya raised it; blocks do not
+   belong in the permutation, since the epoch label is a property of a session.
+5. **A drift concentrated at the lesion boundary** would not show in an early-vs-late pre-stroke
+   split. The current check bounds the violation; it does not eliminate it.
+
 ## STATE AT 2026-09-25 — the pooled/derived layer, and one retraction
 
 ### DONE SINCE THE 09-24 ENTRY

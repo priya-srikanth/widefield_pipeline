@@ -389,8 +389,12 @@ def report(got, window=WINDOW):
         # failure as the subtitles that announced a retired correction for hours.
         L.append(f"  significant deltaM cells: {int(sig_fwer.sum())} family-wise "
                  f"(max-statistic over {sig_cell.size} cells), {int(sig_cell.sum())} "
-                 f"uncorrected -- of which about {0.05 * sig_cell.size:.0f} are what chance gives "
-                 f"at this panel size."
+                 f"uncorrected -- and the UNCORRECTED COUNT IS NOT INTERPRETABLE: an EARLY-vs-LATE "
+                 f"split of the pre-stroke sessions, where no lesion intervenes, yields 5-9 of "
+                 f"{sig_cell.size} by the same test (measured 2026-09-25). Session-to-session drift "
+                 f"produces that, so the baseline is 5-9 rather than the "
+                 f"{0.05 * sig_cell.size:.0f} a nominal 5% would suggest. THE FAMILY-WISE COUNT IS "
+                 f"CLEAN: the same null split gives 0 in all three alignments."
                  + ("" if perm is not None else
                     " Intervals are ANIMAL-level (n=4) because the dumps carry no per-session "
                     "traces."))
