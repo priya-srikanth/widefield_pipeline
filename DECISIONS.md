@@ -18168,11 +18168,33 @@ timescale tau (in blocks); constraining the permutation to within-cycle would gi
 | 60 | 0.1664 -> 0.1652 | 0.0426 -> 0.0307 | 0.2384 -> 0.2162 | 0.72 |
 
 The chance LEVEL barely moves -- it is set by the marginals, which both schemes preserve -- and only
-the width changes, so the gain is power and nothing else. Against a headline of 0.500 on an
-empirical null of 0.137-0.147 that is irrelevant. **Cycle-aware permutation is NOT implemented**, and
-should only be revisited if a per-session verdict is found sitting near p = 0.05. Note the table is
-from a SURROGATE predictor (hence its 1/6 mean, where the real decoder's skew gives 0.137-0.147); it
-isolates the drift effect and is not a measurement of the real nulls.
+the width changes, so the gain is power and nothing else. Note the table is from a SURROGATE
+predictor (hence its 1/6 mean, where the real decoder's skew gives ~0.15); it isolates the drift
+effect and is not a measurement of the real nulls.
+
+**SETTLED THE SAME DAY, ON THE REAL NULLS. `precue_significance --n-perm 1000` over all 44 curated
+sessions (strobedetrend / precue, 0 failures), run on the corrected block rule below:**
+
+| p_perm | sessions |
+|---|---|
+| < 0.005 (42 of them at the 1/1001 floor) | 42 |
+| 0.005 - 0.02 | 1 (PS92_0806, p = 0.0070) |
+| **0.02 - 0.15 -- the band where null WIDTH could decide anything** | **0** |
+| > 0.15 | 1 (PS92_0606, p = 0.4555) |
+
+**The deciding band is empty, so cycle-aware permutation cannot change a single verdict.** The one
+non-significant session is not marginal either: PS92_0606 sits at accuracy 0.148 against a null mean
+of 0.144, and applying the most generous gain in the table above (28% narrower SD) moves its p95 bar
+from 0.199 to 0.183 -- still 0.035 ABOVE its accuracy. It is at chance, not near threshold.
+**Cycle-aware permutation is NOT implemented and this is now a closed question**, not a deferred one.
+Reopen it only if a future arm produces a verdict in the 0.02-0.15 band.
+
+One observation left deliberately unattributed: null means came out at 0.141-0.163 (mean 0.152)
+where the previously reported figure was 0.137-0.147. That is the direction the block fix below
+predicts -- removing one-trial permutation units should make the null slightly WIDER and higher --
+but the earlier figure was computed at a different `n_perm` and is not a controlled comparison, so
+this is consistent-with and not evidence-for. A direct A/B (monkeypatch `split_lengths` back to
+left-chunking, rerun three sessions) would settle it and has not been run.
 
 ### What the question DID surface, and what changed
 
