@@ -18233,5 +18233,29 @@ rather than the splitter silently absorbing them. `CACHE_VERSION` 12 -> 13.
 * **The cycle structure is real and reconstructible.** Run lengths concentrate on 4-8 (94.2% of
   13,459 runs), with 3.59% longer -- close to the 2.8% merge rate the 2026-08-18 firmware audit
   measured by a completely independent route. Greedily closing a cycle when all six positions have
-  been seen recovers **exactly six blocks in 95.1% of cycles**. Chunking into fixed groups of six
-  does NOT work (53.7%): the first merge shifts the phase and everything after it looks broken.
+  been seen recovers **six distinct positions in 95.1% of cycles** (2136/2247 over 177 sessions).
+  Chunking into fixed groups of six does NOT work (53.7%): the first merge shifts the phase and
+  everything after it looks broken.
+
+  Shipped as `block_ids.cycle_ids`, so the 95.1% refers to code that exists. It is used by no null;
+  it is kept because it is the prerequisite for reopening the cycle question and because per-cycle
+  is a natural unit for a behavioural one.
+
+### A LONG RUN IS NOT ALWAYS A MERGE -- 161 of 491 are not at a cycle boundary
+
+Found while shipping `cycle_ids`, and it corrects an assumption this file has carried since
+2026-08-18. `block_ids` rests on "a run longer than `block_size_max` cannot be one block", i.e. every
+long run is two adjacent same-position blocks. Against the reconstructed cycles, **330 of the 491
+long runs sit at a cycle boundary and 161 do not** -- so roughly a third are genuine over-long blocks
+(the scheduler overshooting its own maximum) or the damaged position labels `audit` already reports.
+
+This is why `cycle_ids` does NOT derive from `block_ids`. The obvious implementation -- take the
+block ids and close a cycle when a position repeats -- scores **86.0%, not 95.1%**, because splitting
+those 161 fires the repeat rule mid-cycle and truncates the cycle (332 cycles of 1-5 blocks). So
+`cycle_ids` splits a long run only where the cycle proves it is a merge: the run completes the cycle
+and is too long to be one block.
+
+**This does NOT argue for changing `block_ids`.** Splitting unconditionally is the conservative
+choice for a CV group and the correct one for a permutation unit -- a merged pair treated as one
+unit holds more correlated data out together and makes the null wider. The two functions disagree
+about ~161 runs on purpose, and the docstrings say so at both ends.

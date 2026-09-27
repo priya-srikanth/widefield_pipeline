@@ -116,6 +116,55 @@ def test_block_size_min_is_read_per_session(tmp_path):
     assert block_size_min_for(tmp_path / "nope") == DEFAULT_BLOCK_SIZE_MIN
 
 
+def _cyc(codes, bmax=8):
+    from wfield_local.block_ids import cycle_ids
+
+    return cycle_ids(np.array(codes), block_size_max=bmax)
+
+
+def test_six_positions_in_a_row_are_one_cycle():
+    assert set(_cyc([p for p in range(6) for _ in range(4)]).tolist()) == {0}
+
+
+def test_a_second_pass_through_the_positions_is_a_second_cycle():
+    """The scheduler re-randomises the order, so cycle 2 is a different permutation."""
+    ids = _cyc([p for p in (0, 1, 2, 3, 4, 5) for _ in range(4)]
+               + [p for p in (3, 0, 1, 2, 4, 5) for _ in range(4)])
+    assert set(ids[:24].tolist()) == {0}
+    assert set(ids[24:].tolist()) == {1}
+
+
+def test_a_merge_across_the_boundary_is_split_between_the_two_cycles():
+    """One cycle ends at position 5 and the next begins there, so they arrive as ONE run of 10.
+
+    This is the case the whole module exists for (Priya, 2026-08-18) seen from the cycle side.
+    """
+    ids = _cyc([p for p in (0, 1, 2, 3, 4) for _ in range(4)] + [5] * 10
+               + [p for p in (1, 0, 2, 3, 4) for _ in range(4)])
+    run = ids[20:30]                       # the ten trials at position 5
+    assert len(set(run.tolist())) == 2, "the boundary merge was not split"
+    assert list(run) == [0] * 5 + [1] * 5, "split unevenly; split_lengths(10, 8) is 5+5"
+
+
+def test_a_long_run_MID_cycle_is_left_WHOLE():
+    """The regression that made cycle reconstruction 86% instead of 95.1%.
+
+    Deriving cycles from `block_ids` splits EVERY over-long run, but only 330 of 491 sit at a cycle
+    boundary. Splitting the other 161 fires the repeat rule mid-cycle and truncates the cycle. A long
+    run that does NOT complete the cycle is a genuine over-long block or damaged labels -- either
+    way it must stay whole here, whatever `block_ids` does with it for CV purposes.
+    """
+    ids = _cyc([0] * 4 + [1] * 10 + [p for p in (2, 3, 4, 5) for _ in range(4)])
+    assert len(set(ids[4:14].tolist())) == 1, "a mid-cycle long run was split across cycles"
+    assert set(ids.tolist()) == {0}, "the cycle was truncated by an unnecessary split"
+
+
+def test_unusable_trials_do_not_break_a_cycle():
+    ids = _cyc([0, 0, -1, 0, 0] + [p for p in (1, 2, 3, 4, 5) for _ in range(4)])
+    assert ids[2] == -1
+    assert set(int(i) for i in ids if i >= 0) == {0}
+
+
 def test_the_decoder_uses_this_rule_and_not_a_local_copy():
     """A second copy of the rule is how the two normalisations diverged elsewhere in this project."""
     import inspect

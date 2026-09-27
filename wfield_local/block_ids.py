@@ -67,6 +67,7 @@ from wfield_local import config
 
 DEFAULT_BLOCK_SIZE_MAX = 8          # gui_config timing.block_size_max on every session recorded so far
 DEFAULT_BLOCK_SIZE_MIN = 4          # timing.block_size_min; 4 on all but a handful of sessions, which use 5
+N_POSITIONS = 6                     # the scheduler's cycle length -- six spout positions, one block each
 
 
 def _behavior_dir(s):
@@ -182,6 +183,81 @@ def block_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX):
             b += 1
             out[usable[at:at + ln]] = b
             at += ln
+    return out
+
+
+def cycle_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX, n_positions=N_POSITIONS):
+    """Cycle id per trial (-1 = unusable), for the scheduler's `balanced_block_cycles` design.
+
+    The scheduler presents all six positions in a random order, re-randomises, and starts again
+    (`gui_config.json timing.scheduling_mode: balanced_block_cycles`, `stop_mode:
+    end_of_balanced_cycle`). A cycle is therefore six blocks covering six DISTINCT positions, and a
+    position cannot repeat inside one.
+
+    **THIS DOES NOT REUSE `block_ids`, AND THE REASON IS MEASURED.** The obvious implementation --
+    take `block_ids`' output and close a cycle when a position repeats -- scores 86.0%, not 95.1%.
+    `block_ids` splits EVERY run longer than `block_size_max`, but only **330 of the 491** long runs
+    sit at a cycle boundary; the other 161 do not, so splitting them fires the repeat rule mid-cycle
+    and truncates the cycle (it produces cycles of 1-5 blocks, 332 of them). Those 161 are evidence
+    that a long run is not always a merge -- some are genuine over-long blocks, and some are the
+    damaged position labels `audit` reports.
+
+    So this splits a long run ONLY where the cycle says it must be a merge: the run completes the
+    cycle (five positions already seen) and is too long to be one block. That is the one case where
+    two same-position blocks are known to be adjacent. Everywhere else a long run is left whole, and
+    a cycle that is genuinely malformed is reported as such rather than silently re-cut.
+
+    Consequence to know about: for those 161 runs this function's internal block boundaries differ
+    from `block_ids`'. That is deliberate -- they answer different questions. `block_ids` is a CV
+    group and a permutation unit, where splitting unconditionally is the conservative choice; here
+    the question is which cycle a trial belongs to, and an unconditional split destroys the answer.
+
+    **DO NOT CHUNK THE BLOCK SEQUENCE INTO FIXED GROUPS OF SIX.** Measured over the 177
+    `balanced_block_cycles` sessions: greedy closing gives exactly six blocks in **95.1%** of cycles,
+    fixed chunking in **53.7%**. The first boundary merge shifts the phase and every later group
+    looks broken, which is also why a session can appear to have no cycle structure at all.
+
+    The residual 4.9% is the same limit `block_ids` documents -- a 4+4 merge lands at run-length
+    exactly `block_size_max` and cannot be split, so its two blocks stay merged and the cycle they
+    straddle comes out five blocks long rather than six.
+
+    **NOTHING USES THIS FOR A NULL, DELIBERATELY.** It was written to answer whether the permutation
+    tests should permute WITHIN cycle rather than within session; measured on all 44 curated
+    sessions, no verdict sits in the band where null width could matter, so the within-session nulls
+    stand. See DECISIONS.md 2026-09-26. It is kept because it is the prerequisite for reopening that
+    question, and because per-cycle is a natural unit for a behavioural one (does performance drift
+    within a cycle?).
+    """
+    codes = np.asarray(codes)
+    out = np.full(len(codes), -1, dtype=int)
+    usable = np.flatnonzero(codes >= 0)
+    if not usable.size:
+        return out
+    c = codes[usable]
+    starts = np.flatnonzero(np.r_[True, c[1:] != c[:-1]])       # runs over the USABLE trials only
+    cyc, seen, at = 0, set(), 0
+    for i, st in enumerate(starts):
+        stop = starts[i + 1] if i + 1 < len(starts) else len(c)
+        p, n = int(c[st]), stop - st
+        if p in seen:                       # a position cannot repeat inside a cycle
+            cyc += 1
+            seen = set()
+        if len(seen) == n_positions - 1 and n > block_size_max:
+            # Completes the cycle AND is too long to be one block, so it is the boundary merge.
+            # Split it the same way `split_lengths` would, first piece closing the open cycle.
+            head = split_lengths(n, block_size_max)[0]
+            out[usable[at:at + head]] = cyc
+            cyc += 1
+            out[usable[at + head:at + n]] = cyc
+            seen = {p}
+            at += n
+            continue
+        out[usable[at:at + n]] = cyc
+        seen.add(p)
+        at += n
+        if len(seen) >= n_positions:
+            cyc += 1
+            seen = set()
     return out
 
 
