@@ -18189,12 +18189,10 @@ from 0.199 to 0.183 -- still 0.035 ABOVE its accuracy. It is at chance, not near
 **Cycle-aware permutation is NOT implemented and this is now a closed question**, not a deferred one.
 Reopen it only if a future arm produces a verdict in the 0.02-0.15 band.
 
-One observation left deliberately unattributed: null means came out at 0.141-0.163 (mean 0.152)
-where the previously reported figure was 0.137-0.147. That is the direction the block fix below
-predicts -- removing one-trial permutation units should make the null slightly WIDER and higher --
-but the earlier figure was computed at a different `n_perm` and is not a controlled comparison, so
-this is consistent-with and not evidence-for. A direct A/B (monkeypatch `split_lengths` back to
-left-chunking, rerun three sessions) would settle it and has not been run.
+One observation, and the A/B below now says it is NOT the block fix: null means came out at
+0.141-0.163 (mean 0.152) where the previously reported figure was 0.137-0.147. The fix moves the
+null mean DOWN by 0.0038, so it cannot explain an upward shift. The remaining candidates are the
+`n_perm` difference and the session set; neither has been checked, and nothing rests on it.
 
 ### What the question DID surface, and what changed
 
@@ -18210,9 +18208,33 @@ permutation nulls**, where the size of a unit is exactly what is measured. A one
 unit is trial-level shuffling for that trial -- the error `decode_ci` names in terms, destroying
 within-block correlation and UNDERSTATING the null.
 
-**DIRECTION OF THE ERROR: unlike the 2026-08-18 merge fix, this one ran toward FALSE POSITIVES.**
-It touches ~3.2% of trials, and it partially cancelled the conservatism of ignoring cycles -- which
-is a further reason not to have fixed both at once.
+**DIRECTION OF THE ERROR -- MEASURED, AND IT IS THE OPPOSITE OF WHAT WAS FIRST CLAIMED.**
+`b435fd8`'s commit message and the first version of this entry both asserted the old rule ran toward
+FALSE POSITIVES, reasoning that a one-trial permutation unit is trial-level shuffling for that trial
+and so destroys within-block correlation and understates the null. **That reasoning is sound and it
+is not what dominates.** Measured by a PAIRED A/B on the six worst-affected sessions -- both nulls
+computed in one run from the same features, the same CV folds and the same predictions, the ONLY
+difference being the partition the labels are permuted within, 2000 permutations each:
+
+| | old (left-chunk) -> new (even) | across 6 sessions |
+|---|---|---|
+| null **mean** | e.g. 0.1576 -> 0.1554 | **-0.0038**, negative in all six |
+| null **SD** | e.g. 0.0211 -> 0.0213 | -0.0002, at Monte Carlo noise |
+| null **p95** | e.g. 0.1928 -> 0.1913 | **-0.0042**, negative in all six |
+| `p_perm` | 0.0005 -> 0.0005 | unchanged in all six |
+
+Monte Carlo noise on a null mean at n_perm 2000 is ~0.0006, so the mean shift is ~7x noise and real.
+
+**It is a LOCATION shift, not a width one** -- the SD does not move, which is what kills the original
+argument: that argument was entirely about width. What actually dominates is that the null REFITS the
+decoder on each permutation (`_cv_predict(X, yp, g)`), so a bigger temporally-coherent chunk carrying
+one permuted label is more learnable from drift. Left-chunking a run of 9 into 8+1 leaves a
+larger maximal chunk than 5+4 does, the refit scores higher on it, and the null sits HIGHER.
+
+So the old rule was **CONSERVATIVE** -- the same direction as the 2026-08-18 merge fix, not the
+opposite -- and correcting it lowers the bar by ~0.004. No verdict moves: `p_perm` is unchanged in
+all six, which is consistent with the closed-question result above. **The fix stands on correctness
+regardless**: 8+1 is a decomposition `block_size_min` forbids, whichever way the null then moves.
 
 `split_lengths(n, bmax)` now returns the fewest blocks that can hold the run, as evenly as possible.
 That is optimal against `block_size_min` WITHOUT KNOWING IT: the largest achievable minimum piece is

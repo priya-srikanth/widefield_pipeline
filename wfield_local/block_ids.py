@@ -36,10 +36,16 @@ permutation nulls (`precue_significance.permute_block_labels`, `decode_ci.frozen
 Left-chunking produced decompositions the scheduler could not have generated. With
 `block_size_min: 4`, a run of 9 became **8+1** when the only legal splits are 4+5 and 5+4; measured
 over the 177 `balanced_block_cycles` sessions, **286 of 491 over-long runs (58.2%)** came out
-illegal — essentially every run of 9, 10 and 11. A one-trial permutation unit is trial-level
-shuffling for that trial, which is the error `decode_ci` names in terms: it destroys within-block
-correlation and UNDERSTATES the null. So the old placement erred toward FALSE POSITIVES, unlike
-every other limit recorded here.
+illegal — essentially every run of 9, 10 and 11.
+
+WHICH WAY IT ERRED, MEASURED — and NOT the way it was first argued. The obvious reading is that a
+one-trial permutation unit is trial-level shuffling for that trial, destroying within-block
+correlation and UNDERSTATING the null, so the old rule would err toward false positives. A paired
+A/B says otherwise: over the six worst-affected sessions the old rule sat the null MEAN **0.0038
+HIGHER** with the SD unchanged, so it was CONSERVATIVE. The width argument fails because the width
+does not move. What dominates is that the null REFITS per permutation, so left-chunking's larger
+coherent chunk (8, against 5+4) is more learnable from drift and scores higher. No `p_perm` changed.
+DECISIONS.md 2026-09-26 has the table. **The fix stands on legality regardless of that direction.**
 
 Splitting a run of n into ceil(n / block_size_max) pieces as evenly as possible is optimal against
 `block_size_min` and needs no knowledge of it: the largest achievable minimum piece is floor(n / k),

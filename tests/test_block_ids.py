@@ -10,7 +10,7 @@ These tests pin the rule and its documented limits, so a future simplification b
 2026-09-26: they also pin WHERE an over-long run is divided, which used to be a free choice. It is
 not one any more -- blocks are now the exchangeable unit of the block-label permutation nulls, so a
 split that yields a piece the scheduler could not have run (8+1 for a run of 9, against a
-`block_size_min` of 4) understates the null. See DECISIONS.md, 2026-09-26.
+`block_size_min` of 4) changes the null. See DECISIONS.md, 2026-09-26.
 """
 from __future__ import annotations
 
@@ -61,9 +61,10 @@ def test_a_run_of_nine_splits_evenly_and_not_eight_plus_one():
 
     `block_size_min` is 4, so the only decompositions of 9 the scheduler could have produced are 4+5
     and 5+4. A one-trial block matters because blocks are the exchangeable unit of the block-label
-    permutation nulls: a unit of one trial is trial-level shuffling for that trial, which UNDERSTATES
-    the null. Measured over the 177 balanced_block_cycles sessions, left-chunking produced an
-    impossible decomposition on 286 of 491 over-long runs.
+    permutation nulls, so the SIZE of a unit is what is measured. Left-chunking produced an impossible
+    decomposition on 286 of 491 over-long runs across the 177 balanced_block_cycles sessions; a
+    paired A/B then put its null mean 0.0038 HIGHER (conservative), which is the opposite of the
+    direction first argued from the one-trial unit. DECISIONS.md 2026-09-26.
     """
     ids = block_ids(np.array([3] * 9), block_size_max=8)
     assert sorted(np.bincount(ids).tolist()) == [4, 5]
