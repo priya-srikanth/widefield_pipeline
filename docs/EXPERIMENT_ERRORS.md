@@ -567,11 +567,23 @@ excess (cohort scan of all 124 cleanpairs summaries and DAQ PCO trains, 2026-09-
    `dat_head_offset` and `daq_pulse_index_*`; `framemap_event_maps._corrected_frame_samples` subtracts
    the head. Maps without the key are head 0, which is what they always assumed. Tests pin the head
    case, the genuine tail case, the refusal, and the consumer.
-2. **Re-preprocess PS92_0922 from the standby raw on the imaging box** (`preprocess 20260922 --only
-   PS92 --redo --raw-root <standby labcams>`); the fixed relabel finds the camlog beside the `.dat`
-   and reports head 154 at agreement 1.0000. Then the analysis box re-derives everything downstream
-   for PS92: per-session caches, the joint basis and the joint-basis frozen decoders all key on the
-   SVTcorr/U signatures and invalidate themselves.
+2. **Re-preprocess PS92_0922 from the standby raw on the imaging box:**
+   `python -m wfield_local.preprocess 20260922 --only PS92 --redo --raw-root M:/Widefield/labcams
+   --daq-root N:/MICROSCOPE/Priya/Widefield/labcams/20260922` (standby is mounted at
+   `M:/Widefield/labcams` or `M:/collaborations/Priya/Widefield/labcams` on that box; `--daq-root` is
+   any tree holding the 0922 `.h5`). **Verified on the real inputs from the analysis desktop before
+   the redo (2026-09-28, `e2abedd`):** the fixed `load_daq_labels` on the N: copies of the `.h5` and
+   camlog prints exactly
+   `[relabel] WARNING: DAT has 154 frame(s) (2.46 s at 62.5 Hz) written BEFORE the DAQ recorded its
+   first exposure pulse ... Camlog agreement at this offset 1.0000 (at 0: 0.9548)`
+   and yields head 154, tail 0, first pair = frames [154, 155], 227,756 pairs / 152 skips (one
+   fewer pair than the wrong map, because the DAQ's last pulse now correctly has no frame -- the
+   normal -1). On PS92_0918 the same code reproduces the existing map exactly; on PS93_0904 it warns
+   about the camlog and reproduces the existing map. **If the imaging-box log shows any other head
+   value, or a refusal, stop.** `run_wfield_motion` always re-runs the relabel, so the old map cannot
+   be reused. Then `preprocess_deck`, and on the analysis box `nightly_figs 20260922 --only PS92`:
+   per-session caches, the PS92 joint basis and the joint-basis frozen decoders all key on the
+   SVTcorr/U signatures and re-derive themselves.
 3. Until that has run, **PS92_0922 is excluded from the imaging arms** (its behaviour stays — it is a
    perfect session there).
 
