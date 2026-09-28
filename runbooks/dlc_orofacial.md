@@ -770,6 +770,28 @@ Two things it tells the labeller that nothing else does:
 labels*), so the permanent instructions and the per-round list stay separate — the first is
 hand-written and stable, the second is regenerated and disposable.
 
+### The between-trial spout frames (`SPOUT_FRAMES_GUIDE.html`)
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_iti_frames --sessions PS95:20260907 PS93:20260824 --extract   # pick + extract + manifest
+python -m wfield_local.dlc_spout_guide                                                     # the page
+```
+
+Every trial-locked frame shows the spout AT a position; it moves BETWEEN trials and the network had
+never seen that (retracted spout found at likelihood 0.58, dropped on 11% of frames). `dlc_iti_frames`
+scans each position-change gap at ~21 Hz with the current network and keeps the transit frame
+(largest spout-x jump) and the doubt frame (lowest likelihood), two gaps per position. The 09-26 run's
+47 picks are recorded in `docs/dlc_iti_rows_20260926.csv`. **In cam4 the whole six-position excursion
+is ~120 px around the frame centre**, so these frames look "central" -- that is the geometry, not a
+sampling bias; the network's failures sit at the left/retracted extreme (x ~ 260-280) and the doubt
+picks land there. If the dropout persists after retraining, widen to more sessions, not more frames
+from these two.
+
+The new frames load BLANK in napari beside the folder's already-labelled frames (24 per folder, which
+keep their labels); the guide's slider positions say which are new. 47 new frames in total: 23 in
+`cam4_2026-08-24T09_58_10` (PS93, subacute) and 24 in `cam4_2026-09-07T17_08_48` (PS95, chronic).
+
 ### Fix them in the LABELLING project, never the training copy
 
 ```powershell

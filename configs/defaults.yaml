@@ -25,6 +25,7 @@ preprocess:
     freq_lowpass: 14.0
   push_frame_map_globs:         # copied to MICROSCOPE alongside wfield_local_results (NOT the .bin)
     - "*cleanpairs_frame_map.npz"
+    - "*cleanpairs_frame_map.csv"   # the human-readable twin of the npz; was not pushed, so N: kept a stale one after the PS92_0922 redo (2026-09-28)
     - "*cleanpairs_summary.json"
     - "motion_correction_*"
   maps:                         # cue/lick/quiet activity-MAPS pass (wfield_local/preprocess.py

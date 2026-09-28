@@ -52,7 +52,7 @@ from wfield_local.writeguard import assert_writable
 
 GUIDE_NAME = "SPOUT_FRAMES_GUIDE.html"
 
-#: The phases `find_iti_frames` writes into the manifest. Kept as a prefix match so a later round
+#: The phases `dlc_iti_frames` writes into the manifest. Kept as a prefix match so a later round
 #: can add `iti_<something>` without this page silently ignoring it.
 ITI_PREFIX = "iti_"
 
