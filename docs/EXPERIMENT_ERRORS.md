@@ -631,6 +631,18 @@ share released it (~2 min); the push now copies INTO a surviving directory and r
 calling `rv.root('raw_labcams')` on a machine with no such mount, is also fixed. Downstream steps
 were run with `--skip-preprocess` from this box.
 
+**HOUSEKEEPING (2026-09-28 afternoon, on Priya's instruction).** The staged raw `.dat` on the
+analysis desktop's C: was deleted after re-verifying against standby (size exact, first/middle/last GiB
+SHA-256 matched at staging, tail 64 MiB re-matched before deletion) — standby `M:` is the only server
+copy of the raw; N: holds the camlog only. The corrected `.bin` was copied to standby as
+`motion_corrected/motioncorrect_FIXED-headoffset-20260928_2_460_480_uint16.bin` (201,154,099,200 bytes,
+227,756 pairs; verified by size and three GiB hashes after copy) **beside the 2026-09-22 `.bin`, which is
+left in place and must not be used** — `README_FIXED_bin_2026-09-28.txt` in that folder says which is
+which. The local `.bin` and derived outputs were then deleted (every derived file byte-size-matched on
+N: first; the frame-map CSV on N: was the 09-22 one because the push globs omitted `*.csv` — copied by
+hand and the glob fixed in `defaults.yaml`). The backup of the pre-fix outputs stays at
+`motion_corrected_BEFORE_REDO_headoffset_bug_2026-09-28/` on N:.
+
 **Still open.**
 * Completion of the PS92-wide downstream (`nightly_figs 20260922 --only PS92`),
   then re-checking the chronic stability table for PS92 — it was computed with this session in as an
