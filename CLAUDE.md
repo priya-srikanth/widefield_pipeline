@@ -460,7 +460,16 @@ median; licking is onset-anchored because its bouts median 0.37 s; PS92 8/12 is 
 crash+concat artefact), the two confounds checked before anything was plotted, and five stated
 limits. Figures `epoch_12b*` and `epoch_13*`, deck section I.
 
-## Two things that bite when rendering or building the deck
+## Three things that bite when rendering or building the deck
+
+**`--only <ANIMAL>` IS A RENDER SCOPE, NOT A COHORT DEFINITION.** `nightly_figs --only PS92`
+exports `WIDEFIELD_ONLY_ANIMALS` to every subprocess, and `config.load_sessions` honours it. On
+2026-09-28 the epoch derivation ran under it, saw no series for the other three animals, and wrote
+`chronic_from: None` for PS93 and PS95 into the SHARED `epoch_boundaries.json`. `epoch_audit.audit`
+now runs under `full_cohort()`, which suspends the subset. Anything else defined over all four
+animals (cohort tables, pooled references, frozen training sets) needs the same exemption when it
+is added — and read the epoch audit block at the top of every `nightly_figs` log; it is the alarm.
+
 
 **`--only` TAKES A LIST, AND REPEATING THE FLAG USED TO REPLACE.** `epoch_grant_figures --only acc
 5c 5r` is right; `--only acc --only 5c` silently rendered only the last one until `action="extend"`

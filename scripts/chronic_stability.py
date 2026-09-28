@@ -28,12 +28,14 @@ subacute+chronic scatter is the tolerance -- a weaker test that cannot fail "set
 construction, so for those rows read the DRIFT verdict and the level, not the settled flag. The
 table marks them (`pre_sd_source`).
 
-PS92_0922 is reported both ways. As processed it is a frame<->DAQ misalignment of 154 frames
-(docs/EXPERIMENT_ERRORS.md, 2026-09-22: the DAQ was started 2.466 s after the camera and the relabel
-mapped the surplus to the wrong end), so both task decoders and the encoder read at chance while
-behaviour is perfect. Left in, it is the largest excursion in every PS92 chronic series and reads as
-instability that is not there. Once the session is re-preprocessed with the fixed relabel, drop it
-from EXCLUDE and re-run.
+EXCLUDE names sessions whose imaging is known-bad and which are reported BOTH WAYS (with and
+without). It held PS92_0922 from 2026-09-28 until that afternoon: as first processed it was a
+frame<->DAQ misalignment of 154 frames (docs/EXPERIMENT_ERRORS.md, 2026-09-22: the DAQ was started
+2.466 s after the camera and the relabel mapped the surplus to the wrong end), so both task decoders
+and the encoder read at chance while behaviour was perfect -- the largest excursion in every PS92
+chronic series, and instability that was not there. The session was re-preprocessed with the fixed
+relabel and verified the same day (cue transient at +0.42 s, haemodynamic fit sign restored), so
+it is back in. The mechanism stays so the next such session can be handled the same way.
 
 Outputs: <labcams>/chronic_stability/chronic_stability.{csv,png} -- every plotted number is in the
 CSV. A cohort p-value is NOT printed (four animals); consistency across animals is the evidence, as
@@ -64,7 +66,7 @@ from wfield_local.writeguard import assert_writable
 warnings.filterwarnings("ignore")
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
-EXCLUDE = {"PS92_0922"}
+EXCLUDE: set[str] = set()      # was {"PS92_0922"} until its 2026-09-28 redo; see the module docstring
 
 #: sidecar file, position filter, and whether its pre rows are per-session
 SIDECARS = {
@@ -259,7 +261,7 @@ def figure(res, curves, out_png):
     for ax in axes[-1]:
         ax.set_xlabel("days since lesion", fontsize=8)
     fig.suptitle("Per-session trajectories against each animal's own pre-stroke band (mean +/- 1 SD). "
-                 "dotted = subacute_from, dashed = behavioural chronic_from. red x = PS92_0922 (SNR-collapsed, see EXPERIMENT_ERRORS).",
+                 "dotted = subacute_from, dashed = behavioural chronic_from. red x = EXCLUDE (none at present).",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.savefig(out_png, dpi=110)

@@ -18448,3 +18448,33 @@ and re-derive themselves). The chronic stability table is to be re-run afterward
 120 camlogs disagree with the DAQ at chance; PS93_0904 has one dropped line ~20 min in). So the camlog
 is decisive only for frames the DAQ never saw, and a WARNING otherwise — the DAQ labels stay
 authoritative wherever the DAQ covers the DAT.
+
+## 2026-09-28 — `--only` leaked into the epoch derivation and rewrote the shared boundaries (FIXED)
+
+**What happened.** `nightly_figs 20260922 --only PS92`, run on the analysis desktop to re-derive
+PS92 after the PS92_0922 redo, exported `WIDEFIELD_ONLY_ANIMALS=PS92` for its subprocesses and then
+ran `_resolve_epochs`. `epochs.derive_acute_boundaries` / `derive_chronic_boundaries` build each
+animal's series from `config.phase_labels` and `config.pooled_labels`, which honour that variable,
+so PS93, PS94 and PS95 had "no usable hit series". The rule then wrote `chronic_from: None` for
+PS93 and PS95 to `labcams/epoch_boundaries.json` — the file every figure, decoder and render on
+every box reads — and the audit reported it as "BEHAVIOUR HAS MOVED AWAY FROM THE STORED SPEC" and
+printed a ready-to-paste `animals.yaml` promotion of the wrong values. The run was killed after
+~4 minutes; only per-session decoder figures (which do not read epochs) had been drawn, into this
+box's local working dir.
+
+**Restored** by re-running `epoch_audit.resolve()` in a clean process over the full cohort:
+the diff was exactly `PS93 chronic_from: None -> 11`, `PS95 chronic_from: None -> 15`; the file now
+matches the 2026-09-26 render's boundaries (PS92 11 / PS93 11 / PS94 25 / PS95 15, acute and
+subacute unchanged).
+
+**Fix.** `epoch_audit.audit()` runs under `epoch_audit.full_cohort()`, which suspends
+`WIDEFIELD_ONLY_ANIMALS` / `WIDEFIELD_ONLY_DATES` for the duration of the derivation and restores
+them after. Epoch boundaries are a property of the cohort's behaviour; no caller's subset can
+change them. `tests/test_epoch_audit_full_cohort.py`.
+
+**Two things to carry forward.** (1) The audit's own report was the only reason this was caught:
+"PS93 None None None <-- DIFFERS" and "EPOCH BOUNDARIES MOVED (2)" appeared in the first twenty log
+lines. A derivation that publishes to a shared file must keep printing its diff. (2) A per-animal
+`--only` render is not a per-animal operation everywhere: the epoch step, the cohort behaviour
+table and anything else defined over all four animals must be exempt from the subset, explicitly.
+

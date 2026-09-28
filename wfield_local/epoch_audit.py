@@ -40,6 +40,9 @@ would silently audit a different quantity than the rule defines.
 """
 from __future__ import annotations
 
+import contextlib
+import os
+
 import argparse
 from pathlib import Path
 
@@ -93,21 +96,46 @@ def load_far_position_tables(rv=None, position=None):
     return hit, lick
 
 
+#: The analysis-scoping env vars `nightly_figs --only` exports for its subprocesses
+#: (`config._filter_set`). The epoch derivation must never see them -- see `full_cohort`.
+SUBSET_ENV = ("WIDEFIELD_ONLY_ANIMALS", "WIDEFIELD_ONLY_DATES")
+
+
+@contextlib.contextmanager
+def full_cohort():
+    """Run the body with the `--only` animal/date subset SUSPENDED, so the derivation sees every animal.
+
+    2026-09-28: `nightly_figs 20260922 --only PS92` set `WIDEFIELD_ONLY_ANIMALS=PS92` before
+    `_resolve_epochs`, and `derive_*_boundaries` build their series from `config.phase_labels` /
+    `config.pooled_labels`, which honour that variable. PS93, PS94 and PS95 therefore had "no usable
+    hit series", the rule wrote `chronic_from: None` for PS93 and PS95 to the SHARED
+    `epoch_boundaries.json` -- the file every figure, decoder and render on every box reads -- and
+    announced it as behaviour having moved. A one-animal render had re-staged the whole cohort.
+    Epoch boundaries are a property of the COHORT'S behaviour; no caller's subset can change them.
+    """
+    saved = {k: os.environ.pop(k) for k in SUBSET_ENV if k in os.environ}
+    try:
+        yield
+    finally:
+        os.environ.update(saved)
+
+
 def audit(rv=None, position=None):
     """Run BOTH verifiers and return ``{"available": bool, "acute": {...}, "chronic": {...}}``.
 
     ``available`` is False when the cohort table could not be read. Callers must not treat that as
-    agreement.
+    agreement. Always over the FULL cohort (`full_cohort`), whatever subset the caller is scoped to.
     """
     position = position or epochs.RULE_POSITION
-    hit, lick = load_far_position_tables(rv, position)
-    if hit is None:
-        return {"available": False, "reason": f"no {_cohort_path(rv)}", "position": position}
-    return {"available": True, "position": position,
-            "csv": str(_cohort_path(rv)), "n_sessions": len(hit),
-            "acute": epochs.verify_against_behaviour(hit, position=position),
-            "acute_derived": epochs.derive_acute_boundaries(hit, position=position),
-            "chronic": epochs.derive_chronic_boundaries(hit, lick, position=position)}
+    with full_cohort():
+        hit, lick = load_far_position_tables(rv, position)
+        if hit is None:
+            return {"available": False, "reason": f"no {_cohort_path(rv)}", "position": position}
+        return {"available": True, "position": position,
+                "csv": str(_cohort_path(rv)), "n_sessions": len(hit),
+                "acute": epochs.verify_against_behaviour(hit, position=position),
+                "acute_derived": epochs.derive_acute_boundaries(hit, position=position),
+                "chronic": epochs.derive_chronic_boundaries(hit, lick, position=position)}
 
 
 def _same(a, b) -> bool:
