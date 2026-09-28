@@ -18281,3 +18281,60 @@ and is too long to be one block.
 choice for a CV group and the correct one for a permutation unit -- a merged pair treated as one
 unit holds more correlated data out together and makes the null wider. The two functions disagree
 about ~161 runs on purpose, and the docstrings say so at both ends.
+
+## 2026-09-28 — PRELIM_DATA revised onto the 2026-09-26 render; what the three map windows show by region
+
+Priya asked for the grant preliminary-data summary to be re-reviewed against the most recent epoch
+results, with the maps she believed showed *"increased motor-related activity in bilateral orofacial
+motor cortex with variable increases/decreases acutely in cue-evoked activity"*, plus the pre-cue
+maps and the decoder / encoder / pattern-similarity arms. `docs/PRELIM_DATA_VLS_STROKE.md` carries
+the result; this entry records the decisions and the findings that were not previously written down.
+
+### Three wording decisions (Priya, 2026-09-28)
+
+* **The lick arm and the pre-cue arm are read against `restw`** — *"the rest or restw refs for lick
+  make most sense"*, *"same for precue"*. `raw` and `precue` are reported only as agreement.
+* **"Bilateral orofacial SENSORIMOTOR cortex", not "motor cortex".** Checked on `15k`: acutely on
+  executed licks SSp-m and SSp-n increase bilaterally in 4/4 animals with all three references
+  agreeing, 1.5–2x the size of MOp, which is also in it (4/4 at near-ipsi and far-ipsi); MOs 3/4.
+  The somatosensory mouth/nose areas lead.
+* **Pre-cue is not called "motor planning".** The standing reason (spout in place ~3 s, sensory and
+  intention coextensive) stands, and three measured facts now constrain it further: the shared
+  rest/pre-cue component points backwards to the LAST target; pre-cue decoding is 0.51 against 0.90
+  post-cue; the ENL sensory-vs-plan arm has not cleared its power floor. The acute far-contra
+  pre-cue increase localises to contralesional MOs/MOp and bilateral ACAd — *consistent with* a
+  preparatory account, not evidence for one.
+
+### Findings recorded for the first time
+
+* **The cue-evoked increment is lateralised at the region level although the pixel maps look
+  bilateral.** Far-contra acute, `restw`, cohort delta L / R: SSp-m −0.0247 / −0.0140, SSp-n
+  −0.0247 / −0.0080, SSp-un −0.0242 / −0.0135, MOp −0.0162 / −0.0097, MOs −0.0082 / −0.0048 — every
+  orofacial area falls 1.7–3x more in the LEFT (ipsilesional) hemisphere, 4/4 animals, 3/3
+  references. This is the lesion-specific signature; the bilateral lick increase is not.
+* **Near-middle is a chronic story on the 31-session cohort.** Frozen decoder −0.163 below pre
+  (corrected), template match failed in ALL THREE windows (0.452 / 0.452 / 0.194), pre-cue map
+  0.60 with 633 bins, AND a significant positive matched refit gap (+0.267 [0.063, 0.510]). A target
+  the lesion never behaviourally touched, replaced in every window and readable only within-session.
+* **The matched frozen-vs-refit gap is significant chronically at exactly the two positions still
+  below pre**: near-middle +0.267, far-contra +0.130 [0.020, 0.248]. The chronic frozen deficit is
+  displacement, not loss.
+* **Every frozen-vs-refit estimator moved toward MORE divergence with PS94's chronic in**: encoder
+  matched 0.715 → 0.662 of pre against ceiling 1.109 → 1.093 (interval now excludes pre); rest
+  decoder frozen 0.611 → 0.514 against refit 1.181 → 1.245; `15s` pre-cue chronic +0.077 (3/3) →
+  +0.142 (4/4).
+* **The far-contra post-cue position map is below pre chronically**: 0.96 with 261 significant
+  bins, where 18 sessions gave 1.08 with none. Behaviour there is 0.975 — at or above pre.
+
+### Provenance caveats that must travel
+
+`epoch_15k_cohort_*.csv` are dated 2026-09-17: acute cells are current (16 sessions then and now),
+chronic cells are on the 18-session cohort. `epoch_15d` is 2026-09-18, pre-PS94-chronic. Both need
+re-running; §5a quotes `15k` chronic once and flags it. The `15rpa` per-animal map family renders
+far-contralateral ONLY, which is empty acutely on the lick arm — so per-animal replication of the
+bilateral lick increase comes from `15k`'s `n_animals_same_sign`, not from a figure.
+
+### A stale line corrected in passing
+
+H7's *"DLC tongue tracking is the only thing that would settle it, and it is not built"* — it is
+built (cam4 round 2, 2026-09-25) and has not been run over rest periods. The doc now says so.
