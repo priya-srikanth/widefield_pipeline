@@ -19,6 +19,23 @@ Modes:
                     frames; drops them). Default.
   acquire-enable  - PCO Acquire-Enable gated sessions (expects ~no dark frames;
                     warns if many are found, which would indicate a gating fault).
+
+WHEN THE DAT HAS MORE FRAMES THAN THE DAQ HAS EXPOSURE PULSES (2026-09-28). The two recorders are
+started and stopped by hand, so the camera can be running before the DAQ starts (frames with no
+pulse at the HEAD) or after it stops (at the TAIL). Which end the excess sits at cannot be told
+from the counts, and it decides the mapping of EVERY frame: 1a68c7c (2026-09-22) assumed the tail
+and was wrong on the first session it ran on -- PS92_0922, where the DAQ was started 2.466 s after
+the camera. The result was every trial window reading 154 frames too early and, because 154 is even
+but the LED alternation has ~150 hiccups per session, 4.6% of frames landing in the wrong channel
+with the wrong channel's mean subtracted. That looked like a whole-cortex anti-phase vascular
+oscillation and took a day to diagnose (docs/EXPERIMENT_ERRORS.md, 2026-09-22).
+
+The camlog labcams writes beside the DAT records a per-frame LED id (`#LED:<id>,...` lines) that
+is independent of the DAQ and shares the DAQ's alternation hiccups. Aligning the two sequences
+gives the head offset EXACTLY and doubles as a check on every session (agreement must be ~1.0).
+So: a DAT longer than the DAQ record is placed by the camlog, or by an explicit `--head-offset`,
+and is otherwise REFUSED -- the pre-1a68c7c behaviour, restored with a way out. Guessing is the
+one thing this step must never do again.
 """
 
 from __future__ import annotations
@@ -74,12 +91,87 @@ def analog_ttl_mask(volts: np.ndarray, fixed_threshold: float | None) -> tuple[n
     return volts > threshold, float(threshold), float(lo), float(hi)
 
 
+def camlog_path_for(dat: Path) -> Path | None:
+    """The labcams camlog beside a DAT: ``<stem without _N_H_W_dtype>.camlog``, or None if absent."""
+    dat = Path(dat)
+    m = DAT_RE.search(dat.name)
+    stem = dat.name[:m.start()] if m else dat.stem
+    p = dat.parent / f"{stem}.camlog"
+    return p if p.is_file() else None
+
+
+def camlog_led_ids(camlog: Path) -> np.ndarray:
+    """Per-frame LED id from the camlog's ``#LED:<id>,<n>,<t_ms>`` lines, in write order.
+
+    labcams emits one such line per frame; the ids are the two LED channels (5 and 6 on this rig).
+    Which id is 415 and which 470 is NOT assumed -- the alignment below is polarity-free.
+    """
+    out = []
+    with open(camlog, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if line.startswith("#LED:"):
+                out.append(int(line[5:].split(",", 1)[0]))
+    return np.asarray(out, dtype=np.int64)
+
+
+def camlog_agreement(cam_ids: np.ndarray, daq_labels: np.ndarray, head: int, n_compare: int = 150_000) -> float:
+    """Fraction of the first ``n_compare`` DAQ pulses whose 415/470 label matches the camera's LED id
+    when DAT frame ``j`` is taken to be pulse ``j - head``. Polarity-free (which LED id is 415 is not
+    assumed); unlabelled pulses (dark / both) are ignored. ~1.0 at the right offset on every session."""
+    cam = np.asarray(cam_ids)
+    if cam.size == 0:
+        raise ValueError("camlog carries no #LED lines")
+    cam_bin = (cam == cam[0]).astype(np.int8)
+    daq_bin = np.where(daq_labels == 415, 0, np.where(daq_labels == 470, 1, -1)).astype(np.int8)
+    a = cam_bin[head:head + n_compare]
+    b = daq_bin[:len(a)]
+    m = min(len(a), len(b))
+    if m == 0:
+        return 0.0
+    a, b = a[:m], b[:m]
+    ok = b >= 0
+    if not ok.any():
+        return 0.0
+    g = float((a[ok] == b[ok]).mean())
+    return max(g, 1.0 - g)
+
+
+def find_dat_head_offset(cam_ids: np.ndarray, daq_labels: np.ndarray, max_offset: int,
+                         n_compare: int = 150_000) -> tuple[int, float, float]:
+    """Head offset ``h`` such that DAT frame ``j`` was exposed on DAQ pulse ``j - h``.
+
+    Returns ``(h, agreement_at_h, agreement_at_0)`` -- see `camlog_agreement`. The PS92_0922
+    signature was 0.954 at 0 and 1.0000 at 154, with 0.9997 at 153 and 155: the ±1 offsets mislabel
+    exactly the ~150 alternation-hiccup frames, so the discrimination is real but thin, and a
+    mid-session camlog defect inside the comparison window (PS93_0904 has one) can defeat it. The
+    caller therefore only trusts this where the DAT is longer than the DAQ record.
+    """
+    scores = [camlog_agreement(cam_ids, daq_labels, h, n_compare) for h in range(0, int(max_offset) + 1)]
+    best = int(np.argmax(scores))
+    return best, scores[best], scores[0]
+
+
+#: Below this the camlog and the DAQ disagree on which LED lit which frame, and the mapping is wrong.
+CAMLOG_AGREEMENT_MIN = 0.999
+
+
 def load_daq_labels(
     h5_path: Path,
     physical_frame_count: int,
     offset: int | None,
     led_threshold: float | None,
+    camlog: Path | None = None,
+    head_offset: int | None = None,
 ) -> tuple[np.ndarray, dict]:
+    """One label (415 / 470 / 3=both / 0=dark or unmonitored) per DAT PHYSICAL FRAME.
+
+    ``offset`` is the pulse-side offset (a stray leading DAQ pulse; searched over 0/1 when None).
+    ``head_offset`` is the frame-side offset: DAT frames written BEFORE the DAQ began recording.
+    When the DAT is longer than the DAQ record it is taken from ``head_offset`` if given, else read
+    off the camlog (see `find_dat_head_offset`), else the call REFUSES. Frames before the head and
+    past the DAQ's coverage are labelled 0 and drop out of the pairing; their counts are reported in
+    ``meta['dat_head_dropped_before_daq']`` / ``['dat_tail_dropped_beyond_daq']``.
+    """
     with h5py.File(h5_path, "r") as h5:
         fs = float(h5.attrs["sample_rate_hz"])
         digital_names = [x.decode() for x in h5["digital/channel_names"][()]]
@@ -111,46 +203,86 @@ def load_daq_labels(
         elif has470:
             labels_all[i] = 470
 
+    # Pulse-side offset: a stray leading DAQ pulse with no frame. Scored on the label sequence
+    # itself, which is why it CANNOT see a frame-side (head) offset -- that is handled below.
+    P = int(physical_frame_count)
     candidate_offsets = [offset] if offset is not None else [0, 1]
     best = None
     for off in candidate_offsets:
         if off < 0 or off >= len(labels_all):
             continue
-        # The DAQ must cover the DAT from this offset, but the camera can keep writing a
-        # few trailing frames AFTER the DAQ recorder stops (DAQ duration < camera duration).
-        # Those tail frames carry no exposure TTL, so clip to the DAQ-covered span and drop
-        # them rather than failing the whole session (labels[j] is the label for DAT
-        # physical frame j, so the covered span is len(labels)).
-        end = min(off + physical_frame_count, len(labels_all))
-        labels = labels_all[off:end]
-        illum = labels[labels != 0]
+        cov = labels_all[off:off + P]
+        illum = cov[cov != 0]
         same_adjacent = int(np.sum(illum[1:] == illum[:-1])) if len(illum) > 1 else 0
         both = int(np.sum(illum == 3))
         score = (len(illum), -same_adjacent, -both)
         if best is None or score > best[0]:
-            best = (score, off, labels)
+            best = (score, off)
     if best is None:
         raise ValueError("No valid DAQ exposure-label offset for DAT frame count")
-    _, chosen_offset, labels = best
+    chosen_offset = best[1]
+    avail = len(labels_all) - chosen_offset            # pulses the DAQ can offer from this offset
+    excess = P - avail                                 # DAT frames the DAQ never saw (>0), or spare pulses (<0)
 
-    # DAT physical frames past the DAQ-covered span (camera outran the DAQ recorder).
-    dat_tail_dropped = int(physical_frame_count - len(labels))
-    if dat_tail_dropped > 0:
-        frac = dat_tail_dropped / max(int(physical_frame_count), 1)
-        print(f"[relabel] DAT has {dat_tail_dropped} physical frame(s) "
-              f"({100*frac:.3f}%) beyond the DAQ exposure record "
-              f"(DAQ recorder stopped before labcams); dropping the unmonitored tail.",
+    # Frame-side offset: DAT frames written before the DAQ began. Placed by the camlog or by hand;
+    # never guessed. See the module docstring for the session that made this rule.
+    cam_agree_h = cam_agree_0 = None
+    fmt = (lambda v: "n/a" if v is None else f"{v:.4f}")
+    if head_offset is not None:
+        head = int(head_offset)
+        if camlog is not None:                          # report, do not decide: the operator decided
+            ids = camlog_led_ids(camlog)
+            cam_agree_h = camlog_agreement(ids, labels_all[chosen_offset:], head)
+            cam_agree_0 = camlog_agreement(ids, labels_all[chosen_offset:], 0)
+    elif camlog is not None:
+        head, cam_agree_h, cam_agree_0 = find_dat_head_offset(camlog_led_ids(camlog), labels_all[chosen_offset:], max(excess, 0) + 2)
+        if excess <= 0:
+            # The DAQ covers every frame, so the DAQ labels are authoritative as they always were and the
+            # camlog is only a CHECK. It is not a reliable one on every session -- measured 2026-09-28:
+            # 10 of 120 camlogs agree with the DAQ at chance (the trial-gated early-June sessions, the
+            # lesion day, and PS93_0904), presumably labcams not writing one #LED line per frame -- so
+            # disagreement here WARNS and never refuses.
+            if head != 0 or cam_agree_0 < CAMLOG_AGREEMENT_MIN:
+                print(f"[relabel] WARNING: camlog LED record agrees with the DAQ labels on {100*cam_agree_0:.2f}% of "
+                      f"frames at offset 0 (best {head}: {100*cam_agree_h:.2f}%). The DAQ covers the whole DAT so the "
+                      f"mapping stands at 0; the camlog is unreliable on this session.", flush=True)
+            head = 0
+        elif cam_agree_h < CAMLOG_AGREEMENT_MIN:
+            raise ValueError(f"DAT has {excess} more frame(s) than the DAQ recorded, and the camlog agrees with the DAQ "
+                             f"labels on only {100*cam_agree_h:.2f}% of frames at its best head offset ({head}) -- it "
+                             f"cannot place them. Pass --head-offset once you have established it another way.")
+    elif excess > 0:
+        raise ValueError(f"DAT has {excess} more frame(s) than the DAQ recorded exposure pulses for, and there is no "
+                         f"camlog to say whether they precede or follow the DAQ record. Guessing the tail put PS92_0922 "
+                         f"2.466 s out of register (docs/EXPERIMENT_ERRORS.md). Pass --camlog or --head-offset.")
+    else:
+        head = 0
+
+    n_cov = max(0, min(avail, P - head))
+    labels = np.zeros(P, dtype=np.int16)               # per DAT physical frame; 0 = never illuminated / unmonitored
+    labels[head:head + n_cov] = labels_all[chosen_offset:chosen_offset + n_cov]
+    dat_tail_dropped = int(P - head - n_cov)
+    covered = labels[head:head + n_cov]
+
+    if head > 0:
+        print(f"[relabel] WARNING: DAT has {head} frame(s) ({head / 62.5:.2f} s at 62.5 Hz) written BEFORE the DAQ "
+              f"recorded its first exposure pulse -- the DAQ was started after the camera. Frame j <-> pulse "
+              f"j - {head}. Camlog agreement at this offset {fmt(cam_agree_h)} (at 0: {fmt(cam_agree_0)}).",
               flush=True)
-        if frac > 0.01:
-            print(f"[relabel] WARNING: dropped tail is {100*frac:.2f}% of frames (> 1%). "
-                  f"Expected only a few seconds of camera overrun -- verify the DAQ file "
-                  f"matches this session and was not truncated.", flush=True)
+    if dat_tail_dropped > 0:
+        print(f"[relabel] DAT has {dat_tail_dropped} frame(s) beyond the DAQ exposure record "
+              f"(camera kept writing after the DAQ stopped); dropping the unmonitored tail. "
+              f"Normal sessions have 0.", flush=True)
 
     meta = {
         "sample_rate_hz": fs,
         "daq_pco_exposure_count": int(len(labels_all)),
-        "dat_physical_frame_count": int(physical_frame_count),
+        "dat_physical_frame_count": P,
+        "dat_head_dropped_before_daq": int(head),
         "dat_tail_dropped_beyond_daq": dat_tail_dropped,
+        "camlog_used": camlog is not None,
+        "camlog_agreement_at_head": (None if cam_agree_h is None else float(cam_agree_h)),
+        "camlog_agreement_at_zero": (None if cam_agree_0 is None else float(cam_agree_0)),
         "chosen_exposure_offset": int(chosen_offset),
         "led415_threshold_v": thr415,
         "led470_threshold_v": thr470,
@@ -158,10 +290,11 @@ def load_daq_labels(
         "led415_p999_v": hi415,
         "led470_p1_v": lo470,
         "led470_p999_v": hi470,
-        "labels_415": int(np.sum(labels == 415)),
-        "labels_470": int(np.sum(labels == 470)),
-        "labels_both": int(np.sum(labels == 3)),
-        "labels_dark": int(np.sum(labels == 0)),
+        # counted over the DAQ-COVERED frames only, so head/tail frames do not read as 'dark'
+        "labels_415": int(np.sum(covered == 415)),
+        "labels_470": int(np.sum(covered == 470)),
+        "labels_both": int(np.sum(covered == 3)),
+        "labels_dark": int(np.sum(covered == 0)),
     }
     return labels, meta
 
@@ -231,6 +364,8 @@ def relabel_dat_from_daq(
     chunk_pairs: int = 256,
     mode: str = "rescue",
     map_only: bool = False,
+    camlog: Path | None = None,
+    head_offset: int | None = None,
 ) -> dict:
     """Relabel a labcams DAT to DAQ-confirmed 415/470 pairs and write a new DAT.
 
@@ -240,6 +375,9 @@ def relabel_dat_from_daq(
     ``map_only=True`` computes the pairs + writes the frame_map (.npz/.csv) and summary but
     SKIPS materializing the (raw-sized) cleanpairs .dat — the caller applies the mapping on the
     fly during motion correction (see run_wfield_motion.RelabeledDat). ``output_dat`` is then None.
+
+    ``camlog`` defaults to the labcams camlog beside the DAT when one exists; it places any frames
+    the DAQ never saw (see `load_daq_labels`). ``head_offset`` overrides it.
     """
     dat = Path(dat)
     daq_h5 = Path(daq_h5)
@@ -254,7 +392,11 @@ def relabel_dat_from_daq(
     if physical_frames * frame_bytes != dat.stat().st_size:
         raise ValueError("DAT size is not an integer number of physical frames")
 
-    labels, meta = load_daq_labels(daq_h5, int(physical_frames), offset, led_threshold)
+    if camlog is None:
+        camlog = camlog_path_for(dat)
+    labels, meta = load_daq_labels(daq_h5, int(physical_frames), offset, led_threshold,
+                                   camlog=camlog, head_offset=head_offset)
+    head = int(meta["dat_head_dropped_before_daq"])
     dark_frac = meta["labels_dark"] / max(int(physical_frames), 1)
     if mode == "acquire-enable" and dark_frac > 0.05:
         print(f"WARNING [acquire-enable mode]: {meta['labels_dark']} dark frames "
@@ -277,11 +419,18 @@ def relabel_dat_from_daq(
         print(f"[relabel:{mode}] output: {out_dat}", flush=True)
         write_trimmed_dat(dat, out_dat, pairs, height, width, dtype, chunk_pairs)
 
+    # `original_frame_index_*` are DAT frame indices (what the frame GATHER needs).
+    # `daq_pulse_index_*` are the DAQ exposure pulses those frames were exposed on: frame - head +
+    # pulse-offset. They differ only on a session with a head offset, and consumers that turn a
+    # frame into a DAQ time must use the pulse index (framemap_event_maps._corrected_frame_samples).
     np.savez_compressed(
         map_npz,
         pair_index=np.arange(len(pairs), dtype=np.int64),
         original_frame_index_ch0=pairs[:, 0],
         original_frame_index_ch1=pairs[:, 1],
+        daq_pulse_index_ch0=pairs[:, 0] - head + int(meta["chosen_exposure_offset"]),
+        daq_pulse_index_ch1=pairs[:, 1] - head + int(meta["chosen_exposure_offset"]),
+        dat_head_offset=np.int64(head),
         channel_label_ch0=pair_labels[:, 0],
         channel_label_ch1=pair_labels[:, 1],
         labels_per_original_frame=labels,
@@ -328,11 +477,19 @@ def main() -> int:
     parser.add_argument("--map-only", action="store_true",
                         help="compute pairs + write frame_map/summary but SKIP the raw-sized "
                              "cleanpairs .dat (applied on the fly during motion correction).")
+    parser.add_argument("--camlog", type=Path, default=None,
+                        help="labcams camlog with per-frame #LED lines (default: the one beside the DAT). "
+                             "Places DAT frames the DAQ never recorded; a DAT longer than the DAQ record "
+                             "is REFUSED without it or --head-offset.")
+    parser.add_argument("--head-offset", type=int, default=None,
+                        help="DAT frames written before the DAQ began (frame j <-> pulse j - head). "
+                             "Overrides the camlog. PS92_0922 needs 154.")
     args = parser.parse_args()
     relabel_dat_from_daq(
         args.dat, args.daq_h5, args.output_dir,
         label=args.label, offset=args.offset, led_threshold=args.led_threshold,
         order=args.order, chunk_pairs=args.chunk_pairs, mode=args.mode, map_only=args.map_only,
+        camlog=args.camlog, head_offset=args.head_offset,
     )
     return 0
 

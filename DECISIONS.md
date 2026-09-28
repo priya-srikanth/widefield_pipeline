@@ -18406,3 +18406,45 @@ not assumed. The encoder / template / crossnobis sidecars carry one POOLED pre r
 exists for them; the script falls back to the animal's own late scatter and marks those rows —
 their drift verdict and level are meaningful, the settled flag is not. The 0.4 × pre-SD settled bar
 is strict enough that PS94's behaviour fails it; read residuals as ratios.
+
+## 2026-09-28 — CORRECTION: PS92_0922 was a frame↔DAQ misalignment introduced by the pipeline, not a vascular event; the session is recoverable
+
+The entry above ("Is the chronic neural data stable...") and the first EXPERIMENT_ERRORS write-up
+called PS92_0922 an acquisition-day outlier of unknown physiological cause, not recoverable. **Both
+are wrong**, and the mechanism was found the same day once Priya pushed on alignment (*"i think the
+alignment is suspect - can you double check?"*, *"the daq should have the ground truth"*).
+
+**The cause.** The DAQ recorder was started 2.466 s after the camera. 154 camera frames precede the
+DAQ's first exposure pulse, at the HEAD of the `.dat`. `trim_illuminated_labcams` (`1a68c7c`,
+2026-09-22 — written that night to make the nightly pass on this very session) assumed a surplus is
+always a TAIL and mapped frame j to pulse j. Every trial window was 2.466 s early; 154 is even so bulk
+parity held, but after each of the 151 LED-alternation hiccups the labels are flipped for 154 frames
+— 4.6% of frames in the wrong channel with the wrong mean subtracted, which IS the "anti-phase
+vascular oscillation", the negative rcoeffs and the left-hemisphere 415 variance. Full evidence chain
+in `docs/EXPERIMENT_ERRORS.md`; the decisive one is the camlog's own per-frame LED record agreeing
+with the DAQ labels at **100.0000% at offset 154** and 95.4% at 0 (0918: 100% at 0).
+
+**Three things worth keeping from how this went wrong.**
+1. **My alignment check was circular** — it verified that `searchsorted` works on `csmp`, not that
+   frame k in the SVT is the frame the DAQ thinks it is — and I reported "alignment normal" on it.
+   The non-circular tests (shift the cue times and see where the evoked response peaks; lag the
+   lick artifact against the DAQ lick trace) took ten minutes and settled it. Use those.
+2. **A fix that silences an error on the night the data arrive is a guess about that data.** The
+   original code refused the longer DAT; the "trim the tail" branch turned a loud failure into a
+   silent 2.5 s misregistration on the first session it ever touched. The replacement refuses
+   again unless the camlog (or the operator) places the frames.
+3. **The wrong diagnosis was internally consistent** — anti-phase channels, vessel footprint,
+   vasomotion band, negative coefficients, lateralised variance all have a physiological reading,
+   and PS93 the same day being normal made it "this animal". What broke it was insisting on a test
+   of the one assumption every analysis shared (the frame index IS the pulse index) rather than
+   another test of the biology.
+
+**Fix landed:** camlog-based head-offset placement in the relabel; `dat_head_offset` in the frame map;
+`_corrected_frame_samples` subtracts it; tests. **Redo pending** on the imaging box from the standby
+raw, then PS92 downstream (caches, joint basis and frozen decoders all key on the SVTcorr/U signatures
+and re-derive themselves). The chronic stability table is to be re-run afterwards.
+
+**Also measured, and a limit on the fix:** labcams' `#LED` record has rare single-line defects (10 of
+120 camlogs disagree with the DAQ at chance; PS93_0904 has one dropped line ~20 min in). So the camlog
+is decisive only for frames the DAQ never saw, and a WARNING otherwise — the DAQ labels stay
+authoritative wherever the DAQ covers the DAT.

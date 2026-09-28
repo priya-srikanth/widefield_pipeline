@@ -28,9 +28,12 @@ subacute+chronic scatter is the tolerance -- a weaker test that cannot fail "set
 construction, so for those rows read the DRIFT verdict and the level, not the settled flag. The
 table marks them (`pre_sd_source`).
 
-PS92_0922 is reported both ways. It is an SNR-collapsed session (docs/EXPERIMENT_ERRORS.md,
-2026-09-22): behaviour perfect, labels exact, both task decoders and the encoder at chance. Left in,
-it is the largest excursion in every PS92 chronic series and reads as instability that is not there.
+PS92_0922 is reported both ways. As processed it is a frame<->DAQ misalignment of 154 frames
+(docs/EXPERIMENT_ERRORS.md, 2026-09-22: the DAQ was started 2.466 s after the camera and the relabel
+mapped the surplus to the wrong end), so both task decoders and the encoder read at chance while
+behaviour is perfect. Left in, it is the largest excursion in every PS92 chronic series and reads as
+instability that is not there. Once the session is re-preprocessed with the fixed relabel, drop it
+from EXCLUDE and re-run.
 
 Outputs: <labcams>/chronic_stability/chronic_stability.{csv,png} -- every plotted number is in the
 CSV. A cohort p-value is NOT printed (four animals); consistency across animals is the evidence, as

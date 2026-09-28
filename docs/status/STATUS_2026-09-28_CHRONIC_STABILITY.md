@@ -41,18 +41,20 @@ sidecars (row order verified against a known outlier) and the recovery-trajector
 
 ## Two findings that must be applied before reading any trajectory
 
-### PS92_0922 is an acquisition-day outlier, not neural instability — exclude it
+### PS92_0922 is a frame↔DAQ misalignment — a pipeline bug, recoverable — not neural instability
 
 Day 36 has both decoders and the encoder at chance (frozen 0.16, refit 0.30, ceiling 0.43,
-best-match 0.17) with **perfect behaviour** (100% at all six positions, 333 trials), exact position
-labels, normal LEDs, normal motion, normal DAQ↔frame and Allen alignment, and **PS93 recorded on the
-same rig three hours earlier is normal**. In the raw 470 channel the cue-evoked calcium response is
-essentially absent (SNR 0.10 against 0.90 the session before) and the field is dominated by a
-whole-field, vessel-patterned, 415/470 anti-phase slow oscillation (r = −0.99; `rcoeffs` negative in
-86% of pixels; unique among PS92's 33 sessions). The likeliest reading is an optical/vascular event in
-that animal's window that day. **A repair by borrowing a neighbour's haemodynamic coefficients was
-tested and failed** — there is no calcium signal in the channel to recover. Full record:
-`docs/EXPERIMENT_ERRORS.md`, 2026-09-22. Every PS92 row below is given both ways.
+best-match 0.17) with **perfect behaviour** (100% at all six positions, 333 trials). The cause: the
+DAQ recorder was started **2.466 s after the camera** that day (camlog 12:55:04.295 vs DAQ acquisition
+12:55:06.761; the DAQ file opens with the exposure train already running), leaving 154 camera frames
+with no DAQ pulse at the *head* of the `.dat`; the relabel step (`1a68c7c`, written that same night)
+assumed the surplus was a *tail* and mapped every frame to the pulse 154 positions later. Every trial
+window read 2.466 s of pre-cue baseline, and 4.6% of frames landed in the wrong LED channel, which is
+what the "anti-phase vascular oscillation" was. Established by the camlog's own per-frame LED record
+(100.0000% agreement at offset 154, 95.4% at 0) and three independent timing measurements. **The brain
+data are intact** — the cue transient is at full amplitude once realigned. Full record and the fix:
+`docs/EXPERIMENT_ERRORS.md`, 2026-09-22. Until the session is re-preprocessed, every PS92 row below
+is given both ways; afterwards this table should be re-run.
 
 ### PS95's late rise is real signal, not an imaging change; PS95_0924 is a drift day that survived
 
@@ -135,10 +137,10 @@ four more weeks of sessions, it is this one.
 
 ## What would change the picture
 
-* **Exclude PS92_0922 from the imaging arms** via `cross_session_exclude`, citing the
-  EXPERIMENT_ERRORS entry (its behaviour stays in the behavioural arms — it is a perfect session
-  there). Repair was tested and is not possible. With it out, PS92 has 8 clean chronic sessions and
-  the strongest stability case in the cohort.
+* **Re-preprocess PS92_0922 with the fixed relabel** (imaging box, from the standby raw; recipe in
+  `docs/EXPERIMENT_ERRORS.md`), let the analysis box re-derive PS92, and re-run this table. Expect
+  PS92 to gain a ninth clean chronic session and to remain the strongest stability case in the
+  cohort. Until then it is excluded from the imaging arms; its behaviour stays.
 * **Two to four more PS95 sessions** would show whether the day-29 step is a new plateau or a slope.
   The same is true, more weakly, of PS94's frozen decoder.
 * **Re-render `15k`/`15d` on the grown cohort** — unrelated to stability, but the chronic region

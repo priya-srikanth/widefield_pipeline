@@ -47,13 +47,20 @@ from wfield_local.plot_lick_aligned_averages import (
 
 
 def _corrected_frame_samples(frame_map: Path, pco_samples: np.ndarray, offset: int) -> np.ndarray:
-    """DAQ sample for each corrected (paired) frame via the cleanpairs frame map."""
+    """DAQ sample for each corrected (paired) frame via the cleanpairs frame map.
+
+    A DAT frame index is NOT a DAQ pulse index when the camera was running before the DAQ started
+    recording: frame j was exposed on pulse j - head. Maps written since 2026-09-28 carry
+    ``dat_head_offset`` (0 on every session but PS92_0922, where it is 154 = 2.466 s); older maps
+    have no key and head is 0, which is what they always assumed. See docs/EXPERIMENT_ERRORS.md.
+    """
     fm = np.load(frame_map)
     if "original_frame_index_ch0" not in fm.files:
         raise KeyError(
             f"{frame_map} has no 'original_frame_index_ch0' (keys: {fm.files})"
         )
-    idx = fm["original_frame_index_ch0"] + offset
+    head = int(fm["dat_head_offset"]) if "dat_head_offset" in fm.files else 0
+    idx = fm["original_frame_index_ch0"] - head + offset
     idx = np.clip(idx, 0, len(pco_samples) - 1)
     return pco_samples[idx]
 

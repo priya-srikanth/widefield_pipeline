@@ -498,119 +498,93 @@ carry, rather than treating 0.78 as a defect to chase. Nothing about the repair 
 
 ---
 
-## 2026-09-22 — PS92: task decoding collapsed on an imaging-quality day; behaviour and labels were perfect
+## 2026-09-22 — PS92: the DAQ was started 2.466 s after the camera; the pipeline mapped every frame to the wrong exposure pulse
 
-**Found 2026-09-28** while checking whether the chronic neural data are stable enough to end the
-experiment. In the per-session recovery trajectory PS92 day 36 (`PS92_0922`) has BOTH decoders
-collapsing at once — frozen 0.156 (below the 0.167 chance line), same-day 5-fold refit 0.303 against a
-0.72–0.90 norm for that animal — and the encoder shows the same: ceiling 0.428 (neighbours 0.73–0.83),
-gain 0.133 (neighbours ~1.2), best-match 0.167 (neighbours 1.0). Two independent decoders and an encoder
-failing together on one day is a session signature, not neural instability.
+**Found 2026-09-28** while checking whether the chronic neural data were stable enough to end the
+experiment. **Diagnosed the same day, after a wrong first diagnosis — see the record below.**
 
-**What is fine that day.** Behaviour: 333 trials, **100% hit rate at all six positions**, normal
-latencies. Position labels: 6 positions balanced (61/52/58/54/56/52), `block_ids.audit` EXACT
-(58 reconstructed / 58 firmware). Rest arm: the within-session rest REFIT reached 0.585 — the best of
-any PS92 chronic session — so position-informative signal exists in the recording.
+**What happened at the rig.** labcams and the DAQ recorder are two hand-started processes. On every
+other session the DAQ is started first and the camera's first exposure pulse arrives 1.3–2.9 s into
+the DAQ file. On PS92 2026-09-22 the order reversed: the camera's first frame was written at
+**12:55:04.295** (camlog), the DAQ began acquiring at **12:55:06.761** (its `created_at` is
+12:55:06.989, stamped at the first 200 ms block), and the DAQ file opens with the exposure train
+already running — first rising edge at sample 13, line low at sample 0. **154 camera frames
+(2.466 s) have no DAQ pulse, and they are at the HEAD of the `.dat`.** Whether the operator clicked
+the DAQ second or the recorder lagged on start cannot be told from the records; either way the
+excess is at the head. Behaviour and the DAQ↔task side are perfect (sync trains 18,741 = 18,741,
+1 ms residual; 333 cues index-for-index; 100% hit rate at all six positions).
 
-**What is wrong.** Signal-to-noise. On the raw SVT halves, the cue-locked evoked energy is **3.5x
-smaller** than the neighbouring good session (3.9 vs 13.6 on the functional half) while total variance
-is **5x larger** (684 vs 135) — in BOTH channels. Trial-locked averaging has much less signal riding on
-much more noise, and the task decoders, which live on that average, fall to chance.
+**What the pipeline did with it** (`trim_illuminated_labcams.load_daq_labels`). The DAQ had 455,665
+exposure pulses, the `.dat` 455,818 frames. The relabel assumed DAT frame *j* ↔ pulse *j* and
+treated the 153 surplus frames as a **tail** the camera wrote after the DAQ stopped — a branch added
+by `1a68c7c` on 2026-09-22 itself, *for this very session*, to stop the nightly failing; the original
+code had refused to map a longer DAT. Its 1% warning threshold never fired (0.03%). Across all 124
+sessions the surplus is −1 (112), 0 (8), −2/−3 (3), or +153 (this one): **the tail branch had never
+executed before, and its first real case was the opposite of the one it assumed.**
 
-**Ruled out, so they are not re-proposed.**
-* A functional-channel swap of the PS92_0828 kind. The functional half still carries the (weak)
-  transient at +0.32 s and the isosbestic half none, the same assignment as 0918; and `rescue` relabel
-  mode, which looked suspicious, is the NORMAL path (122 of 124 sessions).
-* Both channels lit by one LED. Per-channel mean intensities are distinct and in the normal ratio
-  (12216 / 12827, 470/415 = 1.050; neighbours 1.035–1.108), and the LED TTLs alternate normally.
-  (Priya's point: the TTL records the COMMAND, not the emission — but the intensities settle it.)
-* Trial↔frame alignment. Labels exact, trial count matches, and the 21-min imaging→DAQ start gap is
-  unremarkable (cohort median 6 min, max 74 on a session that decodes fine).
-* A sub-pixel displacement between the two channels' frames. The dominant spatial pattern is not an
-  edge/gradient pattern; see below.
-* Motion: rotation zero; shifts 0.33 px median against 0.21 (0918) and 0.93 (0925, which decodes fine).
+**Consequences for the imaging, all from that one mapping.**
+* Every trial-locked window was taken **154 frames (2.466 s) too early** — pre-cue baseline. The
+  cue-evoked calcium response sat at "+2.9 s" in the pipeline's timeline, at full normal amplitude.
+* 154 is even, so the bulk 415/470 parity survived — but the LED alternation has 151 hiccups per
+  session, and for the 154 frames after each one the assigned label is the wrong wavelength: **4.6% of
+  frames landed in the wrong channel with the wrong channel's mean subtracted**, ±600-count steps of
+  opposite sign in the two halves, carrying the 470−415 difference image (vessels vs parenchyma,
+  larger on the left where 415 is dimmer). That produced the r = −0.99 anti-correlation between the
+  channel halves, the 86%-negative haemodynamic coefficients, the 3× variance, the vessel-patterned
+  first SVD component, and the left-hemisphere excess in the 415 temporal-std map.
+* Both task decoders and the encoder at chance; the rest-arm refit (not trial-locked) still worked.
 
-**Also ruled out, tested at Priya's request (2026-09-28).**
-* **Channel-parity flips at the 151 skipped frames.** Proposed by me, and wrong: the
-  motion-correction shift array has exactly `n_pairs` rows with one column per channel and `SVT`
-  has exactly `2 × n_pairs` frames, so the `.bin` fed to the SVD WAS rebuilt from the clean pairs
-  and alternates strictly; the frame map handles skips identically on 0918 / 0922 / 0925
-  (185 / 151 / 155 skipped, every pair gap +1); and the cue transient appears in ONLY the 470 half
-  at the right latency, which flipped parity over any fraction of the session would not allow.
-* **DAQ↔frame alignment.** Exposures at 62.50 Hz with no gaps; frame-count difference equals the
-  skipped-frame count; per-frame sample map monotonic; cue→assigned-frame residual median +0.6 ms,
-  never over half a frame, stable across the session (0918 +0.2 ms, 0925 −0.4 ms).
-* **Allen alignment.** Cross-day registration to PS92_0606 at NCC 0.846 (neighbours 0.868 / 0.856 /
-  0.845).
-* **The rig / the day.** PS93_0922, three hours earlier on the same rig, is normal in every measure
-  below (r +0.57, T diag +0.95, cue transient 11.7 at +0.42 s, its best SNR of three sessions).
+**How it was established** — each line independent, all agreeing to the frame:
+* cue-offset scan on the raw 470 SVT: early evoked energy ×5.75 at +77 pairs (controls: +4, ×1.06);
+* DAQ lick-energy vs brain-mean 470 cross-correlation: lag +77 pairs (controls: 0);
+* predicted label-flip stretches (154 frames after each hiccup) hold **64% of the between-channel
+  difference variance in 5% of the pairs** (Cohen d 5.6; 0918: −0.17);
+* **camlog per-frame LED ids vs DAQ per-pulse labels: 95.4% agreement at offset 0, 100.0000% at 154
+  in every 10-min bin** (0918: 100% at 0). Camera frame 155 is the DAQ's first pulse.
+* parity: at the shifted offset the 470-labelled half carries the full transient and the 415 half
+  the usual ~¼ bleed-through — the halves are the right way round, so the offset is even.
 
-**THE SIGNATURE: THE CUE-EVOKED CALCIUM RESPONSE IS ESSENTIALLY ABSENT FROM THE 470 CHANNEL AS
-ACQUIRED, AND THE FIELD IS DOMINATED BY A WHOLE-FIELD, VESSEL-PATTERNED, 415/470 ANTI-PHASE SLOW
-OSCILLATION.** Traced stage by stage against 0918: evoked/√variance is 0.90 → 0.10 in the RAW 470
-SVT (evoked 10.5 → 2.6, variance 135 → 684), 0.23 → 0.05 in raw 415, and after correction the
-"peak" sits at +1.8 s, i.e. noise. The loss is upstream of every processing step. Measurements,
-each unique to this session among PS92's 33:
-* The first SVD component's time course is **anti-correlated between the 470 and 415 frames at
-  r = −0.99** (calcium band, >0.1 Hz). Every other PS92 session sits between +0.06 and +0.88, most
-  0.6–0.7. A slow signal cannot alternate sign between adjacent frames unless it has opposite sign
-  in the two channels.
-* Its **spatial footprint is vessels versus parenchyma** — the sagittal sinus and major vessels one
-  sign, bilateral lateral cortex the other (sign-uniformity 0.60, CV 17). On 0918 the first
-  component is the usual near-uniform global mode (sign-uniformity 0.98); on 0922 that mode is
-  demoted to second. A vessel/parenchyma pattern is a haemodynamic mode, not illumination (which is
-  uniform) and not displacement (which is an edge pattern).
-* Its power sits in 0.05–0.5 Hz — the vasomotion / Mayer-wave band — in BOTH channels (0.51 and
-  0.49 of total), where the normal 415 channel is >96% below 0.05 Hz. Total variance is ~3× normal
-  in both channels (sd 22.8 / 21.0 against 6.8 / 9.7). Present from the first quarter of the session
-  to the last.
-* The haemodynamic transform `T` has a **negative diagonal (−0.52)** against +0.86 (0918) and +1.35
-  (0925). Fitted on a session dominated by an anti-phase vascular mode, the regression learns to ADD
-  the 415 signal, so `SVTcorr = 470 − T·415` amplifies the vascular oscillation instead of removing
-  it, and everything downstream of `SVTcorr` — both task decoders, the encoder, the template match —
-  falls to chance while the rest-arm refit, which is not trial-locked, still finds position.
+**Ruled out along the way, so they are not re-proposed:** a 0828-type channel swap (intensities and
+transient placement normal); both channels lit by one LED (LED TTLs 3.287 V, sd 0.0014, identical all
+session); motion (0.33 px, even/odd identical to 0.02 px); Allen registration (NCC 0.846 vs 0.85–0.87);
+a superficial blood/fluid layer (mean-image ratios in the CCF frame show no localised change); the rig
+(PS93 the same day is normal). **Two wrong diagnoses were written and retracted the same day:** (1) an
+"optical/vascular event, cause not established, not recoverable" — the anti-phase signal was the
+label-flip contamination; (2) channel-parity flips at the 151 skipped frames — refuted by the shift
+array's structure, then superseded by the real mechanism. A repair by borrowing a neighbour's
+haemodynamic coefficients was also tested and failed, correctly: there was nothing wrong with the
+coefficients' inputs except their timing.
 
-* **The per-pixel regression map `rcoeffs` is NEGATIVE in 86% of pixels** (mean −0.65) against 0%
-  negative (+0.96) on 0918. The 415/470 anti-correlation is field-wide, not a single component.
+**What it costs.** The session's imaging as processed is unusable and contaminated every PS92 chronic
+pooled number by one session in nine, and the PS92 joint-LocaNMF basis (fit over all curated PS92
+sessions) by 4.6% of one session's frames. Nothing else is affected; no other session has a head
+excess (cohort scan of all 124 cleanpairs summaries and DAQ PCO trains, 2026-09-28).
 
-So this is an **event in PS92's preparation or physiology on 2026-09-22**, with every instrument
-reading normal and the other animal on the same rig unaffected. The anti-phase channels have a
-physical reading — oxy- and deoxy-haemoglobin absorb in opposite order at 415 vs ~470 nm, so an
-OXYGENATION oscillation at roughly constant volume darkens one channel while brightening the other
-— and the DECISIONS record that 415 and 470 responses can be anti-phase in this preparation (the
-2026-09-19 NVC thread) is the same physics at ordinary amplitude. **What the mean images say about
-WHERE it sat is negative:** in the registered CCF frame, 0922's mean intensity is in the normal range
-(415 at 0.995 and 470 at 0.941 of 0918; 0925 is 0.953 / 0.922), there is no localised dimming (the
-0922-specific spatial change has sd 0.034, 5% of pixels beyond ±5%, about 1.5× the neighbours'
-heterogeneity, and what there is of it is a smooth anterior→posterior gradient in BOTH channels — medial/anterior relatively dimmer, posterior/lateral brighter — i.e. a small change in illumination geometry or head angle, not a patch), and the 415/470 ratio moved TOWARD 415 by the same few percent 0925 did — a trend,
-and the wrong direction for an added absorber. So a superficial blood or fluid layer, the obvious
-candidate, is **not supported** by the one measurement that could support it. The preprocessing
-figures look fine for the same reason: a few-percent oscillation at 0.1 Hz is invisible in a mean
-image or a photobleach curve. **Cause not established.** What is established is the signature and
-the scope: whole-cortex, anti-phase, vasomotion-band, PS92-only, one day, calcium signal absent. A
-rig note for PS92 on 2026-09-22 (handling, health, window appearance, anything given) is the next
-piece of evidence, not more processing.
+**What we do.**
+1. **Pipeline fix (2026-09-28, this repo):** a DAT longer than the DAQ record is placed by the camlog's
+   per-frame LED record (`find_dat_head_offset`), or by an explicit `--head-offset`, and is otherwise
+   **refused** — the pre-`1a68c7c` behaviour with a way out. The frame map now carries
+   `dat_head_offset` and `daq_pulse_index_*`; `framemap_event_maps._corrected_frame_samples` subtracts
+   the head. Maps without the key are head 0, which is what they always assumed. Tests pin the head
+   case, the genuine tail case, the refusal, and the consumer.
+2. **Re-preprocess PS92_0922 from the standby raw on the imaging box** (`preprocess 20260922 --only
+   PS92 --redo --raw-root <standby labcams>`); the fixed relabel finds the camlog beside the `.dat`
+   and reports head 154 at agreement 1.0000. Then the analysis box re-derives everything downstream
+   for PS92: per-session caches, the joint basis and the joint-basis frozen decoders all key on the
+   SVTcorr/U signatures and invalidate themselves.
+3. Until that has run, **PS92_0922 is excluded from the imaging arms** (its behaviour stays — it is a
+   perfect session there).
 
-**A REPAIR WAS PROPOSED, TESTED, AND FAILED — do not re-propose it.** The idea was to correct 0922
-with a neighbour's haemodynamic coefficients instead of its own. `T` is basis-specific and does not
-transfer, but the per-pixel `rcoeffs` does, and `hemo_variants.refit_T`'s algebra rebuilds `T` from
-(`U`, `rcoeffs`). Done with 0918's and 0925's `rcoeffs` (T diag +0.87 / +1.35): evoked energy
-3.2 / 4.0 with the "peak" still at +1.8 s, and variance 694 / 1300 — worse, because it subtracts a 415
-channel that is itself anti-phase and enormous. The session's own negative `T` is the CORRECT
-least-squares answer for these data (it gives the lowest residual variance, 73); it looks wrong only
-because the data are. **There is no calcium signal in the 470 channel to recover.** The session's
-imaging is unusable as recorded.
-
-**What it costs.** Every chronic pooled number containing PS92 carries one session at chance out of
-nine. In the nested animals→sessions bootstrap that is one resampled unit and the pooled cells barely
-move; in any PER-SESSION view of PS92's chronic (trajectory, stability) it is the single largest
-excursion and must be marked or excluded before a trend is read. It should NOT be quietly dropped from
-the curated set without a recorded reason, because a session with perfect behaviour and unreadable
-cortex is itself a fact worth keeping.
-
-**Still open (Priya):** exclude `PS92_0922` from the imaging arms via `cross_session_exclude` with this
-entry as the reason, or keep it and mark it? And is there a rig note for 2026-09-22 PS92 (LED, focus,
-headplate)?
+**Still open.**
+* The redo itself (imaging box, then analysis box), and re-checking the chronic stability table for
+  PS92 afterwards — it was computed with this session in as an outlier.
+* **labcams' `#LED` record is not one-line-per-frame on every session**: 10 of 120 camlogs agree with
+  the DAQ at chance — the trial-gated early-June sessions and the lesion day (excluded anyway), and
+  PS93_0904, where one `#LED` line is missing ~20 min in and the record is anti-phase before it. On
+  those the DAQ covers every frame, so nothing is wrong with the data; but it is why the camlog is
+  decisive only for placing frames the DAQ never saw, and a WARNING otherwise.
+* A rig-side check of why the DAQ started late that day (operator order vs recorder start lag) would
+  say whether this can recur; a start-order assertion in the recorder GUI would prevent it.
 
 ## Conventions for this log
 
