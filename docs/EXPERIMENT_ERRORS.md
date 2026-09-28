@@ -605,8 +605,34 @@ misaligned SVTcorr would have been kept and every PS92 downstream number rebuilt
 treat a fit OLDER than its SVTcorr as stale: the old fit is moved to `<dir>_stale_<timestamp>/`
 (never deleted) and refitted (`tests/test_batch_locanmf_stale.py`).
 
+**REDO VERIFIED on N: (2026-09-28 11:17).** The pushed frame map carries `dat_head_offset 154`,
+227,756 pairs, first pair frames 154/156 ↔ pulses 0/2; the cleanpairs summary records
+`camlog_used`, agreement 1.0000 at the head and 0.9548 at zero. Cue-triggered brain-mean traces,
+no realignment applied, backup vs new (`labcams/PS92_0922_diagnosis/PS92_0922_redo_before_vs_after.png`):
+
+| | before (wrong map) | after (redo) |
+|---|---|---|
+| raw 470 peak after cue | +2.88 s | **+0.42 s** |
+| raw 470 mean 0–1 s / 2–3.5 s | +0.006 / +0.012 | **+0.032 / +0.007** |
+| production SVTcorr (meegkit_hpfit) peak | +2.88 s | **+0.51 s** |
+| haemodynamic `T` diagonal / `rcoeffs` < 0 | −0.52 / 86% | **+1.36 / 0%** |
+| 415↔470 component-0 correlation (0.1 Hz HP) | −1.00 | **+0.64** |
+
+The transient is where the cue is, the haemodynamic fit has the sign it has on every other session,
+and the two channels are no longer anti-phase. The 154 frames the DAQ never saw are unmonitored and
+dropped (frame count 455,818 → 227,756 pairs + 152 skipped + 154 head).
+
+The push then died on its last item: `rmtree(motion_qc)` on the share returned while the directory
+was still held open by another client (SMB delete-pending: Access denied even to `Test-Path`), so
+`copytree` raised `FileExistsError` and maps/photobleach/xall never ran. Results, hemo variant,
+Allen dir, frame map and motion shifts had all landed. `motion_qc` was copied by hand once the
+share released it (~2 min); the push now copies INTO a surviving directory and retries
+(`preprocess._replace_tree`, `tests/test_preprocess_replace_tree.py`); a second crash, a log line
+calling `rv.root('raw_labcams')` on a machine with no such mount, is also fixed. Downstream steps
+were run with `--skip-preprocess` from this box.
+
 **Still open.**
-* Completion of the redo chain and the PS92-wide downstream (`nightly_figs 20260922 --only PS92`),
+* Completion of the PS92-wide downstream (`nightly_figs 20260922 --only PS92`),
   then re-checking the chronic stability table for PS92 — it was computed with this session in as an
   outlier.
 * **labcams' `#LED` record is not one-line-per-frame on every session**: 10 of 120 camlogs agree with

@@ -45,6 +45,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from wfield_local import config
@@ -506,6 +507,35 @@ def generate_maps(session: dict, params: dict, rv: PathResolver, dry_run: bool) 
 
 
 # --------------------------------------------------------------------------- run steps
+def _replace_tree(src, dst, retries: int = 6, wait_s: float = 5.0) -> None:
+    """rmtree(dst) then copytree(src -> dst), tolerant of an SMB share's DELETE-PENDING directory.
+
+    On a Windows share, rmtree returns while the directory is still held open by another client
+    (an indexer, an Explorer preview, the file server's own scanner). The directory is then
+    "delete pending": it fails Test-Path and mkdir alike with Access denied / FileExistsError until
+    the handle closes, seconds to a minute later. On 2026-09-28 the PS92_0922 redo pushed 73 min
+    of results and then died on exactly this at `motion_qc`, the last item, leaving the maps,
+    photobleach and xall steps unrun. So: copy INTO the directory if it still exists
+    (`dirs_exist_ok`), and if that is refused too, wait and retry. Every retry is logged; the
+    final failure raises with what to do.
+    """
+    if Path(dst).exists():
+        shutil.rmtree(dst, ignore_errors=True)
+    last = None
+    for attempt in range(retries):
+        try:
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+            return
+        except (FileExistsError, PermissionError, OSError) as e:
+            last = e
+            print(f"[push] {os.path.basename(dst)}: {type(e).__name__} on attempt {attempt + 1}/{retries} "
+                  f"(share still holds the old directory open?) -- retrying in {wait_s:g} s", flush=True)
+            time.sleep(wait_s)
+    raise SystemExit(f"[preprocess] FAILED pushing {src} -> {dst} after {retries} attempts: {last}. "
+                     f"The share has not released the old directory; re-run with --skip-preprocess "
+                     f"once `dir` can see {dst}, or copy it by hand.")
+
+
 def _run(args: list, dry_run: bool) -> None:
     cmd = [sys.executable, "-m"] + [str(a) for a in args]
     print("\n$ " + " ".join(cmd), flush=True)
@@ -653,19 +683,14 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     if not dry_run and not _same:
         writeguard.assert_writable(ndst)   # never rmtree/copy outside MICROSCOPE/Priya (rule 1)
         Path(ndst).mkdir(parents=True, exist_ok=True)
-        if Path(nres).exists():
-            shutil.rmtree(nres)
-        shutil.copytree(results, nres)   # SVT/SVTcorr/U/T/rcoeffs/frames_average/summary + allen dir
+        _replace_tree(results, nres)   # SVT/SVTcorr/U/T/rcoeffs/frames_average/summary + allen dir
         for pat in params["push_frame_map_globs"]:
             for f in glob.glob(f"{mc}/{pat}"):
                 if Path(f).resolve() != Path(ndst, os.path.basename(f)).resolve():
                     shutil.copy2(f, os.path.join(ndst, os.path.basename(f)))
         # motion-correction QC dir (deck reads motion_corrected/motion_qc/*_motion_qc.png from N:)
         if Path(mqc).exists():
-            nmqc = f"{ndst}/motion_qc"
-            if Path(nmqc).exists():
-                shutil.rmtree(nmqc)
-            shutil.copytree(mqc, nmqc)
+            _replace_tree(mqc, f"{ndst}/motion_qc")
 
     # 5 drop the local relabel/cleanpairs intermediate: a transient hand-off from the TTL relabel
     # (separate h5py process) to motion correction — regenerable from raw, NOT archived (standby
@@ -683,6 +708,19 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
 
 
 # --------------------------------------------------------------------------- main
+def _raw_root_label(args, rv: PathResolver) -> str:
+    """Where raw was looked for, for LOG LINES only: `--raw-root` if given, else the machine's
+    `raw_labcams` mount, else a marker. `rv.root` RAISES on a machine with no such mount (the
+    analysis desktop), and on 2026-09-28 that turned a log line inside the --skip-preprocess
+    merge into a crash before any downstream step ran."""
+    if getattr(args, "raw_root", None):
+        return str(args.raw_root)
+    try:
+        return str(rv.root("raw_labcams"))
+    except RuntimeError:
+        return "<no raw_labcams mount on this machine>"
+
+
 def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
     """Discover + motion/SVD/xreg/push + maps + photobleach for ONE date. Returns animals processed."""
     sessions = discover_raw_sessions(date, rv, raw_root=getattr(args, "raw_root", None),
@@ -721,7 +759,7 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
         extra = [s for s in discover_processed_sessions(date, rv) if s["animal"] not in have]
         if extra:
             print(f"[preprocess] {date}: +{len(extra)} PROCESSED session(s) from MICROSCOPE whose raw "
-                  f"is not on {rv.root('raw_labcams')} ({', '.join(sorted(s['animal'] for s in extra))})"
+                  f"is not on {_raw_root_label(args, rv)} ({', '.join(sorted(s['animal'] for s in extra))})"
                   f" -> included in the downstream steps")
             sessions = sorted(sessions + extra, key=lambda s: (s["animal"] or "", s["sess"]))
     if args.only:
@@ -735,7 +773,7 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
                   flush=True)
     if not sessions:
         where = "raw or processed" if args.skip_preprocess else "raw"
-        print(f"[preprocess] no {where} sessions discovered for {date} under {rv.root('raw_labcams')}")
+        print(f"[preprocess] no {where} sessions discovered for {date} under {_raw_root_label(args, rv)}")
         return set()
 
     print(f"\n[preprocess] {date}: {len(sessions)} session(s) on machine={rv.machine}")
