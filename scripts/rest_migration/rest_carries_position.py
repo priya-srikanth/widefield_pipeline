@@ -45,6 +45,7 @@ import sys
 import time
 
 import numpy as np
+from wfield_local.framemap_event_maps import frame_samples_from_map
 
 
 def _frame_samples(mc, fmdir, regime, pco):
@@ -56,7 +57,7 @@ def _frame_samples(mc, fmdir, regime, pco):
             return None
         off = int(json.load(open(summ[0]))["chosen_exposure_offset"])
         z = np.load(fm[0])
-        return pco[np.clip(z["original_frame_index_ch0"] + off, 0, len(pco) - 1)]
+        return frame_samples_from_map(z, pco, off)   # honours dat_head_offset (PS92_0922)
     return pco[np.arange(len(pco) // 2) * 2]
 
 
@@ -196,7 +197,7 @@ def main() -> int:
     # ---- the scalar: between-position RMS against a within-position split-half noise floor
     rng = np.random.default_rng(0)
     betw, within = [], []
-    for an, sess in per_animal.items():
+    for _an, sess in per_animal.items():
         am = {q: np.mean([m[q] for m in sess if q in m], axis=0)
               for q in CONF_LABELS if any(q in m for m in sess)}
         if len(am) < 4 or len(sess) < 2:

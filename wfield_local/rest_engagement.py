@@ -34,6 +34,7 @@ measured rather than asserted. A fix whose magnitude is unknown is not yet a fin
 from __future__ import annotations
 
 import numpy as np
+from wfield_local.framemap_event_maps import frame_samples_from_map
 
 
 def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
@@ -135,7 +136,7 @@ def engaged_frame_mask(session, n_frames):
             with open(summ[0]) as fh:
                 off = int(json.load(fh)["chosen_exposure_offset"])
             z = np.load(fm[0])
-            fs_samp = pco[np.clip(z["original_frame_index_ch0"] + off, 0, len(pco) - 1)]
+            fs_samp = frame_samples_from_map(z, pco, off)   # honours dat_head_offset (PS92_0922)
         else:
             fs_samp = pco[np.arange(len(pco) // 2) * 2]
     except Exception as ex:                                              # noqa: BLE001

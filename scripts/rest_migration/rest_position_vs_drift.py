@@ -37,6 +37,7 @@ import sys
 import time
 
 import numpy as np
+from wfield_local.framemap_event_maps import frame_samples_from_map
 
 
 def _frame_samples(mc, fmdir, regime, pco):
@@ -47,7 +48,7 @@ def _frame_samples(mc, fmdir, regime, pco):
             return None
         off = int(json.load(open(summ[0]))["chosen_exposure_offset"])
         z = np.load(fm[0])
-        return pco[np.clip(z["original_frame_index_ch0"] + off, 0, len(pco) - 1)]
+        return frame_samples_from_map(z, pco, off)   # honours dat_head_offset (PS92_0922)
     return pco[np.arange(len(pco) // 2) * 2]
 
 
@@ -141,7 +142,7 @@ def main() -> int:
 
     mask = bm.stat_mask()
     drift, pos = [], []
-    for an, sess in per_animal.items():
+    for _an, sess in per_animal.items():
         for h in sess:
             qs_ = sorted(h)
             # DRIFT: same position, early vs late

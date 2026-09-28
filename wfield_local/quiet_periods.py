@@ -406,7 +406,6 @@ def main() -> int:
 
         tread_v = ac(args.tread_channel)
         lick_v = ac(args.lick_channel)
-        reward_v = ac(args.reward_channel)
         packed = f["digital/packed_samples"][:, 0]
     n = len(packed)
     pco = _rising((packed >> di.index("pco_exposure")) & 1)
@@ -417,15 +416,12 @@ def main() -> int:
     # running / slow treadmill
     speed = smooth_treadmill(calibrate_treadmill(tread_v, args.offset_v, args.volt_sec_per_rot, args.mm_per_rot),
                              fs, args.smoothing_sigma_s)
-    slow = speed < args.quiet_speed
 
     # licks (onsets) + reward
     lick = detect_licks(lick_v, fs, args.lick_thresh_upper_v, args.lick_thresh_lower_v,
                         tuple(args.lockout_s), args.refractory_s,
                         min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0)
     lick_onsets = np.asarray(lick["lick_onsets"], dtype=np.int64)
-    lick_bool = idx2bool(lick_onsets, n)
-    reward_bool = idx2bool(_rising(reward_v, args.reward_thresh_v), n)
 
     # ONE DEFINITION, shared with `behavior_events` -- see `rest_mask`.
     cue_e = _rising((packed >> di.index("cue")) & 1) if "cue" in di else np.empty(0, int)
@@ -478,7 +474,8 @@ def main() -> int:
         from wfield_local.framemap_event_maps import _offset_from_summary
         offset = args.offset if args.offset is not None else _offset_from_summary(args.cleanpairs_summary)
         fm = np.load(args.frame_map)
-        frame_samples = pco[np.clip(fm["original_frame_index_ch0"] + offset, 0, len(pco) - 1)]
+        from wfield_local.framemap_event_maps import frame_samples_from_map
+        frame_samples = frame_samples_from_map(fm, pco, offset)   # honours dat_head_offset
         regime = "B(frame-map)"
     else:
         npairs = len(pco) // 2

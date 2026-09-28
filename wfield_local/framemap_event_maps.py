@@ -46,6 +46,22 @@ from wfield_local.plot_lick_aligned_averages import (
 )
 
 
+def frame_samples_from_map(fm, pco_samples: np.ndarray, offset: int) -> np.ndarray:
+    """DAQ sample of every corrected frame (pair), from an OPENED frame map (`np.load(...)`).
+
+    THE ONE PLACE frame-map indices become DAQ time. `original_frame_index_ch0` indexes the DAT;
+    the DAQ pulse for DAT frame j is j - dat_head_offset + offset, where `dat_head_offset` (since
+    2026-09-28) counts frames the camera wrote before the DAQ started recording. Ten call sites
+    did `pco[original_frame_index_ch0 + offset]` by hand and none subtracted the head, so on
+    PS92_0922 -- 154 frames of head -- every one of them placed the session 2.466 s late even after
+    the frame map itself was right. Do not index `original_frame_index_ch0` into `pco` anywhere else;
+    `tests/test_framemap_head_offset.py` greps for it.
+    """
+    head = int(fm["dat_head_offset"]) if "dat_head_offset" in fm.files else 0
+    idx = np.asarray(fm["original_frame_index_ch0"]).astype(np.int64) - head + int(offset)
+    return pco_samples[np.clip(idx, 0, len(pco_samples) - 1)]
+
+
 def _corrected_frame_samples(frame_map: Path, pco_samples: np.ndarray, offset: int) -> np.ndarray:
     """DAQ sample for each corrected (paired) frame via the cleanpairs frame map.
 
@@ -59,10 +75,7 @@ def _corrected_frame_samples(frame_map: Path, pco_samples: np.ndarray, offset: i
         raise KeyError(
             f"{frame_map} has no 'original_frame_index_ch0' (keys: {fm.files})"
         )
-    head = int(fm["dat_head_offset"]) if "dat_head_offset" in fm.files else 0
-    idx = fm["original_frame_index_ch0"] - head + offset
-    idx = np.clip(idx, 0, len(pco_samples) - 1)
-    return pco_samples[idx]
+    return frame_samples_from_map(fm, pco_samples, offset)
 
 
 def coverage_mask(event_samples, csample, tol_samples=None):

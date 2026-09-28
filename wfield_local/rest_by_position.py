@@ -22,6 +22,7 @@ import glob
 import json
 
 import numpy as np
+from wfield_local.framemap_event_maps import frame_samples_from_map
 
 #: Minimum positions that must contribute before a weighted baseline is worth calling weighted.
 #: BELOW THIS IT IS NOT THE QUANTITY IT CLAIMS TO BE. `restw` exists to stop the baseline's
@@ -68,7 +69,7 @@ def frame_samples(mc, fmdir, regime, pco):
         with open(summ[0]) as fh:
             off = int(json.load(fh)["chosen_exposure_offset"])
         z = np.load(fm[0])
-        return pco[np.clip(z["original_frame_index_ch0"] + off, 0, len(pco) - 1)]
+        return frame_samples_from_map(z, pco, off)   # honours dat_head_offset (PS92_0922)
     return pco[np.arange(len(pco) // 2) * 2]
 
 
