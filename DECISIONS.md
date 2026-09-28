@@ -18338,3 +18338,71 @@ bilateral lick increase comes from `15k`'s `n_animals_same_sign`, not from a fig
 
 H7's *"DLC tongue tracking is the only thing that would settle it, and it is not built"* — it is
 built (cam4 round 2, 2026-09-25) and has not been run over rest periods. The doc now says so.
+
+## 2026-09-28 — block boundaries, closing the thread: trials.csv agrees with the DAQ codes, and `block_ids` over-splits by ~0.7%
+
+Two loose ends from the 2026-09-26 block-splitting work, both now measured.
+
+**The measurements were made on the wrong source, and it turns out not to matter.** Every run-length
+figure in the 2026-09-26 entry (491 over-long runs, 286 illegal decompositions, the 95.1% cycle
+reconstruction) was computed from `trials.csv pos_idx` after `drop_duplicates(trial_id, keep="last")`.
+Production `block_ids` runs on the DAQ strobe codes (`classify_cues_with_backup`), and
+`docs/GUI_TRIALS_LOGGING.md` records that `pos_idx` is mislabelled on position-change trials. Checked
+on three sessions against the DAQ codes: **`keep="last"` agrees at 99.1% / 99.4% / 100.0%**
+(PS92_0607, PS93_0607, PS94_0810); `keep="first"` would have agreed at 84–96%, so the dedup choice
+was load-bearing and happened to be the right one. Over-long-run counts differ by at most one per
+session (1 vs 2, 2 vs 3, 7 vs 8). The quoted counts are therefore approximate to that order, and no
+conclusion in that entry moves.
+
+**"Did we fix all the block decompositions?" — no, and the residual is in the unsafe direction.**
+The even split fixed HOW a long run divides. `block_ids` still divides EVERY run longer than
+`block_size_max`, and the firmware's own `block_number` — a session total, the one independent
+referee — says some of those were single blocks: reconstructed 13,606 against firmware 13,509 over
+167 sessions, **+97 net, 47 sessions over-split, 19 under-split (the known 4+4 limit), 101 exact.**
+Over-splitting shrinks CV groups and permutation units, which is the anti-conservative direction —
+but it is 0.7% of blocks, the firmware count says how MANY to undo and not WHICH, and the only
+per-boundary signal (the cycle structure) is what `cycle_ids` already uses and cannot be fed back
+into `block_ids` without making the two circular. **Recorded as a known limit, not fixed.** `audit`
+now reports it per session through `undersized_blocks` and the reconstructed-vs-firmware delta.
+
+## 2026-09-28 — Is the chronic neural data stable enough to stop recording? Per-session, per-animal, by the behavioural rule
+
+Priya: *"behavior has stabilized so I'm wondering if we should deem the experiment 'complete' and stop
+recording (and sac the animals for histology). But I want to ensure the neural data is also stable."*
+Full write-up: `docs/status/STATUS_2026-09-28_CHRONIC_STABILITY.md`; reproducible by
+`python -m scripts.chronic_stability` → `<labcams>/chronic_stability/chronic_stability.{csv,png}`.
+
+**The test is deliberately the one behaviour already gets** — `epochs._plateau_index` (flat AND
+settled against the animal's own pre-stroke SD) — applied to every readout the deck reports, per
+animal. No cohort p (n = 4); per-animal verdicts and their consistency are the evidence.
+
+**Verdicts.** Behaviour has plateaued in all four. The readouts that track behaviour — frozen and
+refit decoding — have plateaued in all four (no animal's decoder is still rising). The readouts that
+index ongoing reorganisation have plateaued in PS92, PS93 and PS94 and **have NOT in PS95**, where
+six readouts are still moving in one coherent direction through day 39 (G, crossnobis, encoder
+ceiling and map amplitude RISING; frozen encoder, gain and best-match FALLING) — the within-session
+code strengthening while the pre-stroke readout loses grip, with a step at day 29 that is that
+animal's best-SNR session and shows no intensity change, so it is not instrumental. *G* is still
+creeping up slowly in three of four. PS94 has five sessions and a pinned boundary; nothing argues
+against stability and five points cannot argue for it. **"Stable" and "recovered" are different
+claims**: PS92 is both; PS93 and PS95 are behaviourally stable with a representation still drifting
+from pre-stroke; PS94 is undetermined.
+
+**Two things found on the way that change how chronic numbers are read.**
+* **PS92_0922 is an acquisition-day outlier** — both decoders and the encoder at chance with perfect
+  behaviour and exact labels. Instruments, alignment (both senses), preprocessing structure and the
+  other animal on the same rig are all normal; the calcium response is absent from the raw 470
+  channel and the field is dominated by a 415/470 anti-phase, vessel-patterned slow oscillation.
+  Repair by borrowed coefficients was tested and failed. Recorded in `docs/EXPERIMENT_ERRORS.md`
+  with the decision it needs (exclude from imaging arms). Two of my own hypotheses were raised and
+  refuted on the way — channel-parity flips at skipped frames, and a fixable haemodynamic fit — and
+  both are recorded there so they are not re-proposed.
+* **PS95's late rise is signal, not an imaging change** (no intensity step at day 29); PS95_0924 is
+  a large-drift, high-motion day that the correction handled and decodes normally.
+
+**Method notes that will matter next time.** The `_sessions.csv` sidecars carry no label and are
+in `load_sessions` date order — verified by the 0922 outlier landing in slot 8 of 9 in every family,
+not assumed. The encoder / template / crossnobis sidecars carry one POOLED pre row, so no pre SD
+exists for them; the script falls back to the animal's own late scatter and marks those rows —
+their drift verdict and level are meaningful, the settled flag is not. The 0.4 × pre-SD settled bar
+is strict enough that PS94's behaviour fails it; read residuals as ratios.
