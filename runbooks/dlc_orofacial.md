@@ -905,6 +905,13 @@ Round 3's correction list (`CORRECTION_GUIDE.html`, regenerated): 1 DELETE, 15 R
 31 points across 6 folders. The worst-15 list is tongue and jaw on test frames, as in round 2; the round-2
 hazard about correcting held-out labels toward predictions still applies to it.
 
+**The spatial prior is ON for tongue and jaw** since round 3 (`dlc.prior.enabled: true`, `parts:
+[tongue, jaw]`; `dlc_prior.apply()` is the entry point an inference path uses). Nose and spout stay
+unmasked until a full-session run has confirmed their boxes mask nothing real. On the three round-3
+review clips the prior changed nothing (0 of ~7,900 confident tongue/jaw points outside their box) —
+the expected result; it exists for the rare confident-wrong peak. Review clips:
+`inference_check_20260928_round3/labeled_clips/` on the DLC share.
+
 ### The next refinement round
 
 DLC's loop, and `dlc_train` prints these on completion:

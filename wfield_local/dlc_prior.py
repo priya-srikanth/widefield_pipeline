@@ -68,6 +68,61 @@ def _cfg() -> dict:
     return ((config.defaults().get("dlc") or {}).get("prior") or {})
 
 
+def enabled() -> bool:
+    return bool(_cfg().get("enabled", False))
+
+
+def parts() -> list[str] | None:
+    """Bodyparts the prior applies to (`dlc.prior.parts`), or None for every part.
+
+    Switched on for `tongue` and `jaw` first (Priya, 2026-09-28): the tongue is the part with the
+    most anatomically impossible confident detections (1.96% of them over 400 s of PS93, worst
+    x=14 of 680 at p 0.66, against 0.10% for spout, 0.08% for jaw, 0.00% for nose), and the jaw is
+    occluded during every lick, which is when a confident wrong peak elsewhere gets its chance.
+    `nose` and `spout` stay unmasked until a full-session run has shown their boxes mask nothing
+    real -- the spout's box in particular has to hold the between-trial transit (measured x 279-416
+    against a labelled envelope of 215-440, but on two animals).
+    """
+    v = _cfg().get("parts")
+    return None if not v else [str(x) for x in v]
+
+
+def active(rv=None, cam: str | None = None) -> dict[str, tuple[float, float, float, float]] | None:
+    """The boxes to mask with under the CURRENT config, or None when the prior is off.
+
+    Filtered to `parts()`, so a channel outside that list is left untouched by `masking`.
+    """
+    if not enabled():
+        return None
+    box = boxes(rv, cam)
+    keep = parts()
+    if keep is None:
+        return box
+    missing = [b for b in keep if b not in box]
+    if missing:
+        raise SystemExit(f"dlc.prior.parts names {missing}, which are not trained bodyparts {sorted(box)}")
+    return {b: box[b] for b in keep}
+
+
+@contextlib.contextmanager
+def apply(rv=None, cam: str | None = None, offset: tuple[float, float] = (0.0, 0.0), log=print):
+    """`masking` under the config: a no-op context when `dlc.prior.enabled` is false.
+
+    The ONE entry point an inference path should use, so that turning the prior on or off, or
+    changing which parts it covers, is a config edit and never a code change at each call site.
+    """
+    box = active(rv, cam)
+    if box is None:
+        log("[dlc_prior] off (dlc.prior.enabled: false)")
+        yield None
+        return
+    unmasked = [b for b in dlc_train.parts() if b not in box]
+    log("[dlc_prior] masking " + ", ".join(f"{b} x{box[b][0]:.0f}-{box[b][1]:.0f} y{box[b][2]:.0f}-{box[b][3]:.0f}" for b in box)
+        + (f"; unmasked: {', '.join(unmasked)}" if unmasked else ""))
+    with masking(box, offset=offset, partial=True) as b:
+        yield b
+
+
 def pad() -> float:
     """Padding in px added on every side of the labelled envelope.
 
@@ -104,7 +159,8 @@ def boxes(rv=None, cam: str | None = None, padding: float | None = None,
 
 @contextlib.contextmanager
 def masking(box: dict[str, tuple[float, float, float, float]],
-            bodyparts: list[str] | None = None, offset: tuple[float, float] = (0.0, 0.0)):
+            bodyparts: list[str] | None = None, offset: tuple[float, float] = (0.0, 0.0),
+            partial: bool = False):
     """Patch DLC's ``HeatmapPredictor`` so every heatmap is masked to ``box`` before the argmax.
 
     A context manager and a CLASS patch rather than an argument, because `analyze_videos` builds
@@ -122,8 +178,10 @@ def masking(box: dict[str, tuple[float, float, float, float]],
 
     bps = list(bodyparts or dlc_train.parts())
     missing = [b for b in bps if b not in box]
-    if missing:
+    if missing and not partial:
         raise SystemExit(f"no prior box for {', '.join(missing)} — refusing to mask partially")
+    # `partial=True` (from `apply`, i.e. `dlc.prior.parts`): a channel without a box is left as the
+    # network produced it. Explicit, so a box that is merely MISSING still refuses by default.
 
     original = HeatmapPredictor.forward
     ox, oy = float(offset[0]), float(offset[1])
@@ -157,6 +215,8 @@ def masking(box: dict[str, tuple[float, float, float, float]],
                 torch.arange(w, device=hm.device, dtype=hm.dtype) * s + ox, indexing="ij")
             drop = torch.zeros((len(bps), h, w), device=hm.device, dtype=torch.bool)
             for k, bp in enumerate(bps):
+                if bp not in box:                       # partial: this channel is not masked
+                    continue
                 x0, x1, y0, y1 = box[bp]
                 ok = (gx >= x0) & (gx <= x1) & (gy >= y0) & (gy <= y1)
                 if not bool(ok.any()):

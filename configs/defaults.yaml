@@ -848,10 +848,14 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # every padding down to +/-10 px (nose 3.21, jaw 3.77, tongue 7.48,
                               # spout 1.85). It is insurance, not an accuracy tool -- an unchanged
                               # RMSE is the expected result, not evidence it is off.
-    enabled: false            # OFF until a full-session run has confirmed no real point is ever
-                              # masked. A prior that is too tight deletes true detections and looks
-                              # exactly like the part being absent, which is the one failure mode
-                              # worse than the one it fixes.
+    enabled: true             # ON for `parts` only (Priya, 2026-09-28). A prior that is too tight
+                              # deletes true detections and looks exactly like the part being
+                              # absent -- the one failure mode worse than the one it fixes -- so
+                              # each part is switched on separately, once its box has been checked.
+    parts: [tongue, jaw]      # tongue: 1.96% of its confident detections were anatomically
+                              # impossible (400 s of PS93); jaw: occluded during every lick. `nose`
+                              # and `spout` stay UNMASKED until a full-session run confirms their
+                              # boxes never mask a real point (the spout's must hold the transit).
     pad: 60                   # px added on every side of the LABELLED envelope, for cross-animal
                               # and cross-session head position and for 24 frames per session being
                               # a thin sample of the extremes. At 60 px every labelled point sits
