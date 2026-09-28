@@ -587,9 +587,28 @@ excess (cohort scan of all 124 cleanpairs summaries and DAQ PCO trains, 2026-09-
 3. Until that has run, **PS92_0922 is excluded from the imaging arms** (its behaviour stays — it is a
    perfect session there).
 
+**REDO IN PROGRESS (2026-09-28, run on the ANALYSIS DESKTOP, not the imaging box).** That box has
+the imaging profile's mounts (M: = standby, N: = MICROSCOPE) and `wfield` in its `locanmf` env, so the
+recipe above was run there: the 201,289,228,800-byte `.dat` and camlog were staged from
+`M:/Widefield/labcams/20260922/.../raw_widefield_data/` to `C:/wf_local/labcams_data/...` (robocopy
+`/J`, 28 min at 118 MB/s; verified by byte count and SHA-256 of the first, middle and last GiB), the
+existing derived outputs on N: were copied to `motion_corrected_BEFORE_REDO_headoffset_bug_2026-09-28/`
+beside the live directory, and `preprocess 20260922 --only PS92 --redo --raw-root C:/wf_local/labcams_data
+--daq-root N:/.../DAQ_recorder_output/20260922` was launched. The relabel printed the expected line
+verbatim — head 154, agreement 1.0000 (0.9548 at 0), 227,756 pairs, 152 skipped — and the frame map on
+disk carries `dat_head_offset 154` with the first pair at frames 154/155 ↔ pulses 0/1. Motion
+correction ran at ~2.4 s per 256-pair chunk (~35 min for 890). Standby was read, never written; the
+`.bin` stays on C:. The staged raw on C: is a copy and can be removed once the redo is verified.
+A second gate was found while it ran: `batch_locanmf` (and `await_locanmf`, which feeds it) took an
+existing `PS92_0922_locanmf_summary.json` as "done", so the 2026-09-22 decomposition fitted to the
+misaligned SVTcorr would have been kept and every PS92 downstream number rebuilt on it. Both now
+treat a fit OLDER than its SVTcorr as stale: the old fit is moved to `<dir>_stale_<timestamp>/`
+(never deleted) and refitted (`tests/test_batch_locanmf_stale.py`).
+
 **Still open.**
-* The redo itself (imaging box, then analysis box), and re-checking the chronic stability table for
-  PS92 afterwards — it was computed with this session in as an outlier.
+* Completion of the redo chain and the PS92-wide downstream (`nightly_figs 20260922 --only PS92`),
+  then re-checking the chronic stability table for PS92 — it was computed with this session in as an
+  outlier.
 * **labcams' `#LED` record is not one-line-per-frame on every session**: 10 of 120 camlogs agree with
   the DAQ at chance — the trial-gated early-June sessions and the lesion day (excluded anyway), and
   PS93_0904, where one `#LED` line is missing ~20 min in and the record is anti-phase before it. On

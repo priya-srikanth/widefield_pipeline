@@ -134,6 +134,14 @@ def discover(rv: PathResolver, yyyymmdd: str, animals: list[str]) -> list[dict]:
         frame_map = bool(glob.glob(str(mc / "*cleanpairs_frame_map.npz")))
         locanmf_out = Path(config.locanmf_dir(mc))
         locanmf_done = locanmf_out.exists() and bool(glob.glob(str(locanmf_out / "*_C.npy")))
+        # STALE COUNTS AS MISSING: a fit older than the SVTcorr it read is re-run (batch_locanmf
+        # moves the old one aside). Without this a re-preprocessed session kept its old
+        # decomposition forever -- the PS92_0922 head-offset redo, 2026-09-28.
+        if locanmf_done:
+            from wfield_local.batch_locanmf import stale_input
+            _summ = locanmf_out / f"{animal}_{yyyymmdd[4:8]}_locanmf_summary.json"
+            if stale_input(_summ, svt) is not None:
+                locanmf_done = False
         # DAQ h5 for this mouse+date on MICROSCOPE (daq_recorder_output root, one date level)
         h5_glob = glob.glob(str(Path(rv.resolve("daq_recorder_output", yyyymmdd)) / f"{animal}_{yyyymmdd}_*.h5"))
         mmdd = yyyymmdd[4:8]

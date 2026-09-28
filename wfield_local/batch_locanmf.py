@@ -6,6 +6,17 @@ Runs ``run_locanmf`` once per session listed in a JSON manifest, all at the same
 session whose ``<label>_locanmf_summary.json`` already exists -- so the batch can be
 terminated anytime (e.g. to free the machine) and resumes where it stopped.
 
+STALE COUNTS AS MISSING (2026-09-28). A summary OLDER than the ``svt`` it was fitted to is not
+"done", it is a fit of data that no longer exists. Existence alone was the test, and it would have
+kept PS92_0922's 2026-09-22 decomposition -- fitted to the frame-misaligned SVTcorr the head-offset
+bug produced (docs/EXPERIMENT_ERRORS.md) -- after the session was re-preprocessed, with every
+downstream decoder, encoder and RSA number for that session still built on it and nothing
+reporting a problem. ``await_locanmf`` gates on the same existence test and hands the decision
+here, and ``nightly_figs`` already applies this rule to its figures. The stale outputs are MOVED
+aside (``<output>_stale_<timestamp>/``), never deleted: MICROSCOPE derived outputs are
+read-only inputs to everyone else (CLAUDE.md rule 1), and the previous fit is what a before/after
+comparison needs.
+
 To avoid overwriting/deleting any existing MICROSCOPE outputs, point ``output`` at a
 NEW per-session folder (``config.locanmf_dir_name()``, which NAMES the hemodynamic variant the
 decomposition was fitted to -- see docs/PREPROCESSING_DECISION.md); the runner only creates/writes.
@@ -29,6 +40,29 @@ from wfield_local import config
 
 def _stamp(msg):
     return f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
+
+
+def stale_input(summary: Path, svt) -> float | None:
+    """Seconds by which ``svt`` (the SVTcorr the fit read) post-dates ``summary``, or None if the
+    fit is current. No ``svt`` in the manifest, or one that is not on disk, means nothing can be
+    compared and the fit is trusted -- the pre-2026-09-28 behaviour."""
+    if not svt:
+        return None
+    svt = Path(svt)
+    if not svt.exists() or not summary.exists():
+        return None
+    # 2 s of slack: the push copies with copy2, and FAT/SMB mtimes are 2 s granular. A fit is only
+    # stale if its input is CLEARLY newer than it.
+    gap = svt.stat().st_mtime - summary.stat().st_mtime
+    return gap if gap > 2.0 else None
+
+
+def set_aside_stale(outdir: Path) -> Path:
+    """Rename ``outdir`` to ``<outdir>_stale_<YYYYMMDD_HHMMSS>`` beside itself and return the new path.
+    A rename, not a delete (rule 1); the caller then recreates ``outdir`` and refits into it."""
+    target = outdir.with_name(f"{outdir.name}_stale_{time.strftime('%Y%m%d_%H%M%S')}")
+    outdir.rename(target)
+    return target
 
 
 def main() -> int:
@@ -58,9 +92,14 @@ def main() -> int:
         outdir = Path(s["output"])
         summary = outdir / f"{label}_locanmf_summary.json"
         if summary.exists():
-            log(f"SKIP {label} (already complete: {summary})")
-            done += 1
-            continue
+            stale_by = stale_input(summary, s.get("svt"))
+            if stale_by is None:
+                log(f"SKIP {label} (already complete: {summary})")
+                done += 1
+                continue
+            moved = set_aside_stale(outdir)
+            log(f"STALE {label}: {summary.name} is {stale_by:.0f} s OLDER than its input "
+                f"{s.get('svt')} -> moved the previous fit to {moved}; refitting")
         outdir.mkdir(parents=True, exist_ok=True)
         cmd = [sys.executable, "-u", "-m", "wfield_local.run_locanmf",
                "--allen-dir", str(s["allen_dir"]), "--label", label,
