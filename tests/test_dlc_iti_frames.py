@@ -96,3 +96,16 @@ def test_the_recorded_2026_09_26_picks_have_the_documented_shape():
     assert set(df.position) == set(POS) and set(df.phase) == {iti.PHASE_MOVE, iti.PHASE_DOUBT}
     assert df.groupby("video_stem").position.nunique().min() == 6, "all six positions in EACH folder"
     assert (df[df.phase == iti.PHASE_DOUBT].spout_p < 0.6).mean() > 0.3, "the doubt frames are where the network is unsure"
+
+
+def test_current_snapshot_follows_the_project_round_and_the_highest_best_epoch(tmp_path):
+    (tmp_path / "config.yaml").write_text("iteration: 2\n", encoding="utf-8")
+    for it, epochs in ((1, (60,)), (2, (100, 160))):
+        td = tmp_path / "dlc-models-pytorch" / f"iteration-{it}" / "shuffle1" / "train"
+        td.mkdir(parents=True)
+        for e in epochs:
+            (td / f"snapshot-best-{e:03d}.pt").write_bytes(b"")
+    td, snap = iti.current_snapshot(tmp_path)
+    assert td.parts[-3] == "iteration-2" and snap.name == "snapshot-best-160.pt"
+    _, snap1 = iti.current_snapshot(tmp_path, iteration=1)
+    assert snap1.name == "snapshot-best-060.pt"

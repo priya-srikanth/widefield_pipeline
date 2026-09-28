@@ -91,8 +91,28 @@ def choose_in_gap(xs, ps) -> tuple[int, int]:
 
 # --------------------------------------------------------------------------- the network
 
-def dlc_spout_predictor(rv=None, snapshot: str = "snapshot-best-060.pt", iteration: str = "iteration-1"):
-    """A `predict(frame_bgr) -> (spout_x, spout_likelihood)` closure over the trained cam4 network.
+def current_snapshot(project: Path, iteration: int | None = None) -> tuple[Path, Path]:
+    """(train dir, best snapshot) of the training project's CURRENT round -- or of `iteration`.
+
+    The round counter lives in the project's `config.yaml`; the best snapshot is the
+    `snapshot-best-<epoch>.pt` with the highest epoch in that round's train dir. Round 2 was
+    iteration-1 / best-060 and round 3 (2026-09-28) iteration-2 / best-160: hardcoding either would
+    quietly pick frames with a superseded network.
+    """
+    import yaml
+
+    if iteration is None:
+        iteration = int(yaml.safe_load((project / "config.yaml").read_text(encoding="utf-8")).get("iteration", 0))
+    td = next((project / "dlc-models-pytorch" / f"iteration-{iteration}").glob("*/train"))
+    best = sorted(td.glob("snapshot-best-*.pt"), key=lambda q: int(q.stem.rsplit("-", 1)[1]))
+    if not best:
+        raise FileNotFoundError(f"no snapshot-best-*.pt under {td}")
+    return td, best[-1]
+
+
+def dlc_spout_predictor(rv=None, iteration: int | None = None):
+    """A `predict(frame_bgr) -> (spout_x, spout_likelihood)` closure over the trained cam4 network
+    of the project's current round (`current_snapshot`).
 
     Imports torch/deeplabcut lazily so the module (and its tests) load on a box without them.
     """
@@ -103,10 +123,11 @@ def dlc_spout_predictor(rv=None, snapshot: str = "snapshot-best-060.pt", iterati
 
     from wfield_local import dlc_train
 
-    td = next((dlc_train.train_project(rv) / "dlc-models-pytorch" / iteration).glob("*/train"))
+    td, snapshot = current_snapshot(dlc_train.train_project(rv), iteration)
+    print(f"[dlc_iti_frames] network: {td.parent.parent.name}/{snapshot.name}", flush=True)
     cfg = read_config_as_dict(str(td / "pytorch_config.yaml"))
     model = PoseModel.build(cfg["model"])
-    model.load_state_dict(torch.load(td / snapshot, map_location="cpu", weights_only=True)["model"])
+    model.load_state_dict(torch.load(snapshot, map_location="cpu", weights_only=True)["model"])
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = model.eval().to(device)
     mean = np.array([0.485, 0.456, 0.406], np.float32)
@@ -231,11 +252,12 @@ def main(argv=None) -> int:
     ap.add_argument("--per-position", type=int, default=PER_POSITION)
     ap.add_argument("--step", type=int, default=STEP)
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--iteration", type=int, default=None, help="network round (default: the project's current)")
     ap.add_argument("--out", type=Path, default=None, help="rows CSV (default: <staging>/iti_rows.csv)")
     ap.add_argument("--extract", action="store_true", help="also extract the PNGs and append the manifest")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    predict = dlc_spout_predictor(rv)
+    predict = dlc_spout_predictor(rv, a.iteration)
     rows: list[dict] = []
     for spec in a.sessions:
         animal, date, sid, stem, epoch = _parse_session(spec, rv)

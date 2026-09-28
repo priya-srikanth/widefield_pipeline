@@ -882,6 +882,29 @@ touched in round 2, and are flagged **again**. They are not drifting labels — 
 nobody has settled. `DECIDE` is 5 frames and it is the only category retraining cannot clear. Two
 whole licks in the newly held-out `subacute` session (`#346227`, `#526451`) join them.
 
+### Third result (2026-09-28) — round 3: the between-trial spout frames
+
+`snapshot_best-160`, `iteration-2`, trained on 287 frames from 11 sessions after the 47 between-trial
+spout frames (`SPOUT_FRAMES_GUIDE.html`, `dlc_iti_frames`) took the set from **360 to 407 frames**.
+Same session split as round 2; the test set grew to 120 frames because PS95_0907 (held out) received
+24 of the new frames. Test error per part, DLC's units, round 2 -> round 3: **spout 1.85 -> 1.74**,
+nose 3.21 -> 3.33, jaw 3.77 -> 4.12, **tongue 7.48 -> 6.44** (not identical frames — see above).
+Per-epoch test RMSE for the spout: acute 1.86, subacute 1.99, chronic 1.62, pre 2.92.
+
+**The gap the round was for is closed, on a session and animal the ITI frames never came from.** On the
+20 s PS93_0908 check clip (never labelled), spout likelihood < 0.6 went from **9.8% of frames to 0.1%**;
+on the held-out PS95_0907 clip from 2.5% to 1.2%. Where both rounds are confident their spout positions
+agree to ~1 px. `inference_check_20260928_round3/` on the DLC share holds the tables and the montage.
+
+**And the 09-26 diagnosis was half right.** It said round 2 found the retracted spout "in the right place,
+just under the cutoff". The montage shows that held only at the edge of the retraction: in the deeply
+retracted frames round 2's low-confidence point sat on **fur, 40–80 px above the spout tip**, and round 3
+is on the tip. The dropout was a position error masked by low confidence — the cutoff was doing its job.
+
+Round 3's correction list (`CORRECTION_GUIDE.html`, regenerated): 1 DELETE, 15 REPLACE, 7 DECIDE, 8 ADD,
+31 points across 6 folders. The worst-15 list is tongue and jaw on test frames, as in round 2; the round-2
+hazard about correcting held-out labels toward predictions still applies to it.
+
 ### The next refinement round
 
 DLC's loop, and `dlc_train` prints these on completion:
