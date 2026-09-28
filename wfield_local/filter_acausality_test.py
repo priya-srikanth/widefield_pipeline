@@ -52,7 +52,7 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from wfield_local import config
+from wfield_local import analysis_kit as ak, config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
@@ -397,6 +397,16 @@ def _summary(rows, modes):
               + "".join("{:13.3f}".format(np.nanmean([x[m]["precue"] for x in rr])) for m in modes))
 
 
+def session_row(item):
+    """One session, for `parallel.fan_out`. MODULE-LEVEL because spawn pickles the worker by name.
+
+    Options travel in the item rather than a closure for the same reason. `modes` arrives as a tuple
+    so the item is hashable and `fan_out` can key its futures by it.
+    """
+    lab, modes, win_s, refit_t = item
+    return analyse_session(lab, list(modes), win_s=win_s, refit_t=refit_t)
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__,
@@ -412,6 +422,8 @@ def main(argv=None) -> int:
                          "(the PRODUCT path). Default reuses the saved T, which isolates the filter "
                          "and is the correct choice for a controlled comparison.")
     ap.add_argument("--output", default=None, help="write the per-session results JSON here")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes (default: parallel.default_jobs())")
     args = ap.parse_args(argv)
     modes = args.modes.split(",")
     if args.sessions:
@@ -424,15 +436,18 @@ def main(argv=None) -> int:
                 if x["label"][:4] in set(only) and x["label"][-4:] in dates]
     print("[filter_test] {} sessions x {} modes: {}".format(len(labs), len(modes), modes), flush=True)
 
-    rows = []
-    for lab in labs:
-        try:
-            r = analyse_session(lab, list(modes), win_s=args.win_s, refit_t=args.refit_t)
-        except Exception as ex:                                      # noqa: BLE001
-            print("  !! " + lab + ": " + type(ex).__name__ + " " + str(ex)[:80], flush=True)
-            continue
-        if r and all(m in r for m in modes):
-            rows.append(r)
+    # FANNED OUT OVER CORES (CLAUDE.md ground rule 6). This is the most I/O-heavy per-session loop
+    # in the package: `analyse_session` rebuilds the drift-removed SVT for EVERY mode, so the cost is
+    # one hemo-variant construction per (session, mode) and the default is three modes.
+    #
+    # `input_order` rather than alphabetical: `_summary` aggregates over `rows` and the JSON is
+    # diffed against previous runs, so keeping the serial order makes the conversion checkable. See
+    # `analysis_kit.input_order`.
+    items = [(lab, tuple(modes), args.win_s, args.refit_t) for lab in labs]
+    res, fail = ak.fan_sessions(items, session_row, jobs=args.jobs, key=ak.input_order(labs))
+    for it, err in fail:
+        print("  !! " + it[0] + ": " + err[:80], flush=True)
+    rows = [r for _it, r in res if r and all(m in r for m in modes)]
     if not rows:
         print("no sessions analysed")
         return 1
