@@ -344,6 +344,14 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md`](docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md)**
+— **START HERE for cam4 orofacial tracking (DLC / Lightning Pose).** DLC round 3 (iteration-2,
+best-160) is the model in use: the between-trial spout frames closed the retracted-spout gap
+(dropout 9.8 % → 0.1 % on an unseen session), prior ON for tongue and jaw. Lightning Pose is built
+and validated but blocked on Windows by DALI; WSL2 is staged and needs a reboot — the doc has the
+step list, where every clip is and which network it came from, and the evaluation protocol (score on
+OUR held-out sessions, never LP's frame-level split).
+
 **[`docs/status/STATUS_2026-09-17.md`](docs/status/STATUS_2026-09-17.md)** — **START HERE FIRST.** The
 TRANSFER / ROTATION arm (`epoch_15g`, `epoch_15h`) and **four corrections to things this repo
 believed**: the adopted filter (`meegkit_hpfit`) does NOT smear — the ~0.21 pre-cue inflation is the

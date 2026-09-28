@@ -1,0 +1,207 @@
+# Handoff — cam4 orofacial tracking: DLC round 3 is the model in use; Lightning Pose is one reboot away
+
+**START HERE to continue the DLC / Lightning Pose work.** Written 2026-09-28 (evening) on the analysis
+desktop (`MNB-SABA-N40713`, profile `analysis_desktop`, RTX 5060 8 GB, `N:` = MICROSCOPE). Everything
+below is either in git, on the DLC share `N:\MICROSCOPE\Priya\DeepLabCut\Widefield\` (Mac:
+`/Volumes/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/`), or named here with its path.
+
+Decision owner: Priya. Her standing choices that shape this: *"let's try using lightning pose, keeping
+open the ability to incorporate the additional cameras"* (2026-09-26); WSL2 before O2 as the first try;
+prior ON for tongue and jaw only (2026-09-28); train/test split by whole sessions (do not change).
+
+---
+
+## 1. Where things stand
+
+### DeepLabCut — round 3 is current and good to use
+
+| | round 2 (iteration-1, best-060) | **round 3 (iteration-2, best-160)** |
+|---|---|---|
+| labelled frames / sessions | 360 / 15 | **407 / 15** (+47 between-trial spout frames) |
+| train / test | 264 / 96 | 287 / 120 (same held-out sessions) |
+| test error, DLC units (px): nose · jaw · tongue · spout | 3.21 · 3.77 · 7.48 · 1.85 | 3.33 · 4.12 · **6.44** · **1.74** |
+| spout dropout (p < 0.6), unseen PS93_0908 clip | 9.8 % | **0.1 %** |
+| spout dropout, held-out PS95_0907 clip | 2.5 % | 1.2 % |
+
+Per-epoch test RMSE for the spout: acute 1.86, subacute 1.99, chronic 1.62, pre 2.92. Acute remains
+the best or near-best epoch on every part (no false-deficit mode). Full tables: `runbooks/dlc_orofacial.md`
+"Third result (2026-09-28)"; check results `inference_check_20260928_round3/README.md` on the share.
+
+The training project is `training/widefield-Priya-2026-09-08-orofacial/` (`config.yaml` says
+`iteration: 2`); anything that runs inference off that config — including the O2 path, which pins no
+snapshot of its own — picks up `dlc-models-pytorch/iteration-2/widefield-trainset71shuffle1/train/snapshot-best-160.pt`.
+Round 2's model is untouched under `iteration-1/`.
+
+**Held-out sessions (seed 42, `dlc.train.training_fraction` 0.74):** `cam4_2026-08-20T16_31_02` (PS92,
+acute), `cam4_2026-08-21T15_02_47` (PS95, subacute), `cam4_2026-09-07T17_08_48` (PS95, chronic; holds
+24 of the new spout frames), `cam4_2026-06-06T18_02_39` (PS92, pre). Score every model on these.
+
+**Spatial prior:** `dlc.prior.enabled: true`, `parts: [tongue, jaw]`; `dlc_prior.apply()` is the one
+entry point (no-op when off). Measured inert on the review clips (0 of ~7,900 confident points outside
+a box) — it is insurance against the rare confident-wrong peak. Nose and spout stay unmasked until a
+FULL-SESSION run confirms their boxes never mask a real point (the spout's must hold the between-trial
+transit, measured x 279–416 on two animals).
+
+**Open on the DLC side:** the 31-point correction list (`CORRECTION_GUIDE.html`, regenerated from
+round 3: 1 DELETE, 15 REPLACE, 7 DECIDE, 8 ADD); the tongue landmark convention (`DECIDE`); pre-stroke
+jaw ~8.7 px in the 0606 held-out session (a labelling-convention problem, not the network). Each retrain
+is ~45 min here: `conda activate dlc; python -m wfield_local.dlc_train --iteration <next>`.
+
+### Lightning Pose — built, validated, blocked on a Linux-only dependency; WSL2 staged
+
+Why LP at all (DECISIONS.md 2026-09-26): the jaw is lost at maximum mouth opening, human and network
+agree it is occluded there (88 % of human-blank jaw frames are also network-unsure), so more cam4 labels
+cannot fix it. LP's **temporal and pose-PCA losses act during training on unlabelled frames**, so the
+network can learn to stay coherent through the occlusion instead of having it interpolated afterwards
+(a post-hoc interpolation was built and rejected: it flattens jaw-opening amplitude, biased towards
+"less movement" on post-stroke animals). Multi-view (cam1 sees the jaw when cam4 cannot) is the
+follow-on, and the data already support it (§4).
+
+What exists:
+
+* **`lp` conda env** on this box — python 3.10, torch 2.11.0+cu128 (Blackwell `sm_120`; a cu124 build
+  has no kernels), lightning-pose 2.4.2, CUDA visible. README "Per-machine environments" has the
+  install order. Do not install LP into `dlc`.
+* **Converted project** `lightning-pose/cam4-2026-09-26/` on the share: `CollectedData.csv` (**360
+  rows — round 2's labels; STALE, see §2 step 3**), `config.yaml` (live copy), `videos/` (15
+  unlabelled 30 s clips, §3), `smoke/` (an aborted smoke run).
+* **Config** `configs/lightning_pose_cam4.yaml` — the version-controlled reference copy, with every
+  validator trap found on 09-26 written into it (resize dims must be multiples of 128 → 640;
+  `max_steps` must be ABSENT not null; `training.num_gpus` passes validation then raises; camera-
+  dependent losses need `heatmap_multiview_transformer` + `imgaug: dlc` + `imgaug_3d: true` or are
+  silently dropped). Key settings: `model_type: heatmap`, `backbone: resnet50`, `losses_to_use:
+  [temporal, pca_singleview]`, PCA over nose/jaw/tongue only (the spout is apparatus and moves by
+  design — indices 0,1,2), batch 8, 50–300 epochs, `train_prob 0.8 / val 0.1 / test 0.1`.
+
+**The blocker:** `lightning_pose.utils.device.require_cuda_for_semi_supervised` refuses ANY unsupervised
+loss unless `nvidia.dali` imports, and DALI has no Windows wheel (verified: the PyPI stubs fail with
+"Didn't find wheel"). Supervised-only would run here and is pointless. The `pynvvc -> dali -> opencv`
+fallback in `data/video/factory.py` is the PREDICTION reader and does not apply — do not re-derive
+that mistake.
+
+**WSL2 state (this box):** `wsl --install` was run elevated on 09-26; WSL 2.7.14 + kernel 6.18.33.2
+present, Ubuntu-24.04 staged with `--no-launch`. `wsl --status` today: "Default Version: 2 … no
+installed distributions" — i.e. exactly the staged-but-unlaunched state. **The Virtual Machine Platform
+driver loads only at boot, so the next step is a reboot.** Firmware virtualization is fine despite
+`Win32_Processor.VirtualizationFirmwareEnabled = False`: a hypervisor is already running (VBS status 2,
+Credential Guard), and that flag is a reporting artefact from inside it. Do not send anyone into the BIOS.
+
+---
+
+## 2. The procedure to proceed (WSL2 route)
+
+0. **Reboot the box** when nothing important is running (check `Get-CimInstance Win32_Process` for
+   other users' `cellpose_gpu` / 2pRAM jobs — this machine is shared; never kill python by name).
+1. **Launch Ubuntu-24.04** (`wsl -d Ubuntu-24.04`, first launch creates the user). Confirm the GPU is
+   passed through: `nvidia-smi` inside WSL must show the RTX 5060 using the WINDOWS driver (610.88).
+   **Never install an NVIDIA driver inside WSL** — it breaks the passthrough. Only the CUDA toolkit
+   goes inside, and DALI's wheel bundles what it needs.
+2. **Env inside WSL** (mirror the Windows `lp` recipe): miniforge → `conda create -n lp python=3.10`
+   → `pip install torch --index-url https://download.pytorch.org/whl/cu128` FIRST → `pip install
+   lightning-pose` → `pip install nvidia-dali-cuda120` (the piece that cannot install on Windows) →
+   `python -c "import nvidia.dali, lightning_pose"`.
+3. **Re-convert the project from the ROUND-3 training copy** so the 47 spout frames are in:
+   `litpose convert /mnt/n/.../training/widefield-Priya-2026-09-08-orofacial --lp_dir <new lp_dir>`
+   (any env with pandas). Expect **407 rows**, 4 bodyparts, fills nose 407 / jaw 340 / tongue 164 /
+   spout 396 — the same counts `dlc_train --dry-run` prints. Name the new dir by date
+   (`lightning-pose/cam4-2026-09-<dd>/`), keep `cam4-2026-09-26/` as the round-2 record.
+4. **Copy the project into WSL's ext4** (`~/lp/cam4-…`, ~0.75 GB incl. clips) rather than training over
+   `drvfs`/SMB — faster and no share credentials. Reuse the 15 clips from `cam4-2026-09-26/videos/`
+   (they are unlabelled video; the label set does not change them).
+5. **Write the live config** from `configs/lightning_pose_cam4.yaml` with `data.data_dir`,
+   `data.video_dir` and `eval.test_videos_directory` pointed at the ext4 copy. Keep everything else in
+   step with the reference copy; if you change a setting, change the reference copy in git too.
+6. **Train**: `litpose train <config.yaml>` (semi-supervised). Watch the first epoch's memory on the
+   8 GB card; `train_batch_size: 8` matched DLC, but LP's unlabelled batches add to it — drop to 4 if
+   it OOMs and note it in the config.
+7. **Evaluate on OUR terms, not LP's.** LP's split is uniform over frames, so its own test number is
+   optimistic (near-duplicate lick frames on both sides — the reason `dlc_train.split` holds out whole
+   sessions). Score the LP model on the four held-out sessions above and on the three review clips
+   (§3), with the same metrics: per-part test error, per-epoch RMSE, spout dropout, and — the point of
+   LP — jaw confidence across licks (round 2 measured 0.90 → 0.28 across a lick; round 3 drops the jaw
+   on 0.7 / 19.6 / 9.5 % of frames on the three clips). `litpose predict` on the clips, then compare
+   against `labeled_clips/*_filtered.csv` frame by frame.
+8. **Record** the result in `runbooks/dlc_orofacial.md` (a "Lightning Pose, first result" section) and
+   DECISIONS.md, and decide with Priya whether LP replaces DLC for cam4 inference or stays a jaw filler.
+
+**Fallback if IT blocks WSL:** O2. Linux GPUs, DALI installs normally, and `dlc.o2.*` + the sbatch/rsync
+scaffolding from the DLC inference port already exist. Project, clips and config transfer unchanged.
+
+---
+
+## 3. Clips — where they are and which network they came from
+
+All on the DLC share `N:\MICROSCOPE\Priya\DeepLabCut\Widefield\` (Mac: `/Volumes/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/`). All cam4, 680×680, 250 fps.
+
+| clip(s) | location | frames / length | purpose | network they were analysed with |
+|---|---|---|---|---|
+| `PS92_0820_acute_day1_HELDOUT_round3_labeled.mp4` | `inference_check_20260928_round3/labeled_clips/` | 5,000 / 20 s, densest-licking window (t = 1439 s, frame 360175 of `cam4_2026-08-20T16_31_02.avi`) | **review clip** — held-out acute session (day 1) | **round 3**, iteration-2 / best-160, prior ON tongue+jaw, median-filtered, p ≥ 0.6, 5-frame trails |
+| `PS93_0908_chronic_UNSEEN_round3_labeled.mp4` | same | 5,000 / 20 s, from frame 740321 of `cam4_2026-09-08T11_10_48.avi` | **review clip** — session never labelled; where round 2 dropped the spout on 9.8 % of frames | round 3, as above |
+| `PS95_0907_chronic_HELDOUT_round3_labeled.mp4` | same | 5,000 / 20 s, from frame 346831 of `cam4_2026-09-07T17_08_48.avi` | **review clip** — held-out chronic session carrying 24 of the new spout frames | round 3, as above |
+| `*_snapshot_best-160_filtered.csv` (3) | same | — | the predictions drawn on the clips above | round 3 |
+| `PS93_20260908_UNSEEN_f740321DLC_…best-160.csv`, `PS95_…best-160.csv` | `inference_check_20260928_round3/` | — | check-clip predictions, **full frame, NO prior** (the like-for-like comparison with round 2) | round 3 |
+| `round3_vs_round2_spout_PS93.png` | same | — | montage: cyan = round 2, magenta = round 3 on the frames round 2 dropped | rounds 2 and 3 |
+| `PS93_…_snapshot_best-60_filtered.csv`, `PS95_…best-60_filtered.csv` (+ `crop384x512_prior/`, `fullframe_prior/`) | `inference_check_20260926/` | same two 20 s clips | round-2 check: full frame vs crop, with/without prior | **round 2**, iteration-1 / best-060 |
+| 15 × `cam4_<stem>_t<sec>.mp4` | `lightning-pose/cam4-2026-09-26/videos/` | 7,500 / 30 s each, cut 3 s before a mid-session cue (ENL → cue → response → ITI spout move), one per labelled session | **unlabelled clips for LP's semi-supervised losses**; also `eval.test_videos_directory` | none — unlabelled by design (chosen with the trial tables, not a network) |
+| source `.mp4` clips (3) + round-2 analysis of two of them | this session's scratchpad `…/scratchpad/clips/` (temporary, not on the share) | — | inputs to the above | round 2 files: best-060 |
+
+The review clips were cut by `pick_clips.py`-style logic (densest 20 s of lick onsets, `dlc_frames.lick_onsets`
++ `frame_of`) and rendered by `review_clips.py` (both were scratch; `review_clips.py`'s logic is: `analyze_videos`
+under `dlc_prior.apply()`, `filterpredictions`, `create_labeled_video(filtered=True, trailpoints=5)`).
+The LP unlabelled clips were cut by `scripts/lp_unlabelled_clips.py` (committed 2026-09-28 from the 09-26
+scratch script; seed 92, one clip per animal × epoch).
+
+**When LP has a model, add a row here for each clip you analyse with it, with its checkpoint path.**
+
+---
+
+## 4. The multi-view extension, when you get there
+
+* `dlc.frames.anchor_cam` is `cam4`, so every camera's frames were sampled at the SAME DAQ instant via
+  its own alignment template: **241 frames exist in both cam1 and cam4 at the same (trial, phase)**.
+* cam1 (looks up at the snout underside) has one partly-labelled session with jaw on 71/72 rows — it
+  sees the jaw exactly when cam4 cannot. Labelling more cam1 is the prerequisite, not a blocker.
+* LP's `pca_multiview` needs no calibration; `heatmap_multiview_transformer` can take the intrinsics /
+  extrinsics / distortions from the 2026-09-11 four-camera solve (`dlc_calibration`, `dlc_anipose`).
+* Carry the repo's caveat: no landmark is the same physical point from two views, and for deforming
+  parts the offset changes with posture. Using cam1 to FILL cam4's occluded jaw frames is sound;
+  calling the result a 3D jaw is a separate claim needing its own check.
+
+---
+
+## 5. Things that will bite (all measured, all in git — read before "improving" them)
+
+* **Labels live in the LABELLING project only** (`widefield-Priya-2026-09-08/labeled-data/<stem>/CollectedData_Priya.*`).
+  `training/…-orofacial/` is overwritten from it on every `dlc_train` run; LP's `CollectedData.csv` is a
+  converted copy. Never correct a label anywhere but the labelling project.
+* **Split by session, seed 42.** A frame-level split reports a test error partly measured on the training
+  set (four frames of one 80 ms lick are near-duplicates). If a held-out frame gets *corrected toward a
+  prediction*, either move it into train (seed change) or say so when quoting the number.
+* **`dlc_train` prints two tables in different units**: DLC's per-keypoint block is MEAN euclidean error
+  despite saying rmse; `per_epoch_error` is true RMSE. Compare like with like.
+* **Between-trial spout frames are picked by the network, not a time offset** (`dlc_iti_frames`): scan
+  each position-change gap at ~21 Hz, keep the largest spout-x jump and the lowest likelihood, two gaps
+  per position, seed 92. The 09-26 picks are `docs/dlc_iti_rows_20260926.csv`. In cam4 the entire six-
+  position excursion is ~120 px around frame centre — "the spout is always near the middle" is geometry.
+* **This machine is shared.** Other sessions' `cellpose_gpu` / 2pRAM jobs run here for days. Identify a
+  process by its command line before touching it (memory note `analysis-desktop-shared-box`).
+* **Round-2's "retracted spout found in the right place, just under-confident" was half wrong**: deep in
+  the retraction it sat on fur 40–80 px above the tip (montage above). Low confidence WAS the correct
+  signal; the cutoff was doing its job. Treat "position right, confidence wrong" claims with suspicion.
+
+## 6. Commands, in one place
+
+```powershell
+conda activate dlc
+python -m wfield_local.dlc_train --dry-run                      # stage labels, audit, print the split
+python -m wfield_local.dlc_train --iteration 3                  # next DLC round (~45 min)
+python -m wfield_local.dlc_train --evaluate --guide --iteration 3   # re-evaluate + CORRECTION_GUIDE.html
+python -m wfield_local.dlc_iti_frames --sessions PS9x:YYYYMMDD --extract   # more between-trial frames
+python -m wfield_local.dlc_spout_guide                          # the page for the labeller
+python -m scripts.lp_unlabelled_clips                           # LP unlabelled clips (idempotent)
+# Lightning Pose (inside WSL, env lp):  litpose convert … ;  litpose train <config> ;  litpose predict …
+```
+
+Repo state at handoff: `main` at c86448c (all of 2026-09-28 pushed). Related records: `runbooks/dlc_orofacial.md`
+(the full DLC runbook, results rounds 1–3), DECISIONS.md entries 2026-09-26 (why LP; WSL2 attempt),
+`configs/lightning_pose_cam4.yaml`, README "Per-machine environments".
