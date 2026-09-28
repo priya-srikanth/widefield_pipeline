@@ -59,7 +59,6 @@ computed for both alignments and reported as a ratio against the engaged trials 
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
 
 import numpy as np
 
@@ -102,8 +101,8 @@ def majority_class_floor(y_true, labels=DISPLAY_ORDER):
     claim of preserved coding should be made from the raw number.
     """
     y_true = np.asarray(y_true)
-    if not y_true.size:
-        return float("nan")
+    if not y_true.size or not len(labels):
+        return float("nan")                 # nothing to be constant over: undefined, not an error
     return float(max((y_true == c).mean() for c in labels))
 
 

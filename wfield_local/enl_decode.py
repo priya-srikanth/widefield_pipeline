@@ -421,6 +421,14 @@ def _score_shared(sc, target_frac, n_perm, labels):
     """`evaluate_arm` on a `scored_arm`, or a reason the arm was not scorable."""
     if sc is None:
         return {"skipped": "no trial fell in a held-out block at a shared position"}
+    if not len(labels):
+        # An epoch in which NO position is presented in all three arms -- the ordinary case for a
+        # post-stroke epoch where the stopped arm holds a handful of trials at two positions.
+        # `evaluate_arm` on an empty label set raised (max() of nothing in majority_class_floor) and
+        # took the whole ENL stage down on every post-stroke epoch, 2026-09-26/27, which the
+        # failed-steps gate then turned into "no deck tonight". Not scorable is a result, not a crash.
+        return {"skipped": "no position is shared by all arms in this epoch", "n_total": sc["n_total"],
+                "coverage": sc["coverage"], "positions_used": 0}
     out = na.evaluate_arm(sc["y"], sc["pred"], target_frac=target_frac, n_perm=n_perm,
                           labels=list(labels))
     out["n_total"] = sc["n_total"]
