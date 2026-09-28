@@ -17,7 +17,7 @@ carried. Where a number is unchanged it is left as it was; where it moved, the o
 rest definition. **Every number here is read from the `.csv` beside its figure or from
 `kw.stat_rows` in its `*_bundle.json`, never off a heatmap** — so each claim can be checked against
 the panel that drew it. Session set: **N=4 animals — pre 44 (11 each), acute 16 (92:5 93:4 94:6
-95:1), subacute 17, chronic 31 (PS92 9, PS93 8, PS94 5, PS95 8)**.
+95:1), subacute 17, chronic 31 (PS92 9, PS93 9, PS94 5, PS95 8)**.
 
 **PS94 NOW HAS A CHRONIC EPOCH.** On 2026-09-25 three sessions were registered (PS94_0924, PS95_0924,
 PS92_0925) and PS94's `chronic_from` was PINNED at day 25 after a registration re-derived it to None
