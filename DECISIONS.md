@@ -18478,3 +18478,22 @@ lines. A derivation that publishes to a shared file must keep printing its diff.
 `--only` render is not a per-animal operation everywhere: the epoch step, the cohort behaviour
 table and anything else defined over all four animals must be exempt from the subset, explicitly.
 
+## 2026-09-28 — Do the alternation "hiccups" mislabel channels? Audited: no (124 sessions)
+
+Priya asked whether the ~150–300 LED-alternation hiccups per session are handled so each frame gets the
+right channel. `scripts/camlog_label_audit.py` compares the pipeline's per-frame labels (DAQ LED TTL
+measured during each exposure pulse) with the camera's own camlog `#LED` record for every session with
+both on the share. **116/124 agree on 100.00000% of frames over the whole session**, PS92_0922 included at
+its head offset. The eight that differ are the camlog's fault, not the pipeline's: camlogs at chance from
+frame 0 (early June, PS92_0605), and camlogs whose index shifts mid-session where labcams logged two LED
+toggles for one exposure (PS93_0805 f180,080; PS92_0904 f429,023; PS92_0911 f421,567; PS93_0904 f84,614;
+PS94_0817 repeatedly). At those points the DAQ saw both LEDs in one exposure (label 3, skipped) and kept
+measuring the true LED afterwards; the cue response of the two RAW channels is unchanged before vs after
+(e.g. PS92_0904 470: +0.041 → +0.040, 415: +0.010 → +0.009). A hiccup therefore costs one skipped frame,
+never a mislabel, because labels are measured per exposure rather than inferred from alternation.
+
+**Consequence for the camlog's standing.** It is a software toggle log, reliable for placing a HEAD
+surplus (its index error is parity-neutral, and PS92_0922's 154 was found with it) and a check
+everywhere else — which is how `load_daq_labels` already treats it. The audit also confirms every
+`DAQ pulses − DAT frames = 1` in the cohort is the stray leading/trailing pulse, not a dropped frame.
+
