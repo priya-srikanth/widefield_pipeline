@@ -11,6 +11,61 @@ prior ON for tongue and jaw only (2026-09-28); train/test split by whole session
 
 ---
 
+## 0. RESUME CHECKLIST (written 2026-09-28 23:45, for the session that picks this up)
+
+**A Lightning Pose training run is (or was) in flight.** Do these in order.
+
+1. **Is it still running?** `nvidia-smi` on Windows: ~7.9 GB used / 100 % = still training. Log:
+   `C:\Users\SabatiniLab\AppData\Local\Temp\claude\C--Users-SabatiniLab\cdd1e016-6bb3-4346-8600-f08116ccf61d\scratchpad\lp_train_round3.log`
+   (progress lines use `\r`; read with `tr -d '\0' < log | tr '\r' '\n' | grep -E "^Epoch" | tail`). The
+   Windows-side anchor is a `wsl.exe` process; the trainer inside WSL is `litpose train` (check with
+   `wsl -d Ubuntu-24.04 -u root -- ps -eo pid,etime,cmd | grep litpose`). If that scratchpad is gone, the
+   run's own record is the hydra output dir in WSL (step 4).
+2. **Timing measured:** 7.1 min/epoch (41 steps, batch 8 + DALI context batch 8, RTX 5060 saturated).
+   Started 22:27 on 09-28. `min_epochs 50` ≈ 04:30; unsupervised weight reaches 1.0 at epoch ~100 ≈ 10:00
+   on 09-29; early stopping (patience 20 on `val_supervised_loss`) most likely between epochs 70–150
+   → **expect it to end 07:00–16:00 on 09-29**; hard cap 300 epochs ≈ 10:00 on 09-30. If it is still
+   running on the afternoon of 09-29 that is normal, not stuck — check the epoch counter advances.
+   **Watch one thing:** if early stopping fires before epoch ~100, the unsupervised losses never
+   reached full weight; that is a legitimate result but say so when reporting, and consider a second run
+   with `callbacks.anneal_weight.increase_factor: 0.02` or `early_stop_patience: 40`.
+3. **If it OOM'd or crashed:** the log holds the traceback. OOM → set `training.train_batch_size: 4` and
+   `dali.context.train.batch_size: 4` in BOTH `configs/lightning_pose_cam4.yaml` and the live copy
+   (`scratchpad/lp_config_wsl.yaml` → `/root/lp/cam4-2026-09-28/config.yaml`; the live copy is the
+   reference with three paths rewritten to `/root/lp/cam4-2026-09-28`), note it in the config, delete the
+   old output dir, relaunch anchored from Windows:
+   `nohup wsl.exe -d Ubuntu-24.04 -u root -- bash -c "source /root/miniforge3/etc/profile.d/conda.sh && conda activate lp && cd /root/lp/cam4-2026-09-28 && litpose train config.yaml --output_dir /root/lp/cam4-2026-09-28/models/round3_semisup_20260928" > <log> 2>&1 &`
+   Any other config error is a missing/null key — see §1c for the two found so far and how to find the
+   next (`grep -rn "cfg\." …/lightning_pose/train.py …/callbacks.py`).
+4. **When it has finished** (`Best model path` in the log; hydra output dir
+   `/root/lp/cam4-2026-09-28/models/round3_semisup_20260928/` holds `tb_logs/`, `checkpoints/*.ckpt`,
+   `predictions.csv` (all labelled frames, tagged with LP's train/val/test), the `config.yaml` as used, and
+   predictions for `eval.test_videos_directory`):
+   a. **Copy the model dir back to the share**: `lightning-pose/cam4-2026-09-28/models/round3_semisup_20260928/`
+      (stage via `/mnt/c` from WSL, or read `\\wsl$\Ubuntu-24.04\root\lp\…` from Windows).
+   b. **Predict on the three review clips** (already in WSL at `/root/lp/review_clips/*.mp4`):
+      `litpose predict <model_dir> /root/lp/review_clips/*.mp4` (`litpose predict --help` for the output
+      flag). Copy the CSVs beside the DLC ones in `inference_check_20260928_round3/labeled_clips/`.
+   c. **Score, on OUR terms** (§2 step 7): per clip, per part, fraction of frames with likelihood < 0.6
+      and, for the jaw, confidence and continuity *through lick bouts* against DLC round 3's
+      `*_snapshot_best-160_filtered.csv` — that is the improvement LP is for. Spout: check it did NOT
+      smooth away real between-trial jumps (where both are confident, positions should agree to ~1 px).
+      Labelled-frame error: use LP's `predictions.csv` for its 42 test frames only, and say plainly that
+      LP's split is frame-level, so it is not comparable to DLC's session hold-out (most frames of our
+      four held-out sessions were in LP's TRAIN set). A clean session-level LP number needs a second run
+      with the split forced by session — check LP's `training` config keys / `utils/io.py` for an explicit
+      split-file mechanism before building one.
+   d. **Write it up**: `runbooks/dlc_orofacial.md` "Lightning Pose, first result" + a DECISIONS entry, and
+      add a row per LP-analysed clip to §3 with the checkpoint path. Commit; push (the pre-push hook runs
+      the full suite; two tests need N:/M: mounted — after a reboot they need Priya's sign-in).
+5. **Pending from the same day, unrelated to LP:** once the analysis box's stage 2 for 0928 has landed,
+   `python -m scripts.chronic_stability` (PS92_0922 is back in the cohort), then re-read the PS92 chronic
+   cells in `docs/PRELIM_DATA_VLS_STROKE.md` and `docs/status/STATUS_2026-09-28_CHRONIC_STABILITY.md`.
+
+Everything else in this document is background for those steps.
+
+---
+
 ## 1. Where things stand
 
 ### DeepLabCut — round 3 is current and good to use
