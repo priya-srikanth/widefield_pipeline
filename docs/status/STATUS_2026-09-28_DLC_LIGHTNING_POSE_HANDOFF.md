@@ -116,7 +116,31 @@ commits after c86448c sit local. Resume at §2 step 3.
 Run things in WSL from Windows with a SCRIPT FILE, not an inline `bash -lc "…"`: `$(…)` and quotes are
 mangled between Git Bash and WSL (measured: `python: command not found` from a command that worked
 verbatim inside WSL). Pattern that works:
-`wsl.exe -d Ubuntu-24.04 -u root -- bash -c "tr -d '' < /mnt/c/<path>/x.sh > /root/x.sh && bash /root/x.sh"`.
+`wsl.exe -d Ubuntu-24.04 -u root -- bash -c "tr -d '
+' < /mnt/c/<path>/x.sh > /root/x.sh && bash /root/x.sh"`.
+
+## 1c. UPDATE 2026-09-28 22:30 — round-3 labels converted, project on the share, training RUNNING in WSL
+
+* `litpose convert` on the round-3 training copy (run from the Windows `lp` env; the converter is pure
+  pandas): **407 rows**, nose 407 / jaw 340 / tongue 164 / spout 396 — identical to `dlc_train`. Published
+  as `lightning-pose/cam4-2026-09-28/` on the share (labels + `config.reference.yaml` + README; the 15
+  clips stay in `cam4-2026-09-26/videos/`). ext4 copy: `/root/lp/cam4-2026-09-28/` (761 MB with clips).
+* **Two more config traps, both fixed in `configs/lightning_pose_cam4.yaml` with the reason inline:**
+  `training.patch_mask: null` → must be ABSENT (`"init_epoch" in cfg.training.patch_mask` on a null
+  raises TypeError); and a top-level **`callbacks.anneal_weight` section is REQUIRED** for any
+  semi-supervised run (`AnnealWeight(**cfg.callbacks.anneal_weight)`; omegaconf: "Key 'callbacks' is
+  not in struct"). LP's default config is not in the wheel, which is why 09-26's validation missed it.
+* **WSL detaches nothing you start inside it.** `nohup … &` inside a `wsl.exe -- bash -c` session dies
+  when that session ends. Working pattern: run the *Windows-side* `wsl.exe` in the background as the
+  anchor: `nohup wsl.exe -d Ubuntu-24.04 -u root -- bash -c "… litpose train …" > log 2>&1 &`.
+* **Launched 22:27:** `litpose train config.yaml --output_dir /root/lp/cam4-2026-09-28/models/round3_semisup_20260928`
+  — data module 407 images, LP split train 325 / val 40 / test 42 (LP's own frame-level split; NOT our
+  metric, see §2 step 7), PCA kept 3/6 components (95.4 %), `SemiSupervisedHeatmapTracker` resnet50,
+  losses temporal + pca_singleview, batch 8 + DALI context batch 8. GPU at 7.9 / 8.1 GB at start — if it
+  OOMs, drop `training.train_batch_size` and `dali.context.train.batch_size` to 4 and note it. Log:
+  this session's `scratchpad/lp_train_round3.log`; outputs under the model dir (hydra).
+* Not yet done: evaluation on OUR held-out sessions and the three review clips (§2 step 7), copying the
+  model back to the share, the runbook "Lightning Pose, first result" section.
 
 ## 2. The procedure to proceed (WSL2 route)
 

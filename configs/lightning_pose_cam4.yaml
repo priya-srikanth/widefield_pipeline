@@ -110,7 +110,10 @@ training:
   # `max_steps: null` selects step mode and then fails because `min_epochs` is also present.
   train_frames: 1         # every training frame; a fraction here would silently shrink the set
   imgaug_3d: false        # only for the camera-dependent multiview losses, which are not on yet
-  patch_mask: null
+  # `patch_mask` is deliberately ABSENT, not null. The trainer does
+  #   if "patch_mask" in cfg.training and "init_epoch" in cfg.training.patch_mask
+  # so a null value passes the first test and raises TypeError on the second (measured 2026-09-28,
+  # first WSL run: the data module, DALI and PCA all built, then this). Same trap class as max_steps.
 
 model:
   model_type: heatmap
@@ -135,6 +138,20 @@ losses:
     log_weight: 5.0
     components_to_keep: 0.95
     empirical_epsilon_percentile: 1.00
+
+# `callbacks` is REQUIRED for any semi-supervised run: `get_callbacks` does
+# `AnnealWeight(**cfg.callbacks.anneal_weight)` unconditionally when an unsupervised loss is on,
+# and omegaconf raises "Key 'callbacks' is not in struct" if the section is absent (measured
+# 2026-09-28, second WSL run). These are Lightning Pose's shipped defaults: the unsupervised losses
+# are ramped in from 0 to full weight by +0.01 per epoch (~100 epochs to full), so the network
+# learns the supervised landmarks before the temporal / PCA terms can pull on them.
+callbacks:
+  anneal_weight:
+    attr_name: total_unsupervised_importance
+    init_val: 0.0
+    increase_factor: 0.01
+    final_val: 1.0
+    freeze_until_epoch: 0
 
 dali:
   base:
