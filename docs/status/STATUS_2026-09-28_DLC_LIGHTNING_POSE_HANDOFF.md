@@ -79,7 +79,7 @@ loss unless `nvidia.dali` imports, and DALI has no Windows wheel (verified: the 
 fallback in `data/video/factory.py` is the PREDICTION reader and does not apply — do not re-derive
 that mistake.
 
-**WSL2 state (this box):** `wsl --install` was run elevated on 09-26; WSL 2.7.14 + kernel 6.18.33.2
+**WSL2 state (this box), superseded by §1b:** `wsl --install` was run elevated on 09-26; WSL 2.7.14 + kernel 6.18.33.2
 present, Ubuntu-24.04 staged with `--no-launch`. `wsl --status` today: "Default Version: 2 … no
 installed distributions" — i.e. exactly the staged-but-unlaunched state. **The Virtual Machine Platform
 driver loads only at boot, so the next step is a reboot.** Firmware virtualization is fine despite
@@ -88,9 +88,39 @@ Credential Guard), and that flag is a reporting artefact from inside it. Do not 
 
 ---
 
+## 1b. UPDATE 2026-09-28 20:10 — the box was rebooted; WSL2 works, INCLUDING DALI's GPU video decode
+
+Done after the reboot, all from this session, all inside `Ubuntu-24.04` as root:
+
+* `wsl --install -d Ubuntu-24.04 --no-launch` registered the distro (the 09-26 staging had not
+  persisted); first launch with `wsl -d Ubuntu-24.04 -u root -- …` skips the user-creation prompt.
+  Ubuntu 24.04.5, kernel 6.18.33.2-microsoft-standard-WSL2, **RTX 5060 visible via the Windows
+  driver**, ext4 955 GB free, 24 CPUs, 31 GB RAM.
+* **`lp` env inside WSL** at `/root/miniforge3/envs/lp` (script: this session's
+  `scratchpad/setup_lp_wsl.sh`; 3 min end to end): python 3.10 → torch 2.11.0+cu128 (CUDA true) →
+  lightning-pose 2.4.2 → **nvidia-dali-cuda120 2.3.0** (`--extra-index-url https://pypi.nvidia.com`).
+  `require_cuda_for_semi_supervised` imports; `litpose` CLI on PATH.
+* **The remaining unknown is settled: DALI's GPU video reader decodes under WSL2.**
+  `fn.readers.video(device="gpu")` on a 680×680 review clip returned a (1, 8, 680, 680, 3) batch. That
+  is the exact call LP's unlabelled-frame pipeline makes (`lightning_pose/data/video/dali.py:135`).
+  The `device="cpu"` variant fails — the legacy reader is GPU-only — which is irrelevant to LP.
+* Staged in ext4: `/root/lp/cam4-2026-09-28/config.yaml` (the reference config with its three paths
+  rewritten to `/root/lp/cam4-2026-09-28`) and the three review clips in `/root/lp/review_clips/`.
+
+**Still needed, and why it stopped here:** N: and M: were "Unavailable" after the reboot and prompt
+for HMS credentials, which this session cannot supply. Until Priya signs in once, the round-3 labels
+cannot be re-converted, the 15 unlabelled clips cannot be copied into WSL, and the two share-dependent
+tests in the pre-push hook fail (the PathResolver falls to the wrong profile without the mounts), so
+commits after c86448c sit local. Resume at §2 step 3.
+
+Run things in WSL from Windows with a SCRIPT FILE, not an inline `bash -lc "…"`: `$(…)` and quotes are
+mangled between Git Bash and WSL (measured: `python: command not found` from a command that worked
+verbatim inside WSL). Pattern that works:
+`wsl.exe -d Ubuntu-24.04 -u root -- bash -c "tr -d '' < /mnt/c/<path>/x.sh > /root/x.sh && bash /root/x.sh"`.
+
 ## 2. The procedure to proceed (WSL2 route)
 
-0. **Reboot the box** when nothing important is running (check `Get-CimInstance Win32_Process` for
+0. ~~Reboot the box~~ DONE 2026-09-28 (§1b). Steps 1–2 DONE too; resume at step 3. Originally: reboot when nothing important is running (check `Get-CimInstance Win32_Process` for
    other users' `cellpose_gpu` / 2pRAM jobs — this machine is shared; never kill python by name).
 1. **Launch Ubuntu-24.04** (`wsl -d Ubuntu-24.04`, first launch creates the user). Confirm the GPU is
    passed through: `nvidia-smi` inside WSL must show the RTX 5060 using the WINDOWS driver (610.88).

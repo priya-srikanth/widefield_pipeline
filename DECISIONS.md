@@ -18497,3 +18497,21 @@ surplus (its index error is parity-neutral, and PS92_0922's 154 was found with i
 everywhere else — which is how `load_daq_labels` already treats it. The audit also confirms every
 `DAQ pulses − DAT frames = 1` in the cohort is the stray leading/trailing pulse, not a dropped frame.
 
+## 2026-09-28 — Lightning Pose: WSL2 works, and DALI's GPU video decode works under it
+
+The 09-26 entry left this "blocked pending a reboot". Rebooted 2026-09-28 evening; `Ubuntu-24.04`
+registered and launched as root; RTX 5060 passed through via the Windows driver (no guest driver
+installed — that rule stands). An `lp` env inside WSL (torch 2.11.0+cu128 → lightning-pose 2.4.2 →
+nvidia-dali-cuda120 2.3.0) builds in 3 min and `require_cuda_for_semi_supervised` imports.
+
+**The measurement that mattered:** WSL2 passes CUDA through but was not known to pass the NVDEC video
+engine, and Lightning Pose's unlabelled-frame pipeline is `fn.readers.video(device="gpu")`
+(`lightning_pose/data/video/dali.py:135`). That call decoded a 680×680 review clip under WSL and
+returned a (1, 8, 680, 680, 3) batch. So the semi-supervised losses — the reason for using Lightning
+Pose — can run on this box. O2 stays the fallback, not the plan.
+
+Not yet done, blocked only on the network drives needing Priya's credentials after the reboot:
+re-converting the round-3 labels (`litpose convert` on the training copy, expect 407 rows), copying
+the 15 unlabelled clips into ext4, training. Procedure and clip inventory:
+`docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md`.
+
