@@ -66,6 +66,29 @@ Everything else in this document is background for those steps.
 
 ---
 
+## 1d. UPDATE 2026-09-29 ~11:00 — the overnight run NEVER LEARNED; cause found and fixed (heatmap loss mse -> kl); relaunched
+
+* **Symptom** (TensorBoard scalars of `models/FAILED_mse_flat_round3_semisup_20260928/`): `val_supervised_rmse`
+  83.85 px at every one of 16 validations over 84 epochs / 10 h; `train_heatmap_mse_loss` 0.0509 constant =
+  the energy of the target Gaussians, i.e. a FLAT predicted map. The epoch-4 checkpoint predicts uniform
+  heatmaps (max 1.7e-4 vs uniform 3.9e-5) → soft-argmax at the image centre → ~80 px from every landmark.
+  Killed at epoch 84.
+* **Ruled out**: data (image tensors normalised correctly, labels land on target-heatmap peaks, visibility 2
+  for present points / 0 for NaN tongue), precision (LP's Trainer is fp32), optimizer groups (head lr 1e-3).
+* **Cause, measured**: `heatmap_loss_type: mse` is MSE on a SOFTMAX-normalised map; its gradient carries a
+  factor of the predicted probability, which is 1/25,600 at init on our 160×160 maps (640 px at
+  downsample 2 — LP's shipped configs run 64–96 px maps). Head gradient norm ~1e-7; Adam random-walks on
+  augmented batches. Head-only, same init, real batches, 300 steps: **mse 153 → 149 px, confidence 0.00;
+  kl 153 → 112 px, confidence 0.41**. fp16 autocast would kill mse entirely (an aside; trainer is fp32).
+* **Fix**: `model.heatmap_loss_type: kl` in the reference and live configs (reason inline). Relaunched
+  ~11:05 as `models/round3_semisup_kl_20260929/`, log `scratchpad/lp_train_round3_kl.log`. Same speed
+  expected (~7 min/epoch). **Check the FIRST validations**: `val_supervised_rmse` must be well below 80 and
+  falling by epoch 10; the flat run read 83.85 from the first one.
+* Probe scripts (this session's scratchpad): `lp_tb_scalars.py` (read TB scalars), `lp_probe_vis.py`
+  (dataset sample + checkpoint output), `lp_loss_compare.py` (head-only mse vs kl on real batches).
+* `pkill -f 'litpose train'` inside a `wsl -- bash -c "… litpose train …"` kills its own shell first;
+  use a pattern that does not match the wrapper (e.g. `pkill -f 'bin/litpose'`).
+
 ## 1. Where things stand
 
 ### DeepLabCut — round 3 is current and good to use

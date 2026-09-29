@@ -18515,3 +18515,21 @@ re-converting the round-3 labels (`litpose convert` on the training copy, expect
 the 15 unlabelled clips into ext4, training. Procedure and clip inventory:
 `docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md`.
 
+## 2026-09-29 — Lightning Pose: the first run never learned; MSE-on-softmax heatmaps stall at our resolution → `kl`
+
+The overnight semi-supervised run (round-3 labels, 407 frames) sat at `val_supervised_rmse` 83.85 px for
+84 epochs — a flat heatmap, soft-argmax at the image centre. Data, precision and optimizer groups were
+checked and are fine. The cause is the loss: `heatmap_mse` is MSE on softmax-normalised maps, whose
+gradient is scaled by the predicted probability, 1/25,600 at init on 160×160 maps (we resize 680 → 640 and
+downsample by 2; Lightning Pose's shipped configs use 256–384 px images, i.e. 64–96 px maps, where the
+same loss escapes the flat start). Head gradient norm ~1e-7; Adam random-walks on augmented batches.
+
+Measured head-only from the same init on real batches (300 steps): **mse 153 → 149 px, confidence 0.00;
+kl 153 → 112 px, confidence 0.41.** `model.heatmap_loss_type: kl` adopted; relaunched. The
+alternatives — shrinking the maps (downsample 3, or 384 px images) — trade away the resolution the DLC
+work showed matters, so the loss was changed rather than the resolution. `js` is untested.
+
+Recorded so the next reader does not spend a night on it: a Lightning Pose run whose validation RMSE
+is CONSTANT from the first validation is not "still warming up"; the flat map is a stable point of this
+loss at this map size.
+

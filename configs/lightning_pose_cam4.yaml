@@ -121,7 +121,16 @@ model:
                          # DLC baseline the LOSSES and the framework. `resnet50_animal_ap10k` is
                          # available and plausibly better on a mouse face -- try it as a SECOND run,
                          # not as a confound in the first.
-  heatmap_loss_type: mse
+  # KL, NOT MSE (2026-09-29). The overnight run (mse) never left a FLAT heatmap: val RMSE 83.85 px --
+  # the image centre -- identical to four digits across 16 validations, 84 epochs, 10 h. MSE on a
+  # softmax-normalised map has a gradient scaled by the predicted probability itself, which at init is
+  # 1/25,600 on our 160x160 maps (640 px at downsample 2; LP's usual configs run 64-96 px maps), so
+  # the head's gradient norm sat at ~1e-7 and Adam random-walked. Measured head-only, same init, real
+  # augmented batches, 300 steps: mse 153 -> 149 px, confidence 0.00 (stalled); kl 153 -> 112 px,
+  # confidence 0.41 (learning). KL's gradient is p - t, order 0.1. fp16 autocast kills mse learning
+  # outright (gradient constant 1.7e-5, heatmaps exactly 0) -- the trainer is fp32, so that is an
+  # aside, not the cause. `js` is the other option; not tested.
+  heatmap_loss_type: kl
   model_name: cam4-orofacial
   losses_to_use: [temporal, pca_singleview]
   checkpoint: null
