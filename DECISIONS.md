@@ -18533,3 +18533,19 @@ Recorded so the next reader does not spend a night on it: a Lightning Pose run w
 is CONSTANT from the first validation is not "still warming up"; the flat map is a stable point of this
 loss at this map size.
 
+## 2026-09-29 — cam1 labelling can start now; the nose IS placed on cam1 (with the same-point caveat)
+
+The cam1 labelling set has existed since the 09-08 extraction: 15 folders × 16 frames, each frame
+sampled at the SAME DAQ instant as a cam4 frame (`dlc.frames.anchor_cam: cam4`), plus the June folder
+`cam1_2026-06-06T12_25_18` (86 frames; jaw on 71, tongue on 38 already). It is independent of the
+Lightning Pose run: labelling happens on Priya's Mac against the labelling project on the share; LP
+trains from an ext4 copy and DLC's training copy is only rewritten when `dlc_train` runs.
+
+**Nose on cam1: yes** (Priya, 2026-09-29, confirming the 2026-09-12 config change that the labelling
+guide had not caught up with — the guide said "leave it empty on cam1"; corrected today, previous
+version kept as `LABELLING_GUIDE.bak-20260929-115251.html`). Caveat stated by Priya and written into
+the guide: the cam1 "nose" (ventral tip, seen from below) and the cam4 "nose" (frontal tip) may not be
+exactly the same point in 3-D, so a triangulated nose carries a small view-dependent offset. Accepted;
+it changes nothing about how the point is placed in either view. cam1 parts: nose, jaw, tongue, spout;
+eyes and whiskers stay empty.
+
