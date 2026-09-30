@@ -414,7 +414,7 @@ def _cache(rv) -> Path:
 
 
 #: Local (not the share) scratch for the LP clips: a lossless window clip is ~1.5 GB per session.
-LOCAL_CLIPS = Path("C:/Users/SabatiniLab/lp_cue_tmp/round4")
+LOCAL_CLIPS = Path.home() / "lp_clips" / "round4"
 
 
 def _sessions(rv, specs=None):
