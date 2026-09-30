@@ -179,6 +179,77 @@ def _block(n: int, r, live: Path, parts: list[str]) -> str:
             f'<pre><code>{html.escape(mac)}</code></pre>{pic}</div>')
 
 
+#: What each round-4 pick is, in the labeller's terms (`dlc_hard_frames` rule names).
+ROUND4_WHY = {
+    "incomplete_tongue": "the mouth opens a little and the network saw no tongue. Look for the tongue tip just "
+                         "between the lips &mdash; if any tongue shows, place it; if the mouth is open with no "
+                         "tongue, leave tongue blank.",
+    "erratic_tongue": "the network was sure of a tongue that jumps or sits where the mouth is closed. Is there "
+                      "really a tongue? Place it where it is, or leave it blank if there is none.",
+    "erratic_jaw": "the network put the jaw somewhere odd (a jump, or off to one side &mdash; often on the "
+                   "tongue's edge). Place the jaw where it truly is; blank if the tongue hides it.",
+    "tricky_spout": "the network was unsure of the spout, or it is moving. Place the spout tip.",
+}
+
+
+def _round4_folders(rv, live: Path) -> pd.DataFrame:
+    """cam4 folders holding round-4 picks, with per-image category and phase from the manifest."""
+    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = man[man.cam == "cam4"]
+    stems = sorted(set(man.loc[man.category == "round4", "video_stem"]))
+    parts = dlc_frames.bodyparts("cam4")
+    rows = []
+    for stem in stems:
+        folder = live / "labeled-data" / stem
+        if not folder.is_dir():
+            continue
+        m = man[man.video_stem == stem].set_index("image")
+        st = folder_status(folder, parts, set(m.index[m.category == "context"]))
+        rows.append({"stem": stem, "animal": m.animal.iloc[0], "date": m.date.iloc[0], "epoch": m.epoch.iloc[0],
+                     "cat": m.category.to_dict(), "phase": m.phase.to_dict(), **st})
+    return pd.DataFrame(rows)
+
+
+def _round4_block(n: int, r, live: Path) -> str:
+    mac = f"{MAC_ROOT}/{live.name}/labeled-data/{r.stem}"
+    picks = [i for i in r.images if r.cat.get(i) == "round4"]
+    items = []
+    for i in picks:
+        f0 = int(i[3:10])
+        near = [j for j in r.images if r.cat.get(j) == "context_label" and abs(int(j[3:10]) - f0) <= 4]
+        extra = f"; also label <b>{', '.join(str(r.slider[j]) for j in near)}</b>" if near else ""
+        items.append(f"<li>slider <b>{r.slider[i]}</b>{extra} &mdash; {ROUND4_WHY.get(r.phase.get(i), '')}</li>")
+    done = "" if not r.has_file else f" <i>({len(r.targets) - len(r.blank)} of {len(r.targets)} done)</i>"
+    return (f'<div class="card"><h3 style="margin:.1em 0">{n}. {html.escape(r.stem)} &nbsp;'
+            f'<span class="legend">{html.escape(r.animal)} &middot; {html.escape(r.epoch)} &middot; '
+            f'{html.escape(r.date)}</span>{done}</h3><ul style="margin:.3em 0">{"".join(items)}</ul>'
+            f'<p style="margin:.2em 0">The other {len(r.context)} frames are context: scroll through them, '
+            f'leave them blank.</p><pre><code>{html.escape(mac)}</code></pre></div>')
+
+
+def round4_section(rv, live: Path) -> tuple[str, int]:
+    """(HTML, frames still blank) for the cam4 round-4 part of the page; empty when there are no picks yet."""
+    df = _round4_folders(rv, live)
+    if df.empty:
+        return ("<h2 id='cam4'>Camera 4 &mdash; round 4</h2><p>No round-4 frames extracted yet.</p>", 0)
+    todo = int(sum(len(b) for b in df.blank))
+    head = f"""<h2 id="cam4">Camera 4 &mdash; round 4 (the frames the network gets wrong)</h2>
+<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} frames to label &middot; {todo}
+still blank &middot; {int(sum(len(c) for c in df.context))} context frames</p>
+<div class="card note">
+<p>Same rules as cam1 above: label the listed frames <b>completely</b>, scroll the context, leave it blank.
+Each pick says why it was chosen. <b>Most are incomplete licks</b> &mdash; the tongue tip only just between
+the lips, never touching the spout. They are the whole point of this round, and they matter most after the
+stroke. The &ldquo;also label&rdquo; frames are three frames either side of a pick; as on cam1, they are
+a suggestion &mdash; if a neighbour is the harder frame, label that one instead or as well.</p>
+<p style="margin-bottom:.2em">These are new folders: load <code>config.yaml</code> first, then the folder,
+exactly as for an empty cam1 folder.</p>
+</div>
+"""
+    blocks = [_round4_block(i + 1, r, live) for i, r in enumerate(df.itertuples())]
+    return head + "".join(blocks), todo
+
+
 def build(rv=None, dest: Path | None = None) -> Path:
     rv = rv or PathResolver()
     live = dlc_project.project_dir(rv)
@@ -195,7 +266,10 @@ def build(rv=None, dest: Path | None = None) -> Path:
     today = _dt.date.today().isoformat()
 
     head = f"""<div class="wrap">
-<h1>Camera 1 &mdash; the view from below</h1>
+<h1>Labelling worksheet &mdash; camera 1 and camera 4 round 4</h1>
+<p><a href="#cam1">Camera 1 (the view from below)</a> &middot; <a href="#cam4">Camera 4 round 4 (the frames the
+network gets wrong)</a>. The rules and the how-to below apply to both.</p>
+<h2 id="cam1" style="margin-top:.4em">Camera 1 &mdash; the view from below</h2>
 <p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} target frames &middot;
 {todo_frames} still blank &middot; {int(sum(len(c) for c in df.context))} context frames &middot; generated {today}</p>
 
@@ -286,13 +360,14 @@ set balanced. The part-done June folder is last because it adds no new session.<
 """
     blocks = [_block(i + 1, by.loc[s].to_frame().T.assign(stem=s).iloc[0], live, parts)
               for i, s in enumerate(order)]
+    cam4_html, cam4_todo = round4_section(rv, live)
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-            f"<title>cam1 labelling</title><style>{CSS}</style></head>"
-            f"<body>{head}{''.join(blocks)}</div></body></html>")
+            f"<title>Labelling worksheet</title><style>{CSS}</style></head>"
+            f"<body>{head}{''.join(blocks)}{cam4_html}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
-    print(f"[dlc_cam1_guide] {len(df)} folders, {todo_frames} blank frames -> {dest} "
-          f"({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
+    print(f"[dlc_cam1_guide] cam1: {len(df)} folders, {todo_frames} blank; cam4 round 4: {cam4_todo} blank "
+          f"-> {dest} ({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
     for i, s in enumerate(order):
         r = by.loc[s]
         print(f"   {i + 1:2d}. {s}  {r.animal} {r.epoch:9s} {len(r.targets):3d} targets "
