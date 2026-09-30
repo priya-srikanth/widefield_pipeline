@@ -45,6 +45,7 @@ image in every view; see DECISIONS). Nobody is asked to label them yet.
 from __future__ import annotations
 
 import argparse
+import io
 from pathlib import Path
 
 import numpy as np
@@ -344,7 +345,7 @@ def load_poses(path: Path):
     out, k = [], 0
     for f0, f1, tj in zip(z["f0"], z["f1"], z["trials"]):
         n = int(f1 - f0)
-        out.append((int(f0), pd.read_json(str(tj), typ="series").to_dict(), z["pose"][k:k + n]))
+        out.append((int(f0), pd.read_json(io.StringIO(str(tj)), typ="series").to_dict(), z["pose"][k:k + n]))
         k += n
     return out
 

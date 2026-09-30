@@ -10,6 +10,8 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 
 ## 0. RESUME CHECKLIST — what is running / what to do next, in order
 
+**UPDATE 18:24 — steps 1–2 below are DONE.** Round 4 extracted: 55 picks (per session 3–4 incomplete_tongue, 1 erratic_jaw, 1 tricky_spout, 1–2 disagree_tongue/jaw, 1 lp_erratic_jaw) + 64 suggested neighbours = **119 cam4 frames to label** (+252 context) in 6 new cam4 folders; 379 matched cam1 frames in `_frame_staging_unassigned/`; `CAM1_GUIDE.html` rebuilt (cam1: 233 still blank — the student finished `cam1_2026-06-06T16_08_37`). LP predictions for the round-4 windows: `%USERPROFILE%\lp_clipsound4\lp\*.csv`; the lossless .avi clips there (~9 GB) can be deleted once labelling starts (derived, reproducible with `dlc_hard_frames clips`). Note: the lateral-offset rule flags hundreds of `erratic_jaw` candidates per session (only 1 is picked) — it is loose; tighten before reusing it as a detector.
+
 1. **Round-4 cam4 pipeline (running detached, started 17:13).** `dlc_hard_frames scan` (DLC round 3 + prior
    over 12 trial windows × 6 sessions, ~9 min/session) then `dlc_hard_frames clips` (same windows → one
    lossless .avi per session in `%USERPROFILE%\lp_clips\round4\`). Logs: scratchpad `round4_scan.log`,
