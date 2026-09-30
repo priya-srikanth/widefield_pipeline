@@ -1,9 +1,14 @@
 """cam4 labelling round 4: the frames DLC round 3 gets wrong, each with consecutive CONTEXT around it.
 
     conda activate dlc
-    python -m wfield_local.dlc_hard_frames --dry-run            # scan + print the picks, write nothing
-    python -m wfield_local.dlc_hard_frames                      # + extract, manifest, sync (cam4), cam1 bursts
-    python -m wfield_local.dlc_cam1_guide                        # the worksheet (cam1 + cam4 round 4)
+    python -m wfield_local.dlc_hard_frames scan      # DLC round 3 over the windows; poses cached per session
+    python -m wfield_local.dlc_hard_frames clips     # the same windows -> one local lossless .avi per session
+    #   WSL: ffmpeg -nostdin -> .mp4; litpose predict <occl model> <clip>.mp4
+    #        --overrides dali.base.predict.sequence_length=16   (NOT the default 96: it filled the 8 GB card
+    #        and the machine blue-screened twice on 2026-09-30, HYPERVISOR_ERROR)
+    python -m wfield_local.dlc_hard_frames picks --lp-dir <folder of <animal>_<date>.csv>   # DLC + LP picks
+    python -m wfield_local.dlc_hard_frames extract   # PNGs, manifest, sync (cam4), matched cam1 bursts
+    python -m wfield_local.dlc_cam1_guide            # the worksheet (cam1 + cam4 round 4)
 
 WHY (Priya, 2026-09-30). Round 3 misses INCOMPLETE LICKS -- the tongue tip just between the lips, no spout
 contact, so the lick sensor cannot find them -- and they matter most post-stroke. Measured on the round-3
@@ -52,8 +57,16 @@ from wfield_local.writeguard import assert_writable
 
 ROUND = "round4"
 PARTS = ("nose", "jaw", "tongue", "spout")
-#: kind -> (per-session cap, context half-width)
+#: kind -> (per-session cap, context half-width). Picked from DLC round 3's predictions.
 KINDS = {"incomplete_tongue": (4, 4), "erratic_tongue": (1, 4), "erratic_jaw": (1, 2), "tricky_spout": (1, 0)}
+#: Picked from Lightning Pose's predictions on the SAME frames (Priya, 2026-09-30: "go ahead with selected
+#: LP-focused frames"): LP's own erratic tongue/jaw (the two models fail differently), and frames where both
+#: are confident but DISAGREE by > `DISAGREE_PX` -- the labeller adjudicates (this catches e.g. LP placing
+#: the tongue tip off the distal end on a sideways lick, PS95 0907 frame 402).
+#: Priority order = dict order: disagreements first (they are what caught the sideways-lick tip).
+LP_KINDS = {"disagree_tongue": (1, 4), "disagree_jaw": (1, 2), "lp_erratic_tongue": (1, 4), "lp_erratic_jaw": (1, 2)}
+HALF = {k: v[1] for k, v in {**KINDS, **LP_KINDS}.items()}
+DISAGREE_PX = 15.0
 WIN_S = (-1.0, 3.5)
 TRIALS_PER_POSITION = 2
 MIN_SEP = 62                     # frames (0.25 s at 250 fps)
@@ -119,20 +132,42 @@ def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float) -> lis
     return out
 
 
-def select(cands: list[tuple[int, str, float]], caps: dict | None = None, min_sep: int = MIN_SEP) -> list[tuple[int, str, float]]:
-    """Highest-scoring candidates per kind, in `KINDS` priority order, all >= ``min_sep`` apart.
+def disagreements(A: dict, B: dict, px: float = DISAGREE_PX) -> list[tuple[int, str, float]]:
+    """Frames where BOTH models are confident (p > 0.8) on tongue or jaw and their points are > ``px`` apart."""
+    out = []
+    for part in ("tongue", "jaw"):
+        ax, ay, ap = A[part]
+        bx, by, bp = B[part]
+        d = np.hypot(ax - bx, ay - by)
+        for i in np.flatnonzero((ap > P_SURE) & (bp > P_SURE) & (d > px)):
+            out.append((int(i), f"disagree_{part}", float(d[i])))
+    return out
 
-    ``cands`` indices are SESSION frame numbers (already offset from their window).
+
+def lp_candidates(P_lp: dict, P_dlc: dict, stats_lp) -> list[tuple[int, str, float]]:
+    """LP-focused candidates for one window: LP's own erratic tongue/jaw + DLC-vs-LP disagreement."""
+    own = [(i, "lp_" + k, s) for i, k, s in candidates(P_lp, *stats_lp) if k in ("erratic_tongue", "erratic_jaw")]
+    return own + disagreements(P_lp, P_dlc)
+
+
+def select(cands: list[tuple[int, str, float]], caps: dict | None = None, min_sep: int = MIN_SEP,
+           taken=(), kinds=None) -> list[tuple[int, str, float]]:
+    """Highest-scoring candidates per kind, in priority order, all >= ``min_sep`` apart and from ``taken``.
+
+    ``cands`` indices are SESSION frame numbers (already offset from their window). ``kinds`` defaults to
+    `KINDS` (the DLC pass); the LP pass passes `LP_KINDS` and the DLC picks as ``taken``.
     """
-    caps = caps or {k: v[0] for k, v in KINDS.items()}
+    kinds = kinds or KINDS
+    caps = caps or {k: v[0] for k, v in kinds.items()}
     chosen: list[tuple[int, str, float]] = []
-    for kind in KINDS:
+    fixed = [int(t) for t in taken]
+    for kind in kinds:
         pool = sorted((c for c in cands if c[1] == kind), key=lambda c: -c[2])
         k = 0
         for c in pool:
             if k >= caps.get(kind, 0):
                 break
-            if all(abs(c[0] - d[0]) >= min_sep for d in chosen):
+            if all(abs(c[0] - d[0]) >= min_sep for d in chosen) and all(abs(c[0] - t) >= min_sep for t in fixed):
                 chosen.append(c)
                 k += 1
     return chosen
@@ -159,7 +194,7 @@ def rows_for(picks, meta: dict, tpl: dict, n_frames: int) -> list[dict]:
     rows: list[dict] = []
     taken: set[int] = set()
     for f, kind, _score, trial in picks:
-        half = KINDS[kind][1]
+        half = HALF[kind]
         ctx = [g for g in burst(f, half, n_frames) if g != f and g not in taken]
         # Every 3rd frame COUNTED FROM THE CENTRE (+-3), not `promote`'s greedy walk, which on a single
         # centred burst gives the lopsided -4/+3. Same 12 ms spacing, symmetric about the pick.
@@ -268,40 +303,89 @@ def choose_sessions(rv=None, per_epoch: int = PER_EPOCH, epochs_=POST_EPOCHS) ->
     return DF._thin_epochs(out, per_epoch)
 
 
-def scan_session(animal, date, sid, epoch, predict, rv=None) -> tuple[list[dict], dict]:
-    rv = rv or PathResolver()
+def _session_io(animal, date, sid, rv):
     tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
     vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))[0]
     t = pd.read_csv(Path(rv.root("behavior_out")) / "sessions" / animal / date / f"{sid}_trials.csv")
-    t = t[np.isfinite(t["cue_s"].astype(float))]
+    return tpl, vid, t[np.isfinite(t["cue_s"].astype(float))]
+
+
+def windows_for(t: pd.DataFrame, tpl: dict) -> list[tuple[int, int, dict]]:
+    """[(f0, f1, trial), ...]: the scanned windows. Seeded, so the DLC scan, the LP clip and a re-run all
+    cover the SAME frames."""
     rng = np.random.default_rng(SEED)
     trials = pd.concat([g.sample(min(len(g), TRIALS_PER_POSITION), random_state=int(rng.integers(1 << 31)))
                         for _, g in t.groupby("pos_name")]).sort_values("cue_s")
-    n_frames = int(tpl["n_cam_frames"])
-    windows, spans = [], []
+    n = int(tpl["n_cam_frames"])
+    out = []
     for _, tr in trials.iterrows():
         f0 = max(0, DF.frame_of(tpl, tr.cue_s, WIN_S[0]))
-        f1 = min(n_frames, DF.frame_of(tpl, tr.cue_s, WIN_S[1]))
-        pose = predict_window(str(vid), f0, f1, predict)
-        if len(pose) < 3:
-            continue
-        windows.append({p: (pose[:, k, 0], pose[:, k, 1], pose[:, k, 2]) for k, p in enumerate(PARTS)})
-        spans.append((f0, tr))
-    rest, lat_med, lat_mad = session_stats(windows)
+        f1 = min(n, DF.frame_of(tpl, tr.cue_s, WIN_S[1]))
+        if f1 - f0 >= 3:
+            out.append((f0, f1, {"cue_s": float(tr.cue_s), "trial_id": int(tr.trial_id), "pos_name": str(tr.pos_name)}))
+    return out
+
+
+def _as_parts(pose: np.ndarray) -> dict:
+    return {p: (pose[:, k, 0], pose[:, k, 1], pose[:, k, 2]) for k, p in enumerate(PARTS)}
+
+
+def save_poses(path: Path, scanned) -> None:
+    """One npz per session from ``[(f0, trial, pose (n, 4, 3)), ...]``."""
+    np.savez_compressed(path, f0=np.array([f0 for f0, _, _ in scanned]),
+                        f1=np.array([f0 + len(p) for f0, _, p in scanned]),
+                        trials=np.array([pd.Series(tr).to_json() for _, tr, _ in scanned]),
+                        pose=np.concatenate([p for *_, p in scanned]) if scanned else np.empty((0, len(PARTS), 3)))
+
+
+def load_poses(path: Path):
+    """[(f0, trial, pose (n, 4, 3)), ...] from `save_poses`."""
+    z = np.load(path, allow_pickle=False)
+    out, k = [], 0
+    for f0, f1, tj in zip(z["f0"], z["f1"], z["trials"]):
+        n = int(f1 - f0)
+        out.append((int(f0), pd.read_json(str(tj), typ="series").to_dict(), z["pose"][k:k + n]))
+        k += n
+    return out
+
+
+def picks_from(wins_dlc, wins_lp=None) -> tuple[list, dict]:
+    """Session picks: the DLC pass, then (if LP poses are given, same windows) the LP pass around them."""
+    Pd = [_as_parts(p) for _, _, p in wins_dlc]
+    stats_d = session_stats(Pd)
     cands = []
-    for P, (f0, tr) in zip(windows, spans):
-        cands += [(f0 + i, k, s, tr) for i, k, s in candidates(P, rest, lat_med, lat_mad)]
-    picks = select([c[:3] for c in cands])
+    for P, (f0, tr, _) in zip(Pd, wins_dlc):
+        cands += [(f0 + i, k, s, tr) for i, k, s in candidates(P, *stats_d)]
     trial_of = {c[0]: c[3] for c in cands}
-    picks = [(f, k, s, trial_of[f]) for f, k, s in picks]
-    meta = {"animal": animal, "date": date, "cam": "cam4", "epoch": epoch, "video_stem": vid.stem}
-    rows = rows_for(picks, meta, tpl, n_frames)
-    for r in rows:
-        r["_video"] = str(vid)
-    info = {"stem": vid.stem, "frames_scanned": sum(len(P["jaw"][0]) for P in windows),
-            "candidates": pd.Series([c[1] for c in cands]).value_counts().to_dict(),
-            "picked": pd.Series([p[1] for p in picks]).value_counts().to_dict()}
-    return rows, info
+    picks = [(f, k, s, trial_of[f]) for f, k, s in select([c[:3] for c in cands])]
+    info = {"frames": sum(len(p) for *_, p in wins_dlc),
+            "dlc_candidates": pd.Series([c[1] for c in cands], dtype=str).value_counts().to_dict()}
+    if wins_lp is not None:
+        Pl = [_as_parts(p) for _, _, p in wins_lp]
+        stats_l = session_stats(Pl)
+        lc = []
+        for A, B, (f0, tr, _) in zip(Pl, Pd, wins_dlc):
+            n = min(len(A["jaw"][0]), len(B["jaw"][0]))
+            A = {k: tuple(a[:n] for a in v) for k, v in A.items()}
+            B = {k: tuple(b[:n] for b in v) for k, v in B.items()}
+            lc += [(f0 + i, k, s, tr) for i, k, s in lp_candidates(A, B, stats_l)]
+        lt = {c[0]: c[3] for c in lc}
+        picks += [(f, k, s, lt[f]) for f, k, s in select([c[:3] for c in lc], kinds=LP_KINDS, taken=[p[0] for p in picks])]
+        info["lp_candidates"] = pd.Series([c[1] for c in lc], dtype=str).value_counts().to_dict()
+    info["picked"] = pd.Series([p[1] for p in picks], dtype=str).value_counts().to_dict()
+    return picks, info
+
+
+def scan_poses(animal, date, sid, predict, rv=None):
+    """DLC round 3 over the session's windows -> [(f0, trial, pose), ...]."""
+    rv = rv or PathResolver()
+    tpl, vid, t = _session_io(animal, date, sid, rv)
+    out = []
+    for f0, f1, tr in windows_for(t, tpl):
+        pose = predict_window(str(vid), f0, f1, predict)
+        if len(pose) >= 3:
+            out.append((f0, tr, pose))
+    return out
 
 
 def matched_cam1(rows: list[dict], rv=None) -> list[dict]:
@@ -321,38 +405,132 @@ def matched_cam1(rows: list[dict], rv=None) -> list[dict]:
     return out
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--sessions", nargs="*", metavar="ANIMAL:YYYYMMDD", help="override the session choice")
-    a = ap.parse_args(argv)
-    rv = PathResolver()
-    from wfield_local import dlc_prior
+#: Where per-session DLC poses, the session list and the picked rows live (on the DLC share).
+def _cache(rv) -> Path:
+    c = DF.staging_root(rv).parent / "round4_scan"
+    assert_writable(c)
+    c.mkdir(parents=True, exist_ok=True)
+    return c
 
-    if a.sessions:
+
+#: Local (not the share) scratch for the LP clips: a lossless window clip is ~1.5 GB per session.
+LOCAL_CLIPS = Path("C:/Users/SabatiniLab/lp_cue_tmp/round4")
+
+
+def _sessions(rv, specs=None):
+    c = _cache(rv) / "sessions.csv"
+    if specs:
         from wfield_local.dlc_iti_frames import _parse_session
-        sess = []
-        for spec in a.sessions:
-            animal, date, sid, _stem, epoch = _parse_session(spec, rv)
-            sess.append((animal, date, sid, epoch))
+        sess = [(a_, d_, s_, e_) for a_, d_, s_, _st, e_ in (_parse_session(s, rv) for s in specs)]
+    elif c.exists():
+        sess = [tuple(r) for r in pd.read_csv(c, dtype=str).itertuples(index=False)]
     else:
         sess = choose_sessions(rv)
-    print("sessions:", ", ".join(f"{s[0]}_{s[1]}({s[3]})" for s in sess), flush=True)
-    predict = pose_predictor(rv)
-    rows = []
+    pd.DataFrame(sess, columns=["animal", "date", "sid", "epoch"]).to_csv(c, index=False)
+    return sess
+
+
+def cmd_scan(rv, sess) -> None:
+    """DLC round 3 (+ prior) over every session's windows; poses cached per session as each finishes.
+
+    On 2026-09-30 a first run was killed after 4 of 6 sessions with everything in memory; now each session
+    is written when done and re-used on a re-run (delete its npz to force a re-scan)."""
+    from wfield_local import dlc_prior
+    predict = None
     with dlc_prior.apply(rv, cam="cam4"):
         for animal, date, sid, epoch in sess:
-            got, info = scan_session(animal, date, sid, epoch, predict, rv)
-            print(f"{animal} {date} {epoch}: scanned {info['frames_scanned']} frames; candidates "
-                  f"{info['candidates']}; picked {info['picked']}", flush=True)
-            rows += got
-    df = pd.DataFrame(rows)
-    out = DF.staging_root(rv).parent / "round4_rows.csv"
-    if a.dry_run:
-        print(df.groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
+            npz = _cache(rv) / f"{animal}_{date}_dlc.npz"
+            if npz.exists():
+                print(f"{animal} {date}: DLC poses cached", flush=True)
+                continue
+            predict = predict or pose_predictor(rv)
+            scanned = scan_poses(animal, date, sid, predict, rv)
+            save_poses(npz, scanned)
+            print(f"{animal} {date} {epoch}: {sum(len(p) for *_, p in scanned)} frames scanned", flush=True)
+
+
+def cmd_clips(rv, sess) -> None:
+    """The same windows, cut losslessly into one local .avi per session, for LP (`LOCAL_CLIPS`)."""
+    import cv2
+    LOCAL_CLIPS.mkdir(parents=True, exist_ok=True)
+    for animal, date, sid, _ in sess:
+        out = LOCAL_CLIPS / f"{animal}_{date}.avi"
+        if out.exists() or (LOCAL_CLIPS / f"{animal}_{date}.mp4").exists():
+            continue
+        tpl, vid, _t = _session_io(animal, date, sid, rv)
+        wins = load_poses(_cache(rv) / f"{animal}_{date}_dlc.npz")      # the frames DLC actually saw
+        cap = cv2.VideoCapture(str(vid))                                 # READ-ONLY
+        w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        wr = cv2.VideoWriter(str(out), cv2.VideoWriter_fourcc(*"FFV1"), 250.0, (w, h))
+        for f0, _tr, pose in wins:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, f0)
+            for _ in range(len(pose)):
+                ok, im = cap.read()
+                wr.write(im if ok else np.zeros((h, w, 3), np.uint8))
+        cap.release()
+        wr.release()
+        print(f"{animal} {date}: clip {sum(len(p) for *_, p in wins)} frames -> {out}", flush=True)
+
+
+def _lp_windows(lp_csv: Path, wins_dlc) -> list:
+    """Split an LP predictions CSV for a session clip back into the DLC windows (same order, same lengths)."""
+    d = pd.read_csv(lp_csv, header=[0, 1, 2], index_col=0)
+    d.columns = d.columns.droplevel(0)
+    pose = np.stack([np.stack([d[p]["x"], d[p]["y"], d[p]["likelihood"]], 1) for p in PARTS], 1)
+    out, k = [], 0
+    for f0, tr, p in wins_dlc:
+        out.append((f0, tr, pose[k:k + len(p)]))
+        k += len(p)
+    if k != len(pose):
+        raise SystemExit(f"{lp_csv.name}: {len(pose)} LP rows vs {k} DLC frames -- clip and scan disagree")
+    return out
+
+
+def cmd_picks(rv, sess, lp_dir: Path | None) -> Path:
+    """Picks for every session (DLC pass, plus the LP pass when ``lp_dir`` holds `<animal>_<date>.csv`)."""
+    rows = []
+    for animal, date, sid, epoch in sess:
+        tpl, vid, _t = _session_io(animal, date, sid, rv)
+        wins = load_poses(_cache(rv) / f"{animal}_{date}_dlc.npz")
+        lp = None
+        if lp_dir is not None:
+            f = Path(lp_dir) / f"{animal}_{date}.csv"
+            lp = _lp_windows(f, wins) if f.exists() else None
+            if lp is None:
+                print(f"{animal} {date}: no LP predictions at {f} -> DLC picks only", flush=True)
+        picks, info = picks_from(wins, lp)
+        meta = {"animal": animal, "date": date, "cam": "cam4", "epoch": epoch, "video_stem": vid.stem}
+        got = rows_for(picks, meta, tpl, int(tpl["n_cam_frames"]))
+        for r in got:
+            r["_video"] = str(vid)
+        rows += got
+        print(f"{animal} {date} {epoch}: {info}", flush=True)
+    out = _cache(rv) / "round4_rows.csv"
+    pd.DataFrame(rows).to_csv(out, index=False)
+    print(pd.DataFrame(rows).groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
+    return out
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("step", choices=["scan", "clips", "picks", "extract"])
+    ap.add_argument("--sessions", nargs="*", metavar="ANIMAL:YYYYMMDD", help="override the session choice")
+    ap.add_argument("--lp-dir", type=Path, default=None, help="picks: folder of LP CSVs named <animal>_<date>.csv")
+    a = ap.parse_args(argv)
+    rv = PathResolver()
+    sess = _sessions(rv, a.sessions)
+    print("sessions:", ", ".join(f"{s[0]}_{s[1]}({s[3]})" for s in sess), flush=True)
+    if a.step == "scan":
+        cmd_scan(rv, sess)
         return 0
-    assert_writable(out.parent)
-    df.drop(columns=["_video"]).to_csv(out, index=False)
+    if a.step == "clips":
+        cmd_clips(rv, sess)
+        return 0
+    if a.step == "picks":
+        cmd_picks(rv, sess, a.lp_dir)
+        return 0
+    rows = pd.read_csv(_cache(rv) / "round4_rows.csv", dtype={"date": str}).to_dict("records")
+    df = pd.DataFrame(rows)
     n4 = DF.extract(rows, rv)
     DF.write_manifest(rows, rv)
     from wfield_local import dlc_project

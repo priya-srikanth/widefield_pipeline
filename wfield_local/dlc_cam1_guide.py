@@ -189,6 +189,15 @@ ROUND4_WHY = {
     "erratic_jaw": "the network put the jaw somewhere odd (a jump, or off to one side &mdash; often on the "
                    "tongue's edge). Place the jaw where it truly is; blank if the tongue hides it.",
     "tricky_spout": "the network was unsure of the spout, or it is moving. Place the spout tip.",
+    "disagree_tongue": "the two networks were both sure of the tongue but put it in different places (often a "
+                       "sideways lick). Place the tip at the end of the tongue along the direction it points "
+                       "&mdash; on a sideways lick, the end nearest the spout, not the lowest edge in the image.",
+    "disagree_jaw": "the two networks were both sure of the jaw but disagree on where it is. Place it where it "
+                    "truly is; blank if the tongue hides it.",
+    "lp_erratic_tongue": "the second network (Lightning Pose) was sure of a tongue that jumps or sits where the "
+                         "mouth is closed. Is there really a tongue here?",
+    "lp_erratic_jaw": "the second network put the jaw somewhere odd (a jump, or on the tongue's edge). Place the "
+                      "jaw where it truly is; blank if hidden.",
 }
 
 

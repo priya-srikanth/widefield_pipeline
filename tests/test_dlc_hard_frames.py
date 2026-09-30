@@ -79,3 +79,33 @@ def test_rows_centre_context_and_promotion():
     assert {f for f, r in by.items() if r["category"] == CONTEXT} == {996, 998, 999, 1001, 1002, 1004}
     assert by[5000]["category"] == ROUND and not any(4990 < f < 5010 and f != 5000 for f in by)   # spout: no context
     assert abs(by[1000]["t_from_cue_s"] - (1000 / 250 - 3.0)) < 1e-9
+
+
+def test_disagreement_only_where_both_confident():
+    from wfield_local.dlc_hard_frames import disagreements
+    one = np.ones(10)
+    A = {"tongue": (100 * one, 100 * one, one), "jaw": (50 * one, 50 * one, one)}
+    bx = 100 * one.copy()
+    bx[4] = 130                                 # 30 px apart, both confident -> pick
+    bp = one.copy()
+    bx[7] = 140
+    bp[7] = 0.3                                 # far apart but B unsure -> not a disagreement
+    B = {"tongue": (bx, 100 * one, bp), "jaw": (50 * one, 50 * one, one)}
+    assert [(i, k) for i, k, _ in disagreements(A, B)] == [(4, "disagree_tongue")]
+
+
+def test_lp_pass_keeps_clear_of_dlc_picks():
+    from wfield_local.dlc_hard_frames import LP_KINDS, select
+    cands = [(130, "disagree_tongue", 30.0), (500, "disagree_tongue", 20.0), (505, "lp_erratic_jaw", 100.0)]
+    got = select(cands, kinds=LP_KINDS, taken=[120])
+    assert sorted(f for f, _, _ in got) == [500]      # 130 too close to the DLC pick at 120; 505 too close to 500
+
+
+def test_pose_cache_roundtrip(tmp_path):
+    from wfield_local.dlc_hard_frames import load_poses, save_poses
+    scanned = [(100, {"cue_s": 1.5, "trial_id": 3, "pos_name": "far_L"}, np.random.rand(7, 4, 3)),
+               (900, {"cue_s": 4.0, "trial_id": 9, "pos_name": "close_R"}, np.random.rand(5, 4, 3))]
+    save_poses(tmp_path / "s.npz", scanned)
+    back = load_poses(tmp_path / "s.npz")
+    assert [b[0] for b in back] == [100, 900] and back[1][1]["pos_name"] == "close_R"
+    assert np.allclose(back[0][2], scanned[0][2]) and back[1][2].shape == (5, 4, 3)
