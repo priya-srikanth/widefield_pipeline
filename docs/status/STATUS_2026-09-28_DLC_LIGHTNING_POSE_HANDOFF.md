@@ -11,7 +11,7 @@ prior ON for tongue and jaw only (2026-09-28); train/test split by whole session
 
 ---
 
-## 00. UPDATE 2026-09-30 — READ THIS FIRST; it supersedes parts of §0 below
+## 00. UPDATE 2026-09-30 — SUPERSEDED the same evening by `STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md` (read that first)
 
 Reasoning for all of it: `DECISIONS.md`, the two 2026-09-30 entries. In short:
 

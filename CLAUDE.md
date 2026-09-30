@@ -344,6 +344,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`](docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md)**
+— **START HERE for cam4/cam1 tracking, newest.** LP now trained with blank = occluded (fixes the jaw riding
+the tongue); labelling round 4 (incomplete licks, with consecutive context frames) and cam1 context frames;
+the target-vs-context rule and what a blank means to DLC / LP / multi-view LP. **Never run `litpose predict`
+in WSL with the default 96-frame DALI chunk — it blue-screened this machine twice; use 16.** Drive letters
+moved after that reboot (M: = MICROSCOPE, N: = standby): take paths from `PathResolver`.
+
 **[`docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md`](docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md)**
 — **START HERE for cam4 orofacial tracking (DLC / Lightning Pose).** DLC round 3 (iteration-2,
 best-160) is the model in use: the between-trial spout frames closed the retracted-spout gap

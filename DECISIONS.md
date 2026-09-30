@@ -18675,3 +18675,43 @@ never adjacent to an existing target) → **66 frames** in the 11 folders (3–8
 `context_label`. The worksheet lists them as "suggested lick frames" and says explicitly that the list is
 flexible: the goal is the toughest frames, so a harder neighbour may be labelled instead or as well.
 Considered and offered, not adopted: fully labelling one lick in 3–4 folders as a held-out temporal test set.
+
+## 2026-09-30 (evening) — LP occlusion result, two machine crashes, LP-focused round-4 picks, like-for-like filtering
+
+**The occlusion fix works** (`round3_occl_uniform_20260930`, best checkpoint epoch 185, selected on
+`val_supervised_loss`, which with occlusion on also scores occluded targets). On the three review clips: PS93
+jaw confidence while the tongue is out, median **0.00** (DLC round 3 0.41, the epoch-170 model 0.96); a
+confident tongue at rest in 0.5–1.1 % of DLC's no-tongue frames (epoch-170: 13.5–34.7 %); real tongues still
+detected (median confidence 0.99–1.00). Val RMSE held 3.7–3.9 px for the last ~50 epochs.
+
+**Against DLC round 3 it is roughly on par, not clearly better:** incomplete licks (12–30 px openings) found
+5/9, 5/10, 21/50 vs 4/9, 4/10, 16/50; raw LP jaw has more >15 px jumps than median-filtered DLC (PS95 22 vs 7);
+LP's tongue is confident more often and jumpier. Neither model solves incomplete licks — the round-4 labels are
+the fix, for both. Priya's visual read: LP better on PS93 (unseen); LP places the tongue off the distal tip on
+some sideways licks (PS95 0907 frame 402).
+
+**Two blue screens (16:08, 16:23), bugcheck 0x00020001 HYPERVISOR_ERROR** — the only crashes in 30 days, both
+during `litpose predict` inside WSL2, whose DALI predict pipeline defaults to 96-frame chunks (7.8 GB on the
+8 GB card). Inference (not measured): exhausting GPU memory under WSL's GPU paravirtualisation takes down the
+hypervisor rather than failing the process. Two days of training (DALI sequence 4) never crashed. Rule: GPU
+prediction in WSL only with `dali.base.predict.sequence_length=16` (and context 16) and a memory guard; verified
+peak 2.7 GB alone, 4.9 GB beside a DLC job, output identical to the 96-chunk run (median |diff| 1e-4).
+Side effect: after the reboots `N:` came back as standby and `M:` as MICROSCOPE; a copy made with a typed `N:`
+path landed on standby, was re-copied to M:, byte-verified, and the stray tree removed.
+
+**LP-focused round-4 picks (Priya: "go ahead").** Round 4 was picked from DLC's errors; the two models fail
+differently. The DLC scan now caches its per-frame poses (`round4_scan/<animal>_<date>_dlc.npz`), LP predicts
+the identical windows, and a second pass adds, in priority order: `disagree_tongue`, `disagree_jaw` (both
+models confident, > 15 px apart — the labeller adjudicates; catches the sideways-lick tip), `lp_erratic_tongue`,
+`lp_erratic_jaw` (LP's own spikes / tongue-at-rest / jaw off to the side), one each, clear of the DLC picks by
+0.25 s. Disagreements first: when two candidate kinds collide within 0.25 s only one slot survives, and the
+disagreement is the one that targets what Priya saw. The worksheet text for `disagree_tongue` carries the
+sideways-lick rule: the tip is the end of the tongue along the direction it points, not the lowest edge.
+
+**Filtering, like for like.** DLC's review CSVs are `filterpredictions` defaults (median, window 5 = 20 ms);
+LP output is raw. Comparisons now apply the same median-5 to both (`scripts/pose_cue_traces.py --filtered`).
+LP's own smoother (EKS over an ensemble of ~4–5 seeds) is the stronger option and is planned after round 4
+(~8 h GPU at 25 s/epoch). Cue-aligned trial-overlay figure (24 trials, PS93 0908, identical re-encoded frames
+for both models, no cleaning), style ported from stroke_orofacial `_plot_trial_overlays_2x2`.
+
+Handoff: `docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`.
