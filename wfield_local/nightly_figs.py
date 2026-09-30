@@ -964,6 +964,10 @@ def main():
             # It writes its own CSV of every plotted value, which is what makes the chronic
             # numbers quotable without re-reading a bar.
             cli("wfield_local.recovery_trajectory")
+            # Per-animal chronic stability of every readout, by the rule that sets `chronic_from`.
+            # AFTER the two steps above, because it reads their sidecars; before 2026-09-30 it was
+            # run by hand and its table went stale while the sidecars under it refreshed.
+            cli("scripts.chronic_stability")
             # A VALUE CSV OLDER THAN ITS FIGURE means another machine rendered here from a checkout
             # predating write_values: the numbers describe a render nobody is looking at, and a CSV
             # looks authoritative enough to be quoted. REPORTED, never deleted -- a missing sidecar

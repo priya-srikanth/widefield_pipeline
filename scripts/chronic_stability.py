@@ -14,8 +14,9 @@ READOUTS, and where each per-session value comes from:
   best-match accuracy                          epoch_10_best_match_acc_*    _sessions.csv
   crossnobis distance from own pre template    epoch_8diag_matrices_*        _sessions.csv
   behaviour far-contra hit rate                epoch_1b_behaviour_*         _sessions.csv
-  cue-evoked map amplitude per position        computed here from the per-session npz that
-                                               `epoch_15_evoked_CUEINCREMENT` aggregates
+  cue-evoked map amplitude per position        computed here on the WORKING trials, the same
+                                               increment `epoch_15r_position_PRECUEref` draws
+                                               (NOT figure 15's ungated npz; see `_map_series`)
 
 THE `_sessions.csv` ROWS CARRY NO LABEL. They are written in the caller's list order, which is
 `load_sessions` date order; this was VERIFIED on 2026-09-28 by the PS92_0922 outlier landing in
@@ -115,23 +116,40 @@ def _pooled_pre(data_dir, fname, position):
     return {a: float(df[df.animal == a].value.mean()) for a in ANIMALS if (df.animal == a).any()}
 
 
-def _map_series(labs, log):
-    """Per-session cue-evoked map amplitude (post-cue minus pre-cue, mean over the eroded brain mask)."""
+def _session_map_amplitudes(label):
+    """``{position: amplitude}`` of one session's WORKING-trial cue increment. Module-level for spawn."""
     from wfield_local import beta_maps as bm
-    from wfield_local import position_evoked_maps as pem
-    store, _counts = pem.maps_by_epoch()
+    from wfield_local import position_reference_maps as prm
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    s = next(x for x in SESSIONS if x["label"] == label)
     mask = np.asarray(bm.stat_mask()).astype(bool)
+    parts = prm.session_raw_maps(s, "cue", variant="working")
+    return {q: float(np.nanmean(np.asarray(m, float)[mask]))
+            for q, m in prm.reference_maps(parts, "precue").items()}
+
+
+def _map_series(labs, log):
+    """Per-session cue-evoked map amplitude (post-cue minus pre-cue, mean over the eroded brain mask).
+
+    ON THE WORKING TRIALS -- 15r's PRECUEref, the deck's 0-2 s window -- not the preprocessing
+    `*_pre_post_delta_maps.npz` that figure 15 aggregates. That product averages every covered cue,
+    so the sated tail and disengaged trials were in every value here until 2026-09-30, and the quit
+    tail grows post-stroke. Measured on the grown cohort: ungated, PS95's six-position amplitude
+    read as a peak decaying from 2.06x to 1.33x; gated it is a step to ~1.5x that holds, and PS94's
+    far-position deficit halves (far-ipsi 0.19x -> 0.59x).
+    """
+    from wfield_local.analysis_kit import fan_sessions
+    items = sorted(l for a in ANIMALS for L in labs[a].values() for l in L)
+    res, fails = fan_sessions(items, _session_map_amplitudes, label="map session", log=log)
+    if fails:
+        log(f"  !! maps: {len(fails)} session(s) failed and are absent from the map rows: {fails}")
     out = {}
-    for an, by_ep in store.items():
-        for _ep, by_pos in by_ep.items():
-            for pos, by_lab in by_pos.items():
-                for lab, m in by_lab.items():
-                    m = np.asarray(m, float)
-                    if m.shape != mask.shape:
-                        continue
-                    v = m[mask]
-                    out.setdefault(pos, {}).setdefault(an, {})[lab] = float(np.nanmean(v))
-    log(f"  maps: {sum(len(d) for p in out.values() for d in p.values())} per-session amplitudes")
+    for lab, by_pos in res:
+        an = lab.split("_")[0]
+        for pos, v in by_pos.items():
+            out.setdefault(pos, {}).setdefault(an, {})[lab] = v
+    log(f"  maps: {sum(len(d) for p in out.values() for d in p.values())} per-session amplitudes "
+        f"(working-trial cue increment)")
     return out
 
 
