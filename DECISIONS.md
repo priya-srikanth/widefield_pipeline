@@ -18549,3 +18549,119 @@ exactly the same point in 3-D, so a triangulated nose carries a small view-depen
 it changes nothing about how the point is placed in either view. cam1 parts: nose, jaw, tongue, spout;
 eyes and whiskers stay empty.
 
+
+## 2026-09-30 — Lightning Pose never learned "not visible"; occlusion training on, PCA off, and a config audit
+
+**What was wrong.** The 09-29 KL run (best checkpoint epoch 170, val 2.37 px) was checked on the three
+round-3 review clips on CPU while it trained. Priya's frame-by-frame review (PS93 0908, frames 39–49 and
+114) found the jaw point sliding onto the tongue's edge through every lick, and a tongue placed above the
+closed jaw at rest. Measured: LP jaw confidence median **0.99 with the tongue out** (DLC round 3: **0.41**,
+10th percentile 0.01 — DLC correctly goes low when the jaw is covered); LP reports a confident tongue in
+**13 / 35 / 29 %** of the frames where DLC says no tongue (PS92 / PS93 / PS95). The "better jaw
+confidence than DLC" reported earlier that day was this failure, not better tracking — retracted.
+
+**Why.** Lightning Pose drops a NaN keypoint from the supervised loss unless
+`training.uniform_heatmaps_for_nan_keypoints: true` (default **false**), so it is never shown "absent";
+its heatmap is a normalised distribution, so it always points somewhere. DLC trains a missing part toward
+an all-zero map and so learns absence without a setting. The config was built from LP defaults assuming
+parity with DLC; that assumption was never checked. `pca_singleview` made it worse: `PCALoss` has no
+confidence masking, so on every unlabelled frame it pulls jaw and tongue into a plausible pose (its
+subspace was fitted on the ~110 tongue-out frames only).
+
+**Changed (run `round3_occl_uniform_20260930`, launched 14:00):** uniform heatmaps for blank labels
+(blank = occluded; valid because every cam4 labelled frame is fully annotated, nose on 407/407);
+`losses_to_use: [temporal]` (PCA off); temporal `prob_threshold` 0.05 → 0.5 so an occluded stretch is not
+dragged along a track; batch 8+8 → 4+4.
+
+**GPU memory spill (the reason the 09-29 run took ~7 min/epoch).** At 8 labelled + 8 unlabelled 640 px
+frames the run used 7.6/8.0 GB dedicated AND 5.5 GB "shared GPU memory" (Task Manager): the Windows
+driver silently pages into system RAM over PCIe instead of raising OOM. GPU showed 100 % but ran at 39 °C.
+At 4+4: shared 0.08 GB, 6.6 GB dedicated, 64 °C, **~25 s/epoch (≈17× faster)**. Check before any long run:
+`Get-Counter '\GPU Adapter Memory(*)\Shared Usage'` on the NVIDIA adapter (the one that also reports
+~6.6 GB dedicated; the other adapter with ~0.8 GB shared is the integrated GPU). The NVIDIA "Sysmem
+Fallback Policy" was left at default: it is global and would turn a 2pRAM job's slowdown into a crash on
+this shared box.
+
+**Config audit against everything LP 2.4.2 reads, and `litpose recommend` on this dataset:**
+* **Early stopping was never on.** LP enables it only on `training.early_stopping: true`; we had only
+  `early_stop_patience`. The 09-29 run was always going to run 300 epochs, and the "earliest stop at
+  epoch N" estimates given during it were wrong. Now explicitly `false` (val is ~40 frames swinging
+  2–19 px; the `-best` checkpoint keeps the best epoch).
+* Unsupervised `log_weight` 5.0 (weight 3.4e-3) vs the recommender's 11.0 (8.4e-6, ~400× weaker). Ours
+  came from LP's older default config; at 5.0 the PCA term was ~40 % of the total loss at full anneal —
+  a plausible, unmeasured contributor to the 09-29 validation swings. Kept at 5.0 for the 09-30 run so
+  only the occlusion changes move; 11.0 is the next comparison.
+* Recommender's model: vits_dino at 256 px, AdamW 5e-5, mse. Not adopted: 256 px is 10.6 px per heatmap
+  cell on the 680 px frame (ours 4.25 px) and the incomplete-lick tongue tip is a few px. vits_dino at
+  384 px is the candidate second run. Anneal `freeze_until_epoch` 60 (ours 0): fold into the next run.
+* `patch_mask` is a multi-view transformer augmentation (takes a views axis) — irrelevant here.
+
+**Why the swings (09-29 run).** Measured on the epoch-170 model's labelled frames: nose/jaw/spout errors
+are small everywhere; the test mean 3.9 px falls to 3.0 px without its worst 5 points, all tongue (56 and
+29 px). The 2–19 px validation swings were a handful of tongue frames flipping between two heatmap peaks
+on a 40-frame set, plus BatchNorm running statistics drifting on small mixed batches — the latter
+inferred, not measured.
+
+## 2026-09-30 — Labelling round 4 (cam4) and cam1: TARGET vs CONTEXT frames, and what a blank means to each consumer
+
+**The ask (Priya).** DLC round 3 misses **incomplete licks** — the tongue tip just between the lips, no
+spout contact, so the lick sensor cannot find them — and they matter most post-stroke. Measured on the
+three review clips: of mouth openings of 12–30 px, DLC finds a tongue on 4/9 (PS92 acute), 4/10 (PS93),
+**16/50 (PS95 chronic)**, against ≥98 % for full openings. Also wanted: tricky jaw and spout frames, and
+erratic high-confidence off-target tongue/jaw. And: several consecutive frames around the hard ones,
+because the tongue tip is often only judgeable by scrolling a few frames back and forth.
+
+**The one rule everything follows from.**
+* A **TARGET** frame is labelled completely: every visible part; a blank means occluded.
+* A **CONTEXT** frame is extracted next to a target to be scrolled through. It is left blank — or, if
+  worth it, labelled completely like a target. **Never partly**: once a frame has any label, every blank
+  on it is read as occluded (by DLC always; by LP under `uniform_heatmaps_for_nan_keypoints`).
+* The manifest (`category == "context"`, phase `ctx_on±k` / `ctx_off±k` / …) is the only record of which
+  frames are targets. Filenames stay `img%07d.png` so a burst is contiguous in napari's slider and LP's
+  context model (frames t−2…t+2 by index) could use the same folders.
+
+**What a blank means, per consumer — and how unlabelled frames are kept out:**
+
+| consumer | blank on a labelled frame | all-blank (unlabelled) frame |
+|---|---|---|
+| DLC (per camera) | absent (all-zero target) — always | **dropped** in `dlc_train.stage` via `drop_unlabelled` (DONE). napari can also leave an all-empty row behind: the cam1 June folder has one. |
+| LP single-view | occluded (uniform target) | must be **dropped** when the LP CSV is built from the DLC labels (TO DO before round-4 training; the 407 current rows are all labelled) |
+| LP multi-view | occluded → `visible`=1 | must be **kept** as a row in that camera's CSV with `visible`=0 ("not labelled", ignored), because LP pairs views row by row by image name. Needs an explicit per-keypoint `visible` column (the flag cannot distinguish the two) and a shared image name per moment (our per-camera frame numbers differ). TO DO when multi-view starts; verified in LP code (per-view datasets carry their own visibility; 3-D losses mask NaN), not yet in a training run. |
+| anipose | n/a — trains each camera's 2-D net independently and triangulates predictions; needs NO paired labels | |
+
+**Pairing across cameras.** Matching frames means frames are EXTRACTED for every camera at the same DAQ
+instant (alignment templates, ~1.2 ms residual, under one 4 ms frame) — not that every camera must be
+labelled. A moment labelled on cam4 only is still usable by multi-view LP (cam1 row `visible`=0).
+Extraction is free, so new cam4 moments get matching cam1 bursts, kept OUT of the student's folders (see
+implementation below) until someone decides to label them.
+
+**cam4 round 4 (decided):** no full-lick sequences (considered: fully labelled ±4 sequences as a temporal
+ground truth; dropped by Priya in favour of focusing labelling on incomplete licks). Picks, from DLC
+round 3 run at full frame rate over trial windows, post-stroke weighted, ≥0.25 s apart:
+
+| pick | rule | context |
+|---|---|---|
+| incomplete tongue | jaw–nose opening 12–30 px above the session's resting level, no tongue p>0.6 within ±24 ms | ±4 |
+| erratic tongue | confident (p>0.8) tongue jumping >15 px from its neighbours, or confident tongue with the mouth closed | ±4 |
+| erratic jaw | confident jaw jumping >15 px, or far lateral of its usual offset from the nose (the jaw-on-tongue-edge pattern) | ±2 |
+| tricky spout | spout p in 0.1–0.6, or moving fast | none |
+
+**cam1 (done 2026-09-30):** the 16 target frames per folder are unchanged (they are the cam4 labelled
+instants — the pairing). In the 11 folders with no labels yet, context was added around each lick target
+(2 licks per folder) at the MEASURED spout-contact onset and contact END (Priya: the start and end of a
+lick are the hardest moments), ±4 frames each: **330 context frames**, 24–32 per folder. Contact
+durations measured for those licks: 44–128 ms (pre-stroke sessions earlier measured 65–95 ms; the
+post-stroke spread is wider). The 3 finished folders and the June folder are untouched. `CAM1_GUIDE.html`
+now lists targets by slider position, counts only targets as work, and carries the target/context rule;
+it also corrects the old line "a blank is never a mistake — it tells the network nothing", which is false
+under both DLC and occlusion-trained LP.
+
+**Implementation status**
+* DONE — `dlc_train.drop_unlabelled` (+ test); `wfield_local/dlc_context_frames.py` (bursts, contact
+  pairing from the lick detector's own offsets, extraction, manifest, sync; + tests); cam1 context
+  extracted; `dlc_cam1_guide` target/context aware, regenerated.
+* TO DO — cam4 round-4 picker (needs the GPU: DLC round 3 over trial windows) and its worksheet with the
+  same rule; matching cam1 bursts to a SEPARATE staging root — `dlc_project.sync_frames` copies every
+  `cam1_*` folder under `_frame_staging` into the labelling project, so putting them there would put them
+  on the student's worksheet; LP CSV export applying the drop (single-view) and the `visible` column +
+  shared names (multi-view).

@@ -81,7 +81,11 @@ data:
 training:
   train_prob: 0.8
   val_prob: 0.1          # test is the remainder, 0.1
-  train_batch_size: 8    # matches dlc.train.batch_size, and the 8 GiB card
+  # 4, not 8 (2026-09-30): at 8 labelled + 8 unlabelled 640 px frames the run used 7.6/8.0 GB dedicated
+  # AND 5.5 GB of "shared GPU memory" (Task Manager) -- the Windows driver silently spilling into system
+  # RAM over PCIe instead of raising OOM, at ~11 s/step with the GPU at 39 C. 100% utilisation and no
+  # crash are NOT evidence of health on this box; check shared GPU memory in the first minutes.
+  train_batch_size: 4
   val_batch_size: 16
   test_batch_size: 16
   min_epochs: 50
@@ -104,12 +108,31 @@ training:
   unfreezing_epoch: 20
   num_workers: 4
   num_gpus: 1
-  early_stop_patience: 20
+  # EARLY STOPPING IS OFF, and says so (2026-09-30). LP enables it only on `early_stopping: true`
+  # (`train.py`: cfg.training.get("early_stopping", False)); until today this file carried
+  # `early_stop_patience: 20` alone, which did nothing -- the 09-29 run was always going to run all
+  # 300 epochs, and the "earliest stop at epoch N" estimates made during it were wrong. Kept OFF on
+  # purpose: val is ~40 frames and swings 2-19 px between validations, so a patience rule would stop on
+  # noise; the `-best` checkpoint (monitor val_supervised_loss) already keeps the best epoch.
+  early_stopping: false
+  early_stop_patience: 20   # inert while early_stopping is false
   # EPOCH-BASED, so `min_steps`/`max_steps`/`unfreezing_step`/`milestone_steps` must be ABSENT --
   # not null. `_validate_steps_vs_epochs` branches on whether the KEY EXISTS, so writing
   # `max_steps: null` selects step mode and then fails because `min_epochs` is also present.
   train_frames: 1         # every training frame; a fraction here would silently shrink the set
+  # BLANK = OCCLUDED (2026-09-30). Without this, LP drops NaN keypoints from the loss, so it is never
+  # shown "absent" and always places every part confidently: the epoch-170 KL model put the jaw on
+  # the tongue's edge through every lick (jaw confidence median 0.99 with the tongue out, vs DLC
+  # round 3's 0.41) and a tongue above the closed jaw at rest (13-35% of DLC's no-tongue frames).
+  # True -> a NaN keypoint's target is a UNIFORM heatmap, i.e. train toward low confidence -- what
+  # DLC does implicitly. Valid for cam4 because every labelled frame is fully annotated (nose in
+  # 407/407), so a blank means "not visible", never "not labelled". A dataset with partly-labelled
+  # frames (cam1's June folder: 15 blank frames) needs an explicit per-keypoint `visible` column
+  # instead: 2 visible, 1 occluded (uniform target), 0 not labelled (ignored); it overrides this flag.
+  uniform_heatmaps_for_nan_keypoints: true
   imgaug_3d: false        # only for the camera-dependent multiview losses, which are not on yet
+  # (`patch_mask` is a multi-VIEW transformer augmentation -- `apply_patch_masking` takes a views axis
+  # -- so it is irrelevant to this single-view heatmap model even though the recommender lists it.)
   # `patch_mask` is deliberately ABSENT, not null. The trainer does
   #   if "patch_mask" in cfg.training and "init_epoch" in cfg.training.patch_mask
   # so a null value passes the first test and raises TypeError on the second (measured 2026-09-28,
@@ -117,6 +140,11 @@ training:
 
 model:
   model_type: heatmap
+  # `litpose recommend` on this dataset (2026-09-30) proposes vits_dino at 256x256, AdamW lr 5e-5,
+  # mse heatmaps (64x64 maps, where mse works -- see heatmap_loss_type), 8 labelled + 2 unlabelled
+  # frames, loss log_weight 11, anneal freeze_until_epoch 60, uniform_heatmaps true. Not adopted
+  # wholesale: 256 px is 10.6 px per heatmap cell on the 680 px frame against 4.25 px here, and the
+  # incomplete-lick tongue tip is a few px. vits_dino at 384 px is the candidate SECOND run.
   backbone: resnet50     # plain ImageNet resnet50, to keep the only deliberate differences from the
                          # DLC baseline the LOSSES and the framework. `resnet50_animal_ap10k` is
                          # available and plausibly better on a mouse face -- try it as a SECOND run,
@@ -132,17 +160,28 @@ model:
   # aside, not the cause. `js` is the other option; not tested.
   heatmap_loss_type: kl
   model_name: cam4-orofacial
-  losses_to_use: [temporal, pca_singleview]
+  # pca_singleview is OFF (2026-09-30): `PCALoss` has no confidence masking, so on every unlabelled
+  # frame it pulls jaw and tongue into a plausible pose -- the opposite of reporting them occluded.
+  # Its subspace was also fitted on the ~110 tongue-out frames only. Back on only with the occludable
+  # parts out of `columns_for_singleview_pca` (which leaves too few columns on cam4) or a masked loss.
+  losses_to_use: [temporal]
   checkpoint: null
 
 losses:
   temporal:
+    # WEIGHT = 1 / (2 exp(log_weight)): 5.0 -> 3.4e-3, LP 2.4.2's `litpose recommend` value 11.0 -> 8.4e-6,
+    # ~400x weaker. 5.0 came from LP's older default config. At 5.0 the 09-29 run's PCA term was ~40% of
+    # the total loss at full anneal (pca 12.4 x 3.4e-3 = 0.042 against supervised ~0.07) -- a plausible
+    # contributor to its 2-19 px validation swings, not measured. Temporal alone is a few %. Kept at 5.0
+    # for the 09-30 run so only the occlusion changes move; 11.0 is the obvious next comparison.
     log_weight: 5.0
     # Frames closer than this are not penalised. The jaw genuinely travels ~35 px through a lick at
     # 250 fps, so too small an epsilon would penalise the real movement this model exists to track.
     # Measured: median step between confident frames 0.54 px, 99th percentile 10.5 px.
     epsilon: 10.0
-    prob_threshold: 0.05
+    # 0.5, not 0.05 (2026-09-30): with uniform targets an occluded part should come out LOW-confidence,
+    # and the temporal loss must not then drag it along a continuous track through the occlusion.
+    prob_threshold: 0.5
   pca_singleview:
     log_weight: 5.0
     components_to_keep: 0.95
@@ -164,10 +203,10 @@ callbacks:
 
 dali:
   base:
-    train: {sequence_length: 8}
+    train: {sequence_length: 4}   # the unlabelled batch; halved with train_batch_size (memory spill)
     predict: {sequence_length: 96}
   context:
-    train: {batch_size: 8}
+    train: {batch_size: 4}
     predict: {sequence_length: 96}
 
 eval:

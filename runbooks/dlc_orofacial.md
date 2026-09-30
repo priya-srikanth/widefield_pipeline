@@ -912,6 +912,25 @@ review clips the prior changed nothing (0 of ~7,900 confident tongue/jaw points 
 the expected result; it exists for the rare confident-wrong peak. Review clips:
 `inference_check_20260928_round3/labeled_clips/` on the DLC share.
 
+### Target and context frames (2026-09-30) — read before extracting or training anything new
+
+Full reasoning: `DECISIONS.md`, 2026-09-30, "TARGET vs CONTEXT frames". The operational rules:
+
+* **Target** = label completely (blank = occluded). **Context** = consecutive neighbours to scrub
+  through; leave blank, or label completely — never partly. The manifest (`category == "context"`) is
+  the only record of which is which.
+* **All-blank rows never reach DLC** — `dlc_train.stage` drops them (`drop_unlabelled`) and prints how
+  many per folder. The LP single-view export must do the same; the multi-view export must instead keep
+  them with `visible`=0.
+* **cam1 context** (done): `python -m wfield_local.dlc_context_frames cam1 [--dry-run]` — ±4 frames
+  around measured spout-contact onset and contact end of each lick target, only in folders with no labels
+  yet. Then `python -m wfield_local.dlc_cam1_guide` to refresh the worksheet (targets by slider position).
+* **Never stage frames nobody should label under `_frame_staging/cam1_*`** — `dlc_project.sync_frames`
+  copies every such folder into the labelling project. Matching cam1 bursts for new cam4 moments go to a
+  separate staging root.
+* **cam4 round 4** (to build): incomplete tongue ±4, erratic tongue ±4, erratic jaw ±2, tricky spout no
+  context; picked from DLC round 3 at full frame rate over trial windows.
+
 ### The next refinement round
 
 DLC's loop, and `dlc_train` prints these on completion:

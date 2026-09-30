@@ -289,6 +289,24 @@ def subset_labels(df: pd.DataFrame, bodyparts: list[str]) -> pd.DataFrame:
     return out
 
 
+def drop_unlabelled(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Rows with at least one labelled part, and how many all-blank rows were dropped.
+
+    DLC reads EVERY blank as "absent here" -- its target for a missing part is an all-zero heatmap --
+    so an all-blank row trains the network that nose, jaw, tongue and spout are all invisible in a
+    perfectly ordinary frame. Such rows arise two ways: napari leaves one behind when a frame is
+    labelled and then cleared (cam1_2026-06-06T12_25_18 has one, 2026-09-30), and CONTEXT frames --
+    the +-4 / +-2 neighbours extracted around a pick so the labeller can scrub through a lick -- are
+    in the folder precisely so that most of them are never labelled. Dropping here makes "extracted
+    but not labelled" mean "not in the training set" for DLC by construction, not by labeller care.
+
+    A frame with SOME parts labelled stays, and its blanks mean occluded: that is DLC's semantics
+    and the labelling guide's rule ("a frame you label, you label completely").
+    """
+    keep = df.notna().any(axis=1)
+    return df[keep], int((~keep).sum())
+
+
 def stage(bodyparts=None, which=None, rv=None, iteration: int | None = None) -> Path:
     """Build/refresh the training project from the labelling project. Returns its path.
 
@@ -317,7 +335,9 @@ def stage(bodyparts=None, which=None, rv=None, iteration: int | None = None) -> 
             if not (dd / img.name).exists():
                 shutil.copy2(img, dd / img.name)
                 images += 1
-        d = subset_labels(pd.read_hdf(h5), bps)
+        d, blank = drop_unlabelled(subset_labels(pd.read_hdf(h5), bps))
+        if blank:
+            print(f"[dlc_train] {h5.parent.name}: dropped {blank} all-blank row(s)", flush=True)
         d.to_hdf(dd / f"CollectedData_{SCORER}.h5", key="df_with_missing", mode="w")
         d.to_csv(dd / f"CollectedData_{SCORER}.csv")
 

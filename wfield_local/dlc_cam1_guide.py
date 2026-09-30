@@ -20,6 +20,15 @@ WHAT IT KNOWS THAT THE MANUAL DID NOT (2026-09-29):
     also still lists the retired twelve-part set (whiskers, eyes), so napari shows twelve names there.
   * The order is chosen so that a partial job is still balanced: each block of four folders covers all
     four animals and as many epochs as possible, so stopping halfway leaves no animal or epoch unlabelled.
+
+TARGETS AND CONTEXT (2026-09-30). The eleven untouched folders now also hold CONTEXT frames
+(`dlc_context_frames`): +-4 consecutive frames around spout-contact onset and contact end of each
+lick target, there to be scrolled through when the tongue tip or jaw cannot be judged from one frame.
+The manifest (`category == "context"`) is the only record of which is which, so this page reads it:
+every count of "blank" / "to do" is over TARGETS only, and each folder lists its targets by slider
+position. The rule the page teaches -- label a target completely; leave context blank or label it
+completely, never partly -- is the one `dlc_train.drop_unlabelled` and the Lightning Pose export rely
+on (DECISIONS.md, 2026-09-30).
 """
 from __future__ import annotations
 
@@ -56,11 +65,20 @@ def _thumb_b64(path: Path, width: int = 360) -> str | None:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def folder_status(folder: Path, parts: list[str]) -> dict:
-    """Frames on disk, and per part how many frames carry it, from the folder's own CollectedData."""
+def folder_status(folder: Path, parts: list[str], context: set[str] | None = None) -> dict:
+    """Frames on disk, and per part how many frames carry it, from the folder's own CollectedData.
+
+    ``context`` = image names the manifest marks as context. ``targets`` and ``blank`` are over the
+    remaining images only; ``slider`` maps every image to its 0-based position in napari's slider
+    (napari orders a folder by filename, which is what `sorted` gives for ``img%07d.png``).
+    """
+    context = context or set()
     imgs = sorted(p.name for p in folder.glob("img*.png"))
-    out = {"frames": len(imgs), "images": imgs, "has_file": False, "file_parts": [],
-           "filled": {p: 0 for p in parts}, "blank": list(imgs)}
+    targets = [i for i in imgs if i not in context]
+    out = {"frames": len(imgs), "images": imgs, "targets": targets,
+           "context": [i for i in imgs if i in context], "slider": {i: k for k, i in enumerate(imgs)},
+           "has_file": False, "file_parts": [], "filled": {p: 0 for p in parts}, "blank": list(targets),
+           "context_labelled": 0}
     csvs = sorted(folder.glob("CollectedData_*.csv"))
     if not csvs:
         return out
@@ -71,7 +89,8 @@ def folder_status(folder: Path, parts: list[str]) -> dict:
     out["file_parts"] = list(dict.fromkeys(x.columns))
     out["filled"] = {p: int(x[p].notna().sum()) if p in x.columns else 0 for p in parts}
     done = {ix[2] for ix, row in x.iterrows() if row.notna().any()}
-    out["blank"] = [i for i in imgs if i not in done]
+    out["blank"] = [i for i in targets if i not in done]
+    out["context_labelled"] = sum(i in done for i in out["context"])
     return out
 
 
@@ -100,10 +119,12 @@ def balanced_order(folders: pd.DataFrame) -> list[str]:
 
 def _folders(rv, live: Path, parts: list[str]) -> pd.DataFrame:
     man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
-    meta = man[man.cam == CAM].drop_duplicates("video_stem").set_index("video_stem")
+    man = man[man.cam == CAM]
+    meta = man[man.category != "context"].drop_duplicates("video_stem").set_index("video_stem")
+    ctx = man[man.category == "context"].groupby("video_stem")["image"].apply(set).to_dict()
     rows = []
     for folder in sorted((live / "labeled-data").glob(f"{CAM}_*")):
-        st = folder_status(folder, parts)
+        st = folder_status(folder, parts, ctx.get(folder.name))
         m = meta.loc[folder.name] if folder.name in meta.index else None
         rows.append({"stem": folder.name, "animal": (m["animal"] if m is not None else "?"),
                      "date": (m["date"] if m is not None else "?"),
@@ -115,19 +136,30 @@ def _block(n: int, r, live: Path, parts: list[str]) -> str:
     mac = f"{MAC_ROOT}/{live.name}/labeled-data/{r.stem}"
     img = _thumb_b64(live / "labeled-data" / r.stem / r.images[0]) if r.images else None
     pic = f'<img alt="" src="data:image/png;base64,{img}" style="max-width:360px">' if img else ""
+    def pos(names):
+        return ", ".join(str(r.slider[i]) for i in names)
+
+    ctx_note = ""
+    if r.context:
+        ctx_note = (f"<br><b>Label these {len(r.targets)} target frames</b> (slider positions): "
+                    f"<b>{pos(r.targets)}</b>.<br>The other {len(r.context)} are <i>context</i> &mdash; "
+                    f"scroll through them to judge the lick, and leave them blank.")
+        if r.context_labelled:
+            ctx_note += (f" {r.context_labelled} context frame(s) already carry points &mdash; "
+                         f"check each is labelled completely.")
     if not r.has_file:
-        what = (f"<b>Empty &mdash; place every point.</b> {r.frames} frames. Load "
-                f"<code>config.yaml</code> first, then this folder (step 4 above).")
+        what = (f"<b>Empty &mdash; place every point.</b> {len(r.targets)} target frames. Load "
+                f"<code>config.yaml</code> first, then this folder (step 4 above).{ctx_note}")
     else:
         missing = [p for p in parts if r.filled[p] == 0]
         partial = {p: r.filled[p] for p in parts if 0 < r.filled[p] < r.frames}
-        blanks = [r.images.index(b) for b in r.blank]
+        blanks = [r.slider[b] for b in r.blank]
         what = (f"<b>Part-done &mdash; open the folder only, do NOT load config.yaml.</b> {r.frames} frames. "
                 + (f"<b>{', '.join(missing)}</b> {'is' if len(missing) == 1 else 'are'} missing on every frame "
                    f"&mdash; add {'it' if len(missing) == 1 else 'them'} throughout. " if missing else "")
                 + ("Already there: " + ", ".join(f"{p} on {k}" for p, k in partial.items()) + ". " if partial else "")
                 + (f"Completely blank frames, by slider position: <b>{', '.join(map(str, blanks))}</b>. "
-                   if blanks else ""))
+                   if blanks else "") + ctx_note)
         extra = [p for p in r.file_parts if p not in parts]
         if extra:
             what += (f"<br><span style='color:#7c2d12'>This file still lists the old parts "
@@ -157,8 +189,8 @@ def build(rv=None, dest: Path | None = None) -> Path:
 
     head = f"""<div class="wrap">
 <h1>Camera 1 &mdash; the view from below</h1>
-<p class="sub">{len(df)} folders &middot; {int(df.frames.sum())} frames &middot; {todo_frames} completely blank
-&middot; generated {today}</p>
+<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} target frames &middot;
+{todo_frames} still blank &middot; {int(sum(len(c) for c in df.context))} context frames &middot; generated {today}</p>
 
 <p>This page is the worksheet for cam1: which folders, in what order, and exactly how to open each one.
 The manual &mdash; installing, how napari works, what each landmark means in general &mdash; is
@@ -178,8 +210,27 @@ the edge you can see instead &mdash; that edge is a different point from the tip
 <li><b>spout</b> &mdash; the furthest point of the spout along its own length (the end of the tube in the
 direction it points), the same rule as cam4. It enters from the top of the frame.</li>
 </ul>
-<p style="margin-bottom:.2em">Leave eyes and whiskers empty. A blank is never a mistake: it tells the network
-nothing, which is right when a part cannot be seen.</p>
+<p style="margin-bottom:.2em">Leave eyes and whiskers empty. <b>On a frame you label, a blank part means
+&ldquo;I cannot see it here&rdquo;</b> &mdash; the network is taught that it is hidden. That is right when it is
+hidden, and wrong if you simply skipped it. So on every frame you touch, place every part you can see.</p>
+</div>
+
+<div class="card note">
+<h3 style="margin-top:.2em">Target frames and context frames &mdash; new 30 Sept</h3>
+<p>Most folders now hold two kinds of frame. The entry for each folder below says which is which, by
+<b>slider position</b> (the frame number shown on napari's slider, starting at 0).</p>
+<ul>
+<li><b>Target frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
+blank.</li>
+<li><b>Context frames &mdash; leave these blank.</b> They are the few frames either side of the moment the
+tongue touches the spout and the moment it lets go, the hardest moments to judge. Scroll back and forth
+through them to see where the tongue tip really is, then label the target.</li>
+<li>If a context frame is worth labelling, label it <b>completely</b>, like a target. <b>Never label only the
+tongue on a context frame</b> &mdash; the blanks beside it would be read as &ldquo;nose, jaw and spout
+hidden&rdquo;.</li>
+</ul>
+<p style="margin-bottom:.2em">Blank context frames cost nothing: frames with no points at all are removed
+before training.</p>
 </div>
 
 <div class="card note">
@@ -232,8 +283,8 @@ set balanced. The part-done June folder is last because it adds no new session.<
           f"({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
     for i, s in enumerate(order):
         r = by.loc[s]
-        print(f"   {i + 1:2d}. {s}  {r.animal} {r.epoch:9s} {r.frames:3d} frames, "
-              f"{len(r.blank):3d} blank, filled {r.filled}", flush=True)
+        print(f"   {i + 1:2d}. {s}  {r.animal} {r.epoch:9s} {len(r.targets):3d} targets "
+              f"(+{len(r.context)} context), {len(r.blank):3d} blank, filled {r.filled}", flush=True)
     return dest
 
 

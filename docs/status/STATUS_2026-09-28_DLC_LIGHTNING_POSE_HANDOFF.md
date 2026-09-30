@@ -11,6 +11,29 @@ prior ON for tongue and jaw only (2026-09-28); train/test split by whole session
 
 ---
 
+## 00. UPDATE 2026-09-30 — READ THIS FIRST; it supersedes parts of §0 below
+
+Reasoning for all of it: `DECISIONS.md`, the two 2026-09-30 entries. In short:
+
+1. **The 09-29 KL run is superseded.** It never learned "not visible" (jaw rides the tongue, tongue at
+   rest; `uniform_heatmaps_for_nan_keypoints` defaults false). Stopped 14:00 at ~epoch 235; its best
+   checkpoint (epoch 170) is kept as `models/eval_ep170_snapshot/` and its CPU predictions on the three
+   review clips are on the share at `lightning-pose/cam4-2026-09-28/eval_ep170_20260930/` (README there).
+2. **Current run: `models/round3_occl_uniform_20260930`** (WSL, launched 14:00; log
+   `scratchpad\lp_train_occl.log`): blank = occluded, PCA off, temporal prob_threshold 0.5, batch 4+4,
+   ~25 s/epoch, runs all 300 epochs (early stopping is OFF by design — it had never been on). Evaluate
+   as in §0a step 4, adding: jaw confidence while the tongue is out (must drop, like DLC's 0.41) and
+   confident tongue at rest (must be near 0). CPU prediction recipe:
+   `scripts/lp_eval_cpu.py` (patches `torch.load` to CPU; the snapshot's config needs
+   `losses_to_use: []` because semi-supervised configs refuse to build without CUDA).
+3. **GPU memory spill** was the reason for 7 min/epoch; check shared GPU memory in the first minutes of
+   any run (`Get-Counter '\GPU Adapter Memory(*)\Shared Usage'`).
+4. **Labelling, target vs context frames.** cam1: 330 context frames added to the 11 untouched folders
+   around measured contact onset/end; `CAM1_GUIDE.html` regenerated (targets by slider position). cam4
+   round 4 (incomplete licks ±4, erratic tongue ±4, erratic jaw ±2, tricky spout): picker still TO BUILD
+   — needs the GPU once LP finishes. Remaining TO DO list: end of the second 2026-09-30 DECISIONS entry.
+5. `dlc_train.stage` now drops all-blank label rows (`drop_unlabelled`); keep it that way.
+
 ## 0. RESUME CHECKLIST (rewritten 2026-09-29 ~13:00, for the session that picks this up)
 
 **State in one paragraph.** DLC round 3 (iteration-2 / snapshot-best-160) is the cam4 model in use, prior
