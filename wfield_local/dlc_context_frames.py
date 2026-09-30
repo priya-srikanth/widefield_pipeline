@@ -3,6 +3,7 @@
     conda activate locanmf
     python -m wfield_local.dlc_context_frames cam1 --dry-run     # what would be added, per folder
     python -m wfield_local.dlc_context_frames cam1               # extract + manifest + sync into the project
+    python -m wfield_local.dlc_context_frames cam1 --promote 3   # label every ~3rd context frame too
     python -m wfield_local.dlc_cam1_guide                        # refresh the worksheet (lists targets)
 
 WHY (Priya, 2026-09-30). Where the tongue tip is, or whether the jaw is showing, is often not decidable
@@ -44,6 +45,12 @@ from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
 CONTEXT = "context"
+#: A context frame PROMOTED to a target (Priya, 2026-09-30: "include some labelling of the context
+#: frames ... maybe every 3rd frame"). Kept distinct from the original targets so the provenance
+#: survives; everything downstream (worksheet, training) treats it as a target -- label completely.
+CONTEXT_LABEL = "context_label"
+#: Promote a context frame when it is at least this many frames (12 ms) from every labelled frame.
+PROMOTE_SPACING = 3
 #: Frames either side of contact onset / contact end (250 fps -> +-16 ms).
 HALF_LICK = 4
 #: A manifest lick+0 target is matched to the DAQ onset nearest its frame time, within this.
@@ -117,6 +124,43 @@ def contact_context(targets: pd.DataFrame, tpl: dict, contacts_s: np.ndarray, ha
     return rows
 
 
+def promote(targets, context, spacing: int = PROMOTE_SPACING) -> list[int]:
+    """Context frames to label: walk them in order, keep one at least ``spacing`` frames from every
+    frame already labelled (targets and earlier promotions).
+
+    "Every 3rd frame" measured from the LABELLED frames rather than counted along the context list, so
+    a promoted frame is never adjacent to an existing target (-4 and 0 are targets around each contact
+    onset; counting along the list would label -3 next to -4 and add nothing).
+    """
+    labelled = sorted(int(t) for t in targets)
+    out: list[int] = []
+    for f in sorted(int(c) for c in context):
+        if all(abs(f - t) >= spacing for t in labelled):
+            out.append(f)
+            labelled.append(f)
+    return out
+
+
+def promote_in_manifest(man_path: Path, stems, spacing: int = PROMOTE_SPACING, dry: bool = False) -> pd.DataFrame:
+    """Re-mark the chosen context rows of ``stems`` as `CONTEXT_LABEL`. Returns the promoted rows.
+
+    Idempotent: already-promoted rows count as labelled, so a second run adds nothing.
+    """
+    assert_writable(man_path.parent)
+    man = pd.read_csv(man_path, dtype=str)
+    hit = []
+    for stem in stems:
+        m = man[man.video_stem == stem]
+        tg = m.loc[m.category != CONTEXT, "frame"].astype(int)
+        cx = m.loc[m.category == CONTEXT, "frame"].astype(int)
+        for f in promote(tg, cx, spacing):
+            hit.append(m.index[(m.frame.astype(int) == f) & (m.category == CONTEXT)][0])
+    if hit and not dry:
+        man.loc[hit, "category"] = CONTEXT_LABEL
+        man.to_csv(man_path, index=False)
+    return man.loc[hit]
+
+
 # --------------------------------------------------------------------------- DAQ (impure)
 
 def contacts(animal: str, date: str, rv=None) -> np.ndarray:
@@ -177,8 +221,17 @@ def main(argv=None) -> int:
     ap.add_argument("cam", choices=["cam1"])
     ap.add_argument("--half", type=int, default=HALF_LICK)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--promote", type=int, default=None, metavar="SPACING",
+                    help="instead of extracting: mark context frames >= SPACING frames from every labelled "
+                         "frame as targets (context_label), in folders with no labels yet")
     a = ap.parse_args(argv)
     rv = PathResolver()
+    if a.promote:
+        got = promote_in_manifest(DF.staging_root(rv) / "frame_manifest.csv", untouched_folders(a.cam, rv),
+                                  a.promote, dry=a.dry_run)
+        print(got.groupby("video_stem").size().to_string() if len(got) else "nothing to promote")
+        print(f"\n{len(got)} context frames {'would be' if a.dry_run else ''} promoted to targets")
+        return 0
     rows = plan(a.cam, rv, a.half)
     print(f"\n{len(rows)} context frames planned")
     if a.dry_run or not rows:

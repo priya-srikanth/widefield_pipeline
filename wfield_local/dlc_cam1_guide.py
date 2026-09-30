@@ -122,9 +122,11 @@ def _folders(rv, live: Path, parts: list[str]) -> pd.DataFrame:
     man = man[man.cam == CAM]
     meta = man[man.category != "context"].drop_duplicates("video_stem").set_index("video_stem")
     ctx = man[man.category == "context"].groupby("video_stem")["image"].apply(set).to_dict()
+    sug = man[man.category == "context_label"].groupby("video_stem")["image"].apply(set).to_dict()
     rows = []
     for folder in sorted((live / "labeled-data").glob(f"{CAM}_*")):
         st = folder_status(folder, parts, ctx.get(folder.name))
+        st["suggested"] = [i for i in st["targets"] if i in sug.get(folder.name, set())]
         m = meta.loc[folder.name] if folder.name in meta.index else None
         rows.append({"stem": folder.name, "animal": (m["animal"] if m is not None else "?"),
                      "date": (m["date"] if m is not None else "?"),
@@ -140,10 +142,15 @@ def _block(n: int, r, live: Path, parts: list[str]) -> str:
         return ", ".join(str(r.slider[i]) for i in names)
 
     ctx_note = ""
-    if r.context:
-        ctx_note = (f"<br><b>Label these {len(r.targets)} target frames</b> (slider positions): "
-                    f"<b>{pos(r.targets)}</b>.<br>The other {len(r.context)} are <i>context</i> &mdash; "
-                    f"scroll through them to judge the lick, and leave them blank.")
+    if r.context or r.suggested:
+        fixed = [i for i in r.targets if i not in r.suggested]
+        ctx_note = f"<br><b>Label these {len(fixed)} target frames</b> (slider positions): <b>{pos(fixed)}</b>."
+        if r.suggested:
+            ctx_note += (f"<br><b>Plus {len(r.suggested)} suggested lick frames</b>: <b>{pos(r.suggested)}</b> "
+                         f"&mdash; about every 3rd frame through the start and end of each lick. Flexible: "
+                         f"if a neighbour is harder to judge, label that one instead (or as well).")
+        ctx_note += (f"<br>The other {len(r.context)} are <i>context</i> &mdash; scroll through them to "
+                     f"judge the lick; leave them blank unless you choose to label one completely.")
         if r.context_labelled:
             ctx_note += (f" {r.context_labelled} context frame(s) already carry points &mdash; "
                          f"check each is labelled completely.")
@@ -222,12 +229,17 @@ hidden, and wrong if you simply skipped it. So on every frame you touch, place e
 <ul>
 <li><b>Target frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
 blank.</li>
-<li><b>Context frames &mdash; leave these blank.</b> They are the few frames either side of the moment the
-tongue touches the spout and the moment it lets go, the hardest moments to judge. Scroll back and forth
-through them to see where the tongue tip really is, then label the target.</li>
-<li>If a context frame is worth labelling, label it <b>completely</b>, like a target. <b>Never label only the
-tongue on a context frame</b> &mdash; the blanks beside it would be read as &ldquo;nose, jaw and spout
-hidden&rdquo;.</li>
+<li><b>Suggested lick frames &mdash; label these too.</b> Around each lick the folder holds a run of
+consecutive frames covering the moment the tongue touches the spout and the moment it lets go &mdash; the
+hardest moments to judge. About every third frame of that run is listed as suggested.
+<b>The list is a starting point, not a rule:</b> the goal is to label the <i>toughest</i> frames. If the
+frame beside a suggested one is harder &mdash; the tongue tip only just showing, the jaw half-hidden &mdash;
+label that one instead, or as well.</li>
+<li><b>Context frames &mdash; the rest of each run.</b> Scroll back and forth through them to see where the
+tongue tip really is and what the jaw is doing, then label the target. Leave them blank unless you decide one
+is worth labelling.</li>
+<li>Any frame you label, label <b>completely</b>. <b>Never label only the tongue on a frame</b> &mdash; the
+blanks beside it would be read as &ldquo;nose, jaw and spout hidden&rdquo;.</li>
 </ul>
 <p style="margin-bottom:.2em">Blank context frames cost nothing: frames with no points at all are removed
 before training.</p>

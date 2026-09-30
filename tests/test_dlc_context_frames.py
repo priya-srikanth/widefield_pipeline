@@ -50,3 +50,20 @@ def test_context_around_onset_and_end_excludes_targets():
 def test_lick_without_matching_daq_onset_is_skipped():
     rows = contact_context(_targets(), TPL, np.array([[9.0, 9.08]]), half=4)
     assert rows == []
+
+
+def test_promote_keeps_spacing_from_targets_and_each_other():
+    from wfield_local.dlc_context_frames import promote
+    targets = [996, 1000, 1008, 1016]                      # lick-16, lick+0, lick+32, lick+64
+    context = [997, 998, 999, 1001, 1002, 1003, 1004, 1013, 1014, 1015, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024]
+    got = promote(targets, context, spacing=3)
+    assert got == [1003, 1013, 1019, 1022]
+    allf = sorted(targets + got)
+    assert min(b - a for a, b in zip(allf, allf[1:])) >= 3
+
+
+def test_promote_is_idempotent_when_promoted_count_as_targets():
+    from wfield_local.dlc_context_frames import promote
+    targets, context = [0], list(range(1, 10))
+    first = promote(targets, context, 3)
+    assert promote(targets + first, [c for c in context if c not in first], 3) == []

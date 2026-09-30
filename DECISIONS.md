@@ -18665,3 +18665,13 @@ under both DLC and occlusion-trained LP.
   `cam1_*` folder under `_frame_staging` into the labelling project, so putting them there would put them
   on the student's worksheet; LP CSV export applying the drop (single-view) and the `visible` column +
   shared names (multi-view).
+
+**Addendum (same day) — every ~3rd context frame is labelled too (Priya).** Context frames alone help the
+labeller judge but add no training signal; labelling them all (+330) was rejected: consecutive 4 ms frames
+are near-duplicates, ~9 per event would outweigh the rest of cam1's set, and hand-label jitter between
+near-identical images is noise. Chosen: promote a context frame when it is ≥3 frames (12 ms) from every
+already-labelled frame (`dlc_context_frames.promote`, measured from labelled frames so a promotion is
+never adjacent to an existing target) → **66 frames** in the 11 folders (3–8 each), manifest category
+`context_label`. The worksheet lists them as "suggested lick frames" and says explicitly that the list is
+flexible: the goal is the toughest frames, so a harder neighbour may be labelled instead or as well.
+Considered and offered, not adopted: fully labelling one lick in 3–4 folders as a held-out temporal test set.
