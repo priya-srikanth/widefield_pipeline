@@ -23,8 +23,8 @@ frame. Per session, from those predictions:
                      offset from the nose (the "jaw on the tongue's edge" pattern)        context +-2
   tricky_spout       spout p in 0.1-0.6 (a local minimum), or moving > 5 px/frame at p < 0.9   none
 
-Sessions: one per animal x post-stroke epoch (acute, subacute, chronic) -- post-stroke weighted -- plus one
-pre-stroke session for two animals, none already in the cam4 labelled set, all with passing templates on
+Sessions: two per post-stroke epoch (acute, subacute, chronic), animals spread -- six in all, no pre-stroke;
+none already in the cam4 labelled set, all with passing templates on
 cam4 AND cam1 (the matched bursts). Picks within a session are >= 0.25 s apart.
 
 TARGETS, CONTEXT, PROMOTED CONTEXT -- same rule as cam1 (`dlc_context_frames`): the centre is a target
@@ -59,6 +59,8 @@ TRIALS_PER_POSITION = 2
 MIN_SEP = 62                     # frames (0.25 s at 250 fps)
 P_OK, P_SURE = 0.6, 0.8
 SEED = 104
+PER_EPOCH = 2
+POST_EPOCHS = ("acute", "subacute", "chronic")
 
 
 # --------------------------------------------------------------------------- the rules (pure)
@@ -232,9 +234,14 @@ def predict_window(video: str, f0: int, f1: int, predict, chunk: int = 64) -> np
     return np.concatenate(out) if out else np.empty((0, len(PARTS), 3))
 
 
-def choose_sessions(rv=None) -> list[tuple[str, str, str, str]]:
-    """(animal, date, sid, epoch): per animal one acute/subacute/chronic session + one pre for two animals,
-    not already labelled on cam4, usable on cam4 and cam1, most central in its epoch."""
+def choose_sessions(rv=None, per_epoch: int = PER_EPOCH, epochs_=POST_EPOCHS) -> list[tuple[str, str, str, str]]:
+    """(animal, date, sid, epoch): ``per_epoch`` sessions in each post-stroke epoch, animals spread
+    (`dlc_frames._thin_epochs`), each the most central of that animal's epoch that is not already labelled
+    on cam4 and has passing templates on cam4 AND cam1.
+
+    Six sessions, post-stroke only (Priya, 2026-09-30: "for cam4, we can use fewer sessions"): the first
+    draft took one session per animal x epoch plus two pre-stroke (13 sessions, ~220 frames to label).
+    Incomplete licks are the post-stroke problem, so pre-stroke was the part to drop."""
     from wfield_local import dlc_project, epochs
 
     rv = rv or PathResolver()
@@ -252,18 +259,13 @@ def choose_sessions(rv=None) -> list[tuple[str, str, str, str]]:
             for t in sorted(sess.glob("*_trials.csv")):
                 by.setdefault((an, ep), []).append((date, t.name[: -len("_trials.csv")]))
     out = []
-    pre_left = 2
     for (an, ep), sess in sorted(by.items()):
-        if ep == "pre":
-            if pre_left == 0:
-                continue
-        pick = DF._pick_middle(sess, lambda ds, _an=an: DF.usable(_an, ds[0], ["cam4", "cam1"], rv))
-        if pick is None:
+        if ep not in epochs_:
             continue
-        if ep == "pre":
-            pre_left -= 1
-        out.append((an, pick[0], pick[1], ep))
-    return out
+        pick = DF._pick_middle(sess, lambda ds, _an=an: DF.usable(_an, ds[0], ["cam4", "cam1"], rv))
+        if pick is not None:
+            out.append((an, pick[0], pick[1], ep))
+    return DF._thin_epochs(out, per_epoch)
 
 
 def scan_session(animal, date, sid, epoch, predict, rv=None) -> tuple[list[dict], dict]:
