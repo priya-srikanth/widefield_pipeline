@@ -1246,7 +1246,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
         vals = [np.nanmean(np.asarray(v), axis=0) for k, v in maps.items() if k[0] == arm]
         flat = np.concatenate([v.ravel() for v in vals])
         flat = flat[np.isfinite(flat)]
-        vmax = float(np.nanpercentile(np.abs(flat), 99)) if flat.size else 1.0
+        vmax = float(np.nanpercentile(flat[flat > 0], 99)) if (flat > 0).any() else 1.0
         im = None
         for i, pos in enumerate(poss):
             for j, con in enumerate(cons):
@@ -1257,16 +1257,19 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                 if not v:
                     ax.text(0.5, 0.5, "n/a", ha="center", va="center", fontsize=8, color="0.6")
                     continue
-                cm = plt.get_cmap(tm.CMAP_CHANGE).copy()
-                # OUTSIDE-THE-MASK MUST NOT LOOK LIKE ZERO-CHANGE. `set_bad("white")` on a
-                # diverging map whose MIDPOINT is also white made the two indistinguishable, so
-                # the apparent "brain silhouette" was the non-zero region rather than the analysed
-                # region -- and every contour sitting over near-zero cortex read as a contour
-                # outside the brain (Priya, 2026-09-17). Grey is outside the analysis; white is
-                # inside it and unchanged.
+                # SEQUENTIAL, FLOORED AT ZERO, AND NOT RED/BLUE. The cell is excess |change| over
+                # its own noise -- a MAGNITUDE with no direction -- and the diverging RdBu_r it
+                # used to wear is the repo's increase/decrease map, so acute far-contra read as
+                # "increased" where the readout had in fact turned the most (Priya, 2026-09-30).
+                # Below zero means "changed less than two noise estimates of an unchanged code",
+                # which is no evidence of change rather than a decrease, so it is drawn as zero.
+                cm = plt.get_cmap(tm.CMAP_LEVEL).copy()
+                # OUTSIDE-THE-MASK MUST NOT LOOK LIKE ZERO-CHANGE (Priya, 2026-09-17): light grey
+                # is outside the analysis, the dark end of the ramp is inside it and unchanged.
                 cm.set_bad("0.90")
-                im = ax.imshow(np.nanmean(np.asarray(v), axis=0), cmap=cm,
-                               vmin=-vmax, vmax=vmax)
+                m = np.nanmean(np.asarray(v), axis=0)
+                im = ax.imshow(np.where(np.isfinite(m), np.maximum(m, 0.0), np.nan), cmap=cm,
+                               vmin=0.0, vmax=vmax)
                 # THE ALLEN PARCELLATION, as every other map family in this deck draws it. This
                 # arm never had it (no commit on any branch ever referenced `atlas_edges` here),
                 # which is why a significant blob could only be located by eye against a
@@ -1298,10 +1301,9 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                         frac = np.where(_SM, frac, 0.0)
                     if np.any(frac > 0.5):
                         # SAME TREATMENT AS THE POSITION MAPS: a white underlay carries the edge
-                        # across the saturated ends of the diverging ramp, black carries it across
-                        # the pale middle. 0.9 pt of plain black read well over white and was
-                        # close to invisible inside a deep red or deep blue blob -- which is
-                        # exactly where a significant component tends to sit.
+                        # across the dark (unchanged) end of the ramp, black carries it across the
+                        # bright end. Plain black alone vanishes over dark cortex, which here is
+                        # exactly the unchanged background a significant component sits against.
                         ax.contour(frac, levels=[0.5], colors="white", linewidths=2.6, alpha=0.85)
                         ax.contour(frac, levels=[0.5], colors="black", linewidths=1.5)
                 if i == 0:
@@ -1317,7 +1319,8 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
             lo = max(0, len(poss) // 2 - 1)
             cax = fig.add_subplot(gs[lo:lo + 2, len(cons) + 1])
             fig.colorbar(im, cax=cax).set_label(
-                "change in readout pattern, z vs its own pre-stroke split-half null", fontsize=10)
+                "how much the readout pattern changed (either direction),\n"
+                "z vs its own pre-stroke split-half null; <0 drawn as 0", fontsize=10)
 
         # right: the cosine per position, against the noise ceiling
         ax = fig.add_subplot(gs[:, len(cons) + 3])

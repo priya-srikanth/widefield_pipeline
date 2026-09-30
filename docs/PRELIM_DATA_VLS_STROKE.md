@@ -12,6 +12,13 @@ epoch grew from 18 to **31** sessions when PS94's chronic was pinned (below). A 
 the three map windows show at the Allen-region level, which this document had not previously
 carried. Where a number is unchanged it is left as it was; where it moved, the old value is not kept.
 
+**AMENDED 2026-09-30.** §5a(ii) now quotes the ENGAGEMENT-GATED cue increment
+(`epoch_15r_position_PRECUEref_cue_working`, same 26 Sep render) instead of the ungated
+`epoch_15_evoked_CUEINCREMENT` family it had been reading. New §5a(iv) records the chronic
+region-level question and what a `15k` re-run through 2026-09-29 must answer — no numbers are quoted
+until it runs. New §5a(v) (per-session stability of the gated increment) uses sessions through
+**2026-09-29** and says so. H6 and H8 carry the consequences.
+
 **PROVENANCE.** Figures and their `.csv` companions in
 `N:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/`, **2026-09-26 render set**, `restdock05`
 rest definition. **Every number here is read from the `.csv` beside its figure or from
@@ -197,7 +204,7 @@ Priya, 2026-09-28, on the maps: *"increased motor-related activity in bilateral 
 cortex with variable increases/decreases acutely in cue-evoked activity"*, and *"look at the precue
 maps for 'motor planning' activity"*. Checked against the pixel maps
 (`epoch_15r_position_RESTWref_{lick_lick,cue_working,precue_working}` and
-`epoch_15_evoked_CUEINCREMENT_PRECUEref_cue`, 2026-09-26 render) and the Allen-region tables
+`epoch_15r_position_PRECUEref_cue_working`, 2026-09-26 render) and the Allen-region tables
 (`epoch_15k_cohort_{lick,cue,precue}.csv`, 2026-09-17 — acute cells current, chronic cells
 pre-growth). **Both halves of the reading hold, with two changes of wording that the data insist
 on.**
@@ -245,12 +252,19 @@ is not evidence of a lateralised cortical consequence of the infarct. That evide
 
 #### (ii) The cue-evoked increment is not "variable" — it is near-UP, far-DOWN, and the far-contra decrease is largest in IPSILESIONAL orofacial cortex
 
-`epoch_15_evoked_CUEINCREMENT_PRECUEref_cue`: each position's own post-cue minus pre-cue, so the six
-rows are independent — this is the control that gates the decoder maps, whose one-vs-rest centring
-couples them. Acute/pre: **near-ipsi 1.44, near-middle 1.35, near-contra 1.39; far-ipsi 0.80,
-far-middle 0.40 (1,290 bins), far-contra 0.11 (1,951 of 2,022 bins).** A monotone near→far gradient
-with the same sign structure as the behaviour (§1) and the frozen decoder (§2). Region level, cue
-arm, acute, `restw`:
+`epoch_15r_position_PRECUEref_cue_working`: each position's own post-cue (0–2 s) minus its own
+pre-cue second, on the WORKING trials, so the six rows are independent — this is the control that
+gates the decoder maps, whose one-vs-rest centring couples them. Acute/pre: **near-ipsi 1.67 (459
+bins), near-middle 1.55 (197), near-contra 1.69 (492); far-ipsi 1.00 (10, rim-suppressed),
+far-middle 0.52 (739), far-contra 0.18 (1,877 of 2,022 bins).** A monotone near→far gradient with
+the same sign structure as the behaviour (§1) and the frozen decoder (§2).
+
+**QUOTE THIS FAMILY, NOT `epoch_15_evoked_CUEINCREMENT_PRECUEref_cue`** (corrected 2026-09-30). The
+older family has the same name pattern but is NOT engagement-gated: it aggregates the preprocessing
+`*_pre_post_delta_maps.npz`, which averages every covered cue — sated tail and disengaged trials
+included — over a 1 s window. Because the quit tail grows post-stroke it dilutes the acute column
+most: there it read near 1.35–1.44, far-ipsi 0.80, far-middle 0.40, far-contra 0.11. The ordering
+survives gating; the magnitudes do not. Region level, cue arm, acute, `restw`:
 
 | region — acute, cue | near-ipsi L / R | **far-contra L / R** | L : R at far-contra |
 |---|---|---|---|
@@ -267,7 +281,7 @@ ipsilesional hemisphere — which is also the hemisphere representing the impair
 is the lesion-specific signature, and it is at the position the lesion targets.
 
 Two things travel with it. First, the increment subtracts pre-cue, and pre-cue far-contra ROSE
-acutely ((iii) below), so the 0.11 compounds a collapsed post-cue (position map 0.47, §5) with a
+acutely ((iii) below), so the 0.18 compounds a collapsed post-cue (position map 0.47, §5) with a
 raised baseline — both are real, and the position map is the one to quote for "post-cue activity".
 Second, the near-position increases and the far-position decreases are in the SAME areas: this is a
 change in how much cue-evoked drive each target recruits, not a change in where.
@@ -309,6 +323,53 @@ The three windows dissociate by sign and by side. On executed licks, bilateral o
 ipsilesionally. Before the cue, the impaired target *gains* an anticipatory signal, contralesionally.
 Three different cortical events in the same trials — which is also why §5b insists the windows are
 not interchangeable, and why no single map is "the" post-stroke change.
+
+#### (iv) Chronic, at the region level — PENDING a `15k` re-run through 2026-09-29
+
+Priya, 2026-09-30, of the pre-cue `RESTWref` chronic − pre panel: bilateral MOp/MOs activation is
+visible but the pixel test draws almost no contours there — power, or absence? The pixel test answers
+"do the four animals agree on this BIN"; the region question is `15k`'s
+(`scripts/rest_migration/reference_family_roi.py`: LocaNMF components grouped by Allen label, `raw` /
+`precue` / `restw`, per-animal max-statistic and cohort bootstrap). **Its chronic cells are still on
+the 17 Sep, 18-session cohort**, so no chronic region claim is quoted here until it is re-run on
+sessions through 2026-09-29 (chronic 35: PS92 10, PS93 10, PS94 6, PS95 9).
+
+What the re-run has to answer, from a pixel-ROI screen on 2026-09-30 that is NOT a result and is not
+quoted as one (pixel ROIs were retired for this question on 2026-09-17 because a large area swamps a
+focal change):
+
+* **Cue and lick** — does (i)'s orofacial sensorimotor increase persist chronically, and is MOp in it
+  in all four animals? The screen said yes for SSp-m, SSp-n and MOp, with PS94 the exception under
+  `restw` / `raw`.
+* **Pre-cue** — is there any chronic MOp/MOs increase under any reference? The screen said no:
+  PS93 and PS94 up, PS92 down, PS95 mixed, which is exactly the disagreement the pixel test's
+  between-animal denominator withholds contours for. What replicated was a posterior SSp (barrel,
+  limb) decrease.
+* **Reference dependence in the pre-cue window** — the screen found SSp-m changing SIGN between
+  `restw` and `raw`. Two measured reasons make that plausible and are not screen-dependent: per
+  session, a rest-referenced map's correlation with its own pre-stroke map falls through chronic
+  (PS92 six-position mean, cue, 0.94 → 0.75) while the same increment referenced to each trial's own
+  pre-cue second holds at 0.93–0.97 in all four animals — the rest SUBTRAHEND moves; and pre-cue maps
+  are small (0.002–0.007 over the mask against ~0.02 post-cue), so the measured 7–43%
+  `rest_baseline_epoch_drift` is a large fraction of the signal there. `15k`'s three-family agreement
+  column is the test this needs.
+
+#### (v) Is the chronic map activity stable, session by session? — added 2026-09-30
+
+Per-session cue increment on the WORKING trials (the `15r` PRECUEref increment, one map per session,
+through 2026-09-29); `scripts/chronic_stability.py` map rows, which now run in the nightly, and a
+snapshot with per-position figures at `<labcams>/chronic_stability/cue_increment_working_20260929/`.
+
+* **Shape has plateaued in every animal**: six-position correlation with its own pre-stroke map
+  0.93–0.97 at day 43.
+* **Amplitude**: flat in **PS92** (far-contra 1.4×, settled; near positions easing down, far-middle
+  still creeping up at 2.3×) and **PS93** (flat everywhere, far-contra ~1.3×). **PS95** stepped up
+  between days 22 and 25 and has held ~1.5× (far-contra ~1.2×) since. **PS94** is the one still
+  moving: near-contra and near-middle rising, last-five drift +2.4 to +2.7 pre-stroke SD, on six
+  sessions; its far deficit is stable at 0.6–0.9×.
+* **GATING CHANGED TWO READINGS.** On the ungated npz family PS95 looked like a peak decaying from
+  2.06× to 1.33× and PS94's far deficit looked twice as deep (far-ipsi 0.19× against 0.59× gated).
+  Both were the disengaged trials, not the cortex.
 
 ### The pre-cue / post-cue dissociation — the finding worth chasing
 **Far-contra pre-cue INCREASES acutely (1.57, 310 significant bins) while far-contra post-cue
@@ -779,7 +840,10 @@ pin at day 25 because its recovered hit rate wobbles too much for the plateau ru
   (0.438 → 0.559 → 0.618).
 * `epoch_15r_position_RESTWref_precue_working` — the trial-averaged pre-cue MAP decreases
   chronically at near-middle (0.60, 633 bins), far-ipsi (0.57, 170) and far-middle (0.41, 815), and
-  nowhere else (§5a(iii)).
+  nowhere else (§5a(iii)). **Probably reference-dependent** (§5a(iv)): the rest baseline itself
+  moves chronically, and under `raw` the same cells are larger-magnitude maps
+  (`epoch_15r_position_RAWref_precue_working`, 30 Sep render: 2.16 / 1.69 / 2.58), so until `15k` is
+  re-run it supports "the pre-cue map changes at these positions", not "it decreases".
 
 **AND THE WINDOWS RECOVER DIFFERENTLY (§5b).** Best-match chronically: CUE and LICK return to
 ~0.97 at five positions; **ENL does not, and the failure is position-specific** — near-middle
@@ -839,7 +903,7 @@ Acutely, on every position the animal still licked at, the lick-aligned map incr
 pre with hundreds of significant bins per position, and at the region level **SSp-m and SSp-n
 increase in BOTH hemispheres in 4/4 animals with all three references agreeing** (near-ipsi
 +0.0150 / +0.0194 and +0.0122 / +0.0124, left / right), with MOp (+0.0098 / +0.0113, 4/4) and MOs
-(+0.0063 / +0.0063, 3/4) behind them. It persists chronically, strongest in contralesional SSp-m.
+(+0.0063 / +0.0063, 3/4) behind them. It persists chronically, strongest in contralesional SSp-m — **on `15k`'s 18-session chronic cohort; re-run pending through 2026-09-29** (§5a(iv)).
 
 *Cannot conclude:* that this is a consequence of the focal infarct — it is bilateral, and by this
 project's own laterality logic a symmetric change is systemic, compensatory or instrumental until
@@ -849,7 +913,9 @@ areas are somatosensory. **The lateralised, lesion-specific change is in the CUE
 (§5a(ii)), where far-contra drive falls 1.7–3× more in ipsilesional orofacial cortex.
 *Cannot conclude:* anything about far-contra acutely — there is no cell; the animal did not lick.
 *Cannot conclude:* chronic region-level detail from `15k`, which is on the 18-session cohort until
-re-run.
+re-run (§5a(iv)).
+*Cannot conclude:* the same for the PRE-CUE window. A pixel-ROI screen found no chronic pre-cue
+MOp/MOs increase the animals share; `15k` on the grown cohort is the test (§5a(iv)).
 
 ---
 
