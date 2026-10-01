@@ -18877,3 +18877,8 @@ spout; peak velocities differ 2× between models (jitter + old-rig thresholds). 
   confident tongue frames, px from the mouth: y p5/50/95 = 31–34 / 103–111 / 177–181, x −47…−53 / −19 / +19–20;
   kept-lick peak y 45–49 / 148–149 / 206–208 (DLC / LP). Every px threshold in pre-clean, detector and gates is
   now in mouth-relative px and must be retuned in those units (the old baseline sat ~30–50 px below the mouth).
+
+**Correction (2026-10-01) — trial stop IS on the DAQ** (Priya): the analog channel `trial_end` (~35 ms, 0–4 V TTL),
+in every session checked (09-08 → 09-29). `trial_windows.trial_bounds` now uses its rising edge first; the
+log-mapped `trial_stop_ttl` and cue + response_window are fallbacks. PS93 0908: DAQ vs log-mapped stop, 510/510
+trials, median −2.2 ms, max |diff| 4.3 ms — so the earlier log-based numbers stand.

@@ -12,11 +12,13 @@ this changes in future data". Measured (PS92 0821, PS93 0908, PS95 0917): trial 
 The position strobe precedes the cue by a median 2.7-4.6 s with a tail to ~23 s (a pre-cue lick delays the cue).
 
 WHERE THE TIMES COME FROM. strobe and cue: DAQ digital lines (`daq_trials.decode`; strobe = the most recent one
-at or before the cue, the pipeline's pairing rule). trial stop: there is NO DAQ line for it -- it is the
-behaviour log's `trial_stop_ttl` event on the task device clock, mapped onto the DAQ clock through the shared
-Arduino heartbeat with `spout_behavior._sync_affine` (which refuses a fit off by > 1 % in rate or > 10 ms in
-residual). When the clocks cannot be aligned, stop = cue + the session's response window
-(`gui_config.json timing.response_window`) and `stop_source` says so.
+at or before the cue, the pipeline's pairing rule). trial stop: the DAQ ANALOG channel `trial_end` (a ~35 ms,
+0-4 V TTL; rising edge at 2.5 V) -- the first edge after the cue and before the next cue. Fallbacks, in order,
+with `stop_source` saying which: the behaviour log's `trial_stop_ttl` mapped onto the DAQ clock through the
+shared Arduino heartbeat (`spout_behavior._sync_affine`); then cue + the session's response window
+(`gui_config.json timing.response_window`). Checked on PS93 0908: DAQ trial_end vs the log-mapped stop, 510/510
+trials, median -2.2 ms, max |difference| 4.3 ms. (A first version of this module said there was no DAQ line;
+there is -- it is analog, not digital. Priya, 2026-10-01.)
 
 THE RULE (`end_at_stop`), applied per trial when its stop is known:
   * RESPONSE windows end at the trial stop: kept-lick detection, peak velocity, lick-count apply, licking
@@ -100,6 +102,11 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     j = np.searchsorted(strobe, t["cue_s"].to_numpy(float), side="right") - 1
     t["strobe_s"] = np.where(j >= 0, strobe[np.clip(j, 0, None)], np.nan)
 
+    with daq_io.open_daq(h5) as f:
+        fs, _ = daq_io.session_attrs(f)
+        te = daq_io.analog_channel(f, "trial_end", required=False)
+    daq_stop = (np.flatnonzero(np.diff((te > 2.5).astype(np.int8)) == 1) + 1) / fs if te is not None else None
+
     stop = None
     sd = behaviour_session_dir(f"{animal}_{date[4:]}")
     rw = 3.5
@@ -121,11 +128,15 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     cue = t["cue_s"].to_numpy(float)
     nxt = np.r_[cue[1:], np.inf]
     out_stop, src = np.full(len(t), np.nan), np.array(["cue+response_window"] * len(t), dtype=object)
-    if stop is not None:
-        k = np.searchsorted(stop, cue, side="left")
-        ok = (k < len(stop)) & (stop[np.clip(k, 0, len(stop) - 1)] < nxt)   # the first stop after this cue,
-        out_stop[ok] = stop[k[ok]]                                          # and before the next one
-        src[ok] = "log_trial_stop_ttl"
+    # Lowest priority first, so the better source overwrites: log-mapped, then the DAQ trial_end line.
+    for times, name in ((stop, "log_trial_stop_ttl"), (daq_stop, "daq_trial_end")):
+        if times is None or len(times) == 0:
+            continue
+        times = np.sort(np.asarray(times, float))
+        k = np.searchsorted(times, cue, side="left")
+        ok = (k < len(times)) & (times[np.clip(k, 0, len(times) - 1)] < nxt)   # first stop after this cue,
+        out_stop[ok] = times[k[ok]]                                             # and before the next one
+        src[ok] = name
     miss = ~np.isfinite(out_stop)
     out_stop[miss] = cue[miss] + rw
     t["stop_s"], t["stop_source"] = out_stop, src
