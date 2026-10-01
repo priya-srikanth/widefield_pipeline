@@ -928,8 +928,13 @@ Full reasoning: `DECISIONS.md`, 2026-09-30, "TARGET vs CONTEXT frames". The oper
 * **Never stage frames nobody should label under `_frame_staging/cam1_*`** — `dlc_project.sync_frames`
   copies every such folder into the labelling project. Matching cam1 bursts for new cam4 moments go to a
   separate staging root.
-* **cam4 round 4** (to build): incomplete tongue ±4, erratic tongue ±4, erratic jaw ±2, tricky spout no
-  context; picked from DLC round 3 at full frame rate over trial windows.
+* **cam4 round 4** (extracted 2026-09-30/10-01): `python -m wfield_local.dlc_hard_frames scan | clips | picks
+  --lp-dir <LP csvs> | extract`, then `dlc_cam1_guide`. DLC kinds incomplete tongue ±4, erratic tongue ±4,
+  erratic jaw ±2, tricky spout none; LP kinds disagree_tongue/jaw, lp_erratic_tongue/jaw. LP predict in WSL
+  ONLY with `dali.base.predict.sequence_length=16` (the default 96 crashed the machine twice).
+* **LP labels after every conversion:** `litpose convert` on the TRAINING copy, then
+  `python -m wfield_local.lp_labels clean <lp_dir>/CollectedData.csv` (drops all-blank rows; backup kept).
+* **A low-confidence LP point is the image centre**, not a position: mask by likelihood before kinematics.
 
 ### The next refinement round
 

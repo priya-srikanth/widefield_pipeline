@@ -40,6 +40,8 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 
 ## 1. Findings
 
+**2026-10-01 additions (DECISIONS 2026-10-01):** where both models are confident their tracks nearly coincide; **LP's low-confidence point sits at the image centre (~340, 337 px)** — mask LP by likelihood, never interpolate through it; LP–DLC tongue distance shows no spout-position effect on PS93 0908 (median 2.9–4.9 px, >15 px in ≤2 %). Zoomed figure: `lp_vs_dlc_cue_traces/PS93_20260908/*_zoom_DLC_vs_LP.png`.
+
 ### Scientific / tracking
 * **LP never learned "not visible" until today.** `training.uniform_heatmaps_for_nan_keypoints` defaults false;
   blanks were dropped from the loss. Epoch-170 KL model: jaw rode the tongue edge (jaw conf 0.99 with tongue
@@ -116,13 +118,14 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 9. The repo test `test_no_hardcoded_machine_paths` blocks pushes on typed paths — use `Path.home()`/PathResolver.
 10. Other windows leave uncommitted edits (today: `scripts/chronic_stability.py`, `nightly_figs.py`,
     `PRELIM_DATA_VLS_STROKE.md`, `rotation_maps.py`, `region_reference_contrast.py`): commit only your own files.
+11. **A low-confidence LP coordinate is the image centre, not a position** — mask by likelihood before any kinematics.
 
 ## 4. To do (not started)
-* LP label export for single-view training applying the all-blank drop (before the round-4 LP retrain).
+* ~~LP label export with the all-blank drop~~ DONE 10-01: `python -m wfield_local.lp_labels audit|clean <lp_dir>/CollectedData.csv` after `litpose convert` on the training copy.
 * Multi-view export: per-keypoint `visible` column (2/1/0), shared image name per DAQ instant; verify a
   not-labelled view row trains correctly (checked in LP code only).
 * EKS ensemble after round 4; log_weight 11 comparison; `freeze_until_epoch` 60; vits_dino at 384 px.
-* Zoomed cue-trace figure; split LP–DLC tongue disagreement by spout position.
+* ~~Zoomed cue-trace figure; disagreement by spout position~~ DONE 10-01 (no position effect on PS93).
 * Guide line for sideways-lick tongue tip is in the round-4 "disagree_tongue" text only — add to
   `LABELLING_GUIDE.html` too when it is next regenerated.
 * cam1/cam4 nose offset (241 same-instant frames) once cam1 is labelled.

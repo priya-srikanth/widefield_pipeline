@@ -6,7 +6,8 @@
     python -m scripts.pose_cue_traces dlc  PS93:20260908          # conda activate dlc (Windows GPU)
     #    LP, in WSL:  litpose predict <model_dir> <clip>.mp4 --overrides dali.base.predict.sequence_length=16
     # 3. plot
-    python -m scripts.pose_cue_traces plot PS93:20260908 --lp <LP csv>
+    python -m scripts.pose_cue_traces plot PS93:20260908 --lp <LP csv> [--filtered]
+    python -m scripts.pose_cue_traces zoom PS93:20260908 --lp <LP csv>     # 4 trials, 0-1 s, both models per axis
 
 WHY (Priya, 2026-09-30): "LP looks better to me on PS93 unseen ... plot some cue-aligned tongue and jaw x & y
 px location vs time traces trial-overlaid, to see how noisy DLC vs LP are."
@@ -186,16 +187,67 @@ def cmd_plot(spec, rv, lp_csv, filtered: bool = False):
     print(f"-> {p}")
 
 
+def cmd_zoom(spec, rv, lp_csv, n_trials: int = 4, t1_ms: float = 1000.0):
+    """Both models on the SAME axes for a few trials, 0..t1 ms after the cue -- the trial overlay is too dense
+    (24 x 1000 frames) to show single-frame jitter. Trials = those with the most frames where both models see
+    the tongue. Also writes the LP-vs-DLC tongue distance (both confident) by spout position."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    animal, date, *_ = _session(spec, rv)
+    out = _out(rv, animal, date)
+    idx = pd.read_csv(out / "cue_windows_index.csv")
+    D, L = _load(out / "cue_windows_DLC.csv"), _load(lp_csv)
+    n = min(len(idx), len(D), len(L))
+    idx, D, L = idx.iloc[:n], D.iloc[:n], L.iloc[:n]
+    both_t = (D["tongue"]["likelihood"].values > PCUT) & (L["tongue"]["likelihood"].values > PCUT)
+    dist = np.hypot(D["tongue"]["x"].values - L["tongue"]["x"].values, D["tongue"]["y"].values - L["tongue"]["y"].values)
+    by_pos = (pd.DataFrame({"position": idx.position, "d": np.where(both_t, dist, np.nan)})
+              .groupby("position").d.agg(frames_both="count", median_px="median",
+                                         p90_px=lambda s: s.quantile(0.9), frac_gt15=lambda s: (s > 15).mean()).round(2))
+    by_pos.to_csv(out / "tongue_LP_vs_DLC_by_position.csv")
+    print(by_pos.to_string())
+    win = (idx.t_ms >= 0) & (idx.t_ms <= t1_ms)
+    score = pd.Series(both_t & win.values).groupby(idx.trial_k.values).sum().sort_values(ascending=False)
+    ks = list(score.index[:n_trials])
+    rows = [("tongue", "y"), ("tongue", "x"), ("jaw", "y"), ("jaw", "x")]
+    fig, axs = plt.subplots(len(rows), len(ks), figsize=(4 * len(ks), 10), sharex=True, squeeze=False)
+    for c, k in enumerate(ks):
+        m = (idx.trial_k == k).values & win.values
+        t = idx.t_ms.values[m]
+        pos = idx.position.values[m][0]
+        for r, (part, coord) in enumerate(rows):
+            ax = axs[r, c]
+            for name, X in (("DLC", D), ("LP", L)):
+                v = X[part][coord].values[m].astype(float)
+                ok = X[part]["likelihood"].values[m] > PCUT
+                ax.plot(t, np.where(ok, v, np.nan), lw=1, color=COLORS[name], label=name)
+                ax.plot(t[~ok], v[~ok], ".", ms=2, color=COLORS[name], alpha=0.35)   # below cutoff, shown faint
+            ax.axvline(0, color="k", lw=1)
+            if c == 0:
+                ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px)")
+            if r == 0:
+                ax.set_title(f"trial {int(idx.trial_id.values[m][0])} | {pos}", fontsize=10)
+        axs[-1, c].set_xlabel("Time relative to cue (ms)")
+    axs[0, 0].legend(fontsize=8, loc="upper right")
+    fig.suptitle(f"{animal} cam4 | {date} | DLC round 3 (blue) vs LP occlusion (magenta), raw | line = p > {PCUT}, "
+                 f"faint dots = below cutoff | image y increases downward", y=1.0, fontsize=11)
+    fig.tight_layout()
+    p = out / f"{animal}_{date}_cue_traces_zoom_DLC_vs_LP.png"
+    fig.savefig(p, dpi=200, bbox_inches="tight")
+    print(f"-> {p}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["clip", "dlc", "plot"])
+    ap.add_argument("cmd", choices=["clip", "dlc", "plot", "zoom"])
     ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--lp", type=Path, help="LP predictions CSV for the clip (plot)")
     ap.add_argument("--filtered", action="store_true", help="apply the median-5 filter to both models first")
     a = ap.parse_args(argv)
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
-     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered)}[a.cmd]()
+     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered), "zoom": lambda: cmd_zoom(a.session, rv, a.lp)}[a.cmd]()
     return 0
 
 

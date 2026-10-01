@@ -18715,3 +18715,30 @@ LP's own smoother (EKS over an ensemble of ~4–5 seeds) is the stronger option 
 for both models, no cleaning), style ported from stroke_orofacial `_plot_trial_overlays_2x2`.
 
 Handoff: `docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`.
+
+## 2026-10-01 — Round 4 extracted; LP label export guard; zoomed DLC-vs-LP traces: agree where confident, LP's "unsure" point sits at the image centre
+
+**Round 4 (cam4) is extracted** — 55 picks over the six post-stroke sessions (per session 3–4
+`incomplete_tongue`, 1 `erratic_jaw`, 1 `tricky_spout`, 1–2 `disagree_tongue`/`disagree_jaw`, 1 `lp_erratic_jaw`)
++ 64 suggested neighbours = **119 frames to label**, +252 context, in 6 new cam4 folders; 379 matched cam1 frames
+in `_frame_staging_unassigned/`; `CAM1_GUIDE.html` rebuilt. The lateral-offset half of the `erratic_jaw` rule
+flags hundreds of candidates per session in BOTH models (only the top one is picked): it is too loose to use as
+an error detector without tightening. The 11 GB of lossless window clips were deleted (Priya); the LP CSVs and
+the compressed mp4s (WSL `/root/lp/round4/`) are kept for re-scoring retrained models on the same frames.
+
+**LP label export guard — `wfield_local/lp_labels.py`** (`audit`, `clean`). The export route stays `litpose
+convert` on DLC's TRAINING copy, which `dlc_train.stage` now builds without all-blank rows; `clean` makes "no
+all-blank rows" a property of the LP file itself (backup kept). It matters now and did not before: under the
+occlusion setting a blank keypoint trains "not visible", so an unlabelled context frame would train "everything
+hidden". The current file (407 rows) audits clean. Multi-view export (keep rows, `visible` = 0) still to write.
+
+**Zoomed traces (PS93 0908, 4 trials, 0–1 s, both models per axis, raw)** —
+`lp_vs_dlc_cue_traces/PS93_20260908/PS93_20260908_cue_traces_zoom_DLC_vs_LP.png`:
+* Where BOTH are confident the tracks nearly coincide (tongue x/y, jaw y within a few px, similar small jitter):
+  the models differ mainly in WHEN they are confident, not WHERE they put the point.
+* **When LP is unsure its point is at the image centre (~340, 337 px)** — a flat heatmap's soft-argmax. Any LP
+  analysis must mask by likelihood and never interpolate through or average those frames; a low-confidence LP
+  coordinate is not a position. DLC's low-confidence points instead scatter at plausible wrong places.
+* Tongue LP–DLC distance where both are confident, by spout position (`tongue_LP_vs_DLC_by_position.csv`):
+  median 2.9–4.9 px, p90 7.2–12.6 px, > 15 px in ≤ 2 % of frames at every position — no position effect on this
+  unseen session. Priya's sideways-lick tip observation (PS95 0907) is real but not systematic here.
