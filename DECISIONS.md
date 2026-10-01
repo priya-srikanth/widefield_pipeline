@@ -18812,3 +18812,12 @@ per session; nose and resting jaw are MEASURED in it, which makes a post-stroke 
 facial-weakness readout instead of a moving origin. No eye labels needed. Limits: cam4 is 2-D and frontal (AP
 foreshortened) — the same construction in cam1 / 3-D for horizontal-plane angles; production should use the
 full strobe → trial-end spans.
+
+**Addendum (2026-10-01) — within-session stability.** Meeting point from each position's earlier vs later sampled
+trial: 0.7–3.8 px apart in all six sessions (line rms 0.1–1.6) — stable within a session; the 20 px PS93 shift is
+between sessions (08-19 → 08-26) and the per-session frame follows it (examples:
+`reference_frame/spout_reference_frame_examples_PS93_shift.png`). PS93's far_L was sometimes 3.5 mm instead of
+4 mm pre-stroke (Priya) — same angle, so the point moves along its line and the meeting point is unaffected. In
+PS93 acute the farthest-tongue frame for far_R points +12° (away from the target) vs −8° subacute, and far_center
+has no lick with tongue likelihood > 0.9 — single frames from 2 trials/position, consistent with the right
+orofacial deficit but NOT a result until per-trial angles are computed over all trials.
