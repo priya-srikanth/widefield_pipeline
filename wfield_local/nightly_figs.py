@@ -791,6 +791,38 @@ def main():
         cli("scripts.rest_migration.rotation_maps",
             "--arms", "ENL", "cue", "lick", "rest", "--null-draws", "12")
 
+    # DECK FAMILIES THAT HAD NO NIGHTLY STEP AND FROZE (wired 2026-10-01). Each was hand-run once and
+    # then sat at that render while the cohort grew: 15k's chronic cells were on 18 sessions while
+    # PRELIM_DATA quoted them against 35, and 15j -- the direct measurement of whether the rest
+    # baseline moves between epochs -- predated PS94's chronic. Same rule as section G: if the deck
+    # places it, the nightly makes it.
+    #
+    #   15k   Allen-region contrasts under raw / precue / restw (table, then figure per window)
+    #   15j   rest-baseline drift across epochs
+    #   15d   frame-weighted vs position-weighted rest, the composition bias `restw` exists for
+    #   1f/1g engagement by epoch; 23-25 quit prodrome; 26 lick-bout structure
+    #
+    # NOT ON A SUBSET RUN, for the same reason as the pooled epoch figures below: every one of these
+    # pools across animals and writes the four-animal file on the share, so `--only PS92` would
+    # overwrite it with a one-animal result that is correctly labelled and wrong to show.
+    if not args.skip_poststroke and config.phase_labels("post"):
+        if only:
+            log(f"== 15k/15j/15d/engagement families SKIPPED: --only {','.join(only)} would pool a "
+                "SUBSET over the full-cohort files; the deck keeps the previous render ==")
+        else:
+            for _align in ("cue", "lick", "precue"):
+                cli("scripts.rest_migration.reference_family_roi", "--align", _align)
+            # the figure READS the table the loop above just wrote, so it must follow it
+            for _align in ("cue", "lick", "precue"):
+                cli("scripts.rest_migration.reference_family_figure", "--align", _align)
+            cli("scripts.rest_migration.rest_baseline_epoch_drift")
+            cli("scripts.rest_migration.flatpool_vs_restw")
+            cli("scripts.engagement_by_epoch")
+            # THE DECK PLACES THE `_gated_h90` RENDER, not the default: per-trial panels engagement-
+            # gated and cut at 90 min. The bare call writes differently-named files no slide reads.
+            cli("scripts.rest_migration.quit_prodrome", "--gate", "--horizon-min", "90")
+            cli("scripts.rest_migration.lick_bout_structure")
+
     if not args.skip_poststroke and config.phase_labels("post"):
         log("== POST-STROKE stage (section G)")
         cli("wfield_local.poststroke_section_g", "--output", out)
