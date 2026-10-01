@@ -1,6 +1,7 @@
 """Test the spout-position reference frame: do the close->far lines for L, centre and R converge on the mouth?
 
     python -m scripts.spout_reference_frame                 # the six round-4 sessions (cached DLC poses)
+    python -c "import scripts.spout_reference_frame as s; s.examples()"   # example frames, 2 sessions
 
 WHY (Priya, 2026-10-01): "use the median spout tip position during the trial time (from position strobe to
 trial end) at all 6 positions to determine the 'positions' of the spout at each. then draw lines connect
@@ -21,6 +22,8 @@ resting jaw (median jaw in the pre-cue second, i.e. mouth closed), both labelled
 """
 from __future__ import annotations
 
+
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -142,6 +145,82 @@ def main() -> int:
     print(t[[c for c in cols if c in t]].to_string(index=False))
     print(f"-> {p}")
     return 0
+
+
+
+
+def examples(sessions=("PS93_20260826", "PS95_20260917"), out_name="spout_reference_frame_examples.png") -> Path:
+    """Per session: one parked-spout frame and one tongue-out frame per position, with the frame overlaid and the
+    tongue angle (from the meeting point, relative to the centre line; + = toward the image right) printed."""
+    import cv2
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    rv = PathResolver()
+    sess = pd.read_csv(_cache(rv) / "sessions.csv", dtype=str)
+    order = ["far_R", "close_R", "far_center", "close_center", "close_L", "far_L"]
+    kS, kT = PARTS.index("spout"), PARTS.index("tongue")
+    picked = [s for s in sess.itertuples() if f"{s.animal}_{s.date}" in sessions]
+    fig, axs = plt.subplots(2 * len(picked), 6, figsize=(16, 5.6 * len(picked)))
+    for r0, s in enumerate(picked):
+        tpl, vid, _t = _session_io(s.animal, s.date, s.sid, rv)
+        wins = load_poses(_cache(rv) / f"{s.animal}_{s.date}_dlc.npz")
+        med = spout_medians(wins)
+        lines = {side: (np.array(med[c][:2]), np.array(med[c][:2]) - np.array(med[f][:2])) for side, (c, f) in SIDES.items()}
+        X, _rms, _ = ls_intersection(list(lines.values()))
+        ap = lines["center"][1] / np.linalg.norm(lines["center"][1])        # points from far toward the mouth
+        cap = cv2.VideoCapture(str(vid))                                     # READ-ONLY
+        for c, pos in enumerate(order):
+            ws = [w for w in wins if w[1]["pos_name"] == pos]
+            # parked: pre-cue frame with the most confident spout; lick: frame with the tongue farthest from X
+            f_park, f_lick, best_d = None, None, -1.0
+            for f0, _tr, pose in ws:
+                pre = pose[:250]
+                if f_park is None and (pre[:, kS, 2] > PCUT).any():
+                    f_park = f0 + int(np.argmax(pre[:, kS, 2]))
+                ok = pose[:, kT, 2] > 0.9
+                if ok.any():
+                    d = np.where(ok, np.hypot(pose[:, kT, 0] - X[0], pose[:, kT, 1] - X[1]), -1)
+                    i = int(np.argmax(d))
+                    if d[i] > best_d:
+                        best_d, f_lick, tip = d[i], f0 + i, pose[i, kT, :2]
+            for rr, f, kind in ((2 * r0, f_park, "parked"), (2 * r0 + 1, f_lick, "lick")):
+                ax = axs[rr, c]
+                ax.axis("off")
+                if f is None:
+                    continue
+                cap.set(cv2.CAP_PROP_POS_FRAMES, f)
+                ok_, im = cap.read()
+                if not ok_:
+                    continue
+                ax.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
+                for side, (_p, d_) in lines.items():
+                    fp = np.array(med[SIDES[side][1]][:2])
+                    seg = np.array([fp + d_ * -0.3, X + (X - fp) * 0.15])
+                    ax.plot(seg[:, 0], seg[:, 1], "-", lw=0.8, color=POS_COLORS[SIDES[side][0]], alpha=0.8)
+                ax.plot(*X, "*", ms=11, mfc="yellow", mec="k")
+                ax.plot(*med[pos][:2], "o", ms=7, mfc=POS_COLORS[pos], mec="k")
+                title = f"{pos} ({kind})"
+                if kind == "lick":
+                    v = tip - X
+                    ang = np.degrees(np.arctan2(v[0] * (-ap[1]) - v[1] * (-ap[0]), np.dot(v, -ap)))
+                    ax.annotate("", xy=tip, xytext=X, arrowprops=dict(arrowstyle="->", color="orange", lw=1.8))
+                    title += f"\ntongue {ang:+.0f} deg from centre line"
+                ax.set_title(title, fontsize=9)
+                ax.set_xlim(150, 530)
+                ax.set_ylim(640, 230)
+        cap.release()
+        axs[2 * r0, 0].text(-0.05, 0.5, f"{s.animal} {s.date}\n{s.epoch}", transform=axs[2 * r0, 0].transAxes,
+                            ha="right", va="center", fontsize=10)
+    fig.suptitle("Spout reference frame, examples (cam4, DLC round 3): star = lines' meeting point; dot = median spout "
+                 "tip for that position; orange = tongue vector on the frame where the tongue reaches farthest "
+                 "(likelihood > 0.9); angle relative to the centre line, + = image right", fontsize=10)
+    fig.tight_layout()
+    p = DF.staging_root(rv).parent / "reference_frame" / out_name
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    print(f"-> {p}")
+    return p
 
 
 if __name__ == "__main__":
