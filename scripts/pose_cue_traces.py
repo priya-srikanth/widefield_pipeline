@@ -40,6 +40,10 @@ SEED = 908
 PCUT = 0.6
 PARTS = ("tongue", "jaw")
 COLORS = {"DLC": "dodgerblue", "LP": "mediumvioletred"}     # stroke_orofacial side_colors, reused per model
+#: Below-cutoff points get their OWN colours (Priya, 2026-10-01): drawn in the model colour they read as
+#: tracking -- LP's are all the image centre (~338, 338 px; a flat "occluded" heatmap's soft-argmax), which
+#: looked like a flat trace between licks.
+LOWCONF_COLORS = {"DLC": "green", "LP": "grey"}
 
 
 def _out(rv, animal, date) -> Path:
@@ -222,7 +226,8 @@ def cmd_zoom(spec, rv, lp_csv, n_trials: int = 4, t1_ms: float = 1000.0):
                 v = X[part][coord].values[m].astype(float)
                 ok = X[part]["likelihood"].values[m] > PCUT
                 ax.plot(t, np.where(ok, v, np.nan), lw=1, color=COLORS[name], label=name)
-                ax.plot(t[~ok], v[~ok], ".", ms=2, color=COLORS[name], alpha=0.35)   # below cutoff, shown faint
+                ax.plot(t[~ok], v[~ok], ".", ms=2, color=LOWCONF_COLORS[name], alpha=0.5,
+                        label=f"{name} p <= {PCUT}")
             ax.axvline(0, color="k", lw=1)
             if c == 0:
                 ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px)")
@@ -231,7 +236,7 @@ def cmd_zoom(spec, rv, lp_csv, n_trials: int = 4, t1_ms: float = 1000.0):
         axs[-1, c].set_xlabel("Time relative to cue (ms)")
     axs[0, 0].legend(fontsize=8, loc="upper right")
     fig.suptitle(f"{animal} cam4 | {date} | DLC round 3 (blue) vs LP occlusion (magenta), raw | line = p > {PCUT}, "
-                 f"faint dots = below cutoff | image y increases downward", y=1.0, fontsize=11)
+                 f"dots = below cutoff (DLC green, LP grey; LP below cutoff is always the image centre) | image y increases downward", y=1.0, fontsize=11)
     fig.tight_layout()
     p = out / f"{animal}_{date}_cue_traces_zoom_DLC_vs_LP.png"
     fig.savefig(p, dpi=200, bbox_inches="tight")
