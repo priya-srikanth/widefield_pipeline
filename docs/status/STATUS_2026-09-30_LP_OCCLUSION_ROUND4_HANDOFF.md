@@ -1,3 +1,6 @@
+> **2026-10-01:** kinematics work continues in `STATUS_2026-10-01_KINEMATICS_HANDOFF.md`; this doc remains the
+> reference for the tracking models and labelling (round 4 is now 131 cam4 frames after the 10-01 add-on).
+
 # Handoff — 2026-09-30: Lightning Pose occlusion fix, labelling round 4 (cam4) + cam1 context, two machine crashes
 
 **START HERE to continue cam4/cam1 orofacial tracking.** Supersedes §00/§0 of

@@ -344,6 +344,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-01_KINEMATICS_HANDOFF.md`](docs/status/STATUS_2026-10-01_KINEMATICS_HANDOFF.md)**
+— **START HERE for orofacial KINEMATICS** (clean traces, spout reference frame, tongue/jaw kinematics and mismatch
+ported from stroke_orofacial with exact parity, per-trial windows ending at the DAQ `trial_end`, tongue zero = the
+mouth, first QC on our data). Open decisions: DLC likelihood cutoff 0.4, the inherited one-frame v7 offset. Every px
+threshold is still the old rig's.
+
 **[`docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`](docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md)**
 — **START HERE for cam4/cam1 tracking, newest.** LP now trained with blank = occluded (fixes the jaw riding
 the tongue); labelling round 4 (incomplete licks, with consecutive context frames) and cam1 context frames;
