@@ -22,10 +22,15 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
    21 "tip at the lips" (< 45 px; tongue first visible at ~30–45 px). **Open for Priya: do tip-at-lips count as
    licks?** (floor ~45 px vs keep + flag). Then retune px thresholds stage by stage (pre-clean → detector → gates)
    with `scripts/tongue_qc_steps.py`, in MOUTH-relative px — `min_peak_y_abs` 20 px is below the lip line.
-3. Then: angles (`angle_max_signed_lick*` often has the opposite sign to the lick-1 angle — check the ±52 ms window),
-   jaw (`jaw_pass_qc` fails all close_center trials for DLC — spout hides the chin?), velocities (2× between models).
-4. Then full sessions: needs whole-session predictions (one batch inference per model; LP in WSL ONLY with
-   16-frame DALI chunks + memory guard).
+3. **Retune + checks DONE on the clip** (`scripts/kinematics_checks.py`; DECISIONS "px retune on PS93 0908 …"): no px
+   value changed (scale matches the old rig; stages remove almost nothing). **Proposals for Priya:** angle_max only
+   over the outer part of the lick (sign flips 5-6/24 come from frames near the lips); degenerate jaw baseline =
+   unknown, not FAIL (DLC close_center); velocity over the whole visible rise (inherited window = peak ±16 ms for
+   lmax licks → the 2× between models).
+4. **Session-level runs IN PROGRESS** (detached; logs in the session scratchpad `session_poses.log`,
+   `lp_sessions.log`): PS93 0814 pre / 0821 acute / 0908 chronic, 60 trials each, `scripts/session_poses.py` clip →
+   DLC (~42 fps, ~1.6 h/session) → merge; LP queued after (WSL, 16-frame chunks + guard) → `windows_LP.csv` on the
+   share. Re-run safe (chunks). Then `python -m scripts.kinematics_checks --session PS93:<date>` per session.
 5. Still pending from before: labelling round 4 (Priya, 131 cam4 frames) + cam1 (student); retrain DLC + LP after;
    `python -m scripts.chronic_stability` once 0928 stage 2 has landed.
 

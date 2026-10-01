@@ -18933,3 +18933,47 @@ and it would clip the small post-stroke licks that are the readout). The "small"
 height in the per-lick table. A spout-spacing px→mm scale was rejected (Priya: it ignores depth); the metric
 route is the 4-camera calibration (2026-09-12 entry: all four cameras solve, ~40 µm precision, −1 % scale) —
 per-view µm/px at the mouth = depth / focal length, or better, triangulated tongue positions in mm.
+
+## 2026-10-01 — px retune on PS93 0908: the old-rig thresholds hold; angle / jaw / velocity checks; session-level runs
+
+**Retune (Priya: "proceed with 1-2").** `scripts/kinematics_checks.py` (report: `…/PS93_20260908/kinematics_checks.txt`),
+both models, cutoff 0.4, offset fixed. Our tongue lives on the SAME scale as the old rig's — stroke_orofacial
+DECISIONS 9-13 set the thresholds from "troughs ~30-80, lick peaks ~140-200, frame jitter ±10-30 px"; ours, in
+mouth-relative px: lick peaks p25/50/95 = 113-121 / 148 / 206-208, within-bout troughs 26-63 (median 39-41),
+frame-to-frame |dy| p99 32-33, |dx| p99 26 (DLC) / 44 (LP). So each threshold still sits where its stated meaning
+puts it: high_thr = d_y_thr 130 between trough p99 (63) and peak median (148); shape_low 80 above every trough;
+frame_jump 100 ≫ |dy| p99; x_abs_max 110 > |x| p99 (68); slope 250 px/s ≪ lick velocities (median ~5,500 over the
+rise). **What the stages actually remove on our tracking: almost nothing** — pre-clean 1 artifact cluster (DLC; a
+close_center lick hidden behind the spout, real but untrackable) and 2-4 single x frames; no flat, frame-jump or
+interp wipes; gates reject 2 (DLC) / 3 (LP) peaks, all gate M (second peak inside one lick, correct). **No px value
+changed.** Re-checked on the session-level runs when they land (pre / acute / chronic). Left as is but noted:
+`flat_min_y_px` 30 sits AT our lip line (theirs meant 30 px above a retracted baseline, ≈ 60 in ours); it never fired.
+
+**Angle (check).** `angle_max_signed_lick1` disagrees in sign with the lick-1 angle at the peak in 6/24 (DLC) and
+5/24 (LP) trials. Cause: with the origin at the MOUTH the max-|angle| frame within ±52 ms is taken near the lips
+(median 78 px from the mouth vs 165 at the peak), where the vector is short and the tongue sits ~18 px image-left
+of the origin, so it is pulled negative (median −13/−15° vs −6/+1° at the peak). Theirs measured from a distant
+origin, where this cannot happen. **Proposed (not applied, Priya):** take the max only over frames in the outer
+part of the lick (e.g. ≥ half the lick's peak distance from the mouth), or report the angle at the peak only.
+
+**Jaw (check).** With cutoff 0.4, DLC close_center passes 2/4 (LP 4/4); the 2 failures are DEGENERATE baselines
+(`jaw_thresh_px_used = none`): DLC tracks the jaw in 21 % of pre-cue frames at close_center (LP 60 %) — the spout
+covers the chin — so the baseline is all fill, sd 0, and the inherited rule scores "cannot judge" as QC FAIL. The
+mismatch classifier then can never call such a trial. **Proposed:** carry it as unknown (NaN) rather than False,
+and add close_center jaw frames to labelling (round 4 already has erratic-jaw picks).
+
+**Velocity (check) — the 2× between models is the inherited WINDOW, not tracking.** Per-lick max dy/dt is taken
+over [rise_start, fall_end]; for licks from the local-maximum detector (~60 %) that is peak ±16 ms (rise/fall runs
+are capped at rise_min_n), for the bounded detector ~84 ms. So a lick's velocity depends on WHICH detector found it
+(lmax median 2,840 vs 5,550 px/s over the whole visible rise), and the detector differs between models for 23 % of
+shared licks. Over the whole visible rise the models agree: LP/DLC p10-p90 0.85-1.27, 7 % > 2× apart, r = 0.83
+(inherited window: 0.51-1.9, 19 %, r = 0.58). **Proposed (Priya):** velocity over the whole visible rise.
+
+**Session-level runs.** `scripts/session_poses.py`: PS93 0814 (pre), 0821 (acute), 0908 (chronic) — none in any
+training set — 10 trials per position, each position-strobe −0.5 s → trial stop +3 s (~240 k frames per session),
+one clip both models read. Not whole videos: trials run back to back, so a whole session is 1.8-2.2 M frames, and
+DLC round 3 (ResNet-50-GN, full 680×680 frame) runs **~42 fps on this RTX 5060 regardless of batch size 1-32**
+(forward pass 16 ms/frame; fp16, bf16, cudnn.benchmark no faster; decode 840 fps; no memory spill) → 12-15 h per
+session here. Full sessions are feasible on a server (independent per-session, chunked + resumable jobs);
+candidate speed-ups to test then: crop to the face box (the prior box is ~300×380 px, ~4× fewer pixels), GPU-side
+preprocessing, DLC's own `analyze_videos`. Priya recalls batch 1 fastest in earlier tests — unresolved, later.
