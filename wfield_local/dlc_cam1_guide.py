@@ -198,6 +198,11 @@ ROUND4_WHY = {
                          "mouth is closed. Is there really a tongue here?",
     "lp_erratic_jaw": "the second network put the jaw somewhere odd (a jump, or on the tongue's edge). Place the "
                       "jaw where it truly is; blank if hidden.",
+    "dlc_only_tongue": "one network saw a tongue, the other called it hidden &mdash; often the tip is beside or "
+                       "partly behind the spout. If you can see the tip, place it, even with the spout overlapping "
+                       "the tongue; blank only if the tip itself is hidden.",
+    "dlc_only_jaw": "one network saw the jaw, the other called it hidden &mdash; often the spout overlaps the chin. "
+                    "If the jaw point is visible beside the spout, place it; blank only if it is covered.",
 }
 
 

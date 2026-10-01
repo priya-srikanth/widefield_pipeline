@@ -18742,3 +18742,15 @@ hidden". The current file (407 rows) audits clean. Multi-view export (keep rows,
 * Tongue LP–DLC distance where both are confident, by spout position (`tongue_LP_vs_DLC_by_position.csv`):
   median 2.9–4.9 px, p90 7.2–12.6 px, > 15 px in ≤ 2 % of frames at every position — no position effect on this
   unseen session. Priya's sideways-lick tip observation (PS95 0907) is real but not systematic here.
+
+**Addendum (2026-10-01) — "only one model confident" add-on to round 4.** The PS93 contact sheet
+(`PS93_20260908_only_one_confident.png`; DLC-only 606 jaw / 167 tongue frames, LP-only 997 / 1069 of 24,000)
+showed LP's two blind spots: the chin with the spout overlapping it, and a tongue tip beside/partly behind the
+spout — DLC marks both correctly, LP calls them hidden (DLC's own failure in the same set is the jaw on the
+tongue edge). Kept small at Priya's request ("i don't want to add TOO many frames"): `dlc_hard_frames addon`
+picks ONE DLC-confident / LP-hidden (< 0.1) frame per session, alternating tongue (PS92 0821, PS93 0819, PS94
+0921) and jaw (PS92 0824, PS93 0826, PS95 0917), clear of the existing picks by 0.25 s, appended without
+touching existing rows → +6 targets +6 suggested (+30 context); round 4 now 131 frames to label. Worksheet text
+for these says to place a visible point even with the spout overlapping — the likely cause of the blind spot is
+blanks in exactly that situation (a hypothesis, not checked against the label set). Backup of the pre-add-on
+rows: `round4_scan/round4_rows.before_addon.csv`.

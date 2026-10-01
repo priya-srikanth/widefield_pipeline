@@ -66,7 +66,13 @@ KINDS = {"incomplete_tongue": (4, 4), "erratic_tongue": (1, 4), "erratic_jaw": (
 #: the tongue tip off the distal end on a sideways lick, PS95 0907 frame 402).
 #: Priority order = dict order: disagreements first (they are what caught the sideways-lick tip).
 LP_KINDS = {"disagree_tongue": (1, 4), "disagree_jaw": (1, 2), "lp_erratic_tongue": (1, 4), "lp_erratic_jaw": (1, 2)}
-HALF = {k: v[1] for k, v in {**KINDS, **LP_KINDS}.items()}
+#: Add-on (Priya, 2026-10-01, after the PS93 "only one model confident" contact sheet): frames where DLC is
+#: confident and LP says hidden -- LP's two blind spots there were the chin with the spout overlapping it and a
+#: tongue tip partly behind the spout. Picked AFTER round 4 was extracted, clear of its picks (`cmd_addon`).
+ONLY_KINDS = {"dlc_only_tongue": (1, 4), "dlc_only_jaw": (1, 2)}
+HALF = {k: v[1] for k, v in {**KINDS, **LP_KINDS, **ONLY_KINDS}.items()}
+#: LP "hidden" = below this (its confidence is near-binary: < 0.1 or > 0.6 on all but ~0.4 % of frames).
+LP_HIDDEN = 0.1
 DISAGREE_PX = 15.0
 WIN_S = (-1.0, 3.5)
 TRIALS_PER_POSITION = 2
@@ -142,6 +148,17 @@ def disagreements(A: dict, B: dict, px: float = DISAGREE_PX) -> list[tuple[int, 
         d = np.hypot(ax - bx, ay - by)
         for i in np.flatnonzero((ap > P_SURE) & (bp > P_SURE) & (d > px)):
             out.append((int(i), f"disagree_{part}", float(d[i])))
+    return out
+
+
+def only_dlc(P_dlc: dict, P_lp: dict) -> list[tuple[int, str, float]]:
+    """Frames where DLC is confident (> 0.6) on tongue/jaw and LP calls it hidden (< `LP_HIDDEN`).
+    Score = DLC's likelihood, so the most confident disagreements come first."""
+    out = []
+    for part in ("tongue", "jaw"):
+        dp, lp_ = P_dlc[part][2], P_lp[part][2]
+        for i in np.flatnonzero((dp > P_OK) & (lp_ < LP_HIDDEN)):
+            out.append((int(i), f"dlc_only_{part}", float(dp[i])))
     return out
 
 
@@ -512,9 +529,50 @@ def cmd_picks(rv, sess, lp_dir: Path | None) -> Path:
     return out
 
 
+def cmd_addon(rv, sess, lp_dir: Path) -> Path:
+    """Append `ONLY_KINDS` picks to an already-extracted round 4 (`round4_rows.csv`), clear of its picks.
+
+    Existing rows are never changed or re-ordered, so frames already being labelled are untouched; run
+    `extract` afterwards (idempotent: it writes only the new PNGs and manifest rows)."""
+    rows_csv = _cache(rv) / "round4_rows.csv"
+    old = pd.read_csv(rows_csv, dtype={"date": str})
+    new = []
+    # ONE pick per session, alternating the part (Priya: "i don't want to add TOO many frames"): sessions
+    # 0, 2, 4 get the tongue, 1, 3, 5 the jaw (falling back to the other part when a session has none).
+    for k_sess, (animal, date, sid, epoch) in enumerate(sess):
+        tpl, vid, _t = _session_io(animal, date, sid, rv)
+        wins = load_poses(_cache(rv) / f"{animal}_{date}_dlc.npz")
+        lp = _lp_windows(Path(lp_dir) / f"{animal}_{date}.csv", wins)
+        mine = old[(old.video_stem == vid.stem)]
+        taken = mine.loc[mine.category == ROUND, "frame"].astype(int).tolist()
+        have = set(mine.frame.astype(int))
+        cands = []
+        for (f0, tr, pd_), (_, _, pl) in zip(wins, lp):
+            n = min(len(pd_), len(pl))
+            cands += [(f0 + i, k, s, tr) for i, k, s in only_dlc(_as_parts(pd_[:n]), _as_parts(pl[:n]))]
+        trial_of = {c[0]: c[3] for c in cands}
+        want = ["dlc_only_tongue", "dlc_only_jaw"][::1 if k_sess % 2 == 0 else -1]
+        chosen = []
+        for kind in want:                                   # preferred part first, the other as fallback
+            chosen = select([c[:3] for c in cands], kinds={kind: (1, HALF[kind])}, taken=taken)
+            if chosen:
+                break
+        picks = [(f, k, s, trial_of[f]) for f, k, s in chosen]
+        meta = {"animal": animal, "date": date, "cam": "cam4", "epoch": epoch, "video_stem": vid.stem}
+        got = [r for r in rows_for(picks, meta, tpl, int(tpl["n_cam_frames"])) if r["frame"] not in have]
+        for r in got:
+            r["_video"] = str(vid)
+        new += got
+        print(f"{animal} {date}: {pd.Series([c[1] for c in cands], dtype=str).value_counts().to_dict()} -> "
+              f"picked {[p[1] for p in picks]}", flush=True)
+    pd.concat([old, pd.DataFrame(new)], ignore_index=True).to_csv(rows_csv, index=False)
+    print(f"appended {len(new)} rows ({sum(r['category'] == ROUND for r in new)} targets) -> {rows_csv}")
+    return rows_csv
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["scan", "clips", "picks", "extract"])
+    ap.add_argument("step", choices=["scan", "clips", "picks", "addon", "extract"])
     ap.add_argument("--sessions", nargs="*", metavar="ANIMAL:YYYYMMDD", help="override the session choice")
     ap.add_argument("--lp-dir", type=Path, default=None, help="picks: folder of LP CSVs named <animal>_<date>.csv")
     a = ap.parse_args(argv)
@@ -526,6 +584,9 @@ def main(argv=None) -> int:
         return 0
     if a.step == "clips":
         cmd_clips(rv, sess)
+        return 0
+    if a.step == "addon":
+        cmd_addon(rv, sess, a.lp_dir)
         return 0
     if a.step == "picks":
         cmd_picks(rv, sess, a.lp_dir)
