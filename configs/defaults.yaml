@@ -1010,3 +1010,48 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   tests the tail MEAN, not the last point. PS92/PS93/PS95 sit at
                               #   92/124/117% and clear either bar. The change widens the rule for
                               #   future animals rather than reclassifying a current one.
+
+orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (wfield_local/orofacial_clean.py).
+                              # PORTED 2026-10-01 from stroke_orofacial_pipeline dlc_kinematics (interpolation.py
+                              # "v5p3" + jaw_cleanup_v34.py "v3.4"). The ALGORITHM is unchanged; the NUMBERS are
+                              # theirs and are NOT yet tuned for this rig -- the ms values transfer (both rigs
+                              # 250 fps), but every px value was set on the old Flea3 camera view and must be
+                              # re-measured on our 680x680 cam4 view before trusting a cleaned trace.
+  lk_thr_note: "theirs 0.5; ours 0.6 = dlc.train.pcutoff, so 'confident' means the same in every figure"
+  interpolation_method: pchip
+  interpolation_fallback: linear
+  baseline:                   # theirs: per-animal fixed X0/Y0 in animals.yaml (force: true). We have none,
+    force: false              # so the data-driven path: lowest y0_percentile % of y in the cue-aligned pool.
+    y0_lk_thr: 0.95
+    y0_percentile: 5.0
+    pool_win_ms: [0.0, 5000.0]   # their _BASELINE_POST_WIN_MS, post-cue
+  tongue:
+    x_range_pm: 150.0         # px, OLD RIG -- retune
+    x_range_source: lk
+    lk_thr: 0.6
+    n_neigh: 2
+    neighbor_ms: 16.0
+    max_gap_ms: 56.0
+    interp_n_side: 6
+    interp_min_total_context: 6
+    require_bracketed_by_hilk: true
+  jaw:
+    x_range_pm: 75.0          # px, OLD RIG -- retune
+    x_range_source: lk
+    lk_thr: 0.6
+    n_neigh: 3
+    neighbor_ms: 16.0
+    max_gap_ms: 120.0
+    interp_n_side: 6
+    interp_min_total_context: 6
+    require_bracketed_by_hilk: true
+    v34:                      # jaw_cleanup_v34 on top of the interpolated jaw (theirs: on for all jaw analyses)
+      enabled: true
+      y_ceiling_px: 125.0     # px, OLD RIG -- retune
+      x_ceiling_px: 40.0      # px, OLD RIG -- retune
+      isolated_max_n: 5
+      isolated_radius_ms: 30.0
+      frame_jump_thr_px: 70.0 # px, OLD RIG -- retune
+      frame_outlier_radius_ms: 20.0
+      max_gap_ms_pchip: 120.0
+      baseline_win_ms: [-500.0, 0.0]

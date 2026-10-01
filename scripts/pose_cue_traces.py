@@ -134,7 +134,22 @@ def median5(d: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     return out
 
 
-def cmd_plot(spec, rv, lp_csv, filtered: bool = False):
+def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame) -> pd.DataFrame:
+    """Tongue/jaw replaced by `orofacial_clean` output (baseline-subtracted px; baseline-filled frames -> NaN,
+    likelihood 1 where a cleaned value exists, 0 where it does not), so `cmd_plot` draws the CLEAN traces."""
+    from wfield_local import orofacial_clean as oc
+    flat = pd.DataFrame({f"{p}_{c}": d[p][c].to_numpy(float) for p in ("tongue", "jaw")
+                         for c in ("x", "y", "likelihood")})
+    out = d.copy()
+    for part in ("tongue", "jaw"):
+        c, pos, _ = oc.clean_windows(flat, idx.iloc[:len(flat)], part)
+        x, y = c.x_masked[pos], c.y_masked[pos]
+        out[(part, "x")], out[(part, "y")] = x, y
+        out[(part, "likelihood")] = np.isfinite(y).astype(float)
+    return out
+
+
+def cmd_plot(spec, rv, lp_csv, filtered: bool = False, cleaned: bool = False):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -145,6 +160,9 @@ def cmd_plot(spec, rv, lp_csv, filtered: bool = False):
     if filtered:
         M = {k: median5(v) for k, v in M.items()}
     tag = "median-5 filtered (DLC's filterpredictions default), both models" if filtered else "no cleaning"
+    if cleaned:
+        M = {k: cleaned_frame(v, idx) for k, v in M.items()}
+        tag = "CLEANED (v5p3 + jaw v3.4), px rel. baseline"
     n = min(len(idx), *(len(m) for m in M.values()))
     t_ms = np.sort(idx.t_ms.unique())
     K = idx.trial_k.nunique()
@@ -176,7 +194,7 @@ def cmd_plot(spec, rv, lp_csv, filtered: bool = False):
             ax.plot(t_ms, np.nanmean(L > PCUT, 0), ls, color=col, lw=1, label=part)
         ax.axvline(0, color="k", lw=1)
         ax.set_ylim(0, 1.02)
-        ax.set_ylabel("fraction of trials\nconfident")
+        ax.set_ylabel("fraction of trials\n" + ("with a cleaned value" if cleaned else "confident"))
         ax.set_xlabel("Time relative to cue (ms)")
         ax.legend(fontsize=8, loc="upper left")
     for r in range(len(rows)):                           # same y-range per row across the two models
@@ -186,7 +204,7 @@ def cmd_plot(spec, rv, lp_csv, filtered: bool = False):
     fig.suptitle(f"{animal} cam4 | {date} | cue-aligned, trials overlaid | DLC round 3 vs LP occlusion (ep185) | "
                  f"image y increases downward", y=1.0, fontsize=12)
     fig.tight_layout()
-    p = out / f"{animal}_{date}_cue_traces_DLC_vs_LP{'_median5' if filtered else ''}.png"
+    p = out / f"{animal}_{date}_cue_traces_DLC_vs_LP{'_median5' if filtered else ''}{'_cleaned' if cleaned else ''}.png"
     fig.savefig(p, dpi=200, bbox_inches="tight")
     print(f"-> {p}")
 
@@ -305,10 +323,11 @@ def main(argv=None) -> int:
     ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--lp", type=Path, help="LP predictions CSV for the clip (plot)")
     ap.add_argument("--filtered", action="store_true", help="apply the median-5 filter to both models first")
+    ap.add_argument("--cleaned", action="store_true", help="plot orofacial_clean output (ported stroke_orofacial cleaning)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
-     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered), "zoom": lambda: cmd_zoom(a.session, rv, a.lp), "onlyone": lambda: cmd_onlyone(a.session, rv, a.lp)}[a.cmd]()
+     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered, a.cleaned), "zoom": lambda: cmd_zoom(a.session, rv, a.lp), "onlyone": lambda: cmd_onlyone(a.session, rv, a.lp)}[a.cmd]()
     return 0
 
 

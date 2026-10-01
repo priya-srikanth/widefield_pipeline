@@ -936,6 +936,13 @@ Full reasoning: `DECISIONS.md`, 2026-09-30, "TARGET vs CONTEXT frames". The oper
   `python -m wfield_local.lp_labels clean <lp_dir>/CollectedData.csv` (drops all-blank rows; backup kept).
 * **A low-confidence LP point is the image centre**, not a position: mask by likelihood before kinematics.
 
+### Clean traces (2026-10-01)
+
+`python -m wfield_local.orofacial_clean <pose.csv> --session ANIMAL:YYYYMMDD [--windows <index.csv>]` — the
+stroke_orofacial v5p3 cleaning + jaw v3.4, ported; params `configs/defaults.yaml orofacial_clean`. **The px
+thresholds are the old rig's — retune before trusting a cleaned trace.** Plot with
+`python -m scripts.pose_cue_traces plot ... --cleaned`.
+
 ### The next refinement round
 
 DLC's loop, and `dlc_train` prints these on completion:

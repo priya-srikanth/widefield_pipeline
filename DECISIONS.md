@@ -18754,3 +18754,46 @@ touching existing rows → +6 targets +6 suggested (+30 context); round 4 now 13
 for these says to place a visible point even with the spout overlapping — the likely cause of the blind spot is
 blanks in exactly that situation (a hypothesis, not checked against the label set). Backup of the pre-add-on
 rows: `round4_scan/round4_rows.before_addon.csv`.
+
+## 2026-10-01 — Clean traces: stroke_orofacial cleaning ported (`orofacial_clean`); reference frame for angles
+
+**Ported (Priya: "port all relevant code ... clean traces with appropriate interpolation and dropping of
+outliers / low confidence frames"), into `wfield_local/orofacial_clean.py`, params in `configs/defaults.yaml
+orofacial_clean`.** From `stroke_orofacial_pipeline/src/stroke_orofacial/dlc_kinematics/` (read-only):
+`interpolation.py` v5p3 (x-range → likelihood → isolated-point drop → PCHIP/linear short-gap fill → baseline
+fill → baseline subtraction), `jaw_cleanup_v34.py` v3.4 (raw-frame Y/X ceilings, frame outliers vs a local
+median, isolated short clusters, re-PCHIP x and y from surviving anchors), and the snippet / mean±SEM helpers.
+Functions are transcribed one for one; 7 unit tests on synthetic tracks.
+
+Deliberate differences: input is any DLC-format pose file (DLC or LP); cue frames from our alignment templates
++ DAQ trial table; baseline data-driven (their per-animal fixed X0/Y0 do not exist here; same pool rule); no
+centering step (a constant reference cancels between their stage 1 and stage 6); lk threshold 0.6 = our
+pcutoff (theirs 0.5); output `.npz` (no pyarrow in this env); a `x_masked`/`y_masked` view that NaNs the
+baseline-filled frames, because their figures plot the fill as 0. **Every px threshold is still the old rig's**
+(x_range_pm 150/75, v3.4 ceilings 125/40, frame jump 70) — the ms values transfer (both 250 fps), the px do not.
+**Not yet ported:** the tongue v7 pre-clean (`_preclean.py`, 646 lines of cluster rules tuned on old-rig tongue
+shapes) and the per-trial lick detector / angle features on top of it — after the px retune.
+
+First run (PS93 0908 cue clip, both models): tongue 22–26 % raw, 5 % gap-filled, rest baseline (tongue
+absent); jaw 85–86 % raw, 8 % filled, 6–7 % baseline. Figure
+`lp_vs_dlc_cue_traces/PS93_20260908/*_cue_traces_DLC_vs_LP_cleaned.png`. v3.4 removes DLC's single-frame jaw-x
+spikes; after cleaning the two models look alike. LP's jaw x shows a few trials with a steady −5 to −10 px
+offset for the whole window (also in raw) — worth checking whether that is head position or a labelling cue.
+
+**Reference frame for angles (Priya's question: spout positions as universal AP / LR axes, or label eyes?).**
+* Yes, the spout positions give a TASK frame for free: per session, the spout tip's image position at each of
+  the six positions (DLC/LP spout, median over the pre-cue frames of each trial, position from the DAQ code).
+  LR axis = far_L → far_R, AP axis = close_center → far_center; tongue angle = direction of the tongue vector
+  in that frame. Per-session, so it absorbs camera bumps between sessions; it is the frame in which "did the
+  tongue go to the target" is asked.
+* Caveat, cam4: it is a FRONTAL view, so AP (toward/away from the mouth) is mostly along the optical axis and
+  foreshortened — close vs far differ by a few tens of px vertically. LR and vertical are well resolved in cam4;
+  AP is not. A horizontal-plane angle (AP × LR) is best measured in **cam1 (ventral)**, where both axes lie in
+  the image plane, or in 3-D after anipose. The same six-position construction works in cam1.
+* An ANATOMICAL frame is a different question (lateralised motor deficit relative to the animal's midline) and
+  matters if head placement in the headplate differs across animals/sessions. Nose + jaw already give the
+  midline in both views (nose labelled in cam4 and cam1), so eyes are probably NOT needed: head-fixed means
+  roll is fixed, and the eyes would add little beyond a second midline point. Use the nose at rest as the
+  origin and nose→jaw (closed mouth) as the vertical/midline axis.
+* QC that falls out: the angle between the spout AP axis and the nose–jaw midline says how well the rig is
+  aligned to each animal; if it varies across animals, report angles in both frames.
