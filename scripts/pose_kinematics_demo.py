@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from wfield_local import jaw_kinematics as jk
@@ -24,14 +25,20 @@ from wfield_local import tongue_kinematics as tk
 SEP = 2200
 
 
-def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None):
+def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_after_cue_s: dict | None = None):
+    """Tongue zero = the MOUTH (spout-frame origin); jaw keeps the data-driven baseline. With
+    ``stop_after_cue_s`` ({trial_id: stop - cue, s}), every post-cue window ends at that trial's own stop."""
     df = oc.read_pose(pose_csv).iloc[:len(idx)]
-    clean = {bp: oc.clean_windows(df, idx, bp, sep=SEP) for bp in ("tongue", "jaw")}
+    clean = {"tongue": oc.clean_windows(df, idx, "tongue", sep=SEP, x0y0=tuple(frame.origin) if frame else None),
+             "jaw": oc.clean_windows(df, idx, "jaw", sep=SEP)}
     cues = clean["tongue"][2]
     pos = idx.groupby("trial_k", sort=True).position.first().to_numpy()
     tid = idx.groupby("trial_k", sort=True).trial_id.first().to_numpy()
-    trials_df = pd.DataFrame({"trial_id": tid, "cue_frame": cues.astype(float), "position": pos})
-    trials = [tk.Trial(int(t), float(c), str(p)) for t, c, p in zip(tid, cues, pos)]
+    fps = clean["tongue"][0].fps
+    stops = np.array([cues[k] + stop_after_cue_s[t] * fps if stop_after_cue_s and t in stop_after_cue_s else np.nan
+                      for k, t in enumerate(tid)])
+    trials_df = pd.DataFrame({"trial_id": tid, "cue_frame": cues.astype(float), "position": pos, "stop_frame": stops})
+    trials = tk.trials_from_frame(trials_df)
     sfr = tk.SpoutFrame(tuple(frame.origin), tuple(frame.ap_axis)) if frame is not None else None
     T = tk.from_clean(clean["tongue"][0], trials, spout_frame=sfr)
     J, _ = jk.jaw_pertrial(clean["jaw"][0].y_final, clean["jaw"][0].fps, trials_df)
@@ -55,9 +62,19 @@ def main(argv=None) -> int:
     frame = SF.from_medians(SF.position_medians(xyp, spans))
     print(f"spout frame: origin {frame.origin.round(1)}  ap {frame.ap_axis.round(3)}  rms {frame.rms_px:.2f} px  "
           f"mouse-left sign {frame.mouse_left_sign:+d}")
+    from wfield_local import trial_windows as TW
+    b = TW.trial_bounds("PS93", "20260908", rv)
+    stop_after = dict(zip(b.trial_id, b.stop_s - b.cue_s))
     rows = []
     for name, f in (("DLC", d / "cue_windows_DLC.csv"), ("LP", a.lp)):
-        T, J, M, _c = run(f, idx, frame)
+        T, J, M, c = run(f, idx, frame, stop_after)
+        tg = c["tongue"][0]
+        conf = tg.fill_method[c["tongue"][1]] == oc.FILL_NONE
+        yv = tg.y_final[c["tongue"][1]][conf]
+        xv = tg.x_final[c["tongue"][1]][conf]
+        print(f"{name} tongue rel. MOUTH (raw confident frames): y p5/50/95 {np.percentile(yv, [5, 50, 95]).round(0)}  "
+              f"x p5/50/95 {np.percentile(xv, [5, 50, 95]).round(0)};  kept-lick peak y p5/50/95 "
+              f"{np.percentile(T.per_lick.y, [5, 50, 95]).round(0) if len(T.per_lick) else '-'}")
         pt = T.per_trial.merge(J[["trial_id", "jaw_pass_qc", "jaw_peak_selected_deflection"]], on="trial_id")
         mm = M.trials
         pt = pt.merge(mm[["trial_id", "candidate_no_lick_with_jaw_move"]], on="trial_id", how="left")

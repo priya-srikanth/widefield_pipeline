@@ -75,6 +75,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config, jaw_kinematics
+from wfield_local import trial_windows as TW
 from wfield_local.jaw_kinematics import _ms_to_frames, _snippet, cue_frame_index
 
 #: Their `TONGUE_JAW_MISMATCH_VERSION`.
@@ -154,13 +155,15 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
     # their trial_index restarted within each side.
     jaw_lookup = {tid: k for k, tid in enumerate(jaw_table["trial_id"].tolist())}
 
-    # Tongue snippet spans the quiet window and the cue: [min(0, lo), max(0, hi)] ms.
-    pre_f = abs(_ms_to_frames(min(0.0, quiet_win_ms[0]), fps))
-    post_f = abs(_ms_to_frames(max(0.0, quiet_win_ms[1]), fps))
-    t_ms_local = np.arange(-pre_f, post_f + 1) * (1000.0 / fps)
-
     rows = []
     for r in jaw_kinematics._iter_trials(trials):
+        # OURS (2026-10-01): the quiet window ends at the trial's own stop when known (`trial_windows`), not the
+        # ported fixed 5000 ms. Tongue snippet spans the quiet window and the cue: [min(0, lo), max(0, hi)] ms.
+        stop_ms = TW.stop_ms_of(r.cue_frame, r.stop_frame, fps)
+        qwin = quiet_win_ms if stop_ms is None else (quiet_win_ms[0], max(stop_ms, quiet_win_ms[0]))
+        pre_f = abs(_ms_to_frames(min(0.0, qwin[0]), fps))
+        post_f = abs(_ms_to_frames(max(0.0, qwin[1]), fps))
+        t_ms_local = np.arange(-pre_f, post_f + 1) * (1000.0 / fps)
         c = cue_frame_index(r.cue_frame)
         if c is None:
             # OURS: no cue frame -> no tongue data -> zero peaks. The jaw side is then degenerate (QC fail), so
@@ -170,7 +173,7 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
             y_w = _snippet(tongue_y, c, pre_f, post_f, n_frames)
             x_w = _snippet(tongue_x, c, pre_f, post_f, n_frames)
 
-        peaks = slope_detect_lick_peaks(y_w, x_w, t_ms_local, fps, detect_win_ms=quiet_win_ms,
+        peaks = slope_detect_lick_peaks(y_w, x_w, t_ms_local, fps, detect_win_ms=qwin,
                                         detector_params=detector_params)
         n_licks = int(len(peaks.peak_times_ms))
         quiet_tongue_pass = bool(n_licks == 0)          # their max_licks_for_quiet is fixed at 0
@@ -188,6 +191,7 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
             "cue_frame": float(r.cue_frame),
             "cue_frame_idx": -1 if c is None else c,
             "fps": fps,
+            "quiet_win_end_ms": qwin[1],
             "n_licks_in_quiet_win": n_licks,
             "tongue_peak_times_ms": [float(t) for t in peaks.peak_times_ms],
             "quiet_tongue_pass": quiet_tongue_pass,
@@ -196,7 +200,7 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
             "candidate_no_lick_with_jaw_move": bool(quiet_tongue_pass and jaw_pass_qc),
         })
 
-    cols = ["trial_id", "position", "cue_frame", "cue_frame_idx", "fps", "n_licks_in_quiet_win",
+    cols = ["trial_id", "position", "cue_frame", "cue_frame_idx", "fps", "quiet_win_end_ms", "n_licks_in_quiet_win",
             "tongue_peak_times_ms", "quiet_tongue_pass", *jaw_kinematics.JAW_COLUMNS,
             "candidate_no_lick_with_jaw_move"]
     df = pd.DataFrame(rows, columns=cols)

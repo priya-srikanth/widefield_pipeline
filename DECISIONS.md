@@ -18859,3 +18859,21 @@ far positions smaller, foreshortened); lick-1 latency ~150 ms close vs 300–480
 `angle_max_signed_lick1` often has the opposite sign to the lick-1 angle (the ±52 ms window may catch the
 retraction); DLC fails jaw-moved QC on all close_center trials (LP passes) — likely the chin hidden by the
 spout; peak velocities differ 2× between models (jitter + old-rig thresholds). A smoke test, not a result.
+
+**Addendum (2026-10-01) — windows end at each trial's own stop; the tongue's zero is the mouth.**
+* Priya: response time "should just define as interval between position strobe and trial stop, in case this
+  changes in future data" (ours is 3.5 s; theirs hard-coded 3000 / 5000 / 8000 ms). `wfield_local/trial_windows.py`:
+  per trial strobe (DAQ), cue (DAQ), stop = the log's `trial_stop_ttl` mapped to DAQ time via
+  `spout_behavior._sync_affine` (no DAQ line exists for it); fallback cue + the session's `gui_config`
+  response_window. PS93 0908: 510/511 stops from the log; stop − cue median 3.76 s, range 3.50–6.01 (the task
+  often stops after the 3.5 s window closes). `end_at_stop` moves every post-cue RESPONSE window end (kept-lick
+  detect, peak velocity, lick-count apply, dynamics, angle, bout table; jaw detect; mismatch quiet window) to the
+  trial stop and the DETECTION-SLACK windows (trial slice, lick-count detect) to stop + 3 s; starts (70 ms) and
+  the 1-s count bins stay; no stop → the ported fixed windows, so the parity tests are unchanged. A task with a
+  3000 ms window needs no code change. Strobe frames are carried on `Trial` for pre-cue analyses.
+* Priya: "use [the mouth] as our zero for tongue (instead of the values in the ported code, where I picked a
+  number that looked right or ... a lowest percentile location)". The tongue's X0/Y0 in `orofacial_clean` is now
+  passed as the spout-frame origin (`x0y0=frame.origin`); the jaw keeps the data-driven baseline. PS93 0908, raw
+  confident tongue frames, px from the mouth: y p5/50/95 = 31–34 / 103–111 / 177–181, x −47…−53 / −19 / +19–20;
+  kept-lick peak y 45–49 / 148–149 / 206–208 (DLC / LP). Every px threshold in pre-clean, detector and gates is
+  now in mouth-relative px and must be retuned in those units (the old baseline sat ~30–50 px below the mouth).

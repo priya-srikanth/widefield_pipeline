@@ -86,6 +86,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 
 from wfield_local import tongue_detect as td
+from wfield_local import trial_windows as TW
 
 POSITIONS: tuple[str, ...] = ("far_L", "close_L", "far_center", "close_center", "close_R", "far_R")
 
@@ -154,6 +155,11 @@ class Trial:
     trial_id: Any
     cue_frame: float
     position: str
+    #: OURS (2026-10-01): the trial's own bounds, camera frames (float). With `stop_frame` set, every post-cue
+    #: response window ends at the trial stop instead of the ported fixed 3000/5000/8000 ms
+    #: (`trial_windows.end_at_stop`). None = the ported fixed windows.
+    stop_frame: float | None = None
+    strobe_frame: float | None = None
 
     def __post_init__(self):
         if self.position not in POSITIONS:
@@ -180,7 +186,9 @@ class SpoutFrame:
 def trials_from_frame(df: pd.DataFrame) -> list[Trial]:
     """Columns ``trial_id, cue_frame, position`` -> list of `Trial` (rows with a NaN cue are dropped)."""
     d = df.dropna(subset=["cue_frame"])
-    return [Trial(r.trial_id, float(r.cue_frame), str(r.position)) for r in d.itertuples(index=False)]
+    opt = lambda r, c: (float(getattr(r, c)) if c in d.columns and pd.notna(getattr(r, c)) else None)  # noqa: E731
+    return [Trial(r.trial_id, float(r.cue_frame), str(r.position), opt(r, "stop_frame"), opt(r, "strobe_frame"))
+            for r in d.itertuples(index=False)]
 
 
 # --------------------------------------------------------------------------- trial slice
@@ -788,16 +796,17 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
     y_final = np.asarray(y_final, dtype=np.float64)
     lik = np.asarray(likelihood, dtype=np.float64)
     is_intp, is_base = td.interp_masks(fill_method)
-    win = tuple(p["trial_slice_win_ms"])
+    # OURS: per-trial params -- post-cue windows end at each trial's own stop when it is known (trial_windows).
+    p_tr = [TW.end_at_stop(p, TW.stop_ms_of(tr.cue_frame, tr.stop_frame, fps)) for tr in trials]
 
     # Pre-pass: v7 per trial (theirs computes these once, up front, so the cleaned session exists before the
     # angle is taken).
     results: list[V7TrialResult] = []
-    for tr in trials:
-        ys, t_ms, lo, hi = extract_trial_slice(y_final, tr.cue_frame, win, fps)
+    for tr, pt in zip(trials, p_tr):
+        ys, t_ms, lo, hi = extract_trial_slice(y_final, tr.cue_frame, tuple(pt["trial_slice_win_ms"]), fps)
         sl = slice(lo, hi + 1)
         results.append(run_v7_pipeline_per_trial(
-            ys, x_final[sl], is_intp[sl], is_base[sl], lik[sl], t_ms, fps, p=p, trial_id=tr.trial_id,
+            ys, x_final[sl], is_intp[sl], is_base[sl], lik[sl], t_ms, fps, p=pt, trial_id=tr.trial_id,
             position=tr.position, cue_frame=tr.cue_frame, session_frame_lo=lo, session_frame_hi=hi,
             X0=X0, Y0=Y0, spout_frame=spout_frame))
 
@@ -809,20 +818,21 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
     min_finite = int(p["detector"]["min_finite_samples_per_lick"])
     by_pos: dict[str, list[np.ndarray]] = {pos: [] for pos in POSITIONS}
     trial_rows, lick_rows, bout_rows = [], [], []
-    for tr, res in zip(trials, results):
+    for tr, res, pt in zip(trials, results, p_tr):
         l12 = extract_lick1_lick2(res)
-        vel = extract_peak_velocity_first5(res, fps, p=p)
-        nl = extract_n_licks_family(res.y_clean, res.x_clean, res.t_ms, fps, p=p)
-        ldr = licking_dynamics_reductions(res.kept_licks, p=p)
-        own = own_bout_scalars(res.kept_licks, p=p)
+        vel = extract_peak_velocity_first5(res, fps, p=pt)
+        nl = extract_n_licks_family(res.y_clean, res.x_clean, res.t_ms, fps, p=pt)
+        ldr = licking_dynamics_reductions(res.kept_licks, p=pt)
+        own = own_bout_scalars(res.kept_licks, p=pt)
         a_v = np.array([angle_at_lick_timestamp(angle, fps, tr.cue_frame, t) for t in vel["lick_t_peaks_bylick"]])
         a_max = angle_max_signed_per_lick(angle, fps, tr.cue_frame, vel["lick_t_peaks_bylick"], peak_pad_ms)
-        by_pos[tr.position].append(_kept_times_in(res.kept_licks, tuple(p["licking_dyn_apply_win_ms"])))
-        brows, labels = bout_rows_for_trial(res, angle, fps, len(y_final), p=p)
+        by_pos[tr.position].append(_kept_times_in(res.kept_licks, tuple(pt["licking_dyn_apply_win_ms"])))
+        brows, labels = bout_rows_for_trial(res, angle, fps, len(y_final), p=pt)
         bout_rows += brows
 
         d = res.preclean_diag
         row = {"trial_id": tr.trial_id, "position": tr.position, "cue_frame": tr.cue_frame,
+               "response_end_ms": TW.stop_ms_of(tr.cue_frame, tr.stop_frame, fps),
                "n_kept_licks": len(res.kept_licks), "n_detected_peaks": len(res.decisions), **l12,
                "lick1_angle_at_ypeak": angle_at_lick_timestamp(angle, fps, tr.cue_frame, l12["lick1_t_peak_ms"]),
                "lick2_angle_at_ypeak": angle_at_lick_timestamp(angle, fps, tr.cue_frame, l12["lick2_t_peak_ms"])}

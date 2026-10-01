@@ -26,6 +26,11 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
     templates (cam frame <-> DAQ) and the DAQ-derived trial table, not wavesurfer `sig_camIdx__idx_ws`.
   * Baseline: data-driven (their `force: false` path) -- they used per-animal fixed X0/Y0 from animals.yaml,
     which do not exist for this rig. Same pool rule: lowest 5 % of y among lk >= 0.95 frames 0-5 s after cues.
+    **For the TONGUE, pass the MOUTH instead** (`x0y0=spout_frame.origin`, Priya 2026-10-01: "since we have a
+    'mouth' position ... let's use that as our zero for tongue"): an apparatus-defined point, the same one the
+    angles use, rather than a percentile of the tongue's own positions. Then x_final / y_final are px from the
+    mouth, and every px threshold downstream (pre-clean, detector, gates) is relative to the mouth -- retune
+    them in those units.
   * No centering step. Theirs subtracted a reference (spout midpoint for tongue, eye midpoint for jaw) before
     stage 1; stage 1 uses the bodypart's OWN median and stage 6 subtracts X0/Y0, so a constant centre cancels.
     A task/anatomical reference frame (spout axes, nose) belongs in a later geometry step, not in cleaning.
@@ -416,7 +421,8 @@ def mean_sem(A) -> tuple[np.ndarray, np.ndarray]:
     return np.nanmean(A, 0), np.nanstd(A, 0) / np.where(d == 0, np.nan, d)
 
 
-def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: float = 250.0, sep: int = 300):
+def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: float = 250.0, sep: int = 300,
+                  x0y0: tuple[float, float] | None = None):
     """Clean a clip made of concatenated cue windows (`scripts.pose_cue_traces clip` index: trial_k, t_ms).
 
     Windows are joined with ``sep`` NaN frames (longer than any max gap, so nothing is filled across a window
@@ -433,7 +439,7 @@ def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: flo
         parts.append(pd.DataFrame(np.nan, index=range(sep), columns=df.columns))
         k += sep
     big = pd.concat(parts, ignore_index=True)
-    c = clean_bodypart(big, bodypart, cues, fps)
+    c = clean_bodypart(big, bodypart, cues, fps, x0y0=x0y0)
     if bodypart == "jaw" and params("jaw")["v34"].get("enabled", True):
         c = jaw_v34(c, cues)
     return c, np.concatenate(pos), np.array(cues)

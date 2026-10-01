@@ -62,6 +62,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
+from wfield_local import trial_windows as TW
 
 #: Their `jaw_pertrial.JAW_PERTRIAL_VERSION`; kept so a table can be traced to the algorithm it came from.
 JAW_PERTRIAL_VERSION = "v7a.5"
@@ -121,8 +122,13 @@ def jaw_pertrial(jaw_y, fps: float, trials: pd.DataFrame,
     p = _resolve(overrides)
     jaw_y = np.asarray(jaw_y, dtype=np.float64)
     n_frames = len(jaw_y)
-    rows = [_compute_per_trial(r.trial_id, r.position, r.cue_frame, jaw_y, float(fps), n_frames, **p)
-            for r in _iter_trials(trials)]
+    # OURS (2026-10-01): with a `stop_frame` column the detect window ends at each trial's own stop
+    # (`trial_windows`), not the ported fixed 5000 ms; without it, the ported window stands.
+    rows = []
+    for r in _iter_trials(trials):
+        stop_ms = TW.stop_ms_of(r.cue_frame, r.stop_frame, fps)
+        pr = p if stop_ms is None else {**p, "detect_win_ms": (p["detect_win_ms"][0], max(stop_ms, p["detect_win_ms"][0]))}
+        rows.append(_compute_per_trial(r.trial_id, r.position, r.cue_frame, jaw_y, float(fps), n_frames, **pr))
     cols = ["trial_id", "position", "cue_frame", "cue_frame_idx", *JAW_COLUMNS]
     table = pd.DataFrame(rows, columns=cols)
     metadata = {
@@ -156,7 +162,9 @@ def _iter_trials(trials: pd.DataFrame):
     missing = {"trial_id", "cue_frame", "position"} - set(trials.columns)
     if missing:
         raise KeyError(f"trials table needs columns trial_id, cue_frame, position; missing {sorted(missing)}")
-    return trials[["trial_id", "cue_frame", "position"]].itertuples(index=False)
+    t = trials[["trial_id", "cue_frame", "position"]].copy()
+    t["stop_frame"] = trials["stop_frame"].astype(float) if "stop_frame" in trials.columns else np.nan
+    return t.itertuples(index=False)
 
 
 # --------------------------------------------------------------------------- per-trial compute (transcribed)
