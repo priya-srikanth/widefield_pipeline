@@ -18797,3 +18797,18 @@ offset for the whole window (also in raw) — worth checking whether that is hea
   origin and nose→jaw (closed mouth) as the vertical/midline axis.
 * QC that falls out: the angle between the spout AP axis and the nose–jaw midline says how well the rig is
   aligned to each animal; if it varies across animals, report angles in both frames.
+
+**Addendum (2026-10-01) — the spout reference frame, tested; spout frame primary, nose/jaw measured IN it.**
+`scripts/spout_reference_frame.py` on the six round-4 sessions (cached DLC poses, 2 trials/position, cue −1 s
+.. +3.5 s ⊂ strobe .. trial end): median spout tip per position, lines far→close for L / centre / R. **The three
+lines meet at one point in every session (least-squares residual 0.1–0.8 px)**, and that point sits on the mouth
+opening in cam4 — 49–60 px above the resting jaw, 79–95 px below the nose, in every animal and epoch; the centre
+line is 4–10° from the nose–jaw midline; within-animal shift 6 px (PS92 0821→0824) and 20 px (PS93 0819→0826),
+i.e. per-session camera/headplate differences the per-session frame absorbs. Figure + table:
+`DeepLabCut/Widefield/reference_frame/`.
+Priya: nose and jaw can themselves change after the stroke (facial weakness). Decision: the SPOUT frame is the
+reference (origin = the lines' meeting point, AP = centre line, LR = its perpendicular / far_L→far_R), rebuilt
+per session; nose and resting jaw are MEASURED in it, which makes a post-stroke shift of either a candidate
+facial-weakness readout instead of a moving origin. No eye labels needed. Limits: cam4 is 2-D and frontal (AP
+foreshortened) — the same construction in cam1 / 3-D for horizontal-plane angles; production should use the
+full strobe → trial-end spans.
