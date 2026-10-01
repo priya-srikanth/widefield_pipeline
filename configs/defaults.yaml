@@ -1055,3 +1055,119 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       frame_outlier_radius_ms: 20.0
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
+
+orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kinematics (tongue v7 path, jaw per-trial,
+                               # tongue-jaw mismatch). wfield_local/tongue_detect.py, tongue_kinematics.py,
+                               # jaw_kinematics.py, tongue_jaw_mismatch.py deep-merge these over their DEFAULTS.
+                               # ms values transfer (both rigs 250 fps); every px value is the OLD rig's -- retune.
+  tongue:
+    # Per-metric windows, ms post-cue
+    lick12_detect_win_ms: [70.0, 3000.0]       # also the v7 detect window: kept licks exist only here
+    peak_velocity_detect_win_ms: [70.0, 3000.0]
+    lick_count_detect_win_ms: [70.0, 8000.0]
+    lick_count_apply_win_ms: [70.0, 5000.0]
+    lick_count_bin_win_ms: [70.0, 5070.0]      # 5 x 1-s bins
+    licking_dyn_apply_win_ms: [70.0, 5000.0]
+    angle_apply_win_ms: [70.0, 5000.0]
+    trial_slice_win_ms: [70.0, 8000.0]         # theirs hard-coded; start must equal lick12_detect_win_ms[0]
+    preclean:
+      high_thr_px: 130.0                       # px, OLD RIG -- retune  (== gates.d_y_thr_px by design)
+      shape_low_thr_px: 80.0                   # px, OLD RIG -- retune
+      shape_range_thr_px: 50.0                 # px, OLD RIG -- retune
+      nbrhd_radius_ms: 100.0
+      isolated_max_n: 3                        # frames
+      isolated_radius_ms: 20.0
+      frame_jump_thr_px: 100.0                 # px, OLD RIG -- retune
+      frame_radius_ms: 20.0
+      pchip_extend_ms: 40.0
+      flat_min_len: 20                         # frames
+      flat_max_range_px: 3.0                   # px, OLD RIG -- retune
+      flat_min_y_px: 30.0                      # px, OLD RIG -- retune
+      x_abs_max_px: 110.0                      # px, OLD RIG -- retune
+      x_pchip_extend_ms: 40.0
+      x_jump_thr_px: 30.0                      # px, OLD RIG -- retune
+      x_flank_max_distance: 5                  # frames
+    detector:
+      slope_thr_px_per_s: 250.0                # px, OLD RIG -- retune  (px/s)
+      rise_min_ms: 16.0
+      fall_min_ms: 16.0
+      peak_pad_ms: 52.0
+      min_peak_y_abs: 20.0                     # px, OLD RIG -- retune
+      min_finite_samples_per_lick: 5           # frames
+      strict_no_fallback: true
+      accept_peaks_without_fall_run: false
+      do_smooth_y_for_detection: true
+      smooth_ms_detect_y: 12.0
+      do_smooth_vel: true                      # unused on the v7 path (kept to mirror theirs)
+      smooth_ms_vel: 12.0                      # unused on the v7 path
+    detector_v2:
+      lm_min_distance_ms: 50.0
+      dedupe_radius_ms: 50.0
+      max_fall_search_ms: 52.0
+    gates:
+      f_wp_win_ms: 20.0
+      f_wp_std_thr: 1.0                        # px, OLD RIG -- retune
+      f_k_min_raw: 3                           # frames
+      d_win_ms: 150.0
+      d_y_thr_px: 130.0                        # px, OLD RIG -- retune
+      e_z_thr: 3.0
+      e_lik_override: 0.85                     # DLC likelihood scale; recheck for Lightning Pose confidences
+      e_k_min_peers: 4
+      e_min_robust_std_px: 0.5                 # px, OLD RIG -- retune  (inline constant in their gate_E)
+      parabolic_tight_radius_ms: 60.0
+      parabolic_min_anchors: 5                 # frames
+      spline_excise_radius_ms: 8.0
+      spline_anchor_win_ms: 160.0
+      spline_local_max_win_ms: 20.0
+      spline_min_anchors: 4                    # frames
+      x_outlier_excise_ms: 8.0
+      m_min_interval_ms: 80.0
+      m_conf_radius_ms: 20.0
+      m_early_interval_ms: 60.0
+      m_early_win_ms: 250.0
+    bout:
+      max_ili_ms: 300.0
+      min_ili_ms: 80.0
+      single_bout_win_ms: [-120.0, 200.0]
+      min_licks_in_bout_for_ili: 3
+    direction_thresholds:                      # theirs: x_left_thr_px / x_right_thr_px (their camera's sides)
+      img_right_thr_px: 5.0                    # px, OLD RIG -- retune
+      img_left_thr_px: -5.0                    # px, OLD RIG -- retune
+    n_licks_categorical:
+      lick_ge10_thr: 10
+    n_licks_binning:
+      bin_count: 5
+      bin_ms: 1000.0
+    max_licks_per_trial: 40
+    licking_dynamics:
+      bin_ms: 20.0
+      lickrate_smooth_sigma_ms: 50.0
+      ili_smooth_sigma_ms: 50.0
+      prob_smooth_movavg_ms: 200.0
+      min_trials_per_bin: 3                    # compared against #ILIs in a bin (theirs), not #trials
+    angle:
+      sign_flip: -1.0                          # with image y DOWN: positive = toward image-right
+      smoothing_gaussian_sigma_ms: 8.0
+    bout_table:                                # theirs: tongue_visual.bundle
+      plot_win_ms: [-180.0, 8000.0]
+      detect_win_ms: [70.0, 3000.0]
+  jaw:                          # PORTED 2026-10-01 from stroke_orofacial dlc_kinematics.jaw_pertrial (v7a.5,
+                                # legacy Cell 53 inline jaw logic). ms values transfer (both rigs 250 fps).
+    detect_win_ms: [0.0, 5000.0]            # post-cue window for the jaw deflection
+    baseline_win_ms: [-500.0, 0.0]          # pre-cue baseline (mean + population sd)
+    deflection_threshold_sd_multiplier: 4.0 # |y - baseline| > max(4 * baseline_sd, min_px)
+    deflection_threshold_min_px: 4.0        # px, OLD RIG -- retune
+    sustained_density_threshold: 0.625      # jaw_pass_qc: >= ceil(0.625 * 8) = 5 supra frames ...
+    sustained_window_n_frames: 8            # ... in some 8-FRAME window (32 ms at 250 fps; frames, not ms)
+  mismatch:                     # PORTED 2026-10-01 from stroke_orofacial dlc_kinematics.tongue_jaw_mismatch
+                                # classifier (legacy Cell 53). candidate = zero tongue licks in the quiet window
+                                # AND jaw_pass_qc. Detector knobs are LOCAL to mismatch (not the tongue
+                                # per-trial detector's).
+    quiet_tongue_win_ms: [70.0, 5000.0]
+    tongue_detector:
+      slope_thr_px_per_s: 250.0             # px, OLD RIG -- retune (px/s)
+      rise_min_ms: 16.0
+      fall_min_ms: 16.0
+      min_peak_y_abs: 20.0                  # px, OLD RIG -- retune
+      peak_pad_ms: 52.0
+      do_smooth_y_for_detection: false

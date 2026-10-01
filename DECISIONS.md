@@ -18821,3 +18821,41 @@ between sessions (08-19 → 08-26) and the per-session frame follows it (example
 PS93 acute the farthest-tongue frame for far_R points +12° (away from the target) vs −8° subacute, and far_center
 has no lick with tongue likelihood > 0.9 — single frames from 2 trials/position, consistent with the right
 orofacial deficit but NOT a result until per-trial angles are computed over all trials.
+
+## 2026-10-01 — Tongue / jaw kinematics and tongue–jaw mismatch PORTED from stroke_orofacial (parity-tested)
+
+Priya: "port the code for tongue and jaw kinematics (x/y position, velocity, angles, tongue/jaw mismatch)".
+Ported by two parallel agents, reviewed here, every source file read-only:
+* `wfield_local/tongue_detect.py` + `tongue_kinematics.py` — their PRODUCTION tongue path (`use_v7_pipeline:
+  true`): v7 pre-clean (cluster classifier, frame outliers, PCHIP-extend and bracketed-interp wipes, x-side rules
+  1–4) → local-maxima + bounded + legacy slope detectors and their merge → gates F/D/E/M with parabolic/spline
+  imputation → per-trial features (lick1/lick2, first-5 peak velocity, n-licks family, licking dynamics,
+  bouts, per-lick position/velocity, angles). **Exact parity** with their functions (loaded from the source
+  files in tests) on cleaned traces, kept licks and every per-trial feature over 16 random seeds; angles to
+  1e-9 (same direction, unit-length axis).
+* `wfield_local/jaw_kinematics.py` + `tongue_jaw_mismatch.py` — jaw per-trial (baseline, deflections, threshold
+  max(4·sd, 4 px), sustained-density "jaw moved" QC) and the mismatch classifier (zero licks 70–5000 ms AND jaw
+  moved), which re-runs its own slope detector on the masked tongue trace. Exact parity on 204 / 300 trials.
+* Config: `configs/defaults.yaml orofacial_kinematics.{tongue,jaw,mismatch}` == the modules' DEFAULTS ==
+  their production values. **Every px value is the OLD rig's** (pre-clean 130/80/50/100/3/30/110/30, detector
+  250 px/s & 20 px, gates 1.0/130/0.5, jaw floor 4 px, direction ±5) — retune on our view.
+
+Adaptations: one moving spout → "side" became "position" (6 labels) everywhere; float cue frames from our
+alignment templates; **angles in the spout frame** (`spout_frame`: origin = the lines' meeting point, 0° =
+straight out along the centre line, + = image-right = the MOUSE'S LEFT on cam4) instead of their spout-midpoint
+centring; no writers/parquet/plots/cohort code.
+
+**Inherited, kept for parity, needs Priya's call:** a ONE-FRAME offset in their v7 orchestrator — detector peak
+indices are relative to the detect window (first frame ≥ 70 ms) but used as trial-slice indices (slice starts at
+68 ms), so x-at-peak, rise/fall ms, gate F/D windows, M-gate confidence and velocity windows are read 4 ms early
+(lick times are correct). Fix = add the window's start index before the indices leave the detectors.
+Also inherited: kept licks only 70–3000 ms (dynamics run to 5000 ms); E-gate imputation moves a lick's frame
+but not its t_ms; trial slices to +8 s overwrite overlapping trials in the session arrays; jaw threshold is
+`> max(4 sd, 4 px)` (the notebook had `> 4 sd and >= 4 px`).
+
+First run (`scripts/pose_kinematics_demo.py`, PS93 0908 cue clip, 24 trials, both models): lick-1 angle tracks
+the target with the right signs and the models agree (close_L +29/+28°, close_center +2/+1°, close_R −20/−25°;
+far positions smaller, foreshortened); lick-1 latency ~150 ms close vs 300–480 ms far; no mismatch trials. Open:
+`angle_max_signed_lick1` often has the opposite sign to the lick-1 angle (the ±52 ms window may catch the
+retraction); DLC fails jaw-moved QC on all close_center trials (LP passes) — likely the chin hidden by the
+spout; peak velocities differ 2× between models (jitter + old-rig thresholds). A smoke test, not a result.

@@ -121,6 +121,7 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 11. **A low-confidence LP coordinate is the image centre, not a position** — mask by likelihood before any kinematics.
 
 ## 4. To do (not started)
+* **Kinematics ported 10-01 (DECISIONS):** `tongue_detect`, `tongue_kinematics`, `jaw_kinematics`, `tongue_jaw_mismatch`, `spout_frame`; demo `scripts/pose_kinematics_demo.py`. Next: retune px thresholds on our view; decide on the inherited one-frame v7 offset; check angle_max_signed vs lick-1 angle; run on full sessions (needs whole-session predictions).
 * **Clean traces (`wfield_local/orofacial_clean.py`, ported 10-01 from stroke_orofacial v5p3 + jaw v3.4):** retune every px threshold on our view (x_range_pm, v3.4 ceilings, frame jump); then port the tongue v7 pre-clean + per-trial lick/angle features; build the spout-position reference frame (DECISIONS 10-01) — cam1 for horizontal-plane angles.
 * ~~LP label export with the all-blank drop~~ DONE 10-01: `python -m wfield_local.lp_labels audit|clean <lp_dir>/CollectedData.csv` after `litpose convert` on the training copy.
 * Multi-view export: per-keypoint `visible` column (2/1/0), shared image name per DAQ instant; verify a
