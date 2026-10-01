@@ -18924,3 +18924,12 @@ by peak height from the mouth:
 **Open (Priya):** whether "tip at the lips" counts as a lick. The detector's `min_peak_y_abs` (20 px) sits BELOW
 the lip line in mouth-relative px, so today it keeps them all. Options: a floor ~45 px; or keep them and flag
 small licks per lick so counts can be reported with and without.
+
+**Addendum (2026-10-01) — the lick-height floor stays at 20 px (Priya).** No 5th-percentile lick gate exists:
+the floor is a fixed `min_peak_y_abs` = 20 px, in two places (`tongue.detector` and `mismatch.tongue_detector`),
+now mouth-relative; it sits below the lip line, so in practice every visible bump passes and the shape checks do
+the work. Considered and not taken: dropping it, or a per-animal pre-stroke percentile of peak heights (circular,
+and it would clip the small post-stroke licks that are the readout). The "small" licks stay countable via peak
+height in the per-lick table. A spout-spacing px→mm scale was rejected (Priya: it ignores depth); the metric
+route is the 4-camera calibration (2026-09-12 entry: all four cameras solve, ~40 µm precision, −1 % scale) —
+per-view µm/px at the mouth = depth / focal length, or better, triangulated tongue positions in mm.
