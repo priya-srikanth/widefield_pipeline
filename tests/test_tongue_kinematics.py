@@ -266,3 +266,51 @@ def test_parity_full_v7_path_and_features(source):
     # imputers' None paths are covered by the gate-level parity in test_tongue_detect.)
     for k in hits:
         assert hits[k] > 0, f"parity sessions never exercised {k}: {hits}"
+
+
+# =========================================================================== OURS: geometry / phase / velocity
+
+def test_lick_extent_and_spout_coords():
+    y = np.array([0, 0, 10, 30, 60, 80, 70, 40, 20, 0, 0], float)
+    base = y == 0
+    assert tk.lick_extent(y, base, 5) == (2, 8)                      # visible run around the peak
+    f = tk.SpoutFrame(origin=(300.0, 100.0), ap_axis=(0.0, -1.0))
+    ap, lr = tk.spout_coords(np.array([300.0, 400.0]), np.array([200.0, 200.0]), f)
+    np.testing.assert_allclose(ap, [100, 100])
+    np.testing.assert_allclose(lr, [0, 100])                         # image-right = + lr
+    np.testing.assert_allclose(np.degrees(np.arctan2(lr, ap)),
+                               tk.compute_signed_tongue_angle_deg(np.array([300.0, 400.0]), np.array([200.0, 200.0]), f))
+
+
+def test_visible_rise_velocity_geometry_and_phase_table():
+    y, x, fm, lk, cues, _truth = synth_session(seed=3, extras=False)
+    X0, Y0 = 320.0, 250.0
+    frame = tk.SpoutFrame(origin=(X0, Y0 - 30.0), ap_axis=(0.0, -1.0))
+    ov = {"velocity_window": "visible_rise", "lick_geometry": True, "fix_detect_offset": True}
+    old = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, X0=X0, Y0=Y0, spout_frame=frame)
+    new = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, X0=X0, Y0=Y0, spout_frame=frame,
+                                       params_override=ov)
+    pl = new.per_lick
+    assert {"on_frame", "off_frame", "protrusion_px", "ap_px", "lr_px", "max_retract_velocity_y_px_per_s"} <= set(pl.columns)
+    assert "protrusion_px" not in old.per_lick.columns and old.lick_phase is None
+    assert (pl.on_ms <= pl.t_ms).all() and (pl.off_ms >= pl.t_ms).all() and (pl.on_ms < pl.t_ms).mean() > 0.9
+    np.testing.assert_allclose(pl.protrusion_px, np.hypot(pl.ap_px, pl.lr_px))
+    np.testing.assert_allclose(pl.ap_px, pl.y + 30.0, atol=1e-9)    # mouth 30 px above the zero, axis straight down
+    # the whole rise sees the fastest part of the lick, the inherited window may not
+    vn, vo = pl.max_velocity_y_px_per_s, old.per_lick.max_velocity_y_px_per_s
+    ok = vn.notna() & vo.notna()                                     # NaN: a lick first visible at its peak
+    assert ok.mean() > 0.9 and (vn[ok] >= vo[ok] - 1e-6).mean() > 0.9   # a gap mid-rise can shorten a rise
+    ph = new.lick_phase
+    assert set(np.round(ph.phase, 6)) == set(np.round(np.linspace(0, 1, 21), 6))
+    peak = ph[np.isclose(ph.phase, 0.5)].set_index(["trial_id", "lick_idx"]).protrusion_px
+    edge = ph[np.isclose(ph.phase, 0.0)].set_index(["trial_id", "lick_idx"]).protrusion_px
+    assert (peak.dropna() > edge.reindex(peak.dropna().index)).all()
+
+
+def test_angle_max_signed_within_lick_ignores_the_next_lick():
+    ang = np.zeros(200)
+    ang[95:106] = 5.0                                                # this lick: +5 deg
+    ang[110:120] = -40.0                                             # the NEXT lick, inside +-13 frames of 100
+    t = np.array([(100 - 50) / FPS * 1000.0])                        # lick peak at frame 100, cue at 50
+    assert tk.angle_max_signed_per_lick(ang, FPS, 50, t, 52.0)[0] == -40.0
+    assert tk.angle_max_signed_per_lick(ang, FPS, 50, t, 52.0, extents=[(95, 106)])[0] == 5.0

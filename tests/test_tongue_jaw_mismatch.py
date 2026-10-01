@@ -161,3 +161,16 @@ def test_detector_parity_with_source(smooth):
             assert np.array_equal(getattr(ours, f), getattr(theirs, f), equal_nan=True), f
         n_peaks_seen += len(theirs)
     assert n_peaks_seen > 100                                  # the comparison exercised real detections
+
+
+def test_unknown_jaw_gives_unknown_candidate_only_for_quiet_trials():
+    """OURS: jaw unknown (degenerate baseline) -> a quiet-tongue trial is NaN, a licking trial still False."""
+    jaw, tx, ty, trials = _session()
+    for k in (0, 1):                                           # flat baselines on trials 1 (quiet) and 2 (licks)
+        jaw[CUES[k] - 125:CUES[k] + 1] = 0.0
+    res = tjm.classify(jaw, tx, ty, FPS, trials, jaw_overrides={"degenerate_as_unknown": True})
+    t = res.trials.set_index("trial_id")
+    assert np.isnan(t.loc[10, "candidate_no_lick_with_jaw_move"]) and np.isnan(t.loc[10, "jaw_pass_qc"])
+    assert t.loc[20, "candidate_no_lick_with_jaw_move"] is False or t.loc[20, "candidate_no_lick_with_jaw_move"] == 0
+    s = tjm.summarize_by_position(res.trials).set_index("position")
+    assert s.loc["far_L", "n_jaw_unknown"] == 1 and s.loc["far_L", "frac_candidates"] == 1.0   # 1 known of 2, a candidate

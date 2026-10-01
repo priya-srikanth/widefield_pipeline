@@ -137,7 +137,24 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
         # clockwise as displayed. Changing it inverts the convention, not just a label.
         "sign_flip": -1.0,
         "smoothing_gaussian_sigma_ms": 8.0,
+        # OURS (2026-10-01): angle_max_signed only over frames whose tongue-mouth distance is >= this fraction of
+        # the distance at the lick's peak. With the origin AT the mouth, frames near the lips give short,
+        # unstable vectors and won the max (sign flips vs the peak angle). None = theirs (whole +-peak_pad).
+        "max_signed_min_frac_of_peak": None,
+        # OURS: also clip the +-peak_pad window to the lick's own visible extent (on_frame..off_frame), so a
+        # short lick's window cannot reach into the next lick (PS93 0908 trial 288). Needs lick_geometry or
+        # velocity_window: visible_rise (which compute the extent). False = theirs.
+        "max_signed_within_lick": False,
     },
+    # OURS (Priya 2026-10-01): "v7" = theirs, max dy/dt over [rise_start, fall_end] (for lmax licks that is the
+    # peak +-16 ms, so the value depended on which detector found the lick); "visible_rise" = over the lick's
+    # whole visible rise (`lick_extent`), and retraction speed over its visible fall.
+    "velocity_window": "v7",
+    # OURS: per-lick geometry -- lick extent (on/off frames), xy protrusion from the mouth in the spout frame
+    # (protrusion_px, ap_px, lr_px), and the lick-phase table (angle / protrusion resampled on phase 0..1).
+    # Use with fix_detect_offset: the extent is grown from the peak FRAME, which theirs puts one frame early.
+    "lick_geometry": False,
+    "phase": {"n_points": 21, "extent_slack_px": 2.0},
     "bout_table": {                                  # theirs: tongue_visual.bundle
         "plot_win_ms": [-180.0, 8000.0],             # only the grid that maps a lick time to a frame
         "detect_win_ms": [70.0, 3000.0],
@@ -234,6 +251,49 @@ def compute_signed_tongue_angle_deg(x_img, y_img, frame: SpoutFrame, *, sign_fli
     return float(sign_flip) * np.degrees(np.arctan2(cross, dot))
 
 
+def spout_coords(x_img, y_img, frame: SpoutFrame | None):
+    """(ap, lr) px of absolute image points in the spout frame: ap = along -ap_axis (out of the mouth, toward
+    the spouts), lr = perpendicular, + = image-right (= the sign of `compute_signed_tongue_angle_deg`, whose angle
+    is atan2(lr, ap)). Without a frame: ap = image y, lr = image x (whatever origin the inputs carry)."""
+    x_img, y_img = np.asarray(x_img, dtype=np.float64), np.asarray(y_img, dtype=np.float64)
+    if frame is None:
+        return y_img, x_img
+    rx, ry = -frame.ap_axis[0], -frame.ap_axis[1]
+    vx, vy = x_img - frame.origin[0], y_img - frame.origin[1]
+    return rx * vx + ry * vy, ry * vx - rx * vy
+
+
+def lick_extent(y, is_base, peak_frame: int, slack_px: float = 2.0) -> tuple[int, int]:
+    """(on, off) frames of one lick's VISIBLE excursion around ``peak_frame``: back while the frame is visible
+    (not baseline fill, finite) and y keeps falling (``slack_px`` tolerance), forward likewise. OURS."""
+    yv = np.where(is_base, np.nan, np.asarray(y, dtype=np.float64))
+    n = len(yv)
+    on = off = int(peak_frame)
+    if not (0 <= on < n) or not np.isfinite(yv[on]):
+        return on, off
+    while on > 0 and np.isfinite(yv[on - 1]) and yv[on - 1] <= yv[on] + slack_px:
+        on -= 1
+    while off < n - 1 and np.isfinite(yv[off + 1]) and yv[off + 1] <= yv[off] + slack_px:
+        off += 1
+    return on, off
+
+
+def _min_dydt(y_seg, fps) -> float:
+    y_seg = np.asarray(y_seg, dtype=np.float64)
+    if int(np.count_nonzero(np.isfinite(y_seg))) < 2:
+        return float("nan")
+    d = np.gradient(y_seg) * fps
+    return float(np.nanmin(d)) if np.isfinite(d).any() else float("nan")
+
+
+def _max_dydt(y_seg, fps) -> float:
+    y_seg = np.asarray(y_seg, dtype=np.float64)
+    if int(np.count_nonzero(np.isfinite(y_seg))) < 2:
+        return float("nan")
+    d = np.gradient(y_seg) * fps
+    return float(np.nanmax(d)) if np.isfinite(d).any() else float("nan")
+
+
 def gaussian_smooth_nan(arr, sigma_units: float, *, mode: str = "nearest"):
     """NaN-aware gaussian: smooth(values with NaN->0) / smooth(finite mask); NaN where mask weight <= 1e-8."""
     arr = np.asarray(arr, dtype=np.float64)
@@ -269,7 +329,8 @@ def angle_at_lick_timestamp(angle_per_frame, fps, cue_frame, lick_t_ms):
     return float(np.interp(target, np.arange(n, dtype=np.float64), angle_per_frame))
 
 
-def angle_max_signed_per_lick(angle_per_frame, fps, cue_frame, lick_t_peaks_ms, peak_pad_ms):
+def angle_max_signed_per_lick(angle_per_frame, fps, cue_frame, lick_t_peaks_ms, peak_pad_ms, *,
+                              dist_per_frame=None, min_frac_of_peak=None, extents=None):
     """Per lick, the largest-|angle| value (sign kept) within +-peak_pad_ms of its time.
 
     Theirs centred on ``tone_frame_idx + int(round(t * fps / 1000))``; with a float cue the centre is
@@ -284,7 +345,14 @@ def angle_max_signed_per_lick(angle_per_frame, fps, cue_frame, lick_t_peaks_ms, 
         if not np.isfinite(t):
             continue
         center = int(round(cue_frame + t / 1000.0 * fps))
-        win = angle_per_frame[max(0, center - pad):min(n_frames, center + pad + 1)]
+        w0, w1 = max(0, center - pad), min(n_frames, center + pad + 1)
+        if extents is not None and j < len(extents) and extents[j] is not None:
+            w0, w1 = max(w0, int(extents[j][0])), min(w1, int(extents[j][1]) + 1)   # OURS: within the lick
+        win = angle_per_frame[w0:w1]
+        if min_frac_of_peak is not None and dist_per_frame is not None and 0 <= center < n_frames:
+            # OURS: only the outer part of the lick (see DEFAULTS angle.max_signed_min_frac_of_peak)
+            dwin = dist_per_frame[w0:w1]
+            win = np.where(dwin >= float(min_frac_of_peak) * dist_per_frame[center], win, np.nan)
         if not np.any(np.isfinite(win)):
             continue
         out[j] = float(win[int(np.nanargmax(np.abs(win)))])
@@ -478,7 +546,23 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
 
         # max dy/dt in [rise_start, fall_end] of the CLEANED y with baseline-fill masked (their Decision 5).
         max_velocity_y = float("nan")
-        if 0 <= rsf <= fef < n_frames:
+        geo: dict[str, Any] = {}
+        if p.get("lick_geometry", False) or p.get("velocity_window", "v7") == "visible_rise":
+            on, off = lick_extent(y_clean, is_base_clean, pf, float(p["phase"]["extent_slack_px"]))
+            yv = np.where(is_base_clean, np.nan, y_clean.astype(np.float64))
+            geo = {"on_frame": on, "off_frame": off, "on_ms": float(t_ms[on]), "off_ms": float(t_ms[off]),
+                   "max_retract_velocity_y_px_per_s": -_min_dydt(yv[pf:off + 1], fps) if off > pf else float("nan")}
+            if p.get("lick_geometry", False):
+                xo = 0.0 if X0 is None else X0
+                yo = 0.0 if Y0 is None else Y0
+                ap, lr = spout_coords(x_clean[on:off + 1] + xo, yv[on:off + 1] + yo, spout_frame)
+                dist = np.hypot(ap, lr)
+                k = pf - on
+                geo.update({"protrusion_px": float(dist[k]), "ap_px": float(ap[k]), "lr_px": float(lr[k]),
+                            "protrusion_max_px": float(np.nanmax(dist)) if np.isfinite(dist).any() else float("nan")})
+        if p.get("velocity_window", "v7") == "visible_rise":
+            max_velocity_y = _max_dydt(yv[geo["on_frame"]:pf + 1], fps) if pf > geo["on_frame"] else float("nan")
+        elif 0 <= rsf <= fef < n_frames:
             y_win = np.where(is_base_clean[rsf:fef + 1], np.nan, y_clean[rsf:fef + 1].astype(np.float64))
             if int(np.count_nonzero(np.isfinite(y_win))) >= 2:
                 dy_win = np.gradient(y_win) * fps
@@ -492,7 +576,7 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
             "rise_start_frame": int(rsf), "fall_end_frame": int(fef),
             "imputed": is_imputed, "source": str(r["src"]), "confidence": confidence,
             "likelihood": float(r["lik"]), "peak_angle_deg": peak_angle_deg,
-            "max_velocity_y_px_per_s": max_velocity_y,
+            "max_velocity_y_px_per_s": max_velocity_y, **geo,
         })
         lick_idx += 1
 
@@ -528,12 +612,16 @@ def extract_lick1_lick2(res: V7TrialResult) -> dict[str, float]:
     return out
 
 
-def _lick_velocity(res: V7TrialResult, lk: dict, fps: float, min_finite: int) -> tuple[float, float, bool]:
+def _lick_velocity(res: V7TrialResult, lk: dict, fps: float, min_finite: int,
+                   window: str = "v7") -> tuple[float, float, bool]:
     """(vy_peak, vxy_peak, window_ok) for one kept lick, by the v7 branch of `_extract_peak_velocity_first5`:
     max dy/dt and max |(dx, dy)|/dt over [rise_start, fall_end] of the cleaned trace, baseline-fill masked,
     requiring >= min_finite frames with both x and y finite. No smoothing (the v7 branch does none)."""
     n = len(res.y_clean)
     rsf, fef = int(lk.get("rise_start_frame", -1)), int(lk.get("fall_end_frame", -1))
+    if window == "visible_rise" and "on_frame" in lk:
+        # OURS: the whole visible rise, onset -> peak frame (see DEFAULTS velocity_window)
+        rsf, fef = int(lk["on_frame"]), int(np.argmin(np.abs(res.t_ms - float(lk["t_ms"]))))
     if not (0 <= rsf <= fef < n):
         return float("nan"), float("nan"), False
     is_b = res.is_baseline_fill_clean[rsf:fef + 1]
@@ -564,7 +652,7 @@ def extract_peak_velocity_first5(res: V7TrialResult, fps: float, *, p: dict) -> 
         t = float(lk["t_ms"])
         if t < lo or t > hi:
             continue
-        vy, vxy, _ = _lick_velocity(res, lk, fps, min_finite)
+        vy, vxy, _ = _lick_velocity(res, lk, fps, min_finite, p.get("velocity_window", "v7"))
         vy_out[j], vxy_out[j], t_out[j] = vy, vxy, t
         j += 1
     return {"vy_peaks_bylick": vy_out, "vxy_peaks_bylick": vxy_out, "lick_t_peaks_bylick": t_out}
@@ -776,6 +864,45 @@ def bout_rows_for_trial(res: V7TrialResult, angle_per_frame, fps, n_session: int
     return rows, labels
 
 
+def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFrame | None, fps: float, *,
+                     n_points: int = 21) -> pd.DataFrame:
+    """OURS (Priya 2026-10-01: angle-over-lick-phase plots are among the most informative): every kept lick
+    resampled on a phase axis -- 0 = the frame the tongue appears (`on_frame`), 0.5 = the peak, 1 = the last
+    visible frame (`off_frame`); rise and fall are each stretched to half the axis, so licks of different
+    length line up.
+
+    Per (lick, phase): ap_px / lr_px (spout frame, mouth origin), protrusion_px = hypot, angle_deg =
+    atan2(lr, ap) (unsmoothed; + = image-right, as `compute_signed_tongue_angle_deg`), plus the lick's rise /
+    fall ms. Linear interpolation between visible frames; NaN where the lick has no rise or no fall frame.
+    """
+    grid = np.linspace(0.0, 1.0, n_points)
+    rows = []
+    xo = 0.0 if X0 is None else X0
+    yo = 0.0 if Y0 is None else Y0
+    for r in results:
+        yv = np.where(r.is_baseline_fill_clean, np.nan, r.y_clean.astype(np.float64))
+        for lk in r.kept_licks:
+            if "on_frame" not in lk:
+                continue
+            on, off = int(lk["on_frame"]), int(lk["off_frame"])
+            pf = int(np.argmin(np.abs(r.t_ms - float(lk["t_ms"]))))
+            ap, lr = spout_coords(r.x_clean[on:off + 1] + xo, yv[on:off + 1] + yo, spout_frame)
+            f = np.arange(on, off + 1, dtype=np.float64)
+            # frame -> phase: rise [on, pf] -> [0, .5], fall [pf, off] -> [.5, 1]
+            ph = np.where(f <= pf, 0.5 * (f - on) / max(pf - on, 1), 0.5 + 0.5 * (f - pf) / max(off - pf, 1))
+            ok = np.isfinite(ap) & np.isfinite(lr)
+            if pf - on < 1 or off - pf < 1 or ok.sum() < 3:
+                a_g = l_g = np.full(n_points, np.nan)
+            else:
+                a_g, l_g = np.interp(grid, ph[ok], ap[ok]), np.interp(grid, ph[ok], lr[ok])
+            for g, a_, l_ in zip(grid, a_g, l_g):
+                rows.append((r.trial_id, r.position, int(lk["lick_idx"]), float(lk["t_ms"]), float(g), a_, l_,
+                             float(np.hypot(a_, l_)), float(np.degrees(np.arctan2(l_, a_))),
+                             (pf - on) * 1000.0 / fps, (off - pf) * 1000.0 / fps))
+    return pd.DataFrame(rows, columns=["trial_id", "position", "lick_idx", "t_ms", "phase", "ap_px", "lr_px",
+                                       "protrusion_px", "angle_deg", "rise_ms", "fall_ms"])
+
+
 # --------------------------------------------------------------------------- driver
 
 @dataclass
@@ -791,6 +918,7 @@ class TongueKinematics:
     angle_per_frame: np.ndarray | None       # smoothed signed angle (deg) per session frame; None w/o SpoutFrame
     trial_results: list[V7TrialResult]
     params: dict = field(default_factory=dict)
+    lick_phase: pd.DataFrame | None = None   # OURS: `lick_phase_table` (with lick_geometry)
 
 
 def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials: Iterable[Trial] | pd.DataFrame, *,
@@ -832,6 +960,10 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
 
     peak_pad_ms = float(p["detector"]["peak_pad_ms"])
     min_finite = int(p["detector"]["min_finite_samples_per_lick"])
+    min_frac = p["angle"].get("max_signed_min_frac_of_peak")
+    dist = None
+    if angle is not None and min_frac is not None:
+        dist = np.hypot(*spout_coords(x_c + X0, np.where(b_c, np.nan, y_c) + Y0, spout_frame))
     by_pos: dict[str, list[np.ndarray]] = {pos: [] for pos in POSITIONS}
     trial_rows, lick_rows, bout_rows = [], [], []
     for tr, res, pt in zip(trials, results, p_tr):
@@ -841,7 +973,13 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         ldr = licking_dynamics_reductions(res.kept_licks, p=pt)
         own = own_bout_scalars(res.kept_licks, p=pt)
         a_v = np.array([angle_at_lick_timestamp(angle, fps, tr.cue_frame, t) for t in vel["lick_t_peaks_bylick"]])
-        a_max = angle_max_signed_per_lick(angle, fps, tr.cue_frame, vel["lick_t_peaks_bylick"], peak_pad_ms)
+        ext = None
+        if p["angle"].get("max_signed_within_lick", False):
+            by_t = {float(k["t_ms"]): (res.session_frame_lo + k["on_frame"], res.session_frame_lo + k["off_frame"])
+                    for k in res.kept_licks if "on_frame" in k}
+            ext = [by_t.get(float(t)) for t in vel["lick_t_peaks_bylick"]]
+        a_max = angle_max_signed_per_lick(angle, fps, tr.cue_frame, vel["lick_t_peaks_bylick"], peak_pad_ms,
+                                          dist_per_frame=dist, min_frac_of_peak=min_frac, extents=ext)
         by_pos[tr.position].append(_kept_times_in(res.kept_licks, tuple(pt["licking_dyn_apply_win_ms"])))
         brows, labels = bout_rows_for_trial(res, angle, fps, len(y_final), p=pt)
         bout_rows += brows
@@ -870,7 +1008,7 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         trial_rows.append(row)
 
         for lk in res.kept_licks:
-            vy, vxy, _ = _lick_velocity(res, lk, fps, min_finite)
+            vy, vxy, _ = _lick_velocity(res, lk, fps, min_finite, pt.get("velocity_window", "v7"))
             bidx, mrank, a_sm = labels.get(lk["lick_idx"], (np.nan, np.nan, np.nan))
             lick_rows.append({
                 "trial_id": tr.trial_id, "position": tr.position, "cue_frame": tr.cue_frame, **lk,
@@ -883,6 +1021,9 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
                  "fall_end_ms", "rise_start_frame", "fall_end_frame", "imputed", "source", "confidence", "likelihood",
                  "peak_angle_deg", "max_velocity_y_px_per_s", "x_img", "y_img", "vy_peak_px_per_s",
                  "vxy_peak_px_per_s", "bout_idx", "multi_bout_rank", "angle_smoothed_at_peak_deg"]
+    extra = ["on_frame", "off_frame", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s", "protrusion_px",
+             "ap_px", "lr_px", "protrusion_max_px"]
+    lick_cols += [c for c in extra if any(c in r for r in lick_rows)]          # OURS, only when computed
     bout_cols = ["trial_id", "position", "bout_idx", "multi_bout_rank", "n_peaks", "bout_t0_ms", "bout_t1_ms",
                  "peak_t0_ms", "peak_t1_ms", "peak_y0", "peak_angle0", "peak_y1", "peak_angle1"]
     return TongueKinematics(
@@ -891,7 +1032,9 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         bouts=pd.DataFrame(bout_rows, columns=bout_cols),
         licking_dynamics_traces=licking_dynamics_traces(by_pos, p=p),
         x_clean=x_c, y_clean=y_c, is_baseline_fill_clean=b_c, angle_per_frame=angle,
-        trial_results=results, params=p)
+        trial_results=results, params=p,
+        lick_phase=(lick_phase_table(results, X0, Y0, spout_frame, fps, n_points=int(p["phase"]["n_points"]))
+                    if p.get("lick_geometry", False) else None))
 
 
 def from_clean(clean, trials, *, spout_frame: SpoutFrame | None = None, params_override: dict | None = None

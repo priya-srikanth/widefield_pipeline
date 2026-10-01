@@ -1071,6 +1071,9 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     angle_apply_win_ms: [70.0, 5000.0]
     trial_slice_win_ms: [70.0, 8000.0]         # theirs hard-coded; start must equal lick12_detect_win_ms[0]
     fix_detect_offset: true                    # OURS (Priya 2026-10-01): detector frames -> trial-slice frames (theirs read 1 frame = 4 ms early); DEFAULTS false = parity
+    velocity_window: visible_rise              # OURS (Priya 2026-10-01): max dy/dt over the whole visible rise (theirs "v7": peak +-16 ms for lmax licks); + retraction speed
+    lick_geometry: true                        # OURS: per-lick on/off, xy protrusion from the mouth (spout frame), lick-phase table
+    phase: {n_points: 21, extent_slack_px: 2.0}
     preclean:
       high_thr_px: 130.0                       # px, OLD RIG -- retune  (== gates.d_y_thr_px by design)
       shape_low_thr_px: 80.0                   # px, OLD RIG -- retune
@@ -1150,6 +1153,8 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     angle:
       sign_flip: -1.0                          # with image y DOWN: positive = toward image-right
       smoothing_gaussian_sigma_ms: 8.0
+      max_signed_min_frac_of_peak: 0.5         # OURS: angle_max_signed only where the tongue is >= half its peak distance from the mouth
+      max_signed_within_lick: true              # OURS: and only within the lick's own visible extent (no spill into the next lick)
     bout_table:                                # theirs: tongue_visual.bundle
       plot_win_ms: [-180.0, 8000.0]
       detect_win_ms: [70.0, 3000.0]
@@ -1161,6 +1166,7 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     deflection_threshold_min_px: 4.0        # px, OLD RIG -- retune
     sustained_density_threshold: 0.625      # jaw_pass_qc: >= ceil(0.625 * 8) = 5 supra frames ...
     sustained_window_n_frames: 8            # ... in some 8-FRAME window (32 ms at 250 fps; frames, not ms)
+    degenerate_as_unknown: true             # OURS (Priya 2026-10-01): jaw invisible pre-cue -> jaw_pass_qc NaN (unknown), not FAIL
   mismatch:                     # PORTED 2026-10-01 from stroke_orofacial dlc_kinematics.tongue_jaw_mismatch
                                 # classifier (legacy Cell 53). candidate = zero tongue licks in the quiet window
                                 # AND jaw_pass_qc. Detector knobs are LOCAL to mismatch (not the tongue

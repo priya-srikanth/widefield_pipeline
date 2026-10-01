@@ -27,6 +27,9 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
    over the outer part of the lick (sign flips 5-6/24 come from frames near the lips); degenerate jaw baseline =
    unknown, not FAIL (DLC close_center); velocity over the whole visible rise (inherited window = peak ±16 ms for
    lmax licks → the 2× between models).
+   **Later 10-01: Priya accepted** visible-rise velocity and jaw-unknown (applied); asked for lick-PHASE angle
+   plots and xy protrusion (added: `lick_geometry`, `TongueKinematics.lick_phase`, `scripts/tongue_angle_phase.py`);
+   angle max now within the lick's own extent. DECISIONS "Angle sign flips explained …".
 4. **Session-level runs IN PROGRESS** (detached; logs in the session scratchpad `session_poses.log`,
    `lp_sessions.log`): PS93 0814 pre / 0821 acute / 0908 chronic, 60 trials each, `scripts/session_poses.py` clip →
    DLC (~42 fps, ~1.6 h/session) → merge; LP queued after (WSL, 16-frame chunks + guard) → `windows_LP.csv` on the

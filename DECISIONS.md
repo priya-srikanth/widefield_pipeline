@@ -18977,3 +18977,42 @@ DLC round 3 (ResNet-50-GN, full 680×680 frame) runs **~42 fps on this RTX 5060 
 session here. Full sessions are feasible on a server (independent per-session, chunked + resumable jobs);
 candidate speed-ups to test then: crop to the face box (the prior box is ~300×380 px, ~4× fewer pixels), GPU-side
 preprocessing, DLC's own `analyze_videos`. Priya recalls batch 1 fastest in earlier tests — unresolved, later.
+
+## 2026-10-01 — Angle sign flips explained; lick-phase angle; xy protrusion; jaw unknown; visible-rise velocity
+
+Priya: "show me the angle sign flips with a visual example ... the angle phase plots are actually some of the most
+informative ... can we add an xy protrusion ... jaw - can record as unknown ... ok to measure velocity over visible
+rise." Figures: `scripts/tongue_angle_phase.py` → `…/PS93_20260908/tongue_angle_sign_examples_*.png`,
+`tongue_angle_phase_*.png`.
+
+**The flips have three different causes** (5 DLC trials inspected frame by frame): (1) close_center (trials 218,
+259, 482) — the tracked tip JUMPS ~50 px across the spout as the tongue presses around it (one side hidden): an
+occlusion artefact, not an angle; (2) trial 288 — a short first lick (69 px) whose ±52 ms window reached the NEXT
+lick (+31°); (3) trial 302 far_L — a REAL sweep: at full extension the tongue swings left after the peak. Applied:
+`angle.max_signed_within_lick: true` (window clipped to the lick's own visible extent) and
+`max_signed_min_frac_of_peak: 0.5` (outer half only) → 4/24 (DLC), 5/24 (LP) remain = occlusion jumps + real sweeps.
+Open: flag across-spout jumps (LR jump between frames while extended) so such a lick's angle is marked unreliable;
+label tongue-around-spout frames; cam1 / 3-D for the true horizontal angle.
+
+**Lick phase (new, `lick_geometry: true`).** Per kept lick an extent `on_frame`..`off_frame` (`lick_extent`: the
+visible run around the peak, y falling away from it with 2 px slack), and `TongueKinematics.lick_phase`: ap / lr
+(spout frame, mouth origin), protrusion and angle = atan2(lr, ap) resampled on phase 0 (tongue appears) → 0.5
+(peak) → 1 (gone), rise and fall each stretched to half, 21 points. PS93 0908: DLC and LP give the same phase
+curves; positions are ordered (far_R most image-left) but span only ~15° (cam4 foreshortens the horizontal plane);
+**all positions sit ~8-10° image-left** (far_center peaks at −8° although 0 = the far_center spout line) — either
+the tongue-tip label sits on the left of the tip or the mouth point is right of the midline; check before reading
+absolute angles. Phase ends (tongue < ~50 px out) fan out: short vectors near the lips.
+
+**xy protrusion (new).** Per lick `protrusion_px` (tongue-mouth distance at the peak), `protrusion_max_px` (over the
+lick), `ap_px`, `lr_px` (spout frame; + lr = image-right = mouse left on cam4). Detection still runs on image y.
+
+**Velocity over the visible rise (applied, Priya).** `velocity_window: visible_rise`: max dy/dt from `on_frame` to
+the peak (per-lick `max_velocity_y_px_per_s`, `vy_peak` / `vxy_peak`, first-5 columns); plus
+`max_retract_velocity_y_px_per_s` over the visible fall. LP vs DLC: ratio p10-p90 0.88-1.16, r = 0.86 (was
+0.51-1.9, r = 0.58). A lick first visible at its peak has no rise velocity (NaN; ~3 %).
+
+**Jaw unknown (applied, Priya).** `orofacial_kinematics.jaw.degenerate_as_unknown: true`: a degenerate baseline
+(jaw invisible pre-cue — DLC close_center) → `jaw_pass_qc` NaN; mismatch: a licking trial is still not a candidate,
+a quiet-tongue trial with unknown jaw is NaN and leaves the denominator (`summarize_by_position` gains
+`n_jaw_unknown`). Priya hopes the other cameras + calibration will fill these (3-D). All new behaviour is behind
+switches that are OFF in the module DEFAULTS (parity tests unchanged) and ON in configs/defaults.yaml.

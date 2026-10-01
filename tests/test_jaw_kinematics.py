@@ -172,3 +172,13 @@ def test_parity_with_source_compute_per_trial():
                 assert a == b, (k, col)
             else:
                 assert a == b, (k, col, a, b)                  # exact: same arithmetic, same order
+
+
+def test_degenerate_baseline_is_unknown_when_asked():
+    """OURS (Priya 2026-10-01): degenerate_as_unknown -> jaw_pass_qc NaN, not False; judgeable trials unchanged."""
+    y = _trace()
+    y[4000 - 125:4001] = 0.0                                   # flat (all fill) baseline
+    y[8100:8200] += 30.0                                       # a judgeable trial that moves
+    t, _ = jk.jaw_pertrial(y, FPS, _trials([4000, 8000]), {"degenerate_as_unknown": True})
+    assert np.isnan(t.iloc[0].jaw_pass_qc) and t.iloc[0].jaw_thresh_px_used == "none"
+    assert t.iloc[1].jaw_pass_qc is True or t.iloc[1].jaw_pass_qc == 1

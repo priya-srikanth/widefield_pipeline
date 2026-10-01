@@ -183,7 +183,12 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
             raise KeyError(f"jaw table has no trial_id {r.trial_id!r} -- trials drifted between the jaw table "
                            f"and this call; rebuild it with the same trials")
         j = jaw_table.iloc[k]
-        jaw_pass_qc = bool(j["jaw_pass_qc"])
+        # OURS: jaw_pass_qc may be NaN = unknown (jaw_kinematics `degenerate_as_unknown`). Then a trial with
+        # licks is still no candidate, but a quiet-tongue trial is UNKNOWN (NaN), not "no jaw move".
+        jaw_known = not (isinstance(j["jaw_pass_qc"], float) and np.isnan(j["jaw_pass_qc"]))
+        jaw_pass_qc = bool(j["jaw_pass_qc"]) if jaw_known else np.nan
+        candidate = (bool(quiet_tongue_pass and jaw_pass_qc) if jaw_known
+                     else (np.nan if quiet_tongue_pass else False))
 
         rows.append({
             "trial_id": r.trial_id,
@@ -197,7 +202,7 @@ def classify(jaw_y, tongue_x, tongue_y, fps: float, trials: pd.DataFrame, *, ove
             "quiet_tongue_pass": quiet_tongue_pass,
             **{col: j[col] for col in jaw_kinematics.JAW_COLUMNS if col != "jaw_pass_qc"},
             "jaw_pass_qc": jaw_pass_qc,
-            "candidate_no_lick_with_jaw_move": bool(quiet_tongue_pass and jaw_pass_qc),
+            "candidate_no_lick_with_jaw_move": candidate,
         })
 
     cols = ["trial_id", "position", "cue_frame", "cue_frame_idx", "fps", "quiet_win_end_ms", "n_licks_in_quiet_win",
@@ -246,12 +251,15 @@ def summarize_by_position(table: pd.DataFrame) -> pd.DataFrame:
     for pos in order:
         g = table[table["position"] == pos]
         n = len(g)
-        nc = int(g["candidate_no_lick_with_jaw_move"].sum())
+        cand = pd.to_numeric(g["candidate_no_lick_with_jaw_move"], errors="coerce")
+        jaw = pd.to_numeric(g["jaw_pass_qc"], errors="coerce")
+        nc = int(cand.sum())
+        n_known = int(cand.notna().sum())      # OURS: unknown-jaw trials leave the denominator
         out.append({"position": pos, "n_trials": n, "n_quiet_tongue": int(g["quiet_tongue_pass"].sum()),
-                    "n_jaw_moved": int(g["jaw_pass_qc"].sum()), "n_candidates": nc,
-                    "frac_candidates": nc / n if n else np.nan})
-    return pd.DataFrame(out, columns=["position", "n_trials", "n_quiet_tongue", "n_jaw_moved", "n_candidates",
-                                      "frac_candidates"])
+                    "n_jaw_moved": int(jaw.sum()), "n_jaw_unknown": int(jaw.isna().sum()), "n_candidates": nc,
+                    "frac_candidates": nc / n_known if n_known else np.nan})
+    return pd.DataFrame(out, columns=["position", "n_trials", "n_quiet_tongue", "n_jaw_moved", "n_jaw_unknown",
+                                      "n_candidates", "frac_candidates"])
 
 
 def _detector_params(tongue_detector_cfg: dict) -> dict:

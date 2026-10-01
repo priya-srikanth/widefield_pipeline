@@ -76,6 +76,10 @@ DEFAULTS: dict = {
     "deflection_threshold_min_px": 4.0,         # px, OLD RIG -- retune.  ... or > 4 px, whichever is larger
     "sustained_density_threshold": 0.625,       # >= 5/8 frames over threshold ...
     "sustained_window_n_frames": 8,             # ... in some rolling 8-FRAME window (32 ms at 250 fps)
+    # OURS (Priya 2026-10-01): a degenerate baseline (jaw invisible pre-cue, e.g. the close_center spout over
+    # the chin) means "cannot judge". True -> jaw_pass_qc = NaN (unknown) instead of their False. False here =
+    # theirs (parity); configs/defaults.yaml turns it on. Hoped-for fix: fill from the other cameras (3-D).
+    "degenerate_as_unknown": False,
 }
 
 #: The 10 per-trial scalars, in their emit order.
@@ -155,6 +159,7 @@ def _resolve(overrides: dict | None) -> dict:
         min_px=float(q["deflection_threshold_min_px"]),
         density_thr=float(q["sustained_density_threshold"]),
         window_n=int(q["sustained_window_n_frames"]),
+        degenerate_as_unknown=bool(q.get("degenerate_as_unknown", False)),
     )
 
 
@@ -171,7 +176,8 @@ def _iter_trials(trials: pd.DataFrame):
 
 def _compute_per_trial(trial_id, position, cue_frame, jaw_y: np.ndarray, fps: float, n_frames: int, *,
                        detect_win_ms: tuple[float, float], baseline_win_ms: tuple[float, float],
-                       sd_mult: float, min_px: float, density_thr: float, window_n: int) -> dict:
+                       sd_mult: float, min_px: float, density_thr: float, window_n: int,
+                       degenerate_as_unknown: bool = False) -> dict:
     """The 10 scalars for one trial (their `_compute_per_trial`; ``ev`` replaced by id / position / cue frame)."""
     # Snippet = union of the baseline and detect windows. Window masks are evaluated on t_ms, so the snippet's
     # extent changes nothing as long as it covers both (legacy Cell 53 used a fixed (-1500, 5500) ms).
@@ -204,7 +210,7 @@ def _compute_per_trial(trial_id, position, cue_frame, jaw_y: np.ndarray, fps: fl
                 "jaw_peak_pos_deflection": np.nan, "jaw_peak_neg_deflection": np.nan,
                 "jaw_peak_abs_deflection": np.nan, "jaw_peak_selected_deflection": np.nan,
                 "jaw_thresh_abs": np.nan, "jaw_thresh_px_used": "none",
-                "jaw_n_frames_over_thresh": 0, "jaw_pass_qc": False}
+                "jaw_n_frames_over_thresh": 0, "jaw_pass_qc": np.nan if degenerate_as_unknown else False}
 
     peaks = _compute_jaw_deflections(jaw_yw, t_ms, base_mean, detect_win_ms=detect_win_ms)
     pass_qc, n_over = _check_sustained_density(jaw_yw, t_ms, base_mean, thresh_abs, detect_win_ms=detect_win_ms,

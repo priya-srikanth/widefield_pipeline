@@ -13,7 +13,7 @@ velocity). Every number is in MOUTH-relative px (tongue) as the pipeline sees it
            max-|angle| frame is (the origin is the mouth, so frames near the lips give short, unstable vectors).
   JAW      jaw_pass_qc by position, threshold branch ("none" = degenerate baseline = cannot judge), jaw
            confidence pre-cue.
-  VELOCITY per-lick max dy/dt: the v7 window [rise_start, fall_end] (lmax: fixed +-16 ms) vs the whole visible
+  VELOCITY per-lick max dy/dt: the pipeline window (configs velocity_window; theirs "v7" = lmax peak +-16 ms) vs the whole visible
            rise; LP/DLC agreement for licks both models kept.
 """
 from __future__ import annotations
@@ -138,7 +138,7 @@ def agreement(L: pd.DataFrame) -> None:
             m.append((r.v_v7, g.v_v7.iloc[0], r.v_full_rise, g.v_full_rise.iloc[0], r.source == g.source.iloc[0]))
     m = pd.DataFrame(m, columns=["d7", "l7", "dF", "lF", "same_src"])
     print(f"\n===== VELOCITY AGREEMENT, licks kept by both models (same detector in both: {m.same_src.mean():.0%})")
-    for c1, c2, lab in (("d7", "l7", "v7 window"), ("dF", "lF", "whole visible rise")):
+    for c1, c2, lab in (("d7", "l7", "pipeline window (config)"), ("dF", "lF", "whole visible rise")):
         ok = np.isfinite(m[c1]) & np.isfinite(m[c2]) & (m[c1] > 0) & (m[c2] > 0)
         r = m[c2][ok] / m[c1][ok]
         print(f"  {lab:18s}: n={int(ok.sum())}, LP/DLC p10/50/90 {np.percentile(r, [10, 50, 90]).round(2)}, "
