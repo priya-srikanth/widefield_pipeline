@@ -15,16 +15,13 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
 `M:\MICROSCOPE\Priya\DeepLabCut\Widefield\lp_vs_dlc_cue_traces\PS93_20260908\`; LP CSV locally at
 `%USERPROFILE%\lp_cue_tmp\cue_windows_LP.csv`).
 
-1. **Open decisions for Priya** (do not pick for her):
-   * **DLC likelihood cutoff 0.6 → 0.4?** Evidence: DAQ-contact recall 95.9 % → 97.7 %, +9 kept licks, the added
-     licks' frames mostly show the tongue out. LP unaffected (near-binary confidence). Proposed, not applied.
-   * **Fix the inherited one-frame v7 offset?** (DECISIONS "Tongue / jaw kinematics … PORTED"): peak indices are
-     detect-window-relative but used as slice indices → x-at-peak, rise/fall, gate D/M windows, velocity windows read
-     4 ms early; lick times correct. Kept for exact parity with stroke_orofacial. One-line fix.
-2. **Next QC step (Priya agreed to QC every stage visually):** the ~60 kept licks per model with NO spout contact.
-   The DAQ cannot see incomplete licks (no contact), so these are judged on video frames only: real incomplete
-   licks vs false detections. Then retune px thresholds stage by stage (pre-clean → detector → gates) with
-   `scripts/tongue_qc_steps.py`, in MOUTH-relative px.
+1. **Decided 10-01 (later):** cleaning cutoff **0.4** (both models); the one-frame v7 offset **fixed**
+   (`fix_detect_offset: true`; DEFAULTS False = parity). DECISIONS "Cleaning cutoff 0.4; one-frame v7 offset fixed …".
+2. **No-contact lick QC done** (`scripts/tongue_nocontact_qc.py`, `…/PS93_20260908/nocontact_qc/`): 64 candidates,
+   60 kept by both models, no clear false detection — 28 real extensions (far positions), 15 small protrusions,
+   21 "tip at the lips" (< 45 px; tongue first visible at ~30–45 px). **Open for Priya: do tip-at-lips count as
+   licks?** (floor ~45 px vs keep + flag). Then retune px thresholds stage by stage (pre-clean → detector → gates)
+   with `scripts/tongue_qc_steps.py`, in MOUTH-relative px — `min_peak_y_abs` 20 px is below the lip line.
 3. Then: angles (`angle_max_signed_lick*` often has the opposite sign to the lick-1 angle — check the ±52 ms window),
    jaw (`jaw_pass_qc` fails all close_center trials for DLC — spout hides the chin?), velocities (2× between models).
 4. Then full sessions: needs whole-session predictions (one batch inference per model; LP in WSL ONLY with
@@ -95,9 +92,8 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
     the paths.yaml fix is Priya's call (another session's memory note, 09-30).
 
 ## 4. To do (not started)
-* No-contact lick QC (frames) → px retune of pre-clean / detector / gates on mouth-relative px → then the
+* (no-contact QC done) tip-at-lips decision → px retune of pre-clean / detector / gates on mouth-relative px → then the
   orofacial_clean px thresholds (x-range, v3.4 ceilings).
-* Decide DLC cutoff; decide the one-frame fix.
 * Angle checks (signed-max window), jaw close_center QC, velocity comparison.
 * Whole-session predictions (DLC + LP) and a session-level run; spout frame from full strobe → stop spans.
 * Spout frame in cam1 once labelled; 3-D later.

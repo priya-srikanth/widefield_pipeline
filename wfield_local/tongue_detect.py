@@ -807,6 +807,15 @@ def legacy_peaks_to_peak_list(legacy: LickPeaks, detector_params, fps) -> PeakLi
                     legacy.rise_starts, fall_ends)
 
 
+def shift_peak_list(pl: PeakList, offset: int) -> PeakList:
+    """OURS (the fix for the NOTE in `merge_detector_outputs`): detect-segment-local frames -> trial-slice
+    frames by adding the window's first index. Times / y / x are already right and pass through."""
+    if pl is None or len(pl) == 0 or offset == 0:
+        return pl
+    return PeakList(pl.peak_times_ms, pl.peak_y, pl.peak_x, pl.peak_indices + offset,
+                    pl.rise_starts + offset, pl.fall_ends + offset)
+
+
 def merge_detector_outputs(peak_lists, likelihood, fps, *, params) -> list[DetectedPeak]:
     """Cross-detector dedupe (their `merge_detector_outputs`): in the order given (lmax, bounded, legacy), drop
     a peak within dedupe_radius frames of one already added. Sorted by frame.

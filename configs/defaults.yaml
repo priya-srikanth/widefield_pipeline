@@ -1017,7 +1017,7 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
                               # theirs and are NOT yet tuned for this rig -- the ms values transfer (both rigs
                               # 250 fps), but every px value was set on the old Flea3 camera view and must be
                               # re-measured on our 680x680 cam4 view before trusting a cleaned trace.
-  lk_thr_note: "theirs 0.5; ours 0.6 = dlc.train.pcutoff, so 'confident' means the same in every figure"
+  lk_thr_note: "theirs 0.5; ours 0.4 (Priya 2026-10-01: DAQ-contact recall 95.9 -> 97.7 % on PS93 0908, added licks show the tongue out; LP near-binary, unaffected). dlc.train.pcutoff stays 0.6 (DLC's own videos/eval)"
   interpolation_method: pchip
   interpolation_fallback: linear
   baseline:                   # theirs: per-animal fixed X0/Y0 in animals.yaml (force: true). We have none,
@@ -1028,7 +1028,7 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
   tongue:
     x_range_pm: 150.0         # px, OLD RIG -- retune
     x_range_source: lk
-    lk_thr: 0.6
+    lk_thr: 0.4
     n_neigh: 2
     neighbor_ms: 16.0
     max_gap_ms: 56.0
@@ -1038,7 +1038,7 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
   jaw:
     x_range_pm: 75.0          # px, OLD RIG -- retune
     x_range_source: lk
-    lk_thr: 0.6
+    lk_thr: 0.4
     n_neigh: 3
     neighbor_ms: 16.0
     max_gap_ms: 120.0
@@ -1070,6 +1070,7 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     licking_dyn_apply_win_ms: [70.0, 5000.0]
     angle_apply_win_ms: [70.0, 5000.0]
     trial_slice_win_ms: [70.0, 8000.0]         # theirs hard-coded; start must equal lick12_detect_win_ms[0]
+    fix_detect_offset: true                    # OURS (Priya 2026-10-01): detector frames -> trial-slice frames (theirs read 1 frame = 4 ms early); DEFAULTS false = parity
     preclean:
       high_thr_px: 130.0                       # px, OLD RIG -- retune  (== gates.d_y_thr_px by design)
       shape_low_thr_px: 80.0                   # px, OLD RIG -- retune

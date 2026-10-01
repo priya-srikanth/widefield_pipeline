@@ -5,7 +5,7 @@ detectors -> gates -> kept licks, plus the video frame at every rejected peak.
 
 Priya, 2026-10-01: "let's visually qc each step on our data". PS93 0908 cue clip (24 trials). Tongue y is px from
 the MOUTH (spout-frame origin), y grows downward = tongue out. Per selected trial, three rows:
-  1  raw tongue y (black = likelihood > 0.6, grey = below) and the v5p3 clean trace (blue)
+  1  raw tongue y (black = likelihood >= the cleaning cutoff, grey = below) and the v5p3 clean trace (blue)
   2  v7 pre-clean: cleaned trace; shaded = raw clusters the pre-clean labelled artifact (red) / keep_low (green)
   3  peaks: every merged peak, marker = detector (o lmax, s bounded, ^ legacy); green = kept, red X = rejected
      with its gate letter; grey band = the response window (cue + 70 ms .. trial stop); dashed lines = the current
@@ -72,7 +72,7 @@ def main(argv=None) -> int:
         sl = slice(lo, r.session_frame_hi + 1)
         t = r.t_ms
         y_raw = tg.y_raw[sl] - tg.Y0
-        ok = tg.lk[sl] > 0.6
+        ok = tg.lk[sl] >= oc.params("tongue")["lk_thr"]
         ax = axs[0, col]
         ax.plot(t[~ok], y_raw[~ok], ".", ms=1.5, color="0.75")
         ax.plot(t[ok], y_raw[ok], ".", ms=1.5, color="k")

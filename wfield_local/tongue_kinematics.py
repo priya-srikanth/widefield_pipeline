@@ -67,9 +67,10 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
     exact rule their first-5 velocity extractor applies; the per-trial first-5 columns are those values for
     the first five kept licks inside `peak_velocity_detect_win_ms`, i.e. identical to theirs.
 
-CARRIED OVER, NOT FIXED (so numbers match theirs; see the NOTE in `tongue_detect.merge_detector_outputs`):
-peak FRAMES out of the detectors are detect-window-local but are used as trial-slice frames, a one-frame
-(4 ms) early shift in x-at-peak, rise/fall ms, gate windows and velocity windows. Peak TIMES are correct.
+FIXED ON REQUEST (Priya 2026-10-01; see the NOTE in `tongue_detect.merge_detector_outputs`): peak FRAMES out
+of the detectors are detect-window-local but theirs uses them as trial-slice frames, a one-frame (4 ms) early
+shift in x-at-peak, rise/fall ms, gate windows and velocity windows (peak TIMES correct). `fix_detect_offset`
+(True in configs/defaults.yaml, False in DEFAULTS so the parity tests still mirror theirs) shifts them.
 Also carried over: kept licks exist only inside `lick12_detect_win_ms` (70-3000 ms), so the dynamics and
 own-bout features, whose apply windows run to 5000 ms, see no lick after 3000 ms -- while `n_licks` (slope
 detector on the cleaned slice, 70-8000 ms) counts to 5000 ms. And trial slices run to +8000 ms: if trials
@@ -106,6 +107,9 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
     # runs on THIS slice, so its start must equal lick12_detect_win_ms[0] for the frame bookkeeping to stay
     # what theirs is (see the module docstring's off-by-one note).
     "trial_slice_win_ms": [70.0, 8000.0],
+    # OURS: True shifts detector frames onto the trial slice (the off-by-one fix). False here = theirs (parity
+    # tests); configs/defaults.yaml turns it on.
+    "fix_detect_offset": False,
     "bout": {
         "max_ili_ms": 300.0,
         "min_ili_ms": 80.0,
@@ -322,7 +326,7 @@ def _bout_time_bounds_ms(peak_times_ms, single_bout_win_ms):
 @dataclass
 class V7TrialResult:
     """One trial through the v7 pipeline (their `_V7TrialResult`; ``side`` -> ``position``). Frame indices
-    in ``kept_licks`` / ``decisions`` are trial-slice-local (with the inherited one-frame shift)."""
+    in ``kept_licks`` / ``decisions`` are trial-slice-local (one frame early unless ``fix_detect_offset``)."""
     trial_id: Any
     position: str
     cue_frame: float
@@ -369,6 +373,13 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
         td.slope_detect_lick_peaks(y_clean, x_clean, t_ms, fps, detect_win_ms=detect_win_ms,
                                    detector_params=detector_params, n_max=None),
         detector_params, fps)
+
+    # OURS (Priya 2026-10-01, `fix_detect_offset`): move the detector frames onto the trial slice before they
+    # index anything (theirs used them as-is, one frame early -- module docstring). Off in DEFAULTS = parity.
+    if p.get("fix_detect_offset", False):
+        b = td._window_bounds(t_ms, detect_win_ms)
+        if b is not None:
+            lmax_pl, bounded_pl, legacy_pl = (td.shift_peak_list(pl, b[0]) for pl in (lmax_pl, bounded_pl, legacy_pl))
 
     # Stage 2.5: dedupe, lmax wins on overlap
     merged = td.merge_detector_outputs([("lmax", lmax_pl), ("bounded", bounded_pl), ("legacy", legacy_pl)],

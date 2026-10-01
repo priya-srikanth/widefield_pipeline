@@ -49,6 +49,26 @@ def test_per_trial_features_on_a_clean_lick_train():
     assert set(traces.position) == set(tk.POSITIONS) and len(traces) == 6 * 247
 
 
+def test_fix_detect_offset_reads_the_peak_frame():
+    """Theirs reads frame-indexed values one frame early; `fix_detect_offset` reads them AT the peak time."""
+    y, x, fm, lk, cues, _truth = synth_session(seed=3, extras=False)
+    x = x + np.arange(len(x)) * 0.01                                  # x differs frame to frame
+    old = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS)
+    new = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS,
+                                       params_override={"fix_detect_offset": True})
+    n_checked = 0
+    for ro, rn in zip(old.trial_results, new.trial_results):
+        assert [k["t_ms"] for k in ro.kept_licks] == [k["t_ms"] for k in rn.kept_licks]   # times untouched
+        for ko, kn in zip(ro.kept_licks, rn.kept_licks):
+            f = int(np.argmin(np.abs(rn.t_ms - kn["t_ms"])))
+            assert rn.t_ms[f] == pytest.approx(kn["t_ms"])
+            assert kn["x"] == pytest.approx(rn.x_clean[f], nan_ok=True)
+            assert ko["x"] == pytest.approx(ro.x_clean[f - 1], nan_ok=True)
+            assert kn["rise_start_ms"] - ko["rise_start_ms"] == pytest.approx(1000.0 / FPS)
+            n_checked += bool(np.isfinite(kn["x"]) and np.isfinite(ko["x"]) and kn["x"] != ko["x"])
+    assert n_checked > 20
+
+
 def test_angle_geometry():
     f = tk.SpoutFrame(origin=(300.0, 100.0), ap_axis=(0.0, -5.0))   # spouts BELOW the mouth; normalised
     a = tk.compute_signed_tongue_angle_deg(np.array([300.0, 400.0, 200.0]), np.array([200.0, 200.0, 200.0]), f)

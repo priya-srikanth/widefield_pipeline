@@ -34,7 +34,7 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
   * No centering step. Theirs subtracted a reference (spout midpoint for tongue, eye midpoint for jaw) before
     stage 1; stage 1 uses the bodypart's OWN median and stage 6 subtracts X0/Y0, so a constant centre cancels.
     A task/anatomical reference frame (spout axes, nose) belongs in a later geometry step, not in cleaning.
-  * lk_thr 0.6 (our `dlc.train.pcutoff`) instead of their 0.5.
+  * lk_thr 0.4 instead of their 0.5 (Priya 2026-10-01; 0.6 = `dlc.train.pcutoff` at port time).
   * NOT YET PORTED: the tongue "v7 pre-clean" (`_preclean.py`: cluster classifier + x-side rules, 646 lines,
     thresholds tuned on old-rig tongue shapes) and the per-trial lick detector / angle features built on it.
     Port those once the px thresholds here are retuned on our view, since they sit on top of these traces.

@@ -18894,3 +18894,33 @@ data); LP is near-binary (0.4–0.6: 0.3 %). **Recall vs DAQ spout contacts** (`
 every contact is a lick, so this lower-bounds misses): DLC 0.6 255/266 (95.9 %), DLC 0.4 260/266 (97.7 %), LP 0.6
 263/266 (98.9 %); misses concentrate at close_R (spout in front of the mouth) and close_center; ~60 kept licks per
 model have no contact (incomplete licks or false detections — next QC). Proposed: DLC cutoff 0.4, LP unchanged.
+
+## 2026-10-01 — Cleaning cutoff 0.4; one-frame v7 offset fixed; no-contact licks are real tongue movements
+
+**Decided by Priya:** (1) the cleaning likelihood cutoff is **0.4** (`orofacial_clean.tongue/jaw.lk_thr`; was
+0.6; evidence in the addendum above — recall 95.9 → 97.7 %). It applies to both models (LP's confidence is
+near-binary, so it changes nothing there). `dlc.train.pcutoff` stays 0.6 (DLC's own labelled videos / evaluation).
+(2) **The inherited one-frame offset is fixed**: `orofacial_kinematics.tongue.fix_detect_offset: true` adds the
+detect window's first index to every detector frame (`tongue_detect.shift_peak_list`) before it indexes the trial
+slice, so x-at-peak, rise/fall ms, gate D/M windows, velocity windows and the per-lick angle are read AT the peak
+instead of 4 ms early. Peak times never moved. The module DEFAULT stays False so the parity tests still mirror
+stroke_orofacial; `test_fix_detect_offset_reads_the_peak_frame` pins the fixed behaviour. Consequence: our
+frame-indexed numbers differ from stroke_orofacial's published ones by that frame. PS93 0908 kept / recall
+unchanged by the fix (DLC 324 kept, 260/266; LP 324, 263/266).
+
+**No-contact lick QC** (`scripts/tongue_nocontact_qc.py`; contact sheets + CSV at
+`lp_vs_dlc_cue_traces/PS93_20260908/nocontact_qc/`). Kept licks of both models pooled (same trial, peaks ≤ 30 ms
+apart): **64 with no DAQ contact, 60 of them kept independently by BOTH models.** Judged on frames (rest frame,
+peak ±20/±40 ms, both traces), with 5 DAQ-confirmed licks as calibration: **no clear false detection**. Three groups
+by peak height from the mouth:
+* **28 extensions ≥ 60 px, ALL at far positions** (13 > 100 px, up to 184 px at far_L — full-length licks):
+  the tongue goes out and back cleanly but never registers on the spout. These are the incomplete / missed licks
+  the pipeline exists to catch (or contacts the sensor missed — the far spouts are outside the crop, so the frames
+  cannot separate the two).
+* **15 small protrusions 45–60 px**: the tongue tip clearly out past the lips, briefly.
+* **21 "tip at the lips" < 45 px**: the tongue first becomes visible at ~30–45 px from the origin (median first
+  tracked y 43.5 px); these rise 5–10 px above that, the tip barely showing in the frame. No DAQ-contact lick
+  peaks below 53 px (p1 67), so a height floor here would never drop a contact lick.
+**Open (Priya):** whether "tip at the lips" counts as a lick. The detector's `min_peak_y_abs` (20 px) sits BELOW
+the lip line in mouth-relative px, so today it keeps them all. Options: a floor ~45 px; or keep them and flag
+small licks per lick so counts can be reported with and without.
