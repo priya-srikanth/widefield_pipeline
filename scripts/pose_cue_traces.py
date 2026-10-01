@@ -243,16 +243,72 @@ def cmd_zoom(spec, rv, lp_csv, n_trials: int = 4, t1_ms: float = 1000.0):
     print(f"-> {p}")
 
 
+def cmd_onlyone(spec, rv, lp_csv, per_group: int = 8, seed: int = 1):
+    """Contact sheet of frames where only ONE model is confident (DLC-only / LP-only, tongue and jaw), with
+    both models' points drawn, to judge who is right (Priya, 2026-10-01: "in some instances DLC is carrying
+    valuable information that LP lost"). Filled marker = that model confident; hollow = below cutoff (LP's
+    hollow marker is then the image centre and is not drawn)."""
+    import cv2
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    animal, date, *_ = _session(spec, rv)
+    out = _out(rv, animal, date)
+    idx = pd.read_csv(out / "cue_windows_index.csv")
+    D, L = _load(out / "cue_windows_DLC.csv"), _load(lp_csv)
+    n = min(len(idx), len(D), len(L))
+    rng = np.random.default_rng(seed)
+    groups = []
+    for part in ("jaw", "tongue"):
+        d = D[part]["likelihood"].values[:n] > PCUT
+        l_ = L[part]["likelihood"].values[:n] > PCUT
+        for name, m in ((f"{part}: DLC only", d & ~l_), (f"{part}: LP only", ~d & l_)):
+            cand = np.flatnonzero(m)
+            pick = np.sort(rng.choice(cand, min(per_group, len(cand)), replace=False)) if len(cand) else []
+            groups.append((name, part, int(m.sum()), pick))
+    cap = cv2.VideoCapture(str(out / "cue_windows.mp4"))
+    fig, axs = plt.subplots(len(groups), per_group, figsize=(2.2 * per_group, 2.5 * len(groups)), squeeze=False)
+    for r, (name, part, total, pick) in enumerate(groups):
+        for c in range(per_group):
+            ax = axs[r, c]
+            ax.axis("off")
+            if c >= len(pick):
+                continue
+            i = int(pick[c])
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+            ok, im = cap.read()
+            if not ok:
+                continue
+            ax.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB)[250:640, 170:510])          # mouth region
+            for mname, X, mk in (("DLC", D, "o"), ("LP", L, "X")):
+                x, y, p = X[part]["x"].values[i], X[part]["y"].values[i], X[part]["likelihood"].values[i]
+                if mname == "LP" and p <= PCUT:
+                    continue                                   # LP below cutoff = image centre, meaningless
+                ax.plot(x - 170, y - 250, mk, ms=7, mfc=COLORS[mname] if p > PCUT else "none",
+                        mec=COLORS[mname], mew=1.5)
+            ax.set_title(f"{idx.t_ms.values[i]:.0f} ms  D{D[part]['likelihood'].values[i]:.2f} "
+                         f"L{L[part]['likelihood'].values[i]:.2f}", fontsize=7)
+        axs[r, 0].text(-0.08, 0.5, f"{name}\n({total} fr)", transform=axs[r, 0].transAxes, ha="right",
+                       va="center", fontsize=9)
+    cap.release()
+    fig.suptitle(f"{animal} {date}: frames where only one model is confident | DLC o blue, LP x magenta | "
+                 f"filled = p > {PCUT}, hollow = below | title: ms from cue, D/L likelihood", fontsize=10)
+    fig.tight_layout()
+    p = out / f"{animal}_{date}_only_one_confident.png"
+    fig.savefig(p, dpi=170, bbox_inches="tight")
+    print(f"-> {p}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["clip", "dlc", "plot", "zoom"])
+    ap.add_argument("cmd", choices=["clip", "dlc", "plot", "zoom", "onlyone"])
     ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--lp", type=Path, help="LP predictions CSV for the clip (plot)")
     ap.add_argument("--filtered", action="store_true", help="apply the median-5 filter to both models first")
     a = ap.parse_args(argv)
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
-     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered), "zoom": lambda: cmd_zoom(a.session, rv, a.lp)}[a.cmd]()
+     "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered), "zoom": lambda: cmd_zoom(a.session, rv, a.lp), "onlyone": lambda: cmd_onlyone(a.session, rv, a.lp)}[a.cmd]()
     return 0
 
 
