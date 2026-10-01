@@ -1105,6 +1105,7 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
       dedupe_radius_ms: 50.0
       max_fall_search_ms: 52.0
     gates:
+      f_enabled: false                         # OFF (Priya 2026-10-01): rejected real licks -- tongue held on the spout, small incomplete licks
       f_wp_win_ms: 20.0
       f_wp_std_thr: 1.0                        # px, OLD RIG -- retune
       f_k_min_raw: 3                           # frames

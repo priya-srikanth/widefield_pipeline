@@ -18882,3 +18882,15 @@ spout; peak velocities differ 2× between models (jitter + old-rig thresholds). 
 in every session checked (09-08 → 09-29). `trial_windows.trial_bounds` now uses its rising edge first; the
 log-mapped `trial_stop_ttl` and cue + response_window are fallbacks. PS93 0908: DAQ vs log-mapped stop, 510/510
 trials, median −2.2 ms, max |diff| 4.3 ms — so the earlier log-based numbers stand.
+
+**Addendum (2026-10-01) — tongue QC on our data: gate F off; likelihood cutoff; recall against spout contacts.**
+`scripts/tongue_qc_steps.py` (raw → clean → pre-clean → detectors → gates, with the frame at every rejected
+peak), PS93 0908 cue clip, DLC: 9/317 peaks rejected — 2 by gate M (second peak 52–64 ms into the same lick:
+correct) and 7 by **gate F** ("flat plateau", raw y std < 1 px in ±20 ms), all REAL licks: the tongue held
+against the spout at full extension, and small incomplete licks at the lips. **Gate F is off**
+(`orofacial_kinematics.tongue.gates.f_enabled: false`; module DEFAULTS keep it on for parity).
+Likelihood: our cleaning cutoff is 0.6 (theirs 0.5). DLC tongue frames 0.4–0.6: 2.8 % of frames (+13 % tongue
+data); LP is near-binary (0.4–0.6: 0.3 %). **Recall vs DAQ spout contacts** (`scripts/tongue_contact_recall.py`;
+every contact is a lick, so this lower-bounds misses): DLC 0.6 255/266 (95.9 %), DLC 0.4 260/266 (97.7 %), LP 0.6
+263/266 (98.9 %); misses concentrate at close_R (spout in front of the mouth) and close_center; ~60 kept licks per
+model have no contact (incomplete licks or false detections — next QC). Proposed: DLC cutoff 0.4, LP unchanged.

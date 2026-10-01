@@ -383,8 +383,13 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
     min_peak_y_abs = float(detector_params["min_peak_y_abs"])
     for r in decisions:
         pf = r["peak_frame_local"]
-        F_rej, F_reason, F_std = td.gate_F(y_clean, is_interp_fill_slice, is_base_clean, pf, n_frames, fps,
-                                           params=gates_params)
+        # OURS (2026-10-01, Priya: "let's get rid of gate f"): gate F (raw y std < 1 px within +-20 ms = "flat
+        # plateau") rejected REAL licks on our data -- the tongue held against the spout (flat at full extension)
+        # and small incomplete licks at the lips (PS93 0908 QC, 7/7 F rejections). `gates.f_enabled: false` in
+        # configs/defaults.yaml turns it off; DEFAULTS keep it on so the parity tests still mirror theirs.
+        F_rej, F_reason, F_std = (td.gate_F(y_clean, is_interp_fill_slice, is_base_clean, pf, n_frames, fps,
+                                            params=gates_params)
+                                  if gates_params.get("f_enabled", True) else (False, "", np.nan))
         if F_rej:
             r.update(keep=False, reason=F_reason, gate="F", wp_raw_std=F_std)
             continue

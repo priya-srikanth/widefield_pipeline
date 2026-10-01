@@ -41,7 +41,11 @@ def main(argv=None) -> int:
     ap.add_argument("--model", choices=["DLC", "LP"], default="DLC")
     ap.add_argument("--lp", type=Path, default=Path.home() / "lp_cue_tmp" / "cue_windows_LP.csv")
     ap.add_argument("--n", type=int, default=8)
+    ap.add_argument("--lk", type=float, default=None, help="override orofacial_clean lk_thr (tongue + jaw) for this run")
     a = ap.parse_args(argv)
+    if a.lk is not None:                       # a QC-only override: the cleaning cutoff, both bodyparts
+        _orig = oc.params
+        oc.params = lambda bp: {**_orig(bp), "lk_thr": a.lk}       # noqa: E731
     rv = PathResolver()
     d = dlc_project.project_dir(rv).parent / "lp_vs_dlc_cue_traces" / "PS93_20260908"
     idx = pd.read_csv(d / "cue_windows_index.csv")
@@ -100,12 +104,17 @@ def main(argv=None) -> int:
         axs[2, col].set_xlabel("ms from cue")
     for row, lab in enumerate(("raw + v5p3 clean", "v7 pre-clean", "peaks + gates")):
         axs[row, 0].set_ylabel(f"{lab}\ntongue y from mouth (px)", fontsize=8)
-    fig.suptitle(f"PS93 0908, {a.model}: tongue stages on our data (thresholds dashed: min 20 / shape_low 80 / high 130, "
+    fig.suptitle(f"PS93 0908, {a.model}, lk cutoff {a.lk if a.lk is not None else oc.params('tongue')['lk_thr']}, gate F "
+                 f"{'on' if p['gates'].get('f_enabled', True) else 'OFF'}: tongue stages on our data (thresholds dashed: min 20 / shape_low 80 / high 130, "
                  f"old-rig values in mouth-relative px)", fontsize=10)
     fig.tight_layout()
-    out = d / f"tongue_qc_steps_{a.model}.png"
+    tag = f"{a.model}" + (f"_lk{a.lk:g}" if a.lk is not None else "")
+    out = d / f"tongue_qc_steps_{tag}.png"
     fig.savefig(out, dpi=140, bbox_inches="tight")
-    print(f"-> {out}  ({len(bad)} trials with rejections/artifacts)")
+    n_kept = sum(len(r.kept_licks) for r in res)
+    n_rej = sum(not x["keep"] for r in res for x in r.decisions)
+    gates_ = pd.Series([x["gate"] for r in res for x in r.decisions if not x["keep"]], dtype=str).value_counts().to_dict()
+    print(f"-> {out}  ({len(bad)} trials with rejections/artifacts; kept {n_kept}, rejected {n_rej} {gates_})")
 
     if thumbs:
         cap = cv2.VideoCapture(str(d / "cue_windows.mp4"))
@@ -122,7 +131,7 @@ def main(argv=None) -> int:
         cap.release()
         fig2.suptitle(f"{a.model}: video frame at every REJECTED peak (star = mouth)", fontsize=9)
         fig2.tight_layout()
-        out2 = d / f"tongue_qc_rejected_frames_{a.model}.png"
+        out2 = d / f"tongue_qc_rejected_frames_{tag}.png"
         fig2.savefig(out2, dpi=140, bbox_inches="tight")
         print(f"-> {out2}")
     return 0
