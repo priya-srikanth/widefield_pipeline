@@ -87,6 +87,12 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
 9. `test_no_hardcoded_machine_paths` blocks pushes on typed paths; `ruff --fix` can delete an import a later edit
    needs — re-run the file after fixing.
 10. Other windows leave uncommitted edits in this repo — commit only your own files.
+11. **Since the 09-30 drive swap `PathResolver` misdetects this desktop as the other analysis box (`machine
+    analysis`):** SHARE roots resolve correctly (everything the kinematics code uses), but LOCAL roots
+    (`figures_working`, session cache, frozen models) point at `C:/Users/sabatini/...`, which does not exist here.
+    Check `python -c "from wfield_local.paths import PathResolver as P; r=P(); print(r.machine, r.root('figures_working'))"`
+    before running anything that writes locally; workaround `WIDEFIELD_SESSION_CACHE=C:\Users\SabatiniLab\.widefield_session_cache`;
+    the paths.yaml fix is Priya's call (another session's memory note, 09-30).
 
 ## 4. To do (not started)
 * No-contact lick QC (frames) → px retune of pre-clean / detector / gates on mouth-relative px → then the
