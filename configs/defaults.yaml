@@ -1074,6 +1074,9 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     velocity_window: visible_rise              # OURS (Priya 2026-10-01): max dy/dt over the whole visible rise (theirs "v7": peak +-16 ms for lmax licks); + retraction speed
     lick_geometry: true                        # OURS: per-lick on/off, xy protrusion from the mouth (spout frame), lick-phase table
     phase: {n_points: 21, extent_slack_px: 2.0}
+    detect_on: protrusion                      # OURS (Priya 2026-10-01): detect licks on the tongue-mouth distance (theirs: image y)
+    contact: {match_ms: 60.0}                  # OURS: DAQ spout contact per lick = a contact onset within 60 ms of the peak
+    spout_ref: {lk_thr: 0.6, fallback_win_ms: [0.0, 3500.0]}   # OURS: per-trial spout tip = median cue -> stop (reach accuracy)
     preclean:
       high_thr_px: 130.0                       # px, OLD RIG -- retune  (== gates.d_y_thr_px by design)
       shape_low_thr_px: 80.0                   # px, OLD RIG -- retune

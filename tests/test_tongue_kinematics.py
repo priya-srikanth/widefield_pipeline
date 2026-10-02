@@ -314,3 +314,50 @@ def test_angle_max_signed_within_lick_ignores_the_next_lick():
     t = np.array([(100 - 50) / FPS * 1000.0])                        # lick peak at frame 100, cue at 50
     assert tk.angle_max_signed_per_lick(ang, FPS, 50, t, 52.0)[0] == -40.0
     assert tk.angle_max_signed_per_lick(ang, FPS, 50, t, 52.0, extents=[(95, 106)])[0] == 5.0
+
+
+def test_contacts_spout_reference_and_reach_accuracy():
+    """OURS: per-lick DAQ contact, per-trial spout tip, delta angle / tip-to-spout / reach fraction."""
+    y, x, fm, lk, cues, _truth = synth_session(seed=3, extras=False)
+    X0, Y0 = 320.0, 250.0
+    frame = tk.SpoutFrame(origin=(X0, Y0), ap_axis=(0.0, -1.0))          # mouth at the zero, spouts straight down
+    n = len(y)
+    spout = (np.full(n, X0 + 100.0), np.full(n, Y0 + 100.0), np.ones(n))   # spout tip at +45 deg, 141 px out
+    tr = _trials(cues)
+    ov = {"lick_geometry": True, "fix_detect_offset": True}
+    base = tk.compute_tongue_kinematics(x, y, fm, lk, tr, fps=FPS, X0=X0, Y0=Y0, spout_frame=frame, params_override=ov)
+    first = {t.trial_id: base.per_lick[base.per_lick.trial_id == t.trial_id].t_ms.iloc[0] for t in tr}
+    contacts = {k: np.array([t + 20.0]) for k, t in first.items()}         # one contact, 20 ms after lick 1
+    r = tk.compute_tongue_kinematics(x, y, fm, lk, tr, fps=FPS, X0=X0, Y0=Y0, spout_frame=frame, params_override=ov,
+                                     spout_xy=spout, contacts_ms=contacts)
+    pl, pt = r.per_lick, r.per_trial
+    assert (pl.groupby("trial_id").contact.sum() == 1).all()               # only lick 1 of each trial
+    assert (pt.n_daq_contacts == 1).all() and (pt.n_licks_contact == 1).all()
+    np.testing.assert_allclose(pt.spout_angle_deg, 45.0)
+    np.testing.assert_allclose(pt.spout_dist_px, np.hypot(100, 100))
+    ang = np.degrees(np.arctan2(pl.lr_px, pl.ap_px))
+    np.testing.assert_allclose(pl.delta_angle_deg, ang - 45.0)
+    np.testing.assert_allclose(pl.tip_to_spout_px, np.hypot(pl.ap_px - 100, pl.lr_px - 100))
+    np.testing.assert_allclose(pl.reach_frac, pl.protrusion_px / np.hypot(100, 100))
+    np.testing.assert_allclose(r.lick_phase.delta_angle_deg, r.lick_phase.angle_deg - 45.0)
+
+
+def test_detect_on_protrusion_keeps_image_geometry():
+    """OURS: detection on the tongue-mouth distance finds the same licks on near-straight licks, and the
+    per-lick y is then the distance while angles / ap / lr still come from image coordinates."""
+    y, x, fm, lk, cues, _truth = synth_session(seed=3, extras=False)
+    X0, Y0 = 320.0, 250.0
+    frame = tk.SpoutFrame(origin=(X0, Y0), ap_axis=(0.0, -1.0))
+    ov = {"lick_geometry": True, "fix_detect_offset": True}
+    a = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, X0=X0, Y0=Y0, spout_frame=frame,
+                                     params_override=ov)
+    b = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, X0=X0, Y0=Y0, spout_frame=frame,
+                                     params_override={**ov, "detect_on": "protrusion"})
+    assert abs(len(a.per_lick) - len(b.per_lick)) <= 1
+    m = a.per_lick.merge(b.per_lick, on=["trial_id", "t_ms"], suffixes=("_y", "_d"))
+    assert len(m) >= len(a.per_lick) - 1
+    np.testing.assert_allclose(m.y_d, np.hypot(m.x_d, m.y_image), rtol=1e-6)     # y = distance from the mouth
+    np.testing.assert_allclose(m.y_image, m.y_y)                                    # image y unchanged
+    np.testing.assert_allclose(m.peak_angle_deg_d, m.peak_angle_deg_y)
+    with pytest.raises(ValueError):
+        tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, params_override={"detect_on": "protrusion"})

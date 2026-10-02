@@ -25,7 +25,20 @@ from wfield_local import tongue_kinematics as tk
 SEP = 2200
 
 
-def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_after_cue_s: dict | None = None):
+def daq_contacts_ms(animal: str, date: str, bounds: pd.DataFrame, rv=None) -> dict:
+    """{trial_id: DAQ spout-contact onsets (ms from the cue) inside cue + 70 ms .. trial stop} -- every contact is a
+    lick; incomplete licks make none. ``bounds`` = `trial_windows.trial_bounds`."""
+    from wfield_local import dlc_frames
+    from wfield_local.paths import PathResolver
+    rv = rv or PathResolver()
+    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    licks = dlc_frames.lick_onsets(animal, date, sid, rv)
+    return {t: (licks[(licks >= c + 0.07) & (licks <= s)] - c) * 1000.0
+            for t, c, s in zip(bounds.trial_id, bounds.cue_s, bounds.stop_s)}
+
+
+def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_after_cue_s: dict | None = None,
+        contacts_ms: dict | None = None, params_override: dict | None = None):
     """Tongue zero = the MOUTH (spout-frame origin); jaw keeps the data-driven baseline. With
     ``stop_after_cue_s`` ({trial_id: stop - cue, s}), every post-cue window ends at that trial's own stop."""
     df = oc.read_pose(pose_csv).iloc[:len(idx)]
@@ -40,7 +53,16 @@ def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_aft
     trials_df = pd.DataFrame({"trial_id": tid, "cue_frame": cues.astype(float), "position": pos, "stop_frame": stops})
     trials = tk.trials_from_frame(trials_df)
     sfr = tk.SpoutFrame(tuple(frame.origin), tuple(frame.ap_axis)) if frame is not None else None
-    T = tk.from_clean(clean["tongue"][0], trials, spout_frame=sfr)
+    # OURS: the model's own spout, laid out like the cleaned tongue arrays (padded clip index), for reach accuracy
+    pos_map = clean["tongue"][1]
+    n = len(clean["tongue"][0].y_final)
+    spout = []
+    for c_ in ("spout_x", "spout_y", "spout_likelihood"):
+        a_ = np.full(n, np.nan)
+        a_[pos_map] = df[c_].to_numpy(float)
+        spout.append(a_)
+    T = tk.from_clean(clean["tongue"][0], trials, spout_frame=sfr, spout_xy=tuple(spout), contacts_ms=contacts_ms,
+                      params_override=params_override)
     J, _ = jk.jaw_pertrial(clean["jaw"][0].y_final, clean["jaw"][0].fps, trials_df)
     M = tm.classify_from_clean(clean["jaw"][0], clean["tongue"][0], trials_df)
     return T, J, M, clean

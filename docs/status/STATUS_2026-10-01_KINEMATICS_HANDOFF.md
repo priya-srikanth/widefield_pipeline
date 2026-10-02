@@ -30,6 +30,10 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
    **Later 10-01: Priya accepted** visible-rise velocity and jaw-unknown (applied); asked for lick-PHASE angle
    plots and xy protrusion (added: `lick_geometry`, `TongueKinematics.lick_phase`, `scripts/tongue_angle_phase.py`);
    angle max now within the lick's own extent. DECISIONS "Angle sign flips explained …".
+   **Then:** per-lick DAQ contact, reach accuracy (tongue − spout-tip angle per lick and over the phase,
+   tip-to-spout, reach fraction), detection on protrusion distance — DECISIONS "Per-lick spout contact; reach
+   accuracy …". First hint: at far_L, missed full-length licks run ~10° away from the spout. Confound to keep in
+   mind: small licks near the lips read strongly image-left (short vectors) — compare size-matched licks.
 4. **Session-level runs IN PROGRESS** (detached; logs in the session scratchpad `session_poses.log`,
    `lp_sessions.log`): PS93 0814 pre / 0821 acute / 0908 chronic, 60 trials each, `scripts/session_poses.py` clip →
    DLC (~42 fps, ~1.6 h/session) → merge; LP queued after (WSL, 16-frame chunks + guard) → `windows_LP.csv` on the

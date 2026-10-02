@@ -19016,3 +19016,37 @@ the peak (per-lick `max_velocity_y_px_per_s`, `vy_peak` / `vxy_peak`, first-5 co
 a quiet-tongue trial with unknown jaw is NaN and leaves the denominator (`summarize_by_position` gains
 `n_jaw_unknown`). Priya hopes the other cameras + calibration will fill these (3-D). All new behaviour is behind
 switches that are OFF in the module DEFAULTS (parity tests unchanged) and ON in configs/defaults.yaml.
+
+## 2026-10-01 — Per-lick spout contact; reach accuracy (tongue vs spout angle); detection on protrusion distance
+
+Priya: per-lick spout contact OK; reach accuracy "high priority ... delta angle between tongue tip and spout tip per
+trial to see if e.g. stroke causes the tongue to deviate left of the spout during the trajectory even if contact is
+normal"; detecting licks on distance from the mouth OK; the absolute angle zero may be off because the camera is not
+perfectly head-on (the spout's 3 Zabers keep it as close to AP as possible) — "the relative trajectory is the
+important one".
+
+**Applied (`orofacial_kinematics.tongue`, module DEFAULTS off = parity):**
+* `contacts_ms` input ({trial_id: DAQ contact onsets, ms from cue}; `pose_kinematics_demo.daq_contacts_ms`) →
+  per-lick `contact` (onset within `contact.match_ms` 60 ms of the peak), `contact_dist_ms`; per-trial
+  `n_daq_contacts`, `n_licks_contact`, `n_licks_no_contact`.
+* `spout_xy` input (the model's spout x / y / likelihood) → per-trial spout tip = median of frames with spout
+  lk ≥ 0.6 from the cue to the trial stop (`trial_spout_reference`): `spout_angle_deg` (same atan2(lr, ap)
+  convention as the tongue), `spout_dist_px`; per lick `delta_angle_deg` = tongue angle at the peak − spout angle,
+  `tip_to_spout_px`, `reach_frac` = protrusion / spout distance; `lick_phase.delta_angle_deg` over the whole lick.
+  Subtracting the trial's own spout angle also removes the camera's non-head-on offset from comparisons.
+* `detect_on: protrusion` — the detectors run on the tongue-mouth distance (base frames = 0); per-lick `y` and the
+  velocities are then distance / protrusion speed, `y_image` keeps image y; angles and geometry use image coords.
+  On cam4 it changes almost nothing (DLC same 324 licks, LP 323 vs 324) because the lateral component is small
+  (lr ±15-30 px vs ~150 px out); it matters for cam1.
+
+**First look, PS93 0908 cue clip (24 trials, chronic; DLC and LP agree):**
+* Contact rate per kept lick by position: far_L 39-41 %, far_center / far_R ~70 %, close 86-95 %.
+* cam4 compresses reach direction: spout tips sit 60-100 px from the mouth at ±40°, while the tongue reaches
+  140-185 px mostly down the image (toward the camera), so the absolute tongue−spout angle is ~−37° (L) / +30° (R).
+  Only CHANGES are interpretable on cam4 (between contact groups, sessions, epochs); cam1 / 3-D for the real plane.
+* Confound found and controlled: small "tip at the lips" licks read strongly negative (−55 to −74° at L) because
+  near the lips the vector is short and the tongue sits ~18 px image-left of the mouth point. Comparing only licks
+  reaching ≥ 100 px (phase points < 50 px masked): at **far_L, missed licks run ~8-10° image-left of contact licks
+  (i.e. away from the spout) through the outward phase, converging on retraction** (10 vs 13 licks; DLC −8°, LP
+  −10°); far_center −3 / −10° with 3 misses; far_R n = 1-2. A hint from 4 trials per position — test on the
+  session-level runs. Figure: `tongue_delta_angle_contact_PS93_20260908.png` (`scripts/tongue_angle_phase.py`).

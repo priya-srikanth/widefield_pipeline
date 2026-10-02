@@ -155,6 +155,16 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
     # Use with fix_detect_offset: the extent is grown from the peak FRAME, which theirs puts one frame early.
     "lick_geometry": False,
     "phase": {"n_points": 21, "extent_slack_px": 2.0},
+    # OURS (Priya 2026-10-01): "y" = theirs, detect licks on image y; "protrusion" = on the tongue-mouth
+    # DISTANCE (spout frame), so lateral licks (far_L / far_R) are not under-read. The pipeline's "y" trace is
+    # then the distance (per-lick `y`, velocities = protrusion speed); geometry and angles keep image coords.
+    # Needs a SpoutFrame and X0/Y0.
+    "detect_on": "y",
+    # OURS: DAQ spout contact per lick (`contacts_ms`): a lick "has contact" if a contact onset lies within
+    # match_ms of its peak.
+    "contact": {"match_ms": 60.0},
+    # OURS: per-trial spout tip (median of confident frames, cue -> trial stop) for reach accuracy.
+    "spout_ref": {"lk_thr": 0.6, "fallback_win_ms": [0.0, 3500.0]},
     "bout_table": {                                  # theirs: tongue_visual.bundle
         "plot_win_ms": [-180.0, 8000.0],             # only the grid that maps a lick time to a frame
         "detect_win_ms": [70.0, 3000.0],
@@ -407,11 +417,13 @@ class V7TrialResult:
     preclean_diag: td.PrecleanDiagnostics
     session_frame_lo: int = -1
     session_frame_hi: int = -1
+    y_geom: np.ndarray | None = None          # OURS: image y (rel Y0) when detection ran on another trace
 
 
 def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baseline_fill_slice, likelihood_slice,
                               t_ms, fps, *, p, trial_id, position, cue_frame, session_frame_lo, session_frame_hi,
-                              X0=None, Y0=None, spout_frame: SpoutFrame | None = None) -> V7TrialResult:
+                              X0=None, Y0=None, spout_frame: SpoutFrame | None = None,
+                              y_geom_slice=None) -> V7TrialResult:
     """Pre-clean -> lmax + bounded + legacy detectors -> merge -> F, D, E(+impute) -> M -> kept-lick records.
 
     Their `_run_v7_pipeline_per_trial`, statement for statement, except the per-lick angle (reference frame,
@@ -538,9 +550,12 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
 
         # Per-lick angle at the (possibly imputed) peak, UNSMOOTHED, from (x_at_peak, y) -- theirs. ADAPTED:
         # our reference frame, and absolute px (+X0, +Y0) since x/y here are baseline-subtracted.
-        if spout_frame is not None and np.isfinite(x_at_peak) and np.isfinite(float(r["y"])):
+        # OURS: with detection on another trace (detect_on: protrusion), the angle needs the IMAGE y.
+        y_at_peak = (float(y_geom_slice[pf]) if y_geom_slice is not None and 0 <= pf < n_frames
+                     else float(r["y"]))
+        if spout_frame is not None and np.isfinite(x_at_peak) and np.isfinite(y_at_peak):
             peak_angle_deg = float(compute_signed_tongue_angle_deg(
-                x_at_peak + X0, float(r["y"]) + Y0, spout_frame, sign_flip=sign_flip))
+                x_at_peak + X0, y_at_peak + Y0, spout_frame, sign_flip=sign_flip))
         else:
             peak_angle_deg = float("nan")
 
@@ -555,7 +570,8 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
             if p.get("lick_geometry", False):
                 xo = 0.0 if X0 is None else X0
                 yo = 0.0 if Y0 is None else Y0
-                ap, lr = spout_coords(x_clean[on:off + 1] + xo, yv[on:off + 1] + yo, spout_frame)
+                yg = yv if y_geom_slice is None else np.where(is_base_clean, np.nan, y_geom_slice)
+                ap, lr = spout_coords(x_clean[on:off + 1] + xo, yg[on:off + 1] + yo, spout_frame)
                 dist = np.hypot(ap, lr)
                 k = pf - on
                 geo.update({"protrusion_px": float(dist[k]), "ap_px": float(ap[k]), "lr_px": float(lr[k]),
@@ -577,13 +593,15 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
             "imputed": is_imputed, "source": str(r["src"]), "confidence": confidence,
             "likelihood": float(r["lik"]), "peak_angle_deg": peak_angle_deg,
             "max_velocity_y_px_per_s": max_velocity_y, **geo,
+            **({"y_image": y_at_peak} if y_geom_slice is not None else {}),
         })
         lick_idx += 1
 
     return V7TrialResult(trial_id=trial_id, position=position, cue_frame=float(cue_frame), y_clean=y_clean,
                          x_clean=x_clean, is_baseline_fill_clean=is_base_clean, t_ms=t_ms, kept_licks=kept,
                          decisions=decisions, preclean_diag=diag, session_frame_lo=session_frame_lo,
-                         session_frame_hi=session_frame_hi)
+                         session_frame_hi=session_frame_hi,
+                         y_geom=None if y_geom_slice is None else np.asarray(y_geom_slice, dtype=np.float64))
 
 
 def _overlay_cleaned(x_final, y_final, is_base, results: list[V7TrialResult]):
@@ -865,7 +883,7 @@ def bout_rows_for_trial(res: V7TrialResult, angle_per_frame, fps, n_session: int
 
 
 def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFrame | None, fps: float, *,
-                     n_points: int = 21) -> pd.DataFrame:
+                     n_points: int = 21, spout_angle_by_trial: dict | None = None) -> pd.DataFrame:
     """OURS (Priya 2026-10-01: angle-over-lick-phase plots are among the most informative): every kept lick
     resampled on a phase axis -- 0 = the frame the tongue appears (`on_frame`), 0.5 = the peak, 1 = the last
     visible frame (`off_frame`); rise and fall are each stretched to half the axis, so licks of different
@@ -880,7 +898,9 @@ def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFra
     xo = 0.0 if X0 is None else X0
     yo = 0.0 if Y0 is None else Y0
     for r in results:
-        yv = np.where(r.is_baseline_fill_clean, np.nan, r.y_clean.astype(np.float64))
+        yv = np.where(r.is_baseline_fill_clean, np.nan,
+                      (r.y_clean if r.y_geom is None else r.y_geom).astype(np.float64))
+        sa = (spout_angle_by_trial or {}).get(r.trial_id, np.nan)
         for lk in r.kept_licks:
             if "on_frame" not in lk:
                 continue
@@ -896,11 +916,40 @@ def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFra
             else:
                 a_g, l_g = np.interp(grid, ph[ok], ap[ok]), np.interp(grid, ph[ok], lr[ok])
             for g, a_, l_ in zip(grid, a_g, l_g):
+                ang_ = float(np.degrees(np.arctan2(l_, a_)))
                 rows.append((r.trial_id, r.position, int(lk["lick_idx"]), float(lk["t_ms"]), float(g), a_, l_,
-                             float(np.hypot(a_, l_)), float(np.degrees(np.arctan2(l_, a_))),
-                             (pf - on) * 1000.0 / fps, (off - pf) * 1000.0 / fps))
+                             float(np.hypot(a_, l_)), ang_, ang_ - sa, (pf - on) * 1000.0 / fps,
+                             (off - pf) * 1000.0 / fps))
     return pd.DataFrame(rows, columns=["trial_id", "position", "lick_idx", "t_ms", "phase", "ap_px", "lr_px",
-                                       "protrusion_px", "angle_deg", "rise_ms", "fall_ms"])
+                                       "protrusion_px", "angle_deg", "delta_angle_deg", "rise_ms", "fall_ms"])
+
+
+def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame | None, *, p: dict) -> pd.DataFrame:
+    """OURS: per trial, the spout tip (median of frames with spout likelihood >= spout_ref.lk_thr from the cue to
+    the trial stop, else the fallback window) in image px and in the spout frame: spout_angle_deg =
+    atan2(lr, ap) (same convention as the tongue angle), spout_dist_px from the mouth. ``spout_xy`` = (x, y,
+    likelihood) session arrays aligned with the tongue arrays."""
+    sx, sy, sl = (np.asarray(a, dtype=np.float64) for a in spout_xy)
+    thr = float(p["spout_ref"]["lk_thr"])
+    fb = p["spout_ref"]["fallback_win_ms"]
+    n = len(sx)
+    rows = []
+    for tr in trials:
+        c = float(tr.cue_frame)
+        stop = TW.stop_ms_of(tr.cue_frame, tr.stop_frame, fps)
+        lo_ms, hi_ms = (0.0, stop) if stop is not None else (float(fb[0]), float(fb[1]))
+        lo, hi = int(max(0, np.floor(c + lo_ms / 1000.0 * fps))), int(min(n, np.ceil(c + hi_ms / 1000.0 * fps) + 1))
+        ok = np.isfinite(sx[lo:hi]) & np.isfinite(sy[lo:hi]) & (sl[lo:hi] >= thr) if hi > lo else np.zeros(0, bool)
+        if ok.sum() == 0:
+            rows.append((tr.trial_id, np.nan, np.nan, np.nan, np.nan, np.nan, 0))
+            continue
+        x_, y_ = float(np.median(sx[lo:hi][ok])), float(np.median(sy[lo:hi][ok]))
+        ap, lr = spout_coords(x_, y_, frame)
+        rows.append((tr.trial_id, x_, y_, float(ap), float(lr), float(np.degrees(np.arctan2(lr, ap))), int(ok.sum())))
+    t = pd.DataFrame(rows, columns=["trial_id", "spout_x_img", "spout_y_img", "spout_ap_px", "spout_lr_px",
+                                    "spout_angle_deg", "spout_n_frames"])
+    t["spout_dist_px"] = np.hypot(t.spout_ap_px, t.spout_lr_px)
+    return t
 
 
 # --------------------------------------------------------------------------- driver
@@ -923,12 +972,15 @@ class TongueKinematics:
 
 def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials: Iterable[Trial] | pd.DataFrame, *,
                               fps: float = 250.0, X0: float | None = None, Y0: float | None = None,
-                              spout_frame: SpoutFrame | None = None, params_override: dict | None = None
-                              ) -> TongueKinematics:
+                              spout_frame: SpoutFrame | None = None, params_override: dict | None = None,
+                              spout_xy=None, contacts_ms: dict | None = None) -> TongueKinematics:
     """v7 per-trial pipeline + features over a session (the v7 path of their `_build_tongue_pertrial_core`).
 
     ``x_final, y_final, fill_method, likelihood`` are `orofacial_clean.Clean` x_final / y_final / fill_method /
     lk (baseline-subtracted, protrusion = +y). ``X0, Y0`` (`Clean.X0/Y0`) are needed only for angles.
+    OURS: ``spout_xy`` = (x, y, likelihood) image-px spout arrays aligned with the tongue arrays -> per-trial
+    spout reference + per-lick reach accuracy (needs lick_geometry); ``contacts_ms`` = {trial_id: DAQ spout-
+    contact onsets, ms from the cue} -> per-lick `contact`.
     """
     p = params(params_override)
     if isinstance(trials, pd.DataFrame):
@@ -940,6 +992,14 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
     y_final = np.asarray(y_final, dtype=np.float64)
     lik = np.asarray(likelihood, dtype=np.float64)
     is_intp, is_base = td.interp_masks(fill_method)
+    y_img = None
+    if p.get("detect_on", "y") == "protrusion":
+        # OURS: detect on the tongue-mouth distance; keep the image y for geometry / angles.
+        if spout_frame is None or X0 is None or Y0 is None:
+            raise ValueError("detect_on: protrusion needs a SpoutFrame and X0, Y0")
+        y_img = y_final
+        d = np.hypot(*spout_coords(x_final + X0, y_final + Y0, spout_frame))
+        y_final = np.where(is_base, 0.0, d)
     # OURS: per-trial params -- post-cue windows end at each trial's own stop when it is known (trial_windows).
     p_tr = [TW.end_at_stop(p, TW.stop_ms_of(tr.cue_frame, tr.stop_frame, fps)) for tr in trials]
 
@@ -952,18 +1012,22 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         results.append(run_v7_pipeline_per_trial(
             ys, x_final[sl], is_intp[sl], is_base[sl], lik[sl], t_ms, fps, p=pt, trial_id=tr.trial_id,
             position=tr.position, cue_frame=tr.cue_frame, session_frame_lo=lo, session_frame_hi=hi,
-            X0=X0, Y0=Y0, spout_frame=spout_frame))
+            X0=X0, Y0=Y0, spout_frame=spout_frame, y_geom_slice=None if y_img is None else y_img[sl]))
 
     x_c, y_c, b_c = _overlay_cleaned(x_final, y_final, is_base, results)
-    angle = (per_frame_angle_smoothed(x_c + X0, y_c + Y0, spout_frame, fps, p=p)
+    y_g = y_c if y_img is None else np.where(b_c, 0.0, y_img)      # image y for angles (OURS: protrusion mode)
+    angle = (per_frame_angle_smoothed(x_c + X0, y_g + Y0, spout_frame, fps, p=p)
              if spout_frame is not None else None)
+    sref = (trial_spout_reference(trials, spout_xy, fps, spout_frame, p=p).set_index("trial_id")
+            if spout_xy is not None else None)
+    match_ms = float(p["contact"]["match_ms"])
 
     peak_pad_ms = float(p["detector"]["peak_pad_ms"])
     min_finite = int(p["detector"]["min_finite_samples_per_lick"])
     min_frac = p["angle"].get("max_signed_min_frac_of_peak")
     dist = None
     if angle is not None and min_frac is not None:
-        dist = np.hypot(*spout_coords(x_c + X0, np.where(b_c, np.nan, y_c) + Y0, spout_frame))
+        dist = np.hypot(*spout_coords(x_c + X0, np.where(b_c, np.nan, y_g) + Y0, spout_frame))
     by_pos: dict[str, list[np.ndarray]] = {pos: [] for pos in POSITIONS}
     trial_rows, lick_rows, bout_rows = [], [], []
     for tr, res, pt in zip(trials, results, p_tr):
@@ -1005,7 +1069,11 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
                     "pc_n_frame_outliers": d.n_frame_outliers, "pc_n_pchip_extended": d.n_pchip_extended,
                     "pc_n_interp_wiped": d.n_interp_wiped, "pc_n_x_hard_outliers": d.n_x_hard_outliers,
                     "pc_n_x_joint_outliers": d.n_x_joint_outliers})
+        cts = None if contacts_ms is None else np.asarray(contacts_ms.get(tr.trial_id, []), dtype=np.float64)
+        if sref is not None and tr.trial_id in sref.index:
+            row.update(sref.loc[tr.trial_id].to_dict())
         trial_rows.append(row)
+        n_lick_contact = 0
 
         for lk in res.kept_licks:
             vy, vxy, _ = _lick_velocity(res, lk, fps, min_finite, pt.get("velocity_window", "v7"))
@@ -1013,16 +1081,33 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
             lick_rows.append({
                 "trial_id": tr.trial_id, "position": tr.position, "cue_frame": tr.cue_frame, **lk,
                 "x_img": lk["x"] + X0 if X0 is not None else np.nan,
-                "y_img": lk["y"] + Y0 if Y0 is not None else np.nan,
+                "y_img": lk.get("y_image", lk["y"]) + Y0 if Y0 is not None else np.nan,
                 "vy_peak_px_per_s": vy, "vxy_peak_px_per_s": vxy,
                 "bout_idx": bidx, "multi_bout_rank": mrank, "angle_smoothed_at_peak_deg": a_sm})
+            lr_ = lick_rows[-1]
+            if cts is not None:                                      # OURS: DAQ spout contact
+                dmin = float(np.min(np.abs(cts - lk["t_ms"]))) if len(cts) else np.inf
+                lr_["contact"] = bool(dmin <= match_ms)
+                lr_["contact_dist_ms"] = dmin
+                n_lick_contact += int(lr_["contact"])
+            if sref is not None and "ap_px" in lk and tr.trial_id in sref.index:   # OURS: reach accuracy
+                s_ = sref.loc[tr.trial_id]
+                ang_peak = float(np.degrees(np.arctan2(lk["lr_px"], lk["ap_px"])))
+                lr_.update({"spout_angle_deg": s_.spout_angle_deg, "spout_dist_px": s_.spout_dist_px,
+                            "delta_angle_deg": ang_peak - s_.spout_angle_deg,
+                            "tip_to_spout_px": float(np.hypot(lk["ap_px"] - s_.spout_ap_px, lk["lr_px"] - s_.spout_lr_px)),
+                            "reach_frac": lk["protrusion_px"] / s_.spout_dist_px if s_.spout_dist_px > 0 else np.nan})
+        if cts is not None:
+            trial_rows[-1].update({"n_daq_contacts": int(len(cts)), "n_licks_contact": n_lick_contact,
+                                   "n_licks_no_contact": len(res.kept_licks) - n_lick_contact})
 
     lick_cols = ["trial_id", "position", "cue_frame", "lick_idx", "t_ms", "y", "x", "y_original", "rise_start_ms",
                  "fall_end_ms", "rise_start_frame", "fall_end_frame", "imputed", "source", "confidence", "likelihood",
                  "peak_angle_deg", "max_velocity_y_px_per_s", "x_img", "y_img", "vy_peak_px_per_s",
                  "vxy_peak_px_per_s", "bout_idx", "multi_bout_rank", "angle_smoothed_at_peak_deg"]
     extra = ["on_frame", "off_frame", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s", "protrusion_px",
-             "ap_px", "lr_px", "protrusion_max_px"]
+             "ap_px", "lr_px", "protrusion_max_px", "y_image", "contact", "contact_dist_ms", "spout_angle_deg",
+             "spout_dist_px", "delta_angle_deg", "tip_to_spout_px", "reach_frac"]
     lick_cols += [c for c in extra if any(c in r for r in lick_rows)]          # OURS, only when computed
     bout_cols = ["trial_id", "position", "bout_idx", "multi_bout_rank", "n_peaks", "bout_t0_ms", "bout_t1_ms",
                  "peak_t0_ms", "peak_t1_ms", "peak_y0", "peak_angle0", "peak_y1", "peak_angle1"]
@@ -1033,13 +1118,15 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         licking_dynamics_traces=licking_dynamics_traces(by_pos, p=p),
         x_clean=x_c, y_clean=y_c, is_baseline_fill_clean=b_c, angle_per_frame=angle,
         trial_results=results, params=p,
-        lick_phase=(lick_phase_table(results, X0, Y0, spout_frame, fps, n_points=int(p["phase"]["n_points"]))
+        lick_phase=(lick_phase_table(results, X0, Y0, spout_frame, fps, n_points=int(p["phase"]["n_points"]),
+                                     spout_angle_by_trial=None if sref is None else sref.spout_angle_deg.to_dict())
                     if p.get("lick_geometry", False) else None))
 
 
-def from_clean(clean, trials, *, spout_frame: SpoutFrame | None = None, params_override: dict | None = None
-               ) -> TongueKinematics:
+def from_clean(clean, trials, *, spout_frame: SpoutFrame | None = None, params_override: dict | None = None,
+               spout_xy=None, contacts_ms: dict | None = None) -> TongueKinematics:
     """`compute_tongue_kinematics` on an `orofacial_clean.Clean` (tongue)."""
     return compute_tongue_kinematics(clean.x_final, clean.y_final, clean.fill_method, clean.lk, trials,
                                      fps=float(clean.fps), X0=float(clean.X0), Y0=float(clean.Y0),
-                                     spout_frame=spout_frame, params_override=params_override)
+                                     spout_frame=spout_frame, params_override=params_override,
+                                     spout_xy=spout_xy, contacts_ms=contacts_ms)
