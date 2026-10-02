@@ -19172,3 +19172,17 @@ lick's tongue first appears); `tongue_kinematics.phase_mean` hides DIRECTION val
 phase points where < `phase.min_coverage` of licks show the tongue — 0.2, deliberately generous (Priya: "we may need
 to be more generous than half the licks contribute"); filled protrusion is never masked. Result: centered curves as
 clean as the old ones, real timing kept, flat at lip level before / after each lick.
+
+## 2026-10-02 — Design: DLC / LP orofacial data in the widefield GCaMP analyses (not built yet)
+
+Priya asked to start planning how pose data enters the imaging analyses: licks from video instead of the spout,
+engagement from tongue / jaw movement without contact, activity by EXECUTED lick direction as well as target
+position ("if post-stroke far R licks are deviated left, does brain activity correspond to pre-stroke activity going
+to that same tongue trajectory?"), and the incomplete-lick and tongue–jaw-mismatch trials. Design and open decisions:
+`docs/DLC_IN_WIDEFIELD_ANALYSES.md` (bridge = per-session per-lick / per-trial orofacial event table on the DAQ clock,
+mapped to imaging frames like a DAQ lick; analyses A-E; build order; pitfalls). **Audit finding recorded there:** the
+imaging path detects DAQ licks with lower threshold 1.0 V and a 0.10 s refractory, hard-coded in ~20 modules
+(`analysis_kit.lick_samples`), while `configs/defaults.yaml lick_detection` (behaviour side, `behavior_events`,
+`dlc_frames.lick_onsets`) is 0.5 V / 40 ms — so imaging hits / RTs can already differ from `*_trials.csv`;
+`behavior_events`' "the SAME call" docstring is not true of the code. To be unified (Priya's choice) before any DAQ ↔
+DLC join. No pose / movement regressors exist in any imaging model yet.

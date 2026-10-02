@@ -26,6 +26,18 @@ Nothing is running locally.
 4. Still pending from before: labelling round 4 (131 cam4 frames, Priya) + cam1 (student) → retrain DLC + LP;
    `python -m scripts.chronic_stability` once 0928 stage 2 has landed.
 
+## 0b. Added later on 10-02
+* **More sessions without GPU:** `python -m scripts.session_poses from-scan` turned the round-4 scan cache into
+  `session_poses/<a>_<d>_r4/` (PS93 0819 acute, 0826 subacute; PS92 0821, 0824; PS94 0921; PS95 0917 — 12 trials
+  each, cue −1 → +3.5 s, DLC + LP). PS93 now has a five-session course; summaries per animal
+  (`lick_summary_PS9x.*`, `lick_direction_shift_PS93.png`). PS92 / PS94 / PS95 lack pre-stroke predictions.
+* **Centered lick phase, cleaned:** tongue-in frames count as at the lips (session lip level) for protrusion
+  (`protrusion_filled_px`); direction values hidden where < 20 % of licks show the tongue (`phase.min_coverage`,
+  `tongue_kinematics.phase_mean`). The per-lick-extent rows look smoother only by construction.
+* **Next proposed:** pre-stroke 60-trial subsets for PS92 / PS94 / PS95 (and PS92 chronic) — locally overnight or on
+  O2. **Design for using DLC / LP in the widefield GCaMP analyses: `docs/DLC_IN_WIDEFIELD_ANALYSES.md`** (5 open
+  decisions in its §6, incl. the two DAQ lick detectors that already disagree between imaging and behaviour code).
+
 ## 1. What exists now (code; tests in `tests/`, config in `configs/defaults.yaml`)
 
 | piece | what |
