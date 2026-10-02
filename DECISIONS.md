@@ -19161,3 +19161,14 @@ builds gradually (−3 → −14 → −10 → −21°); far_R acute both days s
 loses far_R contact (0 %, 2 licks / trial), recovering by subacute (60 %); PS94 / PS95 chronic far_R contact 50 /
 70 %. PS92 / PS94 / PS95 have no pre-stroke predictions yet, so no pre-referenced direction — next: pre-stroke
 subset runs for them (locally or on O2).
+
+**Addendum (2026-10-02) — centered lick phase: tongue-in frames count as "at the lips".** Priya, comparing
+`lick_phase_modes_PS94.png`: the per-lick-extent rows looked smoother — they are smooth by construction (every lick
+forced to start/peak/end at the same phase), which is why they were dropped. The centered rows looked rough because
+(a) PS94's round-4 session has only 12 trials, and (b) tongue-in frames were NaN and left out, so near the window
+ends the mean came only from the licks still out (shoulders / bumps). Fix: `lick_phase` (centered) gains `visible`,
+`in_slice` and `protrusion_filled_px` (tongue-in frames at the session's LIP LEVEL = median distance at which a
+lick's tongue first appears); `tongue_kinematics.phase_mean` hides DIRECTION values (angle, deviation, ap / lr) at
+phase points where < `phase.min_coverage` of licks show the tongue — 0.2, deliberately generous (Priya: "we may need
+to be more generous than half the licks contribute"); filled protrusion is never masked. Result: centered curves as
+clean as the old ones, real timing kept, flat at lip level before / after each lick.

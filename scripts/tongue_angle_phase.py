@@ -41,6 +41,7 @@ POS_COLORS = {"far_L": "#1f77b4", "close_L": "#6baed6", "far_center": "#2ca02c",
               "close_R": "#ff9896", "far_R": "#d62728"}
 MAX_ROWS = 5
 EXT_BINS = (60.0, 100.0)   # fig 3: no-contact licks split into short (< 60 px) / partial / full-length (>= 100 px)
+MIN_COV = 0.2              # figs 2-3: phase points where < 20 % of licks show the tongue are hidden
 MIN_PHASE_PX = 30.0        # figs 2-3: phase points inside the lip zone (< 30 px from the mouth, where the tongue first
                            # appears) are masked -- the angle of a vector that short is unstable. Was 50 px with a
                            # >= 100 px lick filter; Priya 2026-10-02 asked to include short / incomplete licks.
@@ -182,31 +183,37 @@ def main(argv=None) -> int:
     models = list(res)
     fig, axs = plt.subplots(2, len(models), figsize=(6.5 * len(models), 8), squeeze=False, sharex=True)
     for col, m in enumerate(models):
-        ph = res[m][0].lick_phase.dropna(subset=["angle_deg"])
+        ph = res[m][0].lick_phase
         ph = ph.assign(angle_deg=ph.angle_deg.where(ph.protrusion_px >= MIN_PHASE_PX))
+        pvar = "protrusion_filled_px" if "protrusion_filled_px" in ph else "protrusion_px"
         for row, (var, lab) in enumerate((("angle_deg", "angle (deg, + image-right)"),
-                                          ("protrusion_px", "protrusion from mouth (px)"))):
+                                          (pvar, "protrusion from mouth (px)"))):
             ax = axs[row, col]
             g0 = ph[ph.position == "far_L"]
             for _, gl in list(g0.groupby(["trial_id", "lick_idx"]))[:60]:
                 ax.plot(gl.phase, gl[var], "-", color="0.85", lw=0.5, zorder=1)
             for pos in tk.POSITIONS:
-                g = ph[ph.position == pos].groupby("phase")[var]
-                if not len(g):
+                pp = ph[ph.position == pos]
+                if not len(pp):
                     continue
-                mu, se = g.mean(), g.std() / np.sqrt(g.count())
-                ax.plot(mu.index, mu, "-", color=POS_COLORS[pos], lw=2, label=f"{pos} (n={g.count().max()})", zorder=3)
+                mu, se = tk.phase_mean(pp, var, min_coverage=MIN_COV)
+                n_l = pp.groupby(["trial_id", "lick_idx"]).ngroups
+                ax.plot(mu.index, mu, "-", color=POS_COLORS[pos], lw=2, label=f"{pos} (n={n_l})", zorder=3)
                 ax.fill_between(mu.index, mu - se, mu + se, color=POS_COLORS[pos], alpha=0.2, lw=0, zorder=2)
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             ax.set_ylabel(lab)
             if row == 0:
                 ax.axhline(0, color="0.6", lw=0.6)
-                ax.set_title(f"{m}: every kept lick, phase 0 = tongue appears, 0.5 = peak, 1 = gone", fontsize=9)
+                mode = res[m][0].params["phase"].get("mode", "extent")
+                ttl = (f"centered on the peak, window {ph.cycle_ms.iloc[0]:.0f} ms (0.5 = peak)"
+                       if mode == "centered" and "cycle_ms" in ph and len(ph) else "0 = tongue appears, 0.5 = peak, 1 = gone")
+                ax.set_title(f"{m}: every kept lick, {ttl}", fontsize=9)
                 ax.legend(fontsize=7, ncol=2)
             else:
                 ax.set_xlabel("lick phase")
-    fig.suptitle(f"{animal} {date}: tongue angle and protrusion over the lick (mean +- SEM per spout position; "
-                 f"grey = individual far_L licks)", fontsize=10)
+    fig.suptitle(f"{animal} {date}: tongue angle and protrusion over the lick (mean +- SEM per spout position; grey = "
+                 f"individual far_L licks; tongue-in frames count as at the lips for protrusion; angle hidden where "
+                 f"< {MIN_COV:.0%} of licks show the tongue)", fontsize=10)
     fig.tight_layout()
     out2 = d / f"tongue_angle_phase_{tag}.png"
     fig.savefig(out2, dpi=120)
@@ -230,16 +237,16 @@ def main(argv=None) -> int:
         pl_, ph_ = LR.add_deviation(T_.per_lick, T_.lick_phase,
                                     LR.build_reference([T_.per_lick], [T_.lick_phase]), "session")
         ph = ph_.merge(pl_[["trial_id", "lick_idx", "contact", "protrusion_max_px"]], on=["trial_id", "lick_idx"])
-        ph = ph[ph.protrusion_px >= MIN_PHASE_PX].dropna(subset=["dev_session_deg"])
+        ph = ph.assign(dev_session_deg=ph.dev_session_deg.where(ph.protrusion_px >= MIN_PHASE_PX))
         for col, pos in enumerate(tk.POSITIONS):
             ax = axs[row, col]
             pp = ph[ph.position == pos]
             for lab, sel, colr, ls in groups:
-                g = pp[sel(pp)].groupby("phase").dev_session_deg
-                if not len(g):
+                sub = pp[sel(pp)]
+                if not len(sub):
                     continue
-                n_l = pp[sel(pp)].groupby(["trial_id", "lick_idx"]).ngroups
-                mu, se = g.mean(), g.std() / np.sqrt(g.count())
+                n_l = sub.groupby(["trial_id", "lick_idx"]).ngroups
+                mu, se = tk.phase_mean(sub, "dev_session_deg", min_coverage=MIN_COV)
                 c = colr or POS_COLORS[pos]
                 ax.plot(mu.index, mu, color=c, lw=2, ls=ls, label=f"{lab} (n={n_l})")
                 ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.12, lw=0)

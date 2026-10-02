@@ -380,3 +380,14 @@ def test_centered_phase_is_real_time_around_the_peak():
     np.testing.assert_allclose(peak.protrusion_px, peak.protrusion_px_lick, atol=1e-6)   # phase .5 = the peak
     fixed = tk.lick_phase_table(r.trial_results, X0, Y0, frame, FPS, n_points=41, mode="centered", cycle_ms=120.0)
     assert np.allclose(fixed.cycle_ms, 120.0) and len(fixed) == len(ph)
+
+
+def test_phase_mean_masks_direction_but_not_filled_protrusion():
+    ph = pd.DataFrame({"phase": [0.0] * 10 + [0.5] * 10,
+                       "visible": [True] + [False] * 9 + [True] * 10, "in_slice": [True] * 20,
+                       "angle_deg": [5.0] + [np.nan] * 9 + [1.0] * 10,
+                       "protrusion_filled_px": [60.0] + [35.0] * 9 + [150.0] * 10})
+    mu, _ = tk.phase_mean(ph, "angle_deg", min_coverage=0.2)
+    assert np.isnan(mu[0.0]) and mu[0.5] == 1.0                      # 10 % visible at phase 0 -> hidden
+    mp, _ = tk.phase_mean(ph, "protrusion_filled_px", min_coverage=0.2)
+    assert mp[0.0] == pytest.approx(37.5) and mp[0.5] == 150.0       # filled protrusion kept everywhere

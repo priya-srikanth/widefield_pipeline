@@ -161,7 +161,7 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
     # time scale, so rise / fall durations (and peak sharpness) stay real. mode "extent" = ours of 2026-10-01: each
     # lick's visible rise and fall stretched to 0-0.5 / 0.5-1 -- peak sharpness then depends on when the tongue
     # becomes visible (Priya 2026-10-02 worried shape differences were an artefact of this; they can be).
-    "phase": {"n_points": 21, "extent_slack_px": 2.0, "mode": "extent", "cycle_ms": None},
+    "phase": {"n_points": 21, "extent_slack_px": 2.0, "mode": "extent", "cycle_ms": None, "min_coverage": 0.2},
     # OURS (Priya 2026-10-01): "y" = theirs, detect licks on image y; "protrusion" = on the tongue-mouth
     # DISTANCE (spout frame), so lateral licks (far_L / far_R) are not under-read. The pipeline's "y" trace is
     # then the distance (per-lick `y`, velocities = protrusion speed); geometry and angles keep image coords.
@@ -959,9 +959,22 @@ def _centered_phase_table(results, X0, Y0, spout_frame, fps, *, n_points, spout_
     xo = 0.0 if X0 is None else X0
     yo = 0.0 if Y0 is None else Y0
     cols = ["trial_id", "position", "lick_idx", "t_ms", "phase", "ap_px", "lr_px", "protrusion_px", "angle_deg",
-            "delta_angle_deg", "rise_ms", "fall_ms", "cycle_ms"]
+            "delta_angle_deg", "rise_ms", "fall_ms", "cycle_ms", "visible", "in_slice", "protrusion_filled_px"]
     if not np.isfinite(cycle_ms):
         return pd.DataFrame(columns=cols)
+    # OURS (Priya 2026-10-02): a frame with the tongue IN (baseline fill) is not "missing" for protrusion -- the
+    # tongue is at / behind the lips. `protrusion_filled_px` puts it at this session's LIP LEVEL (median distance
+    # at which a lick's tongue first appears), so means over phase are not biased toward the licks still out;
+    # angles stay NaN there (no direction without a tongue). `visible` / `in_slice` let a plot mask phase points
+    # where too few licks show the tongue (`phase.min_coverage`).
+    firsts = []
+    for r in results:
+        yv0 = np.where(r.is_baseline_fill_clean, np.nan, (r.y_clean if r.y_geom is None else r.y_geom).astype(float))
+        a0, l0 = spout_coords(r.x_clean + xo, yv0 + yo, spout_frame)
+        d0 = np.hypot(a0, l0)
+        firsts += [d0[int(k["on_frame"])] for k in r.kept_licks if "on_frame" in k and 0 <= int(k["on_frame"]) < len(d0)]
+    firsts = np.asarray(firsts, dtype=float)
+    lip_px = float(np.nanmedian(firsts)) if np.isfinite(firsts).any() else 0.0
     for r in results:
         yv = np.where(r.is_baseline_fill_clean, np.nan,
                       (r.y_clean if r.y_geom is None else r.y_geom).astype(np.float64))
@@ -978,10 +991,29 @@ def _centered_phase_table(results, X0, Y0, spout_frame, fps, *, n_points, spout_
             pf = int(np.argmin(np.abs(r.t_ms - float(lk["t_ms"]))))
             rise = (pf - lk["on_frame"]) * 1000.0 / fps if "on_frame" in lk else np.nan
             fall = (lk["off_frame"] - pf) * 1000.0 / fps if "off_frame" in lk else np.nan
-            for g, aa, ll, an in zip(grid, a_, l_, ang):
+            for g, aa, ll, an, ins in zip(grid, a_, l_, ang, ok):
+                vis = bool(ins and np.isfinite(aa) and np.isfinite(ll))
+                prot = float(np.hypot(aa, ll))
                 rows.append((r.trial_id, r.position, int(lk["lick_idx"]), float(lk["t_ms"]), float(g), aa, ll,
-                             float(np.hypot(aa, ll)), float(an), float(an) - sa, rise, fall, cycle_ms))
+                             prot, float(an), float(an) - sa, rise, fall, cycle_ms, vis, bool(ins),
+                             (prot if vis else (lip_px if ins else np.nan))))
     return pd.DataFrame(rows, columns=cols)
+
+
+def phase_mean(ph: pd.DataFrame, var: str, *, by=("phase",), min_coverage: float = 0.2):
+    """Mean and SEM of ``var`` per phase (or ``by``). For direction variables, phase points where fewer than
+    ``min_coverage`` of the licks show a VISIBLE tongue are set to NaN (protrusion_filled_px is never masked) (OURS, Priya 2026-10-02: hide the ends where only the few licks still
+    out set the mean; generous by default). Coverage = visible / in-slice rows; tables without `visible` (extent
+    mode) are not masked."""
+    g = ph.groupby(list(by))
+    mu, se = g[var].mean(), g[var].std() / np.sqrt(g[var].count())
+    # protrusion with tongue-in frames filled at the lip level is DEFINED everywhere in the slice -> not masked;
+    # the coverage rule is for direction (angle, deviation, ap / lr), which needs a visible tongue
+    if "visible" in ph and "in_slice" in ph and var != "protrusion_filled_px":
+        cov = g.visible.sum() / g.in_slice.sum().clip(lower=1)
+        bad = cov < min_coverage
+        mu, se = mu.where(~bad), se.where(~bad)
+    return mu, se
 
 
 def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame | None, *, p: dict) -> pd.DataFrame:

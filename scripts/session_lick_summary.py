@@ -25,9 +25,11 @@ import pandas as pd
 
 from wfield_local import orofacial_clean as oc
 from wfield_local import spout_frame as SF
+from wfield_local import tongue_kinematics as tk
 from wfield_local import trial_windows as TW
 
 MIN_EXT = 100.0
+MIN_COV = 0.2       # phase points shown only where >= 20 % of licks show the tongue (`tongue_kinematics.phase_mean`)
 
 
 def session_tables(spec: str, rv):
@@ -168,10 +170,12 @@ def plot_direction_shift(devs: dict, positions, out, lip_px: float = 30.0) -> No
             continue
         c = session_color(date, ep)
         for j, pos in enumerate(positions):
-            d = ph[(ph.position == pos) & (ph.protrusion_px >= lip_px)]
-            g = d.groupby("phase")
+            dall = ph[ph.position == pos]
+            d = dall[dall.protrusion_px >= lip_px]
             ax = axs[0, j]
-            ax.plot(g.lr_px.mean(), g.ap_px.mean(), "-", color=c, lw=2, label=f"{date} {ep}")
+            mlr, _ = tk.phase_mean(dall, "lr_px", min_coverage=MIN_COV)
+            map_, _ = tk.phase_mean(dall, "ap_px", min_coverage=MIN_COV)
+            ax.plot(mlr, map_, "-", color=c, lw=2, label=f"{date} {ep}")
             pk = d[np.isclose(d.phase, 0.5)]
             ax.plot(pk.lr_px.mean(), pk.ap_px.mean(), "o", color=c, ms=6)
             if ep == "pre":
@@ -179,8 +183,8 @@ def plot_direction_shift(devs: dict, positions, out, lip_px: float = 30.0) -> No
                 gc = cc.groupby("phase")
                 ax.plot(gc.lr_px.mean(), gc.ap_px.mean(), ":", color="k", lw=1.2, label="pre contact (reference)")
             if "dev_pre_deg" in d:
-                gd = d.groupby("phase").dev_pre_deg
-                mu, se = gd.mean(), gd.std() / np.sqrt(gd.count())
+                mu, se = tk.phase_mean(dall.assign(dev_pre_deg=dall.dev_pre_deg.where(dall.protrusion_px >= lip_px)),
+                                       "dev_pre_deg", min_coverage=MIN_COV)
                 ax2 = axs[1, j]
                 ax2.plot(mu.index, mu, color=c, lw=2)
                 ax2.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
@@ -258,10 +262,11 @@ def plot_phase_modes(centered: dict, extent: dict, positions, out, cycle_ms) -> 
             if len(key) == 3 and key[2] != "DLC":
                 continue
             for j, pos in enumerate(positions):
-                g = ph[ph.position == pos].groupby("phase").protrusion_px
-                if not len(g):
+                pp = ph[ph.position == pos]
+                if not len(pp):
                     continue
-                mu, se = g.mean(), g.std() / np.sqrt(g.count())
+                var = "protrusion_filled_px" if "protrusion_filled_px" in pp else "protrusion_px"
+                mu, se = tk.phase_mean(pp, var, min_coverage=MIN_COV)
                 ax = axs[row, j]
                 c = session_color(date, ep)
                 ax.plot(mu.index, mu, color=c, lw=2, label=f"{date} {ep}")
@@ -274,8 +279,9 @@ def plot_phase_modes(centered: dict, extent: dict, positions, out, cycle_ms) -> 
                 if row == 1:
                     ax.set_xlabel("lick phase")
     axs[0, 0].legend(fontsize=6)
-    fig.suptitle("DLC: lick shape under the two phase definitions. In the centered version NaN (tongue in) frames are "
-                 "left out of the mean, so the curve ends sit higher than the per-lick lows.", fontsize=9)
+    fig.suptitle("DLC: lick shape under the two phase definitions. Centered (in use): real time around each peak; "
+                 "tongue-in frames count as at the lips (session lip level), so protrusion is defined everywhere "
+                 f"(direction plots hide phase points with < {MIN_COV:.0%} of licks showing the tongue).", fontsize=9)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
     plt.close(fig)
@@ -302,13 +308,15 @@ def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30
             if var != "protrusion_px":
                 d = d.assign(**{var: d[var].where(d.protrusion_px >= min_phase_px)})
             for j, pos in enumerate(positions):
-                g = d[d.position == pos].groupby("phase")[var]
-                if not len(g):
+                dd = d[d.position == pos]
+                if not len(dd):
                     continue
-                mu, se = g.mean(), g.std() / np.sqrt(g.count())
+                v = "protrusion_filled_px" if (var == "protrusion_px" and "protrusion_filled_px" in dd) else var
+                mu, se = tk.phase_mean(dd, v, min_coverage=MIN_COV)
+                n_l = dd.groupby(["trial_id", "lick_idx"]).ngroups
                 ax = axs[i, j]
                 c = session_color(label, epoch)
-                ax.plot(mu.index, mu, color=c, lw=2, label=f"{label} {epoch} (n={g.count().max()})")
+                ax.plot(mu.index, mu, color=c, lw=2, label=f"{label} {epoch} (n={n_l})")
                 ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
                 ax.axvline(0.5, color="k", lw=0.4, ls=":")
                 if i == 0:

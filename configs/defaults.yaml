@@ -1080,6 +1080,7 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
       cycle_ms: null                           # window width; null = the session's median within-bout ILI. Cross-
                                                # session scripts pass the animal's PRE-STROKE median ILI (theirs)
       n_points: 41                             # phase samples (41 over ~150 ms ~ one per frame)
+      min_coverage: 0.2                        # plots: hide phase points where < 20 % of licks show the tongue (generous, Priya 2026-10-02)
       extent_slack_px: 2.0
     detect_on: protrusion                      # OURS (Priya 2026-10-01): detect licks on the tongue-mouth distance (theirs: image y)
     contact: {match_ms: 60.0}                  # OURS: DAQ spout contact per lick = a contact onset within 60 ms of the peak
