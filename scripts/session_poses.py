@@ -4,6 +4,7 @@ N per spout position, cut into one clip, then DLC round 3 (+ prior) and the LP o
     python -m scripts.session_poses clip  PS93:20260814 PS93:20260821 PS93:20260908 [--per-position 10]
     python -m scripts.session_poses dlc   PS93:20260814 ...      # resumable (chunks), GPU
     python -m scripts.session_poses merge PS93:20260814 ...      # chunks -> windows_DLC.csv
+    python -m scripts.session_poses from-scan PS93:20260819 ...  # round-4 scan cache -> <a>_<d>_r4/ (no GPU)
     # LP: WSL only, 16-frame DALI chunks + memory guard (96 blue-screened this box twice):
     #   litpose predict <model> windows.mp4 --overrides dali.base.predict.sequence_length=16 \\
     #       dali.context.predict.sequence_length=16      -> copy video_preds csv to windows_LP.csv
@@ -149,6 +150,47 @@ def cmd_dlc(rv, sessions) -> None:
             cap.release()
 
 
+def cmd_from_scan(rv, sessions) -> None:
+    """The round-4 scan's cached windows (`dlc_hard_frames`: 2 trials / position, cue -1 .. +3.5 s; DLC round 3 +
+    prior in round4_scan/<a>_<d>_dlc.npz, LP occlusion model in %USERPROFILE%/lp_clips/round4/lp/<a>_<d>.csv, same
+    windows in the same order) -> `session_poses/<a>_<d>_r4/` (windows_index.csv, windows_DLC.csv, windows_LP.csv),
+    so every session script reads them as `animal:date:r4`. No clip: frames come from the original video
+    (src_frame). Windows end at cue + 3.5 s, i.e. before most trial stops -- post-cue measures there are truncated."""
+    from wfield_local import dlc_frames as DF
+    from wfield_local import dlc_hard_frames as H
+    from wfield_local import dlc_project
+    from wfield_local import trial_windows as TW
+    scan = dlc_project.project_dir(rv).parent / "round4_scan"
+    for animal, date in sessions:
+        wins = H.load_poses(scan / f"{animal}_{date}_dlc.npz")
+        tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
+        b = TW.trial_bounds(animal, date, rv).set_index("trial_id")
+        idx, poses = [], []
+        for k, (f0, tr, P) in enumerate(wins):
+            fc = DF.frame_of(tpl, tr["cue_s"], 0.0)
+            r = b.loc[int(tr["trial_id"])]
+            for j in range(len(P)):
+                idx.append((k, int(tr["trial_id"]), tr["pos_name"], f0 + j, (f0 + j - fc) * 4.0,
+                            (r.strobe_s - r.cue_s) * 1000.0, (r.stop_s - r.cue_s) * 1000.0, r.stop_source))
+            poses.append(P)
+        d = out_dir(rv, animal, f"{date}_r4")
+        pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
+                                   "stop_source"]).to_csv(d / "windows_index.csv", index=False)
+        P = np.concatenate(poses)
+        cols = pd.MultiIndex.from_product([["DLC_round3"], H.PARTS, ["x", "y", "likelihood"]],
+                                          names=["scorer", "bodyparts", "coords"])
+        pd.DataFrame(P.reshape(len(P), -1), columns=cols).to_csv(d / "windows_DLC.csv")
+        lp = H.LOCAL_CLIPS / "lp" / f"{animal}_{date}.csv"
+        n_lp = None
+        if lp.exists():
+            L = pd.read_csv(lp, header=[0, 1, 2], index_col=0)
+            n_lp = len(L)
+            if n_lp == len(P):
+                L.to_csv(d / "windows_LP.csv")
+        print(f"{animal} {date}: {len(wins)} trials, {len(P)} frames -> {d}  (LP {n_lp} rows"
+              f"{'' if n_lp == len(P) else ' -- MISMATCH, not copied'})")
+
+
 def cmd_merge(rv, sessions) -> None:
     from wfield_local.dlc_hard_frames import PARTS
     for animal, date in sessions:
@@ -166,14 +208,14 @@ def cmd_merge(rv, sessions) -> None:
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["clip", "dlc", "merge"])
+    ap.add_argument("cmd", choices=["clip", "dlc", "merge", "from-scan"])
     ap.add_argument("sessions", nargs="+", help="animal:date")
     ap.add_argument("--per-position", type=int, default=10)
     a = ap.parse_args(argv)
     rv = PathResolver()
     sess = [tuple(s.split(":")) for s in a.sessions]
     {"clip": lambda: cmd_clip(rv, sess, a.per_position), "dlc": lambda: cmd_dlc(rv, sess),
-     "merge": lambda: cmd_merge(rv, sess)}[a.cmd]()
+     "merge": lambda: cmd_merge(rv, sess), "from-scan": lambda: cmd_from_scan(rv, sess)}[a.cmd]()
     return 0
 
 

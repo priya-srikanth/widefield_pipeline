@@ -19149,3 +19149,15 @@ at the peak), close_center (~−15°), close_L (~−10°); (3) peak deviation, m
 no-contact, both models — chronic all-lick medians ~−20° far_L and close_center (CIs exclude 0), close_L −5 (DLC) /
 −18 (LP). The earlier rows were split by contact and spread over many panels, which hid it. Acute far_R is the
 opposite (+15-45°, image-right) — the far_R acute licks all missed.
+
+**Addendum (2026-10-02) — more sessions from the round-4 scan cache.** `python -m scripts.session_poses from-scan`
+turns the round-4 scan's cached windows (DLC round 3 + prior, LP occlusion; 2 trials / position, cue −1 → +3.5 s)
+into `session_poses/<a>_<d>_r4/` — PS93 0819 (acute) and 0826 (subacute), PS92 0821 / 0824, PS94 0921, PS95 0917;
+LP rows match DLC exactly. Caveats: 12 trials per session (wide CIs), windows end at cue + 3.5 s (before most
+stops), and these sessions' frames are in labelling round 4 (fine until the retrain). **PS93 five-session course**
+(`lick_direction_shift_PS93.png`): the close_center leftward shift (~−18 to −22° at the peak, all licks, both
+models) is present from the first acute day (0819) and persists; close_L / close_R shifts likewise from 0819; far_L
+builds gradually (−3 → −14 → −10 → −21°); far_R acute both days strongly image-right (misses). **PS92 acute** also
+loses far_R contact (0 %, 2 licks / trial), recovering by subacute (60 %); PS94 / PS95 chronic far_R contact 50 /
+70 %. PS92 / PS94 / PS95 have no pre-stroke predictions yet, so no pre-referenced direction — next: pre-stroke
+subset runs for them (locally or on O2).

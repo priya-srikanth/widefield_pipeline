@@ -86,6 +86,18 @@ def summarize(animal, date, epoch, model, T, J, M, pl=None) -> pd.DataFrame:
 
 
 EPOCH_COLORS = {"pre": "0.2", "acute": "tab:red", "subacute": "tab:orange", "chronic": "tab:blue"}
+_SHADES = {"pre": ["0.2", "0.45", "0.65"], "acute": ["#d62728", "#ff7f7f", "#8b0000"],
+           "subacute": ["#ff7f0e", "#ffbb78", "#a65300"], "chronic": ["#1f77b4", "#7fb8e6", "#0b3d66"]}
+_SESSION_COLOR: dict = {}
+
+
+def session_color(date: str, ep: str) -> str:
+    """One colour per session: the epoch's hue, a different shade for each further session of that epoch."""
+    key = (date, ep)
+    if key not in _SESSION_COLOR:
+        k = sum(1 for (_d, e) in _SESSION_COLOR if e == ep)
+        _SESSION_COLOR[key] = _SHADES.get(ep, ["0.5"])[min(k, 2)]
+    return _SESSION_COLOR[key]
 METRICS = [("licks_per_trial", "licks / trial"), ("contact_rate", "DAQ contact rate"),
            ("frac_trials_no_lick", "trials with no lick"), ("protrusion_med_px", "protrusion at peak (px)"),
            ("v_rise_med", "rise speed (px/s)"), ("v_retract_med", "retraction speed (px/s)"),
@@ -154,7 +166,7 @@ def plot_direction_shift(devs: dict, positions, out, lip_px: float = 30.0) -> No
     for (date, ep, m), (pl, ph) in devs.items():
         if m != "DLC":
             continue
-        c = EPOCH_COLORS.get(ep, "0.5")
+        c = session_color(date, ep)
         for j, pos in enumerate(positions):
             d = ph[(ph.position == pos) & (ph.protrusion_px >= lip_px)]
             g = d.groupby("phase")
@@ -172,7 +184,8 @@ def plot_direction_shift(devs: dict, positions, out, lip_px: float = 30.0) -> No
                 ax2 = axs[1, j]
                 ax2.plot(mu.index, mu, color=c, lw=2)
                 ax2.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
-                lim2 = max(lim2, float(np.nanmax(np.abs(mu))))
+                if len(mu) and np.isfinite(mu).any():
+                    lim2 = max(lim2, float(np.nanmax(np.abs(mu))))
     for j, pos in enumerate(positions):
         ax = axs[0, j]
         ax.plot(0, 0, "*", ms=12, mfc="yellow", mec="k")
@@ -250,7 +263,7 @@ def plot_phase_modes(centered: dict, extent: dict, positions, out, cycle_ms) -> 
                     continue
                 mu, se = g.mean(), g.std() / np.sqrt(g.count())
                 ax = axs[row, j]
-                c = EPOCH_COLORS.get(ep, "0.5")
+                c = session_color(date, ep)
                 ax.plot(mu.index, mu, color=c, lw=2, label=f"{date} {ep}")
                 ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
                 ax.axvline(0.5, color="k", lw=0.4, ls=":")
@@ -294,7 +307,7 @@ def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30
                     continue
                 mu, se = g.mean(), g.std() / np.sqrt(g.count())
                 ax = axs[i, j]
-                c = EPOCH_COLORS.get(epoch, "0.5")
+                c = session_color(label, epoch)
                 ax.plot(mu.index, mu, color=c, lw=2, label=f"{label} {epoch} (n={g.count().max()})")
                 ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
                 ax.axvline(0.5, color="k", lw=0.4, ls=":")
