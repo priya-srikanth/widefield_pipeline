@@ -19104,3 +19104,37 @@ tongue was; `session_lick_summary` epoch figure rows: angle (all), tongue − sp
 table gains `dA_all_med`, `dA_nocontact_all_med`. Only the lip zone (< 30 px from the mouth, where the tongue first
 appears) is masked (was 50 px plus a ≥ 100 px filter). Caveat kept in the figure titles: short licks read strongly
 image-left from geometry alone (short vectors, tongue slightly left of the mouth point) — compare like with like.
+
+## 2026-10-02 — Reach direction: tongue − spout-tip angle is not accuracy on cam4 → deviation from the successful lick; lick phase centered on the peak
+
+**Tongue − spout-tip angle (Priya: "it doesn't make sense to me for the delta to be like 30 deg on trials with
+contact").** Drawn on contact licks (`session_poses/PS93_20260908/tongue_spout_rays_PS93_20260908.png`): the
+spout-tip label is the tube's top front edge right beside the mouth (60-100 px out, ±40°), while the tongue-tip label
+is the tongue's distal end pressed past the spout (140-185 px, near vertical). On cam4 (looking almost along the
+reach) the two are not the same image location, so the difference is a per-position constant (~−35° L, ~+33° R),
+not accuracy. **Decided (Priya "yes"):** measure **deviation from the successful-lick direction** —
+`wfield_local/lick_reference.py`: at the peak, angle − median peak angle of contact licks at that position; over the
+lick, phase angle − the mean contact-lick angle at that position and phase. Two references, both reported:
+`session` (the session's own contact licks: misses vs hits, immune to between-session camera / head shifts) and
+`pre` (pooled pre-stroke contact licks: a post-stroke drift away from the old successful path even when contact is
+normal; spout positions fixed by the Zabers, but head pose / camera rotation between sessions is not removed).
+The dA (tongue − spout) columns stay in the tables, labelled as not-accuracy; the spout-referenced angle is the right
+measure on cam1 / in 3-D.
+
+**First result (PS93, 10 trials / position / session; both models unless noted):** post-stroke contact licks run
+image-left (= mouse right) of the pre-stroke successful path — close_center −19 to −22° (acute and chronic), far_L
+−8° chronic, close_R −4 to −6.5°; close_L DLC −4/−5° vs LP −17/−18° (disagree). Chronic no-contact licks at far_L /
+far_center −35 / −18°. Hypothesis until more sessions / animals and 3-D.
+
+**Lick phase (Priya: shapes "more vs less peaked ... may be an artifact of when we're determining the start and end
+of a lick phase cycle").** Ours (10-01) stretched each lick's VISIBLE rise to 0-0.5 and fall to 0.5-1 — the curve
+shape then depends on when the tongue becomes visible (occlusion, lick size, a 2 px walk-back rule). stroke_orofacial
+(`build_first_lick_centered_phase_rows`, ili_source "synthetic_only", the mode that won their 3-animal visual gate):
+window = peak ± ILI/2 in REAL time, phase = (t − (peak − ILI/2)) / ILI, ILI = the animal's pre-stroke median
+within-bout ILI (adjacent peaks of multi-lick bouts). **Adopted as the default** (`phase.mode: centered`,
+`cycle_ms` = session median ILI unless a script passes the animal's pre-stroke one — `session_lick_summary` does:
+PS93 156 ms, n = 444 / 417 ILIs DLC / LP). Comparison figure `session_poses/lick_phase_modes_PS93.png`: on one
+real-time scale licks are sharp (~60-80 ms tongue-out-to-in), the extent-stretched triangles were partly the
+normalisation; peak-height differences between sessions survive, and some timing differences are real
+(close_center acute / chronic rise earlier). Short / incomplete licks are included in every phase plot; only the lip
+zone (< 30 px from the mouth) is masked.

@@ -1073,7 +1073,14 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
     fix_detect_offset: true                    # OURS (Priya 2026-10-01): detector frames -> trial-slice frames (theirs read 1 frame = 4 ms early); DEFAULTS false = parity
     velocity_window: visible_rise              # OURS (Priya 2026-10-01): max dy/dt over the whole visible rise (theirs "v7": peak +-16 ms for lmax licks); + retraction speed
     lick_geometry: true                        # OURS: per-lick on/off, xy protrusion from the mouth (spout frame), lick-phase table
-    phase: {n_points: 21, extent_slack_px: 2.0}
+    phase:                                     # OURS: lick-phase table (TongueKinematics.lick_phase)
+      mode: centered                           # stroke_orofacial's centered-on-peak phase (fixed real-time window);
+                                               # "extent" = per-lick visible rise/fall stretch (peak shape then
+                                               # depends on visibility -- Priya 2026-10-02)
+      cycle_ms: null                           # window width; null = the session's median within-bout ILI. Cross-
+                                               # session scripts pass the animal's PRE-STROKE median ILI (theirs)
+      n_points: 41                             # phase samples (41 over ~150 ms ~ one per frame)
+      extent_slack_px: 2.0
     detect_on: protrusion                      # OURS (Priya 2026-10-01): detect licks on the tongue-mouth distance (theirs: image y)
     contact: {match_ms: 60.0}                  # OURS: DAQ spout contact per lick = a contact onset within 60 ms of the peak
     spout_ref: {lk_thr: 0.6, fallback_win_ms: [0.0, 3500.0]}   # OURS: per-trial spout tip = median cue -> stop (reach accuracy)

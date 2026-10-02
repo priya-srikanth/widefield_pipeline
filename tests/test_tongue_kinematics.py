@@ -361,3 +361,22 @@ def test_detect_on_protrusion_keeps_image_geometry():
     np.testing.assert_allclose(m.peak_angle_deg_d, m.peak_angle_deg_y)
     with pytest.raises(ValueError):
         tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, params_override={"detect_on": "protrusion"})
+
+
+def test_centered_phase_is_real_time_around_the_peak():
+    """OURS (stroke_orofacial's centered phase): phase 0.5 = the peak frame, the window spans cycle_ms in real
+    time, and the default cycle is the session's median within-bout ILI."""
+    y, x, fm, lk, cues, _truth = synth_session(seed=3, extras=False)
+    X0, Y0 = 320.0, 250.0
+    frame = tk.SpoutFrame(origin=(X0, Y0), ap_axis=(0.0, -1.0))
+    ov = {"lick_geometry": True, "fix_detect_offset": True, "phase": {"mode": "centered", "n_points": 41}}
+    r = tk.compute_tongue_kinematics(x, y, fm, lk, _trials(cues), fps=FPS, X0=X0, Y0=Y0, spout_frame=frame,
+                                     params_override=ov)
+    ph = r.lick_phase
+    ili = tk.within_bout_ili_ms(r.trial_results)
+    assert np.allclose(ph.cycle_ms, np.median(ili)) and 100 < np.median(ili) < 300
+    peak = ph[np.isclose(ph.phase, 0.5)].merge(r.per_lick[["trial_id", "lick_idx", "protrusion_px"]],
+                                               on=["trial_id", "lick_idx"], suffixes=("", "_lick"))
+    np.testing.assert_allclose(peak.protrusion_px, peak.protrusion_px_lick, atol=1e-6)   # phase .5 = the peak
+    fixed = tk.lick_phase_table(r.trial_results, X0, Y0, frame, FPS, n_points=41, mode="centered", cycle_ms=120.0)
+    assert np.allclose(fixed.cycle_ms, 120.0) and len(fixed) == len(ph)

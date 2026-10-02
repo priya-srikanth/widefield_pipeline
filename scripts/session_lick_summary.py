@@ -1,6 +1,7 @@
 """Per-session lick summary across sessions (scripts.session_poses clips), both models, by spout position:
-licks per trial, DAQ contact rate, protrusion, rise / retraction speed, peak angle, and REACH ACCURACY -- tongue
-minus spout-tip angle at the peak for contact vs no-contact licks, size-matched (licks reaching >= 100 px).
+licks per trial, DAQ contact rate, protrusion, rise / retraction speed, peak angle, and DIRECTION DEVIATION from the
+successful-lick path (`lick_reference`: vs pooled pre-stroke contact licks, and vs the same session's contact
+licks). The tongue - spout-tip angle columns (dA_*) are kept but are NOT accuracy on cam4 (DECISIONS 2026-10-02).
 
     python -m scripts.session_lick_summary PS93:20260814 PS93:20260821 PS93:20260908
     python -m scripts.session_lick_summary PS93:20260814:full ...     # whole-session (O2) folders
@@ -8,6 +9,7 @@ minus spout-tip angle at the peak for contact vs no-contact licks, size-matched 
 Writes session_poses/lick_summary_<animal>.csv and prints the table. Epoch labels come from `epochs.epoch_of`.
 Figures (session_poses/):
   lick_summary_<animal>.png       per position, each metric across the sessions (DLC solid, LP dashed)
+  lick_phase_modes_<animal>.png   protrusion over the lick, per-lick-extent vs centered phase (shape check)
   lick_phase_epochs_<animal>.png  per position, over the lick phase, one line per session (DLC), ALL licks
                                   (incomplete / short included): angle, tongue - spout angle (all; no-contact),
                                   protrusion
@@ -46,8 +48,9 @@ def session_tables(spec: str, rv):
     return out, frame
 
 
-def summarize(animal, date, epoch, model, T, J, M) -> pd.DataFrame:
-    pl, pt = T.per_lick, T.per_trial
+def summarize(animal, date, epoch, model, T, J, M, pl=None) -> pd.DataFrame:
+    pl = T.per_lick if pl is None else pl
+    pt = T.per_trial
     rows = []
     for pos, g in pt.groupby("position"):
         lk = pl[pl.position == pos]
@@ -68,6 +71,12 @@ def summarize(animal, date, epoch, model, T, J, M) -> pd.DataFrame:
             "n_nocontact_all": int((lk.contact == False).sum()),                                # noqa: E712
             "dA_contact_med": dc.median(), "dA_nocontact_med": dn.median(), "n_contact_big": len(dc),
             "n_nocontact_big": len(dn), "dA_miss_minus_hit": dn.median() - dc.median() if len(dn) and len(dc) else np.nan,
+            # deviation from the successful-lick direction (lick_reference): vs the PRE-STROKE contact licks and
+            # vs this session's own contact licks, at the peak
+            **{f"dev_{r}_{w}_med": (lk.loc[sel, f"dev_{r}_deg"].median() if f"dev_{r}_deg" in lk else np.nan)
+               for r in ("pre", "session")
+               for w, sel in (("all", lk.contact.notna()), ("contact", lk.contact == True),       # noqa: E712
+                              ("nocontact", lk.contact == False))},                               # noqa: E712
             "jaw_moved": pd.to_numeric(J[J.position == pos].jaw_pass_qc, errors="coerce").mean(),
             "mismatch_trials": int(pd.to_numeric(mm, errors="coerce").sum()),
         })
@@ -78,8 +87,10 @@ EPOCH_COLORS = {"pre": "0.2", "acute": "tab:red", "subacute": "tab:orange", "chr
 METRICS = [("licks_per_trial", "licks / trial"), ("contact_rate", "DAQ contact rate"),
            ("frac_trials_no_lick", "trials with no lick"), ("protrusion_med_px", "protrusion at peak (px)"),
            ("v_rise_med", "rise speed (px/s)"), ("v_retract_med", "retraction speed (px/s)"),
-           ("angle_peak_med", "angle at peak (deg)"), ("dA_all_med", "tongue - spout angle, all licks (deg)"),
-           ("dA_nocontact_all_med", "tongue - spout angle,\nno-contact licks (deg)"),
+           ("angle_peak_med", "angle at peak (deg)"),
+           ("dev_pre_contact_med", "deviation vs pre-stroke\nsuccessful, contact (deg)"),
+           ("dev_pre_nocontact_med", "deviation vs pre-stroke\nsuccessful, no contact (deg)"),
+           ("dev_session_nocontact_med", "no-contact deviation vs\nsame-session contact (deg)"),
            ("jaw_moved", "jaw moved (frac trials)")]
 
 
@@ -112,14 +123,52 @@ def plot_summary(tab: pd.DataFrame, positions, out) -> None:
     plt.close(fig)
 
 
-def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30.0) -> None:
+def plot_phase_modes(centered: dict, extent: dict, positions, out, cycle_ms) -> None:
+    """Protrusion over the lick, the two phase definitions side by side (DLC), one line per session: does a
+    peak-shape difference between sessions survive putting every lick on one real-time scale?"""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(2, len(positions), figsize=(3.0 * len(positions), 6.4), squeeze=False, sharex=True)
+    for row, (lab, src) in enumerate((("per-lick visible extent (rise -> 0-0.5, fall -> 0.5-1)", extent),
+                                      (f"centered on peak, fixed {cycle_ms:.0f} ms window (stroke_orofacial)", centered))):
+        for key, ph in src.items():
+            date, ep = key[0], key[1]
+            if len(key) == 3 and key[2] != "DLC":
+                continue
+            for j, pos in enumerate(positions):
+                g = ph[ph.position == pos].groupby("phase").protrusion_px
+                if not len(g):
+                    continue
+                mu, se = g.mean(), g.std() / np.sqrt(g.count())
+                ax = axs[row, j]
+                c = EPOCH_COLORS.get(ep, "0.5")
+                ax.plot(mu.index, mu, color=c, lw=2, label=f"{date} {ep}")
+                ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
+                ax.axvline(0.5, color="k", lw=0.4, ls=":")
+                if row == 0:
+                    ax.set_title(pos, fontsize=10)
+                if j == 0:
+                    ax.set_ylabel(f"protrusion (px)\n{lab}", fontsize=7)
+                if row == 1:
+                    ax.set_xlabel("lick phase")
+    axs[0, 0].legend(fontsize=6)
+    fig.suptitle("DLC: lick shape under the two phase definitions. In the centered version NaN (tongue in) frames are "
+                 "left out of the mean, so the curve ends sit higher than the per-lick lows.", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+
+
+def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30.0, cycle_ms=None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     # Priya 2026-10-02: ALL licks, incomplete / short ones included; the tongue-spout angle wherever the tongue was
     rows = [("angle_deg", "angle (deg), all licks", None),
-            ("delta_angle_deg", "tongue - spout angle,\nall licks (deg)", None),
-            ("delta_angle_deg", "tongue - spout angle,\nno-contact licks (deg)", False),
+            ("dev_pre_deg", "deviation vs pre-stroke\nsuccessful path, contact (deg)", True),
+            ("dev_pre_deg", "deviation vs pre-stroke\nsuccessful path, no contact (deg)", False),
+            ("dev_session_deg", "deviation vs same-session\ncontact path, no contact (deg)", False),
             ("protrusion_px", "protrusion (px), all licks", None)]
     fig, axs = plt.subplots(len(rows), len(positions), figsize=(3.0 * len(positions), 3.0 * len(rows)),
                             squeeze=False, sharex=True)
@@ -127,6 +176,8 @@ def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30
         ph = ph[ph.protrusion_max_px >= min_ext]
         for i, (var, lab, contact) in enumerate(rows):
             d = ph if contact is None else ph[ph.contact == contact]           # noqa: E712
+            if var not in d:
+                continue
             if var != "protrusion_px":
                 d = d.assign(**{var: d[var].where(d.protrusion_px >= min_phase_px)})
             for j, pos in enumerate(positions):
@@ -147,7 +198,9 @@ def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30
                     ax.set_xlabel("lick phase")
     for j in range(len(positions)):
         axs[0, j].legend(fontsize=6)
-    fig.suptitle(f"DLC: tongue over the lick by session -- all licks incl. incomplete / short (angle points < "
+    fig.suptitle(f"DLC: tongue over the lick by session (phase centered on each peak, window = pre-stroke median ILI "
+                 f"{cycle_ms or float('nan'):.0f} ms); deviation = angle - the mean SUCCESSFUL (contact) lick path at "
+                 f"that position (pre-stroke, or same session) -- all licks incl. incomplete / short (angle points < "
                  f"{min_phase_px:.0f} px from the mouth masked; mean +- SEM; + = image-right = mouse LEFT)", fontsize=10)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
@@ -162,17 +215,52 @@ def main(argv=None) -> int:
     ap.add_argument("sessions", nargs="+")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    parts, phases = [], {}
+    from wfield_local import lick_reference as LR
+    runs = []                                    # (animal, date, epoch, model, T, J, M)
     for s in a.sessions:
         animal, date = s.split(":")[:2]
         res, _ = session_tables(s, rv)
         ep = epochs.epoch_of(f"{animal}_{date[4:]}")
-        for m, (T, J, M) in res.items():
-            parts.append(summarize(animal, date, ep, m, T, J, M))
-        if "DLC" in res and res["DLC"][0].lick_phase is not None:
-            T = res["DLC"][0]
-            phases[(date[4:], ep)] = T.lick_phase.merge(
-                T.per_lick[["trial_id", "lick_idx", "contact", "protrusion_max_px"]], on=["trial_id", "lick_idx"])
+        runs += [(animal, date, ep, m, T, J, M) for m, (T, J, M) in res.items()]
+    # lick phase on ONE time scale for every session (stroke_orofacial): centered on each peak, width = the animal's
+    # PRE-STROKE median within-bout ILI (per model), so a shape change between sessions is real timing, not a
+    # per-session normalisation. The per-lick visible-extent version is kept for the comparison figure.
+    from wfield_local import tongue_kinematics as tk
+    ili_pre, extent_phase = {}, {}
+    for m in {r[3] for r in runs}:
+        pre = [r for r in runs if r[3] == m and r[2] == "pre"]
+        il = np.concatenate([tk.within_bout_ili_ms(r[4].trial_results) for r in (pre or [r for r in runs if r[3] == m])])
+        ili_pre[m] = float(np.median(il))
+        print(f"{m}: phase cycle = {'pre-stroke' if pre else 'all-session'} median within-bout ILI "
+              f"{ili_pre[m]:.0f} ms (n={len(il)})")
+    new_runs = []
+    for animal, date, ep, m, T, J, M in runs:
+        extent_phase[(date[4:], ep, m)] = tk.lick_phase_table(
+            T.trial_results, T.X0, T.Y0, T.spout_frame, T.fps, n_points=21, mode="extent",
+            spout_angle_by_trial=T.spout_angle_by_trial)
+        T.lick_phase = tk.lick_phase_table(
+            T.trial_results, T.X0, T.Y0, T.spout_frame, T.fps, n_points=int(T.params["phase"]["n_points"]),
+            mode="centered", cycle_ms=ili_pre[m], spout_angle_by_trial=T.spout_angle_by_trial)
+        new_runs.append((animal, date, ep, m, T, J, M))
+    runs = new_runs
+    # references (lick_reference): pooled PRE-STROKE contact licks per model, and each session's own contact licks
+    ref_pre = {}
+    for m in {r[3] for r in runs}:
+        pre = [r for r in runs if r[3] == m and r[2] == "pre"]
+        if pre:
+            ref_pre[m] = LR.build_reference([r[4].per_lick for r in pre], [r[4].lick_phase for r in pre])
+            print(f"{m}: pre-stroke reference from {', '.join(r[1] for r in pre)} -- contact licks per position "
+                  f"{ref_pre[m]['n'].to_dict()}")
+    parts, phases = [], {}
+    for animal, date, ep, m, T, J, M in runs:
+        pl, ph = T.per_lick, T.lick_phase
+        pl, ph = LR.add_deviation(pl, ph, LR.build_reference([pl], [ph]), "session")
+        if m in ref_pre:
+            pl, ph = LR.add_deviation(pl, ph, ref_pre[m], "pre")
+        parts.append(summarize(animal, date, ep, m, T, J, M, pl=pl))
+        if m == "DLC":
+            phases[(date[4:], ep)] = ph.merge(pl[["trial_id", "lick_idx", "contact", "protrusion_max_px"]],
+                                              on=["trial_id", "lick_idx"])
     tab = pd.concat(parts, ignore_index=True)
     order = {p: i for i, p in enumerate(POSITIONS)}
     tab = tab.sort_values(["model", "position", "date"], key=lambda c: c.map(order) if c.name == "position" else c)
@@ -180,16 +268,19 @@ def main(argv=None) -> int:
     tab.to_csv(out, index=False)
     pd.set_option("display.width", 250)
     cols = ["model", "position", "epoch", "licks_per_trial", "contact_rate", "frac_trials_no_lick", "protrusion_med_px",
-            "v_rise_med", "v_retract_med", "angle_peak_med", "dA_contact_med", "dA_nocontact_med", "n_contact_big",
-            "n_nocontact_big", "dA_miss_minus_hit", "jaw_moved", "mismatch_trials"]
+            "v_rise_med", "v_retract_med", "angle_peak_med", "dev_pre_contact_med", "dev_pre_nocontact_med",
+            "dev_session_nocontact_med", "n_nocontact_all", "jaw_moved", "mismatch_trials"]
     print(tab[cols].round(2).to_string(index=False))
     print(f"-> {out}")
     positions = [p for p in POSITIONS if p in set(tab.position)]
     plot_summary(tab, positions, out.with_suffix(".png"))
     print(f"-> {out.with_suffix('.png')}")
     out2 = out.parent / f"lick_phase_epochs_{a.sessions[0].split(':')[0]}.png"
-    plot_phase_epochs(phases, positions, out2)
+    plot_phase_epochs(phases, positions, out2, cycle_ms=ili_pre.get("DLC"))
     print(f"-> {out2}")
+    out3 = out.parent / f"lick_phase_modes_{a.sessions[0].split(':')[0]}.png"
+    plot_phase_modes({k: v for k, v in phases.items()}, extent_phase, positions, out3, ili_pre.get("DLC"))
+    print(f"-> {out3}")
     return 0
 
 

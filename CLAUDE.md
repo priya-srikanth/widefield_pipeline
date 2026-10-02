@@ -344,11 +344,16 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md`](docs/status/STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md)**
+— **START HERE for orofacial kinematics, newest.** Session-level results on PS93 pre / acute / chronic (both
+models), lick phase centered on the peak (stroke_orofacial), deviation from the successful-lick direction (the
+tongue − spout-tip angle is NOT accuracy on cam4), per-lick spout contact, O2 whole-session inference (first bundle
+ready for Priya: `DeepLabCut/Widefield/o2/r3_PS93_20261002`).
+
 **[`docs/status/STATUS_2026-10-01_KINEMATICS_HANDOFF.md`](docs/status/STATUS_2026-10-01_KINEMATICS_HANDOFF.md)**
-— **START HERE for orofacial KINEMATICS** (clean traces, spout reference frame, tongue/jaw kinematics and mismatch
+— Background for orofacial kinematics (superseded as the entry point by the 10-02 handoff): clean traces, spout reference frame, tongue/jaw kinematics and mismatch
 ported from stroke_orofacial with exact parity, per-trial windows ending at the DAQ `trial_end`, tongue zero = the
-mouth, first QC on our data). Open decisions: DLC likelihood cutoff 0.4, the inherited one-frame v7 offset. Every px
-threshold is still the old rig's.
+mouth, first QC on our data. Its open decisions are settled (cutoff 0.4, offset fixed).
 
 **[`docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`](docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md)**
 — **START HERE for cam4/cam1 tracking, newest.** LP now trained with blank = occluded (fixes the jaw riding

@@ -13,8 +13,10 @@ time (smoothed per-frame angle; distance from the mouth on the right axis); the 
 the max-|angle| frame, with the tongue point, the mouth and the 0-degree line.
 Figure 2: angle and protrusion vs lick phase (0 = tongue appears, 0.5 = peak, 1 = gone), mean +- SEM per position,
 DLC and LP, from `TongueKinematics.lick_phase`; thin grey = individual licks of one position.
-Figure 3 (Priya: reach accuracy -- "does the tongue deviate from the spout during the trajectory even if contact is
-normal"): delta angle = tongue angle - that trial's spout-tip angle (both from the mouth, spout frame) over the
+Figure 3 (Priya: reach accuracy -- "does the tongue deviate ... even if contact is normal"): DEVIATION = tongue
+angle - the mean angle of this session's CONTACT licks at that position and lick phase (`lick_reference`; the
+pre-stroke reference is in `session_lick_summary`). Replaced tongue - spout-tip angle, which is ~±30-35° even on
+contact licks on cam4 (DECISIONS 2026-10-02) -- the earlier text follows for the record: over the
 lick phase, per position, by outcome: contact licks, and no-contact (incomplete / missed) licks split by reach
 (>= 100 px, 60-100, < 60) -- ALL licks, the angle taken wherever the tongue was (Priya 2026-10-02); phase points
 < MIN_PHASE_PX from the mouth masked. Near the lips the vector is short and the tongue sits image-left of the mouth
@@ -224,14 +226,16 @@ def main(argv=None) -> int:
     fig, axs = plt.subplots(len(models), 6, figsize=(20, 4.4 * len(models)), squeeze=False, sharex=True)
     for row, m in enumerate(models):
         T_ = res[m][0]
-        ph = T_.lick_phase.merge(T_.per_lick[["trial_id", "lick_idx", "contact", "protrusion_max_px"]],
-                                 on=["trial_id", "lick_idx"])
-        ph = ph[ph.protrusion_px >= MIN_PHASE_PX].dropna(subset=["delta_angle_deg"])
+        from wfield_local import lick_reference as LR
+        pl_, ph_ = LR.add_deviation(T_.per_lick, T_.lick_phase,
+                                    LR.build_reference([T_.per_lick], [T_.lick_phase]), "session")
+        ph = ph_.merge(pl_[["trial_id", "lick_idx", "contact", "protrusion_max_px"]], on=["trial_id", "lick_idx"])
+        ph = ph[ph.protrusion_px >= MIN_PHASE_PX].dropna(subset=["dev_session_deg"])
         for col, pos in enumerate(tk.POSITIONS):
             ax = axs[row, col]
             pp = ph[ph.position == pos]
             for lab, sel, colr, ls in groups:
-                g = pp[sel(pp)].groupby("phase").delta_angle_deg
+                g = pp[sel(pp)].groupby("phase").dev_session_deg
                 if not len(g):
                     continue
                 n_l = pp[sel(pp)].groupby(["trial_id", "lick_idx"]).ngroups
@@ -243,10 +247,11 @@ def main(argv=None) -> int:
             ax.set_title(f"{m} {pos}", fontsize=9)
             ax.legend(fontsize=6)
             if col == 0:
-                ax.set_ylabel("tongue - spout angle (deg)")
+                ax.set_ylabel("deviation from the session's\ncontact-lick path (deg)")
             if row == len(models) - 1:
                 ax.set_xlabel("lick phase")
-    fig.suptitle(f"{animal} {date}: tongue angle relative to the trial's spout tip over the lick, by outcome -- ALL "
+    fig.suptitle(f"{animal} {date}: tongue direction relative to the mean CONTACT-lick path at that position (same session; "
+                 f"contact licks ~0 by construction), by outcome -- ALL "
                  f"licks incl. incomplete / short ones (points < {MIN_PHASE_PX:.0f} px from the mouth masked; mean +- "
                  f"SEM; + = image-right). Short licks sit near the lips, where the angle is least stable.", fontsize=10)
     fig.tight_layout()

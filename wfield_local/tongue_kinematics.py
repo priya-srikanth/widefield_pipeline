@@ -154,7 +154,14 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
     # (protrusion_px, ap_px, lr_px), and the lick-phase table (angle / protrusion resampled on phase 0..1).
     # Use with fix_detect_offset: the extent is grown from the peak FRAME, which theirs puts one frame early.
     "lick_geometry": False,
-    "phase": {"n_points": 21, "extent_slack_px": 2.0},
+    # OURS: lick-phase table. mode "centered" = stroke_orofacial's centered-on-peak phase (their
+    # `build_first_lick_centered_phase_rows`, ili_source "synthetic_only", the mode that won their visual gate):
+    # window = peak +- cycle_ms / 2 in REAL time, phase = (t - (peak - cycle/2)) / cycle, cycle_ms = the animal's
+    # pre-stroke median within-bout ILI (None -> this session's median within-bout ILI). Every lick on one fixed
+    # time scale, so rise / fall durations (and peak sharpness) stay real. mode "extent" = ours of 2026-10-01: each
+    # lick's visible rise and fall stretched to 0-0.5 / 0.5-1 -- peak sharpness then depends on when the tongue
+    # becomes visible (Priya 2026-10-02 worried shape differences were an artefact of this; they can be).
+    "phase": {"n_points": 21, "extent_slack_px": 2.0, "mode": "extent", "cycle_ms": None},
     # OURS (Priya 2026-10-01): "y" = theirs, detect licks on image y; "protrusion" = on the tongue-mouth
     # DISTANCE (spout frame), so lateral licks (far_L / far_R) are not under-read. The pipeline's "y" trace is
     # then the distance (per-lick `y`, velocities = protrusion speed); geometry and angles keep image coords.
@@ -882,8 +889,20 @@ def bout_rows_for_trial(res: V7TrialResult, angle_per_frame, fps, n_session: int
     return rows, labels
 
 
+def within_bout_ili_ms(results: list[V7TrialResult], max_ili_ms: float = 300.0) -> np.ndarray:
+    """Intervals between ADJACENT kept-lick peaks of a trial that belong to the same bout (<= max_ili_ms) --
+    the ILIs stroke_orofacial pools for `pre_stroke_median_ili_ms` (adjacent peaks of a multi-lick bout)."""
+    out = []
+    for r in results:
+        t = np.sort([float(k["t_ms"]) for k in r.kept_licks])
+        d = np.diff(t)
+        out += d[(d > 0) & (d <= max_ili_ms)].tolist()
+    return np.asarray(out, dtype=np.float64)
+
+
 def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFrame | None, fps: float, *,
-                     n_points: int = 21, spout_angle_by_trial: dict | None = None) -> pd.DataFrame:
+                     n_points: int = 21, spout_angle_by_trial: dict | None = None, mode: str = "extent",
+                     cycle_ms: float | None = None) -> pd.DataFrame:
     """OURS (Priya 2026-10-01: angle-over-lick-phase plots are among the most informative): every kept lick
     resampled on a phase axis -- 0 = the frame the tongue appears (`on_frame`), 0.5 = the peak, 1 = the last
     visible frame (`off_frame`); rise and fall are each stretched to half the axis, so licks of different
@@ -893,6 +912,9 @@ def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFra
     atan2(lr, ap) (unsmoothed; + = image-right, as `compute_signed_tongue_angle_deg`), plus the lick's rise /
     fall ms. Linear interpolation between visible frames; NaN where the lick has no rise or no fall frame.
     """
+    if mode == "centered":
+        return _centered_phase_table(results, X0, Y0, spout_frame, fps, n_points=n_points,
+                                     spout_angle_by_trial=spout_angle_by_trial, cycle_ms=cycle_ms)
     grid = np.linspace(0.0, 1.0, n_points)
     rows = []
     xo = 0.0 if X0 is None else X0
@@ -922,6 +944,44 @@ def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFra
                              (off - pf) * 1000.0 / fps))
     return pd.DataFrame(rows, columns=["trial_id", "position", "lick_idx", "t_ms", "phase", "ap_px", "lr_px",
                                        "protrusion_px", "angle_deg", "delta_angle_deg", "rise_ms", "fall_ms"])
+
+
+def _centered_phase_table(results, X0, Y0, spout_frame, fps, *, n_points, spout_angle_by_trial, cycle_ms):
+    """Centered-on-peak phase (stroke_orofacial): for each kept lick, the frames at peak_t + (phase - 0.5) *
+    cycle_ms (nearest frame), tongue position where visible, NaN where the tongue is in (baseline fill) or the
+    window leaves the trial slice. The window spans half an ILI each side, so it can reach into a neighbouring
+    lick in a fast bout -- as theirs. rise_ms / fall_ms carry the lick's own visible extent for reference."""
+    if cycle_ms is None:
+        ili = within_bout_ili_ms(results)
+        cycle_ms = float(np.median(ili)) if len(ili) else float("nan")
+    grid = np.linspace(0.0, 1.0, n_points)
+    rows = []
+    xo = 0.0 if X0 is None else X0
+    yo = 0.0 if Y0 is None else Y0
+    cols = ["trial_id", "position", "lick_idx", "t_ms", "phase", "ap_px", "lr_px", "protrusion_px", "angle_deg",
+            "delta_angle_deg", "rise_ms", "fall_ms", "cycle_ms"]
+    if not np.isfinite(cycle_ms):
+        return pd.DataFrame(columns=cols)
+    for r in results:
+        yv = np.where(r.is_baseline_fill_clean, np.nan,
+                      (r.y_clean if r.y_geom is None else r.y_geom).astype(np.float64))
+        ap_all, lr_all = spout_coords(r.x_clean + xo, yv + yo, spout_frame)
+        sa = (spout_angle_by_trial or {}).get(r.trial_id, np.nan)
+        dt = float(r.t_ms[1] - r.t_ms[0]) if len(r.t_ms) > 1 else 1000.0 / fps
+        for lk in r.kept_licks:
+            tq = float(lk["t_ms"]) + (grid - 0.5) * cycle_ms
+            f = np.rint((tq - r.t_ms[0]) / dt).astype(int)
+            ok = (f >= 0) & (f < len(r.t_ms))
+            a_ = np.where(ok, ap_all[np.clip(f, 0, len(r.t_ms) - 1)], np.nan)
+            l_ = np.where(ok, lr_all[np.clip(f, 0, len(r.t_ms) - 1)], np.nan)
+            ang = np.degrees(np.arctan2(l_, a_))
+            pf = int(np.argmin(np.abs(r.t_ms - float(lk["t_ms"]))))
+            rise = (pf - lk["on_frame"]) * 1000.0 / fps if "on_frame" in lk else np.nan
+            fall = (lk["off_frame"] - pf) * 1000.0 / fps if "off_frame" in lk else np.nan
+            for g, aa, ll, an in zip(grid, a_, l_, ang):
+                rows.append((r.trial_id, r.position, int(lk["lick_idx"]), float(lk["t_ms"]), float(g), aa, ll,
+                             float(np.hypot(aa, ll)), float(an), float(an) - sa, rise, fall, cycle_ms))
+    return pd.DataFrame(rows, columns=cols)
 
 
 def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame | None, *, p: dict) -> pd.DataFrame:
@@ -968,6 +1028,11 @@ class TongueKinematics:
     trial_results: list[V7TrialResult]
     params: dict = field(default_factory=dict)
     lick_phase: pd.DataFrame | None = None   # OURS: `lick_phase_table` (with lick_geometry)
+    X0: float | None = None                  # OURS: what `lick_phase_table` needs to rebuild the phase table
+    Y0: float | None = None
+    spout_frame: SpoutFrame | None = None
+    fps: float = 250.0
+    spout_angle_by_trial: dict | None = None
 
 
 def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials: Iterable[Trial] | pd.DataFrame, *,
@@ -1119,8 +1184,11 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
         x_clean=x_c, y_clean=y_c, is_baseline_fill_clean=b_c, angle_per_frame=angle,
         trial_results=results, params=p,
         lick_phase=(lick_phase_table(results, X0, Y0, spout_frame, fps, n_points=int(p["phase"]["n_points"]),
-                                     spout_angle_by_trial=None if sref is None else sref.spout_angle_deg.to_dict())
-                    if p.get("lick_geometry", False) else None))
+                                     spout_angle_by_trial=None if sref is None else sref.spout_angle_deg.to_dict(),
+                                     mode=p["phase"].get("mode", "extent"), cycle_ms=p["phase"].get("cycle_ms"))
+                    if p.get("lick_geometry", False) else None),
+        X0=X0, Y0=Y0, spout_frame=spout_frame, fps=fps,
+        spout_angle_by_trial=None if sref is None else sref.spout_angle_deg.to_dict())
 
 
 def from_clean(clean, trials, *, spout_frame: SpoutFrame | None = None, params_override: dict | None = None,
