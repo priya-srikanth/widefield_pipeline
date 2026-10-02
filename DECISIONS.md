@@ -19050,3 +19050,33 @@ important one".
   (i.e. away from the spout) through the outward phase, converging on retraction** (10 vs 13 licks; DLC −8°, LP
   −10°); far_center −3 / −10° with 3 misses; far_R n = 1-2. A hint from 4 trials per position — test on the
   session-level runs. Figure: `tongue_delta_angle_contact_PS93_20260908.png` (`scripts/tongue_angle_phase.py`).
+
+## 2026-10-02 — First session-level results: PS93 pre (0814) / acute (0821) / chronic (0908), both models
+
+`scripts/session_poses.py` clips (60 trials each, 10 per position, position strobe −0.5 s → trial stop +3 s; none of
+the three sessions in any training set) → DLC round 3 and LP occlusion (overnight; LP peak GPU 2.7 GB, no guard
+kill) → `scripts/kinematics_checks.py --session`, `scripts/tongue_angle_phase.py --session`,
+`scripts/session_lick_summary.py` (table: `session_poses/lick_summary_PS93.csv`). DLC and LP agree on every
+headline below unless noted (velocity LP/DLC p10-p90 0.74-1.35, r 0.73-0.81).
+
+**Pipeline QC on full trials.** No px change needed. Pre-clean removed 144 DLC frames on 0814: two flat clusters
+(close_center, after the stop, mouth closed — DLC called the spout tip "tongue" at full confidence for 0.1-0.5 s)
+and one 3-frame point on the far_R spout while the tongue was elsewhere — all correct removals (frames checked).
+Gates: gate M only (plus 1 E_spline_drop). Jaw unknown: 1 trial (0908 close_center). DLC-LP disagreement worth
+knowing: 0814 close_center DLC 13.5 licks / trial at 62 % contact vs LP 9.5 at 88 % — likely DLC's spout-tip-as-
+tongue error adding licks there.
+
+**Biology, first look (one animal, 10 trials per position per session — hypotheses, not results):**
+* Acute: licking collapses at the FAR positions (licks / trial far_L 6.4 → 2.2, far_R 7.3 → 1.6; 30-50 % of trials
+  with no lick); far_R contact 0 / 14 full-length licks; protrusion drops (far_R median 188 → 126 px); rise and
+  retraction speeds drop ~20-40 %. Close positions barely change in count.
+* Chronic: counts recover and exceed pre (more licks per trial everywhere), speeds mostly recover, but far_L stays
+  impaired: contact 56 % → 36 % → 35 %, and jaw movement there 0.9 → 0.6 → 0.4 of trials.
+* Angle at the peak shifts image-LEFT (= mouse RIGHT on cam4) after the stroke at far_L (+13 → +5 → −3/−5°) and
+  close_center (+9/+10 → −11/−9 → −12/−10°); tongue − spout angle for contact licks shifts the same way at close_L
+  (−16/−17 → −36 → −36°) and close_center; right positions stable. Caveat: between-session angle comparisons also
+  carry head pose / camera differences (the spout frame is rebuilt per session) — confirm on more sessions and in
+  3-D before reading as deviation.
+* Size-matched misses vs hits (licks ≥ 100 px): at far_L misses run 12-18° image-left of hits in ALL three epochs,
+  pre-stroke included — so "missed licks deviate away from the spout" is how far_L licks miss, not a stroke effect
+  by itself. far_center −0 to −4°. far_R chronic disagrees between models (DLC +13, LP −7) — unreliable.

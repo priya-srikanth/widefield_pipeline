@@ -34,10 +34,12 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
    tip-to-spout, reach fraction), detection on protrusion distance — DECISIONS "Per-lick spout contact; reach
    accuracy …". First hint: at far_L, missed full-length licks run ~10° away from the spout. Confound to keep in
    mind: small licks near the lips read strongly image-left (short vectors) — compare size-matched licks.
-4. **Session-level runs IN PROGRESS** (detached; logs in the session scratchpad `session_poses.log`,
-   `lp_sessions.log`): PS93 0814 pre / 0821 acute / 0908 chronic, 60 trials each, `scripts/session_poses.py` clip →
-   DLC (~42 fps, ~1.6 h/session) → merge; LP queued after (WSL, 16-frame chunks + guard) → `windows_LP.csv` on the
-   share. Re-run safe (chunks). Then `python -m scripts.kinematics_checks --session PS93:<date>` per session.
+4. **Session-level runs DONE (10-02)**: PS93 0814 pre / 0821 acute / 0908 chronic, 60 trials each, DLC + LP in
+   `session_poses/<a>_<d>/` (windows.mp4, windows_index.csv, windows_DLC.csv, windows_LP.csv, kinematics_checks.txt,
+   figures); cross-session table `session_poses/lick_summary_PS93.csv` (`scripts/session_lick_summary.py`). First
+   results in DECISIONS 2026-10-02 (acute far-position collapse; far_L stays impaired chronically; post-stroke
+   image-left angle shift at L/center positions — to confirm). Next: more sessions / animals, and full sessions on
+   a server (DLC ~40 fps here).
 5. Still pending from before: labelling round 4 (Priya, 131 cam4 frames) + cam1 (student); retrain DLC + LP after;
    `python -m scripts.chronic_stability` once 0928 stage 2 has landed.
 
