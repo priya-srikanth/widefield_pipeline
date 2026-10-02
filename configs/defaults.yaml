@@ -1196,7 +1196,7 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   max_concurrent: 4             # array throttle (%N): be a good citizen on the shared GPU partition
   exclude_nodes: "compute-g-16-[254-255]"   # theirs: known-problematic nodes (2025); drop if O2 retired them
   conda_module: "conda/miniforge3/24.11.3-0"
-  conda_env: dlc3
+  conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
   batch: 16                     # measure with `o2_pose_runner.py --bench` on the node type and set the fastest
   chunk: 25000                  # frames per checkpoint (100 s of video)

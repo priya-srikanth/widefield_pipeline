@@ -39,6 +39,8 @@ def test_job_text_has_array_requeue_and_resumable_runner():
     s = oi.sbatch_text(p, "ab123", "run1", 3)
     assert "#SBATCH --array=1-3%4" in s and "--requeue" in s and "/n/scratch/users/a/ab123/o2/run1" in s
     assert "o2_pose_runner.py --bundle" in s and "--batch 16 --chunk 25000" in s and "--exclude" not in s
+    assert s.startswith("#!/bin/bash -l") and "\nset -eo pipefail\n" in s and "set -euo" not in s
+    assert "\nconda activate dlc3\n" in s
     tasks = pd.DataFrame({"animal": ["PS93"], "date": ["20260908"], "video": ["cam4_x.avi"],
                           "video_o2": ["/n/files/Neurobio/MICROSCOPE/Priya/B/20260908/PS93/cam4_x.avi"]})
     c = oi.commands_text(p, "ab123", "run1", "/n/files/Neurobio/MICROSCOPE/Priya/DLC/o2/run1", tasks)
