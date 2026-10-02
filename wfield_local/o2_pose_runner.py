@@ -151,15 +151,15 @@ def run_video(b: dict, video: Path, out: Path, *, batch: int = 16, chunk: int = 
     P = np.concatenate([np.load(c)["pose"] for c in chunks]) if chunks else np.empty((0, len(b["parts"]), 3))
     if len(P) != n:
         raise SystemExit(f"{video.name}: {len(P)} frames predicted of {n} -- re-run to resume")
-    stem = f"{video.stem}_{b['scorer']}"
-    np.savez_compressed(out / f"{stem}.npz", pose=P, parts=np.array(b["parts"]))
-    write_csv(out / f"{stem}.csv", P, b["parts"], b["scorer"])
+    base = f"{video.stem}_{b['scorer']}"
+    np.savez_compressed(out / f"{base}.npz", pose=P, parts=np.array(b["parts"]))
+    write_csv(out / f"{base}.csv", P, b["parts"], b["scorer"])
     (out / f"{video.stem}_done.json").write_text(json.dumps({
         "video": str(video), "n_frames": int(n), "scorer": b["scorer"], "parts": b["parts"],
         "prior": b.get("prior"), "snapshot": Path(b["snapshot"]).name, "batch": batch,
         "wall_s": round(time.time() - t_all, 1)}, indent=1), encoding="utf-8")
-    print(f"-> {out / (stem + '.csv')} ({n} frames)", flush=True)
-    return out / f"{stem}.csv"
+    print(f"-> {out / (base + '.csv')} ({n} frames)", flush=True)
+    return out / f"{base}.csv"
 
 
 def write_csv(path: Path, P: np.ndarray, parts: list[str], scorer: str) -> None:
