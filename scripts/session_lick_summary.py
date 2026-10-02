@@ -3,12 +3,14 @@ licks per trial, DAQ contact rate, protrusion, rise / retraction speed, peak ang
 minus spout-tip angle at the peak for contact vs no-contact licks, size-matched (licks reaching >= 100 px).
 
     python -m scripts.session_lick_summary PS93:20260814 PS93:20260821 PS93:20260908
+    python -m scripts.session_lick_summary PS93:20260814:full ...     # whole-session (O2) folders
 
 Writes session_poses/lick_summary_<animal>.csv and prints the table. Epoch labels come from `epochs.epoch_of`.
 Figures (session_poses/):
   lick_summary_<animal>.png       per position, each metric across the sessions (DLC solid, LP dashed)
-  lick_phase_epochs_<animal>.png  per position, over the lick phase, one line per session (DLC): angle,
-                                  tongue - spout angle (contact licks reaching >= 100 px), protrusion
+  lick_phase_epochs_<animal>.png  per position, over the lick phase, one line per session (DLC), ALL licks
+                                  (incomplete / short included): angle, tongue - spout angle (all; no-contact),
+                                  protrusion
 """
 from __future__ import annotations
 
@@ -24,10 +26,10 @@ from wfield_local import trial_windows as TW
 MIN_EXT = 100.0
 
 
-def session_tables(animal: str, date: str, rv):
+def session_tables(spec: str, rv):
     import scripts.pose_kinematics_demo as D
-    from wfield_local import dlc_project
-    d = dlc_project.project_dir(rv).parent / "session_poses" / f"{animal}_{date}"
+    from scripts.session_poses import session_dir
+    animal, date, d = session_dir(rv, spec)
     idx = pd.read_csv(d / "windows_index.csv")
     raw = oc.read_pose(d / "windows_DLC.csv").iloc[:len(idx)]
     spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0])) for _, g in idx.groupby("trial_k")]
@@ -61,6 +63,9 @@ def summarize(animal, date, epoch, model, T, J, M) -> pd.DataFrame:
             "v_rise_med": lk.max_velocity_y_px_per_s.median(),
             "v_retract_med": lk.max_retract_velocity_y_px_per_s.median(),
             "angle_peak_med": lk.peak_angle_deg.median(),
+            "dA_all_med": lk.delta_angle_deg.median(),
+            "dA_nocontact_all_med": lk.loc[lk.contact == False, "delta_angle_deg"].median(),   # noqa: E712
+            "n_nocontact_all": int((lk.contact == False).sum()),                                # noqa: E712
             "dA_contact_med": dc.median(), "dA_nocontact_med": dn.median(), "n_contact_big": len(dc),
             "n_nocontact_big": len(dn), "dA_miss_minus_hit": dn.median() - dc.median() if len(dn) and len(dc) else np.nan,
             "jaw_moved": pd.to_numeric(J[J.position == pos].jaw_pass_qc, errors="coerce").mean(),
@@ -73,7 +78,8 @@ EPOCH_COLORS = {"pre": "0.2", "acute": "tab:red", "subacute": "tab:orange", "chr
 METRICS = [("licks_per_trial", "licks / trial"), ("contact_rate", "DAQ contact rate"),
            ("frac_trials_no_lick", "trials with no lick"), ("protrusion_med_px", "protrusion at peak (px)"),
            ("v_rise_med", "rise speed (px/s)"), ("v_retract_med", "retraction speed (px/s)"),
-           ("angle_peak_med", "angle at peak (deg)"), ("dA_contact_med", "tongue - spout angle, contact (deg)"),
+           ("angle_peak_med", "angle at peak (deg)"), ("dA_all_med", "tongue - spout angle, all licks (deg)"),
+           ("dA_nocontact_all_med", "tongue - spout angle,\nno-contact licks (deg)"),
            ("jaw_moved", "jaw moved (frac trials)")]
 
 
@@ -106,18 +112,21 @@ def plot_summary(tab: pd.DataFrame, positions, out) -> None:
     plt.close(fig)
 
 
-def plot_phase_epochs(phases: dict, positions, out, min_ext=MIN_EXT, min_phase_px=50.0) -> None:
+def plot_phase_epochs(phases: dict, positions, out, min_ext=0.0, min_phase_px=30.0) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    rows = [("angle_deg", "angle (deg)", False), ("delta_angle_deg", "tongue - spout angle,\ncontact licks (deg)", True),
-            ("protrusion_px", "protrusion (px)", False)]
+    # Priya 2026-10-02: ALL licks, incomplete / short ones included; the tongue-spout angle wherever the tongue was
+    rows = [("angle_deg", "angle (deg), all licks", None),
+            ("delta_angle_deg", "tongue - spout angle,\nall licks (deg)", None),
+            ("delta_angle_deg", "tongue - spout angle,\nno-contact licks (deg)", False),
+            ("protrusion_px", "protrusion (px), all licks", None)]
     fig, axs = plt.subplots(len(rows), len(positions), figsize=(3.0 * len(positions), 3.0 * len(rows)),
                             squeeze=False, sharex=True)
     for (label, epoch), ph in phases.items():
         ph = ph[ph.protrusion_max_px >= min_ext]
-        for i, (var, lab, contact_only) in enumerate(rows):
-            d = ph[ph.contact == True] if contact_only else ph                  # noqa: E712
+        for i, (var, lab, contact) in enumerate(rows):
+            d = ph if contact is None else ph[ph.contact == contact]           # noqa: E712
             if var != "protrusion_px":
                 d = d.assign(**{var: d[var].where(d.protrusion_px >= min_phase_px)})
             for j, pos in enumerate(positions):
@@ -138,7 +147,7 @@ def plot_phase_epochs(phases: dict, positions, out, min_ext=MIN_EXT, min_phase_p
                     ax.set_xlabel("lick phase")
     for j in range(len(positions)):
         axs[0, j].legend(fontsize=6)
-    fig.suptitle(f"DLC: tongue over the lick by session (licks reaching >= {min_ext:.0f} px; angle points < "
+    fig.suptitle(f"DLC: tongue over the lick by session -- all licks incl. incomplete / short (angle points < "
                  f"{min_phase_px:.0f} px from the mouth masked; mean +- SEM; + = image-right = mouse LEFT)", fontsize=10)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
@@ -155,8 +164,8 @@ def main(argv=None) -> int:
     rv = PathResolver()
     parts, phases = [], {}
     for s in a.sessions:
-        animal, date = s.split(":")
-        res, _ = session_tables(animal, date, rv)
+        animal, date = s.split(":")[:2]
+        res, _ = session_tables(s, rv)
         ep = epochs.epoch_of(f"{animal}_{date[4:]}")
         for m, (T, J, M) in res.items():
             parts.append(summarize(animal, date, ep, m, T, J, M))

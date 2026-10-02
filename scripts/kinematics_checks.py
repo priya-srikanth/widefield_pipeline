@@ -151,13 +151,13 @@ def main(argv=None) -> int:
     from wfield_local import dlc_project
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--session", default=None, help="animal:date of a scripts.session_poses clip")
+    ap.add_argument("--session", default=None, help="animal:date[:tag] (session_poses folder)")
     ap.add_argument("--lp", type=Path, default=Path.home() / "lp_cue_tmp" / "cue_windows_LP.csv")
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.session:
-        animal, date = a.session.split(":")
-        d = dlc_project.project_dir(rv).parent / "session_poses" / f"{animal}_{date}"
+        from scripts.session_poses import session_dir
+        animal, date, d = session_dir(rv, a.session)
         idx, poses = pd.read_csv(d / "windows_index.csv"), {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}
     else:
         animal, date = "PS93", "20260908"

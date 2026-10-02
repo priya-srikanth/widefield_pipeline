@@ -15,9 +15,10 @@ Figure 2: angle and protrusion vs lick phase (0 = tongue appears, 0.5 = peak, 1 
 DLC and LP, from `TongueKinematics.lick_phase`; thin grey = individual licks of one position.
 Figure 3 (Priya: reach accuracy -- "does the tongue deviate from the spout during the trajectory even if contact is
 normal"): delta angle = tongue angle - that trial's spout-tip angle (both from the mouth, spout frame) over the
-lick phase, per position, licks WITH a DAQ spout contact vs WITHOUT (incomplete / missed), DLC and LP -- only licks
-reaching >= MIN_EXTENSION_PX, and phase points < MIN_PHASE_PX from the mouth masked (near the lips the vector is
-short and the tongue sits image-left of the mouth point, which alone makes small licks read ~-50 deg). On cam4 the
+lick phase, per position, by outcome: contact licks, and no-contact (incomplete / missed) licks split by reach
+(>= 100 px, 60-100, < 60) -- ALL licks, the angle taken wherever the tongue was (Priya 2026-10-02); phase points
+< MIN_PHASE_PX from the mouth masked. Near the lips the vector is short and the tongue sits image-left of the mouth
+point, so SHORT licks read strongly negative from geometry alone -- compare like with like. On cam4 the
 absolute delta is dominated by depth projection (spout tips sit 60-100 px from the mouth at +-40 deg, the tongue
 reaches 140-185 px mostly down the image), so read CHANGES (between groups, sessions, epochs), not the level.
 """
@@ -37,17 +38,23 @@ from wfield_local import trial_windows as TW
 POS_COLORS = {"far_L": "#1f77b4", "close_L": "#6baed6", "far_center": "#2ca02c", "close_center": "#98df8a",
               "close_R": "#ff9896", "far_R": "#d62728"}
 MAX_ROWS = 5
-MIN_EXTENSION_PX = 100.0   # fig 3: only licks reaching this far (small "tip at the lips" licks have short, unstable vectors)
-MIN_PHASE_PX = 50.0        # figs 2-3: phase points closer than this to the mouth are masked (angle unstable there)
+EXT_BINS = (60.0, 100.0)   # fig 3: no-contact licks split into short (< 60 px) / partial / full-length (>= 100 px)
+MIN_PHASE_PX = 30.0        # figs 2-3: phase points inside the lip zone (< 30 px from the mouth, where the tongue first
+                           # appears) are masked -- the angle of a vector that short is unstable. Was 50 px with a
+                           # >= 100 px lick filter; Priya 2026-10-02 asked to include short / incomplete licks.
 
 
 def _load(a, rv):
     from wfield_local import dlc_project
     if a.session:
-        animal, date = a.session.split(":")
-        d = dlc_project.project_dir(rv).parent / "session_poses" / f"{animal}_{date}"
+        from scripts.session_poses import session_dir
+        animal, date, d = session_dir(rv, a.session)
+        video = d / "windows.mp4"
+        if not video.exists():          # whole-video (O2) folders: frames come from the original video
+            from wfield_local.o2_inference import videos_for
+            video = videos_for(rv, animal, date)[0]
         return animal, date, d, pd.read_csv(d / "windows_index.csv"), \
-            {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}, d / "windows.mp4"
+            {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}, video
     d = dlc_project.project_dir(rv).parent / "lp_vs_dlc_cue_traces" / "PS93_20260908"
     return "PS93", "20260908", d, pd.read_csv(d / "cue_windows_index.csv"), \
         {"DLC": d / "cue_windows_DLC.csv", "LP": a.lp}, d / "cue_windows.mp4"
@@ -75,14 +82,15 @@ def main(argv=None) -> int:
     stop = dict(zip(b.trial_id, b.stop_s - b.cue_s))
     contacts = D.daq_contacts_ms(animal, date, b, rv)
     res = {m: D.run(f, idx, frame, stop, contacts_ms=contacts) for m, f in poses.items()}
-    tag = f"{animal}_{date}"
+    tag = d.name
 
     # ---------------------------------------------------------------- figure 1: sign disagreements (DLC)
     T, _J, _M, clean = res["DLC"]
     tg, pos_map, _ = clean["tongue"]
     fps = tg.fps
     clip_row = np.full(len(tg.y_final), -1)
-    clip_row[pos_map] = np.arange(len(pos_map))
+    # index row -> frame of `video`: the clip's own row, or the source frame when reading the original video
+    clip_row[pos_map] = (idx.src_frame.to_numpy() if video.name.startswith("cam4_") else np.arange(len(pos_map)))
     xa = T.x_clean + tg.X0
     ya = np.where(T.is_baseline_fill_clean, np.nan, T.y_clean) + tg.Y0
     AP, LR = tk.spout_coords(xa, ya, tk.SpoutFrame(tuple(frame.origin), tuple(frame.ap_axis)))
@@ -203,34 +211,44 @@ def main(argv=None) -> int:
     plt.close(fig)
     print(f"-> {out2}")
 
-    # ---------------------------------------------------------------- figure 3: delta angle, contact vs not
-    fig, axs = plt.subplots(len(models), 6, figsize=(20, 4.2 * len(models)), squeeze=False, sharex=True)
+    # ---------------------------------------------------------------- figure 3: delta angle by lick outcome
+    # Priya 2026-10-02: include incomplete / shorter licks, and take the tongue-spout angle wherever the tongue was,
+    # contact or not. Groups: contact licks (any size) and no-contact licks split by how far they reached; points
+    # inside the lip zone (< MIN_PHASE_PX from the mouth, where the tongue first appears) are masked.
+    groups = [("contact", lambda g: g.contact == True, None, "-"),                                    # noqa: E712
+              (f"no contact, >= {EXT_BINS[1]:.0f} px", lambda g: (g.contact == False) & (g.protrusion_max_px >= EXT_BINS[1]), "k", "--"),  # noqa: E712,E501
+              (f"no contact, {EXT_BINS[0]:.0f}-{EXT_BINS[1]:.0f} px",
+               lambda g: (g.contact == False) & (g.protrusion_max_px >= EXT_BINS[0]) & (g.protrusion_max_px < EXT_BINS[1]),  # noqa: E712
+               "0.45", "--"),
+              (f"no contact, < {EXT_BINS[0]:.0f} px", lambda g: (g.contact == False) & (g.protrusion_max_px < EXT_BINS[0]), "tab:orange", ":")]  # noqa: E712,E501
+    fig, axs = plt.subplots(len(models), 6, figsize=(20, 4.4 * len(models)), squeeze=False, sharex=True)
     for row, m in enumerate(models):
         T_ = res[m][0]
         ph = T_.lick_phase.merge(T_.per_lick[["trial_id", "lick_idx", "contact", "protrusion_max_px"]],
                                  on=["trial_id", "lick_idx"])
-        ph = ph[(ph.protrusion_max_px >= MIN_EXTENSION_PX) & (ph.protrusion_px >= MIN_PHASE_PX)]
-        ph = ph.dropna(subset=["delta_angle_deg"])
+        ph = ph[ph.protrusion_px >= MIN_PHASE_PX].dropna(subset=["delta_angle_deg"])
         for col, pos in enumerate(tk.POSITIONS):
             ax = axs[row, col]
-            for cflag, colr, lab in ((True, POS_COLORS[pos], "contact"), (False, "k", "no contact")):
-                g = ph[(ph.position == pos) & (ph.contact == cflag)].groupby("phase").delta_angle_deg
+            pp = ph[ph.position == pos]
+            for lab, sel, colr, ls in groups:
+                g = pp[sel(pp)].groupby("phase").delta_angle_deg
                 if not len(g):
                     continue
+                n_l = pp[sel(pp)].groupby(["trial_id", "lick_idx"]).ngroups
                 mu, se = g.mean(), g.std() / np.sqrt(g.count())
-                ax.plot(mu.index, mu, color=colr, lw=2, ls="-" if cflag else "--",
-                        label=f"{lab} (n={g.count().max()})")
-                ax.fill_between(mu.index, mu - se, mu + se, color=colr, alpha=0.15, lw=0)
+                c = colr or POS_COLORS[pos]
+                ax.plot(mu.index, mu, color=c, lw=2, ls=ls, label=f"{lab} (n={n_l})")
+                ax.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.12, lw=0)
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             ax.set_title(f"{m} {pos}", fontsize=9)
-            ax.legend(fontsize=7)
+            ax.legend(fontsize=6)
             if col == 0:
                 ax.set_ylabel("tongue - spout angle (deg)")
             if row == len(models) - 1:
                 ax.set_xlabel("lick phase")
-    fig.suptitle(f"{animal} {date}: tongue angle relative to the trial's spout tip over the lick, licks with vs "
-                 f"without DAQ spout contact -- licks reaching >= {MIN_EXTENSION_PX:.0f} px only, phase points "
-                 f"< {MIN_PHASE_PX:.0f} px from the mouth masked (mean +- SEM; + = image-right)", fontsize=10)
+    fig.suptitle(f"{animal} {date}: tongue angle relative to the trial's spout tip over the lick, by outcome -- ALL "
+                 f"licks incl. incomplete / short ones (points < {MIN_PHASE_PX:.0f} px from the mouth masked; mean +- "
+                 f"SEM; + = image-right). Short licks sit near the lips, where the angle is least stable.", fontsize=10)
     fig.tight_layout()
     out3 = d / f"tongue_delta_angle_contact_{tag}.png"
     fig.savefig(out3, dpi=110)

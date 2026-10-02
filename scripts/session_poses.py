@@ -49,6 +49,15 @@ def out_dir(rv, animal, date) -> Path:
     return d
 
 
+def session_dir(rv, spec: str) -> tuple[str, str, Path]:
+    """``animal:date`` -> the trial-subset clip folder; ``animal:date:tag`` -> ``<animal>_<date>_<tag>`` (e.g. tag
+    ``full`` = every trial from a whole-video O2 run, `o2_inference collect`)."""
+    animal, date, *tag = spec.split(":")
+    from wfield_local import dlc_project
+    name = f"{animal}_{date}" + (f"_{tag[0]}" if tag else "")
+    return animal, date, dlc_project.project_dir(rv).parent / "session_poses" / name
+
+
 def choose(b: pd.DataFrame, per_position: int) -> pd.DataFrame:
     """``per_position`` trials per spout position, spread over the session (evenly spaced in time order)."""
     b = b[np.isfinite(b.cue_s) & np.isfinite(b.stop_s)].sort_values("cue_s")

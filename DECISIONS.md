@@ -19080,3 +19080,27 @@ tongue error adding licks there.
 * Size-matched misses vs hits (licks ≥ 100 px): at far_L misses run 12-18° image-left of hits in ALL three epochs,
   pre-stroke included — so "missed licks deviate away from the spout" is how far_L licks miss, not a stroke effect
   by itself. far_center −0 to −4°. far_R chronic disagrees between models (DLC +13, LP −7) — unreliable.
+
+## 2026-10-02 — O2 whole-session inference ported (stroke_orofacial dlc_inference_o2 → o2_inference + o2_pose_runner)
+
+Priya: "take a look at the stroke orofacial pipeline o2 dlc code - it will need refining and editing but was a way
+to run dlc on the server. lets port and modify." Kept: commands are GENERATED and pasted by the user (no SSH or
+passwords from Python — O2 needs DUO); the transfer-node → /n/scratch → GPU → transfer-node data path. Changed: the
+bundle (model, prior boxes, runner, task list, sbatch, COMMANDS.md) is written TO THE SHARE so O2 pulls it from
+/n/files; prediction is our own runner, not `deeplabcut.analyze_videos` (which would skip the `dlc_prior` heatmap
+mask), DLC 3 / PyTorch instead of their TensorFlow settings; a job ARRAY (one GPU task per video, resumable 25k-frame
+chunks, --requeue) instead of one 9.5 h job looping over every video; a `--bench` mode to pick the batch size on the
+node (Priya recalled batch 1 being fastest — measure, don't assume); `collect` validates frame counts and converts
+whole-video output into per-trial windows (`session_poses/<a>_<d>_full/`, scripts take `animal:date:full`).
+**Verified:** the standalone runner equals local `pose_predictor` + `dlc_prior.apply` on 150 real PS93 frames to
+1e-3 px / likelihood, and resumes; `full_to_windows` reproduces the subset clips' rows exactly for overlapping
+trials. Side finding while testing: pandas' 3-row-header CSV reader treats an EMPTY first data row as an index-name
+row and silently drops it (a 1-row shift) — `collect` therefore reads the runner's .npz, never re-parses the CSV.
+The subset clips themselves were re-checked frame by frame against a sequential read of the source video: aligned.
+
+**Phase plots include incomplete / short licks (Priya 2026-10-02):** `tongue_angle_phase` fig 3 now shows contact
+licks and no-contact licks split by reach (≥ 100 / 60-100 / < 60 px), all licks, tongue − spout angle wherever the
+tongue was; `session_lick_summary` epoch figure rows: angle (all), tongue − spout (all; no-contact), protrusion;
+table gains `dA_all_med`, `dA_nocontact_all_med`. Only the lip zone (< 30 px from the mouth, where the tongue first
+appears) is masked (was 50 px plus a ≥ 100 px filter). Caveat kept in the figure titles: short licks read strongly
+image-left from geometry alone (short vectors, tongue slightly left of the mouth point) — compare like with like.

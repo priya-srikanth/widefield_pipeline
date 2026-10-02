@@ -1182,3 +1182,23 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
       min_peak_y_abs: 20.0                  # px, OLD RIG -- retune
       peak_pad_ms: 52.0
       do_smooth_y_for_detection: false
+
+o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wfield_local/o2_inference.py; runner
+                               # wfield_local/o2_pose_runner.py). PORTED 2026-10-02 from stroke_orofacial
+                               # dlc_inference_o2 (their: gpu, gpu:1, 10 CPUs, 30G, 9:30:00 per job looping over every
+                               # video, conda/miniforge3/24.11.3-0, env deeplabcut [TF]). Re-check partition limits
+                               # (`sinfo`) and the module name on O2 before a big run.
+  partition: gpu
+  gres: "gpu:1"
+  cpus_per_task: 6              # decode + preprocessing run on CPU (decode ~840 fps on one core here)
+  mem: 24G
+  time: "24:00:00"              # per VIDEO (array task); resumable, so a kill costs at most one chunk
+  max_concurrent: 4             # array throttle (%N): be a good citizen on the shared GPU partition
+  exclude_nodes: "compute-g-16-[254-255]"   # theirs: known-problematic nodes (2025); drop if O2 retired them
+  conda_module: "conda/miniforge3/24.11.3-0"
+  conda_env: dlc3
+  deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
+  batch: 16                     # measure with `o2_pose_runner.py --bench` on the node type and set the fastest
+  chunk: 25000                  # frames per checkpoint (100 s of video)
+  scratch_root: "/n/scratch/users/{u0}/{user}"
+  transfer_host: transfer.rc.hms.harvard.edu

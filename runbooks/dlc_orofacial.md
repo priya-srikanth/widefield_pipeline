@@ -995,3 +995,23 @@ Not yet ported: the deployment module itself. `dlc.o2.*` holds its parameters.
 | labelling frames + manifest | `Behavior_Cameras/Widefield/dlc/labeled-data/` |
 | 2pRAM donor project (READ-ONLY) | `MICROSCOPE/Priya/DeepLabCut/DLC_train_config/` |
 | 2pRAM inference outputs (READ-ONLY) | `MICROSCOPE/Priya/DeepLabCut/O2_analysis/` |
+
+## Whole-session inference on HMS O2 (2026-10-02)
+
+This desktop runs DLC round 3 at ~40 frames/s (16 ms forward pass at 680×680, any batch size), i.e. 12-15 h per
+2-2.5 h session. Whole sessions go to O2:
+
+1. `python -m wfield_local.o2_inference bundle --name <run> --user <O2 username> PS93:20260814 ...` — writes a
+   self-contained bundle to `<DeepLabCut/Widefield>/o2/<run>/` on the share: the current round's model + its
+   pytorch_config, the `dlc_prior` boxes (bundle.json), `o2_pose_runner.py`, `tasks.tsv` (one row per cam4 video),
+   `run_pose.sbatch` (job array, one GPU per video, --requeue) and **COMMANDS.md** with every command to paste.
+2. Follow COMMANDS.md: (once) a DeepLabCut-3.0.1 env on O2 → on the transfer node rsync bundle + videos from
+   /n/files to /n/scratch → optional `--bench` on a GPU node to pick the batch size → `sbatch` → copy `out/` back to
+   the bundle folder on the share. Nothing here logs in to O2 for you (DUO; inherited rule).
+3. `python -m wfield_local.o2_inference collect --name <run>` — checks predicted frames == video frames, then writes
+   `session_poses/<animal>_<date>_full/` (every trial, strobe −0.5 s → stop +3 s), which every session script
+   reads as `PS93:20260814:full`.
+
+The runner reproduces local inference exactly (prior included; `tests/test_o2_inference.py`, 150 real frames, to
+1e-3). Re-check on O2 before a big run: partition limits (`sinfo`), the conda module name, and the torch wheel vs
+the GPU driver.
