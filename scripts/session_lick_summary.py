@@ -10,6 +10,8 @@ Writes session_poses/lick_summary_<animal>.csv and prints the table. Epoch label
 Figures (session_poses/):
   lick_summary_<animal>.png       per position, each metric across the sessions (DLC solid, LP dashed)
   lick_phase_modes_<animal>.png   protrusion over the lick, per-lick-extent vs centered phase (shape check)
+  lick_direction_shift_<animal>.png  direction vs the pre-stroke successful path, ALL licks: mean paths in the
+                                  spout frame, deviation over the lick, peak deviation median + 95% CI
   lick_phase_epochs_<animal>.png  per position, over the lick phase, one line per session (DLC), ALL licks
                                   (incomplete / short included): angle, tongue - spout angle (all; no-contact),
                                   protrusion
@@ -118,6 +120,112 @@ def plot_summary(tab: pd.DataFrame, positions, out) -> None:
     axs[0, 0].legend(fontsize=7)
     fig.suptitle("Per-session lick summary by spout position (10 trials / position / session); "
                  "angles: + = image-right = mouse LEFT on cam4", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+
+
+def _boot_ci(v, n=2000, seed=0):
+    v = np.asarray(v, float)
+    v = v[np.isfinite(v)]
+    if len(v) < 3:
+        return np.nan, np.nan, np.nan
+    rng = np.random.default_rng(seed)
+    meds = np.median(rng.choice(v, (n, len(v))), axis=1)
+    return float(np.median(v)), float(np.percentile(meds, 2.5)), float(np.percentile(meds, 97.5))
+
+
+def plot_direction_shift(devs: dict, positions, out, lip_px: float = 30.0) -> None:
+    """Priya 2026-10-02: "the leftward deviation is what I see by eye but it's not clear on the graphs" + "plot the
+    delta vs pre-stroke for all licks". One figure, ALL licks:
+      row 1  mean tongue PATH in the spout frame (LR across, AP down = out of the mouth), per session (DLC) --
+             what the eye sees on the video; the pre-stroke successful (contact) path dotted
+      row 2  deviation from the pre-stroke successful path over the lick phase, all licks, one symmetric scale
+      row 3  deviation at the peak: median + bootstrap 95% CI per session -- all / contact / no-contact, DLC and LP
+    + = image-right = mouse LEFT on cam4; - = image-left = mouse RIGHT."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    keys = sorted(devs, key=lambda k: k[0])
+    sess = list(dict.fromkeys((k[0], k[1]) for k in keys))
+    fig, axs = plt.subplots(3, len(positions), figsize=(3.2 * len(positions), 11), squeeze=False,
+                            gridspec_kw={"height_ratios": [1.3, 1, 1]})
+    lim2 = 0.0
+    for (date, ep, m), (pl, ph) in devs.items():
+        if m != "DLC":
+            continue
+        c = EPOCH_COLORS.get(ep, "0.5")
+        for j, pos in enumerate(positions):
+            d = ph[(ph.position == pos) & (ph.protrusion_px >= lip_px)]
+            g = d.groupby("phase")
+            ax = axs[0, j]
+            ax.plot(g.lr_px.mean(), g.ap_px.mean(), "-", color=c, lw=2, label=f"{date} {ep}")
+            pk = d[np.isclose(d.phase, 0.5)]
+            ax.plot(pk.lr_px.mean(), pk.ap_px.mean(), "o", color=c, ms=6)
+            if ep == "pre":
+                cc = d.merge(pl.loc[pl.contact == True, ["trial_id", "lick_idx"]], on=["trial_id", "lick_idx"])   # noqa: E712
+                gc = cc.groupby("phase")
+                ax.plot(gc.lr_px.mean(), gc.ap_px.mean(), ":", color="k", lw=1.2, label="pre contact (reference)")
+            if "dev_pre_deg" in d:
+                gd = d.groupby("phase").dev_pre_deg
+                mu, se = gd.mean(), gd.std() / np.sqrt(gd.count())
+                ax2 = axs[1, j]
+                ax2.plot(mu.index, mu, color=c, lw=2)
+                ax2.fill_between(mu.index, mu - se, mu + se, color=c, alpha=0.15, lw=0)
+                lim2 = max(lim2, float(np.nanmax(np.abs(mu))))
+    for j, pos in enumerate(positions):
+        ax = axs[0, j]
+        ax.plot(0, 0, "*", ms=12, mfc="yellow", mec="k")
+        ax.axvline(0, color="0.7", lw=0.6, ls="--")
+        ax.set_ylim(220, -10)
+        ax.set_xlim(-80, 80)
+        ax.set_aspect("equal")
+        ax.set_title(pos, fontsize=11)
+        ax.set_xlabel("LR px  (<- image-left = mouse R | image-right = mouse L ->)", fontsize=7)
+        if j == 0:
+            ax.set_ylabel("AP px (out of the mouth)")
+            ax.legend(fontsize=6, loc="lower left")
+        ax2 = axs[1, j]
+        ax2.axhline(0, color="k", lw=0.8)
+        ax2.axvline(0.5, color="k", lw=0.4, ls=":")
+        ax2.set_ylim(-1.1 * lim2, 1.1 * lim2)
+        ax2.set_xlabel("lick phase (peak = 0.5)")
+        if j == 0:
+            ax2.set_ylabel("deviation vs pre-stroke\nsuccessful path, ALL licks (deg)\n(- = image-left = mouse R)")
+    # row 3: peak deviation per session, median + 95% CI
+    lim3 = 0.0
+    for j, pos in enumerate(positions):
+        ax = axs[2, j]
+        for k_m, (m, mk) in enumerate((("DLC", "o"), ("LP", "s"))):
+            for k_g, (lab, sel, col) in enumerate((("all", lambda d: d.contact.notna(), "k"),
+                                                   ("contact", lambda d: d.contact == True, "tab:green"),     # noqa: E712
+                                                   ("no contact", lambda d: d.contact == False, "tab:red"))):  # noqa: E712
+                for i, (date, ep) in enumerate(sess):
+                    if (date, ep, m) not in devs:
+                        continue
+                    pl = devs[(date, ep, m)][0]
+                    d = pl[pl.position == pos]
+                    if "dev_pre_deg" not in d:
+                        continue
+                    med, lo, hi = _boot_ci(d.loc[sel(d), "dev_pre_deg"])
+                    xx = i + (k_g - 1) * 0.22 + (k_m - 0.5) * 0.08
+                    ax.errorbar(xx, med, yerr=[[med - lo], [hi - med]] if np.isfinite(lo) else None, fmt=mk,
+                                color=col, ms=4, mfc=col if m == "DLC" else "white", lw=1,
+                                label=f"{lab} ({m})" if (i == 0 and j == 0) else None)
+                    if np.isfinite(hi):
+                        lim3 = max(lim3, abs(lo), abs(hi))
+        ax.axhline(0, color="k", lw=0.8)
+        ax.set_xticks(range(len(sess)))
+        ax.set_xticklabels([f"{d}\n{e}" for d, e in sess], fontsize=7)
+        if j == 0:
+            ax.set_ylabel("deviation at the peak vs pre-stroke\nsuccessful, median + 95% CI (deg)")
+            ax.legend(fontsize=5, ncol=2, loc="lower left")
+    for j in range(len(positions)):
+        axs[2, j].set_ylim(-1.05 * min(lim3, 90), 1.05 * min(lim3, 90))
+    fig.suptitle("Tongue direction relative to the PRE-STROKE successful (contact) licks at each position -- all licks "
+                 "(incomplete / short included; lip zone < 30 px masked). Row 1 DLC paths, row 2 DLC over the lick, "
+                 "row 3 both models (filled DLC, open LP). Head-pose / camera rotation between sessions is not removed.",
+                 fontsize=9)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
     plt.close(fig)
@@ -251,13 +359,14 @@ def main(argv=None) -> int:
             ref_pre[m] = LR.build_reference([r[4].per_lick for r in pre], [r[4].lick_phase for r in pre])
             print(f"{m}: pre-stroke reference from {', '.join(r[1] for r in pre)} -- contact licks per position "
                   f"{ref_pre[m]['n'].to_dict()}")
-    parts, phases = [], {}
+    parts, phases, devs = [], {}, {}
     for animal, date, ep, m, T, J, M in runs:
         pl, ph = T.per_lick, T.lick_phase
         pl, ph = LR.add_deviation(pl, ph, LR.build_reference([pl], [ph]), "session")
         if m in ref_pre:
             pl, ph = LR.add_deviation(pl, ph, ref_pre[m], "pre")
         parts.append(summarize(animal, date, ep, m, T, J, M, pl=pl))
+        devs[(date[4:], ep, m)] = (pl, ph)
         if m == "DLC":
             phases[(date[4:], ep)] = ph.merge(pl[["trial_id", "lick_idx", "contact", "protrusion_max_px"]],
                                               on=["trial_id", "lick_idx"])
@@ -278,6 +387,9 @@ def main(argv=None) -> int:
     out2 = out.parent / f"lick_phase_epochs_{a.sessions[0].split(':')[0]}.png"
     plot_phase_epochs(phases, positions, out2, cycle_ms=ili_pre.get("DLC"))
     print(f"-> {out2}")
+    out4 = out.parent / f"lick_direction_shift_{a.sessions[0].split(':')[0]}.png"
+    plot_direction_shift(devs, positions, out4)
+    print(f"-> {out4}")
     out3 = out.parent / f"lick_phase_modes_{a.sessions[0].split(':')[0]}.png"
     plot_phase_modes({k: v for k, v in phases.items()}, extent_phase, positions, out3, ili_pre.get("DLC"))
     print(f"-> {out3}")

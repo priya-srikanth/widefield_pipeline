@@ -66,6 +66,8 @@ figures); `session_poses/lick_summary_PS93.{csv,png}`, `lick_phase_epochs_PS93.p
   close_center ~−20° (acute and chronic, both models), far_L −8° chronic; close_L −4/−5° (DLC) vs −17/−18° (LP).
   Chronic no-contact licks at far_L / far_center run far left (−35 / −18°). Carries head-pose / camera differences
   between sessions; confirm on more sessions and in 3-D.
+  **The clearest view: `lick_direction_shift_PS93.png`** (all licks vs the pre-stroke successful path: mean paths in
+  the spout frame, deviation over the lick, peak deviation with 95 % CIs) — chronic ~−20° at far_L and close_center.
 * At far_L, full-length misses run 12-18° image-left of hits in every epoch, pre included — how far_L licks miss.
 * Lick shape on a real-time scale: licks are ~60-80 ms tongue-out-to-in inside a 156 ms cycle (pre-stroke ILI).
 

@@ -19138,3 +19138,14 @@ real-time scale licks are sharp (~60-80 ms tongue-out-to-in), the extent-stretch
 normalisation; peak-height differences between sessions survive, and some timing differences are real
 (close_center acute / chronic rise earlier). Short / incomplete licks are included in every phase plot; only the lip
 zone (< 30 px from the mouth) is masked.
+
+**Addendum (2026-10-02) — the leftward shift, made visible (Priya: "the leftward deviation is what I see by eye but
+it's not clear to me on the graphs"; "plot the delta vs pre-stroke for all licks").** New figure
+`session_poses/lick_direction_shift_PS93.png` (`session_lick_summary.plot_direction_shift`), ALL licks against the
+pre-stroke successful path: (1) mean tongue PATH in the spout frame per session — the chronic path runs image-left
+(= mouse right) of the pre-stroke path at far_L, close_L, far_center and close_center, its peak displaced left;
+(2) deviation over the lick on one symmetric scale — chronic negative through most of the lick at far_L (to ~−25°
+at the peak), close_center (~−15°), close_L (~−10°); (3) peak deviation, median + bootstrap 95 % CI, all / contact /
+no-contact, both models — chronic all-lick medians ~−20° far_L and close_center (CIs exclude 0), close_L −5 (DLC) /
+−18 (LP). The earlier rows were split by contact and spread over many panels, which hid it. Acute far_R is the
+opposite (+15-45°, image-right) — the far_R acute licks all missed.
