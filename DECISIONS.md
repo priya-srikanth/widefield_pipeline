@@ -19194,3 +19194,24 @@ after each offset (stroke_orofacial's double-threshold rule, ported unchanged), 
 The imaging path's hard-coded 1.0 V offset / 0.10 s refractory is NOT changed by this; whether imaging moves to the
 config (keeping its 0.10 s bout-collapse as a named imaging setting) stays open (`docs/DLC_IN_WIDEFIELD_ANALYSES.md`
 §6 Q1) — a DLC ↔ imaging join must state which DAQ definition it uses.
+
+## 2026-10-02 — Movement-regressor encoding framework built (synthetic-tested; real inputs after the next DLC / LP iteration)
+
+Priya: "I'm not running O2 until we have the next DLC/LP iteration. Start building the movement regression code as a
+framework." **`wfield_local/movement_encoding.py`** (model) + **`movement_inputs.py`** (inputs) + config
+`movement_encoding`; tests `tests/test_movement_encoding.py` (synthetic session with known kernels). Generalises
+`locanmf_encoding_model` (cue + DAQ-lick FIR ridge): event regressors (FIR kernels; optional per-event modulator, e.g.
+tongue onset × executed angle, centred), continuous regressors (camera-rate signals averaged into imaging frames,
+z-scored with TRAINING statistics, a few lags), one ridge penalty PER GROUP (column scaling; chosen by coordinate
+search on cross-validated R^2), cross-validation in contiguous TRIAL BLOCKS, variance partitioning (alone / without /
+unique) by group or by combined partitions, frozen models applied to new sessions, and residuals with chosen groups'
+prediction removed (for decoding the target from what movement cannot explain). Inputs: `cam_frames_to_daq_s`
+(inverse of `dlc_frames.frame_of`), `pose_signals` (tongue protrusion with tongue-in = lip level, protrusion speed,
+LR; jaw position / speed, unknown jaw = NaN), `build_inputs` (cue kernel PER POSITION = target; tongue onset, contact,
+jaw onset, reward events; direction-modulated onset; continuous tongue / jaw / state).
+**Finding on the synthetic test:** a tongue-onset kernel and the continuous protrusion trace of the SAME stereotyped
+licks are largely redundant — each alone explains ~0.7-0.86 of a movement-driven output but their unique variances are
+small — so the movement-vs-task question is partitioned with movement groups TOGETHER (`partitions` in config:
+task / movement / direction / state); per-group partitions stay available. Real licks vary in amplitude / direction,
+which separates them somewhat. Not yet wired: imaging frame times per session (from the existing framemap /
+pco_exposure mapping) and the per-session orofacial event table (design doc §2).

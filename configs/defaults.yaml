@@ -1210,3 +1210,36 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   chunk: 25000                  # frames per checkpoint (100 s of video)
   scratch_root: "/n/scratch/users/{u0}/{user}"
   transfer_host: transfer.rc.hms.harvard.edu
+
+movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefield activity (wfield_local/movement_encoding.py,
+                               # movement_inputs.py; design docs/DLC_IN_WIDEFIELD_ANALYSES.md §3E). Framework built
+                               # 2026-10-02 (Priya) ahead of whole-session pose data; generalises locanmf_encoding_model
+                               # (cue + DAQ-lick FIR, lags -0.5..+1.5 s, ridge).
+  lags_s:                      # kernel support per event regressor, s relative to the event
+    cue: [-0.5, 1.5]           # one cue kernel PER SPOUT POSITION (the target regressors)
+    reward: [-0.2, 1.5]
+    tongue_onset: [-0.5, 1.0]  # every lick incl. incomplete (tongue first visible)
+    contact: [-0.3, 1.0]       # DAQ spout contact (lick_detection config)
+    jaw_onset: [-0.5, 1.0]
+    tongue_onset_x_angle: [-0.5, 1.0]   # tongue-onset kernel modulated by the lick's executed angle (direction)
+  continuous_lags_s: [0.0, 0.1, 0.2]    # + = the movement signal LEADS the activity (GCaMP follows movement)
+  groups:                      # variance is partitioned by these groups
+    cue: task
+    reward: task
+    tongue_onset: lick_events
+    contact: lick_events
+    jaw_onset: lick_events
+    tongue_onset_x_angle: direction
+    tongue_protrusion: tongue
+    tongue_speed: tongue
+    tongue_lr: tongue
+    jaw_y: jaw
+    jaw_speed: jaw
+    running: state
+  n_folds: 5                   # contiguous trial blocks
+  alpha_grid: [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]   # per-group ridge penalties, coordinate search on CV R^2
+  partitions:                  # variance_partition blocks for the main questions (movement groups overlap, so they are
+    task: [task]               # partitioned TOGETHER; per-group partitions remain available)
+    movement: [lick_events, tongue, jaw]
+    direction: [direction]
+    state: [state]

@@ -107,7 +107,8 @@ the same way it maps DAQ licks. Proposed module `wfield_local/orofacial_events.p
 * Their frequency changes with epoch (acute far-position attempts that miss), so they are also a behavioural readout
   and must be controlled for in any epoch contrast.
 
-**E. Movement regressors in the encoding models.** Tongue protrusion / velocity, jaw position / velocity, lick
+**E. Movement regressors in the encoding models.** *(Framework BUILT 2026-10-02: `wfield_local/movement_encoding.py` +
+`movement_inputs.py`, config `movement_encoding`, synthetic tests; needs real inputs — see DECISIONS.)* Tongue protrusion / velocity, jaw position / velocity, lick
 events (onset, contact) as regressors in `grant_encoder` / `locanmf_encoding_model`: separate movement-execution
 variance from target coding, and test whether the post-stroke loss of position decoding survives controlling for
 the changed movements (the behavioural-state control already shows running is unaffected; this extends it to the

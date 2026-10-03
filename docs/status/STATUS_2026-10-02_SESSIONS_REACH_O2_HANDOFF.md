@@ -38,6 +38,10 @@ Nothing is running locally.
   O2. **Design for using DLC / LP in the widefield GCaMP analyses: `docs/DLC_IN_WIDEFIELD_ANALYSES.md`** (5 open
   decisions in its §6, incl. the two DAQ lick detectors that already disagree between imaging and behaviour code).
 
+* **O2 on hold** until the next DLC / LP iteration (Priya). **Movement-regressor encoding framework built**
+  (`movement_encoding`, `movement_inputs`; synthetic-tested) — next: wire imaging frame times + the per-session
+  orofacial event table, then one animal. DAQ lick detection for DLC analyses: keep `lick_detection` (Priya).
+
 ## 1. What exists now (code; tests in `tests/`, config in `configs/defaults.yaml`)
 
 | piece | what |
