@@ -140,8 +140,10 @@ orofacial movement itself).
 
 ## 6. Decisions for Priya
 
-1. **Lick detector:** unify on one DAQ definition (imaging's 1.0 V / 0.10 s, or the config's 0.5 V / 40 ms) before
-   joining — which?
+1. **Lick detector:** DECIDED for the DLC / orofacial side (2026-10-02): keep `lick_detection` (2.5 / 0.5 V, lockout
+   1-20 ms, min ILI 40 ms — stroke_orofacial's rule + our floor). OPEN for the imaging path (hard-coded 1.0 V offset,
+   0.10 s refractory): move it to the config (keeping the 0.10 s collapse as a named imaging setting), or keep it and
+   state the definition at every DAQ ↔ DLC join.
 2. **Primary pose model** for imaging analyses: DLC, LP, or consensus (both must agree, else flag)?
 3. **Lick onset event:** tongue first visible (`on_frame`), peak, or both? (Onset for movement alignment, peak for
    direction, contact for reward — my proposal: carry all three.)

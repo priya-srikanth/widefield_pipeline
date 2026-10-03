@@ -19186,3 +19186,11 @@ imaging path detects DAQ licks with lower threshold 1.0 V and a 0.10 s refractor
 `dlc_frames.lick_onsets`) is 0.5 V / 40 ms — so imaging hits / RTs can already differ from `*_trials.csv`;
 `behavior_events`' "the SAME call" docstring is not true of the code. To be unified (Priya's choice) before any DAQ ↔
 DLC join. No pose / movement regressors exist in any imaging model yet.
+
+**Addendum (2026-10-02) — DAQ lick detection for the DLC / orofacial analyses: keep the current config (Priya).**
+`configs/defaults.yaml lick_detection` stays as is for every DLC / orofacial analysis (spout contacts per lick,
+contact recall, no-contact QC, engagement classes): onset below 2.5 V, offset above 0.5 V, lockout 1 ms before → 20 ms
+after each offset (stroke_orofacial's double-threshold rule, ported unchanged), plus the 40 ms minimum ILI (ours).
+The imaging path's hard-coded 1.0 V offset / 0.10 s refractory is NOT changed by this; whether imaging moves to the
+config (keeping its 0.10 s bout-collapse as a named imaging setting) stays open (`docs/DLC_IN_WIDEFIELD_ANALYSES.md`
+§6 Q1) — a DLC ↔ imaging join must state which DAQ definition it uses.
