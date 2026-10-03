@@ -184,6 +184,14 @@ def build_design(inputs: MovementInputs) -> Design:
                   kind=np.array(kinds))
 
 
+def select_rows(design: Design, mask) -> Design:
+    """The design restricted to some imaging frames (e.g. those inside the pose-data windows). Build the design on
+    the FULL frame timeline first (so lagged event columns are right at window edges), then select."""
+    m = np.asarray(mask, bool)
+    return Design(X=design.X[m], names=design.names, regressor=design.regressor, group=design.group,
+                  lag_s=design.lag_s, kind=design.kind)
+
+
 def standardise(X: np.ndarray, mu=None, sd=None):
     """Column z-scoring with given (training) statistics; NaN -> 0 AFTER centring (= 'unknown contributes nothing').
     Constant columns get sd 1."""

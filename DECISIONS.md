@@ -19215,3 +19215,19 @@ small — so the movement-vs-task question is partitioned with movement groups T
 task / movement / direction / state); per-group partitions stay available. Real licks vary in amplitude / direction,
 which separates them somewhat. Not yet wired: imaging frame times per session (from the existing framemap /
 pco_exposure mapping) and the per-session orofacial event table (design doc §2).
+
+**Addendum (2026-10-02) — per-lick direction modulators + first real-data test of the movement encoder.** Priya:
+direction as a PER-LICK MODULATOR (no continuous angle). Added `tongue_onset_x_deviation` (deviation from the session's
+contact-lick path at that position, `lick_reference` — nearly independent of the target) next to
+`tongue_onset_x_angle` (raw executed angle), both group "direction", licks reaching ≥ `min_reach_px` 60 only;
+continuous sideways position stays in the tongue group. `scripts/movement_encoding_session.py` fits LocaNMF dF/F
+(MOs / MOp / SSp-m / SSp-n, both hemispheres; region label > 0 = left = ipsilesional) on the imaging frames inside the
+60-trial pose windows (11-13 % of each session) with cue per position + DAQ contacts (`lick_detection` config) + DLC
+tongue onsets + continuous tongue / jaw + the two modulators. The penalty grid's top (1e4) was hit on real data ->
+raised to 1e6. **PS93 0814 / 0821 / 0908 (median over components, CV):** movement explains a large UNIQUE share — SSp
+0.19-0.39, MOs / MOp 0.04-0.27 (full-model R^2 up to ~0.44 in SSp-m chronic); target (cue per position) ≈ 0 unique
+(0.00-0.05 alone; its penalty went to 1e5) — position-specific variance is a tiny fraction of continuous dF/F, so
+target coding is better tested by DECODING the target from the movement-removed residual (design §3E-b) than by
+encoding R^2; direction ≈ 0.01-0.02 alone pre-stroke, ≈ 0 post. Caveats: 60 trials, lick-dense windows, more licks
+chronic (759 vs 537 pre) — no epoch conclusions from these R^2 values yet. Outputs:
+`session_poses/<a>_<d>/movement_encoding_{vp.csv,kernels.png}`, `session_poses/movement_encoding_summary.csv`.

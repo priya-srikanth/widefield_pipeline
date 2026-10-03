@@ -22,14 +22,17 @@ from wfield_local.movement_encoding import ContinuousRegressor, EventRegressor, 
 
 DEFAULTS = {
     "lags_s": {"cue": [-0.5, 1.5], "reward": [-0.2, 1.5], "tongue_onset": [-0.5, 1.0], "contact": [-0.3, 1.0],
-               "jaw_onset": [-0.5, 1.0], "tongue_onset_x_angle": [-0.5, 1.0]},
+               "jaw_onset": [-0.5, 1.0], "tongue_onset_x_angle": [-0.5, 1.0],
+               "tongue_onset_x_deviation": [-0.5, 1.0]},
     "continuous_lags_s": [0.0, 0.1, 0.2],
     "groups": {"cue": "task", "reward": "task", "tongue_onset": "lick_events", "contact": "lick_events",
-               "jaw_onset": "lick_events", "tongue_onset_x_angle": "direction", "tongue_protrusion": "tongue",
+               "jaw_onset": "lick_events", "tongue_onset_x_angle": "direction",
+               "tongue_onset_x_deviation": "direction", "tongue_protrusion": "tongue",
                "tongue_speed": "tongue", "tongue_lr": "tongue", "jaw_y": "jaw", "jaw_speed": "jaw",
                "running": "state"},
     "n_folds": 5,
     "alpha_grid": [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0],
+    "min_reach_px": 60.0,
 }
 
 

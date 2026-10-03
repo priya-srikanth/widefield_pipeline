@@ -1222,6 +1222,8 @@ movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefiel
     contact: [-0.3, 1.0]       # DAQ spout contact (lick_detection config)
     jaw_onset: [-0.5, 1.0]
     tongue_onset_x_angle: [-0.5, 1.0]   # tongue-onset kernel modulated by the lick's executed angle (direction)
+    tongue_onset_x_deviation: [-0.5, 1.0]   # ... modulated by the lick's DEVIATION from the contact-lick path at its
+                                         #   position (lick_reference) -- nearly independent of the target
   continuous_lags_s: [0.0, 0.1, 0.2]    # + = the movement signal LEADS the activity (GCaMP follows movement)
   groups:                      # variance is partitioned by these groups
     cue: task
@@ -1230,6 +1232,7 @@ movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefiel
     contact: lick_events
     jaw_onset: lick_events
     tongue_onset_x_angle: direction
+    tongue_onset_x_deviation: direction
     tongue_protrusion: tongue
     tongue_speed: tongue
     tongue_lr: tongue
@@ -1237,7 +1240,8 @@ movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefiel
     jaw_speed: jaw
     running: state
   n_folds: 5                   # contiguous trial blocks
-  alpha_grid: [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]   # per-group ridge penalties, coordinate search on CV R^2
+  min_reach_px: 60.0           # direction modulators only for licks reaching >= this far (short-lick angles unstable)
+  alpha_grid: [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0]   # per-group ridge penalties, coordinate search on CV R^2 (top raised: 1e4 was hit on real data)
   partitions:                  # variance_partition blocks for the main questions (movement groups overlap, so they are
     task: [task]               # partitioned TOGETHER; per-group partitions remain available)
     movement: [lick_events, tongue, jaw]
