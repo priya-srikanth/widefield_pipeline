@@ -19283,3 +19283,18 @@ the better-motivated: the pre-onset window falls inside the previous lick in bou
 information), add a null for executed-minus-target (matched-angle templates built from angle-shuffled pre licks of
 the same count), pool several pre-stroke sessions, and correct across positions / classes. Outputs:
 `session_poses/lick_template_match{,_precue}{.csv,_stats.csv}`, `lick_template_match_<pos>{,_precue}.png`.
+
+**Addendum (2026-10-05) — a calibrated test: no evidence that post-stroke cortex follows the EXECUTED angle within a
+cued position (yet).** Building the null exposed why the template-level statistic cannot be tested: all licks of a
+class share essentially one matched-angle template, so the class is ~one comparison — two template-level nulls gave
+30 % and 15 % false positives on structure-free synthetic data (tests). Inference is now LICK-level
+(`lick_templates.angle_bin_templates` → `readout_angle` → `within_position_angle_test`): pre-stroke templates per
+executed-angle bin (8 quantile bins, all positions), each post lick's cortical angle readout, r(executed angle,
+readout) after removing each cued position's mean, null = executed angles permuted WITHIN position (calibrated: ≤ 9 %
+false positives in the test, detects a planted within-position angle signal). Baseline fixed in advance to pre_cue;
+executed-minus-target kept as DESCRIPTIVE only. **PS93, 60-trial windows:** pooled within-position r = −0.05 (acute
+0821, n = 272, p = 0.80) and −0.10 (chronic 0908, n = 670, p = 0.99, i.e. if anything ANTI-aligned — unexplained,
+check on whole sessions) movement-removed; raw −0.02 / −0.05; per position one q < 0.05 (acute close_L +0.26,
+q = 0.048, among 24 tests — treat as chance); acute far_R −0.31 (n = 15, p = 0.86). Conclusion: the far_R "executed
+angle" idea is NOT supported on this data; re-test on whole sessions (more licks per position, several pre sessions)
+with exactly this pre-registered pipeline (`scripts/lick_template_match.py`, outputs `_readout_test.csv`).

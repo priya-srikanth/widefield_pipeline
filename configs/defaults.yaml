@@ -1252,11 +1252,14 @@ lick_template_match:           # wfield_local/lick_templates.py + scripts/lick_t
                                # stroke licks cued to one spout but executed elsewhere resemble pre-stroke licks to the
                                # same TARGET or pre-stroke licks of the same EXECUTED angle? Common space = Allen regions.
   win_s: [0.0, 0.6]            # pattern window after DLC tongue onset
-  baseline: pre_onset          # pre_onset (base_s before the onset) | pre_cue (precue_base_s before the trial's cue;
-  base_s: [-0.2, 0.0]          #   the pre-onset window falls inside the previous lick in fast bouts)
+  baseline: pre_cue            # FIXED IN ADVANCE (2026-10-05): pre_cue (precue_base_s before the trial's cue) | pre_onset
+  base_s: [-0.2, 0.0]          #   (base_s before the onset; inside the previous lick in fast bouts; the first,
+                               #   non-robust result held with it only -- DECISIONS 2026-10-05 addendum)
   precue_base_s: [-0.5, 0.0]
   angle_tol_deg: 6.0           # matched-angle template = pre licks within +- this of the post lick's executed angle
   class_deg: 10.0              # executed-angle class vs the pre contact-lick direction at that position
   min_matched: 5               # fewer matched pre licks -> no executed r for that lick
   clip_mad: 8.0                # region signals clipped to median +- this many MAD (single-frame artefacts)
   n_boot: 5000
+  n_perm: 1000                 # within-position angle permutations for the readout test
+  n_angle_bins: 8              # pre-stroke executed-angle templates for the cortical angle readout

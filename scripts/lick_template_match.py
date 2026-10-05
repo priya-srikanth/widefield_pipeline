@@ -19,7 +19,11 @@ contacts, DLC tongue onsets, continuous tongue / jaw):
     template (pre licks within +-angle_tol of its executed angle, any position);
   * per post lick cued to each `--cued` position: r with the target template, r with the matched-angle template,
     executed-angle class vs the pre contact-lick direction at that position; paired statistics of
-    (executed - target) per class (mean, bootstrap 95 % CI, Wilcoxon); the pre-stroke own-template accuracy as scale.
+    (executed - target) per class (mean, bootstrap 95 % CI, Wilcoxon), descriptive only; the pre-stroke own-template accuracy as scale;
+  * THE TEST (`_readout_test.csv`): pre templates per executed-angle bin -> each post lick's cortical angle readout
+    -> r(executed angle, readout) within cued position, null = angles permuted within position (calibrated), pooled
+    and per position with BH q.
+  Baseline fixed IN ADVANCE to pre_cue (config default) after the first result held with pre_onset only.
 Settings: configs/defaults.yaml `lick_template_match`. Outputs (session_poses/): lick_template_match[_<tag>].csv
 (per lick), ..._stats.csv (per session x position x class x version) and a scatter figure per cued position.
 Licks are DLC-detected (executed = reach >= movement_encoding.min_reach_px); DAQ contact is a label only.
@@ -88,6 +92,7 @@ def main(argv=None) -> int:
         Lp = pd.concat([p["licks"] for p in pres], ignore_index=True)
         Vp = np.concatenate([p["V"] for p in pres])
         acc = LT.own_template_accuracy(Vp, Lp.position.to_numpy())
+        centres, Tang, _edges = LT.angle_bin_templates(Lp, Vp, int(pt["n_angle_bins"]))
         print(f"\n######## {version} ({pt['baseline']} baseline): pre {', '.join(p['label'] for p in pres)} -- "
               f"{len(Lp)} executed licks; own-position template accuracy {acc:.0%} (chance 17%)")
         for spec in a.post:
@@ -106,6 +111,7 @@ def main(argv=None) -> int:
                 D.insert(1, "session", post["label"])
                 per_lick.append(D)
                 print(f"  == {post['label']} {pos}: {len(D)} executed licks, classes {D.cls.value_counts().to_dict()}")
+                D["readout_angle"] = LT.readout_angle(post["V"][m], centres, Tang)
                 for cls, g in D.groupby("cls"):
                     st = LT.paired_stats(g.r_executed - g.r_target, n_boot=int(pt["n_boot"]))
                     stats_rows.append({"version": version, "baseline": pt["baseline"], "session": post["label"],
@@ -114,11 +120,31 @@ def main(argv=None) -> int:
                                        g.matched_mostly.mode().iloc[0] if g.matched_mostly.any() else "",
                                        "own_template_acc_pre": acc, **st})
                     print(f"     {cls:20s} n={st['n']:3d}  executed - target {st['mean']:+.3f} "
-                          f"[{st['ci_lo']:+.3f}, {st['ci_hi']:+.3f}] p={st['p_wilcoxon']:.3f}  (r target "
+                          f"[{st['ci_lo']:+.3f}, {st['ci_hi']:+.3f}] (descriptive)  readout {g.readout_angle.mean():+.1f} deg "
+                          f"vs executed {g.angle.mean():+.1f}  (r target "
                           f"{g.r_target.mean():+.3f}, r executed {g.r_executed.mean():+.3f}, matched mostly "
                           f"{stats_rows[-1]['matched_mostly']})")
     D = pd.concat(per_lick, ignore_index=True) if per_lick else pd.DataFrame()
     S = pd.DataFrame(stats_rows)
+    # THE TEST: within cued position, does the cortical angle readout follow the executed angle? (lick-level null)
+    T_rows = []
+    if len(D):
+        for (version, sess), g in D.groupby(["version", "session"]):
+            res = LT.within_position_angle_test(g.position, g.angle, g.readout_angle, n_perm=int(pt["n_perm"]))
+            T_rows.append({"version": version, "session": sess, "position": "ALL (within-position)", **res})
+            for pos, gp in g.groupby("position"):
+                if len(gp) >= 8:
+                    T_rows.append({"version": version, "session": sess, "position": pos,
+                                   **LT.within_position_angle_test(gp.position, gp.angle, gp.readout_angle,
+                                                                   n_perm=int(pt["n_perm"]))})
+        T = pd.DataFrame(T_rows)
+        T["q_bh"] = np.nan
+        for _, ix in T[T.position != "ALL (within-position)"].groupby(["version", "session"]).groups.items():
+            T.loc[ix, "q_bh"] = LT.bh(T.loc[ix, "p_perm"].to_numpy())
+        T.to_csv(out_dir / f"lick_template_match{sfx}_readout_test.csv", index=False)
+        print("\n==== READOUT TEST: r(executed angle, cortical angle readout) WITHIN cued position; null = angles "
+              "permuted within position (q_bh across positions per version x session)")
+        print(T.round(3).to_string(index=False))
     D.to_csv(out_dir / f"lick_template_match{sfx}.csv", index=False)
     S.to_csv(out_dir / f"lick_template_match{sfx}_stats.csv", index=False)
     for pos in cued:

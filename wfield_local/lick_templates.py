@@ -19,6 +19,15 @@ Pieces
                        match, executed-angle class relative to the pre contact-lick direction of that position
   own_template_accuracy  control: how often a pre lick best-matches its own position (leave-one-out)
   paired_stats         mean of (executed - target), bootstrap CI, Wilcoxon
+  angle_bin_templates / readout_angle / within_position_angle_test   THE INFERENCE: pre templates per executed-angle
+                       bin -> each post lick's cortical angle readout -> correlation of executed angle with readout
+                       WITHIN cued position, null = executed angles permuted within position (licks exchangeable ->
+                       calibrated; tested). Per position and pooled.
+  bh                   Benjamini-Hochberg q-values (across positions)
+Robustness (DECISIONS 2026-10-05 addenda): the first result held with the pre-onset baseline only -> the baseline is
+fixed IN ADVANCE to pre_cue (default). executed-minus-target stays DESCRIPTIVE: a template-level null for it is not
+calibratable (all licks of a class share essentially one matched template -- two null designs gave 30 % and 15 %
+false positives on random patterns), so the p-values come from the lick-level readout test.
 """
 from __future__ import annotations
 
@@ -26,8 +35,9 @@ import numpy as np
 import pandas as pd
 
 POS_ORDER = ["far_L", "close_L", "far_center", "close_center", "close_R", "far_R"]
-DEFAULTS = {"win_s": [0.0, 0.6], "base_s": [-0.2, 0.0], "baseline": "pre_onset", "precue_base_s": [-0.5, 0.0],
-            "angle_tol_deg": 6.0, "class_deg": 10.0, "min_matched": 5, "clip_mad": 8.0, "n_boot": 5000}
+DEFAULTS = {"win_s": [0.0, 0.6], "base_s": [-0.2, 0.0], "baseline": "pre_cue", "precue_base_s": [-0.5, 0.0],
+            "angle_tol_deg": 6.0, "class_deg": 10.0, "min_matched": 5, "clip_mad": 8.0, "n_boot": 5000,
+            "n_perm": 1000, "n_angle_bins": 8}
 
 
 def params(overrides: dict | None = None) -> dict:
@@ -143,3 +153,88 @@ def paired_stats(d, n_boot: int = 5000, seed: int = 0) -> dict:
     p = float(stats.wilcoxon(d).pvalue) if len(d) >= 6 else np.nan
     return {"n": len(d), "mean": float(d.mean()), "ci_lo": float(np.percentile(bs, 2.5)),
             "ci_hi": float(np.percentile(bs, 97.5)), "p_wilcoxon": p}
+
+
+def angle_bin_templates(pre: pd.DataFrame, Vpre: np.ndarray, n_bins: int = 8):
+    """Pre-stroke templates per EXECUTED-angle bin (within-session quantiles of the executed licks' peak angles, all
+    positions pooled): (bin centre angles, templates (n_bins, n_features), bin edges)."""
+    a = pre.angle.to_numpy(float)
+    edges = np.quantile(a, np.linspace(0, 1, n_bins + 1))
+    b = np.clip(np.searchsorted(edges, a, side="right") - 1, 0, n_bins - 1)
+    centres = np.array([np.median(a[b == k]) for k in range(n_bins)])
+    T = np.stack([Vpre[b == k].mean(axis=0) for k in range(n_bins)])
+    return centres, T, edges
+
+
+def readout_angle(Vpost: np.ndarray, centres: np.ndarray, T: np.ndarray, mode: str = "weighted") -> np.ndarray:
+    """Cortical angle READOUT per lick: the centre of the best-correlated angle-bin template ('argmax') or the
+    centres weighted by the positive part of the correlations ('weighted', smoother)."""
+    R = np.array([[corr(v, t) for t in T] for v in Vpost])
+    if mode == "argmax":
+        return centres[np.nanargmax(R, axis=1)]
+    W = np.clip(R, 0, None)
+    W = np.where(W.sum(axis=1, keepdims=True) > 0, W, 1.0)
+    return (W * centres).sum(axis=1) / W.sum(axis=1)
+
+
+def within_position_angle_test(positions, angles, readout, n_perm: int = 1000, seed: int = 0) -> dict:
+    """Does the cortical readout carry the EXECUTED angle beyond the cued position? Pearson r between executed angle
+    and readout after removing each position's mean from both (only within-position variation counts), null =
+    executed angles permuted WITHIN position (licks exchangeable under H0 -> calibrated). One-sided p (r > null)."""
+    pos = np.asarray(positions)
+    a = np.asarray(angles, float)
+    r_ = np.asarray(readout, float)
+    ok = np.isfinite(a) & np.isfinite(r_)
+    pos, a, r_ = pos[ok], a[ok], r_[ok]
+
+    def centred(x):
+        y = x.copy()
+        for p in np.unique(pos):
+            m = pos == p
+            y[m] = x[m] - x[m].mean()
+        return y
+
+    rc = centred(r_)
+
+    def stat(aa):
+        ac = centred(aa)
+        d = np.sqrt((ac ** 2).sum() * (rc ** 2).sum())
+        return float((ac * rc).sum() / d) if d > 0 else np.nan
+
+    obs = stat(a)
+    rng = np.random.default_rng(seed)
+    null = []
+    for _ in range(int(n_perm)):
+        ap = a.copy()
+        for p in np.unique(pos):
+            m = np.where(pos == p)[0]
+            ap[m] = a[rng.permutation(m)]
+        null.append(stat(ap))
+    null = np.asarray(null)
+    return {"n": int(ok.sum()), "r": obs, "null_mean": float(np.nanmean(null)) if len(null) else np.nan,
+            "p_perm": perm_p(obs, null)}
+
+
+def perm_p(observed: float, null) -> float:
+    """One-sided (observed > null) permutation p with the +1 correction."""
+    null = np.asarray(null, float)
+    null = null[np.isfinite(null)]
+    if not np.isfinite(observed) or not len(null):
+        return np.nan
+    return float((np.sum(null >= observed) + 1) / (len(null) + 1))
+
+
+def bh(pvals) -> np.ndarray:
+    """Benjamini-Hochberg q-values (NaN p stay NaN)."""
+    p = np.asarray(pvals, float)
+    q = np.full(p.shape, np.nan)
+    ok = np.isfinite(p)
+    if ok.any():
+        ps = p[ok]
+        order = np.argsort(ps)
+        ranked = ps[order] * len(ps) / (np.arange(len(ps)) + 1)
+        qq = np.minimum.accumulate(ranked[::-1])[::-1]
+        tmp = np.empty_like(qq)
+        tmp[order] = np.minimum(qq, 1.0)
+        q[ok] = tmp
+    return q
