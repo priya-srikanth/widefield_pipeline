@@ -42,10 +42,29 @@ def params() -> dict:
     return dict(config.defaults().get("o2_inference") or {})
 
 
+def true_case(path: Path) -> Path:
+    """``path`` with every existing component spelled as it is ON DISK.
+
+    Windows / SMB resolve names case-insensitively, so `configs/paths.yaml` has carried
+    ``Behavior_Cameras/Widefield`` for months while the folders are ``Behavior_cameras/widefield`` (found
+    2026-10-05). O2 is Linux: a path that works here can fail there. Components that do not exist (yet) are
+    kept as given."""
+    path = Path(path)
+    out = Path(path.anchor)
+    for part in path.parts[len(path.anchor and path.parts[:1]):]:
+        try:
+            match = next((c.name for c in out.iterdir() if c.name.lower() == part.lower()), part)
+        except OSError:
+            match = part
+        out = out / match
+    return out
+
+
 def o2_path(local, rv) -> str:
-    """A path under the `microscope` share root -> the same path as O2's transfer node sees it."""
-    root = Path(rv.root("microscope")).as_posix().rstrip("/")
-    p = Path(local).as_posix()
+    """A path under the `microscope` share root -> the same path as O2's transfer node sees it, in the
+    on-disk case (`true_case`)."""
+    root = true_case(Path(rv.root("microscope"))).as_posix().rstrip("/")
+    p = true_case(Path(local)).as_posix()
     if not p.lower().startswith(root.lower()):
         raise ValueError(f"{p} is not under the share root {root}; O2 cannot see it")
     return SHARE_PREFIX_O2 + p[len(root):]
@@ -162,6 +181,14 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
                              f"rewrite only its generated text (sbatch, COMMANDS.md, runner)")
         # --refresh: regenerate the TEXT only -- the model, prior and task list stay exactly as bundled
         tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str).drop(columns="task")
+        # Same videos, re-SPELT in the on-disk case (`true_case`; bundles made before 2026-10-05 carry
+        # paths.yaml's Behavior_Cameras/Widefield, which a case-sensitive O2 path lookup would not find).
+        local = {(a, dt): {v.name: v for v in videos_for(rv, a, dt)} for a, dt in zip(tasks.animal, tasks.date)}
+        tasks["video_o2"] = [o2_path(local[(a, dt)][v], rv) if v in local[(a, dt)] else o2
+                             for a, dt, v, o2 in zip(tasks.animal, tasks.date, tasks.video, tasks.video_o2)]
+        tasks.insert(0, "task", np.arange(1, len(tasks) + 1))
+        tasks.to_csv(d / "tasks.tsv", sep="\t", index=False)
+        tasks = tasks.drop(columns="task")
         shutil.copy2(Path(__file__).with_name("o2_pose_runner.py"), d / "o2_pose_runner.py")
         (d / "run_pose.sbatch").write_text(sbatch_text(p, user, name, len(tasks)), encoding="utf-8", newline="\n")
         (d / "COMMANDS.md").write_text(commands_text(p, user, name, o2_path(d, rv), tasks), encoding="utf-8",

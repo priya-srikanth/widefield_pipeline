@@ -24,11 +24,19 @@ class _RV:
 
 
 def test_o2_path_maps_the_share_root_and_refuses_others():
-    rv = _RV("M:/MICROSCOPE/Priya")
-    assert oi.o2_path("M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/20260908/PS93/cam4_x.avi", rv) == \
+    rv = _RV("Q:/MICROSCOPE/Priya")                       # a drive that does not exist: names kept as given
+    assert oi.o2_path("Q:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/20260908/PS93/cam4_x.avi", rv) == \
         "/n/files/Neurobio/MICROSCOPE/Priya/Behavior_Cameras/Widefield/20260908/PS93/cam4_x.avi"
     with pytest.raises(ValueError):
         oi.o2_path("C:/Users/x/video.avi", rv)
+
+
+def test_o2_path_uses_the_on_disk_case(tmp_path):
+    """O2 is Linux: paths.yaml says Behavior_Cameras/Widefield, the share has Behavior_cameras/widefield."""
+    root = tmp_path / "Priya"
+    (root / "Behavior_cameras" / "widefield" / "20260908").mkdir(parents=True)
+    got = oi.o2_path(root / "Behavior_Cameras" / "Widefield" / "20260908" / "PS93" / "cam4_x.avi", _RV(str(root)))
+    assert got == "/n/files/Neurobio/MICROSCOPE/Priya/Behavior_cameras/widefield/20260908/PS93/cam4_x.avi"
 
 
 def test_job_text_has_array_requeue_and_resumable_runner():
