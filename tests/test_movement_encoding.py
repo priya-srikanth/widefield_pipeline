@@ -146,3 +146,14 @@ def test_pose_signals_fill_tongue_in_at_lip_level():
                         fps=250.0, lip_px=40.0)
     assert s["tongue_protrusion"][3] == 40.0 and np.isnan(s["tongue_lr"][3])
     assert s["tongue_protrusion"][1] == pytest.approx(100.0) and s["tongue_lr"][2] == pytest.approx(30.0)
+
+
+def test_cv_residual_removes_movement_and_keeps_the_target():
+    ft, starts, cues, onset, tcam, prot, Y, *_ = _session()
+    mov = ME.build_design(MI.build_inputs(ft, events={"tongue_onset": onset}, video_signals={"tongue_protrusion": prot},
+                                          video_t_s=tcam, trial_starts_s=starts,
+                                          overrides={"lags_s": {"tongue_onset": [0.0, 1.0]}, "continuous_lags_s": [0.0]}))
+    folds = ME.trial_block_folds(ft, starts, 5)
+    R = ME.cv_residual(mov, Y, folds, {"lick_events": 1.0, "tongue": 1.0})
+    assert np.var(R[:, 1]) < 0.3 * np.var(Y[:, 1]) and np.var(R[:, 2]) < 0.3 * np.var(Y[:, 2])   # movement gone
+    assert np.var(R[:, 0]) > 0.9 * np.var(Y[:, 0])                                               # target kept

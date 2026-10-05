@@ -314,6 +314,15 @@ def residual(model: MovementModel, design: Design, Y: np.ndarray, remove_groups:
     return Y - predict(model, design, groups=remove_groups, intercept=False)
 
 
+def cv_residual(design: Design, Y: np.ndarray, folds, alphas: dict) -> np.ndarray:
+    """CROSS-FITTED residual: Y minus a held-out prediction from ``design`` (each fold predicted by a model fit on
+    the other folds; intercept included). Use with a MOVEMENT-ONLY design to 'regress movement out' without the
+    movement model absorbing other structure by overfitting the very frames it is subtracted from. Movement-first
+    is the conservative order: variance shared between movement and the target is removed with the movement."""
+    Z, _, _ = standardise(design.X)
+    return Y - cv_predict(Z, Y, design.group, alphas, folds)
+
+
 def kernels(model: MovementModel) -> dict:
     """{regressor: (lags_s, weights (n_lags, n_out))} in standardised-column units."""
     out = {}

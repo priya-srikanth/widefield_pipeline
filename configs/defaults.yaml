@@ -1241,7 +1241,7 @@ movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefiel
     running: state
   n_folds: 5                   # contiguous trial blocks
   min_reach_px: 60.0           # direction modulators only for licks reaching >= this far (short-lick angles unstable)
-  alpha_grid: [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0]   # per-group ridge penalties, coordinate search on CV R^2 (top raised: 1e4 was hit on real data)
+  alpha_grid: [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]   # per-group ridge penalties, coordinate search on CV R^2 (top raised twice: 1e4, then 1e6 were hit on real data -- the target group)
   partitions:                  # variance_partition blocks for the main questions (movement groups overlap, so they are
     task: [task]               # partitioned TOGETHER; per-group partitions remain available)
     movement: [lick_events, tongue, jaw]

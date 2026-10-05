@@ -66,6 +66,20 @@ def imaging(label: str):
 
 def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float):
     """MovementInputs + a mask of imaging frames inside the pose windows."""
+    P = session_pieces(animal, date, rv, frame_times_s, min_reach_px)
+    L = P["licks"]
+    inputs = MI.build_inputs(frame_times_s, cues=P["trials"][["cue_s", "pos_name"]],
+                             events={"contact": P["contact_s"], "tongue_onset": L.on_s.to_numpy()},
+                             modulated={"tongue_onset_x_deviation": (L.on_s.to_numpy(), L.dev_dir.to_numpy()),
+                                        "tongue_onset_x_angle": (L.on_s.to_numpy(), L.angle_dir.to_numpy())},
+                             video_signals=P["sig"], video_t_s=P["vt"], trial_starts_s=P["trial_starts_s"])
+    return inputs, P["mask"], P["info"]
+
+
+def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: float) -> dict:
+    """Everything a model variant needs, on the DAQ clock: trials (cue_s, pos_name), DAQ contacts, a per-lick table
+    (on_s, position, angle, deviation, reach; *_dir = NaN for licks under min_reach_px), continuous pose signals with
+    their DAQ times, trial starts, and the mask of imaging frames inside the pose windows."""
     import scripts.pose_kinematics_demo as D
     from scripts.session_poses import session_dir
     from wfield_local import lick_reference as LR
@@ -104,10 +118,6 @@ def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float):
                           jaw_unknown=~np.isfinite(jw.y_final[pos_map]))
     vt = MI.cam_frames_to_daq_s(tpl, idx.src_frame.to_numpy())
     trials = b[b.trial_id.isin(sel)]
-    inputs = MI.build_inputs(frame_times_s, cues=trials.rename(columns={"pos_name": "pos_name"})[["cue_s", "pos_name"]],
-                             events={"contact": contact_s, "tongue_onset": on_s},
-                             modulated={"tongue_onset_x_deviation": (on_s, dev), "tongue_onset_x_angle": (on_s, ang)},
-                             video_signals=sig, video_t_s=vt, trial_starts_s=trials.cue_s.to_numpy(float) - 0.5)
     # imaging frames inside a pose window (per trial: first .. last clip row time)
     ft = np.asarray(frame_times_s, float)
     mask = np.zeros(len(ft), bool)
@@ -116,7 +126,12 @@ def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float):
         mask |= (ft >= t0) & (ft <= t1)
     info = {"n_licks": len(pl), "n_dir_licks": int(np.isfinite(dev).sum()), "n_contacts": len(contact_s),
             "n_trials": len(trials)}
-    return inputs, mask, info
+    licks = pd.DataFrame({"on_s": on_s, "trial_id": pl.trial_id.to_numpy(), "position": pl.position.to_numpy(),
+                          "contact": pl.contact.to_numpy(), "reach_ok": reach_ok,
+                          "angle": LR.peak_angle(pl).to_numpy(float), "dev": pl.dev_session_deg.to_numpy(float),
+                          "angle_dir": ang, "dev_dir": dev})
+    return {"trials": trials, "contact_s": contact_s, "licks": licks, "sig": sig, "vt": vt, "mask": mask,
+            "trial_starts_s": trials.cue_s.to_numpy(float) - 0.5, "info": info}
 
 
 def main(argv=None) -> int:
