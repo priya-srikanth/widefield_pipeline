@@ -80,7 +80,8 @@ the same way it maps DAQ licks. Proposed module `wfield_local/orofacial_events.p
 
 **C. Activity by EXECUTED direction, not only target position** (Priya's main question).
 *(First look 2026-10-05, DECISIONS: `lick_templates` template matching — acute PS93 far_R licks executed toward the
-mouse's left resemble pre-stroke licks of the same executed angle, movement-removed; `movement_position_angle` —
+mouse's left resembled pre-stroke licks of the same executed angle with one baseline only -- NOT robust (DECISIONS
+addendum); `movement_position_angle` —
 residual position encoding follows the decoder's pre → acute → chronic course.)*
 * *The test:* post-stroke far_R licks run left of the pre-stroke far_R path. Does cortex on those trials look like
   (i) pre-stroke far_R activity (target / intention), or (ii) pre-stroke activity for licks that EXECUTED that

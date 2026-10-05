@@ -44,8 +44,9 @@ Nothing is running locally.
 
 * **10-05 first imaging results** (DECISIONS 2026-10-05): movement explains most cue/lick activity (SSp > MOs/MOp);
   movement-removed position encoding follows the decoder's course (pre > acute ≈ 0 in MOs/MOp > chronic recovers);
-  acute far_R licks executed toward the mouse's left resemble pre-stroke licks of the same executed angle
-  (`scripts/lick_template_match.py`, movement-removed +0.13, CI +0.015 .. +0.25). Re-run all on whole sessions.
+  acute far_R licks executed toward the mouse's left looked like pre-stroke licks of the same executed angle with
+  the pre-onset baseline only -- gone with the pre-cue baseline, inconsistent across positions: an untested lead
+  (`scripts/lick_template_match.py`; DECISIONS addendum lists what a proper re-test needs). Re-run on whole sessions.
 
 ## 1. What exists now (code; tests in `tests/`, config in `configs/defaults.yaml`)
 

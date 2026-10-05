@@ -19269,3 +19269,17 @@ session drift); not usable as a control yet → the refined code adds a `pre_cue
 any / all cued positions, built-in paired statistics, and tagged (`:full`) session folders, so it runs unchanged on
 whole-session O2 output. One significant comparison among several, uncorrected: a lead, to be expanded on whole
 sessions (many more far_R licks) and other animals.
+
+**Addendum (2026-10-05, same day) — the template-matching result is NOT robust; downgraded.** The refined code
+reproduces the entry above exactly (acute far_R toward mouse-LEFT, movement-removed, pre-onset baseline: +0.131,
+CI +0.018 .. +0.249, p = 0.027), but: (1) with the **pre-cue baseline** (the trial's −0.5 .. 0 s before the cue; it
+also raises the pre-stroke own-template accuracy from 34 % to 55 %) the same 12 licks give **−0.063 movement-removed
+(CI −0.20 .. +0.08) and −0.003 raw** — the result depends on a choice it should not depend on; (2) run over ALL six
+cued positions (`--cued all`), off-target classes show **no consistent sign** (acute far_center toward mouse-LEFT
++0.23 raw p = 0.005 but −0.05 movement-removed; chronic far_center toward mouse-LEFT −0.14 movement-removed p = 0.005);
+(3) the comparisons are many (6 positions × 3 classes × 2 sessions × 2 versions × 2 baselines) and uncorrected. **Read
+it as an untested lead, not a finding.** Before re-testing on whole sessions: fix ONE baseline in advance (pre-cue is
+the better-motivated: the pre-onset window falls inside the previous lick in bouts, and it carries more position
+information), add a null for executed-minus-target (matched-angle templates built from angle-shuffled pre licks of
+the same count), pool several pre-stroke sessions, and correct across positions / classes. Outputs:
+`session_poses/lick_template_match{,_precue}{.csv,_stats.csv}`, `lick_template_match_<pos>{,_precue}.png`.
