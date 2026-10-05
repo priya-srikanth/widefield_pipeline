@@ -357,18 +357,28 @@ def round2_section(rv, live: Path) -> tuple[str, int]:
     targets = [[i for i in r.images if r.cat.get(i) == ROUND2] for r in df.itertuples()]
     blank = [[i for i in t if i in set(b)] for t, b in zip(targets, df.blank)]
     todo = int(sum(len(b) for b in blank))
+    sug = int(sum(sum(r.cat.get(i) == "context_label" for i in r.images) for r in df.itertuples()))
     head = f"""<h2 id="cam1r2">Part 3 &mdash; camera 1 round 2 (new 5 Oct)</h2>
-<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in targets))} frames to label &middot; {todo}
-still blank &middot; {int(sum(len(c) for c in df.context))} context frames (no labels needed)</p>
+<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in targets))} frames to label (+ {sug} &ldquo;also
+label&rdquo;) &middot; {todo} still blank &middot; {int(sum(len(c) for c in df.context))} context frames (no labels
+needed)</p>
 <div class="card note">
 <p><b>Do Part 2 first</b> &mdash; each of its folders adds a whole session. Then these.</p>
-<p>Each listed frame says why it was chosen. Most are moments that were hard on camera 4 (an incomplete lick,
-a jaw half behind the spout, ...): labelling the same instant from below lets the two views be combined later.
-Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
+<p>Each listed frame says why it was chosen. There are two kinds:</p>
+<ul>
+<li><b>&ldquo;same moment as &hellip; on camera 4&rdquo;</b> &mdash; an instant that was hard on camera 4 (an
+incomplete lick, a jaw half behind the spout, ...): labelling it from below lets the two views be combined
+later. These have no suggested neighbours.</li>
+<li><b>Camera 1's own hard frames</b> &mdash; where the camera-1 networks lose or misplace the tongue or jaw, plus
+one or two licks per folder labelled at three moments (opening, most open, closing). Tongue picks come with
+<b>&ldquo;also label&rdquo;</b> frames, three frames either side: the tongue changes a lot in 12 ms, so these
+are worth labelling. If a neighbour is the harder frame, label that one instead or as well.</li>
+</ul>
+<p>Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
 see stays blank.</p>
-<p><b>The context frames in these folders are only there to scroll through.</b> They show the frames just
-before and after each listed one, so you can see the tongue and jaw move. <b>Do not label them</b> (leaving
-them blank is correct and costs nothing).</p>
+<p><b>Every other frame in these folders is context, only there to scroll through.</b> It shows the frames just
+before and after each listed one, so you can see the tongue and jaw move. <b>Do not label it</b> (leaving it
+blank is correct and costs nothing).</p>
 <p style="margin-bottom:.2em">These are new folders: load <code>config.yaml</code> first, then the folder,
 exactly as for an empty camera-1 folder.</p>
 </div>
@@ -445,7 +455,7 @@ starting at 0).</p>
 <ul>
 <li><b>Listed frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
 blank.</li>
-<li><b>Suggested lick frames (Part 1 only)</b> &mdash; about every third frame through the start and end of a
+<li><b>&ldquo;Also label&rdquo; frames (Part 1, and camera 1's own picks in Part 3)</b> &mdash; about every third frame through the start and end of a
 lick. Label them too; if a neighbour is the harder frame, label that one instead or as well.</li>
 <li><b>Context frames &mdash; everything else in the folder.</b> Scroll back and forth through them to see where
 the tongue tip really is and what the jaw is doing. <b>They do not need labels</b>; leaving them blank is

@@ -19450,3 +19450,15 @@ runner + prior; `gpu` partition gave an L40S 46 GB; benchmark batch 1 fastest (9
 copy: O2 is case-sensitive and the share folders are `Behavior_cameras/widefield`, not paths.yaml's
 `Behavior_Cameras/Widefield` (`o2_inference.true_case`). The lab share is visible only on transfer nodes. Next on O2:
 an `lp` env (with DALI) and a training bundle for the LP ensembles; test `gpu_quad` access.
+
+**Addendum (2026-10-05, late) — cam1 round 2 (b) picks extracted.** LP over the six scan sessions finished (no guard
+trip); `dlc_hard_frames picks --cam cam1 --lp-dir ~/lp_clips/cam1_round2/lp` -> 106 targets (17-19 per session:
+incomplete_tongue 18, tongue_dropout 12, lick rise/peak/fall 12/9/12, unsure_tongue / erratic_jaw / tricky_spout /
+disagree_tongue / disagree_jaw / lp_erratic_jaw 6 each, lp_erratic_tongue 4, jaw_near_spout 3); contact sheets in
+`cam1_round2_scan/picks_sheets/` shown to Priya before extraction. LP's cam1 jaw is jumpy (up to ~1,650
+lp_erratic_jaw candidates per session vs 20-230 DLC erratic_jaw). **Neighbours: the suggested ("also label") frames
+are KEPT for tongue picks** (+-3 frames, 90 after overlap) — Priya: "12 ms can be a lot for tongue" (a lick is
+~25-35 frames at 250 fps, so +-3 frames is a real change of tongue shape; the 09-13 "neighbours add little" argument
+holds for the slow jaw/spout, which get none by construction). The pair frames' context stays unlabelled. Lick-phase
+picks have no neighbours; filling the two licks every 3rd frame end to end (~12 frames/session) is deferred until the
+retrained model shows whether mid-lick tracking is still weak. Worksheet Part 3 now explains both kinds of pick.

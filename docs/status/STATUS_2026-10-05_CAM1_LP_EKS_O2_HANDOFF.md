@@ -12,18 +12,16 @@ frame / multi-view plan; round 2; evening: LP vs DLC, EKS, calibration, O2). Ana
    When `squeue -u ps150` is empty: rsync `out/` back (runbook step 5), then
    `python -m wfield_local.o2_inference collect --name r3_PS93_20261002`. A pipeline test; production waits for the
    next cam4 model.
-2. **cam1 LP on the round-2 scan windows** (WSL, `/mnt/c/Users/SabatiniLab/lp_predict_cam1_r2.sh`, log
-   `C:\Users\SabatiniLab\lp_stage\lp_predict_cam1_r2.log`, output `C:\Users\SabatiniLab\lp_clips\cam1_round2\lp\`).
-   Then: `python -m wfield_local.dlc_hard_frames picks --cam cam1 --lp-dir <that folder>` -> show Priya counts + a
-   contact sheet -> `python -m wfield_local.dlc_hard_frames extract --cam cam1` -> `python -m wfield_local.dlc_cam1_guide`.
-   The scan (6 sessions, cam1 DLC best-40 + cam1 prior) is cached in `DeepLabCut/Widefield/cam1_round2_scan/`.
+2. **cam1 round 2 (b): DONE (late 10-05).** LP finished; picks run with LP (106 targets + 90 tongue "also label"
+   neighbours), contact sheets `DeepLabCut/Widefield/cam1_round2_scan/picks_sheets/`, extracted, worksheet rebuilt
+   (Part 3: 61 pair frames + the new picks, 164 blank). See the DECISIONS addendum at the end of the evening entry.
 3. **Calibrated multicam EKS: done, WORSE than calibration-free** (hidden cam1 tongue error 42-45 vs 17-18 px,
    spikes back, cam1 nose behind the rod 95-155 px off; EKS's likelihood-blind 3-D initialisation lets occluded
    cam1 guesses set the depth). Use calibration-free multicam EKS with an explicit `smooth_param` (~10). See DECISIONS.
 
 **Labelling (student, worksheet `CAM1_GUIDE.html`, archived round-1 page in `_guide_archive/`):** Part 1 cam4
 round 4 (in progress now), Part 2 the four empty cam1 folders (PS93 0606, PS92 0820, PS95 0821, PS94 0903),
-Part 3 cam1 round 2 (61 pair frames staged; the cam1 hard frames (b) to be added after Priya sees them).
+Part 3 cam1 round 2 (61 pair frames + 106 cam1 hard frames, with 90 tongue "also label" neighbours).
 
 **Then, in order (Priya's plan):** retrain cam1 DLC (+ cam4 after round 4) -> cam1 single-view LP retrain ->
 anipose cam1+cam4 + `spout_world` frame -> multi-view LP (`heatmap_multiview_transformer`, explicit `visible`
