@@ -144,8 +144,9 @@ def boxes(rv=None, cam: str | None = None, padding: float | None = None,
     y=674 of 680), so the lower clip is load-bearing rather than defensive.
     """
     p = pad() if padding is None else float(padding)
-    proj = dlc_train.train_project(rv)
-    lab = dlc_train.labels(proj, cam or dlc_train.cam())
+    which = cam or dlc_train.cam()
+    proj = dlc_train.train_project(rv, which)      # the camera's OWN project (cam1 has one since 2026-10-05)
+    lab = dlc_train.labels(proj, which)
     out: dict[str, tuple[float, float, float, float]] = {}
     for bp in dlc_train.parts():
         a = dlc_train._xy(lab, bp)

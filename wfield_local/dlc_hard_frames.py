@@ -37,6 +37,18 @@ TARGETS, CONTEXT, PROMOTED CONTEXT -- same rule as cam1 (`dlc_context_frames`): 
 promoted to ``context_label`` (suggested, flexible). All-blank frames never reach training
 (`dlc_train.drop_unlabelled`).
 
+cam1 ROUND 2 (`--cam cam1`, Priya 2026-10-05: "pull the most-useful frames for round 2 cam1 labeling (as we did
+with cam4)"). Same machinery, the cam1 DLC model (`training/...-orofacial-cam1`) and the cam1 prior, on the SAME
+six sessions as cam4 round 4 by default (`round4_scan/sessions.csv`) so both views' hard frames are pairable for
+multi-view LP. Two rules change because the view does (`CAMS`):
+  * the mouth OPENING is jaw y minus the session's resting jaw y, not jaw minus nose: from below the nose is
+    hidden behind the rod on every centre-position trial, and the head is fixed, so the jaw alone measures it;
+    the lateral-jaw rule likewise uses jaw x minus its session median.
+  * cam1 sees opening ~2.5x larger than cam4: labelled jaw y moves +62..+134 px with the tongue out (11
+    sessions), against cam4's 12-30 px incomplete-lick band, so the band is 30-70 px (PROVISIONAL -- check the
+    scanned opening-peak distribution before trusting the picks).
+Targets go to `_frame_staging/cam1_*` (the worksheet); the matched cam4 frames go to `_frame_staging_unassigned/`.
+
 MATCHED cam1 BURSTS go to ``_frame_staging_unassigned/`` -- NOT `_frame_staging`, because
 `dlc_project.sync_frames` copies every ``cam1_*`` folder there into the labelling project, i.e. onto the
 student's worksheet. They exist so a moment labelled on cam4 is pairable later (multi-view LP needs the
@@ -78,6 +90,14 @@ WIN_S = (-1.0, 3.5)
 TRIALS_PER_POSITION = 2
 MIN_SEP = 62                     # frames (0.25 s at 250 fps)
 P_OK, P_SURE = 0.6, 0.8
+#: Per-camera round settings (module docstring). ``ref`` = what the mouth opening is measured against;
+#: ``open_band`` / ``open_prom`` = the incomplete-lick peak band and prominence in px.
+CAMS = {
+    "cam4": {"round": "round4", "cache": "round4_scan", "ref": "nose", "other": "cam1",
+             "open_band": (12.0, 30.0), "open_prom": 8.0},
+    "cam1": {"round": "cam1_round2", "cache": "cam1_round2_scan", "ref": "rest", "other": "cam4",
+             "open_band": (30.0, 70.0), "open_prom": 15.0},
+}
 SEED = 104
 PER_EPOCH = 2
 POST_EPOCHS = ("acute", "subacute", "chronic")
@@ -99,12 +119,14 @@ def _spikes(x, y, p, jump=15.0, agree=8.0, p_min=P_SURE) -> np.ndarray:
     return out
 
 
-def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float) -> list[tuple[int, str, float]]:
+def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float, ref: str = "nose",
+               open_band: tuple[float, float] = (12.0, 30.0), open_prom: float = 8.0) -> list[tuple[int, str, float]]:
     """``[(index, kind, score), ...]`` over ONE contiguous window of predictions.
 
     ``P[part]`` = (x, y, p) arrays. ``rest_open`` / ``lat_med`` / ``lat_mad`` are session-level (the resting
     jaw-nose opening, and the jaw's median lateral offset from the nose and its MAD), so a window is judged
-    against the session, not against itself.
+    against the session, not against itself. ``ref="rest"`` (cam1) measures both from the jaw alone: opening =
+    jaw y - resting jaw y, lateral = jaw x - its session median (the nose is hidden on centre trials).
     """
     from scipy.signal import find_peaks
 
@@ -114,11 +136,14 @@ def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float) -> lis
     sx, sy, sp = P["spout"]
     n = len(jx)
     out: list[tuple[int, str, float]] = []
-    opening = np.where(jp > P_OK, jy - ny, np.nan) - rest_open
+    ry = 0.0 if ref == "rest" else ny
+    rx = 0.0 if ref == "rest" else nx
+    opening = np.where(jp > P_OK, jy - ry, np.nan) - rest_open
     filled = pd.Series(opening).interpolate(limit=5).fillna(0.0).to_numpy()
-    pk, _ = find_peaks(filled, height=12, distance=15, prominence=8)
+    lo, hi = open_band
+    pk, _ = find_peaks(filled, height=lo, distance=15, prominence=open_prom)
     for i in pk:
-        if filled[i] <= 30 and tp[max(0, i - 6): i + 7].max() <= P_OK:
+        if filled[i] <= hi and tp[max(0, i - 6): i + 7].max() <= P_OK:
             out.append((int(i), "incomplete_tongue", float(filled[i])))
     for i in np.flatnonzero(_spikes(tx, ty, tp)):
         out.append((int(i), "erratic_tongue", 100.0))
@@ -128,7 +153,7 @@ def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float) -> lis
         out.append((int(i), "erratic_tongue", float(tp[i])))
     for i in np.flatnonzero(_spikes(jx, jy, jp)):
         out.append((int(i), "erratic_jaw", 100.0))
-    lat = np.abs((jx - nx) - lat_med)
+    lat = np.abs((jx - rx) - lat_med)
     for i in np.flatnonzero((jp > P_SURE) & (lat > max(15.0, 4 * lat_mad))):
         out.append((int(i), "erratic_jaw", float(lat[i])))
     dsx = np.abs(np.diff(sx, prepend=sx[:1]))
@@ -162,9 +187,9 @@ def only_dlc(P_dlc: dict, P_lp: dict) -> list[tuple[int, str, float]]:
     return out
 
 
-def lp_candidates(P_lp: dict, P_dlc: dict, stats_lp) -> list[tuple[int, str, float]]:
+def lp_candidates(P_lp: dict, P_dlc: dict, stats_lp, **kw) -> list[tuple[int, str, float]]:
     """LP-focused candidates for one window: LP's own erratic tongue/jaw + DLC-vs-LP disagreement."""
-    own = [(i, "lp_" + k, s) for i, k, s in candidates(P_lp, *stats_lp) if k in ("erratic_tongue", "erratic_jaw")]
+    own = [(i, "lp_" + k, s) for i, k, s in candidates(P_lp, *stats_lp, **kw) if k in ("erratic_tongue", "erratic_jaw")]
     return own + disagreements(P_lp, P_dlc)
 
 
@@ -191,10 +216,16 @@ def select(cands: list[tuple[int, str, float]], caps: dict | None = None, min_se
     return chosen
 
 
-def session_stats(windows: list[dict]) -> tuple[float, float, float]:
-    """(resting opening, median lateral jaw offset, its MAD) over every confident frame of the session."""
+def session_stats(windows: list[dict], ref: str = "nose") -> tuple[float, float, float]:
+    """(resting opening, median lateral jaw offset, its MAD) over every confident frame of the session.
+    ``ref="rest"``: jaw y / jaw x themselves (see `candidates`)."""
     op, lat = [], []
     for P in windows:
+        if ref == "rest":
+            ok = P["jaw"][2] > P_OK
+            op.append(P["jaw"][1][ok])
+            lat.append(P["jaw"][0][ok])
+            continue
         ok = (P["jaw"][2] > P_OK) & (P["nose"][2] > P_OK)
         op.append((P["jaw"][1] - P["nose"][1])[ok])
         lat.append((P["jaw"][0] - P["nose"][0])[ok])
@@ -205,7 +236,7 @@ def session_stats(windows: list[dict]) -> tuple[float, float, float]:
 
 # --------------------------------------------------------------------------- rows (pure)
 
-def rows_for(picks, meta: dict, tpl: dict, n_frames: int) -> list[dict]:
+def rows_for(picks, meta: dict, tpl: dict, n_frames: int, round_name: str = ROUND) -> list[dict]:
     """Target + context + promoted-context manifest rows for one session's picks."""
     fs = float(tpl["fs_daq"])
     slope, icept = float(tpl["slope_daqSample_per_camFrame"]), float(tpl["intercept_daqSample"])
@@ -218,7 +249,7 @@ def rows_for(picks, meta: dict, tpl: dict, n_frames: int) -> list[dict]:
         # centred burst gives the lopsided -4/+3. Same 12 ms spacing, symmetric about the pick.
         sug = {g for g in ctx if (g - f) % PROMOTE_SPACING == 0}
         cue = trial["cue_s"]
-        for g, cat, ph in [(f, ROUND, kind)] + [(g, CONTEXT_LABEL if g in sug else CONTEXT,
+        for g, cat, ph in [(f, round_name, kind)] + [(g, CONTEXT_LABEL if g in sug else CONTEXT,
                                                    f"ctx_{kind}{g - f:+d}") for g in ctx]:
             if g in taken:
                 continue
@@ -232,7 +263,7 @@ def rows_for(picks, meta: dict, tpl: dict, n_frames: int) -> list[dict]:
 
 # --------------------------------------------------------------------------- inference (impure)
 
-def pose_predictor(rv=None, iteration: int | None = None, batch: int = 16):
+def pose_predictor(rv=None, iteration: int | None = None, batch: int = 16, cam: str = "cam4"):
     """``predict(frames_bgr) -> (N, 4, 3)`` [x, y, p] per part, the current round's network, prior applied
     by the caller's `dlc_prior.apply` context."""
     import cv2
@@ -243,7 +274,7 @@ def pose_predictor(rv=None, iteration: int | None = None, batch: int = 16):
     from wfield_local import dlc_train
     from wfield_local.dlc_iti_frames import current_snapshot
 
-    td, snapshot = current_snapshot(dlc_train.train_project(rv), iteration)
+    td, snapshot = current_snapshot(dlc_train.train_project(rv, cam), iteration)
     print(f"[dlc_hard_frames] network: {td.parent.parent.name}/{snapshot.name}", flush=True)
     cfg = read_config_as_dict(str(td / "pytorch_config.yaml"))
     model = PoseModel.build(cfg["model"])
@@ -321,9 +352,9 @@ def choose_sessions(rv=None, per_epoch: int = PER_EPOCH, epochs_=POST_EPOCHS) ->
     return DF._thin_epochs(out, per_epoch)
 
 
-def _session_io(animal, date, sid, rv):
-    tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
-    vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))[0]
+def _session_io(animal, date, sid, rv, cam: str = "cam4"):
+    tpl = dict(np.load(Path(rv.root("alignment_templates")) / cam / animal / f"{date}.npz", allow_pickle=True))
+    vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{cam}_*.avi"))[0]
     t = pd.read_csv(Path(rv.root("behavior_out")) / "sessions" / animal / date / f"{sid}_trials.csv")
     return tpl, vid, t[np.isfinite(t["cue_s"].astype(float))]
 
@@ -367,26 +398,28 @@ def load_poses(path: Path):
     return out
 
 
-def picks_from(wins_dlc, wins_lp=None) -> tuple[list, dict]:
+def picks_from(wins_dlc, wins_lp=None, cam: str = "cam4") -> tuple[list, dict]:
     """Session picks: the DLC pass, then (if LP poses are given, same windows) the LP pass around them."""
+    c = CAMS[cam]
+    kw = {"ref": c["ref"], "open_band": c["open_band"], "open_prom": c["open_prom"]}
     Pd = [_as_parts(p) for _, _, p in wins_dlc]
-    stats_d = session_stats(Pd)
+    stats_d = session_stats(Pd, c["ref"])
     cands = []
     for P, (f0, tr, _) in zip(Pd, wins_dlc):
-        cands += [(f0 + i, k, s, tr) for i, k, s in candidates(P, *stats_d)]
+        cands += [(f0 + i, k, s, tr) for i, k, s in candidates(P, *stats_d, **kw)]
     trial_of = {c[0]: c[3] for c in cands}
     picks = [(f, k, s, trial_of[f]) for f, k, s in select([c[:3] for c in cands])]
     info = {"frames": sum(len(p) for *_, p in wins_dlc),
             "dlc_candidates": pd.Series([c[1] for c in cands], dtype=str).value_counts().to_dict()}
     if wins_lp is not None:
         Pl = [_as_parts(p) for _, _, p in wins_lp]
-        stats_l = session_stats(Pl)
+        stats_l = session_stats(Pl, c["ref"])
         lc = []
         for A, B, (f0, tr, _) in zip(Pl, Pd, wins_dlc):
             n = min(len(A["jaw"][0]), len(B["jaw"][0]))
             A = {k: tuple(a[:n] for a in v) for k, v in A.items()}
             B = {k: tuple(b[:n] for b in v) for k, v in B.items()}
-            lc += [(f0 + i, k, s, tr) for i, k, s in lp_candidates(A, B, stats_l)]
+            lc += [(f0 + i, k, s, tr) for i, k, s in lp_candidates(A, B, stats_l, **kw)]
         lt = {c[0]: c[3] for c in lc}
         picks += [(f, k, s, lt[f]) for f, k, s in select([c[:3] for c in lc], kinds=LP_KINDS, taken=[p[0] for p in picks])]
         info["lp_candidates"] = pd.Series([c[1] for c in lc], dtype=str).value_counts().to_dict()
@@ -394,10 +427,10 @@ def picks_from(wins_dlc, wins_lp=None) -> tuple[list, dict]:
     return picks, info
 
 
-def scan_poses(animal, date, sid, predict, rv=None):
-    """DLC round 3 over the session's windows -> [(f0, trial, pose), ...]."""
+def scan_poses(animal, date, sid, predict, rv=None, cam: str = "cam4"):
+    """The camera's current DLC model over the session's windows -> [(f0, trial, pose), ...]."""
     rv = rv or PathResolver()
-    tpl, vid, t = _session_io(animal, date, sid, rv)
+    tpl, vid, t = _session_io(animal, date, sid, rv, cam)
     out = []
     for f0, f1, tr in windows_for(t, tpl):
         pose = predict_window(str(vid), f0, f1, predict)
@@ -406,26 +439,31 @@ def scan_poses(animal, date, sid, predict, rv=None):
     return out
 
 
-def matched_cam1(rows: list[dict], rv=None) -> list[dict]:
-    """The cam1 frame at the same DAQ instant as every cam4 row (targets and context alike)."""
+def matched_frames(rows: list[dict], rv=None, src: str = "cam4", dst: str = "cam1") -> list[dict]:
+    """The ``dst`` frame at the same DAQ instant as every ``src`` row (targets and context alike)."""
     rv = rv or PathResolver()
     out = []
     for (animal, date), grp in pd.DataFrame(rows).groupby(["animal", "date"]):
-        t4 = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
-        t1 = dict(np.load(Path(rv.root("alignment_templates")) / "cam1" / animal / f"{date}.npz", allow_pickle=True))
-        vid1 = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam1_*.avi"))[0]
-        fs = float(t4["fs_daq"])
+        ts = dict(np.load(Path(rv.root("alignment_templates")) / src / animal / f"{date}.npz", allow_pickle=True))
+        td = dict(np.load(Path(rv.root("alignment_templates")) / dst / animal / f"{date}.npz", allow_pickle=True))
+        vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{dst}_*.avi"))[0]
+        fs = float(ts["fs_daq"])
         for r in grp.to_dict("records"):
-            t_daq = (r["frame"] * float(t4["slope_daqSample_per_camFrame"]) + float(t4["intercept_daqSample"])) / fs
-            f1 = DF.frame_of(t1, t_daq, 0.0)
-            out.append({**r, "cam": "cam1", "video_stem": vid1.stem, "frame": int(f1),
-                        "image": f"img{int(f1):07d}.png", "_video": str(vid1)})
+            t_daq = (r["frame"] * float(ts["slope_daqSample_per_camFrame"]) + float(ts["intercept_daqSample"])) / fs
+            f = DF.frame_of(td, t_daq, 0.0)
+            out.append({**r, "cam": dst, "video_stem": vid.stem, "frame": int(f),
+                        "image": f"img{int(f):07d}.png", "_video": str(vid)})
     return out
 
 
+def matched_cam1(rows: list[dict], rv=None) -> list[dict]:
+    """The cam1 frame at the same DAQ instant as every cam4 row (round 4's call; `matched_frames`)."""
+    return matched_frames(rows, rv, "cam4", "cam1")
+
+
 #: Where per-session DLC poses, the session list and the picked rows live (on the DLC share).
-def _cache(rv) -> Path:
-    c = DF.staging_root(rv).parent / "round4_scan"
+def _cache(rv, cam: str = "cam4") -> Path:
+    c = DF.staging_root(rv).parent / CAMS[cam]["cache"]
     assert_writable(c)
     c.mkdir(parents=True, exist_ok=True)
     return c
@@ -435,8 +473,15 @@ def _cache(rv) -> Path:
 LOCAL_CLIPS = Path.home() / "lp_clips" / "round4"
 
 
-def _sessions(rv, specs=None):
-    c = _cache(rv) / "sessions.csv"
+def _local_clips(cam: str) -> Path:
+    return LOCAL_CLIPS if cam == "cam4" else Path.home() / "lp_clips" / CAMS[cam]["round"]
+
+
+def _sessions(rv, specs=None, cam: str = "cam4"):
+    """The round's sessions. cam1 defaults to cam4 round 4's six, so both views' hard frames are pairable."""
+    c = _cache(rv, cam) / "sessions.csv"
+    if not c.exists() and not specs and cam != "cam4" and (_cache(rv) / "sessions.csv").exists():
+        c.write_text((_cache(rv) / "sessions.csv").read_text(encoding="utf-8"), encoding="utf-8")
     if specs:
         from wfield_local.dlc_iti_frames import _parse_session
         sess = [(a_, d_, s_, e_) for a_, d_, s_, _st, e_ in (_parse_session(s, rv) for s in specs)]
@@ -448,35 +493,36 @@ def _sessions(rv, specs=None):
     return sess
 
 
-def cmd_scan(rv, sess) -> None:
+def cmd_scan(rv, sess, cam: str = "cam4") -> None:
     """DLC round 3 (+ prior) over every session's windows; poses cached per session as each finishes.
 
     On 2026-09-30 a first run was killed after 4 of 6 sessions with everything in memory; now each session
     is written when done and re-used on a re-run (delete its npz to force a re-scan)."""
     from wfield_local import dlc_prior
     predict = None
-    with dlc_prior.apply(rv, cam="cam4"):
+    with dlc_prior.apply(rv, cam=cam):
         for animal, date, sid, epoch in sess:
-            npz = _cache(rv) / f"{animal}_{date}_dlc.npz"
+            npz = _cache(rv, cam) / f"{animal}_{date}_dlc.npz"
             if npz.exists():
                 print(f"{animal} {date}: DLC poses cached", flush=True)
                 continue
-            predict = predict or pose_predictor(rv)
-            scanned = scan_poses(animal, date, sid, predict, rv)
+            predict = predict or pose_predictor(rv, cam=cam)
+            scanned = scan_poses(animal, date, sid, predict, rv, cam)
             save_poses(npz, scanned)
             print(f"{animal} {date} {epoch}: {sum(len(p) for *_, p in scanned)} frames scanned", flush=True)
 
 
-def cmd_clips(rv, sess) -> None:
+def cmd_clips(rv, sess, cam: str = "cam4") -> None:
     """The same windows, cut losslessly into one local .avi per session, for LP (`LOCAL_CLIPS`)."""
     import cv2
-    LOCAL_CLIPS.mkdir(parents=True, exist_ok=True)
+    local = _local_clips(cam)
+    local.mkdir(parents=True, exist_ok=True)
     for animal, date, sid, _ in sess:
-        out = LOCAL_CLIPS / f"{animal}_{date}.avi"
-        if out.exists() or (LOCAL_CLIPS / f"{animal}_{date}.mp4").exists():
+        out = local / f"{animal}_{date}.avi"
+        if out.exists() or (local / f"{animal}_{date}.mp4").exists():
             continue
-        tpl, vid, _t = _session_io(animal, date, sid, rv)
-        wins = load_poses(_cache(rv) / f"{animal}_{date}_dlc.npz")      # the frames DLC actually saw
+        tpl, vid, _t = _session_io(animal, date, sid, rv, cam)
+        wins = load_poses(_cache(rv, cam) / f"{animal}_{date}_dlc.npz")      # the frames DLC actually saw
         cap = cv2.VideoCapture(str(vid))                                 # READ-ONLY
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         wr = cv2.VideoWriter(str(out), cv2.VideoWriter_fourcc(*"FFV1"), 250.0, (w, h))
@@ -504,26 +550,26 @@ def _lp_windows(lp_csv: Path, wins_dlc) -> list:
     return out
 
 
-def cmd_picks(rv, sess, lp_dir: Path | None) -> Path:
+def cmd_picks(rv, sess, lp_dir: Path | None, cam: str = "cam4") -> Path:
     """Picks for every session (DLC pass, plus the LP pass when ``lp_dir`` holds `<animal>_<date>.csv`)."""
     rows = []
     for animal, date, sid, epoch in sess:
-        tpl, vid, _t = _session_io(animal, date, sid, rv)
-        wins = load_poses(_cache(rv) / f"{animal}_{date}_dlc.npz")
+        tpl, vid, _t = _session_io(animal, date, sid, rv, cam)
+        wins = load_poses(_cache(rv, cam) / f"{animal}_{date}_dlc.npz")
         lp = None
         if lp_dir is not None:
             f = Path(lp_dir) / f"{animal}_{date}.csv"
             lp = _lp_windows(f, wins) if f.exists() else None
             if lp is None:
                 print(f"{animal} {date}: no LP predictions at {f} -> DLC picks only", flush=True)
-        picks, info = picks_from(wins, lp)
-        meta = {"animal": animal, "date": date, "cam": "cam4", "epoch": epoch, "video_stem": vid.stem}
-        got = rows_for(picks, meta, tpl, int(tpl["n_cam_frames"]))
+        picks, info = picks_from(wins, lp, cam)
+        meta = {"animal": animal, "date": date, "cam": cam, "epoch": epoch, "video_stem": vid.stem}
+        got = rows_for(picks, meta, tpl, int(tpl["n_cam_frames"]), CAMS[cam]["round"])
         for r in got:
             r["_video"] = str(vid)
         rows += got
         print(f"{animal} {date} {epoch}: {info}", flush=True)
-    out = _cache(rv) / "round4_rows.csv"
+    out = _cache(rv, cam) / f"{CAMS[cam]['round']}_rows.csv"
     pd.DataFrame(rows).to_csv(out, index=False)
     print(pd.DataFrame(rows).groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
     return out
@@ -575,33 +621,39 @@ def main(argv=None) -> int:
     ap.add_argument("step", choices=["scan", "clips", "picks", "addon", "extract"])
     ap.add_argument("--sessions", nargs="*", metavar="ANIMAL:YYYYMMDD", help="override the session choice")
     ap.add_argument("--lp-dir", type=Path, default=None, help="picks: folder of LP CSVs named <animal>_<date>.csv")
+    ap.add_argument("--cam", default="cam4", choices=sorted(CAMS), help="cam4 = round 4; cam1 = cam1 round 2")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    sess = _sessions(rv, a.sessions)
+    cam = a.cam
+    if a.step == "addon" and cam != "cam4":
+        raise SystemExit("addon is cam4 round 4's one-off add-on")
+    sess = _sessions(rv, a.sessions, cam)
     print("sessions:", ", ".join(f"{s[0]}_{s[1]}({s[3]})" for s in sess), flush=True)
     if a.step == "scan":
-        cmd_scan(rv, sess)
+        cmd_scan(rv, sess, cam)
         return 0
     if a.step == "clips":
-        cmd_clips(rv, sess)
+        cmd_clips(rv, sess, cam)
         return 0
     if a.step == "addon":
         cmd_addon(rv, sess, a.lp_dir)
         return 0
     if a.step == "picks":
-        cmd_picks(rv, sess, a.lp_dir)
+        cmd_picks(rv, sess, a.lp_dir, cam)
         return 0
-    rows = pd.read_csv(_cache(rv) / "round4_rows.csv", dtype={"date": str}).to_dict("records")
+    rows = pd.read_csv(_cache(rv, cam) / f"{CAMS[cam]['round']}_rows.csv", dtype={"date": str}).to_dict("records")
     df = pd.DataFrame(rows)
-    n4 = DF.extract(rows, rv)
+    n_own = DF.extract(rows, rv)
     DF.write_manifest(rows, rv)
     from wfield_local import dlc_project
-    folders, images, _ = dlc_project.sync_frames(dlc_project.project_dir(rv), rv, cams=["cam4"])
-    c1 = matched_cam1(rows, rv)
+    folders, images, _ = dlc_project.sync_frames(dlc_project.project_dir(rv), rv, cams=[cam])
+    other = CAMS[cam]["other"]
+    mo = matched_frames(rows, rv, cam, other)
     un = DF.staging_root(rv).parent / "_frame_staging_unassigned"
-    DF.write_manifest(c1, rv, dest=un / "frame_manifest.csv")
-    n1 = _extract_to(c1, un)
-    print(f"cam4: {n4} PNGs, synced {images} into {folders} folders; cam1 matched: {n1} PNGs -> {un} (not on any worksheet)")
+    DF.write_manifest(mo, rv, dest=un / "frame_manifest.csv")
+    n_other = _extract_to(mo, un)
+    print(f"{cam}: {n_own} PNGs, synced {images} into {folders} folders; {other} matched: {n_other} PNGs -> {un} "
+          f"(not on any worksheet)")
     print(df.groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
     return 0
 

@@ -49,6 +49,34 @@ def test_full_opening_is_not_incomplete():
     assert "incomplete_tongue" not in _kinds(P)
 
 
+def _cam1_kinds(P):
+    from wfield_local.dlc_hard_frames import CAMS, session_stats
+    c = CAMS["cam1"]
+    stats = session_stats([P], "rest")
+    return [(i, k) for i, k, _ in candidates(P, *stats, ref=c["ref"], open_band=c["open_band"],
+                                             open_prom=c["open_prom"])]
+
+
+def test_cam1_finds_an_incomplete_lick_with_the_nose_hidden():
+    """cam1: the rod hides the nose on centre trials, so the opening is measured from the jaw's rest."""
+    P = _still()
+    nx, ny, _ = P["nose"]
+    P["nose"] = (nx, ny, np.zeros(N))                                   # nose never seen
+    jx, jy, jp = P["jaw"]
+    P["jaw"] = (jx, jy + 45 * np.exp(-0.5 * ((np.arange(N) - 150) / 6) ** 2), jp)   # 45 px: cam1's band
+    assert _cam1_kinds(P) == [(150, "incomplete_tongue")]
+    assert "incomplete_tongue" not in _kinds(P)                         # the cam4 rule needs the nose
+
+
+def test_cam1_band_is_scaled_to_its_larger_opening():
+    """A 20 px cam1 jaw drop is noise-level there; a 100 px one is a full lick (labels: +62..+134 px)."""
+    for amp in (20, 100):
+        P = _still()
+        jx, jy, jp = P["jaw"]
+        P["jaw"] = (jx, jy + amp * np.exp(-0.5 * ((np.arange(N) - 150) / 6) ** 2), jp)
+        assert "incomplete_tongue" not in [k for _, k in _cam1_kinds(P)]
+
+
 def test_single_frame_jump_is_a_spike_but_a_real_move_is_not():
     x = np.full(20, 100.0)
     y = np.full(20, 100.0)
