@@ -344,8 +344,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md)**
+— **START HERE, newest.** Orofacial data in the widefield analyses: movement-regressor encoding framework, residual
+(movement-removed) position encoding, executed-angle vs target (calibrated readout test: no evidence yet), O2 on hold
+until the next DLC / LP iteration; pre-registered re-runs for whole sessions.
+
 **[`docs/status/STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md`](docs/status/STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md)**
-— **START HERE for orofacial kinematics, newest.** Session-level results on PS93 pre / acute / chronic (both
+— Orofacial kinematics reference (entry point now the 10-05 handoff). Session-level results on PS93 pre / acute / chronic (both
 models), lick phase centered on the peak (stroke_orofacial), deviation from the successful-lick direction (the
 tongue − spout-tip angle is NOT accuracy on cam4), per-lick spout contact, O2 whole-session inference (first bundle
 ready for Priya: `DeepLabCut/Widefield/o2/r3_PS93_20261002`).
