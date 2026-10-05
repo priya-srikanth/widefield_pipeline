@@ -44,6 +44,7 @@ import base64
 import datetime as _dt
 import html
 import io
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -354,11 +355,11 @@ def round2_section(rv, live: Path) -> tuple[str, int]:
     targets = [[i for i in r.images if r.cat.get(i) == ROUND2] for r in df.itertuples()]
     blank = [[i for i in t if i in set(b)] for t, b in zip(targets, df.blank)]
     todo = int(sum(len(b) for b in blank))
-    head = f"""<h2 id="cam1r2">Camera 1 &mdash; round 2 (new 5 Oct)</h2>
+    head = f"""<h2 id="cam1r2">Part 2 &mdash; camera 1 round 2 (new 5 Oct)</h2>
 <p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in targets))} frames to label &middot; {todo}
 still blank &middot; {int(sum(len(c) for c in df.context))} context frames (no labels needed)</p>
 <div class="card note">
-<p><b>Do the empty camera-1 folders above first</b> &mdash; each one adds a whole session. Then these.</p>
+<p><b>Do Part 1 first</b> &mdash; each of its folders adds a whole session. Then these.</p>
 <p>Each listed frame says why it was chosen. Most are moments that were hard on camera 4 (an incomplete lick,
 a jaw half behind the spout, ...): labelling the same instant from below lets the two views be combined later.
 Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
@@ -371,6 +372,7 @@ exactly as for an empty camera-1 folder.</p>
 </div>
 """
     blocks = [_round2_block(i + 1, r, live) for i, r in enumerate(df.itertuples())]
+    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>2.\2 ', b, count=1) for b in blocks]
     return head + "".join(blocks), todo
 
 
@@ -381,39 +383,47 @@ def build(rv=None, dest: Path | None = None) -> Path:
     df = _folders(rv, live, parts)
     if df.empty:
         raise SystemExit(f"no {CAM}_* folders under {live / 'labeled-data'}")
-    order = balanced_order(df)
+    # FROM 5 OCT THE PAGE COVERS ONLY WORK STILL TO DO (Priya: "make the new guide just for today forward (ignore
+    # the initial round of labeling)"). Round-1 folders whose targets are all labelled are left off; the page as
+    # it stood through round 1 is archived beside it (`_guide_archive/`).
+    df = df[[len(b) > 0 for b in df.blank]]
+    order = balanced_order(df) if len(df) else []
     by = df.set_index("stem")
     todo_frames = int(sum(len(by.loc[s, "blank"]) for s in order))
     dest = dest or (live.parent / GUIDE_NAME)
     assert_writable(dest.parent)
     root = f"{MAC_ROOT}/{live.name}"
     today = _dt.date.today().isoformat()
+    table = "".join(
+        f"<tr><td>{k + 1}</td><td><code>{html.escape(s)}</code></td><td>{html.escape(by.loc[s, 'animal'])}</td>"
+        f"<td>{html.escape(by.loc[s, 'epoch'])}</td><td>{html.escape(by.loc[s, 'date'])}</td>"
+        f"<td>{len(by.loc[s, 'blank'])}</td></tr>" for k, s in enumerate(order))
+    part1 = (f"""<h2 id="cam1">Part 1 &mdash; the {len(order)} camera-1 folders that are still empty</h2>
+<p>These {len(order)} folders were part of the first camera-1 round and nobody has labelled them yet. Do them
+first: each one adds a whole session (an animal and a recovery stage the network has not seen).</p>
+<style>.t{{border-collapse:collapse;margin:.4em 0}} .t td,.t th{{padding:3px 12px;border-bottom:1px solid #ddd;text-align:left}}</style>
+<table class="t"><tr><th>#</th><th>folder</th><th>animal</th><th>stage</th><th>date</th><th>frames to label</th></tr>
+{table}</table>
+<p>Details for each folder (which frames, by slider position) follow.</p>
+""" if order else "<h2 id='cam1'>Part 1 &mdash; empty camera-1 folders</h2><p>None left.</p>")
 
     head = f"""<div class="wrap">
-<h1>Labelling worksheet &mdash; camera 1 (rounds 1 and 2) and camera 4 round 4</h1>
-<p><a href="#cam1">Camera 1 (the view from below)</a> &middot; <a href="#cam1r2">Camera 1 round 2</a> &middot;
-<a href="#cam4">Camera 4 round 4 (the frames the network gets wrong)</a>. The rules and the how-to below apply
-to all of them.</p>
-<p><b>Order of work for camera 1:</b> first the camera-1 folders below that are still empty (round 1), then
-camera 1 round 2.</p>
-<h2 id="cam1" style="margin-top:.4em">Camera 1 &mdash; the view from below</h2>
-<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} target frames &middot;
-{todo_frames} still blank &middot; {int(sum(len(c) for c in df.context))} context frames &middot; generated {today}</p>
-
-<p>This page is the worksheet for cam1: which folders, in what order, and exactly how to open each one.
-The manual &mdash; installing, how napari works, what each landmark means in general &mdash; is
-<code>LABELLING_GUIDE.html</code> in the same folder. Where the two disagree, this page is newer.</p>
+<h1>Labelling worksheet &mdash; from 5 October</h1>
+<p class="sub">generated {today} &middot; camera 1: {todo_frames} frames in Part 1 + the round-2 frames in Part 2</p>
+<p>What is left to label, in order: <a href="#cam1">Part 1 &mdash; the empty camera-1 folders</a>, then
+<a href="#cam1r2">Part 2 &mdash; camera 1 round 2</a>. (<a href="#cam4">Camera 4 round 4</a> is at the end.)
+The rules and the how-to below apply to all of them. The manual &mdash; installing, how napari works &mdash; is
+<code>LABELLING_GUIDE.html</code> in the same folder; where the two disagree, this page is newer. The page as it
+stood through the first round is in <code>_guide_archive/</code>.</p>
 
 <div class="card note">
-<h3 style="margin-top:.2em">Place these four &mdash; and nothing else</h3>
+<h3 style="margin-top:.2em">Camera 1: place these four &mdash; and nothing else</h3>
 <ul>
-<li><b>nose</b> &mdash; the tip of the nose as you see it from below. <i>New for cam1 today</i>: an older
-version of the manual said to leave it empty; that was wrong. Caveat (Priya): the cam1 nose and the cam4
-nose may not be exactly the same point in 3-D, because from below you see the underside of the tip. That
-is accepted and does not change how you place it.</li>
-<li><b>jaw</b> &mdash; the same landmark you use on cam4, found from below. <b>New 5 Oct:</b> when the spout tip
-sits over the chin (the centre spout positions, mouth closed), the jaw point is covered &mdash; leave jaw
-<b>blank</b>. Do not place it beside the spout.</li>
+<li><b>nose</b> &mdash; the tip of the nose as you see it from below. When the spout rod covers it (the centre
+spout positions), leave it blank.</li>
+<li><b>jaw</b> &mdash; the same landmark you use on cam4, found from below. When the spout tip sits over the chin
+(centre spout positions, mouth closed), the jaw point is covered &mdash; leave jaw <b>blank</b>. Do not place it
+beside the spout.</li>
 <li><b>tongue</b> &mdash; the tip, <b>only when you can see the tip itself.</b> From below the spout often
 sits between the camera and the tongue and hides it. If the tip is hidden, leave tongue blank; do not mark
 the edge you can see instead &mdash; that edge is a different point from the tip cam4 sees.</li>
@@ -426,26 +436,20 @@ hidden, and wrong if you simply skipped it. So on every frame you touch, place e
 </div>
 
 <div class="card note">
-<h3 style="margin-top:.2em">Target frames and context frames &mdash; new 30 Sept</h3>
-<p>Most folders now hold two kinds of frame. The entry for each folder below says which is which, by
-<b>slider position</b> (the frame number shown on napari's slider, starting at 0).</p>
+<h3 style="margin-top:.2em">Frames to label, and context frames</h3>
+<p>Each folder entry below lists its frames by <b>slider position</b> (the frame number on napari's slider,
+starting at 0).</p>
 <ul>
-<li><b>Target frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
+<li><b>Listed frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
 blank.</li>
-<li><b>Suggested lick frames &mdash; label these too.</b> Around each lick the folder holds a run of
-consecutive frames covering the moment the tongue touches the spout and the moment it lets go &mdash; the
-hardest moments to judge. About every third frame of that run is listed as suggested.
-<b>The list is a starting point, not a rule:</b> the goal is to label the <i>toughest</i> frames. If the
-frame beside a suggested one is harder &mdash; the tongue tip only just showing, the jaw half-hidden &mdash;
-label that one instead, or as well.</li>
-<li><b>Context frames &mdash; the rest of each run.</b> Scroll back and forth through them to see where the
-tongue tip really is and what the jaw is doing, then label the target. Leave them blank unless you decide one
-is worth labelling.</li>
+<li><b>Suggested lick frames (Part 1 only)</b> &mdash; about every third frame through the start and end of a
+lick. Label them too; if a neighbour is the harder frame, label that one instead or as well.</li>
+<li><b>Context frames &mdash; everything else in the folder.</b> Scroll back and forth through them to see where
+the tongue tip really is and what the jaw is doing. <b>They do not need labels</b>; leaving them blank is
+correct.</li>
 <li>Any frame you label, label <b>completely</b>. <b>Never label only the tongue on a frame</b> &mdash; the
 blanks beside it would be read as &ldquo;nose, jaw and spout hidden&rdquo;.</li>
 </ul>
-<p style="margin-bottom:.2em">Blank context frames cost nothing: frames with no points at all are removed
-before training.</p>
 </div>
 
 <div class="card note">
@@ -456,9 +460,9 @@ before training.</p>
 <kbd>Cmd</kbd>+<kbd>K</kbd> &rarr; <code>smb://research.files.med.harvard.edu/Neurobio</code>.</li>
 <li>Open Terminal and type:<pre><code>conda activate label
 napari</code></pre>Leave the Terminal window open behind napari.</li>
-<li><b>Empty folder?</b> First <i>File &rarr; Open File(s)&hellip;</i>, <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>,
-paste:<pre><code>{html.escape(root)}/config.yaml</code></pre>Nothing visible happens &mdash; that is correct.
-<b>Part-done folder?</b> Skip this step.</li>
+<li><b>Every folder on this page is new (no points yet):</b> first <i>File &rarr; Open File(s)&hellip;</i>,
+<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, paste:<pre><code>{html.escape(root)}/config.yaml</code></pre>Nothing
+visible happens &mdash; that is correct. (Coming back to a folder you already saved in? Skip this step.)</li>
 <li><i>File &rarr; Open Folder&hellip;</i>, <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, paste the folder path
 from the list below.</li>
 <li><b>Count the layers</b> on the left: exactly one points layer, <code>CollectedData_Priya</code>. If there is a
@@ -482,13 +486,10 @@ Say which folder you are taking.</p>
 <p style="margin-bottom:.2em"><b>A dropped server connection</b> makes a save fail or land nowhere. After a break,
 check the sidebar before carrying on.</p>
 </div>
-
-<h2>The folders, in the order to do them</h2>
-<p>Each block of four covers all four animals and a spread of recovery stages, so stopping partway leaves the
-set balanced. The part-done June folder is last because it adds no new session.</p>
-"""
+{part1}"""
     blocks = [_block(i + 1, by.loc[s].to_frame().T.assign(stem=s).iloc[0], live, parts)
               for i, s in enumerate(order)]
+    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>1.\2 ', b, count=1) for b in blocks]
     r2_html, r2_todo = round2_section(rv, live)
     cam4_html, cam4_todo = round4_section(rv, live)
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
