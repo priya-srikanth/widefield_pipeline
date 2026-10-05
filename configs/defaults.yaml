@@ -1213,7 +1213,10 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   conda_module: "conda/miniforge3/24.11.3-0"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
-  batch: 16                     # measure with `o2_pose_runner.py --bench` on the node type and set the fastest
+  batch: 1                      # MEASURED 2026-10-05 on an O2 `gpu` L40S (46 GB), cam4 0814 PS93, 2000 frames:
+                                # batch 1 98.1 fps / 4 89.2 / 8 75.0 / 16 70.9 / 32 68.7 / 64 67.2 (peak 188 MiB ->
+                                # 6.3 GB). Larger batches only cost memory: the job is bound by CPU decode, not the
+                                # GPU -- ~4.3 h per 1.5 M-frame session. Re-measure (`--bench`) on a new node type.
   chunk: 25000                  # frames per checkpoint (100 s of video)
   scratch_root: "/n/scratch/users/{u0}/{user}"
   transfer_host: transfer.rc.hms.harvard.edu
