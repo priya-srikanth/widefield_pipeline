@@ -29,6 +29,13 @@ every count of "blank" / "to do" is over TARGETS only, and each folder lists its
 position. The rule the page teaches -- label a target completely; leave context blank or label it
 completely, never partly -- is the one `dlc_train.drop_unlabelled` and the Lightning Pose export rely
 on (DECISIONS.md, 2026-09-30).
+
+cam1 ROUND 2 (2026-10-05, `round2_section`). Folders whose manifest rows carry ``category == "cam1_round2"``
+get their own section and leave the round-1 list: (c) cam1 frames at the moments picked as hard on cam4 in
+round 4 (``phase = "pair:<kind>"``; `dlc_hard_frames pairs`), and (b) the frames the cam1 network gets wrong
+(``phase = <kind>``; `dlc_hard_frames ... --cam cam1`). Their context frames are SCROLL-ONLY: Priya, 2026-10-05,
+"there for context and do NOT need to be labeled". The page states the order of work: finish round 1's empty
+folders first (they add whole sessions), then round 2.
 """
 from __future__ import annotations
 
@@ -41,7 +48,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from wfield_local import dlc_frames, dlc_project
+from wfield_local import config, dlc_frames, dlc_project
 from wfield_local.dlc_frames import staging_root
 from wfield_local.dlc_review_guide import CSS, MAC_ROOT
 from wfield_local.paths import PathResolver
@@ -117,15 +124,26 @@ def balanced_order(folders: pd.DataFrame) -> list[str]:
     return order
 
 
+ROUND2 = "cam1_round2"
+
+
 def _folders(rv, live: Path, parts: list[str]) -> pd.DataFrame:
+    """Round-1 cam1 folders (round-2 folders have their own section, `round2_section`)."""
     man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
     man = man[man.cam == CAM]
+    round2 = set(man.loc[man.category == ROUND2, "video_stem"])
     meta = man[man.category != "context"].drop_duplicates("video_stem").set_index("video_stem")
     ctx = man[man.category == "context"].groupby("video_stem")["image"].apply(set).to_dict()
     sug = man[man.category == "context_label"].groupby("video_stem")["image"].apply(set).to_dict()
     rows = []
+    # Frames checked as having EVERY part hidden (`dlc.train.all_occluded`, Priya 2026-10-05) are finished
+    # although they carry no points -- without this the page would ask for them again.
+    occluded = {str(x) for x in ((config.defaults().get("dlc") or {}).get("train") or {}).get("all_occluded") or []}
     for folder in sorted((live / "labeled-data").glob(f"{CAM}_*")):
+        if folder.name in round2:
+            continue
         st = folder_status(folder, parts, ctx.get(folder.name))
+        st["blank"] = [i for i in st["blank"] if f"{folder.name}/{i}" not in occluded]
         st["suggested"] = [i for i in st["targets"] if i in sug.get(folder.name, set())]
         m = meta.loc[folder.name] if folder.name in meta.index else None
         rows.append({"stem": folder.name, "animal": (m["animal"] if m is not None else "?"),
@@ -264,6 +282,87 @@ exactly as for an empty cam1 folder.</p>
     return head + "".join(blocks), todo
 
 
+#: Why a cam1 round-2 PAIR moment is hard -- on cam4, in the labeller's terms (``phase = "pair:<kind>"``).
+PAIR_WHY = {
+    "incomplete_tongue": "an incomplete lick on camera 4 (the tongue tip only just between the lips)",
+    "erratic_tongue": "a doubtful tongue on camera 4", "lp_erratic_tongue": "a doubtful tongue on camera 4",
+    "disagree_tongue": "a hard-to-place tongue tip on camera 4", "dlc_only_tongue": "a tongue tip near the spout on camera 4",
+    "erratic_jaw": "a hard-to-place jaw on camera 4", "lp_erratic_jaw": "a hard-to-place jaw on camera 4",
+    "disagree_jaw": "a hard-to-place jaw on camera 4", "dlc_only_jaw": "a jaw behind the spout on camera 4",
+    "tricky_spout": "a hard-to-place spout on camera 4",
+}
+
+
+def _round2_folders(rv, live: Path) -> pd.DataFrame:
+    """cam1 folders holding round-2 targets, with per-image category and phase from the manifest."""
+    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = man[man.cam == CAM]
+    stems = sorted(set(man.loc[man.category == ROUND2, "video_stem"]))
+    parts = dlc_frames.bodyparts(CAM)
+    rows = []
+    for stem in stems:
+        folder = live / "labeled-data" / stem
+        if not folder.is_dir():
+            continue
+        m = man[man.video_stem == stem].drop_duplicates("image").set_index("image")
+        st = folder_status(folder, parts, set(m.index[m.category == "context"]))
+        rows.append({"stem": stem, "animal": m.animal.iloc[0], "date": m.date.iloc[0], "epoch": m.epoch.iloc[0],
+                     "cat": m.category.to_dict(), "phase": m.phase.to_dict(), **st})
+    return pd.DataFrame(rows)
+
+
+def _round2_block(n: int, r, live: Path) -> str:
+    mac = f"{MAC_ROOT}/{live.name}/labeled-data/{r.stem}"
+    picks = [i for i in r.images if r.cat.get(i) == ROUND2]
+    items = []
+    for i in picks:
+        ph = str(r.phase.get(i, ""))
+        if ph.startswith("pair:"):
+            why = f"same moment as {PAIR_WHY.get(ph[5:], 'a hard frame on camera 4')}"
+            extra = ""
+        else:
+            f0 = int(i[3:10])
+            near = [j for j in r.images if r.cat.get(j) == "context_label" and abs(int(j[3:10]) - f0) <= 4]
+            extra = f"; also label <b>{', '.join(str(r.slider[j]) for j in near)}</b>" if near else ""
+            why = ROUND4_WHY.get(ph, "")
+        items.append(f"<li>slider <b>{r.slider[i]}</b>{extra} &mdash; {why}</li>")
+    done = "" if not r.has_file else f" <i>({len(r.targets) - len(r.blank)} of {len(r.targets)} done)</i>"
+    return (f'<div class="card"><h3 style="margin:.1em 0">{n}. {html.escape(r.stem)} &nbsp;'
+            f'<span class="legend">{html.escape(r.animal)} &middot; {html.escape(r.epoch)} &middot; '
+            f'{html.escape(r.date)}</span>{done}</h3><ul style="margin:.3em 0">{"".join(items)}</ul>'
+            f'<p style="margin:.2em 0">The other {len(r.context)} frames are <b>context only &mdash; they do NOT '
+            f'need labels.</b> Scroll through them to see the lick, then label the listed frames.</p>'
+            f'<pre><code>{html.escape(mac)}</code></pre></div>')
+
+
+def round2_section(rv, live: Path) -> tuple[str, int]:
+    """(HTML, target frames still blank) for cam1 round 2; empty when nothing is extracted yet."""
+    df = _round2_folders(rv, live)
+    if df.empty:
+        return ("", 0)
+    targets = [[i for i in r.images if r.cat.get(i) == ROUND2] for r in df.itertuples()]
+    blank = [[i for i in t if i in set(b)] for t, b in zip(targets, df.blank)]
+    todo = int(sum(len(b) for b in blank))
+    head = f"""<h2 id="cam1r2">Camera 1 &mdash; round 2 (new 5 Oct)</h2>
+<p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in targets))} frames to label &middot; {todo}
+still blank &middot; {int(sum(len(c) for c in df.context))} context frames (no labels needed)</p>
+<div class="card note">
+<p><b>Do the empty camera-1 folders above first</b> &mdash; each one adds a whole session. Then these.</p>
+<p>Each listed frame says why it was chosen. Most are moments that were hard on camera 4 (an incomplete lick,
+a jaw half behind the spout, ...): labelling the same instant from below lets the two views be combined later.
+Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
+see stays blank.</p>
+<p><b>The context frames in these folders are only there to scroll through.</b> They show the frames just
+before and after each listed one, so you can see the tongue and jaw move. <b>Do not label them</b> (leaving
+them blank is correct and costs nothing).</p>
+<p style="margin-bottom:.2em">These are new folders: load <code>config.yaml</code> first, then the folder,
+exactly as for an empty camera-1 folder.</p>
+</div>
+"""
+    blocks = [_round2_block(i + 1, r, live) for i, r in enumerate(df.itertuples())]
+    return head + "".join(blocks), todo
+
+
 def build(rv=None, dest: Path | None = None) -> Path:
     rv = rv or PathResolver()
     live = dlc_project.project_dir(rv)
@@ -280,9 +379,12 @@ def build(rv=None, dest: Path | None = None) -> Path:
     today = _dt.date.today().isoformat()
 
     head = f"""<div class="wrap">
-<h1>Labelling worksheet &mdash; camera 1 and camera 4 round 4</h1>
-<p><a href="#cam1">Camera 1 (the view from below)</a> &middot; <a href="#cam4">Camera 4 round 4 (the frames the
-network gets wrong)</a>. The rules and the how-to below apply to both.</p>
+<h1>Labelling worksheet &mdash; camera 1 (rounds 1 and 2) and camera 4 round 4</h1>
+<p><a href="#cam1">Camera 1 (the view from below)</a> &middot; <a href="#cam1r2">Camera 1 round 2</a> &middot;
+<a href="#cam4">Camera 4 round 4 (the frames the network gets wrong)</a>. The rules and the how-to below apply
+to all of them.</p>
+<p><b>Order of work for camera 1:</b> first the camera-1 folders below that are still empty (round 1), then
+camera 1 round 2.</p>
 <h2 id="cam1" style="margin-top:.4em">Camera 1 &mdash; the view from below</h2>
 <p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} target frames &middot;
 {todo_frames} still blank &middot; {int(sum(len(c) for c in df.context))} context frames &middot; generated {today}</p>
@@ -374,14 +476,15 @@ set balanced. The part-done June folder is last because it adds no new session.<
 """
     blocks = [_block(i + 1, by.loc[s].to_frame().T.assign(stem=s).iloc[0], live, parts)
               for i, s in enumerate(order)]
+    r2_html, r2_todo = round2_section(rv, live)
     cam4_html, cam4_todo = round4_section(rv, live)
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>Labelling worksheet</title><style>{CSS}</style></head>"
-            f"<body>{head}{''.join(blocks)}{cam4_html}</div></body></html>")
+            f"<body>{head}{''.join(blocks)}{r2_html}{cam4_html}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
-    print(f"[dlc_cam1_guide] cam1: {len(df)} folders, {todo_frames} blank; cam4 round 4: {cam4_todo} blank "
-          f"-> {dest} ({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
+    print(f"[dlc_cam1_guide] cam1: {len(df)} folders, {todo_frames} blank; cam1 round 2: {r2_todo} blank; "
+          f"cam4 round 4: {cam4_todo} blank -> {dest} ({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
     for i, s in enumerate(order):
         r = by.loc[s]
         print(f"   {i + 1:2d}. {s}  {r.animal} {r.epoch:9s} {len(r.targets):3d} targets "

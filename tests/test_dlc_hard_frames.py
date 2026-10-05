@@ -77,6 +77,19 @@ def test_cam1_band_is_scaled_to_its_larger_opening():
         assert "incomplete_tongue" not in [k for _, k in _cam1_kinds(P)]
 
 
+def test_pair_rows_keep_the_reason_and_make_every_neighbour_scroll_only_context():
+    """cam1 round 2 (c): Priya, 2026-10-05 -- the context there does NOT need labels, suggested ones included."""
+    from wfield_local.dlc_hard_frames import pair_rows
+    matched = [{"category": ROUND, "phase": "incomplete_tongue", "frame": 10, "_video": "v"},
+               {"category": CONTEXT_LABEL, "phase": "ctx_incomplete_tongue+3", "frame": 13, "_video": "v"},
+               {"category": CONTEXT, "phase": "ctx_incomplete_tongue+1", "frame": 11, "_video": "v"}]
+    got = pair_rows(matched, "cam1_round2")
+    assert [(r["category"], r["phase"]) for r in got] == [
+        ("cam1_round2", "pair:incomplete_tongue"), (CONTEXT, "ctx_incomplete_tongue+3"),
+        (CONTEXT, "ctx_incomplete_tongue+1")]
+    assert all("_video" not in r for r in got) and matched[0]["category"] == ROUND   # input untouched
+
+
 def test_single_frame_jump_is_a_spike_but_a_real_move_is_not():
     x = np.full(20, 100.0)
     y = np.full(20, 100.0)

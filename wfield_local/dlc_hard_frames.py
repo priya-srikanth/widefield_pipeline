@@ -9,6 +9,8 @@
     python -m wfield_local.dlc_hard_frames picks --lp-dir <folder of <animal>_<date>.csv>   # DLC + LP picks
     python -m wfield_local.dlc_hard_frames extract   # PNGs, manifest, sync (cam4), matched cam1 bursts
     python -m wfield_local.dlc_cam1_guide            # the worksheet (cam1 + cam4 round 4)
+    python -m wfield_local.dlc_hard_frames pairs --cam cam1   # cam1 round 2 (c): cam1 at cam4 round-4 moments
+    python -m wfield_local.dlc_hard_frames scan --cam cam1    # cam1 round 2 (b); then clips / picks / extract
 
 WHY (Priya, 2026-09-30). Round 3 misses INCOMPLETE LICKS -- the tongue tip just between the lips, no spout
 contact, so the lick sensor cannot find them -- and they matter most post-stroke. Measured on the round-3
@@ -618,7 +620,7 @@ def cmd_addon(rv, sess, lp_dir: Path) -> Path:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["scan", "clips", "picks", "addon", "extract"])
+    ap.add_argument("step", choices=["scan", "clips", "picks", "addon", "pairs", "extract"])
     ap.add_argument("--sessions", nargs="*", metavar="ANIMAL:YYYYMMDD", help="override the session choice")
     ap.add_argument("--lp-dir", type=Path, default=None, help="picks: folder of LP CSVs named <animal>_<date>.csv")
     ap.add_argument("--cam", default="cam4", choices=sorted(CAMS), help="cam4 = round 4; cam1 = cam1 round 2")
@@ -627,6 +629,9 @@ def main(argv=None) -> int:
     cam = a.cam
     if a.step == "addon" and cam != "cam4":
         raise SystemExit("addon is cam4 round 4's one-off add-on")
+    if a.step == "pairs":
+        cmd_pairs(rv, cam)
+        return 0
     sess = _sessions(rv, a.sessions, cam)
     print("sessions:", ", ".join(f"{s[0]}_{s[1]}({s[3]})" for s in sess), flush=True)
     if a.step == "scan":
@@ -656,6 +661,57 @@ def main(argv=None) -> int:
           f"(not on any worksheet)")
     print(df.groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
     return 0
+
+
+def pair_rows(matched: list[dict], round_name: str) -> list[dict]:
+    """The other camera's matched frames of a round, re-labelled for THIS camera's worksheet.
+
+    Targets keep their pick as ``phase = "pair:<kind>"`` (so the worksheet can say why the moment is hard) and
+    become ``round_name``; EVERY neighbour becomes plain ``context`` -- including cam4's suggested
+    ``context_label`` ones. Priya, 2026-10-05: the context in these folders is "there for context and do NOT
+    need to be labeled"; consecutive frames of one lick add little pose information (2026-09-13), so the
+    suggested neighbours wait until the cam1 DLC / LP evaluation says they are needed."""
+    out = []
+    for r in matched:
+        r = {k: v for k, v in r.items() if k != "_video"}
+        if r["category"] == ROUND:
+            r.update(category=round_name, phase=f"pair:{r['phase']}")
+        else:
+            r["category"] = CONTEXT
+        out.append(r)
+    return out
+
+
+def cmd_pairs(rv, cam: str = "cam1") -> int:
+    """Put the cam1 frames matched to cam4 round 4 (in `_frame_staging_unassigned/`) on the cam1 worksheet.
+
+    COPIES the PNGs into `_frame_staging/<stem>/` (the unassigned copies stay; nothing is deleted), appends the
+    re-labelled rows to the manifest (de-duplicated on video_stem + frame, so a re-run adds nothing), and
+    syncs into the labelling project. Idempotent."""
+    import shutil
+
+    from wfield_local import dlc_project
+    if cam != "cam1":
+        raise SystemExit("pairs: only cam1 (the frames matched to cam4 round 4)")
+    un = DF.staging_root(rv).parent / "_frame_staging_unassigned"
+    m = pd.read_csv(un / "frame_manifest.csv", dtype=str)
+    m = m[m.cam == cam]
+    rows = pair_rows(m.to_dict("records"), CAMS[cam]["round"])
+    copied = 0
+    for r in rows:
+        src, dst = un / r["video_stem"] / r["image"], DF.staging_root(rv) / r["video_stem"] / r["image"]
+        if dst.exists() or not src.exists():
+            continue
+        assert_writable(dst.parent)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        copied += 1
+    DF.write_manifest(rows, rv)
+    folders, images, _ = dlc_project.sync_frames(dlc_project.project_dir(rv), rv, cams=[cam])
+    df = pd.DataFrame(rows)
+    print(f"pairs: copied {copied} PNGs to _frame_staging, synced {images} into {folders} folders")
+    print(df.groupby(["video_stem", "category"]).size().unstack(fill_value=0).to_string())
+    return copied
 
 
 def _extract_to(rows: list[dict], root: Path) -> int:

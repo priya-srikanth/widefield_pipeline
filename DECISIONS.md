@@ -19367,3 +19367,12 @@ hidden here but labelled in the other view = 0 (lets the network infer it from t
 losses treat the 6-10 px view-to-view landmark offset as error. Then an ensemble of 4-5 multi-view models -> the
 multi-camera EKS smoother -> anipose -> `spout_world`. A point inferred from one view is flagged as such, never
 counted as two-view evidence. First: a toy check that visible 0 rows really stay out of the loss.
+
+**cam1 labelling round 2 (Priya).** Order on the worksheet: (a) the four empty round-1 folders first (whole
+sessions); then (c) the cam1 frames at cam4 round 4's 61 picks, staged with `dlc_hard_frames pairs --cam cam1`
+(6 folders, 61 targets, 360 context) — chosen for PAIRING with cam4's hard post-stroke moments, so they did not
+wait for the cam1 model evaluation; their neighbours are SCROLL-ONLY context (Priya: "there for context and do NOT
+need to be labeled"; cam4's 70 suggested neighbours deferred until the cam1 DLC / LP evaluation asks for them);
+then (b) the frames the cam1 networks get wrong (`dlc_hard_frames scan/clips/picks/extract --cam cam1`, after the
+cam1 LP model, shown to Priya before extraction). `CAM1_GUIDE.html` has a "Camera 1 — round 2" section, and frames
+in `dlc.train.all_occluded` count as done.
