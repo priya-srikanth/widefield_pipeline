@@ -129,8 +129,15 @@ def cam() -> str:
     return str(train_cfg().get("cam", "cam4"))
 
 
-def train_project(rv=None) -> Path:
-    """``<dlc>/training/<labelling project>-<tag>`` — derived, and OUT OF THE LABELLING GLOB.
+def train_project(rv=None, which: str | None = None) -> Path:
+    """``<dlc>/training/<labelling project>-<tag>[-<cam>]`` — derived, and OUT OF THE LABELLING GLOB.
+
+    ONE TRAINING PROJECT PER CAMERA (2026-10-05, first cam1 model). cam4 keeps the bare
+    ``-<tag>`` name it has had since 2026-09-21, because the round-3 model in use, its priors
+    (`dlc_prior`), the O2 bundle and the hard-frame scans all resolve it with no camera argument.
+    Every other camera gets ``-<tag>-<cam>``. Staging cam1 into the cam4 project instead would put
+    both views' folders in one ``labeled-data`` and re-run shuffle 1 of the cam4 iteration over
+    the model in use.
 
     The subdirectory is not tidiness. `dlc_project.project_dir` globs
     ``<Task>-<scorer>-*`` in the dlc root and returns the LAST match, so a sibling named
@@ -142,7 +149,10 @@ def train_project(rv=None) -> Path:
     about the other.
     """
     src = dlc_project.project_dir(rv)
-    return src.parent / "training" / f"{src.name}-{train_cfg().get('tag', 'orofacial')}"
+    name = f"{src.name}-{train_cfg().get('tag', 'orofacial')}"
+    if which and which != "cam4":
+        name += f"-{which}"
+    return src.parent / "training" / name
 
 
 # ------------------------------------------------------------------------------- donor weights
@@ -318,7 +328,7 @@ def stage(bodyparts=None, which=None, rv=None, iteration: int | None = None) -> 
 
     rv = rv or PathResolver()
     bps, which = list(bodyparts or parts()), which or cam()
-    src, dest = dlc_project.project_dir(rv), train_project(rv)
+    src, dest = dlc_project.project_dir(rv), train_project(rv, which)
     if not (src / "config.yaml").is_file():
         raise SystemExit(f"No labelling project at {src}. Run dlc_project first.")
 

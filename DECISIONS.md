@@ -19298,3 +19298,72 @@ check on whole sessions) movement-removed; raw −0.02 / −0.05; per position o
 q = 0.048, among 24 tests — treat as chance); acute far_R −0.31 (n = 15, p = 0.86). Conclusion: the far_R "executed
 angle" idea is NOT supported on this data; re-test on whole sessions (more licks per position, several pre sessions)
 with exactly this pre-registered pipeline (`scripts/lick_template_match.py`, outputs `_readout_test.csv`).
+
+
+## 2026-10-05 — cam1 labels audited, first cam1 DLC model; 3-D world frame from the spout positions (June usable); multi-view LP plan
+
+**cam1 label audit (Priya: "no partially labeled frames ... no big chunks or whole sessions with entire keypoints
+missing").** 294 labelled frames in 11 of 15 folders (unlabelled: PS93 0606, PS92 0820, PS95 0821, PS94 0903). jaw /
+spout 96 %, tongue 46 % (behaviour), nose 62 % — and the nose gaps are NOT unfinished work: nose is blank on exactly
+the close_center / far_center frames (0 %, 100 % at the four lateral positions), because from below the centred spout
+rod covers the nose landmark (checked on images; PS93 0904 close_R also has the rod edge on the landmark). Spout
+blanks (11) are frames where the tongue wraps the spout tip. Three "stopped" target frames looked skipped; Priya
+checked them: 0820T09_44_54/img1406922 and 0820T14_08_45/img1261917 have EVERY part occluded, img1697884 (jaw only) is
+correct. The two all-occluded frames are listed in `dlc.train.all_occluded`: DLC drops all-blank rows either way, but
+the multi-view LP export must write them as occluded (visible 1), not "not labelled" (visible 0).
+Consequence for 3-D: no cam1 nose on centre-position trials; nose there comes from cam4 (static under head fixation).
+
+**First cam1 DLC model.** Own training project `training/<labelling project>-orofacial-cam1`: `dlc_train.train_project`
+is now per camera (cam4 keeps the bare `-orofacial` name the model in use, its priors, the O2 bundle and the scans all
+resolve). Staging cam1 into the cam4 project would have mixed both views in one labeled-data and retrained over the
+round-3 model. `dlc_prelabel.donor()` now rebases the config's `N:/MICROSCOPE/...` donor path onto this machine's
+MICROSCOPE mount (N: has been the standby share since the 09-30 reboot). Donor init nose/jaw/tongue/spout <-
+[0, 1, 2, 12]; held out PS95 0606 pre, PS95 0817 acute, PS92 0826 subacute, PS93 0904 chronic (86 frames); train 208
+frames / 7 sessions; held-out RMSE ~7.4-7.7 px through the second half of training.
+
+**3-D world frame from the spout positions (Priya: "use the spout close vs far center and far L vs far R positions as
+our AP / ML ground truth in 3d").** `wfield_local/spout_world.py`. The stage commands each position in mm relative to
+a per-session `mouth` point (gui_config `geometry`: 2 / 4 mm, az 0 / -60 / +60, 45 deg down, roll 0 in every labelled
+session); the firmware formula (`recomputePosition`, Teensy v39) is ported, and the events.csv stage read-back equals
+the command to 0.001 mm during pre_cue. Measured on the 162 cam1+cam4 paired spout labels, 09-11 calibration:
+* All 15 within-session distances between positions match the command to ~2 % in Aug-Sep — the metric scale is right
+  (the board's print correction, 3.71 x 1.008 = 3.74 mm squares, is already in its board.yaml).
+* **The stage axes are left-handed** (L at -x, spouts at -y in front of the mouth, z up), so the fit is done in
+  world axes (ml, ap, dv) = (x, -y, z): + mouse right, + out of the mouth, + up. Fitted in stage axes, a proper
+  rotation cannot reach the mirror image (scale 0.87-0.94, residual 0.5-1 mm); in world axes the per-session
+  residual is **0.03-0.08 mm** (0.23 in the two sparsest sessions). This also confirms *_L = mouse's left.
+* RETRACTED the same afternoon: a "20 % metric-scale error" (0.83). It came from that handedness mismatch plus a fit
+  POOLED across sessions in absolute stage coordinates (mouth points differ by ~1 mm, comparable to the noise).
+
+**The plan for June (no June calibration needed).** June's triangulated geometry with the 09-11 calibration is ~5 %
+too large (per-session similarity scale 0.947-0.956 vs 0.98-1.00 Aug-Sep; reprojection 8-10.6 px vs ~6). The fix is
+the spout frame itself:
+1. Per SESSION, fit a similarity transform (rotation, translation, SCALE) from the triangulated spout positions to
+   the commanded layout in world axes, mouth-relative (`spout_world.fit`, >= 5 of 6 positions). The scale absorbs
+   June's drift; constant label-vs-tip offsets (cam1 lower / cam4 upper front edge) go into the translation.
+2. Express every triangulated keypoint in that session's (ml, ap, dv) mm (`SpoutWorld.to_world`).
+3. Inputs: whole-session spout predictions (both cameras) during pre_cue, medians per position — labels are only
+   1-6 per position per session, enough for the check above, thin for the production frame.
+4. QC per session: residual per position, the 15 distance ratios, scale. A June session is accepted when its own
+   fit is as good as Aug-Sep's (residual < ~0.1 mm); its scale is reported, not hidden.
+5. The June STAGE frame also sits ~15 mm lower in z (mouth set point -81 vs -66 mm) — irrelevant once fits are
+   per session and mouth-relative, which is why they are.
+
+**Adaptive sessions (PS93 0817 / 0820, PS92 0820).** Adaptive distance changed only far_L (3.5 / 3.75 mm). Per-sample
+distance comes from events.csv (never trials.csv, ~15 % mislabelled positions). Only nominal-distance samples define
+the frame (Priya: "only use trials with the full 4 mm distance for the LR axis"); the shorter far_L samples are a
+CHECK — the frame must place them at their read-back distance (`step_check`). Still to build: camera frame ->
+events.csv time, via the controller clock (`device_t_ms`) on the DAQ clock, reusing the `daq_trials` pairing.
+Trial ids in events.csv LAG on `trial_start` rows (Priya: the earlier trial offset; the firmware emits `trial_start`
+before incrementing, and GUI v47 fixed only how trials.csv is assembled, not events.csv), so the frame uses the
+pre_cue rows (correct id, own position / distance / read-back) and joins by TIME, with ids only as a cross-check.
+
+**Multi-view LP plan (Priya).** (1) now: cam1 single-view LP (cam4 occlusion config) + anipose on DLC and LP
+cam1+cam4; (2) then multi-view `heatmap_multiview_transformer` with explicit `visible` (2 visible / 1 occluded /
+0 not labelled): unpaired view rows = 0; **split rule** — a part hidden in EVERY labelled view = 1 (teaches absent),
+hidden here but labelled in the other view = 0 (lets the network infer it from the other view); the
+`all_occluded` frames = 1. Calibration (cam1+cam4 subset of the 09-11 toml, per-session files possible): arm (a)
+3-D augmentation only vs arm (b) + projection losses at low weight, kept only if better on held-out sessions — the
+losses treat the 6-10 px view-to-view landmark offset as error. Then an ensemble of 4-5 multi-view models -> the
+multi-camera EKS smoother -> anipose -> `spout_world`. A point inferred from one view is flagged as such, never
+counted as two-view evidence. First: a toy check that visible 0 rows really stay out of the loss.

@@ -804,6 +804,13 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # coverage at all). 0.74 asks for 93.6 and stops at four. Measured, not
                               # reasoned: run `--dry-run` and read the held-out list before trusting
                               # any value here. The usable band for 4 sessions is 0.734-0.766.
+    all_occluded:             # FRAMES WITH NO POINTS BECAUSE EVERY PART IS HIDDEN, checked by Priya
+                              # (2026-10-05). On disk they look like any other blank row, which DLC
+                              # drops and multi-view LP must read as "not labelled" (visible 0). These
+                              # are real "absent here" examples: the LP export writes visible 1
+                              # (occluded) for every part on them. DLC is unaffected (it drops them).
+      - cam1_2026-08-20T09_44_54/img1406922.png   # stopped, close_center, early
+      - cam1_2026-08-20T14_08_45/img1261917.png   # stopped, close_center, Cue
     seed: 42                  # the session hold-out is deterministic: a re-run trains on the same
                               # split rather than quietly scoring against a different test set.
     epochs: 200               # DLC's own default for a new project, and 192 training frames at

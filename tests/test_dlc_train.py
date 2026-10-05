@@ -112,6 +112,28 @@ def test_only_the_requested_camera_is_staged(projects):
         "cam4_acute_a", "cam4_acute_b", "cam4_pre_a", "cam4_pre_b"]
 
 
+def test_another_camera_trains_in_its_OWN_project_and_never_touches_cam4s(projects):
+    """cam4 keeps the bare name (the model in use resolves it with no camera argument); cam1 staged
+    into it would mix both views in one labeled-data and retrain over the cam4 model."""
+    src, dest = projects
+    assert dt.train_project(which="cam4") == dest
+    dest1 = dt.stage(which="cam1")
+    assert dest1 == dest.parent / f"{dest.name}-cam1"
+    assert sorted(p.name for p in (dest1 / "labeled-data").iterdir()) == ["cam1_pre_a"]
+    assert not dest.exists()
+
+
+def test_donor_project_is_rebased_onto_this_machines_microscope_mount(monkeypatch, tmp_path):
+    """Drive letters move on reboot; the config's literal N: pointed at the standby share."""
+    from wfield_local import dlc_prelabel, paths
+    monkeypatch.setattr(dlc_prelabel, "_cfg", lambda: {"donor": {
+        "project": "N:/MICROSCOPE/Priya/DeepLabCut/DLC_train_config", "shuffle": 5}})
+    monkeypatch.setattr(paths.PathResolver, "root", lambda self, k: str(tmp_path / "MICROSCOPE" / "Priya"))
+    d = dlc_prelabel.donor()
+    assert d["project"] == str(tmp_path / "MICROSCOPE" / "Priya" / "DeepLabCut" / "DLC_train_config")
+    assert d["shuffle"] == 5
+
+
 # ------------------------------------------------------------------------------- copy direction
 
 def test_labels_are_re_synced_FORWARD_and_the_training_copy_is_overwritten(projects):

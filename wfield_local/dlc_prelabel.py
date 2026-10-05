@@ -55,7 +55,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
-from wfield_local.dlc_frames import bodyparts, out_root, staging_root
+from wfield_local.dlc_frames import bodyparts, staging_root
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -67,7 +67,20 @@ def _cfg() -> dict:
 
 
 def donor() -> dict:
-    return _cfg().get("donor") or {}
+    """`dlc.donor`, with ``project`` re-rooted onto THIS machine's MICROSCOPE mount.
+
+    The config stores ``N:/MICROSCOPE/Priya/...``, and drive letters move on this box: since the
+    2026-09-30 reboot MICROSCOPE is M: and N: is the standby share, so the literal path pointed at
+    a folder that does not exist (found 2026-10-05, first cam1 training run). Anything under
+    ``MICROSCOPE/Priya/`` is rebased onto `PathResolver().root("microscope")`; any other path is
+    left as written.
+    """
+    d = dict(_cfg().get("donor") or {})
+    p = str(d.get("project") or "").replace("\\", "/")
+    key = "MICROSCOPE/Priya/"
+    if key in p:
+        d["project"] = str(Path(PathResolver().root("microscope")) / p.split(key, 1)[1])
+    return d
 
 
 def prelabel_cfg() -> dict:
