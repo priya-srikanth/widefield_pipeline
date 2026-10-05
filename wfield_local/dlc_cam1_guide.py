@@ -275,13 +275,14 @@ def round4_section(rv, live: Path) -> tuple[str, int]:
     """(HTML, frames still blank) for the cam4 round-4 part of the page; empty when there are no picks yet."""
     df = _round4_folders(rv, live)
     if df.empty:
-        return ("<h2 id='cam4'>Camera 4 &mdash; round 4</h2><p>No round-4 frames extracted yet.</p>", 0)
+        return ("<h2 id='cam4'>Part 1 &mdash; camera 4 round 4</h2><p>No round-4 frames extracted yet.</p>", 0)
     todo = int(sum(len(b) for b in df.blank))
-    head = f"""<h2 id="cam4">Camera 4 &mdash; round 4 (the frames the network gets wrong)</h2>
+    head = f"""<h2 id="cam4">Part 1 &mdash; camera 4 round 4 (the frames the network gets wrong)</h2>
 <p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in df.targets))} frames to label &middot; {todo}
 still blank &middot; {int(sum(len(c) for c in df.context))} context frames</p>
 <div class="card note">
-<p>Same rules as cam1 above: label the listed frames <b>completely</b>, scroll the context, leave it blank.
+<p>Label the listed frames <b>completely</b> (camera 4's parts, as in <code>LABELLING_GUIDE.html</code>);
+scroll the context, leave it blank.
 Each pick says why it was chosen. <b>Most are incomplete licks</b> &mdash; the tongue tip only just between
 the lips, never touching the spout. They are the whole point of this round, and they matter most after the
 stroke. The &ldquo;also label&rdquo; frames are three frames either side of a pick; as on cam1, they are
@@ -291,6 +292,7 @@ exactly as for an empty cam1 folder.</p>
 </div>
 """
     blocks = [_round4_block(i + 1, r, live) for i, r in enumerate(df.itertuples())]
+    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>1.\2 ', b, count=1) for b in blocks]
     return head + "".join(blocks), todo
 
 
@@ -355,11 +357,11 @@ def round2_section(rv, live: Path) -> tuple[str, int]:
     targets = [[i for i in r.images if r.cat.get(i) == ROUND2] for r in df.itertuples()]
     blank = [[i for i in t if i in set(b)] for t, b in zip(targets, df.blank)]
     todo = int(sum(len(b) for b in blank))
-    head = f"""<h2 id="cam1r2">Part 2 &mdash; camera 1 round 2 (new 5 Oct)</h2>
+    head = f"""<h2 id="cam1r2">Part 3 &mdash; camera 1 round 2 (new 5 Oct)</h2>
 <p class="sub">{len(df)} folders &middot; {int(sum(len(t) for t in targets))} frames to label &middot; {todo}
 still blank &middot; {int(sum(len(c) for c in df.context))} context frames (no labels needed)</p>
 <div class="card note">
-<p><b>Do Part 1 first</b> &mdash; each of its folders adds a whole session. Then these.</p>
+<p><b>Do Part 2 first</b> &mdash; each of its folders adds a whole session. Then these.</p>
 <p>Each listed frame says why it was chosen. Most are moments that were hard on camera 4 (an incomplete lick,
 a jaw half behind the spout, ...): labelling the same instant from below lets the two views be combined later.
 Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
@@ -372,7 +374,7 @@ exactly as for an empty camera-1 folder.</p>
 </div>
 """
     blocks = [_round2_block(i + 1, r, live) for i, r in enumerate(df.itertuples())]
-    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>2.\2 ', b, count=1) for b in blocks]
+    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>3.\2 ', b, count=1) for b in blocks]
     return head + "".join(blocks), todo
 
 
@@ -398,21 +400,22 @@ def build(rv=None, dest: Path | None = None) -> Path:
         f"<tr><td>{k + 1}</td><td><code>{html.escape(s)}</code></td><td>{html.escape(by.loc[s, 'animal'])}</td>"
         f"<td>{html.escape(by.loc[s, 'epoch'])}</td><td>{html.escape(by.loc[s, 'date'])}</td>"
         f"<td>{len(by.loc[s, 'blank'])}</td></tr>" for k, s in enumerate(order))
-    part1 = (f"""<h2 id="cam1">Part 1 &mdash; the {len(order)} camera-1 folders that are still empty</h2>
-<p>These {len(order)} folders were part of the first camera-1 round and nobody has labelled them yet. Do them
-first: each one adds a whole session (an animal and a recovery stage the network has not seen).</p>
+    part1 = (f"""<h2 id="cam1">Part 2 &mdash; the {len(order)} camera-1 folders that are still empty</h2>
+<p>These {len(order)} folders were part of the first camera-1 round and nobody has labelled them yet. After
+camera 4, do them first: each one adds a whole session (an animal and a recovery stage the network has not
+seen).</p>
 <style>.t{{border-collapse:collapse;margin:.4em 0}} .t td,.t th{{padding:3px 12px;border-bottom:1px solid #ddd;text-align:left}}</style>
 <table class="t"><tr><th>#</th><th>folder</th><th>animal</th><th>stage</th><th>date</th><th>frames to label</th></tr>
 {table}</table>
 <p>Details for each folder (which frames, by slider position) follow.</p>
-""" if order else "<h2 id='cam1'>Part 1 &mdash; empty camera-1 folders</h2><p>None left.</p>")
+""" if order else "<h2 id='cam1'>Part 2 &mdash; empty camera-1 folders</h2><p>None left.</p>")
 
     head = f"""<div class="wrap">
 <h1>Labelling worksheet &mdash; from 5 October</h1>
-<p class="sub">generated {today} &middot; camera 1: {todo_frames} frames in Part 1 + the round-2 frames in Part 2</p>
-<p>What is left to label, in order: <a href="#cam1">Part 1 &mdash; the empty camera-1 folders</a>, then
-<a href="#cam1r2">Part 2 &mdash; camera 1 round 2</a>. (<a href="#cam4">Camera 4 round 4</a> is at the end.)
-The rules and the how-to below apply to all of them. The manual &mdash; installing, how napari works &mdash; is
+<p class="sub">generated {today}</p>
+<p>What is left to label, in order: <a href="#cam4">Part 1 &mdash; camera 4 round 4</a> (in progress), then
+<a href="#cam1">Part 2 &mdash; the empty camera-1 folders</a>, then <a href="#cam1r2">Part 3 &mdash; camera 1
+round 2</a>. The how-to below applies to all of them; the four-part list is for camera 1. The manual &mdash; installing, how napari works &mdash; is
 <code>LABELLING_GUIDE.html</code> in the same folder; where the two disagree, this page is newer. The page as it
 stood through the first round is in <code>_guide_archive/</code>.</p>
 
@@ -486,16 +489,16 @@ Say which folder you are taking.</p>
 <p style="margin-bottom:.2em"><b>A dropped server connection</b> makes a save fail or land nowhere. After a break,
 check the sidebar before carrying on.</p>
 </div>
-{part1}"""
+"""
     blocks = [_block(i + 1, by.loc[s].to_frame().T.assign(stem=s).iloc[0], live, parts)
               for i, s in enumerate(order)]
-    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>1.\2 ', b, count=1) for b in blocks]
+    blocks = [re.sub(r'(<h3 style="margin:.1em 0">)(\d+)\. ', r'\g<1>2.\2 ', b, count=1) for b in blocks]
     r2_html, r2_todo = round2_section(rv, live)
     cam4_html, cam4_todo = round4_section(rv, live)
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>Labelling worksheet</title><style>{CSS}</style></head>"
-            f"<body>{head}{''.join(blocks)}{r2_html}{cam4_html}</div></body></html>")
+            f"<body>{head}{cam4_html}{part1}{''.join(blocks)}{r2_html}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
     print(f"[dlc_cam1_guide] cam1: {len(df)} folders, {todo_frames} blank; cam1 round 2: {r2_todo} blank; "
           f"cam4 round 4: {cam4_todo} blank -> {dest} ({dest.stat().st_size / 1e6:.1f} MB)", flush=True)
