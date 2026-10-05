@@ -84,7 +84,24 @@ LP_KINDS = {"disagree_tongue": (1, 4), "disagree_jaw": (1, 2), "lp_erratic_tongu
 #: confident and LP says hidden -- LP's two blind spots there were the chin with the spout overlapping it and a
 #: tongue tip partly behind the spout. Picked AFTER round 4 was extracted, clear of its picks (`cmd_addon`).
 ONLY_KINDS = {"dlc_only_tongue": (1, 4), "dlc_only_jaw": (1, 2)}
-HALF = {k: v[1] for k, v in {**KINDS, **LP_KINDS, **ONLY_KINDS}.items()}
+#: cam1 round 2 (Priya, 2026-10-05, after the first cam1 clips: "tracking the tongue THROUGH the lick also still
+#: seems problematic" and "build in re-labeling of some low-confidence frames and multiple lick phases"). Measured
+#: on six held-out clips: with the mouth more than half open, a tongue at p >= 0.6 on only 47-75 % of frames and
+#: ~2.2 separate confident runs per lick (66-92 % / 1.1-2.0 at 0.4); the emerging tongue sat at 0.37-0.51. And the
+#: close_center jaw: with the mouth closed the spout tip covers it, yet a confident jaw is placed beside the tip.
+#:   tongue_dropout   inside a lick (opening > half its peak), the tongue falls below P_OK BETWEEN confident frames
+#:   unsure_tongue    inside a lick, a tongue at 0.2 <= p < P_OK (the emerging / sideways tongue)
+#:   jaw_near_spout   confident jaw within `JAW_SPOUT_PX` of the spout tip with the mouth closed: hidden, or there?
+#:   lick_rise / lick_peak / lick_fall   `LICK_PHASE_LICKS` licks per session labelled at three phases (opening
+#:                    first > 25 % of its peak, the peak, last > 25 %) -- the most uncertain licks first; the cam1
+#:                    counterpart of cam4's fixed lick offsets (`dlc.frames.lick_offsets_s`)
+CAM1_KINDS = {"incomplete_tongue": (3, 4), "tongue_dropout": (2, 4), "unsure_tongue": (1, 4),
+              "jaw_near_spout": (2, 2), "erratic_tongue": (1, 4), "erratic_jaw": (1, 2), "tricky_spout": (1, 0)}
+PHASE_KINDS = ("lick_rise", "lick_peak", "lick_fall")
+LICK_PHASE_LICKS = 2
+JAW_SPOUT_PX = 20.0
+HALF = {k: v[1] for k, v in {**KINDS, **LP_KINDS, **ONLY_KINDS, **CAM1_KINDS}.items()}
+HALF.update({k: 0 for k in PHASE_KINDS})
 #: LP "hidden" = below this (its confidence is near-binary: < 0.1 or > 0.6 on all but ~0.4 % of frames).
 LP_HIDDEN = 0.1
 DISAGREE_PX = 15.0
@@ -96,9 +113,9 @@ P_OK, P_SURE = 0.6, 0.8
 #: ``open_band`` / ``open_prom`` = the incomplete-lick peak band and prominence in px.
 CAMS = {
     "cam4": {"round": "round4", "cache": "round4_scan", "ref": "nose", "other": "cam1",
-             "open_band": (12.0, 30.0), "open_prom": 8.0},
+             "open_band": (12.0, 30.0), "open_prom": 8.0, "kinds": KINDS, "phase_licks": 0},
     "cam1": {"round": "cam1_round2", "cache": "cam1_round2_scan", "ref": "rest", "other": "cam4",
-             "open_band": (30.0, 70.0), "open_prom": 15.0},
+             "open_band": (30.0, 70.0), "open_prom": 15.0, "kinds": CAM1_KINDS, "phase_licks": LICK_PHASE_LICKS},
 }
 SEED = 104
 PER_EPOCH = 2
@@ -163,6 +180,72 @@ def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float, ref: s
         unsure = P_OK - 0.5 <= sp[i] <= P_OK and sp[i] <= sp[i - 1] and sp[i] <= sp[i + 1]
         if unsure or (dsx[i] > 5 and sp[i] < 0.9):
             out.append((i, "tricky_spout", float(P_OK - sp[i] + dsx[i] / 10)))
+    # --- cam1 round 2 rules (selected only when the round's kinds ask for them, `CAM1_KINDS`)
+    for lo_, _i, hi_, _r, _f in lick_segments(filled, hi):
+        seg = tp[lo_:hi_ + 1]
+        conf = np.flatnonzero(seg >= P_OK)
+        if len(conf) >= 2:
+            gap = np.zeros(len(seg), bool)
+            gap[conf[0]:conf[-1] + 1] = seg[conf[0]:conf[-1] + 1] < P_OK
+            if gap.any():
+                g = int(np.argmin(np.where(gap, seg, np.inf)))
+                out.append((lo_ + g, "tongue_dropout", float(1.0 - seg[g])))
+        uns = np.flatnonzero((seg >= 0.2) & (seg < P_OK))
+        if len(uns):
+            g = int(uns[np.argmin(np.abs(seg[uns] - 0.4))])
+            out.append((lo_ + g, "unsure_tongue", float(1.0 - abs(seg[g] - 0.4))))
+    d_js = np.hypot(jx - sx, jy - sy)
+    near = (jp > P_OK) & (sp > P_OK) & (d_js < JAW_SPOUT_PX) & (np.nan_to_num(opening, nan=99.0) < lo)
+    for i in np.flatnonzero(near):
+        out.append((int(i), "jaw_near_spout", float(JAW_SPOUT_PX - d_js[i])))
+    return out
+
+
+def lick_segments(filled: np.ndarray, full_min: float) -> list[tuple[int, int, int, int, int]]:
+    """Full licks in one window: ``(lo, peak, hi, rise, fall)`` -- lo..hi = opening > 50 % of the peak (the
+    "mouth open" span), rise / fall = first / last frame > 25 % of it. ``full_min`` = peak height (px)."""
+    from scipy.signal import find_peaks
+
+    pk, _ = find_peaks(filled, height=full_min, distance=25, prominence=0.5 * full_min)
+    out = []
+    for i in pk:
+        span = []
+        for frac in (0.5, 0.25):
+            lo_ = i
+            while lo_ > 0 and filled[lo_ - 1] > frac * filled[i]:
+                lo_ -= 1
+            hi_ = i
+            while hi_ < len(filled) - 1 and filled[hi_ + 1] > frac * filled[i]:
+                hi_ += 1
+            span.append((lo_, hi_))
+        out.append((span[0][0], int(i), span[0][1], span[1][0], span[1][1]))
+    return out
+
+
+def lick_phase_picks(Pd: list[dict], wins, stats, c: dict, taken, n_licks: int) -> list[tuple[int, str, float, dict]]:
+    """``n_licks`` licks per session at three phases each (`PHASE_KINDS`), the most UNCERTAIN licks first
+    (lowest mean tongue p over the open span), every lick >= `MIN_SEP` from ``taken`` and from each other."""
+    if n_licks <= 0:
+        return []
+    rest_open = stats[0]
+    licks = []
+    for P, (f0, tr, _) in zip(Pd, wins):
+        jx, jy, jp = P["jaw"]
+        ry = 0.0 if c["ref"] == "rest" else P["nose"][1]
+        opening = np.where(jp > P_OK, jy - ry, np.nan) - rest_open
+        filled = pd.Series(opening).interpolate(limit=5).fillna(0.0).to_numpy()
+        tp = P["tongue"][2]
+        for lo_, i, hi_, r, f in lick_segments(filled, c["open_band"][1]):
+            licks.append((float(np.mean(tp[lo_:hi_ + 1])), f0 + r, f0 + i, f0 + f, tr))
+    licks.sort(key=lambda x: x[0])
+    fixed = [int(t) for t in taken]
+    out = []
+    for mean_p, r, i, f, tr in licks:
+        if len(out) >= 3 * n_licks:
+            break
+        if all(abs(i - t) >= MIN_SEP for t in fixed):
+            out += [(r, "lick_rise", 1 - mean_p, tr), (i, "lick_peak", 1 - mean_p, tr), (f, "lick_fall", 1 - mean_p, tr)]
+            fixed.append(i)
     return out
 
 
@@ -402,20 +485,21 @@ def load_poses(path: Path):
 
 def picks_from(wins_dlc, wins_lp=None, cam: str = "cam4") -> tuple[list, dict]:
     """Session picks: the DLC pass, then (if LP poses are given, same windows) the LP pass around them."""
-    c = CAMS[cam]
-    kw = {"ref": c["ref"], "open_band": c["open_band"], "open_prom": c["open_prom"]}
+    cs = CAMS[cam]
+    kw = {"ref": cs["ref"], "open_band": cs["open_band"], "open_prom": cs["open_prom"]}
     Pd = [_as_parts(p) for _, _, p in wins_dlc]
-    stats_d = session_stats(Pd, c["ref"])
+    stats_d = session_stats(Pd, cs["ref"])
     cands = []
     for P, (f0, tr, _) in zip(Pd, wins_dlc):
         cands += [(f0 + i, k, s, tr) for i, k, s in candidates(P, *stats_d, **kw)]
     trial_of = {c[0]: c[3] for c in cands}
-    picks = [(f, k, s, trial_of[f]) for f, k, s in select([c[:3] for c in cands])]
+    picks = [(f, k, s, trial_of[f]) for f, k, s in select([c[:3] for c in cands], kinds=cs["kinds"])]
+    picks += lick_phase_picks(Pd, wins_dlc, stats_d, cs, [p[0] for p in picks], cs["phase_licks"])
     info = {"frames": sum(len(p) for *_, p in wins_dlc),
             "dlc_candidates": pd.Series([c[1] for c in cands], dtype=str).value_counts().to_dict()}
     if wins_lp is not None:
         Pl = [_as_parts(p) for _, _, p in wins_lp]
-        stats_l = session_stats(Pl, c["ref"])
+        stats_l = session_stats(Pl, cs["ref"])
         lc = []
         for A, B, (f0, tr, _) in zip(Pl, Pd, wins_dlc):
             n = min(len(A["jaw"][0]), len(B["jaw"][0]))

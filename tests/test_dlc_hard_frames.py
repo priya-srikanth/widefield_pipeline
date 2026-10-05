@@ -77,6 +77,49 @@ def test_cam1_band_is_scaled_to_its_larger_opening():
         assert "incomplete_tongue" not in [k for _, k in _cam1_kinds(P)]
 
 
+def _cam1_lick(tongue_p):
+    """A cam1 face with one 100 px lick at frame 150 (sigma 8) and the given tongue likelihood track."""
+    P = _still()
+    jx, jy, jp = P["jaw"]
+    P["jaw"] = (jx, jy + 100 * np.exp(-0.5 * ((np.arange(N) - 150) / 8) ** 2), jp)
+    tx, ty, _ = P["tongue"]
+    P["tongue"] = (tx, ty, np.asarray(tongue_p, float))
+    return P
+
+
+def test_cam1_tongue_dropout_inside_a_lick_and_unsure_emerging_tongue():
+    tp = np.zeros(N)
+    tp[143:148] = 0.9
+    tp[148:152] = 0.1                    # drops out mid-lick
+    tp[152:157] = 0.9
+    kinds = _cam1_kinds(_cam1_lick(tp))
+    assert (149, "tongue_dropout") in kinds or (148, "tongue_dropout") in kinds
+    tp2 = np.zeros(N)
+    tp2[145:155] = 0.45                  # visible but under-confident throughout (the 0.37-0.51 strip)
+    assert "unsure_tongue" in [k for _, k in _cam1_kinds(_cam1_lick(tp2))]
+    assert "tongue_dropout" not in [k for _, k in _cam1_kinds(_cam1_lick(tp2))]   # no confident frames to bridge
+
+
+def test_cam1_confident_jaw_hugging_the_spout_tip_with_mouth_closed():
+    P = _still()
+    sx, sy, sp = P["spout"]
+    P["spout"] = (np.full(N, 360.0), np.full(N, 380.0), sp)          # tip 14 px from the jaw (350, 390)
+    assert {k for _, k in _cam1_kinds(P)} == {"jaw_near_spout"}
+
+
+def test_lick_phase_picks_three_phases_of_the_most_uncertain_licks():
+    from wfield_local.dlc_hard_frames import CAMS, lick_phase_picks, session_stats
+    sure = _cam1_lick(np.where(np.abs(np.arange(N) - 150) < 6, 0.95, 0.0))
+    unsure = _cam1_lick(np.where(np.abs(np.arange(N) - 150) < 6, 0.3, 0.0))
+    wins = [(0, {"trial_id": 1}, None), (1000, {"trial_id": 2}, None)]
+    stats = session_stats([sure, unsure], "rest")
+    got = lick_phase_picks([sure, unsure], wins, stats, CAMS["cam1"], taken=[], n_licks=1)
+    assert [k for _, k, _, _ in got] == ["lick_rise", "lick_peak", "lick_fall"]
+    f = [g for g, *_ in got]
+    assert f[1] == 1150 and f[0] < 1150 < f[2]                         # the UNCERTAIN lick, in order
+    assert lick_phase_picks([sure], wins[:1], stats, CAMS["cam1"], taken=[150], n_licks=1) == []   # spacing
+
+
 def test_pair_rows_keep_the_reason_and_make_every_neighbour_scroll_only_context():
     """cam1 round 2 (c): Priya, 2026-10-05 -- the context there does NOT need labels, suggested ones included."""
     from wfield_local.dlc_hard_frames import pair_rows

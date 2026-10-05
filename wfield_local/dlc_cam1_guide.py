@@ -221,6 +221,17 @@ ROUND4_WHY = {
                        "the tongue; blank only if the tip itself is hidden.",
     "dlc_only_jaw": "one network saw the jaw, the other called it hidden &mdash; often the spout overlaps the chin. "
                     "If the jaw point is visible beside the spout, place it; blank only if it is covered.",
+    # cam1 round 2 (2026-10-05, `dlc_hard_frames.CAM1_KINDS`)
+    "tongue_dropout": "mid-lick, the network lost the tongue for a few frames although it saw it just before and "
+                      "after. Scroll the neighbours: if the tip is visible here, place it; blank only if it is truly "
+                      "hidden (e.g. behind the spout).",
+    "unsure_tongue": "the mouth is open and the network was unsure of the tongue (often the tongue just coming out, "
+                     "or a sideways lick). Place the tip if you can see it.",
+    "jaw_near_spout": "the network put the jaw right beside the spout tip with the mouth closed. If the spout covers "
+                      "the jaw point, leave jaw <b>blank</b>; place it only if you can actually see it.",
+    "lick_rise": "one lick, labelled at three moments &mdash; this is the mouth starting to open.",
+    "lick_peak": "the same lick, mouth most open.",
+    "lick_fall": "the same lick, mouth closing again.",
 }
 
 
@@ -400,7 +411,9 @@ The manual &mdash; installing, how napari works, what each landmark means in gen
 version of the manual said to leave it empty; that was wrong. Caveat (Priya): the cam1 nose and the cam4
 nose may not be exactly the same point in 3-D, because from below you see the underside of the tip. That
 is accepted and does not change how you place it.</li>
-<li><b>jaw</b> &mdash; the same landmark you use on cam4, found from below.</li>
+<li><b>jaw</b> &mdash; the same landmark you use on cam4, found from below. <b>New 5 Oct:</b> when the spout tip
+sits over the chin (the centre spout positions, mouth closed), the jaw point is covered &mdash; leave jaw
+<b>blank</b>. Do not place it beside the spout.</li>
 <li><b>tongue</b> &mdash; the tip, <b>only when you can see the tip itself.</b> From below the spout often
 sits between the camera and the tongue and hides it. If the tip is hidden, leave tongue blank; do not mark
 the edge you can see instead &mdash; that edge is a different point from the tip cam4 sees.</li>
