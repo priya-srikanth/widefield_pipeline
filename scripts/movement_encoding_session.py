@@ -76,10 +76,11 @@ def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float):
     return inputs, P["mask"], P["info"]
 
 
-def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: float) -> dict:
+def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: float, spec: str | None = None) -> dict:
     """Everything a model variant needs, on the DAQ clock: trials (cue_s, pos_name), DAQ contacts, a per-lick table
     (on_s, position, angle, deviation, reach; *_dir = NaN for licks under min_reach_px), continuous pose signals with
-    their DAQ times, trial starts, and the mask of imaging frames inside the pose windows."""
+    their DAQ times, trial starts, and the mask of imaging frames inside the pose windows. ``spec`` = a tagged
+    session_poses folder (``animal:date:tag``, e.g. ``:full`` from O2, ``:r4``); default the 60-trial clip."""
     import scripts.pose_kinematics_demo as D
     from scripts.session_poses import session_dir
     from wfield_local import lick_reference as LR
@@ -87,7 +88,7 @@ def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: floa
     from wfield_local import spout_frame as SF
     from wfield_local import tongue_detect as td
     from wfield_local import trial_windows as TW
-    animal, date, d = session_dir(rv, f"{animal}:{date}")
+    animal, date, d = session_dir(rv, spec or f"{animal}:{date}")
     idx = pd.read_csv(d / "windows_index.csv")
     raw = oc.read_pose(d / "windows_DLC.csv").iloc[:len(idx)]
     spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0])) for _, g in idx.groupby("trial_k")]
@@ -127,6 +128,7 @@ def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: floa
     info = {"n_licks": len(pl), "n_dir_licks": int(np.isfinite(dev).sum()), "n_contacts": len(contact_s),
             "n_trials": len(trials)}
     licks = pd.DataFrame({"on_s": on_s, "trial_id": pl.trial_id.to_numpy(), "position": pl.position.to_numpy(),
+                          "cue_s": pl.trial_id.map(cue_of).to_numpy(float),
                           "contact": pl.contact.to_numpy(), "reach_ok": reach_ok,
                           "angle": LR.peak_angle(pl).to_numpy(float), "dev": pl.dev_session_deg.to_numpy(float),
                           "angle_dir": ang, "dev_dir": dev})

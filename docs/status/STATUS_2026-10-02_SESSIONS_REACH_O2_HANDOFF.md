@@ -42,6 +42,11 @@ Nothing is running locally.
   (`movement_encoding`, `movement_inputs`; synthetic-tested) — next: wire imaging frame times + the per-session
   orofacial event table, then one animal. DAQ lick detection for DLC analyses: keep `lick_detection` (Priya).
 
+* **10-05 first imaging results** (DECISIONS 2026-10-05): movement explains most cue/lick activity (SSp > MOs/MOp);
+  movement-removed position encoding follows the decoder's course (pre > acute ≈ 0 in MOs/MOp > chronic recovers);
+  acute far_R licks executed toward the mouse's left resemble pre-stroke licks of the same executed angle
+  (`scripts/lick_template_match.py`, movement-removed +0.13, CI +0.015 .. +0.25). Re-run all on whole sessions.
+
 ## 1. What exists now (code; tests in `tests/`, config in `configs/defaults.yaml`)
 
 | piece | what |

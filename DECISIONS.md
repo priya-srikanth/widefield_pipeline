@@ -19231,3 +19231,41 @@ target coding is better tested by DECODING the target from the movement-removed 
 encoding R^2; direction ≈ 0.01-0.02 alone pre-stroke, ≈ 0 post. Caveats: 60 trials, lick-dense windows, more licks
 chronic (759 vs 537 pre) — no epoch conclusions from these R^2 values yet. Outputs:
 `session_poses/<a>_<d>/movement_encoding_{vp.csv,kernels.png}`, `session_poses/movement_encoding_summary.csv`.
+
+## 2026-10-05 — Movement-removed position encoding tracks the decoder's course; acute far_R licks executed toward the mouse's left resemble pre-stroke licks of the SAME EXECUTED ANGLE (first look)
+
+Priya: "let's try looking at residual position activity - but is a decoder the right way? can we regress out the
+'movement' information and then look at encoding of position-specific information?"; "a version looking at
+continuous or binned tongue angle on executed licks"; "I'm interested especially in post-stroke licks ... triggered
+with far R spout but executed leftward or centrally"; then "please note this finding and refine the code ... we will
+want to expand on this when we have more complete dlc results". All on PS93 0814 (pre) / 0821 (acute) / 0908
+(chronic), 60-trial pose windows (11-13 % of each session), DLC licks (executed = reach ≥ 60 px; DAQ contact only a
+label). FIRST LOOK — one animal, small n.
+
+**Residual position encoding** (`scripts/movement_position_angle.py`; `movement_encoding.cv_residual` = CROSS-FITTED
+movement removal, movement first = conservative). On the residual: one shared cue kernel vs a cue kernel per position;
+position-specific = ΔCV R^2, null = position labels shuffled (20 perms, so p ≥ 0.048). Decoder vs encoding: both valid;
+encoding says where and how much (small absolute numbers — position-specific variance is a tiny share), decoding pools
+small consistent differences across the population (more sensitive). Result, median over an area's components:
+pre +0.001 to +0.004 in every area (MOs_L, SSp-n_L p = 0.05); **acute ≈ 0 or below null in MOs / MOp** (SSp keeps a
+little); chronic back to +0.0005 to +0.005 (several p = 0.05) — the same pre → acute → chronic course as the frozen
+position decoder (0.886 → 0.523 → 0.833). Pre-stroke residual cue-aligned traces (SSp-m / SSp-n) separate far_R
+(above) from far_L (below) BEFORE the cue too — a spout-position signal from the spout's arrival (strobe ~3 s
+earlier), not only cue-evoked. **Lick kernels, target vs executed angle:** one onset kernel per target position gains
+more (pre +0.004 to +0.018) than one per angle bin (0 to +0.006); angle beyond position ≈ within-position-shuffle
+null pre; acute too few licks; chronic small angle-beyond-position gains at p ≈ 0.05 in several areas.
+
+**Template matching** (`wfield_local/lick_templates.py`, `scripts/lick_template_match.py`; config
+`lick_template_match`). Common space = 64 Allen regions (LocaNMF components differ between sessions); a lick's pattern
+= region × (DLC tongue onset 0 .. +0.6 s) minus a baseline; pre-stroke templates per TARGET position and, per post
+lick, a MATCHED-ANGLE template (pre licks within ±6° of its executed angle, any position). Statistic per lick:
+**executed-minus-target r** (> 0 = the lick resembles pre-stroke licks that went the same way more than pre-stroke
+licks to the same spout). Scale: a pre lick best-matches its own position template 34-36 % (chance 17 %). **Acute
+0821, the 12 far_R-cued licks executed toward the mouse's LEFT (image-right; matched-angle templates mostly pre
+close_R): movement-removed +0.13 (bootstrap 95 % CI +0.015 .. +0.25, Wilcoxon p = 0.027); raw +0.05 (−0.02 ..
++0.13, n.s.).** None of the 15 executed acute far_R licks touched the spout. Chronic 0908: far_R licks correlate ~0
+with every pre template (fast bouts — the −0.2 .. 0 s pre-onset baseline falls in the previous lick — or between-
+session drift); not usable as a control yet → the refined code adds a `pre_cue` baseline option, pooled pre sessions,
+any / all cued positions, built-in paired statistics, and tagged (`:full`) session folders, so it runs unchanged on
+whole-session O2 output. One significant comparison among several, uncorrected: a lead, to be expanded on whole
+sessions (many more far_R licks) and other animals.
