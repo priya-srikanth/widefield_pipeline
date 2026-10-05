@@ -19376,3 +19376,77 @@ need to be labeled"; cam4's 70 suggested neighbours deferred until the cam1 DLC 
 then (b) the frames the cam1 networks get wrong (`dlc_hard_frames scan/clips/picks/extract --cam cam1`, after the
 cam1 LP model, shown to Priya before extraction). `CAM1_GUIDE.html` has a "Camera 1 — round 2" section, and frames
 in `dlc.train.all_occluded` count as done.
+
+
+## 2026-10-05 (evening) — cam1 single-view LP vs DLC; plotting cutoffs; multi-camera EKS plumbing; calibration and June; first O2 run
+
+**cam1 single-view Lightning Pose** (`configs/lightning_pose_cam1.yaml` = the cam4 occlusion config with cam1 dims;
+WSL `/root/lp/cam1-2026-10-05/models/cam1_occl_uniform_20261005`, best checkpoint epoch 144 by LP's own
+val_supervised_loss, which plateaued 0.34-0.42 from epoch ~50). Trained on all 11 labelled sessions, so it has no
+held-out sessions of its own: compared with DLC on VIDEO only. Six 3-s windows of three sessions held out from the
+cam1 DLC model (PS93 0904, PS95 0817, PS92 0826; close_center + far_L), tongue p >= 0.4:
+
+| | DLC best-40 | DLC median-5 | LP | LP median-5 |
+|---|---|---|---|---|
+| open-mouth frames with a tongue | 0.85 | 0.85 | 0.82 | — |
+| confident runs per lick | 1.5 | 1.5 | 1.6 | — |
+| out-and-back tongue spikes / 1000 (> 12 px from both neighbours that agree within 6 px) | 2.9 | 0 | 8.5 | 0 |
+
+LP is MORE confident (at p >= 0.6 it keeps 0.77 of open-mouth frames vs DLC's 0.56) but not better like for like,
+and raw LP spikes more (as on cam4: 22 vs 7 jaw jumps). Where both are confident they disagree by > 15 px on 28-43 %
+of frames, and the disagreement sheet (`inference_check_20261005_cam1/dlc_vs_lp/tongue_disagreement_sheet.png`)
+shows WHY: the two models pick different ENDS of a curled / sideways tongue (base by the spout vs distal tip, or
+lip vs tongue). So the "jumping" Priya saw is mostly the tip DEFINITION from below, not frame noise: a median filter
+or LP's temporal loss cannot fix it; labels (cam1 round 2's lick-phase and dropout picks), the multi-view network and
+cam4 information can. Priya's view: LP was expected to minimise the jitter — measured, it does not on cam1.
+
+**Plotting / analysis cutoffs on cam1** (held-out test frames of the cam1 DLC model, 86 frames): tongue at **0.4**
+(the kinematics cutoff, decided 10-01: keeps 87 % of visible tips, 9 % false on hidden frames; at 0.6 the emerging
+tongue at p 0.37-0.51 vanished), jaw / nose / spout at **0.6** (0.4 lets the jaw through on 50 % of hidden-jaw frames;
+0.6 on 0 %). Jaw accuracy is NOT indicated by its confidence (only ~45 % within 10 px at any cutoff); the close_center
+jaw is placed beside the spout tip with the mouth closed where it is truly covered (labels inconsistent there:
+blank on 21 % of such frames, beside the tip on 3-4) — worksheet rule added, round-2 `jaw_near_spout` picks.
+
+**Multi-camera EKS plumbing** (`wfield_local/pose_eks.py`, new conda env `eks`: ensemble-kalman-smoother 4.6.2,
+calibration-free multicam = per keypoint the two views' x, y reduced to a 3-d latent by PCA). Ensemble = {DLC, LP}
+per camera on the same six windows; cam4 frames matched to cam1 on the DAQ clock (one-to-one, residual ~1.2 ms ~
+the templates' own RMS). EKS has NO missing-data path: hidden points must carry coordinates + low likelihood (an
+occlusion floor raises their variance to the package's own "undefined" 1000 px²). Results: spikes removed (cam1
+2.9 / 8.5 -> 0) but with the package's AUTO smoothing partly by over-smoothing (auto s 0.1-227, hitting the cap;
+fixed s ~ 10 keeps 0.86-0.98 of each lick's excursion with 0 spikes) -> set `smooth_param` explicitly. cam4 does fill a
+hidden cam1 tongue (every-other-lick hold-out: median error 17 px vs 35 single-camera, 75 hold-last) but EKS
+reported 1.5-4 px sd there — its posterior variance is NOT calibrated: never use it as a presence or quality signal
+until checked. A cam1 nose behind the rod is still output (inferred from cam4) and means nothing without a mask.
+cam4 is the clean tongue view (DLC and LP trace the same arc there; on cam1 their x diverges). Plumbing only — the
+real test is 4-5-member ensembles after cam4 round 4 + cam1 round 2 (trained on O2).
+
+**Calibration in the smoother — the nose (Priya: "cam4 and cam1 nose should actually be pretty close to the same
+point").** Supported by measurement: the paired-label nose reprojects at median 8.7 px with the 09-11 calibration vs
+jaw 7.4 / spout 7.2 / tongue 8.6, i.e. no worse than parts that ARE one point. The 09-28 handoff's "different patches
+of the snout" was overstated. **But the CALIBRATED multicam EKS was WORSE** (same six Aug-Sep windows, fixed s 3 / 10
+/ 30, camera order = input order — EKS pairs cameras by position, not name): the hidden-cam1-tongue hold-out error rose
+from 17.5-18 px (calibration-free) to 42-45 px (per session 28-68), tongue spikes came back (2.8-7.0 / 1000 vs 0),
+and the cam1 nose behind the rod landed 95-155 px from that session's visible nose (calibration-free 85-98, i.e. it
+just follows the networks' raw guess). Only the cam4 tongue got closer (0.6 vs 2.2 px). Cause: when cam1 loses a
+part, nothing fixes its depth along cam4's ray; EKS initialises 3-D from a triangulation that IGNORES likelihood, so
+cam1's occluded guesses set the depth and the smoother carries it (raising the occluded variance to 1e5-1e6 did not
+help). Calibrated cam1 reprojection 6-9 px = the calibration's own accuracy on these labels, not an EKS bug.
+**Decision: calibration-free multicam EKS for now.** Calibration earns a place only with (i) a likelihood-weighted
+initialisation (a change inside EKS / a fork), and/or (ii) more views (cam2/3), where an occluded part still has two
+rays. The nose being "the same point" is necessary for calibration to help, not sufficient. Results:
+`eks_test_20261005/calibrated_vs_free/`.
+
+**June and calibration — two different fixes.** (1) The 3-D OUTPUT: the per-session spout-frame similarity fit
+(`spout_world`) absorbs June's ~5 % scale (June fits as tightly as Aug-Sep, 0.07-0.09 mm) — this covers anipose
+triangulation for June. (2) The CAMERA GEOMETRY used inside a calibrated smoother (pixel projections) is not fixed by
+rescaling the output: June's paired-label reprojection is 8-10.6 px vs ~6 in September. If June underperforms in the
+calibrated smoother, build a June calibration WITHOUT a new recording: refine the 09-11 extrinsics on June data using
+the six spout positions (commanded and read back to 0.001 mm) as known 3-D points plus the paired cam1+cam4 labels
+(a small bundle adjustment, not a re-solve). Not built until needed.
+
+**First O2 run** (runbook: `runbooks/o2_pose_inference.md`). Env `deeplabcut` = DLC 3.0.0rc13 + torch 2.9 cu128 runs our
+runner + prior; `gpu` partition gave an L40S 46 GB; benchmark batch 1 fastest (98 fps; CPU-decode bound) ->
+`o2_inference.batch: 1`; first array job sustained 88 fps on a 2.21 M-frame session (~7 h). Fixed before the first
+copy: O2 is case-sensitive and the share folders are `Behavior_cameras/widefield`, not paths.yaml's
+`Behavior_Cameras/Widefield` (`o2_inference.true_case`). The lab share is visible only on transfer nodes. Next on O2:
+an `lp` env (with DALI) and a training bundle for the LP ensembles; test `gpu_quad` access.

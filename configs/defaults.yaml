@@ -1216,7 +1216,8 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   batch: 1                      # MEASURED 2026-10-05 on an O2 `gpu` L40S (46 GB), cam4 0814 PS93, 2000 frames:
                                 # batch 1 98.1 fps / 4 89.2 / 8 75.0 / 16 70.9 / 32 68.7 / 64 67.2 (peak 188 MiB ->
                                 # 6.3 GB). Larger batches only cost memory: the job is bound by CPU decode, not the
-                                # GPU -- ~4.3 h per 1.5 M-frame session. Re-measure (`--bench`) on a new node type.
+                                # GPU. Sustained in the first array job: 88 fps on a 2.21 M-frame session = ~7 h.
+                                # Re-measure (`--bench`) on a new node type.
   chunk: 25000                  # frames per checkpoint (100 s of video)
   scratch_root: "/n/scratch/users/{u0}/{user}"
   transfer_host: transfer.rc.hms.harvard.edu

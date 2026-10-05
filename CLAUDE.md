@@ -344,6 +344,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`](docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md)**
+— **START HERE for tracking, 3-D and O2, newest.** cam1 DLC + single-view LP (LP not better on cam1; the tongue
+"jitter" is the tip definition from below), cam1 labelling round 2, the 3-D spout world frame (`spout_world`;
+June via per-session scale), multi-camera EKS plumbing, calibration plans, and the first O2 run
+(`runbooks/o2_pose_inference.md`).
+
 **[`docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md)**
 — **START HERE, newest.** Orofacial data in the widefield analyses: movement-regressor encoding framework, residual
 (movement-removed) position encoding, executed-angle vs target (calibrated readout test: no evidence yet), O2 on hold
