@@ -19516,3 +19516,12 @@ p99.9, x-only): PS93 0814 425 frames, peaks with > 20 px lateral jumps 1.3 % -> 
 Contact matching by a lick window (peak -60 .. +120 ms): 3,919 / 3,978 contacts are licks; grooming = long touch
 (>= 250 ms) without the tongue (one bout, paws at face). Motion energy (4 cameras) sees the SPOUT -- target
 information -- and the treadmill: masks + DAQ running speed required before video regressors are used.
+
+**Addendum (2026-10-06, night) — video + running in the movement model (PS93 0814, whole session).** Smooth kernels,
+split licks, retuned cleaning. Full-model CV R^2: DLC-only (B) MOp_L 0.10, MOs 0.11-0.19, SSp 0.33-0.37; + running
+(C) MOp_L 0.43, MOp_R 0.27, MOs 0.27-0.32 (running unique 0.13-0.33 in motor cortex, 0.01-0.05 in SSp); + video
+(D: 4 cameras x 30 motion-energy PCs, blanked outside position strobe .. trial end) MOp_L 0.58, MOp_R 0.35, MOs
+0.38-0.44, SSp 0.45-0.49. Video unique 0.07-0.15 everywhere; all movement together 0.34-0.55; DLC-specific and
+running unique shrink (they overlap with video). TARGET (cue per position) unique falls to ~0 (-0.0001..+0.0032;
+0.002-0.010 with DLC only): with Musall-style video regressors almost no position-specific variance is left in the
+ENCODING model. The residual position test with the full movement model (200 perms) is running.
