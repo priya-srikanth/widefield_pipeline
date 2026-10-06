@@ -19,6 +19,8 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
   exist — the first 10-05 rsync failed exactly so.
 * **Scratch:** `/n/scratch/users/p/ps150` (create once: `/n/cluster/bin/scratch_create_directory.sh`). 25 TiB,
   files deleted **45 days after last modification**, no backups. Visible from login, transfer and compute nodes.
+  **Never change file dates on scratch** (`touch` etc.): HMS treats artificial modification times as a policy
+  violation. Copy with COMMANDS.md's `rsync -ah`.
 * **O2 paths are case-sensitive; the share's Windows view is not.** `configs/paths.yaml` says
   `Behavior_Cameras/Widefield`, the folders are `Behavior_cameras/widefield`. `o2_inference.true_case` writes
   every path in its on-disk spelling (fixed 10-05, before the first copy).
@@ -58,8 +60,18 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
    Monitor: `squeue -u ps150`; `tail -n 5 <bundle>/logs/*_<task>.out`; `.err` should hold only DLC's
    "light mode" notice. The job survives logging out.
 5. **Transfer node:** rsync `out/` back into the bundle on the share (COMMANDS.md step 5).
-6. **Desktop:** `python -m wfield_local.o2_inference collect --name <name>` → `session_poses/<a>_<d>_full/`.
+6. **Desktop**, from the repo folder (`C:\Users\SabatiniLab\Github\widefield_pipeline`), `dlc` env (h5py added
+   10-06) or `locanmf`: `python -m wfield_local.o2_inference collect --name <name>` → `session_poses/<a>_<d>_full/`.
+   Checks predicted frames == the video's frame count, then splits the whole video into every trial's window
+   (strobe - 0.5 s .. stop + 3 s; neighbouring windows overlap a few s) in the `session_poses` format.
 7. Clean scratch videos and `_chunks/` once collected.
+
+## Status 2026-10-06
+
+Task 1 (PS93 0814) finished: 2,209,351 frames in 7.0 h, collected (575 trials). Against the local round-3 run on
+the 239,564 shared frames: median 0.2-0.4 px, p95 0.7-1.5 px (decode / batch noise) -- O2 reproduces the desktop.
+All 288 cam1 + cam4 session videos copied to `o2_videos/<date>/<animal>/` with `rsync -ah` (the include filter
+also took the 6 calibration-folder videos; harmless).
 
 ## Status 2026-10-05
 

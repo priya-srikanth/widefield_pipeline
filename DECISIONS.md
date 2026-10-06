@@ -19462,3 +19462,29 @@ are KEPT for tongue picks** (+-3 frames, 90 after overlap) — Priya: "12 ms can
 holds for the slow jaw/spout, which get none by construction). The pair frames' context stays unlabelled. Lick-phase
 picks have no neighbours; filling the two licks every 3rd frame end to end (~12 frames/session) is deferred until the
 retrained model shows whether mid-lick tracking is still weak. Worksheet Part 3 now explains both kinds of pick.
+
+## 2026-10-06 — First whole-session (O2) analyses: PS93 0814 (pre-stroke), round-3 cam4 model
+
+O2 task 1 collected (2,209,351 frames, 7.0 h; 575 trials). Agrees with the local round-3 windows on the 239,564
+shared frames to median 0.2-0.4 px / p95 0.7-1.5 px -> O2 reproduces the desktop. A PIPELINE test: production waits
+for the next cam4 model, and only this one (pre-stroke) session is whole-session, so nothing below is a post-stroke
+comparison. Bug fixed before running: `movement_encoding_session.pose_inputs` and `movement_position_angle` dropped
+the `:tag` and would have analysed the 60-trial clip while writing into the `_full` folder (now `spec` is passed
+through; the session label carries the tag, e.g. `PS93_0814_full`). Methods unchanged (pre-registered). Overlapping
+trial windows (stop + 3 s vs the next strobe) do not double-count events (16 / 5,282 lick onsets within 8 ms, the
+windowed rate). Summaries overwritten by the runs were backed up to `session_poses/_pre_full_20261006/`.
+
+* **60-trial subset was representative** for licks / trial, contact rate, protrusion, rise speed, miss deviation; the
+  exception is close_L peak angle (8 -> 22 deg; likely bimodal). Angle-phase curves with 600-1,200 licks per position
+  order by spout side at the peak (left +5..+13, centre 0..-5, right -5..-16 deg).
+* **Movement encoder** (now 100 % of imaging frames incl. ITI, so not strictly like for like with the windows):
+  movement unique SSp 0.20-0.25, MOs 0.10-0.13, MOp 0.02-0.06; target (cue per position) unique now small but
+  positive everywhere (0.002-0.010; ~0 with 60 trials); direction modulators <= 0.009. Penalties inside the grid.
+* **Residual position encoding** (movement cross-fitted out): position-specific +0.003..+0.011 in every area, above
+  the shuffle null in all (p = 0.05 is the floor with 20 perms -> rerun with more perms for real p values); 2-10x the
+  60-trial values. Residual traces lateralise: close_L transient after the cue in RIGHT SSp (contralesional), close_R
+  in LEFT SSp; far_R / far_center offsets before / late in SSp (spout-arrival, as before).
+* **Angle beyond position** (lick-onset kernels): +0.0008..+0.0015 in MOs and SSp-m (at the 20-perm floor), ~0 in MOp
+  / SSp-n; position kernels gain 2-3x more than angle kernels. Small; re-test with more perms and on post sessions.
+* **Template-match readout test NOT run**: it needs whole pre AND post sessions (only 0814 exists). Waits for the
+  production O2 run (or an exploratory, labelled, pre-full vs post-windowed run if Priya asks).

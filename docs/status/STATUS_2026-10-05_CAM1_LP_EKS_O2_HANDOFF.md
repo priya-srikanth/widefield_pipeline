@@ -8,10 +8,9 @@ frame / multi-view plan; round 2; evening: LP vs DLC, EKS, calibration, O2). Ana
 ## 0. RESUME CHECKLIST
 
 **Running / waiting at hand-off:**
-1. **O2 job 55345148 task 1** — round-3 cam4 DLC on PS93 0814 (2.21 M frames, 88 fps, ~7 h, from ~17:40).
-   When `squeue -u ps150` is empty: rsync `out/` back (runbook step 5), then
-   `python -m wfield_local.o2_inference collect --name r3_PS93_20261002`. A pipeline test; production waits for the
-   next cam4 model.
+1. **O2 job 55345148 task 1: DONE + collected (10-06)**; matches the desktop (median 0.2-0.4 px). All 288 cam1 + cam4
+   session videos are on scratch (`o2_videos/`, copied `rsync -ah`; never touch dates). First whole-session analyses
+   on PS93 0814 (pre) in DECISIONS 2026-10-06; the template-match test waits for whole post-stroke sessions.
 2. **cam1 round 2 (b): DONE (late 10-05).** LP finished; picks run with LP (106 targets + 90 tongue "also label"
    neighbours), contact sheets `DeepLabCut/Widefield/cam1_round2_scan/picks_sheets/`, extracted, worksheet rebuilt
    (Part 3: 61 pair frames + the new picks, 164 blank). See the DECISIONS addendum at the end of the evening entry.

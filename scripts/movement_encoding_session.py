@@ -64,9 +64,9 @@ def imaging(label: str):
     return dff[:n], reg, ft[:n]
 
 
-def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float):
-    """MovementInputs + a mask of imaging frames inside the pose windows."""
-    P = session_pieces(animal, date, rv, frame_times_s, min_reach_px)
+def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float, spec: str | None = None):
+    """MovementInputs + a mask of imaging frames inside the pose windows (``spec``: see `session_pieces`)."""
+    P = session_pieces(animal, date, rv, frame_times_s, min_reach_px, spec=spec)
     L = P["licks"]
     inputs = MI.build_inputs(frame_times_s, cues=P["trials"][["cue_s", "pos_name"]],
                              events={"contact": P["contact_s"], "tongue_onset": L.on_s.to_numpy()},
@@ -156,7 +156,8 @@ def main(argv=None) -> int:
         animal, date = spec.split(":")[:2]
         label = f"{animal}_{date[4:]}"
         Y, reg, ft = imaging(label)
-        inputs, mask, info = pose_inputs(animal, date, rv, ft, float(p["min_reach_px"]))
+        label += "".join(f"_{t}" for t in spec.split(":")[2:])   # the pose source, e.g. PS93_0814_full
+        inputs, mask, info = pose_inputs(animal, date, rv, ft, float(p["min_reach_px"]), spec=spec)
         d_full = ME.build_design(inputs)
         d = ME.select_rows(d_full, mask)
         Ym = Y[mask]

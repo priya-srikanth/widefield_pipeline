@@ -140,7 +140,8 @@ def main(argv=None) -> int:
         animal, date = spec.split(":")[:2]
         label = f"{animal}_{date[4:]}"
         Yall, reg, ft = MS.imaging(label)
-        P = MS.session_pieces(animal, date, rv, ft, float(p["min_reach_px"]))
+        label += "".join(f"_{t}" for t in spec.split(":")[2:])   # the pose source, e.g. PS93_0814_full
+        P = MS.session_pieces(animal, date, rv, ft, float(p["min_reach_px"]), spec=spec)
         mask = P["mask"]
         keep = [k for k, lab in enumerate(reg) if abs(int(lab)) in a.areas]
         Y = Yall[mask][:, keep]
