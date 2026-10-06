@@ -19506,3 +19506,13 @@ feedback (close spouts: ~5 contacts in the first s vs 1-3 far; touch on the side
 step (not run): contact count / force per position in the movement model. Lick kernels by target position beat
 executed-angle bins in every area (e.g. MOp_L +0.030 vs +0.015); angle-bin kernels largely re-sort the position
 kernels pre-stroke.
+
+**Addendum (2026-10-06, evening) — movement-model upgrades, Rule 4 retune, contact classes, video regressors.**
+Details and the to-do list: `docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md`. Smooth raised-cosine
+event kernels (0.15 s) fit as well as per-frame FIR (R^2 within 0.002) with ~1/4 the weights; split contact /
+no-contact lick kernels move a little variance from target to movement (contact licks ~0.005 dF/F/lick in SSp,
+no-contact about half). Rule 4 retuned for the straddled spout (direction-agnostic <= 3-frame bursts, 20 px = rig
+p99.9, x-only): PS93 0814 425 frames, peaks with > 20 px lateral jumps 1.3 % -> 0.5 % (close_L 4.8 -> 1.3 %).
+Contact matching by a lick window (peak -60 .. +120 ms): 3,919 / 3,978 contacts are licks; grooming = long touch
+(>= 250 ms) without the tongue (one bout, paws at face). Motion energy (4 cameras) sees the SPOUT -- target
+information -- and the treadmill: masks + DAQ running speed required before video regressors are used.

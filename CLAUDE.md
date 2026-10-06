@@ -344,6 +344,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md)**
+— **START HERE for the imaging x movement analyses and orofacial cleaning, newest.** First whole-session (O2)
+analyses on PS93 0814, windows cut at the next trial, smooth kernels / split licks, retuned Rule 4 (tip swaps
+across the straddled spout), contact classes + grooming, video motion energy (mask spout + treadmill before use),
+and the next steps (model comparison with video, contact survey, pilot multi-view LP).
+
 **[`docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`](docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md)**
 — **START HERE for tracking, 3-D and O2, newest.** cam1 DLC + single-view LP (LP not better on cam1; the tongue
 "jitter" is the tip definition from below), cam1 labelling round 2, the 3-D spout world frame (`spout_world`;
