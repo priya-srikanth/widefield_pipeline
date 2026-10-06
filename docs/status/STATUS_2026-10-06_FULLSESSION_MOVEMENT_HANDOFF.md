@@ -11,11 +11,21 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
 **Running / just finished:**
 1. Video motion energy, PS93 0814, all 4 cameras: DONE (unmasked; `session_poses/PS93_20260814_full/
    video_motion_<cam>.{npz,png}`). Masks decided against (below) -> these ARE the regressors.
-2. Model comparison (detached, `~/lp_stage/run_model_comparison.cmd`, logs `~/lp_stage/full_0814_logs/compare/`):
-   A fir / B smooth+split licks / C + running / D + running + video (4 cams x 30 PCs), all with the retuned cleaning.
-3. Pilot multi-view LP build (background agent): export with the split-rule `visible` column + toy test, config
-   arms (calibration off / on), WSL launcher, smoke test only. Its files (`wfield_local/lp_multiview.py`, ...) are
-   uncommitted until reviewed.
+2. Model comparison: A/B/C done (logs `~/lp_stage/full_0814_logs/compare/`): RUNNING SPEED is the big new term
+   for motor cortex (unique MOp_L 0.33, MOp_R 0.24, MOs 0.13-0.16; SSp 0.01-0.05; full R^2 MOp_L 0.10 -> 0.43);
+   target unique shrinks a little (MOp_L 0.0074 -> 0.0031). D (+ video, 4 cams) running (relaunched after a
+   one-line fix). Then: `movement_position_angle PS93:20260814:full --perms 200 --running --video cam1 cam2 cam3
+   cam4` (options added 10-06; outputs tagged `_video1234_run`).
+3. Multi-view LP pilot: built (`wfield_local/lp_multiview.py`, tests, `configs/lightning_pose_multiview_pilot.yaml`,
+   launcher `C:\Users\SabatiniLab\train_lp_multiview_fg.sh`, copy in `scripts/wsl/`). Export: 526 moments (177
+   paired, 119 cam1-only, 230 cam4-only), split-rule visible codes. Both smoke tests passed (arm a val RMSE 88 ->
+   40 px in 2 epochs; GPU 4.9 GB). **Arm (a) FULL training started 10-06 ~17:40** (~2.9 min/epoch, ~15 h; log
+   `~/lp_stage/lp_train_mv_a_full.log`); arm (b) after it: `Start-Process wsl.exe -WindowStyle Hidden
+   -ArgumentList '-e','bash','/mnt/c/Users/SabatiniLab/train_lp_multiview_fg.sh','b','full'`. Priya OK'd: random
+   frame split (pilot), 640 px. Arm (b) = calibration + 3-D augmentation + projection losses vs (a) none. NB LP's
+   3-D augmentation warps each image with a 2-D similarity fitted to >= 3 TRIANGULATED keypoints (labelled in both
+   views); only 105 / 526 moments qualify today, the rest get no geometric augmentation in (b) -> (b) understates
+   calibration until more paired labels exist. Patch masking on (LP multi-view default; trains cross-view inference).
 
 **Next, in order:**
 1. Read the comparison: unique variance of video beyond DLC (+ running); then rerun the residual position test
