@@ -34,9 +34,14 @@ from wfield_local import movement_encoding as ME
 from wfield_local import movement_inputs as MI
 
 N_ANGLE_BINS = 6
-POS_ORDER = ["far_L", "close_L", "far_center", "close_center", "close_R", "far_R"]
-POS_COLORS = {"far_L": "#1f77b4", "close_L": "#6baed6", "far_center": "#2ca02c", "close_center": "#98df8a",
-              "close_R": "#ff9896", "far_R": "#d62728"}
+#: The cohort palette and order (`spout_behavior.position_style`, Priya 2026-09-10): hue = side, lightness = ring,
+#: line style = side; order close L, C, R then far L, C, R.
+from wfield_local.spout_behavior import POSITIONS as _SB_POS  # noqa: E402
+from wfield_local.spout_behavior import position_style as _style  # noqa: E402
+
+POS_ORDER = [q["name"] for q in _SB_POS]
+POS_COLORS = {n: _style(n)[0] for n in POS_ORDER}
+POS_LS = {n: _style(n)[2] for n in POS_ORDER}
 
 
 def _design(ft, mask, **kw):
@@ -192,7 +197,7 @@ def main(argv=None) -> int:
         for j, ar in enumerate(areas):
             ax = axs[0, j]
             for pos in POS_ORDER:
-                ax.plot(lag / 31.23, traces[label][(ar, pos)], color=POS_COLORS[pos], lw=1.5, label=pos)
+                ax.plot(lag / 31.23, traces[label][(ar, pos)], color=POS_COLORS[pos], ls=POS_LS[pos], lw=1.5, label=pos)
             ax.axvline(0, color="k", lw=0.5)
             ax.axhline(0, color="0.6", lw=0.5)
             ax.set_title(ar, fontsize=9)

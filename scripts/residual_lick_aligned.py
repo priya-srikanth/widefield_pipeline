@@ -138,7 +138,7 @@ def main(argv=None) -> int:
                                             (t_pk, lag_pk, "s from first-lick PEAK protrusion")]):
             ax = axs[row, j]
             for pname, (m, n) in aligned_means(sig, ft, te, pos, lg).items():
-                ax.plot(lg / FPS_IMG, m, color=MPA.POS_COLORS[pname], lw=1.5, label=f"{pname} (n={n})")
+                ax.plot(lg / FPS_IMG, m, color=MPA.POS_COLORS[pname], ls=MPA.POS_LS[pname], lw=1.5, label=f"{pname} (n={n})")
             ax.axvline(0, color="k", lw=0.5)
             ax.axhline(0, color="0.6", lw=0.5)
             ax.set_xlabel(xl, fontsize=8)
@@ -169,7 +169,7 @@ def main(argv=None) -> int:
         for pname in MPA.POS_ORDER:
             k = ks["position"].get(f"onset_pos_{pname}")
             if k is not None:
-                ax.plot(k[0], k[1][:, m].mean(1), color=MPA.POS_COLORS[pname], lw=1.5, label=pname)
+                ax.plot(k[0], k[1][:, m].mean(1), color=MPA.POS_COLORS[pname], ls=MPA.POS_LS[pname], lw=1.5, label=pname)
         ax.set_title(f"{ar}\nby TARGET position (gain {gp:+.4f})", fontsize=8)
         ax = axs[1, j]
         for b in range(MPA.N_ANGLE_BINS):

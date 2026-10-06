@@ -157,3 +157,44 @@ def test_cv_residual_removes_movement_and_keeps_the_target():
     R = ME.cv_residual(mov, Y, folds, {"lick_events": 1.0, "tongue": 1.0})
     assert np.var(R[:, 1]) < 0.3 * np.var(Y[:, 1]) and np.var(R[:, 2]) < 0.3 * np.var(Y[:, 2])   # movement gone
     assert np.var(R[:, 0]) > 0.9 * np.var(Y[:, 0])                                               # target kept
+
+
+def test_raised_cosine_bumps_overlap_by_half_and_sum_to_one():
+    lg = np.arange(-16, 32) / 31.23                              # the tongue-onset kernel's 48 frame lags
+    B = ME.raised_cosine_basis(lg, 0.15)
+    assert B.shape == (48, 12)                                  # 1.505 s at <= 0.15 s spacing
+    assert np.allclose(B.sum(1), 1.0)
+    assert np.all(B >= 0) and np.allclose(B.max(0), 1.0, atol=0.05)
+
+
+def test_smooth_kernels_recover_the_lick_kernel_with_far_fewer_weights():
+    ft, starts, cues, onset, tcam, prot, Y, k_cue, k_lick = _session(seed=3)
+    ov = {"lags_s": {"cue": [0.0, 1.0], "tongue_onset": [0.0, 1.0]}, "continuous_lags_s": [0.0],
+          "kernel_basis_spacing_s": 0.15}
+    inp = MI.build_inputs(ft, cues=cues, events={"tongue_onset": onset}, video_signals={"tongue_protrusion": prot},
+                          video_t_s=tcam, trial_starts_s=starts, overrides=ov)
+    d = ME.build_design(inp)
+    assert (d.regressor == "tongue_onset").sum() == 8                # 1 s at 0.15 s spacing, vs 21 frame lags
+    m = ME.fit(d, Y, alphas={g: 1e-3 for g in set(d.group)})
+    lg, w = ME.kernels(m, per_event=True)["tongue_onset"]
+    assert len(lg) == 21                                             # returned on the per-frame lag grid
+    assert np.corrcoef(w[:20, 1], k_lick)[0, 1] > 0.95
+    assert abs(w[0, 1] - 1.0) < 0.25                                 # per event: the true kernel starts at 1.0
+
+
+def test_fir_kernels_per_event_are_in_output_units():
+    ft, starts, cues, onset, tcam, prot, Y, k_cue, k_lick = _session(seed=4)
+    d = ME.build_design(_inputs(ft, starts, cues, onset, tcam, prot))
+    m = ME.fit(d, Y, alphas={g: 1e-3 for g in set(d.group)})
+    lg, w = ME.kernels(m, per_event=True)["tongue_onset"]
+    assert np.max(np.abs(w[:20, 1] - k_lick)) < 0.15
+
+
+def test_split_licks_are_disjoint_and_keep_no_contact_licks():
+    from scripts.movement_encoding_session import lick_events
+    P = {"licks": pd.DataFrame({"on_s": [1.0, 1.2, 1.4, 5.0], "contact": [True, False, True, False]}),
+         "contact_s": np.array([1.05, 1.45, 9.0]), "contact_unmatched_s": np.array([9.0])}
+    ev = lick_events(P, "split")
+    assert list(ev["lick_contact"]) == [1.0, 1.4] and list(ev["lick_nocontact"]) == [1.2, 5.0]
+    assert list(ev["contact_unmatched"]) == [9.0]
+    assert set(lick_events(P)) == {"contact", "tongue_onset"}        # the pre-registered coding is the default

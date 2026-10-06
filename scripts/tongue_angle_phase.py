@@ -7,7 +7,9 @@ example per disagreeing trial; (2) angle and protrusion over the LICK PHASE, per
 Priya, 2026-10-01: "show me the angle sign flips with a visual example ... the angle phase plots are actually some
 of the most informative". Angle = atan2(lr, ap) in the spout frame, origin = the mouth, 0 = straight out toward
 far_center, + = image-right (= mouse LEFT on cam4).
-Figure 1, one row per trial where the signs disagree (DLC): lick-1 path in the spout frame coloured by phase
+Figure 1, one row per trial where the signs disagree (DLC): lick-1 path in IMAGE coordinates around the mouth
+(mouth at top centre, image-right on the right, the tongue going DOWN -- oriented like the video frames beside it;
+Priya 2026-10-06; the dashed line = the 0-degree / far_center axis), coloured by phase
 (ring = peak, X = the max-|angle| frame, +-52 ms, square = the same with the outer-half restriction); angle vs
 time (smoothed per-frame angle; distance from the mouth on the right axis); the video frame at the peak and at
 the max-|angle| frame, with the tongue point, the mouth and the 0-degree line.
@@ -37,8 +39,13 @@ from wfield_local import spout_frame as SF
 from wfield_local import tongue_kinematics as tk
 from wfield_local import trial_windows as TW
 
-POS_COLORS = {"far_L": "#1f77b4", "close_L": "#6baed6", "far_center": "#2ca02c", "close_center": "#98df8a",
-              "close_R": "#ff9896", "far_R": "#d62728"}
+from wfield_local.spout_behavior import POSITIONS as _SB_POS  # noqa: E402
+from wfield_local.spout_behavior import position_style as _style  # noqa: E402
+
+#: The cohort palette and order (`spout_behavior.position_style`): hue = side, lightness = ring, style = side.
+POS_ORDER = [q["name"] for q in _SB_POS]
+POS_COLORS = {n: _style(n)[0] for n in POS_ORDER}
+POS_LS = {n: _style(n)[2] for n in POS_ORDER}
 MAX_ROWS = 5
 EXT_BINS = (60.0, 100.0)   # fig 3: no-contact licks split into short (< 60 px) / partial / full-length (>= 100 px)
 MIN_COV = 0.2              # figs 2-3: phase points where < 20 % of licks show the tongue are hidden
@@ -119,24 +126,27 @@ def main(argv=None) -> int:
         j_old = w[int(np.nanargmax(np.abs(ang[w])))]
         wr = np.where(dist[w] >= frac * dist[c], ang[w], np.nan)
         j_new = w[int(np.nanargmax(np.abs(wr)))] if np.isfinite(wr).any() else c
-        # path
+        # path, oriented like the image: mouth-centred image px, y down (Priya 2026-10-06)
         ax = axs[row, 0]
         ff = np.arange(on, off + 1)
-        ax.plot(LR[w], AP[w], "-", color="0.85", lw=1)
-        sc = ax.scatter(LR[ff], AP[ff], c=np.linspace(0, 1, len(ff)), cmap="viridis", s=14, zorder=3)
-        ax.plot(LR[c], AP[c], "o", ms=11, mfc="none", mec="k", mew=1.5, label="peak")
-        ax.plot(LR[j_old], AP[j_old], "X", ms=10, color="red", label="max |angle| (+-52 ms)")
-        ax.plot(LR[j_new], AP[j_new], "s", ms=8, mfc="none", mec="orange", mew=2, label=f"max |angle|, >= {frac:g} x peak dist")
+        dx, dy = xa - ox, ya - oy
+        ax.plot(dx[w], dy[w], "-", color="0.85", lw=1)
+        sc = ax.scatter(dx[ff], dy[ff], c=np.linspace(0, 1, len(ff)), cmap="viridis", s=14, zorder=3)
+        ax.plot(dx[c], dy[c], "o", ms=11, mfc="none", mec="k", mew=1.5, label="peak")
+        ax.plot(dx[j_old], dy[j_old], "X", ms=10, color="red", label="max |angle| (+-52 ms)")
+        ax.plot(dx[j_new], dy[j_new], "s", ms=8, mfc="none", mec="orange", mew=2,
+                label=f"max |angle|, >= {frac:g} x peak dist")
         ax.plot(0, 0, "*", ms=12, mfc="yellow", mec="k")
-        ax.axvline(0, color="0.6", lw=0.6, ls="--")
-        ax.set_xlabel("LR px (+ image-right)")
-        ax.set_ylabel("AP px (out of mouth)")
-        ax.set_xlim(-90, 90)
-        ax.set_ylim(-10, 230)
+        ax.plot([0, 240 * rx], [0, 240 * ry], "--", color="0.6", lw=0.8)     # 0 deg (toward far_center)
+        ax.set_xlabel("image x from mouth (px, + = image-right)")
+        ax.set_ylabel("image y from mouth (px, down)")
+        ax.set_xlim(-110, 110)
+        ax.set_ylim(240, -20)
+        ax.set_aspect("equal")
         ax.set_title(f"trial {r.trial_id} {r.position}: lick 1 at {lk['t_ms']:.0f} ms\n"
                      f"angle at peak {r.lick1_angle_at_ypeak:+.0f}, max-signed {r.angle_max_signed_lick1:+.0f}", fontsize=8)
         if row == 0:
-            ax.legend(fontsize=6, loc="upper right")
+            ax.legend(fontsize=6, loc="lower right")
             fig.colorbar(sc, ax=ax, fraction=0.04, label="lick phase")
         # angle vs time
         ax = axs[row, 1]
@@ -192,13 +202,13 @@ def main(argv=None) -> int:
             g0 = ph[ph.position == "far_L"]
             for _, gl in list(g0.groupby(["trial_id", "lick_idx"]))[:60]:
                 ax.plot(gl.phase, gl[var], "-", color="0.85", lw=0.5, zorder=1)
-            for pos in tk.POSITIONS:
+            for pos in POS_ORDER:
                 pp = ph[ph.position == pos]
                 if not len(pp):
                     continue
                 mu, se = tk.phase_mean(pp, var, min_coverage=MIN_COV)
                 n_l = pp.groupby(["trial_id", "lick_idx"]).ngroups
-                ax.plot(mu.index, mu, "-", color=POS_COLORS[pos], lw=2, label=f"{pos} (n={n_l})", zorder=3)
+                ax.plot(mu.index, mu, POS_LS[pos], color=POS_COLORS[pos], lw=2, label=f"{pos} (n={n_l})", zorder=3)
                 ax.fill_between(mu.index, mu - se, mu + se, color=POS_COLORS[pos], alpha=0.2, lw=0, zorder=2)
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             ax.set_ylabel(lab)
@@ -238,7 +248,7 @@ def main(argv=None) -> int:
                                     LR.build_reference([T_.per_lick], [T_.lick_phase]), "session")
         ph = ph_.merge(pl_[["trial_id", "lick_idx", "contact", "protrusion_max_px"]], on=["trial_id", "lick_idx"])
         ph = ph.assign(dev_session_deg=ph.dev_session_deg.where(ph.protrusion_px >= MIN_PHASE_PX))
-        for col, pos in enumerate(tk.POSITIONS):
+        for col, pos in enumerate(POS_ORDER):
             ax = axs[row, col]
             pp = ph[ph.position == pos]
             for lab, sel, colr, ls in groups:

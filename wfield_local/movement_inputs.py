@@ -23,13 +23,17 @@ from wfield_local.movement_encoding import ContinuousRegressor, EventRegressor, 
 DEFAULTS = {
     "lags_s": {"cue": [-0.5, 1.5], "reward": [-0.2, 1.5], "tongue_onset": [-0.5, 1.0], "contact": [-0.3, 1.0],
                "jaw_onset": [-0.5, 1.0], "tongue_onset_x_angle": [-0.5, 1.0],
-               "tongue_onset_x_deviation": [-0.5, 1.0]},
+               "tongue_onset_x_deviation": [-0.5, 1.0],
+               # the split-lick variant (Priya 2026-10-06): disjoint contact / no-contact licks + unmatched contacts
+               "lick_contact": [-0.5, 1.0], "lick_nocontact": [-0.5, 1.0], "contact_unmatched": [-0.3, 1.0]},
     "continuous_lags_s": [0.0, 0.1, 0.2],
+    "kernel_basis_spacing_s": None,
     "groups": {"cue": "task", "reward": "task", "tongue_onset": "lick_events", "contact": "lick_events",
                "jaw_onset": "lick_events", "tongue_onset_x_angle": "direction",
                "tongue_onset_x_deviation": "direction", "tongue_protrusion": "tongue",
                "tongue_speed": "tongue", "tongue_lr": "tongue", "jaw_y": "jaw", "jaw_speed": "jaw",
-               "running": "state"},
+               "running": "state", "lick_contact": "lick_events", "lick_nocontact": "lick_events",
+               "contact_unmatched": "lick_events"},
     "n_folds": 5,
     "alpha_grid": [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0],
     "min_reach_px": 60.0,
@@ -93,6 +97,7 @@ def build_inputs(frame_times_s, *, cues: pd.DataFrame | None = None, events: dic
     Lags and groups from `params()` (configs/defaults.yaml `movement_encoding`)."""
     p = params(overrides)
     lags, groups, clags = p["lags_s"], p["groups"], tuple(float(v) for v in p["continuous_lags_s"])
+    sp = p.get("kernel_basis_spacing_s")       # None = per-frame FIR kernels; e.g. 0.15 = raised-cosine bumps
 
     def keep(base):
         return include is None or base in include
@@ -100,14 +105,16 @@ def build_inputs(frame_times_s, *, cues: pd.DataFrame | None = None, events: dic
     regs = []
     if cues is not None and keep("cue"):
         for pos, g in cues.groupby("pos_name"):
-            regs.append(EventRegressor(f"cue_{pos}", g.cue_s.to_numpy(float), tuple(lags["cue"]), groups["cue"]))
+            regs.append(EventRegressor(f"cue_{pos}", g.cue_s.to_numpy(float), tuple(lags["cue"]), groups["cue"],
+                                       basis_spacing_s=sp))
     for name, t in (events or {}).items():
         if keep(name):
-            regs.append(EventRegressor(name, np.asarray(t, float), tuple(lags[name]), groups[name]))
+            regs.append(EventRegressor(name, np.asarray(t, float), tuple(lags[name]), groups[name],
+                                       basis_spacing_s=sp))
     for name, (t, a) in (modulated or {}).items():
         if keep(name):
             regs.append(EventRegressor(name, np.asarray(t, float), tuple(lags[name]), groups[name],
-                                       amplitude=np.asarray(a, float)))
+                                       amplitude=np.asarray(a, float), basis_spacing_s=sp))
     for name, v in (video_signals or {}).items():
         if name == "lip_px" or not keep(name):
             continue

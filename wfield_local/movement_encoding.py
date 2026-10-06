@@ -48,6 +48,7 @@ class EventRegressor:
     lags_s: tuple[float, float]              # kernel support relative to the event, e.g. (-0.5, 1.5)
     group: str
     amplitude: np.ndarray | None = None      # per-event modulator (None = plain indicator kernel)
+    basis_spacing_s: float | None = None     # None = one column per frame lag (FIR); else a raised-cosine basis
 
 
 @dataclass
@@ -75,6 +76,7 @@ class Design:
     group: np.ndarray                        # (P,) group per column
     lag_s: np.ndarray                        # (P,) lag per column
     kind: np.ndarray                         # (P,) "event" | "continuous"
+    bases: dict = field(default_factory=dict)   # regressor -> (per-frame lags s, basis (n_lags, n_basis)) if smooth
 
 
 @dataclass
@@ -89,6 +91,7 @@ class MovementModel:
     group: np.ndarray
     lag_s: np.ndarray
     alphas: dict
+    bases: dict = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------- design matrix
@@ -128,6 +131,21 @@ def bin_to_frames(t_s, values, frame_times_s) -> np.ndarray:
         return np.where(n > 0, s / np.maximum(n, 1), np.nan)
 
 
+def raised_cosine_basis(lags_s: np.ndarray, spacing_s: float) -> np.ndarray:
+    """(n_lags, n_basis) raised-cosine bumps on the kernel's frame lags: centres every ~``spacing_s`` from the first
+    to the last lag, each bump reaching zero at its neighbours' centres, so neighbours overlap by half and the bumps
+    sum to 1 across the support (a flat kernel stays representable). Priya, 2026-10-06: the per-frame kernels are
+    jagged -- one free weight per 32 ms lag, and rhythmic licks (~156 ms, ~5 frames) plus tongue onset / contact
+    ~1 frame apart let the fit trade weight between lags; GCaMP is smooth at this scale, so the bumps constrain the
+    kernel to plausible shapes with ~10 instead of ~48 weights."""
+    lg = np.asarray(lags_s, float)
+    n = max(2, int(np.ceil((lg[-1] - lg[0]) / spacing_s - 1e-9)) + 1)
+    c = np.linspace(lg[0], lg[-1], n)
+    w = c[1] - c[0]
+    d = np.clip((lg[:, None] - c[None, :]) / w, -1.0, 1.0)
+    return 0.5 * (1.0 + np.cos(np.pi * d))
+
+
 def _shift(x: np.ndarray, k: int) -> np.ndarray:
     """x shifted by k frames (k > 0: value at t comes from t - k, i.e. the signal LEADS the activity), NaN-padded."""
     out = np.full_like(x, np.nan, dtype=float)
@@ -144,6 +162,7 @@ def build_design(inputs: MovementInputs) -> Design:
     ft = np.asarray(inputs.frame_times_s, float)
     T, fs = len(ft), frame_fs(ft)
     cols, names, regs, groups, lags, kinds = [], [], [], [], [], []
+    bases = {}
     for r in inputs.regressors:
         if isinstance(r, EventRegressor):
             f = nearest_frame(r.times_s, ft)
@@ -152,6 +171,7 @@ def build_design(inputs: MovementInputs) -> Design:
                 use = (f >= 0) & np.isfinite(amp)
                 amp = amp - (np.mean(amp[use]) if use.any() else 0.0)
             lag_frames = np.arange(int(np.round(r.lags_s[0] * fs)), int(np.round(r.lags_s[1] * fs)) + 1)
+            fir = []
             for L in lag_frames:
                 col = np.zeros(T)
                 ii = f + L
@@ -161,12 +181,27 @@ def build_design(inputs: MovementInputs) -> Design:
                     np.add.at(col, ii[ok], amp[ok])
                 else:
                     np.add.at(col, ii[ok], 1.0)
-                cols.append(col)
-                names.append(f"{r.name}@{L / fs:+.3f}")
-                regs.append(r.name)
-                groups.append(r.group)
-                lags.append(L / fs)
-                kinds.append("event")
+                fir.append(col)
+            if r.basis_spacing_s:
+                B = raised_cosine_basis(lag_frames / fs, float(r.basis_spacing_s))
+                bases[r.name] = (lag_frames / fs, B)
+                Xb = np.column_stack(fir) @ B
+                centres = np.linspace(lag_frames[0] / fs, lag_frames[-1] / fs, B.shape[1])
+                for j in range(B.shape[1]):
+                    cols.append(Xb[:, j])
+                    names.append(f"{r.name}#b{j}@{centres[j]:+.3f}")
+                    regs.append(r.name)
+                    groups.append(r.group)
+                    lags.append(centres[j])
+                    kinds.append("event")
+            else:
+                for L, col in zip(lag_frames, fir):
+                    cols.append(col)
+                    names.append(f"{r.name}@{L / fs:+.3f}")
+                    regs.append(r.name)
+                    groups.append(r.group)
+                    lags.append(L / fs)
+                    kinds.append("event")
         elif isinstance(r, ContinuousRegressor):
             base = bin_to_frames(r.t_s, r.values, ft)
             for lag in r.lags_s:
@@ -181,7 +216,7 @@ def build_design(inputs: MovementInputs) -> Design:
             raise TypeError(f"unknown regressor {type(r).__name__}")
     X = np.column_stack(cols) if cols else np.zeros((T, 0))
     return Design(X=X, names=names, regressor=np.array(regs), group=np.array(groups), lag_s=np.array(lags),
-                  kind=np.array(kinds))
+                  kind=np.array(kinds), bases=bases)
 
 
 def select_rows(design: Design, mask) -> Design:
@@ -189,7 +224,7 @@ def select_rows(design: Design, mask) -> Design:
     the FULL frame timeline first (so lagged event columns are right at window edges), then select."""
     m = np.asarray(mask, bool)
     return Design(X=design.X[m], names=design.names, regressor=design.regressor, group=design.group,
-                  lag_s=design.lag_s, kind=design.kind)
+                  lag_s=design.lag_s, kind=design.kind, bases=design.bases)
 
 
 def standardise(X: np.ndarray, mu=None, sd=None):
@@ -291,7 +326,7 @@ def fit(design: Design, Y: np.ndarray, alphas: dict | None = None, folds=None, g
         alphas = choose_alphas(Z, Y, design.group, folds, **({"grid": grid} if grid else {}))
     beta, c = ridge_fit(Z, Y, design.group, alphas)
     return MovementModel(beta=beta, intercept=c, mu=mu, sd=sd, names=list(design.names), regressor=design.regressor,
-                         group=design.group, lag_s=design.lag_s, alphas=dict(alphas))
+                         group=design.group, lag_s=design.lag_s, alphas=dict(alphas), bases=dict(design.bases))
 
 
 def _check_same_columns(model: MovementModel, design: Design) -> None:
@@ -323,13 +358,22 @@ def cv_residual(design: Design, Y: np.ndarray, folds, alphas: dict) -> np.ndarra
     return Y - cv_predict(Z, Y, design.group, alphas, folds)
 
 
-def kernels(model: MovementModel) -> dict:
-    """{regressor: (lags_s, weights (n_lags, n_out))} in standardised-column units."""
+def kernels(model: MovementModel, per_event: bool = False) -> dict:
+    """{regressor: (lags_s, weights (n_lags, n_out))}. Default: standardised-column units (per SD of the column).
+    ``per_event``: output units per unit of the raw regressor -- dF/F per event for an event kernel (the weight
+    divided by the column SD; a sparse 0/1 column's SD is tiny, so standardised weights look negligible). Smooth
+    (raised-cosine) kernels are returned on the per-frame lag grid (basis @ weights); with ``per_event=False`` their
+    scale mixes the bumps' SDs, so read them for shape only."""
     out = {}
+    beta = model.beta / model.sd[:, None] if per_event else model.beta
     for r in dict.fromkeys(model.regressor.tolist()):
         m = model.regressor == r
-        order = np.argsort(model.lag_s[m])
-        out[r] = (model.lag_s[m][order], model.beta[m][order])
+        if r in model.bases:
+            lg, B = model.bases[r]
+            out[r] = (lg, B @ beta[m])           # basis columns are stored in bump order
+        else:
+            order = np.argsort(model.lag_s[m])
+            out[r] = (model.lag_s[m][order], beta[m][order])
     return out
 
 
