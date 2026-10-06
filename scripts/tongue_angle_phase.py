@@ -161,7 +161,8 @@ def main(argv=None) -> int:
         a2 = ax.twinx()
         a2.plot(tt, dist[w], "-", color="0.5", lw=1)
         a2.axhline(frac * dist[c], color="orange", lw=0.6, ls=":")
-        a2.set_ylabel("distance from mouth (px)", color="0.4")
+        a2.set_ylabel("distance from mouth (px, down = further)", color="0.4")
+        a2.invert_yaxis()                     # down = further from the mouth, as in the image (Priya 2026-10-06)
         # frames
         for col, (fj, lab) in zip((2, 3), ((c, "peak"), (j_old, "max |angle| frame"))):
             ax = axs[row, col]
@@ -197,7 +198,7 @@ def main(argv=None) -> int:
         ph = ph.assign(angle_deg=ph.angle_deg.where(ph.protrusion_px >= MIN_PHASE_PX))
         pvar = "protrusion_filled_px" if "protrusion_filled_px" in ph else "protrusion_px"
         for row, (var, lab) in enumerate((("angle_deg", "angle (deg, + image-right)"),
-                                          (pvar, "protrusion from mouth (px)"))):
+                                          (pvar, "protrusion from mouth (px, down = further)"))):
             ax = axs[row, col]
             g0 = ph[ph.position == "far_L"]
             for _, gl in list(g0.groupby(["trial_id", "lick_idx"]))[:60]:
@@ -212,6 +213,8 @@ def main(argv=None) -> int:
                 ax.fill_between(mu.index, mu - se, mu + se, color=POS_COLORS[pos], alpha=0.2, lw=0, zorder=2)
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             ax.set_ylabel(lab)
+            if row == 1:
+                ax.invert_yaxis()             # down = further from the mouth, as in the image
             if row == 0:
                 ax.axhline(0, color="0.6", lw=0.6)
                 mode = res[m][0].params["phase"].get("mode", "extent")
