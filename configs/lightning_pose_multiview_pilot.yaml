@@ -1,0 +1,147 @@
+# Lightning Pose 2.4.2 -- MULTI-VIEW PILOT, cam1 (ventral) + cam4 (frontal). REFERENCE COPY, version-controlled.
+#
+# PURPOSE: see whether a multi-view transformer helps BEFORE cam4 round 4 / cam1 round 2 land. Built only from
+# the existing labels (cam1 round 1 = the cam1 DLC training copy, 294 rows + the 2 all_occluded frames; cam4
+# rounds 1-3 = the cam4 DLC training copy, 407 rows). It is a pilot: frame-level LP split, no held-out sessions.
+#
+# DATA (wfield_local/lp_multiview.py, 2026-10-06):
+#   python -m wfield_local.lp_multiview export --out C:/Users/SabatiniLab/lp_stage/multiview-pilot-20261006
+#   python -m wfield_local.lp_multiview clips  --out C:/Users/SabatiniLab/lp_stage/multiview-pilot-20261006
+#   python -m wfield_local.lp_multiview calib  --out C:/Users/SabatiniLab/lp_stage/multiview-pilot-20261006-calib
+#   -> 526 moments (DAQ instants): 177 labelled in BOTH cameras, 119 cam1-only, 230 cam4-only. An unpaired
+#   moment carries the other camera's frame at the same instant (extracted from the video) with every keypoint
+#   visible 0 there -- LP pairs views row by row by image basename, so there is no "missing view" row.
+#   Explicit per-keypoint `visible` column with the SPLIT RULE (DECISIONS 2026-10-05): 2 labelled; 1 hidden in
+#   EVERY labelled view (or the frame is in dlc.train.all_occluded); 0 hidden here but labelled in the other
+#   view, or this view not labelled at that instant.
+#   Unlabelled clips: 15 frame-synced cam1/cam4 pairs, 10 s each (`<clip>_cam1.mp4` / `<clip>_cam4.mp4`; cam4
+#   frames consecutive, cam1 frame = the DAQ-matched one). The single-view clips are NOT usable here: they
+#   were cut by video time per camera, which is not the same instant in the two cameras.
+#
+# TWO ARMS, ONE FILE. LP auto-discovers `<data_dir>/calibration.toml`; its presence alone switches on 3-D
+# augmentation, so the two arms differ by data_dir (the -calib dir holds symlinks to the same labels/videos
+# plus the toml) and by the overrides below. train_lp_multiview_fg.sh applies them; arm (a) is this file as is.
+#   (a) NO calibration: 2-D imgaug (`dlc`) applied to each view independently; supervised heatmap loss +
+#       temporal loss.
+#   (b) calibration (cam1+cam4 subset of the 09-11 anipose solve, calibration_anipose.toml in
+#       Behavior_Cameras/Widefield/Widefield_calibration_20260911_26mm_7x7_1200dpi_charuco/) + 3-D
+#       augmentation (imgaug forced to `dlc-mv`) + projection losses at LOW weight:
+#         data.data_dir=<...>-calib data.video_dir=<...>-calib/videos training.imgaug_3d=true
+#         +losses.supervised_pairwise_projections.log_weight=4.0       (weight 1/(2e^4) = 0.009; mm units)
+#         +losses.supervised_reprojection_heatmap_mse.log_weight=3.0   (weight 0.025; LP's own recommended value)
+#       KNOWN LIMITS OF ARM (b) IN 2.4.2 (data/datasets.py apply_3d_transforms; measured on this export with
+#       /mnt/c/Users/SabatiniLab/lp_stage/mv_lp_checks.py):
+#       - 3-D augmentation needs >= 3 keypoints triangulable, i.e. labelled in BOTH views. Only 105 of the
+#         526 rows qualify; the other 421 get NO geometric augmentation at all in arm (b), because `dlc-mv`
+#         drops the 2-D geometric transforms (rotation, crop, elastic) -- only photometric ones remain.
+#         Arm (a) applies the full 2-D `dlc` pipeline to every row. So (b) vs (a) also changes the amount of
+#         augmentation, not only "calibration on/off".
+#       - On an augmented row, a keypoint labelled in only ONE view triangulates to NaN (two cameras), projects
+#         back to NaN in both views, and a visible-2 point with NaN x, y becomes an all-zero heatmap = dropped
+#         from the loss: 34 such points on the 105 rows (one augmented pass dropped 36 of 2188 visible-2 points,
+#         mostly cam1 tongue). Small here, but it is exactly the hidden-in-one-view case.
+#       - One calibration file for every session -- June is ~5 % off in scale with the 09-11 solve (DECISIONS 2026-10-05); `calibrations/<session>.toml` per session
+#       is supported by LP if that matters.
+#       The decided comparison (DECISIONS 2026-10-05) is "(a) 3-D augmentation only vs (b) + projection losses";
+#       that variant = arm (b) with both log_weight overrides dropped.
+#
+# WHAT DIFFERS FROM THE SINGLE-VIEW CONFIGS (lightning_pose_cam1/cam4.yaml), and why:
+#   * backbone vits_dino, not resnet50: heatmap_multiview_transformer accepts ViT backbones only (2.4.2
+#     ALLOWED_TRANSFORMER_BACKBONES_MULTIVIEW); both views' patches attend to each other in one sequence.
+#   * optimizer AdamW, lr 5e-5: LP's recommender values for ViT backbones (convnet default 1e-3 is too hot).
+#   * image_resize 640 x 640 for BOTH views (cam1 600 x 600, cam4 680 x 680; one size for all views is
+#     required). Kept at the single-view value for the incomplete-lick tongue tip -- see the smoke test for
+#     memory; LP's recommender would pick 256 for these frames.
+#   * patch_mask ON (LP's multiview default curriculum, epochs 40 -> 300, ratio 0 -> 0.5): masks patches of one
+#     view so the network learns to fill it from the other -- the mechanism the split rule's visible-0 points
+#     rely on. (The single-view configs left it out because it is a multi-view-only augmentation.)
+#   * train_batch_size 2, dali base train sequence_length 2: each step pushes batch x 2 views through the ViT,
+#     plus the unlabelled batch, on an 8 GB card with a 7000 MiB guard.
+#   * no pca losses (pca_multiview needs a calibrated, fully-labelled subspace; not part of the pilot).
+#   UNCHANGED: KL heatmap loss, uniform_heatmaps_for_nan_keypoints true (ignored when the CSV has a visible
+#   column, kept for clarity), temporal loss as in the single-view configs, early stopping off, epochs 300,
+#   milestones 150/200/250, DALI predict sequence_length 16 (96 blue-screened this box twice).
+
+data:
+  # image_orig_dims is not read by LP 2.4.2 (cam1 600 x 600, cam4 680 x 680)
+  image_resize_dims: {height: 640, width: 640}
+  data_dir: /root/lp/multiview-pilot-20261006
+  video_dir: /root/lp/multiview-pilot-20261006/videos
+  csv_file: [CollectedData_cam1.csv, CollectedData_cam4.csv]   # same order as view_names
+  view_names: [cam1, cam4]                                     # = camera order in calibration.toml (LP asserts)
+  num_keypoints: 4
+  keypoint_names: [nose, jaw, tongue, spout]
+  header_rows: [0, 1, 2]
+  bbox_file: null
+  camera_params_file: null       # arm (b) uses auto-discovered <data_dir>/calibration.toml instead
+  mirrored_column_matches: null
+  columns_for_singleview_pca: null
+  downsample_factor: 2
+
+training:
+  train_prob: 0.8
+  val_prob: 0.1
+  train_batch_size: 2
+  val_batch_size: 4
+  test_batch_size: 4
+  min_epochs: 50
+  max_epochs: 300
+  check_val_every_n_epoch: 5
+  ckpt_every_n_epochs: null
+  log_every_n_steps: 10
+  imgaug: dlc                    # arm (b): forced to dlc-mv by LP when the calibration is found
+  imgaug_hflip: false            # not supported for multiview
+  imgaug_3d: false               # arm (b): true
+  rng_seed_data_pt: 42
+  rng_seed_model_pt: 42
+  optimizer: AdamW
+  optimizer_params: {learning_rate: 5.0e-5}
+  lr_scheduler: multisteplr
+  lr_scheduler_params:
+    multisteplr: {milestones: [150, 200, 250], gamma: 0.5}
+  unfreezing_epoch: 20
+  num_workers: 4
+  num_gpus: 1
+  early_stopping: false
+  early_stop_patience: 20
+  train_frames: 1
+  uniform_heatmaps_for_nan_keypoints: true
+  patch_mask: {init_epoch: 40, final_epoch: 300, init_ratio: 0.0, final_ratio: 0.5}
+
+model:
+  model_type: heatmap_multiview_transformer
+  backbone: vits_dino
+  head: heatmap_cnn
+  heatmap_loss_type: kl
+  model_name: multiview-pilot
+  losses_to_use: [temporal]
+  checkpoint: null
+
+losses:
+  temporal:
+    log_weight: 5.0
+    epsilon: 10.0
+    prob_threshold: 0.5
+  # arm (b) adds (via overrides) supervised_pairwise_projections / supervised_reprojection_heatmap_mse
+
+callbacks:
+  anneal_weight:
+    attr_name: total_unsupervised_importance
+    init_val: 0.0
+    increase_factor: 0.01
+    final_val: 1.0
+    freeze_until_epoch: 0
+
+dali:
+  base:
+    train: {sequence_length: 2}
+    predict: {sequence_length: 16}
+  context:
+    train: {batch_size: 2}
+    predict: {sequence_length: 16}
+
+eval:
+  predict_vids_after_training: false
+  save_vids_after_training: false
+  confidence_thresh_for_vid: 0.6
+  test_videos_directory: /root/lp/multiview-pilot-20261006/videos

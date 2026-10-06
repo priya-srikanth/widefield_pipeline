@@ -44,6 +44,17 @@ POS_COLORS = {n: _style(n)[0] for n in POS_ORDER}
 POS_LS = {n: _style(n)[2] for n in POS_ORDER}
 
 
+def _extra_kw(P, overrides=None):
+    """Optional extra movement regressors (`P["extra"]`: video components / running speed, Priya 2026-10-06) as
+    build_inputs keywords: state signals, grouped video / state, merged into any per-call overrides."""
+    extra = P.get("extra") or {}
+    ov = dict(overrides or {})
+    if extra:
+        ov["groups"] = {**ov.get("groups", {}), **{n: ("state" if n == "running" else "video") for n in extra}}
+        return {"state_signals": extra, "overrides": ov}
+    return {"overrides": ov} if ov else {}
+
+
 def _design(ft, mask, **kw):
     return ME.select_rows(ME.build_design(MI.build_inputs(ft, **kw)), mask)
 
@@ -56,7 +67,7 @@ def _cv_r2(d, Y, folds, alphas):
 def part_a(ft, mask, P, Y, folds, perms, rng, grid):
     tr, L = P["trials"], P["licks"]
     mov = _design(ft, mask, events={"contact": P["contact_s"], "tongue_onset": L.on_s.to_numpy()},
-                  video_signals=P["sig"], video_t_s=P["vt"], trial_starts_s=P["trial_starts_s"])
+                  video_signals=P["sig"], video_t_s=P["vt"], trial_starts_s=P["trial_starts_s"], **_extra_kw(P))
     a_mov = ME.choose_alphas(ME.standardise(mov.X)[0], Y, mov.group, folds, grid=grid)
     R = ME.cv_residual(mov, Y, folds, a_mov)
     shared = _design(ft, mask, cues=tr.assign(pos_name="all")[["cue_s", "pos_name"]])
@@ -107,8 +118,7 @@ def part_b(ft, mask, P, Y, folds, perms, rng, grid):
 
     def design(ev):
         e = {"contact": P["contact_s"], **ev}
-        ov = _overrides(ev)
-        return _design(ft, mask, events=e, overrides=ov, **base)
+        return _design(ft, mask, events=e, **base, **_extra_kw(P, _overrides(ev)))
 
     d_both = design(_onset_events(L, "both"))
     alphas = ME.choose_alphas(ME.standardise(d_both.X)[0], Y, d_both.group, folds, grid=grid)
@@ -135,7 +145,12 @@ def main(argv=None) -> int:
     ap.add_argument("sessions", nargs="+")
     ap.add_argument("--perms", type=int, default=20)
     ap.add_argument("--areas", nargs="+", type=int, default=[4, 3, 6, 5])
+    ap.add_argument("--video", nargs="*", default=[], metavar="CAM",
+                    help="movement model also gets these cameras' motion-energy components (strobe .. trial end)")
+    ap.add_argument("--video-k", type=int, default=30)
+    ap.add_argument("--running", action="store_true", help="movement model also gets DAQ treadmill speed")
     a = ap.parse_args(argv)
+    tag = (f"_video{''.join(c[-1] for c in a.video)}" if a.video else "") + ("_run" if a.running else "")
     rv = PathResolver()
     p = MI.params()
     grid = tuple(p["alpha_grid"])
@@ -147,6 +162,8 @@ def main(argv=None) -> int:
         Yall, reg, ft = MS.imaging(label)
         label += "".join(f"_{t}" for t in spec.split(":")[2:])   # the pose source, e.g. PS93_0814_full
         P = MS.session_pieces(animal, date, rv, ft, float(p["min_reach_px"]), spec=spec)
+        P["extra"] = {**(MS.video_signals(animal, date, rv, ft, a.video, a.video_k) if a.video else {}),
+                      **(MS.running_signal(animal, date, rv) if a.running else {})}
         mask = P["mask"]
         keep = [k for k, lab in enumerate(reg) if abs(int(lab)) in a.areas]
         Y = Yall[mask][:, keep]
@@ -161,7 +178,7 @@ def main(argv=None) -> int:
                            "angle_beyond_position": r2b["both"] - r2b["position"],
                            "angle_beyond_null_mean": nullB.mean(0)})
         out = session_dir(rv, spec)[2]
-        df.to_csv(out / "movement_position_angle.csv", index=False)
+        df.to_csv(out / f"movement_position_angle{tag}.csv", index=False)
         rows.append((df, nullA, nullB))
         # per-area medians + permutation p (median over the area's components vs the null's medians)
         print(f"\n== {label}: residual-position alphas mov {a_mov} task {a_task}; onset-model alphas {a_b}; angle "
@@ -207,13 +224,13 @@ def main(argv=None) -> int:
         fig.suptitle(f"{label}: cue-aligned activity AFTER regressing out movement (cross-fitted), mean per position "
                      f"(area = mean over its components; _L = left = ipsilesional)", fontsize=9)
         fig.tight_layout()
-        fig.savefig(out / "residual_position_traces.png", dpi=110)
+        fig.savefig(out / f"residual_position_traces{tag}.png", dpi=110)
         plt.close(fig)
     S = pd.concat([r[0] for r in rows], ignore_index=True)
     summ = S.groupby(["session", "area"]).median(numeric_only=True).reset_index()
     out = Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses"
-    summ.to_csv(out / "movement_position_angle_summary.csv", index=False)
-    print(f"\n-> {out / 'movement_position_angle_summary.csv'}")
+    summ.to_csv(out / f"movement_position_angle_summary{tag}.csv", index=False)
+    print(f"\n-> {out / f'movement_position_angle_summary{tag}.csv'}")
     return 0
 
 

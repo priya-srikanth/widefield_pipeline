@@ -90,7 +90,7 @@ def video_signals(animal: str, date: str, rv, frame_times_s, cams, k: int = 30) 
     from wfield_local import trial_windows as TW
     ft = np.asarray(frame_times_s, float)
     b = TW.trial_bounds(animal, date, rv)
-    start = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 0.5).to_numpy(float)
+    start = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 0.5).astype(float)
     ok = np.isfinite(start) & np.isfinite(b.stop_s.to_numpy(float))
     keep = np.zeros(len(ft), bool)
     for a0, a1 in zip(start[ok], b.stop_s.to_numpy(float)[ok]):
