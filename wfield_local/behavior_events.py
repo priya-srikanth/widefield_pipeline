@@ -38,7 +38,6 @@ from wfield_local.lick_detection import detect_licks
 from wfield_local.quiet_periods import (
     _rising,
     _runs_at_least,
-    idx2bool,
     set_short_bool_to_low,
     widen_bool_sparse,
 )
@@ -85,6 +84,26 @@ def _read_analog(f, name: str) -> np.ndarray:
     return np.asarray(f["analog/samples"][:, i], dtype=np.float32)
 
 
+def treadmill_speed(tread_v: np.ndarray, fs: float, seg: dict | None = None) -> np.ndarray:
+    """Calibrated, smoothed treadmill speed (mm/s) from the raw channel -- the ONE definition (`compute_events`'
+    running bouts and the movement models' running regressor both use it; configs `segmentation.treadmill`)."""
+    tw = (seg if seg is not None else config.defaults()["segmentation"])["treadmill"]
+    return smooth_treadmill(calibrate_treadmill(tread_v, tw["offset_v"], tw["volt_sec_per_rot"], tw["mm_per_rot"]),
+                            fs, tw["smoothing_sigma_s"])
+
+
+def session_speed(h5_path: Path, step_s: float = 0.004, seg: dict | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(DAQ seconds, treadmill speed mm/s) for one session, subsampled every ``step_s`` (after smoothing)."""
+    import h5py
+    seg = seg if seg is not None else config.defaults()["segmentation"]
+    with h5py.File(h5_path, "r") as f:
+        fs = float(f.attrs["sample_rate_hz"])
+        v = _read_analog(f, seg["treadmill"]["channel"])
+    sp = treadmill_speed(v, fs, seg)
+    k = max(1, int(round(step_s * fs)))
+    return np.arange(0, len(sp), k) / fs, sp[::k]
+
+
 def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = None) -> dict:
     """Detect all behavior events from one DAQ ``.h5``. Returns a dict of sample-indexed arrays + meta."""
     import h5py
@@ -123,10 +142,7 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     reward_samples = np.asarray(_rising(reward_v, seg["reward"]["thresh_v"]), dtype=np.int64)
 
     # running bouts (clearly moving)
-    tw = seg["treadmill"]
-    speed = smooth_treadmill(
-        calibrate_treadmill(tread_v, tw["offset_v"], tw["volt_sec_per_rot"], tw["mm_per_rot"]),
-        fs, tw["smoothing_sigma_s"])
+    speed = treadmill_speed(tread_v, fs, seg)
     rn = seg["running"]
     running = find_running_bouts(speed, fs, rn["thresh_speed_mm_s"], rn["max_gap_s"], rn["min_duration_s"])
     run_starts, run_stops = bout_edges(running)

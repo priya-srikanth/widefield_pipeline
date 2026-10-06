@@ -32,6 +32,7 @@ def main(argv=None) -> int:
     import scripts.movement_encoding_session as MS
     from scripts.session_poses import session_dir
     from wfield_local import movement_inputs as MI
+    from wfield_local import config
     from wfield_local import video_motion as VM
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -63,7 +64,10 @@ def main(argv=None) -> int:
             mm, filled = VM.binned_motion_energy(VM.video_frames(vid), bins, len(ft), mpath, ds=a.ds)
         print(f"{cam}: motion energy in {(time.time() - t0) / 60:.1f} min; {filled.mean():.1%} of imaging frames "
               f"covered", flush=True)
-        res = VM.motion_svd(mm, filled, k=a.k)
+        first = next(VM.video_frames(vid))
+        polys = ((config.defaults().get("video_motion", {}) or {}).get("masks", {}) or {}).get(cam)
+        keep = VM.pixel_mask(first.shape[:2], a.ds, polys)
+        res = VM.motion_svd(mm, filled, k=a.k, keep=keep)
         shape = VM.downsample(next(VM.video_frames(vid)), a.ds).shape
         out = session_dir(rv, f"{animal}:{date}:full")[2]
         out.mkdir(parents=True, exist_ok=True)
@@ -74,8 +78,9 @@ def main(argv=None) -> int:
         n_show = min(12, a.k)
         fig, axs = plt.subplots(2, n_show // 2 + 1, figsize=(2.2 * (n_show // 2 + 1), 4.6), squeeze=False)
         axs = axs.ravel()
-        axs[0].imshow(res["mean"].reshape(shape), cmap="gray")
-        axs[0].set_title("mean motion energy", fontsize=7)
+        im0 = axs[0].imshow(res["mean"].reshape(shape), cmap="magma")
+        axs[0].set_title("mean motion energy (brighter = moves more)", fontsize=7)
+        fig.colorbar(im0, ax=axs[0], fraction=0.04)
         for j in range(n_show):
             c = res["components"][j].reshape(shape)
             lim = np.abs(c).max()
@@ -83,7 +88,9 @@ def main(argv=None) -> int:
             axs[j + 1].set_title(f"PC{j} ({res['explained'][j]:.1%})", fontsize=7)
         for ax in axs:
             ax.axis("off")
-        fig.suptitle(f"{animal} {date} {cam}: motion-energy components", fontsize=9)
+        fig.suptitle(f"{animal} {date} {cam}: motion-energy components -- RED pixels move more than average when the "
+                     f"component's time course rises, BLUE pixels less (they trade off); white = not involved; the overall "
+                     f"sign is arbitrary. Grey-out = masked.", fontsize=8)
         fig.tight_layout()
         fig.savefig(out / f"video_motion_{cam}.png", dpi=110)
         plt.close(fig)

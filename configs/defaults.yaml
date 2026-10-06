@@ -203,6 +203,14 @@ behavior:
 # imaging) loads the same events instead of re-detecting. Licks use lick_detection.* (thresholds + floor).
 # !! params below (treadmill calibration, running/quiet/grooming) are stroke-pipeline starting points --
 # TUNE for this rig once DLC/FaceRhythm movement gives ground truth (mirrors quiet_periods.py caveat).
+video_motion:                  # motion-energy regressors (wfield_local/video_motion.py, scripts/video_motion_session.py)
+  # Optional pixel masks (full-resolution [[x, y], ...] polygons per camera) removed before the SVD -- NONE by default.
+  # The treadmill is NOT masked (Priya 2026-10-06: "the treadmill motion is ok, because it reflects paw motion (only
+  # way for treadmill to move)"; a drum mask also covered the paws); DAQ running speed is a separate, interpretable
+  # regressor. The SPOUT is not masked in space either: the video regressors are blanked outside position strobe ..
+  # trial end (a stationary spout makes no motion energy; repositioning happens between trial end and the strobe).
+  masks: {}
+
 segmentation:
   treadmill:
     channel: treadmill

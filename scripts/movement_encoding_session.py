@@ -80,15 +80,53 @@ def lick_events(P: dict, licks: str = "onset_contact") -> dict:
     raise ValueError(f"licks must be onset_contact or split, not {licks!r}")
 
 
+def video_signals(animal: str, date: str, rv, frame_times_s, cams, k: int = 30) -> dict:
+    """{name: (t_s, values)} motion-energy components per camera (`scripts.video_motion_session` output, top ``k``)
+    on the imaging frames, BLANKED (NaN = contributes nothing) outside position strobe .. trial end: the spout is
+    repositioned between trial end and the next strobe, and spout motion is the TARGET (Priya 2026-10-06: "masking
+    spout repositioning sounds good. using position-strobe to trial-end will eliminate this problem"); a stationary
+    spout makes no motion energy, so close-spout pixels stay in on far-spout trials."""
+    from scripts.session_poses import session_dir
+    from wfield_local import trial_windows as TW
+    ft = np.asarray(frame_times_s, float)
+    b = TW.trial_bounds(animal, date, rv)
+    start = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 0.5).to_numpy(float)
+    ok = np.isfinite(start) & np.isfinite(b.stop_s.to_numpy(float))
+    keep = np.zeros(len(ft), bool)
+    for a0, a1 in zip(start[ok], b.stop_s.to_numpy(float)[ok]):
+        keep |= (ft >= a0) & (ft <= a1)
+    out = {}
+    d = session_dir(rv, f"{animal}:{date}:full")[2]
+    for cam in cams:
+        z = np.load(d / f"video_motion_{cam}.npz")
+        if not np.allclose(z["frame_times_s"][:5], ft[:5]):
+            raise ValueError(f"{cam}: motion energy was binned on a different imaging clock")
+        tc = np.array(z["timecourses"][:, :k], float)
+        tc[~keep] = np.nan
+        for j in range(tc.shape[1]):
+            out[f"video_{cam}_pc{j}"] = (ft, tc[:, j])
+    return out
+
+
+def running_signal(animal: str, date: str, rv) -> dict:
+    """{"running": (t_s, treadmill speed mm/s)} -- `behavior_events.session_speed` (configs segmentation.treadmill),
+    the same speed the running bouts use."""
+    from wfield_local.behavior_events import session_speed
+    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    return {"running": session_speed(h5)}
+
+
 def pose_inputs(animal: str, date: str, rv, frame_times_s, min_reach_px: float, spec: str | None = None,
-                licks: str = "onset_contact", basis_spacing_s: float | None = None):
+                licks: str = "onset_contact", basis_spacing_s: float | None = None, extra_state: dict | None = None):
     """MovementInputs + a mask of imaging frames inside the pose windows (``spec``: see `session_pieces`; ``licks``:
     see `lick_events`; ``basis_spacing_s``: raised-cosine event kernels, None = per-frame FIR)."""
     P = session_pieces(animal, date, rv, frame_times_s, min_reach_px, spec=spec)
     L = P["licks"]
     inputs = MI.build_inputs(frame_times_s, cues=P["trials"][["cue_s", "pos_name"]],
                              events=lick_events(P, licks),
-                             overrides={"kernel_basis_spacing_s": basis_spacing_s},
+                             overrides={"kernel_basis_spacing_s": basis_spacing_s,
+                                        "groups": {n: ("state" if n == "running" else "video") for n in (extra_state or {})}},
+                             state_signals=extra_state,
                              modulated={"tongue_onset_x_deviation": (L.on_s.to_numpy(), L.dev_dir.to_numpy()),
                                         "tongue_onset_x_angle": (L.on_s.to_numpy(), L.angle_dir.to_numpy())},
                              video_signals=P["sig"], video_t_s=P["vt"], trial_starts_s=P["trial_starts_s"])
@@ -191,23 +229,35 @@ def main(argv=None) -> int:
     ap.add_argument("--kernels", choices=["fir", "smooth"], default="fir",
                     help="fir = one weight per frame lag (pre-registered); smooth = raised-cosine bumps")
     ap.add_argument("--basis-spacing", type=float, default=0.15, help="smooth: bump spacing (s)")
+    ap.add_argument("--video", nargs="*", default=[], metavar="CAM",
+                    help="add motion-energy components of these cameras (blanked outside strobe .. trial end)")
+    ap.add_argument("--video-k", type=int, default=30, help="components per camera")
+    ap.add_argument("--running", action="store_true", help="add DAQ treadmill speed (group state)")
     ap.add_argument("--licks", choices=["onset_contact", "split"], default="onset_contact",
                     help="onset_contact = tongue onset + DAQ contact (pre-registered); split = contact / no-contact")
     a = ap.parse_args(argv)
     rv = PathResolver()
     p = MI.params()
     spacing = a.basis_spacing if a.kernels == "smooth" else None
-    tag = ("" if a.kernels == "fir" else "_smooth") + ("" if a.licks == "onset_contact" else "_splitlicks")
+    tag = (("" if a.kernels == "fir" else "_smooth") + ("" if a.licks == "onset_contact" else "_splitlicks")
+           + (f"_video{''.join(c[-1] for c in a.video)}" if a.video else "") + ("_run" if a.running else ""))
     parts = (config.defaults().get("movement_encoding", {}) or {}).get("partitions") or {
         "task": ["task"], "movement": ["lick_events", "tongue", "jaw"], "direction": ["direction"]}
+    if a.video or a.running:
+        mov = list(parts.get("movement", ["lick_events", "tongue", "jaw"]))
+        parts = {**parts, "movement_dlc": mov, **({"video": ["video"]} if a.video else {}),
+                 **({"running": ["state"]} if a.running else {}),
+                 "movement_all": mov + (["video"] if a.video else []) + (["state"] if a.running else [])}
     summary = []
     for spec in a.sessions:
         animal, date = spec.split(":")[:2]
         label = f"{animal}_{date[4:]}"
         Y, reg, ft = imaging(label)
         label += "".join(f"_{t}" for t in spec.split(":")[2:])   # the pose source, e.g. PS93_0814_full
+        extra = {**(video_signals(animal, date, rv, ft, a.video, a.video_k) if a.video else {}),
+                 **(running_signal(animal, date, rv) if a.running else {})}
         inputs, mask, info = pose_inputs(animal, date, rv, ft, float(p["min_reach_px"]), spec=spec, licks=a.licks,
-                                         basis_spacing_s=spacing)
+                                         basis_spacing_s=spacing, extra_state=extra or None)
         d_full = ME.build_design(inputs)
         d = ME.select_rows(d_full, mask)
         Ym = Y[mask]

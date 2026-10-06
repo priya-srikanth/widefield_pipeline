@@ -9,32 +9,28 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
 ## 0. RESUME CHECKLIST
 
 **Running / just finished:**
-1. Video motion energy, PS93 0814, all 4 cameras (unmasked first pass; cam2/3/1 done, cam4 finishing):
-   `session_poses/PS93_20260814_full/video_motion_<cam>.{npz,png}`, logs `~/lp_stage/full_0814_logs/video/`.
-   **Do not use as regressors yet** -- the spout and the treadmill are in the components (see §2).
+1. Video motion energy, PS93 0814, all 4 cameras: DONE (unmasked; `session_poses/PS93_20260814_full/
+   video_motion_<cam>.{npz,png}`). Masks decided against (below) -> these ARE the regressors.
+2. Model comparison (detached, `~/lp_stage/run_model_comparison.cmd`, logs `~/lp_stage/full_0814_logs/compare/`):
+   A fir / B smooth+split licks / C + running / D + running + video (4 cams x 30 PCs), all with the retuned cleaning.
+3. Pilot multi-view LP build (background agent): export with the split-rule `visible` column + toy test, config
+   arms (calibration off / on), WSL launcher, smoke test only. Its files (`wfield_local/lp_multiview.py`, ...) are
+   uncommitted until reviewed.
 
 **Next, in order:**
-1. **Masks for motion energy** (Priya 10-06: "what do we do about spout or treadmill movement?"): spout masked in
-   all 4 cameras (spout motion = the TARGET -> would absorb position information); treadmill surface masked in
-   cam2/3; running speed from the DAQ `treadmill` channel as its own (state) regressor. Draw masks from each camera's
-   mean frame, SHOW PRIYA, then rerun with `scripts.video_motion_session PS93:20260814 --keep` (parallel, 6 workers
-   per camera). Leak check: masked video components must not predict spout position before the cue.
-2. **Model comparison** on PS93 0814 with the RETUNED cleaning (Rule 4 swap, contact window): fir vs smooth vs
-   smooth+split licks vs + video (+ running); unique variance of video beyond DLC; rerun the residual position test
-   (`movement_position_angle`, 200 perms) with the richest movement model. `movement_encoding_session` needs a
-   `--video` option (not built yet: per camera top-k time courses as continuous regressors, group "video").
-3. **Contact-class survey across sessions** (`scripts/contact_survey.py`, not built yet): DAQ contact durations for
+1. Read the comparison: unique variance of video beyond DLC (+ running); then rerun the residual position test
+   (`movement_position_angle`, 200 perms) with the richest movement model (needs a `--video/--running` option like
+   `movement_encoding_session`'s, not built yet).
+2. **Contact-class survey across sessions** (`scripts/contact_survey.py`, not built yet): DAQ contact durations for
    EVERY session (pre + post; long touches at close spouts = water bridges?) and no-tongue counts where DLC exists,
-   before fixing `contact_classes` thresholds.
-4. **Pilot multi-view LP on existing labels** (Priya 10-06 asked to start): cam1 round 1 + cam4 rounds 1-3 paired
-   frames, `visible` column with the SPLIT RULE (10-05 handoff §2), heatmap_multiview_transformer, WSL with the
-   16-frame DALI + memory guard rule; arms with / without calibration.
-5. Open questions for Priya: lick-direction-shift paths to image orientation too? angle reference (keep the
+   before fixing `contact_classes` thresholds. NB `segmentation.grooming` (behavior_events) is an older,
+   never-refined single-spout proxy (> 0.4 s contact, OFF); `contact_classes` supersedes it once validated.
+3. Review / commit the multi-view LP pilot; launch full training (arm a, then b) per the agent's report.
+4. Open questions for Priya: lick-direction-shift paths to image orientation too? angle reference (keep the
    far_center axis, ~2 deg from image vertical on 0814, relabelled -- recommended -- or image vertical)? lick-1
    definition for a re-protrusion that starts while the tongue is still out from a pre-cue lick (trial 28)?
-6. Later: paw-at-face detection (keypoint or lower-face motion energy) for grooming without a contact; 2pRAM-style
-   top-k lick-subspace removal (proposed, Priya interested); production O2 run after the next cam4 model; whole
-   post-stroke sessions -> the pre-registered template-match readout test.
+5. Later: paw-at-face detection for grooming without a contact; 2pRAM-style top-k lick-subspace removal; production
+   O2 run after the next cam4 model; whole post-stroke sessions -> the pre-registered template-match readout test.
 
 ## 1. Findings (PS93 0814, whole session, round-3 cam4 DLC)
 * O2 output == desktop (median 0.2-0.4 px on 239,564 shared frames). All 288 cam1+cam4 videos on O2 scratch.
@@ -65,7 +61,11 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
 * Figures: cohort palette / order (`spout_behavior.position_style`); trajectories in IMAGE orientation (mouth top
   centre, image-right right); distance / protrusion axes down = further from the mouth.
 * Angles are tongue angle AT PEAK PROTRUSION everywhere (not stroke_orofacial's max-signed angle).
-* Motion energy: parallel per camera (chunked decoding); spout + treadmill must be masked before use.
+* Motion energy: parallel per camera (chunked decoding). SPOUT: motorised -> must not enter; handled in TIME by
+  blanking the video regressors outside position strobe .. trial end (repositioning happens between trial end and
+  the strobe; a stationary spout makes no motion energy, so close-spout pixels stay in on far trials). TREADMILL:
+  NOT masked -- only the paws move it, so it is locomotion (a drum mask also covered the paws); DAQ running speed
+  (`behavior_events.session_speed`, the one treadmill definition) added as a separate regressor.
 
 ## 3. Pitfalls (new)
 1. **Scripts silently dropped the `:full` tag** (`pose_inputs`, `movement_position_angle`) -- fixed; any new
@@ -77,7 +77,8 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
 4. **Standardised kernel weights look tiny** (per SD of a sparse column): use `kernels(model, per_event=True)`.
 5. **The detector's rise start / fall end are narrower than the physical lick** -- contacts land ~28 ms before
    the peak; do not match contacts on that span alone.
-6. **Motion energy sees the spout** (target information) and the treadmill texture -- never use unmasked.
+6. **Motion energy sees the motorised spout** (target information) -- use video regressors only inside position
+   strobe .. trial end (`movement_encoding_session.video_signals` does this).
 7. **HMS scratch**: deletion is by modification time and touching dates is a policy violation; copy with
    `rsync -ah`.
 8. Heredocs with quotes / backslashes break inline Python edits -- write edit scripts to files (Write tool).

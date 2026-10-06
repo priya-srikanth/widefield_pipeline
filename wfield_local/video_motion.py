@@ -69,15 +69,32 @@ def binned_motion_energy(frames, bins: np.ndarray, n_bins: int, out_path: Path, 
     return mm, filled
 
 
+def pixel_mask(shape_full: tuple[int, int], ds: int, polygons: list | None) -> np.ndarray | None:
+    """Bool keep-mask on the ``ds``-downsampled grid: False inside any polygon (full-resolution [[x, y], ...]
+    vertices), e.g. the treadmill drum in the body cameras (Priya 2026-10-06: running enters as the DAQ treadmill
+    speed instead; wheel texture would otherwise dominate the components). None = keep every pixel."""
+    if not polygons:
+        return None
+    import cv2
+    h, w = shape_full[0] // ds, shape_full[1] // ds
+    m = np.zeros((h, w), np.uint8)
+    for poly in polygons:
+        cv2.fillPoly(m, [np.round(np.asarray(poly, float) / ds).astype(np.int32)], 1)
+    return ~m.astype(bool)
+
+
 def motion_svd(mm: np.ndarray, filled: np.ndarray, k: int = 50, n_fit: int = 60_000, seed: int = 0,
-               chunk: int = 20_000) -> dict:
+               chunk: int = 20_000, keep: np.ndarray | None = None) -> dict:
     """Spatial components from ``n_fit`` evenly spaced filled rows (column-centred, randomized SVD) and every
     filled row's projection. Returns {"timecourses" (n_bins, k) NaN where not filled, "components" (k, n_px),
-    "mean" (n_px,), "explained" (k,) fraction of the fitted rows' variance}."""
+    "mean" (n_px,), "explained" (k,) fraction of the fitted rows' variance}. ``keep`` (bool, n_px or the image
+    shape): pixels used; masked pixels get zero weight in every component."""
     from sklearn.utils.extmath import randomized_svd
     rows = np.flatnonzero(filled)
     fit_rows = rows[np.linspace(0, len(rows) - 1, min(n_fit, len(rows))).round().astype(int)]
-    X = np.asarray(mm[fit_rows], np.float32)
+    n_px = mm.shape[1]
+    kp = np.ones(n_px, bool) if keep is None else np.asarray(keep, bool).ravel()
+    X = np.asarray(mm[fit_rows], np.float32)[:, kp]
     mu = X.mean(0)
     X -= mu
     _, s, vt = randomized_svd(X, n_components=k, random_state=seed)
@@ -85,8 +102,12 @@ def motion_svd(mm: np.ndarray, filled: np.ndarray, k: int = 50, n_fit: int = 60_
     tc = np.full((len(filled), k), np.nan, np.float32)
     for a in range(0, len(rows), chunk):
         r = rows[a:a + chunk]
-        tc[r] = (np.asarray(mm[r], np.float32) - mu) @ vt.T
-    return {"timecourses": tc, "components": vt.astype(np.float32), "mean": mu, "explained": explained}
+        tc[r] = (np.asarray(mm[r], np.float32)[:, kp] - mu) @ vt.T
+    comps = np.zeros((k, n_px), np.float32)
+    comps[:, kp] = vt
+    mean = np.zeros(n_px, np.float32)
+    mean[kp] = mu
+    return {"timecourses": tc, "components": comps, "mean": mean, "explained": explained, "keep": kp}
 
 
 def video_frames(path: Path):
