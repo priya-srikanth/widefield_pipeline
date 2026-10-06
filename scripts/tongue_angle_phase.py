@@ -50,13 +50,13 @@ MIN_PHASE_PX = 30.0        # figs 2-3: phase points inside the lip zone (< 30 px
 def _load(a, rv):
     from wfield_local import dlc_project
     if a.session:
-        from scripts.session_poses import session_dir
+        from scripts.session_poses import read_index, session_dir
         animal, date, d = session_dir(rv, a.session)
         video = d / "windows.mp4"
         if not video.exists():          # whole-video (O2) folders: frames come from the original video
             from wfield_local.o2_inference import videos_for
             video = videos_for(rv, animal, date)[0]
-        return animal, date, d, pd.read_csv(d / "windows_index.csv"), \
+        return animal, date, d, read_index(d), \
             {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}, video
     d = dlc_project.project_dir(rv).parent / "lp_vs_dlc_cue_traces" / "PS93_20260908"
     return "PS93", "20260908", d, pd.read_csv(d / "cue_windows_index.csv"), \

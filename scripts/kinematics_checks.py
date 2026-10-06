@@ -156,9 +156,9 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.session:
-        from scripts.session_poses import session_dir
+        from scripts.session_poses import read_index, session_dir
         animal, date, d = session_dir(rv, a.session)
-        idx, poses = pd.read_csv(d / "windows_index.csv"), {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}
+        idx, poses = read_index(d), {"DLC": d / "windows_DLC.csv", "LP": d / "windows_LP.csv"}
     else:
         animal, date = "PS93", "20260908"
         d = dlc_project.project_dir(rv).parent / "lp_vs_dlc_cue_traces" / f"{animal}_{date}"

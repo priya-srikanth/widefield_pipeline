@@ -223,26 +223,37 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
     return d
 
 
+def trial_frame_spans(b: pd.DataFrame, tpl: dict, n_full: int, pre_s: float = 0.5, post_s: float = 3.0) -> list:
+    """[(f0, f1, f_cue), ...] per trial of ``b`` (sorted by cue): position strobe - pre_s .. trial stop + post_s,
+    CUT at the next trial's start, so no video frame belongs to two trials (Priya, 2026-10-06: "just cut at the next
+    trial's start"). Before the cut, a trial's last 3 s overlapped the next trial's strobe window (~3 % of frames
+    twice in a whole session) -- harmless for the 10-06 analyses, but anything summing over rows double-counted."""
+    from wfield_local import dlc_frames as DF
+    spans = []
+    for r in b.itertuples():
+        t0 = min(r.strobe_s, r.cue_s - pre_s) if np.isfinite(r.strobe_s) else r.cue_s - pre_s
+        f0, f1 = DF.frame_of(tpl, t0 - pre_s, 0.0), DF.frame_of(tpl, r.stop_s + post_s, 0.0)
+        spans.append([max(0, f0), min(n_full, f1), DF.frame_of(tpl, r.cue_s, 0.0)])
+    for k in range(len(spans) - 1):
+        spans[k][1] = min(spans[k][1], spans[k + 1][0])
+    return [tuple(x) for x in spans]
+
+
 def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str, date: str, out: Path, rv,
                     pre_s: float = 0.5, post_s: float = 3.0, model: str = "DLC") -> int:
     """Whole-video predictions ``pose`` (n_frames, n_parts, 3) -> `session_poses`-format windows for EVERY trial
-    (position strobe - pre_s .. trial stop + post_s): windows_index.csv (trial_k, trial_id, position, src_frame,
-    t_ms, strobe_ms, stop_ms, stop_source) + windows_<model>.csv with the matching rows; the analyses then run
-    unchanged. Takes the runner's .npz ARRAY, not its CSV: exact, and no 2-million-row parse (and a CSV whose
-    first data row is empty would be misread by pandas' 3-row-header reader as an index-name row -- found
-    2026-10-02 while testing this with a NaN-padded file)."""
-    from wfield_local import dlc_frames as DF
+    (`trial_frame_spans`: position strobe - pre_s .. trial stop + post_s, cut at the next trial's start):
+    windows_index.csv (trial_k, trial_id, position, src_frame, t_ms, strobe_ms, stop_ms, stop_source) +
+    windows_<model>.csv with the matching rows; the analyses then run unchanged. Takes the runner's .npz ARRAY,
+    not its CSV: exact, and no 2-million-row parse (and a CSV whose first data row is empty would be misread by
+    pandas' 3-row-header reader as an index-name row -- found 2026-10-02 while testing this with a NaN-padded
+    file)."""
     from wfield_local import trial_windows as TW
     tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
     b = TW.trial_bounds(animal, date, rv)
     b = b[np.isfinite(b.cue_s) & np.isfinite(b.stop_s)].sort_values("cue_s").reset_index(drop=True)
-    n_full = len(pose)
     idx, rows = [], []
-    for k, r in enumerate(b.itertuples()):
-        t0 = min(r.strobe_s, r.cue_s - pre_s) if np.isfinite(r.strobe_s) else r.cue_s - pre_s
-        f0, f1 = DF.frame_of(tpl, t0 - pre_s, 0.0), DF.frame_of(tpl, r.stop_s + post_s, 0.0)
-        fc = DF.frame_of(tpl, r.cue_s, 0.0)
-        f0, f1 = max(0, f0), min(n_full, f1)
+    for k, (r, (f0, f1, fc)) in enumerate(zip(b.itertuples(), trial_frame_spans(b, tpl, len(pose), pre_s, post_s))):
         for f in range(f0, f1):
             idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
                         (r.stop_s - r.cue_s) * 1000.0, r.stop_source))

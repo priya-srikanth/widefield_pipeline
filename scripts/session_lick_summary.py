@@ -34,9 +34,9 @@ MIN_COV = 0.2       # phase points shown only where >= 20 % of licks show the to
 
 def session_tables(spec: str, rv):
     import scripts.pose_kinematics_demo as D
-    from scripts.session_poses import session_dir
+    from scripts.session_poses import read_index, session_dir
     animal, date, d = session_dir(rv, spec)
-    idx = pd.read_csv(d / "windows_index.csv")
+    idx = read_index(d)
     raw = oc.read_pose(d / "windows_DLC.csv").iloc[:len(idx)]
     spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0])) for _, g in idx.groupby("trial_k")]
     frame = SF.from_medians(SF.position_medians(raw[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans))

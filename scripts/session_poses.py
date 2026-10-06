@@ -59,6 +59,31 @@ def session_dir(rv, spec: str) -> tuple[str, str, Path]:
     return animal, date, dlc_project.project_dir(rv).parent / "session_poses" / name
 
 
+def read_index(d: Path) -> pd.DataFrame:
+    """A session_poses folder's windows_index.csv, reporting video frames that sit in two trials' windows.
+
+    Whole-session folders are cut at the next trial's start (`o2_inference.trial_frame_spans`, 2026-10-06), so they
+    have none; the 60-trial clips share a few (< 0.1 %) where two chosen trials are adjacent. Shared FRAMES are only
+    reported -- what must never happen is the same LICK counted under two trials (`assert_no_double_events`)."""
+    idx = pd.read_csv(d / "windows_index.csv")
+    n_dup = len(idx) - idx.src_frame.nunique()
+    if n_dup:
+        print(f"[session_poses] {d.name}: {n_dup} video frames ({n_dup / len(idx):.2%}) are in two trials' windows")
+    return idx
+
+
+def assert_no_double_events(t_s, trial_id, tol_s: float = 0.004, what: str = "events") -> None:
+    """Raise if one event (within ``tol_s``, one 250 fps frame) is listed under TWO different trials -- the
+    double count overlapping trial windows would cause (Priya, 2026-10-06)."""
+    t, tr = np.asarray(t_s, float), np.asarray(trial_id)
+    o = np.argsort(t, kind="stable")
+    t, tr = t[o], tr[o]
+    bad = (np.diff(t) <= tol_s) & (tr[1:] != tr[:-1])
+    if bad.any():
+        raise ValueError(f"{int(bad.sum())} {what} counted under two trials (first at {t[1:][bad][0]:.3f} s) -- "
+                         "overlapping trial windows; re-split the session (`o2_inference collect`)")
+
+
 def choose(b: pd.DataFrame, per_position: int) -> pd.DataFrame:
     """``per_position`` trials per spout position, spread over the session (evenly spaced in time order)."""
     b = b[np.isfinite(b.cue_s) & np.isfinite(b.stop_s)].sort_values("cue_s")

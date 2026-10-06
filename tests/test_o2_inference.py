@@ -109,3 +109,38 @@ def test_runner_matches_local_predictor_with_prior(tmp_path):
     out2 = runner.run_video(runner.load_bundle(tmp_path / "b"), vid, tmp_path / "out", batch=16, chunk=64,
                             max_frames=n)
     assert Path(out2).read_text() == Path(out).read_text()
+
+
+def _bounds(spans_s):
+    """Trial bounds with strobe / cue / stop in DAQ s (fs 1000 Hz, 250 fps, frame 0 = t 0)."""
+    return pd.DataFrame([{"trial_id": k + 1, "pos_name": "far_R", "strobe_s": a, "cue_s": c, "stop_s": z,
+                          "stop_source": "daq_trial_end"} for k, (a, c, z) in enumerate(spans_s)])
+
+
+_TPL = {"fs_daq": 1000.0, "fps_cam": 250.0, "slope_daqSample_per_camFrame": 4.0, "intercept_daqSample": 0.0}
+
+
+def test_trial_windows_are_cut_at_the_next_trials_start_so_no_frame_is_in_two_trials():
+    # stop + 3 s of trial 1 (13 s) runs past trial 2's strobe - 0.5 s window start (11.5 s)
+    b = _bounds([(2.0, 4.0, 10.0), (12.0, 14.0, 20.0), (30.0, 32.0, 38.0)])
+    sp = oi.trial_frame_spans(b, _TPL, n_full=100_000)
+    frames = np.concatenate([np.arange(f0, f1) for f0, f1, _ in sp])
+    assert len(frames) == len(np.unique(frames))
+    assert sp[0][1] == sp[1][0] == round(11.5 * 250)        # trial 1 ends exactly where trial 2 begins
+    assert sp[1][1] == round(23.0 * 250)                     # no neighbour inside -> stop + 3 s kept
+    assert sp[2][1] == round(41.0 * 250) and sp[0][0] == round(1.5 * 250)
+    assert [c for *_, c in sp] == [1000, 3500, 8000]
+
+
+def test_full_to_windows_writes_every_video_frame_at_most_once(tmp_path, monkeypatch):
+    from wfield_local import trial_windows as TW
+    tdir = tmp_path / "cam4" / "PSX"
+    tdir.mkdir(parents=True)
+    np.savez(tdir / "20260101.npz", **_TPL)
+    monkeypatch.setattr(TW, "trial_bounds", lambda *a, **k: _bounds([(2.0, 4.0, 10.0), (12.0, 14.0, 20.0)]))
+    pose = np.random.default_rng(0).random((8000, 4, 3))
+    oi.full_to_windows(pose, ["nose", "jaw", "tongue", "spout"], "DLC_x", "PSX", "20260101", tmp_path / "out",
+                       _RV(tmp_path))
+    idx = pd.read_csv(tmp_path / "out" / "windows_index.csv")
+    assert idx.src_frame.is_unique
+    assert idx.groupby("trial_k").src_frame.max().iloc[0] < idx.groupby("trial_k").src_frame.min().iloc[1]
