@@ -101,3 +101,71 @@ def video_frames(path: Path):
             yield im
     finally:
         cap.release()
+
+
+# --------------------------------------------------------------------------- parallel (Priya 2026-10-06)
+
+def _chunk_worker(path: str, bins: np.ndarray, out_path: str, f0: int, f1: int, ds: int) -> np.ndarray:
+    """Frames [f0, f1) of one video into the shared memmap (already created); decoding starts at f0 - 1 so frame
+    f0 has its predecessor. Chunk edges sit on imaging-bin changes, so no bin is split between workers. Returns
+    the bins this chunk filled. Seeking is frame-accurate on these FMP4 videos (checked 2026-10-06)."""
+    import cv2
+    mm = np.load(out_path, mmap_mode="r+")
+    filled = []
+    cap = cv2.VideoCapture(str(path))
+    start = max(f0 - 1, 0)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start)
+    prev, cur, acc, n_acc = None, -1, None, 0
+    for i in range(start, f1):
+        ok, im = cap.read()
+        if not ok:
+            break
+        f = downsample(im, ds)
+        if prev is not None and i >= f0 and bins[i] >= 0:
+            me = np.abs(f - prev).ravel()
+            b = int(bins[i])
+            if b != cur:
+                if cur >= 0 and n_acc:
+                    mm[cur] = acc / n_acc
+                    filled.append(cur)
+                cur, acc, n_acc = b, np.zeros_like(me), 0
+            acc += me
+            n_acc += 1
+        prev = f
+    if cur >= 0 and n_acc:
+        mm[cur] = acc / n_acc
+        filled.append(cur)
+    cap.release()
+    mm.flush()
+    return np.asarray(filled, int)
+
+
+def chunk_edges(bins: np.ndarray, n_chunks: int) -> list[tuple[int, int]]:
+    """[(f0, f1), ...] covering all frames, each edge moved forward to the next frame whose imaging bin differs
+    from its predecessor's (so a bin never straddles two chunks)."""
+    n = len(bins)
+    edges = [0]
+    for k in range(1, n_chunks):
+        e = max(int(round(k * n / n_chunks)), edges[-1] + 1)
+        while e < n and bins[e] == bins[e - 1]:
+            e += 1
+        if e < n and e > edges[-1]:
+            edges.append(e)
+    edges.append(n)
+    return list(zip(edges[:-1], edges[1:]))
+
+
+def binned_motion_energy_parallel(path: Path, bins: np.ndarray, n_bins: int, out_path: Path, ds: int = 8,
+                                  n_workers: int = 6) -> tuple[np.memmap, np.ndarray]:
+    """`binned_motion_energy` split over ``n_workers`` processes (each decodes its own frame range)."""
+    from concurrent.futures import ProcessPoolExecutor
+    first = downsample(next(video_frames(path)), ds)
+    mm = np.lib.format.open_memmap(out_path, mode="w+", dtype=np.float16, shape=(n_bins, first.size))
+    del mm
+    filled = np.zeros(n_bins, bool)
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futs = [ex.submit(_chunk_worker, str(path), bins, str(out_path), f0, f1, ds)
+                for f0, f1 in chunk_edges(bins, n_workers)]
+        for fu in futs:
+            filled[fu.result()] = True
+    return np.load(out_path, mmap_mode="r"), filled

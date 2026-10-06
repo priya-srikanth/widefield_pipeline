@@ -167,9 +167,11 @@ DEFAULTS: dict[str, Any] = td._deep_merge(td.DEFAULTS, {
     # then the distance (per-lick `y`, velocities = protrusion speed); geometry and angles keep image coords.
     # Needs a SpoutFrame and X0/Y0.
     "detect_on": "y",
-    # OURS: DAQ spout contact per lick (`contacts_ms`): a lick "has contact" if a contact onset lies within
-    # match_ms of its peak.
-    "contact": {"match_ms": 60.0},
+    # OURS: DAQ spout contact per lick (`contacts_ms`): match "peak" = a contact onset within match_ms of the
+    # lick's peak (first version); "span" = a contact onset inside the lick's own rise start .. fall end (+-
+    # span_pad_ms) -- Priya 2026-10-06: 65 / 83 "unmatched" PS93 0814 contacts were real licks touching the
+    # spout > 60 ms from the peak (retraction, second touch).
+    "contact": {"match_ms": 60.0, "match": "peak", "span_pad_ms": 8.0},
     # OURS: per-trial spout tip (median of confident frames, cue -> trial stop) for reach accuracy.
     "spout_ref": {"lk_thr": 0.6, "fallback_win_ms": [0.0, 3500.0]},
     "bout_table": {                                  # theirs: tongue_visual.bundle
@@ -1118,6 +1120,8 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
     sref = (trial_spout_reference(trials, spout_xy, fps, spout_frame, p=p).set_index("trial_id")
             if spout_xy is not None else None)
     match_ms = float(p["contact"]["match_ms"])
+    match_mode = p["contact"].get("match", "peak")
+    span_pad = float(p["contact"].get("span_pad_ms", 8.0))
 
     peak_pad_ms = float(p["detector"]["peak_pad_ms"])
     min_finite = int(p["detector"]["min_finite_samples_per_lick"])
@@ -1184,7 +1188,15 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
             lr_ = lick_rows[-1]
             if cts is not None:                                      # OURS: DAQ spout contact
                 dmin = float(np.min(np.abs(cts - lk["t_ms"]))) if len(cts) else np.inf
-                lr_["contact"] = bool(dmin <= match_ms)
+                if match_mode == "span" and np.isfinite(lk.get("rise_start_ms", np.nan))                         and np.isfinite(lk.get("fall_end_ms", np.nan)):
+                    # the detector's rise start / fall end are narrower than the physical lick: contacts land
+                    # ~28 ms before the peak, while the tongue still extends (PS93 0814) -> widen to peak -60 ..
+                    # +120 ms (extension + one retraction of a ~156 ms lick cycle)
+                    lo = min(lk["rise_start_ms"], lk["t_ms"] - 60.0) - span_pad
+                    hi = max(lk["fall_end_ms"], lk["t_ms"] + 120.0) + span_pad
+                    lr_["contact"] = bool(np.any((cts >= lo) & (cts <= hi)))
+                else:
+                    lr_["contact"] = bool(dmin <= match_ms)
                 lr_["contact_dist_ms"] = dmin
                 n_lick_contact += int(lr_["contact"])
             if sref is not None and "ap_px" in lk and tr.trial_id in sref.index:   # OURS: reach accuracy

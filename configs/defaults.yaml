@@ -1090,7 +1090,8 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
       min_coverage: 0.2                        # plots: hide phase points where < 20 % of licks show the tongue (generous, Priya 2026-10-02)
       extent_slack_px: 2.0
     detect_on: protrusion                      # OURS (Priya 2026-10-01): detect licks on the tongue-mouth distance (theirs: image y)
-    contact: {match_ms: 60.0}                  # OURS: DAQ spout contact per lick = a contact onset within 60 ms of the peak
+    contact: {match_ms: 60.0, match: span, span_pad_ms: 8.0}   # OURS: DAQ contact per lick = an onset inside the lick's
+                                               #   rise start .. fall end +-8 ms ("span", 2026-10-06; "peak" = within 60 ms of the peak)
     spout_ref: {lk_thr: 0.6, fallback_win_ms: [0.0, 3500.0]}   # OURS: per-trial spout tip = median cue -> stop (reach accuracy)
     preclean:
       high_thr_px: 130.0                       # px, OLD RIG -- retune  (== gates.d_y_thr_px by design)

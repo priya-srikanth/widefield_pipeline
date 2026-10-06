@@ -106,7 +106,7 @@ def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: floa
     from wfield_local import orofacial_clean as oc
     from wfield_local import spout_frame as SF
     from wfield_local import tongue_detect as td
-    from wfield_local import tongue_kinematics as tk
+    from wfield_local import contact_classes as CC
     from wfield_local import trial_windows as TW
     animal, date, d = session_dir(rv, spec or f"{animal}:{date}")
     idx = read_index(d)
@@ -146,23 +146,34 @@ def session_pieces(animal: str, date: str, rv, frame_times_s, min_reach_px: floa
     for _, g in idx.groupby("trial_k"):
         t0, t1 = MI.cam_frames_to_daq_s(tpl, [g.src_frame.min(), g.src_frame.max()])
         mask |= (ft >= t0) & (ft <= t1)
-    # DAQ contacts with no DLC lick peak within the contact-matching tolerance (the split-lick variant keeps them)
-    pk = np.sort(pl.trial_id.map(cue_of).to_numpy(float) + pl.t_ms.to_numpy(float) / 1000.0)
-    tol = float(tk.params()["contact"]["match_ms"]) / 1000.0
-    j = np.clip(np.searchsorted(pk, contact_s), 1, max(len(pk) - 1, 1))
-    near = np.minimum(np.abs(contact_s - pk[j - 1]), np.abs(contact_s - pk[np.minimum(j, len(pk) - 1)])) \
-        if len(pk) else np.full(len(contact_s), np.inf)
-    contact_unmatched_s = contact_s[near > tol]
+    # Each DAQ contact classified (`contact_classes`, Priya 2026-10-06): inside a kept lick's span = lick; else
+    # no_tongue / tongue_other; long touches without the tongue = grooming (widened periods)
+    cue_l = pl.trial_id.map(cue_of).to_numpy(float)
+    tongue_out_f = np.asarray(sig["tongue_protrusion"], float) > float(sig["lip_px"]) + float(CC.params()["tongue_out_px"])
+    try:
+        dur = CC.session_durations(animal, date, contact_s, rv)
+    except (IndexError, OSError, KeyError):
+        dur = np.full(len(contact_s), np.nan)
+    pk_l = cue_l + pl.t_ms.to_numpy(float) / 1000.0         # lick window as `tongue_kinematics` contact "span"
+    lo_l = np.fmin(cue_l + pl.rise_start_ms.to_numpy(float) / 1000.0, pk_l - 0.060)
+    hi_l = np.fmax(cue_l + pl.fall_end_ms.to_numpy(float) / 1000.0, pk_l + 0.120)
+    ctab = CC.classify(contact_s, dur, lo_l, hi_l, vt, tongue_out_f)
+    groom = CC.grooming_periods(ctab)
+    contact_unmatched_s = ctab.t_s[ctab["class"] != "lick"].to_numpy()
     info = {"n_licks": len(pl), "n_dir_licks": int(np.isfinite(dev).sum()), "n_contacts": len(contact_s),
             "n_trials": len(trials), "n_licks_contact": int(pl.contact.astype(bool).sum()),
-            "n_contacts_unmatched": len(contact_unmatched_s)}
+            "n_contacts_unmatched": len(contact_unmatched_s),
+            "contact_classes": ctab["class"].value_counts().to_dict(), "n_grooming_periods": len(groom)}
     licks = pd.DataFrame({"on_s": on_s, "trial_id": pl.trial_id.to_numpy(), "position": pl.position.to_numpy(),
                           "cue_s": pl.trial_id.map(cue_of).to_numpy(float),
                           "peak_s": pl.trial_id.map(cue_of).to_numpy(float) + pl.t_ms.to_numpy(float) / 1000.0,
                           "contact": pl.contact.to_numpy(), "reach_ok": reach_ok,
                           "angle": LR.peak_angle(pl).to_numpy(float), "dev": pl.dev_session_deg.to_numpy(float),
                           "angle_dir": ang, "dev_dir": dev})
+    licks["grooming"] = CC.in_spans(licks.on_s.to_numpy(), np.array([g[0] for g in groom]),
+                                    np.array([g[1] for g in groom])) if groom else False
     return {"trials": trials, "contact_s": contact_s, "contact_unmatched_s": contact_unmatched_s, "licks": licks,
+            "contacts": ctab, "grooming_periods": groom,
             "sig": sig, "vt": vt, "mask": mask,
             "trial_starts_s": trials.cue_s.to_numpy(float) - 0.5, "info": info}
 

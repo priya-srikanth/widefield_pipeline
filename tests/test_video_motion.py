@@ -38,3 +38,29 @@ def test_motion_energy_and_svd_find_the_moving_patch(tmp_path):
     assert np.argmax(comp) == 0 and comp[0, 0] > 3 * comp[2:, 2:].max()
     env = amp.reshape(-1, 8).mean(1)
     assert abs(np.corrcoef(res["timecourses"][1:, 0], env[1:])[0, 1]) > 0.95
+
+
+def test_parallel_motion_energy_equals_the_sequential_pass(tmp_path):
+    import cv2
+    rng = np.random.default_rng(1)
+    vid = tmp_path / "v.avi"
+    wr = cv2.VideoWriter(str(vid), cv2.VideoWriter_fourcc(*"FFV1"), 250.0, (32, 32))
+    frames = []
+    for _ in range(400):
+        im = np.full((32, 32, 3), 40, np.uint8)
+        im[:8, :8] = rng.integers(0, 200)
+        frames.append(im)
+        wr.write(im)
+    wr.release()
+    bins = np.arange(400) // 8
+    bins[:5] = -1
+    seq, fs = VM.binned_motion_energy(VM.video_frames(vid), bins, 50, tmp_path / "a.npy", ds=8, progress_every=0)
+    par, fp = VM.binned_motion_energy_parallel(vid, bins, 50, tmp_path / "b.npy", ds=8, n_workers=3)
+    assert np.array_equal(fs, fp)
+    assert np.allclose(np.asarray(seq, float)[fs], np.asarray(par, float)[fp])
+
+
+def test_chunk_edges_never_split_a_bin():
+    bins = np.repeat(np.arange(10), 7)
+    for f0, _f1 in VM.chunk_edges(bins, 4):
+        assert f0 == 0 or bins[f0] != bins[f0 - 1]
