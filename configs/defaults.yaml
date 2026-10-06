@@ -1107,8 +1107,11 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
       flat_min_y_px: 30.0                      # px, OLD RIG -- retune
       x_abs_max_px: 110.0                      # px, OLD RIG -- retune
       x_pchip_extend_ms: 40.0
-      x_jump_thr_px: 30.0                      # px, OLD RIG -- retune
+      x_jump_thr_px: 20.0                      # px, RETUNED 2026-10-06 on this rig (both-flank deviation p99.9 21 px)
       x_flank_max_distance: 5                  # frames
+      x_jump_mode: swap                        # OURS (Priya 2026-10-06): direction-agnostic tip swaps across the
+                                               #   straddled spout, x-only re-interpolation (theirs: "snapback", x+y wipe)
+      x_swap_max_frames: 3                     # frames
     detector:
       slope_thr_px_per_s: 250.0                # px, OLD RIG -- retune  (px/s)
       rise_min_ms: 16.0

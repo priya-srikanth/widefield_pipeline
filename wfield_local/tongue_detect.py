@@ -77,6 +77,10 @@ DEFAULTS: dict[str, Any] = {
         "x_pchip_extend_ms": 40.0,
         "x_jump_thr_px": 30.0,            # px, OLD RIG -- retune   (Rule 4)
         "x_flank_max_distance": 5,        # frames (250 fps)
+        # Rule 4 mode: "snapback" = theirs (single frame jumping >thr toward the rest x -> x AND y wiped);
+        # "swap" = OURS, retuned 2026-10-06 (direction-agnostic burst of <= x_swap_max_frames, x-only re-PCHIP)
+        "x_jump_mode": "snapback",
+        "x_swap_max_frames": 3,
     },
     "detector": {
         "slope_thr_px_per_s": 250.0,      # px, OLD RIG -- retune   (px/s)
@@ -177,7 +181,8 @@ class PrecleanDiagnostics:
     n_frame_outliers: int = 0        # Step 1b single-frame y outliers
     n_pchip_extended: int = 0        # Step 1d PCHIP-extend frames
     n_x_hard_outliers: int = 0       # Rule 3
-    n_x_joint_outliers: int = 0      # Rule 4
+    n_x_joint_outliers: int = 0      # Rule 4 (snapback mode)
+    n_x_swaps: int = 0               # Rule 4 (swap mode): frames whose x was re-interpolated, y kept
     n_x_pchip_extended: int = 0      # Rule 3 PCHIP-extend
     x0_baseline_fill: float = 0.0    # Rule 1
 
@@ -223,7 +228,7 @@ def preclean_trace(y, x, is_interp_fill, is_baseline_fill, n_frames, fps, *, par
     n_interp_wiped = _wipe_bracketed_interp(y_clean, is_interp_fill, is_base_clean, n_frames)
 
     # X-side (Rules 1-4)
-    x_clean, x_hard, x_joint, x_extend, is_base_aug, x0 = _clean_x_trace(
+    x_clean, x_hard, x_joint, x_extend, is_base_aug, x0, x_swap = _clean_x_trace(
         x, is_interp_fill, is_base_clean, is_baseline_fill, n_frames, fps, params=params)
 
     # Rule 4: at joint x+y outlier frames ALSO wipe y, so the detector runs on the joint-cleaned trace.
@@ -236,7 +241,7 @@ def preclean_trace(y, x, is_interp_fill, is_baseline_fill, n_frames, fps, *, par
         clusters=clusters, n_artifact_clusters=len(arts), n_artifact_frames=sum(c.length for c in arts),
         n_interp_wiped=n_interp_wiped, n_frame_outliers=n_frame_outliers, n_pchip_extended=n_pchip_extended,
         n_x_hard_outliers=int(x_hard.sum()), n_x_joint_outliers=int(x_joint.sum()),
-        n_x_pchip_extended=int(x_extend.sum()), x0_baseline_fill=x0)
+        n_x_pchip_extended=int(x_extend.sum()), x0_baseline_fill=x0, n_x_swaps=int(x_swap.sum()))
     return y_clean, x_clean, is_base_clean, diag
 
 
@@ -435,8 +440,46 @@ def _find_x_isolated_jumps(x, is_interp_fill, is_baseline_fill_clean, n_frames, 
     return flag
 
 
+def _find_x_swaps(x, raw_mask, n_frames, *, params):
+    """Rule 4, retuned for the mobile-spout rig (OURS, Priya 2026-10-06): a burst of 1..x_swap_max_frames raw
+    frames whose x sits more than x_jump_thr_px from BOTH nearest raw flanks, while the flanks agree with each
+    other (within the same threshold) -- in EITHER direction. On this rig the tongue straddles the spout on
+    licks, and DLC's tip can hop to the lobe on the other side of the spout for a frame or two (2026-10-06, PS93
+    0814 trial 30: 29 px for one frame, at the lick's peak). Theirs flagged only single frames jumping TOWARD the
+    rest x and wiped x AND y; a swap's distance from the mouth is real, so only x is re-interpolated. Threshold
+    from the rig's data: among frames whose flanks agree, the both-flank deviation is p99 14 px, p99.9 21 px."""
+    thr = float(params["x_jump_thr_px"])
+    max_flank = int(params["x_flank_max_distance"])
+    max_burst = int(params.get("x_swap_max_frames", 3))
+    raw_idx = np.flatnonzero(raw_mask)
+    flag = np.zeros(n_frames, dtype=bool)
+    for k0, i in enumerate(raw_idx):
+        if flag[i] or k0 == 0:
+            continue
+        left = raw_idx[k0 - 1]
+        if i - left > max_flank:
+            continue
+        for L in range(1, max_burst + 1):
+            k1 = k0 + L
+            if k1 >= len(raw_idx):
+                break
+            right = raw_idx[k1]
+            burst = raw_idx[k0:k1]
+            if right - burst[-1] > max_flank or np.any(np.diff(burst) > max_flank):
+                break
+            xl, xr = float(x[left]), float(x[right])
+            if abs(xl - xr) > thr:
+                continue
+            xb = x[burst]
+            if np.all(np.abs(xb - xl) > thr) and np.all(np.abs(xb - xr) > thr):
+                flag[burst] = True
+                break
+    return flag
+
+
 def _clean_x_trace(x, is_interp_fill, is_baseline_fill_clean, is_baseline_fill_orig, n_frames, fps, *, params):
-    """x-side Rules 1-4. Returns (x_clean, hard_mask, joint_mask, extend_mask, is_base_clean_augmented, x0)."""
+    """x-side Rules 1-4. Returns (x_clean, hard_mask, joint_mask, extend_mask, is_base_clean_augmented, x0,
+    swap_mask); Rule 4 per ``x_jump_mode`` (joint_mask in "snapback", swap_mask in "swap" -- the other empty)."""
     x_abs_max = float(params["x_abs_max_px"])
     pchip_extend = max(2, int(round(float(params["x_pchip_extend_ms"]) / 1000.0 * fps)))
 
@@ -445,8 +488,13 @@ def _clean_x_trace(x, is_interp_fill, is_baseline_fill_clean, is_baseline_fill_o
     raw_mask = (~is_interp_fill) & (~is_baseline_fill_clean) & np.isfinite(x)
 
     x_hard = raw_mask & (np.abs(x) > x_abs_max)                       # Rule 3
-    x_joint = _find_x_isolated_jumps(x, is_interp_fill, is_baseline_fill_clean, n_frames, x0, params=params)
-    x_joint &= ~x_hard
+    if params.get("x_jump_mode", "snapback") == "swap":
+        x_joint = np.zeros(n_frames, dtype=bool)
+        x_swap = _find_x_swaps(x, raw_mask & ~x_hard, n_frames, params=params)
+    else:
+        x_joint = _find_x_isolated_jumps(x, is_interp_fill, is_baseline_fill_clean, n_frames, x0, params=params)
+        x_joint &= ~x_hard
+        x_swap = np.zeros(n_frames, dtype=bool)
 
     # PCHIP-extend for HARD outliers only (a joint outlier is a brief burst; its neighbours are not tainted).
     # NB as in theirs this mask is only COUNTED -- the extended frames are re-PCHIP'd below because they are
@@ -464,7 +512,7 @@ def _clean_x_trace(x, is_interp_fill, is_baseline_fill_clean, is_baseline_fill_o
             k += 1
             cnt += 1
 
-    anchor_mask = raw_mask & (~x_hard) & (~x_joint)
+    anchor_mask = raw_mask & (~x_hard) & (~x_joint) & (~x_swap)
     anchor_idx = np.where(anchor_mask)[0]
     x_clean = np.full(n_frames, np.nan, dtype=np.float64)
     x_clean[anchor_idx] = x[anchor_idx]
@@ -475,7 +523,7 @@ def _clean_x_trace(x, is_interp_fill, is_baseline_fill_clean, is_baseline_fill_o
 
     if len(anchor_idx) >= 4:
         pchip = PchipInterpolator(anchor_idx.astype(float), x[anchor_idx], extrapolate=False)
-        interp_mask = (is_interp_fill & (~is_baseline_fill_clean)) | x_hard | x_joint
+        interp_mask = (is_interp_fill & (~is_baseline_fill_clean)) | x_hard | x_joint | x_swap
         idx = np.where(interp_mask)[0]
         if len(idx):
             vals = pchip(idx.astype(float))
@@ -483,7 +531,7 @@ def _clean_x_trace(x, is_interp_fill, is_baseline_fill_clean, is_baseline_fill_o
             x_clean[idx[fin]] = vals[fin]
     # Frames that end up NaN here (hard/joint outliers outside the anchor span, or < 4 anchors) stay NaN, as
     # in theirs.
-    return x_clean, x_hard, x_joint, x_extend, is_base_aug, x0
+    return x_clean, x_hard, x_joint, x_extend, is_base_aug, x0, x_swap
 
 
 # =========================================================================== slope detector (_detector.py)

@@ -440,3 +440,45 @@ def test_parity_preclean_detect_gates(source, seed):
                     for k in ("new_peak_y", "new_peak_x", "new_peak_frame", "outlier_lo", "outlier_hi"):
                         _eq(ra[k], rb[k])
                     _eq(ra["interp_y"], rb["interp_y"])
+
+
+# --------------------------------------------------------------------------- Rule 4, retuned (swap mode)
+
+def _swap_params():
+    return P(preclean={"x_jump_mode": "swap", "x_jump_thr_px": 20.0})["preclean"]
+
+
+def test_swap_rule_reinterpolates_a_one_frame_tip_hop_in_either_direction():
+    x = np.full(40, -30.0)
+    x[10] = -1.0          # hops 29 px to the other side of the spout (PS93 0814 trial 30)
+    x[25] = -60.0         # and one AWAY from the midline -- theirs (toward rest only) would miss it
+    raw = np.ones(40, bool)
+    f = td._find_x_swaps(x, raw, 40, params=_swap_params())
+    assert list(np.flatnonzero(f)) == [10, 25]
+
+
+def test_swap_rule_catches_short_bursts_but_not_real_lateral_motion():
+    x = np.full(40, -30.0)
+    x[10:12] = 0.0                                   # a 2-frame hop -> flagged
+    x[20:40] = -30.0 + np.arange(20) * 4.0           # a steady 4 px/frame sweep (real motion) -> not flagged
+    raw = np.ones(40, bool)
+    f = td._find_x_swaps(x, raw, 40, params=_swap_params())
+    assert list(np.flatnonzero(f)) == [10, 11]
+
+
+def test_swap_mode_keeps_y_and_interpolates_x():
+    n = 60
+    x = np.full(n, -30.0)
+    x[30] = 0.0
+    is_interp = np.zeros(n, bool)
+    is_base = np.zeros(n, bool)
+    is_base[:5] = True
+    out = td._clean_x_trace(x, is_interp, is_base, is_base.copy(), n, 250.0, params=_swap_params())
+    x_clean, x_hard, x_joint, _ext, is_base_aug, _x0, x_swap = out
+    assert x_swap[30] and not x_joint.any()
+    assert abs(x_clean[30] + 30.0) < 1e-6           # re-interpolated from its neighbours
+    assert not is_base_aug[30]                      # y NOT wiped (the distance from the mouth is real)
+
+
+def test_default_mode_is_theirs_for_parity():
+    assert td.DEFAULTS["preclean"]["x_jump_mode"] == "snapback"
