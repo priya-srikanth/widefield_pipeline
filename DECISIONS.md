@@ -19488,3 +19488,21 @@ windowed rate). Summaries overwritten by the runs were backed up to `session_pos
   / SSp-n; position kernels gain 2-3x more than angle kernels. Small; re-test with more perms and on post sessions.
 * **Template-match readout test NOT run**: it needs whole pre AND post sessions (only 0814 exists). Waits for the
   production O2 run (or an exploratory, labelled, pre-full vs post-windowed run if Priya asks).
+
+**Addendum (2026-10-06, afternoon) — windows cut at the next trial's start; 200-shuffle rerun; lick-aligned view.**
+Priya: "just cut at the next trial's start" -> `o2_inference.trial_frame_spans` (strobe - 0.5 s .. stop + 3 s, cut at
+the next trial's start; the post-stop tail is kept because licking continues after the trial ends); guards
+`session_poses.read_index` (reports shared frames; the 60-trial clips share < 0.1 % where chosen trials are adjacent)
+and `assert_no_double_events` (refuses a lick listed under two trials), with tests. PS93 0814 re-split: 0 shared
+frames, the same 5,282 licks / 3,978 contacts; every number above reproduces to the 4th decimal (the overlap was
+harmless here). 200 shuffles: residual position-specific p < 0.005 in all 8 areas; angle beyond position p < 0.005
+MOs_R, SSp-m_L, SSp-m_R, p = 0.01 MOs_L / SSp-n_L, p = 0.04 MOp_L, n.s. MOp_R / SSp-n_R (effects +0.0001..+0.0015).
+Far spouts lack the cue-locked residual transient: first-lick peak 450-930 ms after the cue with a ~0.6-1.0 s
+spread (close 180-200 ms, ~50 ms), so cue averages smear them; lick-peak-aligned (`scripts/residual_lick_aligned.py`,
+descriptive), far licks show an SSp DIP at the lick and a slow ramp, close licks the positive transient (close_L in
+right SSp-m, close_R in left). The movement model has ONE shared lick kernel, so the residual is each position's
+lick response relative to the average lick -- part of "position-specific" is likely position-specific SENSORY
+feedback (close spouts: ~5 contacts in the first s vs 1-3 far; touch on the side of the tongue). Candidate next
+step (not run): contact count / force per position in the movement model. Lick kernels by target position beat
+executed-angle bins in every area (e.g. MOp_L +0.030 vs +0.015); angle-bin kernels largely re-sort the position
+kernels pre-stroke.
