@@ -616,16 +616,17 @@ def _fig_root():
 
 
 def _day(animal, mmdd):
-    """Days from that animal's OWN lesion date. Negative = pre-stroke.
+    """Days from that animal's OWN lesion date (a CALENDAR difference). Negative = pre-stroke.
 
     `config.stroke_date` returns MMDD ('0817'), not YYYYMMDD -- taking it for the longer form
-    silently yields an empty slice and an int() crash. Month*31 is a within-year ordering, not a
-    calendar difference; it is monotone and that is all the x-axis needs, but do not read a gap of
-    "31" as a month.
+    silently yields an empty slice and an int() crash. This used to be a month*31 ORDERING, which
+    agreed with `epochs.days_since_stroke` only while every post-stroke session sat in August; the
+    first October sessions (1001 onward, 2026-10-07) put it one day late per 30-day month crossed,
+    and `epoch_figures.epoch_of_day` reads these day numbers for epoch membership. Now the same
+    calendar arithmetic as `epochs.days_since_stroke` (`tests/test_epoch_figures.py` guards it).
     """
-    def ord_(s):
-        return int(s[:2]) * 31 + int(s[2:])
-    return ord_(mmdd) - ord_(str(config.stroke_date(animal)))
+    from wfield_local import epochs
+    return (epochs._date(mmdd) - epochs._date(str(config.stroke_date(animal)))).days
 
 
 def _sessions(animal, phases=("pre", "post")):
@@ -1407,7 +1408,7 @@ def _impaired(an, thresh=0.5, min_n=10):
     HAD one.
     """
     worst = {}
-    for mmdd, _day_ in _sessions(an, phases=("post",)):
+    for mmdd, _d in _sessions(an, phases=("post",)):
         for pos, (hr, _lo, _hi, n) in _position_metrics(an, mmdd).items():
             if n >= min_n:
                 worst[pos] = min(worst.get(pos, 1.0), hr)

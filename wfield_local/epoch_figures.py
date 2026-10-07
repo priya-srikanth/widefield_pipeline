@@ -28,10 +28,10 @@ QUARTER PAGE IS A SIZE CONSTRAINT ON TYPE, NOT ON INCHES. What a reader sees is
 inches with LARGE fonts -- the opposite of the instinct, and the same measurement that drove
 `coding_cross_` from 22.7in to 10.8in.
 
-DAYS COME FROM `epochs.days_since_stroke`, not from `grant_figures._day`. The two agree for this
-cohort and are not the same function: `_day` is month*31 ordering, exact only while every date sits
-in a 31-day month, and its own docstring says so. `tests/test_epoch_figures.py` asserts they still
-agree, so a September session divides them loudly rather than silently moving an epoch boundary.
+DAYS COME FROM `epochs.days_since_stroke`, not from `grant_figures._day`. They are now the same calendar
+arithmetic: `_day` was a month*31 ordering until 2026-10-07, when the first October sessions put it one
+day late (the guard below caught it). `tests/test_epoch_figures.py` asserts they agree, so any future
+divergence fails loudly rather than silently moving an epoch boundary.
 """
 from __future__ import annotations
 
