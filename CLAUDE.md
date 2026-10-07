@@ -344,6 +344,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md`](docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md)**
+— **START HERE, newest.** Movement-removed position coding (video + running regressors; ENL decoding survives
+movement removal as a lower bound), the Hasnain et al. 2025 movement-null/potent subspace analysis (in progress),
+the multi-view LP pilot (arm a done, arm b training), cohort registration through 10/6, and all lines of
+investigation with what is running, pending and to-do.
+
 **[`docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md)**
 — **START HERE for the imaging x movement analyses and orofacial cleaning, newest.** First whole-session (O2)
 analyses on PS93 0814, windows cut at the next trial, smooth kernels / split licks, retuned Rule 4 (tip swaps

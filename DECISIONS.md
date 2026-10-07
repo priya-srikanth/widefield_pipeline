@@ -19562,3 +19562,16 @@ apparatus routes are occlusion / contrast by a stationary rod. Reading (Priya): 
 surviving 0.26-0.30 is a LOWER BOUND -- a pre-cue, lick-free position code beyond tongue / jaw / running / all
 four cameras. Caveats: one session; linear removal. Proposed next: the same ENL decode across sessions and epochs
 with a running + video movement model (DLC adds ~nothing in the lick-free ENL, so no whole-session DLC needed).
+
+**Addendum (2026-10-07, evening) — movement-null / movement-potent subspaces per Hasnain et al. 2025.** Priya
+supplied the Methods of Hasnain, Birnbaum, ..., Chandrasekaran & Economo (2025, Nat Neurosci). Implemented as
+`wfield_local/motion_state.py` (stationarity from motion energy: per pixel |median next 3 - median previous 3|
+frames at 250 fps, 99th percentile per frame, per-session valley threshold -- automatic with a figure + config
+override, theirs manual; DAQ licks / running also moving; 0.3 s post-movement buffer excluded) and
+`wfield_local/null_potent.py` (their joint normalised-variance objective with orthogonality, Stiefel gradient ascent
+in place of manopt, d = min(N/2, 20); two-stage PCA control; parallel analysis), runner
+`scripts/null_potent_session.py` (position decoding from X Q Q' reconstructions, ENL and post-cue). Preferred over
+the regression-based residual / top-k removal because it needs no clean video regressors (occlusion / contrast
+cannot leak position into the subspace definition) and is label-free. Running stage 1 on PS93 0814; thresholds to
+be checked by Priya before the cohort run. Also queued: FaceRhythm (bioRxiv 10.1101/2025.09.10.675423) as an
+alternative video representation. Handoff: `docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md`.
