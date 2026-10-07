@@ -19548,3 +19548,17 @@ DLC-only movement model. Rerun it, pre-registered settings unchanged (baseline p
 version with the full movement model (DLC + running + video), alongside the raw one; (5) angle = at peak
 protrusion, straddled-spout licks flagged and reported with / without. Report per animal and pooled, all
 variants run.
+
+**Addendum (2026-10-07, afternoon) — ENL (pre-cue) position code survives movement removal (PS93 0814).**
+`scripts/enl_movement_removed_decode.py`: the project's ENL decoder (2 s lick-free window ending at the cue, 4 bins,
+engaged trials, block CV, logistic C 0.5), fed raw vs cross-fitted movement residuals. Accuracy (chance ~0.17, all
+p = 0.001): raw 0.40 (SSp 0.43, MO 0.32); - DLC 0.38; - DLC + running 0.38; - DLC + running + video 0.26 (SSp 0.30,
+MO 0.25). Video + running alone decode position 0.96 in the ENL. `scripts/enl_video_spout_check.py`: per camera,
+unmasked ENL motion energy decodes cam1 0.92 / cam4 0.94 (face) and cam2 / cam3 0.46 (body, spout barely in view);
+flat across the four 0.5 s bins (no post-strobe settling transient). Data-driven spout masks FAILED (mean-frame
+position differences are posture + block-time drift, covering 30-55 % of pixels; the per-position mask leaked
+position, cam2/3 0.46 -> 0.76-0.80, as predicted). Priya: a static spout makes ~no motion energy; remaining
+apparatus routes are occlusion / contrast by a stationary rod. Reading (Priya): if the video over-removes, the
+surviving 0.26-0.30 is a LOWER BOUND -- a pre-cue, lick-free position code beyond tongue / jaw / running / all
+four cameras. Caveats: one session; linear removal. Proposed next: the same ENL decode across sessions and epochs
+with a running + video movement model (DLC adds ~nothing in the lick-free ENL, so no whole-session DLC needed).
